@@ -120,7 +120,10 @@ public final class BrowserBenchmark {
     final BrowserOptions local = BrowserOptions.builder().privateNetworks(true).build();
     return switch (backend) {
       case "jcef" -> () -> BrowserPlayer.create(local);
-      default -> throw new IllegalArgumentException("Unknown backend " + backend);
+      default -> {
+        final String message = "Backend %s is unknown!".formatted(backend);
+        throw new IllegalArgumentException(message);
+      }
     };
   }
 

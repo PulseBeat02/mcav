@@ -96,7 +96,7 @@ public final class MapUtils {
    * @throws IllegalStateException if the requested historical map is missing and its id cannot be allocated again
    */
   public static ItemStack getMapFromID(final int id) {
-    Preconditions.checkArgument(id >= 0, "Map id must not be negative: %s", id);
+    Preconditions.checkArgument(id >= 0, "Map id %s must not be negative!", id);
     final ItemStack map = createMapItemStack(id);
     final ItemMeta nullableMeta = map.getItemMeta();
     final ItemMeta itemMeta = requireNonNull(nullableMeta);
@@ -145,7 +145,7 @@ public final class MapUtils {
     final long missing = (long) id - currentId;
     Preconditions.checkArgument(
       missing <= MAX_NEW_MAPS,
-      "Map id %s is more than %s ids past the next map id %s",
+      "Map id %s is more than %s ids past %s, the next map id!",
       id,
       MAX_NEW_MAPS,
       currentId
@@ -154,7 +154,7 @@ public final class MapUtils {
       created = Bukkit.createMap(world);
       currentId = created.getId();
     }
-    Preconditions.checkState(currentId == id, "Map id %s is unavailable; the server allocated %s", id, currentId);
+    Preconditions.checkState(currentId == id, "Map id %s is unavailable, because the server allocated %s instead!", id, currentId);
     return created;
   }
 
@@ -187,12 +187,12 @@ public final class MapUtils {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
     Preconditions.checkNotNull(location, "Location must not be null!");
     Preconditions.checkNotNull(material, "Material must not be null!");
-    Preconditions.checkArgument(width > 0, "Width must be positive: %s", width);
-    Preconditions.checkArgument(height > 0, "Height must be positive: %s", height);
-    Preconditions.checkArgument(map >= 0, "Map id must not be negative: %s", map);
+    Preconditions.checkArgument(width > 0, "Width %s must be positive!", width);
+    Preconditions.checkArgument(height > 0, "Height %s must be positive!", height);
+    Preconditions.checkArgument(map >= 0, "Map id %s must not be negative!", map);
     final long count = (long) width * height;
     final long lastMap = map + count - 1;
-    Preconditions.checkArgument(lastMap <= Integer.MAX_VALUE, "Screen map ids exceed the integer range: %s", lastMap);
+    Preconditions.checkArgument(lastMap <= Integer.MAX_VALUE, "Last screen map id %s exceeds the integer range!", lastMap);
 
     final BlockFace face = sender instanceof final Player player ? player.getFacing() : BlockFace.NORTH;
     final boolean alongX = face == BlockFace.NORTH || face == BlockFace.SOUTH;

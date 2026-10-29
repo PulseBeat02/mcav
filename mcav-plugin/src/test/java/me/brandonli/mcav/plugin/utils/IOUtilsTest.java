@@ -69,7 +69,8 @@ final class IOUtilsTest {
 
   private static void openAndClose(final String path) throws IOException {
     try (final InputStream stream = IOUtils.getResourceAsStream(path)) {
-      fail("opened " + path + " as " + stream);
+      final String message = "Path %s opened as %s, but it must not open!".formatted(path, stream);
+      fail(message);
     }
   }
 
@@ -77,7 +78,7 @@ final class IOUtilsTest {
   void shouldFailForMissingResources() {
     final NullPointerException exception = assertThrows(NullPointerException.class, () -> openAndClose("missing.yml"));
     final String message = exception.getMessage();
-    assertEquals("missing.yml", message);
+    assertEquals("Resource missing.yml does not exist!", message);
   }
 
   @Test

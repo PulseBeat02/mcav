@@ -62,7 +62,8 @@ public final class IOUtils {
 
     final InputStream stream = loader.getResourceAsStream(path);
     if (stream == null) {
-      throw new NullPointerException(path);
+      final String message = "Resource %s does not exist!".formatted(path);
+      throw new NullPointerException(message);
     }
     return stream;
   }

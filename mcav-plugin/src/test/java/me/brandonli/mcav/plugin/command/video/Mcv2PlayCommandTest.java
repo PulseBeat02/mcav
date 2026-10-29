@@ -330,7 +330,7 @@ final class Mcv2PlayCommandTest {
       this.command.stream(this.sender, this.selector, "5x3", 20, 60, this.streams.resolve("missing.mcs").toString());
       this.runHandedOver();
       verify(this.sender, Mockito.times(3)).sendMessage(any(Component.class));
-      verify(this.sender).sendMessage(Message.MCV2_FILE_ERROR.build("Not a stream file: missing.mcs"));
+      verify(this.sender).sendMessage(Message.MCV2_FILE_ERROR.build("File missing.mcs is not a stream file!"));
     }
   }
 
@@ -361,7 +361,7 @@ final class Mcv2PlayCommandTest {
 
     final List<Component> expected = List.of(
       Message.UNSUPPORTED_DIMENSION.build(),
-      Message.MCV2_FILE_ERROR.build("Not a stream file: missing.mcs"),
+      Message.MCV2_FILE_ERROR.build("File missing.mcs is not a stream file!"),
       Message.MCV2_FILE_ERROR.build("Not an MCV2 frame!")
     );
     final List<Component> allValues = messages.getAllValues();
@@ -984,7 +984,7 @@ final class Mcv2PlayCommandTest {
     final int size = told.size();
     assertEquals(3, size);
 
-    final String refusal = "Stream files are kept in " + folder + ", and ../../escape.mcs is not a file in it";
+    final String refusal = "Stream file ../../escape.mcs is not a file in " + folder + ", where stream files are kept!";
 
     final String thirdExpected = text(Message.MCV2_ENCODE_ERROR.build(refusal));
     final String toldTold = told.get(2);
@@ -1034,12 +1034,12 @@ final class Mcv2PlayCommandTest {
     final String thirdMessage = assertThrows(IOException.class, () -> Mcv2PlayCommand.read(empty)).getMessage();
     assertEquals("Empty stream!", thirdMessage);
 
-    final String secondExpected = "Not a stream file: " + this.folder.getFileName();
+    final String secondExpected = "File " + this.folder.getFileName() + " is not a stream file!";
     final String fourthMessage = assertThrows(IOException.class, () -> Mcv2PlayCommand.read(this.folder)).getMessage();
     assertEquals(secondExpected, fourthMessage);
 
     final String fifthMessage = assertThrows(IOException.class, () -> Mcv2PlayCommand.read(truncatedFrame, 4)).getMessage();
-    assertEquals("The stream file is larger than 4 bytes", fifthMessage);
+    assertEquals("The stream file is larger than 4 bytes!", fifthMessage);
 
     final byte[] shortest = record(Mcv2Decoder.HEADER_BYTES);
 
@@ -1061,17 +1061,17 @@ final class Mcv2PlayCommandTest {
     final Path tiny = Files.write(this.folder.resolve("g.mcs"), new byte[] { 1, 0, 0, 0, 7 });
 
     final String eighthMessage = assertThrows(IOException.class, () -> Mcv2PlayCommand.read(tiny)).getMessage();
-    assertEquals("Invalid MCV2 frame length: 1", eighthMessage);
+    assertEquals("MCV2 frame length 1 is invalid!", eighthMessage);
 
     final Path empties = Files.write(this.folder.resolve("i.mcs"), concat(shortest, new byte[] { 0, 0, 0, 0 }));
 
     final String ninthMessage = assertThrows(IOException.class, () -> Mcv2PlayCommand.read(empties)).getMessage();
-    assertEquals("Invalid MCV2 frame length: 0", ninthMessage);
+    assertEquals("MCV2 frame length 0 is invalid!", ninthMessage);
 
     final Path huge = Files.write(this.folder.resolve("j.mcs"), record(Mcv2Decoder.MAXIMUM_FRAME_BYTES + 1));
 
     final String tenthMessage = assertThrows(IOException.class, () -> Mcv2PlayCommand.read(huge)).getMessage();
-    assertEquals("Invalid MCV2 frame length: " + (Mcv2Decoder.MAXIMUM_FRAME_BYTES + 1), tenthMessage);
+    assertEquals("MCV2 frame length " + (Mcv2Decoder.MAXIMUM_FRAME_BYTES + 1) + " is invalid!", tenthMessage);
 
     final byte[] longest = record(Mcv2Decoder.MAXIMUM_FRAME_BYTES);
 

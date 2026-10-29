@@ -187,7 +187,10 @@ final class QemuHardwareValues {
       case "cpu" -> checkCpu(value, first, rest);
       case "k" -> require(name, value, parts.size() == 1 && KEYBOARD.matcher(value).matches());
       case "vga" -> require(name, value, parts.size() == 1 && VGA.matcher(value).matches());
-      default -> throw new IllegalArgumentException("The QEMU option -" + name + " is not a hardware option");
+      default -> {
+        final String message = "QEMU option -%s is not a hardware option!".formatted(name);
+        throw new IllegalArgumentException(message);
+      }
     }
   }
 
@@ -260,7 +263,8 @@ final class QemuHardwareValues {
       final List<String> nameAndValue = PROPERTY.splitToList(part);
       final Pattern form = nameAndValue.size() == 2 ? properties.get(nameAndValue.getFirst()) : null;
       if (form == null) {
-        throw new IllegalArgumentException("The QEMU option -" + name + " does not allow " + part + " in " + value);
+        final String message = "Value %s of the QEMU option -%s contains %s, which is not allowed!".formatted(value, name, part);
+        throw new IllegalArgumentException(message);
       }
       require(name, value, form.matcher(nameAndValue.getLast()).matches());
     }
@@ -279,7 +283,8 @@ final class QemuHardwareValues {
 
   private static void require(final String name, final String value, final boolean allowed) {
     if (!allowed) {
-      throw new IllegalArgumentException("The QEMU option -" + name + " does not allow the value " + value);
+      final String message = "Value %s of the QEMU option -%s is not allowed!".formatted(value, name);
+      throw new IllegalArgumentException(message);
     }
   }
 }

@@ -63,7 +63,7 @@ public final class MCAVSandbox extends JavaPlugin {
 
   private static final String CANNOT_ENABLE = "MCAV cannot be enabled: {} ({})";
 
-  private static final String CANNOT_REENABLE = "Paper cannot re-enable this plugin after it has been disabled";
+  private static final String CANNOT_REENABLE = "Paper cannot re-enable this plugin after it has been disabled!";
 
   private static final String RESTART_REMEDY = "restart the server to enable MCAV";
 
@@ -280,7 +280,8 @@ public final class MCAVSandbox extends JavaPlugin {
 
   private static <T> T require(final @Nullable T value, final String name) {
     if (value == null) {
-      throw new IllegalStateException("The " + name + " is not available before the plugin is enabled");
+      final String message = "The %s is not available before the plugin is enabled!".formatted(name);
+      throw new IllegalStateException(message);
     }
     return value;
   }

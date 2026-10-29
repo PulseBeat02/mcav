@@ -105,7 +105,8 @@ public final class TestCommandManager extends CommandManager<CommandSender> {
         return command;
       }
     }
-    throw new AssertionError("No command " + syntax);
+    final String message = "Command %s is not registered!".formatted(syntax);
+    throw new AssertionError(message);
   }
 
   private static String syntax(final Command<CommandSender> command) {

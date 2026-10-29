@@ -617,7 +617,7 @@ final class PluginDataConfigurationMapperTest {
     Files.write(file, invalidUtf8);
     final IllegalStateException exception = assertThrows(IllegalStateException.class, this.mapper::deserialize);
     final String message = exception.getMessage();
-    final boolean mentionsFile = message.startsWith("Failed to read " + file + ": ");
+    final boolean mentionsFile = message.startsWith("File " + file + " could not be read (");
     assertTrue(mentionsFile, message);
     final Throwable cause = exception.getCause();
     assertInstanceOf(IOException.class, cause);
@@ -629,7 +629,7 @@ final class PluginDataConfigurationMapperTest {
     final IllegalStateException exception = assertThrows(IllegalStateException.class, this.mapper::deserialize);
     final Path file = this.folder.resolve("config.yml");
     final String message = exception.getMessage();
-    final boolean mentionsFile = message.startsWith(file + " is not valid YAML: ");
+    final boolean mentionsFile = message.startsWith("File " + file + " is not valid YAML (");
     assertTrue(mentionsFile, message);
     final Throwable cause = exception.getCause();
     assertInstanceOf(InvalidConfigurationException.class, cause);

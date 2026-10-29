@@ -105,8 +105,9 @@ public final class DumpUtils {
       final String documentKey = parseDocumentKey(response);
       return pasteSite + documentKey;
     } catch (final IOException exception) {
-      final String message = exception.getMessage();
-      throw new IllegalStateException("Failed to upload the dump: " + message, exception);
+      final String reason = exception.getMessage();
+      final String message = "The dump could not be uploaded (%s)!".formatted(reason);
+      throw new IllegalStateException(message, exception);
     } catch (final InterruptedException exception) {
       final Thread current = Thread.currentThread();
       current.interrupt();
@@ -126,14 +127,16 @@ public final class DumpUtils {
         return key.getAsString();
       }
     }
-    throw new IllegalStateException("The paste site did not answer with a document key: " + response);
+    final String message = "Paste site answer %s has no document key!".formatted(response);
+    throw new IllegalStateException(message);
   }
 
   private static JsonElement parseJson(final String response) {
     try {
       return JsonParser.parseString(response);
     } catch (final JsonParseException exception) {
-      throw new IllegalStateException("The paste site did not answer with JSON: " + response, exception);
+      final String message = "Paste site answer %s is not JSON!".formatted(response);
+      throw new IllegalStateException(message, exception);
     }
   }
 
@@ -149,7 +152,8 @@ public final class DumpUtils {
     final HttpResponse<String> response = client.send(request, handler);
     final int status = response.statusCode();
     if (status != 200) {
-      throw new IOException("The paste site answered with HTTP " + status);
+      final String message = "The paste site answered with HTTP status %s, which is not a success!".formatted(status);
+      throw new IOException(message);
     }
     return response.body();
   }

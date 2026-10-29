@@ -78,7 +78,8 @@ final class MapProbe implements DitherResultStep {
         return (byte) index;
       }
     }
-    throw new IllegalArgumentException("Not a map palette color: " + color);
+    final String message = "Color %s is not a map palette color!".formatted(color);
+    throw new IllegalArgumentException(message);
   }
 
   @Override

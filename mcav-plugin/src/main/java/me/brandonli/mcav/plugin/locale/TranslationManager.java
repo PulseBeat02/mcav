@@ -85,8 +85,9 @@ public final class TranslationManager {
         return LayeredBundle.of(reader, bundled);
       }
     } catch (final IOException exception) {
-      final String message = exception.getMessage();
-      throw new IllegalStateException("Failed to load the messages from " + file + ": " + message, exception);
+      final String reason = exception.getMessage();
+      final String message = "Messages could not be loaded from %s (%s)!".formatted(file, reason);
+      throw new IllegalStateException(message, exception);
     }
   }
 
@@ -134,7 +135,8 @@ public final class TranslationManager {
     final Component rendered = this.translator.translate(component, DEFAULT_LOCALE);
     if (rendered == null) {
       final String key = component.key();
-      throw new MissingResourceException("No configured translation for " + key, PluginTranslator.class.getName(), key);
+      final String message = "Translation key %s has no configured translation!".formatted(key);
+      throw new MissingResourceException(message, PluginTranslator.class.getName(), key);
     }
     return rendered;
   }

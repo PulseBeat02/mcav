@@ -56,7 +56,8 @@ final class FrameRecorder implements Consumer<byte[]> {
     final Path absolute = file.toAbsolutePath();
     final Path parent = absolute.getParent();
     if (parent == null) {
-      throw new IllegalArgumentException("A stream file is not the root of the file system: " + file);
+      final String message = "Stream file %s must not be the root of the file system!".formatted(file);
+      throw new IllegalArgumentException(message);
     }
     this.file = absolute;
     this.folder = parent;

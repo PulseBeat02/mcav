@@ -508,7 +508,8 @@ final class PaperServerEndToEndTest {
         return;
       }
     }
-    fail("the server log must contain \"" + text + "\"");
+    final String message = "Line \"%s\" is missing from the server log!".formatted(text);
+    fail(message);
   }
 
   static void assertNoErrors(final List<String> output) {
@@ -575,7 +576,8 @@ final class PaperServerEndToEndTest {
 
   private static void copyResource(final String name, final Path folder) throws IOException {
     try (final InputStream resource = PaperServerEndToEndTest.class.getResourceAsStream("/media/" + name)) {
-      Files.copy(Objects.requireNonNull(resource, name), folder.resolve(name));
+      final String message = "Resource %s does not exist!".formatted(name);
+      Files.copy(Objects.requireNonNull(resource, message), folder.resolve(name));
     }
   }
 
@@ -727,7 +729,8 @@ final class PaperServerEndToEndTest {
     try {
       return MessageDigest.getInstance(algorithm);
     } catch (final NoSuchAlgorithmException exception) {
-      throw new IllegalStateException("The Java runtime does not support " + algorithm, exception);
+      final String message = "Algorithm %s is not supported by the Java runtime!".formatted(algorithm);
+      throw new IllegalStateException(message, exception);
     }
   }
 

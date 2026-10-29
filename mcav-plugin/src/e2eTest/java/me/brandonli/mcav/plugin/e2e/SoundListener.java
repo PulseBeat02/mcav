@@ -90,7 +90,8 @@ final class SoundListener implements WebSocket.Listener, AutoCloseable {
     byte[] heard = this.heard();
     while (heard.length < wanted) {
       if (System.nanoTime() > deadline) {
-        throw new AssertionError("Only " + heard.length + " bytes of sound arrived within " + timeout);
+        final String message = "Within %s, only %s bytes of sound arrived!".formatted(timeout, heard.length);
+        throw new AssertionError(message);
       }
       TimeUnit.MILLISECONDS.sleep(100);
       heard = this.heard();

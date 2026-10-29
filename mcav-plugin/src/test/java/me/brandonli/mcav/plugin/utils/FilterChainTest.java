@@ -242,7 +242,7 @@ final class FilterChainTest {
   void shouldNameAFilterByWhatComesBeforeItsFirstEqualsSign() {
     final IllegalArgumentException unnamed = assertThrows(IllegalArgumentException.class, () -> this.parse("=invert"));
 
-    final boolean prefixed = Objects.requireNonNull(unnamed.getMessage()).startsWith("no filter ; ");
+    final boolean prefixed = Objects.requireNonNull(unnamed.getMessage()).startsWith("Filter  does not exist, use one of ");
     assertTrue(prefixed, unnamed.getMessage());
   }
 
@@ -269,7 +269,7 @@ final class FilterChainTest {
     final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () -> this.parse(name + "=1:1"));
 
     final String message = refused.getMessage();
-    assertEquals(name + " takes 1 argument", message);
+    assertEquals("Filter " + name + " takes 1 argument!", message);
   }
 
   @Test
@@ -277,7 +277,7 @@ final class FilterChainTest {
     final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () -> this.parse("crop=1:1:1"));
 
     final String message = refused.getMessage();
-    assertEquals("crop takes 4 arguments", message);
+    assertEquals("Filter crop takes 4 arguments!", message);
   }
 
   @Test
@@ -405,7 +405,7 @@ final class FilterChainTest {
       Files.createSymbolicLink(this.overlays.resolve("link.png"), outside);
       assertThrows(IllegalArgumentException.class, () -> this.parse("overlay=link"), "links are not followed");
     } catch (final UnsupportedOperationException | IOException noLinks) {
-      assumeTrue(false, "no symbolic links here!");
+      assumeTrue(false, "The file system must support symbolic links!");
     } finally {
       Files.deleteIfExists(outside);
     }

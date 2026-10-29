@@ -104,7 +104,10 @@ final class CaptureDevicesTest {
 
     final Path locked = Files.createDirectory(this.folder.resolve("locked"));
     Files.createDirectory(locked.resolve("video0"));
-    assumeTrue(Files.getFileStore(locked).supportsFileAttributeView(PosixFileAttributeView.class), "POSIX permissions!");
+    assumeTrue(
+      Files.getFileStore(locked).supportsFileAttributeView(PosixFileAttributeView.class),
+      "The file system must support POSIX permissions!"
+    );
     final Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(locked);
     Files.setPosixFilePermissions(locked, Set.of());
     try {

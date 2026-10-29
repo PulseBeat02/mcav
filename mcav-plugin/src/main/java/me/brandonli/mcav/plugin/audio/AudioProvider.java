@@ -213,11 +213,13 @@ public final class AudioProvider {
     }
     final Guild guild = bot.getGuildById(guildId);
     if (guild == null) {
-      throw new IllegalStateException("The Discord bot is not a member of the guild " + guildId);
+      final String message = "Guild %s has not added the Discord bot!".formatted(guildId);
+      throw new IllegalStateException(message);
     }
     final VoiceChannel voiceChannel = guild.getVoiceChannelById(channelId);
     if (voiceChannel == null) {
-      throw new IllegalStateException("The Discord voice channel " + channelId + " does not exist");
+      final String message = "Discord voice channel %s does not exist!".formatted(channelId);
+      throw new IllegalStateException(message);
     }
     final AudioManager audioManager = guild.getAudioManager();
     final DiscordPlayer player = DiscordPlayer.voice(bot);

@@ -19,7 +19,6 @@ package me.brandonli.mcav.plugin.utils;
 
 import com.google.common.base.Preconditions;
 import java.util.Collection;
-import java.util.Locale;
 import java.util.UUID;
 import java.util.stream.Stream;
 import me.brandonli.mcav.plugin.listener.OnlinePlayers;
@@ -69,18 +68,19 @@ public final class ArgumentUtils {
     Preconditions.checkNotNull(argument, "Argument must not be null!");
     final String[] sides = argument.split("x", 2);
     if (sides.length != 2) {
-      throw new IllegalArgumentException("Invalid dimensions format: " + argument);
+      final String message = "Dimensions %s have an invalid format!".formatted(argument);
+      throw new IllegalArgumentException(message);
     }
 
     final int width = Integer.parseInt(sides[0]);
     final int height = Integer.parseInt(sides[1]);
     if (width <= 0 || height <= 0) {
-      throw new IllegalArgumentException("Dimensions must be positive integers: " + argument);
+      final String message = "Dimensions %s must be positive integers!".formatted(argument);
+      throw new IllegalArgumentException(message);
     }
     if (width > MAX_SIDE || height > MAX_SIDE) {
-      throw new IllegalArgumentException(
-        String.format(Locale.getDefault(Locale.Category.FORMAT), "Dimensions must be at most %d on each side: %s", MAX_SIDE, argument)
-      );
+      final String message = "Dimensions %s must be at most %s on each side!".formatted(argument, MAX_SIDE);
+      throw new IllegalArgumentException(message);
     }
     return Pair.pair(width, height);
   }
@@ -100,14 +100,8 @@ public final class ArgumentUtils {
     final int width = dimensions.getFirst();
     final int height = dimensions.getSecond();
     if (width > MAX_SCREEN_SIDE || height > MAX_SCREEN_SIDE) {
-      throw new IllegalArgumentException(
-        String.format(
-          Locale.getDefault(Locale.Category.FORMAT),
-          "A wall may be at most %d maps on each side: %s",
-          MAX_SCREEN_SIDE,
-          argument
-        )
-      );
+      final String message = "Wall %s may be at most %s maps on each side!".formatted(argument, MAX_SCREEN_SIDE);
+      throw new IllegalArgumentException(message);
     }
     return dimensions;
   }

@@ -97,7 +97,7 @@ public record SeekPosition(boolean relative, long millis) {
    * @return the time, without its milliseconds
    */
   public static String format(final long millis) {
-    Preconditions.checkArgument(millis >= 0, "Time must not be negative: %s", millis);
+    Preconditions.checkArgument(millis >= 0, "Time %s must not be negative!", millis);
     final long totalSeconds = millis / MILLIS_PER_SECOND;
     final long seconds = totalSeconds % SECONDS_PER_MINUTE;
     final long totalMinutes = totalSeconds / SECONDS_PER_MINUTE;

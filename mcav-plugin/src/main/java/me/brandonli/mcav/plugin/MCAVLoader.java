@@ -32,7 +32,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -129,7 +128,8 @@ public final class MCAVLoader implements PluginLoader {
       try (final ZipFile file = new ZipFile(jar.toFile())) {
         file.stream().map(ZipEntry::getName).forEach(entries::add);
       } catch (final IOException exception) {
-        throw new UncheckedIOException("Cannot read the downloaded library " + jar, exception);
+        final String message = "Downloaded library %s could not be read!".formatted(jar);
+        throw new UncheckedIOException(message, exception);
       }
     }
     final List<String> missing = new ArrayList<>();
@@ -139,15 +139,15 @@ public final class MCAVLoader implements PluginLoader {
       }
     }
     if (!missing.isEmpty()) {
-      throw new IllegalStateException(
-        String.format(
-          Locale.getDefault(Locale.Category.FORMAT),
-          "The mcav modules the server downloaded are older than this plugin, which uses classes they lack (%d), such as %s. " +
-            "Publish the modules of the plugin's own version, or build the plugin with -Pmcav.e2e=true",
-          missing.size(),
-          String.join(", ", missing.subList(0, Math.min(NAMED_MISSING, missing.size())))
-        )
-      );
+      final int count = missing.size();
+      final List<String> named = missing.subList(0, Math.min(NAMED_MISSING, count));
+      final String names = String.join(", ", named);
+      final String message =
+        "The mcav modules the server downloaded are older than this plugin, which uses classes they lack (%s), such as %s. Publish the modules of the plugin's own version, or set -Pmcav.e2e=true when you build the plugin!".formatted(
+          count,
+          names
+        );
+      throw new IllegalStateException(message);
     }
   }
 

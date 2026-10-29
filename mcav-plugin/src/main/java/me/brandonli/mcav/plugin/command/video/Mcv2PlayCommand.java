@@ -517,7 +517,8 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     final Path folder = this.plugin.getDataFolder().toPath().resolve(STREAMS).toAbsolutePath().normalize();
     final Path file = folder.resolve(name).normalize();
     if (!file.startsWith(folder) || file.equals(folder)) {
-      throw new IOException("Stream files are kept in " + folder + ", and " + name + " is not a file in it");
+      final String message = "Stream file %s is not a file in %s, where stream files are kept!".formatted(name, folder);
+      throw new IOException(message);
     }
     Files.createDirectories(folder);
     return file;
@@ -664,10 +665,12 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
    */
   static List<byte[]> read(final Path file, final long limit) throws IOException {
     if (!Files.isRegularFile(file)) {
-      throw new IOException("Not a stream file: " + file.getFileName());
+      final String message = "File %s is not a stream file!".formatted(file.getFileName());
+      throw new IOException(message);
     }
     if (Files.size(file) > limit) {
-      throw new IOException("The stream file is larger than " + limit + " bytes");
+      final String message = "The stream file is larger than %s bytes!".formatted(limit);
+      throw new IOException(message);
     }
     final byte[] data = Files.readAllBytes(file);
     final List<byte[]> frames = new ArrayList<>();
@@ -683,7 +686,8 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
       // a record no frame can be is refused before it is copied: records of a few bytes each would make the copies
       // take several times the file's size in memory
       if (length < Mcv2Decoder.HEADER_BYTES || length > Mcv2Decoder.MAXIMUM_FRAME_BYTES) {
-        throw new IOException("Invalid MCV2 frame length: " + length);
+        final String message = "MCV2 frame length %s is invalid!".formatted(length);
+        throw new IOException(message);
       }
       final byte[] frame = new byte[(int) length];
       System.arraycopy(data, offset + LENGTH_BYTES, frame, 0, frame.length);

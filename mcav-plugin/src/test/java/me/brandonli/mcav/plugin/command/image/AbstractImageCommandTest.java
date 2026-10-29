@@ -293,7 +293,7 @@ final class AbstractImageCommandTest {
   @Test
   void shouldRefuseFiltersThatAreNotAllowedBeforeLoading() {
     this.command.displayImage(_ -> "configuration", this.sender, "4x2", "picture.png", "fps");
-    final Component refused = Message.FILTERS_INVALID.build("fps counts the frames of a video, and an image has one!");
+    final Component refused = Message.FILTERS_INVALID.build("Filter fps counts the frames of a video, and an image has one!");
 
     final List<Component> received = Components.received(this.sender);
     assertEquals(List.of(refused), received);

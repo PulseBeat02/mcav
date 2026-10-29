@@ -492,7 +492,9 @@ final class AbstractVideoCommandTest {
       "sharpen"
     );
 
-    final Component refused = Message.FILTERS_INVALID.build("no filter sharpen; the filters are " + String.join(", ", FilterChain.NAMES));
+    final Component refused = Message.FILTERS_INVALID.build(
+      "Filter sharpen does not exist, use one of " + String.join(", ", FilterChain.NAMES) + " instead!"
+    );
     this.assertSenderReceived(refused);
     this.assertNotStarting();
     this.videoPlayers.verifyNoInteractions();
@@ -524,7 +526,7 @@ final class AbstractVideoCommandTest {
     this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, WEB_PAGE, "--yt-dlp{exec=anything}");
 
     final String supported = String.join(", ", VideoFlagsParser.supportedOptions());
-    final String reason = "Unsupported yt-dlp option exec; the video commands accept " + supported;
+    final String reason = "yt-dlp option exec is not supported, use one of " + supported + " instead!";
     final Component refused = Message.UNSUPPORTED_FLAGS.build(reason);
     this.assertSenderReceived(refused);
     Mockito.verifyNoInteractions(this.viewer);

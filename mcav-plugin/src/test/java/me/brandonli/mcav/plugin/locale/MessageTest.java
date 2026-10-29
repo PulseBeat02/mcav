@@ -55,11 +55,14 @@ final class MessageTest {
     assertEquals(85, fieldCount);
     for (final Field field : fields) {
       final String name = field.getName();
-      final Object message = field.get(null);
-      final Component component = switch (message) {
+      final Object value = field.get(null);
+      final Component component = switch (value) {
         case final LocaleTools.NullComponent nullComponent -> nullComponent.build();
         case final LocaleTools.UniComponent<?> uniComponent -> buildWithUrl(uniComponent);
-        default -> throw new AssertionError("Unexpected message type of " + name);
+        default -> {
+          final String message = "Message %s has an unexpected type!".formatted(name);
+          throw new AssertionError(message);
+        }
       };
       final String text = Components.plain(component);
       final boolean blank = text.isBlank();

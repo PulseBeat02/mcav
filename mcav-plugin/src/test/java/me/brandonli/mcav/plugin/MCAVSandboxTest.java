@@ -188,23 +188,23 @@ final class MCAVSandboxTest {
     final IllegalStateException mcv2 = assertThrows(IllegalStateException.class, this.sandbox::getMcv2Support);
 
     final String message = mcv2.getMessage();
-    assertEquals("The MCV2 support is not available before the plugin is enabled", message);
+    assertEquals("The MCV2 support is not available before the plugin is enabled!", message);
 
     final IllegalStateException online = assertThrows(IllegalStateException.class, this.sandbox::getOnlinePlayers);
 
     final String onlineMessage = online.getMessage();
-    assertEquals("The list of online players is not available before the plugin is enabled", onlineMessage);
+    assertEquals("The list of online players is not available before the plugin is enabled!", onlineMessage);
 
     final String libraryMessage = library.getMessage();
     final String configurationMessage = configuration.getMessage();
     final String videosMessage = videos.getMessage();
     final String audioMessage = audio.getMessage();
     final String imagesMessage = images.getMessage();
-    assertEquals("The library is not available before the plugin is enabled", libraryMessage);
-    assertEquals("The configuration is not available before the plugin is enabled", configurationMessage);
-    assertEquals("The video player manager is not available before the plugin is enabled", videosMessage);
-    assertEquals("The audio provider is not available before the plugin is enabled", audioMessage);
-    assertEquals("The image manager is not available before the plugin is enabled", imagesMessage);
+    assertEquals("The library is not available before the plugin is enabled!", libraryMessage);
+    assertEquals("The configuration is not available before the plugin is enabled!", configurationMessage);
+    assertEquals("The video player manager is not available before the plugin is enabled!", videosMessage);
+    assertEquals("The audio provider is not available before the plugin is enabled!", audioMessage);
+    assertEquals("The image manager is not available before the plugin is enabled!", imagesMessage);
     final boolean hasQemu = this.sandbox.isQemuInstalled();
     assertFalse(hasQemu);
 
@@ -249,7 +249,7 @@ final class MCAVSandboxTest {
     this.sandbox.onEnable();
 
     this.assertDisabledItselfWithOneError(
-      "Paper cannot re-enable this plugin after it has been disabled",
+      "Paper cannot re-enable this plugin after it has been disabled!",
       "restart the server to enable MCAV"
     );
     verify(this.api, times(1)).install(BukkitModule.class, BrowserModule.class, VmModule.class, SvcModule.class);

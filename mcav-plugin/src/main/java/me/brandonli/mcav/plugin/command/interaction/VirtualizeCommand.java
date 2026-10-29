@@ -485,9 +485,12 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     final String memory = Objects.requireNonNullElse(requestedValue, "128");
     final long requested = QemuHardwareValues.memoryBytes(memory);
     if (requested > maxMemoryBytes) {
-      throw new IllegalArgumentException(
-        "The QEMU option -m " + memory + " asks for more memory than a machine may have on this server, " + (maxMemoryBytes >> 20) + " MiB"
+      final long maximumMebibytes = maxMemoryBytes >> 20;
+      final String message = "QEMU option -m %s asks for more than the %s MiB a machine may have on this server!".formatted(
+        memory,
+        maximumMebibytes
       );
+      throw new IllegalArgumentException(message);
     }
     return builder;
   }
@@ -564,7 +567,8 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     }
     final boolean needsValue = HARDWARE_OPTIONS.contains(name) || IMAGE_OPTIONS.contains(name) || name.equals(DRIVE_OPTION);
     if (needsValue) {
-      throw new IllegalArgumentException("The QEMU option -" + name + " needs a value");
+      final String message = "QEMU option -%s needs a value!".formatted(name);
+      throw new IllegalArgumentException(message);
     }
     throw unsupported(name);
   }
@@ -590,7 +594,8 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     }
     final boolean isFlagOption = FLAG_OPTIONS.contains(name);
     if (isFlagOption) {
-      throw new IllegalArgumentException("The QEMU option -" + name + " takes no value");
+      final String message = "QEMU option -%s takes no value!".formatted(name);
+      throw new IllegalArgumentException(message);
     }
     throw unsupported(name);
   }
@@ -617,7 +622,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
       }
     }
     final boolean one = files == 1;
-    Preconditions.checkArgument(one, "A drive names its disk image exactly once, as file=<image>, but got %s", value);
+    Preconditions.checkArgument(one, "Drive %s must name its disk image exactly once, as file=<image>!", value);
     return String.join(",", checked);
   }
 
@@ -627,13 +632,15 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
   private static void requireNoPath(final String name, final String value) {
     final boolean path = value.indexOf('/') >= 0 || value.indexOf('\\') >= 0;
     if (path) {
-      throw new IllegalArgumentException("The QEMU option -" + name + " must not name a file, but got " + value);
+      final String message = "QEMU option -%s must not name a file, but %s does!".formatted(name, value);
+      throw new IllegalArgumentException(message);
     }
   }
 
   private static IllegalArgumentException unsupported(final String name) {
     final String supported = String.join(", ", supportedOptions());
-    return new IllegalArgumentException("Unsupported QEMU option -" + name + "; the command accepts " + supported);
+    final String message = "QEMU option -%s is not supported, use one of %s instead!".formatted(name, supported);
+    return new IllegalArgumentException(message);
   }
 
   /**

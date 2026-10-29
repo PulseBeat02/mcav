@@ -201,7 +201,8 @@ final class AnnotationParserHandlerTest {
         return component.parser();
       }
     }
-    throw new AssertionError("No argument " + argument + " in " + syntax);
+    final String message = "Argument %s is missing in syntax %s of the command!".formatted(argument, syntax);
+    throw new AssertionError(message);
   }
 
   @Test

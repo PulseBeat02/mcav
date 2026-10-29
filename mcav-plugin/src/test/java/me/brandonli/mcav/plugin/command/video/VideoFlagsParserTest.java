@@ -195,14 +195,14 @@ final class VideoFlagsParserTest {
       this.parser.parseYTDLPFlags("--yt-dlp{" + option + "=value}")
     );
     final String message = refused.getMessage();
-    final boolean namesTheOption = message.startsWith("Unsupported yt-dlp option " + option);
+    final boolean namesTheOption = message.startsWith("yt-dlp option " + option + " is not supported, ");
     assertTrue(namesTheOption, message);
     final IllegalArgumentException asSwitch = assertThrows(IllegalArgumentException.class, () ->
       this.parser.parseYTDLPFlags("--yt-dlp{" + option + "}")
     );
     final String switchMessage = asSwitch.getMessage();
 
-    final boolean prefixed = switchMessage.startsWith("Unsupported yt-dlp option " + option);
+    final boolean prefixed = switchMessage.startsWith("yt-dlp option " + option + " is not supported, ");
     assertTrue(prefixed, switchMessage);
   }
 
@@ -212,7 +212,7 @@ final class VideoFlagsParserTest {
       this.parser.parseYTDLPFlags("--yt-dlp{no-playlist=https://example.com/other}")
     );
     final String message = refused.getMessage();
-    assertEquals("The yt-dlp option no-playlist takes no value", message);
+    assertEquals("yt-dlp option no-playlist takes no value!", message);
   }
 
   @Test
@@ -221,7 +221,7 @@ final class VideoFlagsParserTest {
       this.parser.parseYTDLPFlags("--yt-dlp{format}")
     );
     final String message = refused.getMessage();
-    assertEquals("The yt-dlp option format needs a value, written as format=value", message);
+    assertEquals("yt-dlp option format needs a value, written as format=value!", message);
   }
 
   @ParameterizedTest
@@ -231,7 +231,7 @@ final class VideoFlagsParserTest {
       this.parser.parseYTDLPFlags("--yt-dlp{format=" + value + "}")
     );
     final String message = refused.getMessage();
-    final String expected = "The value of the yt-dlp option format must not start with a dash: " + value;
+    final String expected = "Value " + value + " of the yt-dlp option format must not start with a dash!";
     assertEquals(expected, message);
   }
 

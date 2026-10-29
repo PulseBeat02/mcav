@@ -566,7 +566,7 @@ final class VirtualizeCommandTest {
     for (final String options : refused) {
       final IllegalArgumentException failure = this.assertRefusedOptions(options);
       final String message = failure.getMessage();
-      final boolean explained = message.startsWith("Unsupported QEMU option");
+      final boolean explained = message.contains(" is not supported, use one of ");
       assertTrue(explained, options + " -> " + message);
     }
   }
@@ -614,7 +614,7 @@ final class VirtualizeCommandTest {
     this.image("a.img");
     final IllegalArgumentException failure = this.assertRefusedOptions(options);
     final String message = failure.getMessage();
-    final boolean explained = message.contains("must not name a file") || message.contains("does not allow");
+    final boolean explained = message.contains("must not name a file") || message.contains("is not allowed");
     assertTrue(explained, message);
   }
 
@@ -809,7 +809,7 @@ final class VirtualizeCommandTest {
       final IllegalArgumentException failure = this.assertRefusedOptions("-drive " + part + ",file=disk.img");
 
       final String message = failure.getMessage();
-      assertEquals("The QEMU option -drive must not name a file, but got " + part, message);
+      assertEquals("QEMU option -drive must not name a file, but " + part + " does!", message);
     }
   }
 
@@ -829,7 +829,7 @@ final class VirtualizeCommandTest {
     this.image("disk.img");
     final IllegalArgumentException failure = this.assertRefusedOptions("-drive file=disk.img," + part);
     final String message = failure.getMessage();
-    assertEquals("The QEMU option -drive does not allow " + part + " in file=disk.img," + part, message);
+    assertEquals("Value file=disk.img," + part + " of the QEMU option -drive contains " + part + ", which is not allowed!", message);
   }
 
   @Test
@@ -840,7 +840,7 @@ final class VirtualizeCommandTest {
     );
 
     final String message = failure.getMessage();
-    assertEquals("The QEMU option -m 64G asks for more memory than a machine may have on this server, 4096 MiB", message);
+    assertEquals("QEMU option -m 64G asks for more than the 4096 MiB a machine may have on this server!", message);
     assertThrows(IllegalArgumentException.class, () -> VirtualizeCommand.parseOptions("-m size=5G,slots=2", this.imageFolder, limit));
 
     final Optional<String> found = VirtualizeCommand.parseOptions("-m 4G", this.imageFolder, limit).build().find("m");
@@ -866,15 +866,14 @@ final class VirtualizeCommandTest {
   void shouldRefuseADriveWithoutADiskImage() {
     final IllegalArgumentException failure = this.assertRefusedOptions("-drive if=none,id=empty");
     final String message = failure.getMessage();
-    final boolean explained = message.startsWith("A drive names its disk image exactly once");
-    assertTrue(explained, message);
+    assertEquals("Drive if=none,id=empty must name its disk image exactly once, as file=<image>!", message);
   }
 
   @Test
   void shouldRefuseASwitchThatIsGivenAValue() {
     final IllegalArgumentException failure = this.assertRefusedOptions("-snapshot yes");
     final String message = failure.getMessage();
-    assertEquals("The QEMU option -snapshot takes no value", message);
+    assertEquals("QEMU option -snapshot takes no value!", message);
   }
 
   @ParameterizedTest
@@ -882,7 +881,7 @@ final class VirtualizeCommandTest {
   void shouldRefuseAnOptionThatMissesItsValue(final String options) {
     final IllegalArgumentException failure = this.assertRefusedOptions(options);
     final String message = failure.getMessage();
-    final String expected = "The QEMU option " + options + " needs a value";
+    final String expected = "QEMU option " + options + " needs a value!";
     assertEquals(expected, message);
   }
 
@@ -896,7 +895,7 @@ final class VirtualizeCommandTest {
     final String accepted = String.join(", ", VirtualizeCommand.supportedOptions());
 
     final String text = Components.plain(messages.getFirst());
-    assertEquals("Invalid QEMU flags! Unsupported QEMU option -plugin; the command accepts " + accepted, text);
+    assertEquals("Invalid QEMU flags! QEMU option -plugin is not supported, use one of " + accepted + " instead!", text);
 
     this.machines.verifyNoInteractions();
     assertNull(this.command.player);

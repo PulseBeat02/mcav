@@ -168,7 +168,8 @@ final class ServerProcess implements AutoCloseable {
     final long remaining = deadline - now;
     final boolean running = this.process.isAlive() || this.reader.isAlive();
     if (remaining <= 0 || !running) {
-      throw new AssertionError("The server did not print the expected line within " + timeout);
+      final String message = "The server took longer than %s to print the expected line!".formatted(timeout);
+      throw new AssertionError(message);
     }
     final long waitNanos = Math.min(remaining, POLL_INTERVAL_NANOS);
     TimeUnit.NANOSECONDS.timedWait(this.lines, waitNanos);
@@ -208,7 +209,8 @@ final class ServerProcess implements AutoCloseable {
     final long millis = timeout.toMillis();
     final boolean exited = this.process.waitFor(millis, TimeUnit.MILLISECONDS);
     if (!exited) {
-      throw new AssertionError("The server did not stop within " + timeout);
+      final String message = "The server took longer than %s to stop!".formatted(timeout);
+      throw new AssertionError(message);
     }
     this.reader.join(millis);
     return this.process.exitValue();

@@ -156,7 +156,9 @@ public final class FilterChain {
 
   private static final String OVERLAY_SUFFIX = ".png";
 
-  private static final String NO_OVERLAY = "no overlay %s in the overlays folder";
+  private static final String NOT_A_WHOLE_NUMBER = "Filter %s takes a whole number from %s to %s, and %s is not one!";
+
+  private static final String NO_OVERLAY = "Overlay %s does not exist in the overlays folder!";
 
   private static final int PERCENT = 100;
 
@@ -204,13 +206,13 @@ public final class FilterChain {
       return NONE;
     }
     if (text.length() > MAX_LENGTH) {
-      throw new IllegalArgumentException(
-        String.format(Locale.getDefault(Locale.Category.FORMAT), "at most %d characters of filters", MAX_LENGTH)
-      );
+      final String message = "Filters may have at most %s characters!".formatted(MAX_LENGTH);
+      throw new IllegalArgumentException(message);
     }
     final String[] specs = text.split(",", -1);
     if (specs.length > MAX_FILTERS) {
-      throw new IllegalArgumentException(String.format(Locale.getDefault(Locale.Category.FORMAT), "at most %d filters", MAX_FILTERS));
+      final String message = "At most %s filters may be chained!".formatted(MAX_FILTERS);
+      throw new IllegalArgumentException(message);
     }
     final List<Supplier<VideoFilter>> filters = new ArrayList<>();
     for (final String spec : specs) {
@@ -241,7 +243,11 @@ public final class FilterChain {
       case "erode" -> erode(args);
       case "text" -> text(args);
       case "overlay" -> overlay(args, overlays);
-      default -> throw new IllegalArgumentException("no filter %s; the filters are %s".formatted(name, String.join(", ", NAMES)));
+      default -> {
+        final String names = String.join(", ", NAMES);
+        final String message = "Filter %s does not exist, use one of %s instead!".formatted(name, names);
+        throw new IllegalArgumentException(message);
+      }
     };
   }
 
@@ -252,7 +258,7 @@ public final class FilterChain {
 
   private static Supplier<VideoFilter> fps(final List<String> args, final boolean isVideo) {
     if (!isVideo) {
-      throw new IllegalArgumentException("fps counts the frames of a video, and an image has one!");
+      throw new IllegalArgumentException("Filter fps counts the frames of a video, and an image has one!");
     }
     return noArguments("fps", args, FramesPerSecondFilter::new);
   }
@@ -286,16 +292,16 @@ public final class FilterChain {
     count("colormap", args, 1);
     final Integer map = COLOR_MAPS.get(args.getFirst().toLowerCase(Locale.ROOT));
     if (map == null) {
-      throw new IllegalArgumentException(
-        "no colour map %s; they are %s".formatted(args.getFirst(), String.join(", ", COLOR_MAPS.keySet().stream().sorted().toList()))
-      );
+      final String names = String.join(", ", COLOR_MAPS.keySet().stream().sorted().toList());
+      final String message = "Colour map %s does not exist, use one of %s instead!".formatted(args.getFirst(), names);
+      throw new IllegalArgumentException(message);
     }
     return () -> new ColorMapFilter(map);
   }
 
   private static Supplier<VideoFilter> tint(final List<String> args) {
     if (args.isEmpty() || args.size() > 2) {
-      throw new IllegalArgumentException("tint takes a colour such as ff8000, and a strength from 0 to 100!");
+      throw new IllegalArgumentException("Filter tint takes a colour such as ff8000, and a strength from 0 to 100!");
     }
     final double[] color = color("tint", args.getFirst());
     final double strength = args.size() == 2 ? whole("tint", args.get(1), 0, PERCENT) / (double) PERCENT : DEFAULT_TINT;
@@ -308,7 +314,10 @@ public final class FilterChain {
       case "h" -> FlipFilter.FlipDirection.HORIZONTAL;
       case "v" -> FlipFilter.FlipDirection.VERTICAL;
       case "hv" -> FlipFilter.FlipDirection.BOTH;
-      default -> throw new IllegalArgumentException("flip takes h, v or hv, not " + args.getFirst());
+      default -> {
+        final String message = "Flip direction %s must be h, v or hv!".formatted(args.getFirst());
+        throw new IllegalArgumentException(message);
+      }
     };
     return () -> new FlipFilter(direction);
   }
@@ -319,7 +328,10 @@ public final class FilterChain {
       case "90" -> RotationFilter.Rotation.ROTATE_90_CLOCKWISE;
       case "180" -> RotationFilter.Rotation.ROTATE_180;
       case "270" -> RotationFilter.Rotation.ROTATE_90_COUNTERCLOCKWISE;
-      default -> throw new IllegalArgumentException("rotate takes 90, 180 or 270, not " + args.getFirst());
+      default -> {
+        final String message = "Rotation %s must be 90, 180 or 270!".formatted(args.getFirst());
+        throw new IllegalArgumentException(message);
+      }
     };
     return () -> new RotationFilter(rotation);
   }
@@ -353,9 +365,8 @@ public final class FilterChain {
     count("text", args, 1);
     final String text = args.getFirst();
     if (!TEXT.matcher(text).matches()) {
-      throw new IllegalArgumentException(
-        String.format(Locale.getDefault(Locale.Category.FORMAT), "text takes up to %d letters, digits, spaces and .!?'()+-", MAX_TEXT)
-      );
+      final String message = "Filter text takes up to %s letters, digits, spaces and .!?'()+- characters!".formatted(MAX_TEXT);
+      throw new IllegalArgumentException(message);
     }
     return () -> new TextFilter(text, TEXT_X, TEXT_Y, TextFilter.DEFAULT_FONT, TEXT_SCALE, WHITE);
   }
@@ -365,23 +376,24 @@ public final class FilterChain {
     count("overlay", args, 1);
     final String name = args.getFirst();
     if (!OVERLAY_NAME.matcher(name).matches()) {
-      throw new IllegalArgumentException("overlay takes the name of a PNG file of the overlays folder, without .png!");
+      throw new IllegalArgumentException("Filter overlay takes the name of a PNG file of the overlays folder, without .png!");
     }
     final Path file = overlays.resolve(name + OVERLAY_SUFFIX);
     final BasicFileAttributes attributes;
     try {
       attributes = Files.readAttributes(file, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
     } catch (final IOException missing) {
-      throw new IllegalArgumentException(NO_OVERLAY.formatted(name), missing);
+      final String message = NO_OVERLAY.formatted(name);
+      throw new IllegalArgumentException(message, missing);
     }
     if (!attributes.isRegularFile()) {
-      throw new IllegalArgumentException(NO_OVERLAY.formatted(name));
+      final String message = NO_OVERLAY.formatted(name);
+      throw new IllegalArgumentException(message);
     }
     final long size = attributes.size();
     if (size > MAX_OVERLAY_BYTES) {
-      throw new IllegalArgumentException(
-        String.format(Locale.getDefault(Locale.Category.FORMAT), "the overlay %s is larger than %d bytes", name, MAX_OVERLAY_BYTES)
-      );
+      final String message = "Overlay %s is larger than %s bytes!".formatted(name, MAX_OVERLAY_BYTES);
+      throw new IllegalArgumentException(message);
     }
     return () -> overlayFilter(readOverlay(file));
   }
@@ -412,30 +424,28 @@ public final class FilterChain {
 
   private static void count(final String name, final List<String> args, final int expected) {
     if (args.size() != expected) {
-      throw new IllegalArgumentException(
-        String.format(Locale.getDefault(Locale.Category.FORMAT), "%s takes %d argument%s", name, expected, expected == 1 ? "" : "s")
-      );
+      final String message = "Filter %s takes %s argument%s!".formatted(name, expected, expected == 1 ? "" : "s");
+      throw new IllegalArgumentException(message);
     }
   }
 
   private static int whole(final String name, final String text, final int min, final int max) {
     if (!WHOLE.matcher(text).matches()) {
-      throw new IllegalArgumentException(
-        String.format(Locale.getDefault(Locale.Category.FORMAT), "%s takes a whole number from %d to %d, not %s", name, min, max, text)
-      );
+      final String message = NOT_A_WHOLE_NUMBER.formatted(name, min, max, text);
+      throw new IllegalArgumentException(message);
     }
     final int value = Integer.parseInt(text);
     if (value < min || value > max) {
-      throw new IllegalArgumentException(
-        String.format(Locale.getDefault(Locale.Category.FORMAT), "%s takes a whole number from %d to %d, not %s", name, min, max, text)
-      );
+      final String message = NOT_A_WHOLE_NUMBER.formatted(name, min, max, text);
+      throw new IllegalArgumentException(message);
     }
     return value;
   }
 
   private static double decimal(final String name, final String text, final double max) {
     if (!DECIMAL.matcher(text).matches() || Double.parseDouble(text) > max) {
-      throw new IllegalArgumentException("%s takes a number from 0 to %s, not %s".formatted(name, max, text));
+      final String message = "Filter %s takes a number from 0 to %s, and %s is not one!".formatted(name, max, text);
+      throw new IllegalArgumentException(message);
     }
     return Double.parseDouble(text);
   }
@@ -443,7 +453,8 @@ public final class FilterChain {
   /** A colour typed as {@code rrggbb}, in the blue, green, red order of OpenCV. */
   private static double[] color(final String name, final String text) {
     if (!HEX.matcher(text).matches()) {
-      throw new IllegalArgumentException("%s takes a colour such as ff8000, not %s".formatted(name, text));
+      final String message = "Filter %s takes a colour such as ff8000, and %s is not one!".formatted(name, text);
+      throw new IllegalArgumentException(message);
     }
     final int rgb = Integer.parseInt(text, HEX_RADIX);
     return new double[] { rgb & BYTE, (rgb >> GREEN_SHIFT) & BYTE, (rgb >> RED_SHIFT) & BYTE };

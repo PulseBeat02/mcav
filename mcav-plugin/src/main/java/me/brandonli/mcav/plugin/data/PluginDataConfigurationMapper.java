@@ -220,11 +220,13 @@ public final class PluginDataConfigurationMapper {
       configuration.load(reader);
       return configuration;
     } catch (final IOException exception) {
-      final String message = exception.getMessage();
-      throw new IllegalStateException("Failed to read " + file + ": " + message, exception);
+      final String reason = exception.getMessage();
+      final String message = "File %s could not be read (%s)!".formatted(file, reason);
+      throw new IllegalStateException(message, exception);
     } catch (final InvalidConfigurationException exception) {
-      final String message = exception.getMessage();
-      throw new IllegalStateException(file + " is not valid YAML: " + message, exception);
+      final String reason = exception.getMessage();
+      final String message = "File %s is not valid YAML (%s)!".formatted(file, reason);
+      throw new IllegalStateException(message, exception);
     }
   }
 

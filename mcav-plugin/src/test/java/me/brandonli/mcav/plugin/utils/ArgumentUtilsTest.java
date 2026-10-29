@@ -64,7 +64,7 @@ final class ArgumentUtilsTest {
   void shouldRejectTextWithoutSeparator() {
     final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> ArgumentUtils.parseDimensions("128"));
     final String message = exception.getMessage();
-    assertEquals("Invalid dimensions format: 128", message);
+    assertEquals("Dimensions 128 have an invalid format!", message);
   }
 
   @ParameterizedTest
@@ -72,7 +72,7 @@ final class ArgumentUtilsTest {
   void shouldRejectSidesThatAreNotPositive(final String text) {
     final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> ArgumentUtils.parseDimensions(text));
     final String message = exception.getMessage();
-    assertEquals("Dimensions must be positive integers: " + text, message);
+    assertEquals("Dimensions " + text + " must be positive integers!", message);
   }
 
   @ParameterizedTest
@@ -95,7 +95,7 @@ final class ArgumentUtilsTest {
   void shouldRejectSidesLargerThanTheLimit(final String text) {
     final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> ArgumentUtils.parseDimensions(text));
     final String message = exception.getMessage();
-    assertEquals("Dimensions must be at most 8192 on each side: " + text, message);
+    assertEquals("Dimensions " + text + " must be at most 8192 on each side!", message);
   }
 
   @Test
@@ -116,7 +116,7 @@ final class ArgumentUtilsTest {
       ArgumentUtils.parseScreenDimensions(text)
     );
     final String message = exception.getMessage();
-    assertEquals("A wall may be at most 64 maps on each side: " + text, message);
+    assertEquals("Wall " + text + " may be at most 64 maps on each side!", message);
   }
 
   @ParameterizedTest

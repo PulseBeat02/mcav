@@ -202,7 +202,10 @@ final class FakeVncServer implements AutoCloseable {
           in.readFully(new byte[3]);
           in.readFully(new byte[in.readInt()]);
         }
-        default -> throw new IOException("unknown client message " + type);
+        default -> {
+          final String message = "Client message type %s is unknown!".formatted(type);
+          throw new IOException(message);
+        }
       }
     }
   }

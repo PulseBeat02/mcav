@@ -180,7 +180,7 @@ final class DumpUtilsTest {
       DumpUtils.createAndUploadDump(this.client, site, log)
     );
     final String message = exception.getMessage();
-    assertEquals("Failed to upload the dump: The paste site answered with HTTP 500", message);
+    assertEquals("The dump could not be uploaded (The paste site answered with HTTP status 500, which is not a success!)!", message);
     final Throwable cause = exception.getCause();
     assertInstanceOf(IOException.class, cause);
   }
@@ -195,7 +195,7 @@ final class DumpUtilsTest {
       DumpUtils.createAndUploadDump(this.client, site, log)
     );
     final String message = exception.getMessage();
-    assertEquals("The paste site did not answer with a document key: " + response, message);
+    assertEquals("Paste site answer " + response + " has no document key!", message);
   }
 
   @Test
@@ -207,7 +207,7 @@ final class DumpUtilsTest {
       DumpUtils.createAndUploadDump(this.client, site, log)
     );
     final String message = exception.getMessage();
-    assertEquals("The paste site did not answer with JSON: {\"key\":", message);
+    assertEquals("Paste site answer {\"key\": is not JSON!", message);
   }
 
   @Test
@@ -219,7 +219,7 @@ final class DumpUtilsTest {
       DumpUtils.createAndUploadDump(this.client, site, log)
     );
     final String message = exception.getMessage();
-    final boolean upload = message.startsWith("Failed to upload the dump: ");
+    final boolean upload = message.startsWith("The dump could not be uploaded (");
     assertTrue(upload, message);
   }
 

@@ -641,9 +641,10 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     try {
       dump = parser.parse(page, ytdlpArguments);
     } catch (final InstallationException | DownloadException | FileOperationException | ProcessException exception) {
-      final String message = exception.getMessage();
+      final String reason = exception.getMessage();
       final URI uri = page.getUri();
-      throw new IllegalStateException("yt-dlp could not resolve " + uri + ": " + message, exception);
+      final String message = "yt-dlp could not resolve %s (%s)!".formatted(uri, reason);
+      throw new IllegalStateException(message, exception);
     }
 
     final StrategySelector selector = StrategySelector.of(FormatStrategy.BEST_QUALITY_AUDIO, FormatStrategy.BEST_QUALITY_VIDEO);
@@ -667,7 +668,8 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final boolean web = "http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme);
     if (!web) {
       final URI pageUri = page.getUri();
-      throw new IllegalStateException("yt-dlp reported a stream of " + pageUri + " that is not an http or https URL: " + scheme);
+      final String message = "yt-dlp reported a stream of %s whose scheme %s is not http or https!".formatted(pageUri, scheme);
+      throw new IllegalStateException(message);
     }
   }
 

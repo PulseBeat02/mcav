@@ -142,7 +142,7 @@ final class TranslationManagerTest {
     Files.createDirectories(file);
     final IllegalStateException exception = assertThrows(IllegalStateException.class, TranslationManager::new);
     final String message = exception.getMessage();
-    final boolean mentionsFile = message.startsWith("Failed to load the messages from " + file);
+    final boolean mentionsFile = message.startsWith("Messages could not be loaded from " + file + " (");
     assertTrue(mentionsFile, message);
   }
 

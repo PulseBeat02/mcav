@@ -200,7 +200,8 @@ final class MapUtilsTest {
     when(this.server.createMap(world)).thenAnswer(invocation -> {
       final int id = nextId.getAndIncrement();
       if (id > lastAllowedId) {
-        throw new AssertionError("Created map " + id + ", far more maps than any wall needs");
+        final String message = "Map %s was created, far more maps than any wall needs!".formatted(id);
+        throw new AssertionError(message);
       }
       final MapView created = mock(MapView.class);
       when(created.getId()).thenReturn(id);
@@ -229,7 +230,7 @@ final class MapUtilsTest {
     this.handOutMapIdsFrom(world, 10);
     final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () -> MapUtils.getMapFromID(wanted));
     final String message = failure.getMessage();
-    assertEquals("Map id 4107 is more than 4096 ids past the next map id 10", message);
+    assertEquals("Map id 4107 is more than 4096 ids past 10, the next map id!", message);
     verify(this.server, times(1)).createMap(world);
 
     final boolean empty = this.metas.isEmpty();
@@ -268,7 +269,7 @@ final class MapUtilsTest {
     final IllegalStateException failure = assertThrows(IllegalStateException.class, () -> MapUtils.getMapFromID(5));
 
     final String message = failure.getMessage();
-    assertEquals("Map id 5 is unavailable; the server allocated 20", message);
+    assertEquals("Map id 5 is unavailable, because the server allocated 20 instead!", message);
 
     verify(this.server).createMap(world);
 

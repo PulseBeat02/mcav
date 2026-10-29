@@ -201,12 +201,9 @@ final class MCAVLoaderTest {
     final IllegalStateException refused = assertThrows(IllegalStateException.class, () -> MCAVLoader.checkModules(required, List.of(old)));
 
     final String message = refused.getMessage();
-    assertEquals(
-      "The mcav modules the server downloaded are older than this plugin, which uses classes they lack (1), such as " +
-        "me.brandonli.mcav.bukkit.media.mcv2.Mcv2Result. Publish the modules of the plugin's own version, or build the plugin " +
-        "with -Pmcav.e2e=true",
-      message
-    );
+    final String expected =
+      "The mcav modules the server downloaded are older than this plugin, which uses classes they lack (1), such as me.brandonli.mcav.bukkit.media.mcv2.Mcv2Result. Publish the modules of the plugin's own version, or set -Pmcav.e2e=true when you build the plugin!";
+    assertEquals(expected, message);
   }
 
   @Test
