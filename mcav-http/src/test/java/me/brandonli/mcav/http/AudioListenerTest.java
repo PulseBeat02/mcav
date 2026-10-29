@@ -452,9 +452,10 @@ final class AudioListenerTest {
     this.recordSends();
     final AudioListener listener = this.createListener();
     final Thread sender = listener.start();
+    assertNotNull(sender, "start hands the sender thread to the caller");
+
     final boolean virtual = sender.isVirtual();
     final String name = sender.getName();
-    assertNotNull(sender, "start hands the sender thread to the caller");
     assertTrue(virtual);
     assertEquals("mcav-http-listener-listener-1", name);
 
