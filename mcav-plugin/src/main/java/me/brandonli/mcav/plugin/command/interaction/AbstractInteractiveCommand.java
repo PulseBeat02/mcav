@@ -106,9 +106,9 @@ import org.slf4j.LoggerFactory;
  * it. Protecting the frames of the screen needs no permission, so a player without it can neither break the wall nor
  * turn the maps in their frames.
  *
- * @param <T> the type of the interactive player
+ * @param <PlayerType> the type of the interactive player
  */
-public abstract class AbstractInteractiveCommand<T> implements AnnotationCommandFeature, Listener {
+public abstract class AbstractInteractiveCommand<PlayerType> implements AnnotationCommandFeature, Listener {
 
   private static final Equivalence<Object> IDENTITY = Equivalence.identity();
   private static final Logger LOGGER = LoggerFactory.getLogger(AbstractInteractiveCommand.class);
@@ -141,7 +141,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
   /**
    * The running player. Changed only while holding the lock of this command.
    */
-  protected volatile @Nullable T player;
+  protected volatile @Nullable PlayerType player;
 
   // the provider a player's sound was attached to, which a release lets go of even while the plugin disables and no
   // longer hands its provider out
@@ -209,7 +209,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
    * Releases the running player and its maps, if any.
    */
   protected final void releaseCurrent() {
-    final T current;
+    final PlayerType current;
     final FunctionalVideoFilter maps;
     final Screen oldScreen;
     synchronized (this.lock) {
@@ -472,7 +472,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
   }
 
   /** Takes ownership on the main thread before callback attachment or executor submission can fail. */
-  final void ownCreatedPlayer(final T created) {
+  final void ownCreatedPlayer(final PlayerType created) {
     synchronized (this.lock) {
       this.player = created;
     }
@@ -507,7 +507,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
    * BrowserPlayer and VmPlayer submit their CompletableFuture startup through execute. Screen creation,
    * reportStartWhenDone, release commands and shutdown are main-thread operations; startup runs on the worker.
    */
-  final ExecutorService startExecutor(final T started, final Screen screen) {
+  final ExecutorService startExecutor(final PlayerType started, final Screen screen) {
     return new ForwardingExecutorService() {
       @Override
       protected ExecutorService delegate() {
@@ -522,7 +522,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     };
   }
 
-  private void runStartTask(final T started, final Screen screen, final Runnable task) {
+  private void runStartTask(final PlayerType started, final Screen screen, final Runnable task) {
     if (!screen.beginStart()) {
       return;
     }
@@ -544,7 +544,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     this.finishStartTask(started, screen);
   }
 
-  private void finishStartTask(final T started, final Screen screen) {
+  private void finishStartTask(final PlayerType started, final Screen screen) {
     final boolean cancelled = screen.finishStart();
     if (cancelled) {
       this.releasePlayer(started);
@@ -565,7 +565,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
    */
   final void reportStartWhenDone(
     final CommandSender sender,
-    final T started,
+    final PlayerType started,
     final Screen screen,
     final CompletableFuture<Boolean> start,
     final String description
@@ -578,11 +578,11 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     }
     screen.bindStart(start);
     final FunctionalVideoFilter maps = screen.getOutput();
-    final StartAttempt<T> attempt = new StartAttempt<>(sender, started, maps, screen, description);
+    final StartAttempt<PlayerType> attempt = new StartAttempt<>(sender, started, maps, screen, description);
     TaskUtils.whenComplete(start, (succeeded, error) -> this.onStartCompleted(attempt, succeeded, error));
   }
 
-  private void onStartCompleted(final StartAttempt<T> attempt, final @Nullable Boolean started, final @Nullable Throwable error) {
+  private void onStartCompleted(final StartAttempt<PlayerType> attempt, final @Nullable Boolean started, final @Nullable Throwable error) {
     final Screen screen = attempt.getScreen();
     if (screen.isCancelled()) {
       return;
@@ -591,7 +591,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     if (!succeeded) {
       final String description = attempt.getDescription();
       LOGGER.error(START_FAILED, description, error);
-      final T failed = attempt.getPlayer();
+      final PlayerType failed = attempt.getPlayer();
       final FunctionalVideoFilter maps = attempt.getMaps();
       this.releaseIfCurrent(failed, maps);
     }
@@ -609,11 +609,11 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
    * Releases a player that failed to start and the maps of its screen, each only while it is still the running
    * one. One that is no longer running was replaced by a newer command, which released it already.
    */
-  private void releaseIfCurrent(final T failed, final FunctionalVideoFilter maps) {
+  private void releaseIfCurrent(final PlayerType failed, final FunctionalVideoFilter maps) {
     final boolean playerCurrent;
     final boolean mapsCurrent;
     synchronized (this.lock) {
-      final T current = this.player;
+      final PlayerType current = this.player;
       playerCurrent = IDENTITY.equivalent(current, failed);
       if (playerCurrent) {
         this.player = null;
@@ -679,7 +679,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
   @EventHandler
   public void onBlockBreak(final BlockBreakEvent event) {
     Preconditions.checkNotNull(event, "Event must not be null!");
-    final T current = this.player;
+    final PlayerType current = this.player;
     if (current == null) {
       return;
     }
@@ -770,7 +770,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
 
     // only a punch is forwarded; a projectile is not the player who shot it
     final boolean punched = damager instanceof Player;
-    final T current = this.player;
+    final PlayerType current = this.player;
     final Screen shown = this.screenOf((ItemFrame) entity);
     if (current == null || !punched || shown == null) {
       return;
@@ -811,7 +811,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
   @EventHandler
   public void onPlayerInteractEntity(final PlayerInteractEntityEvent event) {
     Preconditions.checkNotNull(event, "Event must not be null!");
-    final T current = this.player;
+    final PlayerType current = this.player;
     final Entity entity = event.getRightClicked();
     final boolean isScreen = isScreen(entity);
     final Screen shown = isScreen ? this.screenOf((ItemFrame) entity) : null;
@@ -848,7 +848,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     Preconditions.checkNotNull(event, "Event must not be null!");
     final Player chatter = event.getPlayer();
     final boolean active = this.activePlayers.contains(chatter);
-    final T current = this.player;
+    final PlayerType current = this.player;
     if (!active || current == null) {
       return;
     }
@@ -939,7 +939,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
    * @param screenX the x coordinate on the screen
    * @param screenY the y coordinate on the screen
    */
-  protected abstract void forwardLeftClick(final T current, final int screenX, final int screenY);
+  protected abstract void forwardLeftClick(final PlayerType current, final int screenX, final int screenY);
 
   /**
    * Forwards a right click.
@@ -948,7 +948,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
    * @param screenX the x coordinate on the screen
    * @param screenY the y coordinate on the screen
    */
-  protected abstract void forwardRightClick(final T current, final int screenX, final int screenY);
+  protected abstract void forwardRightClick(final PlayerType current, final int screenX, final int screenY);
 
   /**
    * Forwards typed text.
@@ -956,7 +956,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
    * @param current the running player
    * @param text    the text
    */
-  protected abstract void forwardTextInput(final T current, final String text);
+  protected abstract void forwardTextInput(final PlayerType current, final String text);
 
   /**
    * Creates the message that tells the sender whether the player started.
@@ -972,24 +972,24 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
    *
    * @param current the player to release, which is no longer the running one
    */
-  protected abstract void releasePlayer(final T current);
+  protected abstract void releasePlayer(final PlayerType current);
 
   /**
    * A player that is starting, with everything needed to report or undo its start.
    *
-   * @param <T> the type of the interactive player
+   * @param <PlayerType> the type of the interactive player
    */
-  private static final class StartAttempt<T> {
+  private static final class StartAttempt<PlayerType> {
 
     private final CommandSender sender;
-    private final T player;
+    private final PlayerType player;
     private final FunctionalVideoFilter maps;
     private final Screen screen;
     private final String description;
 
     StartAttempt(
       final CommandSender sender,
-      final T player,
+      final PlayerType player,
       final FunctionalVideoFilter maps,
       final Screen screen,
       final String description
@@ -1005,7 +1005,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
       return this.sender;
     }
 
-    private T getPlayer() {
+    private PlayerType getPlayer() {
       return this.player;
     }
 

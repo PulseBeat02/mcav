@@ -270,7 +270,7 @@ public final class MCAVSandbox extends JavaPlugin {
     );
   }
 
-  private static <T> Runnable whenPresent(final @Nullable T part, final Consumer<T> cleanup) {
+  private static <PartType> Runnable whenPresent(final @Nullable PartType part, final Consumer<PartType> cleanup) {
     return () -> {
       if (part != null) {
         cleanup.accept(part);
@@ -278,7 +278,7 @@ public final class MCAVSandbox extends JavaPlugin {
     };
   }
 
-  private static <T> T require(final @Nullable T value, final String name) {
+  private static <ValueType> ValueType require(final @Nullable ValueType value, final String name) {
     if (value == null) {
       final String message = "The %s is not available before the plugin is enabled!".formatted(name);
       throw new IllegalStateException(message);

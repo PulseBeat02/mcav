@@ -62,13 +62,13 @@ public interface LocaleTools {
   /**
    * Declares a message with one argument, inserted where the message has {@code <arg:0>}.
    *
-   * @param key      the key of the message in the message file
-   * @param function turns the argument into the inserted text, or {@code null} to use its {@code toString()}
-   * @param <T>      the type of the argument
+   * @param key            the key of the message in the message file
+   * @param function       turns the argument into the inserted text, or {@code null} to use its {@code toString()}
+   * @param <ArgumentType> the type of the argument
    * @return a builder that renders the message with an argument each time it is called
    * @throws NullPointerException if the key is {@code null}
    */
-  static <T> UniComponent<T> direct(final String key, final @Nullable Function<T, String> function) {
+  static <ArgumentType> UniComponent<ArgumentType> direct(final String key, final @Nullable Function<ArgumentType, String> function) {
     Preconditions.checkNotNull(key, "Key must not be null!");
     return argument -> {
       final Component text = createFinalText(argument, function);
@@ -85,15 +85,15 @@ public interface LocaleTools {
    *                       {@code toString()}
    * @param secondFunction turns the second argument into the inserted text, or {@code null} to use its
    *                       {@code toString()}
-   * @param <T>            the type of the first argument
-   * @param <U>            the type of the second argument
+   * @param <FirstType>    the type of the first argument
+   * @param <SecondType>   the type of the second argument
    * @return a builder that renders the message with two arguments each time it is called
    * @throws NullPointerException if the key is {@code null}
    */
-  static <T, U> BiComponent<T, U> direct(
+  static <FirstType, SecondType> BiComponent<FirstType, SecondType> direct(
     final String key,
-    final @Nullable Function<T, String> firstFunction,
-    final @Nullable Function<U, String> secondFunction
+    final @Nullable Function<FirstType, String> firstFunction,
+    final @Nullable Function<SecondType, String> secondFunction
   ) {
     Preconditions.checkNotNull(key, "Key must not be null!");
     return (firstArgument, secondArgument) -> {
@@ -115,17 +115,17 @@ public interface LocaleTools {
    *                       {@code toString()}
    * @param thirdFunction  turns the third argument into the inserted text, or {@code null} to use its
    *                       {@code toString()}
-   * @param <T>            the type of the first argument
-   * @param <U>            the type of the second argument
-   * @param <V>            the type of the third argument
+   * @param <FirstType>    the type of the first argument
+   * @param <SecondType>   the type of the second argument
+   * @param <ThirdType>    the type of the third argument
    * @return a builder that renders the message with three arguments each time it is called
    * @throws NullPointerException if the key is {@code null}
    */
-  static <T, U, V> TriComponent<T, U, V> direct(
+  static <FirstType, SecondType, ThirdType> TriComponent<FirstType, SecondType, ThirdType> direct(
     final String key,
-    final @Nullable Function<T, String> firstFunction,
-    final @Nullable Function<U, String> secondFunction,
-    final @Nullable Function<V, String> thirdFunction
+    final @Nullable Function<FirstType, String> firstFunction,
+    final @Nullable Function<SecondType, String> secondFunction,
+    final @Nullable Function<ThirdType, String> thirdFunction
   ) {
     Preconditions.checkNotNull(key, "Key must not be null!");
     return (firstArgument, secondArgument, thirdArgument) -> {
@@ -140,13 +140,13 @@ public interface LocaleTools {
   /**
    * Turns a message argument into the plain text inserted into the message.
    *
-   * @param argument the argument, which may be {@code null}
-   * @param function turns the argument into text, and then receives {@code null} arguments too; or {@code null}
-   *                 to use the {@code toString()} of the argument, with empty text for a {@code null} argument
-   * @param <T>      the type of the argument
+   * @param argument       the argument, which may be {@code null}
+   * @param function       turns the argument into text, and then receives {@code null} arguments too; or {@code null}
+   *                       to use the {@code toString()} of the argument, with empty text for a {@code null} argument
+   * @param <ArgumentType> the type of the argument
    * @return the text component, without any style of its own so it takes the style of the surrounding message
    */
-  static <T> Component createFinalText(final T argument, final @Nullable Function<T, String> function) {
+  static <ArgumentType> Component createFinalText(final ArgumentType argument, final @Nullable Function<ArgumentType, String> function) {
     if (function != null) {
       final String converted = function.apply(argument);
       return text(converted);
@@ -173,10 +173,10 @@ public interface LocaleTools {
   /**
    * A message with one argument.
    *
-   * @param <A0> the type of the argument
+   * @param <ArgumentType> the type of the argument
    */
   @FunctionalInterface
-  interface UniComponent<A0> {
+  interface UniComponent<ArgumentType> {
     /**
      * Renders the message in the configured language.
      *
@@ -184,17 +184,17 @@ public interface LocaleTools {
      * @return the message, ready to send
      * @throws java.util.MissingResourceException if the message file has no message with the key
      */
-    Component build(A0 argument);
+    Component build(ArgumentType argument);
   }
 
   /**
    * A message with two arguments.
    *
-   * @param <A0> the type of the first argument
-   * @param <A1> the type of the second argument
+   * @param <FirstType>  the type of the first argument
+   * @param <SecondType> the type of the second argument
    */
   @FunctionalInterface
-  interface BiComponent<A0, A1> {
+  interface BiComponent<FirstType, SecondType> {
     /**
      * Renders the message in the configured language.
      *
@@ -203,18 +203,18 @@ public interface LocaleTools {
      * @return the message, ready to send
      * @throws java.util.MissingResourceException if the message file has no message with the key
      */
-    Component build(A0 firstArgument, A1 secondArgument);
+    Component build(FirstType firstArgument, SecondType secondArgument);
   }
 
   /**
    * A message with three arguments.
    *
-   * @param <A0> the type of the first argument
-   * @param <A1> the type of the second argument
-   * @param <A2> the type of the third argument
+   * @param <FirstType>  the type of the first argument
+   * @param <SecondType> the type of the second argument
+   * @param <ThirdType>  the type of the third argument
    */
   @FunctionalInterface
-  interface TriComponent<A0, A1, A2> {
+  interface TriComponent<FirstType, SecondType, ThirdType> {
     /**
      * Renders the message in the configured language.
      *
@@ -224,6 +224,6 @@ public interface LocaleTools {
      * @return the message, ready to send
      * @throws java.util.MissingResourceException if the message file has no message with the key
      */
-    Component build(A0 firstArgument, A1 secondArgument, A2 thirdArgument);
+    Component build(FirstType firstArgument, SecondType secondArgument, ThirdType thirdArgument);
   }
 }

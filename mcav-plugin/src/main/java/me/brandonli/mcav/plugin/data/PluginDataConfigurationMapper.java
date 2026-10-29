@@ -248,14 +248,14 @@ public final class PluginDataConfigurationMapper {
   }
 
   /** Reads a setting that names a constant of an enum, in any case. */
-  private static <E extends Enum<E>> E readChoice(
+  private static <ChoiceType extends Enum<ChoiceType>> ChoiceType readChoice(
     final FileConfiguration configuration,
     final String key,
-    final Class<E> type,
-    final E fallback
+    final Class<ChoiceType> type,
+    final ChoiceType fallback
   ) {
     final String value = getString(configuration, key, fallback.name());
-    for (final E constant : EnumSet.allOf(type)) {
+    for (final ChoiceType constant : EnumSet.allOf(type)) {
       if (constant.name().equalsIgnoreCase(value.strip())) {
         return constant;
       }

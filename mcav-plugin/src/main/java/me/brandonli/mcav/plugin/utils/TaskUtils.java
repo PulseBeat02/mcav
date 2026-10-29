@@ -87,14 +87,14 @@ public final class TaskUtils {
    * <p>The callback runs on the thread that completes the future, or at once on the calling thread if the future has
    * already completed.
    *
-   * @param future   the future to wait for
-   * @param callback receives the result, which is null if the future failed, and the failure, which is null if the
-   *                 future succeeded
-   * @param <T>      the type of the result
+   * @param future       the future to wait for
+   * @param callback     receives the result, which is null if the future failed, and the failure, which is null if the
+   *                     future succeeded
+   * @param <ResultType> the type of the result
    */
-  public static <T> void whenComplete(
-    final CompletableFuture<T> future,
-    final BiConsumer<? super T, ? super @Nullable Throwable> callback
+  public static <ResultType> void whenComplete(
+    final CompletableFuture<ResultType> future,
+    final BiConsumer<? super ResultType, ? super @Nullable Throwable> callback
   ) {
     Preconditions.checkNotNull(future, "Future must not be null!");
     Preconditions.checkNotNull(callback, "Callback must not be null!");
@@ -102,9 +102,9 @@ public final class TaskUtils {
     handled.exceptionally(TaskUtils::logCallbackFailure);
   }
 
-  private static <T> @Nullable Void runCallback(
-    final BiConsumer<? super T, ? super @Nullable Throwable> callback,
-    final T result,
+  private static <ResultType> @Nullable Void runCallback(
+    final BiConsumer<? super ResultType, ? super @Nullable Throwable> callback,
+    final ResultType result,
     final @Nullable Throwable error
   ) {
     callback.accept(result, error);
