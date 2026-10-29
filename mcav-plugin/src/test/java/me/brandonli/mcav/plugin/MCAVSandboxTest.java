@@ -67,7 +67,7 @@ import me.brandonli.mcav.plugin.listener.JukeBoxListener;
 import me.brandonli.mcav.plugin.listener.OnlinePlayers;
 import me.brandonli.mcav.plugin.testing.TestCommandManager;
 import me.brandonli.mcav.plugin.testing.TestServer;
-import me.brandonli.mcav.plugin.utils.IOUtils;
+import me.brandonli.mcav.plugin.utils.IoUtils;
 import me.brandonli.mcav.vm.VmModule;
 import me.brandonli.mcav.voicechat.SvcModule;
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
@@ -150,7 +150,7 @@ final class MCAVSandboxTest {
   private @Nullable Object copyResource(final InvocationOnMock invocation) throws IOException {
     final String name = invocation.getArgument(0);
     final Path target = this.folder.resolve(name);
-    try (final InputStream stream = IOUtils.getResourceAsStream(name)) {
+    try (final InputStream stream = IoUtils.getResourceAsStream(name)) {
       Files.copy(stream, target);
     }
     return null;
@@ -301,7 +301,7 @@ final class MCAVSandboxTest {
   @Test
   void shouldApplyAndLogTheMcv2EncoderBudget() throws IOException {
     final String defaults;
-    try (final InputStream stream = IOUtils.getResourceAsStream("config.yml")) {
+    try (final InputStream stream = IoUtils.getResourceAsStream("config.yml")) {
       defaults = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
     }
 
@@ -325,7 +325,7 @@ final class MCAVSandboxTest {
   @Test
   void shouldDecideTheNativeKernelsAtStartup() throws IOException {
     final String defaults;
-    try (final InputStream stream = IOUtils.getResourceAsStream("config.yml")) {
+    try (final InputStream stream = IoUtils.getResourceAsStream("config.yml")) {
       defaults = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
     }
 

@@ -106,8 +106,8 @@ final class AnnotationParserHandlerTest {
     "mcav video devices",
     "mcav video hologram set location",
     "mcav video hologram disable",
-    "mcav video map playerSelector playerType audioType videoResolution blockDimensions mapId ditheringAlgorithm ytDlpOptions mrl flags",
-    "mcav video mcv2 playerSelector playerType audioType videoResolution blockDimensions mapId profile ditheringAlgorithm ytDlpOptions mrl flags",
+    "mcav video map playerSelector playerType audioType videoResolution blockDimensions mapId ditheringAlgorithm ytdlpOptions mrl flags",
+    "mcav video mcv2 playerSelector playerType audioType videoResolution blockDimensions mapId profile ditheringAlgorithm ytdlpOptions mrl flags",
     "mcav mcv2 play playerSelector blockDimensions mapId ticks file",
     "mcav mcv2 stream playerSelector blockDimensions mapId framesPerSecond file",
     "mcav mcv2 stop",
@@ -282,7 +282,7 @@ final class AnnotationParserHandlerTest {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
     for (final String syntax : List.of(
-      "mcav video map playerSelector playerType audioType videoResolution blockDimensions mapId ditheringAlgorithm ytDlpOptions mrl flags",
+      "mcav video map playerSelector playerType audioType videoResolution blockDimensions mapId ditheringAlgorithm ytdlpOptions mrl flags",
       "mcav image map playerSelector imageResolution blockDimensions mapId ditheringAlgorithm mrl flags",
       "mcav browser create playerSelector browserResolution nth blockDimensions mapId ditheringAlgorithm audioType url flags",
       "mcav vnc create playerSelector vncResolution targetFramesPerSecond blockDimensions mapId ditheringAlgorithm server flags"
@@ -350,7 +350,7 @@ final class AnnotationParserHandlerTest {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
     final String video =
-      "mcav video map playerSelector playerType audioType videoResolution blockDimensions mapId ditheringAlgorithm ytDlpOptions mrl flags";
+      "mcav video map playerSelector playerType audioType videoResolution blockDimensions mapId ditheringAlgorithm ytdlpOptions mrl flags";
     final String browser =
       "mcav browser create playerSelector browserResolution nth blockDimensions mapId ditheringAlgorithm audioType url flags";
     final String vm =

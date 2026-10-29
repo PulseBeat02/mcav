@@ -100,7 +100,7 @@ public final class VideoFlagsParser {
    * @return the arguments to pass to yt-dlp, empty if there are none
    * @throws IllegalArgumentException if an option with a value has an empty name
    */
-  public String[] parseYTDLPFlags(final @Nullable String flags) {
+  public String[] parseYtdlpFlags(final @Nullable String flags) {
     final String content = extractOptions(flags);
     if (content == null) {
       return new String[0];

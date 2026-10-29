@@ -62,7 +62,7 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
 
   /**
    * Handles {@code /mcav video mcv2 <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions>
-   * <mapId> <profile> <ditheringAlgorithm> <ytDlpOptions> <mrl>}.
+   * <mapId> <profile> <ditheringAlgorithm> <ytdlpOptions> <mrl>}.
    *
    * <p>Build the wall first with {@code /mcav screen}, using the same block dimensions and map id. The screen takes a
    * slot of the one MCV2 resource pack that decodes every MCV2 screen of the server, which the viewers are offered if
@@ -83,13 +83,13 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
    * @param mapId              the id of the top-left map of the wall, as given to {@code /mcav screen}
    * @param profile            the encoder profile, see {@link Mcv2Profile}
    * @param ditheringAlgorithm how the video is dithered for players without the pack, see {@link DitheringArgument}
-   * @param ytDlpOptions       extra options, in quotes; {@code ""} for none
+   * @param ytdlpOptions       extra options, in quotes; {@code ""} for none
    * @param mrl                the media, in quotes if it contains spaces
-   * @param filters         the {@code --filters} option: filters applied to every frame in order, such as
-   *                        {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
+   * @param filters            the {@code --filters} option: filters applied to every frame in order, such as
+   *                           {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
    */
   @Command(
-    "mcav video mcv2 <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions> <mapId> <profile> <ditheringAlgorithm> <ytDlpOptions> <mrl>"
+    "mcav video mcv2 <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions> <mapId> <profile> <ditheringAlgorithm> <ytdlpOptions> <mrl>"
   )
   @Permission("mcav.command.video.mcv2")
   @CommandDescription("mcav.command.video.mcv2.info")
@@ -103,7 +103,7 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
     @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
     final Mcv2Profile profile,
     final DitheringArgument ditheringAlgorithm,
-    @Quoted final String ytDlpOptions,
+    @Quoted final String ytdlpOptions,
     @Quoted final String mrl,
     @Flag("filters") @Quoted final @Nullable String filters
   ) {
@@ -122,7 +122,7 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
       return;
     }
     final VideoConfigurationProvider provider = _ -> new Mcv2Settings(configuration, ditheringAlgorithm, sender);
-    this.playVideo(provider, sender, playerSelector, playerType, audioType, videoResolution, mrl, ytDlpOptions, filters);
+    this.playVideo(provider, sender, playerSelector, playerType, audioType, videoResolution, mrl, ytdlpOptions, filters);
   }
 
   /**

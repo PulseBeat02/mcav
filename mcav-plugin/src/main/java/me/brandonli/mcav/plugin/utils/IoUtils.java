@@ -28,9 +28,9 @@ import me.brandonli.mcav.plugin.MCAVSandbox;
 /**
  * Locates the plugin's data folder and its bundled resources.
  */
-public final class IOUtils {
+public final class IoUtils {
 
-  private IOUtils() {
+  private IoUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
@@ -56,7 +56,7 @@ public final class IOUtils {
    */
   public static InputStream getResourceAsStream(final String path) {
     Preconditions.checkNotNull(path, "Path must not be null!");
-    final Class<IOUtils> utilsClass = IOUtils.class;
+    final Class<IoUtils> utilsClass = IoUtils.class;
     final ClassLoader nullableLoader = utilsClass.getClassLoader();
     final ClassLoader loader = requireNonNull(nullableLoader);
 

@@ -186,7 +186,7 @@ public final class AudioProvider {
     final String token = this.configuration.getDiscordBotToken();
     final String guildId = this.configuration.getDiscordBotGuildId();
     final String channelId = this.configuration.getDiscordBotChannelId();
-    final JDA bot = createJDA(token);
+    final JDA bot = createJda(token);
     synchronized (this.lock) {
       this.jda = bot;
     }
@@ -197,7 +197,7 @@ public final class AudioProvider {
     TaskUtils.whenComplete(login, (connection, error) -> this.onDiscordConnected(bot, connection, error));
   }
 
-  private static JDA createJDA(final String token) {
+  private static JDA createJda(final String token) {
     final JDABuilder builder = JDABuilder.createLight(token, GatewayIntent.GUILD_VOICE_STATES);
     builder.enableCache(CacheFlag.VOICE_STATE);
     return builder.build();
@@ -378,11 +378,11 @@ public final class AudioProvider {
     return switch (claim.argument) {
       case DISCORD_BOT -> this.constructDiscordFilter(claim.dump);
       case HTTP_SERVER -> this.constructHttpFilter(claim.dump);
-      default -> this.constructSVCFilter(claim.players);
+      default -> this.constructSvcFilter(claim.players);
     };
   }
 
-  private AudioFilter constructSVCFilter(final Object[] players) {
+  private AudioFilter constructSvcFilter(final Object[] players) {
     final SvcFilter filter = SvcFilter.svc(players);
     filter.start();
     this.voiceChatFilter = filter;

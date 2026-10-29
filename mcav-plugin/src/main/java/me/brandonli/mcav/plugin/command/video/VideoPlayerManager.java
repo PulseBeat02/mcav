@@ -171,7 +171,7 @@ public final class VideoPlayerManager {
    *
    * @return true if VLC players can be created
    */
-  public boolean isVLCSupported() {
+  public boolean isVlcSupported() {
     return this.api.hasCapability(Capability.VLC);
   }
 

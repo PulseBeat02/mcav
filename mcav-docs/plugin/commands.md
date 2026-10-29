@@ -237,7 +237,7 @@ every device there is.
 
 | **Command**                               | `/mcav video block`                                                                                      |
 |-------------------------------------------|----------------------------------------------------------------------------------------------------------|
-| **Usage**                                 | `/mcav video block <playerSelector> <playerType> <audioType> <videoResolution> <location> <ytDlpOptions> <mrl> [--filters "<chain>"]` |
+| **Usage**                                 | `/mcav video block <playerSelector> <playerType> <audioType> <videoResolution> <location> <ytdlpOptions> <mrl> [--filters "<chain>"]` |
 | **Permission**                            | `mcav.command.video.block`                                                                               |
 | **Description**                           | Displays a video in blocks.                                                                              |
 | **Arguments**                             |                                                                                                          |
@@ -246,7 +246,7 @@ every device there is.
 | &nbsp;&nbsp;&nbsp;&nbsp;`audioType`       | The type of audio output to use                                                                          |
 | &nbsp;&nbsp;&nbsp;&nbsp;`videoResolution` | A resolution in width×height format (example, 640x360)                                                   |
 | &nbsp;&nbsp;&nbsp;&nbsp;`location`        | The location in the World to display the video                                                           |
-| &nbsp;&nbsp;&nbsp;&nbsp;`ytDlpOptions`           | Additional options if the media will be parsed by yt-dlp (in format --yt-dlp{arg1=...,arg2,etc}; see [which options are accepted](#yt-dlp-options) |
+| &nbsp;&nbsp;&nbsp;&nbsp;`ytdlpOptions`           | Additional options if the media will be parsed by yt-dlp (in format --yt-dlp{arg1=...,arg2,etc}; see [which options are accepted](#yt-dlp-options) |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mrl`             | The Media Resource Locator pointing to the video                                                         |
 | &nbsp;&nbsp;&nbsp;&nbsp;`--filters`       | Optional: filters applied to every frame in order, in quotes, such as `"grayscale,blur=3"`; see [filters](#filters) |
 
@@ -254,7 +254,7 @@ every device there is.
 
 | **Command**                               | `/mcav video chat`                                                                                       |
 |-------------------------------------------|----------------------------------------------------------------------------------------------------------|
-| **Usage**                                 | `/mcav video chat <playerSelector> <playerType> <audioType> <videoResolution> <character> <ytDlpOptions> <mrl> [--filters "<chain>"]` |
+| **Usage**                                 | `/mcav video chat <playerSelector> <playerType> <audioType> <videoResolution> <character> <ytdlpOptions> <mrl> [--filters "<chain>"]` |
 | **Permission**                            | `mcav.command.video.chat`                                                                                |
 | **Description**                           | Displays a video in chat.                                                                                |
 | **Arguments**                             |                                                                                                          |
@@ -263,7 +263,7 @@ every device there is.
 | &nbsp;&nbsp;&nbsp;&nbsp;`audioType`       | The type of audio output to use                                                                          |
 | &nbsp;&nbsp;&nbsp;&nbsp;`videoResolution` | A resolution in width×height format (example, 640x360)                                                   |
 | &nbsp;&nbsp;&nbsp;&nbsp;`character`       | The character to use for rendering the video in chat                                                     |
-| &nbsp;&nbsp;&nbsp;&nbsp;`ytDlpOptions`           | Additional options if the media will be parsed by yt-dlp (in format --yt-dlp{arg1=...,arg2,etc}; see [which options are accepted](#yt-dlp-options) |
+| &nbsp;&nbsp;&nbsp;&nbsp;`ytdlpOptions`           | Additional options if the media will be parsed by yt-dlp (in format --yt-dlp{arg1=...,arg2,etc}; see [which options are accepted](#yt-dlp-options) |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mrl`             | The Media Resource Locator pointing to the video                                                         |
 | &nbsp;&nbsp;&nbsp;&nbsp;`--filters`       | Optional: filters applied to every frame in order, in quotes, such as `"grayscale,blur=3"`; see [filters](#filters) |
 
@@ -271,7 +271,7 @@ every device there is.
 
 | **Command**                               | `/mcav video entity`                                                                                                  |
 |-------------------------------------------|-----------------------------------------------------------------------------------------------------------------------|
-| **Usage**                                 | `/mcav video entity <playerSelector> <playerType> <audioType> <videoResolution> <character> <location> <ytDlpOptions> <mrl> [--filters "<chain>"]` |
+| **Usage**                                 | `/mcav video entity <playerSelector> <playerType> <audioType> <videoResolution> <character> <location> <ytdlpOptions> <mrl> [--filters "<chain>"]` |
 | **Permission**                            | `mcav.command.video.entity`                                                                                           |
 | **Description**                           | Displays a video as a TextDisplay entity.                                                                             |
 | **Arguments**                             |                                                                                                                       |
@@ -281,7 +281,7 @@ every device there is.
 | &nbsp;&nbsp;&nbsp;&nbsp;`videoResolution` | A resolution in width×height format (example, 640x360)                                                                |
 | &nbsp;&nbsp;&nbsp;&nbsp;`character`       | The character to use for rendering the video                                                                          |
 | &nbsp;&nbsp;&nbsp;&nbsp;`location`        | The location where to display the video entity                                                                        |
-| &nbsp;&nbsp;&nbsp;&nbsp;`ytDlpOptions`           | Additional options if the media will be parsed by yt-dlp (in format --yt-dlp{arg1=...,arg2,etc}; see [which options are accepted](#yt-dlp-options) |
+| &nbsp;&nbsp;&nbsp;&nbsp;`ytdlpOptions`           | Additional options if the media will be parsed by yt-dlp (in format --yt-dlp{arg1=...,arg2,etc}; see [which options are accepted](#yt-dlp-options) |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mrl`             | The Media Resource Locator pointing to the video                                                                      |
 | &nbsp;&nbsp;&nbsp;&nbsp;`--filters`       | Optional: filters applied to every frame in order, in quotes, such as `"grayscale,blur=3"`; see [filters](#filters) |
 
@@ -289,7 +289,7 @@ every device there is.
 
 | **Command**                                  | `/mcav video map`                                                                                                                          |
 |----------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------|
-| **Usage**                                    | `/mcav video map <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <ytDlpOptions> <mrl> [--codec dither\|mcv2] [--filters "<chain>"]` |
+| **Usage**                                    | `/mcav video map <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <ytdlpOptions> <mrl> [--codec dither\|mcv2] [--filters "<chain>"]` |
 | **Permission**                               | `mcav.command.video.map`                                                                                                                   |
 | **Description**                              | Displays a video on a map screen.                                                                                                          |
 | **Arguments**                                |                                                                                                                                            |
@@ -300,7 +300,7 @@ every device there is.
 | &nbsp;&nbsp;&nbsp;&nbsp;`blockDimensions`    | The dimensions of the map blocks                                                                                                           |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mapId`              | The ID of the map. This corresponds with the id you set in `/mcav screen` to create the map screen                                         |
 | &nbsp;&nbsp;&nbsp;&nbsp;`ditheringAlgorithm` | The algorithm used for dithering the video. Use FILTER_LITE for best results                                                               |
-| &nbsp;&nbsp;&nbsp;&nbsp;`ytDlpOptions`       | Additional flags if the media will be parsed by yt-dlp (in format --yt-dlp{arg1=...,arg2,etc}; see [which options are accepted](#yt-dlp-options) |
+| &nbsp;&nbsp;&nbsp;&nbsp;`ytdlpOptions`       | Additional flags if the media will be parsed by yt-dlp (in format --yt-dlp{arg1=...,arg2,etc}; see [which options are accepted](#yt-dlp-options) |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mrl`                | The Media Resource Locator pointing to the video                                                                                           |
 | &nbsp;&nbsp;&nbsp;&nbsp;`--filters`       | Optional: filters applied to every frame in order, in quotes, such as `"grayscale,blur=3"`; see [filters](#filters) |
 | &nbsp;&nbsp;&nbsp;&nbsp;`--codec`            | (optional): `dither` or `mcv2`, see [the codec of a wall of maps](#the-codec-of-a-wall-of-maps); `mcv2.default-codec` without it           |
@@ -309,7 +309,7 @@ every device there is.
 
 | **Command**                                  | `/mcav video mcv2`                                                                                                                         |
 |----------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------|
-| **Usage**                                    | `/mcav video mcv2 <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions> <mapId> <profile> <ditheringAlgorithm> <ytDlpOptions> <mrl> [--filters "<chain>"]` |
+| **Usage**                                    | `/mcav video mcv2 <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions> <mapId> <profile> <ditheringAlgorithm> <ytdlpOptions> <mrl> [--filters "<chain>"]` |
 | **Permission**                               | `mcav.command.video.mcv2`                                                                                                                  |
 | **Description**                              | Plays a video on a map screen with MCV2, like `/mcav video map ... --codec mcv2`, with the encoder profile of your choice                  |
 | **Arguments**                                |                                                                                                                                            |
@@ -320,7 +320,7 @@ every device there is.
 
 | **Command**                               | `/mcav video scoreboard`                                                                                       |
 |-------------------------------------------|----------------------------------------------------------------------------------------------------------------|
-| **Usage**                                 | `/mcav video scoreboard <playerSelector> <playerType> <audioType> <videoResolution> <character> <ytDlpOptions> <mrl> [--filters "<chain>"]` |
+| **Usage**                                 | `/mcav video scoreboard <playerSelector> <playerType> <audioType> <videoResolution> <character> <ytdlpOptions> <mrl> [--filters "<chain>"]` |
 | **Permission**                            | `mcav.command.video.scoreboard`                                                                                |
 | **Description**                           | Displays a video in a scoreboard.                                                                              |
 | **Arguments**                             |                                                                                                                |
@@ -329,7 +329,7 @@ every device there is.
 | &nbsp;&nbsp;&nbsp;&nbsp;`audioType`       | The type of audio output to use                                                                                |
 | &nbsp;&nbsp;&nbsp;&nbsp;`videoResolution` | A resolution in width×height format (example, 640x360)                                                         |
 | &nbsp;&nbsp;&nbsp;&nbsp;`character`       | The character to use for rendering the video in the scoreboard                                                 |
-| &nbsp;&nbsp;&nbsp;&nbsp;`ytDlpOptions`           | Additional options if the media will be parsed by yt-dlp (in format --yt-dlp{arg1=...,arg2,etc}; see [which options are accepted](#yt-dlp-options) |
+| &nbsp;&nbsp;&nbsp;&nbsp;`ytdlpOptions`           | Additional options if the media will be parsed by yt-dlp (in format --yt-dlp{arg1=...,arg2,etc}; see [which options are accepted](#yt-dlp-options) |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mrl`             | The Media Resource Locator pointing to the video                                                               |
 | &nbsp;&nbsp;&nbsp;&nbsp;`--filters`       | Optional: filters applied to every frame in order, in quotes, such as `"grayscale,blur=3"`; see [filters](#filters) |
 

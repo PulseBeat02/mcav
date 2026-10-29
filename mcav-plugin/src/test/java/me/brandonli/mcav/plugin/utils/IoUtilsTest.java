@@ -37,9 +37,9 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
 /**
- * Tests {@link IOUtils}.
+ * Tests {@link IoUtils}.
  */
-final class IOUtilsTest {
+final class IoUtilsTest {
 
   @Test
   void shouldResolveTheDataFolderToAnAbsolutePath() {
@@ -48,7 +48,7 @@ final class IOUtilsTest {
     when(plugin.getDataFolder()).thenReturn(relative);
     try (final MockedStatic<JavaPlugin> javaPlugin = Mockito.mockStatic(JavaPlugin.class)) {
       javaPlugin.when(() -> JavaPlugin.getPlugin(MCAVSandbox.class)).thenReturn(plugin);
-      final Path folder = IOUtils.getPluginDataFolderPath();
+      final Path folder = IoUtils.getPluginDataFolderPath();
       final Path relativePath = relative.toPath();
       final Path expected = relativePath.toAbsolutePath();
       final boolean absolute = folder.isAbsolute();
@@ -59,7 +59,7 @@ final class IOUtilsTest {
 
   @Test
   void shouldOpenBundledResources() throws IOException {
-    try (final InputStream stream = IOUtils.getResourceAsStream("config.yml")) {
+    try (final InputStream stream = IoUtils.getResourceAsStream("config.yml")) {
       final byte[] bytes = stream.readAllBytes();
       final String content = new String(bytes, StandardCharsets.UTF_8);
       final boolean configuration = content.startsWith("# MCAV Configuration File");
@@ -68,7 +68,7 @@ final class IOUtilsTest {
   }
 
   private static void openAndClose(final String path) throws IOException {
-    try (final InputStream stream = IOUtils.getResourceAsStream(path)) {
+    try (final InputStream stream = IoUtils.getResourceAsStream(path)) {
       final String message = "Path %s opened as %s, but it must not open!".formatted(path, stream);
       fail(message);
     }
@@ -90,6 +90,6 @@ final class IOUtilsTest {
 
   @Test
   void shouldNotBeInstantiable() {
-    UtilityClassAssertions.assertNotInstantiable(IOUtils.class);
+    UtilityClassAssertions.assertNotInstantiable(IoUtils.class);
   }
 }

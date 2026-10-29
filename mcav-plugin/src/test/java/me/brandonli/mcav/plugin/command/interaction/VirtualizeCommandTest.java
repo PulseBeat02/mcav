@@ -156,7 +156,7 @@ final class VirtualizeCommandTest {
   }
 
   private void create(final String resolution, final String blocks, final String flags) {
-    this.command.createVM(
+    this.command.createVm(
       this.sender,
       this.selector,
       resolution,
@@ -438,7 +438,7 @@ final class VirtualizeCommandTest {
     final AudioAttachableCallback sound = mock(AudioAttachableCallback.class);
     when(this.machine.getAudioAttachableCallback()).thenReturn(sound);
     this.startsWith(CompletableFuture.completedFuture(true));
-    this.command.createVM(
+    this.command.createVm(
       this.sender,
       this.selector,
       "640x480",
@@ -452,7 +452,7 @@ final class VirtualizeCommandTest {
     );
     when(this.plugin.getAudioProvider()).thenThrow(new IllegalStateException("The audio provider is not available!"));
     Mockito.doThrow(new IllegalStateException("release broke!")).when(this.machine).release();
-    this.command.releaseVM(this.sender);
+    this.command.releaseVm(this.sender);
     verify(this.provider).releaseAudioFilter(this.machine);
     verify(this.callback).detach();
     verify(sound).detach();
@@ -463,8 +463,8 @@ final class VirtualizeCommandTest {
   void shouldReleaseTheMachineWhenAsked() {
     this.command.player = this.machine;
 
-    this.command.releaseVM(this.sender);
-    this.command.releaseVM(this.sender);
+    this.command.releaseVm(this.sender);
+    this.command.releaseVm(this.sender);
 
     verify(this.machine, timeout(RELEASE_MILLISECONDS)).release();
     final Component released = Message.VM_RELEASE.build();
@@ -658,7 +658,7 @@ final class VirtualizeCommandTest {
     when(this.machine.startAsync(any(VmSettings.class), any(VmPlayer.Architecture.class), any(VmConfiguration.class), any())).thenReturn(
       start
     );
-    this.command.createVM(
+    this.command.createVm(
       this.sender,
       this.selector,
       "640x480",
@@ -676,7 +676,7 @@ final class VirtualizeCommandTest {
     final AudioFilter filter = pipelines.getValue().getFilter();
     assertSame(output, filter);
 
-    this.command.releaseVM(this.sender);
+    this.command.releaseVm(this.sender);
     verify(this.provider).releaseAudioFilter(this.machine);
   }
 
@@ -689,7 +689,7 @@ final class VirtualizeCommandTest {
     when(this.machine.startAsync(any(VmSettings.class), any(VmPlayer.Architecture.class), any(VmConfiguration.class), any())).thenReturn(
       start
     );
-    this.command.createVM(
+    this.command.createVm(
       this.sender,
       this.selector,
       "640x480",
@@ -726,7 +726,7 @@ final class VirtualizeCommandTest {
   void shouldSendNoLinksToTheSoundOfAMachineReleasedWhileItStarts() {
     final CompletableFuture<Boolean> start = new CompletableFuture<>();
     this.createWithTheWebPage(start);
-    this.command.releaseVM(this.sender);
+    this.command.releaseVm(this.sender);
     start.complete(true);
     verify(this.provider, never()).constructHttpUrl();
   }
@@ -739,14 +739,14 @@ final class VirtualizeCommandTest {
     TestServer.runPendingTasks();
     start.complete(true);
     // the link waits for the main thread, and the machine is released before it gets there
-    this.command.releaseVM(this.sender);
+    this.command.releaseVm(this.sender);
     TestServer.runPendingTasks();
     verify(this.provider, never()).constructHttpUrl();
   }
 
   @Test
   void shouldNotLetAMachineOfAnArchitectureWithoutSoundChooseAnAudioOutput() {
-    this.command.createVM(
+    this.command.createVm(
       this.sender,
       this.selector,
       "640x480",
@@ -780,14 +780,14 @@ final class VirtualizeCommandTest {
       start
     );
     this.create("640x480", "5x4", "-m 256M");
-    this.command.releaseVM(this.sender);
+    this.command.releaseVm(this.sender);
     verify(this.provider, never()).constructFilter(any(), any(), any(), any());
     verify(this.provider, never()).releaseAudioFilter();
   }
 
   @Test
   void shouldStartNothingForAnAudioOutputThatCannotPlayNow() {
-    this.command.createVM(
+    this.command.createVm(
       this.sender,
       this.selector,
       "640x480",

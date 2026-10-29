@@ -229,7 +229,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
   @Command("mcav vm release")
   @Permission("mcav.vm.release")
   @CommandDescription("mcav.command.vm.release.info")
-  public void releaseVM(final CommandSender sender) {
+  public void releaseVm(final CommandSender sender) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
     final Component released = Message.VM_RELEASE.build();
     this.releaseResource(sender, released);
@@ -283,7 +283,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
   )
   @Permission("mcav.command.vm.create")
   @CommandDescription("mcav.command.vm.create.info")
-  public void createVM(
+  public void createVm(
     final CommandSender sender,
     final MultiplePlayerSelector playerSelector,
     @Argument(suggestions = "resolutions") @Quoted final String vmResolution,

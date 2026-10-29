@@ -58,7 +58,7 @@ public final class VideoBlockCommand extends AbstractVideoCommand {
   }
 
   /**
-   * Handles {@code /mcav video block <playerSelector> <playerType> <audioType> <videoResolution> <location> <ytDlpOptions>
+   * Handles {@code /mcav video block <playerSelector> <playerType> <audioType> <videoResolution> <location> <ytdlpOptions>
    * <mrl>}: plays a video as an upright wall of colored blocks, one block per pixel.
    *
    * <p>The wall stands along the x axis, is centered horizontally on the location, and grows upward from it. The
@@ -78,7 +78,7 @@ public final class VideoBlockCommand extends AbstractVideoCommand {
    * @param audioType       where the sound is played, see {@link AudioArgument}
    * @param videoResolution the size of the wall as {@code <width>x<height>} in blocks, such as {@code 32x18}
    * @param location        the bottom center of the wall, such as {@code ~ ~ ~}
-   * @param ytDlpOptions    extra options, in quotes; {@code ""} for none, or yt-dlp options such as
+   * @param ytdlpOptions    extra options, in quotes; {@code ""} for none, or yt-dlp options such as
    *                        {@code "--yt-dlp{format=best,no-playlist}"}
    * @param mrl             the media, in quotes if it contains spaces: a file path on the server, a direct media
    *                        URL, a website yt-dlp understands such as YouTube, a capture device number such as
@@ -86,7 +86,7 @@ public final class VideoBlockCommand extends AbstractVideoCommand {
    * @param filters         the {@code --filters} option: filters applied to every frame in order, such as
    *                        {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
    */
-  @Command("mcav video block <playerSelector> <playerType> <audioType> <videoResolution> <location> <ytDlpOptions> <mrl>")
+  @Command("mcav video block <playerSelector> <playerType> <audioType> <videoResolution> <location> <ytdlpOptions> <mrl>")
   @Permission("mcav.command.video.block")
   @CommandDescription("mcav.command.video.block.info")
   public void playVideo(
@@ -96,7 +96,7 @@ public final class VideoBlockCommand extends AbstractVideoCommand {
     final AudioArgument audioType,
     @Argument(suggestions = "dimensions") @Quoted final String videoResolution,
     final Location location,
-    @Default @Quoted final String ytDlpOptions,
+    @Default @Quoted final String ytdlpOptions,
     @Quoted final String mrl,
     @Flag("filters") @Quoted final @Nullable String filters
   ) {
@@ -105,7 +105,7 @@ public final class VideoBlockCommand extends AbstractVideoCommand {
 
     final Collection<UUID> players = ArgumentUtils.parsePlayerSelectors(playerSelector);
     final VideoConfigurationProvider configurationProvider = resolution -> createConfiguration(resolution, players, location);
-    this.playVideo(configurationProvider, sender, playerSelector, playerType, audioType, videoResolution, mrl, ytDlpOptions, filters);
+    this.playVideo(configurationProvider, sender, playerSelector, playerType, audioType, videoResolution, mrl, ytdlpOptions, filters);
   }
 
   /**

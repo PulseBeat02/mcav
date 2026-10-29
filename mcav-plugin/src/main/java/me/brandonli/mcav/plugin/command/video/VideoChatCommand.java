@@ -56,7 +56,7 @@ public final class VideoChatCommand extends AbstractVideoCommand {
   }
 
   /**
-   * Handles {@code /mcav video chat <playerSelector> <playerType> <audioType> <videoResolution> <character> <ytDlpOptions>
+   * Handles {@code /mcav video chat <playerSelector> <playerType> <audioType> <videoResolution> <character> <ytdlpOptions>
    * <mrl>}: plays a video in the chat of the selected players.
    *
    * <p>Every frame is drawn with the chosen character in the color of each pixel, one chat line per row of pixels,
@@ -78,7 +78,7 @@ public final class VideoChatCommand extends AbstractVideoCommand {
    *                        {@code 40x20}
    * @param character       the character every pixel is drawn with, in quotes; a full block {@code █} gives the
    *                        most solid picture
-   * @param ytDlpOptions    extra options, in quotes; {@code ""} for none, or yt-dlp options such as
+   * @param ytdlpOptions    extra options, in quotes; {@code ""} for none, or yt-dlp options such as
    *                        {@code "--yt-dlp{format=best,no-playlist}"}
    * @param mrl             the media, in quotes if it contains spaces: a file path on the server, a direct media
    *                        URL, a website yt-dlp understands such as YouTube, a capture device number such as
@@ -86,7 +86,7 @@ public final class VideoChatCommand extends AbstractVideoCommand {
    * @param filters         the {@code --filters} option: filters applied to every frame in order, such as
    *                        {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
    */
-  @Command("mcav video chat <playerSelector> <playerType> <audioType> <videoResolution> <character> <ytDlpOptions> <mrl>")
+  @Command("mcav video chat <playerSelector> <playerType> <audioType> <videoResolution> <character> <ytdlpOptions> <mrl>")
   @Permission("mcav.command.video.chat")
   @CommandDescription("mcav.command.video.chat.info")
   public void playVideo(
@@ -96,7 +96,7 @@ public final class VideoChatCommand extends AbstractVideoCommand {
     final AudioArgument audioType,
     @Argument(suggestions = "dimensions") @Quoted final String videoResolution,
     @Argument(suggestions = "chat-characters") @Quoted final String character,
-    @Quoted final String ytDlpOptions,
+    @Quoted final String ytdlpOptions,
     @Quoted final String mrl,
     @Flag("filters") @Quoted final @Nullable String filters
   ) {
@@ -105,7 +105,7 @@ public final class VideoChatCommand extends AbstractVideoCommand {
 
     final Collection<UUID> players = ArgumentUtils.parsePlayerSelectors(playerSelector);
     final VideoConfigurationProvider configurationProvider = resolution -> createConfiguration(resolution, players, character);
-    this.playVideo(configurationProvider, sender, playerSelector, playerType, audioType, videoResolution, mrl, ytDlpOptions, filters);
+    this.playVideo(configurationProvider, sender, playerSelector, playerType, audioType, videoResolution, mrl, ytdlpOptions, filters);
   }
 
   /**

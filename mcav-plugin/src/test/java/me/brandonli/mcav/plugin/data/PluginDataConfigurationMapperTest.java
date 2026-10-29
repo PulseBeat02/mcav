@@ -43,7 +43,7 @@ import java.util.List;
 import me.brandonli.mcav.plugin.MCAVSandbox;
 import me.brandonli.mcav.plugin.command.interaction.VncAllowList;
 import me.brandonli.mcav.plugin.locale.Locale;
-import me.brandonli.mcav.plugin.utils.IOUtils;
+import me.brandonli.mcav.plugin.utils.IoUtils;
 import me.brandonli.mcav.plugin.utils.MapCodec;
 import me.brandonli.mcav.plugin.utils.Mcv2Hosting;
 import org.bukkit.configuration.InvalidConfigurationException;
@@ -117,7 +117,7 @@ final class PluginDataConfigurationMapperTest {
     doAnswer(invocation -> {
       final String name = invocation.getArgument(0);
       final Path target = this.folder.resolve(name);
-      try (final InputStream stream = IOUtils.getResourceAsStream(name)) {
+      try (final InputStream stream = IoUtils.getResourceAsStream(name)) {
         Files.copy(stream, target);
       }
       return null;

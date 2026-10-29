@@ -37,7 +37,7 @@ changes everywhere, such as 1080p video, needs far more than that, so the wall s
 
 The `mrl` is an absolute file path, a URL, a device number for `DEVICE`, or a raw FFmpeg input written as
 `format||input`, such as `dshow||video=OBS Virtual Camera` on Windows. A web page, such as a YouTube video, is resolved
-with yt-dlp first; the `ytDlpOptions` argument passes the options that choose which stream of a page is played, and
+with yt-dlp first; the `ytdlpOptions` argument passes the options that choose which stream of a page is played, and
 `""` passes none ([accepted options](commands.md#yt-dlp-options)). Put a path with spaces in double quotes.
 
 ```{warning}

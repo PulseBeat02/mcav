@@ -185,7 +185,7 @@ final class AbstractVideoCommandTest {
       final BooleanSupplier start = invocation.getArgument(0);
       return start.getAsBoolean();
     });
-    when(this.manager.isVLCSupported()).thenReturn(true);
+    when(this.manager.isVlcSupported()).thenReturn(true);
     when(this.manager.getVolume()).thenReturn(this.volume);
     when(this.provider.constructFilter(any(), any(), any())).thenReturn(AudioFilter.NO_OP);
     this.command = new RecordingCommand(plugin);
@@ -393,7 +393,7 @@ final class AbstractVideoCommandTest {
   }
 
   @Test
-  void shouldPlayAnFFmpegInput() {
+  void shouldPlayAnFfmpegInput() {
     when(this.sender.hasPermission(CaptureDevices.PERMISSION)).thenReturn(true);
     this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, "dshow||video=Camera", "");
 
@@ -412,7 +412,7 @@ final class AbstractVideoCommandTest {
   }
 
   @Test
-  void shouldRefuseAnFFmpegInputOrADeviceWithoutTheirPermission() {
+  void shouldRefuseAnFfmpegInputOrADeviceWithoutTheirPermission() {
     this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, "x11grab||:0", "");
     this.play(PlayerArgument.DEVICE, AudioArgument.NONE, "2", "");
 
@@ -753,7 +753,7 @@ final class AbstractVideoCommandTest {
 
   @Test
   void shouldRefuseVlcWhenItIsNotInstalled() {
-    when(this.manager.isVLCSupported()).thenReturn(false);
+    when(this.manager.isVlcSupported()).thenReturn(false);
 
     this.play(PlayerArgument.VLC, AudioArgument.NONE, "0", "");
 
@@ -765,7 +765,7 @@ final class AbstractVideoCommandTest {
   @Test
   void shouldAskToWaitForVlcWhileItIsBeingPrepared() {
     when(this.manager.isPreparing(Capability.VLC)).thenReturn(true);
-    when(this.manager.isVLCSupported()).thenReturn(false);
+    when(this.manager.isVlcSupported()).thenReturn(false);
 
     this.play(PlayerArgument.VLC, AudioArgument.NONE, "0", "");
 

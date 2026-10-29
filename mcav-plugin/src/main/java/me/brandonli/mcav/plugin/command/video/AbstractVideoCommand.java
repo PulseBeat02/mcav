@@ -300,7 +300,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
   private static String @Nullable [] parseFlags(final CommandSender sender, final String flags) {
     final VideoFlagsParser flagsParser = new VideoFlagsParser();
     try {
-      return flagsParser.parseYTDLPFlags(flags);
+      return flagsParser.parseYtdlpFlags(flags);
     } catch (final IllegalArgumentException exception) {
       final String cause = exception.getMessage();
       final String reason = Objects.requireNonNullElse(cause, "The flags are not valid");
@@ -427,7 +427,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     if (preparing) {
       return Message.VLC_PREPARING.build();
     }
-    final boolean supported = this.manager.isVLCSupported();
+    final boolean supported = this.manager.isVlcSupported();
     if (!supported) {
       return Message.UNSUPPORTED_PLAYER.build();
     }

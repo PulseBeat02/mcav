@@ -52,11 +52,11 @@ final class Mcv2HostingTest {
       final PackHosting result = Mcv2Hosting.INJECTOR.hosting("", 25580).apply(ZIP);
       assertSame(injector, result);
 
-      final PackHosting HTTPResult = Mcv2Hosting.HTTP.hosting("mc.example", 8443).apply(ZIP);
-      assertSame(http, HTTPResult);
+      final PackHosting httpResult = Mcv2Hosting.HTTP.hosting("mc.example", 8443).apply(ZIP);
+      assertSame(http, httpResult);
 
-      final PackHosting WEBSITEResult = Mcv2Hosting.WEBSITE.hosting("", 25580).apply(ZIP);
-      assertSame(website, WEBSITEResult);
+      final PackHosting websiteResult = Mcv2Hosting.WEBSITE.hosting("", 25580).apply(ZIP);
+      assertSame(website, websiteResult);
     }
   }
 

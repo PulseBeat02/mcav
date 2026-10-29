@@ -58,7 +58,7 @@ public final class VideoEntityCommand extends AbstractVideoCommand {
 
   /**
    * Handles {@code /mcav video entity <playerSelector> <playerType> <audioType> <videoResolution> <character>
-   * <location> <ytDlpOptions> <mrl>}: plays a video as colored text inside a floating text display entity.
+   * <location> <ytdlpOptions> <mrl>}: plays a video as colored text inside a floating text display entity.
    *
    * <p>Every frame is drawn with the chosen character in the color of each pixel, one line of text per row of
    * pixels. The entity always turns to face the viewer horizontally and is only visible to the selected players who
@@ -80,7 +80,7 @@ public final class VideoEntityCommand extends AbstractVideoCommand {
    * @param character       the character every pixel is drawn with, in quotes; a full block {@code █} gives the
    *                        most solid picture
    * @param location        where the entity is spawned, such as {@code ~ ~2 ~}
-   * @param ytDlpOptions    extra options, in quotes; {@code ""} for none, or yt-dlp options such as
+   * @param ytdlpOptions    extra options, in quotes; {@code ""} for none, or yt-dlp options such as
    *                        {@code "--yt-dlp{format=best,no-playlist}"}
    * @param mrl             the media, in quotes if it contains spaces: a file path on the server, a direct media
    *                        URL, a website yt-dlp understands such as YouTube, a capture device number such as
@@ -88,7 +88,7 @@ public final class VideoEntityCommand extends AbstractVideoCommand {
    * @param filters         the {@code --filters} option: filters applied to every frame in order, such as
    *                        {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
    */
-  @Command("mcav video entity <playerSelector> <playerType> <audioType> <videoResolution> <character> <location> <ytDlpOptions> <mrl>")
+  @Command("mcav video entity <playerSelector> <playerType> <audioType> <videoResolution> <character> <location> <ytdlpOptions> <mrl>")
   @Permission("mcav.command.video.entity")
   @CommandDescription("mcav.command.video.entity.info")
   public void playVideo(
@@ -99,7 +99,7 @@ public final class VideoEntityCommand extends AbstractVideoCommand {
     @Argument(suggestions = "dimensions") @Quoted final String videoResolution,
     @Argument(suggestions = "chat-characters") @Quoted final String character,
     final Location location,
-    @Quoted final String ytDlpOptions,
+    @Quoted final String ytdlpOptions,
     @Quoted final String mrl,
     @Flag("filters") @Quoted final @Nullable String filters
   ) {
@@ -109,7 +109,7 @@ public final class VideoEntityCommand extends AbstractVideoCommand {
 
     final Collection<UUID> players = ArgumentUtils.parsePlayerSelectors(playerSelector);
     final VideoConfigurationProvider configurationProvider = resolution -> createConfiguration(resolution, players, character, location);
-    this.playVideo(configurationProvider, sender, playerSelector, playerType, audioType, videoResolution, mrl, ytDlpOptions, filters);
+    this.playVideo(configurationProvider, sender, playerSelector, playerType, audioType, videoResolution, mrl, ytdlpOptions, filters);
   }
 
   /**

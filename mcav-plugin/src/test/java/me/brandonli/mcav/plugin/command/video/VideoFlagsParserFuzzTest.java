@@ -32,14 +32,14 @@ final class VideoFlagsParserFuzzTest {
   private final VideoFlagsParser parser = new VideoFlagsParser();
 
   @FuzzTest(maxDuration = "30s")
-  void shouldPassOnlyAcceptedOptionsAndTheirValuesToYtDlp(final byte[] input) {
+  void shouldPassOnlyAcceptedOptionsAndTheirValuesToYtdlp(final byte[] input) {
     final String typed = new String(input, StandardCharsets.UTF_8);
     final String[] arguments;
     try {
-      arguments = this.parser.parseYTDLPFlags(typed);
+      arguments = this.parser.parseYtdlpFlags(typed);
     } catch (final IllegalArgumentException exception) {
       return;
     }
-    YtDlpArgumentAssertions.assertSafe(typed, arguments);
+    YtdlpArgumentAssertions.assertSafe(typed, arguments);
   }
 }

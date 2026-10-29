@@ -38,8 +38,8 @@ final class Mcv2ProfileTest {
     final Settings settings = Mcv2Profile.DEFAULT.getSettings();
     assertEquals(Settings.DEFAULT, settings);
 
-    final Settings FASTSettings = Mcv2Profile.FAST.getSettings();
-    assertEquals(Settings.FAST, FASTSettings);
+    final Settings fastSettings = Mcv2Profile.FAST.getSettings();
+    assertEquals(Settings.FAST, fastSettings);
 
     final List<Mcv2Profile> list = List.of(Mcv2Profile.values());
     assertEquals(List.of(Mcv2Profile.DEFAULT, Mcv2Profile.FAST), list);

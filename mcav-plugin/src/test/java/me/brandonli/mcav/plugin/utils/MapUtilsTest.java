@@ -139,7 +139,7 @@ final class MapUtilsTest {
 
   @Test
   void shouldCreateAMapItemForAnExistingMap() {
-    final ItemStack item = MapUtils.getMapFromID(7);
+    final ItemStack item = MapUtils.getMapFromId(7);
     final List<ItemStack> constructed = this.items.constructed();
     final int constructedCount = constructed.size();
     assertEquals(1, constructedCount);
@@ -168,7 +168,7 @@ final class MapUtilsTest {
     when(fourth.getId()).thenReturn(4);
     when(fifth.getId()).thenReturn(5);
     when(this.server.createMap(world)).thenReturn(third, fourth, fifth);
-    MapUtils.getMapFromID(5);
+    MapUtils.getMapFromId(5);
     verify(this.server, times(3)).createMap(world);
     final MapMeta metadata = this.mapMetadata.getFirst();
     verify(metadata).setMapView(fifth);
@@ -182,7 +182,7 @@ final class MapUtilsTest {
     final MapView created = mock(MapView.class);
     when(created.getId()).thenReturn(8);
     when(this.server.createMap(world)).thenReturn(created);
-    MapUtils.getMapFromID(8);
+    MapUtils.getMapFromId(8);
     verify(this.server, times(1)).createMap(world);
     final MapMeta metadata = this.mapMetadata.getFirst();
     verify(metadata).setMapView(created);
@@ -215,7 +215,7 @@ final class MapUtilsTest {
     final int wanted = 10 + MapUtils.MAXIMUM_NEW_MAPS;
     when(this.server.getMap(wanted)).thenReturn(null);
     this.handOutMapIdsFrom(world, 10);
-    MapUtils.getMapFromID(wanted);
+    MapUtils.getMapFromId(wanted);
     verify(this.server, times(MapUtils.MAXIMUM_NEW_MAPS + 1)).createMap(world);
 
     final int size = this.mapMetadata.size();
@@ -228,7 +228,7 @@ final class MapUtilsTest {
     final int wanted = 11 + MapUtils.MAXIMUM_NEW_MAPS;
     when(this.server.getMap(wanted)).thenReturn(null);
     this.handOutMapIdsFrom(world, 10);
-    final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () -> MapUtils.getMapFromID(wanted));
+    final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () -> MapUtils.getMapFromId(wanted));
     final String message = failure.getMessage();
     assertEquals("Map id 4107 is more than 4096 ids past 10, the next map id!", message);
     verify(this.server, times(1)).createMap(world);
@@ -266,7 +266,7 @@ final class MapUtilsTest {
     final MapView later = mock(MapView.class);
     when(later.getId()).thenReturn(20);
     when(this.server.createMap(world)).thenReturn(later);
-    final IllegalStateException failure = assertThrows(IllegalStateException.class, () -> MapUtils.getMapFromID(5));
+    final IllegalStateException failure = assertThrows(IllegalStateException.class, () -> MapUtils.getMapFromId(5));
 
     final String message = failure.getMessage();
     assertEquals("Map id 5 is unavailable, because the server allocated 20 instead!", message);
@@ -487,7 +487,7 @@ final class MapUtilsTest {
   void shouldRefuseInvalidArguments() {
     final Player player = playerFacing(BlockFace.NORTH);
     final Location location = this.fakeWorld.location(0.5, 64.0, 0.5);
-    assertThrows(IllegalArgumentException.class, () -> MapUtils.getMapFromID(-1));
+    assertThrows(IllegalArgumentException.class, () -> MapUtils.getMapFromId(-1));
     assertThrows(NullPointerException.class, () -> MapUtils.buildMapScreen(null, location, Material.STONE, 1, 1, 0));
     assertThrows(NullPointerException.class, () -> MapUtils.buildMapScreen(player, null, Material.STONE, 1, 1, 0));
     assertThrows(NullPointerException.class, () -> MapUtils.buildMapScreen(player, location, null, 1, 1, 0));

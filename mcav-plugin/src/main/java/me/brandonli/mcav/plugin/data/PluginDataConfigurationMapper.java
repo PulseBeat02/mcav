@@ -32,7 +32,7 @@ import me.brandonli.mcav.bukkit.media.mcv2.Mcv2.Pool;
 import me.brandonli.mcav.plugin.MCAVSandbox;
 import me.brandonli.mcav.plugin.command.interaction.VncAllowList;
 import me.brandonli.mcav.plugin.locale.Locale;
-import me.brandonli.mcav.plugin.utils.IOUtils;
+import me.brandonli.mcav.plugin.utils.IoUtils;
 import me.brandonli.mcav.plugin.utils.MapCodec;
 import me.brandonli.mcav.plugin.utils.Mcv2Hosting;
 import org.bukkit.configuration.InvalidConfigurationException;
@@ -209,7 +209,7 @@ public final class PluginDataConfigurationMapper {
   }
 
   private FileConfiguration loadConfiguration() {
-    final Path folder = IOUtils.getPluginDataFolderPath();
+    final Path folder = IoUtils.getPluginDataFolderPath();
     final Path file = folder.resolve(CONFIGURATION_FILE);
     final boolean exists = Files.exists(file);
     if (!exists) {

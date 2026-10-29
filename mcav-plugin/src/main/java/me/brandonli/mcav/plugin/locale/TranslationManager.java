@@ -34,7 +34,7 @@ import java.util.ResourceBundle;
 import me.brandonli.mcav.plugin.MCAVSandbox;
 import me.brandonli.mcav.plugin.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.plugin.locale.minimessage.PluginTranslator;
-import me.brandonli.mcav.plugin.utils.IOUtils;
+import me.brandonli.mcav.plugin.utils.IoUtils;
 import me.brandonli.mcav.plugin.utils.Keys;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
@@ -65,7 +65,7 @@ public final class TranslationManager {
     final MCAVSandbox plugin = JavaPlugin.getPlugin(MCAVSandbox.class);
     final PluginDataConfigurationMapper mapper = plugin.getConfiguration();
     final Locale locale = mapper.getLocale();
-    final Path folder = IOUtils.getPluginDataFolderPath();
+    final Path folder = IoUtils.getPluginDataFolderPath();
     this.bundle = loadBundle(folder, locale);
     this.translator = new PluginTranslator(ADVENTURE_KEY, this.bundle);
   }
@@ -95,14 +95,14 @@ public final class TranslationManager {
     final Path nullableParent = file.getParent();
     final Path parent = requireNonNull(nullableParent);
     Files.createDirectories(parent);
-    try (final InputStream stream = IOUtils.getResourceAsStream(propertiesPath)) {
+    try (final InputStream stream = IoUtils.getResourceAsStream(propertiesPath)) {
       Files.copy(stream, file);
     }
   }
 
   private static ResourceBundle readBundledFile(final String propertiesPath) throws IOException {
     try (
-      final InputStream stream = IOUtils.getResourceAsStream(propertiesPath);
+      final InputStream stream = IoUtils.getResourceAsStream(propertiesPath);
       final Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)
     ) {
       return new PropertyResourceBundle(reader);

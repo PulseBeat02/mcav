@@ -44,7 +44,7 @@ import net.jqwik.api.arbitraries.StringArbitrary;
 final class VideoFlagsParserPropertyTest {
 
   private static final String SEED = "20260925";
-  private static final Set<String> SWITCHES = YtDlpArgumentAssertions.SWITCHES;
+  private static final Set<String> SWITCHES = YtdlpArgumentAssertions.SWITCHES;
 
   private final VideoFlagsParser parser = new VideoFlagsParser();
 
@@ -89,14 +89,14 @@ final class VideoFlagsParserPropertyTest {
   }
 
   @Property(seed = SEED)
-  void shouldPassOnlyAcceptedOptionsAndTheirValuesToYtDlp(@ForAll("typedFlags") final String typed) {
+  void shouldPassOnlyAcceptedOptionsAndTheirValuesToYtdlp(@ForAll("typedFlags") final String typed) {
     final String[] arguments;
     try {
-      arguments = this.parser.parseYTDLPFlags(typed);
+      arguments = this.parser.parseYtdlpFlags(typed);
     } catch (final IllegalArgumentException exception) {
       return;
     }
-    YtDlpArgumentAssertions.assertSafe(typed, arguments);
+    YtdlpArgumentAssertions.assertSafe(typed, arguments);
   }
 
   /**
@@ -156,7 +156,7 @@ final class VideoFlagsParserPropertyTest {
    * and values they meant.
    */
   @Property(seed = SEED)
-  void shouldPassEscapedValuesToYtDlpUnchanged(@ForAll("validOptions") final List<String[]> options) {
+  void shouldPassEscapedValuesToYtdlpUnchanged(@ForAll("validOptions") final List<String[]> options) {
     final List<String> typedOptions = new ArrayList<>();
     final List<String> expected = new ArrayList<>();
     for (final String[] option : options) {
@@ -176,7 +176,7 @@ final class VideoFlagsParserPropertyTest {
     final String typed = "--yt-dlp{" + content + "}";
     final String[] expectedArguments = expected.toArray(new String[0]);
 
-    final String[] arguments = this.parser.parseYTDLPFlags(typed);
+    final String[] arguments = this.parser.parseYtdlpFlags(typed);
 
     assertArrayEquals(expectedArguments, arguments, () -> "typed " + typed);
   }

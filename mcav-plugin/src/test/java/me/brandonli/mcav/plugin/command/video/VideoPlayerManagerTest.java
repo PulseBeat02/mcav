@@ -208,11 +208,11 @@ final class VideoPlayerManagerTest {
   @Test
   void shouldAskTheLibraryWhetherVlcIsAvailable() {
     when(this.api.hasCapability(Capability.VLC)).thenReturn(true);
-    final boolean supported = this.manager.isVLCSupported();
+    final boolean supported = this.manager.isVlcSupported();
     assertTrue(supported);
 
     when(this.api.hasCapability(Capability.VLC)).thenReturn(false);
-    final boolean unsupported = this.manager.isVLCSupported();
+    final boolean unsupported = this.manager.isVlcSupported();
     assertFalse(unsupported);
   }
 

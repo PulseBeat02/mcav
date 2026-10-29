@@ -35,7 +35,7 @@ import java.util.MissingResourceException;
 import me.brandonli.mcav.plugin.MCAVSandbox;
 import me.brandonli.mcav.plugin.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.plugin.testing.Components;
-import me.brandonli.mcav.plugin.utils.IOUtils;
+import me.brandonli.mcav.plugin.utils.IoUtils;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TranslatableComponent;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -76,7 +76,7 @@ final class TranslationManagerTest {
   }
 
   private static byte[] readBundledMessages() throws IOException {
-    try (final InputStream stream = IOUtils.getResourceAsStream(RESOURCE)) {
+    try (final InputStream stream = IoUtils.getResourceAsStream(RESOURCE)) {
       return stream.readAllBytes();
     }
   }

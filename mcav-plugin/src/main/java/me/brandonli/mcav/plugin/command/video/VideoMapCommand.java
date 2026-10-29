@@ -64,7 +64,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
 
   /**
    * Handles {@code /mcav video map <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions>
-   * <mapId> <ditheringAlgorithm> <ytDlpOptions> <mrl> [--codec dither|mcv2]}: shows a video on a wall of maps, the
+   * <mapId> <ditheringAlgorithm> <ytdlpOptions> <mrl> [--codec dither|mcv2]}: shows a video on a wall of maps, the
    * highest quality way to show a video in the world. The yt-dlp options are named so, not {@code flags} as in the
    * other video commands, because Cloud names the component of the command's flags so. With {@code --codec mcv2}, or without the flag when
    * {@code mcv2.default-codec} is {@code mcv2}, the video is encoded as it plays with the default live preset for the
@@ -93,7 +93,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
    * @param mapId              the id of the top left map of the wall, as given to {@code /mcav screen}
    * @param ditheringAlgorithm how colors are reduced to the map palette; {@code FILTER_LITE} is recommended, and
    *                           {@code FLOYD_STEINBERG_TEMPORAL} flickers least, see {@link DitheringArgument}
-   * @param ytDlpOptions       extra options, in quotes; {@code ""} for none, or yt-dlp options such as
+   * @param ytdlpOptions       extra options, in quotes; {@code ""} for none, or yt-dlp options such as
    *                           {@code "--yt-dlp{format=best,no-playlist}"}
    * @param mrl                the media, in quotes if it contains spaces: a file path on the server, a direct media
    *                           URL, a website yt-dlp understands such as YouTube, a capture device number such as
@@ -104,7 +104,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
    *                           {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
    */
   @Command(
-    "mcav video map <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <ytDlpOptions> <mrl>"
+    "mcav video map <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <ytdlpOptions> <mrl>"
   )
   @Permission("mcav.command.video.map")
   @CommandDescription("mcav.command.video.map.info")
@@ -117,7 +117,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
     @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
     @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
     final DitheringArgument ditheringAlgorithm,
-    @Quoted final String ytDlpOptions,
+    @Quoted final String ytdlpOptions,
     @Quoted final String mrl,
     @Flag("codec") final @Nullable MapCodec codec,
     @Flag("filters") @Quoted final @Nullable String filters
@@ -144,7 +144,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
         configurationProvider = _ -> new VideoMcv2Command.Mcv2Settings(configuration, ditheringAlgorithm, sender);
       }
     }
-    this.playVideo(configurationProvider, sender, playerSelector, playerType, audioType, videoResolution, mrl, ytDlpOptions, filters);
+    this.playVideo(configurationProvider, sender, playerSelector, playerType, audioType, videoResolution, mrl, ytdlpOptions, filters);
   }
 
   private static MapDisplaySettings createSettings(

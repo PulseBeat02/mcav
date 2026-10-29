@@ -27,7 +27,7 @@ import java.util.Set;
  * fuzz test of {@link VideoFlagsParser}: an argument that starts with a dash is always an accepted option, a switch never
  * takes the next argument, and an option with a value takes exactly one argument that yt-dlp cannot read as an option.
  */
-final class YtDlpArgumentAssertions {
+final class YtdlpArgumentAssertions {
 
   /**
    * The accepted options that are switches; every other accepted option takes a value.
@@ -68,7 +68,7 @@ final class YtDlpArgumentAssertions {
     "referer"
   );
 
-  private YtDlpArgumentAssertions() {
+  private YtdlpArgumentAssertions() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
