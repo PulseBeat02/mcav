@@ -75,7 +75,7 @@ public final class OnlinePlayers implements Listener {
    * @param event the join
    */
   @EventHandler(priority = EventPriority.LOWEST)
-  public void onJoin(final PlayerJoinEvent event) {
+  public void onPlayerJoin(final PlayerJoinEvent event) {
     this.online.add(event.getPlayer().getUniqueId());
   }
 
@@ -85,7 +85,7 @@ public final class OnlinePlayers implements Listener {
    * @param event the quit
    */
   @EventHandler(priority = EventPriority.MONITOR)
-  public void onQuit(final PlayerQuitEvent event) {
+  public void onPlayerQuit(final PlayerQuitEvent event) {
     this.online.remove(event.getPlayer().getUniqueId());
   }
 

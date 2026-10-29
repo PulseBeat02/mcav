@@ -90,7 +90,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    * @param screenY the y coordinate on the desktop, in pixels
    */
   @Override
-  protected void handleLeftClick(final VncPlayer current, final int screenX, final int screenY) {
+  protected void forwardLeftClick(final VncPlayer current, final int screenX, final int screenY) {
     Preconditions.checkNotNull(current, "Desktop must not be null!");
     current.sendMouseEvent(MouseClick.LEFT, screenX, screenY);
   }
@@ -103,7 +103,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    * @param screenY the y coordinate on the desktop, in pixels
    */
   @Override
-  protected void handleRightClick(final VncPlayer current, final int screenX, final int screenY) {
+  protected void forwardRightClick(final VncPlayer current, final int screenX, final int screenY) {
     Preconditions.checkNotNull(current, "Desktop must not be null!");
     current.sendMouseEvent(MouseClick.RIGHT, screenX, screenY);
   }
@@ -115,7 +115,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    * @param text    the text to type
    */
   @Override
-  protected void handleTextInput(final VncPlayer current, final String text) {
+  protected void forwardTextInput(final VncPlayer current, final String text) {
     Preconditions.checkNotNull(current, "Desktop must not be null!");
     Preconditions.checkNotNull(text, "Text must not be null!");
     current.sendKeyEvent(text);

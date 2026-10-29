@@ -52,7 +52,7 @@ public final class TaskUtils {
    * @return the task that schedules it; it drops the task when the plugin is disabled, see
    * {@link #runOnMainThread(MCAVSandbox, Runnable)}
    */
-  public static Runnable handleAsyncTask(final MCAVSandbox plugin, final Runnable task) {
+  public static Runnable createMainThreadHandover(final MCAVSandbox plugin, final Runnable task) {
     Preconditions.checkNotNull(plugin, "Plugin must not be null!");
     Preconditions.checkNotNull(task, "Task must not be null!");
     return () -> runOnMainThread(plugin, task);

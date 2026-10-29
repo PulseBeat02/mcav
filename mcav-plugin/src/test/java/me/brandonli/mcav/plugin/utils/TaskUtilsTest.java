@@ -57,7 +57,7 @@ final class TaskUtilsTest {
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
     final AtomicInteger runs = new AtomicInteger();
     final Runnable task = runs::incrementAndGet;
-    final Runnable handover = TaskUtils.handleAsyncTask(plugin, task);
+    final Runnable handover = TaskUtils.createMainThreadHandover(plugin, task);
     final int pendingBefore = TestServer.runPendingTasks();
     assertEquals(0, pendingBefore);
     handover.run();
@@ -98,7 +98,7 @@ final class TaskUtilsTest {
     final AtomicInteger runs = new AtomicInteger();
     final boolean scheduled = TaskUtils.runOnMainThread(plugin, runs::incrementAndGet);
     assertFalse(scheduled);
-    final Runnable handover = TaskUtils.handleAsyncTask(plugin, runs::incrementAndGet);
+    final Runnable handover = TaskUtils.createMainThreadHandover(plugin, runs::incrementAndGet);
     handover.run();
     final int count = runs.get();
     assertEquals(0, count);
@@ -182,8 +182,8 @@ final class TaskUtilsTest {
     final BiConsumer<String, Throwable> callback = (_, _) -> {};
     assertThrows(NullPointerException.class, () -> TaskUtils.runOnMainThread(null, task));
     assertThrows(NullPointerException.class, () -> TaskUtils.runOnMainThread(plugin, null));
-    assertThrows(NullPointerException.class, () -> TaskUtils.handleAsyncTask(null, task));
-    assertThrows(NullPointerException.class, () -> TaskUtils.handleAsyncTask(plugin, null));
+    assertThrows(NullPointerException.class, () -> TaskUtils.createMainThreadHandover(null, task));
+    assertThrows(NullPointerException.class, () -> TaskUtils.createMainThreadHandover(plugin, null));
     assertThrows(NullPointerException.class, () -> TaskUtils.whenComplete(null, callback));
     assertThrows(NullPointerException.class, () -> TaskUtils.whenComplete(future, null));
   }

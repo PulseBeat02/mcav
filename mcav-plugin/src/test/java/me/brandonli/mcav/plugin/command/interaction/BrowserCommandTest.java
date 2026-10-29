@@ -494,9 +494,9 @@ final class BrowserCommandTest {
 
   @Test
   void shouldForwardClicksAndTextToTheBrowser() {
-    this.command.handleLeftClick(this.browser, 10, 20);
-    this.command.handleRightClick(this.browser, 30, 40);
-    this.command.handleTextInput(this.browser, "hello");
+    this.command.forwardLeftClick(this.browser, 10, 20);
+    this.command.forwardRightClick(this.browser, 30, 40);
+    this.command.forwardTextInput(this.browser, "hello");
 
     verify(this.browser).sendMouseEvent(MouseClick.LEFT, 10, 20);
     verify(this.browser).sendMouseEvent(MouseClick.RIGHT, 30, 40);

@@ -101,7 +101,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    * @param screenY the y coordinate on the page, in pixels
    */
   @Override
-  protected void handleLeftClick(final BrowserPlayer current, final int screenX, final int screenY) {
+  protected void forwardLeftClick(final BrowserPlayer current, final int screenX, final int screenY) {
     Preconditions.checkNotNull(current, "Browser must not be null!");
     current.sendMouseEvent(MouseClick.LEFT, screenX, screenY);
   }
@@ -114,7 +114,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    * @param screenY the y coordinate on the page, in pixels
    */
   @Override
-  protected void handleRightClick(final BrowserPlayer current, final int screenX, final int screenY) {
+  protected void forwardRightClick(final BrowserPlayer current, final int screenX, final int screenY) {
     Preconditions.checkNotNull(current, "Browser must not be null!");
     current.sendMouseEvent(MouseClick.RIGHT, screenX, screenY);
   }
@@ -126,7 +126,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    * @param text    the text to type
    */
   @Override
-  protected void handleTextInput(final BrowserPlayer current, final String text) {
+  protected void forwardTextInput(final BrowserPlayer current, final String text) {
     Preconditions.checkNotNull(current, "Browser must not be null!");
     Preconditions.checkNotNull(text, "Text must not be null!");
     current.sendKeyEvent(text);

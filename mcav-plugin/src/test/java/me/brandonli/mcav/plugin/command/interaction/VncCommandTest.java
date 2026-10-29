@@ -200,9 +200,9 @@ final class VncCommandTest {
 
   @Test
   void shouldForwardClicksAndTextToTheDesktop() {
-    this.command.handleLeftClick(this.desktop, 10, 20);
-    this.command.handleRightClick(this.desktop, 30, 40);
-    this.command.handleTextInput(this.desktop, "hello");
+    this.command.forwardLeftClick(this.desktop, 10, 20);
+    this.command.forwardRightClick(this.desktop, 30, 40);
+    this.command.forwardTextInput(this.desktop, "hello");
 
     verify(this.desktop).sendMouseEvent(MouseClick.LEFT, 10, 20);
     verify(this.desktop).sendMouseEvent(MouseClick.RIGHT, 30, 40);

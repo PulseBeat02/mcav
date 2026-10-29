@@ -421,9 +421,9 @@ final class VirtualizeCommandTest {
 
   @Test
   void shouldForwardClicksAndTextToTheMachine() {
-    this.command.handleLeftClick(this.machine, 1, 2);
-    this.command.handleRightClick(this.machine, 3, 4);
-    this.command.handleTextInput(this.machine, "ls");
+    this.command.forwardLeftClick(this.machine, 1, 2);
+    this.command.forwardRightClick(this.machine, 3, 4);
+    this.command.forwardTextInput(this.machine, "ls");
 
     verify(this.machine).sendMouseEvent(MouseClick.LEFT, 1, 2);
     verify(this.machine).sendMouseEvent(MouseClick.RIGHT, 3, 4);

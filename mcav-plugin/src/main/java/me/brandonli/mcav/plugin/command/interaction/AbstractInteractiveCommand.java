@@ -700,7 +700,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     final boolean allowed = this.mayInteract(breaker);
     final int[] pixel = shown.toSource(coordinates[0], coordinates[1]);
     if (allowed && pixel != null) {
-      this.handleLeftClick(current, pixel[0], pixel[1]);
+      this.forwardLeftClick(current, pixel[0], pixel[1]);
     }
   }
 
@@ -782,7 +782,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     final int[] coordinates = InteractUtils.getBoardCoordinates(attacker, entity);
     final int[] pixel = coordinates == null ? null : shown.toSource(coordinates[0], coordinates[1]);
     if (pixel != null) {
-      this.handleLeftClick(current, pixel[0], pixel[1]);
+      this.forwardLeftClick(current, pixel[0], pixel[1]);
     }
   }
 
@@ -829,7 +829,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     final boolean allowed = this.mayInteract(clicker);
     final int[] pixel = shown.toSource(coordinates[0], coordinates[1]);
     if (allowed && pixel != null) {
-      this.handleRightClick(current, pixel[0], pixel[1]);
+      this.forwardRightClick(current, pixel[0], pixel[1]);
     }
   }
 
@@ -861,7 +861,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     event.setCancelled(true);
     final Component message = event.message();
     final String text = PLAIN_TEXT.serialize(message);
-    this.handleTextInput(current, text);
+    this.forwardTextInput(current, text);
   }
 
   /**
@@ -939,7 +939,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
    * @param screenX the x coordinate on the screen
    * @param screenY the y coordinate on the screen
    */
-  protected abstract void handleLeftClick(final T current, final int screenX, final int screenY);
+  protected abstract void forwardLeftClick(final T current, final int screenX, final int screenY);
 
   /**
    * Forwards a right click.
@@ -948,7 +948,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
    * @param screenX the x coordinate on the screen
    * @param screenY the y coordinate on the screen
    */
-  protected abstract void handleRightClick(final T current, final int screenX, final int screenY);
+  protected abstract void forwardRightClick(final T current, final int screenX, final int screenY);
 
   /**
    * Forwards typed text.
@@ -956,7 +956,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
    * @param current the running player
    * @param text    the text
    */
-  protected abstract void handleTextInput(final T current, final String text);
+  protected abstract void forwardTextInput(final T current, final String text);
 
   /**
    * Creates the message that tells the sender whether the player started.

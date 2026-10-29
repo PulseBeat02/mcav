@@ -156,17 +156,17 @@ final class AbstractInteractiveCommandTest {
     }
 
     @Override
-    protected void handleLeftClick(final String current, final int screenX, final int screenY) {
+    protected void forwardLeftClick(final String current, final int screenX, final int screenY) {
       this.forwarded.add(current + " left " + screenX + "," + screenY);
     }
 
     @Override
-    protected void handleRightClick(final String current, final int screenX, final int screenY) {
+    protected void forwardRightClick(final String current, final int screenX, final int screenY) {
       this.forwarded.add(current + " right " + screenX + "," + screenY);
     }
 
     @Override
-    protected void handleTextInput(final String current, final String text) {
+    protected void forwardTextInput(final String current, final String text) {
       this.forwarded.add(current + " text " + text);
     }
 

@@ -123,7 +123,7 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
 
     final ExecutorService service = this.manager.getService();
     final Component released = Message.RELEASE_PLAYER.build();
-    final Runnable done = TaskUtils.handleAsyncTask(this.plugin, () -> sender.sendMessage(released));
+    final Runnable done = TaskUtils.createMainThreadHandover(this.plugin, () -> sender.sendMessage(released));
     final CompletableFuture<Void> release = CompletableFuture.runAsync(this.manager::clearCurrentVideo, service);
     TaskUtils.whenComplete(release, (_, error) -> reportRelease(done, error));
   }

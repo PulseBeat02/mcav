@@ -144,7 +144,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    * @param screenY the y coordinate on the display, in pixels
    */
   @Override
-  protected void handleLeftClick(final VmPlayer current, final int screenX, final int screenY) {
+  protected void forwardLeftClick(final VmPlayer current, final int screenX, final int screenY) {
     Preconditions.checkNotNull(current, "Virtual machine must not be null!");
     current.sendMouseEvent(MouseClick.LEFT, screenX, screenY);
   }
@@ -157,7 +157,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    * @param screenY the y coordinate on the display, in pixels
    */
   @Override
-  protected void handleRightClick(final VmPlayer current, final int screenX, final int screenY) {
+  protected void forwardRightClick(final VmPlayer current, final int screenX, final int screenY) {
     Preconditions.checkNotNull(current, "Virtual machine must not be null!");
     current.sendMouseEvent(MouseClick.RIGHT, screenX, screenY);
   }
@@ -169,7 +169,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    * @param text    the text to type
    */
   @Override
-  protected void handleTextInput(final VmPlayer current, final String text) {
+  protected void forwardTextInput(final VmPlayer current, final String text) {
     Preconditions.checkNotNull(current, "Virtual machine must not be null!");
     Preconditions.checkNotNull(text, "Text must not be null!");
     current.sendKeyEvent(text);
