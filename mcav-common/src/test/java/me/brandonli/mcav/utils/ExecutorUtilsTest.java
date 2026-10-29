@@ -137,9 +137,8 @@ final class ExecutorUtilsTest {
     final RecordingExecutor executor = new RecordingExecutor();
     final IllegalStateException failure = new IllegalStateException("Executor broke!");
     executor.failWith(failure);
-    final IllegalStateException thrown = assertThrows(
-      IllegalStateException.class,
-      () -> ExecutorUtils.shutdownExecutorGracefully(executor)
+    final IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
+      ExecutorUtils.shutdownExecutorGracefully(executor)
     );
     assertSame(failure, thrown);
   }

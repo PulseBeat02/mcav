@@ -418,10 +418,7 @@ final class IoUtilsTest {
 
   @Test
   void shouldStopAnImageDownloadLargerThanTheLimit() throws IOException {
-    try (
-      final TemporaryUserHome _ = TemporaryUserHome.redirectTo(this.directory);
-      final LocalHttpServer server = LocalHttpServer.start()
-    ) {
+    try (final TemporaryUserHome _ = TemporaryUserHome.redirectTo(this.directory); final LocalHttpServer server = LocalHttpServer.start()) {
       final int tooLarge = Math.toIntExact(IoUtils.MAXIMUM_IMAGE_BYTES + 1);
       server.respond("/large.png", 200, new byte[tooLarge]);
       final URI largeUri = server.uri("/large.png");
