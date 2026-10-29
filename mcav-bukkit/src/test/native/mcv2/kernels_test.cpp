@@ -522,6 +522,7 @@ int main(int argument_count, char** arguments) {
     fprintf(stderr, "usage: %s [expect=level]\n", arguments[0]);
     return SETUP_FAILURE_EXIT_CODE;
   }
+
   const int32_t available = mcv2_cpu_levels(kernel_capabilities());
   const level_kernels linked[] = {
       {"scalar", MCV2_KERNELS(MCV2_ENTRY_scalar)},
@@ -544,11 +545,13 @@ int main(int argument_count, char** arguments) {
     fprintf(stderr, "usage: %s library [expect=level]\n", arguments[0]);
     return SETUP_FAILURE_EXIT_CODE;
   }
+
   void* library = dlopen(arguments[1], RTLD_NOW | RTLD_LOCAL);
   if (library == nullptr) {
     fprintf(stderr, "cannot load %s: %s\n", arguments[1], dlerror());
     return SETUP_FAILURE_EXIT_CODE;
   }
+
   const int32_t available = ((int32_t(*)(int64_t))dlsym(library, CPU_LEVELS_SYMBOL))(kernel_capabilities());
   for (const known_level& candidate : KNOWN_LEVELS) {
     if (!(available & candidate.bit_)) {
@@ -573,15 +576,19 @@ int main(int argument_count, char** arguments) {
     printf(" %s", level.name_);
   }
   printf("\ndispatched: %s\n", best_level_name(available));
+
   if (expected != nullptr && strcmp(expected, best_level_name(available)) != 0) {
     fprintf(stderr, "expected the %s level, the dispatcher takes %s\n", expected, best_level_name(available));
     return FAILURE_EXIT_CODE;
   }
+
   run(levels, TRIALS);
+
   if (failures) {
     fprintf(stderr, "%d differences\n", failures);
     return FAILURE_EXIT_CODE;
   }
+
   printf("every level agrees\n");
   return 0;
 }

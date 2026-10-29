@@ -461,33 +461,30 @@ struct int_vector {
 
     const __m128i shuffled_red = blend_integer_lanes<EVERY_THIRD_LANE_FROM_ONE>(
         blend_integer_lanes<EVERY_THIRD_LANE_FROM_TWO>(first_vector, second_vector), third_vector);
-
     const __m128i shuffled_green = blend_integer_lanes<EVERY_THIRD_LANE_FROM_TWO>(
         blend_integer_lanes<EVERY_THIRD_LANE_FROM_ONE>(second_vector, first_vector), third_vector);
-
     const __m128i shuffled_blue = blend_integer_lanes<EVERY_THIRD_LANE_FROM_TWO>(
         blend_integer_lanes<EVERY_THIRD_LANE_FROM_ONE>(third_vector, second_vector), first_vector);
+
     red_channels.lanes_ = _mm_shuffle_epi32(shuffled_red, RED_LOAD_ORDER);
     green_channels.lanes_ = _mm_shuffle_epi32(shuffled_green, GREEN_LOAD_ORDER);
     blue_channels.lanes_ = _mm_shuffle_epi32(shuffled_blue, BLUE_LOAD_ORDER);
   }
   static void store_channels(int32_t* buffer, const int_vector red_channels, const int_vector green_channels,
                              const int_vector blue_channels) {
-
     const __m128i first_vector = blend_integer_lanes<EVERY_THIRD_LANE_FROM_TWO>(
         blend_integer_lanes<EVERY_THIRD_LANE_FROM_ONE>(_mm_shuffle_epi32(red_channels.lanes_, RED_STORE_ORDER),
                                                        _mm_shuffle_epi32(green_channels.lanes_, BROADCAST_FIRST_LANE)),
         _mm_shuffle_epi32(blue_channels.lanes_, BROADCAST_FIRST_LANE));
-
     const __m128i second_vector = blend_integer_lanes<EVERY_THIRD_LANE_FROM_TWO>(
         blend_integer_lanes<EVERY_THIRD_LANE_FROM_ONE>(_mm_shuffle_epi32(green_channels.lanes_, GREEN_STORE_ORDER),
                                                        _mm_shuffle_epi32(blue_channels.lanes_, BROADCAST_SECOND_LANE)),
         _mm_shuffle_epi32(red_channels.lanes_, BROADCAST_THIRD_LANE));
-
     const __m128i third_vector = blend_integer_lanes<EVERY_THIRD_LANE_FROM_TWO>(
         blend_integer_lanes<EVERY_THIRD_LANE_FROM_ONE>(_mm_shuffle_epi32(blue_channels.lanes_, BLUE_STORE_ORDER),
                                                        _mm_shuffle_epi32(red_channels.lanes_, BROADCAST_FOURTH_LANE)),
         _mm_shuffle_epi32(green_channels.lanes_, BROADCAST_FOURTH_LANE));
+
     _mm_storeu_si128((__m128i*)buffer, first_vector);
     _mm_storeu_si128((__m128i*)(buffer + LANES), second_vector);
     _mm_storeu_si128((__m128i*)(buffer + 2 * LANES), third_vector);
@@ -1501,6 +1498,7 @@ void predict(const uint8_t* reference, const int32_t width, const int32_t height
     }
     return;
   }
+
   for (int32_t row_index = 0; row_index < size; row_index++) {
     const int32_t source_row = clamp_int(top + row_index, 0, height - 1);
     for (int32_t column = 0; column < size; column++) {
@@ -1645,6 +1643,7 @@ template <int STEP>
 inline void load_step_channels(const int32_t* source, const int32_t pixel_index, int_vector& red, int_vector& green,
                                int_vector& blue) {
   int_vector::load_channels(source + pixel_index * CHANNELS, red, green, blue);
+
   if (STEP != CLUSTER_STEP) {
     return;
   }
@@ -2082,7 +2081,6 @@ template <class VectorType> void halve_lanes(const int32_t* block, const int32_t
 }
 
 void halve(const int32_t* block, const int32_t size, int32_t* output) {
-
   if (SHUFFLED_CHANNEL_LOAD || size < 2 * int_vector::LANES) {
     halve_lanes<scalar_int_vector>(block, size, output);
   } else {
@@ -2284,7 +2282,6 @@ unsigned long long extended_control_state() {
 }
 
 extern "C" int32_t mcv2_cpu_levels(int64_t) {
-
   int32_t levels = MCV2_LEVEL_SCALAR | MCV2_LEVEL_SSE2;
   unsigned register_a;
   unsigned register_b;
@@ -2293,6 +2290,7 @@ extern "C" int32_t mcv2_cpu_levels(int64_t) {
   if (!__get_cpuid(FEATURES_LEAF, &register_a, &register_b, &register_c, &register_d)) {
     return levels;
   }
+
   if (register_c & SSE41_BIT) {
     levels |= MCV2_LEVEL_SSE41;
   }
@@ -2301,6 +2299,7 @@ extern "C" int32_t mcv2_cpu_levels(int64_t) {
                                                              &register_a, &register_b, &register_c, &register_d)) {
     return levels;
   }
+
   if (register_b & AVX2_BIT) {
     levels |= MCV2_LEVEL_AVX2;
   }
@@ -2329,7 +2328,6 @@ extern "C" int32_t mcv2_cpu_levels(const int64_t kernel_capabilities) {
   int32_t levels = MCV2_LEVEL_SCALAR | MCV2_LEVEL_NEON;
 #if defined(__linux__)
   if (kernel_capabilities & MCV2_HARDWARE_CAPABILITY_SVE) {
-
     unsigned long long vector_bytes;
     __asm__ volatile(".arch_extension sve\n\trdvl %0, #1" : "=r"(vector_bytes));
     if (vector_bytes == SVE256_VECTOR_BYTES) {
