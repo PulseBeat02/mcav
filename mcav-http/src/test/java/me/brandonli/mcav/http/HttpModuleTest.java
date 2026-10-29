@@ -17,17 +17,24 @@
  */
 package me.brandonli.mcav.http;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.util.List;
 import me.brandonli.mcav.MCAVException;
 import org.junit.jupiter.api.Test;
 
 final class HttpModuleTest {
+
+  private static final String LOCALHOST = "localhost";
+
+  private static final int EPHEMERAL_PORT = 0;
+
+  private static final List<String> LOOPBACK = List.of("server.address=127.0.0.1");
 
   @Test
   void shouldBeNamedHttp() {
@@ -37,10 +44,19 @@ final class HttpModuleTest {
   }
 
   @Test
-  void shouldStartAndStopWithoutHoldingResources() {
+  void shouldLeaveTheServersYouStartedRunningWhenStopped() {
     final HttpModule module = new HttpModule();
-    assertDoesNotThrow(module::start);
-    assertDoesNotThrow(module::stop);
+    final SpringHttpResult server = new SpringHttpResult(LOCALHOST, EPHEMERAL_PORT, null, LOOPBACK);
+    module.start();
+    server.start();
+    try {
+      module.stop();
+
+      final boolean running = server.isRunning();
+      assertTrue(running);
+    } finally {
+      server.stop();
+    }
   }
 
   @Test

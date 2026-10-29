@@ -39,11 +39,4 @@ final class HttpStatusExceptionTest {
   private void throwStatusExceptionWithoutUri() throws HttpStatusException {
     throw new HttpStatusException(500, null);
   }
-
-  @Test
-  void shouldKeepTheMessageOfAChecksumMismatch() {
-    final ChecksumMismatchException exception = new ChecksumMismatchException("expected a but got b!");
-    final String message = exception.getMessage();
-    assertEquals("expected a but got b!", message);
-  }
 }

@@ -311,6 +311,22 @@ final class DebianLibraryInstallerTest {
   }
 
   @Test
+  void shouldLeaveNothingBehindWhenAPackageCannotBeExtracted() throws IOException {
+    final byte[] escapingPackage = new DebianPackageBuilder()
+      .file("./usr/lib/aarch64-linux-gnu/liba.so.1.0", CONTENT)
+      .symbolicLink("./usr/lib/aarch64-linux-gnu/escape", "../../../..")
+      .build();
+    final Download[] downloads = { this.createDownload(ARM64, FIRST_PACKAGE, escapingPackage) };
+    final DebianLibraryInstaller installer = new DebianLibraryInstaller(this.folder, NAME, downloads, ARM64, this::record);
+    this.server.respond(FIRST_PACKAGE, OK, escapingPackage);
+
+    assertThrows(InstallationException.class, () -> installer.download(FileMode.EXECUTABLE));
+
+    final List<Path> leftOver = this.listTemporary();
+    assertEquals(List.of(), leftOver);
+  }
+
+  @Test
   void shouldReplaceABrokenInstallation() throws IOException {
     final DebianLibraryInstaller installer = this.createInstaller(ARM64, this::record);
     final Path junk = this.folder.resolve("junk");

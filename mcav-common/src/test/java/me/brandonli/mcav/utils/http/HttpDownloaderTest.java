@@ -229,12 +229,13 @@ final class HttpDownloaderTest {
   }
 
   @Test
-  void shouldWaitBetweenAttemptsButNotAfterTheLast() throws Exception {
+  void shouldWaitLongerBeforeEachRetryButNotAfterTheLastAttempt() throws Exception {
     try (final LocalHttpServer server = LocalHttpServer.start(); final ExecutorService executor = Executors.newSingleThreadExecutor()) {
       server.respond(BROKEN_ROUTE, HTTP_SERVER_ERROR, CONTENT);
       final URI broken = server.uri(BROKEN_ROUTE);
       final Path destination = this.directory.resolve(BROKEN_FILE_NAME);
       final Duration retryDelay = Duration.ofMillis(500);
+      final long startedAt = System.nanoTime();
       final Future<Long> failedAt = executor.submit(() -> failAndTime(broken, destination, retryDelay));
 
       final boolean secondAttemptEarly = server.awaitRequests(BROKEN_ROUTE, 2, Duration.ofMillis(250));
@@ -242,10 +243,16 @@ final class HttpDownloaderTest {
 
       final boolean thirdAttempt = server.awaitRequests(BROKEN_ROUTE, MAXIMUM_ATTEMPTS, Duration.ofSeconds(WAIT_TIMEOUT_SECONDS));
       final long thirdAttemptAt = System.nanoTime();
-      final Duration afterLastAttempt = Duration.ofNanos(failedAt.get() - thirdAttemptAt);
+      final long failedAtNanos = failedAt.get();
+      final Duration afterLastAttempt = Duration.ofNanos(failedAtNanos - thirdAttemptAt);
       final boolean failedPromptly = afterLastAttempt.compareTo(retryDelay) < 0;
       assertTrue(thirdAttempt);
       assertTrue(failedPromptly, "no wait after the last attempt, but " + afterLastAttempt);
+
+      final Duration untilFailure = Duration.ofNanos(failedAtNanos - startedAt);
+      final Duration growingWaits = retryDelay.multipliedBy(3);
+      final boolean waitedLonger = untilFailure.compareTo(growingWaits) >= 0;
+      assertTrue(waitedLonger, "the second wait is twice the first, but the attempts took " + untilFailure);
     }
   }
 
@@ -878,7 +885,7 @@ final class HttpDownloaderTest {
   }
 
   @Test
-  void shouldFetchText() throws IOException {
+  void shouldFetchTheBodyOrNothingForAnErrorStatus() throws IOException {
     try (final LocalHttpServer server = LocalHttpServer.start()) {
       server.respond("/text", HTTP_OK, CONTENT);
       final URI text = server.uri("/text");
@@ -889,7 +896,16 @@ final class HttpDownloaderTest {
       final boolean notFoundEmpty = notFound.isEmpty();
       assertEquals(expectedText, fetched);
       assertTrue(notFoundEmpty);
+    }
 
+    assertThrows(NullPointerException.class, () -> HttpDownloader.fetchText(null));
+  }
+
+  @Test
+  void shouldKeepTheInterruptFlagWhenAFetchIsInterrupted() throws IOException {
+    try (final LocalHttpServer server = LocalHttpServer.start()) {
+      server.respond("/text", HTTP_OK, CONTENT);
+      final URI text = server.uri("/text");
       final Thread current = Thread.currentThread();
       current.interrupt();
       assertThrows(DownloadException.class, () -> HttpDownloader.fetchText(text));
@@ -897,8 +913,6 @@ final class HttpDownloaderTest {
       final boolean interrupted = Thread.interrupted();
       assertTrue(interrupted);
     }
-
-    assertThrows(NullPointerException.class, () -> HttpDownloader.fetchText(null));
   }
 
   @Test
@@ -908,16 +922,25 @@ final class HttpDownloaderTest {
     final HttpHeaders headers = request.headers();
     final Optional<String> userAgent = headers.firstValue("User-Agent");
     final String method = request.method();
+    final Optional<Duration> requestTimeout = request.timeout();
     try (final HttpClient client = HttpDownloader.createClient()) {
       final HttpClient.Redirect redirect = client.followRedirects();
+      final Optional<Duration> connectTimeout = client.connectTimeout();
       assertEquals(HttpClient.Redirect.NORMAL, redirect);
+      assertEquals(Optional.of(Duration.ofSeconds(20)), connectTimeout);
     }
 
     assertEquals("GET", method);
+    assertEquals(Optional.of(Duration.ofMinutes(30)), requestTimeout);
 
-    final boolean userAgentPresent = userAgent.isPresent();
-    assertTrue(userAgentPresent);
+    final String agent = userAgent.orElse("");
+    final boolean namesMcav = agent.startsWith("mcav ");
+    assertTrue(namesMcav, "the user agent names mcav, but was " + agent);
     assertThrows(NullPointerException.class, () -> HttpDownloader.createRequest(null));
+  }
+
+  @Test
+  void shouldReportADigestAlgorithmThatDoesNotExist() {
     assertThrows(DownloadException.class, () -> HttpDownloader.createDigest("NO-SUCH-ALGORITHM"));
   }
 
