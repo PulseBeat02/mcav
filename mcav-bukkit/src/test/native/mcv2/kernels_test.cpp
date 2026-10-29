@@ -194,6 +194,23 @@ void report(const bool equal, const char* kernel, const level_kernels& level, co
   }
 }
 
+enum kernel_index {
+  PREDICTED,
+  SOLID,
+  PALETTE,
+  COMPACT,
+  PREDICT,
+  FIT,
+  CLUSTER,
+  ASSIGN,
+  ASSIGN_PATTERN,
+  SEEDED,
+  LOAD_SOURCE,
+  HALVE,
+  RESIDUAL_TARGET,
+  KERNEL_COUNT,
+};
+
 constexpr const char* KERNEL_NAMES[] = {"predicted",   "solid",   "palette",        "compact", "predict",
                                         "fit",         "cluster", "assign",         "pattern", "seeded",
                                         "load_source", "halve",   "residual_target"};
@@ -325,42 +342,42 @@ kernel_result run_level(const level_kernels& level, const kernel_trial& trial, r
   kernel_result result;
   result.output_.assign(trial.channels_, 0);
   switch (trial.kernel_) {
-  case 0:
+  case PREDICTED:
     result.measured_ = level.predicted_(trial.prediction_.data(), trial.size_, result.output_.data(),
                                         trial.source_.data(), trial.rate_, trial.limit_);
     break;
-  case 1:
+  case SOLID:
     result.measured_ = level.solid_(inputs.range(0, 0xFFFFFF), trial.size_, result.output_.data(), trial.source_.data(),
                                     trial.rate_, trial.limit_);
     break;
-  case 2:
+  case PALETTE:
     run_palette(level, trial, inputs, result);
     break;
-  case 3:
+  case COMPACT:
     run_compact(level, trial, inputs, result);
     break;
-  case 4:
+  case PREDICT:
     run_predict(level, trial, inputs, result);
     break;
-  case 5:
+  case FIT:
     run_fit(level, trial, inputs, result);
     break;
-  case 6:
+  case CLUSTER:
     run_cluster(level, trial, inputs, result);
     break;
-  case 7:
+  case ASSIGN:
     run_assign(level, trial, inputs, result);
     break;
-  case 8:
+  case ASSIGN_PATTERN:
     run_assign_pattern(level, trial, inputs, result);
     break;
-  case 9:
+  case SEEDED:
     run_seeded(level, trial, inputs, result);
     break;
-  case 10:
+  case LOAD_SOURCE:
     run_load_source(level, trial, inputs, result);
     break;
-  case 11:
+  case HALVE:
     level.halve_(trial.source_.data(), trial.size_, result.output_.data());
     break;
   default:
@@ -412,7 +429,7 @@ uint64_t digest_kernel(const vector<level_kernels>& levels, const int kernel, co
 
 void run(const vector<level_kernels>& levels, const int trials) {
   fnv_digest total;
-  for (int kernel = 0; kernel < 13; kernel++) {
+  for (int kernel = 0; kernel < KERNEL_COUNT; kernel++) {
     const uint64_t digest = digest_kernel(levels, kernel, trials);
     printf("%-16s %016llx\n", KERNEL_NAMES[kernel], (unsigned long long)digest);
     total.add(digest);
