@@ -30,17 +30,20 @@ import org.mockito.MockedStatic;
 final class FabricChannelTest {
 
   @Test
-  void isOpenOnceTheServerRegisteredTheChannelAndSendsThroughFabric() {
+  void shouldBeOpenOnceTheServerRegisteredTheChannelAndSendThroughFabric() {
     try (final MockedStatic<ClientPlayNetworking> networking = mockStatic(ClientPlayNetworking.class)) {
       final FabricChannel channel = new FabricChannel();
-      assertFalse(channel.isOpen());
+      final boolean openBeforeRegistration = channel.isOpen();
+      assertFalse(openBeforeRegistration);
       networking.when(() -> ClientPlayNetworking.canSend(Mcv2Payload.TYPE)).thenReturn(true);
-      assertTrue(channel.isOpen());
+      final boolean openOnceRegistered = channel.isOpen();
+      assertTrue(openOnceRegistered);
 
       channel.send(new byte[] { 1, 1, 1, 0 });
       final ArgumentCaptor<Mcv2Payload> sent = ArgumentCaptor.forClass(Mcv2Payload.class);
       networking.verify(() -> ClientPlayNetworking.send(sent.capture()));
-      assertArrayEquals(new byte[] { 1, 1, 1, 0 }, sent.getValue().report());
+      final byte[] report = sent.getValue().report();
+      assertArrayEquals(new byte[] { 1, 1, 1, 0 }, report);
     }
   }
 }

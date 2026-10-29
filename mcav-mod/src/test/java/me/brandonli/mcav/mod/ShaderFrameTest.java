@@ -35,34 +35,44 @@ final class ShaderFrameTest {
 
   private static final byte[] PICTURE = new byte[Mcv2Maps.COLOURS];
 
+  private static final String PAGE_TEXTURE = "page";
+  private static final String ANCHOR_TEXTURE = "anchor";
+
   @Test
-  void keepsThePagesOfTheFrameAndTheAnchorsItPosed() {
+  void shouldKeepThePagesOfTheFrameAndTheAnchorsItPosed() {
     final ShaderFrame frame = new ShaderFrame();
-    assertTrue(frame.isEmpty());
-    frame.extracted("page", PAGE);
-    frame.extracted("anchor", ANCHOR);
+    final boolean emptyAtStart = frame.isEmpty();
+    assertTrue(emptyAtStart);
+    frame.extracted(PAGE_TEXTURE, PAGE);
+    frame.extracted(ANCHOR_TEXTURE, ANCHOR);
     frame.extracted("picture", PICTURE);
-    assertEquals(1, frame.pages().size());
-    assertSame(PAGE, frame.pages().get(0));
-    assertFalse(frame.isEmpty());
-    frame.posed("anchor", 1, 2, 3);
+    final int pageCount = frame.pages().size();
+    final byte[] firstPage = frame.pages().get(0);
+    final boolean emptyWithAPage = frame.isEmpty();
+    assertEquals(1, pageCount);
+    assertSame(PAGE, firstPage);
+    assertFalse(emptyWithAPage);
+    frame.posed(ANCHOR_TEXTURE, 1, 2, 3);
     frame.posed("picture", 4, 5, 6);
-    frame.posed("page", 7, 8, 9);
+    frame.posed(PAGE_TEXTURE, 7, 8, 9);
     frame.posed("never extracted", 7, 8, 9);
-    assertEquals(List.of(StripAnchor.of(ANCHOR, 1, 2, 3)), frame.anchors());
+    final List<StripAnchor> anchors = frame.anchors();
+    assertEquals(List.of(StripAnchor.of(ANCHOR, 1, 2, 3)), anchors);
   }
 
   @Test
-  void aFrameWithAnAnchorAloneIsNotEmpty() {
+  void shouldNotBeEmptyWithAnAnchorAlone() {
     final ShaderFrame frame = new ShaderFrame();
-    frame.extracted("anchor", ANCHOR);
-    assertTrue(frame.isEmpty(), "extracted, not drawn");
-    frame.posed("anchor", 1, 2, 3);
-    assertFalse(frame.isEmpty());
+    frame.extracted(ANCHOR_TEXTURE, ANCHOR);
+    final boolean emptyBeforeDrawing = frame.isEmpty();
+    assertTrue(emptyBeforeDrawing, "extracted, not drawn");
+    frame.posed(ANCHOR_TEXTURE, 1, 2, 3);
+    final boolean emptyOnceDrawn = frame.isEmpty();
+    assertFalse(emptyOnceDrawn);
   }
 
   @Test
-  void aMapThatTurnsIntoAPageOrAPictureIsNoAnchorAnyMore() {
+  void shouldForgetTheAnchorOfAMapThatTurnsIntoAPageOrAPicture() {
     final ShaderFrame frame = new ShaderFrame();
     frame.extracted("map", ANCHOR);
     frame.extracted("map", PAGE);
@@ -70,27 +80,33 @@ final class ShaderFrameTest {
     frame.extracted("other", ANCHOR);
     frame.extracted("other", PICTURE);
     frame.posed("other", 1, 2, 3);
-    assertTrue(frame.anchors().isEmpty());
+    final List<StripAnchor> anchors = frame.anchors();
+    assertTrue(anchors.isEmpty());
   }
 
   @Test
-  void theNextFrameStartsWithoutPagesAnchorsOrProjectionAndKnowsTheAnchorsStill() {
+  void shouldStartTheNextFrameWithoutPagesAnchorsOrProjectionAndStillKnowTheAnchors() {
     final ShaderFrame frame = new ShaderFrame();
-    assertNull(frame.projection());
+    final float[] projectionAtStart = frame.projection();
+    assertNull(projectionAtStart);
     final float[] projection = new float[16];
     frame.projected(projection);
-    assertSame(projection, frame.projection());
-    frame.extracted("page", PAGE);
-    frame.extracted("anchor", ANCHOR);
-    frame.posed("anchor", 1, 2, 3);
+    final float[] markedProjection = frame.projection();
+    assertSame(projection, markedProjection);
+    frame.extracted(PAGE_TEXTURE, PAGE);
+    frame.extracted(ANCHOR_TEXTURE, ANCHOR);
+    frame.posed(ANCHOR_TEXTURE, 1, 2, 3);
     frame.finish();
-    assertTrue(frame.isEmpty());
-    assertTrue(frame.pages().isEmpty());
-    assertNull(frame.projection());
-    frame.posed("anchor", 4, 5, 6);
-    assertArrayEquals(
-      new float[] { 4, 5, 6 },
-      new float[] { frame.anchors().get(0).cornerX(), frame.anchors().get(0).cornerY(), frame.anchors().get(0).cornerZ() }
-    );
+    final boolean emptyNextFrame = frame.isEmpty();
+    final List<byte[]> nextPages = frame.pages();
+    final float[] nextProjection = frame.projection();
+    assertTrue(emptyNextFrame);
+    assertTrue(nextPages.isEmpty());
+    assertNull(nextProjection);
+    frame.posed(ANCHOR_TEXTURE, 4, 5, 6);
+    final List<StripAnchor> anchors = frame.anchors();
+    final StripAnchor anchor = anchors.get(0);
+    final float[] corner = { anchor.getCornerX(), anchor.getCornerY(), anchor.getCornerZ() };
+    assertArrayEquals(new float[] { 4, 5, 6 }, corner);
   }
 }

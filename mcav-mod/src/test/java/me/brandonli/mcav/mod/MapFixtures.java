@@ -19,22 +19,23 @@ package me.brandonli.mcav.mod;
 
 import java.util.Arrays;
 
-/**
- * MCV2 maps as the server draws them, symbol by symbol: transport pages and anchors. Symbol {@code s} is map colour
- * {@code s + 4}.
- */
+// MCV2 maps as the server draws them; symbol s is map colour s + 4
 final class MapFixtures {
 
-  /** "MCP1", version 1 and six bits, in six-bit symbols. */
+  // "MCP1", version 1 and six bits, in six-bit symbols
   static final int[] PAGE_PREFIX = { 13, 13, 4, 20, 49, 4, 32 };
 
   static final int[] ANCHOR_SIGNATURE = { 21, 3, 58, 44, 9, 37, 60, 17 };
 
   private static final int SYMBOL_BITS = 6;
 
-  private MapFixtures() {}
+  private static final int SYMBOL_MASK = 63;
 
-  /** A map's colours: the symbols, and symbol 0 after them. */
+  private MapFixtures() {
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+  }
+
+  // the symbols, and symbol 0 after them
   static byte[] colours(final int[] symbols) {
     final byte[] colours = new byte[Mcv2Maps.COLOURS];
     Arrays.fill(colours, (byte) 4);
@@ -44,11 +45,11 @@ final class MapFixtures {
     return colours;
   }
 
-  /** The symbols of a page of a stream: its prefix, its stream id at bit 64, its number at bit 128, and filler. */
+  // the prefix, the stream id at bit 64, the number at bit 128, and filler
   static int[] pageSymbols(final long stream, final int number) {
     final int[] symbols = new int[Mcv2Maps.COLOURS];
     for (int index = 0; index < symbols.length; index++) {
-      symbols[index] = (index * 7 + 3) & 63;
+      symbols[index] = (index * 7 + 3) & SYMBOL_MASK;
     }
     System.arraycopy(PAGE_PREFIX, 0, symbols, 0, PAGE_PREFIX.length);
     writeBits(symbols, 64, 32, stream);
@@ -56,20 +57,20 @@ final class MapFixtures {
     return symbols;
   }
 
-  /** The symbols of an anchor: its signature, its fields, the low and high six bits of its stream, the checksum. */
+  // the signature, the fields, the low and high six bits of the stream, the checksum
   static int[] anchorSymbols(final int column, final int row, final int columns, final int rows, final int facing, final int stream) {
-    final int[] fields = { column, row, columns, rows, facing, stream & 63, (stream >> SYMBOL_BITS) & 63 };
+    final int[] fields = { column, row, columns, rows, facing, stream & SYMBOL_MASK, (stream >> SYMBOL_BITS) & SYMBOL_MASK };
     final int[] symbols = Arrays.copyOf(ANCHOR_SIGNATURE, 16);
     int sum = 0;
     for (int index = 0; index < fields.length; index++) {
       symbols[8 + index] = fields[index];
       sum += fields[index];
     }
-    symbols[15] = sum & 63;
+    symbols[15] = sum & SYMBOL_MASK;
     return symbols;
   }
 
-  /** Writes a value into a symbol stream, least significant bit first, six bits a symbol. */
+  // least significant bit first, six bits a symbol
   static void writeBits(final int[] symbols, final int bit, final int count, final long value) {
     for (int index = 0; index < count; index++) {
       final int at = bit + index;
@@ -77,5 +78,14 @@ final class MapFixtures {
       final int set = (int) ((value >> index) & 1);
       symbols[at / SYMBOL_BITS] = (symbols[at / SYMBOL_BITS] & ~(1 << shift)) | (set << shift);
     }
+  }
+
+  static byte[] withFlippedBits(final byte[] colours, final byte[] masks) {
+    final byte[] flipped = colours.clone();
+    for (int index = 0; index < masks.length; index++) {
+      flipped[index] ^= masks[index];
+    }
+
+    return flipped;
   }
 }

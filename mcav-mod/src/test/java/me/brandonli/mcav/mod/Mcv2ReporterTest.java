@@ -31,9 +31,13 @@ import org.junit.jupiter.api.Test;
 
 final class Mcv2ReporterTest {
 
-  private static final Mcv2Report SHADERS_OFF = new Mcv2Report(true, ShaderPack.NONE, false);
+  private static final boolean IRIS_INSTALLED = true;
 
-  private static final Mcv2Report SHADERS_ON = new Mcv2Report(true, ShaderPack.IN_USE, false);
+  private static final boolean DOES_NOT_DECODE = false;
+
+  private static final Mcv2Report SHADERS_OFF = Mcv2Report.of(IRIS_INSTALLED, ShaderPack.NONE, DOES_NOT_DECODE);
+
+  private static final Mcv2Report SHADERS_ON = Mcv2Report.of(IRIS_INSTALLED, ShaderPack.IN_USE, DOES_NOT_DECODE);
 
   private final AtomicLong clock = new AtomicLong(Long.MAX_VALUE - Mcv2Reporter.STEADY_NANOSECONDS);
 
@@ -50,65 +54,74 @@ final class Mcv2ReporterTest {
     this.reporter = new Mcv2Reporter(this.shaders, this.channel, this.clock::get);
   }
 
-  /** Ticks once, after a time. */
   private void tickAfter(final long nanoseconds) {
     this.clock.addAndGet(nanoseconds);
     this.reporter.tick();
   }
 
   @Test
-  void asksNothingWhileTheServerDoesNotListen() {
+  void shouldAskNothingWhileTheServerDoesNotListen() {
     this.channel.open = false;
     this.tickAfter(0);
     this.tickAfter(2 * Mcv2Reporter.STEADY_NANOSECONDS);
     verifyNoInteractions(this.shaders);
-    assertEquals(List.of(), this.channel.sent);
+    final List<byte[]> sent = this.channel.sent;
+    assertEquals(List.of(), sent);
   }
 
   @Test
-  void sendsWhatIrisSaysOnceItHeldASecondAndOnlyOnce() {
+  void shouldSendWhatIrisSaysOnceItHeldASecondAndOnlyOnce() {
     this.tickAfter(0);
     this.tickAfter(Mcv2Reporter.STEADY_NANOSECONDS - 1);
-    assertEquals(List.of(), this.channel.sent);
+    final List<byte[]> sent = this.channel.sent;
+    assertEquals(List.of(), sent);
     this.tickAfter(1);
     this.tickAfter(Mcv2Reporter.STEADY_NANOSECONDS);
     this.tickAfter(Mcv2Reporter.STEADY_NANOSECONDS);
-    assertEquals(1, this.channel.sent.size(), "the server is told once, past the wrap of the clock too");
-    assertArrayEquals(SHADERS_OFF.toBytes(), this.channel.sent.getFirst());
+    final int sentCount = this.channel.sent.size();
+    final byte[] first = this.channel.sent.getFirst();
+    assertEquals(1, sentCount, "the server is told once, past the wrap of the clock too");
+    assertArrayEquals(SHADERS_OFF.toBytes(), first);
   }
 
   @Test
-  void sendsAChangeThatHeldASecondButNotAShorterOne() {
+  void shouldSendAChangeThatHeldASecondButNotAShorterOne() {
     this.tickAfter(0);
     this.tickAfter(Mcv2Reporter.STEADY_NANOSECONDS);
     when(this.shaders.report()).thenReturn(SHADERS_ON);
     this.tickAfter(1);
     when(this.shaders.report()).thenReturn(SHADERS_OFF);
     this.tickAfter(Mcv2Reporter.STEADY_NANOSECONDS);
-    assertEquals(1, this.channel.sent.size());
+    final int sentAfterABriefChange = this.channel.sent.size();
+    assertEquals(1, sentAfterABriefChange);
 
     when(this.shaders.report()).thenReturn(SHADERS_ON);
     this.tickAfter(1);
     this.tickAfter(Mcv2Reporter.STEADY_NANOSECONDS - 1);
-    assertEquals(1, this.channel.sent.size());
+    final int sentBeforeASecond = this.channel.sent.size();
+    assertEquals(1, sentBeforeASecond);
     this.tickAfter(1);
-    assertEquals(2, this.channel.sent.size());
-    assertArrayEquals(SHADERS_ON.toBytes(), this.channel.sent.getLast());
+    final int sentAfterASecond = this.channel.sent.size();
+    final byte[] last = this.channel.sent.getLast();
+    assertEquals(2, sentAfterASecond);
+    assertArrayEquals(SHADERS_ON.toBytes(), last);
   }
 
   @Test
-  void tellsTheServerOfANewConnectionAgain() {
+  void shouldTellTheServerOfANewConnectionAgain() {
     this.tickAfter(0);
     this.tickAfter(Mcv2Reporter.STEADY_NANOSECONDS);
     this.reporter.reset();
     this.tickAfter(1);
-    assertEquals(1, this.channel.sent.size(), "the new server is told once the report held a second on it");
+    final int sentToTheNewServer = this.channel.sent.size();
+    assertEquals(1, sentToTheNewServer, "the new server is told once the report held a second on it");
     this.tickAfter(Mcv2Reporter.STEADY_NANOSECONDS);
-    assertEquals(2, this.channel.sent.size());
-    assertArrayEquals(SHADERS_OFF.toBytes(), this.channel.sent.getLast());
+    final int sentOnceItHeld = this.channel.sent.size();
+    final byte[] last = this.channel.sent.getLast();
+    assertEquals(2, sentOnceItHeld);
+    assertArrayEquals(SHADERS_OFF.toBytes(), last);
   }
 
-  /** A channel that records what is sent on it. */
   private static final class RecordingChannel implements ReportChannel {
 
     private final List<byte[]> sent = new ArrayList<>();

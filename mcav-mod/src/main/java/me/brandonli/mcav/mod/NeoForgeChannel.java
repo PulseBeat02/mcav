@@ -23,24 +23,16 @@ import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 import net.neoforged.neoforge.network.registration.NetworkRegistry;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * The channel to the server, through NeoForge's network registry, which follows the channels the server registers. The
- * connection is the one of the session the player logged in to; ticks and the login events run on the client thread.
- */
+// NeoForge's network registry follows the channels the server registers; ticks and the login events run on the
+// client thread
 final class NeoForgeChannel implements ReportChannel {
 
   private @Nullable Connection connection;
 
-  /**
-   * Follows the connection of a session the player just logged in to.
-   *
-   * @param connection the connection
-   */
   void open(final Connection connection) {
     this.connection = connection;
   }
 
-  /** Forgets the connection of a session the player left. */
   void close() {
     this.connection = null;
   }

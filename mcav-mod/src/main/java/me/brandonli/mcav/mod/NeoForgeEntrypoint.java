@@ -18,64 +18,92 @@
 package me.brandonli.mcav.mod;
 
 import java.util.Optional;
+import java.util.function.BooleanSupplier;
 import java.util.function.LongSupplier;
+import net.minecraft.network.Connection;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
+import net.neoforged.neoforgespi.language.IModInfo;
+import org.apache.maven.artifact.versioning.ArtifactVersion;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * The entry point of the MCV2 client mod on NeoForge: it registers the {@code mcav:mcv2} payload, starts the decoder of
  * MCV2 under shader packs, and on every client tick asks Iris whether it draws a shader pack, so MCV2 screens show this
  * player the dithered maps only while one is in use that MCV2 does not decode under.
+ *
+ * <p>This class is not thread-safe: NeoForge creates it once, while it loads mods.
+ *
+ * @since 1.0.0
  */
 @Mod(value = NeoForgeEntrypoint.MOD_ID, dist = Dist.CLIENT)
 public final class NeoForgeEntrypoint {
 
-  /** The mod's id. */
   static final String MOD_ID = "mcav_mcv2";
 
-  /** The version NeoForge compares when the server runs NeoForge too. */
+  // NeoForge compares it when the server runs NeoForge too
   static final String PROTOCOL = "1";
+
+  private final NeoForgeChannel channel;
+
+  private final Mcv2Reporter reporter;
 
   /**
    * Constructs the entry point NeoForge calls.
    *
    * @param modBus the mod's event bus
+   * @since 1.0.0
    */
   public NeoForgeEntrypoint(final IEventBus modBus) {
-    this(modBus, NeoForge.EVENT_BUS, irisVersion(ModList.get()), System::nanoTime);
+    final ModList mods = ModList.get();
+    final Optional<String> version = irisVersion(mods);
+    final @Nullable String irisVersion = version.orElse(null);
+    this(modBus, NeoForge.EVENT_BUS, irisVersion, System::nanoTime);
   }
 
-  NeoForgeEntrypoint(final IEventBus modBus, final IEventBus gameBus, final Optional<String> irisVersion, final LongSupplier clock) {
-    final NeoForgeChannel channel = new NeoForgeChannel();
-    final Mcv2Reporter reporter = new Mcv2Reporter(
-      new IrisShaders(irisVersion.isPresent(), Mcv2Shaders.start(irisVersion)),
-      channel,
-      clock
-    );
+  NeoForgeEntrypoint(final IEventBus modBus, final IEventBus gameBus, final @Nullable String irisVersion, final LongSupplier clock) {
+    final boolean installed = irisVersion != null;
+    final BooleanSupplier decodesUnderShaders = Mcv2Shaders.start(irisVersion);
+    final IrisShaders iris = new IrisShaders(installed, decodesUnderShaders);
+    this.channel = new NeoForgeChannel();
+    this.reporter = new Mcv2Reporter(iris, this.channel, clock);
+
+    modBus.addListener(RegisterPayloadHandlersEvent.class, this::onRegisterPayloadHandlers);
+    gameBus.addListener(ClientPlayerNetworkEvent.LoggingIn.class, this::onLoggingIn);
+    gameBus.addListener(ClientPlayerNetworkEvent.LoggingOut.class, _ -> this.channel.close());
+    gameBus.addListener(ClientTickEvent.Post.class, _ -> this.reporter.tick());
+  }
+
+  static Optional<String> irisVersion(final ModList mods) {
+    final Optional<? extends ModContainer> iris = mods.getModContainerById(IrisShaders.MOD_ID);
+    return iris.map(NeoForgeEntrypoint::versionOf);
+  }
+
+  private static String versionOf(final ModContainer mod) {
+    final IModInfo info = mod.getModInfo();
+    final ArtifactVersion version = info.getVersion();
+    return version.toString();
+  }
+
+  private void onRegisterPayloadHandlers(final RegisterPayloadHandlersEvent event) {
     // optional, so the client still joins servers without the channel, which are all servers but MCAV's; the server of
     // a single-player world has no MCV2 screens, and its handler drops the reports
-    modBus.addListener(RegisterPayloadHandlersEvent.class, event ->
-      event
-        .registrar(PROTOCOL)
-        .optional()
-        .playToServer(Mcv2Payload.TYPE, Mcv2Payload.CODEC, (_, _) -> {})
-    );
-    gameBus.addListener(ClientPlayerNetworkEvent.LoggingIn.class, event -> {
-      channel.open(event.getConnection());
-      reporter.reset();
-    });
-    gameBus.addListener(ClientPlayerNetworkEvent.LoggingOut.class, _ -> channel.close());
-    gameBus.addListener(ClientTickEvent.Post.class, _ -> reporter.tick());
+    event
+      .registrar(PROTOCOL)
+      .optional()
+      .playToServer(Mcv2Payload.TYPE, Mcv2Payload.CODEC, (_, _) -> {});
   }
 
-  /** The version of the Iris NeoForge loaded, empty without Iris. */
-  static Optional<String> irisVersion(final ModList mods) {
-    return mods.getModContainerById(IrisShaders.MOD_ID).map(iris -> iris.getModInfo().getVersion().toString());
+  private void onLoggingIn(final ClientPlayerNetworkEvent.LoggingIn event) {
+    final Connection connection = event.getConnection();
+    this.channel.open(connection);
+    this.reporter.reset();
   }
 }

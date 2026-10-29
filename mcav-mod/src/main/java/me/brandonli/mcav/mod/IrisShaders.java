@@ -20,17 +20,14 @@ package me.brandonli.mcav.mod;
 import java.util.function.BooleanSupplier;
 import net.irisshaders.iris.api.v0.IrisApi;
 
-/** Asks Iris, through its public API, whether it draws a shader pack. */
 final class IrisShaders {
 
-  /** The mod id of Iris, on both loaders. */
   static final String MOD_ID = "iris";
 
-  /**
-   * The Iris version MCV2 was proven to decode under ({@link ShaderDecoder}): its versions read "1.11.7+mc26.3" on Fabric
-   * and NeoForge alike.
-   */
+  // MCV2 was proven to decode under it; its versions read "1.11.7+mc26.3" on both loaders
   private static final String TESTED_VERSION = "1.11.7";
+
+  private static final String BUILD_METADATA_SEPARATOR = "+";
 
   private final boolean installed;
 
@@ -38,37 +35,47 @@ final class IrisShaders {
 
   private boolean apiMissing;
 
-  /**
-   * Constructs the question.
-   *
-   * @param installed           whether the loader has Iris: without it, nothing of Iris is touched
-   * @param decodesUnderShaders whether MCV2 decodes under a shader pack in this client
-   */
+  // without Iris installed, nothing of Iris is touched
   IrisShaders(final boolean installed, final BooleanSupplier decodesUnderShaders) {
     this.installed = installed;
     this.decodesUnderShaders = decodesUnderShaders;
   }
 
-  /** Whether an Iris version is the one MCV2 was proven to decode under, whatever the build metadata after a '+'. */
+  // ignores the build metadata after a '+'
   static boolean isTested(final String version) {
-    return version.equals(TESTED_VERSION) || version.startsWith(TESTED_VERSION + "+");
+    return version.equals(TESTED_VERSION) || version.startsWith(TESTED_VERSION + BUILD_METADATA_SEPARATOR);
   }
 
-  /** What to tell the server now. */
   Mcv2Report report() {
     if (!this.installed) {
-      return new Mcv2Report(false, ShaderPack.NONE, false);
+      final boolean irisPresent = false;
+      final boolean decodesUnderShaders = false;
+      return Mcv2Report.of(irisPresent, ShaderPack.NONE, decodesUnderShaders);
     }
+
     if (!this.apiMissing) {
       try {
-        final boolean inUse = IrisApi.getInstance().isShaderPackInUse();
-        return inUse
-          ? new Mcv2Report(true, ShaderPack.IN_USE, this.decodesUnderShaders.getAsBoolean())
-          : new Mcv2Report(true, ShaderPack.NONE, false);
-      } catch (final LinkageError missing) {
+        return this.reportShaderPack();
+      } catch (final LinkageError exception) {
         this.apiMissing = true;
       }
     }
-    return new Mcv2Report(true, ShaderPack.UNKNOWN, false);
+
+    final boolean irisPresent = true;
+    final boolean decodesUnderShaders = false;
+    return Mcv2Report.of(irisPresent, ShaderPack.UNKNOWN, decodesUnderShaders);
+  }
+
+  private Mcv2Report reportShaderPack() {
+    final IrisApi iris = IrisApi.getInstance();
+    final boolean inUse = iris.isShaderPackInUse();
+    final boolean irisPresent = true;
+    if (!inUse) {
+      final boolean decodesUnderShaders = false;
+      return Mcv2Report.of(irisPresent, ShaderPack.NONE, decodesUnderShaders);
+    }
+
+    final boolean decodesUnderShaders = this.decodesUnderShaders.getAsBoolean();
+    return Mcv2Report.of(irisPresent, ShaderPack.IN_USE, decodesUnderShaders);
   }
 }

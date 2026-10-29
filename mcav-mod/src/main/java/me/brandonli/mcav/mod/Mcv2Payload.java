@@ -22,27 +22,19 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 
-/** The one payload of the {@code mcav:mcv2} channel: a report's bytes, as the server reads them. */
 final class Mcv2Payload implements CustomPacketPayload {
 
-  /** The channel, in MCV2's namespace, which carries these reports and nothing else. */
   static final CustomPacketPayload.Type<Mcv2Payload> TYPE = new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath("mcav", "mcv2"));
 
-  /** Writes the report's bytes as they are, which is how a Bukkit server hands them to the plugin. */
+  // the bytes as they are, which is how a Bukkit server hands them to the plugin
   static final StreamCodec<ByteBuf, Mcv2Payload> CODEC = StreamCodec.of(Mcv2Payload::write, Mcv2Payload::read);
 
   private final byte[] report;
 
-  /**
-   * Constructs a payload.
-   *
-   * @param report the report's bytes, copied
-   */
   Mcv2Payload(final byte[] report) {
     this.report = report.clone();
   }
 
-  /** A copy of the report's bytes. */
   byte[] report() {
     return this.report.clone();
   }

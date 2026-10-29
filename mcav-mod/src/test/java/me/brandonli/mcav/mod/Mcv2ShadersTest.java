@@ -71,13 +71,13 @@ final class Mcv2ShadersTest {
 
   @AfterEach
   void uninstall() {
-    ShaderDecoder.install(Optional.empty());
+    ShaderDecoder.uninstall();
   }
 
   @Test
-  void handsEveryHookToTheDecoder() {
+  void shouldHandEveryHookToTheDecoder() {
     final ShaderDecoder decoder = mock(ShaderDecoder.class);
-    ShaderDecoder.install(Optional.of(decoder));
+    ShaderDecoder.install(decoder);
     final MapRenderState state = new MapRenderState();
     state.texture = TEXTURE;
     final MapItemSavedData data = MapItemSavedData.createForClient((byte) 0, false, Level.OVERWORLD);
@@ -98,15 +98,15 @@ final class Mcv2ShadersTest {
   }
 
   @Test
-  void aMapWithoutATextureAndAClientWithoutADecoderAreLeftAlone() {
+  void shouldLeaveAMapWithoutATextureAndAClientWithoutADecoderAlone() {
     final ShaderDecoder decoder = mock(ShaderDecoder.class);
-    ShaderDecoder.install(Optional.of(decoder));
+    ShaderDecoder.install(decoder);
     final MapRenderState state = new MapRenderState();
     final MapItemSavedData data = MapItemSavedData.createForClient((byte) 0, false, Level.OVERWORLD);
     Mcv2Shaders.extracted(state, data);
     Mcv2Shaders.posed(state, new PoseStack());
     verifyNoInteractions(decoder);
-    ShaderDecoder.install(Optional.empty());
+    ShaderDecoder.uninstall();
     state.texture = TEXTURE;
     Mcv2Shaders.extracted(state, data);
     Mcv2Shaders.posed(state, new PoseStack());
@@ -117,21 +117,25 @@ final class Mcv2ShadersTest {
   }
 
   @Test
-  void startsADecoderThatDecodesUnderShadersOnlyWithTheTestedIris() throws ReflectiveOperationException {
+  void shouldStartADecoderThatDecodesUnderShadersOnlyWithTheTestedIris() throws ReflectiveOperationException {
     final IrisApi api = mock(IrisApi.class);
     try (final MockedStatic<IrisApi> iris = mockStatic(IrisApi.class)) {
       iris.when(IrisApi::getInstance).thenReturn(api);
-      assertTrue(hooked(Mcv2Shaders.start(Optional.of("1.11.7+mc26.3"))));
+      final boolean testedHooked = this.hooked(Mcv2Shaders.start("1.11.7+mc26.3"));
+      assertTrue(testedHooked);
       verify(api).isRenderingShadowPass();
-      assertFalse(hooked(Mcv2Shaders.start(Optional.of("1.11.8+mc26.3"))));
-      assertFalse(hooked(Mcv2Shaders.start(Optional.empty())));
+      final boolean newerHooked = this.hooked(Mcv2Shaders.start("1.11.8+mc26.3"));
+      final boolean withoutIrisHooked = this.hooked(Mcv2Shaders.start(null));
+      assertFalse(newerHooked);
+      assertFalse(withoutIrisHooked);
       verify(api).isRenderingShadowPass();
     }
   }
 
-  /** Runs every hook of the started decoder on a frame without MCV2 maps, and asks whether it decodes under shaders. */
-  private static boolean hooked(final BooleanSupplier decodes) throws ReflectiveOperationException {
-    assertFalse(decodes.getAsBoolean());
+  // runs every hook of the started decoder on a frame without MCV2 maps
+  private boolean hooked(final BooleanSupplier decodes) throws ReflectiveOperationException {
+    final boolean decodesUnderShaders = decodes.getAsBoolean();
+    assertFalse(decodesUnderShaders);
     final ShaderDecoder decoder = ShaderDecoder.current().orElseThrow();
     final PoseStack stack = new PoseStack();
     decoder.extracted(TEXTURE, new byte[Mcv2Maps.COLOURS]);
@@ -143,7 +147,7 @@ final class Mcv2ShadersTest {
   }
 
   @Test
-  void readsTheGamesTargetsChainAndDevice() throws ReflectiveOperationException {
+  void shouldReadTheGamesTargetsChainAndDevice() throws ReflectiveOperationException {
     final Minecraft minecraft = mock(Minecraft.class);
     final GameRenderer gameRenderer = mock(GameRenderer.class);
     final RenderTarget main = mock(RenderTarget.class);
@@ -164,30 +168,37 @@ final class Mcv2ShadersTest {
     ) {
       game.when(Minecraft::getInstance).thenReturn(minecraft);
       system.when(RenderSystem::getDevice).thenReturn(device);
-      assertSame(main, Mcv2Shaders.mainTarget());
-      assertSame(chain, Mcv2Shaders.outlineChain());
-      assertSame(commands, Mcv2Shaders.commands());
+      final RenderTarget mainTarget = Mcv2Shaders.mainTarget();
+      final PostChain outlineChain = Mcv2Shaders.outlineChain();
+      final CommandEncoder commandEncoder = Mcv2Shaders.commands();
+      assertSame(main, mainTarget);
+      assertSame(chain, outlineChain);
+      assertSame(commands, commandEncoder);
     }
   }
 
   @Test
-  void asksIrisWhetherItDrawsAShaderPackAndItsShadowPass() {
+  void shouldAskIrisWhetherItDrawsAShaderPackAndItsShadowPass() {
     final IrisApi api = mock(IrisApi.class);
     try (final MockedStatic<IrisApi> iris = mockStatic(IrisApi.class)) {
       iris.when(IrisApi::getInstance).thenReturn(api);
       when(api.isShaderPackInUse()).thenReturn(true);
-      assertTrue(Mcv2Shaders.shaderPackInUse());
+      final boolean inUseWhenOn = Mcv2Shaders.shaderPackInUse();
+      assertTrue(inUseWhenOn);
       when(api.isShaderPackInUse()).thenReturn(false);
-      assertFalse(Mcv2Shaders.shaderPackInUse());
+      final boolean inUseWhenOff = Mcv2Shaders.shaderPackInUse();
+      assertFalse(inUseWhenOff);
       when(api.isRenderingShadowPass()).thenReturn(true);
-      assertTrue(Mcv2Shaders.shadowPass());
+      final boolean shadowPassWhenOn = Mcv2Shaders.shadowPass();
+      assertTrue(shadowPassWhenOn);
       when(api.isRenderingShadowPass()).thenReturn(false);
-      assertFalse(Mcv2Shaders.shadowPass());
+      final boolean shadowPassWhenOff = Mcv2Shaders.shadowPass();
+      assertFalse(shadowPassWhenOff);
     }
   }
 
   @Test
-  void readsTheLayoutOfTheLoadedMcv2Pack() {
+  void shouldReadTheLayoutOfTheLoadedMcv2Pack() {
     final Minecraft minecraft = mock(Minecraft.class);
     final ResourceManager resources = mock(ResourceManager.class);
     when(minecraft.getResourceManager()).thenReturn(resources);
@@ -197,19 +208,29 @@ final class Mcv2ShadersTest {
     try (final MockedStatic<Minecraft> game = mockStatic(Minecraft.class)) {
       game.when(Minecraft::getInstance).thenReturn(minecraft);
       when(resources.getResource(Mcv2Shaders.LAYOUT)).thenReturn(Optional.empty());
-      assertEquals(Optional.empty(), Mcv2Shaders.layout());
+      final Optional<String> missingLayout = Mcv2Shaders.layout();
+      assertEquals(Optional.empty(), missingLayout);
       when(resources.getResource(Mcv2Shaders.LAYOUT)).thenReturn(Optional.of(layout));
-      assertEquals(Optional.of("const int MCV2_SCREENS = 1;"), Mcv2Shaders.layout());
+      final Optional<String> loadedLayout = Mcv2Shaders.layout();
+      assertEquals(Optional.of("const int MCV2_SCREENS = 1;"), loadedLayout);
     }
-    assertEquals(Identifier.fromNamespaceAndPath("mcav", "shaders/include/mcv2_config.glsl"), Mcv2Shaders.LAYOUT);
-    assertEquals(Identifier.withDefaultNamespace("entity_outline"), Mcv2Shaders.OUTLINE_CHAIN);
+    final Identifier layoutLocation = Mcv2Shaders.LAYOUT;
+    final Identifier outlineChainLocation = Mcv2Shaders.OUTLINE_CHAIN;
+    assertEquals(Identifier.fromNamespaceAndPath("mcav", "shaders/include/mcv2_config.glsl"), layoutLocation);
+    assertEquals(Identifier.withDefaultNamespace("entity_outline"), outlineChainLocation);
   }
 
   @Test
-  void aLayoutThatCannotBeReadIsNone() {
+  void shouldFindNoLayoutWhenItCannotBeRead() {
     final Resource unreadable = new Resource(null, () -> {
-      throw new IOException("gone");
+      throw new IOException("The resource is gone!");
     });
-    assertEquals(Optional.empty(), Mcv2Shaders.read(unreadable));
+    final Optional<String> layout = Mcv2Shaders.read(unreadable);
+    assertEquals(Optional.empty(), layout);
+  }
+
+  @Test
+  void shouldNotBeInstantiated() {
+    UtilityClassAssertions.assertNotInstantiable(Mcv2Shaders.class);
   }
 }

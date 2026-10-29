@@ -26,11 +26,7 @@ import org.spongepowered.asm.mixin.injection.Coerce;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/**
- * Hands the decoder every projection set through this overload of {@code getBuffer}: the level's, which
- * {@code GameRenderer.renderLevel} builds from the camera's ({@link GameRendererMixin} marks it), and Iris's shadow and
- * hand projections. The matrix is a JOML one, which the mod never names: Mixin passes it as an {@link Object}.
- */
+// sees the level's projection and Iris's shadow and hand ones; the JOML matrix is passed as an Object
 @Mixin(ProjectionMatrixBuffer.class)
 abstract class ProjectionMatrixBufferMixin {
 

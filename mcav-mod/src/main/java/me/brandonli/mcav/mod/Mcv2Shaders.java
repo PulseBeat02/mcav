@@ -22,6 +22,7 @@ import com.mojang.blaze3d.resource.GraphicsResourceAllocator;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.renderpearl.api.commands.CommandEncoder;
+import com.mojang.renderpearl.api.device.GpuDevice;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -29,106 +30,122 @@ import java.util.Optional;
 import java.util.function.BooleanSupplier;
 import net.irisshaders.iris.api.v0.IrisApi;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LevelTargetBundle;
 import net.minecraft.client.renderer.PostChain;
+import net.minecraft.client.renderer.ShaderManager;
 import net.minecraft.client.renderer.state.MapRenderState;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.Resource;
+import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * What the mod's mixins call: they live in a package of their own, as Mixin requires, so this is their way into the
- * decoder. Every call is on the render thread.
+ * decoder.
+ *
+ * <p>This class is not thread-safe: call it on the render thread.
+ *
+ * @since 1.0.0
  */
 public final class Mcv2Shaders {
 
-  /** The constants the server generates into the MCV2 pack. */
+  // the server generates it into the MCV2 pack
   static final Identifier LAYOUT = Identifier.fromNamespaceAndPath("mcav", "shaders/include/mcv2_config.glsl");
 
-  /** The vanilla post chain the MCV2 pack replaces with its decoder. */
+  // the MCV2 pack replaces this vanilla chain with its decoder
   static final Identifier OUTLINE_CHAIN = Identifier.withDefaultNamespace("entity_outline");
 
-  private Mcv2Shaders() {}
+  private Mcv2Shaders() {
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+  }
 
   /**
-   * The game extracted a map's state, before it renders the level.
+   * Tells the decoder that the game extracted a map's state, before it renders the level. Does nothing when no decoder
+   * runs or the map has no texture.
    *
    * @param state the map's render state, which names its texture
    * @param data  the map's data, its colours
+   * @since 1.0.0
    */
   public static void extracted(final MapRenderState state, final MapItemSavedData data) {
     final Identifier texture = state.texture;
     if (texture != null) {
-      ShaderDecoder.current().ifPresent(decoder -> decoder.extracted(texture, data.colors));
+      final Optional<ShaderDecoder> current = ShaderDecoder.current();
+      current.ifPresent(decoder -> decoder.extracted(texture, data.colors));
     }
   }
 
   /**
-   * The game posed a map, while it renders the level.
+   * Tells the decoder that the game posed a map, while it renders the level. Does nothing when no decoder runs or the
+   * map has no texture.
    *
    * @param state the map's render state
    * @param pose  the pose the map is drawn with: its top left corner is at the origin, just in front of the frame
+   * @since 1.0.0
    */
   public static void posed(final MapRenderState state, final PoseStack pose) {
     final Identifier texture = state.texture;
     if (texture != null) {
-      ShaderDecoder.current().ifPresent(decoder -> decoder.posed(texture, pose.last()));
+      final PoseStack.Pose lastPose = pose.last();
+      final Optional<ShaderDecoder> current = ShaderDecoder.current();
+      current.ifPresent(decoder -> decoder.posed(texture, lastPose));
     }
   }
 
-  /** The game is about to set the projection it renders the level with. */
+  /**
+   * Tells the decoder that the game is about to set the projection it renders the level with. Does nothing when no
+   * decoder runs.
+   *
+   * @since 1.0.0
+   */
   public static void projecting() {
-    ShaderDecoder.current().ifPresent(ShaderDecoder::projecting);
+    final Optional<ShaderDecoder> current = ShaderDecoder.current();
+    current.ifPresent(ShaderDecoder::projecting);
   }
 
   /**
-   * The game set a projection, the level's or another.
+   * Tells the decoder that the game set a projection, the level's or another. Does nothing when no decoder runs.
    *
    * @param projection the projection, a JOML 4x4 float matrix
+   * @since 1.0.0
    */
   public static void projected(final @Nullable Object projection) {
-    ShaderDecoder.current().ifPresent(decoder -> decoder.projected(projection));
+    final Optional<ShaderDecoder> current = ShaderDecoder.current();
+    current.ifPresent(decoder -> decoder.projected(projection));
   }
 
   /**
-   * The game rendered the level, and with a shader pack, Iris's final image is in the main target.
+   * Tells the decoder that the game rendered the level; with a shader pack, Iris's final image is in the main target.
+   * Does nothing when no decoder runs.
    *
    * @param allocator the frame's pool of render targets
    * @param camera    the frame's camera
+   * @since 1.0.0
    */
   public static void rendered(final GraphicsResourceAllocator allocator, final CameraRenderState camera) {
-    ShaderDecoder.current().ifPresent(decoder -> decoder.rendered(allocator, camera));
+    final Optional<ShaderDecoder> current = ShaderDecoder.current();
+    current.ifPresent(decoder -> decoder.rendered(allocator, camera));
   }
 
-  /**
-   * Starts the decoder of this client, the one the mixins report to.
-   *
-   * @param irisVersion the version of the Iris installed, empty without Iris
-   * @return whether MCV2 decodes under a shader pack in this client now, false for good when the game's matrices cannot
-   *     be read and there is no decoder
-   */
-  static BooleanSupplier start(final Optional<String> irisVersion) {
+  // answers false for good when the game's matrices cannot be read
+  static BooleanSupplier start(final @Nullable String irisVersion) {
     final Optional<ShaderDecoder> decoder = decoder(irisVersion);
-    ShaderDecoder.install(decoder);
+    decoder.ifPresentOrElse(ShaderDecoder::install, ShaderDecoder::uninstall);
     return () -> decoder.filter(ShaderDecoder::decodesUnderShaders).isPresent();
   }
 
-  /**
-   * The decoder of this client.
-   *
-   * @param irisVersion the version of the Iris installed, empty without Iris
-   * @return the decoder, which decodes under shader packs only with the Iris version it was proven with, or empty when
-   *     the game's matrices cannot be read
-   */
-  static Optional<ShaderDecoder> decoder(final Optional<String> irisVersion) {
-    return GameMatrices.find().map(matrices -> decoder(irisVersion, matrices));
+  // empty when the game's matrices cannot be read
+  static Optional<ShaderDecoder> decoder(final @Nullable String irisVersion) {
+    final Optional<GameMatrices> found = GameMatrices.find();
+    return found.map(matrices -> decoder(irisVersion, matrices));
   }
 
-  private static ShaderDecoder decoder(final Optional<String> irisVersion, final GameMatrices matrices) {
+  private static ShaderDecoder decoder(final @Nullable String irisVersion, final GameMatrices matrices) {
     final MinecraftStripOutput output = new MinecraftStripOutput(Mcv2Shaders::mainTarget, Mcv2Shaders::outlineChain, Mcv2Shaders::commands);
-    final boolean tested = irisVersion.filter(IrisShaders::isTested).isPresent();
+    final boolean tested = irisVersion != null && IrisShaders.isTested(irisVersion);
     return new ShaderDecoder(
       tested,
       Mcv2Shaders::shaderPackInUse,
@@ -140,38 +157,45 @@ public final class Mcv2Shaders {
     );
   }
 
-  /** The game's main target, which Iris's final pass writes the shader pack's image into. */
+  // Iris's final pass writes the shader pack's image into it
   static RenderTarget mainTarget() {
-    return Minecraft.getInstance().gameRenderer.mainRenderTarget();
+    final Minecraft minecraft = Minecraft.getInstance();
+    final GameRenderer renderer = minecraft.gameRenderer;
+    return renderer.mainRenderTarget();
   }
 
-  /** The post chain the MCV2 pack replaces vanilla's outline chain with, or null while no pack gives one. */
   static @Nullable PostChain outlineChain() {
-    return Minecraft.getInstance().getShaderManager().getPostChain(OUTLINE_CHAIN, LevelTargetBundle.OUTLINE_TARGETS);
+    final Minecraft minecraft = Minecraft.getInstance();
+    final ShaderManager shaders = minecraft.getShaderManager();
+    return shaders.getPostChain(OUTLINE_CHAIN, LevelTargetBundle.OUTLINE_TARGETS);
   }
 
-  /** A command encoder of the game's GPU device. */
   static CommandEncoder commands() {
-    return RenderSystem.getDevice().createCommandEncoder();
+    final GpuDevice device = RenderSystem.getDevice();
+    return device.createCommandEncoder();
   }
 
   static boolean shaderPackInUse() {
-    return IrisApi.getInstance().isShaderPackInUse();
+    final IrisApi iris = IrisApi.getInstance();
+    return iris.isShaderPackInUse();
   }
 
   static boolean shadowPass() {
-    return IrisApi.getInstance().isRenderingShadowPass();
+    final IrisApi iris = IrisApi.getInstance();
+    return iris.isRenderingShadowPass();
   }
 
-  /** The text of the MCV2 pack's generated layout, empty while no MCV2 pack is loaded. */
   static Optional<String> layout() {
-    return Minecraft.getInstance().getResourceManager().getResource(LAYOUT).flatMap(Mcv2Shaders::read);
+    final Minecraft minecraft = Minecraft.getInstance();
+    final ResourceManager resources = minecraft.getResourceManager();
+    final Optional<Resource> layout = resources.getResource(LAYOUT);
+    return layout.flatMap(Mcv2Shaders::read);
   }
 
   static Optional<String> read(final Resource resource) {
-    try (InputStream in = resource.open()) {
-      return Optional.of(new String(in.readAllBytes(), StandardCharsets.UTF_8));
-    } catch (final IOException unreadable) {
+    try (final InputStream input = resource.open()) {
+      return Optional.of(new String(input.readAllBytes(), StandardCharsets.UTF_8));
+    } catch (final IOException exception) {
       return Optional.empty();
     }
   }

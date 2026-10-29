@@ -59,24 +59,23 @@ final class NeoForgeEntrypointTest {
 
   private final IEventBus gameBus = mock(IEventBus.class);
 
-  /** The listener the entry point added to a bus for an event. */
-  @SuppressWarnings("unchecked")
-  private static <EventType extends Event> Consumer<EventType> listener(final IEventBus bus, final Class<EventType> event) {
+  @SuppressWarnings("unchecked") // a class literal cannot name Consumer<EventType>
+  private <EventType extends Event> Consumer<EventType> listener(final IEventBus bus, final Class<EventType> event) {
     final ArgumentCaptor<Consumer<EventType>> listener = ArgumentCaptor.forClass(Consumer.class);
     verify(bus).addListener(eq(event), listener.capture());
     return listener.getValue();
   }
 
   @Test
-  void registersAnOptionalPayloadWhoseServerHandlerDropsIt() {
-    new NeoForgeEntrypoint(this.modBus, this.gameBus, Optional.empty(), System::nanoTime);
+  void shouldRegisterAnOptionalPayloadWhoseServerHandlerDropsIt() {
+    new NeoForgeEntrypoint(this.modBus, this.gameBus, null, System::nanoTime);
     final RegisterPayloadHandlersEvent event = mock(RegisterPayloadHandlersEvent.class);
     final PayloadRegistrar registrar = mock(PayloadRegistrar.class);
     when(event.registrar(NeoForgeEntrypoint.PROTOCOL)).thenReturn(registrar);
     when(registrar.optional()).thenReturn(registrar);
-    listener(this.modBus, RegisterPayloadHandlersEvent.class).accept(event);
+    this.listener(this.modBus, RegisterPayloadHandlersEvent.class).accept(event);
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings("unchecked") // a class literal cannot name IPayloadHandler<Mcv2Payload>
     final ArgumentCaptor<IPayloadHandler<Mcv2Payload>> handler = ArgumentCaptor.forClass(IPayloadHandler.class);
     verify(registrar).playToServer(eq(Mcv2Payload.TYPE), eq(Mcv2Payload.CODEC), handler.capture());
     final Mcv2Payload payload = mock(Mcv2Payload.class);
@@ -85,12 +84,12 @@ final class NeoForgeEntrypointTest {
   }
 
   @Test
-  void reportsOnTheTicksOfASessionTheServerOfWhichHasTheChannel() {
+  void shouldReportOnTheTicksOfASessionWhoseServerHasTheChannel() {
     final AtomicLong clock = new AtomicLong();
-    new NeoForgeEntrypoint(this.modBus, this.gameBus, Optional.empty(), clock::get);
-    final Consumer<ClientPlayerNetworkEvent.LoggingIn> loggingIn = listener(this.gameBus, ClientPlayerNetworkEvent.LoggingIn.class);
-    final Consumer<ClientPlayerNetworkEvent.LoggingOut> loggingOut = listener(this.gameBus, ClientPlayerNetworkEvent.LoggingOut.class);
-    final Consumer<ClientTickEvent.Post> ticks = listener(this.gameBus, ClientTickEvent.Post.class);
+    new NeoForgeEntrypoint(this.modBus, this.gameBus, null, clock::get);
+    final Consumer<ClientPlayerNetworkEvent.LoggingIn> loggingIn = this.listener(this.gameBus, ClientPlayerNetworkEvent.LoggingIn.class);
+    final Consumer<ClientPlayerNetworkEvent.LoggingOut> loggingOut = this.listener(this.gameBus, ClientPlayerNetworkEvent.LoggingOut.class);
+    final Consumer<ClientTickEvent.Post> ticks = this.listener(this.gameBus, ClientTickEvent.Post.class);
     final Connection connection = mock(Connection.class);
     final ClientPlayerNetworkEvent.LoggingIn login = mock(ClientPlayerNetworkEvent.LoggingIn.class);
     when(login.getConnection()).thenReturn(connection);
@@ -109,7 +108,8 @@ final class NeoForgeEntrypointTest {
       ticks.accept(new ClientTickEvent.Post());
       final ArgumentCaptor<Mcv2Payload> sent = ArgumentCaptor.forClass(Mcv2Payload.class);
       distributor.verify(() -> ClientPacketDistributor.sendToServer(sent.capture()));
-      assertArrayEquals(new byte[] { 1, 0, 0, 0 }, sent.getValue().report(), "no Iris, no shader pack");
+      final byte[] report = sent.getValue().report();
+      assertArrayEquals(new byte[] { 1, 0, 0, 0 }, report, "no Iris, no shader pack");
 
       loggingOut.accept(logout);
       loggingIn.accept(login);
@@ -127,11 +127,11 @@ final class NeoForgeEntrypointTest {
 
   @AfterEach
   void uninstall() {
-    ShaderDecoder.install(Optional.empty());
+    ShaderDecoder.uninstall();
   }
 
   @Test
-  void theEntryPointNeoForgeCallsAsksNeoForgeForTheVersionOfIris() {
+  void shouldAskNeoForgeForTheVersionOfIrisFromTheEntryPointNeoForgeCalls() {
     final ModList mods = mock(ModList.class);
     final ModContainer iris = mock(ModContainer.class);
     final IModInfo irisMetadata = mock(IModInfo.class);
@@ -144,9 +144,12 @@ final class NeoForgeEntrypointTest {
       verify(mods).getModContainerById("iris");
       verify(this.modBus).addListener(eq(RegisterPayloadHandlersEvent.class), any());
     }
-    assertTrue(ShaderDecoder.current().isPresent(), "the decoder the mixins report to");
-    assertEquals(Optional.of("1.11.7+mc26.3"), NeoForgeEntrypoint.irisVersion(mods));
+    final Optional<ShaderDecoder> decoder = ShaderDecoder.current();
+    final Optional<String> version = NeoForgeEntrypoint.irisVersion(mods);
+    assertTrue(decoder.isPresent(), "the decoder the mixins report to");
+    assertEquals(Optional.of("1.11.7+mc26.3"), version);
     doReturn(Optional.empty()).when(mods).getModContainerById("iris");
-    assertEquals(Optional.empty(), NeoForgeEntrypoint.irisVersion(mods));
+    final Optional<String> missingVersion = NeoForgeEntrypoint.irisVersion(mods);
+    assertEquals(Optional.empty(), missingVersion);
   }
 }

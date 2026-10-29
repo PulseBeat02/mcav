@@ -28,122 +28,87 @@ import java.util.Optional;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * The game's matrices as floats. The game keeps them as JOML matrices, and JOML's class files carry type annotations
- * their class file version predates, which the build's javac lint rejects: so the mod names no JOML type. It finds the
- * game's matrices by name, once, and reads them through JOML's {@link Externalizable} form, which writes the sixteen
- * floats of a 4x4 matrix column by column.
- */
+// names no JOML type: the build's javac lint rejects the type annotations of JOML's class files; the matrices are
+// found by name, once, and read through JOML's Externalizable form, sixteen floats column by column
 final class GameMatrices {
 
-  /** The floats of a 4x4 matrix. */
+  // a 4x4 matrix
   private static final int FLOATS = 16;
 
   private static final String POSE_METHOD = "pose";
 
   private static final String VIEW_ROTATION_FIELD = "viewRotationMatrix";
 
-  private static final String UNREADABLE = "The game's matrix could not be read";
+  private static final String UNREADABLE = "The game's matrix could not be read!";
 
-  private static final String NOT_A_MATRIX = "Not a JOML 4x4 float matrix: %s";
+  private static final String NOT_A_MATRIX = "Matrix %s is not a JOML 4x4 float matrix!";
 
   private final Method pose;
 
   private final Field viewRotation;
 
-  /**
-   * Constructs the reader.
-   *
-   * @param pose         the method that gives a pose's matrix
-   * @param viewRotation the field that holds the camera's rotation
-   */
   GameMatrices(final Method pose, final Field viewRotation) {
     this.pose = pose;
     this.viewRotation = viewRotation;
   }
 
-  /**
-   * The reader of this game's matrices.
-   *
-   * @return the reader, or empty when the game has no matrices of those names, or they cannot be read
-   */
   static Optional<GameMatrices> find() {
     return find(PoseStack.Pose.class, POSE_METHOD, CameraRenderState.class, VIEW_ROTATION_FIELD);
   }
 
-  /**
-   * The reader of the given members, tried once on new objects of the game's, so a game whose matrices cannot be read
-   * this way gets no reader at all instead of a failure while it renders.
-   *
-   * @param poses           the class of poses
-   * @param poseMethod      the name of the method that gives a pose's matrix
-   * @param cameras         the class of cameras
-   * @param rotationField   the name of the field that holds a camera's rotation
-   * @return the reader, or empty
-   */
+  // tried once, so a game whose matrices cannot be read gets no reader instead of failing while it renders
   static Optional<GameMatrices> find(final Class<?> poses, final String poseMethod, final Class<?> cameras, final String rotationField) {
     try {
       final GameMatrices matrices = new GameMatrices(poses.getMethod(poseMethod), cameras.getField(rotationField));
-      matrices.pose(new PoseStack().last());
+      final PoseStack stack = new PoseStack();
+      final PoseStack.Pose pose = stack.last();
+      matrices.pose(pose);
       matrices.viewRotation(new CameraRenderState());
       return Optional.of(matrices);
-    } catch (final NoSuchMethodException | NoSuchFieldException | IllegalStateException unreadable) {
+    } catch (final NoSuchMethodException | NoSuchFieldException | IllegalStateException exception) {
       return Optional.empty();
     }
   }
 
-  /**
-   * A pose's matrix.
-   *
-   * @param pose the pose
-   * @return its matrix, column-major
-   */
+  // column-major
   float[] pose(final PoseStack.Pose pose) {
     try {
       return floats(this.pose.invoke(pose));
-    } catch (final IllegalAccessException | InvocationTargetException | IllegalArgumentException unreadable) {
-      throw new IllegalStateException(UNREADABLE, unreadable);
+    } catch (final IllegalAccessException | InvocationTargetException | IllegalArgumentException exception) {
+      throw new IllegalStateException(UNREADABLE, exception);
     }
   }
 
-  /**
-   * The camera's rotation.
-   *
-   * @param camera the camera of a frame
-   * @return its rotation, column-major
-   */
+  // column-major
   float[] viewRotation(final CameraRenderState camera) {
     try {
       return floats(this.viewRotation.get(camera));
-    } catch (final IllegalAccessException | IllegalArgumentException unreadable) {
-      throw new IllegalStateException(UNREADABLE, unreadable);
+    } catch (final IllegalAccessException | IllegalArgumentException exception) {
+      throw new IllegalStateException(UNREADABLE, exception);
     }
   }
 
-  /**
-   * The floats of one of the game's matrices.
-   *
-   * @param matrix a JOML 4x4 float matrix
-   * @return its floats, column-major
-   * @throws IllegalStateException when it is something else
-   */
+  // the floats of a JOML 4x4 float matrix, column-major
   static float[] floats(final @Nullable Object matrix) {
     if (!(matrix instanceof final Externalizable serialisable)) {
-      throw new IllegalStateException(String.format(NOT_A_MATRIX, matrix));
+      final String message = NOT_A_MATRIX.formatted(matrix);
+      throw new IllegalStateException(message);
     }
+
     try {
       final MatrixFloats floats = new MatrixFloats();
       serialisable.writeExternal(floats);
       return floats.values();
-    } catch (final IOException unreadable) {
-      throw new IllegalStateException(String.format(NOT_A_MATRIX, matrix), unreadable);
+    } catch (final IOException exception) {
+      final String message = NOT_A_MATRIX.formatted(matrix);
+      throw new IllegalStateException(message, exception);
     }
   }
 
-  /** Keeps the floats a matrix writes for serialisation; it has no stream underneath, so it is never closed. */
+  // no stream underneath, so it is never closed
   private static final class MatrixFloats extends ObjectOutputStream {
 
-    private static final String NOT_FLOATS = "A 4x4 float matrix writes 16 floats and nothing else";
+    private static final String NOT_FLOATS = "A 4x4 float matrix must write 16 floats and nothing else!";
 
     private final float[] values = new float[FLOATS];
 

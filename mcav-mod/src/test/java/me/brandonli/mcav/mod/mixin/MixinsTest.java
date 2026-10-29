@@ -32,24 +32,25 @@ import org.mockito.MockedStatic;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/** Every handler hands what the game gave it to the decoder's way in, and does nothing else. */
 final class MixinsTest {
 
+  private static final String RENDER_METHOD = "render";
+
   @Test
-  void theMapRendererHandsOnTheMapsItExtractsAndPoses() {
+  void shouldHandOnTheMapsTheMapRendererExtractsAndPoses() {
     final MapRenderState state = new MapRenderState();
     final PoseStack pose = new PoseStack();
     try (final MockedStatic<Mcv2Shaders> shaders = mockStatic(Mcv2Shaders.class)) {
       final MapRendererMixin mixin = new MapRendererMixin() {};
       mixin.mcav$extracted(null, null, state, new CallbackInfo("extractRenderState", false));
       shaders.verify(() -> Mcv2Shaders.extracted(state, null));
-      mixin.mcav$posed(state, pose, mock(SubmitNodeCollector.class), true, 15, new CallbackInfo("render", false));
+      mixin.mcav$posed(state, pose, mock(SubmitNodeCollector.class), true, 15, new CallbackInfo(RENDER_METHOD, false));
       shaders.verify(() -> Mcv2Shaders.posed(state, pose));
     }
   }
 
   @Test
-  void theGameRendererSaysTheNextProjectionIsTheLevels() {
+  void shouldSayTheNextProjectionIsTheLevelsFromTheGameRenderer() {
     try (final MockedStatic<Mcv2Shaders> shaders = mockStatic(Mcv2Shaders.class)) {
       new GameRendererMixin() {}.mcav$projecting(new CallbackInfo("renderLevel", false));
       shaders.verify(Mcv2Shaders::projecting);
@@ -57,7 +58,7 @@ final class MixinsTest {
   }
 
   @Test
-  void theProjectionBufferHandsOnEveryProjection() {
+  void shouldHandOnEveryProjectionFromTheProjectionBuffer() {
     final Object projection = new Object();
     try (final MockedStatic<Mcv2Shaders> shaders = mockStatic(Mcv2Shaders.class)) {
       new ProjectionMatrixBufferMixin() {}.mcav$projected(projection, new CallbackInfoReturnable<>("getBuffer", false));
@@ -66,7 +67,7 @@ final class MixinsTest {
   }
 
   @Test
-  void theLevelRendererHandsOnTheRenderedLevel() {
+  void shouldHandOnTheRenderedLevelFromTheLevelRenderer() {
     final GraphicsResourceAllocator allocator = mock(GraphicsResourceAllocator.class);
     final CameraRenderState camera = new CameraRenderState();
     try (final MockedStatic<Mcv2Shaders> shaders = mockStatic(Mcv2Shaders.class)) {
@@ -78,7 +79,7 @@ final class MixinsTest {
         new Object(),
         true,
         false,
-        new CallbackInfo("render", false)
+        new CallbackInfo(RENDER_METHOD, false)
       );
       shaders.verify(() -> Mcv2Shaders.rendered(allocator, camera));
     }

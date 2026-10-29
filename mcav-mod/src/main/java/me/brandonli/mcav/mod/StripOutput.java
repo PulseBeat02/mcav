@@ -19,22 +19,11 @@ package me.brandonli.mcav.mod;
 
 import com.mojang.blaze3d.resource.GraphicsResourceAllocator;
 
-/** Where the transport strip goes once the frame is rendered: the top of the game's main target. */
 interface StripOutput {
-  /** The width of the game's main target in pixels. */
   int width();
 
-  /** The height of the game's main target in pixels. */
   int height();
 
-  /**
-   * Writes the strip over the top rows of the main target and runs the pack's post chain over it, which decodes the
-   * frame and draws the screens.
-   *
-   * @param strip     the strip's rows, the top one first, RGBA
-   * @param rows      how many rows the strip has
-   * @param allocator the frame's pool of render targets, which the chain's own targets come from
-   * @return false when the pack has no post chain loaded, and nothing was written
-   */
+  // writes the strip, top row first, over the main target's top rows and runs the pack's chain; false without a chain
   boolean decode(byte[] strip, int rows, GraphicsResourceAllocator allocator);
 }

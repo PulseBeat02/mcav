@@ -19,7 +19,7 @@ package me.brandonli.mcav.mod;
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
-/** The channel to the server, through Fabric's networking API, which follows the channels the server registers. */
+// Fabric's networking API follows the channels the server registers
 final class FabricChannel implements ReportChannel {
 
   @Override
