@@ -96,7 +96,8 @@ public class ConfigureGrabberResizeRace {
 
     @Override
     protected FrameGrabber createFrameGrabber(final String resource) {
-      throw new UnsupportedOperationException("this player only configures grabbers");
+      final String message = "This player only configures grabbers!";
+      throw new UnsupportedOperationException(message);
     }
   }
 
@@ -116,7 +117,8 @@ public class ConfigureGrabberResizeRace {
 
     @Override
     public Frame grab() {
-      throw new UnsupportedOperationException("this grabber decodes nothing");
+      final String message = "This grabber decodes nothing!";
+      throw new UnsupportedOperationException(message);
     }
 
     @Override

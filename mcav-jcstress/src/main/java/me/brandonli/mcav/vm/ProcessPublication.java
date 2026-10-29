@@ -51,7 +51,8 @@ public class ProcessPublication {
       field.setAccessible(true);
       return field;
     } catch (final NoSuchFieldException exception) {
-      throw new IllegalStateException("VmProcess has no process field any more", exception);
+      final String message = "VmProcess has no process field any more!";
+      throw new IllegalStateException(message, exception);
     }
   }
 
@@ -104,7 +105,8 @@ public class ProcessPublication {
 
     @Override
     public int exitValue() {
-      throw new IllegalThreadStateException("still running");
+      final String message = "Process is still running!";
+      throw new IllegalThreadStateException(message);
     }
 
     @Override
