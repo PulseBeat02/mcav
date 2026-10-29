@@ -112,6 +112,24 @@ constexpr int32_t VERTICAL_MOTION_MASK = 0xFFFF;
 
 constexpr int32_t OUT_OF_RANGE_ODDS = 7;
 
+constexpr int TRIALS = 400;
+constexpr int MAXIMUM_REPORTED_FAILURES = 20;
+
+constexpr const char* DIGEST_LINE_FORMAT = "%-16s %016llx\n";
+
+constexpr char EXPECT_PREFIX[] = "expect=";
+constexpr size_t EXPECT_PREFIX_LENGTH = sizeof(EXPECT_PREFIX) - 1;
+
+constexpr int FAILURE_EXIT_CODE = 1;
+constexpr int SETUP_FAILURE_EXIT_CODE = 2;
+
+#ifndef MCV2_TEST_DIRECT
+constexpr int LIBRARY_ARGUMENT_COUNT = 2;
+constexpr size_t SYMBOL_CAPACITY = 64;
+constexpr const char* CPU_LEVELS_SYMBOL = "mcv2_cpu_levels";
+constexpr const char* KERNEL_SYMBOL_FORMAT = "mcv2_%s_%s";
+#endif
+
 struct known_level {
   const char* name_;
   int32_t bit_;
@@ -209,7 +227,7 @@ template <class ValueType> bool same(const vector<ValueType>& actual, const vect
 }
 
 void report(const bool equal, const char* kernel, const level_kernels& level, const int trial) {
-  if (!equal && failures++ < 20) {
+  if (!equal && failures++ < MAXIMUM_REPORTED_FAILURES) {
     fprintf(stderr, "%s differs at %s, trial %d\n", kernel, level.name_, trial);
   }
 }
@@ -454,10 +472,10 @@ void run(const vector<level_kernels>& levels, const int trials) {
   fnv_digest total;
   for (int kernel = 0; kernel < KERNEL_COUNT; kernel++) {
     const uint64_t digest = digest_kernel(levels, kernel, trials);
-    printf("%-16s %016llx\n", KERNEL_NAMES[kernel], (unsigned long long)digest);
+    printf(DIGEST_LINE_FORMAT, KERNEL_NAMES[kernel], (unsigned long long)digest);
     total.add(digest);
   }
-  printf("%-16s %016llx\n", "all", (unsigned long long)total.value_);
+  printf(DIGEST_LINE_FORMAT, "all", (unsigned long long)total.value_);
 }
 
 const char* best_level_name(const int32_t available) {
@@ -486,13 +504,13 @@ int main(int argument_count, char** arguments) {
   vector<level_kernels> levels;
 
   const char* expected = nullptr;
-  if (argument_count > 1 && strncmp(arguments[argument_count - 1], "expect=", 7) == 0) {
-    expected = arguments[--argument_count] + 7;
+  if (argument_count > 1 && strncmp(arguments[argument_count - 1], EXPECT_PREFIX, EXPECT_PREFIX_LENGTH) == 0) {
+    expected = arguments[--argument_count] + EXPECT_PREFIX_LENGTH;
   }
 #ifdef MCV2_TEST_DIRECT
   if (argument_count != 1) {
     fprintf(stderr, "usage: %s [expect=level]\n", arguments[0]);
-    return 2;
+    return SETUP_FAILURE_EXIT_CODE;
   }
   const int32_t available = mcv2_cpu_levels(kernel_capabilities());
   const level_kernels linked[] = {
@@ -512,29 +530,29 @@ int main(int argument_count, char** arguments) {
     }
   }
 #else
-  if (argument_count != 2) {
+  if (argument_count != LIBRARY_ARGUMENT_COUNT) {
     fprintf(stderr, "usage: %s library [expect=level]\n", arguments[0]);
-    return 2;
+    return SETUP_FAILURE_EXIT_CODE;
   }
   void* library = dlopen(arguments[1], RTLD_NOW | RTLD_LOCAL);
   if (library == nullptr) {
     fprintf(stderr, "cannot load %s: %s\n", arguments[1], dlerror());
-    return 2;
+    return SETUP_FAILURE_EXIT_CODE;
   }
-  const int32_t available = ((int32_t(*)(int64_t))dlsym(library, "mcv2_cpu_levels"))(kernel_capabilities());
+  const int32_t available = ((int32_t(*)(int64_t))dlsym(library, CPU_LEVELS_SYMBOL))(kernel_capabilities());
   for (const known_level& candidate : KNOWN_LEVELS) {
     if (!(available & candidate.bit_)) {
       continue;
     }
     level_kernels level{};
     level.name_ = candidate.name_;
-    char symbol[64];
+    char symbol[SYMBOL_CAPACITY];
 #define MCV2_LOAD(type, kernel, parameters)                                                                            \
-  snprintf(symbol, sizeof(symbol), "mcv2_%s_%s", candidate.name_, #kernel);                                            \
+  snprintf(symbol, sizeof(symbol), KERNEL_SYMBOL_FORMAT, candidate.name_, #kernel);                                    \
   level.kernel##_ = (type(*) parameters)dlsym(library, symbol);                                                        \
   if (level.kernel##_ == nullptr) {                                                                                    \
     fprintf(stderr, "missing %s\n", symbol);                                                                           \
-    return 2;                                                                                                          \
+    return SETUP_FAILURE_EXIT_CODE;                                                                                    \
   }
     MCV2_KERNELS(MCV2_LOAD)
     levels.push_back(level);
@@ -547,12 +565,12 @@ int main(int argument_count, char** arguments) {
   printf("\ndispatched: %s\n", best_level_name(available));
   if (expected != nullptr && strcmp(expected, best_level_name(available)) != 0) {
     fprintf(stderr, "expected the %s level, the dispatcher takes %s\n", expected, best_level_name(available));
-    return 1;
+    return FAILURE_EXIT_CODE;
   }
-  run(levels, 400);
+  run(levels, TRIALS);
   if (failures) {
     fprintf(stderr, "%d differences\n", failures);
-    return 1;
+    return FAILURE_EXIT_CODE;
   }
   printf("every level agrees\n");
   return 0;
