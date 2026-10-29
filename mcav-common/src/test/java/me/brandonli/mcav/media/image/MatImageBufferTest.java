@@ -1159,7 +1159,7 @@ final class MatImageBufferTest {
   }
 
   @Test
-  void shouldCopyAreIndependent() {
+  void shouldLeaveTheOriginalUnchangedWhenItsCopyChanges() {
     try (final ImageBuffer image = Images.solid(1, 1, GREEN)) {
       final ImageBuffer copy = image.copy();
       copy.updateArgb(new int[] { BLACK }, 1, 1);

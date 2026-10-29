@@ -47,7 +47,7 @@ final class ImageDecodeFuzzTest {
 
       final int[] pixels = image.getPixels();
       final long expected = (long) width * height;
-      assertEquals(expected, pixels.length, "one pixel per pixel");
+      assertEquals(expected, pixels.length, "one packed integer per pixel");
     } finally {
       image.release();
     }
