@@ -16,6 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <float.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -79,6 +80,18 @@ MCV2_DECLARE_LEVEL(sve512)
 namespace {
 #endif
 
+constexpr uint64_t GOLDEN_GAMMA = 0x9E3779B97F4A7C15ull;
+constexpr int FIRST_MIX_SHIFT = 30;
+constexpr uint64_t FIRST_MIX_MULTIPLIER = 0xBF58476D1CE4E5B9ull;
+constexpr int SECOND_MIX_SHIFT = 27;
+constexpr uint64_t SECOND_MIX_MULTIPLIER = 0x94D049BB133111EBull;
+constexpr int FINAL_MIX_SHIFT = 31;
+
+constexpr uint64_t FNV_OFFSET_BASIS = 0xCBF29CE484222325ull;
+constexpr uint64_t FNV_PRIME = 0x100000001B3ull;
+
+constexpr uint64_t RANDOM_SEED = 0x6D637632ull;
+
 struct known_level {
   const char* name_;
   int32_t bit_;
@@ -100,10 +113,10 @@ int64_t kernel_capabilities() {
 struct random_generator {
   uint64_t state_;
   uint64_t next() {
-    uint64_t mixed_value = (state_ += 0x9E3779B97F4A7C15ull);
-    mixed_value = (mixed_value ^ (mixed_value >> 30)) * 0xBF58476D1CE4E5B9ull;
-    mixed_value = (mixed_value ^ (mixed_value >> 27)) * 0x94D049BB133111EBull;
-    return mixed_value ^ (mixed_value >> 31);
+    uint64_t mixed_value = (state_ += GOLDEN_GAMMA);
+    mixed_value = (mixed_value ^ (mixed_value >> FIRST_MIX_SHIFT)) * FIRST_MIX_MULTIPLIER;
+    mixed_value = (mixed_value ^ (mixed_value >> SECOND_MIX_SHIFT)) * SECOND_MIX_MULTIPLIER;
+    return mixed_value ^ (mixed_value >> FINAL_MIX_SHIFT);
   }
   int32_t range(const int32_t low, const int32_t high) {
     return low + (int32_t)(next() % (uint64_t)(high - low + 1));
@@ -138,7 +151,7 @@ struct random_generator {
         value = -0.0f;
         break;
       case 1:
-        value = 1.401298464e-45f * (float)range(1, 1000);
+        value = FLT_TRUE_MIN * (float)range(1, 1000);
         break;
       case 2:
         value = 1e30f * (float)range(-3, 3);
@@ -152,11 +165,11 @@ struct random_generator {
 };
 
 struct fnv_digest {
-  uint64_t value_ = 0xCBF29CE484222325ull;
+  uint64_t value_ = FNV_OFFSET_BASIS;
   void add(const void* data, const size_t length) {
     const uint8_t* bytes = (const uint8_t*)data;
     for (size_t index = 0; index < length; index++) {
-      value_ = (value_ ^ bytes[index]) * 0x100000001B3ull;
+      value_ = (value_ ^ bytes[index]) * FNV_PRIME;
     }
   }
   template <class ValueType> void add(const vector<ValueType>& values) {
@@ -387,7 +400,7 @@ void compare_levels(const vector<level_kernels>& levels, const kernel_trial& tri
 }
 
 uint64_t digest_kernel(const vector<level_kernels>& levels, const int kernel, const int trials) {
-  random_generator random{0x6D637632ull * (kernel + 1)};
+  random_generator random{RANDOM_SEED * (kernel + 1)};
   fnv_digest digest;
   for (int index = 0; index < trials; index++) {
     const kernel_trial trial = draw_trial(kernel, index, random);
