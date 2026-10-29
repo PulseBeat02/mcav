@@ -71,6 +71,7 @@ import me.brandonli.mcav.media.source.uri.UriSource;
 import me.brandonli.mcav.testing.LocalHttpServer;
 import me.brandonli.mcav.testing.TemporaryUserHome;
 import me.brandonli.mcav.testing.UtilityClassAssertions;
+import me.brandonli.mcav.utils.http.DownloadTooLargeException;
 import me.brandonli.mcav.utils.http.HttpStatusException;
 import me.brandonli.mcav.utils.os.Arch;
 import me.brandonli.mcav.utils.os.Bits;
@@ -86,6 +87,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 final class IoUtilsTest {
 
   private static final byte[] ABC = "abc".getBytes(StandardCharsets.US_ASCII);
+  private static final byte[] DEF = "def".getBytes(StandardCharsets.US_ASCII);
   private static final Duration SHORT_RETRY_DELAY = Duration.ofMillis(1);
   private static final Duration RETRY_DELAY = Duration.ofMillis(100);
   private static final Duration SECOND_RETRY_DELAY = Duration.ofMillis(200);
@@ -384,10 +386,13 @@ final class IoUtilsTest {
       final LocalHttpServer server = LocalHttpServer.start()
     ) {
       server.respond("/image.png", 200, ABC);
+      server.respond("/image.png", 200, DEF);
       final URI imageUri = server.uri("/image.png");
       final URI missingUri = server.uri("/missing.png");
+      final URI fileUri = URI.create("file:///image.png");
       final UriSource image = UriSource.uri(imageUri);
       final UriSource missing = UriSource.uri(missingUri);
+      final UriSource file = UriSource.uri(fileUri);
 
       final Path downloaded = IoUtils.downloadImage(image);
       final byte[] content = Files.readAllBytes(downloaded);
@@ -399,8 +404,39 @@ final class IoUtilsTest {
       assertArrayEquals(ABC, content);
       assertTrue(inCache);
       assertTrue(cacheInHome);
+
+      final Path downloadedAgain = IoUtils.downloadImage(image);
+      final byte[] contentAgain = Files.readAllBytes(downloadedAgain);
+
+      assertEquals(downloaded, downloadedAgain);
+      assertArrayEquals(DEF, contentAgain, "downloading the same URL again overwrites the cached copy");
       assertThrows(HttpStatusException.class, () -> IoUtils.downloadImage(missing));
+      assertThrows(IllegalArgumentException.class, () -> IoUtils.downloadImage(file));
       assertThrows(NullPointerException.class, () -> IoUtils.downloadImage(null));
+    }
+  }
+
+  @Test
+  void shouldStopAnImageDownloadLargerThanTheLimit() throws IOException {
+    try (
+      final TemporaryUserHome _ = TemporaryUserHome.redirectTo(this.directory);
+      final LocalHttpServer server = LocalHttpServer.start()
+    ) {
+      final int tooLarge = Math.toIntExact(IoUtils.MAXIMUM_IMAGE_BYTES + 1);
+      server.respond("/large.png", 200, new byte[tooLarge]);
+      final URI largeUri = server.uri("/large.png");
+      final UriSource large = UriSource.uri(largeUri);
+
+      final DownloadTooLargeException thrown = assertThrows(DownloadTooLargeException.class, () -> IoUtils.downloadImage(large));
+      final String message = thrown.getMessage();
+      final String limit = "larger than the %s bytes".formatted(IoUtils.MAXIMUM_IMAGE_BYTES);
+      final boolean namesTheLimit = message.contains(limit);
+      final Path cache = IoUtils.getCachedFolder();
+      try (final Stream<Path> cached = Files.list(cache)) {
+        final long cachedCount = cached.count();
+        assertTrue(namesTheLimit);
+        assertEquals(0L, cachedCount, "neither the image nor its partial download is kept");
+      }
     }
   }
 
