@@ -613,8 +613,12 @@ struct int_vector {
     return {_mm256_loadu_si256((const __m256i*)buffer)};
   }
   void store_bytes(int8_t* buffer) const {
-    const __m128i words = _mm_packs_epi32(_mm256_castsi256_si128(lanes_), _mm256_extracti128_si256(lanes_, 1));
-    _mm_storel_epi64((__m128i*)buffer, _mm_packs_epi16(words, _mm_setzero_si128()));
+    const __m128i lower_lanes = _mm256_castsi256_si128(lanes_);
+    const __m128i upper_lanes = _mm256_extracti128_si256(lanes_, 1);
+    const __m128i words = _mm_packs_epi32(lower_lanes, upper_lanes);
+    const __m128i zero = _mm_setzero_si128();
+    const __m128i bytes = _mm_packs_epi16(words, zero);
+    _mm_storel_epi64((__m128i*)buffer, bytes);
   }
   void store(int32_t* buffer) const {
     _mm256_storeu_si256((__m256i*)buffer, lanes_);
@@ -629,7 +633,8 @@ struct int_vector {
     return {_mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7)};
   }
   static int_vector load_unsigned_bytes(const uint8_t* buffer) {
-    return {_mm256_cvtepu8_epi32(_mm_loadl_epi64((const __m128i*)buffer))};
+    const __m128i bytes = _mm_loadl_epi64((const __m128i*)buffer);
+    return {_mm256_cvtepu8_epi32(bytes)};
   }
   friend int_vector operator+(const int_vector first, const int_vector second) {
     return {_mm256_add_epi32(first.lanes_, second.lanes_)};
@@ -647,10 +652,12 @@ struct int_vector {
     return {_mm256_or_si256(first.lanes_, second.lanes_)};
   }
   int_vector shift_left(const int32_t shift_distance) const {
-    return {_mm256_sll_epi32(lanes_, _mm_cvtsi32_si128(shift_distance & SHIFT_DISTANCE_MASK))};
+    const __m128i distance = _mm_cvtsi32_si128(shift_distance & SHIFT_DISTANCE_MASK);
+    return {_mm256_sll_epi32(lanes_, distance)};
   }
   int_vector shift_right(const int32_t shift_distance) const {
-    return {_mm256_sra_epi32(lanes_, _mm_cvtsi32_si128(shift_distance & SHIFT_DISTANCE_MASK))};
+    const __m128i distance = _mm_cvtsi32_si128(shift_distance & SHIFT_DISTANCE_MASK);
+    return {_mm256_sra_epi32(lanes_, distance)};
   }
   static int_vector minimum(const int_vector first, const int_vector second) {
     return {_mm256_min_epi32(first.lanes_, second.lanes_)};
@@ -665,10 +672,14 @@ struct int_vector {
     return {_mm256_cmpgt_epi32(second.lanes_, first.lanes_)};
   }
   int32_t sum() const {
-    __m128i partial_sum = _mm_add_epi32(_mm256_castsi256_si128(lanes_), _mm256_extracti128_si256(lanes_, 1));
-    partial_sum = _mm_add_epi32(partial_sum, _mm_shuffle_epi32(partial_sum, SWAP_HALVES));
-    partial_sum = _mm_add_epi32(partial_sum, _mm_shuffle_epi32(partial_sum, SWAP_PAIRS));
-    return _mm_cvtsi128_si32(partial_sum);
+    const __m128i lower_lanes = _mm256_castsi256_si128(lanes_);
+    const __m128i upper_lanes = _mm256_extracti128_si256(lanes_, 1);
+    const __m128i half_sums = _mm_add_epi32(lower_lanes, upper_lanes);
+    const __m128i swapped_halves = _mm_shuffle_epi32(half_sums, SWAP_HALVES);
+    const __m128i pair_sums = _mm_add_epi32(half_sums, swapped_halves);
+    const __m128i swapped_pairs = _mm_shuffle_epi32(pair_sums, SWAP_PAIRS);
+    const __m128i totals = _mm_add_epi32(pair_sums, swapped_pairs);
+    return _mm_cvtsi128_si32(totals);
   }
 
   static void load_channels(const int32_t* buffer, int_vector& red_channels, int_vector& green_channels,
@@ -677,17 +688,14 @@ struct int_vector {
     const __m256i second_vector = _mm256_loadu_si256((const __m256i*)(buffer + LANES));
     const __m256i third_vector = _mm256_loadu_si256((const __m256i*)(buffer + 2 * LANES));
 
-    const __m256i shuffled_red =
-        _mm256_blend_epi32(_mm256_blend_epi32(first_vector, second_vector, EVERY_THIRD_LANE_FROM_ONE), third_vector,
-                           EVERY_THIRD_LANE_FROM_TWO);
+    const __m256i partial_red = _mm256_blend_epi32(first_vector, second_vector, EVERY_THIRD_LANE_FROM_ONE);
+    const __m256i shuffled_red = _mm256_blend_epi32(partial_red, third_vector, EVERY_THIRD_LANE_FROM_TWO);
 
-    const __m256i shuffled_green =
-        _mm256_blend_epi32(_mm256_blend_epi32(first_vector, second_vector, EVERY_THIRD_LANE_FROM_TWO), third_vector,
-                           EVERY_THIRD_LANE_FROM_ZERO);
+    const __m256i partial_green = _mm256_blend_epi32(first_vector, second_vector, EVERY_THIRD_LANE_FROM_TWO);
+    const __m256i shuffled_green = _mm256_blend_epi32(partial_green, third_vector, EVERY_THIRD_LANE_FROM_ZERO);
 
-    const __m256i shuffled_blue =
-        _mm256_blend_epi32(_mm256_blend_epi32(first_vector, second_vector, EVERY_THIRD_LANE_FROM_ZERO), third_vector,
-                           EVERY_THIRD_LANE_FROM_ONE);
+    const __m256i partial_blue = _mm256_blend_epi32(first_vector, second_vector, EVERY_THIRD_LANE_FROM_ZERO);
+    const __m256i shuffled_blue = _mm256_blend_epi32(partial_blue, third_vector, EVERY_THIRD_LANE_FROM_ONE);
     const __m256i red_order = _mm256_setr_epi32(0, 3, 6, 1, 4, 7, 2, 5);
     const __m256i green_order = _mm256_setr_epi32(1, 4, 7, 2, 5, 0, 3, 6);
     const __m256i blue_order = _mm256_setr_epi32(2, 5, 0, 3, 6, 1, 4, 7);
@@ -703,31 +711,38 @@ struct int_vector {
     const __m256i shuffled_red = _mm256_permutevar8x32_epi32(red_channels.lanes_, red_order);
     const __m256i shuffled_green = _mm256_permutevar8x32_epi32(green_channels.lanes_, green_order);
     const __m256i shuffled_blue = _mm256_permutevar8x32_epi32(blue_channels.lanes_, blue_order);
-    _mm256_storeu_si256((__m256i*)buffer,
-                        _mm256_blend_epi32(_mm256_blend_epi32(shuffled_red, shuffled_green, EVERY_THIRD_LANE_FROM_ONE),
-                                           shuffled_blue, EVERY_THIRD_LANE_FROM_TWO));
-    _mm256_storeu_si256((__m256i*)(buffer + LANES),
-                        _mm256_blend_epi32(_mm256_blend_epi32(shuffled_blue, shuffled_red, EVERY_THIRD_LANE_FROM_ONE),
-                                           shuffled_green, EVERY_THIRD_LANE_FROM_TWO));
-    _mm256_storeu_si256((__m256i*)(buffer + 2 * LANES),
-                        _mm256_blend_epi32(_mm256_blend_epi32(shuffled_green, shuffled_blue, EVERY_THIRD_LANE_FROM_ONE),
-                                           shuffled_red, EVERY_THIRD_LANE_FROM_TWO));
+    const __m256i first_red_green = _mm256_blend_epi32(shuffled_red, shuffled_green, EVERY_THIRD_LANE_FROM_ONE);
+    const __m256i first_vector = _mm256_blend_epi32(first_red_green, shuffled_blue, EVERY_THIRD_LANE_FROM_TWO);
+    _mm256_storeu_si256((__m256i*)buffer, first_vector);
+
+    const __m256i second_blue_red = _mm256_blend_epi32(shuffled_blue, shuffled_red, EVERY_THIRD_LANE_FROM_ONE);
+    const __m256i second_vector = _mm256_blend_epi32(second_blue_red, shuffled_green, EVERY_THIRD_LANE_FROM_TWO);
+    _mm256_storeu_si256((__m256i*)(buffer + LANES), second_vector);
+
+    const __m256i third_green_blue = _mm256_blend_epi32(shuffled_green, shuffled_blue, EVERY_THIRD_LANE_FROM_ONE);
+    const __m256i third_vector = _mm256_blend_epi32(third_green_blue, shuffled_red, EVERY_THIRD_LANE_FROM_TWO);
+    _mm256_storeu_si256((__m256i*)(buffer + 2 * LANES), third_vector);
   }
   static int_vector bits(const int8_t* buffer, const int32_t index) {
     const __m256i byte = _mm256_set1_epi32(buffer[index >> BYTE_INDEX_SHIFT] & LANE_MASK);
     const __m256i lane_bits = _mm256_setr_epi32(1, 2, 4, 8, 16, 32, 64, 128);
-    return {_mm256_cmpeq_epi32(_mm256_and_si256(byte, lane_bits), lane_bits)};
+    const __m256i set_bits = _mm256_and_si256(byte, lane_bits);
+    return {_mm256_cmpeq_epi32(set_bits, lane_bits)};
   }
 
   static int_vector evens(const int_vector first, const int_vector second) {
-    const __m256 pairs =
-        _mm256_shuffle_ps(_mm256_castsi256_ps(first.lanes_), _mm256_castsi256_ps(second.lanes_), EVEN_LANES);
-    return {_mm256_permute4x64_epi64(_mm256_castps_si256(pairs), SWAP_MIDDLE_QUARTERS)};
+    const __m256 first_floats = _mm256_castsi256_ps(first.lanes_);
+    const __m256 second_floats = _mm256_castsi256_ps(second.lanes_);
+    const __m256 pairs = _mm256_shuffle_ps(first_floats, second_floats, EVEN_LANES);
+    const __m256i pair_integers = _mm256_castps_si256(pairs);
+    return {_mm256_permute4x64_epi64(pair_integers, SWAP_MIDDLE_QUARTERS)};
   }
   static int_vector odds(const int_vector first, const int_vector second) {
-    const __m256 pairs =
-        _mm256_shuffle_ps(_mm256_castsi256_ps(first.lanes_), _mm256_castsi256_ps(second.lanes_), ODD_LANES);
-    return {_mm256_permute4x64_epi64(_mm256_castps_si256(pairs), SWAP_MIDDLE_QUARTERS)};
+    const __m256 first_floats = _mm256_castsi256_ps(first.lanes_);
+    const __m256 second_floats = _mm256_castsi256_ps(second.lanes_);
+    const __m256 pairs = _mm256_shuffle_ps(first_floats, second_floats, ODD_LANES);
+    const __m256i pair_integers = _mm256_castps_si256(pairs);
+    return {_mm256_permute4x64_epi64(pair_integers, SWAP_MIDDLE_QUARTERS)};
   }
 };
 
@@ -760,7 +775,8 @@ struct double_vector {
     return {_mm256_set1_pd(value)};
   }
   static double_vector load_floats(const float* buffer) {
-    return {_mm256_cvtps_pd(_mm_loadu_ps(buffer))};
+    const __m128 floats = _mm_loadu_ps(buffer);
+    return {_mm256_cvtps_pd(floats)};
   }
   friend double_vector operator+(const double_vector first, const double_vector second) {
     return {_mm256_add_pd(first.lanes_, second.lanes_)};
