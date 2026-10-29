@@ -49,7 +49,7 @@ record WallPicture(int wallWidth, int wallHeight, int sourceWidth, int sourceHei
   }
 
   /**
-   * Gets the pixel of the source at a pixel of the wall.
+   * Returns the pixel of the source at a pixel of the wall.
    *
    * @param wallX the column of the pixel on the wall, from its left edge
    * @param wallY the row of the pixel on the wall, from its top edge

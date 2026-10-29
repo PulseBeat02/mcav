@@ -195,7 +195,7 @@ final class QemuHardwareValues {
   }
 
   /**
-   * Gets the memory an {@code -m} value gives the machine, as QEMU reads it: a number of MiB, or of the unit its suffix
+   * Returns the memory an {@code -m} value gives the machine, as QEMU reads it: a number of MiB, or of the unit its suffix
    * names, as the value itself or as its {@code size} property.
    *
    * @param value an {@code -m} value that {@link #check} accepted

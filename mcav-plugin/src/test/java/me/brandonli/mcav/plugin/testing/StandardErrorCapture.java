@@ -52,7 +52,7 @@ public final class StandardErrorCapture implements AutoCloseable {
   }
 
   /**
-   * Gets everything written to standard error since the capture started.
+   * Returns everything written to standard error since the capture started.
    *
    * @return the recorded text
    */

@@ -92,8 +92,8 @@ public final class ImageMapCommand extends AbstractImageCommand {
    *                           results for most images, see {@link DitheringArgument}
    * @param mrl                the image to show: a path to a file on the server or an {@code http} or
    *                           {@code https} URL; the rest of the command line up to a flag, so it may contain spaces
-   * @param filters         the {@code --filters} option: filters applied to the image in order, such as
-   *                        {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
+   * @param filters            the {@code --filters} option: filters applied to the image in order, such as
+   *                           {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
    * @param codec              how the picture reaches the players, see {@link MapCodec}; the configured default when
    *                           absent
    */

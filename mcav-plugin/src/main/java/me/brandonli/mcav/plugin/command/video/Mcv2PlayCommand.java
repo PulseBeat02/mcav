@@ -542,7 +542,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
   }
 
   /**
-   * Gets the thread of the file encode started last.
+   * Returns the thread of the file encode started last.
    *
    * @return the thread, also while a cancelled encode cleans up, or null if none was started
    */

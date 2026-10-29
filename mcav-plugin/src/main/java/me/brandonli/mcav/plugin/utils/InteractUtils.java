@@ -58,7 +58,7 @@ public final class InteractUtils {
   }
 
   /**
-   * Gets the pixel the player looks at on the map wall in front of them.
+   * Returns the pixel the player looks at on the map wall in front of them.
    *
    * @param player the player
    * @return the x and y pixel coordinates on the wall, or {@code null} if the player does not look at a map frame
@@ -74,7 +74,7 @@ public final class InteractUtils {
   }
 
   /**
-   * Gets the pixel the player looks at on the specified map frame.
+   * Returns the pixel the player looks at on the specified map frame.
    *
    * @param player the player
    * @param entity the item frame the player looks at
@@ -104,7 +104,7 @@ public final class InteractUtils {
   }
 
   /**
-   * Gets the column and row of the frame on its wall, counted from the first corner of the wall.
+   * Returns the column and row of the frame on its wall, counted from the first corner of the wall.
    *
    * @return the column and row, or {@code null} if the player does not look at a block face or the wall is not
    * complete
@@ -125,7 +125,7 @@ public final class InteractUtils {
   }
 
   /**
-   * Gets the column and row of a frame from its distance to the first corner of the wall, measured along the two
+   * Returns the column and row of a frame from its distance to the first corner of the wall, measured along the two
    * axes the wall spans.
    *
    * @return the column and row, or {@code null} if the wall does not face along an axis
@@ -149,7 +149,7 @@ public final class InteractUtils {
   }
 
   /**
-   * Gets the position the player looks at inside the frame, from 0 to 1 on both axes, taking the rotation of the
+   * Returns the position the player looks at inside the frame, from 0 to 1 on both axes, taking the rotation of the
    * map inside the frame into account.
    */
   private static double @Nullable [] getRotatedFramePosition(final Player player, final ItemFrame frame) {
@@ -169,7 +169,7 @@ public final class InteractUtils {
   }
 
   /**
-   * Gets the position the player looks at inside the frame, from 0 to 1 on both axes, as if the map were not
+   * Returns the position the player looks at inside the frame, from 0 to 1 on both axes, as if the map were not
    * rotated. Returns {@code null} for misses and unsupported floor or ceiling frames.
    */
   private static double @Nullable [] getFramePosition(final Player player, final ItemFrame frame) {

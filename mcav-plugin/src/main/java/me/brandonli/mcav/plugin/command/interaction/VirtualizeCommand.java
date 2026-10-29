@@ -127,7 +127,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
   }
 
   /**
-   * Gets the permission a player needs to send input to the running virtual machine.
+   * Returns the permission a player needs to send input to the running virtual machine.
    *
    * @return {@value #INTERACT_PERMISSION}
    */
@@ -496,7 +496,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
   }
 
   /**
-   * Gets the most memory a machine may have on this server: half of the memory of the server, or of its container, as
+   * Returns the most memory a machine may have on this server: half of the memory of the server, or of its container, as
    * the JVM sees it, and at least 512 MiB.
    *
    * @return the most memory in bytes
@@ -507,7 +507,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
   }
 
   /**
-   * Gets the most memory a machine may have on a server with a given memory: half of it, and at least 512 MiB.
+   * Returns the most memory a machine may have on a server with a given memory: half of it, and at least 512 MiB.
    *
    * @param totalMemoryBytes the memory of the server in bytes
    * @return the most memory in bytes
@@ -644,7 +644,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
   }
 
   /**
-   * Gets the QEMU options the command accepts, with a dash and in alphabetical order.
+   * Returns the QEMU options the command accepts, with a dash and in alphabetical order.
    *
    * @return the option names, as an unmodifiable list
    */

@@ -292,9 +292,9 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
   /**
    * Sends the viewers the link of the audio output once the player started.
    *
-   * @param start the start of the player
+   * @param start  the start of the player
    * @param screen the screen of the player
-   * @param sound the output and the players who hear it
+   * @param sound  the output and the players who hear it
    */
   final void sendSoundLinkWhenStarted(final CompletableFuture<Boolean> start, final Screen screen, final ScreenSound sound) {
     TaskUtils.whenComplete(start, (started, error) -> {
@@ -408,7 +408,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
   }
 
   /**
-   * Gets the codec of a screen: the one its command's {@code --codec} flag names, or the configured default.
+   * Returns the codec of a screen: the one its command's {@code --codec} flag names, or the configured default.
    *
    * @param flag the flag's value, or null when the command has none
    * @return the codec
@@ -917,7 +917,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
   }
 
   /**
-   * Whether a player may send input to the running player.
+   * Returns whether a player may send input to the running player.
    */
   private boolean mayInteract(final Player player) {
     final String permission = this.getInteractionPermission();
@@ -925,7 +925,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
   }
 
   /**
-   * Gets the permission a player needs to send clicks and chat messages to the running player. It is the permission
+   * Returns the permission a player needs to send clicks and chat messages to the running player. It is the permission
    * of the {@code interact} subcommand of the command, so a player who may switch chat input on may also click.
    *
    * @return the permission

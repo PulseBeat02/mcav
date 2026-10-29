@@ -129,7 +129,7 @@ public final class Mcv2Support {
   }
 
   /**
-   * Gets who loaded the pack.
+   * Returns who loaded the pack.
    *
    * @return the viewers every screen shares
    */

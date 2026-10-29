@@ -79,7 +79,7 @@ public final class ArgumentTag implements TagResolver {
   }
 
   /**
-   * Checks whether a tag is handled by this resolver, which is only the case for {@code arg}.
+   * Returns whether a tag is handled by this resolver, which is only the case for {@code arg}.
    *
    * @param name the name of the tag
    * @return true if the name is {@code arg}

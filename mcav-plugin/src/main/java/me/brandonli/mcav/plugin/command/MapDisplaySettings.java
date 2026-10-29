@@ -80,7 +80,7 @@ public final class MapDisplaySettings {
   }
 
   /**
-   * Gets the maps that show the media.
+   * Returns the maps that show the media.
    *
    * @return the map configuration
    */

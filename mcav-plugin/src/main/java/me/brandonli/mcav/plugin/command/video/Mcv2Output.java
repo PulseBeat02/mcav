@@ -48,7 +48,7 @@ public final class Mcv2Output implements FunctionalVideoFilter {
   }
 
   /**
-   * Gets the screen's result.
+   * Returns the screen's result.
    *
    * @return the result
    */

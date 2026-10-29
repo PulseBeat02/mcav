@@ -168,7 +168,7 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
    * <p>Requires the permission {@code mcav.command.video.loop}; players and the console can run it. With the VLC player
    * the sender is also told that it does not loop.
    *
-   * @param sender who ran the command
+   * @param sender  who ran the command
    * @param enabled true to loop
    */
   @Command("mcav video loop <enabled>")

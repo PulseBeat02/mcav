@@ -49,7 +49,7 @@ public final class Components {
   }
 
   /**
-   * Gets the messages a mocked audience received with {@link Audience#sendMessage(Component)}, in order.
+   * Returns the messages a mocked audience received with {@link Audience#sendMessage(Component)}, in order.
    *
    * @param audience the mocked audience, such as a command sender
    * @return the messages
@@ -62,7 +62,7 @@ public final class Components {
   }
 
   /**
-   * Gets the messages a mocked audience received as plain text, in order.
+   * Returns the messages a mocked audience received as plain text, in order.
    *
    * @param audience the mocked audience, such as a command sender
    * @return the messages without formatting

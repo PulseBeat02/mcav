@@ -35,7 +35,7 @@ public final class IoUtils {
   }
 
   /**
-   * Gets the absolute path of the plugin's data folder.
+   * Returns the absolute path of the plugin's data folder.
    *
    * @return the data folder
    */

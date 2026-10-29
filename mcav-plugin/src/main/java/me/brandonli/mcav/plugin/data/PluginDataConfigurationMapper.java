@@ -335,7 +335,7 @@ public final class PluginDataConfigurationMapper {
   }
 
   /**
-   * Checks whether pages of the browser may reach loopback, private and link-local addresses.
+   * Returns whether pages of the browser may reach loopback, private and link-local addresses.
    *
    * @return true if {@code browser.allow-private-networks} is on
    */
@@ -344,7 +344,7 @@ public final class PluginDataConfigurationMapper {
   }
 
   /**
-   * Checks whether the browser compiles JavaScript to machine code.
+   * Returns whether the browser compiles JavaScript to machine code.
    *
    * @return true if {@code browser.javascript-jit} is on
    */
@@ -353,7 +353,7 @@ public final class PluginDataConfigurationMapper {
   }
 
   /**
-   * Checks whether pages of the browser play sound before a player clicked or typed into them.
+   * Returns whether pages of the browser play sound before a player clicked or typed into them.
    *
    * @return true if {@code browser.autoplay-sound} is on
    */
@@ -362,7 +362,7 @@ public final class PluginDataConfigurationMapper {
   }
 
   /**
-   * Checks whether the browser confines Chromium where the system can.
+   * Returns whether the browser confines Chromium where the system can.
    *
    * @return true if {@code browser.confine-chromium} is on
    */
@@ -371,7 +371,7 @@ public final class PluginDataConfigurationMapper {
   }
 
   /**
-   * Gets the hosts whose addresses pages of the browser may not reach, besides the private ones and the server's own.
+   * Returns the hosts whose addresses pages of the browser may not reach, besides the private ones and the server's own.
    *
    * @return the names and addresses of {@code browser.refused-hosts}, unmodifiable
    */
@@ -380,7 +380,7 @@ public final class PluginDataConfigurationMapper {
   }
 
   /**
-   * Checks whether virtual machines get QEMU's own user-mode network, which reaches the internet and every service of
+   * Returns whether virtual machines get QEMU's own user-mode network, which reaches the internet and every service of
    * the server's loopback address, instead of one that reaches nothing.
    *
    * @return true if {@code vm.allow-network} is on
@@ -390,7 +390,7 @@ public final class PluginDataConfigurationMapper {
   }
 
   /**
-   * Gets the plugin.
+   * Returns the plugin.
    *
    * @return the plugin
    */
@@ -399,7 +399,7 @@ public final class PluginDataConfigurationMapper {
   }
 
   /**
-   * Gets the language of the messages.
+   * Returns the language of the messages.
    *
    * @return the locale
    */
@@ -408,7 +408,7 @@ public final class PluginDataConfigurationMapper {
   }
 
   /**
-   * Gets the Discord bot token.
+   * Returns the Discord bot token.
    *
    * @return the token, empty if not set
    */
@@ -417,7 +417,7 @@ public final class PluginDataConfigurationMapper {
   }
 
   /**
-   * Gets the id of the Discord voice channel.
+   * Returns the id of the Discord voice channel.
    *
    * @return the channel id, empty if not set
    */
@@ -426,7 +426,7 @@ public final class PluginDataConfigurationMapper {
   }
 
   /**
-   * Gets the id of the Discord server.
+   * Returns the id of the Discord server.
    *
    * @return the guild id, empty if not set
    */
@@ -435,7 +435,7 @@ public final class PluginDataConfigurationMapper {
   }
 
   /**
-   * Gets the host name listeners use to reach the audio web page.
+   * Returns the host name listeners use to reach the audio web page.
    *
    * @return the host name
    */
@@ -444,7 +444,7 @@ public final class PluginDataConfigurationMapper {
   }
 
   /**
-   * Gets the port of the audio web page.
+   * Returns the port of the audio web page.
    *
    * @return the port
    */
@@ -453,7 +453,7 @@ public final class PluginDataConfigurationMapper {
   }
 
   /**
-   * Checks whether the Discord bot is enabled.
+   * Returns whether the Discord bot is enabled.
    *
    * @return true if enabled
    */
@@ -462,7 +462,7 @@ public final class PluginDataConfigurationMapper {
   }
 
   /**
-   * Checks whether the audio web page is enabled.
+   * Returns whether the audio web page is enabled.
    *
    * @return true if enabled
    */
@@ -471,7 +471,7 @@ public final class PluginDataConfigurationMapper {
   }
 
   /**
-   * Checks whether Simple Voice Chat audio is enabled.
+   * Returns whether Simple Voice Chat audio is enabled.
    *
    * @return true if enabled
    */
@@ -480,7 +480,7 @@ public final class PluginDataConfigurationMapper {
   }
 
   /**
-   * Gets how many threads the MCV2 encoders of the server share.
+   * Returns how many threads the MCV2 encoders of the server share.
    *
    * @return the thread count, or 0 for half the processors
    */
@@ -489,7 +489,7 @@ public final class PluginDataConfigurationMapper {
   }
 
   /**
-   * Gets the VNC servers {@code /mcav vnc create} may connect to.
+   * Returns the VNC servers {@code /mcav vnc create} may connect to.
    *
    * @return the entries of {@code vnc.allowed-hosts}, which may be none
    */
@@ -498,7 +498,7 @@ public final class PluginDataConfigurationMapper {
   }
 
   /**
-   * Gets the codec of a map screen whose command does not say.
+   * Returns the codec of a map screen whose command does not say.
    *
    * @return {@code mcv2.default-codec}, dither unless set
    */
@@ -507,7 +507,7 @@ public final class PluginDataConfigurationMapper {
   }
 
   /**
-   * Gets where the players download the MCV2 resource pack from.
+   * Returns where the players download the MCV2 resource pack from.
    *
    * @return {@code mcv2.pack.hosting}, the injector unless set
    */
@@ -516,7 +516,7 @@ public final class PluginDataConfigurationMapper {
   }
 
   /**
-   * Gets the host name or address players reach the pack's HTTP server by.
+   * Returns the host name or address players reach the pack's HTTP server by.
    *
    * @return {@code mcv2.pack.http-host}, empty for the address the server finds for itself
    */
@@ -525,7 +525,7 @@ public final class PluginDataConfigurationMapper {
   }
 
   /**
-   * Gets the port of the pack's HTTP server.
+   * Returns the port of the pack's HTTP server.
    *
    * @return {@code mcv2.pack.http-port}, from 1 to 65535
    */
@@ -534,7 +534,7 @@ public final class PluginDataConfigurationMapper {
   }
 
   /**
-   * Gets whether the live encoders use the native kernels where they load.
+   * Returns the mode that decides whether the live encoders use the native kernels where they load.
    *
    * @return {@code auto} or {@code off}
    */

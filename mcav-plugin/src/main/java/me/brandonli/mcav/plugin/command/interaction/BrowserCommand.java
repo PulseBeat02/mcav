@@ -84,7 +84,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
   }
 
   /**
-   * Gets the permission a player needs to send input to the running browser.
+   * Returns the permission a player needs to send input to the running browser.
    *
    * @return {@value #INTERACT_PERMISSION}
    */

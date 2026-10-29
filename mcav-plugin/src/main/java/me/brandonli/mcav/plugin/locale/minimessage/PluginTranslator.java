@@ -49,7 +49,7 @@ public final class PluginTranslator extends MiniMessageTranslator {
   }
 
   /**
-   * Gets the MiniMessage text of a message from the bundle, whatever the locale.
+   * Returns the MiniMessage text of a message from the bundle, whatever the locale.
    *
    * @param key    the key of the message, such as {@code mcav.command.image.load}
    * @param locale the locale Adventure renders for, which is ignored because the plugin serves one language
@@ -62,7 +62,7 @@ public final class PluginTranslator extends MiniMessageTranslator {
   }
 
   /**
-   * Gets the name that identifies this translator to Adventure.
+   * Returns the name that identifies this translator to Adventure.
    *
    * @return the key given to the constructor
    */

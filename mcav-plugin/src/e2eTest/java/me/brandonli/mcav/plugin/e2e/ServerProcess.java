@@ -176,7 +176,7 @@ final class ServerProcess implements AutoCloseable {
   }
 
   /**
-   * Gets the number of lines printed so far.
+   * Returns the number of lines printed so far.
    *
    * @return the line count
    */
@@ -187,7 +187,7 @@ final class ServerProcess implements AutoCloseable {
   }
 
   /**
-   * Gets every line printed so far.
+   * Returns every line printed so far.
    *
    * @return a copy of the output
    */
@@ -232,7 +232,7 @@ final class ServerProcess implements AutoCloseable {
   }
 
   /**
-   * Gets the program a process runs, empty where the system does not tell.
+   * Returns the program a process runs, empty where the system does not tell.
    *
    * @param handle the process
    * @return the program

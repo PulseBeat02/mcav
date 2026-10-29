@@ -120,7 +120,7 @@ public final class VideoPlayerManager {
   }
 
   /**
-   * Gets the hologram that shows the title of the video.
+   * Returns the hologram that shows the title of the video.
    *
    * @return the hologram, or {@code null} if there is none
    */
@@ -138,7 +138,7 @@ public final class VideoPlayerManager {
   }
 
   /**
-   * Gets where the hologram of the next video appears.
+   * Returns where the hologram of the next video appears.
    *
    * @return the location, or {@code null} if no hologram is shown
    */
@@ -166,7 +166,7 @@ public final class VideoPlayerManager {
   }
 
   /**
-   * Checks whether the library found VLC. While VLC is still being prepared in the background, it is not supported
+   * Returns whether the library found VLC. While VLC is still being prepared in the background, it is not supported
    * yet; {@link #isPreparing(Capability)} tells the two cases apart.
    *
    * @return true if VLC players can be created
@@ -176,7 +176,7 @@ public final class VideoPlayerManager {
   }
 
   /**
-   * Checks whether the library is still preparing a capability in the background, such as VLC or yt-dlp, which are
+   * Returns whether the library is still preparing a capability in the background, such as VLC or yt-dlp, which are
    * downloaded on the first start of a server that does not have them.
    *
    * @param capability the capability
@@ -468,7 +468,7 @@ public final class VideoPlayerManager {
   }
 
   /**
-   * Gets the worker thread that starts and releases videos.
+   * Returns the worker thread that starts and releases videos.
    *
    * @return the executor
    */
@@ -477,7 +477,7 @@ public final class VideoPlayerManager {
   }
 
   /**
-   * Gets the flag that is true while a video is starting.
+   * Returns the flag that is true while a video is starting.
    *
    * @return the flag, shared by every video command
    */
@@ -508,7 +508,7 @@ public final class VideoPlayerManager {
   }
 
   /**
-   * Gets the player of the video.
+   * Returns the player of the video.
    *
    * @return the player, or {@code null} if no video plays
    */
@@ -528,7 +528,7 @@ public final class VideoPlayerManager {
   }
 
   /**
-   * Gets the filter that shows the frames of the video.
+   * Returns the filter that shows the frames of the video.
    *
    * @return the filter, or {@code null} if no video plays
    */
@@ -537,7 +537,7 @@ public final class VideoPlayerManager {
   }
 
   /**
-   * Gets the volume every video plays at, which the audio pipeline of every video applies before its output.
+   * Returns the volume every video plays at, which the audio pipeline of every video applies before its output.
    *
    * @return the volume filter, shared by the videos
    */
@@ -569,7 +569,7 @@ public final class VideoPlayerManager {
   }
 
   /**
-   * Checks whether the videos loop.
+   * Returns whether the videos loop.
    *
    * @return true if a video plays again from its start when it ends
    */
@@ -587,7 +587,7 @@ public final class VideoPlayerManager {
   }
 
   /**
-   * Gets the capture devices listed last.
+   * Returns the capture devices listed last.
    *
    * @return the devices, none before the first listing
    */

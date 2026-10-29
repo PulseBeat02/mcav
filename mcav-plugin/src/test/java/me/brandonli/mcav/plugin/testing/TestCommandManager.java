@@ -78,7 +78,7 @@ public final class TestCommandManager extends CommandManager<CommandSender> {
   }
 
   /**
-   * Gets the syntax of every registered command, such as {@code mcav video pause}.
+   * Returns the syntax of every registered command, such as {@code mcav video pause}.
    *
    * @return the syntaxes, sorted
    */

@@ -254,7 +254,7 @@ public final class AudioProvider {
   }
 
   /**
-   * Gets the link to the Discord voice channel.
+   * Returns the link to the Discord voice channel.
    *
    * @return the channel URL
    */
@@ -265,7 +265,7 @@ public final class AudioProvider {
   }
 
   /**
-   * Gets the link to the audio web page.
+   * Returns the link to the audio web page.
    *
    * @return the page URL
    */
@@ -280,7 +280,7 @@ public final class AudioProvider {
   }
 
   /**
-   * Checks whether the Discord bot is enabled in the configuration.
+   * Returns whether the Discord bot is enabled in the configuration.
    *
    * @return true if enabled
    */
@@ -289,7 +289,7 @@ public final class AudioProvider {
   }
 
   /**
-   * Checks whether the Discord bot has logged in and found its voice channel, so it can play.
+   * Returns whether the Discord bot has logged in and found its voice channel, so it can play.
    *
    * @return true if ready, false while it starts, after it failed to start, or when it is disabled
    */
@@ -298,7 +298,7 @@ public final class AudioProvider {
   }
 
   /**
-   * Checks whether the audio web page is enabled in the configuration.
+   * Returns whether the audio web page is enabled in the configuration.
    *
    * @return true if enabled
    */
@@ -307,7 +307,7 @@ public final class AudioProvider {
   }
 
   /**
-   * Checks whether the web server of the audio web page has started, so it can play.
+   * Returns whether the web server of the audio web page has started, so it can play.
    *
    * @return true if ready, false while it starts, after it failed to start, or when it is disabled
    */

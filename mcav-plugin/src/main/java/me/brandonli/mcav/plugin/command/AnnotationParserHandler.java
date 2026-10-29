@@ -144,7 +144,7 @@ public final class AnnotationParserHandler {
   }
 
   /**
-   * Gets the command manager.
+   * Returns the command manager.
    *
    * @return the command manager
    */

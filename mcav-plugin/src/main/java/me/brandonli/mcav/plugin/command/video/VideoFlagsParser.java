@@ -243,7 +243,7 @@ public final class VideoFlagsParser {
   }
 
   /**
-   * Gets the names of the yt-dlp options the video commands accept, in alphabetical order. A switch is written as
+   * Returns the names of the yt-dlp options the video commands accept, in alphabetical order. A switch is written as
    * {@code name} and an option with a value as {@code name=value}.
    *
    * @return the option names, as an unmodifiable list

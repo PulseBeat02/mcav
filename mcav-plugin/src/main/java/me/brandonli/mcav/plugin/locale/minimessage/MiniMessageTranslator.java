@@ -90,7 +90,7 @@ public abstract class MiniMessageTranslator implements Translator {
    * @param component the component to render
    * @param locale    the locale Adventure renders for, passed on to {@link #getMiniMessageString(String, Locale)}
    * @return the rendered component, or null when this translator has no message for the key
-   * @throws NullPointerException               if the component or the locale is {@code null}
+   * @throws NullPointerException if the component or the locale is {@code null}
    */
   @Override
   public @Nullable Component translate(final @NonNull TranslatableComponent component, final @NonNull Locale locale) {
@@ -131,7 +131,7 @@ public abstract class MiniMessageTranslator implements Translator {
   }
 
   /**
-   * Gets the MiniMessage text of a message.
+   * Returns the MiniMessage text of a message.
    *
    * @param key    the key of the message, such as {@code mcav.command.image.load}
    * @param locale the locale Adventure renders for; implementations may ignore it when they serve one language

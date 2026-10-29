@@ -154,7 +154,7 @@ public final class MCAVLoader implements PluginLoader {
   }
 
   /**
-   * Gets the folder the libraries are cached in.
+   * Returns the folder the libraries are cached in.
    *
    * @return the cache folder
    */

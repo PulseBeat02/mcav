@@ -93,7 +93,7 @@ public final class MapUtils {
    * @return the map item, with the id in its lore
    * @throws IllegalArgumentException if the id is negative, or more than {@link #MAXIMUM_NEW_MAPS} ids past the next map
    *                                  id the server hands out
-   * @throws IllegalStateException if the requested historical map is missing and its id cannot be allocated again
+   * @throws IllegalStateException    if the requested historical map is missing and its id cannot be allocated again
    */
   public static ItemStack getMapFromId(final int id) {
     Preconditions.checkArgument(id >= 0, "Map id %s must not be negative!", id);
@@ -120,7 +120,7 @@ public final class MapUtils {
   }
 
   /**
-   * Gets the map with an id, creating maps in the first world until it exists.
+   * Returns the map with an id, creating maps in the first world until it exists.
    */
   private static MapView findOrCreateMap(final int id) {
     final MapView existing = Bukkit.getMap(id);

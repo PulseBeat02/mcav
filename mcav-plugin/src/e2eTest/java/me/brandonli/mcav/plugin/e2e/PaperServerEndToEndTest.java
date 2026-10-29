@@ -671,7 +671,7 @@ final class PaperServerEndToEndTest {
   }
 
   /**
-   * Gets a file from the download cache of the build, downloading it first when it is missing or damaged.
+   * Returns a file from the download cache of the build, downloading it first when it is missing or damaged.
    */
   private static Path download(final Path cache, final RemoteFile remoteFile) throws IOException, InterruptedException {
     Files.createDirectories(cache);

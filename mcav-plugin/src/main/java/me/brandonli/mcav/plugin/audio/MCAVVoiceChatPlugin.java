@@ -50,7 +50,7 @@ public final class MCAVVoiceChatPlugin implements VoicechatPlugin {
   }
 
   /**
-   * Gets the id Simple Voice Chat knows this plugin by.
+   * Returns the id Simple Voice Chat knows this plugin by.
    *
    * @return {@code mcav}
    */

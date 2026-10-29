@@ -67,7 +67,7 @@ final class ScreenSettings {
   }
 
   /**
-   * Gets who ran the command.
+   * Returns who ran the command.
    *
    * @return the sender
    */
@@ -76,7 +76,7 @@ final class ScreenSettings {
   }
 
   /**
-   * Gets the players who see the screen.
+   * Returns the players who see the screen.
    *
    * @return the player selector
    */
@@ -85,7 +85,7 @@ final class ScreenSettings {
   }
 
   /**
-   * Gets the width and height of the screen in blocks.
+   * Returns the width and height of the screen in blocks.
    *
    * @return the size in blocks
    */
@@ -94,7 +94,7 @@ final class ScreenSettings {
   }
 
   /**
-   * Gets the width and height of the picture in pixels.
+   * Returns the width and height of the picture in pixels.
    *
    * @return the resolution
    */
@@ -103,7 +103,7 @@ final class ScreenSettings {
   }
 
   /**
-   * Gets the id of the first map of the screen.
+   * Returns the id of the first map of the screen.
    *
    * @return the map id
    */
@@ -112,7 +112,7 @@ final class ScreenSettings {
   }
 
   /**
-   * Gets the dithering algorithm that reduces the picture to map colors.
+   * Returns the dithering algorithm that reduces the picture to map colors.
    *
    * @return the dithering argument
    */
@@ -121,7 +121,7 @@ final class ScreenSettings {
   }
 
   /**
-   * Gets how the picture reaches the players.
+   * Returns how the picture reaches the players.
    *
    * @return the codec
    */

@@ -73,7 +73,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
   }
 
   /**
-   * Gets the permission a player needs to send input to the desktop.
+   * Returns the permission a player needs to send input to the desktop.
    *
    * @return {@value #INTERACT_PERMISSION}
    */

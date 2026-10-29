@@ -41,7 +41,7 @@ public final class DiskImages {
   }
 
   /**
-   * Gets the folder that holds the disk images. The folder is not created here.
+   * Returns the folder that holds the disk images. The folder is not created here.
    *
    * @param dataFolder the data folder of the plugin
    * @return the folder of the disk images

@@ -136,8 +136,8 @@ public final class CaptureDevices {
   /**
    * Tries the first numbers.
    *
-   * @param count  how many numbers
-   * @param opens  whether the device of a number opens
+   * @param count how many numbers
+   * @param opens whether the device of a number opens
    * @return the devices that opened, named by their number
    */
   static List<Device> probe(final int count, final IntPredicate opens) {
@@ -151,13 +151,13 @@ public final class CaptureDevices {
     return List.copyOf(devices);
   }
 
-  /** Whether the device of a number opens, which briefly opens it. */
+  /** Returns whether the device of a number opens, which briefly opens it. */
   static boolean opens(final int index) {
     return opens(OpenCVFrameGrabber::new, index);
   }
 
   /**
-   * Whether the device of a number opens, which briefly opens it.
+   * Returns whether the device of a number opens, which briefly opens it.
    *
    * @param grabbers makes the grabber of a number
    * @param index    the number

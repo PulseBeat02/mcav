@@ -110,11 +110,11 @@ public final class TranslationManager {
   }
 
   /**
-   * Gets a message as it is written in the file, without rendering it.
+   * Returns a message as it is written in the file, without rendering it.
    *
    * @param key the key of the message
    * @return the message
-   * @throws NullPointerException               if the key is {@code null}
+   * @throws NullPointerException     if the key is {@code null}
    * @throws MissingResourceException if there is no message with the key
    */
   public String getProperty(final String key) {
@@ -127,7 +127,7 @@ public final class TranslationManager {
    *
    * @param component the component, whose key names the message and whose arguments fill its placeholders
    * @return the rendered component
-   * @throws NullPointerException               if the component is {@code null}
+   * @throws NullPointerException     if the component is {@code null}
    * @throws MissingResourceException if there is no message with the key of the component
    */
   public Component render(final TranslatableComponent component) {

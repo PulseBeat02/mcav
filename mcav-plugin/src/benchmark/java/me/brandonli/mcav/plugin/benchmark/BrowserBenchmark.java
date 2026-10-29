@@ -111,7 +111,7 @@ public final class BrowserBenchmark {
   }
 
   /**
-   * Gets the backend with the given name.
+   * Returns the backend with the given name.
    *
    * @param backend the name of the backend
    * @return the factory of its players

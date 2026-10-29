@@ -90,7 +90,7 @@ public final class OnlinePlayers implements Listener {
   }
 
   /**
-   * Gets the players online.
+   * Returns the players online.
    *
    * @return their UUIDs, a view that follows joins and quits
    */

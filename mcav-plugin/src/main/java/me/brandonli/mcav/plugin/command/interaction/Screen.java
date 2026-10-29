@@ -61,7 +61,7 @@ final class Screen {
   }
 
   /**
-   * Gets the pixel of the source a player clicks at a pixel of the wall.
+   * Returns the pixel of the source a player clicks at a pixel of the wall.
    *
    * @param wallX the column of the pixel on the wall
    * @param wallY the row of the pixel on the wall
@@ -123,7 +123,7 @@ final class Screen {
   }
 
   /**
-   * Gets the output the frames go to.
+   * Returns the output the frames go to.
    *
    * @return the dithered maps or the MCV2 screen
    */
@@ -132,7 +132,7 @@ final class Screen {
   }
 
   /**
-   * Gets the pipeline that brings the frames of the player onto the maps.
+   * Returns the pipeline that brings the frames of the player onto the maps.
    *
    * @return the pipeline
    */

@@ -78,7 +78,7 @@ final class TonePage implements AutoCloseable {
   }
 
   /**
-   * Gets the address of the page.
+   * Returns the address of the page.
    *
    * @return the address
    */

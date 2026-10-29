@@ -102,7 +102,7 @@ final class MapUtilsTest {
   }
 
   /**
-   * Gets the map that the server returns for an id, the same map every time.
+   * Returns the map that the server returns for an id, the same map every time.
    */
   private MapView existingMap(final int id) {
     final MapView known = this.existingMaps.get(id);

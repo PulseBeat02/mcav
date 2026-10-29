@@ -44,7 +44,7 @@ public enum Mcv2Hosting {
   WEBSITE;
 
   /**
-   * Gets the hosting of a written pack.
+   * Returns the hosting of a written pack.
    *
    * @param host the host name or address players reach the HTTP server by, for {@link #HTTP}; empty for the address
    *             the server finds for itself, looked up when a pack is hosted

@@ -80,7 +80,7 @@ final class LocalMavenRepositoryServer implements AutoCloseable {
   }
 
   /**
-   * Gets how many files the repository has served so far.
+   * Returns how many files the repository has served so far.
    *
    * @return the number of successful {@code GET} requests
    */

@@ -291,7 +291,7 @@ public final class MCAVSandbox extends JavaPlugin {
   }
 
   /**
-   * Gets the library instance.
+   * Returns the library instance.
    *
    * @return the library
    */
@@ -300,7 +300,7 @@ public final class MCAVSandbox extends JavaPlugin {
   }
 
   /**
-   * Gets the configuration.
+   * Returns the configuration.
    *
    * @return the configuration
    */
@@ -309,7 +309,7 @@ public final class MCAVSandbox extends JavaPlugin {
   }
 
   /**
-   * Gets the manager of the video player.
+   * Returns the manager of the video player.
    *
    * @return the video player manager
    */
@@ -318,7 +318,7 @@ public final class MCAVSandbox extends JavaPlugin {
   }
 
   /**
-   * Gets the provider of audio outputs.
+   * Returns the provider of audio outputs.
    *
    * @return the audio provider
    */
@@ -327,7 +327,7 @@ public final class MCAVSandbox extends JavaPlugin {
   }
 
   /**
-   * Gets the manager of displayed images.
+   * Returns the manager of displayed images.
    *
    * @return the image manager
    */
@@ -336,7 +336,7 @@ public final class MCAVSandbox extends JavaPlugin {
   }
 
   /**
-   * Gets what the MCV2 screens share: the one pack that decodes them all, and who loaded it.
+   * Returns what the MCV2 screens share: the one pack that decodes them all, and who loaded it.
    *
    * @return the MCV2 support
    */
@@ -345,7 +345,7 @@ public final class MCAVSandbox extends JavaPlugin {
   }
 
   /**
-   * Gets the players online, which a wall shown to {@code @a} keeps following.
+   * Returns the players online, which a wall shown to {@code @a} keeps following.
    *
    * @return the online players
    */
@@ -354,7 +354,7 @@ public final class MCAVSandbox extends JavaPlugin {
   }
 
   /**
-   * Checks whether QEMU was found when the plugin was enabled.
+   * Returns whether QEMU was found when the plugin was enabled.
    *
    * @return true if virtual machines can be created
    */
@@ -363,7 +363,7 @@ public final class MCAVSandbox extends JavaPlugin {
   }
 
   /**
-   * Checks whether the browser can run on the operating system and processor of this server, as found when the plugin
+   * Returns whether the browser can run on the operating system and processor of this server, as found when the plugin
    * was enabled.
    *
    * @return true if browsers can be created

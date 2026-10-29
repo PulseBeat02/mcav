@@ -96,7 +96,7 @@ public final class FakeWorld {
   }
 
   /**
-   * Gets the mocked world.
+   * Returns the mocked world.
    *
    * @return the world
    */
@@ -117,7 +117,7 @@ public final class FakeWorld {
   }
 
   /**
-   * Gets the block at a position.
+   * Returns the block at a position.
    *
    * @param blockX the x coordinate
    * @param blockY the y coordinate
@@ -165,7 +165,7 @@ public final class FakeWorld {
   }
 
   /**
-   * Gets the material a block was set to.
+   * Returns the material a block was set to.
    *
    * @param blockX the x coordinate
    * @param blockY the y coordinate
@@ -251,7 +251,7 @@ public final class FakeWorld {
   }
 
   /**
-   * Gets the item frames spawned through {@link World#spawn(Location, Class)}, in order.
+   * Returns the item frames spawned through {@link World#spawn(Location, Class)}, in order.
    *
    * @return the frames
    */
@@ -260,7 +260,7 @@ public final class FakeWorld {
   }
 
   /**
-   * Checks whether an item frame has a tag.
+   * Returns whether an item frame has a tag.
    *
    * @param frame the frame
    * @param key   the tag

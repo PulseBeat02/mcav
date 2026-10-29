@@ -160,7 +160,7 @@ public final class TestServer {
   }
 
   /**
-   * Gets the server.
+   * Returns the server.
    *
    * @return the server
    */
@@ -169,7 +169,7 @@ public final class TestServer {
   }
 
   /**
-   * Gets the scheduler of the server.
+   * Returns the scheduler of the server.
    *
    * @return the scheduler
    */
@@ -178,7 +178,7 @@ public final class TestServer {
   }
 
   /**
-   * Gets the plugin manager of the server.
+   * Returns the plugin manager of the server.
    *
    * @return the plugin manager
    */

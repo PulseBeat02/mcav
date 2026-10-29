@@ -506,7 +506,7 @@ public final class FilterChain {
   }
 
   /**
-   * Checks whether the chain has no filter.
+   * Returns whether the chain has no filter.
    *
    * @return true if no filter is applied
    */

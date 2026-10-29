@@ -60,7 +60,7 @@ final class MapProbe implements DitherResultStep {
   }
 
   /**
-   * Gets the index of a map palette color, given as {@code #rrggbb}.
+   * Returns the index of a map palette color, given as {@code #rrggbb}.
    *
    * @param color the color
    * @return the palette index

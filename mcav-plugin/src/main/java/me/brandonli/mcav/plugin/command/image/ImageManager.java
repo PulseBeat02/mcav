@@ -204,7 +204,7 @@ public final class ImageManager {
   }
 
   /**
-   * Gets the thread that loads images.
+   * Returns the thread that loads images.
    *
    * @return the executor
    */
