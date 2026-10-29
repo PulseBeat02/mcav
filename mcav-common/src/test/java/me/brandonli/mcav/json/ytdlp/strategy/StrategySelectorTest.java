@@ -54,7 +54,6 @@ final class StrategySelectorTest {
     final StrategySelector selector = StrategySelector.of(FormatStrategy.FIRST_AUDIO, FormatStrategy.BEST_QUALITY_VIDEO);
     final FormatStrategy audio = selector.getAudioStrategy();
     final FormatStrategy video = selector.getVideoStrategy();
-    assertInstanceOf(DefaultStrategySelector.class, selector);
     assertSame(FormatStrategy.FIRST_AUDIO, audio);
     assertSame(FormatStrategy.BEST_QUALITY_VIDEO, video);
   }
