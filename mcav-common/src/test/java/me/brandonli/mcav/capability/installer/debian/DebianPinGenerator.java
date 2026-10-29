@@ -52,12 +52,13 @@ import me.brandonli.mcav.utils.http.HttpDownloader;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.tukaani.xz.XZInputStream;
 
-// Generates the pinned Debian package lists that mcav fetches libraries from: it resolves the dependency closure of a
-// few root packages in the bookworm and bookworm-security indexes of one snapshot of each Debian archive, the newest
-// version of a package winning, so every URL stays valid after later point releases, and writes each package with the
-// SHA-256 its index lists, dependencies before their dependents. Packages every glibc system has (libc6 and the GCC
-// runtime) and architecture-independent packages, which hold no libraries, are left out. Run it with
-// ./gradlew :mcav-common:generateDebianPins after a Debian point release or security update.
+// Generates the pinned Debian package lists that MCAV fetches libraries and programs from. For each bundle that the
+// generateDebianPins task of a module names, it resolves the dependency closure of the root packages in the bookworm
+// and bookworm-security indexes of one snapshot of each Debian archive, the newest version of a package winning, so
+// every URL stays valid after later point releases, and writes each package with the SHA-256 its index lists,
+// dependencies before their dependents. Packages every glibc system has (libc6 and the GCC runtime) are left out, and
+// so are architecture-independent packages unless the task includes them, as programs need them for their data. Run
+// the task of the module after a Debian point release or security update.
 final class DebianPinGenerator {
 
   private static final DateTimeFormatter SNAPSHOT_DAY = DateTimeFormatter.ofPattern("yyyyMMdd'T000000Z/'", Locale.ROOT).withZone(
@@ -94,21 +95,43 @@ final class DebianPinGenerator {
   private static final String FIELD_SEPARATOR = ":";
   private static final String LINE_END = "\n";
 
+  private static final int FIRST_BUNDLE_ARGUMENT = 2;
+  private static final Splitter BUNDLE_PARTS = Splitter.on('=');
+  private static final int BUNDLE_PART_COUNT = 2;
+  private static final Splitter ROOTS = Splitter.on(',');
+
   private static final Comparator<String> VERSIONS = new DebianVersionComparator();
 
-  private static final List<Bundle> BUNDLES = List.of(
-    new Bundle("debian-vlc.json", List.of("libvlc5", "libvlccore9", "vlc-plugin-base")),
-    new Bundle("debian-gtk2.json", List.of("libgtk2.0-0")),
-    new Bundle("debian-ffmpeg.json", List.of("libasound2", "libpulse0", "libxcb1", "libxcb-shm0", "libudev1"))
-  );
+  private final IndependentPackages independentPackages;
+
+  DebianPinGenerator(final IndependentPackages independentPackages) {
+    this.independentPackages = independentPackages;
+  }
 
   static void main(final String[] arguments) throws IOException, InterruptedException {
     final Path outputDirectory = Path.of(arguments[0]);
-    final DebianPinGenerator generator = new DebianPinGenerator();
-    generator.generate(outputDirectory);
+    final IndependentPackages independentPackages = IndependentPackages.valueOf(arguments[1]);
+    final List<String> bundleArguments = List.of(arguments).subList(FIRST_BUNDLE_ARGUMENT, arguments.length);
+    final DebianPinGenerator generator = new DebianPinGenerator(independentPackages);
+    final List<Bundle> bundles = bundleArguments.stream().map(generator::parseBundle).toList();
+    generator.generate(outputDirectory, bundles);
   }
 
-  private void generate(final Path outputDirectory) throws IOException, InterruptedException {
+  // a bundle argument is the file name, an equals sign and the root packages separated by commas
+  Bundle parseBundle(final String argument) {
+    final List<String> parts = BUNDLE_PARTS.splitToList(argument);
+    if (parts.size() != BUNDLE_PART_COUNT) {
+      final String message = "Bundle %s must be a file name, an equals sign and its root packages!".formatted(argument);
+      throw new IllegalArgumentException(message);
+    }
+
+    final String fileName = parts.getFirst();
+    final String roots = parts.getLast();
+    final List<String> rootNames = ROOTS.splitToList(roots);
+    return new Bundle(fileName, rootNames);
+  }
+
+  private void generate(final Path outputDirectory, final List<Bundle> bundles) throws IOException, InterruptedException {
     final Map<Archive, URI> snapshots = new EnumMap<>(Archive.class);
     for (final Archive archive : Archive.values()) {
       final URI snapshot = this.findSnapshot(archive);
@@ -117,13 +140,15 @@ final class DebianPinGenerator {
 
     final Path temporary = Files.createTempDirectory(TEMPORARY_DIRECTORY_PREFIX);
     try {
+      Files.createDirectories(outputDirectory);
+
       final Map<Architecture, List<Index>> indexes = new EnumMap<>(Architecture.class);
       for (final Architecture architecture : Architecture.values()) {
         final List<Index> architectureIndexes = this.downloadIndexes(snapshots, architecture, temporary);
         indexes.put(architecture, architectureIndexes);
       }
 
-      for (final Bundle bundle : BUNDLES) {
+      for (final Bundle bundle : bundles) {
         this.writeBundle(outputDirectory, bundle, indexes);
       }
     } finally {
@@ -246,7 +271,8 @@ final class DebianPinGenerator {
     }
 
     final boolean independent = entry.architecture().equals(INDEPENDENT_ARCHITECTURE);
-    if (resolved.containsKey(real) || independent) {
+    final boolean leftOut = independent && this.independentPackages == IndependentPackages.LEFT_OUT;
+    if (resolved.containsKey(real) || leftOut) {
       return;
     }
 
@@ -390,7 +416,12 @@ final class DebianPinGenerator {
     }
   }
 
-  private record Bundle(String fileName, List<String> roots) {}
+  enum IndependentPackages {
+    INCLUDED,
+    LEFT_OUT,
+  }
+
+  record Bundle(String fileName, List<String> roots) {}
 
   record Index(URI snapshot, String text) {}
 

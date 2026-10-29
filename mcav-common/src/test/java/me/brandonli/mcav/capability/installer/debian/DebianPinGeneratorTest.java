@@ -113,7 +113,7 @@ final class DebianPinGeneratorTest {
 
   @BeforeEach
   void setUp() {
-    this.generator = new DebianPinGenerator();
+    this.generator = new DebianPinGenerator(DebianPinGenerator.IndependentPackages.LEFT_OUT);
   }
 
   @Test
@@ -122,6 +122,24 @@ final class DebianPinGeneratorTest {
 
     final List<String> names = closure.stream().map(DebianPinGenerator.IndexEntry::name).toList();
     final List<String> expected = List.of("libleaf0", "libmiddle2", "libalternative1", "libprovider3", "libroot1");
+    assertEquals(expected, names);
+  }
+
+  @Test
+  void shouldIncludeIndependentPackagesWithTheirDependencies() {
+    final DebianPinGenerator including = new DebianPinGenerator(DebianPinGenerator.IndependentPackages.INCLUDED);
+    final List<DebianPinGenerator.IndexEntry> closure = including.resolveClosure(MAIN, List.of("libroot1"));
+
+    final List<String> names = closure.stream().map(DebianPinGenerator.IndexEntry::name).toList();
+    final List<String> expected = List.of(
+      "libleaf0",
+      "libmiddle2",
+      "libalternative1",
+      "libprovider3",
+      "libunused1",
+      "libroot-data",
+      "libroot1"
+    );
     assertEquals(expected, names);
   }
 
@@ -168,5 +186,22 @@ final class DebianPinGeneratorTest {
 
     final DebianPinGenerator.IndexEntry unused = closure.getFirst();
     assertEquals(MAIN_SNAPSHOT, unused.snapshot());
+  }
+
+  @Test
+  void shouldReadABundleFromItsArgument() {
+    final DebianPinGenerator.Bundle bundle = this.generator.parseBundle("debian-qemu-x86.json=qemu-system-x86,seabios");
+
+    final DebianPinGenerator.Bundle expected = new DebianPinGenerator.Bundle("debian-qemu-x86.json", List.of("qemu-system-x86", "seabios"));
+    assertEquals(expected, bundle);
+  }
+
+  @Test
+  void shouldRefuseABundleWithoutAnEqualsSign() {
+    final String argument = "debian-qemu-x86.json";
+
+    final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () -> this.generator.parseBundle(argument));
+    final String message = failure.getMessage();
+    assertEquals("Bundle debian-qemu-x86.json must be a file name, an equals sign and its root packages!", message);
   }
 }
