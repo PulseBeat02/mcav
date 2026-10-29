@@ -234,7 +234,7 @@ final class HttpDownloaderTest {
       server.respond(BROKEN_ROUTE, HTTP_SERVER_ERROR, CONTENT);
       final URI broken = server.uri(BROKEN_ROUTE);
       final Path destination = this.directory.resolve(BROKEN_FILE_NAME);
-      final Duration retryDelay = Duration.ofMillis(500);
+      final Duration retryDelay = Duration.ofSeconds(2);
       final Future<Long> failedAt = executor.submit(() -> failAndTime(broken, destination, retryDelay));
 
       final boolean secondAttemptEarly = server.awaitRequests(BROKEN_ROUTE, 2, Duration.ofMillis(250));
