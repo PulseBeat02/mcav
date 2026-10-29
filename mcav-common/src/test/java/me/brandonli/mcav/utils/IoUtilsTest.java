@@ -57,6 +57,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -86,6 +87,9 @@ final class IoUtilsTest {
 
   private static final byte[] ABC = "abc".getBytes(StandardCharsets.US_ASCII);
   private static final Duration SHORT_RETRY_DELAY = Duration.ofMillis(1);
+  private static final Duration RETRY_DELAY = Duration.ofMillis(100);
+  private static final Duration SECOND_RETRY_DELAY = Duration.ofMillis(200);
+  private static final Duration TOTAL_RETRY_DELAY = Duration.ofMillis(300);
 
   private static final Map<String, String> CREATE_ENVIRONMENT = Map.of("create", "true");
 
@@ -1061,17 +1065,83 @@ final class IoUtilsTest {
   }
 
   @Test
+  void shouldWaitLongerBeforeEachRetryOfADeniedMove() throws IOException {
+    final Path source = this.directory.resolve(SOURCE_NAME);
+    final Path target = this.directory.resolve(TARGET_NAME);
+    final List<Long> attemptTimes = new ArrayList<>();
+    IoUtils.moveReplacing(source, target, (_, to, _) -> this.recordAndDenyAllButTheLastAttempt(to, attemptTimes), RETRY_DELAY);
+    final long firstAttempt = attemptTimes.getFirst();
+    final long secondAttempt = attemptTimes.get(1);
+    final long lastAttempt = attemptTimes.getLast();
+    final Duration firstWait = Duration.ofNanos(secondAttempt - firstAttempt);
+    final Duration secondWait = Duration.ofNanos(lastAttempt - secondAttempt);
+    final boolean firstWaitLongEnough = firstWait.compareTo(RETRY_DELAY) >= 0;
+    final boolean secondWaitLongEnough = secondWait.compareTo(SECOND_RETRY_DELAY) >= 0;
+    final int attemptCount = attemptTimes.size();
+    assertEquals(MAXIMUM_MOVE_ATTEMPTS, attemptCount);
+    assertTrue(firstWaitLongEnough, "the first retry waits the retry delay");
+    assertTrue(secondWaitLongEnough, "the second retry waits twice the retry delay");
+  }
+
+  private void recordAndDenyAllButTheLastAttempt(final Path to, final List<Long> attemptTimes) throws AccessDeniedException {
+    final long now = System.nanoTime();
+    attemptTimes.add(now);
+    if (attemptTimes.size() < MAXIMUM_MOVE_ATTEMPTS) {
+      final String rawTo = to.toString();
+      throw new AccessDeniedException(rawTo);
+    }
+  }
+
+  @Test
   void shouldGiveUpOnAMoveThatStaysDenied() {
     final Path source = this.directory.resolve(SOURCE_NAME);
     final Path target = this.directory.resolve(TARGET_NAME);
-    final AccessDeniedException denied = new AccessDeniedException(TARGET_NAME);
+    final AtomicReference<AccessDeniedException> lastDenial = new AtomicReference<>();
     final AtomicInteger attempts = new AtomicInteger();
     final AccessDeniedException thrown = assertThrows(AccessDeniedException.class, () ->
-      IoUtils.moveReplacing(source, target, (_, _, _) -> this.countAttemptAndFail(attempts, denied), SHORT_RETRY_DELAY)
+      IoUtils.moveReplacing(source, target, (_, _, _) -> this.countAttemptAndDenyAgain(attempts, lastDenial), SHORT_RETRY_DELAY)
     );
+    final AccessDeniedException last = lastDenial.get();
     final int attemptCount = attempts.get();
-    assertSame(denied, thrown);
+    assertSame(last, thrown, "the last denial is thrown");
     assertEquals(MAXIMUM_MOVE_ATTEMPTS, attemptCount, "a move is tried three times in total");
+  }
+
+  private void countAttemptAndDenyAgain(final AtomicInteger attempts, final AtomicReference<AccessDeniedException> lastDenial)
+    throws AccessDeniedException {
+    attempts.incrementAndGet();
+
+    final AccessDeniedException denied = new AccessDeniedException(TARGET_NAME);
+    lastDenial.set(denied);
+    throw denied;
+  }
+
+  @Test
+  void shouldReportAMoveThatStaysDeniedWithTheDenialAsItsCause() throws IOException {
+    final Path source = this.directory.resolve(SOURCE_NAME);
+    final Path targetDirectory = Files.createDirectories(this.directory.resolve(TARGET_NAME));
+    final Path target = targetDirectory.resolve(FILE_NAME);
+    Files.writeString(source, FILE_CONTENT);
+    final Os operatingSystem = OsUtils.getOs();
+    final boolean posix = operatingSystem != Os.WINDOWS;
+    Assumptions.assumeTrue(posix, "Directory permissions need a POSIX file system!");
+
+    Files.setPosixFilePermissions(targetDirectory, READ_ONLY_PERMISSIONS);
+    try {
+      final boolean writable = Files.isWritable(targetDirectory);
+      Assumptions.assumeFalse(writable, "The user can write every directory!");
+
+      final long start = System.nanoTime();
+      final FileOperationException thrown = assertThrows(FileOperationException.class, () -> IoUtils.moveReplacing(source, target));
+      final long end = System.nanoTime();
+      final Duration waited = Duration.ofNanos(end - start);
+      final Throwable cause = thrown.getCause();
+      final boolean waitedForEveryRetry = waited.compareTo(TOTAL_RETRY_DELAY) >= 0;
+      assertInstanceOf(AccessDeniedException.class, cause);
+      assertTrue(waitedForEveryRetry, "a denied move is retried 100 and 200 milliseconds apart");
+    } finally {
+      Files.setPosixFilePermissions(targetDirectory, OWNER_DIRECTORY_PERMISSIONS);
+    }
   }
 
   @Test
