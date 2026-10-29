@@ -229,12 +229,13 @@ final class HttpDownloaderTest {
   }
 
   @Test
-  void shouldWaitBetweenAttemptsButNotAfterTheLast() throws Exception {
+  void shouldWaitLongerBeforeEachRetryButNotAfterTheLastAttempt() throws Exception {
     try (final LocalHttpServer server = LocalHttpServer.start(); final ExecutorService executor = Executors.newSingleThreadExecutor()) {
       server.respond(BROKEN_ROUTE, HTTP_SERVER_ERROR, CONTENT);
       final URI broken = server.uri(BROKEN_ROUTE);
       final Path destination = this.directory.resolve(BROKEN_FILE_NAME);
       final Duration retryDelay = Duration.ofMillis(500);
+      final long startedAt = System.nanoTime();
       final Future<Long> failedAt = executor.submit(() -> failAndTime(broken, destination, retryDelay));
 
       final boolean secondAttemptEarly = server.awaitRequests(BROKEN_ROUTE, 2, Duration.ofMillis(250));
@@ -242,10 +243,16 @@ final class HttpDownloaderTest {
 
       final boolean thirdAttempt = server.awaitRequests(BROKEN_ROUTE, MAXIMUM_ATTEMPTS, Duration.ofSeconds(WAIT_TIMEOUT_SECONDS));
       final long thirdAttemptAt = System.nanoTime();
-      final Duration afterLastAttempt = Duration.ofNanos(failedAt.get() - thirdAttemptAt);
+      final long failedAtNanos = failedAt.get();
+      final Duration afterLastAttempt = Duration.ofNanos(failedAtNanos - thirdAttemptAt);
       final boolean failedPromptly = afterLastAttempt.compareTo(retryDelay) < 0;
       assertTrue(thirdAttempt);
       assertTrue(failedPromptly, "no wait after the last attempt, but " + afterLastAttempt);
+
+      final Duration untilFailure = Duration.ofNanos(failedAtNanos - startedAt);
+      final Duration growingWaits = retryDelay.multipliedBy(3);
+      final boolean waitedLonger = untilFailure.compareTo(growingWaits) >= 0;
+      assertTrue(waitedLonger, "the second wait is twice the first, but the attempts took " + untilFailure);
     }
   }
 
