@@ -885,7 +885,7 @@ final class HttpDownloaderTest {
   }
 
   @Test
-  void shouldFetchText() throws IOException {
+  void shouldFetchTheBodyOrNothingForAnErrorStatus() throws IOException {
     try (final LocalHttpServer server = LocalHttpServer.start()) {
       server.respond("/text", HTTP_OK, CONTENT);
       final URI text = server.uri("/text");
@@ -896,7 +896,16 @@ final class HttpDownloaderTest {
       final boolean notFoundEmpty = notFound.isEmpty();
       assertEquals(expectedText, fetched);
       assertTrue(notFoundEmpty);
+    }
 
+    assertThrows(NullPointerException.class, () -> HttpDownloader.fetchText(null));
+  }
+
+  @Test
+  void shouldKeepTheInterruptFlagWhenAFetchIsInterrupted() throws IOException {
+    try (final LocalHttpServer server = LocalHttpServer.start()) {
+      server.respond("/text", HTTP_OK, CONTENT);
+      final URI text = server.uri("/text");
       final Thread current = Thread.currentThread();
       current.interrupt();
       assertThrows(DownloadException.class, () -> HttpDownloader.fetchText(text));
@@ -904,8 +913,6 @@ final class HttpDownloaderTest {
       final boolean interrupted = Thread.interrupted();
       assertTrue(interrupted);
     }
-
-    assertThrows(NullPointerException.class, () -> HttpDownloader.fetchText(null));
   }
 
   @Test
@@ -930,6 +937,10 @@ final class HttpDownloaderTest {
     final boolean namesMcav = agent.startsWith("mcav ");
     assertTrue(namesMcav, "the user agent names mcav, but was " + agent);
     assertThrows(NullPointerException.class, () -> HttpDownloader.createRequest(null));
+  }
+
+  @Test
+  void shouldReportADigestAlgorithmThatDoesNotExist() {
     assertThrows(DownloadException.class, () -> HttpDownloader.createDigest("NO-SUCH-ALGORITHM"));
   }
 
