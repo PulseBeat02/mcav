@@ -984,7 +984,11 @@ inline int32_t four_pixel_difference(const uint32_t first_pixel, const uint32_t 
                                      const uint32_t third_pixel, const uint32_t fourth_pixel,
                                      const uint8_t* sample_bytes) {
   const uint32_t words[SAMPLE_GRID] = {first_pixel, second_pixel, third_pixel, fourth_pixel};
-  return (int32_t)vaddlvq_u8(vabdq_u8(vreinterpretq_u8_u32(vld1q_u32(words)), vld1q_u8(sample_bytes)));
+  const uint32x4_t pixel_words = vld1q_u32(words);
+  const uint8x16_t pixels = vreinterpretq_u8_u32(pixel_words);
+  const uint8x16_t samples = vld1q_u8(sample_bytes);
+  const uint8x16_t absolute_differences = vabdq_u8(pixels, samples);
+  return (int32_t)vaddlvq_u8(absolute_differences);
 }
 
 struct int_vector {
@@ -995,8 +999,12 @@ struct int_vector {
     return {vld1q_s32(buffer)};
   }
   void store_bytes(int8_t* buffer) const {
-    const int8x8_t bytes = vmovn_s16(vcombine_s16(vmovn_s32(lanes_), vdup_n_s16(0)));
-    vst1_lane_s32((int32_t*)buffer, vreinterpret_s32_s8(bytes), 0);
+    const int16x4_t narrowed = vmovn_s32(lanes_);
+    const int16x4_t zero = vdup_n_s16(0);
+    const int16x8_t words = vcombine_s16(narrowed, zero);
+    const int8x8_t bytes = vmovn_s16(words);
+    const int32x2_t packed_words = vreinterpret_s32_s8(bytes);
+    vst1_lane_s32((int32_t*)buffer, packed_words, 0);
   }
   void store(int32_t* buffer) const {
     vst1q_s32(buffer, lanes_);
@@ -1014,8 +1022,12 @@ struct int_vector {
   static int_vector load_unsigned_bytes(const uint8_t* buffer) {
     uint32_t word;
     memcpy(&word, buffer, sizeof(word));
-    const uint8x8_t bytes = vreinterpret_u8_u32(vdup_n_u32(word));
-    return {vreinterpretq_s32_u32(vmovl_u16(vget_low_u16(vmovl_u8(bytes))))};
+    const uint32x2_t repeated_word = vdup_n_u32(word);
+    const uint8x8_t bytes = vreinterpret_u8_u32(repeated_word);
+    const uint16x8_t words = vmovl_u8(bytes);
+    const uint16x4_t low_words = vget_low_u16(words);
+    const uint32x4_t widened = vmovl_u16(low_words);
+    return {vreinterpretq_s32_u32(widened)};
   }
   friend int_vector operator+(const int_vector first, const int_vector second) {
     return {vaddq_s32(first.lanes_, second.lanes_)};
@@ -1033,10 +1045,12 @@ struct int_vector {
     return {vorrq_s32(first.lanes_, second.lanes_)};
   }
   int_vector shift_left(const int32_t shift_distance) const {
-    return {vshlq_s32(lanes_, vdupq_n_s32(shift_distance & SHIFT_DISTANCE_MASK))};
+    const int32x4_t distance = vdupq_n_s32(shift_distance & SHIFT_DISTANCE_MASK);
+    return {vshlq_s32(lanes_, distance)};
   }
   int_vector shift_right(const int32_t shift_distance) const {
-    return {vshlq_s32(lanes_, vdupq_n_s32(-(shift_distance & SHIFT_DISTANCE_MASK)))};
+    const int32x4_t negative_distance = vdupq_n_s32(-(shift_distance & SHIFT_DISTANCE_MASK));
+    return {vshlq_s32(lanes_, negative_distance)};
   }
   static int_vector minimum(const int_vector first, const int_vector second) {
     return {vminq_s32(first.lanes_, second.lanes_)};
@@ -1048,7 +1062,8 @@ struct int_vector {
     return {vabsq_s32(first.lanes_)};
   }
   static int_vector less(const int_vector first, const int_vector second) {
-    return {vreinterpretq_s32_u32(vcltq_s32(first.lanes_, second.lanes_))};
+    const uint32x4_t less_mask = vcltq_s32(first.lanes_, second.lanes_);
+    return {vreinterpretq_s32_u32(less_mask)};
   }
   int32_t sum() const {
     return vaddvq_s32(lanes_);
@@ -1071,7 +1086,9 @@ struct int_vector {
   static int_vector bits(const int8_t* buffer, const int32_t index) {
     static const int32_t lane_bits[LANES] = {1, 2, 4, 8};
     const int32x4_t byte = vdupq_n_s32((buffer[index >> BYTE_INDEX_SHIFT] >> (index & BIT_INDEX_MASK)) & LANE_MASK);
-    return {vreinterpretq_s32_u32(vtstq_s32(byte, vld1q_s32(lane_bits)))};
+    const int32x4_t lane_bit_values = vld1q_s32(lane_bits);
+    const uint32x4_t set_bits = vtstq_s32(byte, lane_bit_values);
+    return {vreinterpretq_s32_u32(set_bits)};
   }
   static int_vector evens(const int_vector first, const int_vector second) {
     return {vuzp1q_s32(first.lanes_, second.lanes_)};
@@ -1110,7 +1127,8 @@ struct double_vector {
     return {vdupq_n_f64(value)};
   }
   static double_vector load_floats(const float* buffer) {
-    return {vcvt_f64_f32(vld1_f32(buffer))};
+    const float32x2_t floats = vld1_f32(buffer);
+    return {vcvt_f64_f32(floats)};
   }
   friend double_vector operator+(const double_vector first, const double_vector second) {
     return {vaddq_f64(first.lanes_, second.lanes_)};
@@ -1140,7 +1158,11 @@ inline int32_t four_pixel_difference(const uint32_t first_pixel, const uint32_t 
                                      const uint32_t third_pixel, const uint32_t fourth_pixel,
                                      const uint8_t* sample_bytes) {
   const uint32_t words[SAMPLE_GRID] = {first_pixel, second_pixel, third_pixel, fourth_pixel};
-  return (int32_t)vaddlvq_u8(vabdq_u8(vreinterpretq_u8_u32(vld1q_u32(words)), vld1q_u8(sample_bytes)));
+  const uint32x4_t pixel_words = vld1q_u32(words);
+  const uint8x16_t pixels = vreinterpretq_u8_u32(pixel_words);
+  const uint8x16_t samples = vld1q_u8(sample_bytes);
+  const uint8x16_t absolute_differences = vabdq_u8(pixels, samples);
+  return (int32_t)vaddlvq_u8(absolute_differences);
 }
 
 struct int_vector {
