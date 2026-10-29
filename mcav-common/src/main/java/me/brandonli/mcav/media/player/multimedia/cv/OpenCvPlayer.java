@@ -45,6 +45,15 @@ public final class OpenCvPlayer extends AbstractVideoPlayerCv {
    */
   public OpenCvPlayer() {}
 
+  /**
+   * Creates the grabber for a file or URL, which the player configures and starts: an OpenCV grabber where OpenCV can
+   * read files, otherwise the FFmpeg reader that JavaCV bundles.
+   *
+   * @param resource the file path or URL to decode
+   * @return a new, unstarted grabber
+   * @throws NullPointerException if the resource is null
+   * @since 1.0.0
+   */
   @Override
   protected FrameGrabber createFrameGrabber(final String resource) {
     Preconditions.checkNotNull(resource, "Resource must not be null!");
