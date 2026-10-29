@@ -19,21 +19,27 @@ package me.brandonli.mcav.utils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import me.brandonli.mcav.testing.UtilityClassAssertions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Test;
 
 final class ExecutorUtilsTest {
 
   private static final long TERMINATION_TIMEOUT_SECONDS = 5L;
+  private static final long DEFAULT_WAIT_MILLISECONDS = 5_000L;
 
   private static void spinUntil(final AtomicBoolean release) {
     while (!release.get()) {
@@ -106,6 +112,46 @@ final class ExecutorUtilsTest {
   }
 
   @Test
+  void shouldWaitOnceForFiveSecondsByDefault() {
+    final RecordingExecutor executor = new RecordingExecutor();
+    final boolean terminated = ExecutorUtils.shutdownExecutorGracefully(executor);
+    final List<Long> waits = executor.getWaits();
+    final int interruptions = executor.getInterruptions();
+    assertFalse(terminated);
+    assertEquals(List.of(DEFAULT_WAIT_MILLISECONDS), waits);
+    assertEquals(1, interruptions);
+  }
+
+  @Test
+  void shouldWaitForTheTimeoutInWholeMilliseconds() {
+    final RecordingExecutor executor = new RecordingExecutor();
+    ExecutorUtils.shutdownExecutorGracefully(executor, Duration.ofNanos(1_999_999));
+    ExecutorUtils.shutdownExecutorGracefully(executor, Duration.ZERO);
+    ExecutorUtils.shutdownExecutorGracefully(executor, Duration.ofMillis(-1));
+    final List<Long> waits = executor.getWaits();
+    assertEquals(List.of(1L, 0L, -1L), waits);
+  }
+
+  @Test
+  void shouldLetAFailureOfTheExecutorPropagate() {
+    final RecordingExecutor executor = new RecordingExecutor();
+    final IllegalStateException failure = new IllegalStateException("Executor broke!");
+    executor.failWith(failure);
+    final IllegalStateException thrown = assertThrows(
+      IllegalStateException.class,
+      () -> ExecutorUtils.shutdownExecutorGracefully(executor)
+    );
+    assertSame(failure, thrown);
+  }
+
+  @Test
+  void shouldRejectATimeoutTooLongForMilliseconds() {
+    final RecordingExecutor executor = new RecordingExecutor();
+    final Duration timeout = Duration.ofSeconds(Long.MAX_VALUE);
+    assertThrows(ArithmeticException.class, () -> ExecutorUtils.shutdownExecutorGracefully(executor, timeout));
+  }
+
+  @Test
   void shouldRejectMissingArguments() {
     final Duration timeout = Duration.ofSeconds(1);
     assertThrows(NullPointerException.class, () -> ExecutorUtils.shutdownExecutorGracefully(null));
@@ -119,5 +165,73 @@ final class ExecutorUtilsTest {
   @Test
   void shouldNotBeInstantiated() throws ReflectiveOperationException {
     UtilityClassAssertions.assertNotInstantiable(ExecutorUtils.class);
+  }
+
+  private static final class RecordingExecutor extends AbstractExecutorService {
+
+    private final List<Long> waits;
+
+    private @Nullable RuntimeException failure;
+    private int interruptions;
+    private boolean shutdown;
+
+    private RecordingExecutor() {
+      this.waits = new ArrayList<>();
+      this.failure = null;
+      this.interruptions = 0;
+      this.shutdown = false;
+    }
+
+    void failWith(final RuntimeException failure) {
+      this.failure = failure;
+    }
+
+    @Override
+    public boolean awaitTermination(final long timeout, final TimeUnit unit) {
+      final long milliseconds = unit.toMillis(timeout);
+      this.waits.add(milliseconds);
+
+      final @Nullable RuntimeException failure = this.failure;
+      if (failure != null) {
+        throw failure;
+      }
+
+      return false;
+    }
+
+    @Override
+    public List<Runnable> shutdownNow() {
+      this.interruptions++;
+
+      return List.of();
+    }
+
+    @Override
+    public void shutdown() {
+      this.shutdown = true;
+    }
+
+    @Override
+    public boolean isShutdown() {
+      return this.shutdown;
+    }
+
+    @Override
+    public boolean isTerminated() {
+      return false;
+    }
+
+    @Override
+    public void execute(final Runnable command) {
+      throw new UnsupportedOperationException("The recording executor runs no tasks!");
+    }
+
+    List<Long> getWaits() {
+      return this.waits;
+    }
+
+    int getInterruptions() {
+      return this.interruptions;
+    }
   }
 }
