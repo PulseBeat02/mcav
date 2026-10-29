@@ -18,6 +18,7 @@
 package me.brandonli.mcav.utils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -213,8 +214,20 @@ final class MetadataUtilsTest {
   void shouldReportFilesThatCannotBeOpened() {
     final Path missing = this.directory.resolve(MISSING_FILE_NAME);
     final FileSource source = FileSource.path(missing);
-    assertThrows(InputMetadataException.class, () -> MetadataUtils.parseVideoMetadata(source));
-    assertThrows(InputMetadataException.class, () -> MetadataUtils.parseAudioMetadata(source));
+    final String resource = source.getResource();
+    final InputMetadataException videoFailure = assertThrows(InputMetadataException.class, () -> MetadataUtils.parseVideoMetadata(source));
+    final FrameGrabber.Exception videoCause = assertInstanceOf(FrameGrabber.Exception.class, videoFailure.getCause());
+    final String videoReason = videoCause.getMessage();
+    final String expectedVideoMessage = "Video metadata of %s could not be read because of \"%s\"!".formatted(resource, videoReason);
+    final String videoMessage = videoFailure.getMessage();
+    assertEquals(expectedVideoMessage, videoMessage);
+
+    final InputMetadataException audioFailure = assertThrows(InputMetadataException.class, () -> MetadataUtils.parseAudioMetadata(source));
+    final FrameGrabber.Exception audioCause = assertInstanceOf(FrameGrabber.Exception.class, audioFailure.getCause());
+    final String audioReason = audioCause.getMessage();
+    final String expectedAudioMessage = "Audio metadata of %s could not be read because of \"%s\"!".formatted(resource, audioReason);
+    final String audioMessage = audioFailure.getMessage();
+    assertEquals(expectedAudioMessage, audioMessage);
   }
 
   @Test
