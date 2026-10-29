@@ -574,6 +574,32 @@ final class MatImageBufferTest {
       assertEquals(0xFF1E140A, first, "later changes to the frame must not show");
     }
 
+    try (final Frame bgra = new Frame(1, 1, Frame.DEPTH_UBYTE, 4)) {
+      final ByteBuffer bgraBytes = (ByteBuffer) bgra.image[0];
+      bgraBytes.put(new byte[] { 10, 20, 30, 40 });
+      try (final ImageBuffer image = ImageBuffer.frame(bgra)) {
+        final int pixel = argbAt(image, 0, 0);
+        assertEquals(0xFF1E140A, pixel, "the fourth channel is alpha and is dropped");
+      }
+    }
+
+    try (final Frame gray = new Frame(1, 1, Frame.DEPTH_UBYTE, 1)) {
+      final ByteBuffer grayBytes = (ByteBuffer) gray.image[0];
+      grayBytes.put(new byte[] { 77 });
+      try (final ImageBuffer image = ImageBuffer.frame(gray)) {
+        final int pixel = argbAt(image, 0, 0);
+        assertEquals(0xFF4D4D4D, pixel, "one channel is gray");
+      }
+    }
+
+    try (final Frame unsupported = new Frame(1, 1, Frame.DEPTH_UBYTE, 2)) {
+      final IllegalArgumentException failure = assertThrowsWhileOpening(IllegalArgumentException.class, () ->
+        ImageBuffer.frame(unsupported)
+      );
+      final String message = failure.getMessage();
+      assertEquals("Channel count 2 is not supported!", message);
+    }
+
     try (final Frame audio = new Frame()) {
       assertThrowsWhileOpening(IllegalArgumentException.class, () -> ImageBuffer.frame(audio));
     }
