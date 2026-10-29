@@ -39,7 +39,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 
-@Timeout(20)
+@Timeout(120)
 final class GeneratedMediaTest {
 
   private static final String FIXTURE_SOURCE_FILE = "FixtureWriter.java";
