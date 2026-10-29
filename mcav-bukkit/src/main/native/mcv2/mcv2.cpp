@@ -1169,13 +1169,16 @@ struct int_vector {
   static constexpr int LANES = MCV2_SVE_BITS / 32;
   sve_int_lanes lanes_;
   static int_vector load(const int32_t* buffer) {
-    return {svld1_s32(svptrue_b32(), buffer)};
+    const svbool_t all_lanes = svptrue_b32();
+    return {svld1_s32(all_lanes, buffer)};
   }
   void store_bytes(int8_t* buffer) const {
-    svst1b_s32(svptrue_b32(), buffer, lanes_);
+    const svbool_t all_lanes = svptrue_b32();
+    svst1b_s32(all_lanes, buffer, lanes_);
   }
   void store(int32_t* buffer) const {
-    svst1_s32(svptrue_b32(), buffer, lanes_);
+    const svbool_t all_lanes = svptrue_b32();
+    svst1_s32(all_lanes, buffer, lanes_);
   }
   static int_vector broadcast(const int32_t value) {
     return {svdup_n_s32(value)};
@@ -1187,55 +1190,75 @@ struct int_vector {
     return {svindex_s32(0, 1)};
   }
   static int_vector load_unsigned_bytes(const uint8_t* buffer) {
-    return {svreinterpret_s32_u32(svld1ub_u32(svptrue_b32(), buffer))};
+    const svbool_t all_lanes = svptrue_b32();
+    const svuint32_t bytes = svld1ub_u32(all_lanes, buffer);
+    return {svreinterpret_s32_u32(bytes)};
   }
   friend int_vector operator+(const int_vector first, const int_vector second) {
-    return {svadd_s32_x(svptrue_b32(), first.lanes_, second.lanes_)};
+    const svbool_t all_lanes = svptrue_b32();
+    return {svadd_s32_x(all_lanes, first.lanes_, second.lanes_)};
   }
   friend int_vector operator-(const int_vector first, const int_vector second) {
-    return {svsub_s32_x(svptrue_b32(), first.lanes_, second.lanes_)};
+    const svbool_t all_lanes = svptrue_b32();
+    return {svsub_s32_x(all_lanes, first.lanes_, second.lanes_)};
   }
   friend int_vector operator*(const int_vector first, const int_vector second) {
-    return {svmul_s32_x(svptrue_b32(), first.lanes_, second.lanes_)};
+    const svbool_t all_lanes = svptrue_b32();
+    return {svmul_s32_x(all_lanes, first.lanes_, second.lanes_)};
   }
   friend int_vector operator&(const int_vector first, const int_vector second) {
-    return {svand_s32_x(svptrue_b32(), first.lanes_, second.lanes_)};
+    const svbool_t all_lanes = svptrue_b32();
+    return {svand_s32_x(all_lanes, first.lanes_, second.lanes_)};
   }
   friend int_vector operator|(const int_vector first, const int_vector second) {
-    return {svorr_s32_x(svptrue_b32(), first.lanes_, second.lanes_)};
+    const svbool_t all_lanes = svptrue_b32();
+    return {svorr_s32_x(all_lanes, first.lanes_, second.lanes_)};
   }
   int_vector shift_left(const int32_t shift_distance) const {
-    return {svlsl_n_s32_x(svptrue_b32(), lanes_, (uint32_t)(shift_distance & SHIFT_DISTANCE_MASK))};
+    const svbool_t all_lanes = svptrue_b32();
+    return {svlsl_n_s32_x(all_lanes, lanes_, (uint32_t)(shift_distance & SHIFT_DISTANCE_MASK))};
   }
   int_vector shift_right(const int32_t shift_distance) const {
-    return {svasr_n_s32_x(svptrue_b32(), lanes_, (uint32_t)(shift_distance & SHIFT_DISTANCE_MASK))};
+    const svbool_t all_lanes = svptrue_b32();
+    return {svasr_n_s32_x(all_lanes, lanes_, (uint32_t)(shift_distance & SHIFT_DISTANCE_MASK))};
   }
   static int_vector minimum(const int_vector first, const int_vector second) {
-    return {svmin_s32_x(svptrue_b32(), first.lanes_, second.lanes_)};
+    const svbool_t all_lanes = svptrue_b32();
+    return {svmin_s32_x(all_lanes, first.lanes_, second.lanes_)};
   }
   static int_vector maximum(const int_vector first, const int_vector second) {
-    return {svmax_s32_x(svptrue_b32(), first.lanes_, second.lanes_)};
+    const svbool_t all_lanes = svptrue_b32();
+    return {svmax_s32_x(all_lanes, first.lanes_, second.lanes_)};
   }
   static int_vector absolute(const int_vector first) {
-    return {svabs_s32_x(svptrue_b32(), first.lanes_)};
+    const svbool_t all_lanes = svptrue_b32();
+    return {svabs_s32_x(all_lanes, first.lanes_)};
   }
   static int_vector less(const int_vector first, const int_vector second) {
-    return {svsel_s32(svcmplt_s32(svptrue_b32(), first.lanes_, second.lanes_), svdup_n_s32(-1), svdup_n_s32(0))};
+    const svbool_t all_lanes = svptrue_b32();
+    const svbool_t less_lanes = svcmplt_s32(all_lanes, first.lanes_, second.lanes_);
+    const svint32_t true_lanes = svdup_n_s32(-1);
+    const svint32_t false_lanes = svdup_n_s32(0);
+    return {svsel_s32(less_lanes, true_lanes, false_lanes)};
   }
 
   int32_t sum() const {
-    return (int32_t)(uint32_t)(uint64_t)svaddv_s32(svptrue_b32(), lanes_);
+    const svbool_t all_lanes = svptrue_b32();
+    return (int32_t)(uint32_t)(uint64_t)svaddv_s32(all_lanes, lanes_);
   }
   static void load_channels(const int32_t* buffer, int_vector& red_channels, int_vector& green_channels,
                             int_vector& blue_channels) {
-    const svint32x3_t channel_vectors = svld3_s32(svptrue_b32(), buffer);
+    const svbool_t all_lanes = svptrue_b32();
+    const svint32x3_t channel_vectors = svld3_s32(all_lanes, buffer);
     red_channels.lanes_ = svget3_s32(channel_vectors, 0);
     green_channels.lanes_ = svget3_s32(channel_vectors, 1);
     blue_channels.lanes_ = svget3_s32(channel_vectors, 2);
   }
   static void store_channels(int32_t* buffer, const int_vector red_channels, const int_vector green_channels,
                              const int_vector blue_channels) {
-    svst3_s32(svptrue_b32(), buffer, svcreate3_s32(red_channels.lanes_, green_channels.lanes_, blue_channels.lanes_));
+    const svbool_t all_lanes = svptrue_b32();
+    const svint32x3_t channel_vectors = svcreate3_s32(red_channels.lanes_, green_channels.lanes_, blue_channels.lanes_);
+    svst3_s32(all_lanes, buffer, channel_vectors);
   }
 
   static int_vector bits(const int8_t* buffer, const int32_t index) {
@@ -1245,9 +1268,14 @@ struct int_vector {
       word |= (uint32_t)(uint8_t)buffer[array_offset + 1] << CHAR_BIT;
     }
     const svuint32_t bit_positions = svindex_u32(0, 1);
-    const svuint32_t lane_bit =
-        svand_n_u32_x(svptrue_b32(), svlsr_u32_x(svptrue_b32(), svdup_n_u32(word), bit_positions), 1);
-    return {svsel_s32(svcmpne_n_u32(svptrue_b32(), lane_bit, 0), svdup_n_s32(-1), svdup_n_s32(0))};
+    const svbool_t all_lanes = svptrue_b32();
+    const svuint32_t repeated_word = svdup_n_u32(word);
+    const svuint32_t shifted = svlsr_u32_x(all_lanes, repeated_word, bit_positions);
+    const svuint32_t lane_bit = svand_n_u32_x(all_lanes, shifted, 1);
+    const svbool_t set_lanes = svcmpne_n_u32(all_lanes, lane_bit, 0);
+    const svint32_t true_lanes = svdup_n_s32(-1);
+    const svint32_t false_lanes = svdup_n_s32(0);
+    return {svsel_s32(set_lanes, true_lanes, false_lanes)};
   }
   static int_vector evens(const int_vector first, const int_vector second) {
     return {svuzp1_s32(first.lanes_, second.lanes_)};
@@ -1263,19 +1291,24 @@ struct float_vector {
     return {svdup_n_f32(value)};
   }
   static float_vector from_integers(const int_vector first) {
-    return {svcvt_f32_s32_x(svptrue_b32(), first.lanes_)};
+    const svbool_t all_lanes = svptrue_b32();
+    return {svcvt_f32_s32_x(all_lanes, first.lanes_)};
   }
   friend float_vector operator+(const float_vector first, const float_vector second) {
-    return {svadd_f32_x(svptrue_b32(), first.lanes_, second.lanes_)};
+    const svbool_t all_lanes = svptrue_b32();
+    return {svadd_f32_x(all_lanes, first.lanes_, second.lanes_)};
   }
   friend float_vector operator-(const float_vector first, const float_vector second) {
-    return {svsub_f32_x(svptrue_b32(), first.lanes_, second.lanes_)};
+    const svbool_t all_lanes = svptrue_b32();
+    return {svsub_f32_x(all_lanes, first.lanes_, second.lanes_)};
   }
   friend float_vector operator*(const float_vector first, const float_vector second) {
-    return {svmul_f32_x(svptrue_b32(), first.lanes_, second.lanes_)};
+    const svbool_t all_lanes = svptrue_b32();
+    return {svmul_f32_x(all_lanes, first.lanes_, second.lanes_)};
   }
   void store(float* buffer) const {
-    svst1_f32(svptrue_b32(), buffer, lanes_);
+    const svbool_t all_lanes = svptrue_b32();
+    svst1_f32(all_lanes, buffer, lanes_);
   }
 };
 
@@ -1287,17 +1320,22 @@ struct double_vector {
   }
 
   static double_vector load_floats(const float* buffer) {
-    const sve_unsigned_long_lanes words = svld1uw_u64(svptrue_b64(), (const uint32_t*)buffer);
-    return {svcvt_f64_f32_x(svptrue_b64(), svreinterpret_f32_u64(words))};
+    const svbool_t all_lanes = svptrue_b64();
+    const sve_unsigned_long_lanes words = svld1uw_u64(all_lanes, (const uint32_t*)buffer);
+    const svfloat32_t floats = svreinterpret_f32_u64(words);
+    return {svcvt_f64_f32_x(all_lanes, floats)};
   }
   friend double_vector operator+(const double_vector first, const double_vector second) {
-    return {svadd_f64_x(svptrue_b64(), first.lanes_, second.lanes_)};
+    const svbool_t all_lanes = svptrue_b64();
+    return {svadd_f64_x(all_lanes, first.lanes_, second.lanes_)};
   }
   friend double_vector operator*(const double_vector first, const double_vector second) {
-    return {svmul_f64_x(svptrue_b64(), first.lanes_, second.lanes_)};
+    const svbool_t all_lanes = svptrue_b64();
+    return {svmul_f64_x(all_lanes, first.lanes_, second.lanes_)};
   }
   void store(double* buffer) const {
-    svst1_f64(svptrue_b64(), buffer, lanes_);
+    const svbool_t all_lanes = svptrue_b64();
+    svst1_f64(all_lanes, buffer, lanes_);
   }
 };
 
