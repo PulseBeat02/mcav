@@ -93,6 +93,37 @@ final class VirtualizeCommandTest {
   /** How long a test waits for a player stopped in the background. */
   private static final long RELEASE_MILLISECONDS = 5000;
 
+  private static final String RESOLUTION = "640x480";
+  private static final int RESOLUTION_WIDTH = 640;
+  private static final int RESOLUTION_HEIGHT = 480;
+  private static final int FRAMES_PER_SECOND = 30;
+  private static final String BLOCK_DIMENSIONS = "5x4";
+
+  private static final String SMALL_MEMORY_FLAGS = "-m 256M";
+  private static final String VP9_FLAGS = "-m 2048M --codec vp9";
+  private static final String NO_REBOOT_FLAGS = "-no-reboot -snapshot";
+  private static final String PLUGIN_FLAGS = "-plugin libanything.so";
+
+  private static final String CDROM_OPTION = "-cdrom";
+  private static final String DRIVE_OPTION = "-drive";
+  private static final String MEMORY_OPTION = "-m";
+  private static final String NAME_OPTION = "-name";
+  private static final String SNAPSHOT_OPTION = "-snapshot";
+
+  private static final String MEMORY_SIZE = "2048M";
+  private static final String FILE_PROPERTY_PREFIX = "file=";
+
+  private static final String ALPINE_LINUX_FILE_NAME = "alpine linux.iso";
+  private static final String ALPINE_FILE_NAME = "alpine.iso";
+  private static final String PRESENT_FILE_NAME = "present.iso";
+  private static final String DISK_FILE_NAME = "disk.img";
+  private static final String DISK_A_FILE_NAME = "a.img";
+  private static final String DISK_B_FILE_NAME = "b.img";
+
+  private static final int GIBIBYTE_SHIFT = 30;
+
+  private static final String AUDIO_HTTP_URL = "http://mc.example.com:3000/";
+
   private MCAVSandbox plugin;
   private VirtualizeCommand command;
   private CommandSender sender;
@@ -160,7 +191,7 @@ final class VirtualizeCommandTest {
       this.sender,
       this.selector,
       resolution,
-      30,
+      FRAMES_PER_SECOND,
       blocks,
       0,
       DitheringArgument.FILTER_LITE,
@@ -176,7 +207,9 @@ final class VirtualizeCommandTest {
     when(this.machine.startAsync(any(VmSettings.class), any(VmPlayer.Architecture.class), any(VmConfiguration.class), any())).thenThrow(
       failure
     );
-    final RejectedExecutionException thrown = assertThrows(RejectedExecutionException.class, () -> this.create("640x480", "5x4", ""));
+    final RejectedExecutionException thrown = assertThrows(RejectedExecutionException.class, () ->
+      this.create(RESOLUTION, BLOCK_DIMENSIONS, "")
+    );
     assertSame(failure, thrown);
     verify(this.machine, timeout(RELEASE_MILLISECONDS)).release();
 
@@ -240,17 +273,17 @@ final class VirtualizeCommandTest {
   void shouldBootTheMachineOnTheScreen() throws IOException {
     final CompletableFuture<Boolean> start = CompletableFuture.completedFuture(true);
     this.startsWith(start);
-    final String image = this.image("alpine linux.iso");
+    final String image = this.image(ALPINE_LINUX_FILE_NAME);
 
-    this.create("640x480", "5x4", "-cdrom \"alpine linux.iso\" -m 2048M");
+    this.create(RESOLUTION, BLOCK_DIMENSIONS, "-cdrom \"alpine linux.iso\" -m 2048M");
 
     this.assertDithersOntoTheScreen();
     final ArgumentCaptor<VmConfiguration> configurations = ArgumentCaptor.forClass(VmConfiguration.class);
-    final VmSettings settings = VmSettings.of(640, 480, 30);
+    final VmSettings settings = VmSettings.of(RESOLUTION_WIDTH, RESOLUTION_HEIGHT, FRAMES_PER_SECOND);
     verify(this.machine).startAsync(eq(settings), eq(VmPlayer.Architecture.X86_64), configurations.capture(), any());
     final VmConfiguration configuration = configurations.getValue();
     final List<String> arguments = configuration.getArguments();
-    final List<String> expectedArguments = List.of("-cdrom", image, "-m", "2048M");
+    final List<String> expectedArguments = List.of(CDROM_OPTION, image, MEMORY_OPTION, MEMORY_SIZE);
     assertEquals(expectedArguments, arguments);
     assertSame(this.machine, this.command.player);
     final Component loading = Message.VM_LOADING.build();
@@ -261,16 +294,16 @@ final class VirtualizeCommandTest {
   @Test
   void shouldGiveTheGuestQemusOwnNetworkOnlyWhenTheConfigurationAllowsIt() throws IOException {
     this.startsWith(CompletableFuture.completedFuture(true));
-    final String image = this.image("alpine linux.iso");
+    final String image = this.image(ALPINE_LINUX_FILE_NAME);
     when(this.configuration.isVmAllowNetwork()).thenReturn(true);
 
-    this.create("640x480", "5x4", "-cdrom \"alpine linux.iso\"");
+    this.create(RESOLUTION, BLOCK_DIMENSIONS, "-cdrom \"alpine linux.iso\"");
 
     final ArgumentCaptor<VmConfiguration> configurations = ArgumentCaptor.forClass(VmConfiguration.class);
     verify(this.machine).startAsync(any(VmSettings.class), eq(VmPlayer.Architecture.X86_64), configurations.capture(), any());
     final VmConfiguration machine = configurations.getValue();
     final List<String> arguments = machine.getArguments();
-    assertEquals(List.of("-cdrom", image, "-nic", "user"), arguments);
+    assertEquals(List.of(CDROM_OPTION, image, "-nic", "user"), arguments);
   }
 
   @Test
@@ -279,20 +312,27 @@ final class VirtualizeCommandTest {
     final Mcv2Support support = mock(Mcv2Support.class);
     when(this.plugin.getMcv2Support()).thenReturn(support);
 
-    this.create("640x480", "5x4", "-m 2048M --codec MCV2");
+    this.create(RESOLUTION, BLOCK_DIMENSIONS, "-m 2048M --codec MCV2");
 
     // the screen asked for MCV2, which found no wall here and dithers
-    verify(support).configure(eq(this.sender), eq(Pair.pair(5, 4)), eq(Pair.pair(640, 480)), eq(0), eq(Settings.DEFAULT), any());
+    verify(support).configure(
+      eq(this.sender),
+      eq(Pair.pair(5, 4)),
+      eq(Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT)),
+      eq(0),
+      eq(Settings.DEFAULT),
+      any()
+    );
     final ArgumentCaptor<VmConfiguration> configurations = ArgumentCaptor.forClass(VmConfiguration.class);
     verify(this.machine).startAsync(any(VmSettings.class), eq(VmPlayer.Architecture.X86_64), configurations.capture(), any());
 
     final List<String> arguments = configurations.getValue().getArguments();
-    assertEquals(List.of("-m", "2048M"), arguments);
+    assertEquals(List.of(MEMORY_OPTION, MEMORY_SIZE), arguments);
   }
 
   @Test
   void shouldRefuseACodecThatIsNeitherDitherNorMcv2() {
-    this.create("640x480", "5x4", "-m 2048M --codec vp9");
+    this.create(RESOLUTION, BLOCK_DIMENSIONS, VP9_FLAGS);
     this.assertReceived(Message.UNKNOWN_CODEC.build());
     this.machines.verifyNoInteractions();
   }
@@ -324,7 +364,7 @@ final class VirtualizeCommandTest {
     final VirtualizeCommand.CodecSplit fifthSplit = VirtualizeCommand.splitCodec("-name x--codec mcv2");
     assertEquals(sixthExpected, fifthSplit);
 
-    final VirtualizeCommand.CodecSplit sixthSplit = VirtualizeCommand.splitCodec("-m 2048M --codec vp9");
+    final VirtualizeCommand.CodecSplit sixthSplit = VirtualizeCommand.splitCodec(VP9_FLAGS);
     assertNull(sixthSplit);
   }
 
@@ -334,7 +374,7 @@ final class VirtualizeCommandTest {
     final CompletableFuture<Boolean> start = CompletableFuture.failedFuture(missing);
     this.startsWith(start);
 
-    this.create("640x480", "5x4", "");
+    this.create(RESOLUTION, BLOCK_DIMENSIONS, "");
 
     verify(this.machine, timeout(RELEASE_MILLISECONDS)).release();
     assertNull(this.command.player);
@@ -347,7 +387,7 @@ final class VirtualizeCommandTest {
   void shouldRefuseWhenQemuIsNotInstalled() {
     when(this.plugin.isQemuInstalled()).thenReturn(false);
 
-    this.create("640x480", "5x4", "");
+    this.create(RESOLUTION, BLOCK_DIMENSIONS, "");
 
     final Component error = Message.QEMU_NOT_INSTALLED.build();
     this.assertReceived(error);
@@ -362,7 +402,7 @@ final class VirtualizeCommandTest {
 
   @Test
   void shouldRefuseInvalidResolutions() {
-    this.create("640", "5x4", "");
+    this.create("640", BLOCK_DIMENSIONS, "");
 
     final Component error = Message.UNSUPPORTED_DIMENSION.build();
     this.assertReceived(error);
@@ -371,7 +411,7 @@ final class VirtualizeCommandTest {
 
   @Test
   void shouldRefuseInvalidScreenSizes() {
-    this.create("640x480", "5x-4", "");
+    this.create(RESOLUTION, "5x-4", "");
 
     final Component error = Message.UNSUPPORTED_DIMENSION.build();
     this.assertReceived(error);
@@ -380,7 +420,7 @@ final class VirtualizeCommandTest {
 
   @Test
   void shouldRefuseScreensLargerThanTheLimit() {
-    this.create("640x480", "65x4", "");
+    this.create(RESOLUTION, "65x4", "");
 
     final Component error = Message.UNSUPPORTED_DIMENSION.build();
     this.assertReceived(error);
@@ -389,7 +429,7 @@ final class VirtualizeCommandTest {
 
   @Test
   void shouldRefuseResolutionsLargerThanTheLimit() {
-    this.create("100000x100000", "5x4", "");
+    this.create("100000x100000", BLOCK_DIMENSIONS, "");
 
     final Component error = Message.UNSUPPORTED_DIMENSION.build();
     this.assertReceived(error);
@@ -441,9 +481,9 @@ final class VirtualizeCommandTest {
     this.command.createVm(
       this.sender,
       this.selector,
-      "640x480",
-      30,
-      "5x4",
+      RESOLUTION,
+      FRAMES_PER_SECOND,
+      BLOCK_DIMENSIONS,
       0,
       DitheringArgument.FILTER_LITE,
       VmPlayer.Architecture.X86_64,
@@ -487,36 +527,43 @@ final class VirtualizeCommandTest {
 
   @Test
   void shouldParseOptionsWithQuotedValues() throws IOException {
-    final String image = this.image("alpine linux.iso");
-    this.assertArguments("-cdrom \"alpine linux.iso\" -m 2048M -enable-kvm", "-cdrom", image, "-m", "2048M", "-enable-kvm");
+    final String image = this.image(ALPINE_LINUX_FILE_NAME);
+    this.assertArguments(
+      "-cdrom \"alpine linux.iso\" -m 2048M -enable-kvm",
+      CDROM_OPTION,
+      image,
+      MEMORY_OPTION,
+      MEMORY_SIZE,
+      "-enable-kvm"
+    );
   }
 
   @Test
   void shouldKeepOptionsThatQemuAcceptsMoreThanOnce() throws IOException {
-    final String first = this.image("a.img");
-    final String second = this.image("b.img");
+    final String first = this.image(DISK_A_FILE_NAME);
+    final String second = this.image(DISK_B_FILE_NAME);
     this.assertArguments(
       "-drive file=a.img,media=disk -drive file=b.img",
-      "-drive",
-      "file=" + first + ",media=disk",
-      "-drive",
-      "file=" + second
+      DRIVE_OPTION,
+      FILE_PROPERTY_PREFIX + first + ",media=disk",
+      DRIVE_OPTION,
+      FILE_PROPERTY_PREFIX + second
     );
   }
 
   @Test
   void shouldKeepTheLastValueOfOptionsThatQemuAcceptsOnce() {
-    this.assertArguments("-m 1G -m 2G", "-m", "2G");
+    this.assertArguments("-m 1G -m 2G", MEMORY_OPTION, "2G");
   }
 
   @Test
   void shouldTreatOptionsWithoutValueAsFlags() {
-    this.assertArguments("-no-reboot -snapshot", "-no-reboot", "-snapshot");
+    this.assertArguments(NO_REBOOT_FLAGS, "-no-reboot", SNAPSHOT_OPTION);
   }
 
   @Test
   void shouldTreatAnOptionFollowedByAnotherOptionAsTwoFlags() {
-    final VmConfiguration configuration = VirtualizeCommand.parseOptions("-no-reboot -snapshot", this.imageFolder).build();
+    final VmConfiguration configuration = VirtualizeCommand.parseOptions(NO_REBOOT_FLAGS, this.imageFolder).build();
     final boolean noReboot = configuration.has("no-reboot");
     final boolean snapshot = configuration.has("snapshot");
     assertTrue(noReboot);
@@ -525,12 +572,12 @@ final class VirtualizeCommandTest {
 
   @Test
   void shouldSkipWordsThatAreNotOptions() {
-    this.assertArguments("stray -m 512M words", "-m", "512M");
+    this.assertArguments("stray -m 512M words", MEMORY_OPTION, "512M");
   }
 
   @Test
   void shouldKeepAnEmptyQuotedValue() {
-    this.assertArguments("-name \"\" -snapshot", "-name", "", "-snapshot");
+    this.assertArguments("-name \"\" -snapshot", NAME_OPTION, "", SNAPSHOT_OPTION);
   }
 
   @Test
@@ -550,10 +597,10 @@ final class VirtualizeCommandTest {
 
   @Test
   void shouldRefuseOptionsThatQemuWouldUseToReachTheServer() throws IOException {
-    this.image("alpine.iso");
+    this.image(ALPINE_FILE_NAME);
     final List<String> refused = List.of(
       "-monitor tcp:0.0.0.0:4444,server,nowait",
-      "-plugin libanything.so",
+      PLUGIN_FLAGS,
       "-virtfs local,path=/,mount_tag=host,security_model=none",
       "-chardev file,id=c,path=anywhere",
       "-netdev user,id=n,hostfwd=tcp::2222-:22",
@@ -590,7 +637,7 @@ final class VirtualizeCommandTest {
 
   @Test
   void shouldRefuseADiskImageThatIsNotThere() throws IOException {
-    this.image("present.iso");
+    this.image(PRESENT_FILE_NAME);
     final IllegalArgumentException failure = this.assertRefusedOptions("-cdrom absent.iso");
     final String message = failure.getMessage();
     assertEquals("There is no disk image absent.iso in the iso folder of the plugin!", message);
@@ -611,7 +658,7 @@ final class VirtualizeCommandTest {
     }
   )
   void shouldRefuseHardwareOptionsThatNameAFileOrChangeTheSound(final String options) throws IOException {
-    this.image("a.img");
+    this.image(DISK_A_FILE_NAME);
     final IllegalArgumentException failure = this.assertRefusedOptions(options);
     final String message = failure.getMessage();
     final boolean explained = message.contains("must not name a file") || message.contains("is not allowed");
@@ -628,7 +675,7 @@ final class VirtualizeCommandTest {
       "host,+ssse3,-avx",
       "-smp",
       "4,cores=2",
-      "-m",
+      MEMORY_OPTION,
       "2G,slots=2,maxmem=4G",
       "-boot",
       "order=dc,menu=on"
@@ -643,7 +690,7 @@ final class VirtualizeCommandTest {
       "en-us",
       "-vga",
       "virtio",
-      "-name",
+      NAME_OPTION,
       "my vm,debug-threads=on"
     );
   }
@@ -661,14 +708,14 @@ final class VirtualizeCommandTest {
     this.command.createVm(
       this.sender,
       this.selector,
-      "640x480",
-      30,
-      "5x4",
+      RESOLUTION,
+      FRAMES_PER_SECOND,
+      BLOCK_DIMENSIONS,
       0,
       DitheringArgument.FILTER_LITE,
       VmPlayer.Architecture.X86_64,
       AudioArgument.SIMPLE_VOICE_CHAT,
-      "-m 256M"
+      SMALL_MEMORY_FLAGS
     );
     final ArgumentCaptor<AudioPipelineStep> pipelines = ArgumentCaptor.forClass(AudioPipelineStep.class);
     verify(audio).attach(pipelines.capture());
@@ -683,7 +730,7 @@ final class VirtualizeCommandTest {
   private void createWithTheWebPage(final CompletableFuture<Boolean> start) {
     when(this.provider.isHttpEnabled()).thenReturn(true);
     when(this.provider.isHttpReady()).thenReturn(true);
-    when(this.provider.constructHttpUrl()).thenReturn("http://mc.example.com:3000/");
+    when(this.provider.constructHttpUrl()).thenReturn(AUDIO_HTTP_URL);
     when(this.provider.constructFilter(eq(AudioArgument.HTTP_SERVER), any(), any(), eq(this.machine))).thenReturn(mock(AudioFilter.class));
     when(this.machine.getAudioAttachableCallback()).thenReturn(mock(AudioAttachableCallback.class));
     when(this.machine.startAsync(any(VmSettings.class), any(VmPlayer.Architecture.class), any(VmConfiguration.class), any())).thenReturn(
@@ -692,14 +739,14 @@ final class VirtualizeCommandTest {
     this.command.createVm(
       this.sender,
       this.selector,
-      "640x480",
-      30,
-      "5x4",
+      RESOLUTION,
+      FRAMES_PER_SECOND,
+      BLOCK_DIMENSIONS,
       0,
       DitheringArgument.FILTER_LITE,
       VmPlayer.Architecture.X86_64,
       AudioArgument.HTTP_SERVER,
-      "-m 256M"
+      SMALL_MEMORY_FLAGS
     );
   }
 
@@ -708,7 +755,7 @@ final class VirtualizeCommandTest {
     this.createWithTheWebPage(CompletableFuture.completedFuture(true));
     verify(this.provider).constructHttpUrl();
 
-    final List<Component> expected = List.of(Message.AUDIO_HTTP.build("http://mc.example.com:3000/"));
+    final List<Component> expected = List.of(Message.AUDIO_HTTP.build(AUDIO_HTTP_URL));
     final List<Component> received = Components.received(this.viewer);
     assertEquals(expected, received);
 
@@ -749,14 +796,14 @@ final class VirtualizeCommandTest {
     this.command.createVm(
       this.sender,
       this.selector,
-      "640x480",
-      30,
-      "5x4",
+      RESOLUTION,
+      FRAMES_PER_SECOND,
+      BLOCK_DIMENSIONS,
       0,
       DitheringArgument.FILTER_LITE,
       VmPlayer.Architecture.AARCH64,
       AudioArgument.SIMPLE_VOICE_CHAT,
-      "-m 256M"
+      SMALL_MEMORY_FLAGS
     );
     this.assertReceived(Message.VM_NO_SOUND.build());
     this.machines.verifyNoInteractions();
@@ -768,7 +815,7 @@ final class VirtualizeCommandTest {
     when(this.machine.startAsync(any(VmSettings.class), any(VmPlayer.Architecture.class), any(VmConfiguration.class), any())).thenReturn(
       start
     );
-    this.create("640x480", "5x4", "-m 256M");
+    this.create(RESOLUTION, BLOCK_DIMENSIONS, SMALL_MEMORY_FLAGS);
     verify(this.provider, never()).constructHttpUrl();
     verify(this.provider, never()).constructVoiceChannelUrl();
   }
@@ -779,7 +826,7 @@ final class VirtualizeCommandTest {
     when(this.machine.startAsync(any(VmSettings.class), any(VmPlayer.Architecture.class), any(VmConfiguration.class), any())).thenReturn(
       start
     );
-    this.create("640x480", "5x4", "-m 256M");
+    this.create(RESOLUTION, BLOCK_DIMENSIONS, SMALL_MEMORY_FLAGS);
     this.command.releaseVm(this.sender);
     verify(this.provider, never()).constructFilter(any(), any(), any(), any());
     verify(this.provider, never()).releaseAudioFilter();
@@ -790,14 +837,14 @@ final class VirtualizeCommandTest {
     this.command.createVm(
       this.sender,
       this.selector,
-      "640x480",
-      30,
-      "5x4",
+      RESOLUTION,
+      FRAMES_PER_SECOND,
+      BLOCK_DIMENSIONS,
       0,
       DitheringArgument.FILTER_LITE,
       VmPlayer.Architecture.X86_64,
       AudioArgument.DISCORD_BOT,
-      "-m 256M"
+      SMALL_MEMORY_FLAGS
     );
     this.assertReceived(Message.UNSUPPORTED_AUDIO.build());
     this.machines.verifyNoInteractions();
@@ -815,18 +862,18 @@ final class VirtualizeCommandTest {
 
   @Test
   void shouldKeepTheAttachmentPropertiesOfADrive() throws IOException {
-    final String image = this.image("disk.img");
+    final String image = this.image(DISK_FILE_NAME);
     this.assertArguments(
       "-drive file=disk.img,format=raw,if=virtio,media=disk,cache=none,readonly=on,id=boot",
-      "-drive",
-      "file=" + image + ",format=raw,if=virtio,media=disk,cache=none,readonly=on,id=boot"
+      DRIVE_OPTION,
+      FILE_PROPERTY_PREFIX + image + ",format=raw,if=virtio,media=disk,cache=none,readonly=on,id=boot"
     );
   }
 
   @ParameterizedTest
   @ValueSource(strings = { "driver=file", "node-name=disk", "backing=none", "file.locking=off", "throttling.iops-total=100" })
   void shouldRefuseADrivePropertyOutsideTheList(final String part) throws IOException {
-    this.image("disk.img");
+    this.image(DISK_FILE_NAME);
     final IllegalArgumentException failure = this.assertRefusedOptions("-drive file=disk.img," + part);
     final String message = failure.getMessage();
     assertEquals("Value file=disk.img," + part + " of the QEMU option -drive contains " + part + ", which is not allowed!", message);
@@ -834,7 +881,7 @@ final class VirtualizeCommandTest {
 
   @Test
   void shouldRefuseAMachineWithMoreMemoryThanTheServerLetsOneHave() {
-    final long limit = 4L << 30;
+    final long limit = 4L << GIBIBYTE_SHIFT;
     final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () ->
       VirtualizeCommand.parseOptions("-m 64G", this.imageFolder, limit)
     );
@@ -852,8 +899,8 @@ final class VirtualizeCommandTest {
 
   @Test
   void shouldAllowAMachineHalfOfTheMemoryOfTheServerAndAtLeast512MiB() {
-    final long maximumMemoryBytes = VirtualizeCommand.maximumMemoryBytes(16L << 30);
-    assertEquals(8L << 30, maximumMemoryBytes);
+    final long maximumMemoryBytes = VirtualizeCommand.maximumMemoryBytes(16L << GIBIBYTE_SHIFT);
+    assertEquals(8L << GIBIBYTE_SHIFT, maximumMemoryBytes);
 
     final long virtualizeCommandMaximumMemoryBytes = VirtualizeCommand.maximumMemoryBytes(256L << 20);
     assertEquals(512L << 20, virtualizeCommandMaximumMemoryBytes);
@@ -887,7 +934,7 @@ final class VirtualizeCommandTest {
 
   @Test
   void shouldTellTheSenderWhenAnOptionIsRefusedAndStartNothing() {
-    this.create("640x480", "5x4", "-plugin libanything.so");
+    this.create(RESOLUTION, BLOCK_DIMENSIONS, PLUGIN_FLAGS);
 
     final List<Component> messages = Components.received(this.sender);
     final boolean toldOnce = messages.size() == 1;
@@ -909,10 +956,10 @@ final class VirtualizeCommandTest {
     Collections.sort(sorted);
     assertEquals(sorted, supported);
 
-    final boolean contained = supported.contains("-cdrom");
+    final boolean contained = supported.contains(CDROM_OPTION);
     assertTrue(contained, "booting a disk image is the reason the options exist");
 
-    final boolean supportedContained = supported.contains("-m");
+    final boolean supportedContained = supported.contains(MEMORY_OPTION);
     assertTrue(supportedContained);
 
     final boolean secondContained = supported.contains("-plugin");
@@ -934,7 +981,7 @@ final class VirtualizeCommandTest {
     final CompletableFuture<Boolean> start = CompletableFuture.failedFuture(crash);
     this.startsWith(start);
 
-    this.create("640x480", "5x4", "");
+    this.create(RESOLUTION, BLOCK_DIMENSIONS, "");
 
     verify(this.machine, timeout(RELEASE_MILLISECONDS)).release();
     assertNull(this.command.player);

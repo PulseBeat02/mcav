@@ -67,7 +67,13 @@ final class VncCommandTest {
 
   private static final long RELEASE_MILLISECONDS = 5000;
 
-  private static final VncAllowList.Entry DESKTOP = new VncAllowList.Entry("127.0.0.1", 5901, "secret");
+  private static final String LOOPBACK_HOST = "127.0.0.1";
+  private static final VncAllowList.Entry DESKTOP = new VncAllowList.Entry(LOOPBACK_HOST, 5901, "secret");
+
+  private static final String DESKTOP_ADDRESS = "127.0.0.1:5901";
+
+  private static final String RESOLUTION = "1280x720";
+  private static final int FRAMES_PER_SECOND = 20;
 
   private VncCommand command;
   private PluginDataConfigurationMapper configuration;
@@ -112,7 +118,17 @@ final class VncCommandTest {
   }
 
   private void create(final String resolution, final String server) {
-    this.command.createVnc(this.sender, this.selector, resolution, 20, "5x3", 0, DitheringArgument.NEAREST_COLOR, server, null);
+    this.command.createVnc(
+      this.sender,
+      this.selector,
+      resolution,
+      FRAMES_PER_SECOND,
+      "5x3",
+      0,
+      DitheringArgument.NEAREST_COLOR,
+      server,
+      null
+    );
   }
 
   private void assertReceived(final Component... expected) {
@@ -124,14 +140,14 @@ final class VncCommandTest {
   void shouldConnectToAListedServerWithThePasswordOfItsEntry() {
     when(this.desktop.startAsync(any(VncSource.class), any())).thenReturn(CompletableFuture.completedFuture(true));
 
-    this.create("1280x720", "127.0.0.1:5901");
+    this.create(RESOLUTION, DESKTOP_ADDRESS);
 
     final ArgumentCaptor<VncSource> sources = ArgumentCaptor.forClass(VncSource.class);
     verify(this.desktop).startAsync(sources.capture(), any());
     final VncSource source = sources.getValue();
 
     final String host = source.getHost();
-    assertEquals("127.0.0.1", host);
+    assertEquals(LOOPBACK_HOST, host);
 
     final int port = source.getPort();
     assertEquals(5901, port);
@@ -146,7 +162,7 @@ final class VncCommandTest {
     assertEquals(720, screenHeight);
 
     final int targetFrameRate = source.getTargetFrameRate();
-    assertEquals(20, targetFrameRate);
+    assertEquals(FRAMES_PER_SECOND, targetFrameRate);
 
     verify(this.callback).attach(any(VideoPipelineStep.class));
     assertSame(this.desktop, this.command.player);
@@ -155,7 +171,7 @@ final class VncCommandTest {
 
   @Test
   void shouldConnectToNoServerThatIsNotListed() {
-    this.create("1280x720", "10.0.0.2:5900");
+    this.create(RESOLUTION, "10.0.0.2:5900");
 
     this.assertReceived(Message.VNC_NOT_ALLOWED.build("10.0.0.2:5900"));
     this.desktops.verifyNoInteractions();
@@ -164,7 +180,7 @@ final class VncCommandTest {
 
   @Test
   void shouldConnectToNothingWithInvalidDimensions() {
-    this.create("wide", "127.0.0.1:5901");
+    this.create("wide", DESKTOP_ADDRESS);
 
     this.desktops.verifyNoInteractions();
     assertNull(this.command.result);
@@ -172,7 +188,17 @@ final class VncCommandTest {
 
   @Test
   void shouldConnectToNothingWithInvalidBlockDimensions() {
-    this.command.createVnc(this.sender, this.selector, "1280x720", 20, "tall", 0, DitheringArgument.NEAREST_COLOR, "127.0.0.1:5901", null);
+    this.command.createVnc(
+      this.sender,
+      this.selector,
+      RESOLUTION,
+      FRAMES_PER_SECOND,
+      "tall",
+      0,
+      DitheringArgument.NEAREST_COLOR,
+      DESKTOP_ADDRESS,
+      null
+    );
 
     this.desktops.verifyNoInteractions();
     assertNull(this.command.result);
@@ -184,14 +210,14 @@ final class VncCommandTest {
       CompletableFuture.failedFuture(new IllegalStateException("refused!"))
     );
 
-    this.create("1280x720", "127.0.0.1:5901");
+    this.create(RESOLUTION, DESKTOP_ADDRESS);
 
     this.assertReceived(Message.VNC_LOADING.build(), Message.VNC_ERROR.build());
   }
 
   @Test
   void shouldGiveNoPasswordToAServerWithoutOne() {
-    final VncAllowList.Entry open = new VncAllowList.Entry("127.0.0.1", 5902, null);
+    final VncAllowList.Entry open = new VncAllowList.Entry(LOOPBACK_HOST, 5902, null);
     final VncSource source = VncCommand.createSource(open, Pair.pair(640, 480), 10);
 
     final Optional<String> password = source.getPassword();

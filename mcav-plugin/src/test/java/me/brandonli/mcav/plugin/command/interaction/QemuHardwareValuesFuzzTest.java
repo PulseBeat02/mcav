@@ -47,6 +47,8 @@ final class QemuHardwareValuesFuzzTest {
     "pcspk-audiodev"
   );
 
+  private static final String PROPERTY_SEPARATOR = ",";
+
   @FuzzTest(maxDuration = "30s")
   void shouldNameNoFileOrRefuseEveryTypedValue(final byte[] input) {
     if (input.length == 0) {
@@ -63,7 +65,7 @@ final class QemuHardwareValuesFuzzTest {
     final boolean matches = value.indexOf('/') >= 0 || value.indexOf('\\') >= 0;
     assertFalse(matches, () -> "-" + option + " accepted a path: " + value);
 
-    for (final String part : value.split(",", -1)) {
+    for (final String part : value.split(PROPERTY_SEPARATOR, -1)) {
       final int equals = part.indexOf('=');
       if (equals > 0) {
         final String property = part.substring(0, equals);

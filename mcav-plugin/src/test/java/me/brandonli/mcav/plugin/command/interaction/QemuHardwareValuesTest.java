@@ -31,6 +31,8 @@ import org.junit.jupiter.params.provider.CsvSource;
  */
 final class QemuHardwareValuesTest {
 
+  private static final String DISK_FILE_PROPERTY = "file=disk.img,";
+
   @ParameterizedTest
   @CsvSource(
     delimiter = '|',
@@ -139,7 +141,7 @@ final class QemuHardwareValuesTest {
     }
   )
   void shouldAcceptThePropertiesThatSayHowADriveIsAttached(final String part) {
-    QemuHardwareValues.checkDriveProperty(part, "file=disk.img," + part);
+    QemuHardwareValues.checkDriveProperty(part, DISK_FILE_PROPERTY + part);
   }
 
   @ParameterizedTest
@@ -162,7 +164,7 @@ final class QemuHardwareValuesTest {
     }
   )
   void shouldRefuseEveryOtherPropertyOfADrive(final String part) {
-    final String value = "file=disk.img," + part;
+    final String value = DISK_FILE_PROPERTY + part;
     final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () ->
       QemuHardwareValues.checkDriveProperty(part, value)
     );

@@ -37,6 +37,8 @@ final class VmCodecFlagPropertyTest {
 
   private static final String SEED = "20260928";
 
+  private static final String CODEC_FLAG = "--codec";
+
   @Provide
   Arbitrary<String> options() {
     final Arbitrary<String> option = Arbitraries.of(
@@ -66,7 +68,7 @@ final class VmCodecFlagPropertyTest {
     @ForAll("gaps") final String gap
   ) {
     final String name = upper ? codec.name() : codec.name().toLowerCase(Locale.ROOT);
-    final VirtualizeCommand.CodecSplit split = VirtualizeCommand.splitCodec(options + gap + "--codec" + gap + name + gap);
+    final VirtualizeCommand.CodecSplit split = VirtualizeCommand.splitCodec(options + gap + CODEC_FLAG + gap + name + gap);
 
     final VirtualizeCommand.CodecSplit expected = new VirtualizeCommand.CodecSplit(options.strip(), codec);
     assertEquals(expected, split);
@@ -83,7 +85,7 @@ final class VmCodecFlagPropertyTest {
   void shouldSplitWhateverIsTypedIntoAPrefixAndACodecOrNothing(@ForAll final String typed) {
     final VirtualizeCommand.CodecSplit split = VirtualizeCommand.splitCodec(typed);
     if (split == null) {
-      final boolean contained = typed.contains("--codec");
+      final boolean contained = typed.contains(CODEC_FLAG);
       assertTrue(contained, typed);
 
       return;

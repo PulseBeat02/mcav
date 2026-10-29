@@ -34,31 +34,41 @@ import org.junit.jupiter.params.provider.ValueSource;
  */
 final class VncAllowListTest {
 
-  private static final VncAllowList.Entry DESKTOP = new VncAllowList.Entry("Desktop.Example", 5901, "secret");
+  private static final int DESKTOP_PORT = 5901;
+  private static final VncAllowList.Entry DESKTOP = new VncAllowList.Entry("Desktop.Example", DESKTOP_PORT, "secret");
 
-  private static final VncAllowList.Entry LOOPBACK = new VncAllowList.Entry("::1", 5902, null);
+  private static final String LOOPBACK_HOST = "::1";
+  private static final int LOOPBACK_PORT = 5902;
+  private static final VncAllowList.Entry LOOPBACK = new VncAllowList.Entry(LOOPBACK_HOST, LOOPBACK_PORT, null);
 
   private static final VncAllowList LIST = new VncAllowList(List.of(DESKTOP, LOOPBACK));
 
+  private static final String DESKTOP_ADDRESS = "desktop.example:5901";
+  private static final String LOOPBACK_ADDRESS = "[::1]:5902";
+
+  private static final int LAST_TCP_PORT = 65_535;
+
+  private static final String HOST_NAME = "desktop";
+
   @Test
   void shouldParseAHostAndAPort() {
-    final VncAllowList.Target expected = new VncAllowList.Target("desktop.example", 5901);
-    final VncAllowList.Target parsed = VncAllowList.parse("desktop.example:5901");
+    final VncAllowList.Target expected = new VncAllowList.Target("desktop.example", DESKTOP_PORT);
+    final VncAllowList.Target parsed = VncAllowList.parse(DESKTOP_ADDRESS);
     assertEquals(expected, parsed);
 
     final VncAllowList.Target secondExpected = new VncAllowList.Target("127.0.0.1", 1);
     final VncAllowList.Target vncAllowListParsed = VncAllowList.parse("127.0.0.1:1");
     assertEquals(secondExpected, vncAllowListParsed);
 
-    final VncAllowList.Target thirdExpected = new VncAllowList.Target("example", 65_535);
+    final VncAllowList.Target thirdExpected = new VncAllowList.Target("example", LAST_TCP_PORT);
     final VncAllowList.Target secondParsed = VncAllowList.parse("example:65535");
     assertEquals(thirdExpected, secondParsed);
   }
 
   @Test
   void shouldParseAnIpv6AddressInBrackets() {
-    final VncAllowList.Target expected = new VncAllowList.Target("::1", 5902);
-    final VncAllowList.Target parsed = VncAllowList.parse("[::1]:5902");
+    final VncAllowList.Target expected = new VncAllowList.Target(LOOPBACK_HOST, LOOPBACK_PORT);
+    final VncAllowList.Target parsed = VncAllowList.parse(LOOPBACK_ADDRESS);
     assertEquals(expected, parsed);
   }
 
@@ -95,7 +105,7 @@ final class VncAllowListTest {
     final VncAllowList.Entry found = LIST.find("DESKTOP.example:5901");
     assertSame(DESKTOP, found);
 
-    final VncAllowList.Entry listFound = LIST.find("[::1]:5902");
+    final VncAllowList.Entry listFound = LIST.find(LOOPBACK_ADDRESS);
     assertSame(LOOPBACK, listFound);
   }
 
@@ -108,7 +118,7 @@ final class VncAllowListTest {
 
   @Test
   void shouldAllowNoServerForAnEmptyList() {
-    final VncAllowList.Entry found = VncAllowList.NONE.find("desktop.example:5901");
+    final VncAllowList.Entry found = VncAllowList.NONE.find(DESKTOP_ADDRESS);
     assertNull(found);
   }
 
@@ -118,23 +128,23 @@ final class VncAllowListTest {
     assertEquals("Desktop.Example:5901", text);
 
     final String loopbackText = LOOPBACK.toString();
-    assertEquals("[::1]:5902", loopbackText);
+    assertEquals(LOOPBACK_ADDRESS, loopbackText);
   }
 
   @Test
   void shouldFindAnIpv6AddressListedInBrackets() {
-    final VncAllowList.Entry bracketed = new VncAllowList.Entry("[::1]", 5902, null);
+    final VncAllowList.Entry bracketed = new VncAllowList.Entry("[::1]", LOOPBACK_PORT, null);
 
     final String text = bracketed.host();
-    assertEquals("::1", text);
+    assertEquals(LOOPBACK_HOST, text);
 
-    final VncAllowList.Entry found = new VncAllowList(List.of(bracketed)).find("[::1]:5902");
+    final VncAllowList.Entry found = new VncAllowList(List.of(bracketed)).find(LOOPBACK_ADDRESS);
     assertSame(bracketed, found);
 
     final String bracketedText = bracketed.toString();
-    assertEquals("[::1]:5902", bracketedText);
+    assertEquals(LOOPBACK_ADDRESS, bracketedText);
 
-    final VncAllowList.Entry unbalanced = new VncAllowList.Entry("[::1", 5902, null);
+    final VncAllowList.Entry unbalanced = new VncAllowList.Entry("[::1", LOOPBACK_PORT, null);
 
     final String unbalancedText = unbalanced.host();
     assertEquals("[::1", unbalancedText, "only a host in both brackets loses them");
@@ -142,19 +152,19 @@ final class VncAllowListTest {
 
   @Test
   void shouldRefuseAnEntryWithoutAHostOrWithoutATcpPort() {
-    assertThrows(IllegalArgumentException.class, () -> new VncAllowList.Entry(" ", 5901, null));
-    assertThrows(IllegalArgumentException.class, () -> new VncAllowList.Entry("[]", 5901, null));
-    assertThrows(IllegalArgumentException.class, () -> new VncAllowList.Entry("desktop", 0, null));
-    assertThrows(IllegalArgumentException.class, () -> new VncAllowList.Entry("desktop", 65_536, null));
+    assertThrows(IllegalArgumentException.class, () -> new VncAllowList.Entry(" ", DESKTOP_PORT, null));
+    assertThrows(IllegalArgumentException.class, () -> new VncAllowList.Entry("[]", DESKTOP_PORT, null));
+    assertThrows(IllegalArgumentException.class, () -> new VncAllowList.Entry(HOST_NAME, 0, null));
+    assertThrows(IllegalArgumentException.class, () -> new VncAllowList.Entry(HOST_NAME, 65_536, null));
   }
 
   @Test
   void shouldTakeAnEntryOnTheFirstOrTheLastTcpPort() {
-    final int port = new VncAllowList.Entry("desktop", 1, null).port();
+    final int port = new VncAllowList.Entry(HOST_NAME, 1, null).port();
     assertEquals(1, port);
 
-    final int secondPort = new VncAllowList.Entry("desktop", 65_535, null).port();
-    assertEquals(65_535, secondPort);
+    final int secondPort = new VncAllowList.Entry(HOST_NAME, LAST_TCP_PORT, null).port();
+    assertEquals(LAST_TCP_PORT, secondPort);
   }
 
   @Test
@@ -163,7 +173,7 @@ final class VncAllowListTest {
     final VncAllowList list = new VncAllowList(entries);
     entries.clear();
 
-    final VncAllowList.Entry found = list.find("desktop.example:5901");
+    final VncAllowList.Entry found = list.find(DESKTOP_ADDRESS);
     assertSame(DESKTOP, found);
   }
 }
