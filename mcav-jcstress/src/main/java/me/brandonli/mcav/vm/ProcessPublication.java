@@ -89,9 +89,6 @@ public class ProcessPublication {
     }
   }
 
-  /**
-   * A process that runs until the test is over.
-   */
   private static final class RunningProcess extends Process {
 
     private static final int EXIT_STATUS = 0;

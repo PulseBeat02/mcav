@@ -23,11 +23,6 @@ import java.lang.reflect.Proxy;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.springframework.web.socket.WebSocketSession;
 
-/**
- * A WebSocket session that is open, sends nothing anywhere, and records whether it was closed on the thread that
- * registered it. {@code SpringHttpResult} closes a refused session right there, and every other session on a thread of
- * its own named {@code mcav-http-close-<id>}, so the two can be told apart.
- */
 final class RecordingSession implements InvocationHandler {
 
   private static final String ID = "jcstress";

@@ -93,9 +93,6 @@ public class ConfigureGrabberResizeRace {
     this.dimensionCallback.attach(larger);
   }
 
-  /**
-   * A player that exposes the configuration of its grabbers and never creates one of its own.
-   */
   private static final class ConfiguringPlayer extends AbstractVideoPlayerCv {
 
     private void configure(final FrameGrabber grabber, final Source source) {
@@ -109,9 +106,6 @@ public class ConfigureGrabberResizeRace {
     }
   }
 
-  /**
-   * A grabber that decodes nothing; only the settings the player gives it matter.
-   */
   private static final class IdleGrabber extends FrameGrabber {
 
     @Override
