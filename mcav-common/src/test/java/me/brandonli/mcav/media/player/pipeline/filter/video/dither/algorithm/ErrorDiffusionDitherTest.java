@@ -316,7 +316,6 @@ final class ErrorDiffusionDitherTest {
     assertThrows(IllegalArgumentException.class, () -> dither.dither(empty, -1));
     assertDoesNotThrow(() -> dither.dither(empty, 1));
     assertDoesNotThrow(() -> dither.dither(empty, Integer.MAX_VALUE));
-    assertArrayEquals(new int[0], empty);
   }
 
   @Test

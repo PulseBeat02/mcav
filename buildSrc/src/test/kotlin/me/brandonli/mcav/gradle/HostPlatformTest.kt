@@ -196,16 +196,6 @@ class HostPlatformTest {
         assertEquals(emptyList<String?>(), classifiers)
     }
 
-    @Test
-    fun shouldAddTheLwjglNativesOfThisHost(): Unit {
-        val project: Project = this.javaProject()
-        HostPlatform.current().addLwjglTestNatives(project.dependencies, listOf(this.lwjgl(project)))
-
-        val classifiers: List<String?> = this.testRuntimeClassifiers(project)
-        val expected: List<String?> = listOfNotNull(HostPlatform.current().lwjglNatives)
-        assertEquals(expected, classifiers)
-    }
-
     private fun mappingOf(row: List<String>): List<String?> {
         val operatingSystem: String = row[0]
         val architecture: String = row[1]

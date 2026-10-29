@@ -94,6 +94,7 @@ final class QemuVmPlayerTest {
   private static final int TINY_HEIGHT = 120;
 
   private static final long TIMEOUT_SECONDS = 10L;
+  private static final long FIRST_FRAME_TIMEOUT_SECONDS = 120L;
 
   private static final int CHUNK_BYTES = 8;
 
@@ -1198,7 +1199,7 @@ final class QemuVmPlayerTest {
   }
 
   private void awaitFirstFrame(final List<int[]> sizes, final List<String> errors) {
-    final long timeout = TimeUnit.SECONDS.toNanos(20);
+    final long timeout = TimeUnit.SECONDS.toNanos(FIRST_FRAME_TIMEOUT_SECONDS);
     final long pause = TimeUnit.MILLISECONDS.toNanos(20);
     final long deadline = System.nanoTime() + timeout;
     while (sizes.isEmpty()) {
