@@ -1246,6 +1246,8 @@ constexpr int32_t NIBBLE_SIGN = 1 << (NIBBLE_BITS - 1);
 constexpr int32_t NIBBLE_RANGE = 1 << NIBBLE_BITS;
 constexpr int32_t NIBBLES_PER_BYTE = CHAR_BIT / NIBBLE_BITS;
 
+constexpr int32_t UNROLLED_VECTORS = 4;
+
 constexpr int32_t ENDPOINTS = 2;
 constexpr int32_t ENDPOINT_CHANNELS = ENDPOINTS * CHANNELS;
 
@@ -1563,14 +1565,15 @@ void fit(const float* values, const int32_t size, const float* matrix, float* ou
     }
   }
   double scratch[ROOT_SIZE * GRID];
-  double lanes[4 * double_vector::LANES];
+  const int32_t unrolled_lanes = UNROLLED_VECTORS * double_vector::LANES;
+  double lanes[unrolled_lanes];
   for (int32_t element_index = 0; element_index < grid; element_index++) {
     const float* weights = matrix + element_index * size;
     int32_t first_source_row = 0;
 
-    for (; first_source_row + 4 * double_vector::LANES <= size; first_source_row += 4 * double_vector::LANES) {
+    for (; first_source_row + unrolled_lanes <= size; first_source_row += unrolled_lanes) {
       sum_four_row_vectors(plane, weights, size, first_source_row, lanes);
-      store_lanes(lanes, 4 * double_vector::LANES, first_source_row, element_index, scratch);
+      store_lanes(lanes, unrolled_lanes, first_source_row, element_index, scratch);
     }
     for (; first_source_row < size; first_source_row += double_vector::LANES) {
       sum_row_vector(plane, weights, size, first_source_row, lanes);
