@@ -1264,6 +1264,9 @@ constexpr int32_t VERTICAL_MOTION_MASK = 0xFFFF;
 
 constexpr int32_t KEY_HORIZONTAL_SHIFT = 32;
 
+constexpr int32_t LUMA_GREEN_WEIGHT = 2;
+constexpr float LUMA_NORMALIZATION = 0.25f;
+
 inline int32_t logarithm_base_two(const int32_t value) {
   return __builtin_ctz((unsigned)value);
 }
@@ -2088,28 +2091,30 @@ void halve(const int32_t* block, const int32_t size, int32_t* output) {
 }
 
 void residual_target(const int32_t* source, const int32_t* prediction, const int32_t count, float* target) {
-  const float_vector quarter = float_vector::broadcast(0.25f);
-  const float_vector two = float_vector::broadcast(2.0f);
+  const float_vector normalization = float_vector::broadcast(LUMA_NORMALIZATION);
+  const float_vector green_weight = float_vector::broadcast(LUMA_GREEN_WEIGHT);
   int32_t pixel = 0;
   for (; pixel + int_vector::LANES <= count; pixel += int_vector::LANES) {
     int_vector source_red, source_green, source_blue;
     int_vector::load_channels(source + pixel * CHANNELS, source_red, source_green, source_blue);
     const float_vector luma =
-        float_vector::from_integers(source_red + source_green.shift_left(1) + source_blue) * quarter;
+        float_vector::from_integers(source_red + source_green.shift_left(1) + source_blue) * normalization;
     int_vector predicted_red, predicted_green, predicted_blue;
     int_vector::load_channels(prediction + pixel * CHANNELS, predicted_red, predicted_green, predicted_blue);
     const float_vector red = float_vector::from_integers(predicted_red);
     const float_vector green = float_vector::from_integers(predicted_green);
     const float_vector blue = float_vector::from_integers(predicted_blue);
-    (luma - ((red + two * green) + blue) * quarter).store(target + pixel);
+    (luma - ((red + green_weight * green) + blue) * normalization).store(target + pixel);
   }
   for (; pixel < count; pixel++) {
     const int32_t array_offset = pixel * CHANNELS;
-    const float luma = (float)(source[array_offset] + 2 * source[array_offset + 1] + source[array_offset + 2]) * 0.25f;
+    const float luma =
+        (float)(source[array_offset] + LUMA_GREEN_WEIGHT * source[array_offset + 1] + source[array_offset + 2]) *
+        LUMA_NORMALIZATION;
     const float red = (float)prediction[array_offset];
     const float green = (float)prediction[array_offset + 1];
     const float blue = (float)prediction[array_offset + 2];
-    target[pixel] = luma - (red + 2 * green + blue) * 0.25f;
+    target[pixel] = luma - (red + LUMA_GREEN_WEIGHT * green + blue) * LUMA_NORMALIZATION;
   }
 }
 
