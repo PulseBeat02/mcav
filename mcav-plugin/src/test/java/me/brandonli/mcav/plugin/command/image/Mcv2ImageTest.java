@@ -52,6 +52,9 @@ final class Mcv2ImageTest {
 
   private static final int[] PIXELS = { 0xFF102030, 0xFF405060, 0xFF708090, 0xFFA0B0C0, 0xFFD0E0F0, 0xFF000000 };
 
+  private static final int IMAGE_WIDTH = 3;
+  private static final int IMAGE_HEIGHT = 2;
+
   private Plugin plugin;
 
   private Mcv2Output output;
@@ -72,8 +75,8 @@ final class Mcv2ImageTest {
     doAnswer(invocation -> {
       final ImageBuffer frame = invocation.getArgument(0);
       final OriginalVideoMetadata metadata = invocation.getArgument(1);
-      assertEquals(3, metadata.getVideoWidth());
-      assertEquals(2, metadata.getVideoHeight());
+      assertEquals(IMAGE_WIDTH, metadata.getVideoWidth());
+      assertEquals(IMAGE_HEIGHT, metadata.getVideoHeight());
       this.given.add(frame.getPixels().clone());
       // the screen may resize the frame in place: it is the screen's own copy
       frame.getPixels()[0] = 0;
@@ -86,7 +89,7 @@ final class Mcv2ImageTest {
   @Test
   void shouldStartTheScreenAndGiveItTheImageTwiceASecondUntilReleased() {
     final Mcv2Image image = new Mcv2Image(this.plugin, this.output);
-    final ImageBuffer picture = ImageBuffer.buffer(PIXELS.clone(), 3, 2);
+    final ImageBuffer picture = ImageBuffer.buffer(PIXELS.clone(), IMAGE_WIDTH, IMAGE_HEIGHT);
 
     image.displayImage(picture);
     // the caller keeps its image and may change or release it
@@ -122,7 +125,7 @@ final class Mcv2ImageTest {
     when(result.getChannel()).thenReturn(channel);
     final Mcv2Image image = new Mcv2Image(this.plugin, this.output);
 
-    image.displayImage(ImageBuffer.buffer(PIXELS.clone(), 3, 2));
+    image.displayImage(ImageBuffer.buffer(PIXELS.clone(), IMAGE_WIDTH, IMAGE_HEIGHT));
 
     final ArgumentCaptor<Runnable> feeds = ArgumentCaptor.forClass(Runnable.class);
     verify(TestServer.scheduler()).runTaskTimerAsynchronously(eq(this.plugin), feeds.capture(), eq(0L), eq(Mcv2Image.PERIOD_TICKS));

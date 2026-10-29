@@ -116,6 +116,25 @@ final class AbstractVideoCommandTest {
 
   private static final String WEB_PAGE = "https://www.youtube.com/watch?v=abc";
 
+  private static final String VIDEO_RESOLUTION = "640x360";
+  private static final int VIDEO_WIDTH = 640;
+  private static final int VIDEO_HEIGHT = 360;
+
+  private static final String MRL = "0";
+  private static final String DEVICE_MRL = "2";
+  private static final String DEVICE_NAME = "camera";
+
+  private static final String LIST_SEPARATOR = ", ";
+
+  private static final String FORMAT_OPTION = "--format";
+  private static final String BEST_FORMAT = "best";
+
+  private static final String CONFIGURATION = "configuration";
+
+  private static final String VIDEO_FILE_NAME = "clip.mp4";
+  private static final String MISSING_FILE_NAME = "missing.mp4";
+  private static final String WEBM_VIDEO_FILE_NAME = "clip.webm";
+
   @TempDir
   private Path folder;
 
@@ -233,13 +252,13 @@ final class AbstractVideoCommandTest {
   }
 
   private Path createVideoFile() throws IOException {
-    final Path file = this.folder.resolve("clip.mp4");
+    final Path file = this.folder.resolve(VIDEO_FILE_NAME);
     Files.writeString(file, "video");
     return file;
   }
 
   private void play(final PlayerArgument playerType, final AudioArgument audioType, final String mrl, final String flags) {
-    this.command.playVideo(_ -> "configuration", this.sender, this.selector, playerType, audioType, "640x360", mrl, flags, null);
+    this.command.playVideo(_ -> CONFIGURATION, this.sender, this.selector, playerType, audioType, VIDEO_RESOLUTION, mrl, flags, null);
   }
 
   private void assertSenderReceived(final Component... expected) {
@@ -287,7 +306,7 @@ final class AbstractVideoCommandTest {
     final AudioPipelineStep output = next.orElseThrow();
     final AudioFilter audioFilter = output.getFilter();
     assertSame(AudioFilter.NO_OP, audioFilter);
-    final Dimension dimension = new Dimension(640, 360);
+    final Dimension dimension = new Dimension(VIDEO_WIDTH, VIDEO_HEIGHT);
     verify(this.dimensionCallback).attach(dimension);
   }
 
@@ -295,11 +314,11 @@ final class AbstractVideoCommandTest {
     final Pair<Integer, Integer> resolution = this.command.resolutions.getFirst();
     final int width = resolution.getFirst();
     final int height = resolution.getSecond();
-    assertEquals(640, width);
-    assertEquals(360, height);
+    assertEquals(VIDEO_WIDTH, width);
+    assertEquals(VIDEO_HEIGHT, height);
     final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.command.providers.getFirst();
     final Object configuration = configurationProvider.buildConfiguration(resolution);
-    assertEquals("configuration", configuration);
+    assertEquals(CONFIGURATION, configuration);
   }
 
   private static StrategySelector mockStrategies(final UrlParseDump resolved, final UriSource videoSource, final UriSource audioSource) {
@@ -315,7 +334,7 @@ final class AbstractVideoCommandTest {
 
   private void assertResolvedTheWebPage() throws IOException {
     final ArgumentCaptor<UriSource> pages = ArgumentCaptor.forClass(UriSource.class);
-    verify(this.parser).parse(pages.capture(), eq("--format"), eq("best"));
+    verify(this.parser).parse(pages.capture(), eq(FORMAT_OPTION), eq(BEST_FORMAT));
     final UriSource page = pages.getValue();
     final URI pageUri = page.getUri();
     final URI expected = URI.create(WEB_PAGE);
@@ -345,7 +364,7 @@ final class AbstractVideoCommandTest {
     final UrlParseDump dump = this.verifyPlayedWithDump(AudioArgument.NONE);
 
     final Optional<String> title = dump.getTitle();
-    assertEquals(Optional.of("clip.mp4"), title);
+    assertEquals(Optional.of(VIDEO_FILE_NAME), title);
 
     final Optional<String> description = dump.getDescription();
     assertEquals(Optional.of("Video from a file"), description);
@@ -414,7 +433,7 @@ final class AbstractVideoCommandTest {
   @Test
   void shouldRefuseAnFfmpegInputOrADeviceWithoutTheirPermission() {
     this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, "x11grab||:0", "");
-    this.play(PlayerArgument.DEVICE, AudioArgument.NONE, "2", "");
+    this.play(PlayerArgument.DEVICE, AudioArgument.NONE, DEVICE_MRL, "");
 
     final Component refused = Message.DEVICE_PERMISSION.build();
     this.assertSenderReceived(refused, refused);
@@ -425,10 +444,10 @@ final class AbstractVideoCommandTest {
   @Test
   void shouldPlayOnlyACaptureDeviceTheServerListed() {
     when(this.sender.hasPermission(CaptureDevices.PERMISSION)).thenReturn(true);
-    when(this.manager.getDevices()).thenReturn(List.of(new CaptureDevices.Device(0, "camera")));
-    this.play(PlayerArgument.DEVICE, AudioArgument.NONE, "2", "");
+    when(this.manager.getDevices()).thenReturn(List.of(new CaptureDevices.Device(0, DEVICE_NAME)));
+    this.play(PlayerArgument.DEVICE, AudioArgument.NONE, DEVICE_MRL, "");
 
-    this.assertSenderReceived(Message.DEVICE_UNLISTED.build("2"));
+    this.assertSenderReceived(Message.DEVICE_UNLISTED.build(DEVICE_MRL));
     this.assertNotStarting();
     this.videoPlayers.verifyNoInteractions();
   }
@@ -436,13 +455,13 @@ final class AbstractVideoCommandTest {
   @Test
   void shouldPutTheFiltersBeforeTheDisplay() {
     this.command.playVideo(
-      _ -> "configuration",
+      _ -> CONFIGURATION,
       this.sender,
       this.selector,
       PlayerArgument.FFMPEG,
       AudioArgument.NONE,
-      "640x360",
-      "0",
+      VIDEO_RESOLUTION,
+      MRL,
       "",
       "grayscale,invert"
     );
@@ -481,19 +500,19 @@ final class AbstractVideoCommandTest {
   @Test
   void shouldRefuseFiltersThatAreNotAllowedBeforeStartingAnything() {
     this.command.playVideo(
-      _ -> "configuration",
+      _ -> CONFIGURATION,
       this.sender,
       this.selector,
       PlayerArgument.FFMPEG,
       AudioArgument.NONE,
-      "640x360",
-      "0",
+      VIDEO_RESOLUTION,
+      MRL,
       "",
       "sharpen"
     );
 
     final Component refused = Message.FILTERS_INVALID.build(
-      "Filter sharpen does not exist, use one of " + String.join(", ", FilterChain.NAMES) + " instead!"
+      "Filter sharpen does not exist, use one of " + String.join(LIST_SEPARATOR, FilterChain.NAMES) + " instead!"
     );
     this.assertSenderReceived(refused);
     this.assertNotStarting();
@@ -503,8 +522,8 @@ final class AbstractVideoCommandTest {
   @Test
   void shouldPlayACaptureDevice() {
     when(this.sender.hasPermission(CaptureDevices.PERMISSION)).thenReturn(true);
-    when(this.manager.getDevices()).thenReturn(List.of(new CaptureDevices.Device(2, "camera")));
-    this.play(PlayerArgument.DEVICE, AudioArgument.NONE, "2", "");
+    when(this.manager.getDevices()).thenReturn(List.of(new CaptureDevices.Device(2, DEVICE_NAME)));
+    this.play(PlayerArgument.DEVICE, AudioArgument.NONE, DEVICE_MRL, "");
 
     final UrlParseDump dump = this.verifyPlayedWithDump(AudioArgument.NONE);
 
@@ -525,7 +544,7 @@ final class AbstractVideoCommandTest {
   void shouldRefuseUnsupportedYtdlpOptionsBeforeStartingAnything() {
     this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, WEB_PAGE, "--yt-dlp{exec=anything}");
 
-    final String supported = String.join(", ", VideoFlagsParser.supportedOptions());
+    final String supported = String.join(LIST_SEPARATOR, VideoFlagsParser.supportedOptions());
     final String reason = "yt-dlp option exec is not supported, use one of " + supported + " instead!";
     final Component refused = Message.UNSUPPORTED_FLAGS.build(reason);
     this.assertSenderReceived(refused);
@@ -542,7 +561,7 @@ final class AbstractVideoCommandTest {
     final UrlParseDump dump = this.verifyPlayedWithDump(AudioArgument.NONE);
 
     final Optional<String> title = dump.getTitle();
-    assertEquals(Optional.of("clip.webm"), title);
+    assertEquals(Optional.of(WEBM_VIDEO_FILE_NAME), title);
 
     final Optional<String> description = dump.getDescription();
     assertEquals(Optional.of("Video from a URL"), description);
@@ -558,7 +577,7 @@ final class AbstractVideoCommandTest {
   @Test
   void shouldResolveWebPagesWithYtdlpAndPlayTheirStreams() throws IOException {
     final UrlParseDump resolved = UrlParseDump.of("A video");
-    when(this.parser.parse(any(UriSource.class), eq("--format"), eq("best"))).thenReturn(resolved);
+    when(this.parser.parse(any(UriSource.class), eq(FORMAT_OPTION), eq(BEST_FORMAT))).thenReturn(resolved);
     final URI videoStream = URI.create("https://cdn.example.com/video");
     final URI audioStream = URI.create("https://cdn.example.com/audio");
     final UriSource videoStreamSource = UriSource.uri(videoStream);
@@ -715,13 +734,13 @@ final class AbstractVideoCommandTest {
   @Test
   void shouldRefuseInvalidResolutions() {
     this.command.playVideo(
-      _ -> "configuration",
+      _ -> CONFIGURATION,
       this.sender,
       this.selector,
       PlayerArgument.FFMPEG,
       AudioArgument.NONE,
       "wide",
-      "0",
+      MRL,
       "",
       null
     );
@@ -734,7 +753,7 @@ final class AbstractVideoCommandTest {
 
   @Test
   void shouldRefuseTheDiscordBotWhenItIsDisabled() {
-    this.play(PlayerArgument.FFMPEG, AudioArgument.DISCORD_BOT, "0", "");
+    this.play(PlayerArgument.FFMPEG, AudioArgument.DISCORD_BOT, MRL, "");
 
     final Component error = Message.UNSUPPORTED_AUDIO.build();
     this.assertSenderReceived(error);
@@ -744,7 +763,7 @@ final class AbstractVideoCommandTest {
 
   @Test
   void shouldRefuseTheWebPageWhenItIsDisabled() {
-    this.play(PlayerArgument.FFMPEG, AudioArgument.HTTP_SERVER, "0", "");
+    this.play(PlayerArgument.FFMPEG, AudioArgument.HTTP_SERVER, MRL, "");
 
     final Component error = Message.UNSUPPORTED_AUDIO.build();
     this.assertSenderReceived(error);
@@ -755,7 +774,7 @@ final class AbstractVideoCommandTest {
   void shouldRefuseVlcWhenItIsNotInstalled() {
     when(this.manager.isVlcSupported()).thenReturn(false);
 
-    this.play(PlayerArgument.VLC, AudioArgument.NONE, "0", "");
+    this.play(PlayerArgument.VLC, AudioArgument.NONE, MRL, "");
 
     final Component error = Message.UNSUPPORTED_PLAYER.build();
     this.assertSenderReceived(error);
@@ -767,7 +786,7 @@ final class AbstractVideoCommandTest {
     when(this.manager.isPreparing(Capability.VLC)).thenReturn(true);
     when(this.manager.isVlcSupported()).thenReturn(false);
 
-    this.play(PlayerArgument.VLC, AudioArgument.NONE, "0", "");
+    this.play(PlayerArgument.VLC, AudioArgument.NONE, MRL, "");
 
     final Component message = Message.VLC_PREPARING.build();
     this.assertSenderReceived(message);
@@ -805,7 +824,7 @@ final class AbstractVideoCommandTest {
 
   @Test
   void shouldPlayWithVlcWhenItIsInstalled() {
-    this.play(PlayerArgument.VLC, AudioArgument.NONE, "0", "");
+    this.play(PlayerArgument.VLC, AudioArgument.NONE, MRL, "");
 
     this.videoPlayers.verify(VideoPlayer::vlc);
     final Component started = Message.START_VIDEO.build();
@@ -816,7 +835,7 @@ final class AbstractVideoCommandTest {
   void shouldRefuseToStartWhileAnotherVideoIsStarting() {
     this.status.set(true);
 
-    this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, "0", "");
+    this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, MRL, "");
 
     final Component error = Message.PLAYER_ERROR.build();
     this.assertSenderReceived(error);
@@ -831,7 +850,7 @@ final class AbstractVideoCommandTest {
     when(this.provider.isDiscordBotReady()).thenReturn(true);
     when(this.provider.constructVoiceChannelUrl()).thenReturn("https://discord.com/channels/1/2");
 
-    this.play(PlayerArgument.FFMPEG, AudioArgument.DISCORD_BOT, "0", "");
+    this.play(PlayerArgument.FFMPEG, AudioArgument.DISCORD_BOT, MRL, "");
 
     final Component loading = Message.LOAD_VIDEO.build();
     final Component link = Message.AUDIO_DISCORD.build("https://discord.com/channels/1/2");
@@ -847,7 +866,7 @@ final class AbstractVideoCommandTest {
     when(this.provider.isHttpReady()).thenReturn(true);
     when(this.provider.constructHttpUrl()).thenReturn("http://localhost:3000/");
 
-    this.play(PlayerArgument.FFMPEG, AudioArgument.HTTP_SERVER, "0", "");
+    this.play(PlayerArgument.FFMPEG, AudioArgument.HTTP_SERVER, MRL, "");
 
     final Component loading = Message.LOAD_VIDEO.build();
     final Component link = Message.AUDIO_HTTP.build("http://localhost:3000/");
@@ -856,7 +875,7 @@ final class AbstractVideoCommandTest {
 
   @Test
   void shouldSendNoLinkForVoiceChatAudio() {
-    this.play(PlayerArgument.FFMPEG, AudioArgument.SIMPLE_VOICE_CHAT, "0", "");
+    this.play(PlayerArgument.FFMPEG, AudioArgument.SIMPLE_VOICE_CHAT, MRL, "");
 
     final Component loading = Message.LOAD_VIDEO.build();
     this.assertViewerReceived(loading);
@@ -867,7 +886,7 @@ final class AbstractVideoCommandTest {
   void shouldRefuseTheDiscordBotWhileItIsNotReady() {
     when(this.provider.isDiscordBotEnabled()).thenReturn(true);
 
-    this.play(PlayerArgument.FFMPEG, AudioArgument.DISCORD_BOT, "0", "");
+    this.play(PlayerArgument.FFMPEG, AudioArgument.DISCORD_BOT, MRL, "");
 
     final Component error = Message.AUDIO_NOT_READY.build();
     this.assertSenderReceived(error);
@@ -879,7 +898,7 @@ final class AbstractVideoCommandTest {
   void shouldRefuseTheWebPageWhileItIsNotReady() {
     when(this.provider.isHttpEnabled()).thenReturn(true);
 
-    this.play(PlayerArgument.FFMPEG, AudioArgument.HTTP_SERVER, "0", "");
+    this.play(PlayerArgument.FFMPEG, AudioArgument.HTTP_SERVER, MRL, "");
 
     final Component error = Message.AUDIO_NOT_READY.build();
     this.assertSenderReceived(error);
@@ -892,7 +911,7 @@ final class AbstractVideoCommandTest {
     stopped.shutdown();
     when(this.manager.getService()).thenReturn(stopped);
 
-    this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, "0", "");
+    this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, MRL, "");
 
     final Component error = Message.VIDEO_START_ERROR.build();
     this.assertSenderReceived(error);
@@ -916,21 +935,21 @@ final class AbstractVideoCommandTest {
 
   @Test
   void shouldRefuseNullDisplayArguments() {
-    final AbstractVideoCommand.VideoConfigurationProvider configuration = _ -> "configuration";
+    final AbstractVideoCommand.VideoConfigurationProvider configuration = _ -> CONFIGURATION;
     final PlayerArgument ffmpeg = PlayerArgument.FFMPEG;
     final AudioArgument none = AudioArgument.NONE;
 
     assertThrows(NullPointerException.class, () ->
-      this.command.playVideo(null, this.sender, this.selector, ffmpeg, none, "640x360", "0", "", null)
+      this.command.playVideo(null, this.sender, this.selector, ffmpeg, none, VIDEO_RESOLUTION, MRL, "", null)
     );
     assertThrows(NullPointerException.class, () ->
-      this.command.playVideo(configuration, null, this.selector, ffmpeg, none, "640x360", "0", "", null)
+      this.command.playVideo(configuration, null, this.selector, ffmpeg, none, VIDEO_RESOLUTION, MRL, "", null)
     );
     assertThrows(NullPointerException.class, () ->
-      this.command.playVideo(configuration, this.sender, null, ffmpeg, none, "640x360", "0", "", null)
+      this.command.playVideo(configuration, this.sender, null, ffmpeg, none, VIDEO_RESOLUTION, MRL, "", null)
     );
     assertThrows(NullPointerException.class, () ->
-      this.command.playVideo(configuration, this.sender, this.selector, null, none, "640x360", "0", "", null)
+      this.command.playVideo(configuration, this.sender, this.selector, null, none, VIDEO_RESOLUTION, MRL, "", null)
     );
 
     verify(this.manager, never()).getService();
@@ -938,21 +957,21 @@ final class AbstractVideoCommandTest {
 
   @Test
   void shouldRefuseNullPlaybackArguments() {
-    final AbstractVideoCommand.VideoConfigurationProvider configuration = _ -> "configuration";
+    final AbstractVideoCommand.VideoConfigurationProvider configuration = _ -> CONFIGURATION;
     final PlayerArgument ffmpeg = PlayerArgument.FFMPEG;
     final AudioArgument none = AudioArgument.NONE;
 
     assertThrows(NullPointerException.class, () ->
-      this.command.playVideo(configuration, this.sender, this.selector, ffmpeg, null, "640x360", "0", "", null)
+      this.command.playVideo(configuration, this.sender, this.selector, ffmpeg, null, VIDEO_RESOLUTION, MRL, "", null)
     );
     assertThrows(NullPointerException.class, () ->
-      this.command.playVideo(configuration, this.sender, this.selector, ffmpeg, none, null, "0", "", null)
+      this.command.playVideo(configuration, this.sender, this.selector, ffmpeg, none, null, MRL, "", null)
     );
     assertThrows(NullPointerException.class, () ->
-      this.command.playVideo(configuration, this.sender, this.selector, ffmpeg, none, "640x360", null, "", null)
+      this.command.playVideo(configuration, this.sender, this.selector, ffmpeg, none, VIDEO_RESOLUTION, null, "", null)
     );
     assertThrows(NullPointerException.class, () ->
-      this.command.playVideo(configuration, this.sender, this.selector, ffmpeg, none, "640x360", "0", null, null)
+      this.command.playVideo(configuration, this.sender, this.selector, ffmpeg, none, VIDEO_RESOLUTION, MRL, null, null)
     );
 
     verify(this.manager, never()).getService();
@@ -963,7 +982,7 @@ final class AbstractVideoCommandTest {
     final IllegalStateException failure = new IllegalStateException("selector failed!");
     when(this.selector.values()).thenThrow(failure);
     final IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
-      this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, "missing.mp4", "")
+      this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, MISSING_FILE_NAME, "")
     );
     assertSame(failure, thrown);
     this.assertNotStarting();
@@ -975,7 +994,7 @@ final class AbstractVideoCommandTest {
     final IllegalStateException failure = new IllegalStateException("viewer disconnected!");
     Mockito.doThrow(failure).when(this.viewer).sendMessage(any(Component.class));
     final IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
-      this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, "missing.mp4", "")
+      this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, MISSING_FILE_NAME, "")
     );
     assertSame(failure, thrown);
     this.assertNotStarting();
@@ -1045,7 +1064,7 @@ final class AbstractVideoCommandTest {
     when(this.manager.getService()).thenThrow(fatal);
 
     final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () ->
-      this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, "0", "")
+      this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, MRL, "")
     );
     assertSame(fatal, thrown);
     final boolean starting = this.status.get();
@@ -1150,10 +1169,20 @@ final class AbstractVideoCommandTest {
     final String mrl = file.toString();
     final AbstractVideoCommand.VideoConfigurationProvider configuration = _ -> {
       cancelled.set(true);
-      return "configuration";
+      return CONFIGURATION;
     };
 
-    this.command.playVideo(configuration, this.sender, this.selector, PlayerArgument.FFMPEG, AudioArgument.NONE, "640x360", mrl, "", null);
+    this.command.playVideo(
+      configuration,
+      this.sender,
+      this.selector,
+      PlayerArgument.FFMPEG,
+      AudioArgument.NONE,
+      VIDEO_RESOLUTION,
+      mrl,
+      "",
+      null
+    );
 
     final int size = this.command.resolutions.size();
     assertEquals(1, size);

@@ -66,6 +66,13 @@ import org.mockito.Mockito;
  */
 final class VideoScoreboardCommandTest {
 
+  private static final int RESOLUTION_WIDTH = 24;
+  private static final int RESOLUTION_HEIGHT = 15;
+
+  private static final String CHARACTER = "#";
+
+  private static final String MRL = "0";
+
   private VideoPlayerManager manager;
   private VideoScoreboardCommand command;
   private MultiplePlayerSelector selector;
@@ -123,7 +130,17 @@ final class VideoScoreboardCommandTest {
   }
 
   private AbstractVideoCommand.VideoConfigurationProvider playAndCaptureProvider() {
-    this.command.playVideo(this.sender, this.selector, PlayerArgument.DEVICE, AudioArgument.SIMPLE_VOICE_CHAT, "24x15", "#", "", "0", null);
+    this.command.playVideo(
+      this.sender,
+      this.selector,
+      PlayerArgument.DEVICE,
+      AudioArgument.SIMPLE_VOICE_CHAT,
+      "24x15",
+      CHARACTER,
+      "",
+      MRL,
+      null
+    );
     final ArgumentCaptor<AbstractVideoCommand.VideoConfigurationProvider> providers = ArgumentCaptor.forClass(
       AbstractVideoCommand.VideoConfigurationProvider.class
     );
@@ -134,7 +151,7 @@ final class VideoScoreboardCommandTest {
       eq(PlayerArgument.DEVICE),
       eq(AudioArgument.SIMPLE_VOICE_CHAT),
       eq("24x15"),
-      eq("0"),
+      eq(MRL),
       eq(""),
       isNull()
     );
@@ -149,9 +166,9 @@ final class VideoScoreboardCommandTest {
     final int lines = configuration.getLines();
     final String character = configuration.getCharacter();
     assertEquals(expectedViewers, viewerList);
-    assertEquals(24, width);
-    assertEquals(15, lines);
-    assertEquals("#", character);
+    assertEquals(RESOLUTION_WIDTH, width);
+    assertEquals(RESOLUTION_HEIGHT, lines);
+    assertEquals(CHARACTER, character);
   }
 
   private void assertStartedOnTheMainThread(final FunctionalVideoFilter result) {
@@ -165,7 +182,7 @@ final class VideoScoreboardCommandTest {
   @Test
   void shouldPassTheArgumentsOnAndConfigureTheSidebar() {
     final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
-    final Pair<Integer, Integer> resolution = Pair.pair(24, 15);
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
 
     final Object built = configurationProvider.buildConfiguration(resolution);
 
@@ -176,7 +193,7 @@ final class VideoScoreboardCommandTest {
   @Test
   void shouldShowTheFramesOnASidebarShownOnTheMainThread() {
     final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
-    final Pair<Integer, Integer> resolution = Pair.pair(24, 15);
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
     final List<List<?>> arguments = new ArrayList<>();
     try (
       final MockedConstruction<ScoreboardResult> results = Mockito.mockConstruction(ScoreboardResult.class, (_, context) -> {
@@ -199,7 +216,7 @@ final class VideoScoreboardCommandTest {
 
   @Test
   void shouldRefuseMoreLinesThanAScoreboardShows() {
-    this.command.playVideo(this.sender, this.selector, PlayerArgument.DEVICE, AudioArgument.NONE, "24x16", "#", "", "0", null);
+    this.command.playVideo(this.sender, this.selector, PlayerArgument.DEVICE, AudioArgument.NONE, "24x16", CHARACTER, "", MRL, null);
 
     final List<Component> messages = Components.received(this.sender);
     final Component error = Message.SCOREBOARD_LINES.build();

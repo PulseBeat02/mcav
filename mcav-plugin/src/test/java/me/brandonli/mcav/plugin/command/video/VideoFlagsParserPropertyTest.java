@@ -46,6 +46,17 @@ final class VideoFlagsParserPropertyTest {
   private static final String SEED = "20260925";
   private static final Set<String> SWITCHES = YtdlpArgumentAssertions.SWITCHES;
 
+  private static final int MAXIMUM_PIECE_LENGTH = 12;
+  private static final int MAXIMUM_OPTIONS = 5;
+
+  private static final String FLAG_OPENING = "--yt-dlp{";
+  private static final String FLAG_CLOSING = "}";
+  private static final String OPTION_SEPARATOR = ",";
+  private static final String VALUE_SEPARATOR = "=";
+  private static final String ESCAPE = "\\";
+  private static final String ESCAPED_SEPARATOR = "\\,";
+  private static final String ESCAPED_CLOSING = "\\}";
+
   private final VideoFlagsParser parser = new VideoFlagsParser();
 
   @Provide
@@ -66,23 +77,25 @@ final class VideoFlagsParserPropertyTest {
     // every arbitrary starts from a fresh base: jqwik 1.10 shares settings between an arbitrary and those made from it
     final StringArbitrary pieceStrings = Arbitraries.strings();
     final StringArbitrary tricky = pieceStrings.withChars("=,}{\\- abcf0\t");
-    final StringArbitrary pieces = tricky.ofMaxLength(12);
+    final StringArbitrary pieces = tricky.ofMaxLength(MAXIMUM_PIECE_LENGTH);
     final Arbitrary<String> anyName = Arbitraries.oneOf(names, dangerous, pieces);
-    final Arbitrary<String> separators = Arbitraries.of("", "=");
+    final Arbitrary<String> separators = Arbitraries.of("", VALUE_SEPARATOR);
     final Combinators.Combinator3<String, String, String> parts = Combinators.combine(anyName, pieces, separators);
     final Arbitrary<String> option = parts.as((name, value, equals) -> name + equals + value);
     final ListArbitrary<String> options = option.list();
-    final ListArbitrary<String> fewOptions = options.ofMaxSize(5);
-    final Arbitrary<String> joined = fewOptions.map(list -> String.join(",", list));
-    final Arbitrary<String> wrapped = joined.map(content -> "--yt-dlp{" + content + "}");
+    final ListArbitrary<String> fewOptions = options.ofMaxSize(MAXIMUM_OPTIONS);
+    final Arbitrary<String> joined = fewOptions.map(list -> String.join(OPTION_SEPARATOR, list));
+    final Arbitrary<String> wrapped = joined.map(content -> FLAG_OPENING + content + FLAG_CLOSING);
     final Arbitrary<String> dashed = pieces.map(piece -> "-" + piece);
     final Arbitrary<String> values = Arbitraries.oneOf(pieces, dashed);
     final Combinators.Combinator2<String, String> acceptedParts = Combinators.combine(names, values);
-    final Arbitrary<String> acceptedOption = acceptedParts.as((name, value) -> SWITCHES.contains(name) ? name : name + "=" + value);
+    final Arbitrary<String> acceptedOption = acceptedParts.as((name, value) ->
+      SWITCHES.contains(name) ? name : name + VALUE_SEPARATOR + value
+    );
     final ListArbitrary<String> acceptedList = acceptedOption.list();
     final ListArbitrary<String> fewAccepted = acceptedList.ofMaxSize(4);
-    final Arbitrary<String> acceptedJoined = fewAccepted.map(list -> String.join(",", list));
-    final Arbitrary<String> acceptedWrapped = acceptedJoined.map(content -> "--yt-dlp{" + content + "}");
+    final Arbitrary<String> acceptedJoined = fewAccepted.map(list -> String.join(OPTION_SEPARATOR, list));
+    final Arbitrary<String> acceptedWrapped = acceptedJoined.map(content -> FLAG_OPENING + content + FLAG_CLOSING);
     final StringArbitrary textStrings = Arbitraries.strings();
     final StringArbitrary anyText = textStrings.ofMaxLength(60);
     return Arbitraries.oneOf(wrapped, acceptedWrapped, anyText);
@@ -109,8 +122,8 @@ final class VideoFlagsParserPropertyTest {
   Arbitrary<String> flagTexts() {
     final StringArbitrary pieceStrings = Arbitraries.strings();
     final StringArbitrary tricky = pieceStrings.withChars("{}\\,=ab- \n\r\u0085\u2028\u2029");
-    final StringArbitrary pieces = tricky.ofMaxLength(12);
-    final Arbitrary<String> openings = Arbitraries.of("--yt-dlp{", "--yt-dlp", "--yt-dlp{}", "\\");
+    final StringArbitrary pieces = tricky.ofMaxLength(MAXIMUM_PIECE_LENGTH);
+    final Arbitrary<String> openings = Arbitraries.of(FLAG_OPENING, "--yt-dlp", "--yt-dlp{}", ESCAPE);
     final Arbitrary<String> part = Arbitraries.oneOf(pieces, openings);
     final ListArbitrary<String> parts = part.list();
     final ListArbitrary<String> fewParts = parts.ofMaxSize(8);
@@ -139,7 +152,7 @@ final class VideoFlagsParserPropertyTest {
     final StringArbitrary shortValues = values.ofMaxLength(10);
     final Arbitrary<String> expressibleValues = shortValues.filter(value -> {
       final String trimmed = value.strip();
-      final boolean escapable = !value.contains("\\,") && !value.contains("\\}") && !value.endsWith("\\");
+      final boolean escapable = !value.contains(ESCAPED_SEPARATOR) && !value.contains(ESCAPED_CLOSING) && !value.endsWith(ESCAPE);
       return !trimmed.isEmpty() && trimmed.equals(value) && escapable;
     });
     final Combinators.Combinator2<String, String> parts = Combinators.combine(names, expressibleValues);
@@ -148,7 +161,7 @@ final class VideoFlagsParserPropertyTest {
       return isSwitch ? new String[] { name } : new String[] { name, value };
     });
     final ListArbitrary<String[]> options = option.list();
-    return options.ofMaxSize(5);
+    return options.ofMaxSize(MAXIMUM_OPTIONS);
   }
 
   /**
@@ -167,13 +180,13 @@ final class VideoFlagsParserPropertyTest {
         continue;
       }
       final String value = option[1];
-      final String commasEscaped = value.replace(",", "\\,");
-      final String escaped = commasEscaped.replace("}", "\\}");
-      typedOptions.add(name + "=" + escaped);
+      final String commasEscaped = value.replace(OPTION_SEPARATOR, ESCAPED_SEPARATOR);
+      final String escaped = commasEscaped.replace(FLAG_CLOSING, ESCAPED_CLOSING);
+      typedOptions.add(name + VALUE_SEPARATOR + escaped);
       expected.add(value);
     }
-    final String content = String.join(",", typedOptions);
-    final String typed = "--yt-dlp{" + content + "}";
+    final String content = String.join(OPTION_SEPARATOR, typedOptions);
+    final String typed = FLAG_OPENING + content + FLAG_CLOSING;
     final String[] expectedArguments = expected.toArray(new String[0]);
 
     final String[] arguments = this.parser.parseYtdlpFlags(typed);

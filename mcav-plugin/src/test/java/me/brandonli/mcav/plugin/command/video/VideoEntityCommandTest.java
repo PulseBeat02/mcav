@@ -65,6 +65,13 @@ import org.mockito.Mockito;
  */
 final class VideoEntityCommandTest {
 
+  private static final int RESOLUTION_HEIGHT = 36;
+  private static final int RESOLUTION_WIDTH = 64;
+
+  private static final String CHARACTER = "@";
+
+  private static final String VIDEO_FILE_NAME = "clip.mp4";
+
   private VideoPlayerManager manager;
   private VideoEntityCommand command;
   private MultiplePlayerSelector selector;
@@ -131,10 +138,10 @@ final class VideoEntityCommandTest {
       PlayerArgument.FFMPEG,
       AudioArgument.DISCORD_BOT,
       "64x36",
-      "@",
+      CHARACTER,
       this.location,
       "",
-      "clip.mp4",
+      VIDEO_FILE_NAME,
       null
     );
     final ArgumentCaptor<AbstractVideoCommand.VideoConfigurationProvider> providers = ArgumentCaptor.forClass(
@@ -147,7 +154,7 @@ final class VideoEntityCommandTest {
       eq(PlayerArgument.FFMPEG),
       eq(AudioArgument.DISCORD_BOT),
       eq("64x36"),
-      eq("clip.mp4"),
+      eq(VIDEO_FILE_NAME),
       eq(""),
       isNull()
     );
@@ -163,9 +170,9 @@ final class VideoEntityCommandTest {
     final String character = configuration.getCharacter();
     final Location position = configuration.getPosition();
     assertEquals(expectedViewers, viewerList);
-    assertEquals(64, width);
-    assertEquals(36, height);
-    assertEquals("@", character);
+    assertEquals(RESOLUTION_WIDTH, width);
+    assertEquals(RESOLUTION_HEIGHT, height);
+    assertEquals(CHARACTER, character);
     assertEquals(this.location, position);
   }
 
@@ -180,7 +187,7 @@ final class VideoEntityCommandTest {
   @Test
   void shouldPassTheArgumentsOnAndConfigureTheEntity() {
     final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
-    final Pair<Integer, Integer> resolution = Pair.pair(64, 36);
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
 
     final Object built = configurationProvider.buildConfiguration(resolution);
 
@@ -191,7 +198,7 @@ final class VideoEntityCommandTest {
   @Test
   void shouldShowTheFramesInAnEntitySpawnedOnTheMainThread() {
     final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
-    final Pair<Integer, Integer> resolution = Pair.pair(64, 36);
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
     final List<List<?>> arguments = new ArrayList<>();
     try (
       final MockedConstruction<EntityResult> results = Mockito.mockConstruction(EntityResult.class, (_, context) -> {

@@ -56,6 +56,9 @@ final class ImageBlockCommandTest {
   private static final String RESOLUTION = "4x2";
   private static final String MRL = "picture.png";
 
+  private static final int RESOLUTION_WIDTH = 4;
+  private static final int RESOLUTION_HEIGHT = 2;
+
   private ImageBlockCommand command;
   private MultiplePlayerSelector selector;
   private CommandSender sender;
@@ -92,7 +95,7 @@ final class ImageBlockCommandTest {
   }
 
   private BlockConfiguration createImage(final AbstractImageCommand.ImageConfigurationProvider provider) {
-    final Pair<Integer, Integer> resolution = Pair.pair(4, 2);
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
     final DisplayableImage display = mock(DisplayableImage.class);
     final ArgumentCaptor<BlockConfiguration> configurations = ArgumentCaptor.forClass(BlockConfiguration.class);
     try (final MockedStatic<DisplayableImage> displays = Mockito.mockStatic(DisplayableImage.class)) {
@@ -117,15 +120,15 @@ final class ImageBlockCommandTest {
     final int height = configuration.getBlockHeight();
     final Location position = configuration.getPosition();
     assertEquals(expectedViewers, viewerList);
-    assertEquals(4, width);
-    assertEquals(2, height);
+    assertEquals(RESOLUTION_WIDTH, width);
+    assertEquals(RESOLUTION_HEIGHT, height);
     assertEquals(this.location, position);
   }
 
   @Test
   void shouldRefuseNullArguments() {
     final AbstractImageCommand.ImageConfigurationProvider provider = _ -> "configuration";
-    final Pair<Integer, Integer> resolution = Pair.pair(4, 2);
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
     assertThrows(NullPointerException.class, () -> this.command.showImage(null, this.selector, RESOLUTION, this.location, MRL, null));
     assertThrows(NullPointerException.class, () -> this.command.showImage(this.sender, null, RESOLUTION, this.location, MRL, null));
     assertThrows(NullPointerException.class, () -> this.command.showImage(this.sender, this.selector, null, this.location, MRL, null));

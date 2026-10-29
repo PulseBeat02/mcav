@@ -81,6 +81,10 @@ import org.mockito.stubbing.Answer;
  */
 final class VideoPlayerManagerTest {
 
+  private static final int TIMEOUT_SECONDS = 10;
+
+  private static final String CANCELLED_STARTUP_MESSAGE = "The video startup was cancelled!";
+
   private final List<Thread> worldThreads = new CopyOnWriteArrayList<>();
   private final List<Thread> playerThreads = new CopyOnWriteArrayList<>();
 
@@ -153,7 +157,7 @@ final class VideoPlayerManagerTest {
   }
 
   private static Runnable awaitMainThreadTask(final BlockingQueue<Runnable> tasks) throws InterruptedException {
-    final Runnable task = tasks.poll(10, TimeUnit.SECONDS);
+    final Runnable task = tasks.poll(TIMEOUT_SECONDS, TimeUnit.SECONDS);
     assertNotNull(task, "No task was scheduled on the main thread");
     return task;
   }
@@ -276,7 +280,7 @@ final class VideoPlayerManagerTest {
     assertNull(currentPlayer);
 
     worldTask.run();
-    release.get(10, TimeUnit.SECONDS);
+    release.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
     final boolean onlyOneTask = mainThreadTasks.isEmpty();
     assertTrue(onlyOneTask);
     this.assertWorldReleasedOnTheMainThreadAndPlayerOnTheWorker();
@@ -289,7 +293,7 @@ final class VideoPlayerManagerTest {
     when(scheduler.callSyncMethod(any(Plugin.class), any())).thenThrow(new IllegalPluginAccessException("disabled!"));
 
     final Future<?> release = this.releaseOnTheWorker();
-    release.get(10, TimeUnit.SECONDS);
+    release.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
     verify(this.player).release();
     verify(this.provider).releaseAudioFilter();
@@ -309,7 +313,7 @@ final class VideoPlayerManagerTest {
     final ExecutorService service = this.manager.getService();
     service.shutdownNow();
 
-    final ExecutionException exception = assertThrows(ExecutionException.class, () -> release.get(10, TimeUnit.SECONDS));
+    final ExecutionException exception = assertThrows(ExecutionException.class, () -> release.get(TIMEOUT_SECONDS, TimeUnit.SECONDS));
     final Throwable cause = exception.getCause();
     final IllegalStateException failure = assertInstanceOf(IllegalStateException.class, cause);
     final String message = failure.getMessage();
@@ -337,7 +341,7 @@ final class VideoPlayerManagerTest {
 
     service.shutdownNow();
 
-    release.get(10, TimeUnit.SECONDS);
+    release.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
     final boolean restored = keptInterrupt.get();
     assertTrue(restored, "the interrupt is restored for the caller of the release");
   }
@@ -351,7 +355,7 @@ final class VideoPlayerManagerTest {
 
     final Future<?> release = this.releaseOnTheWorker();
 
-    final ExecutionException exception = assertThrows(ExecutionException.class, () -> release.get(10, TimeUnit.SECONDS));
+    final ExecutionException exception = assertThrows(ExecutionException.class, () -> release.get(TIMEOUT_SECONDS, TimeUnit.SECONDS));
     final Throwable cause = exception.getCause();
     final IllegalStateException failure = assertInstanceOf(IllegalStateException.class, cause);
     final String message = failure.getMessage();
@@ -375,7 +379,7 @@ final class VideoPlayerManagerTest {
 
     final Future<Thread> worker = service.submit(Thread::currentThread);
 
-    final Thread thread = worker.get(10, TimeUnit.SECONDS);
+    final Thread thread = worker.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
     final boolean differentThread = !thread.equals(caller);
     assertTrue(differentThread);
   }
@@ -387,7 +391,7 @@ final class VideoPlayerManagerTest {
     final Future<?> release = this.releaseOnTheWorker();
     final Runnable accepted = awaitMainThreadTask(tasks);
     this.manager.shutdown();
-    release.get(10, TimeUnit.SECONDS);
+    release.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
     verify(this.filter, times(1)).release();
     verify(this.hologram, times(1)).kill();
     accepted.run();
@@ -671,7 +675,7 @@ final class VideoPlayerManagerTest {
     this.manager.shutdown();
     final CancellationException thrown = assertThrows(CancellationException.class, () -> this.manager.setPlayer(this.player));
     final String message = thrown.getMessage();
-    assertEquals("The video startup was cancelled!", message);
+    assertEquals(CANCELLED_STARTUP_MESSAGE, message);
     verify(this.player).release();
     this.manager.setPlayer(null);
     final VideoPlayerMultiplexer current = this.manager.getPlayer();
@@ -687,7 +691,7 @@ final class VideoPlayerManagerTest {
     doAnswer(_ -> {
       if (first.compareAndSet(true, false)) {
         releasingAudio.countDown();
-        final boolean ready = continueRelease.await(10, TimeUnit.SECONDS);
+        final boolean ready = continueRelease.await(TIMEOUT_SECONDS, TimeUnit.SECONDS);
         assertTrue(ready);
       }
       return null;
@@ -705,7 +709,7 @@ final class VideoPlayerManagerTest {
       }
     });
     try {
-      final boolean entered = releasingAudio.await(10, TimeUnit.SECONDS);
+      final boolean entered = releasingAudio.await(TIMEOUT_SECONDS, TimeUnit.SECONDS);
       assertTrue(entered);
       this.manager.shutdown();
       verify(this.filter).release();
@@ -713,7 +717,7 @@ final class VideoPlayerManagerTest {
     } finally {
       continueRelease.countDown();
     }
-    finished.get(10, TimeUnit.SECONDS);
+    finished.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
     worker.join(10_000);
     final boolean alive = worker.isAlive();
     assertFalse(alive);
@@ -732,7 +736,7 @@ final class VideoPlayerManagerTest {
     final Future<?> release = this.releaseOnTheWorker();
     final Runnable accepted = awaitMainThreadTask(tasks);
     accepted.run();
-    final ExecutionException thrown = assertThrows(ExecutionException.class, () -> release.get(10, TimeUnit.SECONDS));
+    final ExecutionException thrown = assertThrows(ExecutionException.class, () -> release.get(TIMEOUT_SECONDS, TimeUnit.SECONDS));
     final Throwable cause = thrown.getCause();
     assertSame(fatal, cause, "the worker must propagate the fatal cause, not convert it to a recoverable wrapper");
     verify(this.filter).release();
@@ -790,7 +794,7 @@ final class VideoPlayerManagerTest {
     final CancellationException thrown = assertThrows(CancellationException.class, () -> this.manager.startFilter(this.filter));
 
     final String message = thrown.getMessage();
-    assertEquals("The video startup was cancelled!", message);
+    assertEquals(CANCELLED_STARTUP_MESSAGE, message);
 
     verify(scheduler, never()).runTask(any(Plugin.class), any(Runnable.class));
     verify(this.filter, never()).start();
@@ -804,7 +808,7 @@ final class VideoPlayerManagerTest {
     final CancellationException thrown = assertThrows(CancellationException.class, () -> this.manager.startNative(start));
 
     final String message = thrown.getMessage();
-    assertEquals("The video startup was cancelled!", message);
+    assertEquals(CANCELLED_STARTUP_MESSAGE, message);
 
     verify(start, never()).getAsBoolean();
   }
@@ -817,7 +821,7 @@ final class VideoPlayerManagerTest {
     final CancellationException thrown = assertThrows(CancellationException.class, () -> this.manager.startFilter(this.filter));
 
     final String message = thrown.getMessage();
-    assertEquals("The video startup was cancelled!", message);
+    assertEquals(CANCELLED_STARTUP_MESSAGE, message);
 
     verify(scheduler, never()).runTask(any(Plugin.class), any(Runnable.class));
     verify(this.filter, never()).start();
@@ -832,7 +836,7 @@ final class VideoPlayerManagerTest {
     final CancellationException thrown = assertThrows(CancellationException.class, () -> this.manager.startNative(start));
 
     final String message = thrown.getMessage();
-    assertEquals("The video startup was cancelled!", message);
+    assertEquals(CANCELLED_STARTUP_MESSAGE, message);
 
     verify(start, never()).getAsBoolean();
   }

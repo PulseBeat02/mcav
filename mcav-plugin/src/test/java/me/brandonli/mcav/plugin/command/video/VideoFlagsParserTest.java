@@ -37,6 +37,16 @@ import org.junit.jupiter.params.provider.ValueSource;
  */
 final class VideoFlagsParserTest {
 
+  private static final String FLAG_OPENING = "--yt-dlp{";
+  private static final String FLAG_CLOSING = "}";
+  private static final String FORMAT_FLAG_OPENING = "--yt-dlp{format=";
+  private static final String ESCAPING_FORMAT_FLAG = "--yt-dlp{format=best\\";
+
+  private static final String FORMAT_OPTION = "--format";
+  private static final String BEST_FORMAT = "best";
+  private static final String NO_PLAYLIST_OPTION = "--no-playlist";
+  private static final String MATCH_FILTER_OPTION = "--match-filter";
+
   private final VideoFlagsParser parser = new VideoFlagsParser();
 
   @ParameterizedTest
@@ -55,20 +65,20 @@ final class VideoFlagsParserTest {
   @ValueSource(ints = { 0x0A, 0x0D, 0x85, 0x2028, 0x2029 })
   void shouldNotLetABackslashEscapeTheEndOfALine(final int lineBreak) {
     final String character = Character.toString(lineBreak);
-    final String[] arguments = this.parser.parseYtdlpFlags("--yt-dlp{format=best\\" + character + "}");
+    final String[] arguments = this.parser.parseYtdlpFlags(ESCAPING_FORMAT_FLAG + character + FLAG_CLOSING);
     assertArrayEquals(new String[0], arguments);
   }
 
   @Test
   void shouldNeverEndOptionsThatEndInABackslash() {
-    final String[] arguments = this.parser.parseYtdlpFlags("--yt-dlp{format=best\\");
+    final String[] arguments = this.parser.parseYtdlpFlags(ESCAPING_FORMAT_FLAG);
     assertArrayEquals(new String[0], arguments);
   }
 
   @Test
   void shouldLookForTheOptionsAgainAfterOptionsThatNeverEnd() {
     final String[] arguments = this.parser.parseYtdlpFlags("--yt-dlp{format=worst\\\n --yt-dlp{format=best}");
-    final String[] expected = { "--format", "best" };
+    final String[] expected = { FORMAT_OPTION, BEST_FORMAT };
     assertArrayEquals(expected, arguments);
   }
 
@@ -91,42 +101,42 @@ final class VideoFlagsParserTest {
   @Test
   void shouldTurnEveryOptionIntoArguments() {
     final String[] arguments = this.parser.parseYtdlpFlags("--yt-dlp{format=bestvideo,no-playlist}");
-    final String[] expected = { "--format", "bestvideo", "--no-playlist" };
+    final String[] expected = { FORMAT_OPTION, "bestvideo", NO_PLAYLIST_OPTION };
     assertArrayEquals(expected, arguments);
   }
 
   @Test
   void shouldKeepEscapedCommasInsideValues() {
     final String[] arguments = this.parser.parseYtdlpFlags("--yt-dlp{format=bv\\,ba,no-playlist}");
-    final String[] expected = { "--format", "bv,ba", "--no-playlist" };
+    final String[] expected = { FORMAT_OPTION, "bv,ba", NO_PLAYLIST_OPTION };
     assertArrayEquals(expected, arguments);
   }
 
   @Test
   void shouldTrimNamesAndValues() {
     final String[] arguments = this.parser.parseYtdlpFlags("--yt-dlp{ format = best ,  no-playlist }");
-    final String[] expected = { "--format", "best", "--no-playlist" };
+    final String[] expected = { FORMAT_OPTION, BEST_FORMAT, NO_PLAYLIST_OPTION };
     assertArrayEquals(expected, arguments);
   }
 
   @Test
   void shouldSkipEmptyOptions() {
     final String[] arguments = this.parser.parseYtdlpFlags("--yt-dlp{no-playlist,, ,geo-bypass}");
-    final String[] expected = { "--no-playlist", "--geo-bypass" };
+    final String[] expected = { NO_PLAYLIST_OPTION, "--geo-bypass" };
     assertArrayEquals(expected, arguments);
   }
 
   @Test
   void shouldSkipSeparatorsAtTheStartAndTheEnd() {
     final String[] arguments = this.parser.parseYtdlpFlags("--yt-dlp{,format=best,no-playlist,}");
-    final String[] expected = { "--format", "best", "--no-playlist" };
+    final String[] expected = { FORMAT_OPTION, BEST_FORMAT, NO_PLAYLIST_OPTION };
     assertArrayEquals(expected, arguments);
   }
 
   @Test
   void shouldKeepAnEscapedCommaAtTheEndOfAValue() {
     final String[] arguments = this.parser.parseYtdlpFlags("--yt-dlp{format=bv\\,}");
-    final String[] expected = { "--format", "bv," };
+    final String[] expected = { FORMAT_OPTION, "bv," };
     assertArrayEquals(expected, arguments);
   }
 
@@ -140,28 +150,28 @@ final class VideoFlagsParserTest {
   @Test
   void shouldKeepAnEmptyValue() {
     final String[] arguments = this.parser.parseYtdlpFlags("--yt-dlp{format=}");
-    final String[] expected = { "--format", "" };
+    final String[] expected = { FORMAT_OPTION, "" };
     assertArrayEquals(expected, arguments);
   }
 
   @Test
   void shouldFindTheOptionsBetweenOtherFlags() {
     final String[] arguments = this.parser.parseYtdlpFlags("--loop --yt-dlp{format=worst} --muted");
-    final String[] expected = { "--format", "worst" };
+    final String[] expected = { FORMAT_OPTION, "worst" };
     assertArrayEquals(expected, arguments);
   }
 
   @Test
   void shouldKeepEscapedClosingBracesInsideValues() {
     final String[] arguments = this.parser.parseYtdlpFlags("--yt-dlp{match-filter=title~='{a\\}',no-playlist} --muted");
-    final String[] expected = { "--match-filter", "title~='{a}'", "--no-playlist" };
+    final String[] expected = { MATCH_FILTER_OPTION, "title~='{a}'", NO_PLAYLIST_OPTION };
     assertArrayEquals(expected, arguments);
   }
 
   @Test
   void shouldKeepOtherBackslashesAsTheyAre() {
     final String[] arguments = this.parser.parseYtdlpFlags("--yt-dlp{match-filter=title~=C:\\videos\\%(title)s.mp4}");
-    final String[] expected = { "--match-filter", "title~=C:\\videos\\%(title)s.mp4" };
+    final String[] expected = { MATCH_FILTER_OPTION, "title~=C:\\videos\\%(title)s.mp4" };
     assertArrayEquals(expected, arguments);
   }
 
@@ -170,7 +180,7 @@ final class VideoFlagsParserTest {
    */
   private String[] parseOrEmpty(final String option) {
     try {
-      return this.parser.parseYtdlpFlags("--yt-dlp{" + option + "}");
+      return this.parser.parseYtdlpFlags(FLAG_OPENING + option + FLAG_CLOSING);
     } catch (final IllegalArgumentException exception) {
       return new String[0];
     }
@@ -192,13 +202,13 @@ final class VideoFlagsParserTest {
   @ValueSource(strings = { "exec", "output", "paths", "config-location", "cookies", "downloader", "load-info-json" })
   void shouldRefuseOptionsOutsideTheSupportedList(final String option) {
     final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () ->
-      this.parser.parseYtdlpFlags("--yt-dlp{" + option + "=value}")
+      this.parser.parseYtdlpFlags(FLAG_OPENING + option + "=value}")
     );
     final String message = refused.getMessage();
     final boolean namesTheOption = message.startsWith("yt-dlp option " + option + " is not supported, ");
     assertTrue(namesTheOption, message);
     final IllegalArgumentException asSwitch = assertThrows(IllegalArgumentException.class, () ->
-      this.parser.parseYtdlpFlags("--yt-dlp{" + option + "}")
+      this.parser.parseYtdlpFlags(FLAG_OPENING + option + FLAG_CLOSING)
     );
     final String switchMessage = asSwitch.getMessage();
 
@@ -228,7 +238,7 @@ final class VideoFlagsParserTest {
   @ValueSource(strings = { "-x", "--exec", "-" })
   void shouldRefuseValuesThatYtdlpWouldReadAsAnotherOption(final String value) {
     final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () ->
-      this.parser.parseYtdlpFlags("--yt-dlp{format=" + value + "}")
+      this.parser.parseYtdlpFlags(FORMAT_FLAG_OPENING + value + FLAG_CLOSING)
     );
     final String message = refused.getMessage();
     final String expected = "Value " + value + " of the yt-dlp option format must not start with a dash!";
@@ -258,7 +268,7 @@ final class VideoFlagsParserTest {
   @Test
   void shouldEndTheOptionsAtTheFirstUnescapedClosingBrace() {
     final String[] arguments = this.parser.parseYtdlpFlags("--yt-dlp{format=best}extra}");
-    final String[] expected = { "--format", "best" };
+    final String[] expected = { FORMAT_OPTION, BEST_FORMAT };
     assertArrayEquals(expected, arguments);
   }
 
@@ -273,11 +283,11 @@ final class VideoFlagsParserTest {
     final String value = "b".repeat(100_000);
     final String escaped = "b\\,".repeat(20_000);
 
-    final String[] arguments = this.parser.parseYtdlpFlags("--yt-dlp{format=" + value + "}");
-    final String[] escapedArguments = this.parser.parseYtdlpFlags("--yt-dlp{format=" + escaped + "}");
+    final String[] arguments = this.parser.parseYtdlpFlags(FORMAT_FLAG_OPENING + value + FLAG_CLOSING);
+    final String[] escapedArguments = this.parser.parseYtdlpFlags(FORMAT_FLAG_OPENING + escaped + FLAG_CLOSING);
 
-    final String[] expected = { "--format", value };
-    final String[] expectedEscaped = { "--format", "b,".repeat(20_000) };
+    final String[] expected = { FORMAT_OPTION, value };
+    final String[] expectedEscaped = { FORMAT_OPTION, "b,".repeat(20_000) };
     assertArrayEquals(expected, arguments);
     assertArrayEquals(expectedEscaped, escapedArguments);
   }

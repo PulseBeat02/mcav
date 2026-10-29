@@ -46,6 +46,8 @@ import org.junit.jupiter.api.Test;
 
 final class VideoPlaybackCommandTest {
 
+  private static final String SEEK_OFFSET = "+10";
+
   private final ExecutorService directExecutor = MoreExecutors.newDirectExecutorService();
 
   private final VolumeFilter volume = new VolumeFilter();
@@ -88,7 +90,7 @@ final class VideoPlaybackCommandTest {
   @Test
   void shouldRefuseWhatIsNotATimeAndAnswerWithoutAVideo() {
     this.command.seekVideo(this.sender, "1:60");
-    this.command.seekVideo(this.sender, "+10");
+    this.command.seekVideo(this.sender, SEEK_OFFSET);
     this.assertReceived(Message.SEEK_INVALID.build("1:60"), Message.SEEK_FAILED.build());
   }
 
@@ -97,7 +99,7 @@ final class VideoPlaybackCommandTest {
     when(this.manager.getPlayer()).thenReturn(this.decoded);
     when(this.decoded.getPositionMilliseconds()).thenReturn(5_000L);
     when(this.decoded.seek(anyLong())).thenReturn(true);
-    this.command.seekVideo(this.sender, "+10");
+    this.command.seekVideo(this.sender, SEEK_OFFSET);
     this.command.seekVideo(this.sender, "-1:00");
     verify(this.decoded).seek(15_000L);
     verify(this.decoded).seek(0L);

@@ -57,6 +57,9 @@ final class ImageEntityCommandTest {
   private static final String CHARACTER = "@";
   private static final String MRL = "picture.png";
 
+  private static final int RESOLUTION_WIDTH = 32;
+  private static final int RESOLUTION_HEIGHT = 16;
+
   private ImageEntityCommand command;
   private MultiplePlayerSelector selector;
   private CommandSender sender;
@@ -93,7 +96,7 @@ final class ImageEntityCommandTest {
   }
 
   private EntityConfiguration createImage(final AbstractImageCommand.ImageConfigurationProvider provider) {
-    final Pair<Integer, Integer> resolution = Pair.pair(32, 16);
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
     final DisplayableImage display = mock(DisplayableImage.class);
     final ArgumentCaptor<EntityConfiguration> configurations = ArgumentCaptor.forClass(EntityConfiguration.class);
     try (final MockedStatic<DisplayableImage> displays = Mockito.mockStatic(DisplayableImage.class)) {
@@ -119,8 +122,8 @@ final class ImageEntityCommandTest {
     final String character = configuration.getCharacter();
     final Location position = configuration.getPosition();
     assertEquals(expectedViewers, viewerList);
-    assertEquals(32, width);
-    assertEquals(16, height);
+    assertEquals(RESOLUTION_WIDTH, width);
+    assertEquals(RESOLUTION_HEIGHT, height);
     assertEquals(CHARACTER, character);
     assertEquals(this.location, position);
   }
@@ -128,7 +131,7 @@ final class ImageEntityCommandTest {
   @Test
   void shouldRefuseNullArguments() {
     final AbstractImageCommand.ImageConfigurationProvider provider = _ -> "configuration";
-    final Pair<Integer, Integer> resolution = Pair.pair(32, 16);
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
     final Location position = this.location;
     assertThrows(NullPointerException.class, () -> this.command.showImage(null, this.selector, RESOLUTION, CHARACTER, position, MRL, null));
     assertThrows(NullPointerException.class, () -> this.command.showImage(this.sender, null, RESOLUTION, CHARACTER, position, MRL, null));

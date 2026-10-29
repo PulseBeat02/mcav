@@ -65,6 +65,11 @@ import org.mockito.Mockito;
  */
 final class VideoBlockCommandTest {
 
+  private static final int RESOLUTION_WIDTH = 32;
+  private static final int RESOLUTION_HEIGHT = 18;
+
+  private static final String VIDEO_FILE_NAME = "clip.mp4";
+
   private VideoPlayerManager manager;
   private VideoBlockCommand command;
   private MultiplePlayerSelector selector;
@@ -133,7 +138,7 @@ final class VideoBlockCommandTest {
       "32x18",
       this.location,
       "--loop",
-      "clip.mp4",
+      VIDEO_FILE_NAME,
       null
     );
     final ArgumentCaptor<AbstractVideoCommand.VideoConfigurationProvider> providers = ArgumentCaptor.forClass(
@@ -146,7 +151,7 @@ final class VideoBlockCommandTest {
       eq(PlayerArgument.FFMPEG),
       eq(AudioArgument.HTTP_SERVER),
       eq("32x18"),
-      eq("clip.mp4"),
+      eq(VIDEO_FILE_NAME),
       eq("--loop"),
       isNull()
     );
@@ -161,8 +166,8 @@ final class VideoBlockCommandTest {
     final int height = configuration.getBlockHeight();
     final Location position = configuration.getPosition();
     assertEquals(expectedViewers, viewerList);
-    assertEquals(32, width);
-    assertEquals(18, height);
+    assertEquals(RESOLUTION_WIDTH, width);
+    assertEquals(RESOLUTION_HEIGHT, height);
     assertEquals(this.location, position);
   }
 
@@ -177,7 +182,7 @@ final class VideoBlockCommandTest {
   @Test
   void shouldPassTheArgumentsOnAndConfigureTheWall() {
     final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
-    final Pair<Integer, Integer> resolution = Pair.pair(32, 18);
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
 
     final Object built = configurationProvider.buildConfiguration(resolution);
 
@@ -188,7 +193,7 @@ final class VideoBlockCommandTest {
   @Test
   void shouldShowTheFramesOnAWallStartedOnTheMainThread() {
     final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
-    final Pair<Integer, Integer> resolution = Pair.pair(32, 18);
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
     final List<List<?>> arguments = new ArrayList<>();
     try (
       final MockedConstruction<BlockResult> results = Mockito.mockConstruction(BlockResult.class, (_, context) -> {

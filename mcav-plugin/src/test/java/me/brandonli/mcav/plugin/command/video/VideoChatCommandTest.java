@@ -63,6 +63,12 @@ import org.mockito.Mockito;
  */
 final class VideoChatCommandTest {
 
+  private static final int RESOLUTION_SIDE = 16;
+
+  private static final String CHARACTER = "#";
+
+  private static final String VIDEO_FILE_NAME = "clip.mp4";
+
   private VideoPlayerManager manager;
   private VideoChatCommand command;
   private MultiplePlayerSelector selector;
@@ -120,7 +126,17 @@ final class VideoChatCommandTest {
   }
 
   private AbstractVideoCommand.VideoConfigurationProvider playAndCaptureProvider() {
-    this.command.playVideo(this.sender, this.selector, PlayerArgument.VLC, AudioArgument.NONE, "16x16", "#", "", "clip.mp4", null);
+    this.command.playVideo(
+      this.sender,
+      this.selector,
+      PlayerArgument.VLC,
+      AudioArgument.NONE,
+      "16x16",
+      CHARACTER,
+      "",
+      VIDEO_FILE_NAME,
+      null
+    );
     final ArgumentCaptor<AbstractVideoCommand.VideoConfigurationProvider> providers = ArgumentCaptor.forClass(
       AbstractVideoCommand.VideoConfigurationProvider.class
     );
@@ -131,7 +147,7 @@ final class VideoChatCommandTest {
       eq(PlayerArgument.VLC),
       eq(AudioArgument.NONE),
       eq("16x16"),
-      eq("clip.mp4"),
+      eq(VIDEO_FILE_NAME),
       eq(""),
       isNull()
     );
@@ -146,9 +162,9 @@ final class VideoChatCommandTest {
     final int height = configuration.getChatHeight();
     final String character = configuration.getCharacter();
     assertEquals(expectedViewers, viewerList);
-    assertEquals(16, width);
-    assertEquals(16, height);
-    assertEquals("#", character);
+    assertEquals(RESOLUTION_SIDE, width);
+    assertEquals(RESOLUTION_SIDE, height);
+    assertEquals(CHARACTER, character);
   }
 
   private void assertStartedOnTheMainThread(final FunctionalVideoFilter result) {
@@ -162,7 +178,7 @@ final class VideoChatCommandTest {
   @Test
   void shouldPassTheArgumentsOnAndConfigureTheChat() {
     final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
-    final Pair<Integer, Integer> resolution = Pair.pair(16, 16);
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_SIDE, RESOLUTION_SIDE);
 
     final Object built = configurationProvider.buildConfiguration(resolution);
 
@@ -173,7 +189,7 @@ final class VideoChatCommandTest {
   @Test
   void shouldShowTheFramesInTheChatStartedOnTheMainThread() {
     final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
-    final Pair<Integer, Integer> resolution = Pair.pair(16, 16);
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_SIDE, RESOLUTION_SIDE);
     final List<List<?>> arguments = new ArrayList<>();
     try (
       final MockedConstruction<ChatResult> results = Mockito.mockConstruction(ChatResult.class, (_, context) -> {

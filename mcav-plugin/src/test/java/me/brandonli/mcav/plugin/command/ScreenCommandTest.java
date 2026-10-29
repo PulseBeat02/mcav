@@ -40,6 +40,12 @@ import org.mockito.Mockito;
  */
 final class ScreenCommandTest {
 
+  private static final String SCREEN_SIZE = "5x3";
+  private static final int SCREEN_WIDTH = 5;
+  private static final int SCREEN_HEIGHT = 3;
+
+  private static final int MAP_ID = 10;
+
   private final ScreenCommand command = new ScreenCommand();
   private final CommandSender sender = mock(CommandSender.class);
   private final Location location = new Location(null, 1.0, 64.0, 2.0);
@@ -47,8 +53,8 @@ final class ScreenCommandTest {
   @Test
   void shouldBuildTheScreenWithTheParsedSize() {
     try (final MockedStatic<MapUtils> maps = Mockito.mockStatic(MapUtils.class)) {
-      this.command.buildScreen(this.sender, "5x3", 10, Material.STONE, this.location);
-      maps.verify(() -> MapUtils.buildMapScreen(this.sender, this.location, Material.STONE, 5, 3, 10));
+      this.command.buildScreen(this.sender, SCREEN_SIZE, MAP_ID, Material.STONE, this.location);
+      maps.verify(() -> MapUtils.buildMapScreen(this.sender, this.location, Material.STONE, SCREEN_WIDTH, SCREEN_HEIGHT, MAP_ID));
     }
     final List<Component> messages = Components.received(this.sender);
     final Component built = Message.SCREEN_BUILD.build();
@@ -59,7 +65,7 @@ final class ScreenCommandTest {
   @Test
   void shouldRefuseInvalidSizes() {
     try (final MockedStatic<MapUtils> maps = Mockito.mockStatic(MapUtils.class)) {
-      this.command.buildScreen(this.sender, "5by3", 10, Material.STONE, this.location);
+      this.command.buildScreen(this.sender, "5by3", MAP_ID, Material.STONE, this.location);
       maps.verifyNoInteractions();
     }
     final List<Component> messages = Components.received(this.sender);
@@ -72,7 +78,7 @@ final class ScreenCommandTest {
   @ValueSource(strings = { "100000x100000", "65x1", "1x65", "8193x8193" })
   void shouldRefuseWallsLargerThanTheLimit(final String size) {
     try (final MockedStatic<MapUtils> maps = Mockito.mockStatic(MapUtils.class)) {
-      this.command.buildScreen(this.sender, size, 10, Material.STONE, this.location);
+      this.command.buildScreen(this.sender, size, MAP_ID, Material.STONE, this.location);
       maps.verifyNoInteractions();
     }
     final List<Component> messages = Components.received(this.sender);
@@ -84,8 +90,8 @@ final class ScreenCommandTest {
   @Test
   void shouldBuildTheLargestWall() {
     try (final MockedStatic<MapUtils> maps = Mockito.mockStatic(MapUtils.class)) {
-      this.command.buildScreen(this.sender, "64x64", 10, Material.STONE, this.location);
-      maps.verify(() -> MapUtils.buildMapScreen(this.sender, this.location, Material.STONE, 64, 64, 10));
+      this.command.buildScreen(this.sender, "64x64", MAP_ID, Material.STONE, this.location);
+      maps.verify(() -> MapUtils.buildMapScreen(this.sender, this.location, Material.STONE, 64, 64, MAP_ID));
     }
     final List<Component> messages = Components.received(this.sender);
     final Component built = Message.SCREEN_BUILD.build();
@@ -98,9 +104,11 @@ final class ScreenCommandTest {
   void shouldTellTheSenderWhenTheMapIdsCannotBeUsed(final Class<? extends RuntimeException> failureType) {
     try (final MockedStatic<MapUtils> maps = Mockito.mockStatic(MapUtils.class)) {
       maps
-        .when(() -> MapUtils.buildMapScreen(this.sender, this.location, Material.STONE, 5, 3, Integer.MAX_VALUE - 20))
+        .when(() ->
+          MapUtils.buildMapScreen(this.sender, this.location, Material.STONE, SCREEN_WIDTH, SCREEN_HEIGHT, Integer.MAX_VALUE - 20)
+        )
         .thenThrow(failureType);
-      this.command.buildScreen(this.sender, "5x3", Integer.MAX_VALUE - 20, Material.STONE, this.location);
+      this.command.buildScreen(this.sender, SCREEN_SIZE, Integer.MAX_VALUE - 20, Material.STONE, this.location);
     }
     final List<Component> messages = Components.received(this.sender);
     final Component error = Message.UNSUPPORTED_MAP_ID.build();
@@ -110,9 +118,9 @@ final class ScreenCommandTest {
 
   @Test
   void shouldRefuseNullArguments() {
-    assertThrows(NullPointerException.class, () -> this.command.buildScreen(null, "5x3", 10, Material.STONE, this.location));
-    assertThrows(NullPointerException.class, () -> this.command.buildScreen(this.sender, null, 10, Material.STONE, this.location));
-    assertThrows(NullPointerException.class, () -> this.command.buildScreen(this.sender, "5x3", 10, null, this.location));
-    assertThrows(NullPointerException.class, () -> this.command.buildScreen(this.sender, "5x3", 10, Material.STONE, null));
+    assertThrows(NullPointerException.class, () -> this.command.buildScreen(null, SCREEN_SIZE, MAP_ID, Material.STONE, this.location));
+    assertThrows(NullPointerException.class, () -> this.command.buildScreen(this.sender, null, MAP_ID, Material.STONE, this.location));
+    assertThrows(NullPointerException.class, () -> this.command.buildScreen(this.sender, SCREEN_SIZE, MAP_ID, null, this.location));
+    assertThrows(NullPointerException.class, () -> this.command.buildScreen(this.sender, SCREEN_SIZE, MAP_ID, Material.STONE, null));
   }
 }

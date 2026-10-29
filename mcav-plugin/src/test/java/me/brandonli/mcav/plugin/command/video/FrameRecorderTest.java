@@ -33,12 +33,15 @@ import org.junit.jupiter.api.io.TempDir;
  */
 final class FrameRecorderTest {
 
+  private static final String RECORD_FILE_NAME = "screen-1-5.mcs";
+  private static final String RECORDS_FOLDER_NAME = "records";
+
   @TempDir
   private Path folder;
 
   @Test
   void shouldAppendEveryFrameAfterItsLength() throws IOException {
-    final Path file = this.folder.resolve("records").resolve("screen-1-5.mcs");
+    final Path file = this.folder.resolve(RECORDS_FOLDER_NAME).resolve(RECORD_FILE_NAME);
     final FrameRecorder recorder = new FrameRecorder(file);
     recorder.accept(new byte[] { 7, 8, 9 });
     recorder.accept(new byte[] { 1 });
@@ -49,7 +52,7 @@ final class FrameRecorderTest {
 
   @Test
   void shouldStopRecordingAtTheFirstFailure() throws IOException {
-    final Path file = this.folder.resolve("screen-1-5.mcs");
+    final Path file = this.folder.resolve(RECORD_FILE_NAME);
     Files.createDirectories(file);
     final FrameRecorder recorder = new FrameRecorder(file);
     recorder.accept(new byte[] { 7 });

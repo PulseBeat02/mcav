@@ -44,6 +44,8 @@ import org.mockito.Mockito;
  */
 final class DumpCommandTest {
 
+  private static final int TIMEOUT_MILLISECONDS = 10_000;
+
   @Test
   void shouldSendTheLinkOnceTheDumpIsUploaded() {
     final CommandSender sender = mock(CommandSender.class);
@@ -51,7 +53,7 @@ final class DumpCommandTest {
     command.createDump(sender);
     final Component loading = Message.CREATE_DUMP.build();
     final Component link = Message.SEND_DUMP.build("https://paste.helpch.at/abc");
-    verify(sender, timeout(10_000)).sendMessage(link);
+    verify(sender, timeout(TIMEOUT_MILLISECONDS)).sendMessage(link);
     final InOrder order = Mockito.inOrder(sender);
     order.verify(sender).sendMessage(loading);
     order.verify(sender).sendMessage(link);
@@ -70,7 +72,7 @@ final class DumpCommandTest {
     assertTrue(ran);
     final Component loading = Message.CREATE_DUMP.build();
     final Component failure = Message.DUMP_FAILED.build();
-    verify(sender, timeout(10_000)).sendMessage(failure);
+    verify(sender, timeout(TIMEOUT_MILLISECONDS)).sendMessage(failure);
     final InOrder order = Mockito.inOrder(sender);
     order.verify(sender).sendMessage(loading);
     order.verify(sender).sendMessage(failure);

@@ -81,6 +81,18 @@ import org.mockito.Mockito;
  */
 final class VideoMapCommandTest {
 
+  private static final String BLOCK_DIMENSIONS = "5x3";
+  private static final int BLOCK_WIDTH = 5;
+  private static final int BLOCK_HEIGHT = 3;
+
+  private static final String RESOLUTION = "640x384";
+  private static final int RESOLUTION_WIDTH = 640;
+  private static final int RESOLUTION_HEIGHT = 384;
+
+  private static final int MAP_ID = 20;
+
+  private static final String VIDEO_FILE_NAME = "clip.mp4";
+
   private VideoPlayerManager manager;
   private VideoMapCommand command;
   private MultiplePlayerSelector selector;
@@ -151,19 +163,19 @@ final class VideoMapCommandTest {
       this.selector,
       PlayerArgument.FFMPEG,
       AudioArgument.NONE,
-      "640x384",
+      RESOLUTION,
       blockDimensions,
-      20,
+      MAP_ID,
       dithering,
       "",
-      "clip.mp4",
+      VIDEO_FILE_NAME,
       null,
       null
     );
   }
 
   private AbstractVideoCommand.VideoConfigurationProvider playAndCaptureProvider(final DitheringArgument dithering) {
-    this.playOnWall("5x3", dithering);
+    this.playOnWall(BLOCK_DIMENSIONS, dithering);
     final ArgumentCaptor<AbstractVideoCommand.VideoConfigurationProvider> providers = ArgumentCaptor.forClass(
       AbstractVideoCommand.VideoConfigurationProvider.class
     );
@@ -173,8 +185,8 @@ final class VideoMapCommandTest {
       eq(this.selector),
       eq(PlayerArgument.FFMPEG),
       eq(AudioArgument.NONE),
-      eq("640x384"),
-      eq("clip.mp4"),
+      eq(RESOLUTION),
+      eq(VIDEO_FILE_NAME),
       eq(""),
       isNull()
     );
@@ -191,11 +203,11 @@ final class VideoMapCommandTest {
     final int width = configuration.getMapWidthResolution();
     final int height = configuration.getMapHeightResolution();
     assertEquals(expectedViewers, viewerList);
-    assertEquals(20, map);
-    assertEquals(5, blockWidth);
-    assertEquals(3, blockHeight);
-    assertEquals(640, width);
-    assertEquals(384, height);
+    assertEquals(MAP_ID, map);
+    assertEquals(BLOCK_WIDTH, blockWidth);
+    assertEquals(BLOCK_HEIGHT, blockHeight);
+    assertEquals(RESOLUTION_WIDTH, width);
+    assertEquals(RESOLUTION_HEIGHT, height);
   }
 
   private void assertStartedOnTheMainThread(final FunctionalVideoFilter ditherFilter) {
@@ -211,7 +223,7 @@ final class VideoMapCommandTest {
     final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider(
       DitheringArgument.FILTER_LITE
     );
-    final Pair<Integer, Integer> resolution = Pair.pair(640, 384);
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
 
     final Object built = configurationProvider.buildConfiguration(resolution);
 
@@ -225,7 +237,7 @@ final class VideoMapCommandTest {
     final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider(
       DitheringArgument.FILTER_LITE
     );
-    final Pair<Integer, Integer> resolution = Pair.pair(640, 384);
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
     final DitherAlgorithm algorithm = DitheringArgument.FILTER_LITE.createAlgorithm();
     final FunctionalVideoFilter ditherFilter = mock(FunctionalVideoFilter.class);
     final List<List<?>> arguments = new ArrayList<>();
@@ -256,7 +268,7 @@ final class VideoMapCommandTest {
     final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider(
       DitheringArgument.FLOYD_STEINBERG_TEMPORAL
     );
-    final Pair<Integer, Integer> resolution = Pair.pair(640, 384);
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
     final FunctionalVideoFilter ditherFilter = mock(FunctionalVideoFilter.class);
     final ArgumentCaptor<DitherAlgorithm> algorithms = ArgumentCaptor.forClass(DitherAlgorithm.class);
     try (
@@ -304,11 +316,11 @@ final class VideoMapCommandTest {
       PlayerArgument.FFMPEG,
       AudioArgument.NONE,
       resolution,
-      "5x3",
-      20,
+      BLOCK_DIMENSIONS,
+      MAP_ID,
       DitheringArgument.NEAREST_COLOR,
       "",
-      "clip.mp4",
+      VIDEO_FILE_NAME,
       codec,
       null
     );
@@ -318,9 +330,16 @@ final class VideoMapCommandTest {
   void shouldEncodeTheVideoWithMcv2WhenTheFlagSaysSo() {
     final Mcv2Configuration wall = mock(Mcv2Configuration.class);
     when(
-      this.support.configure(eq(this.sender), eq(Pair.pair(5, 3)), eq(Pair.pair(640, 384)), eq(20), eq(Settings.DEFAULT), any())
+      this.support.configure(
+        eq(this.sender),
+        eq(Pair.pair(BLOCK_WIDTH, BLOCK_HEIGHT)),
+        eq(Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT)),
+        eq(MAP_ID),
+        eq(Settings.DEFAULT),
+        any()
+      )
     ).thenReturn(wall);
-    this.playWithCodec("640x384", MapCodec.MCV2);
+    this.playWithCodec(RESOLUTION, MapCodec.MCV2);
     final ArgumentCaptor<AbstractVideoCommand.VideoConfigurationProvider> providers = ArgumentCaptor.forClass(
       AbstractVideoCommand.VideoConfigurationProvider.class
     );
@@ -330,12 +349,12 @@ final class VideoMapCommandTest {
       eq(this.selector),
       eq(PlayerArgument.FFMPEG),
       eq(AudioArgument.NONE),
-      eq("640x384"),
-      eq("clip.mp4"),
+      eq(RESOLUTION),
+      eq(VIDEO_FILE_NAME),
       eq(""),
       isNull()
     );
-    final Pair<Integer, Integer> resolution = Pair.pair(640, 384);
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
     final VideoMcv2Command.Mcv2Settings settings = assertInstanceOf(
       VideoMcv2Command.Mcv2Settings.class,
       providers.getValue().buildConfiguration(resolution)
@@ -358,20 +377,27 @@ final class VideoMapCommandTest {
   @Test
   void shouldApplyTheConfiguredCodecWithoutTheFlag() {
     when(this.configuration.getMcv2DefaultCodec()).thenReturn(MapCodec.MCV2);
-    this.playWithCodec("640x384", null);
-    verify(this.support).configure(eq(this.sender), eq(Pair.pair(5, 3)), eq(Pair.pair(640, 384)), eq(20), eq(Settings.DEFAULT), any());
+    this.playWithCodec(RESOLUTION, null);
+    verify(this.support).configure(
+      eq(this.sender),
+      eq(Pair.pair(BLOCK_WIDTH, BLOCK_HEIGHT)),
+      eq(Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT)),
+      eq(MAP_ID),
+      eq(Settings.DEFAULT),
+      any()
+    );
   }
 
   @Test
   void shouldNotStartAnMcv2VideoWithAnInvalidResolution() {
     this.playWithCodec("wide", MapCodec.MCV2);
-    verify(this.support, never()).configure(any(), any(), any(), eq(20), any(), any());
+    verify(this.support, never()).configure(any(), any(), any(), eq(MAP_ID), any(), any());
     verify(this.command, never()).playVideo(any(), any(), any(), any(), any(), anyString(), anyString(), anyString(), isNull());
   }
 
   @Test
   void shouldDitherAnMcv2VideoWithoutAWall() {
-    this.playWithCodec("640x384", MapCodec.MCV2);
+    this.playWithCodec(RESOLUTION, MapCodec.MCV2);
     final ArgumentCaptor<AbstractVideoCommand.VideoConfigurationProvider> providers = ArgumentCaptor.forClass(
       AbstractVideoCommand.VideoConfigurationProvider.class
     );
@@ -381,13 +407,13 @@ final class VideoMapCommandTest {
       eq(this.selector),
       eq(PlayerArgument.FFMPEG),
       eq(AudioArgument.NONE),
-      eq("640x384"),
-      eq("clip.mp4"),
+      eq(RESOLUTION),
+      eq(VIDEO_FILE_NAME),
       eq(""),
       isNull()
     );
 
-    final Object configuration = providers.getValue().buildConfiguration(Pair.pair(640, 384));
+    final Object configuration = providers.getValue().buildConfiguration(Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT));
     assertInstanceOf(MapDisplaySettings.class, configuration);
   }
 }

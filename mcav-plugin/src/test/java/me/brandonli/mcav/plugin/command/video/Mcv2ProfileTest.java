@@ -33,6 +33,10 @@ import org.junit.jupiter.api.Test;
 
 final class Mcv2ProfileTest {
 
+  private static final String ADAPTIVE_NAME = "ADAPTIVE";
+  private static final String SHIP_NAME = "SHIP";
+  private static final String LIVE_NAME = "LIVE";
+
   @Test
   void shouldNameTheEncoderSettings() {
     final Settings settings = Mcv2Profile.DEFAULT.getSettings();
@@ -48,12 +52,12 @@ final class Mcv2ProfileTest {
   @Test
   void shouldRefuseRemovedProfiles() {
     for (final String old : List.of(
-      "ADAPTIVE",
-      "SHIP",
+      ADAPTIVE_NAME,
+      SHIP_NAME,
       "LOW",
       "KEYFRAME",
       "INTRA",
-      "LIVE",
+      LIVE_NAME,
       "LIVE_ADAPTIVE",
       "LIVE_FAST",
       "LIVE_KEYFRAME"
@@ -66,7 +70,7 @@ final class Mcv2ProfileTest {
   void shouldListTheValidProfilesInCommandErrors() {
     final CommandContext<Object> context = mock();
     final EnumParser<Object, Mcv2Profile> parser = new EnumParser<>(Mcv2Profile.class);
-    for (final String old : List.of("ADAPTIVE", "SHIP", "LIVE")) {
+    for (final String old : List.of(ADAPTIVE_NAME, SHIP_NAME, LIVE_NAME)) {
       final EnumParseException failure = assertInstanceOf(
         EnumParseException.class,
         parser.parse(context, CommandInput.of(old)).failure().orElseThrow()

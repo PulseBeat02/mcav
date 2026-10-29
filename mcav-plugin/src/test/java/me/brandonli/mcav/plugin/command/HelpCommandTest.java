@@ -59,6 +59,15 @@ import org.junit.jupiter.api.Test;
  */
 final class HelpCommandTest {
 
+  private static final String DUMP_COMMAND = "/mcav dump";
+  private static final String HELP_COMMAND = "/mcav help";
+  private static final String DUMP_QUERY = "dump";
+
+  private static final String DUMP_DESCRIPTION = "Creates a dump of the current server information";
+  private static final String HELP_DESCRIPTION = "Shows the commands of the plugin and how to use them";
+
+  private static final String MESSAGE_KEY_PREFIX = "mcav.command.";
+
   private HelpCommand help;
   private CommandSender sender;
 
@@ -107,11 +116,11 @@ final class HelpCommandTest {
     this.help.commandHelp(this.sender, null);
     final String text = this.helpText();
     final boolean title = text.contains("Available Commands");
-    final boolean listsDump = text.contains("/mcav dump");
-    final boolean listsHelp = text.contains("/mcav help");
-    final boolean describesDump = text.contains("Creates a dump of the current server information");
-    final boolean describesHelp = text.contains("Shows the commands of the plugin and how to use them");
-    final boolean untranslated = text.contains("mcav.command.");
+    final boolean listsDump = text.contains(DUMP_COMMAND);
+    final boolean listsHelp = text.contains(HELP_COMMAND);
+    final boolean describesDump = text.contains(DUMP_DESCRIPTION);
+    final boolean describesHelp = text.contains(HELP_DESCRIPTION);
+    final boolean untranslated = text.contains(MESSAGE_KEY_PREFIX);
     assertTrue(title, text);
     assertTrue(listsDump, text);
     assertTrue(listsHelp, text);
@@ -122,13 +131,13 @@ final class HelpCommandTest {
 
   @Test
   void shouldShowOnlyTheCommandsMatchingAQuery() {
-    this.help.commandHelp(this.sender, "dump");
+    this.help.commandHelp(this.sender, DUMP_QUERY);
     final String text = this.helpText();
-    final boolean dumpListed = text.contains("/mcav dump");
-    final boolean describesDump = text.contains("Creates a dump of the current server information");
-    final boolean helpListed = text.contains("/mcav help");
-    final boolean describesHelp = text.contains("Shows the commands of the plugin and how to use them");
-    final boolean untranslated = text.contains("mcav.command.");
+    final boolean dumpListed = text.contains(DUMP_COMMAND);
+    final boolean describesDump = text.contains(DUMP_DESCRIPTION);
+    final boolean helpListed = text.contains(HELP_COMMAND);
+    final boolean describesHelp = text.contains(HELP_DESCRIPTION);
+    final boolean untranslated = text.contains(MESSAGE_KEY_PREFIX);
     assertTrue(dumpListed, text);
     assertTrue(describesDump, text);
     assertFalse(helpListed, text);
@@ -196,6 +205,6 @@ final class HelpCommandTest {
   @Test
   void shouldRefuseNullArguments() {
     assertThrows(NullPointerException.class, () -> new HelpCommand(null));
-    assertThrows(NullPointerException.class, () -> this.help.commandHelp(null, "dump"));
+    assertThrows(NullPointerException.class, () -> this.help.commandHelp(null, DUMP_QUERY));
   }
 }

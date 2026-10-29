@@ -122,6 +122,17 @@ final class AnnotationParserHandlerTest {
     "mcav vnc create playerSelector vncResolution targetFramesPerSecond blockDimensions mapId ditheringAlgorithm server flags"
   );
 
+  private static final String BROWSER_SYNTAX =
+    "mcav browser create playerSelector browserResolution nth blockDimensions mapId ditheringAlgorithm audioType url flags";
+  private static final String IMAGE_SYNTAX =
+    "mcav image map playerSelector imageResolution blockDimensions mapId ditheringAlgorithm mrl flags";
+  private static final String VIDEO_SYNTAX =
+    "mcav video map playerSelector playerType audioType videoResolution blockDimensions mapId ditheringAlgorithm ytdlpOptions mrl flags";
+  private static final String VM_SYNTAX =
+    "mcav vm create playerSelector vmResolution targetFramesPerSecond blockDimensions mapId ditheringAlgorithm architecture audioType flags";
+  private static final String VNC_SYNTAX =
+    "mcav vnc create playerSelector vncResolution targetFramesPerSecond blockDimensions mapId ditheringAlgorithm server flags";
+
   private MCAVSandbox plugin;
 
   private VideoPlayerManager videoManager;
@@ -209,8 +220,7 @@ final class AnnotationParserHandlerTest {
   void shouldLimitTheFrameRateOfVirtualMachines() {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
-    final String syntax =
-      "mcav vm create playerSelector vmResolution targetFramesPerSecond blockDimensions mapId ditheringAlgorithm architecture audioType flags";
+    final String syntax = VM_SYNTAX;
     final ArgumentParser<CommandSender, ?> parser = this.parserOf(syntax, "targetFramesPerSecond");
     final IntegerParser<?> framesPerSecond = assertInstanceOf(IntegerParser.class, parser);
     final IntRange range = framesPerSecond.range();
@@ -224,11 +234,9 @@ final class AnnotationParserHandlerTest {
   void shouldTakeTheRestOfTheLineForFreeTextArguments() {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
-    final String vm =
-      "mcav vm create playerSelector vmResolution targetFramesPerSecond blockDimensions mapId ditheringAlgorithm architecture audioType flags";
-    final String image = "mcav image map playerSelector imageResolution blockDimensions mapId ditheringAlgorithm mrl flags";
-    final String browser =
-      "mcav browser create playerSelector browserResolution nth blockDimensions mapId ditheringAlgorithm audioType url flags";
+    final String vm = VM_SYNTAX;
+    final String image = IMAGE_SYNTAX;
+    final String browser = BROWSER_SYNTAX;
     final ArgumentParser<CommandSender, ?> flags = this.parserOf(vm, "flags");
     final ArgumentParser<CommandSender, ?> mrl = this.parserOf(image, "mrl");
     final ArgumentParser<CommandSender, ?> url = this.parserOf(browser, "url");
@@ -268,8 +276,7 @@ final class AnnotationParserHandlerTest {
   void shouldTakeTheVncServerUnquotedUpToTheFlags() {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
-    final String vnc =
-      "mcav vnc create playerSelector vncResolution targetFramesPerSecond blockDimensions mapId ditheringAlgorithm server flags";
+    final String vnc = VNC_SYNTAX;
     final StringParser<?> server = assertInstanceOf(StringParser.class, this.parserOf(vnc, "server"));
     // a quoted argument ends a host at its colon
 
@@ -281,12 +288,7 @@ final class AnnotationParserHandlerTest {
   void shouldTakeTheCodecFlagOnEveryWallOfMaps() {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
-    for (final String syntax : List.of(
-      "mcav video map playerSelector playerType audioType videoResolution blockDimensions mapId ditheringAlgorithm ytdlpOptions mrl flags",
-      "mcav image map playerSelector imageResolution blockDimensions mapId ditheringAlgorithm mrl flags",
-      "mcav browser create playerSelector browserResolution nth blockDimensions mapId ditheringAlgorithm audioType url flags",
-      "mcav vnc create playerSelector vncResolution targetFramesPerSecond blockDimensions mapId ditheringAlgorithm server flags"
-    )) {
+    for (final String syntax : List.of(VIDEO_SYNTAX, IMAGE_SYNTAX, BROWSER_SYNTAX, VNC_SYNTAX)) {
       final Command<CommandSender> command = this.commands.command(syntax);
       final CommandFlagParser<?> flags = assertInstanceOf(CommandFlagParser.class, command.components().getLast().parser(), syntax);
       final List<String> names = flags.flags().stream().map(CommandFlag::name).toList();
@@ -349,12 +351,9 @@ final class AnnotationParserHandlerTest {
   void shouldLetTheBrowserAndTheMachineChooseTheirAudioOutputLikeTheVideos() {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
-    final String video =
-      "mcav video map playerSelector playerType audioType videoResolution blockDimensions mapId ditheringAlgorithm ytdlpOptions mrl flags";
-    final String browser =
-      "mcav browser create playerSelector browserResolution nth blockDimensions mapId ditheringAlgorithm audioType url flags";
-    final String vm =
-      "mcav vm create playerSelector vmResolution targetFramesPerSecond blockDimensions mapId ditheringAlgorithm architecture audioType flags";
+    final String video = VIDEO_SYNTAX;
+    final String browser = BROWSER_SYNTAX;
+    final String vm = VM_SYNTAX;
     final ArgumentParser<CommandSender, ?> videoAudio = this.parserOf(video, "audioType");
     for (final String syntax : List.of(browser, vm)) {
       final ArgumentParser<CommandSender, ?> audio = this.parserOf(syntax, "audioType");
