@@ -44,7 +44,7 @@ LATER_CAPTURE_TIME: int = 210
 FIRST_FRAME_LATENCY: int = 200
 
 LATENCY_KEY_PREFIX: str = "glass_to_glass_milliseconds_"
-MEAN_LATENCY_KEY: str = LATENCY_KEY_PREFIX + "mean"
+MEAN_LATENCY_KEY: str = f"{LATENCY_KEY_PREFIX}mean"
 
 
 class LatencyTest(unittest.TestCase):
@@ -54,7 +54,7 @@ class LatencyTest(unittest.TestCase):
         self.assertEqual(1, displayed)
 
         for statistic in ("mean", "p50", "p95", "maximum"):
-            glass_to_glass: float | int = result[LATENCY_KEY_PREFIX + statistic]
+            glass_to_glass: float | int = result[f"{LATENCY_KEY_PREFIX}{statistic}"]
             self.assertEqual(FIRST_FRAME_LATENCY, glass_to_glass)
 
     def test_should_not_replace_the_displayed_frame_with_an_unsent_occurrence(self) -> None:

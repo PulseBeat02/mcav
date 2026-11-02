@@ -24,7 +24,7 @@ BYTE_ORDER: str = '<'
 BYTE_CODE: str = 'B'
 HALF_WORD_CODE: str = 'H'
 WORD_CODE: str = 'I'
-WORD: struct.Struct = struct.Struct(BYTE_ORDER + WORD_CODE)
+WORD: struct.Struct = struct.Struct(f'{BYTE_ORDER}{WORD_CODE}')
 
 FRAME_KEY: str = 'frame'
 
@@ -100,7 +100,7 @@ def _add(cases: dict[Any, Any] | Any | dict[str, dict[str, str]], name: str, dat
 
 def changed(data: bytes, offset: int, value: int, code: str = BYTE_CODE) -> bytes:
     result: bytearray = bytearray(data)
-    struct.pack_into(BYTE_ORDER + code, result, offset, value)
+    struct.pack_into(f'{BYTE_ORDER}{code}', result, offset, value)
     return bytes(result)
 
 

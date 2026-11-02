@@ -32,7 +32,8 @@ import mcv2_tools
 
 PROGRAM: str = "mcv2_tools.py"
 REFERENCE_NAME: str = "reference.rgb"
-CAPTURE_NAME: str = "capture-%02d.png"
+CAPTURE_PREFIX: str = "capture-"
+CAPTURE_SUFFIX: str = ".png"
 
 SIDE: int = 8
 PICTURE_SHAPE: tuple[int, int, int] = (SIDE, SIDE, mcv2_reference.CHANNELS)
@@ -107,7 +108,7 @@ class CaptureCheckTest(unittest.TestCase):
 
             for index, picture in enumerate(captures):
                 image: Image.Image = Image.fromarray(picture)
-                image.save(root / (CAPTURE_NAME % index))
+                image.save(root / f"{CAPTURE_PREFIX}{index:02d}{CAPTURE_SUFFIX}")
 
             height: int
             width: int

@@ -192,7 +192,7 @@ class DifferentialTest(unittest.TestCase):
             arguments: SimpleNamespace = SimpleNamespace(out=output, java=PLACEHOLDER, classpath=PLACEHOLDER, seed=SEED)
             archive_path: str = str(output / ARCHIVE_PATH)
             response: SimpleNamespace = SimpleNamespace(
-                returncode=0, stderr="", stdout=archive_path + TOKEN_SEPARATOR + TOKEN_SEPARATOR.join(tokens)
+                returncode=0, stderr='', stdout=TOKEN_SEPARATOR.join([archive_path, *tokens])
             )
             with (
                 patch.object(mcv2_tools, BUILD_ARCHIVES, return_value={ARCHIVE_NAME: frames}),

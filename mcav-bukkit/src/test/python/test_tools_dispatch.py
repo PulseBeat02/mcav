@@ -160,8 +160,8 @@ class ChartCommandTest(unittest.TestCase):
         for name in ("codecs", "features"):
             with (
                 self.subTest(figure=name),
-                Image.open(COMMITTED_CHARTS / (name + CHART_SUFFIX)) as expected,
-                Image.open(output / (name + CHART_SUFFIX)) as actual,
+                Image.open(COMMITTED_CHARTS / f"{name}{CHART_SUFFIX}") as expected,
+                Image.open(output / f"{name}{CHART_SUFFIX}") as actual,
             ):
                 pixels: numpy.ndarray = numpy.array(actual)
                 numpy.testing.assert_array_equal(numpy.array(expected), pixels)
