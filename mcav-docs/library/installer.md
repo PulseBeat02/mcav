@@ -45,8 +45,8 @@ server:
 
 ## Artifacts
 
-`Artifact` lists every module of the library: `COMMON`, `JDA`, `HTTP`, `BROWSER`, `VM`, `VNC`, `SVC`, `LWJGL`, and
-`BUKKIT`. `COMMON` is required by every other module. `loadMCAVDependencies` downloads the module in the version
+`Artifact` lists every module of the library: `COMMON`, `DISCORD`, `HTTP`, `BROWSER`, `VM`, `VNC`, `VOICECHAT`, `LWJGL`,
+and `BUKKIT`. `COMMON` is required by every other module. `loadMCAVDependencies` downloads the module in the version
 `Artifact.DEFAULT_VERSION` of the group `Artifact.GROUP_ID` (`me.brandonli`), and `getArtifactId()` returns the Maven
 artifact id of a module, such as `mcav-common`.
 
