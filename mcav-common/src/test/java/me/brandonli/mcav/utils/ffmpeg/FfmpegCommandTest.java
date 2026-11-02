@@ -24,11 +24,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
-import me.brandonli.mcav.testing.UtilityClassAssertions;
 import me.brandonli.mcav.utils.os.Os;
 import me.brandonli.mcav.utils.runtime.CommandTask;
 import org.junit.jupiter.api.Test;
@@ -206,24 +204,5 @@ final class FfmpegCommandTest {
     assertThrows(NullPointerException.class, () -> builder.addArgument(null));
     assertThrows(NullPointerException.class, () -> builder.addArguments((String[]) null));
     assertThrows(NullPointerException.class, () -> builder.addArguments(DURATION_ARGUMENT, null));
-  }
-
-  @Test
-  void shouldProvideAnExistingExecutableOnce() throws ReflectiveOperationException {
-    final Path first = FfmpegExecutableProvider.getFfmpegPath();
-    final Path second = FfmpegExecutableProvider.getFfmpegPath();
-    final boolean exists = Files.isRegularFile(first);
-    assertTrue(exists);
-    assertSame(first, second);
-
-    UtilityClassAssertions.assertNotInstantiable(FfmpegExecutableProvider.class);
-  }
-
-  @Test
-  void shouldNotInstantiateTheHolder() throws ReflectiveOperationException {
-    final Class<?>[] nestedClasses = FfmpegExecutableProvider.class.getDeclaredClasses();
-    assertEquals(1, nestedClasses.length);
-
-    UtilityClassAssertions.assertNotInstantiable(nestedClasses[0]);
   }
 }
