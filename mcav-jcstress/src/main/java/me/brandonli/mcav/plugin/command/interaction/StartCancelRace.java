@@ -57,7 +57,8 @@ public class StartCancelRace {
    * Creates a screen of one map whose player was not released yet.
    */
   public StartCancelRace() {
-    final WallPicture picture = WallPicture.of(COLUMNS, ROWS, SOURCE_WIDTH, SOURCE_HEIGHT, false);
+    final boolean stretched = false;
+    final WallPicture picture = WallPicture.of(COLUMNS, ROWS, SOURCE_WIDTH, SOURCE_HEIGHT, stretched);
     this.screen = new Screen(null, null, FIRST_MAP_ID, MAP_COUNT, picture);
     this.releases = new AtomicInteger();
   }
