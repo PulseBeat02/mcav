@@ -117,4 +117,4 @@ started.
 
 `start` throws an `HttpException` when the server cannot be started, for example because the port is already in use.
 Calling `start` on a running server has no effect, and a stopped server can be started again. `stop` disconnects every
-listener without waiting for connections that are stuck.
+listener, waiting at most one second for connections that are stuck.
