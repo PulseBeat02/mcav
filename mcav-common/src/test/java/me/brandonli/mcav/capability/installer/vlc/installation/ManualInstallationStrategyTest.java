@@ -281,6 +281,17 @@ final class ManualInstallationStrategyTest {
     assertTrue(namesTheExitCode, message);
   }
 
+  @Test
+  void shouldFailWhenAToolCannotBeStarted() {
+    final VlcInstaller installer = VlcInstaller.create(this.temporaryDirectory);
+    final TestStrategy strategy = new TestStrategy(installer);
+    final String missingTool = this.temporaryDirectory.resolve(MISSING_NAME).toString();
+    final InstallationException thrown = assertThrows(InstallationException.class, () -> strategy.runProcess(null, missingTool));
+    final String message = thrown.getMessage();
+    final boolean namesTheTool = message.contains(missingTool);
+    assertTrue(namesTheTool, message);
+  }
+
   private static Path nest(final Path root, final int levels) throws IOException {
     Path current = root;
     for (int level = 0; level < levels; level++) {
