@@ -600,8 +600,8 @@ final class VernacularVncPlayerTest {
     final VncSource source = this.source(server, 0, 0);
     final VncException exception = assertThrows(VncException.class, () -> player.start(source));
     final String message = exception.getMessage();
-    final boolean messageStartsWith = message.startsWith("VNC session with vnc://127.0.0.1:");
-    assertTrue(messageStartsWith, message);
+    final boolean namesTheSession = message.contains(", VNC session with vnc://127.0.0.1:");
+    assertTrue(namesTheSession, message);
     final boolean playing = player.isPlaying();
     assertFalse(playing);
   }
@@ -615,8 +615,8 @@ final class VernacularVncPlayerTest {
     final VncException exception = assertThrows(VncException.class, () -> player.start(source));
     final String message = exception.getMessage();
     final Throwable cause = exception.getCause();
-    final boolean messageStartsWith = message.startsWith("VNC server vnc://127.0.0.1:");
-    assertTrue(messageStartsWith, message);
+    final boolean namesTheServer = message.contains(", VNC server vnc://127.0.0.1:");
+    assertTrue(namesTheServer, message);
     assertInstanceOf(IOException.class, cause);
   }
 
@@ -656,7 +656,7 @@ final class VernacularVncPlayerTest {
     Await.until("the failure is reported", () -> !this.errorMessages.isEmpty());
     final String message = this.errorMessages.getFirst();
     final Throwable error = this.errors.getFirst();
-    assertEquals("The VNC connection failed", message);
+    assertEquals("The VNC connection failed.", message);
     final UnexpectedVncException failure = assertInstanceOf(UnexpectedVncException.class, error);
     final Throwable cause = failure.getCause();
     final IOException refused = assertInstanceOf(IOException.class, cause);
@@ -681,7 +681,7 @@ final class VernacularVncPlayerTest {
     final String message = this.errorMessages.getFirst();
     final Throwable error = this.errors.getFirst();
     final boolean playing = player.isPlaying();
-    assertEquals("Failed to process a VNC frame", message);
+    assertEquals("Failed to process a VNC frame.", message);
     assertSame(failure, error);
     assertTrue(playing);
   }
@@ -1107,7 +1107,7 @@ final class VernacularVncPlayerTest {
     player.moveMouse(1, 1);
     final String message = this.errorMessages.getFirst();
     final Throwable error = this.errors.getFirst();
-    assertEquals("Failed to forward input to the VNC server", message);
+    assertEquals("Failed to forward input to the VNC server.", message);
     assertSame(failure, error);
   }
 
@@ -1149,7 +1149,7 @@ final class VernacularVncPlayerTest {
     this.pushError(capturedConfiguration, failure);
     final String message = this.errorMessages.getFirst();
     final Throwable error = this.errors.getFirst();
-    assertEquals("The VNC connection failed", message);
+    assertEquals("The VNC connection failed.", message);
     assertSame(failure, error);
   }
 
@@ -1347,7 +1347,7 @@ final class VernacularVncPlayerTest {
     final String message = this.errorMessages.getFirst();
     final Throwable error = this.errors.getFirst();
     assertTrue(released);
-    assertEquals("Failed to close the VNC connection", message);
+    assertEquals("Failed to close the VNC connection.", message);
     assertSame(failure, error);
   }
 

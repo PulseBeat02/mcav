@@ -289,7 +289,7 @@ public final class VernacularVncPlayer implements VncPlayer {
       );
     }
 
-    return "VNC session with %s could not start because of \"%s\"!".formatted(resource, message);
+    return "Because of \"%s\", VNC session with %s could not start!".formatted(message, resource);
   }
 
   // the client connects on its own thread and would only report failures later, so the socket is opened here; the
@@ -308,7 +308,7 @@ public final class VernacularVncPlayer implements VncPlayer {
 
       final String reason = exception.getMessage();
       final String resource = source.getResource();
-      final String message = "VNC server %s could not be reached because of \"%s\"!".formatted(resource, reason);
+      final String message = "Because of \"%s\", VNC server %s could not be reached!".formatted(reason, resource);
       throw new VncException(message, exception);
     }
   }
@@ -382,7 +382,7 @@ public final class VernacularVncPlayer implements VncPlayer {
 
     final boolean wasAlive = failed.end();
     if (wasAlive) {
-      this.report("The VNC connection failed", error);
+      this.report("The VNC connection failed.", error);
     }
   }
 
@@ -452,7 +452,7 @@ public final class VernacularVncPlayer implements VncPlayer {
       // a frame runs user filters and native OpenCV code, which can fail with any Error, such as an AssertionError or
       // a LinkageError; only errors of the virtual machine are thrown, every other failure is reported
       ThrowableUtils.throwIfFatal(exception);
-      this.report("Failed to process a VNC frame", exception);
+      this.report("Failed to process a VNC frame.", exception);
     }
   }
 
@@ -574,7 +574,7 @@ public final class VernacularVncPlayer implements VncPlayer {
     try {
       vncClient.stop();
     } catch (final RuntimeException exception) {
-      this.report("Failed to close the VNC connection", exception);
+      this.report("Failed to close the VNC connection.", exception);
     }
 
     if (interrupted) {
@@ -733,7 +733,7 @@ public final class VernacularVncPlayer implements VncPlayer {
     } catch (final RuntimeException exception) {
       final boolean active = this.isActive();
       if (active) {
-        this.report("Failed to forward input to the VNC server", exception);
+        this.report("Failed to forward input to the VNC server.", exception);
       }
     }
   }
