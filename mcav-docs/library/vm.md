@@ -18,13 +18,19 @@ dependencies {
 ```
 
 ```java
-  final MCAVApi api = MCAV.api();
-  api.install(VncModule.class, VmModule.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(MyPlugin.class);
 
-  final VmModule vmModule = api.getModule(VmModule.class);
-  final boolean qemuAvailable = vmModule.isQemuAvailable();
-  if (!qemuAvailable) {
-    LOGGER.warn("QEMU is missing and MCAV cannot install it on this platform, so virtual machines cannot start.");
+  public MCAVApi createVirtualMachineApi() {
+    final MCAVApi api = MCAV.api();
+    api.install(VncModule.class, VmModule.class);
+
+    final VmModule vmModule = api.getModule(VmModule.class);
+    final boolean qemuAvailable = vmModule.isQemuAvailable();
+    if (!qemuAvailable) {
+      LOGGER.warn("QEMU is missing and MCAV cannot install it on this platform, so virtual machines cannot start.");
+    }
+
+    return api;
   }
 ```
 

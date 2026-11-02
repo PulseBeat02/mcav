@@ -51,6 +51,8 @@ caller sees, including every later loop of a `RepeatingFrameSource`. To change p
 with `updateArgb(int[], width, height)`:
 
 ```java
+  private static final Logger LOGGER = LoggerFactory.getLogger(MyPlugin.class);
+
   public void paintFirstPixelRed(final Path imageFile) {
     final FileSource file = FileSource.path(imageFile);
     try (final ImageBuffer image = ImageBuffer.path(file)) {
@@ -81,6 +83,8 @@ with `updateArgb(int[], width, height)`:
 with the [image player](player.md#image-players).
 
 ```java
+  private static final Logger LOGGER = LoggerFactory.getLogger(MyPlugin.class);
+
   public void describeGif() {
     final String address = "https://example.com/image.gif";
     final URI sourceUri = URI.create(address);

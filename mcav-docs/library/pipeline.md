@@ -38,6 +38,8 @@ the next step either way; filters that work on a copy use the result to skip cop
 below only reads the frame, so it returns `false`; pass it to a pipeline as `this::logSize`:
 
 ```java
+  private static final Logger LOGGER = LoggerFactory.getLogger(MyPlugin.class);
+
   private boolean logSize(final ImageBuffer image, final OriginalVideoMetadata metadata) {
     final int width = image.getWidth();
     final int height = image.getHeight();

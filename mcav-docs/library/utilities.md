@@ -275,6 +275,8 @@ every MCAV failure, so `catch (MCAVException exception)` catches both. Catch
 convert. The `service` executor is yours: create it once and shut it down when your plugin stops:
 
 ```java
+  private static final Logger LOGGER = LoggerFactory.getLogger(MyPlugin.class);
+
   public void extractAudioInBackground(final ExecutorService service) {
     final CompletableFuture<Void> _ = CompletableFuture.runAsync(this::extractAudio, service);
   }
@@ -347,9 +349,11 @@ thread of your own, and must keep running after a failure without hiding the fai
 as usual:
 
 ```java
-  private void renderFrameSafely() {
+  private static final Logger LOGGER = LoggerFactory.getLogger(MyPlugin.class);
+
+  private void renderFrameSafely(final Runnable renderer) {
     try {
-      this.renderFrame();
+      renderer.run();
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
       LOGGER.error("Rendering a frame failed, skipping it.", exception);

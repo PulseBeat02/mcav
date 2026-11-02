@@ -55,10 +55,12 @@ Any other Maven artifact can be loaded with `loadDependencies`, which takes the 
 `JarLoader`, and returns the jars it added:
 
 ```java
-  final String group = "org.apache.commons";
-  final String artifact = "commons-text";
-  final String version = "1.12.0";
-  final List<Path> jars = installer.loadDependencies(group, artifact, version, JarLoader.DEFAULT_URL_LOADER);
+  public List<Path> loadCommonsText(final MCAVInstaller installer) {
+    final String group = "org.apache.commons";
+    final String artifact = "commons-text";
+    final String version = "1.12.0";
+    return installer.loadDependencies(group, artifact, version, JarLoader.DEFAULT_URL_LOADER);
+  }
 ```
 
 `JarLoader.DEFAULT_URL_LOADER` appends the jars to a `URLClassLoader`. `JarLoader` is a functional interface with a

@@ -104,6 +104,8 @@ volume is a filter of the audio pipeline, `VolumeFilter` (see [filters](filters.
 every player and every audio output behind it.
 
 ```java
+  private static final Logger LOGGER = LoggerFactory.getLogger(MyPlugin.class);
+
   public boolean playFaster(final VideoPlayerMultiplexer player) {
     if (player instanceof final AbstractVideoPlayerCv decoded) {
       final long position = decoded.getPositionMilliseconds();
