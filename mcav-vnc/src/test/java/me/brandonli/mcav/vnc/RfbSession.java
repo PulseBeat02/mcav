@@ -49,7 +49,7 @@ final class RfbSession {
   static final int BITS_PER_PIXEL_16 = 16;
   static final int BITS_PER_PIXEL_8 = 8;
 
-  static final int SET_COLOUR_MAP_ENTRIES = 1;
+  static final int SET_COLOR_MAP_ENTRIES = 1;
   static final int BELL = 2;
   static final int SERVER_CUT_TEXT = 3;
 
@@ -65,7 +65,7 @@ final class RfbSession {
   static final int HEXTILE_BACKGROUND = 2;
   static final int HEXTILE_FOREGROUND = 4;
   static final int HEXTILE_SUBRECTANGLES = 8;
-  static final int HEXTILE_COLOURED = 16;
+  static final int HEXTILE_COLORED = 16;
 
   private final RfbGuard guard;
 
@@ -86,7 +86,7 @@ final class RfbSession {
     this.handshake(minor, security, width, height, BITS_PER_PIXEL_32);
   }
 
-  // Runs the handshake up to and including the server initialisation and the client's pixel format.
+  // Runs the handshake up to and including the server initialization and the client's pixel format.
   void handshake(final int minor, final int security, final int width, final int height, final int clientBitsPerPixel) throws IOException {
     this.sendFromServer(version(minor));
     this.sendFromClient(version(minor));

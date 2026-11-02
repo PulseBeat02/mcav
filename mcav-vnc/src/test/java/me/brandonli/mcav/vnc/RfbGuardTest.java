@@ -26,7 +26,7 @@ import static me.brandonli.mcav.vnc.RfbSession.CURSOR_ENCODING;
 import static me.brandonli.mcav.vnc.RfbSession.DESKTOP_NAME;
 import static me.brandonli.mcav.vnc.RfbSession.DESKTOP_SIZE_ENCODING;
 import static me.brandonli.mcav.vnc.RfbSession.HEXTILE_BACKGROUND;
-import static me.brandonli.mcav.vnc.RfbSession.HEXTILE_COLOURED;
+import static me.brandonli.mcav.vnc.RfbSession.HEXTILE_COLORED;
 import static me.brandonli.mcav.vnc.RfbSession.HEXTILE_ENCODING;
 import static me.brandonli.mcav.vnc.RfbSession.HEXTILE_FOREGROUND;
 import static me.brandonli.mcav.vnc.RfbSession.HEXTILE_RAW;
@@ -38,7 +38,7 @@ import static me.brandonli.mcav.vnc.RfbSession.NONE;
 import static me.brandonli.mcav.vnc.RfbSession.RAW_ENCODING;
 import static me.brandonli.mcav.vnc.RfbSession.RRE_ENCODING;
 import static me.brandonli.mcav.vnc.RfbSession.SERVER_CUT_TEXT;
-import static me.brandonli.mcav.vnc.RfbSession.SET_COLOUR_MAP_ENTRIES;
+import static me.brandonli.mcav.vnc.RfbSession.SET_COLOR_MAP_ENTRIES;
 import static me.brandonli.mcav.vnc.RfbSession.SHARE_DESKTOP;
 import static me.brandonli.mcav.vnc.RfbSession.VNC;
 import static me.brandonli.mcav.vnc.RfbSession.ZLIB_ENCODING;
@@ -289,9 +289,9 @@ final class RfbGuardTest {
   }
 
   @Test
-  void shouldFrameColourMapEntries() throws IOException {
+  void shouldFrameColorMapEntries() throws IOException {
     final RfbSession session = this.connected();
-    session.sendFromServer(concatenate(new byte[] { SET_COLOUR_MAP_ENTRIES, 0 }, unsigned16(0), unsigned16(2), new byte[12]));
+    session.sendFromServer(concatenate(new byte[] { SET_COLOR_MAP_ENTRIES, 0 }, unsigned16(0), unsigned16(2), new byte[12]));
     this.assertAtAMessage(session);
   }
 
@@ -365,10 +365,10 @@ final class RfbGuardTest {
   void shouldFrameEveryKindOfHextileTile() throws IOException {
     final RfbSession session = this.connected();
     final byte[] raw = concatenate(new byte[] { HEXTILE_RAW }, this.pixels(16 * 16 * 4));
-    final byte[] colours = new byte[] { HEXTILE_BACKGROUND | HEXTILE_FOREGROUND, 0, 0, 0, 0, 0, 0, 0, 0 };
-    final byte[] coloured = concatenate(new byte[] { HEXTILE_SUBRECTANGLES | HEXTILE_COLOURED, 1 }, this.pixels(4 + 2));
+    final byte[] colors = new byte[] { HEXTILE_BACKGROUND | HEXTILE_FOREGROUND, 0, 0, 0, 0, 0, 0, 0, 0 };
+    final byte[] colored = concatenate(new byte[] { HEXTILE_SUBRECTANGLES | HEXTILE_COLORED, 1 }, this.pixels(4 + 2));
     final byte[] plain = concatenate(new byte[] { HEXTILE_BACKGROUND | HEXTILE_SUBRECTANGLES, 0, 0, 0, 0, 1 }, this.pixels(2));
-    session.sendFromServer(concatenate(update(1), rectangle(0, 0, 20, 17, HEXTILE_ENCODING), raw, colours, coloured, plain));
+    session.sendFromServer(concatenate(update(1), rectangle(0, 0, 20, 17, HEXTILE_ENCODING), raw, colors, colored, plain));
     session.sendFromServer(concatenate(update(1), rectangle(0, 0, 16, 16, HEXTILE_ENCODING), new byte[] { 0 }));
     this.assertAtAMessage(session);
   }

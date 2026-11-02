@@ -236,8 +236,8 @@ final class RfbGuard {
     TILE(1),
     SUBRECTANGLES(1),
     ZLIB_LENGTH(Integer.BYTES),
-    // padding, the first colour and the number of colours
-    COLOURS(5),
+    // padding, the first color and the number of colors
+    COLORS(5),
     // padding and the length of the text
     TEXT(7);
 
@@ -262,7 +262,7 @@ final class RfbGuard {
 
   private final class ServerParser {
 
-    private static final int COLOUR_ENTRY = 6;
+    private static final int COLOR_ENTRY = 6;
     private static final int SUBRECTANGLE_GEOMETRY = 8;
     private static final int HEXTILE_GEOMETRY = 2;
 
@@ -280,10 +280,10 @@ final class RfbGuard {
     private static final int TILE_BACKGROUND = 2;
     private static final int TILE_FOREGROUND = 4;
     private static final int TILE_SUBRECTANGLES = 8;
-    private static final int TILE_COLOURED = 16;
+    private static final int TILE_COLORED = 16;
 
     private static final int FRAMEBUFFER_UPDATE = 0;
-    private static final int SET_COLOUR_MAP_ENTRIES = 1;
+    private static final int SET_COLOR_MAP_ENTRIES = 1;
     private static final int BELL = 2;
     private static final int SERVER_CUT_TEXT = 3;
 
@@ -303,7 +303,7 @@ final class RfbGuard {
     private static final int RECTANGLE_HEIGHT_OFFSET = 6;
     private static final int RECTANGLE_ENCODING_OFFSET = 8;
 
-    private static final int COLOUR_COUNT_OFFSET = 3;
+    private static final int COLOR_COUNT_OFFSET = 3;
     private static final int TEXT_LENGTH_OFFSET = 3;
 
     private static final int INITIAL_BYTES_PER_PIXEL = 4;
@@ -430,7 +430,7 @@ final class RfbGuard {
         case TILE -> this::tile;
         case SUBRECTANGLES -> this::subrectangles;
         case ZLIB_LENGTH -> this::zlib;
-        case COLOURS -> this::colours;
+        case COLORS -> this::colors;
         case TEXT -> this::text;
       };
       step.run();
@@ -551,7 +551,7 @@ final class RfbGuard {
       final int type = this.unsigned8(0);
       switch (type) {
         case FRAMEBUFFER_UPDATE -> this.expect(Server.UPDATE);
-        case SET_COLOUR_MAP_ENTRIES -> this.expect(Server.COLOURS);
+        case SET_COLOR_MAP_ENTRIES -> this.expect(Server.COLORS);
         case BELL -> this.expect(Server.MESSAGE);
         case SERVER_CUT_TEXT -> this.expect(Server.TEXT);
         default -> throw RfbGuard.this.violation("message type %s".formatted(type));
@@ -680,19 +680,19 @@ final class RfbGuard {
 
       final int background = (flags & TILE_BACKGROUND) != 0 ? pixelBytes : 0;
       final int foreground = (flags & TILE_FOREGROUND) != 0 ? pixelBytes : 0;
-      final int colours = background + foreground;
+      final int colors = background + foreground;
       if ((flags & TILE_SUBRECTANGLES) != 0) {
-        this.skip(colours, Then.STATE, Server.SUBRECTANGLES);
+        this.skip(colors, Then.STATE, Server.SUBRECTANGLES);
         return;
       }
 
-      this.skip(colours, Then.TILE, Server.MESSAGE);
+      this.skip(colors, Then.TILE, Server.MESSAGE);
     }
 
     private void subrectangles() {
       final int count = this.unsigned8(0);
-      final int colour = (this.tileFlags & TILE_COLOURED) != 0 ? RfbGuard.this.bytesPerPixel() : 0;
-      final int each = colour + HEXTILE_GEOMETRY;
+      final int color = (this.tileFlags & TILE_COLORED) != 0 ? RfbGuard.this.bytesPerPixel() : 0;
+      final int each = color + HEXTILE_GEOMETRY;
       this.skip((long) count * each, Then.TILE, Server.MESSAGE);
     }
 
@@ -709,9 +709,9 @@ final class RfbGuard {
       this.skip(length, Then.RECTANGLE, Server.MESSAGE);
     }
 
-    private void colours() {
-      final int count = this.unsigned16(COLOUR_COUNT_OFFSET);
-      final long bytes = (long) COLOUR_ENTRY * count;
+    private void colors() {
+      final int count = this.unsigned16(COLOR_COUNT_OFFSET);
+      final long bytes = (long) COLOR_ENTRY * count;
       this.skip(bytes, Then.STATE, Server.MESSAGE);
     }
 

@@ -21,7 +21,7 @@ import static me.brandonli.mcav.vnc.RfbSession.BELL;
 import static me.brandonli.mcav.vnc.RfbSession.COPY_RECTANGLE_ENCODING;
 import static me.brandonli.mcav.vnc.RfbSession.CURSOR_ENCODING;
 import static me.brandonli.mcav.vnc.RfbSession.HEXTILE_BACKGROUND;
-import static me.brandonli.mcav.vnc.RfbSession.HEXTILE_COLOURED;
+import static me.brandonli.mcav.vnc.RfbSession.HEXTILE_COLORED;
 import static me.brandonli.mcav.vnc.RfbSession.HEXTILE_ENCODING;
 import static me.brandonli.mcav.vnc.RfbSession.HEXTILE_FOREGROUND;
 import static me.brandonli.mcav.vnc.RfbSession.HEXTILE_RAW;
@@ -30,7 +30,7 @@ import static me.brandonli.mcav.vnc.RfbSession.MINOR_VERSION_3_8;
 import static me.brandonli.mcav.vnc.RfbSession.NONE;
 import static me.brandonli.mcav.vnc.RfbSession.RAW_ENCODING;
 import static me.brandonli.mcav.vnc.RfbSession.RRE_ENCODING;
-import static me.brandonli.mcav.vnc.RfbSession.SET_COLOUR_MAP_ENTRIES;
+import static me.brandonli.mcav.vnc.RfbSession.SET_COLOR_MAP_ENTRIES;
 import static me.brandonli.mcav.vnc.RfbSession.ZLIB_ENCODING;
 import static me.brandonli.mcav.vnc.RfbSession.concatenate;
 import static me.brandonli.mcav.vnc.RfbSession.cutText;
@@ -103,7 +103,7 @@ final class RfbGuardPropertyTest {
       switch (random.nextInt(4)) {
         case 0 -> output.writeBytes(new byte[] { BELL });
         case 1 -> output.writeBytes(cutText(random.nextInt(300)));
-        case 2 -> output.writeBytes(this.colours(random));
+        case 2 -> output.writeBytes(this.colors(random));
         default -> output.writeBytes(this.framebufferUpdate(random));
       }
     }
@@ -111,9 +111,9 @@ final class RfbGuardPropertyTest {
     return output.toByteArray();
   }
 
-  private byte[] colours(final Random random) {
+  private byte[] colors(final Random random) {
     final int count = random.nextInt(8);
-    return concatenate(new byte[] { SET_COLOUR_MAP_ENTRIES, 0 }, unsigned16(random.nextInt(256)), unsigned16(count), new byte[6 * count]);
+    return concatenate(new byte[] { SET_COLOR_MAP_ENTRIES, 0 }, unsigned16(random.nextInt(256)), unsigned16(count), new byte[6 * count]);
   }
 
   private byte[] framebufferUpdate(final Random random) {
@@ -191,9 +191,9 @@ final class RfbGuardPropertyTest {
 
     if ((flags & HEXTILE_SUBRECTANGLES) != 0) {
       final int count = random.nextInt(6);
-      final int colour = (flags & HEXTILE_COLOURED) != 0 ? PIXEL : 0;
+      final int color = (flags & HEXTILE_COLORED) != 0 ? PIXEL : 0;
       output.write(count);
-      output.writeBytes(new byte[count * (colour + 2)]);
+      output.writeBytes(new byte[count * (color + 2)]);
     }
   }
 }
