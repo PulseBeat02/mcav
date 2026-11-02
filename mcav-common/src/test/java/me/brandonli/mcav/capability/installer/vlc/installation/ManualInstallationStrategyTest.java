@@ -75,7 +75,9 @@ final class ManualInstallationStrategyTest {
   private static final String WORK_DIRECTORY_NAME = "work";
   private static final String MARKER_NAME = "marker.txt";
 
+  private static final String LOCKED_DIRECTORY_NAME = "locked";
   private static final Set<PosixFilePermission> OWNER_PERMISSIONS = PosixFilePermissions.fromString("rwx------");
+  private static final Set<PosixFilePermission> READ_ONLY_PERMISSIONS = PosixFilePermissions.fromString("r-x------");
 
   @TempDir
   private Path temporaryDirectory;
@@ -229,6 +231,33 @@ final class ManualInstallationStrategyTest {
     final FileOperationException thrown = assertThrows(FileOperationException.class, () -> strategy.deleteFile(tree));
     final Throwable cause = thrown.getCause();
     assertInstanceOf(DirectoryNotEmptyException.class, cause);
+  }
+
+  @Test
+  void shouldReportATreeThatCannotBeDeleted() throws IOException {
+    final Path tree = createDirectory(this.temporaryDirectory, TREE_DIRECTORY_NAME);
+    final Path locked = createDirectory(tree, LOCKED_DIRECTORY_NAME);
+    final Path file = createFile(locked, FILE_NAME);
+    final Os operatingSystem = OsUtils.getOs();
+    final boolean posix = operatingSystem != Os.WINDOWS;
+    Assumptions.assumeTrue(posix, "Directory permissions need a POSIX file system!");
+
+    Files.setPosixFilePermissions(locked, READ_ONLY_PERMISSIONS);
+    try {
+      final boolean writable = Files.isWritable(locked);
+      Assumptions.assumeFalse(writable, "The user can write every directory!");
+
+      final FileOperationException thrown = assertThrows(FileOperationException.class, () ->
+        ManualInstallationStrategy.deleteRecursively(tree)
+      );
+      final Throwable cause = thrown.getCause();
+      assertInstanceOf(AccessDeniedException.class, cause);
+
+      final boolean fileExists = Files.exists(file);
+      assertTrue(fileExists);
+    } finally {
+      Files.setPosixFilePermissions(locked, OWNER_PERMISSIONS);
+    }
   }
 
   @Test
