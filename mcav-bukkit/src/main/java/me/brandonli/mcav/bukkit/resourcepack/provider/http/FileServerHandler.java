@@ -46,9 +46,12 @@ final class FileServerHandler extends ChannelInboundHandlerAdapter {
   private static final String CONTEXT_NULL_MESSAGE = "Context must not be null!";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FileServerHandler.class);
+
   private static final ChannelFutureListener LOG_CLOSE_FAILURE = FileServerHandler::logCloseFailure;
+
   private static final int MAXIMUM_HEADER_BYTES = 8192;
   private static final int INITIAL_REQUEST_BUFFER_BYTES = 256;
+
   private static final byte[] HEADER_TERMINATOR = { '\r', '\n', '\r', '\n' };
 
   private static final String RESPONSE_TEMPLATE = "HTTP/1.1 %s\r\n%sConnection: close\r\n\r\n";
@@ -57,11 +60,16 @@ final class FileServerHandler extends ChannelInboundHandlerAdapter {
   private static final String STATUS_NOT_FOUND = "404 Not Found";
   private static final String STATUS_METHOD_NOT_ALLOWED = "405 Method Not Allowed";
   private static final String STATUS_HEADER_TOO_LARGE = "431 Request Header Fields Too Large";
+
   private static final String CONTENT_TYPE = "application/zip";
+
   private static final String DEFAULT_FILE_NAME = "resourcepack.zip";
 
   private static final String GET_METHOD = "GET";
   private static final String HEAD_METHOD = "HEAD";
+  private static final byte REQUEST_LINE_SEPARATOR = ' ';
+
+  private static final long FILE_START_POSITION = 0;
 
   private static final Pattern UNSAFE_FILE_NAME_CHARACTERS = Pattern.compile("[\\p{Cntrl}\"\\\\]");
 
@@ -190,7 +198,7 @@ final class FileServerHandler extends ChannelInboundHandlerAdapter {
     int spaceIndex = start;
     while (spaceIndex < end) {
       final byte current = buffer.getByte(spaceIndex);
-      if (current == ' ') {
+      if (current == REQUEST_LINE_SEPARATOR) {
         break;
       }
       spaceIndex++;
@@ -242,7 +250,7 @@ final class FileServerHandler extends ChannelInboundHandlerAdapter {
       return;
     }
 
-    final DefaultFileRegion region = new DefaultFileRegion(channel, 0, fileLength);
+    final DefaultFileRegion region = new DefaultFileRegion(channel, FILE_START_POSITION, fileLength);
     final ChannelFuture headersFuture = context.write(headers);
     headersFuture.addListener(ChannelFutureListener.CLOSE_ON_FAILURE);
     final ChannelFuture bodyFuture = context.writeAndFlush(region);

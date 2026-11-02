@@ -38,7 +38,10 @@ final class FileHttpServer {
 
   private static final int ACCEPTOR_THREADS = 1;
   private static final int WORKER_THREADS = 2;
+
   private static final String THREAD_NAME = "mcav-pack-http";
+
+  private static final long QUIET_PERIOD_SECONDS = 0;
   private static final long SHUTDOWN_TIMEOUT_SECONDS = 5;
 
   private final int port;
@@ -125,7 +128,7 @@ final class FileHttpServer {
 
   // waits, so the port can be bound again at once
   private void terminate(final EventLoopGroup group) {
-    final Future<?> termination = group.shutdownGracefully(0, SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+    final Future<?> termination = group.shutdownGracefully(QUIET_PERIOD_SECONDS, SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS);
     termination.awaitUninterruptibly();
   }
 }

@@ -36,11 +36,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 final class FileHttpChannelInitializer extends ChannelInitializer<SocketChannel> {
 
   static final String READ_TIMEOUT_NAME = "mcav_read_timeout";
-
   static final String WRITE_TIMEOUT_NAME = "mcav_write_timeout";
 
   static final int READ_TIMEOUT_SECONDS = 30;
-
   static final int WRITE_TIMEOUT_SECONDS = 300;
 
   private static final int MAXIMUM_CONNECTIONS = 256;

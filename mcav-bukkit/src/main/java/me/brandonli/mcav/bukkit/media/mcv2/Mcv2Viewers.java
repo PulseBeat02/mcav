@@ -59,6 +59,8 @@ public final class Mcv2Viewers {
   private static final String PACK_ID_NULL_MESSAGE = "Pack id must not be null!";
   private static final String PLAYER_NULL_MESSAGE = "Player must not be null!";
 
+  private static final long NO_SESSION = 0L;
+
   private volatile UUID packId;
 
   private final Consumer<Player> onRefused;
@@ -205,7 +207,7 @@ public final class Mcv2Viewers {
   public long getSession(final UUID player) {
     Preconditions.checkNotNull(player, PLAYER_NULL_MESSAGE);
 
-    return this.sessions.getOrDefault(player, 0L);
+    return this.sessions.getOrDefault(player, NO_SESSION);
   }
 
   void onResourcePackStatus(final PlayerResourcePackStatusEvent event) {

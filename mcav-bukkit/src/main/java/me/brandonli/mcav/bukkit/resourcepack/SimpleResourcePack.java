@@ -87,7 +87,6 @@ public final class SimpleResourcePack {
   private static final String PACK_METADATA_ENTRY = "pack.mcmeta";
 
   private static final String TEMPORARY_FILE_PREFIX = "mcav-pack";
-
   private static final String TEMPORARY_FILE_SUFFIX = ".zip.part";
 
   private static final String READABLE_PERMISSIONS = "rw-r--r--";
@@ -117,7 +116,7 @@ public final class SimpleResourcePack {
     this.sounds = new LinkedHashMap<>();
     this.files = new LinkedHashMap<>();
     this.contents = new LinkedHashMap<>();
-    this.format = -1;
+    this.format = 0;
   }
 
   /**

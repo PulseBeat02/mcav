@@ -135,9 +135,8 @@ public final class PageAssembler {
     this.pending.remove(frameId);
     final byte[] data = frame.toByteArray();
     final Frame parsed = Mcv2Decoder.parse(data);
-    if (
-      parsed.getFrameId() != frameId || parsed.getReferenceId() != page.getReferenceId() || (parsed.isKeyframe() ? 1 : 0) != page.getFlags()
-    ) {
+    final int expectedFlags = parsed.isKeyframe() ? TransportPages.KEYFRAME_FLAGS : TransportPages.PREDICTED_FRAME_FLAGS;
+    if (parsed.getFrameId() != frameId || parsed.getReferenceId() != page.getReferenceId() || expectedFlags != page.getFlags()) {
       final String message = "Frame and page identity mismatch!";
       throw new Mcv2Exception(message);
     }

@@ -30,6 +30,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 final class DefaultMcv2ConfigurationBuilder implements Mcv2ConfigurationBuilder {
 
+  private static final int UNSET_MAP = -1;
+
   private @MonotonicNonNull Collection<UUID> viewers;
 
   private @MonotonicNonNull Location origin;
@@ -67,9 +69,9 @@ final class DefaultMcv2ConfigurationBuilder implements Mcv2ConfigurationBuilder 
   private NamedTextColor outlineColor;
 
   DefaultMcv2ConfigurationBuilder() {
-    this.map = -1;
+    this.map = UNSET_MAP;
     this.pageMap = Mcv2Configuration.DEFAULT_PAGE_MAP;
-    this.streamId = 1;
+    this.streamId = Mcv2Configuration.DEFAULT_STREAM_ID;
     this.maximumFrameRate = Mcv2Configuration.DEFAULT_MAXIMUM_FRAME_RATE;
     this.backlogLimit = Mcv2Configuration.DEFAULT_BACKLOG_LIMIT;
     this.unsentLimit = Mcv2Configuration.DEFAULT_UNSENT_LIMIT;

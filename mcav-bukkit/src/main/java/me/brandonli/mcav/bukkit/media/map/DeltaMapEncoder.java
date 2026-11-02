@@ -71,11 +71,14 @@ public final class DeltaMapEncoder {
 
   private static final int MAP_SIZE = MapLayout.MAP_SIZE;
   private static final int MAP_PIXELS = MAP_SIZE * MAP_SIZE;
+
   private static final int TILE_SIZE = 16;
   private static final int TILES_PER_ROW = MAP_SIZE / TILE_SIZE;
   private static final int TILE_COUNT = TILES_PER_ROW * TILES_PER_ROW;
+
   private static final int NOISE_THRESHOLD = 4;
   private static final int MAXIMUM_NOISE_DEFERRAL = 6;
+
   private static final long WAITING_PRIORITY = 1L << 32;
   private static final long INITIAL_PRIORITY = Long.MAX_VALUE;
 

@@ -105,6 +105,8 @@ public final class Mcv2Screen {
   private static final int STREAM_HIGH_SYMBOL = 6;
   private static final int CHECKSUM_SYMBOL = 7;
 
+  private static final int ANCHOR_LEFT = 0;
+  private static final int ANCHOR_TOP = 0;
   private static final int ANCHOR_ROWS = 1;
 
   // Bukkit holds one plugin ticket per chunk, so overlapping screens must share ownership.
@@ -126,8 +128,10 @@ public final class Mcv2Screen {
   public Mcv2Screen(final Mcv2Configuration configuration) {
     Preconditions.checkNotNull(configuration, "Configuration must not be null!");
 
+    final int teamId = NEXT_TEAM_ID.getAndIncrement();
+    final String teamIdText = Integer.toUnsignedString(teamId, Character.MAX_RADIX);
     this.configuration = configuration;
-    this.teamName = TEAM_PREFIX + Integer.toUnsignedString(NEXT_TEAM_ID.getAndIncrement(), Character.MAX_RADIX);
+    this.teamName = "%s%s".formatted(TEAM_PREFIX, teamIdText);
     this.frames = new ArrayList<>();
     this.chunks = new LinkedHashSet<>();
   }
@@ -304,10 +308,10 @@ public final class Mcv2Screen {
         symbols[symbolOffset + STREAM_LOW_SYMBOL] = (byte) streamLow;
         symbols[symbolOffset + STREAM_HIGH_SYMBOL] = (byte) streamHigh;
 
-        symbols[symbolOffset + CHECKSUM_SYMBOL] = (byte) ((column + row + columns + rows + facing + streamLow + streamHigh) %
-          MapAlphabet.SIZE);
+        final int checksum = (column + row + columns + rows + facing + streamLow + streamHigh) % MapAlphabet.SIZE;
+        symbols[symbolOffset + CHECKSUM_SYMBOL] = (byte) checksum;
         final int mapId = this.configuration.getMap() + row * columns + column;
-        patches.add(MapTilePatch.of(mapId, 0, 0, MapLayout.MAP_SIZE, ANCHOR_ROWS, MapAlphabet.toMapColors(symbols)));
+        patches.add(MapTilePatch.of(mapId, ANCHOR_LEFT, ANCHOR_TOP, MapLayout.MAP_SIZE, ANCHOR_ROWS, MapAlphabet.toMapColors(symbols)));
       }
     }
 

@@ -40,7 +40,7 @@ final class ResourcePackFile {
   ResourcePackFile(final Path path) {
     this.path = path;
     this.cachedBytes = EMPTY;
-    this.cachedSize = -1;
+    this.cachedSize = 0;
   }
 
   // the array is shared: callers must not modify it

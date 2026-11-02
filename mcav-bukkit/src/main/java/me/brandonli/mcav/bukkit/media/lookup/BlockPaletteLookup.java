@@ -53,12 +53,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class BlockPaletteLookup {
 
   private static final String PALETTE_RESOURCE = "mcav/bukkit/blocks.json";
-  private static final int RGB_MASK = 0xFFFFFF;
-  private static final int RGB_COMPONENTS = 3;
 
+  private static final int RGB_COMPONENTS = 3;
   private static final int GREEN_INDEX = 1;
   private static final int BLUE_INDEX = 2;
 
+  private static final int RGB_MASK = 0xFFFFFF;
   private static final int RED_SHIFT = 16;
   private static final int GREEN_SHIFT = 8;
 

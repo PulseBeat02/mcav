@@ -79,7 +79,9 @@ public final class Mcv2Channel {
 
   private static final int CHUNK_BLOCKS = 16;
 
-  private static final long RANGE_TICKS = 20;
+  private static final long RANGE_TICKS = 20L;
+
+  private static final int MAP_ORIGIN = 0;
 
   private final Mcv2Configuration configuration;
 
@@ -428,7 +430,8 @@ public final class Mcv2Channel {
       final byte[] mapColors = MapAlphabet.toMapColors(pages.get(page));
       colors += mapColors.length;
       final int rows = mapColors.length / MapLayout.MAP_SIZE;
-      patches.add(MapTilePatch.of(this.configuration.getPageMap() + page, 0, 0, MapLayout.MAP_SIZE, rows, mapColors));
+      final int mapId = this.configuration.getPageMap() + page;
+      patches.add(MapTilePatch.of(mapId, MAP_ORIGIN, MAP_ORIGIN, MapLayout.MAP_SIZE, rows, mapColors));
     }
 
     final Mcv2FrameKind kind = header.isKeyframe() ? Mcv2FrameKind.KEYFRAME : Mcv2FrameKind.PREDICTED;

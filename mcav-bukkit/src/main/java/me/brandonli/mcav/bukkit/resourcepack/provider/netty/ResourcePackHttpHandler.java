@@ -48,14 +48,15 @@ import org.slf4j.LoggerFactory;
 final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
 
   static final String NAME = "mcav_resource_pack_http";
-
   static final String STALL_NAME = "mcav_resource_pack_stall";
+  private static final String CHUNKS_NAME = "mcav_resource_pack_chunks";
 
   private static final String CONTEXT_NULL_MESSAGE = "Context must not be null!";
 
-  private static final String CHUNKS_NAME = "mcav_resource_pack_chunks";
+  private static final boolean OBSERVE_OUTPUT = true;
 
   static final long STALL_SECONDS = 60;
+  private static final long IDLE_CHECK_DISABLED_SECONDS = 0;
 
   private static final int CHUNK_BYTES = 8 * 1024;
 
@@ -64,10 +65,13 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
   private static final String GET_REQUEST_PREFIX = "GET ";
   private static final String HEAD_REQUEST_PREFIX = "HEAD ";
   private static final String REQUEST_PATH_TERMINATOR = " ";
+
   private static final byte[] GET_REQUEST_PREFIX_BYTES = GET_REQUEST_PREFIX.getBytes(StandardCharsets.US_ASCII);
   private static final byte[] HEAD_REQUEST_PREFIX_BYTES = HEAD_REQUEST_PREFIX.getBytes(StandardCharsets.US_ASCII);
+
   private static final String STATUS_OK = "200 OK";
   private static final String STATUS_ERROR = "500 Internal Server Error";
+
   private static final String CONTENT_TYPE_ZIP = "application/zip";
   private static final String CONTENT_TYPE_TEXT = "text/plain";
 
@@ -158,8 +162,15 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
     // the stall handler counts a write once it is complete, and raises its first idle event however far a write still
     // in progress got, so the pack goes out a chunk at a time, each chunk a write of its own that passes through it
     pipeline.addBefore(context.name(), CHUNKS_NAME, new ChunkedWriteHandler());
+    final IdleStateHandler stallHandler = new IdleStateHandler(
+      OBSERVE_OUTPUT,
+      IDLE_CHECK_DISABLED_SECONDS,
+      STALL_SECONDS,
+      IDLE_CHECK_DISABLED_SECONDS,
+      TimeUnit.SECONDS
+    );
     // before the chunks, so their writes pass through it, and its idle event reaches this handler
-    pipeline.addBefore(CHUNKS_NAME, STALL_NAME, new IdleStateHandler(true, 0, STALL_SECONDS, 0, TimeUnit.SECONDS));
+    pipeline.addBefore(CHUNKS_NAME, STALL_NAME, stallHandler);
   }
 
   @Override

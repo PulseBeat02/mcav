@@ -68,7 +68,12 @@ public final class MapAlphabet {
    */
   public static byte[] toMapColors(final byte[] symbols) {
     Preconditions.checkNotNull(symbols, "Symbols must not be null!");
-    Preconditions.checkArgument(symbols.length <= TransportPages.PAGE_SYMBOLS, "A map holds at most 16384 symbols!");
+    Preconditions.checkArgument(
+      symbols.length <= TransportPages.PAGE_SYMBOLS,
+      "Symbol count %s exceeds the %s symbols a map holds!",
+      symbols.length,
+      TransportPages.PAGE_SYMBOLS
+    );
 
     final byte[] colors = new byte[Math.ceilDiv(symbols.length, TransportPages.MAP_SIDE) * TransportPages.MAP_SIDE];
     for (int index = 0; index < colors.length; index++) {

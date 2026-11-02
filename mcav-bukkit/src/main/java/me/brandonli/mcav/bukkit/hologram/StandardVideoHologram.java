@@ -60,18 +60,18 @@ public class StandardVideoHologram extends VideoHologram {
     ", yyyy h:mm a",
     Locale.getDefault(Locale.Category.FORMAT)
   );
+
   private static final MiniMessage MINI_MESSAGE = MiniMessage.miniMessage();
 
   private static final String PROGRESS_FILLED = "<green>■</green>";
   private static final String PROGRESS_EMPTY = "<gray>■</gray>";
+  private static final int PROGRESS_SEGMENTS = 20;
 
   private static final String UNKNOWN_TITLE = "Unknown title";
   private static final String UNKNOWN_UPLOADER = "Unknown uploader";
   private static final String UNKNOWN_DATE = "Unknown date";
-  private static final String METADATA_TEMPLATE = "<white><title></white>\n<gray><uploader> (<date>)</gray>";
 
-  private static final int PROGRESS_SEGMENTS = 20;
-  private static final long TICKS_PER_SECOND = 20L;
+  private static final String METADATA_TEMPLATE = "<white><title></white>\n<gray><uploader> (<date>)</gray>";
 
   private static final String TITLE_PLACEHOLDER = "title";
   private static final String UPLOADER_PLACEHOLDER = "uploader";
@@ -85,6 +85,7 @@ public class StandardVideoHologram extends VideoHologram {
   private static final String DEFAULT_ORDINAL_SUFFIX = "th";
 
   private static final int SECONDS_PER_MINUTE = 60;
+  private static final long TICKS_PER_SECOND = 20L;
 
   private Component metadataText;
   private int durationSeconds;
@@ -167,7 +168,7 @@ public class StandardVideoHologram extends VideoHologram {
     final String ordinal = this.getOrdinalSuffix(day);
     final String monthDay = dateTime.format(MONTH_DAY_FORMATTER);
     final String yearTime = dateTime.format(YEAR_TIME_FORMATTER);
-    return monthDay + ordinal + yearTime;
+    return "%s%s%s".formatted(monthDay, ordinal, yearTime);
   }
 
   private String getOrdinalSuffix(final int day) {
@@ -235,7 +236,7 @@ public class StandardVideoHologram extends VideoHologram {
     final int emptySegments = PROGRESS_SEGMENTS - filledSegments;
     final String filled = PROGRESS_FILLED.repeat(filledSegments);
     final String empty = PROGRESS_EMPTY.repeat(emptySegments);
-    return filled + empty;
+    return "%s%s".formatted(filled, empty);
   }
 
   private int countFilledSegments() {

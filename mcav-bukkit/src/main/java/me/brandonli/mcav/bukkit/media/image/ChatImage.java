@@ -36,6 +36,8 @@ import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
  */
 public class ChatImage implements DisplayableImage {
 
+  private static final boolean OVERLAY = false;
+
   private final ChatConfiguration configuration;
 
   ChatImage(final ChatConfiguration configuration) {
@@ -61,7 +63,7 @@ public class ChatImage implements DisplayableImage {
     final int[] pixels = image.getPixels();
     final String character = this.configuration.getCharacter();
     final Component message = ChatUtils.createChatComponent(pixels, character, width, height);
-    final ClientboundSystemChatPacket packet = new ClientboundSystemChatPacket(message, false);
+    final ClientboundSystemChatPacket packet = new ClientboundSystemChatPacket(message, OVERLAY);
 
     final Collection<UUID> viewers = this.configuration.getViewers();
     ChatUtils.clearChat(viewers);

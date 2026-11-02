@@ -84,26 +84,21 @@ public final class TransportPages {
 
   private static final int VERSION = 1;
 
+  private static final int SYMBOL_MASK = MapAlphabet.SIZE - 1;
+
+  static final int KEYFRAME_FLAGS = 1;
+  static final int PREDICTED_FRAME_FLAGS = 0;
+
   private static final int MAGIC_OFFSET = 0;
-
   private static final int VERSION_OFFSET = 4;
-
   private static final int SYMBOL_BITS_OFFSET = 5;
-
   private static final int TYPE_OFFSET = 6;
-
   private static final int STREAM_OFFSET = 8;
-
   private static final int FRAME_OFFSET = 12;
-
   private static final int NUMBER_OFFSET = 16;
-
   private static final int COUNT_OFFSET = 18;
-
   private static final int REFERENCE_OFFSET = 20;
-
   private static final int LENGTH_OFFSET = 24;
-
   private static final int CRC_OFFSET = 28;
 
   private TransportPages() {
@@ -156,7 +151,7 @@ public final class TransportPages {
       buffer |= Byte.toUnsignedLong(value) << held;
       held += Byte.SIZE;
       while (held >= SYMBOL_BITS) {
-        symbols[written++] = (byte) (buffer & ((1L << SYMBOL_BITS) - 1));
+        symbols[written++] = (byte) (buffer & SYMBOL_MASK);
         buffer >>>= SYMBOL_BITS;
         held -= SYMBOL_BITS;
       }
@@ -193,7 +188,7 @@ public final class TransportPages {
     int written = 0;
     for (final byte symbol : symbols) {
       final int value = Byte.toUnsignedInt(symbol);
-      if (value >= 1 << SYMBOL_BITS) {
+      if (value >= MapAlphabet.SIZE) {
         final String message = "Out-of-alphabet symbol!";
         throw new Mcv2Exception(message);
       }
@@ -257,7 +252,7 @@ public final class TransportPages {
       Mcv2Decoder.putUnsignedInt(page, MAGIC_OFFSET, MAGIC);
       page[VERSION_OFFSET] = VERSION;
       page[SYMBOL_BITS_OFFSET] = (byte) SYMBOL_BITS;
-      Mcv2Decoder.putUnsignedShort(page, TYPE_OFFSET, parsed.isKeyframe() ? 1 : 0);
+      Mcv2Decoder.putUnsignedShort(page, TYPE_OFFSET, parsed.isKeyframe() ? KEYFRAME_FLAGS : PREDICTED_FRAME_FLAGS);
       Mcv2Decoder.putUnsignedInt(page, STREAM_OFFSET, streamId);
       Mcv2Decoder.putUnsignedInt(page, FRAME_OFFSET, parsed.getFrameId());
       Mcv2Decoder.putUnsignedShort(page, NUMBER_OFFSET, number);
@@ -309,7 +304,7 @@ public final class TransportPages {
     int held = 0;
     int written = 0;
     for (int symbolIndex = 0; symbolIndex < headerSymbols; symbolIndex++) {
-      buffer |= (long) (symbols[symbolIndex] & ((1 << SYMBOL_BITS) - 1)) << held;
+      buffer |= (long) (symbols[symbolIndex] & SYMBOL_MASK) << held;
       held += SYMBOL_BITS;
       while (held >= Byte.SIZE) {
         header[written++] = (byte) buffer;
@@ -327,7 +322,7 @@ public final class TransportPages {
       Mcv2Decoder.readUnsignedInt(header, MAGIC_OFFSET) != MAGIC ||
       header[VERSION_OFFSET] != VERSION ||
       Byte.toUnsignedInt(header[SYMBOL_BITS_OFFSET]) != SYMBOL_BITS ||
-      Mcv2Decoder.readUnsignedShort(header, TYPE_OFFSET) > 1
+      Mcv2Decoder.readUnsignedShort(header, TYPE_OFFSET) > KEYFRAME_FLAGS
     ) {
       final String message = "Unsupported page header!";
       throw new Mcv2Exception(message);

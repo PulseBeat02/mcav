@@ -91,7 +91,7 @@ public final class Mcv2Configuration {
    *
    * @since 1.0.0
    */
-  public static final long MAXIMUM_STREAM_ID = 4095;
+  public static final long MAXIMUM_STREAM_ID = 4095L;
 
   private static final int DEFAULT_PAGE_SLOTS = MAXIMUM_PAGE_SLOTS;
 
@@ -117,7 +117,7 @@ public final class Mcv2Configuration {
    *
    * @since 1.0.0
    */
-  public static final long DEFAULT_BACKLOG_LIMIT = 128 * 1024;
+  public static final long DEFAULT_BACKLOG_LIMIT = 128L * 1024;
 
   /**
    * The first page map id when none is set.
@@ -125,6 +125,13 @@ public final class Mcv2Configuration {
    * @since 1.0.0
    */
   public static final int DEFAULT_PAGE_MAP = 2_000_000_000;
+
+  /**
+   * The stream id when none is set.
+   *
+   * @since 1.0.0
+   */
+  public static final long DEFAULT_STREAM_ID = 1L;
 
   /**
    * The cap on the bytes a viewer's operating system may hold unsent when none is set: 32 KiB, so a slow viewer's video

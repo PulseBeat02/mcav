@@ -55,6 +55,8 @@ public final class MapPacketFactory {
 
   private static final byte DEFAULT_SCALE = 0;
 
+  private static final int MAP_ORIGIN = 0;
+
   private MapPacketFactory() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
@@ -136,7 +138,7 @@ public final class MapPacketFactory {
     final List<MapTilePatch> patches = new ArrayList<>(count);
     for (int offset = 0; offset < count; offset++) {
       final int mapId = startMapId + offset;
-      final MapTilePatch patch = MapTilePatch.of(mapId, 0, 0, size, size, transparent);
+      final MapTilePatch patch = MapTilePatch.of(mapId, MAP_ORIGIN, MAP_ORIGIN, size, size, transparent);
       patches.add(patch);
     }
 
@@ -155,7 +157,8 @@ public final class MapPacketFactory {
     final MapItemSavedData.MapPatch mapPatch = new MapItemSavedData.MapPatch(left, top, width, height, colors);
     final Optional<List<MapDecoration>> decorations = Optional.empty();
     final Optional<MapItemSavedData.MapPatch> colorPatch = Optional.of(mapPatch);
-    return new ClientboundMapItemDataPacket(id, DEFAULT_SCALE, false, decorations, colorPatch);
+    final boolean locked = false;
+    return new ClientboundMapItemDataPacket(id, DEFAULT_SCALE, locked, decorations, colorPatch);
   }
 
   /**

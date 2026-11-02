@@ -32,7 +32,6 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -91,8 +90,9 @@ public final class Mcv2Pack {
   private static final String CHAIN_TEMPLATE = "/mcav/mcv2/chain.json";
 
   private static final int DEBUG_SQUARES = 24;
-
   private static final int DEBUG_GAP = 8;
+
+  private static final int FRAME_WORD_ROWS = 1;
 
   private static final String POST_CHAIN = "assets/minecraft/post_effect/entity_outline.json";
 
@@ -119,9 +119,7 @@ public final class Mcv2Pack {
   private static final String PATH_SEPARATOR = "/";
 
   private static final String CONFIGURATION_GUARD = "MCAV_MCV2_CONFIG_GLSL";
-
   private static final String SCREEN_GUARD = "MCAV_MCV2_SCREEN_GLSL";
-
   private static final String ALPHABET_GUARD = "MCAV_MCV2_ALPHABET_GLSL";
 
   private static final String TARGETS_KEY = "targets";
@@ -285,9 +283,7 @@ public final class Mcv2Pack {
       .stream()
       .map(screen -> screen.getVideoWidth() + SIZE_SEPARATOR + screen.getVideoHeight())
       .collect(Collectors.joining(LIST_SEPARATOR));
-    return String.format(
-      Locale.getDefault(Locale.Category.FORMAT),
-      "mcav MCV2 decoder, %d %s: %s",
+    return "mcav MCV2 decoder, %s %s: %s".formatted(
       screens.size(),
       screens.size() == 1 ? "screen" : "screens",
       sizes
@@ -364,7 +360,7 @@ public final class Mcv2Pack {
       .replace("@PAGES_WIDTH@", Integer.toString(PAGE_TEXELS * slots))
       .replace("@CRC_WIDTH@", Integer.toString(CRC_CHUNKS * slots))
       .replace("@CELLS_WIDTH@", Integer.toString(cellsWidth(configuration)))
-      .replace("@CELLS_HEIGHT@", Integer.toString(cellsHeight(configuration) + 1));
+      .replace("@CELLS_HEIGHT@", Integer.toString(cellsHeight(configuration) + FRAME_WORD_ROWS));
   }
 
   private static int bytesHeight(final Mcv2Configuration configuration) {
@@ -400,15 +396,13 @@ public final class Mcv2Pack {
       CONFIGURATION_GUARD,
       String.join(
         LINE_SEPARATOR,
-        String.format(Locale.ROOT, "const int MCV2_SCREENS = %d;", count),
-        String.format(Locale.ROOT, "const int MCV2_TOTAL_SLOTS = %d;", total),
-        String.format(Locale.ROOT, "const uint MCV2_SCREEN_STREAMS[%d] = uint[%d](%s);", count, count, streams),
-        String.format(Locale.ROOT, "const int MCV2_SCREEN_SLOTS[%d] = int[%d](%s);", count, count, slots),
-        String.format(Locale.ROOT, "const int MCV2_SCREEN_FIRST_SLOTS[%d] = int[%d](%s);", count, count, firsts),
-        String.format(Locale.ROOT, "const bool MCV2_DEBUG_VIEW = %s;", debugView == DebugView.SHOWN),
-        String.format(
-          Locale.ROOT,
-          "const ivec3 MCV2_OUTLINE_COLOR = ivec3(%d, %d, %d);",
+        "const int MCV2_SCREENS = %s;".formatted(count),
+        "const int MCV2_TOTAL_SLOTS = %s;".formatted(total),
+        "const uint MCV2_SCREEN_STREAMS[%s] = uint[%s](%s);".formatted(count, count, streams),
+        "const int MCV2_SCREEN_SLOTS[%s] = int[%s](%s);".formatted(count, count, slots),
+        "const int MCV2_SCREEN_FIRST_SLOTS[%s] = int[%s](%s);".formatted(count, count, firsts),
+        "const bool MCV2_DEBUG_VIEW = %s;".formatted(debugView == DebugView.SHOWN),
+        "const ivec3 MCV2_OUTLINE_COLOR = ivec3(%s, %s, %s);".formatted(
           (color >> RED_SHIFT) & CHANNEL_MASK,
           (color >> GREEN_SHIFT) & CHANNEL_MASK,
           color & CHANNEL_MASK
@@ -423,17 +417,17 @@ public final class Mcv2Pack {
       SCREEN_GUARD,
       String.join(
         LINE_SEPARATOR,
-        String.format(Locale.ROOT, "const int MCV2_SCREEN_INDEX = %d;", screen),
-        String.format(Locale.ROOT, "const int MCV2_PAGE_SLOTS = %d;", configuration.getPageSlots()),
-        String.format(Locale.ROOT, "const int MCV2_FIRST_SLOT = %d;", firstSlot),
-        String.format(Locale.ROOT, "const uint MCV2_STREAM_ID = %du;", configuration.getStreamId()),
-        String.format(Locale.ROOT, "const int MCV2_VIDEO_WIDTH = %d;", configuration.getVideoWidth()),
-        String.format(Locale.ROOT, "const int MCV2_VIDEO_HEIGHT = %d;", configuration.getVideoHeight()),
-        String.format(Locale.ROOT, "const int MCV2_BYTES_WIDTH = %d;", BYTES_WIDTH),
-        String.format(Locale.ROOT, "const int MCV2_BYTES_HEIGHT = %d;", bytesHeight(configuration)),
-        String.format(Locale.ROOT, "const int MCV2_CELLS_WIDTH = %d;", cellsWidth(configuration)),
-        String.format(Locale.ROOT, "const int MCV2_CELLS_HEIGHT = %d;", cellsHeight(configuration)),
-        String.format(Locale.ROOT, "const int MCV2_DEBUG_TOP = %d;", debugTop),
+        "const int MCV2_SCREEN_INDEX = %s;".formatted(screen),
+        "const int MCV2_PAGE_SLOTS = %s;".formatted(configuration.getPageSlots()),
+        "const int MCV2_FIRST_SLOT = %s;".formatted(firstSlot),
+        "const uint MCV2_STREAM_ID = %su;".formatted(configuration.getStreamId()),
+        "const int MCV2_VIDEO_WIDTH = %s;".formatted(configuration.getVideoWidth()),
+        "const int MCV2_VIDEO_HEIGHT = %s;".formatted(configuration.getVideoHeight()),
+        "const int MCV2_BYTES_WIDTH = %s;".formatted(BYTES_WIDTH),
+        "const int MCV2_BYTES_HEIGHT = %s;".formatted(bytesHeight(configuration)),
+        "const int MCV2_CELLS_WIDTH = %s;".formatted(cellsWidth(configuration)),
+        "const int MCV2_CELLS_HEIGHT = %s;".formatted(cellsHeight(configuration)),
+        "const int MCV2_DEBUG_TOP = %s;".formatted(debugTop),
         ""
       )
     );
@@ -483,9 +477,7 @@ public final class Mcv2Pack {
 
     return guarded(
       ALPHABET_GUARD,
-      String.format(
-        Locale.ROOT,
-        "const uint MCV2_SYMBOL_HASH = %du;\nconst uint MCV2_SYMBOL_SHIFT = %du;\nconst uint MCV2_SYMBOLS[%d] = uint[%d](\n%s);\n",
+      "const uint MCV2_SYMBOL_HASH = %su;\nconst uint MCV2_SYMBOL_SHIFT = %su;\nconst uint MCV2_SYMBOLS[%s] = uint[%s](\n%s);\n".formatted(
         multiplier,
         SYMBOL_SHIFT,
         SYMBOL_ENTRIES,

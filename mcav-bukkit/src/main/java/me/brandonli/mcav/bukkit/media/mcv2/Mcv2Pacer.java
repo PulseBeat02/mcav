@@ -65,29 +65,24 @@ public final class Mcv2Pacer {
   public static final double MINIMUM_FRAMES_PER_SECOND = 10;
 
   private static final double HIGH = 1.0;
-
   static final double FIT = 0.85;
-
   static final double ROOM = 0.7;
 
+  private static final double[] STEP_DOWN_SHARES = { FIT, HIGH };
+
   static final double DOWN_SECONDS = 1.0;
-
   static final double STARTUP_SECONDS = 5.0;
-
-  static final int MINIMUM_SAMPLES = 10;
-
   private static final double UP_SECONDS = 5.0;
-
+  private static final double BLOCK_SECONDS = 10.0;
+  private static final double MAXIMUM_BLOCK_SECONDS = 600.0;
   private static final double RETRY_SECONDS = 30.0;
-
   private static final double MAXIMUM_RETRY_SECONDS = 600.0;
 
-  private static final double BLOCK_SECONDS = 10.0;
+  static final int MINIMUM_SAMPLES = 10;
 
   private static final double SMOOTHING = 0.2;
 
   private static final int[] DIVISORS = { 1, 2, 3, 4, 6 };
-
   private static final int FULL_RATE_DIVISOR = 1;
 
   private static final int SIZE_COMPONENTS = 2;
@@ -95,7 +90,6 @@ public final class Mcv2Pacer {
   private static final int BACKOFF_FACTOR = 2;
 
   private static final long NANOSECONDS_PER_SECOND = 1_000_000_000L;
-
   private static final double NANOSECONDS_PER_MILLISECOND = 1e6;
 
   private static final double WHOLE_RATE = 0.05;
@@ -107,6 +101,8 @@ public final class Mcv2Pacer {
   private static final long NEVER = Long.MIN_VALUE;
 
   private static final int NO_RUNG = -1;
+
+  private static final double UNMEASURED_MILLISECONDS = 0.0;
 
   private final List<Rung> ladder;
 
@@ -250,7 +246,7 @@ public final class Mcv2Pacer {
     this.lastArrival = now;
     Optional<Change> change = Optional.empty();
     if (this.getRung().isDithered() && now >= this.retryAt) {
-      change = Optional.of(this.move(this.lowestEncoded(), Direction.UP, 0, 0));
+      change = Optional.of(this.move(this.lowestEncoded(), Direction.UP, UNMEASURED_MILLISECONDS, UNMEASURED_MILLISECONDS));
     }
 
     this.arrivals++;
@@ -327,7 +323,7 @@ public final class Mcv2Pacer {
     }
 
     final int above = this.bestAbove(now);
-    if (above < 0) {
+    if (above == NO_RUNG) {
       this.roomSince = NEVER;
 
       return Optional.empty();
@@ -348,11 +344,11 @@ public final class Mcv2Pacer {
   private @Nullable Change stepDown(final long now, final double frameMilliseconds) {
     final int left = this.current;
     this.blockedUntil[left] = now + this.toNanoseconds(this.blockSeconds[left]);
-    this.blockSeconds[left] = Math.min(MAXIMUM_RETRY_SECONDS, this.blockSeconds[left] * BACKOFF_FACTOR);
+    this.blockSeconds[left] = Math.min(MAXIMUM_BLOCK_SECONDS, this.blockSeconds[left] * BACKOFF_FACTOR);
     final int encoded = this.countEncodedRungs();
 
     final Rung from = this.getRung();
-    for (final double share : new double[] { FIT, HIGH }) {
+    for (final double share : STEP_DOWN_SHARES) {
       final int next = this.findFittingRungBelow(from, share, encoded);
       if (next != NO_RUNG) {
         return this.move(next, Direction.DOWN, this.smoothed, frameMilliseconds);
@@ -438,7 +434,7 @@ public final class Mcv2Pacer {
       }
     }
 
-    return -1;
+    return NO_RUNG;
   }
 
   private int lowestEncoded() {

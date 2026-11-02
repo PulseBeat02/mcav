@@ -48,11 +48,7 @@ import org.slf4j.LoggerFactory;
 public abstract class MainThreadRenderer<FrameType> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MainThreadRenderer.class);
-  private static final String TASK_SKIPPED_WHILE_DISABLED =
-    "Skipped a task because the plugin {} is disabled; release displays on the main thread during shutdown.";
-  private static final String TASK_SKIPPED_BEFORE_SCHEDULING =
-    "Skipped a task because the plugin {} became disabled before scheduling; release displays on the main thread during shutdown.";
-  private static final long START_DELAY_TICKS = 0L;
+
   private static final long PERIOD_TICKS = 1L;
 
   private final AtomicReference<@Nullable FrameType> pendingFrame;
@@ -101,7 +97,7 @@ public abstract class MainThreadRenderer<FrameType> {
 
     final Plugin plugin = BukkitModule.getPlugin();
     final BukkitScheduler scheduler = Bukkit.getScheduler();
-    this.task = scheduler.runTaskTimer(plugin, this::applyPendingFrame, START_DELAY_TICKS, PERIOD_TICKS);
+    this.task = scheduler.runTaskTimer(plugin, this::applyPendingFrame, 0L, PERIOD_TICKS);
   }
 
   /**
@@ -230,7 +226,7 @@ public abstract class MainThreadRenderer<FrameType> {
     final boolean enabled = plugin.isEnabled();
     if (!enabled) {
       final String pluginName = plugin.getName();
-      LOGGER.warn(TASK_SKIPPED_WHILE_DISABLED, pluginName);
+      LOGGER.warn("Skipped a task because the plugin {} is disabled; release displays on the main thread during shutdown.", pluginName);
       return;
     }
 
@@ -239,7 +235,11 @@ public abstract class MainThreadRenderer<FrameType> {
       scheduler.runTask(plugin, task);
     } catch (final IllegalPluginAccessException exception) {
       final String pluginName = plugin.getName();
-      LOGGER.warn(TASK_SKIPPED_BEFORE_SCHEDULING, pluginName, exception);
+      LOGGER.warn(
+        "Skipped a task because the plugin {} became disabled before scheduling; release displays on the main thread during shutdown.",
+        pluginName,
+        exception
+      );
     }
   }
 }

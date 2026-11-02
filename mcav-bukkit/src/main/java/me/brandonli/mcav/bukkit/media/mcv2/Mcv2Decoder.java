@@ -47,17 +47,21 @@ public final class Mcv2Decoder {
    * @since 1.0.0
    */
   public static final int MAXIMUM_DIMENSION = 4096;
+
   static final int MAGIC = 0x3256434D;
   static final int VERSION = 3;
+
   static final int ROOT_SIZE = 32;
   static final int SMALLEST_BLOCK = 8;
   static final int BLOCK_SIZES = 3;
-  static final int CHANNELS = 3;
-  private static final int MAXIMUM_CHANNEL = 255;
   static final int QUARTERS = 4;
   static final int GROUP_ROOTS = 32;
   static final int CHECKPOINT_GROUPS = 8;
   static final int WALK_SPAN = 8;
+
+  static final int CHANNELS = 3;
+  private static final int MAXIMUM_CHANNEL = 255;
+
   static final int MODE_SKIP = 0;
   static final int MODE_MOTION = 1;
   static final int MODE_SOLID = 2;
@@ -66,9 +70,13 @@ public final class Mcv2Decoder {
   static final int MODE_COMPACT = 5;
   static final int MODE_SPLIT = 6;
   private static final int MODE_MASK = 31;
+
   static final int QUANTIZER_SHIFT = 5;
   static final int MAXIMUM_QUANTIZER = 2;
+  static final int NO_QUANTIZER = 0;
+
   static final int COMPACT_BYTES = 10;
+
   private static final int MAGIC_OFFSET = 0;
   private static final int VERSION_OFFSET = 4;
   static final int DIMENSIONS_OFFSET = 8;
@@ -84,6 +92,7 @@ public final class Mcv2Decoder {
    * @since 1.0.0
    */
   public static final int REFERENCE_ID_OFFSET = 16;
+
   /**
    * Largest unsigned 32-bit value.
    *
@@ -93,11 +102,17 @@ public final class Mcv2Decoder {
 
   private static final long LEGACY_MAGIC = 0x3156434D;
   private static final int LEGACY_VERSION = 2;
+
   private static final int LEAF_INTS = 6;
   private static final int POSITION_INTS = 3;
+
   static final int CURSOR_BITS = 17;
+
   private static final int GRID = 4;
+
   private static final byte[] NO_REFERENCE = new byte[0];
+
+  private static final int NO_RECORD_OFFSET = -1;
 
   private static final int TOP_INDEX = 1;
   private static final int SIZE_INDEX = 2;
@@ -114,6 +129,7 @@ public final class Mcv2Decoder {
   private static final int RECORD_COLORS = 2;
 
   private static final int MOTION_BYTES = 2;
+  private static final int PATTERN_SELECTOR_BYTES = 1;
 
   private static final int NODES_PER_BYTE = 2;
   private static final int NODE_BITS = 4;
@@ -430,7 +446,7 @@ public final class Mcv2Decoder {
   }
 
   static int patternSize(final int size) {
-    return RECORD_COLORS * CHANNELS + 1 + size / Byte.SIZE;
+    return RECORD_COLORS * CHANNELS + PATTERN_SELECTOR_BYTES + size / Byte.SIZE;
   }
 
   static int recordSize(final int mode, final int size) {
@@ -704,7 +720,16 @@ public final class Mcv2Decoder {
         if (listed < present.length && present[listed] == root) {
           listed++;
         } else {
-          writeLeaf(leaves, leaf++, (root % this.columns) * ROOT_SIZE, (root / this.columns) * ROOT_SIZE, ROOT_SIZE, MODE_SKIP, 0, -1);
+          writeLeaf(
+            leaves,
+            leaf++,
+            (root % this.columns) * ROOT_SIZE,
+            (root / this.columns) * ROOT_SIZE,
+            ROOT_SIZE,
+            MODE_SKIP,
+            NO_QUANTIZER,
+            NO_RECORD_OFFSET
+          );
         }
       }
 

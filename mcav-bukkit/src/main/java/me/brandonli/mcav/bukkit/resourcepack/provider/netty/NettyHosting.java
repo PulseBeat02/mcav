@@ -57,9 +57,7 @@ public final class NettyHosting implements InjectorHosting {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(NettyHosting.class);
 
-  private static final AtomicInteger INSTANCE_COUNTER = new AtomicInteger();
   private static final String KEY_NAMESPACE = "mcav";
-
   private static final String KEY_VALUE_PREFIX = "resourcepack_";
 
   private static final String REQUEST_DIRECTORY = "/mcav/";
@@ -69,6 +67,8 @@ public final class NettyHosting implements InjectorHosting {
 
   private static final String URL_SCHEME = "http://";
   private static final String PORT_SEPARATOR = ":";
+
+  private static final AtomicInteger INSTANCE_COUNTER = new AtomicInteger();
 
   private final Path zip;
   private final Key listenerKey;

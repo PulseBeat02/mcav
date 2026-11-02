@@ -40,6 +40,7 @@ import org.checkerframework.checker.initialization.qual.UnderInitialization;
 public final class MapLayout {
 
   private static final String IMAGE_NULL_MESSAGE = "Image must not be null!";
+  private static final String MAP_INDEX_DESCRIPTION = "Map index";
 
   private static final String IMAGE_SIZE_MISMATCH_MESSAGE = "Image length %s does not match the layout's %s pixels!";
 
@@ -165,7 +166,7 @@ public final class MapLayout {
    * @since 1.0.0
    */
   public int getMapId(final int index) {
-    Preconditions.checkElementIndex(index, this.regions.length, "Map index");
+    Preconditions.checkElementIndex(index, this.regions.length, MAP_INDEX_DESCRIPTION);
 
     return this.startMapId + index;
   }
@@ -179,7 +180,7 @@ public final class MapLayout {
    * @since 1.0.0
    */
   public MapRegion getRegion(final int index) {
-    Preconditions.checkElementIndex(index, this.regions.length, "Map index");
+    Preconditions.checkElementIndex(index, this.regions.length, MAP_INDEX_DESCRIPTION);
 
     return this.regions[index];
   }
@@ -220,7 +221,7 @@ public final class MapLayout {
    */
   public MapTilePatch extractPatch(final byte[] image, final int index, final int left, final int top, final int width, final int height) {
     Preconditions.checkNotNull(image, IMAGE_NULL_MESSAGE);
-    Preconditions.checkElementIndex(index, this.regions.length, "Map index");
+    Preconditions.checkElementIndex(index, this.regions.length, MAP_INDEX_DESCRIPTION);
 
     final int expectedLength = this.imageWidth * this.imageHeight;
     Preconditions.checkArgument(image.length == expectedLength, IMAGE_SIZE_MISMATCH_MESSAGE, image.length, expectedLength);

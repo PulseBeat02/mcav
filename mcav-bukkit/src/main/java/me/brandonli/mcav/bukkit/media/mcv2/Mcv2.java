@@ -46,6 +46,7 @@ import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MODE_PATTERN;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MODE_SKIP;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MODE_SOLID;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MODE_SPLIT;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.NO_QUANTIZER;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.QUANTIZER_SHIFT;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.QUARTERS;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.REFERENCE_ID_OFFSET;
@@ -128,10 +129,12 @@ public final class Mcv2 {
   private static final String INVALID_DIMENSIONS_MESSAGE = "Invalid dimensions!";
   private static final String INVALID_BLOCK_SIZE_MESSAGE = "Invalid block size!";
   private static final String INVALID_PIXEL_COUNT_MESSAGE = "Invalid pixel count!";
-
   private static final String STOPPED_MESSAGE = "The encoder stopped after a frame failed its verification!";
+
   private static final int LIMIT_RETRIES = 4;
+
   private static final int MOTION_RANGE = 24;
+
   private static final int NORMAL_SKIP_BITS = 28;
   private static final int FAST_SKIP_BITS = 60;
   private static final int ROOT_SPLIT_BITS = 150;
@@ -139,16 +142,29 @@ public final class Mcv2 {
   private static final int FAST_FINE_SPLIT_BITS = 600;
   private static final int NORMAL_STEADY_SPLIT_BITS = 450;
   private static final int FAST_STEADY_SPLIT_BITS = 900;
+
   private static final int KEYFRAME_INTERVAL = 120;
+
   private static final double INDEX_BITS = 12;
+  private static final double PRESENCE_BITS = 1;
   private static final double DISTORTION_SCALE = 96.0;
   private static final int OUTSIDE_BITS = 56;
+
   private static final int GRID = 4;
   private static final int GRID_NODES = GRID * GRID;
+
   private static final int MAXIMUM_RECORD = 134;
+
   private static final int NO_VECTOR = 0x80008000;
+  private static final int ZERO_MOTION = 0;
+
+  private static final long NO_FRAME_ID = -1L;
+
   private static final int COARSEST_QUANTIZER = 2;
+
   private static final int PALETTE_COLORS = 2;
+  private static final int SELECTORS_AT = PALETTE_COLORS * CHANNELS;
+
   private static final byte[] NO_BYTES = new byte[0];
   private static final boolean[] NO_SPLITS = new boolean[0];
 
@@ -182,6 +198,7 @@ public final class Mcv2 {
 
   private static final int FINEST_LEVEL = BLOCK_SIZES - 1;
 
+  private static final int SKIP_BYTES = 0;
   private static final int MOTION_BYTES = 2;
 
   private static final int NODES_PER_BYTE = 2;
@@ -199,7 +216,7 @@ public final class Mcv2 {
   private byte @Nullable [] reference;
   private int width;
   private int height;
-  private long lastFrameId = -1;
+  private long lastFrameId = NO_FRAME_ID;
   private int framesSinceKeyframe;
   private int[] motion = new int[0];
   private boolean @Nullable [] splitBefore;
@@ -234,6 +251,7 @@ public final class Mcv2 {
   private static final int CLUSTER_ITERATIONS = 2;
   private static final int SAMPLED_SIZE = 16;
   private static final int SAMPLED_STEP = 2;
+  private static final int FULL_STEP = 1;
 
   private static final int MINIMUM_NODE = -8;
   private static final int MAXIMUM_NODE = 7;
@@ -269,8 +287,11 @@ public final class Mcv2 {
   public static final String NATIVE_OFF = "off";
 
   private static final String NATIVE_RESOURCES = "/mcav/mcv2/natives/";
+  private static final String DIGESTS_FILE = "SHA256SUMS";
 
-  static final Map<String, String> NATIVE_DIGESTS = Natives.digests(Mcv2.class.getResourceAsStream(NATIVE_RESOURCES + "SHA256SUMS"));
+  static final Map<String, String> NATIVE_DIGESTS = Natives.digests(
+    Mcv2.class.getResourceAsStream("%s%s".formatted(NATIVE_RESOURCES, DIGESTS_FILE))
+  );
 
   /**
    * Creates an encoder for one stream on a caller-owned pool.
@@ -643,7 +664,7 @@ public final class Mcv2 {
     final BlockCoder coder = coders[level];
     coder.code(left, top, parent);
     final double cost = coder.cost();
-    if (level < BLOCK_SIZES - 1 && !coder.skipped && cost > threshold) {
+    if (level < FINEST_LEVEL && !coder.skipped && cost > threshold) {
       final int half = size / QUARTERS_PER_SIDE;
       double splitCost = frame.lambda * INDEX_BITS;
       final TreeNode[] children = new TreeNode[QUARTERS];
@@ -1004,7 +1025,7 @@ public final class Mcv2 {
     Preconditions.checkArgument(record.length == length, "Record length disagrees with its mode!");
 
     if (mode == MODE_PATTERN) {
-      Preconditions.checkArgument((record[PALETTE_COLORS * CHANNELS] & BYTE_MASK) <= 1, "Invalid pattern orientation!");
+      Preconditions.checkArgument((record[PALETTE_COLORS * CHANNELS] & BYTE_MASK) < PATTERN_ORIENTATIONS, "Invalid pattern orientation!");
     }
   }
 
@@ -1053,7 +1074,7 @@ public final class Mcv2 {
   }
 
   private static int paletteBit(final byte[] paletteRecord, final int index) {
-    return (paletteRecord[PALETTE_COLORS * CHANNELS + index / Byte.SIZE] >> (index % Byte.SIZE)) & 1;
+    return (paletteRecord[SELECTORS_AT + index / Byte.SIZE] >> (index % Byte.SIZE)) & 1;
   }
 
   // Reference assembly and reconstruction verification.
@@ -1223,19 +1244,25 @@ public final class Mcv2 {
    */
   public static final class Settings {
 
+    private static final double DEFAULT_LAMBDA = 72;
+    private static final double FAST_LAMBDA = 55;
+
+    private static final boolean NORMAL_THRESHOLDS = false;
+    private static final boolean FAST_THRESHOLDS = true;
+
     /**
      * Normal live thresholds with lambda 72.
      *
      * @since 1.0.0
      */
-    public static final Settings DEFAULT = of(72, false);
+    public static final Settings DEFAULT = of(DEFAULT_LAMBDA, NORMAL_THRESHOLDS);
 
     /**
      * Fast live thresholds with lambda 55.
      *
      * @since 1.0.0
      */
-    public static final Settings FAST = of(55, true);
+    public static final Settings FAST = of(FAST_LAMBDA, FAST_THRESHOLDS);
 
     private final double lambda;
     private final boolean fast;
@@ -1987,10 +2014,10 @@ public final class Mcv2 {
     }
 
     private void evaluateTemporal(final int parent) {
-      this.predict(0, this.zeroPrediction);
-      this.startMode(0);
+      this.predict(ZERO_MOTION, this.zeroPrediction);
+      this.startMode(SKIP_BYTES);
       this.kernels.predicted(this.zeroPrediction, this.size, this.reconstruction);
-      this.score(MODE_SKIP, 0, 0);
+      this.score(MODE_SKIP, NO_QUANTIZER, SKIP_BYTES);
 
       if (this.hurried || this.cost() <= (this.frame.fast ? FAST_SKIP_BITS : NORMAL_SKIP_BITS) * this.frame.lambda) {
         this.skipped = true;
@@ -2005,7 +2032,7 @@ public final class Mcv2 {
         return;
       }
 
-      this.compact(0, this.zeroPrediction);
+      this.compact(ZERO_MOTION, this.zeroPrediction);
     }
 
     private boolean scoreMotion() {
@@ -2018,7 +2045,7 @@ public final class Mcv2 {
         return false;
       }
 
-      this.score(MODE_MOTION, 0, MOTION_BYTES);
+      this.score(MODE_MOTION, NO_QUANTIZER, MOTION_BYTES);
 
       return true;
     }
@@ -2028,7 +2055,7 @@ public final class Mcv2 {
     }
 
     private void startMode(final int length) {
-      final double bits = length == 0 && this.size == ROOT_SIZE ? 1 : INDEX_BITS;
+      final double bits = length == 0 && this.size == ROOT_SIZE ? PRESENCE_BITS : INDEX_BITS;
       this.rate = Math.min(this.frame.lambda * (length * Byte.SIZE + bits), Double.MAX_VALUE);
       final double best = this.cost();
       this.kernels.start(this.source, this.rate, best);
@@ -2177,7 +2204,7 @@ public final class Mcv2 {
       this.record[BLUE_OFFSET] = (byte) blue;
 
       if (this.kernels.solid((red << RED_SHIFT) | (green << GREEN_SHIFT) | blue, this.size, this.reconstruction)) {
-        this.score(MODE_SOLID, 0, CHANNELS);
+        this.score(MODE_SOLID, NO_QUANTIZER, CHANNELS);
       }
     }
 
@@ -2186,9 +2213,9 @@ public final class Mcv2 {
         target[index] = (byte) this.colors[index];
       }
 
-      Arrays.fill(target, PALETTE_COLORS * CHANNELS, PALETTE_COLORS * CHANNELS + this.count / Byte.SIZE, (byte) 0);
+      Arrays.fill(target, SELECTORS_AT, SELECTORS_AT + this.count / Byte.SIZE, (byte) 0);
       for (int pixel = 0; pixel < this.count; pixel++) {
-        target[PALETTE_COLORS * CHANNELS + pixel / Byte.SIZE] |= (byte) (this.selectors[pixel] << (pixel % Byte.SIZE));
+        target[SELECTORS_AT + pixel / Byte.SIZE] |= (byte) (this.selectors[pixel] << (pixel % Byte.SIZE));
       }
     }
 
@@ -2203,7 +2230,7 @@ public final class Mcv2 {
       this.writePalette(this.record);
 
       if (this.kernels.palette(this.record, this.size, this.reconstruction)) {
-        this.score(MODE_PALETTE, 0, length);
+        this.score(MODE_PALETTE, NO_QUANTIZER, length);
       }
     }
 
@@ -2222,7 +2249,7 @@ public final class Mcv2 {
       writePatternRecord(this.palette, this.size, this.record);
 
       if (this.kernels.palette(this.palette, this.size, this.reconstruction)) {
-        this.score(MODE_PATTERN, 0, length);
+        this.score(MODE_PATTERN, NO_QUANTIZER, length);
       }
     }
 
@@ -2282,17 +2309,19 @@ public final class Mcv2 {
   record Resolution(@Nullable Binding binding, int levels, String description, boolean failed) {
     private static final Supplier<Kernels> JAVA = JavaKernels::new;
 
+    private static final String JAVA_DESCRIPTION_FORMAT = "Java, %s";
+
     private Supplier<Kernels> factory() {
       final Binding bound = this.binding;
       return bound == null ? JAVA : () -> new NativeKernels(bound);
     }
 
     static Resolution java(final String reason) {
-      return new Resolution(null, 0, "Java, " + reason, false);
+      return new Resolution(null, 0, JAVA_DESCRIPTION_FORMAT.formatted(reason), false);
     }
 
     static Resolution failure(final String reason) {
-      return new Resolution(null, 0, "Java, " + reason, true);
+      return new Resolution(null, 0, JAVA_DESCRIPTION_FORMAT.formatted(reason), true);
     }
   }
 
@@ -2392,7 +2421,7 @@ public final class Mcv2 {
           System.getProperty(NATIVE_PROPERTY, configured),
           platform(System.getProperty(OPERATING_SYSTEM_NAME_PROPERTY, ""), System.getProperty(PROCESSOR_ARCHITECTURE_PROPERTY, "")),
           directory,
-          platform -> read(Mcv2.class.getResourceAsStream(NATIVE_RESOURCES + platform + RESOURCE_SEPARATOR + libraryName(platform))),
+          Natives::readBundledLibrary,
           System.getProperty(LEVEL_PROPERTY)
         );
         if (current.failed()) {
@@ -2404,6 +2433,13 @@ public final class Mcv2 {
       }
 
       return current;
+    }
+
+    private static byte @Nullable [] readBundledLibrary(final String platform) {
+      final String libraryName = libraryName(platform);
+      final String resource = "%s%s%s%s".formatted(NATIVE_RESOURCES, platform, RESOURCE_SEPARATOR, libraryName);
+      final @Nullable InputStream stream = Mcv2.class.getResourceAsStream(resource);
+      return read(stream);
     }
 
     static @Nullable String platform(final String operatingSystemName, final String processorArchitecture) {
@@ -2420,8 +2456,8 @@ public final class Mcv2 {
       }
 
       return switch (processorArchitecture.toLowerCase(Locale.ROOT)) {
-        case AMD64, X86_64 -> operatingSystem + X86_64_SUFFIX;
-        case AARCH64, ARM64 -> operatingSystem + AARCH64_SUFFIX;
+        case AMD64, X86_64 -> "%s%s".formatted(operatingSystem, X86_64_SUFFIX);
+        case AARCH64, ARM64 -> "%s%s".formatted(operatingSystem, AARCH64_SUFFIX);
         default -> null;
       };
     }
@@ -2484,11 +2520,11 @@ public final class Mcv2 {
       final @Nullable String highest
     ) {
       if (NATIVE_OFF.equals(mode)) {
-        return Resolution.java("turned off by " + NATIVE_PROPERTY + "=" + NATIVE_OFF);
+        return Resolution.java("turned off by %s=%s".formatted(NATIVE_PROPERTY, NATIVE_OFF));
       }
 
       if (!NATIVE_AUTO.equals(mode)) {
-        return Resolution.failure("unknown mode " + NATIVE_PROPERTY + "=" + mode);
+        return Resolution.failure("unknown mode %s=%s".formatted(NATIVE_PROPERTY, mode));
       }
 
       if (platform == null) {
@@ -2500,11 +2536,11 @@ public final class Mcv2 {
       try {
         bytes = digest == null ? null : resources.apply(platform);
       } catch (final UncheckedIOException exception) {
-        return Resolution.failure("the library could not be read: " + exception);
+        return Resolution.failure("the library could not be read: %s".formatted(exception));
       }
 
       if (digest == null || bytes == null) {
-        return Resolution.java("no library for " + platform);
+        return Resolution.java("no library for %s".formatted(platform));
       }
 
       return load(platform, digest, bytes, folder, highest);
@@ -2627,10 +2663,22 @@ public final class Mcv2 {
     private static final String SYMBOL_PREFIX = "mcv2_";
     private static final String SYMBOL_SEPARATOR = "_";
 
+    private static final String PREDICTED_KERNEL = "predicted";
+    private static final String SOLID_KERNEL = "solid";
+    private static final String PALETTE_KERNEL = "palette";
+    private static final String COMPACT_KERNEL = "compact";
+    private static final String PREDICT_KERNEL = "predict";
+    private static final String FIT_KERNEL = "fit";
+    private static final String CLUSTER_KERNEL = "cluster";
+    private static final String ASSIGN_KERNEL = "assign";
+    private static final String ASSIGN_PATTERN_KERNEL = "assign_pattern";
+    private static final String SEEDED_KERNEL = "seeded";
+    private static final String LOAD_SOURCE_KERNEL = "load_source";
+    private static final String HALVE_KERNEL = "halve";
+    private static final String RESIDUAL_TARGET_KERNEL = "residual_target";
+
     private static final FunctionDescriptor SCORED_PREDICTION = scored(ADDRESS, JAVA_INT);
-
     private static final FunctionDescriptor SCORED_SOLID = scored(JAVA_INT, JAVA_INT);
-
     private static final FunctionDescriptor SCORED_COMPACT = scored(ADDRESS, ADDRESS, JAVA_INT, JAVA_INT);
 
     private static final FunctionDescriptor PREDICT = FunctionDescriptor.ofVoid(
@@ -2709,19 +2757,19 @@ public final class Mcv2 {
 
     Binding(final Level level, final BiFunction<String, FunctionDescriptor, MethodHandle> handle) {
       this.level = level;
-      this.predicted = handle.apply("predicted", SCORED_PREDICTION);
-      this.solid = handle.apply("solid", SCORED_SOLID);
-      this.palette = handle.apply("palette", SCORED_PREDICTION);
-      this.compact = handle.apply("compact", SCORED_COMPACT);
-      this.predict = handle.apply("predict", PREDICT);
-      this.fit = handle.apply("fit", FIT);
-      this.cluster = handle.apply("cluster", BLOCK_TO_ARRAY);
-      this.assign = handle.apply("assign", ASSIGN);
-      this.assignPattern = handle.apply("assign_pattern", ASSIGN_PATTERN);
-      this.seeded = handle.apply("seeded", SEEDED);
-      this.loadSource = handle.apply("load_source", LOAD_SOURCE);
-      this.halve = handle.apply("halve", BLOCK_TO_ARRAY);
-      this.residualTarget = handle.apply("residual_target", RESIDUAL_TARGET);
+      this.predicted = handle.apply(PREDICTED_KERNEL, SCORED_PREDICTION);
+      this.solid = handle.apply(SOLID_KERNEL, SCORED_SOLID);
+      this.palette = handle.apply(PALETTE_KERNEL, SCORED_PREDICTION);
+      this.compact = handle.apply(COMPACT_KERNEL, SCORED_COMPACT);
+      this.predict = handle.apply(PREDICT_KERNEL, PREDICT);
+      this.fit = handle.apply(FIT_KERNEL, FIT);
+      this.cluster = handle.apply(CLUSTER_KERNEL, BLOCK_TO_ARRAY);
+      this.assign = handle.apply(ASSIGN_KERNEL, ASSIGN);
+      this.assignPattern = handle.apply(ASSIGN_PATTERN_KERNEL, ASSIGN_PATTERN);
+      this.seeded = handle.apply(SEEDED_KERNEL, SEEDED);
+      this.loadSource = handle.apply(LOAD_SOURCE_KERNEL, LOAD_SOURCE);
+      this.halve = handle.apply(HALVE_KERNEL, BLOCK_TO_ARRAY);
+      this.residualTarget = handle.apply(RESIDUAL_TARGET_KERNEL, RESIDUAL_TARGET);
     }
 
     private static FunctionDescriptor scored(final MemoryLayout... inputs) {
@@ -2745,8 +2793,6 @@ public final class Mcv2 {
   private static final class NativeKernels implements Kernels {
 
     private static final int MAXIMUM_COORDINATE = 1 << 20;
-
-    private static final int SELECTORS_AT = PALETTE_COLORS * CHANNELS;
 
     private static final String KERNEL_FAILED_MESSAGE = "MCV2 native kernel failed!";
 
@@ -3211,7 +3257,7 @@ public final class Mcv2 {
       for (int row = 0; row < size; row++) {
         for (int column = 0; column < size; column++) {
           final int pixel = row * size + column;
-          final int bit = (record[PALETTE_COLORS * CHANNELS + pixel / Byte.SIZE] >> (pixel % Byte.SIZE)) & 1;
+          final int bit = (record[SELECTORS_AT + pixel / Byte.SIZE] >> (pixel % Byte.SIZE)) & 1;
           final int arrayOffset = bit * CHANNELS;
           output[pixel * CHANNELS] = record[arrayOffset] & BYTE_MASK;
           output[pixel * CHANNELS + GREEN_OFFSET] = record[arrayOffset + GREEN_OFFSET] & BYTE_MASK;
@@ -3342,7 +3388,7 @@ public final class Mcv2 {
 
     @Override
     public void cluster(final int[] source, final int size, final int[] endpoints) {
-      final int step = size >= SAMPLED_SIZE ? SAMPLED_STEP : 1;
+      final int step = size >= SAMPLED_SIZE ? SAMPLED_STEP : FULL_STEP;
       this.seedEndpoints(source, size, step, endpoints);
       for (int iteration = 0; iteration < CLUSTER_ITERATIONS; iteration++) {
         Arrays.fill(this.clusterScratch, 0, CLUSTER_SUMS, 0);
@@ -3788,16 +3834,14 @@ public final class Mcv2 {
      */
     public static final int MAXIMUM_THREADS = 256;
 
-    private static final long KEEP_ALIVE_SECONDS = 30;
-
     private static final Logger LOGGER = LoggerFactory.getLogger(Pool.class);
 
     private static final String THREAD_NAME_PREFIX = "mcav-mcv2-encoder-";
-
     private static final String THREAD_GROUP_NAME = "mcav-mcv2-encoders";
 
     private static final int CORE_POOL_SIZE = 0;
     private static final int MINIMUM_RUNNABLE = 1;
+    private static final long KEEP_ALIVE_SECONDS = 30;
 
     private static final int PROCESSORS_PER_DEFAULT_THREAD = 2;
 

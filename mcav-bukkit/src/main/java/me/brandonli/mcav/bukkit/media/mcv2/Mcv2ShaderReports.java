@@ -39,24 +39,21 @@ final class Mcv2ShaderReports implements PluginMessageListener {
   static final int MAXIMUM_BYTES = 64;
 
   static final int BURST = 5;
-
   static final long INTERVAL_NANOSECONDS = TimeUnit.SECONDS.toNanos(1);
+  private static final long BURST_NANOSECONDS = (BURST - 1) * INTERVAL_NANOSECONDS;
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Mcv2ShaderReports.class);
 
   private static final int REPORT_BYTES = 4;
 
+  private static final int VERSION_INDEX = 0;
   private static final int IRIS_PRESENT_INDEX = 1;
   private static final int SHADER_PACK_INDEX = 2;
   private static final int DECODES_UNDER_SHADERS_INDEX = 3;
 
   private static final int NO_SHADER_PACK = 0;
-
   private static final int SHADER_PACK_IN_USE = 1;
-
   private static final int SHADER_PACK_UNKNOWN = 2;
-
-  private static final long BURST_NANOSECONDS = (BURST - 1) * INTERVAL_NANOSECONDS;
 
   private final LongSupplier clock;
 
@@ -124,8 +121,8 @@ final class Mcv2ShaderReports implements PluginMessageListener {
   }
 
   private static @Nullable Report parse(final byte[] message, final String name) {
-    if (message.length > 0 && message[0] != VERSION) {
-      LOGGER.debug("An MCV2 client report of version {} from {} is being ignored.", message[0], name);
+    if (message.length > 0 && message[VERSION_INDEX] != VERSION) {
+      LOGGER.debug("An MCV2 client report of version {} from {} is being ignored.", message[VERSION_INDEX], name);
       return null;
     }
 

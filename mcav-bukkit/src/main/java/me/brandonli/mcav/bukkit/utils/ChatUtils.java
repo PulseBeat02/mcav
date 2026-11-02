@@ -53,8 +53,14 @@ public final class ChatUtils {
   private static final int BITS_PER_NIBBLE = 4;
   private static final int NIBBLE_MASK = 0xF;
 
+  private static final char LINE_SEPARATOR = '\n';
+
   private static final int CHAT_HISTORY_LINES = 100;
-  private static final String CLEAR_CHAT_MESSAGE = "\n".repeat(CHAT_HISTORY_LINES - 1);
+  private static final String CLEAR_CHAT_MESSAGE = String.valueOf(LINE_SEPARATOR).repeat(CHAT_HISTORY_LINES - 1);
+
+  private static final int NO_COLOR = -1;
+
+  private static final boolean OVERLAY = false;
 
   private ChatUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
@@ -137,7 +143,7 @@ public final class ChatUtils {
     final StringBuilder builder = new StringBuilder(capacity);
     for (int row = 0; row < height; row++) {
       if (row > 0) {
-        builder.append('\n');
+        builder.append(LINE_SEPARATOR);
       }
       appendRow(builder, data, character, width, row);
     }
@@ -149,7 +155,7 @@ public final class ChatUtils {
 
   private static void appendRow(final StringBuilder builder, final int[] data, final String character, final int width, final int row) {
     final int offset = width * row;
-    int previousColor = -1;
+    int previousColor = NO_COLOR;
     for (int column = 0; column < width; column++) {
       final int color = data[offset + column] & RGB_MASK;
       if (color != previousColor) {
@@ -183,7 +189,7 @@ public final class ChatUtils {
     Preconditions.checkNotNull(viewers, "Viewers must not be null!");
 
     final Component message = Component.literal(CLEAR_CHAT_MESSAGE);
-    final ClientboundSystemChatPacket packet = new ClientboundSystemChatPacket(message, false);
+    final ClientboundSystemChatPacket packet = new ClientboundSystemChatPacket(message, OVERLAY);
     PacketUtils.sendPackets(viewers, packet);
   }
 }

@@ -25,6 +25,8 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 
 final class DefaultMapConfigurationBuilder implements MapConfigurationBuilder {
 
+  private static final int NO_MAP_ID = -1;
+
   private @MonotonicNonNull Collection<UUID> viewers;
   private int map;
   private int mapBlockWidth;
@@ -34,7 +36,7 @@ final class DefaultMapConfigurationBuilder implements MapConfigurationBuilder {
   private boolean shouldResize;
 
   DefaultMapConfigurationBuilder() {
-    this.map = -1;
+    this.map = NO_MAP_ID;
   }
 
   @Override

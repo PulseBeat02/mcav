@@ -100,6 +100,8 @@ public class CompressedMapResult implements DitherResultStep {
 
   private static final int PROCESSORS_PER_DITHER_THREAD = 2;
 
+  private static final String DITHER_THREAD_NAME_PREFIX = "mcav-map-dither-";
+
   private final MapConfiguration configuration;
   private final int maximumBytesPerFrame;
   private final Map<UUID, Object> activeViewers;
@@ -369,7 +371,7 @@ public class CompressedMapResult implements DitherResultStep {
     final ForkJoinWorkerThread thread = defaultFactory.newThread(pool);
     final int poolIndex = thread.getPoolIndex();
     thread.setDaemon(true);
-    thread.setName("mcav-map-dither-" + poolIndex);
+    thread.setName(DITHER_THREAD_NAME_PREFIX + poolIndex);
     return thread;
   }
 

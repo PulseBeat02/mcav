@@ -124,24 +124,23 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   private static final long FALLBACK_REFRESH_NANOSECONDS = TimeUnit.SECONDS.toNanos(4);
 
   private static final double NANOSECONDS_PER_MILLISECOND = 1e6;
+  private static final double NANOSECONDS_PER_SECOND = 1e9;
 
   private static final int LINK_COUNTS = 3;
-
   private static final int SENT = 0;
-
   private static final int BEHIND = 1;
-
   private static final int UNDECODABLE = 2;
 
   private static final String PACING_STEP = "{} during playback.";
 
-  private static final double NANOSECONDS_PER_SECOND = 1e9;
+  private static final String DITHER_THREAD_NAME = "mcav-mcv2-dither";
+  private static final String SCREEN_THREAD_NAME = "mcav-mcv2-screen";
+  private static final String SENDER_THREAD_NAME = "mcav-mcv2-sender";
 
   // Above one so a frame arriving early is kept, below two so a pause cannot release a burst.
   private static final double FRAME_CREDIT_CAP = 1.5;
 
   private static final double DEFAULT_COST = 1;
-
   private static final double FAST_COST = 0.9;
 
   private static final int LAST_CHANNEL_OFFSET = 2;
@@ -256,7 +255,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
         ? null
         : new Fallback(new CompressedMapResult(fallbackConfiguration(configuration, this.fallbackViewers)), fallbackAlgorithm);
     if (dithering == null) {
-      final ExecutorService thread = Executors.newSingleThreadExecutor(Thread.ofPlatform().daemon().name("mcav-mcv2-dither").factory());
+      final ExecutorService thread = Executors.newSingleThreadExecutor(Thread.ofPlatform().daemon().name(DITHER_THREAD_NAME).factory());
       this.ditheringThread = thread;
       this.dithering = thread;
     } else {
@@ -372,14 +371,14 @@ public final class Mcv2Result implements FunctionalVideoFilter {
 
     final Thread worker = Thread.ofPlatform()
       .daemon()
-      .name("mcav-mcv2-screen")
+      .name(SCREEN_THREAD_NAME)
       .unstarted(() -> this.encodeLoop(encoder));
 
     final BlockingQueue<Handoff> queue = new SynchronousQueue<>();
     final Pipeline started = new Pipeline(encoderPool, queue);
     final Thread sender = Thread.ofPlatform()
       .daemon()
-      .name("mcav-mcv2-sender")
+      .name(SENDER_THREAD_NAME)
       .unstarted(() -> this.deliverLoop(started, worker));
     this.resetPacer();
     synchronized (this.lock) {

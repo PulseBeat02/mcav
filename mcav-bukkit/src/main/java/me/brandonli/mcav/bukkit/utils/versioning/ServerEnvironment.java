@@ -40,7 +40,7 @@ public final class ServerEnvironment {
    */
   public static final String SUPPORTED_MINECRAFT_VERSION = "26.3";
 
-  private static final String PATCH_PREFIX = SUPPORTED_MINECRAFT_VERSION + ".";
+  private static final String PATCH_PREFIX = "%s.".formatted(SUPPORTED_MINECRAFT_VERSION);
 
   private ServerEnvironment() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
