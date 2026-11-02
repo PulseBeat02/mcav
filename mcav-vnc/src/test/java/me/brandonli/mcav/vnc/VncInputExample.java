@@ -43,7 +43,8 @@ public final class VncInputExample {
   private static final int HEIGHT = 768;
 
   private VncInputExample() {
-    throw new UnsupportedOperationException("Example class cannot be instantiated!");
+    final String message = "Example class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   static void main() {

@@ -1120,7 +1120,9 @@ final class VernacularVncPlayerTest {
     doAnswer(_ -> {
       final VernacularVncPlayer current = reference.get();
       current.release();
-      throw new IllegalStateException("closed while typing!");
+
+      final String message = "closed while typing!";
+      throw new IllegalStateException(message);
     })
       .when(client)
       .updateKey(anyInt(), anyBoolean());
@@ -2037,13 +2039,16 @@ final class VernacularVncPlayerTest {
 
     @Override
     public void connect(final SocketAddress endpoint, final int timeout) throws IOException {
-      throw new ConnectException("refused on purpose!");
+      final String message = "refused on purpose!";
+      throw new ConnectException(message);
     }
 
     @Override
     public synchronized void close() throws IOException {
       this.closeAttempted = true;
-      throw new IOException("close failed on purpose!");
+
+      final String message = "close failed on purpose!";
+      throw new IOException(message);
     }
   }
 

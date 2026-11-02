@@ -32,7 +32,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class EqualityAssertions {
 
   private EqualityAssertions() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   // Asserts that a value equals itself, that two values are equal in both directions with equal hash codes, that

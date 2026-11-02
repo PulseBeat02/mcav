@@ -128,7 +128,9 @@ final class VncHandshakeDeadlineTest {
           final boolean closedByDeadline = stopped.await(TIMEOUT_SECONDS, TimeUnit.SECONDS);
           assertTrue(bothEntered);
           assertTrue(closedByDeadline, "the handshake is closed");
-          throw new IllegalStateException("socket closed!");
+
+          final String message = "socket closed!";
+          throw new IllegalStateException(message);
         })
           .when(client)
           .start(any(Socket.class));

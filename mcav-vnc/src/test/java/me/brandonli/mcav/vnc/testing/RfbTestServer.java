@@ -155,7 +155,8 @@ public final class RfbTestServer implements AutoCloseable {
   public void sendUnknownMessage() {
     final DataOutputStream current = this.output;
     if (current == null) {
-      throw new IllegalStateException("No client is connected!");
+      final String message = "No client is connected!";
+      throw new IllegalStateException(message);
     }
 
     synchronized (this.outputLock) {
@@ -336,7 +337,10 @@ public final class RfbTestServer implements AutoCloseable {
       case 4 -> this.readKeyEvent(input);
       case 5 -> this.readPointerEvent(input);
       case 6 -> this.skipCutText(input);
-      default -> throw new IOException("Client message %s is unknown!".formatted(type));
+      default -> {
+        final String message = "Client message %s is unknown!".formatted(type);
+        throw new IOException(message);
+      }
     }
   }
 

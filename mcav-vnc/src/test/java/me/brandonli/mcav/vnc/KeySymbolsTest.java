@@ -167,7 +167,8 @@ final class KeySymbolsTest {
       this.closed = true;
       this.content.close();
       if (this.failOnClose) {
-        throw new IOException("close failed!");
+        final String message = "close failed!";
+        throw new IOException(message);
       }
     }
   }

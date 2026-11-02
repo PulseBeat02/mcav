@@ -99,7 +99,8 @@ final class DefaultVncSourceBuilder implements VncSourceBuilder {
   public VncSource build() {
     final String configuredHost = this.host;
     if (configuredHost == null) {
-      throw new IllegalStateException("Host must be set before the source is built!");
+      final String message = "Host must be set before the source is built!";
+      throw new IllegalStateException(message);
     }
 
     return new DefaultVncSource(configuredHost, this.port, this.username, this.password, this.width, this.height, this.targetFrameRate);
