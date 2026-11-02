@@ -143,6 +143,16 @@ final class FramePixelsTest {
   }
 
   @Test
+  void shouldRejectAPlaneThatCannotHoldTheDeclaredRows() {
+    final ByteBuffer target = ByteBuffer.allocate(6);
+    try (final Frame compact = frame(1, 2, 3, new byte[3]); final Frame padded = frame(1, 2, 8, new byte[10])) {
+      assertThrows(IllegalArgumentException.class, () -> FramePixels.copyBgr(compact, target));
+      assertThrows(IllegalArgumentException.class, () -> FramePixels.copyBgr(padded, target));
+      assertThrows(IllegalArgumentException.class, () -> FramePixels.copyBgr(compact));
+    }
+  }
+
+  @Test
   void shouldNotBeInstantiated() throws ReflectiveOperationException {
     UtilityClassAssertions.assertNotInstantiable(FramePixels.class);
   }
