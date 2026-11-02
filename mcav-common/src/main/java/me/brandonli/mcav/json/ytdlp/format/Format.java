@@ -197,7 +197,8 @@ public final class Format {
   public UriSource toUriSource() {
     final String streamUrl = this.url;
     if (streamUrl == null) {
-      throw new IllegalStateException("Stream has no URL!");
+      final String message = "Stream has no URL!";
+      throw new IllegalStateException(message);
     }
 
     final URI uri = URI.create(streamUrl);

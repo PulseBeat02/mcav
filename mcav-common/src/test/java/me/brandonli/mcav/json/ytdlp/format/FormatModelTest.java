@@ -537,7 +537,7 @@ final class FormatModelTest {
       }
     }
 
-    final String message = "%s has no getter for %s!".formatted(clazz, fieldName);
+    final String message = "Field %s of %s has no getter!".formatted(fieldName, clazz);
     throw new NoSuchMethodException(message);
   }
 
