@@ -89,8 +89,6 @@ public interface VncPlayer extends ControllablePlayer, ReleasablePlayer, Excepti
    * @since 1.0.0
    */
   default CompletableFuture<Boolean> startAsync(final VncSource source) {
-    Preconditions.checkNotNull(source, "Source must not be null!");
-
     final ForkJoinPool pool = ForkJoinPool.commonPool();
     return this.startAsync(source, pool);
   }
