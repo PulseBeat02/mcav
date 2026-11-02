@@ -73,8 +73,8 @@ final class RenderThread {
   }
 
   private static void joinUnlessSelf(final Thread target) {
-    final Thread caller = Thread.currentThread();
-    final boolean isTargetThread = caller.equals(target);
+    final Thread current = Thread.currentThread();
+    final boolean isTargetThread = current.equals(target);
     if (isTargetThread) {
       return;
     }
@@ -82,7 +82,7 @@ final class RenderThread {
     try {
       target.join(JOIN_TIMEOUT_MILLISECONDS);
     } catch (final InterruptedException exception) {
-      caller.interrupt();
+      current.interrupt();
     }
   }
 
@@ -97,8 +97,8 @@ final class RenderThread {
         runStep(step, failures);
       }
     } catch (final InterruptedException exception) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
     } finally {
       running.set(false);
       cleanup.run();

@@ -147,7 +147,7 @@ final class VlcPlaybackTest {
     final IllegalStateException primary = new IllegalStateException("recoverable failure!");
     final OutOfMemoryError fatal = new OutOfMemoryError("cleanup exhausted memory!");
     final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () ->
-      VlcPlayback.attemptAfterFailure(primary, () -> this.rethrow(fatal))
+      VlcPlayback.runAddingFailureTo(primary, () -> this.rethrow(fatal))
     );
     final Throwable[] suppressed = primary.getSuppressed();
     assertSame(fatal, thrown);

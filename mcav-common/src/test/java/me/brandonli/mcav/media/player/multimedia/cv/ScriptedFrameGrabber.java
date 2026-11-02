@@ -229,8 +229,8 @@ final class ScriptedFrameGrabber extends FrameGrabber {
       }
 
       if (interrupted) {
-        final Thread currentThread = Thread.currentThread();
-        currentThread.interrupt();
+        final Thread current = Thread.currentThread();
+        current.interrupt();
       }
     }
   }

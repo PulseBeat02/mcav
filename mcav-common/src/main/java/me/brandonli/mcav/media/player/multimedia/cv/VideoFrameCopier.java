@@ -120,8 +120,8 @@ final class VideoFrameCopier {
     final int frameHeight = frame.imageHeight;
     final MatImageBuffer source = fill(this.unscaled, frame, frameWidth, frameHeight);
     this.unscaled = source;
-    final Mat sourceMat = source.getMat();
-    return resize(sourceMat, pooled, width, height);
+    final Mat sourceMatrix = source.getMat();
+    return resize(sourceMatrix, pooled, width, height);
   }
 
   private static Mat wrapDecodedPixels(final Frame frame, final ByteBuffer plane) {
@@ -160,13 +160,13 @@ final class VideoFrameCopier {
 
   private static MatImageBuffer resize(final Mat source, final @Nullable MatImageBuffer reusable, final int width, final int height) {
     final MatImageBuffer target = ensureSize(reusable, width, height);
-    final Mat targetMat = target.getMat();
+    final Mat targetMatrix = target.getMat();
     final int sourceWidth = source.cols();
     final int sourceHeight = source.rows();
     final boolean shrinking = width < sourceWidth || height < sourceHeight;
     final int interpolation = shrinking ? opencv_imgproc.INTER_AREA : opencv_imgproc.INTER_LINEAR;
     try (final Size size = new Size(width, height)) {
-      opencv_imgproc.resize(source, targetMat, size, 0, 0, interpolation);
+      opencv_imgproc.resize(source, targetMatrix, size, 0, 0, interpolation);
     }
 
     target.invalidateCache();
@@ -179,8 +179,8 @@ final class VideoFrameCopier {
       return reusable;
     }
 
-    final Mat mat = new Mat(height, width, opencv_core.CV_8UC3);
-    final ImageBuffer created = ImageBuffer.mat(mat);
+    final Mat matrix = new Mat(height, width, opencv_core.CV_8UC3);
+    final ImageBuffer created = ImageBuffer.mat(matrix);
     return (MatImageBuffer) created;
   }
 

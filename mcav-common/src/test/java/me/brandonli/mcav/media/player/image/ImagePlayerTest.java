@@ -122,8 +122,8 @@ final class ImagePlayerTest {
     try {
       Thread.sleep(60);
     } catch (final InterruptedException exception) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
     }
   }
 
@@ -342,8 +342,8 @@ final class ImagePlayerTest {
     player.start(source);
     Thread.sleep(50);
 
-    final Thread currentThread = Thread.currentThread();
-    currentThread.interrupt();
+    final Thread current = Thread.currentThread();
+    current.interrupt();
     final boolean released = player.release();
     final boolean interrupted = Thread.interrupted();
     assertTrue(released);

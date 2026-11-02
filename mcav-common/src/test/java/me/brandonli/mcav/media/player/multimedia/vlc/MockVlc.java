@@ -352,8 +352,8 @@ final class MockVlc {
       return this.audioCallback.get() != null;
     }
 
-    void setPlaying(final boolean isPlaying) {
-      this.playing.set(isPlaying);
+    void setPlaying(final boolean playing) {
+      this.playing.set(playing);
     }
 
     void setTime(final long time) {

@@ -84,7 +84,7 @@ final class AudioRenderer extends AudioCallbackAdapter {
   }
 
   @Override
-  public void play(final MediaPlayer mediaPlayer, final Pointer samples, final int sampleCount, final long pts) {
+  public void play(final MediaPlayer mediaPlayer, final Pointer samples, final int sampleCount, final long presentationTimestamp) {
     if (!this.thread.isRunning()) {
       return;
     }
@@ -107,13 +107,13 @@ final class AudioRenderer extends AudioCallbackAdapter {
 
   // Drops the queued samples, because VLC paused the playback and they would otherwise keep playing.
   @Override
-  public void pause(final MediaPlayer mediaPlayer, final long pts) {
+  public void pause(final MediaPlayer mediaPlayer, final long presentationTimestamp) {
     this.queue.clear();
   }
 
   // Drops the queued samples, because VLC discards its buffered audio, for example when seeking.
   @Override
-  public void flush(final MediaPlayer mediaPlayer, final long pts) {
+  public void flush(final MediaPlayer mediaPlayer, final long presentationTimestamp) {
     this.queue.clear();
   }
 

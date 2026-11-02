@@ -208,8 +208,8 @@ final class PlaybackSessionFailureTest {
 
   private void reportInterruptAndThrow(final Throwable failure, final AtomicReference<Throwable> reported, final AssertionError reporting) {
     reported.set(failure);
-    final Thread worker = Thread.currentThread();
-    worker.interrupt();
+    final Thread current = Thread.currentThread();
+    current.interrupt();
     throw reporting;
   }
 

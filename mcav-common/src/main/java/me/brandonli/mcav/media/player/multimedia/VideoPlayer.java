@@ -66,17 +66,17 @@ public interface VideoPlayer extends ExceptionHandler {
    * {@link me.brandonli.mcav.capability.Capability#VLC} before creating the player, or use {@link #ffmpeg()}, which
    * needs no installation.
    *
-   * @param arguments VLC media options applied to every source, such as {@code :network-caching=1000}
+   * @param mediaOptions the VLC media options applied to every source, such as {@code :network-caching=1000}
    * @return the player
    * @throws IllegalStateException if VLC is still being prepared in the background, or its preparation found that VLC
    *                               is not available on this system; the message says which
-   * @throws NullPointerException  if the options array or any option is null
+   * @throws NullPointerException  if {@code mediaOptions} or any option is null
    * @since 1.0.0
    */
-  static VideoPlayerMultiplexer vlc(final String... arguments) {
-    Preconditions.checkNotNull(arguments, "Arguments must not be null!");
+  static VideoPlayerMultiplexer vlc(final String... mediaOptions) {
+    Preconditions.checkNotNull(mediaOptions, "Media options must not be null!");
 
-    return new VlcPlayer(arguments);
+    return new VlcPlayer(mediaOptions);
   }
 
   /**

@@ -62,8 +62,8 @@ final class VlcPlayback {
   private static final String AUDIO_FORMAT = "S16N";
   private static final long DRIFT_NUDGE_MILLISECONDS = 100L;
   private static final long DRIFT_SEEK_MILLISECONDS = 2_000L;
-  private static final long SYNC_INTERVAL_MILLISECONDS = 250L;
-  private static final String SYNC_THREAD_NAME = "mcav-vlc-sync";
+  private static final long SYNCHRONIZATION_INTERVAL_MILLISECONDS = 250L;
+  private static final String SYNCHRONIZATION_THREAD_NAME = "mcav-vlc-sync";
   private static final float RATE_NORMAL = 1.0f;
   private static final float RATE_SLOWER = 0.97f;
   private static final float RATE_FASTER = 1.03f;
@@ -109,7 +109,7 @@ final class VlcPlayback {
       return new VlcPlayback(owner, factory, video, audio);
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
-      attemptAfterFailure(exception, sharedFactory::release);
+      runAddingFailureTo(exception, sharedFactory::release);
       throw exception;
     }
   }
@@ -127,13 +127,14 @@ final class VlcPlayback {
       return playerApi.newEmbeddedMediaPlayer();
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
-      attemptAfterFailure(exception, videoPlayer::release);
+      runAddingFailureTo(exception, videoPlayer::release);
       throw exception;
     }
   }
 
-  // Attempts cleanup or reporting without losing the failure that required it. Fatal VM errors still propagate.
-  static boolean attemptAfterFailure(final Throwable primary, final Runnable action) {
+  // Runs cleanup or reporting after the primary failure and adds the action's own failure, unless it is the same one,
+  // to the primary failure as suppressed, so neither is lost. Fatal VM errors still propagate.
+  static boolean runAddingFailureTo(final Throwable primary, final Runnable action) {
     try {
       action.run();
 
@@ -251,27 +252,27 @@ final class VlcPlayback {
     try {
       return listener.awaitOpened(remainingMilliseconds);
     } catch (final InterruptedException exception) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
 
       return false;
     }
   }
 
   private void startSynchronizer(final EmbeddedMediaPlayer audioMaster) {
-    final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(VlcPlayback::createSyncThread);
+    final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(VlcPlayback::createSynchronizationThread);
     final Runnable task = () -> this.synchronizeVideoToAudio(audioMaster);
     final ScheduledFuture<?> schedule = executor.scheduleAtFixedRate(
       task,
-      SYNC_INTERVAL_MILLISECONDS,
-      SYNC_INTERVAL_MILLISECONDS,
+      SYNCHRONIZATION_INTERVAL_MILLISECONDS,
+      SYNCHRONIZATION_INTERVAL_MILLISECONDS,
       TimeUnit.MILLISECONDS
     );
     this.synchronizer = new Synchronizer(executor, schedule);
   }
 
-  private static Thread createSyncThread(final Runnable task) {
-    final Thread thread = new Thread(task, SYNC_THREAD_NAME);
+  private static Thread createSynchronizationThread(final Runnable task) {
+    final Thread thread = new Thread(task, SYNCHRONIZATION_THREAD_NAME);
     thread.setDaemon(true);
     return thread;
   }

@@ -1162,8 +1162,8 @@ final class VlcPlayerTest {
     try {
       Thread.sleep(300);
     } catch (final InterruptedException exception) {
-      final Thread renderThread = Thread.currentThread();
-      renderThread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
     }
 
     finished.set(true);

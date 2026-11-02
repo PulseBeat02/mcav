@@ -697,8 +697,8 @@ final class VideoRendererTest {
       final boolean released = proceed.await(TIMEOUT.toSeconds(), TimeUnit.SECONDS);
       assertTrue(released, "the test released the blocked filter");
     } catch (final InterruptedException exception) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
     }
   }
 }

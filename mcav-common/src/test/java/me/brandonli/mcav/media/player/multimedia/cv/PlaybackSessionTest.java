@@ -936,8 +936,8 @@ final class PlaybackSessionTest {
     try {
       never.await();
     } catch (final InterruptedException exception) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
     }
 
     return true;
@@ -1053,8 +1053,8 @@ final class PlaybackSessionTest {
     final PlaybackSession session = this.session(grabber, 0L, StartState.PLAYING);
     session.start();
 
-    final Thread currentThread = Thread.currentThread();
-    currentThread.interrupt();
+    final Thread current = Thread.currentThread();
+    current.interrupt();
     session.stop();
     final boolean interrupted = Thread.interrupted();
     assertTrue(interrupted, "the interrupt must be restored");
@@ -1323,8 +1323,8 @@ final class PlaybackSessionTest {
     queue.add(waiting);
     final DecodedVideoFrame frame = frameWithPicture();
     final MatImageBuffer picture = frame.getImage();
-    final Thread currentThread = Thread.currentThread();
-    currentThread.interrupt();
+    final Thread current = Thread.currentThread();
+    current.interrupt();
 
     assertThrows(InterruptedException.class, () -> PlaybackSession.queueFrame(queue, frame, () -> true));
 

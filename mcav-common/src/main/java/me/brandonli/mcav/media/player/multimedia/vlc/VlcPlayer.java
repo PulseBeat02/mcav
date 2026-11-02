@@ -178,8 +178,8 @@ public final class VlcPlayer implements VideoPlayerMultiplexer {
       }
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
-      VlcPlayback.attemptAfterFailure(exception, () -> this.cleanFailedPreparation(transition));
-      return this.reportFailedStart(video, exception);
+      VlcPlayback.runAddingFailureTo(exception, () -> this.cleanFailedPreparation(transition));
+      return this.reportStartFailureOrRethrow(video, exception);
     }
 
     try {
@@ -191,7 +191,7 @@ public final class VlcPlayer implements VideoPlayerMultiplexer {
       ThrowableUtils.throwIfFatal(exception);
 
       if (this.claimCandidate(transition)) {
-        VlcPlayback.attemptAfterFailure(exception, () -> this.cleanCandidate(transition));
+        VlcPlayback.runAddingFailureTo(exception, () -> this.cleanCandidate(transition));
       }
 
       throw exception;
@@ -265,8 +265,8 @@ public final class VlcPlayer implements VideoPlayerMultiplexer {
       result = this.openCandidate(transition);
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
-      VlcPlayback.attemptAfterFailure(exception, () -> this.cleanCandidate(transition));
-      return this.reportFailedStart(video, exception);
+      VlcPlayback.runAddingFailureTo(exception, () -> this.cleanCandidate(transition));
+      return this.reportStartFailureOrRethrow(video, exception);
     }
 
     if (result == OpenResult.FAILED) {
@@ -322,7 +322,7 @@ public final class VlcPlayer implements VideoPlayerMultiplexer {
     }
   }
 
-  private boolean reportFailedStart(final Source video, final Throwable exception) {
+  private boolean reportStartFailureOrRethrow(final Source video, final Throwable exception) {
     final boolean reported = this.reportStartFailure(video, exception);
     if (!reported) {
       if (exception instanceof final RuntimeException runtimeException) {
@@ -336,7 +336,7 @@ public final class VlcPlayer implements VideoPlayerMultiplexer {
   }
 
   private boolean reportStartFailure(final Source video, final Throwable exception) {
-    return VlcPlayback.attemptAfterFailure(exception, () -> this.sendStartFailure(video, exception));
+    return VlcPlayback.runAddingFailureTo(exception, () -> this.sendStartFailure(video, exception));
   }
 
   private void sendStartFailure(final Source video, final Throwable exception) {

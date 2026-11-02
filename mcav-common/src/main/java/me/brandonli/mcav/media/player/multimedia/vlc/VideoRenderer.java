@@ -195,15 +195,15 @@ final class VideoRenderer implements RenderCallback {
     final ByteBuffer view = nativeBuffer.duplicate();
     view.order(ByteOrder.LITTLE_ENDIAN);
     view.rewind();
-    final IntBuffer ints = view.asIntBuffer();
+    final IntBuffer packedPixels = view.asIntBuffer();
     if (bufferWidth == visibleWidth) {
-      ints.get(pixels, 0, visibleWidth * visibleHeight);
+      packedPixels.get(pixels, 0, visibleWidth * visibleHeight);
       return;
     }
 
     for (int row = 0; row < visibleHeight; row++) {
-      ints.position(row * bufferWidth);
-      ints.get(pixels, row * visibleWidth, visibleWidth);
+      packedPixels.position(row * bufferWidth);
+      packedPixels.get(pixels, row * visibleWidth, visibleWidth);
     }
   }
 

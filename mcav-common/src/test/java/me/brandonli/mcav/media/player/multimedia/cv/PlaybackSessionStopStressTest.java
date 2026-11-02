@@ -151,8 +151,8 @@ final class PlaybackSessionStopStressTest {
     try {
       never.await();
     } catch (final InterruptedException exception) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
     }
 
     return true;

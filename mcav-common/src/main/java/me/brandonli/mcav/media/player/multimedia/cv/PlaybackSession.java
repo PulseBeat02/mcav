@@ -279,7 +279,7 @@ final class PlaybackSession {
     } catch (final FrameGrabber.Exception | RuntimeException | Error exception) {
       try {
         ThrowableUtils.throwIfFatal(exception);
-        this.report("Failed to start the audio source.", exception);
+        this.reportIfRunning("Failed to start the audio source.", exception);
       } finally {
         this.audioQueue.offer(END_OF_AUDIO);
       }
@@ -294,13 +294,13 @@ final class PlaybackSession {
     try {
       this.decodeFrames(grabber, streams);
     } catch (final FrameGrabber.Exception exception) {
-      this.report("Failed to decode media.", exception);
+      this.reportIfRunning("Failed to decode media.", exception);
     } catch (final InterruptedException exception) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
-      this.report("Unexpected error while decoding media.", exception);
+      this.reportIfRunning("Unexpected error while decoding media.", exception);
     } finally {
       this.finishDecoding(grabber, streams);
     }
@@ -365,7 +365,7 @@ final class PlaybackSession {
     try {
       grabber.setTimestamp(this.startMicroseconds);
     } catch (final FrameGrabber.Exception exception) {
-      this.report("Failed to seek, playing from the current position instead.", exception);
+      this.reportIfRunning("Failed to seek, playing from the current position instead.", exception);
     }
   }
 
@@ -506,8 +506,8 @@ final class PlaybackSession {
       this.offerEndUntilStopped(queue, marker, interrupted);
     } finally {
       if (interrupted.get()) {
-        final Thread currentThread = Thread.currentThread();
-        currentThread.interrupt();
+        final Thread current = Thread.currentThread();
+        current.interrupt();
       }
     }
   }
@@ -550,8 +550,8 @@ final class PlaybackSession {
       throw exception;
     } catch (final InterruptedException exception) {
       this.stop();
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
     } finally {
       // A decoder racing the end may have queued one more frame.
       final List<DecodedVideoFrame> leftovers = new ArrayList<>();
@@ -600,7 +600,7 @@ final class PlaybackSession {
       // filters are user code, and native filters can throw a LinkageError, so any failure is reported and playback
       // goes on; only a virtual machine error ends the thread, because reporting it would hide it
       ThrowableUtils.throwIfFatal(exception);
-      this.report("Video filter failed.", exception);
+      this.reportIfRunning("Video filter failed.", exception);
     }
   }
 
@@ -642,8 +642,8 @@ final class PlaybackSession {
       throw exception;
     } catch (final InterruptedException exception) {
       this.stop();
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
     }
   }
 
@@ -668,7 +668,7 @@ final class PlaybackSession {
       // filters are user code, and native filters can throw a LinkageError, so any failure is reported and playback
       // goes on; only a virtual machine error ends the thread, because reporting it would hide it
       ThrowableUtils.throwIfFatal(exception);
-      this.report("Audio filter failed.", exception);
+      this.reportIfRunning("Audio filter failed.", exception);
     }
   }
 
@@ -686,7 +686,7 @@ final class PlaybackSession {
         this.clock.awaitResume(PAUSE_POLL_MILLISECONDS);
         continue;
       }
-      final long dueNanoseconds = this.clock.dueAt(timestampMicroseconds);
+      final long dueNanoseconds = this.clock.schedule(timestampMicroseconds);
       final long startNanoseconds = dueNanoseconds - leadNanoseconds;
       final long now = this.nanosecondClock.getAsLong();
       final long remaining = startNanoseconds - now;
@@ -805,8 +805,8 @@ final class PlaybackSession {
       try {
         thread.join(JOIN_TIMEOUT_MILLISECONDS);
       } catch (final InterruptedException exception) {
-        final Thread waiting = Thread.currentThread();
-        waiting.interrupt();
+        final Thread current = Thread.currentThread();
+        current.interrupt();
         return;
       }
     }
@@ -830,7 +830,7 @@ final class PlaybackSession {
     removed.forEach(discarded);
   }
 
-  private void report(final String message, final Throwable error) {
+  private void reportIfRunning(final String message, final Throwable error) {
     if (!this.running.get()) {
       return;
     }

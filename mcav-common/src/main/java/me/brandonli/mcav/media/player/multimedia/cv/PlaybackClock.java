@@ -33,7 +33,7 @@ final class PlaybackClock {
   static final double NORMAL_SPEED = 1.0;
 
   private static final long NANOSECONDS_PER_MICROSECOND = 1_000L;
-  private static final long RESYNC_THRESHOLD_NANOSECONDS = 2_000_000_000L;
+  private static final long DISCONTINUITY_THRESHOLD_NANOSECONDS = 2_000_000_000L;
 
   private final Object lock;
   private final LongSupplier nanosecondClock;
@@ -51,7 +51,7 @@ final class PlaybackClock {
     this.speed = NORMAL_SPEED;
   }
 
-  long dueAt(final long mediaMicroseconds) {
+  long schedule(final long mediaMicroseconds) {
     synchronized (this.lock) {
       final long now = this.paused ? this.pausedAtNanoseconds : this.nanosecondClock.getAsLong();
       if (!this.anchored) {
@@ -62,7 +62,7 @@ final class PlaybackClock {
       final long elapsedMedia = (mediaMicroseconds - this.anchorMediaMicroseconds) * NANOSECONDS_PER_MICROSECOND;
       final long due = this.anchorWallNanoseconds + Math.round(elapsedMedia / this.speed);
       final long lag = now - due;
-      final boolean discontinuity = Math.abs(lag) > RESYNC_THRESHOLD_NANOSECONDS;
+      final boolean discontinuity = Math.abs(lag) > DISCONTINUITY_THRESHOLD_NANOSECONDS;
       if (discontinuity) {
         this.anchor(mediaMicroseconds, now);
         return now;
