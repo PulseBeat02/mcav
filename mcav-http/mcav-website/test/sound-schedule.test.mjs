@@ -76,6 +76,9 @@ const buildProcessorScript = () => {
     return stripTypeScriptTypes([constants, source.slice(start, end), `${PROCESSOR_CLASS};`].join(LINE_SEPARATOR));
 };
 
+const doNothing = () => {
+};
+
 class FakeAudioContext {
     constructor(state) {
         this.state = state;
@@ -86,7 +89,7 @@ class FakeAudioContext {
     }
 
     createGain() {
-        return {gain: {value: 1}, connect() {}, disconnect() {}};
+        return {gain: {value: 1}, connect: doNothing, disconnect: doNothing};
     }
 
     createBuffer(channels, length, sampleRate) {
@@ -97,8 +100,8 @@ class FakeAudioContext {
     createBufferSource() {
         const source = {
             buffer: null,
-            connect() {},
-            disconnect() {},
+            connect: doNothing,
+            disconnect: doNothing,
             start: when => {
                 this.started.push({source, when, duration: source.buffer.duration});
             },
@@ -161,7 +164,9 @@ test("should not let sound that arrives before the context plays delay the sound
             feedLive(processor, context, SETTLING_SECONDS);
 
             const late = context.queuedAhead();
-            assert.ok(late <= 0.21, `${chunks} chunks while ${starting}: the sound plays as late as steady sound, not ${late.toFixed(DECIMAL_PLACES)} s`);
+            const lateSeconds = late.toFixed(DECIMAL_PLACES);
+            const message = `${chunks} chunks while ${starting}: the sound plays as late as steady sound, not ${lateSeconds} s`;
+            assert.ok(late <= 0.21, message);
         }
     }
 });

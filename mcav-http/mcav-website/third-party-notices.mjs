@@ -100,7 +100,6 @@ const sections = [...shipped]
     .sort();
 
 const header =
-    "The audio web page of mcav-http is built from the npm packages below; their code ships, minified, in the jar.\n" +
-    `${sections.length} packages, each with its license as the package carries it.\n`;
+    `The audio web page of mcav-http is built from the npm packages below; their code ships, minified, in the jar.\n${sections.length} packages, each with its license as the package carries it.\n`;
 writeFileSync(output, [header, ...sections].join(SECTION_SEPARATOR));
 console.log(`Wrote ${output} with the notices of ${sections.length} packages.`);

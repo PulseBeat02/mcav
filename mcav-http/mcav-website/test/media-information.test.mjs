@@ -28,7 +28,7 @@ const CONSTANT_DECLARATION = /^const [A-Z][A-Z0-9_]*: .+;$/gm;
 const DECLARATION_END = "\n};";
 
 const DECLARATIONS = [
-    "unknownMediaInformation",
+    "UNKNOWN_MEDIA_INFORMATION",
     "toMediaInformation",
     "readMediaInformation",
     "reportMediaInformationFailure",
@@ -157,14 +157,14 @@ test("should fall back to the unknown media information when the server sends no
     const page = loadPage(serverSending(null));
 
     return page.loadMediaInformation()
-        .then(information => assert.deepEqual(information, page.unknownMediaInformation));
+        .then(information => assert.deepEqual(information, page.UNKNOWN_MEDIA_INFORMATION));
 });
 
 test("should fall back to the unknown media information when the server answers with an error", () => {
     const page = loadPage(serverAnsweringWithAnError());
 
     return page.loadMediaInformation()
-        .then(information => assert.equal(information, page.unknownMediaInformation));
+        .then(information => assert.equal(information, page.UNKNOWN_MEDIA_INFORMATION));
 });
 
 test("should report no failure when the server answers with an error", () => {
@@ -180,7 +180,7 @@ test("should fall back to the unknown media information when the request fails",
     const page = loadPage(unreachableServer(failure));
 
     return page.loadMediaInformation()
-        .then(information => assert.equal(information, page.unknownMediaInformation));
+        .then(information => assert.equal(information, page.UNKNOWN_MEDIA_INFORMATION));
 });
 
 test("should report a request that fails", () => {

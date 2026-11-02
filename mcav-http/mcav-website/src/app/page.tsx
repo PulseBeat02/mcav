@@ -124,6 +124,17 @@ const UNKNOWN_ARTIST: string = "Unknown Artist";
 const UNKNOWN_DATE: string = "Unknown date";
 const NO_DESCRIPTION: string = "No description available";
 
+const UNKNOWN_MEDIA_INFORMATION: MediaInformation = {
+    title: UNKNOWN_TITLE,
+    uploader: UNKNOWN_ARTIST,
+    description: NO_DESCRIPTION,
+    thumbnail: undefined,
+    duration: 0,
+    view_count: 0,
+    like_count: 0,
+    upload_date: undefined
+};
+
 type MediaInformation = {
     title?: string;
     uploader?: string;
@@ -501,17 +512,6 @@ const formatDate = (dateString?: string): string => {
     }
 };
 
-const unknownMediaInformation: MediaInformation = {
-    title: UNKNOWN_TITLE,
-    uploader: UNKNOWN_ARTIST,
-    description: NO_DESCRIPTION,
-    thumbnail: undefined,
-    duration: 0,
-    view_count: 0,
-    like_count: 0,
-    upload_date: undefined
-};
-
 const toMediaInformation = (data: unknown): MediaInformation => {
     const received: MediaInformation = typeof data === "object" && data !== null ? data : {};
     return {
@@ -528,7 +528,7 @@ const toMediaInformation = (data: unknown): MediaInformation => {
 
 const readMediaInformation = (response: Response): Promise<MediaInformation> => {
     if (!response.ok) {
-        return Promise.resolve(unknownMediaInformation);
+        return Promise.resolve(UNKNOWN_MEDIA_INFORMATION);
     }
 
     return response.json().then(toMediaInformation);
@@ -536,7 +536,7 @@ const readMediaInformation = (response: Response): Promise<MediaInformation> => 
 
 const reportMediaInformationFailure = (error: unknown): MediaInformation => {
     console.error("Could not fetch the media information.", error);
-    return unknownMediaInformation;
+    return UNKNOWN_MEDIA_INFORMATION;
 };
 
 const loadMediaInformation = (): Promise<MediaInformation> => {
@@ -593,7 +593,12 @@ const traceWaveform = (context: CanvasRenderingContext2D, smoothedData: Float32A
     context.closePath();
 };
 
-const drawWaveform = (canvas: HTMLCanvasElement, context: CanvasRenderingContext2D, gradient: CanvasGradient, data: VisualizerData): void => {
+const drawWaveform = (
+    canvas: HTMLCanvasElement,
+    context: CanvasRenderingContext2D,
+    gradient: CanvasGradient,
+    data: VisualizerData
+): void => {
     context.fillStyle = BACKGROUND_COLOR;
     context.fillRect(0, 0, canvas.width, canvas.height);
     context.shadowBlur = 0;
