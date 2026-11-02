@@ -48,9 +48,16 @@ final class InstallationTreeAssertions implements AutoCloseable {
   InstallationTreeAssertions(final Path archive, final List<RemoteRepository> repositories, final Path localRepository) throws IOException {
     this.filesystem = FileSystems.newFileSystem(archive, Map.of("create", "true"));
     this.root = this.filesystem.getPath(ROOT);
-    this.installed = Files.createDirectories(this.root.resolve(INSTALLED_FOLDER));
-    Files.write(this.root.resolve(SENTINEL_FILE), new byte[] { 11, 22, 33, 44 });
-    Files.write(this.installed.getParent().resolve(EXISTING_FILE), new byte[] { 55, 66 });
+    final Path installedFolder = this.root.resolve(INSTALLED_FOLDER);
+    this.installed = Files.createDirectories(installedFolder);
+
+    final Path sentinel = this.root.resolve(SENTINEL_FILE);
+    Files.write(sentinel, new byte[] { 11, 22, 33, 44 });
+
+    final Path workspace = this.installed.getParent();
+    final Path existing = workspace.resolve(EXISTING_FILE);
+    Files.write(existing, new byte[] { 55, 66 });
+
     this.manager = new InstallationManager(this.installed, repositories, localRepository);
   }
 
@@ -65,21 +72,7 @@ final class InstallationTreeAssertions implements AutoCloseable {
     }
 
     final Map<Path, StoredEntry> after = this.snapshot();
-    for (final Map.Entry<Path, StoredEntry> entry : before.entrySet()) {
-      final Path path = entry.getKey();
-      final boolean survives = after.containsKey(path);
-      assertTrue(survives, () -> "the existing path survives: " + path);
-
-      final StoredEntry stored = entry.getValue();
-      final StoredEntry current = after.get(path);
-      final boolean storedDirectory = stored.directory();
-      final boolean currentDirectory = current.directory();
-      assertEquals(storedDirectory, currentDirectory, () -> "the path retains its type: " + path);
-
-      final byte[] storedContents = stored.contents();
-      final byte[] currentContents = current.contents();
-      assertArrayEquals(storedContents, currentContents, () -> "the existing bytes survive: " + path);
-    }
+    this.assertExistingEntriesSurvive(before, after);
 
     if (refused) {
       final Set<Path> pathsBefore = before.keySet();
@@ -95,10 +88,7 @@ final class InstallationTreeAssertions implements AutoCloseable {
     final boolean ownFolderIsDirectory = Files.isDirectory(ownFolder);
     assertTrue(ownFolderIsDirectory);
 
-    for (final Path path : after.keySet()) {
-      final boolean knownOrOwnFolder = before.containsKey(path) || path.equals(ownFolder);
-      assertTrue(knownOrOwnFolder, () -> "the only new path is the artifact folder: " + path);
-    }
+    this.assertOnlyOwnFolderIsNew(before, after, ownFolder);
   }
 
   private Map<Path, StoredEntry> snapshot() throws IOException {
@@ -121,6 +111,31 @@ final class InstallationTreeAssertions implements AutoCloseable {
 
     final byte[] contents = Files.readAllBytes(path);
     return new StoredEntry(directory, contents);
+  }
+
+  private void assertExistingEntriesSurvive(final Map<Path, StoredEntry> before, final Map<Path, StoredEntry> after) {
+    for (final Map.Entry<Path, StoredEntry> entry : before.entrySet()) {
+      final Path path = entry.getKey();
+      final boolean survives = after.containsKey(path);
+      assertTrue(survives, () -> "the existing path survives: " + path);
+
+      final StoredEntry stored = entry.getValue();
+      final StoredEntry current = after.get(path);
+      final boolean storedDirectory = stored.directory();
+      final boolean currentDirectory = current.directory();
+      assertEquals(storedDirectory, currentDirectory, () -> "the path retains its type: " + path);
+
+      final byte[] storedContents = stored.contents();
+      final byte[] currentContents = current.contents();
+      assertArrayEquals(storedContents, currentContents, () -> "the existing bytes survive: " + path);
+    }
+  }
+
+  private void assertOnlyOwnFolderIsNew(final Map<Path, StoredEntry> before, final Map<Path, StoredEntry> after, final Path ownFolder) {
+    for (final Path path : after.keySet()) {
+      final boolean knownOrOwnFolder = before.containsKey(path) || path.equals(ownFolder);
+      assertTrue(knownOrOwnFolder, () -> "the only new path is the artifact folder: " + path);
+    }
   }
 
   @Override

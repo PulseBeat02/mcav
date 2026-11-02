@@ -26,7 +26,9 @@ public final class InstallationExample {
 
   private static final String DEPENDENCY_FOLDER = "dependencies";
 
-  private InstallationExample() {}
+  private InstallationExample() {
+    throw new UnsupportedOperationException("Example class cannot be instantiated!");
+  }
 
   static void main() throws ClassNotFoundException, IOException {
     final Path folder = Path.of(DEPENDENCY_FOLDER);

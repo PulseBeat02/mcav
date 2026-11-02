@@ -50,12 +50,6 @@ public final class LocalMavenRepository {
     this.root = root;
   }
 
-  public String getUrl() {
-    final Path absolute = this.root.toAbsolutePath();
-    final URI uri = absolute.toUri();
-    return uri.toString();
-  }
-
   public static String resourceName(final String artifactId) {
     return RESOURCE_FOLDER + artifactId + RESOURCE_EXTENSION;
   }
@@ -108,6 +102,7 @@ public final class LocalMavenRepository {
     throws IOException {
     final Path directory = this.directoryOf(groupId, artifactId, version);
     Files.createDirectories(directory);
+
     final String baseName = artifactId + VERSION_SEPARATOR + version;
     final Path pom = directory.resolve(baseName + POM_EXTENSION);
     final String content = this.pomOf(groupId, artifactId, version, dependencies);
@@ -116,9 +111,7 @@ public final class LocalMavenRepository {
 
     final Path jar = directory.resolve(baseName + JAR_EXTENSION);
     final String coordinates = groupId + COORDINATE_SEPARATOR + artifactId + COORDINATE_SEPARATOR + version;
-    final String resource = resourceName(artifactId);
-    writeJar(jar, resource, coordinates);
-    writeChecksum(jar);
+    this.writeArtifactJar(jar, artifactId, coordinates);
 
     return jar;
   }
@@ -145,14 +138,19 @@ public final class LocalMavenRepository {
     throws IOException {
     final Path directory = this.directoryOf(groupId, artifactId, version);
     Files.createDirectories(directory);
+
     final Path jar = directory.resolve(artifactId + VERSION_SEPARATOR + version + VERSION_SEPARATOR + classifier + JAR_EXTENSION);
     final String coordinates =
       groupId + COORDINATE_SEPARATOR + artifactId + COORDINATE_SEPARATOR + version + COORDINATE_SEPARATOR + classifier;
+    this.writeArtifactJar(jar, artifactId, coordinates);
+
+    return jar;
+  }
+
+  private void writeArtifactJar(final Path jar, final String artifactId, final String coordinates) throws IOException {
     final String resource = resourceName(artifactId);
     writeJar(jar, resource, coordinates);
     writeChecksum(jar);
-
-    return jar;
   }
 
   public static Path checksumFileOf(final Path file) {
@@ -166,7 +164,7 @@ public final class LocalMavenRepository {
     try {
       digest = MessageDigest.getInstance(CHECKSUM_ALGORITHM);
     } catch (final NoSuchAlgorithmException exception) {
-      throw new IOException(exception);
+      throw new AssertionError(exception);
     }
 
     final byte[] hash = digest.digest(content);
@@ -184,5 +182,11 @@ public final class LocalMavenRepository {
       jarOutput.write(bytes);
       jarOutput.closeEntry();
     }
+  }
+
+  public String getUrl() {
+    final Path absolute = this.root.toAbsolutePath();
+    final URI uri = absolute.toUri();
+    return uri.toString();
   }
 }
