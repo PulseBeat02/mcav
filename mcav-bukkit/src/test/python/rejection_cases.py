@@ -51,9 +51,13 @@ TWO_LEVEL_DESCRIPTORS: int = 1 + mcv2_reference.SPLIT_CHILDREN + mcv2_reference.
 TWO_LEVEL_WALK_OFFSET: int = DESCRIPTORS_OFFSET + TWO_LEVEL_DESCRIPTORS
 
 WALK_SPLIT: int = 1 << mcv2_reference.WALK_CURSOR_BITS
+
 QUANTIZER_STEP: int = 1 << mcv2_reference.QUANTIZER_SHIFT
 QUANTIZER_VALUES: int = 1 << (mcv2_reference.BITS_PER_BYTE - mcv2_reference.QUANTIZER_SHIFT)
+
 INVALID_ORIENTATION: int = mcv2_reference.HORIZONTAL_STRIPES + 1
+
+SUPERBLOCK_PATTERN_BYTES: int = mcv2_reference.PATTERN_HEADER_BYTES + mcv2_reference.SUPERBLOCK_SIZE // mcv2_reference.BITS_PER_BYTE
 
 
 def rejected_frames() -> dict[str, dict[str, str]]:
@@ -215,7 +219,7 @@ def _add_keyframe_mode_cases(cases: dict[str, dict[str, str]]) -> None:
 def _add_truncated_record_cases(cases: dict[str, dict[str, str]]) -> None:
     nodes: list[Node] = [Node(mcv2_reference.MOTION, record=bytes(mcv2_reference.MOTION_BYTES)),
              Node(mcv2_reference.SOLID, record=bytes(mcv2_reference.SOLID_BYTES)),
-             Node(mcv2_reference.PALETTE, record=bytes(134)), Node(mcv2_reference.PATTERN, record=bytes(11)),
+             Node(mcv2_reference.PALETTE, record=bytes(134)), Node(mcv2_reference.PATTERN, record=bytes(SUPERBLOCK_PATTERN_BYTES)),
              Node(mcv2_reference.COMPACT, record=bytes(mcv2_reference.COMPACT_BYTES))]
     for node in nodes:
         data: bytes = _predicted_frame(node)
@@ -223,7 +227,7 @@ def _add_truncated_record_cases(cases: dict[str, dict[str, str]]) -> None:
 
 
 def _add_orientation_cases(cases: dict[str, dict[str, str]]) -> None:
-    pattern: bytes = _frame(Node(mcv2_reference.PATTERN, record=bytes(11)))
+    pattern: bytes = _frame(Node(mcv2_reference.PATTERN, record=bytes(SUPERBLOCK_PATTERN_BYTES)))
     _add(cases, 'pattern-orientation', _with_invalid_orientation(pattern, INVALID_ORIENTATION), DESCRIPTOR_RULE, PATTERN_ORIENTATION_REASON)
 
     offscreen_children: tuple[Node, Node, Node, Node] = (
@@ -236,7 +240,7 @@ def _add_orientation_cases(cases: dict[str, dict[str, str]]) -> None:
     offscreen_orientation: bytes = _with_invalid_orientation(offscreen, INVALID_ORIENTATION)
     _add(cases, 'off-picture-orientation', offscreen_orientation, DESCRIPTOR_RULE, PATTERN_ORIENTATION_REASON)
 
-    skips: tuple[Node, Node, Node] = (Node(mcv2_reference.SKIP),) * 3
+    skips: tuple[Node, ...] = (Node(mcv2_reference.SKIP),) * (mcv2_reference.SPLIT_CHILDREN - 1)
     corner: Node = Node(mcv2_reference.SPLIT, children=(Node(mcv2_reference.PATTERN, record=bytes(8)),) + skips)
     eight: bytes = _frame(Node(mcv2_reference.SPLIT, children=(corner,) + skips))
     _add(cases, 'pattern-orientation-8', _with_invalid_orientation(eight, 255), DESCRIPTOR_RULE, PATTERN_ORIENTATION_REASON)

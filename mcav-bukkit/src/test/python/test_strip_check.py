@@ -31,10 +31,12 @@ class StripCheckTest(unittest.TestCase):
         symbols: bytes = make_pages(frame, 5)[0]
         padded: numpy.ndarray = numpy.zeros(mcv2_reference.PAGE_SYMBOLS, numpy.uint32)
         padded[:len(symbols)] = numpy.frombuffer(symbols, numpy.uint8)
-        groups: numpy.ndarray = padded.reshape(-1, 4)
+        groups: numpy.ndarray = padded.reshape(-1, mcv2_tools.SYMBOLS_PER_PIXEL)
         words: numpy.ndarray = groups[:, 0] | groups[:, 1] << 6 | groups[:, 2] << 12 | groups[:, 3] << 18
-        image: numpy.ndarray = numpy.stack((words & 255, words >> 8 & 255, words >> 16), axis=1).astype(numpy.uint8).reshape(32, 128, 3)
-        actual: numpy.ndarray = mcv2_tools.strip_check_page_symbols(image, 0, 32)
+        rows: int = mcv2_tools.PAGE_PIXELS // mcv2_reference.MAP_SIDE
+        pixels: numpy.ndarray = numpy.stack((words & 255, words >> 8 & 255, words >> 16), axis=1).astype(numpy.uint8)
+        image: numpy.ndarray = pixels.reshape(rows, mcv2_reference.MAP_SIDE, mcv2_reference.CHANNELS)
+        actual: numpy.ndarray = mcv2_tools.strip_check_page_symbols(image, 0, rows)
         actual_bytes: bytes = actual.tobytes()
         self.assertEqual(padded.astype(numpy.uint8).tobytes(), actual_bytes)
 

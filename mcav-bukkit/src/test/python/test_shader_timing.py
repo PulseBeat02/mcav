@@ -37,6 +37,7 @@ JSON_OPTION: str = "--json"
 
 WIDTH: int = 64
 HEIGHT: int = 32
+
 KEYFRAME_ID: int = 1
 PREDICTED_FRAME_ID: int = 2
 

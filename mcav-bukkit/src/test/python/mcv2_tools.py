@@ -100,6 +100,8 @@ REPOSITORY_ROOT: Path = Path(__file__).resolve().parents[TOOLS_DIRECTORY_DEPTH]
 LINE_SEPARATOR: str = "\n"
 WORD_SEPARATOR: str = " "
 LIST_SEPARATOR: str = ","
+CLAUSE_SEPARATOR: str = "; "
+SIZE_SEPARATOR: str = "x"
 
 JSON_INDENT: int = 1
 REPORT_INDENT: int = 2
@@ -175,6 +177,7 @@ CLASSPATH_FLAG: str = "-cp"
 NATIVE_ACCESS_FLAG: str = "--enable-native-access=ALL-UNNAMED"
 JAVA_HEAP_FLAG: str = "-Xmx8g"
 MCV2_TOOLS_CLASS: str = "me.brandonli.mcav.bukkit.media.mcv2.Mcv2Tools"
+MCV2_TOOLS_SIMPLE_NAME: str = "Mcv2Tools"
 DIGESTS_COMMAND: str = "digests"
 BENCHMARK_COMMAND: str = "bench"
 SHADER_COMPILE_COMMAND: str = "shader-compile"
@@ -217,6 +220,7 @@ SPIRV_OPTION: str = "--spirv"
 JSON_OPTION: str = "--json"
 CROP_OPTION: str = "--crop"
 FRAME_OPTION: str = "--frame"
+ARCHIVE_ARGUMENT: str = "archive"
 
 SPIRV_USAGE_NAME: str = "CLASSPATH"
 
@@ -247,6 +251,7 @@ VMAF_MEAN_KEY: str = "vmaf_mean"
 VMAF_MINIMUM_KEY: str = "vmaf_min"
 
 BD_RATE_KEY: str = "bd_rate"
+BD_RATE_MEAN_KEY: str = "mean"
 FEATURE_ID_KEY: str = "id"
 FEATURE_NAME_KEY: str = "name"
 
@@ -269,6 +274,7 @@ ASSETS_NAME: str = "assets"
 SHADER_INCLUDE_PATH: str = "shaders/include"
 SHADER_POST_PATH: str = "assets/mcav/shaders/post"
 COMPILED_SHADERS_NAME: str = "glsl"
+GENERATED_INCLUDES_NAME: str = "generated"
 SPIRV_DIRECTORY_PREFIX: str = "mcv2-spirv-"
 
 CONFORMANCE_DIRECTORY: str = "conformance"
@@ -283,6 +289,7 @@ SCREENSHOT_GLOB: str = "*.png"
 
 PARTIAL_SUFFIX: str = ".partial"
 RAW_SUFFIX: str = ".rgb"
+STREAM_SUFFIX: str = ".mcs"
 FRAGMENT_SHADER_SUFFIX: str = ".fsh"
 VERTEX_SHADER_SUFFIX: str = ".vsh"
 
@@ -307,6 +314,8 @@ RESOURCE_NAMESPACE_SEPARATOR: str = ":"
 RESOURCE_PATH_SEPARATOR: str = "/"
 
 SCREENQUAD_PROGRAM: str = "minecraft:core/screenquad"
+BLIT_SHADER: str = "minecraft:post/blit"
+MCAV_SHADER_PREFIX: str = "mcav:post/"
 
 TARGETS_KEY: str = "targets"
 PASSES_KEY: str = "passes"
@@ -316,6 +325,16 @@ OUTPUT_KEY: str = "output"
 
 PREVIOUS_TARGET: str = "previous"
 STATUS_TARGET: str = "status"
+STATE_TARGET: str = "state"
+SCREEN_TARGET: str = "mcav:mcv2_screen"
+MCV2_TARGET_PREFIX: str = "mcv2_"
+
+COPY_STEP: str = "mcv2_copy"
+DECODE_STEP: str = "mcv2_decode"
+BLIT_INPUT_SAMPLER: str = "In"
+
+BLIT_STEP_PREFIX: str = "blit "
+STEP_TARGET_SEPARATOR: str = " -> "
 
 SAMPLER_SUFFIX: str = "Sampler"
 BYTES_HEIGHT_PLACEHOLDER: str = "BYTES_HEIGHT"
@@ -335,6 +354,7 @@ MARKDOWN_CELL_SEPARATOR: str = " | "
 MARKDOWN_ROW_END: str = " |"
 MARKDOWN_HEADER_RULE: str = "|---|"
 MARKDOWN_RIGHT_ALIGNED_RULE: str = "---:|"
+MARKDOWN_RIGHT_ALIGNED_HEADER_RULE: str = "|---:|"
 
 COUNTER_VIDEO_PRESET: str = "veryfast"
 COUNTER_VIDEO_CONSTANT_RATE_FACTOR: str = "12"
@@ -406,6 +426,7 @@ DIFFERENTIAL_HEAD_BYTES: int = 256
 
 DIFFERENTIAL_DEFAULT_STREAMS: int = 200
 DIFFERENTIAL_DEFAULT_CONFORMANCE: int = 40
+DIFFERENTIAL_DEFAULT_MUTANTS: int = 1
 DIFFERENTIAL_DEFAULT_SEED: int = 20260926
 
 DEFAULT_WIDTH: int = 1920
@@ -421,6 +442,8 @@ DEFAULT_SLOTS: int = 4
 RGBA_CHANNELS: int = 4
 ALPHA_CHANNEL: int = 3
 
+RGB_MODE: str = "RGB"
+
 TRIANGLE_VERTICES: int = 3
 
 SHADER_CHECK_CELL_SIZE: int = 8
@@ -435,6 +458,10 @@ VERSION_2_FLAGS_OFFSET: int = 6
 
 PAGE_NUMBER_FIELD: int = 6
 PAGE_TOTAL_FIELD: int = 9
+
+SHADER_CHECK_STATE_FORMAT: str = "<4I"
+STATE_HELD_ID_FIELD: int = 1
+STATE_COMMITS_FIELD: int = 3
 
 SHADER_TIMING_TOP_LEFT: tuple[float, float, float] = (-3.0, 1.5, -3.0)
 SHADER_TIMING_RIGHT: tuple[float, float, float] = (1.0, 0.0, 0.0)
@@ -459,6 +486,8 @@ STRIP_CHECK_MARGIN: int = 8
 STRIP_CHECK_EXTRA_SQUARES: int = 5
 
 STRIP_CHECK_PRINTED_FAILURES: int = 20
+
+STRIP_CHECK_DEFAULT_SCREENS: int = 1
 
 STRIP_FIT_CHECK_SEED: int = 7
 STRIP_FIT_CHECK_TOTAL_CHECKS: int = 7
@@ -600,7 +629,7 @@ SHADER_TIMING_ASPECT_RATIO: float = 16 / 9
 SHADER_TIMING_NEAR: float = 0.05
 SHADER_TIMING_FAR: float = 1000.0
 
-SHADER_TIMING_DESCRIPTOR_MARKER: int = 0xA1
+DESCRIPTOR_MARKER: int = 0xA1
 
 EDGE_STREAMS_MOTION_VECTORS: tuple[bytes, bytes, bytes, bytes] = (
     MOTION_MINIMUM_X_MAXIMUM_Y,
@@ -679,12 +708,16 @@ SPIRV_HELP: str = (
     "run compiled Mcv2Tools shader-compile; use the test runtime classpath from "
     "mcav-bukkit/build/mcv2-tools-classpath.txt"
 )
+
 shader_check_pack: Path = REPOSITORY_ROOT / "mcav-bukkit/src/main/resources/mcav/mcv2/pack"
 shader_check_screen: tuple[int, int] = (DEFAULT_WIDTH, DEFAULT_HEIGHT)
 SHADER_CHECK_STREAM_ID: int = 7
 shader_check_screen_index: int = 0
 shader_check_first_slot: int = 0
 SHADER_CHECK_IDLE_SLOTS: int = 8
+
+INCLUDE_DIRECTIVE_PATTERN: re.Pattern[str] = re.compile(r"^#include <([^>]+)>", re.MULTILINE)
+
 SHADER_CHECK_VERTEX: str = """#version 330
 #extension GL_ARB_separate_shader_objects : require
 layout(location = 0) out vec2 texCoord;
@@ -710,7 +743,15 @@ STRIP_CHECK_STEP: int = 24
 STRIP_CHECK_GREEN: tuple[int, int, int] = (0, 255, 0)
 STRIP_CHECK_RED: tuple[int, int, int] = (255, 0, 0)
 STRIP_CHECK_BLUE: tuple[int, int, int] = (0, 0, 255)
-STRIP_CHECK_DESCRIPTOR: list[tuple[int, ...]] = [tuple(STRIP_MAGIC), (0xA1, 0, 0)]
+STRIP_CHECK_DESCRIPTOR: list[tuple[int, ...]] = [tuple(STRIP_MAGIC), (DESCRIPTOR_MARKER, 0, 0)]
+
+STRIP_CHECK_CANNOT_DECODE: str = "cannot decode"
+STRIP_CHECK_OTHER_DECISION: str = "other"
+STRIP_CHECK_DECISIONS: dict[tuple[int, ...], str] = {
+    STRIP_CHECK_GREEN: "decoded",
+    STRIP_CHECK_BLUE: "nothing new",
+    STRIP_CHECK_RED: STRIP_CHECK_CANNOT_DECODE,
+}
 
 STRIP_FIT_CHECK_VIDEO: tuple[int, int] = (64, 64)
 STRIP_FIT_CHECK_SLOTS: int = 8
@@ -720,11 +761,14 @@ LATENCY_SAMPLE_OFFSET: int = COUNTER_VIDEO_BLOCK // 2
 
 CHARTS_DATA: Path = Path(__file__).resolve().parents[1] / "resources/mcv2/data"
 IMAGES: Path = REPOSITORY_ROOT / DOCUMENTATION_IMAGES_PATH
+
 CHARTS_SURFACE: str = "#ffffff"
 CHARTS_INK: str = "#0b0b0b"
 CHARTS_SECONDARY: str = "#52514e"
 CHARTS_GRID: str = "#e4e3df"
+
 CHARTS_FONT: list[str] = ["Liberation Sans", "Arial", "Helvetica", "DejaVu Sans"]
+
 CHARTS_CODECS: list[tuple[str, str, str, str]] = [
     ("mcv2", "MCV2", "#2a78d6", "o"),
     ("x264", "H.264", "#eb6834", "s"),
@@ -733,6 +777,7 @@ CHARTS_CODECS: list[tuple[str, str, str, str]] = [
 ]
 CHARTS_SOURCES: list[tuple[str, str]] = [(PROXY_SOURCE, "Minecraft proxy, 1080p30"), (GAMEPLAY_SOURCE, "Minecraft gameplay, 1080p30")]
 CHARTS_SOURCE_COLOURS: dict[str, str] = {PROXY_SOURCE: "#2a78d6", GAMEPLAY_SOURCE: "#eb6834"}
+
 CHARTS_LEVELS: tuple[int, int, int, int, int] = (70, 75, 80, 85, 90)
 CHARTS_TICKS: tuple[float, float, float, int, int, int, int, int, int] = (0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50)
 
@@ -919,8 +964,8 @@ def codec_curves_measure(arguments: argparse.Namespace, measured: Any, codec: An
 def codec_curves_point(arguments: argparse.Namespace, codec: Any, quality: Any, folder: str) -> dict[Any, Any]:
     settings: dict[str, Sequence[str]] = CODEC_CURVES_CODECS[codec]
     encoded: str = os.path.join(folder, f"{codec}-{quality}.{settings['container']}")
-    decoded: str = os.path.join(folder, f"{codec}-{quality}.rgb")
-    log: str = os.path.join(folder, f"{codec}-{quality}-vmaf.json")
+    decoded: str = os.path.join(folder, f"{codec}-{quality}{RAW_SUFFIX}")
+    log: str = os.path.join(folder, f"{codec}-{quality}-{VMAF_LOG_NAME}")
     size: tuple[Any, Any, Any] = (arguments.width, arguments.height, arguments.frames_per_second)
     encode_command: list[Any] = [
         arguments.ffmpeg,
@@ -1046,7 +1091,7 @@ def codec_curves_run(command: list[Any]) -> tuple[subprocess.CompletedProcess[st
     started: float = time.perf_counter()
     result: subprocess.CompletedProcess[str] = subprocess.run(command, capture_output=True, text=True)
     if result.returncode != 0:
-        message: str = f"Command {command[0]} failed!\n{result.stderr[-STANDARD_ERROR_TAIL_CHARACTERS:]}"
+        message: str = f"Command {command[0]} failed!{LINE_SEPARATOR}{result.stderr[-STANDARD_ERROR_TAIL_CHARACTERS:]}"
         raise RuntimeError(message)
 
     return (result, time.perf_counter() - started)
@@ -1201,7 +1246,7 @@ def capture_check_main() -> None:
     paths: list[Path] = sorted(Path(arguments.captures).glob(SCREENSHOT_GLOB))
     screen_height: int
     screen_width: int
-    screen_height, screen_width = numpy.asarray(Image.open(paths[0]).convert("RGB")).shape[:2]
+    screen_height, screen_width = numpy.asarray(Image.open(paths[0]).convert(RGB_MODE)).shape[:2]
     visible: Any = min(height, screen_height - arguments.top)
     shown: Any = min(width, screen_width)
     if visible < height or shown < width:
@@ -1218,7 +1263,7 @@ def capture_check_main() -> None:
     near: list[tuple[str, int, float]] = []
     pairs: list[tuple[Any, numpy.ndarray]] = []
     for path in paths:
-        screen: numpy.ndarray = numpy.asarray(Image.open(path).convert("RGB"))
+        screen: numpy.ndarray = numpy.asarray(Image.open(path).convert(RGB_MODE))
         crop: numpy.ndarray = numpy.ascontiguousarray(screen[arguments.top : arguments.top + height, :width])
         key: str = hashlib.sha256(crop.tobytes()).hexdigest()
         if key in index:
@@ -1463,8 +1508,8 @@ def edge_streams_build_streams(seed: int = EDGE_STREAMS_DEFAULT_SEED) -> dict[st
     streams["edge-length-limit.mcs"] = [pack_frame(EDGE_STREAMS_LENGTH_LIMIT_SIDE, EDGE_STREAMS_LENGTH_LIMIT_SIDE, 0, 0, roots)]
     streams["edge-wrap.mcs"] = [
         pack_frame(
-            1,
-            1,
+            MINIMUM_DIMENSION,
+            MINIMUM_DIMENSION,
             frame_id,
             frame_id if index == 0 else (frame_id - 1) & mcv2_reference.ID_MASK,
             {0: Node(mcv2_reference.SOLID, record=b"\x1b@\x80")} if index == 0 else {},
@@ -1571,7 +1616,7 @@ def edge_streams_pattern_stream(randomizer: random.Random) -> list[bytes]:
     leaves: list[tuple[int, int, bytes]] = [
         (size, orientation, axis)
         for size in ASCENDING_LEAF_SIZES
-        for orientation in (0, 1)
+        for orientation in range(PATTERN_ORIENTATIONS)
         for axis in edge_streams_pattern_axes(randomizer, size)
     ]
     roots: dict[int, Node] = {}
@@ -1752,16 +1797,16 @@ def fixtures_pages(root: Path) -> None:
         source = "edge streams (no committed v3 conformance streams)"
         cases = [
             (
-                f"edge/{name}.mcs",
+                f"{EDGE_DIRECTORY}/{name}{STREAM_SUFFIX}",
                 index,
-                list(read_archive(root / EDGE_DIRECTORY / f"{name}.mcs"))[index],
+                list(read_archive(root / EDGE_DIRECTORY / f"{name}{STREAM_SUFFIX}"))[index],
             )
             for name, index in FIXTURES_PAGES_EDGE_CASES
         ]
     for name, index in FIXTURES_PAGES_EXTRA_CASES:
-        path: Path = root / EDGE_DIRECTORY / f"{name}.mcs"
+        path: Path = root / EDGE_DIRECTORY / f"{name}{STREAM_SUFFIX}"
         if path.exists():
-            cases.append((f"edge/{name}.mcs", index, list(read_archive(path))[index]))
+            cases.append((f"{EDGE_DIRECTORY}/{name}{STREAM_SUFFIX}", index, list(read_archive(path))[index]))
     if len(cases) > FIXTURES_PAGES_CASES and source == FIXTURES_PAGES_COMMITTED_SOURCE:
         source = "committed v3 conformance and edge streams"
     entries: list[dict[str, Any]] = []
@@ -1812,7 +1857,7 @@ def differential_main() -> None:
         "--conformance", type=int, default=DIFFERENTIAL_DEFAULT_CONFORMANCE, help="committed archives, cycling when necessary"
     )
     parser.add_argument("--corpus", type=Path, default=DIFFERENTIAL_DEFAULT_CORPUS)
-    parser.add_argument("--mutants", type=int, default=1, help="mutated copies of every archive")
+    parser.add_argument("--mutants", type=int, default=DIFFERENTIAL_DEFAULT_MUTANTS, help="mutated copies of every archive")
     parser.add_argument("--seed", type=int, default=DIFFERENTIAL_DEFAULT_SEED)
     parser.add_argument(OUT_OPTION, type=Path, default=Path(DIFFERENTIAL_OUTPUT_PATH))
     parser.add_argument(JAVA_OPTION, default=JAVA_COMMAND)
@@ -1832,7 +1877,7 @@ def differential_run(arguments: argparse.Namespace | SimpleNamespace) -> int:
     (output / ARCHIVES_NAME).mkdir(parents=True, exist_ok=True)
     paths: dict[str, Any] = {}
     for name, chunks in archives.items():
-        paths[name] = output / ARCHIVES_NAME / f"{name}.mcs"
+        paths[name] = output / ARCHIVES_NAME / f"{name}{STREAM_SUFFIX}"
         paths[name].write_bytes(archive_bytes(chunks))
     expected: dict[str, list[str]] = {name: differential_reference_tokens(chunks) for name, chunks in archives.items()}
     java: subprocess.CompletedProcess[str] = subprocess.run(
@@ -1990,7 +2035,7 @@ def rate_quality_main() -> None:
                 CLASSPATH_FLAG,
                 arguments.classpath,
                 arguments.main,
-                *([BENCHMARK_COMMAND] if arguments.main.endswith("Mcv2Tools") else []),
+                *([BENCHMARK_COMMAND] if arguments.main.endswith(MCV2_TOOLS_SIMPLE_NAME) else []),
                 f"source={arguments.source}",
                 f"width={arguments.width}",
                 f"height={arguments.height}",
@@ -2266,13 +2311,12 @@ class ShaderChain:
             for entry in step.get(INPUTS_KEY, []):
                 texture: Any = self.depth if entry.get("use_depth_buffer") else self.targets[entry[TARGET_KEY]]
                 inputs[entry["sampler_name"]] = texture
-            if shader == "minecraft:post/blit":
-                name: str = "blit %s -> %s" % (
-                    step[INPUTS_KEY][0][TARGET_KEY].split(RESOURCE_NAMESPACE_SEPARATOR)[-1],
-                    step[OUTPUT_KEY].split(RESOURCE_NAMESPACE_SEPARATOR)[-1],
-                )
+            if shader == BLIT_SHADER:
+                input_name: str = step[INPUTS_KEY][0][TARGET_KEY].split(RESOURCE_NAMESPACE_SEPARATOR)[-1]
+                output_name: str = step[OUTPUT_KEY].split(RESOURCE_NAMESPACE_SEPARATOR)[-1]
+                name: str = f"{BLIT_STEP_PREFIX}{input_name}{STEP_TARGET_SEPARATOR}{output_name}"
                 steps.append((name, self.blit, inputs, step[OUTPUT_KEY]))
-            elif shader.startswith("mcav:post/"):
+            elif shader.startswith(MCAV_SHADER_PREFIX):
                 program: Any = self.program(
                     shader.split(RESOURCE_PATH_SEPARATOR)[-1], step.get("vertex_shader", SCREENQUAD_PROGRAM)
                 )
@@ -2334,7 +2378,7 @@ def shader_check_generated(width: Any, height: Any, slots: Any) -> dict[Any, Any
                 "const uint MCV2_STREAM_ID = %du;" % SHADER_CHECK_STREAM_ID,
                 "const int MCV2_VIDEO_WIDTH = %d;" % width,
                 "const int MCV2_VIDEO_HEIGHT = %d;" % height,
-                "const int MCV2_BYTES_WIDTH = 128;",
+                f"const int MCV2_BYTES_WIDTH = {SHADER_CHECK_BYTES_WIDTH};",
                 "const int MCV2_BYTES_HEIGHT = %d;"
                 % shader_check_placeholders(width, height, slots)[BYTES_HEIGHT_PLACEHOLDER],
                 "const int MCV2_CELLS_WIDTH = %d;" % shader_check_cells_width(width),
@@ -2421,7 +2465,7 @@ def shader_check_resolve(source: Any | str, includes: Any, seen: set[str] | None
 
         return shader_check_resolve(text, includes, seen)
 
-    return re.sub("^#include <([^>]+)>", include, source, flags=re.M)
+    return INCLUDE_DIRECTIVE_PATTERN.sub(include, source)
 
 
 def shader_check_page_number(page: bytes) -> int:
@@ -2435,7 +2479,7 @@ def shader_check_page_number(page: bytes) -> int:
 
 def shader_check_compile_via_spirv(includes: Any, classpath: Any) -> Path:
     work: Path = Path(tempfile.mkdtemp(prefix=SPIRV_DIRECTORY_PREFIX))
-    generated: Path = work / "generated"
+    generated: Path = work / GENERATED_INCLUDES_NAME
     generated.mkdir()
     for name, text in includes.items():
         (generated / name.split(RESOURCE_NAMESPACE_SEPARATOR)[1]).write_text(text)
@@ -2474,18 +2518,20 @@ def shader_check_check_restart(context: "moderngl.Context", slots: Any, classpat
         if should_decode:
             held_id = frame_id
             committed += 1
-        state: tuple[Any, ...] = struct.unpack("<4I", chain.target("state").read())
+        state: tuple[Any, ...] = struct.unpack(SHADER_CHECK_STATE_FORMAT, chain.target(STATE_TARGET).read())
+        state_held_id: int = state[STATE_HELD_ID_FIELD]
+        state_commits: int = state[STATE_COMMITS_FIELD]
         expected: numpy.ndarray = numpy.full((SUPERBLOCK_SIZE, SUPERBLOCK_SIZE, CHANNELS), expected_color, numpy.uint8)
         if (
             chain_decoded != should_decode
             or not numpy.array_equal(picture, expected)
-            or state[1] != held_id
-            or (state[3] != committed)
+            or state_held_id != held_id
+            or (state_commits != committed)
         ):
             failures += 1
             print(
                 "  restart case %d (id %d): decoded %s, expected %s; held id %d, expected %d; commits %d, expected %d"
-                % (index, frame_id, chain_decoded, should_decode, state[1], held_id, state[3], committed)
+                % (index, frame_id, chain_decoded, should_decode, state_held_id, held_id, state_commits, committed)
             )
     print("keyframe restart: %d checks, %d wrong" % (len(SHADER_CHECK_RESTART_CASES), failures))
 
@@ -2602,21 +2648,21 @@ class TimedShaderChain(ShaderChain):
     # untimed load, so the timed chain does not start at an idle GPU clock
     def warm(self) -> None:
         for _ in range(SHADER_TIMING_WARM_UP_FRAMES):
-            self.draw(self.blit, {"In": self.main}, "mcav:mcv2_screen")
+            self.draw(self.blit, {BLIT_INPUT_SAMPLER: self.main}, SCREEN_TARGET)
 
     def timed_frame(self, repeats: int) -> tuple[bool, dict[str, float]]:
         self.warm()
         times: dict[str, Any] = {}
         for name, program, inputs, output in self.steps():
-            if name.startswith("blit "):
+            if name.startswith(BLIT_STEP_PREFIX):
                 self.draw(program, inputs, output)
                 continue
-            if name == "mcv2_copy":
-                name += " -> " + output.split(RESOURCE_NAMESPACE_SEPARATOR)[-1].removeprefix("mcv2_")
+            if name == COPY_STEP:
+                name += STEP_TARGET_SEPARATOR + output.split(RESOURCE_NAMESPACE_SEPARATOR)[-1].removeprefix(MCV2_TARGET_PREFIX)
             if name not in self.queries:
                 self.queries[name] = self.context.query(time=True)
             query: Any = self.queries[name]
-            count: int = repeats if name == "mcv2_decode" else 1
+            count: int = repeats if name == DECODE_STEP else 1
             with query:
                 self.draw_repeatedly(count, program, inputs, output)
             times[name] = query.elapsed / count / NANOSECONDS_PER_MILLISECOND
@@ -2644,7 +2690,7 @@ def shader_timing_descriptor_row(width: int) -> numpy.ndarray:
     row: numpy.ndarray = numpy.zeros((width, RGBA_CHANNELS), numpy.uint8)
     row[:, ALPHA_CHANNEL] = MAXIMUM_CHANNEL
     row[0, :CHANNELS] = tuple(STRIP_MAGIC)
-    row[1, 0] = SHADER_TIMING_DESCRIPTOR_MARKER
+    row[1, 0] = DESCRIPTOR_MARKER
     for index, value in enumerate(floats):
         packed: bytes = struct.pack(FLOAT_FORMAT, value)
         pixel: int = SHADER_TIMING_FIRST_FLOAT_PIXEL + index * SHADER_TIMING_PIXELS_PER_FLOAT
@@ -2758,7 +2804,7 @@ def strip_check_main() -> None:
     parser.add_argument(SLOTS_OPTION, type=int, required=True)
     parser.add_argument("--video-width", type=int, required=True)
     parser.add_argument(
-        "--screens", type=int, default=1, help="number of screens sharing the strip (default: 1)"
+        "--screens", type=int, default=STRIP_CHECK_DEFAULT_SCREENS, help="number of screens sharing the strip (default: %(default)s)"
     )
     parser.add_argument(
         "--screen", type=int, default=0,
@@ -2783,7 +2829,7 @@ def strip_check_main() -> None:
         parser.error(message)
     check: StripCheck = StripCheck(arguments)
     for capture in captures:
-        screen: numpy.ndarray = numpy.asarray(Image.open(capture).convert("RGB"))
+        screen: numpy.ndarray = numpy.asarray(Image.open(capture).convert(RGB_MODE))
         check.check_capture(capture.name, screen)
     summary: dict[Any, Any] = check.summary(len(captures))
     for failure in check.failures[:STRIP_CHECK_PRINTED_FAILURES]:
@@ -2863,13 +2909,9 @@ class StripCheck:
                 self.failures.append((name, "slot %d square %s, page valid %s" % (slot, colours[slot], pages[slot])))
 
     def check_decision(self, name: Any, colours: list[tuple[int, ...]]) -> None:
-        decision: str = {
-            STRIP_CHECK_GREEN: "decoded",
-            STRIP_CHECK_BLUE: "nothing new",
-            STRIP_CHECK_RED: "cannot decode",
-        }.get(colours[self.arguments.slots], "other")
+        decision: str = STRIP_CHECK_DECISIONS.get(colours[self.arguments.slots], STRIP_CHECK_OTHER_DECISION)
         self.decisions[decision] += 1
-        if decision in ("cannot decode", "other"):
+        if decision in (STRIP_CHECK_CANNOT_DECODE, STRIP_CHECK_OTHER_DECISION):
             self.failures.append((name, "decision %s" % (colours[self.arguments.slots],)))
 
     def check_counter(self, name: Any, colours: list[tuple[int, ...]]) -> None:
@@ -3099,7 +3141,7 @@ def latency_milliseconds(value: Any) -> float:
     if isinstance(value, (int, float)):
         return float(value)
 
-    return datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp() * MILLISECONDS_PER_SECOND
+    return datetime.fromisoformat(value).timestamp() * MILLISECONDS_PER_SECOND
 
 
 def latency_events(path: Any, jfr: Any) -> list[Any]:
@@ -3337,7 +3379,7 @@ def charts_draw_codecs(data: Any) -> None:
         axis.xaxis.set_minor_locator(NullLocator())
         axis.set_title(title, fontsize=CHARTS_TITLE_FONT_SIZE, color=CHARTS_INK, loc="left")
         axis.set_xlabel("Rate on the wire, Mbit/s (log scale)", color=CHARTS_SECONDARY)
-        axis.grid(True, color=CHARTS_GRID, linewidth=CHARTS_GRID_LINE_WIDTH, zorder=CHARTS_GRID_LAYER)
+        axis.grid(visible=True, color=CHARTS_GRID, linewidth=CHARTS_GRID_LINE_WIDTH, zorder=CHARTS_GRID_LAYER)
         axis.set_ylim(CHARTS_LOWEST_SCORE, CHARTS_HIGHEST_SCORE)
         axis.margins(x=CHARTS_RATE_MARGIN)
         for side in ("top", "right"):
@@ -3419,7 +3461,7 @@ def charts_draw_features(rows: list[dict[str, Any]]) -> None:
     axis.set_yticklabels([row[FEATURE_NAME_KEY] for row in rows], color=CHARTS_INK)
     axis.axvline(0, color=CHARTS_SECONDARY, linewidth=CHARTS_AXIS_LINE_WIDTH, zorder=CHARTS_BACK_LAYER)
     axis.set_xlabel("Extra rate on the wire with the feature turned off (BD-rate, %)", color=CHARTS_SECONDARY)
-    axis.grid(True, axis="x", color=CHARTS_GRID, linewidth=CHARTS_GRID_LINE_WIDTH, zorder=CHARTS_GRID_LAYER)
+    axis.grid(visible=True, axis="x", color=CHARTS_GRID, linewidth=CHARTS_GRID_LINE_WIDTH, zorder=CHARTS_GRID_LAYER)
     if limit:
         axis.set_xlim(right=limit * CHARTS_CLIPPED_MARGIN)
     for side in ("top", "right"):
@@ -3431,16 +3473,16 @@ def charts_draw_features(rows: list[dict[str, Any]]) -> None:
 
 
 def charts_print_tables(data: Any, rows: list[dict[str, Any]], removed: Any) -> None:
-    print("Rate on the wire (Mbit/s) for the same VMAF mean, log-linear between measured points:\n")
+    print(f"Rate on the wire (Mbit/s) for the same VMAF mean, log-linear between measured points:{LINE_SEPARATOR}")
     print("| VMAF mean | " + MARKDOWN_CELL_SEPARATOR.join(name for _, name, _, _ in CHARTS_CODECS) + MARKDOWN_ROW_END)
-    print("|---:|" + MARKDOWN_RIGHT_ALIGNED_RULE * len(CHARTS_CODECS))
+    print(MARKDOWN_RIGHT_ALIGNED_HEADER_RULE + MARKDOWN_RIGHT_ALIGNED_RULE * len(CHARTS_CODECS))
     for source, title in CHARTS_SOURCES:
         print(f"| **{title}** |" + MARKDOWN_ROW_END * len(CHARTS_CODECS))
         for level in CHARTS_LEVELS:
             cells: list[str] = [charts_rate_cell(data, source, codec, level) for codec, _, _, _ in CHARTS_CODECS]
             print(f"| {level} | " + MARKDOWN_CELL_SEPARATOR.join(cells) + MARKDOWN_ROW_END)
     print(
-        "\nBD-rate of MCV2 against each codec (positive: MCV2 needs more), over the VMAF range both cover:\n"
+        f"{LINE_SEPARATOR}BD-rate of MCV2 against each codec (positive: MCV2 needs more), over the VMAF range both cover:{LINE_SEPARATOR}"
     )
     for source, title in CHARTS_SOURCES:
         mcv2: list[tuple[float, float]] = charts_curve(data, source, MCV2_CODEC)
@@ -3451,9 +3493,9 @@ def charts_print_tables(data: Any, rows: list[dict[str, Any]], removed: Any) -> 
             high: numpy.float64
             percent, low, high = bd_rate(charts_curve(data, source, codec), mcv2)
             cells.append(f"{name} {percent:+.1f}% (VMAF {low:.1f}-{high:.1f})")
-        print(f"- {title}: " + "; ".join(cells))
+        print(f"- {title}: " + CLAUSE_SEPARATOR.join(cells))
     if rows:
-        print("\nExtra rate on the wire without each feature (BD-rate against the full encoder):\n")
+        print(f"{LINE_SEPARATOR}Extra rate on the wire without each feature (BD-rate against the full encoder):{LINE_SEPARATOR}")
         print("| Feature turned off | " + MARKDOWN_CELL_SEPARATOR.join(title for _, title in CHARTS_SOURCES) + MARKDOWN_ROW_END)
         print(MARKDOWN_HEADER_RULE + MARKDOWN_RIGHT_ALIGNED_RULE * len(CHARTS_SOURCES))
         for row in sorted(rows, key=lambda row: -(row[GAMEPLAY_SOURCE][0] + row[PROXY_SOURCE][0])):
@@ -3463,12 +3505,13 @@ def charts_print_tables(data: Any, rows: list[dict[str, Any]], removed: Any) -> 
             ]
             print(f"| {row[FEATURE_NAME_KEY]} | " + MARKDOWN_CELL_SEPARATOR.join(cells) + MARKDOWN_ROW_END)
     if removed:
-        print("\nWhat each feature MCV2 no longer has was worth (BD-rate when it was measured):\n")
+        print(f"{LINE_SEPARATOR}What each feature MCV2 no longer has was worth (BD-rate when it was measured):{LINE_SEPARATOR}")
         print("| Feature | " + MARKDOWN_CELL_SEPARATOR.join(title for _, title in CHARTS_SOURCES) + " | Mean |")
         print(MARKDOWN_HEADER_RULE + MARKDOWN_RIGHT_ALIGNED_RULE * (len(CHARTS_SOURCES) + 1))
-        for row in sorted(removed, key=lambda row: -row[BD_RATE_KEY]["mean"]):
+        for row in sorted(removed, key=lambda row: -row[BD_RATE_KEY][BD_RATE_MEAN_KEY]):
             cells = [charts_signed(row[BD_RATE_KEY][source]) for source, _ in CHARTS_SOURCES]
-            print(f"| {row[FEATURE_NAME_KEY]} | " + MARKDOWN_CELL_SEPARATOR.join(cells) + f" | {charts_signed(row['bd_rate']['mean'])} |")
+            mean: str = charts_signed(row[BD_RATE_KEY][BD_RATE_MEAN_KEY])
+            print(f"| {row[FEATURE_NAME_KEY]} | " + MARKDOWN_CELL_SEPARATOR.join(cells) + f" | {mean} |")
 
 
 def charts_rate_cell(data: Any, source: str, codec: str, level: int) -> str:
@@ -3500,21 +3543,21 @@ def samples_main() -> None:
         ),
     )
     parser.add_argument(
-        "--size", type=lambda text: tuple(int(value) for value in text.split("x")), default=(DEFAULT_WIDTH, DEFAULT_HEIGHT)
+        "--size", type=lambda text: tuple(int(value) for value in text.split(SIZE_SEPARATOR)), default=(DEFAULT_WIDTH, DEFAULT_HEIGHT)
     )
     commands: argparse._SubParsersAction[argparse.ArgumentParser] = parser.add_subparsers(dest="command", required=True)
     tree: argparse.ArgumentParser = commands.add_parser(TREE_COMMAND)
-    tree.add_argument("archive")
+    tree.add_argument(ARCHIVE_ARGUMENT)
     tree.add_argument(FRAMES_OPTION, required=True)
     tree.add_argument(CROP_OPTION, required=True)
     tree.add_argument(OUT_OPTION, default=TREE_FIGURE_NAME)
     leaves: argparse.ArgumentParser = commands.add_parser(LEAVES_COMMAND)
-    leaves.add_argument("archive")
+    leaves.add_argument(ARCHIVE_ARGUMENT)
     leaves.add_argument("source")
     leaves.add_argument(FRAME_OPTION, type=int, default=0)
     leaves.add_argument(CROP_OPTION, required=True)
     dump: argparse.ArgumentParser = commands.add_parser(BYTES_COMMAND)
-    dump.add_argument("archive")
+    dump.add_argument(ARCHIVE_ARGUMENT)
     dump.add_argument(FRAME_OPTION, type=int, default=0)
     arguments: argparse.Namespace = parser.parse_args()
     if arguments.command != BYTES_COMMAND:
@@ -3675,7 +3718,7 @@ def samples_draw_leaves(arguments: argparse.Namespace) -> None:
             row[1].text(
                 0,
                 index,
-                f"colour {index}\n{colour[0]}, {colour[1]}, {colour[2]}",
+                f"colour {index}{LINE_SEPARATOR}{colour[0]}, {colour[1]}, {colour[2]}",
                 ha="center",
                 va="center",
                 fontsize=CHARTS_SMALL_FONT_SIZE,

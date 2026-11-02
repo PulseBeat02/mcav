@@ -32,14 +32,18 @@ from mcv2_reference import Node, pack_frame, parse_frame
 
 ROOT: Path = Path(__file__).resolve().parents[4]
 RESOURCES: Path = ROOT / 'mcav-bukkit/src/test/resources/mcv2'
+
 STREAM_PATTERN: str = '*.mcs'
+
 STREAM_SEPARATOR: str = '/'
 
 CONFORMANCE_FOLDER: str = 'conformance'
 EDGE_FOLDER: str = 'edge'
 ENCODER_FOLDER: str = 'encoder'
+
 PAGES_NAME: str = 'pages.json'
 DIGESTS_NAME: str = 'digests.json'
+
 PATTERNS_STREAM: str = 'edge-patterns.mcs'
 OLD_STREAM: str = 'old.mcs'
 NEW_STREAM: str = 'new.mcs'
@@ -53,6 +57,7 @@ OLD_STREAM_BYTES: bytes = mcv2_tools.archive_bytes([b'MCV2\2' + bytes(27)])
 OLD_DIGESTS: str = '{"old.mcs": {"unchanged": true}}\n'
 
 WALK_CURSOR_MASK: int = (1 << mcv2_reference.WALK_CURSOR_BITS) - 1
+
 VECTOR_BYTES: int = mcv2_reference.COMPACT_BYTES - mcv2_reference.GRID_BYTES
 
 
@@ -115,8 +120,9 @@ class FixtureCoverageTest(unittest.TestCase):
                 self.assertEqual((edge_folder / name).read_bytes(), archive)
 
     def test_should_reproduce_and_decode_random_streams(self) -> None:
-        left: list[bytes] = mcv2_tools.edge_streams_random_stream(random.Random(57))
-        right: list[bytes] = mcv2_tools.edge_streams_random_stream(random.Random(57))
+        seed: int = 57
+        left: list[bytes] = mcv2_tools.edge_streams_random_stream(random.Random(seed))
+        right: list[bytes] = mcv2_tools.edge_streams_random_stream(random.Random(seed))
         self.assertEqual(left, right)
 
         digest_count: int = len(mcv2_tools.fixtures_digests(mcv2_tools.archive_bytes(left)))
@@ -179,7 +185,7 @@ class FixtureToolTest(unittest.TestCase):
         self.assertEqual(4, frame_count)
 
         streams: set[Any] = {entry[STREAM_KEY] for entry in table[FRAMES_KEY]}
-        self.assertEqual({'conformance/new.mcs'}, streams)
+        self.assertEqual({f'{CONFORMANCE_FOLDER}{STREAM_SEPARATOR}{NEW_STREAM}'}, streams)
 
     def test_should_only_decode_encoder_fixtures_and_never_rewrite_them(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

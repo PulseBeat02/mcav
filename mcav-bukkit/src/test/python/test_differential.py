@@ -32,6 +32,7 @@ from mcv2_reference import Node, pack_frame
 from mcv2_tools import archive_bytes as archive
 
 PLACEHOLDER: str = 'unused'
+
 SEED: int = 42
 
 ARCHIVE_NAME: str = 'tree-0000'
@@ -40,6 +41,7 @@ SUMMARY_NAME: str = 'summary.json'
 CORPUS_NAME: str = 'test.mcs'
 
 TOOLS_CLASS: str = 'me.brandonli.mcav.bukkit.media.mcv2.Mcv2Tools'
+
 TOKEN_SEPARATOR: str = ' '
 
 BUILD_ARCHIVES: str = 'differential_build_archives'

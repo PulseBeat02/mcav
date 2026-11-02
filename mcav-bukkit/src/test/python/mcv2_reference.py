@@ -90,9 +90,10 @@ RECORD_COLORS: int = 2
 COLORS_BYTES: int = RECORD_COLORS * CHANNELS
 PATTERN_ORIENTATION_INDEX: int = COLORS_BYTES
 PATTERN_HEADER_BYTES: int = COLORS_BYTES + 1
+COMPACT_BYTES: int = 10
+
 VERTICAL_STRIPES: int = 0
 HORIZONTAL_STRIPES: int = 1
-COMPACT_BYTES: int = 10
 
 GRID_SIDE: int = 4
 NIBBLE_BITS: int = 4
@@ -171,7 +172,7 @@ class Frame:
 
     @property
     def flags(self) -> int:
-        return int(self.keyframe)
+        return KEYFRAME if self.keyframe else 0
 
 
 @dataclass(frozen=True)

@@ -23,6 +23,7 @@ import mcv2_reference
 from mcv2_reference import Node, pack_frame, parse_frame
 
 BYTE_VALUES: int = 1 << mcv2_reference.BITS_PER_BYTE
+
 SPLIT_PROBABILITY: float = 0.8
 
 

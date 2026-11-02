@@ -60,7 +60,7 @@ class ResumeTest(unittest.TestCase):
     def test_should_refuse_a_name_measured_from_other_content(self) -> None:
         documented: Any = json.loads(DOCUMENTED.read_text())
         self.write(documented)
-        other: dict[str, Any] = dict(documented[SOURCES_KEY][DOCUMENTED_SOURCE], sha256="0" * DIGEST_DIGITS)
+        other: dict[str, Any] = {**documented[SOURCES_KEY][DOCUMENTED_SOURCE], DIGEST_KEY: "0" * DIGEST_DIGITS}
         with self.assertRaisesRegex(ValueError, "proxy30 already has measurements of other content"):
             mcv2_tools.codec_curves_resume(self.out, DOCUMENTED_SOURCE, other)
 

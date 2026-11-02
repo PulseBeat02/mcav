@@ -38,10 +38,12 @@ RGBA_CHANNELS: int = 4
 
 FAILURES_KEY: str = "failures"
 CHECKS_KEY: str = "checks"
+
 CHECK_COUNT: int = 7
 
 MATPLOTLIB_VERSION: str = "3.11.2"
 CHART_FONT: str = "Liberation Sans"
+
 COMMITTED_CHARTS: Path = Path(__file__).resolve().parents[4] / "mcav-docs/images/mcv2"
 CHART_SUFFIX: str = ".png"
 
