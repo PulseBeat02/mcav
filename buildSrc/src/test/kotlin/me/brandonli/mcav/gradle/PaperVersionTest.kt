@@ -18,7 +18,6 @@
 
 package me.brandonli.mcav.gradle
 
-import org.gradle.api.GradleException
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -91,7 +90,7 @@ class PaperVersionTest {
     }
 
     private fun rejectionOf(version: String): String? {
-        val failure: GradleException = assertThrows(GradleException::class.java) { PaperVersion.parse(version) }
+        val failure: IllegalArgumentException = assertThrows(IllegalArgumentException::class.java) { PaperVersion.parse(version) }
         return failure.message
     }
 }

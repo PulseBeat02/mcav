@@ -103,8 +103,8 @@ abstract class DownloadToolArchive : DefaultTask() {
     /**
      * Downloads the archive, checks its digest and unpacks it.
      *
-     * @throws GradleException if the pinned digest is malformed, the download fails, the digest differs, the archive is of
-     * another type or it lacks the executable
+     * @throws GradleException          if the download fails, the digest differs or the archive lacks the executable
+     * @throws IllegalArgumentException if the pinned digest is malformed or the archive is of another type
      */
     @TaskAction
     fun install(): Unit {
@@ -112,7 +112,7 @@ abstract class DownloadToolArchive : DefaultTask() {
         val expected: String = this.sha256.get()
         if (!expected.matches(SHA256_DIGEST)) {
             val message: String = "Pinned SHA-256 of $address must be 64 lowercase hexadecimal digits!"
-            throw GradleException(message)
+            throw IllegalArgumentException(message)
         }
 
         val archive: File = this.download(address)
@@ -182,7 +182,7 @@ abstract class DownloadToolArchive : DefaultTask() {
         }
 
         val message: String = "Tool archive $address must be a .zip, .tar.gz or .tar.xz file!"
-        throw GradleException(message)
+        throw IllegalArgumentException(message)
     }
 
     private fun unpackXz(archive: File): FileTree {

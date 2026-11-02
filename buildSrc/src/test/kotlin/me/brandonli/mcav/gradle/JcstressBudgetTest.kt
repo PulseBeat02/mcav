@@ -22,7 +22,6 @@ import java.io.File
 import java.nio.file.Path
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
-import org.gradle.api.GradleException
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -70,7 +69,7 @@ class JcstressBudgetTest {
 
     @Test
     fun shouldRefuseAnUnknownMode(): Unit {
-        assertThrows(GradleException::class.java) { JcstressBudget.iterationMilliseconds("forever", 10, 1, 4) }
+        assertThrows(IllegalArgumentException::class.java) { JcstressBudget.iterationMilliseconds("forever", 10, 1, 4) }
     }
 
     @Test

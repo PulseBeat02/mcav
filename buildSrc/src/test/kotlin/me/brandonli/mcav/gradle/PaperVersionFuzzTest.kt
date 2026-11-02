@@ -20,12 +20,11 @@ package me.brandonli.mcav.gradle
 
 import com.code_intelligence.jazzer.api.FuzzedDataProvider
 import com.code_intelligence.jazzer.junit.FuzzTest
-import org.gradle.api.GradleException
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Tag
 
-// The Paper version can be set from the command line, so any text must either fail as a GradleException or name a
-// build that reads back the same when it is written out again.
+// The Paper version can be set from the command line, so any text must either fail as an IllegalArgumentException or
+// name a build that reads back the same when it is written out again.
 @Tag("fuzz")
 class PaperVersionFuzzTest {
 
@@ -34,7 +33,7 @@ class PaperVersionFuzzTest {
         val text: String = data.consumeRemainingAsString()
         val version: PaperVersion = try {
             PaperVersion.parse(text)
-        } catch (exception: GradleException) {
+        } catch (exception: IllegalArgumentException) {
             return
         }
 
