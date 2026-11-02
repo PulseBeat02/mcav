@@ -61,6 +61,7 @@ import me.brandonli.mcav.plugin.utils.ArgumentUtils;
 import me.brandonli.mcav.plugin.utils.AudioArgument;
 import me.brandonli.mcav.plugin.utils.CaptureDevices;
 import me.brandonli.mcav.plugin.utils.FilterChain;
+import me.brandonli.mcav.plugin.utils.MediaKind;
 import me.brandonli.mcav.plugin.utils.PlayerArgument;
 import me.brandonli.mcav.plugin.utils.TaskUtils;
 import me.brandonli.mcav.utils.FileOperationException;
@@ -174,7 +175,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
       return;
     }
 
-    final Optional<FilterChain> parsedChain = parseFilters(sender, this.plugin, filters, true);
+    final Optional<FilterChain> parsedChain = parseFilters(sender, this.plugin, filters, MediaKind.VIDEO);
     final @Nullable FilterChain chain = parsedChain.orElse(null);
     if (chain == null) {
       return;
@@ -222,14 +223,14 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    * @param sender  who ran the command
    * @param plugin  the plugin, whose data folder holds the overlays
    * @param filters the option as typed, or {@code null} for none
-   * @param isVideo whether the pictures are the frames of a video
+   * @param kind    what the pictures come from
    * @return the chain, or empty if the option is not valid
    */
   public static Optional<FilterChain> parseFilters(
     final CommandSender sender,
     final MCAVSandbox plugin,
     final @Nullable String filters,
-    final boolean isVideo
+    final MediaKind kind
   ) {
     if (filters == null || filters.isEmpty()) {
       return Optional.of(FilterChain.NONE);
@@ -237,7 +238,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
 
     final Path overlays = plugin.getDataFolder().toPath().resolve(FilterChain.OVERLAY_FOLDER);
     try {
-      final FilterChain chain = FilterChain.parse(filters, overlays, isVideo);
+      final FilterChain chain = FilterChain.parse(filters, overlays, kind);
       return Optional.of(chain);
     } catch (final IllegalArgumentException exception) {
       sender.sendMessage(Message.FILTERS_INVALID.build(Objects.requireNonNullElse(exception.getMessage(), "")));

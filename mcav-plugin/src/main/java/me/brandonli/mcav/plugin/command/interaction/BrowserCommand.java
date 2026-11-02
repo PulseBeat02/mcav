@@ -383,13 +383,13 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    * as when its download failed, gets its own message, also when wrapped in a {@link CompletionException}. The reason
    * of a failure is logged, not shown, since it may contain details of the server.
    *
-   * @param succeeded whether the browser started
-   * @param error     why the browser failed to start, if known
+   * @param outcome whether the browser started
+   * @param error   why the browser failed to start, if known
    * @return "Browser started!" on success, otherwise the message of the failure
    */
   @Override
-  protected Component createStartMessage(final boolean succeeded, final @Nullable Throwable error) {
-    if (succeeded) {
+  protected Component createStartMessage(final StartOutcome outcome, final @Nullable Throwable error) {
+    if (outcome == StartOutcome.STARTED) {
       return Message.START_BROWSER.build();
     }
 

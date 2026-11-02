@@ -238,13 +238,15 @@ public final class FilterChain {
    *
    * @param text     the option as typed, empty for no filter
    * @param overlays the folder overlays are read from
-   * @param isVideo  whether the pictures are the frames of a video, which {@code fps} needs
+   * @param kind     what the pictures come from; only {@link MediaKind#VIDEO} allows {@code fps}
    * @return the chain
+   * @throws NullPointerException     if an argument is null
    * @throws IllegalArgumentException with the reason for the sender, if the text is not a chain of allowed filters
    */
-  public static FilterChain parse(final String text, final Path overlays, final boolean isVideo) {
+  public static FilterChain parse(final String text, final Path overlays, final MediaKind kind) {
     Preconditions.checkNotNull(text, "Text must not be null!");
     Preconditions.checkNotNull(overlays, "Overlay folder must not be null!");
+    Preconditions.checkNotNull(kind, "Media kind must not be null!");
 
     if (text.isEmpty()) {
       return NONE;
@@ -263,19 +265,19 @@ public final class FilterChain {
 
     final List<Supplier<VideoFilter>> filters = new ArrayList<>();
     for (final String specification : specifications) {
-      filters.add(parseFilter(specification, overlays, isVideo));
+      filters.add(parseFilter(specification, overlays, kind));
     }
     return new FilterChain(filters);
   }
 
-  private static Supplier<VideoFilter> parseFilter(final String specification, final Path overlays, final boolean isVideo) {
+  private static Supplier<VideoFilter> parseFilter(final String specification, final Path overlays, final MediaKind kind) {
     final int equals = specification.indexOf(ARGUMENT_START);
     final String name = (equals < 0 ? specification : specification.substring(0, equals)).toLowerCase(Locale.ROOT);
     final List<String> arguments = equals < 0 ? List.of() : List.of(specification.substring(equals + 1).split(ARGUMENT_SEPARATOR, -1));
     return switch (name) {
       case GRAYSCALE_FILTER -> noArguments(name, arguments, GrayscaleFilter::new);
       case INVERT_FILTER -> noArguments(name, arguments, InvertFilter::new);
-      case FRAMES_PER_SECOND_FILTER -> framesPerSecond(arguments, isVideo);
+      case FRAMES_PER_SECOND_FILTER -> framesPerSecond(arguments, kind);
       case BLUR_FILTER -> blur(arguments);
       case BILATERAL_FILTER -> bilateral(arguments);
       case THRESHOLD_FILTER -> threshold(arguments);
@@ -304,8 +306,8 @@ public final class FilterChain {
     return filter;
   }
 
-  private static Supplier<VideoFilter> framesPerSecond(final List<String> arguments, final boolean isVideo) {
-    if (!isVideo) {
+  private static Supplier<VideoFilter> framesPerSecond(final List<String> arguments, final MediaKind kind) {
+    if (kind == MediaKind.IMAGE) {
       throw new IllegalArgumentException("Filter fps counts the frames of a video, and an image has one!");
     }
 

@@ -648,7 +648,8 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
       this.releaseIfCurrent(failed, maps);
     }
 
-    final Component message = this.createStartMessage(succeeded, error);
+    final StartOutcome outcome = succeeded ? StartOutcome.STARTED : StartOutcome.FAILED;
+    final Component message = this.createStartMessage(outcome, error);
     final CommandSender sender = attempt.getSender();
     TaskUtils.runOnMainThread(this.plugin, () -> this.sendUnlessCancelled(screen, sender, message));
   }
@@ -1030,11 +1031,11 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
   /**
    * Creates the message that tells the sender whether the player started.
    *
-   * @param succeeded whether the player started
-   * @param error     why the player failed to start, if known
+   * @param outcome whether the player started
+   * @param error   why the player failed to start, if known
    * @return the message
    */
-  protected abstract Component createStartMessage(final boolean succeeded, final @Nullable Throwable error);
+  protected abstract Component createStartMessage(final StartOutcome outcome, final @Nullable Throwable error);
 
   /**
    * Releases a player; its maps are released by the caller.

@@ -83,6 +83,7 @@ import me.brandonli.mcav.plugin.testing.TestServer;
 import me.brandonli.mcav.plugin.utils.AudioArgument;
 import me.brandonli.mcav.plugin.utils.CaptureDevices;
 import me.brandonli.mcav.plugin.utils.FilterChain;
+import me.brandonli.mcav.plugin.utils.MediaKind;
 import me.brandonli.mcav.plugin.utils.PlayerArgument;
 import me.brandonli.mcav.utils.immutable.Dimension;
 import me.brandonli.mcav.utils.immutable.Pair;
@@ -438,10 +439,15 @@ final class AbstractVideoCommandTest {
   void shouldTakeNoFiltersFromAnEmptyOption() {
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
 
-    final FilterChain filters = AbstractVideoCommand.parseFilters(this.sender, plugin, "", true).orElseThrow();
+    final FilterChain filters = AbstractVideoCommand.parseFilters(this.sender, plugin, "", MediaKind.VIDEO).orElseThrow();
     assertSame(FilterChain.NONE, filters);
 
-    final FilterChain abstractVideoCommandFilters = AbstractVideoCommand.parseFilters(this.sender, plugin, null, false).orElseThrow();
+    final FilterChain abstractVideoCommandFilters = AbstractVideoCommand.parseFilters(
+      this.sender,
+      plugin,
+      null,
+      MediaKind.IMAGE
+    ).orElseThrow();
     assertSame(FilterChain.NONE, abstractVideoCommandFilters);
 
     verify(this.sender, never()).sendMessage(any(Component.class));

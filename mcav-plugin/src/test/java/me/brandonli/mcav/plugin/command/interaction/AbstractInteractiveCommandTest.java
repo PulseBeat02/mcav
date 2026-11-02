@@ -1401,19 +1401,19 @@ final class AbstractInteractiveCommandTest {
 
   @Test
   void shouldFinishStartupOwnershipWhenAnExecutorTaskThrows() throws InterruptedException {
-    final RuntimeException failure = this.runFailedStartupTask(false, null);
+    final RuntimeException failure = this.runFailedStartupTask(TaskCancellation.NONE, null);
     final Throwable[] suppressed = failure.getSuppressed();
     assertEquals(0, suppressed.length);
   }
 
-  private RuntimeException runFailedStartupTask(final boolean shouldCancel, final @Nullable RuntimeException cleanup)
+  private RuntimeException runFailedStartupTask(final TaskCancellation cancellation, final @Nullable RuntimeException cleanup)
     throws InterruptedException {
     final List<Runnable> pending = this.useDeferredStartup();
     final Screen screen = this.createMockedScreen();
     this.command.ownCreatedPlayer(BROWSER);
     final ExecutorService executor = this.command.startExecutor(BROWSER, screen);
     final RuntimeException failure = new IllegalStateException("startup task failed!");
-    if (shouldCancel) {
+    if (cancellation == TaskCancellation.CANCEL_BEFORE_THROWING) {
       executor.execute(() -> this.releaseAndFailStartupTask(cleanup, failure));
     } else {
       executor.execute(() -> this.failStartupTask(cleanup, failure));
@@ -1422,7 +1422,7 @@ final class AbstractInteractiveCommandTest {
     final RuntimeException thrown = assertThrows(RuntimeException.class, task::run);
     assertSame(failure, thrown);
 
-    if (shouldCancel) {
+    if (cancellation == TaskCancellation.CANCEL_BEFORE_THROWING) {
       this.assertReleased(BROWSER);
 
       final FunctionalVideoFilter maps = screen.getOutput();
@@ -1449,7 +1449,7 @@ final class AbstractInteractiveCommandTest {
 
   @Test
   void shouldReleaseACancelledExecutorTaskEvenWhenItThrows() throws InterruptedException {
-    final RuntimeException failure = this.runFailedStartupTask(true, null);
+    final RuntimeException failure = this.runFailedStartupTask(TaskCancellation.CANCEL_BEFORE_THROWING, null);
     final Throwable[] suppressed = failure.getSuppressed();
     assertEquals(0, suppressed.length);
   }
@@ -1457,7 +1457,7 @@ final class AbstractInteractiveCommandTest {
   @Test
   void shouldPreserveExecutorTaskFailureWhenCancelledCleanupAlsoFails() throws InterruptedException {
     final RuntimeException cleanup = new IllegalStateException("backend close failed!");
-    final RuntimeException failure = this.runFailedStartupTask(true, cleanup);
+    final RuntimeException failure = this.runFailedStartupTask(TaskCancellation.CANCEL_BEFORE_THROWING, cleanup);
     final Throwable[] suppressed = failure.getSuppressed();
     assertEquals(1, suppressed.length);
     assertSame(cleanup, suppressed[0]);
@@ -1896,8 +1896,8 @@ final class AbstractInteractiveCommandTest {
     }
 
     @Override
-    protected Component createStartMessage(final boolean succeeded, final @Nullable Throwable error) {
-      if (succeeded) {
+    protected Component createStartMessage(final StartOutcome outcome, final @Nullable Throwable error) {
+      if (outcome == StartOutcome.STARTED) {
         return Component.text(STARTED_TEXT);
       }
 
@@ -1922,5 +1922,10 @@ final class AbstractInteractiveCommandTest {
     protected String getInteractionPermission() {
       return INTERACT_PERMISSION;
     }
+  }
+
+  private enum TaskCancellation {
+    CANCEL_BEFORE_THROWING,
+    NONE,
   }
 }

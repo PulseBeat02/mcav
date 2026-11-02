@@ -35,10 +35,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * Holds the image that is shown, together with the thread that loads images.
  *
- * <p>Display ownership is confined to the server main thread: {@link #shutdown()}, all setters and forced
- * {@link #releaseImage(boolean)} calls must run there. An unforced release schedules its display cleanup there.
- * Pending-load ownership and generation invalidation are synchronized separately so loader callbacks may safely
- * retain or discard their native image from a worker thread.
+ * <p>Display ownership is confined to the server main thread: {@link #shutdown()}, all setters and
+ * {@link #releaseImage(ReleaseThread)} calls with {@link ReleaseThread#CALLING_THREAD} must run there. A release with
+ * {@link ReleaseThread#MAIN_THREAD} schedules its display cleanup there. Pending-load ownership and generation
+ * invalidation are synchronized separately so loader callbacks may safely retain or discard their native image from a
+ * worker thread.
  */
 public final class ImageManager {
 
@@ -82,7 +83,10 @@ public final class ImageManager {
     synchronized (this.loadingLock) {
       this.closed = true;
     }
-    CleanupUtils.runAll(() -> this.releaseImage(true), () -> ExecutorUtils.shutdownExecutorGracefully(this.service));
+    CleanupUtils.runAll(
+      () -> this.releaseImage(ReleaseThread.CALLING_THREAD),
+      () -> ExecutorUtils.shutdownExecutorGracefully(this.service)
+    );
   }
 
   /**
@@ -142,10 +146,13 @@ public final class ImageManager {
   /**
    * Removes the image that is shown and frees its memory.
    *
-   * @param force true to release at once on the calling thread, false to release on the main thread
+   * @param thread the thread that frees the image
+   * @throws NullPointerException if {@code thread} is null
    */
-  public void releaseImage(final boolean force) {
-    final Runnable release = force ? this::releaseNow : this::scheduleRelease;
+  public void releaseImage(final ReleaseThread thread) {
+    Preconditions.checkNotNull(thread, "Release thread must not be null!");
+
+    final Runnable release = thread == ReleaseThread.CALLING_THREAD ? this::releaseNow : this::scheduleRelease;
     CleanupUtils.runAll(this::cancelPendingLoads, release);
   }
 

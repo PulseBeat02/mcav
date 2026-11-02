@@ -281,13 +281,13 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    * Creates the message that tells the sender whether the desktop streams. The reason of a failure is logged, not
    * shown, since it may contain details of the server's network.
    *
-   * @param succeeded whether the desktop streams
-   * @param error     why it could not connect, if known
+   * @param outcome whether the desktop streams
+   * @param error   why it could not connect, if known
    * @return the message
    */
   @Override
-  protected Component createStartMessage(final boolean succeeded, final @Nullable Throwable error) {
-    return succeeded ? Message.VNC_CREATE.build() : Message.VNC_ERROR.build();
+  protected Component createStartMessage(final StartOutcome outcome, final @Nullable Throwable error) {
+    return outcome == StartOutcome.STARTED ? Message.VNC_CREATE.build() : Message.VNC_ERROR.build();
   }
 
   /**

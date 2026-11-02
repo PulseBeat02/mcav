@@ -435,11 +435,11 @@ final class VirtualizeCommandTest {
     final IllegalStateException crash = new IllegalStateException("crashed!");
     final CompletionException other = new CompletionException(crash);
 
-    final Component success = this.command.createStartMessage(true, null);
-    final Component direct = this.command.createStartMessage(false, missing);
-    final Component unwrapped = this.command.createStartMessage(false, wrapped);
-    final Component crashed = this.command.createStartMessage(false, other);
-    final Component refused = this.command.createStartMessage(false, null);
+    final Component success = this.command.createStartMessage(StartOutcome.STARTED, null);
+    final Component direct = this.command.createStartMessage(StartOutcome.FAILED, missing);
+    final Component unwrapped = this.command.createStartMessage(StartOutcome.FAILED, wrapped);
+    final Component crashed = this.command.createStartMessage(StartOutcome.FAILED, other);
+    final Component refused = this.command.createStartMessage(StartOutcome.FAILED, null);
 
     final Component created = Message.VM_CREATE.build();
     final Component path = Message.VM_PATH.build();

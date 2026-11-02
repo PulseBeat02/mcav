@@ -75,14 +75,14 @@ final class FilterChainPropertyTest {
     }
 
     final int expected = chain.size();
-    final int size = FilterChain.parse(text, NO_OVERLAYS, true).create().size();
+    final int size = FilterChain.parse(text, NO_OVERLAYS, MediaKind.VIDEO).create().size();
     assertEquals(expected, size, text);
   }
 
   @Property
   void shouldRefuseAnythingElseWithAReason(@ForAll final String text) {
     try {
-      final FilterChain chain = FilterChain.parse(text, NO_OVERLAYS, true);
+      final FilterChain chain = FilterChain.parse(text, NO_OVERLAYS, MediaKind.VIDEO);
 
       final boolean matches = chain.create().size() <= FilterChain.MAXIMUM_FILTERS;
       assertTrue(matches, text);

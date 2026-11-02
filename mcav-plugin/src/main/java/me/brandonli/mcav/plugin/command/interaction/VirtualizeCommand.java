@@ -398,13 +398,13 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    * {@code PATH} gets its own message, also when wrapped in a {@link CompletionException}; other reasons are
    * logged, not shown.
    *
-   * @param succeeded whether the virtual machine started
-   * @param error     why the virtual machine failed to start, if known
+   * @param outcome whether the virtual machine started
+   * @param error   why the virtual machine failed to start, if known
    * @return the message
    */
   @Override
-  protected Component createStartMessage(final boolean succeeded, final @Nullable Throwable error) {
-    if (succeeded) {
+  protected Component createStartMessage(final StartOutcome outcome, final @Nullable Throwable error) {
+    if (outcome == StartOutcome.STARTED) {
       return Message.VM_CREATE.build();
     }
 

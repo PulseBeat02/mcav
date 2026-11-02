@@ -113,7 +113,7 @@ final class FilterChainTest {
   }
 
   private FilterChain parse(final String text) {
-    return FilterChain.parse(text, this.overlays, true);
+    return FilterChain.parse(text, this.overlays, MediaKind.VIDEO);
   }
 
   @Test
@@ -280,9 +280,14 @@ final class FilterChainTest {
 
     this.parse(TEXT_FILTER_PREFIX + FILLER_TEXT.repeat(FilterChain.MAXIMUM_TEXT));
     assertThrows(IllegalArgumentException.class, () -> this.parse("invert," + "x".repeat(FilterChain.MAXIMUM_LENGTH)));
-    assertThrows(IllegalArgumentException.class, () -> FilterChain.parse("fps", this.overlays, false), "an image has no frame rate");
-    assertThrows(NullPointerException.class, () -> FilterChain.parse(null, this.overlays, true));
-    assertThrows(NullPointerException.class, () -> FilterChain.parse("", null, true));
+    assertThrows(
+      IllegalArgumentException.class,
+      () -> FilterChain.parse("fps", this.overlays, MediaKind.IMAGE),
+      "an image has no frame rate"
+    );
+    assertThrows(NullPointerException.class, () -> FilterChain.parse(null, this.overlays, MediaKind.VIDEO));
+    assertThrows(NullPointerException.class, () -> FilterChain.parse("", null, MediaKind.VIDEO));
+    assertThrows(NullPointerException.class, () -> FilterChain.parse("", this.overlays, null));
   }
 
   private void parseTooLongChain() {

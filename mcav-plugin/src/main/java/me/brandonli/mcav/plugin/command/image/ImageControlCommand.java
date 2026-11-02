@@ -80,7 +80,7 @@ public final class ImageControlCommand implements AnnotationCommandFeature {
     final ExecutorService service = this.manager.getService();
     final Component released = Message.RELEASE_IMAGE.build();
     final Runnable done = TaskUtils.createMainThreadHandover(this.plugin, () -> sender.sendMessage(released));
-    final CompletableFuture<Void> release = CompletableFuture.runAsync(() -> this.manager.releaseImage(false), service);
+    final CompletableFuture<Void> release = CompletableFuture.runAsync(() -> this.manager.releaseImage(ReleaseThread.MAIN_THREAD), service);
     TaskUtils.whenComplete(release, (_, error) -> this.reportRelease(done, error));
   }
 

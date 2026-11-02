@@ -312,9 +312,12 @@ final class BrowserCommandTest {
   void shouldDescribeABrowserThatCannotRunOnThisServerSo() {
     final BrowserUnavailableException unavailable = new BrowserUnavailableException("The browser cannot be installed: offline!");
 
-    final Component direct = this.command.createStartMessage(false, unavailable);
-    final Component wrapped = this.command.createStartMessage(false, new CompletionException(unavailable));
-    final Component other = this.command.createStartMessage(false, new CompletionException(new IllegalStateException("page!")));
+    final Component direct = this.command.createStartMessage(StartOutcome.FAILED, unavailable);
+    final Component wrapped = this.command.createStartMessage(StartOutcome.FAILED, new CompletionException(unavailable));
+    final Component other = this.command.createStartMessage(
+      StartOutcome.FAILED,
+      new CompletionException(new IllegalStateException("page!"))
+    );
 
     final Component expected = Message.BROWSER_UNAVAILABLE.build();
     assertEquals(expected, direct);
@@ -564,8 +567,8 @@ final class BrowserCommandTest {
   void shouldDescribeTheOutcomeOfTheStart() {
     final IllegalStateException error = new IllegalStateException("no browser!");
 
-    final Component success = this.command.createStartMessage(true, null);
-    final Component failure = this.command.createStartMessage(false, error);
+    final Component success = this.command.createStartMessage(StartOutcome.STARTED, null);
+    final Component failure = this.command.createStartMessage(StartOutcome.FAILED, error);
 
     final Component started = Message.START_BROWSER.build();
     final Component notStarted = Message.BROWSER_ERROR.build();

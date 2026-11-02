@@ -200,7 +200,7 @@ final class AbstractImageCommandTest {
     verify(this.manager).setCurrentImage(captor.capture());
 
     final ImageBuffer image = captor.getValue();
-    verify(this.manager).releaseImage(true);
+    verify(this.manager).releaseImage(ReleaseThread.CALLING_THREAD);
     verify(this.manager).setImage(this.display);
     verify(this.display).displayImage(image);
 
@@ -468,7 +468,7 @@ final class AbstractImageCommandTest {
     final List<Component> expected = List.of(start, failure);
     assertEquals(expected, messages);
     this.assertNothingShown();
-    verify(this.manager, never()).releaseImage(true);
+    verify(this.manager, never()).releaseImage(ReleaseThread.CALLING_THREAD);
   }
 
   @Test

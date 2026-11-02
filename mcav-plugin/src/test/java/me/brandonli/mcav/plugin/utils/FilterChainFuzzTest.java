@@ -35,11 +35,11 @@ final class FilterChainFuzzTest {
 
   @FuzzTest(maxDuration = "30s")
   void shouldBoundOrRefuseEveryTypedChain(final FuzzedDataProvider data) {
-    final boolean isVideo = data.consumeBoolean();
+    final MediaKind kind = data.consumeBoolean() ? MediaKind.VIDEO : MediaKind.IMAGE;
     final String text = data.consumeRemainingAsString();
     final FilterChain chain;
     try {
-      chain = FilterChain.parse(text, NO_OVERLAYS, isVideo);
+      chain = FilterChain.parse(text, NO_OVERLAYS, kind);
     } catch (final IllegalArgumentException exception) {
       final boolean thirdMatches = exception.getMessage() != null && !exception.getMessage().isBlank();
       assertTrue(thirdMatches, text);

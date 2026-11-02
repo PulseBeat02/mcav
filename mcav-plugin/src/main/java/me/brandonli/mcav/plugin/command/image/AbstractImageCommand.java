@@ -38,6 +38,7 @@ import me.brandonli.mcav.plugin.command.video.AbstractVideoCommand;
 import me.brandonli.mcav.plugin.locale.Message;
 import me.brandonli.mcav.plugin.utils.ArgumentUtils;
 import me.brandonli.mcav.plugin.utils.FilterChain;
+import me.brandonli.mcav.plugin.utils.MediaKind;
 import me.brandonli.mcav.plugin.utils.TaskUtils;
 import me.brandonli.mcav.utils.SourceUtils;
 import me.brandonli.mcav.utils.ThrowableUtils;
@@ -114,7 +115,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
       return;
     }
 
-    final Optional<FilterChain> parsedChain = AbstractVideoCommand.parseFilters(sender, this.plugin, filters, false);
+    final Optional<FilterChain> parsedChain = AbstractVideoCommand.parseFilters(sender, this.plugin, filters, MediaKind.IMAGE);
     final @Nullable FilterChain chain = parsedChain.orElse(null);
     if (chain == null) {
       return;
@@ -246,7 +247,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
 
     boolean adopted = false;
     try {
-      this.manager.releaseImage(true);
+      this.manager.releaseImage(ReleaseThread.CALLING_THREAD);
       final DisplayableImage display = this.createImage(resolution, configurationProvider);
       this.manager.setImage(display);
       this.manager.setCurrentImage(image);
@@ -257,7 +258,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
       if (adopted) {
-        this.cleanupAfterFailure(exception, () -> this.manager.releaseImage(true));
+        this.cleanupAfterFailure(exception, () -> this.manager.releaseImage(ReleaseThread.CALLING_THREAD));
       } else {
         this.cleanupAfterFailure(exception, image::release);
       }

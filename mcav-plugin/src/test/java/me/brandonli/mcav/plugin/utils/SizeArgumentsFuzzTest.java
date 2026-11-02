@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.code_intelligence.jazzer.junit.FuzzTest;
 import java.nio.charset.StandardCharsets;
+import java.util.function.Function;
 import me.brandonli.mcav.utils.immutable.Pair;
 import org.junit.jupiter.api.Tag;
 
@@ -36,14 +37,14 @@ final class SizeArgumentsFuzzTest {
   @FuzzTest(maxDuration = "30s")
   void shouldBoundOrRefuseEveryTypedSize(final byte[] input) {
     final String typed = new String(input, StandardCharsets.UTF_8);
-    this.assertBoundedOrRefused(typed, false, ArgumentUtils.MAXIMUM_SIDE);
-    this.assertBoundedOrRefused(typed, true, ArgumentUtils.MAXIMUM_SCREEN_SIDE);
+    this.assertBoundedOrRefused(typed, ArgumentUtils::parseDimensions, ArgumentUtils.MAXIMUM_SIDE);
+    this.assertBoundedOrRefused(typed, ArgumentUtils::parseScreenDimensions, ArgumentUtils.MAXIMUM_SCREEN_SIDE);
   }
 
-  private void assertBoundedOrRefused(final String typed, final boolean wall, final int maximum) {
+  private void assertBoundedOrRefused(final String typed, final Function<String, Pair<Integer, Integer>> parser, final int maximum) {
     final Pair<Integer, Integer> size;
     try {
-      size = wall ? ArgumentUtils.parseScreenDimensions(typed) : ArgumentUtils.parseDimensions(typed);
+      size = parser.apply(typed);
     } catch (final IllegalArgumentException exception) {
       return;
     }
