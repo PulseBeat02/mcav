@@ -89,9 +89,11 @@ final class MinecraftStripOutput implements StripOutput {
     final RenderTarget target = this.main.get();
     final int rowBytes = target.width * TransportStrip.CHANNELS;
     this.copyStripBottomUp(strip, rows, rowBytes);
+
     final CommandEncoder commands = this.encoder.get();
     this.uploadPixels(commands, target, rows);
     this.runOutlineChain(outline, target, commands, allocator);
+
     return true;
   }
 
@@ -178,6 +180,7 @@ final class MinecraftStripOutput implements StripOutput {
     final ByteBuffer zeros = ByteBuffer.allocateDirect(target.width * target.height * TransportStrip.CHANNELS);
     final GpuTexture texture = this.getColorTexture(transparent);
     commands.writeToTexture(texture, zeros, BASE_MIP_LEVEL, FIRST_LAYER, LEFT_COLUMN, BOTTOM_ROW, target.width, target.height);
+
     final TextureTarget empty = new TextureTarget(EMPTY_OUTLINE, target.width, target.height, GpuFormat.RGBA8_UNORM, NO_DEPTH_FORMAT);
     return new OutlineTargets(empty, transparent);
   }

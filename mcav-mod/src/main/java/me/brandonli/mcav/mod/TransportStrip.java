@@ -112,6 +112,7 @@ final class TransportStrip {
     for (final byte[] page : pages) {
       writePage(strip, layout, width, page);
     }
+
     final int screenCount = layout.getScreenCount();
     final int pageRows = layout.getTotalSlots() * PackLayout.getRowsPerPage(width);
     final boolean[] described = new boolean[screenCount];
@@ -124,6 +125,7 @@ final class TransportStrip {
         writeDescriptor(strip, descriptorStart, anchor, viewRotation, projection);
       }
     }
+
     return strip;
   }
 
@@ -136,6 +138,7 @@ final class TransportStrip {
       final int symbolBit = (symbol >> (at % Mcv2Maps.SYMBOL_BITS)) & LOWEST_BIT_MASK;
       value |= symbolBit << index;
     }
+
     return value;
   }
 
@@ -201,6 +204,7 @@ final class TransportStrip {
       floats[RIGHT_OFFSET + axis] = right[axis];
       floats[DOWN_OFFSET + axis] = down[axis];
     }
+
     floats[ORIGIN_OFFSET + W_COMPONENT] = anchor.getColumns();
     floats[RIGHT_OFFSET + W_COMPONENT] = anchor.getRows();
     floats[DOWN_OFFSET + W_COMPONENT] = column * ANCHOR_INDEX_STRIDE + row;
@@ -262,6 +266,7 @@ final class TransportStrip {
         matrix[THIRD_COLUMN + row] * vectorZ +
         matrix[FOURTH_COLUMN + row] * vectorW;
     }
+
     return transformed;
   }
 

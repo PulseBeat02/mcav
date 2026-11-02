@@ -107,6 +107,7 @@ final class MinecraftStripOutputTest {
         strip[at] = (byte) (row + 1);
       }
     }
+
     return strip;
   }
 

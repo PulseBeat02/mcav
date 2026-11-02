@@ -56,6 +56,7 @@ final class MapFixtures {
     for (int index = 0; index < symbols.length; index++) {
       colors[index] = (byte) (symbols[index] + FIRST_SYMBOL_COLOR);
     }
+
     return colors;
   }
 
@@ -65,6 +66,7 @@ final class MapFixtures {
     for (int index = 0; index < symbols.length; index++) {
       symbols[index] = (index * 7 + 3) & SYMBOL_MASK;
     }
+
     System.arraycopy(PAGE_PREFIX, 0, symbols, 0, PAGE_PREFIX.length);
     writeBits(symbols, STREAM_BIT, STREAM_BIT_COUNT, stream);
     writeBits(symbols, NUMBER_BIT, NUMBER_BIT_COUNT, number);
@@ -80,6 +82,7 @@ final class MapFixtures {
       symbols[FIRST_FIELD + index] = fields[index];
       sum += fields[index];
     }
+
     symbols[CHECKSUM] = sum & SYMBOL_MASK;
     return symbols;
   }

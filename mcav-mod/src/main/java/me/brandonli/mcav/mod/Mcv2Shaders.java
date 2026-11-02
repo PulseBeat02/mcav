@@ -137,6 +137,7 @@ public final class Mcv2Shaders {
   static BooleanSupplier start(final @Nullable String irisVersion) {
     final Optional<ShaderDecoder> decoder = createDecoder(irisVersion);
     decoder.ifPresentOrElse(ShaderDecoder::install, ShaderDecoder::uninstall);
+
     return () -> decoder.filter(ShaderDecoder::decodesUnderShaders).isPresent();
   }
 

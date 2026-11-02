@@ -121,6 +121,7 @@ final class PackLayout {
         return null;
       }
     }
+
     return values;
   }
 
@@ -145,6 +146,7 @@ final class PackLayout {
       }
       total += slotCounts[screen];
     }
+
     return true;
   }
 
@@ -162,6 +164,7 @@ final class PackLayout {
         return screen;
       }
     }
+
     return NO_SCREEN;
   }
 

@@ -157,6 +157,7 @@ final class GameMatricesTest {
         final String message = "Writing the floats failed!";
         throw new IOException(message);
       }
+
       for (int index = 0; index < this.count; index++) {
         output.writeFloat(index);
       }

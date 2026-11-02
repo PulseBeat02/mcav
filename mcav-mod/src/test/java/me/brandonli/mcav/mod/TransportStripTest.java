@@ -232,6 +232,7 @@ final class TransportStripTest {
         matrix[THIRD_COLUMN + row] * vectorZ +
         matrix[FOURTH_COLUMN + row] * vectorW;
     }
+
     return transformed;
   }
 
@@ -254,6 +255,7 @@ final class TransportStripTest {
       assertEquals(OPAQUE, highAlpha);
       floats[index] = Float.intBitsToFloat(bits);
     }
+
     return floats;
   }
 

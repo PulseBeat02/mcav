@@ -63,8 +63,10 @@ final class GameMatrices {
       final PoseStack stack = new PoseStack();
       final PoseStack.Pose lastPose = stack.last();
       matrices.readPose(lastPose);
+
       final CameraRenderState camera = new CameraRenderState();
       matrices.readViewRotation(camera);
+
       return Optional.of(matrices);
     } catch (final NoSuchMethodException | NoSuchFieldException | IllegalStateException exception) {
       return Optional.empty();
@@ -127,6 +129,7 @@ final class GameMatrices {
       if (this.written == FLOATS_PER_MATRIX) {
         throw new IOException(NOT_FLOATS);
       }
+
       this.values[this.written++] = value;
     }
 
@@ -134,6 +137,7 @@ final class GameMatrices {
       if (this.written != FLOATS_PER_MATRIX) {
         throw new IOException(NOT_FLOATS);
       }
+
       return this.values;
     }
   }

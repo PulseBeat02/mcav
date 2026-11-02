@@ -69,6 +69,7 @@ final class Mcv2Maps {
       }
       sum += field;
     }
+
     final int checksum = symbol(colors, CHECKSUM);
     final boolean checksumMatches = (sum & (SYMBOLS - 1)) == checksum;
     final int facing = symbol(colors, FACING);
@@ -81,6 +82,7 @@ final class Mcv2Maps {
         return false;
       }
     }
+
     return true;
   }
 }
