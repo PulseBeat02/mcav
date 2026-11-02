@@ -348,6 +348,7 @@ final class MCAVSandboxTest {
 
       final String describeNatives = Mcv2.describeNatives();
       assertEquals("Java, turned off by mcv2.native=off", describeNatives);
+      verify(this.logger).info("MCV2 kernels: {}.", describeNatives);
 
       this.sandbox.onDisable();
     } finally {

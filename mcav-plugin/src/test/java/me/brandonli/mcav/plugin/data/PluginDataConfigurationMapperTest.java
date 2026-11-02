@@ -160,6 +160,29 @@ final class PluginDataConfigurationMapperTest {
   }
 
   @Test
+  void shouldAcceptTheLowestAndTheHighestVncPort() throws IOException {
+    this.writeConfiguration(
+      """
+      vnc:
+        allowed-hosts:
+          - host: lowest.example
+            port: 1
+          - host: highest.example
+            port: 65535
+      """
+    );
+    this.mapper.deserialize();
+    final VncAllowList list = this.mapper.getVncAllowList();
+    final List<VncAllowList.Entry> expected = List.of(
+      VncAllowList.Entry.of("lowest.example", 1, null),
+      VncAllowList.Entry.of("highest.example", 65535, null)
+    );
+
+    final List<VncAllowList.Entry> entries = list.getEntries();
+    assertEquals(expected, entries);
+  }
+
+  @Test
   void shouldAllowNoVncServerByDefault() {
     this.saveBundledResources();
     this.mapper.deserialize();
