@@ -65,12 +65,14 @@ import net.dv8tion.jda.api.managers.AudioManager;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.utils.cache.CacheFlag;
 import org.bukkit.plugin.PluginManager;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
 
 /**
  * Tests {@link AudioProvider}.
@@ -163,18 +165,18 @@ final class AudioProviderTest {
     when(this.guild.getVoiceChannelById(CHANNEL_ID)).thenReturn(this.channel);
     when(this.guild.getAudioManager()).thenReturn(this.audioManager);
     this.builders = Mockito.mockStatic(JDABuilder.class);
-    // JDA requires the result of createLight to be used, so the stubbed call assigns it to an unnamed variable
-    this.builders
-      .when(() -> {
-        final JDABuilder _ = JDABuilder.createLight(BOT_TOKEN, GatewayIntent.GUILD_VOICE_STATES);
-      })
-      .thenReturn(this.builder);
+    this.builders.when(this::createLightBuilder).thenReturn(this.builder);
     this.discordPlayers = Mockito.mockStatic(DiscordPlayer.class);
     this.discordPlayers.when(() -> DiscordPlayer.voice(this.jda)).thenReturn(this.discord);
     this.httpResults = Mockito.mockStatic(HttpResult.class);
     this.httpResults.when(() -> HttpResult.http(HTTP_HOST_NAME, HTTP_PORT)).thenReturn(this.httpServer);
     this.svcFilters = Mockito.mockStatic(SvcFilter.class);
     this.svcFilters.when(() -> SvcFilter.svc(this.players)).thenReturn(this.voiceChatFilter);
+  }
+
+  private void createLightBuilder() {
+    // JDA requires the result of createLight to be used, so the stubbed call assigns it to an unnamed variable
+    final JDABuilder _ = JDABuilder.createLight(BOT_TOKEN, GatewayIntent.GUILD_VOICE_STATES);
   }
 
   @Test
@@ -272,15 +274,15 @@ final class AudioProviderTest {
 
   private void startInTheBackground() {
     final ExecutorService executor = mock(ExecutorService.class);
-    doAnswer(invocation -> {
-      final Runnable task = invocation.getArgument(0);
-      this.deferred.add(task);
-      return null;
-    })
-      .when(executor)
-      .execute(any(Runnable.class));
+    doAnswer(this::deferTask).when(executor).execute(any(Runnable.class));
     this.startup = executor;
     this.provider = new AudioProvider(this.sandbox, executor);
+  }
+
+  private @Nullable Object deferTask(final InvocationOnMock invocation) {
+    final Runnable task = invocation.getArgument(0);
+    this.deferred.add(task);
+    return null;
   }
 
   private int runDeferred() {
@@ -710,16 +712,7 @@ final class AudioProviderTest {
     this.startup = Executors.newSingleThreadExecutor();
     this.provider = new AudioProvider(this.sandbox, this.startup);
     this.enableHttp();
-    doAnswer(_ -> {
-      entered.countDown();
-      try {
-        assertTrue(finishStartup.await(10, TimeUnit.SECONDS));
-      } catch (final InterruptedException exception) {
-        interrupted.countDown();
-        assertTrue(finishStartup.await(10, TimeUnit.SECONDS));
-      }
-      return null;
-    })
+    doAnswer(_ -> this.holdStartupUntilFinished(entered, finishStartup, interrupted))
       .when(this.httpServer)
       .start();
     this.provider.initialize();
@@ -760,6 +753,21 @@ final class AudioProviderTest {
       final boolean stoppingTerminated = stopping.awaitTermination(10, TimeUnit.SECONDS);
       assertTrue(stoppingTerminated);
     }
+  }
+
+  private @Nullable Object holdStartupUntilFinished(
+    final CountDownLatch entered,
+    final CountDownLatch finishStartup,
+    final CountDownLatch interrupted
+  ) throws InterruptedException {
+    entered.countDown();
+    try {
+      assertTrue(finishStartup.await(10, TimeUnit.SECONDS));
+    } catch (final InterruptedException exception) {
+      interrupted.countDown();
+      assertTrue(finishStartup.await(10, TimeUnit.SECONDS));
+    }
+    return null;
   }
 
   @Test

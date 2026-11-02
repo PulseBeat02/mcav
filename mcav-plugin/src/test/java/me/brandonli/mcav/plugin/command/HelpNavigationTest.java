@@ -190,17 +190,21 @@ final class HelpNavigationTest {
     final List<Component> messages = Components.received(this.sender);
     final EnumSet<ComponentIteratorFlag> flags = EnumSet.allOf(ComponentIteratorFlag.class);
     for (final Component message : messages) {
-      final Iterable<Component> parts = message.iterable(ComponentIteratorType.DEPTH_FIRST, flags);
-      for (final Component part : parts) {
-        final ClickEvent<?> click = part.clickEvent();
-        if (click != null && ClickEvent.Action.RUN_COMMAND.equals(click.action())) {
-          final ClickEvent.Payload.Text payload = (ClickEvent.Payload.Text) click.payload();
-          final String command = payload.value();
-          commands.add(command);
-        }
-      }
+      this.addClickCommands(message, flags, commands);
     }
     return commands;
+  }
+
+  private void addClickCommands(final Component message, final EnumSet<ComponentIteratorFlag> flags, final Set<String> commands) {
+    final Iterable<Component> parts = message.iterable(ComponentIteratorType.DEPTH_FIRST, flags);
+    for (final Component part : parts) {
+      final ClickEvent<?> click = part.clickEvent();
+      if (click != null && ClickEvent.Action.RUN_COMMAND.equals(click.action())) {
+        final ClickEvent.Payload.Text payload = (ClickEvent.Payload.Text) click.payload();
+        final String command = payload.value();
+        commands.add(command);
+      }
+    }
   }
 
   private String text() {

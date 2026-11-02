@@ -52,12 +52,14 @@ import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitScheduler;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
 
 /**
  * Tests {@link VideoEntityCommand}. The common playback flow is skipped, so only the arguments passed to it and
@@ -84,12 +86,7 @@ final class VideoEntityCommandTest {
     TestServer.resetWithDeferredTasks();
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
     this.manager = mock(VideoPlayerManager.class);
-    Mockito.doAnswer(invocation -> {
-      final FunctionalVideoFilter filter = invocation.getArgument(0);
-      final BukkitScheduler scheduler = Bukkit.getScheduler();
-      scheduler.runTask(plugin, filter::start);
-      return null;
-    })
+    Mockito.doAnswer(invocation -> this.runFilterOnMainThread(invocation, plugin))
       .when(this.manager)
       .startFilter(any(FunctionalVideoFilter.class));
     final AudioProvider provider = mock(AudioProvider.class);
@@ -104,6 +101,13 @@ final class VideoEntityCommandTest {
     this.sender = mock(CommandSender.class);
     final FakeWorld world = new FakeWorld();
     this.location = world.location(0.0, 80.0, 0.0);
+  }
+
+  private @Nullable Object runFilterOnMainThread(final InvocationOnMock invocation, final MCAVSandbox plugin) {
+    final FunctionalVideoFilter filter = invocation.getArgument(0);
+    final BukkitScheduler scheduler = Bukkit.getScheduler();
+    scheduler.runTask(plugin, filter::start);
+    return null;
   }
 
   private void skipPlayback(final AbstractVideoCommand command) {
@@ -193,10 +197,9 @@ final class VideoEntityCommandTest {
     final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
     final List<List<?>> arguments = new ArrayList<>();
     try (
-      final MockedConstruction<EntityResult> results = Mockito.mockConstruction(EntityResult.class, (_, context) -> {
-        final List<?> constructorArguments = context.arguments();
-        arguments.add(constructorArguments);
-      })
+      final MockedConstruction<EntityResult> results = Mockito.mockConstruction(EntityResult.class, (_, context) ->
+        this.recordArguments(context, arguments)
+      )
     ) {
       final VideoPipelineStep pipeline = this.command.createVideoFilter(resolution, configurationProvider);
       final List<EntityResult> constructed = results.constructed();
@@ -209,6 +212,11 @@ final class VideoEntityCommandTest {
     final List<?> constructorArguments = arguments.getFirst();
     final EntityConfiguration configuration = (EntityConfiguration) constructorArguments.getFirst();
     this.assertEntity(configuration);
+  }
+
+  private void recordArguments(final MockedConstruction.Context context, final List<List<?>> arguments) {
+    final List<?> constructorArguments = context.arguments();
+    arguments.add(constructorArguments);
   }
 
   private void assertStartedOnTheMainThread(final FunctionalVideoFilter result) {

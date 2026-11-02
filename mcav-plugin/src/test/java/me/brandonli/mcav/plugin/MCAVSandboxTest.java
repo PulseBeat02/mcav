@@ -389,7 +389,7 @@ final class MCAVSandboxTest {
     final IllegalStateException failure = new IllegalStateException("partial registration!");
     try (
       final MockedConstruction<AnnotationParserHandler> handlers = Mockito.mockConstruction(AnnotationParserHandler.class, (handler, _) ->
-        doThrow(failure).when(handler).registerCommands()
+        this.failCommandRegistration(handler, failure)
       )
     ) {
       final IllegalStateException thrown = assertThrows(IllegalStateException.class, this.sandbox::onEnable);
@@ -402,12 +402,16 @@ final class MCAVSandboxTest {
     }
   }
 
+  private void failCommandRegistration(final AnnotationParserHandler handler, final IllegalStateException failure) {
+    doThrow(failure).when(handler).registerCommands();
+  }
+
   @Test
   void shouldKeepOwnershipWhenListenerStartupFails() {
     final IllegalStateException failure = new IllegalStateException("partial listener startup!");
     try (
       final MockedConstruction<JukeBoxListener> listeners = Mockito.mockConstruction(JukeBoxListener.class, (listener, _) ->
-        doThrow(failure).when(listener).start()
+        this.failListenerStart(listener, failure)
       )
     ) {
       final IllegalStateException thrown = assertThrows(IllegalStateException.class, this.sandbox::onEnable);
@@ -420,16 +424,20 @@ final class MCAVSandboxTest {
     }
   }
 
+  private void failListenerStart(final JukeBoxListener listener, final IllegalStateException failure) {
+    doThrow(failure).when(listener).start();
+  }
+
   @Test
   void shouldAttemptEveryOwnedCleanupOnceEvenWhenTheFirstTwoFail() {
     final IllegalStateException first = new IllegalStateException("video cleanup!");
     final IllegalArgumentException second = new IllegalArgumentException("image cleanup!");
     try (
       final MockedConstruction<VideoPlayerManager> videos = Mockito.mockConstruction(VideoPlayerManager.class, (manager, _) ->
-        doThrow(first).when(manager).shutdown()
+        this.failShutdown(manager, first)
       );
       final MockedConstruction<ImageManager> images = Mockito.mockConstruction(ImageManager.class, (manager, _) ->
-        doThrow(second).when(manager).shutdown()
+        this.failShutdown(manager, second)
       );
       final MockedConstruction<JukeBoxListener> listeners = Mockito.mockConstruction(JukeBoxListener.class);
       final MockedConstruction<AnnotationParserHandler> handlers = Mockito.mockConstruction(AnnotationParserHandler.class);
@@ -460,15 +468,18 @@ final class MCAVSandboxTest {
     }
   }
 
+  private void failShutdown(final VideoPlayerManager manager, final RuntimeException failure) {
+    doThrow(failure).when(manager).shutdown();
+  }
+
+  private void failShutdown(final ImageManager manager, final RuntimeException failure) {
+    doThrow(failure).when(manager).shutdown();
+  }
+
   @Test
   void shouldLogTheStartAndHowLongLoadingTook() {
     final AtomicLong installationMilliseconds = new AtomicLong();
-    doAnswer(_ -> {
-      final long before = System.currentTimeMillis();
-      Thread.sleep(25);
-      installationMilliseconds.set(System.currentTimeMillis() - before);
-      return null;
-    })
+    doAnswer(_ -> this.recordSlowInstallation(installationMilliseconds))
       .when(this.api)
       .install(BukkitModule.class, BrowserModule.class, VmModule.class, SvcModule.class);
     this.sandbox.onEnable();
@@ -489,6 +500,13 @@ final class MCAVSandboxTest {
     final boolean plausible = milliseconds >= 0 && milliseconds < 600_000;
     assertTrue(plausible, "the log reports how long loading took, which was " + milliseconds + " ms");
     this.sandbox.onDisable();
+  }
+
+  private @Nullable Object recordSlowInstallation(final AtomicLong installationMilliseconds) throws InterruptedException {
+    final long before = System.currentTimeMillis();
+    Thread.sleep(25);
+    installationMilliseconds.set(System.currentTimeMillis() - before);
+    return null;
   }
 
   @Test

@@ -43,6 +43,7 @@ import org.bukkit.scheduler.BukkitTask;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.invocation.InvocationOnMock;
 
 /**
  * Tests {@link Mcv2Image}: the screen starts with the image and is given a copy of it twice a second, off the main
@@ -72,18 +73,18 @@ final class Mcv2ImageTest {
     when(TestServer.scheduler().runTaskTimerAsynchronously(any(Plugin.class), any(Runnable.class), anyLong(), anyLong())).thenReturn(
       this.task
     );
-    doAnswer(invocation -> {
-      final ImageBuffer frame = invocation.getArgument(0);
-      final OriginalVideoMetadata metadata = invocation.getArgument(1);
-      assertEquals(IMAGE_WIDTH, metadata.getVideoWidth());
-      assertEquals(IMAGE_HEIGHT, metadata.getVideoHeight());
-      this.given.add(frame.getPixels().clone());
-      // the screen may resize the frame in place: it is the screen's own copy
-      frame.getPixels()[0] = 0;
-      return true;
-    })
-      .when(this.output)
-      .applyFilter(any(), any());
+    doAnswer(this::recordAndAlterFrame).when(this.output).applyFilter(any(), any());
+  }
+
+  private boolean recordAndAlterFrame(final InvocationOnMock invocation) {
+    final ImageBuffer frame = invocation.getArgument(0);
+    final OriginalVideoMetadata metadata = invocation.getArgument(1);
+    assertEquals(IMAGE_WIDTH, metadata.getVideoWidth());
+    assertEquals(IMAGE_HEIGHT, metadata.getVideoHeight());
+    this.given.add(frame.getPixels().clone());
+    // the screen may resize the frame in place: it is the screen's own copy
+    frame.getPixels()[0] = 0;
+    return true;
   }
 
   @Test

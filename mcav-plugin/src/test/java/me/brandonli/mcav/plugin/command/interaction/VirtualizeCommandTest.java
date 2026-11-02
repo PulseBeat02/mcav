@@ -192,9 +192,7 @@ final class VirtualizeCommandTest {
     when(this.machine.startAsync(any(VmSettings.class), any(VmPlayer.Architecture.class), any(VmConfiguration.class), any())).thenThrow(
       failure
     );
-    final RejectedExecutionException thrown = assertThrows(RejectedExecutionException.class, () ->
-      this.create(RESOLUTION, BLOCK_DIMENSIONS, "")
-    );
+    final RejectedExecutionException thrown = assertThrows(RejectedExecutionException.class, this::createWithoutFlags);
     assertSame(failure, thrown);
     verify(this.machine, timeout(RELEASE_MILLISECONDS)).release();
 
@@ -205,6 +203,10 @@ final class VirtualizeCommandTest {
     verify(this.ditherFilter).release();
     assertNull(this.command.player);
     assertNull(this.command.result);
+  }
+
+  private void createWithoutFlags() {
+    this.create(RESOLUTION, BLOCK_DIMENSIONS, "");
   }
 
   private void create(final String resolution, final String blocks, final String flags) {

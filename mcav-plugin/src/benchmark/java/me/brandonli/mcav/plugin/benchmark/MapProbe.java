@@ -210,28 +210,32 @@ final class MapProbe implements DitherResultStep {
 
     private void inspect(final List<MapTilePatch> patches, final long now) {
       for (final MapTilePatch patch : patches) {
-        final byte[] colors = patch.getColors();
-        final int mapOffset = (patch.getMapId() - this.firstMapId) * MapLayout.MAP_SIZE * MapLayout.MAP_SIZE;
-        final int left = patch.getX();
-        final int top = patch.getY();
-        final int width = patch.getWidth();
-        boolean shows = false;
-        for (int position = 0; position < colors.length; position++) {
-          if (colors[position] == this.index) {
-            shows = true;
-            final int row = top + position / width;
-            final int column = left + (position % width);
-            this.covered.set(mapOffset + row * MapLayout.MAP_SIZE + column);
-          }
-        }
-        if (shows && this.firstNanoseconds == 0L) {
-          this.firstNanoseconds = now;
-          this.first.countDown();
-        }
+        this.recordShownPixels(patch, now);
       }
       if (this.firstNanoseconds != 0L && this.fullNanoseconds == 0L && this.covered.cardinality() >= this.pixels * COVERED_FRACTION) {
         this.fullNanoseconds = now;
         this.done.countDown();
+      }
+    }
+
+    private void recordShownPixels(final MapTilePatch patch, final long now) {
+      final byte[] colors = patch.getColors();
+      final int mapOffset = (patch.getMapId() - this.firstMapId) * MapLayout.MAP_SIZE * MapLayout.MAP_SIZE;
+      final int left = patch.getX();
+      final int top = patch.getY();
+      final int width = patch.getWidth();
+      boolean shows = false;
+      for (int position = 0; position < colors.length; position++) {
+        if (colors[position] == this.index) {
+          shows = true;
+          final int row = top + position / width;
+          final int column = left + (position % width);
+          this.covered.set(mapOffset + row * MapLayout.MAP_SIZE + column);
+        }
+      }
+      if (shows && this.firstNanoseconds == 0L) {
+        this.firstNanoseconds = now;
+        this.first.countDown();
       }
     }
 

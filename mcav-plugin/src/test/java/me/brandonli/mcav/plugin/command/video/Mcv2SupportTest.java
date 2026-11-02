@@ -303,7 +303,7 @@ final class Mcv2SupportTest {
     final List<List<?>> arguments = new ArrayList<>();
     try (
       final MockedConstruction<Mcv2Result> results = Mockito.mockConstruction(Mcv2Result.class, (_, context) ->
-        arguments.add(context.arguments())
+        this.recordArguments(context, arguments)
       )
     ) {
       final Mcv2Output output = Objects.requireNonNull(this.support.output(this.sender, configuration, DitheringArgument.NEAREST_COLOR));
@@ -347,6 +347,10 @@ final class Mcv2SupportTest {
         .toList();
       assertEquals(List.of("426x256", "320x192"), list);
     }
+  }
+
+  private void recordArguments(final MockedConstruction.Context context, final List<List<?>> arguments) {
+    arguments.add(context.arguments());
   }
 
   @Test
@@ -414,7 +418,7 @@ final class Mcv2SupportTest {
   void shouldWriteThePackIntoItsOwnFolderAndTellThePlayers() {
     try (
       final MockedConstruction<Mcv2PackServer> servers = Mockito.mockConstruction(Mcv2PackServer.class, (_, context) ->
-        assertEquals(this.folder.resolve(MCV2_FOLDER_NAME).resolve(PACK_FOLDER_NAME), context.arguments().getFirst())
+        this.assertPackFolder(context)
       )
     ) {
       final Mcv2Support real = new Mcv2Support(this.folder, PackHosting::injector);
@@ -428,12 +432,16 @@ final class Mcv2SupportTest {
     verify(player).sendMessage(Message.MCV2_REFUSED.build());
   }
 
+  private void assertPackFolder(final MockedConstruction.Context context) {
+    assertEquals(this.folder.resolve(MCV2_FOLDER_NAME).resolve(PACK_FOLDER_NAME), context.arguments().getFirst());
+  }
+
   @Test
   void shouldShowTheDebugViewOnlyWhenItsPropertyIsSet() {
     final List<Object> debugViews = new ArrayList<>();
     try (
       final MockedConstruction<Mcv2PackServer> _ = Mockito.mockConstruction(Mcv2PackServer.class, (_, context) ->
-        debugViews.add(context.arguments().get(2))
+        this.recordDebugView(context, debugViews)
       )
     ) {
       System.setProperty(Mcv2Support.DEBUG_VIEW, "true");
@@ -447,5 +455,9 @@ final class Mcv2SupportTest {
 
     final List<Mcv2Pack.DebugView> expected = List.of(Mcv2Pack.DebugView.SHOWN, Mcv2Pack.DebugView.HIDDEN);
     assertEquals(expected, debugViews);
+  }
+
+  private void recordDebugView(final MockedConstruction.Context context, final List<Object> debugViews) {
+    debugViews.add(context.arguments().get(2));
   }
 }

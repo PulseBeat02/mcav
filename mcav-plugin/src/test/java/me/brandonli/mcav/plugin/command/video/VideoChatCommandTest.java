@@ -50,12 +50,14 @@ import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitScheduler;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
 
 /**
  * Tests {@link VideoChatCommand}. The common playback flow is skipped, so only the arguments passed to it and the
@@ -80,12 +82,7 @@ final class VideoChatCommandTest {
     TestServer.resetWithDeferredTasks();
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
     this.manager = mock(VideoPlayerManager.class);
-    Mockito.doAnswer(invocation -> {
-      final FunctionalVideoFilter filter = invocation.getArgument(0);
-      final BukkitScheduler scheduler = Bukkit.getScheduler();
-      scheduler.runTask(plugin, filter::start);
-      return null;
-    })
+    Mockito.doAnswer(invocation -> this.runFilterOnMainThread(invocation, plugin))
       .when(this.manager)
       .startFilter(any(FunctionalVideoFilter.class));
     final AudioProvider provider = mock(AudioProvider.class);
@@ -98,6 +95,13 @@ final class VideoChatCommandTest {
     this.viewer = UUID.randomUUID();
     this.selector = this.mockSelector(this.viewer);
     this.sender = mock(CommandSender.class);
+  }
+
+  private @Nullable Object runFilterOnMainThread(final InvocationOnMock invocation, final MCAVSandbox plugin) {
+    final FunctionalVideoFilter filter = invocation.getArgument(0);
+    final BukkitScheduler scheduler = Bukkit.getScheduler();
+    scheduler.runTask(plugin, filter::start);
+    return null;
   }
 
   private void skipPlayback(final AbstractVideoCommand command) {
@@ -184,10 +188,9 @@ final class VideoChatCommandTest {
     final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_SIDE, RESOLUTION_SIDE);
     final List<List<?>> arguments = new ArrayList<>();
     try (
-      final MockedConstruction<ChatResult> results = Mockito.mockConstruction(ChatResult.class, (_, context) -> {
-        final List<?> constructorArguments = context.arguments();
-        arguments.add(constructorArguments);
-      })
+      final MockedConstruction<ChatResult> results = Mockito.mockConstruction(ChatResult.class, (_, context) ->
+        this.recordArguments(context, arguments)
+      )
     ) {
       final VideoPipelineStep pipeline = this.command.createVideoFilter(resolution, configurationProvider);
       final List<ChatResult> constructed = results.constructed();
@@ -200,6 +203,11 @@ final class VideoChatCommandTest {
     final List<?> constructorArguments = arguments.getFirst();
     final ChatConfiguration configuration = (ChatConfiguration) constructorArguments.getFirst();
     this.assertChat(configuration);
+  }
+
+  private void recordArguments(final MockedConstruction.Context context, final List<List<?>> arguments) {
+    final List<?> constructorArguments = context.arguments();
+    arguments.add(constructorArguments);
   }
 
   private void assertStartedOnTheMainThread(final FunctionalVideoFilter result) {

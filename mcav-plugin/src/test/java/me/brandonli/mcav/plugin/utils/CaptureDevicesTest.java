@@ -181,7 +181,7 @@ final class CaptureDevicesTest {
     try (
       final MockedStatic<OsUtils> systems = Mockito.mockStatic(OsUtils.class);
       final MockedConstruction<OpenCVFrameGrabber> grabbers = Mockito.mockConstruction(OpenCVFrameGrabber.class, (grabber, _) ->
-        doThrow(noCamera).when(grabber).start()
+        this.failStart(grabber, noCamera)
       )
     ) {
       systems.when(OsUtils::getOs).thenReturn(Os.WINDOWS);
@@ -201,6 +201,10 @@ final class CaptureDevicesTest {
       final int size = grabbers.constructed().size();
       assertEquals(tried, size, "Linux names its devices, and listing them opens none");
     }
+  }
+
+  private void failStart(final OpenCVFrameGrabber grabber, final FrameGrabber.Exception noCamera) throws FrameGrabber.Exception {
+    doThrow(noCamera).when(grabber).start();
   }
 
   @Test

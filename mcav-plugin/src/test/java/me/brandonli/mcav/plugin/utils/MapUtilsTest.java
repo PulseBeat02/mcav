@@ -62,6 +62,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
 
 /**
  * Tests {@link MapUtils}.
@@ -89,17 +90,21 @@ final class MapUtilsTest {
   void setUp() {
     this.server = TestServer.reset();
     this.fakeWorld = new FakeWorld();
-    when(this.server.getMap(anyInt())).thenAnswer(invocation -> {
-      final int id = invocation.getArgument(0);
-      return this.existingMap(id);
-    });
-    this.items = Mockito.mockConstruction(ItemStack.class, (item, context) -> {
-      final MapMeta metadata = mock(MapMeta.class);
-      this.mapMetadata.add(metadata);
-      final List<?> arguments = context.arguments();
-      this.constructorArguments.add(arguments);
-      when(item.getItemMeta()).thenReturn(metadata);
-    });
+    when(this.server.getMap(anyInt())).thenAnswer(this::findExistingMap);
+    this.items = Mockito.mockConstruction(ItemStack.class, this::recordMapItem);
+  }
+
+  private MapView findExistingMap(final InvocationOnMock invocation) {
+    final int id = invocation.getArgument(0);
+    return this.existingMap(id);
+  }
+
+  private void recordMapItem(final ItemStack item, final MockedConstruction.Context context) {
+    final MapMeta metadata = mock(MapMeta.class);
+    this.mapMetadata.add(metadata);
+    final List<?> arguments = context.arguments();
+    this.constructorArguments.add(arguments);
+    when(item.getItemMeta()).thenReturn(metadata);
   }
 
   @AfterEach
@@ -193,16 +198,18 @@ final class MapUtilsTest {
     final AtomicInteger nextId = new AtomicInteger(firstId);
     final long lastAllowedId = firstId + 10_000L;
     when(this.server.getWorlds()).thenReturn(List.of(world));
-    when(this.server.createMap(world)).thenAnswer(invocation -> {
-      final int id = nextId.getAndIncrement();
-      if (id > lastAllowedId) {
-        final String message = "Map %s was created, far more maps than any wall needs!".formatted(id);
-        throw new AssertionError(message);
-      }
-      final MapView created = mock(MapView.class);
-      when(created.getId()).thenReturn(id);
-      return created;
-    });
+    when(this.server.createMap(world)).thenAnswer(invocation -> this.handOutNextMap(nextId, lastAllowedId));
+  }
+
+  private MapView handOutNextMap(final AtomicInteger nextId, final long lastAllowedId) {
+    final int id = nextId.getAndIncrement();
+    if (id > lastAllowedId) {
+      final String message = "Map %s was created, far more maps than any wall needs!".formatted(id);
+      throw new AssertionError(message);
+    }
+    final MapView created = mock(MapView.class);
+    when(created.getId()).thenReturn(id);
+    return created;
   }
 
   @Test

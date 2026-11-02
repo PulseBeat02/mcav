@@ -409,11 +409,7 @@ final class BrowserCommandTest {
     final CompletableFuture<Boolean> start = CompletableFuture.completedFuture(true);
     when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(start);
     this.create(RESOLUTION, BLOCK_DIMENSIONS, PAGE_URL);
-    this.browsers.verify(() ->
-      BrowserPlayer.create(
-        argThat(options -> !options.isPrivateNetworks() && !options.isJavaScriptJit() && !options.isAutoplay() && !options.isConfined())
-      )
-    );
+    this.browsers.verify(this::createWithConfiguredOptions);
 
     when(this.configuration.isBrowserPrivateNetworks()).thenReturn(true);
     when(this.configuration.isBrowserJavaScriptJit()).thenReturn(true);
@@ -436,6 +432,12 @@ final class BrowserCommandTest {
 
     final List<String> refusedHosts = options.getRefusedHosts();
     assertEquals(List.of("203.0.113.5"), refusedHosts);
+  }
+
+  private void createWithConfiguredOptions() {
+    BrowserPlayer.create(
+      argThat(options -> !options.isPrivateNetworks() && !options.isJavaScriptJit() && !options.isAutoplay() && !options.isConfined())
+    );
   }
 
   @Test

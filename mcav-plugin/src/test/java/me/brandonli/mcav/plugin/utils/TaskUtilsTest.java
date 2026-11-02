@@ -39,6 +39,7 @@ import me.brandonli.mcav.plugin.testing.UtilityClassAssertions;
 import org.bukkit.plugin.IllegalPluginAccessException;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitScheduler;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -113,11 +114,7 @@ final class TaskUtilsTest {
     final AtomicReference<Throwable> failure = new AtomicReference<>();
     final AtomicInteger calls = new AtomicInteger();
 
-    TaskUtils.whenComplete(future, (value, error) -> {
-      calls.incrementAndGet();
-      result.set(value);
-      failure.set(error);
-    });
+    TaskUtils.whenComplete(future, (value, error) -> this.recordCall(value, error, calls, result, failure));
 
     final int callCount = calls.get();
     final String received = result.get();
@@ -127,6 +124,18 @@ final class TaskUtilsTest {
     assertNull(receivedFailure);
   }
 
+  private void recordCall(
+    final String value,
+    final @Nullable Throwable error,
+    final AtomicInteger calls,
+    final AtomicReference<String> result,
+    final AtomicReference<Throwable> failure
+  ) {
+    calls.incrementAndGet();
+    result.set(value);
+    failure.set(error);
+  }
+
   @Test
   void shouldPassTheFailureOfTheFutureToTheCallback() {
     final IllegalStateException boom = new IllegalStateException("boom!");
@@ -134,15 +143,22 @@ final class TaskUtilsTest {
     final AtomicReference<String> result = new AtomicReference<>("not called");
     final AtomicReference<Throwable> failure = new AtomicReference<>();
 
-    TaskUtils.whenComplete(future, (value, error) -> {
-      result.set(value);
-      failure.set(error);
-    });
+    TaskUtils.whenComplete(future, (value, error) -> this.recordOutcome(value, error, result, failure));
 
     final String received = result.get();
     final Throwable receivedFailure = failure.get();
     assertNull(received);
     assertSame(boom, receivedFailure);
+  }
+
+  private void recordOutcome(
+    final String value,
+    final @Nullable Throwable error,
+    final AtomicReference<String> result,
+    final AtomicReference<Throwable> failure
+  ) {
+    result.set(value);
+    failure.set(error);
   }
 
   @Test
@@ -164,9 +180,7 @@ final class TaskUtilsTest {
     final CompletableFuture<String> future = CompletableFuture.completedFuture(FUTURE_RESULT);
     final String output;
     try (final StandardErrorCapture errors = StandardErrorCapture.start()) {
-      TaskUtils.whenComplete(future, (_, _) -> {
-        throw new IllegalStateException("the callback failed!");
-      });
+      TaskUtils.whenComplete(future, (_, _) -> this.throwCallbackFailure());
       output = errors.getOutput();
     }
 
@@ -174,6 +188,10 @@ final class TaskUtilsTest {
     final boolean withCause = output.contains("the callback failed");
     assertTrue(logged, output);
     assertTrue(withCause, output);
+  }
+
+  private void throwCallbackFailure() {
+    throw new IllegalStateException("the callback failed!");
   }
 
   @Test

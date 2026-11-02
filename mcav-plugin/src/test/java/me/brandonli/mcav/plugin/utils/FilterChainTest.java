@@ -275,15 +275,17 @@ final class FilterChainTest {
       .create()
       .size();
     assertEquals(FilterChain.MAXIMUM_FILTERS, size);
-    assertThrows(IllegalArgumentException.class, () ->
-      this.parse(String.join(FILTER_SEPARATOR, Collections.nCopies(FilterChain.MAXIMUM_FILTERS + 1, INVERT_FILTER)))
-    );
+    assertThrows(IllegalArgumentException.class, this::parseTooLongChain);
     assertThrows(IllegalArgumentException.class, () -> this.parse(TEXT_FILTER_PREFIX + FILLER_TEXT.repeat(FilterChain.MAXIMUM_TEXT + 1)));
     this.parse(TEXT_FILTER_PREFIX + FILLER_TEXT.repeat(FilterChain.MAXIMUM_TEXT));
     assertThrows(IllegalArgumentException.class, () -> this.parse("invert," + "x".repeat(FilterChain.MAXIMUM_LENGTH)));
     assertThrows(IllegalArgumentException.class, () -> FilterChain.parse("fps", this.overlays, false), "an image has no frame rate");
     assertThrows(NullPointerException.class, () -> FilterChain.parse(null, this.overlays, true));
     assertThrows(NullPointerException.class, () -> FilterChain.parse("", null, true));
+  }
+
+  private void parseTooLongChain() {
+    this.parse(String.join(FILTER_SEPARATOR, Collections.nCopies(FilterChain.MAXIMUM_FILTERS + 1, INVERT_FILTER)));
   }
 
   @ParameterizedTest

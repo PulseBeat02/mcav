@@ -238,12 +238,14 @@ final class MCAVLoaderTest {
   void shouldNameAtMostFiveOfTheMissingClasses() throws IOException {
     final Path empty = this.jarOf(EMPTY_JAR_FILE_NAME);
     final List<String> required = List.of("a/A", "b/B", "c/C", "d/D", "e/E", "f/F");
-    final IllegalStateException refused = assertThrows(IllegalStateException.class, () ->
-      MCAVLoader.checkModules(required, List.of(empty))
-    );
+    final IllegalStateException refused = assertThrows(IllegalStateException.class, () -> this.checkModulesAgainst(required, empty));
 
     final boolean contained = refused.getMessage().contains("(6), such as a.A, b.B, c.C, d.D, e.E. ");
     assertTrue(contained, refused.getMessage());
+  }
+
+  private void checkModulesAgainst(final List<String> required, final Path empty) {
+    MCAVLoader.checkModules(required, List.of(empty));
   }
 
   @Test

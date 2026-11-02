@@ -80,10 +80,12 @@ final class MapScreenRebuildPropertyTest {
   void setUp() {
     final Server server = TestServer.reset();
     when(server.getMap(anyInt())).thenAnswer(_ -> mock(MapView.class));
-    this.items = Mockito.mockConstruction(ItemStack.class, (item, _) -> {
-      final MapMeta metadata = mock(MapMeta.class);
-      when(item.getItemMeta()).thenReturn(metadata);
-    });
+    this.items = Mockito.mockConstruction(ItemStack.class, (item, _) -> this.giveMapMeta(item));
+  }
+
+  private void giveMapMeta(final ItemStack item) {
+    final MapMeta metadata = mock(MapMeta.class);
+    when(item.getItemMeta()).thenReturn(metadata);
   }
 
   @AfterTry

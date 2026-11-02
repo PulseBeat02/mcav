@@ -41,12 +41,14 @@ import me.brandonli.mcav.plugin.testing.TestServer;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
 import org.mockito.InOrder;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
 
 /**
  * Tests {@link VideoControlCommand}.
@@ -152,11 +154,7 @@ final class VideoControlCommandTest {
     final VideoPlayerManager owner = Mockito.spy(realManager);
     final ExecutorService deferred = mock(ExecutorService.class);
     final List<Runnable> pending = new ArrayList<>();
-    Mockito.doAnswer(invocation -> {
-      final Runnable task = invocation.getArgument(0);
-      pending.add(task);
-      return null;
-    })
+    Mockito.doAnswer(invocation -> this.deferTask(invocation, pending))
       .when(deferred)
       .execute(ArgumentMatchers.any(Runnable.class));
     Mockito.doReturn(deferred).when(owner).getService();
@@ -176,6 +174,12 @@ final class VideoControlCommandTest {
     } finally {
       owner.shutdown();
     }
+  }
+
+  private @Nullable Object deferTask(final InvocationOnMock invocation, final List<Runnable> pending) {
+    final Runnable task = invocation.getArgument(0);
+    pending.add(task);
+    return null;
   }
 
   @Test

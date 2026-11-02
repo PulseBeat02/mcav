@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.plugin.e2e;
 
+import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -72,16 +73,18 @@ final class TonePage implements AutoCloseable {
   static TonePage start() throws IOException {
     final InetAddress loopback = InetAddress.getByAddress(LOOPBACK_HOST, LOOPBACK_OCTETS);
     final HttpServer server = HttpServer.create(new InetSocketAddress(loopback, 0), 0);
-    server.createContext(TONE_PATH, exchange -> {
-      final byte[] body = PAGE.getBytes(StandardCharsets.UTF_8);
-      exchange.getResponseHeaders().add("Content-Type", "text/html; charset=utf-8");
-      exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, body.length);
-      try (final OutputStream output = exchange.getResponseBody()) {
-        output.write(body);
-      }
-    });
+    server.createContext(TONE_PATH, TonePage::sendPage);
     server.start();
     return new TonePage(server);
+  }
+
+  private static void sendPage(final HttpExchange exchange) throws IOException {
+    final byte[] body = PAGE.getBytes(StandardCharsets.UTF_8);
+    exchange.getResponseHeaders().add("Content-Type", "text/html; charset=utf-8");
+    exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, body.length);
+    try (final OutputStream output = exchange.getResponseBody()) {
+      output.write(body);
+    }
   }
 
   @Override

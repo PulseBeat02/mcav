@@ -63,10 +63,7 @@ final class DumpCommandTest {
   void shouldTellTheSenderWhenTheUploadFails() throws InterruptedException {
     final CommandSender sender = mock(CommandSender.class);
     final CountDownLatch attempted = new CountDownLatch(1);
-    final DumpCommand command = new DumpCommand(() -> {
-      attempted.countDown();
-      throw new IllegalStateException("offline!");
-    });
+    final DumpCommand command = new DumpCommand(() -> this.failUpload(attempted));
     command.createDump(sender);
     final boolean ran = attempted.await(10, TimeUnit.SECONDS);
     assertTrue(ran);
@@ -77,6 +74,11 @@ final class DumpCommandTest {
     order.verify(sender).sendMessage(loading);
     order.verify(sender).sendMessage(failure);
     verify(sender, times(2)).sendMessage(any(Component.class));
+  }
+
+  private String failUpload(final CountDownLatch attempted) {
+    attempted.countDown();
+    throw new IllegalStateException("offline!");
   }
 
   @Test

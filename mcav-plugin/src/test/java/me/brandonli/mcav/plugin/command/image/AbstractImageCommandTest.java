@@ -31,6 +31,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.common.util.concurrent.MoreExecutors;
+import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
@@ -63,6 +64,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.plugin.IllegalPluginAccessException;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitScheduler;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -72,6 +74,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
 
 /**
  * Tests {@link AbstractImageCommand} with a display that only records what it is asked to show.
@@ -223,7 +226,7 @@ final class AbstractImageCommandTest {
     try (
       final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class);
       final MockedConstruction<ResizeFilter> resizers = Mockito.mockConstruction(ResizeFilter.class, (filter, context) ->
-        Mockito.doThrow(failure).when(filter).applyFilter(any())
+        this.failFilter(filter, failure)
       )
     ) {
       this.command.displayImage(_ -> CONFIGURATION, this.sender, SCREEN_SIZE, file.toString(), FILTER);
@@ -246,6 +249,10 @@ final class AbstractImageCommandTest {
     }
   }
 
+  private void failFilter(final ResizeFilter filter, final IllegalStateException failure) {
+    Mockito.doThrow(failure).when(filter).applyFilter(any());
+  }
+
   private void assertNothingShown() {
     verify(this.manager, never()).setImage(any());
     verify(this.display, never()).displayImage(any());
@@ -259,10 +266,10 @@ final class AbstractImageCommandTest {
     final RuntimeException cleanupFailure = sameFailure ? failure : new IllegalArgumentException("release failed!");
     try (
       final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class, (image, context) ->
-        Mockito.doThrow(cleanupFailure).when(image).release()
+        this.failRelease(image, cleanupFailure)
       );
       final MockedConstruction<ResizeFilter> resizers = Mockito.mockConstruction(ResizeFilter.class, (filter, context) ->
-        Mockito.doThrow(failure).when(filter).applyFilter(any())
+        this.failFilter(filter, failure)
       )
     ) {
       this.command.displayImage(_ -> CONFIGURATION, this.sender, SCREEN_SIZE, file.toString(), FILTER);
@@ -282,6 +289,10 @@ final class AbstractImageCommandTest {
 
       this.assertNothingShown();
     }
+  }
+
+  private void failRelease(final MatImageBuffer image, final RuntimeException failure) {
+    Mockito.doThrow(failure).when(image).release();
   }
 
   @Test
@@ -311,16 +322,18 @@ final class AbstractImageCommandTest {
     final InetAddress loopback = InetAddress.getLoopbackAddress();
     final InetSocketAddress address = new InetSocketAddress(loopback, 0);
     this.server = HttpServer.create(address, 0);
-    this.server.createContext(path, exchange -> {
-      exchange.sendResponseHeaders(200, bytes.length);
-      try (final OutputStream output = exchange.getResponseBody()) {
-        output.write(bytes);
-      }
-    });
+    this.server.createContext(path, exchange -> this.sendImage(exchange, bytes));
     this.server.start();
     final InetSocketAddress bound = this.server.getAddress();
     final int port = bound.getPort();
     return "http://127.0.0.1:" + port + path;
+  }
+
+  private void sendImage(final HttpExchange exchange, final byte[] bytes) throws IOException {
+    exchange.sendResponseHeaders(200, bytes.length);
+    try (final OutputStream output = exchange.getResponseBody()) {
+      output.write(bytes);
+    }
   }
 
   @ParameterizedTest
@@ -364,7 +377,7 @@ final class AbstractImageCommandTest {
     // working-directory file, since PIT minions run concurrently. Delimiters still represent an empty MRL.
     try (
       final MockedConstruction<SourceDetectionHelper> detection = Mockito.mockConstruction(SourceDetectionHelper.class, (helper, _) ->
-        when(helper.detectSource("\"\"")).thenReturn(Optional.of(imageSource))
+        this.detectQuotesAsImage(helper, imageSource)
       )
     ) {
       this.command.displayImage(_ -> CONFIGURATION, this.sender, LARGE_SCREEN_SIZE, "\"\"", null);
@@ -377,6 +390,10 @@ final class AbstractImageCommandTest {
       final int size = lookups.size();
       assertEquals(0, size, "an empty quoted MRL must be rejected before consulting the filesystem");
     }
+  }
+
+  private void detectQuotesAsImage(final SourceDetectionHelper helper, final FileSource imageSource) {
+    when(helper.detectSource("\"\"")).thenReturn(Optional.of(imageSource));
   }
 
   @Test
@@ -553,11 +570,7 @@ final class AbstractImageCommandTest {
   void shouldReleaseALoadThatCompletesAfterItsManagerHasShutDown() throws IOException, InterruptedException {
     final ExecutorService deferred = mock(ExecutorService.class);
     final List<Runnable> work = new ArrayList<>();
-    Mockito.doAnswer(invocation -> {
-      final Runnable task = invocation.getArgument(0);
-      work.add(task);
-      return null;
-    })
+    Mockito.doAnswer(invocation -> this.deferTask(invocation, work))
       .when(deferred)
       .execute(any(Runnable.class));
     when(deferred.awaitTermination(Mockito.anyLong(), any(TimeUnit.class))).thenReturn(true);
@@ -578,6 +591,12 @@ final class AbstractImageCommandTest {
       verify(this.display, never()).displayImage(any());
     }
     verify(deferred).shutdown();
+  }
+
+  private @Nullable Object deferTask(final InvocationOnMock invocation, final List<Runnable> work) {
+    final Runnable task = invocation.getArgument(0);
+    work.add(task);
+    return null;
   }
 
   @Test
@@ -630,11 +649,9 @@ final class AbstractImageCommandTest {
     when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(primary);
     final String output;
     try (
-      final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class, (image, context) -> {
-        if (cleanupMode != 0) {
-          Mockito.doThrow(cleanup).when(image).release();
-        }
-      });
+      final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class, (image, context) ->
+        this.failReleaseInCleanupMode(image, cleanupMode, cleanup)
+      );
       final StandardErrorCapture capture = StandardErrorCapture.start()
     ) {
       this.command.displayImage(_ -> CONFIGURATION, this.sender, SCREEN_SIZE, mrl, null);
@@ -653,6 +670,12 @@ final class AbstractImageCommandTest {
     this.assertNothingShown();
   }
 
+  private void failReleaseInCleanupMode(final MatImageBuffer image, final int cleanupMode, final RuntimeException cleanup) {
+    if (cleanupMode != 0) {
+      Mockito.doThrow(cleanup).when(image).release();
+    }
+  }
+
   @ParameterizedTest
   @ValueSource(booleans = { false, true })
   void shouldPreserveThePrimaryFailureOfAFailedConfigurationWhenImageCleanupAlsoFails(final boolean sameFailure) throws IOException {
@@ -664,9 +687,9 @@ final class AbstractImageCommandTest {
     final RuntimeException cleanup = sameFailure ? primary : new IllegalArgumentException("image release failed!");
     Mockito.doThrow(primary).when(failing).createImage(any(), any());
     try (
-      final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class, (image, context) -> {
-        Mockito.doThrow(cleanup).when(image).release();
-      })
+      final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class, (image, context) ->
+        this.failRelease(image, cleanup)
+      )
     ) {
       failing.displayImage(_ -> CONFIGURATION, this.sender, SCREEN_SIZE, mrl, null);
       final IllegalStateException thrown = assertThrows(IllegalStateException.class, TestServer::runPendingTasks);
@@ -728,9 +751,9 @@ final class AbstractImageCommandTest {
 
     final String output;
     try (
-      final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class, (image, _) -> {
-        Mockito.doThrow(fatal).doNothing().when(image).release();
-      });
+      final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class, (image, _) ->
+        this.failFirstRelease(image, fatal)
+      );
       final StandardErrorCapture capture = StandardErrorCapture.start()
     ) {
       this.command.displayImage(_ -> CONFIGURATION, this.sender, SCREEN_SIZE, mrl, null);
@@ -747,6 +770,10 @@ final class AbstractImageCommandTest {
     this.assertNothingShown();
   }
 
+  private void failFirstRelease(final MatImageBuffer image, final OutOfMemoryError fatal) {
+    Mockito.doThrow(fatal).doNothing().when(image).release();
+  }
+
   @Test
   void shouldPropagateFatalImageCleanupFailureWhenDisplayConfigurationFails() throws IOException {
     TestServer.resetWithDeferredTasks();
@@ -757,9 +784,9 @@ final class AbstractImageCommandTest {
     final OutOfMemoryError fatal = new OutOfMemoryError("fatal cleanup sentinel!");
     Mockito.doThrow(primary).when(failing).createImage(any(), any());
     try (
-      final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class, (image, _) -> {
-        Mockito.doThrow(fatal).doNothing().when(image).release();
-      })
+      final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class, (image, _) ->
+        this.failFirstRelease(image, fatal)
+      )
     ) {
       failing.displayImage(_ -> CONFIGURATION, this.sender, SCREEN_SIZE, mrl, null);
       final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, TestServer::runPendingTasks);

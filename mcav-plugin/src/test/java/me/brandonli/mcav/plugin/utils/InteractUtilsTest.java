@@ -40,6 +40,7 @@ import org.bukkit.entity.Zombie;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.util.Vector;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -144,23 +145,29 @@ final class InteractUtilsTest {
   private ItemFrame buildSouthWall() {
     ItemFrame target = null;
     for (int row = 0; row < WALL_ROWS; row++) {
-      for (int column = 0; column < WALL_COLUMNS; column++) {
-        final int blockY = TOP_ROW_Y - row;
-        final Location location = this.fakeWorld.location(column + HALF_BLOCK, blockY + HALF_BLOCK, 0.0);
-        final boolean first = row == 0 && column == 0;
-        final boolean last = row == 1 && column == 3;
-        if (first) {
-          this.fakeWorld.addFrame(location, BlockFace.SOUTH, Keys.MAP_KEY, Keys.FIRST_MAP_KEY);
-        } else if (last) {
-          target = this.fakeWorld.addFrame(location, BlockFace.SOUTH, Keys.MAP_KEY, Keys.LAST_MAP_KEY);
-        } else {
-          this.fakeWorld.addFrame(location, BlockFace.SOUTH, Keys.MAP_KEY);
-        }
-      }
+      target = this.addSouthWallRow(row, target);
     }
     final Block wallBlock = this.fakeWorld.block(3, BLOCK_Y, -1);
     final Location eye = this.eye(3.3, EYE_Y, EYE_DISTANCE, LOOK_NORTH);
     this.aimAt(target, BlockFace.SOUTH, wallBlock, eye);
+    return target;
+  }
+
+  private @Nullable ItemFrame addSouthWallRow(final int row, final @Nullable ItemFrame previousTarget) {
+    ItemFrame target = previousTarget;
+    for (int column = 0; column < WALL_COLUMNS; column++) {
+      final int blockY = TOP_ROW_Y - row;
+      final Location location = this.fakeWorld.location(column + HALF_BLOCK, blockY + HALF_BLOCK, 0.0);
+      final boolean first = row == 0 && column == 0;
+      final boolean last = row == 1 && column == 3;
+      if (first) {
+        this.fakeWorld.addFrame(location, BlockFace.SOUTH, Keys.MAP_KEY, Keys.FIRST_MAP_KEY);
+      } else if (last) {
+        target = this.fakeWorld.addFrame(location, BlockFace.SOUTH, Keys.MAP_KEY, Keys.LAST_MAP_KEY);
+      } else {
+        this.fakeWorld.addFrame(location, BlockFace.SOUTH, Keys.MAP_KEY);
+      }
+    }
     return target;
   }
 
@@ -189,24 +196,30 @@ final class InteractUtilsTest {
   private ItemFrame buildSouthWallAwayFromTheOrigin() {
     ItemFrame target = null;
     for (int row = 0; row < WALL_ROWS; row++) {
-      for (int column = 0; column < WALL_COLUMNS; column++) {
-        final int blockX = 4 + column;
-        final int blockY = TOP_ROW_Y - row;
-        final Location location = this.fakeWorld.location(blockX + HALF_BLOCK, blockY + HALF_BLOCK, 0.0);
-        final boolean first = row == 0 && column == 0;
-        final boolean last = row == 1 && column == 3;
-        if (first) {
-          this.fakeWorld.addFrame(location, BlockFace.SOUTH, Keys.MAP_KEY, Keys.FIRST_MAP_KEY);
-        } else if (last) {
-          target = this.fakeWorld.addFrame(location, BlockFace.SOUTH, Keys.MAP_KEY, Keys.LAST_MAP_KEY);
-        } else {
-          this.fakeWorld.addFrame(location, BlockFace.SOUTH, Keys.MAP_KEY);
-        }
-      }
+      target = this.addSouthWallRowAwayFromTheOrigin(row, target);
     }
     final Block wallBlock = this.fakeWorld.block(7, BLOCK_Y, -1);
     final Location eye = this.eye(7.3, EYE_Y, EYE_DISTANCE, LOOK_NORTH);
     this.aimAt(target, BlockFace.SOUTH, wallBlock, eye);
+    return target;
+  }
+
+  private @Nullable ItemFrame addSouthWallRowAwayFromTheOrigin(final int row, final @Nullable ItemFrame previousTarget) {
+    ItemFrame target = previousTarget;
+    for (int column = 0; column < WALL_COLUMNS; column++) {
+      final int blockX = 4 + column;
+      final int blockY = TOP_ROW_Y - row;
+      final Location location = this.fakeWorld.location(blockX + HALF_BLOCK, blockY + HALF_BLOCK, 0.0);
+      final boolean first = row == 0 && column == 0;
+      final boolean last = row == 1 && column == 3;
+      if (first) {
+        this.fakeWorld.addFrame(location, BlockFace.SOUTH, Keys.MAP_KEY, Keys.FIRST_MAP_KEY);
+      } else if (last) {
+        target = this.fakeWorld.addFrame(location, BlockFace.SOUTH, Keys.MAP_KEY, Keys.LAST_MAP_KEY);
+      } else {
+        this.fakeWorld.addFrame(location, BlockFace.SOUTH, Keys.MAP_KEY);
+      }
+    }
     return target;
   }
 
@@ -338,24 +351,30 @@ final class InteractUtilsTest {
   void shouldRejectUnsupportedFramesOnTheFloor() {
     ItemFrame target = null;
     for (int blockX = 0; blockX < 2; blockX++) {
-      for (int blockZ = 0; blockZ < 2; blockZ++) {
-        final Location location = this.fakeWorld.location(blockX + HALF_BLOCK, 65.0, blockZ + HALF_BLOCK);
-        final boolean first = blockX == 0 && blockZ == 0;
-        final boolean last = blockX == 1 && blockZ == 1;
-        if (first) {
-          this.fakeWorld.addFrame(location, BlockFace.UP, Keys.MAP_KEY, Keys.FIRST_MAP_KEY);
-        } else if (last) {
-          target = this.fakeWorld.addFrame(location, BlockFace.UP, Keys.MAP_KEY, Keys.LAST_MAP_KEY);
-        } else {
-          this.fakeWorld.addFrame(location, BlockFace.UP, Keys.MAP_KEY);
-        }
-      }
+      target = this.addFloorRow(blockX, target);
     }
     final Block floorBlock = this.fakeWorld.block(1, BLOCK_Y, 1);
     final Location eye = this.eye(1.3, 67.0, 1.6, LOOK_NORTH);
     this.aimAt(target, BlockFace.UP, floorBlock, eye);
     final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
     assertNull(coordinates);
+  }
+
+  private @Nullable ItemFrame addFloorRow(final int blockX, final @Nullable ItemFrame previousTarget) {
+    ItemFrame target = previousTarget;
+    for (int blockZ = 0; blockZ < 2; blockZ++) {
+      final Location location = this.fakeWorld.location(blockX + HALF_BLOCK, 65.0, blockZ + HALF_BLOCK);
+      final boolean first = blockX == 0 && blockZ == 0;
+      final boolean last = blockX == 1 && blockZ == 1;
+      if (first) {
+        this.fakeWorld.addFrame(location, BlockFace.UP, Keys.MAP_KEY, Keys.FIRST_MAP_KEY);
+      } else if (last) {
+        target = this.fakeWorld.addFrame(location, BlockFace.UP, Keys.MAP_KEY, Keys.LAST_MAP_KEY);
+      } else {
+        this.fakeWorld.addFrame(location, BlockFace.UP, Keys.MAP_KEY);
+      }
+    }
+    return target;
   }
 
   @ParameterizedTest

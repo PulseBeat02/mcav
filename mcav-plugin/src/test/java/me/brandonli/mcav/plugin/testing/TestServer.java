@@ -36,8 +36,10 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.messaging.StandardMessenger;
 import org.bukkit.scheduler.BukkitScheduler;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
 
 /**
  * The mocked server behind {@link Bukkit} for all tests of the plugin.
@@ -82,29 +84,35 @@ public final class TestServer {
     Mockito.reset(SERVER);
     PENDING_TASKS.clear();
     final Thread mainThread = Thread.currentThread();
-    when(SERVER.isPrimaryThread()).thenAnswer(_ -> {
-      final Thread current = Thread.currentThread();
-      return mainThread.equals(current);
-    });
+    when(SERVER.isPrimaryThread()).thenAnswer(_ -> TestServer.isMainThread(mainThread));
     final Logger logger = Logger.getLogger(LOGGER_NAME);
     when(SERVER.getLogger()).thenReturn(logger);
     final PluginManager pluginManager = mock(PluginManager.class);
     when(SERVER.getPluginManager()).thenReturn(pluginManager);
     when(SERVER.getMessenger()).thenReturn(new StandardMessenger());
     final BukkitScheduler scheduler = mock(BukkitScheduler.class);
-    when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenAnswer(invocation -> {
-      final Runnable task = invocation.getArgument(1);
-      task.run();
-      return null;
-    });
-    when(scheduler.callSyncMethod(any(Plugin.class), any())).thenAnswer(invocation -> {
-      final Callable<?> call = invocation.getArgument(1);
-      final FutureTask<?> task = new FutureTask<>(call);
-      task.run();
-      return task;
-    });
+    when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenAnswer(TestServer::runTask);
+    when(scheduler.callSyncMethod(any(Plugin.class), any())).thenAnswer(TestServer::runCallable);
     when(SERVER.getScheduler()).thenReturn(scheduler);
     return SERVER;
+  }
+
+  private static boolean isMainThread(final Thread mainThread) {
+    final Thread current = Thread.currentThread();
+    return mainThread.equals(current);
+  }
+
+  private static @Nullable Object runTask(final InvocationOnMock invocation) {
+    final Runnable task = invocation.getArgument(1);
+    task.run();
+    return null;
+  }
+
+  private static FutureTask<?> runCallable(final InvocationOnMock invocation) {
+    final Callable<?> call = invocation.getArgument(1);
+    final FutureTask<?> task = new FutureTask<>(call);
+    task.run();
+    return task;
   }
 
   /**
@@ -117,19 +125,23 @@ public final class TestServer {
   public static Server resetWithDeferredTasks() {
     final Server server = reset();
     final BukkitScheduler scheduler = mock(BukkitScheduler.class);
-    when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenAnswer(invocation -> {
-      final Runnable task = invocation.getArgument(1);
-      PENDING_TASKS.add(task);
-      return null;
-    });
-    when(scheduler.callSyncMethod(any(Plugin.class), any())).thenAnswer(invocation -> {
-      final Callable<?> call = invocation.getArgument(1);
-      final FutureTask<?> task = new FutureTask<>(call);
-      PENDING_TASKS.add(task);
-      return task;
-    });
+    when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenAnswer(TestServer::deferTask);
+    when(scheduler.callSyncMethod(any(Plugin.class), any())).thenAnswer(TestServer::deferCallable);
     when(server.getScheduler()).thenReturn(scheduler);
     return server;
+  }
+
+  private static @Nullable Object deferTask(final InvocationOnMock invocation) {
+    final Runnable task = invocation.getArgument(1);
+    PENDING_TASKS.add(task);
+    return null;
+  }
+
+  private static FutureTask<?> deferCallable(final InvocationOnMock invocation) {
+    final Callable<?> call = invocation.getArgument(1);
+    final FutureTask<?> task = new FutureTask<>(call);
+    PENDING_TASKS.add(task);
+    return task;
   }
 
   /**

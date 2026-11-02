@@ -95,9 +95,7 @@ final class VideoFlagsParserPropertyTest {
     final Arbitrary<String> dashed = pieces.map(piece -> "-" + piece);
     final Arbitrary<String> values = Arbitraries.oneOf(pieces, dashed);
     final Combinators.Combinator2<String, String> acceptedParts = Combinators.combine(names, values);
-    final Arbitrary<String> acceptedOption = acceptedParts.as((name, value) ->
-      SWITCHES.contains(name) ? name : name + VALUE_SEPARATOR + value
-    );
+    final Arbitrary<String> acceptedOption = acceptedParts.as(this::toOption);
     final ListArbitrary<String> acceptedList = acceptedOption.list();
     final ListArbitrary<String> fewAccepted = acceptedList.ofMaxSize(4);
     final Arbitrary<String> acceptedJoined = fewAccepted.map(list -> String.join(OPTION_SEPARATOR, list));
@@ -105,6 +103,10 @@ final class VideoFlagsParserPropertyTest {
     final StringArbitrary textStrings = Arbitraries.strings();
     final StringArbitrary anyText = textStrings.ofMaxLength(60);
     return Arbitraries.oneOf(wrapped, acceptedWrapped, anyText);
+  }
+
+  private String toOption(final String name, final String value) {
+    return SWITCHES.contains(name) ? name : name + VALUE_SEPARATOR + value;
   }
 
   @Property(seed = SEED)
@@ -150,18 +152,22 @@ final class VideoFlagsParserPropertyTest {
     final StringArbitrary valueCharacters = strings.withChars("abc01=,}{\\/. ");
     final StringArbitrary values = valueCharacters.ofMinLength(1);
     final StringArbitrary shortValues = values.ofMaxLength(10);
-    final Arbitrary<String> expressibleValues = shortValues.filter(value -> {
-      final String trimmed = value.strip();
-      final boolean escapable = !value.contains(ESCAPED_SEPARATOR) && !value.contains(ESCAPED_CLOSING) && !value.endsWith(ESCAPE);
-      return !trimmed.isEmpty() && trimmed.equals(value) && escapable;
-    });
+    final Arbitrary<String> expressibleValues = shortValues.filter(this::isExpressible);
     final Combinators.Combinator2<String, String> parts = Combinators.combine(names, expressibleValues);
-    final Arbitrary<String[]> option = parts.as((name, value) -> {
-      final boolean isSwitch = SWITCHES.contains(name);
-      return isSwitch ? new String[] { name } : new String[] { name, value };
-    });
+    final Arbitrary<String[]> option = parts.as(this::toArguments);
     final ListArbitrary<String[]> options = option.list();
     return options.ofMaxSize(MAXIMUM_OPTIONS);
+  }
+
+  private boolean isExpressible(final String value) {
+    final String trimmed = value.strip();
+    final boolean escapable = !value.contains(ESCAPED_SEPARATOR) && !value.contains(ESCAPED_CLOSING) && !value.endsWith(ESCAPE);
+    return !trimmed.isEmpty() && trimmed.equals(value) && escapable;
+  }
+
+  private String[] toArguments(final String name, final String value) {
+    final boolean isSwitch = SWITCHES.contains(name);
+    return isSwitch ? new String[] { name } : new String[] { name, value };
   }
 
   /**

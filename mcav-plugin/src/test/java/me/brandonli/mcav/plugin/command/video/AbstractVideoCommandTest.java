@@ -93,6 +93,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.IllegalPluginAccessException;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitScheduler;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -105,6 +106,7 @@ import org.mockito.ArgumentMatchers;
 import org.mockito.InOrder;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
 
 /**
  * Tests {@link AbstractVideoCommand} with a video output that only records what it is asked to create.
@@ -171,10 +173,7 @@ final class AbstractVideoCommandTest {
     when(this.manager.getStatus()).thenReturn(this.status);
     when(this.manager.getService()).thenReturn(this.directExecutor);
     when(this.manager.isCurrent(ArgumentMatchers.anyLong())).thenReturn(true);
-    when(this.manager.startNative(any(BooleanSupplier.class))).thenAnswer(invocation -> {
-      final BooleanSupplier start = invocation.getArgument(0);
-      return start.getAsBoolean();
-    });
+    when(this.manager.startNative(any(BooleanSupplier.class))).thenAnswer(this::runStart);
     when(this.manager.isVlcSupported()).thenReturn(true);
     when(this.manager.getVolume()).thenReturn(this.volume);
     when(this.provider.constructFilter(any(), any(), any())).thenReturn(AudioFilter.NO_OP);
@@ -187,6 +186,11 @@ final class AbstractVideoCommandTest {
     when(this.selector.values()).thenReturn(viewers);
     this.mockPlayers();
     this.mockHologramsAndYtdlp();
+  }
+
+  private boolean runStart(final InvocationOnMock invocation) {
+    final BooleanSupplier start = invocation.getArgument(0);
+    return start.getAsBoolean();
   }
 
   @AfterEach
@@ -624,13 +628,7 @@ final class AbstractVideoCommandTest {
     final Path file = this.createVideoFile();
     final String mrl = file.toString();
     final AtomicInteger checks = new AtomicInteger();
-    Mockito.doAnswer(_ -> {
-      if (checks.incrementAndGet() == 2) {
-        cancelled.set(true);
-        throw new CancellationException("released during resolution!");
-      }
-      return null;
-    })
+    Mockito.doAnswer(_ -> this.cancelOnSecondCheck(checks, cancelled))
       .when(this.manager)
       .checkStart();
     this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, mrl, "");
@@ -640,6 +638,14 @@ final class AbstractVideoCommandTest {
     assertTrue(noDisplay);
     verify(this.sender, never()).sendMessage(any(Component.class));
     this.assertNotStarting();
+  }
+
+  private @Nullable Object cancelOnSecondCheck(final AtomicInteger checks, final AtomicBoolean cancelled) {
+    if (checks.incrementAndGet() == 2) {
+      cancelled.set(true);
+      throw new CancellationException("released during resolution!");
+    }
+    return null;
   }
 
   @Test
@@ -1094,18 +1100,10 @@ final class AbstractVideoCommandTest {
   void shouldStopBeforeDisplayCreationWhenCancelledBeforePlayerCreation() throws IOException {
     final AtomicBoolean cancelled = new AtomicBoolean();
     when(this.manager.isCurrent(ArgumentMatchers.anyLong())).thenAnswer(_ -> !cancelled.get());
-    Mockito.doAnswer(_ -> {
-      cancelled.set(true);
-      return null;
-    })
+    Mockito.doAnswer(_ -> this.cancel(cancelled))
       .when(this.manager)
       .clearCurrentVideo();
-    Mockito.doAnswer(_ -> {
-      if (cancelled.get()) {
-        throw new CancellationException("cancelled before player creation!");
-      }
-      return null;
-    })
+    Mockito.doAnswer(_ -> this.throwIfCancelled(cancelled, "cancelled before player creation!"))
       .when(this.manager)
       .checkStart();
 
@@ -1123,25 +1121,29 @@ final class AbstractVideoCommandTest {
     this.assertNotStarting();
   }
 
+  private @Nullable Object cancel(final AtomicBoolean cancelled) {
+    cancelled.set(true);
+    return null;
+  }
+
+  private @Nullable Object throwIfCancelled(final AtomicBoolean cancelled, final String message) {
+    if (cancelled.get()) {
+      throw new CancellationException(message);
+    }
+    return null;
+  }
+
   @Test
   void shouldStopBeforeAudioConstructionWhenCancelledDuringVideoConfiguration() throws IOException {
     final AtomicBoolean cancelled = new AtomicBoolean();
     when(this.manager.isCurrent(ArgumentMatchers.anyLong())).thenAnswer(_ -> !cancelled.get());
-    Mockito.doAnswer(_ -> {
-      if (cancelled.get()) {
-        throw new CancellationException("cancelled during video configuration!");
-      }
-      return null;
-    })
+    Mockito.doAnswer(_ -> this.throwIfCancelled(cancelled, "cancelled during video configuration!"))
       .when(this.manager)
       .checkStart();
 
     final Path file = this.createVideoFile();
     final String mrl = file.toString();
-    final AbstractVideoCommand.VideoConfigurationProvider configuration = _ -> {
-      cancelled.set(true);
-      return CONFIGURATION;
-    };
+    final AbstractVideoCommand.VideoConfigurationProvider configuration = _ -> this.cancelAndConfigure(cancelled);
 
     this.command.playVideo(
       configuration,
@@ -1165,20 +1167,17 @@ final class AbstractVideoCommandTest {
     this.assertNotStarting();
   }
 
+  private Object cancelAndConfigure(final AtomicBoolean cancelled) {
+    cancelled.set(true);
+    return CONFIGURATION;
+  }
+
   @Test
   void shouldStopBeforeNativeStartWhenCancelledDuringAudioConfiguration() throws IOException {
     final AtomicBoolean cancelled = new AtomicBoolean();
     when(this.manager.isCurrent(ArgumentMatchers.anyLong())).thenAnswer(_ -> !cancelled.get());
-    when(this.provider.constructFilter(any(), any(), any())).thenAnswer(_ -> {
-      cancelled.set(true);
-      return AudioFilter.NO_OP;
-    });
-    Mockito.doAnswer(_ -> {
-      if (cancelled.get()) {
-        throw new CancellationException("cancelled during audio configuration!");
-      }
-      return null;
-    })
+    when(this.provider.constructFilter(any(), any(), any())).thenAnswer(_ -> this.cancelAndPassNoAudio(cancelled));
+    Mockito.doAnswer(_ -> this.throwIfCancelled(cancelled, "cancelled during audio configuration!"))
       .when(this.manager)
       .checkStart();
 
@@ -1191,6 +1190,11 @@ final class AbstractVideoCommandTest {
     verify(this.player, never()).start(any());
     verify(this.player, never()).start(any(), any());
     this.assertNotStarting();
+  }
+
+  private AudioFilter cancelAndPassNoAudio(final AtomicBoolean cancelled) {
+    cancelled.set(true);
+    return AudioFilter.NO_OP;
   }
 
   /**

@@ -114,6 +114,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
 
 /**
  * Tests {@link AbstractInteractiveCommand} with an interactive player that is a plain string and a command that
@@ -239,10 +240,7 @@ final class AbstractInteractiveCommandTest {
     final Thread caller = Thread.currentThread();
     final CountDownLatch stopped = new CountDownLatch(1);
     final AtomicReference<Thread> where = new AtomicReference<>();
-    this.command.releaseInTheBackground(() -> {
-      where.set(Thread.currentThread());
-      stopped.countDown();
-    });
+    this.command.releaseInTheBackground(() -> this.recordStoppingThread(where, stopped));
 
     final boolean completed = stopped.await(5, TimeUnit.SECONDS);
     assertTrue(completed);
@@ -250,15 +248,22 @@ final class AbstractInteractiveCommandTest {
     final Thread whereWhere = where.get();
     assertNotSame(caller, whereWhere, "the calling thread, often the main thread, does not wait");
 
-    this.command.releaseInTheBackground(() -> {
-      throw new IllegalStateException("release broke!");
-    });
+    this.command.releaseInTheBackground(this::throwReleaseFailure);
     this.command.shutdown();
     final AtomicReference<Thread> atShutdown = new AtomicReference<>();
     this.command.releaseInTheBackground(() -> atShutdown.set(Thread.currentThread()));
 
     final Thread atShutdownAtShutdown = atShutdown.get();
     assertSame(caller, atShutdownAtShutdown, "a command that shuts down stops its player before it is gone");
+  }
+
+  private void recordStoppingThread(final AtomicReference<Thread> where, final CountDownLatch stopped) {
+    where.set(Thread.currentThread());
+    stopped.countDown();
+  }
+
+  private void throwReleaseFailure() {
+    throw new IllegalStateException("release broke!");
   }
 
   @Test
@@ -313,10 +318,9 @@ final class AbstractInteractiveCommandTest {
     final List<List<?>> arguments = new ArrayList<>();
 
     try (
-      final MockedConstruction<CompressedMapResult> results = Mockito.mockConstruction(CompressedMapResult.class, (_, context) -> {
-        final List<?> constructorArguments = context.arguments();
-        arguments.add(constructorArguments);
-      });
+      final MockedConstruction<CompressedMapResult> results = Mockito.mockConstruction(CompressedMapResult.class, (_, context) ->
+        this.recordArguments(context, arguments)
+      );
       final MockedStatic<DitherFilter> dithers = Mockito.mockStatic(DitherFilter.class)
     ) {
       dithers.when(() -> DitherFilter.dither(any(), any())).thenReturn(ditherFilter);
@@ -330,6 +334,11 @@ final class AbstractInteractiveCommandTest {
     verify(oldMaps).release();
     assertNull(this.command.player);
     this.assertWallConfiguration(arguments, viewer);
+  }
+
+  private void recordArguments(final MockedConstruction.Context context, final List<List<?>> arguments) {
+    final List<?> constructorArguments = context.arguments();
+    arguments.add(constructorArguments);
   }
 
   private ScreenSettings wallSettings(final UUID viewer, final DitheringArgument dithering) {
@@ -587,10 +596,7 @@ final class AbstractInteractiveCommandTest {
     final Screen screen = this.createMockedScreen();
     final AtomicBoolean opened = new AtomicBoolean();
     final ExecutorService executor = this.command.startExecutor(BROWSER, screen);
-    final CompletableFuture<Boolean> start = CompletableFuture.supplyAsync(() -> {
-      opened.set(true);
-      return true;
-    }, executor);
+    final CompletableFuture<Boolean> start = CompletableFuture.supplyAsync(() -> this.markOpened(opened), executor);
     final CommandSender sender = mock(CommandSender.class);
     this.command.reportStartWhenDone(sender, BROWSER, screen, start, "queued browser");
     this.command.shutdown();
@@ -605,15 +611,16 @@ final class AbstractInteractiveCommandTest {
     verify(sender, never()).sendMessage(any(Component.class));
   }
 
+  private Boolean markOpened(final AtomicBoolean opened) {
+    opened.set(true);
+    return true;
+  }
+
   private List<Runnable> useDeferredStartup() throws InterruptedException {
     this.command.shutdown();
     final ExecutorService executor = mock(ExecutorService.class);
     final List<Runnable> pending = new ArrayList<>();
-    Mockito.doAnswer(invocation -> {
-      final Runnable task = invocation.getArgument(0);
-      pending.add(task);
-      return null;
-    })
+    Mockito.doAnswer(invocation -> this.deferTask(invocation, pending))
       .when(executor)
       .execute(any(Runnable.class));
     when(executor.awaitTermination(Mockito.anyLong(), any(TimeUnit.class))).thenReturn(true);
@@ -621,17 +628,18 @@ final class AbstractInteractiveCommandTest {
     return pending;
   }
 
+  private @Nullable Object deferTask(final InvocationOnMock invocation, final List<Runnable> pending) {
+    final Runnable task = invocation.getArgument(0);
+    pending.add(task);
+    return null;
+  }
+
   @Test
   void shouldReleaseAnInFlightPlayerOnlyAfterItsCancelledStartupReturns() throws InterruptedException {
     final List<Runnable> pending = this.useDeferredStartup();
     final Screen screen = this.createMockedScreen();
     final ExecutorService executor = this.command.startExecutor(BROWSER, screen);
-    final CompletableFuture<Boolean> start = CompletableFuture.supplyAsync(() -> {
-      // Models a release command arriving after startup began but before it creates its native resource.
-      this.command.releaseCurrent();
-      this.assertReleased();
-      return true;
-    }, executor);
+    final CompletableFuture<Boolean> start = CompletableFuture.supplyAsync(this::releaseDuringStartup, executor);
     final CommandSender sender = mock(CommandSender.class);
     this.command.reportStartWhenDone(sender, BROWSER, screen, start, "late browser");
     final Runnable task = pending.getFirst();
@@ -641,6 +649,13 @@ final class AbstractInteractiveCommandTest {
     verify(maps, times(1)).release();
     assertNull(this.command.player);
     verify(sender, never()).sendMessage(any(Component.class));
+  }
+
+  private Boolean releaseDuringStartup() {
+    // Models a release command arriving after startup began but before it creates its native resource.
+    this.command.releaseCurrent();
+    this.assertReleased();
+    return true;
   }
 
   @Test
@@ -1167,7 +1182,7 @@ final class AbstractInteractiveCommandTest {
     final IllegalStateException cleanup = new IllegalStateException("maps stuck!");
     try (
       final MockedConstruction<CompressedMapResult> _ = Mockito.mockConstruction(CompressedMapResult.class, (maps, _) ->
-        Mockito.doThrow(cleanup).when(maps).release()
+        this.failMapsRelease(maps, cleanup)
       );
       final MockedStatic<DitherFilter> dithers = Mockito.mockStatic(DitherFilter.class)
     ) {
@@ -1178,6 +1193,10 @@ final class AbstractInteractiveCommandTest {
       final List<Throwable> list = List.of(thrown.getSuppressed());
       assertEquals(List.of(cleanup), list);
     }
+  }
+
+  private void failMapsRelease(final CompressedMapResult maps, final IllegalStateException cleanup) {
+    Mockito.doThrow(cleanup).when(maps).release();
   }
 
   @Test
@@ -1276,16 +1295,20 @@ final class AbstractInteractiveCommandTest {
     final FunctionalVideoFilter maps = screen.getOutput();
     this.command.ownCreatedPlayer(BROWSER);
     this.command.releaseFailure = cleanup;
-    final RuntimeException thrown = assertThrows(RuntimeException.class, () ->
-      this.command.createResource(() -> {
-        throw failure;
-      })
-    );
+    final RuntimeException thrown = assertThrows(RuntimeException.class, () -> this.createFailingResource(failure));
     assertSame(failure, thrown);
     this.assertReleased(BROWSER);
     verify(maps).release();
     assertNull(this.command.player);
     assertNull(this.command.result);
+  }
+
+  private void createFailingResource(final RuntimeException failure) {
+    this.command.createResource(() -> this.throwFailure(failure));
+  }
+
+  private void throwFailure(final RuntimeException failure) {
+    throw failure;
   }
 
   @Test
@@ -1360,13 +1383,11 @@ final class AbstractInteractiveCommandTest {
     this.command.ownCreatedPlayer(BROWSER);
     final ExecutorService executor = this.command.startExecutor(BROWSER, screen);
     final RuntimeException failure = new IllegalStateException("startup task failed!");
-    executor.execute(() -> {
-      if (shouldCancel) {
-        this.command.releaseCurrent();
-      }
-      this.command.releaseFailure = cleanup;
-      throw failure;
-    });
+    if (shouldCancel) {
+      executor.execute(() -> this.releaseAndFailStartupTask(cleanup, failure));
+    } else {
+      executor.execute(() -> this.failStartupTask(cleanup, failure));
+    }
     final Runnable task = pending.getFirst();
     final RuntimeException thrown = assertThrows(RuntimeException.class, task::run);
     assertSame(failure, thrown);
@@ -1381,6 +1402,16 @@ final class AbstractInteractiveCommandTest {
       this.assertReleased(BROWSER);
     }
     return failure;
+  }
+
+  private void releaseAndFailStartupTask(final @Nullable RuntimeException cleanup, final RuntimeException failure) {
+    this.command.releaseCurrent();
+    this.failStartupTask(cleanup, failure);
+  }
+
+  private void failStartupTask(final @Nullable RuntimeException cleanup, final RuntimeException failure) {
+    this.command.releaseFailure = cleanup;
+    throw failure;
   }
 
   @Test
@@ -1406,17 +1437,19 @@ final class AbstractInteractiveCommandTest {
     this.command.ownCreatedPlayer(BROWSER);
     final ExecutorService executor = this.command.startExecutor(BROWSER, screen);
     final RuntimeException failure = new IllegalStateException("backend failure!");
-    executor.execute(() -> {
-      this.command.releaseCurrent();
-      this.command.releaseFailure = failure;
-      throw failure;
-    });
+    executor.execute(() -> this.releaseAndFail(failure));
     final Runnable task = pending.getFirst();
     final RuntimeException thrown = assertThrows(RuntimeException.class, task::run);
     assertSame(failure, thrown);
     final Throwable[] suppressed = thrown.getSuppressed();
     assertEquals(0, suppressed.length);
     this.assertReleased(BROWSER);
+  }
+
+  private void releaseAndFail(final RuntimeException failure) {
+    this.command.releaseCurrent();
+    this.command.releaseFailure = failure;
+    throw failure;
   }
 
   @Test
@@ -1494,17 +1527,7 @@ final class AbstractInteractiveCommandTest {
     final IllegalStateException failure = Mockito.spy(new IllegalStateException("startup failed!"));
     // Logging is after the cancellation check and before the ownership lock. Pause only that observable
     // boundary so the main thread can really replace the screen while its completion worker is in flight.
-    Mockito.doAnswer(invocation -> {
-      loggedFailure.countDown();
-      try {
-        final boolean resumed = resumeFailure.await(10, TimeUnit.SECONDS);
-        assertTrue(resumed, "The main thread must release the failure callback");
-        return invocation.callRealMethod();
-      } catch (final Throwable exception) {
-        callbackFailure.set(exception);
-        throw exception;
-      }
-    })
+    Mockito.doAnswer(invocation -> this.pauseFailureLogging(invocation, loggedFailure, resumeFailure, callbackFailure))
       .when(failure)
       .printStackTrace(any(PrintStream.class));
     try (final ExecutorService worker = Executors.newSingleThreadExecutor()) {
@@ -1539,6 +1562,23 @@ final class AbstractInteractiveCommandTest {
     }
   }
 
+  private @Nullable Object pauseFailureLogging(
+    final InvocationOnMock invocation,
+    final CountDownLatch loggedFailure,
+    final CountDownLatch resumeFailure,
+    final AtomicReference<Throwable> callbackFailure
+  ) throws Throwable {
+    loggedFailure.countDown();
+    try {
+      final boolean resumed = resumeFailure.await(10, TimeUnit.SECONDS);
+      assertTrue(resumed, "The main thread must release the failure callback");
+      return invocation.callRealMethod();
+    } catch (final Throwable exception) {
+      callbackFailure.set(exception);
+      throw exception;
+    }
+  }
+
   @Test
   void shouldPropagateFatalScreenCreationFailureWithoutAttemptingCleanup() {
     final UUID viewer = UUID.randomUUID();
@@ -1568,14 +1608,18 @@ final class AbstractInteractiveCommandTest {
   void shouldPropagateFatalResourceCreationFailureWithoutAttemptingCleanup() {
     this.command.ownCreatedPlayer(BROWSER);
     final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
-    final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () ->
-      this.command.createResource(() -> {
-        throw fatal;
-      })
-    );
+    final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () -> this.createFatallyFailingResource(fatal));
     assertSame(fatal, thrown);
     this.assertReleased();
     assertEquals(BROWSER, this.command.player);
+  }
+
+  private void createFatallyFailingResource(final OutOfMemoryError fatal) {
+    this.command.createResource(() -> this.throwFatal(fatal));
+  }
+
+  private void throwFatal(final OutOfMemoryError fatal) {
+    throw fatal;
   }
 
   @Test
@@ -1583,13 +1627,17 @@ final class AbstractInteractiveCommandTest {
     this.command.ownCreatedPlayer(BROWSER);
     final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
     this.command.releaseFailure = fatal;
-    final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () ->
-      this.command.createResource(() -> {
-        throw new IllegalStateException("resource failure!");
-      })
-    );
+    final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, this::createBrokenResource);
     assertSame(fatal, thrown);
     this.assertReleased(BROWSER);
+  }
+
+  private void createBrokenResource() {
+    this.command.createResource(this::throwResourceFailure);
+  }
+
+  private void throwResourceFailure() {
+    throw new IllegalStateException("resource failure!");
   }
 
   @Test
@@ -1599,14 +1647,16 @@ final class AbstractInteractiveCommandTest {
     this.command.ownCreatedPlayer(BROWSER);
     final ExecutorService executor = this.command.startExecutor(BROWSER, screen);
     final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
-    executor.execute(() -> {
-      screen.cancel();
-      throw fatal;
-    });
+    executor.execute(() -> this.cancelAndFail(screen, fatal));
     final Runnable task = pending.getFirst();
     final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, task::run);
     assertSame(fatal, thrown);
     this.assertReleased();
+  }
+
+  private void cancelAndFail(final Screen screen, final OutOfMemoryError fatal) {
+    screen.cancel();
+    throw fatal;
   }
 
   @Test
@@ -1616,16 +1666,18 @@ final class AbstractInteractiveCommandTest {
     this.command.ownCreatedPlayer(BROWSER);
     final ExecutorService executor = this.command.startExecutor(BROWSER, screen);
     final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
-    executor.execute(() -> {
-      screen.cancel();
-      this.command.releaseFailure = fatal;
-      throw new IllegalStateException("startup task failed!");
-    });
+    executor.execute(() -> this.cancelAndFailStartupTask(screen, fatal));
     final Runnable task = pending.getFirst();
     final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, task::run);
     assertSame(fatal, thrown);
     this.assertReleased(BROWSER);
     this.command.releaseFailure = null;
+  }
+
+  private void cancelAndFailStartupTask(final Screen screen, final OutOfMemoryError fatal) {
+    screen.cancel();
+    this.command.releaseFailure = fatal;
+    throw new IllegalStateException("startup task failed!");
   }
 
   @Test

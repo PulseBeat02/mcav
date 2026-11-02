@@ -70,9 +70,11 @@ import org.bukkit.plugin.IllegalPluginAccessException;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitScheduler;
 import org.bukkit.scheduler.BukkitTask;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 /**
@@ -122,11 +124,13 @@ final class VideoPlayerManagerTest {
   }
 
   private Answer<Void> recordThread(final List<Thread> threads) {
-    return _ -> {
-      final Thread current = Thread.currentThread();
-      threads.add(current);
-      return null;
-    };
+    return _ -> this.recordCurrentThread(threads);
+  }
+
+  private @Nullable Void recordCurrentThread(final List<Thread> threads) {
+    final Thread current = Thread.currentThread();
+    threads.add(current);
+    return null;
   }
 
   @Test
@@ -262,13 +266,15 @@ final class VideoPlayerManagerTest {
   private BlockingQueue<Runnable> interceptMainThreadTasks() {
     final BlockingQueue<Runnable> tasks = new LinkedBlockingQueue<>();
     final BukkitScheduler scheduler = TestServer.scheduler();
-    when(scheduler.callSyncMethod(any(Plugin.class), any())).thenAnswer(invocation -> {
-      final Callable<?> call = invocation.getArgument(1);
-      final FutureTask<?> task = new FutureTask<>(call);
-      tasks.add(task);
-      return task;
-    });
+    when(scheduler.callSyncMethod(any(Plugin.class), any())).thenAnswer(invocation -> this.queueMainThreadTask(invocation, tasks));
     return tasks;
+  }
+
+  private FutureTask<?> queueMainThreadTask(final InvocationOnMock invocation, final BlockingQueue<Runnable> tasks) {
+    final Callable<?> call = invocation.getArgument(1);
+    final FutureTask<?> task = new FutureTask<>(call);
+    tasks.add(task);
+    return task;
   }
 
   private Runnable awaitMainThreadTask(final BlockingQueue<Runnable> tasks) throws InterruptedException {
@@ -329,14 +335,7 @@ final class VideoPlayerManagerTest {
     final BlockingQueue<Runnable> mainThreadTasks = this.interceptMainThreadTasks();
     final AtomicBoolean keptInterrupt = new AtomicBoolean();
     final ExecutorService service = this.manager.getService();
-    final Future<?> release = service.submit(() -> {
-      try {
-        this.manager.releaseVideoPlayer();
-      } catch (final IllegalStateException exception) {
-        final boolean interrupted = Thread.interrupted();
-        keptInterrupt.set(interrupted);
-      }
-    });
+    final Future<?> release = service.submit(() -> this.releaseAndRecordInterrupt(keptInterrupt));
     this.awaitMainThreadTask(mainThreadTasks);
 
     service.shutdownNow();
@@ -344,6 +343,15 @@ final class VideoPlayerManagerTest {
     release.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
     final boolean restored = keptInterrupt.get();
     assertTrue(restored, "the interrupt is restored for the caller of the release");
+  }
+
+  private void releaseAndRecordInterrupt(final AtomicBoolean keptInterrupt) {
+    try {
+      this.manager.releaseVideoPlayer();
+    } catch (final IllegalStateException exception) {
+      final boolean interrupted = Thread.interrupted();
+      keptInterrupt.set(interrupted);
+    }
   }
 
   @Test
@@ -440,16 +448,20 @@ final class VideoPlayerManagerTest {
   void shouldCloseANativePlayerOnlyAfterCancelledStartupReturns() {
     this.manager.beginStart();
     this.manager.setPlayer(this.player);
-    assertThrows(CancellationException.class, () ->
-      this.manager.startNative(() -> {
-        this.manager.releaseVideoPlayer();
-        verify(this.player, never()).release();
-        return true;
-      })
-    );
+    assertThrows(CancellationException.class, this::startNativeReleasedDuringStartup);
     verify(this.player, times(1)).release();
     final VideoPlayerMultiplexer current = this.manager.getPlayer();
     assertNull(current);
+  }
+
+  private void startNativeReleasedDuringStartup() {
+    this.manager.startNative(this::releaseDuringStartup);
+  }
+
+  private boolean releaseDuringStartup() {
+    this.manager.releaseVideoPlayer();
+    verify(this.player, never()).release();
+    return true;
   }
 
   @Test
@@ -604,15 +616,19 @@ final class VideoPlayerManagerTest {
     this.manager.beginStart();
     this.manager.setPlayer(this.player);
     final IllegalStateException failure = new IllegalStateException("native start!");
-    final IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
-      this.manager.startNative(() -> {
-        throw failure;
-      })
-    );
+    final IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> this.startFailingNative(failure));
     assertSame(failure, thrown);
     verify(this.player, never()).release();
     this.manager.releaseVideoPlayer();
     verify(this.player).release();
+  }
+
+  private void startFailingNative(final IllegalStateException failure) {
+    this.manager.startNative(() -> this.throwFailure(failure));
+  }
+
+  private boolean throwFailure(final IllegalStateException failure) {
+    throw failure;
   }
 
   @Test
@@ -622,17 +638,21 @@ final class VideoPlayerManagerTest {
     final IllegalStateException failure = new IllegalStateException("native start!");
     final IllegalArgumentException cleanup = new IllegalArgumentException("native release!");
     doThrow(cleanup).when(this.player).release();
-    final IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
-      this.manager.startNative(() -> {
-        this.manager.releaseVideoPlayer();
-        throw failure;
-      })
-    );
+    final IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> this.startNativeReleasedMidStart(failure));
     assertSame(failure, thrown);
     final Throwable[] suppressed = thrown.getSuppressed();
     assertEquals(1, suppressed.length);
     assertSame(cleanup, suppressed[0]);
     verify(this.player).release();
+  }
+
+  private void startNativeReleasedMidStart(final IllegalStateException failure) {
+    this.manager.startNative(() -> this.releaseAndThrow(failure));
+  }
+
+  private boolean releaseAndThrow(final IllegalStateException failure) {
+    this.manager.releaseVideoPlayer();
+    throw failure;
   }
 
   @Test
@@ -641,12 +661,7 @@ final class VideoPlayerManagerTest {
     this.manager.setPlayer(this.player);
     final IllegalStateException failure = new IllegalStateException("same native failure!");
     doThrow(failure).when(this.player).release();
-    final IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
-      this.manager.startNative(() -> {
-        this.manager.releaseVideoPlayer();
-        throw failure;
-      })
-    );
+    final IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> this.startNativeReleasedMidStart(failure));
     assertSame(failure, thrown);
     final Throwable[] suppressed = thrown.getSuppressed();
     assertEquals(0, suppressed.length);
@@ -659,12 +674,7 @@ final class VideoPlayerManagerTest {
     final IllegalStateException failure = new IllegalStateException("native start!");
     final InternalError fatal = new InternalError("fatal native release!");
     doThrow(fatal).when(this.player).release();
-    final InternalError thrown = assertThrows(InternalError.class, () ->
-      this.manager.startNative(() -> {
-        this.manager.releaseVideoPlayer();
-        throw failure;
-      })
-    );
+    final InternalError thrown = assertThrows(InternalError.class, () -> this.startNativeReleasedMidStart(failure));
     assertSame(fatal, thrown);
     final Throwable[] suppressed = failure.getSuppressed();
     assertEquals(0, suppressed.length);
@@ -688,26 +698,12 @@ final class VideoPlayerManagerTest {
     final CountDownLatch releasingAudio = new CountDownLatch(1);
     final CountDownLatch continueRelease = new CountDownLatch(1);
     final AtomicBoolean first = new AtomicBoolean(true);
-    doAnswer(_ -> {
-      if (first.compareAndSet(true, false)) {
-        releasingAudio.countDown();
-        final boolean ready = continueRelease.await(TIMEOUT_SECONDS, TimeUnit.SECONDS);
-        assertTrue(ready);
-      }
-      return null;
-    })
+    doAnswer(_ -> this.pauseFirstAudioRelease(first, releasingAudio, continueRelease))
       .when(this.provider)
       .releaseAudioFilter();
     final CompletableFuture<Void> finished = new CompletableFuture<>();
     final Thread.Builder.OfVirtual builder = Thread.ofVirtual();
-    final Thread worker = builder.start(() -> {
-      try {
-        this.manager.releaseVideoPlayer();
-        finished.complete(null);
-      } catch (final RuntimeException | Error exception) {
-        finished.completeExceptionally(exception);
-      }
-    });
+    final Thread worker = builder.start(() -> this.releaseAndComplete(finished));
     try {
       final boolean entered = releasingAudio.await(TIMEOUT_SECONDS, TimeUnit.SECONDS);
       assertTrue(entered);
@@ -725,6 +721,28 @@ final class VideoPlayerManagerTest {
     verify(scheduler, never()).callSyncMethod(any(Plugin.class), any());
     verify(this.filter, times(1)).release();
     verify(this.hologram, times(1)).kill();
+  }
+
+  private @Nullable Object pauseFirstAudioRelease(
+    final AtomicBoolean first,
+    final CountDownLatch releasingAudio,
+    final CountDownLatch continueRelease
+  ) throws InterruptedException {
+    if (first.compareAndSet(true, false)) {
+      releasingAudio.countDown();
+      final boolean ready = continueRelease.await(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+      assertTrue(ready);
+    }
+    return null;
+  }
+
+  private void releaseAndComplete(final CompletableFuture<Void> finished) {
+    try {
+      this.manager.releaseVideoPlayer();
+      finished.complete(null);
+    } catch (final RuntimeException | Error exception) {
+      finished.completeExceptionally(exception);
+    }
   }
 
   @Test
@@ -777,14 +795,18 @@ final class VideoPlayerManagerTest {
     this.manager.beginStart();
     this.manager.setPlayer(this.player);
     final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
-    final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () ->
-      this.manager.startNative(() -> {
-        this.manager.releaseVideoPlayer();
-        throw fatal;
-      })
-    );
+    final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () -> this.startNativeReleasedMidStartFatally(fatal));
     assertSame(fatal, thrown);
     verify(this.player, never()).release();
+  }
+
+  private void startNativeReleasedMidStartFatally(final OutOfMemoryError fatal) {
+    this.manager.startNative(() -> this.releaseAndThrowFatal(fatal));
+  }
+
+  private boolean releaseAndThrowFatal(final OutOfMemoryError fatal) {
+    this.manager.releaseVideoPlayer();
+    throw fatal;
   }
 
   @Test

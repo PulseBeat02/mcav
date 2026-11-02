@@ -100,12 +100,14 @@ final class DitheringArgumentTest {
   }
 
   private Thread startCreating(final DitheringArgument argument, final AtomicReference<DitherAlgorithm> result) {
-    final Thread thread = new Thread(() -> {
-      final DitherAlgorithm algorithm = argument.createAlgorithm();
-      result.set(algorithm);
-    });
+    final Thread thread = new Thread(() -> this.createAlgorithmInto(argument, result));
     thread.start();
     return thread;
+  }
+
+  private void createAlgorithmInto(final DitheringArgument argument, final AtomicReference<DitherAlgorithm> result) {
+    final DitherAlgorithm algorithm = argument.createAlgorithm();
+    result.set(algorithm);
   }
 
   @ParameterizedTest

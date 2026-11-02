@@ -201,8 +201,6 @@ public final class BrowserBenchmark {
     final BrowserPlayer player = factory.get();
     final List<Double> first = new ArrayList<>();
     final List<Double> full = new ArrayList<>();
-    int missed = 0;
-    int incomplete = 0;
     try {
       final MapProbe probe = attach(player, size);
       final URI page = server.page(LATENCY_PAGE_NAME);
@@ -217,26 +215,30 @@ public final class BrowserBenchmark {
         final MapProbe.Watch watch = probe.watch(index);
         final long sent = System.nanoTime();
         server.send(color);
-        final boolean shown = watch.awaitFirst(LATENCY_TIMEOUT_MILLISECONDS);
-        if (!shown) {
-          missed++;
-          continue;
-        }
-        first.add((watch.getFirstNanoseconds() - sent) / NANOSECONDS_PER_MILLISECOND);
-        final boolean complete = watch.awaitFull(FULL_TIMEOUT_MILLISECONDS);
-        if (complete) {
-          full.add((watch.getFullNanoseconds() - sent) / NANOSECONDS_PER_MILLISECOND);
-        } else {
-          incomplete++;
-        }
+        recordLatencies(watch, sent, first, full);
       }
     } finally {
       player.release();
     }
+    final int missed = LATENCY_ROUNDS - first.size();
+    final int incomplete = first.size() - full.size();
     final String missedText = missed == 0 ? "" : " (" + missed + " rounds without any packet)";
     final String incompleteText =
       incomplete == 0 ? "" : " (wall incomplete after " + FULL_TIMEOUT_MILLISECONDS + " ms in " + incomplete + " rounds)";
     return describe(first) + RESULT_SEPARATOR + describe(full) + missedText + incompleteText;
+  }
+
+  private static void recordLatencies(final MapProbe.Watch watch, final long sent, final List<Double> first, final List<Double> full)
+    throws InterruptedException {
+    final boolean shown = watch.awaitFirst(LATENCY_TIMEOUT_MILLISECONDS);
+    if (!shown) {
+      return;
+    }
+    first.add((watch.getFirstNanoseconds() - sent) / NANOSECONDS_PER_MILLISECOND);
+    final boolean complete = watch.awaitFull(FULL_TIMEOUT_MILLISECONDS);
+    if (complete) {
+      full.add((watch.getFullNanoseconds() - sent) / NANOSECONDS_PER_MILLISECOND);
+    }
   }
 
   private static void startAndWait(final BrowserPlayer player, final BrowserSource source, final MapProbe probe)

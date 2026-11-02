@@ -182,15 +182,7 @@ final class PaperServerEndToEndTest {
       final String mediaInformation = this.fetchMediaInformation(server, httpPort);
       try (final SoundListener sound = SoundListener.connect(httpPort); final TonePage page = TonePage.start()) {
         this.streamABrowser(server, sound, page);
-        final boolean hasQemu = server
-          .getLines()
-          .stream()
-          .noneMatch(line -> line.contains("QEMU is not installed"));
-        if (hasQemu) {
-          this.runAMachine(server, sound);
-        } else {
-          System.out.println("QEMU is not installed on this machine, so no virtual machine runs");
-        }
+        this.runAMachineWhenQemuIsInstalled(server, sound);
         this.showAVncDesktop(server, vnc);
         this.playThroughMcv2(server, page, gamePort);
       }
@@ -202,6 +194,18 @@ final class PaperServerEndToEndTest {
       assertRanCleanly(exitCode, mediaInformation, output);
       final boolean passwordLogged = output.stream().anyMatch(line -> line.contains(vnc.getPassword()));
       assertFalse(passwordLogged, "the VNC password is never logged");
+    }
+  }
+
+  private void runAMachineWhenQemuIsInstalled(final ServerProcess server, final SoundListener sound) throws InterruptedException {
+    final boolean hasQemu = server
+      .getLines()
+      .stream()
+      .noneMatch(line -> line.contains("QEMU is not installed"));
+    if (hasQemu) {
+      this.runAMachine(server, sound);
+    } else {
+      System.out.println("QEMU is not installed on this machine, so no virtual machine runs");
     }
   }
 

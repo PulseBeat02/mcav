@@ -103,17 +103,17 @@ final class ScreenCommandTest {
   @ValueSource(classes = { IllegalArgumentException.class, IllegalStateException.class })
   void shouldTellTheSenderWhenTheMapIdsCannotBeUsed(final Class<? extends RuntimeException> failureType) {
     try (final MockedStatic<MapUtils> maps = Mockito.mockStatic(MapUtils.class)) {
-      maps
-        .when(() ->
-          MapUtils.buildMapScreen(this.sender, this.location, Material.STONE, SCREEN_WIDTH, SCREEN_HEIGHT, Integer.MAX_VALUE - 20)
-        )
-        .thenThrow(failureType);
+      maps.when(this::buildMapScreenNearTheLargestMapId).thenThrow(failureType);
       this.command.buildScreen(this.sender, SCREEN_SIZE, Integer.MAX_VALUE - 20, Material.STONE, this.location);
     }
     final List<Component> messages = Components.received(this.sender);
     final Component error = Message.UNSUPPORTED_MAP_ID.build();
     final List<Component> expected = List.of(error);
     assertEquals(expected, messages, "the sender is told instead of seeing an internal error");
+  }
+
+  private void buildMapScreenNearTheLargestMapId() {
+    MapUtils.buildMapScreen(this.sender, this.location, Material.STONE, SCREEN_WIDTH, SCREEN_HEIGHT, Integer.MAX_VALUE - 20);
   }
 
   @Test

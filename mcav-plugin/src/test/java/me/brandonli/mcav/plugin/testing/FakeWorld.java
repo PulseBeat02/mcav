@@ -41,6 +41,8 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.ItemFrame;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.mockito.invocation.InvocationOnMock;
 
 /**
  * A world of mocked blocks and entities with real coordinates, for code that walks from block to block and looks
@@ -67,32 +69,42 @@ public final class FakeWorld {
     this.entities = new ArrayList<>();
     this.spawnedFrames = new ArrayList<>();
     when(this.world.getName()).thenReturn("world");
-    when(this.world.getBlockAt(any(Location.class))).thenAnswer(invocation -> {
-      final Location location = invocation.getArgument(0);
-      final int blockX = location.getBlockX();
-      final int blockY = location.getBlockY();
-      final int blockZ = location.getBlockZ();
-      return this.block(blockX, blockY, blockZ);
-    });
-    when(this.world.getBlockAt(anyInt(), anyInt(), anyInt())).thenAnswer(invocation -> {
-      final int blockX = invocation.getArgument(0);
-      final int blockY = invocation.getArgument(1);
-      final int blockZ = invocation.getArgument(2);
-      return this.block(blockX, blockY, blockZ);
-    });
-    when(this.world.getNearbyEntities(any(Location.class), anyDouble(), anyDouble(), anyDouble())).thenAnswer(invocation -> {
-      final Location center = invocation.getArgument(0);
-      final double radiusX = invocation.getArgument(1);
-      final double radiusY = invocation.getArgument(2);
-      final double radiusZ = invocation.getArgument(3);
-      return this.findNearbyEntities(center, radiusX, radiusY, radiusZ);
-    });
-    when(this.world.spawn(any(Location.class), eq(ItemFrame.class))).thenAnswer(invocation -> {
-      final Location location = invocation.getArgument(0);
-      final ItemFrame frame = this.frame(location, BlockFace.SOUTH);
-      this.spawnedFrames.add(frame);
-      return frame;
-    });
+    when(this.world.getBlockAt(any(Location.class))).thenAnswer(this::findBlockAtLocation);
+    when(this.world.getBlockAt(anyInt(), anyInt(), anyInt())).thenAnswer(this::findBlockAtCoordinates);
+    when(this.world.getNearbyEntities(any(Location.class), anyDouble(), anyDouble(), anyDouble())).thenAnswer(
+      this::findEntitiesNearLocation
+    );
+    when(this.world.spawn(any(Location.class), eq(ItemFrame.class))).thenAnswer(this::spawnFrame);
+  }
+
+  private Block findBlockAtLocation(final InvocationOnMock invocation) {
+    final Location location = invocation.getArgument(0);
+    final int blockX = location.getBlockX();
+    final int blockY = location.getBlockY();
+    final int blockZ = location.getBlockZ();
+    return this.block(blockX, blockY, blockZ);
+  }
+
+  private Block findBlockAtCoordinates(final InvocationOnMock invocation) {
+    final int blockX = invocation.getArgument(0);
+    final int blockY = invocation.getArgument(1);
+    final int blockZ = invocation.getArgument(2);
+    return this.block(blockX, blockY, blockZ);
+  }
+
+  private Collection<Entity> findEntitiesNearLocation(final InvocationOnMock invocation) {
+    final Location center = invocation.getArgument(0);
+    final double radiusX = invocation.getArgument(1);
+    final double radiusY = invocation.getArgument(2);
+    final double radiusZ = invocation.getArgument(3);
+    return this.findNearbyEntities(center, radiusX, radiusY, radiusZ);
+  }
+
+  private ItemFrame spawnFrame(final InvocationOnMock invocation) {
+    final Location location = invocation.getArgument(0);
+    final ItemFrame frame = this.frame(location, BlockFace.SOUTH);
+    this.spawnedFrames.add(frame);
+    return frame;
   }
 
   /**
@@ -137,24 +149,32 @@ public final class FakeWorld {
     when(block.getZ()).thenReturn(blockZ);
     when(block.getWorld()).thenReturn(this.world);
     when(block.getLocation()).thenAnswer(_ -> this.location(blockX, blockY, blockZ));
-    when(block.getRelative(any(BlockFace.class))).thenAnswer(invocation -> {
-      final BlockFace face = invocation.getArgument(0);
-      return this.relative(blockX, blockY, blockZ, face, 1);
-    });
-    when(block.getRelative(any(BlockFace.class), anyInt())).thenAnswer(invocation -> {
-      final BlockFace face = invocation.getArgument(0);
-      final int distance = invocation.getArgument(1);
-      return this.relative(blockX, blockY, blockZ, face, distance);
-    });
+    when(block.getRelative(any(BlockFace.class))).thenAnswer(invocation -> this.findRelativeBlock(invocation, blockX, blockY, blockZ));
+    when(block.getRelative(any(BlockFace.class), anyInt())).thenAnswer(invocation ->
+      this.findRelativeBlockAtDistance(invocation, blockX, blockY, blockZ)
+    );
     when(block.getType()).thenAnswer(_ -> this.materials.getOrDefault(block, Material.AIR));
-    doAnswer(invocation -> {
-      final Material material = invocation.getArgument(0);
-      this.materials.put(block, material);
-      return null;
-    })
+    doAnswer(invocation -> this.setMaterial(invocation, block))
       .when(block)
       .setType(any(Material.class));
     return block;
+  }
+
+  private Block findRelativeBlock(final InvocationOnMock invocation, final int blockX, final int blockY, final int blockZ) {
+    final BlockFace face = invocation.getArgument(0);
+    return this.relative(blockX, blockY, blockZ, face, 1);
+  }
+
+  private Block findRelativeBlockAtDistance(final InvocationOnMock invocation, final int blockX, final int blockY, final int blockZ) {
+    final BlockFace face = invocation.getArgument(0);
+    final int distance = invocation.getArgument(1);
+    return this.relative(blockX, blockY, blockZ, face, distance);
+  }
+
+  private @Nullable Object setMaterial(final InvocationOnMock invocation, final Block block) {
+    final Material material = invocation.getArgument(0);
+    this.materials.put(block, material);
+    return null;
   }
 
   private Block relative(final int blockX, final int blockY, final int blockZ, final BlockFace face, final int distance) {
@@ -197,22 +217,11 @@ public final class FakeWorld {
     final ItemFrame frame = mock(ItemFrame.class);
     final Map<NamespacedKey, Object> data = new HashMap<>();
     final PersistentDataContainer container = mock(PersistentDataContainer.class);
-    doAnswer(invocation -> {
-      final NamespacedKey key = invocation.getArgument(0);
-      final Object value = invocation.getArgument(2);
-      data.put(key, value);
-      return null;
-    })
+    doAnswer(invocation -> this.storeData(invocation, data))
       .when(container)
       .set(any(NamespacedKey.class), any(), any());
-    when(container.has(any(NamespacedKey.class), eq(PersistentDataType.BOOLEAN))).thenAnswer(invocation -> {
-      final NamespacedKey key = invocation.getArgument(0);
-      return data.containsKey(key);
-    });
-    when(container.get(any(NamespacedKey.class), eq(PersistentDataType.STRING))).thenAnswer(invocation -> {
-      final NamespacedKey key = invocation.getArgument(0);
-      return data.get(key);
-    });
+    when(container.has(any(NamespacedKey.class), eq(PersistentDataType.BOOLEAN))).thenAnswer(invocation -> this.hasData(invocation, data));
+    when(container.get(any(NamespacedKey.class), eq(PersistentDataType.STRING))).thenAnswer(invocation -> this.readData(invocation, data));
     when(frame.getPersistentDataContainer()).thenReturn(container);
     when(frame.getLocation()).thenAnswer(_ -> location.clone());
     when(frame.getWorld()).thenReturn(this.world);
@@ -221,6 +230,23 @@ public final class FakeWorld {
     when(frame.getAttachedFace()).thenReturn(attached);
     when(frame.getRotation()).thenReturn(Rotation.NONE);
     return frame;
+  }
+
+  private @Nullable Object storeData(final InvocationOnMock invocation, final Map<NamespacedKey, Object> data) {
+    final NamespacedKey key = invocation.getArgument(0);
+    final Object value = invocation.getArgument(2);
+    data.put(key, value);
+    return null;
+  }
+
+  private boolean hasData(final InvocationOnMock invocation, final Map<NamespacedKey, Object> data) {
+    final NamespacedKey key = invocation.getArgument(0);
+    return data.containsKey(key);
+  }
+
+  private @Nullable Object readData(final InvocationOnMock invocation, final Map<NamespacedKey, Object> data) {
+    final NamespacedKey key = invocation.getArgument(0);
+    return data.get(key);
   }
 
   /**

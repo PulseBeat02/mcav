@@ -160,16 +160,21 @@ final class ServerProcess implements AutoCloseable {
     final long timeoutNanoseconds = timeout.toNanos();
     final long deadline = startNanoseconds + timeoutNanoseconds;
     synchronized (this.lines) {
-      int nextLine = fromLine;
-      while (true) {
-        final int lineCount = this.lines.size();
-        final Optional<String> match = this.findMatch(nextLine, lineCount, matcher);
-        if (match.isPresent()) {
-          return match.get();
-        }
-        nextLine = lineCount;
-        this.waitForMoreOutput(deadline, timeout);
+      return this.awaitLineUntil(fromLine, matcher, deadline, timeout);
+    }
+  }
+
+  private String awaitLineUntil(final int fromLine, final Predicate<String> matcher, final long deadline, final Duration timeout)
+    throws InterruptedException {
+    int nextLine = fromLine;
+    while (true) {
+      final int lineCount = this.lines.size();
+      final Optional<String> match = this.findMatch(nextLine, lineCount, matcher);
+      if (match.isPresent()) {
+        return match.get();
       }
+      nextLine = lineCount;
+      this.waitForMoreOutput(deadline, timeout);
     }
   }
 

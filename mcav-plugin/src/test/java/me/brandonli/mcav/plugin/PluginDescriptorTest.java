@@ -94,17 +94,21 @@ final class PluginDescriptorTest {
       } catch (final ClassNotFoundException exception) {
         throw new IllegalStateException(exception);
       }
-      for (final Method method : type.getDeclaredMethods()) {
-        final Permission permission = method.getAnnotation(Permission.class);
-        if (permission != null) {
-          checked.addAll(List.of(permission.value()));
-        }
-      }
+      this.addCheckedPermissions(type, checked);
     }
 
     final boolean empty = checked.isEmpty();
     assertFalse(empty, "the commands check permissions");
 
     return checked;
+  }
+
+  private void addCheckedPermissions(final Class<?> type, final Set<String> checked) {
+    for (final Method method : type.getDeclaredMethods()) {
+      final Permission permission = method.getAnnotation(Permission.class);
+      if (permission != null) {
+        checked.addAll(List.of(permission.value()));
+      }
+    }
   }
 }

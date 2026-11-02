@@ -415,7 +415,7 @@ final class AnnotationParserHandlerTest {
     final IllegalStateException failure = new IllegalStateException("listener registration failed!");
     try (
       final MockedConstruction<BrowserCommand> browsers = Mockito.mockConstruction(BrowserCommand.class, (browser, _) ->
-        Mockito.doThrow(failure).when(browser).registerFeature(any())
+        this.failFeatureRegistration(browser, failure)
       );
       final MockedConstruction<VirtualizeCommand> machines = Mockito.mockConstruction(VirtualizeCommand.class)
     ) {
@@ -432,16 +432,19 @@ final class AnnotationParserHandlerTest {
     }
   }
 
+  private void failFeatureRegistration(final BrowserCommand browser, final Throwable failure) {
+    Mockito.doThrow(failure).when(browser).registerFeature(any());
+  }
+
   @ParameterizedTest
   @ValueSource(booleans = { false, true })
   void shouldKeepTheRegistrationFailurePrimaryWhenRollbackAlsoFails(final boolean sameFailure) {
     final IllegalStateException primary = new IllegalStateException("registration failed!");
     final RuntimeException cleanup = sameFailure ? primary : new IllegalArgumentException("browser cleanup failed!");
     try (
-      final MockedConstruction<BrowserCommand> browsers = Mockito.mockConstruction(BrowserCommand.class, (browser, context) -> {
-        Mockito.doThrow(primary).when(browser).registerFeature(any());
-        Mockito.doThrow(cleanup).when(browser).shutdown();
-      });
+      final MockedConstruction<BrowserCommand> browsers = Mockito.mockConstruction(BrowserCommand.class, (browser, context) ->
+        this.failRegistrationAndShutdown(browser, primary, cleanup)
+      );
       final MockedConstruction<VirtualizeCommand> machines = Mockito.mockConstruction(VirtualizeCommand.class)
     ) {
       final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
@@ -460,12 +463,17 @@ final class AnnotationParserHandlerTest {
     }
   }
 
+  private void failRegistrationAndShutdown(final BrowserCommand browser, final IllegalStateException primary, final Throwable cleanup) {
+    Mockito.doThrow(primary).when(browser).registerFeature(any());
+    Mockito.doThrow(cleanup).when(browser).shutdown();
+  }
+
   @Test
   void shouldShutLaterFeaturesDownEvenWhenAnEarlierFeatureFails() {
     final IllegalStateException failure = new IllegalStateException("browser cleanup failed!");
     try (
       final MockedConstruction<BrowserCommand> browsers = Mockito.mockConstruction(BrowserCommand.class, (browser, _) ->
-        Mockito.doThrow(failure).when(browser).shutdown()
+        this.failShutdown(browser, failure)
       );
       final MockedConstruction<VirtualizeCommand> machines = Mockito.mockConstruction(VirtualizeCommand.class)
     ) {
@@ -480,6 +488,10 @@ final class AnnotationParserHandlerTest {
       verify(browser, Mockito.times(1)).shutdown();
       verify(machine, Mockito.times(1)).shutdown();
     }
+  }
+
+  private void failShutdown(final BrowserCommand browser, final IllegalStateException failure) {
+    Mockito.doThrow(failure).when(browser).shutdown();
   }
 
   @Test
@@ -504,7 +516,7 @@ final class AnnotationParserHandlerTest {
     final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
     try (
       final MockedConstruction<BrowserCommand> browsers = Mockito.mockConstruction(BrowserCommand.class, (browser, _) ->
-        Mockito.doThrow(fatal).when(browser).registerFeature(any())
+        this.failFeatureRegistration(browser, fatal)
       );
       final MockedConstruction<VirtualizeCommand> machines = Mockito.mockConstruction(VirtualizeCommand.class)
     ) {
@@ -525,10 +537,9 @@ final class AnnotationParserHandlerTest {
     final IllegalStateException primary = new IllegalStateException("registration failed!");
     final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
     try (
-      final MockedConstruction<BrowserCommand> browsers = Mockito.mockConstruction(BrowserCommand.class, (browser, _) -> {
-        Mockito.doThrow(primary).when(browser).registerFeature(any());
-        Mockito.doThrow(fatal).when(browser).shutdown();
-      });
+      final MockedConstruction<BrowserCommand> browsers = Mockito.mockConstruction(BrowserCommand.class, (browser, _) ->
+        this.failRegistrationAndShutdown(browser, primary, fatal)
+      );
       final MockedConstruction<VirtualizeCommand> machines = Mockito.mockConstruction(VirtualizeCommand.class)
     ) {
       final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);

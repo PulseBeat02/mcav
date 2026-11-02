@@ -48,6 +48,7 @@ import me.brandonli.mcav.plugin.utils.MapCodec;
 import me.brandonli.mcav.plugin.utils.Mcv2Hosting;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -57,6 +58,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
 
 /**
  * Tests {@link PluginDataConfigurationMapper}.
@@ -169,16 +171,16 @@ final class PluginDataConfigurationMapperTest {
   }
 
   private void saveBundledResources() {
-    doAnswer(invocation -> {
-      final String name = invocation.getArgument(0);
-      final Path target = this.folder.resolve(name);
-      try (final InputStream stream = IoUtils.getResourceAsStream(name)) {
-        Files.copy(stream, target);
-      }
-      return null;
-    })
-      .when(this.plugin)
-      .saveResource(anyString(), anyBoolean());
+    doAnswer(this::copyResource).when(this.plugin).saveResource(anyString(), anyBoolean());
+  }
+
+  private @Nullable Object copyResource(final InvocationOnMock invocation) throws IOException {
+    final String name = invocation.getArgument(0);
+    final Path target = this.folder.resolve(name);
+    try (final InputStream stream = IoUtils.getResourceAsStream(name)) {
+      Files.copy(stream, target);
+    }
+    return null;
   }
 
   @Test
