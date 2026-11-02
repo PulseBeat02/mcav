@@ -41,8 +41,9 @@ final class IrisShadersTest {
   @Test
   void shouldReportNoShaderPackAndTouchNothingOfIrisWithoutIris() {
     try (final MockedStatic<IrisApi> iris = mockStatic(IrisApi.class)) {
-      final Mcv2Report report = new IrisShaders(IRIS_MISSING, () -> true).report();
-      assertEquals(Mcv2Report.of(IRIS_MISSING, ShaderPack.NONE, DOES_NOT_DECODE), report);
+      final Mcv2Report report = new IrisShaders(IRIS_MISSING, () -> true).createReport();
+      final Mcv2Report expected = Mcv2Report.of(IRIS_MISSING, ShaderPack.NONE, DOES_NOT_DECODE);
+      assertEquals(expected, report);
       iris.verifyNoInteractions();
     }
   }
@@ -54,11 +55,13 @@ final class IrisShadersTest {
       iris.when(IrisApi::getInstance).thenReturn(api);
       final IrisShaders shaders = new IrisShaders(IRIS_INSTALLED, () -> false);
       when(api.isShaderPackInUse()).thenReturn(true);
-      final Mcv2Report reportWithShaderPack = shaders.report();
-      assertEquals(Mcv2Report.of(IRIS_INSTALLED, ShaderPack.IN_USE, DOES_NOT_DECODE), reportWithShaderPack);
+      final Mcv2Report reportWithShaderPack = shaders.createReport();
+      final Mcv2Report expectedReportWithShaderPack = Mcv2Report.of(IRIS_INSTALLED, ShaderPack.IN_USE, DOES_NOT_DECODE);
+      assertEquals(expectedReportWithShaderPack, reportWithShaderPack);
       when(api.isShaderPackInUse()).thenReturn(false);
-      final Mcv2Report reportWithoutShaderPack = shaders.report();
-      assertEquals(Mcv2Report.of(IRIS_INSTALLED, ShaderPack.NONE, DOES_NOT_DECODE), reportWithoutShaderPack);
+      final Mcv2Report reportWithoutShaderPack = shaders.createReport();
+      final Mcv2Report expectedReportWithoutShaderPack = Mcv2Report.of(IRIS_INSTALLED, ShaderPack.NONE, DOES_NOT_DECODE);
+      assertEquals(expectedReportWithoutShaderPack, reportWithoutShaderPack);
     }
   }
 
@@ -70,15 +73,18 @@ final class IrisShadersTest {
       iris.when(IrisApi::getInstance).thenReturn(api);
       final IrisShaders shaders = new IrisShaders(IRIS_INSTALLED, decodes::get);
       when(api.isShaderPackInUse()).thenReturn(true);
-      final Mcv2Report reportWhileDecoding = shaders.report();
-      assertEquals(Mcv2Report.of(IRIS_INSTALLED, ShaderPack.IN_USE, DECODES), reportWhileDecoding);
+      final Mcv2Report reportWhileDecoding = shaders.createReport();
+      final Mcv2Report expectedReportWhileDecoding = Mcv2Report.of(IRIS_INSTALLED, ShaderPack.IN_USE, DECODES);
+      assertEquals(expectedReportWhileDecoding, reportWhileDecoding);
       decodes.set(false);
-      final Mcv2Report reportWhileNotDecoding = shaders.report();
-      assertEquals(Mcv2Report.of(IRIS_INSTALLED, ShaderPack.IN_USE, DOES_NOT_DECODE), reportWhileNotDecoding);
+      final Mcv2Report reportWhileNotDecoding = shaders.createReport();
+      final Mcv2Report expectedReportWhileNotDecoding = Mcv2Report.of(IRIS_INSTALLED, ShaderPack.IN_USE, DOES_NOT_DECODE);
+      assertEquals(expectedReportWhileNotDecoding, reportWhileNotDecoding);
       decodes.set(true);
       when(api.isShaderPackInUse()).thenReturn(false);
-      final Mcv2Report reportWithoutShaderPack = shaders.report();
-      assertEquals(Mcv2Report.of(IRIS_INSTALLED, ShaderPack.NONE, DOES_NOT_DECODE), reportWithoutShaderPack, "nothing to decode under");
+      final Mcv2Report reportWithoutShaderPack = shaders.createReport();
+      final Mcv2Report expectedReportWithoutShaderPack = Mcv2Report.of(IRIS_INSTALLED, ShaderPack.NONE, DOES_NOT_DECODE);
+      assertEquals(expectedReportWithoutShaderPack, reportWithoutShaderPack, "nothing to decode under");
     }
   }
 
@@ -103,10 +109,11 @@ final class IrisShadersTest {
     try (final MockedStatic<IrisApi> iris = mockStatic(IrisApi.class)) {
       iris.when(IrisApi::getInstance).thenThrow(new NoClassDefFoundError("net/irisshaders/iris/api/v0/IrisApi"));
       final IrisShaders shaders = new IrisShaders(IRIS_INSTALLED, () -> false);
-      final Mcv2Report firstReport = shaders.report();
-      final Mcv2Report secondReport = shaders.report();
-      assertEquals(Mcv2Report.of(IRIS_INSTALLED, ShaderPack.UNKNOWN, DOES_NOT_DECODE), firstReport);
-      assertEquals(Mcv2Report.of(IRIS_INSTALLED, ShaderPack.UNKNOWN, DOES_NOT_DECODE), secondReport);
+      final Mcv2Report firstReport = shaders.createReport();
+      final Mcv2Report secondReport = shaders.createReport();
+      final Mcv2Report expected = Mcv2Report.of(IRIS_INSTALLED, ShaderPack.UNKNOWN, DOES_NOT_DECODE);
+      assertEquals(expected, firstReport);
+      assertEquals(expected, secondReport);
       iris.verify(IrisApi::getInstance, times(1));
     }
   }
@@ -117,8 +124,9 @@ final class IrisShadersTest {
     when(api.isShaderPackInUse()).thenThrow(new AbstractMethodError("isShaderPackInUse"));
     try (final MockedStatic<IrisApi> iris = mockStatic(IrisApi.class)) {
       iris.when(IrisApi::getInstance).thenReturn(api);
-      final Mcv2Report report = new IrisShaders(IRIS_INSTALLED, () -> false).report();
-      assertEquals(Mcv2Report.of(IRIS_INSTALLED, ShaderPack.UNKNOWN, DOES_NOT_DECODE), report);
+      final Mcv2Report report = new IrisShaders(IRIS_INSTALLED, () -> false).createReport();
+      final Mcv2Report expected = Mcv2Report.of(IRIS_INSTALLED, ShaderPack.UNKNOWN, DOES_NOT_DECODE);
+      assertEquals(expected, report);
     }
   }
 }

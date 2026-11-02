@@ -44,13 +44,10 @@ final class TransportStrip {
 
   private static final int LOWEST_BIT_MASK = 1;
 
-  private static final int SYMBOL_BITS = 6;
-
   private static final int SYMBOLS_PER_PIXEL = 4;
 
   // a page header's stream id and page number: bits 64 to 95 and 128 to 143 of its symbol stream
   private static final int STREAM_BIT = 64;
-
   private static final int NUMBER_BIT = 128;
 
   private static final int HALF_WORD = 16;
@@ -66,18 +63,24 @@ final class TransportStrip {
 
   private static final int PIXELS_PER_FLOAT = 2;
 
-  private static final int FLOATS = 28;
+  private static final int DESCRIPTOR_FLOATS = 28;
 
-  private static final int ORIGIN = 0;
-  private static final int RIGHT = 4;
-  private static final int DOWN = 8;
-  private static final int PROJECTION = 12;
+  private static final int ORIGIN_OFFSET = 0;
+  private static final int RIGHT_OFFSET = 4;
+  private static final int DOWN_OFFSET = 8;
+  private static final int PROJECTION_OFFSET = 12;
 
   private static final int W_COMPONENT = 3;
 
-  private static final int MATRIX = 16;
-
   private static final int ANCHOR_INDEX_STRIDE = 64;
+
+  private static final float RIGHT_Y = 0F;
+
+  private static final float DOWN_X = 0F;
+  private static final float DOWN_Y = -1F;
+  private static final float DOWN_Z = 0F;
+
+  private static final int MATRIX_START = 0;
 
   private static final int AXES = 3;
 
@@ -91,7 +94,8 @@ final class TransportStrip {
   private static final int NORTH = 3;
 
   private TransportStrip() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   // the first anchor of each screen describes it; matrices are column-major
@@ -103,54 +107,73 @@ final class TransportStrip {
     final float[] viewRotation,
     final float[] projection
   ) {
-    final byte[] strip = new byte[layout.stripRows(width) * width * CHANNELS];
+    final int stripRows = layout.getStripRows(width);
+    final byte[] strip = new byte[stripRows * width * CHANNELS];
     for (final byte[] page : pages) {
       writePage(strip, layout, width, page);
     }
-    final boolean[] described = new boolean[layout.screens()];
+
+    final int screenCount = layout.getScreenCount();
+    final int pageRows = layout.getTotalSlots() * PackLayout.getRowsPerPage(width);
+    final boolean[] described = new boolean[screenCount];
     for (final StripAnchor anchor : anchors) {
-      final int screen = layout.screenOf(anchor.getStream());
+      final long stream = anchor.getStream();
+      final int screen = layout.findScreen(stream);
       if (screen != PackLayout.NO_SCREEN && !described[screen]) {
         described[screen] = true;
-        writeDescriptor(strip, (layout.totalSlots() * PackLayout.rowsPerPage(width) + screen) * width, anchor, viewRotation, projection);
+        final int descriptorStart = (pageRows + screen) * width;
+        writeDescriptor(strip, descriptorStart, anchor, viewRotation, projection);
       }
     }
+
     return strip;
   }
 
   // least significant first
-  static int bits(final byte[] colours, final int bit, final int count) {
+  static int readBits(final byte[] colors, final int bit, final int count) {
     int value = 0;
     for (int index = 0; index < count; index++) {
       final int at = bit + index;
-      final int symbol = symbolOrZero(colours, at / SYMBOL_BITS);
-      value |= ((symbol >> (at % SYMBOL_BITS)) & LOWEST_BIT_MASK) << index;
+      final int symbol = symbolOrZero(colors, at / Mcv2Maps.SYMBOL_BITS);
+      final int symbolBit = (symbol >> (at % Mcv2Maps.SYMBOL_BITS)) & LOWEST_BIT_MASK;
+      value |= symbolBit << index;
     }
+
     return value;
   }
 
-  // a colour outside the alphabet reads as 0, as in the shader
-  private static int symbolOrZero(final byte[] colours, final int index) {
-    final int symbol = Mcv2Maps.symbol(colours, index);
+  // a color outside the alphabet reads as 0, as in the shader
+  private static int symbolOrZero(final byte[] colors, final int index) {
+    final int symbol = Mcv2Maps.symbol(colors, index);
     return Math.max(symbol, 0);
   }
 
   private static void writePage(final byte[] strip, final PackLayout layout, final int width, final byte[] page) {
-    final long stream = bits(page, STREAM_BIT, HALF_WORD) | ((long) bits(page, STREAM_BIT + HALF_WORD, HALF_WORD) << HALF_WORD);
-    final int screen = layout.screenOf(stream);
-    final int number = bits(page, NUMBER_BIT, HALF_WORD);
-    if (screen == PackLayout.NO_SCREEN || number >= layout.slots(screen)) {
+    final long streamLow = readBits(page, STREAM_BIT, HALF_WORD);
+    final long streamHigh = readBits(page, STREAM_BIT + HALF_WORD, HALF_WORD);
+    final long stream = streamLow | (streamHigh << HALF_WORD);
+    final int screen = layout.findScreen(stream);
+    final int number = readBits(page, NUMBER_BIT, HALF_WORD);
+    if (screen == PackLayout.NO_SCREEN || number >= layout.getSlotCount(screen)) {
       return;
     }
 
-    final int first = (layout.firstSlot(screen) + number) * PackLayout.rowsPerPage(width) * width;
+    final int firstPixel = (layout.getFirstSlot(screen) + number) * PackLayout.getRowsPerPage(width) * width;
     for (int pixel = 0; pixel < PackLayout.PAGE_PIXELS; pixel++) {
       int word = 0;
       for (int index = 0; index < SYMBOLS_PER_PIXEL; index++) {
-        word |= symbolOrZero(page, pixel * SYMBOLS_PER_PIXEL + index) << (SYMBOL_BITS * index);
+        final int symbol = symbolOrZero(page, pixel * SYMBOLS_PER_PIXEL + index);
+        word |= symbol << (Mcv2Maps.SYMBOL_BITS * index);
       }
-      put(strip, first + pixel, word & BYTE_MASK, (word >> SECOND_BYTE_SHIFT) & BYTE_MASK, word >> THIRD_BYTE_SHIFT);
+      writeLowBytes(strip, firstPixel + pixel, word);
     }
+  }
+
+  private static void writeLowBytes(final byte[] strip, final int pixel, final int value) {
+    final int red = value & BYTE_MASK;
+    final int green = (value >> SECOND_BYTE_SHIFT) & BYTE_MASK;
+    final int blue = (value >> THIRD_BYTE_SHIFT) & BYTE_MASK;
+    writePixel(strip, pixel, red, green, blue);
   }
 
   private static void writeDescriptor(
@@ -160,31 +183,38 @@ final class TransportStrip {
     final float[] viewRotation,
     final float[] projection
   ) {
-    final float[] floats = descriptorFloats(anchor, viewRotation, projection);
+    final float[] floats = computeDescriptorFloats(anchor, viewRotation, projection);
     writeSignature(strip, start);
     writeFloats(strip, start, floats);
   }
 
-  private static float[] descriptorFloats(final StripAnchor anchor, final float[] viewRotation, final float[] projection) {
-    final float[] corner = transform(viewRotation, anchor.getCornerX(), anchor.getCornerY(), anchor.getCornerZ(), POINT_W);
-    final float[] right = transform(viewRotation, rightX(anchor.getFacing()), 0, rightZ(anchor.getFacing()), DIRECTION_W);
-    final float[] down = transform(viewRotation, 0, -1, 0, DIRECTION_W);
-    final float[] floats = new float[FLOATS];
+  private static float[] computeDescriptorFloats(final StripAnchor anchor, final float[] viewRotation, final float[] projection) {
+    final float cornerX = anchor.getCornerX();
+    final float cornerY = anchor.getCornerY();
+    final float cornerZ = anchor.getCornerZ();
+    final int facing = anchor.getFacing();
+    final int column = anchor.getColumn();
+    final int row = anchor.getRow();
+    final float[] corner = transform(viewRotation, cornerX, cornerY, cornerZ, POINT_W);
+    final float[] right = transform(viewRotation, rightX(facing), RIGHT_Y, rightZ(facing), DIRECTION_W);
+    final float[] down = transform(viewRotation, DOWN_X, DOWN_Y, DOWN_Z, DIRECTION_W);
+    final float[] floats = new float[DESCRIPTOR_FLOATS];
     for (int axis = 0; axis < AXES; axis++) {
-      floats[ORIGIN + axis] = corner[axis] - anchor.getColumn() * right[axis] - anchor.getRow() * down[axis];
-      floats[RIGHT + axis] = right[axis];
-      floats[DOWN + axis] = down[axis];
+      floats[ORIGIN_OFFSET + axis] = corner[axis] - column * right[axis] - row * down[axis];
+      floats[RIGHT_OFFSET + axis] = right[axis];
+      floats[DOWN_OFFSET + axis] = down[axis];
     }
-    floats[ORIGIN + W_COMPONENT] = anchor.getColumns();
-    floats[RIGHT + W_COMPONENT] = anchor.getRows();
-    floats[DOWN + W_COMPONENT] = anchor.getColumn() * ANCHOR_INDEX_STRIDE + anchor.getRow();
-    System.arraycopy(projection, 0, floats, PROJECTION, MATRIX);
+
+    floats[ORIGIN_OFFSET + W_COMPONENT] = anchor.getColumns();
+    floats[RIGHT_OFFSET + W_COMPONENT] = anchor.getRows();
+    floats[DOWN_OFFSET + W_COMPONENT] = column * ANCHOR_INDEX_STRIDE + row;
+    System.arraycopy(projection, MATRIX_START, floats, PROJECTION_OFFSET, GameMatrices.FLOATS_PER_MATRIX);
     return floats;
   }
 
   private static void writeSignature(final byte[] strip, final int start) {
-    put(strip, start, SIGNATURE_RED, SIGNATURE_GREEN, SIGNATURE_BLUE);
-    put(strip, start + 1, VERSION, 0, 0);
+    writePixel(strip, start, SIGNATURE_RED, SIGNATURE_GREEN, SIGNATURE_BLUE);
+    writePixel(strip, start + 1, VERSION, 0, 0);
   }
 
   private static void writeFloats(final byte[] strip, final int start, final float[] floats) {
@@ -195,18 +225,18 @@ final class TransportStrip {
 
   private static void writeFloatPixel(final byte[] strip, final int start, final int pixel, final float[] floats) {
     final int index = (pixel - FIRST_FLOAT_PIXEL) / PIXELS_PER_FLOAT;
-    if (index >= FLOATS) {
-      put(strip, start + pixel, 0, 0, 0);
+    if (index >= DESCRIPTOR_FLOATS) {
+      writePixel(strip, start + pixel, 0, 0, 0);
       return;
     }
 
     final int bits = Float.floatToRawIntBits(floats[index]);
     if (pixel % PIXELS_PER_FLOAT == 0) {
-      put(strip, start + pixel, bits & BYTE_MASK, (bits >> SECOND_BYTE_SHIFT) & BYTE_MASK, (bits >> THIRD_BYTE_SHIFT) & BYTE_MASK);
+      writeLowBytes(strip, start + pixel, bits);
       return;
     }
 
-    put(strip, start + pixel, bits >>> HIGH_BYTE_SHIFT, 0, 0);
+    writePixel(strip, start + pixel, bits >>> HIGH_BYTE_SHIFT, 0, 0);
   }
 
   // one block along a map's right edge, by facing: east, south, west, north
@@ -236,10 +266,11 @@ final class TransportStrip {
         matrix[THIRD_COLUMN + row] * vectorZ +
         matrix[FOURTH_COLUMN + row] * vectorW;
     }
+
     return transformed;
   }
 
-  private static void put(final byte[] strip, final int pixel, final int red, final int green, final int blue) {
+  private static void writePixel(final byte[] strip, final int pixel, final int red, final int green, final int blue) {
     final int at = pixel * CHANNELS;
     strip[at + RED_OFFSET] = (byte) red;
     strip[at + GREEN_OFFSET] = (byte) green;

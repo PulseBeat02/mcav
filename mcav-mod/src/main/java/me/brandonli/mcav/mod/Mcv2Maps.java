@@ -17,15 +17,16 @@
  */
 package me.brandonli.mcav.mod;
 
-// tells MCV2's maps apart by their first symbols, as the pack's text shader does; symbol s is map colour s + 4
+// tells MCV2's maps apart by their first symbols, as the pack's text shader does; symbol s is map color s + 4
 final class Mcv2Maps {
 
-  static final int COLOURS = 128 * 128;
+  static final int COLORS = 128 * 128;
 
   static final int NOT_A_SYMBOL = -1;
 
-  private static final int FIRST_SYMBOL_COLOUR = 4;
+  private static final int FIRST_SYMBOL_COLOR = 4;
 
+  static final int SYMBOL_BITS = 6;
   private static final int SYMBOLS = 64;
 
   // "MCP1", version 1 and six bits, in six-bit symbols
@@ -42,40 +43,46 @@ final class Mcv2Maps {
   private static final int LAST_FACING = 3;
 
   private Mcv2Maps() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
-  static int symbol(final byte[] colours, final int index) {
-    final int symbol = Byte.toUnsignedInt(colours[index]) - FIRST_SYMBOL_COLOUR;
+  static int symbol(final byte[] colors, final int index) {
+    final int symbol = Byte.toUnsignedInt(colors[index]) - FIRST_SYMBOL_COLOR;
     return symbol >= 0 && symbol < SYMBOLS ? symbol : NOT_A_SYMBOL;
   }
 
-  static boolean isPage(final byte[] colours) {
-    return colours.length == COLOURS && starts(colours, PAGE_PREFIX);
+  static boolean isPage(final byte[] colors) {
+    return colors.length == COLORS && starts(colors, PAGE_PREFIX);
   }
 
-  static boolean isAnchor(final byte[] colours) {
-    if (colours.length != COLOURS || !starts(colours, ANCHOR_SIGNATURE)) {
+  static boolean isAnchor(final byte[] colors) {
+    if (colors.length != COLORS || !starts(colors, ANCHOR_SIGNATURE)) {
       return false;
     }
 
     int sum = 0;
     for (int index = FIRST_FIELD; index < CHECKSUM; index++) {
-      final int field = symbol(colours, index);
+      final int field = symbol(colors, index);
       if (field == NOT_A_SYMBOL) {
         return false;
       }
       sum += field;
     }
-    return (sum & (SYMBOLS - 1)) == symbol(colours, CHECKSUM) && symbol(colours, FACING) <= LAST_FACING;
+
+    final int checksum = symbol(colors, CHECKSUM);
+    final boolean checksumMatches = (sum & (SYMBOLS - 1)) == checksum;
+    final int facing = symbol(colors, FACING);
+    return checksumMatches && facing <= LAST_FACING;
   }
 
-  private static boolean starts(final byte[] colours, final int[] prefix) {
+  private static boolean starts(final byte[] colors, final int[] prefix) {
     for (int index = 0; index < prefix.length; index++) {
-      if (symbol(colours, index) != prefix[index]) {
+      if (symbol(colors, index) != prefix[index]) {
         return false;
       }
     }
+
     return true;
   }
 }

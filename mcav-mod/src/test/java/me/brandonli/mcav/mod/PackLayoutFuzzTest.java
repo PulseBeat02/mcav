@@ -52,7 +52,8 @@ final class PackLayoutFuzzTest {
 
     final Optional<PackLayout> layout = PackLayout.parse(packConstants);
     final boolean valid = this.isValid(streams, slots, firstSlots);
-    assertEquals(valid, layout.isPresent());
+    final boolean layoutFound = layout.isPresent();
+    assertEquals(valid, layoutFound);
 
     layout.ifPresent(parsed -> this.assertLayout(parsed, streams, slots));
   }
@@ -62,7 +63,7 @@ final class PackLayoutFuzzTest {
     final String packConstants = data.consumeRemainingAsString();
 
     final Optional<PackLayout> layout = PackLayout.parse(packConstants);
-    final boolean screensInRange = layout.map(PackLayout::screens).map(this::isScreenCountInRange).orElse(true);
+    final boolean screensInRange = layout.map(PackLayout::getScreenCount).map(this::isScreenCountInRange).orElse(true);
     assertTrue(screensInRange);
   }
 
@@ -105,14 +106,14 @@ final class PackLayoutFuzzTest {
   }
 
   private void assertLayout(final PackLayout layout, final long[] streams, final long[] slots) {
-    final int screens = layout.screens();
-    final long totalSlots = layout.totalSlots();
+    final int screens = layout.getScreenCount();
+    final long totalSlots = layout.getTotalSlots();
     final long expectedTotalSlots = Arrays.stream(slots).sum();
     assertEquals(streams.length, screens);
     assertEquals(expectedTotalSlots, totalSlots);
 
     for (int screen = 0; screen < streams.length; screen++) {
-      final int found = layout.screenOf(streams[screen]);
+      final int found = layout.findScreen(streams[screen]);
       assertTrue(found >= 0 && found <= screen);
     }
   }

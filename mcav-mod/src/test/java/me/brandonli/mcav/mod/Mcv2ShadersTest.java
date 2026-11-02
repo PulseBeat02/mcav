@@ -35,6 +35,7 @@ import com.mojang.renderpearl.api.commands.CommandEncoder;
 import com.mojang.renderpearl.api.device.GpuDevice;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
@@ -62,6 +63,8 @@ import org.mockito.MockedStatic;
 final class Mcv2ShadersTest {
 
   private static final Identifier TEXTURE = Identifier.withDefaultNamespace("map/1");
+
+  private static final String LAYOUT_PATH = "shaders/include/mcv2_config.glsl";
 
   @BeforeAll
   static void bootstrap() {
@@ -136,9 +139,9 @@ final class Mcv2ShadersTest {
   private boolean hooked(final BooleanSupplier decodes) throws ReflectiveOperationException {
     final boolean decodesUnderShaders = decodes.getAsBoolean();
     assertFalse(decodesUnderShaders);
-    final ShaderDecoder decoder = ShaderDecoder.current().orElseThrow();
+    final ShaderDecoder decoder = ShaderDecoder.findCurrent().orElseThrow();
     final PoseStack stack = new PoseStack();
-    decoder.extracted(TEXTURE, new byte[Mcv2Maps.COLOURS]);
+    decoder.extracted(TEXTURE, new byte[Mcv2Maps.COLORS]);
     decoder.posed(TEXTURE, stack.last());
     decoder.projecting();
     decoder.projected(PoseStack.Pose.class.getMethod("pose").invoke(stack.last()));
@@ -170,7 +173,7 @@ final class Mcv2ShadersTest {
       system.when(RenderSystem::getDevice).thenReturn(device);
       final RenderTarget mainTarget = Mcv2Shaders.mainTarget();
       final PostChain outlineChain = Mcv2Shaders.outlineChain();
-      final CommandEncoder commandEncoder = Mcv2Shaders.commands();
+      final CommandEncoder commandEncoder = Mcv2Shaders.createCommandEncoder();
       assertSame(main, mainTarget);
       assertSame(chain, outlineChain);
       assertSame(commands, commandEncoder);
@@ -183,16 +186,16 @@ final class Mcv2ShadersTest {
     try (final MockedStatic<IrisApi> iris = mockStatic(IrisApi.class)) {
       iris.when(IrisApi::getInstance).thenReturn(api);
       when(api.isShaderPackInUse()).thenReturn(true);
-      final boolean inUseWhenOn = Mcv2Shaders.shaderPackInUse();
+      final boolean inUseWhenOn = Mcv2Shaders.isShaderPackInUse();
       assertTrue(inUseWhenOn);
       when(api.isShaderPackInUse()).thenReturn(false);
-      final boolean inUseWhenOff = Mcv2Shaders.shaderPackInUse();
+      final boolean inUseWhenOff = Mcv2Shaders.isShaderPackInUse();
       assertFalse(inUseWhenOff);
       when(api.isRenderingShadowPass()).thenReturn(true);
-      final boolean shadowPassWhenOn = Mcv2Shaders.shadowPass();
+      final boolean shadowPassWhenOn = Mcv2Shaders.isRenderingShadowPass();
       assertTrue(shadowPassWhenOn);
       when(api.isRenderingShadowPass()).thenReturn(false);
-      final boolean shadowPassWhenOff = Mcv2Shaders.shadowPass();
+      final boolean shadowPassWhenOff = Mcv2Shaders.isRenderingShadowPass();
       assertFalse(shadowPassWhenOff);
     }
   }
@@ -208,25 +211,31 @@ final class Mcv2ShadersTest {
     try (final MockedStatic<Minecraft> game = mockStatic(Minecraft.class)) {
       game.when(Minecraft::getInstance).thenReturn(minecraft);
       when(resources.getResource(Mcv2Shaders.LAYOUT)).thenReturn(Optional.empty());
-      final Optional<String> missingLayout = Mcv2Shaders.layout();
+      final Optional<String> missingLayout = Mcv2Shaders.readLayout();
       assertEquals(Optional.empty(), missingLayout);
       when(resources.getResource(Mcv2Shaders.LAYOUT)).thenReturn(Optional.of(layout));
-      final Optional<String> loadedLayout = Mcv2Shaders.layout();
-      assertEquals(Optional.of("const int MCV2_SCREENS = 1;"), loadedLayout);
+      final Optional<String> loadedLayout = Mcv2Shaders.readLayout();
+      final Optional<String> expectedLoadedLayout = Optional.of("const int MCV2_SCREENS = 1;");
+      assertEquals(expectedLoadedLayout, loadedLayout);
     }
     final Identifier layoutLocation = Mcv2Shaders.LAYOUT;
     final Identifier outlineChainLocation = Mcv2Shaders.OUTLINE_CHAIN;
-    assertEquals(Identifier.fromNamespaceAndPath("mcav", "shaders/include/mcv2_config.glsl"), layoutLocation);
-    assertEquals(Identifier.withDefaultNamespace("entity_outline"), outlineChainLocation);
+    final Identifier expectedLayoutLocation = Identifier.fromNamespaceAndPath("mcav", LAYOUT_PATH);
+    final Identifier expectedOutlineChainLocation = Identifier.withDefaultNamespace("entity_outline");
+    assertEquals(expectedLayoutLocation, layoutLocation);
+    assertEquals(expectedOutlineChainLocation, outlineChainLocation);
   }
 
   @Test
   void shouldFindNoLayoutWhenItCannotBeRead() {
-    final Resource unreadable = new Resource(null, () -> {
-      throw new IOException("The resource is gone!");
-    });
+    final Resource unreadable = new Resource(null, this::failToOpen);
     final Optional<String> layout = Mcv2Shaders.read(unreadable);
     assertEquals(Optional.empty(), layout);
+  }
+
+  private InputStream failToOpen() throws IOException {
+    final String message = "The resource is gone!";
+    throw new IOException(message);
   }
 
   @Test

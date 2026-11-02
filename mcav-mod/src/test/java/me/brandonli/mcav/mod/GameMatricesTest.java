@@ -51,22 +51,24 @@ final class GameMatricesTest {
     final PoseStack stack = new PoseStack();
     stack.translate(1F, 2F, 3F);
     stack.scale(2F, 4F, 8F);
-    final float[] pose = matrices.pose(stack.last());
-    assertArrayEquals(new float[] { 2, 0, 0, 0, 0, 4, 0, 0, 0, 0, 8, 0, 1, 2, 3, 1 }, pose);
+    final float[] pose = matrices.readPose(stack.last());
+    final float[] expected = { 2, 0, 0, 0, 0, 4, 0, 0, 0, 0, 8, 0, 1, 2, 3, 1 };
+    assertArrayEquals(expected, pose);
   }
 
   @Test
   void shouldReadTheRotationOfTheCamera() throws ReflectiveOperationException {
     final GameMatrices matrices = GameMatrices.find().orElseThrow();
     final CameraRenderState camera = new CameraRenderState();
-    final float[] rotation = matrices.viewRotation(camera);
+    final float[] rotation = matrices.readViewRotation(camera);
     assertArrayEquals(IDENTITY, rotation);
     final PoseStack stack = new PoseStack();
     stack.translate(5F, 6F, 7F);
     final Object translation = PoseStack.Pose.class.getMethod(POSE_METHOD).invoke(stack.last());
     CameraRenderState.class.getField(VIEW_ROTATION_FIELD).set(camera, translation);
-    final float[] translatedRotation = matrices.viewRotation(camera);
-    assertArrayEquals(new float[] { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 5, 6, 7, 1 }, translatedRotation);
+    final float[] translatedRotation = matrices.readViewRotation(camera);
+    final float[] expectedTranslatedRotation = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 5, 6, 7, 1 };
+    assertArrayEquals(expectedTranslatedRotation, translatedRotation);
   }
 
   @Test
@@ -91,11 +93,16 @@ final class GameMatricesTest {
     );
     final Optional<GameMatrices> foreignRotationField = GameMatrices.find(PoseStack.Pose.class, POSE_METHOD, Members.class, MATRIX_FIELD);
     final Optional<GameMatrices> gameMatrices = GameMatrices.find();
-    assertTrue(unknownPoseMethod.isEmpty());
-    assertTrue(unknownRotationField.isEmpty());
-    assertTrue(foreignPoseMethod.isEmpty());
-    assertTrue(foreignRotationField.isEmpty());
-    assertTrue(gameMatrices.isPresent());
+    final boolean unknownPoseMethodMissing = unknownPoseMethod.isEmpty();
+    final boolean unknownRotationFieldMissing = unknownRotationField.isEmpty();
+    final boolean foreignPoseMethodMissing = foreignPoseMethod.isEmpty();
+    final boolean foreignRotationFieldMissing = foreignRotationField.isEmpty();
+    final boolean gameMatricesFound = gameMatrices.isPresent();
+    assertTrue(unknownPoseMethodMissing);
+    assertTrue(unknownRotationFieldMissing);
+    assertTrue(foreignPoseMethodMissing);
+    assertTrue(foreignRotationFieldMissing);
+    assertTrue(gameMatricesFound);
   }
 
   @Test
@@ -103,17 +110,17 @@ final class GameMatricesTest {
     final PoseStack.Pose pose = new PoseStack().last();
     final CameraRenderState camera = new CameraRenderState();
     final GameMatrices hidden = new GameMatrices(Members.class.getDeclaredMethod("hidden"), Members.class.getDeclaredField("secret"));
-    final Throwable hiddenPose = this.causeOf(() -> hidden.pose(pose));
-    final Throwable hiddenRotation = this.causeOf(() -> hidden.viewRotation(camera));
+    final Throwable hiddenPose = this.causeOf(() -> hidden.readPose(pose));
+    final Throwable hiddenRotation = this.causeOf(() -> hidden.readViewRotation(camera));
     assertInstanceOf(IllegalAccessException.class, hiddenPose);
     assertInstanceOf(IllegalAccessException.class, hiddenRotation);
     final GameMatrices failing = new GameMatrices(Members.class.getMethod("fails"), Members.class.getField(MATRIX_FIELD));
-    final Throwable failingPose = this.causeOf(() -> failing.pose(pose));
-    final Throwable failingRotation = this.causeOf(() -> failing.viewRotation(camera));
+    final Throwable failingPose = this.causeOf(() -> failing.readPose(pose));
+    final Throwable failingRotation = this.causeOf(() -> failing.readViewRotation(camera));
     assertInstanceOf(InvocationTargetException.class, failingPose);
     assertInstanceOf(IllegalArgumentException.class, failingRotation);
     final GameMatrices strings = new GameMatrices(String.class.getMethod(LENGTH_METHOD), Members.class.getField(MATRIX_FIELD));
-    final Throwable stringPose = this.causeOf(() -> strings.pose(pose));
+    final Throwable stringPose = this.causeOf(() -> strings.readPose(pose));
     assertInstanceOf(IllegalArgumentException.class, stringPose);
   }
 
@@ -124,16 +131,17 @@ final class GameMatricesTest {
 
   @Test
   void shouldReadOnlyAFourByFourFloatMatrixAsOne() {
-    assertThrows(IllegalStateException.class, () -> GameMatrices.floats(null));
-    assertThrows(IllegalStateException.class, () -> GameMatrices.floats("a matrix"));
-    final Throwable tooShort = this.causeOf(() -> GameMatrices.floats(new Floats(9)));
-    final Throwable tooLong = this.causeOf(() -> GameMatrices.floats(new Floats(17)));
-    final Throwable negativeLength = this.causeOf(() -> GameMatrices.floats(new Floats(-1)));
+    assertThrows(IllegalStateException.class, () -> GameMatrices.readFloats(null));
+    assertThrows(IllegalStateException.class, () -> GameMatrices.readFloats("a matrix"));
+    final Throwable tooShort = this.causeOf(() -> GameMatrices.readFloats(new Floats(9)));
+    final Throwable tooLong = this.causeOf(() -> GameMatrices.readFloats(new Floats(17)));
+    final Throwable negativeLength = this.causeOf(() -> GameMatrices.readFloats(new Floats(-1)));
     assertInstanceOf(IOException.class, tooShort);
     assertInstanceOf(IOException.class, tooLong);
     assertInstanceOf(IOException.class, negativeLength);
-    final float[] floats = GameMatrices.floats(new Floats(16));
-    assertArrayEquals(new float[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 }, floats);
+    final float[] floats = GameMatrices.readFloats(new Floats(16));
+    final float[] expected = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
+    assertArrayEquals(expected, floats);
   }
 
   // writes the floats 0, 1, 2 and on, as many as asked, or fails for a negative count
@@ -154,8 +162,10 @@ final class GameMatricesTest {
     @Override
     public void writeExternal(final ObjectOutput output) throws IOException {
       if (this.count < 0) {
-        throw new IOException("Writing the floats failed!");
+        final String message = "Writing the floats failed!";
+        throw new IOException(message);
       }
+
       for (int index = 0; index < this.count; index++) {
         output.writeFloat(index);
       }
@@ -176,7 +186,8 @@ final class GameMatricesTest {
     private final Object secret = new Object();
 
     public static Object fails() {
-      throw new IllegalStateException("The member failed!");
+      final String message = "The member failed!";
+      throw new IllegalStateException(message);
     }
 
     @SuppressWarnings("unused") // read only through reflection

@@ -39,12 +39,13 @@ final class NeoForgeChannel implements ReportChannel {
 
   @Override
   public boolean isOpen() {
-    final Connection current = this.connection;
+    final @Nullable Connection current = this.connection;
     return current != null && NetworkRegistry.hasChannel(current, ConnectionProtocol.PLAY, Mcv2Payload.TYPE.id());
   }
 
   @Override
   public void send(final byte[] report) {
-    ClientPacketDistributor.sendToServer(new Mcv2Payload(report));
+    final Mcv2Payload payload = new Mcv2Payload(report);
+    ClientPacketDistributor.sendToServer(payload);
   }
 }

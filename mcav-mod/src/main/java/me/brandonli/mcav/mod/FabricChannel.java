@@ -29,6 +29,7 @@ final class FabricChannel implements ReportChannel {
 
   @Override
   public void send(final byte[] report) {
-    ClientPlayNetworking.send(new Mcv2Payload(report));
+    final Mcv2Payload payload = new Mcv2Payload(report);
+    ClientPlayNetworking.send(payload);
   }
 }
