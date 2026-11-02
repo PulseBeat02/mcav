@@ -45,7 +45,7 @@ object CoverageExceptions {
         val lines: List<String> = file.readLines()
         val entries: List<String> = lines.map(String::trim)
             .filter { it.isNotEmpty() && !it.startsWith(COMMENT_PREFIX) }
-        return entries.map { entry -> this.parse(file, entry) }
+        return entries.map { this.parse(file, it) }
     }
 
     private fun parse(file: File, entry: String): CoverageException {

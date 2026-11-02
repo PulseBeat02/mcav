@@ -59,7 +59,7 @@ tasks.shadowJar {
     }
     this.transform(ApacheNoticeResourceTransformer::class.java)
     this.inputs.property("noticeDuplicates", DuplicatesStrategy.INCLUDE.name)
-    relocatedPackages.forEach { prefix -> this.relocate(prefix, "$relocationRoot.$prefix") }
+    relocatedPackages.forEach { this.relocate(it, "$relocationRoot.$it") }
 }
 
 tasks.assemble {

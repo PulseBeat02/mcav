@@ -58,7 +58,7 @@ object JcstressBudget {
     fun countTests(jar: File, selection: String?): Int {
         val pattern: Regex? = selection?.let { Regex(it) }
         val lines: List<String> = ZipFile(jar).use(this::readTestList)
-        return lines.count { line -> this.isSelectedTest(line, pattern) }
+        return lines.count { this.isSelectedTest(it, pattern) }
     }
 
     private fun readTestList(zip: ZipFile): List<String> {

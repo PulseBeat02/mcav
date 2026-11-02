@@ -54,8 +54,8 @@ object LogMessages {
         val text: String = JavaSource.withoutComments(source)
         return CALL.findAll(code)
             .filter { LOGGER.matches(it.groupValues[RECEIVER_GROUP]) }
-            .filter { call -> this.isConcatenated(text, code, call) }
-            .map { call -> this.messageOf(source, call) }
+            .filter { this.isConcatenated(text, code, it) }
+            .map { this.messageOf(source, it) }
             .toList()
     }
 

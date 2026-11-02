@@ -143,7 +143,7 @@ abstract class DownloadToolArchive : DefaultTask() {
         val connection: URLConnection = this.openConnection(uri)
         connection.connectTimeout = CONNECT_TIMEOUT_MILLISECONDS
         connection.readTimeout = READ_TIMEOUT_MILLISECONDS
-        connection.getInputStream().use { input -> this.copy(input, archive) }
+        connection.getInputStream().use { this.copy(it, archive) }
     }
 
     // hook for the pitest mutants that drop a timeout or the close: tests inspect the connection it returns
@@ -152,7 +152,7 @@ abstract class DownloadToolArchive : DefaultTask() {
     }
 
     private fun copy(input: InputStream, target: File): Unit {
-        target.outputStream().use { output -> input.copyTo(output) }
+        target.outputStream().use { input.copyTo(it) }
     }
 
     private fun verifyChecksum(archive: File, address: String, expected: String): Unit {
@@ -187,7 +187,7 @@ abstract class DownloadToolArchive : DefaultTask() {
 
     private fun unpackXz(archive: File): FileTree {
         val unpacked: File = this.temporaryDir.resolve(UNPACKED_TAR)
-        XZInputStream(archive.inputStream()).use { input -> this.copy(input, unpacked) }
+        XZInputStream(archive.inputStream()).use { this.copy(it, unpacked) }
 
         return this.archives.tarTree(unpacked)
     }

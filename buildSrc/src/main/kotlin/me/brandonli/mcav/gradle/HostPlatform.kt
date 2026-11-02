@@ -191,7 +191,7 @@ class HostPlatform private constructor(val operatingSystem: String, val architec
      */
     fun addLwjglTestNatives(dependencies: DependencyHandler, libraries: Iterable<Provider<MinimalExternalModuleDependency>>): Unit {
         val natives: String = this.lwjglNatives ?: return
-        libraries.forEach { library -> this.addTestNatives(dependencies, library, natives) }
+        libraries.forEach { this.addTestNatives(dependencies, it, natives) }
     }
 
     private fun addTestNatives(dependencies: DependencyHandler, library: Provider<MinimalExternalModuleDependency>, natives: String): Unit {

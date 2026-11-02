@@ -212,11 +212,11 @@ abstract class BuildMcv2Natives : DefaultTask() {
             val natives: File = output.resolve(NATIVES_PATH)
             val targets: List<NativeTarget> = listOf(LINUX, WINDOWS, MACOS).flatMap(this::targetsOf)
             val compiles: List<Runnable> = targets.flatMap(this::planCompiles)
-            val links: List<Runnable> = targets.map { target -> this.planLink(natives, target) }
+            val links: List<Runnable> = targets.map { this.planLink(natives, it) }
             this.inParallel(compiles)
             this.inParallel(links)
 
-            val libraries: List<File> = targets.map { target -> this.libraryOf(natives, target) }
+            val libraries: List<File> = targets.map { this.libraryOf(natives, it) }
             this.writeManifest(natives.resolve(CHECKSUMS_MANIFEST), natives, libraries)
 
             val sources: File = this.parameters.sourcesDirectory.get().asFile
@@ -225,7 +225,7 @@ abstract class BuildMcv2Natives : DefaultTask() {
         }
 
         private fun targetsOf(system: String): List<NativeTarget> {
-            return listOf(X86_64, AARCH64).map { architecture -> NativeTarget(system, architecture) }
+            return listOf(X86_64, AARCH64).map { NativeTarget(system, it) }
         }
 
         private fun planCompiles(target: NativeTarget): List<Runnable> {
@@ -317,7 +317,7 @@ abstract class BuildMcv2Natives : DefaultTask() {
             val triple: String = this.tripleOf(target)
             val linkFlags: List<String> = this.linkFlagsOf(target)
             val levels: Set<String> = this.unitsOf(target).keys
-            val objects: List<String> = levels.map { level -> this.objectFileOf(target, level).absolutePath }
+            val objects: List<String> = levels.map { this.objectFileOf(target, it).absolutePath }
             val arguments: List<String> = listOf("cc", TARGET_OPTION, triple, "-shared", "-s") + linkFlags +
                 listOf(OUTPUT_OPTION, library.absolutePath) + objects
             return Runnable { this.link(arguments, library) }
@@ -358,7 +358,7 @@ abstract class BuildMcv2Natives : DefaultTask() {
             val processCount: Int = this.parameters.processCount.get()
             val pool: ExecutorService = this.newPool(minOf(processCount, steps.size))
             try {
-                val tasks: List<Callable<Any?>> = steps.map { step -> Executors.callable(step) }
+                val tasks: List<Callable<Any?>> = steps.map { Executors.callable(it) }
                 val results: List<Future<Any?>> = pool.invokeAll(tasks)
                 for (result in results) {
                     this.awaitStep(result)
@@ -384,7 +384,7 @@ abstract class BuildMcv2Natives : DefaultTask() {
 
         private fun writeManifest(manifest: File, root: File, files: List<File>): Unit {
             val sorted: List<File> = files.sortedBy { it.relativeTo(root).invariantSeparatorsPath }
-            val lines: String = sorted.joinToString("") { file -> this.manifestLine(root, file) }
+            val lines: String = sorted.joinToString("") { this.manifestLine(root, it) }
             manifest.writeText(lines)
         }
 

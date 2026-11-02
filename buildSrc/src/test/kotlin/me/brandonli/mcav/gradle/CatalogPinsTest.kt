@@ -54,7 +54,7 @@ class CatalogPinsTest {
         val zig: String = this.version("zig")
         val uv: String = this.version("uv")
         val hosts: List<HostPlatform> = listOf("Linux", "Windows 11", "Mac OS X").flatMap(this::hostsOf)
-        val archives: List<String> = hosts.flatMap { host -> this.archivesOf(host, zig, uv) }
+        val archives: List<String> = hosts.flatMap { this.archivesOf(it, zig, uv) }
         val pins: Properties = Properties()
         this.repository.resolve(TOOL_CHECKSUMS_PATH).inputStream().use(pins::load)
 

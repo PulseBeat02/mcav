@@ -61,7 +61,7 @@ object QualifiedNames {
                 continue
             }
             val number: Int = index + FIRST_LINE_NUMBER
-            NAME.findAll(line).forEach { match -> found += QualifiedName(number, match.groupValues[NAME_GROUP]) }
+            NAME.findAll(line).forEach { found += QualifiedName(number, it.groupValues[NAME_GROUP]) }
         }
 
         return found

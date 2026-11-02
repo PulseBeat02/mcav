@@ -54,7 +54,7 @@ object JcstressConsole {
      * @return the names of the skipped tests
      */
     fun skippedTests(lines: List<String>): List<String> {
-        return lines.mapNotNull { line -> SKIPPED_LINE.find(line)?.groupValues?.get(TEST_GROUP) }
+        return lines.mapNotNull { SKIPPED_LINE.find(it)?.groupValues?.get(TEST_GROUP) }
             .distinct()
     }
 

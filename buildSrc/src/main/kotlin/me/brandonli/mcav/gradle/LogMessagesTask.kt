@@ -35,7 +35,7 @@ abstract class LogMessagesTask : JavaLintTask() {
         for (file in files) {
             val source: String = file.readText()
             val messages: List<ConcatenatedLogMessage> = LogMessages.find(source)
-            messages.forEach { found -> reportViolation(file, found.line, listOf(found.call)) }
+            messages.forEach { reportViolation(file, it.line, listOf(it.call)) }
         }
     }
 

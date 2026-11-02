@@ -50,7 +50,7 @@ class ToolDigestsTest {
         val shortDigest: String = ToolDigests.sha256(file)
         assertEquals("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", shortDigest)
 
-        val contents: ByteArray = ByteArray(196_625) { index -> (index % 251).toByte() }
+        val contents: ByteArray = ByteArray(196_625) { (it % 251).toByte() }
         file.writeBytes(contents)
 
         val expected: String = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(contents))

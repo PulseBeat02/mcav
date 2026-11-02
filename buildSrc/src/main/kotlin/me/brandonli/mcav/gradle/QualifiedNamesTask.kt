@@ -37,7 +37,7 @@ abstract class QualifiedNamesTask : JavaLintTask() {
         for (file in files) {
             val source: String = file.readText()
             val names: List<QualifiedName> = QualifiedNames.find(source)
-            names.forEach { found -> reportViolation(file, found.line, listOf(found.name)) }
+            names.forEach { reportViolation(file, it.line, listOf(it.name)) }
         }
     }
 

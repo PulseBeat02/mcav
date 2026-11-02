@@ -57,7 +57,7 @@ class ToolVersionsTest {
         assertEquals(listOf(listOf(CLANG_FORMAT_TOOL, VERSION_OPTION)), commands)
 
         val reports: List<String> = listOf("clang-format version 18.1.7", "clang-format version 18.1.80", "clang version 18.1.8")
-        val messages: Map<String, String?> = reports.associateWith { reported -> this.rejectionOf(reported, this::verifyClangFormat) }
+        val messages: Map<String, String?> = reports.associateWith { this.rejectionOf(it, this::verifyClangFormat) }
         val expected: Map<String, String?> =
             reports.associateWith { "clang-format reports $it, which is not the clang-format 18.1.8 this build pins!" }
         assertEquals(expected, messages)
@@ -72,7 +72,7 @@ class ToolVersionsTest {
         assertEquals(listOf(listOf(ZIG_TOOL, "version")), commands)
 
         val reports: List<String> = listOf("0.15.2", "0.16.0-dev.1+abc")
-        val messages: Map<String, String?> = reports.associateWith { reported -> this.rejectionOf(reported, this::verifyZig) }
+        val messages: Map<String, String?> = reports.associateWith { this.rejectionOf(it, this::verifyZig) }
         val expected: Map<String, String?> = reports.associateWith { "zig reports $it, which is not the zig 0.16.0 this build pins!" }
         assertEquals(expected, messages)
     }

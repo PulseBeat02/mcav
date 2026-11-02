@@ -110,7 +110,7 @@ class JcstressBudgetTest {
     }
 
     private fun writeJar(jar: File, entry: String, content: String): Unit {
-        ZipOutputStream(jar.outputStream()).use { zip -> this.writeEntry(zip, entry, content) }
+        ZipOutputStream(jar.outputStream()).use { this.writeEntry(it, entry, content) }
     }
 
     private fun writeEntry(zip: ZipOutputStream, entry: String, content: String): Unit {

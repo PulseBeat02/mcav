@@ -203,7 +203,7 @@ class BuildMcv2NativesTest {
     @Test
     fun shouldFailTheBuildOnAFailingCompileBeforeAnyLink(): Unit {
         val failure: IllegalStateException = IllegalStateException("zig: error: unable to compile")
-        val task: RecordingBuild = this.compiler(TEST_VERSION) { arguments -> this.failOnAvx2(arguments, failure) }
+        val task: RecordingBuild = this.compiler(TEST_VERSION) { this.failOnAvx2(it, failure) }
         val thrown: GradleException = assertThrows(GradleException::class.java) { this.buildWithWorkers(task) }
         val message: String? = thrown.message
         assertEquals("Zig could not build MCV2's natives!", message)
@@ -243,7 +243,7 @@ class BuildMcv2NativesTest {
         task.zigVersion.set(TEST_VERSION)
         task.processCount.set(processCount)
 
-        this.processes = RecordedProcesses("$version\n") { command -> this.runZig(command, onCompile) }
+        this.processes = RecordedProcesses("$version\n") { this.runZig(it, onCompile) }
         task.recordedProcesses = this.processes.operations
         task.recordedWorkers = this.recordingWorkers(project)
 
@@ -280,7 +280,7 @@ class BuildMcv2NativesTest {
 
     private fun recordingWorkers(project: Project): WorkerExecutor {
         val queue: WorkQueue = mock(WorkQueue::class.java)
-        doAnswer { invocation -> this.submit(project, invocation) }
+        doAnswer { this.submit(project, it) }
             .`when`(queue)
             .submit(any<Class<BuildMcv2Natives.Work>>(), any<Action<Parameters>>())
 

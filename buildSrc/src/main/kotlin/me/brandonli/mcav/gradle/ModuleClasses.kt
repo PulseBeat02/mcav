@@ -89,14 +89,14 @@ object ModuleClasses {
         val inModules: Set<String> = this.available(modules)
         return pluginClasses.filter { it.isDirectory }
             .flatMap(this::classFilesIn)
-            .flatMap { file -> this.referenced(file.readBytes()) }
+            .flatMap { this.referenced(it.readBytes()) }
             .filter { it in inModules }
             .toSortedSet()
     }
 
     private fun classNamesIn(root: File): List<String> {
         if (root.isDirectory) {
-            return this.classFilesIn(root).map { file -> file.relativeTo(root).invariantSeparatorsPath.removeSuffix(CLASS_SUFFIX) }
+            return this.classFilesIn(root).map { it.relativeTo(root).invariantSeparatorsPath.removeSuffix(CLASS_SUFFIX) }
         }
 
         return ZipFile(root).use(this::classNamesInJar)

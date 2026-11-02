@@ -46,7 +46,7 @@ abstract class VariableNamesTask : JavaLintTask() {
         val sortedNames: SortedMap<File, List<UndescriptiveName>> = namesByFile.toSortedMap()
         for ((file, names) in sortedNames) {
             val unpublished: List<UndescriptiveName> = names.filter { it.member !in published }
-            unpublished.forEach { found -> reportViolation(file, found.line, listOf(found.kind, found.name)) }
+            unpublished.forEach { reportViolation(file, it.line, listOf(it.kind, it.name)) }
         }
     }
 

@@ -149,7 +149,7 @@ tasks.assemble {
 }
 
 val downloadedModules: Provider<List<String>> =
-    configurations.runtimeDownload.map { configuration -> ModuleCoordinates.modulePathsOf(configuration, rootProject) }
+    configurations.runtimeDownload.map { ModuleCoordinates.modulePathsOf(it, rootProject) }
 val requiredModuleClasses: TaskProvider<RequiredModuleClassesTask> = tasks.register<RequiredModuleClassesTask>("requiredModuleClasses") {
     this.group = "build"
     this.description = "Lists the classes of the downloaded modules that the plugin uses, for its loader to check them"
