@@ -68,7 +68,8 @@ import org.mockito.invocation.InvocationOnMock;
 
 final class VmProcessTest {
 
-  private static final Path QEMU = Path.of("qemu-system-x86_64");
+  private static final Path QEMU_EXECUTABLE = Path.of("qemu-system-x86_64");
+  private static final QemuProgram QEMU = QemuProgram.of(QEMU_EXECUTABLE);
 
   private static final String MISSING_KVM_DEVICE = "kvm";
   private static final String WRITABLE_KVM_DEVICE = "writable-kvm";
@@ -251,7 +252,7 @@ final class VmProcessTest {
 
   private List<String> command(final String... arguments) {
     final List<String> command = new ArrayList<>();
-    final String program = QEMU.toString();
+    final String program = QEMU_EXECUTABLE.toString();
     command.add(program);
     final List<String> given = List.of(arguments);
     command.addAll(given);
@@ -285,7 +286,7 @@ final class VmProcessTest {
   }
 
   private List<String> expectedOnDisplayOne(final List<String> options, final List<String> usbOptions) {
-    final String program = QEMU.toString();
+    final String program = QEMU_EXECUTABLE.toString();
     final List<String> displayDefaults = List.of(
       VGA_ARGUMENT,
       STANDARD_VGA,
@@ -782,7 +783,7 @@ final class VmProcessTest {
       .build();
     final VmProcess process = this.process(settings, configuration, Os.LINUX);
     final List<String> command = process.buildCommand(null, this.passwordFile());
-    final String program = QEMU.toString();
+    final String program = QEMU_EXECUTABLE.toString();
     final List<String> expected = List.of(
       program,
       VGA_ARGUMENT,
@@ -799,6 +800,35 @@ final class VmProcessTest {
       "127.0.0.1:7,share=force-shared,password-secret=mcav-vnc-password"
     );
     assertEquals(expected, command);
+  }
+
+  @Test
+  void shouldPassTheDataFoldersBeforeTheConfiguration() {
+    final VmSettings settings = new VmSettings(DISPLAY_THREE_PORT, WIDTH, HEIGHT, FRAME_RATE);
+    final VmConfiguration configuration = VmConfiguration.builder().memory(64).build();
+    final List<String> dataArguments = List.of("-L", "data");
+    final QemuProgram program = QemuProgram.of(QEMU_EXECUTABLE, dataArguments, Map.of());
+    final VmProcess.Launcher launcher = _ -> {
+      throw new IOException("not started!");
+    };
+    final VmProcess process = new VmProcess(
+      settings,
+      VmPlayer.Architecture.X86_64,
+      program,
+      configuration,
+      launcher,
+      Os.LINUX,
+      this.missingKvm,
+      SHORT_TIMEOUT_MILLISECONDS,
+      this::secretFolder
+    );
+
+    final List<String> command = process.buildCommand(null, this.passwordFile());
+
+    final String executable = QEMU_EXECUTABLE.toString();
+    final List<String> expected = List.of(executable, "-L", "data", "-m", "64M");
+    final List<String> start = command.subList(0, expected.size());
+    assertEquals(expected, start);
   }
 
   private List<String> x86Command(final VmConfiguration configuration) {
@@ -824,7 +854,7 @@ final class VmProcessTest {
   void shouldGiveAPcMachineAnHdaCardThePcSpeakerAndTheSoundOnItsDisplay() {
     final List<String> command = this.x86Command(VmConfiguration.builder().build());
     final List<String> expected = List.of(
-      QEMU.toString(),
+      QEMU_EXECUTABLE.toString(),
       MACHINE_ARGUMENT,
       SPEAKER_ROUTE,
       VGA_ARGUMENT,
@@ -1035,7 +1065,7 @@ final class VmProcessTest {
     final VmConfiguration configuration = VmConfiguration.builder().flag("nographic").build();
     final VmProcess process = this.process(settings, configuration, Os.LINUX);
     final List<String> command = process.buildCommand(SOFTWARE_ACCELERATOR, this.passwordFile());
-    final String program = QEMU.toString();
+    final String program = QEMU_EXECUTABLE.toString();
     final List<String> expected = List.of(
       program,
       "-nographic",
@@ -1106,7 +1136,8 @@ final class VmProcessTest {
     final VmSettings settings = this.reachableSettings();
     final Path missing = this.directory.resolve(MISSING_QEMU);
     final VmConfiguration configuration = VmConfiguration.builder().build();
-    final VmProcess process = VmProcess.create(settings, VmPlayer.Architecture.X86_64, missing, configuration);
+    final QemuProgram program = QemuProgram.of(missing);
+    final VmProcess process = VmProcess.create(settings, VmPlayer.Architecture.X86_64, program, configuration);
     final VmException exception = assertThrows(VmException.class, process::start);
     final Throwable cause = exception.getCause();
     final boolean alive = process.isAlive();

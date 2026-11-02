@@ -43,6 +43,7 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -147,7 +148,7 @@ final class VmProcess {
 
   private final VmSettings settings;
   private final VmPlayer.Architecture architecture;
-  private final Path executable;
+  private final QemuProgram program;
   private final VmConfiguration configuration;
   private final Launcher launcher;
   private final Os os;
@@ -165,7 +166,7 @@ final class VmProcess {
   VmProcess(
     final VmSettings settings,
     final VmPlayer.Architecture architecture,
-    final Path executable,
+    final QemuProgram program,
     final VmConfiguration configuration,
     final Launcher launcher,
     final Os os,
@@ -173,25 +174,14 @@ final class VmProcess {
     final long startTimeoutMilliseconds,
     final SecretFolder secretFolder
   ) {
-    this(
-      settings,
-      architecture,
-      executable,
-      configuration,
-      launcher,
-      os,
-      kvmDevice,
-      startTimeoutMilliseconds,
-      System::nanoTime,
-      secretFolder
-    );
+    this(settings, architecture, program, configuration, launcher, os, kvmDevice, startTimeoutMilliseconds, System::nanoTime, secretFolder);
   }
 
   @VisibleForTesting
   VmProcess(
     final VmSettings settings,
     final VmPlayer.Architecture architecture,
-    final Path executable,
+    final QemuProgram program,
     final VmConfiguration configuration,
     final Launcher launcher,
     final Os os,
@@ -202,7 +192,7 @@ final class VmProcess {
   ) {
     this.settings = settings;
     this.architecture = architecture;
-    this.executable = executable;
+    this.program = program;
     this.configuration = configuration;
     this.launcher = launcher;
     this.os = os;
@@ -217,22 +207,15 @@ final class VmProcess {
   static VmProcess create(
     final VmSettings settings,
     final VmPlayer.Architecture architecture,
-    final Path executable,
+    final QemuProgram program,
     final VmConfiguration configuration
   ) {
     final Os currentOs = OsUtils.getOs();
     final QemuProcessRecords records = QemuProcessRecords.ofUser();
-    final Launcher launcher = new RecordingLauncher(records);
-    return new VmProcess(
-      settings,
-      architecture,
-      executable,
-      configuration,
-      launcher,
-      currentOs,
-      KVM_DEVICE,
-      START_TIMEOUT_MILLISECONDS,
-      () -> createSecretFolder(TEMPORARY_FOLDER, SECRET_FOLDER_ACCESS)
+    final Map<String, String> environment = program.getEnvironment();
+    final Launcher launcher = new RecordingLauncher(records, environment);
+    return new VmProcess(settings, architecture, program, configuration, launcher, currentOs, KVM_DEVICE, START_TIMEOUT_MILLISECONDS, () ->
+      createSecretFolder(TEMPORARY_FOLDER, SECRET_FOLDER_ACCESS)
     );
   }
 
@@ -453,8 +436,11 @@ final class VmProcess {
   @VisibleForTesting
   List<String> buildCommand(final @Nullable String accelerator, final Path passwordFile) {
     final List<String> command = new ArrayList<>();
-    final String program = this.executable.toString();
-    command.add(program);
+    final Path executable = this.program.getExecutable();
+    final String path = executable.toString();
+    command.add(path);
+    final List<String> dataArguments = this.program.getArguments();
+    command.addAll(dataArguments);
     final List<String> arguments = this.configuration.getArguments();
     command.addAll(arguments);
 
@@ -829,9 +815,11 @@ final class VmProcess {
   static final class RecordingLauncher implements Launcher {
 
     private final QemuProcessRecords records;
+    private final Map<String, String> environment;
 
-    RecordingLauncher(final QemuProcessRecords records) {
+    RecordingLauncher(final QemuProcessRecords records, final Map<String, String> environment) {
       this.records = records;
+      this.environment = environment;
     }
 
     @Override
@@ -844,9 +832,17 @@ final class VmProcess {
     }
 
     private Process startProcess(final List<String> command) throws IOException {
+      final ProcessBuilder builder = this.createBuilder(command);
+      return builder.start();
+    }
+
+    @VisibleForTesting
+    ProcessBuilder createBuilder(final List<String> command) {
       final ProcessBuilder builder = new ProcessBuilder(command);
       builder.redirectErrorStream(true);
-      return builder.start();
+      final Map<String, String> processEnvironment = builder.environment();
+      processEnvironment.putAll(this.environment);
+      return builder;
     }
 
     @Override

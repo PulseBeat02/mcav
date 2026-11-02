@@ -199,8 +199,8 @@ final class MCAVSandboxTest {
     assertEquals("The video player manager is not available before the plugin is enabled", videosMessage);
     assertEquals("The audio provider is not available before the plugin is enabled", audioMessage);
     assertEquals("The image manager is not available before the plugin is enabled", imagesMessage);
-    final boolean hasQemu = this.sandbox.isQemuInstalled();
-    assertFalse(hasQemu);
+    final boolean qemuAvailable = this.sandbox.isQemuAvailable();
+    assertFalse(qemuAvailable);
     assertFalse(this.sandbox.isBrowserSupported());
   }
 
@@ -212,7 +212,7 @@ final class MCAVSandboxTest {
 
   @Test
   void enablesTheLibraryTheConfigurationTheCommandsAndTheListener() {
-    when(this.vmModule.isQemuInstalled()).thenReturn(true);
+    when(this.vmModule.isQemuAvailable()).thenReturn(true);
     when(this.browserModule.isSupported()).thenReturn(true);
     this.sandbox.onEnable();
     this.assertLibraryInstalled();
@@ -256,8 +256,8 @@ final class MCAVSandboxTest {
     verify(this.logger, never()).warn(anyString());
     final MCAVApi library = this.sandbox.getMCAV();
     assertSame(this.api, library);
-    final boolean hasQemu = this.sandbox.isQemuInstalled();
-    assertTrue(hasQemu);
+    final boolean qemuAvailable = this.sandbox.isQemuAvailable();
+    assertTrue(qemuAvailable);
     assertTrue(this.sandbox.isBrowserSupported());
   }
 
@@ -453,7 +453,7 @@ final class MCAVSandboxTest {
 
   @Test
   void warnsWhenThereIsNoBrowserForThisServer() {
-    when(this.vmModule.isQemuInstalled()).thenReturn(true);
+    when(this.vmModule.isQemuAvailable()).thenReturn(true);
     this.sandbox.onEnable();
     verify(this.logger).warn("There is no browser for the operating system and processor of this server, browsers will not be available");
     assertFalse(this.sandbox.isBrowserSupported());
@@ -461,12 +461,12 @@ final class MCAVSandboxTest {
   }
 
   @Test
-  void warnsWhenQemuIsNotInstalled() {
+  void warnsWhenQemuIsNotAvailable() {
     when(this.browserModule.isSupported()).thenReturn(true);
     this.sandbox.onEnable();
-    verify(this.logger).warn("QEMU is not installed, virtual machines will not be available");
-    final boolean hasQemu = this.sandbox.isQemuInstalled();
-    assertFalse(hasQemu);
+    verify(this.logger).warn("QEMU is not installed and MCAV cannot install it on this server, so virtual machines will not be available.");
+    final boolean qemuAvailable = this.sandbox.isQemuAvailable();
+    assertFalse(qemuAvailable);
     this.sandbox.onDisable();
   }
 

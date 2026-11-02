@@ -376,7 +376,8 @@ every device there is.
 ## Virtual Machine Commands
 
 ```{warning}
-You must have QEMU installed and configured to use these commands.
+On x86-64 and ARM64 Linux, MCAV installs QEMU from Debian packages when it is missing. Elsewhere you must have QEMU
+installed and configured to use these commands.
 ```
 
 | **Command**     | `/mcav vm interact`                                                                                                      |
@@ -401,7 +402,7 @@ You must have QEMU installed and configured to use these commands.
 |----------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------|
 | **Usage**                                    | `/mcav vm create <playerSelector> <vmResolution> <targetFps> <blockDimensions> <mapId> <ditheringAlgorithm> <architecture> <audioType> <flags> [--codec dither\|mcv2]` |
 | **Permission**                               | `mcav.command.vm.create`                                                                                                            |
-| **Description**                              | Boots a QEMU virtual machine, shows its display on a wall of maps and plays its sound in the chosen audio output. MCAV gives an `X86_64` machine its sound card itself (Intel HD Audio and the PC speaker) and holds its sound about 70 ms, so that it plays with the picture. Only one machine runs at a time, and it takes the audio output over from a video or browser until it is released. A server without QEMU, options that are not accepted, and an audio output that is off or not ready are answered with an error message. |
+| **Description**                              | Boots a QEMU virtual machine, shows its display on a wall of maps and plays its sound in the chosen audio output. MCAV gives an `X86_64` machine its sound card itself (Intel HD Audio and the PC speaker) and holds its sound about 70 ms, so that it plays with the picture. Only one machine runs at a time, and it takes the audio output over from a video or browser until it is released. A server without QEMU where MCAV cannot install it, options that are not accepted, and an audio output that is off or not ready are answered with an error message. |
 | **Arguments**                                |                                                                                                                                     |
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`     | A selector for the players that can see the VM                                                                                      |
 | &nbsp;&nbsp;&nbsp;&nbsp;`vmResolution`       | A resolution in width×height format (example, 1280x720)                                                                             |

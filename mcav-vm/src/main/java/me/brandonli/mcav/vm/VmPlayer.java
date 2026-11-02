@@ -87,7 +87,8 @@ public interface VmPlayer extends ControllablePlayer, ReleasablePlayer, Exceptio
    * @param architecture  the non-null guest architecture, which picks the QEMU program
    * @param configuration the non-null QEMU options
    * @return true if the machine started, false if the player is already running or released
-   * @throws ExecutableNotInPathException       if the QEMU program is not installed
+   * @throws ExecutableNotInPathException       if the QEMU program is not installed and MCAV cannot install it on this platform
+   * @throws me.brandonli.mcav.MCAVException    if QEMU has to be installed and its download or installation fails
    * @throws IllegalArgumentException           if the configuration sets a display or sound option the player reserves
    * @throws VmException                        if the port cannot be bound, QEMU cannot launch or exits, the display
    *                                            does not open within the startup deadline, the wait is interrupted, or a

@@ -20,8 +20,10 @@
  *
  * <p>Use {@link me.brandonli.mcav.vm.VmConfiguration} for QEMU arguments,
  * {@link me.brandonli.mcav.vm.VmSettings} for output dimensions, update rate and VNC port, and
- * {@link me.brandonli.mcav.vm.VmPlayer} for playback and input. QEMU must be available on the host;
- * {@link me.brandonli.mcav.vm.VmModule} only checks its availability and does not install or run it.
+ * {@link me.brandonli.mcav.vm.VmPlayer} for playback and input. The player uses the QEMU of the host when it finds
+ * one; otherwise its first start installs the Debian 12 packages of the QEMU of the guest into the MCAV cache
+ * folder, on x86-64 and ARM64 Linux only. On other platforms, QEMU must be installed on the host.
+ * {@link me.brandonli.mcav.vm.VmModule} only checks whether QEMU is available and does not install or run it.
  * The player owns its QEMU process and local VNC connections, and reserves their display and audio options.
  * Failures of QEMU and the machine are reported as {@link me.brandonli.mcav.vm.VmException}.
  *

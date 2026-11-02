@@ -72,7 +72,7 @@ import org.junit.jupiter.api.io.TempDir;
  * needs the internet.
  *
  * <p>On the running server it streams a page of this machine that plays a tone with {@code /mcav browser create}, and,
- * when QEMU is installed, a virtual machine whose PC speaker plays a tone with {@code /mcav vm create}: the maps show
+ * when QEMU is available, a virtual machine whose PC speaker plays a tone with {@code /mcav vm create}: the maps show
  * their pictures, the tones arrive at the audio web page, and after the releases no process of a browser or a machine
  * is left.
  *

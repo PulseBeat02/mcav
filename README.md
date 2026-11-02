@@ -55,7 +55,7 @@ Click to watch a demo video above.
 | VLC (optional) | Nothing: when the system has none, MCAV downloads VLC 3.0.24 into the cache folder of the user on Windows and macOS, and on x86-64 and ARM64 Linux, for which VideoLAN publishes no build, installs the pinned Debian 12 packages of VLC 3.0.23 there; elsewhere MCAV uses the system's VLC |
 | yt-dlp (optional) | Nothing: MCAV downloads a pinned and checked yt-dlp into the cache folder of the user; its Linux builds need glibc |
 | Web browser | Nothing: MCAV embeds Chromium through JCEF, so there is no Selenium, Playwright, ChromeDriver or installed browser. MCAV downloads Chromium (about 136 to 163 MiB) on the first browser start, and on Linux the libraries a server lacks (about 13 MB). No X server, no Xvfb and no JVM options; 64-bit Linux, Windows and macOS on x86-64 and ARM64 |
-| Virtual machines | QEMU, which you install and put on the `PATH` |
+| Virtual machines | QEMU: on x86-64 and ARM64 Linux, MCAV installs it from Debian packages when the system has none; elsewhere you install it and put it on the `PATH` |
 | MCV2 | Players accept a resource pack the server offers; the server's CPU encodes, with native kernels for Linux, Windows and macOS on x86-64 and ARM64 and a Java fallback anywhere else |
 | Sound in Minecraft | A port for the audio web page, a Discord bot, or the [Simple Voice Chat](https://modrinth.com/plugin/simple-voice-chat) plugin (2.6.24 for Minecraft 26.3) |
 

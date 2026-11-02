@@ -123,7 +123,7 @@ final class VirtualizeCommandTest {
     when(this.plugin.getConfiguration()).thenReturn(defaults);
     this.configuration = defaults;
     when(this.plugin.getServer()).thenReturn(server);
-    when(this.plugin.isQemuInstalled()).thenReturn(true);
+    when(this.plugin.isQemuAvailable()).thenReturn(true);
     when(this.plugin.getDataPath()).thenReturn(this.dataFolder);
     this.provider = mock(AudioProvider.class);
     when(this.plugin.getAudioProvider()).thenReturn(this.provider);
@@ -323,8 +323,8 @@ final class VirtualizeCommandTest {
   }
 
   @Test
-  void refusesWhenQemuIsNotInstalled() {
-    when(this.plugin.isQemuInstalled()).thenReturn(false);
+  void refusesWhenQemuIsNotAvailable() {
+    when(this.plugin.isQemuAvailable()).thenReturn(false);
 
     this.create("640x480", "5x4", "");
 
