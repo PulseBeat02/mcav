@@ -27,8 +27,8 @@ import org.openjdk.jcstress.infra.results.II_Result;
 
 /**
  * The pattern pass 1 removed from four places, run against the real callback: ask whether a size is attached, then ask
- * for it. This is not code of mcav any more; it shows that the window between the two calls is real under actual
- * scheduling, which is why every place now reads the size once. No place of mcav still asks {@code isAttached()}
+ * for it. This is not code of MCAV any more; it shows that the window between the two calls is real under actual
+ * scheduling, which is why every place now reads the size once. No place of MCAV still asks {@code isAttached()}
  * before {@code retrieve()}; {@code grep} finds the method only in its declaration and implementation.
  */
 @JCStressTest
