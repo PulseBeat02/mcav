@@ -106,10 +106,12 @@ public final class VlcInstaller extends AbstractInstaller {
   }
 
   /**
-   * Creates an installer that installs VLC into the cache folder of the library, {@code ~/.mcav/cache}.
+   * Creates an installer that installs VLC into the default installer folder,
+   * {@link AbstractInstaller#getDefaultExecutableFolderPath()}.
    *
    * @return the installer
-   * @throws FileOperationException if the default cache folder cannot be created
+   * @throws FileOperationException if neither the cache folder nor its fallback in the temporary directory can be
+   *                               created
    * @since 1.0.0
    */
   public static VlcInstaller create() {
