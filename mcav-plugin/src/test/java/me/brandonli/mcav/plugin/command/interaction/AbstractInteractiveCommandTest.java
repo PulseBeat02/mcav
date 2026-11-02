@@ -33,6 +33,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.common.util.concurrent.MoreExecutors;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import java.io.PrintStream;
 import java.nio.ByteBuffer;
@@ -1216,8 +1217,47 @@ final class AbstractInteractiveCommandTest {
     }
   }
 
-  private void failMapsRelease(final CompressedMapResult maps, final IllegalStateException cleanup) {
+  private void failMapsRelease(final CompressedMapResult maps, final Throwable cleanup) {
     Mockito.doThrow(cleanup).when(maps).release();
+  }
+
+  @Test
+  void shouldPropagateFatalDitherFailureWithoutReleasingTheMaps() {
+    final ScreenSettings settings = this.wallSettings(UUID.randomUUID(), DitheringArgument.NEAREST_COLOR);
+    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
+    try (
+      final MockedConstruction<CompressedMapResult> maps = Mockito.mockConstruction(CompressedMapResult.class);
+      final MockedStatic<DitherFilter> dithers = Mockito.mockStatic(DitherFilter.class)
+    ) {
+      dithers.when(() -> DitherFilter.dither(any(), any())).thenThrow(fatal);
+      final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () -> this.command.createScreen(settings));
+      assertSame(fatal, thrown);
+
+      final List<CompressedMapResult> constructed = maps.constructed();
+
+      final int size = constructed.size();
+      assertEquals(1, size);
+
+      final CompressedMapResult acquired = constructed.getFirst();
+      verify(acquired, never()).release();
+    }
+  }
+
+  @Test
+  void shouldPropagateFatalMapsReleaseFailureAfterADitherFailure() {
+    final ScreenSettings settings = this.wallSettings(UUID.randomUUID(), DitheringArgument.NEAREST_COLOR);
+    final IllegalStateException failure = new IllegalStateException("dither unavailable!");
+    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
+    try (
+      final MockedConstruction<CompressedMapResult> _ = Mockito.mockConstruction(CompressedMapResult.class, (maps, _) ->
+        this.failMapsRelease(maps, fatal)
+      );
+      final MockedStatic<DitherFilter> dithers = Mockito.mockStatic(DitherFilter.class)
+    ) {
+      dithers.when(() -> DitherFilter.dither(any(), any())).thenThrow(failure);
+      final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () -> this.command.createScreen(settings));
+      assertSame(fatal, thrown);
+    }
   }
 
   @Test
@@ -1635,6 +1675,7 @@ final class AbstractInteractiveCommandTest {
 
       final CompressedMapResult maps = constructed.getFirst();
       verify(maps, never()).release();
+      verify(ditherFilter, never()).release();
       this.assertReleased();
     }
   }
@@ -1655,6 +1696,19 @@ final class AbstractInteractiveCommandTest {
 
   private void throwFatal(final OutOfMemoryError fatal) {
     throw fatal;
+  }
+
+  @Test
+  void shouldPropagateFatalBackgroundReleaseFailure() {
+    final ExecutorService direct = MoreExecutors.newDirectExecutorService();
+    final RecordingCommand command = new RecordingCommand(this.plugin, direct);
+    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
+    final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () -> this.releaseFatallyInTheBackground(command, fatal));
+    assertSame(fatal, thrown);
+  }
+
+  private void releaseFatallyInTheBackground(final RecordingCommand command, final OutOfMemoryError fatal) {
+    command.releaseInTheBackground(() -> this.throwFatal(fatal));
   }
 
   @Test

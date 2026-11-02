@@ -248,7 +248,7 @@ final class AbstractImageCommandTest {
     }
   }
 
-  private void failFilter(final ResizeFilter filter, final IllegalStateException failure) {
+  private void failFilter(final ResizeFilter filter, final Throwable failure) {
     Mockito.doThrow(failure).when(filter).applyFilter(any());
   }
 
@@ -293,6 +293,29 @@ final class AbstractImageCommandTest {
 
   private void failRelease(final MatImageBuffer image, final RuntimeException failure) {
     Mockito.doThrow(failure).when(image).release();
+  }
+
+  @Test
+  void shouldNotReleaseTheDecodedImageWhenResizingForFiltersFailsFatally() throws IOException {
+    final Path file = this.writeImage(FILTER_FAILURE_FILE_NAME, PNG_FORMAT);
+    final OutOfMemoryError fatal = new OutOfMemoryError("fatal resize sentinel!");
+    try (
+      final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class);
+      final MockedConstruction<ResizeFilter> resizers = Mockito.mockConstruction(ResizeFilter.class, (filter, context) ->
+        this.failFilter(filter, fatal)
+      )
+    ) {
+      this.command.displayImage(_ -> CONFIGURATION, this.sender, SCREEN_SIZE, file.toString(), FILTER);
+
+      final List<ResizeFilter> createdResizers = resizers.constructed();
+
+      final int size = createdResizers.size();
+      assertEquals(1, size);
+
+      final List<MatImageBuffer> createdBuffers = buffers.constructed();
+      final MatImageBuffer decoded = createdBuffers.getFirst();
+      verify(decoded, never()).release();
+    }
   }
 
   @Test
