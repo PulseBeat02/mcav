@@ -313,7 +313,7 @@ flag of the thread stays set.
   not an absolute `http` or `https` URI with a host, when the server cannot be reached, or when the thread is
   interrupted, and throws a `NullPointerException` if the URI is `null`.
 
-Both lookups return an empty optional if the service cannot be reached, fails, or answers with anything but an IP
+Both lookups return an empty `Optional` if the service cannot be reached, fails, or answers with anything but an IP
 address. The results are not cached, so every call sends a request.
 
 A typical use is telling players where to reach a server that runs next to your plugin, such as the

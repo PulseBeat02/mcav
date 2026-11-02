@@ -1684,7 +1684,7 @@ the charts again.
 
 ### Reproducing the measurements and figures
 
-MCV2's tools live in mcav-bukkit's test sources. The independent Python implementation is
+MCV2's tools live in `mcav-bukkit`'s test sources. The independent Python implementation is
 `mcav-bukkit/src/test/python/mcv2_reference.py`; it implements the format, serializer, decoder and six-bit transport
 without calling Java. All Python tool commands use `mcav-bukkit/src/test/python/mcv2_tools.py` followed by a
 subcommand. Gradle installs Python 3.13.16 with numpy 2.5.3, Pillow 12.3.0, moderngl 5.12.0, matplotlib 3.11.2,

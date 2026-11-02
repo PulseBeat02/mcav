@@ -112,8 +112,8 @@ static image can also produce no map updates, so packet silence alone does not i
    install nothing. As in a desktop browser, a page plays sound only after a player clicks its screen or types into it;
    turn on `browser.autoplay-sound` in the [configuration](./config) to let pages play sound right away.
 2) If you want to interact with the browser, you can use the `/mcav browser interact` command, which takes all your
-   chat input and sends it to the browser as if you were typing in a real web browser. For special keys like enter, type
-   the key in "Enter" to simulate pressing the enter key. A left or right click on the browser simulates a mouse
+   chat input and sends it to the browser as if you were typing in a real web browser. For a special key, type its key
+   name, such as `Enter`, to press it. A left or right click on the browser simulates a mouse
    click, for every player with the permission `mcav.browser.interact`. For more information on possible keys, see the
    `KeyboardEvent.key` column
    [here](https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values).

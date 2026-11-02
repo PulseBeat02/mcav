@@ -273,7 +273,7 @@ every device there is.
 |-------------------------------------------|-----------------------------------------------------------------------------------------------------------------------|
 | Usage                                     | `/mcav video entity <playerSelector> <playerType> <audioType> <videoResolution> <character> <location> <ytdlpOptions> <mrl> [--filters "<chain>"]` |
 | Permission                                | `mcav.command.video.entity`                                                                                           |
-| Description                               | Displays a video as a TextDisplay entity.                                                                             |
+| Description                               | Displays a video as a `TextDisplay` entity.                                                                           |
 | Arguments                                 |                                                                                                                       |
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`  | A selector for the players that can see the video                                                                     |
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerType`      | The type of video player to use                                                                                       |
@@ -299,7 +299,7 @@ every device there is.
 | &nbsp;&nbsp;&nbsp;&nbsp;`videoResolution`    | A resolution in width×height format (example, 640x360)                                                                                     |
 | &nbsp;&nbsp;&nbsp;&nbsp;`blockDimensions`    | The dimensions of the map blocks                                                                                                           |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mapId`              | The ID of the map. This corresponds with the id you set in `/mcav screen` to create the map screen                                         |
-| &nbsp;&nbsp;&nbsp;&nbsp;`ditheringAlgorithm` | The algorithm used for dithering the video. Use FILTER_LITE for best results                                                               |
+| &nbsp;&nbsp;&nbsp;&nbsp;`ditheringAlgorithm` | The algorithm used for dithering the video. Use `FILTER_LITE` for best results                                                             |
 | &nbsp;&nbsp;&nbsp;&nbsp;`ytdlpOptions`       | Additional flags if yt-dlp parses the media (in format --yt-dlp{arg1=...,arg2,etc}; see [which options are accepted](#yt-dlp-options)            |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mrl`                | The Media Resource Locator pointing to the video                                                                                           |
 | &nbsp;&nbsp;&nbsp;&nbsp;`--filters`       | Optional: filters applied to every frame in order, in quotes, such as `"grayscale,blur=3"`; see [filters](#filters) |
@@ -366,7 +366,7 @@ every device there is.
 | &nbsp;&nbsp;&nbsp;&nbsp;`nth`                | How many painted frames make one streamed frame (1 streams every frame, 2 every other frame, up to 1000)                         |
 | &nbsp;&nbsp;&nbsp;&nbsp;`blockDimensions`    | The dimensions of the map blocks                                                                                                 |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mapId`              | The ID of the map. This corresponds with the id you set in `/mcav screen` to create the map screen                               |
-| &nbsp;&nbsp;&nbsp;&nbsp;`ditheringAlgorithm` | The algorithm used for dithering the browser. Use FILTER_LITE for best results                                                   |
+| &nbsp;&nbsp;&nbsp;&nbsp;`ditheringAlgorithm` | The algorithm used for dithering the browser. Use `FILTER_LITE` for best results                                                 |
 | &nbsp;&nbsp;&nbsp;&nbsp;`audioType`          | Where the sound of the page plays, as for the video commands (`NONE` keeps the page silent)                                      |
 | &nbsp;&nbsp;&nbsp;&nbsp;`url`                | The URL of the webpage to display, the rest of the line up to `--codec`. Must be the full `http` or `https` URL. Pages of the server's own network are refused unless `browser.allow-private-networks` is on.     |
 | &nbsp;&nbsp;&nbsp;&nbsp;`--codec`            | (optional): `dither` or `mcv2`, see [the codec of a wall of maps](#the-codec-of-a-wall-of-maps); `mcv2.default-codec` without it |
@@ -409,7 +409,7 @@ installed and configured to use these commands.
 | &nbsp;&nbsp;&nbsp;&nbsp;`targetFramesPerSecond`          | Target frames per second for the VM (1 to 240)                                                                                      |
 | &nbsp;&nbsp;&nbsp;&nbsp;`blockDimensions`    | The dimensions of the map blocks                                                                                                    |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mapId`              | The ID of the map. This corresponds with the id you set in `/mcav screen` to create the map screen                                  |
-| &nbsp;&nbsp;&nbsp;&nbsp;`ditheringAlgorithm` | The algorithm used for dithering the VM display. Use FILTER_LITE for best results                                                   |
+| &nbsp;&nbsp;&nbsp;&nbsp;`ditheringAlgorithm` | The algorithm used for dithering the VM display. Use `FILTER_LITE` for best results                                                 |
 | &nbsp;&nbsp;&nbsp;&nbsp;`architecture`       | The CPU architecture to use for the VM                                                                                              |
 | &nbsp;&nbsp;&nbsp;&nbsp;`audioType`          | Where the sound of the VM plays, as for the video commands (`NONE` keeps it silent); only `X86_64` PC and Q35 machines have sound, other architectures must choose `NONE`; a machine with sound takes the output over from a playing video    |
 | &nbsp;&nbsp;&nbsp;&nbsp;`flags`              | Additional flags and options to pass to the QEMU VM (for example, ISO files, boot drives, memory); see [which options are accepted](#qemu-options). A `--codec dither` or `--codec mcv2` at the very end is not passed to QEMU: it chooses [the codec of the wall](#the-codec-of-a-wall-of-maps) |
@@ -639,7 +639,7 @@ gigabytes of memory. Start the server with `-Dmcav.image.maxPixels=<pixels>` for
 |-------------------------------------------|--------------------------------------------------------------------------------------|
 | Usage                                     | `/mcav image entity <playerSelector> <imageResolution> <character> <location> <mrl> [--filters "<chain>"]` |
 | Permission                                | `mcav.command.image.entity`                                                          |
-| Description                               | Displays an image as a TextDisplay entity.                                           |
+| Description                               | Displays an image as a `TextDisplay` entity.                                         |
 | Arguments                                 |                                                                                      |
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`  | A selector for the players that can see the image                                    |
 | &nbsp;&nbsp;&nbsp;&nbsp;`imageResolution` | A resolution in width×height format (example, 640x640)                               |
@@ -660,7 +660,7 @@ gigabytes of memory. Start the server with `-Dmcav.image.maxPixels=<pixels>` for
 | &nbsp;&nbsp;&nbsp;&nbsp;`imageResolution`    | A resolution in width×height format (example, 640x640)                                                    |
 | &nbsp;&nbsp;&nbsp;&nbsp;`blockDimensions`    | The dimensions of the map blocks                                                                          |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mapId`              | The ID of the map. This corresponds with the id you set in `/mcav screen` to create the map screen        |
-| &nbsp;&nbsp;&nbsp;&nbsp;`ditheringAlgorithm` | The algorithm used for dithering the image. Use FILTER_LITE for best results                              |
+| &nbsp;&nbsp;&nbsp;&nbsp;`ditheringAlgorithm` | The algorithm used for dithering the image. Use `FILTER_LITE` for best results                            |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mrl`                | The Media Resource Locator pointing to the image; the rest of the line up to `--codec`                    |
 | &nbsp;&nbsp;&nbsp;&nbsp;`--filters`       | Optional: filters applied to the image in order, in quotes, such as `"grayscale,blur=3"`; see [filters](#filters) |
 | &nbsp;&nbsp;&nbsp;&nbsp;`--codec`            | (optional): `dither` or `mcv2`, see [the codec of a wall of maps](#the-codec-of-a-wall-of-maps); `mcv2.default-codec` without it |
