@@ -15,7 +15,14 @@ can use MCAV in any Java project, there's also a Minecraft-specific module that 
 to play back videos like the following. For Minecraft, MCAV even comes with its own video codec,
 [MCV2](mcv2.md), which shows sharp, full-color video on a wall of maps to players with an unmodified client.
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/ifs0GiAtqIs?si=qxLjZLfNv3W8tJpz" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+<iframe
+  width="560"
+  height="315"
+  src="https://www.youtube.com/embed/ifs0GiAtqIs?si=qxLjZLfNv3W8tJpz"
+  frameborder="0"
+  allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+  allowfullscreen
+></iframe>
 
 ---
 
