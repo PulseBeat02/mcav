@@ -26,7 +26,8 @@ import java.nio.charset.StandardCharsets;
 public final class ResourceUtils {
 
   private ResourceUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   public static String readResource(final ClassLoader loader, final String name) throws IOException {

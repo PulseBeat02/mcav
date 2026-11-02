@@ -22,7 +22,8 @@ import java.nio.file.Path;
 final class IoUtils {
 
   private IoUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   static String getFileName(final Path file) {

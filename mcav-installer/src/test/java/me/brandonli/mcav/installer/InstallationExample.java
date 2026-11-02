@@ -29,7 +29,8 @@ public final class InstallationExample {
   private static final String API_CLASS_NAME = "me.brandonli.mcav.MCAV";
 
   private InstallationExample() {
-    throw new UnsupportedOperationException("Example class cannot be instantiated!");
+    final String message = "Example class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   static void main() throws ClassNotFoundException, IOException {
