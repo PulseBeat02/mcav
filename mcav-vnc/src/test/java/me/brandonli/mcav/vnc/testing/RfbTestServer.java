@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.vnc.testing;
 
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -34,11 +35,13 @@ import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 // A minimal RFB 3.8 (VNC) server on the loopback interface for tests. The server serves one client at a time. It
 // answers every framebuffer update request with the whole screen as one raw-encoded rectangle filled with the current
@@ -613,10 +616,26 @@ public final class RfbTestServer implements AutoCloseable {
     }
 
     @Override
+    public boolean equals(final @Nullable Object other) {
+      if (this == other) {
+        return true;
+      }
+
+      if (!(other instanceof final ReceivedKey key)) {
+        return false;
+      }
+
+      return this.keysym == key.keysym && this.down == key.down;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(this.keysym, this.down);
+    }
+
+    @Override
     public String toString() {
-      final String state = this.down ? "down " : "up ";
-      final String code = Integer.toHexString(this.keysym);
-      return state + code;
+      return MoreObjects.toStringHelper(this).add("keysym", this.keysym).add("down", this.down).toString();
     }
   }
 
@@ -645,8 +664,30 @@ public final class RfbTestServer implements AutoCloseable {
     }
 
     @Override
+    public boolean equals(final @Nullable Object other) {
+      if (this == other) {
+        return true;
+      }
+
+      if (!(other instanceof final ReceivedPointer pointer)) {
+        return false;
+      }
+
+      return this.buttonMask == pointer.buttonMask && this.screenX == pointer.screenX && this.screenY == pointer.screenY;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(this.buttonMask, this.screenX, this.screenY);
+    }
+
+    @Override
     public String toString() {
-      return "pointer " + this.buttonMask + " at " + this.screenX + "," + this.screenY;
+      return MoreObjects.toStringHelper(this)
+        .add("buttonMask", this.buttonMask)
+        .add("screenX", this.screenX)
+        .add("screenY", this.screenY)
+        .toString();
     }
   }
 }
