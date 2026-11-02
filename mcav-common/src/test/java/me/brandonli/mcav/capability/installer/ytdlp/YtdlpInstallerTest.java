@@ -106,6 +106,7 @@ final class YtdlpInstallerTest {
 
   private static final String LIBRARY_ENTRY_NAME = "_internal/library.so";
   private static final String NESTED_EXECUTABLE_NAME = "_internal/yt-dlp_test";
+  private static final String EXECUTABLE_IN_FOLDER_NAME = "yt-dlp_test/yt-dlp_test";
   private static final String ESCAPING_ENTRY_NAME = "../escaped";
   private static final String ESCAPED_FILE_NAME = "escaped";
 
@@ -315,6 +316,24 @@ final class YtdlpInstallerTest {
   @Test
   void shouldRejectAZipWithoutTheExecutableAtItsTopLevel() throws IOException {
     final Map<String, byte[]> entries = Map.of(NESTED_EXECUTABLE_NAME, LAUNCHER);
+    final byte[] archive = zip(entries);
+    try (final LocalHttpServer server = LocalHttpServer.start()) {
+      final YtdlpInstaller installer = this.serveZip(server, ZIP_PATH, archive);
+      final InstallationException exception = assertThrows(InstallationException.class, () -> installer.download(FileMode.EXECUTABLE));
+      final String message = exception.getMessage();
+      final Path unpacked = this.folder.resolve(UNPACKED_FOLDER_NAME);
+      final Path unpacking = this.folder.resolve(UNPACKING_FOLDER_NAME);
+      final boolean unpackedLeft = Files.exists(unpacked);
+      final boolean unpackingLeft = Files.exists(unpacking);
+      assertEquals("The yt-dlp zip does not contain yt-dlp_test at its top level!", message);
+      assertFalse(unpackedLeft);
+      assertFalse(unpackingLeft);
+    }
+  }
+
+  @Test
+  void shouldRejectAZipWhoseExecutableIsAFolder() throws IOException {
+    final Map<String, byte[]> entries = Map.of(EXECUTABLE_IN_FOLDER_NAME, LAUNCHER);
     final byte[] archive = zip(entries);
     try (final LocalHttpServer server = LocalHttpServer.start()) {
       final YtdlpInstaller installer = this.serveZip(server, ZIP_PATH, archive);
