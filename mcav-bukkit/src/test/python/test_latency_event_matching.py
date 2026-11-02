@@ -83,6 +83,7 @@ class LatencyTest(unittest.TestCase):
             with patch.object(sys, "argv", arguments), patch.object(mcv2_tools, "latency_events", return_value=events),\
                     patch.object(mcv2_tools, "latency_captures", return_value=captures), redirect_stdout(StringIO()):
                 mcv2_tools.latency_main()
+
             return json.loads(output.read_text())
 
 

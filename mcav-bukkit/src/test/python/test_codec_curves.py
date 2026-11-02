@@ -23,7 +23,6 @@ from typing import Any
 
 import mcv2_tools
 
-
 CURVES_NAME: str = "codec_curves.json"
 DOCUMENTED: Path = Path(__file__).resolve().parents[1] / "resources/mcv2/data" / CURVES_NAME
 

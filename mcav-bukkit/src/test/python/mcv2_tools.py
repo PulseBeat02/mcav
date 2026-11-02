@@ -1868,6 +1868,7 @@ def differential_main() -> None:
     ):
         message: str = "Archive counts must not be negative, and at least one archive is required!"
         parser.error(message)
+
     sys.exit(differential_run(arguments))
 
 
@@ -2164,6 +2165,7 @@ class ShaderStreamCheck:
         keyframe: Any = frame_id == reference_id
         if self.chain is None:
             self.chain = self.create_chain(width, height)
+
         if self.arguments.drop and index % self.arguments.drop == self.arguments.drop - 1:
             return
 
@@ -2560,6 +2562,7 @@ def shader_timing_main() -> None:
     if arguments.rounds < SHADER_TIMING_MINIMUM_ROUNDS or arguments.repeats < 1 or arguments.slots < 1:
         message: str = "The run needs at least two rounds, one repeat and one page slot!"
         parser.error(message)
+
     if arguments.pack:
         shader_check_pack = arguments.pack
     import moderngl
@@ -2827,6 +2830,7 @@ def strip_check_main() -> None:
     if not captures:
         message: str = f"Folder {arguments.captures} holds no PNG screenshots!"
         parser.error(message)
+
     check: StripCheck = StripCheck(arguments)
     for capture in captures:
         screen: numpy.ndarray = numpy.asarray(Image.open(capture).convert(RGB_MODE))
@@ -2856,6 +2860,7 @@ class StripCheck:
         rows: Any = (PAGE_PIXELS + width - 1) // width
         pages: dict[int, bool] = self.read_pages(screen, rows)
         self.check_descriptor(name, screen, rows)
+
         if self.arguments.video_width + STRIP_CHECK_MARGIN + (self.arguments.slots + STRIP_CHECK_EXTRA_SQUARES) * STRIP_CHECK_STEP > width:
             return
 
@@ -3243,6 +3248,7 @@ def latency_captures(path: Any) -> list[tuple[float, Any]]:
             pixels: numpy.ndarray = numpy.frombuffer(raw, numpy.uint8).reshape(height, width, CHANNELS)[row, columns].astype(int)
             luma: Any = ((pixels[:, 0] + LATENCY_LUMA_GREEN_WEIGHT * pixels[:, 1] + pixels[:, 2]) // LATENCY_LUMA_WEIGHT_TOTAL).tolist()
             result.append((times[index], counter_video_read(luma)))
+
     if decoder.returncode != 0:
         raise subprocess.CalledProcessError(decoder.returncode, decoder.args)
 

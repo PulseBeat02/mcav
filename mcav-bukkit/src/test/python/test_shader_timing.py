@@ -228,6 +228,7 @@ class FakeChain:
         times: dict[str, float] = {"mcv2_decode": DECODE_MILLISECONDS, "mcv2_screen": SCREEN_MILLISECONDS}
         if self.first:
             self.first = False
+
             return key not in self.missed, times
 
         self.first = True
@@ -237,6 +238,7 @@ class FakeChain:
     def target(self, name: str) -> types.SimpleNamespace:
         key: tuple[int, int] = (self.round, self.index)
         self.index += 1
+
         picture: bytes = b"another picture" if key in self.changed else b"picture %d" % key[1]
         return types.SimpleNamespace(read=lambda: picture)
 

@@ -76,11 +76,15 @@ def _add_header_cases(cases: dict[Any, Any]) -> None:
     _add(cases, 'short-frame', bytes(mcv2_reference.MINIMUM_FRAME_BYTES - 1), HEADER_RULE, FRAME_LENGTH_REASON)
     _add(cases, 'oversize-frame', bytes(mcv2_reference.MAXIMUM_FRAME_BYTES + 1), HEADER_RULE, FRAME_LENGTH_REASON)
     _add(cases, 'bad-magic', b'ABCD' + empty[len(mcv2_reference.MAGIC):], HEADER_RULE, NOT_MCV2_REASON)
+
     unknown_version: bytes = changed(empty, mcv2_reference.VERSION_OFFSET, mcv2_reference.VERSION + 1)
     _add(cases, 'unknown-version', unknown_version, HEADER_RULE, NOT_MCV2_REASON)
+
     for offset in range(mcv2_reference.VERSION_OFFSET + 1, mcv2_reference.WIDTH_OFFSET):
         _add(cases, f'version-byte-{offset}', changed(empty, offset, 1), HEADER_RULE, NOT_MCV2_REASON)
+
     _add_retired_version_cases(cases)
+
     for offset in (mcv2_reference.WIDTH_OFFSET, mcv2_reference.HEIGHT_OFFSET):
         for value in (0, mcv2_reference.MAXIMUM_DIMENSION + 1):
             _add(cases, f'dimension-{offset}-{value}', changed(empty, offset, value, HALF_WORD_CODE), HEADER_RULE, 'dimensions')
@@ -105,6 +109,7 @@ def _add_retired_version_cases(cases: dict[str, dict[str, str]]) -> None:
         '4d4356310102010001000100090000000900000000000000010000003400000037000000'
         '00000000000000000000000034000002102030')
     _add(cases, 'mcv1', version_1, HEADER_RULE, 'version 1 is no longer supported')
+
     version_2: bytes = bytes.fromhex(
         '4d4356320205730001000100000000000000000000000000010000004500000075000000000000000000000000000000010000000000000001000000'
         '0000010600000000003224e3e9bafb4931c49e41fca6fb71c25d4744121177650106704ecf2c3e8fa04eaa462d163cd0d18bc59cbc0fbaead8')
@@ -121,6 +126,7 @@ def _add_presence_cases(cases: dict[str, dict[str, str]]) -> None:
     empty: bytes = _frame()
     for length in (20, 24, 28, 32, 36, 39):
         _add(cases, f'truncated-index-{length}', empty[:length], INDEX_RULE, 'truncated index')
+
     _add(cases, 'unused-mask-bit', changed(empty, MASK_OFFSET, 2, WORD_CODE), INDEX_RULE, 'presence mask')
     _add(cases, 'directory-zero', changed(empty, DIRECTORY_OFFSET, 1, WORD_CODE), INDEX_RULE, DIRECTORY_PREFIX_REASON)
 
@@ -131,6 +137,7 @@ def _add_presence_cases(cases: dict[str, dict[str, str]]) -> None:
 
 def _add_count_cases(cases: dict[str, dict[str, str]]) -> None:
     _add(cases, 'n0-popcount', changed(_solid_frame(), COUNTS_OFFSET, 0, WORD_CODE), INDEX_RULE, 'level 0 count')
+
     level_one_count_offset: int = COUNTS_OFFSET + mcv2_reference.WORD_BYTES
     count_overflow: bytes = changed(_frame(), level_one_count_offset, 0xFFFFFFFF, WORD_CODE)
     _add(cases, 'count-overflow', count_overflow, INDEX_RULE, TRUNCATED_DESCRIPTORS_REASON)
@@ -164,6 +171,7 @@ def _without_level_one_split(deep: bytes) -> bytes:
 
 def _add_walk_cases(cases: dict[str, dict[str, str]]) -> None:
     _add(cases, 'walk-zero', changed(_solid_frame(), DESCRIPTORS_OFFSET + 1, 1, WORD_CODE), WALK_RULE, WALK_CHECKPOINT_REASON)
+
     solid_leaves: tuple[Node, ...] = (Node(mcv2_reference.SOLID, record=bytes(mcv2_reference.SOLID_BYTES)),) * mcv2_reference.SPLIT_CHILDREN
     solid_split: Node = Node(mcv2_reference.SPLIT, children=solid_leaves)
     long: bytes = _frame(Node(mcv2_reference.SPLIT, children=(solid_split,) * mcv2_reference.SPLIT_CHILDREN))

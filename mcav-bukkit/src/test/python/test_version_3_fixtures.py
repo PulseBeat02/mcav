@@ -157,6 +157,7 @@ class FixtureToolTest(unittest.TestCase):
         data: bytes = pack_frame(1, 1, 3, 3, {0: Node(mcv2_reference.SOLID, record=bytes([10, 20, 30]))})
         archive: bytes = mcv2_tools.archive_bytes([data])
         (output / NEW_STREAM).write_bytes(archive)
+
         with redirect_stderr(StringIO()):
             mcv2_tools.fixtures_conformance(root)
             mcv2_tools.fixtures_pages(root)
@@ -195,6 +196,7 @@ class FixtureToolTest(unittest.TestCase):
             data: bytes = mcv2_tools.archive_bytes([pack_frame(1, 1, 0, 0, {0: Node(mcv2_reference.SOLID, record=bytes([1, 2, 3]))})])
             golden: Path = output / GOLDEN_STREAM
             golden.write_bytes(data)
+
             with redirect_stderr(StringIO()):
                 mcv2_tools.fixtures_encoder(root)
 
@@ -202,6 +204,7 @@ class FixtureToolTest(unittest.TestCase):
             self.assertEqual(data, golden_bytes)
 
             golden.write_bytes(mcv2_tools.archive_bytes([pack_frame(1, 1, 1, 0, {})]))
+
             with self.assertRaisesRegex(ValueError, 'reference'):
                 mcv2_tools.fixtures_encoder(root)
 
@@ -225,7 +228,9 @@ class FixtureToolTest(unittest.TestCase):
             output: Path = Path(directory)
             for name in (CONFORMANCE_FOLDER, EDGE_FOLDER):
                 shutil.copytree(RESOURCES / name, output / name)
+
             mcv2_tools.fixtures_pages(output)
+
             regenerated: bytes = (output / CONFORMANCE_FOLDER / PAGES_NAME).read_bytes()
             self.assertEqual(expected, regenerated)
 

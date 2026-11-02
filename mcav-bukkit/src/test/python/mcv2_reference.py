@@ -130,8 +130,6 @@ TEMPORAL_KEYFRAME_MESSAGE: str = "A keyframe must not use a temporal mode!"
 LENGTH_LIMIT_MESSAGE: str = "The frame exceeds the length limit!"
 
 
-
-
 # a leaf carries its record, a SPLIT four children in quadrant order
 @dataclass(frozen=True)
 class Node:
@@ -538,6 +536,7 @@ def pack_frame(width: int, height: int, frame_id: int, reference_id: int, roots:
     directory: list[int] = _build_directory(masks)
     writer: _TreeWriter = _TreeWriter(keyframe)
     writer.write_tree(roots)
+
     index: bytes = (
         _pack_words(masks)
         + _pack_words(directory)
@@ -601,6 +600,7 @@ class _TreeWriter:
         _require(_is_descriptor_valid(node), "A node has an invalid descriptor!")
         _require(node.mode == COMPACT or node.quantizer == 0, NONZERO_QUANTIZER_MESSAGE)
         _require(not self.keyframe or node.mode not in (MOTION, COMPACT), TEMPORAL_KEYFRAME_MESSAGE)
+
         if len(self.descriptors) % WALK_STRIDE == 0:
             self.walk.append(_walk_checkpoint(len(self.records), self.splits))
 
@@ -608,11 +608,13 @@ class _TreeWriter:
 
     def write_record(self, node: Node, size: int) -> None:
         _require(not node.children, "A leaf must not have children!")
+
         if node.mode == PATTERN:
             _require(_is_pattern_valid(node.record, size), "A PATTERN record is invalid!")
 
         length: int = _record_length(node.mode, size)
         _require(len(node.record) == length, "A leaf record has an invalid length!")
+
         self.records.extend(node.record)
 
 
@@ -856,6 +858,7 @@ def _make_page(frame_data: bytes, frame: Frame, stream_id: int, number: int) -> 
 # map colours are these symbols plus four
 def to_symbols(data: bytes, symbol_bits: int = SYMBOL_BITS) -> bytes:
     _check_symbol_bits(symbol_bits)
+
     packed: numpy.ndarray = numpy.frombuffer(data, numpy.uint8)
     bits: Any = numpy.unpackbits(packed, bitorder=BIT_ORDER)
     padding: int = -len(bits) % SYMBOL_BITS
@@ -914,6 +917,7 @@ def _unpack_symbols(values: numpy.ndarray) -> numpy.ndarray:
 
 def from_symbols(symbols: bytes, symbol_bits: int, byte_count: int) -> bytes:
     _check_symbol_bits(symbol_bits)
+
     bit_count: int = byte_count * BITS_PER_BYTE
     if byte_count < 0 or len(symbols) != _divide_rounding_up(bit_count, SYMBOL_BITS):
         message: str = "The symbol extent is invalid!"
@@ -952,6 +956,7 @@ def _map_bytes(page: bytes, charge: MapCharge) -> int:
 class Assembler:
     def __init__(self, stream_id: int = DEFAULT_STREAM_ID, symbol_bits: int = SYMBOL_BITS) -> None:
         _check_symbol_bits(symbol_bits)
+
         self.stream_id: int = stream_id
         self.symbol_bits: int = symbol_bits
         self.pending: dict[int, dict[int, Page]] = {}
@@ -969,15 +974,18 @@ class Assembler:
         parts: dict[int, Page] = self.pending.setdefault(page.frame_id, {})
         if _is_inconsistent(parts, page):
             del self.pending[page.frame_id]
+
             message = "The pages are inconsistent!"
             raise ValueError(message)
 
         if page.number in parts and parts[page.number] != page:
             del self.pending[page.frame_id]
+
             message = "A duplicate page conflicts with the first copy!"
             raise ValueError(message)
 
         parts[page.number] = page
+
         if len(parts) != page.count:
             return None
 
