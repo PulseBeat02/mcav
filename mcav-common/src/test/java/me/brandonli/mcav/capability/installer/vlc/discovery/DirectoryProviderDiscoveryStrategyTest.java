@@ -137,7 +137,7 @@ final class DirectoryProviderDiscoveryStrategyTest {
   }
 
   @Test
-  void shouldNeverCountOneFileForSeveralPatterns() throws IOException {
+  void shouldNotCountAFileThatMatchesNoPattern() throws IOException {
     final Path directory = createDirectory(this.temporaryDirectory, SECOND_ONLY_DIRECTORY);
     createFile(directory, CORE_LIBRARY_FILE);
     createFile(directory, README_FILE);
