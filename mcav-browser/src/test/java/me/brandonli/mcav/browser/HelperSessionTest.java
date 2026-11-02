@@ -321,7 +321,7 @@ class HelperSessionTest {
     final boolean moveAccepted = session.sendMouse(new MouseInput(HelperProtocol.MOUSE_MOVE, 1, 1, 0, 0, 0, 0));
     assertTrue(moveAccepted);
 
-    Await.until("the mouse move", () -> session.getHandledInput() >= 1);
+    Await.until("the mouse move", () -> session.getCompletedInputCount() >= 1);
     final boolean pressAccepted = session.sendMouse(new MouseInput(HelperProtocol.MOUSE_PRESS, 1, 1, 0, 1, 0, 0));
     assertTrue(pressAccepted);
 
@@ -1101,7 +1101,7 @@ class HelperSessionTest {
     final boolean keyAccepted = session.sendKey(HelperProtocol.KEY_TYPE, "late");
     assertTrue(keyAccepted);
 
-    Await.until("the input was tried", () -> session.getHandledInput() == 1);
+    Await.until("the input was tried", () -> session.getCompletedInputCount() == 1);
     assertEquals(List.of("The browser helper closed the connection!"), this.listener.ended);
   }
 
@@ -1320,7 +1320,7 @@ class HelperSessionTest {
     final Path taken = Files.createFile(this.directory.resolve("s"));
     assertThrows(IOException.class, () -> HelperSession.bind(taken).close());
 
-    OpenFiles.leaveNoneOpen("a failed bind", () -> assertThrows(IOException.class, () -> HelperSession.bind(taken).close()));
+    OpenFiles.assertLeavesNoneOpen("a failed bind", () -> assertThrows(IOException.class, () -> HelperSession.bind(taken).close()));
   }
 
   @Test

@@ -210,7 +210,7 @@ class ChromiumConfinementTest {
       );
       assertEquals("Because this kernel has no Landlock, which Linux has since 5.13, Chromium runs without confinement.", noLandlockReason);
 
-      final List<String> profiles = library.profiles();
+      final List<String> profiles = library.getProfiles();
       assertEquals(List.of(), profiles, "only macOS uses Seatbelt");
     }
 
@@ -240,7 +240,7 @@ class ChromiumConfinementTest {
     final List<String> profiles;
     try (final SeatbeltLibrary library = SeatbeltLibrary.complete()) {
       said = ChromiumConfinement.confine(configuration, OperatingSystem.MAC, () -> -38, library.seatbelt());
-      profiles = List.copyOf(library.profiles());
+      profiles = List.copyOf(library.getProfiles());
     }
 
     assertEquals(ChromiumConfinement.CONFINED, said);

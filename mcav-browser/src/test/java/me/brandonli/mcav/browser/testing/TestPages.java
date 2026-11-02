@@ -268,25 +268,25 @@ public final class TestPages implements AutoCloseable {
       final InetSocketAddress address = new InetSocketAddress(loopback, 0);
       final HttpServer httpServer = HttpServer.create(address, 0);
       final TestPages pages = new TestPages(httpServer);
-      httpServer.createContext("/main", exchange -> page(exchange, "main", MAIN_COLOR));
-      httpServer.createContext("/popup", exchange -> page(exchange, "popup", POPUP_COLOR));
-      httpServer.createContext("/second", exchange -> page(exchange, "second", SECOND_COLOR));
-      httpServer.createContext("/tone", exchange -> page(exchange, "tone", MAIN_COLOR, TONE_SCRIPT));
-      httpServer.createContext("/tone-element", exchange -> page(exchange, "tone-element", MAIN_COLOR, ELEMENT_SCRIPT));
-      httpServer.createContext("/tone-wrapped", exchange -> page(exchange, "tone-wrapped", MAIN_COLOR, WRAPPED_TONE_SCRIPT));
-      httpServer.createContext("/av-sync", exchange -> page(exchange, "av-sync", 0x000000, TOGGLE_SCRIPT));
-      httpServer.createContext("/tone.wav", TestPages::toneWave);
-      httpServer.createContext("/hooked", pages::hooked);
-      httpServer.createContext("/event", pages::event);
+      httpServer.createContext("/main", exchange -> servePage(exchange, "main", MAIN_COLOR));
+      httpServer.createContext("/popup", exchange -> servePage(exchange, "popup", POPUP_COLOR));
+      httpServer.createContext("/second", exchange -> servePage(exchange, "second", SECOND_COLOR));
+      httpServer.createContext("/tone", exchange -> servePage(exchange, "tone", MAIN_COLOR, TONE_SCRIPT));
+      httpServer.createContext("/tone-element", exchange -> servePage(exchange, "tone-element", MAIN_COLOR, ELEMENT_SCRIPT));
+      httpServer.createContext("/tone-wrapped", exchange -> servePage(exchange, "tone-wrapped", MAIN_COLOR, WRAPPED_TONE_SCRIPT));
+      httpServer.createContext("/av-sync", exchange -> servePage(exchange, "av-sync", 0x000000, TOGGLE_SCRIPT));
+      httpServer.createContext("/tone.wav", TestPages::serveToneWave);
+      httpServer.createContext("/hooked", pages::serveMainPageAfterTheLoadHook);
+      httpServer.createContext("/event", pages::recordEvent);
       httpServer.createContext("/dialog", TestPages::serveDialogs);
-      httpServer.createContext("/to-file", exchange -> script(exchange, "location.href = 'file:///etc/passwd';"));
-      httpServer.createContext("/to-download", exchange -> script(exchange, "location.href = '/download';"));
-      httpServer.createContext("/to-popup", exchange -> script(exchange, "window.open('/popup', '_blank');"));
+      httpServer.createContext("/to-file", exchange -> serveScript(exchange, "location.href = 'file:///etc/passwd';"));
+      httpServer.createContext("/to-download", exchange -> serveScript(exchange, "location.href = '/download';"));
+      httpServer.createContext("/to-popup", exchange -> serveScript(exchange, "window.open('/popup', '_blank');"));
       httpServer.createContext("/to-popup-link", TestPages::serveLinkToAPopup);
       httpServer.createContext("/to-popup-synthetic", TestPages::serveLinkToAPopupThatAScriptClicks);
       httpServer.createContext("/named-frame", TestPages::serveLinkIntoANamedFrame);
       httpServer.createContext("/form-target", TestPages::serveFormThatTargetsANewWindow);
-      httpServer.createContext("/download", TestPages::download);
+      httpServer.createContext("/download", TestPages::serveDownload);
       httpServer.start();
       return pages;
     } catch (final IOException exception) {
@@ -295,18 +295,18 @@ public final class TestPages implements AutoCloseable {
   }
 
   private static void serveDialogs(final HttpExchange exchange) throws IOException {
-    script(exchange, "alert('hi'); confirm('sure?'); document.body.style.background = '#00ff00';");
+    serveScript(exchange, "alert('hi'); confirm('sure?'); document.body.style.background = '#00ff00';");
   }
 
   private static void serveLinkToAPopup(final HttpExchange exchange) throws IOException {
-    script(
+    serveScript(
       exchange,
       "document.body.insertAdjacentHTML('beforeend', '<a href=\"/popup\" target=\"_blank\" style=\"position:fixed;inset:0\"></a>');"
     );
   }
 
   private static void serveLinkToAPopupThatAScriptClicks(final HttpExchange exchange) throws IOException {
-    script(
+    serveScript(
       exchange,
       "document.body.insertAdjacentHTML('beforeend', '<a id=\"link\" href=\"/popup\" target=\"_blank\">popup</a>');" +
         " document.getElementById('link').click();"
@@ -314,7 +314,7 @@ public final class TestPages implements AutoCloseable {
   }
 
   private static void serveLinkIntoANamedFrame(final HttpExchange exchange) throws IOException {
-    html(
+    serveHtml(
       exchange,
       "<iframe name=\"inner\" src=\"about:blank\" style=\"position:fixed;right:0;bottom:0;width:" +
         FRAME_WIDTH +
@@ -324,7 +324,7 @@ public final class TestPages implements AutoCloseable {
   }
 
   private static void serveFormThatTargetsANewWindow(final HttpExchange exchange) throws IOException {
-    html(
+    serveHtml(
       exchange,
       "<form action=\"/second\" method=\"get\"><button type=\"submit\" formtarget=\"_blank\"" +
         " style=\"position:fixed;inset:0;opacity:0\">send</button></form>"
@@ -348,11 +348,11 @@ public final class TestPages implements AutoCloseable {
     return matching.size();
   }
 
-  private static void page(final HttpExchange exchange, final String name, final int color) throws IOException {
-    page(exchange, name, color, "");
+  private static void servePage(final HttpExchange exchange, final String name, final int color) throws IOException {
+    servePage(exchange, name, color, "");
   }
 
-  private static void page(final HttpExchange exchange, final String name, final int color, final String extra) throws IOException {
+  private static void servePage(final HttpExchange exchange, final String name, final int color, final String extra) throws IOException {
     final String hexadecimal = String.format(Locale.ROOT, "#%06x", color);
     final String html =
       "<!doctype html><html><head><title>" +
@@ -374,7 +374,7 @@ public final class TestPages implements AutoCloseable {
     }
   }
 
-  private static void toneWave(final HttpExchange exchange) throws IOException {
+  private static void serveToneWave(final HttpExchange exchange) throws IOException {
     final int rate = 48_000;
     final ByteBuffer wave = ByteBuffer.allocate(44 + rate * 4).order(ByteOrder.LITTLE_ENDIAN);
     wave
@@ -405,7 +405,7 @@ public final class TestPages implements AutoCloseable {
     }
   }
 
-  private static void html(final HttpExchange exchange, final String elements) throws IOException {
+  private static void serveHtml(final HttpExchange exchange, final String elements) throws IOException {
     final String html =
       "<!doctype html><html><head><style>html,body{margin:0;width:100%;height:100%;background:#ff0000;}</style></head><body>" +
       elements +
@@ -419,7 +419,7 @@ public final class TestPages implements AutoCloseable {
     }
   }
 
-  private static void script(final HttpExchange exchange, final String script) throws IOException {
+  private static void serveScript(final HttpExchange exchange, final String script) throws IOException {
     final String html =
       "<!doctype html><html><head><style>html,body{margin:0;width:100%;height:100%;background:#ff0000;}</style></head>" +
       "<body><script>window.addEventListener('load', () => setTimeout(() => { " +
@@ -434,7 +434,7 @@ public final class TestPages implements AutoCloseable {
     }
   }
 
-  private static void download(final HttpExchange exchange) throws IOException {
+  private static void serveDownload(final HttpExchange exchange) throws IOException {
     final byte[] body = "not for the server".getBytes(StandardCharsets.UTF_8);
     final Headers headers = exchange.getResponseHeaders();
     headers.add("Content-Type", "application/octet-stream");
@@ -445,13 +445,13 @@ public final class TestPages implements AutoCloseable {
     }
   }
 
-  private void hooked(final HttpExchange exchange) throws IOException {
+  private void serveMainPageAfterTheLoadHook(final HttpExchange exchange) throws IOException {
     final Runnable hook = this.loadHook.get();
     hook.run();
-    page(exchange, "main", MAIN_COLOR);
+    servePage(exchange, "main", MAIN_COLOR);
   }
 
-  private void event(final HttpExchange exchange) throws IOException {
+  private void recordEvent(final HttpExchange exchange) throws IOException {
     final URI requestUri = exchange.getRequestURI();
     final String query = requestUri.getRawQuery();
     final Map<String, String> parameters = this.parse(query);

@@ -21,7 +21,7 @@ import java.util.Vector;
 import java.util.function.Consumer;
 import org.cef.browser.CefBrowser;
 import org.cef.browser.CefFrame;
-import org.cef.browser.McavOffscreenBrowser;
+import org.cef.browser.MCAVOffscreenBrowser;
 import org.cef.callback.CefAuthCallback;
 import org.cef.callback.CefBeforeDownloadCallback;
 import org.cef.callback.CefCallback;
@@ -115,8 +115,8 @@ final class ContentPolicy
     final boolean isRedirect
   ) {
     final String url = request.getURL();
-    final boolean isMain = frame.isMain();
-    final FrameKind kind = isMain ? FrameKind.MAIN : FrameKind.CHILD;
+    final boolean mainFrame = frame.isMain();
+    final FrameKind kind = mainFrame ? FrameKind.MAIN : FrameKind.CHILD;
     final boolean allowed = NavigationPolicy.allowsNavigation(url, kind);
     if (!allowed) {
       final String address = AddressText.describe(url);
@@ -234,7 +234,7 @@ final class ContentPolicy
   ) {
     this.events.onNotice("The download of %s was refused.".formatted(suggestedName));
     // on macOS a page that starts a download while it loads stays white after the refusal until it changes
-    if (browser instanceof final McavOffscreenBrowser offscreen) {
+    if (browser instanceof final MCAVOffscreenBrowser offscreen) {
       offscreen.repaint();
     }
 

@@ -50,7 +50,7 @@ import org.cef.handler.CefScreenInfo;
  *
  * @since 1.0.0
  */
-public final class McavOffscreenBrowser extends CefBrowser_N implements CefRenderHandler {
+public final class MCAVOffscreenBrowser extends CefBrowser_N implements CefRenderHandler {
 
   private static final Component DETACHED = new DetachedComponent();
 
@@ -72,7 +72,7 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
    * @param settings the settings of the browser, such as its frame rate
    * @since 1.0.0
    */
-  public McavOffscreenBrowser(
+  public MCAVOffscreenBrowser(
     final CefClient client,
     final String url,
     final int width,
@@ -209,12 +209,12 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
    * Tells the listener where a popup widget is drawn.
    *
    * @param browser the browser, which is this one
-   * @param size    the bounds of the popup on the page
+   * @param bounds  the bounds of the popup on the page
    * @since 1.0.0
    */
   @Override
-  public void onPopupSize(final CefBrowser browser, final Rectangle size) {
-    this.listener.onPopupSize(size);
+  public void onPopupSize(final CefBrowser browser, final Rectangle bounds) {
+    this.listener.onPopupSize(bounds);
   }
 
   /**
@@ -336,12 +336,12 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
   }
 
   /**
-   * Returns whether the browser has focus, as far as this browser told CEF.
+   * Returns whether the browser is focused, as far as this browser told CEF.
    *
    * @return true if the browser has focus
    * @since 1.0.0
    */
-  public synchronized boolean hasFocus() {
+  public synchronized boolean isFocused() {
     return this.focused;
   }
 

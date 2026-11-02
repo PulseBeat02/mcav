@@ -41,7 +41,7 @@ public final class HelperCoverage {
         final int options = argument.indexOf('=');
         final String agent = options < 0 ? argument : argument.substring(0, options);
         return List.of(
-          agent + "=destfile=" + destination + ",append=true,includes=me.brandonli.mcav.*:org.cef.browser.McavOffscreenBrowser*"
+          agent + "=destfile=" + destination + ",append=true,includes=me.brandonli.mcav.*:org.cef.browser.MCAVOffscreenBrowser*"
         );
       }
     }

@@ -31,7 +31,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.cef.browser.CefBrowser;
 import org.cef.browser.CefFrame;
-import org.cef.browser.McavOffscreenBrowser;
+import org.cef.browser.MCAVOffscreenBrowser;
 import org.cef.callback.CefAuthCallback;
 import org.cef.callback.CefBeforeDownloadCallback;
 import org.cef.callback.CefCallback;
@@ -382,7 +382,7 @@ class ContentPolicyTest {
   // on macOS the view stayed white after a refused download until the page changed
   @Test
   void shouldRepaintTheViewAfterARefusedDownload() {
-    final McavOffscreenBrowser offscreen = mock(McavOffscreenBrowser.class);
+    final MCAVOffscreenBrowser offscreen = mock(MCAVOffscreenBrowser.class);
     final boolean handled = this.policy.onBeforeDownload(
       offscreen,
       mock(CefDownloadItem.class),

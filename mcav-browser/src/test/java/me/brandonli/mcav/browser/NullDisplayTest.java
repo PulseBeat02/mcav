@@ -938,7 +938,7 @@ class NullDisplayTest {
   @Test
   void shouldNotOverwriteAnAuthorityFileThatExistsAndLeaveNoPortOpen() throws IOException {
     final Path authority = Files.writeString(this.folder.resolve(AUTHORITY_FILE), "someone else's");
-    OpenFiles.leaveNoneOpen("a display that cannot write its file", () -> this.assertStartFails(authority));
+    OpenFiles.assertLeavesNoneOpen("a display that cannot write its file", () -> this.assertStartFails(authority));
     final String authorityText = Files.readString(authority);
     assertEquals("someone else's", authorityText);
   }

@@ -62,7 +62,7 @@ final class HelperProcesses {
     return true;
   }
 
-  static synchronized void deregister(final HelperSession session) {
+  static synchronized void unregister(final HelperSession session) {
     SESSIONS.remove(session);
   }
 

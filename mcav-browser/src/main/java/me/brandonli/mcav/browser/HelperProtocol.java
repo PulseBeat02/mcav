@@ -122,7 +122,7 @@ final class HelperProtocol {
   }
 
   static void writeText(final DataOutput output, final int type, final String text) throws IOException {
-    final byte[] bytes = encode(text);
+    final byte[] bytes = encodeTruncated(text);
     output.writeByte(type);
     output.writeInt(STRING_LENGTH_BYTES + bytes.length);
     writeString(output, bytes);
@@ -135,8 +135,8 @@ final class HelperProtocol {
   }
 
   static void writeLoadError(final DataOutput output, final int code, final String text, final String url) throws IOException {
-    final byte[] textBytes = encode(text);
-    final byte[] urlBytes = encode(url);
+    final byte[] textBytes = encodeTruncated(text);
+    final byte[] urlBytes = encodeTruncated(url);
     output.writeByte(LOAD_ERROR);
     output.writeInt(ERROR_CODE_BYTES + STRING_LENGTH_BYTES + textBytes.length + STRING_LENGTH_BYTES + urlBytes.length);
     output.writeInt(code);
@@ -195,7 +195,7 @@ final class HelperProtocol {
   }
 
   static void writeKey(final DataOutput output, final int action, final String value) throws IOException {
-    final byte[] bytes = encode(value);
+    final byte[] bytes = encodeTruncated(value);
     output.writeByte(KEY);
     output.writeInt(ACTION_BYTES + STRING_LENGTH_BYTES + bytes.length);
     output.writeByte(action);
@@ -207,13 +207,13 @@ final class HelperProtocol {
     output.writeInt(0);
   }
 
-  static HelperMessage read(final DataInput input, final IntFunction<byte[]> pixels) throws IOException {
+  static HelperMessage read(final DataInput input, final IntFunction<byte[]> pixelBuffers) throws IOException {
     final int type = input.readUnsignedByte();
     final int length = input.readInt();
     return switch (type) {
       case HELLO -> readHello(input, length);
       case READY, NOTICE, FAILURE -> readTextMessage(input, type, length);
-      case FRAME -> readFrame(input, length, pixels);
+      case FRAME -> readFrame(input, length, pixelBuffers);
       case AUDIO -> readAudio(input, length);
       case LOADING -> readLoading(input, length);
       case LOAD_ERROR -> readLoadError(input, length);
@@ -272,7 +272,8 @@ final class HelperProtocol {
     return HelperMessage.loadError(code, text, url);
   }
 
-  private static HelperMessage readFrame(final DataInput input, final int length, final IntFunction<byte[]> pixels) throws IOException {
+  private static HelperMessage readFrame(final DataInput input, final int length, final IntFunction<byte[]> pixelBuffers)
+    throws IOException {
     final long maximum = FRAME_HEADER_BYTES + (long) MAXIMUM_SIDE * MAXIMUM_SIDE * PIXEL_BYTES;
     checkLength(FRAME, length, FRAME_HEADER_BYTES, maximum);
     final int pageWidth = input.readUnsignedShort();
@@ -298,7 +299,7 @@ final class HelperProtocol {
     }
 
     final int size = (int) pixelBytes;
-    final byte[] target = pixels.apply(size);
+    final byte[] target = pixelBuffers.apply(size);
     if (target.length < size) {
       final String message = "A frame of %s bytes arrived where no frame of that size is expected!".formatted(size);
       throw new ProtocolException(message);
@@ -443,7 +444,7 @@ final class HelperProtocol {
     return codePoint < UTF8_FOUR_BYTE_START ? 3 : 4;
   }
 
-  static byte[] encode(final String text) {
+  static byte[] encodeTruncated(final String text) {
     final byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
     if (bytes.length <= MAXIMUM_TEXT_BYTES) {
       return bytes;

@@ -42,7 +42,7 @@ import org.cef.CefClient;
 import org.cef.CefSettings;
 import org.cef.browser.CefBrowser;
 import org.cef.browser.CefDevToolsClient;
-import org.cef.browser.McavOffscreenBrowser;
+import org.cef.browser.MCAVOffscreenBrowser;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 // CEF in the helper, off-screen on its external message pump, which JCEF drives from the AWT event thread (a headless
@@ -118,7 +118,7 @@ final class CefEngine implements HelperEngine {
   private volatile @Nullable NullDisplay display;
   private volatile @Nullable CefApp application;
   private volatile @Nullable CefClient client;
-  private volatile @Nullable McavOffscreenBrowser browser;
+  private volatile @Nullable MCAVOffscreenBrowser browser;
 
   CefEngine() {
     this.terminated = new CountDownLatch(1);
@@ -200,7 +200,7 @@ final class CefEngine implements HelperEngine {
   }
 
   @Override
-  public void start(final HelperConfiguration configuration, final McavOffscreenBrowser.PaintListener painter, final HelperEvents events)
+  public void start(final HelperConfiguration configuration, final MCAVOffscreenBrowser.PaintListener painter, final HelperEvents events)
     throws Exception {
     final String osName = System.getProperty("os.name");
     final OperatingSystem system = OperatingSystem.fromName(osName);
@@ -230,7 +230,7 @@ final class CefEngine implements HelperEngine {
     final CefAppBuilder builder,
     final HelperConfiguration configuration,
     final OperatingSystem system,
-    final McavOffscreenBrowser.PaintListener painter,
+    final MCAVOffscreenBrowser.PaintListener painter,
     final HelperEvents events
   ) throws Exception {
     events.onNotice(ChromiumConfinement.confine(configuration, system));
@@ -260,7 +260,7 @@ final class CefEngine implements HelperEngine {
   private void startChromium(
     final CefAppBuilder builder,
     final HelperConfiguration configuration,
-    final McavOffscreenBrowser.PaintListener painter,
+    final MCAVOffscreenBrowser.PaintListener painter,
     final HelperEvents events
   ) throws Exception {
     final CefApp created = builder.build();
@@ -278,7 +278,7 @@ final class CefEngine implements HelperEngine {
     browserSettings.windowless_frame_rate = configuration.getFrameRate();
     final int width = configuration.getWidth();
     final int height = configuration.getHeight();
-    final McavOffscreenBrowser createdBrowser = new McavOffscreenBrowser(
+    final MCAVOffscreenBrowser createdBrowser = new MCAVOffscreenBrowser(
       createdClient,
       NavigationPolicy.BLANK,
       width,
@@ -294,7 +294,7 @@ final class CefEngine implements HelperEngine {
     openPage(prepared, url, SCRIPT_TIMEOUT_MILLISECONDS, audio, events::onNotice);
   }
 
-  private void createAndFocus(final McavOffscreenBrowser createdBrowser) {
+  private void createAndFocus(final MCAVOffscreenBrowser createdBrowser) {
     createdBrowser.createImmediately();
     createdBrowser.setFocus(true);
   }
@@ -413,7 +413,7 @@ final class CefEngine implements HelperEngine {
   // not awaited: JCEF can lose the result of the very first call, and input needs no answer
   @Override
   public void dispatch(final List<DevToolsInput.DevToolsCall> calls) {
-    final McavOffscreenBrowser current = this.browser;
+    final MCAVOffscreenBrowser current = this.browser;
     if (current == null) {
       return;
     }
@@ -458,7 +458,7 @@ final class CefEngine implements HelperEngine {
       currentGuard.close();
     }
 
-    final McavOffscreenBrowser current = this.browser;
+    final MCAVOffscreenBrowser current = this.browser;
     final CefClient currentClient = this.client;
     final CefApp currentApplication = this.application;
     if (currentApplication != null) {
@@ -471,7 +471,7 @@ final class CefEngine implements HelperEngine {
     }
   }
 
-  static void close(final @Nullable McavOffscreenBrowser browser, final @Nullable CefClient client, final CefApp application) {
+  static void close(final @Nullable MCAVOffscreenBrowser browser, final @Nullable CefClient client, final CefApp application) {
     if (browser != null) {
       browser.setCloseAllowed();
       browser.close(true);

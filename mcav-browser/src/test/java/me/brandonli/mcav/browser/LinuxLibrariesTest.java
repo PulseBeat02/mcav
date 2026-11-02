@@ -688,7 +688,9 @@ class LinuxLibrariesTest {
     assertEquals(installation.resolve("libmissing.so.1"), linkTarget);
 
     final Path bare = Files.createDirectory(this.folder.resolve("bare-host"));
-    final BrowserException lacking = assertThrows(BrowserUnavailableException.class, () -> libraries.findMissing(PLATFORM, List.of(bare)));
+    final BrowserException lacking = assertThrows(BrowserUnavailableException.class, () ->
+      libraries.requireHostLibraries(PLATFORM, List.of(bare))
+    );
     final String message = lacking.getMessage();
     assertEquals("The browser needs libz.so.1, which this server lacks and MCAV does not bring!", message);
   }
@@ -832,6 +834,24 @@ class LinuxLibrariesTest {
     );
     final HelperLauncher launcherWithLibraries = CefBrowserPlayer.HelperSessionFactory.withLibraries(headless, libraries, server);
     assertSame(headless, launcherWithLibraries, "a full runtime is used");
+  }
+
+  @Test
+  @EnabledOnOs(OS.LINUX)
+  void shouldRefuseALinuxServerThatLacksAHostLibrary() throws IOException {
+    final String platform = JcefNatives.detectCurrent().getIdentifier();
+    final LinuxLibraries libraries = new LinuxLibraries(
+      this.folder,
+      (uri, destination, sha256, size) -> {},
+      List.of(),
+      List.of("host %s libz.so.1".formatted(platform))
+    );
+    final HelperLauncher linux = HelperSessionTest.launcher(ScriptedEngine.class.getName(), START_TIMEOUT_MILLISECONDS, Os.LINUX);
+    final Path server = Files.createDirectories(this.folder.resolve("server"));
+    final Executable linking = () -> CefBrowserPlayer.HelperSessionFactory.withLibraries(linux, libraries, server);
+    final BrowserException refused = assertThrows(BrowserUnavailableException.class, linking);
+    final String message = refused.getMessage();
+    assertEquals("The browser needs libz.so.1, which this server lacks and MCAV does not bring!", message);
   }
 
   @Test

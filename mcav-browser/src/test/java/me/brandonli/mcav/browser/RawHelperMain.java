@@ -55,7 +55,7 @@ public final class RawHelperMain {
     }
 
     if (configuration.getUrl().getPath().equals("/silent-stubborn")) {
-      waitTwoMinutes();
+      exitAfterTwoMinutes();
     }
 
     final SocketChannel channel = SocketChannel.open(StandardProtocolFamily.UNIX);
@@ -181,7 +181,7 @@ public final class RawHelperMain {
     }
 
     if (path.equals("/stubborn") || path.equals("/stubborn-child")) {
-      waitTwoMinutes();
+      exitAfterTwoMinutes();
     }
   }
 
@@ -229,7 +229,7 @@ public final class RawHelperMain {
   }
 
   // outlasts any test that kills this helper, but leaves no orphan behind for long
-  private static void waitTwoMinutes() {
+  private static void exitAfterTwoMinutes() {
     final long deadline = System.nanoTime() + TimeUnit.MINUTES.toNanos(2);
     while (System.nanoTime() < deadline) {
       sleep();

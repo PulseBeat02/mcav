@@ -27,7 +27,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
-import org.cef.browser.McavOffscreenBrowser;
+import org.cef.browser.MCAVOffscreenBrowser;
 
 // A browser engine without CEF for the helper and session tests: the path of the page picks what it does.
 final class ScriptedEngine implements HelperEngine {
@@ -44,7 +44,7 @@ final class ScriptedEngine implements HelperEngine {
 
   private final List<String> calls;
 
-  private McavOffscreenBrowser.PaintListener painter = new NoPainter();
+  private MCAVOffscreenBrowser.PaintListener painter = new NoPainter();
   private HelperEvents events = new NoEvents();
   private int width;
   private int height;
@@ -63,7 +63,7 @@ final class ScriptedEngine implements HelperEngine {
   }
 
   @Override
-  public void start(final HelperConfiguration configuration, final McavOffscreenBrowser.PaintListener painter, final HelperEvents events)
+  public void start(final HelperConfiguration configuration, final MCAVOffscreenBrowser.PaintListener painter, final HelperEvents events)
     throws Exception {
     this.painter = painter;
     this.events = events;
@@ -207,7 +207,7 @@ final class ScriptedEngine implements HelperEngine {
     return this.stopped;
   }
 
-  private static final class NoPainter implements McavOffscreenBrowser.PaintListener {
+  private static final class NoPainter implements MCAVOffscreenBrowser.PaintListener {
 
     @Override
     public void onPaint(

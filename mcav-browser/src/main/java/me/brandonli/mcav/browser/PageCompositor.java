@@ -22,12 +22,12 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 import java.util.function.LongSupplier;
-import org.cef.browser.McavOffscreenBrowser;
+import org.cef.browser.MCAVOffscreenBrowser;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 // The paint buffer of CEF is valid only during the paint, so the page is copied; damage is merged, never dropped, so the
 // receiver ends up with the page. A settle delay sends the last change of a page that stops changing.
-final class PageCompositor implements McavOffscreenBrowser.PaintListener {
+final class PageCompositor implements MCAVOffscreenBrowser.PaintListener {
 
   private static final byte FULL_CHANNEL = (byte) 0xFF;
 
@@ -151,7 +151,7 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
       final Rectangle current = this.damage;
       final long now = this.clock.getAsLong();
       if (current != null && this.isDue(now)) {
-        return this.copyDamage(current, target);
+        return this.drainDamage(current, target);
       }
       final long remaining = deadline - now;
       if (remaining <= 0) {
@@ -171,7 +171,7 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
     return enoughPaints || settled;
   }
 
-  private FrameRegion copyDamage(final Rectangle area, final byte[] target) {
+  private FrameRegion drainDamage(final Rectangle area, final byte[] target) {
     final ByteBuffer pageBuffer = ByteBuffer.wrap(this.page);
     this.copyRows(pageBuffer, this.width, area, target, area.width, 0, 0);
     final Popup shown = this.shownPopup;

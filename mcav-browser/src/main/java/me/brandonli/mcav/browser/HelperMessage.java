@@ -22,7 +22,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 // Values a type does not carry are empty, zero or null.
 final class HelperMessage {
 
-  private static final byte[] NO_TOKEN = new byte[0];
+  private static final byte[] NO_BYTES = new byte[0];
 
   private final int type;
   private final byte[] token;
@@ -42,7 +42,7 @@ final class HelperMessage {
     final @Nullable FrameRegion region,
     final @Nullable MouseInput mouse
   ) {
-    this(type, token, number, text, url, region, mouse, NO_TOKEN);
+    this(type, token, number, text, url, region, mouse, NO_BYTES);
   }
 
   private HelperMessage(
@@ -66,7 +66,7 @@ final class HelperMessage {
   }
 
   static HelperMessage audio(final byte[] samples) {
-    return new HelperMessage(HelperProtocol.AUDIO, NO_TOKEN, 0, "", "", null, null, samples);
+    return new HelperMessage(HelperProtocol.AUDIO, NO_BYTES, 0, "", "", null, null, samples);
   }
 
   static HelperMessage hello(final byte[] token, final int version) {
@@ -74,31 +74,31 @@ final class HelperMessage {
   }
 
   static HelperMessage text(final int type, final String text) {
-    return new HelperMessage(type, NO_TOKEN, 0, text, "", null, null);
+    return new HelperMessage(type, NO_BYTES, 0, text, "", null, null);
   }
 
   static HelperMessage loading(final boolean loading) {
-    return new HelperMessage(HelperProtocol.LOADING, NO_TOKEN, loading ? 1 : 0, "", "", null, null);
+    return new HelperMessage(HelperProtocol.LOADING, NO_BYTES, loading ? 1 : 0, "", "", null, null);
   }
 
   static HelperMessage loadError(final int code, final String text, final String url) {
-    return new HelperMessage(HelperProtocol.LOAD_ERROR, NO_TOKEN, code, text, url, null, null);
+    return new HelperMessage(HelperProtocol.LOAD_ERROR, NO_BYTES, code, text, url, null, null);
   }
 
   static HelperMessage frame(final FrameRegion region) {
-    return new HelperMessage(HelperProtocol.FRAME, NO_TOKEN, 0, "", "", region, null);
+    return new HelperMessage(HelperProtocol.FRAME, NO_BYTES, 0, "", "", region, null);
   }
 
   static HelperMessage mouse(final MouseInput input) {
-    return new HelperMessage(HelperProtocol.MOUSE, NO_TOKEN, 0, "", "", null, input);
+    return new HelperMessage(HelperProtocol.MOUSE, NO_BYTES, 0, "", "", null, input);
   }
 
   static HelperMessage key(final int action, final String value) {
-    return new HelperMessage(HelperProtocol.KEY, NO_TOKEN, action, value, "", null, null);
+    return new HelperMessage(HelperProtocol.KEY, NO_BYTES, action, value, "", null, null);
   }
 
   static HelperMessage close() {
-    return new HelperMessage(HelperProtocol.CLOSE, NO_TOKEN, 0, "", "", null, null);
+    return new HelperMessage(HelperProtocol.CLOSE, NO_BYTES, 0, "", "", null, null);
   }
 
   FrameRegion getRegion() {

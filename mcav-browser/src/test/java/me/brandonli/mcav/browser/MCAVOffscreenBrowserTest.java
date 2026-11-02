@@ -38,17 +38,17 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 import org.cef.CefBrowserSettings;
 import org.cef.CefClient;
-import org.cef.browser.McavOffscreenBrowser;
+import org.cef.browser.MCAVOffscreenBrowser;
 import org.cef.callback.CefDragData;
 import org.cef.handler.CefRenderHandler;
 import org.cef.handler.CefScreenInfo;
 import org.junit.jupiter.api.Test;
 
 // Without the natives, JCEF reports and ignores every native call, so the Java side of each method runs here.
-class McavOffscreenBrowserTest {
+class MCAVOffscreenBrowserTest {
 
   private final RecordingPainter painter = new RecordingPainter();
-  private final McavOffscreenBrowser browser = new McavOffscreenBrowser(
+  private final MCAVOffscreenBrowser browser = new MCAVOffscreenBrowser(
     mock(CefClient.class),
     "https://example.com/",
     640,
@@ -113,24 +113,24 @@ class McavOffscreenBrowserTest {
 
   @Test
   void shouldPassFocusChangesToCefOnlyWhenTheyChangeSomething() {
-    final boolean focusedAtFirst = this.browser.hasFocus();
+    final boolean focusedAtFirst = this.browser.isFocused();
     assertFalse(focusedAtFirst);
 
     this.browser.setFocus(true);
-    final boolean focusedAfterFocusing = this.browser.hasFocus();
+    final boolean focusedAfterFocusing = this.browser.isFocused();
     assertTrue(focusedAfterFocusing);
 
     // JCEF gives a focused browser focus again from inside the focus event; that call must change nothing
     this.browser.setFocus(true);
-    final boolean focusedAfterRefocusing = this.browser.hasFocus();
+    final boolean focusedAfterRefocusing = this.browser.isFocused();
     assertTrue(focusedAfterRefocusing);
 
     this.browser.setFocus(false);
-    final boolean focusedAfterUnfocusing = this.browser.hasFocus();
+    final boolean focusedAfterUnfocusing = this.browser.isFocused();
     assertFalse(focusedAfterUnfocusing);
 
     this.browser.setFocus(false);
-    final boolean focusedAfterUnfocusingAgain = this.browser.hasFocus();
+    final boolean focusedAfterUnfocusingAgain = this.browser.isFocused();
     assertFalse(focusedAfterUnfocusingAgain);
   }
 
@@ -168,7 +168,7 @@ class McavOffscreenBrowserTest {
     assertTrue(nothingPainted);
   }
 
-  private static final class RecordingPainter implements McavOffscreenBrowser.PaintListener {
+  private static final class RecordingPainter implements MCAVOffscreenBrowser.PaintListener {
 
     private final List<String> log = new ArrayList<>();
 

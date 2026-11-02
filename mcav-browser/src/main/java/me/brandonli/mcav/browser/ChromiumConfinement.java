@@ -143,7 +143,7 @@ final class ChromiumConfinement {
     }
 
     final List<Landlock.Rule> rules = new ArrayList<>();
-    readAllBut(root, hiddenFolders, rules);
+    allowReadingAllBut(root, hiddenFolders, rules);
     for (final Path path : readable) {
       rules.add(new Landlock.Rule(path, Landlock.Access.READ_ONLY));
     }
@@ -155,7 +155,7 @@ final class ChromiumConfinement {
     return rules;
   }
 
-  private static void readAllBut(final Path folder, final List<Path> hidden, final List<Landlock.Rule> rules) throws IOException {
+  private static void allowReadingAllBut(final Path folder, final List<Path> hidden, final List<Landlock.Rule> rules) throws IOException {
     final List<Path> children;
     try (final Stream<Path> listing = Files.list(folder)) {
       children = listing.toList();
@@ -168,7 +168,7 @@ final class ChromiumConfinement {
         continue;
       }
       if (holdsAny(child, hidden)) {
-        readAllBut(child, hidden, rules);
+        allowReadingAllBut(child, hidden, rules);
       } else {
         rules.add(new Landlock.Rule(child, Landlock.Access.READ_ONLY));
       }

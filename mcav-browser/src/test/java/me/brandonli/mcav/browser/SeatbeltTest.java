@@ -113,7 +113,7 @@ class SeatbeltTest {
         final String message = refused.getMessage();
         assertEquals("Because this system has no Seatbelt (sandbox_init), the process cannot be restricted!", message);
 
-        final List<String> passedProfiles = library.profiles();
+        final List<String> passedProfiles = library.getProfiles();
         assertEquals(List.of(), passedProfiles);
       }
     }
@@ -127,13 +127,13 @@ class SeatbeltTest {
       assertTrue(available);
 
       seatbelt.restrictProcess(PROFILE + DENY_WRITING);
-      final List<String> passedProfiles = library.profiles();
+      final List<String> passedProfiles = library.getProfiles();
       assertEquals(List.of(PROFILE + DENY_WRITING), passedProfiles);
 
-      final List<Long> passedFlags = library.flags();
+      final List<Long> passedFlags = library.getFlags();
       assertEquals(List.of(0L), passedFlags);
 
-      final List<Long> freedAddresses = library.freed();
+      final List<Long> freedAddresses = library.getFreed();
       assertEquals(List.of(), freedAddresses);
     }
   }
@@ -147,8 +147,8 @@ class SeatbeltTest {
       final String message = refused.getMessage();
       assertEquals("Seatbelt refused the profile, reporting unbound variable: subpat as the reason!", message);
 
-      final List<Long> freedAddresses = library.freed();
-      assertEquals(List.of(library.reasonAddress()), freedAddresses);
+      final List<Long> freedAddresses = library.getFreed();
+      assertEquals(List.of(library.getReasonAddress()), freedAddresses);
     }
   }
 
@@ -161,7 +161,7 @@ class SeatbeltTest {
       final String message = refused.getMessage();
       assertEquals("Seatbelt refused the profile without a reason!", message);
 
-      final List<Long> freedAddresses = library.freed();
+      final List<Long> freedAddresses = library.getFreed();
       assertEquals(List.of(), freedAddresses);
     }
   }

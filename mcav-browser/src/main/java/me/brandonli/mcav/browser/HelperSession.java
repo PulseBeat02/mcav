@@ -126,7 +126,7 @@ final class HelperSession implements BrowserSession {
   private final DataOutputStream output;
   private final FrameCanvas canvas;
   private final Listener listener;
-  private final ThreadPoolExecutor input;
+  private final ThreadPoolExecutor inputSender;
   private final Deque<String> outputTail;
   private final AtomicBoolean closing;
   private final AtomicBoolean ended;
@@ -156,7 +156,7 @@ final class HelperSession implements BrowserSession {
     this.output = new DataOutputStream(new BufferedOutputStream(rawOutput));
     this.canvas = canvas;
     this.listener = listener;
-    this.input = new ThreadPoolExecutor(
+    this.inputSender = new ThreadPoolExecutor(
       1,
       1,
       0L,
@@ -183,8 +183,8 @@ final class HelperSession implements BrowserSession {
     final BrowserOptions options,
     final Listener listener
   ) {
-    final Path temporary = Path.of(System.getProperty("java.io.tmpdir"));
-    return open(launcher, natives, source, options, listener, temporary);
+    final Path temporaryFolder = Path.of(System.getProperty("java.io.tmpdir"));
+    return open(launcher, natives, source, options, listener, temporaryFolder);
   }
 
   @VisibleForTesting
@@ -194,10 +194,10 @@ final class HelperSession implements BrowserSession {
     final BrowserSource source,
     final BrowserOptions options,
     final Listener listener,
-    final Path temporary
+    final Path temporaryFolder
   ) {
     final long generation = HelperProcesses.requireOpen();
-    final Path folder = createFolder(temporary);
+    final Path folder = createFolder(temporaryFolder);
     final Path socket = folder.resolve(SOCKET_NAME);
     final byte[] token = createToken();
     Process process = null;
@@ -206,10 +206,10 @@ final class HelperSession implements BrowserSession {
     try (final ServerSocketChannel server = bind(socket)) {
       final Os os = launcher.getOs();
       requireShortEnough(os, folder);
-      final Path libraries = launcher.linkLibraries(folder);
+      final Path libraryFolder = launcher.linkLibraries(folder);
       final URI uri = source.getUri();
       final HelperConfiguration configuration = configure(token, socket, natives, folder.resolve(PROFILE_FOLDER), uri, source, options);
-      process = startProcess(launcher, folder, libraries);
+      process = startProcess(launcher, folder, libraryFolder);
       final Writer standardInput = sendConfiguration(process, configuration);
       final long timeoutMilliseconds = launcher.getStartTimeoutMilliseconds();
       final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMilliseconds);
@@ -330,20 +330,20 @@ final class HelperSession implements BrowserSession {
   }
 
   @VisibleForTesting
-  static Path createFolder(final Path temporary) {
-    return createFolder(temporary, SessionFolders::newName);
+  static Path createFolder(final Path temporaryFolder) {
+    return createFolder(temporaryFolder, SessionFolders::newName);
   }
 
   @VisibleForTesting
-  static Path createFolder(final Path temporary, final Supplier<String> names) {
-    final FileSystem fileSystem = temporary.getFileSystem();
+  static Path createFolder(final Path temporaryFolder, final Supplier<String> names) {
+    final FileSystem fileSystem = temporaryFolder.getFileSystem();
     final Set<String> views = fileSystem.supportedFileAttributeViews();
     final boolean supportsPosix = views.contains(POSIX_ATTRIBUTE_VIEW);
     final FileAttribute<?>[] attributes = supportsPosix
       ? new FileAttribute<?>[] { PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString(OWNER_ONLY_PERMISSIONS)) }
       : new FileAttribute<?>[0];
     try {
-      return createFolderUnderDrawnName(temporary, names, attributes);
+      return createFolderUnderDrawnName(temporaryFolder, names, attributes);
     } catch (final IOException exception) {
       final @Nullable String reason = exception.getMessage();
       final String message = "Because of \"%s\", the folder of the browser session cannot be created!".formatted(reason);
@@ -351,10 +351,13 @@ final class HelperSession implements BrowserSession {
     }
   }
 
-  private static Path createFolderUnderDrawnName(final Path temporary, final Supplier<String> names, final FileAttribute<?>[] attributes)
-    throws IOException {
+  private static Path createFolderUnderDrawnName(
+    final Path temporaryFolder,
+    final Supplier<String> names,
+    final FileAttribute<?>[] attributes
+  ) throws IOException {
     for (int attempt = 1; attempt <= MAXIMUM_FOLDER_ATTEMPTS; attempt++) {
-      final Path candidate = temporary.resolve(names.get());
+      final Path candidate = temporaryFolder.resolve(names.get());
       try {
         final Path folder = Files.createDirectory(candidate, attributes);
         SessionFolders.ofThisServer().record(folder);
@@ -391,18 +394,19 @@ final class HelperSession implements BrowserSession {
     }
   }
 
-  private static Process startProcess(final HelperLauncher launcher, final Path folder, final @Nullable Path libraries) throws IOException {
-    final ProcessBuilder builder = createProcessBuilder(launcher, folder, libraries);
+  private static Process startProcess(final HelperLauncher launcher, final Path folder, final @Nullable Path libraryFolder)
+    throws IOException {
+    final ProcessBuilder builder = createProcessBuilder(launcher, folder, libraryFolder);
     return builder.start();
   }
 
   @VisibleForTesting
-  static ProcessBuilder createProcessBuilder(final HelperLauncher launcher, final Path folder, final @Nullable Path libraries) {
+  static ProcessBuilder createProcessBuilder(final HelperLauncher launcher, final Path folder, final @Nullable Path libraryFolder) {
     final List<String> command = launcher.createCommand(folder);
     final ProcessBuilder builder = new ProcessBuilder(command);
     final Map<String, String> environment = builder.environment();
     environment.clear();
-    final Map<String, String> kept = launcher.createEnvironment(folder, libraries);
+    final Map<String, String> kept = launcher.createEnvironment(folder, libraryFolder);
     environment.putAll(kept);
     builder.directory(folder.toFile());
     builder.redirectErrorStream(true);
@@ -800,7 +804,7 @@ final class HelperSession implements BrowserSession {
 
   private boolean send(final MessageWriter writer) {
     try {
-      this.input.execute(() -> this.write(writer));
+      this.inputSender.execute(() -> this.write(writer));
 
       return true;
     } catch (final RejectedExecutionException exception) {
@@ -826,8 +830,8 @@ final class HelperSession implements BrowserSession {
       return;
     }
 
-    HelperProcesses.deregister(this);
-    this.input.shutdownNow();
+    HelperProcesses.unregister(this);
+    this.inputSender.shutdownNow();
     synchronized (this.deliveryLock) {
       this.deliveryLock.notifyAll();
     }
@@ -844,8 +848,8 @@ final class HelperSession implements BrowserSession {
 
   private static void stopProcess(final Process process) {
     final List<ProcessHandle> descendants = new ArrayList<>();
-    try (final Stream<ProcessHandle> started = process.descendants()) {
-      started.forEach(descendants::add);
+    try (final Stream<ProcessHandle> currentDescendants = process.descendants()) {
+      currentDescendants.forEach(descendants::add);
     }
 
     try {
@@ -868,8 +872,8 @@ final class HelperSession implements BrowserSession {
 
   private static void killAfterTimeout(final Process process, final List<ProcessHandle> descendants) throws InterruptedException {
     LOGGER.warn("The browser helper did not stop within {} ms and is killed.", STOP_TIMEOUT_MILLISECONDS);
-    try (final Stream<ProcessHandle> later = process.descendants()) {
-      later.forEach(descendants::add);
+    try (final Stream<ProcessHandle> laterDescendants = process.descendants()) {
+      laterDescendants.forEach(descendants::add);
     }
 
     process.destroyForcibly();
@@ -925,8 +929,8 @@ final class HelperSession implements BrowserSession {
   }
 
   @VisibleForTesting
-  long getHandledInput() {
-    return this.input.getCompletedTaskCount();
+  long getCompletedInputCount() {
+    return this.inputSender.getCompletedTaskCount();
   }
 
   boolean isAlive() {

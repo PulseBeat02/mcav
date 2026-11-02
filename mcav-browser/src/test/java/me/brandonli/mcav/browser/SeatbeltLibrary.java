@@ -61,7 +61,7 @@ final class SeatbeltLibrary implements AutoCloseable {
     for (final String name : names) {
       final boolean isSandboxInit = name.equals(SANDBOX_INIT);
       final FunctionDescriptor descriptor = isSandboxInit ? SANDBOX_INIT_DESCRIPTOR : FREE_ERROR_DESCRIPTOR;
-      final Object function = isSandboxInit ? (SandboxInitFunction) this::init : (FreeErrorFunction) this::freeError;
+      final Object function = isSandboxInit ? (SandboxInitFunction) this::initializeSandbox : (FreeErrorFunction) this::freeError;
       final Class<?> type = isSandboxInit ? SandboxInitFunction.class : FreeErrorFunction.class;
       final MethodHandle target = lookup.findVirtual(type, "call", descriptor.toMethodType()).bindTo(function);
       this.functions.put(name, Linker.nativeLinker().upcallStub(target, descriptor, this.arena));
@@ -96,7 +96,7 @@ final class SeatbeltLibrary implements AutoCloseable {
     this.arena.close();
   }
 
-  private int init(final MemorySegment profile, final long given, final MemorySegment error) {
+  private int initializeSandbox(final MemorySegment profile, final long given, final MemorySegment error) {
     this.profiles.add(profile.reinterpret(Long.MAX_VALUE).getString(0));
     this.flags.add(given);
     error.reinterpret(ValueLayout.ADDRESS.byteSize()).set(ValueLayout.ADDRESS, 0, this.reason);
@@ -108,19 +108,19 @@ final class SeatbeltLibrary implements AutoCloseable {
     this.freed.add(error.address());
   }
 
-  long reasonAddress() {
+  long getReasonAddress() {
     return this.reason.address();
   }
 
-  List<String> profiles() {
+  List<String> getProfiles() {
     return this.profiles;
   }
 
-  List<Long> flags() {
+  List<Long> getFlags() {
     return this.flags;
   }
 
-  List<Long> freed() {
+  List<Long> getFreed() {
     return this.freed;
   }
 

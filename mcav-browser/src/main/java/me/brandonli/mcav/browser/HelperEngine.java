@@ -18,11 +18,11 @@
 package me.brandonli.mcav.browser;
 
 import java.util.List;
-import org.cef.browser.McavOffscreenBrowser;
+import org.cef.browser.MCAVOffscreenBrowser;
 
 interface HelperEngine {
   // returns once the browser is being created; the events report when it is ready
-  void start(final HelperConfiguration configuration, final McavOffscreenBrowser.PaintListener painter, final HelperEvents events)
+  void start(final HelperConfiguration configuration, final MCAVOffscreenBrowser.PaintListener painter, final HelperEvents events)
     throws Exception;
 
   void dispatch(final List<DevToolsInput.DevToolsCall> calls);

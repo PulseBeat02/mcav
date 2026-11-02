@@ -494,7 +494,7 @@ class NetworkGuardTest {
     }
 
     final InetSocketAddress refusing = new InetSocketAddress(LOOPBACK, closedPort);
-    OpenFiles.leaveNoneOpen("a failed connection", () -> assertThrows(ConnectException.class, () -> NetworkGuard.connect(refusing)));
+    OpenFiles.assertLeavesNoneOpen("a failed connection", () -> assertThrows(ConnectException.class, () -> NetworkGuard.connect(refusing)));
   }
 
   @Test
@@ -553,7 +553,7 @@ class NetworkGuardTest {
     final TranslatingResolver resolver = new TranslatingResolver(1);
     final NetworkGuard.PublicAddresses policy = new NetworkGuard.PublicAddresses(resolver);
     final InetAddress translatedPrivate = InetAddress.getByName(TRANSLATED_PRIVATE_IPV6);
-    final @Nullable List<AddressPolicy.TranslationPrefix> prefixes = policy.getPrefixes();
+    final @Nullable List<AddressPolicy.TranslationPrefix> prefixes = policy.findTranslationPrefixes();
     assertNull(prefixes, "no prefixes are known while the resolver fails");
 
     final boolean firstAllowed = policy.test(translatedPrivate);

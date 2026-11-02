@@ -354,7 +354,7 @@ public final class BrowserHelper {
 
     @Override
     public void onReady(final String engineVersion) {
-      this.send(out -> HelperProtocol.writeText(out, HelperProtocol.READY, engineVersion));
+      this.send(output -> HelperProtocol.writeText(output, HelperProtocol.READY, engineVersion));
     }
 
     @Override
@@ -364,17 +364,17 @@ public final class BrowserHelper {
 
     @Override
     public void onLoading(final boolean loading) {
-      this.send(out -> HelperProtocol.writeLoading(out, loading));
+      this.send(output -> HelperProtocol.writeLoading(output, loading));
     }
 
     @Override
     public void onLoadError(final int code, final String text, final String url) {
-      this.send(out -> HelperProtocol.writeLoadError(out, code, text, url));
+      this.send(output -> HelperProtocol.writeLoadError(output, code, text, url));
     }
 
     @Override
     public void onNotice(final String text) {
-      this.send(out -> HelperProtocol.writeText(out, HelperProtocol.NOTICE, text));
+      this.send(output -> HelperProtocol.writeText(output, HelperProtocol.NOTICE, text));
     }
 
     // sound passes only after a press on this page, unless the options allow it, so a page that gets around Chromium's own
@@ -382,14 +382,14 @@ public final class BrowserHelper {
     @Override
     public void onAudio(final byte[] samples) {
       if (BrowserHelper.this.configuration.isAutoplay() || BrowserHelper.this.activated) {
-        this.send(out -> HelperProtocol.writeAudio(out, samples, samples.length));
+        this.send(output -> HelperProtocol.writeAudio(output, samples, samples.length));
       }
     }
 
     @Override
     public void onFailure(final String text) {
       this.failed = true;
-      this.send(out -> HelperProtocol.writeText(out, HelperProtocol.FAILURE, text));
+      this.send(output -> HelperProtocol.writeText(output, HelperProtocol.FAILURE, text));
       BrowserHelper.this.stop(text);
     }
 

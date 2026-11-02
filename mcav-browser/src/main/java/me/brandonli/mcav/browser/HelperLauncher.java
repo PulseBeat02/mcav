@@ -69,7 +69,7 @@ final class HelperLauncher {
   private final Os os;
   private final Map<String, String> environment;
   private final long startTimeoutMilliseconds;
-  private final @Nullable LibraryLinker libraries;
+  private final @Nullable LibraryLinker libraryLinker;
 
   @VisibleForTesting
   HelperLauncher(
@@ -92,9 +92,9 @@ final class HelperLauncher {
     final Os os,
     final Map<String, String> environment,
     final long startTimeoutMilliseconds,
-    final @Nullable LibraryLinker libraries
+    final @Nullable LibraryLinker libraryLinker
   ) {
-    this.libraries = libraries;
+    this.libraryLinker = libraryLinker;
     this.java = java;
     this.mainClass = mainClass;
     this.classPath = List.copyOf(classPath);
@@ -164,7 +164,7 @@ final class HelperLauncher {
   }
 
   // no display of the server is passed on
-  Map<String, String> createEnvironment(final Path folder, final @Nullable Path libraries) {
+  Map<String, String> createEnvironment(final Path folder, final @Nullable Path libraryFolder) {
     final Map<String, String> kept = HelperEnvironment.filter(this.environment);
     if (this.os == Os.LINUX) {
       final Path authority = this.authorityOf(folder);
@@ -180,8 +180,8 @@ final class HelperLauncher {
       kept.put(MAC_TEMPORARY_FOLDER_VARIABLE, folder.toString());
     }
 
-    if (libraries != null) {
-      kept.put(LIBRARY_PATH_VARIABLE, libraries.toString());
+    if (libraryFolder != null) {
+      kept.put(LIBRARY_PATH_VARIABLE, libraryFolder.toString());
     }
 
     return kept;
@@ -205,7 +205,7 @@ final class HelperLauncher {
   }
 
   @Nullable Path linkLibraries(final Path folder) throws IOException {
-    final LibraryLinker linker = this.libraries;
+    final LibraryLinker linker = this.libraryLinker;
     return linker == null ? null : linker.link(folder);
   }
 

@@ -182,7 +182,7 @@ final class LinuxLibraries {
     this.mirrors = List.copyOf(mirrors);
     this.securityMirrors = List.copyOf(securityMirrors);
     final List<Pin> parsed = new ArrayList<>();
-    final Map<String, List<String>> host = new LinkedHashMap<>();
+    final Map<String, List<String>> hostLibraries = new LinkedHashMap<>();
     for (final String line : pins) {
       final String trimmed = line.trim();
       if (trimmed.isEmpty() || trimmed.startsWith(COMMENT_PREFIX)) {
@@ -191,19 +191,19 @@ final class LinuxLibraries {
       final List<String> fields = List.of(FIELD_SEPARATOR.split(trimmed));
       final String firstField = fields.getFirst();
       if (firstField.equals(HOST_KEYWORD)) {
-        this.putHostLibraries(host, fields, line);
+        this.putHostLibraries(hostLibraries, fields, line);
       } else {
         parsed.add(Pin.parse(fields, line));
       }
     }
 
     this.pins = List.copyOf(parsed);
-    this.hostLibraries = Map.copyOf(host);
+    this.hostLibraries = Map.copyOf(hostLibraries);
   }
 
   private void putHostLibraries(
     @UnderInitialization LinuxLibraries this,
-    final Map<String, List<String>> host,
+    final Map<String, List<String>> hostLibraries,
     final List<String> fields,
     final String line
   ) {
@@ -212,7 +212,7 @@ final class LinuxLibraries {
       throw new IllegalArgumentException(message);
     }
 
-    host.put(
+    hostLibraries.put(
       requireMatch(PLATFORM, fields.get(1), line),
       this.requireSonames(fields.subList(HOST_FIRST_SONAME_FIELD, fields.size()), line)
     );
@@ -416,8 +416,7 @@ final class LinuxLibraries {
     IoUtils.markExecutable(file);
   }
 
-  // a package is missing whole or not at all, as its first library decides: NSS loads its modules beside its own library
-  List<Pin> findMissing(final String platform, final List<Path> hostFolders) {
+  void requireHostLibraries(final String platform, final List<Path> hostFolders) {
     final List<String> missingHost = new ArrayList<>();
     for (final String soname : this.hostLibraries.getOrDefault(platform, List.of())) {
       if (!isPresent(soname, hostFolders, platform)) {
@@ -430,7 +429,10 @@ final class LinuxLibraries {
       final String message = "The browser needs %s, which this server lacks and MCAV does not bring!".formatted(libraries);
       throw new BrowserUnavailableException(message);
     }
+  }
 
+  // a package is missing whole or not at all, as its first library decides: NSS loads its modules beside its own library
+  List<Pin> findMissing(final String platform, final List<Path> hostFolders) {
     final List<Pin> missing = new ArrayList<>();
     for (final Pin pin : this.getPins(platform)) {
       final List<String> sonames = pin.sonames();
@@ -530,8 +532,8 @@ final class LinuxLibraries {
     }
 
     for (final String raw : lines) {
-      final int comment = raw.indexOf(COMMENT_PREFIX);
-      final String line = (comment >= 0 ? raw.substring(0, comment) : raw).trim();
+      final int commentStart = raw.indexOf(COMMENT_PREFIX);
+      final String line = (commentStart >= 0 ? raw.substring(0, commentStart) : raw).trim();
       if (line.startsWith(INCLUDE_PREFIX)) {
         final String pattern = line.substring(INCLUDE_PREFIX.length()).trim();
         // as in glibc, a relative include lies beside the file that includes it
@@ -597,9 +599,9 @@ final class LinuxLibraries {
 
       final Map<String, String> files = new LinkedHashMap<>();
       for (final String entry : fields.subList(PIN_FIRST_FILE_FIELD, fields.size())) {
-        final int equals = entry.indexOf(SONAME_SEPARATOR);
-        final String soname = requireMatch(SONAME, equals > 0 ? entry.substring(0, equals) : entry, line);
-        final String path = requireMatch(PACKAGE_PATH, entry.substring(equals + 1), line);
+        final int separatorIndex = entry.indexOf(SONAME_SEPARATOR);
+        final String soname = requireMatch(SONAME, separatorIndex > 0 ? entry.substring(0, separatorIndex) : entry, line);
+        final String path = requireMatch(PACKAGE_PATH, entry.substring(separatorIndex + 1), line);
         files.put(path, soname);
       }
 

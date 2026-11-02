@@ -86,7 +86,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
 
     let send = null;
     let quietChunks = QUIET_CHUNKS;
-    const findSend = () => {
+    const takeBinding = () => {
       if (send === null && typeof globalThis[BINDING] === 'function') {
         send = globalThis[BINDING];
         // the page cannot send through it once it is taken
@@ -94,7 +94,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
       }
       return send;
     };
-    findSend();
+    takeBinding();
 
     const toSample = (value) => {
       const clamped = value > 1 ? 1 : value < -1 ? -1 : value || 0;
@@ -102,7 +102,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
     };
 
     const deliver = (buffer) => {
-      const deliverTo = findSend();
+      const deliverTo = takeBinding();
       if (deliverTo === null) {
         return;
       }
@@ -164,10 +164,10 @@ final class PageAudio implements CefDevToolsClient.EventListener {
     }
 
     const SharedAudioContext = new Proxy(NativeAudioContext, {
-      construct(target, args, newTarget) {
+      construct(target, argumentsList, newTarget) {
         if (newTarget !== SharedAudioContext) {
           // a subclass gets a context of its own, whose sound is not captured
-          return construct(target, args, newTarget);
+          return construct(target, argumentsList, newTarget);
         }
 
         return mixerOf().context;
@@ -184,9 +184,9 @@ final class PageAudio implements CefDevToolsClient.EventListener {
       }
       return result;
     };
-    AudioNode.prototype.disconnect = function disconnect(...args) {
-      const result = nativeDisconnect.apply(this, args);
-      if (isOutput(args[0])) {
+    AudioNode.prototype.disconnect = function disconnect(...callArguments) {
+      const result = nativeDisconnect.apply(this, callArguments);
+      if (isOutput(callArguments[0])) {
         try {
           nativeDisconnect.call(this, mixer.bus);
         } catch (error) {
@@ -219,14 +219,14 @@ final class PageAudio implements CefDevToolsClient.EventListener {
       return sourceOf(this, element, true);
     };
     const SharedElementSource = new Proxy(NativeElementSource, {
-      construct(target, args, newTarget) {
-        const options = args[1];
+      construct(target, argumentsList, newTarget) {
+        const options = argumentsList[1];
         const element = options !== null && typeof options === 'object' ? options.mediaElement : undefined;
         if (newTarget === SharedElementSource && element instanceof HTMLMediaElement) {
-          return sourceOf(args[0], element, true);
+          return sourceOf(argumentsList[0], element, true);
         }
 
-        return construct(target, args, newTarget);
+        return construct(target, argumentsList, newTarget);
       },
     });
     globalThis.MediaElementAudioSourceNode = SharedElementSource;
@@ -241,9 +241,9 @@ final class PageAudio implements CefDevToolsClient.EventListener {
         // the element plays as without MCAV
       }
     };
-    HTMLMediaElement.prototype.play = function play(...args) {
+    HTMLMediaElement.prototype.play = function play(...callArguments) {
       capture(this);
-      return nativePlay.apply(this, args);
+      return nativePlay.apply(this, callArguments);
     };
     addEventListener(
       'play',
@@ -283,17 +283,17 @@ final class PageAudio implements CefDevToolsClient.EventListener {
   private final Consumer<byte[]> sink;
   private final LongSupplier clock;
 
-  private long available;
-  private long last;
-  private long speaker;
-  private long spoken;
+  private long availableBytes;
+  private long lastRefill;
+  private long speakingContext;
+  private long lastSound;
 
   PageAudio(final Consumer<byte[]> sink, final LongSupplier clock) {
     this.sink = sink;
     this.clock = clock;
-    this.available = BUDGET_BYTES;
-    this.last = clock.getAsLong();
-    this.spoken = this.last - TimeUnit.MILLISECONDS.toNanos(QUIET_MILLISECONDS);
+    this.availableBytes = BUDGET_BYTES;
+    this.lastRefill = clock.getAsLong();
+    this.lastSound = this.lastRefill - TimeUnit.MILLISECONDS.toNanos(QUIET_MILLISECONDS);
   }
 
   static List<DevToolsInput.DevToolsCall> install() {
@@ -331,13 +331,13 @@ final class PageAudio implements CefDevToolsClient.EventListener {
     final long now = this.clock.getAsLong();
     this.refill(now);
 
-    return bytes <= this.available;
+    return bytes <= this.availableBytes;
   }
 
   private synchronized boolean take(final Chunk chunk) {
     final long now = this.clock.getAsLong();
-    final boolean quiet = now - this.spoken >= TimeUnit.MILLISECONDS.toNanos(QUIET_MILLISECONDS);
-    if (chunk.context() != this.speaker && !quiet) {
+    final boolean quiet = now - this.lastSound >= TimeUnit.MILLISECONDS.toNanos(QUIET_MILLISECONDS);
+    if (chunk.context() != this.speakingContext && !quiet) {
       return false;
     }
 
@@ -345,10 +345,10 @@ final class PageAudio implements CefDevToolsClient.EventListener {
       return false;
     }
 
-    this.speaker = chunk.context();
+    this.speakingContext = chunk.context();
 
     if (!this.isSilent(chunk.samples())) {
-      this.spoken = now;
+      this.lastSound = now;
     }
 
     return true;
@@ -365,19 +365,19 @@ final class PageAudio implements CefDevToolsClient.EventListener {
   }
 
   private void refill(final long now) {
-    final long elapsed = Math.min(Math.max(now - this.last, 0L), TimeUnit.SECONDS.toNanos(1));
-    this.last = now;
-    this.available = Math.min(BUDGET_BYTES, this.available + (elapsed * BUDGET_BYTES) / TimeUnit.SECONDS.toNanos(1));
+    final long elapsed = Math.min(Math.max(now - this.lastRefill, 0L), TimeUnit.SECONDS.toNanos(1));
+    this.lastRefill = now;
+    this.availableBytes = Math.min(BUDGET_BYTES, this.availableBytes + (elapsed * BUDGET_BYTES) / TimeUnit.SECONDS.toNanos(1));
   }
 
   private boolean spend(final int bytes, final long now) {
     this.refill(now);
 
-    if (bytes > this.available) {
+    if (bytes > this.availableBytes) {
       return false;
     }
 
-    this.available -= bytes;
+    this.availableBytes -= bytes;
 
     return true;
   }

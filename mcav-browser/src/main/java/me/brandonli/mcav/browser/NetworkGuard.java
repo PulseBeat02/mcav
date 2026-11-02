@@ -183,7 +183,7 @@ final class NetworkGuard implements Closeable {
       final DataInputStream input = new DataInputStream(new BufferedInputStream(rawInput));
       final OutputStream rawOutput = client.getOutputStream();
       final DataOutputStream output = new DataOutputStream(rawOutput);
-      final boolean withoutAuthentication = SocksProtocol.readGreeting(input);
+      final boolean withoutAuthentication = SocksProtocol.readOffersNoAuthentication(input);
       if (!withoutAuthentication) {
         SocksProtocol.writeMethod(output, SocksProtocol.NO_ACCEPTABLE_METHOD);
         return;
@@ -364,18 +364,18 @@ final class NetworkGuard implements Closeable {
 
     @Override
     public boolean test(final InetAddress address) {
-      final boolean isPublic;
+      final boolean publicAddress;
       if (address instanceof Inet4Address) {
-        isPublic = AddressPolicy.isPublic(address);
+        publicAddress = AddressPolicy.isPublic(address);
       } else {
-        final List<AddressPolicy.TranslationPrefix> known = this.getPrefixes();
-        isPublic = known != null && AddressPolicy.isPublic(address, known);
+        final List<AddressPolicy.TranslationPrefix> known = this.findTranslationPrefixes();
+        publicAddress = known != null && AddressPolicy.isPublic(address, known);
       }
 
-      return isPublic && !this.own.test(address);
+      return publicAddress && !this.own.test(address);
     }
 
-    synchronized @Nullable List<AddressPolicy.TranslationPrefix> getPrefixes() {
+    synchronized @Nullable List<AddressPolicy.TranslationPrefix> findTranslationPrefixes() {
       final List<AddressPolicy.TranslationPrefix> known = this.prefixes;
       if (known != null) {
         return known;

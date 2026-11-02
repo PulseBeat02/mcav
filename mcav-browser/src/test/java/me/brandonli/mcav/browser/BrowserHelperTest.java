@@ -59,7 +59,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.IntFunction;
 import me.brandonli.mcav.browser.testing.OpenFiles;
 import me.brandonli.mcav.browser.testing.StandardError;
-import org.cef.browser.McavOffscreenBrowser;
+import org.cef.browser.MCAVOffscreenBrowser;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -615,7 +615,7 @@ class BrowserHelperTest {
       @Override
       public void start(
         final HelperConfiguration configuration,
-        final McavOffscreenBrowser.PaintListener painter,
+        final MCAVOffscreenBrowser.PaintListener painter,
         final HelperEvents events
       ) throws InterruptedException {
         release.await();
@@ -695,7 +695,7 @@ class BrowserHelperTest {
   @Test
   void shouldLeaveNoFileOpenWhenTheConnectionFails() {
     final Path missing = this.folder.resolve("missing");
-    OpenFiles.leaveNoneOpen("a failed connection", () -> assertThrows(IOException.class, () -> BrowserHelper.connect(missing)));
+    OpenFiles.assertLeavesNoneOpen("a failed connection", () -> assertThrows(IOException.class, () -> BrowserHelper.connect(missing)));
   }
 
   // a daemon thread starts only daemons, so the helper runs on a thread that is none, as from its main method

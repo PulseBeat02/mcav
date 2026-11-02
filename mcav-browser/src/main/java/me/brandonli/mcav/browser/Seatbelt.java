@@ -35,7 +35,7 @@ final class Seatbelt {
 
   static final String MISSING = "this system has no Seatbelt (sandbox_init)";
 
-  private static final String SANDBOX_INIT = "sandbox_init";
+  private static final String SANDBOX_INITIALIZE = "sandbox_init";
   private static final String FREE_ERROR = "sandbox_free_error";
 
   private static final Integer SUCCESS = 0;
@@ -60,22 +60,22 @@ final class Seatbelt {
   // sandbox_init is a restricted native call; the helper starts with native access enabled
   @SuppressWarnings("restricted")
   void restrictProcess(final String profile) throws IOException {
-    final @Nullable MemorySegment init = this.library.find(SANDBOX_INIT).orElse(null);
+    final @Nullable MemorySegment initialize = this.library.find(SANDBOX_INITIALIZE).orElse(null);
     final @Nullable MemorySegment freeError = this.library.find(FREE_ERROR).orElse(null);
-    if (init == null || freeError == null) {
+    if (initialize == null || freeError == null) {
       final String message = "Because %s, the process cannot be restricted!".formatted(MISSING);
       throw new IOException(message);
     }
 
     final Linker linker = Linker.nativeLinker();
-    final MethodHandle sandboxInitCall = linker.downcallHandle(
-      init,
+    final MethodHandle initializeCall = linker.downcallHandle(
+      initialize,
       FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_LONG, ValueLayout.ADDRESS)
     );
     final MethodHandle freeCall = linker.downcallHandle(freeError, FunctionDescriptor.ofVoid(ValueLayout.ADDRESS));
     try (final Arena arena = Arena.ofConfined()) {
       final MemorySegment error = arena.allocate(ValueLayout.ADDRESS);
-      final Object result = call(sandboxInitCall, arena.allocateFrom(profile), PROFILE_TEXT, error);
+      final Object result = call(initializeCall, arena.allocateFrom(profile), PROFILE_TEXT, error);
       if (SUCCESS.equals(result)) {
         return;
       }
@@ -113,16 +113,16 @@ final class Seatbelt {
   // profile overrides an earlier one
   static String profile(final List<Path> hidden, final List<Path> readable, final List<Path> writable) {
     final StringBuilder profile = new StringBuilder(PROFILE_START);
-    rule(profile, DENY_READING, hidden);
-    rule(profile, ALLOW_READING, readable);
-    rule(profile, ALLOW_READING, writable);
+    appendRule(profile, DENY_READING, hidden);
+    appendRule(profile, ALLOW_READING, readable);
+    appendRule(profile, ALLOW_READING, writable);
     profile.append(DENY_WRITING);
-    rule(profile, ALLOW_WRITING, writable);
+    appendRule(profile, ALLOW_WRITING, writable);
 
     return profile.toString();
   }
 
-  private static void rule(final StringBuilder profile, final String action, final List<Path> paths) {
+  private static void appendRule(final StringBuilder profile, final String action, final List<Path> paths) {
     if (paths.isEmpty()) {
       return;
     }
@@ -141,6 +141,6 @@ final class Seatbelt {
   }
 
   boolean isAvailable() {
-    return this.library.find(SANDBOX_INIT).isPresent() && this.library.find(FREE_ERROR).isPresent();
+    return this.library.find(SANDBOX_INITIALIZE).isPresent() && this.library.find(FREE_ERROR).isPresent();
   }
 }

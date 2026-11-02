@@ -560,17 +560,17 @@ class HelperProtocolTest {
   @Test
   void shouldCutLongTextsAtACharacterBoundary() {
     final String ascii = "a".repeat(HelperProtocol.MAXIMUM_TEXT_BYTES + 10);
-    final byte[] encoded = HelperProtocol.encode(ascii);
+    final byte[] encoded = HelperProtocol.encodeTruncated(ascii);
     assertEquals(HelperProtocol.MAXIMUM_TEXT_BYTES, encoded.length);
 
     final String straddling = "a".repeat(HelperProtocol.MAXIMUM_TEXT_BYTES - 1) + "☃";
-    final byte[] cut = HelperProtocol.encode(straddling);
+    final byte[] cut = HelperProtocol.encodeTruncated(straddling);
     assertEquals(HelperProtocol.MAXIMUM_TEXT_BYTES - 1, cut.length);
 
     final String cutText = new String(cut, StandardCharsets.UTF_8);
     assertEquals("a".repeat(HelperProtocol.MAXIMUM_TEXT_BYTES - 1), cutText);
 
-    final byte[] exact = HelperProtocol.encode("a".repeat(HelperProtocol.MAXIMUM_TEXT_BYTES));
+    final byte[] exact = HelperProtocol.encodeTruncated("a".repeat(HelperProtocol.MAXIMUM_TEXT_BYTES));
     assertEquals(HelperProtocol.MAXIMUM_TEXT_BYTES, exact.length);
   }
 

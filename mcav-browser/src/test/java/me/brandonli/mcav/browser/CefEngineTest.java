@@ -54,7 +54,7 @@ import org.cef.CefClient;
 import org.cef.CefSettings;
 import org.cef.browser.CefBrowser;
 import org.cef.browser.CefDevToolsClient;
-import org.cef.browser.McavOffscreenBrowser;
+import org.cef.browser.MCAVOffscreenBrowser;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -450,7 +450,7 @@ class CefEngineTest {
     CefEngine.close(null, null, application);
     verify(application).dispose();
 
-    final McavOffscreenBrowser browser = mock(McavOffscreenBrowser.class);
+    final MCAVOffscreenBrowser browser = mock(MCAVOffscreenBrowser.class);
     final CefClient client = mock(CefClient.class);
     final CefApp second = mock(CefApp.class);
     CefEngine.close(browser, client, second);

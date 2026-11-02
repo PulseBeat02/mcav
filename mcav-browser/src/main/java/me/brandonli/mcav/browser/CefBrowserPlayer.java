@@ -477,6 +477,8 @@ final class CefBrowserPlayer implements BrowserPlayer {
       final JcefNatives.NativePlatform platform = JcefNatives.detectCurrent();
       final String identifier = platform.getIdentifier();
       final List<Path> folders = LinuxLibraries.hostFolders(root, identifier);
+      libraries.requireHostLibraries(identifier, folders);
+
       final List<LinuxLibraries.Pin> missing = libraries.findMissing(identifier, folders);
       if (missing.isEmpty()) {
         return base;

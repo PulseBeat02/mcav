@@ -56,7 +56,7 @@ final class SocksProtocol {
     throw new UnsupportedOperationException(message);
   }
 
-  static boolean readGreeting(final DataInput input) throws IOException {
+  static boolean readOffersNoAuthentication(final DataInput input) throws IOException {
     readVersion(input);
     final int count = input.readUnsignedByte();
     if (count == 0) {
@@ -140,7 +140,7 @@ final class SocksProtocol {
     final String host = new String(bytes, StandardCharsets.US_ASCII);
     // Chromium names an IPv6 address by its text, in the field of a host name
     if (host.indexOf(':') >= 0) {
-      return readIpv6Literal(host);
+      return parseIpv6Literal(host);
     }
 
     if (host.indexOf('[') >= 0 || host.indexOf(']') >= 0) {
@@ -152,7 +152,7 @@ final class SocksProtocol {
   }
 
   // never asks a resolver
-  private static String readIpv6Literal(final String text) throws ProtocolException {
+  private static String parseIpv6Literal(final String text) throws ProtocolException {
     try {
       final InetAddress address = InetAddress.ofLiteral(text);
       return address.getHostAddress();

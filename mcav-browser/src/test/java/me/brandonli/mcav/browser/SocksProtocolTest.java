@@ -66,29 +66,31 @@ class SocksProtocolTest {
 
   @Test
   void shouldRequireAGreetingToOfferToGoWithoutAuthentication() throws IOException {
-    final boolean onlyMethodAccepted = SocksProtocol.readGreeting(this.input(5, 1, 0));
+    final boolean onlyMethodAccepted = SocksProtocol.readOffersNoAuthentication(this.input(5, 1, 0));
     assertTrue(onlyMethodAccepted);
 
-    final boolean lastMethodAccepted = SocksProtocol.readGreeting(this.input(5, 3, 2, 1, 0));
+    final boolean lastMethodAccepted = SocksProtocol.readOffersNoAuthentication(this.input(5, 3, 2, 1, 0));
     assertTrue(lastMethodAccepted);
 
-    final boolean firstMethodAccepted = SocksProtocol.readGreeting(this.input(5, 2, 0, 1));
+    final boolean firstMethodAccepted = SocksProtocol.readOffersNoAuthentication(this.input(5, 2, 0, 1));
     assertTrue(firstMethodAccepted, "no authentication stays chosen after other methods");
 
-    final boolean authenticationOnlyAccepted = SocksProtocol.readGreeting(this.input(5, 2, 1, 2));
+    final boolean authenticationOnlyAccepted = SocksProtocol.readOffersNoAuthentication(this.input(5, 2, 1, 2));
     assertFalse(authenticationOnlyAccepted);
   }
 
   @Test
   void shouldRefuseAMalformedGreeting() {
-    final ProtocolException version = assertThrows(ProtocolException.class, () -> SocksProtocol.readGreeting(this.input(4, 1, 0)));
+    final ProtocolException version = assertThrows(ProtocolException.class, () ->
+      SocksProtocol.readOffersNoAuthentication(this.input(4, 1, 0))
+    );
     final String versionMessage = version.getMessage();
     assertEquals("SOCKS version 4 of the client is not SOCKS 5!", versionMessage);
 
-    final ProtocolException empty = assertThrows(ProtocolException.class, () -> SocksProtocol.readGreeting(this.input(5, 0)));
+    final ProtocolException empty = assertThrows(ProtocolException.class, () -> SocksProtocol.readOffersNoAuthentication(this.input(5, 0)));
     final String emptyMessage = empty.getMessage();
     assertEquals("The greeting offers no method!", emptyMessage);
-    assertThrows(EOFException.class, () -> SocksProtocol.readGreeting(this.input(5, 2, 0)));
+    assertThrows(EOFException.class, () -> SocksProtocol.readOffersNoAuthentication(this.input(5, 2, 0)));
   }
 
   @Test

@@ -37,7 +37,7 @@ public final class OpenFiles {
     throw new UnsupportedOperationException(message);
   }
 
-  public static void leaveNoneOpen(final String description, final Runnable attempt) {
+  public static void assertLeavesNoneOpen(final String description, final Runnable attempt) {
     final Path descriptors = DESCRIPTORS;
     assumeTrue(Files.isDirectory(descriptors), "This system does not list the open files of a process!");
     final long before = count(descriptors);

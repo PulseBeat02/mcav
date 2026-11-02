@@ -53,8 +53,8 @@ final class NavigationPolicy {
       return BLANK.equals(address) || hasScheme(address, WEB_SCHEMES);
     }
 
-    final boolean isAboutPage = FRAME_ABOUT_PAGES.contains(address);
-    return isAboutPage || hasScheme(address, FRAME_SCHEMES);
+    final boolean aboutPage = FRAME_ABOUT_PAGES.contains(address);
+    return aboutPage || hasScheme(address, FRAME_SCHEMES);
   }
 
   static boolean allowsRequest(final String address) {

@@ -35,13 +35,13 @@ final class HelperProcessesFailureTest {
     final HelperSession second = Mockito.mock(HelperSession.class);
     final HelperSession last = Mockito.mock(HelperSession.class);
     final long generation = HelperProcesses.requireOpen();
-    Mockito.doAnswer(_ -> this.deregisterAndFail(first, sharedFailure))
+    Mockito.doAnswer(_ -> this.unregisterAndFail(first, sharedFailure))
       .when(first)
       .endAndClose(Mockito.anyString());
-    Mockito.doAnswer(_ -> this.deregisterAndFail(second, sharedFailure))
+    Mockito.doAnswer(_ -> this.unregisterAndFail(second, sharedFailure))
       .when(second)
       .endAndClose(Mockito.anyString());
-    Mockito.doAnswer(_ -> this.deregisterAndAnswerNothing(last))
+    Mockito.doAnswer(_ -> this.unregisterAndAnswerNothing(last))
       .when(last)
       .endAndClose(Mockito.anyString());
     try {
@@ -63,20 +63,20 @@ final class HelperProcessesFailureTest {
       assertEquals(0, suppressed.length);
       Mockito.verify(last).endAndClose(Mockito.anyString());
     } finally {
-      HelperProcesses.deregister(first);
-      HelperProcesses.deregister(second);
-      HelperProcesses.deregister(last);
+      HelperProcesses.unregister(first);
+      HelperProcesses.unregister(second);
+      HelperProcesses.unregister(last);
       HelperProcesses.open();
     }
   }
 
-  private Object deregisterAndFail(final HelperSession session, final IllegalStateException failure) {
-    HelperProcesses.deregister(session);
+  private Object unregisterAndFail(final HelperSession session, final IllegalStateException failure) {
+    HelperProcesses.unregister(session);
     throw failure;
   }
 
-  private @Nullable Object deregisterAndAnswerNothing(final HelperSession session) {
-    HelperProcesses.deregister(session);
+  private @Nullable Object unregisterAndAnswerNothing(final HelperSession session) {
+    HelperProcesses.unregister(session);
 
     return null;
   }
