@@ -107,7 +107,8 @@ public final class WindowsInstallationStrategy extends ManualInstallationStrateg
     final Optional<Path> extractedLibraryDirectory = findLibraryDirectory(temporary, LIBRARY, CORE_LIBRARY);
     final @Nullable Path extractedRoot = extractedLibraryDirectory.orElse(null);
     if (extractedRoot == null) {
-      throw new InstallationException("The VLC zip does not contain nonempty libvlc.dll and libvlccore.dll in the same directory!");
+      final String message = "The VLC zip does not contain nonempty libvlc.dll and libvlccore.dll in the same directory!";
+      throw new InstallationException(message);
     }
 
     IoUtils.moveReplacing(extractedRoot, installDirectory);

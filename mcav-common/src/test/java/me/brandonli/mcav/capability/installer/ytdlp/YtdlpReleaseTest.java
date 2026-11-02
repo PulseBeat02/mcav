@@ -150,7 +150,8 @@ final class YtdlpReleaseTest {
 
       return printed.strip();
     } catch (final ExecutionException | TimeoutException exception) {
-      throw new IOException("The yt-dlp --version output could not be read!", exception);
+      final String message = "The yt-dlp --version output could not be read!";
+      throw new IOException(message, exception);
     } finally {
       process.destroyForcibly();
       try {

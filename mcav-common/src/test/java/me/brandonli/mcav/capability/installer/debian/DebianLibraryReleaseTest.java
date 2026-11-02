@@ -172,7 +172,8 @@ final class DebianLibraryReleaseTest {
   }
 
   private void refuse(final String library) {
-    throw new UnsatisfiedLinkError("Libraries of another architecture are not loaded!");
+    final String message = "Libraries of another architecture are not loaded!";
+    throw new UnsatisfiedLinkError(message);
   }
 
   // the libraries of this machine's architecture really load, which proves that the dependency order holds

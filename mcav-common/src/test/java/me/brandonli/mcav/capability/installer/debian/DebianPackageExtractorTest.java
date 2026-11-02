@@ -406,7 +406,7 @@ final class DebianPackageExtractorTest {
     final byte[] debianPackage = new DebianPackageBuilder().corruptChecksum(true).file(LIBRARY, CONTENT).build();
 
     final String reason = this.extractFailureReason(debianPackage);
-    final boolean namesTheChecksum = reason.startsWith("Tar header checksum ");
+    final boolean namesTheChecksum = reason.startsWith("Stored tar header checksum ");
     assertTrue(namesTheChecksum, reason);
   }
 
@@ -418,7 +418,7 @@ final class DebianPackageExtractorTest {
     assertDoesNotThrow(() -> DebianPackageExtractor.extract(this.archive, this.destination, TREES));
 
     final String reason = this.extractFailureReason(inside);
-    assertEquals("Tar entry ./usr/lib/hard has the unsupported type 1!", reason);
+    assertEquals("Tar entry ./usr/lib/hard has type 1, which is not supported!", reason);
   }
 
   @Test

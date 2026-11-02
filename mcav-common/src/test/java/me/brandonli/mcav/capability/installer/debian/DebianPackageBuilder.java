@@ -282,7 +282,7 @@ final class DebianPackageBuilder {
       length++;
     }
 
-    return length + record;
+    return "%s%s".formatted(length, record);
   }
 
   private void writeTruncated(final ByteArrayOutputStream tar, final Entry entry) {

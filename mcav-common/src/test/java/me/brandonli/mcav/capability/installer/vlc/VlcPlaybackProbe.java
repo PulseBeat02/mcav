@@ -56,7 +56,8 @@ final class VlcPlaybackProbe {
   private static final int STUCK_EXIT = 3;
 
   private VlcPlaybackProbe() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   public static void main(final String[] arguments) throws IOException, InterruptedException {

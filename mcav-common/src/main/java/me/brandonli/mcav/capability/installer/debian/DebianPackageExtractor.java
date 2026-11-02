@@ -206,7 +206,8 @@ public final class DebianPackageExtractor {
   private void extractDataMember(final InputStream archive) throws IOException {
     final byte[] magic = archive.readNBytes(AR_MAGIC.length);
     if (!Arrays.equals(magic, AR_MAGIC)) {
-      throw new IOException("The file is not an ar archive!");
+      final String message = "The file is not an ar archive!";
+      throw new IOException(message);
     }
 
     byte[] header = archive.readNBytes(AR_HEADER_LENGTH);
@@ -223,7 +224,8 @@ public final class DebianPackageExtractor {
       header = archive.readNBytes(AR_HEADER_LENGTH);
     }
 
-    throw new IOException("The package ends before its data member!");
+    final String message = "The package ends before its data member!";
+    throw new IOException(message);
   }
 
   private String readMemberName(final byte[] header) {
@@ -269,7 +271,8 @@ public final class DebianPackageExtractor {
     }
 
     if (name.equals(DATA_MEMBER + ZSTD_SUFFIX)) {
-      throw new IOException("The data member is compressed with zstd, which is not supported!");
+      final String message = "The data member is compressed with zstd, which is not supported!";
+      throw new IOException(message);
     }
 
     final String message = "Data member %s has an unknown compression!".formatted(name);
@@ -287,7 +290,8 @@ public final class DebianPackageExtractor {
   private byte[] readBlock(final InputStream tar) throws IOException {
     final byte[] block = tar.readNBytes(TAR_BLOCK_SIZE);
     if (block.length != TAR_BLOCK_SIZE) {
-      throw new IOException("The data archive ends inside a header!");
+      final String message = "The data archive ends inside a header!";
+      throw new IOException(message);
     }
 
     return block;
@@ -332,7 +336,7 @@ public final class DebianPackageExtractor {
     }
 
     if (computed != stored) {
-      final String message = "Tar header checksum %s does not match the computed %s!".formatted(stored, computed);
+      final String message = "Stored tar header checksum %s and computed checksum %s differ!".formatted(stored, computed);
       throw new IOException(message);
     }
   }
@@ -365,7 +369,8 @@ public final class DebianPackageExtractor {
     }
 
     if (size > this.remainingSize) {
-      throw new IOException("The data archive exceeds the maximum total size!");
+      final String message = "The data archive exceeds the maximum total size!";
+      throw new IOException(message);
     }
 
     this.remainingSize -= size;
@@ -384,7 +389,8 @@ public final class DebianPackageExtractor {
 
     final byte[] metadata = data.readNBytes((int) size);
     if (metadata.length != size) {
-      throw new IOException("The data archive ends inside metadata!");
+      final String message = "The data archive ends inside metadata!";
+      throw new IOException(message);
     }
 
     return metadata;
@@ -408,12 +414,14 @@ public final class DebianPackageExtractor {
     final String length = separator < 0 ? "" : records.substring(start, separator);
     final boolean decimal = DECIMAL.matcher(length).matches();
     if (!decimal) {
-      throw new IOException("A pax record has no length!");
+      final String message = "A pax record has no length!";
+      throw new IOException(message);
     }
 
     final long end = start + Long.parseLong(length);
     if (end <= separator || end > records.length() || records.charAt((int) end - 1) != PAX_RECORD_END) {
-      throw new IOException("A pax record has a wrong length!");
+      final String message = "A pax record has a wrong length!";
+      throw new IOException(message);
     }
 
     return (int) end;
@@ -424,7 +432,8 @@ public final class DebianPackageExtractor {
     final String record = records.substring(separator + 1, end - 1);
     final int keyEnd = record.indexOf(PAX_KEY_SEPARATOR);
     if (keyEnd < 0) {
-      throw new IOException("A pax record has no value!");
+      final String message = "A pax record has no value!";
+      throw new IOException(message);
     }
 
     final String key = record.substring(0, keyEnd);
@@ -455,7 +464,7 @@ public final class DebianPackageExtractor {
       case DIRECTORY -> this.createFolders(target);
       case SYMBOLIC_LINK -> this.createSymbolicLink(target, linkName, name);
       default -> {
-        final String message = "Tar entry %s has the unsupported type %s!".formatted(name, (char) type);
+        final String message = "Tar entry %s has type %s, which is not supported!".formatted(name, (char) type);
         throw new IOException(message);
       }
     }

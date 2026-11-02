@@ -31,7 +31,8 @@ import uk.co.caprica.vlcj.factory.discovery.strategy.NativeDiscoveryStrategy;
 public final class DownloadedVlc {
 
   private DownloadedVlc() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   // installs VLC first when the cache has none

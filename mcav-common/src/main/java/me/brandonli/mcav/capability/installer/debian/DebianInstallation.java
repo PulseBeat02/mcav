@@ -94,7 +94,7 @@ final class DebianInstallation {
     try {
       this.installPackages(packages);
     } catch (final IOException exception) {
-      final String message = "Debian packages of %s could not be installed to %s!".formatted(this.name, this.folder);
+      final String message = "Installing the Debian packages of %s to %s failed!".formatted(this.name, this.folder);
       throw new InstallationException(message, exception);
     }
   }

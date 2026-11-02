@@ -41,7 +41,7 @@ import org.junit.jupiter.api.io.TempDir;
 final class LinuxInstallationStrategyTest {
 
   private static final String EXTRACTED_DIRECTORY = "squashfs-root";
-  private static final String WORKING_DIRECTORY_REQUIRED = "The AppImage is extracted in the directory of the archive";
+  private static final String WORKING_DIRECTORY_REQUIRED = "The AppImage is extracted in the directory of the archive!";
 
   private static final String APP_IMAGE_FILE_NAME = "VLC.AppImage";
   private static final String APP_RUN_FILE_NAME = "AppRun";

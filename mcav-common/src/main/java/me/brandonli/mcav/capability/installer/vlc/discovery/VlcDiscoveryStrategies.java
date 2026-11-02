@@ -40,7 +40,8 @@ public final class VlcDiscoveryStrategies {
   private static final int DIRECT_DEPTH = 0;
 
   private VlcDiscoveryStrategies() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**

@@ -532,7 +532,7 @@ public abstract class AbstractInstaller implements Installer {
    * @since 1.0.0
    */
   public void writePathToConfiguration(final Path installedPath) {
-    Preconditions.checkNotNull(installedPath, "Path must not be null!");
+    Preconditions.checkNotNull(installedPath, "Installed path must not be null!");
 
     synchronized (CONFIGURATION_LOCK) {
       final Properties properties = this.readConfiguration();

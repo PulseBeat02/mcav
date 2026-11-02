@@ -105,9 +105,8 @@ public final class OsxInstallationStrategy extends ManualInstallationStrategy {
     final Optional<Path> libraryDirectory = findLibraryDirectory(installDirectory, LIBRARY, CORE_LIBRARY);
     final @Nullable Path directory = libraryDirectory.orElse(null);
     if (directory == null) {
-      throw new InstallationException(
-        "The VLC disk image does not contain nonempty libvlc.dylib and libvlccore.dylib in the same directory!"
-      );
+      final String message = "The VLC disk image does not contain nonempty libvlc.dylib and libvlccore.dylib in the same directory!";
+      throw new InstallationException(message);
     }
 
     return directory;

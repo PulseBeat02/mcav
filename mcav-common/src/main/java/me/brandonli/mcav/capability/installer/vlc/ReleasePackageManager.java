@@ -38,7 +38,8 @@ import me.brandonli.mcav.utils.IoUtils;
 public final class ReleasePackageManager {
 
   private ReleasePackageManager() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**

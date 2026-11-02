@@ -103,9 +103,8 @@ public final class LinuxInstallationStrategy extends ManualInstallationStrategy 
     final Optional<Path> libraryDirectory = findLibraryDirectory(installDirectory, LIBRARY, CORE_LIBRARY);
     final @Nullable Path directory = libraryDirectory.orElse(null);
     if (directory == null) {
-      throw new InstallationException(
-        "The extracted VLC AppImage does not contain nonempty libvlc.so and libvlccore.so in the same directory!"
-      );
+      final String message = "The extracted VLC AppImage does not contain nonempty libvlc.so and libvlccore.so in the same directory!";
+      throw new InstallationException(message);
     }
 
     return directory;

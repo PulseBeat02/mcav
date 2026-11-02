@@ -116,7 +116,8 @@ final class YtdlpReleaseProcessTest {
   }
 
   private int refuseToWaitWithoutADeadline() {
-    throw new AssertionError("Forced-exit cleanup must not wait without a deadline!");
+    final String message = "Forced-exit cleanup must not wait without a deadline!";
+    throw new AssertionError(message);
   }
 
   @Test

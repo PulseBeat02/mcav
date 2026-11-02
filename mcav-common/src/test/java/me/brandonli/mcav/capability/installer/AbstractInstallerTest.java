@@ -592,7 +592,8 @@ final class AbstractInstallerTest {
   private @Nullable Object failTheFirstPermissionAttempt(final InvocationOnMock invocation, final AtomicInteger permissionAttempts)
     throws Throwable {
     if (permissionAttempts.getAndIncrement() == 0) {
-      throw new FileOperationException("Permission failed for now!");
+      final String message = "Permission failed for now!";
+      throw new FileOperationException(message);
     }
 
     return invocation.callRealMethod();
@@ -686,7 +687,8 @@ final class AbstractInstallerTest {
   }
 
   private Download[] refuseToResolveDownloads() {
-    throw new AssertionError("The downloads must not be resolved!");
+    final String message = "The downloads must not be resolved!";
+    throw new AssertionError(message);
   }
 
   @Test

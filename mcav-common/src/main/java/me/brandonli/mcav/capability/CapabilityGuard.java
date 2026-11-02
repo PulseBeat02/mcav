@@ -159,7 +159,8 @@ public final class CapabilityGuard {
 
     final State state = this.states.get(capability);
     if (state == State.PREPARING) {
-      throw new IllegalStateException(describePreparing(capability));
+      final String message = describePreparing(capability);
+      throw new IllegalStateException(message);
     }
 
     if (state == State.UNAVAILABLE) {

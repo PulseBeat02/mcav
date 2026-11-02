@@ -116,7 +116,8 @@ final class VlcInstallerTest {
   private static final String PINNED_APPIMAGES = "https://github.com/ivan-hc/VLC-appimage/releases/download/";
 
   private static Download[] noDownloadExpected() {
-    throw new AssertionError("The downloads must not be resolved!");
+    final String message = "The downloads must not be resolved!";
+    throw new AssertionError(message);
   }
 
   private static Download[] noDownloads() {

@@ -192,7 +192,9 @@ final class VlcLoadStateTest {
     } catch (final InterruptedException exception) {
       final Thread currentThread = Thread.currentThread();
       currentThread.interrupt();
-      throw new InstallationException("Waiting was interrupted!", exception);
+
+      final String message = "Waiting was interrupted!";
+      throw new InstallationException(message, exception);
     }
   }
 }

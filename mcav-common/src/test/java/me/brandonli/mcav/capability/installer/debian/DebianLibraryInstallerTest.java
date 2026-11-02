@@ -354,7 +354,7 @@ final class DebianLibraryInstallerTest {
     final InstallationException failure = assertThrows(InstallationException.class, () -> installer.download(FileMode.EXECUTABLE));
     final String message = failure.getMessage();
     final Throwable cause = failure.getCause();
-    final String expected = "Debian packages of debian-test could not be installed to %s!".formatted(blockedFolder);
+    final String expected = "Installing the Debian packages of debian-test to %s failed!".formatted(blockedFolder);
     assertEquals(expected, message);
     assertInstanceOf(IOException.class, cause);
   }
@@ -437,7 +437,8 @@ final class DebianLibraryInstallerTest {
     final Path second = this.folder.resolve(SECOND_LIBRARY);
     final boolean first = path.equals(this.folder.resolve(FIRST_LIBRARY));
     if (first && !this.loaded.contains(second)) {
-      throw new UnsatisfiedLinkError("libb.so.2: cannot open shared object file");
+      final String message = "libb.so.2: cannot open shared object file!";
+      throw new UnsatisfiedLinkError(message);
     }
 
     this.loaded.add(path);
@@ -447,7 +448,7 @@ final class DebianLibraryInstallerTest {
     final Path path = Path.of(library);
     final boolean refused = path.equals(this.folder.resolve(refusedLibrary));
     if (refused) {
-      final String message = "%s: version GLIBC_2.99 not found".formatted(library);
+      final String message = "%s: version GLIBC_2.99 not found!".formatted(library);
       throw new UnsatisfiedLinkError(message);
     }
 
