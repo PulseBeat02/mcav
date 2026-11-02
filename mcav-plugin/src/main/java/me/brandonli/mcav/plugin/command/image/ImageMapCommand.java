@@ -126,8 +126,10 @@ public final class ImageMapCommand extends AbstractImageCommand {
     Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null!");
     Preconditions.checkNotNull(mrl, "MRL must not be null!");
 
-    final Pair<Integer, Integer> blocks = this.parseBlocks(sender, blockDimensions);
+    final Pair<Integer, Integer> blocks = this.parseBlocks(blockDimensions);
     if (blocks == null) {
+      final Component message = Message.UNSUPPORTED_DIMENSION.build();
+      sender.sendMessage(message);
       return;
     }
 
@@ -149,12 +151,10 @@ public final class ImageMapCommand extends AbstractImageCommand {
     return resolution -> this.createSettings(blocks, resolution, mapId, players, dithering);
   }
 
-  private @Nullable Pair<Integer, Integer> parseBlocks(final CommandSender sender, final String blockDimensions) {
+  private @Nullable Pair<Integer, Integer> parseBlocks(final String blockDimensions) {
     try {
       return ArgumentUtils.parseScreenDimensions(blockDimensions);
     } catch (final IllegalArgumentException exception) {
-      final Component message = Message.UNSUPPORTED_DIMENSION.build();
-      sender.sendMessage(message);
       return null;
     }
   }
