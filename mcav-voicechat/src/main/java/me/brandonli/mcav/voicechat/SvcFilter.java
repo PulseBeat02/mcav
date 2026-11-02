@@ -37,6 +37,7 @@ import me.brandonli.mcav.media.player.pipeline.filter.audio.FunctionalAudioFilte
  * {@snippet :
  * final SvcFilter speakers = SvcFilter.svc(player);
  * speakers.start();
+ *
  * final AudioAttachableCallback audio = videoPlayer.getAudioAttachableCallback();
  * final AudioPipelineStep step = AudioPipelineStep.of(speakers);
  * audio.attach(step);

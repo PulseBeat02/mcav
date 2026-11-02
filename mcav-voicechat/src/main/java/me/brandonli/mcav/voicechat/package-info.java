@@ -30,8 +30,7 @@
  * not release existing filters. The default filter synchronizes lifecycle and producer calls; speaker queues
  * are independently synchronized for voice chat consumers.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */
