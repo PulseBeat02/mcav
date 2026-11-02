@@ -331,6 +331,57 @@ final class ScriptedPlayerTest {
   }
 
   @Test
+  void shouldPlayEndedMediaAgainFromTheSeekPosition() throws Exception {
+    final Supplier<ScriptedFrameGrabber> twoFrames = this::seekableTwoFrameVideo;
+    final ScriptedPlayer player = new ScriptedPlayer(twoFrames);
+    try {
+      player.start(VIDEO);
+      awaitEnd(player);
+      final boolean seeked = player.seek(SEEK_POSITION_MILLISECONDS);
+      final ScriptedFrameGrabber latest = player.getLatestGrabber();
+      await("the decoder seeked", () -> latest.getRequestedTimestamp() == 1_000_000L);
+
+      final List<String> opened = player.getOpenedResources();
+      final List<String> expected = List.of(VIDEO_FILE_NAME, VIDEO_FILE_NAME);
+      assertTrue(seeked);
+      assertEquals(expected, opened);
+    } finally {
+      player.release();
+    }
+  }
+
+  private ScriptedFrameGrabber seekableTwoFrameVideo() {
+    final ScriptedFrameGrabber grabber = this.twoFrameVideo();
+    grabber.setLength(10_000_000L);
+    return grabber;
+  }
+
+  @Test
+  void shouldKeepPlayingWhenASeekCannotOpenTheSourceAgain() {
+    final ScriptedPlayer player = new ScriptedPlayer(ScriptedPlayerTest::endlessVideo);
+    final List<String> reports = Collections.synchronizedList(new ArrayList<>());
+    player.setExceptionHandler((message, _) -> reports.add(message));
+    try {
+      player.start(VIDEO);
+      final ScriptedFrameGrabber playing = player.getLatestGrabber();
+      player.failNextOpen(new IllegalStateException("unknown option!"));
+      final boolean seeked = player.seek(SEEK_POSITION_MILLISECONDS);
+
+      final boolean stillPlaying = player.isPlaying();
+      final boolean currentClosed = playing.isClosed();
+      final boolean paused = player.pause();
+      final List<String> expected = List.of("Failed to start playback of video.mp4");
+      assertFalse(seeked);
+      assertTrue(stillPlaying, "the current playback is only replaced once the new source is open");
+      assertFalse(currentClosed);
+      assertTrue(paused);
+      assertEquals(expected, reports);
+    } finally {
+      player.release();
+    }
+  }
+
+  @Test
   void shouldPlayFasterWithItsSoundResampledAndKeepTheSpeedWhenSeeking() throws Exception {
     final ScriptedPlayer player = new ScriptedPlayer(ScriptedPlayerTest::sound);
     final List<Integer> chunks = new CopyOnWriteArrayList<>();
@@ -445,6 +496,18 @@ final class ScriptedPlayerTest {
     assertThrows(NullPointerException.class, () -> player.start(null));
     assertThrows(NullPointerException.class, () -> player.start(null, AUDIO));
     assertThrows(NullPointerException.class, () -> player.start(VIDEO, null));
+  }
+
+  @Test
+  void shouldRejectANullGrabberOrSourceWhenConfiguring() {
+    final ScriptedPlayer player = new ScriptedPlayer(ScriptedPlayerTest::endlessVideo);
+    final ScriptedFrameGrabber grabber = ScriptedFrameGrabber.of();
+
+    final NullPointerException nullGrabber = assertThrows(NullPointerException.class, () -> player.configureGrabber(null, VIDEO));
+    assertEquals("Grabber must not be null!", nullGrabber.getMessage());
+
+    final NullPointerException nullSource = assertThrows(NullPointerException.class, () -> player.configureGrabber(grabber, null));
+    assertEquals("Source must not be null!", nullSource.getMessage());
   }
 
   private static boolean controlOnTheExecutor(final ScriptedPlayer player, final ExecutorService executor) throws Exception {

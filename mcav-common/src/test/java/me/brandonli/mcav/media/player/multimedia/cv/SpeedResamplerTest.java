@@ -60,10 +60,14 @@ final class SpeedResamplerTest {
     final ByteBuffer chunk = frames(0, 4);
     final ByteBuffer resampled = resampler.resample(chunk, PlaybackClock.NORMAL_SPEED);
     assertSame(chunk, resampled);
+  }
 
-    final ByteBuffer empty = ByteBuffer.allocate(3);
-    final ByteBuffer resampledEmpty = resampler.resample(empty, DOUBLE_SPEED);
-    assertSame(empty, resampledEmpty);
+  @Test
+  void shouldPassAChunkWithoutAWholeFrameThroughUnchanged() {
+    final SpeedResampler resampler = new SpeedResampler();
+    final ByteBuffer partialFrame = ByteBuffer.allocate(3);
+    final ByteBuffer resampled = resampler.resample(partialFrame, DOUBLE_SPEED);
+    assertSame(partialFrame, resampled);
   }
 
   @Test

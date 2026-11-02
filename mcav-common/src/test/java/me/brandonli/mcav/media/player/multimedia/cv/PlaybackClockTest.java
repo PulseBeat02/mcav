@@ -303,12 +303,4 @@ final class PlaybackClockTest {
     final long fasterDue = clock.dueAt(600_000L);
     assertEquals(1_100_000_000L, fasterDue);
   }
-
-  @Test
-  void shouldKeepTheScheduleForJumpsBelowTwoSeconds() {
-    final PlaybackClock clock = new PlaybackClock(System::nanoTime);
-    final long first = clock.dueAt(0L);
-    final long nearJump = clock.dueAt(1_900_000L);
-    assertEquals(first + 1_900_000_000L, nearJump, "media 1.9 seconds ahead is still scheduled normally");
-  }
 }

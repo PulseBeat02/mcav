@@ -72,7 +72,7 @@ final class LateFrameCounterTest {
   }
 
   @Test
-  void shouldDropOfHalfTheFramesAreNoReason() {
+  void shouldNotReportAStretchInWhichHalfTheFramesCameTooLate() {
     for (int frame = 0; frame <= 21; frame++) {
       final LongConsumer count = frame % 2 == 0 ? this.counter::countDropped : this.counter::countShown;
       count.accept((frame * STRETCH_MICROSECONDS) / 21);

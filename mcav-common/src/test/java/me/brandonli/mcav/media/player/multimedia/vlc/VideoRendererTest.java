@@ -255,7 +255,7 @@ final class VideoRendererTest {
   }
 
   @Test
-  void shouldDropFramesWithoutAPipeline() throws Exception {
+  void shouldDropFramesWithoutAPipelineAndRenderTheNextFrameOnceOneIsAttached() throws Exception {
     final VideoFilter recorder = VlcTestFrames.recorder(this.frames);
     final VideoPipelineStep recording = VideoPipelineStep.of(recorder);
     final VideoAttachableCallback callback = mock(VideoAttachableCallback.class);
@@ -271,6 +271,11 @@ final class VideoRendererTest {
       this.displayPixel(detached, RED);
       assertNoFrame(this.frames);
       verify(callback, times(1)).retrieve();
+
+      this.displayPixel(detached, GREEN);
+      final RecordedFrame frame = take(this.frames);
+      final int[] rgb = frame.getRgb();
+      assertArrayEquals(new int[] { GREEN }, rgb);
     } finally {
       detached.stop();
     }

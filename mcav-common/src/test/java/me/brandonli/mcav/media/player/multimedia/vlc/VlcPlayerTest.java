@@ -1266,6 +1266,26 @@ final class VlcPlayerTest {
     verify(audioControls).setTime(1_234L);
   }
 
+  @Test
+  void shouldStayPausedAfterSeeking() {
+    this.startSeparate();
+    final MockVlc.Player videoPlayer = this.vlc.player(0);
+    final MockVlc.Player audioPlayer = this.vlc.player(1);
+    final ControlsApi videoControls = videoPlayer.getControls();
+    final ControlsApi audioControls = audioPlayer.getControls();
+    final boolean paused = this.player.pause();
+    final boolean seeked = this.player.seek(1_234L);
+    assertTrue(paused);
+    assertTrue(seeked);
+    verify(videoControls).setTime(1_234L);
+    verify(audioControls).setTime(1_234L);
+    verify(videoControls, never()).setPause(false);
+    verify(audioControls, never()).setPause(false);
+
+    final boolean resumed = this.player.resume();
+    assertTrue(resumed, "a seek keeps the player paused, so it can still be resumed");
+  }
+
   @ParameterizedTest
   @EnumSource(SeekFailure.class)
   void shouldFailToSeekWhenAPlayerCannotSeek(final SeekFailure failure) {

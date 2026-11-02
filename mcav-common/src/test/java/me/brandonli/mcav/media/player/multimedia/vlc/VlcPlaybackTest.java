@@ -159,7 +159,7 @@ final class VlcPlaybackTest {
   }
 
   @Test
-  void shouldSynchronizeTheVideoToTheAudio() {
+  void shouldSlowTheVideoWhenItIsSlightlyAheadOfTheAudio() {
     final VlcPlayback playback = this.separatePlayback(1_500L, AUDIO_TIME_MILLISECONDS);
     this.synchronize(playback);
     final ControlsApi controls = this.videoControls();

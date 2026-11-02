@@ -44,6 +44,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import me.brandonli.mcav.http.testing.SystemPropertyUtils;
 import me.brandonli.mcav.http.testing.UrlParseDumpUtils;
 import me.brandonli.mcav.http.testing.WebSocketSessionUtils;
@@ -84,6 +85,8 @@ final class SpringHttpResultTest {
   private static final String BROKEN_SESSION_ID = "broken";
 
   private static final int SAMPLE_BYTES = 4;
+
+  private static final long SLOW_CLOSE_MILLISECONDS = 200;
 
   @TempDir
   private Path directory;
@@ -191,6 +194,30 @@ final class SpringHttpResultTest {
     assertEquals(0, countAfterStop, "stopping closes existing listeners and rejects later handshakes");
     WebSocketSessionUtils.verifyClosed(early, CloseStatus.GOING_AWAY);
     WebSocketSessionUtils.verifyClosed(late, CloseStatus.GOING_AWAY);
+  }
+
+  @Test
+  void shouldFinishClosingEveryListenerBeforeStopReturns() throws Exception {
+    final SpringHttpResult http = new SpringHttpResult(LOCALHOST, PORT, null);
+    final BlockingQueue<byte[]> sent = new LinkedBlockingQueue<>();
+    final WebSocketSession slow = this.session("slow", sent);
+    final AtomicBoolean closed = new AtomicBoolean();
+    final Stubber slowClose = Mockito.doAnswer(_ -> this.closeSlowly(closed));
+    final WebSocketSession stubbedClose = slowClose.when(slow);
+    stubbedClose.close(CloseStatus.GOING_AWAY);
+    http.addListener(slow);
+
+    http.stop();
+
+    final boolean closedBeforeStopReturned = closed.get();
+    assertTrue(closedBeforeStopReturned, "the going away close is sent before the server stops");
+  }
+
+  private Void closeSlowly(final AtomicBoolean closed) throws InterruptedException {
+    Thread.sleep(SLOW_CLOSE_MILLISECONDS);
+    closed.set(true);
+
+    return null;
   }
 
   private WebSocketSession session(final String id, final BlockingQueue<byte[]> sent) throws IOException {

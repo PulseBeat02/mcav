@@ -36,6 +36,8 @@ import org.bytedeco.opencv.global.opencv_core;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.ResourceLock;
 import org.junit.jupiter.api.parallel.Resources;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 // Tests OpenCvVideoBackends against the build information of the platforms the library supports, so both answers are
 // covered wherever the tests run.
@@ -115,6 +117,14 @@ final class OpenCvVideoBackendsTest {
     final VideoFileReader macOs = OpenCvVideoBackends.decideFromBuildInformation(MACOS);
     assertEquals(VideoFileReader.OPENCV, windows);
     assertEquals(VideoFileReader.OPENCV, macOs);
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @ValueSource(strings = { "FFMPEG", "Media Foundation", "AVFoundation", "GStreamer" })
+  void shouldReadFilesWithOpenCvWhenOnlyThisBackendIsEnabled(final String backend) {
+    final String information = "Video I/O:\n    %s:                      YES".formatted(backend);
+    final VideoFileReader reader = OpenCvVideoBackends.decideFromBuildInformation(information);
+    assertEquals(VideoFileReader.OPENCV, reader);
   }
 
   @Test

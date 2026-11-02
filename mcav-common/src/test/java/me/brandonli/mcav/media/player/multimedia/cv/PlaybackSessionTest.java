@@ -851,7 +851,7 @@ final class PlaybackSessionTest {
   }
 
   @Test
-  void shouldJumpInTheTimestampsDoNotStallPlayback() throws Exception {
+  void shouldNotStallPlaybackOnAJumpInTheTimestamps() throws Exception {
     final AtomicInteger frames = new AtomicInteger();
     this.onVideo((_, _) -> frames.incrementAndGet() > 0);
     final ScriptedFrameGrabber grabber = videoAt(0L, 30_000_000L);

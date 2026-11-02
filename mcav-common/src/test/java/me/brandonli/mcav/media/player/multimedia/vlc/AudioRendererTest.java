@@ -229,7 +229,7 @@ final class AudioRendererTest {
   }
 
   @Test
-  void shouldDropSamplesWithoutAPipeline() throws Exception {
+  void shouldDropSamplesWithoutAPipelineAndPlayTheNextChunkOnceOneIsAttached() throws Exception {
     final BlockingQueue<Short> firstSamples = new LinkedBlockingQueue<>();
     final AudioFilter recorder = firstSampleRecorder(firstSamples);
     final AudioPipelineStep recording = AudioPipelineStep.of(recorder);
@@ -245,6 +245,12 @@ final class AudioRendererTest {
       final Short received = firstSamples.poll(QUIET_PERIOD_MILLISECONDS, TimeUnit.MILLISECONDS);
       assertNull(received, "samples played without a pipeline are never queued");
       verify(callback, times(1)).retrieve();
+
+      final Memory nextMemory = samples((short) 2, (short) 2);
+      detached.play(this.mediaPlayer, nextMemory, 1, 0L);
+      final Short next = firstSamples.poll(TIMEOUT.toSeconds(), TimeUnit.SECONDS);
+      final Short expected = 2;
+      assertEquals(expected, next, "the chunk after the pipeline is attached reaches it");
     } finally {
       detached.stop();
     }
