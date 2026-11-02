@@ -417,6 +417,23 @@ final class AbstractInstallerTest {
   }
 
   @Test
+  void shouldRememberNothingWhenTheInstallationFails() throws IOException {
+    try (final LocalHttpServer server = LocalHttpServer.start()) {
+      server.respond(TOOL_PATH, OK_STATUS, PROGRAM);
+      final TestInstaller installer = this.installerDownloadingFrom(server, TOOL_PATH, PROGRAM_HASH);
+      final InstallationException failure = new InstallationException("Installation failed!");
+      installer.failInstallationWith(failure);
+
+      final InstallationException thrown = assertThrows(InstallationException.class, () -> installer.download(FileMode.UNCHANGED));
+      assertSame(failure, thrown);
+
+      final Properties configuration = this.readConfiguration();
+      final boolean nothingRemembered = configuration.isEmpty();
+      assertTrue(nothingRemembered);
+    }
+  }
+
+  @Test
   void shouldDownloadOnlyOnceWhenCalledConcurrently() throws Exception {
     final CountDownLatch releaseResponse = new CountDownLatch(1);
     try (final LocalHttpServer server = LocalHttpServer.start()) {
@@ -842,6 +859,7 @@ final class AbstractInstallerTest {
 
     private final List<Path> installedArchives = new ArrayList<>();
     private List<Platform> fallbacks;
+    private InstallationException installationFailure;
     private boolean isArchive;
 
     TestInstaller(final Path folder, final String name, final Supplier<Download[]> downloads) {
@@ -854,6 +872,10 @@ final class AbstractInstallerTest {
 
     TestInstaller(final String name, final Download[] downloads) {
       super(name, downloads);
+    }
+
+    private void failInstallationWith(final InstallationException failure) {
+      this.installationFailure = failure;
     }
 
     private void markAsArchive() {
@@ -871,6 +893,10 @@ final class AbstractInstallerTest {
 
     @Override
     protected Path install(final Path downloaded) {
+      if (this.installationFailure != null) {
+        throw this.installationFailure;
+      }
+
       if (!this.isArchive) {
         return super.install(downloaded);
       }
