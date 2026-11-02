@@ -79,7 +79,7 @@ final class OsUtilsTest {
     "ia64, OTHER",
     "'', OTHER",
   })
-  void detectsTheArchitecture(final String osArch, final Arch expected) {
+  void shouldDetectTheArchitecture(final String osArch, final Arch expected) {
     final Arch detected = OsUtils.detectArch(osArch);
     assertEquals(expected, detected);
   }
