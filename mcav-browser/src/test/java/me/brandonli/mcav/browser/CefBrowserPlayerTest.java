@@ -274,12 +274,13 @@ class CefBrowserPlayerTest {
       final boolean callerLeftInterrupted = leftInterrupted.get();
       assertFalse(callerLeftInterrupted, "the release's interrupt is the player's own, not left to the thread that called start");
 
-      Thread.currentThread().interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
       try {
         final boolean restarted = slow.start(SOURCE);
         assertFalse(restarted, "a released player never starts");
 
-        final boolean interrupted = Thread.currentThread().isInterrupted();
+        final boolean interrupted = current.isInterrupted();
         assertTrue(interrupted, "an interrupt of the caller's own is not the player's to take");
       } finally {
         Thread.interrupted();
@@ -294,7 +295,9 @@ class CefBrowserPlayerTest {
     try {
       new CountDownLatch(1).await();
     } catch (final InterruptedException exception) {
-      Thread.currentThread().interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+
       throw new BrowserException(INTERRUPTED_START_MESSAGE, exception);
     }
 
@@ -512,12 +515,13 @@ class CefBrowserPlayerTest {
     final boolean started = this.player.start(SOURCE);
     assertTrue(started);
 
-    Thread.currentThread().interrupt();
+    final Thread current = Thread.currentThread();
+    current.interrupt();
     try {
       final boolean startedAgain = this.player.start(SOURCE);
       assertFalse(startedAgain, "a playing player does not start twice");
 
-      final boolean interrupted = Thread.currentThread().isInterrupted();
+      final boolean interrupted = current.isInterrupted();
       assertTrue(interrupted, "an interrupt of the caller's own is not the player's to take");
     } finally {
       Thread.interrupted();
@@ -527,11 +531,12 @@ class CefBrowserPlayerTest {
   @Test
   void shouldKeepTheInterruptOfTheCallerWhenTheStartFails() {
     this.startFailure = new BrowserException("No browser here!");
-    Thread.currentThread().interrupt();
+    final Thread current = Thread.currentThread();
+    current.interrupt();
     try {
       assertThrows(BrowserException.class, () -> this.player.start(SOURCE));
 
-      final boolean interrupted = Thread.currentThread().isInterrupted();
+      final boolean interrupted = current.isInterrupted();
       assertTrue(interrupted, "an interrupt of the caller's own is not the player's to take");
     } finally {
       Thread.interrupted();
@@ -648,12 +653,13 @@ class CefBrowserPlayerTest {
     final boolean released = this.player.release();
     assertTrue(released);
 
-    Thread.currentThread().interrupt();
+    final Thread current = Thread.currentThread();
+    current.interrupt();
     try {
       final boolean startedAfterRelease = this.player.start(SOURCE);
       assertFalse(startedAfterRelease, "a released player never starts");
 
-      final boolean interrupted = Thread.currentThread().isInterrupted();
+      final boolean interrupted = current.isInterrupted();
       assertTrue(interrupted, "the release interrupted no start, so the interrupt is the caller's");
     } finally {
       Thread.interrupted();
@@ -668,12 +674,13 @@ class CefBrowserPlayerTest {
     final AtomicReference<CefBrowserPlayer> self = new AtomicReference<>();
     final CefBrowserPlayer releasing = new CefBrowserPlayer(BrowserOptions.DEFAULT, (_, _, _) -> this.releaseAndFailTheStart(self));
     self.set(releasing);
-    Thread.currentThread().interrupt();
+    final Thread current = Thread.currentThread();
+    current.interrupt();
     try {
       final boolean startedAfterRelease = releasing.start(SOURCE);
       assertFalse(startedAfterRelease, "the start of a released player fails");
 
-      final boolean interrupted = Thread.currentThread().isInterrupted();
+      final boolean interrupted = current.isInterrupted();
       assertTrue(interrupted, "the caller was interrupted before the release, so the interrupt is its own");
     } finally {
       Thread.interrupted();

@@ -489,8 +489,8 @@ final class CefEngine implements HelperEngine {
       EventQueue.invokeAndWait(shutdown);
       terminated.await(timeoutMilliseconds, TimeUnit.MILLISECONDS);
     } catch (final InterruptedException exception) {
-      final Thread thread = Thread.currentThread();
-      thread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
     } catch (final InvocationTargetException exception) {
       final Throwable cause = exception.getCause();
       System.err.println("Because of \"%s\", CEF could not be shut down.".formatted(cause));

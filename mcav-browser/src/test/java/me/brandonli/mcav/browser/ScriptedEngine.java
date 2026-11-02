@@ -142,7 +142,11 @@ final class ScriptedEngine implements HelperEngine {
     try {
       Thread.sleep(milliseconds);
     } catch (final InterruptedException exception) {
-      Thread.currentThread().interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+
+      final String message = "The scripted pause was interrupted!";
+      throw new IllegalStateException(message, exception);
     }
   }
 

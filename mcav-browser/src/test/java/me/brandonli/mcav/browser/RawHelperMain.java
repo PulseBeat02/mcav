@@ -210,7 +210,11 @@ public final class RawHelperMain {
     } catch (final IOException exception) {
       throw new UncheckedIOException(exception);
     } catch (final InterruptedException exception) {
-      Thread.currentThread().interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+
+      final String message = "The start of the child helper was interrupted!";
+      throw new IllegalStateException(message, exception);
     }
   }
 
@@ -242,7 +246,11 @@ public final class RawHelperMain {
     try {
       Thread.sleep(500L);
     } catch (final InterruptedException exception) {
-      Thread.currentThread().interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+
+      final String message = "The helper was interrupted!";
+      throw new IllegalStateException(message, exception);
     }
   }
 }

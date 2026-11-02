@@ -480,8 +480,9 @@ final class HelperSession implements BrowserSession {
     try {
       this.started.get(Math.max(1L, remaining), TimeUnit.MILLISECONDS);
     } catch (final InterruptedException exception) {
-      final Thread thread = Thread.currentThread();
-      thread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+
       final String message = "Interrupted while starting the browser!";
       throw new BrowserException(message, exception);
     } catch (final ExecutionException exception) {
@@ -854,8 +855,8 @@ final class HelperSession implements BrowserSession {
       }
     } catch (final InterruptedException exception) {
       process.destroyForcibly();
-      final Thread thread = Thread.currentThread();
-      thread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
     }
 
     for (final ProcessHandle descendant : descendants) {

@@ -476,10 +476,11 @@ class CefEngineTest {
       assertTrue(reportsTheDisposeFailure, errors.text());
     }
 
-    Thread.currentThread().interrupt();
+    final Thread current = Thread.currentThread();
+    current.interrupt();
     try {
       CefEngine.shutDown(() -> {}, new CountDownLatch(1), 60_000L);
-      final boolean interruptKept = Thread.currentThread().isInterrupted();
+      final boolean interruptKept = current.isInterrupted();
       assertTrue(interruptKept, "the interrupt is kept");
     } finally {
       Thread.interrupted();

@@ -452,7 +452,8 @@ class JcefNativesTest {
       final boolean releasedInTime = release.await(10, TimeUnit.SECONDS);
       assertTrue(releasedInTime, "the first download is released");
     } catch (final InterruptedException exception) {
-      Thread.currentThread().interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
     }
 
     Files.write(destination, jar);

@@ -594,10 +594,11 @@ class BrowserHelperTest {
   void shouldStillHaltAndKeepTheInterruptWhenTheDeadlineIsInterrupted() {
     final List<Integer> halts = new CopyOnWriteArrayList<>();
     final BrowserHelper helper = new BrowserHelper(this.configuration(PAGE), new ScriptedEngine(), halts::add, 60_000L);
-    Thread.currentThread().interrupt();
+    final Thread current = Thread.currentThread();
+    current.interrupt();
     try {
       helper.watchInput(new StringReader(""));
-      final boolean interruptKept = Thread.currentThread().isInterrupted();
+      final boolean interruptKept = current.isInterrupted();
       assertTrue(interruptKept, "the interrupt is kept");
     } finally {
       Thread.interrupted();

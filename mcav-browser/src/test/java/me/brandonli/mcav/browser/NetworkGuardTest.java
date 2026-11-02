@@ -355,7 +355,8 @@ class NetworkGuardTest {
     try {
       release.await();
     } catch (final InterruptedException exception) {
-      Thread.currentThread().interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
     }
   }
 

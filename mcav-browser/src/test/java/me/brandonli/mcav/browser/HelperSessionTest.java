@@ -204,7 +204,8 @@ class HelperSessionTest {
   }
 
   private BrowserException acceptWhileInterrupted(final ServerSocketChannel server, final Process alive, final long deadline) {
-    Thread.currentThread().interrupt();
+    final Thread current = Thread.currentThread();
+    current.interrupt();
     try {
       return assertThrows(BrowserException.class, () -> HelperSession.accept(server, alive, deadline));
     } finally {
@@ -365,7 +366,8 @@ class HelperSessionTest {
         try {
           release.await();
         } catch (final InterruptedException exception) {
-          Thread.currentThread().interrupt();
+          final Thread current = Thread.currentThread();
+          current.interrupt();
         }
       }
 
@@ -1148,10 +1150,11 @@ class HelperSessionTest {
   void shouldEndEverythingAndKeepTheInterruptWhenClosingFromAnInterruptedThread() {
     final HelperSession session = this.open(ScriptedEngine.class.getName(), PAGE);
     final Process process = session.getProcess();
-    Thread.currentThread().interrupt();
+    final Thread current = Thread.currentThread();
+    current.interrupt();
     try {
       session.close();
-      final boolean interruptKept = Thread.currentThread().isInterrupted();
+      final boolean interruptKept = current.isInterrupted();
       assertTrue(interruptKept);
     } finally {
       Thread.interrupted();
