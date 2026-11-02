@@ -83,6 +83,7 @@ final class RfbTestServerTest {
         final byte[] expected = { (byte) 0xE7, (byte) 0xFB };
         assertArrayEquals(expected, pixel);
       }
+
       try (final Socket second = this.connect(server)) {
         final DataInputStream input = new DataInputStream(second.getInputStream());
         final DataOutputStream output = new DataOutputStream(second.getOutputStream());
@@ -105,27 +106,32 @@ final class RfbTestServerTest {
   private void handshake(final DataInputStream input, final DataOutputStream output) throws IOException {
     final byte[] version = input.readNBytes(VERSION.length);
     assertArrayEquals(VERSION, version);
+
     output.write(VERSION);
     output.flush();
     final int securityCount = input.readUnsignedByte();
     final int securityType = input.readUnsignedByte();
     assertEquals(1, securityCount);
     assertEquals(1, securityType);
+
     output.writeByte(1);
     output.flush();
     final int securityResult = input.readInt();
     assertEquals(0, securityResult);
+
     output.writeByte(1);
     output.flush();
     final int width = input.readUnsignedShort();
     final int height = input.readUnsignedShort();
     assertEquals(1, width);
     assertEquals(1, height);
+
     final byte[] format = input.readNBytes(PIXEL_FORMAT_BYTES);
     final byte bitsPerPixel = format[0];
     final byte bigEndianFlag = format[2];
     assertEquals(32, bitsPerPixel);
     assertEquals(1, bigEndianFlag);
+
     final int nameLength = input.readInt();
     input.skipNBytes(nameLength);
   }
