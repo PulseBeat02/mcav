@@ -42,7 +42,8 @@ public final class JdaAudioExample {
   private static final String MEDIA_FILE_VARIABLE = "MEDIA_FILE";
 
   private JdaAudioExample() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   static void main() throws InterruptedException {
