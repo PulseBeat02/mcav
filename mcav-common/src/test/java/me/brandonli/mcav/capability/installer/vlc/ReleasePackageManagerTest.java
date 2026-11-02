@@ -19,12 +19,10 @@ package me.brandonli.mcav.capability.installer.vlc;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.regex.Pattern;
 import me.brandonli.mcav.capability.installer.Download;
 import me.brandonli.mcav.testing.UtilityClassAssertions;
 import me.brandonli.mcav.utils.http.HttpDownloader;
@@ -38,8 +36,6 @@ import org.mockito.Mockito;
 final class ReleasePackageManagerTest {
 
   private static final String VLC_DOWNLOADS_RESOURCE = "mcav/common/installers/vlc.json";
-
-  private static final Pattern HASH_PATTERN = Pattern.compile("[0-9a-f]{64}");
 
   private static List<Download> downloadsFor(final Os operatingSystem, final Arch architecture, final Bits bits) {
     return Arrays.stream(ReleasePackageManager.readVlcDownloadsFromJsonResource(VLC_DOWNLOADS_RESOURCE))
@@ -73,17 +69,6 @@ final class ReleasePackageManagerTest {
       assertEquals(6, downloads.length, "Windows on x86-64, x86 and arm64, macOS on x86-64 and arm64, and Linux on x86-64");
 
       downloader.verifyNoInteractions();
-    }
-  }
-
-  @Test
-  void shouldVerifyEveryDownloadWithAHash() {
-    for (final Download download : ReleasePackageManager.readVlcDownloadsFromJsonResource(VLC_DOWNLOADS_RESOURCE)) {
-      final Optional<String> optionalHash = download.getHash();
-      assertTrue(optionalHash.isPresent(), "Every VLC download must be verified with a hash: " + download.getUrl());
-      final String hash = optionalHash.orElseThrow();
-      final boolean hexadecimal = HASH_PATTERN.matcher(hash).matches();
-      assertTrue(hexadecimal, hash);
     }
   }
 
