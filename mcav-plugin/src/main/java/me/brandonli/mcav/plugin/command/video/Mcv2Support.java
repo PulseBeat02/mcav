@@ -259,10 +259,18 @@ public final class Mcv2Support {
    */
   public static @Nullable ItemFrame findFrame(final Collection<World> worlds, final int mapId) {
     for (final World world : worlds) {
-      for (final ItemFrame frame : world.getEntitiesByClass(ItemFrame.class)) {
-        if (holdsMap(frame.getItem(), mapId)) {
-          return frame;
-        }
+      final @Nullable ItemFrame frame = findFrameInWorld(world, mapId);
+      if (frame != null) {
+        return frame;
+      }
+    }
+    return null;
+  }
+
+  private static @Nullable ItemFrame findFrameInWorld(final World world, final int mapId) {
+    for (final ItemFrame frame : world.getEntitiesByClass(ItemFrame.class)) {
+      if (holdsMap(frame.getItem(), mapId)) {
+        return frame;
       }
     }
     return null;

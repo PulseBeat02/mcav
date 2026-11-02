@@ -99,16 +99,20 @@ public final class CaptureDevices {
     final List<Device> devices = new ArrayList<>();
     try (final Stream<Path> nodes = Files.list(folder)) {
       for (final Path node : (Iterable<Path>) nodes::iterator) {
-        final Device device = readNode(node);
-        if (device != null) {
-          devices.add(device);
-        }
+        addDeviceAt(devices, node);
       }
     } catch (final IOException exception) {
       return List.of();
     }
     devices.sort(Comparator.comparingInt(Device::index));
     return List.copyOf(devices);
+  }
+
+  private static void addDeviceAt(final List<Device> devices, final Path node) {
+    final Device device = readNode(node);
+    if (device != null) {
+      devices.add(device);
+    }
   }
 
   private static @Nullable Device readNode(final Path node) {

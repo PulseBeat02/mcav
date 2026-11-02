@@ -220,30 +220,33 @@ public final class VideoPlayerManager {
       this.filter = null;
       this.hologram = null;
       worldTask = new WorldCleanup(() ->
-        CleanupUtils.runAll(
-          () -> {
-            if (oldFilter != null) {
-              oldFilter.release();
-            }
-          },
-          () -> {
-            if (oldHologram != null) {
-              oldHologram.kill();
-            }
-          }
-        )
+        CleanupUtils.runAll(() -> this.releaseOldFilter(oldFilter), () -> this.killOldHologram(oldHologram))
       );
       this.pendingWorld.add(worldTask);
     }
     CleanupUtils.runAll(
       this.provider::releaseAudioFilter,
-      () -> {
-        if (oldPlayer != null) {
-          oldPlayer.release();
-        }
-      },
+      () -> this.releaseOldPlayer(oldPlayer),
       () -> this.runOnMainThreadAndWait(worldTask)
     );
+  }
+
+  private void releaseOldFilter(final @Nullable FunctionalVideoFilter oldFilter) {
+    if (oldFilter != null) {
+      oldFilter.release();
+    }
+  }
+
+  private void killOldHologram(final @Nullable Hologram oldHologram) {
+    if (oldHologram != null) {
+      oldHologram.kill();
+    }
+  }
+
+  private void releaseOldPlayer(final @Nullable VideoPlayerMultiplexer oldPlayer) {
+    if (oldPlayer != null) {
+      oldPlayer.release();
+    }
   }
 
   /**

@@ -283,13 +283,14 @@ public final class InteractUtils {
   private static @Nullable ItemFrame findTaggedFrame(final Set<ItemFrame> frames, final NamespacedKey key) {
     ItemFrame tagged = null;
     for (final ItemFrame frame : frames) {
-      if (hasTag(frame, key)) {
-        if (tagged != null) {
-          // Legacy screens have no identity: reject ambiguous neighboring corners instead of choosing arbitrarily.
-          return null;
-        }
-        tagged = frame;
+      if (!hasTag(frame, key)) {
+        continue;
       }
+      if (tagged != null) {
+        // Legacy screens have no identity: reject ambiguous neighboring corners instead of choosing arbitrarily.
+        return null;
+      }
+      tagged = frame;
     }
     return tagged;
   }

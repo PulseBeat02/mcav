@@ -89,17 +89,20 @@ final class UrlPlaceholder implements ComponentRenderer<String> {
       final List<TranslationArgument> originalArguments = translatable.arguments();
       final List<TranslationArgument> arguments = new ArrayList<>(originalArguments.size());
       for (final TranslationArgument argument : originalArguments) {
-        final Object value = argument.value();
-        if (value instanceof Component nested) {
-          final Component replacement = this.render(nested, url);
-          final TranslationArgument rendered = TranslationArgument.component(replacement);
-          arguments.add(rendered);
-        } else {
-          arguments.add(argument);
-        }
+        final TranslationArgument rendered = this.renderArgument(argument, url);
+        arguments.add(rendered);
       }
       return translatable.arguments(arguments);
     }
     return component;
+  }
+
+  private TranslationArgument renderArgument(final TranslationArgument argument, final String url) {
+    final Object value = argument.value();
+    if (value instanceof Component nested) {
+      final Component replacement = this.render(nested, url);
+      return TranslationArgument.component(replacement);
+    }
+    return argument;
   }
 }

@@ -299,18 +299,27 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * @param sound  the output and the players who hear it
    */
   final void sendSoundLinkWhenStarted(final CompletableFuture<Boolean> start, final Screen screen, final ScreenSound sound) {
-    TaskUtils.whenComplete(start, (started, error) -> {
-      // releasing the player while it starts cancels the start, and a release before the main thread sends the links
-      // cancels the screen, which the main thread sees, as releases happen there too
-      if (error == null && Boolean.TRUE.equals(started)) {
-        final AudioProvider provider = this.plugin.getAudioProvider();
-        TaskUtils.runOnMainThread(this.plugin, () -> {
-          if (!screen.isCancelled()) {
-            AudioOutputs.sendLink(provider, sound.getType(), sound.getViewers());
-          }
-        });
-      }
-    });
+    TaskUtils.whenComplete(start, (started, error) -> this.sendSoundLinkIfStarted(started, error, screen, sound));
+  }
+
+  private void sendSoundLinkIfStarted(
+    final @Nullable Boolean started,
+    final @Nullable Throwable error,
+    final Screen screen,
+    final ScreenSound sound
+  ) {
+    // releasing the player while it starts cancels the start, and a release before the main thread sends the links
+    // cancels the screen, which the main thread sees, as releases happen there too
+    if (error == null && Boolean.TRUE.equals(started)) {
+      final AudioProvider provider = this.plugin.getAudioProvider();
+      TaskUtils.runOnMainThread(this.plugin, () -> this.sendSoundLinkUnlessCancelled(provider, screen, sound));
+    }
+  }
+
+  private void sendSoundLinkUnlessCancelled(final AudioProvider provider, final Screen screen, final ScreenSound sound) {
+    if (!screen.isCancelled()) {
+      AudioOutputs.sendLink(provider, sound.getType(), sound.getViewers());
+    }
   }
 
   /**
@@ -532,18 +541,22 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
       task.run();
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
-      try {
-        this.finishStartTask(started, screen);
-      } catch (final RuntimeException | Error cleanupException) {
-        ThrowableUtils.throwIfFatal(cleanupException);
-        final boolean same = IDENTITY.equivalent(exception, cleanupException);
-        if (!same) {
-          exception.addSuppressed(cleanupException);
-        }
-      }
+      this.cleanupAfterFailure(exception, () -> this.finishStartTask(started, screen));
       throw exception;
     }
     this.finishStartTask(started, screen);
+  }
+
+  private void cleanupAfterFailure(final Throwable failure, final Runnable cleanup) {
+    try {
+      cleanup.run();
+    } catch (final RuntimeException | Error exception) {
+      ThrowableUtils.throwIfFatal(exception);
+      final boolean sameFailure = IDENTITY.equivalent(failure, exception);
+      if (!sameFailure) {
+        failure.addSuppressed(exception);
+      }
+    }
   }
 
   private void finishStartTask(final PlayerType started, final Screen screen) {

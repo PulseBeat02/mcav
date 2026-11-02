@@ -136,15 +136,20 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
       return image;
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
-      try {
-        image.release();
-      } catch (final RuntimeException | Error cleanupException) {
-        ThrowableUtils.throwIfFatal(cleanupException);
-        if (!FAILURE_IDENTITY.equivalent(exception, cleanupException)) {
-          exception.addSuppressed(cleanupException);
-        }
-      }
+      this.cleanupAfterFailure(exception, image::release);
       throw exception;
+    }
+  }
+
+  private void cleanupAfterFailure(final Throwable failure, final Runnable cleanup) {
+    try {
+      cleanup.run();
+    } catch (final RuntimeException | Error exception) {
+      ThrowableUtils.throwIfFatal(exception);
+      final boolean sameFailure = FAILURE_IDENTITY.equivalent(failure, exception);
+      if (!sameFailure) {
+        failure.addSuppressed(exception);
+      }
     }
   }
 
@@ -211,15 +216,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
       }
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
-      try {
-        this.manager.discardLoaded(generation);
-      } catch (final RuntimeException | Error cleanupException) {
-        ThrowableUtils.throwIfFatal(cleanupException);
-        final boolean sameFailure = FAILURE_IDENTITY.equivalent(exception, cleanupException);
-        if (!sameFailure) {
-          exception.addSuppressed(cleanupException);
-        }
-      }
+      this.cleanupAfterFailure(exception, () -> this.manager.discardLoaded(generation));
       throw exception;
     }
   }
@@ -250,18 +247,10 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
       sender.sendMessage(message);
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
-      try {
-        if (adopted) {
-          this.manager.releaseImage(true);
-        } else {
-          image.release();
-        }
-      } catch (final RuntimeException | Error cleanupException) {
-        ThrowableUtils.throwIfFatal(cleanupException);
-        final boolean sameFailure = FAILURE_IDENTITY.equivalent(exception, cleanupException);
-        if (!sameFailure) {
-          exception.addSuppressed(cleanupException);
-        }
+      if (adopted) {
+        this.cleanupAfterFailure(exception, () -> this.manager.releaseImage(true));
+      } else {
+        this.cleanupAfterFailure(exception, image::release);
       }
       throw exception;
     }

@@ -333,16 +333,33 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
       return;
     }
 
-    final AudioArgument audioType = request.getAudioType();
-    final Player[] viewers = request.getViewers();
-    TaskUtils.whenComplete(start, (started, error) -> {
-      initializing.set(false);
-      TaskUtils.runOnMainThread(this.plugin, () -> {
-        if (this.manager.isCurrent(generation)) {
-          this.report(sender, audioType, viewers, started, error);
-        }
-      });
-    });
+    TaskUtils.whenComplete(start, (started, error) -> this.finishLaunch(sender, request, generation, started, error));
+  }
+
+  private void finishLaunch(
+    final CommandSender sender,
+    final PlaybackRequest request,
+    final long generation,
+    final @Nullable Boolean started,
+    final @Nullable Throwable error
+  ) {
+    final AtomicBoolean initializing = this.manager.getStatus();
+    initializing.set(false);
+    TaskUtils.runOnMainThread(this.plugin, () -> this.reportIfCurrent(sender, request, generation, started, error));
+  }
+
+  private void reportIfCurrent(
+    final CommandSender sender,
+    final PlaybackRequest request,
+    final long generation,
+    final @Nullable Boolean started,
+    final @Nullable Throwable error
+  ) {
+    if (this.manager.isCurrent(generation)) {
+      final AudioArgument audioType = request.getAudioType();
+      final Player[] viewers = request.getViewers();
+      this.report(sender, audioType, viewers, started, error);
+    }
   }
 
   private void report(
@@ -474,16 +491,18 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
         this.manager.clearCurrentVideo();
         return false;
       }
-      TaskUtils.runOnMainThread(this.plugin, () -> {
-        if (this.manager.isCurrent(generation)) {
-          this.showHologram(dump);
-        }
-      });
+      TaskUtils.runOnMainThread(this.plugin, () -> this.showHologramIfCurrent(generation, dump));
       return true;
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
       this.cleanupAfterFailure(exception, this.manager::clearCurrentVideo);
       throw exception;
+    }
+  }
+
+  private void showHologramIfCurrent(final long generation, final UrlParseDump dump) {
+    if (this.manager.isCurrent(generation)) {
+      this.showHologram(dump);
     }
   }
 

@@ -432,14 +432,7 @@ public final class DumpUtils {
       return;
     }
     try (final BufferedReader reader = Files.newBufferedReader(logFile)) {
-      final Deque<String> tail = new ArrayDeque<>();
-      String line;
-      while ((line = reader.readLine()) != null) {
-        tail.addLast(line);
-        if (tail.size() > MAXIMUM_LOG_LINES) {
-          tail.removeFirst();
-        }
-      }
+      final Deque<String> tail = readTail(reader);
       for (final String retained : tail) {
         final String safe = redactLogLine(retained);
         dump.append(safe);
@@ -449,5 +442,17 @@ public final class DumpUtils {
       final String message = exception.getMessage();
       appendLine(dump, "Failed to read the log", message);
     }
+  }
+
+  private static Deque<String> readTail(final BufferedReader reader) throws IOException {
+    final Deque<String> tail = new ArrayDeque<>();
+    String line;
+    while ((line = reader.readLine()) != null) {
+      tail.addLast(line);
+      if (tail.size() > MAXIMUM_LOG_LINES) {
+        tail.removeFirst();
+      }
+    }
+    return tail;
   }
 }

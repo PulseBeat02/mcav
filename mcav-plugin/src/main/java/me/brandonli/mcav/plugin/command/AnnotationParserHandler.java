@@ -162,16 +162,20 @@ public final class AnnotationParserHandler {
       }
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
-      try {
-        this.shutdownCommands();
-      } catch (final RuntimeException | Error cleanupException) {
-        ThrowableUtils.throwIfFatal(cleanupException);
-        final boolean sameFailure = FAILURE_IDENTITY.equivalent(exception, cleanupException);
-        if (!sameFailure) {
-          exception.addSuppressed(cleanupException);
-        }
-      }
+      this.cleanupAfterFailure(exception, this::shutdownCommands);
       throw exception;
+    }
+  }
+
+  private void cleanupAfterFailure(final Throwable failure, final Runnable cleanup) {
+    try {
+      cleanup.run();
+    } catch (final RuntimeException | Error exception) {
+      ThrowableUtils.throwIfFatal(exception);
+      final boolean sameFailure = FAILURE_IDENTITY.equivalent(failure, exception);
+      if (!sameFailure) {
+        failure.addSuppressed(exception);
+      }
     }
   }
 
