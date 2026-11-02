@@ -46,6 +46,8 @@ import org.slf4j.LoggerFactory;
 /**
  * Reads {@code config.yml} into typed settings. Missing values fall back to defaults instead of failing, but a
  * file that cannot be read or is not valid YAML fails, so a broken file never silently turns into the defaults.
+ *
+ * @since 1.0.0
  */
 public final class PluginDataConfigurationMapper {
 
@@ -170,6 +172,7 @@ public final class PluginDataConfigurationMapper {
    * Constructs the mapper with default settings. Call {@link #deserialize()} to read the file.
    *
    * @param plugin the plugin
+   * @since 1.0.0
    */
   public PluginDataConfigurationMapper(final MCAVSandbox plugin) {
     Preconditions.checkNotNull(plugin, "Plugin must not be null!");
@@ -187,6 +190,7 @@ public final class PluginDataConfigurationMapper {
    * Reads the configuration file, creating it from the bundled default first if it does not exist.
    *
    * @throws PluginException if the file cannot be read or is not valid YAML
+   * @since 1.0.0
    */
   public synchronized void deserialize() {
     final FileConfiguration configuration = this.loadConfiguration();
@@ -351,6 +355,7 @@ public final class PluginDataConfigurationMapper {
    * Returns whether pages of the browser may reach loopback, private and link-local addresses.
    *
    * @return true if {@code browser.allow-private-networks} is on
+   * @since 1.0.0
    */
   public synchronized boolean isBrowserPrivateNetworks() {
     return this.browserPrivateNetworks;
@@ -360,6 +365,7 @@ public final class PluginDataConfigurationMapper {
    * Returns whether the browser compiles JavaScript to machine code.
    *
    * @return true if {@code browser.javascript-jit} is on
+   * @since 1.0.0
    */
   public synchronized boolean isBrowserJavaScriptJit() {
     return this.browserJavaScriptJit;
@@ -369,6 +375,7 @@ public final class PluginDataConfigurationMapper {
    * Returns whether pages of the browser play sound before a player clicked or typed into them.
    *
    * @return true if {@code browser.autoplay-sound} is on
+   * @since 1.0.0
    */
   public synchronized boolean isBrowserAutoplaySound() {
     return this.browserAutoplaySound;
@@ -378,6 +385,7 @@ public final class PluginDataConfigurationMapper {
    * Returns whether the browser confines Chromium where the system can.
    *
    * @return true if {@code browser.confine-chromium} is on
+   * @since 1.0.0
    */
   public synchronized boolean isBrowserConfineChromium() {
     return this.browserConfineChromium;
@@ -387,6 +395,7 @@ public final class PluginDataConfigurationMapper {
    * Returns the hosts whose addresses pages of the browser may not reach, besides the private ones and the server's own.
    *
    * @return the names and addresses of {@code browser.refused-hosts}, unmodifiable
+   * @since 1.0.0
    */
   public synchronized List<String> getBrowserRefusedHosts() {
     return this.browserRefusedHosts;
@@ -397,6 +406,7 @@ public final class PluginDataConfigurationMapper {
    * the server's loopback address, instead of one that reaches nothing.
    *
    * @return true if {@code vm.allow-network} is on
+   * @since 1.0.0
    */
   public synchronized boolean isVmAllowNetwork() {
     return this.vmAllowNetwork;
@@ -406,6 +416,7 @@ public final class PluginDataConfigurationMapper {
    * Returns the plugin.
    *
    * @return the plugin
+   * @since 1.0.0
    */
   public MCAVSandbox getPlugin() {
     return this.plugin;
@@ -415,6 +426,7 @@ public final class PluginDataConfigurationMapper {
    * Returns the language of the messages.
    *
    * @return the locale
+   * @since 1.0.0
    */
   public synchronized Locale getLocale() {
     return this.locale;
@@ -424,6 +436,7 @@ public final class PluginDataConfigurationMapper {
    * Returns the Discord bot token.
    *
    * @return the token, empty if not set
+   * @since 1.0.0
    */
   public synchronized String getDiscordBotToken() {
     return this.discordBotToken;
@@ -433,6 +446,7 @@ public final class PluginDataConfigurationMapper {
    * Returns the id of the Discord voice channel.
    *
    * @return the channel id, empty if not set
+   * @since 1.0.0
    */
   public synchronized String getDiscordBotChannelId() {
     return this.discordBotChannelId;
@@ -442,6 +456,7 @@ public final class PluginDataConfigurationMapper {
    * Returns the id of the Discord server.
    *
    * @return the guild id, empty if not set
+   * @since 1.0.0
    */
   public synchronized String getDiscordBotGuildId() {
     return this.discordBotGuildId;
@@ -451,6 +466,7 @@ public final class PluginDataConfigurationMapper {
    * Returns the host name listeners use to reach the audio web page.
    *
    * @return the host name
+   * @since 1.0.0
    */
   public synchronized String getHttpHostName() {
     return this.httpHostName;
@@ -460,6 +476,7 @@ public final class PluginDataConfigurationMapper {
    * Returns the port of the audio web page.
    *
    * @return the port
+   * @since 1.0.0
    */
   public synchronized int getHttpPort() {
     return this.httpPort;
@@ -469,6 +486,7 @@ public final class PluginDataConfigurationMapper {
    * Returns whether the Discord bot is enabled.
    *
    * @return true if enabled
+   * @since 1.0.0
    */
   public synchronized boolean isDiscordBotEnabled() {
     return this.discordBotEnabled;
@@ -478,6 +496,7 @@ public final class PluginDataConfigurationMapper {
    * Returns whether the audio web page is enabled.
    *
    * @return true if enabled
+   * @since 1.0.0
    */
   public synchronized boolean isHttpEnabled() {
     return this.httpEnabled;
@@ -487,6 +506,7 @@ public final class PluginDataConfigurationMapper {
    * Returns whether Simple Voice Chat audio is enabled.
    *
    * @return true if enabled
+   * @since 1.0.0
    */
   public synchronized boolean isSimpleVoiceChatEnabled() {
     return this.simpleVoiceChatEnabled;
@@ -496,6 +516,7 @@ public final class PluginDataConfigurationMapper {
    * Returns how many threads the MCV2 encoders of the server share.
    *
    * @return the thread count, or 0 for half the processors
+   * @since 1.0.0
    */
   public synchronized int getMcv2EncoderThreads() {
     return this.mcv2EncoderThreads;
@@ -505,6 +526,7 @@ public final class PluginDataConfigurationMapper {
    * Returns the VNC servers {@code /mcav vnc create} may connect to.
    *
    * @return the entries of {@code vnc.allowed-hosts}, which may be none
+   * @since 1.0.0
    */
   public synchronized VncAllowList getVncAllowList() {
     return this.vncAllowList;
@@ -514,6 +536,7 @@ public final class PluginDataConfigurationMapper {
    * Returns the codec of a map screen whose command does not say.
    *
    * @return {@code mcv2.default-codec}, dither unless set
+   * @since 1.0.0
    */
   public synchronized MapCodec getMcv2DefaultCodec() {
     return this.mcv2DefaultCodec;
@@ -523,6 +546,7 @@ public final class PluginDataConfigurationMapper {
    * Returns where the players download the MCV2 resource pack from.
    *
    * @return {@code mcv2.pack.hosting}, the injector unless set
+   * @since 1.0.0
    */
   public synchronized Mcv2Hosting getMcv2PackHosting() {
     return this.mcv2PackHosting;
@@ -532,6 +556,7 @@ public final class PluginDataConfigurationMapper {
    * Returns the host name or address players reach the pack's HTTP server by.
    *
    * @return {@code mcv2.pack.http-host}, empty for the address the server finds for itself
+   * @since 1.0.0
    */
   public synchronized String getMcv2PackHttpHost() {
     return this.mcv2PackHttpHost;
@@ -541,6 +566,7 @@ public final class PluginDataConfigurationMapper {
    * Returns the port of the pack's HTTP server.
    *
    * @return {@code mcv2.pack.http-port}, from 1 to 65535
+   * @since 1.0.0
    */
   public synchronized int getMcv2PackHttpPort() {
     return this.mcv2PackHttpPort;
@@ -550,6 +576,7 @@ public final class PluginDataConfigurationMapper {
    * Returns the mode that decides whether the live encoders use the native kernels where they load.
    *
    * @return {@code auto} or {@code off}
+   * @since 1.0.0
    */
   public synchronized String getMcv2Native() {
     return this.mcv2Native;

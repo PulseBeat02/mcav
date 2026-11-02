@@ -73,6 +73,8 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
  * of the {@value DiskImages#FOLDER_NAME} folder of the plugin. QEMU can otherwise read and write any file of the
  * server, load a plugin library of its own, share a folder of the host with the guest and publish its display and its
  * monitor on the network, none of which belongs in a chat command.
+ *
+ * @since 1.0.0
  */
 public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer> {
 
@@ -134,6 +136,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    * Constructs the command.
    *
    * @param plugin the plugin
+   * @since 1.0.0
    */
   public VirtualizeCommand(final MCAVSandbox plugin) {
     super(plugin);
@@ -145,6 +148,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    * @param current the running virtual machine
    * @param screenX the x coordinate on the display, in pixels
    * @param screenY the y coordinate on the display, in pixels
+   * @since 1.0.0
    */
   @Override
   protected void forwardLeftClick(final VmPlayer current, final int screenX, final int screenY) {
@@ -159,6 +163,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    * @param current the running virtual machine
    * @param screenX the x coordinate on the display, in pixels
    * @param screenY the y coordinate on the display, in pixels
+   * @since 1.0.0
    */
   @Override
   protected void forwardRightClick(final VmPlayer current, final int screenX, final int screenY) {
@@ -172,6 +177,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    *
    * @param current the running virtual machine
    * @param text    the text to type
+   * @since 1.0.0
    */
   @Override
   protected void forwardTextInput(final VmPlayer current, final String text) {
@@ -185,6 +191,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    * Stops the QEMU process of a virtual machine.
    *
    * @param current the virtual machine to stop, which is no longer the running one
+   * @since 1.0.0
    */
   @Override
   protected void releasePlayer(final VmPlayer current) {
@@ -212,6 +219,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    * forward.
    *
    * @param sender the player who switches their chat input
+   * @since 1.0.0
    */
   @Command("mcav vm interact")
   @Permission(INTERACT_PERMISSION)
@@ -233,6 +241,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    * "Virtual machine released!", also when no virtual machine was running.
    *
    * @param sender who ran the command
+   * @since 1.0.0
    */
   @Command("mcav vm release")
   @Permission("mcav.vm.release")
@@ -286,6 +295,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    *                              A trailing {@code --codec dither} or {@code --codec mcv2} is not a QEMU option: it
    *                              chooses how the picture reaches the players, as the flag of the other map commands
    *                              does, and the configured default applies without it
+   * @since 1.0.0
    */
   @Command(
     "mcav vm create <playerSelector> <vmResolution> <targetFramesPerSecond> <blockDimensions> <mapId> <ditheringAlgorithm> <architecture> <audioType> <flags>"
@@ -401,6 +411,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    * @param outcome whether the virtual machine started
    * @param error   why the virtual machine failed to start, if known
    * @return the message
+   * @since 1.0.0
    */
   @Override
   protected Component createStartMessage(final StartOutcome outcome, final @Nullable Throwable error) {
@@ -672,6 +683,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    * Returns the QEMU options the command accepts, with a dash and in alphabetical order.
    *
    * @return the option names, as an unmodifiable list
+   * @since 1.0.0
    */
   public static List<String> supportedOptions() {
     final List<String> names = new ArrayList<>();
@@ -737,6 +749,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    * Returns the permission a player needs to send input to the running virtual machine.
    *
    * @return {@value #INTERACT_PERMISSION}
+   * @since 1.0.0
    */
   @Override
   protected String getInteractionPermission() {

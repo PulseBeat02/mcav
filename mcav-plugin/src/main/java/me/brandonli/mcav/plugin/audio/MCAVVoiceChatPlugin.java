@@ -30,6 +30,8 @@ import org.slf4j.LoggerFactory;
 /**
  * The plugin MCAV registers with Simple Voice Chat. Once Simple Voice Chat has started, it hands its server API to
  * the {@link SvcModule} of the library, which voice chat audio needs before it can play.
+ *
+ * @since 1.0.0
  */
 public final class MCAVVoiceChatPlugin implements VoicechatPlugin {
 
@@ -43,6 +45,7 @@ public final class MCAVVoiceChatPlugin implements VoicechatPlugin {
    * Constructs the voice chat plugin.
    *
    * @param sandbox the plugin whose library receives the voice chat server API
+   * @since 1.0.0
    */
   public MCAVVoiceChatPlugin(final MCAVSandbox sandbox) {
     Preconditions.checkNotNull(sandbox, "Plugin must not be null!");
@@ -55,6 +58,7 @@ public final class MCAVVoiceChatPlugin implements VoicechatPlugin {
    * started on the server, where the API it passes is always a {@link VoicechatServerApi}.
    *
    * @param api the voice chat API
+   * @since 1.0.0
    */
   @Override
   public void initialize(final VoicechatApi api) {
@@ -71,6 +75,7 @@ public final class MCAVVoiceChatPlugin implements VoicechatPlugin {
    * Returns the id Simple Voice Chat knows this plugin by.
    *
    * @return {@code mcav}
+   * @since 1.0.0
    */
   @Override
   public String getPluginId() {

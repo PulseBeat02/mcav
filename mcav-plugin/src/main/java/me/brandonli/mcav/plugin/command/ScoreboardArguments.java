@@ -24,6 +24,8 @@ import me.brandonli.mcav.utils.immutable.Pair;
 
 /**
  * Checks the arguments of the scoreboard commands before they load any media.
+ *
+ * @since 1.0.0
  */
 public final class ScoreboardArguments {
 
@@ -39,6 +41,7 @@ public final class ScoreboardArguments {
    * @param resolution the resolution as entered, whose height is the number of lines
    * @return whether the height is above the line limit
    * @throws NullPointerException if {@code resolution} is null
+   * @since 1.0.0
    */
   public static boolean isTooTall(final String resolution) {
     Preconditions.checkNotNull(resolution, "Resolution must not be null!");

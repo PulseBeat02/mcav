@@ -28,6 +28,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * What the commands that play sound tell their sender and viewers about the audio output they chose: whether it can
  * play now, and the link to the Discord channel or the web page the sound plays in.
+ *
+ * @since 1.0.0
  */
 public final class AudioOutputs {
 
@@ -43,6 +45,7 @@ public final class AudioOutputs {
    * @param audioType the chosen output
    * @return the message that explains why the output cannot play, or empty if it can
    * @throws NullPointerException if an argument is null
+   * @since 1.0.0
    */
   public static Optional<Component> findProblem(final AudioProvider provider, final AudioArgument audioType) {
     Preconditions.checkNotNull(provider, "Provider must not be null!");
@@ -75,6 +78,7 @@ public final class AudioOutputs {
    * @param provider  the provider of the audio outputs
    * @param audioType the chosen output
    * @param viewers   the players who see the picture
+   * @since 1.0.0
    */
   public static void sendLink(final AudioProvider provider, final AudioArgument audioType, final Player[] viewers) {
     Preconditions.checkNotNull(viewers, "Viewers must not be null!");
@@ -97,6 +101,7 @@ public final class AudioOutputs {
    * @param audioType the chosen output
    * @return the link, or empty for outputs without one
    * @throws NullPointerException if an argument is null
+   * @since 1.0.0
    */
   public static Optional<Component> createLink(final AudioProvider provider, final AudioArgument audioType) {
     Preconditions.checkNotNull(provider, "Provider must not be null!");

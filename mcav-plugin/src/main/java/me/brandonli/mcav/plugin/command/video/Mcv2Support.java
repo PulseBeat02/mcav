@@ -54,18 +54,24 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>A screen asks for a slot of the pack when it starts and gives it back when it is released. Players who decline
  * the pack, or whose client cannot load it, are told so and keep the dithered maps.
+ *
+ * @since 1.0.0
  */
 public final class Mcv2Support {
 
   /**
    * The system property that makes the pack also draw the first slot's decoded picture one to one in the top-left
    * corner, with the state of its pages and its decoder next to it, for testing the pack in-game.
+   *
+   * @since 1.0.0
    */
   public static final String DEBUG_VIEW = "mcav.mcv2.debugView";
 
   /**
    * The system property naming a folder that the frames every MCV2 screen started next sends are recorded into, one
    * stream file per screen, for a measurement that decodes them with the reference decoder; unset for none.
+   *
+   * @since 1.0.0
    */
   public static final String RECORD_PROPERTY = "mcav.sandbox.mcv2.record";
 
@@ -87,6 +93,7 @@ public final class Mcv2Support {
    *
    * @param dataFolder the plugin's data folder; the pack is written in {@code mcv2/pack} inside it
    * @param hosting    hosts a written pack
+   * @since 1.0.0
    */
   public Mcv2Support(final Path dataFolder, final Function<Path, PackHosting> hosting) {
     this(
@@ -108,6 +115,8 @@ public final class Mcv2Support {
 
   /**
    * Starts listening to the players for the pack. Call on the main thread.
+   *
+   * @since 1.0.0
    */
   public void start() {
     this.packs.start();
@@ -115,6 +124,8 @@ public final class Mcv2Support {
 
   /**
    * Stops serving the pack; the players keep what they loaded.
+   *
+   * @since 1.0.0
    */
   public void shutdown() {
     this.packs.shutdown();
@@ -142,6 +153,7 @@ public final class Mcv2Support {
    * @param settings   the encoder profile
    * @param viewers    the players who watch
    * @return the configuration, or empty if the screen is too large for MCV2 or no frame holds the map
+   * @since 1.0.0
    */
   public Optional<Mcv2Configuration> configure(
     final CommandSender sender,
@@ -194,6 +206,7 @@ public final class Mcv2Support {
    * @param sender        who started the screen
    * @param configuration the screen
    * @return the lease of the slot, or empty if none is free
+   * @since 1.0.0
    */
   public Optional<Mcv2PackServer.Lease> open(final CommandSender sender, final Mcv2Configuration configuration) {
     try {
@@ -214,6 +227,7 @@ public final class Mcv2Support {
    * @param configuration the screen
    * @param dithering     how the frames are dithered for the viewers without the pack
    * @return the output, not started, or empty if no slot of the pack is free
+   * @since 1.0.0
    */
   public Optional<Mcv2Output> output(final CommandSender sender, final Mcv2Configuration configuration, final DitheringArgument dithering) {
     final Optional<Mcv2PackServer.Lease> foundLease = this.open(sender, configuration);
@@ -266,6 +280,7 @@ public final class Mcv2Support {
    * @param worlds the worlds to search
    * @param mapId  the id of the top-left map
    * @return the frame, or empty if no frame holds that map
+   * @since 1.0.0
    */
   public static Optional<ItemFrame> findFrame(final Collection<World> worlds, final int mapId) {
     for (final World world : worlds) {
@@ -299,6 +314,7 @@ public final class Mcv2Support {
    * Returns who loaded the pack.
    *
    * @return the viewers every screen shares
+   * @since 1.0.0
    */
   public Mcv2Viewers getViewers() {
     return this.packs.getViewers();

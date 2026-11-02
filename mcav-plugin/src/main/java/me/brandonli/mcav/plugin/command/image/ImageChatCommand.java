@@ -42,6 +42,8 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 
 /**
  * {@code /mcav image chat}: shows an image to the selected players.
+ *
+ * @since 1.0.0
  */
 public final class ImageChatCommand extends AbstractImageCommand {
 
@@ -49,6 +51,7 @@ public final class ImageChatCommand extends AbstractImageCommand {
    * Constructs the command.
    *
    * @param plugin the plugin
+   * @since 1.0.0
    */
   public ImageChatCommand(final MCAVSandbox plugin) {
     super(plugin);
@@ -78,6 +81,7 @@ public final class ImageChatCommand extends AbstractImageCommand {
    *                        URL; the rest of the command line, so it may contain spaces
    * @param filters         the {@code --filters} option: filters applied to the image in order, such as
    *                        {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
+   * @since 1.0.0
    */
   @Command("mcav image chat <playerSelector> <imageResolution> <character> <mrl>")
   @Permission("mcav.command.image.chat")
@@ -108,6 +112,7 @@ public final class ImageChatCommand extends AbstractImageCommand {
    * @param resolution            the parsed resolution, in characters per line and lines
    * @param configurationProvider the provider that builds the chat configuration
    * @return the chat display
+   * @since 1.0.0
    */
   @Override
   public DisplayableImage createImage(final Pair<Integer, Integer> resolution, final ImageConfigurationProvider configurationProvider) {

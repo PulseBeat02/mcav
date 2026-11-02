@@ -37,6 +37,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * chat command. Every accepted option only selects which stream of a page is played. An option outside the list, an
  * option given a value it does not take, one missing the value it needs, or a value that yt-dlp would read as
  * another option is refused, and the command tells the sender instead of running yt-dlp.
+ *
+ * @since 1.0.0
  */
 public final class VideoFlagsParser {
 
@@ -108,6 +110,8 @@ public final class VideoFlagsParser {
 
   /**
    * Constructs the parser, which keeps no state and can be shared.
+   *
+   * @since 1.0.0
    */
   public VideoFlagsParser() {}
 
@@ -117,6 +121,7 @@ public final class VideoFlagsParser {
    * @param flags the flags argument of the command, may be empty or {@code null}
    * @return the arguments to pass to yt-dlp, empty if there are none
    * @throws IllegalArgumentException if an option with a value has an empty name
+   * @since 1.0.0
    */
   public String[] parseYtdlpFlags(final @Nullable String flags) {
     final String content = extractOptions(flags);
@@ -276,6 +281,7 @@ public final class VideoFlagsParser {
    * {@code name} and an option with a value as {@code name=value}.
    *
    * @return the option names, as an unmodifiable list
+   * @since 1.0.0
    */
   public static List<String> supportedOptions() {
     final List<String> names = new ArrayList<>(FLAG_OPTIONS);

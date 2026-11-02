@@ -57,6 +57,8 @@ import org.incendo.cloud.paper.LegacyPaperCommandManager;
 
 /**
  * Creates the Cloud command manager and every command feature of the plugin.
+ *
+ * @since 1.0.0
  */
 public final class AnnotationParserHandler {
 
@@ -74,6 +76,7 @@ public final class AnnotationParserHandler {
    * Creates the command manager and the features. The plugin's managers must exist already.
    *
    * @param plugin the plugin
+   * @since 1.0.0
    */
   public AnnotationParserHandler(final MCAVSandbox plugin) {
     Preconditions.checkNotNull(plugin, "Plugin must not be null!");
@@ -155,6 +158,8 @@ public final class AnnotationParserHandler {
 
   /**
    * Sets up every feature and registers its commands.
+   *
+   * @since 1.0.0
    */
   public void registerCommands() {
     try {
@@ -183,6 +188,8 @@ public final class AnnotationParserHandler {
 
   /**
    * Shuts every feature down.
+   *
+   * @since 1.0.0
    */
   public void shutdownCommands() {
     if (this.shutDown) {
@@ -203,6 +210,7 @@ public final class AnnotationParserHandler {
    * Returns the command manager.
    *
    * @return the command manager
+   * @since 1.0.0
    */
   public CommandManager<CommandSender> getManager() {
     return this.manager;

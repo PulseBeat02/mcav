@@ -24,6 +24,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Runs independent resource cleanup actions even when an earlier action fails.
+ *
+ * @since 1.0.0
  */
 public final class CleanupUtils {
 
@@ -38,6 +40,7 @@ public final class CleanupUtils {
    * Fatal virtual-machine failures are rethrown immediately without attempting further cleanup.
    *
    * @param actions the independent cleanup actions
+   * @since 1.0.0
    */
   public static void runAll(final Runnable... actions) {
     Preconditions.checkNotNull(actions, "Cleanup actions must not be null!");

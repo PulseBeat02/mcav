@@ -46,6 +46,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * Boots a virtual machine when a player puts a renamed music disc into a jukebox: the disc's name selects an ISO
  * image from the plugin's {@code iso} folder, and the machine is shown to the player on map 0.
+ *
+ * @since 1.0.0
  */
 public final class JukeBoxListener implements Listener {
 
@@ -63,6 +65,7 @@ public final class JukeBoxListener implements Listener {
    * Constructs the listener and creates the {@code iso} folder.
    *
    * @param sandbox the plugin
+   * @since 1.0.0
    */
   public JukeBoxListener(final MCAVSandbox sandbox) {
     Preconditions.checkNotNull(sandbox, "Sandbox must not be null!");
@@ -75,6 +78,8 @@ public final class JukeBoxListener implements Listener {
 
   /**
    * Registers the listener.
+   *
+   * @since 1.0.0
    */
   public void start() {
     final Server server = Bukkit.getServer();
@@ -84,6 +89,8 @@ public final class JukeBoxListener implements Listener {
 
   /**
    * Unregisters the listener.
+   *
+   * @since 1.0.0
    */
   public void shutdown() {
     HandlerList.unregisterAll(this);
@@ -95,6 +102,7 @@ public final class JukeBoxListener implements Listener {
    * lower priorities, may have denied the player the jukebox; a denied use boots nothing.
    *
    * @param event the interaction
+   * @since 1.0.0
    */
   @EventHandler(priority = EventPriority.HIGHEST)
   public void onJukeboxInteract(final PlayerInteractEvent event) {

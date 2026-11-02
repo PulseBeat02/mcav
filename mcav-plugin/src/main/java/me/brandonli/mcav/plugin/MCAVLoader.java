@@ -58,6 +58,8 @@ import xyz.jpenilla.gremlin.runtime.platformsupport.PaperClasspathAppender;
  *
  * <p>The loader runs before the downloaded modules are on the classpath, so it reports failures with JDK exceptions
  * instead of {@link PluginException}, whose superclass {@code MCAVException} comes from one of those modules.
+ *
+ * @since 1.0.0
  */
 public final class MCAVLoader implements PluginLoader {
 
@@ -85,6 +87,8 @@ public final class MCAVLoader implements PluginLoader {
 
   /**
    * Constructs the loader. Paper creates it for you.
+   *
+   * @since 1.0.0
    */
   public MCAVLoader() {
     this(Path.of(LIBRARIES_DIRECTORY), readRequiredClasses(requireNonNull(MCAVLoader.class.getClassLoader())));
@@ -182,6 +186,7 @@ public final class MCAVLoader implements PluginLoader {
    * @param classpathBuilder the classpath of the plugin, which receives the library jars
    * @throws NullPointerException  if the classpath builder is {@code null}
    * @throws IllegalStateException if a downloaded module lacks a class the plugin uses
+   * @since 1.0.0
    */
   @Override
   public void classloader(final @NonNull PluginClasspathBuilder classpathBuilder) {

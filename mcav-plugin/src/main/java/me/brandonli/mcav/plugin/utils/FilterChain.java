@@ -61,43 +61,93 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * {@code grayscale,blur=3,text=Live}. Only filters whose work is bounded are offered, with bounded arguments, and an
  * overlay only from the plugin's {@code overlays} folder, by name; the pictures are filtered at the size they are
  * shown at, which the command's resolution bounds.
+ *
+ * @since 1.0.0
  */
 public final class FilterChain {
 
-  /** The chain of no filter. */
+  /**
+   * The chain of no filter.
+   *
+   * @since 1.0.0
+   */
   public static final FilterChain NONE = new FilterChain(List.of());
 
-  /** The most filters of a chain. */
+  /**
+   * The most filters of a chain.
+   *
+   * @since 1.0.0
+   */
   public static final int MAXIMUM_FILTERS = 8;
 
-  /** The longest chain, in characters. */
+  /**
+   * The longest chain, in characters.
+   *
+   * @since 1.0.0
+   */
   public static final int MAXIMUM_LENGTH = 256;
 
-  /** The largest radius of {@code blur}, whose kernel is twice the radius plus one wide. */
+  /**
+   * The largest radius of {@code blur}, whose kernel is twice the radius plus one wide.
+   *
+   * @since 1.0.0
+   */
   public static final int MAXIMUM_BLUR = 15;
 
-  /** The largest diameter of {@code bilateral}, whose work grows with its square. */
+  /**
+   * The largest diameter of {@code bilateral}, whose work grows with its square.
+   *
+   * @since 1.0.0
+   */
   public static final int MAXIMUM_BILATERAL = 9;
 
-  /** The largest kernel of {@code dilate} and {@code erode}. */
+  /**
+   * The largest kernel of {@code dilate} and {@code erode}.
+   *
+   * @since 1.0.0
+   */
   public static final int MAXIMUM_MORPHOLOGY = 15;
 
-  /** The largest contrast factor of {@code luminance}. */
+  /**
+   * The largest contrast factor of {@code luminance}.
+   *
+   * @since 1.0.0
+   */
   public static final double MAXIMUM_CONTRAST = 3.0;
 
-  /** The largest brightness shift of {@code luminance}, either way. */
+  /**
+   * The largest brightness shift of {@code luminance}, either way.
+   *
+   * @since 1.0.0
+   */
   public static final int MAXIMUM_BRIGHTNESS = 255;
 
-  /** The longest text of {@code text}. */
+  /**
+   * The longest text of {@code text}.
+   *
+   * @since 1.0.0
+   */
   public static final int MAXIMUM_TEXT = 32;
 
-  /** The largest overlay file. */
+  /**
+   * The largest overlay file.
+   *
+   * @since 1.0.0
+   */
   public static final long MAXIMUM_OVERLAY_BYTES = 4L * 1024 * 1024;
 
-  /** The largest side of an overlay: a larger picture is scaled down to it. */
+  /**
+   * The largest side of an overlay: a larger picture is scaled down to it.
+   *
+   * @since 1.0.0
+   */
   public static final int MAXIMUM_OVERLAY_SIDE = 1024;
 
-  /** The folder in the plugin's data folder that overlays are read from. */
+  /**
+   * The folder in the plugin's data folder that overlays are read from.
+   *
+   * @since 1.0.0
+   */
   public static final String OVERLAY_FOLDER = "overlays";
 
   private static final String GRAYSCALE_FILTER = "grayscale";
@@ -118,7 +168,11 @@ public final class FilterChain {
   private static final String TEXT_FILTER = "text";
   private static final String OVERLAY_FILTER = "overlay";
 
-  /** The names of the filters, as the sender types them. */
+  /**
+   * The names of the filters, as the sender types them.
+   *
+   * @since 1.0.0
+   */
   public static final List<String> NAMES = List.of(
     GRAYSCALE_FILTER,
     INVERT_FILTER,
@@ -242,6 +296,7 @@ public final class FilterChain {
    * @return the chain
    * @throws NullPointerException     if an argument is null
    * @throws IllegalArgumentException with the reason for the sender, if the text is not a chain of allowed filters
+   * @since 1.0.0
    */
   public static FilterChain parse(final String text, final Path overlays, final MediaKind kind) {
     Preconditions.checkNotNull(text, "Text must not be null!");
@@ -534,6 +589,7 @@ public final class FilterChain {
    * Makes new filters of the chain, which keep state between pictures, for one video or image.
    *
    * @return the filters, in order
+   * @since 1.0.0
    */
   public List<VideoFilter> create() {
     return this.filters.stream().map(Supplier::get).toList();
@@ -544,6 +600,7 @@ public final class FilterChain {
    *
    * @param output the first step that shows the pictures
    * @return the first step of the filters, or the output if the chain is empty
+   * @since 1.0.0
    */
   public VideoPipelineStep prepend(final VideoPipelineStep output) {
     Preconditions.checkNotNull(output, "Output must not be null!");
@@ -560,6 +617,7 @@ public final class FilterChain {
    * Filters a picture with new filters of the chain.
    *
    * @param picture the picture, changed in place
+   * @since 1.0.0
    */
   public void apply(final ImageBuffer picture) {
     Preconditions.checkNotNull(picture, "Picture must not be null!");
@@ -573,6 +631,7 @@ public final class FilterChain {
    * Returns whether the chain has no filter.
    *
    * @return true if no filter is applied
+   * @since 1.0.0
    */
   public boolean isEmpty() {
     return this.filters.isEmpty();

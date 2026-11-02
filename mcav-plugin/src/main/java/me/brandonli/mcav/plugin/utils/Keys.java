@@ -21,30 +21,44 @@ import org.bukkit.NamespacedKey;
 
 /**
  * The keys of the persistent data the plugin stores on the item frames of map screens.
+ *
+ * @since 1.0.0
  */
 public final class Keys {
 
   /**
    * The namespace of every key of the plugin.
+   *
+   * @since 1.0.0
    */
   public static final String NAMESPACE = "mcav";
 
   /**
    * Marks every item frame of a map screen.
+   *
+   * @since 1.0.0
    */
   public static final NamespacedKey MAP_KEY = new NamespacedKey(NAMESPACE, "map");
 
   /**
    * Marks the top left item frame of a map screen.
+   *
+   * @since 1.0.0
    */
   public static final NamespacedKey FIRST_MAP_KEY = new NamespacedKey(NAMESPACE, "first_map");
 
   /**
    * Marks the bottom right item frame of a map screen.
+   *
+   * @since 1.0.0
    */
   public static final NamespacedKey LAST_MAP_KEY = new NamespacedKey(NAMESPACE, "second_map");
 
-  /** Identifies the screen a map frame belongs to, so neighboring screens remain independent. */
+  /**
+   * Identifies the screen a map frame belongs to, so neighboring screens remain independent.
+   *
+   * @since 1.0.0
+   */
   public static final NamespacedKey SCREEN_KEY = new NamespacedKey(NAMESPACE, "screen");
 
   private Keys() {

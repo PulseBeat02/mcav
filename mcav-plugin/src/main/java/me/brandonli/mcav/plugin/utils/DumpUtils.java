@@ -56,6 +56,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * arguments whose names suggest secrets, such as {@code -Dbot.token=...}, are redacted. Only the end of the server
  * log is included. Redaction is heuristic: unlabelled secrets and application-specific credential formats may
  * still appear in diagnostic text.
+ *
+ * @since 1.0.0
  */
 public final class DumpUtils {
 
@@ -112,6 +114,7 @@ public final class DumpUtils {
    *
    * @return the URL of the uploaded dump
    * @throws PluginException if the upload fails
+   * @since 1.0.0
    */
   public static String createAndUploadDump() {
     return createAndUploadDump(HTTP_CLIENT, PASTE_SITE, LOG_FILE);

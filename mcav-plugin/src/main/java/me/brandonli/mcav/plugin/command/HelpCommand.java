@@ -48,6 +48,8 @@ import org.incendo.cloud.minecraft.extras.MinecraftHelp;
 
 /**
  * {@code /mcav help [query]}: lists the commands, with texts from the plugin's locale file.
+ *
+ * @since 1.0.0
  */
 public final class HelpCommand implements AnnotationCommandFeature {
 
@@ -63,6 +65,7 @@ public final class HelpCommand implements AnnotationCommandFeature {
    * Constructs the command.
    *
    * @param manager the command manager whose commands are listed
+   * @since 1.0.0
    */
   public HelpCommand(final CommandManager<CommandSender> manager) {
     Preconditions.checkNotNull(manager, "Command manager must not be null!");
@@ -113,6 +116,7 @@ public final class HelpCommand implements AnnotationCommandFeature {
    *
    * @param sender who ran the command
    * @param query  the command to show, or {@code null} to list every command
+   * @since 1.0.0
    */
   @Permission("mcav.command.help")
   @CommandDescription("mcav.command.help.info")

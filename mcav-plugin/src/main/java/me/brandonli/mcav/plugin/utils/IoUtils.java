@@ -27,6 +27,8 @@ import me.brandonli.mcav.plugin.MCAVSandbox;
 
 /**
  * Locates the plugin's data folder and its bundled resources.
+ *
+ * @since 1.0.0
  */
 public final class IoUtils {
 
@@ -38,6 +40,7 @@ public final class IoUtils {
    * Returns the absolute path of the plugin's data folder.
    *
    * @return the data folder
+   * @since 1.0.0
    */
   public static Path getPluginDataFolderPath() {
     final MCAVSandbox plugin = MCAVSandbox.getPlugin(MCAVSandbox.class);
@@ -53,6 +56,7 @@ public final class IoUtils {
    * @return the stream of the resource, which the caller closes
    * @throws NullPointerException if the path is {@code null} or there is no such resource, with the path as the
    *                              message in the second case
+   * @since 1.0.0
    */
   public static InputStream getResourceAsStream(final String path) {
     Preconditions.checkNotNull(path, "Path must not be null!");

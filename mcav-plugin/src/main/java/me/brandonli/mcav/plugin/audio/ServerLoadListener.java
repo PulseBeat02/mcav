@@ -33,6 +33,8 @@ import org.bukkit.plugin.ServicesManager;
 /**
  * Registers the plugin with Simple Voice Chat once the server has loaded, because Simple Voice Chat offers its
  * service only then. The listener unregisters itself afterwards.
+ *
+ * @since 1.0.0
  */
 public final class ServerLoadListener implements Listener {
 
@@ -43,6 +45,7 @@ public final class ServerLoadListener implements Listener {
    *
    * @param sandbox the plugin
    * @throws NullPointerException if the plugin is {@code null}
+   * @since 1.0.0
    */
   public ServerLoadListener(final MCAVSandbox sandbox) {
     Preconditions.checkNotNull(sandbox, "Plugin must not be null!");
@@ -56,6 +59,7 @@ public final class ServerLoadListener implements Listener {
    * @param event the event, fired once the server has loaded its plugins and worlds
    * @throws NullPointerException if the event is {@code null}
    * @throws PluginException      if Simple Voice Chat offers no service, for example because it failed to start
+   * @since 1.0.0
    */
   @EventHandler(priority = EventPriority.HIGHEST)
   public void onServerLoad(final ServerLoadEvent event) {

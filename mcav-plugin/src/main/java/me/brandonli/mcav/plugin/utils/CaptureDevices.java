@@ -44,10 +44,16 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * to the server, so the plugin lists them with {@code /mcav video devices} and plays only a listed number. On Linux a
  * number is that of {@code /dev/video<number>}, named in sysfs, and listing opens nothing; elsewhere the first numbers
  * are tried, which briefly opens every device there is.
+ *
+ * @since 1.0.0
  */
 public final class CaptureDevices {
 
-  /** The permission to list and play capture devices. */
+  /**
+   * The permission to list and play capture devices.
+   *
+   * @since 1.0.0
+   */
   public static final String PERMISSION = "mcav.command.video.device";
 
   /** Where Linux describes its video devices. */
@@ -71,6 +77,7 @@ public final class CaptureDevices {
    * Lists the capture devices of the server. Off the main thread: trying devices takes a moment.
    *
    * @return the devices, by number
+   * @since 1.0.0
    */
   public static List<Device> list() {
     return list(OsUtils.getOs(), SYSFS, CaptureDevices::opens);
@@ -183,6 +190,7 @@ public final class CaptureDevices {
    * @param typed   the number as typed
    * @return the device, or empty if the text is not the number of a listed device
    * @throws NullPointerException if an argument is null
+   * @since 1.0.0
    */
   public static Optional<Device> find(final List<Device> devices, final String typed) {
     Preconditions.checkNotNull(devices, "Devices must not be null!");

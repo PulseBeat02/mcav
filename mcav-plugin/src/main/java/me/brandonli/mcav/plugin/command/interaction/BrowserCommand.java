@@ -66,6 +66,8 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
  * {@code file:} or {@code chrome:}, would let anyone with the permission show local files of the server, like the
  * configuration with the Discord token, on the maps. Pages reach public addresses of the internet only, unless
  * {@code browser.allow-private-networks} in {@code config.yml} allows the server's own network.
+ *
+ * @since 1.0.0
  */
 public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlayer> {
 
@@ -80,6 +82,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    * Constructs the command.
    *
    * @param plugin the plugin
+   * @since 1.0.0
    */
   public BrowserCommand(final MCAVSandbox plugin) {
     super(plugin);
@@ -91,6 +94,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    * @param current the running browser
    * @param screenX the x coordinate on the page, in pixels
    * @param screenY the y coordinate on the page, in pixels
+   * @since 1.0.0
    */
   @Override
   protected void forwardLeftClick(final BrowserPlayer current, final int screenX, final int screenY) {
@@ -105,6 +109,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    * @param current the running browser
    * @param screenX the x coordinate on the page, in pixels
    * @param screenY the y coordinate on the page, in pixels
+   * @since 1.0.0
    */
   @Override
   protected void forwardRightClick(final BrowserPlayer current, final int screenX, final int screenY) {
@@ -118,6 +123,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    *
    * @param current the running browser
    * @param text    the text to type
+   * @since 1.0.0
    */
   @Override
   protected void forwardTextInput(final BrowserPlayer current, final String text) {
@@ -131,6 +137,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    * Closes a browser.
    *
    * @param current the browser to close, which is no longer the running one
+   * @since 1.0.0
    */
   @Override
   protected void releasePlayer(final BrowserPlayer current) {
@@ -157,6 +164,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    * to forward.
    *
    * @param sender the player who switches their chat input
+   * @since 1.0.0
    */
   @Command("mcav browser interact")
   @Permission(INTERACT_PERMISSION)
@@ -177,6 +185,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    * told "Browser released!", also when no browser was running.
    *
    * @param sender who ran the command
+   * @since 1.0.0
    */
   @Command("mcav browser release")
   @Permission("mcav.browser.release")
@@ -226,6 +235,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    *                           the maps cannot show files of the server
    * @param codec              how the picture reaches the players, see {@link MapCodec}; the configured default when
    *                           absent
+   * @since 1.0.0
    */
   @Command(
     "mcav browser create <playerSelector> <browserResolution> <nth> <blockDimensions> <mapId> <ditheringAlgorithm> <audioType> <url>"
@@ -386,6 +396,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    * @param outcome whether the browser started
    * @param error   why the browser failed to start, if known
    * @return "Browser started!" on success, otherwise the message of the failure
+   * @since 1.0.0
    */
   @Override
   protected Component createStartMessage(final StartOutcome outcome, final @Nullable Throwable error) {
@@ -408,6 +419,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    * Returns the permission a player needs to send input to the running browser.
    *
    * @return {@value #INTERACT_PERMISSION}
+   * @since 1.0.0
    */
   @Override
   protected String getInteractionPermission() {

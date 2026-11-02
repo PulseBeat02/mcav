@@ -44,6 +44,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * insertion text, non-URL click actions, and parameters interpreted by custom resolvers, do not support this
  * placeholder. A custom resolver should insert those values through the appropriate Adventure API instead.
  * Subclasses only decide where the message text for a key comes from.
+ *
+ * @since 1.0.0
  */
 public abstract class MiniMessageTranslator implements Translator {
 
@@ -54,6 +56,8 @@ public abstract class MiniMessageTranslator implements Translator {
   /**
    * Creates a translator that parses messages with the default MiniMessage instance, which understands every
    * standard tag.
+   *
+   * @since 1.0.0
    */
   public MiniMessageTranslator() {
     this(MiniMessage.miniMessage());
@@ -65,6 +69,7 @@ public abstract class MiniMessageTranslator implements Translator {
    *
    * @param miniMessage the parser of the messages
    * @throws NullPointerException if the parser is {@code null}
+   * @since 1.0.0
    */
   public MiniMessageTranslator(final MiniMessage miniMessage) {
     Preconditions.checkNotNull(miniMessage, "MiniMessage must not be null!");
@@ -79,6 +84,7 @@ public abstract class MiniMessageTranslator implements Translator {
    * @param key    the key of the message
    * @param locale the locale Adventure renders for
    * @return null so Adventure can try another translation source
+   * @since 1.0.0
    */
   @Override
   public @Nullable MessageFormat translate(final @NonNull String key, final @NonNull Locale locale) {
@@ -93,6 +99,7 @@ public abstract class MiniMessageTranslator implements Translator {
    * @param locale    the locale Adventure renders for, passed on to {@link #getMiniMessageString(String, Locale)}
    * @return the rendered component, or null when this translator has no message for the key
    * @throws NullPointerException if the component or the locale is {@code null}
+   * @since 1.0.0
    */
   @Override
   public @Nullable Component translate(final @NonNull TranslatableComponent component, final @NonNull Locale locale) {
@@ -143,6 +150,7 @@ public abstract class MiniMessageTranslator implements Translator {
    * @param key    the key of the message, such as {@code mcav.command.image.load}
    * @param locale the locale Adventure renders for; implementations may ignore it when they serve one language
    * @return the message text, or empty when the key is unknown
+   * @since 1.0.0
    */
   protected abstract Optional<String> getMiniMessageString(final String key, final Locale locale);
 }

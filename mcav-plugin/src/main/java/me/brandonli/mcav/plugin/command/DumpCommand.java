@@ -35,6 +35,8 @@ import org.slf4j.LoggerFactory;
 
 /**
  * {@code /mcav dump}: uploads diagnostic information for bug reports and prints the link.
+ *
+ * @since 1.0.0
  */
 public final class DumpCommand implements AnnotationCommandFeature {
 
@@ -46,6 +48,8 @@ public final class DumpCommand implements AnnotationCommandFeature {
 
   /**
    * Constructs the command.
+   *
+   * @since 1.0.0
    */
   public DumpCommand() {
     this(DumpUtils::createAndUploadDump);
@@ -67,6 +71,7 @@ public final class DumpCommand implements AnnotationCommandFeature {
    * Uploads a dump in the background and sends its link to the sender. Failures are only logged.
    *
    * @param sender who ran the command
+   * @since 1.0.0
    */
   @Permission("mcav.command.dump")
   @Command(value = "mcav dump", requiredSender = CommandSender.class)

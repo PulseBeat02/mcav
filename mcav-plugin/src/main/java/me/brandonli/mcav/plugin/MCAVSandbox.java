@@ -52,6 +52,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>Everything is created in {@link #onEnable()} in dependency order: the library, the configuration, the audio
  * and media managers, the commands, and the listeners. The getters fail with an {@link IllegalStateException}
  * when called before the plugin is enabled.
+ *
+ * @since 1.0.0
  */
 public final class MCAVSandbox extends JavaPlugin {
 
@@ -109,6 +111,8 @@ public final class MCAVSandbox extends JavaPlugin {
 
   /**
    * Constructs the plugin. Paper creates it for you; everything else is created in {@link #onEnable()}.
+   *
+   * @since 1.0.0
    */
   public MCAVSandbox() {}
 
@@ -126,6 +130,7 @@ public final class MCAVSandbox extends JavaPlugin {
    *
    * @throws RuntimeException if anything else fails; Paper then reports the failure and disables the plugin, and
    *                          {@link #onDisable()} releases what was created
+   * @since 1.0.0
    */
   @Override
   public void onEnable() {
@@ -153,6 +158,8 @@ public final class MCAVSandbox extends JavaPlugin {
   /**
    * Disables the plugin: stops the video and the images, the jukebox listener, the commands and the audio outputs,
    * and releases the library. Parts that were never created, because the plugin failed to enable, are skipped.
+   *
+   * @since 1.0.0
    */
   @Override
   public void onDisable() {
@@ -299,6 +306,7 @@ public final class MCAVSandbox extends JavaPlugin {
    * Returns the library instance.
    *
    * @return the library
+   * @since 1.0.0
    */
   public MCAVApi getMCAV() {
     return this.require(this.mcav, "library");
@@ -308,6 +316,7 @@ public final class MCAVSandbox extends JavaPlugin {
    * Returns the configuration.
    *
    * @return the configuration
+   * @since 1.0.0
    */
   public PluginDataConfigurationMapper getConfiguration() {
     return this.require(this.configurationMapper, "configuration");
@@ -317,6 +326,7 @@ public final class MCAVSandbox extends JavaPlugin {
    * Returns the manager of the video player.
    *
    * @return the video player manager
+   * @since 1.0.0
    */
   public VideoPlayerManager getVideoPlayerManager() {
     return this.require(this.videoPlayerManager, "video player manager");
@@ -326,6 +336,7 @@ public final class MCAVSandbox extends JavaPlugin {
    * Returns the provider of audio outputs.
    *
    * @return the audio provider
+   * @since 1.0.0
    */
   public AudioProvider getAudioProvider() {
     return this.require(this.audioProvider, "audio provider");
@@ -335,6 +346,7 @@ public final class MCAVSandbox extends JavaPlugin {
    * Returns the manager of displayed images.
    *
    * @return the image manager
+   * @since 1.0.0
    */
   public ImageManager getImageManager() {
     return this.require(this.imageManager, "image manager");
@@ -344,6 +356,7 @@ public final class MCAVSandbox extends JavaPlugin {
    * Returns what the MCV2 screens share: the one pack that decodes them all, and who loaded it.
    *
    * @return the MCV2 support
+   * @since 1.0.0
    */
   public Mcv2Support getMcv2Support() {
     return this.require(this.mcv2Support, "MCV2 support");
@@ -353,6 +366,7 @@ public final class MCAVSandbox extends JavaPlugin {
    * Returns the players online, which a wall shown to {@code @a} keeps following.
    *
    * @return the online players
+   * @since 1.0.0
    */
   public OnlinePlayers getOnlinePlayers() {
     return this.require(this.onlinePlayers, "list of online players");
@@ -362,6 +376,7 @@ public final class MCAVSandbox extends JavaPlugin {
    * Returns whether QEMU was found when the plugin was enabled.
    *
    * @return true if virtual machines can be created
+   * @since 1.0.0
    */
   public boolean isQemuInstalled() {
     return this.qemuInstalled;
@@ -372,6 +387,7 @@ public final class MCAVSandbox extends JavaPlugin {
    * was enabled.
    *
    * @return true if browsers can be created
+   * @since 1.0.0
    */
   public boolean isBrowserSupported() {
     return this.browserSupported;

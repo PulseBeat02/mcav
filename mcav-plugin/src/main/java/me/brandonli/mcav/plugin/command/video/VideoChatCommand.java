@@ -44,6 +44,8 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 
 /**
  * {@code /mcav video chat}: plays a video to the selected players.
+ *
+ * @since 1.0.0
  */
 public final class VideoChatCommand extends AbstractVideoCommand {
 
@@ -51,6 +53,7 @@ public final class VideoChatCommand extends AbstractVideoCommand {
    * Constructs the command.
    *
    * @param plugin the plugin
+   * @since 1.0.0
    */
   public VideoChatCommand(final MCAVSandbox plugin) {
     super(plugin);
@@ -86,6 +89,7 @@ public final class VideoChatCommand extends AbstractVideoCommand {
    *                        {@code 0}, or a raw FFmpeg input written as {@code format||input}
    * @param filters         the {@code --filters} option: filters applied to every frame in order, such as
    *                        {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
+   * @since 1.0.0
    */
   @Command("mcav video chat <playerSelector> <playerType> <audioType> <videoResolution> <character> <ytdlpOptions> <mrl>")
   @Permission("mcav.command.video.chat")
@@ -117,6 +121,7 @@ public final class VideoChatCommand extends AbstractVideoCommand {
    *                              {@link #playVideo(CommandSender, MultiplePlayerSelector, PlayerArgument, AudioArgument, String, String, String, String, String)},
    *                              which returns a {@link ChatConfiguration}
    * @return the pipeline that shows the frames in the chat
+   * @since 1.0.0
    */
   @Override
   public VideoPipelineStep createVideoFilter(

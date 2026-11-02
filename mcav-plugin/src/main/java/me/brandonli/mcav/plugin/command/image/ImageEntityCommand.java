@@ -43,6 +43,8 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 
 /**
  * {@code /mcav image entity}: shows an image to the selected players.
+ *
+ * @since 1.0.0
  */
 public final class ImageEntityCommand extends AbstractImageCommand {
 
@@ -50,6 +52,7 @@ public final class ImageEntityCommand extends AbstractImageCommand {
    * Constructs the command.
    *
    * @param plugin the plugin
+   * @since 1.0.0
    */
   public ImageEntityCommand(final MCAVSandbox plugin) {
     super(plugin);
@@ -80,6 +83,7 @@ public final class ImageEntityCommand extends AbstractImageCommand {
    *                        URL; the rest of the command line, so it may contain spaces
    * @param filters         the {@code --filters} option: filters applied to the image in order, such as
    *                        {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
+   * @since 1.0.0
    */
   @Command("mcav image entity <playerSelector> <imageResolution> <character> <location> <mrl>")
   @Permission("mcav.command.image.entity")
@@ -113,6 +117,7 @@ public final class ImageEntityCommand extends AbstractImageCommand {
    * @param resolution            the parsed resolution, in characters per line and lines
    * @param configurationProvider the provider that builds the entity configuration
    * @return the entity display
+   * @since 1.0.0
    */
   @Override
   public DisplayableImage createImage(final Pair<Integer, Integer> resolution, final ImageConfigurationProvider configurationProvider) {

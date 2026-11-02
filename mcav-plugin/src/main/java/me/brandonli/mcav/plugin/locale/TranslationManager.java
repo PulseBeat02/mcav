@@ -49,6 +49,8 @@ import org.checkerframework.checker.initialization.qual.UnderInitialization;
  * <p>The messages are read from {@code locale/mcav_<language>.properties} in the plugin's data folder, so server
  * owners can edit them. The bundled file is copied there when it does not exist yet, and messages missing from the
  * file, such as messages added by a newer version of the plugin, are taken from the bundled file.
+ *
+ * @since 1.0.0
  */
 public final class TranslationManager {
 
@@ -65,6 +67,7 @@ public final class TranslationManager {
    * Loads the messages of the language configured in the plugin.
    *
    * @throws PluginException if the messages cannot be copied to or read from the data folder
+   * @since 1.0.0
    */
   public TranslationManager() {
     final MCAVSandbox plugin = JavaPlugin.getPlugin(MCAVSandbox.class);
@@ -122,6 +125,7 @@ public final class TranslationManager {
    * @return the message
    * @throws NullPointerException     if the key is {@code null}
    * @throws MissingResourceException if there is no message with the key
+   * @since 1.0.0
    */
   public String getProperty(final String key) {
     Preconditions.checkNotNull(key, "Key must not be null!");
@@ -136,6 +140,7 @@ public final class TranslationManager {
    * @return the rendered component
    * @throws NullPointerException     if the component is {@code null}
    * @throws MissingResourceException if there is no message with the key of the component
+   * @since 1.0.0
    */
   public Component render(final TranslatableComponent component) {
     Preconditions.checkNotNull(component, "Component must not be null!");

@@ -52,6 +52,8 @@ import org.slf4j.LoggerFactory;
 /**
  * The common flow of the image commands: parse the resolution, load the image on the worker thread, and show it
  * on the main thread with the display type of the subclass.
+ *
+ * @since 1.0.0
  */
 public abstract class AbstractImageCommand implements AnnotationCommandFeature {
 
@@ -67,11 +69,15 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
 
   /**
    * The plugin.
+   *
+   * @since 1.0.0
    */
   protected final MCAVSandbox plugin;
 
   /**
    * The manager of the displayed image.
+   *
+   * @since 1.0.0
    */
   protected final ImageManager manager;
 
@@ -79,6 +85,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
    * Constructs the command.
    *
    * @param plugin the plugin
+   * @since 1.0.0
    */
   protected AbstractImageCommand(final MCAVSandbox plugin) {
     Preconditions.checkNotNull(plugin, "Plugin must not be null!");
@@ -95,6 +102,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
    * @param imageResolution       the resolution argument, such as {@code 640x640}
    * @param mrl                   the path or URL of the image, optionally enclosed in one pair of double quotes
    * @param filters               the {@code --filters} option, see {@link FilterChain}, or {@code null} for none
+   * @since 1.0.0
    */
   public void displayImage(
     final ImageConfigurationProvider configurationProvider,
@@ -313,6 +321,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
    * @param resolution            the parsed resolution
    * @param configurationProvider the provider passed to {@link #displayImage}
    * @return the display
+   * @since 1.0.0
    */
   public abstract DisplayableImage createImage(
     final Pair<Integer, Integer> resolution,
@@ -360,6 +369,8 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
 
   /**
    * Creates the display configuration of an image command for a resolution.
+   *
+   * @since 1.0.0
    */
   @FunctionalInterface
   public interface ImageConfigurationProvider {
@@ -368,6 +379,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
      *
      * @param resolution the parsed resolution
      * @return the configuration object the subclass expects
+     * @since 1.0.0
      */
     Object buildConfiguration(final Pair<Integer, Integer> resolution);
   }

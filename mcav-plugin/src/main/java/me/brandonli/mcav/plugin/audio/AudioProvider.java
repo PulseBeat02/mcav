@@ -58,6 +58,8 @@ import org.slf4j.LoggerFactory;
  * <p>Logging the bot in and starting the web server take a few seconds, so they start on another thread and the
  * server does not wait for them. An output can be used once it is ready, see {@link #isDiscordBotReady()} and
  * {@link #isHttpReady()}; one that fails to start is logged and stays unavailable.
+ *
+ * @since 1.0.0
  */
 public final class AudioProvider {
 
@@ -107,6 +109,7 @@ public final class AudioProvider {
    * Constructs the provider.
    *
    * @param sandbox the plugin, whose configuration must be loaded
+   * @since 1.0.0
    */
   public AudioProvider(final MCAVSandbox sandbox) {
     this(sandbox, Executors.newVirtualThreadPerTaskExecutor());
@@ -136,6 +139,8 @@ public final class AudioProvider {
    *
    * <p>Interrupts startup and waits up to ten seconds for its cleanup before Paper closes the library loader.
    * A startup that does not terminate is reported; an interrupted wait preserves the caller's interrupt flag.
+   *
+   * @since 1.0.0
    */
   public void shutdown() {
     synchronized (this.lock) {
@@ -169,6 +174,7 @@ public final class AudioProvider {
    * so this returns at once; Simple Voice Chat is registered before it returns.
    *
    * @throws MissingVoiceChatException if Simple Voice Chat audio is enabled but the voicechat plugin is not installed
+   * @since 1.0.0
    */
   public void initialize() {
     final boolean discordEnabled = this.configuration.isDiscordBotEnabled();
@@ -306,6 +312,7 @@ public final class AudioProvider {
    * Returns the link to the Discord voice channel.
    *
    * @return the channel URL
+   * @since 1.0.0
    */
   public String constructVoiceChannelUrl() {
     final String guildId = this.configuration.getDiscordBotGuildId();
@@ -317,6 +324,7 @@ public final class AudioProvider {
    * Returns the link to the audio web page.
    *
    * @return the page URL
+   * @since 1.0.0
    */
   public String constructHttpUrl() {
     final HttpResult server = this.httpServer;
@@ -337,6 +345,7 @@ public final class AudioProvider {
    * @param players  the players Simple Voice Chat plays from
    * @return the filter to attach to the audio pipeline
    * @throws IllegalStateException if the Discord bot or the web page is chosen but not ready
+   * @since 1.0.0
    */
   public AudioFilter constructFilter(final AudioArgument argument, final UrlParseDump dump, final Object[] players) {
     return this.constructFilter(argument, dump, players, VIDEO);
@@ -354,6 +363,7 @@ public final class AudioProvider {
    * @param source   what plays, such as a virtual machine
    * @return the filter to attach to the audio pipeline
    * @throws IllegalStateException if the Discord bot or the web page is chosen but not ready
+   * @since 1.0.0
    */
   public AudioFilter constructFilter(final AudioArgument argument, final UrlParseDump dump, final Object[] players, final Object source) {
     Preconditions.checkNotNull(argument, "Audio argument must not be null!");
@@ -439,6 +449,8 @@ public final class AudioProvider {
   /**
    * Disconnects the outputs from the video, unless a virtual machine plays through them; they go back to the source the
    * video took them from, if that one still plays.
+   *
+   * @since 1.0.0
    */
   public void releaseAudioFilter() {
     this.releaseAudioFilter(VIDEO);
@@ -449,6 +461,7 @@ public final class AudioProvider {
    * source it took them from, if that one still plays.
    *
    * @param source the source that is done, such as a virtual machine
+   * @since 1.0.0
    */
   public void releaseAudioFilter(final Object source) {
     Preconditions.checkNotNull(source, "Source must not be null!");
@@ -520,6 +533,7 @@ public final class AudioProvider {
    * Returns whether the Discord bot is enabled in the configuration.
    *
    * @return true if enabled
+   * @since 1.0.0
    */
   public boolean isDiscordBotEnabled() {
     return this.configuration.isDiscordBotEnabled();
@@ -529,6 +543,7 @@ public final class AudioProvider {
    * Returns whether the Discord bot has logged in and found its voice channel, so it can play.
    *
    * @return true if ready, false while it starts, after it failed to start, or when it is disabled
+   * @since 1.0.0
    */
   public boolean isDiscordBotReady() {
     return this.discord != null;
@@ -538,6 +553,7 @@ public final class AudioProvider {
    * Returns whether the audio web page is enabled in the configuration.
    *
    * @return true if enabled
+   * @since 1.0.0
    */
   public boolean isHttpEnabled() {
     return this.configuration.isHttpEnabled();
@@ -547,6 +563,7 @@ public final class AudioProvider {
    * Returns whether the web server of the audio web page has started, so it can play.
    *
    * @return true if ready, false while it starts, after it failed to start, or when it is disabled
+   * @since 1.0.0
    */
   public boolean isHttpReady() {
     return this.httpServer != null;

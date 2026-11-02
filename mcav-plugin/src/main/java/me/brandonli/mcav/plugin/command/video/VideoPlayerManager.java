@@ -65,6 +65,8 @@ import org.slf4j.LoggerFactory;
  * <p>Only one video plays at a time. {@link #getStatus()} is true while a video is starting, so a second command
  * cannot start one at the same time. The volume and whether videos loop are settings of the manager, which the
  * videos started later keep.
+ *
+ * @since 1.0.0
  */
 public final class VideoPlayerManager {
 
@@ -102,6 +104,7 @@ public final class VideoPlayerManager {
    * Constructs the manager and its worker thread.
    *
    * @param plugin the plugin, whose library and audio provider must be available
+   * @since 1.0.0
    */
   public VideoPlayerManager(final MCAVSandbox plugin) {
     Preconditions.checkNotNull(plugin, "Plugin must not be null!");
@@ -115,6 +118,8 @@ public final class VideoPlayerManager {
 
   /**
    * Releases the video and stops the worker thread. Called on the main thread when the plugin is disabled.
+   *
+   * @since 1.0.0
    */
   public void shutdown() {
     synchronized (this.lifecycle) {
@@ -137,6 +142,7 @@ public final class VideoPlayerManager {
    * Sets the hologram that shows the title of the video.
    *
    * @param hologram the hologram, or {@code null} for none
+   * @since 1.0.0
    */
   public void setHologram(final @Nullable Hologram hologram) {
     synchronized (this.lifecycle) {
@@ -150,6 +156,7 @@ public final class VideoPlayerManager {
    *
    * @param capability the capability
    * @return true if the preparation has not finished yet, false if the capability is available or failed
+   * @since 1.0.0
    */
   public boolean isPreparing(final Capability capability) {
     Preconditions.checkNotNull(capability, "Capability must not be null!");
@@ -170,13 +177,18 @@ public final class VideoPlayerManager {
    * Accepted cleanup tasks are also retained, so shutdown can complete them before waiting for the worker.
    *
    * @throws PluginException if the thread is interrupted while waiting, or releasing on the main thread fails
+   * @since 1.0.0
    */
   public void releaseVideoPlayer() {
     this.cancelStart();
     this.clearCurrentVideo();
   }
 
-  /** Invalidates queued resolution, display starts, native completion and notifications immediately. */
+  /**
+   * Invalidates queued resolution, display starts, native completion and notifications immediately.
+   *
+   * @since 1.0.0
+   */
   public void cancelStart() {
     synchronized (this.lifecycle) {
       this.generation++;
@@ -263,6 +275,7 @@ public final class VideoPlayerManager {
    * The shared startup claim serializes callers with the worker that resolves and configures the video.
    *
    * @param output the new display filter
+   * @since 1.0.0
    */
   public void startFilter(final FunctionalVideoFilter output) {
     final long expected;
@@ -422,6 +435,7 @@ public final class VideoPlayerManager {
    * Sets the player of the video.
    *
    * @param player the player, or {@code null} for none
+   * @since 1.0.0
    */
   public void setPlayer(final @Nullable VideoPlayerMultiplexer player) {
     synchronized (this.lifecycle) {
@@ -445,6 +459,7 @@ public final class VideoPlayerManager {
    * Sets the filter that shows the frames of the video.
    *
    * @param filter the filter, or {@code null} for none
+   * @since 1.0.0
    */
   public void setFilter(final @Nullable FunctionalVideoFilter filter) {
     synchronized (this.lifecycle) {
@@ -458,6 +473,7 @@ public final class VideoPlayerManager {
    * live stream or a camera has no end to restart from.
    *
    * @param looping true to loop
+   * @since 1.0.0
    */
   public synchronized void setLooping(final boolean looping) {
     this.looping = looping;
@@ -487,6 +503,7 @@ public final class VideoPlayerManager {
    * Returns the hologram that shows the title of the video.
    *
    * @return the hologram, or empty if there is none
+   * @since 1.0.0
    */
   public Optional<Hologram> getHologram() {
     return Optional.ofNullable(this.hologram);
@@ -496,6 +513,7 @@ public final class VideoPlayerManager {
    * Sets where the hologram of the next video appears.
    *
    * @param location the location, or {@code null} to show no hologram
+   * @since 1.0.0
    */
   public void setHologramLocation(final @Nullable Location location) {
     this.hologramLocation = location;
@@ -505,6 +523,7 @@ public final class VideoPlayerManager {
    * Returns where the hologram of the next video appears.
    *
    * @return the location, or empty if no hologram is shown
+   * @since 1.0.0
    */
   public Optional<Location> getHologramLocation() {
     return Optional.ofNullable(this.hologramLocation);
@@ -515,6 +534,7 @@ public final class VideoPlayerManager {
    * yet; {@link #isPreparing(Capability)} tells the two cases apart.
    *
    * @return true if VLC players can be created
+   * @since 1.0.0
    */
   public boolean isVlcSupported() {
     return this.api.hasCapability(Capability.VLC);
@@ -524,6 +544,7 @@ public final class VideoPlayerManager {
    * Returns the worker thread that starts and releases videos.
    *
    * @return the executor
+   * @since 1.0.0
    */
   public ExecutorService getService() {
     return this.service;
@@ -533,6 +554,7 @@ public final class VideoPlayerManager {
    * Returns the flag that is true while a video is starting.
    *
    * @return the flag, shared by every video command
+   * @since 1.0.0
    */
   public AtomicBoolean getStatus() {
     return this.status;
@@ -542,6 +564,7 @@ public final class VideoPlayerManager {
    * Returns the player of the video.
    *
    * @return the player, or empty if no video plays
+   * @since 1.0.0
    */
   public Optional<VideoPlayerMultiplexer> getPlayer() {
     return Optional.ofNullable(this.player);
@@ -551,6 +574,7 @@ public final class VideoPlayerManager {
    * Returns the filter that shows the frames of the video.
    *
    * @return the filter, or empty if no video plays
+   * @since 1.0.0
    */
   public Optional<FunctionalVideoFilter> getFilter() {
     return Optional.ofNullable(this.filter);
@@ -560,6 +584,7 @@ public final class VideoPlayerManager {
    * Returns the volume every video plays at, which the audio pipeline of every video applies before its output.
    *
    * @return the volume filter, shared by the videos
+   * @since 1.0.0
    */
   public VolumeFilter getVolume() {
     return this.volume;
@@ -569,6 +594,7 @@ public final class VideoPlayerManager {
    * Returns whether the videos loop.
    *
    * @return true if a video plays again from its start when it ends
+   * @since 1.0.0
    */
   public boolean isLooping() {
     return this.looping;
@@ -578,6 +604,7 @@ public final class VideoPlayerManager {
    * Remembers the capture devices {@code /mcav video devices} listed last, the only ones the DEVICE player may open.
    *
    * @param listed the devices
+   * @since 1.0.0
    */
   public void setDevices(final List<CaptureDevices.Device> listed) {
     this.devices = List.copyOf(listed);
@@ -587,6 +614,7 @@ public final class VideoPlayerManager {
    * Returns the capture devices listed last.
    *
    * @return the devices, none before the first listing
+   * @since 1.0.0
    */
   public List<CaptureDevices.Device> getDevices() {
     return this.devices;

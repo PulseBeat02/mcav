@@ -50,6 +50,8 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 /**
  * {@code /mcav video mcv2}: plays a video on a wall of maps built with {@code /mcav screen}, encoded with MCV2 for the
  * players whose client loads the MCV2 resource pack, and dithered onto the maps for everyone else.
+ *
+ * @since 1.0.0
  */
 public final class VideoMcv2Command extends AbstractVideoCommand {
 
@@ -72,6 +74,7 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
    * Constructs the command.
    *
    * @param plugin the plugin
+   * @since 1.0.0
    */
   public VideoMcv2Command(final MCAVSandbox plugin) {
     super(plugin);
@@ -104,6 +107,7 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
    * @param mrl                the media, in quotes if it contains spaces
    * @param filters            the {@code --filters} option: filters applied to every frame in order, such as
    *                           {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
+   * @since 1.0.0
    */
   @Command(
     "mcav video mcv2 <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions> <mapId> <profile> <ditheringAlgorithm> <ytdlpOptions> <mrl>"
@@ -187,6 +191,7 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
    * @param resolution            the resolution frames are scaled to
    * @param configurationProvider the provider, which returns {@link Mcv2Settings}
    * @return the pipeline
+   * @since 1.0.0
    */
   @Override
   public VideoPipelineStep createVideoFilter(

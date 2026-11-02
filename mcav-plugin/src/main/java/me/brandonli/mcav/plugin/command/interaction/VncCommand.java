@@ -57,6 +57,8 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
  * of {@code config.yml} can be named, and none is listed by default: a player cannot make the server reach a host of
  * its network that way. A server's password is written in its entry there, never in the command, where the server's
  * log would keep it, and it is not logged or shown anywhere.
+ *
+ * @since 1.0.0
  */
 public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
 
@@ -69,6 +71,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    * Constructs the command.
    *
    * @param plugin the plugin
+   * @since 1.0.0
    */
   public VncCommand(final MCAVSandbox plugin) {
     super(plugin);
@@ -80,6 +83,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    * @param current the connected desktop
    * @param screenX the x coordinate on the desktop, in pixels
    * @param screenY the y coordinate on the desktop, in pixels
+   * @since 1.0.0
    */
   @Override
   protected void forwardLeftClick(final VncPlayer current, final int screenX, final int screenY) {
@@ -94,6 +98,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    * @param current the connected desktop
    * @param screenX the x coordinate on the desktop, in pixels
    * @param screenY the y coordinate on the desktop, in pixels
+   * @since 1.0.0
    */
   @Override
   protected void forwardRightClick(final VncPlayer current, final int screenX, final int screenY) {
@@ -107,6 +112,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    *
    * @param current the connected desktop
    * @param text    the text to type
+   * @since 1.0.0
    */
   @Override
   protected void forwardTextInput(final VncPlayer current, final String text) {
@@ -120,6 +126,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    * Disconnects from a desktop.
    *
    * @param current the desktop to disconnect from, which is no longer the running one
+   * @since 1.0.0
    */
   @Override
   protected void releasePlayer(final VncPlayer current) {
@@ -138,6 +145,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    * <p>Requires the permission {@code mcav.vnc.interact}. Only players can run it.
    *
    * @param sender the player who switches their chat input
+   * @since 1.0.0
    */
   @Command("mcav vnc interact")
   @Permission(INTERACT_PERMISSION)
@@ -157,6 +165,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    * <p>Requires the permission {@code mcav.vnc.release}; players and the console can run it.
    *
    * @param sender who ran the command
+   * @since 1.0.0
    */
   @Command("mcav vnc release")
   @Permission("mcav.vnc.release")
@@ -196,6 +205,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    *                              argument would refuse the colon unquoted
    * @param codec                 how the picture reaches the players, see {@link MapCodec}; the configured default when
    *                              absent
+   * @since 1.0.0
    */
   @Command(
     "mcav vnc create <playerSelector> <vncResolution> <targetFramesPerSecond> <blockDimensions> <mapId> <ditheringAlgorithm> <server>"
@@ -282,6 +292,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    * @param outcome whether the desktop streams
    * @param error   why it could not connect, if known
    * @return the message
+   * @since 1.0.0
    */
   @Override
   protected Component createStartMessage(final StartOutcome outcome, final @Nullable Throwable error) {
@@ -292,6 +303,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    * Returns the permission a player needs to send input to the desktop.
    *
    * @return {@value #INTERACT_PERMISSION}
+   * @since 1.0.0
    */
   @Override
   protected String getInteractionPermission() {

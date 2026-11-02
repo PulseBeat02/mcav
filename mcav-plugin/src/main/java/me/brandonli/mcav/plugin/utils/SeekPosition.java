@@ -37,7 +37,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public final class SeekPosition {
 
-  /** The longest time: 99 hours, 59 minutes and 59.999 seconds, beyond any video a server plays. */
+  /**
+   * The longest time: 99 hours, 59 minutes and 59.999 seconds, beyond any video a server plays.
+   *
+   * @since 1.0.0
+   */
   public static final long MAXIMUM_MILLISECONDS = 359_999_999L;
 
   private static final Pattern FORMAT = Pattern.compile("([+-]?)(?:(?:(\\d{1,2}):)?(\\d{1,2}):)?(\\d{1,6})(?:\\.(\\d{1,3}))?");
@@ -85,6 +89,7 @@ public final class SeekPosition {
    * @param text the position as the player typed it
    * @return the position, or empty if the text is not one
    * @throws NullPointerException if an argument is null
+   * @since 1.0.0
    */
   public static Optional<SeekPosition> parse(final String text) {
     Preconditions.checkNotNull(text, "Text must not be null!");
@@ -124,6 +129,7 @@ public final class SeekPosition {
    *
    * @param current the current position in milliseconds, which a relative position counts from
    * @return the time from the start of the video in milliseconds, at least 0
+   * @since 1.0.0
    */
   public long resolve(final long current) {
     final long target = this.relative ? current + this.milliseconds : this.milliseconds;
@@ -135,6 +141,7 @@ public final class SeekPosition {
    *
    * @param milliseconds the time in milliseconds, at least 0
    * @return the time, without its milliseconds
+   * @since 1.0.0
    */
   public static String format(final long milliseconds) {
     Preconditions.checkArgument(milliseconds >= 0, "Time %s must not be negative!", milliseconds);

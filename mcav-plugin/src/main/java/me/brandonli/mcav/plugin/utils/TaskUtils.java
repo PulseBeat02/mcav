@@ -31,6 +31,8 @@ import org.slf4j.LoggerFactory;
 /**
  * Hands work from worker threads over to the main thread of the server, and reacts to work that finishes in the
  * background.
+ *
+ * @since 1.0.0
  */
 public final class TaskUtils {
 
@@ -51,6 +53,7 @@ public final class TaskUtils {
    * @param task   the task to run on the main thread
    * @return the task that schedules it; it drops the task when the plugin is disabled, see
    * {@link #runOnMainThread(MCAVSandbox, Runnable)}
+   * @since 1.0.0
    */
   public static Runnable createMainThreadHandover(final MCAVSandbox plugin, final Runnable task) {
     Preconditions.checkNotNull(plugin, "Plugin must not be null!");
@@ -66,6 +69,7 @@ public final class TaskUtils {
    * @param plugin the plugin that owns the task
    * @param task   the task to run on the main thread
    * @return true if the task was scheduled, false if it was dropped because the plugin is disabled
+   * @since 1.0.0
    */
   public static boolean runOnMainThread(final MCAVSandbox plugin, final Runnable task) {
     Preconditions.checkNotNull(plugin, "Plugin must not be null!");
@@ -94,6 +98,7 @@ public final class TaskUtils {
    * @param callback     receives the result, which is null if the future failed, and the failure, which is null if the
    *                     future succeeded
    * @param <ResultType> the type of the result
+   * @since 1.0.0
    */
   public static <ResultType> void whenComplete(
     final CompletableFuture<ResultType> future,

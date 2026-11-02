@@ -28,6 +28,8 @@ import me.brandonli.mcav.plugin.PluginException;
  * failure outside the caller's control that the server's owner fixes by installing the plugin or by turning the option
  * off. It has a type of its own, so {@link me.brandonli.mcav.plugin.MCAVSandbox} can tell it apart from unexpected
  * failures, log what to do, and disable itself cleanly instead of failing with a stack trace.
+ *
+ * @since 1.0.0
  */
 public final class MissingVoiceChatException extends PluginException {
 

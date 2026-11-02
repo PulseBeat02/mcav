@@ -25,11 +25,15 @@ package me.brandonli.mcav.plugin.utils;
  * enabled; if it is not, the command answers that the output is unsupported. The Discord bot and the web page start
  * in the background when the plugin is enabled, and until they are ready the command answers that the output is
  * not ready yet.
+ *
+ * @since 1.0.0
  */
 public enum AudioArgument {
   /**
    * No sound: the video plays silently. Needs no configuration and always works, which makes it useful to test a
    * video before setting up an audio output.
+   *
+   * @since 1.0.0
    */
   NONE,
 
@@ -39,6 +43,8 @@ public enum AudioArgument {
    * and the {@code channel-id} of the voice channel; the bot must be invited to the server with permission to join
    * and speak in that channel. When the video starts, the bot joins the channel and the viewers get a clickable link
    * to join it. Players hear the sound in Discord, not in the game, so it is not positional.
+   *
+   * @since 1.0.0
    */
   DISCORD_BOT,
 
@@ -48,6 +54,8 @@ public enum AudioArgument {
    * server, and a {@code port} that is open in the firewall. When the video starts, the viewers get a clickable link
    * to the page, which plays the sound in their browser. It works for any player with a browser, but the sound is
    * not positional and may lag slightly behind the picture.
+   *
+   * @since 1.0.0
    */
   HTTP_SERVER,
 
@@ -58,6 +66,8 @@ public enum AudioArgument {
    * missing, the plugin logs one error that names the problem and how to fix it, and then disables itself. Only
    * players with the Simple Voice Chat mod installed hear the sound, with positional audio within 32 blocks of the
    * selected players.
+   *
+   * @since 1.0.0
    */
   SIMPLE_VOICE_CHAT,
 }

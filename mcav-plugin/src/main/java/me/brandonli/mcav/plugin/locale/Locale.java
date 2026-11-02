@@ -27,11 +27,15 @@ import java.util.Map;
  * <p>Each language has a message file named {@code locale/mcav_<language>.properties} in lowercase, such as
  * {@code locale/mcav_en_us.properties}, which is copied into the data folder of the plugin on first start so server
  * owners can edit the messages.
+ *
+ * @since 1.0.0
  */
 public enum Locale {
   /**
    * American English, read from {@code locale/mcav_en_us.properties}. This is the default language and the one
    * used when the configured language is not recognized.
+   *
+   * @since 1.0.0
    */
   EN_US;
 
@@ -44,6 +48,7 @@ public enum Locale {
    * @param locale the configured language, such as {@code EN_US}
    * @return the language, or {@link #EN_US} if the value names no supported language
    * @throws NullPointerException if the value is {@code null}
+   * @since 1.0.0
    */
   public static Locale fromString(final String locale) {
     Preconditions.checkNotNull(locale, "Locale must not be null!");

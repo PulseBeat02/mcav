@@ -28,11 +28,15 @@ import java.nio.file.Path;
  * <p>A symbolic link inside the folder is followed, which lets the owner keep a library of images elsewhere and link
  * it in. Creating such a link needs access to the files of the server, so it is the owner's decision, not a decision
  * a command can make.
+ *
+ * @since 1.0.0
  */
 public final class DiskImages {
 
   /**
    * The name of the folder that holds the disk images, inside the data folder of the plugin.
+   *
+   * @since 1.0.0
    */
   public static final String FOLDER_NAME = "iso";
 
@@ -45,6 +49,7 @@ public final class DiskImages {
    *
    * @param dataFolder the data folder of the plugin
    * @return the folder of the disk images
+   * @since 1.0.0
    */
   public static Path folderOf(final Path dataFolder) {
     Preconditions.checkNotNull(dataFolder, "Data folder must not be null!");
@@ -60,6 +65,7 @@ public final class DiskImages {
    * @return the path of the image
    * @throws NullPointerException     if the folder or the image is {@code null}
    * @throws IllegalArgumentException if the image is empty, lies outside the folder, or is not a file there
+   * @since 1.0.0
    */
   public static Path require(final Path folder, final String image) {
     Preconditions.checkNotNull(folder, "Folder must not be null!");

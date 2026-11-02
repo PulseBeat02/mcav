@@ -46,6 +46,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * additionally tagged with {@link Keys#FIRST_MAP_KEY} and {@link Keys#LAST_MAP_KEY}.
  * New screens also carry a shared {@link Keys#SCREEN_KEY}; neighboring legacy screens with ambiguous corners are
  * rejected. The pixel coordinates are measured from the top left corner of the wall, with every map being {@value #MAP_PIXELS} pixels wide.
+ *
+ * @since 1.0.0
  */
 public final class InteractUtils {
 
@@ -67,6 +69,7 @@ public final class InteractUtils {
    * @throws NullPointerException     if {@code player} is null
    * @throws IllegalArgumentException if the player looks at an entity that is not an item frame
    * @throws IllegalStateException    if the player targets a block face that is not a side of a block
+   * @since 1.0.0
    */
   public static Optional<int[]> getBoardCoordinates(final Player player) {
     Preconditions.checkNotNull(player, "Player must not be null!");
@@ -89,6 +92,7 @@ public final class InteractUtils {
    * @throws NullPointerException     if an argument is null
    * @throws IllegalArgumentException if the entity is not an item frame
    * @throws IllegalStateException    if the player targets a block face that is not a side of a block
+   * @since 1.0.0
    */
   public static Optional<int[]> getBoardCoordinates(final Player player, final Entity entity) {
     Preconditions.checkNotNull(player, "Player must not be null!");

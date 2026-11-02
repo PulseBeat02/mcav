@@ -46,6 +46,8 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 
 /**
  * {@code /mcav video block}: plays a video to the selected players.
+ *
+ * @since 1.0.0
  */
 public final class VideoBlockCommand extends AbstractVideoCommand {
 
@@ -53,6 +55,7 @@ public final class VideoBlockCommand extends AbstractVideoCommand {
    * Constructs the command.
    *
    * @param plugin the plugin
+   * @since 1.0.0
    */
   public VideoBlockCommand(final MCAVSandbox plugin) {
     super(plugin);
@@ -86,6 +89,7 @@ public final class VideoBlockCommand extends AbstractVideoCommand {
    *                        {@code 0}, or a raw FFmpeg input written as {@code format||input}
    * @param filters         the {@code --filters} option: filters applied to every frame in order, such as
    *                        {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
+   * @since 1.0.0
    */
   @Command("mcav video block <playerSelector> <playerType> <audioType> <videoResolution> <location> <ytdlpOptions> <mrl>")
   @Permission("mcav.command.video.block")
@@ -118,6 +122,7 @@ public final class VideoBlockCommand extends AbstractVideoCommand {
    *                              {@link #playVideo(CommandSender, MultiplePlayerSelector, PlayerArgument, AudioArgument, String, Location, String, String, String)},
    *                              which returns a {@link BlockConfiguration}
    * @return the pipeline that shows the frames on the wall
+   * @since 1.0.0
    */
   @Override
   public VideoPipelineStep createVideoFilter(

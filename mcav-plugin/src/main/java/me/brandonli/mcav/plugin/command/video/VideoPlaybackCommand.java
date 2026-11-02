@@ -44,6 +44,8 @@ import org.slf4j.LoggerFactory;
  * {@code /mcav video seek|volume|speed|loop}: controls the video that plays. The players that decode with FFmpeg or
  * OpenCV jump to any time, change the speed of a file and loop it; the VLC player only jumps to a time from the start.
  * A live stream or a camera plays on at its own pace: it only changes volume.
+ *
+ * @since 1.0.0
  */
 public final class VideoPlaybackCommand implements AnnotationCommandFeature {
 
@@ -61,6 +63,7 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
    * Constructs the command.
    *
    * @param plugin the plugin, whose video player manager must be available
+   * @since 1.0.0
    */
   public VideoPlaybackCommand(final MCAVSandbox plugin) {
     Preconditions.checkNotNull(plugin, "Plugin must not be null!");
@@ -80,6 +83,7 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
    *
    * @param sender   who ran the command
    * @param position the time
+   * @since 1.0.0
    */
   @Command("mcav video seek <position>")
   @Permission("mcav.command.video.seek")
@@ -132,6 +136,7 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
    *
    * @param sender  who ran the command
    * @param percent the volume, from 0 to 200
+   * @since 1.0.0
    */
   @Command("mcav video volume <percent>")
   @Permission("mcav.command.video.volume")
@@ -152,6 +157,7 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
    *
    * @param sender who ran the command
    * @param factor the factor of the normal speed, from 0.5 to 2
+   * @since 1.0.0
    */
   @Command("mcav video speed <factor>")
   @Permission("mcav.command.video.speed")
@@ -181,6 +187,7 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
    *
    * @param sender  who ran the command
    * @param enabled true to loop
+   * @since 1.0.0
    */
   @Command("mcav video loop <enabled>")
   @Permission("mcav.command.video.loop")

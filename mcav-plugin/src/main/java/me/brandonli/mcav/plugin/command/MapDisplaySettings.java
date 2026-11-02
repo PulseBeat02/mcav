@@ -70,6 +70,7 @@ public final class MapDisplaySettings {
    * @param mapId      the id of the top-left map
    * @param players    the players who see the maps
    * @return the configuration
+   * @since 1.0.0
    */
   public static MapConfiguration createConfiguration(
     final Pair<Integer, Integer> blocks,
@@ -101,6 +102,7 @@ public final class MapDisplaySettings {
    * algorithm for it: call this once for every player or image and keep the result. Stateless algorithms are shared.
    *
    * @return the algorithm
+   * @since 1.0.0
    */
   public DitherAlgorithm createAlgorithm() {
     return this.dithering.createAlgorithm();
@@ -110,6 +112,7 @@ public final class MapDisplaySettings {
    * Returns the maps that show the media.
    *
    * @return the map configuration
+   * @since 1.0.0
    */
   public MapConfiguration getConfiguration() {
     return this.configuration;

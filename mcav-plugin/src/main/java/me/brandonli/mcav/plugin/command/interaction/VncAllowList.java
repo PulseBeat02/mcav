@@ -43,6 +43,8 @@ public final class VncAllowList {
 
   /**
    * An empty list, which allows no server.
+   *
+   * @since 1.0.0
    */
   public static final VncAllowList NONE = new VncAllowList(List.of());
 

@@ -24,31 +24,43 @@ import org.incendo.cloud.annotations.suggestion.Suggestions;
 
 /**
  * Tab completions shared by the commands, referenced by name in their {@code @Argument(suggestions = ...)}.
+ *
+ * @since 1.0.0
  */
 public final class SuggestionProvider implements AnnotationCommandFeature {
 
   /**
    * The name of the map id suggestions.
+   *
+   * @since 1.0.0
    */
   public static final String IDS = "ids";
 
   /**
    * The name of the size suggestions.
+   *
+   * @since 1.0.0
    */
   public static final String DIMENSIONS = "dimensions";
 
   /**
    * The name of the pixel resolution suggestions.
+   *
+   * @since 1.0.0
    */
   public static final String RESOLUTIONS = "resolutions";
 
   /**
    * The name of the chat character suggestions.
+   *
+   * @since 1.0.0
    */
   public static final String CHAT_CHARACTERS = "chat-characters";
 
   /**
    * The name of the frame rate suggestions.
+   *
+   * @since 1.0.0
    */
   public static final String TARGET_FRAMES_PER_SECOND = "target-frames-per-second";
 
@@ -85,6 +97,8 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
 
   /**
    * Constructs the provider.
+   *
+   * @since 1.0.0
    */
   public SuggestionProvider() {}
 
@@ -93,6 +107,7 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
    * from 0 up can be typed; pick one whose following ids are not used by other maps on the server.
    *
    * @return the suggested ids
+   * @since 1.0.0
    */
   @Suggestions(IDS)
   public Stream<String> suggestId() {
@@ -104,6 +119,7 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
    * map commands or {@code <imageResolution>} of the block, chat, entity, and scoreboard commands.
    *
    * @return the suggested sizes, written as {@code <width>x<height>}
+   * @since 1.0.0
    */
   @Suggestions(DIMENSIONS)
   public Stream<String> suggestDimensions() {
@@ -115,6 +131,7 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
    * {@code 640x640}, which fills a 5x5 wall of 128x128 pixel maps exactly.
    *
    * @return the suggested resolutions, written as {@code <width>x<height>}
+   * @since 1.0.0
    */
   @Suggestions(RESOLUTIONS)
   public Stream<String> suggestResolutions() {
@@ -125,6 +142,7 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
    * Suggests small sizes that fit into the chat window, in characters per line and lines.
    *
    * @return the suggested sizes, written as {@code <width>x<height>}
+   * @since 1.0.0
    */
   @Suggestions("chat-resolutions")
   public Stream<String> suggestChatResolutions() {
@@ -136,6 +154,7 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
    * gives the most solid picture, a black circle, and a small black square.
    *
    * @return the suggested characters
+   * @since 1.0.0
    */
   @Suggestions(CHAT_CHARACTERS)
   public Stream<String> suggestChatCharacters() {
@@ -147,6 +166,7 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
    * frame of the browser and 10 every tenth.
    *
    * @return the suggested intervals
+   * @since 1.0.0
    */
   @Suggestions("nth")
   public Stream<String> suggestNth() {
@@ -158,6 +178,7 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
    * but cost more CPU for dithering and more bandwidth for the maps.
    *
    * @return the suggested frame rates
+   * @since 1.0.0
    */
   @Suggestions(TARGET_FRAMES_PER_SECOND)
   public Stream<String> suggestTargetFramesPerSecond() {
@@ -169,6 +190,7 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
    * the current position.
    *
    * @return the suggested positions
+   * @since 1.0.0
    */
   @Suggestions("positions")
   public Stream<String> suggestPositions() {
@@ -179,6 +201,7 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
    * Suggests volumes for {@code /mcav video volume}, in percent of the video's own loudness.
    *
    * @return the suggested volumes
+   * @since 1.0.0
    */
   @Suggestions("volumes")
   public Stream<String> suggestVolumes() {
@@ -189,6 +212,7 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
    * Suggests speeds for {@code /mcav video speed}, as factors of the normal speed.
    *
    * @return the suggested speeds
+   * @since 1.0.0
    */
   @Suggestions("speeds")
   public Stream<String> suggestSpeeds() {

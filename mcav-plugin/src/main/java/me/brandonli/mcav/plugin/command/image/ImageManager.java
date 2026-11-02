@@ -40,6 +40,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * {@link ReleaseThread#MAIN_THREAD} schedules its display cleanup there. Pending-load ownership and generation
  * invalidation are synchronized separately so loader callbacks may safely retain or discard their native image from a
  * worker thread.
+ *
+ * @since 1.0.0
  */
 public final class ImageManager {
 
@@ -58,6 +60,7 @@ public final class ImageManager {
    * Constructs the manager.
    *
    * @param plugin the plugin
+   * @since 1.0.0
    */
   public ImageManager(final MCAVSandbox plugin) {
     Preconditions.checkNotNull(plugin, "Plugin must not be null!");
@@ -78,6 +81,8 @@ public final class ImageManager {
 
   /**
    * Removes the image and stops the loading thread. Must be called on the server main thread.
+   *
+   * @since 1.0.0
    */
   public void shutdown() {
     synchronized (this.loadingLock) {
@@ -148,6 +153,7 @@ public final class ImageManager {
    *
    * @param thread the thread that frees the image
    * @throws NullPointerException if {@code thread} is null
+   * @since 1.0.0
    */
   public void releaseImage(final ReleaseThread thread) {
     Preconditions.checkNotNull(thread, "Release thread must not be null!");
@@ -205,6 +211,7 @@ public final class ImageManager {
    * Sets the player of an animated image. Must be called on the server main thread.
    *
    * @param player the player, or {@code null} for none
+   * @since 1.0.0
    */
   public void setPlayer(final @Nullable ImagePlayer player) {
     this.player = player;
@@ -214,6 +221,7 @@ public final class ImageManager {
    * Sets the display that shows the image. Must be called on the server main thread.
    *
    * @param image the display, or {@code null} for none
+   * @since 1.0.0
    */
   public void setImage(final @Nullable DisplayableImage image) {
     this.image = image;
@@ -223,6 +231,7 @@ public final class ImageManager {
    * Returns the thread that loads images.
    *
    * @return the executor
+   * @since 1.0.0
    */
   public ExecutorService getService() {
     return this.service;
@@ -232,6 +241,7 @@ public final class ImageManager {
    * Sets the image that is shown, which is closed when it is released. Must be called on the server main thread.
    *
    * @param currentImage the image, or {@code null} for none
+   * @since 1.0.0
    */
   public void setCurrentImage(final @Nullable ImageBuffer currentImage) {
     this.currentImage = currentImage;

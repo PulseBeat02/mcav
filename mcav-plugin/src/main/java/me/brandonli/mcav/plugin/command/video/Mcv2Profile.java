@@ -19,11 +19,23 @@ package me.brandonli.mcav.plugin.command.video;
 
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2.Settings;
 
-/** The version 3 encoder presets offered by the sandbox. */
+/**
+ * The version 3 encoder presets offered by the sandbox.
+ *
+ * @since 1.0.0
+ */
 public enum Mcv2Profile {
-  /** Normal live thresholds. */
+  /**
+   * Normal live thresholds.
+   *
+   * @since 1.0.0
+   */
   DEFAULT,
-  /** Faster thresholds for screens that cannot keep up. */
+  /**
+   * Faster thresholds for screens that cannot keep up.
+   *
+   * @since 1.0.0
+   */
   FAST;
 
   public Settings getSettings() {

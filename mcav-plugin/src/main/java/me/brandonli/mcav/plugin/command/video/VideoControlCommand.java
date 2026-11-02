@@ -38,6 +38,8 @@ import org.slf4j.LoggerFactory;
 
 /**
  * {@code /mcav video pause|resume|release} and the hologram that shows the title of the video.
+ *
+ * @since 1.0.0
  */
 public final class VideoControlCommand implements AnnotationCommandFeature {
 
@@ -52,6 +54,7 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
    * Constructs the command.
    *
    * @param plugin the plugin, whose video player manager must be available
+   * @since 1.0.0
    */
   public VideoControlCommand(final MCAVSandbox plugin) {
     Preconditions.checkNotNull(plugin, "Plugin must not be null!");
@@ -70,6 +73,7 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
    * again.
    *
    * @param sender who ran the command
+   * @since 1.0.0
    */
   @Command("mcav video resume")
   @Permission("mcav.command.video.resume")
@@ -92,6 +96,7 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
    * told that the video paused, also when no video is loaded, in which case nothing happens.
    *
    * @param sender who ran the command
+   * @since 1.0.0
    */
   @Command("mcav video pause")
   @Permission("mcav.command.video.pause")
@@ -117,6 +122,7 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
    * background. When no video is loaded, both messages are still sent.
    *
    * @param sender who ran the command
+   * @since 1.0.0
    */
   @Command("mcav video release")
   @Permission("mcav.command.video.release")
@@ -158,6 +164,7 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
    *
    * @param sender   who ran the command
    * @param location where the hologram floats, such as {@code ~ ~2 ~}
+   * @since 1.0.0
    */
   @Command("mcav video hologram set <location>")
   @Permission("mcav.command.hologram.set")
@@ -179,6 +186,7 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
    * is told that the hologram is disabled.
    *
    * @param sender who ran the command
+   * @since 1.0.0
    */
   @Command("mcav video hologram disable")
   @Permission("mcav.command.hologram.disable")

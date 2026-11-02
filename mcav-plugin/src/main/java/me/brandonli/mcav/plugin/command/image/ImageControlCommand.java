@@ -35,6 +35,8 @@ import org.slf4j.LoggerFactory;
 
 /**
  * {@code /mcav image release}: removes the image that is shown.
+ *
+ * @since 1.0.0
  */
 public final class ImageControlCommand implements AnnotationCommandFeature {
 
@@ -49,6 +51,7 @@ public final class ImageControlCommand implements AnnotationCommandFeature {
    * Constructs the command.
    *
    * @param plugin the plugin
+   * @since 1.0.0
    */
   public ImageControlCommand(final MCAVSandbox plugin) {
     Preconditions.checkNotNull(plugin, "Plugin must not be null!");
@@ -67,6 +70,7 @@ public final class ImageControlCommand implements AnnotationCommandFeature {
    * command does nothing but still sends both messages.
    *
    * @param sender who ran the command
+   * @since 1.0.0
    */
   @Command("mcav image release")
   @Permission("mcav.command.image.release")

@@ -76,6 +76,8 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
  * <p>Stream files are kept in the {@code mcv2} folder of the plugin's data folder: a command names a file inside it,
  * and a name that leads out of it, absolute or climbing with {@code ..}, is refused, so a command can neither read nor
  * replace other files of the server.
+ *
+ * @since 1.0.0
  */
 public final class Mcv2PlayCommand implements AnnotationCommandFeature {
 
@@ -126,6 +128,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
    * Constructs the command.
    *
    * @param plugin the plugin
+   * @since 1.0.0
    */
   public Mcv2PlayCommand(final MCAVSandbox plugin) {
     Preconditions.checkNotNull(plugin, "Plugin must not be null!");
@@ -136,6 +139,8 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
 
   /**
    * Stops the stream, the reading of a stream file and the file encode when the plugin is disabled.
+   *
+   * @since 1.0.0
    */
   @Override
   public void shutdown() {
@@ -168,6 +173,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
    * @param mapId           the id of the top-left map of the wall
    * @param ticks           the server ticks between frames, 1 or more
    * @param file            the stream file, in the plugin's {@code mcv2} folder
+   * @since 1.0.0
    */
   @Command("mcav mcv2 play <playerSelector> <blockDimensions> <mapId> <ticks> <file>")
   @Permission("mcav.command.mcv2.play")
@@ -202,6 +208,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
    * @param mapId           the id of the top-left map of the wall
    * @param framesPerSecond the frames sent per second, 1 to 240
    * @param file            the stream file, in the plugin's {@code mcv2} folder
+   * @since 1.0.0
    */
   @Command("mcav mcv2 stream <playerSelector> <blockDimensions> <mapId> <framesPerSecond> <file>")
   @Permission("mcav.command.mcv2.play")
@@ -346,6 +353,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
    * @param output     the stream file to write, in the plugin's {@code mcv2} folder, replaced when it exists
    * @param resolution the video size as {@code <width>x<height>}
    * @param profile    the encoder profile, {@code DEFAULT} or {@code FAST}
+   * @since 1.0.0
    */
   @Command("mcav mcv2 encode <file> <output> <resolution> <profile>")
   @Permission("mcav.command.mcv2.encode")
@@ -572,6 +580,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
    * <p>Requires the permission {@code mcav.command.mcv2.encode}.
    *
    * @param sender who ran the command
+   * @since 1.0.0
    */
   @Command("mcav mcv2 cancel")
   @Permission("mcav.command.mcv2.encode")
@@ -597,6 +606,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
    * page frames.
    *
    * @param sender who ran the command
+   * @since 1.0.0
    */
   @Command("mcav mcv2 stop")
   @Permission("mcav.command.mcv2.play")

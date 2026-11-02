@@ -27,6 +27,8 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilte
 /**
  * An MCV2 screen as the last filter of a pipeline: its result, which encodes the frames for the viewers with the MCV2
  * pack and dithers them for the others, and the slot of the pack it holds until it is released.
+ *
+ * @since 1.0.0
  */
 public final class Mcv2Output implements FunctionalVideoFilter {
 
@@ -50,6 +52,8 @@ public final class Mcv2Output implements FunctionalVideoFilter {
 
   /**
    * Starts the screen. Call on the main thread.
+   *
+   * @since 1.0.0
    */
   @Override
   public void start() {
@@ -64,6 +68,8 @@ public final class Mcv2Output implements FunctionalVideoFilter {
   /**
    * Stops the screen and gives its slot back to the pack, which keeps it for the next screen of its size. Call on the
    * main thread.
+   *
+   * @since 1.0.0
    */
   @Override
   public void release() {
@@ -78,6 +84,7 @@ public final class Mcv2Output implements FunctionalVideoFilter {
    * Returns the screen's result.
    *
    * @return the result
+   * @since 1.0.0
    */
   public Mcv2Result getResult() {
     return this.result;

@@ -85,6 +85,8 @@ import org.slf4j.LoggerFactory;
 /**
  * The common flow of the video commands: validate the arguments, resolve the media on the worker thread, start
  * the player with the display type of the subclass, and report the outcome to the sender.
+ *
+ * @since 1.0.0
  */
 public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
 
@@ -102,16 +104,22 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
 
   /**
    * The plugin.
+   *
+   * @since 1.0.0
    */
   protected final MCAVSandbox plugin;
 
   /**
    * The provider of audio outputs.
+   *
+   * @since 1.0.0
    */
   protected final AudioProvider provider;
 
   /**
    * The manager of the running video player.
+   *
+   * @since 1.0.0
    */
   protected final VideoPlayerManager manager;
 
@@ -119,6 +127,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    * Constructs the command.
    *
    * @param plugin the plugin, whose video player manager and audio provider must be available
+   * @since 1.0.0
    */
   protected AbstractVideoCommand(final MCAVSandbox plugin) {
     Preconditions.checkNotNull(plugin, "Plugin must not be null!");
@@ -144,6 +153,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    * @param mrl                   the path, URL, device index, or FFmpeg input
    * @param flags                 the optional flags, may be empty
    * @param filters               the {@code --filters} option, see {@link FilterChain}, or {@code null} for none
+   * @since 1.0.0
    */
   public void playVideo(
     final VideoConfigurationProvider configurationProvider,
@@ -226,6 +236,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    * @param filters the option as typed, or {@code null} for none
    * @param kind    what the pictures come from
    * @return the chain, or empty if the option is not valid
+   * @since 1.0.0
    */
   public static Optional<FilterChain> parseFilters(
     final CommandSender sender,
@@ -254,6 +265,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    * @param text   the size as entered
    * @return the width and height, or empty if the text is not a valid size
    * @throws NullPointerException if an argument is null
+   * @since 1.0.0
    */
   protected static Optional<Pair<Integer, Integer>> parseDimensions(final CommandSender sender, final String text) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
@@ -277,6 +289,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    * @param text   the size as entered
    * @return the width and height in maps, or empty if the text is not a valid wall size
    * @throws NullPointerException if an argument is null
+   * @since 1.0.0
    */
   protected static Optional<Pair<Integer, Integer>> parseScreenDimensions(final CommandSender sender, final String text) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
@@ -640,6 +653,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    * @param resolution            the parsed resolution
    * @param configurationProvider the provider passed to {@link #playVideo}
    * @return the pipeline
+   * @since 1.0.0
    */
   public abstract VideoPipelineStep createVideoFilter(
     final Pair<Integer, Integer> resolution,
@@ -762,6 +776,8 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
 
   /**
    * Creates the display configuration of a video command for a resolution.
+   *
+   * @since 1.0.0
    */
   @FunctionalInterface
   public interface VideoConfigurationProvider {
@@ -770,6 +786,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
      *
      * @param resolution the parsed resolution
      * @return the configuration object the subclass expects
+     * @since 1.0.0
      */
     Object buildConfiguration(final Pair<Integer, Integer> resolution);
   }

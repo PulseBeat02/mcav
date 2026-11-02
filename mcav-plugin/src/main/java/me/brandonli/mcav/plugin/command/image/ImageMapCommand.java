@@ -53,6 +53,8 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 
 /**
  * {@code /mcav image map}: shows an image on a wall of maps built with {@code /mcav screen}, dithered or with MCV2.
+ *
+ * @since 1.0.0
  */
 public final class ImageMapCommand extends AbstractImageCommand {
 
@@ -60,6 +62,7 @@ public final class ImageMapCommand extends AbstractImageCommand {
    * Constructs the command.
    *
    * @param plugin the plugin
+   * @since 1.0.0
    */
   public ImageMapCommand(final MCAVSandbox plugin) {
     super(plugin);
@@ -98,6 +101,7 @@ public final class ImageMapCommand extends AbstractImageCommand {
    *                           {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
    * @param codec              how the picture reaches the players, see {@link MapCodec}; the configured default when
    *                           absent
+   * @since 1.0.0
    */
   @Command("mcav image map <playerSelector> <imageResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <mrl>")
   @Permission("mcav.command.image.map")
@@ -176,6 +180,7 @@ public final class ImageMapCommand extends AbstractImageCommand {
    * @param resolution            the parsed resolution, in pixels
    * @param configurationProvider the provider that builds the map display settings
    * @return the map display
+   * @since 1.0.0
    */
   @Override
   public DisplayableImage createImage(final Pair<Integer, Integer> resolution, final ImageConfigurationProvider configurationProvider) {

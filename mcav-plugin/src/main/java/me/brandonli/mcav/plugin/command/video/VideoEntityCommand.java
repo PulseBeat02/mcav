@@ -45,6 +45,8 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 
 /**
  * {@code /mcav video entity}: plays a video to the selected players.
+ *
+ * @since 1.0.0
  */
 public final class VideoEntityCommand extends AbstractVideoCommand {
 
@@ -52,6 +54,7 @@ public final class VideoEntityCommand extends AbstractVideoCommand {
    * Constructs the command.
    *
    * @param plugin the plugin
+   * @since 1.0.0
    */
   public VideoEntityCommand(final MCAVSandbox plugin) {
     super(plugin);
@@ -88,6 +91,7 @@ public final class VideoEntityCommand extends AbstractVideoCommand {
    *                        {@code 0}, or a raw FFmpeg input written as {@code format||input}
    * @param filters         the {@code --filters} option: filters applied to every frame in order, such as
    *                        {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
+   * @since 1.0.0
    */
   @Command("mcav video entity <playerSelector> <playerType> <audioType> <videoResolution> <character> <location> <ytdlpOptions> <mrl>")
   @Permission("mcav.command.video.entity")
@@ -123,6 +127,7 @@ public final class VideoEntityCommand extends AbstractVideoCommand {
    *                              {@link #playVideo(CommandSender, MultiplePlayerSelector, PlayerArgument, AudioArgument, String, String, Location, String, String, String)},
    *                              which returns an {@link EntityConfiguration}
    * @return the pipeline that shows the frames in the entity
+   * @since 1.0.0
    */
   @Override
   public VideoPipelineStep createVideoFilter(

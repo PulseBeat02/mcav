@@ -35,11 +35,15 @@ import org.incendo.cloud.annotations.Permission;
 
 /**
  * {@code /mcav screen}: builds a wall of item frames holding consecutive maps to display media on.
+ *
+ * @since 1.0.0
  */
 public final class ScreenCommand implements AnnotationCommandFeature {
 
   /**
    * Constructs the command.
+   *
+   * @since 1.0.0
    */
   public ScreenCommand() {}
 
@@ -66,6 +70,7 @@ public final class ScreenCommand implements AnnotationCommandFeature {
    *                        past the maps the world already has
    * @param material        the block the wall is made of, such as {@code black_concrete}
    * @param location        where the wall is built, such as {@code ~ ~ ~}
+   * @since 1.0.0
    */
   @Command("mcav screen <blockDimensions> <mapId> <material> <location>")
   @Permission("mcav.command.screen")

@@ -108,6 +108,7 @@ import org.slf4j.LoggerFactory;
  * turn the maps in their frames.
  *
  * @param <PlayerType> the type of the interactive player
+ * @since 1.0.0
  */
 public abstract class AbstractInteractiveCommand<PlayerType> implements AnnotationCommandFeature, Listener {
 
@@ -122,11 +123,15 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
 
   /**
    * The plugin.
+   *
+   * @since 1.0.0
    */
   protected final MCAVSandbox plugin;
 
   /**
    * The thread that starts players, so the main thread never waits for a browser or a virtual machine.
+   *
+   * @since 1.0.0
    */
   protected final ExecutorService service;
 
@@ -138,11 +143,15 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
   /**
    * The output the player's frames go to, while one is running: the dithered maps, or the MCV2 screen. Changed only
    * while holding the lock of this command.
+   *
+   * @since 1.0.0
    */
   protected volatile @Nullable FunctionalVideoFilter result;
 
   /**
    * The running player. Changed only while holding the lock of this command.
+   *
+   * @since 1.0.0
    */
   protected volatile @Nullable PlayerType player;
 
@@ -154,6 +163,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * Constructs the command and the thread that starts its players.
    *
    * @param plugin the plugin
+   * @since 1.0.0
    */
   protected AbstractInteractiveCommand(final MCAVSandbox plugin) {
     Preconditions.checkNotNull(plugin, "Plugin must not be null!");
@@ -182,6 +192,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * Registers this command as a listener, so clicks on screens and chat messages reach the running player.
    *
    * @param parser the parser the annotations of this command are about to be parsed with
+   * @since 1.0.0
    */
   @Override
   public void registerFeature(final AnnotationParser<CommandSender> parser) {
@@ -195,6 +206,8 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
   /**
    * Releases the running player and its maps, stops listening for events, and stops the thread that starts
    * players.
+   *
+   * @since 1.0.0
    */
   @Override
   public void shutdown() {
@@ -214,6 +227,8 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
 
   /**
    * Releases the running player and its maps, if any.
+   *
+   * @since 1.0.0
    */
   protected final void releaseCurrent() {
     final PlayerType current;
@@ -350,6 +365,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * @param text   the size as entered
    * @return the width and height, or empty if the text is not a valid size
    * @throws NullPointerException if an argument is null
+   * @since 1.0.0
    */
   protected static Optional<Pair<Integer, Integer>> parseDimensions(final CommandSender sender, final String text) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
@@ -373,6 +389,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * @param text   the size as entered
    * @return the width and height in maps, or empty if the text is not a valid wall size
    * @throws NullPointerException if an argument is null
+   * @since 1.0.0
    */
   protected static Optional<Pair<Integer, Integer>> parseScreenDimensions(final CommandSender sender, final String text) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
@@ -694,6 +711,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * {@link #getInteractionPermission()}. Other block breaks are left alone.
    *
    * @param event the block break
+   * @since 1.0.0
    */
   @EventHandler
   public void onBlockBreak(final BlockBreakEvent event) {
@@ -806,6 +824,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * player looks at; hits by projectiles are not forwarded.
    *
    * @param event the damage
+   * @since 1.0.0
    */
   @EventHandler
   public void onScreenDamage(final EntityDamageByEntityEvent event) {
@@ -868,6 +887,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * {@link #getInteractionPermission()}. Otherwise the right click behaves as usual.
    *
    * @param event the interaction
+   * @since 1.0.0
    */
   @EventHandler
   public void onPlayerInteractEntity(final PlayerInteractEntityEvent event) {
@@ -906,6 +926,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * and its plain text, without colors or formatting, is sent as typed text. Other chat messages are left alone.
    *
    * @param event the chat message
+   * @since 1.0.0
    */
   @EventHandler
   public void onChatMessage(final AsyncChatEvent event) {
@@ -938,6 +959,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * {@code /kill}, which removes them without breaking them.
    *
    * @param event the break of a hanging entity
+   * @since 1.0.0
    */
   @EventHandler
   public void onScreenBreak(final HangingBreakEvent event) {
@@ -956,6 +978,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * @param chatter        the player
    * @param enableMessage  the message shown when interaction is enabled
    * @param disableMessage the message shown when interaction is disabled
+   * @since 1.0.0
    */
   protected void toggleInteraction(final Player chatter, final Component enableMessage, final Component disableMessage) {
     Preconditions.checkNotNull(chatter, "Player must not be null!");
@@ -977,6 +1000,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    *
    * @param sender  who ran the command
    * @param message the message to send
+   * @since 1.0.0
    */
   protected void releaseResource(final CommandSender sender, final Component message) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
@@ -999,6 +1023,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * of the {@code interact} subcommand of the command, so a player who may switch chat input on may also click.
    *
    * @return the permission
+   * @since 1.0.0
    */
   protected abstract String getInteractionPermission();
 
@@ -1008,6 +1033,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * @param current the running player
    * @param screenX the x coordinate on the screen
    * @param screenY the y coordinate on the screen
+   * @since 1.0.0
    */
   protected abstract void forwardLeftClick(final PlayerType current, final int screenX, final int screenY);
 
@@ -1017,6 +1043,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * @param current the running player
    * @param screenX the x coordinate on the screen
    * @param screenY the y coordinate on the screen
+   * @since 1.0.0
    */
   protected abstract void forwardRightClick(final PlayerType current, final int screenX, final int screenY);
 
@@ -1025,6 +1052,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    *
    * @param current the running player
    * @param text    the text
+   * @since 1.0.0
    */
   protected abstract void forwardTextInput(final PlayerType current, final String text);
 
@@ -1034,6 +1062,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * @param outcome whether the player started
    * @param error   why the player failed to start, if known
    * @return the message
+   * @since 1.0.0
    */
   protected abstract Component createStartMessage(final StartOutcome outcome, final @Nullable Throwable error);
 
@@ -1041,6 +1070,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * Releases a player; its maps are released by the caller.
    *
    * @param current the player to release, which is no longer the running one
+   * @since 1.0.0
    */
   protected abstract void releasePlayer(final PlayerType current);
 

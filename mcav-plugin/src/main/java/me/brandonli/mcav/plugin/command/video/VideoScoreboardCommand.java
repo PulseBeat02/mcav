@@ -48,6 +48,8 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 /**
  * {@code /mcav video scoreboard}: plays a video to the selected players. The height of the resolution is the
  * number of lines, at most {@value ScoreboardConfiguration#MAXIMUM_LINES}.
+ *
+ * @since 1.0.0
  */
 public final class VideoScoreboardCommand extends AbstractVideoCommand {
 
@@ -55,6 +57,7 @@ public final class VideoScoreboardCommand extends AbstractVideoCommand {
    * Constructs the command.
    *
    * @param plugin the plugin
+   * @since 1.0.0
    */
   public VideoScoreboardCommand(final MCAVSandbox plugin) {
     super(plugin);
@@ -90,6 +93,7 @@ public final class VideoScoreboardCommand extends AbstractVideoCommand {
    *                        {@code 0}, or a raw FFmpeg input written as {@code format||input}
    * @param filters         the {@code --filters} option: filters applied to every frame in order, such as
    *                        {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
+   * @since 1.0.0
    */
   @Command("mcav video scoreboard <playerSelector> <playerType> <audioType> <videoResolution> <character> <ytdlpOptions> <mrl>")
   @Permission("mcav.command.video.scoreboard")
@@ -130,6 +134,7 @@ public final class VideoScoreboardCommand extends AbstractVideoCommand {
    *                              {@link #playVideo(CommandSender, MultiplePlayerSelector, PlayerArgument, AudioArgument, String, String, String, String, String)},
    *                              which returns a {@link ScoreboardConfiguration}
    * @return the pipeline that shows the frames on the sidebar
+   * @since 1.0.0
    */
   @Override
   public VideoPipelineStep createVideoFilter(

@@ -72,12 +72,16 @@ import org.bukkit.persistence.PersistentDataType;
 /**
  * Builds map screens: walls of item frames that hold consecutive maps, tagged with {@link Keys} so clicks on the
  * wall can be translated into pixels by {@link InteractUtils}.
+ *
+ * @since 1.0.0
  */
 public final class MapUtils {
 
   /**
    * The largest number of maps one call creates to reach a map id, which is the number of maps of the largest wall.
    * Creating a map writes a file, so an id far past the maps of the world would otherwise tie up the main thread.
+   *
+   * @since 1.0.0
    */
   public static final int MAXIMUM_NEW_MAPS = ArgumentUtils.MAXIMUM_SCREEN_SIDE * ArgumentUtils.MAXIMUM_SCREEN_SIDE;
 
@@ -96,6 +100,7 @@ public final class MapUtils {
    * @throws IllegalArgumentException if the id is negative, or more than {@link #MAXIMUM_NEW_MAPS} ids past the next map
    *                                  id the server hands out
    * @throws IllegalStateException    if the requested historical map is missing and its id cannot be allocated again
+   * @since 1.0.0
    */
   public static ItemStack getMapFromId(final int id) {
     Preconditions.checkArgument(id >= 0, "Map id %s must not be negative!", id);
@@ -181,6 +186,7 @@ public final class MapUtils {
    *                                  last map id of the screen is more than {@link #MAXIMUM_NEW_MAPS} ids past the next
    *                                  map id; nothing is built then
    * @throws IllegalStateException    if a map id of the screen belonged to a map that no longer exists
+   * @since 1.0.0
    */
   public static void buildMapScreen(
     final CommandSender sender,

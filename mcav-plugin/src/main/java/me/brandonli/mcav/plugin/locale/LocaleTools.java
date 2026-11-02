@@ -35,12 +35,16 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * {@code <gold>Image loaded!</gold>}, and arguments appear in it as {@code <arg:0>}, {@code <arg:1>} and so on, or as
  * the special placeholder {@code $URL$} in text and {@code open_url} click targets. Other tag parameters do
  * not support this placeholder; see {@link me.brandonli.mcav.plugin.locale.minimessage.MiniMessageTranslator}.
+ *
+ * @since 1.0.0
  */
 public interface LocaleTools {
   /**
    * The messages of the language set by the {@code language} option of {@code config.yml}. They are loaded from the
    * data folder of the plugin the first time a message is built, so the configuration must be read before that;
    * changes to the message file take effect after a restart.
+   *
+   * @since 1.0.0
    */
   TranslationManager MANAGER = new TranslationManager();
 
@@ -50,6 +54,7 @@ public interface LocaleTools {
    * @param key the key of the message in the message file, such as {@code mcav.command.image.load}
    * @return a builder that renders the message each time it is called
    * @throws NullPointerException if the key is {@code null}
+   * @since 1.0.0
    */
   static NullComponent direct(final String key) {
     Preconditions.checkNotNull(key, "Key must not be null!");
@@ -65,6 +70,7 @@ public interface LocaleTools {
    * @param <ArgumentType> the type of the argument
    * @return a builder that renders the message with an argument each time it is called
    * @throws NullPointerException if the key is {@code null}
+   * @since 1.0.0
    */
   static <ArgumentType> UniComponent<ArgumentType> direct(final String key, final @Nullable Function<ArgumentType, String> function) {
     Preconditions.checkNotNull(key, "Key must not be null!");
@@ -84,6 +90,7 @@ public interface LocaleTools {
    * @param <SecondType>   the type of the second argument
    * @return a builder that renders the message with two arguments each time it is called
    * @throws NullPointerException if the key is {@code null}
+   * @since 1.0.0
    */
   static <FirstType, SecondType> BiComponent<FirstType, SecondType> direct(
     final String key,
@@ -111,6 +118,7 @@ public interface LocaleTools {
    * @param <ThirdType>    the type of the third argument
    * @return a builder that renders the message with three arguments each time it is called
    * @throws NullPointerException if the key is {@code null}
+   * @since 1.0.0
    */
   static <FirstType, SecondType, ThirdType> TriComponent<FirstType, SecondType, ThirdType> direct(
     final String key,
@@ -176,6 +184,7 @@ public interface LocaleTools {
    *                       to use the {@code toString()} of the argument, with empty text for a {@code null} argument
    * @param <ArgumentType> the type of the argument
    * @return the text component, without any style of its own so it takes the style of the surrounding message
+   * @since 1.0.0
    */
   static <ArgumentType> Component createFinalText(final ArgumentType argument, final @Nullable Function<ArgumentType, String> function) {
     if (function != null) {
@@ -189,6 +198,8 @@ public interface LocaleTools {
 
   /**
    * A message without arguments.
+   *
+   * @since 1.0.0
    */
   @FunctionalInterface
   interface NullComponent {
@@ -197,6 +208,7 @@ public interface LocaleTools {
      *
      * @return the message, ready to send
      * @throws java.util.MissingResourceException if the message file has no message with the key
+     * @since 1.0.0
      */
     Component build();
   }
@@ -205,6 +217,7 @@ public interface LocaleTools {
    * A message with one argument.
    *
    * @param <ArgumentType> the type of the argument
+   * @since 1.0.0
    */
   @FunctionalInterface
   interface UniComponent<ArgumentType> {
@@ -214,6 +227,7 @@ public interface LocaleTools {
      * @param argument the argument inserted at {@code <arg:0>}
      * @return the message, ready to send
      * @throws java.util.MissingResourceException if the message file has no message with the key
+     * @since 1.0.0
      */
     Component build(ArgumentType argument);
   }
@@ -223,6 +237,7 @@ public interface LocaleTools {
    *
    * @param <FirstType>  the type of the first argument
    * @param <SecondType> the type of the second argument
+   * @since 1.0.0
    */
   @FunctionalInterface
   interface BiComponent<FirstType, SecondType> {
@@ -233,6 +248,7 @@ public interface LocaleTools {
      * @param secondArgument the argument inserted at {@code <arg:1>}
      * @return the message, ready to send
      * @throws java.util.MissingResourceException if the message file has no message with the key
+     * @since 1.0.0
      */
     Component build(FirstType firstArgument, SecondType secondArgument);
   }
@@ -243,6 +259,7 @@ public interface LocaleTools {
    * @param <FirstType>  the type of the first argument
    * @param <SecondType> the type of the second argument
    * @param <ThirdType>  the type of the third argument
+   * @since 1.0.0
    */
   @FunctionalInterface
   interface TriComponent<FirstType, SecondType, ThirdType> {
@@ -254,6 +271,7 @@ public interface LocaleTools {
      * @param thirdArgument  the argument inserted at {@code <arg:2>}
      * @return the message, ready to send
      * @throws java.util.MissingResourceException if the message file has no message with the key
+     * @since 1.0.0
      */
     Component build(FirstType firstArgument, SecondType secondArgument, ThirdType thirdArgument);
   }

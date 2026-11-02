@@ -38,6 +38,8 @@ import org.slf4j.LoggerFactory;
 /**
  * {@code /mcav video devices}: lists the cameras and capture cards of the server, the only devices the DEVICE player
  * then plays, by the number listed.
+ *
+ * @since 1.0.0
  */
 public final class VideoDevicesCommand implements AnnotationCommandFeature {
 
@@ -57,6 +59,7 @@ public final class VideoDevicesCommand implements AnnotationCommandFeature {
    * Constructs the command.
    *
    * @param plugin the plugin, whose video player manager must be available
+   * @since 1.0.0
    */
   public VideoDevicesCommand(final MCAVSandbox plugin) {
     Preconditions.checkNotNull(plugin, "Plugin must not be null!");
@@ -72,6 +75,7 @@ public final class VideoDevicesCommand implements AnnotationCommandFeature {
    * <p>Requires the permission {@code mcav.command.video.device}, which playing a device requires too.
    *
    * @param sender who ran the command
+   * @since 1.0.0
    */
   @Command("mcav video devices")
   @Permission(CaptureDevices.PERMISSION)
