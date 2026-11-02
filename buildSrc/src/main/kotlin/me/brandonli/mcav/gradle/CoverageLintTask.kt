@@ -39,14 +39,6 @@ import org.gradle.api.tasks.TaskAction
  */
 abstract class CoverageLintTask : DefaultTask() {
 
-    private companion object {
-
-        const val FILTERED: String =
-            "Skipped coverageLint of {}, since the tests ran with a filter and the report covers only part of the code."
-        const val GAP: String = "{}"
-        const val STALE_EXCEPTION: String = "{}: warning: '{} | {}' matches no uncovered line, so remove it."
-    }
-
     /**
      * The JaCoCo XML report of the module's tests.
      */
@@ -88,7 +80,10 @@ abstract class CoverageLintTask : DefaultTask() {
     @TaskAction
     fun lint(): Unit {
         if (this.testsFiltered.get()) {
-            this.logger.warn(FILTERED, this.projectPath.get())
+            this.logger.warn(
+                "Skipped coverageLint of {}, since the tests ran with a filter and the report covers only part of the code.",
+                this.projectPath.get()
+            )
             return
         }
 
@@ -98,12 +93,17 @@ abstract class CoverageLintTask : DefaultTask() {
         val sources: File = this.sourceDirectory.get().asFile
         val gaps: List<String> = CoverageReport.findGaps(reportFile, sources, exceptions)
         for (gap in gaps) {
-            this.logger.error(GAP, gap)
+            this.logger.error("{}", gap)
         }
 
         val staleExceptions: List<CoverageException> = exceptions.filterNot { it.used }
         for (staleException in staleExceptions) {
-            this.logger.error(STALE_EXCEPTION, exceptionFile, staleException.path, staleException.sourceLine)
+            this.logger.error(
+                "{}: warning: '{} | {}' matches no uncovered line, so remove it.",
+                exceptionFile,
+                staleException.path,
+                staleException.sourceLine
+            )
         }
 
         if (gaps.isNotEmpty() || staleExceptions.isNotEmpty()) {

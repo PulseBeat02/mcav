@@ -27,12 +27,6 @@ import java.io.File
  */
 abstract class QualifiedNamesTask : JavaLintTask() {
 
-    private companion object {
-
-        const val WRITTEN_OUT: String =
-            "{}:{}: error: {} is written out; import it, or mark the line // fqn: <why> if its simple name clashes."
-    }
-
     /**
      * Finds the written-out type names in [files] with [QualifiedNames] and reports each one to [reportViolation].
      *
@@ -53,7 +47,7 @@ abstract class QualifiedNamesTask : JavaLintTask() {
      * @return the template
      */
     override fun diagnosticMessage(): String {
-        return WRITTEN_OUT
+        return "{}:{}: error: {} is written out; import it, or mark the line // fqn: <why> if its simple name clashes."
     }
 
     /**

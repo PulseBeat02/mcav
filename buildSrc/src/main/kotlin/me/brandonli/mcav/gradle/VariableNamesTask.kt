@@ -28,11 +28,6 @@ import org.gradle.api.tasks.Input
  */
 abstract class VariableNamesTask : JavaLintTask() {
 
-    private companion object {
-
-        const val UNDESCRIPTIVE: String = "{}:{}: error: the {} {} says nothing; name what it holds."
-    }
-
     /**
      * The variables that keep their names because public API publishes them, as `<package>.<type>#<name>`; empty unless set.
      */
@@ -61,7 +56,7 @@ abstract class VariableNamesTask : JavaLintTask() {
      * @return the template
      */
     override fun diagnosticMessage(): String {
-        return UNDESCRIPTIVE
+        return "{}:{}: error: the {} {} says nothing; name what it holds."
     }
 
     /**

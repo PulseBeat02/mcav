@@ -81,7 +81,6 @@ val jcstressJar: TaskProvider<Jar> = tasks.register<Jar>("jcstressJar") {
     this.duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
-val ITERATION_TIME: String = "Running {} jcstress tests in {} mode within {} minutes, at {} ms per iteration."
 val mode: String = providers.gradleProperty(modeProperty).getOrElse(defaultMode)
 val budgetMinutes: Provider<Int> = providers.gradleProperty(budgetProperty).map { it.toInt() }
 val selection: Provider<String> = providers.gradleProperty(selectionProperty)
@@ -111,7 +110,6 @@ tasks.register<JavaExec>("jcstressTest") {
     val tests: String? = selection.orNull
     val cpuCount: Int = cpus.toInt()
     val stressMode: String = mode
-    val iterationTime: String = ITERATION_TIME
     val console: Provider<RegularFile> = workingDirectory.map { it.file(consolePath) }
     this.doFirst {
         workingDirectory.get().asFile.mkdirs()
@@ -120,7 +118,13 @@ tasks.register<JavaExec>("jcstressTest") {
         if (budget != null) {
             val testCount: Int = JcstressBudget.countTests(jar.get().asFile, tests)
             val iterationMilliseconds: Long = JcstressBudget.iterationMilliseconds(stressMode, budget, testCount, cpuCount)
-            this.logger.lifecycle(iterationTime, testCount, stressMode, budget, iterationMilliseconds)
+            this.logger.lifecycle(
+                "Running {} jcstress tests in {} mode within {} minutes, at {} ms per iteration.",
+                testCount,
+                stressMode,
+                budget,
+                iterationMilliseconds
+            )
             this@register.args("-time", iterationMilliseconds.toString())
         }
     }

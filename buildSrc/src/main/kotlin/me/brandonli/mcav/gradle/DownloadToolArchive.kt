@@ -48,9 +48,6 @@ abstract class DownloadToolArchive : DefaultTask() {
 
     private companion object {
 
-        const val DOWNLOADING: String = "Downloading tool archive {}."
-        const val VERIFIED: String = "Verified SHA-256 {} of {}."
-
         const val CONNECT_TIMEOUT_MILLISECONDS: Int = 30_000
         const val READ_TIMEOUT_MILLISECONDS: Int = 120_000
 
@@ -130,7 +127,7 @@ abstract class DownloadToolArchive : DefaultTask() {
         val uri: URI = URI(address)
         val fileName: String = uri.path.substringAfterLast(PATH_SEPARATOR)
         val archive: File = this.temporaryDir.resolve(fileName)
-        this.logger.lifecycle(DOWNLOADING, address)
+        this.logger.lifecycle("Downloading tool archive {}.", address)
 
         try {
             this.copyFrom(uri, archive)
@@ -167,7 +164,7 @@ abstract class DownloadToolArchive : DefaultTask() {
             throw GradleException(message)
         }
 
-        this.logger.lifecycle(VERIFIED, expected, address)
+        this.logger.lifecycle("Verified SHA-256 {} of {}.", expected, address)
     }
 
     private fun openArchive(archive: File, address: String): FileTree {
