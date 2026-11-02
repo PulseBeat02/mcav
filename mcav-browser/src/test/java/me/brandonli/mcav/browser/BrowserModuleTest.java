@@ -36,7 +36,9 @@ import org.junit.jupiter.api.io.TempDir;
 
 class BrowserModuleTest {
 
-  private static final Path NATIVES = Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath();
+  private static final String TEMPORARY_DIRECTORY_PROPERTY = "java.io.tmpdir";
+
+  private static final Path NATIVES = Path.of(System.getProperty(TEMPORARY_DIRECTORY_PROPERTY)).toAbsolutePath();
 
   private final List<String> ends = new CopyOnWriteArrayList<>();
 

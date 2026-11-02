@@ -47,6 +47,9 @@ import org.junit.jupiter.api.io.TempDir;
 // A restriction cannot be lifted, so each one runs on a thread of its own.
 class LandlockTest {
 
+  private static final String JAVA_HOME_PROPERTY = "java.home";
+  private static final String CLASS_PATH_PROPERTY = "java.class.path";
+
   private static final long READ_FOLDER = 0b1101;
   private static final long READ_FILE = 0b101;
 
@@ -275,12 +278,12 @@ class LandlockTest {
     this.availableVersion();
     final Path hidden = Files.createDirectories(this.folder.resolve("hidden"));
     final Path secret = Files.writeString(hidden.resolve("secret.txt"), "secret");
-    final String java = Path.of(System.getProperty("java.home"), "bin", "java").toString();
+    final String java = Path.of(System.getProperty(JAVA_HOME_PROPERTY), "bin", "java").toString();
     final Process probe = new ProcessBuilder(
       java,
       "--enable-native-access=ALL-UNNAMED",
       "-cp",
-      System.getProperty("java.class.path"),
+      System.getProperty(CLASS_PATH_PROPERTY),
       ConfinedProbeMain.class.getName(),
       hidden.toString(),
       secret.toString()

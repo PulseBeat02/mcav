@@ -68,6 +68,8 @@ import org.mockito.invocation.InvocationOnMock;
 
 class CefBrowserPlayerTest {
 
+  private static final String TEMPORARY_DIRECTORY_PROPERTY = "java.io.tmpdir";
+
   private static final BrowserSource SOURCE = BrowserSource.uri(URI.create("https://example.com/"), 100, 50, 1);
 
   private static final String END_REASON = "gone";
@@ -931,7 +933,7 @@ class CefBrowserPlayerTest {
   void shouldDownloadNothingWhileTheModuleIsStopped() {
     final List<URI> downloads = new CopyOnWriteArrayList<>();
     final JcefNatives recording = new JcefNatives(
-      Path.of(System.getProperty("java.io.tmpdir")).resolve("mcav-no-natives-" + System.nanoTime()),
+      Path.of(System.getProperty(TEMPORARY_DIRECTORY_PROPERTY)).resolve("mcav-no-natives-" + System.nanoTime()),
       (uri, _, _, _) -> this.recordAndFailDownload(downloads, uri),
       "https://unreachable.test/",
       new ArchiveExtractor()
@@ -970,7 +972,7 @@ class CefBrowserPlayerTest {
   @Test
   void shouldFailTheDefaultSessionsWhenTheNativesCannotBeInstalled() {
     final JcefNatives broken = new JcefNatives(
-      Path.of(System.getProperty("java.io.tmpdir")).resolve("mcav-no-natives-" + System.nanoTime()),
+      Path.of(System.getProperty(TEMPORARY_DIRECTORY_PROPERTY)).resolve("mcav-no-natives-" + System.nanoTime()),
       (_, _, _, _) -> this.failDownload(),
       "https://unreachable.test/",
       new ArchiveExtractor()

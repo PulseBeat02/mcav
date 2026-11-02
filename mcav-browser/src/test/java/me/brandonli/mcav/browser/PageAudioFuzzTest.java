@@ -28,7 +28,7 @@ import org.junit.jupiter.api.Tag;
 @Tag("fuzz")
 final class PageAudioFuzzTest {
 
-  private static final String PREFIX = "{\"name\":\"" + PageAudio.BINDING + "\",\"payload\":\"";
+  private static final String PREFIX = "{\"name\":\"%s\",\"payload\":\"".formatted(PageAudio.BINDING);
 
   // the first byte picks the event, odd for a call of a binding; the rest is its parameters
   @FuzzTest(maxDuration = "30s")

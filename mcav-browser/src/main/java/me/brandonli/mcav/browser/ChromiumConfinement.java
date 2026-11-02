@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.browser;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import java.io.File;
 import java.io.IOException;
@@ -37,6 +39,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 // Linux Landlock confines the starting thread and what it starts; on macOS Seatbelt confines the whole helper.
 final class ChromiumConfinement {
 
+  private static final int KEEP_TRAILING_EMPTY_PARTS = -1;
+
   static final String CONFINED =
     "Chromium runs confined: it cannot read the server's folder, the home folder or the temporary folder, and it writes only into the folder of its session.";
   static final String NOT_ASKED = "Chromium runs without confinement, as the options of the browser allow.";
@@ -48,6 +52,11 @@ final class ChromiumConfinement {
   private static final Path PROCESSES = Path.of("/proc");
 
   private static final String AGENT_OPTION = "-javaagent:";
+  private static final char AGENT_OPTIONS_SEPARATOR = '=';
+
+  private static final String USER_HOME_PROPERTY = "user.home";
+  private static final String JAVA_HOME_PROPERTY = "java.home";
+  private static final String CLASS_PATH_PROPERTY = "java.class.path";
 
   private static final String LIBRARY_PATH_VARIABLE = "LD_LIBRARY_PATH";
 
@@ -73,14 +82,14 @@ final class ChromiumConfinement {
 
     final Path socket = configuration.getSocket();
     final Path session = parentOf(socket);
-    final Path home = Path.of(System.getProperty("user.home"));
+    final Path home = Path.of(requireNonNull(System.getProperty(USER_HOME_PROPERTY))); // checker framework
     final Path serverFolder = configuration.getServerFolder();
     final List<Path> hidden = List.of(serverFolder, home, parentOf(session));
     final List<Path> readable = new ArrayList<>();
-    readable.add(Path.of(System.getProperty("java.home")));
+    readable.add(Path.of(requireNonNull(System.getProperty(JAVA_HOME_PROPERTY)))); // checker framework
     final Path natives = configuration.getNatives();
     readable.add(natives);
-    readable.addAll(pathsOf(System.getProperty("java.class.path")));
+    readable.addAll(pathsOf(System.getProperty(CLASS_PATH_PROPERTY)));
     final RuntimeMXBean runtime = ManagementFactory.getRuntimeMXBean();
     final List<String> inputArguments = runtime.getInputArguments();
     readable.addAll(agentsOf(inputArguments));
@@ -196,7 +205,7 @@ final class ChromiumConfinement {
       return paths;
     }
 
-    for (final String entry : list.split(File.pathSeparator, -1)) {
+    for (final String entry : list.split(File.pathSeparator, KEEP_TRAILING_EMPTY_PARTS)) {
       if (!entry.isEmpty()) {
         paths.add(Path.of(entry));
       }
@@ -212,7 +221,7 @@ final class ChromiumConfinement {
     for (final String argument : arguments) {
       if (argument.startsWith(AGENT_OPTION)) {
         final String rest = argument.substring(AGENT_OPTION.length());
-        final int options = rest.indexOf('=');
+        final int options = rest.indexOf(AGENT_OPTIONS_SEPARATOR);
         jars.add(Path.of(options < 0 ? rest : rest.substring(0, options)));
       }
     }

@@ -35,6 +35,8 @@ import org.junit.jupiter.api.function.Executable;
 
 class HelperConfigurationTest {
 
+  private static final int KEEP_TRAILING_EMPTY_PARTS = -1;
+
   private static final Path ROOT = Path.of("").toAbsolutePath().getRoot();
   private static final Path SOCKET = ROOT.resolve("tmp").resolve("s");
   private static final Path NATIVES = ROOT.resolve("natives");
@@ -324,7 +326,7 @@ class HelperConfigurationTest {
   }
 
   private String[] parts(final HelperConfiguration configuration) {
-    return FIELD_SEPARATOR.split(configuration.toLine(), -1);
+    return FIELD_SEPARATOR.split(configuration.toLine(), KEEP_TRAILING_EMPTY_PARTS);
   }
 
   private String encode(final String value) {

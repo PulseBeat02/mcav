@@ -52,6 +52,8 @@ import org.slf4j.LoggerFactory;
 // pinned hash makes acceptable.
 final class ArchiveExtractor {
 
+  private static final char WINDOWS_SEPARATOR = '\\';
+
   private static final int MAXIMUM_ENTRIES = 10_000;
 
   private static final long MAXIMUM_TOTAL_BYTES = 2L * 1024 * 1024 * 1024;
@@ -153,7 +155,7 @@ final class ArchiveExtractor {
   // a folder entry such as ./ resolves to the root itself
   @VisibleForTesting
   static Path resolve(final Path root, final String name) throws IOException {
-    if (name.isEmpty() || name.indexOf('\\') >= 0) {
+    if (name.isEmpty() || name.indexOf(WINDOWS_SEPARATOR) >= 0) {
       final String message = NAME_NOT_ALLOWED.formatted(name);
       throw new IOException(message);
     }

@@ -65,6 +65,8 @@ import org.mockito.Mockito;
 
 class NetworkGuardTest {
 
+  private static final int EPHEMERAL_PORT = 0;
+
   private static final InetAddress LOOPBACK = InetAddress.getLoopbackAddress();
 
   private static final byte[] GREETING = { 5, 1, 0 };
@@ -89,7 +91,7 @@ class NetworkGuardTest {
 
   @BeforeEach
   void startEchoServer() throws IOException {
-    this.echo = new ServerSocket(0, 50, LOOPBACK);
+    this.echo = new ServerSocket(EPHEMERAL_PORT, 50, LOOPBACK);
     final Thread thread = new Thread(this::serveEcho, "echo");
     thread.setDaemon(true);
     thread.start();
@@ -277,7 +279,7 @@ class NetworkGuardTest {
   @Test
   void shouldAnswerFailedConnectionsWithTheirReason() throws IOException {
     final int closedPort;
-    try (final ServerSocket closed = new ServerSocket(0, 1, LOOPBACK)) {
+    try (final ServerSocket closed = new ServerSocket(EPHEMERAL_PORT, 1, LOOPBACK)) {
       closedPort = closed.getLocalPort();
     }
 
@@ -426,7 +428,7 @@ class NetworkGuardTest {
 
   @Test
   void shouldEndTheConnectionOfTheClientWhenTheTargetEnds() throws Exception {
-    try (final ServerSocket ending = new ServerSocket(0, 1, LOOPBACK)) {
+    try (final ServerSocket ending = new ServerSocket(EPHEMERAL_PORT, 1, LOOPBACK)) {
       final CompletableFuture<Void> target = CompletableFuture.runAsync(() -> this.sayByeAndHangUp(ending));
       final NetworkGuard guard = this.loopbackGuard();
       final Socket client = this.connectThrough(guard, ECHO_HOST, ending.getLocalPort());
@@ -489,7 +491,7 @@ class NetworkGuardTest {
   @Test
   void shouldLeaveNoFileOpenWhenAConnectionFails() throws IOException {
     final int closedPort;
-    try (final ServerSocket closed = new ServerSocket(0, 1, LOOPBACK)) {
+    try (final ServerSocket closed = new ServerSocket(EPHEMERAL_PORT, 1, LOOPBACK)) {
       closedPort = closed.getLocalPort();
     }
 
@@ -744,7 +746,7 @@ class NetworkGuardTest {
   @Test
   void shouldCloseTheSocketOfAFailedAttemptWhenConnecting() throws IOException {
     final int closedPort;
-    try (final ServerSocket closed = new ServerSocket(0, 1, LOOPBACK)) {
+    try (final ServerSocket closed = new ServerSocket(EPHEMERAL_PORT, 1, LOOPBACK)) {
       closedPort = closed.getLocalPort();
     }
 

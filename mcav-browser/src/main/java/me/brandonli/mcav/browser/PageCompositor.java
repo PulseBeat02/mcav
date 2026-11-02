@@ -31,6 +31,8 @@ final class PageCompositor implements MCAVOffscreenBrowser.PaintListener {
 
   private static final byte FULL_CHANNEL = (byte) 0xFF;
 
+  private static final long MINIMUM_WAIT_NANOSECONDS = 1L;
+
   private final int width;
   private final int height;
   private final int frameInterval;
@@ -158,7 +160,7 @@ final class PageCompositor implements MCAVOffscreenBrowser.PaintListener {
         return null;
       }
       final long settleLeft = current == null ? remaining : this.damageSince + this.settleNanoseconds - now;
-      final long waitNanoseconds = Math.max(1L, Math.min(remaining, settleLeft));
+      final long waitNanoseconds = Math.max(MINIMUM_WAIT_NANOSECONDS, Math.min(remaining, settleLeft));
       TimeUnit.NANOSECONDS.timedWait(this, waitNanoseconds);
     }
 

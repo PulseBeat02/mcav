@@ -61,10 +61,15 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public final class BrowserHelper {
 
+  private static final String INPUT_THREAD_NAME = "mcav-browser-helper-stdin";
+  private static final String COMMAND_THREAD_NAME = "mcav-browser-helper-commands";
+  private static final String FRAMES_THREAD_NAME = "mcav-browser-helper-frames";
+
   private static final long SETTLE_MILLISECONDS = 100L;
 
   private static final long TAKE_TIMEOUT_MILLISECONDS = 250L;
 
+  private static final int EXIT_SUCCESS = 0;
   private static final int EXIT_FAILURE = 1;
   private static final int EXIT_BAD_CONFIGURATION = 2;
 
@@ -169,9 +174,9 @@ public final class BrowserHelper {
         output.flush();
       }
       final Reporter reporter = new Reporter(output);
-      this.startDaemon("mcav-browser-helper-stdin", () -> this.watchInput(standardInput));
-      this.startDaemon("mcav-browser-helper-commands", () -> this.readCommands(input));
-      this.startDaemon("mcav-browser-helper-frames", () -> this.sendFrames(output));
+      this.startDaemon(INPUT_THREAD_NAME, () -> this.watchInput(standardInput));
+      this.startDaemon(COMMAND_THREAD_NAME, () -> this.readCommands(input));
+      this.startDaemon(FRAMES_THREAD_NAME, () -> this.sendFrames(output));
       return this.serve(reporter);
     } catch (final IOException exception) {
       final @Nullable String reason = exception.getMessage();
@@ -202,7 +207,7 @@ public final class BrowserHelper {
     final String reason = this.stopReason.get();
     System.err.println("Because %s, the browser helper stops.".formatted(reason));
 
-    return reporter.hasFailed() ? EXIT_FAILURE : 0;
+    return reporter.hasFailed() ? EXIT_FAILURE : EXIT_SUCCESS;
   }
 
   private void startDaemon(final String name, final Runnable task) {

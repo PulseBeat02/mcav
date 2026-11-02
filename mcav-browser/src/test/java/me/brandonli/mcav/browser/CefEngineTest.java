@@ -62,6 +62,8 @@ import org.mockito.InOrder;
 
 class CefEngineTest {
 
+  private static final int KEEP_TRAILING_EMPTY_PARTS = -1;
+
   private static final Path ROOT = Path.of("").toAbsolutePath().getRoot();
 
   private static final Pattern FEATURE_SEPARATOR = Pattern.compile(",");
@@ -198,7 +200,7 @@ class CefEngineTest {
     assertEquals(1, disableFeaturesCount, "Chromium keeps the last --disable-features switch only");
 
     final String value = disabled.getFirst().substring("--disable-features=".length());
-    final List<String> features = List.of(FEATURE_SEPARATOR.split(value, -1));
+    final List<String> features = List.of(FEATURE_SEPARATOR.split(value, KEEP_TRAILING_EMPTY_PARTS));
     final boolean disablesGoogleServices = features.containsAll(List.of("NetworkTimeServiceQuerying", "PreconnectToSearch"));
     assertTrue(disablesGoogleServices, value);
 

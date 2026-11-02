@@ -52,6 +52,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 // network turns private.
 final class NetworkGuard implements Closeable {
 
+  private static final boolean DO_NOT_INTERRUPT = false;
+
+  private static final String ACCEPT_THREAD_NAME = "mcav-browser-guard";
+  private static final String CONNECTION_THREAD_NAME = "mcav-browser-guard-connection";
+  private static final String DEADLINE_THREAD_NAME = "mcav-browser-guard-deadline";
+  private static final String UPSTREAM_THREAD_NAME = "mcav-browser-guard-upstream";
+
   static final int MAXIMUM_CONNECTIONS = 256;
 
   static final int MAXIMUM_REPORTED_HOSTS = 64;
@@ -60,6 +67,7 @@ final class NetworkGuard implements Closeable {
   private static final int CONNECT_TIMEOUT_MILLISECONDS = 10_000;
 
   private static final int BACKLOG = 64;
+  private static final int EPHEMERAL_PORT = 0;
 
   private static final int BUFFER_BYTES = 16 * 1024;
 
@@ -110,9 +118,9 @@ final class NetworkGuard implements Closeable {
   ) throws IOException {
     final ServerSocket server = new ServerSocket();
     final InetAddress loopback = InetAddress.getLoopbackAddress();
-    server.bind(new InetSocketAddress(loopback, 0), BACKLOG);
+    server.bind(new InetSocketAddress(loopback, EPHEMERAL_PORT), BACKLOG);
     final NetworkGuard guard = new NetworkGuard(server, resolver, policy, connector, notices, handshakeTimeoutMilliseconds);
-    final Thread thread = new Thread(guard::acceptConnections, "mcav-browser-guard");
+    final Thread thread = new Thread(guard::acceptConnections, ACCEPT_THREAD_NAME);
     thread.setDaemon(true);
     thread.start();
 
@@ -152,7 +160,7 @@ final class NetworkGuard implements Closeable {
       }
       this.sockets.add(client);
       Thread.ofVirtual()
-        .name("mcav-browser-guard-connection")
+        .name(CONNECTION_THREAD_NAME)
         .start(() -> this.serveAndRelease(client));
     }
   }
@@ -198,7 +206,7 @@ final class NetworkGuard implements Closeable {
         SocksProtocol.writeReply(output, reply);
         return;
       }
-      deadline.cancel(false);
+      deadline.cancel(DO_NOT_INTERRUPT);
       final Socket target = this.open(request, output);
       if (target == null) {
         return;
@@ -218,7 +226,7 @@ final class NetworkGuard implements Closeable {
   }
 
   private void startDeadline(final Runnable task) {
-    Thread.ofVirtual().name("mcav-browser-guard-deadline").start(task);
+    Thread.ofVirtual().name(DEADLINE_THREAD_NAME).start(task);
   }
 
   private @Nullable Socket open(final SocksProtocol.Request request, final DataOutputStream output) throws IOException {
@@ -273,7 +281,7 @@ final class NetworkGuard implements Closeable {
     final OutputStream toTarget = target.getOutputStream();
     final OutputStream toClient = client.getOutputStream();
     Thread.ofVirtual()
-      .name("mcav-browser-guard-upstream")
+      .name(UPSTREAM_THREAD_NAME)
       .start(() -> this.pumpUpstream(fromClient, toTarget, target));
     this.pump(fromTarget, toClient);
   }

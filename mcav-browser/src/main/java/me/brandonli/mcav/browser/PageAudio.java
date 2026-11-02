@@ -36,6 +36,8 @@ final class PageAudio implements CefDevToolsClient.EventListener {
 
   static final String BINDING_EVENT = "Runtime.bindingCalled";
 
+  private static final int SAMPLE_RATE = 48_000;
+
   static final String SCRIPT = """
   // MCAV: hands what a document plays to the browser helper, see PageAudio.java. Without a sound card every context runs
   // on its own clock, so the document gets one 48 kHz context; its tap sends PCM and outputs silence.
@@ -43,18 +45,28 @@ final class PageAudio implements CefDevToolsClient.EventListener {
     'use strict';
     // the helper may place the script twice; once is enough
     const PLACED = Symbol.for('mcav.audio');
+    const INSTALLED = Symbol.for('mcav.audio.installed');
+
+    const BINDING = '%s';
+
+    const SAMPLE_RATE = %s;
+    const CHUNK = 2048;
+    const QUIET_SECONDS = 2;
+    const FRAME_BYTES = 4;
+    const SAMPLE_BYTES = 2;
+    const LITTLE_ENDIAN = true;
+    const TEXT_SLICE_BYTES = 0x2000;
+    const CHANNELS = 2;
+    // a pause after sound is sent as two seconds of silence, so the server keeps its time; longer pauses are not sent
+    const QUIET_CHUNKS = Math.ceil((QUIET_SECONDS * SAMPLE_RATE) / CHUNK);
+
+    const GESTURES = ['pointerdown', 'mousedown', 'keydown', 'touchend'];
+
     if (Object.prototype.hasOwnProperty.call(globalThis, PLACED)) {
       return;
     }
 
     Object.defineProperty(globalThis, PLACED, { value: true });
-    const BINDING = '__mcavAudio';
-    const INSTALLED = Symbol.for('mcav.audio.installed');
-    const RATE = 48000;
-    const CHUNK = 2048;
-    // a pause after sound is sent as two seconds of silence, so the server keeps its time; longer pauses are not sent
-    const QUIET_CHUNKS = Math.ceil((2 * RATE) / CHUNK);
-    const GESTURES = ['pointerdown', 'mousedown', 'keydown', 'touchend'];
     if (typeof AudioContext !== 'function' || globalThis[INSTALLED] === true) {
       return;
     }
@@ -109,14 +121,14 @@ final class PageAudio implements CefDevToolsClient.EventListener {
 
       const left = nativeGetChannelData.call(buffer, 0);
       const right = channelsOf.call(buffer) > 1 ? nativeGetChannelData.call(buffer, 1) : left;
-      const bytes = new Uint8Array(left.length * 4);
+      const bytes = new Uint8Array(left.length * FRAME_BYTES);
       const view = new DataView(bytes.buffer);
       let loud = false;
       for (let frame = 0; frame < left.length; frame++) {
         const first = toSample(left[frame]);
         const second = toSample(right[frame]);
-        view.setInt16(frame * 4, first, true);
-        view.setInt16(frame * 4 + 2, second, true);
+        view.setInt16(frame * FRAME_BYTES, first, LITTLE_ENDIAN);
+        view.setInt16(frame * FRAME_BYTES + SAMPLE_BYTES, second, LITTLE_ENDIAN);
         loud = loud || first !== 0 || second !== 0;
       }
       if (loud) {
@@ -127,8 +139,8 @@ final class PageAudio implements CefDevToolsClient.EventListener {
         quietChunks++;
       }
       let text = '';
-      for (let start = 0; start < bytes.length; start += 0x2000) {
-        text += fromCharCode.apply(null, bytes.subarray(start, start + 0x2000));
+      for (let start = 0; start < bytes.length; start += TEXT_SLICE_BYTES) {
+        text += fromCharCode.apply(null, bytes.subarray(start, start + TEXT_SLICE_BYTES));
       }
       deliverTo(toBase64(text));
     };
@@ -136,9 +148,9 @@ final class PageAudio implements CefDevToolsClient.EventListener {
     // the one context of the document, made again should the page close it
     let mixer = null;
     const createMixer = () => {
-      const context = construct(NativeAudioContext, [{ sampleRate: RATE }], NativeAudioContext);
+      const context = construct(NativeAudioContext, [{ sampleRate: SAMPLE_RATE }], NativeAudioContext);
       const bus = nativeCreateGain.call(context);
-      const tap = nativeCreateScriptProcessor.call(context, CHUNK, 2, 2);
+      const tap = nativeCreateScriptProcessor.call(context, CHUNK, CHANNELS, CHANNELS);
       const silence = nativeCreateGain.call(context);
       setValue.call(gainOf.call(silence), 0);
       nativeConnect.call(bus, tap);
@@ -255,7 +267,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
       true
     );
   })();
-  """;
+  """.formatted(BINDING, SAMPLE_RATE);
 
   // also the burst after a quiet time
   static final int BUDGET_SECONDS_PER_SECOND = 2;
@@ -263,22 +275,29 @@ final class PageAudio implements CefDevToolsClient.EventListener {
   // quiet of the passing frame before the sound of another frame may pass
   static final int QUIET_MILLISECONDS = 250;
 
-  private static final int BYTES_PER_SECOND = 48_000 * HelperProtocol.AUDIO_FRAME_BYTES;
+  private static final int BYTES_PER_SECOND = SAMPLE_RATE * HelperProtocol.AUDIO_FRAME_BYTES;
   private static final long BUDGET_BYTES = (long) BUDGET_SECONDS_PER_SECOND * BYTES_PER_SECOND;
 
-  private static final String PREFIX = "{\"name\":\"" + BINDING + "\",\"payload\":\"";
-  private static final int MAXIMUM_PAYLOAD_CHARACTERS = ((HelperProtocol.MAXIMUM_AUDIO_BYTES + 2) / 3) * 4;
+  private static final int BASE64_GROUP_CHARACTERS = 4;
+  private static final int BASE64_GROUP_BYTES = 3;
+  private static final int MAXIMUM_BASE64_PADDING = 2;
+
+  private static final String PREFIX = "{\"name\":\"%s\",\"payload\":\"".formatted(BINDING);
+  private static final int MAXIMUM_PAYLOAD_CHARACTERS =
+    Math.ceilDiv(HelperProtocol.MAXIMUM_AUDIO_BYTES, BASE64_GROUP_BYTES) * BASE64_GROUP_CHARACTERS;
 
   private static final String CONTEXT_FIELD = "\",\"executionContextId\":";
-  private static final Pattern CONTEXT = Pattern.compile(Pattern.quote(CONTEXT_FIELD) + "-?[0-9]{1,10}}");
-  private static final int MAXIMUM_TAIL = CONTEXT_FIELD.length() + 12;
+  private static final Pattern CONTEXT = createContextPattern();
+  private static final int MAXIMUM_CONTEXT_ID_CHARACTERS = 11;
+  private static final int MAXIMUM_TAIL = CONTEXT_FIELD.length() + MAXIMUM_CONTEXT_ID_CHARACTERS + 1;
 
   private static final String ENABLE_RUNTIME_METHOD = "Runtime.enable";
   private static final String ADD_BINDING_METHOD = "Runtime.addBinding";
 
-  private static final long BASE64_GROUP_CHARACTERS = 4L;
-  private static final long BASE64_GROUP_BYTES = 3L;
-  private static final long MAXIMUM_BASE64_PADDING = 2L;
+  private static final char PAYLOAD_END = '"';
+
+  private static final long QUIET_NANOSECONDS = TimeUnit.MILLISECONDS.toNanos(QUIET_MILLISECONDS);
+  private static final long NANOSECONDS_PER_SECOND = TimeUnit.SECONDS.toNanos(1);
 
   private final Consumer<byte[]> sink;
   private final LongSupplier clock;
@@ -293,18 +312,23 @@ final class PageAudio implements CefDevToolsClient.EventListener {
     this.clock = clock;
     this.availableBytes = BUDGET_BYTES;
     this.lastRefill = clock.getAsLong();
-    this.lastSound = this.lastRefill - TimeUnit.MILLISECONDS.toNanos(QUIET_MILLISECONDS);
+    this.lastSound = this.lastRefill - QUIET_NANOSECONDS;
+  }
+
+  private static Pattern createContextPattern() {
+    final String quotedField = Pattern.quote(CONTEXT_FIELD);
+    final String expression = "%s-?[0-9]{1,10}}".formatted(quotedField);
+    return Pattern.compile(expression);
   }
 
   static List<DevToolsInput.DevToolsCall> install() {
     final DevToolsInput.DevToolsCall enable = new DevToolsInput.DevToolsCall(ENABLE_RUNTIME_METHOD, "{}");
-    final DevToolsInput.DevToolsCall binding = new DevToolsInput.DevToolsCall(
-      ADD_BINDING_METHOD,
-      "{\"name\":" + DevToolsInput.quote(BINDING) + "}"
-    );
+    final String quotedBinding = DevToolsInput.quote(BINDING);
+    final DevToolsInput.DevToolsCall binding = new DevToolsInput.DevToolsCall(ADD_BINDING_METHOD, "{\"name\":%s}".formatted(quotedBinding));
+    final String quotedScript = DevToolsInput.quote(SCRIPT);
     final DevToolsInput.DevToolsCall capture = new DevToolsInput.DevToolsCall(
       DevToolsInput.ADD_SCRIPT_METHOD,
-      "{\"source\":" + DevToolsInput.quote(SCRIPT) + "}"
+      "{\"source\":%s}".formatted(quotedScript)
     );
     return List.of(enable, binding, capture);
   }
@@ -324,7 +348,10 @@ final class PageAudio implements CefDevToolsClient.EventListener {
   // from the length alone, so an event over the budget is refused before it is decoded
   @VisibleForTesting
   static long leastBytes(final String parameters) {
-    return ((parameters.length() - PREFIX.length() - MAXIMUM_TAIL) / BASE64_GROUP_CHARACTERS) * BASE64_GROUP_BYTES - MAXIMUM_BASE64_PADDING;
+    return (
+      (((long) parameters.length() - PREFIX.length() - MAXIMUM_TAIL) / BASE64_GROUP_CHARACTERS) * BASE64_GROUP_BYTES -
+      MAXIMUM_BASE64_PADDING
+    );
   }
 
   private synchronized boolean mayTake(final long bytes) {
@@ -336,7 +363,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
 
   private synchronized boolean take(final Chunk chunk) {
     final long now = this.clock.getAsLong();
-    final boolean quiet = now - this.lastSound >= TimeUnit.MILLISECONDS.toNanos(QUIET_MILLISECONDS);
+    final boolean quiet = now - this.lastSound >= QUIET_NANOSECONDS;
     if (chunk.context() != this.speakingContext && !quiet) {
       return false;
     }
@@ -365,9 +392,9 @@ final class PageAudio implements CefDevToolsClient.EventListener {
   }
 
   private void refill(final long now) {
-    final long elapsed = Math.min(Math.max(now - this.lastRefill, 0L), TimeUnit.SECONDS.toNanos(1));
+    final long elapsed = Math.min(Math.max(now - this.lastRefill, 0L), NANOSECONDS_PER_SECOND);
     this.lastRefill = now;
-    this.availableBytes = Math.min(BUDGET_BYTES, this.availableBytes + (elapsed * BUDGET_BYTES) / TimeUnit.SECONDS.toNanos(1));
+    this.availableBytes = Math.min(BUDGET_BYTES, this.availableBytes + (elapsed * BUDGET_BYTES) / NANOSECONDS_PER_SECOND);
   }
 
   private boolean spend(final int bytes, final long now) {
@@ -389,7 +416,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
     }
 
     final int start = PREFIX.length();
-    final int end = parameters.indexOf('"', start);
+    final int end = parameters.indexOf(PAYLOAD_END, start);
     if (end == -1 || end - start > MAXIMUM_PAYLOAD_CHARACTERS) {
       return null;
     }

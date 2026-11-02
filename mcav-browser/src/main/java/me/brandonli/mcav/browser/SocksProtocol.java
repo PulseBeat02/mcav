@@ -28,6 +28,14 @@ import java.nio.charset.StandardCharsets;
 // never reads more than a request can hold.
 final class SocksProtocol {
 
+  private static final char IPV6_SEPARATOR = ':';
+  private static final char OPENING_BRACKET = '[';
+  private static final char CLOSING_BRACKET = ']';
+
+  private static final int RESERVED = 0;
+  private static final int NO_BOUND_ADDRESS = 0;
+  private static final int NO_BOUND_PORT = 0;
+
   static final int VERSION = 5;
 
   static final int NO_AUTHENTICATION = 0x00;
@@ -77,7 +85,7 @@ final class SocksProtocol {
     readVersion(input);
     final int command = input.readUnsignedByte();
     final int reserved = input.readUnsignedByte();
-    if (reserved != 0) {
+    if (reserved != RESERVED) {
       final String message = "Reserved byte %s of the request must be 0!".formatted(reserved);
       throw new ProtocolException(message);
     }
@@ -131,7 +139,7 @@ final class SocksProtocol {
     final byte[] bytes = new byte[length];
     input.readFully(bytes);
     for (final byte value : bytes) {
-      if (!isHostNameCharacter(value) && value != ':' && value != '[' && value != ']') {
+      if (!isHostNameCharacter(value) && value != IPV6_SEPARATOR && value != OPENING_BRACKET && value != CLOSING_BRACKET) {
         final String message = "Byte %s is not allowed in the host name of the request!".formatted(value & UNSIGNED_BYTE_MASK);
         throw new ProtocolException(message);
       }
@@ -139,11 +147,11 @@ final class SocksProtocol {
 
     final String host = new String(bytes, StandardCharsets.US_ASCII);
     // Chromium names an IPv6 address by its text, in the field of a host name
-    if (host.indexOf(':') >= 0) {
+    if (host.indexOf(IPV6_SEPARATOR) >= 0) {
       return parseIpv6Literal(host);
     }
 
-    if (host.indexOf('[') >= 0 || host.indexOf(']') >= 0) {
+    if (host.indexOf(OPENING_BRACKET) >= 0 || host.indexOf(CLOSING_BRACKET) >= 0) {
       final String message = "Host name %s of the request holds a bracket!".formatted(host);
       throw new ProtocolException(message);
     }
@@ -180,10 +188,10 @@ final class SocksProtocol {
   static void writeReply(final DataOutput output, final int reply) throws IOException {
     output.writeByte(VERSION);
     output.writeByte(reply);
-    output.writeByte(0);
+    output.writeByte(RESERVED);
     output.writeByte(ADDRESS_IPV4);
-    output.writeInt(0);
-    output.writeShort(0);
+    output.writeInt(NO_BOUND_ADDRESS);
+    output.writeShort(NO_BOUND_PORT);
   }
 
   static final class Request {

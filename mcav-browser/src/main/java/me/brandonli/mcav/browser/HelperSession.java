@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.browser;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -81,13 +83,29 @@ import org.slf4j.LoggerFactory;
 // outlives the server.
 final class HelperSession implements BrowserSession {
 
+  private static final String TEMPORARY_DIRECTORY_PROPERTY = "java.io.tmpdir";
+  private static final String WORKING_FOLDER_PROPERTY = "user.dir";
+
+  private static final char LINE_FEED = '\n';
+  private static final char CARRIAGE_RETURN = '\r';
+
+  private static final String LOG_THREAD_NAME = "mcav-browser-helper-log";
+  private static final String READER_THREAD_NAME = "mcav-browser-reader";
+  private static final String FRAMES_THREAD_NAME = "mcav-browser-frames";
+  private static final String INPUT_THREAD_NAME = "mcav-browser-input";
+
+  private static final int CONNECTION_BACKLOG = 1;
+
   private static final Logger LOGGER = LoggerFactory.getLogger(HelperSession.class);
 
   private static final int MAXIMUM_QUEUED_INPUT = 128;
+  private static final int INPUT_THREADS = 1;
+  private static final long NO_KEEP_ALIVE_MILLISECONDS = 0L;
 
   private static final int OUTPUT_TAIL_LINES = 40;
   private static final int OUTPUT_LINE_CHARACTERS = 1024;
 
+  private static final long MINIMUM_START_WAIT_MILLISECONDS = 1L;
   private static final long STOP_TIMEOUT_MILLISECONDS = 10_000L;
   private static final long KILL_TIMEOUT_MILLISECONDS = 5_000L;
   private static final long EXIT_GRACE_MILLISECONDS = 1_000L;
@@ -116,7 +134,6 @@ final class HelperSession implements BrowserSession {
   private static final int OUTPUT_READ_CHARACTERS = 4096;
 
   static final long REPEAT_DELAY_MILLISECONDS = 50L;
-
   static final int SETTLED_REPEATS = 40;
 
   private final Path folder;
@@ -157,9 +174,9 @@ final class HelperSession implements BrowserSession {
     this.canvas = canvas;
     this.listener = listener;
     this.inputSender = new ThreadPoolExecutor(
-      1,
-      1,
-      0L,
+      INPUT_THREADS,
+      INPUT_THREADS,
+      NO_KEEP_ALIVE_MILLISECONDS,
       TimeUnit.MILLISECONDS,
       new ArrayBlockingQueue<>(MAXIMUM_QUEUED_INPUT),
       HelperSession::createInputThread
@@ -183,7 +200,7 @@ final class HelperSession implements BrowserSession {
     final BrowserOptions options,
     final Listener listener
   ) {
-    final Path temporaryFolder = Path.of(System.getProperty("java.io.tmpdir"));
+    final Path temporaryFolder = Path.of(requireNonNull(System.getProperty(TEMPORARY_DIRECTORY_PROPERTY))); // checker framework
     return open(launcher, natives, source, options, listener, temporaryFolder);
   }
 
@@ -274,7 +291,7 @@ final class HelperSession implements BrowserSession {
     final boolean allowsPrivateNetworks = options.isPrivateNetworks();
     final boolean allowsAutoplay = options.isAutoplay();
     final boolean confined = options.isConfined();
-    final Path serverFolder = Path.of(System.getProperty("user.dir")).toAbsolutePath();
+    final Path serverFolder = Path.of(requireNonNull(System.getProperty(WORKING_FOLDER_PROPERTY))).toAbsolutePath(); // checker framework
     final List<String> refusedHosts = options.getRefusedHosts();
     return new HelperConfiguration(
       token,
@@ -299,7 +316,7 @@ final class HelperSession implements BrowserSession {
     final OutputStream processInput = process.getOutputStream();
     final Writer standardInput = new OutputStreamWriter(processInput, StandardCharsets.UTF_8);
     standardInput.write(configuration.toLine());
-    standardInput.write('\n');
+    standardInput.write(LINE_FEED);
     standardInput.flush();
 
     return standardInput;
@@ -385,7 +402,7 @@ final class HelperSession implements BrowserSession {
     final ServerSocketChannel server = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
     try {
       final UnixDomainSocketAddress address = UnixDomainSocketAddress.of(socket);
-      server.bind(address, 1);
+      server.bind(address, CONNECTION_BACKLOG);
       server.configureBlocking(false);
       return server;
     } catch (final IOException exception) {
@@ -456,11 +473,11 @@ final class HelperSession implements BrowserSession {
 
   private void startThreads(final byte[] token) {
     final InputStream processOutput = this.process.getInputStream();
-    this.drain = this.startDaemon("mcav-browser-helper-log", () -> this.drainOutput(processOutput));
+    this.drain = this.startDaemon(LOG_THREAD_NAME, () -> this.drainOutput(processOutput));
     final InputStream rawInput = Channels.newInputStream(this.channel);
     final DataInputStream input = new DataInputStream(new BufferedInputStream(rawInput, INPUT_BUFFER_BYTES));
-    this.reader = this.startDaemon("mcav-browser-reader", () -> this.read(input, token));
-    this.delivery = this.startDaemon("mcav-browser-frames", this::deliverFrames);
+    this.reader = this.startDaemon(READER_THREAD_NAME, () -> this.read(input, token));
+    this.delivery = this.startDaemon(FRAMES_THREAD_NAME, this::deliverFrames);
   }
 
   private Thread startDaemon(final String name, final Runnable task) {
@@ -473,7 +490,7 @@ final class HelperSession implements BrowserSession {
 
   @VisibleForTesting
   static Thread createInputThread(final Runnable task) {
-    final Thread thread = new Thread(task, "mcav-browser-input");
+    final Thread thread = new Thread(task, INPUT_THREAD_NAME);
     thread.setDaemon(true);
 
     return thread;
@@ -482,7 +499,7 @@ final class HelperSession implements BrowserSession {
   private void awaitStart(final long deadline, final URI uri) {
     final long remaining = TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime());
     try {
-      this.started.get(Math.max(1L, remaining), TimeUnit.MILLISECONDS);
+      this.started.get(Math.max(MINIMUM_START_WAIT_MILLISECONDS, remaining), TimeUnit.MILLISECONDS);
     } catch (final InterruptedException exception) {
       final Thread current = Thread.currentThread();
       current.interrupt();
@@ -632,7 +649,7 @@ final class HelperSession implements BrowserSession {
   }
 
   private void onLoading(final HelperMessage message) {
-    final boolean loading = message.getNumber() == 1;
+    final boolean loading = message.getNumber() == HelperProtocol.LOADING_STARTED;
     if (!loading) {
       this.onStartEvent(StartEvent.LOADED);
     }
@@ -734,10 +751,10 @@ final class HelperSession implements BrowserSession {
   private void rememberCompleteLines(final char[] characters, final int count, final StringBuilder line) {
     for (int index = 0; index < count; index++) {
       final char character = characters[index];
-      if (character == '\n') {
+      if (character == LINE_FEED) {
         this.remember(line.toString());
         line.setLength(0);
-      } else if (character != '\r' && line.length() < OUTPUT_LINE_CHARACTERS) {
+      } else if (character != CARRIAGE_RETURN && line.length() < OUTPUT_LINE_CHARACTERS) {
         line.append(character);
       }
     }

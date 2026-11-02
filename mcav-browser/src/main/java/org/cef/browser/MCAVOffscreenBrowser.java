@@ -52,6 +52,11 @@ import org.cef.handler.CefScreenInfo;
  */
 public final class MCAVOffscreenBrowser extends CefBrowser_N implements CefRenderHandler {
 
+  private static final long NO_WINDOW_HANDLE = 0L;
+
+  private static final boolean WINDOWLESS = true;
+  private static final boolean OPAQUE = false;
+
   private static final Component DETACHED = new DetachedComponent();
 
   private static final String PAINT_LISTENER_MESSAGE = "The frames go to the paint listener of the browser!";
@@ -95,7 +100,7 @@ public final class MCAVOffscreenBrowser extends CefBrowser_N implements CefRende
     final CefClient client = this.getClient();
     final String url = this.getUrl();
     final CefRequestContext context = this.getRequestContext();
-    this.createBrowser(client, 0L, url, true, false, null, context);
+    this.createBrowser(client, NO_WINDOW_HANDLE, url, WINDOWLESS, OPAQUE, null, context);
   }
 
   /**

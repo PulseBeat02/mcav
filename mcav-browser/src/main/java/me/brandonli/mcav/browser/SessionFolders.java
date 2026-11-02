@@ -93,7 +93,8 @@ final class SessionFolders {
       return;
     }
 
-    final String record = this.owner.pid() + RECORD_SEPARATOR + started + RECORD_SEPARATOR;
+    final long processId = this.owner.pid();
+    final String record = "%s%s%s%s".formatted(processId, RECORD_SEPARATOR, started, RECORD_SEPARATOR);
     try {
       Files.writeString(folder.resolve(OWNER_FILE), record, StandardCharsets.US_ASCII);
     } catch (final IOException exception) {

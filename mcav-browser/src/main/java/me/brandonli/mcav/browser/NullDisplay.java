@@ -53,6 +53,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 // loopback only, admits only clients with the cookie of its authority file, and bounds requests, connections and atoms.
 final class NullDisplay implements AutoCloseable {
 
+  private static final String ACCEPT_THREAD_NAME = "mcav-browser-null-display";
+  private static final String CLIENT_THREAD_NAME = "mcav-browser-null-display-client";
+
   static final int X11_BASE_PORT = 6000;
 
   static final String AUTHORITY_FILE = "Xauthority";
@@ -66,6 +69,7 @@ final class NullDisplay implements AutoCloseable {
 
   // so a client without the cookie cannot hold a connection; an introduced one may stay quiet
   private static final int SETUP_TIMEOUT_MILLISECONDS = 10_000;
+  private static final int NO_TIMEOUT = 0;
 
   static final int MAXIMUM_ATOMS = 4_096;
 
@@ -95,20 +99,20 @@ final class NullDisplay implements AutoCloseable {
 
   // core requests with a reply (X Window System Protocol, chapter 9)
   private static final Set<Integer> REPLYING = Set.of(
-    3,
-    14,
-    15,
-    16,
-    17,
-    20,
+    GET_WINDOW_ATTRIBUTES,
+    GET_GEOMETRY,
+    QUERY_TREE,
+    INTERN_ATOM,
+    GET_ATOM_NAME,
+    GET_PROPERTY,
     21,
     23,
     26,
     31,
-    38,
+    QUERY_POINTER,
     39,
     40,
-    43,
+    GET_INPUT_FOCUS,
     44,
     47,
     48,
@@ -124,9 +128,9 @@ final class NullDisplay implements AutoCloseable {
     91,
     92,
     97,
-    98,
-    99,
-    101,
+    QUERY_EXTENSION,
+    LIST_EXTENSIONS,
+    GET_KEYBOARD_MAPPING,
     103,
     106,
     108,
@@ -134,7 +138,7 @@ final class NullDisplay implements AutoCloseable {
     116,
     117,
     118,
-    119
+    GET_MODIFIER_MAPPING
   );
 
   // numbered from 1 (X Window System Protocol, appendix B)
@@ -216,10 +220,13 @@ final class NullDisplay implements AutoCloseable {
   private static final int ROOT = 0x100;
   private static final int COLORMAP = 0x20;
   private static final int VISUAL = 0x21;
+
   private static final int SCREEN_WIDTH = 1920;
   private static final int SCREEN_HEIGHT = 1080;
+
   private static final int MINIMUM_KEY_CODE = 8;
   private static final int MAXIMUM_KEY_CODE = 255;
+
   private static final byte[] VENDOR = "mcav null display".getBytes(StandardCharsets.US_ASCII);
 
   private static final String POSIX_ATTRIBUTE_VIEW = "posix";
@@ -227,13 +234,15 @@ final class NullDisplay implements AutoCloseable {
 
   private static final byte[] LOOPBACK_ADDRESS = { 127, 0, 0, 1 };
   private static final int MAXIMUM_BIND_ATTEMPTS = 64;
-  private static final String DISPLAY_SEPARATOR = ":";
+  private static final int EPHEMERAL_PORT = 0;
 
   private static final int UNSIGNED_BYTE_MASK = 0xFF;
   private static final int UNSIGNED_SHORT_MASK = 0xFFFF;
 
   private static final int UNIT_BYTES = 4;
   private static final int MESSAGE_BYTES = 32;
+
+  private static final int NO_ATOM = 0;
 
   private static final int FIRST_EXTENSION_OPCODE = 128;
 
@@ -254,8 +263,11 @@ final class NullDisplay implements AutoCloseable {
   private static final int RESOURCE_ID_BASE = 0x00400000;
   private static final int RESOURCE_ID_MASK = 0x001FFFFF;
   private static final int SCREEN_COUNT = 1;
+  private static final int NO_MOTION_BUFFER = 0;
+
   private static final int LEAST_SIGNIFICANT_FIRST = 0;
   private static final int MOST_SIGNIFICANT_FIRST = 1;
+
   private static final int SCANLINE_BITS = 32;
 
   // depth and bits per pixel of each pixmap format
@@ -263,6 +275,9 @@ final class NullDisplay implements AutoCloseable {
   private static final int PIXMAP_FORMAT_BYTES = 8;
   private static final int PIXMAP_FORMAT_PADDING_BYTES = 5;
 
+  private static final int NO_INPUT_MASKS = 0;
+  private static final int NEVER_BACKING_STORE = 0;
+  private static final int NO_SAVE_UNDERS = 0;
   private static final int SCREEN_BYTES = 40;
   private static final int DEPTH_BYTES = 8;
   private static final int VISUAL_BYTES = 24;
@@ -279,12 +294,16 @@ final class NullDisplay implements AutoCloseable {
   private static final int TRUE_COLOR = 4;
   private static final int BITS_PER_RGB_VALUE = 8;
   private static final int COLORMAP_ENTRIES = 256;
+
   private static final int RED_MASK = 0xFF0000;
   private static final int GREEN_MASK = 0x00FF00;
   private static final int BLUE_MASK = 0x0000FF;
 
   private static final int REPLY = 1;
   private static final int ERROR = 0;
+
+  private static final int TYPE_OFFSET = 0;
+  private static final int DATA_OFFSET = 1;
   private static final int SEQUENCE_OFFSET = 2;
   private static final int LENGTH_OFFSET = 4;
   private static final int REPLY_BODY_OFFSET = 8;
@@ -334,7 +353,7 @@ final class NullDisplay implements AutoCloseable {
       final byte[] cookie = createCookie();
       writeAuthority(authority, cookie);
       final NullDisplay display = new NullDisplay(server, cookie, setupTimeoutMilliseconds);
-      final Thread thread = new Thread(display::acceptConnections, "mcav-browser-null-display");
+      final Thread thread = new Thread(display::acceptConnections, ACCEPT_THREAD_NAME);
       thread.setDaemon(true);
       thread.start();
       return display;
@@ -362,7 +381,7 @@ final class NullDisplay implements AutoCloseable {
   private static ServerSocket bindFirstUsable(final IntPredicate usable, final InetAddress loopback, final List<ServerSocket> unusable)
     throws IOException {
     while (unusable.size() < MAXIMUM_BIND_ATTEMPTS) {
-      final ServerSocket candidate = new ServerSocket(0, MAXIMUM_CONNECTIONS, loopback);
+      final ServerSocket candidate = new ServerSocket(EPHEMERAL_PORT, MAXIMUM_CONNECTIONS, loopback);
       final int port = candidate.getLocalPort();
       if (usable.test(port)) {
         return candidate;
@@ -446,7 +465,7 @@ final class NullDisplay implements AutoCloseable {
         this.closeQuietly(evicted);
       }
       Thread.ofVirtual()
-        .name("mcav-browser-null-display-client")
+        .name(CLIENT_THREAD_NAME)
         .start(() -> this.serve(client));
     }
   }
@@ -476,7 +495,7 @@ final class NullDisplay implements AutoCloseable {
       this.removeFromPending(client);
       slotAcquired = this.slots.tryAcquire();
       if (slotAcquired) {
-        client.setSoTimeout(0);
+        client.setSoTimeout(NO_TIMEOUT);
         serveRequests(input, output, order, this.atoms);
       }
     } catch (final IOException exception) {
@@ -615,7 +634,7 @@ final class NullDisplay implements AutoCloseable {
     reply.putInt(RELEASE_NUMBER);
     reply.putInt(RESOURCE_ID_BASE);
     reply.putInt(RESOURCE_ID_MASK);
-    reply.putInt(0);
+    reply.putInt(NO_MOTION_BUFFER);
     reply.putShort((short) VENDOR.length);
     reply.putShort((short) MAXIMUM_REQUEST_UNITS);
     reply.put((byte) SCREEN_COUNT);
@@ -641,7 +660,7 @@ final class NullDisplay implements AutoCloseable {
     reply.putInt(COLORMAP);
     reply.putInt(WHITE_PIXEL);
     reply.putInt(BLACK_PIXEL);
-    reply.putInt(0);
+    reply.putInt(NO_INPUT_MASKS);
     reply.putShort((short) SCREEN_WIDTH);
     reply.putShort((short) SCREEN_HEIGHT);
     reply.putShort((short) SCREEN_WIDTH_MILLIMETERS);
@@ -649,8 +668,8 @@ final class NullDisplay implements AutoCloseable {
     reply.putShort((short) INSTALLED_COLORMAPS);
     reply.putShort((short) INSTALLED_COLORMAPS);
     reply.putInt(VISUAL);
-    reply.put((byte) 0);
-    reply.put((byte) 0);
+    reply.put((byte) NEVER_BACKING_STORE);
+    reply.put((byte) NO_SAVE_UNDERS);
     reply.put((byte) ROOT_DEPTH);
     reply.put((byte) DEPTH_COUNT);
     // depth 24 with one TrueColor visual, then depth 32 without visuals
@@ -742,7 +761,7 @@ final class NullDisplay implements AutoCloseable {
     final String text = new String(name, StandardCharsets.ISO_8859_1);
     final boolean onlyIfExists = data != 0;
     final int atom = onlyIfExists ? atoms.find(text) : atoms.intern(text);
-    if (atom == 0 && !onlyIfExists) {
+    if (atom == NO_ATOM && !onlyIfExists) {
       return error(BAD_ALLOC, INTERN_ATOM, sequence, order, 0);
     }
 
@@ -822,8 +841,8 @@ final class NullDisplay implements AutoCloseable {
 
   private static ByteBuffer reply(final int sequence, final ByteOrder order, final int data, final int extra) {
     final ByteBuffer reply = ByteBuffer.allocate(MESSAGE_BYTES + extra).order(order);
-    reply.put(0, (byte) REPLY);
-    reply.put(1, (byte) data);
+    reply.put(TYPE_OFFSET, (byte) REPLY);
+    reply.put(DATA_OFFSET, (byte) data);
     reply.putShort(SEQUENCE_OFFSET, (short) sequence);
     reply.putInt(LENGTH_OFFSET, extra / UNIT_BYTES);
 
@@ -832,8 +851,8 @@ final class NullDisplay implements AutoCloseable {
 
   private static ByteBuffer error(final int code, final int opcode, final int sequence, final ByteOrder order, final int value) {
     final ByteBuffer error = ByteBuffer.allocate(MESSAGE_BYTES).order(order);
-    error.put(0, (byte) ERROR);
-    error.put(1, (byte) code);
+    error.put(TYPE_OFFSET, (byte) ERROR);
+    error.put(DATA_OFFSET, (byte) code);
     error.putShort(SEQUENCE_OFFSET, (short) sequence);
     error.putInt(ERROR_VALUE_OFFSET, value);
     error.put(ERROR_OPCODE_OFFSET, (byte) opcode);
@@ -857,7 +876,9 @@ final class NullDisplay implements AutoCloseable {
   String getDisplay() {
     final InetAddress address = this.server.getInetAddress();
     final String host = address.getHostAddress();
-    return host + DISPLAY_SEPARATOR + (this.server.getLocalPort() - X11_BASE_PORT);
+    final int port = this.server.getLocalPort();
+    final int displayNumber = port - X11_BASE_PORT;
+    return "%s:%s".formatted(host, displayNumber);
   }
 
   static final class Atoms {
@@ -876,7 +897,7 @@ final class NullDisplay implements AutoCloseable {
     }
 
     synchronized int find(final String name) {
-      return this.ids.getOrDefault(name, 0);
+      return this.ids.getOrDefault(name, NO_ATOM);
     }
 
     synchronized int intern(final String name) {
@@ -886,7 +907,7 @@ final class NullDisplay implements AutoCloseable {
       }
 
       if (this.names.size() >= MAXIMUM_ATOMS || this.bytes + name.length() > MAXIMUM_ATOM_BYTES) {
-        return 0;
+        return NO_ATOM;
       }
 
       this.bytes += name.length();

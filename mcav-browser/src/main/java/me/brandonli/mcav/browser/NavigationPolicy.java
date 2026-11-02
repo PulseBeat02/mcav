@@ -26,6 +26,8 @@ final class NavigationPolicy {
 
   static final String BLANK = "about:blank";
 
+  private static final char SCHEME_SEPARATOR = ':';
+
   private static final Set<String> WEB_SCHEMES = Set.of("http", "https");
   private static final Set<String> FRAME_SCHEMES = Set.of("http", "https", "data", "blob");
   private static final Set<String> FRAME_ABOUT_PAGES = Set.of(BLANK, "about:srcdoc");
@@ -62,7 +64,7 @@ final class NavigationPolicy {
   }
 
   private static boolean hasScheme(final String address, final Set<String> schemes) {
-    final int colon = address.indexOf(':');
+    final int colon = address.indexOf(SCHEME_SEPARATOR);
     if (colon <= 0) {
       return false;
     }

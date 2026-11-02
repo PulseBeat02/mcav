@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.browser;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import java.awt.EventQueue;
 import java.io.File;
@@ -49,15 +51,22 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 // JVM has one too). The helper never downloads: it runs the natives the server installed and verified.
 final class CefEngine implements HelperEngine {
 
+  private static final String OS_NAME_PROPERTY = "os.name";
+
+  private static final int NO_REMOTE_DEBUGGING_PORT = 0;
+
+  private static final int NO_GUARD_PORT = 0;
+
   private static final long STOP_TIMEOUT_MILLISECONDS = 10_000L;
   private static final long SCRIPT_TIMEOUT_MILLISECONDS = 5_000L;
 
   // a DevTools client can lose every answer; a replacement can receive them
+  private static final int FIRST_ATTEMPT = 1;
   private static final int PLACING_ATTEMPTS = 2;
 
   private static final String NOT_CONFIRMED = "not confirmed";
 
-  private static final String CHROMIUM_THREAD = "mcav-browser-chromium";
+  private static final String CHROMIUM_THREAD_NAME = "mcav-browser-chromium";
 
   private static final String DISABLE_GPU_SWITCH = "--disable-gpu";
   private static final String DISABLE_GPU_COMPOSITING_SWITCH = "--disable-gpu-compositing";
@@ -195,14 +204,14 @@ final class CefEngine implements HelperEngine {
     settings.root_cache_path = profilePath;
     settings.cache_path = profilePath;
     settings.persist_session_cookies = false;
-    settings.remote_debugging_port = 0;
+    settings.remote_debugging_port = NO_REMOTE_DEBUGGING_PORT;
     settings.log_severity = CefSettings.LogSeverity.LOGSEVERITY_WARNING;
   }
 
   @Override
   public void start(final HelperConfiguration configuration, final MCAVOffscreenBrowser.PaintListener painter, final HelperEvents events)
     throws Exception {
-    final String osName = System.getProperty("os.name");
+    final String osName = requireNonNull(System.getProperty(OS_NAME_PROPERTY)); // checker framework
     final OperatingSystem system = OperatingSystem.fromName(osName);
     final CefAppBuilder builder = new CefAppBuilder();
     final Path natives = configuration.getNatives();
@@ -223,7 +232,7 @@ final class CefEngine implements HelperEngine {
     builder.setAppHandler(new StateListener(this.terminated, events));
     // on Linux the confinement holds for this thread and what it starts (the AWT event thread, CEF, Chromium), leaving the
     // guard, the display and the main thread free; on macOS it holds for the whole helper
-    runOnOwnThread(CHROMIUM_THREAD, () -> this.confineAndStartChromium(builder, configuration, system, painter, events));
+    runOnOwnThread(CHROMIUM_THREAD_NAME, () -> this.confineAndStartChromium(builder, configuration, system, painter, events));
   }
 
   private @Nullable Void confineAndStartChromium(
@@ -301,7 +310,7 @@ final class CefEngine implements HelperEngine {
 
   private int startGuard(final HelperConfiguration configuration, final HelperEvents events) throws IOException {
     if (configuration.isPrivateNetworks()) {
-      return 0;
+      return NO_GUARD_PORT;
     }
 
     final List<String> refusedHosts = configuration.getRefusedHosts();
@@ -339,7 +348,7 @@ final class CefEngine implements HelperEngine {
     final PageAudio audio,
     final Consumer<String> notices
   ) {
-    placeScripts(created, url, timeoutMilliseconds, audio, notices, 1);
+    placeScripts(created, url, timeoutMilliseconds, audio, notices, FIRST_ATTEMPT);
   }
 
   private static void placeScripts(

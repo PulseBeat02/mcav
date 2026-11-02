@@ -76,6 +76,10 @@ import org.mockito.MockedStatic;
 
 class JcefNativesTest {
 
+  private static final int KEEP_TRAILING_EMPTY_PARTS = -1;
+
+  private static final String CLASS_PATH_PROPERTY = "java.class.path";
+
   private static final String REPOSITORY = "https://repository.test/me/friwi/";
 
   private static final String PLATFORM = "linux-amd64";
@@ -171,7 +175,7 @@ class JcefNativesTest {
 
   @Test
   void shouldShareTheLockOfTheInstallationWithEveryCopyOfMcavInTheJvm() throws Exception {
-    final String[] entries = System.getProperty("java.class.path").split(Pattern.quote(File.pathSeparator), -1);
+    final String[] entries = System.getProperty(CLASS_PATH_PROPERTY).split(Pattern.quote(File.pathSeparator), KEEP_TRAILING_EMPTY_PARTS);
     final URL[] urls = new URL[entries.length];
     for (int index = 0; index < entries.length; index++) {
       urls[index] = Path.of(entries[index]).toUri().toURL();
@@ -603,7 +607,7 @@ class JcefNativesTest {
   @Test
   void shouldPinTheNativesOfTheJcefOnTheClassPath() {
     // the natives and the Java side of JCEF must be of one release: bump the catalog and the pins together
-    final String classPath = System.getProperty("java.class.path");
+    final String classPath = System.getProperty(CLASS_PATH_PROPERTY);
     final boolean namesTheJcefApiJar = classPath.contains("jcef-api-" + JcefNatives.RELEASE_TAG + ".jar");
     assertTrue(namesTheJcefApiJar, classPath);
 

@@ -46,6 +46,10 @@ import org.junit.jupiter.api.io.TempDir;
 
 class ChromiumConfinementTest {
 
+  private static final String JAVA_HOME_PROPERTY = "java.home";
+  private static final String USER_HOME_PROPERTY = "user.home";
+  private static final String CLASS_PATH_PROPERTY = "java.class.path";
+
   private static final String SERVER_FOLDER = "server";
   private static final String MISSING_NAME = "missing";
 
@@ -249,7 +253,7 @@ class ChromiumConfinementTest {
     assertEquals(1, profileCount);
 
     final String profile = profiles.getFirst();
-    final String home = Path.of(System.getProperty("user.home")).toRealPath().toString();
+    final String home = Path.of(System.getProperty(USER_HOME_PROPERTY)).toRealPath().toString();
     final String temporary = session.getParent().toRealPath().toString();
     final boolean deniesThenAllowsReading = profile.startsWith(
       "(version 1)\n(allow default)\n(deny file-read-data (subpath " +
@@ -259,7 +263,7 @@ class ChromiumConfinementTest {
         ") (subpath " +
         Seatbelt.quote(temporary) +
         "))\n(allow file-read-data (subpath " +
-        Seatbelt.quote(Path.of(System.getProperty("java.home")).toRealPath().toString()) +
+        Seatbelt.quote(Path.of(System.getProperty(JAVA_HOME_PROPERTY)).toRealPath().toString()) +
         ") (subpath " +
         Seatbelt.quote(this.folder.resolve("natives").toAbsolutePath().normalize().toString()) +
         ")"
@@ -275,7 +279,7 @@ class ChromiumConfinementTest {
     );
     assertTrue(allowsWritingOnlyTheSession, profile);
 
-    for (final Path entry : ChromiumConfinement.realPaths(ChromiumConfinement.pathsOf(System.getProperty("java.class.path")))) {
+    for (final Path entry : ChromiumConfinement.realPaths(ChromiumConfinement.pathsOf(System.getProperty(CLASS_PATH_PROPERTY)))) {
       final boolean allowsReadingEntry = profile.contains("(subpath " + Seatbelt.quote(entry.toString()) + ")");
       assertTrue(allowsReadingEntry, () -> entry + " may be read");
     }
@@ -432,10 +436,10 @@ class ChromiumConfinementTest {
     final Path outside = this.folder.resolve("outside.txt");
     // Seatbelt holds for a whole process and cannot be lifted, so a JVM of its own confines itself
     final Process probe = new ProcessBuilder(
-      Path.of(System.getProperty("java.home"), "bin", "java").toString(),
+      Path.of(System.getProperty(JAVA_HOME_PROPERTY), "bin", "java").toString(),
       "--enable-native-access=ALL-UNNAMED",
       "-cp",
-      System.getProperty("java.class.path"),
+      System.getProperty(CLASS_PATH_PROPERTY),
       SeatbeltProbeMain.class.getName(),
       server.toString(),
       configuration.getSocket().toString(),

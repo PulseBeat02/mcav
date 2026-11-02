@@ -58,6 +58,8 @@ import org.junit.jupiter.api.io.TempDir;
 
 class HelperLauncherTest {
 
+  private static final String JAVA_HOME_PROPERTY = "java.home";
+
   private static final Path JAVA = Path.of("/opt/java/bin/java");
   private static final List<Path> CLASS_PATH = List.of(Path.of("/libs/mcav-browser.jar"), Path.of("/libs/jcef-api.jar"));
 
@@ -241,7 +243,7 @@ class HelperLauncherTest {
   void shouldUseThisJavaAndTheClassPathOfTheModuleByDefault() {
     final HelperLauncher launcher = HelperLauncher.createDefault(1_000L, List.of());
     final List<String> command = launcher.createCommand(OTHER_SESSION_FOLDER);
-    final boolean runsThisJava = command.getFirst().startsWith(System.getProperty("java.home"));
+    final boolean runsThisJava = command.getFirst().startsWith(System.getProperty(JAVA_HOME_PROPERTY));
     assertTrue(runsThisJava, command.getFirst());
 
     final String classPath = command.get(command.indexOf("-cp") + 1);

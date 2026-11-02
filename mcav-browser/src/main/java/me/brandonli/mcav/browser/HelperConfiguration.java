@@ -29,6 +29,8 @@ import org.checkerframework.checker.initialization.qual.UnderInitialization;
 // Handed to the helper as one line on its standard input, so none of it shows up in the process list.
 final class HelperConfiguration {
 
+  private static final int KEEP_TRAILING_EMPTY_PARTS = -1;
+
   // MCAV's limit: CEF sets none above its minimum of 1
   static final int MAXIMUM_FRAME_RATE = 60;
   private static final int MAXIMUM_FRAME_INTERVAL = 1000;
@@ -155,7 +157,7 @@ final class HelperConfiguration {
 
   static HelperConfiguration fromLine(final String line) {
     requireThat(line.length() <= MAXIMUM_LINE_CHARACTERS, "The configuration line is too long!");
-    final String[] parts = line.split(SEPARATOR, -1);
+    final String[] parts = line.split(SEPARATOR, KEEP_TRAILING_EMPTY_PARTS);
     requireThat(parts.length == FIELDS, "The configuration has %s values instead of %s values!".formatted(parts.length, FIELDS));
     final Base64.Decoder decoder = Base64.getDecoder();
     final String[] values = new String[parts.length];
@@ -181,7 +183,7 @@ final class HelperConfiguration {
     final Path serverFolder = Path.of(values[SERVER_FOLDER_FIELD]);
     final List<String> refusedHosts = values[REFUSED_HOSTS_FIELD].isEmpty()
       ? List.of()
-      : List.of(values[REFUSED_HOSTS_FIELD].split(HOST_SEPARATOR, -1));
+      : List.of(values[REFUSED_HOSTS_FIELD].split(HOST_SEPARATOR, KEEP_TRAILING_EMPTY_PARTS));
     return new HelperConfiguration(
       token,
       socket,
@@ -202,7 +204,7 @@ final class HelperConfiguration {
   }
 
   static boolean isHost(final String host) {
-    return !host.isEmpty() && host.chars().noneMatch(character -> character == ',' || Character.isWhitespace(character));
+    return !host.isEmpty() && !host.contains(HOST_SEPARATOR) && host.chars().noneMatch(Character::isWhitespace);
   }
 
   private static boolean parseBoolean(final String value) {

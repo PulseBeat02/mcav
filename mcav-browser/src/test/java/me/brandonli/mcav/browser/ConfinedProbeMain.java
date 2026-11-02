@@ -24,6 +24,8 @@ import java.util.List;
 // Restricts its main thread as a confined helper does, then runs cat to show that a later process is restricted too.
 final class ConfinedProbeMain {
 
+  private static final String STATUS_FILE = "/proc/self/status";
+
   private static final Path ROOT = Path.of("/");
 
   private ConfinedProbeMain() {
@@ -35,9 +37,10 @@ final class ConfinedProbeMain {
     final Path hidden = Path.of(arguments[0]);
     final List<Landlock.Rule> rules = ChromiumConfinement.rules(ROOT, List.of(hidden), List.of(), List.of());
     Landlock.restrictThread(Landlock.version(), rules);
-    final Process cat = new ProcessBuilder("cat", arguments[1], "/proc/self/status").redirectErrorStream(true).start();
+    final Process cat = new ProcessBuilder("cat", arguments[1], STATUS_FILE).redirectErrorStream(true).start();
     final String output = new String(cat.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
     System.out.println(output);
-    System.out.println("cat exited " + cat.waitFor());
+    final int exitCode = cat.waitFor();
+    System.out.println("cat exited %s".formatted(exitCode));
   }
 }

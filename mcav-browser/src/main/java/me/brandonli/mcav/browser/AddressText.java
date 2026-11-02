@@ -23,6 +23,11 @@ final class AddressText {
 
   static final String HIDDEN = "<hidden>";
 
+  private static final char SCHEME_END = ':';
+  private static final char USER_INFO_END = '@';
+
+  private static final String SCHEME_SYMBOLS = "+.-";
+
   private static final String AUTHORITY_START = "://";
   private static final String AUTHORITY_ENDS = "/?#";
   private static final String PATH_ENDS = "?#";
@@ -33,7 +38,7 @@ final class AddressText {
   }
 
   static String describe(final String address) {
-    final int colon = address.indexOf(':');
+    final int colon = address.indexOf(SCHEME_END);
     if (colon <= 0 || !isScheme(address, colon)) {
       return HIDDEN;
     }
@@ -44,12 +49,12 @@ final class AddressText {
 
     final int authorityStart = colon + AUTHORITY_START.length();
     final int authorityEnd = indexOfAny(address, authorityStart, AUTHORITY_ENDS);
-    final int user = address.lastIndexOf('@', authorityEnd - 1);
+    final int user = address.lastIndexOf(USER_INFO_END, authorityEnd - 1);
     final StringBuilder text = new StringBuilder(address.length() + HIDDEN.length());
     text.append(address, 0, authorityStart);
 
     if (user >= authorityStart) {
-      text.append(HIDDEN).append('@');
+      text.append(HIDDEN).append(USER_INFO_END);
     }
 
     final int hostStart = Math.max(authorityStart, user + 1);
@@ -72,7 +77,7 @@ final class AddressText {
     for (int index = 1; index < colon; index++) {
       final char character = address.charAt(index);
       final boolean isDigit = character >= '0' && character <= '9';
-      if (!isLetter(character) && !isDigit && character != '+' && character != '.' && character != '-') {
+      if (!isLetter(character) && !isDigit && SCHEME_SYMBOLS.indexOf(character) < 0) {
         return false;
       }
     }

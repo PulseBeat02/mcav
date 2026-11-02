@@ -52,6 +52,13 @@ public interface BrowserSource extends UriSource {
   int DEFAULT_HEIGHT = 720;
 
   /**
+   * The frame interval used by {@link #uri(URI)}: every painted frame is streamed.
+   *
+   * @since 1.0.0
+   */
+  int DEFAULT_FRAME_INTERVAL = 1;
+
+  /**
    * The largest width or height of a page.
    *
    * @since 1.0.0
@@ -133,7 +140,7 @@ public interface BrowserSource extends UriSource {
    * @since 1.0.0
    */
   static BrowserSource uri(final URI uri) {
-    return uri(uri, DEFAULT_WIDTH, DEFAULT_HEIGHT, 1);
+    return uri(uri, DEFAULT_WIDTH, DEFAULT_HEIGHT, DEFAULT_FRAME_INTERVAL);
   }
 
   /**

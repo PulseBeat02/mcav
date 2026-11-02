@@ -78,7 +78,15 @@ final class HelperMessage {
   }
 
   static HelperMessage loading(final boolean loading) {
-    return new HelperMessage(HelperProtocol.LOADING, NO_BYTES, loading ? 1 : 0, "", "", null, null);
+    return new HelperMessage(
+      HelperProtocol.LOADING,
+      NO_BYTES,
+      loading ? HelperProtocol.LOADING_STARTED : HelperProtocol.LOADING_FINISHED,
+      "",
+      "",
+      null,
+      null
+    );
   }
 
   static HelperMessage loadError(final int code, final String text, final String url) {

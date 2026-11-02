@@ -49,6 +49,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 // never reaches the pipeline.
 final class CefBrowserPlayer implements BrowserPlayer {
 
+  private static final int NO_SCROLL = 0;
+
+  private static final int UNSTARTED_PAGE_SIDE = 1;
+
+  private static final String INPUT_QUEUE_FULL_MESSAGE = "Browser input queue is full.";
+
   // the first start after a download can be slow, for example while a virus scanner checks the new files
   private static final long START_TIMEOUT_MILLISECONDS = 180_000L;
 
@@ -62,6 +68,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
 
   private static final Equivalence<Object> SESSION_IDENTITY = Equivalence.identity();
 
+  private static final int NO_CLICK = 0;
   private static final int SINGLE_CLICK = 1;
   private static final int DOUBLE_CLICK = 2;
 
@@ -227,7 +234,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
 
   @Override
   public void moveMouse(final int pageX, final int pageY) {
-    this.sendMouse(HelperProtocol.MOUSE_MOVE, pageX, pageY, HelperProtocol.BUTTON_LEFT, 0);
+    this.sendMouse(HelperProtocol.MOUSE_MOVE, pageX, pageY, HelperProtocol.BUTTON_LEFT, NO_CLICK);
   }
 
   @Override
@@ -269,7 +276,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
       position[0],
       position[1],
       HelperProtocol.BUTTON_LEFT,
-      0,
+      NO_CLICK,
       clampedX,
       clampedY
     );
@@ -286,7 +293,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
     }
 
     final int[] position = this.clamp(pageX, pageY);
-    final MouseInput input = new MouseInput(action, position[0], position[1], button, clickCount, 0, 0);
+    final MouseInput input = new MouseInput(action, position[0], position[1], button, clickCount, NO_SCROLL, NO_SCROLL);
     final boolean queued = current.sendMouse(input);
     if (!queued) {
       this.reportDropped();
@@ -311,7 +318,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
 
   private void reportDropped() {
     this.dropReports.log(
-      () -> this.report("Browser input queue is full.", new RejectedExecutionException("The browser input backlog is full!")),
+      () -> this.report(INPUT_QUEUE_FULL_MESSAGE, new RejectedExecutionException("The browser input backlog is full!")),
       this::reportDroppedInputs
     );
   }
@@ -319,7 +326,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
   private void reportDroppedInputs(final long dropped) {
     final String message = "The browser dropped %s more inputs!".formatted(dropped);
     final RejectedExecutionException exception = new RejectedExecutionException(message);
-    this.report("Browser input queue is full.", exception);
+    this.report(INPUT_QUEUE_FULL_MESSAGE, exception);
   }
 
   private @Nullable BrowserSession getInputSession() {
@@ -330,8 +337,8 @@ final class CefBrowserPlayer implements BrowserPlayer {
   @VisibleForTesting
   int[] clamp(final int pageX, final int pageY) {
     final BrowserSource current = this.source;
-    final int width = current == null ? 1 : current.getWidth();
-    final int height = current == null ? 1 : current.getHeight();
+    final int width = current == null ? UNSTARTED_PAGE_SIDE : current.getWidth();
+    final int height = current == null ? UNSTARTED_PAGE_SIDE : current.getHeight();
     final int clampedX = Math.clamp(pageX, 0, width - 1);
     final int clampedY = Math.clamp(pageY, 0, height - 1);
     return new int[] { clampedX, clampedY };

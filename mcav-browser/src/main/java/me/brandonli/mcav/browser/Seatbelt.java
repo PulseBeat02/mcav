@@ -41,6 +41,10 @@ final class Seatbelt {
   private static final Integer SUCCESS = 0;
   private static final long PROFILE_TEXT = 0L;
 
+  private static final char RULE_START = '(';
+  private static final String SUBPATH_START = " (subpath ";
+  private static final char SUBPATH_END = ')';
+  private static final String RULE_END = ")\n";
   private static final String PROFILE_START = "(version 1)\n(allow default)\n";
   private static final String DENY_READING = "deny file-read-data";
   private static final String ALLOW_READING = "allow file-read-data";
@@ -127,17 +131,19 @@ final class Seatbelt {
       return;
     }
 
-    profile.append('(').append(action);
+    profile.append(RULE_START).append(action);
     for (final Path path : paths) {
-      profile.append(" (subpath ").append(quote(path.toString())).append(')');
+      profile.append(SUBPATH_START).append(quote(path.toString())).append(SUBPATH_END);
     }
 
-    profile.append(")\n");
+    profile.append(RULE_END);
   }
 
   @VisibleForTesting
   static String quote(final String text) {
-    return '"' + text.replace("\\", "\\\\").replace("\"", "\\\"") + '"';
+    final String backslashesEscaped = text.replace("\\", "\\\\");
+    final String escaped = backslashesEscaped.replace("\"", "\\\"");
+    return "\"%s\"".formatted(escaped);
   }
 
   boolean isAvailable() {

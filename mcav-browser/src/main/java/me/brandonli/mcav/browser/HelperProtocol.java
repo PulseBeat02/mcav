@@ -35,6 +35,12 @@ import java.util.function.IntFunction;
 // Chromium sandbox, so every length is checked against the limit of its type before anything is allocated.
 final class HelperProtocol {
 
+  static final int LOADING_STARTED = 1;
+  static final int LOADING_FINISHED = 0;
+
+  private static final char LINE_FEED = '\n';
+  private static final char CARRIAGE_RETURN = '\r';
+
   static final int VERSION = 1;
 
   static final int TOKEN_BYTES = 32;
@@ -65,9 +71,9 @@ final class HelperProtocol {
   static final int NOTICE = 6;
   // The helper cannot go on and exits: string text.
   static final int FAILURE = 7;
-
   // Sound of the page: pcm, 16-bit little-endian stereo samples at 48 kHz, whole frames.
   static final int AUDIO = 8;
+
   // Mouse input: u8 action, u16 x, u16 y, u8 button, u8 clickCount, i16 deltaX, i16 deltaY.
   static final int MOUSE = 16;
   // Keyboard input: u8 action, string value.
@@ -101,6 +107,12 @@ final class HelperProtocol {
   private static final int UTF8_TWO_BYTE_START = 0x80;
   private static final int UTF8_THREE_BYTE_START = 0x800;
   private static final int UTF8_FOUR_BYTE_START = 0x10000;
+
+  private static final int UTF8_ONE_BYTE_LENGTH = 1;
+  private static final int UTF8_TWO_BYTE_LENGTH = 2;
+  private static final int UTF8_THREE_BYTE_LENGTH = 3;
+  private static final int UTF8_FOUR_BYTE_LENGTH = 4;
+
   private static final int UTF8_CONTINUATION_MASK = 0xC0;
   private static final int UTF8_CONTINUATION_BITS = 0x80;
 
@@ -131,7 +143,7 @@ final class HelperProtocol {
   static void writeLoading(final DataOutput output, final boolean loading) throws IOException {
     output.writeByte(LOADING);
     output.writeInt(LOADING_BYTES);
-    output.writeByte(loading ? 1 : 0);
+    output.writeByte(loading ? LOADING_STARTED : LOADING_FINISHED);
   }
 
   static void writeLoadError(final DataOutput output, final int code, final String text, final String url) throws IOException {
@@ -243,12 +255,12 @@ final class HelperProtocol {
   private static HelperMessage readLoading(final DataInput input, final int length) throws IOException {
     expectLength(LOADING, length, LOADING_BYTES);
     final int value = input.readUnsignedByte();
-    if (value > 1) {
+    if (value > LOADING_STARTED) {
       final String message = "Loading state %s must be 0 or 1!".formatted(value);
       throw new ProtocolException(message);
     }
 
-    return HelperMessage.loading(value == 1);
+    return HelperMessage.loading(value == LOADING_STARTED);
   }
 
   private static HelperMessage readLoadError(final DataInput input, final int length) throws IOException {
@@ -416,7 +428,7 @@ final class HelperProtocol {
       final int codePoint = text.codePointAt(index);
       final int size = utf8Length(codePoint);
       if (bytes + size > MAXIMUM_TEXT_BYTES) {
-        final boolean isLineBreak = codePoint == '\n' && text.charAt(index - 1) == '\r';
+        final boolean isLineBreak = codePoint == LINE_FEED && text.charAt(index - 1) == CARRIAGE_RETURN;
         final int end = isLineBreak ? index - 1 : index;
         parts.add(text.substring(start, end));
         start = end;
@@ -434,14 +446,14 @@ final class HelperProtocol {
   // an unpaired surrogate counts three, although Java encodes it as one byte
   private static int utf8Length(final int codePoint) {
     if (codePoint < UTF8_TWO_BYTE_START) {
-      return 1;
+      return UTF8_ONE_BYTE_LENGTH;
     }
 
     if (codePoint < UTF8_THREE_BYTE_START) {
-      return 2;
+      return UTF8_TWO_BYTE_LENGTH;
     }
 
-    return codePoint < UTF8_FOUR_BYTE_START ? 3 : 4;
+    return codePoint < UTF8_FOUR_BYTE_START ? UTF8_THREE_BYTE_LENGTH : UTF8_FOUR_BYTE_LENGTH;
   }
 
   static byte[] encodeTruncated(final String text) {

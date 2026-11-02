@@ -135,6 +135,7 @@ final class LinuxLibraries {
 
   private static final Pattern FIELD_SEPARATOR = Pattern.compile(" +");
   private static final String HOST_KEYWORD = "host";
+  private static final int HOST_PLATFORM_FIELD = 1;
   private static final int HOST_FIRST_SONAME_FIELD = 2;
 
   private static final int PIN_PLATFORM_FIELD = 0;
@@ -213,7 +214,7 @@ final class LinuxLibraries {
     }
 
     hostLibraries.put(
-      requireMatch(PLATFORM, fields.get(1), line),
+      requireMatch(PLATFORM, fields.get(HOST_PLATFORM_FIELD), line),
       this.requireSonames(fields.subList(HOST_FIRST_SONAME_FIELD, fields.size()), line)
     );
   }

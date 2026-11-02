@@ -46,7 +46,7 @@ class PageAudioTest {
   private static final String EMPTY_OBJECT = "{}";
 
   private String call(final String name, final String payload, final String context) {
-    return "{\"name\":\"" + name + "\",\"payload\":\"" + payload + "\",\"executionContextId\":" + context + "}";
+    return "{\"name\":\"%s\",\"payload\":\"%s\",\"executionContextId\":%s}".formatted(name, payload, context);
   }
 
   private String call(final byte[] samples) {
@@ -440,7 +440,8 @@ class PageAudioTest {
     assertEquals(DevToolsInput.ADD_SCRIPT_METHOD, scriptMethod);
 
     final String scriptParameters = calls.get(2).getParameters();
-    assertEquals("{\"source\":" + DevToolsInput.quote(PageAudio.SCRIPT) + "}", scriptParameters);
+    final String quotedScript = DevToolsInput.quote(PageAudio.SCRIPT);
+    assertEquals("{\"source\":%s}".formatted(quotedScript), scriptParameters);
   }
 
   @Test
@@ -453,7 +454,7 @@ class PageAudioTest {
     final boolean deletesTheBinding = script.contains("delete globalThis[BINDING]");
     assertTrue(deletesTheBinding, "the page cannot send through it once it is taken");
 
-    final boolean setsTheRate = script.contains("const RATE = 48000;");
+    final boolean setsTheRate = script.contains("const SAMPLE_RATE = 48000;");
     assertTrue(setsTheRate, "the sound has the rate of mcav's audio pipeline");
 
     final boolean guardsAgainstPlacingTwice = script.contains("if (Object.prototype.hasOwnProperty.call(globalThis, PLACED)) {");

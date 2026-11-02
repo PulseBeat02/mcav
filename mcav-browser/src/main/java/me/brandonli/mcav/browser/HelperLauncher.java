@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.browser;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import java.io.File;
 import java.io.IOException;
@@ -42,6 +44,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 final class HelperLauncher {
 
   static final String MAIN_CLASS = "me.brandonli.mcav.browser.BrowserHelper";
+
+  private static final String JAVA_HOME_PROPERTY = "java.home";
 
   private static final String BIN_FOLDER = "bin";
   private static final String WINDOWS_JAVA_EXECUTABLE = "java.exe";
@@ -105,7 +109,7 @@ final class HelperLauncher {
   }
 
   static HelperLauncher createDefault(final long startTimeoutMilliseconds, final List<String> extraJvmOptions) {
-    final String javaHome = System.getProperty("java.home");
+    final String javaHome = requireNonNull(System.getProperty(JAVA_HOME_PROPERTY)); // checker framework
     final Os os = OsUtils.getOs();
     final Path java = Path.of(javaHome, BIN_FOLDER, javaExecutable(os));
     final Set<Path> entries = new LinkedHashSet<>();
