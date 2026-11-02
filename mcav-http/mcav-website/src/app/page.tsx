@@ -614,7 +614,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
     const [statusText, setStatusText] = useState<string>(DISCONNECTED_STATUS);
     const [statusConnected, setStatusConnected] = useState<boolean>(false);
     const updateStatus = useCallback(
-        (text: string, connected: boolean = false): void => {
+        (text: string, connected: boolean): void => {
             setStatusText(text);
             setStatusConnected(connected);
         },
@@ -776,7 +776,8 @@ const AudioStreamPlayer = (): React.JSX.Element => {
         reconnectAttemptsRef.current++;
 
         if (reconnectAttemptsRef.current > MAXIMUM_RECONNECT_ATTEMPTS) {
-            updateStatus("Maximum reconnection attempts reached");
+            const connected: boolean = false;
+            updateStatus("Maximum reconnection attempts reached", connected);
             shouldReconnectRef.current = false;
             setIsConnected(false);
             return;
@@ -846,7 +847,8 @@ const AudioStreamPlayer = (): React.JSX.Element => {
 
         setIsConnected(false);
         setIsLoading(false);
-        updateStatus(DISCONNECTED_STATUS);
+        const connected: boolean = false;
+        updateStatus(DISCONNECTED_STATUS, connected);
         clearVisualizer();
         hideVisualizer();
     }, [
@@ -869,7 +871,8 @@ const AudioStreamPlayer = (): React.JSX.Element => {
             return;
         }
 
-        updateStatus("Connected", true);
+        const connected: boolean = true;
+        updateStatus("Connected", connected);
         streamingRef.current = false;
         setIsConnected(true);
         shouldReconnectRef.current = true;
@@ -890,7 +893,8 @@ const AudioStreamPlayer = (): React.JSX.Element => {
 
         if (!streamingRef.current) {
             streamingRef.current = true;
-            updateStatus("Streaming audio", true);
+            const connected: boolean = true;
+            updateStatus("Streaming audio", connected);
         }
 
         processor.feed(data);
@@ -917,13 +921,14 @@ const AudioStreamPlayer = (): React.JSX.Element => {
         console.error("The audio connection failed.", event);
         setIsLoading(false);
 
+        const connected: boolean = false;
         if (shouldReconnectRef.current) {
-            updateStatus("Connection error - reconnecting...");
+            updateStatus("Connection error - reconnecting...", connected);
             scheduleReconnectOrGiveUp();
             return;
         }
 
-        updateStatus("Connection error");
+        updateStatus("Connection error", connected);
         stopStream();
     }, [scheduleReconnectOrGiveUp, stopStream, updateStatus]);
 
@@ -936,13 +941,14 @@ const AudioStreamPlayer = (): React.JSX.Element => {
         stopHeartbeat();
         setIsLoading(false);
 
+        const connected: boolean = false;
         if (shouldReconnectRef.current) {
-            updateStatus("Disconnected - reconnecting...");
+            updateStatus("Disconnected - reconnecting...", connected);
             scheduleReconnectOrGiveUp();
             return;
         }
 
-        updateStatus(DISCONNECTED_STATUS);
+        updateStatus(DISCONNECTED_STATUS, connected);
         stopStream();
     }, [scheduleReconnectOrGiveUp, stopHeartbeat, stopStream, updateStatus]);
 
@@ -963,7 +969,8 @@ const AudioStreamPlayer = (): React.JSX.Element => {
         connectTimeoutRef.current = undefined;
         try {
             setIsLoading(true);
-            updateStatus("Connecting...");
+            const connected: boolean = false;
+            updateStatus("Connecting...", connected);
             pcmProcessorRef.current = new PcmProcessor({
                 encoding: STREAM_ENCODING,
                 channels: STREAM_CHANNELS,
@@ -975,7 +982,8 @@ const AudioStreamPlayer = (): React.JSX.Element => {
             openSocket();
         } catch (exception: unknown) {
             console.error("Could not start the stream.", exception);
-            updateStatus(`Error: ${(exception as Error).message}`);
+            const connected: boolean = false;
+            updateStatus(`Error: ${(exception as Error).message}`, connected);
             setIsLoading(false);
 
             if (shouldReconnectRef.current) {
@@ -997,7 +1005,8 @@ const AudioStreamPlayer = (): React.JSX.Element => {
     }, [connectWebSocket]);
 
     const connectAfterResume = useCallback((): void => {
-        updateStatus("Audio permission granted!");
+        const connected: boolean = false;
+        updateStatus("Audio permission granted!", connected);
 
         if (audioContextRef.current?.state === "running") {
             connectWebSocket();
@@ -1011,7 +1020,8 @@ const AudioStreamPlayer = (): React.JSX.Element => {
     const reportPermissionFailure = useCallback((error: unknown): void => {
         shouldReconnectRef.current = false;
         setIsLoading(false);
-        updateStatus(`Failed to get audio permission: ${error}`);
+        const connected: boolean = false;
+        updateStatus(`Failed to get audio permission: ${error}`, connected);
     }, [updateStatus]);
 
     const startPlayback = useCallback((): void => {
@@ -1031,7 +1041,8 @@ const AudioStreamPlayer = (): React.JSX.Element => {
 
         const audioContext: AudioContext = createAudioContext();
         audioContextRef.current = audioContext;
-        updateStatus(`Audio permission: ${audioContext.state}`);
+        const connected: boolean = false;
+        updateStatus(`Audio permission: ${audioContext.state}`, connected);
 
         if (audioContext.state === "running") {
             connectWebSocket();
