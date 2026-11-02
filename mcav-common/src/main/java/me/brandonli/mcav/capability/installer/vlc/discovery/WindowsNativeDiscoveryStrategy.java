@@ -63,7 +63,7 @@ public class WindowsNativeDiscoveryStrategy extends DirectoryProviderDiscoverySt
    * @since 1.0.0
    */
   public WindowsNativeDiscoveryStrategy() {
-    final EnvironmentSetter windowsSetter = nativeSetter();
+    final EnvironmentSetter windowsSetter = createNativeSetter();
     super(FILENAME_PATTERNS, PLUGIN_DIRECTORIES, windowsSetter);
     this.operatingSystem = OsUtils.getOs();
   }
@@ -77,8 +77,8 @@ public class WindowsNativeDiscoveryStrategy extends DirectoryProviderDiscoverySt
     this.operatingSystem = operatingSystem;
   }
 
-  static EnvironmentSetter nativeSetter() {
-    final EnvironmentVariables variables = EnvironmentVariables.nativeVariables();
+  static EnvironmentSetter createNativeSetter() {
+    final EnvironmentVariables variables = EnvironmentVariables.create();
     return variables::setWindowsVariable;
   }
 

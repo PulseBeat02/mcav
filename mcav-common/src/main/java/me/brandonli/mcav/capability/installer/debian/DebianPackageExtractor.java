@@ -453,8 +453,8 @@ public final class DebianPackageExtractor {
     final String name = this.takeName(header);
     final String linkName = this.takeLinkName(header);
     final Path target = this.resolve(name);
-    final boolean extracted = this.isInExtractedTree(target);
-    if (!extracted) {
+    final boolean inExtractedTree = this.isInExtractedTree(target);
+    if (!inExtractedTree) {
       return;
     }
 

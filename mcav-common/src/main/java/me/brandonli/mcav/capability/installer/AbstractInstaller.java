@@ -272,8 +272,7 @@ public abstract class AbstractInstaller implements Installer {
   }
 
   /**
-   * Looks for an earlier installation without downloading anything. A found installation becomes the result of
-   * {@link #getPath()}.
+   * Looks for an earlier installation without downloading anything.
    *
    * @return the path of the existing installation, or empty if the program has not been installed
    * @throws InstallationException if the configuration file cannot be read
@@ -281,13 +280,7 @@ public abstract class AbstractInstaller implements Installer {
    */
   @Override
   public Optional<Path> findInstallation() {
-    final Optional<Path> existing = this.findExistingInstallation();
-    final @Nullable Path existingPath = existing.orElse(null);
-    if (existingPath != null) {
-      this.installedPath = existingPath;
-    }
-
-    return existing;
+    return this.findExistingInstallation();
   }
 
   /**

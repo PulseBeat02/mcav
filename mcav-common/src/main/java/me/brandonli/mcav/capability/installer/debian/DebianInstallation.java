@@ -194,8 +194,8 @@ final class DebianInstallation {
   }
 
   private List<Path> listDirectory(final Path directory) throws IOException {
-    final boolean exists = Files.isDirectory(directory, LinkOption.NOFOLLOW_LINKS);
-    if (!exists) {
+    final boolean realDirectory = Files.isDirectory(directory, LinkOption.NOFOLLOW_LINKS);
+    if (!realDirectory) {
       return List.of();
     }
 

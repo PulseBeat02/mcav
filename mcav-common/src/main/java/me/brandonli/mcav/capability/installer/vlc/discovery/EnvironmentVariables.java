@@ -49,7 +49,7 @@ final class EnvironmentVariables {
 
   // Creates a setter that calls the C library of this process, msvcrt on Windows and libc everywhere else. The library
   // is only loaded when the first variable is set.
-  static EnvironmentVariables nativeVariables() {
+  static EnvironmentVariables create() {
     return new EnvironmentVariables(EnvironmentVariables::loadNativeLibrary);
   }
 

@@ -75,7 +75,7 @@ public class OsxNativeDiscoveryStrategy extends DirectoryProviderDiscoveryStrate
    * @since 1.0.0
    */
   public OsxNativeDiscoveryStrategy() {
-    final EnvironmentSetter posixSetter = LinuxNativeDiscoveryStrategy.nativeSetter();
+    final EnvironmentSetter posixSetter = LinuxNativeDiscoveryStrategy.createNativeSetter();
     super(FILENAME_PATTERNS, PLUGIN_DIRECTORIES, posixSetter);
     this.corePreloader = OsxNativeDiscoveryStrategy::preloadCoreLibrary;
     this.operatingSystem = OsUtils.getOs();

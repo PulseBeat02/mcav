@@ -64,7 +64,7 @@ final class YtdlpReleaseProcessTest {
   }
 
   @Test
-  void shouldTimeOutAndReapAChildThatKeepsStdoutOpen() throws Exception {
+  void shouldTimeOutAndReapAChildThatKeepsStandardOutputOpen() throws Exception {
     final Process process = startChild(WAIT_MODE);
     try {
       assertTimeoutPreemptively(Duration.ofSeconds(10), () -> this.assertTheDeadlineReapsTheChild(process));

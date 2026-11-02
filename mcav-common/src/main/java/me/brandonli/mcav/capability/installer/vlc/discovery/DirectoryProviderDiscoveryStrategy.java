@@ -155,8 +155,8 @@ public abstract class DirectoryProviderDiscoveryStrategy implements NativeDiscov
     addSearchProvider(providers, windowsInstall, DIRECT_DEPTH);
     final DiscoveryDirectoryProvider systemPath = new SystemPathDirectoryProvider();
     addSearchProvider(providers, systemPath, DIRECT_DEPTH);
-    final DiscoveryDirectoryProvider appDirectory = new AppDirDirectoryProvider();
-    addSearchProvider(providers, appDirectory, DIRECT_DEPTH);
+    final DiscoveryDirectoryProvider applicationDirectory = new AppDirDirectoryProvider();
+    addSearchProvider(providers, applicationDirectory, DIRECT_DEPTH);
     final DiscoveryDirectoryProvider userDirectory = new UserDirConfigFileDiscoveryDirectoryProvider();
     addSearchProvider(providers, userDirectory, DIRECT_DEPTH);
     return List.copyOf(providers);
@@ -198,7 +198,7 @@ public abstract class DirectoryProviderDiscoveryStrategy implements NativeDiscov
    *         modifying it does not change the strategy
    * @since 1.0.0
    */
-  public final List<String> discoveryDirectories() {
+  public final List<String> getDiscoveryDirectories() {
     final List<SearchProvider> providers = this.getSupportedProviders();
     final List<String> directories = new ArrayList<>();
     for (final SearchProvider provider : providers) {

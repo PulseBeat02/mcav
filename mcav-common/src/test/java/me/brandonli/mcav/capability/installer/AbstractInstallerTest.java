@@ -677,13 +677,11 @@ final class AbstractInstallerTest {
     installer.writePathToConfiguration(elsewhere);
 
     final Optional<Path> after = installer.findInstallation();
-    final Path path = installer.getPath();
     final Path expected = elsewhere.toAbsolutePath();
     final Optional<Path> expectedInstallation = Optional.of(expected);
     final boolean nothingBefore = before.isEmpty();
     assertTrue(nothingBefore);
     assertEquals(expectedInstallation, after);
-    assertEquals(expected, path, "a found installation becomes the installation path");
   }
 
   private Download[] refuseToResolveDownloads() {

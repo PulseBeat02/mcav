@@ -45,7 +45,7 @@ public final class OsxInstallationStrategy extends ManualInstallationStrategy {
 
   private static final Pattern LIBRARY = Pattern.compile("libvlc\\.dylib");
   private static final Pattern CORE_LIBRARY = Pattern.compile("libvlccore\\.dylib");
-  private static final String VLC_APP = "VLC.app";
+  private static final String VLC_BUNDLE = "VLC.app";
   private static final String MOUNT_DIRECTORY = "vlc-mount";
 
   private static final String DISK_IMAGE_TOOL = "hdiutil";
@@ -130,9 +130,9 @@ public final class OsxInstallationStrategy extends ManualInstallationStrategy {
     final String rawInstallDirectory = installDirectory.toString();
     this.runProcess(null, DISK_IMAGE_TOOL, "attach", "-nobrowse", "-readonly", "-mountpoint", rawMountPoint, rawArchive);
     try {
-      final Path mountedApp = mountPoint.resolve(VLC_APP);
-      final String rawMountedApp = mountedApp.toString();
-      this.runProcess(null, "cp", "-R", rawMountedApp, rawInstallDirectory);
+      final Path mountedBundle = mountPoint.resolve(VLC_BUNDLE);
+      final String rawMountedBundle = mountedBundle.toString();
+      this.runProcess(null, "cp", "-R", rawMountedBundle, rawInstallDirectory);
     } catch (final InstallationException exception) {
       this.detachAfterFailure(mountPoint, exception);
       throw exception;

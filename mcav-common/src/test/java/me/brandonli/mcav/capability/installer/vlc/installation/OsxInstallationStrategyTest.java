@@ -282,9 +282,9 @@ final class OsxInstallationStrategyTest {
   }
 
   private static List<String> expectedCommands(final Path mountPoint, final Path archive, final Path installDirectory) {
-    final Path mountedApp = mountPoint.resolve(APPLICATION_NAME);
+    final Path mountedBundle = mountPoint.resolve(APPLICATION_NAME);
     final String attach = "hdiutil attach -nobrowse -readonly -mountpoint " + mountPoint + " " + archive;
-    final String copy = "cp -R " + mountedApp + " " + installDirectory;
+    final String copy = "cp -R " + mountedBundle + " " + installDirectory;
     final String detach = "hdiutil detach " + mountPoint;
     return List.of(attach, copy, detach);
   }

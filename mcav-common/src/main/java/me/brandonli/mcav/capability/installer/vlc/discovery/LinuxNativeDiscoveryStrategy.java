@@ -63,7 +63,7 @@ public class LinuxNativeDiscoveryStrategy extends DirectoryProviderDiscoveryStra
    * @since 1.0.0
    */
   public LinuxNativeDiscoveryStrategy() {
-    final EnvironmentSetter posixSetter = nativeSetter();
+    final EnvironmentSetter posixSetter = createNativeSetter();
     super(FILENAME_PATTERNS, PLUGIN_DIRECTORIES, posixSetter);
     this.operatingSystem = OsUtils.getOs();
   }
@@ -77,8 +77,8 @@ public class LinuxNativeDiscoveryStrategy extends DirectoryProviderDiscoveryStra
     this.operatingSystem = operatingSystem;
   }
 
-  static EnvironmentSetter nativeSetter() {
-    final EnvironmentVariables variables = EnvironmentVariables.nativeVariables();
+  static EnvironmentSetter createNativeSetter() {
+    final EnvironmentVariables variables = EnvironmentVariables.create();
     return variables::setPosixVariable;
   }
 
