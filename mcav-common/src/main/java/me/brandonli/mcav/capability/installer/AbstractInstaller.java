@@ -133,13 +133,15 @@ public abstract class AbstractInstaller implements Installer {
   }
 
   /**
-   * Constructs a new installer that installs into the cache folder of the library.
+   * Constructs a new installer that installs into the cache folder of the library (see
+   * {@link #getDefaultExecutableFolderPath()}).
    *
    * @param name      the non-null, nonblank program name, used as the file name and configuration key
    * @param downloads the non-null array of non-null downloads, retained without copying; do not mutate it
    * @throws IllegalArgumentException if {@code name} is blank
    * @throws NullPointerException     if {@code name} or {@code downloads} is null
-   * @throws FileOperationException   if the default cache folder cannot be created
+   * @throws FileOperationException   if neither the cache folder nor its fallback in the temporary directory can be
+   *                                 created
    * @since 1.0.0
    */
   protected AbstractInstaller(final String name, final Download[] downloads) {
@@ -149,11 +151,13 @@ public abstract class AbstractInstaller implements Installer {
 
   /**
    * Returns the folder programs are installed into by default, which is the cache folder of the library,
-   * {@code ~/.mcav/cache}. The folder is looked up and created on every call rather than when the class is loaded,
-   * so merely loading an installer class never touches the home directory.
+   * {@code ~/.mcav/cache}, or {@code mcav/cache} in the temporary directory of the JVM when that folder cannot be
+   * written or cannot run programs (see {@link IoUtils#getCachedFolder()}). The folder is looked up and created on
+   * every call rather than when the class is loaded, so merely loading an installer class never touches the home
+   * directory.
    *
    * @return the default installation folder
-   * @throws FileOperationException if the folder cannot be created
+   * @throws FileOperationException if neither folder can be created
    * @since 1.0.0
    */
   public static Path getDefaultExecutableFolderPath() {
