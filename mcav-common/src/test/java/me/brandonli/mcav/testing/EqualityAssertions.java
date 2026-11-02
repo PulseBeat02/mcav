@@ -71,6 +71,7 @@ public final class EqualityAssertions {
     final Map<Object, String> values = new HashMap<>();
     values.put(value, "original");
     values.put(differentValue, "different");
+
     final int size = values.size();
     final String original = values.get(equalValue);
     final String different = values.get(differentValue);
