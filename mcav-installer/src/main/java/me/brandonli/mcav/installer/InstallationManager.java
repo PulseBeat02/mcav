@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.installer;
 
+import static java.util.Objects.requireNonNull;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -26,7 +28,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
@@ -126,7 +127,7 @@ final class InstallationManager implements AutoCloseable {
 
   private static Path defaultLocalRepository() {
     final @Nullable String userHome = System.getProperty(USER_HOME_PROPERTY);
-    final String home = Objects.requireNonNull(userHome); // checker framework
+    final String home = requireNonNull(userHome); // checker framework
     return Path.of(home, MAVEN_FOLDER, LOCAL_REPOSITORY_FOLDER);
   }
 
@@ -260,7 +261,7 @@ final class InstallationManager implements AutoCloseable {
 
   private Artifact artifactOf(final ArtifactResult artifactResult) {
     final Artifact resolved = artifactResult.getArtifact();
-    return Objects.requireNonNull(resolved, "Resolved artifacts must be present!");
+    return requireNonNull(resolved, "Resolved artifacts must be present!");
   }
 
   private List<Path> copyAll(final List<Artifact> artifacts, final Path target) throws IOException {
@@ -305,7 +306,7 @@ final class InstallationManager implements AutoCloseable {
 
   private Path copy(final Artifact artifact, final Path target) throws IOException {
     final Path resolved = artifact.getPath();
-    final Path source = Objects.requireNonNull(resolved, "Resolved artifacts must have a file!");
+    final Path source = requireNonNull(resolved, "Resolved artifacts must have a file!");
     final String groupId = artifact.getGroupId();
     final String artifactId = artifact.getArtifactId();
     final String fileName = IoUtils.getFileName(source);
@@ -318,7 +319,7 @@ final class InstallationManager implements AutoCloseable {
     }
 
     final Path parent = destination.getParent();
-    final Path directory = Objects.requireNonNull(parent, "Destinations must have a parent folder!");
+    final Path directory = requireNonNull(parent, "Destinations must have a parent folder!");
     Files.createDirectories(directory);
 
     final Path partial = destination.resolveSibling(fileName + PART_SUFFIX);
