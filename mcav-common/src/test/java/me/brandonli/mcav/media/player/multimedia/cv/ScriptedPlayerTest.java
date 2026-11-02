@@ -732,8 +732,8 @@ final class ScriptedPlayerTest {
       final Throwable failure = this.nextOpenFailure;
       this.nextOpenFailure = null;
 
-      if (failure instanceof final RuntimeException exception) {
-        throw exception;
+      if (failure instanceof final RuntimeException runtimeException) {
+        throw runtimeException;
       }
 
       if (failure instanceof final Error error) {

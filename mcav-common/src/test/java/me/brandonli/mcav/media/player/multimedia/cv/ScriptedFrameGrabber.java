@@ -153,8 +153,8 @@ final class ScriptedFrameGrabber extends FrameGrabber {
     return switch (next) {
       case null -> null;
       case final Frame frame -> frame;
-      case final FrameGrabber.Exception exception -> throw exception;
-      case final RuntimeException exception -> throw exception;
+      case final FrameGrabber.Exception frameGrabberException -> throw frameGrabberException;
+      case final RuntimeException runtimeException -> throw runtimeException;
       default -> {
         final String message = "Script step %s is unknown!".formatted(next);
         throw new IllegalStateException(message);

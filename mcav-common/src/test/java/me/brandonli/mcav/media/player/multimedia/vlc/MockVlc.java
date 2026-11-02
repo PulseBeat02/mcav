@@ -115,8 +115,8 @@ final class MockVlc {
         throw error;
       }
 
-      if (failure instanceof final RuntimeException exception) {
-        throw exception;
+      if (failure instanceof final RuntimeException runtimeException) {
+        throw runtimeException;
       }
     }
 
