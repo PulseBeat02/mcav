@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
+import java.nio.ReadOnlyBufferException;
 import java.nio.ShortBuffer;
 import me.brandonli.mcav.testing.UtilityClassAssertions;
 import org.bytedeco.javacv.Frame;
@@ -149,6 +150,15 @@ final class FramePixelsTest {
       assertThrows(IllegalArgumentException.class, () -> FramePixels.copyBgr(compact, target));
       assertThrows(IllegalArgumentException.class, () -> FramePixels.copyBgr(padded, target));
       assertThrows(IllegalArgumentException.class, () -> FramePixels.copyBgr(compact));
+    }
+  }
+
+  @Test
+  void shouldRejectAReadOnlyTarget() {
+    final ByteBuffer writable = ByteBuffer.allocate(6);
+    final ByteBuffer readOnly = writable.asReadOnlyBuffer();
+    try (final Frame compact = frame(2, 1, 6, new byte[6])) {
+      assertThrows(ReadOnlyBufferException.class, () -> FramePixels.copyBgr(compact, readOnly));
     }
   }
 
