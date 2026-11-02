@@ -26,12 +26,13 @@ import java.nio.charset.StandardCharsets;
 public final class ResourceUtils {
 
   private ResourceUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   public static String readResource(final ClassLoader loader, final String name) throws IOException {
     try (final InputStream stream = loader.getResourceAsStream(name)) {
-      assertNotNull(stream, "missing resource " + name);
+      assertNotNull(stream, "missing resource %s".formatted(name));
 
       final byte[] bytes = stream.readAllBytes();
       return new String(bytes, StandardCharsets.UTF_8);

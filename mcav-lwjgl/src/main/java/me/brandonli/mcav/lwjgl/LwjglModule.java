@@ -20,8 +20,14 @@ package me.brandonli.mcav.lwjgl;
 import me.brandonli.mcav.module.MCAVModule;
 
 /**
- * Registers the OpenGL backend. Install it with {@code MCAV.api().install(LwjglModule.class)}. The OpenGL context
- * itself is created by your application, for example with GLFW or by Minecraft.
+ * Registers the OpenGL backend. Install it before you use the backend:
+ *
+ * {@snippet :
+ * final MCAVApi api = MCAV.api();
+ * api.install(LwjglModule.class);
+ * }
+ *
+ * <p>The OpenGL context itself is created by your application, for example with GLFW or by Minecraft.
  *
  * <p>This class is stateless and thread-safe.
  *
@@ -32,7 +38,7 @@ public final class LwjglModule implements MCAVModule {
   private static final String MODULE_NAME = "lwjgl";
 
   /**
-   * Constructs the module. The module loader creates it for you.
+   * Creates the module. The module loader calls this for you.
    *
    * @since 1.0.0
    */

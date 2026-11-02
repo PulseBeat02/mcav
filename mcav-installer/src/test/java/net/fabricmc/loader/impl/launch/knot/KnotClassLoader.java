@@ -28,6 +28,6 @@ public class KnotClassLoader extends ClassLoader {
 
   @Override
   public String toString() {
-    return "KnotClassLoader[" + this.urlLoader + "]";
+    return "KnotClassLoader[%s]".formatted(this.urlLoader);
   }
 }

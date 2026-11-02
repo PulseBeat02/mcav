@@ -155,22 +155,22 @@ final class InstallationManagerTest {
   }
 
   private void publishApp() throws IOException {
-    final String compileDependency = LocalMavenRepository.dependency(
+    final String compileDependency = LocalMavenRepository.dependencyOf(
       GROUP,
       COMPILE_DEPENDENCY,
       VERSION,
       COMPILE_SCOPE,
       Optionality.REQUIRED
     );
-    final String runtimeDependency = LocalMavenRepository.dependency(
+    final String runtimeDependency = LocalMavenRepository.dependencyOf(
       GROUP,
       RUNTIME_DEPENDENCY,
       VERSION,
       RUNTIME_SCOPE,
       Optionality.REQUIRED
     );
-    final String testDependency = LocalMavenRepository.dependency(GROUP, TEST_DEPENDENCY, VERSION, TEST_SCOPE, Optionality.REQUIRED);
-    final String providedDependency = LocalMavenRepository.dependency(
+    final String testDependency = LocalMavenRepository.dependencyOf(GROUP, TEST_DEPENDENCY, VERSION, TEST_SCOPE, Optionality.REQUIRED);
+    final String providedDependency = LocalMavenRepository.dependencyOf(
       GROUP,
       PROVIDED_DEPENDENCY,
       VERSION,
@@ -182,8 +182,8 @@ final class InstallationManagerTest {
   }
 
   private void publishCompileDependency() throws IOException {
-    final String transitive = LocalMavenRepository.dependency(GROUP, TRANSITIVE, VERSION, COMPILE_SCOPE, Optionality.REQUIRED);
-    final String optionalTransitive = LocalMavenRepository.dependency(
+    final String transitive = LocalMavenRepository.dependencyOf(GROUP, TRANSITIVE, VERSION, COMPILE_SCOPE, Optionality.REQUIRED);
+    final String optionalTransitive = LocalMavenRepository.dependencyOf(
       GROUP,
       OPTIONAL_TRANSITIVE,
       VERSION,
@@ -431,7 +431,7 @@ final class InstallationManagerTest {
     for (final Path jar : jars) {
       final String name = this.relativeName(target, jar);
       final Path source = expectedSources.get(name);
-      assertNotNull(source, "unexpected jar " + name);
+      assertNotNull(source, "unexpected jar %s".formatted(name));
       this.assertSameContent(source, jar, name);
     }
 
@@ -468,10 +468,16 @@ final class InstallationManagerTest {
   }
 
   private List<String> platformDependencies() {
-    final String nativesDependency = LocalMavenRepository.dependency(GROUP, NATIVES, VERSION, COMPILE_SCOPE, Optionality.REQUIRED);
-    final String linuxDependency = LocalMavenRepository.classifiedDependency(GROUP, NATIVES, VERSION, LINUX_CLASSIFIER);
-    final String windowsDependency = LocalMavenRepository.classifiedDependency(GROUP, NATIVES, VERSION, WINDOWS_CLASSIFIER);
-    final String otherGroupDependency = LocalMavenRepository.dependency(OTHER_GROUP, NATIVES, VERSION, COMPILE_SCOPE, Optionality.REQUIRED);
+    final String nativesDependency = LocalMavenRepository.dependencyOf(GROUP, NATIVES, VERSION, COMPILE_SCOPE, Optionality.REQUIRED);
+    final String linuxDependency = LocalMavenRepository.classifiedDependencyOf(GROUP, NATIVES, VERSION, LINUX_CLASSIFIER);
+    final String windowsDependency = LocalMavenRepository.classifiedDependencyOf(GROUP, NATIVES, VERSION, WINDOWS_CLASSIFIER);
+    final String otherGroupDependency = LocalMavenRepository.dependencyOf(
+      OTHER_GROUP,
+      NATIVES,
+      VERSION,
+      COMPILE_SCOPE,
+      Optionality.REQUIRED
+    );
     return List.of(nativesDependency, linuxDependency, windowsDependency, otherGroupDependency);
   }
 

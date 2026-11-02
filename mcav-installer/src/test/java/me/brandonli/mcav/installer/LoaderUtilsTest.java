@@ -213,7 +213,8 @@ final class LoaderUtilsTest {
       assertInstanceOf(MalformedURLException.class, cause);
 
       final URL[] urls = loader.getURLs();
-      assertEquals(0, urls.length);
+      final int urlCount = urls.length;
+      assertEquals(0, urlCount);
     }
   }
 

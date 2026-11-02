@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.installer;
 
+import static java.util.Objects.requireNonNull;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -26,7 +28,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
@@ -59,7 +60,9 @@ import org.slf4j.LoggerFactory;
 final class InstallationManager implements AutoCloseable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(InstallationManager.class);
+
   static final List<RemoteRepository> REPOSITORIES = createDefaultRepositories();
+
   static final List<String> OBSOLETE_FILE_NAMES = List.of("hash.properties", "hashes.properties");
 
   private static final String COMPILE_SCOPE = "compile";
@@ -83,6 +86,7 @@ final class InstallationManager implements AutoCloseable {
   private static final String CODEMC_ID = "codemc-releases";
   private static final String CODEMC_URL = "https://repo.codemc.io/repository/maven-releases/";
   private static final String REPOSITORY_LAYOUT = "default";
+  private static final boolean REPOSITORY_ENABLED = true;
 
   private static final String USER_HOME_PROPERTY = "user.home";
   private static final String MAVEN_FOLDER = ".m2";
@@ -124,7 +128,7 @@ final class InstallationManager implements AutoCloseable {
 
   private static Path defaultLocalRepository() {
     final @Nullable String userHome = System.getProperty(USER_HOME_PROPERTY);
-    final String home = Objects.requireNonNull(userHome); // checker framework
+    final String home = requireNonNull(userHome); // checker framework
     return Path.of(home, MAVEN_FOLDER, LOCAL_REPOSITORY_FOLDER);
   }
 
@@ -177,7 +181,11 @@ final class InstallationManager implements AutoCloseable {
 
   static RemoteRepository createRepository(final String id, final String url) {
     final RemoteRepository.Builder builder = new RemoteRepository.Builder(id, REPOSITORY_LAYOUT, url);
-    final RepositoryPolicy policy = new RepositoryPolicy(true, RepositoryPolicy.UPDATE_POLICY_DAILY, RepositoryPolicy.CHECKSUM_POLICY_FAIL);
+    final RepositoryPolicy policy = new RepositoryPolicy(
+      REPOSITORY_ENABLED,
+      RepositoryPolicy.UPDATE_POLICY_DAILY,
+      RepositoryPolicy.CHECKSUM_POLICY_FAIL
+    );
     builder.setPolicy(policy);
     return builder.build();
   }
@@ -237,7 +245,7 @@ final class InstallationManager implements AutoCloseable {
     final List<ArtifactResult> results = result.getArtifactResults();
     final List<Artifact> artifacts = results.stream().map(this::artifactOf).toList();
     final int count = artifacts.size();
-    LOGGER.debug("Resolved {} artifacts for {}.", count, artifactId);
+    LOGGER.debug("Resolved {} artifacts for {}, copying them.", count, artifactId);
 
     return artifacts;
   }
@@ -258,7 +266,7 @@ final class InstallationManager implements AutoCloseable {
 
   private Artifact artifactOf(final ArtifactResult artifactResult) {
     final Artifact resolved = artifactResult.getArtifact();
-    return Objects.requireNonNull(resolved, "Resolved artifacts must be present!");
+    return requireNonNull(resolved, "Resolved artifacts must be present!");
   }
 
   private List<Path> copyAll(final List<Artifact> artifacts, final Path target) throws IOException {
@@ -296,13 +304,14 @@ final class InstallationManager implements AutoCloseable {
         throw ioException;
       }
 
-      throw new IOException(cause);
+      final String message = "A dependency could not be copied!";
+      throw new IOException(message, cause);
     }
   }
 
   private Path copy(final Artifact artifact, final Path target) throws IOException {
     final Path resolved = artifact.getPath();
-    final Path source = Objects.requireNonNull(resolved, "Resolved artifacts must have a file!");
+    final Path source = requireNonNull(resolved, "Resolved artifacts must have a file!");
     final String groupId = artifact.getGroupId();
     final String artifactId = artifact.getArtifactId();
     final String fileName = IoUtils.getFileName(source);
@@ -315,12 +324,12 @@ final class InstallationManager implements AutoCloseable {
     }
 
     final Path parent = destination.getParent();
-    final Path directory = Objects.requireNonNull(parent, "Destinations must have a parent folder!");
+    final Path directory = requireNonNull(parent, "Destinations must have a parent folder!");
     Files.createDirectories(directory);
 
     final Path partial = destination.resolveSibling(fileName + PART_SUFFIX);
     this.copyAtomically(source, partial, destination);
-    LOGGER.debug("Copied {}.", artifact);
+    LOGGER.debug("Copied {} into the installation folder.", artifact);
 
     return destination;
   }
@@ -381,7 +390,7 @@ final class InstallationManager implements AutoCloseable {
       try {
         Files.deleteIfExists(file);
       } catch (final IOException exception) {
-        LOGGER.warn("Could not delete the obsolete file {}.", file, exception);
+        LOGGER.warn("Obsolete file {} could not be deleted.", file, exception);
       }
     }
   }

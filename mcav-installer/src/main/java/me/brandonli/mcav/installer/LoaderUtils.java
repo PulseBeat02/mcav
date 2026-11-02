@@ -34,7 +34,8 @@ final class LoaderUtils {
   private static final String KNOT_URL_LOADER_FIELD = "urlLoader";
 
   private LoaderUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   static void loadJarPaths(final Collection<Path> jars, final ClassLoader loader) {

@@ -25,7 +25,7 @@ import java.io.Serial;
  *
  * @since 1.0.0
  */
-public class JarInjectorException extends UnsupportedOperationException {
+public final class JarInjectorException extends UnsupportedOperationException {
 
   @Serial
   private static final long serialVersionUID = 861375458420366052L;
