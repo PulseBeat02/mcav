@@ -61,8 +61,8 @@ Click to watch a demo video above.
 
 Core file playback works on headless servers without a display or sound device, and MCAV never runs an administrative
 package installer. JavaCPP publishes no FFmpeg and OpenCV builds for FreeBSD or for Windows on ARM64, and MCAV needs
-them to install, so there `install()` fails with an `MCAVLoadingException` whose cause names the platform, and MCAV
-cannot be used.
+them to install, so there `install()` fails with an `MCAVLoadingException` whose cause names the platform, and you
+cannot use MCAV there.
 
 ---
 
