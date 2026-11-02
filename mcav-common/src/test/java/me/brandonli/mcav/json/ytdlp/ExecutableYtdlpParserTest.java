@@ -35,6 +35,7 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -217,6 +218,21 @@ final class ExecutableYtdlpParserTest {
     final String[] actual = command.get();
     assertArrayEquals(expected, actual);
     assertEquals(Optional.of("plain"), dump.getId());
+  }
+
+  @Test
+  void shouldRunItsOwnYtdlpAndReturnItsOwnMetadataForEveryParse() throws IOException {
+    final CommandTask firstTask = task(0, "{\"id\": \"first\"}", "");
+    final CommandTask secondTask = task(0, "{\"id\": \"second\"}", "");
+    final List<CommandTask> queued = List.of(firstTask, secondTask);
+    final Iterator<CommandTask> tasks = queued.iterator();
+    final ExecutableYtdlpParser parser = new ExecutableYtdlpParser(() -> EXECUTABLE, _ -> tasks.next());
+    final UriSource source = source();
+    final UrlParseDump first = parser.parse(source);
+    final UrlParseDump second = parser.parse(source);
+    assertEquals(Optional.of("first"), first.getId());
+    assertEquals(Optional.of("second"), second.getId());
+    assertFalse(tasks.hasNext());
   }
 
   @Test
