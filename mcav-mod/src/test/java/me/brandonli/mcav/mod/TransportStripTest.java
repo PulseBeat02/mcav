@@ -163,33 +163,7 @@ final class TransportStripTest {
     final float[][] rights = { { 1, 0, 0 }, { 0, 0, 1 }, { -1, 0, 0 }, { 0, 0, -1 } };
     for (final float[] rotation : List.of(IDENTITY, QUARTER_TURN)) {
       for (int facing = 0; facing < 4; facing++) {
-        final StripAnchor anchor = StripAnchor.of(1, 2, 4, 3, facing, 7, 10.1F, 64.3F, -3.7F);
-        final byte[] strip = TransportStrip.build(LAYOUT, WIDTH, List.of(), List.of(anchor), rotation, PROJECTION);
-        final float[] corner = this.times(rotation, 10.1F, 64.3F, -3.7F, 1);
-        final float[] right = this.times(rotation, rights[facing][0], rights[facing][1], rights[facing][2], 0);
-        final float[] down = this.times(rotation, 0, -1, 0, 0);
-        final float[] expected = new float[DESCRIPTOR_FLOATS];
-        for (int axis = 0; axis < AXES; axis++) {
-          expected[axis] = corner[axis] - right[axis] - 2 * down[axis];
-          expected[RIGHT_OFFSET + axis] = right[axis];
-          expected[DOWN_OFFSET + axis] = down[axis];
-        }
-        expected[W_COMPONENT] = 4;
-        expected[RIGHT_OFFSET + W_COMPONENT] = 3;
-        expected[DOWN_OFFSET + W_COMPONENT] = ANCHOR_INDEX_STRIDE + 2;
-        System.arraycopy(PROJECTION, 0, expected, PROJECTION_OFFSET, FLOATS_PER_MATRIX);
-        final float[] descriptor = this.descriptor(strip, DESCRIPTORS);
-        assertArrayEquals(expected, descriptor, "facing " + facing);
-        this.assertPixel(strip, DESCRIPTORS, 0x4D, 0x43, 0x56, OPAQUE);
-        this.assertPixel(strip, DESCRIPTORS + 1, 0xA1, 0, 0, OPAQUE);
-        for (int pixel = 58; pixel < TransportStrip.DESCRIPTOR_PIXELS; pixel++) {
-          this.assertPixel(strip, DESCRIPTORS + pixel, 0, 0, 0, OPAQUE);
-        }
-        this.assertPixel(strip, DESCRIPTORS + TransportStrip.DESCRIPTOR_PIXELS, 0, 0, 0, 0);
-        final byte[] rest = Arrays.copyOfRange(strip, (DESCRIPTORS + WIDTH) * CHANNELS, strip.length);
-        final byte[] leadingPixels = Arrays.copyOf(strip, DESCRIPTORS * CHANNELS);
-        assertArrayEquals(new byte[rest.length], rest, "screen 1 has no anchor");
-        assertArrayEquals(new byte[DESCRIPTORS * CHANNELS], leadingPixels, "no page");
+        this.assertDescriptorRow(rotation, facing, rights[facing]);
       }
     }
   }
@@ -217,6 +191,36 @@ final class TransportStripTest {
   @Test
   void shouldNotBeInstantiated() {
     UtilityClassAssertions.assertNotInstantiable(TransportStrip.class);
+  }
+
+  private void assertDescriptorRow(final float[] rotation, final int facing, final float[] rightDirection) {
+    final StripAnchor anchor = StripAnchor.of(1, 2, 4, 3, facing, 7, 10.1F, 64.3F, -3.7F);
+    final byte[] strip = TransportStrip.build(LAYOUT, WIDTH, List.of(), List.of(anchor), rotation, PROJECTION);
+    final float[] corner = this.times(rotation, 10.1F, 64.3F, -3.7F, 1);
+    final float[] right = this.times(rotation, rightDirection[0], rightDirection[1], rightDirection[2], 0);
+    final float[] down = this.times(rotation, 0, -1, 0, 0);
+    final float[] expected = new float[DESCRIPTOR_FLOATS];
+    for (int axis = 0; axis < AXES; axis++) {
+      expected[axis] = corner[axis] - right[axis] - 2 * down[axis];
+      expected[RIGHT_OFFSET + axis] = right[axis];
+      expected[DOWN_OFFSET + axis] = down[axis];
+    }
+    expected[W_COMPONENT] = 4;
+    expected[RIGHT_OFFSET + W_COMPONENT] = 3;
+    expected[DOWN_OFFSET + W_COMPONENT] = ANCHOR_INDEX_STRIDE + 2;
+    System.arraycopy(PROJECTION, 0, expected, PROJECTION_OFFSET, FLOATS_PER_MATRIX);
+    final float[] descriptor = this.descriptor(strip, DESCRIPTORS);
+    assertArrayEquals(expected, descriptor, "facing " + facing);
+    this.assertPixel(strip, DESCRIPTORS, 0x4D, 0x43, 0x56, OPAQUE);
+    this.assertPixel(strip, DESCRIPTORS + 1, 0xA1, 0, 0, OPAQUE);
+    for (int pixel = 58; pixel < TransportStrip.DESCRIPTOR_PIXELS; pixel++) {
+      this.assertPixel(strip, DESCRIPTORS + pixel, 0, 0, 0, OPAQUE);
+    }
+    this.assertPixel(strip, DESCRIPTORS + TransportStrip.DESCRIPTOR_PIXELS, 0, 0, 0, 0);
+    final byte[] rest = Arrays.copyOfRange(strip, (DESCRIPTORS + WIDTH) * CHANNELS, strip.length);
+    final byte[] leadingPixels = Arrays.copyOf(strip, DESCRIPTORS * CHANNELS);
+    assertArrayEquals(new byte[rest.length], rest, "screen 1 has no anchor");
+    assertArrayEquals(new byte[DESCRIPTORS * CHANNELS], leadingPixels, "no page");
   }
 
   private float[] times(final float[] matrix, final float vectorX, final float vectorY, final float vectorZ, final float vectorW) {

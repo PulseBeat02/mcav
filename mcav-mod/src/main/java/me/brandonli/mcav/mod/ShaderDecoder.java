@@ -145,33 +145,37 @@ final class ShaderDecoder {
   void rendered(final GraphicsResourceAllocator allocator, final CameraRenderState camera) {
     this.hooks |= RENDERED;
     try {
-      final float @Nullable [] projection = this.frame.getProjection();
-      if (!this.testedIris || projection == null || this.frame.isEmpty() || !this.shaderPackInUse.getAsBoolean()) {
-        return;
-      }
-      this.refreshStaleLayout();
-
-      final @Nullable PackLayout layout = this.layout;
-      if (layout == null) {
-        return;
-      }
-      final int width = this.output.getWidth();
-      if (width < TransportStrip.DESCRIPTOR_PIXELS) {
-        return;
-      }
-      final int height = this.output.getHeight();
-      final int stripRows = layout.getStripRows(width);
-      if (stripRows >= height) {
-        return;
-      }
-      final float[] viewRotation = this.matrices.readViewRotation(camera);
-      final List<byte[]> pages = this.frame.getPages();
-      final List<StripAnchor> anchors = this.frame.getAnchors();
-      final byte[] strip = TransportStrip.build(layout, width, pages, anchors, viewRotation, projection);
-      this.output.decode(strip, stripRows, allocator);
+      this.decodeFrame(allocator, camera);
     } finally {
       this.frame.finish();
     }
+  }
+
+  private void decodeFrame(final GraphicsResourceAllocator allocator, final CameraRenderState camera) {
+    final float @Nullable [] projection = this.frame.getProjection();
+    if (!this.testedIris || projection == null || this.frame.isEmpty() || !this.shaderPackInUse.getAsBoolean()) {
+      return;
+    }
+    this.refreshStaleLayout();
+
+    final @Nullable PackLayout layout = this.layout;
+    if (layout == null) {
+      return;
+    }
+    final int width = this.output.getWidth();
+    if (width < TransportStrip.DESCRIPTOR_PIXELS) {
+      return;
+    }
+    final int height = this.output.getHeight();
+    final int stripRows = layout.getStripRows(width);
+    if (stripRows >= height) {
+      return;
+    }
+    final float[] viewRotation = this.matrices.readViewRotation(camera);
+    final List<byte[]> pages = this.frame.getPages();
+    final List<StripAnchor> anchors = this.frame.getAnchors();
+    final byte[] strip = TransportStrip.build(layout, width, pages, anchors, viewRotation, projection);
+    this.output.decode(strip, stripRows, allocator);
   }
 
   private void refreshStaleLayout() {

@@ -161,8 +161,15 @@ final class TransportStrip {
         final int symbol = symbolOrZero(page, pixel * SYMBOLS_PER_PIXEL + index);
         word |= symbol << (Mcv2Maps.SYMBOL_BITS * index);
       }
-      writePixel(strip, firstPixel + pixel, word & BYTE_MASK, (word >> SECOND_BYTE_SHIFT) & BYTE_MASK, word >> THIRD_BYTE_SHIFT);
+      writeLowBytes(strip, firstPixel + pixel, word);
     }
+  }
+
+  private static void writeLowBytes(final byte[] strip, final int pixel, final int value) {
+    final int red = value & BYTE_MASK;
+    final int green = (value >> SECOND_BYTE_SHIFT) & BYTE_MASK;
+    final int blue = (value >> THIRD_BYTE_SHIFT) & BYTE_MASK;
+    writePixel(strip, pixel, red, green, blue);
   }
 
   private static void writeDescriptor(
@@ -220,7 +227,7 @@ final class TransportStrip {
 
     final int bits = Float.floatToRawIntBits(floats[index]);
     if (pixel % PIXELS_PER_FLOAT == 0) {
-      writePixel(strip, start + pixel, bits & BYTE_MASK, (bits >> SECOND_BYTE_SHIFT) & BYTE_MASK, (bits >> THIRD_BYTE_SHIFT) & BYTE_MASK);
+      writeLowBytes(strip, start + pixel, bits);
       return;
     }
 

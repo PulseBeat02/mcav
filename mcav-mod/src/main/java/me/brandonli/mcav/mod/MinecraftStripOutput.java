@@ -88,17 +88,45 @@ final class MinecraftStripOutput implements StripOutput {
 
     final RenderTarget target = this.main.get();
     final int rowBytes = target.width * TransportStrip.CHANNELS;
-    if (this.pixels.capacity() < rows * rowBytes) {
-      this.pixels = ByteBuffer.allocateDirect(rows * rowBytes).order(ByteOrder.nativeOrder());
+    this.copyStripBottomUp(strip, rows, rowBytes);
+    final CommandEncoder commands = this.encoder.get();
+    this.uploadPixels(commands, target, rows);
+    this.runOutlineChain(outline, target, commands, allocator);
+    return true;
+  }
+
+  private void copyStripBottomUp(final byte[] strip, final int rows, final int rowBytes) {
+    final int stripBytes = rows * rowBytes;
+    if (this.pixels.capacity() < stripBytes) {
+      this.pixels = ByteBuffer.allocateDirect(stripBytes).order(ByteOrder.nativeOrder());
     }
+
     this.pixels.clear();
     // texture rows count from the bottom of the screen, the strip's from the top
     for (int row = rows - 1; row >= 0; row--) {
       this.pixels.put(strip, row * rowBytes, rowBytes);
     }
+
     this.pixels.flip();
-    final CommandEncoder commands = this.encoder.get();
-    commands.writeToTexture(color(target), this.pixels, BASE_MIP_LEVEL, FIRST_LAYER, LEFT_COLUMN, target.height - rows, target.width, rows);
+  }
+
+  private void uploadPixels(final CommandEncoder commands, final RenderTarget target, final int rows) {
+    final GpuTexture texture = this.getColorTexture(target);
+    final int firstRow = target.height - rows;
+    commands.writeToTexture(texture, this.pixels, BASE_MIP_LEVEL, FIRST_LAYER, LEFT_COLUMN, firstRow, target.width, rows);
+  }
+
+  // a target has its color texture from creation until it is destroyed
+  private GpuTexture getColorTexture(final RenderTarget target) {
+    return requireNonNull(target.getColorTexture(), "Render target must have a color texture!");
+  }
+
+  private void runOutlineChain(
+    final PostChain outline,
+    final RenderTarget target,
+    final CommandEncoder commands,
+    final GraphicsResourceAllocator allocator
+  ) {
     final TextureTarget empty = this.resetEmptyOutline(target, commands);
     final FrameGraphBuilder frame = new FrameGraphBuilder();
     final LevelTargetBundle targets = new LevelTargetBundle();
@@ -106,7 +134,6 @@ final class MinecraftStripOutput implements StripOutput {
     targets.entityOutline = frame.importExternal(LevelTargetBundle.ENTITY_OUTLINE_TARGET_ID.toString(), empty);
     outline.addToFrame(frame, target.width, target.height, targets);
     frame.execute(allocator);
-    return true;
   }
 
   // copied over again each frame, since the chain wrote into the last frame's
@@ -149,14 +176,10 @@ final class MinecraftStripOutput implements StripOutput {
     final TextureTarget transparent = new TextureTarget(TRANSPARENT, target.width, target.height, GpuFormat.RGBA8_UNORM, NO_DEPTH_FORMAT);
     // a new texture's pixels are undefined; a new direct buffer's bytes are zero
     final ByteBuffer zeros = ByteBuffer.allocateDirect(target.width * target.height * TransportStrip.CHANNELS);
-    commands.writeToTexture(color(transparent), zeros, BASE_MIP_LEVEL, FIRST_LAYER, LEFT_COLUMN, BOTTOM_ROW, target.width, target.height);
+    final GpuTexture texture = this.getColorTexture(transparent);
+    commands.writeToTexture(texture, zeros, BASE_MIP_LEVEL, FIRST_LAYER, LEFT_COLUMN, BOTTOM_ROW, target.width, target.height);
     final TextureTarget empty = new TextureTarget(EMPTY_OUTLINE, target.width, target.height, GpuFormat.RGBA8_UNORM, NO_DEPTH_FORMAT);
     return new OutlineTargets(empty, transparent);
-  }
-
-  // a target has its color texture from creation until it is destroyed
-  private static GpuTexture color(final RenderTarget target) {
-    return requireNonNull(target.getColorTexture(), "Render target must have a color texture!");
   }
 
   // the chain runs on empty, copied from transparent; both the size of the screen
