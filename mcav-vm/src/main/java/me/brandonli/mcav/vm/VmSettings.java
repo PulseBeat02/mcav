@@ -80,7 +80,7 @@ public final class VmSettings {
   public static VmSettings of(final int port, final int width, final int height, final int targetFrameRate) {
     Preconditions.checkArgument(
       port >= VmProcess.FIRST_VNC_PORT && port <= MAXIMUM_PORT,
-      "VNC port %s must be between 5900 and 65535!",
+      "VNC port %s must be between 5900 and 65535 inclusive!",
       port
     );
     Preconditions.checkArgument(width > 0 && height > 0, "Frame size %sx%s must be positive!", width, height);
