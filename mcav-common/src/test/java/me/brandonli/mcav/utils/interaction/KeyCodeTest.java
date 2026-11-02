@@ -21,8 +21,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 final class KeyCodeTest {
@@ -87,6 +90,19 @@ final class KeyCodeTest {
       final String aliasName = aliasKey.name();
       assertEquals(keyCharacter, aliasCharacter, aliasName);
     }
+  }
+
+  @Test
+  void shouldGiveEveryKeyThatIsNoAliasItsOwnCharacter() {
+    final Set<KeyCode> aliases = ALIASES.keySet();
+    final List<Character> characters = Arrays.stream(KeyCode.values())
+      .filter(key -> !aliases.contains(key))
+      .map(KeyCode::getKeyChar)
+      .toList();
+    final Set<Character> distinctCharacters = Set.copyOf(characters);
+    final int keyCount = characters.size();
+    final int distinctCount = distinctCharacters.size();
+    assertEquals(keyCount, distinctCount);
   }
 
   @Test
