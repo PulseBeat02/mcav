@@ -53,7 +53,7 @@ final class ShaderFrame {
 
   // the corner is relative to the camera
   void posed(final Object texture, final float cornerX, final float cornerY, final float cornerZ) {
-    final byte[] colors = this.anchorColors.get(texture);
+    final byte @Nullable [] colors = this.anchorColors.get(texture);
     if (colors != null) {
       final StripAnchor anchor = StripAnchor.from(colors, cornerX, cornerY, cornerZ);
       this.anchors.add(anchor);

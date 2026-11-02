@@ -81,7 +81,7 @@ final class MinecraftStripOutput implements StripOutput {
 
   @Override
   public boolean decode(final byte[] strip, final int rows, final GraphicsResourceAllocator allocator) {
-    final PostChain outline = this.chain.get();
+    final @Nullable PostChain outline = this.chain.get();
     if (outline == null) {
       return false;
     }
