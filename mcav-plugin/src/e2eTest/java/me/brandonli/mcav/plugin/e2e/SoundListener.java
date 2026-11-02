@@ -66,6 +66,12 @@ final class SoundListener implements WebSocket.Listener, AutoCloseable {
   }
 
   @Override
+  public void close() {
+    this.socket.abort();
+    this.client.close();
+  }
+
+  @Override
   public CompletionStage<?> onBinary(final WebSocket webSocket, final ByteBuffer data, final boolean last) {
     final byte[] bytes = new byte[data.remaining()];
     data.get(bytes);
@@ -123,11 +129,5 @@ final class SoundListener implements WebSocket.Listener, AutoCloseable {
     synchronized (this.pcm) {
       return this.pcm.toByteArray();
     }
-  }
-
-  @Override
-  public void close() {
-    this.socket.abort();
-    this.client.close();
   }
 }

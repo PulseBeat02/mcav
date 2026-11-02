@@ -88,19 +88,6 @@ final class MCAVLoaderTest {
   @TempDir
   private Path cache;
 
-  private static String sha256(final byte[] bytes) throws NoSuchAlgorithmException {
-    final MessageDigest digest = MessageDigest.getInstance("SHA-256");
-    final byte[] hash = digest.digest(bytes);
-    final HexFormat format = HexFormat.of();
-    return format.formatHex(hash);
-  }
-
-  private static DependencySet dependencies(final List<Dependency> dependencies) {
-    final List<String> repositories = List.of();
-    final Map<String, ?> extensionData = Map.of();
-    return new DependencySet(repositories, dependencies, DependencySet.defaultExtensions(), extensionData);
-  }
-
   @Test
   void shouldCacheTheLibrariesInTheServerLibraryFolder() {
     final MCAVLoader loader = new MCAVLoader();
@@ -149,6 +136,19 @@ final class MCAVLoaderTest {
     final LibraryStore store = mock(LibraryStore.class);
     library.register(store);
     verify(store).addLibrary(jar);
+  }
+
+  private static String sha256(final byte[] bytes) throws NoSuchAlgorithmException {
+    final MessageDigest digest = MessageDigest.getInstance("SHA-256");
+    final byte[] hash = digest.digest(bytes);
+    final HexFormat format = HexFormat.of();
+    return format.formatHex(hash);
+  }
+
+  private static DependencySet dependencies(final List<Dependency> dependencies) {
+    final List<String> repositories = List.of();
+    final Map<String, ?> extensionData = Map.of();
+    return new DependencySet(repositories, dependencies, DependencySet.defaultExtensions(), extensionData);
   }
 
   @Test
@@ -202,18 +202,6 @@ final class MCAVLoaderTest {
     verify(builder, never()).addLibrary(any());
   }
 
-  /** A jar holding class files of the given internal names, with no content. */
-  private Path jarOf(final String name, final String... classes) throws IOException {
-    final Path jar = this.cache.resolve(name);
-    try (final OutputStream file = Files.newOutputStream(jar); final JarOutputStream entries = new JarOutputStream(file)) {
-      for (final String internalName : classes) {
-        entries.putNextEntry(new ZipEntry(internalName + ".class"));
-        entries.closeEntry();
-      }
-    }
-    return jar;
-  }
-
   @Test
   void shouldRefuseModulesOlderThanThePlugin() throws IOException {
     final Path old = this.jarOf(OLD_BUKKIT_JAR_FILE_NAME, "me/brandonli/mcav/bukkit/BukkitModule");
@@ -224,6 +212,18 @@ final class MCAVLoaderTest {
     final String expected =
       "The mcav modules the server downloaded are older than this plugin, which uses classes they lack (1), such as me.brandonli.mcav.bukkit.media.mcv2.Mcv2Result. Publish the modules of the plugin's own version, or set -Pmcav.e2e=true when you build the plugin!";
     assertEquals(expected, message);
+  }
+
+  /** A jar holding class files of the given internal names, with no content. */
+  private Path jarOf(final String name, final String... classes) throws IOException {
+    final Path jar = this.cache.resolve(name);
+    try (final OutputStream file = Files.newOutputStream(jar); final JarOutputStream entries = new JarOutputStream(file)) {
+      for (final String internalName : classes) {
+        entries.putNextEntry(new ZipEntry(internalName + ".class"));
+        entries.closeEntry();
+      }
+    }
+    return jar;
   }
 
   @Test

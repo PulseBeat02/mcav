@@ -52,19 +52,19 @@ public final class StandardErrorCapture implements AutoCloseable {
   }
 
   /**
+   * Stops recording and restores the previous standard error.
+   */
+  @Override
+  public void close() {
+    System.setErr(this.previous);
+  }
+
+  /**
    * Returns everything written to standard error since the capture started.
    *
    * @return the recorded text
    */
   public String getOutput() {
     return this.recorded.toString(StandardCharsets.UTF_8);
-  }
-
-  /**
-   * Stops recording and restores the previous standard error.
-   */
-  @Override
-  public void close() {
-    System.setErr(this.previous);
   }
 }

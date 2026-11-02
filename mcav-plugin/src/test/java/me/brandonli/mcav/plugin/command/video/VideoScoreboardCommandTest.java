@@ -129,6 +129,17 @@ final class VideoScoreboardCommandTest {
     return selector;
   }
 
+  @Test
+  void shouldPassTheArgumentsOnAndConfigureTheSidebar() {
+    final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
+
+    final Object built = configurationProvider.buildConfiguration(resolution);
+
+    final ScoreboardConfiguration configuration = assertInstanceOf(ScoreboardConfiguration.class, built);
+    this.assertSidebar(configuration);
+  }
+
   private AbstractVideoCommand.VideoConfigurationProvider playAndCaptureProvider() {
     this.command.playVideo(
       this.sender,
@@ -171,25 +182,6 @@ final class VideoScoreboardCommandTest {
     assertEquals(CHARACTER, character);
   }
 
-  private void assertStartedOnTheMainThread(final FunctionalVideoFilter result) {
-    verify(this.manager).startFilter(result);
-    verify(result, never()).start();
-    final int tasks = TestServer.runPendingTasks();
-    assertEquals(1, tasks);
-    verify(result).start();
-  }
-
-  @Test
-  void shouldPassTheArgumentsOnAndConfigureTheSidebar() {
-    final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
-    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
-
-    final Object built = configurationProvider.buildConfiguration(resolution);
-
-    final ScoreboardConfiguration configuration = assertInstanceOf(ScoreboardConfiguration.class, built);
-    this.assertSidebar(configuration);
-  }
-
   @Test
   void shouldShowTheFramesOnASidebarShownOnTheMainThread() {
     final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
@@ -212,6 +204,14 @@ final class VideoScoreboardCommandTest {
     final List<?> constructorArguments = arguments.getFirst();
     final ScoreboardConfiguration configuration = (ScoreboardConfiguration) constructorArguments.getFirst();
     this.assertSidebar(configuration);
+  }
+
+  private void assertStartedOnTheMainThread(final FunctionalVideoFilter result) {
+    verify(this.manager).startFilter(result);
+    verify(result, never()).start();
+    final int tasks = TestServer.runPendingTasks();
+    assertEquals(1, tasks);
+    verify(result).start();
   }
 
   @Test

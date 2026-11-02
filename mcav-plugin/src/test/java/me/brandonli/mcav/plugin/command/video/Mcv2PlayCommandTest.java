@@ -239,28 +239,6 @@ final class Mcv2PlayCommandTest {
     });
   }
 
-  /**
-   * Runs on the main thread, which the test thread is, the next task the command handed over to it from the thread that
-   * reads stream files.
-   */
-  private void runHandedOver() throws InterruptedException {
-    final Runnable handed = this.handedOver.poll(HAND_OVER_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-    assertNotNull(handed, "the command handed nothing over to the main thread");
-    handed.run();
-  }
-
-  private Path archive(final List<byte[]> frames) throws IOException {
-    final ByteArrayOutputStream out = new ByteArrayOutputStream();
-    for (final byte[] frame : frames) {
-      out.write(new byte[] { (byte) frame.length, (byte) (frame.length >> 8), (byte) (frame.length >> 16), (byte) (frame.length >> 24) });
-      out.write(frame);
-    }
-    Files.createDirectories(this.streams);
-    final Path file = Files.createTempFile(this.streams, STREAM_PREFIX, STREAM_SUFFIX);
-    Files.write(file, out.toByteArray());
-    return file;
-  }
-
   @Test
   void shouldPlayAStreamOnTheWallUntilStopped() throws IOException, InterruptedException {
     final Path file = this.archive(Mcv2PlaybackTest.stream());
@@ -299,6 +277,28 @@ final class Mcv2PlayCommandTest {
       verify(this.lease, Mockito.times(2)).close();
       verify(this.packs, never()).shutdown();
     }
+  }
+
+  /**
+   * Runs on the main thread, which the test thread is, the next task the command handed over to it from the thread that
+   * reads stream files.
+   */
+  private void runHandedOver() throws InterruptedException {
+    final Runnable handed = this.handedOver.poll(HAND_OVER_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+    assertNotNull(handed, "the command handed nothing over to the main thread");
+    handed.run();
+  }
+
+  private Path archive(final List<byte[]> frames) throws IOException {
+    final ByteArrayOutputStream out = new ByteArrayOutputStream();
+    for (final byte[] frame : frames) {
+      out.write(new byte[] { (byte) frame.length, (byte) (frame.length >> 8), (byte) (frame.length >> 16), (byte) (frame.length >> 24) });
+      out.write(frame);
+    }
+    Files.createDirectories(this.streams);
+    final Path file = Files.createTempFile(this.streams, STREAM_PREFIX, STREAM_SUFFIX);
+    Files.write(file, out.toByteArray());
+    return file;
   }
 
   @Test
@@ -464,143 +464,6 @@ final class Mcv2PlayCommandTest {
     verify(this.packs, never()).open(any());
   }
 
-  /** A video of solid frames; every frame after the first waits for a latch, as a slow decoder would. */
-  private static final class SolidFrames implements Mcv2FileEncoder.FrameReader {
-
-    private final int count;
-
-    private final CountDownLatch release;
-
-    private int read;
-
-    private volatile boolean closed;
-
-    SolidFrames(final int count, final CountDownLatch release) {
-      this.count = count;
-      this.release = release;
-    }
-
-    @Override
-    public boolean read(final byte[] rgb) {
-      if (this.read > 0) {
-        try {
-          this.release.await();
-        } catch (final InterruptedException exception) {
-          Thread.currentThread().interrupt();
-        }
-      }
-      Arrays.fill(rgb, (byte) (this.read * COLOR_STEP));
-      return this.read++ < this.count;
-    }
-
-    @Override
-    public void close() {
-      this.closed = true;
-    }
-  }
-
-  /** A video that reads one frame, then waits for the encode to be cancelled, and lets go of itself slowly. */
-  private static final class SlowToClose implements Mcv2FileEncoder.FrameReader {
-
-    private final CountDownLatch mayClose;
-
-    private int read;
-
-    SlowToClose(final CountDownLatch mayClose) {
-      this.mayClose = mayClose;
-    }
-
-    @Override
-    public boolean read(final byte[] rgb) {
-      if (this.read++ > 0) {
-        try {
-          // until the cancel interrupts the encode
-          new CountDownLatch(1).await();
-        } catch (final InterruptedException exception) {
-          Thread.currentThread().interrupt();
-        }
-      }
-      return true;
-    }
-
-    @Override
-    public void close() {
-      // the cancel's interrupt is kept for after, so the wait is not cut short by it
-      final boolean interrupted = Thread.interrupted();
-      Uninterruptibles.awaitUninterruptibly(this.mayClose);
-      if (interrupted) {
-        Thread.currentThread().interrupt();
-      }
-    }
-  }
-
-  /**
-   * A video whose reads drop the thread's interrupt, as code that swallows one does: its first read waits until the
-   * encode was cancelled, and it has a few frames, so an encode that misses the cancel ends as done.
-   */
-  private static final class DropsInterrupts implements Mcv2FileEncoder.FrameReader {
-
-    private final CountDownLatch cancelled;
-
-    private int read;
-
-    private volatile boolean dropped;
-
-    DropsInterrupts(final CountDownLatch cancelled) {
-      this.cancelled = cancelled;
-    }
-
-    @Override
-    public boolean read(final byte[] rgb) {
-      if (this.read == 0) {
-        Uninterruptibles.awaitUninterruptibly(this.cancelled);
-      }
-      if (Thread.interrupted()) {
-        this.dropped = true;
-      }
-      Arrays.fill(rgb, (byte) (this.read * COLOR_STEP));
-      return this.read++ < 3;
-    }
-
-    @Override
-    public void close() {}
-  }
-
-  /** A video whose every read waits until the encode's thread is interrupted. */
-  private static final class WaitsForInterrupt implements Mcv2FileEncoder.FrameReader {
-
-    @Override
-    public boolean read(final byte[] rgb) {
-      try {
-        new CountDownLatch(1).await();
-      } catch (final InterruptedException exception) {
-        Thread.currentThread().interrupt();
-      }
-      return true;
-    }
-
-    @Override
-    public void close() {}
-  }
-
-  private static String text(final Component component) {
-    return PlainTextComponentSerializer.plainText().serialize(component);
-  }
-
-  /** Waits for the encode the command started last and returns everything the sender was told. */
-  private List<String> finish() throws InterruptedException {
-    final Thread thread = this.command.getEncoding();
-    if (thread != null) {
-      thread.join(TimeUnit.SECONDS.toMillis(JOIN_TIMEOUT_SECONDS));
-
-      final boolean alive = thread.isAlive();
-      assertFalse(alive);
-    }
-    final ArgumentCaptor<Component> messages = ArgumentCaptor.forClass(Component.class);
-    verify(this.sender, Mockito.atLeast(0)).sendMessage(messages.capture());
-    return messages.getAllValues().stream().map(Mcv2PlayCommandTest::text).toList();
-  }
-
   @Test
   void shouldEncodeAVideoFileAheadOfTimeOnItsOwnThread() throws Exception {
     final Path output = this.streams.resolve(STREAM_FILE_NAME);
@@ -643,6 +506,24 @@ final class Mcv2PlayCommandTest {
 
     final int secondSize = Mcv2PlayCommand.read(this.streams.resolve(NEXT_STREAM_FILE_NAME)).size();
     assertEquals(1, secondSize);
+  }
+
+  private static String text(final Component component) {
+    return PlainTextComponentSerializer.plainText().serialize(component);
+  }
+
+  /** Waits for the encode the command started last and returns everything the sender was told. */
+  private List<String> finish() throws InterruptedException {
+    final Thread thread = this.command.getEncoding();
+    if (thread != null) {
+      thread.join(TimeUnit.SECONDS.toMillis(JOIN_TIMEOUT_SECONDS));
+
+      final boolean alive = thread.isAlive();
+      assertFalse(alive);
+    }
+    final ArgumentCaptor<Component> messages = ArgumentCaptor.forClass(Component.class);
+    verify(this.sender, Mockito.atLeast(0)).sendMessage(messages.capture());
+    return messages.getAllValues().stream().map(Mcv2PlayCommandTest::text).toList();
   }
 
   @Test
@@ -1085,19 +966,6 @@ final class Mcv2PlayCommandTest {
     assertFalse(filesExists);
   }
 
-  /** A record of a stream file: the length, little-endian, then that many bytes. */
-  private static byte[] record(final int length) {
-    final byte[] record = new byte[Integer.BYTES + length];
-    ByteBuffer.wrap(record).order(ByteOrder.LITTLE_ENDIAN).putInt(0, length);
-    return record;
-  }
-
-  private static byte[] concatenate(final byte[] first, final byte[] second) {
-    final byte[] both = Arrays.copyOf(first, first.length + second.length);
-    System.arraycopy(second, 0, both, first.length, second.length);
-    return both;
-  }
-
   @Test
   void shouldReadLengthPrefixedFrames() throws IOException {
     final List<byte[]> stream = Mcv2PlaybackTest.stream();
@@ -1183,5 +1051,137 @@ final class Mcv2PlayCommandTest {
       assertEquals("Truncated frame!", eleventhMessage);
     }
     assertThrows(NullPointerException.class, () -> new Mcv2PlayCommand(null));
+  }
+
+  /** A record of a stream file: the length, little-endian, then that many bytes. */
+  private static byte[] record(final int length) {
+    final byte[] record = new byte[Integer.BYTES + length];
+    ByteBuffer.wrap(record).order(ByteOrder.LITTLE_ENDIAN).putInt(0, length);
+    return record;
+  }
+
+  private static byte[] concatenate(final byte[] first, final byte[] second) {
+    final byte[] both = Arrays.copyOf(first, first.length + second.length);
+    System.arraycopy(second, 0, both, first.length, second.length);
+    return both;
+  }
+
+  /** A video of solid frames; every frame after the first waits for a latch, as a slow decoder would. */
+  private static final class SolidFrames implements Mcv2FileEncoder.FrameReader {
+
+    private final int count;
+
+    private final CountDownLatch release;
+
+    private int read;
+
+    private volatile boolean closed;
+
+    SolidFrames(final int count, final CountDownLatch release) {
+      this.count = count;
+      this.release = release;
+    }
+
+    @Override
+    public void close() {
+      this.closed = true;
+    }
+
+    @Override
+    public boolean read(final byte[] rgb) {
+      if (this.read > 0) {
+        try {
+          this.release.await();
+        } catch (final InterruptedException exception) {
+          Thread.currentThread().interrupt();
+        }
+      }
+      Arrays.fill(rgb, (byte) (this.read * COLOR_STEP));
+      return this.read++ < this.count;
+    }
+  }
+
+  /** A video that reads one frame, then waits for the encode to be cancelled, and lets go of itself slowly. */
+  private static final class SlowToClose implements Mcv2FileEncoder.FrameReader {
+
+    private final CountDownLatch mayClose;
+
+    private int read;
+
+    SlowToClose(final CountDownLatch mayClose) {
+      this.mayClose = mayClose;
+    }
+
+    @Override
+    public void close() {
+      // the cancel's interrupt is kept for after, so the wait is not cut short by it
+      final boolean interrupted = Thread.interrupted();
+      Uninterruptibles.awaitUninterruptibly(this.mayClose);
+      if (interrupted) {
+        Thread.currentThread().interrupt();
+      }
+    }
+
+    @Override
+    public boolean read(final byte[] rgb) {
+      if (this.read++ > 0) {
+        try {
+          // until the cancel interrupts the encode
+          new CountDownLatch(1).await();
+        } catch (final InterruptedException exception) {
+          Thread.currentThread().interrupt();
+        }
+      }
+      return true;
+    }
+  }
+
+  /**
+   * A video whose reads drop the thread's interrupt, as code that swallows one does: its first read waits until the
+   * encode was cancelled, and it has a few frames, so an encode that misses the cancel ends as done.
+   */
+  private static final class DropsInterrupts implements Mcv2FileEncoder.FrameReader {
+
+    private final CountDownLatch cancelled;
+
+    private int read;
+
+    private volatile boolean dropped;
+
+    DropsInterrupts(final CountDownLatch cancelled) {
+      this.cancelled = cancelled;
+    }
+
+    @Override
+    public void close() {}
+
+    @Override
+    public boolean read(final byte[] rgb) {
+      if (this.read == 0) {
+        Uninterruptibles.awaitUninterruptibly(this.cancelled);
+      }
+      if (Thread.interrupted()) {
+        this.dropped = true;
+      }
+      Arrays.fill(rgb, (byte) (this.read * COLOR_STEP));
+      return this.read++ < 3;
+    }
+  }
+
+  /** A video whose every read waits until the encode's thread is interrupted. */
+  private static final class WaitsForInterrupt implements Mcv2FileEncoder.FrameReader {
+
+    @Override
+    public void close() {}
+
+    @Override
+    public boolean read(final byte[] rgb) {
+      try {
+        new CountDownLatch(1).await();
+      } catch (final InterruptedException exception) {
+        Thread.currentThread().interrupt();
+      }
+      return true;
+    }
   }
 }

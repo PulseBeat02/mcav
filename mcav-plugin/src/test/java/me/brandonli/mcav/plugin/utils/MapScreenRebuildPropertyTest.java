@@ -255,12 +255,6 @@ final class MapScreenRebuildPropertyTest {
       this.obstacles = obstacles;
     }
 
-    private Player createPlayer() {
-      final Player player = mock(Player.class);
-      when(player.getFacing()).thenReturn(this.facing);
-      return player;
-    }
-
     /**
      * Builds the wall once in an empty world to learn which blocks its frames hang in.
      */
@@ -274,6 +268,12 @@ final class MapScreenRebuildPropertyTest {
         cells.add(blockOf(frame));
       }
       return cells;
+    }
+
+    private Player createPlayer() {
+      final Player player = mock(Player.class);
+      when(player.getFacing()).thenReturn(this.facing);
+      return player;
     }
 
     private void placeObstacles(

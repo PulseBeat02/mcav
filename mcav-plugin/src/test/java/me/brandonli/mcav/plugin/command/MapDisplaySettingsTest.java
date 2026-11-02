@@ -38,13 +38,6 @@ import org.junit.jupiter.api.Test;
  */
 final class MapDisplaySettingsTest {
 
-  private static MapConfiguration createSingleMapConfiguration() {
-    final Pair<Integer, Integer> size = Pair.pair(1, 1);
-    final UUID viewer = UUID.randomUUID();
-    final List<UUID> viewers = List.of(viewer);
-    return MapDisplaySettings.createConfiguration(size, size, 0, viewers);
-  }
-
   @Test
   void shouldKeepTheConfigurationAndShareStatelessAlgorithms() {
     final MapConfigurationBuilder builder = MapConfiguration.builder();
@@ -73,6 +66,13 @@ final class MapDisplaySettingsTest {
     final DitherAlgorithm first = settings.createAlgorithm();
     final DitherAlgorithm second = settings.createAlgorithm();
     assertNotSame(first, second);
+  }
+
+  private static MapConfiguration createSingleMapConfiguration() {
+    final Pair<Integer, Integer> size = Pair.pair(1, 1);
+    final UUID viewer = UUID.randomUUID();
+    final List<UUID> viewers = List.of(viewer);
+    return MapDisplaySettings.createConfiguration(size, size, 0, viewers);
   }
 
   @Test

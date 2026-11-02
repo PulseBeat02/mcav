@@ -120,29 +120,6 @@ final class MapUtilsTest {
     return created;
   }
 
-  private static Player playerFacing(final BlockFace face) {
-    final Player player = mock(Player.class);
-    when(player.getFacing()).thenReturn(face);
-    return player;
-  }
-
-  private static int[] coordinates(final ItemFrame frame) {
-    final Location location = frame.getLocation();
-    final int blockX = location.getBlockX();
-    final int blockY = location.getBlockY();
-    final int blockZ = location.getBlockZ();
-    return new int[] { blockX, blockY, blockZ };
-  }
-
-  private static String describe(final List<ItemFrame> frames) {
-    final List<String> positions = new ArrayList<>();
-    for (final ItemFrame frame : frames) {
-      final int[] position = coordinates(frame);
-      positions.add(position[0] + "," + position[1] + "," + position[2]);
-    }
-    return String.join(";", positions);
-  }
-
   @Test
   void shouldCreateAMapItemForAnExistingMap() {
     final ItemStack item = MapUtils.getMapFromId(7);
@@ -194,6 +171,19 @@ final class MapUtilsTest {
     verify(metadata).setMapView(created);
   }
 
+  @Test
+  void shouldCreateAsManyMapsAsTheLargestWallNeeds() {
+    final World world = this.fakeWorld.world();
+    final int wanted = NEXT_MAP_ID + MapUtils.MAXIMUM_NEW_MAPS;
+    when(this.server.getMap(wanted)).thenReturn(null);
+    this.handOutMapIdsFrom(world, NEXT_MAP_ID);
+    MapUtils.getMapFromId(wanted);
+    verify(this.server, times(MapUtils.MAXIMUM_NEW_MAPS + 1)).createMap(world);
+
+    final int size = this.mapMetadata.size();
+    assertEquals(1, size);
+  }
+
   /**
    * Makes the server hand out consecutive map ids from a first id on, as the real server does. It refuses to create
    * more than 10000 maps, over twice what the largest wall needs, so a test of an unbounded loop fails instead of
@@ -213,19 +203,6 @@ final class MapUtilsTest {
       when(created.getId()).thenReturn(id);
       return created;
     });
-  }
-
-  @Test
-  void shouldCreateAsManyMapsAsTheLargestWallNeeds() {
-    final World world = this.fakeWorld.world();
-    final int wanted = NEXT_MAP_ID + MapUtils.MAXIMUM_NEW_MAPS;
-    when(this.server.getMap(wanted)).thenReturn(null);
-    this.handOutMapIdsFrom(world, NEXT_MAP_ID);
-    MapUtils.getMapFromId(wanted);
-    verify(this.server, times(MapUtils.MAXIMUM_NEW_MAPS + 1)).createMap(world);
-
-    final int size = this.mapMetadata.size();
-    assertEquals(1, size);
   }
 
   @Test
@@ -262,6 +239,12 @@ final class MapUtilsTest {
 
     final boolean mapMetadataEmpty = this.mapMetadata.isEmpty();
     assertTrue(mapMetadataEmpty);
+  }
+
+  private static Player playerFacing(final BlockFace face) {
+    final Player player = mock(Player.class);
+    when(player.getFacing()).thenReturn(face);
+    return player;
   }
 
   @Test
@@ -348,6 +331,23 @@ final class MapUtilsTest {
       assertEquals(index == 0, first);
       assertEquals(index == 3, last);
     }
+  }
+
+  private static int[] coordinates(final ItemFrame frame) {
+    final Location location = frame.getLocation();
+    final int blockX = location.getBlockX();
+    final int blockY = location.getBlockY();
+    final int blockZ = location.getBlockZ();
+    return new int[] { blockX, blockY, blockZ };
+  }
+
+  private static String describe(final List<ItemFrame> frames) {
+    final List<String> positions = new ArrayList<>();
+    for (final ItemFrame frame : frames) {
+      final int[] position = coordinates(frame);
+      positions.add(position[0] + "," + position[1] + "," + position[2]);
+    }
+    return String.join(";", positions);
   }
 
   @Test

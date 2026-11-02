@@ -86,12 +86,12 @@ final class LocalMavenRepositoryServer implements AutoCloseable {
   }
 
   /**
-   * Returns how many files the repository has served so far.
-   *
-   * @return the number of successful {@code GET} requests
+   * Stops the server at once and ends its request threads.
    */
-  int getServedFileCount() {
-    return this.servedFileCount.get();
+  @Override
+  public void close() {
+    this.server.stop(0);
+    this.executor.close();
   }
 
   private void handle(final HttpExchange exchange) throws IOException {
@@ -157,11 +157,11 @@ final class LocalMavenRepositoryServer implements AutoCloseable {
   }
 
   /**
-   * Stops the server at once and ends its request threads.
+   * Returns how many files the repository has served so far.
+   *
+   * @return the number of successful {@code GET} requests
    */
-  @Override
-  public void close() {
-    this.server.stop(0);
-    this.executor.close();
+  int getServedFileCount() {
+    return this.servedFileCount.get();
   }
 }

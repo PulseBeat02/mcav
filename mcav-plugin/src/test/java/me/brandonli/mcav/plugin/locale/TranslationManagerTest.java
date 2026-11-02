@@ -84,12 +84,6 @@ final class TranslationManagerTest {
     this.javaPlugin.close();
   }
 
-  private static byte[] readBundledMessages() throws IOException {
-    try (final InputStream stream = IoUtils.getResourceAsStream(RESOURCE)) {
-      return stream.readAllBytes();
-    }
-  }
-
   @Test
   void shouldCopyTheBundledMessagesIntoTheDataFolder() throws IOException {
     final TranslationManager manager = new TranslationManager();
@@ -99,6 +93,12 @@ final class TranslationManagerTest {
     assertArrayEquals(bundled, copied);
     final String title = manager.getProperty(HELP_COMMAND_KEY);
     assertEquals(HELP_COMMAND_TITLE, title);
+  }
+
+  private static byte[] readBundledMessages() throws IOException {
+    try (final InputStream stream = IoUtils.getResourceAsStream(RESOURCE)) {
+      return stream.readAllBytes();
+    }
   }
 
   @Test

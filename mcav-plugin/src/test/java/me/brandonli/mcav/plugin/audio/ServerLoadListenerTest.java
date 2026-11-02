@@ -71,13 +71,6 @@ final class ServerLoadListenerTest {
     handlers.unregister(this.listener);
   }
 
-  private boolean isRegistered() {
-    final HandlerList handlers = ServerLoadEvent.getHandlerList();
-    final RegisteredListener[] listeners = handlers.getRegisteredListeners();
-    final List<RegisteredListener> registered = Arrays.asList(listeners);
-    return registered.contains(this.registration);
-  }
-
   @Test
   void shouldRegisterTheVoiceChatPluginOnceTheServerHasLoaded() {
     final BukkitVoicechatService voiceChat = mock(BukkitVoicechatService.class);
@@ -93,6 +86,13 @@ final class ServerLoadListenerTest {
     assertEquals("mcav", id);
     final boolean registeredAfter = this.isRegistered();
     assertFalse(registeredAfter);
+  }
+
+  private boolean isRegistered() {
+    final HandlerList handlers = ServerLoadEvent.getHandlerList();
+    final RegisteredListener[] listeners = handlers.getRegisteredListeners();
+    final List<RegisteredListener> registered = Arrays.asList(listeners);
+    return registered.contains(this.registration);
   }
 
   @Test

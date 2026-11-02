@@ -36,18 +36,6 @@ import org.junit.jupiter.api.Test;
  */
 final class MessageTest {
 
-  private static List<Field> messageFields() {
-    final Field[] fields = Message.class.getDeclaredFields();
-    final List<Field> messages = new ArrayList<>();
-    for (final Field field : fields) {
-      final boolean synthetic = field.isSynthetic();
-      if (!synthetic) {
-        messages.add(field);
-      }
-    }
-    return messages;
-  }
-
   @Test
   void shouldHaveATextInTheBundledLanguageForEveryMessage() throws ReflectiveOperationException {
     final List<Field> fields = messageFields();
@@ -70,6 +58,18 @@ final class MessageTest {
       final boolean unrendered = text.contains("<") || text.contains("$URL$");
       assertFalse(unrendered, name + " was not rendered: " + text);
     }
+  }
+
+  private static List<Field> messageFields() {
+    final Field[] fields = Message.class.getDeclaredFields();
+    final List<Field> messages = new ArrayList<>();
+    for (final Field field : fields) {
+      final boolean synthetic = field.isSynthetic();
+      if (!synthetic) {
+        messages.add(field);
+      }
+    }
+    return messages;
   }
 
   private static Component buildWithUrl(final LocaleTools.UniComponent<?> message) throws ReflectiveOperationException {

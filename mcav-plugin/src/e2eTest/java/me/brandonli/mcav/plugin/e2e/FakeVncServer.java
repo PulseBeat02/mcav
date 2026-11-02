@@ -133,24 +133,14 @@ final class FakeVncServer implements AutoCloseable {
     return new FakeVncServer(socket, PASSWORD_PREFIX + HexFormat.of().formatHex(random).substring(0, PASSWORD_RANDOM_DIGITS));
   }
 
-  int getPort() {
-    return this.socket.getLocalPort();
-  }
-
-  String getPassword() {
-    return this.password;
-  }
-
-  int getLogins() {
-    return this.logins.get();
-  }
-
-  int getRefused() {
-    return this.refused.get();
-  }
-
-  int getUpdates() {
-    return this.updates.get();
+  @Override
+  public void close() throws IOException {
+    this.socket.close();
+    try {
+      this.acceptor.join(CLOSE_TIMEOUT_MILLISECONDS);
+    } catch (final InterruptedException exception) {
+      Thread.currentThread().interrupt();
+    }
   }
 
   private void accept() {
@@ -288,14 +278,24 @@ final class FakeVncServer implements AutoCloseable {
     out.flush();
   }
 
-  @Override
-  public void close() throws IOException {
-    this.socket.close();
-    try {
-      this.acceptor.join(CLOSE_TIMEOUT_MILLISECONDS);
-    } catch (final InterruptedException exception) {
-      Thread.currentThread().interrupt();
-    }
+  int getPort() {
+    return this.socket.getLocalPort();
+  }
+
+  String getPassword() {
+    return this.password;
+  }
+
+  int getLogins() {
+    return this.logins.get();
+  }
+
+  int getRefused() {
+    return this.refused.get();
+  }
+
+  int getUpdates() {
+    return this.updates.get();
   }
 
   /** The pixel format the client asked for: true colour, 8, 16 or 32 bits a pixel, in either byte order. */

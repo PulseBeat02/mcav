@@ -117,25 +117,6 @@ final class VncCommandTest {
     this.command.shutdown();
   }
 
-  private void create(final String resolution, final String server) {
-    this.command.createVnc(
-      this.sender,
-      this.selector,
-      resolution,
-      FRAMES_PER_SECOND,
-      "5x3",
-      0,
-      DitheringArgument.NEAREST_COLOR,
-      server,
-      null
-    );
-  }
-
-  private void assertReceived(final Component... expected) {
-    final List<Component> received = Components.received(this.sender);
-    assertEquals(List.of(expected), received);
-  }
-
   @Test
   void shouldConnectToAListedServerWithThePasswordOfItsEntry() {
     when(this.desktop.startAsync(any(VncSource.class), any())).thenReturn(CompletableFuture.completedFuture(true));
@@ -167,6 +148,25 @@ final class VncCommandTest {
     verify(this.callback).attach(any(VideoPipelineStep.class));
     assertSame(this.desktop, this.command.player);
     this.assertReceived(Message.VNC_LOADING.build(), Message.VNC_CREATE.build());
+  }
+
+  private void create(final String resolution, final String server) {
+    this.command.createVnc(
+      this.sender,
+      this.selector,
+      resolution,
+      FRAMES_PER_SECOND,
+      "5x3",
+      0,
+      DitheringArgument.NEAREST_COLOR,
+      server,
+      null
+    );
+  }
+
+  private void assertReceived(final Component... expected) {
+    final List<Component> received = Components.received(this.sender);
+    assertEquals(List.of(expected), received);
   }
 
   @Test

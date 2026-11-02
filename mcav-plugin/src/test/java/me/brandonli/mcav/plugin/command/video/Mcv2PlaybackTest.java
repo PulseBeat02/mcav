@@ -42,6 +42,11 @@ final class Mcv2PlaybackTest {
 
   private Mcv2Channel channel;
 
+  @BeforeEach
+  void createChannel() {
+    this.channel = mock(Mcv2Channel.class);
+  }
+
   static List<byte[]> stream() {
     final Mcv2 encoder = new Mcv2(Settings.DEFAULT, ForkJoinPool.commonPool(), 1, Mcv2.Verification.VERIFIED);
     final byte[] rgb = new byte[32 * 32 * 3];
@@ -51,19 +56,6 @@ final class Mcv2PlaybackTest {
       rgb[at + 2] = 3;
     }
     return List.of(encoder.encode(rgb, 32, 32, 0), encoder.encode(rgb, 32, 32, 1), encoder.encode(rgb, 32, 32, 2));
-  }
-
-  @BeforeEach
-  void createChannel() {
-    this.channel = mock(Mcv2Channel.class);
-  }
-
-  private long[] sent(final int times) {
-    final ArgumentCaptor<byte[]> frames = ArgumentCaptor.forClass(byte[].class);
-    verify(this.channel, times(times)).send(frames.capture());
-    final List<byte[]> all = frames.getAllValues();
-    final byte[] last = all.getLast();
-    return new long[] { Mcv2Decoder.u32(last, 12), Mcv2Decoder.u32(last, 16) };
   }
 
   @Test
@@ -93,6 +85,14 @@ final class Mcv2PlaybackTest {
     final long[] fourth = this.sent(4);
     assertEquals(3, fourth[0]);
     assertEquals(3, fourth[1]);
+  }
+
+  private long[] sent(final int times) {
+    final ArgumentCaptor<byte[]> frames = ArgumentCaptor.forClass(byte[].class);
+    verify(this.channel, times(times)).send(frames.capture());
+    final List<byte[]> all = frames.getAllValues();
+    final byte[] last = all.getLast();
+    return new long[] { Mcv2Decoder.u32(last, 12), Mcv2Decoder.u32(last, 16) };
   }
 
   @Test

@@ -145,6 +145,20 @@ final class BrowserCommandTest {
     this.command.shutdown();
   }
 
+  @Test
+  void shouldOpenThePageInABrowserOnTheScreen() {
+    final CompletableFuture<Boolean> start = CompletableFuture.completedFuture(true);
+    when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(start);
+
+    this.create(RESOLUTION, BLOCK_DIMENSIONS, PAGE_URL);
+
+    this.assertDithersOntoTheScreen();
+    this.assertOpenedThePage();
+    assertSame(this.browser, this.command.player);
+    final Component started = Message.START_BROWSER.build();
+    this.assertReceived(Message.BROWSER_LOADING.build(), started);
+  }
+
   private void create(final String resolution, final String blocks, final String url) {
     this.create(resolution, blocks, AudioArgument.NONE, url);
   }
@@ -191,20 +205,6 @@ final class BrowserCommandTest {
     assertEquals(1280, width);
     assertEquals(720, height);
     assertEquals(FRAME_INTERVAL, nth);
-  }
-
-  @Test
-  void shouldOpenThePageInABrowserOnTheScreen() {
-    final CompletableFuture<Boolean> start = CompletableFuture.completedFuture(true);
-    when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(start);
-
-    this.create(RESOLUTION, BLOCK_DIMENSIONS, PAGE_URL);
-
-    this.assertDithersOntoTheScreen();
-    this.assertOpenedThePage();
-    assertSame(this.browser, this.command.player);
-    final Component started = Message.START_BROWSER.build();
-    this.assertReceived(Message.BROWSER_LOADING.build(), started);
   }
 
   @Test
@@ -265,16 +265,6 @@ final class BrowserCommandTest {
     assertEquals("release broke!", message);
   }
 
-  private void createWithTheWebPage(final CompletableFuture<Boolean> start) {
-    when(this.provider.isHttpEnabled()).thenReturn(true);
-    when(this.provider.isHttpReady()).thenReturn(true);
-    when(this.provider.constructHttpUrl()).thenReturn(AUDIO_HTTP_URL);
-    when(this.provider.constructFilter(eq(AudioArgument.HTTP_SERVER), any(), any(), eq(this.browser))).thenReturn(mock(AudioFilter.class));
-    when(this.browser.getAudioAttachableCallback()).thenReturn(mock(AudioAttachableCallback.class));
-    when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(start);
-    this.create(RESOLUTION, BLOCK_DIMENSIONS, AudioArgument.HTTP_SERVER, PAGE_URL);
-  }
-
   @Test
   void shouldSendTheLinkOfABrowserThatStartsWithTheWebPageAndNoneForOneThatFails() {
     final List<Component> expected = List.of(Message.AUDIO_HTTP.build(AUDIO_HTTP_URL));
@@ -295,6 +285,16 @@ final class BrowserCommandTest {
 
     final List<String> componentsReceivedText = Components.receivedText(this.viewer);
     assertEquals(List.of("Click on the URL to listen onto the website! http://mc.example.com:3000/"), componentsReceivedText);
+  }
+
+  private void createWithTheWebPage(final CompletableFuture<Boolean> start) {
+    when(this.provider.isHttpEnabled()).thenReturn(true);
+    when(this.provider.isHttpReady()).thenReturn(true);
+    when(this.provider.constructHttpUrl()).thenReturn(AUDIO_HTTP_URL);
+    when(this.provider.constructFilter(eq(AudioArgument.HTTP_SERVER), any(), any(), eq(this.browser))).thenReturn(mock(AudioFilter.class));
+    when(this.browser.getAudioAttachableCallback()).thenReturn(mock(AudioAttachableCallback.class));
+    when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(start);
+    this.create(RESOLUTION, BLOCK_DIMENSIONS, AudioArgument.HTTP_SERVER, PAGE_URL);
   }
 
   @Test
@@ -451,18 +451,6 @@ final class BrowserCommandTest {
     assertEquals(0, size);
   }
 
-  private void assertCreatedScreenReleased() {
-    final List<CompressedMapResult> created = this.maps.constructed();
-
-    final int size = created.size();
-    assertEquals(1, size);
-
-    // the screen's output owns its maps: releasing it releases them
-    verify(this.ditherFilter).release();
-    assertNull(this.command.player);
-    assertNull(this.command.result);
-  }
-
   @Test
   void shouldReleaseTheScreenWhenTheBrowserFactoryFails() {
     final IllegalStateException failure = new IllegalStateException("browser factory!");
@@ -473,6 +461,18 @@ final class BrowserCommandTest {
     assertSame(failure, thrown);
     this.assertCreatedScreenReleased();
     verify(this.browser, never()).release();
+  }
+
+  private void assertCreatedScreenReleased() {
+    final List<CompressedMapResult> created = this.maps.constructed();
+
+    final int size = created.size();
+    assertEquals(1, size);
+
+    // the screen's output owns its maps: releasing it releases them
+    verify(this.ditherFilter).release();
+    assertNull(this.command.player);
+    assertNull(this.command.result);
   }
 
   @Test

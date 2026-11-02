@@ -89,33 +89,6 @@ final class JukeBoxListenerTest {
     when(this.player.getName()).thenReturn("Steve");
   }
 
-  private PlayerInteractEvent interaction(final Action action, final Material blockType, final Material itemType, final String itemName) {
-    final PlayerInteractEvent event = mock(PlayerInteractEvent.class);
-    final Block block = mock(Block.class);
-    when(block.getType()).thenReturn(blockType);
-    final ItemStack item = mock(ItemStack.class);
-    when(item.getType()).thenReturn(itemType);
-    final Component name = Component.text(itemName);
-    when(item.displayName()).thenReturn(name);
-    when(event.getAction()).thenReturn(action);
-    when(event.getClickedBlock()).thenReturn(block);
-    when(event.getItem()).thenReturn(item);
-    when(event.getPlayer()).thenReturn(this.player);
-    return event;
-  }
-
-  private Path createImage(final String name) throws IOException {
-    final Path image = this.isoFolder.resolve(name);
-    Files.writeString(image, "iso");
-    return image;
-  }
-
-  private void assertIgnored(final PlayerInteractEvent event) {
-    this.listener.onJukeboxInteract(event);
-    verify(event, never()).setCancelled(anyBoolean());
-    verify(this.player, never()).performCommand(anyString());
-  }
-
   @Test
   void shouldCreateTheIsoFolder() {
     final boolean exists = Files.isDirectory(this.isoFolder);
@@ -147,6 +120,27 @@ final class JukeBoxListenerTest {
     verify(this.player).performCommand(VM_CREATE_COMMAND_PREFIX + absolute + VM_CREATE_COMMAND_SUFFIX);
   }
 
+  private PlayerInteractEvent interaction(final Action action, final Material blockType, final Material itemType, final String itemName) {
+    final PlayerInteractEvent event = mock(PlayerInteractEvent.class);
+    final Block block = mock(Block.class);
+    when(block.getType()).thenReturn(blockType);
+    final ItemStack item = mock(ItemStack.class);
+    when(item.getType()).thenReturn(itemType);
+    final Component name = Component.text(itemName);
+    when(item.displayName()).thenReturn(name);
+    when(event.getAction()).thenReturn(action);
+    when(event.getClickedBlock()).thenReturn(block);
+    when(event.getItem()).thenReturn(item);
+    when(event.getPlayer()).thenReturn(this.player);
+    return event;
+  }
+
+  private Path createImage(final String name) throws IOException {
+    final Path image = this.isoFolder.resolve(name);
+    Files.writeString(image, "iso");
+    return image;
+  }
+
   @Test
   void shouldReplaceCharactersThatFileNamesCannotContain() throws IOException {
     final Path image = this.createImage(SANITIZED_IMAGE_FILE_NAME);
@@ -167,6 +161,28 @@ final class JukeBoxListenerTest {
     final PlayerInteractEvent event = this.interaction(Action.RIGHT_CLICK_BLOCK, Material.JUKEBOX, Material.MUSIC_DISC_CAT, DISC_NAME);
     when(event.useInteractedBlock()).thenReturn(Event.Result.DENY);
     this.assertIgnored(event);
+  }
+
+  private void assertIgnored(final PlayerInteractEvent event) {
+    this.listener.onJukeboxInteract(event);
+    verify(event, never()).setCancelled(anyBoolean());
+    verify(this.player, never()).performCommand(anyString());
+  }
+
+  @Test
+  void shouldDecideAfterThePluginsThatProtectRegions() throws Exception {
+    this.createImage(IMAGE_FILE_NAME);
+    final RegisteredListener protection = new RegisteredListener(
+      new Listener() {},
+      (listener, event) -> ((PlayerInteractEvent) event).setUseInteractedBlock(Event.Result.DENY),
+      EventPriority.HIGH,
+      this.sandbox,
+      false
+    );
+    dispatch(this.discOnJukebox(), protection, this.registered());
+    verify(this.player, never()).performCommand(anyString());
+    dispatch(this.discOnJukebox(), this.registered());
+    verify(this.player, times(1)).performCommand(anyString());
   }
 
   /** A real interaction with a disc named after the image, which listeners can change as they do on a server. */
@@ -203,22 +219,6 @@ final class JukeBoxListenerTest {
     for (final RegisteredListener listener : handlers.getRegisteredListeners()) {
       listener.callEvent(event);
     }
-  }
-
-  @Test
-  void shouldDecideAfterThePluginsThatProtectRegions() throws Exception {
-    this.createImage(IMAGE_FILE_NAME);
-    final RegisteredListener protection = new RegisteredListener(
-      new Listener() {},
-      (listener, event) -> ((PlayerInteractEvent) event).setUseInteractedBlock(Event.Result.DENY),
-      EventPriority.HIGH,
-      this.sandbox,
-      false
-    );
-    dispatch(this.discOnJukebox(), protection, this.registered());
-    verify(this.player, never()).performCommand(anyString());
-    dispatch(this.discOnJukebox(), this.registered());
-    verify(this.player, times(1)).performCommand(anyString());
   }
 
   @Test

@@ -72,6 +72,9 @@ final class MapProbe implements DitherResultStep {
     this.ditherPool = new ForkJoinPool(parallelism);
   }
 
+  @Override
+  public void start() {}
+
   /**
    * Returns the index of a map palette color, given as {@code #rrggbb}.
    *
@@ -123,9 +126,6 @@ final class MapProbe implements DitherResultStep {
   }
 
   @Override
-  public void start() {}
-
-  @Override
   public void release() {
     this.ditherPool.shutdownNow();
   }
@@ -145,10 +145,6 @@ final class MapProbe implements DitherResultStep {
     final DeltaMapEncoder created = new DeltaMapEncoder(layout, DeltaMapEncoder.DEFAULT_MAXIMUM_BYTES_PER_FRAME);
     this.encoder = created;
     return created;
-  }
-
-  long getFrames() {
-    return this.frames.get();
   }
 
   /**
@@ -183,6 +179,10 @@ final class MapProbe implements DitherResultStep {
     final Watch created = new Watch(index, firstMapId, layout.getMapCount(), pagePixels);
     this.watch = created;
     return created;
+  }
+
+  long getFrames() {
+    return this.frames.get();
   }
 
   /**

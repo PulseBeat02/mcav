@@ -129,48 +129,6 @@ final class VideoPlayerManagerTest {
     };
   }
 
-  private void fill() {
-    this.manager.setPlayer(this.player);
-    this.manager.setFilter(this.filter);
-    this.manager.setHologram(this.hologram);
-  }
-
-  private Future<?> releaseOnTheWorker() {
-    final ExecutorService service = this.manager.getService();
-    return service.submit(this.manager::releaseVideoPlayer);
-  }
-
-  /**
-   * Makes the scheduler hand every task for the main thread to the returned queue, so the test can wait for the
-   * worker to schedule one and decide when it runs.
-   */
-  private static BlockingQueue<Runnable> interceptMainThreadTasks() {
-    final BlockingQueue<Runnable> tasks = new LinkedBlockingQueue<>();
-    final BukkitScheduler scheduler = TestServer.scheduler();
-    when(scheduler.callSyncMethod(any(Plugin.class), any())).thenAnswer(invocation -> {
-      final Callable<?> call = invocation.getArgument(1);
-      final FutureTask<?> task = new FutureTask<>(call);
-      tasks.add(task);
-      return task;
-    });
-    return tasks;
-  }
-
-  private static Runnable awaitMainThreadTask(final BlockingQueue<Runnable> tasks) throws InterruptedException {
-    final Runnable task = tasks.poll(TIMEOUT_SECONDS, TimeUnit.SECONDS);
-    assertNotNull(task, "No task was scheduled on the main thread");
-    return task;
-  }
-
-  private void assertWorldReleasedOnTheMainThreadAndPlayerOnTheWorker() {
-    final Thread main = Thread.currentThread();
-    final List<Thread> expectedWorldThreads = List.of(main, main);
-    assertEquals(expectedWorldThreads, this.worldThreads);
-    final Thread playerThread = this.playerThreads.getFirst();
-    final boolean releasedOnWorker = !playerThread.equals(main);
-    assertTrue(releasedOnWorker);
-  }
-
   @Test
   void shouldRefuseANullPlugin() {
     assertThrows(NullPointerException.class, () -> new VideoPlayerManager(null));
@@ -207,6 +165,12 @@ final class VideoPlayerManagerTest {
     assertSame(this.filter, currentFilter);
     assertSame(this.hologram, currentHologram);
     assertSame(location, currentLocation);
+  }
+
+  private void fill() {
+    this.manager.setPlayer(this.player);
+    this.manager.setFilter(this.filter);
+    this.manager.setHologram(this.hologram);
   }
 
   @Test
@@ -284,6 +248,42 @@ final class VideoPlayerManagerTest {
     final boolean onlyOneTask = mainThreadTasks.isEmpty();
     assertTrue(onlyOneTask);
     this.assertWorldReleasedOnTheMainThreadAndPlayerOnTheWorker();
+  }
+
+  private Future<?> releaseOnTheWorker() {
+    final ExecutorService service = this.manager.getService();
+    return service.submit(this.manager::releaseVideoPlayer);
+  }
+
+  /**
+   * Makes the scheduler hand every task for the main thread to the returned queue, so the test can wait for the
+   * worker to schedule one and decide when it runs.
+   */
+  private static BlockingQueue<Runnable> interceptMainThreadTasks() {
+    final BlockingQueue<Runnable> tasks = new LinkedBlockingQueue<>();
+    final BukkitScheduler scheduler = TestServer.scheduler();
+    when(scheduler.callSyncMethod(any(Plugin.class), any())).thenAnswer(invocation -> {
+      final Callable<?> call = invocation.getArgument(1);
+      final FutureTask<?> task = new FutureTask<>(call);
+      tasks.add(task);
+      return task;
+    });
+    return tasks;
+  }
+
+  private static Runnable awaitMainThreadTask(final BlockingQueue<Runnable> tasks) throws InterruptedException {
+    final Runnable task = tasks.poll(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+    assertNotNull(task, "No task was scheduled on the main thread");
+    return task;
+  }
+
+  private void assertWorldReleasedOnTheMainThreadAndPlayerOnTheWorker() {
+    final Thread main = Thread.currentThread();
+    final List<Thread> expectedWorldThreads = List.of(main, main);
+    assertEquals(expectedWorldThreads, this.worldThreads);
+    final Thread playerThread = this.playerThreads.getFirst();
+    final boolean releasedOnWorker = !playerThread.equals(main);
+    assertTrue(releasedOnWorker);
   }
 
   @Test
@@ -841,13 +841,6 @@ final class VideoPlayerManagerTest {
     verify(start, never()).getAsBoolean();
   }
 
-  private static BukkitTask stubLoopWatcher() {
-    final BukkitScheduler scheduler = Bukkit.getScheduler();
-    final BukkitTask task = mock(BukkitTask.class);
-    when(scheduler.runTaskTimerAsynchronously(any(Plugin.class), any(Runnable.class), anyLong(), anyLong())).thenReturn(task);
-    return task;
-  }
-
   @Test
   void shouldKeepOneVolumeForEveryVideo() {
     final VolumeFilter volume = this.manager.getVolume();
@@ -884,6 +877,13 @@ final class VideoPlayerManagerTest {
     this.manager.setLooping(true);
     this.manager.shutdown();
     verify(task, times(2)).cancel();
+  }
+
+  private static BukkitTask stubLoopWatcher() {
+    final BukkitScheduler scheduler = Bukkit.getScheduler();
+    final BukkitTask task = mock(BukkitTask.class);
+    when(scheduler.runTaskTimerAsynchronously(any(Plugin.class), any(Runnable.class), anyLong(), anyLong())).thenReturn(task);
+    return task;
   }
 
   @Test

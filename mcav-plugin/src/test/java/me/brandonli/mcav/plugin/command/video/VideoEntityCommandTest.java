@@ -131,6 +131,17 @@ final class VideoEntityCommandTest {
     return selector;
   }
 
+  @Test
+  void shouldPassTheArgumentsOnAndConfigureTheEntity() {
+    final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
+
+    final Object built = configurationProvider.buildConfiguration(resolution);
+
+    final EntityConfiguration configuration = assertInstanceOf(EntityConfiguration.class, built);
+    this.assertEntity(configuration);
+  }
+
   private AbstractVideoCommand.VideoConfigurationProvider playAndCaptureProvider() {
     this.command.playVideo(
       this.sender,
@@ -176,25 +187,6 @@ final class VideoEntityCommandTest {
     assertEquals(this.location, position);
   }
 
-  private void assertStartedOnTheMainThread(final FunctionalVideoFilter result) {
-    verify(this.manager).startFilter(result);
-    verify(result, never()).start();
-    final int tasks = TestServer.runPendingTasks();
-    assertEquals(1, tasks);
-    verify(result).start();
-  }
-
-  @Test
-  void shouldPassTheArgumentsOnAndConfigureTheEntity() {
-    final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
-    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
-
-    final Object built = configurationProvider.buildConfiguration(resolution);
-
-    final EntityConfiguration configuration = assertInstanceOf(EntityConfiguration.class, built);
-    this.assertEntity(configuration);
-  }
-
   @Test
   void shouldShowTheFramesInAnEntitySpawnedOnTheMainThread() {
     final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
@@ -217,5 +209,13 @@ final class VideoEntityCommandTest {
     final List<?> constructorArguments = arguments.getFirst();
     final EntityConfiguration configuration = (EntityConfiguration) constructorArguments.getFirst();
     this.assertEntity(configuration);
+  }
+
+  private void assertStartedOnTheMainThread(final FunctionalVideoFilter result) {
+    verify(this.manager).startFilter(result);
+    verify(result, never()).start();
+    final int tasks = TestServer.runPendingTasks();
+    assertEquals(1, tasks);
+    verify(result).start();
   }
 }

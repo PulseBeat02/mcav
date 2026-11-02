@@ -87,6 +87,26 @@ final class ImageEntityCommandTest {
     this.location = world.location(5.0, 70.0, -5.0);
   }
 
+  @Test
+  void shouldShowTheImageAsTextEntitiesToTheSelectedPlayers() {
+    this.command.showImage(this.sender, this.selector, RESOLUTION, CHARACTER, this.location, MRL, null);
+    final AbstractImageCommand.ImageConfigurationProvider provider = this.captureProvider();
+    final EntityConfiguration configuration = this.createImage(provider);
+
+    final Collection<UUID> viewers = configuration.getViewers();
+    final List<UUID> viewerList = new ArrayList<>(viewers);
+    final List<UUID> expectedViewers = List.of(this.viewer);
+    final int width = configuration.getEntityWidth();
+    final int height = configuration.getEntityHeight();
+    final String character = configuration.getCharacter();
+    final Location position = configuration.getPosition();
+    assertEquals(expectedViewers, viewerList);
+    assertEquals(RESOLUTION_WIDTH, width);
+    assertEquals(RESOLUTION_HEIGHT, height);
+    assertEquals(CHARACTER, character);
+    assertEquals(this.location, position);
+  }
+
   private AbstractImageCommand.ImageConfigurationProvider captureProvider() {
     final ArgumentCaptor<AbstractImageCommand.ImageConfigurationProvider> providers = ArgumentCaptor.forClass(
       AbstractImageCommand.ImageConfigurationProvider.class
@@ -106,26 +126,6 @@ final class ImageEntityCommandTest {
       displays.verify(() -> DisplayableImage.entity(configurations.capture()));
     }
     return configurations.getValue();
-  }
-
-  @Test
-  void shouldShowTheImageAsTextEntitiesToTheSelectedPlayers() {
-    this.command.showImage(this.sender, this.selector, RESOLUTION, CHARACTER, this.location, MRL, null);
-    final AbstractImageCommand.ImageConfigurationProvider provider = this.captureProvider();
-    final EntityConfiguration configuration = this.createImage(provider);
-
-    final Collection<UUID> viewers = configuration.getViewers();
-    final List<UUID> viewerList = new ArrayList<>(viewers);
-    final List<UUID> expectedViewers = List.of(this.viewer);
-    final int width = configuration.getEntityWidth();
-    final int height = configuration.getEntityHeight();
-    final String character = configuration.getCharacter();
-    final Location position = configuration.getPosition();
-    assertEquals(expectedViewers, viewerList);
-    assertEquals(RESOLUTION_WIDTH, width);
-    assertEquals(RESOLUTION_HEIGHT, height);
-    assertEquals(CHARACTER, character);
-    assertEquals(this.location, position);
   }
 
   @Test

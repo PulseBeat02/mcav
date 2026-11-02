@@ -175,17 +175,6 @@ final class VideoFlagsParserTest {
     assertArrayEquals(expected, arguments);
   }
 
-  /**
-   * Parses one option, returning no arguments when the parser refuses it.
-   */
-  private String[] parseOrEmpty(final String option) {
-    try {
-      return this.parser.parseYtdlpFlags(FLAG_OPENING + option + FLAG_CLOSING);
-    } catch (final IllegalArgumentException exception) {
-      return new String[0];
-    }
-  }
-
   @Test
   void shouldAcceptEverySupportedOption() {
     final List<String> supported = VideoFlagsParser.supportedOptions();
@@ -195,6 +184,17 @@ final class VideoFlagsParserTest {
       final boolean takesValue = Arrays.equals(new String[] { "--" + option, "value" }, withValue);
       final boolean isSwitch = Arrays.equals(new String[] { "--" + option }, asSwitch);
       assertTrue(takesValue != isSwitch, option + " must be either a switch or an option with a value");
+    }
+  }
+
+  /**
+   * Parses one option, returning no arguments when the parser refuses it.
+   */
+  private String[] parseOrEmpty(final String option) {
+    try {
+      return this.parser.parseYtdlpFlags(FLAG_OPENING + option + FLAG_CLOSING);
+    } catch (final IllegalArgumentException exception) {
+      return new String[0];
     }
   }
 

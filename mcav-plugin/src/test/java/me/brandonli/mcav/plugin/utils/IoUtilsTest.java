@@ -71,18 +71,18 @@ final class IoUtilsTest {
     }
   }
 
-  private static void openAndClose(final String path) throws IOException {
-    try (final InputStream stream = IoUtils.getResourceAsStream(path)) {
-      final String message = "Path %s opened as %s, but it must not open!".formatted(path, stream);
-      fail(message);
-    }
-  }
-
   @Test
   void shouldFailForMissingResources() {
     final NullPointerException exception = assertThrows(NullPointerException.class, () -> openAndClose(MISSING_RESOURCE_NAME));
     final String message = exception.getMessage();
     assertEquals("Resource missing.yml does not exist!", message);
+  }
+
+  private static void openAndClose(final String path) throws IOException {
+    try (final InputStream stream = IoUtils.getResourceAsStream(path)) {
+      final String message = "Path %s opened as %s, but it must not open!".formatted(path, stream);
+      fail(message);
+    }
   }
 
   @Test

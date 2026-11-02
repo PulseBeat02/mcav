@@ -82,16 +82,16 @@ final class VideoPlaybackCommandTest {
     this.directExecutor.shutdown();
   }
 
-  private void assertReceived(final Component... expected) {
-    final List<Component> received = Components.received(this.sender);
-    assertEquals(List.of(expected), received);
-  }
-
   @Test
   void shouldRefuseWhatIsNotATimeAndAnswerWithoutAVideo() {
     this.command.seekVideo(this.sender, "1:60");
     this.command.seekVideo(this.sender, SEEK_OFFSET);
     this.assertReceived(Message.SEEK_INVALID.build("1:60"), Message.SEEK_FAILED.build());
+  }
+
+  private void assertReceived(final Component... expected) {
+    final List<Component> received = Components.received(this.sender);
+    assertEquals(List.of(expected), received);
   }
 
   @Test

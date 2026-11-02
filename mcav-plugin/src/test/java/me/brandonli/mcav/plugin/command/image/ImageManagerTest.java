@@ -64,12 +64,6 @@ final class ImageManagerTest {
     this.manager.shutdown();
   }
 
-  private void fill() {
-    this.manager.setPlayer(this.player);
-    this.manager.setImage(this.display);
-    this.manager.setCurrentImage(this.image);
-  }
-
   @Test
   void shouldReleaseEverythingOnceWhenForced() {
     this.fill();
@@ -80,6 +74,12 @@ final class ImageManagerTest {
     verify(this.player, times(1)).release();
     final int pending = TestServer.runPendingTasks();
     assertEquals(0, pending);
+  }
+
+  private void fill() {
+    this.manager.setPlayer(this.player);
+    this.manager.setImage(this.display);
+    this.manager.setCurrentImage(this.image);
   }
 
   @Test

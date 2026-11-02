@@ -57,6 +57,12 @@ final class VideoFlagsParserPropertyTest {
   private static final String ESCAPED_SEPARATOR = "\\,";
   private static final String ESCAPED_CLOSING = "\\}";
 
+  /**
+   * The regular expression the parser found the options with until the fuzzer showed it overflowing the stack on long
+   * options. It is kept as the oracle for inputs short enough for it.
+   */
+  private static final Pattern ORIGINAL_OPTIONS = Pattern.compile(Pattern.quote("--yt-dlp") + "\\{((?:[^\\\\}]|\\\\.)*)}");
+
   private final VideoFlagsParser parser = new VideoFlagsParser();
 
   @Provide
@@ -111,12 +117,6 @@ final class VideoFlagsParserPropertyTest {
     }
     YtdlpArgumentAssertions.assertSafe(typed, arguments);
   }
-
-  /**
-   * The regular expression the parser found the options with until the fuzzer showed it overflowing the stack on long
-   * options. It is kept as the oracle for inputs short enough for it.
-   */
-  private static final Pattern ORIGINAL_OPTIONS = Pattern.compile(Pattern.quote("--yt-dlp") + "\\{((?:[^\\\\}]|\\\\.)*)}");
 
   @Provide
   Arbitrary<String> flagTexts() {

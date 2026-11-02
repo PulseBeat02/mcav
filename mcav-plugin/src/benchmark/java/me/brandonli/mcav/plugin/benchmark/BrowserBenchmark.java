@@ -155,6 +155,26 @@ public final class BrowserBenchmark {
     };
   }
 
+  private static String measureFrameRate(final Supplier<BrowserPlayer> factory, final BenchmarkServer server, final WallSize size)
+    throws InterruptedException {
+    final BrowserPlayer player = factory.get();
+    try {
+      final MapProbe probe = attach(player, size);
+      final URI page = server.page(FRAME_RATE_PAGE_NAME);
+      startAndWait(player, source(page, size), probe);
+      Thread.sleep(WARM_UP_MILLISECONDS);
+      final long framesBefore = probe.getFrames();
+      final long start = System.nanoTime();
+      Thread.sleep(FRAME_RATE_MILLISECONDS);
+      final long framesAfter = probe.getFrames();
+      final long elapsed = System.nanoTime() - start;
+      final double perSecond = ((framesAfter - framesBefore) * NANOSECONDS_PER_SECOND) / elapsed;
+      return String.format(Locale.ROOT, "%.1f", perSecond);
+    } finally {
+      player.release();
+    }
+  }
+
   private static BrowserSource source(final URI page, final WallSize size) {
     return BrowserSource.uri(page, size.width(), size.height(), 1);
   }
@@ -174,26 +194,6 @@ public final class BrowserBenchmark {
     final VideoAttachableCallback callback = player.getVideoAttachableCallback();
     callback.attach(pipeline);
     return probe;
-  }
-
-  private static String measureFrameRate(final Supplier<BrowserPlayer> factory, final BenchmarkServer server, final WallSize size)
-    throws InterruptedException {
-    final BrowserPlayer player = factory.get();
-    try {
-      final MapProbe probe = attach(player, size);
-      final URI page = server.page(FRAME_RATE_PAGE_NAME);
-      startAndWait(player, source(page, size), probe);
-      Thread.sleep(WARM_UP_MILLISECONDS);
-      final long framesBefore = probe.getFrames();
-      final long start = System.nanoTime();
-      Thread.sleep(FRAME_RATE_MILLISECONDS);
-      final long framesAfter = probe.getFrames();
-      final long elapsed = System.nanoTime() - start;
-      final double perSecond = ((framesAfter - framesBefore) * NANOSECONDS_PER_SECOND) / elapsed;
-      return String.format(Locale.ROOT, "%.1f", perSecond);
-    } finally {
-      player.release();
-    }
   }
 
   private static String measureLatency(final Supplier<BrowserPlayer> factory, final BenchmarkServer server, final WallSize size)

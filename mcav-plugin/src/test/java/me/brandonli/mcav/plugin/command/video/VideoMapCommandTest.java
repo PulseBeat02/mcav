@@ -157,21 +157,18 @@ final class VideoMapCommandTest {
     return selector;
   }
 
-  private void playOnWall(final String blockDimensions, final DitheringArgument dithering) {
-    this.command.playMapVideo(
-      this.sender,
-      this.selector,
-      PlayerArgument.FFMPEG,
-      AudioArgument.NONE,
-      RESOLUTION,
-      blockDimensions,
-      MAP_ID,
-      dithering,
-      "",
-      VIDEO_FILE_NAME,
-      null,
-      null
+  @Test
+  void shouldPassTheArgumentsOnAndConfigureTheWallOfMaps() {
+    final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider(
+      DitheringArgument.FILTER_LITE
     );
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
+
+    final Object built = configurationProvider.buildConfiguration(resolution);
+
+    final MapDisplaySettings settings = assertInstanceOf(MapDisplaySettings.class, built);
+    final MapConfiguration configuration = settings.getConfiguration();
+    this.assertWall(configuration);
   }
 
   private AbstractVideoCommand.VideoConfigurationProvider playAndCaptureProvider(final DitheringArgument dithering) {
@@ -193,6 +190,23 @@ final class VideoMapCommandTest {
     return providers.getValue();
   }
 
+  private void playOnWall(final String blockDimensions, final DitheringArgument dithering) {
+    this.command.playMapVideo(
+      this.sender,
+      this.selector,
+      PlayerArgument.FFMPEG,
+      AudioArgument.NONE,
+      RESOLUTION,
+      blockDimensions,
+      MAP_ID,
+      dithering,
+      "",
+      VIDEO_FILE_NAME,
+      null,
+      null
+    );
+  }
+
   private void assertWall(final MapConfiguration configuration) {
     final Collection<UUID> viewers = configuration.getViewers();
     final List<UUID> viewerList = new ArrayList<>(viewers);
@@ -208,28 +222,6 @@ final class VideoMapCommandTest {
     assertEquals(BLOCK_HEIGHT, blockHeight);
     assertEquals(RESOLUTION_WIDTH, width);
     assertEquals(RESOLUTION_HEIGHT, height);
-  }
-
-  private void assertStartedOnTheMainThread(final FunctionalVideoFilter ditherFilter) {
-    verify(this.manager).startFilter(ditherFilter);
-    verify(ditherFilter, never()).start();
-    final int tasks = TestServer.runPendingTasks();
-    assertEquals(1, tasks);
-    verify(ditherFilter).start();
-  }
-
-  @Test
-  void shouldPassTheArgumentsOnAndConfigureTheWallOfMaps() {
-    final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider(
-      DitheringArgument.FILTER_LITE
-    );
-    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
-
-    final Object built = configurationProvider.buildConfiguration(resolution);
-
-    final MapDisplaySettings settings = assertInstanceOf(MapDisplaySettings.class, built);
-    final MapConfiguration configuration = settings.getConfiguration();
-    this.assertWall(configuration);
   }
 
   @Test
@@ -261,6 +253,14 @@ final class VideoMapCommandTest {
     final List<?> constructorArguments = arguments.getFirst();
     final MapConfiguration used = (MapConfiguration) constructorArguments.getFirst();
     this.assertWall(used);
+  }
+
+  private void assertStartedOnTheMainThread(final FunctionalVideoFilter ditherFilter) {
+    verify(this.manager).startFilter(ditherFilter);
+    verify(ditherFilter, never()).start();
+    final int tasks = TestServer.runPendingTasks();
+    assertEquals(1, tasks);
+    verify(ditherFilter).start();
   }
 
   @Test
@@ -309,23 +309,6 @@ final class VideoMapCommandTest {
     assertEquals(expectedMessages, messages);
   }
 
-  private void playWithCodec(final String resolution, final @Nullable MapCodec codec) {
-    this.command.playMapVideo(
-      this.sender,
-      this.selector,
-      PlayerArgument.FFMPEG,
-      AudioArgument.NONE,
-      resolution,
-      BLOCK_DIMENSIONS,
-      MAP_ID,
-      DitheringArgument.NEAREST_COLOR,
-      "",
-      VIDEO_FILE_NAME,
-      codec,
-      null
-    );
-  }
-
   @Test
   void shouldEncodeTheVideoWithMcv2WhenTheFlagSaysSo() {
     final Mcv2Configuration wall = mock(Mcv2Configuration.class);
@@ -372,6 +355,23 @@ final class VideoMapCommandTest {
     assertSame(output, filter);
 
     this.assertStartedOnTheMainThread(output);
+  }
+
+  private void playWithCodec(final String resolution, final @Nullable MapCodec codec) {
+    this.command.playMapVideo(
+      this.sender,
+      this.selector,
+      PlayerArgument.FFMPEG,
+      AudioArgument.NONE,
+      resolution,
+      BLOCK_DIMENSIONS,
+      MAP_ID,
+      DitheringArgument.NEAREST_COLOR,
+      "",
+      VIDEO_FILE_NAME,
+      codec,
+      null
+    );
   }
 
   @Test

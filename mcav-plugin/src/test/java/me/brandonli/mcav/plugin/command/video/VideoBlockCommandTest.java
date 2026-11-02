@@ -129,6 +129,17 @@ final class VideoBlockCommandTest {
     return selector;
   }
 
+  @Test
+  void shouldPassTheArgumentsOnAndConfigureTheWall() {
+    final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
+
+    final Object built = configurationProvider.buildConfiguration(resolution);
+
+    final BlockConfiguration configuration = assertInstanceOf(BlockConfiguration.class, built);
+    this.assertWall(configuration);
+  }
+
   private AbstractVideoCommand.VideoConfigurationProvider playAndCaptureProvider() {
     this.command.playVideo(
       this.sender,
@@ -171,25 +182,6 @@ final class VideoBlockCommandTest {
     assertEquals(this.location, position);
   }
 
-  private void assertStartedOnTheMainThread(final FunctionalVideoFilter result) {
-    verify(this.manager).startFilter(result);
-    verify(result, never()).start();
-    final int tasks = TestServer.runPendingTasks();
-    assertEquals(1, tasks);
-    verify(result).start();
-  }
-
-  @Test
-  void shouldPassTheArgumentsOnAndConfigureTheWall() {
-    final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
-    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
-
-    final Object built = configurationProvider.buildConfiguration(resolution);
-
-    final BlockConfiguration configuration = assertInstanceOf(BlockConfiguration.class, built);
-    this.assertWall(configuration);
-  }
-
   @Test
   void shouldShowTheFramesOnAWallStartedOnTheMainThread() {
     final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
@@ -212,5 +204,13 @@ final class VideoBlockCommandTest {
     final List<?> constructorArguments = arguments.getFirst();
     final BlockConfiguration configuration = (BlockConfiguration) constructorArguments.getFirst();
     this.assertWall(configuration);
+  }
+
+  private void assertStartedOnTheMainThread(final FunctionalVideoFilter result) {
+    verify(this.manager).startFilter(result);
+    verify(result, never()).start();
+    final int tasks = TestServer.runPendingTasks();
+    assertEquals(1, tasks);
+    verify(result).start();
   }
 }

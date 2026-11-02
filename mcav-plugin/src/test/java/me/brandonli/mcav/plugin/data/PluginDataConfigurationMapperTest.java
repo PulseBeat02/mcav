@@ -131,19 +131,6 @@ final class PluginDataConfigurationMapperTest {
     this.javaPlugin.close();
   }
 
-  private void saveBundledResources() {
-    doAnswer(invocation -> {
-      final String name = invocation.getArgument(0);
-      final Path target = this.folder.resolve(name);
-      try (final InputStream stream = IoUtils.getResourceAsStream(name)) {
-        Files.copy(stream, target);
-      }
-      return null;
-    })
-      .when(this.plugin)
-      .saveResource(anyString(), anyBoolean());
-  }
-
   @Test
   void shouldReadTheAllowedVncServersWithTheirPasswords() throws IOException {
     this.writeConfiguration(
@@ -179,6 +166,19 @@ final class PluginDataConfigurationMapperTest {
 
     final List<VncAllowList.Entry> entries = this.mapper.getVncAllowList().entries();
     assertEquals(List.of(), entries);
+  }
+
+  private void saveBundledResources() {
+    doAnswer(invocation -> {
+      final String name = invocation.getArgument(0);
+      final Path target = this.folder.resolve(name);
+      try (final InputStream stream = IoUtils.getResourceAsStream(name)) {
+        Files.copy(stream, target);
+      }
+      return null;
+    })
+      .when(this.plugin)
+      .saveResource(anyString(), anyBoolean());
   }
 
   @Test

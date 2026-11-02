@@ -140,6 +140,15 @@ final class AudioProviderTest {
     this.mockOutputs();
   }
 
+  @AfterEach
+  void closeStaticMocks() {
+    this.builders.close();
+    this.discordPlayers.close();
+    this.httpResults.close();
+    this.svcFilters.close();
+    this.startup.shutdownNow();
+  }
+
   private void mockOutputs() {
     this.builder = mock(JDABuilder.class);
     this.jda = mock(JDA.class);
@@ -166,59 +175,6 @@ final class AudioProviderTest {
     this.httpResults.when(() -> HttpResult.http(HTTP_HOST_NAME, HTTP_PORT)).thenReturn(this.httpServer);
     this.svcFilters = Mockito.mockStatic(SvcFilter.class);
     this.svcFilters.when(() -> SvcFilter.svc(this.players)).thenReturn(this.voiceChatFilter);
-  }
-
-  @AfterEach
-  void closeStaticMocks() {
-    this.builders.close();
-    this.discordPlayers.close();
-    this.httpResults.close();
-    this.svcFilters.close();
-    this.startup.shutdownNow();
-  }
-
-  private void enableDiscord() {
-    when(this.configuration.isDiscordBotEnabled()).thenReturn(true);
-  }
-
-  private void enableHttp() {
-    when(this.configuration.isHttpEnabled()).thenReturn(true);
-  }
-
-  private void startInTheBackground() {
-    final ExecutorService executor = mock(ExecutorService.class);
-    doAnswer(invocation -> {
-      final Runnable task = invocation.getArgument(0);
-      this.deferred.add(task);
-      return null;
-    })
-      .when(executor)
-      .execute(any(Runnable.class));
-    this.startup = executor;
-    this.provider = new AudioProvider(this.sandbox, executor);
-  }
-
-  private int runDeferred() {
-    final List<Runnable> tasks = new ArrayList<>(this.deferred);
-    this.deferred.clear();
-    for (final Runnable task : tasks) {
-      task.run();
-    }
-    return tasks.size();
-  }
-
-  private String discordFailure() {
-    final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
-      this.provider.constructFilter(AudioArgument.DISCORD_BOT, this.dump, this.players)
-    );
-    return exception.getMessage();
-  }
-
-  private String httpFailure() {
-    final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
-      this.provider.constructFilter(AudioArgument.HTTP_SERVER, this.dump, this.players)
-    );
-    return exception.getMessage();
   }
 
   @Test
@@ -254,6 +210,14 @@ final class AudioProviderTest {
     final boolean httpEnabledAfter = this.provider.isHttpEnabled();
     assertTrue(discordEnabledAfter);
     assertTrue(httpEnabledAfter);
+  }
+
+  private void enableDiscord() {
+    when(this.configuration.isDiscordBotEnabled()).thenReturn(true);
+  }
+
+  private void enableHttp() {
+    when(this.configuration.isHttpEnabled()).thenReturn(true);
   }
 
   @Test
@@ -304,6 +268,35 @@ final class AudioProviderTest {
     assertTrue(ready);
     final AudioFilter filter = this.provider.constructFilter(AudioArgument.DISCORD_BOT, this.dump, this.players);
     assertPlaysInto(this.discord, filter);
+  }
+
+  private void startInTheBackground() {
+    final ExecutorService executor = mock(ExecutorService.class);
+    doAnswer(invocation -> {
+      final Runnable task = invocation.getArgument(0);
+      this.deferred.add(task);
+      return null;
+    })
+      .when(executor)
+      .execute(any(Runnable.class));
+    this.startup = executor;
+    this.provider = new AudioProvider(this.sandbox, executor);
+  }
+
+  private int runDeferred() {
+    final List<Runnable> tasks = new ArrayList<>(this.deferred);
+    this.deferred.clear();
+    for (final Runnable task : tasks) {
+      task.run();
+    }
+    return tasks.size();
+  }
+
+  private String discordFailure() {
+    final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
+      this.provider.constructFilter(AudioArgument.DISCORD_BOT, this.dump, this.players)
+    );
+    return exception.getMessage();
   }
 
   @Test
@@ -373,6 +366,13 @@ final class AudioProviderTest {
     verify(this.httpServer).start();
     final boolean ready = this.provider.isHttpReady();
     assertTrue(ready);
+  }
+
+  private String httpFailure() {
+    final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
+      this.provider.constructFilter(AudioArgument.HTTP_SERVER, this.dump, this.players)
+    );
+    return exception.getMessage();
   }
 
   @Test

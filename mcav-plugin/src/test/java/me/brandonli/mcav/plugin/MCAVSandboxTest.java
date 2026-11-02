@@ -142,6 +142,14 @@ final class MCAVSandboxTest {
     this.paperManagers.when(() -> LegacyPaperCommandManager.createNative(eq(this.sandbox), notNull())).thenReturn(paperManager);
   }
 
+  @AfterEach
+  void closeMocks() {
+    this.javaPlugins.close();
+    this.libraries.close();
+    this.paperManagers.close();
+    this.bukkitModules.close();
+  }
+
   private void mockPluginEnvironment(final Server server) {
     final File folderFile = this.folder.toFile();
     doReturn(this.logger).when(this.sandbox).getComponentLogger();
@@ -172,14 +180,6 @@ final class MCAVSandboxTest {
     this.libraries.when(MCAV::api).thenReturn(this.api);
     this.bukkitModules = Mockito.mockStatic(BukkitModule.class, Mockito.CALLS_REAL_METHODS);
     this.bukkitModules.when(BukkitModule::getPlugin).thenReturn(this.sandbox);
-  }
-
-  @AfterEach
-  void closeMocks() {
-    this.javaPlugins.close();
-    this.libraries.close();
-    this.paperManagers.close();
-    this.bukkitModules.close();
   }
 
   @Test

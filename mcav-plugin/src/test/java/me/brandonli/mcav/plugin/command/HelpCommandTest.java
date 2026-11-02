@@ -85,32 +85,6 @@ final class HelpCommandTest {
     doCallRealMethod().when(this.sender).sendMessage(any(ComponentLike.class));
   }
 
-  private static void appendText(final Component component, final StringBuilder text) {
-    final String plain = Components.plain(component);
-    text.append(plain);
-    text.append('\n');
-    final HoverEvent<?> hover = component.hoverEvent();
-    if (hover != null) {
-      final Object value = hover.value();
-      if (value instanceof final Component hoverText) {
-        appendText(hoverText, text);
-      }
-    }
-    final List<Component> children = component.children();
-    for (final Component child : children) {
-      appendText(child, text);
-    }
-  }
-
-  private String helpText() {
-    final List<Component> messages = Components.received(this.sender);
-    final StringBuilder text = new StringBuilder();
-    for (final Component message : messages) {
-      appendText(message, text);
-    }
-    return text.toString();
-  }
-
   @Test
   void shouldListTheCommandsWithTheirTranslatedDescriptions() {
     this.help.commandHelp(this.sender, null);
@@ -129,6 +103,32 @@ final class HelpCommandTest {
     assertFalse(untranslated, text);
   }
 
+  private String helpText() {
+    final List<Component> messages = Components.received(this.sender);
+    final StringBuilder text = new StringBuilder();
+    for (final Component message : messages) {
+      appendText(message, text);
+    }
+    return text.toString();
+  }
+
+  private static void appendText(final Component component, final StringBuilder text) {
+    final String plain = Components.plain(component);
+    text.append(plain);
+    text.append('\n');
+    final HoverEvent<?> hover = component.hoverEvent();
+    if (hover != null) {
+      final Object value = hover.value();
+      if (value instanceof final Component hoverText) {
+        appendText(hoverText, text);
+      }
+    }
+    final List<Component> children = component.children();
+    for (final Component child : children) {
+      appendText(child, text);
+    }
+  }
+
   @Test
   void shouldShowOnlyTheCommandsMatchingAQuery() {
     this.help.commandHelp(this.sender, DUMP_QUERY);
@@ -145,9 +145,18 @@ final class HelpCommandTest {
     assertFalse(untranslated, text);
   }
 
-  private static String translation(final String key) {
-    final TranslationManager translations = LocaleTools.MANAGER;
-    return translations.getProperty(key);
+  @Test
+  void shouldTranslateEveryTextOfTheHelp() {
+    final Map<String, String> messages = HelpCommand.createMessages();
+    final Map<String, String> expected = new HashMap<>();
+    putListingMessages(expected);
+    putNavigationMessages(expected);
+    assertEquals(expected, messages, "every text the help knows is filled in from the locale file");
+    final Collection<String> texts = messages.values();
+    for (final String text : texts) {
+      final boolean untranslated = text.startsWith("mcav.");
+      assertFalse(untranslated, text);
+    }
   }
 
   /**
@@ -170,6 +179,11 @@ final class HelpCommandTest {
     expected.put(MESSAGE_CLICK_TO_SHOW_HELP, showHelp);
   }
 
+  private static String translation(final String key) {
+    final TranslationManager translations = LocaleTools.MANAGER;
+    return translations.getProperty(key);
+  }
+
   /**
    * Adds the texts of the search and of the page navigation to the expected messages.
    *
@@ -186,20 +200,6 @@ final class HelpCommandTest {
     expected.put(MESSAGE_PAGE_OUT_OF_RANGE, invalidPage);
     expected.put(MESSAGE_CLICK_FOR_NEXT_PAGE, nextPage);
     expected.put(MESSAGE_CLICK_FOR_PREVIOUS_PAGE, previousPage);
-  }
-
-  @Test
-  void shouldTranslateEveryTextOfTheHelp() {
-    final Map<String, String> messages = HelpCommand.createMessages();
-    final Map<String, String> expected = new HashMap<>();
-    putListingMessages(expected);
-    putNavigationMessages(expected);
-    assertEquals(expected, messages, "every text the help knows is filled in from the locale file");
-    final Collection<String> texts = messages.values();
-    for (final String text : texts) {
-      final boolean untranslated = text.startsWith("mcav.");
-      assertFalse(untranslated, text);
-    }
   }
 
   @Test

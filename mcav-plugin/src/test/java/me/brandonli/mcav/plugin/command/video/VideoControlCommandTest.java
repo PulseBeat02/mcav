@@ -77,12 +77,6 @@ final class VideoControlCommandTest {
     this.directExecutor.shutdown();
   }
 
-  private void assertReceived(final Component... expected) {
-    final List<Component> messages = Components.received(this.sender);
-    final List<Component> expectedMessages = List.of(expected);
-    assertEquals(expectedMessages, messages);
-  }
-
   @Test
   void shouldResumeTheVideo() {
     when(this.manager.getPlayer()).thenReturn(this.player);
@@ -93,6 +87,12 @@ final class VideoControlCommandTest {
     verify(this.player).resume();
     final Component resumed = Message.RESUME_PLAYER.build();
     this.assertReceived(resumed);
+  }
+
+  private void assertReceived(final Component... expected) {
+    final List<Component> messages = Components.received(this.sender);
+    final List<Component> expectedMessages = List.of(expected);
+    assertEquals(expectedMessages, messages);
   }
 
   @Test

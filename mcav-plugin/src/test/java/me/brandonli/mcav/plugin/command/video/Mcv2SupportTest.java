@@ -100,22 +100,6 @@ final class Mcv2SupportTest {
 
   private final UUID viewer = UUID.randomUUID();
 
-  static ItemStack map(final Material material, final boolean hasId, final int id) {
-    final ItemStack item = mock(ItemStack.class);
-    when(item.getType()).thenReturn(material);
-    final MapMeta metadata = mock(MapMeta.class);
-    when(metadata.hasMapId()).thenReturn(hasId);
-    when(metadata.getMapId()).thenReturn(id);
-    when(item.getItemMeta()).thenReturn(metadata);
-    return item;
-  }
-
-  static ItemFrame frame(final ItemStack item) {
-    final ItemFrame frame = mock(ItemFrame.class);
-    when(frame.getItem()).thenReturn(item);
-    return frame;
-  }
-
   @BeforeEach
   void createSupport() {
     TestServer.reset();
@@ -130,26 +114,20 @@ final class Mcv2SupportTest {
     when(TestServer.server().getWorlds()).thenReturn(List.of(this.world));
   }
 
-  private Mcv2Configuration configure(final int map) {
-    return this.support.configure(
-      this.sender,
-      Pair.pair(COLUMNS, ROWS),
-      Pair.pair(VIDEO_WIDTH, VIDEO_HEIGHT),
-      map,
-      Settings.DEFAULT,
-      List.of(this.viewer)
-    );
+  static ItemStack map(final Material material, final boolean hasId, final int id) {
+    final ItemStack item = mock(ItemStack.class);
+    when(item.getType()).thenReturn(material);
+    final MapMeta metadata = mock(MapMeta.class);
+    when(metadata.hasMapId()).thenReturn(hasId);
+    when(metadata.getMapId()).thenReturn(id);
+    when(item.getItemMeta()).thenReturn(metadata);
+    return item;
   }
 
-  private @Nullable Mcv2Configuration configure(final int columns, final int rows, final int width, final int height) {
-    return this.support.configure(
-      this.sender,
-      Pair.pair(columns, rows),
-      Pair.pair(width, height),
-      MAP_ID,
-      Settings.DEFAULT,
-      List.of(this.viewer)
-    );
+  static ItemFrame frame(final ItemStack item) {
+    final ItemFrame frame = mock(ItemFrame.class);
+    when(frame.getItem()).thenReturn(item);
+    return frame;
   }
 
   @Test
@@ -217,6 +195,28 @@ final class Mcv2SupportTest {
 
     final int pageSlots = configuration.getPageSlots();
     assertEquals(Mcv2Configuration.MAXIMUM_PAGE_SLOTS, pageSlots);
+  }
+
+  private Mcv2Configuration configure(final int map) {
+    return this.support.configure(
+      this.sender,
+      Pair.pair(COLUMNS, ROWS),
+      Pair.pair(VIDEO_WIDTH, VIDEO_HEIGHT),
+      map,
+      Settings.DEFAULT,
+      List.of(this.viewer)
+    );
+  }
+
+  private @Nullable Mcv2Configuration configure(final int columns, final int rows, final int width, final int height) {
+    return this.support.configure(
+      this.sender,
+      Pair.pair(columns, rows),
+      Pair.pair(width, height),
+      MAP_ID,
+      Settings.DEFAULT,
+      List.of(this.viewer)
+    );
   }
 
   @Test

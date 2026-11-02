@@ -51,27 +51,6 @@ final class DitheringArgumentTest {
   private static final long TIMEOUT_NANOSECONDS = TimeUnit.SECONDS.toNanos(10);
   private static final long TIMEOUT_MILLISECONDS = TimeUnit.SECONDS.toMillis(10);
 
-  private static void awaitBlocked(final Thread thread) {
-    final long start = System.nanoTime();
-    final long deadline = start + TIMEOUT_NANOSECONDS;
-    Thread.State state = thread.getState();
-    while (state != Thread.State.BLOCKED) {
-      final long now = System.nanoTime();
-      assertTrue(now < deadline, "the thread never waited for the lock");
-      Thread.onSpinWait();
-      state = thread.getState();
-    }
-  }
-
-  private static Thread startCreating(final DitheringArgument argument, final AtomicReference<DitherAlgorithm> result) {
-    final Thread thread = new Thread(() -> {
-      final DitherAlgorithm algorithm = argument.createAlgorithm();
-      result.set(algorithm);
-    });
-    thread.start();
-    return thread;
-  }
-
   @Test
   @Order(0)
   void shouldCreateTheSharedAlgorithmOfAnArgumentOnItsFirstUse() {
@@ -106,6 +85,27 @@ final class DitheringArgumentTest {
     assertSame(firstAlgorithm, secondAlgorithm);
     final DitherAlgorithm later = argument.createAlgorithm();
     assertSame(firstAlgorithm, later);
+  }
+
+  private static void awaitBlocked(final Thread thread) {
+    final long start = System.nanoTime();
+    final long deadline = start + TIMEOUT_NANOSECONDS;
+    Thread.State state = thread.getState();
+    while (state != Thread.State.BLOCKED) {
+      final long now = System.nanoTime();
+      assertTrue(now < deadline, "the thread never waited for the lock");
+      Thread.onSpinWait();
+      state = thread.getState();
+    }
+  }
+
+  private static Thread startCreating(final DitheringArgument argument, final AtomicReference<DitherAlgorithm> result) {
+    final Thread thread = new Thread(() -> {
+      final DitherAlgorithm algorithm = argument.createAlgorithm();
+      result.set(algorithm);
+    });
+    thread.start();
+    return thread;
   }
 
   @ParameterizedTest

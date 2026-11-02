@@ -200,6 +200,20 @@ final class AnnotationParserHandlerTest {
     verify(pluginManager).registerEvents(any(VncCommand.class), eq(this.plugin));
   }
 
+  @Test
+  void shouldLimitTheFrameRateOfVirtualMachines() {
+    final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
+    handler.registerCommands();
+    final String syntax = VM_SYNTAX;
+    final ArgumentParser<CommandSender, ?> parser = this.parserOf(syntax, "targetFramesPerSecond");
+    final IntegerParser<?> framesPerSecond = assertInstanceOf(IntegerParser.class, parser);
+    final IntRange range = framesPerSecond.range();
+    final int minimum = range.minInt();
+    final int maximum = range.maxInt();
+    assertEquals(1, minimum);
+    assertEquals(240, maximum, "a capture rate above the largest suggestion only burns the CPU of the server");
+  }
+
   /**
    * Finds the parser of a named argument of a registered command.
    */
@@ -214,20 +228,6 @@ final class AnnotationParserHandlerTest {
     }
     final String message = "Argument %s is missing in syntax %s of the command!".formatted(argument, syntax);
     throw new AssertionError(message);
-  }
-
-  @Test
-  void shouldLimitTheFrameRateOfVirtualMachines() {
-    final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
-    handler.registerCommands();
-    final String syntax = VM_SYNTAX;
-    final ArgumentParser<CommandSender, ?> parser = this.parserOf(syntax, "targetFramesPerSecond");
-    final IntegerParser<?> framesPerSecond = assertInstanceOf(IntegerParser.class, parser);
-    final IntRange range = framesPerSecond.range();
-    final int minimum = range.minInt();
-    final int maximum = range.maxInt();
-    assertEquals(1, minimum);
-    assertEquals(240, maximum, "a capture rate above the largest suggestion only burns the CPU of the server");
   }
 
   @Test

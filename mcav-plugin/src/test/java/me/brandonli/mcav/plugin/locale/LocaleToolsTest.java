@@ -50,15 +50,14 @@ final class LocaleToolsTest {
   private static final String FIRST_ARGUMENT = "first";
   private static final String SECOND_ARGUMENT = "second";
 
-  private static void collectClickEvents(final Component component, final List<ClickEvent<?>> events) {
-    final ClickEvent<?> event = component.clickEvent();
-    if (event != null) {
-      events.add(event);
-    }
-    final List<Component> children = component.children();
-    for (final Component child : children) {
-      collectClickEvents(child, events);
-    }
+  @Test
+  void shouldRenderAMessageWithoutArguments() {
+    final LocaleTools.NullComponent message = LocaleTools.direct(SCREEN_BUILD_KEY);
+    final Component component = message.build();
+    final String text = Components.plain(component);
+    final TextColor color = findColor(component);
+    assertEquals(SCREEN_BUILT_TEXT, text);
+    assertEquals(NamedTextColor.GOLD, color);
   }
 
   private static TextColor findColor(final Component component) {
@@ -69,16 +68,6 @@ final class LocaleToolsTest {
     final List<Component> children = component.children();
     final Component first = children.getFirst();
     return findColor(first);
-  }
-
-  @Test
-  void shouldRenderAMessageWithoutArguments() {
-    final LocaleTools.NullComponent message = LocaleTools.direct(SCREEN_BUILD_KEY);
-    final Component component = message.build();
-    final String text = Components.plain(component);
-    final TextColor color = findColor(component);
-    assertEquals(SCREEN_BUILT_TEXT, text);
-    assertEquals(NamedTextColor.GOLD, color);
   }
 
   @Test
@@ -98,6 +87,17 @@ final class LocaleToolsTest {
     final ClickEvent.Payload.Text textPayload = (ClickEvent.Payload.Text) payload;
     final String url = textPayload.value();
     assertEquals("http://localhost:3000/", url);
+  }
+
+  private static void collectClickEvents(final Component component, final List<ClickEvent<?>> events) {
+    final ClickEvent<?> event = component.clickEvent();
+    if (event != null) {
+      events.add(event);
+    }
+    final List<Component> children = component.children();
+    for (final Component child : children) {
+      collectClickEvents(child, events);
+    }
   }
 
   @Test

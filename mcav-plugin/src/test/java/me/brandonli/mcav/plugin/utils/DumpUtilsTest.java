@@ -155,16 +155,6 @@ final class DumpUtilsTest {
     }
   }
 
-  private String pasteSite() {
-    final InetSocketAddress address = this.server.getAddress();
-    final int port = address.getPort();
-    return "http://127.0.0.1:" + port + ROOT_PATH;
-  }
-
-  private Path missingLog() {
-    return this.folder.resolve(LOG_FILE_NAME);
-  }
-
   @Test
   void shouldUploadTheDumpAndReturnItsLink() {
     final String site = this.pasteSite();
@@ -184,6 +174,16 @@ final class DumpUtilsTest {
     assertTrue(properties);
     assertTrue(threads);
     assertTrue(noLog);
+  }
+
+  private String pasteSite() {
+    final InetSocketAddress address = this.server.getAddress();
+    final int port = address.getPort();
+    return "http://127.0.0.1:" + port + ROOT_PATH;
+  }
+
+  private Path missingLog() {
+    return this.folder.resolve(LOG_FILE_NAME);
   }
 
   @Test
@@ -284,23 +284,6 @@ final class DumpUtilsTest {
     assertTrue(stack);
   }
 
-  /**
-   * Reads the number of a labelled line of the dump, such as {@code Free Memory (MB): 123}.
-   *
-   * @param dump  the dump
-   * @param label the label of the line
-   * @return the number the line reports
-   */
-  private static long readNumber(final String dump, final String label) {
-    final String marker = "\n" + label + ": ";
-    final int start = dump.indexOf(marker);
-    assertTrue(start >= 0, "the dump has no " + label + " line: " + dump);
-    final int valueStart = start + marker.length();
-    final int end = dump.indexOf('\n', valueStart);
-    final String value = dump.substring(valueStart, end);
-    return Long.parseLong(value);
-  }
-
   @Test
   void shouldDescribeTheOperatingSystemAndTheJavaRuntime() {
     final Path log = this.missingLog();
@@ -338,6 +321,23 @@ final class DumpUtilsTest {
     assertTrue(total <= expectedMaximum, "total memory of " + total + " MB above the maximum of " + expectedMaximum + " MB");
     assertTrue(beforeDump > 0, "the fixture has a nonzero uptime");
     assertTrue(uptime >= beforeDump && uptime <= afterDump, "uptime of " + uptime + " ms outside [" + beforeDump + ", " + afterDump + "]");
+  }
+
+  /**
+   * Reads the number of a labelled line of the dump, such as {@code Free Memory (MB): 123}.
+   *
+   * @param dump  the dump
+   * @param label the label of the line
+   * @return the number the line reports
+   */
+  private static long readNumber(final String dump, final String label) {
+    final String marker = "\n" + label + ": ";
+    final int start = dump.indexOf(marker);
+    assertTrue(start >= 0, "the dump has no " + label + " line: " + dump);
+    final int valueStart = start + marker.length();
+    final int end = dump.indexOf('\n', valueStart);
+    final String value = dump.substring(valueStart, end);
+    return Long.parseLong(value);
   }
 
   @Test

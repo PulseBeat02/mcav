@@ -45,12 +45,6 @@ import org.mockito.Mockito;
  */
 final class OnlinePlayersTest {
 
-  private static Player player(final UUID uuid) {
-    final Player player = mock(Player.class);
-    when(player.getUniqueId()).thenReturn(uuid);
-    return player;
-  }
-
   @Test
   void shouldFollowThePlayersFromThoseOnlineAtTheStart() {
     final Server server = TestServer.reset();
@@ -80,5 +74,11 @@ final class OnlinePlayersTest {
 
     final boolean empty = players.isEmpty();
     assertTrue(empty);
+  }
+
+  private static Player player(final UUID uuid) {
+    final Player player = mock(Player.class);
+    when(player.getUniqueId()).thenReturn(uuid);
+    return player;
   }
 }

@@ -89,6 +89,30 @@ final class InteractUtilsTest {
     when(this.player.getWorld()).thenReturn(world);
   }
 
+  @ParameterizedTest
+  @ValueSource(booleans = { true, false })
+  void shouldKeepAdjacentScreenCornersSeparateOrRejectAmbiguousLegacyWalls(final boolean identified) {
+    final Location firstLocation = this.fakeWorld.location(0.5, FRAME_CENTER_Y, 0.0);
+    final Location secondLocation = this.fakeWorld.location(1.5, FRAME_CENTER_Y, 0.0);
+    final ItemFrame first = this.fakeWorld.addFrame(firstLocation, BlockFace.SOUTH, Keys.MAP_KEY, Keys.FIRST_MAP_KEY, Keys.LAST_MAP_KEY);
+    final ItemFrame second = this.fakeWorld.addFrame(secondLocation, BlockFace.SOUTH, Keys.MAP_KEY, Keys.FIRST_MAP_KEY, Keys.LAST_MAP_KEY);
+    if (identified) {
+      final PersistentDataContainer firstData = first.getPersistentDataContainer();
+      final PersistentDataContainer secondData = second.getPersistentDataContainer();
+      firstData.set(Keys.SCREEN_KEY, PersistentDataType.STRING, "first");
+      secondData.set(Keys.SCREEN_KEY, PersistentDataType.STRING, "second");
+    }
+    final Block wall = this.fakeWorld.block(1, BLOCK_Y, -1);
+    final Location eye = this.eye(1.3, EYE_Y, EYE_DISTANCE, LOOK_NORTH);
+    this.aimAt(second, BlockFace.SOUTH, wall, eye);
+    final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
+    if (identified) {
+      assertArrayEquals(new int[] { AIMED_PIXEL_X, AIMED_PIXEL_Y }, coordinates);
+    } else {
+      assertNull(coordinates, "legacy walls with several possible corners cannot be resolved safely");
+    }
+  }
+
   private void aimAt(final Entity target, final BlockFace face, final Block block, final Location eye) {
     when(this.player.getTargetEntity(anyInt())).thenReturn(target);
     when(this.player.getTargetBlockFace(anyInt())).thenReturn(face);
@@ -104,6 +128,56 @@ final class InteractUtilsTest {
   private Location eye(final double eyeX, final double eyeY, final double eyeZ, final float yaw, final float pitch) {
     final World world = this.fakeWorld.world();
     return new Location(world, eyeX, eyeY, eyeZ, yaw, pitch);
+  }
+
+  @Test
+  void shouldFindThePixelOnAWallFacingSouth() {
+    this.buildSouthWall();
+    final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
+    assertArrayEquals(new int[] { 3 * MAP_SIZE + AIMED_PIXEL_X, MAP_SIZE + AIMED_PIXEL_Y }, coordinates);
+  }
+
+  /**
+   * Builds a wall of four columns and two rows on the plane z = 0, facing south. The top left frame as seen from the
+   * south is at x = 0 and y = 65, and the frame the player looks at is in the last column of the lower row.
+   */
+  private ItemFrame buildSouthWall() {
+    ItemFrame target = null;
+    for (int row = 0; row < WALL_ROWS; row++) {
+      for (int column = 0; column < WALL_COLUMNS; column++) {
+        final int blockY = TOP_ROW_Y - row;
+        final Location location = this.fakeWorld.location(column + HALF_BLOCK, blockY + HALF_BLOCK, 0.0);
+        final boolean first = row == 0 && column == 0;
+        final boolean last = row == 1 && column == 3;
+        if (first) {
+          this.fakeWorld.addFrame(location, BlockFace.SOUTH, Keys.MAP_KEY, Keys.FIRST_MAP_KEY);
+        } else if (last) {
+          target = this.fakeWorld.addFrame(location, BlockFace.SOUTH, Keys.MAP_KEY, Keys.LAST_MAP_KEY);
+        } else {
+          this.fakeWorld.addFrame(location, BlockFace.SOUTH, Keys.MAP_KEY);
+        }
+      }
+    }
+    final Block wallBlock = this.fakeWorld.block(3, BLOCK_Y, -1);
+    final Location eye = this.eye(3.3, EYE_Y, EYE_DISTANCE, LOOK_NORTH);
+    this.aimAt(target, BlockFace.SOUTH, wallBlock, eye);
+    return target;
+  }
+
+  @Test
+  void shouldFindThePixelOfTheFrameItWasGiven() {
+    final ItemFrame target = this.buildSouthWall();
+    when(this.player.getTargetEntity(anyInt())).thenReturn(null);
+    final int[] coordinates = InteractUtils.getBoardCoordinates(this.player, target);
+    assertArrayEquals(new int[] { 3 * MAP_SIZE + AIMED_PIXEL_X, MAP_SIZE + AIMED_PIXEL_Y }, coordinates);
+  }
+
+  @Test
+  void shouldCountTheColumnsFromTheFirstCornerOfTheWall() {
+    this.buildSouthWallAwayFromTheOrigin();
+    final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
+    final int[] expected = { 3 * MAP_SIZE + AIMED_PIXEL_X, MAP_SIZE + AIMED_PIXEL_Y };
+    assertArrayEquals(expected, coordinates, "the column is the distance to the first corner, not the coordinate");
   }
 
   /**
@@ -134,80 +208,6 @@ final class InteractUtilsTest {
     final Location eye = this.eye(7.3, EYE_Y, EYE_DISTANCE, LOOK_NORTH);
     this.aimAt(target, BlockFace.SOUTH, wallBlock, eye);
     return target;
-  }
-
-  /**
-   * Builds a wall of four columns and two rows on the plane z = 0, facing south. The top left frame as seen from the
-   * south is at x = 0 and y = 65, and the frame the player looks at is in the last column of the lower row.
-   */
-  private ItemFrame buildSouthWall() {
-    ItemFrame target = null;
-    for (int row = 0; row < WALL_ROWS; row++) {
-      for (int column = 0; column < WALL_COLUMNS; column++) {
-        final int blockY = TOP_ROW_Y - row;
-        final Location location = this.fakeWorld.location(column + HALF_BLOCK, blockY + HALF_BLOCK, 0.0);
-        final boolean first = row == 0 && column == 0;
-        final boolean last = row == 1 && column == 3;
-        if (first) {
-          this.fakeWorld.addFrame(location, BlockFace.SOUTH, Keys.MAP_KEY, Keys.FIRST_MAP_KEY);
-        } else if (last) {
-          target = this.fakeWorld.addFrame(location, BlockFace.SOUTH, Keys.MAP_KEY, Keys.LAST_MAP_KEY);
-        } else {
-          this.fakeWorld.addFrame(location, BlockFace.SOUTH, Keys.MAP_KEY);
-        }
-      }
-    }
-    final Block wallBlock = this.fakeWorld.block(3, BLOCK_Y, -1);
-    final Location eye = this.eye(3.3, EYE_Y, EYE_DISTANCE, LOOK_NORTH);
-    this.aimAt(target, BlockFace.SOUTH, wallBlock, eye);
-    return target;
-  }
-
-  @ParameterizedTest
-  @ValueSource(booleans = { true, false })
-  void shouldKeepAdjacentScreenCornersSeparateOrRejectAmbiguousLegacyWalls(final boolean identified) {
-    final Location firstLocation = this.fakeWorld.location(0.5, FRAME_CENTER_Y, 0.0);
-    final Location secondLocation = this.fakeWorld.location(1.5, FRAME_CENTER_Y, 0.0);
-    final ItemFrame first = this.fakeWorld.addFrame(firstLocation, BlockFace.SOUTH, Keys.MAP_KEY, Keys.FIRST_MAP_KEY, Keys.LAST_MAP_KEY);
-    final ItemFrame second = this.fakeWorld.addFrame(secondLocation, BlockFace.SOUTH, Keys.MAP_KEY, Keys.FIRST_MAP_KEY, Keys.LAST_MAP_KEY);
-    if (identified) {
-      final PersistentDataContainer firstData = first.getPersistentDataContainer();
-      final PersistentDataContainer secondData = second.getPersistentDataContainer();
-      firstData.set(Keys.SCREEN_KEY, PersistentDataType.STRING, "first");
-      secondData.set(Keys.SCREEN_KEY, PersistentDataType.STRING, "second");
-    }
-    final Block wall = this.fakeWorld.block(1, BLOCK_Y, -1);
-    final Location eye = this.eye(1.3, EYE_Y, EYE_DISTANCE, LOOK_NORTH);
-    this.aimAt(second, BlockFace.SOUTH, wall, eye);
-    final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
-    if (identified) {
-      assertArrayEquals(new int[] { AIMED_PIXEL_X, AIMED_PIXEL_Y }, coordinates);
-    } else {
-      assertNull(coordinates, "legacy walls with several possible corners cannot be resolved safely");
-    }
-  }
-
-  @Test
-  void shouldFindThePixelOnAWallFacingSouth() {
-    this.buildSouthWall();
-    final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
-    assertArrayEquals(new int[] { 3 * MAP_SIZE + AIMED_PIXEL_X, MAP_SIZE + AIMED_PIXEL_Y }, coordinates);
-  }
-
-  @Test
-  void shouldFindThePixelOfTheFrameItWasGiven() {
-    final ItemFrame target = this.buildSouthWall();
-    when(this.player.getTargetEntity(anyInt())).thenReturn(null);
-    final int[] coordinates = InteractUtils.getBoardCoordinates(this.player, target);
-    assertArrayEquals(new int[] { 3 * MAP_SIZE + AIMED_PIXEL_X, MAP_SIZE + AIMED_PIXEL_Y }, coordinates);
-  }
-
-  @Test
-  void shouldCountTheColumnsFromTheFirstCornerOfTheWall() {
-    this.buildSouthWallAwayFromTheOrigin();
-    final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
-    final int[] expected = { 3 * MAP_SIZE + AIMED_PIXEL_X, MAP_SIZE + AIMED_PIXEL_Y };
-    assertArrayEquals(expected, coordinates, "the column is the distance to the first corner, not the coordinate");
   }
 
   @Test

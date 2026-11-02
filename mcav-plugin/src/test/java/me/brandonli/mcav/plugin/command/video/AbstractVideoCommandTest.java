@@ -159,35 +159,6 @@ final class AbstractVideoCommandTest {
   private MockedStatic<Hologram> holograms;
   private MockedStatic<YtdlpParser> parsers;
 
-  /**
-   * A command whose video output is a mocked filter and that remembers what it was asked to create.
-   */
-  private static final class RecordingCommand extends AbstractVideoCommand {
-
-    private final VideoPipelineStep pipeline;
-    private final List<Pair<Integer, Integer>> resolutions;
-    private final List<VideoConfigurationProvider> providers;
-
-    RecordingCommand(final MCAVSandbox plugin) {
-      super(plugin);
-      final FunctionalVideoFilter filter = mock(FunctionalVideoFilter.class);
-      this.pipeline = VideoPipelineStep.of(filter);
-      this.resolutions = new ArrayList<>();
-      this.providers = new ArrayList<>();
-    }
-
-    @Override
-    public VideoPipelineStep createVideoFilter(
-      final Pair<Integer, Integer> resolution,
-      final VideoConfigurationProvider configurationProvider
-    ) {
-      this.resolutions.add(resolution);
-      this.providers.add(configurationProvider);
-      configurationProvider.buildConfiguration(resolution);
-      return this.pipeline;
-    }
-  }
-
   @BeforeEach
   void createCommand() {
     TestServer.reset();
@@ -218,6 +189,14 @@ final class AbstractVideoCommandTest {
     this.mockHologramsAndYtdlp();
   }
 
+  @AfterEach
+  void closeMocks() {
+    this.videoPlayers.close();
+    this.holograms.close();
+    this.parsers.close();
+    this.directExecutor.shutdown();
+  }
+
   private void mockPlayers() {
     this.player = mock(VideoPlayerMultiplexer.class);
     this.videoCallback = mock(VideoAttachableCallback.class);
@@ -243,12 +222,34 @@ final class AbstractVideoCommandTest {
     this.parsers.when(YtdlpParser::simple).thenReturn(this.parser);
   }
 
-  @AfterEach
-  void closeMocks() {
-    this.videoPlayers.close();
-    this.holograms.close();
-    this.parsers.close();
-    this.directExecutor.shutdown();
+  @Test
+  void shouldPlayAVideoFile() throws IOException {
+    final Path file = this.createVideoFile();
+    final String mrl = file.toString();
+
+    this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, mrl, "");
+
+    final Component loading = Message.LOAD_VIDEO.build();
+    verify(this.viewer).sendMessage(loading);
+    verify(this.manager).clearCurrentVideo();
+    final UrlParseDump dump = this.verifyPlayedWithDump(AudioArgument.NONE);
+
+    final Optional<String> title = dump.getTitle();
+    assertEquals(Optional.of(VIDEO_FILE_NAME), title);
+
+    final Optional<String> description = dump.getDescription();
+    assertEquals(Optional.of("Video from a file"), description);
+
+    this.assertOutputsAttached();
+    final Source source = this.verifyStartedWithOneSource();
+    final FileSource fileSource = assertInstanceOf(FileSource.class, source);
+    final Path played = fileSource.getPath();
+    assertEquals(file, played);
+    this.assertFilterCreatedForTheResolution();
+    this.holograms.verifyNoInteractions();
+    final Component started = Message.START_VIDEO.build();
+    this.assertSenderReceived(started);
+    this.assertNotStarting();
   }
 
   private Path createVideoFile() throws IOException {
@@ -263,12 +264,6 @@ final class AbstractVideoCommandTest {
 
   private void assertSenderReceived(final Component... expected) {
     final List<Component> messages = Components.received(this.sender);
-    final List<Component> expectedMessages = List.of(expected);
-    assertEquals(expectedMessages, messages);
-  }
-
-  private void assertViewerReceived(final Component... expected) {
-    final List<Component> messages = Components.received(this.viewer);
     final List<Component> expectedMessages = List.of(expected);
     assertEquals(expectedMessages, messages);
   }
@@ -319,66 +314,6 @@ final class AbstractVideoCommandTest {
     final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.command.providers.getFirst();
     final Object configuration = configurationProvider.buildConfiguration(resolution);
     assertEquals(CONFIGURATION, configuration);
-  }
-
-  private static StrategySelector mockStrategies(final UrlParseDump resolved, final UriSource videoSource, final UriSource audioSource) {
-    final Format video = mock(Format.class);
-    final Format audio = mock(Format.class);
-    when(video.toUriSource()).thenReturn(videoSource);
-    when(audio.toUriSource()).thenReturn(audioSource);
-    final StrategySelector strategies = mock(StrategySelector.class);
-    when(strategies.getVideoSource(resolved)).thenReturn(video);
-    when(strategies.getAudioSource(resolved)).thenReturn(audio);
-    return strategies;
-  }
-
-  private void assertResolvedTheWebPage() throws IOException {
-    final ArgumentCaptor<UriSource> pages = ArgumentCaptor.forClass(UriSource.class);
-    verify(this.parser).parse(pages.capture(), eq(FORMAT_OPTION), eq(BEST_FORMAT));
-    final UriSource page = pages.getValue();
-    final URI pageUri = page.getUri();
-    final URI expected = URI.create(WEB_PAGE);
-    assertEquals(expected, pageUri);
-  }
-
-  private void assertStartedWithStreams(final Source expectedVideo, final Source expectedAudio) {
-    final ArgumentCaptor<Source> videoSources = ArgumentCaptor.forClass(Source.class);
-    final ArgumentCaptor<Source> audioSources = ArgumentCaptor.forClass(Source.class);
-    verify(this.player).start(videoSources.capture(), audioSources.capture());
-    final Source videoSource = videoSources.getValue();
-    final Source audioSource = audioSources.getValue();
-    assertSame(expectedVideo, videoSource);
-    assertSame(expectedAudio, audioSource);
-  }
-
-  @Test
-  void shouldPlayAVideoFile() throws IOException {
-    final Path file = this.createVideoFile();
-    final String mrl = file.toString();
-
-    this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, mrl, "");
-
-    final Component loading = Message.LOAD_VIDEO.build();
-    verify(this.viewer).sendMessage(loading);
-    verify(this.manager).clearCurrentVideo();
-    final UrlParseDump dump = this.verifyPlayedWithDump(AudioArgument.NONE);
-
-    final Optional<String> title = dump.getTitle();
-    assertEquals(Optional.of(VIDEO_FILE_NAME), title);
-
-    final Optional<String> description = dump.getDescription();
-    assertEquals(Optional.of("Video from a file"), description);
-
-    this.assertOutputsAttached();
-    final Source source = this.verifyStartedWithOneSource();
-    final FileSource fileSource = assertInstanceOf(FileSource.class, source);
-    final Path played = fileSource.getPath();
-    assertEquals(file, played);
-    this.assertFilterCreatedForTheResolution();
-    this.holograms.verifyNoInteractions();
-    final Component started = Message.START_VIDEO.build();
-    this.assertSenderReceived(started);
-    this.assertNotStarting();
   }
 
   @Test
@@ -597,6 +532,36 @@ final class AbstractVideoCommandTest {
     this.assertStartedWithStreams(videoStreamSource, audioStreamSource);
     final Component started = Message.START_VIDEO.build();
     this.assertSenderReceived(started);
+  }
+
+  private static StrategySelector mockStrategies(final UrlParseDump resolved, final UriSource videoSource, final UriSource audioSource) {
+    final Format video = mock(Format.class);
+    final Format audio = mock(Format.class);
+    when(video.toUriSource()).thenReturn(videoSource);
+    when(audio.toUriSource()).thenReturn(audioSource);
+    final StrategySelector strategies = mock(StrategySelector.class);
+    when(strategies.getVideoSource(resolved)).thenReturn(video);
+    when(strategies.getAudioSource(resolved)).thenReturn(audio);
+    return strategies;
+  }
+
+  private void assertResolvedTheWebPage() throws IOException {
+    final ArgumentCaptor<UriSource> pages = ArgumentCaptor.forClass(UriSource.class);
+    verify(this.parser).parse(pages.capture(), eq(FORMAT_OPTION), eq(BEST_FORMAT));
+    final UriSource page = pages.getValue();
+    final URI pageUri = page.getUri();
+    final URI expected = URI.create(WEB_PAGE);
+    assertEquals(expected, pageUri);
+  }
+
+  private void assertStartedWithStreams(final Source expectedVideo, final Source expectedAudio) {
+    final ArgumentCaptor<Source> videoSources = ArgumentCaptor.forClass(Source.class);
+    final ArgumentCaptor<Source> audioSources = ArgumentCaptor.forClass(Source.class);
+    verify(this.player).start(videoSources.capture(), audioSources.capture());
+    final Source videoSource = videoSources.getValue();
+    final Source audioSource = audioSources.getValue();
+    assertSame(expectedVideo, videoSource);
+    assertSame(expectedAudio, audioSource);
   }
 
   @ParameterizedTest
@@ -858,6 +823,12 @@ final class AbstractVideoCommandTest {
     this.verifyPlayedWithDump(AudioArgument.DISCORD_BOT);
     final Component started = Message.START_VIDEO.build();
     this.assertSenderReceived(started);
+  }
+
+  private void assertViewerReceived(final Component... expected) {
+    final List<Component> messages = Components.received(this.viewer);
+    final List<Component> expectedMessages = List.of(expected);
+    assertEquals(expectedMessages, messages);
   }
 
   @Test
@@ -1220,5 +1191,34 @@ final class AbstractVideoCommandTest {
     verify(this.player, never()).start(any());
     verify(this.player, never()).start(any(), any());
     this.assertNotStarting();
+  }
+
+  /**
+   * A command whose video output is a mocked filter and that remembers what it was asked to create.
+   */
+  private static final class RecordingCommand extends AbstractVideoCommand {
+
+    private final VideoPipelineStep pipeline;
+    private final List<Pair<Integer, Integer>> resolutions;
+    private final List<VideoConfigurationProvider> providers;
+
+    RecordingCommand(final MCAVSandbox plugin) {
+      super(plugin);
+      final FunctionalVideoFilter filter = mock(FunctionalVideoFilter.class);
+      this.pipeline = VideoPipelineStep.of(filter);
+      this.resolutions = new ArrayList<>();
+      this.providers = new ArrayList<>();
+    }
+
+    @Override
+    public VideoPipelineStep createVideoFilter(
+      final Pair<Integer, Integer> resolution,
+      final VideoConfigurationProvider configurationProvider
+    ) {
+      this.resolutions.add(resolution);
+      this.providers.add(configurationProvider);
+      configurationProvider.buildConfiguration(resolution);
+      return this.pipeline;
+    }
   }
 }

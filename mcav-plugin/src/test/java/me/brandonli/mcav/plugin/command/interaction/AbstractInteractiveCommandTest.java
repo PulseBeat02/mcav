@@ -175,69 +175,6 @@ final class AbstractInteractiveCommandTest {
   private Player player;
   private MockedStatic<InteractUtils> interactions;
 
-  /**
-   * A command that records the clicks and texts it forwards and the players it releases.
-   */
-  private static final class RecordingCommand extends AbstractInteractiveCommand<String> {
-
-    private final List<String> forwarded;
-    private final List<String> released;
-    private @Nullable Throwable releaseFailure;
-
-    RecordingCommand(final MCAVSandbox plugin) {
-      super(plugin);
-      this.forwarded = new ArrayList<>();
-      this.released = new ArrayList<>();
-    }
-
-    RecordingCommand(final MCAVSandbox plugin, final ExecutorService executor) {
-      super(plugin, executor);
-      this.forwarded = new ArrayList<>();
-      this.released = new ArrayList<>();
-    }
-
-    @Override
-    protected String getInteractionPermission() {
-      return INTERACT_PERMISSION;
-    }
-
-    @Override
-    protected void forwardLeftClick(final String current, final int screenX, final int screenY) {
-      this.forwarded.add(current + " left " + screenX + COORDINATE_SEPARATOR + screenY);
-    }
-
-    @Override
-    protected void forwardRightClick(final String current, final int screenX, final int screenY) {
-      this.forwarded.add(current + " right " + screenX + COORDINATE_SEPARATOR + screenY);
-    }
-
-    @Override
-    protected void forwardTextInput(final String current, final String text) {
-      this.forwarded.add(current + " text " + text);
-    }
-
-    @Override
-    protected Component createStartMessage(final boolean succeeded, final @Nullable Throwable error) {
-      if (succeeded) {
-        return Component.text(STARTED_TEXT);
-      }
-      final String reason = error == null ? "refused" : error.getMessage();
-      return Component.text("failed: " + reason);
-    }
-
-    @Override
-    protected void releasePlayer(final String current) {
-      this.released.add(current);
-      final Throwable failure = this.releaseFailure;
-      if (failure instanceof final RuntimeException runtime) {
-        throw runtime;
-      }
-      if (failure instanceof final Error error) {
-        throw error;
-      }
-    }
-  }
-
   @BeforeEach
   void createCommand() {
     final Server server = TestServer.reset();
@@ -258,168 +195,6 @@ final class AbstractInteractiveCommandTest {
   void shutDown() {
     this.interactions.close();
     this.command.shutdown();
-  }
-
-  private ItemFrame addScreenFrame(final double frameX, final double frameY, final double frameZ) {
-    final Location location = this.fakeWorld.location(frameX, frameY, frameZ);
-    final ItemFrame frame = this.fakeWorld.addFrame(location, BlockFace.SOUTH, Keys.MAP_KEY);
-    setMapId(frame, FIRST_MAP_ID);
-    return frame;
-  }
-
-  private static void setMapId(final ItemFrame frame, final int id) {
-    final ItemStack item = mock(ItemStack.class);
-    final MapMeta metadata = mock(MapMeta.class);
-    final MapView map = mock(MapView.class);
-    when(map.getId()).thenReturn(id);
-    when(metadata.getMapView()).thenReturn(map);
-    when(item.getItemMeta()).thenReturn(metadata);
-    when(frame.getItem()).thenReturn(item);
-  }
-
-  private ItemFrame addPlainFrame(final double frameX, final double frameZ) {
-    final Location location = this.fakeWorld.location(frameX, BLOCK_CENTER_Y, frameZ);
-    return this.fakeWorld.addFrame(location, BlockFace.SOUTH);
-  }
-
-  private void aimAtBlock(final Block block) {
-    final Vector hit = new Vector(BLOCK_CENTER_X, BLOCK_CENTER_Y, 0.0);
-    final RayTraceResult ray = new RayTraceResult(hit, block, BlockFace.SOUTH);
-    when(this.player.rayTraceBlocks(RAY_TRACE_DISTANCE, FluidCollisionMode.NEVER)).thenReturn(ray);
-  }
-
-  private static MultiplePlayerSelector mockViewers(final UUID viewer) {
-    final Player viewerPlayer = mock(Player.class);
-    when(viewerPlayer.getUniqueId()).thenReturn(viewer);
-    final MultiplePlayerSelector viewers = mock(MultiplePlayerSelector.class);
-    final List<Player> players = List.of(viewerPlayer);
-    when(viewers.values()).thenReturn(players);
-    return viewers;
-  }
-
-  private static ScreenSettings wallSettings(final UUID viewer, final DitheringArgument dithering) {
-    final MultiplePlayerSelector viewers = mockViewers(viewer);
-    final Pair<Integer, Integer> blocks = Pair.pair(WALL_BLOCK_WIDTH, WALL_BLOCK_HEIGHT);
-    final Pair<Integer, Integer> resolution = Pair.pair(WALL_PIXEL_WIDTH, WALL_PIXEL_HEIGHT);
-    return new ScreenSettings(mock(CommandSender.class), viewers, blocks, resolution, FIRST_MAP_ID, dithering, MapCodec.DITHER);
-  }
-
-  private Screen createMockedScreen() {
-    final UUID viewer = UUID.randomUUID();
-    return this.createMockedScreen(wallSettings(viewer, DitheringArgument.NEAREST_COLOR));
-  }
-
-  private Screen createMockedScreen(final ScreenSettings settings) {
-    final FunctionalVideoFilter ditherFilter = mock(FunctionalVideoFilter.class);
-    try (
-      final MockedConstruction<CompressedMapResult> results = Mockito.mockConstruction(CompressedMapResult.class);
-      final MockedStatic<DitherFilter> dithers = Mockito.mockStatic(DitherFilter.class)
-    ) {
-      dithers.when(() -> DitherFilter.dither(any(), any())).thenReturn(ditherFilter);
-      final Screen screen = this.command.createScreen(settings);
-      final List<CompressedMapResult> constructed = results.constructed();
-
-      final int size = constructed.size();
-      assertEquals(1, size);
-
-      return screen;
-    }
-  }
-
-  private static EntityDamageByEntityEvent damage(final Entity target, final Entity damager) {
-    final EntityDamageByEntityEvent event = mock(EntityDamageByEntityEvent.class);
-    when(event.getEntity()).thenReturn(target);
-    when(event.getDamager()).thenReturn(damager);
-    return event;
-  }
-
-  private BlockBreakEvent blockBreak() {
-    final BlockBreakEvent event = mock(BlockBreakEvent.class);
-    when(event.getPlayer()).thenReturn(this.player);
-    return event;
-  }
-
-  private PlayerInteractEntityEvent rightClick(final Entity clicked) {
-    final PlayerInteractEntityEvent event = mock(PlayerInteractEntityEvent.class);
-    when(event.getPlayer()).thenReturn(this.player);
-    when(event.getRightClicked()).thenReturn(clicked);
-    return event;
-  }
-
-  private static HangingBreakEvent hangingBreak(final ItemFrame frame) {
-    final HangingBreakEvent event = mock(HangingBreakEvent.class);
-    when(event.getEntity()).thenReturn(frame);
-    return event;
-  }
-
-  private AsyncChatEvent chat(final Component message) {
-    final AsyncChatEvent event = mock(AsyncChatEvent.class);
-    when(event.getPlayer()).thenReturn(this.player);
-    when(event.message()).thenReturn(message);
-    return event;
-  }
-
-  private void assertForwarded(final String... expected) {
-    final List<String> expectedForwarded = List.of(expected);
-    assertEquals(expectedForwarded, this.command.forwarded);
-  }
-
-  private void assertReleased(final String... expected) {
-    final List<String> expectedReleased = List.of(expected);
-    assertEquals(expectedReleased, this.command.released);
-  }
-
-  private static void assertReceivedText(final CommandSender sender, final String... expected) {
-    final List<String> messages = Components.receivedText(sender);
-    final List<String> expectedMessages = List.of(expected);
-    assertEquals(expectedMessages, messages);
-  }
-
-  private void assertScreenDithersOnto(
-    final Screen screen,
-    final CompressedMapResult maps,
-    final FunctionalVideoFilter ditherFilter,
-    final MockedStatic<DitherFilter> dithers
-  ) {
-    final FunctionalVideoFilter screenMaps = screen.getOutput();
-    assertSame(ditherFilter, screenMaps);
-    for (int mapId = FIRST_MAP_ID; mapId < MAP_ID_ABOVE_RANGE; mapId++) {
-      final boolean secondOwnsMap = screen.ownsMap(mapId);
-      assertTrue(secondOwnsMap, "all twelve maps of the 4x3 wall accept interaction");
-    }
-
-    final boolean ownsMap = screen.ownsMap(MAP_ID_BELOW_RANGE);
-    assertFalse(ownsMap);
-
-    final boolean screenOwnsMap = screen.ownsMap(MAP_ID_ABOVE_RANGE);
-    assertFalse(screenOwnsMap);
-
-    final DitherAlgorithm algorithm = DitheringArgument.NEAREST_COLOR.createAlgorithm();
-    dithers.verify(() -> DitherFilter.dither(algorithm, maps));
-    verify(ditherFilter).start();
-    final VideoPipelineStep pipeline = screen.getPipeline();
-    final VideoFilter filter = pipeline.getFilter();
-    assertSame(ditherFilter, filter);
-    assertSame(ditherFilter, this.command.result);
-  }
-
-  private static void assertWallConfiguration(final List<List<?>> arguments, final UUID viewer) {
-    final List<?> constructorArguments = arguments.getFirst();
-    final MapConfiguration configuration = (MapConfiguration) constructorArguments.getFirst();
-    final Collection<UUID> viewerCollection = configuration.getViewers();
-    final List<UUID> viewerIds = new ArrayList<>(viewerCollection);
-    final List<UUID> expectedViewers = List.of(viewer);
-    final int map = configuration.getMap();
-    final int blockWidth = configuration.getMapBlockWidth();
-    final int blockHeight = configuration.getMapBlockHeight();
-    final int width = configuration.getMapWidthResolution();
-    final int height = configuration.getMapHeightResolution();
-    assertEquals(FIRST_MAP_ID, map);
-    assertEquals(WALL_BLOCK_WIDTH, blockWidth);
-    assertEquals(WALL_BLOCK_HEIGHT, blockHeight);
-    assertEquals(WALL_PIXEL_WIDTH, width);
-    assertEquals(WALL_PIXEL_HEIGHT, height);
-    assertEquals(expectedViewers, viewerIds);
   }
 
   @Test
@@ -452,6 +227,11 @@ final class AbstractInteractiveCommandTest {
     assertNull(this.command.result);
     final boolean stopped = this.command.service.isShutdown();
     assertTrue(stopped);
+  }
+
+  private void assertReleased(final String... expected) {
+    final List<String> expectedReleased = List.of(expected);
+    assertEquals(expectedReleased, this.command.released);
   }
 
   @Test
@@ -552,6 +332,69 @@ final class AbstractInteractiveCommandTest {
     assertWallConfiguration(arguments, viewer);
   }
 
+  private static ScreenSettings wallSettings(final UUID viewer, final DitheringArgument dithering) {
+    final MultiplePlayerSelector viewers = mockViewers(viewer);
+    final Pair<Integer, Integer> blocks = Pair.pair(WALL_BLOCK_WIDTH, WALL_BLOCK_HEIGHT);
+    final Pair<Integer, Integer> resolution = Pair.pair(WALL_PIXEL_WIDTH, WALL_PIXEL_HEIGHT);
+    return new ScreenSettings(mock(CommandSender.class), viewers, blocks, resolution, FIRST_MAP_ID, dithering, MapCodec.DITHER);
+  }
+
+  private static MultiplePlayerSelector mockViewers(final UUID viewer) {
+    final Player viewerPlayer = mock(Player.class);
+    when(viewerPlayer.getUniqueId()).thenReturn(viewer);
+    final MultiplePlayerSelector viewers = mock(MultiplePlayerSelector.class);
+    final List<Player> players = List.of(viewerPlayer);
+    when(viewers.values()).thenReturn(players);
+    return viewers;
+  }
+
+  private void assertScreenDithersOnto(
+    final Screen screen,
+    final CompressedMapResult maps,
+    final FunctionalVideoFilter ditherFilter,
+    final MockedStatic<DitherFilter> dithers
+  ) {
+    final FunctionalVideoFilter screenMaps = screen.getOutput();
+    assertSame(ditherFilter, screenMaps);
+    for (int mapId = FIRST_MAP_ID; mapId < MAP_ID_ABOVE_RANGE; mapId++) {
+      final boolean secondOwnsMap = screen.ownsMap(mapId);
+      assertTrue(secondOwnsMap, "all twelve maps of the 4x3 wall accept interaction");
+    }
+
+    final boolean ownsMap = screen.ownsMap(MAP_ID_BELOW_RANGE);
+    assertFalse(ownsMap);
+
+    final boolean screenOwnsMap = screen.ownsMap(MAP_ID_ABOVE_RANGE);
+    assertFalse(screenOwnsMap);
+
+    final DitherAlgorithm algorithm = DitheringArgument.NEAREST_COLOR.createAlgorithm();
+    dithers.verify(() -> DitherFilter.dither(algorithm, maps));
+    verify(ditherFilter).start();
+    final VideoPipelineStep pipeline = screen.getPipeline();
+    final VideoFilter filter = pipeline.getFilter();
+    assertSame(ditherFilter, filter);
+    assertSame(ditherFilter, this.command.result);
+  }
+
+  private static void assertWallConfiguration(final List<List<?>> arguments, final UUID viewer) {
+    final List<?> constructorArguments = arguments.getFirst();
+    final MapConfiguration configuration = (MapConfiguration) constructorArguments.getFirst();
+    final Collection<UUID> viewerCollection = configuration.getViewers();
+    final List<UUID> viewerIds = new ArrayList<>(viewerCollection);
+    final List<UUID> expectedViewers = List.of(viewer);
+    final int map = configuration.getMap();
+    final int blockWidth = configuration.getMapBlockWidth();
+    final int blockHeight = configuration.getMapBlockHeight();
+    final int width = configuration.getMapWidthResolution();
+    final int height = configuration.getMapHeightResolution();
+    assertEquals(FIRST_MAP_ID, map);
+    assertEquals(WALL_BLOCK_WIDTH, blockWidth);
+    assertEquals(WALL_BLOCK_HEIGHT, blockHeight);
+    assertEquals(WALL_PIXEL_WIDTH, width);
+    assertEquals(WALL_PIXEL_HEIGHT, height);
+    assertEquals(expectedViewers, viewerIds);
+  }
+
   @Test
   void shouldGiveEveryScreenItsOwnTemporalDitheringAlgorithm() {
     final UUID viewer = UUID.randomUUID();
@@ -590,6 +433,34 @@ final class AbstractInteractiveCommandTest {
     final boolean nothingReleased = this.command.released.isEmpty();
     assertTrue(nothingReleased);
     verify(maps, never()).release();
+  }
+
+  private Screen createMockedScreen() {
+    final UUID viewer = UUID.randomUUID();
+    return this.createMockedScreen(wallSettings(viewer, DitheringArgument.NEAREST_COLOR));
+  }
+
+  private Screen createMockedScreen(final ScreenSettings settings) {
+    final FunctionalVideoFilter ditherFilter = mock(FunctionalVideoFilter.class);
+    try (
+      final MockedConstruction<CompressedMapResult> results = Mockito.mockConstruction(CompressedMapResult.class);
+      final MockedStatic<DitherFilter> dithers = Mockito.mockStatic(DitherFilter.class)
+    ) {
+      dithers.when(() -> DitherFilter.dither(any(), any())).thenReturn(ditherFilter);
+      final Screen screen = this.command.createScreen(settings);
+      final List<CompressedMapResult> constructed = results.constructed();
+
+      final int size = constructed.size();
+      assertEquals(1, size);
+
+      return screen;
+    }
+  }
+
+  private static void assertReceivedText(final CommandSender sender, final String... expected) {
+    final List<String> messages = Components.receivedText(sender);
+    final List<String> expectedMessages = List.of(expected);
+    assertEquals(expectedMessages, messages);
   }
 
   @Test
@@ -710,22 +581,6 @@ final class AbstractInteractiveCommandTest {
     verify(sender, never()).sendMessage(any(Component.class));
   }
 
-  private List<Runnable> useDeferredStartup() throws InterruptedException {
-    this.command.shutdown();
-    final ExecutorService executor = mock(ExecutorService.class);
-    final List<Runnable> pending = new ArrayList<>();
-    Mockito.doAnswer(invocation -> {
-      final Runnable task = invocation.getArgument(0);
-      pending.add(task);
-      return null;
-    })
-      .when(executor)
-      .execute(any(Runnable.class));
-    when(executor.awaitTermination(Mockito.anyLong(), any(TimeUnit.class))).thenReturn(true);
-    this.command = new RecordingCommand(this.plugin, executor);
-    return pending;
-  }
-
   @Test
   void shouldNeverStartAQueuedPlayerAfterShutdown() throws InterruptedException {
     final List<Runnable> pending = this.useDeferredStartup();
@@ -748,6 +603,22 @@ final class AbstractInteractiveCommandTest {
     this.assertReleased(BROWSER);
     assertNull(this.command.player);
     verify(sender, never()).sendMessage(any(Component.class));
+  }
+
+  private List<Runnable> useDeferredStartup() throws InterruptedException {
+    this.command.shutdown();
+    final ExecutorService executor = mock(ExecutorService.class);
+    final List<Runnable> pending = new ArrayList<>();
+    Mockito.doAnswer(invocation -> {
+      final Runnable task = invocation.getArgument(0);
+      pending.add(task);
+      return null;
+    })
+      .when(executor)
+      .execute(any(Runnable.class));
+    when(executor.awaitTermination(Mockito.anyLong(), any(TimeUnit.class))).thenReturn(true);
+    this.command = new RecordingCommand(this.plugin, executor);
+    return pending;
   }
 
   @Test
@@ -803,6 +674,42 @@ final class AbstractInteractiveCommandTest {
     this.interactions.verifyNoInteractions();
   }
 
+  private static void setMapId(final ItemFrame frame, final int id) {
+    final ItemStack item = mock(ItemStack.class);
+    final MapMeta metadata = mock(MapMeta.class);
+    final MapView map = mock(MapView.class);
+    when(map.getId()).thenReturn(id);
+    when(metadata.getMapView()).thenReturn(map);
+    when(item.getItemMeta()).thenReturn(metadata);
+    when(frame.getItem()).thenReturn(item);
+  }
+
+  private ItemFrame addScreenFrame(final double frameX, final double frameY, final double frameZ) {
+    final Location location = this.fakeWorld.location(frameX, frameY, frameZ);
+    final ItemFrame frame = this.fakeWorld.addFrame(location, BlockFace.SOUTH, Keys.MAP_KEY);
+    setMapId(frame, FIRST_MAP_ID);
+    return frame;
+  }
+
+  private static EntityDamageByEntityEvent damage(final Entity target, final Entity damager) {
+    final EntityDamageByEntityEvent event = mock(EntityDamageByEntityEvent.class);
+    when(event.getEntity()).thenReturn(target);
+    when(event.getDamager()).thenReturn(damager);
+    return event;
+  }
+
+  private PlayerInteractEntityEvent rightClick(final Entity clicked) {
+    final PlayerInteractEntityEvent event = mock(PlayerInteractEntityEvent.class);
+    when(event.getPlayer()).thenReturn(this.player);
+    when(event.getRightClicked()).thenReturn(clicked);
+    return event;
+  }
+
+  private void assertForwarded(final String... expected) {
+    final List<String> expectedForwarded = List.of(expected);
+    assertEquals(expectedForwarded, this.command.forwarded);
+  }
+
   @Test
   void shouldReleaseMapsAndStopListeningEvenWhenPlayerCleanupFails() {
     this.createMockedScreen();
@@ -846,6 +753,23 @@ final class AbstractInteractiveCommandTest {
 
     verify(event).setCancelled(true);
     this.assertForwarded(AIMED_LEFT_CLICK);
+  }
+
+  private ItemFrame addPlainFrame(final double frameX, final double frameZ) {
+    final Location location = this.fakeWorld.location(frameX, BLOCK_CENTER_Y, frameZ);
+    return this.fakeWorld.addFrame(location, BlockFace.SOUTH);
+  }
+
+  private void aimAtBlock(final Block block) {
+    final Vector hit = new Vector(BLOCK_CENTER_X, BLOCK_CENTER_Y, 0.0);
+    final RayTraceResult ray = new RayTraceResult(hit, block, BlockFace.SOUTH);
+    when(this.player.rayTraceBlocks(RAY_TRACE_DISTANCE, FluidCollisionMode.NEVER)).thenReturn(ray);
+  }
+
+  private BlockBreakEvent blockBreak() {
+    final BlockBreakEvent event = mock(BlockBreakEvent.class);
+    when(event.getPlayer()).thenReturn(this.player);
+    return event;
   }
 
   @Test
@@ -1085,6 +1009,13 @@ final class AbstractInteractiveCommandTest {
     assertEquals(expectedReplies, replies);
   }
 
+  private AsyncChatEvent chat(final Component message) {
+    final AsyncChatEvent event = mock(AsyncChatEvent.class);
+    when(event.getPlayer()).thenReturn(this.player);
+    when(event.message()).thenReturn(message);
+    return event;
+  }
+
   @Test
   void shouldKeepTheScreenSafeFromAPlayerWhoMayNotInteractWithoutForwardingTheClick() {
     this.createMockedScreen();
@@ -1172,6 +1103,12 @@ final class AbstractInteractiveCommandTest {
     verify(plainEvent, never()).setCancelled(anyBoolean());
   }
 
+  private static HangingBreakEvent hangingBreak(final ItemFrame frame) {
+    final HangingBreakEvent event = mock(HangingBreakEvent.class);
+    when(event.getEntity()).thenReturn(frame);
+    return event;
+  }
+
   @Test
   void shouldReleaseThePlayerAndTellTheSender() {
     this.createMockedScreen();
@@ -1243,19 +1180,6 @@ final class AbstractInteractiveCommandTest {
     }
   }
 
-  private static ScreenSettings mcv2Settings(final CommandSender sender, final UUID viewer) {
-    final MultiplePlayerSelector viewers = mockViewers(viewer);
-    return new ScreenSettings(
-      sender,
-      viewers,
-      Pair.pair(WALL_BLOCK_WIDTH, WALL_BLOCK_HEIGHT),
-      Pair.pair(WALL_PIXEL_WIDTH, WALL_PIXEL_HEIGHT),
-      FIRST_MAP_ID,
-      DitheringArgument.NEAREST_COLOR,
-      MapCodec.MCV2
-    );
-  }
-
   @Test
   void shouldCreateAnMcv2ScreenWhenTheSettingsAskForIt() {
     final CommandSender sender = mock(CommandSender.class);
@@ -1286,6 +1210,19 @@ final class AbstractInteractiveCommandTest {
       final boolean empty = maps.constructed().isEmpty();
       assertTrue(empty, "the MCV2 output dithers for the viewers without the pack itself");
     }
+  }
+
+  private static ScreenSettings mcv2Settings(final CommandSender sender, final UUID viewer) {
+    final MultiplePlayerSelector viewers = mockViewers(viewer);
+    return new ScreenSettings(
+      sender,
+      viewers,
+      Pair.pair(WALL_BLOCK_WIDTH, WALL_BLOCK_HEIGHT),
+      Pair.pair(WALL_PIXEL_WIDTH, WALL_PIXEL_HEIGHT),
+      FIRST_MAP_ID,
+      DitheringArgument.NEAREST_COLOR,
+      MapCodec.MCV2
+    );
   }
 
   @Test
@@ -1324,6 +1261,16 @@ final class AbstractInteractiveCommandTest {
     assertSame(MapCodec.DITHER, commandCodec);
   }
 
+  @Test
+  void shouldPreserveSetupFailureAndSuppressADistinctCleanupFailure() {
+    final IllegalStateException failure = new IllegalStateException("attach failed!");
+    final IllegalStateException cleanup = new IllegalStateException("close failed!");
+    this.assertSynchronousFailureCleanup(failure, cleanup);
+    final Throwable[] suppressed = failure.getSuppressed();
+    assertEquals(1, suppressed.length);
+    assertSame(cleanup, suppressed[0]);
+  }
+
   private void assertSynchronousFailureCleanup(final RuntimeException failure, final RuntimeException cleanup) {
     final Screen screen = this.createMockedScreen();
     final FunctionalVideoFilter maps = screen.getOutput();
@@ -1339,16 +1286,6 @@ final class AbstractInteractiveCommandTest {
     verify(maps).release();
     assertNull(this.command.player);
     assertNull(this.command.result);
-  }
-
-  @Test
-  void shouldPreserveSetupFailureAndSuppressADistinctCleanupFailure() {
-    final IllegalStateException failure = new IllegalStateException("attach failed!");
-    final IllegalStateException cleanup = new IllegalStateException("close failed!");
-    this.assertSynchronousFailureCleanup(failure, cleanup);
-    final Throwable[] suppressed = failure.getSuppressed();
-    assertEquals(1, suppressed.length);
-    assertSame(cleanup, suppressed[0]);
   }
 
   @Test
@@ -1409,6 +1346,13 @@ final class AbstractInteractiveCommandTest {
     verify(sender, never()).sendMessage(any(Component.class));
   }
 
+  @Test
+  void shouldFinishStartupOwnershipWhenAnExecutorTaskThrows() throws InterruptedException {
+    final RuntimeException failure = this.runFailedStartupTask(false, null);
+    final Throwable[] suppressed = failure.getSuppressed();
+    assertEquals(0, suppressed.length);
+  }
+
   private RuntimeException runFailedStartupTask(final boolean shouldCancel, final @Nullable RuntimeException cleanup)
     throws InterruptedException {
     final List<Runnable> pending = this.useDeferredStartup();
@@ -1437,13 +1381,6 @@ final class AbstractInteractiveCommandTest {
       this.assertReleased(BROWSER);
     }
     return failure;
-  }
-
-  @Test
-  void shouldFinishStartupOwnershipWhenAnExecutorTaskThrows() throws InterruptedException {
-    final RuntimeException failure = this.runFailedStartupTask(false, null);
-    final Throwable[] suppressed = failure.getSuppressed();
-    assertEquals(0, suppressed.length);
   }
 
   @Test
@@ -1829,5 +1766,68 @@ final class AbstractInteractiveCommandTest {
 
     // the pack stretches the 1024x768 picture over the 512x384 pixels of the wall
     this.assertForwarded("browser right 400,200");
+  }
+
+  /**
+   * A command that records the clicks and texts it forwards and the players it releases.
+   */
+  private static final class RecordingCommand extends AbstractInteractiveCommand<String> {
+
+    private final List<String> forwarded;
+    private final List<String> released;
+    private @Nullable Throwable releaseFailure;
+
+    RecordingCommand(final MCAVSandbox plugin) {
+      super(plugin);
+      this.forwarded = new ArrayList<>();
+      this.released = new ArrayList<>();
+    }
+
+    RecordingCommand(final MCAVSandbox plugin, final ExecutorService executor) {
+      super(plugin, executor);
+      this.forwarded = new ArrayList<>();
+      this.released = new ArrayList<>();
+    }
+
+    @Override
+    protected void forwardLeftClick(final String current, final int screenX, final int screenY) {
+      this.forwarded.add(current + " left " + screenX + COORDINATE_SEPARATOR + screenY);
+    }
+
+    @Override
+    protected void forwardRightClick(final String current, final int screenX, final int screenY) {
+      this.forwarded.add(current + " right " + screenX + COORDINATE_SEPARATOR + screenY);
+    }
+
+    @Override
+    protected void forwardTextInput(final String current, final String text) {
+      this.forwarded.add(current + " text " + text);
+    }
+
+    @Override
+    protected Component createStartMessage(final boolean succeeded, final @Nullable Throwable error) {
+      if (succeeded) {
+        return Component.text(STARTED_TEXT);
+      }
+      final String reason = error == null ? "refused" : error.getMessage();
+      return Component.text("failed: " + reason);
+    }
+
+    @Override
+    protected void releasePlayer(final String current) {
+      this.released.add(current);
+      final Throwable failure = this.releaseFailure;
+      if (failure instanceof final RuntimeException runtime) {
+        throw runtime;
+      }
+      if (failure instanceof final Error error) {
+        throw error;
+      }
+    }
+
+    @Override
+    protected String getInteractionPermission() {
+      return INTERACT_PERMISSION;
+    }
   }
 }

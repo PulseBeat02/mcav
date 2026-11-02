@@ -86,6 +86,24 @@ final class ImageBlockCommandTest {
     this.location = world.location(1.0, 64.0, 2.0);
   }
 
+  @Test
+  void shouldShowTheImageAsBlocksToTheSelectedPlayers() {
+    this.command.showImage(this.sender, this.selector, RESOLUTION, this.location, MRL, null);
+    final AbstractImageCommand.ImageConfigurationProvider provider = this.captureProvider();
+    final BlockConfiguration configuration = this.createImage(provider);
+
+    final Collection<UUID> viewers = configuration.getViewers();
+    final List<UUID> viewerList = new ArrayList<>(viewers);
+    final List<UUID> expectedViewers = List.of(this.viewer);
+    final int width = configuration.getBlockWidth();
+    final int height = configuration.getBlockHeight();
+    final Location position = configuration.getPosition();
+    assertEquals(expectedViewers, viewerList);
+    assertEquals(RESOLUTION_WIDTH, width);
+    assertEquals(RESOLUTION_HEIGHT, height);
+    assertEquals(this.location, position);
+  }
+
   private AbstractImageCommand.ImageConfigurationProvider captureProvider() {
     final ArgumentCaptor<AbstractImageCommand.ImageConfigurationProvider> providers = ArgumentCaptor.forClass(
       AbstractImageCommand.ImageConfigurationProvider.class
@@ -105,24 +123,6 @@ final class ImageBlockCommandTest {
       displays.verify(() -> DisplayableImage.block(configurations.capture()));
     }
     return configurations.getValue();
-  }
-
-  @Test
-  void shouldShowTheImageAsBlocksToTheSelectedPlayers() {
-    this.command.showImage(this.sender, this.selector, RESOLUTION, this.location, MRL, null);
-    final AbstractImageCommand.ImageConfigurationProvider provider = this.captureProvider();
-    final BlockConfiguration configuration = this.createImage(provider);
-
-    final Collection<UUID> viewers = configuration.getViewers();
-    final List<UUID> viewerList = new ArrayList<>(viewers);
-    final List<UUID> expectedViewers = List.of(this.viewer);
-    final int width = configuration.getBlockWidth();
-    final int height = configuration.getBlockHeight();
-    final Location position = configuration.getPosition();
-    assertEquals(expectedViewers, viewerList);
-    assertEquals(RESOLUTION_WIDTH, width);
-    assertEquals(RESOLUTION_HEIGHT, height);
-    assertEquals(this.location, position);
   }
 
   @Test

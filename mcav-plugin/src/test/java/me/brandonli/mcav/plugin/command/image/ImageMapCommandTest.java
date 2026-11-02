@@ -112,33 +112,6 @@ final class ImageMapCommandTest {
     this.sender = mock(CommandSender.class);
   }
 
-  private AbstractImageCommand.ImageConfigurationProvider showAndCaptureProvider(final DitheringArgument dithering) {
-    this.command.showMapImage(this.sender, this.selector, RESOLUTION, BLOCKS, MAP_ID, dithering, MRL, null, null);
-    final ArgumentCaptor<AbstractImageCommand.ImageConfigurationProvider> providers = ArgumentCaptor.forClass(
-      AbstractImageCommand.ImageConfigurationProvider.class
-    );
-    verify(this.command).displayImage(providers.capture(), eq(this.sender), eq(RESOLUTION), eq(MRL), isNull());
-    return providers.getValue();
-  }
-
-  private DitherAlgorithm createImageAndCaptureAlgorithm(final AbstractImageCommand.ImageConfigurationProvider provider) {
-    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
-    final DisplayableImage display = mock(DisplayableImage.class);
-    final ArgumentCaptor<MapConfiguration> configurations = ArgumentCaptor.forClass(MapConfiguration.class);
-    final ArgumentCaptor<DitherAlgorithm> algorithms = ArgumentCaptor.forClass(DitherAlgorithm.class);
-    try (final MockedStatic<DisplayableImage> displays = Mockito.mockStatic(DisplayableImage.class)) {
-      displays.when(() -> DisplayableImage.map(any(), any())).thenReturn(display);
-      final DisplayableImage created = this.command.createImage(resolution, provider);
-      assertSame(display, created);
-      displays.verify(() -> DisplayableImage.map(configurations.capture(), algorithms.capture()));
-    }
-
-    final MapConfiguration used = configurations.getValue();
-    final int usedMap = used.getMap();
-    assertEquals(MAP_ID, usedMap);
-    return algorithms.getValue();
-  }
-
   @Test
   void shouldBuildTheSettingsOfTheWallOfMaps() {
     final AbstractImageCommand.ImageConfigurationProvider provider = this.showAndCaptureProvider(DitheringArgument.FILTER_LITE);
@@ -163,12 +136,39 @@ final class ImageMapCommandTest {
     assertEquals(RESOLUTION_HEIGHT, height);
   }
 
+  private AbstractImageCommand.ImageConfigurationProvider showAndCaptureProvider(final DitheringArgument dithering) {
+    this.command.showMapImage(this.sender, this.selector, RESOLUTION, BLOCKS, MAP_ID, dithering, MRL, null, null);
+    final ArgumentCaptor<AbstractImageCommand.ImageConfigurationProvider> providers = ArgumentCaptor.forClass(
+      AbstractImageCommand.ImageConfigurationProvider.class
+    );
+    verify(this.command).displayImage(providers.capture(), eq(this.sender), eq(RESOLUTION), eq(MRL), isNull());
+    return providers.getValue();
+  }
+
   @Test
   void shouldDitherTheImageWithTheChosenAlgorithm() {
     final AbstractImageCommand.ImageConfigurationProvider provider = this.showAndCaptureProvider(DitheringArgument.FILTER_LITE);
     final DitherAlgorithm algorithm = this.createImageAndCaptureAlgorithm(provider);
     final DitherAlgorithm expected = DitheringArgument.FILTER_LITE.createAlgorithm();
     assertSame(expected, algorithm);
+  }
+
+  private DitherAlgorithm createImageAndCaptureAlgorithm(final AbstractImageCommand.ImageConfigurationProvider provider) {
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
+    final DisplayableImage display = mock(DisplayableImage.class);
+    final ArgumentCaptor<MapConfiguration> configurations = ArgumentCaptor.forClass(MapConfiguration.class);
+    final ArgumentCaptor<DitherAlgorithm> algorithms = ArgumentCaptor.forClass(DitherAlgorithm.class);
+    try (final MockedStatic<DisplayableImage> displays = Mockito.mockStatic(DisplayableImage.class)) {
+      displays.when(() -> DisplayableImage.map(any(), any())).thenReturn(display);
+      final DisplayableImage created = this.command.createImage(resolution, provider);
+      assertSame(display, created);
+      displays.verify(() -> DisplayableImage.map(configurations.capture(), algorithms.capture()));
+    }
+
+    final MapConfiguration used = configurations.getValue();
+    final int usedMap = used.getMap();
+    assertEquals(MAP_ID, usedMap);
+    return algorithms.getValue();
   }
 
   @Test
@@ -219,15 +219,6 @@ final class ImageMapCommandTest {
     assertThrows(NullPointerException.class, () -> this.command.createImage(resolution, null));
   }
 
-  private AbstractImageCommand.ImageConfigurationProvider showWithCodecAndCaptureProvider(final @Nullable MapCodec codec) {
-    this.command.showMapImage(this.sender, this.selector, RESOLUTION, BLOCKS, MAP_ID, DitheringArgument.NEAREST_COLOR, MRL, codec, null);
-    final ArgumentCaptor<AbstractImageCommand.ImageConfigurationProvider> providers = ArgumentCaptor.forClass(
-      AbstractImageCommand.ImageConfigurationProvider.class
-    );
-    verify(this.command).displayImage(providers.capture(), eq(this.sender), eq(RESOLUTION), eq(MRL), isNull());
-    return providers.getValue();
-  }
-
   @Test
   void shouldShowTheImageWithMcv2WhenTheFlagSaysSo() {
     final AbstractImageCommand.ImageConfigurationProvider provider = this.showWithCodecAndCaptureProvider(MapCodec.MCV2);
@@ -249,6 +240,15 @@ final class ImageMapCommandTest {
 
     final DisplayableImage image = this.command.createImage(resolution, provider);
     assertInstanceOf(Mcv2Image.class, image);
+  }
+
+  private AbstractImageCommand.ImageConfigurationProvider showWithCodecAndCaptureProvider(final @Nullable MapCodec codec) {
+    this.command.showMapImage(this.sender, this.selector, RESOLUTION, BLOCKS, MAP_ID, DitheringArgument.NEAREST_COLOR, MRL, codec, null);
+    final ArgumentCaptor<AbstractImageCommand.ImageConfigurationProvider> providers = ArgumentCaptor.forClass(
+      AbstractImageCommand.ImageConfigurationProvider.class
+    );
+    verify(this.command).displayImage(providers.capture(), eq(this.sender), eq(RESOLUTION), eq(MRL), isNull());
+    return providers.getValue();
   }
 
   @Test

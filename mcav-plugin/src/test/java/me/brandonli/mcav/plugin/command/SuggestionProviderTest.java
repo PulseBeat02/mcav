@@ -31,16 +31,16 @@ final class SuggestionProviderTest {
 
   private final SuggestionProvider provider = new SuggestionProvider();
 
-  private static void assertSuggests(final List<String> expected, final Stream<String> suggestions) {
-    final List<String> values = suggestions.toList();
-    assertEquals(expected, values);
-  }
-
   @Test
   void shouldSuggestMapIds() {
     final Stream<String> suggestions = this.provider.suggestId();
     final List<String> expected = List.of("0", "5", "10", "100", "1000", "10000", "100000");
     assertSuggests(expected, suggestions);
+  }
+
+  private static void assertSuggests(final List<String> expected, final Stream<String> suggestions) {
+    final List<String> values = suggestions.toList();
+    assertEquals(expected, values);
   }
 
   @Test

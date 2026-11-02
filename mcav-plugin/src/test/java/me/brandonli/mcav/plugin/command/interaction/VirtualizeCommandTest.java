@@ -186,21 +186,6 @@ final class VirtualizeCommandTest {
     this.command.shutdown();
   }
 
-  private void create(final String resolution, final String blocks, final String flags) {
-    this.command.createVm(
-      this.sender,
-      this.selector,
-      resolution,
-      FRAMES_PER_SECOND,
-      blocks,
-      0,
-      DitheringArgument.FILTER_LITE,
-      VmPlayer.Architecture.X86_64,
-      AudioArgument.NONE,
-      flags
-    );
-  }
-
   @Test
   void shouldReleaseTheMachineAndScreenWhenSubmissionIsRejected() {
     final RejectedExecutionException failure = new RejectedExecutionException("executor stopped!");
@@ -222,51 +207,19 @@ final class VirtualizeCommandTest {
     assertNull(this.command.result);
   }
 
-  private void startsWith(final CompletableFuture<Boolean> start) {
-    when(this.machine.startAsync(any(VmSettings.class), any(VmPlayer.Architecture.class), any(VmConfiguration.class), any())).thenReturn(
-      start
+  private void create(final String resolution, final String blocks, final String flags) {
+    this.command.createVm(
+      this.sender,
+      this.selector,
+      resolution,
+      FRAMES_PER_SECOND,
+      blocks,
+      0,
+      DitheringArgument.FILTER_LITE,
+      VmPlayer.Architecture.X86_64,
+      AudioArgument.NONE,
+      flags
     );
-  }
-
-  private void assertReceived(final Component... expected) {
-    final List<Component> messages = Components.received(this.sender);
-    final List<Component> expectedMessages = List.of(expected);
-    assertEquals(expectedMessages, messages);
-  }
-
-  private void assertArguments(final String commandLine, final String... expected) {
-    final VmConfiguration configuration = VirtualizeCommand.parseOptions(commandLine, this.imageFolder).build();
-    final List<String> arguments = configuration.getArguments();
-    final List<String> expectedArguments = List.of(expected);
-    assertEquals(expectedArguments, arguments);
-  }
-
-  /**
-   * Creates a disk image of the image folder and returns the path the machine is given for it.
-   */
-  private String image(final String name) throws IOException {
-    final Path image = this.imageFolder.resolve(name);
-    Files.createDirectories(this.imageFolder);
-    Files.writeString(image, "disk image");
-    return image.toAbsolutePath().normalize().toString();
-  }
-
-  private IllegalArgumentException assertRefusedOptions(final String commandLine) {
-    return assertThrows(IllegalArgumentException.class, () -> VirtualizeCommand.parseOptions(commandLine, this.imageFolder));
-  }
-
-  private static void assertTokens(final String commandLine, final String... expected) {
-    final List<String> tokens = VirtualizeCommand.tokenize(commandLine);
-    final List<String> expectedTokens = List.of(expected);
-    assertEquals(expectedTokens, tokens);
-  }
-
-  private void assertDithersOntoTheScreen() {
-    final ArgumentCaptor<VideoPipelineStep> pipelines = ArgumentCaptor.forClass(VideoPipelineStep.class);
-    verify(this.callback).attach(pipelines.capture());
-    final VideoPipelineStep pipeline = pipelines.getValue();
-    final VideoFilter filter = pipeline.getFilter();
-    assertSame(this.ditherFilter, filter);
   }
 
   @Test
@@ -289,6 +242,36 @@ final class VirtualizeCommandTest {
     final Component loading = Message.VM_LOADING.build();
     final Component created = Message.VM_CREATE.build();
     this.assertReceived(loading, created);
+  }
+
+  private void startsWith(final CompletableFuture<Boolean> start) {
+    when(this.machine.startAsync(any(VmSettings.class), any(VmPlayer.Architecture.class), any(VmConfiguration.class), any())).thenReturn(
+      start
+    );
+  }
+
+  private void assertReceived(final Component... expected) {
+    final List<Component> messages = Components.received(this.sender);
+    final List<Component> expectedMessages = List.of(expected);
+    assertEquals(expectedMessages, messages);
+  }
+
+  /**
+   * Creates a disk image of the image folder and returns the path the machine is given for it.
+   */
+  private String image(final String name) throws IOException {
+    final Path image = this.imageFolder.resolve(name);
+    Files.createDirectories(this.imageFolder);
+    Files.writeString(image, "disk image");
+    return image.toAbsolutePath().normalize().toString();
+  }
+
+  private void assertDithersOntoTheScreen() {
+    final ArgumentCaptor<VideoPipelineStep> pipelines = ArgumentCaptor.forClass(VideoPipelineStep.class);
+    verify(this.callback).attach(pipelines.capture());
+    final VideoPipelineStep pipeline = pipelines.getValue();
+    final VideoFilter filter = pipeline.getFilter();
+    assertSame(this.ditherFilter, filter);
   }
 
   @Test
@@ -538,6 +521,13 @@ final class VirtualizeCommandTest {
     );
   }
 
+  private void assertArguments(final String commandLine, final String... expected) {
+    final VmConfiguration configuration = VirtualizeCommand.parseOptions(commandLine, this.imageFolder).build();
+    final List<String> arguments = configuration.getArguments();
+    final List<String> expectedArguments = List.of(expected);
+    assertEquals(expectedArguments, arguments);
+  }
+
   @Test
   void shouldKeepOptionsThatQemuAcceptsMoreThanOnce() throws IOException {
     final String first = this.image(DISK_A_FILE_NAME);
@@ -590,6 +580,12 @@ final class VirtualizeCommandTest {
     assertTokens("a  \"b c\"\t\"\" x\"y z\"w \"open quote", "a", "b c", "", "xy zw", "open quote");
   }
 
+  private static void assertTokens(final String commandLine, final String... expected) {
+    final List<String> tokens = VirtualizeCommand.tokenize(commandLine);
+    final List<String> expectedTokens = List.of(expected);
+    assertEquals(expectedTokens, tokens);
+  }
+
   @Test
   void shouldTokenizAnEmptyLineToNothing() {
     assertTokens("");
@@ -616,6 +612,10 @@ final class VirtualizeCommandTest {
       final boolean explained = message.contains(" is not supported, use one of ");
       assertTrue(explained, options + " -> " + message);
     }
+  }
+
+  private IllegalArgumentException assertRefusedOptions(final String commandLine) {
+    return assertThrows(IllegalArgumentException.class, () -> VirtualizeCommand.parseOptions(commandLine, this.imageFolder));
   }
 
   @ParameterizedTest
@@ -727,6 +727,19 @@ final class VirtualizeCommandTest {
     verify(this.provider).releaseAudioFilter(this.machine);
   }
 
+  @Test
+  void shouldSendTheLinkOfAMachineThatStartsWithTheWebPage() {
+    this.createWithTheWebPage(CompletableFuture.completedFuture(true));
+    verify(this.provider).constructHttpUrl();
+
+    final List<Component> expected = List.of(Message.AUDIO_HTTP.build(AUDIO_HTTP_URL));
+    final List<Component> received = Components.received(this.viewer);
+    assertEquals(expected, received);
+
+    final List<String> receivedText = Components.receivedText(this.viewer);
+    assertEquals(List.of("Click on the URL to listen onto the website! http://mc.example.com:3000/"), receivedText);
+  }
+
   private void createWithTheWebPage(final CompletableFuture<Boolean> start) {
     when(this.provider.isHttpEnabled()).thenReturn(true);
     when(this.provider.isHttpReady()).thenReturn(true);
@@ -748,19 +761,6 @@ final class VirtualizeCommandTest {
       AudioArgument.HTTP_SERVER,
       SMALL_MEMORY_FLAGS
     );
-  }
-
-  @Test
-  void shouldSendTheLinkOfAMachineThatStartsWithTheWebPage() {
-    this.createWithTheWebPage(CompletableFuture.completedFuture(true));
-    verify(this.provider).constructHttpUrl();
-
-    final List<Component> expected = List.of(Message.AUDIO_HTTP.build(AUDIO_HTTP_URL));
-    final List<Component> received = Components.received(this.viewer);
-    assertEquals(expected, received);
-
-    final List<String> receivedText = Components.receivedText(this.viewer);
-    assertEquals(List.of("Click on the URL to listen onto the website! http://mc.example.com:3000/"), receivedText);
   }
 
   @Test

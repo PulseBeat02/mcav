@@ -108,23 +108,6 @@ final class VideoMcv2CommandTest {
     this.sender = mock(CommandSender.class);
   }
 
-  private void play(final String resolution, final String wall, final int map) {
-    this.command.playMcv2Video(
-      this.sender,
-      this.selector,
-      PlayerArgument.FFMPEG,
-      AudioArgument.NONE,
-      resolution,
-      wall,
-      map,
-      Mcv2Profile.DEFAULT,
-      DitheringArgument.FILTER_LITE,
-      "",
-      VIDEO_FILE_NAME,
-      null
-    );
-  }
-
   @Test
   void shouldConfigureTheWallAndPlayOnIt() {
     final Mcv2Configuration configuration = mock(Mcv2Configuration.class);
@@ -166,6 +149,23 @@ final class VideoMcv2CommandTest {
 
     final CommandSender sender = settings.sender();
     assertSame(this.sender, sender);
+  }
+
+  private void play(final String resolution, final String wall, final int map) {
+    this.command.playMcv2Video(
+      this.sender,
+      this.selector,
+      PlayerArgument.FFMPEG,
+      AudioArgument.NONE,
+      resolution,
+      wall,
+      map,
+      Mcv2Profile.DEFAULT,
+      DitheringArgument.FILTER_LITE,
+      "",
+      VIDEO_FILE_NAME,
+      null
+    );
   }
 
   @Test

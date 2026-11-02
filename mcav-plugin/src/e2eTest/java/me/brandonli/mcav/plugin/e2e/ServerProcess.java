@@ -80,6 +80,29 @@ final class ServerProcess implements AutoCloseable {
     return new ServerProcess(started);
   }
 
+  /**
+   * Ends the server if it still runs: first politely, then forcibly after {@code DESTROY_TIMEOUT}. An interrupt while
+   * waiting ends the server forcibly at once and keeps the interrupt flag of the thread set.
+   */
+  @Override
+  public void close() {
+    if (!this.process.isAlive()) {
+      return;
+    }
+    this.process.destroy();
+    final long milliseconds = DESTROY_TIMEOUT.toMillis();
+    try {
+      final boolean exited = this.process.waitFor(milliseconds, TimeUnit.MILLISECONDS);
+      if (!exited) {
+        this.process.destroyForcibly();
+      }
+    } catch (final InterruptedException exception) {
+      this.process.destroyForcibly();
+      final Thread currentThread = Thread.currentThread();
+      currentThread.interrupt();
+    }
+  }
+
   private void readOutput() {
     final InputStream serverOutput = this.process.getInputStream();
     final InputStreamReader streamReader = new InputStreamReader(serverOutput, StandardCharsets.UTF_8);
@@ -239,28 +262,5 @@ final class ServerProcess implements AutoCloseable {
    */
   static String programOf(final ProcessHandle handle) {
     return handle.info().command().orElse("");
-  }
-
-  /**
-   * Ends the server if it still runs: first politely, then forcibly after {@code DESTROY_TIMEOUT}. An interrupt while
-   * waiting ends the server forcibly at once and keeps the interrupt flag of the thread set.
-   */
-  @Override
-  public void close() {
-    if (!this.process.isAlive()) {
-      return;
-    }
-    this.process.destroy();
-    final long milliseconds = DESTROY_TIMEOUT.toMillis();
-    try {
-      final boolean exited = this.process.waitFor(milliseconds, TimeUnit.MILLISECONDS);
-      if (!exited) {
-        this.process.destroyForcibly();
-      }
-    } catch (final InterruptedException exception) {
-      this.process.destroyForcibly();
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
-    }
   }
 }

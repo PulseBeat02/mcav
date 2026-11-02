@@ -81,6 +81,24 @@ final class ImageChatCommandTest {
     this.sender = mock(CommandSender.class);
   }
 
+  @Test
+  void shouldShowTheImageInTheChatOfTheSelectedPlayers() {
+    this.command.showImage(this.sender, this.selector, RESOLUTION, CHARACTER, MRL, null);
+    final AbstractImageCommand.ImageConfigurationProvider provider = this.captureProvider();
+    final ChatConfiguration configuration = this.createImage(provider);
+
+    final Collection<UUID> viewers = configuration.getViewers();
+    final List<UUID> viewerList = new ArrayList<>(viewers);
+    final List<UUID> expectedViewers = List.of(this.viewer);
+    final int width = configuration.getChatWidth();
+    final int height = configuration.getChatHeight();
+    final String character = configuration.getCharacter();
+    assertEquals(expectedViewers, viewerList);
+    assertEquals(RESOLUTION_WIDTH, width);
+    assertEquals(RESOLUTION_HEIGHT, height);
+    assertEquals(CHARACTER, character);
+  }
+
   private AbstractImageCommand.ImageConfigurationProvider captureProvider() {
     final ArgumentCaptor<AbstractImageCommand.ImageConfigurationProvider> providers = ArgumentCaptor.forClass(
       AbstractImageCommand.ImageConfigurationProvider.class
@@ -100,24 +118,6 @@ final class ImageChatCommandTest {
       displays.verify(() -> DisplayableImage.chat(configurations.capture()));
     }
     return configurations.getValue();
-  }
-
-  @Test
-  void shouldShowTheImageInTheChatOfTheSelectedPlayers() {
-    this.command.showImage(this.sender, this.selector, RESOLUTION, CHARACTER, MRL, null);
-    final AbstractImageCommand.ImageConfigurationProvider provider = this.captureProvider();
-    final ChatConfiguration configuration = this.createImage(provider);
-
-    final Collection<UUID> viewers = configuration.getViewers();
-    final List<UUID> viewerList = new ArrayList<>(viewers);
-    final List<UUID> expectedViewers = List.of(this.viewer);
-    final int width = configuration.getChatWidth();
-    final int height = configuration.getChatHeight();
-    final String character = configuration.getCharacter();
-    assertEquals(expectedViewers, viewerList);
-    assertEquals(RESOLUTION_WIDTH, width);
-    assertEquals(RESOLUTION_HEIGHT, height);
-    assertEquals(CHARACTER, character);
   }
 
   @Test

@@ -85,6 +85,24 @@ final class ImageScoreboardCommandTest {
     this.sender = mock(CommandSender.class);
   }
 
+  @Test
+  void shouldShowTheImageOnTheScoreboardOfTheSelectedPlayers() {
+    this.command.showImage(this.sender, this.selector, RESOLUTION, CHARACTER, MRL, null);
+    final AbstractImageCommand.ImageConfigurationProvider provider = this.captureProvider();
+    final ScoreboardConfiguration configuration = this.createImage(provider);
+
+    final Collection<UUID> viewers = configuration.getViewers();
+    final List<UUID> viewerList = new ArrayList<>(viewers);
+    final List<UUID> expectedViewers = List.of(this.viewer);
+    final int width = configuration.getWidth();
+    final int lines = configuration.getLines();
+    final String character = configuration.getCharacter();
+    assertEquals(expectedViewers, viewerList);
+    assertEquals(RESOLUTION_WIDTH, width);
+    assertEquals(RESOLUTION_HEIGHT, lines);
+    assertEquals(CHARACTER, character);
+  }
+
   private AbstractImageCommand.ImageConfigurationProvider captureProvider() {
     final ArgumentCaptor<AbstractImageCommand.ImageConfigurationProvider> providers = ArgumentCaptor.forClass(
       AbstractImageCommand.ImageConfigurationProvider.class
@@ -104,24 +122,6 @@ final class ImageScoreboardCommandTest {
       displays.verify(() -> DisplayableImage.scoreboard(configurations.capture()));
     }
     return configurations.getValue();
-  }
-
-  @Test
-  void shouldShowTheImageOnTheScoreboardOfTheSelectedPlayers() {
-    this.command.showImage(this.sender, this.selector, RESOLUTION, CHARACTER, MRL, null);
-    final AbstractImageCommand.ImageConfigurationProvider provider = this.captureProvider();
-    final ScoreboardConfiguration configuration = this.createImage(provider);
-
-    final Collection<UUID> viewers = configuration.getViewers();
-    final List<UUID> viewerList = new ArrayList<>(viewers);
-    final List<UUID> expectedViewers = List.of(this.viewer);
-    final int width = configuration.getWidth();
-    final int lines = configuration.getLines();
-    final String character = configuration.getCharacter();
-    assertEquals(expectedViewers, viewerList);
-    assertEquals(RESOLUTION_WIDTH, width);
-    assertEquals(RESOLUTION_HEIGHT, lines);
-    assertEquals(CHARACTER, character);
   }
 
   @Test

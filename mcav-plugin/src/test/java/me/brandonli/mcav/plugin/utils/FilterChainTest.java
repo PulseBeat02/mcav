@@ -95,26 +95,6 @@ final class FilterChainTest {
   @TempDir
   Path overlays;
 
-  private FilterChain parse(final String text) {
-    return FilterChain.parse(text, this.overlays, true);
-  }
-
-  private static ImageBuffer picture(final int width, final int height, final int rgb) {
-    final int[] pixels = new int[width * height];
-    Arrays.fill(pixels, OPAQUE | rgb);
-    return ImageBuffer.buffer(pixels, width, height);
-  }
-
-  private void writeOverlay(final String name, final int width, final int height) throws IOException {
-    final BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-    for (int row = 0; row < height; row++) {
-      for (int column = 0; column < width; column++) {
-        image.setRGB(column, row, RED);
-      }
-    }
-    ImageIO.write(image, "png", this.overlays.resolve(name + PNG_SUFFIX).toFile());
-  }
-
   @Test
   void shouldApplyNoFilterWithoutAChain() {
     final FilterChain none = this.parse("");
@@ -130,6 +110,10 @@ final class FilterChainTest {
 
     final List<VideoFilter> videoFilters = none.create();
     assertEquals(List.of(), videoFilters);
+  }
+
+  private FilterChain parse(final String text) {
+    return FilterChain.parse(text, this.overlays, true);
   }
 
   @Test
@@ -192,6 +176,16 @@ final class FilterChainTest {
     final VideoFilter expected = filters.getFirst();
     final VideoFilter chainChain = chain.create().getFirst();
     assertNotEquals(expected, chainChain, "every video gets filters of its own");
+  }
+
+  private void writeOverlay(final String name, final int width, final int height) throws IOException {
+    final BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+    for (int row = 0; row < height; row++) {
+      for (int column = 0; column < width; column++) {
+        image.setRGB(column, row, RED);
+      }
+    }
+    ImageIO.write(image, "png", this.overlays.resolve(name + PNG_SUFFIX).toFile());
   }
 
   @Test
@@ -358,6 +352,12 @@ final class FilterChainTest {
     assertTrue(thirdMatches, "a blur of radius 1 reaches the next pixel");
   }
 
+  private static ImageBuffer picture(final int width, final int height, final int rgb) {
+    final int[] pixels = new int[width * height];
+    Arrays.fill(pixels, OPAQUE | rgb);
+    return ImageBuffer.buffer(pixels, width, height);
+  }
+
   @Test
   void shouldLetABlurReachAsFarAsItsRadius() {
     final ImageBuffer narrow = whiteDot();
@@ -379,17 +379,6 @@ final class FilterChainTest {
     Arrays.fill(dot, OPAQUE);
     dot[2 + DOT_SIZE * 2] = OPAQUE | WHITE;
     return ImageBuffer.buffer(dot, DOT_SIZE, DOT_SIZE);
-  }
-
-  private static ImageBuffer quadrantPicture() {
-    final int[] pixels = new int[QUADRANT_PIXEL_COUNT];
-    final int[] colors = { TOP_LEFT_COLOR, 0x789ABC, 0xFEDCBA, BOTTOM_RIGHT_COLOR };
-    for (int row = 0; row < QUADRANT_PICTURE_SIZE; row++) {
-      for (int column = 0; column < QUADRANT_PICTURE_SIZE; column++) {
-        pixels[row * QUADRANT_PICTURE_SIZE + column] = OPAQUE | colors[(row / 5) * 2 + column / 5];
-      }
-    }
-    return ImageBuffer.buffer(pixels, QUADRANT_PICTURE_SIZE, QUADRANT_PICTURE_SIZE);
   }
 
   @Test
@@ -424,6 +413,17 @@ final class FilterChainTest {
       final int[] pixels = cropped.getPixels();
       assertArrayEquals(expected, pixels, "the top-left quadrant fills the result");
     }
+  }
+
+  private static ImageBuffer quadrantPicture() {
+    final int[] pixels = new int[QUADRANT_PIXEL_COUNT];
+    final int[] colors = { TOP_LEFT_COLOR, 0x789ABC, 0xFEDCBA, BOTTOM_RIGHT_COLOR };
+    for (int row = 0; row < QUADRANT_PICTURE_SIZE; row++) {
+      for (int column = 0; column < QUADRANT_PICTURE_SIZE; column++) {
+        pixels[row * QUADRANT_PICTURE_SIZE + column] = OPAQUE | colors[(row / 5) * 2 + column / 5];
+      }
+    }
+    return ImageBuffer.buffer(pixels, QUADRANT_PICTURE_SIZE, QUADRANT_PICTURE_SIZE);
   }
 
   @Test

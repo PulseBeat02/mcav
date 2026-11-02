@@ -125,6 +125,17 @@ final class VideoChatCommandTest {
     return selector;
   }
 
+  @Test
+  void shouldPassTheArgumentsOnAndConfigureTheChat() {
+    final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_SIDE, RESOLUTION_SIDE);
+
+    final Object built = configurationProvider.buildConfiguration(resolution);
+
+    final ChatConfiguration configuration = assertInstanceOf(ChatConfiguration.class, built);
+    this.assertChat(configuration);
+  }
+
   private AbstractVideoCommand.VideoConfigurationProvider playAndCaptureProvider() {
     this.command.playVideo(
       this.sender,
@@ -167,25 +178,6 @@ final class VideoChatCommandTest {
     assertEquals(CHARACTER, character);
   }
 
-  private void assertStartedOnTheMainThread(final FunctionalVideoFilter result) {
-    verify(this.manager).startFilter(result);
-    verify(result, never()).start();
-    final int tasks = TestServer.runPendingTasks();
-    assertEquals(1, tasks);
-    verify(result).start();
-  }
-
-  @Test
-  void shouldPassTheArgumentsOnAndConfigureTheChat() {
-    final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
-    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_SIDE, RESOLUTION_SIDE);
-
-    final Object built = configurationProvider.buildConfiguration(resolution);
-
-    final ChatConfiguration configuration = assertInstanceOf(ChatConfiguration.class, built);
-    this.assertChat(configuration);
-  }
-
   @Test
   void shouldShowTheFramesInTheChatStartedOnTheMainThread() {
     final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
@@ -208,5 +200,13 @@ final class VideoChatCommandTest {
     final List<?> constructorArguments = arguments.getFirst();
     final ChatConfiguration configuration = (ChatConfiguration) constructorArguments.getFirst();
     this.assertChat(configuration);
+  }
+
+  private void assertStartedOnTheMainThread(final FunctionalVideoFilter result) {
+    verify(this.manager).startFilter(result);
+    verify(result, never()).start();
+    final int tasks = TestServer.runPendingTasks();
+    assertEquals(1, tasks);
+    verify(result).start();
   }
 }

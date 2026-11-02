@@ -73,12 +73,6 @@ final class PluginTranslatorTest {
     this.translator = new PluginTranslator(KEY, bundle);
   }
 
-  private String render(final TranslatableComponent component) {
-    final Component rendered = this.translator.translate(component, Locale.ENGLISH);
-    assertNotNull(rendered);
-    return Components.plain(rendered);
-  }
-
   @Test
   void shouldBeNamedByItsKey() {
     final Key name = this.translator.name();
@@ -90,6 +84,12 @@ final class PluginTranslatorTest {
     final TranslatableComponent component = Component.translatable(PLAIN_KEY);
     final String text = this.render(component);
     assertEquals("Plain text", text);
+  }
+
+  private String render(final TranslatableComponent component) {
+    final Component rendered = this.translator.translate(component, Locale.ENGLISH);
+    assertNotNull(rendered);
+    return Components.plain(rendered);
   }
 
   @Test

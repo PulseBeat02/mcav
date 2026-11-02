@@ -61,12 +61,6 @@ final class DiskImagesTest {
     Files.createDirectories(this.folder);
   }
 
-  private Path writeImage(final String name) throws IOException {
-    final Path image = this.folder.resolve(name);
-    Files.writeString(image, IMAGE_CONTENT);
-    return image;
-  }
-
   @Test
   void shouldNameTheImageFolderInsideTheDataFolder() {
     final Path expected = this.dataFolder.resolve(ISO_FOLDER_NAME);
@@ -80,6 +74,12 @@ final class DiskImagesTest {
     final Path resolved = DiskImages.require(this.folder, IMAGE_FILE_NAME);
     final Path expected = image.toAbsolutePath().normalize();
     assertEquals(expected, resolved);
+  }
+
+  private Path writeImage(final String name) throws IOException {
+    final Path image = this.folder.resolve(name);
+    Files.writeString(image, IMAGE_CONTENT);
+    return image;
   }
 
   @Test

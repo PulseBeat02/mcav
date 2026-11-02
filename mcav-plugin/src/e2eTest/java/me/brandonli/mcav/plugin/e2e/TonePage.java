@@ -84,6 +84,11 @@ final class TonePage implements AutoCloseable {
     return new TonePage(server);
   }
 
+  @Override
+  public void close() {
+    this.server.stop(0);
+  }
+
   /**
    * Returns the address of the page.
    *
@@ -91,10 +96,5 @@ final class TonePage implements AutoCloseable {
    */
   URI getUri() {
     return URI.create(URL_PREFIX + this.server.getAddress().getPort() + TONE_PATH);
-  }
-
-  @Override
-  public void close() {
-    this.server.stop(0);
   }
 }

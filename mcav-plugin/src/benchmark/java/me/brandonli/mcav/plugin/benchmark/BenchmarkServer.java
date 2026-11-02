@@ -102,6 +102,12 @@ final class BenchmarkServer implements AutoCloseable {
     return created;
   }
 
+  @Override
+  public void close() {
+    this.server.stop(0);
+    this.executor.shutdownNow();
+  }
+
   URI page(final String name) {
     final InetSocketAddress address = this.server.getAddress();
     final int port = address.getPort();
@@ -132,10 +138,6 @@ final class BenchmarkServer implements AutoCloseable {
       this.subscriptions++;
       this.notifyAll();
     }
-  }
-
-  synchronized int getSubscriptions() {
-    return this.subscriptions;
   }
 
   /**
@@ -170,9 +172,7 @@ final class BenchmarkServer implements AutoCloseable {
     this.listeners.removeAll(gone);
   }
 
-  @Override
-  public void close() {
-    this.server.stop(0);
-    this.executor.shutdownNow();
+  synchronized int getSubscriptions() {
+    return this.subscriptions;
   }
 }
