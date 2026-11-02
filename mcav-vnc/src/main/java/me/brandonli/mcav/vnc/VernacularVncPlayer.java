@@ -73,6 +73,11 @@ public final class VernacularVncPlayer implements VncPlayer {
   private static final int LEFT_BUTTON = 1;
   private static final int RIGHT_BUTTON = 3;
 
+  private static final boolean PRESSED = true;
+  private static final boolean RELEASED = false;
+
+  private static final boolean DO_NOT_INTERRUPT = false;
+
   private static final long IDLE_PARK_NANOSECONDS = TimeUnit.MILLISECONDS.toNanos(10);
 
   private static final long STOP_TIMEOUT_MILLISECONDS = 2_000L;
@@ -258,7 +263,7 @@ public final class VernacularVncPlayer implements VncPlayer {
       final String message = this.startFailure(source, expired, reason);
       throw new VncException(message, exception);
     } finally {
-      deadline.cancel(false);
+      deadline.cancel(DO_NOT_INTERRUPT);
     }
   }
 
@@ -667,8 +672,8 @@ public final class VernacularVncPlayer implements VncPlayer {
       case LEFT -> () -> vncClient.click(LEFT_BUTTON);
       case RIGHT -> () -> vncClient.click(RIGHT_BUTTON);
       case DOUBLE -> () -> this.doubleClick(vncClient);
-      case HOLD -> () -> vncClient.updateMouseButton(LEFT_BUTTON, true);
-      case RELEASE -> () -> vncClient.updateMouseButton(LEFT_BUTTON, false);
+      case HOLD -> () -> vncClient.updateMouseButton(LEFT_BUTTON, PRESSED);
+      case RELEASE -> () -> vncClient.updateMouseButton(LEFT_BUTTON, RELEASED);
     };
   }
 
@@ -709,8 +714,8 @@ public final class VernacularVncPlayer implements VncPlayer {
   }
 
   private void pressKey(final VernacularClient vncClient, final int code) {
-    vncClient.updateKey(code, true);
-    vncClient.updateKey(code, false);
+    vncClient.updateKey(code, PRESSED);
+    vncClient.updateKey(code, RELEASED);
   }
 
   private @Nullable VernacularClient getConnectedClient() {
