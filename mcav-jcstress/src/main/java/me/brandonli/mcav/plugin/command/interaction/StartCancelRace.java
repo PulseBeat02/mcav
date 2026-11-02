@@ -98,7 +98,7 @@ public class StartCancelRace {
    * @param outcome how often the player was released
    */
   @Arbiter
-  public void count(final I_Result outcome) {
+  public void observe(final I_Result outcome) {
     outcome.r1 = this.releases.get();
   }
 }

@@ -97,7 +97,7 @@ public class EndMarkerRace {
    * @param outcome whether the marker is queued, and how often each frame is found
    */
   @Arbiter
-  public void account(final III_Result outcome) {
+  public void observe(final III_Result outcome) {
     final List<String> remaining = new ArrayList<>(this.queue);
     final List<String> everything = new ArrayList<>(remaining);
     everything.addAll(this.discarded);
