@@ -19,8 +19,9 @@
  * Adds bounded per-channel noise before mapping pixels to palette colors.
  *
  * <p>Weights range from 0 through 255 and bound an inclusive integer noise interval on each channel. Weight zero
- * reduces to nearest-color mapping. The default implementation keeps a generator per thread, so it can be shared;
- * with an explicit provider, all threads call that same provider and its thread-safety requirements apply.
+ * reduces to nearest-color mapping. {@link UniformNoiseDither}, the default {@link RandomDither}, keeps a generator
+ * per thread, so it can be shared; with an explicit {@link RandomNumberProvider}, all threads call that same provider
+ * and its thread-safety requirements apply.
  *
  * <p>{@link me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.random.XoroshiroRandomProvider}
  * is mutable and not thread-safe. A fixed seed gives repeatable sequences for tests and reproducible images.
