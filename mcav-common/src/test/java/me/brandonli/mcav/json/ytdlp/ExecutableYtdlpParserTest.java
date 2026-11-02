@@ -35,6 +35,7 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -220,6 +221,21 @@ final class ExecutableYtdlpParserTest {
   }
 
   @Test
+  void shouldRunItsOwnYtdlpAndReturnItsOwnMetadataForEveryParse() throws IOException {
+    final CommandTask firstTask = task(0, "{\"id\": \"first\"}", "");
+    final CommandTask secondTask = task(0, "{\"id\": \"second\"}", "");
+    final List<CommandTask> queued = List.of(firstTask, secondTask);
+    final Iterator<CommandTask> tasks = queued.iterator();
+    final ExecutableYtdlpParser parser = new ExecutableYtdlpParser(() -> EXECUTABLE, _ -> tasks.next());
+    final UriSource source = source();
+    final UrlParseDump first = parser.parse(source);
+    final UrlParseDump second = parser.parse(source);
+    assertEquals(Optional.of("first"), first.getId());
+    assertEquals(Optional.of("second"), second.getId());
+    assertFalse(tasks.hasNext());
+  }
+
+  @Test
   void shouldIgnoreSurroundingWhitespaceAndWindowsLineEndings() throws IOException {
     final CommandTask windowsTask = task(0, "\r\n  {\"id\": \"first\"}  \r\n{\"id\": \"second\"}\r\n", "");
     final CommandTask singleLineTask = task(0, "  {\"id\": \"only\"}  \n\n", "");
@@ -398,18 +414,19 @@ final class ExecutableYtdlpParserTest {
     assertFalse(taskCreated);
   }
 
-  @Test
-  void shouldAcceptWebUrlsWhateverTheCaseOfTheScheme() throws IOException {
-    final CommandTask task = task(0, "{\"id\": \"upper\"}", "");
+  @ParameterizedTest
+  @ValueSource(strings = { "http://www.youtube.com/watch?v=plain", "HTTPS://www.youtube.com/watch?v=upper" })
+  void shouldAcceptHttpAndHttpsUrlsWhateverTheCaseOfTheScheme(final String raw) throws IOException {
+    final CommandTask task = task(0, "{\"id\": \"accepted\"}", "");
     final AtomicReference<String[]> command = new AtomicReference<>();
     final ExecutableYtdlpParser parser = parser(task, command);
-    final URI uri = URI.create("HTTPS://www.youtube.com/watch?v=upper");
+    final URI uri = URI.create(raw);
     final UriSource source = UriSource.uri(uri);
     final UrlParseDump dump = parser.parse(source);
     final String[] actual = command.get();
     final String lastArgument = actual[actual.length - 1];
-    assertEquals(Optional.of("upper"), dump.getId());
-    assertEquals("HTTPS://www.youtube.com/watch?v=upper", lastArgument);
+    assertEquals(Optional.of("accepted"), dump.getId());
+    assertEquals(raw, lastArgument);
   }
 
   @Test

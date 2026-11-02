@@ -105,9 +105,9 @@ public final class ExecutableYtdlpParser implements YtdlpParser {
    *                  before the URL, which yt-dlp always reads as a URL and never as an option
    * @return the parsed metadata and streams
    * @throws InstallationException    if yt-dlp cannot be installed
-   * @throws DownloadException         if the download of yt-dlp fails
-   * @throws FileOperationException    if the downloaded yt-dlp cannot be moved into place
-   * @throws ProcessException          if yt-dlp cannot be run, or does not finish within two minutes
+   * @throws DownloadException        if the download of yt-dlp fails
+   * @throws FileOperationException   if the downloaded yt-dlp cannot be moved into place
+   * @throws ProcessException         if yt-dlp cannot be run, or does not finish within two minutes
    * @throws YtdlpParseException      if yt-dlp reports an error or prints no usable JSON
    * @throws IllegalArgumentException if the input is not an absolute {@code http} or {@code https} URL
    * @throws IllegalStateException    if the parser runs the yt-dlp of the library, as {@link #simple()} does, and the
