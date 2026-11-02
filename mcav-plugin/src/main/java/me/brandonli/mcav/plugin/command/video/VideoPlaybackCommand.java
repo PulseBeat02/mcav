@@ -62,7 +62,7 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
   private final VideoPlayerManager manager;
 
   /**
-   * Constructs the command.
+   * Creates the command.
    *
    * @param plugin the plugin, whose video player manager must be available
    * @since 1.0.0

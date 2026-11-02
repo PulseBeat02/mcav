@@ -119,7 +119,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
   private Opener opener = Mcv2FileEncoder::ffmpeg;
 
   /**
-   * Constructs the command.
+   * Creates the command.
    *
    * @param plugin the plugin
    * @since 1.0.0

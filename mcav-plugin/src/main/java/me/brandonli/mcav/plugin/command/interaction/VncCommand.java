@@ -70,7 +70,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
   static final String INTERACT_PERMISSION = "mcav.vnc.interact";
 
   /**
-   * Constructs the command.
+   * Creates the command.
    *
    * @param plugin the plugin
    * @since 1.0.0

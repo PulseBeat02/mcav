@@ -88,7 +88,7 @@ public final class Mcv2Support {
   private final Mcv2PackServer packs;
 
   /**
-   * Constructs the support, which serves nothing until {@link #start()}.
+   * Creates the support, which serves nothing until {@link #start()}.
    *
    * @param dataFolder the plugin's data folder; the pack is written in {@code mcv2/pack} inside it
    * @param hosting    hosts a written pack

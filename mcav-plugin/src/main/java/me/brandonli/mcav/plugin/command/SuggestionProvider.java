@@ -98,7 +98,7 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
   private static final List<String> SPEED_SUGGESTIONS = List.of("0.5", "0.75", "1", "1.25", "1.5", "2");
 
   /**
-   * Constructs the provider.
+   * Creates the provider.
    *
    * @since 1.0.0
    */

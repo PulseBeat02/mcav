@@ -64,7 +64,7 @@ public final class HelpCommand implements AnnotationCommandFeature {
   private final MinecraftHelp<CommandSender> minecraftHelp;
 
   /**
-   * Constructs the command.
+   * Creates the command.
    *
    * @param manager the command manager whose commands are listed
    * @since 1.0.0

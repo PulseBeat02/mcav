@@ -66,7 +66,7 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
   static final String BACKLOG_PROPERTY = "mcav.sandbox.mcv2.backlogLimit";
 
   /**
-   * Constructs the command.
+   * Creates the command.
    *
    * @param plugin the plugin
    * @since 1.0.0

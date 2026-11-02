@@ -54,7 +54,7 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 public final class ImageScoreboardCommand extends AbstractImageCommand {
 
   /**
-   * Constructs the command.
+   * Creates the command.
    *
    * @param plugin the plugin
    * @since 1.0.0

@@ -59,7 +59,7 @@ public final class ImageManager {
   private @Nullable ImageBuffer pendingImage;
 
   /**
-   * Constructs the manager.
+   * Creates the manager.
    *
    * @param plugin the plugin
    * @since 1.0.0

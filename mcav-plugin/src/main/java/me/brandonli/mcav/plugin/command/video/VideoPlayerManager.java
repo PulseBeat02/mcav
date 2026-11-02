@@ -99,7 +99,7 @@ public final class VideoPlayerManager {
   private @Nullable BukkitTask loopWatcher;
 
   /**
-   * Constructs the manager and its worker thread.
+   * Creates the manager and its worker thread.
    *
    * @param plugin the plugin, whose library and audio provider must be available
    * @since 1.0.0

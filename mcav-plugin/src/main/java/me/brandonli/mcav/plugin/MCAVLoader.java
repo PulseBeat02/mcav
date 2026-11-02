@@ -87,7 +87,7 @@ public final class MCAVLoader implements PluginLoader {
   private final List<String> requiredClasses;
 
   /**
-   * Constructs the loader. Paper creates it for you.
+   * Creates the loader. Paper creates it for you.
    *
    * @since 1.0.0
    */

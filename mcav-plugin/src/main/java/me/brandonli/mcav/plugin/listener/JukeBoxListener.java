@@ -64,7 +64,7 @@ public final class JukeBoxListener implements Listener {
   private final Path isoFolder;
 
   /**
-   * Constructs the listener and creates the {@code iso} folder.
+   * Creates the listener and the {@code iso} folder.
    *
    * @param sandbox the plugin
    * @since 1.0.0

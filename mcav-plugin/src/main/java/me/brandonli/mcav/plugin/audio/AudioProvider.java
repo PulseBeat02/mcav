@@ -95,7 +95,7 @@ public final class AudioProvider {
   private volatile @Nullable Claim owner;
 
   /**
-   * Constructs the provider.
+   * Creates the provider.
    *
    * @param sandbox the plugin, whose configuration must be loaded
    * @since 1.0.0

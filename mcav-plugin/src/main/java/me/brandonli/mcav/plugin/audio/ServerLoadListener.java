@@ -43,7 +43,7 @@ public final class ServerLoadListener implements Listener {
   private final MCAVSandbox sandbox;
 
   /**
-   * Constructs the listener.
+   * Creates the listener.
    *
    * @param sandbox the plugin
    * @throws NullPointerException if the plugin is {@code null}

@@ -43,7 +43,7 @@ import org.incendo.cloud.annotations.Permission;
 public final class ScreenCommand implements AnnotationCommandFeature {
 
   /**
-   * Constructs the command.
+   * Creates the command.
    *
    * @since 1.0.0
    */

@@ -101,7 +101,7 @@ public final class MCAVSandbox extends JavaPlugin {
   private boolean hasBeenDisabled;
 
   /**
-   * Constructs the plugin. Paper creates it for you; everything else is created in {@link #onEnable()}.
+   * Creates the plugin. Paper creates it for you; everything else is created in {@link #onEnable()}.
    *
    * @since 1.0.0
    */

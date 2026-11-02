@@ -61,7 +61,7 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 public final class ImageMapCommand extends AbstractImageCommand {
 
   /**
-   * Constructs the command.
+   * Creates the command.
    *
    * @param plugin the plugin
    * @since 1.0.0
@@ -99,10 +99,10 @@ public final class ImageMapCommand extends AbstractImageCommand {
    *                           results for most images, see {@link DitheringArgument}
    * @param mrl                the image to show: a path to a file on the server or an {@code http} or
    *                           {@code https} URL; the rest of the command line up to a flag, so it may contain spaces
-   * @param filters            the {@code --filters} option: filters applied to the image in order, such as
-   *                           {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
    * @param codec              how the picture reaches the players, see {@link MapCodec}; the configured default when
    *                           absent
+   * @param filters            the {@code --filters} option: filters applied to the image in order, such as
+   *                           {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
    * @since 1.0.0
    */
   @Command("mcav image map <playerSelector> <imageResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <mrl>")

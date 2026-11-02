@@ -48,7 +48,7 @@ public final class ImageControlCommand implements AnnotationCommandFeature {
   private final ImageManager manager;
 
   /**
-   * Constructs the command.
+   * Creates the command.
    *
    * @param plugin the plugin
    * @since 1.0.0

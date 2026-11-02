@@ -44,7 +44,7 @@ public final class OnlinePlayers implements Listener {
   private final Set<UUID> view;
 
   /**
-   * Constructs an empty set; {@link #start(Plugin)} fills it.
+   * Creates an empty set; {@link #start(Plugin)} fills it.
    *
    * @since 1.0.0
    */

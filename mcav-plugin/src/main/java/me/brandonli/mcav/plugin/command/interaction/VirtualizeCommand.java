@@ -119,7 +119,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
   private static final char QUOTE = '"';
 
   /**
-   * Constructs the command.
+   * Creates the command.
    *
    * @param plugin the plugin
    * @since 1.0.0

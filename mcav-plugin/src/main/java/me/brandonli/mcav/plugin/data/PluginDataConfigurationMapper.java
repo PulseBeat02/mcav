@@ -164,7 +164,7 @@ public final class PluginDataConfigurationMapper {
   private VncAllowList vncAllowList = VncAllowList.NONE;
 
   /**
-   * Constructs the mapper with default settings. Call {@link #deserialize()} to read the file.
+   * Creates the mapper with default settings. Call {@link #deserialize()} to read the file.
    *
    * @param plugin the plugin
    * @since 1.0.0

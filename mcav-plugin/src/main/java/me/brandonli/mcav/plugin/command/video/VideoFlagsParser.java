@@ -105,7 +105,7 @@ public final class VideoFlagsParser {
   private static final String NAME_SEPARATOR = ", ";
 
   /**
-   * Constructs the parser, which keeps no state and can be shared.
+   * Creates the parser, which keeps no state and can be shared.
    *
    * @since 1.0.0
    */

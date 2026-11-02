@@ -44,7 +44,7 @@ public final class MCAVVoiceChatPlugin implements VoicechatPlugin {
   private final MCAVSandbox sandbox;
 
   /**
-   * Constructs the voice chat plugin.
+   * Creates the voice chat plugin.
    *
    * @param sandbox the plugin whose library receives the voice chat server API
    * @since 1.0.0

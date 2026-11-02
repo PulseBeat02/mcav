@@ -81,7 +81,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
   private static final Set<String> WEB_SCHEMES = Set.of("http", "https");
 
   /**
-   * Constructs the command.
+   * Creates the command.
    *
    * @param plugin the plugin
    * @since 1.0.0

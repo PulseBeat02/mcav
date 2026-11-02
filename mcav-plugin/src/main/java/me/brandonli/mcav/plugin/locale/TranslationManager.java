@@ -66,7 +66,7 @@ public final class TranslationManager {
   private final PluginTranslator translator;
 
   /**
-   * Loads the messages of the language configured in the plugin.
+   * Creates a manager that loads the messages of the language configured in the plugin.
    *
    * @throws PluginException if the messages cannot be copied to or read from the data folder
    * @since 1.0.0

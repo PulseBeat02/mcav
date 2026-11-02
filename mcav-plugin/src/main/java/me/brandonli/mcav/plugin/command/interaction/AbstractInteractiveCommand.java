@@ -168,7 +168,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
   private volatile @Nullable AudioProvider soundProvider;
 
   /**
-   * Constructs the command and the thread that starts its players.
+   * Creates the command and the thread that starts its players.
    *
    * @param plugin the plugin
    * @since 1.0.0

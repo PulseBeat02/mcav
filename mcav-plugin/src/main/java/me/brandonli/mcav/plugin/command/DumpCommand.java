@@ -47,7 +47,7 @@ public final class DumpCommand implements AnnotationCommandFeature {
   private final Supplier<String> uploader;
 
   /**
-   * Constructs the command.
+   * Creates the command.
    *
    * @since 1.0.0
    */
