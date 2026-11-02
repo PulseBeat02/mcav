@@ -67,14 +67,6 @@ public final class RfbTestServer implements AutoCloseable {
   private static final int GREEN_SHIFT = 8;
   private static final int BLUE_SHIFT = 0;
 
-  public enum Security {
-    NONE,
-    PASSWORD,
-    UNSUPPORTED,
-    // Closes every connection right after accepting it, before the protocol version is sent.
-    HANG_UP,
-  }
-
   private final ServerSocket serverSocket;
   private final int width;
   private final int height;
@@ -142,20 +134,17 @@ public final class RfbTestServer implements AutoCloseable {
     }
   }
 
-  public int getPort() {
-    return this.serverSocket.getLocalPort();
-  }
-
-  public void setColor(final int rgb) {
-    this.color = rgb & 0xFFFFFF;
-  }
-
-  // Sets whether update requests are answered. Requests received while not answering are answered once answering is
-  // enabled again.
-  public void setAnswering(final boolean answer) {
-    this.answering.set(answer);
-    if (answer) {
-      this.answerPendingRequests();
+  // Stops accepting connections and waits up to two seconds for the connection being served to end.
+  @Override
+  public void close() {
+    try {
+      this.serverSocket.close();
+      this.acceptThread.join(2_000L);
+    } catch (final IOException exception) {
+      throw new UncheckedIOException(exception);
+    } catch (final InterruptedException exception) {
+      final Thread current = Thread.currentThread();
+      current.interrupt();
     }
   }
 
@@ -174,46 +163,6 @@ public final class RfbTestServer implements AutoCloseable {
         throw new UncheckedIOException(exception);
       }
     }
-  }
-
-  public List<ReceivedKey> getKeys() {
-    synchronized (this.keys) {
-      return List.copyOf(this.keys);
-    }
-  }
-
-  public List<ReceivedPointer> getPointers() {
-    synchronized (this.pointers) {
-      return List.copyOf(this.pointers);
-    }
-  }
-
-  public int getKeyCount() {
-    synchronized (this.keys) {
-      return this.keys.size();
-    }
-  }
-
-  public int getPointerCount() {
-    synchronized (this.pointers) {
-      return this.pointers.size();
-    }
-  }
-
-  public int getUpdatesSent() {
-    return this.updatesSent.get();
-  }
-
-  public int getConnections() {
-    return this.connections.get();
-  }
-
-  public boolean isAuthenticated() {
-    return this.authenticated.get();
-  }
-
-  public CountDownLatch getDisconnected() {
-    return this.disconnected;
   }
 
   private void acceptLoop() {
@@ -512,18 +461,69 @@ public final class RfbTestServer implements AutoCloseable {
     }
   }
 
-  // Stops accepting connections and waits up to two seconds for the connection being served to end.
-  @Override
-  public void close() {
-    try {
-      this.serverSocket.close();
-      this.acceptThread.join(2_000L);
-    } catch (final IOException exception) {
-      throw new UncheckedIOException(exception);
-    } catch (final InterruptedException exception) {
-      final Thread current = Thread.currentThread();
-      current.interrupt();
+  public int getPort() {
+    return this.serverSocket.getLocalPort();
+  }
+
+  public void setColor(final int rgb) {
+    this.color = rgb & 0xFFFFFF;
+  }
+
+  // Sets whether update requests are answered. Requests received while not answering are answered once answering is
+  // enabled again.
+  public void setAnswering(final boolean answer) {
+    this.answering.set(answer);
+    if (answer) {
+      this.answerPendingRequests();
     }
+  }
+
+  public List<ReceivedKey> getKeys() {
+    synchronized (this.keys) {
+      return List.copyOf(this.keys);
+    }
+  }
+
+  public List<ReceivedPointer> getPointers() {
+    synchronized (this.pointers) {
+      return List.copyOf(this.pointers);
+    }
+  }
+
+  public int getKeyCount() {
+    synchronized (this.keys) {
+      return this.keys.size();
+    }
+  }
+
+  public int getPointerCount() {
+    synchronized (this.pointers) {
+      return this.pointers.size();
+    }
+  }
+
+  public int getUpdatesSent() {
+    return this.updatesSent.get();
+  }
+
+  public int getConnections() {
+    return this.connections.get();
+  }
+
+  public boolean isAuthenticated() {
+    return this.authenticated.get();
+  }
+
+  public CountDownLatch getDisconnected() {
+    return this.disconnected;
+  }
+
+  public enum Security {
+    NONE,
+    PASSWORD,
+    UNSUPPORTED,
+    // Closes every connection right after accepting it, before the protocol version is sent.
+    HANG_UP,
   }
 
   private static final class PixelLayout {

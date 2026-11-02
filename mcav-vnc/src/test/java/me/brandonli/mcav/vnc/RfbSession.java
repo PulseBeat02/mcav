@@ -67,10 +67,10 @@ final class RfbSession {
   static final int HEXTILE_SUBRECTANGLES = 8;
   static final int HEXTILE_COLOURED = 16;
 
-  private final RfbGuard guard = new RfbGuard();
+  private final RfbGuard guard;
 
-  RfbGuard guard() {
-    return this.guard;
+  RfbSession() {
+    this.guard = new RfbGuard();
   }
 
   // The server sends bytes; the guard throws if they break the protocol or a bound.
@@ -167,5 +167,9 @@ final class RfbSession {
 
   static byte[] cutText(final int length) {
     return concat(new byte[] { SERVER_CUT_TEXT, 0, 0, 0 }, unsigned32(length), new byte[Math.max(length, 0)]);
+  }
+
+  RfbGuard guard() {
+    return this.guard;
   }
 }
