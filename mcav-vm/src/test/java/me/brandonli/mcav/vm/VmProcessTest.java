@@ -443,7 +443,7 @@ final class VmProcessTest {
     final LongSupplier clock = times::removeFirst;
     final VmSettings settings = this.reachableSettings();
     final VmConfiguration configuration = VmConfiguration.builder().build();
-    final VmProcess.Launcher launcher = _ -> this.openDisplayAtDeadline(qemu);
+    final VmProcess.Launcher launcher = _ -> this.launchWithOpenDisplay(qemu);
     final VmProcess process = new VmProcess(
       settings,
       VmPlayer.Architecture.AARCH64,
@@ -462,7 +462,7 @@ final class VmProcessTest {
     assertFalse(alive, "an expired startup must terminate QEMU even if its display is reachable");
   }
 
-  private Process openDisplayAtDeadline(final FakeProcess qemu) throws IOException {
+  private Process launchWithOpenDisplay(final FakeProcess qemu) throws IOException {
     this.openDisplay();
     return qemu;
   }
@@ -475,7 +475,7 @@ final class VmProcessTest {
     final LongSupplier clock = times::removeFirst;
     final VmSettings settings = this.reachableSettings();
     final VmConfiguration configuration = VmConfiguration.builder().build();
-    final VmProcess.Launcher launcher = _ -> this.openDisplayBeforeDeadline(qemu);
+    final VmProcess.Launcher launcher = _ -> this.launchWithOpenDisplay(qemu);
     final VmProcess process = new VmProcess(
       settings,
       VmPlayer.Architecture.AARCH64,
@@ -495,11 +495,6 @@ final class VmProcessTest {
     } finally {
       process.shutdown();
     }
-  }
-
-  private Process openDisplayBeforeDeadline(final FakeProcess qemu) throws IOException {
-    this.openDisplay();
-    return qemu;
   }
 
   @Test
@@ -847,7 +842,7 @@ final class VmProcessTest {
     final VmConfiguration configuration = VmConfiguration.builder().memory(MEMORY_MEGABYTES).build();
     final List<String> dataArguments = List.of("-L", "data");
     final QemuProgram program = QemuProgram.of(QEMU_EXECUTABLE, dataArguments, Map.of());
-    final VmProcess.Launcher launcher = this::failLaunchWithDataFolders;
+    final VmProcess.Launcher launcher = this::failLaunch;
     final VmProcess process = new VmProcess(
       settings,
       VmPlayer.Architecture.X86_64,
@@ -868,13 +863,13 @@ final class VmProcessTest {
     assertEquals(expected, start);
   }
 
-  private Process failLaunchWithDataFolders(final List<String> command) throws IOException {
+  private Process failLaunch(final List<String> command) throws IOException {
     throw new IOException(NOT_STARTED_MESSAGE);
   }
 
   private List<String> x86Command(final VmConfiguration configuration) {
     final VmSettings settings = new VmSettings(DISPLAY_THREE_PORT, WIDTH, HEIGHT, FRAME_RATE);
-    final VmProcess.Launcher launcher = this::failLaunchForCommandInspection;
+    final VmProcess.Launcher launcher = this::failLaunch;
     final VmProcess process = new VmProcess(
       settings,
       VmPlayer.Architecture.X86_64,
@@ -887,10 +882,6 @@ final class VmProcessTest {
       this::secretFolder
     );
     return process.buildCommand(null, this.passwordFile());
-  }
-
-  private Process failLaunchForCommandInspection(final List<String> command) throws IOException {
-    throw new IOException(NOT_STARTED_MESSAGE);
   }
 
   @Test

@@ -948,7 +948,7 @@ final class QemuVmPlayerTest {
     final AtomicInteger attempts = new AtomicInteger();
     when(this.qemu.isAlive()).thenAnswer(_ -> alive.get());
     doThrow(startFailure).when(this.qemu).start();
-    doAnswer(_ -> this.stopChildOnSecondAttempt(attempts, alive))
+    doAnswer(_ -> this.stopMachineOnSecondAttempt(attempts, alive))
       .when(this.qemu)
       .shutdown();
     final VmException thrown = assertThrows(VmException.class, () -> this.startDefaultMachine(player));
@@ -961,14 +961,6 @@ final class QemuVmPlayerTest {
     assertFalse(releasedAgain);
     verify(this.qemu, times(2)).shutdown();
     verify(this.vnc, never()).start(any(VncSource.class));
-  }
-
-  private Void stopChildOnSecondAttempt(final AtomicInteger attempts, final AtomicBoolean alive) {
-    if (attempts.incrementAndGet() == 2) {
-      alive.set(false);
-    }
-
-    return null;
   }
 
   @Test
