@@ -434,6 +434,18 @@ final class AbstractInstallerTest {
   }
 
   @Test
+  void shouldRejectADownloadUrlThatIsNotAValidUri() {
+    final Download download = new Download(CURRENT_PLATFORM, "https://example.com/a tool");
+    final Download[] downloads = new Download[] { download };
+    final TestInstaller installer = new TestInstaller(this.folder, NAME, downloads);
+    assertThrows(IllegalArgumentException.class, () -> installer.download(FileMode.UNCHANGED));
+
+    final Optional<Path> installation = installer.findInstallation();
+    final boolean nothingInstalled = installation.isEmpty();
+    assertTrue(nothingInstalled);
+  }
+
+  @Test
   void shouldDownloadOnlyOnceWhenCalledConcurrently() throws Exception {
     final CountDownLatch releaseResponse = new CountDownLatch(1);
     try (final LocalHttpServer server = LocalHttpServer.start()) {
