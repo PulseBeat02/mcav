@@ -43,6 +43,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class MapPaletteLoader {
 
   private static final String PALETTE_RESOURCE = "mcav/common/palette.json";
+
   private static final int OPAQUE = 0xFF << 24;
   private static final int RED_SHIFT = 16;
   private static final int GREEN_SHIFT = 8;
@@ -54,6 +55,9 @@ public final class MapPaletteLoader {
   private static final int COMPONENT_MAXIMUM = 255;
 
   private static final int UNSIGNED_BYTE_MASK = 0xFF;
+
+  private static final boolean HAS_ALPHA = true;
+
   private static final int[] COLORS = loadColors(PALETTE_RESOURCE);
 
   private MapPaletteLoader() {
@@ -150,6 +154,6 @@ public final class MapPaletteLoader {
     Preconditions.checkArgument(unsigned < COLORS.length, "Map color %s does not exist!", unsigned);
 
     final int argb = COLORS[unsigned];
-    return new Color(argb, true);
+    return new Color(argb, HAS_ALPHA);
   }
 }

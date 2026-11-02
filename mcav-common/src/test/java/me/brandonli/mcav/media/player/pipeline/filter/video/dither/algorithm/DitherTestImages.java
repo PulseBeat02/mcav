@@ -23,6 +23,14 @@ public final class DitherTestImages {
 
   public static final DitherPalette BLACK_WHITE = DitherPalette.colors(0x000000, 0xFFFFFF);
 
+  private static final int CHANNEL_MAXIMUM = 255;
+
+  private static final int OPAQUE_ALPHA = 0xFF000000;
+  private static final int RED_SHIFT = 16;
+  private static final int GREEN_SHIFT = 8;
+
+  private static final int WHITE_INDEX = 1;
+
   private DitherTestImages() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
@@ -32,8 +40,8 @@ public final class DitherTestImages {
     final int steps = Math.max(1, width - 1);
     for (int row = 0; row < height; row++) {
       for (int column = 0; column < width; column++) {
-        final int value = (column * 255) / steps;
-        pixels[row * width + column] = 0xFF000000 | (value << 16) | (value << 8) | value;
+        final int value = (column * CHANNEL_MAXIMUM) / steps;
+        pixels[row * width + column] = OPAQUE_ALPHA | (value << RED_SHIFT) | (value << GREEN_SHIFT) | value;
       }
     }
 
@@ -43,7 +51,7 @@ public final class DitherTestImages {
   public static double whiteRatio(final byte[] indices) {
     long white = 0;
     for (final byte index : indices) {
-      if (index == 1) {
+      if (index == WHITE_INDEX) {
         white++;
       }
     }

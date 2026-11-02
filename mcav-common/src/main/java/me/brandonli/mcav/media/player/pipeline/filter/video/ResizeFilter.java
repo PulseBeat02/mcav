@@ -42,6 +42,8 @@ import org.bytedeco.opencv.opencv_core.Size;
  */
 public class ResizeFilter extends MatVideoFilter {
 
+  private static final double SCALE_FROM_SIZE = 0;
+
   private final int width;
   private final int height;
   private final Size size;
@@ -94,7 +96,9 @@ public class ResizeFilter extends MatVideoFilter {
     final boolean downscaling = this.width < currentWidth || this.height < currentHeight;
     final int interpolation = downscaling ? opencv_imgproc.INTER_AREA : opencv_imgproc.INTER_LINEAR;
     final Size target = this.size;
-    image.transformMat((source, resized) -> opencv_imgproc.resize(source, resized, target, 0, 0, interpolation));
+    image.transformMat((source, resized) ->
+      opencv_imgproc.resize(source, resized, target, SCALE_FROM_SIZE, SCALE_FROM_SIZE, interpolation)
+    );
 
     return true;
   }
