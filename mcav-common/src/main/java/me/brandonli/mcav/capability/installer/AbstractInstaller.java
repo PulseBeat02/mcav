@@ -69,13 +69,18 @@ public abstract class AbstractInstaller implements Installer {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(AbstractInstaller.class);
 
+  private static final String DOWNLOADS_NULL_MESSAGE = "Downloads must not be null!";
+
   private static final String CONFIGURATION_FILE_NAME = "config.properties";
   private static final String CONFIGURATION_TEMPORARY_SUFFIX = ".tmp";
   private static final String CONFIGURATION_COMMENT = "Paths of programs installed by MCAV";
+
   private static final String WINDOWS_EXECUTABLE_SUFFIX = ".exe";
   private static final String ARCHIVE_SUFFIX = ".archive";
+
   private static final String CURRENT_DIRECTORY = ".";
   private static final String PARENT_DIRECTORY = "..";
+
   private static final Object CONFIGURATION_LOCK = new Object();
 
   private final Path folder;
@@ -105,7 +110,7 @@ public abstract class AbstractInstaller implements Installer {
   protected AbstractInstaller(final Path folder, final String name, final Supplier<Download[]> downloads) {
     Preconditions.checkNotNull(folder, "Folder must not be null!");
     Preconditions.checkNotNull(name, "Name must not be null!");
-    Preconditions.checkNotNull(downloads, "Downloads must not be null!");
+    Preconditions.checkNotNull(downloads, DOWNLOADS_NULL_MESSAGE);
     Preconditions.checkArgument(!name.isBlank(), "Name must not be blank!");
 
     this.folder = folder;
@@ -126,7 +131,7 @@ public abstract class AbstractInstaller implements Installer {
    * @since 1.0.0
    */
   protected AbstractInstaller(final Path folder, final String name, final Download[] downloads) {
-    Preconditions.checkNotNull(downloads, "Downloads must not be null!");
+    Preconditions.checkNotNull(downloads, DOWNLOADS_NULL_MESSAGE);
 
     final Supplier<Download[]> fixedDownloads = () -> downloads;
     this(folder, name, fixedDownloads);

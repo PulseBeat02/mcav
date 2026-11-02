@@ -61,6 +61,7 @@ public final class YtdlpInstaller extends AbstractInstaller {
   private static final String NAME = "yt-dlp";
   private static final String DOWNLOADS_RESOURCE = "mcav/common/installers/yt-dlp.json";
   private static final Download[] DOWNLOADS = IoUtils.readDownloadsFromJsonResource(DOWNLOADS_RESOURCE);
+
   private static final String ZIP_SUFFIX = ".zip";
   private static final String UNPACKED_FOLDER = "yt-dlp-unpacked";
   private static final String UNPACKING_FOLDER = "yt-dlp-unpacking";

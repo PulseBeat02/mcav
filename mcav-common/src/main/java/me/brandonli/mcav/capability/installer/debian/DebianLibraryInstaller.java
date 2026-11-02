@@ -64,6 +64,8 @@ public final class DebianLibraryInstaller implements Installer {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(DebianLibraryInstaller.class);
 
+  private static final String SKIPPED_MESSAGE = "Library {} of {} could not be loaded and is skipped.";
+
   private static final String VLC_RESOURCE = "mcav/common/installers/debian-vlc.json";
   private static final String VLC_NAME = "debian-vlc";
   private static final String GTK2_RESOURCE = "mcav/common/installers/debian-gtk2.json";
@@ -211,11 +213,11 @@ public final class DebianLibraryInstaller implements Installer {
   private void logSkipped(final Path library) {
     final boolean inSubfolder = this.installation.isInSubfolder(library);
     if (inSubfolder) {
-      LOGGER.debug("Library {} of {} could not be loaded and is skipped.", library, this.name);
+      LOGGER.debug(SKIPPED_MESSAGE, library, this.name);
       return;
     }
 
-    LOGGER.warn("Library {} of {} could not be loaded and is skipped.", library, this.name);
+    LOGGER.warn(SKIPPED_MESSAGE, library, this.name);
   }
 
   /**

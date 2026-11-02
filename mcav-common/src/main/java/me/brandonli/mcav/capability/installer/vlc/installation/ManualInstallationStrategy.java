@@ -48,6 +48,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public abstract class ManualInstallationStrategy implements InstallationStrategy {
 
   private static final int MAXIMUM_SEARCH_DEPTH = 8;
+
   private static final Duration TOOL_TIMEOUT = Duration.ofMinutes(10);
   private static final ProcessRunner COMMAND_RUNNER = ManualInstallationStrategy::runCommand;
 

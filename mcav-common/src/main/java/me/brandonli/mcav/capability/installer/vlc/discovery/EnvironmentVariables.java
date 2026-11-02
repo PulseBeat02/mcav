@@ -35,6 +35,8 @@ final class EnvironmentVariables {
 
   private static final String ASSIGNMENT_SEPARATOR = "=";
 
+  private static final int OVERWRITE = 1;
+
   private final Supplier<LibC> libc;
 
   EnvironmentVariables(final LibC libc) {
@@ -64,7 +66,7 @@ final class EnvironmentVariables {
       return false;
     }
 
-    final int result = loaded.setenv(name, value, 1);
+    final int result = loaded.setenv(name, value, OVERWRITE);
     return result == 0;
   }
 

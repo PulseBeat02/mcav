@@ -44,6 +44,7 @@ public final class WindowsInstallationStrategy extends ManualInstallationStrateg
 
   private static final Pattern LIBRARY = Pattern.compile("libvlc\\.dll");
   private static final Pattern CORE_LIBRARY = Pattern.compile("libvlccore\\.dll");
+
   private static final String TEMPORARY_DIRECTORY = "vlc-extract";
 
   /**

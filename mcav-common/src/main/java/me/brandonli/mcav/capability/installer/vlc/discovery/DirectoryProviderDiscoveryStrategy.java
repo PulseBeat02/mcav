@@ -81,8 +81,11 @@ public abstract class DirectoryProviderDiscoveryStrategy implements NativeDiscov
    */
   protected static final String PLUGIN_ENVIRONMENT_NAME = "VLC_PLUGIN_PATH";
 
+  private static final String PATH_NULL_MESSAGE = "Path must not be null!";
+
   private static final int DIRECT_DEPTH = 0;
   private static final int WELL_KNOWN_DEPTH = 1;
+
   private static final Comparator<SearchProvider> BY_PRIORITY = Comparator.comparingInt(SearchProvider::getPriority);
   private static final Comparator<SearchProvider> HIGHEST_PRIORITY_FIRST = BY_PRIORITY.reversed();
 
@@ -344,7 +347,7 @@ public abstract class DirectoryProviderDiscoveryStrategy implements NativeDiscov
    */
   @Override
   public boolean onFound(final String path) {
-    Preconditions.checkNotNull(path, "Path must not be null!");
+    Preconditions.checkNotNull(path, PATH_NULL_MESSAGE);
 
     return true;
   }
@@ -361,7 +364,7 @@ public abstract class DirectoryProviderDiscoveryStrategy implements NativeDiscov
    */
   @Override
   public final boolean onSetPluginPath(final String path) {
-    Preconditions.checkNotNull(path, "Path must not be null!");
+    Preconditions.checkNotNull(path, PATH_NULL_MESSAGE);
 
     final Path libraryDirectory = Path.of(path);
     for (final Path relativeDirectory : this.pluginDirectories) {

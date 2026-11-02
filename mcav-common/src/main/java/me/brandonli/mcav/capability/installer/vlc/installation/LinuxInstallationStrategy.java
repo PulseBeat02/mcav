@@ -44,6 +44,7 @@ public final class LinuxInstallationStrategy extends ManualInstallationStrategy 
 
   private static final Pattern CORE_LIBRARY = Pattern.compile("libvlccore\\.so(?:\\.\\d+)*");
   private static final Pattern LIBRARY = Pattern.compile("libvlc\\.so(?:\\.\\d+)*");
+
   private static final String EXTRACTED_DIRECTORY = "squashfs-root";
   private static final String EXTRACT_OPTION = "--appimage-extract";
 

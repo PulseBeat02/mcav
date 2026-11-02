@@ -62,6 +62,7 @@ import uk.co.caprica.vlcj.binding.support.runtime.RuntimeUtil;
 public class OsxNativeDiscoveryStrategy extends DirectoryProviderDiscoveryStrategy {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(OsxNativeDiscoveryStrategy.class);
+
   private static final String[] FILENAME_PATTERNS = new String[] { "libvlc\\.dylib", "libvlccore\\.dylib" };
   private static final List<Path> PLUGIN_DIRECTORIES = List.of(Path.of("..", "plugins"));
 

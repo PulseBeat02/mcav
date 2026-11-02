@@ -38,6 +38,8 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class CapabilityGuard {
 
+  private static final String CAPABILITY_NULL_MESSAGE = "Capability must not be null!";
+
   private static final CapabilityGuard SHARED = new CapabilityGuard();
 
   private final Map<Capability, State> states;
@@ -71,7 +73,7 @@ public final class CapabilityGuard {
    * @since 1.0.0
    */
   public void markPreparing(final Capability capability) {
-    Preconditions.checkNotNull(capability, "Capability must not be null!");
+    Preconditions.checkNotNull(capability, CAPABILITY_NULL_MESSAGE);
 
     this.states.put(capability, State.PREPARING);
   }
@@ -87,7 +89,7 @@ public final class CapabilityGuard {
    * @since 1.0.0
    */
   public void markPrepared(final Capability capability, final Availability availability) {
-    Preconditions.checkNotNull(capability, "Capability must not be null!");
+    Preconditions.checkNotNull(capability, CAPABILITY_NULL_MESSAGE);
     Preconditions.checkNotNull(availability, "Availability must not be null!");
 
     if (availability == Availability.AVAILABLE) {
@@ -106,7 +108,7 @@ public final class CapabilityGuard {
    * @since 1.0.0
    */
   public void forget(final Capability capability) {
-    Preconditions.checkNotNull(capability, "Capability must not be null!");
+    Preconditions.checkNotNull(capability, CAPABILITY_NULL_MESSAGE);
 
     this.states.remove(capability);
   }
@@ -120,7 +122,7 @@ public final class CapabilityGuard {
    * @since 1.0.0
    */
   public boolean isPreparing(final Capability capability) {
-    Preconditions.checkNotNull(capability, "Capability must not be null!");
+    Preconditions.checkNotNull(capability, CAPABILITY_NULL_MESSAGE);
 
     final State state = this.states.get(capability);
     return state == State.PREPARING;
@@ -136,7 +138,7 @@ public final class CapabilityGuard {
    * @since 1.0.0
    */
   public void checkNotPreparing(final Capability capability) {
-    Preconditions.checkNotNull(capability, "Capability must not be null!");
+    Preconditions.checkNotNull(capability, CAPABILITY_NULL_MESSAGE);
 
     final boolean preparing = this.isPreparing(capability);
     if (preparing) {
@@ -155,7 +157,7 @@ public final class CapabilityGuard {
    * @since 1.0.0
    */
   public void checkUsable(final Capability capability) {
-    Preconditions.checkNotNull(capability, "Capability must not be null!");
+    Preconditions.checkNotNull(capability, CAPABILITY_NULL_MESSAGE);
 
     final State state = this.states.get(capability);
     if (state == State.PREPARING) {

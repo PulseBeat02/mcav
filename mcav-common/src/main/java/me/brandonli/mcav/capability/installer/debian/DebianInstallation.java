@@ -45,10 +45,9 @@ final class DebianInstallation {
 
   private static final long MAXIMUM_PACKAGE_SIZE = 64L * 1024L * 1024L;
 
-  private static final String LIBRARY_TREE = "usr/lib";
-  private static final String LEGACY_LIBRARY_TREE = "lib";
   private static final String X86_64_TRIPLET = "x86_64-linux-gnu";
   private static final String AARCH64_TRIPLET = "aarch64-linux-gnu";
+
   private static final String LIBRARY_PREFIX = "lib";
   private static final String LIBRARY_SUFFIX = ".so";
 
@@ -69,7 +68,7 @@ final class DebianInstallation {
     final Platform platform,
     final List<String> extraTrees
   ) {
-    final Stream<String> libraryTrees = Stream.of(LIBRARY_TREE, LEGACY_LIBRARY_TREE);
+    final Stream<String> libraryTrees = Stream.of(DebianPackageExtractor.LIBRARY_TREE, DebianPackageExtractor.LEGACY_LIBRARY_TREE);
     final Stream<String> otherTrees = extraTrees.stream();
     this.folder = folder;
     this.name = name;
@@ -177,8 +176,8 @@ final class DebianInstallation {
 
   private List<Path> getTripletFolders(final Path root) {
     final String triplet = this.getTriplet();
-    final Path libraryDirectory = root.resolve(LIBRARY_TREE).resolve(triplet);
-    final Path legacyDirectory = root.resolve(LEGACY_LIBRARY_TREE).resolve(triplet);
+    final Path libraryDirectory = root.resolve(DebianPackageExtractor.LIBRARY_TREE).resolve(triplet);
+    final Path legacyDirectory = root.resolve(DebianPackageExtractor.LEGACY_LIBRARY_TREE).resolve(triplet);
     return List.of(libraryDirectory, legacyDirectory);
   }
 

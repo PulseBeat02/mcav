@@ -64,6 +64,7 @@ import org.slf4j.LoggerFactory;
 public final class VlcInstallationKit {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(VlcInstallationKit.class);
+
   private static final VlcLoadState SHARED_LOAD_STATE = new VlcLoadState();
 
   private static final Platform LINUX_X86_64 = Platform.ofPlatform(Os.LINUX, Arch.X86, Bits.BITS_64);

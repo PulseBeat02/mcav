@@ -45,11 +45,20 @@ public final class OsxInstallationStrategy extends ManualInstallationStrategy {
 
   private static final Pattern LIBRARY = Pattern.compile("libvlc\\.dylib");
   private static final Pattern CORE_LIBRARY = Pattern.compile("libvlccore\\.dylib");
+
   private static final String VLC_BUNDLE = "VLC.app";
   private static final String MOUNT_DIRECTORY = "vlc-mount";
 
   private static final String DISK_IMAGE_TOOL = "hdiutil";
+  private static final String ATTACH_COMMAND = "attach";
+  private static final String NO_BROWSE_OPTION = "-nobrowse";
+  private static final String READ_ONLY_OPTION = "-readonly";
+  private static final String MOUNT_POINT_OPTION = "-mountpoint";
   private static final String DETACH_COMMAND = "detach";
+  private static final String FORCE_OPTION = "-force";
+
+  private static final String COPY_TOOL = "cp";
+  private static final String RECURSIVE_OPTION = "-R";
 
   /**
    * Creates a new strategy for the installer.
@@ -128,11 +137,20 @@ public final class OsxInstallationStrategy extends ManualInstallationStrategy {
     final String rawArchive = archive.toString();
     final String rawMountPoint = mountPoint.toString();
     final String rawInstallDirectory = installDirectory.toString();
-    this.runProcess(null, DISK_IMAGE_TOOL, "attach", "-nobrowse", "-readonly", "-mountpoint", rawMountPoint, rawArchive);
+    this.runProcess(
+      null,
+      DISK_IMAGE_TOOL,
+      ATTACH_COMMAND,
+      NO_BROWSE_OPTION,
+      READ_ONLY_OPTION,
+      MOUNT_POINT_OPTION,
+      rawMountPoint,
+      rawArchive
+    );
     try {
       final Path mountedBundle = mountPoint.resolve(VLC_BUNDLE);
       final String rawMountedBundle = mountedBundle.toString();
-      this.runProcess(null, "cp", "-R", rawMountedBundle, rawInstallDirectory);
+      this.runProcess(null, COPY_TOOL, RECURSIVE_OPTION, rawMountedBundle, rawInstallDirectory);
     } catch (final InstallationException exception) {
       this.detachAfterFailure(mountPoint, exception);
       throw exception;
@@ -165,7 +183,7 @@ public final class OsxInstallationStrategy extends ManualInstallationStrategy {
 
   private void forceDetach(final String rawMountPoint, final InstallationException detachFailure) {
     try {
-      this.runProcess(null, DISK_IMAGE_TOOL, DETACH_COMMAND, "-force", rawMountPoint);
+      this.runProcess(null, DISK_IMAGE_TOOL, DETACH_COMMAND, FORCE_OPTION, rawMountPoint);
     } catch (final InstallationException exception) {
       detachFailure.addSuppressed(exception);
       throw detachFailure;

@@ -44,10 +44,15 @@ final class DebianPackageBuilder {
   private static final String BINARY_MEMBER = "debian-binary";
   private static final byte[] BINARY_VERSION = "2.0\n".getBytes(StandardCharsets.US_ASCII);
   private static final String CONTROL_MEMBER = "control.tar.xz";
+  private static final String DATA_MEMBER = "data.tar.xz";
   // an odd length, so the member after it starts behind a padding byte
   private static final byte[] CONTROL = "control".getBytes(StandardCharsets.US_ASCII);
 
+  private static final String XZ_SUFFIX = ".xz";
+  private static final String GZIP_SUFFIX = ".gz";
+
   private static final int BLOCK_SIZE = 512;
+  private static final int NAME_OFFSET = 0;
   private static final int NAME_LENGTH = 100;
   private static final int MODE_OFFSET = 100;
   private static final int OWNER_OFFSET = 108;
@@ -68,11 +73,17 @@ final class DebianPackageBuilder {
 
   private static final String FILE_MODE = "0000644";
   private static final String EXECUTABLE_MODE = "0000755";
+
+  private static final int ROOT_ID = 0;
+  private static final long MODIFIED_TIME = 0L;
+
   private static final int NUMBER_DIGITS = 7;
   private static final int SIZE_DIGITS = 11;
   private static final int CHECKSUM_DIGITS = 6;
+
   private static final String CHECKSUM_TERMINATOR = "\0 ";
   private static final char OCTAL_PADDING = '0';
+
   private static final byte[] USTAR_MAGIC = ("ustar\0" + "00").getBytes(StandardCharsets.US_ASCII);
   private static final byte[] GNU_MAGIC = "ustar  \0".getBytes(StandardCharsets.US_ASCII);
 
@@ -89,6 +100,7 @@ final class DebianPackageBuilder {
   private static final String PAX_PATH_KEY = "path=";
   private static final String PAX_LINK_PATH_KEY = "linkpath=";
   private static final String PAX_IGNORED_RECORD = "mtime=0";
+
   private static final String PATH_SEPARATOR = "/";
 
   private static final byte[] NO_DATA = new byte[0];
@@ -101,7 +113,7 @@ final class DebianPackageBuilder {
 
   DebianPackageBuilder() {
     this.entries = new ArrayList<>();
-    this.dataMember = "data.tar.xz";
+    this.dataMember = DATA_MEMBER;
     this.longNames = LongNames.GNU;
     this.corruptChecksum = false;
   }
@@ -195,12 +207,12 @@ final class DebianPackageBuilder {
   }
 
   private OutputStream openCompressor(final ByteArrayOutputStream compressed) throws IOException {
-    if (this.dataMember.endsWith(".xz")) {
+    if (this.dataMember.endsWith(XZ_SUFFIX)) {
       final LZMA2Options options = new LZMA2Options();
       return new XZOutputStream(compressed, options);
     }
 
-    if (this.dataMember.endsWith(".gz")) {
+    if (this.dataMember.endsWith(GZIP_SUFFIX)) {
       return new GZIPOutputStream(compressed);
     }
 
@@ -320,13 +332,13 @@ final class DebianPackageBuilder {
 
   private byte[] createHeader(final String name, final String prefix, final Entry entry) {
     final byte[] header = new byte[BLOCK_SIZE];
-    this.put(header, 0, name);
+    this.put(header, NAME_OFFSET, name);
     this.put(header, MODE_OFFSET, entry.mode());
     final byte[] data = entry.data();
-    this.put(header, OWNER_OFFSET, this.toOctal(0, NUMBER_DIGITS));
-    this.put(header, GROUP_OFFSET, this.toOctal(0, NUMBER_DIGITS));
+    this.put(header, OWNER_OFFSET, this.toOctal(ROOT_ID, NUMBER_DIGITS));
+    this.put(header, GROUP_OFFSET, this.toOctal(ROOT_ID, NUMBER_DIGITS));
     this.put(header, SIZE_OFFSET, this.toOctal(data.length, SIZE_DIGITS));
-    this.put(header, MODIFIED_OFFSET, this.toOctal(0, SIZE_DIGITS));
+    this.put(header, MODIFIED_OFFSET, this.toOctal(MODIFIED_TIME, SIZE_DIGITS));
     header[TYPE_OFFSET] = entry.type();
     this.put(header, LINK_NAME_OFFSET, entry.linkTarget());
     final boolean prefixed = !prefix.isEmpty();

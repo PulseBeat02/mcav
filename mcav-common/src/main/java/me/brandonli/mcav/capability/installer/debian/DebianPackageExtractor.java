@@ -69,6 +69,7 @@ public final class DebianPackageExtractor {
 
   private static final byte[] AR_MAGIC = "!<arch>\n".getBytes(StandardCharsets.US_ASCII);
   private static final int AR_HEADER_LENGTH = 60;
+  private static final int AR_NAME_OFFSET = 0;
   private static final int AR_NAME_LENGTH = 16;
   private static final int AR_SIZE_OFFSET = 48;
   private static final int AR_SIZE_LENGTH = 10;
@@ -85,6 +86,7 @@ public final class DebianPackageExtractor {
   private static final int XZ_MEMORY_LIMIT_KIBIBYTES = 128 * 1024;
 
   private static final int TAR_BLOCK_SIZE = 512;
+  private static final int TAR_NAME_OFFSET = 0;
   private static final int TAR_NAME_LENGTH = 100;
   private static final int TAR_MODE_OFFSET = 100;
   private static final int TAR_MODE_LENGTH = 8;
@@ -94,6 +96,7 @@ public final class DebianPackageExtractor {
   private static final int TAR_CHECKSUM_LENGTH = 8;
   private static final int TAR_TYPE_OFFSET = 156;
   private static final int TAR_LINK_NAME_OFFSET = 157;
+  private static final int TAR_LINK_NAME_LENGTH = 100;
   private static final int TAR_MAGIC_OFFSET = 257;
   private static final int TAR_PREFIX_OFFSET = 345;
   private static final int TAR_PREFIX_LENGTH = 155;
@@ -113,11 +116,13 @@ public final class DebianPackageExtractor {
   private static final byte PAX_HEADER = 'x';
 
   private static final char NUL = '\0';
+
   private static final char PAX_LENGTH_SEPARATOR = ' ';
   private static final char PAX_KEY_SEPARATOR = '=';
   private static final char PAX_RECORD_END = '\n';
   private static final String PAX_PATH = "path";
   private static final String PAX_LINK_PATH = "linkpath";
+
   private static final String PATH_SEPARATOR = "/";
   private static final String PARENT_FOLDER = "..";
 
@@ -125,7 +130,9 @@ public final class DebianPackageExtractor {
   private static final Pattern OCTAL = Pattern.compile("[0-7]{1,12}");
   private static final int OCTAL_RADIX = 8;
 
-  private static final List<String> LIBRARY_TREES = List.of("usr/lib", "lib");
+  static final String LIBRARY_TREE = "usr/lib";
+  static final String LEGACY_LIBRARY_TREE = "lib";
+  private static final List<String> LIBRARY_TREES = List.of(LIBRARY_TREE, LEGACY_LIBRARY_TREE);
 
   private static final int EXECUTE_BITS = 0111;
   private static final Set<PosixFilePermission> EXECUTABLE = PosixFilePermissions.fromString("rwxr-xr-x");
@@ -229,7 +236,7 @@ public final class DebianPackageExtractor {
   }
 
   private String readMemberName(final byte[] header) {
-    final String field = new String(header, 0, AR_NAME_LENGTH, StandardCharsets.US_ASCII);
+    final String field = new String(header, AR_NAME_OFFSET, AR_NAME_LENGTH, StandardCharsets.US_ASCII);
     final String name = field.strip();
     if (name.endsWith(AR_NAME_TERMINATOR)) {
       return name.substring(0, name.length() - 1);
@@ -477,7 +484,7 @@ public final class DebianPackageExtractor {
       return pending;
     }
 
-    final String name = this.readString(header, 0, TAR_NAME_LENGTH);
+    final String name = this.readString(header, TAR_NAME_OFFSET, TAR_NAME_LENGTH);
     final int magicEnd = TAR_MAGIC_OFFSET + USTAR_MAGIC.length;
     final boolean ustar = Arrays.equals(header, TAR_MAGIC_OFFSET, magicEnd, USTAR_MAGIC, 0, USTAR_MAGIC.length);
     final String prefix = ustar ? this.readString(header, TAR_PREFIX_OFFSET, TAR_PREFIX_LENGTH) : "";
@@ -495,7 +502,7 @@ public final class DebianPackageExtractor {
       return pending;
     }
 
-    return this.readString(header, TAR_LINK_NAME_OFFSET, TAR_NAME_LENGTH);
+    return this.readString(header, TAR_LINK_NAME_OFFSET, TAR_LINK_NAME_LENGTH);
   }
 
   // Resolves an entry name against the destination. Names that escape it end up outside every extracted tree.
