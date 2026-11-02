@@ -40,7 +40,7 @@ public final class InstallationExample {
 
       final Class<?> api = Class.forName("me.brandonli.mcav.MCAV", false, loader);
       final String name = api.getName();
-      System.out.println("Loaded " + name);
+      System.out.println("Loaded %s".formatted(name));
     }
   }
 }

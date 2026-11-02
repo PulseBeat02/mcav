@@ -117,24 +117,24 @@ final class InstallationTreeAssertions implements AutoCloseable {
     for (final Map.Entry<Path, StoredEntry> entry : before.entrySet()) {
       final Path path = entry.getKey();
       final boolean survives = after.containsKey(path);
-      assertTrue(survives, () -> "the existing path survives: " + path);
+      assertTrue(survives, () -> "the existing path survives: %s".formatted(path));
 
       final StoredEntry stored = entry.getValue();
       final StoredEntry current = after.get(path);
       final boolean storedDirectory = stored.directory();
       final boolean currentDirectory = current.directory();
-      assertEquals(storedDirectory, currentDirectory, () -> "the path retains its type: " + path);
+      assertEquals(storedDirectory, currentDirectory, () -> "the path retains its type: %s".formatted(path));
 
       final byte[] storedContents = stored.contents();
       final byte[] currentContents = current.contents();
-      assertArrayEquals(storedContents, currentContents, () -> "the existing bytes survive: " + path);
+      assertArrayEquals(storedContents, currentContents, () -> "the existing bytes survive: %s".formatted(path));
     }
   }
 
   private void assertOnlyOwnFolderIsNew(final Map<Path, StoredEntry> before, final Map<Path, StoredEntry> after, final Path ownFolder) {
     for (final Path path : after.keySet()) {
       final boolean knownOrOwnFolder = before.containsKey(path) || path.equals(ownFolder);
-      assertTrue(knownOrOwnFolder, () -> "the only new path is the artifact folder: " + path);
+      assertTrue(knownOrOwnFolder, () -> "the only new path is the artifact folder: %s".formatted(path));
     }
   }
 

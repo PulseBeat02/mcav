@@ -31,7 +31,7 @@ public final class ResourceUtils {
 
   public static String readResource(final ClassLoader loader, final String name) throws IOException {
     try (final InputStream stream = loader.getResourceAsStream(name)) {
-      assertNotNull(stream, "missing resource " + name);
+      assertNotNull(stream, "missing resource %s".formatted(name));
 
       final byte[] bytes = stream.readAllBytes();
       return new String(bytes, StandardCharsets.UTF_8);

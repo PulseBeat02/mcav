@@ -129,13 +129,13 @@ final class InstallationPathsPropertyTest {
     created.removeAll(before);
 
     if (refused) {
-      assertEquals(List.of(), created, () -> "a refused id created " + created);
+      assertEquals(List.of(), created, () -> "a refused id created %s".formatted(created));
       return;
     }
 
     final List<String> children = this.listNames(this.folder);
     final boolean ownFolder = children.contains(artifactId);
-    assertTrue(ownFolder, () -> "the id '" + artifactId + "' has no folder of its own in " + installed + ": " + children);
+    assertTrue(ownFolder, () -> "the id '%s' has no folder of its own in %s: %s".formatted(artifactId, installed, children));
 
     for (final Path path : created) {
       final boolean inLocalRepository = path.startsWith(cache);
@@ -144,7 +144,7 @@ final class InstallationPathsPropertyTest {
       }
       final Path parent = path.getParent();
       final boolean directChild = installed.equals(parent);
-      assertTrue(directChild, () -> "the id '" + artifactId + "' created " + path + ", which is not directly in " + installed);
+      assertTrue(directChild, () -> "the id '%s' created %s, which is not directly in %s".formatted(artifactId, path, installed));
     }
   }
 
@@ -179,7 +179,7 @@ final class InstallationPathsPropertyTest {
     final String name = String.valueOf(destinationName);
     final boolean keepsItsName = name.equals(fileName);
     final boolean insideUnderItsName = strictlyInside && keepsItsName;
-    assertTrue(insideUnderItsName, () -> groupId + ":" + artifactId + " (" + fileName + ") is copied to " + normalizedDestination);
+    assertTrue(insideUnderItsName, () -> "%s:%s (%s) is copied to %s".formatted(groupId, artifactId, fileName, normalizedDestination));
   }
 
   private List<String> listNames(final Path directory) throws IOException {

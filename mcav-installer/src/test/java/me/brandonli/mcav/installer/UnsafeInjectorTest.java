@@ -239,7 +239,8 @@ final class UnsafeInjectorTest {
       }
 
       if (offset == LINKAGE_OFFSET) {
-        throw new LinkageError("Unsafe is gone!");
+        final String message = "Unsafe is gone!";
+        throw new LinkageError(message);
       }
 
       return owner;

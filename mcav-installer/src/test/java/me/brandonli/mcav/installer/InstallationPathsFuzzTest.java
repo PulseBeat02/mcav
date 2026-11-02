@@ -74,18 +74,18 @@ final class InstallationPathsFuzzTest {
     created.removeAll(before);
 
     if (refused) {
-      assertEquals(List.of(), created, () -> "the refused id '" + artifactId + "' created " + created);
+      assertEquals(List.of(), created, () -> "the refused id '%s' created %s".formatted(artifactId, created));
       return;
     }
 
     final Path ownFolder = WORKSPACE.folder.resolve(artifactId);
     final Path parent = ownFolder.getParent();
     final boolean directChild = WORKSPACE.folder.equals(parent) && Files.isDirectory(ownFolder);
-    assertTrue(directChild, () -> "the id '" + artifactId + "' has no folder of its own right below the installation folder");
+    assertTrue(directChild, () -> "the id '%s' has no folder of its own right below the installation folder".formatted(artifactId));
 
     for (final Path path : created) {
       final boolean allowed = path.startsWith(WORKSPACE.localRepository) || path.equals(ownFolder);
-      assertTrue(allowed, () -> "the id '" + artifactId + "' created " + path);
+      assertTrue(allowed, () -> "the id '%s' created %s".formatted(artifactId, path));
     }
   }
 
@@ -104,7 +104,7 @@ final class InstallationPathsFuzzTest {
     final Path name = normalizedDestination.getFileName();
     final boolean keepsItsName = name != null && name.toString().equals(fileName);
     final boolean insideUnderItsName = strictlyInside && keepsItsName;
-    assertTrue(insideUnderItsName, () -> groupId + ":" + artifact + " (" + fileName + ") is copied to " + normalizedDestination);
+    assertTrue(insideUnderItsName, () -> "%s:%s (%s) is copied to %s".formatted(groupId, artifact, fileName, normalizedDestination));
   }
 
   private static final class Workspace {

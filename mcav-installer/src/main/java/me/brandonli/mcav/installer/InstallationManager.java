@@ -237,7 +237,7 @@ final class InstallationManager implements AutoCloseable {
     final List<ArtifactResult> results = result.getArtifactResults();
     final List<Artifact> artifacts = results.stream().map(this::artifactOf).toList();
     final int count = artifacts.size();
-    LOGGER.debug("Resolved {} artifacts for {}.", count, artifactId);
+    LOGGER.debug("Resolved {} artifacts for {}, copying them.", count, artifactId);
 
     return artifacts;
   }
@@ -296,7 +296,8 @@ final class InstallationManager implements AutoCloseable {
         throw ioException;
       }
 
-      throw new IOException(cause);
+      final String message = "A dependency could not be copied!";
+      throw new IOException(message, cause);
     }
   }
 
@@ -320,7 +321,7 @@ final class InstallationManager implements AutoCloseable {
 
     final Path partial = destination.resolveSibling(fileName + PART_SUFFIX);
     this.copyAtomically(source, partial, destination);
-    LOGGER.debug("Copied {}.", artifact);
+    LOGGER.debug("Copied {} into the installation folder.", artifact);
 
     return destination;
   }
@@ -381,7 +382,7 @@ final class InstallationManager implements AutoCloseable {
       try {
         Files.deleteIfExists(file);
       } catch (final IOException exception) {
-        LOGGER.warn("Could not delete the obsolete file {}.", file, exception);
+        LOGGER.warn("Obsolete file {} could not be deleted.", file, exception);
       }
     }
   }

@@ -431,7 +431,7 @@ final class InstallationManagerTest {
     for (final Path jar : jars) {
       final String name = this.relativeName(target, jar);
       final Path source = expectedSources.get(name);
-      assertNotNull(source, "unexpected jar " + name);
+      assertNotNull(source, "unexpected jar %s".formatted(name));
       this.assertSameContent(source, jar, name);
     }
 
