@@ -31,6 +31,7 @@ object QualifiedNames {
     private const val FIRST_LINE_NUMBER: Int = 1
 
     private const val ROOT_SEPARATOR: String = "|"
+
     private const val NAME_GROUP: Int = 1
 
     private val ROOTS: List<String> = listOf(

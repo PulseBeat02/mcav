@@ -28,11 +28,14 @@ plugins {
 }
 
 val mavenResolverSupplierAlias: String = "maven-resolver-supplier"
+
 val plainClassifier: String = "plain"
+
 val noticeFiles: List<String> = listOf("META-INF/NOTICE", "META-INF/NOTICE.txt", "META-INF/NOTICE.md")
 val relocatedPackages: List<String> =
     listOf("com.ctc", "com.google", "jakarta.inject", "org.apache", "org.codehaus", "org.eclipse", "org.objectweb", "org.slf4j")
 val relocationRoot: String = "me.brandonli.mcav.libs"
+
 val builtJarProperty: String = "mcav.installer.jar"
 val builtJarPath: String = "libs/mcav-installer.jar"
 

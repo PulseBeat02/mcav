@@ -31,6 +31,7 @@ val junitBomAlias: String = "junit-bom"
 val testingBundleAlias: String = "testing"
 val junitLauncherAlias: String = "junit-platform-launcher"
 val byteBuddyAgentAlias: String = "byte-buddy-agent"
+
 val javaAgentConfiguration: String = "javaAgent"
 val javaAgentOption: String = "-javaagent:"
 
@@ -45,6 +46,7 @@ val defaultPropertyTries: String = "200"
 val defaultPropertySmokeTries: String = "10"
 
 val quietMachineService: String = "quietMachine"
+
 val testHeapSize: String = "2g"
 val fuzzHeapSize: String = "1g"
 val processorsPerFork: Int = 2

@@ -27,6 +27,7 @@ plugins {
 }
 
 val lwjglAliases: List<String> = listOf("lwjgl", "lwjgl-shaderc", "lwjgl-spvc")
+
 val toolsClasspathPath: String = "mcv2-tools-classpath.txt"
 
 val pythonSourcePath: String = "src/test/python"

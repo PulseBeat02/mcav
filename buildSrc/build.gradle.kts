@@ -54,9 +54,11 @@ val lineSeparator: String = "\n"
 
 val buildPackageClasses: String = "me/brandonli/mcav/gradle/**"
 val generatedClasses: String = "me/brandonli/mcav/gradle/CatalogVersions*"
+
 val mutatedClasses: String = "me.brandonli.mcav.gradle.*"
 val generatedClass: String = "me.brandonli.mcav.gradle.CatalogVersions"
 val mutationThreads: Int = 4
+
 val fullCoverage: String = "1.0"
 
 val fuzzTag: String = "fuzz"

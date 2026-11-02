@@ -25,6 +25,7 @@ plugins {
 }
 
 val extensionName: String = "mcavPublishing"
+
 val javadocEncoding: String = "UTF-8"
 
 val endToEndRepositoryName: String = "endToEnd"
@@ -33,6 +34,7 @@ val snapshotRepositoryName: String = "brandonli"
 val snapshotRepositoryUrl: String = "https://repo.brandonli.me/snapshots"
 
 val publicationName: String = "maven"
+
 val projectUrl: String = "https://github.com/PulseBeat02/mcav"
 val licenseName: String = "GNU General Public License, version 3 or later"
 val licenseUrl: String = "https://www.gnu.org/licenses/gpl-3.0.html"

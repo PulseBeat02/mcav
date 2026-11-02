@@ -52,14 +52,18 @@ val sparkBuildAlias: String = "spark-build"
 
 val snapshotSuffix: String = "-SNAPSHOT"
 val minecraftVersionPrefix: String = "-v"
+
 val noChangingModuleCache: Int = 0
 val changingModuleCacheUnit: String = "seconds"
+
 val classpathSuffix: String = "Classpath"
 val projectPathPrefix: String = ":"
 
 val nativeResourcesConfiguration: String = "mcv2NativeResources"
 val bukkitProjectPath: String = ":mcav-bukkit"
+
 val requiredClassesPath: String = "generated/resources/required-classes"
+
 val dependencyManifestSource: String = "dependencies.txt"
 val dependencyManifestTarget: String = "mcav/plugin/dependencies.txt"
 

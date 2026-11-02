@@ -23,6 +23,7 @@ plugins {
 }
 
 val cefTestGroup: String = "cef"
+
 val helperCoveragePath: String = "jacoco/helper.exec"
 
 pitest {

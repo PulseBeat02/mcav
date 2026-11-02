@@ -41,7 +41,6 @@ object LogMessages {
     private val LOGGER: Regex = Regex("""(?:[A-Z][A-Z0-9_]*_)?LOG(?:GER)?|log(?:ger)?|[a-z][A-Za-z0-9]*Logger""")
 
     private val OPENING: Set<Char> = setOf('(', '[', '{')
-
     private val CLOSING: Set<Char> = setOf(')', ']', '}')
 
     /**

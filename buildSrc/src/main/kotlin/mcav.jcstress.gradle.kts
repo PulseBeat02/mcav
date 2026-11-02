@@ -29,7 +29,9 @@ plugins {
 }
 
 val jcstressAlias: String = "jcstress-core"
+
 val generatedSourcePattern: String = ".*/build/generated/.*"
+
 val jcstressClassifier: String = "jcstress"
 val jcstressMainClass: String = "org.openjdk.jcstress.Main"
 val signatureFiles: List<String> = listOf("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")

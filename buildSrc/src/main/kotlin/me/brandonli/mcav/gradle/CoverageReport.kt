@@ -33,6 +33,7 @@ object CoverageReport {
     private const val LOAD_EXTERNAL_DTD: String = "http://apache.org/xml/features/nonvalidating/load-external-dtd"
 
     private const val JAVA_EXTENSION: String = "java"
+
     private const val PATH_SEPARATOR: String = "/"
 
     private const val SOURCE_FILE_TAG: String = "sourcefile"
