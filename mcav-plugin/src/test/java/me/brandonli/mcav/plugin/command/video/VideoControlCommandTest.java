@@ -29,6 +29,7 @@ import static org.mockito.Mockito.when;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import me.brandonli.mcav.MCAVApi;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
@@ -81,7 +82,7 @@ final class VideoControlCommandTest {
 
   @Test
   void shouldResumeTheVideo() {
-    when(this.manager.getPlayer()).thenReturn(this.player);
+    when(this.manager.getPlayer()).thenReturn(Optional.of(this.player));
     when(this.player.resume()).thenReturn(true);
 
     this.command.resumeVideo(this.sender);
@@ -100,7 +101,7 @@ final class VideoControlCommandTest {
 
   @Test
   void shouldTellTheSenderWhenAVideoThatEndedCannotBeResumed() {
-    when(this.manager.getPlayer()).thenReturn(this.player);
+    when(this.manager.getPlayer()).thenReturn(Optional.of(this.player));
     when(this.player.resume()).thenReturn(false);
 
     this.command.resumeVideo(this.sender);
@@ -113,7 +114,7 @@ final class VideoControlCommandTest {
 
   @Test
   void shouldPauseTheVideo() {
-    when(this.manager.getPlayer()).thenReturn(this.player);
+    when(this.manager.getPlayer()).thenReturn(Optional.of(this.player));
 
     this.command.pauseVideo(this.sender);
 

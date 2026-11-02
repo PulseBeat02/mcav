@@ -21,6 +21,7 @@ import com.google.common.base.Preconditions;
 import java.text.MessageFormat;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.ComponentLike;
 import net.kyori.adventure.text.TranslatableComponent;
@@ -99,7 +100,8 @@ public abstract class MiniMessageTranslator implements Translator {
     Preconditions.checkNotNull(locale, "Locale must not be null!");
 
     final String key = component.key();
-    final String message = this.getMiniMessageString(key, locale);
+    final Optional<String> foundMessage = this.getMiniMessageString(key, locale);
+    final @Nullable String message = foundMessage.orElse(null);
     if (message == null) {
       return null;
     }
@@ -140,8 +142,7 @@ public abstract class MiniMessageTranslator implements Translator {
    *
    * @param key    the key of the message, such as {@code mcav.command.image.load}
    * @param locale the locale Adventure renders for; implementations may ignore it when they serve one language
-   * @return the message text, or null when the key is unknown
-   * @throws java.util.MissingResourceException if there is no message with the key
+   * @return the message text, or empty when the key is unknown
    */
-  protected abstract @Nullable String getMiniMessageString(final String key, final Locale locale);
+  protected abstract Optional<String> getMiniMessageString(final String key, final Locale locale);
 }

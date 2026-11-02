@@ -18,6 +18,7 @@
 package me.brandonli.mcav.plugin.command.interaction;
 
 import com.google.common.base.Preconditions;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
@@ -224,8 +225,11 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
       return;
     }
 
-    final Pair<Integer, Integer> resolution = parseDimensions(sender, vncResolution);
-    final Pair<Integer, Integer> blocks = resolution == null ? null : parseScreenDimensions(sender, blockDimensions);
+    final Optional<Pair<Integer, Integer>> parsedResolution = parseDimensions(sender, vncResolution);
+    final @Nullable Pair<Integer, Integer> resolution = parsedResolution.orElse(null);
+    final Optional<Pair<Integer, Integer>> parsedBlocks =
+      resolution == null ? Optional.empty() : parseScreenDimensions(sender, blockDimensions);
+    final @Nullable Pair<Integer, Integer> blocks = parsedBlocks.orElse(null);
     if (resolution == null || blocks == null) {
       return;
     }

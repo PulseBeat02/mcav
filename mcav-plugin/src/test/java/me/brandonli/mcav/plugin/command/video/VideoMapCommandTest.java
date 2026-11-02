@@ -36,6 +36,7 @@ import static org.mockito.Mockito.when;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2.Settings;
@@ -335,7 +336,7 @@ final class VideoMapCommandTest {
         eq(Settings.DEFAULT),
         any()
       )
-    ).thenReturn(wall);
+    ).thenReturn(Optional.of(wall));
     this.playWithCodec(RESOLUTION, MapCodec.MCV2);
     final ArgumentCaptor<AbstractVideoCommand.VideoConfigurationProvider> providers = ArgumentCaptor.forClass(
       AbstractVideoCommand.VideoConfigurationProvider.class
@@ -362,7 +363,7 @@ final class VideoMapCommandTest {
     assertSame(wall, configuration);
 
     final Mcv2Output output = mock(Mcv2Output.class);
-    when(this.support.output(this.sender, wall, DitheringArgument.NEAREST_COLOR)).thenReturn(output);
+    when(this.support.output(this.sender, wall, DitheringArgument.NEAREST_COLOR)).thenReturn(Optional.of(output));
 
     final VideoPipelineStep pipeline = this.command.createVideoFilter(resolution, providers.getValue());
 

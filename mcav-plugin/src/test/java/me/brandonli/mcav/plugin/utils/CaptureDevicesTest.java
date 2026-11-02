@@ -19,7 +19,6 @@ package me.brandonli.mcav.plugin.utils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -35,6 +34,7 @@ import java.nio.file.Path;
 import java.nio.file.attribute.PosixFileAttributeView;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import me.brandonli.mcav.utils.os.Os;
 import me.brandonli.mcav.utils.os.OsUtils;
@@ -241,20 +241,20 @@ final class CaptureDevicesTest {
     final List<CaptureDevices.Device> devices = List.of(new CaptureDevices.Device(0, "a"), new CaptureDevices.Device(12, "b"));
 
     final CaptureDevices.Device expected = devices.get(1);
-    final CaptureDevices.Device found = CaptureDevices.find(devices, "12");
-    assertEquals(expected, found);
+    final Optional<CaptureDevices.Device> found = CaptureDevices.find(devices, "12");
+    assertEquals(Optional.of(expected), found);
 
-    final CaptureDevices.Device captureDevicesFound = CaptureDevices.find(devices, "012");
-    assertNull(captureDevicesFound);
+    final Optional<CaptureDevices.Device> captureDevicesFound = CaptureDevices.find(devices, "012");
+    assertEquals(Optional.empty(), captureDevicesFound);
 
-    final CaptureDevices.Device secondFound = CaptureDevices.find(devices, "1");
-    assertNull(secondFound);
+    final Optional<CaptureDevices.Device> secondFound = CaptureDevices.find(devices, "1");
+    assertEquals(Optional.empty(), secondFound);
 
-    final CaptureDevices.Device thirdFound = CaptureDevices.find(devices, " 0");
-    assertNull(thirdFound);
+    final Optional<CaptureDevices.Device> thirdFound = CaptureDevices.find(devices, " 0");
+    assertEquals(Optional.empty(), thirdFound);
 
-    final CaptureDevices.Device fourthFound = CaptureDevices.find(List.of(), "0");
-    assertNull(fourthFound);
+    final Optional<CaptureDevices.Device> fourthFound = CaptureDevices.find(List.of(), "0");
+    assertEquals(Optional.empty(), fourthFound);
     assertThrows(NullPointerException.class, () -> CaptureDevices.find(null, "0"));
     assertThrows(NullPointerException.class, () -> CaptureDevices.find(devices, null));
   }

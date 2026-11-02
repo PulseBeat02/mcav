@@ -19,6 +19,7 @@ package me.brandonli.mcav.plugin.command.video;
 
 import com.google.common.base.Preconditions;
 import java.util.Collection;
+import java.util.Optional;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
@@ -127,15 +128,25 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
     Preconditions.checkNotNull(profile, "Profile must not be null!");
     Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null!");
 
-    final Pair<Integer, Integer> blocks = parseScreenDimensions(sender, blockDimensions);
-    final Pair<Integer, Integer> resolution = parseDimensions(sender, videoResolution);
+    final Optional<Pair<Integer, Integer>> parsedBlocks = parseScreenDimensions(sender, blockDimensions);
+    final @Nullable Pair<Integer, Integer> blocks = parsedBlocks.orElse(null);
+    final Optional<Pair<Integer, Integer>> parsedResolution = parseDimensions(sender, videoResolution);
+    final @Nullable Pair<Integer, Integer> resolution = parsedResolution.orElse(null);
     if (blocks == null || resolution == null) {
       return;
     }
 
     final Collection<UUID> viewers = ArgumentUtils.parseViewers(playerSelector, this.plugin.getOnlinePlayers());
     final Mcv2Support support = this.plugin.getMcv2Support();
-    final Mcv2Configuration configuration = support.configure(sender, blocks, resolution, mapId, profile.getSettings(), viewers);
+    final Optional<Mcv2Configuration> foundConfiguration = support.configure(
+      sender,
+      blocks,
+      resolution,
+      mapId,
+      profile.getSettings(),
+      viewers
+    );
+    final @Nullable Mcv2Configuration configuration = foundConfiguration.orElse(null);
     if (configuration == null) {
       return;
     }
@@ -202,7 +213,8 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
    */
   static FunctionalVideoFilter mcv2Filter(final Mcv2Support support, final Mcv2Settings settings) {
     final Mcv2Configuration configuration = settings.configuration();
-    final Mcv2Output output = support.output(settings.sender(), configuration, settings.dithering());
+    final Optional<Mcv2Output> foundOutput = support.output(settings.sender(), configuration, settings.dithering());
+    final @Nullable Mcv2Output output = foundOutput.orElse(null);
     if (output != null) {
       return output;
     }

@@ -19,6 +19,7 @@ package me.brandonli.mcav.plugin.command.image;
 
 import com.google.common.base.Preconditions;
 import java.util.Collection;
+import java.util.Optional;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.image.DisplayableImage;
@@ -205,7 +206,7 @@ public final class ImageMapCommand extends AbstractImageCommand {
    */
   private @Nullable DisplayableImage createMcv2Image(final Mcv2ImageSettings settings) {
     final Mcv2Support support = this.plugin.getMcv2Support();
-    final Mcv2Configuration configuration = support.configure(
+    final Optional<Mcv2Configuration> foundConfiguration = support.configure(
       settings.sender(),
       settings.blocks(),
       settings.resolution(),
@@ -213,11 +214,13 @@ public final class ImageMapCommand extends AbstractImageCommand {
       Settings.DEFAULT,
       settings.viewers()
     );
+    final @Nullable Mcv2Configuration configuration = foundConfiguration.orElse(null);
     if (configuration == null) {
       return null;
     }
 
-    final Mcv2Output output = support.output(settings.sender(), configuration, settings.dithering());
+    final Optional<Mcv2Output> foundOutput = support.output(settings.sender(), configuration, settings.dithering());
+    final @Nullable Mcv2Output output = foundOutput.orElse(null);
     return output == null ? null : new Mcv2Image(this.plugin, output);
   }
 

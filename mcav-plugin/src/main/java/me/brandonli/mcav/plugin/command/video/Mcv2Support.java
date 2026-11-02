@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2.Settings;
@@ -140,9 +141,9 @@ public final class Mcv2Support {
    * @param mapId      the id of the top-left map
    * @param settings   the encoder profile
    * @param viewers    the players who watch
-   * @return the configuration, or null if the screen is too large for MCV2 or no frame holds the map
+   * @return the configuration, or empty if the screen is too large for MCV2 or no frame holds the map
    */
-  public @Nullable Mcv2Configuration configure(
+  public Optional<Mcv2Configuration> configure(
     final CommandSender sender,
     final Pair<Integer, Integer> blocks,
     final Pair<Integer, Integer> resolution,
@@ -153,16 +154,17 @@ public final class Mcv2Support {
     // the library refuses such a screen with an exception, which no command expects
     if (!this.fitsMcv2(blocks, resolution)) {
       sender.sendMessage(Message.MCV2_SIZE_ERROR.build());
-      return null;
+      return Optional.empty();
     }
 
-    final ItemFrame frame = findFrame(Bukkit.getWorlds(), mapId);
+    final Optional<ItemFrame> foundFrame = findFrame(Bukkit.getWorlds(), mapId);
+    final @Nullable ItemFrame frame = foundFrame.orElse(null);
     if (frame == null) {
       sender.sendMessage(Message.MCV2_SCREEN_ERROR.build(mapId));
-      return null;
+      return Optional.empty();
     }
 
-    return Mcv2Configuration.builder()
+    final Mcv2Configuration configuration = Mcv2Configuration.builder()
       .viewers(viewers)
       .origin(frame.getLocation())
       .facing(frame.getFacing())
@@ -175,6 +177,7 @@ public final class Mcv2Support {
       .backlogLimit(VideoMcv2Command.backlogLimit())
       .unsentLimit(VideoMcv2Command.unsentLimit())
       .build();
+    return Optional.of(configuration);
   }
 
   private boolean fitsMcv2(final Pair<Integer, Integer> blocks, final Pair<Integer, Integer> resolution) {
@@ -190,14 +193,15 @@ public final class Mcv2Support {
    *
    * @param sender        who started the screen
    * @param configuration the screen
-   * @return the lease of the slot, or null if none is free
+   * @return the lease of the slot, or empty if none is free
    */
-  public Mcv2PackServer.@Nullable Lease open(final CommandSender sender, final Mcv2Configuration configuration) {
+  public Optional<Mcv2PackServer.Lease> open(final CommandSender sender, final Mcv2Configuration configuration) {
     try {
-      return this.packs.open(configuration);
+      final Mcv2PackServer.Lease lease = this.packs.open(configuration);
+      return Optional.of(lease);
     } catch (final IllegalStateException exception) {
       sender.sendMessage(Message.MCV2_FULL.build());
-      return null;
+      return Optional.empty();
     }
   }
 
@@ -209,12 +213,13 @@ public final class Mcv2Support {
    * @param sender        who started the screen
    * @param configuration the screen
    * @param dithering     how the frames are dithered for the viewers without the pack
-   * @return the output, not started, or null if no slot of the pack is free
+   * @return the output, not started, or empty if no slot of the pack is free
    */
-  public @Nullable Mcv2Output output(final CommandSender sender, final Mcv2Configuration configuration, final DitheringArgument dithering) {
-    final Mcv2PackServer.Lease lease = this.open(sender, configuration);
+  public Optional<Mcv2Output> output(final CommandSender sender, final Mcv2Configuration configuration, final DitheringArgument dithering) {
+    final Optional<Mcv2PackServer.Lease> foundLease = this.open(sender, configuration);
+    final Mcv2PackServer.@Nullable Lease lease = foundLease.orElse(null);
     if (lease == null) {
-      return null;
+      return Optional.empty();
     }
 
     final Mcv2Configuration slotted = lease.getConfiguration();
@@ -231,7 +236,8 @@ public final class Mcv2Support {
       );
       result.setFrameListener(new FrameRecorder(Path.of(record).resolve(name)));
     }
-    return new Mcv2Output(result, lease);
+    final Mcv2Output output = new Mcv2Output(result, lease);
+    return Optional.of(output);
   }
 
   /**
@@ -259,16 +265,16 @@ public final class Mcv2Support {
    *
    * @param worlds the worlds to search
    * @param mapId  the id of the top-left map
-   * @return the frame, or null if no frame holds that map
+   * @return the frame, or empty if no frame holds that map
    */
-  public static @Nullable ItemFrame findFrame(final Collection<World> worlds, final int mapId) {
+  public static Optional<ItemFrame> findFrame(final Collection<World> worlds, final int mapId) {
     for (final World world : worlds) {
       final @Nullable ItemFrame frame = findFrameInWorld(world, mapId);
       if (frame != null) {
-        return frame;
+        return Optional.of(frame);
       }
     }
-    return null;
+    return Optional.empty();
   }
 
   private static @Nullable ItemFrame findFrameInWorld(final World world, final int mapId) {

@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.IntFunction;
 import java.util.function.IntPredicate;
 import java.util.regex.Matcher;
@@ -179,18 +180,19 @@ public final class CaptureDevices {
    *
    * @param devices the devices listed
    * @param typed   the number as typed
-   * @return the device, or null if the text is not the number of a listed device
+   * @return the device, or empty if the text is not the number of a listed device
+   * @throws NullPointerException if an argument is null
    */
-  public static @Nullable Device find(final List<Device> devices, final String typed) {
+  public static Optional<Device> find(final List<Device> devices, final String typed) {
     Preconditions.checkNotNull(devices, "Devices must not be null!");
     Preconditions.checkNotNull(typed, "Typed number must not be null!");
 
     for (final Device device : devices) {
       if (Integer.toString(device.index()).equals(typed)) {
-        return device;
+        return Optional.of(device);
       }
     }
-    return null;
+    return Optional.empty();
   }
 
   /**

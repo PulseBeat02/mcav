@@ -331,7 +331,7 @@ final class AbstractVideoCommandTest {
   @Test
   void shouldShowTheTitleOnTheHologramAtTheConfiguredLocation() throws IOException {
     final Location location = new Location(null, 0.0, 70.0, 0.0);
-    when(this.manager.getHologramLocation()).thenReturn(location);
+    when(this.manager.getHologramLocation()).thenReturn(Optional.of(location));
     final Path file = this.createVideoFile();
     final String mrl = file.toString();
 
@@ -348,7 +348,7 @@ final class AbstractVideoCommandTest {
   @Test
   void shouldReplaceTheHologramOfThePreviousVideo() throws IOException {
     final Hologram previous = mock(Hologram.class);
-    when(this.manager.getHologram()).thenReturn(previous);
+    when(this.manager.getHologram()).thenReturn(Optional.of(previous));
     final Path file = this.createVideoFile();
     final String mrl = file.toString();
 
@@ -438,10 +438,10 @@ final class AbstractVideoCommandTest {
   void shouldTakeNoFiltersFromAnEmptyOption() {
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
 
-    final FilterChain filters = AbstractVideoCommand.parseFilters(this.sender, plugin, "", true);
+    final FilterChain filters = AbstractVideoCommand.parseFilters(this.sender, plugin, "", true).orElseThrow();
     assertSame(FilterChain.NONE, filters);
 
-    final FilterChain abstractVideoCommandFilters = AbstractVideoCommand.parseFilters(this.sender, plugin, null, false);
+    final FilterChain abstractVideoCommandFilters = AbstractVideoCommand.parseFilters(this.sender, plugin, null, false).orElseThrow();
     assertSame(FilterChain.NONE, abstractVideoCommandFilters);
 
     verify(this.sender, never()).sendMessage(any(Component.class));
@@ -1044,7 +1044,7 @@ final class AbstractVideoCommandTest {
     final Path file = this.createVideoFile();
     final String mrl = file.toString();
     final Location location = mock(Location.class);
-    when(this.manager.getHologramLocation()).thenReturn(location);
+    when(this.manager.getHologramLocation()).thenReturn(Optional.of(location));
     final IllegalStateException failure = new IllegalStateException("hologram start!");
     final IllegalArgumentException cleanup = new IllegalArgumentException("hologram kill!");
     Mockito.doThrow(failure).when(this.hologram).start();
@@ -1107,7 +1107,7 @@ final class AbstractVideoCommandTest {
     final Path file = this.createVideoFile();
     final String mrl = file.toString();
     final Location location = mock(Location.class);
-    when(this.manager.getHologramLocation()).thenReturn(location);
+    when(this.manager.getHologramLocation()).thenReturn(Optional.of(location));
     final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
     Mockito.doThrow(fatal).when(this.hologram).start();
     this.playAndRequireFatalReport(mrl);

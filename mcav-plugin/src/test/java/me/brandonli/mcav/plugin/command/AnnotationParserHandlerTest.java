@@ -38,6 +38,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.MissingResourceException;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
@@ -392,7 +393,7 @@ final class AnnotationParserHandlerTest {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
     final VideoPlayerMultiplexer player = mock(VideoPlayerMultiplexer.class);
-    when(this.videoManager.getPlayer()).thenReturn(player);
+    when(this.videoManager.getPlayer()).thenReturn(Optional.of(player));
     final CommandSender sender = mock(CommandSender.class);
     when(sender.hasPermission(anyString())).thenReturn(true);
     final CommandExecutor<CommandSender> executor = this.commands.commandExecutor();

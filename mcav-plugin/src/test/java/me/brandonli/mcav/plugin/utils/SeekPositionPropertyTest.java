@@ -18,10 +18,10 @@
 package me.brandonli.mcav.plugin.utils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Locale;
+import java.util.Optional;
 import net.jqwik.api.ForAll;
 import net.jqwik.api.Property;
 import net.jqwik.api.constraints.LongRange;
@@ -33,18 +33,18 @@ final class SeekPositionPropertyTest {
   @Property
   void shouldReadBackEveryFormattedTime(@ForAll @LongRange(min = 0, max = SeekPosition.MAXIMUM_MILLISECONDS) final long milliseconds) {
     final long whole = milliseconds - (milliseconds % MILLISECONDS_PER_SECOND);
-    final SeekPosition absolute = SeekPosition.parse(SeekPosition.format(whole));
-    final SeekPosition forward = SeekPosition.parse("+" + SeekPosition.format(whole));
-    final SeekPosition back = SeekPosition.parse("-" + SeekPosition.format(whole));
+    final Optional<SeekPosition> absolute = SeekPosition.parse(SeekPosition.format(whole));
+    final Optional<SeekPosition> forward = SeekPosition.parse("+" + SeekPosition.format(whole));
+    final Optional<SeekPosition> back = SeekPosition.parse("-" + SeekPosition.format(whole));
 
     final SeekPosition expected = new SeekPosition(false, whole);
-    assertEquals(expected, absolute);
+    assertEquals(Optional.of(expected), absolute);
 
     final SeekPosition secondExpected = new SeekPosition(true, whole);
-    assertEquals(secondExpected, forward);
+    assertEquals(Optional.of(secondExpected), forward);
 
     final SeekPosition thirdExpected = new SeekPosition(true, -whole);
-    assertEquals(thirdExpected, back);
+    assertEquals(Optional.of(thirdExpected), back);
   }
 
   @Property
@@ -57,9 +57,7 @@ final class SeekPositionPropertyTest {
       milliseconds / MILLISECONDS_PER_SECOND,
       milliseconds % MILLISECONDS_PER_SECOND
     );
-    final SeekPosition position = SeekPosition.parse(text);
-    assertNotNull(position, text);
-
+    final SeekPosition position = SeekPosition.parse(text).orElseThrow();
     final long positionMilliseconds = position.milliseconds();
     assertEquals(milliseconds, positionMilliseconds);
   }

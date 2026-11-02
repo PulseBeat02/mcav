@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.code_intelligence.jazzer.api.FuzzedDataProvider;
 import com.code_intelligence.jazzer.junit.FuzzTest;
+import java.util.Optional;
 import org.junit.jupiter.api.Tag;
 
 /**
@@ -34,11 +35,12 @@ final class SeekPositionFuzzTest {
   void shouldBoundOrRefuseEveryTypedPosition(final FuzzedDataProvider data) {
     final long current = data.consumeLong(0, SeekPosition.MAXIMUM_MILLISECONDS);
     final String text = data.consumeRemainingAsString();
-    final SeekPosition position = SeekPosition.parse(text);
-    if (position == null) {
+    final Optional<SeekPosition> parsedPosition = SeekPosition.parse(text);
+    if (parsedPosition.isEmpty()) {
       return;
     }
 
+    final SeekPosition position = parsedPosition.orElseThrow();
     final boolean matches = Math.abs(position.milliseconds()) <= SeekPosition.MAXIMUM_MILLISECONDS;
     assertTrue(matches, text);
 

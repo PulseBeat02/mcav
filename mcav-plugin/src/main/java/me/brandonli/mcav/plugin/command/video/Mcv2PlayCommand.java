@@ -27,6 +27,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -240,7 +241,8 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     final String file,
     final Consumer<Mcv2Playback> start
   ) {
-    final Pair<Integer, Integer> blocks = AbstractVideoCommand.parseScreenDimensions(sender, blockDimensions);
+    final Optional<Pair<Integer, Integer>> parsedBlocks = AbstractVideoCommand.parseScreenDimensions(sender, blockDimensions);
+    final @Nullable Pair<Integer, Integer> blocks = parsedBlocks.orElse(null);
     if (blocks == null) {
       return;
     }
@@ -302,7 +304,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
 
     final Pair<Integer, Integer> resolution = Pair.pair(first.getWidth(), first.getHeight());
     final Mcv2Support support = this.plugin.getMcv2Support();
-    final Mcv2Configuration configuration = support.configure(
+    final Optional<Mcv2Configuration> foundConfiguration = support.configure(
       sender,
       blocks,
       resolution,
@@ -310,12 +312,14 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
       Mcv2Profile.DEFAULT.getSettings(),
       ArgumentUtils.parseViewers(playerSelector, this.plugin.getOnlinePlayers())
     );
+    final @Nullable Mcv2Configuration configuration = foundConfiguration.orElse(null);
     if (configuration == null) {
       return;
     }
 
     this.stop();
-    final Mcv2PackServer.Lease slot = support.open(sender, configuration);
+    final Optional<Mcv2PackServer.Lease> foundSlot = support.open(sender, configuration);
+    final Mcv2PackServer.@Nullable Lease slot = foundSlot.orElse(null);
     if (slot == null) {
       return;
     }
@@ -368,7 +372,8 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
   }
 
   private @Nullable Pair<Integer, Integer> parseEncodeSize(final CommandSender sender, final String resolution) {
-    final Pair<Integer, Integer> size = AbstractVideoCommand.parseDimensions(sender, resolution);
+    final Optional<Pair<Integer, Integer>> parsedSize = AbstractVideoCommand.parseDimensions(sender, resolution);
+    final @Nullable Pair<Integer, Integer> size = parsedSize.orElse(null);
     if (size == null) {
       return null;
     }

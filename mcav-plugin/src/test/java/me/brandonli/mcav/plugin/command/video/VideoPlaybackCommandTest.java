@@ -29,6 +29,7 @@ import static org.mockito.Mockito.when;
 
 import com.google.common.util.concurrent.MoreExecutors;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.player.multimedia.cv.AbstractVideoPlayerCv;
@@ -96,7 +97,7 @@ final class VideoPlaybackCommandTest {
 
   @Test
   void shouldJumpFromWhereADecodedVideoPlays() {
-    when(this.manager.getPlayer()).thenReturn(this.decoded);
+    when(this.manager.getPlayer()).thenReturn(Optional.of(this.decoded));
     when(this.decoded.getPositionMilliseconds()).thenReturn(5_000L);
     when(this.decoded.seek(anyLong())).thenReturn(true);
     this.command.seekVideo(this.sender, SEEK_OFFSET);
@@ -108,7 +109,7 @@ final class VideoPlaybackCommandTest {
 
   @Test
   void shouldJumpOnlyToATimeFromTheStartWithAPlayerThatDoesNotTellItsPosition() {
-    when(this.manager.getPlayer()).thenReturn(this.other);
+    when(this.manager.getPlayer()).thenReturn(Optional.of(this.other));
     when(this.other.seek(90_000L)).thenReturn(true);
     this.command.seekVideo(this.sender, "-10");
     this.command.seekVideo(this.sender, "1:30");
@@ -118,7 +119,7 @@ final class VideoPlaybackCommandTest {
 
   @Test
   void shouldReportAJumpThatFailsOrThrows() {
-    when(this.manager.getPlayer()).thenReturn(this.other);
+    when(this.manager.getPlayer()).thenReturn(Optional.of(this.other));
     when(this.other.seek(1_000L)).thenReturn(false);
     when(this.other.seek(2_000L)).thenThrow(new IllegalStateException("the grabber broke!"));
     final String output;
@@ -151,9 +152,9 @@ final class VideoPlaybackCommandTest {
   @Test
   void shouldChangeTheSpeedOfAFileOnly() {
     this.command.setSpeed(this.sender, 1.5);
-    when(this.manager.getPlayer()).thenReturn(this.other);
+    when(this.manager.getPlayer()).thenReturn(Optional.of(this.other));
     this.command.setSpeed(this.sender, 1.5);
-    when(this.manager.getPlayer()).thenReturn(this.decoded);
+    when(this.manager.getPlayer()).thenReturn(Optional.of(this.decoded));
     when(this.decoded.setSpeed(1.5)).thenReturn(true);
     this.command.setSpeed(this.sender, 1.5);
     when(this.decoded.setSpeed(2)).thenReturn(false);
@@ -173,10 +174,10 @@ final class VideoPlaybackCommandTest {
   @Test
   void shouldLoopAndSayWhenThePlayerCannot() {
     this.command.setLoop(this.sender, true);
-    when(this.manager.getPlayer()).thenReturn(this.other);
+    when(this.manager.getPlayer()).thenReturn(Optional.of(this.other));
     this.command.setLoop(this.sender, true);
     this.command.setLoop(this.sender, false);
-    when(this.manager.getPlayer()).thenReturn(this.decoded);
+    when(this.manager.getPlayer()).thenReturn(Optional.of(this.decoded));
     this.command.setLoop(this.sender, true);
     verify(this.manager, times(3)).setLooping(true);
     verify(this.manager).setLooping(false);

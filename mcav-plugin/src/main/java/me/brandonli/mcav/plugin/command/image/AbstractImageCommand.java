@@ -114,7 +114,8 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
       return;
     }
 
-    final FilterChain chain = AbstractVideoCommand.parseFilters(sender, this.plugin, filters, false);
+    final Optional<FilterChain> parsedChain = AbstractVideoCommand.parseFilters(sender, this.plugin, filters, false);
+    final @Nullable FilterChain chain = parsedChain.orElse(null);
     if (chain == null) {
       return;
     }

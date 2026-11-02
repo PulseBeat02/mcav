@@ -18,6 +18,7 @@
 package me.brandonli.mcav.plugin.command.video;
 
 import com.google.common.base.Preconditions;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.player.multimedia.cv.AbstractVideoPlayerCv;
@@ -87,13 +88,15 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
     Preconditions.checkNotNull(position, "Position must not be null!");
 
-    final SeekPosition parsed = SeekPosition.parse(position);
+    final Optional<SeekPosition> parsedPosition = SeekPosition.parse(position);
+    final @Nullable SeekPosition parsed = parsedPosition.orElse(null);
     if (parsed == null) {
       sender.sendMessage(Message.SEEK_INVALID.build(position));
       return;
     }
 
-    final VideoPlayerMultiplexer player = this.manager.getPlayer();
+    final Optional<VideoPlayerMultiplexer> foundPlayer = this.manager.getPlayer();
+    final @Nullable VideoPlayerMultiplexer player = foundPlayer.orElse(null);
     if (player == null) {
       sender.sendMessage(Message.SEEK_FAILED.build());
       return;
@@ -156,7 +159,8 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
   public void setSpeed(final CommandSender sender, @Argument(suggestions = "speeds") @Range(min = "0.5", max = "2") final double factor) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
 
-    final VideoPlayerMultiplexer player = this.manager.getPlayer();
+    final Optional<VideoPlayerMultiplexer> foundPlayer = this.manager.getPlayer();
+    final @Nullable VideoPlayerMultiplexer player = foundPlayer.orElse(null);
     final Component message;
     if (player != null && !(player instanceof AbstractVideoPlayerCv)) {
       message = Message.VLC_UNSUPPORTED.build();
@@ -186,7 +190,8 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
 
     this.manager.setLooping(enabled);
     sender.sendMessage(enabled ? Message.LOOP_ON.build() : Message.LOOP_OFF.build());
-    final VideoPlayerMultiplexer player = this.manager.getPlayer();
+    final Optional<VideoPlayerMultiplexer> foundPlayer = this.manager.getPlayer();
+    final @Nullable VideoPlayerMultiplexer player = foundPlayer.orElse(null);
     if (enabled && player != null && !(player instanceof AbstractVideoPlayerCv)) {
       sender.sendMessage(Message.VLC_UNSUPPORTED.build());
     }

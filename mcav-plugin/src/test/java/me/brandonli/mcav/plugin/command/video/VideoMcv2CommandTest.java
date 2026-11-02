@@ -32,6 +32,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2.Settings;
@@ -120,7 +121,7 @@ final class VideoMcv2CommandTest {
         eq(Settings.DEFAULT),
         eq(List.of(this.viewer))
       )
-    ).thenReturn(configuration);
+    ).thenReturn(Optional.of(configuration));
 
     this.play(RESOLUTION, BLOCK_DIMENSIONS, MAP_ID);
 
@@ -173,7 +174,7 @@ final class VideoMcv2CommandTest {
   void shouldStartTheOutputInASlotOfThePackOnThePlayerManager() {
     final Mcv2Configuration configuration = mock(Mcv2Configuration.class);
     final Mcv2Output output = mock(Mcv2Output.class);
-    when(this.support.output(this.sender, configuration, DitheringArgument.FILTER_LITE)).thenReturn(output);
+    when(this.support.output(this.sender, configuration, DitheringArgument.FILTER_LITE)).thenReturn(Optional.of(output));
     final AbstractVideoCommand.VideoConfigurationProvider provider = _ ->
       new VideoMcv2Command.Mcv2Settings(configuration, DitheringArgument.FILTER_LITE, this.sender);
 

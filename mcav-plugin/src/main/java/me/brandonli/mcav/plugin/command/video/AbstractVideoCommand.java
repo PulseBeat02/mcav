@@ -163,7 +163,8 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     Preconditions.checkNotNull(mrl, "MRL must not be null!");
     Preconditions.checkNotNull(flags, "Flags must not be null!");
 
-    final Pair<Integer, Integer> resolution = parseDimensions(sender, videoResolution);
+    final Optional<Pair<Integer, Integer>> parsedResolution = parseDimensions(sender, videoResolution);
+    final @Nullable Pair<Integer, Integer> resolution = parsedResolution.orElse(null);
     if (resolution == null) {
       return;
     }
@@ -173,7 +174,8 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
       return;
     }
 
-    final FilterChain chain = parseFilters(sender, this.plugin, filters, true);
+    final Optional<FilterChain> parsedChain = parseFilters(sender, this.plugin, filters, true);
+    final @Nullable FilterChain chain = parsedChain.orElse(null);
     if (chain == null) {
       return;
     }
@@ -221,24 +223,25 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    * @param plugin  the plugin, whose data folder holds the overlays
    * @param filters the option as typed, or {@code null} for none
    * @param isVideo whether the pictures are the frames of a video
-   * @return the chain, or {@code null} if the option is not valid
+   * @return the chain, or empty if the option is not valid
    */
-  public static @Nullable FilterChain parseFilters(
+  public static Optional<FilterChain> parseFilters(
     final CommandSender sender,
     final MCAVSandbox plugin,
     final @Nullable String filters,
     final boolean isVideo
   ) {
     if (filters == null || filters.isEmpty()) {
-      return FilterChain.NONE;
+      return Optional.of(FilterChain.NONE);
     }
 
     final Path overlays = plugin.getDataFolder().toPath().resolve(FilterChain.OVERLAY_FOLDER);
     try {
-      return FilterChain.parse(filters, overlays, isVideo);
+      final FilterChain chain = FilterChain.parse(filters, overlays, isVideo);
+      return Optional.of(chain);
     } catch (final IllegalArgumentException exception) {
       sender.sendMessage(Message.FILTERS_INVALID.build(Objects.requireNonNullElse(exception.getMessage(), "")));
-      return null;
+      return Optional.empty();
     }
   }
 
@@ -247,18 +250,20 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    *
    * @param sender who ran the command
    * @param text   the size as entered
-   * @return the width and height, or {@code null} if the text is not a valid size
+   * @return the width and height, or empty if the text is not a valid size
+   * @throws NullPointerException if an argument is null
    */
-  protected static @Nullable Pair<Integer, Integer> parseDimensions(final CommandSender sender, final String text) {
+  protected static Optional<Pair<Integer, Integer>> parseDimensions(final CommandSender sender, final String text) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
     Preconditions.checkNotNull(text, "Text must not be null!");
 
     try {
-      return ArgumentUtils.parseDimensions(text);
+      final Pair<Integer, Integer> dimensions = ArgumentUtils.parseDimensions(text);
+      return Optional.of(dimensions);
     } catch (final IllegalArgumentException exception) {
       final Component message = Message.UNSUPPORTED_DIMENSION.build();
       sender.sendMessage(message);
-      return null;
+      return Optional.empty();
     }
   }
 
@@ -268,18 +273,20 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    *
    * @param sender who ran the command
    * @param text   the size as entered
-   * @return the width and height in maps, or {@code null} if the text is not a valid wall size
+   * @return the width and height in maps, or empty if the text is not a valid wall size
+   * @throws NullPointerException if an argument is null
    */
-  protected static @Nullable Pair<Integer, Integer> parseScreenDimensions(final CommandSender sender, final String text) {
+  protected static Optional<Pair<Integer, Integer>> parseScreenDimensions(final CommandSender sender, final String text) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
     Preconditions.checkNotNull(text, "Text must not be null!");
 
     try {
-      return ArgumentUtils.parseScreenDimensions(text);
+      final Pair<Integer, Integer> dimensions = ArgumentUtils.parseScreenDimensions(text);
+      return Optional.of(dimensions);
     } catch (final IllegalArgumentException exception) {
       final Component message = Message.UNSUPPORTED_DIMENSION.build();
       sender.sendMessage(message);
-      return null;
+      return Optional.empty();
     }
   }
 
@@ -425,7 +432,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
       return Message.DEVICE_PERMISSION.build();
     }
 
-    return isDevice && CaptureDevices.find(this.manager.getDevices(), mrl) == null ? Message.DEVICE_UNLISTED.build(mrl) : null;
+    return isDevice && CaptureDevices.find(this.manager.getDevices(), mrl).isEmpty() ? Message.DEVICE_UNLISTED.build(mrl) : null;
   }
 
   /**
@@ -434,7 +441,8 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    * @return the message that explains the problem, or {@code null} if the video can play
    */
   private @Nullable Component findProblem(final PlayerArgument playerType, final AudioArgument audioType, final String mrl) {
-    final Component audioProblem = AudioOutputs.findProblem(this.provider, audioType);
+    final Optional<Component> foundAudioProblem = AudioOutputs.findProblem(this.provider, audioType);
+    final @Nullable Component audioProblem = foundAudioProblem.orElse(null);
     if (audioProblem != null) {
       return audioProblem;
     }
@@ -597,13 +605,15 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
   }
 
   private void showHologram(final UrlParseDump dump) {
-    final Hologram existing = this.manager.getHologram();
+    final Optional<Hologram> foundHologram = this.manager.getHologram();
+    final @Nullable Hologram existing = foundHologram.orElse(null);
     if (existing != null) {
       existing.kill();
       this.manager.setHologram(null);
     }
 
-    final Location location = this.manager.getHologramLocation();
+    final Optional<Location> foundLocation = this.manager.getHologramLocation();
+    final @Nullable Location location = foundLocation.orElse(null);
     if (location == null) {
       return;
     }

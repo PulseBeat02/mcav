@@ -35,6 +35,7 @@ import static org.mockito.Mockito.when;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.image.DisplayableImage;
@@ -238,9 +239,9 @@ final class ImageMapCommandTest {
     final Mcv2Configuration configuration = mock(Mcv2Configuration.class);
     when(
       this.support.configure(this.sender, Pair.pair(BLOCK_WIDTH, BLOCK_HEIGHT), resolution, MAP_ID, Settings.DEFAULT, settings.viewers())
-    ).thenReturn(configuration);
+    ).thenReturn(Optional.of(configuration));
     final Mcv2Output output = mock(Mcv2Output.class);
-    when(this.support.output(this.sender, configuration, DitheringArgument.NEAREST_COLOR)).thenReturn(output);
+    when(this.support.output(this.sender, configuration, DitheringArgument.NEAREST_COLOR)).thenReturn(Optional.of(output));
 
     final DisplayableImage image = this.command.createImage(resolution, provider);
     assertInstanceOf(Mcv2Image.class, image);
@@ -279,8 +280,10 @@ final class ImageMapCommandTest {
     final AbstractImageCommand.ImageConfigurationProvider provider = this.showWithCodecAndCaptureProvider(MapCodec.MCV2);
     final Mcv2Configuration configuration = mock(Mcv2Configuration.class);
     // no frame holds the map the first time, and every slot plays the second time
-    when(this.support.configure(any(), any(), any(), eq(MAP_ID), any(), any())).thenReturn(null, configuration);
-    when(this.support.output(any(), any(), any())).thenReturn(null);
+    when(this.support.configure(any(), any(), any(), eq(MAP_ID), any(), any()))
+      .thenReturn(Optional.empty())
+      .thenReturn(Optional.of(configuration));
+    when(this.support.output(any(), any(), any())).thenReturn(Optional.empty());
 
     final DitherAlgorithm first = this.createImageAndCaptureAlgorithm(provider);
     final DitherAlgorithm second = this.createImageAndCaptureAlgorithm(provider);

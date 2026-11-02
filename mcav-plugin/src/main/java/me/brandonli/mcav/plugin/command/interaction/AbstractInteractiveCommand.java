@@ -23,6 +23,7 @@ import com.google.common.util.concurrent.ForwardingExecutorService;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.WeakHashMap;
@@ -347,18 +348,20 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    *
    * @param sender who ran the command
    * @param text   the size as entered
-   * @return the width and height, or {@code null} if the text is not a valid size
+   * @return the width and height, or empty if the text is not a valid size
+   * @throws NullPointerException if an argument is null
    */
-  protected static @Nullable Pair<Integer, Integer> parseDimensions(final CommandSender sender, final String text) {
+  protected static Optional<Pair<Integer, Integer>> parseDimensions(final CommandSender sender, final String text) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
     Preconditions.checkNotNull(text, "Text must not be null!");
 
     try {
-      return ArgumentUtils.parseDimensions(text);
+      final Pair<Integer, Integer> dimensions = ArgumentUtils.parseDimensions(text);
+      return Optional.of(dimensions);
     } catch (final IllegalArgumentException exception) {
       final Component message = Message.UNSUPPORTED_DIMENSION.build();
       sender.sendMessage(message);
-      return null;
+      return Optional.empty();
     }
   }
 
@@ -368,18 +371,20 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    *
    * @param sender who ran the command
    * @param text   the size as entered
-   * @return the width and height in maps, or {@code null} if the text is not a valid wall size
+   * @return the width and height in maps, or empty if the text is not a valid wall size
+   * @throws NullPointerException if an argument is null
    */
-  protected static @Nullable Pair<Integer, Integer> parseScreenDimensions(final CommandSender sender, final String text) {
+  protected static Optional<Pair<Integer, Integer>> parseScreenDimensions(final CommandSender sender, final String text) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
     Preconditions.checkNotNull(text, "Text must not be null!");
 
     try {
-      return ArgumentUtils.parseScreenDimensions(text);
+      final Pair<Integer, Integer> dimensions = ArgumentUtils.parseScreenDimensions(text);
+      return Optional.of(dimensions);
     } catch (final IllegalArgumentException exception) {
       final Component message = Message.UNSUPPORTED_DIMENSION.build();
       sender.sendMessage(message);
-      return null;
+      return Optional.empty();
     }
   }
 
@@ -462,8 +467,10 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     final DitheringArgument dithering = settings.getDithering();
     final Mcv2Support support = this.plugin.getMcv2Support();
     final CommandSender sender = settings.getSender();
-    final Mcv2Configuration configuration = support.configure(sender, blocks, resolution, mapId, Settings.DEFAULT, players);
-    final Mcv2Output output = configuration == null ? null : support.output(sender, configuration, dithering);
+    final Optional<Mcv2Configuration> foundConfiguration = support.configure(sender, blocks, resolution, mapId, Settings.DEFAULT, players);
+    final @Nullable Mcv2Configuration configuration = foundConfiguration.orElse(null);
+    final Optional<Mcv2Output> foundOutput = configuration == null ? Optional.empty() : support.output(sender, configuration, dithering);
+    final @Nullable Mcv2Output output = foundOutput.orElse(null);
     return output;
   }
 
@@ -703,7 +710,8 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
       return;
     }
 
-    final int[] coordinates = InteractUtils.getBoardCoordinates(breaker, frame);
+    final Optional<int[]> foundCoordinates = InteractUtils.getBoardCoordinates(breaker, frame);
+    final int @Nullable [] coordinates = foundCoordinates.orElse(null);
     if (coordinates == null) {
       return;
     }
@@ -829,7 +837,8 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
       return;
     }
 
-    final int[] coordinates = InteractUtils.getBoardCoordinates(attacker, entity);
+    final Optional<int[]> foundCoordinates = InteractUtils.getBoardCoordinates(attacker, entity);
+    final int @Nullable [] coordinates = foundCoordinates.orElse(null);
     final int[] pixel = coordinates == null ? null : shown.toSource(coordinates[0], coordinates[1]);
     if (pixel != null) {
       this.forwardLeftClick(current, pixel[0], pixel[1]);
@@ -872,7 +881,8 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     }
 
     final Player clicker = event.getPlayer();
-    final int[] coordinates = InteractUtils.getBoardCoordinates(clicker, entity);
+    final Optional<int[]> foundCoordinates = InteractUtils.getBoardCoordinates(clicker, entity);
+    final int @Nullable [] coordinates = foundCoordinates.orElse(null);
     if (coordinates == null) {
       return;
     }

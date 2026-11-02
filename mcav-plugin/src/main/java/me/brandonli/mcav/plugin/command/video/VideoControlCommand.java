@@ -18,6 +18,7 @@
 package me.brandonli.mcav.plugin.command.video;
 
 import com.google.common.base.Preconditions;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
@@ -76,7 +77,8 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
   public void resumeVideo(final CommandSender sender) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
 
-    final VideoPlayerMultiplexer player = this.manager.getPlayer();
+    final Optional<VideoPlayerMultiplexer> foundPlayer = this.manager.getPlayer();
+    final @Nullable VideoPlayerMultiplexer player = foundPlayer.orElse(null);
     final boolean resumed = player == null || player.resume();
     final Component message = resumed ? Message.RESUME_PLAYER.build() : Message.RESUME_PLAYER_FAILED.build();
     sender.sendMessage(message);
@@ -97,7 +99,8 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
   public void pauseVideo(final CommandSender sender) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
 
-    final VideoPlayerMultiplexer player = this.manager.getPlayer();
+    final Optional<VideoPlayerMultiplexer> foundPlayer = this.manager.getPlayer();
+    final @Nullable VideoPlayerMultiplexer player = foundPlayer.orElse(null);
     if (player != null) {
       player.pause();
     }

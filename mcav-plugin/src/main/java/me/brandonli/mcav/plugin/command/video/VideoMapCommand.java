@@ -19,6 +19,7 @@ package me.brandonli.mcav.plugin.command.video;
 
 import com.google.common.base.Preconditions;
 import java.util.Collection;
+import java.util.Optional;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2.Settings;
@@ -126,7 +127,8 @@ public final class VideoMapCommand extends AbstractVideoCommand {
     Preconditions.checkNotNull(playerSelector, "Player selector must not be null!");
     Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null!");
 
-    final Pair<Integer, Integer> blocks = parseScreenDimensions(sender, blockDimensions);
+    final Optional<Pair<Integer, Integer>> parsedBlocks = parseScreenDimensions(sender, blockDimensions);
+    final @Nullable Pair<Integer, Integer> blocks = parsedBlocks.orElse(null);
     if (blocks == null) {
       return;
     }
@@ -136,13 +138,22 @@ public final class VideoMapCommand extends AbstractVideoCommand {
     VideoConfigurationProvider configurationProvider = resolution ->
       this.createSettings(blocks, resolution, mapId, players, ditheringAlgorithm);
     if (chosen == MapCodec.MCV2) {
-      final Pair<Integer, Integer> resolution = parseDimensions(sender, videoResolution);
+      final Optional<Pair<Integer, Integer>> parsedResolution = parseDimensions(sender, videoResolution);
+      final @Nullable Pair<Integer, Integer> resolution = parsedResolution.orElse(null);
       if (resolution == null) {
         return;
       }
 
       final Mcv2Support support = this.plugin.getMcv2Support();
-      final Mcv2Configuration configuration = support.configure(sender, blocks, resolution, mapId, Settings.DEFAULT, players);
+      final Optional<Mcv2Configuration> foundConfiguration = support.configure(
+        sender,
+        blocks,
+        resolution,
+        mapId,
+        Settings.DEFAULT,
+        players
+      );
+      final @Nullable Mcv2Configuration configuration = foundConfiguration.orElse(null);
       if (configuration != null) {
         configurationProvider = _ -> new VideoMcv2Command.Mcv2Settings(configuration, ditheringAlgorithm, sender);
       }

@@ -22,6 +22,7 @@ import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 import org.bukkit.Location;
@@ -61,18 +62,18 @@ public final class InteractUtils {
    * Returns the pixel the player looks at on the map wall in front of them.
    *
    * @param player the player
-   * @return the x and y pixel coordinates on the wall, or {@code null} if the player does not look at a map frame
+   * @return the x and y pixel coordinates on the wall, or empty if the player does not look at a map frame
    * of a complete vertical wall
    * @throws NullPointerException     if {@code player} is null
    * @throws IllegalArgumentException if the player looks at an entity that is not an item frame
    * @throws IllegalStateException    if the player targets a block face that is not a side of a block
    */
-  public static int @Nullable [] getBoardCoordinates(final Player player) {
+  public static Optional<int[]> getBoardCoordinates(final Player player) {
     Preconditions.checkNotNull(player, "Player must not be null!");
 
     final Entity targetEntity = player.getTargetEntity(MAXIMUM_TARGET_DISTANCE);
     if (targetEntity == null) {
-      return null;
+      return Optional.empty();
     }
 
     return getBoardCoordinates(player, targetEntity);
@@ -83,13 +84,13 @@ public final class InteractUtils {
    *
    * @param player the player
    * @param entity the item frame the player looks at
-   * @return the x and y pixel coordinates on the wall, or {@code null} if the frame does not belong to a complete
+   * @return the x and y pixel coordinates on the wall, or empty if the frame does not belong to a complete
    * vertical wall or the line of sight misses the frame
    * @throws NullPointerException     if an argument is null
    * @throws IllegalArgumentException if the entity is not an item frame
    * @throws IllegalStateException    if the player targets a block face that is not a side of a block
    */
-  public static int @Nullable [] getBoardCoordinates(final Player player, final Entity entity) {
+  public static Optional<int[]> getBoardCoordinates(final Player player, final Entity entity) {
     Preconditions.checkNotNull(player, "Player must not be null!");
     Preconditions.checkNotNull(entity, "Entity must not be null!");
 
@@ -99,19 +100,20 @@ public final class InteractUtils {
 
     final int[] mapIndex = getRelativeMapIndex(player, frame);
     if (mapIndex == null) {
-      return null;
+      return Optional.empty();
     }
 
     final double[] framePosition = getRotatedFramePosition(player, frame);
     if (framePosition == null) {
-      return null;
+      return Optional.empty();
     }
 
     final int pixelX = Math.clamp((int) (framePosition[0] * MAP_PIXELS), 0, MAP_PIXELS - 1);
     final int pixelY = Math.clamp((int) (framePosition[1] * MAP_PIXELS), 0, MAP_PIXELS - 1);
     final int absoluteX = mapIndex[0] * MAP_PIXELS + pixelX;
     final int absoluteY = mapIndex[1] * MAP_PIXELS + pixelY;
-    return new int[] { absoluteX, absoluteY };
+    final int[] coordinates = new int[] { absoluteX, absoluteY };
+    return Optional.of(coordinates);
   }
 
   /**

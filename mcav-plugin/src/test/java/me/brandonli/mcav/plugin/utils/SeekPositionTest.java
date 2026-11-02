@@ -18,9 +18,9 @@
 package me.brandonli.mcav.plugin.utils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -40,47 +40,47 @@ final class SeekPositionTest {
   @Test
   void shouldReadTimesFromTheStart() {
     final SeekPosition expected = new SeekPosition(false, MINUTES_POSITION_MILLISECONDS);
-    final SeekPosition parsed = SeekPosition.parse("90");
-    assertEquals(expected, parsed);
+    final Optional<SeekPosition> parsed = SeekPosition.parse("90");
+    assertEquals(Optional.of(expected), parsed);
 
     final SeekPosition secondExpected = new SeekPosition(false, MINUTES_POSITION_MILLISECONDS);
-    final SeekPosition seekPositionParsed = SeekPosition.parse(MINUTES_POSITION_TEXT);
-    assertEquals(secondExpected, seekPositionParsed);
+    final Optional<SeekPosition> seekPositionParsed = SeekPosition.parse(MINUTES_POSITION_TEXT);
+    assertEquals(Optional.of(secondExpected), seekPositionParsed);
 
     final SeekPosition thirdExpected = new SeekPosition(false, HOURS_POSITION_MILLISECONDS);
-    final SeekPosition secondParsed = SeekPosition.parse(HOURS_POSITION_TEXT);
-    assertEquals(thirdExpected, secondParsed);
+    final Optional<SeekPosition> secondParsed = SeekPosition.parse(HOURS_POSITION_TEXT);
+    assertEquals(Optional.of(thirdExpected), secondParsed);
 
     final SeekPosition fourthExpected = new SeekPosition(false, 1_500L);
-    final SeekPosition thirdParsed = SeekPosition.parse("1.5");
-    assertEquals(fourthExpected, thirdParsed);
+    final Optional<SeekPosition> thirdParsed = SeekPosition.parse("1.5");
+    assertEquals(Optional.of(fourthExpected), thirdParsed);
 
     final SeekPosition fifthExpected = new SeekPosition(false, 61_025L);
-    final SeekPosition fourthParsed = SeekPosition.parse("1:01.025");
-    assertEquals(fifthExpected, fourthParsed);
+    final Optional<SeekPosition> fourthParsed = SeekPosition.parse("1:01.025");
+    assertEquals(Optional.of(fifthExpected), fourthParsed);
 
     final SeekPosition sixthExpected = new SeekPosition(false, 0L);
-    final SeekPosition fifthParsed = SeekPosition.parse("0");
-    assertEquals(sixthExpected, fifthParsed);
+    final Optional<SeekPosition> fifthParsed = SeekPosition.parse("0");
+    assertEquals(Optional.of(sixthExpected), fifthParsed);
 
     final SeekPosition seventhExpected = new SeekPosition(false, SeekPosition.MAXIMUM_MILLISECONDS);
-    final SeekPosition sixthParsed = SeekPosition.parse("99:59:59.999");
-    assertEquals(seventhExpected, sixthParsed);
+    final Optional<SeekPosition> sixthParsed = SeekPosition.parse("99:59:59.999");
+    assertEquals(Optional.of(seventhExpected), sixthParsed);
   }
 
   @Test
   void shouldReadTimesFromTheCurrentPosition() {
     final SeekPosition expected = new SeekPosition(true, RELATIVE_POSITION_MILLISECONDS);
-    final SeekPosition parsed = SeekPosition.parse("+10");
-    assertEquals(expected, parsed);
+    final Optional<SeekPosition> parsed = SeekPosition.parse("+10");
+    assertEquals(Optional.of(expected), parsed);
 
     final SeekPosition secondExpected = new SeekPosition(true, -60_000L);
-    final SeekPosition seekPositionParsed = SeekPosition.parse("-1:00");
-    assertEquals(secondExpected, seekPositionParsed);
+    final Optional<SeekPosition> seekPositionParsed = SeekPosition.parse("-1:00");
+    assertEquals(Optional.of(secondExpected), seekPositionParsed);
 
     final SeekPosition thirdExpected = new SeekPosition(true, -250L);
-    final SeekPosition secondParsed = SeekPosition.parse("-0.25");
-    assertEquals(thirdExpected, secondParsed);
+    final Optional<SeekPosition> secondParsed = SeekPosition.parse("-0.25");
+    assertEquals(Optional.of(thirdExpected), secondParsed);
   }
 
   @ParameterizedTest
@@ -108,8 +108,8 @@ final class SeekPositionTest {
     }
   )
   void shouldRefuseWhatIsNotATime(final String text) {
-    final SeekPosition parsed = SeekPosition.parse(text);
-    assertNull(parsed, text);
+    final Optional<SeekPosition> parsed = SeekPosition.parse(text);
+    assertEquals(Optional.empty(), parsed, text);
   }
 
   @Test

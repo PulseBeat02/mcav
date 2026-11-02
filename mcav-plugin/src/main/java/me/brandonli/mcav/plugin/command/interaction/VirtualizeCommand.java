@@ -318,8 +318,11 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
       return;
     }
 
-    final Pair<Integer, Integer> resolution = parseDimensions(sender, vmResolution);
-    final Pair<Integer, Integer> blocks = resolution == null ? null : parseScreenDimensions(sender, blockDimensions);
+    final Optional<Pair<Integer, Integer>> parsedResolution = parseDimensions(sender, vmResolution);
+    final @Nullable Pair<Integer, Integer> resolution = parsedResolution.orElse(null);
+    final Optional<Pair<Integer, Integer>> parsedBlocks =
+      resolution == null ? Optional.empty() : parseScreenDimensions(sender, blockDimensions);
+    final @Nullable Pair<Integer, Integer> blocks = parsedBlocks.orElse(null);
     if (resolution == null || blocks == null) {
       return;
     }
@@ -357,7 +360,8 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     }
 
     final AudioProvider provider = this.plugin.getAudioProvider();
-    return AudioOutputs.findProblem(provider, audioType);
+    final Optional<Component> foundAudioProblem = AudioOutputs.findProblem(provider, audioType);
+    return foundAudioProblem.orElse(null);
   }
 
   private VmSettings createVmSettings(final Pair<Integer, Integer> resolution, final int targetFramesPerSecond) {

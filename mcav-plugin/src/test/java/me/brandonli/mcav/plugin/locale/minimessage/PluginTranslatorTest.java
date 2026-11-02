@@ -30,6 +30,7 @@ import java.io.StringReader;
 import java.text.MessageFormat;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.PropertyResourceBundle;
 import java.util.ResourceBundle;
 import me.brandonli.mcav.plugin.testing.Components;
@@ -183,8 +184,9 @@ final class PluginTranslatorTest {
     final MiniMessage strict = builder.build();
     final MiniMessageTranslator custom = new MiniMessageTranslator(strict) {
       @Override
-      protected String getMiniMessageString(final String key, final Locale locale) {
-        return "<green>" + key;
+      protected Optional<String> getMiniMessageString(final String key, final Locale locale) {
+        final String message = "<green>" + key;
+        return Optional.of(message);
       }
 
       @Override

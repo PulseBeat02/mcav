@@ -19,7 +19,6 @@ package me.brandonli.mcav.plugin.command.interaction;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -41,6 +40,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -292,8 +292,7 @@ final class AbstractInteractiveCommandTest {
   void shouldParseDimensionsAndTellTheSenderWhenTheyAreInvalid() {
     final CommandSender sender = mock(CommandSender.class);
 
-    final Pair<Integer, Integer> valid = AbstractInteractiveCommand.parseDimensions(sender, "5x3");
-    assertNotNull(valid);
+    final Pair<Integer, Integer> valid = AbstractInteractiveCommand.parseDimensions(sender, "5x3").orElseThrow();
 
     final int width = valid.getFirst();
     final int height = valid.getSecond();
@@ -301,8 +300,8 @@ final class AbstractInteractiveCommandTest {
     assertEquals(3, height);
     verify(sender, never()).sendMessage(any(Component.class));
 
-    final Pair<Integer, Integer> invalid = AbstractInteractiveCommand.parseDimensions(sender, "5 by 3");
-    assertNull(invalid);
+    final Optional<Pair<Integer, Integer>> invalid = AbstractInteractiveCommand.parseDimensions(sender, "5 by 3");
+    assertEquals(Optional.empty(), invalid);
 
     final List<Component> messages = Components.received(sender);
     final Component error = Message.UNSUPPORTED_DIMENSION.build();
@@ -692,7 +691,7 @@ final class AbstractInteractiveCommandTest {
     final EntityDamageByEntityEvent left = this.damage(otherScreen, this.player);
     this.interactions
       .when(() -> InteractUtils.getBoardCoordinates(this.player, otherScreen))
-      .thenReturn(new int[] { PUNCHED_BOARD_X, PUNCHED_BOARD_Y });
+      .thenReturn(Optional.of(new int[] { PUNCHED_BOARD_X, PUNCHED_BOARD_Y }));
     this.command.onPlayerInteractEntity(right);
     this.command.onScreenDamage(left);
     this.assertForwarded();
@@ -773,10 +772,10 @@ final class AbstractInteractiveCommandTest {
     this.addScreenFrame(0.4, 64.4, -0.6);
     this.interactions
       .when(() -> InteractUtils.getBoardCoordinates(this.player, near))
-      .thenReturn(new int[] { AIMED_BOARD_X, AIMED_BOARD_Y });
+      .thenReturn(Optional.of(new int[] { AIMED_BOARD_X, AIMED_BOARD_Y }));
     this.interactions
       .when(() -> InteractUtils.getBoardCoordinates(this.player, far))
-      .thenReturn(new int[] { OTHER_BOARD_COORDINATE, OTHER_BOARD_COORDINATE });
+      .thenReturn(Optional.of(new int[] { OTHER_BOARD_COORDINATE, OTHER_BOARD_COORDINATE }));
     final BlockBreakEvent event = this.blockBreak();
 
     this.command.onBlockBreak(event);
@@ -814,10 +813,10 @@ final class AbstractInteractiveCommandTest {
     final ItemFrame second = this.addScreenFrame(-0.2, 63.8, -0.8);
     this.interactions
       .when(() -> InteractUtils.getBoardCoordinates(this.player, first))
-      .thenReturn(new int[] { AIMED_BOARD_X, AIMED_BOARD_Y });
+      .thenReturn(Optional.of(new int[] { AIMED_BOARD_X, AIMED_BOARD_Y }));
     this.interactions
       .when(() -> InteractUtils.getBoardCoordinates(this.player, second))
-      .thenReturn(new int[] { OTHER_BOARD_COORDINATE, OTHER_BOARD_COORDINATE });
+      .thenReturn(Optional.of(new int[] { OTHER_BOARD_COORDINATE, OTHER_BOARD_COORDINATE }));
     final BlockBreakEvent event = this.blockBreak();
 
     this.command.onBlockBreak(event);
@@ -878,7 +877,7 @@ final class AbstractInteractiveCommandTest {
     final Block block = this.fakeWorld.block(0, BLOCK_Y, -1);
     this.aimAtBlock(block);
     final ItemFrame frame = this.addScreenFrame(BLOCK_CENTER_X, BLOCK_CENTER_Y, BLOCK_CENTER_Z);
-    this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, frame)).thenReturn(null);
+    this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, frame)).thenReturn(Optional.empty());
     final BlockBreakEvent event = this.blockBreak();
 
     this.command.onBlockBreak(event);
@@ -896,7 +895,7 @@ final class AbstractInteractiveCommandTest {
     final ItemFrame frame = this.addScreenFrame(BLOCK_CENTER_X, BLOCK_CENTER_Y, 0.0);
     this.interactions
       .when(() -> InteractUtils.getBoardCoordinates(this.player, frame))
-      .thenReturn(new int[] { PUNCHED_BOARD_X, PUNCHED_BOARD_Y });
+      .thenReturn(Optional.of(new int[] { PUNCHED_BOARD_X, PUNCHED_BOARD_Y }));
     final EntityDamageByEntityEvent event = this.damage(frame, this.player);
 
     this.command.onScreenDamage(event);
@@ -971,7 +970,7 @@ final class AbstractInteractiveCommandTest {
     this.createMockedScreen();
     this.command.player = BROWSER;
     final ItemFrame frame = this.addScreenFrame(BLOCK_CENTER_X, BLOCK_CENTER_Y, 0.0);
-    this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, frame)).thenReturn(null);
+    this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, frame)).thenReturn(Optional.empty());
     final EntityDamageByEntityEvent event = this.damage(frame, this.player);
 
     this.command.onScreenDamage(event);
@@ -987,7 +986,7 @@ final class AbstractInteractiveCommandTest {
     this.createMockedScreen();
     this.command.player = BROWSER;
     final ItemFrame frame = this.addScreenFrame(BLOCK_CENTER_X, BLOCK_CENTER_Y, 0.0);
-    this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, frame)).thenReturn(new int[] { 7, 8 });
+    this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, frame)).thenReturn(Optional.of(new int[] { 7, 8 }));
     final PlayerInteractEntityEvent event = this.rightClick(frame);
 
     this.command.onPlayerInteractEntity(event);
@@ -1007,7 +1006,7 @@ final class AbstractInteractiveCommandTest {
     final Zombie zombie = mock(Zombie.class);
     final PlayerInteractEntityEvent onZombie = this.rightClick(zombie);
     this.command.onPlayerInteractEntity(onZombie);
-    this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, frame)).thenReturn(null);
+    this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, frame)).thenReturn(Optional.empty());
     final PlayerInteractEntityEvent missed = this.rightClick(frame);
     this.command.onPlayerInteractEntity(missed);
 
@@ -1062,7 +1061,7 @@ final class AbstractInteractiveCommandTest {
     final ItemFrame frame = this.addScreenFrame(CORNER_FRAME_X, CORNER_FRAME_Y, CORNER_FRAME_Z);
     this.interactions
       .when(() -> InteractUtils.getBoardCoordinates(this.player, frame))
-      .thenReturn(new int[] { AIMED_BOARD_X, AIMED_BOARD_Y });
+      .thenReturn(Optional.of(new int[] { AIMED_BOARD_X, AIMED_BOARD_Y }));
     final BlockBreakEvent broken = this.blockBreak();
     final PlayerInteractEntityEvent right = this.rightClick(frame);
     final EntityDamageByEntityEvent punch = this.damage(frame, this.player);
@@ -1082,7 +1081,7 @@ final class AbstractInteractiveCommandTest {
     this.createMockedScreen();
     this.command.player = BROWSER;
     final ItemFrame frame = this.addScreenFrame(BLOCK_CENTER_X, BLOCK_CENTER_Y, FRONT_FRAME_Z);
-    this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, frame)).thenReturn(new int[] { 1, 2 });
+    this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, frame)).thenReturn(Optional.of(new int[] { 1, 2 }));
     final PlayerInteractEntityEvent right = this.rightClick(frame);
     final EntityDamageByEntityEvent punch = this.damage(frame, this.player);
 
@@ -1240,9 +1239,9 @@ final class AbstractInteractiveCommandTest {
         Settings.DEFAULT,
         List.of(viewer)
       )
-    ).thenReturn(configuration);
+    ).thenReturn(Optional.of(configuration));
     final Mcv2Output output = mock(Mcv2Output.class);
-    when(support.output(sender, configuration, DitheringArgument.NEAREST_COLOR)).thenReturn(output);
+    when(support.output(sender, configuration, DitheringArgument.NEAREST_COLOR)).thenReturn(Optional.of(output));
     try (final MockedConstruction<CompressedMapResult> maps = Mockito.mockConstruction(CompressedMapResult.class)) {
       final Screen screen = this.command.createScreen(this.mcv2Settings(sender, viewer));
 
@@ -1276,7 +1275,9 @@ final class AbstractInteractiveCommandTest {
     when(this.plugin.getMcv2Support()).thenReturn(support);
     final Mcv2Configuration configuration = mock(Mcv2Configuration.class);
     // no frame holds the map the first time, and every slot of the pack plays the second time
-    when(support.configure(any(), any(), any(), eq(FIRST_MAP_ID), any(), any())).thenReturn(null, configuration);
+    when(support.configure(any(), any(), any(), eq(FIRST_MAP_ID), any(), any()))
+      .thenReturn(Optional.empty())
+      .thenReturn(Optional.of(configuration));
     final FunctionalVideoFilter ditherFilter = mock(FunctionalVideoFilter.class);
     try (
       final MockedConstruction<CompressedMapResult> maps = Mockito.mockConstruction(CompressedMapResult.class);
@@ -1770,7 +1771,7 @@ final class AbstractInteractiveCommandTest {
     final ItemFrame frame = this.addScreenFrame(BLOCK_CENTER_X, BLOCK_CENTER_Y, FRONT_FRAME_Z);
     this.interactions
       .when(() -> InteractUtils.getBoardCoordinates(this.player, frame))
-      .thenReturn(new int[] { SOURCE_BOARD_X, SOURCE_BOARD_Y });
+      .thenReturn(Optional.of(new int[] { SOURCE_BOARD_X, SOURCE_BOARD_Y }));
 
     this.command.onPlayerInteractEntity(this.rightClick(frame));
     this.command.onScreenDamage(this.damage(frame, this.player));
@@ -1800,7 +1801,7 @@ final class AbstractInteractiveCommandTest {
     final ItemFrame frame = this.addScreenFrame(CORNER_FRAME_X, CORNER_FRAME_Y, CORNER_FRAME_Z);
     this.interactions
       .when(() -> InteractUtils.getBoardCoordinates(this.player, frame))
-      .thenReturn(new int[] { AIMED_BOARD_X, AIMED_BOARD_Y });
+      .thenReturn(Optional.of(new int[] { AIMED_BOARD_X, AIMED_BOARD_Y }));
     final PlayerInteractEntityEvent right = this.rightClick(frame);
     final EntityDamageByEntityEvent punch = this.damage(frame, this.player);
     final BlockBreakEvent broken = this.blockBreak();
@@ -1832,8 +1833,8 @@ final class AbstractInteractiveCommandTest {
         Settings.DEFAULT,
         List.of(viewer)
       )
-    ).thenReturn(configuration);
-    when(support.output(sender, configuration, DitheringArgument.NEAREST_COLOR)).thenReturn(mock(Mcv2Output.class));
+    ).thenReturn(Optional.of(configuration));
+    when(support.output(sender, configuration, DitheringArgument.NEAREST_COLOR)).thenReturn(Optional.of(mock(Mcv2Output.class)));
     final MultiplePlayerSelector viewers = this.mockViewers(viewer);
     this.command.createScreen(
       new ScreenSettings(
@@ -1850,7 +1851,7 @@ final class AbstractInteractiveCommandTest {
     final ItemFrame frame = this.addScreenFrame(BLOCK_CENTER_X, BLOCK_CENTER_Y, FRONT_FRAME_Z);
     this.interactions
       .when(() -> InteractUtils.getBoardCoordinates(this.player, frame))
-      .thenReturn(new int[] { SOURCE_BOARD_X, SOURCE_BOARD_Y });
+      .thenReturn(Optional.of(new int[] { SOURCE_BOARD_X, SOURCE_BOARD_Y }));
 
     this.command.onPlayerInteractEntity(this.rightClick(frame));
 

@@ -27,6 +27,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.UUID;
 import me.brandonli.mcav.plugin.testing.Components;
 import net.kyori.adventure.key.Key;
@@ -236,8 +237,8 @@ final class UrlPlaceholderTest {
   private MiniMessageTranslator translator(final String template, final MiniMessage parser) {
     return new MiniMessageTranslator(parser) {
       @Override
-      protected String getMiniMessageString(final String key, final Locale locale) {
-        return template;
+      protected Optional<String> getMiniMessageString(final String key, final Locale locale) {
+        return Optional.of(template);
       }
 
       @Override

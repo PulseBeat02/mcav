@@ -18,12 +18,12 @@
 package me.brandonli.mcav.plugin.audio;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import java.util.Optional;
 import me.brandonli.mcav.plugin.locale.Message;
 import me.brandonli.mcav.plugin.testing.UtilityClassAssertions;
 import me.brandonli.mcav.plugin.utils.AudioArgument;
@@ -41,25 +41,25 @@ final class AudioOutputsTest {
   @Test
   void shouldNotPlayAnOutputThatIsOffOrStillStarting() {
     final Component expected = Message.UNSUPPORTED_AUDIO.build();
-    final Component problem = AudioOutputs.findProblem(this.provider, AudioArgument.DISCORD_BOT);
-    assertEquals(expected, problem);
+    final Optional<Component> problem = AudioOutputs.findProblem(this.provider, AudioArgument.DISCORD_BOT);
+    assertEquals(Optional.of(expected), problem);
 
     when(this.provider.isHttpEnabled()).thenReturn(true);
 
     final Component AUDIO_NOT_READYExpected = Message.AUDIO_NOT_READY.build();
-    final Component audioOutputsProblem = AudioOutputs.findProblem(this.provider, AudioArgument.HTTP_SERVER);
-    assertEquals(AUDIO_NOT_READYExpected, audioOutputsProblem);
+    final Optional<Component> audioOutputsProblem = AudioOutputs.findProblem(this.provider, AudioArgument.HTTP_SERVER);
+    assertEquals(Optional.of(AUDIO_NOT_READYExpected), audioOutputsProblem);
 
     when(this.provider.isHttpReady()).thenReturn(true);
 
-    final Component secondProblem = AudioOutputs.findProblem(this.provider, AudioArgument.HTTP_SERVER);
-    assertNull(secondProblem);
+    final Optional<Component> secondProblem = AudioOutputs.findProblem(this.provider, AudioArgument.HTTP_SERVER);
+    assertEquals(Optional.empty(), secondProblem);
 
-    final Component thirdProblem = AudioOutputs.findProblem(this.provider, AudioArgument.NONE);
-    assertNull(thirdProblem);
+    final Optional<Component> thirdProblem = AudioOutputs.findProblem(this.provider, AudioArgument.NONE);
+    assertEquals(Optional.empty(), thirdProblem);
 
-    final Component fourthProblem = AudioOutputs.findProblem(this.provider, AudioArgument.SIMPLE_VOICE_CHAT);
-    assertNull(fourthProblem);
+    final Optional<Component> fourthProblem = AudioOutputs.findProblem(this.provider, AudioArgument.SIMPLE_VOICE_CHAT);
+    assertEquals(Optional.empty(), fourthProblem);
   }
 
   @Test
@@ -76,11 +76,11 @@ final class AudioOutputsTest {
     when(this.provider.constructHttpUrl()).thenReturn("http://mc.example.com:3000");
 
     final Component expected = Message.AUDIO_HTTP.build("http://mc.example.com:3000");
-    final Component link = AudioOutputs.createLink(this.provider, AudioArgument.HTTP_SERVER);
-    assertEquals(expected, link);
+    final Optional<Component> link = AudioOutputs.createLink(this.provider, AudioArgument.HTTP_SERVER);
+    assertEquals(Optional.of(expected), link);
 
-    final Component audioOutputsLink = AudioOutputs.createLink(this.provider, AudioArgument.SIMPLE_VOICE_CHAT);
-    assertNull(audioOutputsLink);
+    final Optional<Component> audioOutputsLink = AudioOutputs.createLink(this.provider, AudioArgument.SIMPLE_VOICE_CHAT);
+    assertEquals(Optional.empty(), audioOutputsLink);
   }
 
   @Test

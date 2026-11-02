@@ -19,7 +19,6 @@ package me.brandonli.mcav.plugin.command.video;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -32,7 +31,7 @@ import static org.mockito.Mockito.when;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2.Settings;
@@ -58,7 +57,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.MapMeta;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -147,11 +145,11 @@ final class Mcv2SupportTest {
     final World second = mock(World.class);
     when(second.getEntitiesByClass(ItemFrame.class)).thenReturn(List.of(other, notAMap, wanted));
 
-    final ItemFrame frame = Mcv2Support.findFrame(List.of(first, second), 7);
+    final ItemFrame frame = Mcv2Support.findFrame(List.of(first, second), 7).orElseThrow();
     assertSame(wanted, frame);
 
-    final ItemFrame mcv2SupportFrame = Mcv2Support.findFrame(List.of(first, second), 8);
-    assertNull(mcv2SupportFrame);
+    final Optional<ItemFrame> mcv2SupportFrame = Mcv2Support.findFrame(List.of(first, second), 8);
+    assertEquals(Optional.empty(), mcv2SupportFrame);
 
     final boolean holdsMap = Mcv2Support.holdsMap(map(Material.FILLED_MAP, true, 3), 7);
     assertFalse(holdsMap);
@@ -162,7 +160,7 @@ final class Mcv2SupportTest {
 
   @Test
   void shouldConfigureTheScreenOnTheWallThatHoldsTheMap() {
-    final Mcv2Configuration configuration = Objects.requireNonNull(this.configure(20));
+    final Mcv2Configuration configuration = this.configure(20).orElseThrow();
 
     final Location expected = new Location(this.world, 5, 64, 7);
     final Location origin = configuration.getOrigin();
@@ -199,7 +197,7 @@ final class Mcv2SupportTest {
     assertEquals(Mcv2Configuration.MAXIMUM_PAGE_SLOTS, pageSlots);
   }
 
-  private Mcv2Configuration configure(final int map) {
+  private Optional<Mcv2Configuration> configure(final int map) {
     return this.support.configure(
       this.sender,
       Pair.pair(COLUMNS, ROWS),
@@ -210,7 +208,7 @@ final class Mcv2SupportTest {
     );
   }
 
-  private @Nullable Mcv2Configuration configure(final int columns, final int rows, final int width, final int height) {
+  private Optional<Mcv2Configuration> configure(final int columns, final int rows, final int width, final int height) {
     return this.support.configure(
       this.sender,
       Pair.pair(columns, rows),
@@ -226,7 +224,7 @@ final class Mcv2SupportTest {
     System.setProperty(VideoMcv2Command.PAGE_SLOTS_PROPERTY, "8");
     System.setProperty(VideoMcv2Command.BACKLOG_PROPERTY, "65536");
     try {
-      final Mcv2Configuration limited = Objects.requireNonNull(this.configure(20));
+      final Mcv2Configuration limited = this.configure(20).orElseThrow();
 
       final int pageSlots = limited.getPageSlots();
       assertEquals(8, pageSlots);
@@ -245,21 +243,21 @@ final class Mcv2SupportTest {
   @Test
   void shouldTellTheSenderWhenTheScreenIsLargerThanMcv2Plays() {
     // the plugin's walls go up to 64 maps a side and its videos up to 8192 pixels, MCV2's to 63 and 4096
-    final Mcv2Configuration configured = this.configure(64, ROWS, VIDEO_WIDTH, VIDEO_HEIGHT);
-    assertNull(configured);
+    final Optional<Mcv2Configuration> configured = this.configure(64, ROWS, VIDEO_WIDTH, VIDEO_HEIGHT);
+    assertEquals(Optional.empty(), configured);
 
-    final Mcv2Configuration secondConfigured = this.configure(COLUMNS, 64, VIDEO_WIDTH, VIDEO_HEIGHT);
-    assertNull(secondConfigured);
+    final Optional<Mcv2Configuration> secondConfigured = this.configure(COLUMNS, 64, VIDEO_WIDTH, VIDEO_HEIGHT);
+    assertEquals(Optional.empty(), secondConfigured);
 
-    final Mcv2Configuration thirdConfigured = this.configure(COLUMNS, ROWS, 4097, VIDEO_HEIGHT);
-    assertNull(thirdConfigured);
+    final Optional<Mcv2Configuration> thirdConfigured = this.configure(COLUMNS, ROWS, 4097, VIDEO_HEIGHT);
+    assertEquals(Optional.empty(), thirdConfigured);
 
-    final Mcv2Configuration fourthConfigured = this.configure(COLUMNS, ROWS, VIDEO_WIDTH, 4097);
-    assertNull(fourthConfigured);
+    final Optional<Mcv2Configuration> fourthConfigured = this.configure(COLUMNS, ROWS, VIDEO_WIDTH, 4097);
+    assertEquals(Optional.empty(), fourthConfigured);
 
     verify(this.sender, times(4)).sendMessage(Message.MCV2_SIZE_ERROR.build());
 
-    final Mcv2Configuration largest = Objects.requireNonNull(this.configure(63, 63, 4096, 4096));
+    final Mcv2Configuration largest = this.configure(63, 63, 4096, 4096).orElseThrow();
 
     final int columns = largest.getColumns();
     assertEquals(63, columns);
@@ -270,33 +268,33 @@ final class Mcv2SupportTest {
 
   @Test
   void shouldTellTheSenderWhenNoFrameHoldsTheMap() {
-    final Mcv2Configuration configured = this.configure(21);
-    assertNull(configured);
+    final Optional<Mcv2Configuration> configured = this.configure(21);
+    assertEquals(Optional.empty(), configured);
 
     verify(this.sender).sendMessage(Message.MCV2_SCREEN_ERROR.build(21));
   }
 
   @Test
   void shouldOpenASlotOrTellTheSenderThatEveryOnePlays() {
-    final Mcv2Configuration configuration = Objects.requireNonNull(this.configure(20));
+    final Mcv2Configuration configuration = this.configure(20).orElseThrow();
     final Mcv2PackServer.Lease lease = mock(Mcv2PackServer.Lease.class);
     when(this.packs.open(configuration)).thenReturn(lease).thenThrow(new IllegalStateException("full!"));
 
-    final Mcv2PackServer.Lease opened = this.support.open(this.sender, configuration);
+    final Mcv2PackServer.Lease opened = this.support.open(this.sender, configuration).orElseThrow();
     assertSame(lease, opened);
 
-    final Mcv2PackServer.Lease supportOpened = this.support.open(this.sender, configuration);
-    assertNull(supportOpened);
+    final Optional<Mcv2PackServer.Lease> supportOpened = this.support.open(this.sender, configuration);
+    assertEquals(Optional.empty(), supportOpened);
 
     verify(this.sender).sendMessage(Message.MCV2_FULL.build());
 
-    final Mcv2Output mcv2Output = this.support.output(this.sender, configuration, DitheringArgument.NEAREST_COLOR);
-    assertNull(mcv2Output);
+    final Optional<Mcv2Output> mcv2Output = this.support.output(this.sender, configuration, DitheringArgument.NEAREST_COLOR);
+    assertEquals(Optional.empty(), mcv2Output);
   }
 
   @Test
   void shouldCreateTheOutputOfAScreenInItsSlot() {
-    final Mcv2Configuration configuration = Objects.requireNonNull(this.configure(20));
+    final Mcv2Configuration configuration = this.configure(20).orElseThrow();
     final Mcv2Configuration slotted = configuration.withSlot(SLOT, Mcv2Configuration.DEFAULT_PAGE_MAP + PAGE_MAP_OFFSET, 1234);
     final Mcv2PackServer.Lease lease = mock(Mcv2PackServer.Lease.class);
     when(lease.getConfiguration()).thenReturn(slotted);
@@ -309,7 +307,7 @@ final class Mcv2SupportTest {
         this.recordArguments(context, arguments)
       )
     ) {
-      final Mcv2Output output = Objects.requireNonNull(this.support.output(this.sender, configuration, DitheringArgument.NEAREST_COLOR));
+      final Mcv2Output output = this.support.output(this.sender, configuration, DitheringArgument.NEAREST_COLOR).orElseThrow();
       final Mcv2Result result = results.constructed().getFirst();
 
       final Mcv2Result outputResult = output.getResult();
@@ -360,7 +358,7 @@ final class Mcv2SupportTest {
 
   @Test
   void shouldRecordTheFramesOfAScreenForAMeasurement() {
-    final Mcv2Configuration configuration = Objects.requireNonNull(this.configure(20));
+    final Mcv2Configuration configuration = this.configure(20).orElseThrow();
     final Mcv2PackServer.Lease lease = mock(Mcv2PackServer.Lease.class);
     when(lease.getConfiguration()).thenReturn(configuration.withSlot(SLOT, Mcv2Configuration.DEFAULT_PAGE_MAP + PAGE_MAP_OFFSET, 0));
     when(this.packs.open(configuration)).thenReturn(lease);

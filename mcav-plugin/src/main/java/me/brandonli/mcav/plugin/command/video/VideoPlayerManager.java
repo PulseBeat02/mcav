@@ -22,6 +22,7 @@ import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
@@ -482,10 +483,10 @@ public final class VideoPlayerManager {
   /**
    * Returns the hologram that shows the title of the video.
    *
-   * @return the hologram, or {@code null} if there is none
+   * @return the hologram, or empty if there is none
    */
-  public @Nullable Hologram getHologram() {
-    return this.hologram;
+  public Optional<Hologram> getHologram() {
+    return Optional.ofNullable(this.hologram);
   }
 
   /**
@@ -500,10 +501,10 @@ public final class VideoPlayerManager {
   /**
    * Returns where the hologram of the next video appears.
    *
-   * @return the location, or {@code null} if no hologram is shown
+   * @return the location, or empty if no hologram is shown
    */
-  public @Nullable Location getHologramLocation() {
-    return this.hologramLocation;
+  public Optional<Location> getHologramLocation() {
+    return Optional.ofNullable(this.hologramLocation);
   }
 
   /**
@@ -537,19 +538,19 @@ public final class VideoPlayerManager {
   /**
    * Returns the player of the video.
    *
-   * @return the player, or {@code null} if no video plays
+   * @return the player, or empty if no video plays
    */
-  public @Nullable VideoPlayerMultiplexer getPlayer() {
-    return this.player;
+  public Optional<VideoPlayerMultiplexer> getPlayer() {
+    return Optional.ofNullable(this.player);
   }
 
   /**
    * Returns the filter that shows the frames of the video.
    *
-   * @return the filter, or {@code null} if no video plays
+   * @return the filter, or empty if no video plays
    */
-  public @Nullable FunctionalVideoFilter getFilter() {
-    return this.filter;
+  public Optional<FunctionalVideoFilter> getFilter() {
+    return Optional.ofNullable(this.filter);
   }
 
   /**

@@ -20,9 +20,9 @@ package me.brandonli.mcav.plugin.utils;
 import com.google.common.base.Preconditions;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Where {@code /mcav video seek} jumps to: a time from the start of the video, such as {@code 90}, {@code 1:30} or
@@ -59,14 +59,15 @@ public record SeekPosition(boolean relative, long milliseconds) {
    * Parses a position.
    *
    * @param text the position as the player typed it
-   * @return the position, or null if the text is not one
+   * @return the position, or empty if the text is not one
+   * @throws NullPointerException if an argument is null
    */
-  public static @Nullable SeekPosition parse(final String text) {
+  public static Optional<SeekPosition> parse(final String text) {
     Preconditions.checkNotNull(text, "Text must not be null!");
 
     final Matcher matcher = FORMAT.matcher(text);
     if (!matcher.matches()) {
-      return null;
+      return Optional.empty();
     }
 
     final String sign = Objects.requireNonNull(matcher.group(1));
@@ -77,7 +78,7 @@ public record SeekPosition(boolean relative, long milliseconds) {
     final long secondCount = Long.parseLong(seconds);
     final long minuteCount = minutes == null ? 0 : Long.parseLong(minutes);
     if ((minutes != null && secondCount >= SECONDS_PER_MINUTE) || (hours != null && minuteCount >= MINUTES_PER_HOUR)) {
-      return null;
+      return Optional.empty();
     }
 
     final long hourCount = hours == null ? 0 : Long.parseLong(hours);
@@ -86,11 +87,12 @@ public record SeekPosition(boolean relative, long milliseconds) {
       fraction == null ? 0 : Long.parseLong((fraction + FRACTION_PADDING).substring(0, MILLISECONDS_DIGITS));
     final long milliseconds = wholeSeconds * MILLISECONDS_PER_SECOND + fractionMilliseconds;
     if (milliseconds > MAXIMUM_MILLISECONDS) {
-      return null;
+      return Optional.empty();
     }
 
     final boolean relative = !sign.isEmpty();
-    return new SeekPosition(relative, sign.equals(BACKWARD_SIGN) ? -milliseconds : milliseconds);
+    final SeekPosition position = new SeekPosition(relative, sign.equals(BACKWARD_SIGN) ? -milliseconds : milliseconds);
+    return Optional.of(position);
   }
 
   /**

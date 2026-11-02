@@ -21,7 +21,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -38,6 +37,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
@@ -141,17 +141,17 @@ final class VideoPlayerManagerTest {
 
   @Test
   void shouldStartEmpty() {
-    final VideoPlayerMultiplexer currentPlayer = this.manager.getPlayer();
-    final FunctionalVideoFilter currentFilter = this.manager.getFilter();
-    final Hologram currentHologram = this.manager.getHologram();
-    final Location location = this.manager.getHologramLocation();
+    final Optional<VideoPlayerMultiplexer> currentPlayer = this.manager.getPlayer();
+    final Optional<FunctionalVideoFilter> currentFilter = this.manager.getFilter();
+    final Optional<Hologram> currentHologram = this.manager.getHologram();
+    final Optional<Location> location = this.manager.getHologramLocation();
     final AtomicBoolean status = this.manager.getStatus();
     final boolean starting = status.get();
 
-    assertNull(currentPlayer);
-    assertNull(currentFilter);
-    assertNull(currentHologram);
-    assertNull(location);
+    assertEquals(Optional.empty(), currentPlayer);
+    assertEquals(Optional.empty(), currentFilter);
+    assertEquals(Optional.empty(), currentHologram);
+    assertEquals(Optional.empty(), location);
     assertFalse(starting);
   }
 
@@ -161,10 +161,10 @@ final class VideoPlayerManagerTest {
     final Location location = new Location(null, 1.0, 2.0, 3.0);
     this.manager.setHologramLocation(location);
 
-    final VideoPlayerMultiplexer currentPlayer = this.manager.getPlayer();
-    final FunctionalVideoFilter currentFilter = this.manager.getFilter();
-    final Hologram currentHologram = this.manager.getHologram();
-    final Location currentLocation = this.manager.getHologramLocation();
+    final VideoPlayerMultiplexer currentPlayer = this.manager.getPlayer().orElseThrow();
+    final FunctionalVideoFilter currentFilter = this.manager.getFilter().orElseThrow();
+    final Hologram currentHologram = this.manager.getHologram().orElseThrow();
+    final Location currentLocation = this.manager.getHologramLocation().orElseThrow();
 
     assertSame(this.player, currentPlayer);
     assertSame(this.filter, currentFilter);
@@ -223,12 +223,12 @@ final class VideoPlayerManagerTest {
     final List<Thread> expectedWorldThreads = List.of(main, main);
     assertEquals(expectedWorldThreads, this.worldThreads);
 
-    final VideoPlayerMultiplexer currentPlayer = this.manager.getPlayer();
-    final FunctionalVideoFilter currentFilter = this.manager.getFilter();
-    final Hologram currentHologram = this.manager.getHologram();
-    assertNull(currentPlayer);
-    assertNull(currentFilter);
-    assertNull(currentHologram);
+    final Optional<VideoPlayerMultiplexer> currentPlayer = this.manager.getPlayer();
+    final Optional<FunctionalVideoFilter> currentFilter = this.manager.getFilter();
+    final Optional<Hologram> currentHologram = this.manager.getHologram();
+    assertEquals(Optional.empty(), currentPlayer);
+    assertEquals(Optional.empty(), currentFilter);
+    assertEquals(Optional.empty(), currentHologram);
 
     final int pending = TestServer.runPendingTasks();
     assertEquals(0, pending);
@@ -249,8 +249,8 @@ final class VideoPlayerManagerTest {
     verify(this.filter, never()).release();
     verify(this.hologram, never()).kill();
 
-    final VideoPlayerMultiplexer currentPlayer = this.manager.getPlayer();
-    assertNull(currentPlayer);
+    final Optional<VideoPlayerMultiplexer> currentPlayer = this.manager.getPlayer();
+    assertEquals(Optional.empty(), currentPlayer);
 
     worldTask.run();
     release.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
@@ -316,8 +316,8 @@ final class VideoPlayerManagerTest {
     final boolean worldUntouched = this.worldThreads.isEmpty();
     assertTrue(worldUntouched);
 
-    final Hologram currentHologram = this.manager.getHologram();
-    assertNull(currentHologram);
+    final Optional<Hologram> currentHologram = this.manager.getHologram();
+    assertEquals(Optional.empty(), currentHologram);
   }
 
   @Test
@@ -438,8 +438,8 @@ final class VideoPlayerManagerTest {
     assertSame(failure, thrown);
     verify(this.filter, times(1)).release();
 
-    final FunctionalVideoFilter current = this.manager.getFilter();
-    assertNull(current);
+    final Optional<FunctionalVideoFilter> current = this.manager.getFilter();
+    assertEquals(Optional.empty(), current);
   }
 
   @Test
@@ -471,8 +471,8 @@ final class VideoPlayerManagerTest {
     assertThrows(CancellationException.class, this::startNativeReleasedDuringStartup);
     verify(this.player, times(1)).release();
 
-    final VideoPlayerMultiplexer current = this.manager.getPlayer();
-    assertNull(current);
+    final Optional<VideoPlayerMultiplexer> current = this.manager.getPlayer();
+    assertEquals(Optional.empty(), current);
   }
 
   private void startNativeReleasedDuringStartup() {
@@ -495,8 +495,8 @@ final class VideoPlayerManagerTest {
     assertThrows(CancellationException.class, () -> this.manager.setPlayer(this.player));
     verify(this.player, times(1)).release();
 
-    final VideoPlayerMultiplexer current = this.manager.getPlayer();
-    assertNull(current);
+    final Optional<VideoPlayerMultiplexer> current = this.manager.getPlayer();
+    assertEquals(Optional.empty(), current);
   }
 
   @Test
@@ -601,8 +601,8 @@ final class VideoPlayerManagerTest {
     assertSame(cleanup, suppressed[0]);
     verify(this.filter).release();
 
-    final FunctionalVideoFilter current = this.manager.getFilter();
-    assertNull(current);
+    final Optional<FunctionalVideoFilter> current = this.manager.getFilter();
+    assertEquals(Optional.empty(), current);
   }
 
   @Test
@@ -622,8 +622,8 @@ final class VideoPlayerManagerTest {
     assertEquals(1, suppressed.length);
     assertSame(cleanup, suppressed[0]);
 
-    final FunctionalVideoFilter current = this.manager.getFilter();
-    assertNull(current);
+    final Optional<FunctionalVideoFilter> current = this.manager.getFilter();
+    assertEquals(Optional.empty(), current);
   }
 
   @Test
@@ -638,7 +638,7 @@ final class VideoPlayerManagerTest {
     assertFalse(refused);
     verify(this.player, never()).release();
 
-    final VideoPlayerMultiplexer current = this.manager.getPlayer();
+    final VideoPlayerMultiplexer current = this.manager.getPlayer().orElseThrow();
     assertSame(this.player, current);
 
     this.manager.releaseVideoPlayer();
@@ -730,8 +730,8 @@ final class VideoPlayerManagerTest {
     verify(this.player).release();
 
     this.manager.setPlayer(null);
-    final VideoPlayerMultiplexer current = this.manager.getPlayer();
-    assertNull(current);
+    final Optional<VideoPlayerMultiplexer> current = this.manager.getPlayer();
+    assertEquals(Optional.empty(), current);
   }
 
   @Test
@@ -816,7 +816,7 @@ final class VideoPlayerManagerTest {
     assertSame(fatal, thrown);
     verify(this.filter, never()).release();
 
-    final FunctionalVideoFilter filter = this.manager.getFilter();
+    final FunctionalVideoFilter filter = this.manager.getFilter().orElseThrow();
     assertSame(this.filter, filter);
   }
 
@@ -831,7 +831,7 @@ final class VideoPlayerManagerTest {
     assertSame(fatal, thrown);
     verify(this.filter, never()).release();
 
-    final FunctionalVideoFilter filter = this.manager.getFilter();
+    final FunctionalVideoFilter filter = this.manager.getFilter().orElseThrow();
     assertSame(this.filter, filter);
   }
 

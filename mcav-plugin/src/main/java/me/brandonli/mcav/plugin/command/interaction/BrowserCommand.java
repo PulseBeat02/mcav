@@ -21,6 +21,7 @@ import com.google.common.base.Preconditions;
 import java.net.URI;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -259,7 +260,8 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
       return;
     }
 
-    final Pair<Integer, Integer> blocks = parseScreenDimensions(sender, blockDimensions);
+    final Optional<Pair<Integer, Integer>> parsedBlocks = parseScreenDimensions(sender, blockDimensions);
+    final @Nullable Pair<Integer, Integer> blocks = parsedBlocks.orElse(null);
     if (blocks == null) {
       return;
     }
@@ -272,7 +274,8 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     }
 
     final AudioProvider provider = this.plugin.getAudioProvider();
-    final Component audioProblem = AudioOutputs.findProblem(provider, audioType);
+    final Optional<Component> foundAudioProblem = AudioOutputs.findProblem(provider, audioType);
+    final @Nullable Component audioProblem = foundAudioProblem.orElse(null);
     if (audioProblem != null) {
       sender.sendMessage(audioProblem);
       return;
@@ -288,7 +291,8 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
   }
 
   private @Nullable Pair<Integer, Integer> parseBrowserResolution(final CommandSender sender, final String browserResolution) {
-    final Pair<Integer, Integer> resolution = parseDimensions(sender, browserResolution);
+    final Optional<Pair<Integer, Integer>> parsedResolution = parseDimensions(sender, browserResolution);
+    final @Nullable Pair<Integer, Integer> resolution = parsedResolution.orElse(null);
     if (resolution == null) {
       return null;
     }
