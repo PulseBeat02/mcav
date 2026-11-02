@@ -26,7 +26,7 @@ import java.util.function.BooleanSupplier;
 
 public final class Await {
 
-  private static final long TIMEOUT_MILLISECONDS = 10_000L;
+  private static final long TIMEOUT_NANOSECONDS = TimeUnit.SECONDS.toNanos(10);
   private static final long POLL_NANOSECONDS = TimeUnit.MILLISECONDS.toNanos(5);
 
   private Await() {
@@ -37,10 +37,11 @@ public final class Await {
     Preconditions.checkNotNull(description, "Description must not be null!");
     Preconditions.checkNotNull(condition, "Condition must not be null!");
 
-    final long timeout = TimeUnit.MILLISECONDS.toNanos(TIMEOUT_MILLISECONDS);
-    final long deadline = System.nanoTime() + timeout;
+    final long start = System.nanoTime();
+    final long deadline = start + TIMEOUT_NANOSECONDS;
     while (!condition.getAsBoolean()) {
-      if (System.nanoTime() - deadline > 0) {
+      final long now = System.nanoTime();
+      if (now - deadline > 0) {
         final String message = "Waiting until %s timed out!".formatted(description);
         fail(message);
       }
