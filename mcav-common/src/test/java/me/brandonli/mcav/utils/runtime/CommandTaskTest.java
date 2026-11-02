@@ -172,6 +172,26 @@ final class CommandTaskTest {
   }
 
   @Test
+  void shouldStartNothingBeforeItIsRun() {
+    final String java = javaExecutable();
+    final Map<String, String> environment = Map.of(VARIABLE, "mcav");
+    final List<CommandTask> tasks = List.of(
+      new CommandTask(java, VERSION_OPTION),
+      new CommandTask(this.directory, java, VERSION_OPTION),
+      new CommandTask(environment, java, VERSION_OPTION)
+    );
+    for (final CommandTask task : tasks) {
+      final Optional<Process> process = task.getProcess();
+      final String output = task.getOutput();
+      final String errorOutput = task.getErrorOutput();
+      assertTrue(process.isEmpty());
+      assertEquals("", output);
+      assertEquals("", errorOutput);
+      assertThrows(IllegalStateException.class, task::getExitCode);
+    }
+  }
+
+  @Test
   void shouldRunOnlyOnce() throws IOException {
     final String java = javaExecutable();
     final CommandTask task = new CommandTask(java, VERSION_OPTION);
