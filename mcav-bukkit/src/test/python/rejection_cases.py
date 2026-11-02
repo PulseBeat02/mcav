@@ -137,7 +137,7 @@ def _add_count_cases(cases: dict[str, dict[str, str]]) -> None:
 
     deep: bytes = _frame(Node(mcv2_reference.SPLIT, children=(split,) * mcv2_reference.SPLIT_CHILDREN))
     _add(cases, 'n2-children', _without_level_one_split(deep), INDEX_RULE, 'level 2 count')
-    _add(cases, 'split-at-level-2', changed(deep, DESCRIPTORS_OFFSET + 5, mcv2_reference.SPLIT), INDEX_RULE, 'SPLIT in level 2')
+    _add(cases, 'split-at-level-2', changed(deep, DESCRIPTORS_OFFSET + 5, mcv2_reference.SPLIT), INDEX_RULE, 'Level 2 of the frame has a SPLIT')
 
 
 def _solid_frame() -> bytes:

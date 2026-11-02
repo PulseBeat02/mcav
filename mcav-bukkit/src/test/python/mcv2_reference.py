@@ -394,9 +394,9 @@ def _unpack_descriptor(descriptor: int) -> tuple[int, int]:
 def _check_descriptor(mode: int, quantizer: int, size: int, keyframe: bool) -> None:
     _require(mode <= SPLIT, "The frame has an invalid descriptor mode!")
     _require(mode == COMPACT or quantizer == 0, NONZERO_QUANTIZER_MESSAGE)
-    _require(quantizer <= MAXIMUM_QUANTIZER, "The frame has a COMPACT quantizer above 2!")
+    _require(quantizer <= MAXIMUM_QUANTIZER, "A COMPACT quantizer above 2 is not allowed in the frame!")
     _require(not keyframe or mode not in (MOTION, COMPACT), TEMPORAL_KEYFRAME_MESSAGE)
-    _require(mode != SPLIT or size != SMALLEST_LEAF_SIZE, "The frame has a SPLIT in level 2!")
+    _require(mode != SPLIT or size != SMALLEST_LEAF_SIZE, "Level 2 of the frame has a SPLIT!")
 
 
 def _read_record(data: bytes, offset: int, mode: int, size: int) -> bytes:

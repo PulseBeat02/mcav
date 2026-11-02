@@ -1689,7 +1689,7 @@ def fixtures_conformance(root: Path) -> None:
             raise ValueError(message)
         table[stream.name] = dict(frames=len(kept), bytes=len(data), sha256_per_frame=fixtures_digests(data))
         updated = True
-        print(f"Checked {len(kept)} v3 frames of {stream.name}.", file=sys.stderr)
+        print(f"Stream {stream.name} has {len(kept)} checked v3 frames.", file=sys.stderr)
     if updated:
         fixtures_write_json(path, table)
 
@@ -1794,7 +1794,7 @@ def fixtures_encoder(root: Path) -> None:
             continue
         decoded: list[str] | None = fixtures_digests(result[0])
         checked += 1
-        print(f"Decoded {len(decoded)} golden v3 frames of {stream.name}.", file=sys.stderr)
+        print(f"Golden stream {stream.name} decodes to {len(decoded)} v3 frames.", file=sys.stderr)
     print(f"Checked {checked} committed v3 golden encoder streams; the files are unchanged.", file=sys.stderr)
 
 
@@ -1821,7 +1821,7 @@ def differential_main() -> None:
         min(arguments.streams, arguments.conformance, arguments.mutants) < 0
         or arguments.streams + arguments.conformance == 0
     ):
-        message: str = "Archive counts must be nonnegative, and at least one archive is required!"
+        message: str = "Archive counts must not be negative, and at least one archive is required!"
         parser.error(message)
     sys.exit(differential_run(arguments))
 
@@ -2941,7 +2941,7 @@ def strip_fit_check_main() -> int:
     print(context.info[GL_RENDERER_KEY])
     failures: list[str] = []
     for screen in STRIP_FIT_CHECK_UNFIT_SCREENS:
-        assert strip_fit_check_strip_rows(screen[0]) >= screen[1], screen
+        assert strip_fit_check_strip_rows(screen[0]) >= screen[1], f"Screen {screen[0]}x{screen[1]} must be too small for the strip!"
         scene: numpy.ndarray | Any
         after: numpy.ndarray
         decoded: bool
