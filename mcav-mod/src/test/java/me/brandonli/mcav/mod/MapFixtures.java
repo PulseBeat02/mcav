@@ -19,7 +19,7 @@ package me.brandonli.mcav.mod;
 
 import java.util.Arrays;
 
-// MCV2 maps as the server draws them; symbol s is map colour s + 4
+// MCV2 maps as the server draws them; symbol s is map color s + 4
 final class MapFixtures {
 
   // "MCP1", version 1 and six bits, in six-bit symbols
@@ -36,18 +36,18 @@ final class MapFixtures {
   }
 
   // the symbols, and symbol 0 after them
-  static byte[] colours(final int[] symbols) {
-    final byte[] colours = new byte[Mcv2Maps.COLOURS];
-    Arrays.fill(colours, (byte) 4);
+  static byte[] colors(final int[] symbols) {
+    final byte[] colors = new byte[Mcv2Maps.COLORS];
+    Arrays.fill(colors, (byte) 4);
     for (int index = 0; index < symbols.length; index++) {
-      colours[index] = (byte) (symbols[index] + 4);
+      colors[index] = (byte) (symbols[index] + 4);
     }
-    return colours;
+    return colors;
   }
 
   // the prefix, the stream id at bit 64, the number at bit 128, and filler
   static int[] pageSymbols(final long stream, final int number) {
-    final int[] symbols = new int[Mcv2Maps.COLOURS];
+    final int[] symbols = new int[Mcv2Maps.COLORS];
     for (int index = 0; index < symbols.length; index++) {
       symbols[index] = (index * 7 + 3) & SYMBOL_MASK;
     }
@@ -80,8 +80,8 @@ final class MapFixtures {
     }
   }
 
-  static byte[] withFlippedBits(final byte[] colours, final byte[] masks) {
-    final byte[] flipped = colours.clone();
+  static byte[] withFlippedBits(final byte[] colors, final byte[] masks) {
+    final byte[] flipped = colors.clone();
     for (int index = 0; index < masks.length; index++) {
       flipped[index] ^= masks[index];
     }

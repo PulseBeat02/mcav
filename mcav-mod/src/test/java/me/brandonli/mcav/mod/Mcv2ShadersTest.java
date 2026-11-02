@@ -138,7 +138,7 @@ final class Mcv2ShadersTest {
     assertFalse(decodesUnderShaders);
     final ShaderDecoder decoder = ShaderDecoder.current().orElseThrow();
     final PoseStack stack = new PoseStack();
-    decoder.extracted(TEXTURE, new byte[Mcv2Maps.COLOURS]);
+    decoder.extracted(TEXTURE, new byte[Mcv2Maps.COLORS]);
     decoder.posed(TEXTURE, stack.last());
     decoder.projecting();
     decoder.projected(PoseStack.Pose.class.getMethod("pose").invoke(stack.last()));

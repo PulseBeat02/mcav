@@ -50,9 +50,9 @@ final class ShaderDecoderTest {
 
   private static final PackLayout LAYOUT = PackLayout.parse(PackLayoutTest.packConstants("7u", "2", "0", 1)).orElseThrow();
 
-  private static final byte[] PAGE = MapFixtures.colours(MapFixtures.pageSymbols(7, 1));
+  private static final byte[] PAGE = MapFixtures.colors(MapFixtures.pageSymbols(7, 1));
 
-  private static final byte[] ANCHOR = MapFixtures.colours(MapFixtures.anchorSymbols(0, 0, 4, 2, 0, 7));
+  private static final byte[] ANCHOR = MapFixtures.colors(MapFixtures.anchorSymbols(0, 0, 4, 2, 0, 7));
 
   private static final float[] IDENTITY = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
 
@@ -205,7 +205,7 @@ final class ShaderDecoderTest {
     for (int missing = 0; missing < 4; missing++) {
       final ShaderDecoder decoder = this.decoder(TESTED_IRIS, WIDTH, HEIGHT);
       if (missing != 0) {
-        decoder.extracted("picture", new byte[Mcv2Maps.COLOURS]);
+        decoder.extracted("picture", new byte[Mcv2Maps.COLORS]);
       }
       if (missing != 1) {
         decoder.posed("picture", new PoseStack().last());

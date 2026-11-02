@@ -41,7 +41,7 @@ final class MinecraftStripOutput implements StripOutput {
 
   private static final String TRANSPARENT = "MCV2 transparent";
 
-  private static final String NO_COLOUR = "Render target must have a colour texture!";
+  private static final String NO_COLOR = "Render target must have a color texture!";
 
   private static final int BASE_MIP_LEVEL = 0;
 
@@ -101,16 +101,7 @@ final class MinecraftStripOutput implements StripOutput {
     }
     this.pixels.flip();
     final CommandEncoder commands = this.encoder.get();
-    commands.writeToTexture(
-      colour(target),
-      this.pixels,
-      BASE_MIP_LEVEL,
-      FIRST_LAYER,
-      LEFT_COLUMN,
-      target.height - rows,
-      target.width,
-      rows
-    );
+    commands.writeToTexture(color(target), this.pixels, BASE_MIP_LEVEL, FIRST_LAYER, LEFT_COLUMN, target.height - rows, target.width, rows);
     final TextureTarget empty = this.emptyOutline(target, commands);
     final FrameGraphBuilder frame = new FrameGraphBuilder();
     final LevelTargetBundle targets = new LevelTargetBundle();
@@ -161,14 +152,14 @@ final class MinecraftStripOutput implements StripOutput {
     final TextureTarget transparent = new TextureTarget(TRANSPARENT, target.width, target.height, GpuFormat.RGBA8_UNORM, null);
     // a new texture's pixels are undefined; a new direct buffer's bytes are zero
     final ByteBuffer zeros = ByteBuffer.allocateDirect(target.width * target.height * TransportStrip.CHANNELS);
-    commands.writeToTexture(colour(transparent), zeros, BASE_MIP_LEVEL, FIRST_LAYER, LEFT_COLUMN, BOTTOM_ROW, target.width, target.height);
+    commands.writeToTexture(color(transparent), zeros, BASE_MIP_LEVEL, FIRST_LAYER, LEFT_COLUMN, BOTTOM_ROW, target.width, target.height);
     final TextureTarget empty = new TextureTarget(EMPTY_OUTLINE, target.width, target.height, GpuFormat.RGBA8_UNORM, null);
     return new OutlineTargets(empty, transparent);
   }
 
-  // a target has its colour texture from creation until it is destroyed
-  private static GpuTexture colour(final RenderTarget target) {
-    return requireNonNull(target.getColorTexture(), NO_COLOUR);
+  // a target has its color texture from creation until it is destroyed
+  private static GpuTexture color(final RenderTarget target) {
+    return requireNonNull(target.getColorTexture(), NO_COLOR);
   }
 
   // the chain runs on empty, copied from transparent; both the size of the screen

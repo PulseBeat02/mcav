@@ -29,27 +29,27 @@ final class Mcv2MapsTest {
   private static final int CHECKSUM = 15;
 
   @Test
-  void shouldUseTheColoursFourToSixtySevenAndNothingElseAsSymbols() {
-    final byte[] colours = { 4, 67, 3, 68, (byte) 200, 0, 5 };
-    final int firstSymbol = Mcv2Maps.symbol(colours, 0);
-    final int secondSymbol = Mcv2Maps.symbol(colours, 1);
-    final int thirdSymbol = Mcv2Maps.symbol(colours, 2);
-    final int fourthSymbol = Mcv2Maps.symbol(colours, 3);
-    final int fifthSymbol = Mcv2Maps.symbol(colours, 4);
-    final int sixthSymbol = Mcv2Maps.symbol(colours, 5);
-    final int seventhSymbol = Mcv2Maps.symbol(colours, 6);
+  void shouldUseTheColorsFourToSixtySevenAndNothingElseAsSymbols() {
+    final byte[] colors = { 4, 67, 3, 68, (byte) 200, 0, 5 };
+    final int firstSymbol = Mcv2Maps.symbol(colors, 0);
+    final int secondSymbol = Mcv2Maps.symbol(colors, 1);
+    final int thirdSymbol = Mcv2Maps.symbol(colors, 2);
+    final int fourthSymbol = Mcv2Maps.symbol(colors, 3);
+    final int fifthSymbol = Mcv2Maps.symbol(colors, 4);
+    final int sixthSymbol = Mcv2Maps.symbol(colors, 5);
+    final int seventhSymbol = Mcv2Maps.symbol(colors, 6);
     assertEquals(0, firstSymbol);
     assertEquals(63, secondSymbol);
     assertEquals(Mcv2Maps.NOT_A_SYMBOL, thirdSymbol);
     assertEquals(Mcv2Maps.NOT_A_SYMBOL, fourthSymbol);
-    assertEquals(Mcv2Maps.NOT_A_SYMBOL, fifthSymbol, "colours are unsigned");
+    assertEquals(Mcv2Maps.NOT_A_SYMBOL, fifthSymbol, "colors are unsigned");
     assertEquals(Mcv2Maps.NOT_A_SYMBOL, sixthSymbol);
     assertEquals(1, seventhSymbol);
   }
 
   @Test
   void shouldTakeAWholeMapThatStartsWithItsMagicVersionAndWidthAsAPage() {
-    final byte[] page = MapFixtures.colours(MapFixtures.pageSymbols(7, 0));
+    final byte[] page = MapFixtures.colors(MapFixtures.pageSymbols(7, 0));
     final boolean readAsPage = Mcv2Maps.isPage(page);
     final boolean readAsAnchor = Mcv2Maps.isAnchor(page);
     assertTrue(readAsPage);
@@ -60,18 +60,18 @@ final class Mcv2MapsTest {
       final boolean changedReadAsPage = Mcv2Maps.isPage(changed);
       assertFalse(changedReadAsPage, "symbol " + index + " of the prefix");
     }
-    final boolean shorterReadAsPage = Mcv2Maps.isPage(Arrays.copyOf(page, Mcv2Maps.COLOURS - 1));
-    final boolean longerReadAsPage = Mcv2Maps.isPage(Arrays.copyOf(page, Mcv2Maps.COLOURS + 1));
+    final boolean shorterReadAsPage = Mcv2Maps.isPage(Arrays.copyOf(page, Mcv2Maps.COLORS - 1));
+    final boolean longerReadAsPage = Mcv2Maps.isPage(Arrays.copyOf(page, Mcv2Maps.COLORS + 1));
     assertFalse(shorterReadAsPage);
     assertFalse(longerReadAsPage);
   }
 
   @Test
   void shouldTakeAWholeMapOfItsSignatureAndFieldsWhoseChecksumHoldsAsAnAnchor() {
-    final byte[] anchor = MapFixtures.colours(MapFixtures.anchorSymbols(1, 2, 4, 3, 2, 1234));
+    final byte[] anchor = MapFixtures.colors(MapFixtures.anchorSymbols(1, 2, 4, 3, 2, 1234));
     final boolean readAsAnchor = Mcv2Maps.isAnchor(anchor);
     final boolean readAsPage = Mcv2Maps.isPage(anchor);
-    final boolean shorterReadAsAnchor = Mcv2Maps.isAnchor(Arrays.copyOf(anchor, Mcv2Maps.COLOURS - 1));
+    final boolean shorterReadAsAnchor = Mcv2Maps.isAnchor(Arrays.copyOf(anchor, Mcv2Maps.COLORS - 1));
     assertTrue(readAsAnchor);
     assertFalse(readAsPage);
     assertFalse(shorterReadAsAnchor);
@@ -95,7 +95,7 @@ final class Mcv2MapsTest {
   void shouldSumTheSevenFieldsInSixBitsForTheChecksum() {
     final int[] symbols = MapFixtures.anchorSymbols(63, 63, 63, 63, 3, 4095);
     final int checksum = symbols[CHECKSUM];
-    final boolean readAsAnchor = Mcv2Maps.isAnchor(MapFixtures.colours(symbols));
+    final boolean readAsAnchor = Mcv2Maps.isAnchor(MapFixtures.colors(symbols));
     assertEquals(61, checksum);
     assertTrue(readAsAnchor);
   }
@@ -103,10 +103,10 @@ final class Mcv2MapsTest {
   @Test
   void shouldLetAnAnchorFaceOneOfFourDirections() {
     for (int facing = 0; facing <= 3; facing++) {
-      final boolean facingReadAsAnchor = Mcv2Maps.isAnchor(MapFixtures.colours(MapFixtures.anchorSymbols(0, 0, 1, 1, facing, 7)));
+      final boolean facingReadAsAnchor = Mcv2Maps.isAnchor(MapFixtures.colors(MapFixtures.anchorSymbols(0, 0, 1, 1, facing, 7)));
       assertTrue(facingReadAsAnchor, "facing " + facing);
     }
-    final boolean fifthFacingReadAsAnchor = Mcv2Maps.isAnchor(MapFixtures.colours(MapFixtures.anchorSymbols(0, 0, 1, 1, 4, 7)));
+    final boolean fifthFacingReadAsAnchor = Mcv2Maps.isAnchor(MapFixtures.colors(MapFixtures.anchorSymbols(0, 0, 1, 1, 4, 7)));
     assertFalse(fifthFacingReadAsAnchor);
   }
 

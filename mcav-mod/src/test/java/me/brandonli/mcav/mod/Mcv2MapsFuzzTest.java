@@ -27,30 +27,30 @@ import org.junit.jupiter.api.Tag;
 @Tag("fuzz")
 final class Mcv2MapsFuzzTest {
 
-  private static final int HEADER_COLOURS = 16;
+  private static final int HEADER_COLORS = 16;
 
   @FuzzTest(maxDuration = "30s")
   void shouldTakeNoMapForBothAPageAndAnAnchor(final FuzzedDataProvider data) {
-    final byte[] colours = this.map(data);
+    final byte[] colors = this.map(data);
 
-    final boolean page = Mcv2Maps.isPage(colours);
-    final boolean anchor = Mcv2Maps.isAnchor(colours);
+    final boolean page = Mcv2Maps.isPage(colors);
+    final boolean anchor = Mcv2Maps.isAnchor(colors);
     assertFalse(page && anchor);
   }
 
   // a page or an anchor with bits of its header flipped, sometimes cut short
   private byte[] map(final FuzzedDataProvider data) {
     final int[] symbols = this.symbols(data);
-    final byte[] masks = data.consumeBytes(HEADER_COLOURS);
-    final byte[] base = MapFixtures.colours(symbols);
-    final byte[] colours = MapFixtures.withFlippedBits(base, masks);
+    final byte[] masks = data.consumeBytes(HEADER_COLORS);
+    final byte[] base = MapFixtures.colors(symbols);
+    final byte[] colors = MapFixtures.withFlippedBits(base, masks);
     final boolean whole = data.consumeBoolean();
     if (whole) {
-      return colours;
+      return colors;
     }
 
-    final int length = data.consumeInt(0, colours.length);
-    return Arrays.copyOf(colours, length);
+    final int length = data.consumeInt(0, colors.length);
+    return Arrays.copyOf(colors, length);
   }
 
   private int[] symbols(final FuzzedDataProvider data) {

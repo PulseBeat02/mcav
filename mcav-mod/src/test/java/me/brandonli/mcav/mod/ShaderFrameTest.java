@@ -29,11 +29,11 @@ import org.junit.jupiter.api.Test;
 
 final class ShaderFrameTest {
 
-  private static final byte[] PAGE = MapFixtures.colours(MapFixtures.pageSymbols(7, 0));
+  private static final byte[] PAGE = MapFixtures.colors(MapFixtures.pageSymbols(7, 0));
 
-  private static final byte[] ANCHOR = MapFixtures.colours(MapFixtures.anchorSymbols(1, 0, 2, 1, 3, 7));
+  private static final byte[] ANCHOR = MapFixtures.colors(MapFixtures.anchorSymbols(1, 0, 2, 1, 3, 7));
 
-  private static final byte[] PICTURE = new byte[Mcv2Maps.COLOURS];
+  private static final byte[] PICTURE = new byte[Mcv2Maps.COLORS];
 
   private static final String PAGE_TEXTURE = "page";
   private static final String ANCHOR_TEXTURE = "anchor";

@@ -67,7 +67,7 @@ public final class Mcv2Shaders {
    * runs or the map has no texture.
    *
    * @param state the map's render state, which names its texture
-   * @param data  the map's data, its colours
+   * @param data  the map's data, its colors
    * @since 1.0.0
    */
   public static void extracted(final MapRenderState state, final MapItemSavedData data) {

@@ -111,9 +111,9 @@ final class ShaderDecoder {
     return this.testedIris && this.hooks == ALL_HOOKS;
   }
 
-  void extracted(final Object texture, final byte[] colours) {
+  void extracted(final Object texture, final byte[] colors) {
     this.hooks |= EXTRACTED;
-    this.frame.extracted(texture, colours);
+    this.frame.extracted(texture, colors);
   }
 
   // Iris's shadow pass poses the maps again from the sun's view, which is not where the screens are

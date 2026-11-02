@@ -90,14 +90,14 @@ final class GameMatrices {
 
   // the floats of a JOML 4x4 float matrix, column-major
   static float[] floats(final @Nullable Object matrix) {
-    if (!(matrix instanceof final Externalizable serialisable)) {
+    if (!(matrix instanceof final Externalizable serializable)) {
       final String message = NOT_A_MATRIX.formatted(matrix);
       throw new IllegalStateException(message);
     }
 
     try {
       final MatrixFloats floats = new MatrixFloats();
-      serialisable.writeExternal(floats);
+      serializable.writeExternal(floats);
       return floats.values();
     } catch (final IOException exception) {
       final String message = NOT_A_MATRIX.formatted(matrix);

@@ -79,7 +79,7 @@ final class TransportStripTest {
   @Test
   void shouldFillTheSlotOfAPageWithFourSymbolsAPixel() {
     final int[] symbols = MapFixtures.pageSymbols(9, 1);
-    final byte[] strip = TransportStrip.build(LAYOUT, WIDTH, List.of(MapFixtures.colours(symbols)), List.of(), IDENTITY, PROJECTION);
+    final byte[] strip = TransportStrip.build(LAYOUT, WIDTH, List.of(MapFixtures.colors(symbols)), List.of(), IDENTITY, PROJECTION);
     final byte[] expected = new byte[ROWS * WIDTH * CHANNELS];
     final int first = 4 * 5 * WIDTH;
     for (int pixel = 0; pixel < PackLayout.PAGE_PIXELS; pixel++) {
@@ -97,18 +97,18 @@ final class TransportStripTest {
   void shouldFindTheScreenOfAPageByAllThirtyTwoBitsOfItsStream() {
     final PackLayout layout = PackLayout.parse(PackLayoutTest.packConstants("4294901767u", "1", "0", 1)).orElseThrow();
     final int[] symbols = MapFixtures.pageSymbols(0xFFFF_0007L, 0);
-    final byte[] strip = TransportStrip.build(layout, WIDTH, List.of(MapFixtures.colours(symbols)), List.of(), IDENTITY, PROJECTION);
+    final byte[] strip = TransportStrip.build(layout, WIDTH, List.of(MapFixtures.colors(symbols)), List.of(), IDENTITY, PROJECTION);
     final int word =
       symbols[0] | (symbols[1] << SECOND_SYMBOL_SHIFT) | (symbols[2] << THIRD_SYMBOL_SHIFT) | (symbols[3] << FOURTH_SYMBOL_SHIFT);
     this.assertPixel(strip, 0, word & BYTE_MASK, (word >> SECOND_BYTE_SHIFT) & BYTE_MASK, word >> THIRD_BYTE_SHIFT, OPAQUE);
   }
 
   @Test
-  void shouldReadAColourOutsideTheAlphabetAsSymbolZero() {
+  void shouldReadAColorOutsideTheAlphabetAsSymbolZero() {
     final int[] symbols = MapFixtures.pageSymbols(7, 0);
-    final byte[] colours = MapFixtures.colours(symbols);
-    colours[41] = 3;
-    final byte[] strip = TransportStrip.build(LAYOUT, WIDTH, List.of(colours), List.of(), IDENTITY, PROJECTION);
+    final byte[] colors = MapFixtures.colors(symbols);
+    colors[41] = 3;
+    final byte[] strip = TransportStrip.build(LAYOUT, WIDTH, List.of(colors), List.of(), IDENTITY, PROJECTION);
     final int word = symbols[40] | (symbols[42] << THIRD_SYMBOL_SHIFT) | (symbols[43] << FOURTH_SYMBOL_SHIFT);
     final int red = strip[40] & BYTE_MASK;
     final int green = strip[41] & BYTE_MASK;
@@ -116,7 +116,7 @@ final class TransportStripTest {
     assertEquals(word & BYTE_MASK, red);
     assertEquals((word >> SECOND_BYTE_SHIFT) & BYTE_MASK, green);
     assertEquals(word >> THIRD_BYTE_SHIFT, blue);
-    final byte[] bits = MapFixtures.colours(new int[] { 63, 63 });
+    final byte[] bits = MapFixtures.colors(new int[] { 63, 63 });
     bits[0] = 3;
     final int firstTwelveBits = TransportStrip.bits(bits, 0, 12);
     assertEquals(0b111111_000000, firstTwelveBits);
@@ -124,7 +124,7 @@ final class TransportStripTest {
 
   @Test
   void shouldReadTheStreamAndNumberOfAPage() {
-    final byte[] page = MapFixtures.colours(MapFixtures.pageSymbols(0xCAFE_BABEL, 0x1234));
+    final byte[] page = MapFixtures.colors(MapFixtures.pageSymbols(0xCAFE_BABEL, 0x1234));
     final int lowStreamHalf = TransportStrip.bits(page, 64, 16);
     final int highStreamHalf = TransportStrip.bits(page, 80, 16);
     final int pageNumber = TransportStrip.bits(page, 128, 16);
@@ -137,7 +137,7 @@ final class TransportStripTest {
   void shouldLeaveOutAPageOfAnotherStreamOrBeyondItsScreensSlots() {
     final byte[] empty = new byte[ROWS * WIDTH * CHANNELS];
     for (final int[] symbols : List.of(MapFixtures.pageSymbols(8, 0), MapFixtures.pageSymbols(9, 2), MapFixtures.pageSymbols(7, 3))) {
-      final byte[] built = TransportStrip.build(LAYOUT, WIDTH, List.of(MapFixtures.colours(symbols)), List.of(), IDENTITY, PROJECTION);
+      final byte[] built = TransportStrip.build(LAYOUT, WIDTH, List.of(MapFixtures.colors(symbols)), List.of(), IDENTITY, PROJECTION);
       assertArrayEquals(empty, built);
     }
   }

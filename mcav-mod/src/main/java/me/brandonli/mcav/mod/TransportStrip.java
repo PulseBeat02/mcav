@@ -119,19 +119,19 @@ final class TransportStrip {
   }
 
   // least significant first
-  static int bits(final byte[] colours, final int bit, final int count) {
+  static int bits(final byte[] colors, final int bit, final int count) {
     int value = 0;
     for (int index = 0; index < count; index++) {
       final int at = bit + index;
-      final int symbol = symbolOrZero(colours, at / SYMBOL_BITS);
+      final int symbol = symbolOrZero(colors, at / SYMBOL_BITS);
       value |= ((symbol >> (at % SYMBOL_BITS)) & LOWEST_BIT_MASK) << index;
     }
     return value;
   }
 
-  // a colour outside the alphabet reads as 0, as in the shader
-  private static int symbolOrZero(final byte[] colours, final int index) {
-    final int symbol = Mcv2Maps.symbol(colours, index);
+  // a color outside the alphabet reads as 0, as in the shader
+  private static int symbolOrZero(final byte[] colors, final int index) {
+    final int symbol = Mcv2Maps.symbol(colors, index);
     return Math.max(symbol, 0);
   }
 

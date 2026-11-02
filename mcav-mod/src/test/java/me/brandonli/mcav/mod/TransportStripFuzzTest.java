@@ -36,14 +36,14 @@ final class TransportStripFuzzTest {
   private static final int SYMBOL_BITS = 6;
   private static final int LAST_SYMBOL = 63;
   private static final int MOST_BITS = 31;
-  private static final int LAST_BIT = Mcv2Maps.COLOURS * SYMBOL_BITS - MOST_BITS;
+  private static final int LAST_BIT = Mcv2Maps.COLORS * SYMBOL_BITS - MOST_BITS;
 
   private static final int WIDEST = 7680;
   private static final int MOST_MAPS = 4;
   private static final long LARGEST_STREAM_TRIED = 15;
   private static final int LAST_NUMBER_TRIED = 3;
   private static final int LAST_FACING = 3;
-  private static final int CHANGED_COLOURS = 32;
+  private static final int CHANGED_COLORS = 32;
   private static final int MATRIX_FLOATS = 16;
 
   @FuzzTest(maxDuration = "30s")
@@ -52,12 +52,12 @@ final class TransportStripFuzzTest {
     final int count = data.consumeInt(0, MOST_BITS);
     final long value = data.consumeLong(0, (1L << count) - 1);
     final int background = data.consumeInt(0, LAST_SYMBOL);
-    final int[] symbols = new int[Mcv2Maps.COLOURS];
+    final int[] symbols = new int[Mcv2Maps.COLORS];
     Arrays.fill(symbols, background);
     MapFixtures.writeBits(symbols, bit, count, value);
-    final byte[] colours = MapFixtures.colours(symbols);
+    final byte[] colors = MapFixtures.colors(symbols);
 
-    final int read = TransportStrip.bits(colours, bit, count);
+    final int read = TransportStrip.bits(colors, bit, count);
     assertEquals(value, read);
   }
 
@@ -90,9 +90,9 @@ final class TransportStripFuzzTest {
     final long stream = data.consumeLong(0, LARGEST_STREAM_TRIED);
     final int number = data.consumeInt(0, LAST_NUMBER_TRIED);
     final int[] symbols = MapFixtures.pageSymbols(stream, number);
-    final byte[] masks = data.consumeBytes(CHANGED_COLOURS);
-    final byte[] colours = MapFixtures.colours(symbols);
-    return MapFixtures.withFlippedBits(colours, masks);
+    final byte[] masks = data.consumeBytes(CHANGED_COLORS);
+    final byte[] colors = MapFixtures.colors(symbols);
+    return MapFixtures.withFlippedBits(colors, masks);
   }
 
   private List<StripAnchor> anchors(final FuzzedDataProvider data) {

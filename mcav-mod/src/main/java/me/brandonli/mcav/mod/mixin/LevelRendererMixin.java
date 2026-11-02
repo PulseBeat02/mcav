@@ -28,7 +28,7 @@ import org.spongepowered.asm.mixin.injection.Coerce;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-// runs after Iris wrote its final image at the end of LevelRenderer.render; the fog colour is a JOML vector, which
+// runs after Iris wrote its final image at the end of LevelRenderer.render; the fog color is a JOML vector, which
 // Mixin passes as an Object
 @Mixin(LevelRenderer.class)
 abstract class LevelRendererMixin {

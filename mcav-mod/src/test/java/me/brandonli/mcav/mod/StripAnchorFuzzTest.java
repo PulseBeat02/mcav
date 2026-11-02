@@ -31,20 +31,20 @@ final class StripAnchorFuzzTest {
   private static final int LAST_FACING = 3;
   private static final int LAST_STREAM = 4095;
 
-  private static final int HEADER_COLOURS = 16;
+  private static final int HEADER_COLORS = 16;
 
   @FuzzTest(maxDuration = "30s")
   void shouldReadEveryAcceptedAnchorWithinItsFields(final FuzzedDataProvider data) {
-    final byte[] colours = this.anchor(data);
+    final byte[] colors = this.anchor(data);
     final float cornerX = data.consumeFloat();
     final float cornerY = data.consumeFloat();
     final float cornerZ = data.consumeFloat();
-    final boolean accepted = Mcv2Maps.isAnchor(colours);
+    final boolean accepted = Mcv2Maps.isAnchor(colors);
     if (!accepted) {
       return;
     }
 
-    final StripAnchor anchor = StripAnchor.of(colours, cornerX, cornerY, cornerZ);
+    final StripAnchor anchor = StripAnchor.of(colors, cornerX, cornerY, cornerZ);
     this.assertFields(anchor);
     this.assertCorner(anchor, cornerX, cornerY, cornerZ);
   }
@@ -58,9 +58,9 @@ final class StripAnchorFuzzTest {
     final int facing = data.consumeInt(0, LAST_SYMBOL);
     final int stream = data.consumeInt(0, LAST_STREAM);
     final int[] symbols = MapFixtures.anchorSymbols(column, row, columns, rows, facing, stream);
-    final byte[] masks = data.consumeBytes(HEADER_COLOURS);
-    final byte[] colours = MapFixtures.colours(symbols);
-    return MapFixtures.withFlippedBits(colours, masks);
+    final byte[] masks = data.consumeBytes(HEADER_COLORS);
+    final byte[] colors = MapFixtures.colors(symbols);
+    return MapFixtures.withFlippedBits(colors, masks);
   }
 
   private void assertFields(final StripAnchor anchor) {
