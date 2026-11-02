@@ -106,22 +106,21 @@ final class TransportStrip {
     final float[] viewRotation,
     final float[] projection
   ) {
-    final byte[] strip = new byte[layout.getStripRows(width) * width * CHANNELS];
+    final int stripRows = layout.getStripRows(width);
+    final byte[] strip = new byte[stripRows * width * CHANNELS];
     for (final byte[] page : pages) {
       writePage(strip, layout, width, page);
     }
-    final boolean[] described = new boolean[layout.getScreenCount()];
+    final int screenCount = layout.getScreenCount();
+    final int pageRows = layout.getTotalSlots() * PackLayout.getRowsPerPage(width);
+    final boolean[] described = new boolean[screenCount];
     for (final StripAnchor anchor : anchors) {
-      final int screen = layout.findScreen(anchor.getStream());
+      final long stream = anchor.getStream();
+      final int screen = layout.findScreen(stream);
       if (screen != PackLayout.NO_SCREEN && !described[screen]) {
         described[screen] = true;
-        writeDescriptor(
-          strip,
-          (layout.getTotalSlots() * PackLayout.getRowsPerPage(width) + screen) * width,
-          anchor,
-          viewRotation,
-          projection
-        );
+        final int descriptorStart = (pageRows + screen) * width;
+        writeDescriptor(strip, descriptorStart, anchor, viewRotation, projection);
       }
     }
     return strip;
@@ -133,7 +132,8 @@ final class TransportStrip {
     for (int index = 0; index < count; index++) {
       final int at = bit + index;
       final int symbol = symbolOrZero(colors, at / Mcv2Maps.SYMBOL_BITS);
-      value |= ((symbol >> (at % Mcv2Maps.SYMBOL_BITS)) & LOWEST_BIT_MASK) << index;
+      final int symbolBit = (symbol >> (at % Mcv2Maps.SYMBOL_BITS)) & LOWEST_BIT_MASK;
+      value |= symbolBit << index;
     }
     return value;
   }
@@ -145,7 +145,9 @@ final class TransportStrip {
   }
 
   private static void writePage(final byte[] strip, final PackLayout layout, final int width, final byte[] page) {
-    final long stream = readBits(page, STREAM_BIT, HALF_WORD) | ((long) readBits(page, STREAM_BIT + HALF_WORD, HALF_WORD) << HALF_WORD);
+    final long streamLow = readBits(page, STREAM_BIT, HALF_WORD);
+    final long streamHigh = readBits(page, STREAM_BIT + HALF_WORD, HALF_WORD);
+    final long stream = streamLow | (streamHigh << HALF_WORD);
     final int screen = layout.findScreen(stream);
     final int number = readBits(page, NUMBER_BIT, HALF_WORD);
     if (screen == PackLayout.NO_SCREEN || number >= layout.getSlotCount(screen)) {
@@ -156,7 +158,8 @@ final class TransportStrip {
     for (int pixel = 0; pixel < PackLayout.PAGE_PIXELS; pixel++) {
       int word = 0;
       for (int index = 0; index < SYMBOLS_PER_PIXEL; index++) {
-        word |= symbolOrZero(page, pixel * SYMBOLS_PER_PIXEL + index) << (Mcv2Maps.SYMBOL_BITS * index);
+        final int symbol = symbolOrZero(page, pixel * SYMBOLS_PER_PIXEL + index);
+        word |= symbol << (Mcv2Maps.SYMBOL_BITS * index);
       }
       writePixel(strip, firstPixel + pixel, word & BYTE_MASK, (word >> SECOND_BYTE_SHIFT) & BYTE_MASK, word >> THIRD_BYTE_SHIFT);
     }
@@ -175,18 +178,24 @@ final class TransportStrip {
   }
 
   private static float[] computeDescriptorFloats(final StripAnchor anchor, final float[] viewRotation, final float[] projection) {
-    final float[] corner = transform(viewRotation, anchor.getCornerX(), anchor.getCornerY(), anchor.getCornerZ(), POINT_W);
-    final float[] right = transform(viewRotation, rightX(anchor.getFacing()), RIGHT_Y, rightZ(anchor.getFacing()), DIRECTION_W);
+    final float cornerX = anchor.getCornerX();
+    final float cornerY = anchor.getCornerY();
+    final float cornerZ = anchor.getCornerZ();
+    final int facing = anchor.getFacing();
+    final int column = anchor.getColumn();
+    final int row = anchor.getRow();
+    final float[] corner = transform(viewRotation, cornerX, cornerY, cornerZ, POINT_W);
+    final float[] right = transform(viewRotation, rightX(facing), RIGHT_Y, rightZ(facing), DIRECTION_W);
     final float[] down = transform(viewRotation, DOWN_X, DOWN_Y, DOWN_Z, DIRECTION_W);
     final float[] floats = new float[DESCRIPTOR_FLOATS];
     for (int axis = 0; axis < AXES; axis++) {
-      floats[ORIGIN_OFFSET + axis] = corner[axis] - anchor.getColumn() * right[axis] - anchor.getRow() * down[axis];
+      floats[ORIGIN_OFFSET + axis] = corner[axis] - column * right[axis] - row * down[axis];
       floats[RIGHT_OFFSET + axis] = right[axis];
       floats[DOWN_OFFSET + axis] = down[axis];
     }
     floats[ORIGIN_OFFSET + W_COMPONENT] = anchor.getColumns();
     floats[RIGHT_OFFSET + W_COMPONENT] = anchor.getRows();
-    floats[DOWN_OFFSET + W_COMPONENT] = anchor.getColumn() * ANCHOR_INDEX_STRIDE + anchor.getRow();
+    floats[DOWN_OFFSET + W_COMPONENT] = column * ANCHOR_INDEX_STRIDE + row;
     System.arraycopy(projection, MATRIX_START, floats, PROJECTION_OFFSET, GameMatrices.FLOATS_PER_MATRIX);
     return floats;
   }

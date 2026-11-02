@@ -21,6 +21,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -95,7 +96,8 @@ final class PackLayout {
       return Optional.empty();
     }
 
-    return Optional.of(new PackLayout(streams, slotCounts, firstSlotIndexes));
+    final PackLayout layout = new PackLayout(streams, slotCounts, firstSlotIndexes);
+    return Optional.of(layout);
   }
 
   private static long @Nullable [] parseNumbers(
@@ -125,7 +127,8 @@ final class PackLayout {
   private static Pattern compileListPattern(final String declaration, final int count, final String element) {
     final String quoted = Pattern.quote(declaration);
     final String length = LENGTH_START + count + LENGTH_END;
-    final String elements = String.join(SEPARATOR, Collections.nCopies(count, element));
+    final List<String> elementPatterns = Collections.nCopies(count, element);
+    final String elements = String.join(SEPARATOR, elementPatterns);
     final String expression = DECLARATION_START + quoted + length + CONSTRUCTOR + length + ELEMENTS_START + elements + ELEMENTS_END;
     return Pattern.compile(expression);
   }

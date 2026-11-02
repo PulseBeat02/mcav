@@ -55,7 +55,8 @@ final class ShaderFrame {
   void posed(final Object texture, final float cornerX, final float cornerY, final float cornerZ) {
     final byte[] colors = this.anchorColors.get(texture);
     if (colors != null) {
-      this.anchors.add(StripAnchor.from(colors, cornerX, cornerY, cornerZ));
+      final StripAnchor anchor = StripAnchor.from(colors, cornerX, cornerY, cornerZ);
+      this.anchors.add(anchor);
     }
   }
 

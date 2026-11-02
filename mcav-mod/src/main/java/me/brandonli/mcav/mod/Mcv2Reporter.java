@@ -63,7 +63,8 @@ final class Mcv2Reporter {
       return;
     }
 
-    this.channel.send(report.toBytes());
+    final byte[] bytes = report.toBytes();
+    this.channel.send(bytes);
     this.sent = report;
   }
 }

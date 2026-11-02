@@ -57,11 +57,14 @@ final class GameMatrices {
   // tried once, so a game whose matrices cannot be read gets no reader instead of failing while it renders
   static Optional<GameMatrices> find(final Class<?> poses, final String poseMethod, final Class<?> cameras, final String rotationField) {
     try {
-      final GameMatrices matrices = new GameMatrices(poses.getMethod(poseMethod), cameras.getField(rotationField));
+      final Method pose = poses.getMethod(poseMethod);
+      final Field viewRotation = cameras.getField(rotationField);
+      final GameMatrices matrices = new GameMatrices(pose, viewRotation);
       final PoseStack stack = new PoseStack();
-      final PoseStack.Pose pose = stack.last();
-      matrices.readPose(pose);
-      matrices.readViewRotation(new CameraRenderState());
+      final PoseStack.Pose lastPose = stack.last();
+      matrices.readPose(lastPose);
+      final CameraRenderState camera = new CameraRenderState();
+      matrices.readViewRotation(camera);
       return Optional.of(matrices);
     } catch (final NoSuchMethodException | NoSuchFieldException | IllegalStateException exception) {
       return Optional.empty();
@@ -71,7 +74,8 @@ final class GameMatrices {
   // column-major
   float[] readPose(final PoseStack.Pose pose) {
     try {
-      return readFloats(this.pose.invoke(pose));
+      final @Nullable Object matrix = this.pose.invoke(pose);
+      return readFloats(matrix);
     } catch (final IllegalAccessException | InvocationTargetException | IllegalArgumentException exception) {
       throw new IllegalStateException(UNREADABLE, exception);
     }
@@ -80,7 +84,8 @@ final class GameMatrices {
   // column-major
   float[] readViewRotation(final CameraRenderState camera) {
     try {
-      return readFloats(this.viewRotation.get(camera));
+      final @Nullable Object matrix = this.viewRotation.get(camera);
+      return readFloats(matrix);
     } catch (final IllegalAccessException | IllegalArgumentException exception) {
       throw new IllegalStateException(UNREADABLE, exception);
     }

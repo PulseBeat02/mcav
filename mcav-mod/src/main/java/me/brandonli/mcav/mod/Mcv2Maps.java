@@ -68,7 +68,10 @@ final class Mcv2Maps {
       }
       sum += field;
     }
-    return (sum & (SYMBOLS - 1)) == symbol(colors, CHECKSUM) && symbol(colors, FACING) <= LAST_FACING;
+    final int checksum = symbol(colors, CHECKSUM);
+    final boolean checksumMatches = (sum & (SYMBOLS - 1)) == checksum;
+    final int facing = symbol(colors, FACING);
+    return checksumMatches && facing <= LAST_FACING;
   }
 
   private static boolean starts(final byte[] colors, final int[] prefix) {

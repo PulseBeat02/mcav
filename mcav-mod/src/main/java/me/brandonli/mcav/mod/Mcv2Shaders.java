@@ -200,8 +200,11 @@ public final class Mcv2Shaders {
 
   static Optional<String> read(final Resource resource) {
     try (final InputStream input = resource.open()) {
-      return Optional.of(new String(input.readAllBytes(), StandardCharsets.UTF_8));
+      final byte[] bytes = input.readAllBytes();
+      final String text = new String(bytes, StandardCharsets.UTF_8);
+      return Optional.of(text);
     } catch (final IOException exception) {
+      // an unreadable layout is no layout: the decoder stays off until the next read
       return Optional.empty();
     }
   }

@@ -19,6 +19,7 @@ package me.brandonli.mcav.mod;
 
 import com.mojang.blaze3d.resource.GraphicsResourceAllocator;
 import com.mojang.blaze3d.vertex.PoseStack;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.BooleanSupplier;
 import java.util.function.LongSupplier;
@@ -118,13 +119,8 @@ final class ShaderDecoder {
       return;
     }
 
-    final float[] corner = TransportStrip.transform(
-      this.matrices.readPose(pose),
-      MAP_CORNER_X,
-      MAP_CORNER_Y,
-      MAP_DEPTH,
-      TransportStrip.POINT_W
-    );
+    final float[] poseMatrix = this.matrices.readPose(pose);
+    final float[] corner = TransportStrip.transform(poseMatrix, MAP_CORNER_X, MAP_CORNER_Y, MAP_DEPTH, TransportStrip.POINT_W);
     this.frame.posed(texture, corner[X_AXIS], corner[Y_AXIS], corner[Z_AXIS]);
   }
 
@@ -142,7 +138,8 @@ final class ShaderDecoder {
 
     this.levelProjection = false;
     this.hooks |= PROJECTED;
-    this.frame.projected(GameMatrices.readFloats(projection));
+    final float[] projectionMatrix = GameMatrices.readFloats(projection);
+    this.frame.projected(projectionMatrix);
   }
 
   void rendered(final GraphicsResourceAllocator allocator, final CameraRenderState camera) {
@@ -159,12 +156,19 @@ final class ShaderDecoder {
         return;
       }
       final int width = this.output.getWidth();
-      if (width < TransportStrip.DESCRIPTOR_PIXELS || layout.getStripRows(width) >= this.output.getHeight()) {
+      if (width < TransportStrip.DESCRIPTOR_PIXELS) {
+        return;
+      }
+      final int height = this.output.getHeight();
+      final int stripRows = layout.getStripRows(width);
+      if (stripRows >= height) {
         return;
       }
       final float[] viewRotation = this.matrices.readViewRotation(camera);
-      final byte[] strip = TransportStrip.build(layout, width, this.frame.getPages(), this.frame.getAnchors(), viewRotation, projection);
-      this.output.decode(strip, layout.getStripRows(width), allocator);
+      final List<byte[]> pages = this.frame.getPages();
+      final List<StripAnchor> anchors = this.frame.getAnchors();
+      final byte[] strip = TransportStrip.build(layout, width, pages, anchors, viewRotation, projection);
+      this.output.decode(strip, stripRows, allocator);
     } finally {
       this.frame.finish();
     }
