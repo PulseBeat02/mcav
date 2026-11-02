@@ -147,7 +147,8 @@ final class UrlClassLoaderInjectorTest {
       assertSame(checkedException, checkedCause);
 
       final URL[] urls = loader.getURLs();
-      assertEquals(0, urls.length);
+      final int urlCount = urls.length;
+      assertEquals(0, urlCount);
     }
   }
 

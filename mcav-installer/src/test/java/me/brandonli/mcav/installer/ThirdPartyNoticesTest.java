@@ -84,7 +84,8 @@ final class ThirdPartyNoticesTest {
         .filter(name -> name.endsWith(POM_PROPERTIES_SUFFIX))
         .toList();
       final int bundledCount = bundled.size();
-      assertTrue(bundledCount > 20, "the jar bundles the resolver: " + bundled);
+      final boolean bundlesTheResolver = bundledCount > 20;
+      assertTrue(bundlesTheResolver, "the jar bundles the resolver: " + bundled);
 
       final List<String> unnamed = this.findUnnamedComponents(jar, bundled, notices);
       assertEquals(List.of(), unnamed, "bundled, but not in THIRD-PARTY-NOTICES.md");

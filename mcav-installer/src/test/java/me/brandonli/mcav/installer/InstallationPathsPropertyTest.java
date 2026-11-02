@@ -178,10 +178,8 @@ final class InstallationPathsPropertyTest {
     final Path destinationName = normalizedDestination.getFileName();
     final String name = String.valueOf(destinationName);
     final boolean keepsItsName = name.equals(fileName);
-    assertTrue(
-      strictlyInside && keepsItsName,
-      () -> groupId + ":" + artifactId + " (" + fileName + ") is copied to " + normalizedDestination
-    );
+    final boolean insideUnderItsName = strictlyInside && keepsItsName;
+    assertTrue(insideUnderItsName, () -> groupId + ":" + artifactId + " (" + fileName + ") is copied to " + normalizedDestination);
   }
 
   private List<String> listNames(final Path directory) throws IOException {

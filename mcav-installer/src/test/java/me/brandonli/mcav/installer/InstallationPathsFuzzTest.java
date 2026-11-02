@@ -103,10 +103,8 @@ final class InstallationPathsFuzzTest {
     final boolean strictlyInside = normalizedDestination.startsWith(normalizedTarget) && !normalizedDestination.equals(normalizedTarget);
     final Path name = normalizedDestination.getFileName();
     final boolean keepsItsName = name != null && name.toString().equals(fileName);
-    assertTrue(
-      strictlyInside && keepsItsName,
-      () -> groupId + ":" + artifact + " (" + fileName + ") is copied to " + normalizedDestination
-    );
+    final boolean insideUnderItsName = strictlyInside && keepsItsName;
+    assertTrue(insideUnderItsName, () -> groupId + ":" + artifact + " (" + fileName + ") is copied to " + normalizedDestination);
   }
 
   private static final class Workspace {

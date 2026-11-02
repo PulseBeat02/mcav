@@ -38,7 +38,8 @@ public final class UtilityClassAssertions {
     assertTrue(finalClass, "utility classes must be final");
 
     final Constructor<?>[] constructors = utilityClass.getDeclaredConstructors();
-    assertEquals(1, constructors.length);
+    final int constructorCount = constructors.length;
+    assertEquals(1, constructorCount);
 
     final Constructor<?> constructor = constructors[0];
     final int constructorModifiers = constructor.getModifiers();

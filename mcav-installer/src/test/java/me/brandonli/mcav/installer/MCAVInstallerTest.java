@@ -221,7 +221,8 @@ final class MCAVInstallerTest {
     final String elapsedText = matcher.group(ELAPSED_GROUP);
     final long elapsed = Long.parseLong(elapsedText);
     final long total = after - before;
-    assertTrue(elapsed >= 0 && elapsed <= total, "reported duration must fit within the observed call duration");
+    final boolean fitsTheCall = elapsed >= 0 && elapsed <= total;
+    assertTrue(fitsTheCall, "reported duration must fit within the observed call duration");
     assertSame(downloaded, jars);
     verify(manager).close();
   }
