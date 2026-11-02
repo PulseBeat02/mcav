@@ -220,7 +220,8 @@ final class PcmDiscordPlayerTest {
     }
 
     final String title = FILLER_TEXT.repeat(200);
-    this.player.setPlaying("\u0000" + title);
+    final String controlPrefixedTitle = "\u0000%s".formatted(title);
+    this.player.setPlaying(controlPrefixedTitle);
 
     final String name = this.shownActivityName();
     final String kept = title.substring(0, MAXIMUM_NAME_LENGTH - ELLIPSIS.length());
@@ -240,7 +241,8 @@ final class PcmDiscordPlayerTest {
   @Test
   void shouldKeepTitlesOfExactlyTheMaximumLength() {
     final String title = FILLER_TEXT.repeat(MAXIMUM_NAME_LENGTH);
-    this.player.setPlaying("  " + title + "  ");
+    final String paddedTitle = "  %s  ".formatted(title);
+    this.player.setPlaying(paddedTitle);
 
     final String name = this.shownActivityName();
     assertEquals(title, name);
@@ -279,18 +281,20 @@ final class PcmDiscordPlayerTest {
     final String emoji = "😀";
     final String tail = "b".repeat(10);
     final String splitPrefix = FILLER_TEXT.repeat(126);
-    this.player.setPlaying(splitPrefix + emoji + tail);
+    final String splitTitle = "%s%s%s".formatted(splitPrefix, emoji, tail);
+    this.player.setPlaying(splitTitle);
 
     final String withoutEmoji = this.shownActivityName();
     final String expectedWithoutEmoji = splitPrefix + ELLIPSIS;
     assertEquals(expectedWithoutEmoji, withoutEmoji, "half an emoji is dropped instead of shown as a broken character");
 
     final String fittingPrefix = FILLER_TEXT.repeat(125);
-    this.player.setPlaying(fittingPrefix + emoji + tail);
+    final String fittingTitle = "%s%s%s".formatted(fittingPrefix, emoji, tail);
+    this.player.setPlaying(fittingTitle);
 
     final String withEmoji = this.shownActivityName();
     final int length = withEmoji.length();
-    final String expectedWithEmoji = fittingPrefix + emoji + ELLIPSIS;
+    final String expectedWithEmoji = "%s%s%s".formatted(fittingPrefix, emoji, ELLIPSIS);
     assertEquals(expectedWithEmoji, withEmoji, "an emoji that fits is kept whole");
     assertEquals(MAXIMUM_NAME_LENGTH, length);
   }
