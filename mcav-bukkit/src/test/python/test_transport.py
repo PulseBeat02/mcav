@@ -53,18 +53,9 @@ class TransportTest(unittest.TestCase):
                 from_symbols(values, mcv2_reference.SYMBOL_BITS, 1)
 
     def test_should_reject_symbol_widths_other_than_six(self) -> None:
-        calls: list[
-            tuple[
-                int,
-                Callable[..., int]
-                | Callable[..., list[bytes]]
-                | Callable[..., mcv2_reference.Page]
-                | type[Assembler]
-                | Callable[..., bytes]
-                | Callable[[bytes, int, int], bytes],
-                tuple[int] | tuple[bytes, int, int] | tuple[bytes, int] | tuple[int, int],
-            ]
-        ] = [(width, function, arguments) for width in (0, 5, 7, 8) for function, arguments in symbol_width_calls(width)]
+        calls: list[tuple[int, Callable[..., object], tuple[object, ...]]] = [
+            (width, function, arguments) for width in (0, 5, 7, 8) for function, arguments in symbol_width_calls(width)
+        ]
         for width, function, arguments in calls:
             with self.subTest(function=function.__name__, width=width), self.assertRaises(ValueError):
                 function(*arguments)
@@ -224,16 +215,7 @@ class TransportTest(unittest.TestCase):
             Assembler().push(symbols)
 
 
-def symbol_width_calls(
-    width: int,
-) -> tuple[
-    tuple[Callable[..., int], tuple[int]],
-    tuple[Callable[..., list[bytes]], tuple[bytes, int, int]],
-    tuple[Callable[..., mcv2_reference.Page], tuple[bytes, int]],
-    tuple[type[Assembler], tuple[int, int]],
-    tuple[Callable[..., bytes], tuple[bytes, int]],
-    tuple[Callable[[bytes, int, int], bytes], tuple[bytes, int, int]],
-]:
+def symbol_width_calls(width: int) -> tuple[tuple[Callable[..., object], tuple[object, ...]], ...]:
     return ((page_capacity, (width,)), (make_pages, (large_frame(), 1, width)), (read_page, (b'', width)),
             (Assembler, (1, width)), (to_symbols, (b'a', width)), (from_symbols, (b'', width, 0)))
 

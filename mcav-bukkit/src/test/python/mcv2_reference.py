@@ -260,11 +260,11 @@ def _read_header(data: bytes) -> tuple[int, int, int, int]:
 
 
 def _reject_retired_versions(data: bytes) -> None:
-    if data[: len(VERSION_1_MAGIC)] == VERSION_1_MAGIC:
+    if data.startswith(VERSION_1_MAGIC):
         message: str = "MCV1 version 1 is no longer supported; re-encode the video!"
         raise ValueError(message)
 
-    if data[: len(VERSION_2_PREFIX)] == VERSION_2_PREFIX:
+    if data.startswith(VERSION_2_PREFIX):
         message = "MCV2 version 2 is no longer supported; re-encode the video!"
         raise ValueError(message)
 
@@ -404,7 +404,7 @@ def _read_record(data: bytes, offset: int, mode: int, size: int) -> bytes:
 
     record: bytes = data[offset : offset + length]
     if mode == PATTERN:
-        _require(record[PATTERN_ORIENTATION_INDEX] <= HORIZONTAL_STRIPES, "A record has an invalid PATTERN orientation!")
+        _require(_is_orientation_valid(record), "A record has an invalid PATTERN orientation!")
 
     return record
 
@@ -426,6 +426,10 @@ def _record_length(mode: int, size: int) -> int:
         return PATTERN_HEADER_BYTES + size // BITS_PER_BYTE
 
     return COMPACT_BYTES
+
+
+def _is_orientation_valid(record: bytes) -> bool:
+    return record[PATTERN_ORIENTATION_INDEX] <= HORIZONTAL_STRIPES
 
 
 def _check_split_children(descriptors: bytes, level_counts: tuple[int, int, int]) -> None:
@@ -622,7 +626,7 @@ def _is_descriptor_valid(node: Node) -> bool:
 
 
 def _is_pattern_valid(record: bytes, size: int) -> bool:
-    return len(record) == PATTERN_HEADER_BYTES + size // BITS_PER_BYTE and record[PATTERN_ORIENTATION_INDEX] <= HORIZONTAL_STRIPES
+    return len(record) == _record_length(PATTERN, size) and _is_orientation_valid(record)
 
 
 def _pack_words(words: Sequence[int]) -> bytes:

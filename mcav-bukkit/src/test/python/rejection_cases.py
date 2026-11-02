@@ -66,7 +66,7 @@ def rejected_frames() -> dict[str, dict[str, str]]:
     _add_index_cases(cases)
     _add_walk_cases(cases)
     _add_descriptor_cases(cases)
-    _add(cases, 'payload-gap', _solid_frame() + b'\0', END_RULE, 'records do not end')
+    _add_end_cases(cases)
 
     return cases
 
@@ -119,7 +119,7 @@ def _add_retired_version_cases(cases: dict[str, dict[str, str]]) -> None:
 def _add_index_cases(cases: dict[str, dict[str, str]]) -> None:
     _add_presence_cases(cases)
     _add_count_cases(cases)
-    _add(cases, 'truncated-descriptor-walk', _solid_frame()[:44], INDEX_RULE, TRUNCATED_DESCRIPTORS_REASON)
+    _add_truncated_walk_case(cases)
 
 
 def _add_presence_cases(cases: dict[str, dict[str, str]]) -> None:
@@ -167,6 +167,10 @@ def _without_level_one_split(deep: bytes) -> bytes:
         WORD.pack_into(data, offset, value - WALK_SPLIT)
 
     return bytes(data)
+
+
+def _add_truncated_walk_case(cases: dict[str, dict[str, str]]) -> None:
+    _add(cases, 'truncated-descriptor-walk', _solid_frame()[:44], INDEX_RULE, TRUNCATED_DESCRIPTORS_REASON)
 
 
 def _add_walk_cases(cases: dict[str, dict[str, str]]) -> None:
@@ -259,3 +263,8 @@ def _with_invalid_orientation(data: bytes, orientation: int) -> bytes:
     frame: mcv2_reference.Frame = parse_frame(data)
     offset: int = frame.payload_start + mcv2_reference.PATTERN_ORIENTATION_INDEX
     return changed(data, offset, orientation)
+
+
+def _add_end_cases(cases: dict[str, dict[str, str]]) -> None:
+    payload_gap: bytes = _solid_frame() + b'\0'
+    _add(cases, 'payload-gap', payload_gap, END_RULE, 'records do not end')

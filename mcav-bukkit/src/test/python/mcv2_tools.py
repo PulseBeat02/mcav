@@ -35,6 +35,7 @@ from types import ModuleType, SimpleNamespace
 from typing import Any, IO, TYPE_CHECKING
 
 import mcv2_reference
+from rejection_cases import rejected_frames
 import numpy
 from mcv2_reference import (
     BITS_PER_BYTE,
@@ -1431,7 +1432,6 @@ def edge_streams_generate(output: Any, seed: int = EDGE_STREAMS_DEFAULT_SEED) ->
         digests[name] = [hashlib.sha256(decoder.accept(data).tobytes()).hexdigest() for data in frames]
         output.joinpath(name).write_bytes(archive_bytes(frames))
     output.joinpath(DIGESTS_NAME).write_text(json.dumps(digests, indent=JSON_INDENT) + LINE_SEPARATOR)
-    from rejection_cases import rejected_frames
 
     rejected: dict[str, dict[str, str]] = rejected_frames()
     for name, case in rejected.items():
@@ -1796,7 +1796,7 @@ def archive_frames(data: bytes) -> Iterator[bytes]:
         offset += length
 
 
-def fixtures_digests(data: bytes) -> list[str] | None:
+def fixtures_digests(data: bytes) -> list[str]:
     decoder: Decoder = Decoder()
     return [hashlib.sha256(decoder.accept(frame).tobytes()).hexdigest() for frame in archive_frames(data)]
 
@@ -1865,7 +1865,7 @@ def fixtures_encoder(root: Path) -> None:
         result: tuple[bytes, list[bytes]] | None = fixtures_version_3_stream(stream)
         if result is None:
             continue
-        decoded: list[str] | None = fixtures_digests(result[0])
+        decoded: list[str] = fixtures_digests(result[0])
         checked += 1
         print(f"Golden stream {stream.name} decodes to {len(decoded)} v3 frames.", file=sys.stderr)
     print(f"Checked {checked} committed v3 golden encoder streams; the files are unchanged.", file=sys.stderr)
@@ -2150,11 +2150,8 @@ def shader_check_main() -> None:
     if arguments.pack:
         global shader_check_pack
         shader_check_pack = arguments.pack
-    import moderngl
 
-    context: moderngl.Context = moderngl.create_standalone_context(
-        require=GL_VERSION, **{"backend": EGL_BACKEND} if arguments.backend == EGL_BACKEND else {}
-    )
+    context: moderngl.Context = shader_check_create_context(arguments.backend)
     print(context.info[GL_RENDERER_KEY])
     failures: int = 0
     for stream in arguments.streams:
@@ -2162,6 +2159,13 @@ def shader_check_main() -> None:
     if arguments.restart_check:
         failures += shader_check_check_restart(context, arguments.slots, arguments.spirv)
     sys.exit(FAILURE_EXIT_CODE if failures else SUCCESS_EXIT_CODE)
+
+
+def shader_check_create_context(backend: str | None) -> "moderngl.Context":
+    import moderngl
+
+    options: dict[str, Any] = {"backend": EGL_BACKEND} if backend == EGL_BACKEND else {}
+    return moderngl.create_standalone_context(require=GL_VERSION, **options)
 
 
 def shader_check_stream(context: "moderngl.Context", arguments: argparse.Namespace, stream: Any) -> int:
@@ -2265,18 +2269,21 @@ class ShaderChain:
         self.arrays: dict[int, moderngl.VertexArray] = {}
         chain: dict[Any, Any] = shader_check_post_chain(width, height, slots)
         self.passes: list[dict[str, Any]] = chain[PASSES_KEY]
-        make: Callable[[Any, Any], Any] = lambda width, height: context.texture((width, height), RGBA_CHANNELS, dtype="f1")
-        self.main: moderngl.Texture = make(*shader_check_screen)
+        self.main: moderngl.Texture = self.create_texture(*shader_check_screen)
         self.depth: moderngl.Texture = context.depth_texture(shader_check_screen)
         self.depth.compare_func = ""
         framebuffer: Any = context.framebuffer(depth_attachment=self.depth)
         framebuffer.clear(depth=0.0)
         framebuffer.release()
-        self.targets: dict[str, moderngl.Texture] = {"minecraft:main": self.main, "minecraft:entity_outline": make(*shader_check_screen)}
+        self.targets: dict[str, moderngl.Texture] = {
+            "minecraft:main": self.main,
+            "minecraft:entity_outline": self.create_texture(*shader_check_screen),
+        }
         self.persistent: list[str] = []
         for name, definition in chain[TARGETS_KEY].items():
-            self.targets[name] = make(
-                definition.get("width", shader_check_screen[0]), definition.get("height", shader_check_screen[1])
+            self.targets[name] = self.create_texture(
+                definition.get("width", shader_check_screen[0]),
+                definition.get("height", shader_check_screen[1]),
             )
             if definition.get("persistent"):
                 self.persistent.append(name)
@@ -2285,6 +2292,9 @@ class ShaderChain:
             texture.write(bytes(texture.width * texture.height * RGBA_CHANNELS))
         self.blit: moderngl.Program = context.program(vertex_shader=SHADER_CHECK_VERTEX, fragment_shader=SHADER_CHECK_BLIT)
         self.compiled: Path | None = None
+
+    def create_texture(self, width: int, height: int) -> "moderngl.Texture":
+        return self.context.texture((width, height), RGBA_CHANNELS, dtype="f1")
 
     def target(self, name: str) -> Any:
         target_name: str = (
@@ -2362,7 +2372,7 @@ class ShaderChain:
 
     def show(self, pages: list[bytes]) -> None:
         screen: numpy.ndarray = numpy.zeros((shader_check_screen[1], shader_check_screen[0], RGBA_CHANNELS), numpy.uint8)
-        rows: int = (PAGE_PIXELS + shader_check_screen[0] - 1) // shader_check_screen[0]
+        rows: int = page_rows(shader_check_screen[0])
         for page in pages:
             symbols: numpy.ndarray = numpy.zeros(PAGE_SYMBOLS, numpy.uint32)
             symbols[: len(page)] = numpy.frombuffer(page, numpy.uint8)
@@ -2393,6 +2403,10 @@ class ShaderChain:
             self.height, self.width, RGBA_CHANNELS
         )[:, :, :CHANNELS]
         return (bool(status[0]), picture)
+
+
+def page_rows(width: int) -> int:
+    return (PAGE_PIXELS + width - 1) // width
 
 
 def shader_check_generated(width: Any, height: Any, slots: Any) -> dict[Any, Any]:
@@ -2594,15 +2608,13 @@ def shader_timing_main() -> None:
 
     if arguments.pack:
         shader_check_pack = arguments.pack
-    import moderngl
 
     if arguments.reference:
         sys.path.insert(0, str(arguments.reference))
         from mcvideo.transport import make_pages as page_maker
     else:
         page_maker = make_pages
-    options: dict[str, Any] = {"backend": arguments.backend} if arguments.backend == EGL_BACKEND else {}
-    context: moderngl.Context = moderngl.create_standalone_context(require=GL_VERSION, **options)
+    context: moderngl.Context = shader_check_create_context(arguments.backend)
     renderer: Any = context.info[GL_RENDERER_KEY]
     version: Any = context.info[GL_VERSION_KEY]
     print(renderer, version)
@@ -2669,7 +2681,7 @@ class TimedShaderChain(ShaderChain):
 
     def show(self, pages: list[bytes]) -> None:
         super().show(pages)
-        rows: int = (PAGE_PIXELS + shader_check_screen[0] - 1) // shader_check_screen[0]
+        rows: int = page_rows(shader_check_screen[0])
         row: int = (
             shader_check_screen[1]
             - 1
@@ -2892,7 +2904,7 @@ class StripCheck:
 
     def check_capture(self, name: Any, screen: numpy.ndarray) -> None:
         width: Any = screen.shape[1]
-        rows: Any = (PAGE_PIXELS + width - 1) // width
+        rows: Any = page_rows(width)
         pages: dict[int, bool] = self.read_pages(screen, rows)
         self.check_descriptor(name, screen, rows)
 
@@ -3015,11 +3027,8 @@ def strip_fit_check_main() -> int:
     parser.add_argument(BACKEND_OPTION, choices=(EGL_BACKEND, GLX_BACKEND), default=None)
     parser.add_argument(SPIRV_OPTION, metavar=SPIRV_USAGE_NAME, help=SPIRV_HELP)
     arguments: argparse.Namespace = parser.parse_args()
-    import moderngl
 
-    context: moderngl.Context = moderngl.create_standalone_context(
-        require=GL_VERSION, **{"backend": EGL_BACKEND} if arguments.backend == EGL_BACKEND else {}
-    )
+    context: moderngl.Context = shader_check_create_context(arguments.backend)
     print(context.info[GL_RENDERER_KEY])
     failures: list[str] = []
     for screen in STRIP_FIT_CHECK_UNFIT_SCREENS:
@@ -3059,7 +3068,7 @@ def strip_fit_check_main() -> int:
 
 
 def strip_fit_check_strip_rows(width: int) -> int:
-    return STRIP_FIT_CHECK_SLOTS * ((PAGE_PIXELS + width - 1) // width) + 1
+    return STRIP_FIT_CHECK_SLOTS * page_rows(width) + 1
 
 
 # one random scene for every size, so strip coverage compares exactly
@@ -3355,9 +3364,7 @@ def charts_main() -> None:
     )
     parser.add_argument("--tables", action="store_true", help="print the tables of mcav-docs/mcv2.md")
     arguments: argparse.Namespace = parser.parse_args()
-    logging.getLogger(FONT_MANAGER_LOGGER).setLevel(logging.ERROR)
-    charts_style()
-    IMAGES.mkdir(parents=True, exist_ok=True)
+    charts_prepare()
     data: Any = json.loads((CHARTS_DATA / CODEC_CURVES_DATA_NAME).read_text())
     charts_draw_codecs(data)
     ablation_file: Path = CHARTS_DATA / ABLATION_DATA_NAME
@@ -3370,6 +3377,12 @@ def charts_main() -> None:
         charts_draw_features(rows)
     if arguments.tables:
         charts_print_tables(data, rows, ablation.get("removed", []))
+
+
+def charts_prepare() -> None:
+    logging.getLogger(FONT_MANAGER_LOGGER).setLevel(logging.ERROR)
+    charts_style()
+    IMAGES.mkdir(parents=True, exist_ok=True)
 
 
 def charts_style() -> None:
@@ -3488,7 +3501,7 @@ def charts_ablation_rates(ablation: Any | dict[Any, Any]) -> list[dict[str, Any]
 
 def charts_draw_features(rows: list[dict[str, Any]]) -> None:
     pyplot: ModuleType = figure_pyplot()
-    rows = sorted(rows, key=lambda row: row[GAMEPLAY_SOURCE][0] + row[PROXY_SOURCE][0])
+    rows = sorted(rows, key=charts_combined_rate)
     values: list[float] = [row[source][0] for row in rows for source, _ in CHARTS_SOURCES]
     ordered: list[float] = sorted(values, reverse=True)
     limit: float | None = charts_clipped_limit(ordered)
@@ -3530,6 +3543,10 @@ def charts_draw_features(rows: list[dict[str, Any]]) -> None:
     pyplot.close(figure)
 
 
+def charts_combined_rate(row: dict[str, Any]) -> float:
+    return row[GAMEPLAY_SOURCE][0] + row[PROXY_SOURCE][0]
+
+
 def charts_clipped_limit(ordered: list[float]) -> float | None:
     has_outlier: bool = len(ordered) > 1 and ordered[0] > CHARTS_OUTLIER_RATIO * ordered[1]
     if not has_outlier:
@@ -3539,6 +3556,15 @@ def charts_clipped_limit(ordered: list[float]) -> float | None:
 
 
 def charts_print_tables(data: Any, rows: list[dict[str, Any]], removed: Any) -> None:
+    charts_print_rate_table(data)
+    charts_print_codec_comparison(data)
+    if rows:
+        charts_print_feature_table(rows)
+    if removed:
+        charts_print_removed_table(removed)
+
+
+def charts_print_rate_table(data: Any) -> None:
     print(f"Rate on the wire (Mbit/s) for the same VMAF mean, log-linear between measured points:{LINE_SEPARATOR}")
     print("| VMAF mean | " + MARKDOWN_CELL_SEPARATOR.join(name for _, name, _, _ in CHARTS_CODECS) + MARKDOWN_ROW_END)
     print(MARKDOWN_RIGHT_ALIGNED_HEADER_RULE + MARKDOWN_RIGHT_ALIGNED_RULE * len(CHARTS_CODECS))
@@ -3547,12 +3573,15 @@ def charts_print_tables(data: Any, rows: list[dict[str, Any]], removed: Any) -> 
         for level in CHARTS_LEVELS:
             cells: list[str] = [charts_rate_cell(data, source, codec, level) for codec, _, _, _ in CHARTS_CODECS]
             print(f"| {level} | " + MARKDOWN_CELL_SEPARATOR.join(cells) + MARKDOWN_ROW_END)
+
+
+def charts_print_codec_comparison(data: Any) -> None:
     print(
         f"{LINE_SEPARATOR}BD-rate of MCV2 against each codec (positive: MCV2 needs more), over the VMAF range both cover:{LINE_SEPARATOR}"
     )
     for source, title in CHARTS_SOURCES:
         mcv2: list[tuple[float, float]] = charts_curve(data, source, MCV2_CODEC)
-        cells = []
+        cells: list[str] = []
         for codec, name, _, _ in CHARTS_CODECS[1:]:
             percent: float
             low: numpy.float64
@@ -3560,24 +3589,28 @@ def charts_print_tables(data: Any, rows: list[dict[str, Any]], removed: Any) -> 
             percent, low, high = bd_rate(charts_curve(data, source, codec), mcv2)
             cells.append(f"{name} {percent:+.1f}% (VMAF {low:.1f}-{high:.1f})")
         print(f"- {title}: " + CLAUSE_SEPARATOR.join(cells))
-    if rows:
-        print(f"{LINE_SEPARATOR}Extra rate on the wire without each feature (BD-rate against the full encoder):{LINE_SEPARATOR}")
-        print("| Feature turned off | " + MARKDOWN_CELL_SEPARATOR.join(title for _, title in CHARTS_SOURCES) + MARKDOWN_ROW_END)
-        print(MARKDOWN_HEADER_RULE + MARKDOWN_RIGHT_ALIGNED_RULE * len(CHARTS_SOURCES))
-        for row in sorted(rows, key=lambda row: -(row[GAMEPLAY_SOURCE][0] + row[PROXY_SOURCE][0])):
-            cells = [
-                f"{charts_signed(row[source][0])} ({row[source][1]:.0f}-{row[source][2]:.0f})"
-                for source, _ in CHARTS_SOURCES
-            ]
-            print(f"| {row[FEATURE_NAME_KEY]} | " + MARKDOWN_CELL_SEPARATOR.join(cells) + MARKDOWN_ROW_END)
-    if removed:
-        print(f"{LINE_SEPARATOR}What each feature MCV2 no longer has was worth (BD-rate when it was measured):{LINE_SEPARATOR}")
-        print("| Feature | " + MARKDOWN_CELL_SEPARATOR.join(title for _, title in CHARTS_SOURCES) + " | Mean |")
-        print(MARKDOWN_HEADER_RULE + MARKDOWN_RIGHT_ALIGNED_RULE * (len(CHARTS_SOURCES) + 1))
-        for row in sorted(removed, key=lambda row: -row[BD_RATE_KEY][BD_RATE_MEAN_KEY]):
-            cells = [charts_signed(row[BD_RATE_KEY][source]) for source, _ in CHARTS_SOURCES]
-            mean: str = charts_signed(row[BD_RATE_KEY][BD_RATE_MEAN_KEY])
-            print(f"| {row[FEATURE_NAME_KEY]} | " + MARKDOWN_CELL_SEPARATOR.join(cells) + f" | {mean} |")
+
+
+def charts_print_feature_table(rows: list[dict[str, Any]]) -> None:
+    print(f"{LINE_SEPARATOR}Extra rate on the wire without each feature (BD-rate against the full encoder):{LINE_SEPARATOR}")
+    print("| Feature turned off | " + MARKDOWN_CELL_SEPARATOR.join(title for _, title in CHARTS_SOURCES) + MARKDOWN_ROW_END)
+    print(MARKDOWN_HEADER_RULE + MARKDOWN_RIGHT_ALIGNED_RULE * len(CHARTS_SOURCES))
+    for row in sorted(rows, key=charts_combined_rate, reverse=True):
+        cells: list[str] = [
+            f"{charts_signed(row[source][0])} ({row[source][1]:.0f}-{row[source][2]:.0f})"
+            for source, _ in CHARTS_SOURCES
+        ]
+        print(f"| {row[FEATURE_NAME_KEY]} | " + MARKDOWN_CELL_SEPARATOR.join(cells) + MARKDOWN_ROW_END)
+
+
+def charts_print_removed_table(removed: Any) -> None:
+    print(f"{LINE_SEPARATOR}What each feature MCV2 no longer has was worth (BD-rate when it was measured):{LINE_SEPARATOR}")
+    print("| Feature | " + MARKDOWN_CELL_SEPARATOR.join(title for _, title in CHARTS_SOURCES) + " | Mean |")
+    print(MARKDOWN_HEADER_RULE + MARKDOWN_RIGHT_ALIGNED_RULE * (len(CHARTS_SOURCES) + 1))
+    for row in sorted(removed, key=lambda row: -row[BD_RATE_KEY][BD_RATE_MEAN_KEY]):
+        cells: list[str] = [charts_signed(row[BD_RATE_KEY][source]) for source, _ in CHARTS_SOURCES]
+        mean: str = charts_signed(row[BD_RATE_KEY][BD_RATE_MEAN_KEY])
+        print(f"| {row[FEATURE_NAME_KEY]} | " + MARKDOWN_CELL_SEPARATOR.join(cells) + f" | {mean} |")
 
 
 def charts_rate_cell(data: Any, source: str, codec: str, level: int) -> str:
@@ -3627,9 +3660,7 @@ def samples_main() -> None:
     dump.add_argument(FRAME_OPTION, type=int, default=0)
     arguments: argparse.Namespace = parser.parse_args()
     if arguments.command != BYTES_COMMAND:
-        logging.getLogger(FONT_MANAGER_LOGGER).setLevel(logging.ERROR)
-        charts_style()
-        IMAGES.mkdir(parents=True, exist_ok=True)
+        charts_prepare()
     actions: dict[str, Callable[[argparse.Namespace], None]] = {
         TREE_COMMAND: samples_draw_tree,
         LEAVES_COMMAND: samples_draw_leaves,
