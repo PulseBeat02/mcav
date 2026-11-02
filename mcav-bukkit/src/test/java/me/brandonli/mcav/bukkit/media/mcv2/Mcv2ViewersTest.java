@@ -96,7 +96,7 @@ final class Mcv2ViewersTest {
     final Optional<Mcv2Viewers.PackState> stateBeforeRequest = viewers.getState(uuid);
     assertTrue(stateBeforeRequest.isEmpty());
 
-    viewers.requested(uuid);
+    viewers.recordRequest(uuid);
     final Mcv2Viewers.PackState requestedState = viewers.getState(uuid).orElseThrow();
     assertEquals(Mcv2Viewers.PackState.REQUESTED, requestedState);
 
@@ -128,7 +128,7 @@ final class Mcv2ViewersTest {
     viewers.onPlayerQuit(new PlayerQuitEvent(this.player, (Component) null, PlayerQuitEvent.QuitReason.DISCONNECTED));
     final Optional<Mcv2Viewers.PackState> stateAfterQuit = viewers.getState(uuid);
     assertTrue(stateAfterQuit.isEmpty());
-    assertThrows(NullPointerException.class, () -> viewers.requested(null));
+    assertThrows(NullPointerException.class, () -> viewers.recordRequest(null));
     assertThrows(NullPointerException.class, () -> viewers.getState(null));
     assertThrows(NullPointerException.class, () -> new Mcv2Viewers(null, this.refused::add));
     assertThrows(NullPointerException.class, () -> new Mcv2Viewers(PACK, null));

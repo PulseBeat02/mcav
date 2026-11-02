@@ -122,7 +122,7 @@ final class NativeLibrariesTest {
     final Set<String> entryPoints = new TreeSet<>(QUERIES);
     for (final Level level : expected.levels()) {
       for (final String kernel : kernels()) {
-        entryPoints.add("mcv2_" + level.symbol() + "_" + kernel);
+        entryPoints.add("mcv2_" + level.getSymbol() + "_" + kernel);
       }
     }
 

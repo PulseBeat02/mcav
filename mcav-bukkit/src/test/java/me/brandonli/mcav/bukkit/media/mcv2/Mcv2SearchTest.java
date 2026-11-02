@@ -124,7 +124,7 @@ final class Mcv2SearchTest {
       encoder.setFrameBudget(100);
       final Class<?> effortType = Mcv2Internals.nested("SearchEffort");
       final Object budgeted = Mcv2Internals.field(effortType, null, "BUDGETED");
-      final Object result = Mcv2Internals.invoke(
+      final Object result = Mcv2Internals.callForResult(
         encoderType,
         encoder,
         SEARCH_METHOD,
@@ -355,7 +355,7 @@ final class Mcv2SearchTest {
     for (final double lambda : new double[] { 10, 30, 65.255994022, 150, 400, 1200 }) {
       final Mcv2BlockState job = new Mcv2BlockState(source, reference, 32, 32, Mcv2FrameKind.PREDICTED, thresholds, lambda, null);
       final Object coder = job.code(32, 0, 0, 0, 0, Mcv2BlockState.NO_VECTOR);
-      final boolean skipped = Mcv2BlockState.skipped(coder);
+      final boolean skipped = Mcv2BlockState.isSkipped(coder);
       final boolean expectedSkipped = distortion / 96.0 + lambda <= (thresholds == Mcv2BlockState.Thresholds.FAST ? 60 : 28) * lambda;
       assertEquals(expectedSkipped, skipped);
       final boolean monotonic = !skippedBefore || skipped;
@@ -401,7 +401,7 @@ final class Mcv2SearchTest {
     final double cost = state.cost(0, 0);
     assertEquals(expectedCost, cost);
 
-    final boolean skipped = Mcv2BlockState.skipped(coder);
+    final boolean skipped = Mcv2BlockState.isSkipped(coder);
     assertTrue(skipped);
 
     final int mode = state.mode(0, 0);
@@ -475,7 +475,7 @@ final class Mcv2SearchTest {
       );
     }
 
-    return Mcv2Internals.invoke(
+    return Mcv2Internals.callForResult(
       Mcv2.class,
       null,
       "descend",
@@ -713,7 +713,7 @@ final class Mcv2SearchTest {
         32,
         kernels
       );
-      final Object coarseMotion = Mcv2Internals.invoke(coderType, coder, "coarseMotion", new Class<?>[] { int.class }, 2);
+      final Object coarseMotion = Mcv2Internals.callForResult(coderType, coder, "coarseMotion", new Class<?>[] { int.class }, 2);
       assertEquals(0, coarseMotion);
       final List<Integer> expectedRanges = thresholds == Mcv2BlockState.Thresholds.FAST ? List.of(12) : List.of(6, 12);
       assertEquals(expectedRanges, ranges);

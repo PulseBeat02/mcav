@@ -110,7 +110,7 @@ final class Mcv2ChannelTest {
     when(this.viewers.isLoaded(LOADED)).thenReturn(true);
     when(this.viewers.isLoaded(OFFLINE)).thenReturn(true);
     this.screen = mock(Mcv2Screen.class);
-    when(this.screen.anchors()).thenReturn(List.of(MapTilePatch.of(WALL_MAP, 0, 0, MAP_SIZE, 1, new byte[MAP_SIZE])));
+    when(this.screen.getAnchors()).thenReturn(List.of(MapTilePatch.of(WALL_MAP, 0, 0, MAP_SIZE, 1, new byte[MAP_SIZE])));
     this.configuration = Mcv2Configuration.builder()
       .viewers(new ArrayList<>(List.of(LOADED, WITHOUT, OFFLINE)))
       .origin(new Location(mock(World.class), 0, GROUND_LEVEL, 0))

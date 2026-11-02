@@ -32,7 +32,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>The screen's ladder has, from the top: the video size it was asked for at every frame of the video with each of
  * its {@linkplain Preset presets}, from the one it was asked for down to the fastest, then with the fastest at every
- * second, third, fourth and sixth frame while at least {@link #MINIMUM_FRAME_RATE} frames a second remain; then the same for each
+ * second, third, fourth and sixth frame while at least {@link #MINIMUM_FRAMES_PER_SECOND} frames a second remain; then the same for each
  * smaller size the screen can switch to; and last the dithered maps, which need no encoder. The screen reports how long
  * every encoded P frame held its pipeline - the frame's search, and the wait for the frame before it to be verified
  * and sent, which is what bounds the frames it keeps up with; keyframes, which come every few seconds and cost more,
@@ -62,7 +62,7 @@ public final class Mcv2Pacer {
    *
    * @since 1.0.0
    */
-  public static final double MINIMUM_FRAME_RATE = 10;
+  public static final double MINIMUM_FRAMES_PER_SECOND = 10;
 
   private static final double HIGH = 1.0;
 
@@ -101,7 +101,7 @@ public final class Mcv2Pacer {
   private static final double WHOLE_RATE = 0.05;
 
   // A measured frame rate wavers around the nominal one, so a rung at the lowest rate may measure just below it.
-  private static final double MINIMUM_FRAME_RATE_TOLERANCE = 0.95;
+  private static final double MINIMUM_FRAMES_PER_SECOND_TOLERANCE = 0.95;
 
   // System.nanoTime() may be negative, so zero cannot mark an absent timestamp.
   private static final long NEVER = Long.MIN_VALUE;
@@ -280,7 +280,7 @@ public final class Mcv2Pacer {
    * @throws IllegalArgumentException if milliseconds is negative, NaN or infinite
    * @since 1.0.0
    */
-  public Optional<Change> encoded(final double milliseconds, final Mcv2FrameKind kind, final long now) {
+  public Optional<Change> reportEncodedFrame(final double milliseconds, final Mcv2FrameKind kind, final long now) {
     Preconditions.checkNotNull(kind, "Kind must not be null!");
     Preconditions.checkArgument(milliseconds >= 0 && Double.isFinite(milliseconds), "Time must be finite and non-negative!");
 
@@ -296,7 +296,7 @@ public final class Mcv2Pacer {
       this.settledSince = now;
     }
 
-    if (this.samples < MINIMUM_SAMPLES || now - this.firstArrival < this.seconds(STARTUP_SECONDS)) {
+    if (this.samples < MINIMUM_SAMPLES || now - this.firstArrival < this.toNanoseconds(STARTUP_SECONDS)) {
       return Optional.empty();
     }
 
@@ -308,7 +308,7 @@ public final class Mcv2Pacer {
         this.overSince = now;
       }
 
-      if (now - this.overSince >= this.seconds(DOWN_SECONDS)) {
+      if (now - this.overSince >= this.toNanoseconds(DOWN_SECONDS)) {
         return Optional.ofNullable(this.stepDown(now, frameMilliseconds));
       }
 
@@ -318,11 +318,11 @@ public final class Mcv2Pacer {
     this.overSince = NEVER;
     // Resetting backoff before the next retry interval permits repeated rung oscillation.
     final long held = now - this.settledSince;
-    if (held >= this.seconds(Math.max(UP_SECONDS, this.blockSeconds[this.current]))) {
+    if (held >= this.toNanoseconds(Math.max(UP_SECONDS, this.blockSeconds[this.current]))) {
       this.blockSeconds[this.current] = BLOCK_SECONDS;
     }
 
-    if (held >= this.seconds(Math.max(UP_SECONDS, this.retrySeconds))) {
+    if (held >= this.toNanoseconds(Math.max(UP_SECONDS, this.retrySeconds))) {
       this.retrySeconds = RETRY_SECONDS;
     }
 
@@ -337,7 +337,7 @@ public final class Mcv2Pacer {
       this.roomSince = now;
     }
 
-    if (now - this.roomSince < this.seconds(UP_SECONDS)) {
+    if (now - this.roomSince < this.toNanoseconds(UP_SECONDS)) {
       return Optional.empty();
     }
 
@@ -347,9 +347,9 @@ public final class Mcv2Pacer {
 
   private @Nullable Change stepDown(final long now, final double frameMilliseconds) {
     final int left = this.current;
-    this.blockedUntil[left] = now + this.seconds(this.blockSeconds[left]);
+    this.blockedUntil[left] = now + this.toNanoseconds(this.blockSeconds[left]);
     this.blockSeconds[left] = Math.min(MAXIMUM_RETRY_SECONDS, this.blockSeconds[left] * BACKOFF_FACTOR);
-    final int encoded = this.encodedRungs();
+    final int encoded = this.countEncodedRungs();
 
     final Rung from = this.getRung();
     for (final double share : new double[] { FIT, HIGH }) {
@@ -367,7 +367,7 @@ public final class Mcv2Pacer {
     }
 
     final Change change = this.move(this.ladder.size() - 1, Direction.DOWN, this.smoothed, frameMilliseconds);
-    this.retryAt = now + this.seconds(this.retrySeconds);
+    this.retryAt = now + this.toNanoseconds(this.retrySeconds);
     this.retrySeconds = Math.min(MAXIMUM_RETRY_SECONDS, this.retrySeconds * BACKOFF_FACTOR);
 
     return change;
@@ -377,7 +377,7 @@ public final class Mcv2Pacer {
     for (int next = this.current + 1; next < encoded; next++) {
       final Rung rung = this.ladder.get(next);
       final boolean sameFrames = rung.pixels() == from.pixels() && rung.getDivisor() == from.getDivisor();
-      if (this.isAllowed(rung) && this.predict(next) <= (sameFrames ? HIGH : share) * this.frameMilliseconds(rung)) {
+      if (this.isAllowed(rung) && this.predictEncodeMilliseconds(next) <= (sameFrames ? HIGH : share) * this.frameMilliseconds(rung)) {
         return next;
       }
     }
@@ -385,7 +385,7 @@ public final class Mcv2Pacer {
     return NO_RUNG;
   }
 
-  private int encodedRungs() {
+  private int countEncodedRungs() {
     return this.ladder.getLast().isDithered() ? this.ladder.size() - 1 : this.ladder.size();
   }
 
@@ -413,7 +413,7 @@ public final class Mcv2Pacer {
     return (rung.getDivisor() * this.videoInterval) / NANOSECONDS_PER_MILLISECOND;
   }
 
-  private double predict(final int index) {
+  private double predictEncodeMilliseconds(final int index) {
     final Rung target = this.ladder.get(index);
     final Rung rung = this.getRung();
     return (this.smoothed * target.pixels() * target.getPreset().getCost()) / (rung.pixels() * rung.getPreset().getCost());
@@ -422,14 +422,18 @@ public final class Mcv2Pacer {
   private boolean isAllowed(final Rung rung) {
     return (
       rung.getDivisor() == FULL_RATE_DIVISOR ||
-      rung.framesPerSecond(this.getVideoFramesPerSecond()) >= MINIMUM_FRAME_RATE * MINIMUM_FRAME_RATE_TOLERANCE
+      rung.framesPerSecond(this.getVideoFramesPerSecond()) >= MINIMUM_FRAMES_PER_SECOND * MINIMUM_FRAMES_PER_SECOND_TOLERANCE
     );
   }
 
   private int bestAbove(final long now) {
     for (int index = 0; index < this.current; index++) {
       final Rung rung = this.ladder.get(index);
-      if (this.isAllowed(rung) && now >= this.blockedUntil[index] && this.predict(index) <= ROOM * this.frameMilliseconds(rung)) {
+      if (
+        this.isAllowed(rung) &&
+        now >= this.blockedUntil[index] &&
+        this.predictEncodeMilliseconds(index) <= ROOM * this.frameMilliseconds(rung)
+      ) {
         return index;
       }
     }
@@ -438,7 +442,7 @@ public final class Mcv2Pacer {
   }
 
   private int lowestEncoded() {
-    int index = this.encodedRungs() - 1;
+    int index = this.countEncodedRungs() - 1;
     while (!this.isAllowed(this.ladder.get(index))) {
       index--;
     }
@@ -446,8 +450,8 @@ public final class Mcv2Pacer {
     return index;
   }
 
-  private long seconds(final double value) {
-    return (long) (value * NANOSECONDS_PER_SECOND);
+  private long toNanoseconds(final double seconds) {
+    return (long) (seconds * NANOSECONDS_PER_SECOND);
   }
 
   /**
@@ -661,12 +665,12 @@ public final class Mcv2Pacer {
     /**
      * Returns the frames per second this rung encodes of a video.
      *
-     * @param videoFrameRate the video's frames per second
+     * @param videoFramesPerSecond the video's frames per second
      * @return the encoded frames per second, 0 for the dithered maps
      * @since 1.0.0
      */
-    public double framesPerSecond(final double videoFrameRate) {
-      return this.isDithered() ? 0 : videoFrameRate / this.divisor;
+    public double framesPerSecond(final double videoFramesPerSecond) {
+      return this.isDithered() ? 0 : videoFramesPerSecond / this.divisor;
     }
 
     private long pixels() {
@@ -676,12 +680,12 @@ public final class Mcv2Pacer {
     /**
      * Describes the rung for a message.
      *
-     * @param videoFrameRate the video's frames per second
+     * @param videoFramesPerSecond the video's frames per second
      * @return for example {@code 1920x1080 at 30 fps}, {@code 1920x1080 at 30 fps with the FAST search} on a
      *         ladder of presets, or {@code the dithered maps}
      * @since 1.0.0
      */
-    public String describe(final double videoFrameRate) {
+    public String describe(final double videoFramesPerSecond) {
       return this.isDithered()
         ? "the dithered maps"
         : String.format(
@@ -689,7 +693,7 @@ public final class Mcv2Pacer {
             "%dx%d at %s fps%s",
             this.width,
             this.height,
-            rate(this.framesPerSecond(videoFrameRate)),
+            rate(this.framesPerSecond(videoFramesPerSecond)),
             this.preset.suffix()
           );
     }
@@ -796,7 +800,7 @@ public final class Mcv2Pacer {
     private final boolean down;
     private final double encodeMilliseconds;
     private final double frameMilliseconds;
-    private final double videoFrameRate;
+    private final double videoFramesPerSecond;
 
     private Change(
       final Rung from,
@@ -804,14 +808,14 @@ public final class Mcv2Pacer {
       final boolean down,
       final double encodeMilliseconds,
       final double frameMilliseconds,
-      final double videoFrameRate
+      final double videoFramesPerSecond
     ) {
       this.from = from;
       this.to = to;
       this.down = down;
       this.encodeMilliseconds = encodeMilliseconds;
       this.frameMilliseconds = frameMilliseconds;
-      this.videoFrameRate = videoFrameRate;
+      this.videoFramesPerSecond = videoFramesPerSecond;
     }
 
     /**
@@ -822,7 +826,7 @@ public final class Mcv2Pacer {
      * @param down               whether the step went down the ladder
      * @param encodeMilliseconds the smoothed encode time per frame that decided the step, 0 for a try from the dithered maps
      * @param frameMilliseconds  the time a frame had on the rung before, 0 on the dithered maps
-     * @param videoFrameRate     the video's frames per second as measured
+     * @param videoFramesPerSecond     the video's frames per second as measured
      * @return the change
      * @since 1.0.0
      */
@@ -832,9 +836,9 @@ public final class Mcv2Pacer {
       final boolean down,
       final double encodeMilliseconds,
       final double frameMilliseconds,
-      final double videoFrameRate
+      final double videoFramesPerSecond
     ) {
-      return new Change(from, to, down, encodeMilliseconds, frameMilliseconds, videoFrameRate);
+      return new Change(from, to, down, encodeMilliseconds, frameMilliseconds, videoFramesPerSecond);
     }
 
     /**
@@ -845,7 +849,9 @@ public final class Mcv2Pacer {
      */
     public String describe() {
       if (this.from.isDithered()) {
-        return "MCV2 screen tries encoding again at %s after showing the dithered maps".formatted(this.to.describe(this.videoFrameRate));
+        return "MCV2 screen tries encoding again at %s after showing the dithered maps".formatted(
+          this.to.describe(this.videoFramesPerSecond)
+        );
       }
 
       final String timing = String.format(
@@ -857,11 +863,11 @@ public final class Mcv2Pacer {
         this.encodeMilliseconds,
         this.down ? "more than" : "well within",
         this.frameMilliseconds,
-        rate(this.from.framesPerSecond(this.videoFrameRate))
+        rate(this.from.framesPerSecond(this.videoFramesPerSecond))
       );
       return this.down
-        ? "MCV2 screen steps down to %s: %s with the encoder threads it has".formatted(this.to.describe(this.videoFrameRate), timing)
-        : "MCV2 screen steps back up to %s: %s".formatted(this.to.describe(this.videoFrameRate), timing);
+        ? "MCV2 screen steps down to %s: %s with the encoder threads it has".formatted(this.to.describe(this.videoFramesPerSecond), timing)
+        : "MCV2 screen steps back up to %s: %s".formatted(this.to.describe(this.videoFramesPerSecond), timing);
     }
 
     /**
@@ -920,8 +926,8 @@ public final class Mcv2Pacer {
      * @return the video's frames per second as measured
      * @since 1.0.0
      */
-    public double getVideoFrameRate() {
-      return this.videoFrameRate;
+    public double getVideoFramesPerSecond() {
+      return this.videoFramesPerSecond;
     }
 
     /**
@@ -947,7 +953,7 @@ public final class Mcv2Pacer {
         this.down == change.down &&
         Double.compare(this.encodeMilliseconds, change.encodeMilliseconds) == 0 &&
         Double.compare(this.frameMilliseconds, change.frameMilliseconds) == 0 &&
-        Double.compare(this.videoFrameRate, change.videoFrameRate) == 0
+        Double.compare(this.videoFramesPerSecond, change.videoFramesPerSecond) == 0
       );
     }
 
@@ -959,7 +965,7 @@ public final class Mcv2Pacer {
      */
     @Override
     public int hashCode() {
-      return Objects.hash(this.from, this.to, this.down, this.encodeMilliseconds, this.frameMilliseconds, this.videoFrameRate);
+      return Objects.hash(this.from, this.to, this.down, this.encodeMilliseconds, this.frameMilliseconds, this.videoFramesPerSecond);
     }
 
     /**
@@ -976,7 +982,7 @@ public final class Mcv2Pacer {
         .add("down", this.down)
         .add("encodeMilliseconds", this.encodeMilliseconds)
         .add("frameMilliseconds", this.frameMilliseconds)
-        .add("videoFrameRate", this.videoFrameRate)
+        .add("videoFramesPerSecond", this.videoFramesPerSecond)
         .toString();
     }
   }

@@ -44,8 +44,8 @@ final class Mcv2SendEvent extends Event {
   @DataAmount
   int bytes;
 
-  @Label("Map Colours")
-  @Description("The map colours of the frame's pages, or -1 when it had more pages than the screen has slots")
+  @Label("Map Colors")
+  @Description("The map colors of the frame's pages, or -1 when it had more pages than the screen has slots")
   int colors;
 
   @Label("Sent")

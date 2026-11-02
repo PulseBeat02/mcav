@@ -121,7 +121,7 @@ public final class NettyHosting implements InjectorHosting {
       return cachedUrl;
     }
 
-    final String address = ServerAddress.getPublicIpAddress();
+    final String address = ServerAddress.getPublicAddress();
     final int port = Bukkit.getPort();
     final String host = formatHost(address);
     final String builtUrl = URL_SCHEME + host + PORT_SEPARATOR + port + this.requestPath;
@@ -150,9 +150,9 @@ public final class NettyHosting implements InjectorHosting {
    */
   @Override
   public synchronized void start() {
-    final boolean exists = Files.isRegularFile(this.zip);
-    if (!exists) {
-      final String message = "Resource pack %s does not exist!".formatted(this.zip);
+    final boolean regularFile = Files.isRegularFile(this.zip);
+    if (!regularFile) {
+      final String message = "Resource pack %s is not a regular file!".formatted(this.zip);
       throw new InjectorException(message);
     }
 

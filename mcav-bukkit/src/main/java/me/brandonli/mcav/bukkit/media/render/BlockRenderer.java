@@ -282,7 +282,8 @@ public final class BlockRenderer extends MainThreadRenderer<BlockData[]> {
       return;
     }
 
-    final WallRecipients recipients = this.advanceResendCounter();
+    this.advanceResendCounter();
+    final WallRecipients recipients = this.getWallRecipients();
     final Set<UUID> watchingViewers = new HashSet<>();
     final List<Player> playersWithoutWall = this.updateActiveViewers(watchingViewers, recipients);
     if (!playersWithoutWall.isEmpty()) {
@@ -295,15 +296,15 @@ public final class BlockRenderer extends MainThreadRenderer<BlockData[]> {
     this.restoreRemovedViewers(currentPositions, watchingViewers);
   }
 
-  private WallRecipients advanceResendCounter() {
+  private void advanceResendCounter() {
     this.ticksSinceFullResend++;
-    if (this.ticksSinceFullResend < FULL_RESEND_INTERVAL_TICKS) {
-      return WallRecipients.NEW_VIEWERS;
+    if (this.ticksSinceFullResend >= FULL_RESEND_INTERVAL_TICKS) {
+      this.ticksSinceFullResend = 0;
     }
+  }
 
-    this.ticksSinceFullResend = 0;
-
-    return WallRecipients.EVERY_VIEWER;
+  private WallRecipients getWallRecipients() {
+    return this.ticksSinceFullResend == 0 ? WallRecipients.EVERY_VIEWER : WallRecipients.NEW_VIEWERS;
   }
 
   private List<Player> updateActiveViewers(final Set<UUID> watchingViewers, final WallRecipients recipients) {

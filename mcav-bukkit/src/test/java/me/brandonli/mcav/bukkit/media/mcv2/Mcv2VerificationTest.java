@@ -64,7 +64,7 @@ final class Mcv2VerificationTest {
   @Test
   void shouldCheckTheWholeConformanceAndEdgeCorpusIncludingUnusedCompactClasses() {
     for (final String folder : List.of("conformance", "edge")) {
-      for (final String stream : Mcv2Fixtures.digests(folder).keySet()) {
+      for (final String stream : Mcv2Fixtures.readDigests(folder).keySet()) {
         this.compareStream(folder, stream);
       }
     }
@@ -72,7 +72,7 @@ final class Mcv2VerificationTest {
 
   private void compareStream(final String folder, final String stream) {
     final Map<Long, byte[]> pictures = new HashMap<>();
-    for (final byte[] data : Mcv2Fixtures.frames(Mcv2Fixtures.read(folder + PATH_SEPARATOR + stream))) {
+    for (final byte[] data : Mcv2Fixtures.splitFrames(Mcv2Fixtures.read(folder + PATH_SEPARATOR + stream))) {
       final Mcv2Decoder.Frame frame = Mcv2Decoder.parse(data);
       final byte[] reference = frame.isKeyframe() ? new byte[0] : pictures.get(frame.getReferenceId());
       final byte[] picture = Mcv2Decoder.decode(frame, reference, frame.getReferenceId());

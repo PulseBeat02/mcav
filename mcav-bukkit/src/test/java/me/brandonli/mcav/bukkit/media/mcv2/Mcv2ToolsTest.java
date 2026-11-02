@@ -59,7 +59,7 @@ final class Mcv2ToolsTest {
 
   @AfterEach
   void restoreNatives() {
-    Mcv2.installNatives(NativeTesting.FOLDER, Mcv2.NATIVE_AUTO);
+    Mcv2.installNatives(NativeTesting.NATIVES_FOLDER, Mcv2.NATIVE_AUTO);
   }
 
   @Test
@@ -101,7 +101,7 @@ final class Mcv2ToolsTest {
         final boolean describesJava = result.get("natives").getAsString().startsWith("Java,");
         assertTrue(describesJava);
       }
-      if (mode.equals("auto") && NativeTesting.expected() && System.getProperty(Mcv2.NATIVE_PROPERTY) == null) {
+      if (mode.equals("auto") && NativeTesting.areNativesExpected() && System.getProperty(Mcv2.NATIVE_PROPERTY) == null) {
         final boolean describesNative = result.get("natives").getAsString().startsWith("native ");
         assertTrue(describesNative);
 
@@ -136,14 +136,14 @@ final class Mcv2ToolsTest {
     final Path archive = folder.resolve(STREAM_FILE_NAME);
     final Path pictures = folder.resolve("pictures.rgb");
     Files.write(archive, Mcv2Fixtures.read(PROXY_DEFAULT_PATH));
-    final List<String> expected = Mcv2Fixtures.digests("conformance").get(PROXY_DEFAULT_STREAM);
+    final List<String> expected = Mcv2Fixtures.readDigests("conformance").get(PROXY_DEFAULT_STREAM);
     final String expectedOutput = archive + " " + String.join(" ", expected);
     final String output = this.run(DIGESTS_COMMAND, "--rgb", pictures.toString(), archive.toString()).strip();
     assertEquals(expectedOutput, output);
 
     final Mcv2Receiver receiver = new Mcv2Receiver();
     final ByteArrayOutputStream decoded = new ByteArrayOutputStream();
-    for (final byte[] frame : Mcv2Fixtures.frames(Mcv2Fixtures.read(PROXY_DEFAULT_PATH))) {
+    for (final byte[] frame : Mcv2Fixtures.splitFrames(Mcv2Fixtures.read(PROXY_DEFAULT_PATH))) {
       decoded.writeBytes(receiver.accept(frame));
     }
 
@@ -162,9 +162,9 @@ final class Mcv2ToolsTest {
   @Test
   void shouldDistinguishRejectedFramesFromTruncatedArchivesOnDigests() throws Exception {
     final Path archive = folder.resolve(REJECTED_FILE_NAME);
-    final byte[] frame = Mcv2Fixtures.frames(Mcv2Fixtures.read(PROXY_DEFAULT_PATH)).getFirst();
+    final byte[] frame = Mcv2Fixtures.splitFrames(Mcv2Fixtures.read(PROXY_DEFAULT_PATH)).getFirst();
     final byte[] stream = new byte[Integer.BYTES + frame.length];
-    Mcv2Decoder.putU32(stream, 0, frame.length);
+    Mcv2Decoder.putUnsignedInt(stream, 0, frame.length);
     System.arraycopy(frame, 0, stream, Integer.BYTES, frame.length);
     stream[Integer.BYTES] = 0;
     Files.write(archive, stream);

@@ -65,7 +65,7 @@ final class NativeConformanceTest {
   private static Stream<Arguments> streams(final String folder) {
     final List<Arguments> arguments = new ArrayList<>();
     for (final Level level : NativeTesting.levels()) {
-      for (final String stream : Mcv2Fixtures.digests(folder).keySet()) {
+      for (final String stream : Mcv2Fixtures.readDigests(folder).keySet()) {
         arguments.add(Arguments.of(level, stream));
       }
     }
@@ -135,7 +135,7 @@ final class NativeConformanceTest {
     final int frameBytes = WIDTH * HEIGHT * 3;
     for (final String stream : List.of(CROP_DEFAULT_STREAM, CROP_FAST_STREAM)) {
       final Settings settings = stream.equals(CROP_DEFAULT_STREAM) ? Settings.DEFAULT : Settings.FAST;
-      final List<byte[]> expected = Mcv2Fixtures.frames(Mcv2Fixtures.read(ENCODER_FOLDER + stream));
+      final List<byte[]> expected = Mcv2Fixtures.splitFrames(Mcv2Fixtures.read(ENCODER_FOLDER + stream));
       final int expectedLength = expected.size() * frameBytes;
       final int sourceLength = source.length;
       assertEquals(expectedLength, sourceLength);
@@ -186,7 +186,7 @@ final class NativeConformanceTest {
   }
 
   private void reencode(final Level level, final String stream) {
-    final List<byte[]> frames = Mcv2Fixtures.frames(Mcv2Fixtures.read(stream));
+    final List<byte[]> frames = Mcv2Fixtures.splitFrames(Mcv2Fixtures.read(stream));
     for (final Settings settings : List.of(Settings.DEFAULT, Settings.FAST)) {
       final Mcv2Receiver receiver = new Mcv2Receiver();
       final Mcv2 java = NativeTesting.encoder(settings, 2, Mcv2.Verification.VERIFIED, NativeTesting.javaFactory());

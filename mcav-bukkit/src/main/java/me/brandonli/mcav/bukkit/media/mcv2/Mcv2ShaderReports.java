@@ -84,10 +84,13 @@ final class Mcv2ShaderReports implements PluginMessageListener {
     }
 
     final UUID viewerId = player.getUniqueId();
-    if (!this.admit(viewerId)) {
+    final long now = this.clock.getAsLong();
+    if (this.isOverBurstLimit(viewerId, now)) {
       LOGGER.debug("Ignoring an MCV2 client report from {}: more than one a second.", name);
       return;
     }
+
+    this.spendAllowance(viewerId, now);
 
     final Report report = parse(message, name);
     if (report == null) {
@@ -105,17 +108,19 @@ final class Mcv2ShaderReports implements PluginMessageListener {
     }
   }
 
-  private boolean admit(final UUID player) {
-    final long now = this.clock.getAsLong();
-    final Long room = this.allowances.get(player);
-    final long next = room == null || room - now < 0 ? now : room;
-    if (next - now > BURST_NANOSECONDS) {
-      return false;
-    }
+  private boolean isOverBurstLimit(final UUID player, final long now) {
+    final long next = this.calculateNextAllowance(player, now);
+    return next - now > BURST_NANOSECONDS;
+  }
 
+  private void spendAllowance(final UUID player, final long now) {
+    final long next = this.calculateNextAllowance(player, now);
     this.allowances.put(player, next + INTERVAL_NANOSECONDS);
+  }
 
-    return true;
+  private long calculateNextAllowance(final UUID player, final long now) {
+    final Long room = this.allowances.get(player);
+    return room == null || room - now < 0 ? now : room;
   }
 
   private static @Nullable Report parse(final byte[] message, final String name) {

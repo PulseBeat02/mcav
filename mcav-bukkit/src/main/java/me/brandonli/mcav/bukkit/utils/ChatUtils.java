@@ -42,7 +42,7 @@ public final class ChatUtils {
   private static final String CHARACTER_NULL_MESSAGE = "Character must not be null!";
 
   private static final char[] HEXADECIMAL_DIGITS = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
-  private static final char COLOR_CHAR = '§';
+  private static final char COLOR_CHARACTER = '§';
   private static final char HEXADECIMAL_COLOR_MARKER = 'x';
   private static final int RGB_MASK = 0xFFFFFF;
   private static final int HEXADECIMAL_COLOR_LENGTH = 14;
@@ -76,7 +76,7 @@ public final class ChatUtils {
     final char[] digits = hexadecimal.toCharArray();
     final StringBuilder entry = new StringBuilder(digits.length * CHARACTERS_PER_DIGIT);
     for (final char digit : digits) {
-      entry.append(COLOR_CHAR);
+      entry.append(COLOR_CHARACTER);
       entry.append(digit);
     }
 
@@ -161,12 +161,12 @@ public final class ChatUtils {
   }
 
   private static void appendHexadecimalColor(final StringBuilder builder, final int color) {
-    builder.append(COLOR_CHAR);
+    builder.append(COLOR_CHARACTER);
     builder.append(HEXADECIMAL_COLOR_MARKER);
     for (int shift = HIGHEST_NIBBLE_SHIFT; shift >= 0; shift -= BITS_PER_NIBBLE) {
       final int nibble = (color >> shift) & NIBBLE_MASK;
       final char digit = HEXADECIMAL_DIGITS[nibble];
-      builder.append(COLOR_CHAR);
+      builder.append(COLOR_CHARACTER);
       builder.append(digit);
     }
   }

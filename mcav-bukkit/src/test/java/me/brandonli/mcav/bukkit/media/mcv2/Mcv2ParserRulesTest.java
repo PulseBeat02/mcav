@@ -55,7 +55,7 @@ final class Mcv2ParserRulesTest {
 
   private byte[] withWord(final byte[] frame, final int offset, final long value) {
     final byte[] copy = frame.clone();
-    Mcv2Decoder.putU32(copy, offset, value);
+    Mcv2Decoder.putUnsignedInt(copy, offset, value);
     return copy;
   }
 
@@ -134,7 +134,7 @@ final class Mcv2ParserRulesTest {
     assertEquals(expectedLeafCount, leafCount);
 
     final int groups = (33 * 9 + 31) / 32;
-    final long checkpoint = Mcv2Decoder.u32(frame, 20 + groups * 4 + 4);
+    final long checkpoint = Mcv2Decoder.readUnsignedInt(frame, 20 + groups * 4 + 4);
     assertEquals(37, checkpoint);
 
     final String failureMessage = this.message(this.withWord(frame, 20 + groups * 4 + 4, 0));
@@ -164,7 +164,7 @@ final class Mcv2ParserRulesTest {
   void shouldRefuseTemporalLeavesInAKeyframe() {
     for (final Node node : List.of(motion(1, 1), Node.leaf(Mcv2Decoder.MODE_COMPACT, 0, new byte[10]))) {
       final byte[] frame = predicted(32, 32, node);
-      Mcv2Decoder.putU32(frame, 16, 1);
+      Mcv2Decoder.putUnsignedInt(frame, 16, 1);
       final String failureMessage = this.message(frame);
       assertEquals(INVALID_DESCRIPTOR_MESSAGE, failureMessage);
     }
@@ -172,14 +172,14 @@ final class Mcv2ParserRulesTest {
 
   private record Layout(int counts, int plane, int walk, int start) {
     private static Layout of(final byte[] frame) {
-      final int width = Mcv2Decoder.u16(frame, 8);
-      final int height = Mcv2Decoder.u16(frame, 10);
+      final int width = Mcv2Decoder.readUnsignedShort(frame, 8);
+      final int height = Mcv2Decoder.readUnsignedShort(frame, 10);
       final int roots = ((width + 31) / 32) * ((height + 31) / 32);
       final int groups = (roots + 31) / 32;
       final int counts = 20 + 4 * (groups + (groups + 7) / 8);
-      final int descriptors = (int) (Mcv2Decoder.u32(frame, counts) +
-        Mcv2Decoder.u32(frame, counts + 4) +
-        Mcv2Decoder.u32(frame, counts + 8));
+      final int descriptors = (int) (Mcv2Decoder.readUnsignedInt(frame, counts) +
+        Mcv2Decoder.readUnsignedInt(frame, counts + 4) +
+        Mcv2Decoder.readUnsignedInt(frame, counts + 8));
       final int walk = counts + 12 + descriptors;
       return new Layout(counts, counts + 12, walk, walk + 4 * ((descriptors + 7) / 8));
     }

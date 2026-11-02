@@ -120,7 +120,7 @@ final class ScoreboardRendererTest {
 
     renderer.show();
 
-    final Scoreboard board = this.scoreboards.getBoard();
+    final Scoreboard board = this.scoreboards.getNewScoreboard();
     final Objective objective = this.scoreboards.getObjective();
     final ArgumentCaptor<String> objectiveName = ArgumentCaptor.forClass(String.class);
     final Component emptyTitle = Component.empty();
@@ -148,7 +148,7 @@ final class ScoreboardRendererTest {
     final ScoreboardRenderer renderer = new ScoreboardRenderer(this.createConfiguration(3));
     renderer.show();
 
-    final Scoreboard expectedBoard = this.scoreboards.getBoard();
+    final Scoreboard expectedBoard = this.scoreboards.getNewScoreboard();
     final Scoreboard shown = this.viewer.getScoreboard();
     assertSame(expectedBoard, shown);
 
@@ -168,7 +168,7 @@ final class ScoreboardRendererTest {
     first.show();
     second.show();
 
-    final Scoreboard board = this.scoreboards.getBoard();
+    final Scoreboard board = this.scoreboards.getNewScoreboard();
     final ArgumentCaptor<String> names = ArgumentCaptor.forClass(String.class);
     verify(board, times(2)).registerNewObjective(names.capture(), any(Criteria.class), any(Component.class));
 
@@ -222,7 +222,7 @@ final class ScoreboardRendererTest {
 
     renderer.apply(lines);
 
-    final Scoreboard board = this.scoreboards.getBoard();
+    final Scoreboard board = this.scoreboards.getNewScoreboard();
     verify(board, never()).registerNewTeam(anyString());
   }
 
@@ -255,7 +255,7 @@ final class ScoreboardRendererTest {
     final ScoreboardConfiguration configuration = this.createConfiguration(2);
     final ScoreboardRenderer renderer = new ScoreboardRenderer(configuration);
     renderer.show();
-    final Scoreboard board = this.scoreboards.getBoard();
+    final Scoreboard board = this.scoreboards.getNewScoreboard();
     final CraftPlayer latecomer = this.server.addPlayer(LATE_VIEWER);
     verify(latecomer, never()).setScoreboard(board);
 
@@ -271,7 +271,7 @@ final class ScoreboardRendererTest {
     final ScoreboardConfiguration configuration = this.createConfiguration(1);
     final ScoreboardRenderer renderer = new ScoreboardRenderer(configuration);
     renderer.show();
-    final Scoreboard board = this.scoreboards.getBoard();
+    final Scoreboard board = this.scoreboards.getNewScoreboard();
     this.server.removePlayer(VIEWER);
     renderer.onTick();
     renderer.onTick();
@@ -297,7 +297,7 @@ final class ScoreboardRendererTest {
     final ScoreboardConfiguration configuration = this.createConfiguration(2);
     final ScoreboardRenderer renderer = new ScoreboardRenderer(configuration);
     renderer.show();
-    final Scoreboard board = this.scoreboards.getBoard();
+    final Scoreboard board = this.scoreboards.getNewScoreboard();
     final CraftPlayer lateViewer = this.server.addPlayer(LATE_VIEWER);
     FakeScoreboards.trackScoreboard(lateViewer, board);
 
@@ -306,7 +306,7 @@ final class ScoreboardRendererTest {
 
     final Scoreboard viewerBoard = this.viewer.getScoreboard();
     final Scoreboard lateBoard = lateViewer.getScoreboard();
-    final Scoreboard mainBoard = this.scoreboards.getMainBoard();
+    final Scoreboard mainBoard = this.scoreboards.getMainScoreboard();
     final Objective objective = this.scoreboards.getObjective();
     final List<Team> teams = this.scoreboards.getTeams();
     assertSame(this.previousBoard, viewerBoard);
@@ -404,7 +404,7 @@ final class ScoreboardRendererTest {
     final ScoreboardConfiguration configuration = this.createConfiguration(1);
     final ScoreboardRenderer renderer = new ScoreboardRenderer(configuration);
     renderer.show();
-    final Scoreboard board = this.scoreboards.getBoard();
+    final Scoreboard board = this.scoreboards.getNewScoreboard();
     this.server.setPrimaryThread(false);
     renderer.hide();
     this.server.setPrimaryThread(true);

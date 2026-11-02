@@ -90,6 +90,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InOrder;
 import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
 
 final class Mcv2ResultTest {
 
@@ -150,7 +151,7 @@ final class Mcv2ResultTest {
     this.viewers = mock(Mcv2Viewers.class);
     when(this.viewers.isLoaded(WITH_PACK)).thenReturn(true);
     this.screen = mock(Mcv2Screen.class);
-    when(this.screen.anchors()).thenReturn(List.of());
+    when(this.screen.getAnchors()).thenReturn(List.of());
     this.algorithm = mock(DitherAlgorithm.class);
     when(this.algorithm.ditherIntoBytes(any())).thenAnswer(invocation -> {
       final ImageBuffer image = invocation.getArgument(0);
@@ -548,7 +549,7 @@ final class Mcv2ResultTest {
     final Optional<Mcv2Pacer.Rung> rungBeforePacing = result.getRung();
     assertTrue(rungBeforePacing.isEmpty());
 
-    result.pace();
+    result.resetPacer();
 
     final Mcv2Pacer.Rung expectedFirstRung = Mcv2Pacer.Rung.of(64, 32, 1);
     final Mcv2Pacer.Rung firstRung = result.getRung().orElseThrow();
@@ -650,14 +651,14 @@ final class Mcv2ResultTest {
       Runnable::run
     );
     final Mcv2Screen smallScreen = mock(Mcv2Screen.class);
-    when(smallScreen.anchors()).thenReturn(List.of());
+    when(smallScreen.getAnchors()).thenReturn(List.of());
     final List<Mcv2Configuration> resized = new ArrayList<>();
     // the same height, so only the width tells the sizes apart
     result.setSmallerSizes(List.of(new int[] { 16, 32 }), configuration -> {
       resized.add(configuration);
       return new Mcv2Channel(configuration, this.viewers, configuration.getVideoWidth() == 16 ? smallScreen : this.screen);
     });
-    result.pace();
+    result.resetPacer();
     final AtomicLong fullNanoseconds = new AtomicLong(TimeUnit.MILLISECONDS.toNanos(5));
     final List<Integer> widths = new ArrayList<>();
     final Mcv2 encoder = mock(Mcv2.class);
@@ -723,6 +724,59 @@ final class Mcv2ResultTest {
   }
 
   @Test
+  void shouldStepDownToAShorterVideoOfTheSameWidth() throws InterruptedException {
+    final AtomicLong clock = new AtomicLong(TimeUnit.SECONDS.toNanos(1));
+    final Mcv2Configuration onlyPack = Mcv2Configuration.builder()
+      .viewers(List.of(WITH_PACK))
+      .origin(new Location(WORLD, 0, 64, 0))
+      .facing(BlockFace.SOUTH)
+      .map(WALL_MAP)
+      .columns(1)
+      .rows(1)
+      .video(64, 32)
+      .pageMap(PAGE_MAP)
+      .settings(Settings.FAST)
+      .maximumFrameRate(0)
+      .build();
+    final Mcv2Result result = new Mcv2Result(
+      onlyPack,
+      new Mcv2Channel(onlyPack, this.viewers, this.screen),
+      this.algorithm,
+      clock::get,
+      Runnable::run
+    );
+    final Mcv2Screen shortScreen = mock(Mcv2Screen.class);
+    when(shortScreen.getAnchors()).thenReturn(List.of());
+    result.setSmallerSizes(List.of(new int[] { 64, 16 }), configuration -> new Mcv2Channel(configuration, this.viewers, shortScreen));
+    result.resetPacer();
+    final Mcv2 encoder = mock(Mcv2.class);
+    when(encoder.encode(any(), anyInt(), anyInt(), anyLong())).thenAnswer(invocation -> this.encodeInPixelTime(clock, invocation));
+    when(encoder.getStatistics()).thenReturn(Optional.of(Mcv2.Statistics.of(1, false, 1, 1, LAMBDA)));
+    final ImageBuffer frame = Images.solid(64, 32, FRAME_COLOR);
+    result.applyFilter(frame, this.metadata);
+    this.server.runTasks();
+    // past the five seconds of warm-up, no frame rate of 64x32 fits 100 ms with room, but one of 64x16 does
+    this.play(result, clock, encoder, frame, 420);
+    this.server.runTasks();
+    verify(this.screen).remove();
+    verify(shortScreen).build();
+
+    final int shortHeight = result.getConfiguration().getVideoHeight();
+    assertEquals(16, shortHeight);
+
+    result.release();
+  }
+
+  private byte[] encodeInPixelTime(final AtomicLong clock, final InvocationOnMock invocation) {
+    final int width = invocation.getArgument(1);
+    final int height = invocation.getArgument(2);
+    // 100 ms for the full 64x32 picture, less for fewer pixels
+    final long encodeNanoseconds = (TimeUnit.MILLISECONDS.toNanos(100) * width * height) / (64 * 32);
+    clock.addAndGet(encodeNanoseconds);
+    return Mcv2ChannelTest.keyframe();
+  }
+
+  @Test
   void shouldStayAtItsLowestFrameRateWithoutDitheredMaps() throws InterruptedException {
     final AtomicLong clock = new AtomicLong();
     final Mcv2Result result = new Mcv2Result(
@@ -732,7 +786,7 @@ final class Mcv2ResultTest {
       clock::get,
       Runnable::run
     );
-    result.pace();
+    result.resetPacer();
     final Mcv2 encoder = mock(Mcv2.class);
     when(encoder.encode(any(), anyInt(), anyInt(), anyLong())).thenAnswer(_ -> {
       clock.addAndGet(TimeUnit.SECONDS.toNanos(2));
@@ -1222,7 +1276,7 @@ final class Mcv2ResultTest {
       clock::get,
       Runnable::run
     );
-    result.pace();
+    result.resetPacer();
     final AtomicLong encodeNanoseconds = new AtomicLong(TimeUnit.MILLISECONDS.toNanos(5));
     final Mcv2 encoder = mock(Mcv2.class);
     when(encoder.encode(any(), anyInt(), anyInt(), anyLong())).thenAnswer(_ -> {
@@ -1291,7 +1345,7 @@ final class Mcv2ResultTest {
       clock::get,
       Runnable::run
     );
-    result.pace();
+    result.resetPacer();
     // opened as start opens it, without the threads: the test hands the frames to the encoder itself
     result.getChannel().open();
     final AtomicLong encodeNanoseconds = new AtomicLong(TimeUnit.MILLISECONDS.toNanos(5));
@@ -1573,10 +1627,10 @@ final class Mcv2ResultTest {
     result.applyFilter(frame, this.metadata);
     verify(encoder, timeout(TimeUnit.SECONDS.toMillis(10)).times(2)).getSettings();
     this.awaitWaiting(screenThread.get());
-    verify(encoder).switchTo(Settings.DEFAULT);
+    verify(encoder).setSettings(Settings.DEFAULT);
 
     gate.countDown();
-    verify(encoder, timeout(TimeUnit.SECONDS.toMillis(10)).times(2)).switchTo(Settings.DEFAULT);
+    verify(encoder, timeout(TimeUnit.SECONDS.toMillis(10)).times(2)).setSettings(Settings.DEFAULT);
 
     result.release();
   }
@@ -1585,7 +1639,7 @@ final class Mcv2ResultTest {
     final Mcv2 encoder = this.mockEncoder(Settings.FAST, made, FinishOutcome.ENCODES, gate);
     doAnswer(_ -> this.recordThread(screenThread))
       .when(encoder)
-      .switchTo(any());
+      .setSettings(any());
     return encoder;
   }
 
@@ -1751,14 +1805,14 @@ final class Mcv2ResultTest {
   @Test
   void shouldNameThePresetsOfItsLadder() {
     final Mcv2Result live = this.result(this.packScreen(Settings.DEFAULT), null);
-    live.pace();
+    live.resetPacer();
     final Mcv2Pacer.Preset expectedPreset = Mcv2Pacer.Preset.of(DEFAULT_PRESET_NAME, 1);
     final Mcv2Pacer.Preset preset = live.getRung().orElseThrow().getPreset();
     assertEquals(expectedPreset, preset);
 
     // The fastest preset has no faster search to step through.
     final Mcv2Result fastest = this.result(this.packScreen(Settings.FAST), null);
-    fastest.pace();
+    fastest.resetPacer();
     final Mcv2Pacer.Rung expectedRung = Mcv2Pacer.Rung.of(64, 32, 1);
     final Mcv2Pacer.Rung fastestRung = fastest.getRung().orElseThrow();
     assertEquals(expectedRung, fastestRung);
@@ -1779,7 +1833,7 @@ final class Mcv2ResultTest {
       return null;
     })
       .when(encoder)
-      .switchTo(any());
+      .setSettings(any());
     when(encoder.encode(any(), anyInt(), anyInt(), anyLong())).thenAnswer(_ -> {
       final Settings now = current.get();
       final long share = now.isFast() ? 3 : 4;
@@ -1811,7 +1865,7 @@ final class Mcv2ResultTest {
     );
     final List<Mcv2Pacer.Change> changes = new ArrayList<>();
     result.setPacingListener(changes::add);
-    result.pace();
+    result.resetPacer();
     final ImageBuffer frame = Images.solid(64, 32, FRAME_COLOR);
     result.applyFilter(frame, this.metadata);
     this.server.runTasks();
@@ -1886,7 +1940,7 @@ final class Mcv2ResultTest {
       return encoder;
     }
 
-    return result.encoderFor(settings, encoder);
+    return result.switchEncoder(settings, encoder);
   }
 
   @Test
@@ -1912,7 +1966,7 @@ final class Mcv2ResultTest {
       clock::get,
       Runnable::run
     );
-    result.pace();
+    result.resetPacer();
     final AtomicLong encodeNanoseconds = new AtomicLong(TimeUnit.MILLISECONDS.toNanos(5));
     final Mcv2 encoder = mock(Mcv2.class);
     when(encoder.encode(any(), anyInt(), anyInt(), anyLong())).thenAnswer(_ -> {

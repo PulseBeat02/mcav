@@ -51,7 +51,7 @@ final class KernelDifferential {
     };
   }
 
-  private static int[] integers(final Values random, final int count, final int low, final int high) {
+  private static int[] drawIntegers(final Values random, final int count, final int low, final int high) {
     final int[] values = new int[count];
     for (int index = 0; index < count; index++) {
       values[index] = random.next(low, high);
@@ -60,7 +60,7 @@ final class KernelDifferential {
     return values;
   }
 
-  private static float[] floats(final Values random, final int count) {
+  private static float[] drawFloats(final Values random, final int count) {
     final float[] values = new float[count];
     for (int index = 0; index < count; index++) {
       values[index] = switch (random.next(0, 15)) {
@@ -74,11 +74,11 @@ final class KernelDifferential {
     return values;
   }
 
-  private static @Nullable String unless(final boolean equal, final String what) {
-    return equal ? null : what;
+  private static @Nullable String describeMismatch(final boolean equal, final String kernelName) {
+    return equal ? null : kernelName;
   }
 
-  private static boolean same(final float[] expected, final float[] actual) {
+  private static boolean isBitwiseEqual(final float[] expected, final float[] actual) {
     for (int index = 0; index < expected.length; index++) {
       if (Float.floatToRawIntBits(expected[index]) != Float.floatToRawIntBits(actual[index])) {
         return false;
@@ -88,7 +88,7 @@ final class KernelDifferential {
     return true;
   }
 
-  private static int size(final Values random) {
+  private static int drawBlockSize(final Values random) {
     return 8 << random.next(0, 2);
   }
 
@@ -97,12 +97,14 @@ final class KernelDifferential {
   }
 
   static @Nullable String compare(final Values random, final Kernels java, final Kernels other, final int kernel) {
-    final int size = size(random);
+    final int size = drawBlockSize(random);
     final int channels = size * size * 3;
-    return kernel < 4 ? scored(random, java, other, kernel, size, channels) : unscored(random, java, other, kernel, size, channels);
+    return kernel < 4
+      ? compareScored(random, java, other, kernel, size, channels)
+      : compareUnscored(random, java, other, kernel, size, channels);
   }
 
-  private static @Nullable String scored(
+  private static @Nullable String compareScored(
     final Values random,
     final Kernels java,
     final Kernels other,
@@ -110,8 +112,8 @@ final class KernelDifferential {
     final int size,
     final int channels
   ) {
-    final int[] source = integers(random, channels, 0, 255);
-    final int[] prediction = integers(random, channels, 0, 255);
+    final int[] source = drawIntegers(random, channels, 0, 255);
+    final int[] prediction = drawIntegers(random, channels, 0, 255);
     final double rate = random.next(0, 100_000) / 7.0;
     // an infinite limit, or one some candidates cross part way through the block
     final double limit = random.next(0, 3) == 0 ? Double.POSITIVE_INFINITY : rate + random.next(0, size * size * 3000);
@@ -153,14 +155,14 @@ final class KernelDifferential {
       return "%s finished".formatted(name);
     }
 
-    if (finishedJava && java.distortion() != other.distortion()) {
+    if (finishedJava && java.getDistortion() != other.getDistortion()) {
       return "%s distortion".formatted(name);
     }
 
-    return unless(Arrays.equals(expected, actual), "%s reconstruction".formatted(name));
+    return describeMismatch(Arrays.equals(expected, actual), "%s reconstruction".formatted(name));
   }
 
-  private static @Nullable String unscored(
+  private static @Nullable String compareUnscored(
     final Values random,
     final Kernels java,
     final Kernels other,
@@ -169,16 +171,16 @@ final class KernelDifferential {
     final int channels
   ) {
     return switch (kernel) {
-      case 4 -> predict(random, java, other, size, channels);
-      case 5 -> fit(random, java, other, size);
-      case 6 -> cluster(random, java, other, size, channels);
-      case 7, 8 -> palettes(random, java, other, kernel, size, channels);
-      case 9 -> seeded(random, java, other, size, channels);
-      default -> helpers(random, java, other, kernel, size, channels);
+      case 4 -> comparePredict(random, java, other, size, channels);
+      case 5 -> compareFit(random, java, other, size);
+      case 6 -> compareCluster(random, java, other, size, channels);
+      case 7, 8 -> comparePalettes(random, java, other, kernel, size, channels);
+      case 9 -> compareSeeded(random, java, other, size, channels);
+      default -> compareHelpers(random, java, other, kernel, size, channels);
     };
   }
 
-  private static @Nullable String predict(
+  private static @Nullable String comparePredict(
     final Values random,
     final Kernels java,
     final Kernels other,
@@ -196,19 +198,19 @@ final class KernelDifferential {
     final int[] actual = new int[channels];
     java.predict(reference, width, height, blockLeft, blockTop, size, motionX, motionY, expected);
     other.predict(reference, width, height, blockLeft, blockTop, size, motionX, motionY, actual);
-    return unless(Arrays.equals(expected, actual), "predict");
+    return describeMismatch(Arrays.equals(expected, actual), "predict");
   }
 
-  private static @Nullable String fit(final Values random, final Kernels java, final Kernels other, final int size) {
-    final float[] values = floats(random, size * size);
-    final float[] expected = floats(random, 18);
+  private static @Nullable String compareFit(final Values random, final Kernels java, final Kernels other, final int size) {
+    final float[] values = drawFloats(random, size * size);
+    final float[] expected = drawFloats(random, 18);
     final float[] actual = expected.clone();
     java.fit(values, size, expected);
     other.fit(values, size, actual);
-    return unless(same(expected, actual), "fit");
+    return describeMismatch(isBitwiseEqual(expected, actual), "fit");
   }
 
-  private static @Nullable String cluster(
+  private static @Nullable String compareCluster(
     final Values random,
     final Kernels java,
     final Kernels other,
@@ -218,16 +220,16 @@ final class KernelDifferential {
     final int low = random.next(0, 255);
     final int[] source =
       random.next(0, 7) == 0
-        ? integers(random, channels, EXTREME_LOW, EXTREME_HIGH)
-        : integers(random, channels, low, Math.min(255, low + (random.next(0, 1) == 0 ? 8 : 255)));
+        ? drawIntegers(random, channels, EXTREME_LOW, EXTREME_HIGH)
+        : drawIntegers(random, channels, low, Math.min(255, low + (random.next(0, 1) == 0 ? 8 : 255)));
     final int[] expected = new int[6];
     final int[] actual = new int[6];
     java.cluster(source, size, expected);
     other.cluster(source, size, actual);
-    return unless(Arrays.equals(expected, actual), "cluster");
+    return describeMismatch(Arrays.equals(expected, actual), "cluster");
   }
 
-  private static @Nullable String palettes(
+  private static @Nullable String comparePalettes(
     final Values random,
     final Kernels java,
     final Kernels other,
@@ -235,7 +237,7 @@ final class KernelDifferential {
     final int size,
     final int channels
   ) {
-    final int[] source = integers(random, channels, 0, 255);
+    final int[] source = drawIntegers(random, channels, 0, 255);
     if (random.next(0, 1) == 0) {
       // every row the first, so a pattern holds
       for (int row = 1; row < size; row++) {
@@ -255,21 +257,30 @@ final class KernelDifferential {
     if (kernel == 7) {
       java.finishPalette(source, size * size, endpoints, expectedColors, expected);
       other.finishPalette(source, size * size, endpoints, actualColors, actual);
-      return unless(Arrays.equals(expectedColors, actualColors) && Arrays.equals(expected, actual), "finishPalette");
+      return describeMismatch(Arrays.equals(expectedColors, actualColors) && Arrays.equals(expected, actual), "finishPalette");
     }
 
-    final boolean held = java.finishPattern(source, size, endpoints, expectedColors, expected);
-    final boolean holds = other.finishPattern(source, size, endpoints, actualColors, actual);
-    return unless(held == holds && Arrays.equals(expectedColors, actualColors) && Arrays.equals(expected, actual), "finishPattern");
+    final boolean heldJava = java.finishPattern(source, size, endpoints, expectedColors, expected);
+    final boolean heldOther = other.finishPattern(source, size, endpoints, actualColors, actual);
+    return describeMismatch(
+      heldJava == heldOther && Arrays.equals(expectedColors, actualColors) && Arrays.equals(expected, actual),
+      "finishPattern"
+    );
   }
 
-  private static @Nullable String seeded(final Values random, final Kernels java, final Kernels other, final int size, final int channels) {
+  private static @Nullable String compareSeeded(
+    final Values random,
+    final Kernels java,
+    final Kernels other,
+    final int size,
+    final int channels
+  ) {
     final int width = random.next(1, 120);
     final int height = random.next(1, 90);
     final byte[] reference = random.bytes(width * height * 3);
     final int blockLeft = random.next(0, width - 1);
     final int blockTop = random.next(0, height - 1);
-    final int[] source = integers(random, channels, 0, 255);
+    final int[] source = drawIntegers(random, channels, 0, 255);
     if (random.next(0, 1) == 0) {
       // the block itself, so the search has a place to go
       java.loadSource(reference, width, height, blockLeft, blockTop, size, source);
@@ -288,10 +299,10 @@ final class KernelDifferential {
     final int range = random.next(0, 24);
     final int expected = java.seeded(reference, width, height, source, blockLeft, blockTop, size, range, seeds);
     final int actual = other.seeded(reference, width, height, source, blockLeft, blockTop, size, range, seeds);
-    return unless(expected == actual, "seeded");
+    return describeMismatch(expected == actual, "seeded");
   }
 
-  private static @Nullable String helpers(
+  private static @Nullable String compareHelpers(
     final Values random,
     final Kernels java,
     final Kernels other,
@@ -300,7 +311,7 @@ final class KernelDifferential {
     final int channels
   ) {
     final int count = size * size;
-    final int[] source = integers(random, channels, 0, 255);
+    final int[] source = drawIntegers(random, channels, 0, 255);
     return switch (kernel) {
       case 10 -> {
         final int width = random.next(1, 70);
@@ -312,23 +323,23 @@ final class KernelDifferential {
         final int[] actual = new int[channels];
         java.loadSource(image, width, height, blockLeft, blockTop, size, expected);
         other.loadSource(image, width, height, blockLeft, blockTop, size, actual);
-        yield unless(Arrays.equals(expected, actual), "loadSource");
+        yield describeMismatch(Arrays.equals(expected, actual), "loadSource");
       }
       case 11 -> {
         final int[] expected = new int[channels / 4];
         final int[] actual = new int[channels / 4];
         java.halve(source, size, expected);
         other.halve(source, size, actual);
-        yield unless(Arrays.equals(expected, actual), "halve");
+        yield describeMismatch(Arrays.equals(expected, actual), "halve");
       }
       default -> {
         final int pixels = random.next(0, count);
-        final int[] prediction = integers(random, channels, 0, 255);
-        final float[] expected = floats(random, count + 2);
+        final int[] prediction = drawIntegers(random, channels, 0, 255);
+        final float[] expected = drawFloats(random, count + 2);
         final float[] actual = expected.clone();
         java.residualTarget(source, prediction, pixels, expected);
         other.residualTarget(source, prediction, pixels, actual);
-        yield unless(same(expected, actual), "residualTarget");
+        yield describeMismatch(isBitwiseEqual(expected, actual), "residualTarget");
       }
     };
   }

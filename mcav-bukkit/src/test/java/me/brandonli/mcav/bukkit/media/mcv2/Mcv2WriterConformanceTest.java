@@ -39,7 +39,7 @@ final class Mcv2WriterConformanceTest {
 
   private static Stream<String> streams() {
     return Stream.of("conformance", "edge").flatMap(folder ->
-      Mcv2Fixtures.digests(folder)
+      Mcv2Fixtures.readDigests(folder)
         .keySet()
         .stream()
         .map(name -> folder + PATH_SEPARATOR + name)
@@ -49,7 +49,7 @@ final class Mcv2WriterConformanceTest {
   @ParameterizedTest
   @MethodSource("streams")
   void shouldRebuildEveryCommittedFrameByteForByte(final String name) {
-    final List<byte[]> frames = Mcv2Fixtures.frames(Mcv2Fixtures.read(name));
+    final List<byte[]> frames = Mcv2Fixtures.splitFrames(Mcv2Fixtures.read(name));
     final List<byte[]> canonical =
       name.startsWith(EDGE_FOLDER) &&
       List.of(
@@ -60,7 +60,7 @@ final class Mcv2WriterConformanceTest {
         EDGE_TINY_STREAM,
         EDGE_VERTICAL_STREAM
       ).contains(name.substring(5))
-        ? Mcv2Fixtures.frames(Mcv2Fixtures.read(WRITER_CANONICAL_FOLDER + name.substring(5)))
+        ? Mcv2Fixtures.splitFrames(Mcv2Fixtures.read(WRITER_CANONICAL_FOLDER + name.substring(5)))
         : frames;
     for (int index = 0; index < frames.size(); index++) {
       final byte[] data = frames.get(index);

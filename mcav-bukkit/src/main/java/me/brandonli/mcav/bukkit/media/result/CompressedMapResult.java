@@ -179,7 +179,7 @@ public class CompressedMapResult implements DitherResultStep {
 
     final int width = samples.getWidth();
     final int height = samples.getHeight();
-    final DeltaMapEncoder currentEncoder = this.getEncoder(width, height);
+    final DeltaMapEncoder currentEncoder = this.createEncoderIfLayoutChanged(width, height);
     final List<MapTilePatch> patches = currentEncoder.encode(dithered);
     this.sendToViewers(currentEncoder, patches);
   }
@@ -301,7 +301,7 @@ public class CompressedMapResult implements DitherResultStep {
     final Collection<UUID> viewers = this.configuration.getViewers();
     final Set<UUID> connectedViewers = new HashSet<>();
     for (final UUID viewer : viewers) {
-      final @Nullable Object connection = PacketUtils.connectionIdentity(viewer).orElse(null);
+      final @Nullable Object connection = PacketUtils.findConnectionIdentity(viewer).orElse(null);
       if (connection == null) {
         continue;
       }
@@ -315,7 +315,7 @@ public class CompressedMapResult implements DitherResultStep {
     this.activeViewers.keySet().retainAll(connectedViewers);
   }
 
-  private DeltaMapEncoder getEncoder(final int width, final int height) {
+  private DeltaMapEncoder createEncoderIfLayoutChanged(final int width, final int height) {
     final int startMapId = this.configuration.getMap();
     final int columns = this.configuration.getMapBlockWidth();
     final int rows = this.configuration.getMapBlockHeight();

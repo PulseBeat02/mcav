@@ -154,7 +154,7 @@ final class Mcv2KernelPropertyTest {
     assertArrayEquals(reconstruction, repeated);
 
     final long distortion = this.distortion(source, reconstruction);
-    final long measured = kernels.distortion();
+    final long measured = kernels.getDistortion();
     assertEquals(distortion, measured);
 
     final double cost = distortion / 96.0 + rate;
@@ -166,7 +166,7 @@ final class Mcv2KernelPropertyTest {
     final boolean finishedPastTheLimit = kernel.run(kernels, new int[source.length]);
     assertTrue(finishedPastTheLimit);
 
-    final long measuredPastTheLimit = kernels.distortion();
+    final long measuredPastTheLimit = kernels.getDistortion();
     assertEquals(distortion, measuredPastTheLimit);
   }
 

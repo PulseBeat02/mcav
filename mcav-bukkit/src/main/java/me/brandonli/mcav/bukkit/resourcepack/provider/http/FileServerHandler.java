@@ -123,13 +123,13 @@ final class FileServerHandler extends ChannelInboundHandlerAdapter {
         return;
       }
 
-      this.collect(context, buffer, data);
+      this.collectAndRespond(context, buffer, data);
     } finally {
       ReferenceCountUtil.release(message);
     }
   }
 
-  private void collect(final ChannelHandlerContext context, final ByteBuf buffer, final ByteBuf data) {
+  private void collectAndRespond(final ChannelHandlerContext context, final ByteBuf buffer, final ByteBuf data) {
     // only the headers count against the limit, so a read that ends them may carry more, which is never looked at
     final int incoming = data.readableBytes();
     final int available = buffer.maxWritableBytes();

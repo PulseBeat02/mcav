@@ -111,8 +111,8 @@ final class Mcv2DecoderTest {
 
   @Test
   void shouldDecodeTheSamePictureOnAnyNumberOfWorkers() {
-    final String stream = Mcv2Fixtures.digests(CONFORMANCE_FOLDER).keySet().iterator().next();
-    final List<byte[]> frames = Mcv2Fixtures.frames(Mcv2Fixtures.read(CONFORMANCE_PREFIX + stream));
+    final String stream = Mcv2Fixtures.readDigests(CONFORMANCE_FOLDER).keySet().iterator().next();
+    final List<byte[]> frames = Mcv2Fixtures.splitFrames(Mcv2Fixtures.read(CONFORMANCE_PREFIX + stream));
     try (final ForkJoinPool pool = new ForkJoinPool(4)) {
       byte[] reference = null;
       for (final byte[] data : frames) {
@@ -143,8 +143,8 @@ final class Mcv2DecoderTest {
 
   @Test
   void shouldDecodeAPFrameIntoThePictureItIsPredictedFrom() {
-    final String stream = Mcv2Fixtures.digests(CONFORMANCE_FOLDER).keySet().iterator().next();
-    final List<byte[]> frames = Mcv2Fixtures.frames(Mcv2Fixtures.read(CONFORMANCE_PREFIX + stream));
+    final String stream = Mcv2Fixtures.readDigests(CONFORMANCE_FOLDER).keySet().iterator().next();
+    final List<byte[]> frames = Mcv2Fixtures.splitFrames(Mcv2Fixtures.read(CONFORMANCE_PREFIX + stream));
     byte[] reference = null;
     byte[] reused = null;
     for (int index = 0; index < frames.size(); index++) {

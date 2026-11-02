@@ -83,7 +83,7 @@ public final class Mcv2Screen {
    *
    * @since 1.0.0
    */
-  public static final String TEAM = "mcav_mcv2";
+  public static final String TEAM_PREFIX = "mcav_mcv2";
 
   private static final String PLAYER_NULL_MESSAGE = "Player must not be null!";
 
@@ -127,7 +127,7 @@ public final class Mcv2Screen {
     Preconditions.checkNotNull(configuration, "Configuration must not be null!");
 
     this.configuration = configuration;
-    this.teamName = TEAM + Integer.toUnsignedString(NEXT_TEAM_ID.getAndIncrement(), Character.MAX_RADIX);
+    this.teamName = TEAM_PREFIX + Integer.toUnsignedString(NEXT_TEAM_ID.getAndIncrement(), Character.MAX_RADIX);
     this.frames = new ArrayList<>();
     this.chunks = new LinkedHashSet<>();
   }
@@ -205,9 +205,9 @@ public final class Mcv2Screen {
       player.showEntity(plugin, frame);
     }
 
-    final List<UUID> viewer = List.of(player.getUniqueId());
-    PacketUtils.sendPackets(viewer, ClientboundSetPlayerTeamPacket.createAddOrModifyPacket(this.team(), true));
-    MapPacketFactory.send(viewer, this.anchors());
+    final List<UUID> viewers = List.of(player.getUniqueId());
+    PacketUtils.sendPackets(viewers, ClientboundSetPlayerTeamPacket.createAddOrModifyPacket(this.createTeam(), true));
+    MapPacketFactory.send(viewers, this.getAnchors());
   }
 
   /**
@@ -226,7 +226,7 @@ public final class Mcv2Screen {
       player.hideEntity(plugin, frame);
     }
 
-    PacketUtils.sendPackets(List.of(player.getUniqueId()), ClientboundSetPlayerTeamPacket.createRemovePacket(this.team()));
+    PacketUtils.sendPackets(List.of(player.getUniqueId()), ClientboundSetPlayerTeamPacket.createRemovePacket(this.createTeam()));
   }
 
   /**
@@ -257,7 +257,7 @@ public final class Mcv2Screen {
     }
   }
 
-  PlayerTeam team() {
+  PlayerTeam createTeam() {
     final PlayerTeam team = new PlayerTeam(new Scoreboard(), this.teamName);
     final String name = NamedTextColor.NAMES.keyOrThrow(this.configuration.getOutlineColor());
     team.setColor(Optional.of(TeamColor.valueOf(name.toUpperCase(Locale.ROOT))));
@@ -270,12 +270,22 @@ public final class Mcv2Screen {
   }
 
   /**
+   * Returns the page frames.
+   *
+   * @return an unmodifiable list snapshot in wall order, containing live screen-owned entity references
+   * @since 1.0.0
+   */
+  public List<ItemFrame> getFrames() {
+    return List.copyOf(this.frames);
+  }
+
+  /**
    * Returns the anchor row of every wall map.
    *
    * @return one patch per map, row 0 only
    * @since 1.0.0
    */
-  public List<MapTilePatch> anchors() {
+  public List<MapTilePatch> getAnchors() {
     final int columns = this.configuration.getColumns();
     final int rows = this.configuration.getRows();
     final int facing = this.configuration.getFacingCode();
@@ -311,16 +321,6 @@ public final class Mcv2Screen {
     }
 
     return symbols;
-  }
-
-  /**
-   * Returns the page frames.
-   *
-   * @return an unmodifiable list snapshot in wall order, containing live screen-owned entity references
-   * @since 1.0.0
-   */
-  public List<ItemFrame> getFrames() {
-    return List.copyOf(this.frames);
   }
 
   private record HeldChunk(World world, int chunkX, int chunkZ) {}

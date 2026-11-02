@@ -79,7 +79,7 @@ final class ResourcePackFuzzTest {
   void shouldWriteOnlySafeEntriesAndExactlyTheAcceptedData(final FuzzedDataProvider data) throws IOException {
     final SimpleResourcePack pack = SimpleResourcePack.pack();
     final String description = data.consumeString(64);
-    pack.meta(data.consumeInt(1, 100), description);
+    pack.metadata(data.consumeInt(1, 100), description);
     final List<String> acceptedSounds = new ArrayList<>();
     final int additions = data.consumeInt(0, 4);
     for (int addition = 0; addition < additions; addition++) {

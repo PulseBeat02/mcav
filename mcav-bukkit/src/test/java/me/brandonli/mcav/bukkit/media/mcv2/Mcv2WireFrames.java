@@ -105,7 +105,7 @@ final class Mcv2WireFrames {
     }
   }
 
-  static long read(final byte[] data, final int offset) {
+  static long readUnsignedInt(final byte[] data, final int offset) {
     return (data[offset] & 255L) | ((data[offset + 1] & 255L) << 8) | ((data[offset + 2] & 255L) << 16) | ((data[offset + 3] & 255L) << 24);
   }
 }

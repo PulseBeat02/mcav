@@ -56,15 +56,15 @@ final class PageAssemblerTest {
   private static byte[] rewritten(final byte[] page, final int offset, final long value) {
     final byte[] raw = TransportPages.fromSymbols(page, (page.length * 6) / 8);
     if (offset == 6 || offset == 16 || offset == 18) {
-      Mcv2Decoder.putU16(raw, offset, (int) value);
+      Mcv2Decoder.putUnsignedShort(raw, offset, (int) value);
     } else {
-      Mcv2Decoder.putU32(raw, offset, value);
+      Mcv2Decoder.putUnsignedInt(raw, offset, value);
     }
 
-    Mcv2Decoder.putU32(raw, 28, 0);
+    Mcv2Decoder.putUnsignedInt(raw, 28, 0);
     final CRC32 crc = new CRC32();
     crc.update(raw);
-    Mcv2Decoder.putU32(raw, 28, crc.getValue());
+    Mcv2Decoder.putUnsignedInt(raw, 28, crc.getValue());
     return TransportPages.toSymbols(raw);
   }
 

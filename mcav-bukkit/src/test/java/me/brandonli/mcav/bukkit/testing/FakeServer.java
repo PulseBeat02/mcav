@@ -192,7 +192,7 @@ public final class FakeServer implements AutoCloseable {
   public CraftPlayer addPlayer(final UUID uuid) {
     final CraftPlayer player = mock(CraftPlayer.class);
     final ServerPlayer handle = mock(ServerPlayer.class);
-    final ServerGamePacketListenerImpl connection = mock(ServerGamePacketListenerImpl.class);
+    final ServerGamePacketListenerImpl packetListener = mock(ServerGamePacketListenerImpl.class);
     final List<Packet<?>> packets = new CopyOnWriteArrayList<>();
     final List<ChannelFutureListener> pending = new CopyOnWriteArrayList<>();
     doAnswer(invocation -> {
@@ -200,12 +200,12 @@ public final class FakeServer implements AutoCloseable {
       packets.add(packet);
       return null;
     })
-      .when(connection)
+      .when(packetListener)
       .send(any(Packet.class));
-    final Connection network = connection();
-    network.channel = recordingChannel(packets, pending);
-    connect(connection, network);
-    handle.connection = connection;
+    final Connection connection = mockConnection();
+    connection.channel = mockRecordingChannel(packets, pending);
+    connect(packetListener, connection);
+    handle.connection = packetListener;
     // visibility as Paper keeps it: a grant inverts an entity's visibility by default, per session
     final Set<Entity> inverted = ConcurrentHashMap.newKeySet();
     doAnswer(invocation -> {
@@ -248,7 +248,7 @@ public final class FakeServer implements AutoCloseable {
   }
 
   // the connection class reads Paper's global configuration when it loads, so that is stubbed meanwhile
-  public static Connection connection() {
+  public static Connection mockConnection() {
     final GlobalConfiguration configuration = mock(GlobalConfiguration.class);
     configuration.misc = mock(GlobalConfiguration.Misc.class);
     try (final MockedStatic<GlobalConfiguration> global = Mockito.mockStatic(GlobalConfiguration.class)) {
@@ -267,7 +267,7 @@ public final class FakeServer implements AutoCloseable {
     }
   }
 
-  private static Channel recordingChannel(final List<Packet<?>> packets, final List<ChannelFutureListener> pending) {
+  private static Channel mockRecordingChannel(final List<Packet<?>> packets, final List<ChannelFutureListener> pending) {
     final Channel channel = mock(Channel.class);
     final ChannelFuture write = mock(ChannelFuture.class);
     when(write.addListener(any())).thenAnswer(invocation -> {

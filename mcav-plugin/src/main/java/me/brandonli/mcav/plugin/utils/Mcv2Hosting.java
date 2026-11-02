@@ -65,7 +65,7 @@ public enum Mcv2Hosting {
   public Function<Path, PackHosting> hosting(final String host, final int port) {
     return switch (this) {
       case INJECTOR -> PackHosting::injector;
-      case HTTP -> zip -> PackHosting.http(zip, host.isEmpty() ? ServerAddress.getPublicIpAddress() : host, port);
+      case HTTP -> zip -> PackHosting.http(zip, host.isEmpty() ? ServerAddress.getPublicAddress() : host, port);
       case WEBSITE -> PackHosting::website;
     };
   }

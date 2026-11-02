@@ -78,7 +78,8 @@ import org.slf4j.LoggerFactory;
  *
  * <p>A {@link Mcv2Pacer} keeps the screen within what its budget sustains: when the frames take longer than the video
  * gives them, it first searches less hard, down the preset ladder from the screen's settings
- * ({@code DEFAULT}, then {@code FAST}) on one encoder that switches without a keyframe; then it encodes fewer frames, down to {@link Mcv2Pacer#MINIMUM_FRAME_RATE} a second,
+ * ({@code DEFAULT}, then {@code FAST}) on one encoder that switches without a keyframe; then it encodes fewer frames,
+ * down to {@link Mcv2Pacer#MINIMUM_FRAMES_PER_SECOND} a second,
  * then shows a smaller video when the owner offers smaller sizes ({@link #setSmallerSizes}: each size has its own pack),
  * and when even that is too much, every viewer is shown the dithered maps, which need no encoder, until a later try
  * finds room again. Every step is logged, a step down as a warning, and handed to the
@@ -369,30 +370,30 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     final Pool encoderPool = this.requested.getEncoderPool();
     final Mcv2 encoder = this.encoders.apply(this.ladder.getFirst());
 
-    final Thread thread = Thread.ofPlatform()
+    final Thread worker = Thread.ofPlatform()
       .daemon()
       .name("mcav-mcv2-screen")
       .unstarted(() -> this.encodeLoop(encoder));
 
     final BlockingQueue<Handoff> queue = new SynchronousQueue<>();
     final Pipeline started = new Pipeline(encoderPool, queue);
-    final Thread delivery = Thread.ofPlatform()
+    final Thread sender = Thread.ofPlatform()
       .daemon()
       .name("mcav-mcv2-sender")
-      .unstarted(() -> this.deliverLoop(started, thread));
-    this.pace();
+      .unstarted(() -> this.deliverLoop(started, worker));
+    this.resetPacer();
     synchronized (this.lock) {
       this.pipeline = started;
-      this.worker = thread;
-      this.sender = delivery;
+      this.worker = worker;
+      this.sender = sender;
       this.handed = 0;
       this.delivered = 0;
       this.running = true;
       this.pending.open();
     }
 
-    delivery.start();
-    thread.start();
+    sender.start();
+    worker.start();
   }
 
   /**
@@ -538,7 +539,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     event.colors = colors;
     event.arrived = delivery.source.arrived;
     event.sent = System.currentTimeMillis();
-    event.encode = delivery.statistics.getNanoseconds();
+    event.encodeTime = delivery.statistics.getNanoseconds();
     event.sentTo = (int) (after[SENT] - before[SENT]);
     event.behind = (int) (after[BEHIND] - before[BEHIND]);
     event.waiting = (int) (after[UNDECODABLE] - before[UNDECODABLE]);
@@ -556,7 +557,8 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     try {
       thread.join(TimeUnit.SECONDS.toMillis(JOIN_SECONDS));
     } catch (final InterruptedException exception) {
-      Thread.currentThread().interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
     }
   }
 
@@ -576,7 +578,8 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     try {
       this.encodeArrivals(first);
     } catch (final InterruptedException exception) {
-      Thread.currentThread().interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
     } catch (final RuntimeException exception) {
       LOGGER.error("The MCV2 screen stops: encoding a frame failed.", exception);
     } finally {
@@ -591,7 +594,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
       final Settings settings = this.settingsFor(arrival);
       if (!settings.equals(encoder.getSettings())) {
         this.drain();
-        encoder = this.encoderFor(settings, encoder);
+        encoder = this.switchEncoder(settings, encoder);
       }
       this.send(encoder, arrival, frameId);
       frameId = (frameId + 1) & Mcv2Decoder.MAXIMUM_UNSIGNED_INT;
@@ -602,12 +605,12 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     return this.ladder.get(this.presets.indexOf(arrival.preset));
   }
 
-  Mcv2 encoderFor(final Settings settings, final Mcv2 encoder) {
-    encoder.switchTo(settings);
+  Mcv2 switchEncoder(final Settings settings, final Mcv2 encoder) {
+    encoder.setSettings(settings);
     return encoder;
   }
 
-  void pace() {
+  void resetPacer() {
     final List<int[]> sizes = new ArrayList<>();
     sizes.add(new int[] { this.requested.getVideoWidth(), this.requested.getVideoHeight() });
     sizes.addAll(this.smaller);
@@ -683,7 +686,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     final Mcv2FrameKind kind,
     final long finished
   ) {
-    final Optional<Mcv2Pacer.Change> change = screenPacer.encoded(encodeMilliseconds, kind, finished);
+    final Optional<Mcv2Pacer.Change> change = screenPacer.reportEncodedFrame(encodeMilliseconds, kind, finished);
     change.ifPresent(this::follow);
 
     return change;
@@ -698,8 +701,8 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   }
 
   private void stopPipeline(final @Nullable Pipeline stopped) {
-    final Thread screenThread;
-    final Thread delivery;
+    final Thread worker;
+    final Thread sender;
     synchronized (this.lock) {
       final Pipeline current = this.pipeline;
 
@@ -711,27 +714,28 @@ public final class Mcv2Result implements FunctionalVideoFilter {
       this.pending.close();
       this.lock.notifyAll();
 
-      screenThread = Objects.requireNonNull(this.worker, "A running pipeline has its screen's thread!");
-      delivery = Objects.requireNonNull(this.sender, "A running pipeline has its sender!");
+      worker = Objects.requireNonNull(this.worker, "A running pipeline has its screen's thread!");
+      sender = Objects.requireNonNull(this.sender, "A running pipeline has its sender!");
     }
 
-    screenThread.interrupt();
-    delivery.interrupt();
+    worker.interrupt();
+    sender.interrupt();
   }
 
-  private void deliverLoop(final Pipeline running, final Thread screenThread) {
+  private void deliverLoop(final Pipeline running, final Thread worker) {
     try {
       while (true) {
         this.deliverNext(running);
       }
     } catch (final InterruptedException exception) {
-      Thread.currentThread().interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
     } catch (final RuntimeException exception) {
       LOGGER.error("The MCV2 screen stops: verifying or sending a frame failed.", exception);
     } finally {
       this.stopPipeline(running);
       // Interrupt even after release clears the pipeline, or the screen thread can wait forever.
-      screenThread.interrupt();
+      worker.interrupt();
     }
   }
 
@@ -809,11 +813,12 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     }
 
     Screen target = current;
-    if (this.size(rung.getWidth(), rung.getHeight()) != this.size(configuration.getVideoWidth(), configuration.getVideoHeight())) {
+    final boolean sameSize = rung.getWidth() == configuration.getVideoWidth() && rung.getHeight() == configuration.getVideoHeight();
+    if (!sameSize) {
       current.channel().close();
       this.opened = false;
-      final Mcv2Configuration size = this.requested.withVideo(rung.getWidth(), rung.getHeight());
-      target = new Screen(size, Preconditions.checkNotNull(this.resizer).resize(size));
+      final Mcv2Configuration resized = this.requested.withVideo(rung.getWidth(), rung.getHeight());
+      target = new Screen(resized, Preconditions.checkNotNull(this.resizer).resize(resized));
       this.screen = target;
     }
 
@@ -844,22 +849,22 @@ public final class Mcv2Result implements FunctionalVideoFilter {
    */
   @Override
   public void release() {
-    final Thread thread;
-    final Thread delivery;
+    final Thread worker;
+    final Thread sender;
     synchronized (this.lock) {
       this.running = false;
       this.pending.close();
       this.lock.notifyAll();
-      thread = this.worker;
-      delivery = this.sender;
+      worker = this.worker;
+      sender = this.sender;
       this.worker = null;
       this.sender = null;
       this.pipeline = null;
       this.pacer = null;
     }
 
-    this.stop(thread);
-    this.stop(delivery);
+    this.stop(worker);
+    this.stop(sender);
     this.screen.channel().close();
     this.opened = false;
     // Encoded viewers retain anchor maps, which keep their last decoded picture visible.
@@ -876,10 +881,6 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     if (dithered != null) {
       dithered.result().release();
     }
-  }
-
-  private long size(final int width, final int height) {
-    return ((long) width << Integer.SIZE) | height;
   }
 
   /**

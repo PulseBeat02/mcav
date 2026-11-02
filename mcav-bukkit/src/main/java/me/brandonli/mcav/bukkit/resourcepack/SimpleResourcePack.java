@@ -56,7 +56,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * final String zipName = "pack.zip";
  * final Path zip = Path.of(zipName);
  * final SimpleResourcePack pack = SimpleResourcePack.pack();
- * pack.meta(packFormat, "MCAV audio");
+ * pack.metadata(packFormat, "MCAV audio");
  * pack.sound(soundKey, oggFile);
  * pack.zip(zip);
  * }
@@ -84,7 +84,7 @@ public final class SimpleResourcePack {
 
   private static final Gson GSON = createGson();
 
-  private static final String PACK_META_ENTRY = "pack.mcmeta";
+  private static final String PACK_METADATA_ENTRY = "pack.mcmeta";
 
   private static final String TEMPORARY_FILE_PREFIX = "mcav-pack";
 
@@ -157,8 +157,8 @@ public final class SimpleResourcePack {
     final boolean validKey = keyMatcher.matches();
     Preconditions.checkArgument(validKey, "Sound key %s is invalid!", key);
 
-    final boolean exists = Files.isRegularFile(path);
-    Preconditions.checkArgument(exists, "Sound file %s does not exist!", path);
+    final boolean regularFile = Files.isRegularFile(path);
+    Preconditions.checkArgument(regularFile, "Sound file %s is not a regular file!", path);
 
     final int separator = key.indexOf(NAMESPACE_SEPARATOR);
     final String namespace = key.substring(0, separator);
@@ -180,7 +180,7 @@ public final class SimpleResourcePack {
    *
    * @param path the location of the file inside the resource pack, such as {@code assets/mcav/texts/credits.txt}
    * @param file the file to add
-   * @throws IllegalArgumentException if the location is invalid or reserved, or the file does not exist
+   * @throws IllegalArgumentException if the location is invalid or reserved, or the file is not a regular file
    * @throws NullPointerException     if {@code path} or {@code file} is null
    * @since 1.0.0
    */
@@ -189,8 +189,8 @@ public final class SimpleResourcePack {
     Preconditions.checkNotNull(file, "File must not be null!");
     this.checkEntryPath(path);
 
-    final boolean exists = Files.isRegularFile(file);
-    Preconditions.checkArgument(exists, "File %s does not exist!", file);
+    final boolean regularFile = Files.isRegularFile(file);
+    Preconditions.checkArgument(regularFile, "File %s is not a regular file!", file);
 
     this.contents.remove(path);
     this.files.put(path, file);
@@ -245,7 +245,7 @@ public final class SimpleResourcePack {
    * @throws NullPointerException     if {@code description} is null
    * @since 1.0.0
    */
-  public void meta(final int format, final String description) {
+  public void metadata(final int format, final String description) {
     Preconditions.checkArgument(format > 0, "Pack format %s must be positive!", format);
     Preconditions.checkNotNull(description, "Description must not be null!");
 
@@ -260,7 +260,7 @@ public final class SimpleResourcePack {
    * separate web server can serve it.
    *
    * @param destination the destination path of the zipped resource pack
-   * @throws IllegalStateException    if {@link #meta(int, String)} was never called
+   * @throws IllegalStateException    if {@link #metadata(int, String)} was never called
    * @throws IllegalArgumentException if the destination is a root directory
    * @throws BukkitException          if the pack could not be written
    * @throws NullPointerException     if {@code destination} is null
@@ -271,7 +271,7 @@ public final class SimpleResourcePack {
 
     final String packDescription = this.description;
     if (packDescription == null) {
-      final String message = "Pack metadata must be set using meta(format, description)!";
+      final String message = "Pack metadata must be set using metadata(format, description)!";
       throw new IllegalStateException(message);
     }
 
@@ -325,8 +325,8 @@ public final class SimpleResourcePack {
 
   private void writeZip(final Path target, final String packDescription) throws IOException {
     try (final OutputStream fileOutput = Files.newOutputStream(target); final ZipOutputStream zip = new ZipOutputStream(fileOutput)) {
-      final String packMeta = this.createPackMeta(packDescription);
-      this.writeEntry(zip, PACK_META_ENTRY, packMeta);
+      final String packMetadata = this.createPackMetadata(packDescription);
+      this.writeEntry(zip, PACK_METADATA_ENTRY, packMetadata);
       this.writeSounds(zip);
       for (final Map.Entry<String, Path> entry : this.files.entrySet()) {
         final String name = entry.getKey();
@@ -341,7 +341,7 @@ public final class SimpleResourcePack {
     }
   }
 
-  private String createPackMeta(final String packDescription) {
+  private String createPackMetadata(final String packDescription) {
     final JsonObject pack = new JsonObject();
     pack.addProperty("description", packDescription);
     pack.addProperty("pack_format", this.format);

@@ -403,11 +403,11 @@ final class Mcv2FrameTest {
     final Client client = new Client();
     for (int frameNumber = 0; frameNumber < 8; frameNumber++) {
       if (frameNumber == 3) {
-        encoder.switchTo(Settings.FAST);
+        encoder.setSettings(Settings.FAST);
         final Settings settings = encoder.getSettings();
         assertEquals(Settings.FAST, settings);
       } else if (frameNumber == 6) {
-        encoder.switchTo(Settings.DEFAULT);
+        encoder.setSettings(Settings.DEFAULT);
       }
       final byte[] data = encoder.encode(this.scene(96, 64, frameNumber, 3), 96, 64, frameNumber);
       final boolean expectedKeyframe = frameNumber == 0;
@@ -418,7 +418,7 @@ final class Mcv2FrameTest {
       assertArrayEquals(expected, reference, "frame " + frameNumber);
     }
 
-    assertThrows(NullPointerException.class, () -> encoder.switchTo(null));
+    assertThrows(NullPointerException.class, () -> encoder.setSettings(null));
   }
 
   @Test

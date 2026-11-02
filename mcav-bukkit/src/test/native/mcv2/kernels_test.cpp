@@ -140,7 +140,7 @@ constexpr known_level KNOWN_LEVELS[] = {{"scalar", MCV2_LEVEL_SCALAR}, {"sse2", 
                                         {"avx512", MCV2_LEVEL_AVX512}, {"neon", MCV2_LEVEL_NEON},
                                         {"sve256", MCV2_LEVEL_SVE256}, {"sve512", MCV2_LEVEL_SVE512}};
 
-int64_t kernel_capabilities() {
+int64_t hardware_capabilities() {
 #if defined(__aarch64__) && defined(__linux__)
   return (int64_t)getauxval(AT_HWCAP);
 #else
@@ -226,10 +226,13 @@ template <class ValueType> bool same(const vector<ValueType>& actual, const vect
          (actual.empty() || memcmp(actual.data(), expected.data(), actual.size() * sizeof(ValueType)) == 0);
 }
 
-void report(const bool equal, const char* kernel, const level_kernels& level, const int trial) {
-  if (!equal && failures++ < MAXIMUM_REPORTED_FAILURES) {
-    fprintf(stderr, "%s differs at %s, trial %d\n", kernel, level.name_, trial);
+void report_difference(const char* kernel_name, const level_kernels& level, const int trial_index) {
+  failures++;
+  if (failures > MAXIMUM_REPORTED_FAILURES) {
+    return;
   }
+
+  fprintf(stderr, "%s differs at %s, trial %d\n", kernel_name, level.name_, trial_index);
 }
 
 enum kernel_index {
@@ -249,8 +252,8 @@ enum kernel_index {
   KERNEL_COUNT,
 };
 
-constexpr const char* KERNEL_NAMES[] = {"predicted",   "solid",   "palette",        "compact", "predict",
-                                        "fit",         "cluster", "assign",         "pattern", "seeded",
+constexpr const char* KERNEL_NAMES[] = {"predicted",   "solid",   "palette",        "compact",        "predict",
+                                        "fit",         "cluster", "assign",         "assign_pattern", "seeded",
                                         "load_source", "halve",   "residual_target"};
 
 struct kernel_trial {
@@ -463,7 +466,11 @@ void compare_levels(const vector<level_kernels>& levels, const kernel_trial& tri
       reference = result;
       continue;
     }
-    report(same_result(result, reference), KERNEL_NAMES[trial.kernel_], level, trial.index_);
+    if (same_result(result, reference)) {
+      continue;
+    }
+
+    report_difference(KERNEL_NAMES[trial.kernel_], level, trial.index_);
   }
 }
 
@@ -523,7 +530,7 @@ int main(int argument_count, char** arguments) {
     return SETUP_FAILURE_EXIT_CODE;
   }
 
-  const int32_t available = mcv2_cpu_levels(kernel_capabilities());
+  const int32_t available = mcv2_cpu_levels(hardware_capabilities());
   const level_kernels linked[] = {
       {"scalar", MCV2_KERNELS(MCV2_ENTRY_scalar)},
 #if defined(__x86_64__)
@@ -552,7 +559,7 @@ int main(int argument_count, char** arguments) {
     return SETUP_FAILURE_EXIT_CODE;
   }
 
-  const int32_t available = ((int32_t(*)(int64_t))dlsym(library, CPU_LEVELS_SYMBOL))(kernel_capabilities());
+  const int32_t available = ((int32_t(*)(int64_t))dlsym(library, CPU_LEVELS_SYMBOL))(hardware_capabilities());
   for (const known_level& candidate : KNOWN_LEVELS) {
     if (!(available & candidate.bit_)) {
       continue;
@@ -564,7 +571,7 @@ int main(int argument_count, char** arguments) {
   snprintf(symbol, sizeof(symbol), KERNEL_SYMBOL_FORMAT, candidate.name_, #kernel);                                    \
   level.kernel##_ = (type(*) parameters)dlsym(library, symbol);                                                        \
   if (level.kernel##_ == nullptr) {                                                                                    \
-    fprintf(stderr, "Symbol %s is missing from the library!\n", symbol);                                              \
+    fprintf(stderr, "Symbol %s is missing from the library!\n", symbol);                                               \
     return SETUP_FAILURE_EXIT_CODE;                                                                                    \
   }
     MCV2_KERNELS(MCV2_LOAD)

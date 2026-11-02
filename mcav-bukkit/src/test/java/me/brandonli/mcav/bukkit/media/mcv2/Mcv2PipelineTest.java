@@ -163,7 +163,7 @@ final class Mcv2PipelineTest {
         assertTrue(searchStarted);
 
         encoder.requestKeyframe();
-        encoder.switchTo(Settings.FAST);
+        encoder.setSettings(Settings.FAST);
       } finally {
         resume.countDown();
       }

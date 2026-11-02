@@ -84,19 +84,19 @@ final class Mcv2BlockState {
     );
   }
 
-  static byte[] half(final byte[] picture, final int width, final int height, final byte[] out) {
+  static byte[] half(final byte[] picture, final int width, final int height, final byte[] output) {
     Mcv2Internals.call(
       Mcv2.class,
       null,
-      HALF_MEMBER,
+      "halve",
       new Class<?>[] { byte[].class, int.class, int.class, Mcv2Internals.nested("Workers"), byte[].class },
       picture,
       width,
       height,
       Mcv2Internals.field(Workers.class, Workers.SEQUENTIAL, "value"),
-      out
+      output
     );
-    return out;
+    return output;
   }
 
   Object code(final int size, final int level, final int block, final int left, final int top, final int parent) {
@@ -114,7 +114,7 @@ final class Mcv2BlockState {
   }
 
   int previousMotion(final int left, final int top) {
-    return (int) Mcv2Internals.invoke(FRAME, this.frame, "previousMotion", new Class<?>[] { int.class, int.class }, left, top);
+    return (int) Mcv2Internals.callForResult(FRAME, this.frame, "previousMotion", new Class<?>[] { int.class, int.class }, left, top);
   }
 
   private Object coder(final int level, final int block) {
@@ -156,7 +156,7 @@ final class Mcv2BlockState {
     return (int) Mcv2Internals.field(CODER, coder, "localVector");
   }
 
-  static boolean skipped(final Object coder) {
+  static boolean isSkipped(final Object coder) {
     return (boolean) Mcv2Internals.field(CODER, coder, "skipped");
   }
 
@@ -165,7 +165,7 @@ final class Mcv2BlockState {
   }
 
   static int neededQuantizer(final float[] fit) {
-    return (int) Mcv2Internals.invoke(Mcv2.class, null, "neededQuantizer", new Class<?>[] { float[].class }, fit);
+    return (int) Mcv2Internals.callForResult(Mcv2.class, null, "neededQuantizer", new Class<?>[] { float[].class }, fit);
   }
 
   enum Thresholds {

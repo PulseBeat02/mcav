@@ -54,11 +54,11 @@ final class PageAssemblerFuzzTest {
   private static List<byte[]> frames() {
     final List<byte[]> frames = new ArrayList<>();
     frames.add(Mcv2Trees.twoPages());
-    final List<byte[]> source = Mcv2Fixtures.frames(Mcv2Fixtures.read(PROXY_DEFAULT_PATH));
+    final List<byte[]> source = Mcv2Fixtures.splitFrames(Mcv2Fixtures.read(PROXY_DEFAULT_PATH));
     for (int index = 0; index < 5; index++) {
       final byte[] frame = source.get(index).clone();
-      Mcv2Decoder.putU32(frame, 12, index + 1);
-      Mcv2Decoder.putU32(frame, 16, index == 0 ? 1 : index);
+      Mcv2Decoder.putUnsignedInt(frame, 12, index + 1);
+      Mcv2Decoder.putUnsignedInt(frame, 16, index == 0 ? 1 : index);
       frames.add(frame);
     }
 

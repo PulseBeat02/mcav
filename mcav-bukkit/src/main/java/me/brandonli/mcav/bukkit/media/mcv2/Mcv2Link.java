@@ -89,10 +89,10 @@ public final class Mcv2Link {
 
   /**
    * Decides whether a frame goes to the viewer now, and when it does, records it as sent and adds its bytes to the
-   * backlog; {@link #written(long)} takes them off again.
+   * backlog; {@link #releaseBacklog(long)} takes them off again.
    *
    * <p>The threshold tests the existing backlog before adding this frame, so an accepted frame can take the
-   * backlog above the threshold. Send every accepted frame and balance its byte charge with {@link #written(long)}.
+   * backlog above the threshold. Send every accepted frame and balance its byte charge with {@link #releaseBacklog(long)}.
    *
    * @param frameId     the frame's id
    * @param referenceId the id of the frame a P frame predicts from
@@ -140,7 +140,7 @@ public final class Mcv2Link {
    * @param bytes the bytes {@link #offer} added for the frame
    * @since 1.0.0
    */
-  public void written(final long bytes) {
+  public void releaseBacklog(final long bytes) {
     this.backlog.addAndGet(-bytes);
   }
 

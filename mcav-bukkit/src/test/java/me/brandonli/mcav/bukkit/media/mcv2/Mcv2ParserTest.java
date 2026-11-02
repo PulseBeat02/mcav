@@ -150,7 +150,7 @@ final class Mcv2ParserTest {
   @Test
   void shouldJudgeTheLengthOfBytesThatStartLikeAFrame() {
     final byte[] magic = new byte[Integer.BYTES];
-    Mcv2Decoder.putU32(magic, 0, Mcv2Decoder.MAGIC);
+    Mcv2Decoder.putUnsignedInt(magic, 0, Mcv2Decoder.MAGIC);
     final String magicMessage = this.message(magic);
     assertEquals(INVALID_LENGTH_MESSAGE, magicMessage);
 
@@ -178,7 +178,7 @@ final class Mcv2ParserTest {
 
   private static byte[] withWord(final byte[] frame, final int offset, final long value) {
     final byte[] changed = frame.clone();
-    Mcv2Decoder.putU32(changed, offset, value);
+    Mcv2Decoder.putUnsignedInt(changed, offset, value);
     return changed;
   }
 

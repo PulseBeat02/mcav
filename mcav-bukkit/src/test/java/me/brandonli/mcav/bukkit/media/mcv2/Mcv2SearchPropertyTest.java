@@ -58,7 +58,7 @@ final class Mcv2SearchPropertyTest {
 
   private static boolean skipped(final byte[][] frames, final double lambda, final Mcv2BlockState.Thresholds thresholds) {
     final Mcv2BlockState job = new Mcv2BlockState(frames[0], frames[1], SIZE, SIZE, Mcv2FrameKind.PREDICTED, thresholds, lambda, null);
-    return Mcv2BlockState.skipped(job.code(SIZE, 0, 0, 0, 0, Mcv2BlockState.NO_VECTOR));
+    return Mcv2BlockState.isSkipped(job.code(SIZE, 0, 0, 0, 0, Mcv2BlockState.NO_VECTOR));
   }
 
   @Property(seed = SEED, tries = 200)

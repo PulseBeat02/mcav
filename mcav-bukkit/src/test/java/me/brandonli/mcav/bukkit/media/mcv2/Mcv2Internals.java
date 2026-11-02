@@ -49,7 +49,7 @@ final class Mcv2Internals {
       constructor.setAccessible(true);
       return constructor.newInstance(arguments);
     } catch (final InvocationTargetException exception) {
-      throw failure(exception);
+      throw unwrapCause(exception);
     } catch (final ReflectiveOperationException exception) {
       throw new LinkageError(exception.getMessage(), exception);
     }
@@ -67,13 +67,13 @@ final class Mcv2Internals {
       method.setAccessible(true);
       return method.invoke(target, arguments);
     } catch (final InvocationTargetException exception) {
-      throw failure(exception);
+      throw unwrapCause(exception);
     } catch (final ReflectiveOperationException exception) {
       throw new LinkageError(exception.getMessage(), exception);
     }
   }
 
-  static Object invoke(
+  static Object callForResult(
     final Class<?> type,
     final @Nullable Object target,
     final String name,
@@ -93,7 +93,7 @@ final class Mcv2Internals {
     }
   }
 
-  private static RuntimeException failure(final InvocationTargetException exception) {
+  private static RuntimeException unwrapCause(final InvocationTargetException exception) {
     final Throwable cause = exception.getCause();
     if (cause instanceof final RuntimeException runtimeException) {
       return runtimeException;
@@ -125,7 +125,7 @@ final class Mcv2Internals {
     }
 
     int threads() {
-      return (int) invoke(TYPE, this.value, "threads", new Class<?>[0]);
+      return (int) field(TYPE, this.value, "threads");
     }
 
     <ScratchType> void forEach(final int count, final Supplier<ScratchType> factory, final ObjIntConsumer<ScratchType> action) {
@@ -143,7 +143,7 @@ final class Mcv2Internals {
     private final Object value = construct(TYPE, new Class<?>[0]);
 
     double lambda(final double base) {
-      return (double) invoke(TYPE, this.value, "lambda", new Class<?>[] { double.class }, base);
+      return (double) callForResult(TYPE, this.value, "lambda", new Class<?>[] { double.class }, base);
     }
 
     double average() {
@@ -168,7 +168,7 @@ final class Mcv2Internals {
     }
 
     static double raise(final double motion) {
-      return (double) invoke(TYPE, null, "raise", new Class<?>[] { double.class }, motion);
+      return (double) callForResult(TYPE, null, "raise", new Class<?>[] { double.class }, motion);
     }
 
     static int[] blurredLuma(
@@ -179,7 +179,7 @@ final class Mcv2Internals {
       final int[] sampled,
       final int[] blurred
     ) {
-      return (int[]) invoke(
+      return (int[]) callForResult(
         TYPE,
         null,
         "blurredLuma",
@@ -194,7 +194,7 @@ final class Mcv2Internals {
     }
 
     static double temporalInformation(final int[] current, final int[] previous, final Workers workers) {
-      return (double) invoke(
+      return (double) callForResult(
         TYPE,
         null,
         "temporalInformation",
@@ -208,19 +208,19 @@ final class Mcv2Internals {
 
   interface Kernels {
     void start(int[] source, double rate, double limit);
-    long distortion();
-    boolean predicted(int[] prediction, int size, int[] out);
-    boolean solid(int color, int size, int[] out);
-    boolean palette(byte[] record, int size, int[] out);
-    boolean compact(int[] prediction, byte[] record, int quantizer, int size, int[] out);
-    void predict(byte[] reference, int width, int height, int left, int top, int size, int motionX, int motionY, int[] out);
-    void fit(float[] values, int size, float[] out);
+    long getDistortion();
+    boolean predicted(int[] prediction, int size, int[] output);
+    boolean solid(int color, int size, int[] output);
+    boolean palette(byte[] record, int size, int[] output);
+    boolean compact(int[] prediction, byte[] record, int quantizer, int size, int[] output);
+    void predict(byte[] reference, int width, int height, int left, int top, int size, int motionX, int motionY, int[] output);
+    void fit(float[] values, int size, float[] output);
     void cluster(int[] source, int size, int[] endpoints);
     void finishPalette(int[] source, int count, int[] endpoints, int[] colors, byte[] selectors);
     boolean finishPattern(int[] source, int size, int[] endpoints, int[] colors, byte[] selectors);
     int seeded(byte[] reference, int width, int height, int[] source, int left, int top, int size, int range, int[] seeds);
     void loadSource(byte[] image, int width, int height, int left, int top, int size, int[] source);
-    void halve(int[] block, int size, int[] out);
+    void halve(int[] block, int size, int[] output);
     void residualTarget(int[] source, int[] prediction, int count, float[] target);
 
     default void forgetArrays() {}

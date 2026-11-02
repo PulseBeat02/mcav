@@ -143,7 +143,7 @@ public final class PacketUtils {
    * @throws NullPointerException if {@code player} is null
    * @since 1.0.0
    */
-  public static Optional<Object> connectionIdentity(final UUID player) {
+  public static Optional<Object> findConnectionIdentity(final UUID player) {
     Preconditions.checkNotNull(player, PLAYER_NULL_MESSAGE);
 
     final @Nullable CachedConnection cached = PLAYER_CONNECTIONS.get(player);
@@ -164,12 +164,12 @@ public final class PacketUtils {
     Preconditions.checkNotNull(packets, "Packets must not be null!");
 
     for (final UUID viewer : viewers) {
-      final CachedConnection connection = PLAYER_CONNECTIONS.get(viewer);
-      if (connection == null) {
+      final CachedConnection cached = PLAYER_CONNECTIONS.get(viewer);
+      if (cached == null) {
         continue;
       }
       for (final Packet<?> packet : packets) {
-        connection.listener().send(packet);
+        cached.listener().send(packet);
       }
     }
   }
@@ -196,7 +196,7 @@ public final class PacketUtils {
     Preconditions.checkNotNull(packet, "Packet must not be null!");
     Preconditions.checkNotNull(listener, "Listener must not be null!");
 
-    final Channel channel = channel(viewer);
+    final Channel channel = findChannel(viewer);
     if (channel == null) {
       return false;
     }
@@ -230,11 +230,11 @@ public final class PacketUtils {
     Preconditions.checkNotNull(player, PLAYER_NULL_MESSAGE);
     Preconditions.checkArgument(bytes > 0, "Bytes must be positive!");
 
-    final Channel channel = channel(player);
+    final Channel channel = findChannel(player);
     return channel != null && channel.config().setOption(EpollChannelOption.TCP_NOTSENT_LOWAT, (long) bytes);
   }
 
-  private static @Nullable Channel channel(final UUID player) {
+  private static @Nullable Channel findChannel(final UUID player) {
     final CachedConnection cached = PLAYER_CONNECTIONS.get(player);
     return cached == null ? null : cached.listener().connection.channel;
   }
@@ -256,10 +256,10 @@ public final class PacketUtils {
   private static void addPlayerConnection(final Player player, final @Nullable CachedConnection previous) {
     final CraftPlayer craftPlayer = (CraftPlayer) player;
     final ServerPlayer handle = craftPlayer.getHandle();
-    final ServerGamePacketListenerImpl connection = handle.connection;
+    final ServerGamePacketListenerImpl listener = handle.connection;
     final UUID uuid = player.getUniqueId();
-    final Object identity = previous != null && connection.equals(previous.listener()) ? previous.identity() : new Object();
-    PLAYER_CONNECTIONS.put(uuid, new CachedConnection(connection, identity));
+    final Object identity = previous != null && listener.equals(previous.listener()) ? previous.identity() : new Object();
+    PLAYER_CONNECTIONS.put(uuid, new CachedConnection(listener, identity));
   }
 
   private static void removePlayerConnection(final Player player) {

@@ -81,7 +81,7 @@ final class Mcv2GoldenTest {
   })
   void shouldReproduceTheGoldenEncoder(final String stream, final int threads, final Mcv2.Verification verification) {
     final Settings settings = stream.equals(CROP_DEFAULT_STREAM) ? Settings.DEFAULT : Settings.FAST;
-    final List<byte[]> expected = Mcv2Fixtures.frames(Mcv2Fixtures.read(ENCODER_FOLDER + stream));
+    final List<byte[]> expected = Mcv2Fixtures.splitFrames(Mcv2Fixtures.read(ENCODER_FOLDER + stream));
     final byte[] source = Mcv2Fixtures.read(CROP_SOURCE_PATH);
     final ForkJoinPool pool = new ForkJoinPool(threads);
     try {

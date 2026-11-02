@@ -59,11 +59,11 @@ public final class Mcv2Fixtures {
     }
   }
 
-  public static List<byte[]> frames(final byte[] archive) {
+  public static List<byte[]> splitFrames(final byte[] archive) {
     final List<byte[]> frames = new ArrayList<>();
     int offset = 0;
     while (offset < archive.length) {
-      final int length = (int) Mcv2Decoder.u32(archive, offset);
+      final int length = (int) Mcv2Decoder.readUnsignedInt(archive, offset);
       frames.add(Arrays.copyOfRange(archive, offset + 4, offset + 4 + length));
       offset += 4 + length;
     }
@@ -71,7 +71,7 @@ public final class Mcv2Fixtures {
     return frames;
   }
 
-  static Map<String, List<String>> digests(final String folder) {
+  static Map<String, List<String>> readDigests(final String folder) {
     final String text = new String(read(folder + DIGESTS_FILE), StandardCharsets.UTF_8);
     final JsonObject root = JsonParser.parseString(text).getAsJsonObject();
     final Map<String, List<String>> digests = new TreeMap<>();

@@ -44,7 +44,7 @@ final class Mcv2Playback implements Runnable {
     this.frames = List.copyOf(frames);
     long highest = 0;
     for (final byte[] frame : this.frames) {
-      highest = Math.max(highest, Mcv2Decoder.u32(frame, Mcv2Decoder.FRAME_ID_OFFSET));
+      highest = Math.max(highest, Mcv2Decoder.readUnsignedInt(frame, Mcv2Decoder.FRAME_ID_OFFSET));
     }
     this.span = highest + 1;
     this.offset = firstFrameId;
@@ -77,6 +77,6 @@ final class Mcv2Playback implements Runnable {
   }
 
   private void shift(final byte[] frame, final int field) {
-    Mcv2Decoder.putU32(frame, field, (Mcv2Decoder.u32(frame, field) + this.offset) & Mcv2Decoder.MAXIMUM_UNSIGNED_INT);
+    Mcv2Decoder.putUnsignedInt(frame, field, (Mcv2Decoder.readUnsignedInt(frame, field) + this.offset) & Mcv2Decoder.MAXIMUM_UNSIGNED_INT);
   }
 }

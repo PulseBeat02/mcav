@@ -202,7 +202,7 @@ final class SimpleResourcePackTest {
 
   private Path zipFullPack() {
     final SimpleResourcePack pack = SimpleResourcePack.pack();
-    pack.meta(PACK_FORMAT, DESCRIPTION);
+    pack.metadata(PACK_FORMAT, DESCRIPTION);
     pack.sound(AUDIO_SOUND, this.firstSound);
     pack.sound(INTRO_SOUND, this.secondSound);
     pack.sound(BEEP_SOUND, this.firstSound);
@@ -288,7 +288,7 @@ final class SimpleResourcePackTest {
   @Test
   void shouldPackageGeneratedContentAndKeepTheLastSourceOfALocation() throws IOException {
     final SimpleResourcePack pack = SimpleResourcePack.pack();
-    pack.meta(88, "generated");
+    pack.metadata(88, "generated");
     final byte[] shader = SHADER_SOURCE.getBytes(StandardCharsets.US_ASCII);
     pack.data(SHADER_ENTRY, shader);
     shader[0] = 'X';
@@ -314,7 +314,7 @@ final class SimpleResourcePackTest {
   @Test
   void shouldZipTheSamePackToTheSameBytes() throws IOException {
     final SimpleResourcePack pack = SimpleResourcePack.pack();
-    pack.meta(88, "stable");
+    pack.metadata(88, "stable");
     pack.sound(FIRST_SOUND_EVENT, this.firstSound);
     pack.external(CREDITS_ENTRY, this.credits);
     pack.data(SHADER_ENTRY, SHADER_SOURCE.getBytes(StandardCharsets.US_ASCII));
@@ -369,7 +369,7 @@ final class SimpleResourcePackTest {
     pack.external(ICON_ENTRY, this.credits);
     pack.external(SOUNDS_README_ENTRY, this.credits);
     pack.external(SOUNDS_TEXT_ENTRY, this.credits);
-    pack.meta(1, "pack");
+    pack.metadata(1, "pack");
     pack.zip(zip);
 
     final String message = meta.getMessage();
@@ -431,9 +431,9 @@ final class SimpleResourcePackTest {
     final SimpleResourcePack first = SimpleResourcePack.pack();
     final SimpleResourcePack second = SimpleResourcePack.pack();
 
-    first.meta(1, "first");
+    first.metadata(1, "first");
     first.zip(zip);
-    second.meta(2, "second");
+    second.metadata(2, "second");
     second.sound(AUDIO_SOUND, this.firstSound);
     second.sound(AUDIO_SOUND, this.secondSound);
     second.zip(zip);
@@ -457,8 +457,8 @@ final class SimpleResourcePackTest {
 
     assertNotSame(first, second);
 
-    first.meta(1, "first");
-    second.meta(2, "second");
+    first.metadata(1, "first");
+    second.metadata(2, "second");
     first.external(CREDITS_FILE_NAME, this.credits);
     second.external(CREDITS_FILE_NAME, this.secondSound);
     first.data(GENERATED_ENTRY, FIRST_SOUND);
@@ -592,15 +592,15 @@ final class SimpleResourcePackTest {
   void shouldRejectInvalidMetadata() {
     final SimpleResourcePack pack = SimpleResourcePack.pack();
 
-    assertThrows(IllegalArgumentException.class, () -> pack.meta(0, "pack"));
-    assertThrows(NullPointerException.class, () -> pack.meta(1, null));
+    assertThrows(IllegalArgumentException.class, () -> pack.metadata(0, "pack"));
+    assertThrows(NullPointerException.class, () -> pack.metadata(1, null));
   }
 
   @Test
   void shouldRejectDestinationsWithoutAParent() {
     final SimpleResourcePack pack = SimpleResourcePack.pack();
     final Path root = this.directory.getRoot();
-    pack.meta(1, "pack");
+    pack.metadata(1, "pack");
 
     assertThrows(IllegalArgumentException.class, () -> pack.zip(root));
   }
@@ -610,7 +610,7 @@ final class SimpleResourcePackTest {
     final SimpleResourcePack blocked = SimpleResourcePack.pack();
     final Path file = this.directory.resolve("file");
     final Path belowFile = file.resolve(PACK_FILE_NAME);
-    blocked.meta(1, "pack");
+    blocked.metadata(1, "pack");
     Files.write(file, CREDITS);
 
     assertThrows(BukkitException.class, () -> blocked.zip(belowFile));
@@ -621,7 +621,7 @@ final class SimpleResourcePackTest {
     final SimpleResourcePack vanished = SimpleResourcePack.pack();
     final Path output = this.directory.resolve(OUTPUT_FOLDER);
     final Path zip = output.resolve(PACK_FILE_NAME);
-    vanished.meta(1, "pack");
+    vanished.metadata(1, "pack");
     vanished.sound(AUDIO_SOUND, this.firstSound);
     Files.delete(this.firstSound);
     Files.createDirectory(output);

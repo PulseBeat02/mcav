@@ -29,7 +29,7 @@ TEST_DIRECTORY="${WORK:-$(mktemp -d)}"
 readonly TEST_DIRECTORY
 
 readonly COMPILER="${CLANG:-clang++}"
-readonly LLVM_TOOLS="${LLVM_BIN:-/usr/lib/llvm-18/bin}"
+readonly LLVM_TOOLS="${LLVM_BINARIES:-/usr/lib/llvm-18/bin}"
 readonly ZIG_COMPILER="${ZIG:-zig}"
 readonly X86_EMULATOR="${QEMU_X86_64:-qemu-x86_64-static}"
 readonly AARCH64_EMULATOR="${QEMU_AARCH64:-qemu-aarch64-static}"
@@ -39,7 +39,7 @@ readonly X86_MUSL_LOADER="${MUSL_X86_64:?must be the path of ld-musl-x86_64.so.1
 readonly AARCH64_MUSL_LOADER="${MUSL_AARCH64:?must be the path of ld-musl-aarch64.so.1!}"
 
 RESOURCE_OPTIONS=()
-[ -n "${RESOURCE_DIR:-}" ] && RESOURCE_OPTIONS=(-resource-dir="${RESOURCE_DIR}")
+[ -n "${RESOURCE_DIRECTORY:-}" ] && RESOURCE_OPTIONS=(-resource-dir="${RESOURCE_DIRECTORY}")
 readonly RESOURCE_OPTIONS
 readonly KERNEL_FLAGS=(-std=c++17 -ffp-contract=off -fwrapv -fno-strict-aliasing -Wall -Wextra -Werror -I"${NATIVE_SOURCES}")
 readonly SANITIZER_FLAGS=(-O1 -g "-fsanitize=address,undefined" -fno-sanitize-recover=all -fno-omit-frame-pointer)

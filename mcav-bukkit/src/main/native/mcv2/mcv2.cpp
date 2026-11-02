@@ -27,7 +27,7 @@
 #define MCV2_EXPORT __attribute__((visibility("default")))
 #endif
 
-#define MCV2_INTERFACE_VERSION 5
+#define MCV2_ABI_VERSION 5
 
 #define MCV2_LEVEL_SCALAR 1
 #define MCV2_LEVEL_SSE41 2
@@ -70,7 +70,7 @@
 extern "C" {
 
 // Java supplies AT_HWCAP because this library imports no C-library functions.
-MCV2_EXPORT int32_t mcv2_cpu_levels(int64_t kernel_capabilities);
+MCV2_EXPORT int32_t mcv2_cpu_levels(int64_t hardware_capabilities);
 
 MCV2_EXPORT int32_t mcv2_abi(void);
 }
@@ -900,12 +900,12 @@ struct int_vector {
     return {_mm512_movm_epi32((__mmask16)word)};
   }
   static int_vector evens(const int_vector first, const int_vector second) {
-    const __m512i index = _mm512_set_epi32(30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0);
-    return {_mm512_permutex2var_epi32(first.lanes_, index, second.lanes_)};
+    const __m512i even_indexes = _mm512_set_epi32(30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0);
+    return {_mm512_permutex2var_epi32(first.lanes_, even_indexes, second.lanes_)};
   }
   static int_vector odds(const int_vector first, const int_vector second) {
-    const __m512i index = _mm512_set_epi32(31, 29, 27, 25, 23, 21, 19, 17, 15, 13, 11, 9, 7, 5, 3, 1);
-    return {_mm512_permutex2var_epi32(first.lanes_, index, second.lanes_)};
+    const __m512i odd_indexes = _mm512_set_epi32(31, 29, 27, 25, 23, 21, 19, 17, 15, 13, 11, 9, 7, 5, 3, 1);
+    return {_mm512_permutex2var_epi32(first.lanes_, odd_indexes, second.lanes_)};
   }
 
 private:
@@ -1702,7 +1702,6 @@ inline double sum_weighted_column(const float* weights, const double* scratch, c
 
 // Each lane must retain Java's summation order for bit-exact fits.
 void fit(const float* values, const int32_t size, const float* matrix, float* output) {
-  const int32_t grid = GRID;
   float plane[ROOT_SIZE * ROOT_SIZE];
   for (int32_t vertical_position = 0; vertical_position < size; vertical_position++) {
     for (int32_t horizontal_position = 0; horizontal_position < size; horizontal_position++) {
@@ -1712,7 +1711,7 @@ void fit(const float* values, const int32_t size, const float* matrix, float* ou
   double scratch[ROOT_SIZE * GRID];
   const int32_t unrolled_lanes = UNROLLED_VECTORS * double_vector::LANES;
   double lanes[unrolled_lanes];
-  for (int32_t element_index = 0; element_index < grid; element_index++) {
+  for (int32_t element_index = 0; element_index < GRID; element_index++) {
     const float* weights = matrix + element_index * size;
     int32_t first_source_row = 0;
 
@@ -1725,10 +1724,10 @@ void fit(const float* values, const int32_t size, const float* matrix, float* ou
       store_lanes(lanes, double_vector::LANES, first_source_row, element_index, scratch);
     }
   }
-  for (int32_t index = 0; index < grid; index++) {
+  for (int32_t index = 0; index < GRID; index++) {
     const float* weights = matrix + index * size;
-    for (int32_t element_index = 0; element_index < grid; element_index++) {
-      output[index * grid + element_index] = (float)sum_weighted_column(weights, scratch, size, element_index);
+    for (int32_t element_index = 0; element_index < GRID; element_index++) {
+      output[index * GRID + element_index] = (float)sum_weighted_column(weights, scratch, size, element_index);
     }
   }
 }
@@ -2120,15 +2119,23 @@ struct motion_search {
   }
 };
 
-inline bool sample_pixel(const int32_t* source_pixel, int32_t* sample, uint8_t* sample_byte) {
-  bool fits_bytes = true;
+inline void copy_sample(const int32_t* source_pixel, int32_t* sample, uint8_t* sample_byte) {
   for (int32_t channel = 0; channel < CHANNELS; channel++) {
     const int32_t value = source_pixel[channel];
     sample[channel] = value;
-    fits_bytes &= (uint32_t)value <= MAXIMUM_CHANNEL;
     sample_byte[channel] = (uint8_t)value;
   }
-  return fits_bytes;
+}
+
+inline bool is_byte_pixel(const int32_t* source_pixel) {
+  for (int32_t channel = 0; channel < CHANNELS; channel++) {
+    const int32_t value = source_pixel[channel];
+    if ((uint32_t)value > MAXIMUM_CHANNEL) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 int32_t seeded(const uint8_t* reference, const int32_t width, const int32_t height, const int32_t* source,
@@ -2144,7 +2151,8 @@ int32_t seeded(const uint8_t* reference, const int32_t width, const int32_t heig
       const int32_t* source_pixel = source + (samples[sample_row] * size + samples[sample_column]) * CHANNELS;
       int32_t* sample = source_samples + (sample_row * SAMPLE_GRID + sample_column) * CHANNELS;
       uint8_t* sample_byte = sample_bytes + SAMPLE_ROW_BYTES * sample_row + WORD_BYTES * sample_column;
-      fits_bytes &= sample_pixel(source_pixel, sample, sample_byte);
+      copy_sample(source_pixel, sample, sample_byte);
+      fits_bytes &= is_byte_pixel(source_pixel);
     }
   }
   const uint8_t* packed_samples = fits_bytes ? sample_bytes : nullptr;
@@ -2195,7 +2203,7 @@ void load_source(const uint8_t* image, const int32_t width, const int32_t height
 template <class VectorType> void halve_lanes(const int32_t* block, const int32_t size, int32_t* output) {
   const int32_t half = size / 2;
   const int32_t row_length = size * CHANNELS;
-  const VectorType two = VectorType::broadcast(2);
+  const VectorType rounding = VectorType::broadcast(2);
   for (int32_t pixel_row = 0; pixel_row < half; pixel_row++) {
     const int32_t* top = block + 2 * pixel_row * row_length;
     const int32_t* bottom = top + row_length;
@@ -2216,11 +2224,11 @@ template <class VectorType> void halve_lanes(const int32_t* block, const int32_t
       const VectorType first_blue_sum = first_blue + third_blue;
       const VectorType second_blue_sum = second_blue + fourth_blue;
       const VectorType red_sum =
-          VectorType::evens(first_red_sum, second_red_sum) + VectorType::odds(first_red_sum, second_red_sum) + two;
+          VectorType::evens(first_red_sum, second_red_sum) + VectorType::odds(first_red_sum, second_red_sum) + rounding;
       const VectorType green_sum = VectorType::evens(first_green_sum, second_green_sum) +
-                                   VectorType::odds(first_green_sum, second_green_sum) + two;
-      const VectorType blue_sum =
-          VectorType::evens(first_blue_sum, second_blue_sum) + VectorType::odds(first_blue_sum, second_blue_sum) + two;
+                                   VectorType::odds(first_green_sum, second_green_sum) + rounding;
+      const VectorType blue_sum = VectorType::evens(first_blue_sum, second_blue_sum) +
+                                  VectorType::odds(first_blue_sum, second_blue_sum) + rounding;
       int32_t* output_pixels = line + (horizontal_position / 2) * CHANNELS;
       const VectorType red_average = red_sum.shift_right(2);
       const VectorType green_average = green_sum.shift_right(2);
@@ -2413,8 +2421,8 @@ constexpr unsigned AVX2_BIT = 1u << 5;
 constexpr unsigned long long YMM_STATE = 0x6;
 #if !defined(__APPLE__)
 
-constexpr unsigned AVX512_EBX = (1u << 16) | (1u << 17) | (1u << 30) | (1u << 31);
-constexpr unsigned AVX512_ECX = (1u << 1) | (1u << 6) | (1u << 11) | (1u << 12);
+constexpr unsigned AVX512_REGISTER_B_BITS = (1u << 16) | (1u << 17) | (1u << 30) | (1u << 31);
+constexpr unsigned AVX512_REGISTER_C_BITS = (1u << 1) | (1u << 6) | (1u << 11) | (1u << 12);
 
 constexpr unsigned long long ZMM_STATE = 0xE6;
 #endif
@@ -2455,8 +2463,8 @@ extern "C" int32_t mcv2_cpu_levels(int64_t) {
   }
 #if !defined(__APPLE__)
   // macOS saves ZMM state lazily, so XCR0 cannot authorize AVX-512.
-  if ((state & ZMM_STATE) == ZMM_STATE && (register_b & AVX512_EBX) == AVX512_EBX &&
-      (register_c & AVX512_ECX) == AVX512_ECX) {
+  if ((state & ZMM_STATE) == ZMM_STATE && (register_b & AVX512_REGISTER_B_BITS) == AVX512_REGISTER_B_BITS &&
+      (register_c & AVX512_REGISTER_C_BITS) == AVX512_REGISTER_C_BITS) {
     levels |= MCV2_LEVEL_AVX512;
   }
 #endif
@@ -2474,10 +2482,10 @@ constexpr unsigned long long SVE512_VECTOR_BYTES = 64;
 }
 #endif
 
-extern "C" int32_t mcv2_cpu_levels(const int64_t kernel_capabilities) {
+extern "C" int32_t mcv2_cpu_levels(const int64_t hardware_capabilities) {
   int32_t levels = MCV2_LEVEL_SCALAR | MCV2_LEVEL_NEON;
 #if defined(__linux__)
-  if (kernel_capabilities & MCV2_HARDWARE_CAPABILITY_SVE) {
+  if (hardware_capabilities & MCV2_HARDWARE_CAPABILITY_SVE) {
     unsigned long long vector_bytes;
     __asm__ volatile(".arch_extension sve\n\trdvl %0, #1" : "=r"(vector_bytes));
     if (vector_bytes == SVE256_VECTOR_BYTES) {
@@ -2487,7 +2495,7 @@ extern "C" int32_t mcv2_cpu_levels(const int64_t kernel_capabilities) {
     }
   }
 #else
-  (void)kernel_capabilities;
+  (void)hardware_capabilities;
 #endif
   return levels;
 }
@@ -2501,7 +2509,7 @@ extern "C" int32_t mcv2_cpu_levels(int64_t) {
 #endif
 
 extern "C" int32_t mcv2_abi(void) {
-  return MCV2_INTERFACE_VERSION;
+  return MCV2_ABI_VERSION;
 }
 #endif
 #endif

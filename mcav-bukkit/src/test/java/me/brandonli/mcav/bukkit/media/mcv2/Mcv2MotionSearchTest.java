@@ -75,15 +75,15 @@ final class Mcv2MotionSearchTest {
   }
 
   private static int pack(final int motionX, final int motionY) {
-    return (int) Mcv2Internals.invoke(Mcv2.class, null, "packMotion", new Class<?>[] { int.class, int.class }, motionX, motionY);
+    return (int) Mcv2Internals.callForResult(Mcv2.class, null, "packMotion", new Class<?>[] { int.class, int.class }, motionX, motionY);
   }
 
   private static int motionX(final int vector) {
-    return (int) Mcv2Internals.invoke(Mcv2.class, null, "motionX", new Class<?>[] { int.class }, vector);
+    return (int) Mcv2Internals.callForResult(Mcv2.class, null, "motionX", new Class<?>[] { int.class }, vector);
   }
 
   private static int motionY(final int vector) {
-    return (int) Mcv2Internals.invoke(Mcv2.class, null, "motionY", new Class<?>[] { int.class }, vector);
+    return (int) Mcv2Internals.callForResult(Mcv2.class, null, "motionY", new Class<?>[] { int.class }, vector);
   }
 
   private static int search(final int[] source, final int range) {

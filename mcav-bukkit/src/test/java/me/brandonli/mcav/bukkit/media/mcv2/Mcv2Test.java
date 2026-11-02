@@ -290,7 +290,7 @@ final class Mcv2Test {
       final double lambda = encoder.getStatistics().orElseThrow().getLambda();
       assertEquals(raised, lambda);
 
-      encoder.switchTo(Mcv2.Settings.FAST.withLambda(30));
+      encoder.setSettings(Mcv2.Settings.FAST.withLambda(30));
       final Mcv2.Settings expectedSettings = Mcv2.Settings.FAST.withLambda(30);
       final Mcv2.Settings settings = encoder.getSettings();
       assertEquals(expectedSettings, settings);
@@ -394,7 +394,7 @@ final class Mcv2Test {
       assertThrows(IllegalArgumentException.class, () -> encoder.encode(new byte[3], 1, 1, -1));
       assertThrows(IllegalArgumentException.class, () -> encoder.encode(new byte[3], 1, 1, 0x100000000L));
       assertThrows(NullPointerException.class, () -> encoder.encode(null, 1, 1, 0));
-      assertThrows(NullPointerException.class, () -> encoder.switchTo(null));
+      assertThrows(NullPointerException.class, () -> encoder.setSettings(null));
       assertThrows(NullPointerException.class, () -> encoder.finish(null));
 
       encoder.encode(new byte[3], 1, 1, 0);

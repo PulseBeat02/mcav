@@ -59,13 +59,13 @@ final class Mcv2Oracle {
     );
   }
 
-  static void predicted(final int[] prediction, final int size, final int[] out) {
+  static void predicted(final int[] prediction, final int size, final int[] output) {
     for (int sample = 0; sample < size * size * 3; sample++) {
-      out[sample] = roundedChannel(prediction[sample]);
+      output[sample] = roundedChannel(prediction[sample]);
     }
   }
 
-  static void compact(final int[] prediction, final byte[] record, final int quantizer, final int size, final int[] out) {
+  static void compact(final int[] prediction, final byte[] record, final int quantizer, final int size, final int[] output) {
     final float[] nodes = new float[16];
     for (int node = 0; node < 16; node++) {
       final int nibble = ((record[2 + node / 2] & 255) >> (4 * (node % 2))) & 15;
@@ -77,9 +77,9 @@ final class Mcv2Oracle {
       for (int column = 0; column < size; column++) {
         final double luma = interpolate(nodes, 0, 1, 4, size, column, row);
         final int offset = (row * size + column) * 3;
-        out[offset] = roundedChannel(prediction[offset] + step * luma);
-        out[offset + 1] = roundedChannel(prediction[offset + 1] + step * luma);
-        out[offset + 2] = roundedChannel(prediction[offset + 2] + step * luma);
+        output[offset] = roundedChannel(prediction[offset] + step * luma);
+        output[offset + 1] = roundedChannel(prediction[offset + 1] + step * luma);
+        output[offset + 2] = roundedChannel(prediction[offset + 2] + step * luma);
       }
     }
   }

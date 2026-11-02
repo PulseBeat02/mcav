@@ -67,7 +67,7 @@ final class Mcv2ResultReleaseTest {
     final Mcv2Viewers viewers = mock(Mcv2Viewers.class);
     when(viewers.isLoaded(WITH_PACK)).thenReturn(true);
     final Mcv2Screen screen = mock(Mcv2Screen.class);
-    when(screen.anchors()).thenReturn(List.of());
+    when(screen.getAnchors()).thenReturn(List.of());
     final DitherAlgorithm algorithm = mock(DitherAlgorithm.class);
     when(algorithm.ditherIntoBytes(any())).thenAnswer(invocation -> {
       final ImageBuffer image = invocation.getArgument(0);

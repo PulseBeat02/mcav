@@ -20,7 +20,7 @@ package me.brandonli.mcav.bukkit.media.mcv2;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2WireFrames.block;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2WireFrames.frame;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2WireFrames.put;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2WireFrames.read;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2WireFrames.readUnsignedInt;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -168,7 +168,7 @@ final class Mcv2Version3Test {
     for (final int walk : new int[] { 49, 53 }) {
       for (final int value : new int[] { 1, 1 << 17 }) {
         final byte[] bad = valid.clone();
-        put(bad, walk, read(bad, walk) ^ value, 4);
+        put(bad, walk, readUnsignedInt(bad, walk) ^ value, 4);
         assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(bad));
       }
     }

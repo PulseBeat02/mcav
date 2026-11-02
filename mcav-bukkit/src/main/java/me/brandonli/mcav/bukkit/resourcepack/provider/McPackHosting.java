@@ -254,8 +254,8 @@ public class McPackHosting implements WebsiteHosting {
       final String message = "The resource pack upload to mc-packs.net failed!";
       throw new McPacksException(message, exception);
     } catch (final InterruptedException exception) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
 
       final String message = "Interrupted while uploading the resource pack!";
       throw new McPacksException(message, exception);
@@ -319,8 +319,8 @@ public class McPackHosting implements WebsiteHosting {
 
   private Map<String, String> readCache() {
     final Path cacheFile = this.getCacheFile();
-    final boolean exists = Files.isRegularFile(cacheFile);
-    if (!exists) {
+    final boolean regularFile = Files.isRegularFile(cacheFile);
+    if (!regularFile) {
       return new HashMap<>();
     }
 

@@ -132,7 +132,7 @@ final class Mcv2WriterTest {
     final int uniformLength = uniform.length;
     assertEquals(52, uniformLength);
 
-    final long firstGroupMask = Mcv2Decoder.u32(uniform, 20);
+    final long firstGroupMask = Mcv2Decoder.readUnsignedInt(uniform, 20);
     assertEquals(3, firstGroupMask);
 
     final List<Node> expectedRoots = List.of(solid(3, 3, 3), solid(3, 3, 3));

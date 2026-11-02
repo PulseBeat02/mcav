@@ -31,7 +31,7 @@ final class Mcv2PatternRewriteTest {
 
   private static final byte[] ENDPOINTS = { 1, 2, 3, (byte) 250, (byte) 251, (byte) 252 };
 
-  private static final String PATTERN_RECORD_METHOD = "patternRecord";
+  private static final String PATTERN_RECORD_METHOD = "writePatternRecord";
 
   private static byte[] palette(final IntBinaryOperator bit) {
     final byte[] record = new byte[14];
@@ -46,7 +46,7 @@ final class Mcv2PatternRewriteTest {
   }
 
   private boolean pattern(final byte[] palette, final byte[] out) {
-    return (boolean) Mcv2Internals.invoke(
+    return (boolean) Mcv2Internals.callForResult(
       Mcv2.class,
       null,
       PATTERN_RECORD_METHOD,
@@ -98,7 +98,7 @@ final class Mcv2PatternRewriteTest {
     final byte[] expected = this.expectedPattern(size, orientation);
     final byte[] palette = this.repeatedPalette(expected, size, orientation);
     final byte[] output = new byte[expected.length];
-    final boolean encodedAsPattern = (boolean) Mcv2Internals.invoke(
+    final boolean encodedAsPattern = (boolean) Mcv2Internals.callForResult(
       Mcv2.class,
       null,
       PATTERN_RECORD_METHOD,

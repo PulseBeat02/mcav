@@ -88,22 +88,22 @@ record NativeLibraryFile(NativeLibraryFile.Format format, int machine, Set<Strin
     final ByteBuffer file = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN);
     final int magic = file.getInt(0);
     if (magic == ELF_MAGIC) {
-      return elf(file);
+      return readElf(file);
     }
 
     if (magic == MACH_O_64) {
-      return machO(file);
+      return readMachO(file);
     }
 
     if (file.getShort(0) == MZ) {
-      return pe(file);
+      return readPe(file);
     }
 
     final String message = "Not a 64-bit ELF, PE or Mach-O library!";
     throw new IllegalArgumentException(message);
   }
 
-  private static NativeLibraryFile elf(final ByteBuffer file) {
+  private static NativeLibraryFile readElf(final ByteBuffer file) {
     if (file.get(4) != ELF_CLASS_64 || file.get(5) != ELF_LITTLE_ENDIAN) {
       final String message = "Not a 64-bit little-endian ELF file!";
       throw new IllegalArgumentException(message);
@@ -142,7 +142,7 @@ record NativeLibraryFile(NativeLibraryFile.Format format, int machine, Set<Strin
   ) {
     // the first entry is the reserved null symbol
     for (int symbol = start + ELF_SYMBOL_SIZE; symbol < end; symbol += ELF_SYMBOL_SIZE) {
-      final String name = string(file, names + file.getInt(symbol));
+      final String name = readString(file, names + file.getInt(symbol));
       final int binding = Byte.toUnsignedInt(file.get(symbol + 4)) >>> 4;
       final int visibility = file.get(symbol + 5) & 3;
       if (Short.toUnsignedInt(file.getShort(symbol + 6)) == SHN_UNDEF) {
@@ -156,12 +156,12 @@ record NativeLibraryFile(NativeLibraryFile.Format format, int machine, Set<Strin
   private static void readNeeded(final ByteBuffer file, final int start, final int end, final int names, final List<String> needed) {
     for (int entry = start; entry < end; entry += ELF_DYNAMIC_SIZE) {
       if (file.getLong(entry) == DT_NEEDED) {
-        needed.add(string(file, names + Math.toIntExact(file.getLong(entry + 8))));
+        needed.add(readString(file, names + Math.toIntExact(file.getLong(entry + 8))));
       }
     }
   }
 
-  private static NativeLibraryFile pe(final ByteBuffer file) {
+  private static NativeLibraryFile readPe(final ByteBuffer file) {
     final int signature = file.getInt(0x3c);
     if (file.getInt(signature) != PE_SIGNATURE) {
       final String message = "No PE signature!";
@@ -170,28 +170,28 @@ record NativeLibraryFile(NativeLibraryFile.Format format, int machine, Set<Strin
 
     final int machine = Short.toUnsignedInt(file.getShort(signature + 4));
     final int sections = Short.toUnsignedInt(file.getShort(signature + 6));
-    final int optional = signature + 24;
-    if (file.getShort(optional) != PE32_PLUS) {
+    final int optionalHeader = signature + 24;
+    if (file.getShort(optionalHeader) != PE32_PLUS) {
       final String message = "Not a PE32+ file!";
       throw new IllegalArgumentException(message);
     }
 
-    final int sectionTable = optional + Short.toUnsignedInt(file.getShort(signature + 20));
-    final int exportTable = file.getInt(optional + EXPORT_TABLE);
+    final int sectionTable = optionalHeader + Short.toUnsignedInt(file.getShort(signature + 20));
+    final int exportTable = file.getInt(optionalHeader + EXPORT_TABLE);
     final Set<String> exports = new TreeSet<>();
     if (exportTable != 0) {
-      final int directory = offset(file, sectionTable, sections, exportTable);
+      final int directory = toFileOffset(file, sectionTable, sections, exportTable);
       final int count = file.getInt(directory + 24);
-      final int names = offset(file, sectionTable, sections, file.getInt(directory + 32));
-      for (int name = 0; name < count; name++) {
-        exports.add(string(file, offset(file, sectionTable, sections, file.getInt(names + Integer.BYTES * name))));
+      final int names = toFileOffset(file, sectionTable, sections, file.getInt(directory + 32));
+      for (int nameIndex = 0; nameIndex < count; nameIndex++) {
+        exports.add(readString(file, toFileOffset(file, sectionTable, sections, file.getInt(names + Integer.BYTES * nameIndex))));
       }
     }
 
     return new NativeLibraryFile(Format.PE, machine, exports, List.of(), Set.of());
   }
 
-  private static int offset(final ByteBuffer file, final int sectionTable, final int sections, final int address) {
+  private static int toFileOffset(final ByteBuffer file, final int sectionTable, final int sections, final int address) {
     for (int section = 0; section < sections; section++) {
       final int header = sectionTable + section * PE_SECTION_SIZE;
       final int start = file.getInt(header + 12);
@@ -205,7 +205,7 @@ record NativeLibraryFile(NativeLibraryFile.Format format, int machine, Set<Strin
     throw new IllegalArgumentException(message);
   }
 
-  private static NativeLibraryFile machO(final ByteBuffer file) {
+  private static NativeLibraryFile readMachO(final ByteBuffer file) {
     final int machine = file.getInt(4);
     final int commands = file.getInt(16);
     final Set<String> exports = new TreeSet<>();
@@ -229,12 +229,12 @@ record NativeLibraryFile(NativeLibraryFile.Format format, int machine, Set<Strin
       final int entry = symbols + symbol * NLIST_64_SIZE;
       final int type = Byte.toUnsignedInt(file.get(entry + 4));
       if ((type & N_STAB) == 0 && (type & N_PEXT) == 0 && (type & N_EXT) != 0 && (type & N_TYPE) == N_SECT) {
-        exports.add(string(file, names + file.getInt(entry)).substring(1));
+        exports.add(readString(file, names + file.getInt(entry)).substring(1));
       }
     }
   }
 
-  private static String string(final ByteBuffer file, final int offset) {
+  private static String readString(final ByteBuffer file, final int offset) {
     int end = offset;
     while (file.get(end) != 0) {
       end++;

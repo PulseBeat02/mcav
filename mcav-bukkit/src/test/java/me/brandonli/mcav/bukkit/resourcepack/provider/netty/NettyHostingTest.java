@@ -312,7 +312,7 @@ final class NettyHostingTest {
 
     final String message = exception.getMessage();
     final int after = this.listenerCount();
-    final String expectedMessage = "Resource pack %s does not exist!".formatted(missing);
+    final String expectedMessage = "Resource pack %s is not a regular file!".formatted(missing);
     assertEquals(expectedMessage, message);
     assertEquals(before, after);
   }
@@ -365,7 +365,7 @@ final class NettyHostingTest {
   @Test
   void shouldBuildTheUrlAgainWhileThePublicAddressIsUnknown() {
     try (final MockedStatic<ServerAddress> serverAddress = Mockito.mockStatic(ServerAddress.class, Mockito.CALLS_REAL_METHODS)) {
-      serverAddress.when(ServerAddress::getPublicIpAddress).thenReturn(LOCALHOST, "198.51.100.7", "203.0.113.1");
+      serverAddress.when(ServerAddress::getPublicAddress).thenReturn(LOCALHOST, "198.51.100.7", "203.0.113.1");
       final NettyHosting hosting = new NettyHosting(this.zip);
 
       final String fallbackUrl = hosting.getRawUrl();

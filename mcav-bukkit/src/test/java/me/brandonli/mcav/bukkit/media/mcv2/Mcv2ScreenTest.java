@@ -258,10 +258,10 @@ final class Mcv2ScreenTest {
 
     final Packet<?> teamPacket = packets.get(0);
     final ClientboundSetPlayerTeamPacket team = assertInstanceOf(ClientboundSetPlayerTeamPacket.class, teamPacket);
-    final boolean namedAsScreenTeam = team.getName().matches(Mcv2Screen.TEAM + TEAM_SUFFIX_PATTERN);
+    final boolean namedAsScreenTeam = team.getName().matches(Mcv2Screen.TEAM_PREFIX + TEAM_SUFFIX_PATTERN);
     assertTrue(namedAsScreenTeam);
 
-    final String expectedName = screen.team().getName();
+    final String expectedName = screen.createTeam().getName();
     final String teamName = team.getName();
     assertEquals(expectedName, teamName);
 
@@ -279,7 +279,7 @@ final class Mcv2ScreenTest {
     final int anchorCount = anchors.size();
     assertEquals(6, anchorCount);
 
-    MapPackets.assertMapPacket(anchors.get(0), screen.anchors().get(0));
+    MapPackets.assertMapPacket(anchors.get(0), screen.getAnchors().get(0));
     screen.hide(this.player);
     for (final ItemFrame frame : this.frames) {
       verify(this.player).hideEntity(this.server.getPlugin(), frame);
@@ -344,7 +344,7 @@ final class Mcv2ScreenTest {
 
   @Test
   void shouldWriteTheAnchorOfEveryMapInItsFirstRow() {
-    final List<MapTilePatch> anchors = new Mcv2Screen(this.configuration(BlockFace.WEST)).anchors();
+    final List<MapTilePatch> anchors = new Mcv2Screen(this.configuration(BlockFace.WEST)).getAnchors();
     final int anchorCount = anchors.size();
     assertEquals(6, anchorCount);
 
@@ -434,16 +434,16 @@ final class Mcv2ScreenTest {
   @Test
   void shouldColorTheTeam() {
     final Mcv2Screen screen = new Mcv2Screen(this.configuration(BlockFace.SOUTH));
-    final PlayerTeam team = screen.team();
+    final PlayerTeam team = screen.createTeam();
 
     final Optional<TeamColor> expectedColor = Optional.of(TeamColor.GOLD);
     final Optional<TeamColor> color = team.getColor();
     assertEquals(expectedColor, color);
 
-    final boolean namedAsScreenTeam = team.getName().matches(Mcv2Screen.TEAM + TEAM_SUFFIX_PATTERN);
+    final boolean namedAsScreenTeam = team.getName().matches(Mcv2Screen.TEAM_PREFIX + TEAM_SUFFIX_PATTERN);
     assertTrue(namedAsScreenTeam);
 
-    final String expectedName = screen.team().getName();
+    final String expectedName = screen.createTeam().getName();
     final String teamName = team.getName();
     assertEquals(expectedName, teamName);
   }

@@ -46,10 +46,12 @@ final class NativeTesting {
 
   private static final String NATIVE_KERNELS_CLASS = "NativeKernels";
 
-  // names a platform whose library does not load, so its tests expect Java
-  private static final String EXPECT = "mcv2.native.expect";
+  // "java" on a platform whose library does not load, so its tests expect Java
+  private static final String EXPECTATION_PROPERTY = "mcv2.native.expect";
 
-  static final Path FOLDER = Path.of("build", "mcv2-natives");
+  private static final String JAVA_EXPECTATION = "java";
+
+  static final Path NATIVES_FOLDER = Path.of("build", "mcv2-natives");
 
   private static @Nullable Resolution loaded;
 
@@ -57,9 +59,11 @@ final class NativeTesting {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
-  static boolean expected() {
+  static boolean areNativesExpected() {
     final String platform = Natives.platform(System.getProperty(OS_NAME_PROPERTY, ""), System.getProperty(OS_ARCHITECTURE_PROPERTY, ""));
-    return !"java".equals(System.getProperty(EXPECT)) && platform != null && Mcv2.NATIVE_DIGESTS.containsKey(platform);
+    return (
+      !JAVA_EXPECTATION.equals(System.getProperty(EXPECTATION_PROPERTY)) && platform != null && Mcv2.NATIVE_DIGESTS.containsKey(platform)
+    );
   }
 
   static synchronized Resolution resolution() {
@@ -69,8 +73,8 @@ final class NativeTesting {
     }
 
     final String platform = Natives.platform(System.getProperty(OS_NAME_PROPERTY, ""), System.getProperty(OS_ARCHITECTURE_PROPERTY, ""));
-    final Resolution current = Natives.resolve(Mcv2.NATIVE_AUTO, platform, FOLDER, NativeTesting::readLibrary, null);
-    if (expected() && current.binding() == null) {
+    final Resolution current = Natives.resolve(Mcv2.NATIVE_AUTO, platform, NATIVES_FOLDER, NativeTesting::readLibrary, null);
+    if (areNativesExpected() && current.binding() == null) {
       final String message = "The MCV2 native kernels did not load (%s) but must load on this platform!".formatted(current.description());
       throw new IllegalStateException(message);
     }
@@ -108,7 +112,10 @@ final class NativeTesting {
       Natives.platform(System.getProperty(OS_NAME_PROPERTY, ""), System.getProperty(OS_ARCHITECTURE_PROPERTY, ""))
     );
     final String digest = Mcv2.NATIVE_DIGESTS.get(platform);
-    return SymbolLookup.libraryLookup(FOLDER.resolve("mcv2kernels-" + digest + "-" + Natives.libraryName(platform)), Arena.global());
+    return SymbolLookup.libraryLookup(
+      NATIVES_FOLDER.resolve("mcv2kernels-" + digest + "-" + Natives.libraryName(platform)),
+      Arena.global()
+    );
   }
 
   static NativeKernels kernels(final Level level) {
@@ -129,7 +136,7 @@ final class NativeTesting {
   }
 
   static Supplier<?> factory(final Resolution resolution) {
-    return (Supplier<?>) Mcv2Internals.invoke(Resolution.class, resolution, "factory", new Class<?>[0]);
+    return (Supplier<?>) Mcv2Internals.callForResult(Resolution.class, resolution, "factory", new Class<?>[0]);
   }
 
   static Supplier<?> javaFactory() {
@@ -151,14 +158,14 @@ final class NativeTesting {
     final Method method,
     final @Nullable Object @Nullable [] arguments
   ) {
-    if (method.getName().equals("level")) {
-      return ((Binding) Mcv2Internals.field(type, kernels, "binding")).level();
+    if (method.getName().equals("getLevel")) {
+      return ((Binding) Mcv2Internals.field(type, kernels, "binding")).getLevel();
     }
 
     if (method.getName().equals("keeps")) {
       final Object array = Objects.requireNonNull(arguments)[0];
-      final int slot = (int) Mcv2Internals.invoke(type, null, "slot", new Class<?>[] { Object.class }, array);
-      return Mcv2Internals.invoke(type, kernels, "remembers", new Class<?>[] { int.class, Object.class }, slot, array);
+      final int slot = (int) Mcv2Internals.callForResult(type, null, "slot", new Class<?>[] { Object.class }, array);
+      return Mcv2Internals.callForResult(type, kernels, "remembers", new Class<?>[] { int.class, Object.class }, slot, array);
     }
 
     return Mcv2Internals.call(type, kernels, method.getName(), method.getParameterTypes(), arguments == null ? new Object[0] : arguments);
@@ -178,7 +185,7 @@ final class NativeTesting {
   }
 
   interface NativeKernels extends Kernels {
-    Level level();
+    Level getLevel();
     boolean keeps(Object array);
   }
 }

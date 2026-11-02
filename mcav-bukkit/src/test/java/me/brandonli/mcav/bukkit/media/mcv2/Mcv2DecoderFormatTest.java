@@ -23,12 +23,12 @@ import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MODE_PALETTE;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MODE_SKIP;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MODE_SOLID;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.patternSize;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.putU16;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.putU32;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.putUnsignedInt;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.putUnsignedShort;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.readUnsignedInt;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.readUnsignedShort;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.recordSize;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.signed;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.u16;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.u32;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -47,16 +47,16 @@ final class Mcv2DecoderFormatTest {
   @Test
   void shouldReadAndWriteLittleEndianIntegers() {
     final byte[] data = new byte[6];
-    putU16(data, 0, 0xBEEF);
-    putU32(data, 2, 0xDEADBEEFL);
+    putUnsignedShort(data, 0, 0xBEEF);
+    putUnsignedInt(data, 2, 0xDEADBEEFL);
 
-    final int shortValue = u16(data, 0);
+    final int shortValue = readUnsignedShort(data, 0);
     assertEquals(0xBEEF, shortValue);
 
     final int shortLowByte = data[0] & 0xFF;
     assertEquals(0xEF, shortLowByte);
 
-    final long unsignedValue = u32(data, 2);
+    final long unsignedValue = readUnsignedInt(data, 2);
     assertEquals(0xDEADBEEFL, unsignedValue);
 
     final int lowByte = data[2] & 0xFF;

@@ -83,7 +83,7 @@ final class TransportPagesTest {
     final String stream = name.substring(0, name.indexOf('#'));
     final int index = Integer.parseInt(name.substring(name.indexOf('#') + 1, name.indexOf('@')));
     final int bits = Integer.parseInt(name.substring(name.indexOf('@') + 1));
-    final byte[] frame = Mcv2Fixtures.frames(Mcv2Fixtures.read(stream)).get(index);
+    final byte[] frame = Mcv2Fixtures.splitFrames(Mcv2Fixtures.read(stream)).get(index);
     final List<byte[]> pages = TransportPages.makePages(frame, 7);
     final List<String> digests = new ArrayList<>();
     for (final byte[] page : pages) {
@@ -325,15 +325,15 @@ final class TransportPagesTest {
 
   private byte[] pageOfFrame(final long frameBytes, final int number, final int count, final int size) {
     final byte[] raw = new byte[TransportPages.HEADER_BYTES + size];
-    Mcv2Decoder.putU32(raw, 0, TransportPages.MAGIC);
+    Mcv2Decoder.putUnsignedInt(raw, 0, TransportPages.MAGIC);
     raw[4] = 1;
     raw[5] = 6;
-    Mcv2Decoder.putU16(raw, 16, number);
-    Mcv2Decoder.putU16(raw, 18, count);
-    Mcv2Decoder.putU32(raw, 24, frameBytes);
+    Mcv2Decoder.putUnsignedShort(raw, 16, number);
+    Mcv2Decoder.putUnsignedShort(raw, 18, count);
+    Mcv2Decoder.putUnsignedInt(raw, 24, frameBytes);
     final CRC32 crc = new CRC32();
     crc.update(raw);
-    Mcv2Decoder.putU32(raw, 28, crc.getValue());
+    Mcv2Decoder.putUnsignedInt(raw, 28, crc.getValue());
     return TransportPages.toSymbols(raw);
   }
 

@@ -54,13 +54,13 @@ import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.SMALLEST_BLOCK;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.VERSION;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.WALK_SPAN;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.follows;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.horizontal;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.interpolateHorizontally;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.isBlockSize;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.patternSize;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.putU16;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.putU32;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.putUnsignedInt;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.putUnsignedShort;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.recordSize;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.round;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.roundToChannel;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.signed;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.sizeIndex;
 
@@ -110,6 +110,7 @@ import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
+import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -128,7 +129,7 @@ public final class Mcv2 {
   private static final String INVALID_BLOCK_SIZE_MESSAGE = "Invalid block size!";
   private static final String INVALID_PIXEL_COUNT_MESSAGE = "Invalid pixel count!";
 
-  private static final String STOPPED = "The encoder stopped after a frame failed its verification!";
+  private static final String STOPPED_MESSAGE = "The encoder stopped after a frame failed its verification!";
   private static final int LIMIT_RETRIES = 4;
   private static final int MOTION_RANGE = 24;
   private static final int NORMAL_SKIP_BITS = 28;
@@ -138,7 +139,7 @@ public final class Mcv2 {
   private static final int FAST_FINE_SPLIT_BITS = 600;
   private static final int NORMAL_STEADY_SPLIT_BITS = 450;
   private static final int FAST_STEADY_SPLIT_BITS = 900;
-  private static final int KEY_INTERVAL = 120;
+  private static final int KEYFRAME_INTERVAL = 120;
   private static final double INDEX_BITS = 12;
   private static final double DISTORTION_SCALE = 96.0;
   private static final int OUTSIDE_BITS = 56;
@@ -148,7 +149,7 @@ public final class Mcv2 {
   private static final int NO_VECTOR = 0x80008000;
   private static final int COARSEST_QUANTIZER = 2;
   private static final int PALETTE_COLORS = 2;
-  private static final byte[] NONE = new byte[0];
+  private static final byte[] NO_BYTES = new byte[0];
   private static final boolean[] NO_SPLITS = new boolean[0];
 
   private static final int MAGIC_OFFSET = 0;
@@ -190,7 +191,7 @@ public final class Mcv2 {
   private static final int PATTERN_ORIENTATIONS = 2;
   private volatile Settings settings;
   private final AtomicBoolean keyframeRequested = new AtomicBoolean();
-  private byte[] verificationPicture = NONE;
+  private byte[] verificationPicture = NO_BYTES;
   private final Workers workers;
   private final Verification verification;
   private long frameBudget;
@@ -199,7 +200,7 @@ public final class Mcv2 {
   private int width;
   private int height;
   private long lastFrameId = -1;
-  private int framesSinceKey;
+  private int framesSinceKeyframe;
   private int[] motion = new int[0];
   private boolean @Nullable [] splitBefore;
   private @Nullable Buffers buffers;
@@ -214,7 +215,7 @@ public final class Mcv2 {
 
   // Motion search against the reference pyramid.
   private static final int[][] DIRECTIONS = { { -1, 0 }, { 1, 0 }, { 0, -1 }, { 0, 1 } };
-  private static final int SAMPLED = 4;
+  private static final int SAMPLES_PER_SIDE = 4;
   private static final int[][] SAMPLES = { { 1, 3, 5, 7 }, { 2, 6, 10, 14 }, { 4, 12, 20, 28 } };
 
   private static final int MOTION_X_SHIFT = 16;
@@ -230,7 +231,7 @@ public final class Mcv2 {
   // Palette, pattern and compact-grid fitting.
   private static final int CLUSTER_SUMS = 8;
   private static final int CLUSTER_COUNTS_OFFSET = 6;
-  private static final int ITERATIONS = 2;
+  private static final int CLUSTER_ITERATIONS = 2;
   private static final int SAMPLED_SIZE = 16;
   private static final int SAMPLED_STEP = 2;
 
@@ -239,7 +240,7 @@ public final class Mcv2 {
 
   private static final float ROUNDING_BIAS = 0.5f;
 
-  private static final double CENTRE_OFFSET = 0.5;
+  private static final double CENTER_OFFSET = 0.5;
 
   private static final int AUGMENTED_COLUMNS = 2 * GRID;
   private static final float[][] FITTING_MATRICES = fittingMatrices();
@@ -287,7 +288,7 @@ public final class Mcv2 {
     this.workers = new Workers(Preconditions.checkNotNull(pool, "Pool must not be null!"), threads);
     this.verification = Preconditions.checkNotNull(verification, "Verification must not be null!");
     this.kernels = Natives.resolved().factory();
-    this.framesSinceKey = KEY_INTERVAL;
+    this.framesSinceKeyframe = KEYFRAME_INTERVAL;
   }
 
   /**
@@ -302,12 +303,12 @@ public final class Mcv2 {
   /**
    * Changes settings for the next frame while retaining prediction history.
    *
-   * @param next the new settings
-   * @throws NullPointerException if {@code next} is null
+   * @param settings the new settings
+   * @throws NullPointerException if {@code settings} is null
    * @since 1.0.0
    */
-  public void switchTo(final Settings next) {
-    this.settings = Preconditions.checkNotNull(next, SETTINGS_NULL_MESSAGE);
+  public void setSettings(final Settings settings) {
+    this.settings = Preconditions.checkNotNull(settings, SETTINGS_NULL_MESSAGE);
   }
 
   /**
@@ -354,7 +355,7 @@ public final class Mcv2 {
    * @since 1.0.0
    */
   public Pending begin(final byte[] sourcePixels, final int width, final int height, final long frameId) {
-    Preconditions.checkState(!this.failed, STOPPED);
+    Preconditions.checkState(!this.failed, STOPPED_MESSAGE);
     Preconditions.checkState(this.older == null || this.older.finished, "Two frames are in flight already!");
     Preconditions.checkNotNull(sourcePixels, "Picture must not be null!");
     Preconditions.checkArgument(
@@ -369,14 +370,14 @@ public final class Mcv2 {
     final byte[] previous = this.reference;
     final boolean requested = this.keyframeRequested.getAndSet(false);
     final boolean predictable =
-      !requested && previous != null && width == this.width && height == this.height && this.framesSinceKey < KEY_INTERVAL;
+      !requested && previous != null && width == this.width && height == this.height && this.framesSinceKeyframe < KEYFRAME_INTERVAL;
     final Settings settings = this.settings;
     final boolean fast = settings.isFast();
     final double base = settings.getLambda();
     double lambda = Math.min(this.motionLambda.lambda(base), Double.MAX_VALUE);
     final boolean keyframe = !predictable;
     final Mcv2FrameKind kind = keyframe ? Mcv2FrameKind.KEYFRAME : Mcv2FrameKind.PREDICTED;
-    final byte[] predictFrom = keyframe ? NONE : Preconditions.checkNotNull(previous);
+    final byte[] predictFrom = keyframe ? NO_BYTES : Preconditions.checkNotNull(previous);
     final long predictsId = keyframe ? frameId : this.lastFrameId;
     Buffers buffers = this.buffers;
     if (buffers == null || buffers.width != width || buffers.height != height) {
@@ -385,18 +386,18 @@ public final class Mcv2 {
     }
 
     if (!keyframe) {
-      half(predictFrom, width, height, this.workers, buffers.half);
+      halve(predictFrom, width, height, this.workers, buffers.half);
 
       if (!fast) {
-        half(buffers.half, (width + 1) / PYRAMID_SCALE, (height + 1) / PYRAMID_SCALE, this.workers, buffers.quarter);
+        halve(buffers.half, (width + 1) / PYRAMID_SCALE, (height + 1) / PYRAMID_SCALE, this.workers, buffers.quarter);
       }
     }
 
     final Pending verifying = this.newer;
     final byte[] picture = buffers.spare(
       predictFrom,
-      verifying == null ? NONE : verifying.picture,
-      verifying == null ? NONE : verifying.predictFrom
+      verifying == null ? NO_BYTES : verifying.picture,
+      verifying == null ? NO_BYTES : verifying.predictFrom
     );
     final boolean[] before = keyframe ? NO_SPLITS : Preconditions.checkNotNull(this.splitBefore);
     final FrameState frame = new FrameState(
@@ -445,7 +446,7 @@ public final class Mcv2 {
     this.width = width;
     this.height = height;
     this.lastFrameId = frameId;
-    this.framesSinceKey = keyframe ? 1 : this.framesSinceKey + 1;
+    this.framesSinceKeyframe = keyframe ? 1 : this.framesSinceKeyframe + 1;
     this.older = this.newer;
     this.newer = pending;
 
@@ -465,7 +466,7 @@ public final class Mcv2 {
   @SuppressWarnings("ReferenceEquality") // the pending frame must be the very frame this encoder created first
   public Encoded finish(final Pending pending) {
     Preconditions.checkNotNull(pending, "Frame must not be null!");
-    Preconditions.checkState(!this.failed, STOPPED);
+    Preconditions.checkState(!this.failed, STOPPED_MESSAGE);
     Preconditions.checkArgument(pending.owner == this, "The pending frame belongs to another encoder!");
     Preconditions.checkState(!pending.finished, "The frame is finished already!");
     Preconditions.checkState(this.older == null || this.older.finished || pending == this.older, "Finish frames in creation order!");
@@ -554,14 +555,14 @@ public final class Mcv2 {
     }
 
     for (int steps = 0; steps < WINDOW_SIDES * range; steps++) {
-      final int centreX = search.bestX;
-      final int centreY = search.bestY;
+      final int centerX = search.bestX;
+      final int centerY = search.bestY;
       for (int directionIndex = 0; directionIndex < DIRECTIONS.length; directionIndex++) {
-        final int candidateX = clampMotion(centreX + DIRECTIONS[directionIndex][0], range);
-        final int candidateY = clampMotion(centreY + DIRECTIONS[directionIndex][1], range);
+        final int candidateX = clampMotion(centerX + DIRECTIONS[directionIndex][0], range);
+        final int candidateY = clampMotion(centerY + DIRECTIONS[directionIndex][1], range);
         search.consider(candidateX, candidateY);
       }
-      if (search.bestX == centreX && search.bestY == centreY) {
+      if (search.bestX == centerX && search.bestY == centerY) {
         break;
       }
     }
@@ -582,12 +583,12 @@ public final class Mcv2 {
     return seen;
   }
 
-  private static void half(final byte[] picture, final int width, final int height, final Workers workers, final byte[] output) {
+  private static void halve(final byte[] picture, final int width, final int height, final Workers workers, final byte[] output) {
     final int halfHeight = (height + 1) / PYRAMID_SCALE;
-    workers.forEach(halfHeight, row -> halfRow(picture, width, height, row, output));
+    workers.forEach(halfHeight, row -> halveRow(picture, width, height, row, output));
   }
 
-  private static void halfRow(final byte[] picture, final int width, final int height, final int row, final byte[] output) {
+  private static void halveRow(final byte[] picture, final int width, final int height, final int row, final byte[] output) {
     final int halfWidth = (width + 1) / PYRAMID_SCALE;
     final int topRow = PYRAMID_SCALE * row;
     final int bottomRow = Math.min(topRow + 1, height - 1);
@@ -611,7 +612,7 @@ public final class Mcv2 {
       effort == SearchEffort.TRIVIAL || (this.frameBudget > 0 && System.nanoTime() - started >= this.frameBudget);
     final RootSearch rootSearch = new RootSearch(frame, before, late);
     try {
-      this.workers.forEach(buffers.roots, () -> this.coders(frame), rootSearch::searchRoot);
+      this.workers.forEach(buffers.roots, () -> this.acquireCoders(frame), rootSearch::searchRoot);
     } finally {
       this.releaseCoders();
     }
@@ -676,7 +677,7 @@ public final class Mcv2 {
     return new Choice(TreeNode.leaf(coder.mode, coder.quantizer, Arrays.copyOf(coder.bestRecord, coder.length)), cost, 1);
   }
 
-  private BlockCoder[] coders(final FrameState frame) {
+  private BlockCoder[] acquireCoders(final FrameState frame) {
     BlockCoder[] coders;
     synchronized (this.idleCoders) {
       coders = this.idleCoders.poll();
@@ -779,7 +780,7 @@ public final class Mcv2 {
   private static double[][] interpolationBasis(final int size) {
     final double[][] basis = new double[size][GRID];
     for (int pixel = 0; pixel < size; pixel++) {
-      final double position = Math.min(Math.max(((pixel + CENTRE_OFFSET) * GRID) / size - CENTRE_OFFSET, 0), GRID - 1);
+      final double position = Math.min(Math.max(((pixel + CENTER_OFFSET) * GRID) / size - CENTER_OFFSET, 0), GRID - 1);
       final int lower = (int) position;
       final int upper = Math.min(lower + 1, GRID - 1);
       basis[pixel][lower] += 1 - (position - lower);
@@ -865,23 +866,22 @@ public final class Mcv2 {
     final int width,
     final int height,
     final Mcv2FrameKind kind,
-    final List<TreeNode> input,
+    final List<TreeNode> roots,
     final long frameId,
     final long referenceId
   ) {
-    Preconditions.checkNotNull(input, "Roots must not be null!");
+    Preconditions.checkNotNull(roots, "Roots must not be null!");
     Preconditions.checkArgument(
       width >= 1 && width <= MAXIMUM_DIMENSION && height >= 1 && height <= MAXIMUM_DIMENSION,
       INVALID_DIMENSIONS_MESSAGE
     );
     final int columns = (width + ROOT_SIZE - 1) / ROOT_SIZE;
-    Preconditions.checkArgument(input.size() == columns * ((height + ROOT_SIZE - 1) / ROOT_SIZE), "Wrong root count!");
+    Preconditions.checkArgument(roots.size() == columns * ((height + ROOT_SIZE - 1) / ROOT_SIZE), "Wrong root count!");
 
-    for (final TreeNode root : input) {
+    for (final TreeNode root : roots) {
       validateTree(root, ROOT_SIZE, kind);
     }
 
-    final List<TreeNode> roots = input;
     final List<TreeNode> flat = new ArrayList<>();
     final int[] levels = new int[BLOCK_SIZES];
     List<TreeNode> level = new ArrayList<>();
@@ -912,24 +912,24 @@ public final class Mcv2 {
     }
 
     final byte[] data = new byte[length];
-    putU32(data, MAGIC_OFFSET, MAGIC);
-    putU32(data, VERSION_OFFSET, VERSION);
-    putU16(data, DIMENSIONS_OFFSET, width);
-    putU16(data, DIMENSIONS_OFFSET + Short.BYTES, height);
-    putU32(data, FRAME_ID_OFFSET, frameId);
-    putU32(data, REFERENCE_ID_OFFSET, referenceId);
+    putUnsignedInt(data, MAGIC_OFFSET, MAGIC);
+    putUnsignedInt(data, VERSION_OFFSET, VERSION);
+    putUnsignedShort(data, DIMENSIONS_OFFSET, width);
+    putUnsignedShort(data, DIMENSIONS_OFFSET + Short.BYTES, height);
+    putUnsignedInt(data, FRAME_ID_OFFSET, frameId);
+    putUnsignedInt(data, REFERENCE_ID_OFFSET, referenceId);
     int seen = 0;
     for (int group = 0; group < groups; group++) {
       final long mask = presenceMask(roots, group * GROUP_ROOTS);
-      putU32(data, HEADER_BYTES + group * Integer.BYTES, mask);
+      putUnsignedInt(data, HEADER_BYTES + group * Integer.BYTES, mask);
       if (group % CHECKPOINT_GROUPS == 0) {
-        putU32(data, HEADER_BYTES + (groups + group / CHECKPOINT_GROUPS) * Integer.BYTES, seen);
+        putUnsignedInt(data, HEADER_BYTES + (groups + group / CHECKPOINT_GROUPS) * Integer.BYTES, seen);
       }
       seen += Long.bitCount(mask);
     }
 
     for (int index = 0; index < BLOCK_SIZES; index++) {
-      putU32(data, countsAt + index * Integer.BYTES, levels[index]);
+      putUnsignedInt(data, countsAt + index * Integer.BYTES, levels[index]);
     }
 
     int cursor = 0;
@@ -937,7 +937,7 @@ public final class Mcv2 {
     for (int index = 0; index < flat.size(); index++) {
       final TreeNode node = flat.get(index);
       if (index % WALK_SPAN == 0) {
-        putU32(data, walksAt + (index / WALK_SPAN) * Integer.BYTES, cursor | ((long) splits << CURSOR_BITS));
+        putUnsignedInt(data, walksAt + (index / WALK_SPAN) * Integer.BYTES, cursor | ((long) splits << CURSOR_BITS));
       }
       data[descriptorsAt + index] = (byte) (node.mode | (node.quantizer << QUANTIZER_SHIFT));
       if (node.isSplit()) {
@@ -1008,7 +1008,7 @@ public final class Mcv2 {
     }
   }
 
-  private static boolean patternRecord(final byte[] paletteRecord, final int size, final byte[] patternOutput) {
+  private static boolean writePatternRecord(final byte[] paletteRecord, final int size, final byte[] patternOutput) {
     for (int orientation = 0; orientation < PATTERN_ORIENTATIONS; orientation++) {
       if (isPatternRepeated(paletteRecord, size, orientation)) {
         writePattern(paletteRecord, size, orientation, patternOutput);
@@ -1874,7 +1874,7 @@ public final class Mcv2 {
 
   private static final class BlockCoder {
 
-    private static final int CENTRE_SEED = 0;
+    private static final int CENTER_SEED = 0;
     private static final int LEFT_SEED = 1;
     private static final int RIGHT_SEED = 2;
     private static final int ABOVE_SEED = 3;
@@ -1882,7 +1882,7 @@ public final class Mcv2 {
     private static final int PARENT_SEED = 5;
     private static final int MOTION_SEEDS = 6;
 
-    private static final int CENTRE_DIVISOR = 2;
+    private static final int CENTER_DIVISOR = 2;
 
     private static final int QUARTER_SCALE = PYRAMID_SCALE * PYRAMID_SCALE;
 
@@ -1975,20 +1975,20 @@ public final class Mcv2 {
         }
       }
 
-      this.solid();
+      this.evaluateSolid();
 
       if (this.hurried) {
         this.skipped = true;
         return;
       }
 
-      this.pattern();
-      this.palette();
+      this.evaluatePattern();
+      this.evaluatePalette();
     }
 
     private void evaluateTemporal(final int parent) {
       this.predict(0, this.zeroPrediction);
-      this.eligible(0);
+      this.startMode(0);
       this.kernels.predicted(this.zeroPrediction, this.size, this.reconstruction);
       this.score(MODE_SKIP, 0, 0);
 
@@ -2010,7 +2010,7 @@ public final class Mcv2 {
 
     private boolean scoreMotion() {
       // The SKIP bound already pays for MOTION's two bytes.
-      this.eligible(MOTION_BYTES);
+      this.startMode(MOTION_BYTES);
       this.record[0] = (byte) motionX(this.localVector);
       this.record[1] = (byte) motionY(this.localVector);
 
@@ -2027,17 +2027,19 @@ public final class Mcv2 {
       return this.bestCost;
     }
 
-    private boolean eligible(final int length) {
+    private void startMode(final int length) {
       final double bits = length == 0 && this.size == ROOT_SIZE ? 1 : INDEX_BITS;
       this.rate = Math.min(this.frame.lambda * (length * Byte.SIZE + bits), Double.MAX_VALUE);
       final double best = this.cost();
       this.kernels.start(this.source, this.rate, best);
+    }
 
-      return best > this.rate;
+    private boolean isRateBelowBestCost() {
+      return this.bestCost > this.rate;
     }
 
     private void score(final int mode, final int quantizer, final int length) {
-      final long distortion = this.kernels.distortion();
+      final long distortion = this.kernels.getDistortion();
       final double cost = distortion / DISTORTION_SCALE + this.rate;
 
       System.arraycopy(this.reconstruction, 0, this.best, 0, this.reconstruction.length);
@@ -2049,20 +2051,20 @@ public final class Mcv2 {
     }
 
     private void loadSource() {
-      final BlockCoder parent = this.root;
-      if (parent != null) {
-        this.copyFromRoot(parent, parent.source, this.source);
+      final BlockCoder root = this.root;
+      if (root != null) {
+        this.copyFromRoot(root, root.source, this.source);
       } else {
         this.kernels.loadSource(this.frame.source, this.frame.width, this.frame.height, this.left, this.top, this.size, this.source);
       }
     }
 
-    private void copyFromRoot(final BlockCoder parent, final int[] from, final int[] output) {
+    private void copyFromRoot(final BlockCoder root, final int[] from, final int[] output) {
       final int rowLength = this.size * CHANNELS;
       for (int row = 0; row < this.size; row++) {
         System.arraycopy(
           from,
-          ((this.top - parent.top + row) * ROOT_SIZE + this.left - parent.left) * CHANNELS,
+          ((this.top - root.top + row) * ROOT_SIZE + this.left - root.left) * CHANNELS,
           output,
           row * rowLength,
           rowLength
@@ -2071,11 +2073,10 @@ public final class Mcv2 {
     }
 
     private void predict(final int vector, final int[] output) {
-      final BlockCoder parent = this.root;
-      final int[] from =
-        parent == null ? null : vector == 0 ? parent.zeroPrediction : vector == parent.localVector ? parent.localPrediction : null;
-      if (parent != null && from != null) {
-        this.copyFromRoot(parent, from, output);
+      final BlockCoder root = this.root;
+      final int[] from = root == null ? null : vector == 0 ? root.zeroPrediction : vector == root.localVector ? root.localPrediction : null;
+      if (root != null && from != null) {
+        this.copyFromRoot(root, from, output);
       } else {
         this.kernels.predict(
           this.frame.reference,
@@ -2093,13 +2094,13 @@ public final class Mcv2 {
 
     private int searchMotion(final int parent) {
       final FrameState frame = this.frame;
-      final int half = this.size / CENTRE_DIVISOR;
-      this.seeds[CENTRE_SEED] = frame.previousMotion(this.left + half, this.top + half);
+      final int half = this.size / CENTER_DIVISOR;
+      this.seeds[CENTER_SEED] = frame.previousMotion(this.left + half, this.top + half);
       this.seeds[LEFT_SEED] = frame.previousMotion(this.left - 1, this.top + half);
       this.seeds[RIGHT_SEED] = frame.previousMotion(this.left + this.size, this.top + half);
       this.seeds[ABOVE_SEED] = frame.previousMotion(this.left + half, this.top - 1);
       this.seeds[BELOW_SEED] = frame.previousMotion(this.left + half, this.top + this.size);
-      this.seeds[PARENT_SEED] = parent == NO_VECTOR ? this.seeds[CENTRE_SEED] : parent;
+      this.seeds[PARENT_SEED] = parent == NO_VECTOR ? this.seeds[CENTER_SEED] : parent;
       this.coarseSeed[0] = this.coarseMotion(PYRAMID_SCALE);
 
       return this.kernels.seeded(
@@ -2153,8 +2154,9 @@ public final class Mcv2 {
       return this.clusters;
     }
 
-    private void solid() {
-      if (!this.eligible(CHANNELS)) {
+    private void evaluateSolid() {
+      this.startMode(CHANNELS);
+      if (!this.isRateBelowBestCost()) {
         return;
       }
 
@@ -2190,9 +2192,10 @@ public final class Mcv2 {
       }
     }
 
-    private void palette() {
+    private void evaluatePalette() {
       final int length = recordSize(MODE_PALETTE, this.size);
-      if (!this.eligible(length)) {
+      this.startMode(length);
+      if (!this.isRateBelowBestCost()) {
         return;
       }
 
@@ -2204,9 +2207,10 @@ public final class Mcv2 {
       }
     }
 
-    private void pattern() {
+    private void evaluatePattern() {
       final int length = patternSize(this.size);
-      if (!this.eligible(length)) {
+      this.startMode(length);
+      if (!this.isRateBelowBestCost()) {
         return;
       }
 
@@ -2215,7 +2219,7 @@ public final class Mcv2 {
       }
 
       this.writePalette(this.palette);
-      patternRecord(this.palette, this.size, this.record);
+      writePatternRecord(this.palette, this.size, this.record);
 
       if (this.kernels.palette(this.palette, this.size, this.reconstruction)) {
         this.score(MODE_PATTERN, 0, length);
@@ -2223,7 +2227,8 @@ public final class Mcv2 {
     }
 
     private void compact(final int vector, final int[] prediction) {
-      if (!this.eligible(COMPACT_BYTES)) {
+      this.startMode(COMPACT_BYTES);
+      if (!this.isRateBelowBestCost()) {
         return;
       }
 
@@ -2269,7 +2274,7 @@ public final class Mcv2 {
       return (levels & this.bit) != 0;
     }
 
-    String symbol() {
+    String getSymbol() {
       return this.symbol;
     }
   }
@@ -2561,27 +2566,27 @@ public final class Mcv2 {
     static Resolution bind(final SymbolLookup library, final String platform, final @Nullable String highest, final int expected) {
       final Linker linker = Linker.nativeLinker();
       try {
-        final int interfaceVersion = (int) linker.downcallHandle(library.findOrThrow(ABI_SYMBOL), QUERY).invokeExact();
-        if (interfaceVersion != expected) {
-          return Resolution.failure("the library's interface %s is not %s".formatted(interfaceVersion, expected));
+        final int abiVersion = (int) linker.downcallHandle(library.findOrThrow(ABI_SYMBOL), QUERY).invokeExact();
+        if (abiVersion != expected) {
+          return Resolution.failure("the library's interface %s is not %s".formatted(abiVersion, expected));
         }
 
         // The dependency-free AArch64 library cannot query the kernel for SVE permission.
-        final long features = platform.startsWith(LINUX) ? hardwareCapabilities(AUXILIARY_VECTOR_FILE) : 0;
+        final long hardwareCapabilities = platform.startsWith(LINUX) ? readHardwareCapabilities(AUXILIARY_VECTOR_FILE) : 0;
         final MethodHandle cpuLevels = MethodHandles.insertArguments(
           linker.downcallHandle(library.findOrThrow(CPU_LEVELS_SYMBOL), LEVELS),
           FEATURES_ARGUMENT,
-          features
+          hardwareCapabilities
         );
         final int levels = (int) cpuLevels.invokeExact();
-        final Level level = level(levels, highest);
-        return new Resolution(Binding.of(library, level), levels, "native %s (%s)".formatted(level.symbol(), platform), false);
+        final Level level = selectLevel(levels, highest);
+        return new Resolution(Binding.of(library, level), levels, "native %s (%s)".formatted(level.getSymbol(), platform), false);
       } catch (final Throwable exception) {
         return Resolution.failure("the library could not be bound: %s".formatted(exception));
       }
     }
 
-    static long hardwareCapabilities(final Path auxiliaryVectorFile) {
+    static long readHardwareCapabilities(final Path auxiliaryVectorFile) {
       final byte[] bytes;
       try {
         bytes = Files.readAllBytes(auxiliaryVectorFile);
@@ -2602,10 +2607,10 @@ public final class Mcv2 {
       return 0;
     }
 
-    static Level level(final int levels, final @Nullable String highest) {
+    static Level selectLevel(final int levels, final @Nullable String highest) {
       boolean allowed = highest == null;
       for (final Level level : PREFERENCE) {
-        allowed |= level.symbol().equals(highest);
+        allowed |= level.getSymbol().equals(highest);
         if (allowed && level.isIn(levels)) {
           return level;
         }
@@ -2727,11 +2732,11 @@ public final class Mcv2 {
     static Binding of(final SymbolLookup library, final Level level) {
       final Linker linker = Linker.nativeLinker();
       return new Binding(level, (name, descriptor) ->
-        linker.downcallHandle(library.findOrThrow(SYMBOL_PREFIX + level.symbol() + SYMBOL_SEPARATOR + name), descriptor, CRITICAL)
+        linker.downcallHandle(library.findOrThrow(SYMBOL_PREFIX + level.getSymbol() + SYMBOL_SEPARATOR + name), descriptor, CRITICAL)
       );
     }
 
-    Level level() {
+    Level getLevel() {
       return this.level;
     }
   }
@@ -2743,7 +2748,7 @@ public final class Mcv2 {
 
     private static final int SELECTORS_AT = PALETTE_COLORS * CHANNELS;
 
-    private static final String CALL_FAILED = "MCV2 native kernel failed!";
+    private static final String KERNEL_FAILED_MESSAGE = "MCV2 native kernel failed!";
 
     private static final int SEGMENTS = 256;
 
@@ -2832,7 +2837,7 @@ public final class Mcv2 {
       checkBlock(this.source.length, size);
     }
 
-    private boolean finished(final long measured) {
+    private boolean recordDistortion(final long measured) {
       if (measured < 0) {
         return false;
       }
@@ -2850,7 +2855,7 @@ public final class Mcv2 {
     }
 
     @Override
-    public long distortion() {
+    public long getDistortion() {
       return this.distortion;
     }
 
@@ -2860,11 +2865,11 @@ public final class Mcv2 {
       checkBlock(prediction.length, size);
 
       try {
-        return this.finished(
+        return this.recordDistortion(
           (long) this.binding.predicted.invokeExact(of(prediction), size, of(output), of(this.source), this.rate, this.limit)
         );
       } catch (final Throwable exception) {
-        throw new IllegalStateException(CALL_FAILED, exception);
+        throw new IllegalStateException(KERNEL_FAILED_MESSAGE, exception);
       }
     }
 
@@ -2873,9 +2878,11 @@ public final class Mcv2 {
       this.checkScored(size, output);
 
       try {
-        return this.finished((long) this.binding.solid.invokeExact(color, size, of(output), of(this.source), this.rate, this.limit));
+        return this.recordDistortion(
+          (long) this.binding.solid.invokeExact(color, size, of(output), of(this.source), this.rate, this.limit)
+        );
       } catch (final Throwable exception) {
-        throw new IllegalStateException(CALL_FAILED, exception);
+        throw new IllegalStateException(KERNEL_FAILED_MESSAGE, exception);
       }
     }
 
@@ -2885,9 +2892,11 @@ public final class Mcv2 {
       checkLength(record.length, SELECTORS_AT + (size * (long) size) / Byte.SIZE);
 
       try {
-        return this.finished((long) this.binding.palette.invokeExact(of(record), size, of(output), of(this.source), this.rate, this.limit));
+        return this.recordDistortion(
+          (long) this.binding.palette.invokeExact(of(record), size, of(output), of(this.source), this.rate, this.limit)
+        );
       } catch (final Throwable exception) {
-        throw new IllegalStateException(CALL_FAILED, exception);
+        throw new IllegalStateException(KERNEL_FAILED_MESSAGE, exception);
       }
     }
 
@@ -2899,7 +2908,7 @@ public final class Mcv2 {
       checkLength(record.length, COMPACT_BYTES);
 
       try {
-        return this.finished(
+        return this.recordDistortion(
           (long) this.binding.compact.invokeExact(
             of(prediction),
             of(record),
@@ -2912,7 +2921,7 @@ public final class Mcv2 {
           )
         );
       } catch (final Throwable exception) {
-        throw new IllegalStateException(CALL_FAILED, exception);
+        throw new IllegalStateException(KERNEL_FAILED_MESSAGE, exception);
       }
     }
 
@@ -2939,7 +2948,7 @@ public final class Mcv2 {
       try {
         this.binding.predict.invokeExact(of(reference), width, height, left, top, size, motionX, motionY, of(output));
       } catch (final Throwable exception) {
-        throw new IllegalStateException(CALL_FAILED, exception);
+        throw new IllegalStateException(KERNEL_FAILED_MESSAGE, exception);
       }
     }
 
@@ -2952,7 +2961,7 @@ public final class Mcv2 {
       try {
         this.binding.fit.invokeExact(of(values), size, of(FITTING_MATRICES[sizeIndex(size)]), of(output));
       } catch (final Throwable exception) {
-        throw new IllegalStateException(CALL_FAILED, exception);
+        throw new IllegalStateException(KERNEL_FAILED_MESSAGE, exception);
       }
     }
 
@@ -2965,7 +2974,7 @@ public final class Mcv2 {
       try {
         this.binding.cluster.invokeExact(of(source), size, of(endpoints));
       } catch (final Throwable exception) {
-        throw new IllegalStateException(CALL_FAILED, exception);
+        throw new IllegalStateException(KERNEL_FAILED_MESSAGE, exception);
       }
     }
 
@@ -2980,7 +2989,7 @@ public final class Mcv2 {
       try {
         this.binding.assign.invokeExact(of(source), count, of(colors), of(selectors));
       } catch (final Throwable exception) {
-        throw new IllegalStateException(CALL_FAILED, exception);
+        throw new IllegalStateException(KERNEL_FAILED_MESSAGE, exception);
       }
     }
 
@@ -2995,7 +3004,7 @@ public final class Mcv2 {
       try {
         return (int) this.binding.assignPattern.invokeExact(of(source), size, of(colors), of(selectors)) != 0;
       } catch (final Throwable exception) {
-        throw new IllegalStateException(CALL_FAILED, exception);
+        throw new IllegalStateException(KERNEL_FAILED_MESSAGE, exception);
       }
     }
 
@@ -3032,7 +3041,7 @@ public final class Mcv2 {
           seeds.length
         );
       } catch (final Throwable exception) {
-        throw new IllegalStateException(CALL_FAILED, exception);
+        throw new IllegalStateException(KERNEL_FAILED_MESSAGE, exception);
       }
     }
 
@@ -3054,7 +3063,7 @@ public final class Mcv2 {
       try {
         this.binding.loadSource.invokeExact(of(image), width, height, left, top, size, of(source));
       } catch (final Throwable exception) {
-        throw new IllegalStateException(CALL_FAILED, exception);
+        throw new IllegalStateException(KERNEL_FAILED_MESSAGE, exception);
       }
     }
 
@@ -3068,7 +3077,7 @@ public final class Mcv2 {
       try {
         this.binding.halve.invokeExact(of(block), size, of(output));
       } catch (final Throwable exception) {
-        throw new IllegalStateException(CALL_FAILED, exception);
+        throw new IllegalStateException(KERNEL_FAILED_MESSAGE, exception);
       }
     }
 
@@ -3082,14 +3091,14 @@ public final class Mcv2 {
       try {
         this.binding.residualTarget.invokeExact(of(source), of(prediction), count, of(target));
       } catch (final Throwable exception) {
-        throw new IllegalStateException(CALL_FAILED, exception);
+        throw new IllegalStateException(KERNEL_FAILED_MESSAGE, exception);
       }
     }
   }
 
   private interface Kernels {
     void start(int[] source, double rate, double limit);
-    long distortion();
+    long getDistortion();
     boolean predicted(int[] prediction, int size, int[] output);
     boolean solid(int color, int size, int[] output);
     boolean palette(byte[] record, int size, int[] output);
@@ -3121,7 +3130,7 @@ public final class Mcv2 {
       this.distortion = 0;
     }
 
-    private boolean row(final int[] output, final int from, final int pixels) {
+    private boolean scoreRow(final int[] output, final int from, final int pixels) {
       int sum = 0;
       final int end = from + pixels * CHANNELS;
       for (int offset = from; offset < end; offset += CHANNELS) {
@@ -3159,7 +3168,7 @@ public final class Mcv2 {
     }
 
     @Override
-    public long distortion() {
+    public long getDistortion() {
       return this.score.distortion;
     }
 
@@ -3169,7 +3178,7 @@ public final class Mcv2 {
       for (int row = 0; row < size; row++) {
         final int from = row * rowLength;
         System.arraycopy(prediction, from, output, from, rowLength);
-        if (!this.score.row(output, from, size)) {
+        if (!this.score.scoreRow(output, from, size)) {
           return false;
         }
       }
@@ -3189,7 +3198,7 @@ public final class Mcv2 {
           output[from + column * CHANNELS + GREEN_OFFSET] = green;
           output[from + column * CHANNELS + BLUE_OFFSET] = blue;
         }
-        if (!this.score.row(output, from, size)) {
+        if (!this.score.scoreRow(output, from, size)) {
           return false;
         }
       }
@@ -3208,7 +3217,7 @@ public final class Mcv2 {
           output[pixel * CHANNELS + GREEN_OFFSET] = record[arrayOffset + GREEN_OFFSET] & BYTE_MASK;
           output[pixel * CHANNELS + BLUE_OFFSET] = record[arrayOffset + BLUE_OFFSET] & BYTE_MASK;
         }
-        if (!this.score.row(output, row * size * CHANNELS, size)) {
+        if (!this.score.scoreRow(output, row * size * CHANNELS, size)) {
           return false;
         }
       }
@@ -3225,20 +3234,20 @@ public final class Mcv2 {
         );
       }
 
-      horizontal(this.nodes, size, this.rows);
+      interpolateHorizontally(this.nodes, size, this.rows);
       final int shift = INTERPOLATED_AXES * (Integer.numberOfTrailingZeros(size) + 1);
       final int scale = HALF_PIXEL_SCALE * HALF_PIXEL_SCALE * size * size;
       for (int row = 0; row < size; row++) {
-        this.vertical(size, row);
+        this.interpolateVertically(size, row);
         final int from = row * size * CHANNELS;
         for (int column = 0; column < size; column++) {
           final int arrayOffset = from + column * CHANNELS;
           final int scaled = this.line[column] << quantizer;
-          output[arrayOffset] = round(prediction[arrayOffset] * scale + scaled, shift);
-          output[arrayOffset + GREEN_OFFSET] = round(prediction[arrayOffset + GREEN_OFFSET] * scale + scaled, shift);
-          output[arrayOffset + BLUE_OFFSET] = round(prediction[arrayOffset + BLUE_OFFSET] * scale + scaled, shift);
+          output[arrayOffset] = roundToChannel(prediction[arrayOffset] * scale + scaled, shift);
+          output[arrayOffset + GREEN_OFFSET] = roundToChannel(prediction[arrayOffset + GREEN_OFFSET] * scale + scaled, shift);
+          output[arrayOffset + BLUE_OFFSET] = roundToChannel(prediction[arrayOffset + BLUE_OFFSET] * scale + scaled, shift);
         }
-        if (!this.score.row(output, from, size)) {
+        if (!this.score.scoreRow(output, from, size)) {
           return false;
         }
       }
@@ -3246,7 +3255,7 @@ public final class Mcv2 {
       return true;
     }
 
-    private void vertical(final int size, final int row) {
+    private void interpolateVertically(final int size, final int row) {
       final int index = sizeIndex(size);
       final int top = GRID_LOWER[index][row] * size;
       final int bottom = GRID_UPPER[index][row] * size;
@@ -3335,7 +3344,7 @@ public final class Mcv2 {
     public void cluster(final int[] source, final int size, final int[] endpoints) {
       final int step = size >= SAMPLED_SIZE ? SAMPLED_STEP : 1;
       this.seedEndpoints(source, size, step, endpoints);
-      for (int iteration = 0; iteration < ITERATIONS; iteration++) {
+      for (int iteration = 0; iteration < CLUSTER_ITERATIONS; iteration++) {
         Arrays.fill(this.clusterScratch, 0, CLUSTER_SUMS, 0);
         this.assignClusters(source, size, step, endpoints);
         this.moveEndpoints(endpoints);
@@ -3423,18 +3432,18 @@ public final class Mcv2 {
     @Override
     public boolean finishPattern(final int[] source, final int size, final int[] endpoints, final int[] colors, final byte[] selectors) {
       System.arraycopy(endpoints, 0, colors, 0, PALETTE_COLORS * CHANNELS);
-      boolean columns = true;
-      boolean rows = true;
-      for (int row = 0; row < size && (columns || rows); row++) {
+      boolean uniformColumns = true;
+      boolean uniformRows = true;
+      for (int row = 0; row < size && (uniformColumns || uniformRows); row++) {
         for (int column = 0; column < size; column++) {
           final int pixel = row * size + column;
           selectors[pixel] = nearest(source, pixel, colors);
-          columns &= selectors[pixel] == selectors[column];
-          rows &= selectors[pixel] == selectors[row * size];
+          uniformColumns &= selectors[pixel] == selectors[column];
+          uniformRows &= selectors[pixel] == selectors[row * size];
         }
       }
 
-      return columns || rows;
+      return uniformColumns || uniformRows;
     }
 
     @Override
@@ -3559,9 +3568,9 @@ public final class Mcv2 {
 
     private long cost(final int motionX, final int motionY) {
       final int left = this.blockLeft + this.samples[0] + motionX;
-      final int right = this.blockLeft + this.samples[SAMPLED - 1] + motionX;
+      final int right = this.blockLeft + this.samples[SAMPLES_PER_SIDE - 1] + motionX;
       final int top = this.blockTop + this.samples[0] + motionY;
-      final int bottom = this.blockTop + this.samples[SAMPLED - 1] + motionY;
+      final int bottom = this.blockTop + this.samples[SAMPLES_PER_SIDE - 1] + motionY;
       if (left >= 0 && top >= 0 && right < this.width && bottom < this.height) {
         return this.interiorCost(motionX, motionY);
       }
@@ -3571,10 +3580,10 @@ public final class Mcv2 {
 
     private long interiorCost(final int motionX, final int motionY) {
       long sum = 0;
-      for (int sampleRow = 0; sampleRow < SAMPLED; sampleRow++) {
+      for (int sampleRow = 0; sampleRow < SAMPLES_PER_SIDE; sampleRow++) {
         final int row = (this.blockTop + this.samples[sampleRow] + motionY) * this.width + this.blockLeft + motionX;
         final int line = this.samples[sampleRow] * this.size;
-        for (int sampleColumn = 0; sampleColumn < SAMPLED; sampleColumn++) {
+        for (int sampleColumn = 0; sampleColumn < SAMPLES_PER_SIDE; sampleColumn++) {
           final int arrayOffset = (row + this.samples[sampleColumn]) * CHANNELS;
           final int target = (line + this.samples[sampleColumn]) * CHANNELS;
           sum += Math.abs((this.reference[arrayOffset] & BYTE_MASK) - this.source[target]);
@@ -3588,9 +3597,9 @@ public final class Mcv2 {
 
     private long clampedCost(final int motionX, final int motionY) {
       long sum = 0;
-      for (int sampleRow = 0; sampleRow < SAMPLED; sampleRow++) {
+      for (int sampleRow = 0; sampleRow < SAMPLES_PER_SIDE; sampleRow++) {
         final int row = Math.min(Math.max(this.blockTop + this.samples[sampleRow] + motionY, 0), this.height - 1);
-        for (int sampleColumn = 0; sampleColumn < SAMPLED; sampleColumn++) {
+        for (int sampleColumn = 0; sampleColumn < SAMPLES_PER_SIDE; sampleColumn++) {
           final int column = Math.min(Math.max(this.blockLeft + this.samples[sampleColumn] + motionX, 0), this.width - 1);
           final int arrayOffset = (row * this.width + column) * CHANNELS;
           final int target = (this.samples[sampleRow] * this.size + this.samples[sampleColumn]) * CHANNELS;
@@ -3661,7 +3670,7 @@ public final class Mcv2 {
 
   private static final class TreeNode {
 
-    private static final TreeNode SKIP = new TreeNode(MODE_SKIP, 0, NONE, null);
+    private static final TreeNode SKIP = new TreeNode(MODE_SKIP, 0, NO_BYTES, null);
 
     private final int mode;
     private final int quantizer;
@@ -3684,7 +3693,7 @@ public final class Mcv2 {
     }
 
     private static TreeNode split(final TreeNode topLeft, final TreeNode topRight, final TreeNode bottomLeft, final TreeNode bottomRight) {
-      return new TreeNode(MODE_SPLIT, 0, NONE, new TreeNode[] { topLeft, topRight, bottomLeft, bottomRight });
+      return new TreeNode(MODE_SPLIT, 0, NO_BYTES, new TreeNode[] { topLeft, topRight, bottomLeft, bottomRight });
     }
 
     private TreeNode getChild(final int index) {
@@ -3710,17 +3719,13 @@ public final class Mcv2 {
       this.threads = threads;
     }
 
-    private int threads() {
-      return this.threads;
-    }
-
     private void forEach(final int count, final IntConsumer body) {
       this.forEach(count, () -> body, IntConsumer::accept);
     }
 
     private <ScratchType> void forEach(final int count, final Supplier<ScratchType> scratch, final ObjIntConsumer<ScratchType> body) {
       final ForkJoinPool target = this.pool;
-      final int workers = Math.min(this.threads(), count);
+      final int workers = Math.min(this.threads, count);
       if (workers <= 1) {
         final ScratchType state = scratch.get();
         for (int index = 0; index < count; index++) {
@@ -3831,7 +3836,7 @@ public final class Mcv2 {
       this.pool = new ForkJoinPool(
         threads,
         factory,
-        Pool::uncaught,
+        this::logThreadFailure,
         false,
         CORE_POOL_SIZE,
         threads,
@@ -3956,7 +3961,7 @@ public final class Mcv2 {
       }
     }
 
-    private static void uncaught(final Thread thread, final Throwable exception) {
+    private void logThreadFailure(@UnderInitialization Pool this, final Thread thread, final Throwable exception) {
       final String threadName = thread.getName();
       LOGGER.error("MCV2 encoder thread {} failed.", threadName, exception);
     }

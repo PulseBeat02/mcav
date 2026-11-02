@@ -42,7 +42,7 @@ public final class PackBuilderExample {
 
     final int format = Integer.parseInt(args[0]);
     final SimpleResourcePack pack = SimpleResourcePack.pack();
-    pack.meta(format, "MCAV example audio");
+    pack.metadata(format, "MCAV example audio");
     final UriSource video = UriSource.uri(VIDEO);
     final Path sound = AudioExtractor.extractOggVorbis(video);
     pack.sound("mcav:example", sound);

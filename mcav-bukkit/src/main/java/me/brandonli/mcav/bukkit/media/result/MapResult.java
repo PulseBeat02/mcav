@@ -87,13 +87,13 @@ public class MapResult implements DitherResultStep {
     final int width = samples.getWidth();
     final int height = samples.getHeight();
     final MapLayout layout = new MapLayout(startMapId, columns, rows, width, height);
-    final List<MapTilePatch> patches = this.completeGrid(layout, dithered);
+    final List<MapTilePatch> patches = this.createGridPatches(layout, dithered);
 
     final Collection<UUID> viewers = this.configuration.getViewers();
     MapPacketFactory.send(viewers, patches);
   }
 
-  private List<MapTilePatch> completeGrid(final MapLayout layout, final byte[] image) {
+  private List<MapTilePatch> createGridPatches(final MapLayout layout, final byte[] image) {
     final int width = layout.getImageWidth();
     final int height = layout.getImageHeight();
     final int expectedLength = width * height;

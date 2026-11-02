@@ -68,7 +68,7 @@ final class Mcv2LinkTest {
     final boolean sentHeldBack = link.offer(2, 1, Mcv2FrameKind.PREDICTED, 60);
     assertFalse(sentHeldBack);
 
-    link.written(120);
+    link.releaseBacklog(120);
     final boolean sentFromMissing = link.offer(3, 2, Mcv2FrameKind.PREDICTED, 60);
     assertFalse(sentFromMissing);
 
@@ -140,7 +140,7 @@ final class Mcv2LinkTest {
     final boolean sentPastTwiceTheLimit = link.offer(5, 5, Mcv2FrameKind.KEYFRAME, 1);
     assertFalse(sentPastTwiceTheLimit);
 
-    link.written(62);
+    link.releaseBacklog(62);
     final boolean sentOnceWritten = link.offer(6, 3, Mcv2FrameKind.PREDICTED, 1);
     assertTrue(sentOnceWritten);
 

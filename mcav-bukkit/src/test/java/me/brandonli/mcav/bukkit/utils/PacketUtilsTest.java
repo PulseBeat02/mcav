@@ -121,11 +121,11 @@ final class PacketUtilsTest {
     final CraftPlayer first = this.server.addPlayer(FIRST);
     this.server.addPlayer(SECOND);
     this.server.injectModule();
-    final Object original = PacketUtils.connectionIdentity(FIRST).orElseThrow();
-    final Object second = PacketUtils.connectionIdentity(SECOND).orElseThrow();
+    final Object original = PacketUtils.findConnectionIdentity(FIRST).orElseThrow();
+    final Object second = PacketUtils.findConnectionIdentity(SECOND).orElseThrow();
     assertNotSame(original, second);
 
-    final Optional<Object> late = PacketUtils.connectionIdentity(LATE);
+    final Optional<Object> late = PacketUtils.findConnectionIdentity(LATE);
     assertTrue(late.isEmpty());
 
     final Listener listener = this.captureListener(1);
@@ -133,25 +133,25 @@ final class PacketUtilsTest {
     final PlayerJoinEvent joined = mock(PlayerJoinEvent.class);
     when(joined.getPlayer()).thenReturn(first);
     join.execute(listener, joined);
-    final Object rejoined = PacketUtils.connectionIdentity(FIRST).orElseThrow();
+    final Object rejoined = PacketUtils.findConnectionIdentity(FIRST).orElseThrow();
     assertSame(original, rejoined, "a repeated event cannot invalidate a live baseline");
 
     PacketUtils.initialize();
-    final Object refreshed = PacketUtils.connectionIdentity(FIRST).orElseThrow();
+    final Object refreshed = PacketUtils.findConnectionIdentity(FIRST).orElseThrow();
     assertSame(original, refreshed, "refreshing the cache keeps a live connection's identity");
 
     this.server.removePlayer(FIRST);
     final CraftPlayer replacement = this.server.addPlayer(FIRST);
     when(joined.getPlayer()).thenReturn(replacement);
     join.execute(listener, joined);
-    final Object reconnected = PacketUtils.connectionIdentity(FIRST).orElseThrow();
+    final Object reconnected = PacketUtils.findConnectionIdentity(FIRST).orElseThrow();
     assertNotSame(original, reconnected, "a new connection cannot inherit the previous client's map state");
 
     PacketUtils.shutdown();
-    final Optional<Object> afterShutdown = PacketUtils.connectionIdentity(FIRST);
+    final Optional<Object> afterShutdown = PacketUtils.findConnectionIdentity(FIRST);
     assertTrue(afterShutdown.isEmpty());
 
-    final NullPointerException exception = assertThrows(NullPointerException.class, () -> PacketUtils.connectionIdentity(null));
+    final NullPointerException exception = assertThrows(NullPointerException.class, () -> PacketUtils.findConnectionIdentity(null));
     final @Nullable String message = exception.getMessage();
     assertEquals("Player must not be null!", message);
   }
@@ -238,7 +238,7 @@ final class PacketUtilsTest {
   }
 
   private Connection useConnection() {
-    final Connection connection = FakeServer.connection();
+    final Connection connection = FakeServer.mockConnection();
     final CraftPlayer player = (CraftPlayer) Objects.requireNonNull(Bukkit.getPlayer(FIRST));
     FakeServer.connect(player.getHandle().connection, connection);
     return connection;
@@ -282,7 +282,7 @@ final class PacketUtilsTest {
     final EmbeddedChannel channel = new EmbeddedChannel();
     connection.channel = channel;
     final MapTilePatch page = MapTilePatch.of(100, 0, 0, 128, 1, new byte[128]);
-    final ClientboundBundlePacket bundle = MapPacketFactory.bundles(List.of(page)).getFirst().getPacket();
+    final ClientboundBundlePacket bundle = MapPacketFactory.createBundles(List.of(page)).getFirst().getPacket();
     final List<ChannelFuture> writes = new ArrayList<>();
     final boolean sent = PacketUtils.sendPacket(FIRST, bundle, writes::add);
     assertTrue(sent);

@@ -265,20 +265,20 @@ final class NativeKernelsTest {
     final boolean finishedPredicted = finished.predicted(block, 8, block);
     assertTrue(finishedPredicted);
 
-    final long finishedDistortion = finished.distortion();
+    final long finishedDistortion = finished.getDistortion();
     assertEquals(42, finishedDistortion);
 
     stopped.start(block, 0, 1);
     final boolean stoppedPredicted = stopped.predicted(block, 8, block);
     assertFalse(stoppedPredicted);
 
-    final long stoppedDistortion = stopped.distortion();
+    final long stoppedDistortion = stopped.getDistortion();
     assertEquals(0, stoppedDistortion);
 
-    final Level level = finished.level();
+    final Level level = finished.getLevel();
     assertEquals(Level.SCALAR, level);
 
-    final String symbol = Level.AVX2.symbol();
+    final String symbol = Level.AVX2.getSymbol();
     assertEquals("avx2", symbol);
   }
 
@@ -370,7 +370,7 @@ final class NativeKernelsTest {
       final float[] actual = new float[18];
       Arrays.fill(actual, 999);
       NativeTesting.kernels(level).residualTarget(source, prediction, 17, actual);
-      assertArrayEquals(expected, actual, level.symbol());
+      assertArrayEquals(expected, actual, level.getSymbol());
     }
   }
 
@@ -386,13 +386,13 @@ final class NativeKernelsTest {
       }
       final int[] prediction = new int[reference.length];
       kernels.predict(reference, 8, 8, 0, 0, 8, 0, 0, prediction);
-      assertArrayEquals(expected, prediction, level.symbol());
+      assertArrayEquals(expected, prediction, level.getSymbol());
       final int[] actual = new int[reference.length];
       kernels.start(expected, 0, Double.POSITIVE_INFINITY);
       final boolean finished = kernels.predicted(prediction, 8, actual);
       assertTrue(finished);
-      assertArrayEquals(expected, actual, level.symbol());
-      final long distortion = kernels.distortion();
+      assertArrayEquals(expected, actual, level.getSymbol());
+      final long distortion = kernels.getDistortion();
       assertEquals(0, distortion);
 
       kernels.predict(new byte[] { 0, 127, -1 }, 1, 1, 0, 0, 8, -128, 127, prediction);
@@ -412,7 +412,7 @@ final class NativeKernelsTest {
       final int[] endpoints = new int[6];
       kernels.cluster(source, 8, endpoints);
       final int[] expectedEndpoints = new int[] { 1, 1, 1, 253, 253, 253 };
-      assertArrayEquals(expectedEndpoints, endpoints, level.symbol());
+      assertArrayEquals(expectedEndpoints, endpoints, level.getSymbol());
     }
   }
 }

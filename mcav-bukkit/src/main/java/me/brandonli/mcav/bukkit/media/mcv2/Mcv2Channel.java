@@ -216,13 +216,17 @@ public final class Mcv2Channel {
     final int lastX = firstX + right.getModX() * span;
     final int firstZ = origin.getBlockZ();
     final int lastZ = firstZ + right.getModZ() * span;
-    final double outsideX = this.outside(location.getX(), Math.min(firstX, lastX), Math.max(firstX, lastX) + 1);
-    final double outsideY = this.outside(location.getY(), origin.getBlockY() - (this.configuration.getRows() - 1), origin.getBlockY() + 1);
-    final double outsideZ = this.outside(location.getZ(), Math.min(firstZ, lastZ), Math.max(firstZ, lastZ) + 1);
+    final double outsideX = this.distanceOutside(location.getX(), Math.min(firstX, lastX), Math.max(firstX, lastX) + 1);
+    final double outsideY = this.distanceOutside(
+      location.getY(),
+      origin.getBlockY() - (this.configuration.getRows() - 1),
+      origin.getBlockY() + 1
+    );
+    final double outsideZ = this.distanceOutside(location.getZ(), Math.min(firstZ, lastZ), Math.max(firstZ, lastZ) + 1);
     return Math.sqrt(outsideX * outsideX + outsideY * outsideY + outsideZ * outsideZ);
   }
 
-  private double outside(final double coordinate, final double low, final double high) {
+  private double distanceOutside(final double coordinate, final double low, final double high) {
     return Math.max(0, Math.max(low - coordinate, coordinate - high));
   }
 
@@ -429,10 +433,10 @@ public final class Mcv2Channel {
 
     final Mcv2FrameKind kind = header.isKeyframe() ? Mcv2FrameKind.KEYFRAME : Mcv2FrameKind.PREDICTED;
     if (kind == Mcv2FrameKind.KEYFRAME) {
-      patches.addAll(this.screen.anchors());
+      patches.addAll(this.screen.getAnchors());
     }
 
-    final List<MapPacketFactory.Bundle> bundles = MapPacketFactory.bundles(patches);
+    final List<MapPacketFactory.Bundle> bundles = MapPacketFactory.createBundles(patches);
     long bytes = 0;
     for (final MapPacketFactory.Bundle bundle : bundles) {
       bytes += bundle.getBytes();
@@ -461,7 +465,7 @@ public final class Mcv2Channel {
 
   private void sendBundles(final UUID viewer, final Mcv2Link link, final List<MapPacketFactory.Bundle> bundles) {
     for (final MapPacketFactory.Bundle bundle : bundles) {
-      bundle.send(viewer, () -> link.written(bundle.getBytes()));
+      bundle.send(viewer, () -> link.releaseBacklog(bundle.getBytes()));
     }
   }
 

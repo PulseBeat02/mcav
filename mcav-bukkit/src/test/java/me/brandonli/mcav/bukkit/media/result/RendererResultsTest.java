@@ -199,7 +199,7 @@ final class RendererResultsTest {
     this.server.runTasks();
     result.release();
     final Scoreboard restored = this.viewer.getScoreboard();
-    final Scoreboard board = scoreboards.getBoard();
+    final Scoreboard board = scoreboards.getNewScoreboard();
     final List<Team> teams = scoreboards.getTeams();
     final Team team = teams.getFirst();
 

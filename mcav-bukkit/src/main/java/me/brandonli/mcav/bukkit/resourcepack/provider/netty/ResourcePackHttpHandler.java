@@ -64,8 +64,8 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
   private static final String GET_REQUEST_PREFIX = "GET ";
   private static final String HEAD_REQUEST_PREFIX = "HEAD ";
   private static final String REQUEST_PATH_TERMINATOR = " ";
-  private static final byte[] GET = GET_REQUEST_PREFIX.getBytes(StandardCharsets.US_ASCII);
-  private static final byte[] HEAD = HEAD_REQUEST_PREFIX.getBytes(StandardCharsets.US_ASCII);
+  private static final byte[] GET_REQUEST_PREFIX_BYTES = GET_REQUEST_PREFIX.getBytes(StandardCharsets.US_ASCII);
+  private static final byte[] HEAD_REQUEST_PREFIX_BYTES = HEAD_REQUEST_PREFIX.getBytes(StandardCharsets.US_ASCII);
   private static final String STATUS_OK = "200 OK";
   private static final String STATUS_ERROR = "500 Internal Server Error";
   private static final String CONTENT_TYPE_ZIP = "application/zip";
@@ -231,14 +231,14 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
   static RequestType classify(final ByteBuf buffer) {
     final int readable = buffer.readableBytes();
     final int start = buffer.readerIndex();
-    final boolean couldBeGet = matchesPrefix(buffer, start, readable, GET);
-    final boolean couldBeHead = matchesPrefix(buffer, start, readable, HEAD);
+    final boolean couldBeGet = matchesPrefix(buffer, start, readable, GET_REQUEST_PREFIX_BYTES);
+    final boolean couldBeHead = matchesPrefix(buffer, start, readable, HEAD_REQUEST_PREFIX_BYTES);
 
-    if (couldBeGet && readable >= GET.length) {
+    if (couldBeGet && readable >= GET_REQUEST_PREFIX_BYTES.length) {
       return RequestType.GET;
     }
 
-    if (couldBeHead && readable >= HEAD.length) {
+    if (couldBeHead && readable >= HEAD_REQUEST_PREFIX_BYTES.length) {
       return RequestType.HEAD;
     }
 

@@ -100,7 +100,7 @@ final class Mcv2ReceiverFuzzTest {
     final List<byte[]> frames = new ArrayList<>();
     int offset = 0;
     while (offset + 4 <= archive.length && frames.size() < MAXIMUM_FRAMES) {
-      final long length = Mcv2Decoder.u32(archive, offset);
+      final long length = Mcv2Decoder.readUnsignedInt(archive, offset);
       final int start = offset + 4;
       final int end = (int) Math.min(archive.length, start + length);
       frames.add(Arrays.copyOfRange(archive, start, end));

@@ -108,7 +108,7 @@ public final class Mcv2Pack {
   private static final String SCREEN_INCLUDE_PREFIX = "mcv2_screen_";
   private static final String GLSL_EXTENSION = ".glsl";
 
-  private static final String CONFIG_INCLUDE = "mcv2_config.glsl";
+  private static final String CONFIGURATION_INCLUDE = "mcv2_config.glsl";
 
   private static final String ALPHABET_INCLUDE = "mcv2_alphabet.glsl";
 
@@ -118,7 +118,7 @@ public final class Mcv2Pack {
 
   private static final String PATH_SEPARATOR = "/";
 
-  private static final String CONFIG_GUARD = "MCAV_MCV2_CONFIG_GLSL";
+  private static final String CONFIGURATION_GUARD = "MCAV_MCV2_CONFIG_GLSL";
 
   private static final String SCREEN_GUARD = "MCAV_MCV2_SCREEN_GLSL";
 
@@ -241,7 +241,7 @@ public final class Mcv2Pack {
     checkScreens(screens);
 
     final SimpleResourcePack pack = SimpleResourcePack.pack();
-    pack.meta(PACK_FORMAT, describe(screens));
+    pack.metadata(PACK_FORMAT, describe(screens));
     for (final String file : FILES) {
       pack.data(file, resource(file));
     }
@@ -263,7 +263,7 @@ public final class Mcv2Pack {
     }
 
     pack.data(POST_CHAIN, postChain(screens).getBytes(StandardCharsets.UTF_8));
-    pack.data(INCLUDE + CONFIG_INCLUDE, packConstants(screens, debugView).getBytes(StandardCharsets.UTF_8));
+    pack.data(INCLUDE + CONFIGURATION_INCLUDE, packConstants(screens, debugView).getBytes(StandardCharsets.UTF_8));
     pack.data(INCLUDE + ALPHABET_INCLUDE, alphabet(palette()).getBytes(StandardCharsets.UTF_8));
     pack.data(MANIFEST_FILE, manifest(screens).getBytes(StandardCharsets.UTF_8));
     pack.zip(archivePath);
@@ -397,7 +397,7 @@ public final class Mcv2Pack {
     }
 
     return guarded(
-      CONFIG_GUARD,
+      CONFIGURATION_GUARD,
       String.join(
         LINE_SEPARATOR,
         String.format(Locale.ROOT, "const int MCV2_SCREENS = %d;", count),

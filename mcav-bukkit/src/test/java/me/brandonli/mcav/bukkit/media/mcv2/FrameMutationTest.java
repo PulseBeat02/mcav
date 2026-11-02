@@ -44,8 +44,8 @@ final class FrameMutationTest {
   private static Stream<Arguments> frames() {
     final List<Arguments> arguments = new ArrayList<>();
     for (final String folder : List.of("conformance", "edge")) {
-      for (final String stream : Mcv2Fixtures.digests(folder).keySet()) {
-        final List<byte[]> frames = Mcv2Fixtures.frames(Mcv2Fixtures.read(folder + PATH_SEPARATOR + stream));
+      for (final String stream : Mcv2Fixtures.readDigests(folder).keySet()) {
+        final List<byte[]> frames = Mcv2Fixtures.splitFrames(Mcv2Fixtures.read(folder + PATH_SEPARATOR + stream));
         arguments.add(Arguments.of(stream, frames.subList(0, Math.min(2, frames.size()))));
       }
     }
@@ -96,7 +96,7 @@ final class FrameMutationTest {
 
   @Test
   void shouldCheckAReferenceMismatchThroughTheDecoder() {
-    final List<byte[]> stream = Mcv2Fixtures.frames(Mcv2Fixtures.read(PROXY_DEFAULT_STREAM_PATH));
+    final List<byte[]> stream = Mcv2Fixtures.splitFrames(Mcv2Fixtures.read(PROXY_DEFAULT_STREAM_PATH));
     final Mcv2Decoder.Frame keyframe = Mcv2Decoder.parse(stream.getFirst());
     final byte[] reference = Mcv2Decoder.decode(keyframe, null, 0);
     final Mcv2Decoder.Frame interFrame = Mcv2Decoder.parse(stream.get(1));

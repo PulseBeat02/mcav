@@ -84,7 +84,7 @@ final class JavadocFormattingExampleTest {
       try {
         server.runTasks();
 
-        final Scoreboard board = scoreboards.getBoard();
+        final Scoreboard board = scoreboards.getNewScoreboard();
         verify(viewer).setScoreboard(board);
 
         final List<Team> teams = scoreboards.getTeams();

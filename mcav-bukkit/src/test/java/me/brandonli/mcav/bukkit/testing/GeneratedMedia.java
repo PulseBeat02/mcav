@@ -192,21 +192,21 @@ public final class GeneratedMedia {
   }
 
   private static void cleanup(final Path temporary, final @Nullable Path log, final @Nullable Throwable primary) throws IOException {
-    IOException cleanup = null;
+    IOException cleanupException = null;
     final List<Path> paths = log == null ? List.of(temporary) : List.of(temporary, log);
     for (final Path path : paths) {
-      cleanup = deleteCollectingFailure(path, cleanup);
+      cleanupException = deleteCollectingFailure(path, cleanupException);
     }
 
-    if (cleanup == null) {
+    if (cleanupException == null) {
       return;
     }
 
     if (primary == null) {
-      throw cleanup;
+      throw cleanupException;
     }
 
-    primary.addSuppressed(cleanup);
+    primary.addSuppressed(cleanupException);
   }
 
   private static @Nullable IOException deleteCollectingFailure(final Path path, final @Nullable IOException earlier) {

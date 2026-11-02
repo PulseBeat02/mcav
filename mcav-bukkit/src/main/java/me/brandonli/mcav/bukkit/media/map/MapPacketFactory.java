@@ -76,7 +76,7 @@ public final class MapPacketFactory {
       return;
     }
 
-    for (final Bundle bundle : bundles(patches)) {
+    for (final Bundle bundle : createBundles(patches)) {
       PacketUtils.sendPackets(viewers, bundle.getPacket());
     }
   }
@@ -90,7 +90,7 @@ public final class MapPacketFactory {
    * @throws NullPointerException if {@code patches} is null
    * @since 1.0.0
    */
-  public static List<Bundle> bundles(final List<MapTilePatch> patches) {
+  public static List<Bundle> createBundles(final List<MapTilePatch> patches) {
     Preconditions.checkNotNull(patches, PATCHES_NULL_MESSAGE);
 
     final List<Bundle> bundles = new ArrayList<>();
@@ -196,15 +196,15 @@ public final class MapPacketFactory {
      * connection thread and should not block; it receives no success/failure flag.
      *
      * @param viewer  the UUID of the player
-     * @param written run once, on the player's connection thread or on this one
+     * @param callback the callback to run once, on the player's connection thread or on this one
      * @throws NullPointerException if the viewer or callback is null
      * @since 1.0.0
      */
-    public void send(final UUID viewer, final Runnable written) {
-      Preconditions.checkNotNull(written, "Callback must not be null!");
+    public void send(final UUID viewer, final Runnable callback) {
+      Preconditions.checkNotNull(callback, "Callback must not be null!");
 
-      if (!PacketUtils.sendPacket(viewer, this.packet, _ -> written.run())) {
-        written.run();
+      if (!PacketUtils.sendPacket(viewer, this.packet, _ -> callback.run())) {
+        callback.run();
       }
     }
 
