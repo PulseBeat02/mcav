@@ -149,13 +149,16 @@ final class VmAudioClient implements Closeable {
 
   private void deliver(final QemuAudioProtocol.Message message) {
     final QemuAudioProtocol.Kind kind = message.getKind();
-    if (kind == QemuAudioProtocol.Kind.DATA) {
-      final byte[] samples = message.getSamples();
-      final int length = message.getLength();
-      this.sink.accept(samples, length);
-    } else if (kind == QemuAudioProtocol.Kind.END) {
+    switch (kind) {
+      case DATA -> {
+        final byte[] samples = message.getSamples();
+        final int length = message.getLength();
+        this.sink.accept(samples, length);
+      }
       // QEMU sends nothing until the guest plays again, so the sink keeps the time of the pause itself
-      this.sink.quiet();
+      case END -> this.sink.quiet();
+      case IGNORED, ACKNOWLEDGED, BEGIN -> {
+      }
     }
   }
 
