@@ -8,10 +8,10 @@ every command is on the [commands](commands.md) page.
 | Display | Command | What the players see | MCV2 |
 |---|---|---|---|
 | A wall of maps | `/mcav video map`, `/mcav image map` | The picture on item frames of maps, built with `/mcav screen` | yes, with `--codec mcv2` |
-| Blocks | `video block`, `image block` | Coloured blocks in the world | no |
-| Text display entities | `video entity`, `image entity` | Coloured characters on an entity | no |
-| The scoreboard | `video scoreboard`, `image scoreboard` | Coloured characters in the sidebar | no |
-| Chat | `video chat`, `image chat` | Coloured characters in chat | no |
+| Blocks | `video block`, `image block` | Colored blocks in the world | no |
+| Text display entities | `video entity`, `image entity` | Colored characters on an entity | no |
+| The scoreboard | `video scoreboard`, `image scoreboard` | Colored characters in the sidebar | no |
+| Chat | `video chat`, `image chat` | Colored characters in chat | no |
 
 `/mcav video hologram set <location>` adds a floating hologram with the title, uploader and a progress bar of every
 video started afterwards; `/mcav video hologram disable` turns it off again.

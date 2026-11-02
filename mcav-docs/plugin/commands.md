@@ -516,17 +516,17 @@ filter is bounded by what the command shows; every argument is bounded too.
 | Filter | Arguments | Effect |
 |---|---|---|
 | `grayscale` | none | shades of gray |
-| `invert` | none | inverts every colour |
+| `invert` | none | inverts every color |
 | `blur=<radius>` | 1 to 15 | Gaussian blur over a kernel twice the radius plus one wide |
 | `bilateral=<diameter>` | 1 to 9 | blur that keeps edges (its work grows with the square of the diameter) |
 | `threshold=<level>` | 0 to 255 | black below the level, white above |
 | `luminance=<contrast>:<brightness>` | 0 to 3 (up to 3 decimals), -255 to 255 | contrast factor and brightness shift |
-| `colormap=<name>` | `autumn`, `bone`, `jet`, `winter`, `rainbow`, `ocean`, `summer`, `spring`, `cool`, `hsv`, `pink`, `hot`, `parula`, `magma`, `inferno`, `plasma`, `viridis`, `cividis`, `twilight`, `turbo` | false colours of OpenCV's colour map |
-| `tint=<rrggbb>[:<strength>]` | a hex colour, 0 to 100 percent (default 50) | blends the colour in |
+| `colormap=<name>` | `autumn`, `bone`, `jet`, `winter`, `rainbow`, `ocean`, `summer`, `spring`, `cool`, `hsv`, `pink`, `hot`, `parula`, `magma`, `inferno`, `plasma`, `viridis`, `cividis`, `twilight`, `turbo` | false colors of OpenCV's color map |
+| `tint=<rrggbb>[:<strength>]` | a hex color, 0 to 100 percent (default 50) | blends the color in |
 | `flip=<h\|v\|hv>` | direction | mirrors horizontally, vertically or both |
 | `rotate=<90\|180\|270>` | degrees clockwise | rotates the picture |
 | `crop=<x>:<y>:<width>:<height>` | percent of the picture, the region inside it | zooms into the region, shown at the full size |
-| `rectangle=<x>:<y>:<width>:<height>:<rrggbb>` | percent of the picture, a hex colour | draws the outline of a rectangle |
+| `rectangle=<x>:<y>:<width>:<height>:<rrggbb>` | percent of the picture, a hex color | draws the outline of a rectangle |
 | `dilate=<size>`, `erode=<size>` | 1 to 15 | grows or shrinks bright areas |
 | `text=<text>` | up to 32 letters, digits, spaces and `.!?'()+-` | writes the text in the top-left corner |
 | `overlay=<name>` | the name of a PNG file of the plugin's `overlays` folder, without `.png` | draws the file over the top-left corner |

@@ -53,6 +53,6 @@ All three are for operators until granted.
 
 ## A hostile VNC server
 
-MCAV checks everything a VNC server sends before its VNC client reads it: every size, length, name, colour map and
+MCAV checks everything a VNC server sends before its VNC client reads it: every size, length, name, color map and
 message type, and only the encodings the client supports. A server that sends anything else, or a size that would make
 the client allocate more than it should, is disconnected instead. Still, list only servers you control.

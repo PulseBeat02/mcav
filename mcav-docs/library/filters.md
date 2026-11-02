@@ -40,17 +40,17 @@ import org.bytedeco.opencv.global.opencv_imgproc;
 
 ## Video filters
 
-Colours are arrays of the blue, green and red components from 0 to 255, OpenCV's order. Coordinates are pixels of the
+Colors are arrays of the blue, green and red components from 0 to 255, OpenCV's order. Coordinates are pixels of the
 frame, from its top left corner.
 
 | Filter | Created with | Effect |
 |---|---|---|
-| `GrayscaleFilter` | `new GrayscaleFilter()` | Shades of grey; the frame keeps its three channels |
-| `InvertFilter` | `new InvertFilter()` | Every colour turned into its negative |
+| `GrayscaleFilter` | `new GrayscaleFilter()` | Shades of gray; the frame keeps its three channels |
+| `InvertFilter` | `new InvertFilter()` | Every color turned into its negative |
 | `LuminanceFilter` | `new LuminanceFilter(contrast, brightness)` | Every channel multiplied by the contrast and the brightness added, clamped |
 | `ThresholdFilter` | `new ThresholdFilter(threshold, maximumValue, type)` | OpenCV's fixed threshold on every channel, `type` a `THRESH_` constant of `opencv_imgproc` |
-| `ColorMapFilter` | `new ColorMapFilter(colorMap)` | False colours from one of OpenCV's `COLORMAP_` constants, over the grey levels |
-| `TintFilter` | `new TintFilter(color, strength)` | Blended with a solid colour, `strength` from 0 to 1 |
+| `ColorMapFilter` | `new ColorMapFilter(colorMap)` | False colors from one of OpenCV's `COLORMAP_` constants, over the gray levels |
+| `TintFilter` | `new TintFilter(color, strength)` | Blended with a solid color, `strength` from 0 to 1 |
 | `BlurFilter` | `new BlurFilter(type, kernelSize)` or with the Gaussian sigmas | A `NORMAL` (box), `MEDIAN`, `GAUSSIAN` or `STACK` blur; the last three need an odd kernel size |
 | `BilateralFilter` | `new BilateralFilter(diameter, sigmaColor, sigmaSpace)` | A blur that keeps edges; expensive, a diameter of 5 to 9 suits real-time video |
 | `DilationFilter`, `ErosionFilter` | `new DilationFilter(kernelSize)` | Grows, or shrinks, the bright regions |
@@ -59,8 +59,8 @@ frame, from its top left corner.
 | `TransposeFilter` | `new TransposeFilter()` | Rows and columns swapped |
 | `ResizeFilter` | `new ResizeFilter(width, height)` | Scaled to a fixed size, averaging areas when it shrinks |
 | `CropFilter` | `new CropFilter(left, top, width, height)` | Cropped to a rectangle, clamped to the frame |
-| `RectangleFilter`, `CircleFilter`, `EllipseFilter`, `LineFilter` | the shape's position and size, then its colour | The outline of a shape drawn onto every frame |
-| `RegionScalarFilter` | `new RegionScalarFilter(left, top, width, height, color)` | A rectangle filled with a solid colour |
+| `RectangleFilter`, `CircleFilter`, `EllipseFilter`, `LineFilter` | the shape's position and size, then its color | The outline of a shape drawn onto every frame |
+| `RegionScalarFilter` | `new RegionScalarFilter(left, top, width, height, color)` | A rectangle filled with a solid color |
 | `TextFilter` | `new TextFilter(text, left, baseline, font, scale, color)` | A line of text in one of OpenCV's `FONT_HERSHEY_` fonts |
 | `OverlayImageFilter` | `new OverlayImageFilter(image, left, top)` | An image drawn on top of every frame; the image is copied, so it may be released |
 | `BlendFilter` | `new BlendFilter(image, alpha)` | Every frame blended with a fixed image of the same size |
