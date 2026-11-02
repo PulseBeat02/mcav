@@ -32,6 +32,7 @@ import java.util.MissingResourceException;
 import java.util.PropertyResourceBundle;
 import java.util.ResourceBundle;
 import me.brandonli.mcav.plugin.MCAVSandbox;
+import me.brandonli.mcav.plugin.PluginException;
 import me.brandonli.mcav.plugin.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.plugin.locale.minimessage.PluginTranslator;
 import me.brandonli.mcav.plugin.utils.IoUtils;
@@ -63,7 +64,7 @@ public final class TranslationManager {
   /**
    * Loads the messages of the language configured in the plugin.
    *
-   * @throws IllegalStateException if the messages cannot be copied to or read from the data folder
+   * @throws PluginException if the messages cannot be copied to or read from the data folder
    */
   public TranslationManager() {
     final MCAVSandbox plugin = JavaPlugin.getPlugin(MCAVSandbox.class);
@@ -91,7 +92,7 @@ public final class TranslationManager {
     } catch (final IOException exception) {
       final String reason = exception.getMessage();
       final String message = "Messages could not be loaded from %s (%s)!".formatted(file, reason);
-      throw new IllegalStateException(message, exception);
+      throw new PluginException(message, exception);
     }
   }
 

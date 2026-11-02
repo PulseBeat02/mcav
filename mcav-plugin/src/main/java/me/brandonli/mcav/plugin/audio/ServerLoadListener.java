@@ -20,6 +20,7 @@ package me.brandonli.mcav.plugin.audio;
 import com.google.common.base.Preconditions;
 import de.maxhenkel.voicechat.api.BukkitVoicechatService;
 import me.brandonli.mcav.plugin.MCAVSandbox;
+import me.brandonli.mcav.plugin.PluginException;
 import org.bukkit.Bukkit;
 import org.bukkit.Server;
 import org.bukkit.event.EventHandler;
@@ -53,8 +54,8 @@ public final class ServerLoadListener implements Listener {
    * Registers the plugin with Simple Voice Chat.
    *
    * @param event the event, fired once the server has loaded its plugins and worlds
-   * @throws NullPointerException  if the event is {@code null}
-   * @throws IllegalStateException if Simple Voice Chat offers no service, for example because it failed to start
+   * @throws NullPointerException if the event is {@code null}
+   * @throws PluginException      if Simple Voice Chat offers no service, for example because it failed to start
    */
   @EventHandler(priority = EventPriority.HIGHEST)
   public void onServerLoad(final ServerLoadEvent event) {
@@ -64,7 +65,7 @@ public final class ServerLoadListener implements Listener {
     final ServicesManager manager = server.getServicesManager();
     final BukkitVoicechatService voiceChatService = manager.load(BukkitVoicechatService.class);
     if (voiceChatService == null) {
-      throw new IllegalStateException(
+      throw new PluginException(
         "Simple Voice Chat audio is enabled, but Simple Voice Chat offers no voice chat service, so voice chat audio is not available!"
       );
     }

@@ -55,6 +55,9 @@ import xyz.jpenilla.gremlin.runtime.platformsupport.PaperClasspathAppender;
  * plugin's code lack classes it uses. The build lists those classes in {@value #REQUIRED_CLASSES}, and the loader
  * refuses to start the plugin with a message saying so when a downloaded module lacks one, where the server would
  * otherwise fail on the first missing class.
+ *
+ * <p>The loader runs before the downloaded modules are on the classpath, so it reports failures with JDK exceptions
+ * instead of {@link PluginException}, whose superclass {@code MCAVException} comes from one of those modules.
  */
 public final class MCAVLoader implements PluginLoader {
 

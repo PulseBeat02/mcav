@@ -30,6 +30,7 @@ import de.maxhenkel.voicechat.api.VoicechatPlugin;
 import java.util.Arrays;
 import java.util.List;
 import me.brandonli.mcav.plugin.MCAVSandbox;
+import me.brandonli.mcav.plugin.PluginException;
 import me.brandonli.mcav.plugin.testing.TestServer;
 import org.bukkit.Server;
 import org.bukkit.event.EventPriority;
@@ -101,7 +102,7 @@ final class ServerLoadListenerTest {
   @Test
   void shouldFailWithAClearMessageWhenSimpleVoiceChatOffersNoService() {
     final ServerLoadEvent event = mock(ServerLoadEvent.class);
-    final IllegalStateException exception = assertThrows(IllegalStateException.class, () -> this.listener.onServerLoad(event));
+    final PluginException exception = assertThrows(PluginException.class, () -> this.listener.onServerLoad(event));
 
     final String message = exception.getMessage();
     assertEquals(

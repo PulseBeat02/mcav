@@ -53,6 +53,7 @@ import me.brandonli.mcav.media.source.ffmpeg.FfmpegDirectSourceDetector;
 import me.brandonli.mcav.media.source.file.FileSource;
 import me.brandonli.mcav.media.source.uri.UriSource;
 import me.brandonli.mcav.plugin.MCAVSandbox;
+import me.brandonli.mcav.plugin.PluginException;
 import me.brandonli.mcav.plugin.audio.AudioOutputs;
 import me.brandonli.mcav.plugin.audio.AudioProvider;
 import me.brandonli.mcav.plugin.command.AnnotationCommandFeature;
@@ -702,7 +703,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
       final String reason = exception.getMessage();
       final URI uri = page.getUri();
       final String message = "yt-dlp could not resolve %s (%s)!".formatted(uri, reason);
-      throw new IllegalStateException(message, exception);
+      throw new PluginException(message, exception);
     }
 
     final StrategySelector selector = StrategySelector.of(FormatStrategy.BEST_QUALITY_AUDIO, FormatStrategy.BEST_QUALITY_VIDEO);
@@ -727,7 +728,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     if (!web) {
       final URI pageUri = page.getUri();
       final String message = "yt-dlp reported a stream of %s whose scheme %s is not http or https!".formatted(pageUri, scheme);
-      throw new IllegalStateException(message);
+      throw new PluginException(message);
     }
   }
 

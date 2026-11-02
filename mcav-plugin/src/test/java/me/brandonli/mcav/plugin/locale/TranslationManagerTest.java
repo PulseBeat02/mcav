@@ -33,6 +33,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.MissingResourceException;
 import me.brandonli.mcav.plugin.MCAVSandbox;
+import me.brandonli.mcav.plugin.PluginException;
 import me.brandonli.mcav.plugin.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.plugin.testing.Components;
 import me.brandonli.mcav.plugin.utils.IoUtils;
@@ -151,7 +152,7 @@ final class TranslationManagerTest {
   void shouldFailWhenTheMessagesCannotBeRead() throws IOException {
     final Path file = this.folder.resolve(RESOURCE);
     Files.createDirectories(file);
-    final IllegalStateException exception = assertThrows(IllegalStateException.class, TranslationManager::new);
+    final PluginException exception = assertThrows(PluginException.class, TranslationManager::new);
 
     final String message = exception.getMessage();
     final boolean mentionsFile = message.startsWith("Messages could not be loaded from " + file + " (");
@@ -162,7 +163,7 @@ final class TranslationManagerTest {
   void shouldFailWhenTheMessagesCannotBeCopied() throws IOException {
     final Path blocker = this.folder.resolve(LOCALE_FOLDER_NAME);
     Files.writeString(blocker, "not a folder", StandardCharsets.UTF_8);
-    final IllegalStateException exception = assertThrows(IllegalStateException.class, TranslationManager::new);
+    final PluginException exception = assertThrows(PluginException.class, TranslationManager::new);
 
     final Throwable cause = exception.getCause();
     assertInstanceOf(IOException.class, cause);

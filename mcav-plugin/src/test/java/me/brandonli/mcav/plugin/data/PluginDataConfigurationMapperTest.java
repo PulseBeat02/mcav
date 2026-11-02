@@ -41,6 +41,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import me.brandonli.mcav.plugin.MCAVSandbox;
+import me.brandonli.mcav.plugin.PluginException;
 import me.brandonli.mcav.plugin.command.interaction.VncAllowList;
 import me.brandonli.mcav.plugin.locale.Locale;
 import me.brandonli.mcav.plugin.utils.IoUtils;
@@ -637,7 +638,7 @@ final class PluginDataConfigurationMapperTest {
     final Path file = this.folder.resolve(CONFIGURATION_FILE_NAME);
     final byte[] invalidUtf8 = { (byte) 0xC3, (byte) 0x28 };
     Files.write(file, invalidUtf8);
-    final IllegalStateException exception = assertThrows(IllegalStateException.class, this.mapper::deserialize);
+    final PluginException exception = assertThrows(PluginException.class, this.mapper::deserialize);
 
     final String message = exception.getMessage();
     final boolean mentionsFile = message.startsWith("File " + file + " could not be read (");
@@ -650,7 +651,7 @@ final class PluginDataConfigurationMapperTest {
   @Test
   void shouldFailInsteadOfUsingTheDefaultsWhenTheFileIsNotValidYaml() throws IOException {
     this.writeConfiguration("a: [\n");
-    final IllegalStateException exception = assertThrows(IllegalStateException.class, this.mapper::deserialize);
+    final PluginException exception = assertThrows(PluginException.class, this.mapper::deserialize);
 
     final Path file = this.folder.resolve(CONFIGURATION_FILE_NAME);
     final String message = exception.getMessage();
@@ -666,7 +667,7 @@ final class PluginDataConfigurationMapperTest {
     this.writeConfiguration("http-server:\n  port: 8080\n");
     this.mapper.deserialize();
     this.writeConfiguration("http-server:\n  port: [\n");
-    assertThrows(IllegalStateException.class, this.mapper::deserialize);
+    assertThrows(PluginException.class, this.mapper::deserialize);
 
     final int port = this.mapper.getHttpPort();
     assertEquals(CONFIGURED_HTTP_PORT, port);
@@ -679,7 +680,7 @@ final class PluginDataConfigurationMapperTest {
 
   @Test
   void shouldFailWhenTheBundledFileCannotBeSaved() {
-    final IllegalStateException exception = assertThrows(IllegalStateException.class, this.mapper::deserialize);
+    final PluginException exception = assertThrows(PluginException.class, this.mapper::deserialize);
     verify(this.plugin).saveResource(CONFIGURATION_FILE_NAME, false);
 
     final Throwable cause = exception.getCause();

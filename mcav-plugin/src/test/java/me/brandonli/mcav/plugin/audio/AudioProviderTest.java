@@ -444,7 +444,7 @@ final class AudioProviderTest {
   @Test
   void shouldFailWhenVoiceChatIsEnabledButNotInstalled() {
     when(this.configuration.isSimpleVoiceChatEnabled()).thenReturn(true);
-    final IllegalStateException exception = assertThrows(IllegalStateException.class, this.provider::initialize);
+    final MissingVoiceChatException exception = assertThrows(MissingVoiceChatException.class, this.provider::initialize);
 
     final String message = exception.getMessage();
     assertEquals("Simple Voice Chat audio is enabled, but the voicechat plugin is not installed!", message);

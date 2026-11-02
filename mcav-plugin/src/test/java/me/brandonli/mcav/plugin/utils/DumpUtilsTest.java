@@ -48,6 +48,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import me.brandonli.mcav.plugin.PluginException;
 import me.brandonli.mcav.plugin.testing.UtilityClassAssertions;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -193,9 +194,7 @@ final class DumpUtilsTest {
     this.status = 500;
     final String site = this.pasteSite();
     final Path log = this.missingLog();
-    final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
-      DumpUtils.createAndUploadDump(this.client, site, log)
-    );
+    final PluginException exception = assertThrows(PluginException.class, () -> DumpUtils.createAndUploadDump(this.client, site, log));
 
     final String message = exception.getMessage();
     assertEquals("The dump could not be uploaded (The paste site answered with HTTP status 500, which is not a success!)!", message);
@@ -210,9 +209,7 @@ final class DumpUtilsTest {
     this.answer = response;
     final String site = this.pasteSite();
     final Path log = this.missingLog();
-    final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
-      DumpUtils.createAndUploadDump(this.client, site, log)
-    );
+    final PluginException exception = assertThrows(PluginException.class, () -> DumpUtils.createAndUploadDump(this.client, site, log));
 
     final String message = exception.getMessage();
     assertEquals("Paste site answer " + response + " has no document key!", message);
@@ -223,9 +220,7 @@ final class DumpUtilsTest {
     this.answer = "{\"key\":";
     final String site = this.pasteSite();
     final Path log = this.missingLog();
-    final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
-      DumpUtils.createAndUploadDump(this.client, site, log)
-    );
+    final PluginException exception = assertThrows(PluginException.class, () -> DumpUtils.createAndUploadDump(this.client, site, log));
 
     final String message = exception.getMessage();
     assertEquals("Paste site answer {\"key\": is not JSON!", message);
@@ -236,9 +231,7 @@ final class DumpUtilsTest {
     final String site = this.pasteSite();
     this.server.stop(0);
     final Path log = this.missingLog();
-    final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
-      DumpUtils.createAndUploadDump(this.client, site, log)
-    );
+    final PluginException exception = assertThrows(PluginException.class, () -> DumpUtils.createAndUploadDump(this.client, site, log));
 
     final String message = exception.getMessage();
     final boolean upload = message.startsWith("The dump could not be uploaded (");
@@ -252,9 +245,7 @@ final class DumpUtilsTest {
     final Path log = this.missingLog();
     final Thread current = Thread.currentThread();
     current.interrupt();
-    final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
-      DumpUtils.createAndUploadDump(this.client, site, log)
-    );
+    final PluginException exception = assertThrows(PluginException.class, () -> DumpUtils.createAndUploadDump(this.client, site, log));
 
     final boolean interrupted = Thread.interrupted();
     assertTrue(interrupted);

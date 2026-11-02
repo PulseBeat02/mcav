@@ -61,6 +61,7 @@ import me.brandonli.mcav.media.player.multimedia.cv.AbstractVideoPlayerCv;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.VolumeFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
 import me.brandonli.mcav.plugin.MCAVSandbox;
+import me.brandonli.mcav.plugin.PluginException;
 import me.brandonli.mcav.plugin.audio.AudioProvider;
 import me.brandonli.mcav.plugin.testing.TestServer;
 import me.brandonli.mcav.plugin.utils.CaptureDevices;
@@ -333,7 +334,7 @@ final class VideoPlayerManagerTest {
     final ExecutionException exception = assertThrows(ExecutionException.class, () -> release.get(TIMEOUT_SECONDS, TimeUnit.SECONDS));
 
     final Throwable cause = exception.getCause();
-    final IllegalStateException failure = assertInstanceOf(IllegalStateException.class, cause);
+    final PluginException failure = assertInstanceOf(PluginException.class, cause);
 
     final String message = failure.getMessage();
     assertEquals("Interrupted while releasing the video on the main thread!", message);
@@ -362,7 +363,7 @@ final class VideoPlayerManagerTest {
   private void releaseAndRecordInterrupt(final AtomicBoolean keptInterrupt) {
     try {
       this.manager.releaseVideoPlayer();
-    } catch (final IllegalStateException exception) {
+    } catch (final PluginException exception) {
       final boolean interrupted = Thread.interrupted();
       keptInterrupt.set(interrupted);
     }
@@ -380,7 +381,7 @@ final class VideoPlayerManagerTest {
     final ExecutionException exception = assertThrows(ExecutionException.class, () -> release.get(TIMEOUT_SECONDS, TimeUnit.SECONDS));
 
     final Throwable cause = exception.getCause();
-    final IllegalStateException failure = assertInstanceOf(IllegalStateException.class, cause);
+    final PluginException failure = assertInstanceOf(PluginException.class, cause);
 
     final String message = failure.getMessage();
     assertEquals("Failed to release the video on the main thread!", message);

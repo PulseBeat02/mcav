@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.plugin.command.video;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.base.Equivalence;
 import com.google.common.base.Preconditions;
 import java.util.ArrayList;
@@ -41,6 +43,7 @@ import me.brandonli.mcav.media.player.multimedia.cv.AbstractVideoPlayerCv;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.VolumeFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
 import me.brandonli.mcav.plugin.MCAVSandbox;
+import me.brandonli.mcav.plugin.PluginException;
 import me.brandonli.mcav.plugin.audio.AudioProvider;
 import me.brandonli.mcav.plugin.utils.CaptureDevices;
 import me.brandonli.mcav.plugin.utils.CleanupUtils;
@@ -166,7 +169,7 @@ public final class VideoPlayerManager {
    * main thread accepts no more tasks; cleanup remains owned until the explicit main-thread shutdown drain.
    * Accepted cleanup tasks are also retained, so shutdown can complete them before waiting for the worker.
    *
-   * @throws IllegalStateException if the thread is interrupted while waiting, or releasing on the main thread fails
+   * @throws PluginException if the thread is interrupted while waiting, or releasing on the main thread fails
    */
   public void releaseVideoPlayer() {
     this.cancelStart();
@@ -404,14 +407,14 @@ public final class VideoPlayerManager {
     } catch (final InterruptedException exception) {
       final Thread current = Thread.currentThread();
       current.interrupt();
-      throw new IllegalStateException("Interrupted while releasing the video on the main thread!", exception);
+      throw new PluginException("Interrupted while releasing the video on the main thread!", exception);
     } catch (final ExecutionException exception) {
-      final Throwable cause = exception.getCause();
+      final Throwable cause = requireNonNull(exception.getCause()); // checker framework
       if (cause instanceof final VirtualMachineError fatal) {
         throw fatal;
       }
 
-      throw new IllegalStateException("Failed to release the video on the main thread!", cause);
+      throw new PluginException("Failed to release the video on the main thread!", cause);
     }
   }
 

@@ -46,6 +46,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import me.brandonli.mcav.plugin.PluginException;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -110,7 +111,7 @@ public final class DumpUtils {
    * Collects the dump and uploads it.
    *
    * @return the URL of the uploaded dump
-   * @throws IllegalStateException if the upload fails
+   * @throws PluginException if the upload fails
    */
   public static String createAndUploadDump() {
     return createAndUploadDump(HTTP_CLIENT, PASTE_SITE, LOG_FILE);
@@ -123,7 +124,7 @@ public final class DumpUtils {
    * @param pasteSite the URL of the paste site, ending with a slash
    * @param logFile   the server log whose end is included
    * @return the URL of the uploaded dump
-   * @throws IllegalStateException if the upload fails
+   * @throws PluginException if the upload fails
    */
   @VisibleForTesting
   static String createAndUploadDump(final HttpClient client, final String pasteSite, final Path logFile) {
@@ -136,11 +137,11 @@ public final class DumpUtils {
     } catch (final IOException exception) {
       final String reason = exception.getMessage();
       final String message = "The dump could not be uploaded (%s)!".formatted(reason);
-      throw new IllegalStateException(message, exception);
+      throw new PluginException(message, exception);
     } catch (final InterruptedException exception) {
       final Thread current = Thread.currentThread();
       current.interrupt();
-      throw new IllegalStateException("Interrupted while uploading the dump!", exception);
+      throw new PluginException("Interrupted while uploading the dump!", exception);
     }
   }
 
@@ -157,7 +158,7 @@ public final class DumpUtils {
       }
     }
     final String message = "Paste site answer %s has no document key!".formatted(response);
-    throw new IllegalStateException(message);
+    throw new PluginException(message);
   }
 
   private static JsonElement parseJson(final String response) {
@@ -165,7 +166,7 @@ public final class DumpUtils {
       return JsonParser.parseString(response);
     } catch (final JsonParseException exception) {
       final String message = "Paste site answer %s is not JSON!".formatted(response);
-      throw new IllegalStateException(message, exception);
+      throw new PluginException(message, exception);
     }
   }
 

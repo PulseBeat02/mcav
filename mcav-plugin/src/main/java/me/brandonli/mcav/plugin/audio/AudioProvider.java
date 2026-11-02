@@ -32,6 +32,7 @@ import me.brandonli.mcav.http.MediaInfo;
 import me.brandonli.mcav.json.ytdlp.format.UrlParseDump;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 import me.brandonli.mcav.plugin.MCAVSandbox;
+import me.brandonli.mcav.plugin.PluginException;
 import me.brandonli.mcav.plugin.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.plugin.utils.AudioArgument;
 import me.brandonli.mcav.plugin.utils.TaskUtils;
@@ -254,18 +255,18 @@ public final class AudioProvider {
     } catch (final InterruptedException exception) {
       final Thread current = Thread.currentThread();
       current.interrupt();
-      throw new IllegalStateException("Interrupted while logging the Discord bot in!", exception);
+      throw new PluginException("Interrupted while logging the Discord bot in!", exception);
     }
     final Guild guild = bot.getGuildById(guildId);
     if (guild == null) {
       final String message = "Guild %s has not added the Discord bot!".formatted(guildId);
-      throw new IllegalStateException(message);
+      throw new PluginException(message);
     }
 
     final VoiceChannel voiceChannel = guild.getVoiceChannelById(channelId);
     if (voiceChannel == null) {
       final String message = "Discord voice channel %s does not exist!".formatted(channelId);
-      throw new IllegalStateException(message);
+      throw new PluginException(message);
     }
 
     final AudioManager audioManager = guild.getAudioManager();
