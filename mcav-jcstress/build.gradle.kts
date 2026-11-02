@@ -2,20 +2,18 @@ plugins {
     id("mcav.jcstress")
 }
 
-val bytedecoGroup: String = "org.bytedeco"
-
 dependencies {
     implementation(project(":mcav-common")) {
-        exclude(group = bytedecoGroup)
+        exclude(group = "org.bytedeco")
     }
     implementation(libs.bundles.javacv.classes) {
         isTransitive = false
     }
     implementation(project(":mcav-http")) {
-        exclude(group = bytedecoGroup)
+        exclude(group = "org.bytedeco")
     }
     implementation(project(":mcav-vm")) {
-        exclude(group = bytedecoGroup)
+        exclude(group = "org.bytedeco")
     }
     implementation(project(":mcav-bukkit")) {
         isTransitive = false
