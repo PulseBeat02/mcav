@@ -28,7 +28,7 @@ several low-level libraries, such as [FFmpeg](https://ffmpeg.org/), [OpenCV](htt
 [VLC media player](https://www.videolan.org/vlc/)), to play media for developers and users. MCAV also renders web pages
 with an embedded Chromium through [JCEF](https://github.com/chromiumembedded/java-cef), and virtual machines through
 [QEMU](https://www.qemu.org/), each with their sound. The library and the plugin both support all of this. For
-Minecraft, MCAV comes with its own video codec, [MCV2](#mcv2), which shows sharp, full-colour video on a wall of maps to
+Minecraft, MCAV comes with its own video codec, [MCV2](#mcv2), which shows sharp, full-color video on a wall of maps to
 players with an unmodified client.
 
 The plugin shows what the library can do. For media playback, it supports several thousand websites, listed
@@ -68,11 +68,11 @@ cannot be used.
 
 ### MCV2
 
-A wall of maps normally shows a dithered picture: 128 pixels per map, in the colours of the map palette. For moving
+A wall of maps normally shows a dithered picture: 128 pixels per map, in the colors of the map palette. For moving
 1080p video that needs far more than a server can send: the plugin caps it at 128 KiB per frame, about 10 Mbit/s per
 viewer at 30 fps after Minecraft's compression, and the wall still falls behind the video. MCV2 is MCAV's own video
-codec for Minecraft: the server encodes the video and sends it as the colours of a few hidden maps, and a resource pack
-decodes it on the player's GPU, in full colour, at the resolution you choose. The client needs no mod.
+codec for Minecraft: the server encodes the video and sends it as the colors of a few hidden maps, and a resource pack
+decodes it on the player's GPU, in full color, at the resolution you choose. The client needs no mod.
 
 | At 1080p, 30 fps | Rate on the wire, after Minecraft's zlib compression | VMAF mean |
 |------------------|-------------------------------------------------|-----------|
@@ -215,11 +215,11 @@ As a result, MCAV licenses the library under the GPLv3 license shown [here](LICE
 [GPLv3](https://www.gnu.org/licenses/gpl-3.0.html) license.
 
 [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md), which the library and plugin jars carry in `META-INF/`, lists the
-third-party code that MCAV's jars bundle, with its licences, and what MCAV downloads while it runs.
+third-party code that MCAV's jars bundle, with its licenses, and what MCAV downloads while it runs.
 
 ---
 
-### Contributors and acknowledgements
+### Contributors and acknowledgments
 
 | Developer                                               | Contribution                                   |
 |---------------------------------------------------------|------------------------------------------------|
