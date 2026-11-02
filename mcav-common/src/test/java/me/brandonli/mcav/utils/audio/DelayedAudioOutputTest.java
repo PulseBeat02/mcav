@@ -796,6 +796,20 @@ class DelayedAudioOutputTest {
   }
 
   @Test
+  void shouldStayClosedAfterAResume() {
+    this.output.close();
+    this.output.resume();
+    this.output.accept(new byte[AudioFilter.FRAME_SIZE], AudioFilter.FRAME_SIZE);
+
+    final int queuedBytes = this.output.getQueuedBytes();
+    assertEquals(0, queuedBytes);
+
+    final Thread thread = this.output.getThread();
+    final boolean alive = thread.isAlive();
+    assertFalse(alive);
+  }
+
+  @Test
   void shouldTrimBeforeTheQueuedByteSumCanOverflow() throws ReflectiveOperationException {
     this.output.close();
     this.output = DelayedAudioOutput.start(
