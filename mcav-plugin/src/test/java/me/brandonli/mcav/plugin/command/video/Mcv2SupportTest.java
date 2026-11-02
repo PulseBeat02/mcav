@@ -322,7 +322,7 @@ final class Mcv2SupportTest {
       final Object secondArgument = arguments.getFirst().get(2);
       assertSame(expected, secondArgument);
 
-      @SuppressWarnings("unchecked")
+      @SuppressWarnings("unchecked") // a class literal has no type arguments
       final ArgumentCaptor<Consumer<Mcv2Pacer.Change>> listeners = ArgumentCaptor.forClass(Consumer.class);
       verify(result).setPacingListener(listeners.capture());
       final Mcv2Pacer.Change change = Mcv2Pacer.Change.of(
@@ -335,7 +335,7 @@ final class Mcv2SupportTest {
       );
       listeners.getValue().accept(change);
       verify(this.sender).sendMessage(Message.MCV2_PACING.build(change.describe()));
-      @SuppressWarnings("unchecked")
+      @SuppressWarnings("unchecked") // a class literal has no type arguments
       final ArgumentCaptor<List<int[]>> sizes = ArgumentCaptor.forClass(List.class);
       verify(result).setSmallerSizes(sizes.capture(), any());
       verify(result).setSmallerSizes(any(), Mockito.same(lease));

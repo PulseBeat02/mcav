@@ -373,7 +373,7 @@ public final class AudioProvider {
     }
   }
 
-  @SuppressWarnings("ReferenceEquality")
+  @SuppressWarnings("ReferenceEquality") // clears the field only while it still holds this very filter
   private void retireSpeakers(final SvcFilter speakers) {
     if (this.voiceChatFilter == speakers) {
       this.voiceChatFilter = null;
