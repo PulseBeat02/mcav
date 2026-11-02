@@ -82,8 +82,6 @@ final class RfbSession {
     this.guard.acceptClient(bytes, 0, bytes.length);
   }
 
-  // Runs the handshake up to and including the server initialisation and the client's pixel format of four bytes a
-  // pixel.
   void handshake(final int minor, final int security, final int width, final int height) throws IOException {
     this.handshake(minor, security, width, height, BITS_PER_PIXEL_32);
   }

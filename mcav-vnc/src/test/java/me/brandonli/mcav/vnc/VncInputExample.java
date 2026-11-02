@@ -46,7 +46,6 @@ public final class VncInputExample {
     throw new UnsupportedOperationException("Example class cannot be instantiated!");
   }
 
-  // Opens the window, connects to the server, and releases everything when the JVM exits.
   static void main() {
     final MCAVApi api = MCAV.api();
     api.install(VncModule.class);

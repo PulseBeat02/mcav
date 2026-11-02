@@ -461,8 +461,7 @@ public final class VernacularVncPlayer implements VncPlayer {
     return current != null && current.isAlive();
   }
 
-  // Checks whether a screen update is waiting for the render thread. Pausing and starting a session drop the update
-  // that is waiting, so that a frame of a paused or of an ended session is never shown. Visible for testing.
+  // Pausing and starting a session drop the waiting update, so no frame of a paused or ended session is shown.
   @VisibleForTesting
   boolean hasPendingFrame() {
     final BufferedImage pending = this.latestFrame.get();
