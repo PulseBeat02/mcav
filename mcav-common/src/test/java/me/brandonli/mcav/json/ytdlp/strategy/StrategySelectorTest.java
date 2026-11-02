@@ -71,8 +71,12 @@ final class StrategySelectorTest {
     final StrategySelector selector = StrategySelector.of(FormatStrategy.FIRST_AUDIO, FormatStrategy.FIRST_VIDEO);
     final Format audio = selector.getAudioSource(dump);
     final Format video = selector.getVideoSource(dump);
-    assertEquals(Optional.of(AUDIO_FORMAT_ID), audio.getFormatId());
-    assertEquals(Optional.of("video"), video.getFormatId());
+    final Optional<String> audioFormatId = audio.getFormatId();
+    final Optional<String> expectedAudioFormatId = Optional.of(AUDIO_FORMAT_ID);
+    final Optional<String> videoFormatId = video.getFormatId();
+    final Optional<String> expectedVideoFormatId = Optional.of("video");
+    assertEquals(expectedAudioFormatId, audioFormatId);
+    assertEquals(expectedVideoFormatId, videoFormatId);
   }
 
   @Test
@@ -82,8 +86,11 @@ final class StrategySelectorTest {
     final StrategySelector selector = StrategySelector.of(firstListed, firstListed);
     final Format audio = selector.getAudioSource(dump);
     final Format video = selector.getVideoSource(dump);
-    assertEquals(Optional.of(AUDIO_FORMAT_ID), audio.getFormatId());
-    assertEquals(Optional.of(AUDIO_FORMAT_ID), video.getFormatId());
+    final Optional<String> audioFormatId = audio.getFormatId();
+    final Optional<String> expected = Optional.of(AUDIO_FORMAT_ID);
+    final Optional<String> videoFormatId = video.getFormatId();
+    assertEquals(expected, audioFormatId);
+    assertEquals(expected, videoFormatId);
   }
 
   private Optional<Format> findTheFirstListed(final UrlParseDump candidate) {

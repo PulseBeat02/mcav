@@ -148,9 +148,13 @@ final class ExecutableYtdlpParserTest {
     };
     final String[] actual = command.get();
     final List<Format> formats = dump.getFormats();
+    final Optional<String> id = dump.getId();
+    final Optional<String> expectedId = Optional.of("dQw4w9WgXcQ");
+    final Optional<String> title = dump.getTitle();
+    final Optional<String> expectedTitle = Optional.of("Example Video");
     assertArrayEquals(expected, actual);
-    assertEquals(Optional.of("dQw4w9WgXcQ"), dump.getId());
-    assertEquals(Optional.of("Example Video"), dump.getTitle());
+    assertEquals(expectedId, id);
+    assertEquals(expectedTitle, title);
     assertNotNull(formats);
 
     final int formatsCount = formats.size();
@@ -182,13 +186,16 @@ final class ExecutableYtdlpParserTest {
     };
     final UrlParseDump dump = parser.parse(source, options);
     final String[] actual = command.get();
+    final Optional<String> id = dump.getId();
+    final Optional<String> expectedId = Optional.of("many");
     assertNotNull(actual);
-    assertEquals(Optional.of("many"), dump.getId());
+    assertEquals(expectedId, id);
     assertEquals(21, actual.length);
 
     for (int index = 0; index < options.length; index++) {
       final String option = actual[7 + index];
-      assertEquals(options[index], option);
+      final String expectedOption = options[index];
+      assertEquals(expectedOption, option);
     }
 
     final String separator = actual[19];
@@ -218,8 +225,10 @@ final class ExecutableYtdlpParserTest {
       URL,
     };
     final String[] actual = command.get();
+    final Optional<String> id = dump.getId();
+    final Optional<String> expectedId = Optional.of("plain");
     assertArrayEquals(expected, actual);
-    assertEquals(Optional.of("plain"), dump.getId());
+    assertEquals(expectedId, id);
   }
 
   @Test
@@ -232,9 +241,14 @@ final class ExecutableYtdlpParserTest {
     final UriSource source = source();
     final UrlParseDump first = parser.parse(source);
     final UrlParseDump second = parser.parse(source);
-    assertEquals(Optional.of("first"), first.getId());
-    assertEquals(Optional.of("second"), second.getId());
-    assertFalse(tasks.hasNext());
+    final Optional<String> firstId = first.getId();
+    final Optional<String> expectedFirstId = Optional.of("first");
+    final Optional<String> secondId = second.getId();
+    final Optional<String> expectedSecondId = Optional.of("second");
+    final boolean tasksLeft = tasks.hasNext();
+    assertEquals(expectedFirstId, firstId);
+    assertEquals(expectedSecondId, secondId);
+    assertFalse(tasksLeft);
   }
 
   @Test
@@ -247,8 +261,12 @@ final class ExecutableYtdlpParserTest {
     final UriSource source = source();
     final UrlParseDump windowsDump = windowsParser.parse(source);
     final UrlParseDump singleLineDump = singleLineParser.parse(source);
-    assertEquals(Optional.of("first"), windowsDump.getId());
-    assertEquals(Optional.of("only"), singleLineDump.getId());
+    final Optional<String> windowsDumpId = windowsDump.getId();
+    final Optional<String> expectedWindowsDumpId = Optional.of("first");
+    final Optional<String> singleLineDumpId = singleLineDump.getId();
+    final Optional<String> expectedSingleLineDumpId = Optional.of("only");
+    assertEquals(expectedWindowsDumpId, windowsDumpId);
+    assertEquals(expectedSingleLineDumpId, singleLineDumpId);
   }
 
   @Test
@@ -427,7 +445,9 @@ final class ExecutableYtdlpParserTest {
     final UrlParseDump dump = parser.parse(source);
     final String[] actual = command.get();
     final String lastArgument = actual[actual.length - 1];
-    assertEquals(Optional.of("accepted"), dump.getId());
+    final Optional<String> id = dump.getId();
+    final Optional<String> expected = Optional.of("accepted");
+    assertEquals(expected, id);
     assertEquals(raw, lastArgument);
   }
 
