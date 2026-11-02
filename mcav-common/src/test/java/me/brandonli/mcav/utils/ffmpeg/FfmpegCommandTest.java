@@ -179,7 +179,7 @@ final class FfmpegCommandTest {
   }
 
   @Test
-  void shouldCommandAreImmutable() {
+  void shouldKeepABuiltCommandImmutable() {
     final FfmpegCommandBuilder builder = FfmpegCommand.builder();
     builder.addArgument(VERSION_ARGUMENT);
     final FfmpegCommand command = builder.build();
