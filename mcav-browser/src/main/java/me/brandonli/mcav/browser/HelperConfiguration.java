@@ -222,7 +222,10 @@ final class HelperConfiguration {
     final int maximum,
     final String name
   ) {
-    requireThat(value >= minimum && value <= maximum, "The %s %s must be between %s and %s!".formatted(name, value, minimum, maximum));
+    requireThat(
+      value >= minimum && value <= maximum,
+      "The %s %s must be between %s and %s inclusive!".formatted(name, value, minimum, maximum)
+    );
   }
 
   private static void requireThat(final boolean holds, final String message) {

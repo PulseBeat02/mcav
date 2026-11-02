@@ -311,7 +311,7 @@ class ContentPolicyTest {
   @Test
   void shouldFailWhenTheRendererCrashes() {
     this.policy.onRenderProcessTerminated(this.browser, CefRequestHandler.TerminationStatus.TS_PROCESS_CRASHED, 11, "segfault");
-    assertEquals(List.of("failure: The renderer of the page ended with status TS_PROCESS_CRASHED (11)"), this.events.log);
+    assertEquals(List.of("failure: Status TS_PROCESS_CRASHED (error code 11) ended the renderer of the page"), this.events.log);
   }
 
   @Test

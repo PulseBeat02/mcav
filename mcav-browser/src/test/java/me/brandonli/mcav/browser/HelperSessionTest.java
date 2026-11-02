@@ -223,7 +223,7 @@ class HelperSessionTest {
 
     final long reports = log
       .lines()
-      .filter(line -> line.contains("Browser: noise ") || line.contains("Page https://example.com/noise/"))
+      .filter(line -> line.contains("the notice \"noise ") || line.contains("Page https://example.com/noise/"))
       .count();
     final int sent = RawHelperMain.NOISY_NOTICES + RawHelperMain.NOISY_LOAD_ERRORS;
     final boolean loggedWithinBudget = reports >= LogBudget.BURST && reports <= LogBudget.BURST + 5;
@@ -235,7 +235,7 @@ class HelperSessionTest {
     final boolean reportsTheSkippedNotices = log.contains("more notices of the page were not logged");
     assertTrue(reportsTheSkippedNotices, log);
 
-    final boolean logsTheNoiseAfterAPause = log.contains("Browser: noise after a pause");
+    final boolean logsTheNoiseAfterAPause = log.contains("the notice \"noise after a pause\"");
     assertTrue(logsTheNoiseAfterAPause, log);
   }
 
@@ -606,7 +606,7 @@ class HelperSessionTest {
     final HelperSession session = this.open(RawHelperMain.class.getName(), "/deaf");
     Await.until("the end of the session", () -> this.sendAKeyAndReportTheEnd(session));
     final String reason = this.listener.ended.get(0);
-    final boolean reportsTheInputFailure = reason.startsWith("Input could not be sent to the browser helper (");
+    final boolean reportsTheInputFailure = reason.startsWith("Input could not be sent to the browser helper!");
     assertTrue(reportsTheInputFailure, reason);
 
     final Throwable failure = this.listener.failures.get(0);
@@ -672,7 +672,7 @@ class HelperSessionTest {
   @Test
   void shouldFailTheStartWhenThePageFailsToLoad() {
     final BrowserException failure = this.openFails(ScriptedEngine.class.getName(), "/load-error", START_TIMEOUT_MILLISECONDS);
-    final boolean reportsTheLoadError = failure.getMessage().contains("ERR_NAME_NOT_RESOLVED (-105)");
+    final boolean reportsTheLoadError = failure.getMessage().contains("ERR_NAME_NOT_RESOLVED (code -105)");
     assertTrue(reportsTheLoadError, failure.getMessage());
   }
 
@@ -721,7 +721,7 @@ class HelperSessionTest {
     final Path parent = this.shortDirectory();
     final Set<ProcessHandle> before = this.liveDescendants();
     final BrowserException failure = assertThrows(BrowserException.class, () -> this.openSessionIn(broken, source, parent));
-    final boolean reportsTheStartFailure = failure.getMessage().startsWith("The browser helper could not be started");
+    final boolean reportsTheStartFailure = failure.getMessage().endsWith(", the browser helper could not be started!");
     assertTrue(reportsTheStartFailure, failure.getMessage());
 
     final Set<ProcessHandle> newProcesses = this.newSince(before);
@@ -737,7 +737,7 @@ class HelperSessionTest {
   void shouldEndTheSessionWhenTheBrowserFailsLater() {
     this.open(ScriptedEngine.class.getName(), "/fail");
     Await.until("the end of the session", () -> !this.listener.ended.isEmpty());
-    assertEquals(List.of("The browser failed (scripted renderer crash)!"), this.listener.ended);
+    assertEquals(List.of("Because of \"scripted renderer crash\", the browser failed!"), this.listener.ended);
   }
 
   @Test
@@ -852,7 +852,7 @@ class HelperSessionTest {
     final Path parent = this.shortDirectory();
     final BrowserException failure = assertThrows(BrowserException.class, () -> this.openSessionIn(launcher, source, parent));
     final String message = failure.getMessage();
-    assertEquals("The browser helper could not be started (The disk has no space left!)!", message);
+    assertEquals("Because of \"The disk has no space left!\", the browser helper could not be started!", message);
 
     try (final Stream<Path> left = Files.list(parent)) {
       final List<Path> remainingFiles = left.toList();
@@ -1108,7 +1108,7 @@ class HelperSessionTest {
     final HelperSession session = this.open(ScriptedEngine.class.getName(), "/fail");
     Await.until("the end of the session", () -> !this.listener.ended.isEmpty());
     Await.until("the helper exited", () -> !session.isAlive());
-    assertEquals(List.of("The browser failed (scripted renderer crash)!"), this.listener.ended);
+    assertEquals(List.of("Because of \"scripted renderer crash\", the browser failed!"), this.listener.ended);
   }
 
   @Test
@@ -1239,7 +1239,7 @@ class HelperSessionTest {
 
     final Path missingParent = this.directory.resolve("missing");
     final BrowserException missing = assertThrows(BrowserException.class, () -> HelperSession.createFolder(missingParent));
-    final boolean reportsTheMissingParent = missing.getMessage().startsWith("The folder of the browser session cannot be created");
+    final boolean reportsTheMissingParent = missing.getMessage().endsWith(", the folder of the browser session cannot be created!");
     assertTrue(reportsTheMissingParent, missing.getMessage());
   }
 
@@ -1260,7 +1260,7 @@ class HelperSessionTest {
 
     drawn.set(0);
     final BrowserException exhausted = assertThrows(BrowserException.class, () -> this.createFolderFromTakenNames(drawn));
-    final boolean reportsEveryNameTaken = exhausted.getMessage().endsWith("(Every name drawn was taken!)!");
+    final boolean reportsEveryNameTaken = exhausted.getMessage().startsWith("Because of \"Every name drawn was taken!\", ");
     assertTrue(reportsEveryNameTaken, exhausted.getMessage());
 
     final int drawCount = drawn.get();

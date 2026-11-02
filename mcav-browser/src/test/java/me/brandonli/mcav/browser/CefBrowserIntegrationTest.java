@@ -74,7 +74,7 @@ class CefBrowserIntegrationTest {
 
   private BrowserPlayer player(final BrowserOptions options, final CefBrowserPlayer.DefaultSessionFactory sessions) {
     final CefBrowserPlayer player = new CefBrowserPlayer(options, sessions);
-    player.setExceptionHandler((message, error) -> this.failures.add(message + ": " + error.getMessage()));
+    player.setExceptionHandler((message, error) -> this.failures.add(message + " " + error.getMessage()));
     this.players.add(player);
 
     return player;
@@ -365,13 +365,13 @@ class CefBrowserIntegrationTest {
       final boolean downloadPlaying = toDownload.isPlaying();
       assertTrue(downloadPlaying);
 
-      final String refusal = "Browser: The download of evil.exe was refused.";
+      final String refusal = "The browser sent the notice \"The download of evil.exe was refused.\" about the page.";
       Await.until("the real download reaches the refusal handler", () -> reports.text().contains(refusal));
       final List<String> downloadReports = reports
         .text()
         .lines()
-        .filter(line -> line.contains("Browser: The download of "))
-        .map(line -> line.substring(line.indexOf("Browser: The download of ")))
+        .filter(line -> line.contains("the notice \"The download of "))
+        .map(line -> line.substring(line.indexOf("The browser sent the notice \"The download of ")))
         .toList();
       assertEquals(List.of(refusal), downloadReports);
     }
@@ -450,7 +450,10 @@ class CefBrowserIntegrationTest {
 
       final boolean playing = player.isPlaying();
       assertFalse(playing, "the player knows its browser ended");
-      assertEquals(List.of("The browser module was stopped!: The browser module was stopped!"), this.failures);
+      assertEquals(
+        List.of("Because of \"The browser module was stopped!\", the browser session ended. The browser module was stopped!"),
+        this.failures
+      );
 
       Await.until("the browser processes ended", () -> countBrowserProcesses() == 0);
     } finally {

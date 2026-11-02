@@ -236,7 +236,7 @@ class HelperConfigurationTest {
 
     final IllegalArgumentException tooFast = assertThrows(IllegalArgumentException.class, () -> this.configurationOf(page, 1, 1, 1, 61));
     final String tooFastMessage = tooFast.getMessage();
-    assertEquals("The frame rate 61 must be between 1 and 60!", tooFastMessage);
+    assertEquals("The frame rate 61 must be between 1 and 60 inclusive!", tooFastMessage);
 
     final Executable servedFromARelativeFolder = () -> this.confinedConfiguration(page, RELATIVE_SERVER, List.of());
     final IllegalArgumentException relativeServer = assertThrows(IllegalArgumentException.class, servedFromARelativeFolder);

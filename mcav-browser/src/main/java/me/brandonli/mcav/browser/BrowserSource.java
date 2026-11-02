@@ -113,7 +113,7 @@ public interface BrowserSource extends UriSource {
     );
     Preconditions.checkArgument(
       frameInterval > 0 && frameInterval <= MAXIMUM_FRAME_INTERVAL,
-      "Frame interval %s must be between 1 and %s!",
+      "Frame interval %s must be between 1 and %s frames!",
       frameInterval,
       MAXIMUM_FRAME_INTERVAL
     );

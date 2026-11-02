@@ -111,7 +111,7 @@ class SeatbeltTest {
 
         final IOException refused = assertThrows(IOException.class, () -> seatbelt.restrictProcess(PROFILE));
         final String message = refused.getMessage();
-        assertEquals("The process cannot be restricted, because this system has no Seatbelt (sandbox_init)!", message);
+        assertEquals("Because this system has no Seatbelt (sandbox_init), the process cannot be restricted!", message);
 
         final List<String> passedProfiles = library.profiles();
         assertEquals(List.of(), passedProfiles);
@@ -145,7 +145,7 @@ class SeatbeltTest {
       final Seatbelt seatbelt = library.seatbelt();
       final IOException refused = assertThrows(IOException.class, () -> seatbelt.restrictProcess("(deny (subpat \"/\"))"));
       final String message = refused.getMessage();
-      assertEquals("Seatbelt refused the profile (unbound variable: subpat)!", message);
+      assertEquals("Seatbelt refused the profile, reporting unbound variable: subpat as the reason!", message);
 
       final List<Long> freedAddresses = library.freed();
       assertEquals(List.of(library.reasonAddress()), freedAddresses);

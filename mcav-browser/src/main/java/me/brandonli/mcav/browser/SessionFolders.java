@@ -106,7 +106,7 @@ final class SessionFolders {
     try (final DirectoryStream<Path> folders = Files.newDirectoryStream(temporary, PREFIX + ANY_NAME)) {
       removed = this.removeStaleFolders(folders);
     } catch (final IOException exception) {
-      LOGGER.warn("The folders of browser sessions in {} could not be listed ({}).", temporary, exception.toString());
+      LOGGER.warn("The folders of browser sessions in {} could not be listed, so stale ones stay.", temporary, exception);
     }
 
     return removed;

@@ -472,7 +472,7 @@ class CefEngineTest {
       CefEngine.shutDown(this::failToDispose, new CountDownLatch(1), 1_000L);
       final boolean reportsTheDisposeFailure = errors
         .text()
-        .contains("Failed to shut CEF down (java.lang.IllegalStateException: The disposal failed!).");
+        .contains("Because of \"java.lang.IllegalStateException: The disposal failed!\", CEF could not be shut down.");
       assertTrue(reportsTheDisposeFailure, errors.text());
     }
 
@@ -501,7 +501,7 @@ class CefEngineTest {
       engine.dispatch(DevToolsInput.pressKey("Enter"));
       engine.stop();
       EventQueue.invokeAndWait(() -> {});
-      final boolean reportsAShutdownFailure = errors.text().contains("Failed to shut CEF down");
+      final boolean reportsAShutdownFailure = errors.text().contains("CEF could not be shut down");
       assertFalse(reportsAShutdownFailure, errors.text());
     } finally {
       Thread.setDefaultUncaughtExceptionHandler(previous);
@@ -524,7 +524,7 @@ class CefEngineTest {
 
       final boolean reportsTheFailedCall = errors
         .text()
-        .contains("A DevTools call failed (java.lang.IllegalStateException: The browser is gone!).");
+        .contains("Because of \"java.lang.IllegalStateException: The browser is gone!\", a DevTools call failed.");
       assertTrue(reportsTheFailedCall, errors.text());
     }
   }

@@ -141,7 +141,7 @@ public final class BrowserHelper {
       configuration = HelperConfiguration.fromLine(line);
     } catch (final IOException | IllegalArgumentException exception) {
       final @Nullable String reason = exception.getMessage();
-      System.err.println("The browser helper got an invalid configuration (%s).".formatted(reason));
+      System.err.println("Because of \"%s\", the browser helper rejected its configuration.".formatted(reason));
 
       return EXIT_BAD_CONFIGURATION;
     }
@@ -175,7 +175,7 @@ public final class BrowserHelper {
       return this.serve(reporter);
     } catch (final IOException exception) {
       final @Nullable String reason = exception.getMessage();
-      System.err.println("The browser helper cannot reach the server (%s).".formatted(reason));
+      System.err.println("Because of \"%s\", the browser helper cannot reach the server.".formatted(reason));
 
       return EXIT_FAILURE;
     }
@@ -200,7 +200,7 @@ public final class BrowserHelper {
     this.compositor.close();
     this.engine.stop();
     final String reason = this.stopReason.get();
-    System.err.println("The browser helper stops (%s).".formatted(reason));
+    System.err.println("Because %s, the browser helper stops.".formatted(reason));
 
     return reporter.hasFailed() ? EXIT_FAILURE : 0;
   }

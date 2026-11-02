@@ -63,7 +63,7 @@ final class Seatbelt {
     final @Nullable MemorySegment init = this.library.find(SANDBOX_INIT).orElse(null);
     final @Nullable MemorySegment freeError = this.library.find(FREE_ERROR).orElse(null);
     if (init == null || freeError == null) {
-      final String message = "The process cannot be restricted, because %s!".formatted(MISSING);
+      final String message = "Because %s, the process cannot be restricted!".formatted(MISSING);
       throw new IOException(message);
     }
 
@@ -90,7 +90,7 @@ final class Seatbelt {
       final MemorySegment reasonText = nativeReason.reinterpret(Long.MAX_VALUE);
       final String reason = reasonText.getString(0);
       call(freeCall, nativeReason);
-      final String message = "Seatbelt refused the profile (%s)!".formatted(reason);
+      final String message = "Seatbelt refused the profile, reporting %s as the reason!".formatted(reason);
       throw new IOException(message);
     }
   }

@@ -241,7 +241,7 @@ final class LinuxLibraries {
 
   private static String requireMatch(final Pattern pattern, final String value, final String line) {
     if (!pattern.matcher(value).matches()) {
-      final String message = "The pin %s has the invalid value %s!".formatted(line, value);
+      final String message = "The value %s of the pin %s is invalid!".formatted(value, line);
       throw new IllegalArgumentException(message);
     }
 
@@ -271,7 +271,7 @@ final class LinuxLibraries {
   Path install(final String platform) throws IOException {
     final List<Pin> wanted = this.getPins(platform);
     if (wanted.isEmpty()) {
-      final String message = "Platform %s has no libraries in mcav!".formatted(platform);
+      final String message = "Platform %s has no libraries in MCAV!".formatted(platform);
       throw new IOException(message);
     }
 
@@ -292,7 +292,7 @@ final class LinuxLibraries {
         final FileLock lock = JcefNatives.lock(channel)
       ) {
         this.installUnlessMarked(marker, wanted, installation);
-        LOGGER.debug("Installation lock {} of {} was released.", lock, name);
+        LOGGER.debug("The installation of {} is done, so its lock {} is released next.", name, lock);
       }
     }
 
@@ -403,7 +403,7 @@ final class LinuxLibraries {
 
     if (!missing.isEmpty()) {
       final @Nullable Path packageName = debianPackage.getFileName();
-      final String message = "The package %s holds none of %s!".formatted(packageName, missing);
+      final String message = "The package %s lacks the files %s that its pin lists!".formatted(packageName, missing);
       throw new IOException(message);
     }
   }
@@ -427,7 +427,7 @@ final class LinuxLibraries {
 
     if (!missingHost.isEmpty()) {
       final String libraries = String.join(LIST_SEPARATOR, missingHost);
-      final String message = "The browser needs %s, which this server lacks and mcav does not bring!".formatted(libraries);
+      final String message = "The browser needs %s, which this server lacks and MCAV does not bring!".formatted(libraries);
       throw new BrowserUnavailableException(message);
     }
 

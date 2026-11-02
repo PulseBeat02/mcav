@@ -311,13 +311,15 @@ final class CefBrowserPlayer implements BrowserPlayer {
 
   private void reportDropped() {
     this.dropReports.log(
-      () -> this.report("Browser input queue is full", new RejectedExecutionException("The browser input backlog is full!")),
+      () -> this.report("Browser input queue is full.", new RejectedExecutionException("The browser input backlog is full!")),
       this::reportDroppedInputs
     );
   }
 
   private void reportDroppedInputs(final long dropped) {
-    this.report("Browser input queue is full", new RejectedExecutionException("%s more inputs were dropped!".formatted(dropped)));
+    final String message = "The browser dropped %s more inputs!".formatted(dropped);
+    final RejectedExecutionException exception = new RejectedExecutionException(message);
+    this.report("Browser input queue is full.", exception);
   }
 
   private @Nullable BrowserSession getInputSession() {
@@ -347,7 +349,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
     } catch (final RuntimeException | Error exception) {
       // user filters and native OpenCV code can fail with any Error; only errors of the virtual machine are thrown
       ThrowableUtils.throwIfFatal(exception);
-      this.report("Failed to process a browser frame", exception);
+      this.report("Failed to process a browser frame.", exception);
     } finally {
       frame.close();
     }
@@ -369,7 +371,9 @@ final class CefBrowserPlayer implements BrowserPlayer {
     final boolean failed = this.state.compareAndSet(State.PLAYING, State.FAILED);
     if (failed) {
       this.closeAudio();
-      this.report(reason, cause);
+
+      final String message = "Because of \"%s\", the browser session ended.".formatted(reason);
+      this.report(message, cause);
     }
   }
 
@@ -450,8 +454,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
         final HelperLauncher base = this.getLauncher();
         current = withLibraries(base, this.libraries);
       } catch (final IOException | DownloadException | FileOperationException exception) {
-        final @Nullable String reason = exception.getMessage();
-        final String message = "The browser cannot be installed (%s)!".formatted(reason);
+        final String message = "The browser cannot be installed!";
         throw new BrowserUnavailableException(message, exception);
       }
 

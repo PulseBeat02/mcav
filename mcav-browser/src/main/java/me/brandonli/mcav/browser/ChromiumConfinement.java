@@ -40,8 +40,8 @@ final class ChromiumConfinement {
   static final String CONFINED =
     "Chromium runs confined: it cannot read the server's folder, the home folder or the temporary folder, and it writes only into the folder of its session.";
   static final String NOT_ASKED = "Chromium runs without confinement, as the options of the browser allow.";
-  static final String NOT_SUPPORTED = "Chromium runs without confinement: MCAV confines it on Linux and macOS only.";
-  private static final String UNAVAILABLE = "Chromium runs without confinement: %s.";
+  static final String NOT_SUPPORTED = "Because MCAV confines it on Linux and macOS only, Chromium runs without confinement.";
+  private static final String UNAVAILABLE = "Because %s, Chromium runs without confinement.";
 
   private static final Path ROOT = Path.of("/");
   private static final Path DEVICES = Path.of("/dev");

@@ -224,7 +224,7 @@ class NullDisplayTest {
       final ByteArrayOutputStream output = new ByteArrayOutputStream();
       final ProtocolException refused = assertThrows(ProtocolException.class, () -> this.serveSetup(wrong, output));
       final String wrongCookieMessage = refused.getMessage();
-      assertEquals("A client was refused, because the cookie of the display is missing!", wrongCookieMessage);
+      assertEquals("Because the cookie of the display is missing, a client was refused!", wrongCookieMessage);
 
       final byte[] answer = output.toByteArray();
       final byte status = answer[0];
@@ -241,7 +241,7 @@ class NullDisplayTest {
     final byte[] tenPointZero = setup(ByteOrder.LITTLE_ENDIAN, 10, COOKIE_NAME, COOKIE);
     final ProtocolException oldProtocol = assertThrows(ProtocolException.class, () -> this.serveSetup(tenPointZero, output));
     final String oldProtocolMessage = oldProtocol.getMessage();
-    assertEquals("A client was refused, because only X11 is spoken here!", oldProtocolMessage);
+    assertEquals("Because only X11 is spoken here, a client was refused!", oldProtocolMessage);
   }
 
   private void serveSetup(final byte[] setup, final OutputStream output) throws IOException {
@@ -267,7 +267,7 @@ class NullDisplayTest {
     final byte[] longest = setup(ByteOrder.LITTLE_ENDIAN, 11, "x".repeat(256), new byte[256]);
     final ProtocolException value = assertThrows(ProtocolException.class, () -> this.serveSetup(longest, new ByteArrayOutputStream()));
     final String valueMessage = value.getMessage();
-    assertEquals("A client was refused, because the cookie of the display is missing!", valueMessage);
+    assertEquals("Because the cookie of the display is missing, a client was refused!", valueMessage);
   }
 
   @Test

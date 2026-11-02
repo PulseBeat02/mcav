@@ -556,7 +556,7 @@ class JcefNativesTest {
     ) {
       final IOException failure = assertThrows(IOException.class, () -> natives.install(PLATFORM, PINNED_HASH, PINNED_SIZE));
       final String message = failure.getMessage();
-      assertEquals("Another copy of mcav in this server is installing the CEF natives; try again once it is done!", message);
+      assertEquals("Another copy of MCAV in this server is installing the CEF natives; try again once it is done!", message);
 
       final boolean valid = held.isValid();
       assertTrue(valid);

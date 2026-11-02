@@ -343,7 +343,7 @@ final class HelperProtocol {
     }
 
     if (clickCount > MAXIMUM_CLICK_COUNT) {
-      final String message = "Click count %s must be at most %s!".formatted(clickCount, MAXIMUM_CLICK_COUNT);
+      final String message = "Click count %s must be at most %s clicks!".formatted(clickCount, MAXIMUM_CLICK_COUNT);
       throw new ProtocolException(message);
     }
 
@@ -498,7 +498,7 @@ final class HelperProtocol {
 
   private static void checkSide(final String name, final int value) throws ProtocolException {
     if (value < 1 || value > MAXIMUM_SIDE) {
-      final String message = "The %s %s must be between 1 and %s!".formatted(name, value, MAXIMUM_SIDE);
+      final String message = "The %s %s must be between 1 and %s pixels!".formatted(name, value, MAXIMUM_SIDE);
       throw new ProtocolException(message);
     }
   }

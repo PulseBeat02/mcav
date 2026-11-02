@@ -652,10 +652,10 @@ class BrowserHelperTest {
       final boolean reportsTheMissingConfiguration = log.contains("The browser helper got no configuration");
       assertTrue(reportsTheMissingConfiguration, log);
 
-      final boolean reportsTheInvalidConfiguration = log.contains("The browser helper got an invalid configuration (");
+      final boolean reportsTheInvalidConfiguration = log.contains("\", the browser helper rejected its configuration.");
       assertTrue(reportsTheInvalidConfiguration, log);
 
-      final boolean reportsTheUnreachableServer = log.contains("The browser helper cannot reach the server (");
+      final boolean reportsTheUnreachableServer = log.contains("\", the browser helper cannot reach the server.");
       assertTrue(reportsTheUnreachableServer, log);
     }
   }
@@ -671,7 +671,7 @@ class BrowserHelperTest {
         final Integer exitStatus = result.get(RESULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         assertEquals(0, exitStatus);
       }
-      final boolean reportsTheStop = errors.text().contains("The browser helper stops (the server asked to close).");
+      final boolean reportsTheStop = errors.text().contains("Because the server asked to close, the browser helper stops.");
       assertTrue(reportsTheStop, errors.text());
     }
   }

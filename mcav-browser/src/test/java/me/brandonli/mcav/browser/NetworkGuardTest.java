@@ -514,7 +514,7 @@ class NetworkGuardTest {
     final NetworkGuard guard = this.loopbackGuard();
     guard.getServer().close();
     Await.until("the report", () -> !this.notices.isEmpty());
-    final boolean reportsTheStop = this.notices.getFirst().startsWith("The network guard stopped (");
+    final boolean reportsTheStop = this.notices.getFirst().startsWith("The network guard stopped after the error ");
     assertTrue(reportsTheStop, this.notices.getFirst());
   }
 

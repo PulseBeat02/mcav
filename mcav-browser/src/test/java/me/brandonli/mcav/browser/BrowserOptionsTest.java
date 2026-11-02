@@ -84,7 +84,7 @@ class BrowserOptionsTest {
     final BrowserOptionsBuilder builder = BrowserOptions.builder().refusedHosts(List.of("a b"));
     final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, builder::build);
     final String message = refused.getMessage();
-    assertEquals("Host 'a b' is not a host name or address!", message);
+    assertEquals("Host a b is not a host name or address!", message);
 
     final int maximumFrameRate = BrowserOptions.builder().frameRate(MAXIMUM_FRAME_RATE).build().getFrameRate();
     assertEquals(MAXIMUM_FRAME_RATE, maximumFrameRate);
@@ -98,7 +98,7 @@ class BrowserOptionsTest {
     final BrowserOptionsBuilder tooFastBuilder = BrowserOptions.builder().frameRate(61);
     final IllegalArgumentException tooFast = assertThrows(IllegalArgumentException.class, tooFastBuilder::build);
     final String message = tooFast.getMessage();
-    assertEquals("Frame rate 61 must be between 1 and 60!", message);
+    assertEquals("Frame rate 61 must be between 1 and 60 frames per second!", message);
   }
 
   @Test

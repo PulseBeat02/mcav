@@ -137,7 +137,7 @@ final class JcefNatives {
         final FileLock lock = lock(channel)
       ) {
         this.installUnlessMarked(marker, identifier, sha256, size, installation);
-        LOGGER.debug("Installation lock {} of {} was released.", lock, name);
+        LOGGER.debug("The installation of {} is done, so its lock {} is released next.", name, lock);
       }
     }
 
@@ -199,7 +199,7 @@ final class JcefNatives {
     try {
       return channel.lock();
     } catch (final OverlappingFileLockException exception) {
-      final String message = "Another copy of mcav in this server is installing the CEF natives; try again once it is done!";
+      final String message = "Another copy of MCAV in this server is installing the CEF natives; try again once it is done!";
       throw new IOException(message, exception);
     }
   }

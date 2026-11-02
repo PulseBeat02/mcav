@@ -27,7 +27,6 @@ import java.lang.reflect.Type;
 import java.util.Set;
 import me.brandonli.mcav.json.GsonProvider;
 import me.brandonli.mcav.utils.IoUtils;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 // listed in the mcav/browser/keybinds.json resource
 final class SpecialKeys {
@@ -59,8 +58,7 @@ final class SpecialKeys {
 
       return Set.copyOf(keys);
     } catch (final IOException exception) {
-      final @Nullable String reason = exception.getMessage();
-      final String message = "The key list resource could not be read (%s)!".formatted(reason);
+      final String message = "The key list resource %s could not be read!".formatted(RESOURCE);
       throw new BrowserException(message, exception);
     }
   }

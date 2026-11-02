@@ -274,7 +274,7 @@ final class ArchiveExtractor {
         Files.setPosixFilePermissions(path, permissions);
       }
     } catch (final IOException exception) {
-      LOGGER.warn("The group may still write {} of the browser's installation ({}).", path, exception.toString());
+      LOGGER.warn("The group may still write {} of the browser's installation.", path, exception);
     }
   }
 

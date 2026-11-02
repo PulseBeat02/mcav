@@ -95,7 +95,7 @@ class LandlockTest {
     assertTrue(saysTurnedOff);
 
     final String otherErrorDescription = Landlock.describeMissing(-1);
-    assertEquals("Landlock is not available here (error 1)", otherErrorDescription);
+    assertEquals("error 1 from the kernel keeps Landlock off", otherErrorDescription);
   }
 
   @Test
@@ -147,7 +147,7 @@ class LandlockTest {
 
     final IOException failure = assertThrows(IOException.class, () -> Landlock.check(-1, 22, "create a ruleset"));
     final String message = failure.getMessage();
-    assertEquals("Landlock could not create a ruleset (error 22)!", message);
+    assertEquals("Landlock could not create a ruleset because of error 22 from the kernel!", message);
   }
 
   @Test
@@ -212,7 +212,7 @@ class LandlockTest {
     assertInstanceOf(IOException.class, failure);
 
     final String message = failure.getMessage();
-    assertEquals("Landlock could not create a ruleset (error 22)!", message);
+    assertEquals("Landlock could not create a ruleset because of error 22 from the kernel!", message);
   }
 
   @Test
@@ -312,7 +312,7 @@ class LandlockTest {
     assertInstanceOf(IOException.class, failure);
 
     final String message = failure.getMessage();
-    assertEquals("Landlock could not restrict the thread (error 7)!", message);
+    assertEquals("Landlock could not restrict the thread because of error 7 from the kernel!", message);
   }
 
   private void restrictUntilRefused(final int version) throws IOException {

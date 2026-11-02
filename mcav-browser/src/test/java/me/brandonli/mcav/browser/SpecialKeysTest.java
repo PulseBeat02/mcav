@@ -80,10 +80,12 @@ class SpecialKeysTest {
     };
     final BrowserException failure = assertThrows(BrowserException.class, () -> SpecialKeys.parse(throwing));
     final String message = failure.getMessage();
-    assertEquals("The key list resource could not be read (The disk is gone!)!", message);
+    assertEquals("The key list resource mcav/browser/keybinds.json could not be read!", message);
 
     final Throwable cause = failure.getCause();
-    assertInstanceOf(IOException.class, cause);
+    final IOException diskFailure = assertInstanceOf(IOException.class, cause);
+    final String reason = diskFailure.getMessage();
+    assertEquals("The disk is gone!", reason);
   }
 
   @Test

@@ -80,12 +80,12 @@ final class DefaultBrowserOptionsBuilder implements BrowserOptionsBuilder {
   public BrowserOptions build() {
     Preconditions.checkArgument(
       this.frameRate >= MINIMUM_FRAME_RATE && this.frameRate <= BrowserOptions.MAXIMUM_FRAME_RATE,
-      "Frame rate %s must be between 1 and %s!",
+      "Frame rate %s must be between 1 and %s frames per second!",
       this.frameRate,
       BrowserOptions.MAXIMUM_FRAME_RATE
     );
     for (final String host : this.refusedHosts) {
-      Preconditions.checkArgument(HelperConfiguration.isHost(host), "Host '%s' is not a host name or address!", host);
+      Preconditions.checkArgument(HelperConfiguration.isHost(host), "Host %s is not a host name or address!", host);
     }
 
     return new BrowserOptions(

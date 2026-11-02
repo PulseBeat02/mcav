@@ -90,7 +90,7 @@ class CefBrowserPlayerTest {
   private RuntimeException startFailure;
 
   CefBrowserPlayerTest() {
-    this.player.setExceptionHandler((message, error) -> this.reports.add(message + ": " + error.getMessage()));
+    this.player.setExceptionHandler((message, error) -> this.reports.add(message + " " + error.getMessage()));
     this.attachRecorder(this.player);
   }
 
@@ -320,7 +320,7 @@ class CefBrowserPlayerTest {
 
     final boolean playingAfterFailure = player.isPlaying();
     assertFalse(playingAfterFailure);
-    assertEquals(List.of("The browser helper exited"), reports);
+    assertEquals(List.of("Because of \"The browser helper exited\", the browser session ended."), reports);
 
     final boolean startedAgain = player.start(SOURCE);
     assertTrue(startedAgain, "a failed player starts again");
@@ -330,7 +330,7 @@ class CefBrowserPlayerTest {
 
     final FakeSession deadSession = opened.getFirst();
     assertEquals(1, deadSession.closed, "the dead session is closed");
-    assertEquals(List.of("The browser helper exited"), reports);
+    assertEquals(List.of("Because of \"The browser helper exited\", the browser session ended."), reports);
   }
 
   private BrowserSession openSessionThatEndsFirst(final BrowserSession.Listener sessionListener, final List<FakeSession> opened) {
@@ -421,7 +421,7 @@ class CefBrowserPlayerTest {
       assertTrue(closed, "a failed pipeline still returns the frame's ownership");
     }
 
-    assertEquals(List.of("Failed to process a browser frame: The filter broke!"), this.reports);
+    assertEquals(List.of("Failed to process a browser frame. The filter broke!"), this.reports);
   }
 
   private boolean breakTheFilter() {
@@ -456,7 +456,7 @@ class CefBrowserPlayerTest {
     first.onEnded(END_REASON, new IllegalStateException("The helper crashed!"));
     final boolean playingAfterEnd = this.player.isPlaying();
     assertFalse(playingAfterEnd);
-    assertEquals(List.of("gone: The helper crashed!"), this.reports);
+    assertEquals(List.of("Because of \"gone\", the browser session ended. The helper crashed!"), this.reports);
 
     final boolean startedAgain = this.player.start(SOURCE);
     assertTrue(startedAgain);
@@ -491,7 +491,7 @@ class CefBrowserPlayerTest {
     this.player.start(SOURCE);
     this.listener.onEnded(END_REASON, new IllegalStateException("The first failure!"));
     this.listener.onEnded("gone again", new IllegalStateException("The second failure!"));
-    assertEquals(List.of("gone: The first failure!"), this.reports);
+    assertEquals(List.of("Because of \"gone\", the browser session ended. The first failure!"), this.reports);
   }
 
   @Test
@@ -790,8 +790,8 @@ class CefBrowserPlayerTest {
     this.player.scroll(1, 1, 0, 1);
     assertEquals(
       List.of(
-        "Browser input queue is full: The browser input backlog is full!",
-        "Browser input queue is full: The browser input backlog is full!"
+        "Browser input queue is full. The browser input backlog is full!",
+        "Browser input queue is full. The browser input backlog is full!"
       ),
       this.reports
     );
@@ -817,8 +817,8 @@ class CefBrowserPlayerTest {
     final List<String> later = this.reports.subList(LogBudget.BURST, this.reports.size());
     assertEquals(
       List.of(
-        "Browser input queue is full: " + (500 - LogBudget.BURST) + " more inputs were dropped!",
-        "Browser input queue is full: The browser input backlog is full!"
+        "Browser input queue is full. The browser dropped " + (500 - LogBudget.BURST) + " more inputs!",
+        "Browser input queue is full. The browser input backlog is full!"
       ),
       later
     );

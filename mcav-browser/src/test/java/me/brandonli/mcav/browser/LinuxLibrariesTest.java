@@ -361,7 +361,7 @@ class LinuxLibrariesTest {
     );
 
     final String message = refused.getMessage();
-    final boolean namesTheEntry = message.endsWith("invalid value =usr/lib/x/libx.so.1!");
+    final boolean namesTheEntry = message.startsWith("The value =usr/lib/x/libx.so.1 of the pin ");
     assertTrue(namesTheEntry, message);
   }
 
@@ -575,7 +575,7 @@ class LinuxLibrariesTest {
     final LinuxLibraries libraries = new LinuxLibraries(this.folder, (uri, destination, sha256, size) -> {}, List.of(), List.of());
     final IOException failure = assertThrows(IOException.class, () -> libraries.install("linux-riscv64"));
     final String message = failure.getMessage();
-    assertEquals("Platform linux-riscv64 has no libraries in mcav!", message);
+    assertEquals("Platform linux-riscv64 has no libraries in MCAV!", message);
   }
 
   @Test
@@ -595,7 +595,7 @@ class LinuxLibrariesTest {
     );
     final IOException link = assertThrows(IOException.class, () -> this.extractIntoNewFolder(linkOnly, wanted, "b"));
     final String linkMessage = link.getMessage();
-    assertEquals("The package link.deb holds none of [%s]!".formatted(LIBRARY), linkMessage);
+    assertEquals("The package link.deb lacks the files [%s] that its pin lists!".formatted(LIBRARY), linkMessage);
 
     final boolean unpackedKept = Files.exists(this.folder.resolve("link.deb.unpacked"));
     assertFalse(unpackedKept, "the unpacked package is removed");
@@ -690,7 +690,7 @@ class LinuxLibrariesTest {
     final Path bare = Files.createDirectory(this.folder.resolve("bare-host"));
     final BrowserException lacking = assertThrows(BrowserUnavailableException.class, () -> libraries.findMissing(PLATFORM, List.of(bare)));
     final String message = lacking.getMessage();
-    assertEquals("The browser needs libz.so.1, which this server lacks and mcav does not bring!", message);
+    assertEquals("The browser needs libz.so.1, which this server lacks and MCAV does not bring!", message);
   }
 
   @Test

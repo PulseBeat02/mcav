@@ -557,7 +557,7 @@ final class NullDisplay implements AutoCloseable {
     if (major != X11_MAJOR_VERSION || !named || !matches) {
       final String reason = major != X11_MAJOR_VERSION ? "only X11 is spoken here" : "the cookie of the display is missing";
       writeRefusal(output, order, reason);
-      final String message = "A client was refused, because %s!".formatted(reason);
+      final String message = "Because %s, a client was refused!".formatted(reason);
       throw new ProtocolException(message);
     }
 

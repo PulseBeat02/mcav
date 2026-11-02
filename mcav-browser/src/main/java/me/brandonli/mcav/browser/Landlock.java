@@ -111,7 +111,7 @@ final class Landlock {
     return switch (error) {
       case NO_SUCH_SYSTEM_CALL -> "this kernel has no Landlock, which Linux has since 5.13";
       case NOT_SUPPORTED -> "Landlock is turned off in this kernel (its lsm= boot option)";
-      default -> "Landlock is not available here (error %s)".formatted(error);
+      default -> "error %s from the kernel keeps Landlock off".formatted(error);
     };
   }
 
@@ -202,7 +202,7 @@ final class Landlock {
   @VisibleForTesting
   static long check(final long result, final int error, final String action) throws IOException {
     if (result < 0) {
-      final String message = "Landlock could not %s (error %s)!".formatted(action, error);
+      final String message = "Landlock could not %s because of error %s from the kernel!".formatted(action, error);
       throw new IOException(message);
     }
 

@@ -160,7 +160,7 @@ final class NetworkGuard implements Closeable {
   private void reportStopUnlessClosed(final IOException exception) {
     if (!this.closed) {
       final @Nullable String reason = exception.getMessage();
-      this.notices.accept("The network guard stopped (%s).".formatted(reason));
+      this.notices.accept("The network guard stopped after the error %s, so pages cannot connect anymore.".formatted(reason));
     }
   }
 

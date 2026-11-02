@@ -446,7 +446,7 @@ final class CefEngine implements HelperEngine {
 
   @VisibleForTesting
   static String logFailedCall(final Throwable failure) {
-    System.err.println("A DevTools call failed (%s).".formatted(failure));
+    System.err.println("Because of \"%s\", a DevTools call failed.".formatted(failure));
 
     return "";
   }
@@ -493,7 +493,7 @@ final class CefEngine implements HelperEngine {
       thread.interrupt();
     } catch (final InvocationTargetException exception) {
       final Throwable cause = exception.getCause();
-      System.err.println("Failed to shut CEF down (%s).".formatted(cause));
+      System.err.println("Because of \"%s\", CEF could not be shut down.".formatted(cause));
     }
   }
 

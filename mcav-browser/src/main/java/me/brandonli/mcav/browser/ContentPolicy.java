@@ -186,7 +186,7 @@ final class ContentPolicy
     final int errorCode,
     final String errorString
   ) {
-    this.events.onFailure("The renderer of the page ended with status %s (%s)".formatted(status, errorCode));
+    this.events.onFailure("Status %s (error code %s) ended the renderer of the page".formatted(status, errorCode));
   }
 
   @Override
