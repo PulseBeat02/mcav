@@ -41,9 +41,18 @@ import org.openjdk.jcstress.annotations.State;
 @State
 public class ProcessPublication {
 
+  private static final long START_TIMEOUT_MILLISECONDS = 0L;
+
   private static final Field PROCESS = findProcessField();
 
-  private final VmProcess machine = new VmProcess(null, null, null, null, null, null, null, 0, null);
+  private final VmProcess machine;
+
+  /**
+   * Creates a machine whose QEMU has not started.
+   */
+  public ProcessPublication() {
+    this.machine = new VmProcess(null, null, null, null, null, null, null, START_TIMEOUT_MILLISECONDS, null);
+  }
 
   private static Field findProcessField() {
     try {
@@ -51,7 +60,8 @@ public class ProcessPublication {
       field.setAccessible(true);
       return field;
     } catch (final NoSuchFieldException exception) {
-      throw new IllegalStateException("VmProcess has no process field any more", exception);
+      final String message = "VmProcess has no process field any more!";
+      throw new LinkageError(message, exception);
     }
   }
 
@@ -68,19 +78,20 @@ public class ProcessPublication {
 
   /**
    * Publishes a running QEMU.
-   *
-   * @throws IllegalAccessException never, the field was made accessible
    */
   @Signal
-  public void launch() throws IllegalAccessException {
+  public void launch() {
     final Process running = new RunningProcess();
-    PROCESS.set(this.machine, running);
+    try {
+      PROCESS.set(this.machine, running);
+    } catch (final IllegalAccessException exception) {
+      throw new AssertionError(exception);
+    }
   }
 
-  /**
-   * A process that runs until the test is over.
-   */
   private static final class RunningProcess extends Process {
+
+    private static final int EXIT_STATUS = 0;
 
     @Override
     public OutputStream getOutputStream() {
@@ -99,12 +110,13 @@ public class ProcessPublication {
 
     @Override
     public int waitFor() {
-      return 0;
+      return EXIT_STATUS;
     }
 
     @Override
     public int exitValue() {
-      throw new IllegalThreadStateException("still running");
+      final String message = "Process is still running!";
+      throw new IllegalThreadStateException(message);
     }
 
     @Override

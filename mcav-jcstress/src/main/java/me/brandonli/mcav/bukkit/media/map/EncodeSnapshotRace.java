@@ -45,7 +45,11 @@ import org.openjdk.jcstress.infra.results.II_Result;
 @State
 public class EncodeSnapshotRace {
 
+  private static final int START_MAP_ID = 0;
+  private static final int COLUMNS = 1;
+  private static final int ROWS = 1;
   private static final int SIDE = 16;
+
   private static final byte OLD_COLOR = 4;
   private static final byte NEW_COLOR = 8;
 
@@ -56,13 +60,19 @@ public class EncodeSnapshotRace {
    * Creates an encoder whose clients already display a frame of one color.
    */
   public EncodeSnapshotRace() {
-    final MapLayout layout = new MapLayout(0, 1, 1, SIDE, SIDE);
+    final MapLayout layout = new MapLayout(START_MAP_ID, COLUMNS, ROWS, SIDE, SIDE);
     this.encoder = new DeltaMapEncoder(layout, DeltaMapEncoder.DEFAULT_MAXIMUM_BYTES_PER_FRAME);
-    final byte[] oldFrame = new byte[SIDE * SIDE];
-    Arrays.fill(oldFrame, OLD_COLOR);
+
+    final byte[] oldFrame = this.createFrame(OLD_COLOR);
     this.encoder.encode(oldFrame);
-    this.nextFrame = new byte[SIDE * SIDE];
-    Arrays.fill(this.nextFrame, NEW_COLOR);
+
+    this.nextFrame = this.createFrame(NEW_COLOR);
+  }
+
+  private byte[] createFrame(final byte color) {
+    final byte[] frame = new byte[SIDE * SIDE];
+    Arrays.fill(frame, color);
+    return frame;
   }
 
   /**
@@ -81,19 +91,28 @@ public class EncodeSnapshotRace {
   @Actor
   public void snapshot(final II_Result outcome) {
     final List<MapTilePatch> snapshot = this.encoder.snapshot();
-    int oldPixels = 0;
-    int newPixels = 0;
+    outcome.r1 = this.countPixels(snapshot, OLD_COLOR);
+    outcome.r2 = this.countPixels(snapshot, NEW_COLOR);
+  }
+
+  private int countPixels(final List<MapTilePatch> snapshot, final byte color) {
+    int count = 0;
     for (final MapTilePatch patch : snapshot) {
-      final byte[] colors = patch.getColors();
-      for (final byte color : colors) {
-        if (color == OLD_COLOR) {
-          oldPixels++;
-        } else if (color == NEW_COLOR) {
-          newPixels++;
-        }
+      count += this.countPixelsInPatch(patch, color);
+    }
+
+    return count;
+  }
+
+  private int countPixelsInPatch(final MapTilePatch patch, final byte color) {
+    final byte[] colors = patch.getColors();
+    int count = 0;
+    for (final byte pixel : colors) {
+      if (pixel == color) {
+        count++;
       }
     }
-    outcome.r1 = oldPixels;
-    outcome.r2 = newPixels;
+
+    return count;
   }
 }

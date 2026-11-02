@@ -47,7 +47,14 @@ import org.openjdk.jcstress.infra.results.II_Result;
 @State
 public class ConfigureGrabberResizeRace {
 
-  private static final Source SOURCE = FileSource.path(Path.of("race.mp4"));
+  private static final Path SOURCE_PATH = Path.of("race.mp4");
+  private static final Source SOURCE = FileSource.path(SOURCE_PATH);
+
+  private static final int TARGET_WIDTH = 320;
+  private static final int TARGET_HEIGHT = 240;
+
+  private static final int LARGER_WIDTH = 640;
+  private static final int LARGER_HEIGHT = 480;
 
   private final ConfiguringPlayer player;
   private final DimensionAttachableCallback dimensionCallback;
@@ -57,10 +64,11 @@ public class ConfigureGrabberResizeRace {
    * Creates a player whose target size is attached.
    */
   public ConfigureGrabberResizeRace() {
-    final Dimension target = Dimension.of(320, 240);
+    final Dimension target = Dimension.of(TARGET_WIDTH, TARGET_HEIGHT);
     this.player = new ConfiguringPlayer();
     this.dimensionCallback = this.player.getDimensionAttachableCallback();
     this.dimensionCallback.attach(target);
+
     this.grabber = new IdleGrabber();
   }
 
@@ -81,13 +89,10 @@ public class ConfigureGrabberResizeRace {
    */
   @Actor
   public void resize() {
-    final Dimension larger = Dimension.of(640, 480);
+    final Dimension larger = Dimension.of(LARGER_WIDTH, LARGER_HEIGHT);
     this.dimensionCallback.attach(larger);
   }
 
-  /**
-   * A player that exposes the configuration of its grabbers and never creates one of its own.
-   */
   private static final class ConfiguringPlayer extends AbstractVideoPlayerCv {
 
     private void configure(final FrameGrabber grabber, final Source source) {
@@ -96,13 +101,11 @@ public class ConfigureGrabberResizeRace {
 
     @Override
     protected FrameGrabber createFrameGrabber(final String resource) {
-      throw new UnsupportedOperationException("this player only configures grabbers");
+      final String message = "This player only configures grabbers!";
+      throw new UnsupportedOperationException(message);
     }
   }
 
-  /**
-   * A grabber that decodes nothing; only the settings the player gives it matter.
-   */
   private static final class IdleGrabber extends FrameGrabber {
 
     @Override
@@ -116,7 +119,8 @@ public class ConfigureGrabberResizeRace {
 
     @Override
     public Frame grab() {
-      throw new UnsupportedOperationException("this grabber decodes nothing");
+      final String message = "This grabber decodes nothing!";
+      throw new UnsupportedOperationException(message);
     }
 
     @Override

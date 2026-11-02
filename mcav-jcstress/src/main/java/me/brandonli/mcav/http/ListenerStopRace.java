@@ -25,6 +25,7 @@ import org.openjdk.jcstress.annotations.JCStressTest;
 import org.openjdk.jcstress.annotations.Outcome;
 import org.openjdk.jcstress.annotations.State;
 import org.openjdk.jcstress.infra.results.II_Result;
+import org.springframework.web.socket.WebSocketSession;
 
 /**
  * A browser whose WebSocket handshake finishes while the audio server stops. Pass 1 found that {@code addListener} took
@@ -40,8 +41,22 @@ import org.openjdk.jcstress.infra.results.II_Result;
 @State
 public class ListenerStopRace {
 
-  private final SpringHttpResult result = new SpringHttpResult("localhost", 0, null, List.of());
-  private final RecordingSession session = new RecordingSession();
+  private static final String DOMAIN = "localhost";
+  private static final int PORT = 0;
+
+  private static final int ACCEPTED = 0;
+  private static final int REFUSED = 1;
+
+  private final SpringHttpResult result;
+  private final RecordingSession session;
+
+  /**
+   * Creates an audio server that was never started and the session of a browser that connects to it.
+   */
+  public ListenerStopRace() {
+    this.result = new SpringHttpResult(DOMAIN, PORT, null, List.of());
+    this.session = new RecordingSession();
+  }
 
   /**
    * Stops the server, which was never started, exactly as a plugin that shuts down does.
@@ -56,7 +71,8 @@ public class ListenerStopRace {
    */
   @Actor
   public void connect() {
-    this.result.addListener(this.session.proxy());
+    final WebSocketSession proxy = this.session.getProxy();
+    this.result.addListener(proxy);
   }
 
   /**
@@ -67,7 +83,9 @@ public class ListenerStopRace {
   @Arbiter
   public void inspect(final II_Result outcome) {
     outcome.r1 = this.result.getListenerCount();
-    outcome.r2 = this.session.wasClosedSynchronously() ? 1 : 0;
+    final boolean refused = this.session.isClosedSynchronously();
+    outcome.r2 = refused ? REFUSED : ACCEPTED;
+
     // a leaked listener would keep its sender thread; stopping again releases it whatever the outcome
     this.result.stop();
   }

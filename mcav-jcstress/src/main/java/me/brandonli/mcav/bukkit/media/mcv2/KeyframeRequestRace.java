@@ -40,7 +40,14 @@ import org.openjdk.jcstress.infra.results.ZZ_Result;
 @State
 public class KeyframeRequestRace {
 
-  private final Mcv2KeyframeRequest requests = new Mcv2KeyframeRequest();
+  private final Mcv2KeyframeRequest requests;
+
+  /**
+   * Creates the keyframe requests of a channel, with none waiting.
+   */
+  public KeyframeRequestRace() {
+    this.requests = new Mcv2KeyframeRequest();
+  }
 
   /**
    * Requests a keyframe, as showing the screen to a viewer does.

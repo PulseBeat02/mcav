@@ -38,15 +38,26 @@ import org.openjdk.jcstress.infra.results.III_Result;
 @State
 public class LatestFrameRace {
 
-  private final Mcv2LatestFrame<Integer> slot = new Mcv2LatestFrame<>();
+  private static final int NO_FRAME = 0;
+  private static final int FIRST_FRAME = 1;
+  private static final int SECOND_FRAME = 2;
+
+  private final Mcv2LatestFrame<Integer> slot;
+
+  /**
+   * Creates an empty slot.
+   */
+  public LatestFrameRace() {
+    this.slot = new Mcv2LatestFrame<>();
+  }
 
   /**
    * Hands two frames over, as the video does.
    */
   @Actor
   public void video() {
-    this.slot.offer(1);
-    this.slot.offer(2);
+    this.slot.offer(FIRST_FRAME);
+    this.slot.offer(SECOND_FRAME);
   }
 
   /**
@@ -56,8 +67,10 @@ public class LatestFrameRace {
    */
   @Actor
   public void screen(final III_Result outcome) {
-    outcome.r1 = number(this.slot.poll());
-    outcome.r2 = number(this.slot.poll());
+    final Integer first = this.slot.poll();
+    outcome.r1 = this.number(first);
+    final Integer second = this.slot.poll();
+    outcome.r2 = this.number(second);
   }
 
   /**
@@ -67,10 +80,11 @@ public class LatestFrameRace {
    */
   @Arbiter
   public void after(final III_Result outcome) {
-    outcome.r3 = number(this.slot.poll());
+    final Integer left = this.slot.poll();
+    outcome.r3 = this.number(left);
   }
 
-  private static int number(final Integer frame) {
-    return frame == null ? 0 : frame;
+  private int number(final Integer frame) {
+    return frame == null ? NO_FRAME : frame;
   }
 }

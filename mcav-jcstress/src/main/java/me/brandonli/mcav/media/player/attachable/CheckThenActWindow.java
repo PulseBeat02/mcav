@@ -42,13 +42,18 @@ import org.openjdk.jcstress.infra.results.II_Result;
 @State
 public class CheckThenActWindow {
 
+  private static final int TARGET_WIDTH = 320;
+  private static final int TARGET_HEIGHT = 240;
+
+  private static final int DETACHED = -1;
+
   private final DimensionAttachableCallback dimensionCallback;
 
   /**
    * Creates a callback with a size attached.
    */
   public CheckThenActWindow() {
-    final Dimension target = Dimension.of(320, 240);
+    final Dimension target = Dimension.of(TARGET_WIDTH, TARGET_HEIGHT);
     this.dimensionCallback = DimensionAttachableCallback.create();
     this.dimensionCallback.attach(target);
   }
@@ -62,10 +67,11 @@ public class CheckThenActWindow {
   public void checkThenRead(final II_Result outcome) {
     final boolean attached = this.dimensionCallback.isAttached();
     if (!attached) {
-      outcome.r1 = -1;
-      outcome.r2 = -1;
+      outcome.r1 = DETACHED;
+      outcome.r2 = DETACHED;
       return;
     }
+
     final Dimension size = this.dimensionCallback.retrieve();
     outcome.r1 = size.getWidth();
     outcome.r2 = size.getHeight();

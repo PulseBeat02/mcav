@@ -23,11 +23,6 @@ import java.lang.reflect.Proxy;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.springframework.web.socket.WebSocketSession;
 
-/**
- * A WebSocket session that is open, sends nothing anywhere, and records whether it was closed on the thread that
- * registered it. {@code SpringHttpResult} closes a refused session right there, and every other session on a thread of
- * its own named {@code mcav-http-close-<id>}, so the two can be told apart.
- */
 final class RecordingSession implements InvocationHandler {
 
   private static final String ID = "jcstress";
@@ -38,17 +33,10 @@ final class RecordingSession implements InvocationHandler {
 
   RecordingSession() {
     this.closedSynchronously = new AtomicBoolean();
+
     final ClassLoader loader = WebSocketSession.class.getClassLoader();
     final Class<?>[] interfaces = { WebSocketSession.class };
     this.proxy = (WebSocketSession) Proxy.newProxyInstance(loader, interfaces, this);
-  }
-
-  WebSocketSession proxy() {
-    return this.proxy;
-  }
-
-  boolean wasClosedSynchronously() {
-    return this.closedSynchronously.get();
   }
 
   @Override
@@ -68,10 +56,20 @@ final class RecordingSession implements InvocationHandler {
   private Object recordClose() {
     final Thread thread = Thread.currentThread();
     final String threadName = thread.getName();
+    // SpringHttpResult closes a refused session on the registering thread, every other one on its own close thread
     final boolean asynchronous = threadName.startsWith(CLOSING_THREAD_PREFIX);
     if (!asynchronous) {
       this.closedSynchronously.set(true);
     }
+
     return null;
+  }
+
+  WebSocketSession getProxy() {
+    return this.proxy;
+  }
+
+  boolean isClosedSynchronously() {
+    return this.closedSynchronously.get();
   }
 }

@@ -52,6 +52,11 @@ public class EndMarkerRace {
   private static final String QUEUED = "queued";
   private static final String DECODED = "decoded";
 
+  private static final int QUEUE_CAPACITY = 1;
+
+  private static final int MARKER_MISSING = 0;
+  private static final int MARKER_QUEUED = 1;
+
   private final BlockingQueue<String> queue;
   private final List<String> discarded;
   private volatile boolean keptByDecoder;
@@ -60,8 +65,9 @@ public class EndMarkerRace {
    * Creates a video queue of one frame, full with a frame waiting in it.
    */
   public EndMarkerRace() {
-    this.queue = new ArrayBlockingQueue<>(1);
+    this.queue = new ArrayBlockingQueue<>(QUEUE_CAPACITY);
     this.queue.add(QUEUED);
+
     this.discarded = Collections.synchronizedList(new ArrayList<>());
   }
 
@@ -94,7 +100,9 @@ public class EndMarkerRace {
     final List<String> remaining = new ArrayList<>(this.queue);
     final List<String> everything = new ArrayList<>(remaining);
     everything.addAll(this.discarded);
-    outcome.r1 = remaining.contains(END) ? 1 : 0;
+
+    final boolean markerQueued = remaining.contains(END);
+    outcome.r1 = markerQueued ? MARKER_QUEUED : MARKER_MISSING;
     outcome.r2 = Collections.frequency(everything, QUEUED);
     final int decodedFound = Collections.frequency(everything, DECODED);
     outcome.r3 = this.keptByDecoder ? decodedFound + 1 : decodedFound;

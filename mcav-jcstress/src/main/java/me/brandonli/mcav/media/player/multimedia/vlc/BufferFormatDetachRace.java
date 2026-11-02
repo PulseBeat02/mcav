@@ -46,8 +46,13 @@ import uk.co.caprica.vlcj.player.embedded.videosurface.callback.BufferFormat;
 @State
 public class BufferFormatDetachRace {
 
+  private static final int TARGET_WIDTH = 320;
+  private static final int TARGET_HEIGHT = 240;
+
   private static final int SOURCE_WIDTH = 640;
   private static final int SOURCE_HEIGHT = 480;
+
+  private static final int EMPTY_BUFFER_SIDE = 0;
 
   private final DimensionAttachableCallback dimensionCallback;
   private final VideoRenderer renderer;
@@ -56,21 +61,24 @@ public class BufferFormatDetachRace {
    * Creates a renderer whose target size is attached.
    */
   public BufferFormatDetachRace() {
-    final Dimension target = Dimension.of(320, 240);
+    final Dimension target = Dimension.of(TARGET_WIDTH, TARGET_HEIGHT);
     this.dimensionCallback = DimensionAttachableCallback.create();
     this.dimensionCallback.attach(target);
-    final VideoPlayerMultiplexer owner = createOwner(this.dimensionCallback);
+
+    final VideoPlayerMultiplexer owner = this.createOwner();
     this.renderer = new VideoRenderer(owner);
   }
 
-  private static VideoPlayerMultiplexer createOwner(final DimensionAttachableCallback dimensionCallback) {
+  private VideoPlayerMultiplexer createOwner() {
     final ClassLoader loader = VideoPlayerMultiplexer.class.getClassLoader();
     final Class<?>[] interfaces = { VideoPlayerMultiplexer.class };
-    final InvocationHandler handler = (final Object proxy, final Method method, final Object[] arguments) -> {
-      final String name = method.getName();
-      return name.equals("getDimensionAttachableCallback") ? dimensionCallback : null;
-    };
+    final InvocationHandler handler = this::answerOwnerCall;
     return (VideoPlayerMultiplexer) Proxy.newProxyInstance(loader, interfaces, handler);
+  }
+
+  private Object answerOwnerCall(final Object proxy, final Method method, final Object[] arguments) {
+    final String name = method.getName();
+    return name.equals("getDimensionAttachableCallback") ? this.dimensionCallback : null;
   }
 
   /**
@@ -84,9 +92,9 @@ public class BufferFormatDetachRace {
       final BufferFormat format = this.renderer.createBufferFormat(SOURCE_WIDTH, SOURCE_HEIGHT, SOURCE_WIDTH, SOURCE_HEIGHT);
       outcome.r1 = format.getWidth();
       outcome.r2 = format.getHeight();
-    } catch (final IllegalArgumentException emptyBuffer) {
-      outcome.r1 = 0;
-      outcome.r2 = 0;
+    } catch (final IllegalArgumentException exception) {
+      outcome.r1 = EMPTY_BUFFER_SIDE;
+      outcome.r2 = EMPTY_BUFFER_SIDE;
     }
   }
 
