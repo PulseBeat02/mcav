@@ -9,7 +9,9 @@ plugins {
 dependencies {
     implementation(libs.gremlin.runtime)
     implementation(ModuleCoordinates.coordinateOf(project, "mcav-voicechat"))
+
     compileOnly(libs.paper.api)
+
     runtimeDownload(ModuleCoordinates.coordinateOf(project, "mcav-bukkit"))
     runtimeDownload(ModuleCoordinates.coordinateOf(project, "mcav-discord"))
     runtimeDownload(ModuleCoordinates.coordinateOf(project, "mcav-http"))
@@ -21,6 +23,7 @@ dependencies {
     runtimeDownload(libs.commodore)
     runtimeDownload(libs.bstats.bukkit)
     runtimeDownload(libs.jda)
+
     testImplementation(libs.voicechat.api)
     testImplementation(libs.slf4j.simple)
 }
