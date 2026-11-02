@@ -128,8 +128,8 @@ public final class VlcInstaller extends AbstractInstaller {
   }
 
   /**
-   * Checks whether VLC can be used from this installer: either an earlier installation exists, which needs no
-   * network, or a download exists for the current platform, which may ask GitHub for the Linux download links.
+   * Checks whether VLC can be used from this installer: either an earlier installation exists, or the bundled
+   * downloads list one for the current platform. Neither check asks the network.
    *
    * @return true if VLC is installed already or can be installed on this platform
    * @since 1.0.0

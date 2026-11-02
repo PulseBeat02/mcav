@@ -155,7 +155,7 @@ public final class VlcInstallationKit {
     }
 
     // an earlier private installation is used before anything asks the network whether VLC can be downloaded, so a
-    // machine keeps working offline, and GitHub is not asked on every start
+    // machine keeps working offline
     final Optional<Path> existing = this.installer.findInstallation();
     final @Nullable Path existingDirectory = existing.orElse(null);
     if (existingDirectory != null) {
