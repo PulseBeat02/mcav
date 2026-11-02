@@ -48,6 +48,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @JsonAdapter(UrlParseDump.Deserializer.class)
 public final class UrlParseDump {
 
+  private static final String TITLE_NULL_MESSAGE = "Title must not be null!";
+
   private final @Nullable String id;
 
   private final @Nullable String title;
@@ -452,7 +454,7 @@ public final class UrlParseDump {
    * @since 1.0.0
    */
   public static UrlParseDump of(final String title) {
-    Preconditions.checkNotNull(title, "Title must not be null!");
+    Preconditions.checkNotNull(title, TITLE_NULL_MESSAGE);
 
     return new UrlParseDump(title, null);
   }
@@ -468,7 +470,7 @@ public final class UrlParseDump {
    * @since 1.0.0
    */
   public static UrlParseDump of(final String title, final String description) {
-    Preconditions.checkNotNull(title, "Title must not be null!");
+    Preconditions.checkNotNull(title, TITLE_NULL_MESSAGE);
     Preconditions.checkNotNull(description, "Description must not be null!");
 
     return new UrlParseDump(title, description);

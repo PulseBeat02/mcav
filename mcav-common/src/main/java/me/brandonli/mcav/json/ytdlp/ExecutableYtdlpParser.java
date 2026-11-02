@@ -68,8 +68,12 @@ public final class ExecutableYtdlpParser implements YtdlpParser {
   // every argument after this marker is a URL, so a URL such as --exec=... can never be read as an option
   private static final String END_OF_OPTIONS = "--";
   private static final int FIXED_ARGUMENTS = 9;
+
   private static final Set<String> WEB_SCHEMES = Set.of("http", "https");
+
   private static final Duration TIMEOUT = Duration.ofMinutes(2);
+
+  private static final char LINE_SEPARATOR = '\n';
 
   private static final String NO_METADATA_MESSAGE = "URL %s got no metadata from yt-dlp!";
 
@@ -200,7 +204,7 @@ public final class ExecutableYtdlpParser implements YtdlpParser {
 
   private static String firstLine(final String output) {
     final String trimmed = output.strip();
-    final int newline = trimmed.indexOf('\n');
+    final int newline = trimmed.indexOf(LINE_SEPARATOR);
     if (newline < 0) {
       return trimmed;
     }

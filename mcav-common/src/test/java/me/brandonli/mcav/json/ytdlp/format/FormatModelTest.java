@@ -65,12 +65,14 @@ final class FormatModelTest {
   private static final String THUMBNAIL_URL = "https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg";
   private static final String USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64)";
   private static final int HTTP_CHUNK_SIZE = 10485760;
+  private static final String REPOSITORY = "yt-dlp/yt-dlp";
 
   private static final int VIDEO_FORMAT_INDEX = 2;
   private static final int VIDEO_WIDTH = 1920;
   private static final int VIDEO_HEIGHT = 1080;
   private static final double FRAMES_PER_SECOND = 29.97;
   private static final String DYNAMIC_RANGE = "SDR";
+  private static final String RESOLUTION = "1920x1080";
 
   private static final String AUDIO_CODEC = "opus";
   private static final int SAMPLE_RATE = 48000;
@@ -186,7 +188,7 @@ final class FormatModelTest {
     assertEquals(Optional.of("avc1.640028"), dump.getVideoCodec());
     assertEquals(Optional.of(AUDIO_CODEC), dump.getAudioCodec());
     assertEquals(Optional.of("https+https"), dump.getProtocol());
-    assertEquals(Optional.of("1920x1080"), dump.getResolution());
+    assertEquals(Optional.of(RESOLUTION), dump.getResolution());
     assertEquals(VIDEO_WIDTH, dump.getWidth());
     assertEquals(VIDEO_HEIGHT, dump.getHeight());
     assertEquals(FRAMES_PER_SECOND, dump.getFramesPerSecond(), DELTA);
@@ -356,14 +358,14 @@ final class FormatModelTest {
     assertEquals(Optional.of("40"), thumbnail.getId());
     assertEquals(1080, thumbnail.getHeight());
     assertEquals(1920, thumbnail.getWidth());
-    assertEquals(Optional.of("1920x1080"), thumbnail.getResolution());
+    assertEquals(Optional.of(RESOLUTION), thumbnail.getResolution());
     assertEquals(0.0, marker.getStartTime(), DELTA);
     assertEquals(2.12, marker.getEndTime(), DELTA);
     assertEquals(1.0, marker.getValue(), DELTA);
     assertEquals(Optional.of("2025.09.05"), version.getVersion());
     assertEquals(Optional.empty(), version.getCurrentGitHead());
     assertEquals(Optional.of("abc123def456"), version.getReleaseGitHead());
-    assertEquals(Optional.of("yt-dlp/yt-dlp"), version.getRepository());
+    assertEquals(Optional.of(REPOSITORY), version.getRepository());
   }
 
   @Test

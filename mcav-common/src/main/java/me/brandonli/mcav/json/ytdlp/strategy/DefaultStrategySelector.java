@@ -32,6 +32,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public final class DefaultStrategySelector implements StrategySelector {
 
+  private static final String DUMP_NULL_MESSAGE = "Dump must not be null!";
+
   private final FormatStrategy audio;
   private final FormatStrategy video;
 
@@ -51,7 +53,7 @@ public final class DefaultStrategySelector implements StrategySelector {
    */
   @Override
   public Format getAudioSource(final UrlParseDump dump) {
-    Preconditions.checkNotNull(dump, "Dump must not be null!");
+    Preconditions.checkNotNull(dump, DUMP_NULL_MESSAGE);
 
     final Optional<Format> selected = this.audio.select(dump);
     final @Nullable Format format = selected.orElse(null);
@@ -75,7 +77,7 @@ public final class DefaultStrategySelector implements StrategySelector {
    */
   @Override
   public Format getVideoSource(final UrlParseDump dump) {
-    Preconditions.checkNotNull(dump, "Dump must not be null!");
+    Preconditions.checkNotNull(dump, DUMP_NULL_MESSAGE);
 
     final Optional<Format> selected = this.video.select(dump);
     final @Nullable Format format = selected.orElse(null);

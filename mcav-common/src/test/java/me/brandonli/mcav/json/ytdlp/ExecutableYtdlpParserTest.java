@@ -80,6 +80,8 @@ final class ExecutableYtdlpParserTest {
   private static final String JAVA_NAME = "java";
   private static final String WINDOWS_JAVA_NAME = "java.exe";
 
+  private static final String INVALID_METADATA_MESSAGE = "URL %s got invalid metadata from yt-dlp!";
+
   private static UriSource source() {
     final URI uri = URI.create(URL);
     return UriSource.uri(uri);
@@ -270,7 +272,7 @@ final class ExecutableYtdlpParserTest {
     final YtdlpParseException truncated = assertParseFails("{\"id\": \"abc\", \"title\": ");
     final YtdlpParseException array = assertParseFails("[1, 2, 3]");
     final YtdlpParseException wrongType = assertParseFails("{\"formats\": \"not a list\"}");
-    final String expected = "URL %s got invalid metadata from yt-dlp!".formatted(URL);
+    final String expected = INVALID_METADATA_MESSAGE.formatted(URL);
     final String truncatedMessage = truncated.getMessage();
     final String arrayMessage = array.getMessage();
     final String wrongTypeMessage = wrongType.getMessage();
@@ -289,7 +291,7 @@ final class ExecutableYtdlpParserTest {
   void shouldReportMetadataWhoseDecimalFieldHoldsText() throws IOException {
     final YtdlpParseException duration = assertParseFails("{\"id\": \"abc\", \"duration\": \"long\"}");
     final YtdlpParseException quality = assertParseFails("{\"id\": \"abc\", \"formats\": [{\"quality\": \"high\"}]}");
-    final String expected = "URL %s got invalid metadata from yt-dlp!".formatted(URL);
+    final String expected = INVALID_METADATA_MESSAGE.formatted(URL);
     final String durationMessage = duration.getMessage();
     final String qualityMessage = quality.getMessage();
     final Throwable durationCause = duration.getCause();
@@ -304,7 +306,7 @@ final class ExecutableYtdlpParserTest {
   void shouldRejectTextAfterTheDocumentInsteadOfIgnoringIt() throws IOException {
     final YtdlpParseException trailingText = assertParseFails("{\"id\": \"abc\"} unexpected trailing text");
     final YtdlpParseException secondDocument = assertParseFails("{\"id\": \"abc\"} {\"id\": \"def\"}");
-    final String expected = "URL %s got invalid metadata from yt-dlp!".formatted(URL);
+    final String expected = INVALID_METADATA_MESSAGE.formatted(URL);
     final String trailingTextMessage = trailingText.getMessage();
     final String secondDocumentMessage = secondDocument.getMessage();
     final Throwable trailingTextCause = trailingText.getCause();
