@@ -18,7 +18,7 @@ started, and stopped by your code.
   api.install(HttpModule.class);
 ```
 
-## Creating a Server
+## Creating a server
 
 The `HttpResult` is an audio filter: attach it to the audio pipeline of a player and every connected browser receives
 the samples over a WebSocket. By default the server listens on all network interfaces, because the browsers of players
@@ -36,24 +36,28 @@ require elevated privileges depending on the host configuration, so pick a highe
 | `HttpResult.builder()`                         | An `HttpResultBuilder` for every setting, including the bind address.         |
 
 The ports must be between 1 and 65535 and the host name must not be blank; otherwise the factories throw an
-`IllegalArgumentException`.
+`IllegalArgumentException`. `start()` blocks for a few seconds while the server starts; `startAsync()` starts it on
+another thread instead.
 
 ```java
-  final HttpResult http = HttpResult.http("play.example.com", 8080);
-  http.start(); // blocks for a few seconds; startAsync() starts it on another thread instead
+  final String domain = "play.example.com";
+  final int port = 8080;
+  final HttpResult http = HttpResult.http(domain, port);
+  http.start();
   final MediaInformation information = MediaInformation.titled("My Video");
-  http.setCurrentMedia(information); // or http.setCurrentMedia(dump) with the UrlParseDump of yt-dlp
+  http.setCurrentMedia(information);
 
   final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(http);
   final VideoPlayerMultiplexer multiplexer = VideoPlayer.ffmpeg();
   final AudioAttachableCallback audioCallback = multiplexer.getAudioAttachableCallback();
   audioCallback.attach(audioPipelineStep);
-  final Path path = Path.of("video.mp4");
+  final String fileName = "video.mp4";
+  final Path path = Path.of(fileName);
   final FileSource source = FileSource.path(path);
   multiplexer.start(source);
 
-  final String url = http.getFullUrl(); // http://play.example.com:8080/
-  System.out.println("Listen at " + url);
+  final String url = http.getFullUrl();
+  LOGGER.info("The audio plays at {}.", url);
   // ... play some media
 
   multiplexer.release();
@@ -63,9 +67,9 @@ The ports must be between 1 and 65535 and the host name must not be blank; other
 `setCurrentMedia(UrlParseDump)` shows the title, uploader, thumbnail, duration, and statistics yt-dlp reported, while
 `MediaInformation.titled(String)` creates information with only a title for media that did not come from yt-dlp. Passing
 `null` to `setCurrentMedia(MediaInformation)` shows that nothing is playing. An IPv6 address as host name is put in
-brackets in the URL, as URLs require.
+brackets in the URL, as URLs require. `getFullUrl()` returns the URL of the page, here `http://play.example.com:8080/`.
 
-## Using the Builder
+## Using the builder
 
 `HttpResult.builder()` returns an `HttpResultBuilder`, which configures a server setting by setting. Every setting has
 a default, so only set what you need:
@@ -80,9 +84,11 @@ a default, so only set what you need:
 For example, a server behind a reverse proxy on the same machine only needs the loopback interface:
 
 ```java
+  final String domain = "play.example.com";
+  final int port = 8080;
   final HttpResultBuilder builder = HttpResult.builder();
-  builder.domain("play.example.com");
-  builder.port(8080);
+  builder.domain(domain);
+  builder.port(port);
   final InetAddress loopback = InetAddress.getLoopbackAddress();
   builder.bindAddress(loopback);
   final HttpResult http = builder.build();

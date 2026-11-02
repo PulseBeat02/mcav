@@ -22,22 +22,25 @@ privileged gateway intents, but it needs the voice state intent and cache. The e
 environment variables, so that no secret ends up in the source:
 
 ```java
-  final String token = System.getenv("DISCORD_TOKEN");
-  final String guildId = System.getenv("DISCORD_GUILD");
-  final String channelId = System.getenv("DISCORD_CHANNEL");
+  final String tokenVariable = "DISCORD_TOKEN";
+  final String guildVariable = "DISCORD_GUILD";
+  final String channelVariable = "DISCORD_CHANNEL";
+  final String token = System.getenv(tokenVariable);
+  final String guildId = System.getenv(guildVariable);
+  final String channelId = System.getenv(channelVariable);
 
   final JDABuilder builder = JDABuilder.createLight(token, GatewayIntent.GUILD_VOICE_STATES);
   builder.enableCache(CacheFlag.VOICE_STATE);
   final JDA jda = builder.build();
   jda.awaitReady();
 
-  final Guild guild = jda.getGuildById(guildId);
+  final @Nullable Guild guild = jda.getGuildById(guildId);
   if (guild == null) {
-    final String message = "Guild %s does not have the bot as a member!".formatted(guildId);
+    final String message = "Guild %s must have the bot as a member!".formatted(guildId);
     throw new IllegalStateException(message);
   }
 
-  final VoiceChannel voiceChannel = guild.getVoiceChannelById(channelId);
+  final @Nullable VoiceChannel voiceChannel = guild.getVoiceChannelById(channelId);
   if (voiceChannel == null) {
     final String message = "Voice channel %s does not exist!".formatted(channelId);
     throw new IllegalStateException(message);
@@ -53,10 +56,11 @@ environment variables, so that no secret ends up in the source:
   final AudioAttachableCallback audioCallback = multiplexer.getAudioAttachableCallback();
   audioCallback.attach(audioPipelineStep);
 
-  final Path path = Path.of("video.mp4");
+  final String fileName = "video.mp4";
+  final Path path = Path.of(fileName);
   final Source source = FileSource.path(path);
   multiplexer.start(source);
-  discord.setPlaying("My Video"); // shows "Playing My Video" as the activity of the bot
+  discord.setPlaying("My Video");
 
   // at shutdown
   multiplexer.release();

@@ -10,9 +10,10 @@ otherwise the memory is only freed when the garbage collector finds the object.
 ```
 
 ```java
-  public static BufferedImage createInvertedThumbnail(final BufferedImage original) {
+  public BufferedImage createInvertedThumbnail(final BufferedImage original) {
     try (final ImageBuffer image = ImageBuffer.image(original)) {
-      final ResizeFilter resize = new ResizeFilter(200, 200);
+      final int thumbnailSize = 200;
+      final ResizeFilter resize = new ResizeFilter(thumbnailSize, thumbnailSize);
       resize.applyFilter(image);
       final InvertFilter invert = new InvertFilter();
       invert.applyFilter(image);
@@ -32,7 +33,7 @@ another limit, and `0` turns the check off. The header is read for the formats O
 WebP, TIFF, Radiance HDR, Sun raster and PBM, PGM, PPM, PAM and PFM. JPEG 2000 and OpenEXR, which OpenCV turns off
 unless an environment variable turns them on, are refused while the check is on.
 
-## Reading Pixels
+## Reading pixels
 
 `ImageBuffer` offers the pixels as packed ARGB integers, laid out row by row, in three ways:
 
@@ -48,22 +49,25 @@ caller sees, including every later loop of a `RepeatingFrameSource`. To change p
 with `updateArgb(int[], width, height)`:
 
 ```java
-  public static void paintFirstPixelRed(final Path imageFile) {
+  public void paintFirstPixelRed(final Path imageFile) {
     final FileSource file = FileSource.path(imageFile);
     try (final ImageBuffer image = ImageBuffer.path(file)) {
-      final int[] pixels = image.getPixels(); // shared: read it, never write it
+      final int[] pixels = image.getPixels();
       final int firstPixel = pixels[0];
-      System.out.printf("The first pixel was %08X%n", firstPixel);
+      final String firstColor = Integer.toHexString(firstPixel);
+      LOGGER.debug("The first pixel was {}.", firstColor);
 
-      final int[] editable = image.copyPixels(); // your own copy: write it freely
-      editable[0] = 0xFFFF0000;
+      final int[] editable = image.copyPixels();
+      final int opaqueRed = 0xFFFF0000;
+      editable[0] = opaqueRed;
       final int width = image.getWidth();
       final int height = image.getHeight();
       image.updateArgb(editable, width, height);
 
-      final IntBuffer readOnlyView = image.getReadOnlyPixels(); // no copy, rejects writes
+      final IntBuffer readOnlyView = image.getReadOnlyPixels();
       final int updatedFirstPixel = readOnlyView.get(0);
-      System.out.printf("The first pixel is now %08X%n", updatedFirstPixel);
+      final String updatedColor = Integer.toHexString(updatedFirstPixel);
+      LOGGER.debug("The first pixel is now {}.", updatedColor);
     }
   }
 ```
@@ -74,14 +78,15 @@ with `updateArgb(int[], width, height)`:
 with the [image player](player.md#image-players).
 
 ```java
-  public static void describeGif() {
-    final URI sourceUri = URI.create("https://example.com/image.gif");
+  public void describeGif() {
+    final String address = "https://example.com/image.gif";
+    final URI sourceUri = URI.create(address);
     final UriSource source = UriSource.uri(sourceUri);
     try (final DynamicImageBuffer gif = DynamicImageBuffer.uri(source)) {
       final float frameRate = gif.getFrameRate();
       final List<ImageBuffer> frames = gif.getFrames();
       final int frameCount = frames.size();
-      System.out.println(frameCount + " frames at " + frameRate + " frames per second");
+      LOGGER.debug("The GIF has {} frames at {} frames per second.", frameCount, frameRate);
     }
   }
 ```

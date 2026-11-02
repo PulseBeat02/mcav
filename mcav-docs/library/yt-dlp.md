@@ -9,7 +9,7 @@ an API.
 ## Installation
 
 MCAV downloads yt-dlp by itself into the cache folder of the current user (`~/.mcav/cache`), without administrator
-rights, the first time the library is installed. The download list is pinned to the yt-dlp release **2026.08.19**, and
+rights, the first time the library is installed. The download list is pinned to the yt-dlp release 2026.08.19, and
 every file is checked against its SHA-256 hash before it is used, so a changed or damaged download is rejected:
 
 | Platform                  | Downloaded file                                              |
@@ -30,7 +30,7 @@ For YouTube, yt-dlp uses a JavaScript runtime such as [Deno](https://deno.com/) 
 YouTube still works, but yt-dlp may find fewer formats; see the
 [yt-dlp documentation](https://github.com/yt-dlp/yt-dlp/wiki/EJS) for the runtimes it supports.
 
-## Using the Parser
+## Using the parser
 
 The `YtdlpParser` runs yt-dlp for a `UriSource` and returns a `UrlParseDump` with every format yt-dlp found, together
 with the title, uploader, thumbnail, and other information about the media. Parsing runs yt-dlp as a separate program,
@@ -65,7 +65,7 @@ Sites usually offer many formats, so a `StrategySelector` picks one for video an
 `FIRST_AUDIO`, `PREFER_WEBM_AUDIO`, and `PREFER_MP4_VIDEO`, all constants of `FormatStrategy`.
 
 ```java
-  public static boolean playBestQuality(final UrlParseDump dump, final VideoPlayerMultiplexer player) {
+  public boolean playBestQuality(final UrlParseDump dump, final VideoPlayerMultiplexer player) {
     final StrategySelector selector = StrategySelector.of(
       FormatStrategy.BEST_QUALITY_AUDIO,
       FormatStrategy.BEST_QUALITY_VIDEO

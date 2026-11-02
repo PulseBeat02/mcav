@@ -15,10 +15,13 @@ loader that can see the classes of the Simple Voice Chat plugin.
 ```
 
 Install the `SvcModule` when you create the library instance, and hand it the voice chat server API from your
-voice chat plugin once voice chat has started:
+voice chat plugin once voice chat has started. On a server, the `VoicechatApi` your plugin receives is always a
+`VoicechatServerApi`:
 
 ```java
   public final class MyVoiceChatPlugin implements VoicechatPlugin {
+
+    private static final String PLUGIN_ID = "my-plugin";
 
     private final MCAVApi mcav;
 
@@ -28,12 +31,12 @@ voice chat plugin once voice chat has started:
 
     @Override
     public String getPluginId() {
-      return "my-plugin";
+      return PLUGIN_ID;
     }
 
     @Override
     public void initialize(final VoicechatApi api) {
-      final VoicechatServerApi serverApi = (VoicechatServerApi) api; // on a server, the API is always a server API
+      final VoicechatServerApi serverApi = (VoicechatServerApi) api;
       final SvcModule voiceChatModule = this.mcav.getModule(SvcModule.class);
       voiceChatModule.inject(serverApi);
     }
@@ -56,7 +59,7 @@ server has loaded:
   }
 ```
 
-## Playing Audio
+## Playing audio
 
 The `SvcFilter` is an audio filter that makes one or more entities speakers: nearby players hear the audio with
 positional voice chat audio. Pass the platform entities, such as Bukkit `Player`s, to `SvcFilter.svc(Object...)`, or
@@ -69,21 +72,23 @@ Call `start()` before attaching the filter and `release()` when playback ends; t
 
 ```java
   final Player[] speakers = {firstPlayer, secondPlayer};
-  final SvcFilter svc = SvcFilter.withDistance(48.0f, (Object[]) speakers);
-  svc.start();
-  final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(svc);
+  final float hearingDistance = 48.0f;
+  final SvcFilter voiceChat = SvcFilter.withDistance(hearingDistance, (Object[]) speakers);
+  voiceChat.start();
+  final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(voiceChat);
 
   final VideoPlayerMultiplexer multiplexer = VideoPlayer.ffmpeg();
   final AudioAttachableCallback audioCallback = multiplexer.getAudioAttachableCallback();
   audioCallback.attach(audioPipelineStep);
 
-  final Path path = Path.of("video.mp4");
+  final String fileName = "video.mp4";
+  final Path path = Path.of(fileName);
   final FileSource source = FileSource.path(path);
   multiplexer.start(source);
   // ... play some media
 
   multiplexer.release();
-  svc.release();
+  voiceChat.release();
 ```
 
 The filter mixes the stereo samples down to mono and cuts them into 20 millisecond frames. Every speaker has its own
@@ -96,7 +101,7 @@ If `start()` fails part way, for example with an `SvcException` because Simple V
 channel for one of the entities, it releases every speaker, encoder, and audio player it had already created before
 throwing. The filter stays stopped and can simply be started again.
 
-## Mono Downmixing
+## Mono downmixing
 
 The downmix is available on its own as `MonoDownmixer` in the package `me.brandonli.mcav.utils.audio` of
 `mcav-common`, for any output that carries a single channel, such as a mono speaker or a speech recognizer. See

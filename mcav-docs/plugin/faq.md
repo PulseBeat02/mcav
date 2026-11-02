@@ -6,10 +6,10 @@ Please read these questions before asking for help in the support channels.
 
 ## Why does the first browser take so long to start?
 
-The first `/mcav browser create` on a server downloads Chromium (about 136 to 163 MiB, depending on the platform) into the
-MCAV cache folder of the user running the server (`~/.mcav/cache/jcef`), and on Linux the libraries it needs that the
-server lacks (about 13 MB of Debian 11 packages, into `~/.mcav/cache/jcef-libraries`). Every file is checked against a
-SHA-256 hash pinned in MCAV; later starts reuse them. The browser needs no X server, Xvfb or packages, and no Java
+The first `/mcav browser create` on a server downloads Chromium (about 136 to 163 MiB, depending on the platform) into
+the MCAV cache folder of the user running the server (`~/.mcav/cache/jcef`), and on Linux the libraries it needs that
+the server lacks (about 13 MB of Debian 11 packages, into `~/.mcav/cache/jcef-libraries`). Every file is checked against
+a SHA-256 hash pinned in MCAV; later starts reuse them. The browser needs no X server, Xvfb or packages, and no Java
 options. If the command answers that the browser cannot run on this server, the console names the reason: a failed
 download, a server without one of the basic libraries every server image has, or a system Chromium does not exist for,
 such as a 32-bit one.
@@ -77,13 +77,14 @@ in the MCV2 part of the [configuration file](./config.md).
 Only if your pack changes the text shaders (`assets/minecraft/shaders/core/text.vsh`, `text.fsh`) or the glow outline
 (`assets/minecraft/post_effect/entity_outline.json`), which the MCV2 pack replaces to decode the video. The pack that a
 player's client loads last wins those files. Your server pack (`server.properties`) is sent when the player joins and
-the MCV2 pack later, so the MCV2 pack wins: MCV2 screens work, and your pack's versions of those three files are not used
-while the MCV2 pack is loaded. A stopped screen leaves its slot available for reuse for one minute; afterwards the
-pack is rebuilt without it, or removed when no slots remain. Everything else in your pack - textures, sounds, other shaders - is unaffected, and glowing entities keep
-their outline. If another plugin sends a pack with those files after the MCV2 pack, that pack wins and MCV2 screens
-show nothing. To keep your own text or outline shaders, merge your changes into the MCV2 pack's copies (the
-`mcav/mcv2/pack` folder, and `mcav/mcv2/chain.json` from which the outline chain is generated, in the `mcav-bukkit` jar
-the plugin downloads into the server's `libraries/mcav` folder), which are vanilla's plus the decoder.
+the MCV2 pack later, so the MCV2 pack wins: MCV2 screens work, and your pack's versions of those three files are not
+used while the MCV2 pack is loaded. A stopped screen leaves its slot available for reuse for one minute; afterwards the
+pack is rebuilt without it, or removed when no slots remain. Everything else in your pack - textures, sounds, other
+shaders - is unaffected, and glowing entities keep their outline. If another plugin sends a pack with those files after
+the MCV2 pack, that pack wins and MCV2 screens show nothing. To keep your own text or outline shaders, merge your
+changes into the MCV2 pack's copies (the `mcav/mcv2/pack` folder, and `mcav/mcv2/chain.json` from which the outline
+chain is generated, in the `mcav-bukkit` jar the plugin downloads into the server's `libraries/mcav` folder), which are
+vanilla's plus the decoder.
 
 ---
 

@@ -21,7 +21,8 @@ shows in its console; the SLF4J inside the installer's jar is its own, and never
 ```java
   final File dataFolder = this.getDataFolder();
   final Path dataPath = dataFolder.toPath();
-  final Path folder = dataPath.resolve("libraries");
+  final String folderName = "libraries";
+  final Path folder = dataPath.resolve(folderName);
   final MCAVInstaller installer = MCAVInstaller.injector(folder, this);
   installer.loadMCAVDependencies(Artifact.COMMON);
   installer.loadMCAVDependencies(Artifact.BUKKIT);
@@ -32,12 +33,14 @@ instance. Use `MCAVInstaller.injector(Path, ClassLoader)` to name the class load
 server:
 
 ```java
-  final Path folder = Path.of("dependencies");
+  final String folderName = "dependencies";
+  final Path folder = Path.of(folderName);
   final ClassLoader parent = Main.class.getClassLoader();
   final URLClassLoader loader = new URLClassLoader(new URL[0], parent);
   final MCAVInstaller installer = MCAVInstaller.injector(folder, loader);
   installer.loadMCAVDependencies(Artifact.COMMON);
-  final Class<?> api = Class.forName("me.brandonli.mcav.MCAV", false, loader);
+  final String apiClassName = "me.brandonli.mcav.MCAV";
+  final Class<?> api = Class.forName(apiClassName, false, loader);
 ```
 
 ## Artifacts
@@ -51,14 +54,17 @@ Any other Maven artifact can be loaded with `loadDependencies`, which takes the 
 `JarLoader`, and returns the jars it added:
 
 ```java
-  final List<Path> jars = installer.loadDependencies("org.apache.commons", "commons-text", "1.12.0", JarLoader.DEFAULT_URL_LOADER);
+  final String group = "org.apache.commons";
+  final String artifact = "commons-text";
+  final String version = "1.12.0";
+  final List<Path> jars = installer.loadDependencies(group, artifact, version, JarLoader.DEFAULT_URL_LOADER);
 ```
 
 `JarLoader.DEFAULT_URL_LOADER` appends the jars to a `URLClassLoader`. `JarLoader` is a functional interface with a
 single method, `loadJars(Collection<Path> jars, ClassLoader loader)`, so you can add the jars in another way and pass
 your loader to `loadDependencies` or to `loadMCAVDependencies(Artifact, JarLoader)`.
 
-## Downloads and Folder Layout
+## Downloads and folder layout
 
 Artifacts are downloaded from Maven Central, the MCAV snapshot repository, the PaperMC repository, Google's Maven
 repository, and the CodeMC releases repository. The local Maven repository of the user (`~/.m2/repository`) serves as

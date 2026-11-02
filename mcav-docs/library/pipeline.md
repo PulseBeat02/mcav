@@ -12,16 +12,17 @@ in order for every frame or chunk of samples.
 Example of a pipeline from video players.
 ```
 
-Create pipelines with `PipelineBuilder`. Filters run in the order they are added:
+Create pipelines with `PipelineBuilder`. Filters run in the order they are added; the `display` filter is yours and
+shows the frames:
 
 ```java
-  public static VideoPipelineStep createGrayscaleNegativePipeline(final VideoFilter display) {
-    final GrayscaleFilter grayscale = new GrayscaleFilter(); // converts the frame to gray scale
-    final InvertFilter invert = new InvertFilter(); // inverts the colors of the frame
+  public VideoPipelineStep createGrayscaleNegativePipeline(final VideoFilter display) {
+    final GrayscaleFilter grayscale = new GrayscaleFilter();
+    final InvertFilter invert = new InvertFilter();
     final VideoPipelineStepBuilder videoBuilder = PipelineBuilder.video();
     videoBuilder.then(grayscale);
     videoBuilder.then(invert);
-    videoBuilder.then(display); // your filter that shows the frame
+    videoBuilder.then(display);
     final VideoPipelineStep videoPipelineStep = videoBuilder.build();
     return videoPipelineStep;
   }
@@ -33,16 +34,17 @@ audio.
 
 Filters are functional interfaces, so small filters can be lambdas. A filter returns `true` only if it changed the
 frame or the samples (or may have changed them), and `false` if it only read them. The pipeline passes the data on to
-the next step either way; filters that work on a copy use the result to skip copying unchanged data back. The filter
-below only reads the frame, so it returns `false`:
+the next step either way; filters that work on a copy use the result to skip copying unchanged data back. The method
+below only reads the frame, so it returns `false`; pass it to a pipeline as `this::logSize`:
 
 ```java
-  final VideoFilter logSize = (image, metadata) -> {
+  private boolean logSize(final ImageBuffer image, final OriginalVideoMetadata metadata) {
     final int width = image.getWidth();
     final int height = image.getHeight();
-    System.out.println(width + "x" + height);
+    LOGGER.debug("The frame is {} by {} pixels.", width, height);
+
     return false;
-  };
+  }
 ```
 
 ```{note}

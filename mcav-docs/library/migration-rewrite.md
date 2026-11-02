@@ -1,4 +1,4 @@
-# Upgrading from the May 2026 snapshot
+# Upgrading from the May 2026 Snapshot
 
 The rewrite changes public APIs from the `1.0.0-SNAPSHOT` artifacts published on May 11, 2026
 (`20260511.021315`). It is not a binary-compatible replacement for that snapshot. Recompile applications and plugins
@@ -234,8 +234,8 @@ The exceptions of `mcav-bukkit` now extend `BukkitException`, an unchecked subty
 Custom `HttpResult` implementations must now supply `getCurrentMedia`, `setCurrentMedia`, `getListenerCount` and
 `isRunning`. Custom `DiscordPlayer` implementations must supply `flush`, `getQueuedMilliseconds` and `setPlaying`.
 `SVCFilter` and `SVCModule` are now `SvcFilter` and `SvcModule`, and custom `SvcFilter` implementations must supply
-`getQueuedFrames`. Existing factory users usually need only to recompile, while implementation subclasses may also be
-affected by the new final modifiers.
+`getQueuedFrames`. If you only call the factories, recompiling is usually enough; the new `final` modifiers may also
+break your subclasses of the implementations.
 
 The Discord module cases its acronym as a word: install `JdaModule` instead of `JDAModule`. The player that
 `DiscordPlayer.voice(jda)` returns, formerly `DiscordPlayerImpl`, is now `PcmDiscordPlayer`.

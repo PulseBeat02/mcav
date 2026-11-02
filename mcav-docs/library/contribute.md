@@ -1,6 +1,6 @@
 # Contributing to MCAV
 
-There are many ways to contribute to the mcav project. Here are some of them:
+There are many ways to contribute to the MCAV project. Here are some of them:
 
 - Translations for the `mcav-plugin` module
 - Video filters for the `mcav-common` module

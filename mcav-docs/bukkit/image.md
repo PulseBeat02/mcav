@@ -13,7 +13,7 @@ configuration enables resizing; otherwise, they center or crop it to the map wal
 `DisplayableImage` when the image should disappear.
 
 ```java
-  public static DisplayableImage showImageOnScoreboard(final Collection<UUID> viewers, final Path imageFile) {
+  public DisplayableImage showImageOnScoreboard(final Collection<UUID> viewers, final Path imageFile) {
     final int width = 16;
     final ScoreboardConfigurationBuilder builder = ScoreboardConfiguration.builder();
     builder.character(Characters.BLACK_SQUARE);

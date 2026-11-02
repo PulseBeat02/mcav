@@ -14,9 +14,9 @@ format of your server's Minecraft version; the [Minecraft Wiki](https://minecraf
 format of every version.
 
 ```java
-  public static void buildAudioPack(final int packFormat, final Path destination) {
-    final String address = "https://example.com/video.mp4";
-    final URI mediaUri = URI.create(address);
+  public void buildAudioPack(final int packFormat, final Path destination) {
+    final String mediaAddress = "https://example.com/video.mp4";
+    final URI mediaUri = URI.create(mediaAddress);
     final UriSource media = UriSource.uri(mediaUri);
     final Path sound = AudioExtractor.extractOggVorbis(media);
 
@@ -30,7 +30,7 @@ format of every version.
 
 Players then hear the audio when the sound `mcav:example` is played to them.
 
-## Hosting Resource Packs
+## Hosting resource packs
 
 Players download resource packs from a URL. `PackHosting` offers three ways to provide one:
 
@@ -41,12 +41,14 @@ Players download resource packs from a URL. `PackHosting` offers three ways to p
 | `PackHosting.injector(zip)`                | Served on the port of the Minecraft server itself, so no extra port is needed.                              |
 
 ```java
-  public static PackHosting hostAudioPack(final Path zip) {
+  public PackHosting hostAudioPack(final Path zip) {
     final PackHosting hosting = PackHosting.website(zip);
     hosting.start();
 
     final String url = hosting.getRawUrl();
-    // send the pack to players with this URL, and call hosting.shutdown() when the pack is no longer needed
+    LOGGER.info("The resource pack is hosted at {}.", url);
     return hosting;
   }
 ```
+
+Send that URL to the players, and call `shutdown()` on the hosting when the pack is no longer needed.

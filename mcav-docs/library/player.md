@@ -20,11 +20,12 @@ Create a video player with one of the factories of `VideoPlayer`:
 | `VideoPlayer.device()` | Cameras and capture cards, played from a `DeviceSource`         | No    |
 
 ```{note}
-VLC is prepared in the background after `install` returned (see the [installation lifecycle](instance.md#installation-lifecycle)).
-When the machine has no VLC, the first start downloads it into the MCAV cache folder, which can take several minutes.
-Until VLC is ready, `VideoPlayer.vlc()` throws an `IllegalStateException` that says VLC is still being prepared; if the
-preparation found that VLC is not available on this system, the exception says so instead. Wait for
-`api.whenCapabilityReady(Capability.VLC)`, or play with `VideoPlayer.ffmpeg()` in the meantime.
+VLC is prepared in the background after `install` returned (see the [installation
+lifecycle](instance.md#installation-lifecycle)). When the machine has no VLC, the first start downloads it into the MCAV
+cache folder, which can take several minutes. Until VLC is ready, `VideoPlayer.vlc()` throws an `IllegalStateException`
+that says VLC is still being prepared; if the preparation found that VLC is not available on this system, the exception
+says so instead. Wait for `api.whenCapabilityReady(Capability.VLC)`, or play with `VideoPlayer.ffmpeg()` in the
+meantime.
 ```
 
 Every video player has three slots: a `VideoAttachableCallback` for the video pipeline, an `AudioAttachableCallback`
@@ -37,27 +38,32 @@ little-endian PCM at 48 kHz with two interleaved channels, whatever the source f
 ```
 
 The example below plays a file for the requested duration with its audio on the speakers of the computer. Run it
-on a worker thread; it waits during playback. The `display` filter is yours and shows the frames, for example in a window.
+on a worker thread; it waits during playback. The `display` filter is yours and shows the frames, for example in a
+window. `speakers.start()` throws a `PlayerException` on a machine without a sound device.
 
 ```java
-  public static void playVideoFile(final Path videoFile, final VideoFilter display, final Duration playTime)
+  public void playVideoFile(final Path videoFile, final VideoFilter display, final Duration playTime)
     throws InterruptedException {
     final VideoPipelineStep videoPipelineStep = VideoPipelineStep.of(display);
     final DirectAudioOutput speakers = new DirectAudioOutput();
     final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
     try {
-      speakers.start(); // throws a PlayerException on a machine without a sound device
+      speakers.start();
       final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(speakers);
       final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
       videoCallback.attach(videoPipelineStep);
       final AudioAttachableCallback audioCallback = player.getAudioAttachableCallback();
       audioCallback.attach(audioPipelineStep);
       final DimensionAttachableCallback dimensionCallback = player.getDimensionAttachableCallback();
-      final Dimension resolution = Dimension.of(640, 360);
+      final int width = 640;
+      final int height = 360;
+      final Dimension resolution = Dimension.of(width, height);
       dimensionCallback.attach(resolution);
 
       final FileSource source = FileSource.path(videoFile);
-      if (player.start(source)) {
+      final boolean started = player.start(source);
+
+      if (started) {
         Thread.sleep(playTime);
       }
     } finally {
@@ -74,7 +80,7 @@ on a worker thread; it waits during playback. The `display` filter is yours and 
 `resume()` returns `false` and does not restart it; call `start` with the source again to play it once more, which is
 also how to loop a video.
 
-## Speed, Position and Volume
+## Speed, position and volume
 
 The FFmpeg, OpenCV and device players extend `AbstractVideoPlayerCv`, which adds a playback speed and the position:
 
@@ -90,13 +96,15 @@ volume is a filter of the audio pipeline, `VolumeFilter` (see [filters](filters.
 every player and every audio output behind it.
 
 ```java
-  public static boolean playFaster(final VideoPlayerMultiplexer player) {
+  public boolean playFaster(final VideoPlayerMultiplexer player) {
     if (player instanceof final AbstractVideoPlayerCv decoded) {
       final long position = decoded.getPositionMilliseconds();
-      System.out.println("Speeding up at " + position + " ms");
-      return decoded.setSpeed(1.5); // false for a live stream or a camera
+      LOGGER.debug("Speeding up at {} milliseconds.", position);
+      final double speed = 1.5;
+      return decoded.setSpeed(speed);
     }
-    return false; // VLC plays at its own rate
+
+    return false;
   }
 ```
 
@@ -106,7 +114,7 @@ share the multiplexer interface; the device backend decodes no audio, and the Op
 with the bundled FFmpeg, as on Linux.
 
 ```java
-  public static boolean playSeparateStreams(final VideoPlayerMultiplexer player, final URI videoUri, final URI audioUri) {
+  public boolean playSeparateStreams(final VideoPlayerMultiplexer player, final URI videoUri, final URI audioUri) {
     final UriSource videoSource = UriSource.uri(videoUri);
     final UriSource audioSource = UriSource.uri(audioUri);
     return player.start(videoSource, audioSource);
@@ -130,8 +138,10 @@ The `chartSupplier` returns the next 640 by 360 frame as a `BufferedImage` and i
 returned player when the chart should stop.
 
 ```java
-  public static ImagePlayer playChart(final ImageSupplier chartSupplier, final VideoFilter display) {
-    final FrameSource frameSource = FrameSource.image(chartSupplier, 640, 360);
+  public ImagePlayer playChart(final ImageSupplier chartSupplier, final VideoFilter display) {
+    final int width = 640;
+    final int height = 360;
+    final FrameSource frameSource = FrameSource.image(chartSupplier, width, height);
     final VideoPipelineStep videoPipelineStep = VideoPipelineStep.of(display);
     final ImagePlayer player = ImagePlayer.player();
 
@@ -139,22 +149,23 @@ returned player when the chart should stop.
     videoCallback.attach(videoPipelineStep);
 
     player.start(frameSource);
+
     return player;
   }
 ```
 
-To play an animated GIF, decode it into a `DynamicImageBuffer` and wrap it in a `RepeatingFrameSource`, which plays
-the animation at its own frame rate. The source hands the same shared pixel arrays to the pipeline in every loop, so
-filters must not write into `getPixels()` (see [reading pixels](image.md#reading-pixels)).
+To play an animated GIF, decode it into a `DynamicImageBuffer` and wrap it in a `RepeatingFrameSource`, which loops
+the animation forever at its own frame rate. The source hands the same shared pixel arrays to the pipeline in every
+loop, so filters must not write into `getPixels()` (see [reading pixels](image.md#reading-pixels)).
 
 The animation must stay open while it plays, so the example below plays it for a fixed time, releases the player,
 and only then closes the animation:
 
 ```java
-  public static void playGif(final Path gifFile, final VideoFilter display, final Duration playTime) throws InterruptedException {
+  public void playGif(final Path gifFile, final VideoFilter display, final Duration playTime) throws InterruptedException {
     final FileSource file = FileSource.path(gifFile);
     try (final DynamicImageBuffer gif = DynamicImageBuffer.path(file)) {
-      final RepeatingFrameSource frameSource = RepeatingFrameSource.repeating(gif); // loops forever
+      final RepeatingFrameSource frameSource = RepeatingFrameSource.repeating(gif);
       final VideoPipelineStep videoPipelineStep = VideoPipelineStep.of(display);
       final ImagePlayer player = ImagePlayer.player();
 

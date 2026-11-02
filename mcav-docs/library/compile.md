@@ -1,6 +1,6 @@
 # Compiling MCAV
 
-Compiling mcav is incredibly easy.
+Compiling MCAV is incredibly easy.
 
 - Clone the repository from GitHub, and navigate to the directory:
 ```bash
@@ -17,7 +17,7 @@ cd mcav
 - Profit! The plugin jar is `mcav-plugin/build/libs/mcav-plugin-<version>-all.jar`, currently
 `mcav-plugin-1.0.0-v26.3-all.jar`.
 
-## Build Options
+## Build options
 
 Gradle runs on any JDK 17 or newer. The build needs a Java 25 toolchain, which Gradle downloads if the machine has none,
 and it downloads a Node.js of its own for the code formatter and the web page of `mcav-http`. No credentials are

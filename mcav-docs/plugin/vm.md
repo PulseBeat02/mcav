@@ -20,24 +20,24 @@ the rest of the line. A `--codec mcv2` at the very end is not passed to QEMU: it
 [codec of the wall](commands.md#the-codec-of-a-wall-of-maps). One machine runs at a time; `/mcav vm release` powers it
 off. MCAV picks the fastest accelerator of the machine (KVM, WHPX or HVF) and falls back to software emulation.
 
-## Disk Images and Options
+## Disk images and options
 
 QEMU can read and write any file of the server, load plugin libraries, share folders and publish its display, so the
 plugin accepts only the options that describe a machine ([the full list](commands.md#qemu-options)):
 
-- **Disk images** with `-cdrom`, `-drive file=...`, `-hda` to `-hdd` and `-fda`, `-fdb`, and only files of the plugin's
+- Disk images with `-cdrom`, `-drive file=...`, `-hda` to `-hdd` and `-fda`, `-fdb`, and only files of the plugin's
   `plugins/MCAV/iso` folder, named without their folder. Put your images there, or link them in; nothing else on the
   server can be booted.
-- **Hardware** with `-m`, `-smp`, `-cpu`, `-machine`, `-accel`, `-boot`, `-name`, `-k`, `-vga` and `-rtc`, each with the
+- Hardware with `-m`, `-smp`, `-cpu`, `-machine`, `-accel`, `-boot`, `-name`, `-k`, `-vga` and `-rtc`, each with the
   values of its kind only, and a few switches such as `-snapshot` and `-no-reboot`.
-- **Memory**: at most half of the server's memory (or of its container's), and at least 512 MiB.
+- Memory: at most half of the server's memory (or of its container's), and at least 512 MiB.
 
 The display always stays on the loopback address the plugin chose for it. The guest's network card reaches nothing,
 neither the internet nor the server, unless `vm.allow-network` is on in `config.yml`.
 
 ## Sound
 
-MCAV gives an **x86-64** machine of the PC or Q35 family (the default machine, `pc`, `q35`) a sound card itself, an
+MCAV gives an x86-64 machine of the PC or Q35 family (the default machine, `pc`, `q35`) a sound card itself, an
 Intel HD Audio card and the PC speaker, so the guest needs no option for it, only a driver, which every current
 operating system has. Its sound plays through the chosen audio output like a video's, and takes the outputs over from
 a playing video or browser. It is held about 70 ms on purpose, so that it plays with QEMU's picture, which refreshes 30
@@ -46,15 +46,16 @@ rhythm. Machines of other architectures have no sound and must choose `NONE`. A
 configuration that sets `-audio`, `-audiodev`, `-vnc` or routes the PC speaker itself is refused: the plugin owns the
 sound and the display.
 
-## Clicking and Typing
+## Clicking and typing
 
 Players with `mcav.vm.interact` click the machine by clicking the wall; `/mcav vm interact` types their chat into it,
 and a key name such as `Return` or `Escape` presses that key. The permission is what allows the clicks, not only the
 chat mode.
 
-## Known Limits
+## Known limits
 
-With `vm.allow-network` on, the guest's user-mode network can reach the server's loopback address (`10.0.2.2` inside
-the guest). QEMU's VNC display stays on the loopback address and asks for a random password only the plugin knows, so
-another process on the server cannot watch it. QEMU is a child process of the server: if the server is killed hard, without releasing its
-players, a running machine keeps running until the plugin starts again, which stops it and says so in the console.
+With `vm.allow-network` on, the guest's user-mode network can reach the server's loopback address (`10.0.2.2` inside the
+guest). QEMU's VNC display stays on the loopback address and asks for a random password only the plugin knows, so
+another process on the server cannot watch it. QEMU is a child process of the server: if the server is killed hard,
+without releasing its players, a running machine keeps running until the plugin starts again, which stops it and says so
+in the console.

@@ -22,7 +22,7 @@ The example reads the password from an environment variable, so that no secret e
 filter is yours and shows the frames; release the returned player to disconnect.
 
 ```java
-  public static VncPlayer streamLocalDesktop(final VideoFilter display) {
+  public VncPlayer streamLocalDesktop(final VideoFilter display) {
     final VideoPipelineStep pipeline = VideoPipelineStep.of(display);
 
     final String host = "localhost";
@@ -44,6 +44,7 @@ filter is yours and shows the frames; release the returned player to disconnect.
     videoCallback.attach(pipeline);
 
     player.start(source);
+
     return player;
   }
 ```

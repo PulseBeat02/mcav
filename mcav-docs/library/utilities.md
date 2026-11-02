@@ -16,14 +16,14 @@ A filter returns whether it changed the samples. The filters on this page only r
 the pipeline passes the samples on to the next step either way.
 ```
 
-## Reading Bundled Installer Lists
+## Reading bundled installer lists
 
 `IoUtils.readDownloadsFromJsonResource` and `ReleasePackageManager.readVlcDownloadsFromJsonResource` take a full
 path from the classpath root, without a leading slash. The bundled lists are `mcav/common/installers/vlc.json` and
 `mcav/common/installers/yt-dlp.json`. Custom lists can live at any full classpath path, such as
 `installers/custom.json`.
 
-## Mono Downmixing
+## Mono downmixing
 
 `MonoDownmixer` in `me.brandonli.mcav.utils.audio` mixes the stereo samples of a pipeline down to mono for outputs
 that carry a single channel, such as Simple Voice Chat, a mono speaker, or a speech recognizer.
@@ -37,35 +37,46 @@ The example below plays a file through the speakers of your computer in mono, ex
 it, which checks the downmix without a Minecraft server:
 
 ```java
-  final MCAVApi api = MCAV.api();
-  api.install();
+  public void playInMono() throws LineUnavailableException {
+    final MCAVApi api = MCAV.api();
+    api.install();
 
-  final AudioFormat format = new AudioFormat(48_000, 16, 1, true, false);
-  final SourceDataLine line = AudioSystem.getSourceDataLine(format);
-  line.open(format);
-  line.start();
+    final int sampleRate = 48_000;
+    final int sampleBits = 16;
+    final int monoChannels = 1;
+    final boolean signed = true;
+    final boolean bigEndian = false;
+    final AudioFormat format = new AudioFormat(sampleRate, sampleBits, monoChannels, signed, bigEndian);
+    final SourceDataLine line = AudioSystem.getSourceDataLine(format);
+    line.open(format);
+    line.start();
 
-  final AudioPipelineStep pipeline = AudioPipelineStep.of((samples, metadata) -> {
+    final AudioPipelineStep pipeline = AudioPipelineStep.of((samples, metadata) -> this.writeMono(line, samples));
+    final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
+    final AudioAttachableCallback audio = player.getAudioAttachableCallback();
+    audio.attach(pipeline);
+    final String fileName = "video.mp4";
+    final Path path = Path.of(fileName);
+    final FileSource source = FileSource.path(path);
+    player.start(source);
+  }
+
+  private boolean writeMono(final SourceDataLine line, final ByteBuffer samples) {
     final short[] mono = MonoDownmixer.downmix(samples);
-    final ByteBuffer bytes = ByteBuffer.allocate(mono.length * 2);
+    final ByteBuffer bytes = ByteBuffer.allocate(mono.length * Short.BYTES);
     bytes.order(ByteOrder.LITTLE_ENDIAN);
     for (final short sample : mono) {
       bytes.putShort(sample);
     }
+
     final byte[] array = bytes.array();
     line.write(array, 0, array.length);
-    return false;
-  });
 
-  final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
-  final AudioAttachableCallback audio = player.getAudioAttachableCallback();
-  audio.attach(pipeline);
-  final Path path = Path.of("video.mp4");
-  final FileSource source = FileSource.path(path);
-  player.start(source);
+    return false;
+  }
 ```
 
-## Resampling Audio
+## Resampling audio
 
 `AudioResampler` in `me.brandonli.mcav.utils.audio` converts interleaved PCM audio between sample rates, channel
 counts, and sample formats with FFmpeg's libswresample, which is bundled with MCAV. Use it when an output expects
@@ -115,42 +126,52 @@ The example below converts the audio of a file to 16 kHz mono, the format of mos
 through the speakers of your computer, so you can hear the result:
 
 ```java
-  final MCAVApi api = MCAV.api();
-  api.install();
+  public void playAsSpeech() throws LineUnavailableException {
+    final MCAVApi api = MCAV.api();
+    api.install();
 
-  final AudioFormat speechFormat = new AudioFormat(16_000, 16, 1, true, false);
-  final SourceDataLine line = AudioSystem.getSourceDataLine(speechFormat);
-  line.open(speechFormat);
-  line.start();
+    final int speechRate = 16_000;
+    final int sampleBits = 16;
+    final int monoChannels = 1;
+    final boolean signed = true;
+    final boolean bigEndian = false;
+    final AudioFormat speechFormat = new AudioFormat(speechRate, sampleBits, monoChannels, signed, bigEndian);
+    final SourceDataLine line = AudioSystem.getSourceDataLine(speechFormat);
+    line.open(speechFormat);
+    line.start();
 
-  final AudioResampler resampler = AudioResampler.fromPipelineFormat(16_000, 1, SampleFormat.SIGNED_16_BIT);
-  final AudioPipelineStep pipeline = AudioPipelineStep.of((samples, metadata) -> {
+    final AudioResampler resampler = AudioResampler.fromPipelineFormat(speechRate, monoChannels, SampleFormat.SIGNED_16_BIT);
+    final AudioPipelineStep pipeline = AudioPipelineStep.of((samples, metadata) -> this.writeSpeech(resampler, line, samples));
+    final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
+    final AudioAttachableCallback audio = player.getAudioAttachableCallback();
+    audio.attach(pipeline);
+    final String fileName = "video.mp4";
+    final Path path = Path.of(fileName);
+    final FileSource source = FileSource.path(path);
+    player.start(source);
+    // ... once playback has ended
+
+    player.release();
+    final byte[] remaining = resampler.flush();
+    line.write(remaining, 0, remaining.length);
+    resampler.close();
+    line.drain();
+    line.close();
+  }
+
+  private boolean writeSpeech(final AudioResampler resampler, final SourceDataLine line, final ByteBuffer samples) {
     final byte[] speech = resampler.resample(samples);
     line.write(speech, 0, speech.length);
+
     return false;
-  });
-
-  final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
-  final AudioAttachableCallback audio = player.getAudioAttachableCallback();
-  audio.attach(pipeline);
-  final Path path = Path.of("video.mp4");
-  final FileSource source = FileSource.path(path);
-  player.start(source);
-  // ... once playback has ended
-
-  player.release();
-  final byte[] remaining = resampler.flush();
-  line.write(remaining, 0, remaining.length);
-  resampler.close();
-  line.drain();
-  line.close();
+  }
 ```
 
 To convert other audio, describe the input yourself with `create`. For example, turning 44.1 kHz 5.1 surround audio
 into 48 kHz stereo floating point samples:
 
 ```java
-  public static byte[] convertSurroundToStereo(final ByteBuffer surroundSamples) {
+  public byte[] convertSurroundToStereo(final ByteBuffer surroundSamples) {
     final int inputSampleRate = 44_100;
     final int inputChannels = 6;
     final int outputSampleRate = 48_000;
@@ -174,7 +195,7 @@ into 48 kHz stereo floating point samples:
   }
 ```
 
-### Sample Formats
+### Sample formats
 
 `SampleFormat` is the encoding of a single sample. Every format is packed (interleaved): the samples of all channels
 of one frame follow each other, so a stereo stream is laid out as `left, right, left, right, ...`. Samples are stored in
@@ -194,7 +215,7 @@ little-endian audio of the pipeline can be passed to `resample` as it is. Floati
 `getBytesPerSample()` returns the size of one sample of one channel, and `getFfmpegFormat()` returns the matching
 packed `avutil.AV_SAMPLE_FMT_*` constant, for use with the FFmpeg bindings of JavaCV.
 
-## Extracting Audio
+## Extracting audio
 
 `AudioExtractor` in `me.brandonli.mcav.utils.ffmpeg` extracts the audio track of media into a standalone audio file
 with the FFmpeg program bundled with MCAV. The audio is written as stereo Ogg Vorbis, a compact and royalty-free format
@@ -222,20 +243,25 @@ every MCAV failure, so `catch (MCAVException exception)` catches both. Catch
 convert:
 
 ```java
-  final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
-  executor.execute(() -> {
-    final URI mediaUri = URI.create("https://example.com/video.mp4");
+  public void extractAudioInBackground() {
+    final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
+    executor.execute(this::extractAudio);
+  }
+
+  private void extractAudio() {
+    final String mediaAddress = "https://example.com/video.mp4";
+    final URI mediaUri = URI.create(mediaAddress);
     final UriSource media = UriSource.uri(mediaUri);
     try {
       final Path oggFile = AudioExtractor.extractOggVorbis(media);
       // ... use the Ogg Vorbis file, then delete it
     } catch (final ProcessException exception) {
-      // FFmpeg could not be run, or the source does not exist, cannot be decoded, or has no audio track
+      LOGGER.warn("Could not extract the audio of {}.", mediaUri, exception);
     }
-  });
+  }
 ```
 
-## Network Helpers
+## Network helpers
 
 `NetworkUtils` in `me.brandonli.mcav.utils.http` answers two questions: what the public address of this machine is,
 and whether a URL can still be downloaded. Every method blocks for at most a few seconds per request, so call them off
@@ -265,19 +291,22 @@ its URL:
 
 ```java
   final Optional<String> publicAddress = NetworkUtils.lookUpPublicAddress();
-  final String hostName = publicAddress.orElse("localhost");
+  final String fallbackHost = "localhost";
+  final String hostName = publicAddress.orElse(fallbackHost);
 
-  final URI customService = URI.create("https://api.ipify.org/");
+  final String serviceAddress = "https://api.ipify.org/";
+  final URI customService = URI.create(serviceAddress);
   final Optional<String> addressFromCustomService = NetworkUtils.lookUpPublicAddress(customService);
 
-  final URI packUri = URI.create("https://example.com/pack.zip");
+  final String packAddress = "https://example.com/pack.zip";
+  final URI packUri = URI.create(packAddress);
   final boolean stillHosted = NetworkUtils.isReachable(packUri);
   if (!stillHosted) {
-    // upload the pack again before sending the URL to players
+    // ... upload the pack again
   }
 ```
 
-## Handling Fatal Errors
+## Handling fatal errors
 
 `ThrowableUtils` in `me.brandonli.mcav.utils` helps code that catches failures at a thread boundary, such as a render
 thread of your own, and must keep running after a failure without hiding the failures no code can recover from.
@@ -287,14 +316,12 @@ thread of your own, and must keep running after a failure without hiding the fai
 as usual:
 
 ```java
-  private static final String FRAME_FAILED = "Rendering a frame failed, skipping it";
-
   private void renderFrameSafely() {
     try {
       this.renderFrame();
-    } catch (final RuntimeException | Error failure) {
-      ThrowableUtils.throwIfFatal(failure); // rethrows an OutOfMemoryError or a StackOverflowError
-      LOGGER.error(FRAME_FAILED, failure);
+    } catch (final RuntimeException | Error exception) {
+      ThrowableUtils.throwIfFatal(exception);
+      LOGGER.error("Rendering a frame failed, skipping it.", exception);
     }
   }
 ```

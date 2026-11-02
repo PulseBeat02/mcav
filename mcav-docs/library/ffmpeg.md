@@ -14,18 +14,25 @@ display libraries that MCAV installs first on a system without them, as
 thumbnails, and converting containers. `FfmpegCommand.builder()` builds any other command.
 
 ```java
-  final FfmpegCommand command = FfmpegTemplates.extractOggVorbis("video.mp4", "audio.ogg");
+  final String input = "video.mp4";
+  final String output = "audio.ogg";
+  final FfmpegCommand command = FfmpegTemplates.extractOggVorbis(input, output);
   final CommandTask task = command.createTask();
-  task.runChecked(); // waits for FFmpeg and throws if it fails
+  task.runChecked();
 ```
 
 ```java
+  final String input = "video.mp4";
+  final int width = 1280;
+  final int height = 720;
+  final String codec = "libx264";
+  final String output = "small.mp4";
   final FfmpegCommandBuilder builder = FfmpegCommand.builder();
-  builder.addInput("video.mp4");
-  builder.addResolution(1280, 720);
-  builder.addVideoCodec("libx264");
+  builder.addInput(input);
+  builder.addResolution(width, height);
+  builder.addVideoCodec(codec);
   builder.addOverwrite();
-  builder.addOutput("small.mp4");
+  builder.addOutput(output);
   final FfmpegCommand command = builder.build();
   final CommandTask task = command.createTask();
   final int exitCode = task.run();

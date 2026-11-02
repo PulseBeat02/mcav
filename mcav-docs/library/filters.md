@@ -17,18 +17,28 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import org.bytedeco.opencv.global.opencv_imgproc;
 
-  public static VideoPipelineStep createSecurityCameraPipeline(final VideoFilter display) {
+  public VideoPipelineStep createSecurityCameraPipeline(final VideoFilter display) {
     final VideoPipelineStepBuilder builder = PipelineBuilder.video();
-    builder.then(new GrayscaleFilter());
-    builder.then(new LuminanceFilter(1.4, -20)); // contrast, brightness
-    builder.then(new TextFilter("CAM 1", 12, 28, opencv_imgproc.FONT_HERSHEY_SIMPLEX, 0.8, new double[] { 255, 255, 255 }));
-    builder.then(new FramesPerSecondFilter());
+    final double contrast = 1.4;
+    final double brightness = -20;
+    final int left = 12;
+    final int baseline = 28;
+    final double scale = 0.8;
+    final double[] white = new double[] {255, 255, 255};
+    final GrayscaleFilter grayscale = new GrayscaleFilter();
+    final LuminanceFilter luminance = new LuminanceFilter(contrast, brightness);
+    final TextFilter label = new TextFilter("CAM 1", left, baseline, opencv_imgproc.FONT_HERSHEY_SIMPLEX, scale, white);
+    final FramesPerSecondFilter framesPerSecond = new FramesPerSecondFilter();
+    builder.then(grayscale);
+    builder.then(luminance);
+    builder.then(label);
+    builder.then(framesPerSecond);
     builder.then(display);
     return builder.build();
   }
 ```
 
-## Video Filters
+## Video filters
 
 Colours are arrays of the blue, green and red components from 0 to 255, OpenCV's order. Coordinates are pixels of the
 frame, from its top left corner.
@@ -70,7 +80,7 @@ The display filters that end a pipeline come with their modules: `DitherFilter` 
 entity and scoreboard results of `mcav-bukkit` ([Bukkit integration](../bukkit/bukkit.md)), `Mcv2Result` for
 [MCV2](../bukkit/mcv2.md), and `GlTextureFilter` of `mcav-lwjgl` ([LWJGL module](lwjgl.md)).
 
-## Audio Filters
+## Audio filters
 
 | Filter | Module | Effect |
 |---|---|---|
@@ -89,10 +99,13 @@ A `VolumeFilter` before an output turns the output down or up; one filter in fro
   builder.then(speakers);
   final AudioPipelineStep audioPipeline = builder.build();
   // ... attach it, start the player, and later:
-  volume.setVolume(0.5); // half the sample amplitude, from the next chunk on
+  final double halfAmplitude = 0.5;
+  volume.setVolume(halfAmplitude);
 ```
 
-## Writing Your Own
+A new volume applies from the next chunk on.
+
+## Writing your own
 
 A filter is a functional interface: `VideoFilter.applyFilter(ImageBuffer, OriginalVideoMetadata)` and
 `AudioFilter.applyFilter(ByteBuffer, OriginalAudioMetadata)`, returning whether it changed the data. Filters that own

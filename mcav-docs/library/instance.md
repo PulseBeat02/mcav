@@ -8,12 +8,12 @@ such state.
 
 ```java
   final MCAVApi api = MCAV.api();
-  api.install(); // or api.install(BukkitModule.class, HttpModule.class, ...)
-  // ... use the library ...
+  api.install();
+  // ... use the library
   api.release();
 ```
 
-## Installation Lifecycle
+## Installation lifecycle
 
 `install` returns as soon as the library is usable. By then:
 
@@ -25,12 +25,12 @@ such state.
 
 This takes a few seconds on the first start of a machine and less afterward. FFmpeg players can be used right away.
 
-VLC and yt-dlp are external programs, so they are prepared **in the background** after `install` returned. VLC is
-taken from the system if it is installed there; both are taken from the MCAV cache folder (`~/.mcav/cache`) if an
-earlier run downloaded them, or downloaded into that folder otherwise. A yt-dlp installed on the system is not used. No administrator rights or system packages are needed. The
-first download can take several minutes on a slow connection, and nothing waits for it: each capability simply turns
-on once its program is ready. The log shows `VLC ready in <n> ms.` when VLC is ready, or a warning that says why VLC
-is not available.
+VLC and yt-dlp are external programs, so they are prepared in the background after `install` returned. VLC is taken from
+the system if it is installed there; both are taken from the MCAV cache folder (`~/.mcav/cache`) if an earlier run
+downloaded them, or downloaded into that folder otherwise. A yt-dlp installed on the system is not used. No
+administrator rights or system packages are needed. The first download can take several minutes on a slow connection,
+and nothing waits for it: each capability simply turns on once its program is ready. The log shows
+`VLC ready in <n> ms.` when VLC is ready, or a warning that says why VLC is not available.
 
 When the home directory cannot hold `~/.mcav/cache`, for instance because it is read-only or mounted `noexec` so the
 programs in the cache cannot run, MCAV uses `mcav/cache` in the temporary directory of the JVM (`java.io.tmpdir`)
@@ -79,22 +79,23 @@ library.
 | `YT_DLP`         | Resolving web pages, such as YouTube videos, with yt-dlp | In the background         |
 | `FACE_DETECTION` | The `FaceDetectionFilter`; its OpenCV natives need GTK 2 on Linux, which MCAV installs on x86-64 and ARM64 Linux when it is missing | Before `install` returns |
 
-`hasCapability` tells whether a capability is available **right now**. A capability that is still being prepared is
+`hasCapability` tells whether a capability is available right now. A capability that is still being prepared is
 not available yet, so the example below plays with FFmpeg until VLC is ready:
 
 ```java
-  public static VideoPlayerMultiplexer createPreferredPlayer(final MCAVApi api) {
+  public VideoPlayerMultiplexer createPreferredPlayer(final MCAVApi api) {
     final boolean vlcAvailable = api.hasCapability(Capability.VLC);
     if (vlcAvailable) {
       final VideoPlayerMultiplexer vlcPlayer = VideoPlayer.vlc();
       return vlcPlayer;
     }
-    final VideoPlayerMultiplexer ffmpegPlayer = VideoPlayer.ffmpeg(); // bundled, always available
+
+    final VideoPlayerMultiplexer ffmpegPlayer = VideoPlayer.ffmpeg();
     return ffmpegPlayer;
   }
 ```
 
-## Waiting for a Capability
+## Waiting for a capability
 
 To act as soon as a capability is ready, without polling, use `whenCapabilityReady`. The future completes with `true`
 when the capability is available, and with `false` when it cannot be provided: the system does not support it, its
@@ -102,25 +103,29 @@ installation failed, or `release` cancelled it. A capability that is decided bef
 preparation already finished, gets a future that is complete already.
 
 ```java
-  public static CompletableFuture<VideoPlayerMultiplexer> createVlcPlayerWhenReady(final MCAVApi api) {
+  public CompletableFuture<VideoPlayerMultiplexer> createVlcPlayerWhenReady(final MCAVApi api) {
     final CompletableFuture<Boolean> vlcReady = api.whenCapabilityReady(Capability.VLC);
-    return vlcReady.thenApply(available -> {
-      if (!available) {
-        final VideoPlayerMultiplexer ffmpegPlayer = VideoPlayer.ffmpeg(); // VLC cannot be used on this system
-        return ffmpegPlayer;
-      }
-      final VideoPlayerMultiplexer vlcPlayer = VideoPlayer.vlc();
-      return vlcPlayer;
-    });
+    return vlcReady.thenApply(this::createPlayer);
+  }
+
+  private VideoPlayerMultiplexer createPlayer(final boolean vlcAvailable) {
+    if (!vlcAvailable) {
+      final VideoPlayerMultiplexer ffmpegPlayer = VideoPlayer.ffmpeg();
+      return ffmpegPlayer;
+    }
+
+    final VideoPlayerMultiplexer vlcPlayer = VideoPlayer.vlc();
+    return vlcPlayer;
   }
 ```
 
 Callbacks attached to the future never run on the installation threads of the library, so they may call any method
-of the library, even `release`. A thread that may block, such as a worker thread, can also wait with `join()`:
+of the library, even `release`. A thread that may block, such as a worker thread, can also wait with `join()`, but
+never the main thread of a server:
 
 ```java
   final CompletableFuture<Boolean> ytdlpReady = api.whenCapabilityReady(Capability.YT_DLP);
-  final boolean ytdlpAvailable = ytdlpReady.join(); // never call this on a server main thread
+  final boolean ytdlpAvailable = ytdlpReady.join();
 ```
 
 ## Modules
