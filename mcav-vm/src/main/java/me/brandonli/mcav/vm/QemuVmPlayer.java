@@ -56,7 +56,8 @@ public final class QemuVmPlayer implements VmPlayer {
   // QEMU refreshes the VNC picture 30 ms or more after a change, so sound without this delay runs ahead of it
   private static final int AUDIO_DELAY_MILLISECONDS = 70;
 
-  private static final int MAXIMUM_QUEUED_AUDIO_MILLISECONDS = AUDIO_DELAY_MILLISECONDS + 60;
+  private static final int AUDIO_QUEUE_HEADROOM_MILLISECONDS = 60;
+  private static final int MAXIMUM_QUEUED_AUDIO_MILLISECONDS = AUDIO_DELAY_MILLISECONDS + AUDIO_QUEUE_HEADROOM_MILLISECONDS;
 
   private final VncPlayer vncPlayer;
   private final ExecutableFinder finder;

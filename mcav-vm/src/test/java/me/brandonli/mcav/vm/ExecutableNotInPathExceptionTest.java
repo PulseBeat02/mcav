@@ -31,6 +31,8 @@ final class ExecutableNotInPathExceptionTest {
 
   private static final String PROGRAM = "qemu-system-riscv64";
 
+  private static final String NULL_EXECUTABLE_MESSAGE = "Executable must not be null!";
+
   private static final Platform UNSUPPORTED_PLATFORM = Platform.ofPlatform(Os.FREEBSD, Arch.ARM, Bits.BITS_64);
 
   @Test
@@ -47,7 +49,7 @@ final class ExecutableNotInPathExceptionTest {
       throw new ExecutableNotInPathException(null);
     });
     final String message = exception.getMessage();
-    assertEquals("Executable must not be null!", message);
+    assertEquals(NULL_EXECUTABLE_MESSAGE, message);
   }
 
   @Test
@@ -64,7 +66,7 @@ final class ExecutableNotInPathExceptionTest {
       throw new ExecutableNotInPathException(null, UNSUPPORTED_PLATFORM);
     });
     final String message = exception.getMessage();
-    assertEquals("Executable must not be null!", message);
+    assertEquals(NULL_EXECUTABLE_MESSAGE, message);
   }
 
   @Test

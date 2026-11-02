@@ -48,6 +48,7 @@ final class VmConfigurationTest {
   private static final String GIGABYTES = "G";
 
   private static final int MEMORY_MEGABYTES = 64;
+  private static final String MEMORY_SIZE = "64M";
   private static final int OTHER_MEMORY_MEGABYTES = 128;
 
   private static final String CDROM_IMAGE = "alpine.iso";
@@ -58,6 +59,19 @@ final class VmConfigurationTest {
   private static final String NETWORK_DEVICE = "virtio-net-pci";
   private static final String DISK_DRIVE = "file=disk.qcow2";
   private static final String OTHER_DRIVE = "file=data.qcow2";
+
+  private static final String BOOT_ORDER = "d";
+  private static final String USER_NETWORK = "user,model=virtio-net-pci";
+  private static final String CPU_MODEL = "max";
+  private static final String MACHINE_TYPE = "q35";
+  private static final String SOFTWARE_ACCELERATOR = "tcg";
+  private static final String VGA_TYPE = "virtio";
+
+  private static final String FIRST_QCOW2_DRIVE = "file=a.qcow2,format=qcow2";
+  private static final String SECOND_QCOW2_DRIVE = "file=b.qcow2,format=qcow2";
+  private static final String RANDOM_NUMBER_DEVICE = "virtio-rng-pci";
+  private static final String RANDOM_NUMBER_OBJECT = "rng-random,id=rng0";
+  private static final String MACHINE_NAME = "test";
 
   @Test
   void shouldStartEmpty() {
@@ -91,7 +105,7 @@ final class VmConfigurationTest {
     builder.drive(DISK_DRIVE);
     builder.flag(SNAPSHOT_FLAG);
     final List<String> arguments = configuration.getArguments();
-    final List<String> expected = List.of(MEMORY_ARGUMENT, "64M");
+    final List<String> expected = List.of(MEMORY_ARGUMENT, MEMORY_SIZE);
     assertEquals(expected, arguments);
   }
 
@@ -103,12 +117,12 @@ final class VmConfigurationTest {
       .cdrom(CDROM_IMAGE)
       .firstHardDisk(FIRST_DISK)
       .secondHardDisk(SECOND_DISK)
-      .boot("d")
-      .network("user,model=virtio-net-pci")
-      .cpu("max")
-      .machine("q35")
-      .accelerator("tcg")
-      .vga("virtio")
+      .boot(BOOT_ORDER)
+      .network(USER_NETWORK)
+      .cpu(CPU_MODEL)
+      .machine(MACHINE_TYPE)
+      .accelerator(SOFTWARE_ACCELERATOR)
+      .vga(VGA_TYPE)
       .build();
 
     final List<String> arguments = configuration.getArguments();
@@ -130,17 +144,17 @@ final class VmConfigurationTest {
       "-hdb",
       SECOND_DISK,
       "-boot",
-      "d",
+      BOOT_ORDER,
       "-nic",
-      "user,model=virtio-net-pci",
+      USER_NETWORK,
       "-cpu",
-      "max",
+      CPU_MODEL,
       "-machine",
-      "q35",
+      MACHINE_TYPE,
       "-accel",
-      "tcg",
+      SOFTWARE_ACCELERATOR,
       "-vga",
-      "virtio"
+      VGA_TYPE
     );
   }
 
@@ -164,11 +178,11 @@ final class VmConfigurationTest {
   void shouldOrderOptionsBeforeRepeatableOptionsBeforeFlags() {
     final VmConfiguration configuration = VmConfiguration.builder()
       .flag(KVM_FLAG)
-      .drive("file=a.qcow2,format=qcow2")
-      .device("virtio-rng-pci")
-      .drive("file=b.qcow2,format=qcow2")
-      .repeatable("object", "rng-random,id=rng0")
-      .option("name", "test")
+      .drive(FIRST_QCOW2_DRIVE)
+      .device(RANDOM_NUMBER_DEVICE)
+      .drive(SECOND_QCOW2_DRIVE)
+      .repeatable("object", RANDOM_NUMBER_OBJECT)
+      .option("name", MACHINE_NAME)
       .flag(SNAPSHOT_FLAG)
       .flag(KVM_FLAG)
       .build();
@@ -185,15 +199,15 @@ final class VmConfigurationTest {
   private List<String> orderedArguments() {
     return List.of(
       "-name",
-      "test",
+      MACHINE_NAME,
       DRIVE_ARGUMENT,
-      "file=a.qcow2,format=qcow2",
+      FIRST_QCOW2_DRIVE,
       "-device",
-      "virtio-rng-pci",
+      RANDOM_NUMBER_DEVICE,
       DRIVE_ARGUMENT,
-      "file=b.qcow2,format=qcow2",
+      SECOND_QCOW2_DRIVE,
       "-object",
-      "rng-random,id=rng0",
+      RANDOM_NUMBER_OBJECT,
       "-enable-kvm",
       "-snapshot"
     );
@@ -319,7 +333,7 @@ final class VmConfigurationTest {
     final String[] array = configuration.buildArguments();
     array[0] = "-changed";
     final List<String> again = configuration.getArguments();
-    final List<String> expectedAgain = List.of(MEMORY_ARGUMENT, "64M");
+    final List<String> expectedAgain = List.of(MEMORY_ARGUMENT, MEMORY_SIZE);
     assertEquals(expectedAgain, again);
   }
 

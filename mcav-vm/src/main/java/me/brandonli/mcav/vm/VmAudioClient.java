@@ -40,6 +40,8 @@ final class VmAudioClient implements Closeable {
 
   static final int HANDSHAKE_TIMEOUT_MILLISECONDS = 5_000;
 
+  private static final int READER_JOIN_TIMEOUT_MILLISECONDS = 5_000;
+
   private static final String UNSTARTED_READER_THREAD_NAME = "mcav-vm-audio-not-started";
   private static final String READER_THREAD_NAME = "mcav-vm-audio";
   private static final String DEADLINE_THREAD_NAME = "mcav-vm-audio-deadline";
@@ -177,7 +179,7 @@ final class VmAudioClient implements Closeable {
     }
 
     try {
-      thread.join(HANDSHAKE_TIMEOUT_MILLISECONDS);
+      thread.join(READER_JOIN_TIMEOUT_MILLISECONDS);
     } catch (final InterruptedException exception) {
       current.interrupt();
     }

@@ -69,6 +69,8 @@ final class QemuProcessRecordsTest {
   private static final String RECORD_FORMAT = "%s\n%s\n%s\n";
   private static final String LONG_AGO = "2001-01-01T00:00:00Z";
 
+  private static final String PROCESS_ENDED_MESSAGE = "the process ended";
+
   private static final Duration STOP_TIMEOUT = Duration.ofMillis(500);
 
   private static final long TIMEOUT_SECONDS = 10L;
@@ -217,7 +219,7 @@ final class QemuProcessRecordsTest {
     final boolean ended = this.endsWithinTheTimeout(qemu);
     final boolean recordLeft = Files.exists(this.recordOf(qemu.pid()));
     assertEquals(1, stopped);
-    assertTrue(ended, "the process ended");
+    assertTrue(ended, PROCESS_ENDED_MESSAGE);
     assertFalse(recordLeft, "its record is gone");
   }
 
@@ -269,7 +271,7 @@ final class QemuProcessRecordsTest {
 
     final boolean ended = this.endsWithinTheTimeout(qemu);
     assertEquals(1, stopped);
-    assertTrue(ended, "the process ended");
+    assertTrue(ended, PROCESS_ENDED_MESSAGE);
   }
 
   @Test

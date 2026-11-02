@@ -65,10 +65,21 @@ public final class ExecutableFinder {
   private static final Logger LOGGER = LoggerFactory.getLogger(ExecutableFinder.class);
 
   private static final List<String> WINDOWS_EXTENSIONS = List.of(".com", ".exe", ".bat", ".cmd");
+
+  private static final String PATH_VARIABLE = "PATH";
+  private static final Pattern PATH_SEPARATOR = Pattern.compile(Pattern.quote(File.pathSeparator));
+
   private static final Path SYSTEM_ROOT = Path.of("/");
+  private static final String PATHS_FILE = "etc/paths";
+  private static final String PATHS_DIRECTORY = "etc/paths.d";
+
   private static final List<String> MAC_FOLDERS = List.of("opt/homebrew/bin", "usr/local/bin");
   private static final List<String> UNIX_FOLDERS = List.of("usr/local/bin", "usr/bin");
+
+  private static final String PROGRAM_FILES_VARIABLE = "ProgramFiles";
   private static final String DEFAULT_PROGRAM_FILES = "C:\\Program Files";
+  private static final String QEMU_FOLDER = "qemu";
+
   private static final File[] NO_FILES = new File[0];
 
   private final Os os;
@@ -167,9 +178,8 @@ public final class ExecutableFinder {
   }
 
   private List<Path> getSearchDirectories() {
-    final String path = this.getVariable("PATH");
-    final String separator = Pattern.quote(File.pathSeparator);
-    final String[] segments = path.split(separator);
+    final String path = this.getVariable(PATH_VARIABLE);
+    final String[] segments = PATH_SEPARATOR.split(path);
     final List<String> entries = List.of(segments);
     final List<Path> directories = toDirectories(entries);
 
@@ -184,7 +194,7 @@ public final class ExecutableFinder {
   }
 
   private List<Path> getMacDirectories() {
-    final Path pathsFile = this.root.resolve("etc/paths");
+    final Path pathsFile = this.root.resolve(PATHS_FILE);
     final List<Path> listed = readPathsFile(pathsFile);
     final List<Path> directories = new ArrayList<>(listed);
 
@@ -203,7 +213,7 @@ public final class ExecutableFinder {
    * @return the listed folders
    */
   private List<Path> readPathsDirectory() {
-    final Path pathsDirectory = this.root.resolve("etc/paths.d");
+    final Path pathsDirectory = this.root.resolve(PATHS_DIRECTORY);
     final File pathsFolder = pathsDirectory.toFile();
     final File[] children = pathsFolder.listFiles(File::isFile);
     final File[] files = Objects.requireNonNullElse(children, NO_FILES);
@@ -220,9 +230,9 @@ public final class ExecutableFinder {
   }
 
   private List<Path> getWindowsDirectories() {
-    final String programFiles = this.getVariable("ProgramFiles");
+    final String programFiles = this.getVariable(PROGRAM_FILES_VARIABLE);
     final String folder = programFiles.isBlank() ? DEFAULT_PROGRAM_FILES : programFiles;
-    final Path qemu = Path.of(folder, "qemu");
+    final Path qemu = Path.of(folder, QEMU_FOLDER);
     return List.of(qemu);
   }
 

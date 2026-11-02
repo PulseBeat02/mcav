@@ -74,6 +74,8 @@ final class VmAudioClientTest {
 
   private static final String CONNECTION_ENDED = "The audio connection of the virtual machine ended.";
 
+  private static final String VNC_AUTHENTICATION_MESSAGE = "VNC authentication";
+
   private static final long TIMEOUT_SECONDS = 10L;
 
   // shorter than close waits for the reader
@@ -126,7 +128,7 @@ final class VmAudioClientTest {
     } else {
       output.write(new byte[] { 1, VNC_AUTHENTICATION });
       final int securityType = input.readUnsignedByte();
-      assertEquals(VNC_AUTHENTICATION, securityType, "VNC authentication");
+      assertEquals(VNC_AUTHENTICATION, securityType, VNC_AUTHENTICATION_MESSAGE);
       final byte[] challenge = new byte[CHALLENGE_BYTES];
       RANDOM.nextBytes(challenge);
       output.write(challenge);
@@ -185,7 +187,7 @@ final class VmAudioClientTest {
         input.readFully(new byte[VERSION_BYTES]);
         output.write(new byte[] { 1, VNC_AUTHENTICATION });
         final int securityType = input.readUnsignedByte();
-        assertEquals(VNC_AUTHENTICATION, securityType, "VNC authentication");
+        assertEquals(VNC_AUTHENTICATION, securityType, VNC_AUTHENTICATION_MESSAGE);
         output.write(new byte[CHALLENGE_BYTES]);
         input.readFully(new byte[CHALLENGE_BYTES]);
         output.writeInt(1);

@@ -44,6 +44,14 @@ public final class VmInputExample {
   private static final int WIDTH = 1024;
   private static final int HEIGHT = 768;
 
+  private static final int FRAME_RATE = 30;
+
+  private static final int MEMORY_MEGABYTES = 2048;
+  private static final int CORES = 2;
+
+  private static final char ENTER_CHARACTER = '\n';
+  private static final String RETURN_KEY = "Return";
+
   private VmInputExample() {
     throw new UnsupportedOperationException("Example class cannot be instantiated!");
   }
@@ -99,8 +107,8 @@ public final class VmInputExample {
   }
 
   private static void startMachine(final VmPlayer player, final String iso) {
-    final VmConfiguration configuration = VmConfiguration.builder().cdrom(iso).memory(2048).cores(2).build();
-    final VmSettings settings = VmSettings.of(WIDTH, HEIGHT, 30);
+    final VmConfiguration configuration = VmConfiguration.builder().cdrom(iso).memory(MEMORY_MEGABYTES).cores(CORES).build();
+    final VmSettings settings = VmSettings.of(WIDTH, HEIGHT, FRAME_RATE);
     player.start(settings, VmPlayer.Architecture.X86_64, configuration);
   }
 
@@ -120,7 +128,7 @@ public final class VmInputExample {
       @Override
       public void keyTyped(final KeyEvent event) {
         final char character = event.getKeyChar();
-        final String text = character == '\n' ? "Return" : String.valueOf(character);
+        final String text = character == ENTER_CHARACTER ? RETURN_KEY : String.valueOf(character);
         player.sendKeyEvent(text);
       }
     };

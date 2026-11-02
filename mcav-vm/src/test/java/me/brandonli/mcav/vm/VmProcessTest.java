@@ -91,6 +91,9 @@ final class VmProcessTest {
   private static final int HEIGHT = 48;
   private static final int FRAME_RATE = 10;
 
+  private static final int MEMORY_MEGABYTES = 64;
+  private static final String MEMORY_SIZE = "64M";
+
   private static final int DISPLAY_ONE_PORT = 5901;
   private static final int DISPLAY_THREE_PORT = 5903;
   private static final int DISPLAY_SEVEN_PORT = 5907;
@@ -106,6 +109,7 @@ final class VmProcessTest {
   private static final String SHORT_MACHINE_ARGUMENT = "-M";
   private static final String ACCELERATOR_ARGUMENT = "-accel";
   private static final String AUDIO_DEVICE_ARGUMENT = "-audiodev";
+  private static final String MEMORY_ARGUMENT = "-m";
 
   private static final String MACHINE_OPTION = "machine";
   private static final String SHORT_MACHINE_OPTION = "M";
@@ -146,6 +150,12 @@ final class VmProcessTest {
 
   private static final String DRAIN_THREAD_NAME = "mcav-qemu-output";
   private static final String OUTPUT_JOIN_METHOD = "awaitOutput";
+
+  private static final String NOT_STARTED_MESSAGE = "not started!";
+  private static final String INTERRUPTED_WAIT_MESSAGE = "Waiting for QEMU was interrupted!";
+
+  private static final String INTERRUPT_KEPT_MESSAGE = "the interrupt must be kept for the caller";
+  private static final String NO_NETWORK_MESSAGE = "no network added to %s";
 
   private static final long SHORT_TIMEOUT_MILLISECONDS = 400L;
   private static final long TIMED_JOIN_DEADLINE_SECONDS = 1L;
@@ -316,12 +326,12 @@ final class VmProcessTest {
   void shouldStartWithTheAcceleratorOfTheMachineAndWaitForTheDisplay() {
     final FakeProcess qemu = FakeProcess.running("");
     final VmSettings settings = this.reachableSettings();
-    final VmConfiguration configuration = VmConfiguration.builder().memory(64).build();
+    final VmConfiguration configuration = VmConfiguration.builder().memory(MEMORY_MEGABYTES).build();
     final VmProcess process = this.createProcess(settings, configuration, Os.WINDOWS, qemu);
     final boolean aliveBefore = process.isAlive();
     process.start();
     final boolean alive = process.isAlive();
-    final List<String> expected = this.command("-m", "64M", ACCELERATOR_ARGUMENT, WINDOWS_ACCELERATOR);
+    final List<String> expected = this.command(MEMORY_ARGUMENT, MEMORY_SIZE, ACCELERATOR_ARGUMENT, WINDOWS_ACCELERATOR);
     assertFalse(aliveBefore);
     assertTrue(alive);
 
@@ -770,7 +780,7 @@ final class VmProcessTest {
     final VmConfiguration configuration = VmConfiguration.builder().option(option, "user,id=mine").build();
     final List<String> command = this.commandWithoutAccelerator(settings, configuration);
     final boolean restricted = command.contains(RESTRICTED_NETWORK);
-    assertFalse(restricted, () -> "no network added to %s".formatted(command));
+    assertFalse(restricted, () -> NO_NETWORK_MESSAGE.formatted(command));
   }
 
   @Test
@@ -779,7 +789,7 @@ final class VmProcessTest {
     final VmConfiguration configuration = VmConfiguration.builder().flag("nodefaults").build();
     final List<String> command = this.commandWithoutAccelerator(settings, configuration);
     final boolean network = command.contains(NETWORK_ARGUMENT);
-    assertFalse(network, () -> "no network added to %s".formatted(command));
+    assertFalse(network, () -> NO_NETWORK_MESSAGE.formatted(command));
   }
 
   @Test
@@ -814,11 +824,11 @@ final class VmProcessTest {
   @Test
   void shouldPassTheDataFoldersBeforeTheConfiguration() {
     final VmSettings settings = new VmSettings(DISPLAY_THREE_PORT, WIDTH, HEIGHT, FRAME_RATE);
-    final VmConfiguration configuration = VmConfiguration.builder().memory(64).build();
+    final VmConfiguration configuration = VmConfiguration.builder().memory(MEMORY_MEGABYTES).build();
     final List<String> dataArguments = List.of("-L", "data");
     final QemuProgram program = QemuProgram.of(QEMU_EXECUTABLE, dataArguments, Map.of());
     final VmProcess.Launcher launcher = _ -> {
-      throw new IOException("not started!");
+      throw new IOException(NOT_STARTED_MESSAGE);
     };
     final VmProcess process = new VmProcess(
       settings,
@@ -835,7 +845,7 @@ final class VmProcessTest {
     final List<String> command = process.buildCommand(null, this.passwordFile());
 
     final String executable = QEMU_EXECUTABLE.toString();
-    final List<String> expected = List.of(executable, "-L", "data", "-m", "64M");
+    final List<String> expected = List.of(executable, "-L", "data", MEMORY_ARGUMENT, MEMORY_SIZE);
     final List<String> start = command.subList(0, expected.size());
     assertEquals(expected, start);
   }
@@ -843,7 +853,7 @@ final class VmProcessTest {
   private List<String> x86Command(final VmConfiguration configuration) {
     final VmSettings settings = new VmSettings(DISPLAY_THREE_PORT, WIDTH, HEIGHT, FRAME_RATE);
     final VmProcess.Launcher launcher = command -> {
-      throw new IOException("not started!");
+      throw new IOException(NOT_STARTED_MESSAGE);
     };
     final VmProcess process = new VmProcess(
       settings,
@@ -1264,14 +1274,14 @@ final class VmProcessTest {
       exception = assertThrows(VmException.class, process::start);
     } finally {
       final boolean interrupted = Thread.interrupted();
-      assertTrue(interrupted, "the interrupt must be kept for the caller");
+      assertTrue(interrupted, INTERRUPT_KEPT_MESSAGE);
     }
 
     final String message = exception.getMessage();
     final Throwable cause = exception.getCause();
     final boolean alive = qemu.isAlive();
     final int forcibleCalls = qemu.getForcibleDestroyCalls();
-    assertEquals("Waiting for QEMU was interrupted!", message);
+    assertEquals(INTERRUPTED_WAIT_MESSAGE, message);
     assertInstanceOf(InterruptedException.class, cause);
     assertFalse(alive);
     assertEquals(1, forcibleCalls);
@@ -1290,7 +1300,7 @@ final class VmProcessTest {
       exception = assertThrows(VmException.class, process::start);
     } finally {
       final boolean interrupted = Thread.interrupted();
-      assertTrue(interrupted, "the interrupt must be kept for the caller");
+      assertTrue(interrupted, INTERRUPT_KEPT_MESSAGE);
     }
 
     final String message = exception.getMessage();
@@ -1770,7 +1780,7 @@ final class VmProcessTest {
     }
 
     final String message = exception.getMessage();
-    assertEquals("Waiting for QEMU was interrupted!", message);
+    assertEquals(INTERRUPTED_WAIT_MESSAGE, message);
   }
 
   private static final class BlockingStream extends InputStream {

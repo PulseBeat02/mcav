@@ -100,6 +100,10 @@ final class QemuVmPlayerTest {
   private static final long TIMEOUT_SECONDS = 10L;
   private static final long FIRST_FRAME_TIMEOUT_SECONDS = 120L;
 
+  private static final long POLL_PAUSE_MILLISECONDS = 20L;
+
+  private static final long RESUME_HEAD_START_MILLISECONDS = 200L;
+
   private static final int CHUNK_BYTES = 8;
 
   private static final long SOUND_HOLD_MILLISECONDS = 70L;
@@ -409,7 +413,7 @@ final class QemuVmPlayerTest {
     assertTrue(pauseEntered);
 
     final CompletableFuture<Boolean> resuming = CompletableFuture.supplyAsync(player::resume);
-    Thread.sleep(200L);
+    Thread.sleep(RESUME_HEAD_START_MILLISECONDS);
     finishPause.countDown();
     final boolean paused = pausing.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
     final boolean resumed = resuming.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
@@ -1261,7 +1265,7 @@ final class QemuVmPlayerTest {
 
   private void awaitFirstFrame(final List<int[]> sizes, final List<String> errors) {
     final long timeout = TimeUnit.SECONDS.toNanos(FIRST_FRAME_TIMEOUT_SECONDS);
-    final long pause = TimeUnit.MILLISECONDS.toNanos(20);
+    final long pause = TimeUnit.MILLISECONDS.toNanos(POLL_PAUSE_MILLISECONDS);
     final long deadline = System.nanoTime() + timeout;
     while (sizes.isEmpty()) {
       final long now = System.nanoTime();

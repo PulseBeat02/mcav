@@ -78,6 +78,8 @@ final class VmSoundTest {
 
   private static final double IN_SYNC_SHARE = 0.9;
 
+  private static final long POLL_PAUSE_MILLISECONDS = 20L;
+
   @TempDir
   private Path directory;
 
@@ -110,7 +112,7 @@ final class VmSoundTest {
       final boolean beforeTheDeadline = System.nanoTime() < deadline;
       assertTrue(beforeTheDeadline, "timed out waiting for %s".formatted(description));
       try {
-        Thread.sleep(20L);
+        Thread.sleep(POLL_PAUSE_MILLISECONDS);
       } catch (final InterruptedException exception) {
         final Thread current = Thread.currentThread();
         current.interrupt();
