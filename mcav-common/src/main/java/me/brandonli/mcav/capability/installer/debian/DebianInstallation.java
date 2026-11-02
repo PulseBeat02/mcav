@@ -269,8 +269,8 @@ final class DebianInstallation {
   }
 
   private String getTriplet() {
-    final Arch arch = this.platform.getArch();
-    if (arch == Arch.ARM) {
+    final Arch architecture = this.platform.getArch();
+    if (architecture == Arch.ARM) {
       return AARCH64_TRIPLET;
     }
 

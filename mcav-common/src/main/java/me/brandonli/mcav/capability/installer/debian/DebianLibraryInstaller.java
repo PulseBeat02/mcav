@@ -201,8 +201,8 @@ public final class DebianLibraryInstaller implements Installer {
       final String path = library.toString();
       this.libraryLoader.accept(path);
       return true;
-    } catch (final UnsatisfiedLinkError error) {
-      LOGGER.debug("Library {} could not be loaded yet.", library, error);
+    } catch (final UnsatisfiedLinkError exception) {
+      LOGGER.debug("Library {} could not be loaded yet.", library, exception);
       return false;
     }
   }

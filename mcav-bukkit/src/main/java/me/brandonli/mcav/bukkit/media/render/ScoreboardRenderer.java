@@ -195,7 +195,16 @@ public final class ScoreboardRenderer extends MainThreadRenderer<Component[]> {
     }
   }
 
-  // a shown scoreboard lasts one session, so new and returning viewers are shown it again
+  /**
+   * Shows the scoreboard to online viewers who do not see it yet, remembering the scoreboard each of them had, and
+   * gives viewers who were removed their previous scoreboard back. This method runs on the main thread once per server
+   * tick while the renderer is running, right after the pending frame, if there was one, was applied.
+   *
+   * <p>A shown scoreboard lasts one session, so new and returning viewers are shown it again. Does nothing while the
+   * scoreboard is not shown.
+   *
+   * @since 1.0.0
+   */
   @Override
   protected void onTick() {
     final Scoreboard board = this.scoreboard;
@@ -233,6 +242,15 @@ public final class ScoreboardRenderer extends MainThreadRenderer<Component[]> {
     }
   }
 
+  /**
+   * Applies a frame by setting each line as the suffix of the team of its row. This method is always called on the
+   * main thread, at most once per server tick.
+   *
+   * <p>Does nothing while the scoreboard is not shown.
+   *
+   * @param lines the lines of the frame, one for each row
+   * @since 1.0.0
+   */
   @Override
   protected void apply(final Component[] lines) {
     if (this.scoreboard == null) {

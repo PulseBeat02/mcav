@@ -41,7 +41,7 @@ public final class ChatUtils {
   private static final String PIXELS_NULL_MESSAGE = "Pixels must not be null!";
   private static final String CHARACTER_NULL_MESSAGE = "Character must not be null!";
 
-  private static final char[] HEX_DIGITS = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
+  private static final char[] HEXADECIMAL_DIGITS = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
   private static final char COLOR_CHAR = '§';
   private static final char HEXADECIMAL_COLOR_MARKER = 'x';
   private static final int RGB_MASK = 0xFFFFFF;
@@ -165,7 +165,7 @@ public final class ChatUtils {
     builder.append(HEXADECIMAL_COLOR_MARKER);
     for (int shift = HIGHEST_NIBBLE_SHIFT; shift >= 0; shift -= BITS_PER_NIBBLE) {
       final int nibble = (color >> shift) & NIBBLE_MASK;
-      final char digit = HEX_DIGITS[nibble];
+      final char digit = HEXADECIMAL_DIGITS[nibble];
       builder.append(COLOR_CHAR);
       builder.append(digit);
     }

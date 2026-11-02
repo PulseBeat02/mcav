@@ -361,12 +361,12 @@ final class IoUtilsTest {
   }
 
   @Test
-  void shouldFormatBytesAsZeroPaddedHex() {
-    final String hex = IoUtils.bytesToHex(new byte[] { 0x0F, (byte) 0xAB, 0x00 });
-    final String empty = IoUtils.bytesToHex(new byte[0]);
-    assertEquals("0fab00", hex);
+  void shouldFormatBytesAsZeroPaddedHexadecimal() {
+    final String hexadecimal = IoUtils.bytesToHexadecimal(new byte[] { 0x0F, (byte) 0xAB, 0x00 });
+    final String empty = IoUtils.bytesToHexadecimal(new byte[0]);
+    assertEquals("0fab00", hexadecimal);
     assertEquals("", empty);
-    assertThrows(NullPointerException.class, () -> IoUtils.bytesToHex(null));
+    assertThrows(NullPointerException.class, () -> IoUtils.bytesToHexadecimal(null));
   }
 
   @Test

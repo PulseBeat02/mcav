@@ -170,8 +170,8 @@ public final class LocalMavenRepository {
     }
 
     final byte[] hash = digest.digest(content);
-    final HexFormat hex = HexFormat.of();
-    final String text = hex.formatHex(hash);
+    final HexFormat hexadecimal = HexFormat.of();
+    final String text = hexadecimal.formatHex(hash);
     final Path checksum = checksumFileOf(file);
     Files.writeString(checksum, text, StandardCharsets.US_ASCII);
   }

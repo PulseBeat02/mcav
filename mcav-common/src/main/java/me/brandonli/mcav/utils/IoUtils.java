@@ -121,7 +121,7 @@ public final class IoUtils {
 
   private static final String SHA_256 = "SHA-256";
   private static final String SHA_1 = "SHA-1";
-  private static final int HEX_DIGITS_PER_BYTE = 2;
+  private static final int HEXADECIMAL_DIGITS_PER_BYTE = 2;
 
   private static final int UNSIGNED_BYTE_MASK = 0xFF;
   private static final int BITS_PER_BYTE = 8;
@@ -432,8 +432,8 @@ public final class IoUtils {
     }
 
     final byte[] hash = digest.digest();
-    final HexFormat hex = HexFormat.of();
-    return hex.formatHex(hash);
+    final HexFormat hexadecimal = HexFormat.of();
+    return hexadecimal.formatHex(hash);
   }
 
   @VisibleForTesting
@@ -454,20 +454,20 @@ public final class IoUtils {
    * @throws NullPointerException if {@code bytes} is null
    * @since 1.0.0
    */
-  public static String bytesToHex(final byte[] bytes) {
+  public static String bytesToHexadecimal(final byte[] bytes) {
     Preconditions.checkNotNull(bytes, "Bytes must not be null!");
 
-    final StringBuilder hex = new StringBuilder(bytes.length * HEX_DIGITS_PER_BYTE);
+    final StringBuilder hexadecimal = new StringBuilder(bytes.length * HEXADECIMAL_DIGITS_PER_BYTE);
     for (final byte value : bytes) {
       final int unsigned = value & UNSIGNED_BYTE_MASK;
       final String digits = Integer.toHexString(unsigned);
       if (digits.length() == 1) {
-        hex.append('0');
+        hexadecimal.append('0');
       }
-      hex.append(digits);
+      hexadecimal.append(digits);
     }
 
-    return hex.toString();
+    return hexadecimal.toString();
   }
 
   /**
@@ -658,9 +658,9 @@ public final class IoUtils {
     try {
       final PlatformFields platformFields = fields.platform();
       final Os os = platformFields.os();
-      final Arch arch = platformFields.arch();
+      final Arch architecture = platformFields.arch();
       final Bits bits = platformFields.bits();
-      final Platform platform = Platform.ofPlatform(os, arch, bits);
+      final Platform platform = Platform.ofPlatform(os, architecture, bits);
       final String url = fields.url();
       final @Nullable String hash = fields.hash();
       return new Download(platform, url, hash);

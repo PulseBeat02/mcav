@@ -141,8 +141,8 @@ final class HttpDownloaderTest {
   private static String contentSha256() throws IOException {
     final MessageDigest digest = HttpDownloader.createDigest(SHA256_ALGORITHM);
     final byte[] hash = digest.digest(CONTENT);
-    final HexFormat hex = HexFormat.of();
-    return hex.formatHex(hash);
+    final HexFormat hexadecimal = HexFormat.of();
+    return hexadecimal.formatHex(hash);
   }
 
   @Test

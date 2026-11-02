@@ -578,8 +578,8 @@ public final class HttpDownloader {
     }
 
     final byte[] hash = digest.digest();
-    final HexFormat hexFormat = HexFormat.of();
-    final String actualSha256 = hexFormat.formatHex(hash);
+    final HexFormat hexadecimalFormat = HexFormat.of();
+    final String actualSha256 = hexadecimalFormat.formatHex(hash);
     final boolean matches = actualSha256.equalsIgnoreCase(expectedSha256);
     if (!matches) {
       final String message = "Download %s has the SHA-256 hash %s, but %s was expected!".formatted(uri, actualSha256, expectedSha256);

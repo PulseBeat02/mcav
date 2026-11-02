@@ -84,7 +84,7 @@ public final class JdaAudioExample {
   private static Guild findGuild(final JDA jda, final String guildId) {
     final Guild guild = jda.getGuildById(guildId);
     if (guild == null) {
-      final String message = "Guild %s does not have the bot as a member!".formatted(guildId);
+      final String message = "Guild %s must have the bot as a member!".formatted(guildId);
       throw new IllegalStateException(message);
     }
 

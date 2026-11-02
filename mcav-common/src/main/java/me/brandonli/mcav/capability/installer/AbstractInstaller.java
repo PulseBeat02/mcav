@@ -245,8 +245,8 @@ public abstract class AbstractInstaller implements Installer {
   private void deleteAfterFailure(final Path destination, final InstallationException failure) {
     try {
       Files.deleteIfExists(destination);
-    } catch (final IOException cleanupException) {
-      failure.addSuppressed(cleanupException);
+    } catch (final IOException exception) {
+      failure.addSuppressed(exception);
     }
   }
 

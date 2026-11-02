@@ -688,8 +688,8 @@ final class GlTextureFilterTest {
     try (final MockedStatic<GL11> calls = mockStatic(GL11.class)) {
       try {
         action.run();
-      } catch (final RuntimeException actionException) {
-        failures.add(actionException);
+      } catch (final RuntimeException exception) {
+        failures.add(exception);
       }
 
       calls.verifyNoInteractions();

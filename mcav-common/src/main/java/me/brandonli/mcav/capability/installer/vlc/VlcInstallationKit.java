@@ -130,8 +130,8 @@ public final class VlcInstallationKit {
 
   /**
    * Finds or installs VLC and loads its native libraries into vlcj. This method blocks while VLC is downloaded,
-   * unless an existing installation can be reused. Successful load state is shared by factory-created kits, so after the first successful call
-   * every call returns the same result immediately.
+   * unless an existing installation can be reused. Successful load state is shared by factory-created kits, so after
+   * the first successful call every call returns the same result immediately.
    *
    * @return the directory the native libraries were loaded from, or empty if vlcj had already loaded them without
    * reporting a location

@@ -53,7 +53,8 @@ final class RfbTestServerTest {
 
   @ParameterizedTest
   @CsvSource({ "32,true,00ff8040", "32,false,4080ff00", "16,true,fbe7", "16,false,e7fb", "8,true,ec", "8,false,ec" })
-  void shouldEncodeRawPixelsInTheNegotiatedByteOrder(final int bits, final boolean bigEndian, final String expectedHex) throws IOException {
+  void shouldEncodeRawPixelsInTheNegotiatedByteOrder(final int bits, final boolean bigEndian, final String expectedHexadecimal)
+    throws IOException {
     try (final RfbTestServer server = RfbTestServer.start(1, 1); final Socket socket = this.connect(server)) {
       server.setColor(COLOR);
       final DataInputStream input = new DataInputStream(socket.getInputStream());
@@ -61,8 +62,8 @@ final class RfbTestServerTest {
       this.handshake(input, output);
       this.setPixelFormat(output, bits, bigEndian);
       final byte[] actual = this.requestPixel(input, output, bits / BITS_PER_BYTE);
-      final HexFormat hex = HexFormat.of();
-      final byte[] expected = hex.parseHex(expectedHex);
+      final HexFormat hexadecimal = HexFormat.of();
+      final byte[] expected = hexadecimal.parseHex(expectedHexadecimal);
       assertArrayEquals(expected, actual);
     }
   }

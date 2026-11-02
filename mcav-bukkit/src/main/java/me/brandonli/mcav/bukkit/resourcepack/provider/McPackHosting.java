@@ -170,7 +170,7 @@ public class McPackHosting implements WebsiteHosting {
     try {
       final MessageDigest digest = MessageDigest.getInstance(algorithm);
       final byte[] hash = digest.digest(bytes);
-      return IoUtils.bytesToHex(hash);
+      return IoUtils.bytesToHexadecimal(hash);
     } catch (final NoSuchAlgorithmException exception) {
       final String message = "Hash algorithm %s is not available!".formatted(algorithm);
       throw new IllegalStateException(message, exception);

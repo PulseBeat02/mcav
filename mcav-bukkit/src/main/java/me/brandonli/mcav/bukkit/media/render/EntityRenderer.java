@@ -159,7 +159,17 @@ public final class EntityRenderer extends MainThreadRenderer<Component> {
     }
   }
 
-  // Paper revokes a showEntity grant when tracking ends, so every tick shows the display again to viewers who lost it
+  /**
+   * Shows the display to online viewers who cannot see it and hides it from viewers who were removed, respawning it
+   * first with the last text if its entity is no longer valid. This method runs on the main thread once per server
+   * tick while the renderer is running, right after the pending frame, if there was one, was applied.
+   *
+   * <p>Paper revokes a {@code showEntity} grant when tracking ends, so every tick shows the display again to viewers
+   * who lost it. Does nothing while the display is not shown, or while it cannot be respawned because its chunk is not
+   * loaded.
+   *
+   * @since 1.0.0
+   */
   @Override
   protected void onTick() {
     final TextDisplay current = this.entity;
@@ -213,6 +223,16 @@ public final class EntityRenderer extends MainThreadRenderer<Component> {
     display.setLineWidth(Integer.MAX_VALUE);
   }
 
+  /**
+   * Applies a frame by setting the text of the display, respawning it first if its entity is no longer valid. This
+   * method is always called on the main thread, at most once per server tick.
+   *
+   * <p>Does nothing while the display is not shown. While its chunk is not loaded, the text is kept and set once
+   * {@link #onTick()} respawns the display.
+   *
+   * @param text the text of the frame
+   * @since 1.0.0
+   */
   @Override
   protected void apply(final Component text) {
     final TextDisplay current = this.entity;
