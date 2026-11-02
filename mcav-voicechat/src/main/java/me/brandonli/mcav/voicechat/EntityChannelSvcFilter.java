@@ -39,7 +39,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * The default {@link SvcFilter}.
  *
- * <p>Samples are mixed to mono and cut into 20 millisecond frames of {@value #FRAME_SAMPLES} samples. Every
+ * <p>Samples are mixed to mono and cut into 20 millisecond frames of 960 samples. Every
  * speaker has its own queue, so each of them plays every frame; a speaker that falls behind drops its oldest
  * frames. Voice chat pulls frames on its own thread, and a speaker without a frame plays silence instead of
  * stopping. When {@link #start()} fails part way, every speaker it created is stopped again, so the filter stays
@@ -277,7 +277,7 @@ public final class EntityChannelSvcFilter implements SvcFilter {
       }
 
       final @Nullable Throwable failure = this.stopPlayer(initialFailure);
-      return this.cleanup(failure, this.encoder::close);
+      return this.runCleanup(failure, this.encoder::close);
     }
 
     private @Nullable Throwable stopPlayer(final @Nullable Throwable initialFailure) {
@@ -286,12 +286,13 @@ public final class EntityChannelSvcFilter implements SvcFilter {
         return initialFailure;
       }
 
-      return this.cleanup(initialFailure, current::stopPlaying);
+      return this.runCleanup(initialFailure, current::stopPlaying);
     }
 
-    private @Nullable Throwable cleanup(final @Nullable Throwable previous, final Runnable cleanup) {
+    private @Nullable Throwable runCleanup(final @Nullable Throwable previous, final Runnable cleanup) {
       try {
         cleanup.run();
+
         return previous;
       } catch (final RuntimeException | Error exception) {
         ThrowableUtils.throwIfFatal(exception);

@@ -6,6 +6,7 @@ plugins {
 dependencies {
     compileOnlyApi(libs.voicechat.api)
     compileOnlyApi(project(":mcav-common"))
+
     testImplementation(project(":mcav-common"))
     testImplementation(libs.voicechat.api)
 }
