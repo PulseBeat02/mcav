@@ -27,7 +27,7 @@ public final class UrlParseDumpUtils {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
-  public static UrlParseDump completeDump() {
+  public static UrlParseDump createCompleteDump() {
     final String json = """
     {
       "title": "Song",

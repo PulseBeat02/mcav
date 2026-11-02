@@ -42,7 +42,7 @@ const PATH_SEPARATOR: string = "/";
 const PATH_TERMINATOR: string = "\0";
 
 // Next.js names the manifest folder after the build id; one derived from the sources keeps the jar reproducible
-const sourcesBuildId = (): string => {
+const createBuildIdFromSources = (): string => {
     const files: string[] = [];
     const collect = (path: string): void => {
         if (statSync(path).isDirectory()) {
@@ -61,9 +61,9 @@ const sourcesBuildId = (): string => {
     return hash.digest(HASH_ENCODING).slice(0, BUILD_ID_LENGTH);
 };
 
-const nextConfig: NextConfig = {
+const nextConfiguration: NextConfig = {
     output: "export",
-    generateBuildId: sourcesBuildId
+    generateBuildId: createBuildIdFromSources
 };
 
-export default nextConfig;
+export default nextConfiguration;

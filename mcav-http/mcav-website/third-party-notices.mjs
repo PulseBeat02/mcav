@@ -51,7 +51,7 @@ const resolvePackage = (name, fromDirectory) => {
     }
 };
 
-const requiredDependencies = manifest => {
+const findRequiredDependencies = manifest => {
     const optionalPeers = manifest.peerDependenciesMeta ?? {};
     const peers = Object.keys(manifest.peerDependencies ?? {}).filter(name => !optionalPeers[name]?.optional);
     return [...Object.keys(manifest.dependencies ?? {}), ...peers];
@@ -68,7 +68,7 @@ while (pending.length > 0) {
     }
     const manifest = JSON.parse(readFileSync(join(path, MANIFEST_FILE), ENCODING));
     shipped.set(path, manifest);
-    for (const dependency of requiredDependencies(manifest)) {
+    for (const dependency of findRequiredDependencies(manifest)) {
         pending.push([dependency, path]);
     }
 }

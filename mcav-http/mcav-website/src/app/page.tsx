@@ -152,7 +152,7 @@ class PcmProcessor {
     private audioContext: AudioContext;
     private waveformData: Float32Array;
     private smoothedData: Float32Array;
-    public isDestroyed: boolean = false;
+    private destroyed: boolean;
     private activeSources: Set<AudioBufferSourceNode> = new Set();
     private hue: number = 0;
     public gainNode: GainNode;
@@ -173,6 +173,7 @@ class PcmProcessor {
             )
         };
         this.samples = new Float32Array();
+        this.destroyed = false;
         this.audioContext = this.options.audioContext;
         this.waveformData = new Float32Array(WAVEFORM_POINTS);
         this.smoothedData = new Float32Array(WAVEFORM_POINTS);
@@ -184,7 +185,7 @@ class PcmProcessor {
     }
 
     feed(data: ArrayBuffer): void {
-        if (this.isDestroyed) {
+        if (this.destroyed) {
             return;
         }
 
@@ -225,7 +226,7 @@ class PcmProcessor {
     }
 
     private updateVisualizer(data: Float32Array): void {
-        if (this.isDestroyed) {
+        if (this.destroyed) {
             return;
         }
 
@@ -275,13 +276,12 @@ class PcmProcessor {
         return Math.floor(this.options.sampleRate * CUSHION_SECONDS);
     }
 
-    getVisualizerData(): VisualizerData {
+    advanceHue(): void {
         this.hue = (this.hue + HUE_STEP_DEGREES) % FULL_CIRCLE_DEGREES;
-        return {smoothedData: this.smoothedData, hue: this.hue};
     }
 
     private play(): void {
-        if (this.samples.length === 0 || this.isDestroyed) {
+        if (this.samples.length === 0 || this.destroyed) {
             return;
         }
 
@@ -371,7 +371,7 @@ class PcmProcessor {
     }
 
     destroy(): void {
-        this.isDestroyed = true;
+        this.destroyed = true;
         for (const source of this.activeSources) {
             this.releaseSource(source);
         }
@@ -410,6 +410,14 @@ class PcmProcessor {
         this.samples = new Float32Array();
         this.startTime = this.audioContext.currentTime;
         this.clearWaveform();
+    }
+
+    isDestroyed(): boolean {
+        return this.destroyed;
+    }
+
+    getVisualizerData(): VisualizerData {
+        return {smoothedData: this.smoothedData, hue: this.hue};
     }
 }
 
@@ -672,10 +680,12 @@ const AudioStreamPlayer = (): React.JSX.Element => {
                 return;
             }
 
-            if (!canvasRef.current || processor.isDestroyed) {
+            if (!canvasRef.current || processor.isDestroyed()) {
                 animationIdRef.current = undefined;
                 return;
             }
+
+            processor.advanceHue();
 
             const data: VisualizerData = processor.getVisualizerData();
             if (!gradient || Math.abs(data.hue - lastHue) > HUE_REDRAW_DEGREES || canvas.width !== lastWidth) {
@@ -725,7 +735,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
         }
     }, []);
 
-    const attemptReconnect = useCallback((): void => {
+    const scheduleReconnectOrGiveUp = useCallback((): void => {
         if (reconnectTimeoutRef.current) {
             return;
         }
@@ -841,7 +851,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
     const feedProcessor = useCallback((data: ArrayBuffer): void => {
         const processor: PcmProcessor | undefined = pcmProcessorRef.current;
         const hasSound: boolean = data.byteLength > 0;
-        if (!hasSound || !processor || processor.isDestroyed) {
+        if (!hasSound || !processor || processor.isDestroyed()) {
             return;
         }
 
@@ -875,13 +885,13 @@ const AudioStreamPlayer = (): React.JSX.Element => {
         setIsLoading(false);
         if (shouldReconnectRef.current) {
             updateStatus("Connection error - reconnecting...");
-            attemptReconnect();
+            scheduleReconnectOrGiveUp();
             return;
         }
 
         updateStatus("Connection error");
         stopStream();
-    }, [attemptReconnect, stopStream, updateStatus]);
+    }, [scheduleReconnectOrGiveUp, stopStream, updateStatus]);
 
     const reconnectOrStopAfterClose = useCallback((socket: WebSocket): void => {
         if (socketRef.current !== socket) {
@@ -893,13 +903,13 @@ const AudioStreamPlayer = (): React.JSX.Element => {
         setIsLoading(false);
         if (shouldReconnectRef.current) {
             updateStatus("Disconnected - reconnecting...");
-            attemptReconnect();
+            scheduleReconnectOrGiveUp();
             return;
         }
 
         updateStatus(DISCONNECTED_STATUS);
         stopStream();
-    }, [attemptReconnect, stopHeartbeat, stopStream, updateStatus]);
+    }, [scheduleReconnectOrGiveUp, stopHeartbeat, stopStream, updateStatus]);
 
     const openSocket = useCallback((): void => {
         const scheme: string = window.location.protocol === SECURE_PROTOCOL ? SECURE_SOCKET_SCHEME : SOCKET_SCHEME;
@@ -933,10 +943,10 @@ const AudioStreamPlayer = (): React.JSX.Element => {
             updateStatus(`Error: ${(exception as Error).message}`);
             setIsLoading(false);
             if (shouldReconnectRef.current) {
-                attemptReconnect();
+                scheduleReconnectOrGiveUp();
             }
         }
-    }, [attemptReconnect, openSocket, updateStatus]);
+    }, [openSocket, scheduleReconnectOrGiveUp, updateStatus]);
 
     const connectWebSocket = useCallback((): void => {
         cancelAnimation();

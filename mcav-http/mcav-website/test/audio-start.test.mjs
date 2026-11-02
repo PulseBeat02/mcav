@@ -31,7 +31,7 @@ const CALLBACKS = [
     "cancelAnimation",
     "animateVisualizer",
     "reconnect",
-    "attemptReconnect",
+    "scheduleReconnectOrGiveUp",
     "cancelReconnect",
     "cancelConnect",
     "closeSocket",
@@ -117,7 +117,7 @@ const skipBalanced = (source, index) => {
     return at;
 };
 
-const pageCallbacks = () => {
+const buildCallbackScript = () => {
     const source = readFileSync(PAGE, ENCODING);
     const helpers = HELPERS.map(name => {
         const start = source.indexOf(`const ${name} = (`);
@@ -180,14 +180,14 @@ const loadPage = (permission = PERMISSION_GRANTED) => {
 
     class FakeProcessor {
         constructor() {
-            this.isDestroyed = false;
+            this.destroyed = false;
             this.fed = 0;
             this.gainNode = {gain: {value: 1}};
             processors.push(this);
         }
 
         destroy() {
-            this.isDestroyed = true;
+            this.destroyed = true;
         }
 
         feed() {
@@ -195,6 +195,13 @@ const loadPage = (permission = PERMISSION_GRANTED) => {
         }
 
         flush() {
+        }
+
+        isDestroyed() {
+            return this.destroyed;
+        }
+
+        advanceHue() {
         }
 
         getVisualizerData() {
@@ -265,7 +272,7 @@ const loadPage = (permission = PERMISSION_GRANTED) => {
         updateStatus: doNothing, startMetadataRefresh: doNothing, stopMetadataRefresh: doNothing, startHeartbeat: doNothing,
         stopHeartbeat: doNothing, reportCloseFailure: doNothing,
     });
-    const page = vm.runInContext(pageCallbacks(), context, {filename: PAGE.pathname});
+    const page = vm.runInContext(buildCallbackScript(), context, {filename: PAGE.pathname});
     context.connectRef.current = page.connectWebSocket;
     return {
         ...page, sockets, processors, contexts, state,
@@ -284,7 +291,7 @@ const loadPage = (permission = PERMISSION_GRANTED) => {
                 due.forEach(([, callback]) => callback());
             }
         },
-        liveProcessors: () => processors.filter(processor => !processor.isDestroyed).length,
+        liveProcessors: () => processors.filter(processor => !processor.isDestroyed()).length,
         openSockets: () => sockets.filter(socket => socket.readyState !== CLOSED).length,
     };
 };

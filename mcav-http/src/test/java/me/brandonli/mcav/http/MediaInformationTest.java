@@ -60,7 +60,7 @@ final class MediaInformationTest {
 
   @Test
   void shouldTakeTheShownFieldsFromYtDlpInYtDlpOrderAndNames() {
-    final UrlParseDump dump = UrlParseDumpUtils.completeDump();
+    final UrlParseDump dump = UrlParseDumpUtils.createCompleteDump();
     final MediaInformation information = MediaInformation.of(dump);
     final Map<String, Object> json = information.toJson();
     final Map<String, Object> expected = new LinkedHashMap<>();
@@ -151,7 +151,7 @@ final class MediaInformationTest {
 
   @Test
   void shouldFollowTheEqualityContract() {
-    final UrlParseDump dump = UrlParseDumpUtils.completeDump();
+    final UrlParseDump dump = UrlParseDumpUtils.createCompleteDump();
     final MediaInformation information = MediaInformation.of(dump);
     final MediaInformation equal = this.createComplete();
     final Object[] differentValues = {

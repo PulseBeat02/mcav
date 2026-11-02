@@ -30,10 +30,10 @@ const ENCODING = "utf8";
 const SOURCE_FILE = /\.(tsx?|jsx?|mjs|css)$/;
 const IMPORT = /(?:from\s+|import\s*\(\s*|require\s*\(\s*)['"]((?:@[^'"/]+\/)?[^'"/]+)/g;
 
-const entrySources = (folder, entry) => {
+const findEntrySources = (folder, entry) => {
     const path = join(folder, entry.name);
     if (entry.isDirectory()) {
-        return sources(path);
+        return findSources(path);
     }
 
     if (SOURCE_FILE.test(entry.name)) {
@@ -43,33 +43,33 @@ const entrySources = (folder, entry) => {
     return [];
 };
 
-const sources = folder => {
+const findSources = folder => {
     const entries = readdirSync(folder, {withFileTypes: true});
-    return entries.flatMap(entry => entrySources(folder, entry));
+    return entries.flatMap(entry => findEntrySources(folder, entry));
 };
 
-const manifest = name => {
+const readManifest = name => {
     return JSON.parse(readFileSync(join(ROOT, MODULES_DIRECTORY, name, MANIFEST_FILE), ENCODING));
 };
 
-const importedNames = file => {
+const findImportedNames = file => {
     const source = readFileSync(file, ENCODING);
     const imports = [...source.matchAll(IMPORT)];
     return imports.map(([, name]) => name);
 };
 
-const peerNames = name => {
-    const peers = manifest(name).peerDependencies ?? {};
+const findPeerNames = name => {
+    const peers = readManifest(name).peerDependencies ?? {};
     return Object.keys(peers);
 };
 
 test("should use every dependency in the website, directly or as a peer of one it imports", () => {
     const rootManifest = JSON.parse(readFileSync(join(ROOT, MANIFEST_FILE), ENCODING));
     const declared = Object.keys(rootManifest.dependencies);
-    const files = sources(join(ROOT, SOURCE_DIRECTORY));
-    const imported = new Set(files.flatMap(importedNames));
+    const files = findSources(join(ROOT, SOURCE_DIRECTORY));
+    const imported = new Set(files.flatMap(findImportedNames));
     const importedDependencies = declared.filter(name => imported.has(name));
-    const peers = new Set(importedDependencies.flatMap(peerNames));
+    const peers = new Set(importedDependencies.flatMap(findPeerNames));
 
     const unused = declared.filter(name => !imported.has(name) && !peers.has(name));
     assert.deepEqual(unused, []);

@@ -49,7 +49,7 @@ final class ThirdPartyNoticesTest {
     }
 
     final boolean includesTheNotice = notices.contains("Permission is hereby granted");
-    assertTrue(includesTheNotice, "the MIT notice itself, not only the name of the licence");
+    assertTrue(includesTheNotice, "the MIT notice itself, not only the name of the license");
   }
 
   private String read(final String name) throws IOException {

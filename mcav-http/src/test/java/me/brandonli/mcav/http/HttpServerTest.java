@@ -253,7 +253,7 @@ final class HttpServerTest {
 
   @Test
   void shouldServeTheCompleteMediaAsJson() throws Exception {
-    final UrlParseDump dump = UrlParseDumpUtils.completeDump();
+    final UrlParseDump dump = UrlParseDumpUtils.createCompleteDump();
     server.setCurrentMedia(dump);
     try {
       final HttpResponse<String> complete = this.get(server, MEDIA_PATH);

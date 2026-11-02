@@ -552,7 +552,7 @@ final class SpringHttpResultTest {
     final MediaInformation initial = http.getCurrentMedia();
     assertSame(MediaInformation.EMPTY, initial);
 
-    final UrlParseDump dump = UrlParseDumpUtils.completeDump();
+    final UrlParseDump dump = UrlParseDumpUtils.createCompleteDump();
     http.setCurrentMedia(dump);
     final MediaInformation fromDump = http.getCurrentMedia();
     final Map<String, Object> json = fromDump.toJson();

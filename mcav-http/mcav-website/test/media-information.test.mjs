@@ -61,7 +61,7 @@ const sliceDeclaration = (source, name) => {
     return source.slice(start, end);
 };
 
-const pageMediaInformation = () => {
+const buildMediaInformationScript = () => {
     const source = readFileSync(PAGE, ENCODING);
     const constants = source.match(CONSTANT_DECLARATION).join("\n");
     const declarations = DECLARATIONS.map(name => sliceDeclaration(source, name)).join("\n");
@@ -74,7 +74,7 @@ const loadPage = server => {
         fetch: path => server.fetch(path),
         console: {error: (...report) => errors.push(report)},
     });
-    const page = vm.runInContext(pageMediaInformation(), context, {filename: PAGE.pathname});
+    const page = vm.runInContext(buildMediaInformationScript(), context, {filename: PAGE.pathname});
     return {...page, reportedErrors: () => errors};
 };
 
