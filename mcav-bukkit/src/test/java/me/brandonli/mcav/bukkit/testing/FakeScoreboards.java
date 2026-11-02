@@ -61,7 +61,7 @@ public final class FakeScoreboards {
     when(this.newScoreboard.registerNewObjective(anyString(), any(Criteria.class), any(Component.class))).thenReturn(this.objective);
     when(this.objective.getScore(anyString())).thenAnswer(invocation -> {
       final String entry = invocation.getArgument(0);
-      return this.scores.computeIfAbsent(entry, name -> mock(Score.class, "score " + name));
+      return this.scores.computeIfAbsent(entry, name -> mock(Score.class, "score %s".formatted(name)));
     });
     when(this.newScoreboard.registerNewTeam(anyString())).thenAnswer(invocation -> {
       final String name = invocation.getArgument(0);

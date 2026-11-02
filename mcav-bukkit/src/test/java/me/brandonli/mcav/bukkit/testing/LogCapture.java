@@ -101,11 +101,13 @@ public final class LogCapture implements AutoCloseable {
 
   private static final class RecordingAppender extends AbstractAppender {
 
+    private static final String APPENDER_NAME = "mcav-test-capture";
+
     private final List<RecordedEvent> events;
     private final BlockingQueue<RecordedEvent> arrivals;
 
     RecordingAppender() {
-      super("mcav-test-capture", null, null, true, Property.EMPTY_ARRAY);
+      super(APPENDER_NAME, null, null, true, Property.EMPTY_ARRAY);
       this.events = new CopyOnWriteArrayList<>();
       this.arrivals = new LinkedBlockingQueue<>();
     }

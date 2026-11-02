@@ -35,6 +35,18 @@ import java.util.concurrent.atomic.AtomicInteger;
 public final class LocalHttpServer implements AutoCloseable {
 
   private static final String ROOT_PATH = "/";
+  private static final String LOOPBACK_URL = "http://127.0.0.1";
+
+  private static final int EPHEMERAL_PORT = 0;
+  private static final int DEFAULT_BACKLOG = 0;
+
+  private static final int IMMEDIATE_STOP_SECONDS = 0;
+
+  private static final String HEAD_METHOD = "HEAD";
+
+  private static final int NOT_FOUND_STATUS = 404;
+
+  private static final long NO_RESPONSE_BODY = -1L;
 
   private final HttpServer server;
   private final Map<String, Deque<Response>> responses;
@@ -49,8 +61,8 @@ public final class LocalHttpServer implements AutoCloseable {
   public static LocalHttpServer start() {
     try {
       final InetAddress loopback = InetAddress.getLoopbackAddress();
-      final InetSocketAddress address = new InetSocketAddress(loopback, 0);
-      final HttpServer httpServer = HttpServer.create(address, 0);
+      final InetSocketAddress address = new InetSocketAddress(loopback, EPHEMERAL_PORT);
+      final HttpServer httpServer = HttpServer.create(address, DEFAULT_BACKLOG);
       final LocalHttpServer localServer = new LocalHttpServer(httpServer);
       httpServer.createContext(ROOT_PATH, localServer::handle);
       httpServer.start();
@@ -71,7 +83,7 @@ public final class LocalHttpServer implements AutoCloseable {
   public URI uri(final String path) {
     final InetSocketAddress address = this.server.getAddress();
     final int port = address.getPort();
-    return URI.create("http://127.0.0.1:" + port + path);
+    return URI.create("%s:%s%s".formatted(LOOPBACK_URL, port, path));
   }
 
   public int getRequestCount(final String path) {
@@ -88,8 +100,8 @@ public final class LocalHttpServer implements AutoCloseable {
     final Response response = this.nextResponse(path);
     final byte[] body = response.body;
     final String method = exchange.getRequestMethod();
-    final boolean isHeadRequest = method.equals("HEAD");
-    final long responseLength = isHeadRequest || body.length == 0 ? -1 : body.length;
+    final boolean isHeadRequest = method.equals(HEAD_METHOD);
+    final long responseLength = isHeadRequest || body.length == 0 ? NO_RESPONSE_BODY : body.length;
     exchange.sendResponseHeaders(response.status, responseLength);
 
     if (!isHeadRequest && body.length > 0) {
@@ -104,7 +116,7 @@ public final class LocalHttpServer implements AutoCloseable {
   private Response nextResponse(final String path) {
     final Deque<Response> queue = this.responses.get(path);
     if (queue == null) {
-      return new Response(404, new byte[0]);
+      return new Response(NOT_FOUND_STATUS, new byte[0]);
     }
 
     synchronized (queue) {
@@ -113,13 +125,13 @@ public final class LocalHttpServer implements AutoCloseable {
       }
 
       final Response last = queue.peekFirst();
-      return last == null ? new Response(404, new byte[0]) : last;
+      return last == null ? new Response(NOT_FOUND_STATUS, new byte[0]) : last;
     }
   }
 
   @Override
   public void close() {
-    this.server.stop(0);
+    this.server.stop(IMMEDIATE_STOP_SECONDS);
   }
 
   private static final class Response {

@@ -40,8 +40,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class Mcv2Fixtures {
 
   private static final String DIGESTS_FILE = "/digests.json";
-
   private static final String ROOT = "/mcv2/";
+
+  static final String FRAME_DIGESTS_KEY = "sha256_per_frame";
+
+  private static final String DIGEST_ALGORITHM = "SHA-256";
+
+  private static final int LENGTH_PREFIX_BYTES = Integer.BYTES;
 
   private Mcv2Fixtures() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
@@ -64,20 +69,23 @@ public final class Mcv2Fixtures {
     int offset = 0;
     while (offset < archive.length) {
       final int length = (int) Mcv2Decoder.readUnsignedInt(archive, offset);
-      frames.add(Arrays.copyOfRange(archive, offset + 4, offset + 4 + length));
-      offset += 4 + length;
+      final int start = offset + LENGTH_PREFIX_BYTES;
+      final int end = start + length;
+      final byte[] frame = Arrays.copyOfRange(archive, start, end);
+      frames.add(frame);
+      offset = end;
     }
 
     return frames;
   }
 
   static Map<String, List<String>> readDigests(final String folder) {
-    final String text = new String(read(folder + DIGESTS_FILE), StandardCharsets.UTF_8);
+    final String text = new String(read("%s%s".formatted(folder, DIGESTS_FILE)), StandardCharsets.UTF_8);
     final JsonObject root = JsonParser.parseString(text).getAsJsonObject();
     final Map<String, List<String>> digests = new TreeMap<>();
     for (final Map.Entry<String, JsonElement> entry : root.entrySet()) {
       final JsonElement value = entry.getValue();
-      final JsonElement list = value.isJsonObject() ? value.getAsJsonObject().get("sha256_per_frame") : value;
+      final JsonElement list = value.isJsonObject() ? value.getAsJsonObject().get(FRAME_DIGESTS_KEY) : value;
       final List<String> frames = new ArrayList<>();
       for (final JsonElement digest : list.getAsJsonArray()) {
         frames.add(digest.getAsString());
@@ -90,7 +98,10 @@ public final class Mcv2Fixtures {
 
   public static String sha256(final byte[] bytes) {
     try {
-      return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
+      final MessageDigest digest = MessageDigest.getInstance(DIGEST_ALGORITHM);
+      final byte[] hash = digest.digest(bytes);
+      final HexFormat hexadecimalFormat = HexFormat.of();
+      return hexadecimalFormat.formatHex(hash);
     } catch (final NoSuchAlgorithmException exception) {
       throw new IllegalStateException(exception);
     }

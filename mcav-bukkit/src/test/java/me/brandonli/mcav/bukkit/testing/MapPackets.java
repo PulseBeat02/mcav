@@ -37,6 +37,9 @@ import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 
 public final class MapPackets {
 
+  private static final int IMAGE_PATTERN_OFFSET = 4;
+  private static final int PATTERN_PERIOD = 100;
+
   private MapPackets() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
@@ -99,13 +102,13 @@ public final class MapPackets {
   public static byte[] pattern(final ImageBuffer image) {
     final int width = image.getWidth();
     final int height = image.getHeight();
-    return pattern(width * height, 4);
+    return pattern(width * height, IMAGE_PATTERN_OFFSET);
   }
 
   public static byte[] pattern(final int length, final int offset) {
     final byte[] colors = new byte[length];
     for (int index = 0; index < length; index++) {
-      colors[index] = (byte) (offset + (index % 100));
+      colors[index] = (byte) (offset + (index % PATTERN_PERIOD));
     }
 
     return colors;

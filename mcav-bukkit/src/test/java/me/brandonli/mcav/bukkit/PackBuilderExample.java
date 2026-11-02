@@ -30,6 +30,8 @@ public final class PackBuilderExample {
 
   private static final String PACK_FILE_NAME = "pack.zip";
 
+  private static final String SOUND_KEY = "mcav:example";
+
   private PackBuilderExample() {
     throw new UnsupportedOperationException("Example class cannot be instantiated!");
   }
@@ -45,7 +47,7 @@ public final class PackBuilderExample {
     pack.metadata(format, "MCAV example audio");
     final UriSource video = UriSource.uri(VIDEO);
     final Path sound = AudioExtractor.extractOggVorbis(video);
-    pack.sound("mcav:example", sound);
+    pack.sound(SOUND_KEY, sound);
     final Path destination = Path.of(PACK_FILE_NAME);
     pack.zip(destination);
   }

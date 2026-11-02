@@ -28,6 +28,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 public final class EqualityAssertions {
 
+  private static final String ORIGINAL_ENTRY = "original";
+  private static final String DIFFERENT_ENTRY = "different";
+
   private EqualityAssertions() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
@@ -64,14 +67,14 @@ public final class EqualityAssertions {
 
   private static void assertDistinctMapKeys(final Object value, final Object equalValue, final Object differentValue) {
     final Map<Object, String> values = new HashMap<>();
-    values.put(value, "original");
-    values.put(differentValue, "different");
+    values.put(value, ORIGINAL_ENTRY);
+    values.put(differentValue, DIFFERENT_ENTRY);
     final int size = values.size();
     final String original = values.get(equalValue);
     final String different = values.get(differentValue);
     assertEquals(2, size, "unequal values remain distinct keys, even if their hashes collide");
-    assertEquals("original", original, "an equal value retrieves the original entry");
-    assertEquals("different", different);
+    assertEquals(ORIGINAL_ENTRY, original, "an equal value retrieves the original entry");
+    assertEquals(DIFFERENT_ENTRY, different);
   }
 
   private static void assertNotEqualToNullOrUnrelated(final Object value) {
@@ -79,15 +82,15 @@ public final class EqualityAssertions {
     @Nullable final Object[] outsiders = { null, unrelated };
     for (@Nullable final Object outsider : outsiders) {
       final boolean equal = isEqual(value, outsider);
-      assertFalse(equal, () -> "a value must not equal " + outsider);
+      assertFalse(equal, () -> "a value must not equal %s".formatted(outsider));
     }
   }
 
   private static void assertDifferentInBothDirections(final Object value, final Object differentValue) {
     final boolean forward = isEqual(value, differentValue);
     final boolean backward = isEqual(differentValue, value);
-    assertFalse(forward, () -> "the value must differ from " + differentValue);
-    assertFalse(backward, () -> differentValue + " must differ from the value");
+    assertFalse(forward, () -> "the value must differ from %s".formatted(differentValue));
+    assertFalse(backward, () -> "%s must differ from the value".formatted(differentValue));
   }
 
   // not Objects.equals, whose identity shortcut would skip the implementation

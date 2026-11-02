@@ -21,18 +21,22 @@ import java.util.Random;
 
 final class Mcv2Pictures {
 
+  private static final long SEED_MULTIPLIER = 7919L;
+
+  private static final int MAXIMUM_CHANNEL = 255;
+
   private Mcv2Pictures() {}
 
   static byte[] scene(final int width, final int height, final int frame, final int panPerFrame) {
-    final Random random = new Random(frame * 7919L);
-    final byte[] rgb = new byte[width * height * 3];
+    final Random random = new Random(frame * SEED_MULTIPLIER);
+    final byte[] rgb = new byte[width * height * Mcv2Decoder.CHANNELS];
     for (int row = 0; row < height; row++) {
       for (int column = 0; column < width; column++) {
         final int sourceColumn = column + frame * panPerFrame;
-        final int offset = (row * width + column) * 3;
+        final int offset = (row * width + column) * Mcv2Decoder.CHANNELS;
         final int value = sceneValue(width, height, row, column, sourceColumn, random);
         rgb[offset] = (byte) value;
-        rgb[offset + 1] = (byte) Math.min(255, value + 20);
+        rgb[offset + 1] = (byte) Math.min(MAXIMUM_CHANNEL, value + 20);
         rgb[offset + 2] = (byte) Math.max(0, value - 30);
       }
     }

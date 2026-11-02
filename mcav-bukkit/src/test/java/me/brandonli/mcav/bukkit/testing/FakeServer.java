@@ -23,6 +23,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.google.common.base.MoreObjects;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelConfig;
 import io.netty.channel.ChannelFuture;
@@ -62,6 +63,12 @@ import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
 
 public final class FakeServer implements AutoCloseable {
+
+  private static final String SERVER_ADDRESS = "127.0.0.1";
+  private static final int SERVER_PORT = 25565;
+
+  private static final String CONNECTION_FIELD = "connection";
+  private static final String INJECTED_PLUGIN_FIELD = "injectedPlugin";
 
   private final MockedStatic<Bukkit> bukkit;
 
@@ -154,8 +161,8 @@ public final class FakeServer implements AutoCloseable {
     staticBukkit.when(Bukkit::getMessenger).thenReturn(this.messenger);
     staticBukkit.when(Bukkit::getOnlinePlayers).thenAnswer(_ -> List.copyOf(this.onlinePlayers));
     staticBukkit.when(Bukkit::isPrimaryThread).thenAnswer(_ -> this.primaryThread);
-    staticBukkit.when(Bukkit::getIp).thenReturn("127.0.0.1");
-    staticBukkit.when(Bukkit::getPort).thenReturn(25565);
+    staticBukkit.when(Bukkit::getIp).thenReturn(SERVER_ADDRESS);
+    staticBukkit.when(Bukkit::getPort).thenReturn(SERVER_PORT);
     return staticBukkit;
   }
 
@@ -259,7 +266,7 @@ public final class FakeServer implements AutoCloseable {
 
   public static void connect(final ServerCommonPacketListenerImpl listener, final Connection connection) {
     try {
-      final Field field = ServerCommonPacketListenerImpl.class.getDeclaredField("connection");
+      final Field field = ServerCommonPacketListenerImpl.class.getDeclaredField(CONNECTION_FIELD);
       field.setAccessible(true);
       field.set(listener, connection);
     } catch (final ReflectiveOperationException exception) {
@@ -348,7 +355,7 @@ public final class FakeServer implements AutoCloseable {
 
   public static void clearInjectedPlugin() {
     try {
-      final Field field = BukkitModule.class.getDeclaredField("injectedPlugin");
+      final Field field = BukkitModule.class.getDeclaredField(INJECTED_PLUGIN_FIELD);
       field.setAccessible(true);
       field.set(null, null);
     } catch (final ReflectiveOperationException exception) {
@@ -404,7 +411,7 @@ public final class FakeServer implements AutoCloseable {
 
     @Override
     public String toString() {
-      return "ScheduledTask[repetition=" + this.repetition + ", task=" + this.task + "]";
+      return MoreObjects.toStringHelper(this).add("repetition", this.repetition).add("task", this.task).toString();
     }
   }
 

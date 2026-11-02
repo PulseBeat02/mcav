@@ -17,17 +17,42 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2;
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+
 // hand-written wire fixtures reach valid syntax the optimizing writer never emits
 final class Mcv2WireFrames {
+
+  private static final int MAGIC_OFFSET = 0;
+  private static final int MAGIC = 0x3256434D;
+  private static final int VERSION_OFFSET = 4;
+  private static final byte VERSION = 3;
+  private static final int WIDTH_OFFSET = 8;
+  private static final int HEIGHT_OFFSET = 10;
+  private static final int FRAME_ID_OFFSET = 12;
+  private static final int REFERENCE_ID_OFFSET = 16;
+  private static final int HEADER_BYTES = 20;
+
+  private static final long FRAME_ID = 1L;
+  private static final long PREVIOUS_FRAME_ID = 0L;
+
+  private static final int LEVEL_COUNT = 3;
+
+  private static final int CHECKPOINT_INTERVAL = Mcv2Decoder.CHECKPOINT_GROUPS * Mcv2Decoder.GROUP_ROOTS;
+
+  private static final int MODE_MASK = 31;
 
   private Mcv2WireFrames() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   static byte[] block(final int size, final int mode, final int quantizer, final byte[] record, final Mcv2FrameKind kind) {
-    final byte value = (byte) (mode | (quantizer << 5));
-    final byte[] descriptors =
-      size == 32 ? new byte[] { value } : size == 16 ? new byte[] { 6, value, 0, 0, 0 } : new byte[] { 6, 6, 0, 0, 0, value, 0, 0, 0 };
+    final byte value = (byte) (mode | (quantizer << Mcv2Decoder.QUANTIZER_SHIFT));
+    final byte[] descriptors = size == 32
+      ? new byte[] { value }
+      : size == 16
+        ? new byte[] { Mcv2Decoder.MODE_SPLIT, value, 0, 0, 0 }
+        : new byte[] { Mcv2Decoder.MODE_SPLIT, Mcv2Decoder.MODE_SPLIT, 0, 0, 0, value, 0, 0, 0 };
     return frame(
       size,
       size,
@@ -52,46 +77,47 @@ final class Mcv2WireFrames {
     final byte[][] records,
     final int[] levels
   ) {
-    final int roots = ((width + 31) / 32) * ((height + 31) / 32);
-    final int groups = (roots + 31) / 32;
-    final int checkpoints = (groups + 7) / 8;
-    final int countsAt = 20 + 4 * (groups + checkpoints);
-    final int walksAt = countsAt + 12 + descriptors.length;
-    final int start = walksAt + 4 * ((descriptors.length + 7) / 8);
+    final int roots = Math.ceilDiv(width, Mcv2Decoder.ROOT_SIZE) * Math.ceilDiv(height, Mcv2Decoder.ROOT_SIZE);
+    final int groups = Math.ceilDiv(roots, Mcv2Decoder.GROUP_ROOTS);
+    final int checkpoints = Math.ceilDiv(groups, Mcv2Decoder.CHECKPOINT_GROUPS);
+    final int countsAt = HEADER_BYTES + Integer.BYTES * (groups + checkpoints);
+    final int descriptorsAt = countsAt + Integer.BYTES * LEVEL_COUNT;
+    final int walksAt = descriptorsAt + descriptors.length;
+    final int start = walksAt + Integer.BYTES * Math.ceilDiv(descriptors.length, Mcv2Decoder.WALK_SPAN);
     int length = start;
     for (final byte[] record : records) {
       length += record.length;
     }
 
     final byte[] data = new byte[length];
-    put(data, 0, 0x3256434D, 4);
-    data[4] = 3;
-    put(data, 8, width, 2);
-    put(data, 10, height, 2);
-    put(data, 12, 1, 4);
-    put(data, 16, kind == Mcv2FrameKind.KEYFRAME ? 1 : 0, 4);
+    put(data, MAGIC_OFFSET, MAGIC, Integer.BYTES);
+    data[VERSION_OFFSET] = VERSION;
+    put(data, WIDTH_OFFSET, width, Short.BYTES);
+    put(data, HEIGHT_OFFSET, height, Short.BYTES);
+    put(data, FRAME_ID_OFFSET, FRAME_ID, Integer.BYTES);
+    put(data, REFERENCE_ID_OFFSET, kind == Mcv2FrameKind.KEYFRAME ? FRAME_ID : PREVIOUS_FRAME_ID, Integer.BYTES);
     for (int index = 0; index < levels[0]; index++) {
-      data[20 + index / 8] |= (byte) (1 << (index % 8));
+      data[HEADER_BYTES + index / Byte.SIZE] |= (byte) (1 << (index % Byte.SIZE));
     }
 
     for (int index = 0; index < checkpoints; index++) {
-      put(data, 20 + groups * 4 + index * 4, Math.min(levels[0], index * 256), 4);
+      put(data, HEADER_BYTES + groups * Integer.BYTES + index * Integer.BYTES, Math.min(levels[0], index * CHECKPOINT_INTERVAL), Integer.BYTES);
     }
 
-    for (int index = 0; index < 3; index++) {
-      put(data, countsAt + 4 * index, levels[index], 4);
+    for (int index = 0; index < LEVEL_COUNT; index++) {
+      put(data, countsAt + Integer.BYTES * index, levels[index], Integer.BYTES);
     }
 
-    System.arraycopy(descriptors, 0, data, countsAt + 12, descriptors.length);
+    System.arraycopy(descriptors, 0, data, descriptorsAt, descriptors.length);
     int cursor = 0;
     int splits = 0;
     for (int index = 0; index < descriptors.length; index++) {
-      if (index % 8 == 0) {
-        put(data, walksAt + (index / 8) * 4, cursor | ((long) splits << 17), 4);
+      if (index % Mcv2Decoder.WALK_SPAN == 0) {
+        put(data, walksAt + (index / Mcv2Decoder.WALK_SPAN) * Integer.BYTES, cursor | ((long) splits << Mcv2Decoder.CURSOR_BITS), Integer.BYTES);
       }
       System.arraycopy(records[index], 0, data, start + cursor, records[index].length);
       cursor += records[index].length;
-      if ((descriptors[index] & 31) == 6) {
+      if ((descriptors[index] & MODE_MASK) == Mcv2Decoder.MODE_SPLIT) {
         splits++;
       }
     }
@@ -101,11 +127,12 @@ final class Mcv2WireFrames {
 
   static void put(final byte[] data, final int offset, final long value, final int bytes) {
     for (int index = 0; index < bytes; index++) {
-      data[offset + index] = (byte) (value >>> (8 * index));
+      data[offset + index] = (byte) (value >>> (Byte.SIZE * index));
     }
   }
 
   static long readUnsignedInt(final byte[] data, final int offset) {
-    return (data[offset] & 255L) | ((data[offset + 1] & 255L) << 8) | ((data[offset + 2] & 255L) << 16) | ((data[offset + 3] & 255L) << 24);
+    final ByteBuffer buffer = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN);
+    return Integer.toUnsignedLong(buffer.getInt(offset));
   }
 }

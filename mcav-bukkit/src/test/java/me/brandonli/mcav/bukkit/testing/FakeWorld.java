@@ -84,8 +84,8 @@ public final class FakeWorld {
   }
 
   public BlockData getOriginalBlock(final int blockX, final int blockY, final int blockZ) {
-    final String key = blockX + "," + blockY + "," + blockZ;
-    return this.blocks.computeIfAbsent(key, name -> mock(BlockData.class, "block " + name));
+    final String key = "%s,%s,%s".formatted(blockX, blockY, blockZ);
+    return this.blocks.computeIfAbsent(key, name -> mock(BlockData.class, "block %s".formatted(name)));
   }
 
   public World getWorld() {

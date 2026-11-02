@@ -40,7 +40,16 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class GeneratedMedia {
 
   private static final Duration PROCESS_TIMEOUT = Duration.ofMinutes(2);
+  private static final Duration POLL_INTERVAL = Duration.ofMillis(20);
+  private static final Duration TERMINATION_GRACE_PERIOD = Duration.ofSeconds(3);
+
   private static final int LOG_LIMIT_BYTES = 65_536;
+
+  private static final char EXTENSION_SEPARATOR = '.';
+  private static final String DEFAULT_EXTENSION = ".tmp";
+  private static final String TEMPORARY_FILE_PREFIX = "mcav-generating-";
+  private static final String LOG_SUFFIX = ".log";
+
   private static final Set<Path> COMPLETED = new HashSet<>();
 
   private GeneratedMedia() {
@@ -81,13 +90,13 @@ public final class GeneratedMedia {
     final Path parent = Objects.requireNonNull(destination.getParent(), "A media file must have a directory!");
     Files.createDirectories(parent);
     final String name = destination.getFileName().toString();
-    final int dot = name.lastIndexOf('.');
-    final String extension = dot >= 0 ? name.substring(dot) : ".tmp";
-    final Path temporary = Files.createTempFile(parent, "mcav-generating-", extension);
+    final int dot = name.lastIndexOf(EXTENSION_SEPARATOR);
+    final String extension = dot >= 0 ? name.substring(dot) : DEFAULT_EXTENSION;
+    final Path temporary = Files.createTempFile(parent, TEMPORARY_FILE_PREFIX, extension);
     Path log = null;
     Throwable primary = null;
     try {
-      log = Files.createTempFile(parent, "mcav-generating-", ".log");
+      log = Files.createTempFile(parent, TEMPORARY_FILE_PREFIX, LOG_SUFFIX);
       final List<String> arguments = command.apply(temporary);
       runProcess(arguments, log, timeout);
 
@@ -159,7 +168,7 @@ public final class GeneratedMedia {
         throw new IOException(message);
       }
 
-      final long poll = Math.min(remaining, TimeUnit.MILLISECONDS.toNanos(20));
+      final long poll = Math.min(remaining, POLL_INTERVAL.toNanos());
       exited = process.waitFor(poll, TimeUnit.NANOSECONDS);
     }
   }
@@ -184,7 +193,7 @@ public final class GeneratedMedia {
     process.destroyForcibly();
     try {
       // A bounded grace period lets Windows release handles before temporary files are deleted.
-      process.waitFor(3, TimeUnit.SECONDS);
+      process.waitFor(TERMINATION_GRACE_PERIOD);
     } catch (final InterruptedException exception) {
       final Thread current = Thread.currentThread();
       current.interrupt();

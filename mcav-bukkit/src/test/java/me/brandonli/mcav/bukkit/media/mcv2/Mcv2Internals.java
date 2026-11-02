@@ -31,6 +31,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 final class Mcv2Internals {
 
+  static final Class<?> KERNELS_TYPE = nested("Kernels");
+  static final Class<?> JAVA_KERNELS_TYPE = nested("JavaKernels");
+
   private Mcv2Internals() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
@@ -107,17 +110,19 @@ final class Mcv2Internals {
   }
 
   static Kernels javaKernels() {
-    final Class<?> type = nested("Kernels");
-    final Object target = construct(nested("JavaKernels"), new Class<?>[0]);
+    final Object target = construct(JAVA_KERNELS_TYPE, new Class<?>[0]);
     return (Kernels) Proxy.newProxyInstance(Kernels.class.getClassLoader(), new Class<?>[] { Kernels.class }, (_, method, arguments) ->
-      call(type, target, method.getName(), method.getParameterTypes(), arguments == null ? new Object[0] : arguments)
+      call(KERNELS_TYPE, target, method.getName(), method.getParameterTypes(), arguments == null ? new Object[0] : arguments)
     );
   }
 
   static final class Workers {
 
-    private static final Class<?> TYPE = nested("Workers");
-    static final Workers SEQUENTIAL = new Workers(new ForkJoinPool(1), 1);
+    static final Class<?> TYPE = nested("Workers");
+
+    private static final int SEQUENTIAL_THREADS = 1;
+    static final Workers SEQUENTIAL = new Workers(new ForkJoinPool(SEQUENTIAL_THREADS), SEQUENTIAL_THREADS);
+
     private final Object value;
 
     Workers(final ForkJoinPool pool, final int threads) {

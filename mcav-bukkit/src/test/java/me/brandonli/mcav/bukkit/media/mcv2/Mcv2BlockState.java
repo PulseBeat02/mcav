@@ -28,6 +28,7 @@ final class Mcv2BlockState {
   private static final Class<?> BUFFERS = Mcv2Internals.nested("Buffers");
   private static final Class<?> FRAME = Mcv2Internals.nested("FrameState");
   private static final Class<?> CODER = Mcv2Internals.nested("BlockCoder");
+
   static final int NO_VECTOR = (int) Mcv2Internals.field(Mcv2.class, null, "NO_VECTOR");
 
   private static final String HALF_MEMBER = "half";
@@ -57,6 +58,9 @@ final class Mcv2BlockState {
 
     final boolean keyframe = kind == Mcv2FrameKind.KEYFRAME;
     final boolean fast = thresholds == Thresholds.FAST;
+    final int columns = Math.ceilDiv(width, Mcv2Decoder.SMALLEST_BLOCK);
+    final int rows = Math.ceilDiv(height, Mcv2Decoder.SMALLEST_BLOCK);
+    final int[] motions = previous == null ? new int[columns * rows] : previous;
     this.frame = Mcv2Internals.construct(
       FRAME,
       new Class<?>[] {
@@ -78,7 +82,7 @@ final class Mcv2BlockState {
       keyframe,
       fast,
       lambda,
-      previous == null ? new int[((width + 7) / 8) * ((height + 7) / 8)] : previous,
+      motions,
       this.buffers,
       new byte[source.length]
     );
@@ -89,7 +93,7 @@ final class Mcv2BlockState {
       Mcv2.class,
       null,
       "halve",
-      new Class<?>[] { byte[].class, int.class, int.class, Mcv2Internals.nested("Workers"), byte[].class },
+      new Class<?>[] { byte[].class, int.class, int.class, Workers.TYPE, byte[].class },
       picture,
       width,
       height,
@@ -100,10 +104,10 @@ final class Mcv2BlockState {
   }
 
   Object code(final int size, final int level, final int block, final int left, final int top, final int parent) {
-    final Object kernels = Mcv2Internals.construct(Mcv2Internals.nested("JavaKernels"), new Class<?>[0]);
+    final Object kernels = Mcv2Internals.construct(Mcv2Internals.JAVA_KERNELS_TYPE, new Class<?>[0]);
     final Object coder = Mcv2Internals.construct(
       CODER,
-      new Class<?>[] { FRAME, int.class, Mcv2Internals.nested("Kernels") },
+      new Class<?>[] { FRAME, int.class, Mcv2Internals.KERNELS_TYPE },
       this.frame,
       size,
       kernels

@@ -85,7 +85,8 @@ final class NativeTesting {
   }
 
   private static byte @Nullable [] readLibrary(final String platform) {
-    final String resource = NATIVES_RESOURCE_FOLDER + platform + PATH_SEPARATOR + Natives.libraryName(platform);
+    final String libraryName = Natives.libraryName(platform);
+    final String resource = "%s%s%s%s".formatted(NATIVES_RESOURCE_FOLDER, platform, PATH_SEPARATOR, libraryName);
     return Natives.read(Mcv2.class.getResourceAsStream(resource));
   }
 
@@ -112,10 +113,10 @@ final class NativeTesting {
       Natives.platform(System.getProperty(OS_NAME_PROPERTY, ""), System.getProperty(OS_ARCHITECTURE_PROPERTY, ""))
     );
     final String digest = Mcv2.NATIVE_DIGESTS.get(platform);
-    return SymbolLookup.libraryLookup(
-      NATIVES_FOLDER.resolve("mcv2kernels-" + digest + "-" + Natives.libraryName(platform)),
-      Arena.global()
-    );
+    final String libraryName = Natives.libraryName(platform);
+    final String fileName = "mcv2kernels-%s-%s".formatted(digest, libraryName);
+    final Path path = NATIVES_FOLDER.resolve(fileName);
+    return SymbolLookup.libraryLookup(path, Arena.global());
   }
 
   static NativeKernels kernels(final Level level) {
