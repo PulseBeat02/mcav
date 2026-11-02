@@ -203,7 +203,7 @@ final class DebianPinGenerator {
   private JsonObject toDownload(final Architecture architecture, final IndexEntry entry) {
     final JsonObject platform = new JsonObject();
     platform.addProperty("os", "LINUX");
-    platform.addProperty("arch", architecture.getArch());
+    platform.addProperty("arch", architecture.getArchitecture());
     platform.addProperty("bits", "BITS_64");
     final URI snapshot = entry.snapshot();
     final URI url = snapshot.resolve(entry.filename());
@@ -374,19 +374,19 @@ final class DebianPinGenerator {
     ARM64("arm64", "ARM");
 
     private final String debianName;
-    private final String arch;
+    private final String architecture;
 
-    Architecture(final String debianName, final String arch) {
+    Architecture(final String debianName, final String architecture) {
       this.debianName = debianName;
-      this.arch = arch;
+      this.architecture = architecture;
     }
 
     String getDebianName() {
       return this.debianName;
     }
 
-    String getArch() {
-      return this.arch;
+    String getArchitecture() {
+      return this.architecture;
     }
   }
 

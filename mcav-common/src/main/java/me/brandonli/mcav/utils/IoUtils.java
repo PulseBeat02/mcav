@@ -658,9 +658,9 @@ public final class IoUtils {
     try {
       final PlatformFields platformFields = fields.platform();
       final Os os = platformFields.os();
-      final Arch arch = platformFields.arch();
+      final Arch architecture = platformFields.arch();
       final Bits bits = platformFields.bits();
-      final Platform platform = Platform.ofPlatform(os, arch, bits);
+      final Platform platform = Platform.ofPlatform(os, architecture, bits);
       final String url = fields.url();
       final @Nullable String hash = fields.hash();
       return new Download(platform, url, hash);

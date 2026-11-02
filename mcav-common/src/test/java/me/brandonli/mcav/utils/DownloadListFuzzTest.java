@@ -60,10 +60,10 @@ final class DownloadListFuzzTest {
     assertNotNull(platform);
 
     final Os os = platform.getOs();
-    final Arch arch = platform.getArch();
+    final Arch architecture = platform.getArch();
     final Bits bits = platform.getBits();
     assertNotNull(os);
-    assertNotNull(arch);
+    assertNotNull(architecture);
     assertNotNull(bits);
 
     final String url = download.getUrl();

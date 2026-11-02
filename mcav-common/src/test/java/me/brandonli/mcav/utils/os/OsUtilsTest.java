@@ -94,7 +94,7 @@ final class OsUtilsTest {
   @Test
   void shouldAgreeWithJnaAboutTheRunningSystem() {
     final Os os = OsUtils.getOs();
-    final Arch arch = OsUtils.getArch();
+    final Arch architecture = OsUtils.getArch();
     final Bits bits = OsUtils.getBits();
     final boolean isWindows = isWindows();
     final boolean isMac = isMac();
@@ -115,10 +115,10 @@ final class OsUtilsTest {
     final boolean onFreeBsd = os == Os.FREEBSD;
     assertEquals(freeBsd, onFreeBsd);
 
-    final boolean onIntel = arch == Arch.X86;
+    final boolean onIntel = architecture == Arch.X86;
     assertEquals(isIntel, onIntel);
 
-    final boolean onArm = arch == Arch.ARM;
+    final boolean onArm = architecture == Arch.ARM;
     assertEquals(isArm, onArm);
 
     final boolean onSixtyFourBit = bits == Bits.BITS_64;

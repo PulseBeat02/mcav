@@ -35,31 +35,31 @@ public final class Platform {
   private static final Platform CURRENT_PLATFORM = detectCurrentPlatform();
 
   private final Os os;
-  private final Arch arch;
+  private final Arch architecture;
   private final Bits bits;
 
-  Platform(final Os os, final Arch arch, final Bits bits) {
+  Platform(final Os os, final Arch architecture, final Bits bits) {
     Preconditions.checkNotNull(os, "OS must not be null!");
-    Preconditions.checkNotNull(arch, "Arch must not be null!");
+    Preconditions.checkNotNull(architecture, "Arch must not be null!");
     Preconditions.checkNotNull(bits, "Bits must not be null!");
 
     this.os = os;
-    this.arch = arch;
+    this.architecture = architecture;
     this.bits = bits;
   }
 
   /**
    * Creates a platform.
    *
-   * @param os   the operating system
-   * @param arch the CPU architecture family
-   * @param bits the bitness
+   * @param os           the operating system
+   * @param architecture the CPU architecture family
+   * @param bits         the bitness
    * @return the platform
    * @throws NullPointerException if any platform component is null
    * @since 1.0.0
    */
-  public static Platform ofPlatform(final Os os, final Arch arch, final Bits bits) {
-    return new Platform(os, arch, bits);
+  public static Platform ofPlatform(final Os os, final Arch architecture, final Bits bits) {
+    return new Platform(os, architecture, bits);
   }
 
   /**
@@ -74,9 +74,9 @@ public final class Platform {
 
   private static Platform detectCurrentPlatform() {
     final Os os = OsUtils.getOs();
-    final Arch arch = OsUtils.getArch();
+    final Arch architecture = OsUtils.getArch();
     final Bits bits = OsUtils.getBits();
-    return new Platform(os, arch, bits);
+    return new Platform(os, architecture, bits);
   }
 
   /**
@@ -96,7 +96,7 @@ public final class Platform {
    * @since 1.0.0
    */
   public Arch getArch() {
-    return this.arch;
+    return this.architecture;
   }
 
   /**
@@ -117,7 +117,7 @@ public final class Platform {
    * @since 1.0.0
    */
   public boolean isKnown() {
-    return this.os != Os.OTHER && this.arch != Arch.OTHER;
+    return this.os != Os.OTHER && this.architecture != Arch.OTHER;
   }
 
   /**
@@ -137,7 +137,7 @@ public final class Platform {
       return false;
     }
 
-    return this.os == platform.os && this.arch == platform.arch && this.bits == platform.bits;
+    return this.os == platform.os && this.architecture == platform.architecture && this.bits == platform.bits;
   }
 
   /**
@@ -148,7 +148,7 @@ public final class Platform {
    */
   @Override
   public int hashCode() {
-    return Objects.hash(this.os, this.arch, this.bits);
+    return Objects.hash(this.os, this.architecture, this.bits);
   }
 
   /**
@@ -159,6 +159,6 @@ public final class Platform {
    */
   @Override
   public String toString() {
-    return MoreObjects.toStringHelper(this).add("os", this.os).add("arch", this.arch).add("bits", this.bits).toString();
+    return MoreObjects.toStringHelper(this).add("os", this.os).add("arch", this.architecture).add("bits", this.bits).toString();
   }
 }

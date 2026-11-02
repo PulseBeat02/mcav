@@ -181,9 +181,9 @@ public final class DependencyLoader {
 
   private static boolean hasBundledNatives(final Platform platform) {
     final Os os = platform.getOs();
-    final Arch arch = platform.getArch();
+    final Arch architecture = platform.getArch();
     return switch (os) {
-      case WINDOWS -> arch != Arch.ARM;
+      case WINDOWS -> architecture != Arch.ARM;
       case MAC, LINUX -> true;
       case FREEBSD, OTHER -> false;
     };
@@ -285,9 +285,9 @@ public final class DependencyLoader {
 
   private static boolean hasDebianGtk2(final Platform platform) {
     final Os os = platform.getOs();
-    final Arch arch = platform.getArch();
+    final Arch architecture = platform.getArch();
     final Bits bits = platform.getBits();
-    return os == Os.LINUX && bits == Bits.BITS_64 && arch != Arch.OTHER;
+    return os == Os.LINUX && bits == Bits.BITS_64 && architecture != Arch.OTHER;
   }
 
   private static void installGtk2(final Supplier<DebianLibraryInstaller> installerFactory) {

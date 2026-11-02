@@ -32,10 +32,10 @@ final class PlatformTest {
   void shouldStoreItsParts() {
     final Platform platform = Platform.ofPlatform(Os.MAC, Arch.ARM, Bits.BITS_64);
     final Os os = platform.getOs();
-    final Arch arch = platform.getArch();
+    final Arch architecture = platform.getArch();
     final Bits bits = platform.getBits();
     assertEquals(Os.MAC, os);
-    assertEquals(Arch.ARM, arch);
+    assertEquals(Arch.ARM, architecture);
     assertEquals(Bits.BITS_64, bits);
   }
 
@@ -88,7 +88,7 @@ final class PlatformTest {
   void shouldDescribeTheRunningSystemLikeJna() {
     final Platform current = Platform.getCurrentPlatform();
     final Os os = current.getOs();
-    final Arch arch = current.getArch();
+    final Arch architecture = current.getArch();
     final Bits bits = current.getBits();
     final boolean isWindows = com.sun.jna.Platform.isWindows(); // fqn: Platform is also a class of this package
     final boolean isMac = com.sun.jna.Platform.isMac(); // fqn: Platform is also a class of this package
@@ -101,10 +101,10 @@ final class PlatformTest {
     final boolean mac = os == Os.MAC;
     assertEquals(isMac, mac);
 
-    final boolean intel = arch == Arch.X86;
+    final boolean intel = architecture == Arch.X86;
     assertEquals(isIntel, intel);
 
-    final boolean arm = arch == Arch.ARM;
+    final boolean arm = architecture == Arch.ARM;
     assertEquals(isArm, arm);
 
     final boolean sixtyFourBit = bits == Bits.BITS_64;

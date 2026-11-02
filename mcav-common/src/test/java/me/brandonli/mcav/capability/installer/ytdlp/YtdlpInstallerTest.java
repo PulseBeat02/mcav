@@ -560,8 +560,8 @@ final class YtdlpInstallerTest {
 
   @ParameterizedTest
   @EnumSource(value = Arch.class, names = { "X86", "ARM" })
-  void shouldFailNamingFreeBsdWhereYtdlpHasNoBuild(final Arch arch) {
-    final Platform freeBsd = Platform.ofPlatform(Os.FREEBSD, arch, Bits.BITS_64);
+  void shouldFailNamingFreeBsdWhereYtdlpHasNoBuild(final Arch architecture) {
+    final Platform freeBsd = Platform.ofPlatform(Os.FREEBSD, architecture, Bits.BITS_64);
     try (final MockedStatic<Platform> platforms = Mockito.mockStatic(Platform.class, Mockito.CALLS_REAL_METHODS)) {
       platforms.when(Platform::getCurrentPlatform).thenReturn(freeBsd);
       final YtdlpInstaller installer = YtdlpInstaller.create(this.folder);
