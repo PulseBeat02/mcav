@@ -28,9 +28,11 @@ import net.jqwik.api.constraints.LongRange;
 
 final class SeekPositionPropertyTest {
 
+  private static final long MILLISECONDS_PER_SECOND = 1_000L;
+
   @Property
   void shouldReadBackEveryFormattedTime(@ForAll @LongRange(min = 0, max = SeekPosition.MAXIMUM_MILLISECONDS) final long milliseconds) {
-    final long whole = milliseconds - (milliseconds % 1_000L);
+    final long whole = milliseconds - (milliseconds % MILLISECONDS_PER_SECOND);
     final SeekPosition absolute = SeekPosition.parse(SeekPosition.format(whole));
     final SeekPosition forward = SeekPosition.parse("+" + SeekPosition.format(whole));
     final SeekPosition back = SeekPosition.parse("-" + SeekPosition.format(whole));
@@ -49,7 +51,12 @@ final class SeekPositionPropertyTest {
   void shouldReadSecondsWithTheirMilliseconds(
     @ForAll @LongRange(min = 0, max = SeekPosition.MAXIMUM_MILLISECONDS) final long milliseconds
   ) {
-    final String text = String.format(Locale.ROOT, "%d.%03d", milliseconds / 1_000L, milliseconds % 1_000L);
+    final String text = String.format(
+      Locale.ROOT,
+      "%d.%03d",
+      milliseconds / MILLISECONDS_PER_SECOND,
+      milliseconds % MILLISECONDS_PER_SECOND
+    );
     final SeekPosition position = SeekPosition.parse(text);
     assertNotNull(position, text);
 

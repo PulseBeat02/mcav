@@ -63,6 +63,28 @@ import xyz.jpenilla.gremlin.runtime.DependencySet;
  */
 final class MCAVLoaderTest {
 
+  private static final String LIBRARY_COORDINATE = "com.example:library:1.0@jar";
+  private static final String LIBRARY_JAR_PATH = "com/example/library/1.0/library-1.0.jar";
+  private static final String STALE_LIBRARY_JAR_PATH = "com/example/library/0.9/library-0.9.jar";
+  private static final String STALE_LIBRARY_LAST_USED_PATH = "com/example/library/0.9/library-0.9.jar.last-used.txt";
+
+  private static final String DEPENDENCIES_RESOURCE_PATH = "mcav/plugin/dependencies.txt";
+
+  private static final String MCAV_CLASS_NAME = "me/brandonli/mcav/MCAV";
+  private static final String MCV2_RESULT_CLASS_NAME = "me/brandonli/mcav/bukkit/media/mcv2/Mcv2Result";
+
+  private static final String CACHE_FOLDER_PATH = "libraries/mcav";
+
+  private static final String SHA256_PATTERN = "[0-9a-f]{64}";
+
+  private static final String OLD_BUKKIT_JAR_FILE_NAME = "mcav-bukkit-1.0.0-20260510.193149-206.jar";
+  private static final String BUKKIT_JAR_FILE_NAME = "mcav-bukkit.jar";
+  private static final String COMMON_JAR_FILE_NAME = "mcav-common.jar";
+  private static final String MISSING_JAR_FILE_NAME = "missing.jar";
+  private static final String EMPTY_JAR_FILE_NAME = "empty.jar";
+
+  private static final byte[] EMPTY_ZIP_ARCHIVE = { 0x50, 0x4B, 0x05, 0x06, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+
   @TempDir
   private Path cache;
 
@@ -83,14 +105,14 @@ final class MCAVLoaderTest {
   void shouldCacheTheLibrariesInTheServerLibraryFolder() {
     final MCAVLoader loader = new MCAVLoader();
     final Path libraries = loader.getLibraries();
-    final Path expected = Path.of("libraries/mcav");
+    final Path expected = Path.of(CACHE_FOLDER_PATH);
     assertEquals(expected, libraries);
   }
 
   @Test
   void shouldReadTheBundledDependencyManifest() {
     final ClassLoader loader = MCAVLoader.class.getClassLoader();
-    final DependencySet bundled = DependencySet.readFromClasspathResource(loader, "mcav/plugin/dependencies.txt");
+    final DependencySet bundled = DependencySet.readFromClasspathResource(loader, DEPENDENCIES_RESOURCE_PATH);
     final Dependency common = bundled
       .dependencies()
       .stream()
@@ -101,23 +123,22 @@ final class MCAVLoaderTest {
     final String extension = common.extension();
     assertEquals("jar", extension);
 
-    final boolean matches = common.sha256().matches("[0-9a-f]{64}");
+    final boolean matches = common.sha256().matches(SHA256_PATTERN);
     assertTrue(matches);
   }
 
   @Test
   void shouldPutTheResolvedLibrariesOnTheClasspath() throws IOException, NoSuchAlgorithmException {
-    final Path jar = this.cache.resolve("com/example/library/1.0/library-1.0.jar");
+    final Path jar = this.cache.resolve(LIBRARY_JAR_PATH);
     final Path parent = jar.getParent();
     Files.createDirectories(parent);
-    final byte[] content = { 0x50, 0x4B, 0x05, 0x06, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-    Files.write(jar, content);
-    final String hash = sha256(content);
-    final Dependency dependency = Dependency.parse("com.example:library:1.0@jar", hash);
+    Files.write(jar, EMPTY_ZIP_ARCHIVE);
+    final String hash = sha256(EMPTY_ZIP_ARCHIVE);
+    final Dependency dependency = Dependency.parse(LIBRARY_COORDINATE, hash);
     final DependencySet set = dependencies(List.of(dependency));
     final PluginClasspathBuilder builder = mock(PluginClasspathBuilder.class);
     try (final MockedStatic<DependencySet> sets = Mockito.mockStatic(DependencySet.class, Mockito.CALLS_REAL_METHODS)) {
-      sets.when(() -> DependencySet.readFromClasspathResource(any(ClassLoader.class), eq("mcav/plugin/dependencies.txt"))).thenReturn(set);
+      sets.when(() -> DependencySet.readFromClasspathResource(any(ClassLoader.class), eq(DEPENDENCIES_RESOURCE_PATH))).thenReturn(set);
       final MCAVLoader loader = new MCAVLoader(this.cache, List.of());
       loader.classloader(builder);
     }
@@ -132,18 +153,17 @@ final class MCAVLoaderTest {
 
   @Test
   void shouldRemoveCachedLibrariesThatAreNoLongerListed() throws IOException, NoSuchAlgorithmException {
-    final Path jar = this.cache.resolve("com/example/library/1.0/library-1.0.jar");
+    final Path jar = this.cache.resolve(LIBRARY_JAR_PATH);
     final Path parent = jar.getParent();
     Files.createDirectories(parent);
-    final byte[] content = { 0x50, 0x4B, 0x05, 0x06, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-    Files.write(jar, content);
-    final Path stale = this.cache.resolve("com/example/library/0.9/library-0.9.jar");
+    Files.write(jar, EMPTY_ZIP_ARCHIVE);
+    final Path stale = this.cache.resolve(STALE_LIBRARY_JAR_PATH);
     final Path staleParent = stale.getParent();
     Files.createDirectories(staleParent);
-    Files.write(stale, content);
+    Files.write(stale, EMPTY_ZIP_ARCHIVE);
     // Gremlin deletes a cached jar only once it was last used longer ago than its retention window of one hour, which
     // it reads from a file next to the jar; a jar without that file is always kept
-    final Path staleLastUsed = this.cache.resolve("com/example/library/0.9/library-0.9.jar.last-used.txt");
+    final Path staleLastUsed = this.cache.resolve(STALE_LIBRARY_LAST_USED_PATH);
     final Duration beyondTheWindow = Duration.ofHours(2);
     final long windowMilliseconds = beyondTheWindow.toMillis();
     final long now = System.currentTimeMillis();
@@ -151,13 +171,13 @@ final class MCAVLoaderTest {
     final String lastUsedText = String.valueOf(lastUsedMilliseconds);
     Files.writeString(staleLastUsed, lastUsedText);
 
-    final String hash = sha256(content);
-    final Dependency dependency = Dependency.parse("com.example:library:1.0@jar", hash);
+    final String hash = sha256(EMPTY_ZIP_ARCHIVE);
+    final Dependency dependency = Dependency.parse(LIBRARY_COORDINATE, hash);
     final List<Dependency> listed = List.of(dependency);
     final DependencySet set = dependencies(listed);
     final PluginClasspathBuilder builder = mock(PluginClasspathBuilder.class);
     try (final MockedStatic<DependencySet> sets = Mockito.mockStatic(DependencySet.class, Mockito.CALLS_REAL_METHODS)) {
-      sets.when(() -> DependencySet.readFromClasspathResource(any(ClassLoader.class), eq("mcav/plugin/dependencies.txt"))).thenReturn(set);
+      sets.when(() -> DependencySet.readFromClasspathResource(any(ClassLoader.class), eq(DEPENDENCIES_RESOURCE_PATH))).thenReturn(set);
       final MCAVLoader loader = new MCAVLoader(this.cache, List.of());
       loader.classloader(builder);
     }
@@ -175,7 +195,7 @@ final class MCAVLoaderTest {
     final DependencySet set = dependencies(List.of());
     final PluginClasspathBuilder builder = mock(PluginClasspathBuilder.class);
     try (final MockedStatic<DependencySet> sets = Mockito.mockStatic(DependencySet.class, Mockito.CALLS_REAL_METHODS)) {
-      sets.when(() -> DependencySet.readFromClasspathResource(any(ClassLoader.class), eq("mcav/plugin/dependencies.txt"))).thenReturn(set);
+      sets.when(() -> DependencySet.readFromClasspathResource(any(ClassLoader.class), eq(DEPENDENCIES_RESOURCE_PATH))).thenReturn(set);
       final MCAVLoader loader = new MCAVLoader(this.cache, List.of());
       loader.classloader(builder);
     }
@@ -196,8 +216,8 @@ final class MCAVLoaderTest {
 
   @Test
   void shouldRefuseModulesOlderThanThePlugin() throws IOException {
-    final Path old = this.jarOf("mcav-bukkit-1.0.0-20260510.193149-206.jar", "me/brandonli/mcav/bukkit/BukkitModule");
-    final List<String> required = List.of("me/brandonli/mcav/bukkit/BukkitModule", "me/brandonli/mcav/bukkit/media/mcv2/Mcv2Result");
+    final Path old = this.jarOf(OLD_BUKKIT_JAR_FILE_NAME, "me/brandonli/mcav/bukkit/BukkitModule");
+    final List<String> required = List.of("me/brandonli/mcav/bukkit/BukkitModule", MCV2_RESULT_CLASS_NAME);
     final IllegalStateException refused = assertThrows(IllegalStateException.class, () -> MCAVLoader.checkModules(required, List.of(old)));
 
     final String message = refused.getMessage();
@@ -208,15 +228,15 @@ final class MCAVLoaderTest {
 
   @Test
   void shouldAcceptModulesThatHaveEveryClassThePluginUses() throws IOException {
-    final Path bukkit = this.jarOf("mcav-bukkit.jar", "me/brandonli/mcav/bukkit/media/mcv2/Mcv2Result");
-    final Path common = this.jarOf("mcav-common.jar", "me/brandonli/mcav/MCAV");
-    MCAVLoader.checkModules(List.of("me/brandonli/mcav/MCAV", "me/brandonli/mcav/bukkit/media/mcv2/Mcv2Result"), List.of(bukkit, common));
-    assertThrows(UncheckedIOException.class, () -> MCAVLoader.checkModules(List.of(), List.of(this.cache.resolve("missing.jar"))));
+    final Path bukkit = this.jarOf(BUKKIT_JAR_FILE_NAME, MCV2_RESULT_CLASS_NAME);
+    final Path common = this.jarOf(COMMON_JAR_FILE_NAME, MCAV_CLASS_NAME);
+    MCAVLoader.checkModules(List.of(MCAV_CLASS_NAME, MCV2_RESULT_CLASS_NAME), List.of(bukkit, common));
+    assertThrows(UncheckedIOException.class, () -> MCAVLoader.checkModules(List.of(), List.of(this.cache.resolve(MISSING_JAR_FILE_NAME))));
   }
 
   @Test
   void shouldNameAtMostFiveOfTheMissingClasses() throws IOException {
-    final Path empty = this.jarOf("empty.jar");
+    final Path empty = this.jarOf(EMPTY_JAR_FILE_NAME);
     final List<String> required = List.of("a/A", "b/B", "c/C", "d/D", "e/E", "f/F");
     final IllegalStateException refused = assertThrows(IllegalStateException.class, () ->
       MCAVLoader.checkModules(required, List.of(empty))
@@ -228,16 +248,15 @@ final class MCAVLoaderTest {
 
   @Test
   void shouldCheckTheModulesBeforeTheyAreAddedToTheClasspath() throws IOException, NoSuchAlgorithmException {
-    final Path jar = this.cache.resolve("com/example/library/1.0/library-1.0.jar");
+    final Path jar = this.cache.resolve(LIBRARY_JAR_PATH);
     Files.createDirectories(jar.getParent());
-    final byte[] content = { 0x50, 0x4B, 0x05, 0x06, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-    Files.write(jar, content);
-    final Dependency dependency = Dependency.parse("com.example:library:1.0@jar", sha256(content));
+    Files.write(jar, EMPTY_ZIP_ARCHIVE);
+    final Dependency dependency = Dependency.parse(LIBRARY_COORDINATE, sha256(EMPTY_ZIP_ARCHIVE));
     final DependencySet set = dependencies(List.of(dependency));
     final PluginClasspathBuilder builder = mock(PluginClasspathBuilder.class);
     try (final MockedStatic<DependencySet> sets = Mockito.mockStatic(DependencySet.class, Mockito.CALLS_REAL_METHODS)) {
-      sets.when(() -> DependencySet.readFromClasspathResource(any(ClassLoader.class), eq("mcav/plugin/dependencies.txt"))).thenReturn(set);
-      final MCAVLoader loader = new MCAVLoader(this.cache, List.of("me/brandonli/mcav/bukkit/media/mcv2/Mcv2Result"));
+      sets.when(() -> DependencySet.readFromClasspathResource(any(ClassLoader.class), eq(DEPENDENCIES_RESOURCE_PATH))).thenReturn(set);
+      final MCAVLoader loader = new MCAVLoader(this.cache, List.of(MCV2_RESULT_CLASS_NAME));
       assertThrows(IllegalStateException.class, () -> loader.classloader(builder));
     }
     verify(builder, never()).addLibrary(any());
@@ -250,7 +269,7 @@ final class MCAVLoaderTest {
     final boolean contained = required.contains("me/brandonli/mcav/bukkit/media/mcv2/Mcv2PackServer");
     assertTrue(contained, "the plugin starts MCV2 screens");
 
-    final boolean requiredContained = required.contains("me/brandonli/mcav/MCAV");
+    final boolean requiredContained = required.contains(MCAV_CLASS_NAME);
     assertTrue(requiredContained);
 
     final boolean matched = required.stream().anyMatch(name -> name.startsWith("me/brandonli/mcav/plugin/"));
@@ -295,6 +314,6 @@ final class MCAVLoaderTest {
     };
 
     final List<String> requiredClasses = MCAVLoader.readRequiredClasses(listed);
-    assertEquals(List.of("me/brandonli/mcav/MCAV", "me/brandonli/mcav/MCAVApi"), requiredClasses);
+    assertEquals(List.of(MCAV_CLASS_NAME, "me/brandonli/mcav/MCAVApi"), requiredClasses);
   }
 }

@@ -63,6 +63,35 @@ final class FilterChainTest {
 
   private static final int OPAQUE = 0xff000000;
 
+  private static final int RED = 0xff0000;
+  private static final int BLUE = 0x0000ff;
+  private static final int WHITE = 0xffffff;
+
+  private static final int TOP_LEFT_COLOR = 0x123456;
+  private static final int BOTTOM_RIGHT_COLOR = 0xABCDEF;
+  private static final int QUADRANT_PICTURE_SIZE = 10;
+  private static final int QUADRANT_PIXEL_COUNT = 100;
+
+  private static final int DOT_SIZE = 5;
+
+  private static final int RGB_MASK = 0xffffff;
+  private static final int CHANNEL_MASK = 0xff;
+
+  private static final String FILTER_SEPARATOR = ",";
+  private static final String NARROW_BLUR_FILTER = "blur=1";
+  private static final String GRAYSCALE_FILTER = "grayscale";
+  private static final String INVERT_FILTER = "invert";
+
+  private static final String TEXT_FILTER_PREFIX = "text=";
+  private static final String FILLER_TEXT = "a";
+
+  private static final String PNG_SUFFIX = ".png";
+  private static final String LARGEST_OVERLAY_FILE_NAME = "largest.png";
+  private static final String BIG_OVERLAY_FILE_NAME = "big.png";
+  private static final String FOLDER_OVERLAY_FILE_NAME = "folder.png";
+  private static final String OUTSIDE_FILE_PREFIX = "outside";
+  private static final String LINK_OVERLAY_FILE_NAME = "link.png";
+
   @TempDir
   Path overlays;
 
@@ -80,10 +109,10 @@ final class FilterChainTest {
     final BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
     for (int row = 0; row < height; row++) {
       for (int column = 0; column < width; column++) {
-        image.setRGB(column, row, 0xff0000);
+        image.setRGB(column, row, RED);
       }
     }
-    ImageIO.write(image, "png", this.overlays.resolve(name + ".png").toFile());
+    ImageIO.write(image, "png", this.overlays.resolve(name + PNG_SUFFIX).toFile());
   }
 
   @Test
@@ -248,15 +277,15 @@ final class FilterChainTest {
 
   @Test
   void shouldBoundTheChain() {
-    final int size = this.parse(String.join(",", Collections.nCopies(FilterChain.MAXIMUM_FILTERS, "invert")))
+    final int size = this.parse(String.join(FILTER_SEPARATOR, Collections.nCopies(FilterChain.MAXIMUM_FILTERS, INVERT_FILTER)))
       .create()
       .size();
     assertEquals(FilterChain.MAXIMUM_FILTERS, size);
     assertThrows(IllegalArgumentException.class, () ->
-      this.parse(String.join(",", Collections.nCopies(FilterChain.MAXIMUM_FILTERS + 1, "invert")))
+      this.parse(String.join(FILTER_SEPARATOR, Collections.nCopies(FilterChain.MAXIMUM_FILTERS + 1, INVERT_FILTER)))
     );
-    assertThrows(IllegalArgumentException.class, () -> this.parse("text=" + "a".repeat(FilterChain.MAXIMUM_TEXT + 1)));
-    this.parse("text=" + "a".repeat(FilterChain.MAXIMUM_TEXT));
+    assertThrows(IllegalArgumentException.class, () -> this.parse(TEXT_FILTER_PREFIX + FILLER_TEXT.repeat(FilterChain.MAXIMUM_TEXT + 1)));
+    this.parse(TEXT_FILTER_PREFIX + FILLER_TEXT.repeat(FilterChain.MAXIMUM_TEXT));
     assertThrows(IllegalArgumentException.class, () -> this.parse("invert," + "x".repeat(FilterChain.MAXIMUM_LENGTH)));
     assertThrows(IllegalArgumentException.class, () -> FilterChain.parse("fps", this.overlays, false), "an image has no frame rate");
     assertThrows(NullPointerException.class, () -> FilterChain.parse(null, this.overlays, true));
@@ -283,7 +312,9 @@ final class FilterChainTest {
   @Test
   void shouldTakeTheLongestChainAndTheLargestOverlayAllowed() throws IOException {
     final String longest =
-      String.join(",", Collections.nCopies(6, "text=" + "a".repeat(FilterChain.MAXIMUM_TEXT))) + ",text=" + "a".repeat(23);
+      String.join(FILTER_SEPARATOR, Collections.nCopies(6, TEXT_FILTER_PREFIX + FILLER_TEXT.repeat(FilterChain.MAXIMUM_TEXT))) +
+      ",text=" +
+      FILLER_TEXT.repeat(23);
 
     final int length = longest.length();
     assertEquals(FilterChain.MAXIMUM_LENGTH, length);
@@ -291,7 +322,7 @@ final class FilterChainTest {
     final int size = this.parse(longest).create().size();
     assertEquals(7, size);
 
-    Files.write(this.overlays.resolve("largest.png"), new byte[(int) FilterChain.MAXIMUM_OVERLAY_BYTES]);
+    Files.write(this.overlays.resolve(LARGEST_OVERLAY_FILE_NAME), new byte[(int) FilterChain.MAXIMUM_OVERLAY_BYTES]);
 
     final boolean matches = !this.parse("overlay=largest").isEmpty();
     assertTrue(matches);
@@ -299,7 +330,7 @@ final class FilterChainTest {
     final boolean empty = FilterChain.NONE.isEmpty();
     assertTrue(empty);
 
-    final boolean secondMatches = !this.parse("grayscale").isEmpty();
+    final boolean secondMatches = !this.parse(GRAYSCALE_FILTER).isEmpty();
     assertTrue(secondMatches);
   }
 
@@ -308,57 +339,57 @@ final class FilterChainTest {
     final ImageBuffer brighter = picture(2, 2, 0x102030);
     this.parse("luminance=3:0").apply(brighter);
 
-    final int matches = brighter.getPixels()[0] & 0xffffff;
+    final int matches = brighter.getPixels()[0] & RGB_MASK;
     assertEquals(0x306090, matches, "the largest contrast");
 
     final ImageBuffer outlined = picture(4, 4, 0);
     this.parse("rectangle=0:0:100:100:123456").apply(outlined);
 
-    final int secondMatches = outlined.getPixels()[0] & 0xffffff;
+    final int secondMatches = outlined.getPixels()[0] & RGB_MASK;
     assertEquals(0x123456, secondMatches);
 
-    final int[] dot = new int[5 * 5];
+    final int[] dot = new int[DOT_SIZE * DOT_SIZE];
     Arrays.fill(dot, OPAQUE);
-    dot[2 + 5 * 2] = OPAQUE | 0xffffff;
-    final ImageBuffer blurred = ImageBuffer.buffer(dot, 5, 5);
-    this.parse("blur=1").apply(blurred);
+    dot[2 + DOT_SIZE * 2] = OPAQUE | WHITE;
+    final ImageBuffer blurred = ImageBuffer.buffer(dot, DOT_SIZE, DOT_SIZE);
+    this.parse(NARROW_BLUR_FILTER).apply(blurred);
 
-    final boolean thirdMatches = (blurred.getPixels()[1 + 5 * 2] & 0xff) > 0;
+    final boolean thirdMatches = (blurred.getPixels()[1 + DOT_SIZE * 2] & CHANNEL_MASK) > 0;
     assertTrue(thirdMatches, "a blur of radius 1 reaches the next pixel");
   }
 
   @Test
   void shouldLetABlurReachAsFarAsItsRadius() {
     final ImageBuffer narrow = whiteDot();
-    this.parse("blur=1").apply(narrow);
+    this.parse(NARROW_BLUR_FILTER).apply(narrow);
 
-    final int matches = narrow.getPixels()[5 * 2] & 0xff;
+    final int matches = narrow.getPixels()[DOT_SIZE * 2] & CHANNEL_MASK;
     assertEquals(0, matches, "a blur of radius 1 stops before the second pixel");
 
     final ImageBuffer wide = whiteDot();
     this.parse("blur=2").apply(wide);
 
-    final boolean secondMatches = (wide.getPixels()[5 * 2] & 0xff) > 0;
+    final boolean secondMatches = (wide.getPixels()[DOT_SIZE * 2] & CHANNEL_MASK) > 0;
     assertTrue(secondMatches, "a blur of radius 2 reaches the second pixel");
   }
 
   // a white pixel in the middle of a black 5x5 picture
   private static ImageBuffer whiteDot() {
-    final int[] dot = new int[5 * 5];
+    final int[] dot = new int[DOT_SIZE * DOT_SIZE];
     Arrays.fill(dot, OPAQUE);
-    dot[2 + 5 * 2] = OPAQUE | 0xffffff;
-    return ImageBuffer.buffer(dot, 5, 5);
+    dot[2 + DOT_SIZE * 2] = OPAQUE | WHITE;
+    return ImageBuffer.buffer(dot, DOT_SIZE, DOT_SIZE);
   }
 
   private static ImageBuffer quadrantPicture() {
-    final int[] pixels = new int[100];
-    final int[] colors = { 0x123456, 0x789ABC, 0xFEDCBA, 0xABCDEF };
-    for (int row = 0; row < 10; row++) {
-      for (int column = 0; column < 10; column++) {
-        pixels[row * 10 + column] = OPAQUE | colors[(row / 5) * 2 + column / 5];
+    final int[] pixels = new int[QUADRANT_PIXEL_COUNT];
+    final int[] colors = { TOP_LEFT_COLOR, 0x789ABC, 0xFEDCBA, BOTTOM_RIGHT_COLOR };
+    for (int row = 0; row < QUADRANT_PICTURE_SIZE; row++) {
+      for (int column = 0; column < QUADRANT_PICTURE_SIZE; column++) {
+        pixels[row * QUADRANT_PICTURE_SIZE + column] = OPAQUE | colors[(row / 5) * 2 + column / 5];
       }
     }
-    return ImageBuffer.buffer(pixels, 10, 10);
+    return ImageBuffer.buffer(pixels, QUADRANT_PICTURE_SIZE, QUADRANT_PICTURE_SIZE);
   }
 
   @Test
@@ -370,11 +401,11 @@ final class FilterChainTest {
     assertTrue(filtered);
 
     for (final int[] white : new int[][] { { 10, 25 }, { 29, 25 }, { 20, 20 }, { 20, 29 } }) {
-      final int matches = framed.getPixels()[white[0] + 40 * white[1]] & 0xffffff;
-      assertEquals(0xffffff, matches, Arrays.toString(white));
+      final int matches = framed.getPixels()[white[0] + 40 * white[1]] & RGB_MASK;
+      assertEquals(WHITE, matches, Arrays.toString(white));
     }
     for (final int[] black : new int[][] { { 9, 25 }, { 30, 25 }, { 20, 19 }, { 20, 30 } }) {
-      final int secondMatches = framed.getPixels()[black[0] + 40 * black[1]] & 0xffffff;
+      final int secondMatches = framed.getPixels()[black[0] + 40 * black[1]] & RGB_MASK;
       assertEquals(0, secondMatches, Arrays.toString(black));
     }
     try (final ImageBuffer cropped = quadrantPicture()) {
@@ -382,13 +413,13 @@ final class FilterChainTest {
       assertTrue(secondFiltered);
 
       final int width = cropped.getWidth();
-      assertEquals(10, width);
+      assertEquals(QUADRANT_PICTURE_SIZE, width);
 
       final int height = cropped.getHeight();
-      assertEquals(10, height);
+      assertEquals(QUADRANT_PICTURE_SIZE, height);
 
-      final int[] expected = new int[100];
-      Arrays.fill(expected, OPAQUE | 0x123456);
+      final int[] expected = new int[QUADRANT_PIXEL_COUNT];
+      Arrays.fill(expected, OPAQUE | TOP_LEFT_COLOR);
 
       final int[] pixels = cropped.getPixels();
       assertArrayEquals(expected, pixels, "the top-left quadrant fills the result");
@@ -397,13 +428,13 @@ final class FilterChainTest {
 
   @Test
   void shouldReadOverlaysOnlyAsSmallPngFilesOfTheOverlayFolder() throws IOException {
-    Files.write(this.overlays.resolve("big.png"), new byte[(int) FilterChain.MAXIMUM_OVERLAY_BYTES + 1]);
+    Files.write(this.overlays.resolve(BIG_OVERLAY_FILE_NAME), new byte[(int) FilterChain.MAXIMUM_OVERLAY_BYTES + 1]);
     assertThrows(IllegalArgumentException.class, () -> this.parse("overlay=big"));
-    Files.createDirectory(this.overlays.resolve("folder.png"));
+    Files.createDirectory(this.overlays.resolve(FOLDER_OVERLAY_FILE_NAME));
     assertThrows(IllegalArgumentException.class, () -> this.parse("overlay=folder"));
-    final Path outside = Files.createTempFile("outside", ".png");
+    final Path outside = Files.createTempFile(OUTSIDE_FILE_PREFIX, PNG_SUFFIX);
     try {
-      Files.createSymbolicLink(this.overlays.resolve("link.png"), outside);
+      Files.createSymbolicLink(this.overlays.resolve(LINK_OVERLAY_FILE_NAME), outside);
       assertThrows(IllegalArgumentException.class, () -> this.parse("overlay=link"), "links are not followed");
     } catch (final UnsupportedOperationException | IOException exception) {
       assumeTrue(false, "The file system must support symbolic links!");
@@ -415,27 +446,27 @@ final class FilterChainTest {
   @Test
   void shouldFilterPicturesAtTheirSize() throws IOException {
     final ImageBuffer gray = picture(4, 2, 0x204060);
-    this.parse("grayscale").apply(gray);
+    this.parse(GRAYSCALE_FILTER).apply(gray);
     final int pixel = gray.getPixels()[0];
-    assertEquals((pixel >> 16) & 0xff, pixel & 0xff);
-    assertEquals((pixel >> 8) & 0xff, pixel & 0xff);
+    assertEquals((pixel >> 16) & CHANNEL_MASK, pixel & CHANNEL_MASK);
+    assertEquals((pixel >> 8) & CHANNEL_MASK, pixel & CHANNEL_MASK);
     final ImageBuffer inverted = picture(4, 2, 0x204060);
-    this.parse("invert").apply(inverted);
+    this.parse(INVERT_FILTER).apply(inverted);
 
-    final int matches = inverted.getPixels()[3] & 0xffffff;
+    final int matches = inverted.getPixels()[3] & RGB_MASK;
     assertEquals(0xdfbf9f, matches);
 
     try (final ImageBuffer zoomed = quadrantPicture()) {
       this.parse("crop=50:50:50:50").apply(zoomed);
 
       final int width = zoomed.getWidth();
-      assertEquals(10, width);
+      assertEquals(QUADRANT_PICTURE_SIZE, width);
 
       final int height = zoomed.getHeight();
-      assertEquals(10, height);
+      assertEquals(QUADRANT_PICTURE_SIZE, height);
 
-      final int[] expected = new int[100];
-      Arrays.fill(expected, OPAQUE | 0xABCDEF);
+      final int[] expected = new int[QUADRANT_PIXEL_COUNT];
+      Arrays.fill(expected, OPAQUE | BOTTOM_RIGHT_COLOR);
 
       final int[] pixels = zoomed.getPixels();
       assertArrayEquals(expected, pixels, "the bottom-right quadrant fills the result");
@@ -443,78 +474,78 @@ final class FilterChainTest {
     final ImageBuffer framed = picture(20, 20, 0x000000);
     this.parse("rectangle=0:0:50:50:00ff00").apply(framed);
 
-    final int secondMatches = framed.getPixels()[0] & 0xffffff;
+    final int secondMatches = framed.getPixels()[0] & RGB_MASK;
     assertEquals(0x00ff00, secondMatches);
 
     this.writeOverlay("red", 2, 2);
-    final ImageBuffer covered = picture(8, 8, 0x0000ff);
+    final ImageBuffer covered = picture(8, 8, BLUE);
     this.parse("overlay=red").apply(covered);
 
-    final int thirdMatches = covered.getPixels()[0] & 0xffffff;
-    assertEquals(0xff0000, thirdMatches);
+    final int thirdMatches = covered.getPixels()[0] & RGB_MASK;
+    assertEquals(RED, thirdMatches);
 
-    final int fourthMatches = covered.getPixels()[7] & 0xffffff;
-    assertEquals(0x0000ff, fourthMatches);
+    final int fourthMatches = covered.getPixels()[7] & RGB_MASK;
+    assertEquals(BLUE, fourthMatches);
   }
 
   @Test
   void shouldReleaseTheDecodedOverlayOnceItsFilterHoldsACopy() {
-    final ImageBuffer decoded = picture(2, 2, 0xff0000);
+    final ImageBuffer decoded = picture(2, 2, RED);
     final VideoFilter overlay = FilterChain.overlayFilter(decoded);
     assertThrows(IllegalStateException.class, decoded::getWidth, "the decoded picture is released");
-    final ImageBuffer covered = picture(4, 4, 0x0000ff);
+    final ImageBuffer covered = picture(4, 4, BLUE);
     overlay.applyFilter(covered);
 
-    final int matches = covered.getPixels()[0] & 0xffffff;
-    assertEquals(0xff0000, matches, "the filter draws its own copy");
+    final int matches = covered.getPixels()[0] & RGB_MASK;
+    assertEquals(RED, matches, "the filter draws its own copy");
 
-    final int secondMatches = covered.getPixels()[3] & 0xffffff;
-    assertEquals(0x0000ff, secondMatches);
+    final int secondMatches = covered.getPixels()[3] & RGB_MASK;
+    assertEquals(BLUE, secondMatches);
   }
 
   @Test
   void shouldScaleALargeOverlayDownAndRemakesARegionForEverySize() throws IOException {
     this.writeOverlay("wide", 2_048, 16);
     final VideoFilter overlay = this.parse("overlay=wide").create().getFirst();
-    final ImageBuffer large = picture(1_100, 16, 0x0000ff);
+    final ImageBuffer large = picture(1_100, 16, BLUE);
     overlay.applyFilter(large);
 
-    final int matches = large.getPixels()[1_023] & 0xffffff;
-    assertEquals(0xff0000, matches);
+    final int matches = large.getPixels()[1_023] & RGB_MASK;
+    assertEquals(RED, matches);
 
-    final int secondMatches = large.getPixels()[1_024 + 1_100 * 8] & 0xffffff;
-    assertEquals(0x0000ff, secondMatches, "scaled to 1024 by 8");
+    final int secondMatches = large.getPixels()[1_024 + 1_100 * 8] & RGB_MASK;
+    assertEquals(BLUE, secondMatches, "scaled to 1024 by 8");
 
-    final int thirdMatches = large.getPixels()[1_023 + 1_100 * 7] & 0xffffff;
-    assertEquals(0xff0000, thirdMatches, "eight rows high");
+    final int thirdMatches = large.getPixels()[1_023 + 1_100 * 7] & RGB_MASK;
+    assertEquals(RED, thirdMatches, "eight rows high");
 
     final VideoFilter rectangle = this.parse("rectangle=50:0:50:50:ffffff").create().getFirst();
     final ImageBuffer small = picture(10, 10, 0);
     rectangle.applyFilter(small);
 
-    final int fourthMatches = small.getPixels()[5] & 0xffffff;
-    assertEquals(0xffffff, fourthMatches);
+    final int fourthMatches = small.getPixels()[5] & RGB_MASK;
+    assertEquals(WHITE, fourthMatches);
 
     rectangle.applyFilter(small);
     final ImageBuffer other = picture(20, 20, 0);
     rectangle.applyFilter(other);
 
-    final int fifthMatches = other.getPixels()[10] & 0xffffff;
-    assertEquals(0xffffff, fifthMatches);
+    final int fifthMatches = other.getPixels()[10] & RGB_MASK;
+    assertEquals(WHITE, fifthMatches);
 
     final ImageBuffer taller = picture(20, 40, 0);
     rectangle.applyFilter(taller);
 
-    final int sixthMatches = taller.getPixels()[10 + 20 * 15] & 0xffffff;
-    assertEquals(0xffffff, sixthMatches, "the region is remade for the taller picture");
+    final int sixthMatches = taller.getPixels()[10 + 20 * 15] & RGB_MASK;
+    assertEquals(WHITE, sixthMatches, "the region is remade for the taller picture");
 
-    final int seventhMatches = taller.getPixels()[10 + 20 * 30] & 0xffffff;
+    final int seventhMatches = taller.getPixels()[10 + 20 * 30] & RGB_MASK;
     assertEquals(0, seventhMatches);
 
     final ImageBuffer wider = picture(40, 40, 0);
     rectangle.applyFilter(wider);
 
-    final int eighthMatches = wider.getPixels()[20 + 40 * 5] & 0xffffff;
-    assertEquals(0xffffff, eighthMatches, "the region is remade for the wider picture");
+    final int eighthMatches = wider.getPixels()[20 + 40 * 5] & RGB_MASK;
+    assertEquals(WHITE, eighthMatches, "the region is remade for the wider picture");
   }
 }

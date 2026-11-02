@@ -70,6 +70,10 @@ final class MapScreenRebuildPropertyTest {
   private static final String SEED = "20260925";
   private static final List<BlockFace> FACINGS = List.of(BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST);
 
+  private static final int SCREEN_Y = 64;
+
+  private static final double HALF_BLOCK = 0.5;
+
   private MockedConstruction<ItemStack> items;
 
   @BeforeTry
@@ -131,7 +135,7 @@ final class MapScreenRebuildPropertyTest {
     rebuild.placeObstacles(world, cells, keep, doomed);
 
     final Player player = rebuild.createPlayer();
-    final Location location = world.location(0.5, 64.0, 0.5);
+    final Location location = world.location(0.5, SCREEN_Y, 0.5);
     List<ItemFrame> lastBuild = List.of();
     for (int build = 0; build < rebuild.builds; build++) {
       final List<ItemFrame> spawned = world.spawnedFrames();
@@ -180,7 +184,7 @@ final class MapScreenRebuildPropertyTest {
   private static void hangInsideItsBlock(final ItemFrame frame) {
     final Location corner = frame.getLocation();
     final Location inside = corner.clone();
-    inside.add(0.5, 0.5, 0.5);
+    inside.add(HALF_BLOCK, HALF_BLOCK, HALF_BLOCK);
     when(frame.getLocation()).thenAnswer(_ -> inside.clone());
   }
 
@@ -263,7 +267,7 @@ final class MapScreenRebuildPropertyTest {
     private List<List<Integer>> findCells() {
       final FakeWorld empty = new FakeWorld();
       final Player player = this.createPlayer();
-      final Location location = empty.location(0.5, 64.0, 0.5);
+      final Location location = empty.location(0.5, SCREEN_Y, 0.5);
       MapUtils.buildMapScreen(player, location, Material.STONE, this.width, this.height, 0);
       final List<List<Integer>> cells = new ArrayList<>();
       for (final ItemFrame frame : empty.spawnedFrames()) {
@@ -285,19 +289,19 @@ final class MapScreenRebuildPropertyTest {
         final int blockZ = cell.get(2);
         switch (obstacle.kind) {
           case OLD_FRAME -> {
-            final Location inside = world.location(blockX + 0.5, blockY + 0.5, blockZ + 0.5);
+            final Location inside = world.location(blockX + HALF_BLOCK, blockY + HALF_BLOCK, blockZ + HALF_BLOCK);
             final ItemFrame frame = world.addFrame(inside, obstacle.facing);
             doomed.add(frame);
           }
           case OTHER_ENTITY -> {
-            final Location inside = world.location(blockX + 0.5, blockY + 0.5, blockZ + 0.5);
+            final Location inside = world.location(blockX + HALF_BLOCK, blockY + HALF_BLOCK, blockZ + HALF_BLOCK);
             final Entity entity = mock(Entity.class);
             when(entity.getLocation()).thenAnswer(_ -> inside.clone());
             world.addEntity(entity);
             keep.add(entity);
           }
           case NEIGHBOUR_FRAME -> {
-            final Location above = world.location(blockX + 0.5, 64 + this.height + 0.5, blockZ + 0.5);
+            final Location above = world.location(blockX + HALF_BLOCK, SCREEN_Y + this.height + HALF_BLOCK, blockZ + HALF_BLOCK);
             final ItemFrame frame = world.addFrame(above, obstacle.facing);
             keep.add(frame);
           }

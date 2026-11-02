@@ -61,6 +61,15 @@ import org.mockito.Mockito;
  */
 final class JukeBoxListenerTest {
 
+  private static final String IMAGE_FILE_NAME = "alpine.iso";
+  private static final String ISO_FOLDER_NAME = "iso";
+  private static final String SANITIZED_IMAGE_FILE_NAME = "my_disk_.iso";
+
+  private static final String DISC_NAME = "[alpine.iso]";
+
+  private static final String VM_CREATE_COMMAND_PREFIX = "mcav vm create Steve 640x640 30 5x5 0 FILTER_LITE X86_64 NONE -cdrom \"";
+  private static final String VM_CREATE_COMMAND_SUFFIX = "\" -m 2048M";
+
   @TempDir
   private Path folder;
 
@@ -75,7 +84,7 @@ final class JukeBoxListenerTest {
     this.sandbox = mock(MCAVSandbox.class);
     when(this.sandbox.getDataPath()).thenReturn(this.folder);
     this.listener = new JukeBoxListener(this.sandbox);
-    this.isoFolder = this.folder.resolve("iso");
+    this.isoFolder = this.folder.resolve(ISO_FOLDER_NAME);
     this.player = mock(Player.class);
     when(this.player.getName()).thenReturn("Steve");
   }
@@ -130,19 +139,17 @@ final class JukeBoxListenerTest {
 
   @Test
   void shouldBootTheMachineOfTheImageNamedLikeTheDisc() throws IOException {
-    final Path image = this.createImage("alpine.iso");
-    final PlayerInteractEvent event = this.interaction(Action.RIGHT_CLICK_BLOCK, Material.JUKEBOX, Material.MUSIC_DISC_CAT, "[alpine.iso]");
+    final Path image = this.createImage(IMAGE_FILE_NAME);
+    final PlayerInteractEvent event = this.interaction(Action.RIGHT_CLICK_BLOCK, Material.JUKEBOX, Material.MUSIC_DISC_CAT, DISC_NAME);
     this.listener.onJukeboxInteract(event);
     verify(event).setCancelled(true);
     final Path absolute = image.toAbsolutePath();
-    verify(this.player).performCommand(
-      "mcav vm create Steve 640x640 30 5x5 0 FILTER_LITE X86_64 NONE -cdrom \"" + absolute + "\" -m 2048M"
-    );
+    verify(this.player).performCommand(VM_CREATE_COMMAND_PREFIX + absolute + VM_CREATE_COMMAND_SUFFIX);
   }
 
   @Test
   void shouldReplaceCharactersThatFileNamesCannotContain() throws IOException {
-    final Path image = this.createImage("my_disk_.iso");
+    final Path image = this.createImage(SANITIZED_IMAGE_FILE_NAME);
     final PlayerInteractEvent event = this.interaction(
       Action.RIGHT_CLICK_BLOCK,
       Material.JUKEBOX,
@@ -151,15 +158,13 @@ final class JukeBoxListenerTest {
     );
     this.listener.onJukeboxInteract(event);
     final Path absolute = image.toAbsolutePath();
-    verify(this.player).performCommand(
-      "mcav vm create Steve 640x640 30 5x5 0 FILTER_LITE X86_64 NONE -cdrom \"" + absolute + "\" -m 2048M"
-    );
+    verify(this.player).performCommand(VM_CREATE_COMMAND_PREFIX + absolute + VM_CREATE_COMMAND_SUFFIX);
   }
 
   @Test
   void shouldLeaveAUseOfTheJukeboxThatAnotherPluginDeniedAlone() throws IOException {
-    this.createImage("alpine.iso");
-    final PlayerInteractEvent event = this.interaction(Action.RIGHT_CLICK_BLOCK, Material.JUKEBOX, Material.MUSIC_DISC_CAT, "[alpine.iso]");
+    this.createImage(IMAGE_FILE_NAME);
+    final PlayerInteractEvent event = this.interaction(Action.RIGHT_CLICK_BLOCK, Material.JUKEBOX, Material.MUSIC_DISC_CAT, DISC_NAME);
     when(event.useInteractedBlock()).thenReturn(Event.Result.DENY);
     this.assertIgnored(event);
   }
@@ -170,7 +175,7 @@ final class JukeBoxListenerTest {
     when(jukebox.getType()).thenReturn(Material.JUKEBOX);
     final ItemStack disc = mock(ItemStack.class);
     when(disc.getType()).thenReturn(Material.MUSIC_DISC_CAT);
-    final Component name = Component.text("[alpine.iso]");
+    final Component name = Component.text(DISC_NAME);
     when(disc.displayName()).thenReturn(name);
     return new PlayerInteractEvent(this.player, Action.RIGHT_CLICK_BLOCK, disc, jukebox, BlockFace.UP);
   }
@@ -202,7 +207,7 @@ final class JukeBoxListenerTest {
 
   @Test
   void shouldDecideAfterThePluginsThatProtectRegions() throws Exception {
-    this.createImage("alpine.iso");
+    this.createImage(IMAGE_FILE_NAME);
     final RegisteredListener protection = new RegisteredListener(
       new Listener() {},
       (listener, event) -> ((PlayerInteractEvent) event).setUseInteractedBlock(Event.Result.DENY),
@@ -218,47 +223,37 @@ final class JukeBoxListenerTest {
 
   @Test
   void shouldIgnoreInteractionsWithoutAnItem() {
-    final PlayerInteractEvent event = this.interaction(Action.RIGHT_CLICK_BLOCK, Material.JUKEBOX, Material.MUSIC_DISC_CAT, "[alpine.iso]");
+    final PlayerInteractEvent event = this.interaction(Action.RIGHT_CLICK_BLOCK, Material.JUKEBOX, Material.MUSIC_DISC_CAT, DISC_NAME);
     when(event.getItem()).thenReturn(null);
     this.assertIgnored(event);
   }
 
   @Test
   void shouldIgnoreLeftClicks() throws IOException {
-    this.createImage("alpine.iso");
-    final PlayerInteractEvent event = this.interaction(Action.LEFT_CLICK_BLOCK, Material.JUKEBOX, Material.MUSIC_DISC_CAT, "[alpine.iso]");
+    this.createImage(IMAGE_FILE_NAME);
+    final PlayerInteractEvent event = this.interaction(Action.LEFT_CLICK_BLOCK, Material.JUKEBOX, Material.MUSIC_DISC_CAT, DISC_NAME);
     this.assertIgnored(event);
   }
 
   @Test
   void shouldIgnoreRightClicksWithoutABlock() throws IOException {
-    this.createImage("alpine.iso");
-    final PlayerInteractEvent event = this.interaction(Action.RIGHT_CLICK_BLOCK, Material.JUKEBOX, Material.MUSIC_DISC_CAT, "[alpine.iso]");
+    this.createImage(IMAGE_FILE_NAME);
+    final PlayerInteractEvent event = this.interaction(Action.RIGHT_CLICK_BLOCK, Material.JUKEBOX, Material.MUSIC_DISC_CAT, DISC_NAME);
     when(event.getClickedBlock()).thenReturn(null);
     this.assertIgnored(event);
   }
 
   @Test
   void shouldIgnoreBlocksOtherThanJukeboxes() throws IOException {
-    this.createImage("alpine.iso");
-    final PlayerInteractEvent event = this.interaction(
-      Action.RIGHT_CLICK_BLOCK,
-      Material.NOTE_BLOCK,
-      Material.MUSIC_DISC_CAT,
-      "[alpine.iso]"
-    );
+    this.createImage(IMAGE_FILE_NAME);
+    final PlayerInteractEvent event = this.interaction(Action.RIGHT_CLICK_BLOCK, Material.NOTE_BLOCK, Material.MUSIC_DISC_CAT, DISC_NAME);
     this.assertIgnored(event);
   }
 
   @Test
   void shouldIgnoreItemsOtherThanMusicDiscs() throws IOException {
-    this.createImage("alpine.iso");
-    final PlayerInteractEvent event = this.interaction(
-      Action.RIGHT_CLICK_BLOCK,
-      Material.JUKEBOX,
-      Material.DISC_FRAGMENT_5,
-      "[alpine.iso]"
-    );
+    this.createImage(IMAGE_FILE_NAME);
+    final PlayerInteractEvent event = this.interaction(Action.RIGHT_CLICK_BLOCK, Material.JUKEBOX, Material.DISC_FRAGMENT_5, DISC_NAME);
     this.assertIgnored(event);
   }
 

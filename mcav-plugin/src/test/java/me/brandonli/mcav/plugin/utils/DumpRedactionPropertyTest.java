@@ -46,6 +46,8 @@ final class DumpRedactionPropertyTest {
 
   private static final String SEED = "20260925";
 
+  private static final int IPV6_BYTE_COUNT = 16;
+
   @Provide
   Arbitrary<InetSocketAddress> addresses() {
     final ByteArbitrary ipv4Bytes = Arbitraries.bytes();
@@ -53,7 +55,7 @@ final class DumpRedactionPropertyTest {
     final ListArbitrary<Byte> ipv4 = ipv4List.ofSize(4);
     final ByteArbitrary ipv6Bytes = Arbitraries.bytes();
     final ListArbitrary<Byte> ipv6List = ipv6Bytes.list();
-    final ListArbitrary<Byte> ipv6 = ipv6List.ofSize(16);
+    final ListArbitrary<Byte> ipv6 = ipv6List.ofSize(IPV6_BYTE_COUNT);
     final Arbitrary<List<Byte>> raw = Arbitraries.oneOf(ipv4, ipv6);
     final IntegerArbitrary scopeIntegers = Arbitraries.integers();
     final Arbitrary<Integer> scopes = scopeIntegers.between(-1, 64);
@@ -72,7 +74,7 @@ final class DumpRedactionPropertyTest {
       bytes[index] = raw.get(index);
     }
     try {
-      final boolean scoped = bytes.length == 16 && scope >= 0;
+      final boolean scoped = bytes.length == IPV6_BYTE_COUNT && scope >= 0;
       final InetAddress address = scoped ? Inet6Address.getByAddress(null, bytes, scope) : InetAddress.getByAddress(bytes);
       return new InetSocketAddress(address, port);
     } catch (final UnknownHostException exception) {

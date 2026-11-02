@@ -53,6 +53,15 @@ final class TranslationManagerTest {
 
   private static final String RESOURCE = "locale/mcav_en_us.properties";
 
+  private static final String HELP_COMMAND_KEY = "mcav.command.help.command";
+  private static final String HELP_COMMAND_TITLE = "Command";
+
+  private static final String EDITED_SCREEN_BUILD_LINE = "mcav.command.screen.build=<gold>Screen ready</gold>\n";
+
+  private static final String UNKNOWN_KEY = "mcav.unknown";
+
+  private static final String LOCALE_FOLDER_NAME = "locale";
+
   @TempDir
   private Path folder;
 
@@ -88,8 +97,8 @@ final class TranslationManagerTest {
     final byte[] copied = Files.readAllBytes(file);
     final byte[] bundled = readBundledMessages();
     assertArrayEquals(bundled, copied);
-    final String title = manager.getProperty("mcav.command.help.command");
-    assertEquals("Command", title);
+    final String title = manager.getProperty(HELP_COMMAND_KEY);
+    assertEquals(HELP_COMMAND_TITLE, title);
   }
 
   @Test
@@ -97,7 +106,7 @@ final class TranslationManagerTest {
     final Path file = this.folder.resolve(RESOURCE);
     final Path parent = file.getParent();
     Files.createDirectories(parent);
-    Files.writeString(file, "mcav.command.screen.build=<gold>Screen ready</gold>\n", StandardCharsets.UTF_8);
+    Files.writeString(file, EDITED_SCREEN_BUILD_LINE, StandardCharsets.UTF_8);
     final TranslationManager manager = new TranslationManager();
     final TranslatableComponent component = Component.translatable("mcav.command.screen.build");
     final Component rendered = manager.render(component);
@@ -110,13 +119,13 @@ final class TranslationManagerTest {
     final Path file = this.folder.resolve(RESOURCE);
     final Path parent = file.getParent();
     Files.createDirectories(parent);
-    Files.writeString(file, "mcav.command.screen.build=<gold>Screen ready</gold>\n", StandardCharsets.UTF_8);
+    Files.writeString(file, EDITED_SCREEN_BUILD_LINE, StandardCharsets.UTF_8);
     final TranslationManager manager = new TranslationManager();
-    final String title = manager.getProperty("mcav.command.help.command");
-    assertEquals("Command", title);
+    final String title = manager.getProperty(HELP_COMMAND_KEY);
+    assertEquals(HELP_COMMAND_TITLE, title);
     final String edited = Files.readString(file, StandardCharsets.UTF_8);
-    assertEquals("mcav.command.screen.build=<gold>Screen ready</gold>\n", edited);
-    assertThrows(MissingResourceException.class, () -> manager.getProperty("mcav.unknown"));
+    assertEquals(EDITED_SCREEN_BUILD_LINE, edited);
+    assertThrows(MissingResourceException.class, () -> manager.getProperty(UNKNOWN_KEY));
   }
 
   @Test
@@ -132,7 +141,7 @@ final class TranslationManagerTest {
   @Test
   void shouldFailForUnknownKeys() {
     final TranslationManager manager = new TranslationManager();
-    final TranslatableComponent component = Component.translatable("mcav.unknown");
+    final TranslatableComponent component = Component.translatable(UNKNOWN_KEY);
     assertThrows(MissingResourceException.class, () -> manager.render(component));
   }
 
@@ -148,7 +157,7 @@ final class TranslationManagerTest {
 
   @Test
   void shouldFailWhenTheMessagesCannotBeCopied() throws IOException {
-    final Path blocker = this.folder.resolve("locale");
+    final Path blocker = this.folder.resolve(LOCALE_FOLDER_NAME);
     Files.writeString(blocker, "not a folder", StandardCharsets.UTF_8);
     final IllegalStateException exception = assertThrows(IllegalStateException.class, TranslationManager::new);
     final Throwable cause = exception.getCause();

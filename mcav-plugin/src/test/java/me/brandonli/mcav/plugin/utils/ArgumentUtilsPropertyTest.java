@@ -45,6 +45,8 @@ final class ArgumentUtilsPropertyTest {
   private static final int BUNDLE_LIMIT = 4096;
   private static final long MAP_PACKET_BYTES = 128 * 128 + 16;
 
+  private static final String DIMENSION_SEPARATOR = "x";
+
   @Provide
   Arbitrary<String> typedSizes() {
     // every arbitrary starts from a fresh base: jqwik 1.10 shares settings between an arbitrary and those made from it
@@ -55,11 +57,11 @@ final class ArgumentUtilsPropertyTest {
     final StringArbitrary anyText = textStrings.ofMaxLength(40);
     final IntegerArbitrary integers = Arbitraries.integers();
     final Arbitrary<String> numbers = integers.map(String::valueOf);
-    final Arbitrary<String> pairs = numbers.flatMap(width -> numbers.map(height -> width + "x" + height));
+    final Arbitrary<String> pairs = numbers.flatMap(width -> numbers.map(height -> width + DIMENSION_SEPARATOR + height));
     final Arbitrary<Integer> nearWalls = nearBound(ArgumentUtils.MAXIMUM_SCREEN_SIDE);
     final Arbitrary<Integer> nearSides = nearBound(ArgumentUtils.MAXIMUM_SIDE);
     final Arbitrary<Integer> near = Arbitraries.oneOf(nearWalls, nearSides);
-    final Arbitrary<String> nearPairs = near.flatMap(width -> near.map(height -> width + "x" + height));
+    final Arbitrary<String> nearPairs = near.flatMap(width -> near.map(height -> width + DIMENSION_SEPARATOR + height));
     final int wall = ArgumentUtils.MAXIMUM_SCREEN_SIDE;
     final int side = ArgumentUtils.MAXIMUM_SIDE;
     final Arbitrary<Integer> bounds = Arbitraries.of(
@@ -75,7 +77,7 @@ final class ArgumentUtilsPropertyTest {
       side,
       side + 1
     );
-    final Arbitrary<String> boundPairs = bounds.flatMap(width -> bounds.map(height -> width + "x" + height));
+    final Arbitrary<String> boundPairs = bounds.flatMap(width -> bounds.map(height -> width + DIMENSION_SEPARATOR + height));
     return Arbitraries.oneOf(shortSizes, anyText, pairs, nearPairs, boundPairs);
   }
 
@@ -117,7 +119,7 @@ final class ArgumentUtilsPropertyTest {
     @ForAll @IntRange(min = 1, max = ArgumentUtils.MAXIMUM_SIDE) final int width,
     @ForAll @IntRange(min = 1, max = ArgumentUtils.MAXIMUM_SIDE) final int height
   ) {
-    final String typed = width + "x" + height;
+    final String typed = width + DIMENSION_SEPARATOR + height;
     final Pair<Integer, Integer> size = ArgumentUtils.parseDimensions(typed);
     final int parsedWidth = size.getFirst();
     final int parsedHeight = size.getSecond();
@@ -131,8 +133,8 @@ final class ArgumentUtilsPropertyTest {
     @ForAll @IntRange(min = ArgumentUtils.MAXIMUM_SIDE + 1) final int tooLarge,
     @ForAll @IntRange(min = 1, max = ArgumentUtils.MAXIMUM_SIDE) final int fine
   ) {
-    final String tooWide = tooLarge + "x" + fine;
-    final String tooHigh = fine + "x" + tooLarge;
+    final String tooWide = tooLarge + DIMENSION_SEPARATOR + fine;
+    final String tooHigh = fine + DIMENSION_SEPARATOR + tooLarge;
 
     assertThrows(IllegalArgumentException.class, () -> ArgumentUtils.parseDimensions(tooWide));
     assertThrows(IllegalArgumentException.class, () -> ArgumentUtils.parseDimensions(tooHigh));

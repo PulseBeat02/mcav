@@ -44,6 +44,12 @@ final class LocaleToolsTest {
   private static final String LINK_KEY = "mcav.command.audio.http";
   private static final String LINK_PREFIX = "Click on the URL to listen onto the website! ";
 
+  private static final String SCREEN_BUILT_TEXT = "Built a new map screen!";
+  private static final String SCREEN_BUILD_KEY = "mcav.command.screen.build";
+
+  private static final String FIRST_ARGUMENT = "first";
+  private static final String SECOND_ARGUMENT = "second";
+
   private static void collectClickEvents(final Component component, final List<ClickEvent<?>> events) {
     final ClickEvent<?> event = component.clickEvent();
     if (event != null) {
@@ -67,11 +73,11 @@ final class LocaleToolsTest {
 
   @Test
   void shouldRenderAMessageWithoutArguments() {
-    final LocaleTools.NullComponent message = LocaleTools.direct("mcav.command.screen.build");
+    final LocaleTools.NullComponent message = LocaleTools.direct(SCREEN_BUILD_KEY);
     final Component component = message.build();
     final String text = Components.plain(component);
     final TextColor color = findColor(component);
-    assertEquals("Built a new map screen!", text);
+    assertEquals(SCREEN_BUILT_TEXT, text);
     assertEquals(NamedTextColor.GOLD, color);
   }
 
@@ -112,14 +118,14 @@ final class LocaleToolsTest {
     assertEquals(LINK_PREFIX + "HTTP://A/", text);
     final LocaleTools.BiComponent<String, String> pair = LocaleTools.direct("mcav.test.two", upper, value -> "length=" + value.length());
 
-    final String componentsText = Components.plain(assertDoesNotThrow(() -> pair.build("first", "second")));
+    final String componentsText = Components.plain(assertDoesNotThrow(() -> pair.build(FIRST_ARGUMENT, SECOND_ARGUMENT)));
     assertEquals("FIRST|length=6", componentsText);
   }
 
   @Test
   void shouldRenderMessagesWithThreeArguments() {
     final LocaleTools.TriComponent<String, String, String> message = LocaleTools.direct(LINK_KEY, null, null, null);
-    final Component component = message.build("http://b/", "second", "third");
+    final Component component = message.build("http://b/", SECOND_ARGUMENT, "third");
     final String text = Components.plain(component);
     assertEquals(LINK_PREFIX + "http://b/", text);
     final LocaleTools.TriComponent<String, String, Integer> triple = LocaleTools.direct(
@@ -129,7 +135,7 @@ final class LocaleToolsTest {
       value -> "number=" + value
     );
 
-    final String componentsText = Components.plain(triple.build("first", "second", 3));
+    final String componentsText = Components.plain(triple.build(FIRST_ARGUMENT, SECOND_ARGUMENT, 3));
     assertEquals("FIRST|[second]|number=3", componentsText);
   }
 
@@ -169,14 +175,14 @@ final class LocaleToolsTest {
     final TranslationManager manager = LocaleTools.MANAGER;
     assertNotNull(manager);
     try (final MockedConstruction<TranslationManager> managers = Mockito.mockConstruction(TranslationManager.class)) {
-      final Component first = LocaleTools.direct("mcav.command.screen.build").build();
-      final Component second = LocaleTools.direct("mcav.command.screen.build").build();
+      final Component first = LocaleTools.direct(SCREEN_BUILD_KEY).build();
+      final Component second = LocaleTools.direct(SCREEN_BUILD_KEY).build();
 
       final List<TranslationManager> constructed = managers.constructed();
       assertEquals(List.of(), constructed, "message builders share the initialized manager");
 
       final String text = Components.plain(first);
-      assertEquals("Built a new map screen!", text);
+      assertEquals(SCREEN_BUILT_TEXT, text);
       assertEquals(first, second);
     }
   }

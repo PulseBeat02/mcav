@@ -41,10 +41,14 @@ import org.mockito.Mockito;
  */
 final class IoUtilsTest {
 
+  private static final String DATA_FOLDER_PATH = "plugins/MCAV";
+  private static final String CONFIGURATION_FILE_NAME = "config.yml";
+  private static final String MISSING_RESOURCE_NAME = "missing.yml";
+
   @Test
   void shouldResolveTheDataFolderToAnAbsolutePath() {
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
-    final File relative = new File("plugins/MCAV");
+    final File relative = new File(DATA_FOLDER_PATH);
     when(plugin.getDataFolder()).thenReturn(relative);
     try (final MockedStatic<JavaPlugin> javaPlugin = Mockito.mockStatic(JavaPlugin.class)) {
       javaPlugin.when(() -> JavaPlugin.getPlugin(MCAVSandbox.class)).thenReturn(plugin);
@@ -59,7 +63,7 @@ final class IoUtilsTest {
 
   @Test
   void shouldOpenBundledResources() throws IOException {
-    try (final InputStream stream = IoUtils.getResourceAsStream("config.yml")) {
+    try (final InputStream stream = IoUtils.getResourceAsStream(CONFIGURATION_FILE_NAME)) {
       final byte[] bytes = stream.readAllBytes();
       final String content = new String(bytes, StandardCharsets.UTF_8);
       final boolean configuration = content.startsWith("# MCAV Configuration File");
@@ -76,7 +80,7 @@ final class IoUtilsTest {
 
   @Test
   void shouldFailForMissingResources() {
-    final NullPointerException exception = assertThrows(NullPointerException.class, () -> openAndClose("missing.yml"));
+    final NullPointerException exception = assertThrows(NullPointerException.class, () -> openAndClose(MISSING_RESOURCE_NAME));
     final String message = exception.getMessage();
     assertEquals("Resource missing.yml does not exist!", message);
   }

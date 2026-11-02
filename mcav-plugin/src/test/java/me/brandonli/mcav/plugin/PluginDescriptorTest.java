@@ -48,12 +48,14 @@ final class PluginDescriptorTest {
 
   private static final String COMMANDS = "me/brandonli/mcav/plugin/command";
 
+  private static final String DESCRIPTOR_RESOURCE_PATH = "/paper-plugin.yml";
+
   @Test
   void shouldDeclareInTheDescriptorEveryPermissionTheCommandsCheckForOperatorsAndNoOther()
     throws IOException, URISyntaxException, InvalidConfigurationException {
     final YamlConfiguration descriptor = new YamlConfiguration();
     descriptor.options().pathSeparator('/');
-    try (final InputStream in = PluginDescriptorTest.class.getResourceAsStream("/paper-plugin.yml")) {
+    try (final InputStream in = PluginDescriptorTest.class.getResourceAsStream(DESCRIPTOR_RESOURCE_PATH)) {
       assertNotNull(in, "the build writes the descriptor");
       final Reader reader = new InputStreamReader(in, StandardCharsets.UTF_8);
       descriptor.load(reader);

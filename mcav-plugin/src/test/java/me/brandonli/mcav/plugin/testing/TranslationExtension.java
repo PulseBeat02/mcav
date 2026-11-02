@@ -46,6 +46,10 @@ import org.mockito.Mockito;
  */
 public final class TranslationExtension implements BeforeAllCallback {
 
+  private static final String LOCALE_FOLDER_NAME = "locale";
+  private static final String ENGLISH_MESSAGES_FILE_NAME = "mcav_en_us.properties";
+  private static final String TEMPORARY_FOLDER_PREFIX = "mcav-plugin-messages";
+
   private static boolean initialized;
 
   /**
@@ -91,10 +95,10 @@ public final class TranslationExtension implements BeforeAllCallback {
 
   private static Path createTemporaryFolder() {
     try {
-      final Path folder = Files.createTempDirectory("mcav-plugin-messages");
-      final Path locale = Files.createDirectories(folder.resolve("locale"));
+      final Path folder = Files.createTempDirectory(TEMPORARY_FOLDER_PREFIX);
+      final Path locale = Files.createDirectories(folder.resolve(LOCALE_FOLDER_NAME));
       Files.writeString(
-        locale.resolve("mcav_en_us.properties"),
+        locale.resolve(ENGLISH_MESSAGES_FILE_NAME),
         "mcav.test.two=<arg:0>|<arg:1>\nmcav.test.three=<arg:0>|<arg:1>|<arg:2>\n"
       );
       return folder;
@@ -104,8 +108,8 @@ public final class TranslationExtension implements BeforeAllCallback {
   }
 
   private static void deleteOnExit(final Path folder) {
-    final Path localeFolder = folder.resolve("locale");
-    final Path messages = localeFolder.resolve("mcav_en_us.properties");
+    final Path localeFolder = folder.resolve(LOCALE_FOLDER_NAME);
+    final Path messages = localeFolder.resolve(ENGLISH_MESSAGES_FILE_NAME);
     final File folderFile = folder.toFile();
     final File localeFile = localeFolder.toFile();
     final File messagesFile = messages.toFile();

@@ -27,18 +27,28 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 final class SeekPositionTest {
 
+  private static final long MINUTES_POSITION_MILLISECONDS = 90_000L;
+  private static final String MINUTES_POSITION_TEXT = "1:30";
+
+  private static final long HOURS_POSITION_MILLISECONDS = 3_723_000L;
+  private static final String HOURS_POSITION_TEXT = "1:02:03";
+
+  private static final String ZERO_POSITION_TEXT = "0:00";
+
+  private static final long RELATIVE_POSITION_MILLISECONDS = 10_000L;
+
   @Test
   void shouldReadTimesFromTheStart() {
-    final SeekPosition expected = new SeekPosition(false, 90_000L);
+    final SeekPosition expected = new SeekPosition(false, MINUTES_POSITION_MILLISECONDS);
     final SeekPosition parsed = SeekPosition.parse("90");
     assertEquals(expected, parsed);
 
-    final SeekPosition secondExpected = new SeekPosition(false, 90_000L);
-    final SeekPosition seekPositionParsed = SeekPosition.parse("1:30");
+    final SeekPosition secondExpected = new SeekPosition(false, MINUTES_POSITION_MILLISECONDS);
+    final SeekPosition seekPositionParsed = SeekPosition.parse(MINUTES_POSITION_TEXT);
     assertEquals(secondExpected, seekPositionParsed);
 
-    final SeekPosition thirdExpected = new SeekPosition(false, 3_723_000L);
-    final SeekPosition secondParsed = SeekPosition.parse("1:02:03");
+    final SeekPosition thirdExpected = new SeekPosition(false, HOURS_POSITION_MILLISECONDS);
+    final SeekPosition secondParsed = SeekPosition.parse(HOURS_POSITION_TEXT);
     assertEquals(thirdExpected, secondParsed);
 
     final SeekPosition fourthExpected = new SeekPosition(false, 1_500L);
@@ -60,7 +70,7 @@ final class SeekPositionTest {
 
   @Test
   void shouldReadTimesFromTheCurrentPosition() {
-    final SeekPosition expected = new SeekPosition(true, 10_000L);
+    final SeekPosition expected = new SeekPosition(true, RELATIVE_POSITION_MILLISECONDS);
     final SeekPosition parsed = SeekPosition.parse("+10");
     assertEquals(expected, parsed);
 
@@ -104,10 +114,10 @@ final class SeekPositionTest {
 
   @Test
   void shouldResolveAgainstTheCurrentPositionAndNeverBeforeTheStart() {
-    final long resolved = new SeekPosition(false, 90_000L).resolve(5_000L);
-    assertEquals(90_000L, resolved);
+    final long resolved = new SeekPosition(false, MINUTES_POSITION_MILLISECONDS).resolve(5_000L);
+    assertEquals(MINUTES_POSITION_MILLISECONDS, resolved);
 
-    final long secondResolved = new SeekPosition(true, 10_000L).resolve(5_000L);
+    final long secondResolved = new SeekPosition(true, RELATIVE_POSITION_MILLISECONDS).resolve(5_000L);
     assertEquals(15_000L, secondResolved);
 
     final long thirdResolved = new SeekPosition(true, -10_000L).resolve(5_000L);
@@ -118,22 +128,22 @@ final class SeekPositionTest {
   @Test
   void shouldFormatTimesAsPlayersReadThem() {
     final String formatted = SeekPosition.format(999L);
-    assertEquals("0:00", formatted);
+    assertEquals(ZERO_POSITION_TEXT, formatted);
 
-    final String seekPositionFormatted = SeekPosition.format(90_000L);
-    assertEquals("1:30", seekPositionFormatted);
+    final String seekPositionFormatted = SeekPosition.format(MINUTES_POSITION_MILLISECONDS);
+    assertEquals(MINUTES_POSITION_TEXT, seekPositionFormatted);
 
     final String secondFormatted = SeekPosition.format(3_599_000L);
     assertEquals("59:59", secondFormatted);
 
-    final String thirdFormatted = SeekPosition.format(3_723_000L);
-    assertEquals("1:02:03", thirdFormatted);
+    final String thirdFormatted = SeekPosition.format(HOURS_POSITION_MILLISECONDS);
+    assertEquals(HOURS_POSITION_TEXT, thirdFormatted);
     assertThrows(IllegalArgumentException.class, () -> SeekPosition.format(-1L));
   }
 
   @Test
   void shouldFormatTheStartOfAVideo() {
     final String formatted = SeekPosition.format(0L);
-    assertEquals("0:00", formatted);
+    assertEquals(ZERO_POSITION_TEXT, formatted);
   }
 }

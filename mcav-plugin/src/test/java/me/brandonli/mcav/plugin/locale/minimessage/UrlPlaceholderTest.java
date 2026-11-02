@@ -52,13 +52,20 @@ final class UrlPlaceholderTest {
   private static final String INJECTION =
     "https://example.test/'><click:run_command:'/say injected'>owned</click><click:open_url:'https://example.test";
 
+  private static final String URL_PLACEHOLDER = "$URL$";
+  private static final String CLICKABLE_URL_TEMPLATE = "<click:open_url:'$URL$'>$URL$</click>";
+
+  private static final String QUOTED_URL = "https://example.test/a'b";
+
+  private static final String MESSAGE_KEY = "message";
+
   @ParameterizedTest
   @ValueSource(strings = { "https://example.test/normal", "https://example.test/a'b", "https://example.test/a%5Cb?x=$URL$" })
   void shouldKeepLegacyQuotedClickTargetsAndVisibleUrlsLiteral(final String url) {
     final MiniMessage parser = MiniMessage.miniMessage();
-    final MiniMessageTranslator translator = translator("<click:open_url:'$URL$'>$URL$</click>", parser);
+    final MiniMessageTranslator translator = translator(CLICKABLE_URL_TEMPLATE, parser);
     final Component argument = Component.text(url);
-    final TranslatableComponent input = Component.translatable("message", argument);
+    final TranslatableComponent input = Component.translatable(MESSAGE_KEY, argument);
     final Component actual = translator.translate(input, Locale.ENGLISH);
     assertNotNull(actual);
     final ClickEvent<?> click = ClickEvent.openUrl(url);
@@ -79,9 +86,9 @@ final class UrlPlaceholderTest {
   )
   void shouldKeepTheLiteralTextOfAnInvalidClickTargetWithoutAnEvent(final String url) {
     final MiniMessage parser = MiniMessage.miniMessage();
-    final MiniMessageTranslator translator = translator("<click:open_url:'$URL$'>$URL$</click>", parser);
+    final MiniMessageTranslator translator = translator(CLICKABLE_URL_TEMPLATE, parser);
     final Component argument = Component.text(url);
-    final TranslatableComponent input = Component.translatable("message", argument);
+    final TranslatableComponent input = Component.translatable(MESSAGE_KEY, argument);
     final Component actual = translator.translate(input, Locale.ENGLISH);
     assertNotNull(actual);
     final Component expected = Component.text(url);
@@ -98,7 +105,7 @@ final class UrlPlaceholderTest {
     final Component argument = Component.text(INJECTION);
     final Component second = Component.text("literal $URL$", NamedTextColor.GOLD);
     final Component suffix = Component.text(" suffix $URL$", NamedTextColor.BLUE);
-    final TranslatableComponent base = Component.translatable("message", argument, second);
+    final TranslatableComponent base = Component.translatable(MESSAGE_KEY, argument, second);
     final TranslatableComponent input = base.append(suffix);
     final Component actual = translator.translate(input, Locale.ENGLISH);
     assertNotNull(actual);
@@ -118,11 +125,11 @@ final class UrlPlaceholderTest {
 
   @Test
   void shouldPreserveRepeatedPlaceholdersWithinExistingClickTargets() {
-    final String url = "https://example.test/a'b";
+    final String url = QUOTED_URL;
     final MiniMessage parser = MiniMessage.miniMessage();
     final MiniMessageTranslator translator = translator("<click:open_url:'https://redirect.test/?to=$URL$&again=$URL$'>go</click>", parser);
     final Component argument = Component.text(url);
-    final TranslatableComponent input = Component.translatable("message", argument);
+    final TranslatableComponent input = Component.translatable(MESSAGE_KEY, argument);
     final Component actual = translator.translate(input, Locale.ENGLISH);
     assertNotNull(actual);
     final String target = "https://redirect.test/?to=" + url + "&again=" + url;
@@ -140,7 +147,7 @@ final class UrlPlaceholderTest {
     final MiniMessage parser = builder.build();
     final MiniMessageTranslator translator = translator("<red><click:open_url:'$URL$'>$URL$</click></red>", parser);
     final Component argument = Component.text(INJECTION);
-    final TranslatableComponent input = Component.translatable("message", argument);
+    final TranslatableComponent input = Component.translatable(MESSAGE_KEY, argument);
     final Component actual = translator.translate(input, Locale.ENGLISH);
     assertNotNull(actual);
     final Component expected = Component.text("<click:open_url:'" + INJECTION + "'>" + INJECTION + "</click>", NamedTextColor.RED);
@@ -154,9 +161,9 @@ final class UrlPlaceholderTest {
     final MiniMessage.Builder builder = MiniMessage.builder();
     builder.tags(customClick);
     final MiniMessage parser = builder.build();
-    final MiniMessageTranslator translator = translator("<click:open_url:'$URL$'>$URL$</click>", parser);
+    final MiniMessageTranslator translator = translator(CLICKABLE_URL_TEMPLATE, parser);
     final Component argument = Component.text(INJECTION);
-    final TranslatableComponent input = Component.translatable("message", argument);
+    final TranslatableComponent input = Component.translatable(MESSAGE_KEY, argument);
     final Component actual = translator.translate(input, Locale.ENGLISH);
     assertNotNull(actual);
     final Component expected = Component.text(INJECTION, NamedTextColor.GOLD);
@@ -166,9 +173,9 @@ final class UrlPlaceholderTest {
 
   @Test
   void shouldRestoreUrlsInsideHoverEntityNamesAndTranslationArguments() {
-    final String url = "https://example.test/a'b";
+    final String url = QUOTED_URL;
     final UrlPlaceholder placeholder = new UrlPlaceholder();
-    final String marker = placeholder.prepare("$URL$");
+    final String marker = placeholder.prepare(URL_PLACEHOLDER);
     final Component text = Component.text(marker);
     final ClickEvent<?> click = ClickEvent.openUrl(marker);
     final Component linked = text.clickEvent(click);
@@ -207,8 +214,8 @@ final class UrlPlaceholderTest {
   @Test
   void shouldStillFailClearlyOnMissingUrlArguments() {
     final MiniMessage parser = MiniMessage.miniMessage();
-    final MiniMessageTranslator translator = translator("$URL$", parser);
-    final TranslatableComponent input = Component.translatable("message");
+    final MiniMessageTranslator translator = translator(URL_PLACEHOLDER, parser);
+    final TranslatableComponent input = Component.translatable(MESSAGE_KEY);
     assertThrows(NoSuchElementException.class, () -> translator.translate(input, Locale.ENGLISH));
   }
 

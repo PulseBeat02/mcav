@@ -48,6 +48,20 @@ import org.mockito.Mockito;
 
 final class CaptureDevicesTest {
 
+  private static final String FIRST_PROBED_DEVICE_NAME = "device 1";
+
+  private static final String DEVICE_NAME_FILE_NAME = "name";
+  private static final String FIRST_VIDEO_FOLDER_NAME = "video0";
+  private static final String CAPTURE_CARD_FOLDER_NAME = "video3";
+  private static final String VIRTUAL_CAMERA_FOLDER_NAME = "video2";
+  private static final String UNNAMED_VIDEO_FOLDER_NAME = "video10";
+  private static final String LONG_NAME_VIDEO_FOLDER_NAME = "video11";
+  private static final String VBI_FOLDER_NAME = "vbi0";
+  private static final String LONG_NUMBER_FOLDER_NAME = "video1234";
+  private static final String MISSING_FOLDER_NAME = "missing";
+  private static final String PLAIN_FILE_NAME = "a file";
+  private static final String LOCKED_FOLDER_NAME = "locked";
+
   @TempDir
   Path folder;
 
@@ -63,7 +77,7 @@ final class CaptureDevicesTest {
 
   @Test
   void shouldListWhatLinuxNamesOnLinuxAndTryNumbersElsewhere() throws IOException {
-    Files.writeString(Files.createDirectory(this.folder.resolve("video3")).resolve("name"), "Capture Card");
+    Files.writeString(Files.createDirectory(this.folder.resolve(CAPTURE_CARD_FOLDER_NAME)).resolve(DEVICE_NAME_FILE_NAME), "Capture Card");
 
     final List<CaptureDevices.Device> expected = List.of(new CaptureDevices.Device(3, "Capture Card"));
     final List<CaptureDevices.Device> listed = CaptureDevices.list(Os.LINUX, this.folder, _ -> true);
@@ -71,24 +85,33 @@ final class CaptureDevicesTest {
 
     final List<CaptureDevices.Device> tried = CaptureDevices.list(Os.WINDOWS, this.folder, index -> index == 1);
 
-    final List<CaptureDevices.Device> listExpected = List.of(new CaptureDevices.Device(1, "device 1"));
+    final List<CaptureDevices.Device> listExpected = List.of(new CaptureDevices.Device(1, FIRST_PROBED_DEVICE_NAME));
     assertEquals(listExpected, tried);
   }
 
   @Test
   void shouldListTheVideoDevicesLinuxDescribesByNumber() throws IOException {
-    Files.writeString(Files.createDirectory(this.folder.resolve("video2")).resolve("name"), "OBS Virtual Camera\n");
-    Files.writeString(Files.createDirectory(this.folder.resolve("video0")).resolve("name"), "Integrated Camera");
-    Files.createDirectory(this.folder.resolve("video10"));
-    Files.writeString(Files.createDirectory(this.folder.resolve("video11")).resolve("name"), "x".repeat(100));
-    Files.writeString(Files.createDirectory(this.folder.resolve("vbi0")).resolve("name"), "not a camera");
-    Files.createDirectory(this.folder.resolve("video1234"));
+    Files.writeString(
+      Files.createDirectory(this.folder.resolve(VIRTUAL_CAMERA_FOLDER_NAME)).resolve(DEVICE_NAME_FILE_NAME),
+      "OBS Virtual Camera\n"
+    );
+    Files.writeString(
+      Files.createDirectory(this.folder.resolve(FIRST_VIDEO_FOLDER_NAME)).resolve(DEVICE_NAME_FILE_NAME),
+      "Integrated Camera"
+    );
+    Files.createDirectory(this.folder.resolve(UNNAMED_VIDEO_FOLDER_NAME));
+    Files.writeString(
+      Files.createDirectory(this.folder.resolve(LONG_NAME_VIDEO_FOLDER_NAME)).resolve(DEVICE_NAME_FILE_NAME),
+      "x".repeat(100)
+    );
+    Files.writeString(Files.createDirectory(this.folder.resolve(VBI_FOLDER_NAME)).resolve(DEVICE_NAME_FILE_NAME), "not a camera");
+    Files.createDirectory(this.folder.resolve(LONG_NUMBER_FOLDER_NAME));
     final List<CaptureDevices.Device> devices = CaptureDevices.listSysfs(this.folder);
 
     final List<CaptureDevices.Device> expected = List.of(
       new CaptureDevices.Device(0, "Integrated Camera"),
       new CaptureDevices.Device(2, "OBS Virtual Camera"),
-      new CaptureDevices.Device(10, "video10"),
+      new CaptureDevices.Device(10, UNNAMED_VIDEO_FOLDER_NAME),
       new CaptureDevices.Device(11, "x".repeat(CaptureDevices.MAXIMUM_NAME))
     );
     assertEquals(expected, devices);
@@ -96,14 +119,16 @@ final class CaptureDevicesTest {
 
   @Test
   void shouldListNothingWithoutTheFolderOrWhenItCannotBeRead() throws IOException {
-    final List<CaptureDevices.Device> listed = CaptureDevices.listSysfs(this.folder.resolve("missing"));
+    final List<CaptureDevices.Device> listed = CaptureDevices.listSysfs(this.folder.resolve(MISSING_FOLDER_NAME));
     assertEquals(List.of(), listed);
 
-    final List<CaptureDevices.Device> captureDevicesListed = CaptureDevices.listSysfs(Files.writeString(this.folder.resolve("a file"), ""));
+    final List<CaptureDevices.Device> captureDevicesListed = CaptureDevices.listSysfs(
+      Files.writeString(this.folder.resolve(PLAIN_FILE_NAME), "")
+    );
     assertEquals(List.of(), captureDevicesListed);
 
-    final Path locked = Files.createDirectory(this.folder.resolve("locked"));
-    Files.createDirectory(locked.resolve("video0"));
+    final Path locked = Files.createDirectory(this.folder.resolve(LOCKED_FOLDER_NAME));
+    Files.createDirectory(locked.resolve(FIRST_VIDEO_FOLDER_NAME));
     assumeTrue(
       Files.getFileStore(locked).supportsFileAttributeView(PosixFileAttributeView.class),
       "The file system must support POSIX permissions!"
@@ -123,7 +148,7 @@ final class CaptureDevicesTest {
     final List<CaptureDevices.Device> devices = CaptureDevices.probe(4, index -> index % 2 == 1);
 
     final List<CaptureDevices.Device> expected = List.of(
-      new CaptureDevices.Device(1, "device 1"),
+      new CaptureDevices.Device(1, FIRST_PROBED_DEVICE_NAME),
       new CaptureDevices.Device(3, "device 3")
     );
     assertEquals(expected, devices);

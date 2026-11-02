@@ -89,6 +89,24 @@ final class PluginDataConfigurationMapperTest {
     allow-network: true
   """;
 
+  private static final String DEFAULT_HTTP_HOST = "localhost";
+  private static final int DEFAULT_HTTP_PORT = 3000;
+  private static final String DEFAULT_MCV2_NATIVE = "auto";
+  private static final int DEFAULT_MCV2_PACK_HTTP_PORT = 25580;
+
+  private static final int CONFIGURED_HTTP_PORT = 8080;
+  private static final String REFUSED_HOST_NAME = "play.example.com";
+
+  private static final String KEPT_VNC_HOST = "kept.example";
+  private static final int KEPT_VNC_PORT = 5904;
+
+  private static final String CONFIGURATION_FILE_NAME = "config.yml";
+
+  private static final String ALLOWED_HOSTS_WARNING_PATTERN = "of vnc.allowed-hosts, which is not";
+  private static final String REFUSED_HOSTS_WARNING_PATTERN = "of browser.refused-hosts, which is not";
+  private static final String NATIVE_MODE_WARNING_PATTERN = "using auto";
+  private static final String ENCODER_BUDGET_WARNING_PATTERN = "using half the processors";
+
   @TempDir
   private Path folder;
 
@@ -197,13 +215,13 @@ final class PluginDataConfigurationMapperTest {
       System.setErr(original);
     }
 
-    final List<VncAllowList.Entry> expected = List.of(new VncAllowList.Entry("kept.example", 5904, null));
+    final List<VncAllowList.Entry> expected = List.of(new VncAllowList.Entry(KEPT_VNC_HOST, KEPT_VNC_PORT, null));
     final List<VncAllowList.Entry> entries = this.mapper.getVncAllowList().entries();
     assertEquals(expected, entries);
 
     final String text = logged.toString(StandardCharsets.UTF_8);
 
-    final int matches = text.split("of vnc.allowed-hosts, which is not", -1).length - 1;
+    final int matches = text.split(ALLOWED_HOSTS_WARNING_PATTERN, -1).length - 1;
     assertEquals(5, matches, text);
 
     final boolean contained = text.contains("hunter2");
@@ -233,13 +251,13 @@ final class PluginDataConfigurationMapperTest {
       System.setErr(original);
     }
 
-    final List<VncAllowList.Entry> expected = List.of(new VncAllowList.Entry("kept.example", 5904, null));
+    final List<VncAllowList.Entry> expected = List.of(new VncAllowList.Entry(KEPT_VNC_HOST, KEPT_VNC_PORT, null));
     final List<VncAllowList.Entry> entries = this.mapper.getVncAllowList().entries();
     assertEquals(expected, entries);
 
     final String text = logged.toString(StandardCharsets.UTF_8);
 
-    final int matches = text.split("of vnc.allowed-hosts, which is not", -1).length - 1;
+    final int matches = text.split(ALLOWED_HOSTS_WARNING_PATTERN, -1).length - 1;
     assertEquals(1, matches, text);
 
     final boolean contained = text.contains("hidden-secret");
@@ -247,7 +265,7 @@ final class PluginDataConfigurationMapperTest {
   }
 
   private void writeConfiguration(final String yaml) throws IOException {
-    final Path file = this.folder.resolve("config.yml");
+    final Path file = this.folder.resolve(CONFIGURATION_FILE_NAME);
     Files.writeString(file, yaml, StandardCharsets.UTF_8);
   }
 
@@ -268,8 +286,8 @@ final class PluginDataConfigurationMapperTest {
     assertEquals("", token);
     assertEquals("", channel);
     assertEquals("", guild);
-    assertEquals("localhost", host);
-    assertEquals(3000, port);
+    assertEquals(DEFAULT_HTTP_HOST, host);
+    assertEquals(DEFAULT_HTTP_PORT, port);
     assertFalse(discordBotEnabled);
     assertFalse(httpEnabled);
     assertFalse(voiceChatEnabled);
@@ -278,7 +296,7 @@ final class PluginDataConfigurationMapperTest {
     assertEquals(0, mcv2EncoderThreads);
 
     final String mcv2Native = this.mapper.getMcv2Native();
-    assertEquals("auto", mcv2Native);
+    assertEquals(DEFAULT_MCV2_NATIVE, mcv2Native);
 
     final boolean browserPrivateNetworks = this.mapper.isBrowserPrivateNetworks();
     assertFalse(browserPrivateNetworks);
@@ -308,15 +326,15 @@ final class PluginDataConfigurationMapperTest {
     assertEquals("", mcv2PackHttpHost);
 
     final int mcv2PackHttpPort = this.mapper.getMcv2PackHttpPort();
-    assertEquals(25580, mcv2PackHttpPort);
+    assertEquals(DEFAULT_MCV2_PACK_HTTP_PORT, mcv2PackHttpPort);
   }
 
   @Test
   void shouldCreateTheBundledConfigurationWhenItIsMissing() {
     this.saveBundledResources();
     this.mapper.deserialize();
-    verify(this.plugin).saveResource("config.yml", false);
-    final Path file = this.folder.resolve("config.yml");
+    verify(this.plugin).saveResource(CONFIGURATION_FILE_NAME, false);
+    final Path file = this.folder.resolve(CONFIGURATION_FILE_NAME);
     final boolean exists = Files.isRegularFile(file);
     assertTrue(exists);
   }
@@ -338,8 +356,8 @@ final class PluginDataConfigurationMapperTest {
     assertEquals("none", token);
     assertEquals("none", channel);
     assertEquals("none", guild);
-    assertEquals("localhost", host);
-    assertEquals(3000, port);
+    assertEquals(DEFAULT_HTTP_HOST, host);
+    assertEquals(DEFAULT_HTTP_PORT, port);
     assertFalse(discordBotEnabled);
     assertFalse(httpEnabled);
     assertFalse(voiceChatEnabled);
@@ -348,7 +366,7 @@ final class PluginDataConfigurationMapperTest {
     assertEquals(0, mcv2EncoderThreads);
 
     final String mcv2Native = this.mapper.getMcv2Native();
-    assertEquals("auto", mcv2Native);
+    assertEquals(DEFAULT_MCV2_NATIVE, mcv2Native);
 
     final boolean browserPrivateNetworks = this.mapper.isBrowserPrivateNetworks();
     assertFalse(browserPrivateNetworks, "the bundled file keeps the browser on public addresses");
@@ -375,7 +393,7 @@ final class PluginDataConfigurationMapperTest {
     assertEquals("", mcv2PackHttpHost);
 
     final int mcv2PackHttpPort = this.mapper.getMcv2PackHttpPort();
-    assertEquals(25580, mcv2PackHttpPort);
+    assertEquals(DEFAULT_MCV2_PACK_HTTP_PORT, mcv2PackHttpPort);
   }
 
   @Test
@@ -423,7 +441,7 @@ final class PluginDataConfigurationMapperTest {
     assertSame(Mcv2Hosting.INJECTOR, mcv2PackHosting);
 
     final int mcv2PackHttpPort = this.mapper.getMcv2PackHttpPort();
-    assertEquals(25580, mcv2PackHttpPort);
+    assertEquals(DEFAULT_MCV2_PACK_HTTP_PORT, mcv2PackHttpPort);
 
     final String text = logged.toString(StandardCharsets.UTF_8);
 
@@ -454,7 +472,7 @@ final class PluginDataConfigurationMapperTest {
     assertEquals("456", channel);
     assertEquals("123", guild);
     assertEquals("mc.example.com", host);
-    assertEquals(8080, port);
+    assertEquals(CONFIGURED_HTTP_PORT, port);
     assertTrue(discordBotEnabled);
     assertTrue(httpEnabled);
     assertTrue(voiceChatEnabled);
@@ -478,7 +496,7 @@ final class PluginDataConfigurationMapperTest {
     assertFalse(browserConfineChromium);
 
     final List<String> browserRefusedHosts = this.mapper.getBrowserRefusedHosts();
-    assertEquals(List.of("203.0.113.5", "play.example.com"), browserRefusedHosts);
+    assertEquals(List.of("203.0.113.5", REFUSED_HOST_NAME), browserRefusedHosts);
 
     final boolean vmAllowNetwork = this.mapper.isVmAllowNetwork();
     assertTrue(vmAllowNetwork);
@@ -495,8 +513,8 @@ final class PluginDataConfigurationMapperTest {
     final boolean discordBotEnabled = this.mapper.isDiscordBotEnabled();
     assertSame(Locale.EN_US, locale);
     assertEquals("", token);
-    assertEquals("localhost", host);
-    assertEquals(3000, port);
+    assertEquals(DEFAULT_HTTP_HOST, host);
+    assertEquals(DEFAULT_HTTP_PORT, port);
     assertFalse(discordBotEnabled);
   }
 
@@ -542,11 +560,11 @@ final class PluginDataConfigurationMapperTest {
     }
 
     final List<String> browserRefusedHosts = this.mapper.getBrowserRefusedHosts();
-    assertEquals(List.of("play.example.com"), browserRefusedHosts);
+    assertEquals(List.of(REFUSED_HOST_NAME), browserRefusedHosts);
 
     final String text = logged.toString(StandardCharsets.UTF_8);
 
-    final int matches = text.split("of browser.refused-hosts, which is not", -1).length - 1;
+    final int matches = text.split(REFUSED_HOSTS_WARNING_PATTERN, -1).length - 1;
     assertEquals(3, matches, text);
   }
 
@@ -585,7 +603,7 @@ final class PluginDataConfigurationMapperTest {
     }
     final String text = logged.toString(StandardCharsets.UTF_8);
 
-    final int matches = text.split("using auto", -1).length - 1;
+    final int matches = text.split(NATIVE_MODE_WARNING_PATTERN, -1).length - 1;
     assertEquals(1, matches, text);
   }
 
@@ -606,13 +624,13 @@ final class PluginDataConfigurationMapperTest {
     // the default, 0, is no mistake; -1 is
     final String text = logged.toString(StandardCharsets.UTF_8);
 
-    final int matches = text.split("using half the processors", -1).length - 1;
+    final int matches = text.split(ENCODER_BUDGET_WARNING_PATTERN, -1).length - 1;
     assertEquals(1, matches, text);
   }
 
   @Test
   void shouldFailWhenTheFileCannotBeRead() throws IOException {
-    final Path file = this.folder.resolve("config.yml");
+    final Path file = this.folder.resolve(CONFIGURATION_FILE_NAME);
     final byte[] invalidUtf8 = { (byte) 0xC3, (byte) 0x28 };
     Files.write(file, invalidUtf8);
     final IllegalStateException exception = assertThrows(IllegalStateException.class, this.mapper::deserialize);
@@ -627,7 +645,7 @@ final class PluginDataConfigurationMapperTest {
   void shouldFailInsteadOfUsingTheDefaultsWhenTheFileIsNotValidYaml() throws IOException {
     this.writeConfiguration("a: [\n");
     final IllegalStateException exception = assertThrows(IllegalStateException.class, this.mapper::deserialize);
-    final Path file = this.folder.resolve("config.yml");
+    final Path file = this.folder.resolve(CONFIGURATION_FILE_NAME);
     final String message = exception.getMessage();
     final boolean mentionsFile = message.startsWith("File " + file + " is not valid YAML (");
     assertTrue(mentionsFile, message);
@@ -642,7 +660,7 @@ final class PluginDataConfigurationMapperTest {
     this.writeConfiguration("http-server:\n  port: [\n");
     assertThrows(IllegalStateException.class, this.mapper::deserialize);
     final int port = this.mapper.getHttpPort();
-    assertEquals(8080, port);
+    assertEquals(CONFIGURED_HTTP_PORT, port);
   }
 
   @Test
@@ -653,7 +671,7 @@ final class PluginDataConfigurationMapperTest {
   @Test
   void shouldFailWhenTheBundledFileCannotBeSaved() {
     final IllegalStateException exception = assertThrows(IllegalStateException.class, this.mapper::deserialize);
-    verify(this.plugin).saveResource("config.yml", false);
+    verify(this.plugin).saveResource(CONFIGURATION_FILE_NAME, false);
     final Throwable cause = exception.getCause();
     assertInstanceOf(IOException.class, cause);
   }

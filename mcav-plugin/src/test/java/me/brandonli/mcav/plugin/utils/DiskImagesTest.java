@@ -36,6 +36,20 @@ import org.junit.jupiter.params.provider.ValueSource;
  */
 final class DiskImagesTest {
 
+  private static final String IMAGE_FILE_NAME = "alpine.iso";
+  private static final String ISO_FOLDER_NAME = "iso";
+  private static final String LINUX_FOLDER_NAME = "linux";
+  private static final String NESTED_IMAGE_PATH = "linux/alpine.iso";
+  private static final String LIBRARY_IMAGE_FILE_NAME = "library.iso";
+  private static final String LINKED_IMAGE_FILE_NAME = "linked.iso";
+  private static final String DIRECTORY_IMAGE_FILE_NAME = "directory.iso";
+  private static final String ABSENT_IMAGE_FILE_NAME = "absent.iso";
+  private static final String INVALID_IMAGE_FILE_NAME = "alpine\u0000.iso";
+
+  private static final String IMAGE_CONTENT = "disk image";
+
+  private static final String OUTSIDE_FOLDER_EXPLANATION = "lies outside the iso folder";
+
   @TempDir
   private Path dataFolder;
 
@@ -49,32 +63,32 @@ final class DiskImagesTest {
 
   private Path writeImage(final String name) throws IOException {
     final Path image = this.folder.resolve(name);
-    Files.writeString(image, "disk image");
+    Files.writeString(image, IMAGE_CONTENT);
     return image;
   }
 
   @Test
   void shouldNameTheImageFolderInsideTheDataFolder() {
-    final Path expected = this.dataFolder.resolve("iso");
+    final Path expected = this.dataFolder.resolve(ISO_FOLDER_NAME);
     assertEquals(expected, this.folder);
-    assertEquals("iso", DiskImages.FOLDER_NAME);
+    assertEquals(ISO_FOLDER_NAME, DiskImages.FOLDER_NAME);
   }
 
   @Test
   void shouldResolveAnImageOfTheFolder() throws IOException {
-    final Path image = this.writeImage("alpine.iso");
-    final Path resolved = DiskImages.require(this.folder, "alpine.iso");
+    final Path image = this.writeImage(IMAGE_FILE_NAME);
+    final Path resolved = DiskImages.require(this.folder, IMAGE_FILE_NAME);
     final Path expected = image.toAbsolutePath().normalize();
     assertEquals(expected, resolved);
   }
 
   @Test
   void shouldResolveAnImageOfASubFolder() throws IOException {
-    final Path nested = this.folder.resolve("linux");
+    final Path nested = this.folder.resolve(LINUX_FOLDER_NAME);
     Files.createDirectories(nested);
-    final Path image = nested.resolve("alpine.iso");
-    Files.writeString(image, "disk image");
-    final Path resolved = DiskImages.require(this.folder, "linux/alpine.iso");
+    final Path image = nested.resolve(IMAGE_FILE_NAME);
+    Files.writeString(image, IMAGE_CONTENT);
+    final Path resolved = DiskImages.require(this.folder, NESTED_IMAGE_PATH);
 
     final Path expected = image.toAbsolutePath().normalize();
     assertEquals(expected, resolved);
@@ -82,7 +96,7 @@ final class DiskImagesTest {
 
   @Test
   void shouldResolveAnAbsolutePathInsideTheFolder() throws IOException {
-    final Path image = this.writeImage("alpine.iso");
+    final Path image = this.writeImage(IMAGE_FILE_NAME);
     final String absolute = image.toAbsolutePath().toString();
     final Path resolved = DiskImages.require(this.folder, absolute);
 
@@ -92,12 +106,12 @@ final class DiskImagesTest {
 
   @Test
   void shouldFollowALinkOfTheFolderThatTheOwnerPutThere() throws IOException {
-    final Path elsewhere = this.dataFolder.resolve("library.iso");
-    Files.writeString(elsewhere, "disk image");
-    final Path link = this.folder.resolve("linked.iso");
+    final Path elsewhere = this.dataFolder.resolve(LIBRARY_IMAGE_FILE_NAME);
+    Files.writeString(elsewhere, IMAGE_CONTENT);
+    final Path link = this.folder.resolve(LINKED_IMAGE_FILE_NAME);
     Files.createSymbolicLink(link, elsewhere);
 
-    final Path resolved = DiskImages.require(this.folder, "linked.iso");
+    final Path resolved = DiskImages.require(this.folder, LINKED_IMAGE_FILE_NAME);
 
     final Path expected = link.toAbsolutePath().normalize();
     assertEquals(expected, resolved, "the link is named, so the machine is given the link");
@@ -108,7 +122,7 @@ final class DiskImagesTest {
   void shouldRefuseAnImageOutsideTheFolder(final String image) {
     final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () -> DiskImages.require(this.folder, image));
     final String message = failure.getMessage();
-    final boolean explained = message.contains("lies outside the iso folder");
+    final boolean explained = message.contains(OUTSIDE_FOLDER_EXPLANATION);
     assertTrue(explained, message);
   }
 
@@ -116,19 +130,19 @@ final class DiskImagesTest {
   void shouldRefuseTheFolderItself() {
     final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () -> DiskImages.require(this.folder, "."));
     final String message = failure.getMessage();
-    final boolean explained = message.contains("lies outside the iso folder");
+    final boolean explained = message.contains(OUTSIDE_FOLDER_EXPLANATION);
     assertTrue(explained, message);
   }
 
   @Test
   void shouldRefuseAnImageThatIsNotAFile() throws IOException {
-    final Path directory = this.folder.resolve("directory.iso");
+    final Path directory = this.folder.resolve(DIRECTORY_IMAGE_FILE_NAME);
     Files.createDirectories(directory);
     final IllegalArgumentException missing = assertThrows(IllegalArgumentException.class, () ->
-      DiskImages.require(this.folder, "absent.iso")
+      DiskImages.require(this.folder, ABSENT_IMAGE_FILE_NAME)
     );
     final IllegalArgumentException notAFile = assertThrows(IllegalArgumentException.class, () ->
-      DiskImages.require(this.folder, "directory.iso")
+      DiskImages.require(this.folder, DIRECTORY_IMAGE_FILE_NAME)
     );
 
     final String message = missing.getMessage();
@@ -149,7 +163,7 @@ final class DiskImagesTest {
 
   @Test
   void shouldRefuseANameTheFileSystemCannotRepresent() {
-    final String invalid = "alpine\u0000.iso";
+    final String invalid = INVALID_IMAGE_FILE_NAME;
     final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () -> DiskImages.require(this.folder, invalid));
     final String message = failure.getMessage();
     final boolean explained = message.contains("is not a valid file name");
@@ -159,7 +173,7 @@ final class DiskImagesTest {
   @Test
   void shouldRefuseNullArguments() {
     assertThrows(NullPointerException.class, () -> DiskImages.folderOf(null));
-    assertThrows(NullPointerException.class, () -> DiskImages.require(null, "alpine.iso"));
+    assertThrows(NullPointerException.class, () -> DiskImages.require(null, IMAGE_FILE_NAME));
     assertThrows(NullPointerException.class, () -> DiskImages.require(this.folder, null));
   }
 

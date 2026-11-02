@@ -60,6 +60,10 @@ final class PluginTranslatorTest {
   rich=Hello <red>world</red>
   """;
 
+  private static final String SUFFIX_TEXT = "!";
+
+  private static final String PLAIN_KEY = "plain";
+
   private PluginTranslator translator;
 
   @BeforeEach
@@ -83,7 +87,7 @@ final class PluginTranslatorTest {
 
   @Test
   void shouldRenderMessagesWithoutArguments() {
-    final TranslatableComponent component = Component.translatable("plain");
+    final TranslatableComponent component = Component.translatable(PLAIN_KEY);
     final String text = this.render(component);
     assertEquals("Plain text", text);
   }
@@ -111,8 +115,8 @@ final class PluginTranslatorTest {
 
   @Test
   void shouldKeepTheChildrenOfTheComponent() {
-    final TranslatableComponent translatable = Component.translatable("plain");
-    final TextComponent suffix = Component.text("!");
+    final TranslatableComponent translatable = Component.translatable(PLAIN_KEY);
+    final TextComponent suffix = Component.text(SUFFIX_TEXT);
     final TranslatableComponent component = translatable.append(suffix);
     final String text = this.render(component);
     assertEquals("Plain text!", text);
@@ -123,7 +127,7 @@ final class PluginTranslatorTest {
     final TranslatableComponent base = Component.translatable("rich");
     final TranslatableComponent blue = base.color(NamedTextColor.BLUE);
     final TranslatableComponent bold = blue.decorate(TextDecoration.BOLD);
-    final TextComponent suffix = Component.text("!");
+    final TextComponent suffix = Component.text(SUFFIX_TEXT);
     final TranslatableComponent component = bold.append(suffix);
     final Component rendered = this.translator.translate(component, Locale.ENGLISH);
     assertNotNull(rendered);
@@ -145,7 +149,7 @@ final class PluginTranslatorTest {
 
   @Test
   void shouldNotTranslateToMessageFormats() {
-    final MessageFormat rendered = this.translator.translate("plain", Locale.ENGLISH);
+    final MessageFormat rendered = this.translator.translate(PLAIN_KEY, Locale.ENGLISH);
     assertNull(rendered);
   }
 

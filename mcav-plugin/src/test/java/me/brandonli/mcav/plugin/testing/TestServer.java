@@ -51,13 +51,15 @@ public final class TestServer {
   private static final Server SERVER = install();
   private static final List<Runnable> PENDING_TASKS = Collections.synchronizedList(new ArrayList<>());
 
+  private static final String LOGGER_NAME = "TestServer";
+
   private TestServer() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   private static Server install() {
     final Server server = mock(Server.class);
-    final Logger logger = Logger.getLogger("TestServer");
+    final Logger logger = Logger.getLogger(LOGGER_NAME);
     when(server.getLogger()).thenReturn(logger);
     final ServerBuildInfo buildInformation = mock(ServerBuildInfo.class);
     try (final MockedStatic<ServerBuildInfo> mocked = Mockito.mockStatic(ServerBuildInfo.class)) {
@@ -84,7 +86,7 @@ public final class TestServer {
       final Thread current = Thread.currentThread();
       return mainThread.equals(current);
     });
-    final Logger logger = Logger.getLogger("TestServer");
+    final Logger logger = Logger.getLogger(LOGGER_NAME);
     when(SERVER.getLogger()).thenReturn(logger);
     final PluginManager pluginManager = mock(PluginManager.class);
     when(SERVER.getPluginManager()).thenReturn(pluginManager);

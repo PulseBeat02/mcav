@@ -59,6 +59,25 @@ final class InteractUtilsTest {
   private static final float LOOK_EAST = -90.0f;
   private static final float LOOK_WEST = 90.0f;
 
+  private static final int BLOCK_Y = 64;
+  private static final int TOP_ROW_Y = 65;
+  private static final double FRAME_CENTER_Y = 64.5;
+  private static final double EYE_Y = 64.6;
+
+  private static final double EYE_DISTANCE = 5.0;
+
+  private static final double DISTANT_WALL_PLANE = 8.0;
+
+  private static final double HALF_BLOCK = 0.5;
+
+  private static final int WALL_COLUMNS = 4;
+  private static final int WALL_ROWS = 2;
+
+  private static final int MAP_SIZE = 128;
+  private static final int AIMED_PIXEL_X = 38;
+  private static final int AIMED_PIXEL_Y = 51;
+  private static final int MIRRORED_PIXEL_X = 89;
+
   private FakeWorld fakeWorld;
   private Player player;
 
@@ -95,11 +114,11 @@ final class InteractUtilsTest {
    */
   private ItemFrame buildSouthWallAwayFromTheOrigin() {
     ItemFrame target = null;
-    for (int row = 0; row < 2; row++) {
-      for (int column = 0; column < 4; column++) {
+    for (int row = 0; row < WALL_ROWS; row++) {
+      for (int column = 0; column < WALL_COLUMNS; column++) {
         final int blockX = 4 + column;
-        final int blockY = 65 - row;
-        final Location location = this.fakeWorld.location(blockX + 0.5, blockY + 0.5, 0.0);
+        final int blockY = TOP_ROW_Y - row;
+        final Location location = this.fakeWorld.location(blockX + HALF_BLOCK, blockY + HALF_BLOCK, 0.0);
         final boolean first = row == 0 && column == 0;
         final boolean last = row == 1 && column == 3;
         if (first) {
@@ -111,8 +130,8 @@ final class InteractUtilsTest {
         }
       }
     }
-    final Block wallBlock = this.fakeWorld.block(7, 64, -1);
-    final Location eye = this.eye(7.3, 64.6, 5.0, LOOK_NORTH);
+    final Block wallBlock = this.fakeWorld.block(7, BLOCK_Y, -1);
+    final Location eye = this.eye(7.3, EYE_Y, EYE_DISTANCE, LOOK_NORTH);
     this.aimAt(target, BlockFace.SOUTH, wallBlock, eye);
     return target;
   }
@@ -123,10 +142,10 @@ final class InteractUtilsTest {
    */
   private ItemFrame buildSouthWall() {
     ItemFrame target = null;
-    for (int row = 0; row < 2; row++) {
-      for (int column = 0; column < 4; column++) {
-        final int blockY = 65 - row;
-        final Location location = this.fakeWorld.location(column + 0.5, blockY + 0.5, 0.0);
+    for (int row = 0; row < WALL_ROWS; row++) {
+      for (int column = 0; column < WALL_COLUMNS; column++) {
+        final int blockY = TOP_ROW_Y - row;
+        final Location location = this.fakeWorld.location(column + HALF_BLOCK, blockY + HALF_BLOCK, 0.0);
         final boolean first = row == 0 && column == 0;
         final boolean last = row == 1 && column == 3;
         if (first) {
@@ -138,8 +157,8 @@ final class InteractUtilsTest {
         }
       }
     }
-    final Block wallBlock = this.fakeWorld.block(3, 64, -1);
-    final Location eye = this.eye(3.3, 64.6, 5.0, LOOK_NORTH);
+    final Block wallBlock = this.fakeWorld.block(3, BLOCK_Y, -1);
+    final Location eye = this.eye(3.3, EYE_Y, EYE_DISTANCE, LOOK_NORTH);
     this.aimAt(target, BlockFace.SOUTH, wallBlock, eye);
     return target;
   }
@@ -147,8 +166,8 @@ final class InteractUtilsTest {
   @ParameterizedTest
   @ValueSource(booleans = { true, false })
   void shouldKeepAdjacentScreenCornersSeparateOrRejectAmbiguousLegacyWalls(final boolean identified) {
-    final Location firstLocation = this.fakeWorld.location(0.5, 64.5, 0.0);
-    final Location secondLocation = this.fakeWorld.location(1.5, 64.5, 0.0);
+    final Location firstLocation = this.fakeWorld.location(0.5, FRAME_CENTER_Y, 0.0);
+    final Location secondLocation = this.fakeWorld.location(1.5, FRAME_CENTER_Y, 0.0);
     final ItemFrame first = this.fakeWorld.addFrame(firstLocation, BlockFace.SOUTH, Keys.MAP_KEY, Keys.FIRST_MAP_KEY, Keys.LAST_MAP_KEY);
     final ItemFrame second = this.fakeWorld.addFrame(secondLocation, BlockFace.SOUTH, Keys.MAP_KEY, Keys.FIRST_MAP_KEY, Keys.LAST_MAP_KEY);
     if (identified) {
@@ -157,12 +176,12 @@ final class InteractUtilsTest {
       firstData.set(Keys.SCREEN_KEY, PersistentDataType.STRING, "first");
       secondData.set(Keys.SCREEN_KEY, PersistentDataType.STRING, "second");
     }
-    final Block wall = this.fakeWorld.block(1, 64, -1);
-    final Location eye = this.eye(1.3, 64.6, 5.0, LOOK_NORTH);
+    final Block wall = this.fakeWorld.block(1, BLOCK_Y, -1);
+    final Location eye = this.eye(1.3, EYE_Y, EYE_DISTANCE, LOOK_NORTH);
     this.aimAt(second, BlockFace.SOUTH, wall, eye);
     final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
     if (identified) {
-      assertArrayEquals(new int[] { 38, 51 }, coordinates);
+      assertArrayEquals(new int[] { AIMED_PIXEL_X, AIMED_PIXEL_Y }, coordinates);
     } else {
       assertNull(coordinates, "legacy walls with several possible corners cannot be resolved safely");
     }
@@ -172,7 +191,7 @@ final class InteractUtilsTest {
   void shouldFindThePixelOnAWallFacingSouth() {
     this.buildSouthWall();
     final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
-    assertArrayEquals(new int[] { 3 * 128 + 38, 128 + 51 }, coordinates);
+    assertArrayEquals(new int[] { 3 * MAP_SIZE + AIMED_PIXEL_X, MAP_SIZE + AIMED_PIXEL_Y }, coordinates);
   }
 
   @Test
@@ -180,28 +199,28 @@ final class InteractUtilsTest {
     final ItemFrame target = this.buildSouthWall();
     when(this.player.getTargetEntity(anyInt())).thenReturn(null);
     final int[] coordinates = InteractUtils.getBoardCoordinates(this.player, target);
-    assertArrayEquals(new int[] { 3 * 128 + 38, 128 + 51 }, coordinates);
+    assertArrayEquals(new int[] { 3 * MAP_SIZE + AIMED_PIXEL_X, MAP_SIZE + AIMED_PIXEL_Y }, coordinates);
   }
 
   @Test
   void shouldCountTheColumnsFromTheFirstCornerOfTheWall() {
     this.buildSouthWallAwayFromTheOrigin();
     final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
-    final int[] expected = { 3 * 128 + 38, 128 + 51 };
+    final int[] expected = { 3 * MAP_SIZE + AIMED_PIXEL_X, MAP_SIZE + AIMED_PIXEL_Y };
     assertArrayEquals(expected, coordinates, "the column is the distance to the first corner, not the coordinate");
   }
 
   @Test
   void shouldCountTheColumnsOfAWallFacingWestFromItsFirstCorner() {
-    final Location left = this.fakeWorld.location(0.0, 64.5, 2.5);
-    final Location right = this.fakeWorld.location(0.0, 64.5, 3.5);
+    final Location left = this.fakeWorld.location(0.0, FRAME_CENTER_Y, 2.5);
+    final Location right = this.fakeWorld.location(0.0, FRAME_CENTER_Y, 3.5);
     this.fakeWorld.addFrame(left, BlockFace.WEST, Keys.MAP_KEY, Keys.FIRST_MAP_KEY);
     final ItemFrame target = this.fakeWorld.addFrame(right, BlockFace.WEST, Keys.MAP_KEY, Keys.LAST_MAP_KEY);
-    final Block wallBlock = this.fakeWorld.block(1, 64, 3);
-    final Location eye = this.eye(-5.0, 64.6, 3.3, LOOK_EAST);
+    final Block wallBlock = this.fakeWorld.block(1, BLOCK_Y, 3);
+    final Location eye = this.eye(-EYE_DISTANCE, EYE_Y, 3.3, LOOK_EAST);
     this.aimAt(target, BlockFace.WEST, wallBlock, eye);
     final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
-    final int[] expected = { 128 + 38, 51 };
+    final int[] expected = { MAP_SIZE + AIMED_PIXEL_X, AIMED_PIXEL_Y };
     assertArrayEquals(expected, coordinates, "the column is the distance to the first corner, not the coordinate");
   }
 
@@ -211,7 +230,7 @@ final class InteractUtilsTest {
     final Location eye = this.eye(3.3, 69.6, 5.3, LOOK_NORTH, 45.0f);
     when(this.player.getEyeLocation()).thenAnswer(_ -> eye.clone());
     final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
-    final int[] expected = { 3 * 128 + 38, 128 + 89 };
+    final int[] expected = { 3 * MAP_SIZE + AIMED_PIXEL_X, MAP_SIZE + MIRRORED_PIXEL_X };
     assertArrayEquals(expected, coordinates);
   }
 
@@ -230,14 +249,14 @@ final class InteractUtilsTest {
     final ItemFrame target = this.buildSouthWall();
     when(target.getRotation()).thenReturn(rotation);
     final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
-    assertArrayEquals(new int[] { 3 * 128 + pixelX, 128 + pixelY }, coordinates);
+    assertArrayEquals(new int[] { 3 * MAP_SIZE + pixelX, MAP_SIZE + pixelY }, coordinates);
   }
 
   @Test
   void shouldIgnoreEntitiesAndFramesThatAreNotPartOfTheWall() {
     this.buildSouthWall();
     final Zombie zombie = mock(Zombie.class);
-    final Location zombieLocation = this.fakeWorld.location(2.5, 64.5, 0.5);
+    final Location zombieLocation = this.fakeWorld.location(2.5, FRAME_CENTER_Y, 0.5);
     when(zombie.getLocation()).thenReturn(zombieLocation);
     this.fakeWorld.addEntity(zombie);
     final Location sideways = this.fakeWorld.location(2.5, 65.5, 0.0);
@@ -245,73 +264,73 @@ final class InteractUtilsTest {
     final Location untagged = this.fakeWorld.location(2.5, 66.5, 0.0);
     this.fakeWorld.addFrame(untagged, BlockFace.SOUTH, Keys.FIRST_MAP_KEY);
     final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
-    assertArrayEquals(new int[] { 3 * 128 + 38, 128 + 51 }, coordinates);
+    assertArrayEquals(new int[] { 3 * MAP_SIZE + AIMED_PIXEL_X, MAP_SIZE + AIMED_PIXEL_Y }, coordinates);
   }
 
   @Test
   void shouldMirrorThePixelOnAWallFacingNorth() {
-    final Location left = this.fakeWorld.location(1.5, 64.5, 0.0);
-    final Location right = this.fakeWorld.location(0.5, 64.5, 0.0);
+    final Location left = this.fakeWorld.location(1.5, FRAME_CENTER_Y, 0.0);
+    final Location right = this.fakeWorld.location(0.5, FRAME_CENTER_Y, 0.0);
     this.fakeWorld.addFrame(left, BlockFace.NORTH, Keys.MAP_KEY, Keys.FIRST_MAP_KEY);
     final ItemFrame target = this.fakeWorld.addFrame(right, BlockFace.NORTH, Keys.MAP_KEY, Keys.LAST_MAP_KEY);
-    final Block wallBlock = this.fakeWorld.block(0, 64, 1);
-    final Location eye = this.eye(0.3, 64.6, -5.0, LOOK_SOUTH);
+    final Block wallBlock = this.fakeWorld.block(0, BLOCK_Y, 1);
+    final Location eye = this.eye(0.3, EYE_Y, -EYE_DISTANCE, LOOK_SOUTH);
     this.aimAt(target, BlockFace.NORTH, wallBlock, eye);
     final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
-    assertArrayEquals(new int[] { 128 + 89, 51 }, coordinates);
+    assertArrayEquals(new int[] { MAP_SIZE + MIRRORED_PIXEL_X, AIMED_PIXEL_Y }, coordinates);
   }
 
   @Test
   void shouldFindThePixelOnAWallFacingWest() {
-    final Location left = this.fakeWorld.location(0.0, 64.5, 0.5);
-    final Location right = this.fakeWorld.location(0.0, 64.5, 1.5);
+    final Location left = this.fakeWorld.location(0.0, FRAME_CENTER_Y, 0.5);
+    final Location right = this.fakeWorld.location(0.0, FRAME_CENTER_Y, 1.5);
     this.fakeWorld.addFrame(left, BlockFace.WEST, Keys.MAP_KEY, Keys.FIRST_MAP_KEY);
     final ItemFrame target = this.fakeWorld.addFrame(right, BlockFace.WEST, Keys.MAP_KEY, Keys.LAST_MAP_KEY);
-    final Block wallBlock = this.fakeWorld.block(1, 64, 1);
-    final Location eye = this.eye(-5.0, 64.6, 1.3, LOOK_EAST);
+    final Block wallBlock = this.fakeWorld.block(1, BLOCK_Y, 1);
+    final Location eye = this.eye(-EYE_DISTANCE, EYE_Y, 1.3, LOOK_EAST);
     this.aimAt(target, BlockFace.WEST, wallBlock, eye);
     final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
-    assertArrayEquals(new int[] { 128 + 38, 51 }, coordinates);
+    assertArrayEquals(new int[] { MAP_SIZE + AIMED_PIXEL_X, AIMED_PIXEL_Y }, coordinates);
   }
 
   @Test
   void shouldMirrorThePixelOnAWallFacingEast() {
-    final Location left = this.fakeWorld.location(0.0, 64.5, 1.5);
-    final Location right = this.fakeWorld.location(0.0, 64.5, 0.5);
+    final Location left = this.fakeWorld.location(0.0, FRAME_CENTER_Y, 1.5);
+    final Location right = this.fakeWorld.location(0.0, FRAME_CENTER_Y, 0.5);
     this.fakeWorld.addFrame(left, BlockFace.EAST, Keys.MAP_KEY, Keys.FIRST_MAP_KEY);
     final ItemFrame target = this.fakeWorld.addFrame(right, BlockFace.EAST, Keys.MAP_KEY, Keys.LAST_MAP_KEY);
-    final Block wallBlock = this.fakeWorld.block(-1, 64, 0);
-    final Location eye = this.eye(5.0, 64.6, 0.3, LOOK_WEST);
+    final Block wallBlock = this.fakeWorld.block(-1, BLOCK_Y, 0);
+    final Location eye = this.eye(EYE_DISTANCE, EYE_Y, 0.3, LOOK_WEST);
     this.aimAt(target, BlockFace.EAST, wallBlock, eye);
     final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
-    assertArrayEquals(new int[] { 128 + 89, 51 }, coordinates);
+    assertArrayEquals(new int[] { MAP_SIZE + MIRRORED_PIXEL_X, AIMED_PIXEL_Y }, coordinates);
   }
 
   @Test
   void shouldFollowTheLineOfSightToAWallThatIsNotOnTheZeroPlane() {
-    final Location left = this.fakeWorld.location(0.5, 64.5, 8.0);
-    final Location right = this.fakeWorld.location(1.5, 64.5, 8.0);
+    final Location left = this.fakeWorld.location(0.5, FRAME_CENTER_Y, DISTANT_WALL_PLANE);
+    final Location right = this.fakeWorld.location(1.5, FRAME_CENTER_Y, DISTANT_WALL_PLANE);
     this.fakeWorld.addFrame(left, BlockFace.SOUTH, Keys.MAP_KEY, Keys.FIRST_MAP_KEY);
     final ItemFrame target = this.fakeWorld.addFrame(right, BlockFace.SOUTH, Keys.MAP_KEY, Keys.LAST_MAP_KEY);
-    final Block wallBlock = this.fakeWorld.block(1, 64, 7);
-    final Location eye = this.eye(4.3, 64.6, 13.3, 150.0f);
+    final Block wallBlock = this.fakeWorld.block(1, BLOCK_Y, 7);
+    final Location eye = this.eye(4.3, EYE_Y, 13.3, 150.0f);
     this.aimAt(target, BlockFace.SOUTH, wallBlock, eye);
     final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
-    final int[] expected = { 128 + 30, 51 };
+    final int[] expected = { MAP_SIZE + 30, AIMED_PIXEL_Y };
     assertArrayEquals(expected, coordinates, "the ray is followed to the wall, not to the mirror image of the eye");
   }
 
   @Test
   void shouldFollowTheLineOfSightToAWallFacingWestThatIsNotOnTheZeroPlane() {
-    final Location left = this.fakeWorld.location(8.0, 64.5, 0.5);
-    final Location right = this.fakeWorld.location(8.0, 64.5, 1.5);
+    final Location left = this.fakeWorld.location(DISTANT_WALL_PLANE, FRAME_CENTER_Y, 0.5);
+    final Location right = this.fakeWorld.location(DISTANT_WALL_PLANE, FRAME_CENTER_Y, 1.5);
     this.fakeWorld.addFrame(left, BlockFace.WEST, Keys.MAP_KEY, Keys.FIRST_MAP_KEY);
     final ItemFrame target = this.fakeWorld.addFrame(right, BlockFace.WEST, Keys.MAP_KEY, Keys.LAST_MAP_KEY);
-    final Block wallBlock = this.fakeWorld.block(9, 64, 1);
-    final Location eye = this.eye(2.7, 64.6, -1.5, -60.0f);
+    final Block wallBlock = this.fakeWorld.block(9, BLOCK_Y, 1);
+    final Location eye = this.eye(2.7, EYE_Y, -1.5, -60.0f);
     this.aimAt(target, BlockFace.WEST, wallBlock, eye);
     final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
-    final int[] expected = { 128 + 71, 51 };
+    final int[] expected = { MAP_SIZE + 71, AIMED_PIXEL_Y };
     assertArrayEquals(expected, coordinates, "the ray is followed to the wall, not to the mirror image of the eye");
   }
 
@@ -320,7 +339,7 @@ final class InteractUtilsTest {
     ItemFrame target = null;
     for (int blockX = 0; blockX < 2; blockX++) {
       for (int blockZ = 0; blockZ < 2; blockZ++) {
-        final Location location = this.fakeWorld.location(blockX + 0.5, 65.0, blockZ + 0.5);
+        final Location location = this.fakeWorld.location(blockX + HALF_BLOCK, 65.0, blockZ + HALF_BLOCK);
         final boolean first = blockX == 0 && blockZ == 0;
         final boolean last = blockX == 1 && blockZ == 1;
         if (first) {
@@ -332,7 +351,7 @@ final class InteractUtilsTest {
         }
       }
     }
-    final Block floorBlock = this.fakeWorld.block(1, 64, 1);
+    final Block floorBlock = this.fakeWorld.block(1, BLOCK_Y, 1);
     final Location eye = this.eye(1.3, 67.0, 1.6, LOOK_NORTH);
     this.aimAt(target, BlockFace.UP, floorBlock, eye);
     final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
@@ -343,7 +362,7 @@ final class InteractUtilsTest {
   @CsvSource({ "2.9,64.5", "4.1,64.5", "3.5,63.9", "3.5,65.1" })
   void shouldRejectRaysOutsideTheSelectedFrame(final double eyeX, final double eyeY) {
     this.buildSouthWall();
-    final Location eye = this.eye(eyeX, eyeY, 5.0, LOOK_NORTH);
+    final Location eye = this.eye(eyeX, eyeY, EYE_DISTANCE, LOOK_NORTH);
     when(this.player.getEyeLocation()).thenReturn(eye);
     final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
     assertNull(coordinates);
@@ -352,16 +371,16 @@ final class InteractUtilsTest {
   @Test
   void shouldAcceptAnEyeOnTheMapPlaneLookingAcrossIt() {
     this.buildSouthWall();
-    final Location eye = this.eye(3.5, 64.5, 0.0, LOOK_NORTH);
+    final Location eye = this.eye(3.5, FRAME_CENTER_Y, 0.0, LOOK_NORTH);
     when(this.player.getEyeLocation()).thenReturn(eye);
     final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
-    assertArrayEquals(new int[] { 3 * 128 + 64, 128 + 64 }, coordinates);
+    assertArrayEquals(new int[] { 3 * MAP_SIZE + 64, MAP_SIZE + 64 }, coordinates);
   }
 
   @Test
   void shouldRejectAnIntersectionBehindThePlayer() {
     this.buildSouthWall();
-    final Location eye = this.eye(3.3, 64.6, 5.0, LOOK_SOUTH);
+    final Location eye = this.eye(3.3, EYE_Y, EYE_DISTANCE, LOOK_SOUTH);
     when(this.player.getEyeLocation()).thenReturn(eye);
     final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
     assertNull(coordinates);
@@ -384,28 +403,28 @@ final class InteractUtilsTest {
   @CsvSource({ "3.0,64.0,0,127", "4.0,65.0,127,0" })
   void shouldKeepFrameEdgesInsideTheSelectedMap(final double eyeX, final double eyeY, final int pixelX, final int pixelY) {
     this.buildSouthWall();
-    final Location eye = this.eye(eyeX, eyeY, -5.0, LOOK_SOUTH);
+    final Location eye = this.eye(eyeX, eyeY, -EYE_DISTANCE, LOOK_SOUTH);
     when(this.player.getEyeLocation()).thenReturn(eye);
     final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
-    assertArrayEquals(new int[] { 3 * 128 + pixelX, 128 + pixelY }, coordinates);
+    assertArrayEquals(new int[] { 3 * MAP_SIZE + pixelX, MAP_SIZE + pixelY }, coordinates);
   }
 
   @Test
   void shouldKeepRotatedFrameEdgesInsideTheSelectedMap() {
     final ItemFrame target = this.buildSouthWall();
     when(target.getRotation()).thenReturn(Rotation.CLOCKWISE);
-    final Location eye = this.eye(3.0, 65.0, -5.0, LOOK_SOUTH);
+    final Location eye = this.eye(3.0, 65.0, -EYE_DISTANCE, LOOK_SOUTH);
     when(this.player.getEyeLocation()).thenReturn(eye);
     final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
-    assertArrayEquals(new int[] { 3 * 128 + 127, 128 + 127 }, coordinates);
+    assertArrayEquals(new int[] { 3 * MAP_SIZE + 127, MAP_SIZE + 127 }, coordinates);
   }
 
   @Test
   void shouldReturnNullForWallsThatDoNotFaceAlongAnAxis() {
-    final Location location = this.fakeWorld.location(0.5, 64.5, 0.0);
+    final Location location = this.fakeWorld.location(0.5, FRAME_CENTER_Y, 0.0);
     final ItemFrame target = this.fakeWorld.addFrame(location, BlockFace.NORTH_EAST, Keys.MAP_KEY, Keys.FIRST_MAP_KEY, Keys.LAST_MAP_KEY);
-    final Block wallBlock = this.fakeWorld.block(0, 64, -1);
-    final Location eye = this.eye(0.3, 64.6, 5.0, LOOK_NORTH);
+    final Block wallBlock = this.fakeWorld.block(0, BLOCK_Y, -1);
+    final Location eye = this.eye(0.3, EYE_Y, EYE_DISTANCE, LOOK_NORTH);
     this.aimAt(target, BlockFace.NORTH_EAST, wallBlock, eye);
     final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
     assertNull(coordinates);
@@ -428,12 +447,12 @@ final class InteractUtilsTest {
 
   @Test
   void shouldReturnNullForAWallWithoutItsLastCorner() {
-    final Location first = this.fakeWorld.location(0.5, 64.5, 0.0);
-    final Location second = this.fakeWorld.location(1.5, 64.5, 0.0);
+    final Location first = this.fakeWorld.location(0.5, FRAME_CENTER_Y, 0.0);
+    final Location second = this.fakeWorld.location(1.5, FRAME_CENTER_Y, 0.0);
     this.fakeWorld.addFrame(first, BlockFace.SOUTH, Keys.MAP_KEY, Keys.FIRST_MAP_KEY);
     final ItemFrame target = this.fakeWorld.addFrame(second, BlockFace.SOUTH, Keys.MAP_KEY);
-    final Block wallBlock = this.fakeWorld.block(1, 64, -1);
-    final Location eye = this.eye(1.3, 64.6, 5.0, LOOK_NORTH);
+    final Block wallBlock = this.fakeWorld.block(1, BLOCK_Y, -1);
+    final Location eye = this.eye(1.3, EYE_Y, EYE_DISTANCE, LOOK_NORTH);
     this.aimAt(target, BlockFace.SOUTH, wallBlock, eye);
     final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
     assertNull(coordinates);
@@ -441,12 +460,12 @@ final class InteractUtilsTest {
 
   @Test
   void shouldReturnNullForAWallWithoutItsFirstCorner() {
-    final Location first = this.fakeWorld.location(0.5, 64.5, 0.0);
-    final Location second = this.fakeWorld.location(1.5, 64.5, 0.0);
+    final Location first = this.fakeWorld.location(0.5, FRAME_CENTER_Y, 0.0);
+    final Location second = this.fakeWorld.location(1.5, FRAME_CENTER_Y, 0.0);
     this.fakeWorld.addFrame(first, BlockFace.SOUTH, Keys.MAP_KEY);
     final ItemFrame target = this.fakeWorld.addFrame(second, BlockFace.SOUTH, Keys.MAP_KEY, Keys.LAST_MAP_KEY);
-    final Block wallBlock = this.fakeWorld.block(1, 64, -1);
-    final Location eye = this.eye(1.3, 64.6, 5.0, LOOK_NORTH);
+    final Block wallBlock = this.fakeWorld.block(1, BLOCK_Y, -1);
+    final Location eye = this.eye(1.3, EYE_Y, EYE_DISTANCE, LOOK_NORTH);
     this.aimAt(target, BlockFace.SOUTH, wallBlock, eye);
     final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
     assertNull(coordinates);

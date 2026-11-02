@@ -94,6 +94,10 @@ import org.mockito.invocation.InvocationOnMock;
  */
 final class MCAVSandboxTest {
 
+  private static final String CONFIGURATION_FILE_NAME = "config.yml";
+  private static final String ISO_FOLDER_NAME = "iso";
+  private static final String NATIVES_FOLDER_NAME = "natives";
+
   @TempDir
   private Path folder;
 
@@ -285,7 +289,7 @@ final class MCAVSandboxTest {
     final Mcv2Support mcv2Support = this.sandbox.getMcv2Support();
     assertNotNull(mcv2Support);
 
-    final Path iso = this.folder.resolve("iso");
+    final Path iso = this.folder.resolve(ISO_FOLDER_NAME);
     final boolean isoFolder = Files.isDirectory(iso);
     assertTrue(isoFolder);
   }
@@ -301,14 +305,14 @@ final class MCAVSandboxTest {
   @Test
   void shouldApplyAndLogTheMcv2EncoderBudget() throws IOException {
     final String defaults;
-    try (final InputStream stream = IoUtils.getResourceAsStream("config.yml")) {
+    try (final InputStream stream = IoUtils.getResourceAsStream(CONFIGURATION_FILE_NAME)) {
       defaults = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
     }
 
     final boolean contained = defaults.contains("  encoder-threads: 0\n");
     assertTrue(contained);
 
-    Files.writeString(this.folder.resolve("config.yml"), defaults.replace("  encoder-threads: 0\n", "  encoder-threads: 3\n"));
+    Files.writeString(this.folder.resolve(CONFIGURATION_FILE_NAME), defaults.replace("  encoder-threads: 0\n", "  encoder-threads: 3\n"));
     try {
       this.sandbox.onEnable();
 
@@ -325,14 +329,14 @@ final class MCAVSandboxTest {
   @Test
   void shouldDecideTheNativeKernelsAtStartup() throws IOException {
     final String defaults;
-    try (final InputStream stream = IoUtils.getResourceAsStream("config.yml")) {
+    try (final InputStream stream = IoUtils.getResourceAsStream(CONFIGURATION_FILE_NAME)) {
       defaults = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
     }
 
     final boolean contained = defaults.contains("  native: auto\n");
     assertTrue(contained);
 
-    Files.writeString(this.folder.resolve("config.yml"), defaults.replace("  native: auto\n", "  native: \"off\"\n"));
+    Files.writeString(this.folder.resolve(CONFIGURATION_FILE_NAME), defaults.replace("  native: auto\n", "  native: \"off\"\n"));
     try {
       this.sandbox.onEnable();
 
@@ -341,7 +345,7 @@ final class MCAVSandboxTest {
 
       this.sandbox.onDisable();
     } finally {
-      Mcv2.installNatives(this.folder.resolve("natives"), "auto");
+      Mcv2.installNatives(this.folder.resolve(NATIVES_FOLDER_NAME), "auto");
     }
   }
 
@@ -530,7 +534,7 @@ final class MCAVSandboxTest {
 
   @Test
   void shouldDisableItselfWithOneErrorWhenVoiceChatIsEnabledButMissing() throws IOException {
-    final Path configuration = this.folder.resolve("config.yml");
+    final Path configuration = this.folder.resolve(CONFIGURATION_FILE_NAME);
     Files.writeString(configuration, "simple-voice-chat:\n  enabled: true\n");
 
     this.sandbox.onEnable();

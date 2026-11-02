@@ -81,6 +81,27 @@ import org.mockito.Mockito;
  */
 final class AudioProviderTest {
 
+  private static final int HTTP_PORT = 3000;
+  private static final String HTTP_SERVER_URL = "http://mc.example.com:3000/";
+  private static final String HTTP_HOST_NAME = "mc.example.com";
+
+  private static final String GUILD_ID = "100";
+  private static final String CHANNEL_ID = "200";
+  private static final String BOT_TOKEN = "token";
+
+  private static final String DISCORD_NOT_READY_MESSAGE = "The Discord bot is not ready!";
+  private static final String WEB_PAGE_NOT_READY_MESSAGE = "The audio web page is not ready!";
+
+  private static final int BIT_RATE = 1_536_000;
+  private static final int SAMPLE_RATE = 48_000;
+  private static final int SAMPLE_BUFFER_BYTES = 4;
+  private static final int AUDIO_CHANNEL_COUNT = 2;
+  private static final String AUDIO_CODEC = "pcm_s16le";
+
+  private static final int SHUTDOWN_DEADLINE_SECONDS = 10;
+
+  private static final String MACHINE_TITLE = "The machine";
+
   private final UrlParseDump dump = GsonProvider.getSimple().fromJson("{}", UrlParseDump.class);
   private final Object[] players = { "Steve" };
   private final List<Runnable> deferred = new ArrayList<>();
@@ -109,11 +130,11 @@ final class AudioProviderTest {
     this.sandbox = mock(MCAVSandbox.class);
     this.configuration = mock(PluginDataConfigurationMapper.class);
     when(this.sandbox.getConfiguration()).thenReturn(this.configuration);
-    when(this.configuration.getDiscordBotToken()).thenReturn("token");
-    when(this.configuration.getDiscordBotGuildId()).thenReturn("100");
-    when(this.configuration.getDiscordBotChannelId()).thenReturn("200");
-    when(this.configuration.getHttpHostName()).thenReturn("mc.example.com");
-    when(this.configuration.getHttpPort()).thenReturn(3000);
+    when(this.configuration.getDiscordBotToken()).thenReturn(BOT_TOKEN);
+    when(this.configuration.getDiscordBotGuildId()).thenReturn(GUILD_ID);
+    when(this.configuration.getDiscordBotChannelId()).thenReturn(CHANNEL_ID);
+    when(this.configuration.getHttpHostName()).thenReturn(HTTP_HOST_NAME);
+    when(this.configuration.getHttpPort()).thenReturn(HTTP_PORT);
     this.startup = MoreExecutors.newDirectExecutorService();
     this.provider = new AudioProvider(this.sandbox, this.startup);
     this.mockOutputs();
@@ -129,20 +150,20 @@ final class AudioProviderTest {
     this.httpServer = mock(HttpResult.class);
     this.voiceChatFilter = mock(SvcFilter.class);
     when(this.builder.build()).thenReturn(this.jda);
-    when(this.jda.getGuildById("100")).thenReturn(this.guild);
-    when(this.guild.getVoiceChannelById("200")).thenReturn(this.channel);
+    when(this.jda.getGuildById(GUILD_ID)).thenReturn(this.guild);
+    when(this.guild.getVoiceChannelById(CHANNEL_ID)).thenReturn(this.channel);
     when(this.guild.getAudioManager()).thenReturn(this.audioManager);
     this.builders = Mockito.mockStatic(JDABuilder.class);
     // JDA requires the result of createLight to be used, so the stubbed call assigns it to an unnamed variable
     this.builders
       .when(() -> {
-        final JDABuilder _ = JDABuilder.createLight("token", GatewayIntent.GUILD_VOICE_STATES);
+        final JDABuilder _ = JDABuilder.createLight(BOT_TOKEN, GatewayIntent.GUILD_VOICE_STATES);
       })
       .thenReturn(this.builder);
     this.discordPlayers = Mockito.mockStatic(DiscordPlayer.class);
     this.discordPlayers.when(() -> DiscordPlayer.voice(this.jda)).thenReturn(this.discord);
     this.httpResults = Mockito.mockStatic(HttpResult.class);
-    this.httpResults.when(() -> HttpResult.http("mc.example.com", 3000)).thenReturn(this.httpServer);
+    this.httpResults.when(() -> HttpResult.http(HTTP_HOST_NAME, HTTP_PORT)).thenReturn(this.httpServer);
     this.svcFilters = Mockito.mockStatic(SvcFilter.class);
     this.svcFilters.when(() -> SvcFilter.svc(this.players)).thenReturn(this.voiceChatFilter);
   }
@@ -218,7 +239,7 @@ final class AudioProviderTest {
   @Test
   void shouldLinkToTheConfiguredWebPageBeforeItStarts() {
     final String url = this.provider.constructHttpUrl();
-    assertEquals("http://mc.example.com:3000/", url);
+    assertEquals(HTTP_SERVER_URL, url);
   }
 
   @Test
@@ -275,7 +296,7 @@ final class AudioProviderTest {
     final boolean readyWhileStarting = this.provider.isDiscordBotReady();
     assertFalse(readyWhileStarting);
     final String message = this.discordFailure();
-    assertEquals("The Discord bot is not ready!", message);
+    assertEquals(DISCORD_NOT_READY_MESSAGE, message);
     final int ran = this.runDeferred();
     assertEquals(1, ran);
     verify(this.jda).awaitReady();
@@ -288,13 +309,13 @@ final class AudioProviderTest {
   @Test
   void shouldShutTheBotDownWhenItIsNotAMemberOfTheGuild() {
     this.enableDiscord();
-    when(this.jda.getGuildById("100")).thenReturn(null);
+    when(this.jda.getGuildById(GUILD_ID)).thenReturn(null);
     this.provider.initialize();
     verify(this.jda).shutdownNow();
     final boolean ready = this.provider.isDiscordBotReady();
     assertFalse(ready);
     final String message = this.discordFailure();
-    assertEquals("The Discord bot is not ready!", message);
+    assertEquals(DISCORD_NOT_READY_MESSAGE, message);
     this.provider.shutdown();
     verify(this.jda, never()).shutdown();
   }
@@ -302,7 +323,7 @@ final class AudioProviderTest {
   @Test
   void shouldShutTheBotDownWhenTheVoiceChannelDoesNotExist() {
     this.enableDiscord();
-    when(this.guild.getVoiceChannelById("200")).thenReturn(null);
+    when(this.guild.getVoiceChannelById(CHANNEL_ID)).thenReturn(null);
     this.provider.initialize();
     verify(this.jda).shutdownNow();
     final boolean ready = this.provider.isDiscordBotReady();
@@ -325,13 +346,13 @@ final class AudioProviderTest {
   @Test
   void shouldStartTheWebPageAndShowTheMediaOnIt() {
     this.enableHttp();
-    when(this.httpServer.getFullUrl()).thenReturn("http://mc.example.com:3000/");
+    when(this.httpServer.getFullUrl()).thenReturn(HTTP_SERVER_URL);
     this.provider.initialize();
     verify(this.httpServer).start();
     final boolean ready = this.provider.isHttpReady();
     assertTrue(ready);
     final String url = this.provider.constructHttpUrl();
-    assertEquals("http://mc.example.com:3000/", url);
+    assertEquals(HTTP_SERVER_URL, url);
     final AudioFilter filter = this.provider.constructFilter(AudioArgument.HTTP_SERVER, this.dump, this.players);
     assertPlaysInto(this.httpServer, filter);
     verify(this.httpServer).setCurrentMedia(this.dump);
@@ -346,7 +367,7 @@ final class AudioProviderTest {
     final boolean readyWhileStarting = this.provider.isHttpReady();
     assertFalse(readyWhileStarting);
     final String message = this.httpFailure();
-    assertEquals("The audio web page is not ready!", message);
+    assertEquals(WEB_PAGE_NOT_READY_MESSAGE, message);
     final int ran = this.runDeferred();
     assertEquals(1, ran);
     verify(this.httpServer).start();
@@ -362,17 +383,17 @@ final class AudioProviderTest {
     final boolean ready = this.provider.isHttpReady();
     assertFalse(ready);
     final String message = this.httpFailure();
-    assertEquals("The audio web page is not ready!", message);
+    assertEquals(WEB_PAGE_NOT_READY_MESSAGE, message);
     final String url = this.provider.constructHttpUrl();
-    assertEquals("http://mc.example.com:3000/", url);
+    assertEquals(HTTP_SERVER_URL, url);
   }
 
   @Test
   void shouldRefuseOutputsThatWereNotStarted() {
     final String httpMessage = this.httpFailure();
     final String discordMessage = this.discordFailure();
-    assertEquals("The audio web page is not ready!", httpMessage);
-    assertEquals("The Discord bot is not ready!", discordMessage);
+    assertEquals(WEB_PAGE_NOT_READY_MESSAGE, httpMessage);
+    assertEquals(DISCORD_NOT_READY_MESSAGE, discordMessage);
   }
 
   @Test
@@ -401,8 +422,8 @@ final class AudioProviderTest {
   }
 
   private static void assertPlaysInto(final AudioFilter output, final AudioFilter filter) {
-    final ByteBuffer samples = ByteBuffer.allocate(4);
-    final OriginalAudioMetadata metadata = OriginalAudioMetadata.of("pcm_s16le", 1_536_000, 48_000, 2, 1);
+    final ByteBuffer samples = ByteBuffer.allocate(SAMPLE_BUFFER_BYTES);
+    final OriginalAudioMetadata metadata = OriginalAudioMetadata.of(AUDIO_CODEC, BIT_RATE, SAMPLE_RATE, AUDIO_CHANNEL_COUNT, 1);
     when(output.applyFilter(samples, metadata)).thenReturn(true);
 
     final boolean filtered = filter.applyFilter(samples, metadata);
@@ -423,8 +444,8 @@ final class AudioProviderTest {
     ownership.verify(this.voiceChatFilter).start();
     ownership.verify(replacementSpeakers).start();
     ownership.verify(this.voiceChatFilter).release();
-    final ByteBuffer samples = ByteBuffer.allocate(4);
-    final OriginalAudioMetadata metadata = OriginalAudioMetadata.of("pcm_s16le", 1_536_000, 48_000, 2, 1);
+    final ByteBuffer samples = ByteBuffer.allocate(SAMPLE_BUFFER_BYTES);
+    final OriginalAudioMetadata metadata = OriginalAudioMetadata.of(AUDIO_CODEC, BIT_RATE, SAMPLE_RATE, AUDIO_CHANNEL_COUNT, 1);
 
     final boolean filtered = previous.applyFilter(samples, metadata);
     assertFalse(filtered);
@@ -447,8 +468,8 @@ final class AudioProviderTest {
     final AudioFilter video = this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players);
     final AudioFilter sound = this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players, machine);
     verify(videoSpeakers).release();
-    final ByteBuffer samples = ByteBuffer.allocate(4);
-    final OriginalAudioMetadata metadata = OriginalAudioMetadata.of("pcm_s16le", 1_536_000, 48_000, 2, 1);
+    final ByteBuffer samples = ByteBuffer.allocate(SAMPLE_BUFFER_BYTES);
+    final OriginalAudioMetadata metadata = OriginalAudioMetadata.of(AUDIO_CODEC, BIT_RATE, SAMPLE_RATE, AUDIO_CHANNEL_COUNT, 1);
 
     final boolean filtered = video.applyFilter(samples, metadata);
     assertFalse(filtered);
@@ -492,7 +513,7 @@ final class AudioProviderTest {
     this.provider.initialize();
     final Object machine = new Object();
     final AudioFilter video = this.provider.constructFilter(AudioArgument.HTTP_SERVER, this.dump, this.players);
-    this.provider.constructFilter(AudioArgument.HTTP_SERVER, UrlParseDump.of("The machine"), this.players, machine);
+    this.provider.constructFilter(AudioArgument.HTTP_SERVER, UrlParseDump.of(MACHINE_TITLE), this.players, machine);
     this.provider.releaseAudioFilter(machine);
     assertPlaysInto(this.httpServer, video);
     verify(this.httpServer, times(2)).setCurrentMedia(this.dump);
@@ -504,7 +525,7 @@ final class AudioProviderTest {
     this.provider.initialize();
     final Object machine = new Object();
     final AudioFilter video = this.provider.constructFilter(AudioArgument.DISCORD_BOT, this.dump, this.players);
-    this.provider.constructFilter(AudioArgument.DISCORD_BOT, UrlParseDump.of("The machine"), this.players, machine);
+    this.provider.constructFilter(AudioArgument.DISCORD_BOT, UrlParseDump.of(MACHINE_TITLE), this.players, machine);
     this.provider.releaseAudioFilter(machine);
     assertPlaysInto(this.discord, video);
     verify(this.audioManager, times(3)).openAudioConnection(this.channel);
@@ -532,11 +553,14 @@ final class AudioProviderTest {
     this.provider.initialize();
     final Object machine = new Object();
     final AudioFilter video = this.provider.constructFilter(AudioArgument.HTTP_SERVER, this.dump, this.players);
-    this.provider.constructFilter(AudioArgument.HTTP_SERVER, UrlParseDump.of("The machine"), this.players, machine);
+    this.provider.constructFilter(AudioArgument.HTTP_SERVER, UrlParseDump.of(MACHINE_TITLE), this.players, machine);
     this.provider.releaseAudioFilter();
     this.provider.releaseAudioFilter(machine);
 
-    final boolean filtered = video.applyFilter(ByteBuffer.allocate(4), OriginalAudioMetadata.of("pcm_s16le", 1_536_000, 48_000, 2, 1));
+    final boolean filtered = video.applyFilter(
+      ByteBuffer.allocate(SAMPLE_BUFFER_BYTES),
+      OriginalAudioMetadata.of(AUDIO_CODEC, BIT_RATE, SAMPLE_RATE, AUDIO_CHANNEL_COUNT, 1)
+    );
     assertFalse(filtered);
 
     verify(this.httpServer).setCurrentMedia(MediaInfo.EMPTY);
@@ -550,11 +574,14 @@ final class AudioProviderTest {
     this.provider.initialize();
     final Object machine = new Object();
     final AudioFilter video = this.provider.constructFilter(AudioArgument.DISCORD_BOT, this.dump, this.players);
-    this.provider.constructFilter(AudioArgument.HTTP_SERVER, UrlParseDump.of("The machine"), this.players, machine);
+    this.provider.constructFilter(AudioArgument.HTTP_SERVER, UrlParseDump.of(MACHINE_TITLE), this.players, machine);
     doThrow(new IllegalStateException("Missing permission VOICE_CONNECT!")).when(this.audioManager).openAudioConnection(this.channel);
     this.provider.releaseAudioFilter(machine);
 
-    final boolean filtered = video.applyFilter(ByteBuffer.allocate(4), OriginalAudioMetadata.of("pcm_s16le", 1_536_000, 48_000, 2, 1));
+    final boolean filtered = video.applyFilter(
+      ByteBuffer.allocate(SAMPLE_BUFFER_BYTES),
+      OriginalAudioMetadata.of(AUDIO_CODEC, BIT_RATE, SAMPLE_RATE, AUDIO_CHANNEL_COUNT, 1)
+    );
     assertFalse(filtered);
 
     verify(this.httpServer).setCurrentMedia(MediaInfo.EMPTY);
@@ -571,7 +598,7 @@ final class AudioProviderTest {
     );
 
     final String message = failure.getMessage();
-    assertEquals("The Discord bot is not ready!", message);
+    assertEquals(DISCORD_NOT_READY_MESSAGE, message);
 
     this.provider.releaseAudioFilter(machine);
     verify(this.voiceChatFilter, never()).release();
@@ -665,11 +692,11 @@ final class AudioProviderTest {
     verify(this.jda, times(1)).shutdown();
     verify(this.audioManager, times(1)).closeAudioConnection();
     final String message = this.discordFailure();
-    assertEquals("The Discord bot is not ready!", message);
+    assertEquals(DISCORD_NOT_READY_MESSAGE, message);
     final boolean httpReady = this.provider.isHttpReady();
     assertFalse(httpReady);
     final String url = this.provider.constructHttpUrl();
-    assertEquals("http://mc.example.com:3000/", url);
+    assertEquals(HTTP_SERVER_URL, url);
     final boolean stopped = this.startup.isShutdown();
     assertTrue(stopped);
   }
@@ -738,14 +765,14 @@ final class AudioProviderTest {
   @Test
   void shouldReportStartupThatDoesNotTerminateBeforeTheShutdownDeadline() throws InterruptedException {
     this.startInTheBackground();
-    when(this.startup.awaitTermination(10, TimeUnit.SECONDS)).thenReturn(false);
+    when(this.startup.awaitTermination(SHUTDOWN_DEADLINE_SECONDS, TimeUnit.SECONDS)).thenReturn(false);
     final String output;
     try (final StandardErrorCapture errors = StandardErrorCapture.start()) {
       this.provider.shutdown();
       output = errors.getOutput();
     }
     verify(this.startup).shutdownNow();
-    verify(this.startup).awaitTermination(10, TimeUnit.SECONDS);
+    verify(this.startup).awaitTermination(SHUTDOWN_DEADLINE_SECONDS, TimeUnit.SECONDS);
 
     final boolean contained = output.contains("Audio startup did not stop within 10 seconds");
     assertTrue(contained, output);
@@ -754,7 +781,7 @@ final class AudioProviderTest {
   @Test
   void shouldPreserveTheInterruptWhenShutdownCannotWaitForStartup() throws InterruptedException {
     this.startInTheBackground();
-    when(this.startup.awaitTermination(10, TimeUnit.SECONDS)).thenThrow(new InterruptedException("stop waiting!"));
+    when(this.startup.awaitTermination(SHUTDOWN_DEADLINE_SECONDS, TimeUnit.SECONDS)).thenThrow(new InterruptedException("stop waiting!"));
     final String output;
     try (final StandardErrorCapture errors = StandardErrorCapture.start()) {
       this.provider.shutdown();
@@ -794,7 +821,7 @@ final class AudioProviderTest {
   void shouldNotShutDownABotTwiceWhenItFailsAfterTheShutdown() {
     this.startInTheBackground();
     this.enableDiscord();
-    when(this.jda.getGuildById("100")).thenReturn(null);
+    when(this.jda.getGuildById(GUILD_ID)).thenReturn(null);
     this.provider.initialize();
     this.provider.shutdown();
     this.runDeferred();

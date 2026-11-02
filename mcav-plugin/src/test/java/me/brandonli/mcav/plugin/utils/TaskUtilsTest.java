@@ -47,6 +47,8 @@ import org.junit.jupiter.api.Test;
  */
 final class TaskUtilsTest {
 
+  private static final String FUTURE_RESULT = "done";
+
   @BeforeEach
   void resetServer() {
     TestServer.resetWithDeferredTasks();
@@ -106,7 +108,7 @@ final class TaskUtilsTest {
 
   @Test
   void shouldPassTheResultOfTheFutureToTheCallback() {
-    final CompletableFuture<String> future = CompletableFuture.completedFuture("done");
+    final CompletableFuture<String> future = CompletableFuture.completedFuture(FUTURE_RESULT);
     final AtomicReference<String> result = new AtomicReference<>();
     final AtomicReference<Throwable> failure = new AtomicReference<>();
     final AtomicInteger calls = new AtomicInteger();
@@ -121,7 +123,7 @@ final class TaskUtilsTest {
     final String received = result.get();
     final Throwable receivedFailure = failure.get();
     assertEquals(1, callCount);
-    assertEquals("done", received);
+    assertEquals(FUTURE_RESULT, received);
     assertNull(receivedFailure);
   }
 
@@ -159,7 +161,7 @@ final class TaskUtilsTest {
 
   @Test
   void shouldLogACallbackThatFailsInsteadOfLosingIt() {
-    final CompletableFuture<String> future = CompletableFuture.completedFuture("done");
+    final CompletableFuture<String> future = CompletableFuture.completedFuture(FUTURE_RESULT);
     final String output;
     try (final StandardErrorCapture errors = StandardErrorCapture.start()) {
       TaskUtils.whenComplete(future, (_, _) -> {
@@ -178,7 +180,7 @@ final class TaskUtilsTest {
   void shouldRefuseNullArguments() {
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
     final Runnable task = () -> {};
-    final CompletableFuture<String> future = CompletableFuture.completedFuture("done");
+    final CompletableFuture<String> future = CompletableFuture.completedFuture(FUTURE_RESULT);
     final BiConsumer<String, Throwable> callback = (_, _) -> {};
     assertThrows(NullPointerException.class, () -> TaskUtils.runOnMainThread(null, task));
     assertThrows(NullPointerException.class, () -> TaskUtils.runOnMainThread(plugin, null));

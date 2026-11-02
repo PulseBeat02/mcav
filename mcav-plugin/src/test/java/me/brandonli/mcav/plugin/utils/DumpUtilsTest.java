@@ -65,6 +65,21 @@ final class DumpUtilsTest {
 
   private static final long MEGABYTE = 1024L * 1024L;
 
+  private static final int AWAIT_TIMEOUT_SECONDS = 10;
+
+  private static final String ROOT_PATH = "/";
+
+  private static final String PUBLIC_ADDRESS = "203.0.113.7";
+  private static final String REDACTED_ADDRESS = "<redacted-address>";
+
+  private static final String SECRET_VALUE = "hunter2";
+
+  private static final String LOG_FILE_NAME = "latest.log";
+  private static final String SERVER_JAR_FILE_NAME = "paper.jar";
+  private static final String LOGS_FOLDER_NAME = "logs";
+
+  private static final String COMMAND_PROPERTY = "sun.java.command";
+
   @TempDir
   private Path folder;
 
@@ -88,7 +103,7 @@ final class DumpUtilsTest {
     final InetAddress loopback = InetAddress.getLoopbackAddress();
     final InetSocketAddress address = new InetSocketAddress(loopback, 0);
     this.server = HttpServer.create(address, 0);
-    this.server.createContext("/", this::handle);
+    this.server.createContext(ROOT_PATH, this::handle);
     this.server.setExecutor(this.handlers);
     this.server.start();
   }
@@ -100,7 +115,7 @@ final class DumpUtilsTest {
     this.client.close();
     this.handlers.shutdown();
 
-    final boolean terminated = this.handlers.awaitTermination(10, TimeUnit.SECONDS);
+    final boolean terminated = this.handlers.awaitTermination(AWAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
     assertTrue(terminated, "the paste callbacks finish");
 
     final AssertionError handlerFailure = this.handlerFailure.get();
@@ -120,7 +135,7 @@ final class DumpUtilsTest {
     final String type = headers.getFirst("Content-Type");
     this.contentType.set(type);
     try {
-      final boolean released = this.release.await(10, TimeUnit.SECONDS);
+      final boolean released = this.release.await(AWAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
       try {
         assertTrue(released, "the test never let the paste site answer");
 
@@ -143,11 +158,11 @@ final class DumpUtilsTest {
   private String pasteSite() {
     final InetSocketAddress address = this.server.getAddress();
     final int port = address.getPort();
-    return "http://127.0.0.1:" + port + "/";
+    return "http://127.0.0.1:" + port + ROOT_PATH;
   }
 
   private Path missingLog() {
-    return this.folder.resolve("latest.log");
+    return this.folder.resolve(LOG_FILE_NAME);
   }
 
   @Test
@@ -245,7 +260,7 @@ final class DumpUtilsTest {
       dumps.when(() -> DumpUtils.createAndUploadDump(any(HttpClient.class), any(String.class), any(Path.class))).thenReturn("link");
       final String url = DumpUtils.createAndUploadDump();
       assertEquals("link", url);
-      final Path log = Path.of("logs", "latest.log");
+      final Path log = Path.of(LOGS_FOLDER_NAME, LOG_FILE_NAME);
       dumps.verify(() -> DumpUtils.createAndUploadDump(any(HttpClient.class), eq("https://paste.helpch.at/"), eq(log)));
     }
   }
@@ -327,14 +342,14 @@ final class DumpUtilsTest {
 
   @Test
   void shouldRedactPropertiesThatLookSecret() {
-    System.setProperty("mcav.test.Api-Token", "hunter2");
+    System.setProperty("mcav.test.Api-Token", SECRET_VALUE);
     System.setProperty("mcav.test.visible", "shown");
     try {
       final Path log = this.missingLog();
       final String dump = DumpUtils.createDumpContents(log);
       final boolean redacted = dump.contains("\nmcav.test.Api-Token: <redacted>\n");
       final boolean visible = dump.contains("\nmcav.test.visible: shown\n");
-      final boolean leaked = dump.contains("hunter2");
+      final boolean leaked = dump.contains(SECRET_VALUE);
       assertTrue(redacted);
       assertTrue(visible);
       assertFalse(leaked);
@@ -352,10 +367,10 @@ final class DumpUtilsTest {
     final String redactedJoin = DumpUtils.redactLogLine(join);
     final String redactedSixth = DumpUtils.redactLogLine(sixth);
 
-    final boolean contained = redactedJoin.contains("203.0.113.7");
+    final boolean contained = redactedJoin.contains(PUBLIC_ADDRESS);
     assertFalse(contained, redactedJoin);
 
-    final boolean redactedJoinContained = redactedJoin.contains("<redacted-address>");
+    final boolean redactedJoinContained = redactedJoin.contains(REDACTED_ADDRESS);
     assertTrue(redactedJoinContained, redactedJoin);
 
     final boolean prefixed = redactedJoin.startsWith("[12:34:56 INFO]: Player");
@@ -367,7 +382,7 @@ final class DumpUtilsTest {
     final boolean redactedSixthContained = redactedSixth.contains("2001:db8");
     assertFalse(redactedSixthContained, redactedSixth);
 
-    final boolean thirdContained = redactedSixth.contains("<redacted-address>");
+    final boolean thirdContained = redactedSixth.contains(REDACTED_ADDRESS);
     assertTrue(thirdContained, redactedSixth);
   }
 
@@ -387,7 +402,7 @@ final class DumpUtilsTest {
     final boolean contained = redactedShrunk.contains("0:0:0:0:0:0:0:0%0");
     assertFalse(contained, redactedShrunk);
 
-    final boolean redactedShrunkContained = redactedShrunk.contains("<redacted-address>");
+    final boolean redactedShrunkContained = redactedShrunk.contains(REDACTED_ADDRESS);
     assertTrue(redactedShrunkContained, redactedShrunk);
 
     final boolean redactedNamedContained = redactedNamed.contains("fe80:");
@@ -396,7 +411,7 @@ final class DumpUtilsTest {
     final boolean secondContained = redactedNamed.contains("%eth0");
     assertFalse(secondContained, redactedNamed);
 
-    final boolean thirdContained = redactedNamed.contains("<redacted-address>");
+    final boolean thirdContained = redactedNamed.contains(REDACTED_ADDRESS);
     assertTrue(thirdContained, redactedNamed);
   }
 
@@ -448,7 +463,7 @@ final class DumpUtilsTest {
 
   @Test
   void shouldRedactTheAddressesAndCommandsOfTheUploadedLog() throws IOException {
-    final Path log = this.folder.resolve("latest.log");
+    final Path log = this.folder.resolve(LOG_FILE_NAME);
     final List<String> lines = List.of(
       "[12:34:56 INFO]: Steve[/203.0.113.7:50514] logged in",
       "[12:34:57 INFO]: Steve issued server command: /login hunter2"
@@ -457,19 +472,19 @@ final class DumpUtilsTest {
 
     final String dump = DumpUtils.createDumpContents(log);
 
-    final boolean contained = dump.contains("203.0.113.7");
+    final boolean contained = dump.contains(PUBLIC_ADDRESS);
     assertFalse(contained, dump);
 
-    final boolean dumpContained = dump.contains("hunter2");
+    final boolean dumpContained = dump.contains(SECRET_VALUE);
     assertFalse(dumpContained, dump);
 
-    final boolean secondContained = dump.contains("<redacted-address>");
+    final boolean secondContained = dump.contains(REDACTED_ADDRESS);
     assertTrue(secondContained, dump);
   }
 
   @Test
   void shouldIncludeOnlyTheEndOfALongLog() throws IOException {
-    final Path log = this.folder.resolve("latest.log");
+    final Path log = this.folder.resolve(LOG_FILE_NAME);
     final List<String> lines = new ArrayList<>();
     for (int index = 0; index < 2500; index++) {
       lines.add("line " + index);
@@ -492,7 +507,7 @@ final class DumpUtilsTest {
 
   @Test
   void shouldIncludeAShortLogCompletely() throws IOException {
-    final Path log = this.folder.resolve("latest.log");
+    final Path log = this.folder.resolve(LOG_FILE_NAME);
     Files.writeString(log, "started\nstopped\n", StandardCharsets.UTF_8);
     final String dump = DumpUtils.createDumpContents(log);
     final boolean ends = dump.endsWith("=== Latest Log ===\nstarted\nstopped\n");
@@ -501,7 +516,7 @@ final class DumpUtilsTest {
 
   @Test
   void shouldReportALogThatCannotBeRead() throws IOException {
-    final Path log = this.folder.resolve("latest.log");
+    final Path log = this.folder.resolve(LOG_FILE_NAME);
     final byte[] invalidUtf8 = { (byte) 0xC3, (byte) 0x28 };
     Files.write(log, invalidUtf8);
     final String dump = DumpUtils.createDumpContents(log);
@@ -561,16 +576,16 @@ final class DumpUtilsTest {
     }
   )
   void shouldRedactTheWholeSecretFromPropertiesAndLogs(final String command) throws IOException {
-    final String property = "sun.java.command";
+    final String property = COMMAND_PROPERTY;
     final String previous = System.getProperty(property);
-    final Path log = this.folder.resolve("latest.log");
+    final Path log = this.folder.resolve(LOG_FILE_NAME);
     Files.writeString(log, command);
     System.setProperty(property, command);
     try {
       final String dump = DumpUtils.createDumpContents(log);
       final boolean firstPart = dump.contains("topsecret");
       final boolean trailingPart = dump.contains("hidden-tail");
-      final boolean keptProgram = dump.contains("paper.jar");
+      final boolean keptProgram = dump.contains(SERVER_JAR_FILE_NAME);
       final boolean redacted = dump.contains("<redacted>");
       assertFalse(firstPart);
       assertFalse(trailingPart, "quoted or ambiguous trailing secret text must also be omitted");
@@ -589,15 +604,15 @@ final class DumpUtilsTest {
   void shouldRedactASecretThatHidesInsideAPropertyValue() {
     // the dump goes to a public paste site. sun.java.command holds the whole command line of the program, and no
     // secret word appears in that property NAME, so redacting by name alone would publish the secret verbatim.
-    final String property = "sun.java.command";
+    final String property = COMMAND_PROPERTY;
     final String previous = System.getProperty(property);
     System.setProperty(property, "paper.jar --api-token=hunter2 --world world");
     try {
       final Path log = this.missingLog();
       final String dump = DumpUtils.createDumpContents(log);
-      final boolean leaked = dump.contains("hunter2");
+      final boolean leaked = dump.contains(SECRET_VALUE);
       final boolean redacted = dump.contains("--api-token=<redacted>");
-      final boolean keptTheRest = dump.contains("paper.jar");
+      final boolean keptTheRest = dump.contains(SERVER_JAR_FILE_NAME);
       assertFalse(leaked, "a secret inside a property value must never reach the paste site");
       assertTrue(redacted, dump);
       assertTrue(keptTheRest, "only the secret is removed, the rest of the value stays useful");
