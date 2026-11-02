@@ -25,6 +25,11 @@ import me.brandonli.mcav.json.ytdlp.format.UrlParseDump;
  * Pairs an audio strategy with a video strategy, so both streams of a video can be selected together.
  *
  * {@snippet :
+ * final String address = "https://youtu.be/...";
+ * final URI page = URI.create(address);
+ * final UriSource source = UriSource.uri(page);
+ * final YtdlpParser parser = YtdlpParser.simple();
+ * final UrlParseDump dump = parser.parse(source);
  * final StrategySelector selector = StrategySelector.of(FormatStrategy.BEST_QUALITY_AUDIO, FormatStrategy.BEST_QUALITY_VIDEO);
  * final Format audio = selector.getAudioSource(dump);
  * final Format video = selector.getVideoSource(dump);

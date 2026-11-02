@@ -24,11 +24,10 @@
  * a required selection is empty. Direct strategy calls instead return an empty {@link java.util.Optional}.
  *
  * <p>Built-in strategies are stateless and skip missing format lists, null entries and absent required markers.
- * They return the original mutable format objects. Do not mutate a dump or its format list during selection;
- * custom strategies define their own threading requirements. Selection performs no media download or decoding.
+ * They return the original format objects of the dump; custom strategies define their own threading requirements.
+ * Selection performs no media download or decoding.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

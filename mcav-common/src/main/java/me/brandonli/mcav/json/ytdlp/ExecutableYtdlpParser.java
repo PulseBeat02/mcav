@@ -84,15 +84,13 @@ public final class ExecutableYtdlpParser implements YtdlpParser {
     this(ExecutableYtdlpParser::installYtdlp, CommandTask::new);
   }
 
-  // Creates a parser that runs yt-dlp through the specified seams instead of the installed executable.
   @VisibleForTesting
   ExecutableYtdlpParser(final ExecutableLocator locator, final Function<String[], CommandTask> taskFactory) {
     this.locator = locator;
     this.taskFactory = taskFactory;
   }
 
-  // Finds the yt-dlp executable, installing it first if needed. While the library prepares yt-dlp in the background,
-  // this fails at once instead of waiting behind the download of the background installation.
+  // fails at once instead of waiting behind the background download
   private static Path installYtdlp() {
     final CapabilityGuard guard = CapabilityGuard.shared();
     guard.checkNotPreparing(Capability.YT_DLP);

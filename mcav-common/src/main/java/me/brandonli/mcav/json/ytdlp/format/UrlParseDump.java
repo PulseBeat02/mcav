@@ -658,11 +658,11 @@ public final class UrlParseDump {
   }
 
   /**
-   * Returns whether the video is live, such as {@code not_live}, {@code is_live}, or {@code was_live}, or empty if
-   * yt-dlp did not report it.
+   * Returns the live status of the video, such as {@code not_live}, {@code is_live}, or {@code was_live}, or empty
+   * if yt-dlp did not report it.
    *
-   * @return whether the video is live, such as {@code not_live}, {@code is_live}, or {@code was_live}, or empty if
-   * yt-dlp did not report it
+   * @return the live status of the video, such as {@code not_live}, {@code is_live}, or {@code was_live}, or empty
+   * if yt-dlp did not report it
    * @since 1.0.0
    */
   public Optional<String> getLiveStatus() {
