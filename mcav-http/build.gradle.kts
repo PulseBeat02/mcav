@@ -22,7 +22,9 @@ dependencies {
     }
     api(libs.jackson.core)
     api(libs.jackson.databind)
+
     compileOnlyApi(project(":mcav-common"))
+
     testImplementation(project(":mcav-common"))
     testImplementation(libs.slf4j.simple)
 }
