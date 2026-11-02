@@ -108,6 +108,9 @@ final class Mcv2PlayCommandTest {
   private static final int HAND_OVER_TIMEOUT_SECONDS = 10;
   private static final int JOIN_TIMEOUT_SECONDS = 60;
 
+  private static final long LAST_REPORT_NANOSECONDS = 1_000L;
+  private static final long PROGRESS_INTERVAL_NANOSECONDS = 30L;
+
   private static final int FRAME_COUNT = 3;
   private static final int SHORT_FRAME_COUNT = 2;
   private static final int LONG_FRAME_COUNT = 1000;
@@ -639,6 +642,20 @@ final class Mcv2PlayCommandTest {
 
   private Mcv2FileEncoder.FrameReader throwMissingVideo() throws IOException {
     throw new IOException("no such video!");
+  }
+
+  @Test
+  void shouldTellTheProgressOnceAWholeIntervalHasPassed() {
+    final long now = LAST_REPORT_NANOSECONDS + PROGRESS_INTERVAL_NANOSECONDS;
+    final boolean due = Mcv2PlayCommand.isProgressDue(now, LAST_REPORT_NANOSECONDS, PROGRESS_INTERVAL_NANOSECONDS);
+    assertTrue(due);
+  }
+
+  @Test
+  void shouldNotTellTheProgressBeforeAWholeIntervalHasPassed() {
+    final long now = LAST_REPORT_NANOSECONDS + PROGRESS_INTERVAL_NANOSECONDS - 1;
+    final boolean due = Mcv2PlayCommand.isProgressDue(now, LAST_REPORT_NANOSECONDS, PROGRESS_INTERVAL_NANOSECONDS);
+    assertFalse(due);
   }
 
   @ParameterizedTest

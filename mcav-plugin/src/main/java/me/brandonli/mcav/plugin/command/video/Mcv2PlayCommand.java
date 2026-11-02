@@ -490,13 +490,19 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     final long frames
   ) {
     final long now = System.nanoTime();
-    if (now - reported[0] >= interval) {
+    if (isProgressDue(now, reported[0], interval)) {
       reported[0] = now;
       final double millisecondsPerFrame = (now - started) / NANOSECONDS_PER_MILLISECOND / frames;
       sender.sendMessage(
         Message.MCV2_ENCODE_PROGRESS.build(String.format(Locale.ROOT, "%d frames, %.0f ms per frame", frames, millisecondsPerFrame))
       );
     }
+  }
+
+  // a hook so a test can kill the boundary mutant of the progress interval check
+  static boolean isProgressDue(final long now, final long reported, final long interval) {
+    final long elapsed = now - reported;
+    return elapsed >= interval;
   }
 
   Path streamFile(final String name) throws IOException {
