@@ -255,7 +255,7 @@ neighboring pixels of different colors where no map color is close enough, and s
 since the last frame. Every client can show that without any help. But the numbers are bad. Here is what dithered maps
 send at 1080p and 30 fps, after Minecraft's own packet compression, with VMAF. The preserved measurement provenance is
 `mcav-bukkit/src/test/resources/mcv2/data/codec_curves.json`, including the original `dither_command`; the current
-tool dispatcher has no dither-benchmark replacement. The clips are described in [The Test Clips](#the-test-clips):
+tool dispatcher has no dither-benchmark replacement. The clips are described in [The test clips](#the-test-clips):
 
 | Content | Under the plugin's default budget (128 KiB per frame and viewer) | Every change sent |
 |---|---|---|
@@ -929,7 +929,7 @@ I counted every line, including blank lines and comments.
 
 I got it down from 52,613 to 35,968 lines, mostly by shrinking the encoder and the reference decoder.
 
-### Inside Mcv2.java
+### Inside `Mcv2.java`
 
 The class reads from top to bottom in the order a frame goes through it, and each section starts with a comment that
 says what it is for:
@@ -1413,7 +1413,7 @@ import me.brandonli.mcav.bukkit.resourcepack.provider.PackHosting;
 
 - `Mcv2.Pool` is the one encoder budget of the server. Every MCV2 encoder uses `Mcv2.Pool.shared()`, so screens
   share the threads instead of each taking the machine. `setSharedThreads(0)` keeps the default, half the processors;
-  what that buys is in [What It Costs to Encode](#what-it-costs-to-encode).
+  what that buys is in [What it costs to encode](#what-it-costs-to-encode).
 - `Mcv2.installNatives` gives the native kernels a folder to extract their library into; `Mcv2.describeNatives()`
   returns the line to log, such as `native avx2 (linux-x86_64)`. Use your data folder, not a temporary folder, which
   hosted servers often mount without execution. Without a library for the platform, the Java kernels encode the same
@@ -1771,7 +1771,7 @@ python "${MCV2_PYTHON_TOOLS}" samples leaves gameplay.mcs gameplay.rgb --frame 0
 python "${MCV2_PYTHON_TOOLS}" samples bytes gameplay.mcs --frame 0
 ```
 
-To redraw `frame.png`, put the 71 bytes from [A Real Frame, Byte by Byte](#a-real-frame-byte-by-byte) into a
+To redraw `frame.png`, put the 71 bytes from [A real frame, byte by byte](#a-real-frame-byte-by-byte) into a
 one-frame archive, then draw its whole picture:
 
 ```sh
