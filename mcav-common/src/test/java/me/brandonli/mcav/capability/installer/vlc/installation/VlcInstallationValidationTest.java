@@ -27,13 +27,19 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Optional;
+import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import me.brandonli.mcav.capability.installer.InstallationException;
 import me.brandonli.mcav.capability.installer.vlc.VlcInstaller;
 import me.brandonli.mcav.capability.installer.vlc.installation.ManualInstallationStrategy.ProcessRunner;
 import me.brandonli.mcav.testing.IoActions;
+import me.brandonli.mcav.utils.FileOperationException;
+import me.brandonli.mcav.utils.os.Os;
+import me.brandonli.mcav.utils.os.OsUtils;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -57,6 +63,10 @@ final class VlcInstallationValidationTest {
   private static final String ARCHIVE_ROOT = "vlc-3.0.24/";
   private static final String OTHER_ARCHIVE_DIRECTORY = "vlc-3.0.24/other/";
   private static final String DIRECTORY_ENTRY_SUFFIX = "/";
+
+  private static final String LOCKED_DIRECTORY_NAME = "locked";
+  private static final Set<PosixFilePermission> OWNER_PERMISSIONS = PosixFilePermissions.fromString("rwx------");
+  private static final Set<PosixFilePermission> READ_ONLY_PERMISSIONS = PosixFilePermissions.fromString("r-x------");
 
   @TempDir
   private Path temporaryDirectory;
@@ -197,6 +207,36 @@ final class VlcInstallationValidationTest {
     }
 
     zip.closeEntry();
+  }
+
+  @ParameterizedTest
+  @EnumSource(Platform.class)
+  void shouldReportAnEarlierInstallationThatCannotBeDeleted(final Platform platform) throws IOException {
+    final Os operatingSystem = OsUtils.getOs();
+    final boolean posix = operatingSystem != Os.WINDOWS;
+    Assumptions.assumeTrue(posix, "Directory permissions need a POSIX file system!");
+
+    final VlcInstaller installer = VlcInstaller.create(this.temporaryDirectory);
+    final Path installDirectory = installer.getInstallDirectory();
+    final Path locked = installDirectory.resolve(LOCKED_DIRECTORY_NAME);
+    Files.createDirectories(locked);
+    final Path file = locked.resolve(platform.mainLibrary());
+    Files.writeString(file, "earlier installation marker");
+    final Path archive = this.temporaryDirectory.resolve(ARCHIVE_NAME);
+    Files.writeString(archive, "archive kept after a failed delete");
+    final InstallationStrategy strategy = platform.strategy(installer, (_, _) -> {});
+    Files.setPosixFilePermissions(locked, READ_ONLY_PERMISSIONS);
+    try {
+      final boolean writable = Files.isWritable(locked);
+      Assumptions.assumeFalse(writable, "The user can write every directory!");
+
+      assertThrows(FileOperationException.class, () -> strategy.execute(archive));
+
+      final boolean archiveExists = Files.exists(archive);
+      assertTrue(archiveExists);
+    } finally {
+      Files.setPosixFilePermissions(locked, OWNER_PERMISSIONS);
+    }
   }
 
   @Test
