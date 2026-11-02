@@ -105,6 +105,12 @@ final class ImageUtilsTest {
   }
 
   @Test
+  void shouldRejectAnOriginalSizeWhosePackedBgrSizeExceedsTheIntegerRange() {
+    final int[] pixels = new int[0];
+    assertThrows(IllegalArgumentException.class, () -> ImageUtils.resizeIntArrayImage(pixels, 65_536, 65_536, 1, 1));
+  }
+
+  @Test
   void shouldNotBeInstantiated() throws ReflectiveOperationException {
     UtilityClassAssertions.assertNotInstantiable(ImageUtils.class);
   }
