@@ -1960,8 +1960,8 @@ final class AbstractInteractiveCommandTest {
     protected void releasePlayer(final String current) {
       this.released.add(current);
       final Throwable failure = this.releaseFailure;
-      if (failure instanceof final RuntimeException runtime) {
-        throw runtime;
+      if (failure instanceof final RuntimeException runtimeException) {
+        throw runtimeException;
       }
 
       if (failure instanceof final Error error) {

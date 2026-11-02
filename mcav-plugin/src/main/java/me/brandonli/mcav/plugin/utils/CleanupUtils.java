@@ -57,8 +57,8 @@ public final class CleanupUtils {
         failure = combine(failure, exception);
       }
     }
-    if (failure instanceof final RuntimeException exception) {
-      throw exception;
+    if (failure instanceof final RuntimeException runtimeException) {
+      throw runtimeException;
     }
 
     if (failure instanceof final Error error) {
