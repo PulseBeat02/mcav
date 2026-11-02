@@ -55,7 +55,7 @@ public final class NeoForgeEntrypoint {
   private final Mcv2Reporter reporter;
 
   /**
-   * Constructs the entry point NeoForge calls.
+   * Creates the entry point NeoForge calls.
    *
    * @param modBus the mod's event bus
    * @since 1.0.0

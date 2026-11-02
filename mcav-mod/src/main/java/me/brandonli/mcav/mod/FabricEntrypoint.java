@@ -51,7 +51,7 @@ public final class FabricEntrypoint implements ClientModInitializer {
   private final LongSupplier clock;
 
   /**
-   * Constructs the entry point Fabric calls.
+   * Creates the entry point Fabric calls.
    *
    * @since 1.0.0
    */
