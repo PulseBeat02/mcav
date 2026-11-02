@@ -66,7 +66,7 @@ final class AudioRenderer extends AudioCallbackAdapter {
   AudioRenderer(final VideoPlayerMultiplexer owner) {
     this.owner = owner;
     this.queue = new ArrayBlockingQueue<>(QUEUE_CAPACITY);
-    this.thread = new RenderThread(THREAD_NAME, failure -> reportFailure(owner, "Audio rendering failed", failure));
+    this.thread = new RenderThread(THREAD_NAME, failure -> reportFailure(owner, "Audio rendering failed.", failure));
   }
 
   private static void reportFailure(final VideoPlayerMultiplexer owner, final String message, final Throwable failure) {
@@ -146,7 +146,7 @@ final class AudioRenderer extends AudioCallbackAdapter {
       // filters are user code, and native filters can throw a LinkageError, so any failure is reported and the render
       // thread keeps playing; only a virtual machine error ends the thread, because reporting it would hide it
       ThrowableUtils.throwIfFatal(exception);
-      reportFailure(this.owner, "Audio filter failed", exception);
+      reportFailure(this.owner, "Audio filter failed.", exception);
     }
   }
 }

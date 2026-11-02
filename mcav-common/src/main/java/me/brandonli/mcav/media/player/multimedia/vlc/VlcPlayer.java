@@ -67,6 +67,8 @@ public final class VlcPlayer implements VideoPlayerMultiplexer {
   private static final long OPEN_TIMEOUT_MILLISECONDS = 5_000L;
   private static final Equivalence<Object> IDENTITY = Equivalence.identity();
 
+  private static final String PREPARED_CANDIDATE_MESSAGE = "A prepared transition owns a candidate!";
+
   private final SharedMediaPlayerFactory sharedFactory;
   private final long openTimeoutMilliseconds;
   private final VideoAttachableCallback videoCallback;
@@ -285,7 +287,7 @@ public final class VlcPlayer implements VideoPlayerMultiplexer {
         return OpenResult.FAILED;
       }
 
-      final VlcPlayback created = Objects.requireNonNull(transition.created, "A prepared transition owns a candidate!");
+      final VlcPlayback created = Objects.requireNonNull(transition.created, PREPARED_CANDIDATE_MESSAGE);
       final boolean started = created.start();
       if (started && !this.released.get()) {
         this.playback = created;
@@ -302,7 +304,7 @@ public final class VlcPlayer implements VideoPlayerMultiplexer {
 
   private void cleanCandidate(final StartTransition transition) {
     try {
-      final VlcPlayback created = Objects.requireNonNull(transition.created, "A prepared transition owns a candidate!");
+      final VlcPlayback created = Objects.requireNonNull(transition.created, PREPARED_CANDIDATE_MESSAGE);
       created.stop();
     } finally {
       this.clearReservation();
@@ -337,7 +339,8 @@ public final class VlcPlayer implements VideoPlayerMultiplexer {
 
   private void sendStartFailure(final Source video, final Throwable exception) {
     final String resource = video.getResource();
-    this.exceptionHandler.accept("Failed to start VLC playback of " + resource, exception);
+    final String message = "VLC playback of %s could not be started.".formatted(resource);
+    this.exceptionHandler.accept(message, exception);
   }
 
   /**
@@ -392,7 +395,7 @@ public final class VlcPlayer implements VideoPlayerMultiplexer {
    */
   @Override
   public boolean seek(final long time) {
-    Preconditions.checkArgument(time >= 0, "Seek time must not be negative!");
+    Preconditions.checkArgument(time >= 0, "Seek time %s must not be negative!", time);
 
     this.lock.lock();
     try {

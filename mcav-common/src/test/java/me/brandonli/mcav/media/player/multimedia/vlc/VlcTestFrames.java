@@ -38,7 +38,8 @@ final class VlcTestFrames {
   private static final int RGB_MASK = 0xFFFFFF;
 
   private VlcTestFrames() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   static ByteBuffer rv32(final int... argbPixels) {

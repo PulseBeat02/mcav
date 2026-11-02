@@ -113,14 +113,16 @@ final class ScriptedFrameGrabber extends FrameGrabber {
   @Override
   public void start() throws FrameGrabber.Exception {
     if (this.failOnStart) {
-      throw new FrameGrabber.Exception("start failed on purpose");
+      final String message = "Start failed on purpose!";
+      throw new FrameGrabber.Exception(message);
     }
   }
 
   @Override
   public void stop() throws FrameGrabber.Exception {
     if (this.failOnStop) {
-      throw new FrameGrabber.Exception("stop failed on purpose");
+      final String message = "Stop failed on purpose!";
+      throw new FrameGrabber.Exception(message);
     }
   }
 
@@ -173,7 +175,8 @@ final class ScriptedFrameGrabber extends FrameGrabber {
     this.requestedTimestamp.set(timestamp);
 
     if (this.failOnSeek) {
-      throw new FrameGrabber.Exception("seek failed on purpose");
+      final String message = "Seek failed on purpose!";
+      throw new FrameGrabber.Exception(message);
     }
   }
 

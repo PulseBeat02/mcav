@@ -241,7 +241,8 @@ final class PlaybackSession {
   void startThreads() {
     final FrameGrabber grabber = this.videoGrabber;
     if (grabber == null) {
-      throw new IllegalStateException("The session must be opened first!");
+      final String message = "The session must be opened first!";
+      throw new IllegalStateException(message);
     }
 
     final GrabberFactory audioFactory = this.audioGrabberFactory;
@@ -278,7 +279,7 @@ final class PlaybackSession {
     } catch (final FrameGrabber.Exception | RuntimeException | Error exception) {
       try {
         ThrowableUtils.throwIfFatal(exception);
-        this.report("Failed to start the audio source", exception);
+        this.report("Failed to start the audio source.", exception);
       } finally {
         this.audioQueue.offer(END_OF_AUDIO);
       }
@@ -293,13 +294,13 @@ final class PlaybackSession {
     try {
       this.decodeFrames(grabber, streams);
     } catch (final FrameGrabber.Exception exception) {
-      this.report("Failed to decode media", exception);
+      this.report("Failed to decode media.", exception);
     } catch (final InterruptedException exception) {
       final Thread currentThread = Thread.currentThread();
       currentThread.interrupt();
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
-      this.report("Unexpected error while decoding media", exception);
+      this.report("Unexpected error while decoding media.", exception);
     } finally {
       this.finishDecoding(grabber, streams);
     }
@@ -364,7 +365,7 @@ final class PlaybackSession {
     try {
       grabber.setTimestamp(this.startMicroseconds);
     } catch (final FrameGrabber.Exception exception) {
-      this.report("Failed to seek, playing from the current position instead", exception);
+      this.report("Failed to seek, playing from the current position instead.", exception);
     }
   }
 
@@ -599,7 +600,7 @@ final class PlaybackSession {
       // filters are user code, and native filters can throw a LinkageError, so any failure is reported and playback
       // goes on; only a virtual machine error ends the thread, because reporting it would hide it
       ThrowableUtils.throwIfFatal(exception);
-      this.report("Video filter failed", exception);
+      this.report("Video filter failed.", exception);
     }
   }
 
@@ -667,7 +668,7 @@ final class PlaybackSession {
       // filters are user code, and native filters can throw a LinkageError, so any failure is reported and playback
       // goes on; only a virtual machine error ends the thread, because reporting it would hide it
       ThrowableUtils.throwIfFatal(exception);
-      this.report("Audio filter failed", exception);
+      this.report("Audio filter failed.", exception);
     }
   }
 
@@ -695,7 +696,8 @@ final class PlaybackSession {
       final long sleep = Math.min(remaining, MAXIMUM_SLEEP_NANOSECONDS);
       LockSupport.parkNanos(sleep);
       if (Thread.interrupted()) {
-        throw new InterruptedException("Interrupted while waiting for media to be due!");
+        final String message = "Interrupted while waiting for media to be due!";
+        throw new InterruptedException(message);
       }
     }
   }

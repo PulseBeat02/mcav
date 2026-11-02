@@ -204,7 +204,7 @@ final class VlcPlaybackTest {
     final IllegalStateException failure = new IllegalStateException("native crash!");
     when(status.isPlaying()).thenThrow(failure);
     this.synchronize(playback);
-    final List<String> expectedMessages = List.of("Failed to synchronize VLC players");
+    final List<String> expectedMessages = List.of("Failed to synchronize VLC players.");
     final List<Throwable> expectedErrors = List.of(failure);
     assertEquals(expectedMessages, this.messages);
     assertEquals(expectedErrors, this.errors);

@@ -348,7 +348,7 @@ final class AudioRendererTest {
     this.play((short) 2, (short) 2);
     this.play((short) 3, (short) 3);
     final boolean keptPlaying = third.await(TIMEOUT.toSeconds(), TimeUnit.SECONDS);
-    final List<String> expectedMessages = List.of("Audio filter failed", "Audio filter failed");
+    final List<String> expectedMessages = List.of("Audio filter failed.", "Audio filter failed.");
     final List<Throwable> expectedErrors = List.of(runtimeFailure, errorFailure);
     assertTrue(keptPlaying);
     assertEquals(expectedMessages, this.messages);
@@ -445,7 +445,7 @@ final class AudioRendererTest {
       final Memory second = samples((short) 2, (short) 2);
       failing.play(this.mediaPlayer, second, 1, 0L);
       final Short received = firstSamples.poll(TIMEOUT.toSeconds(), TimeUnit.SECONDS);
-      final List<String> expectedReports = List.of("Audio rendering failed: native failure!");
+      final List<String> expectedReports = List.of("Audio rendering failed.: native failure!");
       final Short expectedSample = 2;
       assertEquals(expectedReports, reported);
       assertEquals(expectedSample, received, "the render thread survived the failure");

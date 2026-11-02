@@ -226,7 +226,8 @@ final class RenderThreadTest {
       }
     }
 
-    throw new InterruptedException("released!");
+    final String message = "released!";
+    throw new InterruptedException(message);
   }
 
   @Test

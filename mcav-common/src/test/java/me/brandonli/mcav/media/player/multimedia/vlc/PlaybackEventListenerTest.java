@@ -204,7 +204,7 @@ final class PlaybackEventListenerTest {
     this.listener.error(this.mediaPlayer);
     final long elapsed = this.awaitMilliseconds(TIMEOUT_MILLISECONDS);
     final boolean opened = this.listener.awaitOpened(TIMEOUT_MILLISECONDS);
-    final List<String> expectedMessages = List.of("VLC playback of movie.mkv failed");
+    final List<String> expectedMessages = List.of("VLC playback of movie.mkv failed.");
     final Throwable error = this.errors.getFirst();
     final PlayerException exception = assertInstanceOf(PlayerException.class, error);
     final String reason = exception.getMessage();

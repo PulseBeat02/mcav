@@ -43,7 +43,8 @@ final class OpenCvVideoBackends {
   private static final Supplier<VideoFileReader> FILE_READER = Suppliers.memoize(OpenCvVideoBackends::detectFileReader);
 
   private OpenCvVideoBackends() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   // The reader that opens video files on this machine. The answer is worked out once, because it cannot change while the

@@ -120,7 +120,7 @@ public final class ThreadedImagePlayer implements ImagePlayer {
     try {
       this.play(source);
     } catch (final RuntimeException exception) {
-      this.report("Failed to play the frame source", exception);
+      this.report("Failed to play the frame source.", exception);
     } finally {
       this.playing.set(false);
     }
@@ -291,7 +291,7 @@ public final class ThreadedImagePlayer implements ImagePlayer {
         final VideoPipelineStep pipeline = ThreadedImagePlayer.this.callback.retrieve();
         pipeline.processAll(filled, this.metadata);
       } catch (final RuntimeException exception) {
-        ThreadedImagePlayer.this.report("Failed to render a frame", exception);
+        ThreadedImagePlayer.this.report("Failed to render a frame.", exception);
       }
     }
 

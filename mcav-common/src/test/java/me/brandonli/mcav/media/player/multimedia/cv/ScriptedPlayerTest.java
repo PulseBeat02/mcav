@@ -159,7 +159,7 @@ final class ScriptedPlayerTest {
     final boolean playing = player.isPlaying();
     final ScriptedFrameGrabber grabber = player.getLatestGrabber();
     final boolean closed = grabber.isClosed();
-    final List<String> expected = List.of("Failed to start playback of video.mp4");
+    final List<String> expected = List.of("Playback of video.mp4 could not be started.");
     assertFalse(started);
     assertFalse(playing);
     assertEquals(expected, reports);
@@ -180,7 +180,7 @@ final class ScriptedPlayerTest {
     assertFalse(started);
     assertFalse(playing);
     assertEquals(1, errorCount);
-    assertEquals("start failed on purpose", message, "the failure to close the grabber does not hide the reason");
+    assertEquals("Start failed on purpose!", message, "the failure to close the grabber does not hide the reason");
   }
 
   @Test
@@ -215,7 +215,7 @@ final class ScriptedPlayerTest {
 
       final boolean stillPlaying = player.isPlaying();
       final boolean currentClosed = playing.isClosed();
-      final List<String> expected = List.of("Failed to start playback of audio.m4a", "Failed to start playback of audio.m4a");
+      final List<String> expected = List.of("Playback of audio.m4a could not be started.", "Playback of audio.m4a could not be started.");
       assertTrue(started);
       assertFalse(runtimeFailure);
       assertFalse(linkageFailure);
@@ -370,7 +370,7 @@ final class ScriptedPlayerTest {
       final boolean stillPlaying = player.isPlaying();
       final boolean currentClosed = playing.isClosed();
       final boolean paused = player.pause();
-      final List<String> expected = List.of("Failed to start playback of video.mp4");
+      final List<String> expected = List.of("Playback of video.mp4 could not be started.");
       assertFalse(seeked);
       assertTrue(stillPlaying, "the current playback is only replaced once the new source is open");
       assertFalse(currentClosed);
@@ -754,7 +754,8 @@ final class ScriptedPlayerTest {
       super.configureGrabber(grabber, source);
 
       if (this.configurationFails) {
-        throw new IllegalArgumentException("invalid option!");
+        final String message = "invalid option!";
+        throw new IllegalArgumentException(message);
       }
     }
 

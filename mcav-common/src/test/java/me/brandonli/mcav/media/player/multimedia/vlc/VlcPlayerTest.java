@@ -255,7 +255,7 @@ final class VlcPlayerTest {
     this.vlc.queueOutcomes(MockVlc.Outcome.ERROR);
     final boolean started = this.player.start(this.video);
     final MockVlc.Player only = this.vlc.player(0);
-    final List<String> expectedMessages = List.of("VLC playback of video.mp4 failed");
+    final List<String> expectedMessages = List.of("VLC playback of video.mp4 failed.");
     final Throwable error = this.errors.getFirst();
     assertFalse(started, "a missing file must not count as started");
     assertEquals(expectedMessages, this.messages);
@@ -269,7 +269,7 @@ final class VlcPlayerTest {
   void shouldFailToStartWhenVlcRejectsTheMedia() throws InterruptedException {
     this.vlc.queueOutcomes(MockVlc.Outcome.REJECTED);
     final boolean started = this.player.start(this.video);
-    final List<String> expectedMessages = List.of("Failed to start VLC playback of video.mp4");
+    final List<String> expectedMessages = List.of("VLC playback of video.mp4 could not be started.");
     final Throwable error = this.errors.getFirst();
     final PlayerException exception = assertInstanceOf(PlayerException.class, error);
     final String reason = exception.getMessage();
@@ -379,7 +379,7 @@ final class VlcPlayerTest {
     final IllegalStateException failure = new IllegalStateException("libvlc version mismatch!");
     this.vlc.failFactoryCreation(failure);
     final boolean started = this.player.start(this.video);
-    final List<String> expectedMessages = List.of("Failed to start VLC playback of video.mp4");
+    final List<String> expectedMessages = List.of("VLC playback of video.mp4 could not be started.");
     final List<Throwable> expectedErrors = List.of(failure);
     final int references = this.references();
     assertFalse(started);
@@ -419,7 +419,7 @@ final class VlcPlayerTest {
   void shouldCleanUpOnStartWhenVlcThrowsWhilePlaying() throws InterruptedException {
     this.vlc.queueOutcomes(MockVlc.Outcome.THROWS);
     final boolean started = this.player.start(this.video);
-    final List<String> expectedMessages = List.of("Failed to start VLC playback of video.mp4");
+    final List<String> expectedMessages = List.of("VLC playback of video.mp4 could not be started.");
     final Throwable error = this.errors.getFirst();
     assertFalse(started);
     assertEquals(expectedMessages, this.messages);
@@ -854,7 +854,8 @@ final class VlcPlayerTest {
     stoppingOld.countDown();
     final boolean allowed = finishStop.await(10, TimeUnit.SECONDS);
     if (!allowed) {
-      throw new IllegalStateException("test did not release the old native stop!");
+      final String message = "test did not release the old native stop!";
+      throw new IllegalStateException(message);
     }
 
     return null;
@@ -916,7 +917,8 @@ final class VlcPlayerTest {
     released.set(this.player.release());
 
     if (creation == CreationOutcome.FAILS) {
-      throw new IllegalStateException("creation failed after reentrant release!");
+      final String message = "creation failed after reentrant release!";
+      throw new IllegalStateException(message);
     }
 
     return created;

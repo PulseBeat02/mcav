@@ -81,7 +81,7 @@ final class PlaybackClock {
   // Sets how fast media passes: at 2, a second of media is due every half second of wall time. The media due now stays
   // due now, so the change applies to what follows; while paused, to what follows the pause.
   void setSpeed(final double newSpeed) {
-    Preconditions.checkArgument(newSpeed > 0 && Double.isFinite(newSpeed), "Speed %s must be positive!", newSpeed);
+    Preconditions.checkArgument(newSpeed > 0 && Double.isFinite(newSpeed), "Speed %s must be positive and finite!", newSpeed);
 
     synchronized (this.lock) {
       if (this.anchored) {

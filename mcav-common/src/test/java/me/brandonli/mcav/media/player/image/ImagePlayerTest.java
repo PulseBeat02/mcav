@@ -146,7 +146,8 @@ final class ImagePlayerTest {
     times.add(now);
     final int count = consumed.incrementAndGet();
     if (count == 5) {
-      throw new IllegalStateException("a failing filter is reported, not fatal!");
+      final String message = "a failing filter is reported, not fatal!";
+      throw new IllegalStateException(message);
     }
 
     return true;
@@ -213,7 +214,7 @@ final class ImagePlayerTest {
 
     final int total = consumed.get();
     final double rate = rate(times);
-    final List<String> expectedFailures = List.of("Failed to render a frame");
+    final List<String> expectedFailures = List.of("Failed to render a frame.");
     assertTrue(started);
     assertFalse(startedTwice);
     assertTrue(released);
@@ -464,7 +465,7 @@ final class ImagePlayerTest {
       final boolean restarted = Polling.pollUntil(RESTART_TIMEOUT, () -> player.start(source));
       awaitCount(delivered, 1);
 
-      final List<String> expectedFailures = List.of("Failed to play the frame source");
+      final List<String> expectedFailures = List.of("Failed to play the frame source.");
       assertTrue(started);
       assertTrue(restarted, "the player stops when its source fails to start, so it can be started again");
       assertEquals(expectedFailures, failures);

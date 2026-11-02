@@ -77,6 +77,8 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
    */
   public static final double MAXIMUM_SPEED = 2.0;
 
+  private static final String SOURCE_NULL_MESSAGE = "Source must not be null!";
+
   private static final Equivalence<Object> IDENTITY = Equivalence.identity();
   private static final long MICROSECONDS_PER_MILLISECOND = 1_000L;
   private static final String NETWORK_TIMEOUT_MICROSECONDS = "15000000";
@@ -137,7 +139,7 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
    */
   @Override
   public boolean start(final Source combined) {
-    Preconditions.checkNotNull(combined, "Source must not be null!");
+    Preconditions.checkNotNull(combined, SOURCE_NULL_MESSAGE);
 
     return this.startSources(combined, null, 0L, StartState.PLAYING);
   }
@@ -314,7 +316,8 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
       return true;
     } catch (final FrameGrabber.Exception | RuntimeException | LinkageError exception) {
       final String resource = video.getResource();
-      this.exceptionHandler.accept("Failed to start playback of " + resource, exception);
+      final String message = "Playback of %s could not be started.".formatted(resource);
+      this.exceptionHandler.accept(message, exception);
 
       return false;
     }
@@ -353,7 +356,7 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
    */
   protected void configureGrabber(final FrameGrabber grabber, final Source source) {
     Preconditions.checkNotNull(grabber, "Grabber must not be null!");
-    Preconditions.checkNotNull(source, "Source must not be null!");
+    Preconditions.checkNotNull(source, SOURCE_NULL_MESSAGE);
 
     grabber.setPixelFormat(avutil.AV_PIX_FMT_BGR24);
     grabber.setSampleMode(FrameGrabber.SampleMode.SHORT);
@@ -455,7 +458,7 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
    */
   @Override
   public boolean seek(final long time) {
-    Preconditions.checkArgument(time >= 0, "Seek time must not be negative!");
+    Preconditions.checkArgument(time >= 0, "Seek time %s must not be negative!", time);
 
     final PlaybackSession current;
     final Source video;
@@ -492,7 +495,7 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
   public boolean setSpeed(final double speed) {
     Preconditions.checkArgument(
       speed >= MINIMUM_SPEED && speed <= MAXIMUM_SPEED,
-      "Speed %s must be between %s and %s!",
+      "Speed %s must be between %s and %s inclusive!",
       speed,
       MINIMUM_SPEED,
       MAXIMUM_SPEED

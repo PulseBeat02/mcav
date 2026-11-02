@@ -128,7 +128,8 @@ final class PlaybackSessionFailureTest {
   }
 
   private FrameGrabber failAcquisition() {
-    throw new AssertionError("cancelled acquisition!");
+    final String message = "cancelled acquisition!";
+    throw new AssertionError(message);
   }
 
   private static void awaitNaturalEnd(final PlaybackSession session) throws InterruptedException {

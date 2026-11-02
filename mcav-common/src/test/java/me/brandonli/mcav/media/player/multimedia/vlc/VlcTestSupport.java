@@ -25,8 +25,12 @@ import me.brandonli.mcav.MCAVException;
 import me.brandonli.mcav.capability.installer.vlc.DownloadedVlc;
 import me.brandonli.mcav.testing.GeneratedMedia;
 import org.junit.jupiter.api.Assumptions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 final class VlcTestSupport {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(VlcTestSupport.class);
 
   private static final String UNAVAILABLE = loadVlc();
 
@@ -34,7 +38,8 @@ final class VlcTestSupport {
   private static final String SIZE_SEPARATOR = "x";
 
   private VlcTestSupport() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   // the VLC of the installation kit, never this machine's, so every host behaves alike
@@ -43,10 +48,10 @@ final class VlcTestSupport {
       final Optional<Path> directory = DownloadedVlc.load();
       final Optional<String> location = directory.map(Path::toString);
       final String description = location.orElse("the libvlc vlcj loaded earlier");
-      System.out.println("VLC integration tests use " + description);
+      LOGGER.info("VLC integration tests use {}.", description);
       return null;
     } catch (final MCAVException | LinkageError exception) {
-      return "VLC could not be installed or loaded: " + exception;
+      return "Because of \"%s\", VLC could not be installed or loaded!".formatted(exception);
     }
   }
 

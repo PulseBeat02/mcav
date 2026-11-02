@@ -230,7 +230,8 @@ final class VlcPlayback {
       final BiConsumer<String, Throwable> handler = this.owner.getExceptionHandler();
       final String message = "Media %s could not be opened by VLC!".formatted(resource);
       final PlayerException exception = new PlayerException(message);
-      handler.accept("Failed to start VLC playback of " + resource, exception);
+      final String handlerMessage = "VLC playback of %s could not be started.".formatted(resource);
+      handler.accept(handlerMessage, exception);
     }
 
     return playing;
@@ -297,7 +298,7 @@ final class VlcPlayback {
       correctDrift(videoControls, drift, audioTime);
     } catch (final RuntimeException exception) {
       final BiConsumer<String, Throwable> handler = this.owner.getExceptionHandler();
-      handler.accept("Failed to synchronize VLC players", exception);
+      handler.accept("Failed to synchronize VLC players.", exception);
     }
   }
 

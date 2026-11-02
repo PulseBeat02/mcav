@@ -555,7 +555,7 @@ final class VideoRendererTest {
     this.display(1, 1, BLUE);
 
     final boolean keptRendering = third.await(TIMEOUT.toSeconds(), TimeUnit.SECONDS);
-    final List<String> expectedMessages = List.of("Video filter failed", "Video filter failed");
+    final List<String> expectedMessages = List.of("Video filter failed.", "Video filter failed.");
     final List<Throwable> expectedErrors = List.of(runtimeFailure, errorFailure);
     assertTrue(keptRendering, "rendering goes on after failures");
     assertEquals(expectedMessages, this.messages);
@@ -670,7 +670,7 @@ final class VideoRendererTest {
       this.displayPixel(failing, GREEN);
       final RecordedFrame frame = take(recorded);
       final int[] rgb = frame.getRgb();
-      final List<String> expectedReports = List.of("Video rendering failed: native failure!");
+      final List<String> expectedReports = List.of("Video rendering failed.: native failure!");
       assertEquals(expectedReports, reported);
       assertArrayEquals(new int[] { GREEN }, rgb, "the render thread survived the failure");
     } finally {

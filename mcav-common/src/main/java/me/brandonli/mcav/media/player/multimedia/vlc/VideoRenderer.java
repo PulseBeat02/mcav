@@ -76,7 +76,7 @@ final class VideoRenderer implements RenderCallback {
     this.pendingFrame = new ArrayBlockingQueue<>(1);
     this.sparePixels = new ArrayBlockingQueue<>(SPARE_PIXEL_ARRAYS);
     this.replacedFrames = new ArrayList<>(1);
-    this.thread = new RenderThread(THREAD_NAME, failure -> reportFailure(owner, "Video rendering failed", failure));
+    this.thread = new RenderThread(THREAD_NAME, failure -> reportFailure(owner, "Video rendering failed.", failure));
     this.metadata = OriginalVideoMetadata.EMPTY;
   }
 
@@ -310,7 +310,7 @@ final class VideoRenderer implements RenderCallback {
       // filters are user code, and native filters can throw a LinkageError, so any failure is reported and the render
       // thread keeps rendering; only a virtual machine error ends the thread, because reporting it would hide it
       ThrowableUtils.throwIfFatal(exception);
-      reportFailure(this.owner, "Video filter failed", exception);
+      reportFailure(this.owner, "Video filter failed.", exception);
     }
   }
 

@@ -47,7 +47,7 @@ public class VideoInputPlayer extends AbstractVideoPlayerCv {
    * @param resource the index of the device as text, such as {@code "0"} for the default webcam
    * @return a new, unstarted OpenCV grabber of the device
    * @throws NullPointerException     if the resource is null
-   * @throws IllegalArgumentException if the resource is not a non-negative number
+   * @throws IllegalArgumentException if the resource is not a number or is negative
    * @since 1.0.0
    */
   @Override
@@ -56,7 +56,7 @@ public class VideoInputPlayer extends AbstractVideoPlayerCv {
 
     final Integer parsedIndex = Ints.tryParse(resource);
     if (parsedIndex == null || parsedIndex < 0) {
-      final String message = "Device index %s must be a non-negative number!".formatted(resource);
+      final String message = "Device index %s must be a number and must not be negative!".formatted(resource);
       throw new IllegalArgumentException(message);
     }
 

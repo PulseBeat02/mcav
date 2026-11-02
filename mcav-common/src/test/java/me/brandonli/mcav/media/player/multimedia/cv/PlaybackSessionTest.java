@@ -427,18 +427,19 @@ final class PlaybackSessionTest {
     awaitEnd(session);
 
     final int frameCount = frames.get();
-    final List<String> expected = List.of("Failed to start the audio source");
+    final List<String> expected = List.of("Failed to start the audio source.");
     assertEquals(1, frameCount);
     assertEquals(expected, this.reports);
   }
 
   private FrameGrabber failToOpenAudio() throws FrameGrabber.Exception {
-    throw new FrameGrabber.Exception("no audio");
+    final String message = "No audio!";
+    throw new FrameGrabber.Exception(message);
   }
 
   @Test
   void shouldReportDecodingFailures() throws Exception {
-    final FrameGrabber.Exception corrupt = new FrameGrabber.Exception("corrupt");
+    final FrameGrabber.Exception corrupt = new FrameGrabber.Exception("Corrupt!");
     final ScriptedFrameGrabber failing = ScriptedFrameGrabber.of(corrupt);
     final PlaybackSession first = this.session(failing, 0L, StartState.PLAYING);
     first.start();
@@ -451,7 +452,7 @@ final class PlaybackSessionTest {
     second.start();
     awaitEnd(second);
 
-    final List<String> expected = List.of("Failed to decode media", "Unexpected error while decoding media");
+    final List<String> expected = List.of("Failed to decode media.", "Unexpected error while decoding media.");
     assertEquals(expected, this.reports);
   }
 
@@ -510,7 +511,7 @@ final class PlaybackSessionTest {
 
     final long position = session.getPositionMicroseconds();
     final int frameCount = frames.get();
-    final List<String> expected = List.of("Failed to seek, playing from the current position instead");
+    final List<String> expected = List.of("Failed to seek, playing from the current position instead.");
     assertEquals(expected, this.reports);
     assertEquals(2, frameCount, "the media still plays");
     assertEquals(FRAME_MICROSECONDS, position);
@@ -559,8 +560,8 @@ final class PlaybackSessionTest {
     awaitEnd(session);
 
     final int frameCount = frames.get();
-    final boolean videoReported = this.reports.contains("Video filter failed");
-    final boolean audioReported = this.reports.contains("Audio filter failed");
+    final boolean videoReported = this.reports.contains("Video filter failed.");
+    final boolean audioReported = this.reports.contains("Audio filter failed.");
     assertEquals(2, frameCount);
     assertTrue(videoReported);
     assertTrue(audioReported);
@@ -568,11 +569,14 @@ final class PlaybackSessionTest {
 
   private boolean failAfterCountingFrame(final AtomicInteger frames) {
     frames.incrementAndGet();
-    throw new IllegalStateException("video filter bug!");
+
+    final String message = "video filter bug!";
+    throw new IllegalStateException(message);
   }
 
   private boolean failAudioFilter() {
-    throw new AssertionError("audio filter bug!");
+    final String message = "audio filter bug!";
+    throw new AssertionError(message);
   }
 
   @Test
@@ -620,7 +624,7 @@ final class PlaybackSessionTest {
     session.start();
     awaitEnd(session);
 
-    final List<String> expected = List.of("Unexpected error while decoding media");
+    final List<String> expected = List.of("Unexpected error while decoding media.");
     assertEquals(expected, this.reports);
   }
 
@@ -1062,7 +1066,7 @@ final class PlaybackSessionTest {
   void shouldReportNothingAfterItWasStopped() throws Exception {
     final CountDownLatch entered = new CountDownLatch(1);
     final CountDownLatch releaseFailure = new CountDownLatch(1);
-    final FrameGrabber.Exception lateFailure = new FrameGrabber.Exception("late failure");
+    final FrameGrabber.Exception lateFailure = new FrameGrabber.Exception("Late failure!");
     final AtomicReference<Throwable> thrown = new AtomicReference<>();
     final AtomicReference<Throwable> stopFailure = new AtomicReference<>();
     final ScriptedFrameGrabber grabber = spy(ScriptedFrameGrabber.of(lateFailure));
@@ -1157,7 +1161,8 @@ final class PlaybackSessionTest {
   }
 
   private FrameGrabber failToCreateVideoGrabber() throws FrameGrabber.Exception {
-    throw new FrameGrabber.Exception("missing");
+    final String message = "Missing!";
+    throw new FrameGrabber.Exception(message);
   }
 
   @Test
