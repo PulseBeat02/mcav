@@ -164,7 +164,8 @@ final class SpringHttpResultTest {
     final String missingLocation = http.staticLocation(missing);
     final URI missingUri = missing.toUri();
     final String missingText = missingUri.toString();
-    assertEquals(missingText + PATH_SEPARATOR, missingLocation);
+    final String expectedMissingLocation = "%s%s".formatted(missingText, PATH_SEPARATOR);
+    assertEquals(expectedMissingLocation, missingLocation);
   }
 
   @Test

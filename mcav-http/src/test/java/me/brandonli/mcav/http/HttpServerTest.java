@@ -535,8 +535,9 @@ final class HttpServerTest {
       final int status = response.statusCode();
       final String body = response.body();
       final boolean leaked = body.contains(SECRET);
+      final boolean rejected = status >= HttpURLConnection.HTTP_BAD_REQUEST;
       assertFalse(leaked, "%s leaked the file outside the page directory".formatted(attack));
-      assertTrue(status >= HttpURLConnection.HTTP_BAD_REQUEST, "%s answered %s".formatted(attack, status));
+      assertTrue(rejected, "%s answered %s".formatted(attack, status));
     }
   }
 

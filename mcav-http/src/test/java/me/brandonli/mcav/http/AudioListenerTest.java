@@ -253,7 +253,8 @@ final class AudioListenerTest {
     this.awaitFirstSend();
     this.offerFiveMoreMediumChunks(listener);
     final int pending = listener.getPendingBytes();
-    assertEquals(2 * MEDIUM_CHUNK_BYTES, pending);
+    final int expected = 2 * MEDIUM_CHUNK_BYTES;
+    assertEquals(expected, pending);
 
     this.releaseSends.countDown();
     final byte[] firstSent = this.nextSent();
