@@ -149,6 +149,10 @@ final class AudioExtractorTest {
     final Path missing = this.directory.resolve(MISSING_FILE_NAME);
     final FileSource source = FileSource.path(missing);
     assertThrows(ProcessException.class, () -> AudioExtractor.extractOggVorbis(source));
+  }
+
+  @Test
+  void shouldRejectANullSource() {
     assertThrows(NullPointerException.class, () -> AudioExtractor.extractOggVorbis(null));
   }
 

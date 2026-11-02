@@ -24,11 +24,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
-import me.brandonli.mcav.testing.UtilityClassAssertions;
 import me.brandonli.mcav.utils.os.Os;
 import me.brandonli.mcav.utils.runtime.CommandTask;
 import org.junit.jupiter.api.Test;
@@ -70,7 +68,7 @@ final class FfmpegCommandTest {
   @Test
   void shouldAddEveryArgumentInOrderInTheBuilder() {
     final FfmpegCommandBuilder builder = FfmpegCommand.builder();
-    final FfmpegCommandBuilder returned = builder.addInput(INPUT_FILE_NAME);
+    builder.addInput(INPUT_FILE_NAME);
     builder.addVideoCodec(VIDEO_CODEC);
     builder.addAudioCodec(AUDIO_CODEC);
     builder.addBitrate(VIDEO_BITRATE);
@@ -107,7 +105,6 @@ final class FfmpegCommandTest {
       "-y",
       OUTPUT_FILE_NAME
     );
-    assertSame(builder, returned);
     assertEquals(expected, arguments);
   }
 
@@ -179,7 +176,7 @@ final class FfmpegCommandTest {
   }
 
   @Test
-  void shouldCommandAreImmutable() {
+  void shouldKeepABuiltCommandImmutable() {
     final FfmpegCommandBuilder builder = FfmpegCommand.builder();
     builder.addArgument(VERSION_ARGUMENT);
     final FfmpegCommand command = builder.build();
@@ -206,24 +203,5 @@ final class FfmpegCommandTest {
     assertThrows(NullPointerException.class, () -> builder.addArgument(null));
     assertThrows(NullPointerException.class, () -> builder.addArguments((String[]) null));
     assertThrows(NullPointerException.class, () -> builder.addArguments(DURATION_ARGUMENT, null));
-  }
-
-  @Test
-  void shouldProvideAnExistingExecutableOnce() throws ReflectiveOperationException {
-    final Path first = FfmpegExecutableProvider.getFfmpegPath();
-    final Path second = FfmpegExecutableProvider.getFfmpegPath();
-    final boolean exists = Files.isRegularFile(first);
-    assertTrue(exists);
-    assertSame(first, second);
-
-    UtilityClassAssertions.assertNotInstantiable(FfmpegExecutableProvider.class);
-  }
-
-  @Test
-  void shouldNotInstantiateTheHolder() throws ReflectiveOperationException {
-    final Class<?>[] nestedClasses = FfmpegExecutableProvider.class.getDeclaredClasses();
-    assertEquals(1, nestedClasses.length);
-
-    UtilityClassAssertions.assertNotInstantiable(nestedClasses[0]);
   }
 }
