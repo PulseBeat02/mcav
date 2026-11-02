@@ -86,6 +86,7 @@ final class InstallationManager implements AutoCloseable {
   private static final String CODEMC_ID = "codemc-releases";
   private static final String CODEMC_URL = "https://repo.codemc.io/repository/maven-releases/";
   private static final String REPOSITORY_LAYOUT = "default";
+  private static final boolean REPOSITORY_ENABLED = true;
 
   private static final String USER_HOME_PROPERTY = "user.home";
   private static final String MAVEN_FOLDER = ".m2";
@@ -180,7 +181,11 @@ final class InstallationManager implements AutoCloseable {
 
   static RemoteRepository createRepository(final String id, final String url) {
     final RemoteRepository.Builder builder = new RemoteRepository.Builder(id, REPOSITORY_LAYOUT, url);
-    final RepositoryPolicy policy = new RepositoryPolicy(true, RepositoryPolicy.UPDATE_POLICY_DAILY, RepositoryPolicy.CHECKSUM_POLICY_FAIL);
+    final RepositoryPolicy policy = new RepositoryPolicy(
+      REPOSITORY_ENABLED,
+      RepositoryPolicy.UPDATE_POLICY_DAILY,
+      RepositoryPolicy.CHECKSUM_POLICY_FAIL
+    );
     builder.setPolicy(policy);
     return builder.build();
   }
