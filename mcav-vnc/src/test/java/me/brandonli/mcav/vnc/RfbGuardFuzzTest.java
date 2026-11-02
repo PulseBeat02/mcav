@@ -28,7 +28,7 @@ import org.junit.jupiter.api.Tag;
 
 // Fuzzes RfbGuard with what a hostile VNC server could send: after a handshake, or from the first byte, any bytes in
 // any chunks. The guard passes them or refuses them with an IOException; any other failure, or a hang, is a crash. The
-// client side is the one mcav's VNC client sends.
+// client side is the one MCAV's VNC client sends.
 @Tag("fuzz")
 final class RfbGuardFuzzTest {
 
