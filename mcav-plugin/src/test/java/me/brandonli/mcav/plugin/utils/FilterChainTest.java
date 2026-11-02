@@ -19,6 +19,7 @@ package me.brandonli.mcav.plugin.utils;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -48,6 +49,8 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.GrayscaleFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.InvertFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.LuminanceFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.OverlayImageFilter;
+import me.brandonli.mcav.media.player.pipeline.filter.video.RectangleFilter;
+import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.RotationFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.TextFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.ThresholdFilter;
@@ -58,6 +61,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.MockedConstruction;
+import org.mockito.Mockito;
 
 final class FilterChainTest {
 
@@ -560,5 +565,40 @@ final class FilterChainTest {
 
     final int eighthMatches = wider.getPixels()[20 + 40 * 5] & RGB_MASK;
     assertEquals(WHITE, eighthMatches, "the region is remade for the wider picture");
+  }
+
+  @Test
+  void shouldNotResizeAnOverlayAsWideAsAllowed() throws IOException {
+    this.writeOverlay("widest", FilterChain.MAXIMUM_OVERLAY_SIDE, 16);
+    final FilterChain chain = this.parse("overlay=widest");
+    try (final MockedConstruction<ResizeFilter> resizers = Mockito.mockConstruction(ResizeFilter.class)) {
+      final List<VideoFilter> filters = chain.create();
+
+      final int size = filters.size();
+      assertEquals(1, size);
+
+      final List<ResizeFilter> constructed = resizers.constructed();
+
+      final boolean empty = constructed.isEmpty();
+      assertTrue(empty);
+    }
+  }
+
+  @Test
+  void shouldMakeARegionOncePerPictureSizeAndPassOnItsAnswer() {
+    final FilterChain chain = this.parse("rectangle=50:0:50:50:ffffff");
+    final List<VideoFilter> filters = chain.create();
+    final VideoFilter rectangle = filters.getFirst();
+    final ImageBuffer picture = this.picture(10, 10, 0);
+    try (final MockedConstruction<RectangleFilter> regions = Mockito.mockConstruction(RectangleFilter.class)) {
+      rectangle.applyFilter(picture);
+      final boolean filtered = rectangle.applyFilter(picture);
+      assertFalse(filtered);
+
+      final List<RectangleFilter> constructed = regions.constructed();
+
+      final int size = constructed.size();
+      assertEquals(1, size);
+    }
   }
 }
