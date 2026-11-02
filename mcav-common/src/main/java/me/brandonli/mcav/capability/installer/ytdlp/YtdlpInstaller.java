@@ -92,10 +92,12 @@ public final class YtdlpInstaller extends AbstractInstaller {
   }
 
   /**
-   * Creates an installer that installs yt-dlp into the cache folder of the library, {@code ~/.mcav/cache}.
+   * Creates an installer that installs yt-dlp into the default installer folder,
+   * {@link AbstractInstaller#getDefaultExecutableFolderPath()}.
    *
    * @return the installer
-   * @throws FileOperationException if the default cache folder cannot be created
+   * @throws FileOperationException if neither the cache folder nor its fallback in the temporary directory can be
+   *                               created
    * @since 1.0.0
    */
   public static YtdlpInstaller create() {
@@ -106,7 +108,7 @@ public final class YtdlpInstaller extends AbstractInstaller {
    * Returns the installer of the cache folder that the whole library shares. Concurrent downloads through one installer
    * are serialized, so yt-dlp is downloaded at most once.
    *
-   * @return the shared installer, which installs into {@code ~/.mcav/cache}
+   * @return the shared installer, which installs into the default installer folder
    * @since 1.0.0
    */
   public static YtdlpInstaller shared() {
