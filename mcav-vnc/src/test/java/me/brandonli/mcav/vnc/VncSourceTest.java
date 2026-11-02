@@ -39,12 +39,23 @@ final class VncSourceTest {
 
   private static final int FRAME_RATE = 24;
 
+  private static final String USERNAME = "user";
+  private static final String PASSWORD = "secret";
+
+  private static final String OTHER_HOST = "example.com";
+  private static final int OTHER_PORT = 5902;
+  private static final String OTHER_USERNAME = "admin";
+  private static final String OTHER_PASSWORD = "hunter2";
+  private static final int OTHER_WIDTH = 320;
+  private static final int OTHER_HEIGHT = 240;
+  private static final int OTHER_FRAME_RATE = 60;
+
   private VncSourceBuilder fullBuilder() {
     final VncSourceBuilder builder = VncSource.builder();
     builder.host(HOST);
     builder.port(PORT);
-    builder.username("user");
-    builder.password("secret");
+    builder.username(USERNAME);
+    builder.password(PASSWORD);
     builder.screenWidth(WIDTH);
     builder.screenHeight(HEIGHT);
     builder.targetFrameRate(FRAME_RATE);
@@ -84,8 +95,8 @@ final class VncSourceTest {
     final int width = source.getScreenWidth();
     final int height = source.getScreenHeight();
     final int frameRate = source.getTargetFrameRate();
-    final Optional<String> expectedUsername = Optional.of("user");
-    final Optional<String> expectedPassword = Optional.of("secret");
+    final Optional<String> expectedUsername = Optional.of(USERNAME);
+    final Optional<String> expectedPassword = Optional.of(PASSWORD);
     assertEquals(HOST, host);
     assertEquals(PORT, port);
     assertEquals(expectedUsername, username);
@@ -176,8 +187,8 @@ final class VncSourceTest {
   void shouldKeepItsSettingsWhenTheBuilderChangesLater() {
     final VncSourceBuilder builder = this.fullBuilder();
     final VncSource source = builder.build();
-    builder.host("example.com").port(5902).username("admin").password("hunter2");
-    builder.screenWidth(320).screenHeight(240).targetFrameRate(60);
+    builder.host(OTHER_HOST).port(OTHER_PORT).username(OTHER_USERNAME).password(OTHER_PASSWORD);
+    builder.screenWidth(OTHER_WIDTH).screenHeight(OTHER_HEIGHT).targetFrameRate(OTHER_FRAME_RATE);
 
     final VncSourceBuilder unchangedBuilder = this.fullBuilder();
     final VncSource unchanged = unchangedBuilder.build();
@@ -190,13 +201,13 @@ final class VncSourceTest {
     final VncSource source = sourceBuilder.build();
     final VncSourceBuilder equalBuilder = this.fullBuilder();
     final VncSource equal = equalBuilder.build();
-    final VncSource otherHost = this.build(builder -> builder.host("example.com"));
-    final VncSource otherPort = this.build(builder -> builder.port(5902));
-    final VncSource otherUser = this.build(builder -> builder.username("admin"));
-    final VncSource otherPassword = this.build(builder -> builder.password("hunter2"));
-    final VncSource otherWidth = this.build(builder -> builder.screenWidth(320));
-    final VncSource otherHeight = this.build(builder -> builder.screenHeight(240));
-    final VncSource otherFrameRate = this.build(builder -> builder.targetFrameRate(60));
+    final VncSource otherHost = this.build(builder -> builder.host(OTHER_HOST));
+    final VncSource otherPort = this.build(builder -> builder.port(OTHER_PORT));
+    final VncSource otherUser = this.build(builder -> builder.username(OTHER_USERNAME));
+    final VncSource otherPassword = this.build(builder -> builder.password(OTHER_PASSWORD));
+    final VncSource otherWidth = this.build(builder -> builder.screenWidth(OTHER_WIDTH));
+    final VncSource otherHeight = this.build(builder -> builder.screenHeight(OTHER_HEIGHT));
+    final VncSource otherFrameRate = this.build(builder -> builder.targetFrameRate(OTHER_FRAME_RATE));
     final VncSourceBuilder anonymousBuilder = VncSource.builder();
     anonymousBuilder.host(HOST);
     anonymousBuilder.port(PORT);

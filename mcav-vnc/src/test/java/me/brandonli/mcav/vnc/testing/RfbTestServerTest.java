@@ -36,9 +36,11 @@ import org.junit.jupiter.params.provider.CsvSource;
 final class RfbTestServerTest {
 
   private static final byte[] VERSION = "RFB 003.008\n".getBytes(StandardCharsets.US_ASCII);
+
   private static final int COLOR = 0xFF8040;
 
   private static final int PADDING_BYTES = 3;
+  private static final int PIXEL_FORMAT_BYTES = 16;
 
   private static final int BITS_PER_BYTE = 8;
 
@@ -101,7 +103,7 @@ final class RfbTestServerTest {
   }
 
   private void handshake(final DataInputStream input, final DataOutputStream output) throws IOException {
-    final byte[] version = input.readNBytes(12);
+    final byte[] version = input.readNBytes(VERSION.length);
     assertArrayEquals(VERSION, version);
     output.write(VERSION);
     output.flush();
@@ -119,7 +121,7 @@ final class RfbTestServerTest {
     final int height = input.readUnsignedShort();
     assertEquals(1, width);
     assertEquals(1, height);
-    final byte[] format = input.readNBytes(16);
+    final byte[] format = input.readNBytes(PIXEL_FORMAT_BYTES);
     final byte bitsPerPixel = format[0];
     final byte bigEndianFlag = format[2];
     assertEquals(32, bitsPerPixel);

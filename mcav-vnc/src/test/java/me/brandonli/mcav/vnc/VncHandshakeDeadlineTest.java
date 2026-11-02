@@ -50,12 +50,18 @@ final class VncHandshakeDeadlineTest {
   private static final String JAVA_AGENT_OPTION = "-javaagent:";
   private static final String BYTE_BUDDY_AGENT = "byte-buddy-agent";
 
+  private static final String BINARY_FOLDER = "bin";
+  private static final String JAVA_EXECUTABLE = "java";
+  private static final String WINDOWS_JAVA_EXECUTABLE = "java.exe";
+
+  private static final String OUTPUT_FILE = "deadline.log";
+
   @Test
   void shouldGiveConcurrentAsyncStartsIndependentHandshakeDeadlines(@TempDir final Path folder) throws Exception {
-    final Path javaFolder = Path.of(System.getProperty("java.home"), "bin");
-    final Path windowsJava = javaFolder.resolve("java.exe");
-    final Path executable = Files.isRegularFile(windowsJava) ? windowsJava : javaFolder.resolve("java");
-    final Path output = folder.resolve("deadline.log");
+    final Path javaFolder = Path.of(System.getProperty("java.home"), BINARY_FOLDER);
+    final Path windowsJava = javaFolder.resolve(WINDOWS_JAVA_EXECUTABLE);
+    final Path executable = Files.isRegularFile(windowsJava) ? windowsJava : javaFolder.resolve(JAVA_EXECUTABLE);
+    final Path output = folder.resolve(OUTPUT_FILE);
     final List<String> command = new ArrayList<>();
     command.add(executable.toString());
     command.addAll(this.findByteBuddyAgents());
