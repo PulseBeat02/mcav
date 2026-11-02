@@ -207,7 +207,16 @@ public final class BlockRenderer extends MainThreadRenderer<BlockData[]> {
     return originY + (height - 1 - row);
   }
 
-  // new viewers get the whole wall from onTick(), which runs next
+  /**
+   * Applies a frame by sending the blocks that changed since the previous frame to the viewers who already see the
+   * wall, in one multi block change. This method is always called on the main thread, at most once per server tick.
+   *
+   * <p>Nothing is sent while the wall is not shown or when no block changed. New viewers get the whole wall from
+   * {@link #onTick()}, which runs next.
+   *
+   * @param blocks the blocks of the frame, one for each wall position
+   * @since 1.0.0
+   */
   @Override
   protected void apply(final BlockData[] blocks) {
     final Position[] currentPositions = this.positions;
@@ -255,6 +264,16 @@ public final class BlockRenderer extends MainThreadRenderer<BlockData[]> {
     }
   }
 
+  /**
+   * Sends the complete wall to viewers who started watching, and to every viewer every
+   * {@value #FULL_RESEND_INTERVAL_TICKS} ticks, then sends the original blocks back to viewers who were removed while
+   * online. This method runs on the main thread once per server tick while the renderer is running, right after the
+   * pending frame, if there was one, was applied.
+   *
+   * <p>Does nothing while the wall is not shown or before its first frame was applied.
+   *
+   * @since 1.0.0
+   */
   @Override
   protected void onTick() {
     final Position[] currentPositions = this.positions;
