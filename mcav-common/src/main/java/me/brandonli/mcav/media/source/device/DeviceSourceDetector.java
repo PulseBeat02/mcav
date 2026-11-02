@@ -30,6 +30,8 @@ import me.brandonli.mcav.media.source.SourceDetector;
  */
 public class DeviceSourceDetector implements SourceDetector<DeviceSource> {
 
+  private static final String RAW_NULL_MESSAGE = "Raw must not be null!";
+
   /**
    * Constructs a new detector.
    *
@@ -47,7 +49,7 @@ public class DeviceSourceDetector implements SourceDetector<DeviceSource> {
    */
   @Override
   public boolean isDetectedSource(final String raw) {
-    Preconditions.checkNotNull(raw, "Raw must not be null!");
+    Preconditions.checkNotNull(raw, RAW_NULL_MESSAGE);
 
     final Integer parsed = Ints.tryParse(raw);
     return parsed != null && parsed >= 0;
@@ -65,7 +67,7 @@ public class DeviceSourceDetector implements SourceDetector<DeviceSource> {
    */
   @Override
   public DeviceSource createSource(final String raw) {
-    Preconditions.checkNotNull(raw, "Raw must not be null!");
+    Preconditions.checkNotNull(raw, RAW_NULL_MESSAGE);
 
     final int deviceId = Integer.parseInt(raw);
     return DeviceSource.device(deviceId);

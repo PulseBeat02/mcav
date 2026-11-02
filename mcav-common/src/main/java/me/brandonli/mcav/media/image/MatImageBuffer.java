@@ -87,8 +87,8 @@ public final class MatImageBuffer implements ImageBuffer {
   private static final double SIGNED_SHIFT = 128.0;
 
   private static final String EMPTY_MAT_MESSAGE = "Mat must not be empty!";
-  private static final String BYTE_COUNT_MESSAGE = "Byte count %s must be %s!";
-  private static final String PIXEL_COUNT_MESSAGE = "Pixel count %s must be %s!";
+  private static final String BYTE_COUNT_MESSAGE = "Byte count %s differs from the expected %s bytes!";
+  private static final String PIXEL_COUNT_MESSAGE = "Pixel count %s differs from the expected %s pixels!";
   private static final String UNSUPPORTED_BYTES_MESSAGE = "Bytes are not a supported image format!";
   private static final String UNSUPPORTED_FILE_MESSAGE = "File %s is not a supported image!";
 
@@ -433,7 +433,7 @@ public final class MatImageBuffer implements ImageBuffer {
    * @since 1.0.0
    */
   public void setMat(final Mat replacement) {
-    Preconditions.checkNotNull(replacement, "Mat must not be null!");
+    Preconditions.checkNotNull(replacement, "Replacement must not be null!");
 
     final boolean empty = replacement.empty();
     Preconditions.checkArgument(!empty, EMPTY_MAT_MESSAGE);
@@ -697,8 +697,8 @@ public final class MatImageBuffer implements ImageBuffer {
   private void checkCoordinates(final int column, final int row) {
     final int width = this.mat.cols();
     final int height = this.mat.rows();
-    Preconditions.checkArgument(column >= 0 && column < width, "x %s must be between 0 and %s!", column, width - 1);
-    Preconditions.checkArgument(row >= 0 && row < height, "y %s must be between 0 and %s!", row, height - 1);
+    Preconditions.checkArgument(column >= 0 && column < width, "Column %s must be between 0 and %s inclusive!", column, width - 1);
+    Preconditions.checkArgument(row >= 0 && row < height, "Row %s must be between 0 and %s inclusive!", row, height - 1);
   }
 
   /**
@@ -942,8 +942,6 @@ public final class MatImageBuffer implements ImageBuffer {
   }
 
   private void checkNotReleased() {
-    if (this.released) {
-      throw new IllegalStateException("Image buffer has been released!");
-    }
+    Preconditions.checkState(!this.released, "Image buffer has been released!");
   }
 }

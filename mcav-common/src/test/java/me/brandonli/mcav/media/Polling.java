@@ -30,7 +30,8 @@ public final class Polling {
   private static final long POLL_INTERVAL_NANOSECONDS = 5_000_000L;
 
   private Polling() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   public static boolean pollUntil(final Duration timeout, final BooleanSupplier condition) throws InterruptedException {
@@ -43,7 +44,8 @@ public final class Polling {
       }
       LockSupport.parkNanos(POLL_INTERVAL_NANOSECONDS);
       if (Thread.interrupted()) {
-        throw new InterruptedException("interrupted while polling!");
+        final String message = "Polling was interrupted!";
+        throw new InterruptedException(message);
       }
     }
 

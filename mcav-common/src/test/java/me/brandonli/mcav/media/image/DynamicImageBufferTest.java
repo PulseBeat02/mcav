@@ -220,7 +220,7 @@ final class DynamicImageBufferTest {
     final Path path = this.directory.resolve(ANIMATION_NAME);
     final Frame first = timestampedFrame(ONE_SECOND);
     final Frame second = timestampedFrame(TWO_SECONDS);
-    final FFmpegFrameGrabber.Exception failure = new FFmpegFrameGrabber.Exception("decoding failed on purpose");
+    final FFmpegFrameGrabber.Exception failure = new FFmpegFrameGrabber.Exception("Decoding failed on purpose!");
     final ScriptedFfmpegGrabber grabber = new ScriptedFfmpegGrabber(first, second, failure);
     final List<ImageBuffer> decoded = new ArrayList<>();
     assertThrows(ImageDecodingException.class, () -> FfmpegDynamicImageBuffer.decode(path, grabber, decoded));

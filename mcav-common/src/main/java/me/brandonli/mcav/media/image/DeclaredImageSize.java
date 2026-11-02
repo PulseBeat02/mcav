@@ -175,7 +175,8 @@ final class DeclaredImageSize {
   private static final int VP8_DIMENSION_MASK = 0x3FFF;
 
   private DeclaredImageSize() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   static void checkBytes(final byte[] encoded) {
@@ -190,7 +191,8 @@ final class DeclaredImageSize {
     final MemorySegment segment = MemorySegment.ofArray(encoded);
     final Size size = read(segment);
     if (size == null) {
-      throw new IllegalArgumentException("Bytes are not a supported image format!");
+      final String message = "Bytes are not a supported image format!";
+      throw new IllegalArgumentException(message);
     }
 
     checkLimit(size, limit);

@@ -47,7 +47,7 @@ public interface RepeatingFrameSource extends FrameSource {
    */
   static RepeatingFrameSource repeating(final DynamicImageBuffer animation, final int repeatCount) {
     Preconditions.checkNotNull(animation, "Animation must not be null!");
-    Preconditions.checkArgument(repeatCount > 0, "Repeat count must be positive!");
+    Preconditions.checkArgument(repeatCount > 0, "Repeat count %s must be positive!", repeatCount);
 
     return new DefaultRepeatingFrameSource(animation, repeatCount);
   }

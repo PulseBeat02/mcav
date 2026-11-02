@@ -28,7 +28,8 @@ import org.junit.jupiter.api.function.ThrowingSupplier;
 public final class ResourceAssertions {
 
   private ResourceAssertions() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   public static <ExceptionType extends Throwable> ExceptionType assertThrowsWhileOpening(

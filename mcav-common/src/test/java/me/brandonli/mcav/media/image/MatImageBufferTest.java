@@ -850,8 +850,8 @@ final class MatImageBufferTest {
       final IllegalArgumentException vertical = assertThrows(IllegalArgumentException.class, () -> image.getPixel(0, 4));
       final String horizontalMessage = horizontal.getMessage();
       final String verticalMessage = vertical.getMessage();
-      assertEquals("x 3 must be between 0 and 2!", horizontalMessage);
-      assertEquals("y 4 must be between 0 and 3!", verticalMessage);
+      assertEquals("Column 3 must be between 0 and 2 inclusive!", horizontalMessage);
+      assertEquals("Row 4 must be between 0 and 3 inclusive!", verticalMessage);
     }
   }
 
@@ -1159,7 +1159,8 @@ final class MatImageBufferTest {
   }
 
   private static void failTransformation() {
-    throw new IllegalStateException("The transformation failed!");
+    final String message = "The transformation failed!";
+    throw new IllegalStateException(message);
   }
 
   private static void leaveTargetEmpty() {}
@@ -1299,7 +1300,7 @@ final class MatImageBufferTest {
         ImageBuffer.bytes(shortInput, 715827882, 1)
       );
       final String message = failure.getMessage();
-      assertEquals("Byte count 2 must be 2147483646!", message);
+      assertEquals("Byte count 2 differs from the expected 2147483646 bytes!", message);
 
       final List<Mat> constructed = allocations.constructed();
       final int count = constructed.size();
@@ -1308,7 +1309,8 @@ final class MatImageBufferTest {
   }
 
   private void failMatrixConstruction() {
-    throw new AssertionError("The length guard must reject before constructing a native matrix!");
+    final String message = "The length guard must reject before constructing a native matrix!";
+    throw new AssertionError(message);
   }
 
   @Test

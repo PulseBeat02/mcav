@@ -31,6 +31,8 @@ import me.brandonli.mcav.utils.SourceUtils;
  */
 public class UriSourceDetector implements SourceDetector<UriSource> {
 
+  private static final String RAW_NULL_MESSAGE = "Raw must not be null!";
+
   /**
    * Constructs a new detector.
    *
@@ -48,7 +50,7 @@ public class UriSourceDetector implements SourceDetector<UriSource> {
    */
   @Override
   public boolean isDetectedSource(final String raw) {
-    Preconditions.checkNotNull(raw, "Raw must not be null!");
+    Preconditions.checkNotNull(raw, RAW_NULL_MESSAGE);
 
     return SourceUtils.isUri(raw);
   }
@@ -64,7 +66,7 @@ public class UriSourceDetector implements SourceDetector<UriSource> {
    */
   @Override
   public UriSource createSource(final String raw) {
-    Preconditions.checkNotNull(raw, "Raw must not be null!");
+    Preconditions.checkNotNull(raw, RAW_NULL_MESSAGE);
 
     final URI uri = URI.create(raw);
     return UriSource.uri(uri);
