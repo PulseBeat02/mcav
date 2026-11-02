@@ -398,18 +398,19 @@ final class ExecutableYtdlpParserTest {
     assertFalse(taskCreated);
   }
 
-  @Test
-  void shouldAcceptWebUrlsWhateverTheCaseOfTheScheme() throws IOException {
-    final CommandTask task = task(0, "{\"id\": \"upper\"}", "");
+  @ParameterizedTest
+  @ValueSource(strings = { "http://www.youtube.com/watch?v=plain", "HTTPS://www.youtube.com/watch?v=upper" })
+  void shouldAcceptHttpAndHttpsUrlsWhateverTheCaseOfTheScheme(final String raw) throws IOException {
+    final CommandTask task = task(0, "{\"id\": \"accepted\"}", "");
     final AtomicReference<String[]> command = new AtomicReference<>();
     final ExecutableYtdlpParser parser = parser(task, command);
-    final URI uri = URI.create("HTTPS://www.youtube.com/watch?v=upper");
+    final URI uri = URI.create(raw);
     final UriSource source = UriSource.uri(uri);
     final UrlParseDump dump = parser.parse(source);
     final String[] actual = command.get();
     final String lastArgument = actual[actual.length - 1];
-    assertEquals(Optional.of("upper"), dump.getId());
-    assertEquals("HTTPS://www.youtube.com/watch?v=upper", lastArgument);
+    assertEquals(Optional.of("accepted"), dump.getId());
+    assertEquals(raw, lastArgument);
   }
 
   @Test
