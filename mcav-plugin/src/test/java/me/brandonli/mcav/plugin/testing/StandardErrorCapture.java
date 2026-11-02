@@ -21,13 +21,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 
-/**
- * Records what is written to standard error, where the SLF4J simple logger of the tests prints every log event
- * together with the stack trace of its exception.
- *
- * <p>Use it in a try-with-resources block; standard error is restored when it is closed. The tests of the plugin run
- * one at a time, so no other test writes to standard error while a capture is open.
- */
+// the tests' SLF4J simple logger prints every log event to standard error
 public final class StandardErrorCapture implements AutoCloseable {
 
   private final PrintStream previous;
@@ -38,11 +32,6 @@ public final class StandardErrorCapture implements AutoCloseable {
     this.recorded = recorded;
   }
 
-  /**
-   * Starts recording standard error.
-   *
-   * @return the capture, which must be closed
-   */
   public static StandardErrorCapture start() {
     final PrintStream previous = System.err;
     final ByteArrayOutputStream recorded = new ByteArrayOutputStream();
@@ -52,19 +41,11 @@ public final class StandardErrorCapture implements AutoCloseable {
     return new StandardErrorCapture(previous, recorded);
   }
 
-  /**
-   * Stops recording and restores the previous standard error.
-   */
   @Override
   public void close() {
     System.setErr(this.previous);
   }
 
-  /**
-   * Returns everything written to standard error since the capture started.
-   *
-   * @return the recorded text
-   */
   public String getOutput() {
     return this.recorded.toString(StandardCharsets.UTF_8);
   }

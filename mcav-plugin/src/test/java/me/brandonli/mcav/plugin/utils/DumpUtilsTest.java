@@ -59,9 +59,6 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
-/**
- * Tests {@link DumpUtils} against a paste site on the loopback interface.
- */
 final class DumpUtilsTest {
 
   private static final long MEGABYTE = 1024L * 1024L;
@@ -324,13 +321,6 @@ final class DumpUtilsTest {
     assertTrue(uptime >= beforeDump && uptime <= afterDump, "uptime of " + uptime + " ms outside [" + beforeDump + ", " + afterDump + "]");
   }
 
-  /**
-   * Reads the number of a labelled line of the dump, such as {@code Free Memory (MB): 123}.
-   *
-   * @param dump  the dump
-   * @param label the label of the line
-   * @return the number the line reports
-   */
   private long readNumber(final String dump, final String label) {
     final String marker = "\n" + label + ": ";
     final int start = dump.indexOf(marker);
@@ -388,11 +378,7 @@ final class DumpUtilsTest {
     assertTrue(thirdContained, redactedSixth);
   }
 
-  /**
-   * Found by {@code DumpRedactionPropertyTest}: the JDK writes the zone of a link-local IPv6 address after a percent
-   * sign, as in {@code /[fe80:0:0:0:0:0:0:1%eth0]:50514}, which a player on the local network connects from. The first
-   * line is the smallest case the property shrank to.
-   */
+  // the JDK writes the zone of a link-local IPv6 address after a percent sign
   @Test
   void shouldRedactTheAddressOfAPlayerOnALinkLocalConnection() {
     final String shrunk = "[12:34:56 INFO]: aaa[/[0:0:0:0:0:0:0:0%0]:0] logged in with entity id 42 at ([world]1.5, 64.0, -3.5)";

@@ -34,10 +34,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Serves the benchmark pages on the loopback address: {@code /fps}, whose color changes on every animation frame,
- * and {@code /latency}, whose color changes whenever {@link #send(String)} pushes a server-sent event.
- */
 final class BenchmarkServer implements AutoCloseable {
 
   private static final String FRAMES_PER_SECOND_PAGE = """
@@ -141,13 +137,6 @@ final class BenchmarkServer implements AutoCloseable {
     }
   }
 
-  /**
-   * Waits until a page subscribed to the events after an earlier count of subscriptions.
-   *
-   * @param before              the count before the page was opened
-   * @param timeoutMilliseconds how long to wait
-   * @throws InterruptedException if interrupted
-   */
   synchronized void awaitSubscription(final int before, final long timeoutMilliseconds) throws InterruptedException {
     final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMilliseconds);
     while (this.subscriptions <= before) {

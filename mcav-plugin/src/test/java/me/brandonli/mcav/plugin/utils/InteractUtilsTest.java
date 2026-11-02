@@ -47,12 +47,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-/**
- * Tests {@link InteractUtils}.
- *
- * <p>The walls are built from mocked item frames in a {@link FakeWorld}. The player looks at a point whose position
- * inside its frame is 0.3 of the frame from the left and 0.4 from the top, which is pixel 38, 51 of the map.
- */
+// the player looks 0.3 across and 0.4 down its frame: pixel 38, 51 of the map
 final class InteractUtilsTest {
 
   private static final float LOOK_NORTH = 180.0f;
@@ -139,10 +134,7 @@ final class InteractUtilsTest {
     assertArrayEquals(new int[] { 3 * MAP_SIZE + AIMED_PIXEL_X, MAP_SIZE + AIMED_PIXEL_Y }, coordinates);
   }
 
-  /**
-   * Builds a wall of four columns and two rows on the plane z = 0, facing south. The top left frame as seen from the
-   * south is at x = 0 and y = 65, and the frame the player looks at is in the last column of the lower row.
-   */
+  // the player looks at the frame in the last column of the lower row
   private ItemFrame buildSouthWall() {
     ItemFrame target = null;
     for (int row = 0; row < WALL_ROWS; row++) {
@@ -188,12 +180,7 @@ final class InteractUtilsTest {
     assertArrayEquals(expected, coordinates, "the column is the distance to the first corner, not the coordinate");
   }
 
-  /**
-   * Builds the wall of {@link #buildSouthWall()} four blocks further east, so that the column of a frame differs from
-   * its own coordinate and only the distance to the first corner gives the right column.
-   *
-   * @return the frame the player looks at, in the last column of the lower row
-   */
+  // offset so a frame's column differs from its own coordinate
   private ItemFrame buildSouthWallAwayFromTheOrigin() {
     ItemFrame target = null;
     for (int row = 0; row < WALL_ROWS; row++) {

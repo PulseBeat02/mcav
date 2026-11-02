@@ -24,9 +24,6 @@ import java.util.stream.Stream;
 import me.brandonli.mcav.bukkit.media.result.Characters;
 import org.junit.jupiter.api.Test;
 
-/**
- * Tests {@link SuggestionProvider}.
- */
 final class SuggestionProviderTest {
 
   private final SuggestionProvider provider = new SuggestionProvider();

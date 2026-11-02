@@ -58,9 +58,7 @@ import org.mockito.Mockito;
 import xyz.jpenilla.gremlin.runtime.Dependency;
 import xyz.jpenilla.gremlin.runtime.DependencySet;
 
-/**
- * Tests {@link MCAVLoader}. The libraries are resolved from a prepared cache, so nothing is downloaded.
- */
+// libraries come from a prepared cache, so nothing is downloaded
 final class MCAVLoaderTest {
 
   private static final String LIBRARY_COORDINATE = "com.example:library:1.0@jar";
@@ -216,7 +214,6 @@ final class MCAVLoaderTest {
     assertEquals(expected, message);
   }
 
-  /** A jar holding class files of the given internal names, with no content. */
   private Path jarOf(final String name, final String... classes) throws IOException {
     final Path jar = this.cache.resolve(name);
     try (final OutputStream file = Files.newOutputStream(jar); final JarOutputStream entries = new JarOutputStream(file)) {

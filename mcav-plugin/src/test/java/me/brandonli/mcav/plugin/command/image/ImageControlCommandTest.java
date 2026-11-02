@@ -40,9 +40,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 
-/**
- * Tests {@link ImageControlCommand}.
- */
 final class ImageControlCommandTest {
 
   private final ExecutorService direct = MoreExecutors.newDirectExecutorService();

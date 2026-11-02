@@ -31,9 +31,6 @@ import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
 
-/**
- * Tests {@link AudioOutputs}.
- */
 final class AudioOutputsTest {
 
   private final AudioProvider provider = mock(AudioProvider.class);

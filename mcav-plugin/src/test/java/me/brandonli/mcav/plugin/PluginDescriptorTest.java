@@ -40,10 +40,6 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.incendo.cloud.annotations.Permission;
 import org.junit.jupiter.api.Test;
 
-/**
- * Tests the {@code paper-plugin.yml} that the build writes: it declares every permission a command checks, so that
- * permission plugins can list them, and no other.
- */
 final class PluginDescriptorTest {
 
   private static final String COMMANDS = "me/brandonli/mcav/plugin/command";

@@ -116,10 +116,7 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 
-/**
- * Tests {@link AbstractInteractiveCommand} with an interactive player that is a plain string and a command that
- * records what it forwards. The Bukkit events are mocked, since their constructors are internal to the server.
- */
+// Bukkit events are mocked: their constructors are internal to the server
 final class AbstractInteractiveCommandTest {
 
   private static final String INTERACT_PERMISSION = "mcav.test.interact";
@@ -1859,9 +1856,6 @@ final class AbstractInteractiveCommandTest {
     this.assertForwarded("browser right 400,200");
   }
 
-  /**
-   * A command that records the clicks and texts it forwards and the players it releases.
-   */
   private static final class RecordingCommand extends AbstractInteractiveCommand<String> {
 
     private final List<String> forwarded;

@@ -39,9 +39,6 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-/**
- * Tests {@link ImageManager}.
- */
 final class ImageManagerTest {
 
   private ImageManager manager;

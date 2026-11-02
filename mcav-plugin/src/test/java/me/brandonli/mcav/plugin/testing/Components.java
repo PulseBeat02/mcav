@@ -27,9 +27,6 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.mockito.ArgumentCaptor;
 
-/**
- * Reads the messages that mocked senders received.
- */
 public final class Components {
 
   private static final PlainTextComponentSerializer PLAIN_TEXT = PlainTextComponentSerializer.plainText();
@@ -38,22 +35,10 @@ public final class Components {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
-  /**
-   * Renders a component as plain text.
-   *
-   * @param component the component
-   * @return the text without formatting
-   */
   public static String plain(final Component component) {
     return PLAIN_TEXT.serialize(component);
   }
 
-  /**
-   * Returns the messages a mocked audience received with {@link Audience#sendMessage(Component)}, in order.
-   *
-   * @param audience the mocked audience, such as a command sender
-   * @return the messages
-   */
   public static List<Component> received(final Audience audience) {
     final ArgumentCaptor<Component> captor = ArgumentCaptor.forClass(Component.class);
     verify(audience, atLeastOnce()).sendMessage(captor.capture());
@@ -62,12 +47,6 @@ public final class Components {
     return new ArrayList<>(values);
   }
 
-  /**
-   * Returns the messages a mocked audience received as plain text, in order.
-   *
-   * @param audience the mocked audience, such as a command sender
-   * @return the messages without formatting
-   */
   public static List<String> receivedText(final Audience audience) {
     final List<Component> messages = received(audience);
     final List<String> texts = new ArrayList<>();

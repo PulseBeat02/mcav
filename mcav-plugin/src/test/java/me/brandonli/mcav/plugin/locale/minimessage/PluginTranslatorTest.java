@@ -48,9 +48,6 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-/**
- * Tests {@link PluginTranslator}, {@link MiniMessageTranslator} and {@link ArgumentTag}.
- */
 final class PluginTranslatorTest {
 
   private static final Key KEY = Key.key("mcav", "test");

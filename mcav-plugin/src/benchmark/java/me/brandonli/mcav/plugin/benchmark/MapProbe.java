@@ -35,11 +35,6 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.Par
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * The end of the benchmark pipeline: does what {@code CompressedMapResult} does with a frame (resize to the wall,
- * dither, encode the changes into map patches with {@link DeltaMapEncoder}) and stops where the patches would be
- * turned into map packets and sent. It counts the frames and watches the patches for a color.
- */
 final class MapProbe implements DitherResultStep {
 
   private static final int PARALLELISM_DIVISOR = 2;
@@ -75,12 +70,6 @@ final class MapProbe implements DitherResultStep {
   @Override
   public void start() {}
 
-  /**
-   * Returns the index of a map palette color, given as {@code #rrggbb}.
-   *
-   * @param color the color
-   * @return the palette index
-   */
   static byte paletteIndex(final String color) {
     final int rgb = Integer.parseInt(color.substring(1), HEXADECIMAL_RADIX);
     final int red = (rgb >> RED_SHIFT) & CHANNEL_MASK;
@@ -148,13 +137,6 @@ final class MapProbe implements DitherResultStep {
     return created;
   }
 
-  /**
-   * Waits until no patch was produced for a while, so the next change starts from a settled wall.
-   *
-   * @param quietMilliseconds   how long no patch may have been produced
-   * @param timeoutMilliseconds how long to wait at most
-   * @throws InterruptedException if interrupted
-   */
   void awaitQuiet(final long quietMilliseconds, final long timeoutMilliseconds) throws InterruptedException {
     final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMilliseconds);
     final long quietNanoseconds = TimeUnit.MILLISECONDS.toNanos(quietMilliseconds);
@@ -163,12 +145,6 @@ final class MapProbe implements DitherResultStep {
     }
   }
 
-  /**
-   * Starts watching the patches for a color.
-   *
-   * @param index the palette index of the color
-   * @return the watch
-   */
   Watch watch(final byte index) {
     final DeltaMapEncoder current = this.encoder;
     if (current == null) {
@@ -188,9 +164,6 @@ final class MapProbe implements DitherResultStep {
     return this.frames.get();
   }
 
-  /**
-   * Watches the patches for a color: when the first patch shows it, and when every pixel of the wall has shown it.
-   */
   static final class Watch {
 
     private final byte index;

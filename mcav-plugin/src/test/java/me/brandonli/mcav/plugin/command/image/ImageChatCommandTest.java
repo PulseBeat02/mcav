@@ -46,9 +46,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
-/**
- * Tests {@link ImageChatCommand}.
- */
 final class ImageChatCommandTest {
 
   private static final String RESOLUTION = "16x8";

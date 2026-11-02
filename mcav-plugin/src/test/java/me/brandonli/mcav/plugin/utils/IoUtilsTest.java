@@ -36,9 +36,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
-/**
- * Tests {@link IoUtils}.
- */
 final class IoUtilsTest {
 
   private static final String DATA_FOLDER_PATH = "plugins/MCAV";

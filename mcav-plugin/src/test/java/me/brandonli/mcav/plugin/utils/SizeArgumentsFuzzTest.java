@@ -25,12 +25,6 @@ import java.util.function.Function;
 import me.brandonli.mcav.utils.immutable.Pair;
 import org.junit.jupiter.api.Tag;
 
-/**
- * Fuzzes the sizes players type into the display commands, a resolution such as {@code 1920x1080} or a wall such as
- * {@code 5x3}: whatever the text, it either becomes a size within the bounds the commands document, which keep the main
- * thread and the memory of the server safe, or is refused with the {@link IllegalArgumentException} the commands turn
- * into a message. The seeds are the sizes of the tests and the documentation.
- */
 @Tag("fuzz")
 final class SizeArgumentsFuzzTest {
 

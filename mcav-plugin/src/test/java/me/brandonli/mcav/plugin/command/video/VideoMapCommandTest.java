@@ -77,10 +77,6 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 
-/**
- * Tests {@link VideoMapCommand}. The common playback flow is skipped, so only the arguments passed to it and the
- * maps and dithering it creates are checked.
- */
 final class VideoMapCommandTest {
 
   private static final String BLOCK_DIMENSIONS = "5x3";

@@ -57,14 +57,6 @@ import org.mockito.MockingDetails;
 import org.mockito.Mockito;
 import org.mockito.invocation.Invocation;
 
-/**
- * A property of building a wall of maps where one already hangs. The live pass found the most serious runtime defect of
- * this branch here: running {@code /mcav screen} twice on one wall left a second item frame in every block, back
- * turned and right in front of the map, so the wall showed nothing. The fix clears the frames of a block before it
- * hangs a new one; the examples check one block. This checks every wall size and facing, built up to three times, over
- * old frames facing either way, other entities in the wall, and frames next to it: afterwards every block of the wall
- * holds exactly one frame, the one of the last build, and nothing that is not a frame of the wall was removed.
- */
 final class MapScreenRebuildPropertyTest {
 
   private static final String SEED = "20260925";
@@ -119,10 +111,7 @@ final class MapScreenRebuildPropertyTest {
     return obstacles.as(Obstacle::new);
   }
 
-  /**
-   * Creates integers in a range from a fresh arbitrary: jqwik 1.10 shares the range between an arbitrary and the ones
-   * configured from it, so one base configured twice would hand every user the last range.
-   */
+  // a fresh arbitrary: jqwik 1.10 shares ranges between an arbitrary and those configured from it
   private Arbitrary<Integer> between(final int minimum, final int maximum) {
     final IntegerArbitrary integers = Arbitraries.integers();
     return integers.between(minimum, maximum);
@@ -180,10 +169,7 @@ final class MapScreenRebuildPropertyTest {
     }
   }
 
-  /**
-   * The world spawns frames at the corner of their block; a real frame hangs inside it, and a frame on the corner
-   * would also be found by the search of the neighbouring block.
-   */
+  // spawned frames sit on the block corner, where the neighbour block's search would find them too
   private void hangInsideItsBlock(final ItemFrame frame) {
     final Location corner = frame.getLocation();
     final Location inside = corner.clone();
@@ -209,18 +195,12 @@ final class MapScreenRebuildPropertyTest {
     return false;
   }
 
-  /**
-   * What stands in or next to the wall before it is built.
-   */
   enum ObstacleKind {
     OLD_FRAME,
     OTHER_ENTITY,
     NEIGHBOUR_FRAME,
   }
 
-  /**
-   * One thing in or next to a block of the wall.
-   */
   private static final class Obstacle {
 
     private final int cell;
@@ -239,9 +219,6 @@ final class MapScreenRebuildPropertyTest {
     }
   }
 
-  /**
-   * A wall built a number of times by a player facing one way, with things already standing where it goes.
-   */
   private static final class Rebuild {
 
     private final int width;
@@ -258,9 +235,6 @@ final class MapScreenRebuildPropertyTest {
       this.obstacles = obstacles;
     }
 
-    /**
-     * Builds the wall once in an empty world to learn which blocks its frames hang in.
-     */
     private List<List<Integer>> findCells() {
       final FakeWorld empty = new FakeWorld();
       final Player player = this.createPlayer();

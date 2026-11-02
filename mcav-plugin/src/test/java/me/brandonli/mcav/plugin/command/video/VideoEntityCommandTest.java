@@ -61,10 +61,6 @@ import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 
-/**
- * Tests {@link VideoEntityCommand}. The common playback flow is skipped, so only the arguments passed to it and
- * the text display it creates are checked.
- */
 final class VideoEntityCommandTest {
 
   private static final int RESOLUTION_HEIGHT = 36;

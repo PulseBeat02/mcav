@@ -27,10 +27,6 @@ import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/**
- * Tests {@link FrameRecorder}: frames are appended after their little-endian length, and a recording that cannot be
- * written stops without disturbing the screen.
- */
 final class FrameRecorderTest {
 
   private static final String RECORD_FILE_NAME = "screen-1-5.mcs";

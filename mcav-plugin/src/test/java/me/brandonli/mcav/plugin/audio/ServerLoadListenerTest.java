@@ -44,9 +44,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
-/**
- * Tests {@link ServerLoadListener}.
- */
 final class ServerLoadListenerTest {
 
   private ServerLoadListener listener;

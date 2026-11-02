@@ -88,10 +88,7 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 
-/**
- * Tests {@link MCAVSandbox}. The plugin is a mock that runs its real methods, because Paper only lets its own class
- * loader construct plugins; the library and the Paper command manager are mocked.
- */
+// the plugin is a mock running its real methods: only Paper's class loader may construct plugins
 final class MCAVSandboxTest {
 
   private static final String CONFIGURATION_FILE_NAME = "config.yml";

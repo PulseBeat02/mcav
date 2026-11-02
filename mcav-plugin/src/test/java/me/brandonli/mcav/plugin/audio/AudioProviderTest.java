@@ -74,13 +74,7 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 
-/**
- * Tests {@link AudioProvider}.
- *
- * <p>Most tests start the outputs on the calling thread, so they are ready when {@code initialize} returns. The
- * tests about starting in the background use an executor that only collects the tasks, which run when the test
- * says so.
- */
+// most tests start the outputs on the calling thread, so they are ready when initialize returns
 final class AudioProviderTest {
 
   private static final int HTTP_PORT = 3000;

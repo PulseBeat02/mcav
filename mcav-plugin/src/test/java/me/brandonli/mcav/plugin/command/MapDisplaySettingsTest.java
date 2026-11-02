@@ -36,9 +36,6 @@ import me.brandonli.mcav.plugin.utils.DitheringArgument;
 import me.brandonli.mcav.utils.immutable.Pair;
 import org.junit.jupiter.api.Test;
 
-/**
- * Tests {@link MapDisplaySettings}.
- */
 final class MapDisplaySettingsTest {
 
   @Test

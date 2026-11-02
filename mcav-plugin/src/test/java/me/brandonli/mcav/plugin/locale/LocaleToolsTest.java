@@ -36,9 +36,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
 
-/**
- * Tests {@link LocaleTools}.
- */
 final class LocaleToolsTest {
 
   private static final String LINK_KEY = "mcav.command.audio.http";

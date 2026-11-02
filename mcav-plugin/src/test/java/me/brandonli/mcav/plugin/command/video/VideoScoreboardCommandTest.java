@@ -62,10 +62,6 @@ import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 
-/**
- * Tests {@link VideoScoreboardCommand}. The common playback flow is skipped, so only the arguments passed to it
- * and the sidebar it creates are checked.
- */
 final class VideoScoreboardCommandTest {
 
   private static final int RESOLUTION_WIDTH = 24;

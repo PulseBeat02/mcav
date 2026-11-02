@@ -27,14 +27,8 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 
-/**
- * Serves a page on this machine that shows red and plays a 1000 Hz tone through Web Audio as soon as it may.
- */
 final class TonePage implements AutoCloseable {
 
-  /**
-   * The frequency of the tone, in hertz.
-   */
   static final int TONE_HERTZ = 1000;
 
   private static final String PAGE = """
@@ -64,12 +58,7 @@ final class TonePage implements AutoCloseable {
     this.server = server;
   }
 
-  /**
-   * Starts the page on a free port of 127.0.0.1, the address the browser is sent to, also where Java prefers IPv6.
-   *
-   * @return the running page
-   * @throws IOException if no port is free
-   */
+  // 127.0.0.1, the address the browser is sent to, even where Java prefers IPv6
   static TonePage start() throws IOException {
     final InetAddress loopback = InetAddress.getByAddress(LOOPBACK_HOST, LOOPBACK_OCTETS);
     final HttpServer server = HttpServer.create(new InetSocketAddress(loopback, 0), 0);
@@ -92,11 +81,6 @@ final class TonePage implements AutoCloseable {
     this.server.stop(0);
   }
 
-  /**
-   * Returns the address of the page.
-   *
-   * @return the address
-   */
   URI getUri() {
     return URI.create(URL_PREFIX + this.server.getAddress().getPort() + TONE_PATH);
   }

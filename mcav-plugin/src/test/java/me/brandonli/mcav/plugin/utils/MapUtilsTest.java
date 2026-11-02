@@ -64,12 +64,7 @@ import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 
-/**
- * Tests {@link MapUtils}.
- *
- * <p>Item stacks cannot be created without a server, so their construction is mocked; every created stack gets its
- * own mocked map metadata.
- */
+// item stacks need a server, so their construction is mocked
 final class MapUtilsTest {
 
   private static final int SCREEN_Y = 64;
@@ -112,9 +107,6 @@ final class MapUtilsTest {
     this.items.close();
   }
 
-  /**
-   * Returns the map that the server returns for an id, the same map every time.
-   */
   private MapView existingMap(final int id) {
     final MapView known = this.existingMaps.get(id);
     if (known != null) {
@@ -197,11 +189,6 @@ final class MapUtilsTest {
     assertEquals(1, size);
   }
 
-  /**
-   * Makes the server hand out consecutive map ids from a first id on, as the real server does. It refuses to create
-   * more than 10000 maps, over twice what the largest wall needs, so a test of an unbounded loop fails instead of
-   * hanging.
-   */
   private void handOutMapIdsFrom(final World world, final int firstId) {
     final AtomicInteger nextId = new AtomicInteger(firstId);
     final long lastAllowedId = firstId + 10_000L;

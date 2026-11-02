@@ -59,10 +59,6 @@ import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
-/**
- * Tests {@link VncCommand}: only a server of the allow-list is connected to, with the password of its entry, and the
- * desktop is streamed, driven and released like the browser.
- */
 final class VncCommandTest {
 
   private static final long RELEASE_MILLISECONDS = 5000;

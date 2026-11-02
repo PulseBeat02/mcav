@@ -65,20 +65,6 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/**
- * Runs the plugin on a real, headless Paper 26.3 server together with Simple Voice Chat, with the mcav modules of
- * this build, and drives it through the server console and its audio web server. The server downloads the libraries
- * of the plugin, loads the JavaCV natives and installs VLC and yt-dlp exactly as on a production server, so this test
- * needs the internet.
- *
- * <p>On the running server it streams a page of this machine that plays a tone with {@code /mcav browser create}, and,
- * when QEMU is installed, a virtual machine whose PC speaker plays a tone with {@code /mcav vm create}: the maps show
- * their pictures, the tones arrive at the audio web page, and after the releases no process of a browser or a machine
- * is left.
- *
- * <p>Running a Minecraft server means accepting the Minecraft EULA, so the test only runs when the build passes
- * {@code -Pmcav.acceptMinecraftEula=true}.
- */
 final class PaperServerEndToEndTest {
 
   private static final String PAPER_FILE_NAME = Objects.requireNonNull(System.getProperty("mcav.e2e.paperFileName"));
@@ -212,9 +198,7 @@ final class PaperServerEndToEndTest {
     }
   }
 
-  /**
-   * Verifies current module bytes even on a warm cache, where valid Gremlin hashes deliberately avoid HTTP.
-   */
+  // a warm cache skips HTTP when Gremlin's hashes match, so the module bytes are checked here
   private void assertCurrentModuleJars(final Path serverDirectory, final Path pluginJar) throws IOException {
     final String manifest;
     try (final ZipFile plugin = new ZipFile(pluginJar.toFile())) {
@@ -259,19 +243,13 @@ final class PaperServerEndToEndTest {
     }
   }
 
-  /**
-   * Hands the libraries that earlier runs downloaded, kept in the download cache of the build, to the server.
-   */
   private LibraryCache lendLibraries(final Path cache, final Path serverDirectory) throws IOException {
     final Path cachedLibraries = cache.resolve(LIBRARIES_DIRECTORY);
     final Path serverLibraries = serverDirectory.resolve(MCAV_LIBRARIES_DIRECTORY);
     return LibraryCache.lend(cachedLibraries, serverLibraries);
   }
 
-  /**
-   * Serves the repository the build published the modules into, on the port the build wrote into
-   * {@code mcav/plugin/dependencies.txt} as the first repository, so the server downloads the modules of this build.
-   */
+  // the build wrote this port into mcav/plugin/dependencies.txt, so the server downloads this build's modules
   private LocalMavenRepositoryServer startRepository() throws IOException {
     final Path repositoryDirectory = this.requirePath("mcav.e2e.repositoryDirectory");
     final int repositoryPort = this.requirePort("mcav.e2e.repositoryPort");
@@ -294,9 +272,6 @@ final class PaperServerEndToEndTest {
     assertNoErrors(output);
   }
 
-  /**
-   * Streams the tone page onto six maps with its sound in the audio web page, and releases the browser.
-   */
   private void streamABrowser(final ServerProcess server, final SoundListener sound, final TonePage page) throws InterruptedException {
     final int firstLine = server.getLineCount();
     final String create = "mcav browser create @a 320x240 1 3x2 0 NEAREST_COLOR HTTP_SERVER " + page.getUri();
@@ -319,9 +294,6 @@ final class PaperServerEndToEndTest {
     this.awaitNoneLeft(server, "browser", browser, running);
   }
 
-  /**
-   * Boots a machine whose PC speaker plays a tone onto six maps with its sound in the audio web page, and releases it.
-   */
   private void runAMachine(final ServerProcess server, final SoundListener sound) throws InterruptedException {
     sound.clear();
     final int firstLine = server.getLineCount();
@@ -347,9 +319,6 @@ final class PaperServerEndToEndTest {
     this.awaitNoneLeft(server, "virtual machine", machine, running);
   }
 
-  /**
-   * Shows the desktop of the test's VNC server, listed with its password, on six maps, and releases it.
-   */
   private void showAVncDesktop(final ServerProcess server, final FakeVncServer vnc) throws InterruptedException {
     final int firstLine = server.getLineCount();
     this.runCommand(
@@ -377,11 +346,7 @@ final class PaperServerEndToEndTest {
     assertTrue(matches, "the desktop's pictures reach the maps");
   }
 
-  /**
-   * Streams the tone page through MCV2 onto a wall in two chunks the test force-loads, since no player keeps them
-   * loaded and 26.3 keeps no spawn chunks, and checks the pack the server hosts on its game port: its hash names the
-   * pack.
-   */
+  // force-loaded chunks: no player keeps them loaded and 26.3 keeps no spawn chunks
   private void playThroughMcv2(final ServerProcess server, final TonePage page, final int gamePort) throws Exception {
     // a wall the console builds faces north, so this one stands at z 2 and 3 within two blocks of x 0
     this.runCommand(server, "forceload add -16 0 15 15", "to be force loaded");
@@ -427,9 +392,6 @@ final class PaperServerEndToEndTest {
     assertLogged(server.getLines(), "MCV2 kernels: ");
   }
 
-  /**
-   * Plays the test clip on a map with two filters, and seeks, speeds up, loops and turns down the video.
-   */
   private void controlAVideo(final ServerProcess server, final Path media) throws InterruptedException {
     final String clip = media.resolve(CLIP).toString();
     this.runCommand(
@@ -455,9 +417,6 @@ final class PaperServerEndToEndTest {
     );
   }
 
-  /**
-   * Shows the test picture on a map through a blur and a text.
-   */
   private void filterAnImage(final ServerProcess server, final Path media) throws InterruptedException {
     final String picture = media.resolve(PICTURE).toString();
     this.runCommand(
@@ -472,10 +431,7 @@ final class PaperServerEndToEndTest {
     return command.endsWith(UNIX_JAVA_SUFFIX) || command.endsWith(WINDOWS_JAVA_SUFFIX);
   }
 
-  /**
-   * Waits until no process of a player is left: none that ran before its release, even one that lost its parent and
-   * is no longer below the server, and none below the server that runs its programs.
-   */
+  // before also covers processes that lost their parent and are no longer below the server
   private void awaitNoneLeft(
     final ServerProcess server,
     final String what,
@@ -505,9 +461,6 @@ final class PaperServerEndToEndTest {
     return line.contains("Done (") && line.contains("For help, type");
   }
 
-  /**
-   * Sends a console command and waits for its answer; the test fails when the expected text does not appear in time.
-   */
   private void runCommand(final ServerProcess server, final String command, final String expectedText) throws InterruptedException {
     this.runCommand(server, command, expectedText, COMMAND_TIMEOUT);
   }
@@ -519,10 +472,6 @@ final class PaperServerEndToEndTest {
     server.awaitLine(firstLine, line -> line.contains(expectedText), timeout);
   }
 
-  /**
-   * Waits until the plugin reports that its audio web server, which it starts in the background, is listening, and
-   * then asks the server for the media information.
-   */
   private String fetchMediaInformation(final ServerProcess server, final int port) throws IOException, InterruptedException {
     server.awaitLine(0, line -> line.contains("The audio web page is available at"), HTTP_TIMEOUT);
     final URI uri = URI.create("http://127.0.0.1:" + port + MEDIA_PATH);
@@ -631,11 +580,7 @@ final class PaperServerEndToEndTest {
     }
   }
 
-  /**
-   * Writes the server settings: a small flat world, whose layers must be given, since Paper logs an error for a flat
-   * world without them, and no network services beyond the game port, on the loopback address, which the URL of the
-   * MCV2 pack the game port serves then names instead of the public address of the machine.
-   */
+  // Paper logs an error for a flat world without layers
   private int writeServerProperties(final Path serverDirectory) throws IOException {
     final int port = this.findFreePort();
     final String properties = String.join(
@@ -661,11 +606,7 @@ final class PaperServerEndToEndTest {
     return port;
   }
 
-  /**
-   * Turns on the audio web server and Simple Voice Chat audio; the Discord bot needs a real token, so it stays off.
-   * The browser may open the page of this machine, and plays its sound without a click, as no player is there. The
-   * VNC server of the test is the one listed server, with its password.
-   */
+  // the Discord bot needs a real token, so it stays off; no player can click, so sound autoplays
   private void writePluginConfiguration(final Path pluginsDirectory, final int httpPort, final FakeVncServer vnc) throws IOException {
     final Path dataFolder = pluginsDirectory.resolve(PLUGIN_DATA_DIRECTORY);
     Files.createDirectories(dataFolder);
@@ -697,9 +638,7 @@ final class PaperServerEndToEndTest {
     Files.writeString(file, configuration, StandardCharsets.UTF_8);
   }
 
-  /**
-   * Moves the voice chat server to a free UDP port, so the test never clashes with a voice chat server on the machine.
-   */
+  // a free UDP port, so a voice chat server on the machine cannot clash
   private void writeVoiceChatConfiguration(final Path pluginsDirectory) throws IOException {
     final Path voiceChatFolder = pluginsDirectory.resolve(VOICE_CHAT_DIRECTORY);
     Files.createDirectories(voiceChatFolder);
@@ -720,9 +659,6 @@ final class PaperServerEndToEndTest {
     }
   }
 
-  /**
-   * Returns a file from the download cache of the build, downloading it first when it is missing or damaged.
-   */
   private Path download(final Path cache, final RemoteFile remoteFile) throws IOException, InterruptedException {
     Files.createDirectories(cache);
     final Path file = cache.resolve(remoteFile.fileName);
@@ -799,9 +735,6 @@ final class PaperServerEndToEndTest {
     return port;
   }
 
-  /**
-   * A file the test downloads, with the hash it must have.
-   */
   private static final class RemoteFile {
 
     private final String url;

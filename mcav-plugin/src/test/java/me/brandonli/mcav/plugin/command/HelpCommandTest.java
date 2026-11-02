@@ -54,9 +54,6 @@ import org.incendo.cloud.annotations.AnnotationParser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-/**
- * Tests {@link HelpCommand} with the help and dump commands registered like the plugin registers them.
- */
 final class HelpCommandTest {
 
   private static final String DUMP_COMMAND = "/mcav dump";
@@ -160,11 +157,6 @@ final class HelpCommandTest {
     }
   }
 
-  /**
-   * Adds the texts of the command listing to the expected messages.
-   *
-   * @param expected the expected messages, by the key of the help
-   */
   private void putListingMessages(final Map<String, String> expected) {
     final String title = this.translation("mcav.command.help.command");
     final String description = this.translation("mcav.command.help.description");
@@ -185,11 +177,6 @@ final class HelpCommandTest {
     return translations.getProperty(key);
   }
 
-  /**
-   * Adds the texts of the search and of the page navigation to the expected messages.
-   *
-   * @param expected the expected messages, by the key of the help
-   */
   private void putNavigationMessages(final Map<String, String> expected) {
     final String query = this.translation("mcav.command.help.search_query");
     final String noResults = this.translation("mcav.command.help.none_query");

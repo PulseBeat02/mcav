@@ -28,9 +28,6 @@ import org.bukkit.command.CommandSender;
 import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 import org.junit.jupiter.api.Test;
 
-/**
- * Tests {@link ScreenSettings}.
- */
 final class ScreenSettingsTest {
 
   @Test

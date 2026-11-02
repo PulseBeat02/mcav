@@ -59,7 +59,6 @@ final class VideoPlaybackCommandTest {
 
   private CommandSender sender;
 
-  /** A player of another kind than FFmpeg's and OpenCV's, such as VLC's. */
   private VideoPlayerMultiplexer other;
 
   private AbstractVideoPlayerCv decoded;

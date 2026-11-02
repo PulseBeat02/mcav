@@ -60,10 +60,6 @@ import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
-/**
- * Tests {@link VideoMcv2Command}: the wall is configured from the command on the main thread, and the video's output
- * takes a slot of the MCV2 pack when it starts, or dithers the wall when every slot plays.
- */
 final class VideoMcv2CommandTest {
 
   private static final int MAP_ID = 20;

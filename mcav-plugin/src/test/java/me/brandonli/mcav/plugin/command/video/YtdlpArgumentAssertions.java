@@ -22,16 +22,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Set;
 
-/**
- * What may reach the command line of yt-dlp from the flags of a video command, shared by the property test and the
- * fuzz test of {@link VideoFlagsParser}: an argument that starts with a dash is always an accepted option, a switch never
- * takes the next argument, and an option with a value takes exactly one argument that yt-dlp cannot read as an option.
- */
 final class YtdlpArgumentAssertions {
 
-  /**
-   * The accepted options that are switches; every other accepted option takes a value.
-   */
   static final Set<String> SWITCHES = Set.of(
     "no-playlist",
     "yes-playlist",
@@ -72,12 +64,6 @@ final class YtdlpArgumentAssertions {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
-  /**
-   * Asserts that the arguments the parser produced from what a player typed are safe to hand to yt-dlp.
-   *
-   * @param typed     what the player typed
-   * @param arguments what the parser produced
-   */
   static void assertSafe(final String typed, final String[] arguments) {
     int index = 0;
     while (index < arguments.length) {

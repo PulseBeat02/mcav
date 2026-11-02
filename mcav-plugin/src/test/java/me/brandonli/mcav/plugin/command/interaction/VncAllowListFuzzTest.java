@@ -24,10 +24,6 @@ import com.code_intelligence.jazzer.junit.FuzzTest;
 import java.util.List;
 import org.junit.jupiter.api.Tag;
 
-/**
- * Fuzzes the server a player names in {@code /mcav vnc create}: whatever the text, it is read as a host and a TCP port
- * or refused, and it finds a listed server only when it names that server's host and port.
- */
 @Tag("fuzz")
 final class VncAllowListFuzzTest {
 

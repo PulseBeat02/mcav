@@ -61,9 +61,6 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 
-/**
- * Tests {@link PluginDataConfigurationMapper}.
- */
 final class PluginDataConfigurationMapperTest {
 
   private static final String FULL_CONFIGURATION = """

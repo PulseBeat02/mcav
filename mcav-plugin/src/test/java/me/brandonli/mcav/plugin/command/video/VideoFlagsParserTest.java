@@ -32,9 +32,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-/**
- * Tests {@link VideoFlagsParser}.
- */
 final class VideoFlagsParserTest {
 
   private static final String FLAG_OPENING = "--yt-dlp{";
@@ -57,10 +54,6 @@ final class VideoFlagsParserTest {
     assertArrayEquals(new String[0], arguments);
   }
 
-  /**
-   * A backslash escapes the character after it, but not the end of a line, like the regular expression the scan of
-   * the options replaced: options whose closing brace follows a backslash and a line break never end there.
-   */
   @ParameterizedTest
   @ValueSource(ints = { 0x0A, 0x0D, 0x85, 0x2028, 0x2029 })
   void shouldNotLetABackslashEscapeTheEndOfALine(final int lineBreak) {
@@ -187,9 +180,6 @@ final class VideoFlagsParserTest {
     }
   }
 
-  /**
-   * Parses one option, returning no arguments when the parser refuses it.
-   */
   private String[] parseOrEmpty(final String option) {
     try {
       return this.parser.parseYtdlpFlags(FLAG_OPENING + option + FLAG_CLOSING);
@@ -277,12 +267,7 @@ final class VideoFlagsParserTest {
     assertArrayEquals(expected, arguments);
   }
 
-  /**
-   * Found by {@code VideoFlagsParserFuzzTest}: the options used to be found with a regular expression whose repeated
-   * alternative recursed once per character, so options of about 1600 characters overflowed the stack of a thread
-   * with the default size of 1 MB and threw a {@link StackOverflowError} out of the parser. The fuzzer's input was
-   * 2072 bytes of options; any long value shows it.
-   */
+  // found by the fuzzer: the old regex recursed once per character and overflowed a 1 MB stack at about 1600 characters
   @Test
   void shouldFindOptionsOfAnyLengthWithoutOverflowingTheStack() {
     final String value = "b".repeat(100_000);

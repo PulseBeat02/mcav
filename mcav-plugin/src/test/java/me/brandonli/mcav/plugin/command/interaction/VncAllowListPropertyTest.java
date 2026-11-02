@@ -31,10 +31,6 @@ import net.jqwik.api.Property;
 import net.jqwik.api.Provide;
 import net.jqwik.api.constraints.IntRange;
 
-/**
- * Properties of {@link VncAllowList}: a listed server is found by the text a command names it with, a server that is
- * not listed is never found, and whatever a player types either names a host and a TCP port or nothing.
- */
 final class VncAllowListPropertyTest {
 
   private static final String SEED = "20260928";

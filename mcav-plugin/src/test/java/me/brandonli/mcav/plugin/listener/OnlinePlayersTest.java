@@ -40,9 +40,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
-/**
- * Tests {@link OnlinePlayers}: the set starts from the players online and follows every join and quit.
- */
 final class OnlinePlayersTest {
 
   @Test

@@ -75,12 +75,8 @@ import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
-/**
- * Tests {@link BrowserCommand}. The browser, the maps and the dithering are mocked.
- */
 final class BrowserCommandTest {
 
-  /** How long a test waits for a player stopped in the background. */
   private static final long RELEASE_MILLISECONDS = 5000;
 
   private static final String RESOLUTION = "1280x720";

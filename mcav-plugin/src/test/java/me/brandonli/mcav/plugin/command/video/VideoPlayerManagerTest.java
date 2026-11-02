@@ -78,10 +78,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-/**
- * Tests {@link VideoPlayerManager}. The test thread is the main thread of the server; the worker thread of the
- * manager is a real thread, so releasing from it shows whether the world is only changed on the main thread.
- */
+// the test thread is the main thread; the manager's real worker shows the world changes only there
 final class VideoPlayerManagerTest {
 
   private static final int TIMEOUT_SECONDS = 10;
@@ -265,10 +262,6 @@ final class VideoPlayerManagerTest {
     return service.submit(this.manager::releaseVideoPlayer);
   }
 
-  /**
-   * Makes the scheduler hand every task for the main thread to the returned queue, so the test can wait for the
-   * worker to schedule one and decide when it runs.
-   */
   private BlockingQueue<Runnable> interceptMainThreadTasks() {
     final BlockingQueue<Runnable> tasks = new LinkedBlockingQueue<>();
     final BukkitScheduler scheduler = TestServer.scheduler();

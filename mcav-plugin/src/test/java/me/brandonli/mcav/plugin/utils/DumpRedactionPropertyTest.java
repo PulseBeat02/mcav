@@ -35,13 +35,6 @@ import net.jqwik.api.arbitraries.IntegerArbitrary;
 import net.jqwik.api.arbitraries.ListArbitrary;
 import net.jqwik.api.arbitraries.StringArbitrary;
 
-/**
- * A property of the redaction of {@code /mcav dump}, which publishes the tail of the server log on a public paste site.
- * Pass 4 made it mask the addresses of players; this checks every address a server can log, formatted by the JDK
- * exactly as the server formats the address of a connection, in the lines that carry one: no player's address may
- * survive, whether IPv4, IPv6, an IPv4 address mapped into IPv6, or a link-local IPv6 address with its zone. Neither
- * may the user name and password, the query or the fragment of a web address, wherever it stands in a line.
- */
 final class DumpRedactionPropertyTest {
 
   private static final String SEED = "20260925";
@@ -65,9 +58,6 @@ final class DumpRedactionPropertyTest {
     return addresses.as(this::createAddress);
   }
 
-  /**
-   * Creates the address of a connection; a scope below zero stands for an address without a zone.
-   */
   private InetSocketAddress createAddress(final List<Byte> raw, final int scope, final int port) {
     final byte[] bytes = new byte[raw.size()];
     for (int index = 0; index < bytes.length; index++) {

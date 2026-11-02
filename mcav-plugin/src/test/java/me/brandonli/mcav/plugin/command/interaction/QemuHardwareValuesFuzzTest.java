@@ -24,12 +24,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.junit.jupiter.api.Tag;
 
-/**
- * Fuzzes the hardware values players type into {@code /mcav vm create}: whatever the text, it is either refused with the
- * {@link IllegalArgumentException} the command turns into a message, or accepted as a value that names no file — no
- * separator of a path and none of the properties through which QEMU reads or writes one. The first byte of an input
- * picks the option. The seeds are the values of the tests and the documentation.
- */
 @Tag("fuzz")
 final class QemuHardwareValuesFuzzTest {
 

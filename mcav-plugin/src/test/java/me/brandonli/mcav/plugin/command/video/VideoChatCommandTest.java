@@ -59,10 +59,6 @@ import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 
-/**
- * Tests {@link VideoChatCommand}. The common playback flow is skipped, so only the arguments passed to it and the
- * chat output it creates are checked.
- */
 final class VideoChatCommandTest {
 
   private static final int RESOLUTION_SIDE = 16;

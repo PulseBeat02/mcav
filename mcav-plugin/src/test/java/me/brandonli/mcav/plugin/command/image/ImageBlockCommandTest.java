@@ -48,9 +48,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
-/**
- * Tests {@link ImageBlockCommand}.
- */
 final class ImageBlockCommandTest {
 
   private static final String RESOLUTION = "4x2";

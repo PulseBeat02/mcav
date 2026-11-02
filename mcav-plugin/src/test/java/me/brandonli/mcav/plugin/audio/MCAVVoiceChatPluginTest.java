@@ -29,9 +29,6 @@ import me.brandonli.mcav.plugin.MCAVSandbox;
 import me.brandonli.mcav.voicechat.SvcModule;
 import org.junit.jupiter.api.Test;
 
-/**
- * Tests {@link MCAVVoiceChatPlugin}.
- */
 final class MCAVVoiceChatPluginTest {
 
   @Test

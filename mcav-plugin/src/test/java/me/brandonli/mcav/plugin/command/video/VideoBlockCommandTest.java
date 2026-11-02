@@ -61,10 +61,6 @@ import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 
-/**
- * Tests {@link VideoBlockCommand}. The common playback flow is skipped, so only the arguments passed to it and
- * the block wall it creates are checked.
- */
 final class VideoBlockCommandTest {
 
   private static final int RESOLUTION_WIDTH = 32;

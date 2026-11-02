@@ -42,21 +42,7 @@ import me.brandonli.mcav.plugin.command.MapDisplaySettings;
 import me.brandonli.mcav.plugin.utils.DitheringArgument;
 import me.brandonli.mcav.utils.immutable.Pair;
 
-/**
- * Measures how fast a browser backend brings a web page onto a wall of maps, through the same pipeline the sandbox's
- * {@code /mcav browser create} builds: the page is streamed by the backend, dithered with {@code FILTER_LITE} and
- * encoded into map patches by the delta encoder that {@code CompressedMapResult} uses.
- *
- * <p>Two scenarios run for every size. <b>Frame rate</b>: a page that changes its color on every animation frame is
- * streamed for a fixed time, and the frames that reach the map encoder are counted. <b>Latency</b>: a page with one
- * solid color waits for server-sent events from this program; each event names a new palette color, and the time from
- * sending the event to the first map patch that shows the new color is measured, together with the time until 90% of
- * the pixels of the wall show it (the encoder spreads a full-screen change over several frames when it exceeds its
- * byte budget). Server-sent events reach every backend the same way, so the trigger costs the same for all of them.
- *
- * <p>Arguments: {@code <backend> <output file>}, where the backend is a name {@code backends} accepts. The results are
- * printed as Markdown and appended to the output file.
- */
+// server-sent events reach every backend alike, so the trigger costs the same for all
 public final class BrowserBenchmark {
 
   private static final long WARM_UP_MILLISECONDS = 3_000L;
@@ -100,12 +86,6 @@ public final class BrowserBenchmark {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
-  /**
-   * Runs the benchmark.
-   *
-   * @param args the backend and the output file
-   * @throws Exception if the benchmark fails
-   */
   public static void main(final String[] args) throws Exception {
     if (args.length != ARGUMENT_COUNT) {
       throw new IllegalArgumentException("Usage: BrowserBenchmark <backend> <output file>");
@@ -139,12 +119,6 @@ public final class BrowserBenchmark {
     System.exit(0);
   }
 
-  /**
-   * Returns the backend with the given name.
-   *
-   * @param backend the name of the backend
-   * @return the factory of its players
-   */
   private static Supplier<BrowserPlayer> backends(final String backend) {
     final BrowserOptions local = BrowserOptions.builder().privateNetworks(true).build();
     return switch (backend) {
@@ -273,9 +247,6 @@ public final class BrowserBenchmark {
     return String.format(Locale.ROOT, "%.0f ms, %.0f ms", median, ninetiethPercentile);
   }
 
-  /**
-   * A browser size and the wall of maps it is shown on.
-   */
   private static final class WallSize {
 
     private final int width;
@@ -283,14 +254,6 @@ public final class BrowserBenchmark {
     private final int columns;
     private final int rows;
 
-    /**
-     * Constructs a size.
-     *
-     * @param width   the width of the browser in pixels
-     * @param height  the height of the browser in pixels
-     * @param columns the width of the wall in maps
-     * @param rows    the height of the wall in maps
-     */
     WallSize(final int width, final int height, final int columns, final int rows) {
       this.width = width;
       this.height = height;

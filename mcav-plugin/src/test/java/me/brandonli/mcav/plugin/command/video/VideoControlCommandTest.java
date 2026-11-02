@@ -51,9 +51,6 @@ import org.mockito.InOrder;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 
-/**
- * Tests {@link VideoControlCommand}.
- */
 final class VideoControlCommandTest {
 
   private final ExecutorService directExecutor = MoreExecutors.newDirectExecutorService();

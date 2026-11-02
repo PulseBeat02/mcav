@@ -24,10 +24,6 @@ import com.code_intelligence.jazzer.junit.FuzzTest;
 import java.util.Optional;
 import org.junit.jupiter.api.Tag;
 
-/**
- * Fuzzes the position a player types in {@code /mcav video seek}: whatever the text, it is refused or read as a time
- * within the bounds, which then resolves to a position at or after the start of the video.
- */
 @Tag("fuzz")
 final class SeekPositionFuzzTest {
 

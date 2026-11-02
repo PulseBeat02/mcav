@@ -32,12 +32,6 @@ import net.jqwik.api.arbitraries.IntegerArbitrary;
 import net.jqwik.api.arbitraries.StringArbitrary;
 import net.jqwik.api.constraints.IntRange;
 
-/**
- * Properties of the size arguments of the commands: every text a player can type either yields a size within the
- * documented bounds or is refused with an {@link IllegalArgumentException} the command turns into a message. Pass 1
- * and pass 4 found the sizes unbounded, so that {@code /mcav screen 100000x100000} froze the main thread; these state
- * the bounds for every input rather than the handful the examples try.
- */
 final class ArgumentUtilsPropertyTest {
 
   private static final String SEED = "20260925";
@@ -81,10 +75,7 @@ final class ArgumentUtilsPropertyTest {
     return Arbitraries.oneOf(shortSizes, anyText, pairs, nearPairs, boundPairs);
   }
 
-  /**
-   * Creates sides from nothing to three times a bound, from a fresh arbitrary: jqwik 1.10 shares the range between an
-   * arbitrary and the ones configured from it.
-   */
+  // a fresh arbitrary: jqwik 1.10 shares ranges between an arbitrary and those configured from it
   private Arbitrary<Integer> nearBound(final int bound) {
     final IntegerArbitrary integers = Arbitraries.integers();
     return integers.between(0, 3 * bound);
@@ -140,11 +131,7 @@ final class ArgumentUtilsPropertyTest {
     assertThrows(IllegalArgumentException.class, () -> ArgumentUtils.parseDimensions(tooHigh));
   }
 
-  /**
-   * A wall is cleared when its video is released, all at once and without the byte budget of playback. The live pass
-   * measured that burst; this bounds it for every wall a player can ask for: it fits the one bundle a client applies
-   * in a single tick, and it is at most 4096 map packets of 16400 bytes.
-   */
+  // a release clears the wall at once, without playback's byte budget, so the burst must fit one bundle
   @Property(seed = SEED)
   void shouldFitTheClearOfEveryAcceptedWallInOneBundle(@ForAll("typedSizes") final String typed) {
     final Pair<Integer, Integer> size;

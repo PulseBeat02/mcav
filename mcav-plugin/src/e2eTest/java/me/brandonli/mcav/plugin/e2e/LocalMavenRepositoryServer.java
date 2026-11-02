@@ -33,12 +33,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * Serves a Maven repository folder over plain HTTP on the loopback address. The plugin downloads its libraries with
- * Gremlin, whose {@link java.net.http.HttpClient} cannot read {@code file:} URIs, so the modules this build publishes
- * into a folder reach the server through this repository. Only {@code GET} and {@code HEAD} of files inside the folder
- * are answered; everything else gets a 404 or a 405. Closing it stops the server.
- */
+// Gremlin's HttpClient cannot read file: URIs, so the build's modules are served over HTTP
 final class LocalMavenRepositoryServer implements AutoCloseable {
 
   private static final InetAddress LOOPBACK_ADDRESS = InetAddress.ofLiteral("127.0.0.1");
@@ -67,14 +62,6 @@ final class LocalMavenRepositoryServer implements AutoCloseable {
     server.setExecutor(this.executor);
   }
 
-  /**
-   * Starts serving a repository folder on {@code http://127.0.0.1:<port>/}.
-   *
-   * @param directory the repository folder
-   * @param port      the port to listen on
-   * @return the running repository server
-   * @throws IOException if the port cannot be bound
-   */
   static LocalMavenRepositoryServer start(final Path directory, final int port) throws IOException {
     final Path absoluteDirectory = directory.toAbsolutePath();
     final Path root = absoluteDirectory.normalize();
@@ -86,9 +73,6 @@ final class LocalMavenRepositoryServer implements AutoCloseable {
     return repository;
   }
 
-  /**
-   * Stops the server at once and ends its request threads.
-   */
   @Override
   public void close() {
     this.server.stop(0);
@@ -119,9 +103,7 @@ final class LocalMavenRepositoryServer implements AutoCloseable {
     }
   }
 
-  /**
-   * Finds the file a request asks for; paths that would leave the repository folder are treated as missing.
-   */
+  // paths leaving the repository folder count as missing
   private Optional<Path> findFile(final URI requestUri) {
     final String requestPath = requestUri.getPath();
     if (requestPath == null) {
@@ -163,11 +145,6 @@ final class LocalMavenRepositoryServer implements AutoCloseable {
     this.servedFileCount.incrementAndGet();
   }
 
-  /**
-   * Returns how many files the repository has served so far.
-   *
-   * @return the number of successful {@code GET} requests
-   */
   int getServedFileCount() {
     return this.servedFileCount.get();
   }

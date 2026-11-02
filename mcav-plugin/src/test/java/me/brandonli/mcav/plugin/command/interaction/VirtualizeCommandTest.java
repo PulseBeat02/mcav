@@ -85,12 +85,8 @@ import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
-/**
- * Tests {@link VirtualizeCommand}. The virtual machine, the maps and the dithering are mocked.
- */
 final class VirtualizeCommandTest {
 
-  /** How long a test waits for a player stopped in the background. */
   private static final long RELEASE_MILLISECONDS = 5000;
 
   private static final String RESOLUTION = "640x480";
@@ -261,9 +257,6 @@ final class VirtualizeCommandTest {
     assertEquals(expectedMessages, messages);
   }
 
-  /**
-   * Creates a disk image of the image folder and returns the path the machine is given for it.
-   */
   private String image(final String name) throws IOException {
     final Path image = this.imageFolder.resolve(name);
     Files.createDirectories(this.imageFolder);

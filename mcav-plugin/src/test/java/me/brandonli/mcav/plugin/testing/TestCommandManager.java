@@ -36,40 +36,21 @@ import org.mockito.AdditionalAnswers;
 import org.mockito.MockSettings;
 import org.mockito.stubbing.Answer;
 
-/**
- * A Cloud command manager with the Bukkit argument parsers that registers nothing on a server, so the annotated
- * commands of the plugin can be parsed and executed in tests.
- */
 public final class TestCommandManager extends CommandManager<CommandSender> {
 
-  /**
-   * Constructs the manager. The Bukkit parsers look at the server when they are first loaded, so the test server
-   * is installed first; otherwise their loading fails for every later test in the same JVM.
-   */
+  // Bukkit parsers read the server when first loaded, so the test server is installed first
   public TestCommandManager() {
     super(ExecutionCoordinator.simpleCoordinator(), CommandRegistrationHandler.nullCommandRegistrationHandler());
     TestServer.ensureInstalled();
     BukkitParsers.register(this);
   }
 
-  /**
-   * Checks a permission by asking the sender, as the Paper command manager does.
-   *
-   * @param sender     the sender of the command
-   * @param permission the permission node
-   * @return true if the sender has the permission
-   */
   @Override
   public boolean hasPermission(final @NonNull CommandSender sender, final @NonNull String permission) {
     return sender.hasPermission(permission);
   }
 
-  /**
-   * Creates a Paper command manager that does everything through this manager, standing in for the manager that
-   * can only be created inside a server.
-   *
-   * @return the Paper command manager
-   */
+  // the real Paper manager can only be created inside a server
   public LegacyPaperCommandManager<CommandSender> asPaperManager() {
     final MockSettings settings = withSettings();
     final Answer<Object> delegation = AdditionalAnswers.delegatesTo(this);
@@ -77,11 +58,6 @@ public final class TestCommandManager extends CommandManager<CommandSender> {
     return mock(settings);
   }
 
-  /**
-   * Returns the syntax of every registered command, such as {@code mcav video pause}.
-   *
-   * @return the syntaxes, sorted
-   */
   public Set<String> syntaxes() {
     final Set<String> syntaxes = new TreeSet<>();
     for (final Command<CommandSender> command : this.commands()) {
@@ -91,13 +67,6 @@ public final class TestCommandManager extends CommandManager<CommandSender> {
     return syntaxes;
   }
 
-  /**
-   * Finds a registered command by its syntax.
-   *
-   * @param syntax the syntax, as listed by {@link #syntaxes()}
-   * @return the command
-   * @throws AssertionError if there is no such command
-   */
   public Command<CommandSender> command(final String syntax) {
     for (final Command<CommandSender> command : this.commands()) {
       final String candidate = this.syntax(command);

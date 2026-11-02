@@ -34,13 +34,6 @@ import net.jqwik.api.Provide;
 import net.jqwik.api.arbitraries.ListArbitrary;
 import net.jqwik.api.arbitraries.StringArbitrary;
 
-/**
- * Properties of {@link VideoFlagsParser}, whose input is typed by players. Pass 4 limited the yt-dlp options to the ones
- * that only pick a stream, because yt-dlp's full option set reads and writes files, runs programs and sends
- * credentials. These state what may reach the yt-dlp command line for every text a player can type: an argument that
- * starts with a dash is always an accepted option, a switch never takes the next argument, and an option with a value
- * takes exactly one argument that yt-dlp cannot read as an option.
- */
 final class VideoFlagsParserPropertyTest {
 
   private static final String SEED = "20260925";
@@ -57,10 +50,7 @@ final class VideoFlagsParserPropertyTest {
   private static final String ESCAPED_SEPARATOR = "\\,";
   private static final String ESCAPED_CLOSING = "\\}";
 
-  /**
-   * The regular expression the parser found the options with until the fuzzer showed it overflowing the stack on long
-   * options. It is kept as the oracle for inputs short enough for it.
-   */
+  // the parser's old regex, which overflowed the stack on long options; kept as the oracle for short inputs
   private static final Pattern ORIGINAL_OPTIONS = Pattern.compile(Pattern.quote("--yt-dlp") + "\\{((?:[^\\\\}]|\\\\.)*)}");
 
   private final VideoFlagsParser parser = new VideoFlagsParser();
@@ -170,10 +160,6 @@ final class VideoFlagsParserPropertyTest {
     return isSwitch ? new String[] { name } : new String[] { name, value };
   }
 
-  /**
-   * A player who escapes commas and closing braces inside values, as the command help says, gets exactly the options
-   * and values they meant.
-   */
   @Property(seed = SEED)
   void shouldPassEscapedValuesToYtdlpUnchanged(@ForAll("validOptions") final List<String[]> options) {
     final List<String> typedOptions = new ArrayList<>();

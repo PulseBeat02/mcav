@@ -178,7 +178,6 @@ final class Mcv2PlayCommandTest {
   @TempDir
   private Path folder;
 
-  /** The plugin's folder of stream files. */
   private Path streams;
 
   private MCAVSandbox plugin;
@@ -199,7 +198,6 @@ final class Mcv2PlayCommandTest {
 
   private final UUID viewer = UUID.randomUUID();
 
-  /** The tasks the command handed over to the main thread, from the thread that reads stream files. */
   private final BlockingQueue<Runnable> handedOver = new LinkedBlockingQueue<>();
 
   @BeforeEach
@@ -290,10 +288,7 @@ final class Mcv2PlayCommandTest {
     }
   }
 
-  /**
-   * Runs on the main thread, which the test thread is, the next task the command handed over to it from the thread that
-   * reads stream files.
-   */
+  // the test thread is the main thread
   private void runHandedOver() throws InterruptedException {
     final Runnable handed = this.handedOver.poll(HAND_OVER_TIMEOUT_SECONDS, TimeUnit.SECONDS);
     assertNotNull(handed, "the command handed nothing over to the main thread");
@@ -548,7 +543,6 @@ final class Mcv2PlayCommandTest {
     return PlainTextComponentSerializer.plainText().serialize(component);
   }
 
-  /** Waits for the encode the command started last and returns everything the sender was told. */
   private List<String> finish() throws InterruptedException {
     final Thread thread = this.command.getEncoding();
     if (thread != null) {
@@ -1107,7 +1101,6 @@ final class Mcv2PlayCommandTest {
     assertThrows(NullPointerException.class, () -> new Mcv2PlayCommand(null));
   }
 
-  /** A record of a stream file: the length, little-endian, then that many bytes. */
   private byte[] record(final int length) {
     final byte[] record = new byte[Integer.BYTES + length];
     ByteBuffer.wrap(record).order(ByteOrder.LITTLE_ENDIAN).putInt(0, length);
@@ -1121,7 +1114,7 @@ final class Mcv2PlayCommandTest {
     return both;
   }
 
-  /** A video of solid frames; every frame after the first waits for a latch, as a slow decoder would. */
+  // frames after the first wait for a latch, like a slow decoder
   private static final class SolidFrames implements Mcv2FileEncoder.FrameReader {
 
     private final int count;
@@ -1157,7 +1150,6 @@ final class Mcv2PlayCommandTest {
     }
   }
 
-  /** A video that reads one frame, then waits for the encode to be cancelled, and lets go of itself slowly. */
   private static final class SlowToClose implements Mcv2FileEncoder.FrameReader {
 
     private final CountDownLatch mayClose;
@@ -1192,10 +1184,7 @@ final class Mcv2PlayCommandTest {
     }
   }
 
-  /**
-   * A video whose reads drop the thread's interrupt, as code that swallows one does: its first read waits until the
-   * encode was cancelled, and it has a few frames, so an encode that misses the cancel ends as done.
-   */
+  // it has a few frames, so an encode that misses the cancel ends as done
   private static final class DropsInterrupts implements Mcv2FileEncoder.FrameReader {
 
     private final CountDownLatch cancelled;
@@ -1225,7 +1214,6 @@ final class Mcv2PlayCommandTest {
     }
   }
 
-  /** A video whose every read waits until the encode's thread is interrupted. */
   private static final class WaitsForInterrupt implements Mcv2FileEncoder.FrameReader {
 
     @Override

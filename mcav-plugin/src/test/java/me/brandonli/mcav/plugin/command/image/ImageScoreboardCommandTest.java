@@ -50,9 +50,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
-/**
- * Tests {@link ImageScoreboardCommand}.
- */
 final class ImageScoreboardCommandTest {
 
   private static final String RESOLUTION = "24x15";

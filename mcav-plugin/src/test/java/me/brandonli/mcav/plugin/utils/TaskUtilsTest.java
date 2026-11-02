@@ -43,9 +43,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-/**
- * Tests {@link TaskUtils}.
- */
 final class TaskUtilsTest {
 
   private static final String FUTURE_RESULT = "done";

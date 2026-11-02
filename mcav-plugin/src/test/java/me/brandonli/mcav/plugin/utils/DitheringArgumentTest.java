@@ -39,12 +39,7 @@ import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
-/**
- * Tests {@link DitheringArgument}.
- *
- * <p>Stateless algorithms are cached for the lifetime of the JVM, so the test of concurrent creation runs first and
- * uses an argument no other test touches.
- */
+// algorithms are cached for the JVM's lifetime, so the concurrent-creation test runs first, on an argument no other test touches
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 final class DitheringArgumentTest {
 

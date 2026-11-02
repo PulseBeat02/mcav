@@ -39,9 +39,6 @@ import org.mockito.InOrder;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
-/**
- * Tests {@link DumpCommand}.
- */
 final class DumpCommandTest {
 
   private static final int TIMEOUT_MILLISECONDS = 10_000;

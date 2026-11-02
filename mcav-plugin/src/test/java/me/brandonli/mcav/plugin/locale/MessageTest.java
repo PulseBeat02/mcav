@@ -31,9 +31,6 @@ import me.brandonli.mcav.plugin.testing.Components;
 import net.kyori.adventure.text.Component;
 import org.junit.jupiter.api.Test;
 
-/**
- * Tests {@link Message}.
- */
 final class MessageTest {
 
   @Test

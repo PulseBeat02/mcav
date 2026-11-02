@@ -23,9 +23,6 @@ import me.brandonli.mcav.plugin.testing.UtilityClassAssertions;
 import org.bukkit.NamespacedKey;
 import org.junit.jupiter.api.Test;
 
-/**
- * Tests {@link Keys}.
- */
 final class KeysTest {
 
   @Test

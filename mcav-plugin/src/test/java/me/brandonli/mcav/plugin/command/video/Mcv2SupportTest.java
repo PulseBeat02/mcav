@@ -64,10 +64,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
 
-/**
- * Tests {@link Mcv2Support}: a screen's wall is found by the frame that holds its top-left map, and its output takes a
- * slot of the one pack, which the sender learns when it cannot.
- */
 final class Mcv2SupportTest {
 
   private static final int MAP_ID = 20;

@@ -37,13 +37,7 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
-/**
- * Loads the messages of the plugin before any test runs.
- *
- * <p>{@link LocaleTools#MANAGER} is created once per JVM and asks Paper for the plugin, which only works inside a
- * server. This extension is registered for every test class through {@code junit-platform.properties} and creates
- * the manager with a mocked plugin whose data folder is a temporary directory.
- */
+// LocaleTools.MANAGER asks Paper for the plugin, which only works in a server, so the plugin is mocked
 public final class TranslationExtension implements BeforeAllCallback {
 
   private static final String LOCALE_FOLDER_NAME = "locale";
@@ -52,24 +46,13 @@ public final class TranslationExtension implements BeforeAllCallback {
 
   private static boolean initialized;
 
-  /**
-   * Constructs the extension. JUnit creates it for you.
-   */
   public TranslationExtension() {}
 
-  /**
-   * Loads the messages before the first test class runs; later calls do nothing.
-   *
-   * @param context the context of the test class, which is not used
-   */
   @Override
   public void beforeAll(final @NonNull ExtensionContext context) {
     initialize();
   }
 
-  /**
-   * Creates {@link LocaleTools#MANAGER} if it does not exist yet.
-   */
   public static synchronized void initialize() {
     if (initialized) {
       return;

@@ -35,10 +35,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-/**
- * A Minecraft server running as a child process, with its console output collected line by line and its console
- * input used to send commands. Closing it always ends the process.
- */
 final class ServerProcess implements AutoCloseable {
 
   private static final Duration DESTROY_TIMEOUT = Duration.ofSeconds(30);
@@ -57,15 +53,7 @@ final class ServerProcess implements AutoCloseable {
     this.reader = threadBuilder.start(this::readOutput);
   }
 
-  /**
-   * Starts a server without a display: {@code DISPLAY} and {@code WAYLAND_DISPLAY} are removed from its environment,
-   * as on a real headless server, and the command is expected to run AWT headless.
-   *
-   * @param directory the server directory
-   * @param command   the Java command that starts the server
-   * @return the running server
-   * @throws IOException if the process cannot be started
-   */
+  // without DISPLAY and WAYLAND_DISPLAY, as on a real headless server
   static ServerProcess start(final Path directory, final List<String> command) throws IOException {
     final ProcessBuilder builder = new ProcessBuilder(command);
     final File directoryFile = directory.toFile();
@@ -80,10 +68,7 @@ final class ServerProcess implements AutoCloseable {
     return new ServerProcess(started);
   }
 
-  /**
-   * Ends the server if it still runs: first politely, then forcibly after {@code DESTROY_TIMEOUT}. An interrupt while
-   * waiting ends the server forcibly at once and keeps the interrupt flag of the thread set.
-   */
+  // an interrupt while waiting ends the server forcibly at once
   @Override
   public void close() {
     if (!this.process.isAlive()) {
@@ -127,12 +112,6 @@ final class ServerProcess implements AutoCloseable {
     }
   }
 
-  /**
-   * Sends a command to the server console.
-   *
-   * @param command the command, without a leading slash
-   * @throws UncheckedIOException if the console of the server is closed
-   */
   void command(final String command) {
     final String separator = System.lineSeparator();
     final String consoleLine = command + separator;
@@ -146,16 +125,6 @@ final class ServerProcess implements AutoCloseable {
     }
   }
 
-  /**
-   * Waits until the server prints a line that matches, counting only lines printed from a given index on.
-   *
-   * @param fromLine the index of the first line to look at, see {@link #getLineCount()}
-   * @param matcher  decides which line is wanted
-   * @param timeout  how long to wait
-   * @return the first line that matches
-   * @throws InterruptedException if the waiting thread is interrupted
-   * @throws AssertionError       if no line matches in time or the server exits first
-   */
   String awaitLine(final int fromLine, final Predicate<String> matcher, final Duration timeout) throws InterruptedException {
     final long startNanoseconds = System.nanoTime();
     final long timeoutNanoseconds = timeout.toNanos();
@@ -189,9 +158,6 @@ final class ServerProcess implements AutoCloseable {
     return Optional.empty();
   }
 
-  /**
-   * Waits for the next line while holding the monitor of the lines, at most until the deadline.
-   */
   private void waitForMoreOutput(final long deadline, final Duration timeout) throws InterruptedException {
     final long now = System.nanoTime();
     final long remaining = deadline - now;
@@ -205,36 +171,18 @@ final class ServerProcess implements AutoCloseable {
     TimeUnit.NANOSECONDS.timedWait(this.lines, waitNanoseconds);
   }
 
-  /**
-   * Returns the number of lines printed so far.
-   *
-   * @return the line count
-   */
   int getLineCount() {
     synchronized (this.lines) {
       return this.lines.size();
     }
   }
 
-  /**
-   * Returns every line printed so far.
-   *
-   * @return a copy of the output
-   */
   List<String> getLines() {
     synchronized (this.lines) {
       return List.copyOf(this.lines);
     }
   }
 
-  /**
-   * Waits for the server to exit and for its output to be read completely.
-   *
-   * @param timeout how long to wait
-   * @return the exit code
-   * @throws InterruptedException if the waiting thread is interrupted
-   * @throws AssertionError       if the server is still running after the timeout
-   */
   int awaitExit(final Duration timeout) throws InterruptedException {
     final long milliseconds = timeout.toMillis();
     final boolean exited = this.process.waitFor(milliseconds, TimeUnit.MILLISECONDS);
@@ -248,12 +196,7 @@ final class ServerProcess implements AutoCloseable {
     return this.process.exitValue();
   }
 
-  /**
-   * Lists the running processes below the server whose program matches, such as the helpers of a browser.
-   *
-   * @param matcher tests the program of a process, which is all a process tells about itself on every system
-   * @return the matching processes
-   */
+  // the program is all a process tells about itself on every system
   List<ProcessHandle> findDescendants(final Predicate<String> matcher) {
     try (final Stream<ProcessHandle> descendants = this.process.descendants()) {
       return descendants
@@ -263,12 +206,6 @@ final class ServerProcess implements AutoCloseable {
     }
   }
 
-  /**
-   * Returns the program a process runs, empty where the system does not tell.
-   *
-   * @param handle the process
-   * @return the program
-   */
   static String programOf(final ProcessHandle handle) {
     return handle.info().command().orElse("");
   }

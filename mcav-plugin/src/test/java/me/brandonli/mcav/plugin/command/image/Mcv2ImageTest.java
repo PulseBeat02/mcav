@@ -45,10 +45,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.invocation.InvocationOnMock;
 
-/**
- * Tests {@link Mcv2Image}: the screen starts with the image and is given a copy of it twice a second, off the main
- * thread, until it is released, and is asked for a keyframe every fourth second.
- */
 final class Mcv2ImageTest {
 
   private static final int[] PIXELS = { 0xFF102030, 0xFF405060, 0xFF708090, 0xFFA0B0C0, 0xFFD0E0F0, 0xFF000000 };

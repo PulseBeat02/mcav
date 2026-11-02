@@ -109,12 +109,7 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 
-/**
- * Tests {@link AbstractVideoCommand} with a video output that only records what it is asked to create.
- *
- * <p>The worker thread of the video manager is replaced by the calling thread, so every step runs before
- * {@code playVideo} returns. The players, holograms and yt-dlp are mocked.
- */
+// the video manager works on the calling thread, so every step runs before playVideo returns
 final class AbstractVideoCommandTest {
 
   private static final String WEB_PAGE = "https://www.youtube.com/watch?v=abc";
@@ -1239,9 +1234,6 @@ final class AbstractVideoCommandTest {
     return AudioFilter.NO_OP;
   }
 
-  /**
-   * A command whose video output is a mocked filter and that remembers what it was asked to create.
-   */
   private static final class RecordingCommand extends AbstractVideoCommand {
 
     private final VideoPipelineStep pipeline;

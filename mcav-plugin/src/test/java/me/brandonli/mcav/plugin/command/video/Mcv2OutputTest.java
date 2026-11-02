@@ -35,10 +35,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 
-/**
- * Tests {@link Mcv2Output}: frames and the start reach the screen's result, and a release gives the screen's slot of
- * the pack back, even when the result fails to release.
- */
 final class Mcv2OutputTest {
 
   private Mcv2Result result;

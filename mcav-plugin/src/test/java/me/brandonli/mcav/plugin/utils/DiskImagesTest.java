@@ -31,9 +31,6 @@ import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-/**
- * Tests {@link DiskImages}, which decides what a command may boot.
- */
 final class DiskImagesTest {
 
   private static final String IMAGE_FILE_NAME = "alpine.iso";

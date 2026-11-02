@@ -44,13 +44,7 @@ import org.bukkit.persistence.PersistentDataType;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.mockito.invocation.InvocationOnMock;
 
-/**
- * A world of mocked blocks and entities with real coordinates, for code that walks from block to block and looks
- * for entities around them.
- *
- * <p>Every coordinate has exactly one block, so blocks can be compared by identity. Blocks remember the material
- * they were set to, and item frames remember the persistent data set on them.
- */
+// one block per coordinate, so blocks compare by identity
 public final class FakeWorld {
 
   private final World world;
@@ -59,9 +53,6 @@ public final class FakeWorld {
   private final List<Entity> entities;
   private final List<ItemFrame> spawnedFrames;
 
-  /**
-   * Creates an empty world.
-   */
   public FakeWorld() {
     this.world = mock(World.class);
     this.blocks = new HashMap<>();
@@ -108,35 +99,14 @@ public final class FakeWorld {
     return frame;
   }
 
-  /**
-   * Returns the mocked world.
-   *
-   * @return the world
-   */
   public World world() {
     return this.world;
   }
 
-  /**
-   * Creates a location in this world.
-   *
-   * @param positionX the x coordinate
-   * @param positionY the y coordinate
-   * @param positionZ the z coordinate
-   * @return the location
-   */
   public Location location(final double positionX, final double positionY, final double positionZ) {
     return new Location(this.world, positionX, positionY, positionZ);
   }
 
-  /**
-   * Returns the block at a position.
-   *
-   * @param blockX the x coordinate
-   * @param blockY the y coordinate
-   * @param blockZ the z coordinate
-   * @return the block, the same instance for the same position
-   */
   public Block block(final int blockX, final int blockY, final int blockZ) {
     final List<Integer> key = List.of(blockX, blockY, blockZ);
     final Block existing = this.blocks.get(key);
@@ -188,35 +158,15 @@ public final class FakeWorld {
     return this.block(blockX + offsetX * distance, blockY + offsetY * distance, blockZ + offsetZ * distance);
   }
 
-  /**
-   * Returns the material a block was set to.
-   *
-   * @param blockX the x coordinate
-   * @param blockY the y coordinate
-   * @param blockZ the z coordinate
-   * @return the material, {@link Material#AIR} if it was never set
-   */
   public Material material(final int blockX, final int blockY, final int blockZ) {
     final Block block = this.block(blockX, blockY, blockZ);
     return this.materials.getOrDefault(block, Material.AIR);
   }
 
-  /**
-   * Counts the blocks whose material was set.
-   *
-   * @return the number of blocks
-   */
   public int changedBlocks() {
     return this.materials.size();
   }
 
-  /**
-   * Creates an item frame without adding it to the world.
-   *
-   * @param location where the frame is
-   * @param facing   the direction the front of the frame faces
-   * @return the frame
-   */
   public ItemFrame frame(final Location location, final BlockFace facing) {
     final ItemFrame frame = mock(ItemFrame.class);
     final Map<NamespacedKey, Object> data = new HashMap<>();
@@ -255,14 +205,6 @@ public final class FakeWorld {
     return data.get(key);
   }
 
-  /**
-   * Creates an item frame of a map screen and adds it to the world.
-   *
-   * @param location where the frame is
-   * @param facing   the direction the front of the frame faces
-   * @param keys     the tags of the frame, such as {@link me.brandonli.mcav.plugin.utils.Keys#MAP_KEY}
-   * @return the frame
-   */
   public ItemFrame addFrame(final Location location, final BlockFace facing, final NamespacedKey... keys) {
     final ItemFrame frame = this.frame(location, facing);
     final PersistentDataContainer container = frame.getPersistentDataContainer();
@@ -274,31 +216,15 @@ public final class FakeWorld {
     return frame;
   }
 
-  /**
-   * Adds an entity to the world.
-   *
-   * @param entity the entity, whose location must be mocked
-   */
+  // the entity's location must be mocked
   public void addEntity(final Entity entity) {
     this.entities.add(entity);
   }
 
-  /**
-   * Returns the item frames spawned through {@link World#spawn(Location, Class)}, in order.
-   *
-   * @return the frames
-   */
   public List<ItemFrame> spawnedFrames() {
     return this.spawnedFrames;
   }
 
-  /**
-   * Returns whether an item frame has a tag.
-   *
-   * @param frame the frame
-   * @param key   the tag
-   * @return true if the tag was set
-   */
   public static boolean hasTag(final ItemFrame frame, final NamespacedKey key) {
     final PersistentDataContainer container = frame.getPersistentDataContainer();
     return container.has(key, PersistentDataType.BOOLEAN);

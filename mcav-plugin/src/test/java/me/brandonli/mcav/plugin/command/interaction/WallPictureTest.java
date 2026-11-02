@@ -22,9 +22,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 import org.junit.jupiter.api.Test;
 
-/**
- * Tests {@link WallPicture}: a 1280x720 source on a wall of 10x6 maps, 1280x768 pixels, as the deep review measured it.
- */
 final class WallPictureTest {
 
   private static final int WALL_COLUMNS = 10;

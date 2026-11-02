@@ -41,13 +41,7 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 
-/**
- * The mocked server behind {@link Bukkit} for all tests of the plugin.
- *
- * <p>Bukkit accepts its server only once per JVM, so every test shares one mock and calls {@link #reset()} before
- * it runs. Unlike a static mock of {@link Bukkit}, the shared server is also reachable from the worker threads of
- * the code under test.
- */
+// Bukkit accepts its server once per JVM, so every test shares one mock
 public final class TestServer {
 
   private static final Server SERVER = install();
@@ -71,15 +65,6 @@ public final class TestServer {
     return server;
   }
 
-  /**
-   * Resets the server and gives it a new plugin manager, Bukkit's own messenger of plugin channels and a scheduler
-   * that runs every task at once, as if the caller were the main thread.
-   *
-   * <p>The thread that calls this method is the main thread of the server: {@link Bukkit#isPrimaryThread()} is true
-   * only on it, so code that must not touch the world from other threads can be checked.
-   *
-   * @return the server
-   */
   public static Server reset() {
     Mockito.reset(SERVER);
     PENDING_TASKS.clear();
@@ -117,13 +102,6 @@ public final class TestServer {
     return task;
   }
 
-  /**
-   * Resets the server like {@link #reset()}, but its scheduler only collects the tasks, which
-   * {@link #runPendingTasks()} runs later. Tasks given to {@link BukkitScheduler#callSyncMethod} are collected as
-   * well, and their futures complete once they ran.
-   *
-   * @return the server
-   */
   public static Server resetWithDeferredTasks() {
     final Server server = reset();
     final BukkitScheduler scheduler = mock(BukkitScheduler.class);
@@ -149,11 +127,6 @@ public final class TestServer {
     return task;
   }
 
-  /**
-   * Runs the tasks collected since {@link #resetWithDeferredTasks()}.
-   *
-   * @return how many tasks ran
-   */
   public static int runPendingTasks() {
     final List<Runnable> tasks;
     synchronized (PENDING_TASKS) {
@@ -166,41 +139,21 @@ public final class TestServer {
     return tasks.size();
   }
 
-  /**
-   * Makes sure the shared server is installed behind {@link Bukkit}. It is installed when this class is loaded, so
-   * code that needs Bukkit before any test touched this class only has to call this method.
-   *
-   * @throws IllegalStateException if Bukkit has a server other than the test server
-   */
+  // installed when this class loads, for code that needs Bukkit before any test runs
   public static void ensureInstalled() {
     final Server installed = Bukkit.getServer();
     final boolean testServerInstalled = Objects.equals(installed, SERVER);
     Preconditions.checkState(testServerInstalled, "Bukkit has a server that is not the test server!");
   }
 
-  /**
-   * Returns the server.
-   *
-   * @return the server
-   */
   public static Server server() {
     return SERVER;
   }
 
-  /**
-   * Returns the scheduler of the server.
-   *
-   * @return the scheduler
-   */
   public static BukkitScheduler scheduler() {
     return SERVER.getScheduler();
   }
 
-  /**
-   * Returns the plugin manager of the server.
-   *
-   * @return the plugin manager
-   */
   public static PluginManager pluginManager() {
     return SERVER.getPluginManager();
   }

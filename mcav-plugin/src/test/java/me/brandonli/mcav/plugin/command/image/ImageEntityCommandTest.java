@@ -48,9 +48,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
-/**
- * Tests {@link ImageEntityCommand}.
- */
 final class ImageEntityCommandTest {
 
   private static final String RESOLUTION = "32x16";

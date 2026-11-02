@@ -31,10 +31,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-/**
- * Tests {@link VncAllowList}: a command can name only a server an operator listed, by its host and port, and an entry
- * never shows its password.
- */
 final class VncAllowListTest {
 
   private static final String DESKTOP_HOST = "Desktop.Example";

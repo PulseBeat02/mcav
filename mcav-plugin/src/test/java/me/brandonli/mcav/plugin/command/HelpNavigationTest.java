@@ -51,7 +51,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-/** Replays Cloud-generated click commands through the actual annotation parser and command executor. */
 final class HelpNavigationTest {
 
   private static final String ROOT_COMMAND = "mcav";

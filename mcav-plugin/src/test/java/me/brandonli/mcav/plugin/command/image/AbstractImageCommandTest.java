@@ -76,12 +76,7 @@ import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 
-/**
- * Tests {@link AbstractImageCommand} with a display that only records what it is asked to show.
- *
- * <p>The loading thread of the image manager is replaced by the calling thread, so every step runs before
- * {@code displayImage} returns.
- */
+// the image manager loads on the calling thread, so every step runs before displayImage returns
 final class AbstractImageCommandTest {
 
   private static final String SCREEN_SIZE = "4x2";
@@ -827,9 +822,6 @@ final class AbstractImageCommandTest {
     }
   }
 
-  /**
-   * A command whose display is a mock and that remembers what it was asked to create.
-   */
   private static final class RecordingCommand extends AbstractImageCommand {
 
     private final DisplayableImage display;

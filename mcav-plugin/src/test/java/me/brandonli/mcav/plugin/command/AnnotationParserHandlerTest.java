@@ -85,10 +85,6 @@ import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
-/**
- * Tests {@link AnnotationParserHandler} by parsing every command of the plugin into a command manager that
- * registers nothing on a server.
- */
 final class AnnotationParserHandlerTest {
 
   private static final List<String> EXPECTED_SYNTAXES = List.of(
@@ -217,9 +213,6 @@ final class AnnotationParserHandlerTest {
     assertEquals(240, maximum, "a capture rate above the largest suggestion only burns the CPU of the server");
   }
 
-  /**
-   * Finds the parser of a named argument of a registered command.
-   */
   private ArgumentParser<CommandSender, ?> parserOf(final String syntax, final String argument) {
     final Command<CommandSender> command = this.commands.command(syntax);
     final List<CommandComponent<CommandSender>> components = command.components();

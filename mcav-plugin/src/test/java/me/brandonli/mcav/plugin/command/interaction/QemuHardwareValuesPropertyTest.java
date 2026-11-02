@@ -28,11 +28,6 @@ import net.jqwik.api.ForAll;
 import net.jqwik.api.Property;
 import net.jqwik.api.Provide;
 
-/**
- * Properties of {@link QemuHardwareValues}: whatever a player types, a value that holds a path separator, or a
- * property QEMU uses to read or write a file, is refused for every hardware option, and a property of {@code -drive}
- * outside its list is refused whatever its value.
- */
 final class QemuHardwareValuesPropertyTest {
 
   private static final String SEED = "20260925";

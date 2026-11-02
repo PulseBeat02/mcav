@@ -32,11 +32,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
 
-/**
- * A VNC server of the test on the loopback address: RFB 3.8 with VNC authentication, which the plugin's allow-list
- * holds the password of, and a picture whose colour changes with every update it sends, raw, in the pixel format the
- * client asks for. It counts the clients that logged in and the updates it sent.
- */
 final class FakeVncServer implements AutoCloseable {
 
   private static final int WIDTH = 320;
@@ -120,12 +115,6 @@ final class FakeVncServer implements AutoCloseable {
     this.acceptor = Thread.ofPlatform().daemon().name("fake-vnc").start(this::accept);
   }
 
-  /**
-   * Starts a server with a new random password on a free loopback port.
-   *
-   * @return the server
-   * @throws IOException if no port can be opened
-   */
   static FakeVncServer start() throws IOException {
     final byte[] random = new byte[PASSWORD_RANDOM_BYTES];
     new SecureRandom().nextBytes(random);
@@ -204,7 +193,7 @@ final class FakeVncServer implements AutoCloseable {
     return correct;
   }
 
-  /** VNC authentication encrypts the challenge with DES, its key the password with the bits of every byte reversed. */
+  // VNC's DES key is the password with the bits of each byte reversed
   private byte[] encrypt(final byte[] challenge, final String password) throws GeneralSecurityException {
     final byte[] key = new byte[DES_KEY_LENGTH];
     final byte[] bytes = password.getBytes(StandardCharsets.ISO_8859_1);
@@ -301,7 +290,6 @@ final class FakeVncServer implements AutoCloseable {
     return this.updates.get();
   }
 
-  /** The pixel format the client asked for: true colour, 8, 16 or 32 bits a pixel, in either byte order. */
   private static final class PixelFormat {
 
     private int bytes = DEFAULT_BYTES_PER_PIXEL;

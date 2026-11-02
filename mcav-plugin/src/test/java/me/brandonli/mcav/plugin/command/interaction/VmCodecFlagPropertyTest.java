@@ -28,11 +28,6 @@ import net.jqwik.api.ForAll;
 import net.jqwik.api.Property;
 import net.jqwik.api.Provide;
 
-/**
- * Properties of the {@code --codec} at the end of {@code /mcav vm create}'s QEMU options: it is split off whatever
- * options come before it, and whatever a player types is either left to QEMU's option parser whole, or split into
- * options that were a prefix of it and a codec.
- */
 final class VmCodecFlagPropertyTest {
 
   private static final String SEED = "20260928";

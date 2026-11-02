@@ -35,9 +35,6 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
-/**
- * Tests {@link ScreenCommand}.
- */
 final class ScreenCommandTest {
 
   private static final String SCREEN_SIZE = "5x3";

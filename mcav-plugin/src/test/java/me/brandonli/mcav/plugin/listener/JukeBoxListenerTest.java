@@ -56,9 +56,6 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
-/**
- * Tests {@link JukeBoxListener}.
- */
 final class JukeBoxListenerTest {
 
   private static final String IMAGE_FILE_NAME = "alpine.iso";
@@ -188,7 +185,6 @@ final class JukeBoxListenerTest {
     verify(this.player, times(1)).performCommand(anyString());
   }
 
-  /** A real interaction with a disc named after the image, which listeners can change as they do on a server. */
   private PlayerInteractEvent discOnJukebox() {
     final Block jukebox = mock(Block.class);
     when(jukebox.getType()).thenReturn(Material.JUKEBOX);
@@ -200,7 +196,6 @@ final class JukeBoxListenerTest {
     return new PlayerInteractEvent(this.player, Action.RIGHT_CLICK_BLOCK, disc, jukebox, BlockFace.UP);
   }
 
-  /** The listener as the plugin manager registers it: at the priority its handler's annotation names. */
   private RegisteredListener registered() throws NoSuchMethodException {
     final EventHandler handler = JukeBoxListener.class
       .getMethod("onJukeboxInteract", PlayerInteractEvent.class)
@@ -214,7 +209,6 @@ final class JukeBoxListenerTest {
     );
   }
 
-  /** Calls the listeners of an event as the server does, in the order of their priorities. */
   private void dispatch(final Event event, final RegisteredListener... listeners) throws EventException {
     final HandlerList handlers = new HandlerList();
     for (final RegisteredListener listener : listeners) {

@@ -24,10 +24,6 @@ import com.code_intelligence.jazzer.junit.FuzzTest;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Tag;
 
-/**
- * Fuzzes the {@code --filters} option a player types: whatever the text, it is refused with a reason, or it is a chain of
- * at most the allowed number of filters, which can all be made.
- */
 @Tag("fuzz")
 final class FilterChainFuzzTest {
 

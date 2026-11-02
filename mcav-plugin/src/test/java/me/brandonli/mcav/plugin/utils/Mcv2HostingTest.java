@@ -30,11 +30,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
-/**
- * Tests {@link Mcv2Hosting}: each setting hosts a pack with its strategy, and an HTTP server without a host name is
- * reached at the address the server finds for itself. The strategies themselves run on Paper's Netty, which the tests
- * of the plugin do not have, so their factories stand in for them.
- */
 final class Mcv2HostingTest {
 
   private static final Path ZIP = Path.of("mcv2", "pack", "mcav-mcv2-1.zip");

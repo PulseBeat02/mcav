@@ -66,9 +66,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
-/**
- * Tests {@link ImageMapCommand}.
- */
 final class ImageMapCommandTest {
 
   private static final String RESOLUTION = "384x256";

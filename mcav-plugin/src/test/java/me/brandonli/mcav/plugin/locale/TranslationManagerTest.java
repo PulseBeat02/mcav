@@ -47,9 +47,6 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
-/**
- * Tests {@link TranslationManager}.
- */
 final class TranslationManagerTest {
 
   private static final String RESOURCE = "locale/mcav_en_us.properties";
