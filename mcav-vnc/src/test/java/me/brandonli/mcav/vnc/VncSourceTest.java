@@ -73,7 +73,7 @@ final class VncSourceTest {
     final Set<Integer> hashes = new HashSet<>();
     for (int index = 0; index < 64; index++) {
       final VncSourceBuilder builder = this.fullBuilder();
-      builder.host("desktop-" + index + ".example.org");
+      builder.host("desktop-%s.example.org".formatted(index));
       builder.port(PORT + index);
       builder.screenWidth(WIDTH + index * 16);
       final VncSource source = builder.build();

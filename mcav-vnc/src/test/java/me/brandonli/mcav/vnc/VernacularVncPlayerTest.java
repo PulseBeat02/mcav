@@ -390,8 +390,8 @@ final class VernacularVncPlayerTest {
       final boolean down = key.isDown();
       final int expectedSymbol = expectedSymbols[index];
       final boolean expectedKeyDown = expectedDown[index];
-      assertEquals(expectedSymbol, keySymbol, "keysym " + index);
-      assertEquals(expectedKeyDown, down, "state " + index);
+      assertEquals(expectedSymbol, keySymbol, "keysym %s".formatted(index));
+      assertEquals(expectedKeyDown, down, "state %s".formatted(index));
     }
   }
 
@@ -435,9 +435,9 @@ final class VernacularVncPlayerTest {
       final int expectedMask = expected[index][0];
       final int expectedScreenX = expected[index][1];
       final int expectedScreenY = expected[index][2];
-      assertEquals(expectedMask, mask, "mask " + index);
-      assertEquals(expectedScreenX, screenX, "x " + index);
-      assertEquals(expectedScreenY, screenY, "y " + index);
+      assertEquals(expectedMask, mask, "mask %s".formatted(index));
+      assertEquals(expectedScreenX, screenX, "x %s".formatted(index));
+      assertEquals(expectedScreenY, screenY, "y %s".formatted(index));
     }
   }
 
@@ -751,7 +751,7 @@ final class VernacularVncPlayerTest {
     final boolean playing = player.isPlaying();
     assertTrue(interrupted);
     assertFalse(playing);
-    assertTrue(elapsedMilliseconds < 1_500L, () -> "release took " + elapsedMilliseconds + " ms");
+    assertTrue(elapsedMilliseconds < 1_500L, () -> "release took %s ms".formatted(elapsedMilliseconds));
   }
 
   private VideoFilter blockingFilter(final CountDownLatch entered, final CountDownLatch proceed) {
@@ -1322,7 +1322,7 @@ final class VernacularVncPlayerTest {
       running = false;
     }
     if (running) {
-      Await.until("the error of attempt " + attempt + " ends the session", () -> !player.isPlaying());
+      Await.until("the error of attempt %s ends the session".formatted(attempt), () -> !player.isPlaying());
     }
     return running;
   }

@@ -144,7 +144,10 @@ final class VncHandshakeDeadlineTest {
           LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(1));
         }
         final boolean allFailed = starts.stream().allMatch(CompletableFuture::isCompletedExceptionally);
-        assertTrue(allFailed, "deadline actions must not queue behind the two handshakes: queued=" + pool.getQueuedSubmissionCount());
+        assertTrue(
+          allFailed,
+          "deadline actions must not queue behind the two handshakes: queued=%s".formatted(pool.getQueuedSubmissionCount())
+        );
 
         for (final CountDownLatch stopped : closed) {
           final long remaining = stopped.getCount();

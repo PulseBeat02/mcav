@@ -50,7 +50,7 @@ final class VncSourceFuzzTest {
       second = this.build(host, port, username, password, width, height, frameRate);
     } catch (final IllegalArgumentException exception) {
       final boolean documented = host.isBlank() || port < 1 || port > 65_535 || width < 0 || height < 0 || frameRate < 1;
-      assertTrue(documented, () -> "settings refused without a documented reason: " + exception.getMessage());
+      assertTrue(documented, () -> "settings refused without a documented reason: %s".formatted(exception.getMessage()));
       return;
     }
     final String builtHost = first.getHost();
@@ -76,8 +76,8 @@ final class VncSourceFuzzTest {
     assertEquals(firstHash, secondHash, "and have the same hash");
 
     final String resource = first.getResource();
-    final boolean named = resource.contains(host) && resource.endsWith(":" + port);
-    assertTrue(named, () -> "the resource " + resource + " names the host and the port");
+    final boolean named = resource.contains(host) && resource.endsWith(":%s".formatted(port));
+    assertTrue(named, () -> "the resource %s names the host and the port".formatted(resource));
   }
 
   private VncSource build(
