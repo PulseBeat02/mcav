@@ -59,7 +59,9 @@ import org.slf4j.LoggerFactory;
 final class InstallationManager implements AutoCloseable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(InstallationManager.class);
+
   static final List<RemoteRepository> REPOSITORIES = createDefaultRepositories();
+
   static final List<String> OBSOLETE_FILE_NAMES = List.of("hash.properties", "hashes.properties");
 
   private static final String COMPILE_SCOPE = "compile";

@@ -42,6 +42,9 @@ public final class LocalMavenRepository {
 
   private static final String COORDINATE_SEPARATOR = ":";
 
+  private static final char GROUP_SEPARATOR = '.';
+  private static final char DIRECTORY_SEPARATOR = '/';
+
   private static final String CHECKSUM_ALGORITHM = "SHA-1";
 
   private final Path root;
@@ -62,18 +65,12 @@ public final class LocalMavenRepository {
     final Optionality optionality
   ) {
     final boolean optional = optionality == Optionality.OPTIONAL;
-    return (
-      "<dependency><groupId>" +
-      groupId +
-      "</groupId><artifactId>" +
-      artifactId +
-      "</artifactId><version>" +
-      version +
-      "</version><scope>" +
-      scope +
-      "</scope><optional>" +
-      optional +
-      "</optional></dependency>"
+    return "<dependency><groupId>%s</groupId><artifactId>%s</artifactId><version>%s</version><scope>%s</scope><optional>%s</optional></dependency>".formatted(
+      groupId,
+      artifactId,
+      version,
+      scope,
+      optional
     );
   }
 
@@ -83,21 +80,16 @@ public final class LocalMavenRepository {
     final String version,
     final String classifier
   ) {
-    return (
-      "<dependency><groupId>" +
-      groupId +
-      "</groupId><artifactId>" +
-      artifactId +
-      "</artifactId><version>" +
-      version +
-      "</version><classifier>" +
-      classifier +
-      "</classifier></dependency>"
+    return "<dependency><groupId>%s</groupId><artifactId>%s</artifactId><version>%s</version><classifier>%s</classifier></dependency>".formatted(
+      groupId,
+      artifactId,
+      version,
+      classifier
     );
   }
 
   public Path directoryOf(final String groupId, final String artifactId, final String version) {
-    final String groupPath = groupId.replace('.', '/');
+    final String groupPath = groupId.replace(GROUP_SEPARATOR, DIRECTORY_SEPARATOR);
     final Path groupDirectory = this.root.resolve(groupPath);
     final Path artifactDirectory = groupDirectory.resolve(artifactId);
     return artifactDirectory.resolve(version);
@@ -123,20 +115,10 @@ public final class LocalMavenRepository {
 
   private String pomOf(final String groupId, final String artifactId, final String version, final List<String> dependencies) {
     final String joined = String.join("", dependencies);
-    return (
-      "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
-      "<project xmlns=\"http://maven.apache.org/POM/4.0.0\">" +
-      "<modelVersion>4.0.0</modelVersion>" +
-      "<groupId>" +
-      groupId +
-      "</groupId><artifactId>" +
-      artifactId +
-      "</artifactId><version>" +
-      version +
-      "</version><dependencies>" +
-      joined +
-      "</dependencies></project>\n"
-    );
+    return """
+    <?xml version="1.0" encoding="UTF-8"?>
+    <project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion><groupId>%s</groupId><artifactId>%s</artifactId><version>%s</version><dependencies>%s</dependencies></project>
+    """.formatted(groupId, artifactId, version, joined);
   }
 
   public Path publishClassified(final String groupId, final String artifactId, final String version, final String classifier)

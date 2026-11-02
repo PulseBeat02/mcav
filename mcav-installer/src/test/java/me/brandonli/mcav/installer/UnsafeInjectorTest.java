@@ -51,6 +51,8 @@ final class UnsafeInjectorTest {
 
   private static final String RESOURCE = "library.txt";
 
+  private static final String FATAL_ERROR_MESSAGE = "Out of native memory!";
+
   @TempDir
   private Path directory;
 
@@ -194,7 +196,7 @@ final class UnsafeInjectorTest {
     final String linkageMessage = linkage.getMessage();
     final Throwable linkageCause = linkage.getCause();
 
-    assertEquals("Out of native memory!", fatalMessage, "an error of the virtual machine is never wrapped");
+    assertEquals(FATAL_ERROR_MESSAGE, fatalMessage, "an error of the virtual machine is never wrapped");
     assertEquals("Field urls could not be read!", linkageMessage);
     assertInstanceOf(LinkageError.class, linkageCause);
   }
@@ -235,7 +237,7 @@ final class UnsafeInjectorTest {
       Objects.requireNonNull(owner, "Unsafe always reads the field of an owner!");
 
       if (offset == FATAL_OFFSET) {
-        throw new InternalError("Out of native memory!");
+        throw new InternalError(FATAL_ERROR_MESSAGE);
       }
 
       if (offset == LINKAGE_OFFSET) {

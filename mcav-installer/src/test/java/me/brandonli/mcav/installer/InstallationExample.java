@@ -26,6 +26,8 @@ public final class InstallationExample {
 
   private static final String DEPENDENCY_FOLDER = "dependencies";
 
+  private static final String API_CLASS_NAME = "me.brandonli.mcav.MCAV";
+
   private InstallationExample() {
     throw new UnsupportedOperationException("Example class cannot be instantiated!");
   }
@@ -38,7 +40,7 @@ public final class InstallationExample {
       final MCAVInstaller installer = MCAVInstaller.injector(folder, loader);
       installer.loadMCAVDependencies(Artifact.COMMON);
 
-      final Class<?> api = Class.forName("me.brandonli.mcav.MCAV", false, loader);
+      final Class<?> api = Class.forName(API_CLASS_NAME, false, loader);
       final String name = api.getName();
       System.out.println("Loaded %s".formatted(name));
     }
