@@ -29,15 +29,11 @@ final class Mcv2Reporter {
   static final long STEADY_NANOSECONDS = TimeUnit.SECONDS.toNanos(1);
 
   private final IrisShaders shaders;
-
   private final ReportChannel channel;
-
   private final LongSupplier clock;
 
   private @Nullable Mcv2Report seen;
-
   private long seenSince;
-
   private @Nullable Mcv2Report sent;
 
   Mcv2Reporter(final IrisShaders shaders, final ReportChannel channel, final LongSupplier clock) {

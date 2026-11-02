@@ -30,7 +30,6 @@ final class IrisShaders {
   private static final String BUILD_METADATA_SEPARATOR = "+";
 
   private final boolean installed;
-
   private final BooleanSupplier decodesUnderShaders;
 
   private boolean apiMissing;

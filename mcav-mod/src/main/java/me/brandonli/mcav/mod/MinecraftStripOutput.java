@@ -50,14 +50,11 @@ final class MinecraftStripOutput implements StripOutput {
   private static final int BOTTOM_ROW = 0;
 
   private final Supplier<RenderTarget> main;
-
   private final Supplier<@Nullable PostChain> chain;
-
   private final Supplier<CommandEncoder> encoder;
 
   private @Nullable OutlineTargets outlineTargets;
-
-  private ByteBuffer pixels = ByteBuffer.allocateDirect(0);
+  private ByteBuffer pixels;
 
   MinecraftStripOutput(
     final Supplier<RenderTarget> main,
@@ -67,6 +64,7 @@ final class MinecraftStripOutput implements StripOutput {
     this.main = main;
     this.chain = chain;
     this.encoder = encoder;
+    this.pixels = ByteBuffer.allocateDirect(0);
   }
 
   @Override

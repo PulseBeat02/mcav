@@ -43,7 +43,6 @@ final class GameMatrices {
   private static final String NOT_A_MATRIX = "Matrix %s is not a JOML 4x4 float matrix!";
 
   private final Method pose;
-
   private final Field viewRotation;
 
   GameMatrices(final Method pose, final Field viewRotation) {
@@ -109,12 +108,13 @@ final class GameMatrices {
 
     private static final String NOT_FLOATS = "A 4x4 float matrix must write 16 floats and nothing else!";
 
-    private final float[] values = new float[FLOATS_PER_MATRIX];
+    private final float[] values;
 
     private int written;
 
     private MatrixFloats() throws IOException {
       super();
+      this.values = new float[FLOATS_PER_MATRIX];
     }
 
     @Override

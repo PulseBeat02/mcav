@@ -53,29 +53,18 @@ final class ShaderDecoder {
   private static @Nullable ShaderDecoder current;
 
   private final boolean testedIris;
-
   private final BooleanSupplier shaderPackInUse;
-
   private final BooleanSupplier shadowPass;
-
   private final Supplier<Optional<String>> packConstants;
-
   private final LongSupplier clock;
-
   private final GameMatrices matrices;
-
   private final StripOutput output;
-
-  private final ShaderFrame frame = new ShaderFrame();
+  private final ShaderFrame frame;
 
   private @Nullable PackLayout layout;
-
   private long layoutRead;
-
   private boolean layoutKnown;
-
   private int hooks;
-
   private boolean levelProjection;
 
   // another Iris version may draw in another order, so the decoder stays off for it; the shadow pass draws the maps
@@ -96,6 +85,7 @@ final class ShaderDecoder {
     this.clock = clock;
     this.matrices = matrices;
     this.output = output;
+    this.frame = new ShaderFrame();
   }
 
   static Optional<ShaderDecoder> findCurrent() {

@@ -40,11 +40,9 @@ final class Mcv2ReporterTest {
   private static final Mcv2Report SHADERS_ON = Mcv2Report.of(IRIS_INSTALLED, ShaderPack.IN_USE, DOES_NOT_DECODE);
 
   private final AtomicLong clock = new AtomicLong(Long.MAX_VALUE - Mcv2Reporter.STEADY_NANOSECONDS);
-
   private final RecordingChannel channel = new RecordingChannel();
 
   private IrisShaders shaders;
-
   private Mcv2Reporter reporter;
 
   @BeforeEach

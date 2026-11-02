@@ -27,13 +27,17 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 // corner, while it renders
 final class ShaderFrame {
 
-  private final List<byte[]> pages = new ArrayList<>();
-
-  private final Map<Object, byte[]> anchorColors = new HashMap<>();
-
-  private final List<StripAnchor> anchors = new ArrayList<>();
+  private final List<byte[]> pages;
+  private final Map<Object, byte[]> anchorColors;
+  private final List<StripAnchor> anchors;
 
   private float @Nullable [] projection;
+
+  ShaderFrame() {
+    this.pages = new ArrayList<>();
+    this.anchorColors = new HashMap<>();
+    this.anchors = new ArrayList<>();
+  }
 
   // the render thread never changes the colors before the frame ends
   void extracted(final Object texture, final byte[] colors) {

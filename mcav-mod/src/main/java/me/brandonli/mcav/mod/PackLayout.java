@@ -60,9 +60,7 @@ final class PackLayout {
   private static final String ELEMENTS_END = "\\);";
 
   private final long[] streams;
-
   private final int[] slots;
-
   private final int[] firstSlots;
 
   private PackLayout(final long[] streams, final int[] slots, final int[] firstSlots) {

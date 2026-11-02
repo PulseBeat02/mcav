@@ -79,21 +79,14 @@ final class ShaderDecoderTest {
   private static final long LAYOUT_NANOSECONDS = 1_000_000_000L;
 
   private final AtomicLong clock = new AtomicLong();
-
   private final AtomicBoolean shaderPack = new AtomicBoolean(true);
-
   private final AtomicBoolean shadowPass = new AtomicBoolean();
-
   private final AtomicInteger layoutReads = new AtomicInteger();
-
   private final AtomicReference<Optional<String>> packConstants = new AtomicReference<>(
     Optional.of(PackLayoutTest.packConstants("7u", "2", "0", 1))
   );
-
   private final StripOutput output = mock(StripOutput.class);
-
   private final GraphicsResourceAllocator allocator = mock(GraphicsResourceAllocator.class);
-
   private final CameraRenderState camera = new CameraRenderState();
 
   private ShaderDecoder decoder(final boolean testedIris, final int width, final int height) {

@@ -52,7 +52,6 @@ public final class NeoForgeEntrypoint {
   static final String PROTOCOL = "1";
 
   private final NeoForgeChannel channel;
-
   private final Mcv2Reporter reporter;
 
   /**

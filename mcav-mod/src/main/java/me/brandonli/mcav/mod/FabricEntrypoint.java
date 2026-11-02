@@ -45,13 +45,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class FabricEntrypoint implements ClientModInitializer {
 
   private final PayloadTypeRegistry<RegistryFriendlyByteBuf> payloads;
-
   private final Event<ClientPlayConnectionEvents.Join> joins;
-
   private final Event<ClientTickEvents.EndTick> ticks;
-
   private final @Nullable String irisVersion;
-
   private final LongSupplier clock;
 
   /**

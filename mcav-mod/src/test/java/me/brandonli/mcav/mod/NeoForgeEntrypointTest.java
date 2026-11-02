@@ -56,7 +56,6 @@ import org.mockito.MockedStatic;
 final class NeoForgeEntrypointTest {
 
   private final IEventBus modBus = mock(IEventBus.class);
-
   private final IEventBus gameBus = mock(IEventBus.class);
 
   @SuppressWarnings("unchecked") // a class literal cannot name Consumer<EventType>

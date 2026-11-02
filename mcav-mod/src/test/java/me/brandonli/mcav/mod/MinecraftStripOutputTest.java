@@ -67,13 +67,9 @@ final class MinecraftStripOutputTest {
   private static final int ROWS = 3;
 
   private final GpuDevice device = mock(GpuDevice.class, RETURNS_DEEP_STUBS);
-
   private final RenderTarget main = mock(RenderTarget.class);
-
   private final GpuTexture mainColor = mock(GpuTexture.class);
-
   private final CommandEncoder commands = mock(CommandEncoder.class);
-
   private final GraphicsResourceAllocator allocator = mock(GraphicsResourceAllocator.class);
 
   // in the order the device made them
