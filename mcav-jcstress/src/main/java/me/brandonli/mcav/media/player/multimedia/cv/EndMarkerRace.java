@@ -59,6 +59,7 @@ public class EndMarkerRace {
 
   private final BlockingQueue<String> queue;
   private final List<String> discarded;
+
   private volatile boolean keptByDecoder;
 
   /**
