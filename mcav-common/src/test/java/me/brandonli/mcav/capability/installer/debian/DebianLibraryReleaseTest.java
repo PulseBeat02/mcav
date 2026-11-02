@@ -128,7 +128,9 @@ final class DebianLibraryReleaseTest {
     installer.loadLibraries();
 
     final List<String> loadOrder = this.readLoadOrder();
-    assertEquals(loadOrder.size(), loaded.size(), "Every library must load!");
+    final int expected = loadOrder.size();
+    final int loadedCount = loaded.size();
+    assertEquals(expected, loadedCount, "Every library must load!");
 
     final int index = this.indexOf(loaded, library);
     assertTrue(index >= 0, library);

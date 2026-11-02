@@ -209,10 +209,11 @@ final class AbstractInstallerTest {
     final String url = installer.getUrl();
     final Optional<String> hash = installer.getHash();
     final int callsAfterUse = calls.get();
+    final Optional<String> expected = Optional.of("ab12cd");
     assertEquals(0, callsAfterConstruction);
     assertTrue(supported);
     assertEquals("https://example.com/tool", url);
-    assertEquals(Optional.of("ab12cd"), hash);
+    assertEquals(expected, hash);
     assertEquals(1, callsAfterUse);
   }
 
@@ -276,9 +277,10 @@ final class AbstractInstallerTest {
     final boolean supported = installer.isSupported();
     final String url = installer.getUrl();
     final Optional<String> hash = installer.getHash();
+    final boolean hashMissing = hash.isEmpty();
     assertFalse(supported);
     assertEquals("", url);
-    assertTrue(hash.isEmpty());
+    assertTrue(hashMissing);
 
     final InstallationException thrown = assertThrows(InstallationException.class, () -> installer.download(FileMode.EXECUTABLE));
     final String message = thrown.getMessage();
@@ -538,9 +540,11 @@ final class AbstractInstallerTest {
       final Class<?> suppressedType = suppressed[0].getClass();
       assertEquals(DirectoryNotEmptyException.class, suppressedType);
       final String suppressedFile = ((DirectoryNotEmptyException) suppressed[0]).getFile();
-      assertEquals(destination.toString(), suppressedFile);
+      final String expectedSuppressedFile = destination.toString();
+      assertEquals(expectedSuppressedFile, suppressedFile);
       final Properties configuration = this.readConfiguration();
-      assertEquals(new Properties(), configuration, "a failed installation is not remembered");
+      final Properties expectedConfiguration = new Properties();
+      assertEquals(expectedConfiguration, configuration, "a failed installation is not remembered");
       final String retained = Files.readString(destination.resolve(BUSY_FILE_NAME));
       assertEquals("retained", retained);
     }
@@ -576,7 +580,8 @@ final class AbstractInstallerTest {
       final TestInstaller retry = freshInstaller ? new TestInstaller(tools, NAME, new Download[] { download }) : first;
       final Path installed = retry.download(FileMode.EXECUTABLE);
       final Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(installed);
-      assertEquals(PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS), permissions);
+      final Set<PosixFilePermission> expected = PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS);
+      assertEquals(expected, permissions);
       final int attempts = permissionAttempts.get();
       assertEquals(2, attempts, "a failed preparation is retried even by a new installer");
       final byte[] content = Files.readAllBytes(installed);

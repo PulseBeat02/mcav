@@ -126,8 +126,9 @@ final class DebianPackageExtractorTest {
     final Path linkTarget = Files.readSymbolicLink(link);
     final byte[] linked = Files.readAllBytes(link);
     final byte[] otherLibrary = Files.readAllBytes(this.destination.resolve("lib/aarch64-linux-gnu/libother.so.0"));
+    final Path expected = this.fileSystem.getPath(LINK_TARGET);
     assertArrayEquals(CONTENT, library);
-    assertEquals(this.fileSystem.getPath(LINK_TARGET), linkTarget);
+    assertEquals(expected, linkTarget);
     assertArrayEquals(CONTENT, linked);
     assertArrayEquals(other, otherLibrary);
 
@@ -340,7 +341,8 @@ final class DebianPackageExtractorTest {
 
     final Path link = this.destination.resolve("usr/lib/libdeep.so.1");
     final Path linkTarget = Files.readSymbolicLink(link);
-    assertEquals(this.fileSystem.getPath(target), linkTarget);
+    final Path expected = this.fileSystem.getPath(target);
+    assertEquals(expected, linkTarget);
   }
 
   // the last one only comes back by name, which a link on the way to the destination could lead elsewhere
@@ -380,7 +382,8 @@ final class DebianPackageExtractorTest {
     final Path link = this.destination.resolve(PROGRAM_PATH);
     final Path linkTarget = Files.readSymbolicLink(link);
     final byte[] linked = Files.readAllBytes(link);
-    assertEquals(this.fileSystem.getPath(target), linkTarget);
+    final Path expected = this.fileSystem.getPath(target);
+    assertEquals(expected, linkTarget);
     assertArrayEquals(CONTENT, linked);
   }
 

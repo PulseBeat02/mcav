@@ -163,8 +163,9 @@ final class OsxInstallationStrategyTest {
     final Path mountPoint = this.temporaryDirectory.resolve(MOUNT_DIRECTORY);
     final String lastCommand = commands.getLast();
     final boolean mountPointExists = Files.exists(mountPoint);
+    final String expectedLastCommand = FORCED_DETACH_COMMAND_PREFIX + mountPoint;
     assertEquals(expected, libraryDirectory);
-    assertEquals(FORCED_DETACH_COMMAND_PREFIX + mountPoint, lastCommand);
+    assertEquals(expectedLastCommand, lastCommand);
     assertFalse(mountPointExists);
   }
 

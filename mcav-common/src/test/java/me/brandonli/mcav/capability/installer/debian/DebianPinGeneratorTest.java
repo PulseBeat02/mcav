@@ -148,8 +148,10 @@ final class DebianPinGeneratorTest {
     final List<DebianPinGenerator.IndexEntry> closure = this.generator.resolveClosure(MAIN, List.of("libleaf0"));
 
     final DebianPinGenerator.IndexEntry leaf = closure.getFirst();
-    assertEquals("pool/main/l/leaf/libleaf0_0.1_arm64.deb", leaf.filename());
-    assertEquals("3333", leaf.sha256());
+    final String leafFilename = leaf.filename();
+    final String leafHash = leaf.sha256();
+    assertEquals("pool/main/l/leaf/libleaf0_0.1_arm64.deb", leafFilename);
+    assertEquals("3333", leafHash);
   }
 
   @Test
@@ -166,9 +168,12 @@ final class DebianPinGeneratorTest {
     final List<DebianPinGenerator.IndexEntry> closure = this.generator.resolveClosure(BOTH, List.of("libleaf0"));
 
     final DebianPinGenerator.IndexEntry leaf = closure.getFirst();
-    assertEquals("pool/updates/main/l/leaf/libleaf0_0.1-1+deb12u1_arm64.deb", leaf.filename());
-    assertEquals("9999", leaf.sha256());
-    assertEquals(SECURITY_SNAPSHOT, leaf.snapshot());
+    final String leafFilename = leaf.filename();
+    final String leafHash = leaf.sha256();
+    final URI leafSnapshot = leaf.snapshot();
+    assertEquals("pool/updates/main/l/leaf/libleaf0_0.1-1+deb12u1_arm64.deb", leafFilename);
+    assertEquals("9999", leafHash);
+    assertEquals(SECURITY_SNAPSHOT, leafSnapshot);
   }
 
   @Test
@@ -176,8 +181,10 @@ final class DebianPinGeneratorTest {
     final List<DebianPinGenerator.IndexEntry> closure = this.generator.resolveClosure(BOTH, List.of("libalternative1"));
 
     final DebianPinGenerator.IndexEntry alternative = closure.getFirst();
-    assertEquals("pool/main/a/alternative/libalternative1_1_arm64.deb", alternative.filename());
-    assertEquals(MAIN_SNAPSHOT, alternative.snapshot());
+    final String alternativeFilename = alternative.filename();
+    final URI alternativeSnapshot = alternative.snapshot();
+    assertEquals("pool/main/a/alternative/libalternative1_1_arm64.deb", alternativeFilename);
+    assertEquals(MAIN_SNAPSHOT, alternativeSnapshot);
   }
 
   @Test
@@ -185,7 +192,8 @@ final class DebianPinGeneratorTest {
     final List<DebianPinGenerator.IndexEntry> closure = this.generator.resolveClosure(BOTH, List.of("libunused1"));
 
     final DebianPinGenerator.IndexEntry unused = closure.getFirst();
-    assertEquals(MAIN_SNAPSHOT, unused.snapshot());
+    final URI unusedSnapshot = unused.snapshot();
+    assertEquals(MAIN_SNAPSHOT, unusedSnapshot);
   }
 
   @Test

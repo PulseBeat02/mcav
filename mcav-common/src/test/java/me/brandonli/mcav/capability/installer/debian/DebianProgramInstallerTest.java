@@ -138,8 +138,10 @@ final class DebianProgramInstallerTest {
 
     final Set<PosixFilePermission> program = Files.getPosixFilePermissions(root.resolve(PROGRAM));
     final Set<PosixFilePermission> library = Files.getPosixFilePermissions(root.resolve(LIBRARY));
-    assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), program);
-    assertEquals(PosixFilePermissions.fromString("rw-r--r--"), library);
+    final Set<PosixFilePermission> expectedProgram = PosixFilePermissions.fromString("rwxr-xr-x");
+    final Set<PosixFilePermission> expectedLibrary = PosixFilePermissions.fromString("rw-r--r--");
+    assertEquals(expectedProgram, program);
+    assertEquals(expectedLibrary, library);
   }
 
   @Test
@@ -174,7 +176,8 @@ final class DebianProgramInstallerTest {
     installer.download(FileMode.UNCHANGED);
 
     final Optional<Path> found = installer.findInstallation();
-    assertEquals(Optional.of(this.folder), found);
+    final Optional<Path> expected = Optional.of(this.folder);
+    assertEquals(expected, found);
   }
 
   @Test

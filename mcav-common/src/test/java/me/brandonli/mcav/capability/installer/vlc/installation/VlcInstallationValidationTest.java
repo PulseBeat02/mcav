@@ -258,7 +258,8 @@ final class VlcInstallationValidationTest {
 
     final InstallationStrategy strategy = new OsxInstallationStrategy(installer, (_, _) -> {});
     final Optional<Path> valid = strategy.getInstalledPath();
-    assertEquals(Optional.of(directory), valid);
+    final Optional<Path> expected = Optional.of(directory);
+    assertEquals(expected, valid);
 
     Files.writeString(coreTarget, "");
     final Optional<Path> empty = strategy.getInstalledPath();

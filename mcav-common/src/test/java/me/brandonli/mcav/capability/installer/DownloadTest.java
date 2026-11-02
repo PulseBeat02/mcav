@@ -41,9 +41,10 @@ final class DownloadTest {
     final Platform platform = download.getPlatform();
     final String url = download.getUrl();
     final Optional<String> hash = download.getHash();
+    final Optional<String> expected = Optional.of(HASH);
     assertEquals(LINUX, platform);
     assertEquals(TOOL_URL, url);
-    assertEquals(Optional.of(HASH), hash);
+    assertEquals(expected, hash);
   }
 
   @Test
@@ -55,10 +56,13 @@ final class DownloadTest {
     final Platform partsPlatform = fromPartsWithHash.getPlatform();
     final Optional<String> partsHash = fromPartsWithHash.getHash();
     final Optional<String> partsMissingHash = fromParts.getHash();
-    assertTrue(missingHash.isEmpty());
+    final boolean hashMissing = missingHash.isEmpty();
+    final Optional<String> expected = Optional.of(HASH);
+    final boolean partsHashMissing = partsMissingHash.isEmpty();
+    assertTrue(hashMissing);
     assertEquals(LINUX, partsPlatform);
-    assertEquals(Optional.of(HASH), partsHash);
-    assertTrue(partsMissingHash.isEmpty());
+    assertEquals(expected, partsHash);
+    assertTrue(partsHashMissing);
   }
 
   @Test

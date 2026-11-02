@@ -131,7 +131,8 @@ final class DebianLibraryInstallerTest {
     assertEquals(LOAD_ORDER, loadOrder);
 
     final List<Path> leftOver = this.listTemporary();
-    assertEquals(List.of(this.folder), leftOver);
+    final List<Path> expectedLeftOver = List.of(this.folder);
+    assertEquals(expectedLeftOver, leftOver);
   }
 
   @Test
@@ -144,7 +145,8 @@ final class DebianLibraryInstallerTest {
     final Path reused = again.download(FileMode.EXECUTABLE);
 
     final Path expectedDirectory = this.folder.resolve("usr/lib/aarch64-linux-gnu");
-    assertEquals(Optional.of(expectedDirectory), found);
+    final Optional<Path> expectedFound = Optional.of(expectedDirectory);
+    assertEquals(expectedFound, found);
     assertEquals(expectedDirectory, reused);
 
     final int requests = this.server.getTotalRequestCount();

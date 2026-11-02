@@ -498,7 +498,8 @@ final class VlcInstallerTest {
   }
 
   private static void assertSha256(final Optional<String> optionalHash, final String url) {
-    assertTrue(optionalHash.isPresent(), url);
+    final boolean hashFound = optionalHash.isPresent();
+    assertTrue(hashFound, url);
 
     final String hash = optionalHash.orElseThrow();
     final int length = hash.length();

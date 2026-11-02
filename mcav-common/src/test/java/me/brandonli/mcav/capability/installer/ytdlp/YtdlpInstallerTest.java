@@ -132,7 +132,8 @@ final class YtdlpInstallerTest {
       final String url = download.getUrl();
       final boolean pinned = url.startsWith(RELEASE_URL);
       final Optional<String> optionalHash = download.getHash();
-      assertTrue(optionalHash.isPresent(), url);
+      final boolean hashFound = optionalHash.isPresent();
+      assertTrue(hashFound, url);
       final String hash = optionalHash.orElseThrow();
       final Matcher hashMatcher = SHA_256.matcher(hash);
       final boolean isSha256 = hashMatcher.matches();
