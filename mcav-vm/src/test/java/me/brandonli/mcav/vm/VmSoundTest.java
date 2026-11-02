@@ -91,7 +91,8 @@ final class VmSoundTest {
   private Path bootSector(final String name) throws IOException {
     final Path image = this.directory.resolve(name);
     final String message = "Guest image %s is missing from the test resources!".formatted(name);
-    try (final InputStream resource = Objects.requireNonNull(VmSoundTest.class.getResourceAsStream(GUESTS_FOLDER + name), message)) {
+    final String resourceName = "%s%s".formatted(GUESTS_FOLDER, name);
+    try (final InputStream resource = Objects.requireNonNull(VmSoundTest.class.getResourceAsStream(resourceName), message)) {
       Files.copy(resource, image);
     }
 

@@ -160,7 +160,8 @@ public final class ExecutableFinder {
       if (hasExtension) {
         return List.of(name);
       }
-      names.add(name + extension);
+      final String candidateName = "%s%s".formatted(name, extension);
+      names.add(candidateName);
     }
     return names;
   }

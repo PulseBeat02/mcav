@@ -44,7 +44,7 @@ final class QemuPackages {
 
   static QemuPackages create(final VmPlayer.Architecture architecture) {
     final String name = listNameOf(architecture);
-    final String resource = RESOURCE_FOLDER + name + RESOURCE_SUFFIX;
+    final String resource = "%s%s%s".formatted(RESOURCE_FOLDER, name, RESOURCE_SUFFIX);
     final DebianProgramInstaller installer = DebianProgramInstaller.create(resource, name, TREES);
     return new QemuPackages(installer::isSupported, installer::download, installer::listLibraryFolders);
   }

@@ -51,7 +51,7 @@ final class QemuProcessRecords {
   private static final String RECORDS_FOLDER = "vm";
 
   private static final String SUFFIX = ".qemu";
-  private static final String RECORD_GLOB = "*" + SUFFIX;
+  private static final String RECORD_GLOB = "*%s".formatted(SUFFIX);
 
   private static final int STARTED_LINE = 0;
   private static final int OWNER_PROCESS_ID_LINE = 1;
@@ -222,7 +222,8 @@ final class QemuProcessRecords {
   }
 
   private Path fileOf(final long processId) {
-    return this.folder.resolve(processId + SUFFIX);
+    final String fileName = "%s%s".formatted(processId, SUFFIX);
+    return this.folder.resolve(fileName);
   }
 
   private record ProcessRecord(long processId, Instant started, long ownerProcessId, Instant ownerStarted) {}

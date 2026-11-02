@@ -201,7 +201,7 @@ final class VmProcessTest {
 
   private String secretObject() {
     final Path file = this.passwordFile();
-    return SECRET_OBJECT_PREFIX + file;
+    return "%s%s".formatted(SECRET_OBJECT_PREFIX, file);
   }
 
   private VmSettings reachableSettings() {
@@ -347,7 +347,8 @@ final class VmProcessTest {
     }
   )
   void shouldRetryWithSoftwareEmulationWhenTheAcceleratorFails(final String failure) {
-    final FakeProcess failed = FakeProcess.exited(FAILURE_EXIT_CODE, failure + LINE_BREAK);
+    final String output = "%s%s".formatted(failure, LINE_BREAK);
+    final FakeProcess failed = FakeProcess.exited(FAILURE_EXIT_CODE, output);
     final FakeProcess working = FakeProcess.running("");
     final VmProcess process = this.reachable(Os.WINDOWS, failed, working);
     process.start();
@@ -674,7 +675,7 @@ final class VmProcessTest {
     final String secret = command.get(command.indexOf(OBJECT_ARGUMENT) + 1);
     final Path escapedFolder = this.directory.resolve(ESCAPED_COMMA_FOLDER);
     final Path secretFile = escapedFolder.resolve(PASSWORD_FILE);
-    final String expected = SECRET_OBJECT_PREFIX + secretFile;
+    final String expected = "%s%s".formatted(SECRET_OBJECT_PREFIX, secretFile);
     assertEquals(expected, secret);
   }
 
@@ -1186,8 +1187,10 @@ final class VmProcessTest {
   @ValueSource(strings = { "", LINE_BREAK })
   void shouldBoundLongDiagnosticLinesAndKeepTheirSuffix(final String ending) {
     final String discarded = "x".repeat(100_000);
-    final String suffix = "z".repeat(4090) + "-tail!";
-    final FakeProcess failed = FakeProcess.exited(FAILURE_EXIT_CODE, discarded + suffix + ending);
+    final String filler = "z".repeat(4090);
+    final String suffix = "%s-tail!".formatted(filler);
+    final String output = "%s%s%s".formatted(discarded, suffix, ending);
+    final FakeProcess failed = FakeProcess.exited(FAILURE_EXIT_CODE, output);
     final VmProcess process = this.reachable(Os.FREEBSD, failed);
     final VmException exception = assertThrows(VmException.class, process::start);
     final String message = exception.getMessage();

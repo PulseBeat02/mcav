@@ -462,8 +462,9 @@ final class VmProcess {
 
   // QEMU merges this -machine option with those of the configuration
   private void routeSpeaker(final List<String> command) {
+    final String speaker = "%s%s%s".formatted(SPEAKER_PROPERTY, PROPERTY_ASSIGNMENT, AUDIO_ID);
     command.add("-machine");
-    command.add(SPEAKER_PROPERTY + PROPERTY_ASSIGNMENT + AUDIO_ID);
+    command.add(speaker);
   }
 
   private void addDefaultOptions(final List<String> command, final Path passwordFile) {
@@ -569,8 +570,9 @@ final class VmProcess {
   }
 
   private boolean hasTablet(final List<String> devices) {
+    final String tabletPrefix = "%s%s".formatted(TABLET_DEVICE, PROPERTY_SEPARATOR);
     for (final String device : devices) {
-      final boolean tablet = device.equals(TABLET_DEVICE) || device.startsWith(TABLET_DEVICE + PROPERTY_SEPARATOR);
+      final boolean tablet = device.equals(TABLET_DEVICE) || device.startsWith(tabletPrefix);
       if (tablet) {
         return true;
       }

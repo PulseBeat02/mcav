@@ -427,7 +427,9 @@ final class QemuVmPlayerTest {
     when(this.qemu.hasAudio()).thenReturn(true);
     this.stubConnectingStream();
     final List<String> reports = new CopyOnWriteArrayList<>();
-    when(this.vnc.getExceptionHandler()).thenReturn((message, failure) -> reports.add(message + REPORT_SEPARATOR + failure.getMessage()));
+    when(this.vnc.getExceptionHandler()).thenReturn((message, failure) ->
+      reports.add("%s%s%s".formatted(message, REPORT_SEPARATOR, failure.getMessage()))
+    );
     final QemuVmPlayer player = new QemuVmPlayer(
       this.vnc,
       this.finder,
@@ -1200,7 +1202,7 @@ final class QemuVmPlayerTest {
     final List<int[]> sizes = new CopyOnWriteArrayList<>();
     final VmPlayer player = VmPlayer.create();
     try {
-      player.setExceptionHandler((message, error) -> errors.add(message + REPORT_SEPARATOR + error));
+      player.setExceptionHandler((message, error) -> errors.add("%s%s%s".formatted(message, REPORT_SEPARATOR, error)));
       this.startTinyMachine(player);
       this.attachRecorder(player, sizes);
       this.awaitFirstFrame(sizes, errors);

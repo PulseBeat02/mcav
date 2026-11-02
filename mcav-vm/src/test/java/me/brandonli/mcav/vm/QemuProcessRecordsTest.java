@@ -121,7 +121,8 @@ final class QemuProcessRecordsTest {
       }
     }
     """.formatted(hook);
-    final Path file = this.directory.resolve(SLEEPER_PREFIX + this.children.size() + JAVA_SUFFIX);
+    final String fileName = "%s%s%s".formatted(SLEEPER_PREFIX, this.children.size(), JAVA_SUFFIX);
+    final Path file = this.directory.resolve(fileName);
     Files.writeString(file, source);
     final String java = this.javaCommand();
     return List.of(java, file.toString());
@@ -168,7 +169,8 @@ final class QemuProcessRecordsTest {
 
   private Path recordOf(final long processId) {
     final Path folder = this.directory.resolve(RECORDS_FOLDER);
-    return folder.resolve(processId + RECORD_SUFFIX);
+    final String recordName = "%s%s".formatted(processId, RECORD_SUFFIX);
+    return folder.resolve(recordName);
   }
 
   @Test
@@ -389,10 +391,8 @@ final class QemuProcessRecordsTest {
       final QemuProcessRecords records = QemuProcessRecords.ofUser();
       final Process qemu = this.child(StopRequest.OBEYED);
       records.add(qemu.toHandle());
-      final Path record = this.directory
-        .resolve(MCAV_FOLDER)
-        .resolve(VM_FOLDER)
-        .resolve(qemu.pid() + RECORD_SUFFIX);
+      final String recordName = "%s%s".formatted(qemu.pid(), RECORD_SUFFIX);
+      final Path record = this.directory.resolve(MCAV_FOLDER).resolve(VM_FOLDER).resolve(recordName);
       final boolean recorded = Files.exists(record);
       assertTrue(recorded);
 

@@ -116,7 +116,8 @@ final class VmModuleTest {
       final Optional<Instant> start = information.startInstant();
       final Instant started = start.orElseThrow();
       final Path folder = this.directory.resolve(RECORDS_FOLDER);
-      final Path record = folder.resolve(qemu.pid() + RECORD_SUFFIX);
+      final String recordName = "%s%s".formatted(qemu.pid(), RECORD_SUFFIX);
+      final Path record = folder.resolve(recordName);
       Files.createDirectories(record.getParent());
       Files.writeString(record, "%s\n%s\n%s\n".formatted(started, Long.MAX_VALUE, started));
       final Path empty = this.directory.resolve(EMPTY_FOLDER);
