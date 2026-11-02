@@ -29,7 +29,7 @@ import java.io.Serial;
  *
  * @since 1.0.0
  */
-public class InstallationException extends RuntimeException {
+public final class InstallationException extends RuntimeException {
 
   @Serial
   private static final long serialVersionUID = 6370074734200515542L;
