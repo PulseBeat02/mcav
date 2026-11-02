@@ -50,11 +50,11 @@ public final class LocalMavenRepository {
     this.root = root;
   }
 
-  public static String resourceName(final String artifactId) {
+  public static String resourceNameOf(final String artifactId) {
     return RESOURCE_FOLDER + artifactId + RESOURCE_EXTENSION;
   }
 
-  public static String dependency(
+  public static String dependencyOf(
     final String groupId,
     final String artifactId,
     final String version,
@@ -77,7 +77,12 @@ public final class LocalMavenRepository {
     );
   }
 
-  public static String classifiedDependency(final String groupId, final String artifactId, final String version, final String classifier) {
+  public static String classifiedDependencyOf(
+    final String groupId,
+    final String artifactId,
+    final String version,
+    final String classifier
+  ) {
     return (
       "<dependency><groupId>" +
       groupId +
@@ -148,7 +153,7 @@ public final class LocalMavenRepository {
   }
 
   private void writeArtifactJar(final Path jar, final String artifactId, final String coordinates) throws IOException {
-    final String resource = resourceName(artifactId);
+    final String resource = resourceNameOf(artifactId);
     writeJar(jar, resource, coordinates);
     writeChecksum(jar);
   }

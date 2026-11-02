@@ -80,7 +80,7 @@ final class MCAVInstallerTest {
     this.repository = new LocalMavenRepository(remote);
     this.folder = this.directory.resolve(DEPENDENCIES_FOLDER);
 
-    final String helper = LocalMavenRepository.dependency(GROUP, HELPER, VERSION, "compile", Optionality.REQUIRED);
+    final String helper = LocalMavenRepository.dependencyOf(GROUP, HELPER, VERSION, "compile", Optionality.REQUIRED);
     final List<String> commonDependencies = List.of(helper);
     this.repository.publish(Artifact.GROUP_ID, COMMON, SNAPSHOT, commonDependencies);
     this.repository.publish(Artifact.GROUP_ID, "mcav-bukkit", SNAPSHOT, NO_DEPENDENCIES);
@@ -129,8 +129,8 @@ final class MCAVInstallerTest {
     try (final URLClassLoader loader = new URLClassLoader(new URL[0], null)) {
       final MCAVInstaller installer = this.createInstaller(loader);
       installer.loadMCAVDependencies(Artifact.COMMON);
-      final String commonName = LocalMavenRepository.resourceName(COMMON);
-      final String helperName = LocalMavenRepository.resourceName(HELPER);
+      final String commonName = LocalMavenRepository.resourceNameOf(COMMON);
+      final String helperName = LocalMavenRepository.resourceNameOf(HELPER);
       final String common = ResourceUtils.readResource(loader, commonName);
       final String helper = ResourceUtils.readResource(loader, helperName);
       assertEquals("me.brandonli:mcav-common:1.0.0-SNAPSHOT", common);
