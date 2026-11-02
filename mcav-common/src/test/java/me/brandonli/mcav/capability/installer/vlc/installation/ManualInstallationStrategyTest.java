@@ -151,6 +151,18 @@ final class ManualInstallationStrategyTest {
   }
 
   @Test
+  void shouldNotFollowDirectoryLinks() throws IOException {
+    final Path target = createDirectory(this.temporaryDirectory, TARGET_DIRECTORY_NAME);
+    createFile(target, LIBRARY_NAME);
+    final Path tree = createDirectory(this.temporaryDirectory, TREE_DIRECTORY_NAME);
+    final Path link = tree.resolve(LINK_NAME);
+    createLinkOrAbort(link, target);
+    final Optional<Path> found = ManualInstallationStrategy.findLibraryDirectory(tree, LIBRARY);
+    final boolean nothingFound = found.isEmpty();
+    assertTrue(nothingFound);
+  }
+
+  @Test
   void shouldDeleteWholeDirectoryTrees() throws IOException {
     final Path tree = this.temporaryDirectory.resolve(TREE_DIRECTORY_NAME);
     final Path deep = nest(tree, 3);
