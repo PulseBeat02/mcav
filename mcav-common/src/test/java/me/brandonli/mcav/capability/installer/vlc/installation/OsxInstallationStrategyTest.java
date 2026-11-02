@@ -244,7 +244,6 @@ final class OsxInstallationStrategyTest {
     final OsxInstallationStrategy strategy = new OsxInstallationStrategy(installer);
     final VlcInstaller strategyInstaller = strategy.getInstaller();
     assertSame(installer, strategyInstaller);
-    assertThrows(NullPointerException.class, () -> strategy.execute(null));
 
     final Path javaFolder = Path.of(System.getProperty("java.home"), JAVA_BINARY_DIRECTORY);
     final Path windowsJava = javaFolder.resolve(WINDOWS_JAVA_NAME);
@@ -263,6 +262,13 @@ final class OsxInstallationStrategyTest {
 
     final String markerText = Files.readString(marker);
     assertEquals(MARKER_TEXT, markerText);
+  }
+
+  @Test
+  void shouldRejectANullArchive() {
+    final VlcInstaller installer = VlcInstaller.create(this.temporaryDirectory);
+    final OsxInstallationStrategy strategy = new OsxInstallationStrategy(installer);
+    assertThrows(NullPointerException.class, () -> strategy.execute(null));
   }
 
   private static OsxInstallationStrategy strategyWith(
