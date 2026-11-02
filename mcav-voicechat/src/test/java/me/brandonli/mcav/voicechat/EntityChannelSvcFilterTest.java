@@ -62,6 +62,8 @@ final class EntityChannelSvcFilterTest {
 
   private static final int FRAME_SAMPLES = 960;
 
+  private static final int NEGATIVE_RAMP_START = -100;
+
   private static final int MAXIMUM_FRAMES = 25;
   private static final int CONCURRENT_FRAMES = MAXIMUM_FRAMES - 5;
 
@@ -76,6 +78,10 @@ final class EntityChannelSvcFilterTest {
   private static final String CREATE_ENCODER = "createEncoder";
   private static final String CREATE_AUDIO_PLAYER = "createAudioPlayer";
   private static final String START_PLAYING = "startPlaying";
+
+  private static final String NO_CHANGE_MESSAGE = "the filter only reads the samples, so it reports no change";
+  private static final String FAILURE_PASSED_ON_MESSAGE = "the failure of voice chat is passed on unchanged";
+  private static final String FATAL_ERROR_PASSED_ON_MESSAGE = "an error of the virtual machine is never replaced or hidden";
 
   private SvcModule module;
   private VoicechatServerApi api;
@@ -340,7 +346,7 @@ final class EntityChannelSvcFilterTest {
   @Test
   void shouldPassTheSamplesOnUnchangedWhetherStartedOrNot() {
     final SvcFilter filter = SvcFilter.svc(ALICE);
-    final short[] mono = this.ramp(FRAME_SAMPLES, -100);
+    final short[] mono = this.ramp(FRAME_SAMPLES, NEGATIVE_RAMP_START);
     this.assertPassedOnUnchanged(filter, mono);
 
     filter.start();
@@ -354,10 +360,10 @@ final class EntityChannelSvcFilterTest {
   void shouldPlayEveryDownmixedFrameOnEverySpeaker() {
     final SvcFilter filter = SvcFilter.svc(ALICE, BOB);
     filter.start();
-    final short[] mono = this.ramp(FRAME_SAMPLES, -100);
+    final short[] mono = this.ramp(FRAME_SAMPLES, NEGATIVE_RAMP_START);
     final boolean reportedChange = this.feed(filter, mono);
     final int queued = filter.getQueuedFrames();
-    assertFalse(reportedChange, "the filter only reads the samples, so it reports no change");
+    assertFalse(reportedChange, NO_CHANGE_MESSAGE);
     assertEquals(1, queued);
 
     final short[] aliceFrame = this.nextFrameOf(0);
@@ -733,7 +739,7 @@ final class EntityChannelSvcFilterTest {
     this.failingStep = step;
     final SvcFilter filter = SvcFilter.svc(ALICE, BOB);
     final IllegalStateException thrown = assertThrows(IllegalStateException.class, filter::start);
-    assertSame(this.failure, thrown, "the failure of voice chat is passed on unchanged");
+    assertSame(this.failure, thrown, FAILURE_PASSED_ON_MESSAGE);
 
     final int playersBefore = this.players.size();
     this.assertOnlyReachedSpeakerPartsWereCreated(step, playersBefore);
@@ -756,7 +762,7 @@ final class EntityChannelSvcFilterTest {
     this.failEncoderCreationForBob(linkFailure);
     final SvcFilter filter = SvcFilter.svc(ALICE, BOB);
     final UnsatisfiedLinkError thrown = assertThrows(UnsatisfiedLinkError.class, filter::start);
-    assertSame(linkFailure, thrown, "the failure of voice chat is passed on unchanged");
+    assertSame(linkFailure, thrown, FAILURE_PASSED_ON_MESSAGE);
 
     final int playerCount = this.players.size();
     assertEquals(1, playerCount);
@@ -772,7 +778,7 @@ final class EntityChannelSvcFilterTest {
     this.failEncoderCreationForBob(fatal);
     final SvcFilter filter = SvcFilter.svc(ALICE, BOB);
     final InternalError thrown = assertThrows(InternalError.class, filter::start);
-    assertSame(fatal, thrown, "an error of the virtual machine is never replaced or hidden");
+    assertSame(fatal, thrown, FATAL_ERROR_PASSED_ON_MESSAGE);
     this.assertNoSpeakerWasRolledBack();
   }
 
@@ -782,7 +788,7 @@ final class EntityChannelSvcFilterTest {
     this.failPlayerCreationForBob(fatal);
     final SvcFilter filter = SvcFilter.svc(ALICE, BOB);
     final InternalError thrown = assertThrows(InternalError.class, filter::start);
-    assertSame(fatal, thrown, "an error of the virtual machine is never replaced or hidden");
+    assertSame(fatal, thrown, FATAL_ERROR_PASSED_ON_MESSAGE);
 
     final int encoderCount = this.encoders.size();
     assertEquals(2, encoderCount, "the encoder of the speaker that failed was created");
@@ -830,7 +836,7 @@ final class EntityChannelSvcFilterTest {
   private void assertStoppedFilterQueuesNothing(final SvcFilter filter, final short[] mono) {
     final boolean reportedChange = this.feed(filter, mono);
     final int queued = filter.getQueuedFrames();
-    assertFalse(reportedChange, "the filter only reads the samples, so it reports no change");
+    assertFalse(reportedChange, NO_CHANGE_MESSAGE);
     assertEquals(0, queued);
   }
 
