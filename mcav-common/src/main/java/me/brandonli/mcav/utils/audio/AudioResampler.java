@@ -78,6 +78,8 @@ public final class AudioResampler implements AutoCloseable {
   private static final String INPUT_LABEL = "Input";
   private static final String OUTPUT_LABEL = "Output";
 
+  private static final int NO_LOG_LEVEL_OFFSET = 0;
+
   private final int inputSampleRate;
   private final int inputChannels;
   private final SampleFormat inputFormat;
@@ -208,7 +210,7 @@ public final class AudioResampler implements AutoCloseable {
       this.inputLayout,
       inputFfmpegFormat,
       this.inputSampleRate,
-      0,
+      NO_LOG_LEVEL_OFFSET,
       noLoggingContext
     );
     this.closeOnFailure(allocation, "allocate the resampler");
