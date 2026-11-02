@@ -210,7 +210,7 @@ public final class DependencyLoader {
   @VisibleForTesting
   static void configureOpenCvThreads() {
     final int threads = Integer.getInteger(OPENCV_THREADS_PROPERTY, 1);
-    org.bytedeco.opencv.global.opencv_core.setNumThreads(threads); // fqn: the presets class of the same name is imported to load the natives
+    org.bytedeco.opencv.global.opencv_core.setNumThreads(threads); // fqn: a presets class of this name is imported to load the natives
   }
 
   // Sets the JavaCPP system properties the library relies on. A property the application has set already is left alone,

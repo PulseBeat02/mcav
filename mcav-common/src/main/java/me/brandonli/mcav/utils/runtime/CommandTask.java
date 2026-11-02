@@ -59,8 +59,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>{@link #run(Duration)} uses one deadline for the program and both captured streams. At the deadline it requests
  * termination of the program and the descendants observed while it ran. Descendant discovery is best effort:
- * an operating system can reparent a very short-lived program's children before they can be observed. After a successful launch a task cannot run again, including after a wait failure. A failed launch may be
- * retried. Instances are not thread-safe.
+ * an operating system can reparent a very short-lived program's children before they can be observed. After a
+ * successful launch a task cannot run again, including after a wait failure. A failed launch may be retried.
+ * Instances are not thread-safe.
  *
  * @since 1.0.0
  */
