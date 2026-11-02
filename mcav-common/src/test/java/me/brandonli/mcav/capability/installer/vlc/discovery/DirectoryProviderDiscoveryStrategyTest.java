@@ -27,10 +27,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.regex.PatternSyntaxException;
 import me.brandonli.mcav.capability.installer.vlc.discovery.DirectoryProviderDiscoveryStrategy.EnvironmentSetter;
 import me.brandonli.mcav.capability.installer.vlc.discovery.DirectoryProviderDiscoveryStrategy.SearchProvider;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -53,6 +56,7 @@ final class DirectoryProviderDiscoveryStrategyTest {
   private static final String CORE_LIBRARY_PATTERN = "libvlccore\\.dll";
   private static final String LIBRARY_PREFIX_PATTERN = "libvlc.*";
   private static final String UNMATCHED_PATTERN = "nothing-matches-this";
+  private static final String INVALID_PATTERN = "libvlc[";
 
   private static final String[] PATTERNS = { LIBRARY_PATTERN, CORE_LIBRARY_PATTERN };
   private static final EnvironmentSetter IGNORING_SETTER = (_, _) -> true;
@@ -137,7 +141,7 @@ final class DirectoryProviderDiscoveryStrategyTest {
   }
 
   @Test
-  void shouldNeverCountOneFileForSeveralPatterns() throws IOException {
+  void shouldNotCountAFileThatMatchesNoPattern() throws IOException {
     final Path directory = createDirectory(this.temporaryDirectory, SECOND_ONLY_DIRECTORY);
     createFile(directory, CORE_LIBRARY_FILE);
     createFile(directory, README_FILE);
@@ -152,6 +156,23 @@ final class DirectoryProviderDiscoveryStrategyTest {
     final TestStrategy strategy = singleSearch(libraries, 0);
     final String found = strategy.discover();
     final String expected = libraries.toString();
+    assertEquals(expected, found);
+  }
+
+  @Test
+  void shouldReturnTheAbsolutePathOfARelativeDirectory() throws IOException {
+    final Path libraries = createLibraries(this.temporaryDirectory, VLC_DIRECTORY);
+    final Path currentDirectory = Path.of("");
+    final Path workingDirectory = currentDirectory.toAbsolutePath();
+    final Path workingRoot = workingDirectory.getRoot();
+    final Path librariesRoot = libraries.getRoot();
+    final boolean sameRoot = workingRoot.equals(librariesRoot);
+    Assumptions.assumeTrue(sameRoot, "The working directory and the temporary directory must share a root!");
+    final Path relative = workingDirectory.relativize(libraries);
+    final TestStrategy strategy = singleSearch(relative, 0);
+    final String found = strategy.discover();
+    final Path absolute = relative.toAbsolutePath();
+    final String expected = absolute.toString();
     assertEquals(expected, found);
   }
 
@@ -389,6 +410,18 @@ final class DirectoryProviderDiscoveryStrategyTest {
   }
 
   @Test
+  void shouldReturnANewListOfDirectoriesOnEveryCall() {
+    final StaticDirectoryProvider provider = new StaticDirectoryProvider(1, ProviderSupport.SUPPORTED, SUPPORTED_DIRECTORY);
+    final SearchProvider search = new SearchProvider(provider, 0);
+    final TestStrategy strategy = strategy(search);
+    final List<String> first = strategy.discoveryDirectories();
+    first.clear();
+    final List<String> second = strategy.discoveryDirectories();
+    final List<String> expected = List.of(SUPPORTED_DIRECTORY);
+    assertEquals(expected, second);
+  }
+
+  @Test
   void shouldReadTheJnaLibraryPathInTheDefaultProviders() throws IOException {
     final Path libraries = createLibraries(this.temporaryDirectory, JNA_DIRECTORY);
     final String rawLibraries = libraries.toString();
@@ -426,6 +459,22 @@ final class DirectoryProviderDiscoveryStrategyTest {
     final String found = strategy.discover();
     final String expected = libraries.toString();
     assertEquals(expected, found);
+  }
+
+  @Test
+  void shouldCopyThePluginDirectoriesItIsConstructedWith() throws IOException {
+    final Path libraries = createLibraries(this.temporaryDirectory, VLC_DIRECTORY);
+    createDirectory(libraries, PLUGIN_DIRECTORY);
+    final List<Path> pluginDirectories = new ArrayList<>(PLUGIN_DIRECTORIES);
+    final List<String> published = new ArrayList<>();
+    final TestStrategy strategy = recordingStrategy(published, SetterOutcome.SUCCEEDS, pluginDirectories);
+    pluginDirectories.clear();
+    final String libraryPath = libraries.toString();
+    final boolean pathSet = strategy.onSetPluginPath(libraryPath);
+    final Path plugins = libraries.resolve(PLUGIN_DIRECTORY);
+    final List<String> expected = List.of(PLUGIN_PATH_ASSIGNMENT + plugins);
+    assertTrue(pathSet);
+    assertEquals(expected, published);
   }
 
   @Test
@@ -494,11 +543,18 @@ final class DirectoryProviderDiscoveryStrategyTest {
   void shouldRejectInvalidArguments() {
     final List<SearchProvider> providers = List.of();
     final TestStrategy strategy = strategy();
+    final String[] patternsWithNull = { LIBRARY_PATTERN, null };
+    final List<Path> pluginDirectoriesWithNull = Arrays.asList(Path.of(PLUGIN_DIRECTORY), null);
+    final String[] invalidPatterns = { INVALID_PATTERN };
     assertThrows(NullPointerException.class, () -> new TestStrategy(null, PLUGIN_DIRECTORIES, providers, IGNORING_SETTER));
     assertThrows(NullPointerException.class, () -> new TestStrategy(PATTERNS, null, providers, IGNORING_SETTER));
     assertThrows(NullPointerException.class, () -> new TestStrategy(PATTERNS, PLUGIN_DIRECTORIES, null, IGNORING_SETTER));
     assertThrows(NullPointerException.class, () -> new TestStrategy(PATTERNS, PLUGIN_DIRECTORIES, providers, null));
     assertThrows(IllegalArgumentException.class, () -> new TestStrategy(new String[0], PLUGIN_DIRECTORIES, providers, IGNORING_SETTER));
+    assertThrows(NullPointerException.class, () -> new TestStrategy(patternsWithNull, PLUGIN_DIRECTORIES, providers, IGNORING_SETTER));
+    assertThrows(NullPointerException.class, () -> new TestStrategy(PATTERNS, pluginDirectoriesWithNull, providers, IGNORING_SETTER));
+    assertThrows(PatternSyntaxException.class, () -> new TestStrategy(invalidPatterns, PLUGIN_DIRECTORIES, providers, IGNORING_SETTER));
+    assertThrows(InvalidPathException.class, () -> strategy.onSetPluginPath(INVALID_DIRECTORY));
     assertThrows(NullPointerException.class, () -> strategy.onFound(null));
     assertThrows(NullPointerException.class, () -> strategy.onSetPluginPath(null));
   }
@@ -548,9 +604,17 @@ final class DirectoryProviderDiscoveryStrategyTest {
   }
 
   private static TestStrategy recordingStrategy(final List<String> published, final SetterOutcome outcome) {
+    return recordingStrategy(published, outcome, PLUGIN_DIRECTORIES);
+  }
+
+  private static TestStrategy recordingStrategy(
+    final List<String> published,
+    final SetterOutcome outcome,
+    final List<Path> pluginDirectories
+  ) {
     final EnvironmentSetter setter = (name, value) -> recordVariable(published, outcome, name, value);
     final List<SearchProvider> noProviders = List.of();
-    return new TestStrategy(PATTERNS, PLUGIN_DIRECTORIES, noProviders, setter);
+    return new TestStrategy(PATTERNS, pluginDirectories, noProviders, setter);
   }
 
   private static boolean recordVariable(final List<String> published, final SetterOutcome outcome, final String name, final String value) {
