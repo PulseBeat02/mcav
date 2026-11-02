@@ -23,10 +23,13 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import java.util.Arrays;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import org.junit.jupiter.api.Test;
 
 final class Mcv2PayloadTest {
+
+  private static final byte[] REPORT = { 1, 1, 1, 0 };
 
   @Test
   void shouldTravelOnTheMcv2ChannelOfTheMcavNamespace() {
@@ -39,13 +42,13 @@ final class Mcv2PayloadTest {
   @Test
   void shouldWriteTheReportsBytesAsTheyAreAndReadThemBack() {
     final ByteBuf buffer = Unpooled.buffer();
-    Mcv2Payload.CODEC.encode(buffer, new Mcv2Payload(new byte[] { 1, 1, 1, 0 }));
+    Mcv2Payload.CODEC.encode(buffer, new Mcv2Payload(REPORT));
     final byte[] written = new byte[buffer.readableBytes()];
     buffer.getBytes(buffer.readerIndex(), written);
     final byte[] decoded = Mcv2Payload.CODEC.decode(buffer).getReport();
     final int remaining = buffer.readableBytes();
-    assertArrayEquals(new byte[] { 1, 1, 1, 0 }, written);
-    assertArrayEquals(new byte[] { 1, 1, 1, 0 }, decoded);
+    assertArrayEquals(REPORT, written);
+    assertArrayEquals(REPORT, decoded);
     assertEquals(0, remaining);
   }
 
@@ -57,5 +60,28 @@ final class Mcv2PayloadTest {
     payload.getReport()[2] = 1;
     final byte[] kept = payload.getReport();
     assertArrayEquals(new byte[] { 1, 0, 0, 0 }, kept);
+  }
+
+  @Test
+  void shouldComparePayloadsByTheirReport() {
+    final Mcv2Payload payload = new Mcv2Payload(REPORT);
+    EqualityAssertions.assertEqualityContract(payload, new Mcv2Payload(REPORT), new Mcv2Payload(new byte[] { 1, 1, 0, 0 }));
+  }
+
+  @Test
+  void shouldHashPayloadsByTheirReport() {
+    final Mcv2Payload payload = new Mcv2Payload(REPORT);
+
+    final int hash = payload.hashCode();
+    final int expected = Arrays.hashCode(REPORT);
+    assertEquals(expected, hash);
+  }
+
+  @Test
+  void shouldDescribeItsReport() {
+    final Mcv2Payload payload = new Mcv2Payload(REPORT);
+
+    final String description = payload.toString();
+    assertEquals("Mcv2Payload{report=[1, 1, 1, 0]}", description);
   }
 }

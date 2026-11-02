@@ -17,10 +17,13 @@
  */
 package me.brandonli.mcav.mod;
 
+import com.google.common.base.MoreObjects;
 import io.netty.buffer.ByteBuf;
+import java.util.Arrays;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 final class Mcv2Payload implements CustomPacketPayload {
 
@@ -54,5 +57,28 @@ final class Mcv2Payload implements CustomPacketPayload {
     final byte[] report = new byte[buffer.readableBytes()];
     buffer.readBytes(report);
     return new Mcv2Payload(report);
+  }
+
+  @Override
+  public boolean equals(final @Nullable Object other) {
+    if (this == other) {
+      return true;
+    }
+
+    if (!(other instanceof final Mcv2Payload payload)) {
+      return false;
+    }
+
+    return Arrays.equals(this.report, payload.report);
+  }
+
+  @Override
+  public int hashCode() {
+    return Arrays.hashCode(this.report);
+  }
+
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(this).add("report", Arrays.toString(this.report)).toString();
   }
 }

@@ -20,7 +20,9 @@ package me.brandonli.mcav.mod;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
@@ -28,6 +30,7 @@ final class PackLayoutTest {
 
   private static final int WIDTH = 854;
 
+  private static final String STREAMS = "7u, 9u";
   private static final String SLOTS = "3, 2";
   private static final String FIRST_SLOTS = "0, 3";
 
@@ -108,7 +111,7 @@ final class PackLayoutTest {
 
   @Test
   void shouldFindNoLayoutInAnythingTheServerCouldNotHaveGenerated() {
-    final String valid = packConstants("7u, 9u", SLOTS, FIRST_SLOTS, 2);
+    final String valid = packConstants(STREAMS, SLOTS, FIRST_SLOTS, 2);
     for (final String packConstants : List.of(
       "",
       valid.replace("MCV2_SCREENS = 2;", "MCV2_SCREENS = 0;"),
@@ -116,10 +119,10 @@ final class PackLayoutTest {
       valid.replace("MCV2_SCREENS = 2;", "MCV2_SCREENS = 102;"),
       valid.replace("MCV2_SCREENS = 2;", "MCV2_SCREENS = 1;"),
       valid.replace("uint MCV2_SCREEN_STREAMS", "uint MCV2_SCREEN_STREAM"),
-      valid.replace("7u, 9u", "7u"),
-      valid.replace("7u, 9u", "7, 9u"),
-      valid.replace("7u, 9u", "7u, 4294967296u"),
-      valid.replace("7u, 9u", "7u, 12345678901u"),
+      valid.replace(STREAMS, "7u"),
+      valid.replace(STREAMS, "7, 9u"),
+      valid.replace(STREAMS, "7u, 4294967296u"),
+      valid.replace(STREAMS, "7u, 12345678901u"),
       valid.replace("int[2](3, 2)", "int[2](9, 2)"),
       valid.replace("int[2](3, 2)", "int[2](3, 0)"),
       valid.replace("int[2](3, 2)", "int[2](3, -2)"),
@@ -134,5 +137,43 @@ final class PackLayoutTest {
     }
     final Optional<PackLayout> validLayout = PackLayout.parse(valid);
     assertTrue(validLayout.isPresent());
+  }
+
+  @Test
+  void shouldCompareLayoutsByEveryPart() {
+    final PackLayout layout = this.parseLayout(STREAMS, SLOTS, FIRST_SLOTS);
+    EqualityAssertions.assertEqualityContract(
+      layout,
+      this.parseLayout(STREAMS, SLOTS, FIRST_SLOTS),
+      this.parseLayout("7u, 8u", SLOTS, FIRST_SLOTS),
+      this.parseLayout(STREAMS, "3, 1", FIRST_SLOTS),
+      this.parseLayout(STREAMS, "2, 3", "0, 2")
+    );
+  }
+
+  @Test
+  void shouldHashLayoutsByEveryPart() {
+    final PackLayout layout = this.parseLayout(STREAMS, SLOTS, FIRST_SLOTS);
+
+    final int hash = layout.hashCode();
+    final int streamsHash = Arrays.hashCode(new long[] { 7L, 9L });
+    final int slotsHash = Arrays.hashCode(new int[] { 3, 2 });
+    final int firstSlotsHash = Arrays.hashCode(new int[] { 0, 3 });
+    final int expected = Objects.hash(streamsHash, slotsHash, firstSlotsHash);
+    assertEquals(expected, hash);
+  }
+
+  @Test
+  void shouldDescribeItsScreens() {
+    final PackLayout layout = this.parseLayout(STREAMS, SLOTS, FIRST_SLOTS);
+
+    final String description = layout.toString();
+    assertEquals("PackLayout{streams=[7, 9], slots=[3, 2], firstSlots=[0, 3]}", description);
+  }
+
+  private PackLayout parseLayout(final String streams, final String slots, final String firstSlots) {
+    final String packConstants = packConstants(streams, slots, firstSlots, 2);
+    final Optional<PackLayout> layout = PackLayout.parse(packConstants);
+    return layout.orElseThrow();
   }
 }

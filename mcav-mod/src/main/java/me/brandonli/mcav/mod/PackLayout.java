@@ -19,9 +19,11 @@ package me.brandonli.mcav.mod;
 
 import static java.util.Objects.requireNonNull;
 
+import com.google.common.base.MoreObjects;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -182,5 +184,39 @@ final class PackLayout {
 
   int getTotalSlots() {
     return Arrays.stream(this.slots).sum();
+  }
+
+  @Override
+  public boolean equals(final @Nullable Object other) {
+    if (this == other) {
+      return true;
+    }
+
+    if (!(other instanceof final PackLayout layout)) {
+      return false;
+    }
+
+    return (
+      Arrays.equals(this.streams, layout.streams) &&
+      Arrays.equals(this.firstSlots, layout.firstSlots) &&
+      Arrays.equals(this.slots, layout.slots)
+    );
+  }
+
+  @Override
+  public int hashCode() {
+    final int streamsHash = Arrays.hashCode(this.streams);
+    final int slotsHash = Arrays.hashCode(this.slots);
+    final int firstSlotsHash = Arrays.hashCode(this.firstSlots);
+    return Objects.hash(streamsHash, slotsHash, firstSlotsHash);
+  }
+
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(this)
+      .add("streams", Arrays.toString(this.streams))
+      .add("slots", Arrays.toString(this.slots))
+      .add("firstSlots", Arrays.toString(this.firstSlots))
+      .toString();
   }
 }
