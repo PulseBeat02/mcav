@@ -936,7 +936,7 @@ class CefBrowserPlayerTest {
       "https://unreachable.test/",
       new ArchiveExtractor()
     );
-    final CefBrowserPlayer.DefaultSessionFactory factory = new CefBrowserPlayer.DefaultSessionFactory(recording, List.of());
+    final CefBrowserPlayer.HelperSessionFactory factory = new CefBrowserPlayer.HelperSessionFactory(recording, List.of());
     HelperProcesses.closeAll();
     try {
       final BrowserException failure = assertThrows(BrowserException.class, () -> this.openWithARecordingListener(factory));
@@ -954,7 +954,7 @@ class CefBrowserPlayerTest {
     throw new IOException(OFFLINE_MESSAGE);
   }
 
-  private BrowserSession openWithARecordingListener(final CefBrowserPlayer.DefaultSessionFactory factory) {
+  private BrowserSession openWithARecordingListener(final CefBrowserPlayer.HelperSessionFactory factory) {
     return factory.open(SOURCE, BrowserOptions.DEFAULT, new HelperSessionTest.RecordingListener());
   }
 
@@ -975,7 +975,7 @@ class CefBrowserPlayerTest {
       "https://unreachable.test/",
       new ArchiveExtractor()
     );
-    final CefBrowserPlayer.DefaultSessionFactory factory = new CefBrowserPlayer.DefaultSessionFactory(broken, List.of());
+    final CefBrowserPlayer.HelperSessionFactory factory = new CefBrowserPlayer.HelperSessionFactory(broken, List.of());
     final CefBrowserPlayer offline = new CefBrowserPlayer(BrowserOptions.DEFAULT, factory);
     final BrowserException failure = assertThrows(BrowserException.class, () -> offline.start(SOURCE));
     final boolean namesTheInstallFailure = failure.getMessage().startsWith("The browser cannot be installed");

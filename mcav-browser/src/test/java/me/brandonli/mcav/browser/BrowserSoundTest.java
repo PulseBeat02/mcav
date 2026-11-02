@@ -70,7 +70,7 @@ class BrowserSoundTest {
   private BrowserPlayer player(final BrowserOptions options) {
     final CefBrowserPlayer player = new CefBrowserPlayer(
       options,
-      new CefBrowserPlayer.DefaultSessionFactory(new JcefNatives(), HelperCoverage.jvmOptions())
+      new CefBrowserPlayer.HelperSessionFactory(new JcefNatives(), HelperCoverage.jvmOptions())
     );
     player.setExceptionHandler((message, error) -> this.failures.add(message + ": " + error.getMessage()));
     this.players.add(player);

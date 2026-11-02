@@ -64,15 +64,15 @@ class CefBrowserIntegrationTest {
   private final List<BrowserPlayer> players = new ArrayList<>();
   private final List<String> failures = new CopyOnWriteArrayList<>();
 
-  private CefBrowserPlayer.DefaultSessionFactory sessions() {
-    return new CefBrowserPlayer.DefaultSessionFactory(new JcefNatives(), HelperCoverage.jvmOptions());
+  private CefBrowserPlayer.HelperSessionFactory sessions() {
+    return new CefBrowserPlayer.HelperSessionFactory(new JcefNatives(), HelperCoverage.jvmOptions());
   }
 
   private BrowserPlayer player(final BrowserOptions options) {
     return this.player(options, this.sessions());
   }
 
-  private BrowserPlayer player(final BrowserOptions options, final CefBrowserPlayer.DefaultSessionFactory sessions) {
+  private BrowserPlayer player(final BrowserOptions options, final CefBrowserPlayer.HelperSessionFactory sessions) {
     final CefBrowserPlayer player = new CefBrowserPlayer(options, sessions);
     player.setExceptionHandler((message, error) -> this.failures.add(message + " " + error.getMessage()));
     this.players.add(player);
@@ -422,7 +422,7 @@ class CefBrowserIntegrationTest {
 
   @Test
   void shouldLeaveNoProcessAfterAReleaseAndStartANewBrowserFresh() {
-    final CefBrowserPlayer.DefaultSessionFactory shared = this.sessions();
+    final CefBrowserPlayer.HelperSessionFactory shared = this.sessions();
     final BrowserPlayer first = this.player(LOCAL, shared);
     this.start(first, MAIN_PAGE);
     final boolean browserRunning = countBrowserProcesses() > 0;

@@ -58,7 +58,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
 
   static final int MAXIMUM_QUEUED_AUDIO_MILLISECONDS = AUDIO_DELAY_MILLISECONDS + 120;
 
-  private static final SessionFactory DEFAULT_SESSIONS = new DefaultSessionFactory();
+  private static final SessionFactory DEFAULT_SESSIONS = new HelperSessionFactory();
 
   private static final Equivalence<Object> SESSION_IDENTITY = Equivalence.identity();
 
@@ -419,7 +419,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
     BrowserSession open(final BrowserSource source, final BrowserOptions options, final BrowserSession.Listener listener);
   }
 
-  static final class DefaultSessionFactory implements SessionFactory {
+  static final class HelperSessionFactory implements SessionFactory {
 
     private static final Path ROOT = Path.of("/");
 
@@ -429,16 +429,16 @@ final class CefBrowserPlayer implements BrowserPlayer {
 
     private @Nullable HelperLauncher launcher;
 
-    private DefaultSessionFactory() {
+    private HelperSessionFactory() {
       this(new JcefNatives(), List.of());
     }
 
     @VisibleForTesting
-    DefaultSessionFactory(final JcefNatives natives, final List<String> extraJvmOptions) {
+    HelperSessionFactory(final JcefNatives natives, final List<String> extraJvmOptions) {
       this(natives, new LinuxLibraries(), extraJvmOptions);
     }
 
-    private DefaultSessionFactory(final JcefNatives natives, final LinuxLibraries libraries, final List<String> extraJvmOptions) {
+    private HelperSessionFactory(final JcefNatives natives, final LinuxLibraries libraries, final List<String> extraJvmOptions) {
       this.natives = natives;
       this.libraries = libraries;
       this.extraJvmOptions = List.copyOf(extraJvmOptions);
