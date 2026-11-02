@@ -20,15 +20,19 @@ import type { Metadata } from "next";
 import "./globals.css";
 import React from "react";
 
+const SITE_TITLE: string = "MCAV Audio";
+
+const FAVICON_PATH: string = "favicon.ico?v=2";
+
 export const metadata: Metadata = {
     title: {
-        template: "%s | MCAV Audio",
-        default: "MCAV Audio",
+        template: `%s | ${SITE_TITLE}`,
+        default: SITE_TITLE,
     },
     description: "A website to serve audio from the MCAV platform.",
     keywords: ["mcav", "GitHub", "audio", "music", "platform"],
     icons: {
-        icon: "favicon.ico?v=2"
+        icon: FAVICON_PATH
     },
     robots: {
         index: true,

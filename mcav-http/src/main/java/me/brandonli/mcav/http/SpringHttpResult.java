@@ -69,13 +69,15 @@ public final class SpringHttpResult implements HttpResult {
   private static final String RESULT_BEAN_NAME = "mcavHttpResult";
 
   static final String LOGGING_SYSTEM_PROPERTY = "org.springframework.boot.logging.LoggingSystem";
+  private static final String NO_LOGGING_SYSTEM = "none";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SpringHttpResult.class);
+
   private static final int SEND_TIME_LIMIT_MILLISECONDS = 5_000;
   private static final int SEND_BUFFER_LIMIT_BYTES = 512 * 1024;
   private static final Duration CLOSE_TIME_LIMIT = Duration.ofSeconds(1);
 
-  private static final String NO_LOGGING_SYSTEM = "none";
+  private static final String URL_SCHEME = "http://";
 
   private static final String BUNDLED_PAGE_LOCATION = "classpath:/mcav/http/website/";
   private static final String PATH_SEPARATOR = "/";
@@ -489,7 +491,7 @@ public final class SpringHttpResult implements HttpResult {
   @Override
   public String getFullUrl() {
     final String host = this.urlHost(this.domain);
-    return "http://%s:%s/".formatted(host, this.port);
+    return "%s%s:%s/".formatted(URL_SCHEME, host, this.port);
   }
 
   @VisibleForTesting

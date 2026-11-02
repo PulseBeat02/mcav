@@ -36,6 +36,8 @@ final class HttpModuleTest {
 
   private static final List<String> LOOPBACK = List.of("server.address=127.0.0.1");
 
+  private static final String MESSAGE = "cannot start!";
+
   @Test
   void shouldBeNamedHttp() {
     final HttpModule module = new HttpModule();
@@ -61,26 +63,26 @@ final class HttpModuleTest {
 
   @Test
   void shouldKeepTheMessageInExceptions() {
-    final HttpException exception = new HttpException("cannot start!");
+    final HttpException exception = new HttpException(MESSAGE);
     final String message = exception.getMessage();
     final Throwable cause = exception.getCause();
-    assertEquals("cannot start!", message);
+    assertEquals(MESSAGE, message);
     assertNull(cause);
   }
 
   @Test
   void shouldKeepTheMessageAndTheCauseInExceptions() {
     final IOException portInUse = new IOException("port in use!");
-    final HttpException exception = new HttpException("cannot start!", portInUse);
+    final HttpException exception = new HttpException(MESSAGE, portInUse);
     final String message = exception.getMessage();
     final Throwable cause = exception.getCause();
-    assertEquals("cannot start!", message);
+    assertEquals(MESSAGE, message);
     assertSame(portInUse, cause);
   }
 
   @Test
   void shouldMakeExceptionsMCAVExceptions() {
-    final HttpException exception = new HttpException("cannot start!");
+    final HttpException exception = new HttpException(MESSAGE);
     assertInstanceOf(MCAVException.class, exception, "a caller handles the failures of every module through one type");
   }
 }

@@ -88,8 +88,8 @@ import org.springframework.web.socket.WebSocketSession;
 
 final class HttpServerTest {
 
-  private static final long TIMEOUT_SECONDS = 10;
-  private static final long SLOW_TIMEOUT_SECONDS = 60;
+  private static final long TIMEOUT_SECONDS = 10L;
+  private static final long SLOW_TIMEOUT_SECONDS = 60L;
 
   private static final String LOCALHOST = "localhost";
   private static final String LOOPBACK_HOST = "127.0.0.1";
@@ -126,6 +126,8 @@ final class HttpServerTest {
   private static final String START_FAILURE_SUFFIX = "\" while starting!";
 
   private static final String ROOT_LOGGER_NAME = "";
+
+  private static final String RELEASED_WRITE_MESSAGE = "the test releases the stuck write";
 
   private static final List<String> TRAVERSAL_ATTACKS = List.of(
     "/../secret.txt",
@@ -693,7 +695,7 @@ final class HttpServerTest {
     writeEntered.countDown();
 
     final boolean released = releaseWrite.await(SLOW_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-    assertTrue(released, "the test releases the stuck write");
+    assertTrue(released, RELEASED_WRITE_MESSAGE);
 
     return null;
   }
@@ -702,7 +704,7 @@ final class HttpServerTest {
     this.workers.observeCurrentThread();
 
     final boolean released = releaseWrite.await(SLOW_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-    assertTrue(released, "the test releases the stuck write");
+    assertTrue(released, RELEASED_WRITE_MESSAGE);
 
     return null;
   }

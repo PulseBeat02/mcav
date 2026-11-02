@@ -22,9 +22,11 @@ import { test } from "node:test";
 import vm from "node:vm";
 
 const PAGE = new URL("../src/app/page.tsx", import.meta.url);
-const CONSTANT_DECLARATION = /^const [A-Z][A-Z0-9_]*: .+;$/gm;
 const ENCODING = "utf8";
+
+const CONSTANT_DECLARATION = /^const [A-Z][A-Z0-9_]*: .+;$/gm;
 const DECLARATION_END = "\n};";
+
 const DECLARATIONS = [
     "unknownMediaInformation",
     "toMediaInformation",
@@ -32,6 +34,9 @@ const DECLARATIONS = [
     "reportMediaInformationFailure",
     "loadMediaInformation"
 ];
+
+const LINE_SEPARATOR = "\n";
+const NAME_SEPARATOR = ", ";
 
 const MEDIA_PATH = "/media";
 
@@ -63,9 +68,10 @@ const sliceDeclaration = (source, name) => {
 
 const buildMediaInformationScript = () => {
     const source = readFileSync(PAGE, ENCODING);
-    const constants = source.match(CONSTANT_DECLARATION).join("\n");
-    const declarations = DECLARATIONS.map(name => sliceDeclaration(source, name)).join("\n");
-    return stripTypeScriptTypes(`${constants}\n${declarations}\n({${DECLARATIONS.join(", ")}});`);
+    const constants = source.match(CONSTANT_DECLARATION).join(LINE_SEPARATOR);
+    const declarations = DECLARATIONS.map(name => sliceDeclaration(source, name)).join(LINE_SEPARATOR);
+    const pageExports = `({${DECLARATIONS.join(NAME_SEPARATOR)}});`;
+    return stripTypeScriptTypes([constants, declarations, pageExports].join(LINE_SEPARATOR));
 };
 
 const loadPage = server => {

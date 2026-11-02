@@ -64,11 +64,15 @@ const HUE_REDRAW_DEGREES: number = 5;
 const MIDDLE_HUE_OFFSET_DEGREES: number = 60;
 const END_HUE_OFFSET_DEGREES: number = 120;
 
+const CANVAS_CONTEXT_TYPE: "2d" = "2d";
+
 const BACKGROUND_COLOR: string = "#000";
 const COLOR_SATURATION: string = "100%";
 const COLOR_LIGHTNESS: string = "50%";
 const FILL_OPACITY: number = 0.2;
+const START_COLOR_STOP: number = 0;
 const MIDDLE_COLOR_STOP: number = 0.5;
+const END_COLOR_STOP: number = 1;
 const LINE_WIDTH: number = 2;
 
 const VERTICAL_CENTER: number = 0.5;
@@ -76,6 +80,9 @@ const AMPLITUDE_HEIGHT_FRACTION: number = 0.4;
 
 const DEFAULT_PIXEL_RATIO: number = 1;
 const MINIMUM_CANVAS_PIXELS: number = 1;
+
+const VISIBLE_DISPLAY: string = "block";
+const HIDDEN_DISPLAY: string = "none";
 
 const METADATA_REFRESH_MILLISECONDS: number = 5000;
 const HEARTBEAT_MILLISECONDS: number = 30000;
@@ -87,6 +94,7 @@ const RECONNECT_BASE_DELAY_MILLISECONDS: number = 1000;
 const RECONNECT_BACKOFF_FACTOR: number = 2;
 const MAXIMUM_RECONNECT_DELAY_MILLISECONDS: number = 30000;
 
+const MINIMUM_VOLUME: number = 0;
 const MAXIMUM_VOLUME: number = 100;
 const DECIMAL_RADIX: number = 10;
 
@@ -537,9 +545,9 @@ const toHslColor = (hue: number): string => {
 
 const createGradient = (context: CanvasRenderingContext2D, width: number, hue: number): CanvasGradient => {
     const gradient: CanvasGradient = context.createLinearGradient(0, 0, width, 0);
-    gradient.addColorStop(0, toHslColor(hue));
+    gradient.addColorStop(START_COLOR_STOP, toHslColor(hue));
     gradient.addColorStop(MIDDLE_COLOR_STOP, toHslColor(hue + MIDDLE_HUE_OFFSET_DEGREES));
-    gradient.addColorStop(1, toHslColor(hue + END_HUE_OFFSET_DEGREES));
+    gradient.addColorStop(END_COLOR_STOP, toHslColor(hue + END_HUE_OFFSET_DEGREES));
     return gradient;
 };
 
@@ -664,7 +672,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
 
     const animateVisualizer = useCallback((): void => {
         const canvas: HTMLCanvasElement | null = canvasRef.current;
-        const context: CanvasRenderingContext2D | null | undefined = canvas?.getContext("2d");
+        const context: CanvasRenderingContext2D | null | undefined = canvas?.getContext(CANVAS_CONTEXT_TYPE);
         const processor: PcmProcessor | undefined = pcmProcessorRef.current;
         if (!canvas || !context || !processor) {
             return;
@@ -784,7 +792,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
 
     const clearVisualizer = useCallback((): void => {
         const canvas: HTMLCanvasElement | null = canvasRef.current;
-        const context: CanvasRenderingContext2D | null | undefined = canvas?.getContext("2d");
+        const context: CanvasRenderingContext2D | null | undefined = canvas?.getContext(CANVAS_CONTEXT_TYPE);
         if (canvas && context) {
             context.clearRect(0, 0, canvas.width, canvas.height);
         }
@@ -792,11 +800,11 @@ const AudioStreamPlayer = (): React.JSX.Element => {
 
     const hideVisualizer = useCallback((): void => {
         if (placeholderRef.current) {
-            placeholderRef.current.style.display = "block";
+            placeholderRef.current.style.display = VISIBLE_DISPLAY;
         }
 
         if (canvasRef.current) {
-            canvasRef.current.style.display = "none";
+            canvasRef.current.style.display = HIDDEN_DISPLAY;
         }
     }, []);
 
@@ -823,11 +831,11 @@ const AudioStreamPlayer = (): React.JSX.Element => {
 
     const showVisualizer = useCallback((): void => {
         if (placeholderRef.current) {
-            placeholderRef.current.style.display = "none";
+            placeholderRef.current.style.display = HIDDEN_DISPLAY;
         }
 
         if (canvasRef.current) {
-            canvasRef.current.style.display = "block";
+            canvasRef.current.style.display = VISIBLE_DISPLAY;
         }
     }, []);
 
@@ -1170,7 +1178,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
                     <canvas
                         ref={canvasRef}
                         className={styles.visualizerCanvas}
-                        style={{ display: "none" }}
+                        style={{ display: HIDDEN_DISPLAY }}
                     />
                 </div>
 
@@ -1178,7 +1186,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
                     <div className={styles.volumeIcon}>🔊</div>
                     <input
                         type="range"
-                        min="0"
+                        min={MINIMUM_VOLUME}
                         max={MAXIMUM_VOLUME}
                         value={volume}
                         onChange={changeVolume}

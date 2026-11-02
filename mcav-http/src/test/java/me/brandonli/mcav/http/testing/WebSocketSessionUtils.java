@@ -25,7 +25,7 @@ import org.springframework.web.socket.WebSocketSession;
 
 public final class WebSocketSessionUtils {
 
-  private static final long TIMEOUT_MILLISECONDS = 10_000;
+  private static final long TIMEOUT_MILLISECONDS = 10_000L;
 
   private WebSocketSessionUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
