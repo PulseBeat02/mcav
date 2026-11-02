@@ -160,6 +160,23 @@ final class DirectoryProviderDiscoveryStrategyTest {
   }
 
   @Test
+  void shouldReturnTheAbsolutePathOfARelativeDirectory() throws IOException {
+    final Path libraries = createLibraries(this.temporaryDirectory, VLC_DIRECTORY);
+    final Path currentDirectory = Path.of("");
+    final Path workingDirectory = currentDirectory.toAbsolutePath();
+    final Path workingRoot = workingDirectory.getRoot();
+    final Path librariesRoot = libraries.getRoot();
+    final boolean sameRoot = workingRoot.equals(librariesRoot);
+    Assumptions.assumeTrue(sameRoot, "The working directory and the temporary directory must share a root!");
+    final Path relative = workingDirectory.relativize(libraries);
+    final TestStrategy strategy = singleSearch(relative, 0);
+    final String found = strategy.discover();
+    final Path absolute = relative.toAbsolutePath();
+    final String expected = absolute.toString();
+    assertEquals(expected, found);
+  }
+
+  @Test
   void shouldIgnoreDirectoriesWithOnlySomeOfTheLibraries() throws IOException {
     final Path partial = createDirectory(this.temporaryDirectory, PARTIAL_DIRECTORY);
     createFile(partial, LIBRARY_FILE);
