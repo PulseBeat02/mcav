@@ -27,10 +27,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.regex.PatternSyntaxException;
 import me.brandonli.mcav.capability.installer.vlc.discovery.DirectoryProviderDiscoveryStrategy.EnvironmentSetter;
 import me.brandonli.mcav.capability.installer.vlc.discovery.DirectoryProviderDiscoveryStrategy.SearchProvider;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -53,6 +56,7 @@ final class DirectoryProviderDiscoveryStrategyTest {
   private static final String CORE_LIBRARY_PATTERN = "libvlccore\\.dll";
   private static final String LIBRARY_PREFIX_PATTERN = "libvlc.*";
   private static final String UNMATCHED_PATTERN = "nothing-matches-this";
+  private static final String INVALID_PATTERN = "libvlc[";
 
   private static final String[] PATTERNS = { LIBRARY_PATTERN, CORE_LIBRARY_PATTERN };
   private static final EnvironmentSetter IGNORING_SETTER = (_, _) -> true;
@@ -494,11 +498,18 @@ final class DirectoryProviderDiscoveryStrategyTest {
   void shouldRejectInvalidArguments() {
     final List<SearchProvider> providers = List.of();
     final TestStrategy strategy = strategy();
+    final String[] patternsWithNull = { LIBRARY_PATTERN, null };
+    final List<Path> pluginDirectoriesWithNull = Arrays.asList(Path.of(PLUGIN_DIRECTORY), null);
+    final String[] invalidPatterns = { INVALID_PATTERN };
     assertThrows(NullPointerException.class, () -> new TestStrategy(null, PLUGIN_DIRECTORIES, providers, IGNORING_SETTER));
     assertThrows(NullPointerException.class, () -> new TestStrategy(PATTERNS, null, providers, IGNORING_SETTER));
     assertThrows(NullPointerException.class, () -> new TestStrategy(PATTERNS, PLUGIN_DIRECTORIES, null, IGNORING_SETTER));
     assertThrows(NullPointerException.class, () -> new TestStrategy(PATTERNS, PLUGIN_DIRECTORIES, providers, null));
     assertThrows(IllegalArgumentException.class, () -> new TestStrategy(new String[0], PLUGIN_DIRECTORIES, providers, IGNORING_SETTER));
+    assertThrows(NullPointerException.class, () -> new TestStrategy(patternsWithNull, PLUGIN_DIRECTORIES, providers, IGNORING_SETTER));
+    assertThrows(NullPointerException.class, () -> new TestStrategy(PATTERNS, pluginDirectoriesWithNull, providers, IGNORING_SETTER));
+    assertThrows(PatternSyntaxException.class, () -> new TestStrategy(invalidPatterns, PLUGIN_DIRECTORIES, providers, IGNORING_SETTER));
+    assertThrows(InvalidPathException.class, () -> strategy.onSetPluginPath(INVALID_DIRECTORY));
     assertThrows(NullPointerException.class, () -> strategy.onFound(null));
     assertThrows(NullPointerException.class, () -> strategy.onSetPluginPath(null));
   }
