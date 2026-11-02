@@ -67,6 +67,8 @@ class HelpCommandTest(unittest.TestCase):
         )
         for command in commands:
             with self.subTest(command=command):
+                code: str | int | None
+                usage: str
                 code, usage = self.run_help(command)
                 self.assertEqual(0, code)
 
@@ -87,6 +89,8 @@ class HelpCommandTest(unittest.TestCase):
 
 class StripCommandTest(unittest.TestCase):
     def test_should_fail_the_subcommand_when_a_scene_pixel_changes(self) -> None:
+        status: int | None
+        result: Any
         status, result = self.run_command(((160, 90), 0))
         self.assertEqual(1, status)
 
@@ -99,6 +103,8 @@ class StripCommandTest(unittest.TestCase):
         self.assertEqual(CHECK_COUNT, checks)
 
     def test_should_fail_the_subcommand_when_the_second_screen_changes_the_pixels_of_the_first(self) -> None:
+        status: int | None
+        result: Any
         status, result = self.run_command(((854, 480), 1))
         self.assertEqual(1, status)
 
@@ -112,6 +118,8 @@ class StripCommandTest(unittest.TestCase):
         self.assertEqual(CHECK_COUNT, checks)
 
     def test_should_pass_the_subcommand_when_the_scene_is_unchanged(self) -> None:
+        status: int | None
+        result: Any
         status, result = self.run_command(None)
         self.assertEqual(0, status)
 

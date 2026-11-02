@@ -63,6 +63,8 @@ FRAMES_KEY: str = 'frames'
 
 class DifferentialTest(unittest.TestCase):
     def test_should_not_exempt_supported_frames_as_unsupported(self) -> None:
+        status: int
+        result: Any
         status, result = self.report([FRAME], [UNSUPPORTED])
         self.assertEqual(1, status)
 
@@ -76,6 +78,8 @@ class DifferentialTest(unittest.TestCase):
         self.assertEqual(0, decoded)
 
     def test_should_compare_a_supported_control(self) -> None:
+        status: int
+        result: Any
         status, result = self.report([FRAME], [REFERENCE_DIGEST])
         self.assertEqual(0, status)
 
@@ -83,6 +87,8 @@ class DifferentialTest(unittest.TestCase):
         self.assertEqual(1, decoded)
 
     def test_should_compare_every_frame_after_a_disagreement(self) -> None:
+        status: int
+        result: Any
         status, result = self.report([b'one', b'two', b'three'], [UNSUPPORTED, REJECT, REFERENCE_DIGEST])
         self.assertEqual(1, status)
 
@@ -102,6 +108,8 @@ class DifferentialTest(unittest.TestCase):
     def test_should_count_rejections_pixels_and_missing_and_extra_results(self) -> None:
         expected: dict[str, list[str]] = {'same': [REJECT, 'a' * DIGEST_DIGITS, 'b' * DIGEST_DIGITS], 'missing': [REJECT]}
         actual: dict[str, list[str]] = {'same': [REJECT, 'a' * DIGEST_DIGITS, 'c' * DIGEST_DIGITS], 'extra': [REJECT]}
+        counts: dict[str, int]
+        failures: list[dict[str, object]]
         counts, failures = mcv2_tools.differential_compare(expected, actual)
         frames: int = counts[FRAMES_KEY]
         self.assertEqual(4, frames)

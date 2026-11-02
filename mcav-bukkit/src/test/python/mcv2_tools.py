@@ -707,7 +707,9 @@ void main() {
 STRIP_CHECK_HEADER_SYMBOLS: int = (PAGE_HEADER.size * BITS_PER_BYTE + SYMBOL_BITS - 1) // SYMBOL_BITS
 STRIP_CHECK_SQUARE: int = 20
 STRIP_CHECK_STEP: int = 24
-STRIP_CHECK_GREEN, STRIP_CHECK_RED, STRIP_CHECK_BLUE = ((0, 255, 0), (255, 0, 0), (0, 0, 255))
+STRIP_CHECK_GREEN: tuple[int, int, int] = (0, 255, 0)
+STRIP_CHECK_RED: tuple[int, int, int] = (255, 0, 0)
+STRIP_CHECK_BLUE: tuple[int, int, int] = (0, 0, 255)
 STRIP_CHECK_DESCRIPTOR: list[tuple[int, ...]] = [tuple(STRIP_MAGIC), (0xA1, 0, 0)]
 
 STRIP_FIT_CHECK_VIDEO: tuple[int, int] = (64, 64)
@@ -790,6 +792,9 @@ def bd_rate_main() -> None:
         message: str = "Each curve needs at least four points!"
         sys.exit(message)
 
+    delta: float
+    low: numpy.float64
+    high: numpy.float64
     delta, low, high = bd_rate(reference_points, test)
     print(
         json.dumps(
@@ -879,7 +884,7 @@ def codec_curves_main() -> None:
 
 
 def codec_curves_sha256(path: Any) -> str:
-    digest = hashlib.sha256()
+    digest: hashlib._Hash = hashlib.sha256()
     with open(path, "rb") as source:
         for chunk in iter(lambda: source.read(HASH_CHUNK_BYTES), b""):
             digest.update(chunk)
@@ -931,6 +936,8 @@ def codec_curves_point(arguments: argparse.Namespace, codec: Any, quality: Any, 
         *[part.replace(CODEC_CURVES_QUALITY_PLACEHOLDER, str(quality)) for part in settings["arguments"]],
         encoded,
     ]
+    result: subprocess.CompletedProcess[str]
+    encode_seconds: float
     result, encode_seconds = codec_curves_run(encode)
     decode_command: list[Any] = [
         arguments.ffmpeg,
@@ -951,6 +958,8 @@ def codec_curves_point(arguments: argparse.Namespace, codec: Any, quality: Any, 
     ]
     codec_curves_run(decode_command)
     frame_bytes: Any = arguments.width * arguments.height * CHANNELS
+    decoded_frames: int
+    remainder: int
     decoded_frames, remainder = divmod(os.path.getsize(decoded), frame_bytes)
     if remainder or decoded_frames != arguments.frames:
         message: str = f"Codec {codec} at quality {quality} decoded {decoded_frames} frames instead of {arguments.frames} frames!"
@@ -1097,7 +1106,8 @@ def counter_video_main() -> None:
     parser.add_argument("out")
     parser.add_argument(FFMPEG_OPTION, default=FFMPEG_COMMAND)
     arguments: argparse.Namespace = parser.parse_args()
-    width, height = (arguments.width, arguments.height)
+    width: int = arguments.width
+    height: int = arguments.height
     size: Any = width * height * CHANNELS
     clip: numpy.memmap = numpy.memmap(arguments.clip, dtype=numpy.uint8, mode="r")
     count: Any = clip.size // size
@@ -1185,9 +1195,12 @@ def capture_check_main() -> None:
     arguments: argparse.Namespace = parser.parse_args()
     from PIL import Image
 
-    width, height = (arguments.width, arguments.height)
+    width: int = arguments.width
+    height: int = arguments.height
     reference_frames: numpy.ndarray = numpy.fromfile(arguments.reference, numpy.uint8).reshape(-1, height, width, CHANNELS)
     paths: list[Path] = sorted(Path(arguments.captures).glob(SCREENSHOT_GLOB))
+    screen_height: int
+    screen_width: int
     screen_height, screen_width = numpy.asarray(Image.open(paths[0]).convert("RGB")).shape[:2]
     visible: Any = min(height, screen_height - arguments.top)
     shown: Any = min(width, screen_width)
@@ -1268,16 +1281,21 @@ def capture_check_ssim(captured: numpy.ndarray, expected: numpy.ndarray) -> floa
         picture = picture.astype(numpy.float64)
         return LUMA_RED_WEIGHT * picture[..., 0] + LUMA_GREEN_WEIGHT * picture[..., 1] + LUMA_BLUE_WEIGHT * picture[..., 2]
 
-    captured_luma, expected_luma = (luma(captured), luma(expected))
-    height, width = (captured_luma.shape[0] // SSIM_BLOCK * SSIM_BLOCK, captured_luma.shape[1] // SSIM_BLOCK * SSIM_BLOCK)
+    captured_luma: numpy.ndarray = luma(captured)
+    expected_luma: numpy.ndarray = luma(expected)
+    height: int = captured_luma.shape[0] // SSIM_BLOCK * SSIM_BLOCK
+    width: int = captured_luma.shape[1] // SSIM_BLOCK * SSIM_BLOCK
     captured_luma = captured_luma[:height, :width].reshape(height // SSIM_BLOCK, SSIM_BLOCK, width // SSIM_BLOCK, SSIM_BLOCK).swapaxes(1, 2)
     expected_luma = expected_luma[:height, :width].reshape(height // SSIM_BLOCK, SSIM_BLOCK, width // SSIM_BLOCK, SSIM_BLOCK).swapaxes(1, 2)
-    captured_mean, expected_mean = (captured_luma.mean(axis=(2, 3)), expected_luma.mean(axis=(2, 3)))
-    captured_variance, expected_variance = (captured_luma.var(axis=(2, 3)), expected_luma.var(axis=(2, 3)))
+    captured_mean: numpy.ndarray = captured_luma.mean(axis=(2, 3))
+    expected_mean: numpy.ndarray = expected_luma.mean(axis=(2, 3))
+    captured_variance: numpy.ndarray = captured_luma.var(axis=(2, 3))
+    expected_variance: numpy.ndarray = expected_luma.var(axis=(2, 3))
     covariance: numpy.ndarray = (
         (captured_luma - captured_mean[..., None, None]) * (expected_luma - expected_mean[..., None, None])
     ).mean(axis=(2, 3))
-    luminance_constant, contrast_constant = ((SSIM_LUMINANCE_FACTOR * MAXIMUM_CHANNEL) ** 2, (SSIM_CONTRAST_FACTOR * MAXIMUM_CHANNEL) ** 2)
+    luminance_constant: float = (SSIM_LUMINANCE_FACTOR * MAXIMUM_CHANNEL) ** 2
+    contrast_constant: float = (SSIM_CONTRAST_FACTOR * MAXIMUM_CHANNEL) ** 2
     return float(
         numpy.mean(
             (2 * captured_mean * expected_mean + luminance_constant)
@@ -1294,11 +1312,9 @@ def capture_check_vmaf(
     ffmpeg: Any, reference_frames: list[Any], captured: list[numpy.ndarray], width: Any, height: Any
 ) -> tuple[float, float]:
     with tempfile.TemporaryDirectory() as folder:
-        reference_picture, distorted_picture, log = (
-            Path(folder, REFERENCE_PICTURES_NAME),
-            Path(folder, DISTORTED_PICTURES_NAME),
-            Path(folder, VMAF_LOG_NAME),
-        )
+        reference_picture: Path = Path(folder, REFERENCE_PICTURES_NAME)
+        distorted_picture: Path = Path(folder, DISTORTED_PICTURES_NAME)
+        log: Path = Path(folder, VMAF_LOG_NAME)
         reference_picture.write_bytes(b"".join(frame.tobytes() for frame in reference_frames))
         distorted_picture.write_bytes(b"".join(frame.tobytes() for frame in captured))
         graph: str = vmaf_filter(log)
@@ -1665,6 +1681,8 @@ def fixtures_conformance(root: Path) -> None:
         result: tuple[bytes, list[bytes]] | None = fixtures_version_3_stream(stream)
         if result is None:
             continue
+        data: bytes
+        kept: list[bytes]
         data, kept = result
         if len(data) > FIXTURES_PREFIX_LIMIT or not parse_frame(kept[0]).keyframe:
             message: str = f"Conformance stream {stream} must start with a keyframe and fit within {FIXTURES_PREFIX_LIMIT} bytes!"
@@ -1835,12 +1853,16 @@ def differential_run(arguments: argparse.Namespace | SimpleNamespace) -> int:
 
     actual: dict[str, list[str]] = {}
     for line in java.stdout.splitlines():
+        path: str
+        tokens: list[str]
         path, *tokens = line.split(WORD_SEPARATOR)
         name = Path(path).stem
         if name in actual:
             message: str = f"Java printed the output of {name} twice!"
             raise ValueError(message)
         actual[name] = tokens
+    counts: dict[str, int]
+    disagreements: list[dict[str, object]]
     counts, disagreements = differential_compare(expected, actual)
     summary: dict[str, Any] = dict(seed=arguments.seed, counts=counts, disagreements=disagreements)
     (output / SUMMARY_NAME).write_text(json.dumps(summary, indent=JSON_INDENT) + LINE_SEPARATOR)
@@ -1896,7 +1918,8 @@ def differential_mutant(original: list[bytes], randomizer: random.Random) -> lis
 
 # only ValueError is a rejection: any other exception must fail the comparison
 def differential_reference_tokens(chunks: list[bytes]) -> list[str]:
-    decoder, tokens = (Decoder(), [])
+    decoder: Decoder = Decoder()
+    tokens: list[str] = []
     for frame in chunks:
         try:
             tokens.append(hashlib.sha256(decoder.accept(frame).tobytes()).hexdigest())
@@ -2087,7 +2110,11 @@ class ShaderStreamCheck:
         self.wrong: int = 0
 
     def check_frame(self, index: int, frame: bytes) -> None:
+        width: int
+        height: int
         width, height = struct.unpack_from(DIMENSIONS_FORMAT, frame, WIDTH_OFFSET)
+        frame_id: int
+        reference_id: int
         frame_id, reference_id = struct.unpack_from(FRAME_IDS_FORMAT, frame, FRAME_ID_OFFSET)
         keyframe: Any = frame_id == reference_id
         if self.chain is None:
@@ -2106,6 +2133,8 @@ class ShaderStreamCheck:
             and (len(pages) <= self.arguments.slots)
         )
         self.chain.show(pages[: self.arguments.slots])
+        chain_decoded: bool
+        picture: numpy.ndarray
         chain_decoded, picture = self.chain.frame()
         if chain_decoded != decodable:
             self.wrong += 1
@@ -2385,6 +2414,8 @@ def shader_check_resolve(source: Any | str, includes: Any, seen: set[str] | None
         if name in includes:
             text: Any = includes[name]
         else:
+            namespace: str
+            path: str
             namespace, path = name.split(RESOURCE_NAMESPACE_SEPARATOR)
             text = (shader_check_pack / ASSETS_NAME / namespace / SHADER_INCLUDE_PATH / path).read_text()
 
@@ -2437,6 +2468,8 @@ def shader_check_check_restart(context: "moderngl.Context", slots: Any, classpat
     for index, (frame_id, reference_id, color, should_decode, expected_color) in enumerate(SHADER_CHECK_RESTART_CASES):
         data: bytes = pack_frame(SUPERBLOCK_SIZE, SUPERBLOCK_SIZE, frame_id, reference_id, {0: Node(SOLID, record=bytes(color))})
         chain.show(make_pages(data, SHADER_CHECK_STREAM_ID, SYMBOL_BITS))
+        chain_decoded: bool
+        picture: numpy.ndarray
         chain_decoded, picture = chain.frame()
         if should_decode:
             held_id = frame_id
@@ -2503,6 +2536,8 @@ def shader_timing_main() -> None:
     )
     failures: int = 0
     for stream in arguments.streams:
+        result: dict[str, Any]
+        stream_failures: int
         result, stream_failures = shader_timing_stream(context, arguments, page_maker, stream)
         report["streams"][Path(stream).name] = result
         failures += stream_failures
@@ -2515,6 +2550,8 @@ def shader_timing_stream(
     context: "moderngl.Context", arguments: argparse.Namespace, page_maker: Any, stream: str
 ) -> tuple[dict[str, Any], int]:
     frames: list[bytes] = list(read_archive(stream))
+    width: int
+    height: int
     width, height = struct.unpack_from(DIMENSIONS_FORMAT, frames[0], WIDTH_OFFSET)
     chain: TimedShaderChain = TimedShaderChain(context, width, height, arguments.slots)
     pages: list[Any] = [page_maker(frame, SHADER_CHECK_STREAM_ID, SYMBOL_BITS) for frame in frames]
@@ -2652,10 +2689,14 @@ class ShaderTimingRounds:
 
     def time_frame(self, round_index: int, index: int, page_list: list[bytes]) -> bytes:
         self.chain.show(page_list)
+        decoded: bool
+        times: dict[str, float]
         decoded, times = self.chain.timed_frame(self.repeats)
         self.names = tuple(times)
         times[TOTAL_TIMING_NAME] = sum(times[name] for name in self.names)
         self.chain.show(page_list)
+        shown_again: bool
+        again: dict[str, float]
         shown_again, again = self.chain.timed_frame(1)
         again[TOTAL_TIMING_NAME] = sum(again[name] for name in self.names)
         picture: Any = self.chain.target(PREVIOUS_TARGET).read()
@@ -2866,7 +2907,8 @@ def strip_check_read_strip_page(symbols: numpy.ndarray) -> mcv2_reference.Page:
         .ravel()
     )
     fields: tuple[Any, ...] = PAGE_HEADER.unpack(numpy.packbits(bits[: PAGE_HEADER.size * BITS_PER_BYTE], bitorder=BIT_ORDER).tobytes())
-    number, total = (fields[PAGE_NUMBER_FIELD], fields[PAGE_TOTAL_FIELD])
+    number: int = fields[PAGE_NUMBER_FIELD]
+    total: int = fields[PAGE_TOTAL_FIELD]
     size: Any = min(page_capacity(), max(total - number * page_capacity(), 0))
     length: Any = ((PAGE_HEADER.size + size) * BITS_PER_BYTE + SYMBOL_BITS - 1) // SYMBOL_BITS
     return read_page(symbols[:length].tobytes())
@@ -2900,6 +2942,9 @@ def strip_fit_check_main() -> int:
     failures: list[str] = []
     for screen in STRIP_FIT_CHECK_UNFIT_SCREENS:
         assert strip_fit_check_strip_rows(screen[0]) >= screen[1], screen
+        scene: numpy.ndarray | Any
+        after: numpy.ndarray
+        decoded: bool
         scene, after, decoded = strip_fit_check_frame(context, screen, arguments.spirv)
         changed: int = int(numpy.count_nonzero(numpy.any(after != scene, axis=2)))
         if changed:
@@ -2910,6 +2955,7 @@ def strip_fit_check_main() -> int:
             failures.append("%dx%d, where the strip does not fit: a frame was decoded" % screen)
     screen = STRIP_FIT_CHECK_FIT_SCREEN
     rows: int = strip_fit_check_strip_rows(screen[0])
+    _: bool
     scene, after, _ = strip_fit_check_frame(context, screen, arguments.spirv)
     below: int = screen[1] - 1 - rows
     if not numpy.array_equal(after[: below + 1], scene[: below + 1]):
@@ -2950,6 +2996,8 @@ def strip_fit_check_frame(
     )
     scene[..., ALPHA_CHANNEL] = MAXIMUM_CHANNEL
     chain.main.write(scene.tobytes())
+    decoded: bool
+    _: numpy.ndarray
     decoded, _ = chain.frame()
     after: numpy.ndarray = numpy.frombuffer(chain.main.read(), numpy.uint8).reshape(screen[1], screen[0], RGBA_CHANNELS)
     return (scene, after, decoded)
@@ -2981,6 +3029,8 @@ def latency_main() -> None:
     by_number: dict[Any, Any] = {}
     for event in numbered:
         by_number.setdefault(event["number"], []).append(event)
+    first_seen: dict[tuple[int, float | int], float]
+    ambiguous: set[tuple[int, float | int]]
     first_seen, ambiguous = latency_first_seen(shots, by_number)
     latencies: list[float | int] = [timestamp - arrival for (number, arrival), timestamp in first_seen.items()]
     arrived: dict[Any, Any] = {event["number"]: event for event in numbered}
@@ -3115,7 +3165,8 @@ def latency_captures(path: Any) -> list[tuple[float, Any]]:
         text=True,
     ).stdout
     metadata: Any = json.loads(probe)
-    width, height = (metadata[FFPROBE_STREAMS_KEY][0]["width"], metadata[FFPROBE_STREAMS_KEY][0]["height"])
+    width: int = metadata[FFPROBE_STREAMS_KEY][0]["width"]
+    height: int = metadata[FFPROBE_STREAMS_KEY][0]["height"]
     times: list[float] = [float(frame["pts_time"]) * MILLISECONDS_PER_SECOND for frame in metadata["frames"]]
     row: Any = min(LATENCY_SAMPLE_OFFSET, height - 1)
     columns: list[int] = [
@@ -3247,9 +3298,13 @@ def charts_draw_codecs(data: Any) -> None:
     from matplotlib.ticker import FixedLocator, FuncFormatter, NullLocator
 
     pyplot: ModuleType = figure_pyplot()
+    figure: Any
+    axes: Any
     figure, axes = pyplot.subplots(len(CHARTS_SOURCES), 1, figsize=CHARTS_CODECS_FIGURE_SIZE, sharex=True)
     for axis, (source, title) in zip(axes, CHARTS_SOURCES):
         for codec, name, colour, marker in CHARTS_CODECS:
+            rates: tuple[float, ...]
+            scores: tuple[float, ...]
             rates, scores = zip(*charts_curve(data, source, codec))
             axis.plot(
                 rates,
@@ -3263,6 +3318,8 @@ def charts_draw_codecs(data: Any) -> None:
                 markeredgewidth=CHARTS_MARKER_EDGE_WIDTH,
                 zorder=CHARTS_FRONT_LAYER if codec == MCV2_CODEC else CHARTS_BACK_LAYER,
             )
+            offset: tuple[int, int]
+            align: str
             offset, align = CHARTS_LABEL_PLACEMENTS.get(codec, CHARTS_DEFAULT_LABEL_PLACEMENT)
             axis.annotate(
                 name,
@@ -3288,6 +3345,8 @@ def charts_draw_codecs(data: Any) -> None:
     for axis in axes:
         axis.set_ylabel("VMAF (mean)", color=CHARTS_SECONDARY)
         axis.xaxis.set_tick_params(labelbottom=True)
+    handles: list[Any]
+    labels: list[str]
     handles, labels = axes[0].get_legend_handles_labels()
     figure.legend(handles, labels, loc="lower center", ncol=len(labels), frameon=False, fontsize=CHARTS_LEGEND_FONT_SIZE)
     figure.tight_layout(rect=(0, CHARTS_LEGEND_HEIGHT, 1, 1))
@@ -3334,6 +3393,8 @@ def charts_draw_features(rows: list[dict[str, Any]]) -> None:
         else None
     )
     height: float = CHARTS_BAR_HEIGHT
+    figure: Any
+    axis: Any
     figure, axis = pyplot.subplots(figsize=(CHARTS_FEATURES_WIDTH, CHARTS_FEATURES_ROW_HEIGHT * len(rows) + CHARTS_FEATURES_BASE_HEIGHT))
     for index, (source, title) in enumerate(CHARTS_SOURCES):
         positions: list[float] = [row_index + (0.5 - index) * (height + CHARTS_BAR_GAP) for row_index in range(len(rows))]
@@ -3385,6 +3446,9 @@ def charts_print_tables(data: Any, rows: list[dict[str, Any]], removed: Any) -> 
         mcv2: list[tuple[float, float]] = charts_curve(data, source, MCV2_CODEC)
         cells = []
         for codec, name, _, _ in CHARTS_CODECS[1:]:
+            percent: float
+            low: numpy.float64
+            high: numpy.float64
             percent, low, high = bd_rate(charts_curve(data, source, codec), mcv2)
             cells.append(f"{name} {percent:+.1f}% (VMAF {low:.1f}-{high:.1f})")
         print(f"- {title}: " + "; ".join(cells))
@@ -3468,15 +3532,25 @@ def samples_draw_tree(arguments: argparse.Namespace) -> None:
     pyplot: ModuleType = figure_pyplot()
     numbers: list[int] = [int(value) for value in arguments.frames.split(LIST_SEPARATOR)]
     frames: dict[int, tuple[mcv2_reference.Frame, numpy.ndarray]] = samples_decoded(arguments.archive, set(numbers))
-    pixel_x, pixel_y, width, height = crop = samples_crop_of(arguments.crop)
+    crop: tuple[int, int, int, int] = samples_crop_of(arguments.crop)
+    pixel_x: int
+    pixel_y: int
+    width: int
+    height: int
+    pixel_x, pixel_y, width, height = crop
     colours: dict[int, str] = {mode: colour for mode, _, colour in SAMPLES_MODES}
+    figure: Any
+    axes: Any
     figure, axes = pyplot.subplots(
         SAMPLES_FRAME_ROWS, len(numbers), figsize=(SAMPLES_COLUMN_WIDTH * len(numbers), SAMPLES_FIGURE_HEIGHT), squeeze=False
     )
     for column, number in enumerate(numbers):
+        frame: mcv2_reference.Frame
+        picture: numpy.ndarray
         frame, picture = frames[number]
         kind: str = "keyframe" if frame.keyframe else "P frame"
-        top, bottom = (axes[0][column], axes[1][column])
+        top: Any = axes[0][column]
+        bottom: Any = axes[1][column]
         top.imshow(picture[pixel_y : pixel_y + height, pixel_x : pixel_x + width], interpolation="nearest")
         bottom.imshow(numpy.full((height, width, CHANNELS), MAXIMUM_CHANNEL, numpy.uint8))
         inside: list[mcv2_reference.Leaf] = [leaf for leaf in frame.leaves if samples_inside(leaf, crop)]
@@ -3526,7 +3600,8 @@ def samples_draw_tree(arguments: argparse.Namespace) -> None:
 
 
 def samples_decoded(path: Any, wanted: set[Any]) -> dict[int, tuple[mcv2_reference.Frame, numpy.ndarray]]:
-    decoder, found = (Decoder(), {})
+    decoder: Decoder = Decoder()
+    found: dict[int, tuple[mcv2_reference.Frame, numpy.ndarray]] = {}
     for index, data in enumerate(read_archive(path)):
         picture: numpy.ndarray = decoder.accept(data)
         if index in wanted:
@@ -3538,11 +3613,19 @@ def samples_decoded(path: Any, wanted: set[Any]) -> dict[int, tuple[mcv2_referen
 
 
 def samples_crop_of(text: Any) -> tuple[int, int, int, int]:
+    pixel_x: int
+    pixel_y: int
+    width: int
+    height: int
     pixel_x, pixel_y, width, height = (int(value) for value in text.split(LIST_SEPARATOR))
     return (pixel_x, pixel_y, width, height)
 
 
 def samples_inside(leaf: mcv2_reference.Leaf, crop: tuple[int, int, int, int]) -> bool:
+    pixel_x: int
+    pixel_y: int
+    width: int
+    height: int
     pixel_x, pixel_y, width, height = crop
     return (
         leaf.pixel_x < pixel_x + width
@@ -3562,7 +3645,11 @@ def samples_finish(axis: Any, title: str) -> None:
 
 def samples_draw_leaves(arguments: argparse.Namespace) -> None:
     pyplot: ModuleType = figure_pyplot()
+    frame: mcv2_reference.Frame
+    picture: numpy.ndarray
     frame, picture = samples_decoded(arguments.archive, {arguments.frame})[arguments.frame]
+    width: int
+    height: int
     width, height = arguments.size
     source: numpy.ndarray = samples_source_frame(arguments.source, arguments.frame, width, height)
     crop: tuple[int, int, int, int] = samples_crop_of(arguments.crop)
@@ -3570,6 +3657,8 @@ def samples_draw_leaves(arguments: argparse.Namespace) -> None:
         samples_biggest(frame, mcv2_reference.PALETTE, crop),
         samples_biggest(frame, mcv2_reference.PATTERN, crop),
     ]
+    figure: Any
+    axes: Any
     figure, axes = pyplot.subplots(len(leaves), SAMPLES_LEAF_PANELS, figsize=SAMPLES_LEAVES_FIGURE_SIZE)
     for row, leaf in zip(axes, leaves):
         name: str = "PALETTE" if leaf.mode == mcv2_reference.PALETTE else "PATTERN"

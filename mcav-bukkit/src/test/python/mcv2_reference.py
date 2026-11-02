@@ -69,7 +69,13 @@ DIRECTORY_GROUPS: int = 8
 WALK_STRIDE: int = 8
 WALK_CURSOR_BITS: int = 17
 
-SKIP, MOTION, SOLID, PALETTE, PATTERN, COMPACT, SPLIT = range(7)
+SKIP: int = 0
+MOTION: int = 1
+SOLID: int = 2
+PALETTE: int = 3
+PATTERN: int = 4
+COMPACT: int = 5
+SPLIT: int = 6
 MODE_MASK: int = 31
 QUANTIZER_SHIFT: int = 5
 MAXIMUM_QUANTIZER: int = 2
@@ -198,15 +204,23 @@ class _FrameIndex:
 
 # exactly the syntax of spec section 9; anything else raises ValueError
 def parse_frame(data: bytes) -> Frame:
+    width: int
+    height: int
+    frame_id: int
+    reference_id: int
     width, height, frame_id, reference_id = _read_header(data)
     keyframe: bool = frame_id == reference_id
     root_count: int = _root_count(width, height)
     frame_index: _FrameIndex = _read_index(data, root_count)
+    offsets: list[int]
+    records: list[bytes]
     offsets, records = _read_records(data, frame_index, keyframe)
 
     columns: int = _divide_rounding_up(width, SUPERBLOCK_SIZE)
     root_indexes: list[int] = [root for root in range(root_count) if _is_present(frame_index.masks, root)]
     absent_roots: list[int] = [root for root in range(root_count) if not _is_present(frame_index.masks, root)]
+    coordinates: list[tuple[int, int, int]]
+    first_children: dict[int, int]
     coordinates, first_children = _place_descriptors(frame_index.descriptors, root_indexes, columns)
     present_leaves: list[Leaf] = _present_leaves(frame_index.descriptors, coordinates, offsets, records)
     absent_leaves: list[Leaf] = [_absent_leaf(root, columns) for root in absent_roots]
@@ -233,6 +247,12 @@ def _read_header(data: bytes) -> tuple[int, int, int, int]:
     _reject_retired_versions(data)
     _require(MINIMUM_FRAME_BYTES <= len(data) <= MAXIMUM_FRAME_BYTES, "The frame length is invalid!")
 
+    magic: bytes
+    version: int
+    width: int
+    height: int
+    frame_id: int
+    reference_id: int
     magic, version, width, height, frame_id, reference_id = HEADER.unpack_from(data)
     _require(magic == MAGIC and version == VERSION, "The data is not an MCV2 version 3 frame!")
     _require(_is_dimension_valid(width) and _is_dimension_valid(height), INVALID_DIMENSIONS_MESSAGE)
@@ -331,6 +351,8 @@ def _read_records(data: bytes, frame_index: _FrameIndex, keyframe: bool) -> tupl
             checkpoint: int = frame_index.walk[position // WALK_STRIDE]
             _require(checkpoint == _walk_checkpoint(cursor, splits), "The frame has a walk checkpoint mismatch!")
         size: int = _block_size(position, frame_index.levels)
+        mode: int
+        quantizer: int
         mode, quantizer = _unpack_descriptor(descriptor)
         _check_descriptor(mode, quantizer, size, keyframe)
         offset: int = frame_index.payload + cursor
@@ -352,6 +374,9 @@ def _walk_checkpoint(cursor: int, splits: int) -> int:
 
 
 def _block_size(position: int, levels: tuple[int, int, int]) -> int:
+    level_zero_count: int
+    level_one_count: int
+    _: int
     level_zero_count, level_one_count, _ = levels
     if position < level_zero_count:
         return SUPERBLOCK_SIZE
@@ -405,6 +430,9 @@ def _record_length(mode: int, size: int) -> int:
 
 
 def _check_split_children(descriptors: bytes, levels: tuple[int, int, int]) -> None:
+    level_zero_count: int
+    level_one_count: int
+    level_two_count: int
     level_zero_count, level_one_count, level_two_count = levels
     level_two_start: int = level_zero_count + level_one_count
     level_zero_splits: int = _count_splits(descriptors[:level_zero_count])
@@ -429,6 +457,8 @@ def _place_descriptors(
     coordinates: list[tuple[int, int, int]] = [_root_coordinates(root, columns) for root in root_indexes]
     first_children: dict[int, int] = {}
     for position, descriptor in enumerate(descriptors):
+        mode: int
+        _: int
         mode, _ = _unpack_descriptor(descriptor)
         if mode == SPLIT:
             first_children[position] = len(coordinates)
@@ -444,6 +474,9 @@ def _root_coordinates(root: int, columns: int) -> tuple[int, int, int]:
 
 
 def _quadrant_coordinates(coordinate: tuple[int, int, int]) -> list[tuple[int, int, int]]:
+    pixel_x: int
+    pixel_y: int
+    size: int
     pixel_x, pixel_y, size = coordinate
     half: int = size // QUADRANTS_PER_SIDE
     return [(pixel_x + delta_x * half, pixel_y + delta_y * half, half) for delta_x, delta_y in QUADRANT_OFFSETS]
@@ -454,8 +487,13 @@ def _present_leaves(
 ) -> list[Leaf]:
     leaves: list[Leaf] = []
     for position, descriptor in enumerate(descriptors):
+        mode: int
+        quantizer: int
         mode, quantizer = _unpack_descriptor(descriptor)
         if mode != SPLIT:
+            pixel_x: int
+            pixel_y: int
+            size: int
             pixel_x, pixel_y, size = coordinates[position]
             leaves.append(Leaf(pixel_x, pixel_y, size, mode, quantizer, offsets[position], records[position], position))
 
@@ -463,6 +501,9 @@ def _present_leaves(
 
 
 def _absent_leaf(root: int, columns: int) -> Leaf:
+    pixel_x: int
+    pixel_y: int
+    size: int
     pixel_x, pixel_y, size = _root_coordinates(root, columns)
     return Leaf(pixel_x, pixel_y, size, SKIP, 0, None, b"", None)
 
@@ -472,6 +513,8 @@ def _build_roots(
 ) -> dict[int, Node]:
     nodes: dict[int, Node] = {}
     for position in reversed(range(len(descriptors))):
+        mode: int
+        quantizer: int
         mode, quantizer = _unpack_descriptor(descriptors[position])
         if mode == SPLIT:
             first_child: int = first_children[position]
@@ -645,6 +688,9 @@ def _skipped_block(frame: Frame, leaf: Leaf, reference: numpy.ndarray | None) ->
 
 
 def _prediction(reference: numpy.ndarray, leaf: Leaf, delta_x: int, delta_y: int) -> numpy.ndarray:
+    height: int
+    width: int
+    _: int
     height, width, _ = reference.shape
     columns: numpy.ndarray = numpy.clip(numpy.arange(leaf.size) + leaf.pixel_x + delta_x, 0, width - 1)
     rows: numpy.ndarray = numpy.clip(numpy.arange(leaf.size) + leaf.pixel_y + delta_y, 0, height - 1)
@@ -677,6 +723,8 @@ def _pattern_block(leaf: Leaf) -> numpy.ndarray:
 
 
 def _motion_block(reference: numpy.ndarray, leaf: Leaf) -> numpy.ndarray:
+    delta_x: int
+    delta_y: int
     delta_x, delta_y = _motion(leaf.record)
     return _prediction(reference, leaf, delta_x, delta_y)
 
@@ -690,6 +738,8 @@ def _signed(value: int, bits: int = BITS_PER_BYTE) -> int:
 
 
 def _compact_block(reference: numpy.ndarray, leaf: Leaf) -> numpy.ndarray:
+    delta_x: int
+    delta_y: int
     delta_x, delta_y = _motion(leaf.record)
     prediction: numpy.ndarray = _prediction(reference, leaf, delta_x, delta_y).astype(numpy.float64)
     residual: numpy.ndarray = _grid(leaf.record[MOTION_BYTES:], leaf.size)[..., None]
@@ -714,6 +764,9 @@ def _grid_nodes(body: bytes) -> numpy.ndarray:
 
 
 def _draw_block(picture: numpy.ndarray, leaf: Leaf, block: numpy.ndarray) -> None:
+    height: int
+    width: int
+    _: int
     height, width, _ = picture.shape
     shown_width: Any = min(leaf.size, width - leaf.pixel_x)
     shown_height: Any = min(leaf.size, height - leaf.pixel_y)
@@ -818,6 +871,17 @@ def read_page(symbols: bytes, symbol_bits: int = SYMBOL_BITS) -> Page:
         raise ValueError(message)
 
     header: bytes = _read_page_header(symbols)
+    magic: bytes
+    version: int
+    width: int
+    flags: int
+    stream: int
+    frame: int
+    number: int
+    count: int
+    reference: int
+    total: int
+    crc: int
     magic, version, width, flags, stream, frame, number, count, reference, total, crc = PAGE_HEADER.unpack(header)
     if magic != PAGE_MAGIC or version != PAGE_VERSION or width != SYMBOL_BITS or flags > MAXIMUM_PAGE_FLAGS:
         message = "The page header is not supported!"

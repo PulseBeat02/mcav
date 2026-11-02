@@ -47,6 +47,9 @@ AMBIGUOUS_REFERENCE_FRAMES_KEY: str = "ambiguous_reference_frames"
 class CaptureCheckTest(unittest.TestCase):
     def test_should_not_count_identical_reference_frames_as_unmatchable_missing_pictures(self) -> None:
         picture: numpy.ndarray = numpy.full(PICTURE_SHAPE, FIRST_GRAY, numpy.uint8)
+        status: str | int | None
+        result: dict[str, float | int | str]
+        text: str
         status, result, text = self.report([picture, picture], [picture, picture])
         self.assertEqual(0, status)
 
@@ -70,6 +73,9 @@ class CaptureCheckTest(unittest.TestCase):
     def test_should_fail_when_a_distinct_picture_is_missing(self) -> None:
         first: numpy.ndarray = numpy.full(PICTURE_SHAPE, FIRST_GRAY, numpy.uint8)
         second: numpy.ndarray = numpy.full(PICTURE_SHAPE, SECOND_GRAY, numpy.uint8)
+        status: str | int | None
+        result: dict[str, float | int | str]
+        _: str
         status, result, _ = self.report([first, first, second], [first, first])
         self.assertEqual(1, status)
 
@@ -80,6 +86,9 @@ class CaptureCheckTest(unittest.TestCase):
         first: numpy.ndarray = numpy.full((2 * SIDE, SIDE, mcv2_reference.CHANNELS), FIRST_GRAY, numpy.uint8)
         second: numpy.ndarray = first.copy()
         second[SIDE:] = SECOND_GRAY
+        status: str | int | None
+        result: dict[str, float | int | str]
+        _: str
         status, result, _ = self.report([first, second], [first[:SIDE], second[:SIDE]])
         self.assertEqual(0, status)
 
@@ -95,6 +104,9 @@ class CaptureCheckTest(unittest.TestCase):
             reference.write_bytes(b"".join(picture.tobytes() for picture in references))
             for index, picture in enumerate(captures):
                 Image.fromarray(picture).save(root / (CAPTURE_NAME % index))
+            height: int
+            width: int
+            _: int
             height, width, _ = references[0].shape
             arguments: list[str] = [PROGRAM, str(reference), str(width), str(height), str(root), "--top", "0"]
             output: StringIO = StringIO()

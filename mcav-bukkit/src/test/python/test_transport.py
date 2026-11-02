@@ -155,14 +155,14 @@ class TransportTest(unittest.TestCase):
                 read_page(symbols)
 
         # 80 bytes are 106 symbols and 4 bits: the last symbol has two padding bits.
-        symbols = bytearray(make_pages(pack_frame(1, 1, 0, 0, {0: Node(mcv2_reference.SOLID, record=bytes(3))}))[0])
-        symbols[-1] |= 32
+        page_symbols: bytearray = bytearray(make_pages(pack_frame(1, 1, 0, 0, {0: Node(mcv2_reference.SOLID, record=bytes(3))}))[0])
+        page_symbols[-1] |= 32
         with self.assertRaisesRegex(ValueError, 'padding'):
-            read_page(bytes(symbols))
+            read_page(bytes(page_symbols))
 
-        symbols[0] |= mcv2_reference.ALPHABET_SIZE
+        page_symbols[0] |= mcv2_reference.ALPHABET_SIZE
         with self.assertRaisesRegex(ValueError, 'alphabet'):
-            read_page(bytes(symbols))
+            read_page(bytes(page_symbols))
 
     def test_should_keep_the_pending_limit_and_reject_wrong_streams_and_conflicts(self) -> None:
         assembler: Assembler = Assembler()
@@ -179,6 +179,8 @@ class TransportTest(unittest.TestCase):
         pending = list(assembler.pending)
         self.assertEqual([1, 2, 3, 4], pending)
 
+        first: bytes
+        last: bytes
         first, last = make_pages(large_frame(4))
         conflicting: bytes = with_crc(changed(page_bytes(first), 40, 1))
         with self.assertRaisesRegex(ValueError, 'duplicate'):

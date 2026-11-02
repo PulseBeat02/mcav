@@ -102,6 +102,8 @@ class TimerAccountingTest(unittest.TestCase):
         drawn: list[Any | str] = []
         chain.draw = lambda program, inputs, output: drawn.append(output)
         chain.target = lambda name: types.SimpleNamespace(read=lambda: b"\x01\x00\x00\x00")
+        decoded: bool
+        times: dict[str, float]
         decoded, times = chain.timed_frame(5)
         self.assertTrue(decoded)
 
