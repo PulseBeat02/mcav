@@ -47,7 +47,7 @@ public class LuminanceFilter extends MatVideoFilter {
     Preconditions.checkArgument(contrast >= 0, "Contrast must not be negative!");
     Preconditions.checkArgument(
       brightness >= -MAXIMUM_BRIGHTNESS && brightness <= MAXIMUM_BRIGHTNESS,
-      "Brightness %s must be between -255 and 255!",
+      "Brightness %s must be between -255 and 255 inclusive!",
       brightness
     );
     this.contrast = contrast;

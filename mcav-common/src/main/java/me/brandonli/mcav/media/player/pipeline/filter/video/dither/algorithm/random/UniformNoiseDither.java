@@ -86,7 +86,7 @@ public final class UniformNoiseDither extends AbstractDitherAlgorithm implements
   }
 
   private static void checkWeight(final int weight) {
-    Preconditions.checkArgument(weight >= 0 && weight <= MAXIMUM_WEIGHT, "Weight must be between 0 and 255!");
+    Preconditions.checkArgument(weight >= 0 && weight <= MAXIMUM_WEIGHT, "Weight must be between 0 and 255 inclusive!");
   }
 
   @VisibleForTesting

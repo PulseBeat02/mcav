@@ -49,8 +49,8 @@ public class ThresholdFilter extends MatVideoFilter {
    * @since 1.0.0
    */
   public ThresholdFilter(final double threshold, final double maximumValue, final int type) {
-    Preconditions.checkArgument(threshold >= 0 && threshold <= CHANNEL_MAXIMUM, "Threshold must be between 0 and 255!");
-    Preconditions.checkArgument(maximumValue >= 0 && maximumValue <= CHANNEL_MAXIMUM, "Max value must be between 0 and 255!");
+    Preconditions.checkArgument(threshold >= 0 && threshold <= CHANNEL_MAXIMUM, "Threshold must be between 0 and 255 inclusive!");
+    Preconditions.checkArgument(maximumValue >= 0 && maximumValue <= CHANNEL_MAXIMUM, "Max value must be between 0 and 255 inclusive!");
 
     this.threshold = threshold;
     this.maximumValue = maximumValue;

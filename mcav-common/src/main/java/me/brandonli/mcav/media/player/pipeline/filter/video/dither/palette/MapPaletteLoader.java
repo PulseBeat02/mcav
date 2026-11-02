@@ -110,7 +110,7 @@ public final class MapPaletteLoader {
 
   private static int checkComponent(final int component, final int index) {
     if (component < 0 || component > COMPONENT_MAXIMUM) {
-      final String message = "Component %s of map color %s must be between 0 and 255!".formatted(component, index);
+      final String message = "Component %s of map color %s must be between 0 and 255 inclusive!".formatted(component, index);
       throw new PaletteLoadingException(message);
     }
 
