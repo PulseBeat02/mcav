@@ -102,14 +102,18 @@ class FakeAudioContext {
             buffer: null,
             connect: doNothing,
             disconnect: doNothing,
-            start: when => {
-                this.started.push({source, when, duration: source.buffer.duration});
-            },
-            stop: () => {
-                this.stopped.push(source);
-            },
+            start: when => this.recordStart(source, when),
+            stop: () => this.recordStop(source),
         };
         return source;
+    }
+
+    recordStart(source, when) {
+        this.started.push({source, when, duration: source.buffer.duration});
+    }
+
+    recordStop(source) {
+        this.stopped.push(source);
     }
 
     queuedAhead() {

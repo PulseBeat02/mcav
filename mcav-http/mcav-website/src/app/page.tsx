@@ -657,15 +657,17 @@ const AudioStreamPlayer = (): React.JSX.Element => {
     const [failedThumbnail, setFailedThumbnail] = useState<string | undefined>(undefined);
     const mediaInformationRequestRef: React.RefObject<Promise<MediaInformation> | undefined> = useRef(undefined);
 
+    const forgetMediaInformationRequest = useCallback((): void => {
+        mediaInformationRequestRef.current = undefined;
+    }, []);
+
     const requestMediaInformation = useCallback((): Promise<MediaInformation> => {
         if (!mediaInformationRequestRef.current) {
-            mediaInformationRequestRef.current = loadMediaInformation().finally(() => {
-                mediaInformationRequestRef.current = undefined;
-            });
+            mediaInformationRequestRef.current = loadMediaInformation().finally(forgetMediaInformationRequest);
         }
 
         return mediaInformationRequestRef.current;
-    }, []);
+    }, [forgetMediaInformationRequest]);
 
     const showMediaInformation = useCallback((information: MediaInformation): void => {
         setMediaInformation((previous: MediaInformation) => isSameMediaInformation(previous, information) ? previous : information);
