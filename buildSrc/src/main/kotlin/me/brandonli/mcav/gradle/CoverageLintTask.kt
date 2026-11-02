@@ -99,7 +99,7 @@ abstract class CoverageLintTask : DefaultTask() {
         val staleExceptions: List<CoverageException> = exceptions.filterNot { it.used }
         for (staleException in staleExceptions) {
             this.logger.error(
-                "{}: warning: '{} | {}' matches no uncovered line, so remove it.",
+                "{}: error: '{} | {}' matches no uncovered line, so remove it.",
                 exceptionFile,
                 staleException.path,
                 staleException.sourceLine

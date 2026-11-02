@@ -71,7 +71,7 @@ class CoverageLintTaskTest {
         val sources: File = task.sourceDirectory.get().asFile
         val source: File = sources.resolve(PACKAGE_SOURCE_PATH)
         val messages: List<String> = task.recorder.messages
-        assertEquals(listOf("error: $source:1: warning: line is not covered by any test."), messages)
+        assertEquals(listOf("error: $source:1: error: line is not covered by any test."), messages)
     }
 
     @Test
@@ -85,7 +85,7 @@ class CoverageLintTaskTest {
 
         val exceptions: File = task.exceptionsFile.singleFile
         val messages: List<String> = task.recorder.messages
-        val expected: String = "error: $exceptions: warning: 'sample/Example.java | serverOnly();' matches no uncovered line, so remove it."
+        val expected: String = "error: $exceptions: error: 'sample/Example.java | serverOnly();' matches no uncovered line, so remove it."
         assertEquals(listOf(expected), messages)
     }
 
