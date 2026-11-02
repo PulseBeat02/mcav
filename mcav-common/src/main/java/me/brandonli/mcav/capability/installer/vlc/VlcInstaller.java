@@ -153,9 +153,17 @@ public final class VlcInstaller extends AbstractInstaller {
     }
   }
 
-  // Looks for the libraries of an earlier installation inside the installation directory. A directory without the
-  // libraries, such as one left behind by an interrupted installation, does not count. The first call also deletes the
-  // installations that earlier versions of the library left behind.
+  /**
+   * Looks for the libraries of an earlier installation inside the installation directory. A directory without the
+   * libraries, such as one left behind by an interrupted installation, does not count.
+   *
+   * <p>The first call also deletes the installations that earlier versions of the library left behind. On an operating
+   * system that VLC cannot be installed on automatically, nothing is found.
+   *
+   * @return the directory that contains the VLC libraries, or empty if VLC has to be downloaded
+   * @throws InstallationException if the installation directory cannot be searched
+   * @since 1.0.0
+   */
   @Override
   protected Optional<Path> findExistingInstallation() {
     final Os operatingSystem = OsUtils.getOs();
@@ -217,6 +225,19 @@ public final class VlcInstaller extends AbstractInstaller {
     };
   }
 
+  /**
+   * Extracts the downloaded archive into the installation directory with the strategy of the current operating
+   * system, and deletes the archive.
+   *
+   * @param downloaded the downloaded VLC archive
+   * @return the directory that contains the VLC libraries
+   * @throws InstallationException               if extraction or installation verification fails
+   * @throws FileOperationException              if an earlier installation, the archive or a temporary file cannot be
+   *                                             moved or deleted
+   * @throws UnsupportedOperatingSystemException if VLC cannot be installed automatically on the current operating
+   *                                             system
+   * @since 1.0.0
+   */
   @Override
   protected Path install(final Path downloaded) {
     final Os operatingSystem = OsUtils.getOs();
@@ -248,8 +269,13 @@ public final class VlcInstaller extends AbstractInstaller {
     return true;
   }
 
-  // Returns the directory VLC is extracted into. The libraries themselves live somewhere inside it, depending on the
-  // operating system; download(FileMode) returns their exact location.
+  /**
+   * Returns the directory VLC is extracted into. The libraries themselves live somewhere inside it, depending on the
+   * operating system; {@link #download(FileMode)} returns their exact location.
+   *
+   * @return the installation directory
+   * @since 1.0.0
+   */
   @Override
   protected Path getDefaultPath() {
     return this.getInstallDirectory();

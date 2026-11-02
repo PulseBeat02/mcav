@@ -129,8 +129,13 @@ public final class YtdlpInstaller extends AbstractInstaller {
     return lowerCaseFileName.endsWith(ZIP_SUFFIX);
   }
 
-  // Returns the path of the yt-dlp executable. A standalone executable lies in the installation folder; the executable
-  // of a zip lies in the yt-dlp-unpacked folder, named like the zip without .zip.
+  /**
+   * Returns the path of the yt-dlp executable. A standalone executable lies in the installation folder; the executable
+   * of a zip lies in the {@code yt-dlp-unpacked} folder, named like the zip without {@code .zip}.
+   *
+   * @return the executable path
+   * @since 1.0.0
+   */
   @Override
   protected Path getDefaultPath() {
     final boolean isArchive = this.isArchive();
@@ -143,11 +148,21 @@ public final class YtdlpInstaller extends AbstractInstaller {
     return unpackedFolder.resolve(executableName);
   }
 
-  // Installs the download. A standalone executable is used as downloaded. A zip is unpacked into a temporary folder
-  // first, which then replaces the yt-dlp-unpacked folder, so a failed installation never leaves a half-unpacked yt-dlp
-  // behind; the zip is deleted once it has been unpacked. Replacing the unpacked folder is not atomic: the previous
-  // installation is deleted before the new one is moved into place, so a crash in between leaves no installation at
-  // all. The next start simply downloads yt-dlp again.
+  /**
+   * Installs the download. A standalone executable is used as downloaded. A zip is unpacked into a temporary folder
+   * first, which then replaces the {@code yt-dlp-unpacked} folder, so a failed installation never leaves a
+   * half-unpacked yt-dlp behind; the zip is deleted once it has been unpacked.
+   *
+   * <p>Replacing the unpacked folder is not atomic: the previous installation is deleted before the new one is moved
+   * into place, so a crash in between leaves no installation at all. The next start simply downloads yt-dlp again.
+   *
+   * @param downloaded the downloaded executable or zip
+   * @return the path of the yt-dlp executable
+   * @throws InstallationException  if the zip cannot be extracted, lacks the executable at its top level, or the
+   *                                permissions of the executable cannot be changed
+   * @throws FileOperationException if a folder cannot be deleted or moved, or the zip cannot be deleted
+   * @since 1.0.0
+   */
   @Override
   protected Path install(final Path downloaded) {
     final boolean isArchive = this.isArchive();
@@ -220,9 +235,15 @@ public final class YtdlpInstaller extends AbstractInstaller {
     return nameless ? NAME : executableName;
   }
 
-  // Returns fallback download candidates when no exact build is listed. 64-bit ARM Windows and macOS consider their
-  // corresponding 64-bit x86 build; this method does not verify that host emulation is installed. Other platforms
-  // receive no fallback candidates.
+  /**
+   * Returns fallback download candidates when no exact build is listed. 64-bit ARM Windows and macOS consider their
+   * corresponding 64-bit x86 build; this method does not verify that host emulation is installed. Other platforms
+   * receive no fallback candidates.
+   *
+   * @param platform the platform to find fallbacks for
+   * @return the compatible platforms, which may be empty
+   * @since 1.0.0
+   */
   @Override
   protected List<Platform> getFallbackPlatforms(final Platform platform) {
     final Os operatingSystem = platform.getOs();
