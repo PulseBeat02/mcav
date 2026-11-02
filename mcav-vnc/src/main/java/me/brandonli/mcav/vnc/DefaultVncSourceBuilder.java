@@ -49,7 +49,7 @@ final class DefaultVncSourceBuilder implements VncSourceBuilder {
 
   @Override
   public VncSourceBuilder port(final int port) {
-    Preconditions.checkArgument(port >= MINIMUM_PORT && port <= MAXIMUM_PORT, "Port %s must be between 1 and 65535!", port);
+    Preconditions.checkArgument(port >= MINIMUM_PORT && port <= MAXIMUM_PORT, "Port %s must be between 1 and 65535 inclusive!", port);
 
     this.port = port;
     return this;
