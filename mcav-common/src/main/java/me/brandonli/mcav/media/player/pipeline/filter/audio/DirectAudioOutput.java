@@ -161,8 +161,8 @@ public class DirectAudioOutput implements FunctionalAudioFilter {
   private void closeAfterFailedStart(final SourceDataLine opened, final Throwable failure) {
     try {
       opened.close();
-    } catch (final RuntimeException | Error cleanupException) {
-      suppressCleanupFailure(failure, cleanupException);
+    } catch (final RuntimeException | Error exception) {
+      suppressCleanupFailure(failure, exception);
     }
   }
 

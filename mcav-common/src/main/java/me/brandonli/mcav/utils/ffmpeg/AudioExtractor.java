@@ -100,9 +100,9 @@ public final class AudioExtractor {
   private static void deletePartialOutput(final Path outputFile, final Exception failure) {
     try {
       Files.deleteIfExists(outputFile);
-    } catch (final IOException | RuntimeException cleanupException) {
-      if (!FAILURE_IDENTITY.equivalent(failure, cleanupException)) {
-        failure.addSuppressed(cleanupException);
+    } catch (final IOException | RuntimeException exception) {
+      if (!FAILURE_IDENTITY.equivalent(failure, exception)) {
+        failure.addSuppressed(exception);
       }
     }
   }
