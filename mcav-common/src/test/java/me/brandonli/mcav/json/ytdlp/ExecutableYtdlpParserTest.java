@@ -126,7 +126,7 @@ final class ExecutableYtdlpParserTest {
   @Test
   void shouldParseTheFirstDocumentWithTheExpectedCommandLine() throws IOException {
     final String fixture = fixture();
-    final String output = fixture + "\n{\"id\": \"second\", \"title\": \"Second Video\"}\n";
+    final String output = "%s\n{\"id\": \"second\", \"title\": \"Second Video\"}\n".formatted(fixture);
     final CommandTask task = task(0, output, "");
     final AtomicReference<String[]> command = new AtomicReference<>();
     final ExecutableYtdlpParser parser = parser(task, command);
@@ -473,7 +473,7 @@ final class ExecutableYtdlpParserTest {
       installers.when(YtdlpInstaller::shared).thenReturn(installer);
       final YtdlpParseException exception = assertThrows(YtdlpParseException.class, () -> parser.parse(source));
       final String message = exception.getMessage();
-      final boolean namesTheUrl = message.endsWith("\" while URL " + URL + " was being resolved!");
+      final boolean namesTheUrl = message.endsWith("\" while URL %s was being resolved!".formatted(URL));
       final boolean namesTheOption = message.contains(DUMP_JSON_OPTION);
       assertTrue(namesTheUrl, message);
       assertTrue(namesTheOption, message);

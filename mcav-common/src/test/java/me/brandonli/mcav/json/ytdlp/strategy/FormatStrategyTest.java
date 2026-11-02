@@ -66,7 +66,7 @@ final class FormatStrategyTest {
 
   private static UrlParseDump formats(final String... formats) {
     final String joined = String.join(", ", formats);
-    return dump("{\"formats\": [" + joined + "]}");
+    return dump("{\"formats\": [%s]}".formatted(joined));
   }
 
   private static Format format(final String json) {

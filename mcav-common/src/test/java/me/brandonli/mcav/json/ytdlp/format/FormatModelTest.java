@@ -97,9 +97,6 @@ final class FormatModelTest {
   private static final double BASE_FRACTION = 1.5;
   private static final double CHANGED_FRACTION = 2.5;
 
-  private static final String GETTER_PREFIX = "get";
-  private static final String BOOLEAN_GETTER_PREFIX = "is";
-
   private static final String TITLE = "Clip";
   private static final String DESCRIPTION = "Video from a file";
 
@@ -736,8 +733,11 @@ final class FormatModelTest {
 
   private static Method findGetter(final Class<?> clazz, final String fieldName) throws NoSuchMethodException {
     final char first = Character.toUpperCase(fieldName.charAt(0));
-    final String capitalized = first + fieldName.substring(1);
-    final Set<String> names = Set.of(GETTER_PREFIX + capitalized, BOOLEAN_GETTER_PREFIX + capitalized, fieldName);
+    final String rest = fieldName.substring(1);
+    final String capitalized = "%s%s".formatted(first, rest);
+    final String getterName = "get%s".formatted(capitalized);
+    final String booleanGetterName = "is%s".formatted(capitalized);
+    final Set<String> names = Set.of(getterName, booleanGetterName, fieldName);
     for (final Method method : clazz.getMethods()) {
       if (names.contains(method.getName()) && method.getParameterCount() == 0) {
         return method;
@@ -781,7 +781,7 @@ final class FormatModelTest {
     assertNotEquals(modelHash, changedHash);
 
     final String text = model.toString();
-    final boolean named = text.contains(fieldName + "=");
+    final boolean named = text.contains("%s=".formatted(fieldName));
     assertTrue(named);
   }
 
