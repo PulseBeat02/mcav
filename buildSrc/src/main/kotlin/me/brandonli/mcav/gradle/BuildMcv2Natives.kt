@@ -344,7 +344,10 @@ abstract class BuildMcv2Natives : DefaultTask() {
             this.runZig(arguments)
 
             val siblings: List<File> = this.listDirectory(library.parentFile)
-            siblings.filter { it.extension == IMPORT_LIBRARY_EXTENSION }.forEach { it.delete() }
+            val importLibraries: List<File> = siblings.filter { it.extension == IMPORT_LIBRARY_EXTENSION }
+            for (importLibrary in importLibraries) {
+                importLibrary.delete()
+            }
         }
 
         private fun listDirectory(directory: File): List<File> {
@@ -356,7 +359,10 @@ abstract class BuildMcv2Natives : DefaultTask() {
             val pool: ExecutorService = this.newPool(minOf(processCount, steps.size))
             try {
                 val tasks: List<Callable<Any?>> = steps.map { step -> Executors.callable(step) }
-                pool.invokeAll(tasks).forEach(this::awaitStep)
+                val results: List<Future<Any?>> = pool.invokeAll(tasks)
+                for (result in results) {
+                    this.awaitStep(result)
+                }
             } finally {
                 pool.shutdown()
             }

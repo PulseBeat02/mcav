@@ -97,10 +97,14 @@ abstract class CoverageLintTask : DefaultTask() {
         val reportFile: File = this.report.singleFile
         val sources: File = this.sourceDirectory.get().asFile
         val gaps: List<String> = CoverageReport.findGaps(reportFile, sources, exceptions)
-        gaps.forEach { gap -> this.logger.error(GAP, gap) }
+        for (gap in gaps) {
+            this.logger.error(GAP, gap)
+        }
 
         val staleExceptions: List<CoverageException> = exceptions.filterNot { it.used }
-        staleExceptions.forEach { exception -> this.logger.error(STALE_EXCEPTION, exceptionFile, exception.path, exception.sourceLine) }
+        for (staleException in staleExceptions) {
+            this.logger.error(STALE_EXCEPTION, exceptionFile, staleException.path, staleException.sourceLine)
+        }
 
         if (gaps.isNotEmpty() || staleExceptions.isNotEmpty()) {
             val message: String =
