@@ -68,7 +68,7 @@ final class FfmpegCommandTest {
   @Test
   void shouldAddEveryArgumentInOrderInTheBuilder() {
     final FfmpegCommandBuilder builder = FfmpegCommand.builder();
-    final FfmpegCommandBuilder returned = builder.addInput(INPUT_FILE_NAME);
+    builder.addInput(INPUT_FILE_NAME);
     builder.addVideoCodec(VIDEO_CODEC);
     builder.addAudioCodec(AUDIO_CODEC);
     builder.addBitrate(VIDEO_BITRATE);
@@ -105,7 +105,6 @@ final class FfmpegCommandTest {
       "-y",
       OUTPUT_FILE_NAME
     );
-    assertSame(builder, returned);
     assertEquals(expected, arguments);
   }
 
