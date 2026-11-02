@@ -26,6 +26,7 @@ final class Mcv2Maps {
 
   private static final int FIRST_SYMBOL_COLOR = 4;
 
+  static final int SYMBOL_BITS = 6;
   private static final int SYMBOLS = 64;
 
   // "MCP1", version 1 and six bits, in six-bit symbols

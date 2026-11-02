@@ -32,8 +32,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 // found by name, once, and read through JOML's Externalizable form, sixteen floats column by column
 final class GameMatrices {
 
-  // a 4x4 matrix
-  private static final int FLOATS = 16;
+  static final int FLOATS_PER_MATRIX = 16;
 
   private static final String POSE_METHOD = "pose";
 
@@ -110,7 +109,7 @@ final class GameMatrices {
 
     private static final String NOT_FLOATS = "A 4x4 float matrix must write 16 floats and nothing else!";
 
-    private final float[] values = new float[FLOATS];
+    private final float[] values = new float[FLOATS_PER_MATRIX];
 
     private int written;
 
@@ -120,14 +119,14 @@ final class GameMatrices {
 
     @Override
     public void writeFloat(final float value) throws IOException {
-      if (this.written == FLOATS) {
+      if (this.written == FLOATS_PER_MATRIX) {
         throw new IOException(NOT_FLOATS);
       }
       this.values[this.written++] = value;
     }
 
     private float[] values() throws IOException {
-      if (this.written != FLOATS) {
+      if (this.written != FLOATS_PER_MATRIX) {
         throw new IOException(NOT_FLOATS);
       }
       return this.values;

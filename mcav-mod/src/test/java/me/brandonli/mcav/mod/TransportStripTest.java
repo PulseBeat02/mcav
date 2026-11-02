@@ -76,6 +76,22 @@ final class TransportStripTest {
 
   private static final int DESCRIPTOR_FLOATS = 28;
 
+  private static final int RIGHT_OFFSET = 4;
+  private static final int DOWN_OFFSET = 8;
+  private static final int PROJECTION_OFFSET = 12;
+
+  private static final int W_COMPONENT = 3;
+
+  private static final int FLOATS_PER_MATRIX = 16;
+
+  private static final int ANCHOR_INDEX_STRIDE = 64;
+
+  private static final int AXES = 3;
+
+  private static final int SECOND_COLUMN = 4;
+  private static final int THIRD_COLUMN = 8;
+  private static final int FOURTH_COLUMN = 12;
+
   @Test
   void shouldFillTheSlotOfAPageWithFourSymbolsAPixel() {
     final int[] symbols = MapFixtures.pageSymbols(9, 1);
@@ -153,15 +169,15 @@ final class TransportStripTest {
         final float[] right = this.times(rotation, rights[facing][0], rights[facing][1], rights[facing][2], 0);
         final float[] down = this.times(rotation, 0, -1, 0, 0);
         final float[] expected = new float[DESCRIPTOR_FLOATS];
-        for (int axis = 0; axis < 3; axis++) {
+        for (int axis = 0; axis < AXES; axis++) {
           expected[axis] = corner[axis] - right[axis] - 2 * down[axis];
-          expected[4 + axis] = right[axis];
-          expected[8 + axis] = down[axis];
+          expected[RIGHT_OFFSET + axis] = right[axis];
+          expected[DOWN_OFFSET + axis] = down[axis];
         }
-        expected[3] = 4;
-        expected[7] = 3;
-        expected[11] = 64 + 2;
-        System.arraycopy(PROJECTION, 0, expected, 12, 16);
+        expected[W_COMPONENT] = 4;
+        expected[RIGHT_OFFSET + W_COMPONENT] = 3;
+        expected[DOWN_OFFSET + W_COMPONENT] = ANCHOR_INDEX_STRIDE + 2;
+        System.arraycopy(PROJECTION, 0, expected, PROJECTION_OFFSET, FLOATS_PER_MATRIX);
         final float[] descriptor = this.descriptor(strip, DESCRIPTORS);
         assertArrayEquals(expected, descriptor, "facing " + facing);
         this.assertPixel(strip, DESCRIPTORS, 0x4D, 0x43, 0x56, OPAQUE);
@@ -185,7 +201,7 @@ final class TransportStripTest {
     final StripAnchor other = StripAnchor.of(0, 0, 2, 2, 0, 8, 4, 5, 6);
     final byte[] strip = TransportStrip.build(LAYOUT, WIDTH, List.of(), List.of(other, first, second), IDENTITY, PROJECTION);
     final float[] floats = this.descriptor(strip, DESCRIPTORS + WIDTH);
-    final float[] corner = Arrays.copyOf(floats, 3);
+    final float[] corner = Arrays.copyOf(floats, AXES);
     final byte[] firstScreenRow = Arrays.copyOfRange(strip, DESCRIPTORS * CHANNELS, (DESCRIPTORS + WIDTH) * CHANNELS);
     assertArrayEquals(new float[] { 1, 2, 3 }, corner);
     assertArrayEquals(new byte[WIDTH * CHANNELS], firstScreenRow, "screen 0 has none");
@@ -204,9 +220,13 @@ final class TransportStripTest {
   }
 
   private float[] times(final float[] matrix, final float vectorX, final float vectorY, final float vectorZ, final float vectorW) {
-    final float[] transformed = new float[3];
-    for (int row = 0; row < 3; row++) {
-      transformed[row] = matrix[row] * vectorX + matrix[4 + row] * vectorY + matrix[8 + row] * vectorZ + matrix[12 + row] * vectorW;
+    final float[] transformed = new float[AXES];
+    for (int row = 0; row < AXES; row++) {
+      transformed[row] =
+        matrix[row] * vectorX +
+        matrix[SECOND_COLUMN + row] * vectorY +
+        matrix[THIRD_COLUMN + row] * vectorZ +
+        matrix[FOURTH_COLUMN + row] * vectorW;
     }
     return transformed;
   }

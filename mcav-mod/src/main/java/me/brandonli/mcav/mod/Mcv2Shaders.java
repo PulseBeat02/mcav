@@ -52,8 +52,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public final class Mcv2Shaders {
 
+  static final String NAMESPACE = "mcav";
+
   // the server generates it into the MCV2 pack
-  static final Identifier LAYOUT = Identifier.fromNamespaceAndPath("mcav", "shaders/include/mcv2_config.glsl");
+  static final Identifier LAYOUT = Identifier.fromNamespaceAndPath(NAMESPACE, "shaders/include/mcv2_config.glsl");
 
   // the MCV2 pack replaces this vanilla chain with its decoder
   static final Identifier OUTLINE_CHAIN = Identifier.withDefaultNamespace("entity_outline");

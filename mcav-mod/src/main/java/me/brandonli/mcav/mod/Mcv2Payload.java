@@ -24,7 +24,9 @@ import net.minecraft.resources.Identifier;
 
 final class Mcv2Payload implements CustomPacketPayload {
 
-  static final CustomPacketPayload.Type<Mcv2Payload> TYPE = new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath("mcav", "mcv2"));
+  private static final Identifier CHANNEL = Identifier.fromNamespaceAndPath(Mcv2Shaders.NAMESPACE, "mcv2");
+
+  static final CustomPacketPayload.Type<Mcv2Payload> TYPE = new CustomPacketPayload.Type<>(CHANNEL);
 
   // the bytes as they are, which is how a Bukkit server hands them to the plugin
   static final StreamCodec<ByteBuf, Mcv2Payload> CODEC = StreamCodec.of(Mcv2Payload::write, Mcv2Payload::read);

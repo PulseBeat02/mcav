@@ -38,6 +38,10 @@ final class ShaderDecoder {
   private static final float MAP_CORNER_Y = 0F;
   private static final float MAP_DEPTH = -0.01F;
 
+  private static final int X_AXIS = 0;
+  private static final int Y_AXIS = 1;
+  private static final int Z_AXIS = 2;
+
   // one bit per hook; the decoder works only once the game has called every one
   private static final int EXTRACTED = 1;
   private static final int POSED = 2;
@@ -131,7 +135,7 @@ final class ShaderDecoder {
       MAP_DEPTH,
       TransportStrip.POINT_W
     );
-    this.frame.posed(texture, corner[0], corner[1], corner[2]);
+    this.frame.posed(texture, corner[X_AXIS], corner[Y_AXIS], corner[Z_AXIS]);
   }
 
   // the next projection is the level's

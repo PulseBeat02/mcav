@@ -63,6 +63,8 @@ final class Mcv2ShadersTest {
 
   private static final Identifier TEXTURE = Identifier.withDefaultNamespace("map/1");
 
+  private static final String LAYOUT_PATH = "shaders/include/mcv2_config.glsl";
+
   @BeforeAll
   static void bootstrap() {
     SharedConstants.tryDetectVersion();
@@ -216,7 +218,7 @@ final class Mcv2ShadersTest {
     }
     final Identifier layoutLocation = Mcv2Shaders.LAYOUT;
     final Identifier outlineChainLocation = Mcv2Shaders.OUTLINE_CHAIN;
-    assertEquals(Identifier.fromNamespaceAndPath("mcav", "shaders/include/mcv2_config.glsl"), layoutLocation);
+    assertEquals(Identifier.fromNamespaceAndPath("mcav", LAYOUT_PATH), layoutLocation);
     assertEquals(Identifier.withDefaultNamespace("entity_outline"), outlineChainLocation);
   }
 

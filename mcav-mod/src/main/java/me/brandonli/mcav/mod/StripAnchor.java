@@ -33,8 +33,6 @@ final class StripAnchor {
   private static final int STREAM_LOW = 13;
   private static final int STREAM_HIGH = 14;
 
-  private static final int SYMBOL_BITS = 6;
-
   private final int column;
   private final int row;
   private final int columns;
@@ -83,7 +81,7 @@ final class StripAnchor {
 
   // colors of a map Mcv2Maps.isAnchor accepted
   static StripAnchor from(final byte[] colors, final float cornerX, final float cornerY, final float cornerZ) {
-    final long stream = Mcv2Maps.symbol(colors, STREAM_LOW) | ((long) Mcv2Maps.symbol(colors, STREAM_HIGH) << SYMBOL_BITS);
+    final long stream = Mcv2Maps.symbol(colors, STREAM_LOW) | ((long) Mcv2Maps.symbol(colors, STREAM_HIGH) << Mcv2Maps.SYMBOL_BITS);
     return new StripAnchor(
       Mcv2Maps.symbol(colors, COLUMN),
       Mcv2Maps.symbol(colors, ROW),

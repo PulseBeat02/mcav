@@ -28,6 +28,8 @@ final class Mcv2MapsTest {
 
   private static final int CHECKSUM = 15;
 
+  private static final int HIGHEST_SYMBOL = 63;
+
   @Test
   void shouldUseTheColorsFourToSixtySevenAndNothingElseAsSymbols() {
     final byte[] colors = { 4, 67, 3, 68, (byte) 200, 0, 5 };
@@ -39,7 +41,7 @@ final class Mcv2MapsTest {
     final int sixthSymbol = Mcv2Maps.symbol(colors, 5);
     final int seventhSymbol = Mcv2Maps.symbol(colors, 6);
     assertEquals(0, firstSymbol);
-    assertEquals(63, secondSymbol);
+    assertEquals(HIGHEST_SYMBOL, secondSymbol);
     assertEquals(Mcv2Maps.NOT_A_SYMBOL, thirdSymbol);
     assertEquals(Mcv2Maps.NOT_A_SYMBOL, fourthSymbol);
     assertEquals(Mcv2Maps.NOT_A_SYMBOL, fifthSymbol, "colors are unsigned");
@@ -82,7 +84,7 @@ final class Mcv2MapsTest {
       assertFalse(changedReadAsAnchor, "symbol " + index + " of the signature");
     }
     final byte[] checksum = anchor.clone();
-    checksum[CHECKSUM] = (byte) (((checksum[CHECKSUM] - 4 + 1) & 63) + 4);
+    checksum[CHECKSUM] = (byte) (((checksum[CHECKSUM] - 4 + 1) & HIGHEST_SYMBOL) + 4);
     final boolean wrongChecksumReadAsAnchor = Mcv2Maps.isAnchor(checksum);
     assertFalse(wrongChecksumReadAsAnchor);
     final byte[] outside = anchor.clone();
@@ -93,7 +95,7 @@ final class Mcv2MapsTest {
 
   @Test
   void shouldSumTheSevenFieldsInSixBitsForTheChecksum() {
-    final int[] symbols = MapFixtures.anchorSymbols(63, 63, 63, 63, 3, 4095);
+    final int[] symbols = MapFixtures.anchorSymbols(HIGHEST_SYMBOL, HIGHEST_SYMBOL, HIGHEST_SYMBOL, HIGHEST_SYMBOL, 3, 4095);
     final int checksum = symbols[CHECKSUM];
     final boolean readAsAnchor = Mcv2Maps.isAnchor(MapFixtures.colors(symbols));
     assertEquals(61, checksum);

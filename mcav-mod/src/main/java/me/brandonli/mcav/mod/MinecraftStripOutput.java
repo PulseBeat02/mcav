@@ -38,10 +38,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 final class MinecraftStripOutput implements StripOutput {
 
   private static final String EMPTY_OUTLINE = "MCV2 empty outline";
-
   private static final String TRANSPARENT = "MCV2 transparent";
 
-  private static final String NO_COLOR = "Render target must have a color texture!";
+  private static final @Nullable GpuFormat NO_DEPTH_FORMAT = null;
 
   private static final int BASE_MIP_LEVEL = 0;
 
@@ -149,17 +148,17 @@ final class MinecraftStripOutput implements StripOutput {
   }
 
   private OutlineTargets createOutlineTargets(final RenderTarget target, final CommandEncoder commands) {
-    final TextureTarget transparent = new TextureTarget(TRANSPARENT, target.width, target.height, GpuFormat.RGBA8_UNORM, null);
+    final TextureTarget transparent = new TextureTarget(TRANSPARENT, target.width, target.height, GpuFormat.RGBA8_UNORM, NO_DEPTH_FORMAT);
     // a new texture's pixels are undefined; a new direct buffer's bytes are zero
     final ByteBuffer zeros = ByteBuffer.allocateDirect(target.width * target.height * TransportStrip.CHANNELS);
     commands.writeToTexture(color(transparent), zeros, BASE_MIP_LEVEL, FIRST_LAYER, LEFT_COLUMN, BOTTOM_ROW, target.width, target.height);
-    final TextureTarget empty = new TextureTarget(EMPTY_OUTLINE, target.width, target.height, GpuFormat.RGBA8_UNORM, null);
+    final TextureTarget empty = new TextureTarget(EMPTY_OUTLINE, target.width, target.height, GpuFormat.RGBA8_UNORM, NO_DEPTH_FORMAT);
     return new OutlineTargets(empty, transparent);
   }
 
   // a target has its color texture from creation until it is destroyed
   private static GpuTexture color(final RenderTarget target) {
-    return requireNonNull(target.getColorTexture(), NO_COLOR);
+    return requireNonNull(target.getColorTexture(), "Render target must have a color texture!");
   }
 
   // the chain runs on empty, copied from transparent; both the size of the screen

@@ -44,13 +44,10 @@ final class TransportStrip {
 
   private static final int LOWEST_BIT_MASK = 1;
 
-  private static final int SYMBOL_BITS = 6;
-
   private static final int SYMBOLS_PER_PIXEL = 4;
 
   // a page header's stream id and page number: bits 64 to 95 and 128 to 143 of its symbol stream
   private static final int STREAM_BIT = 64;
-
   private static final int NUMBER_BIT = 128;
 
   private static final int HALF_WORD = 16;
@@ -75,9 +72,15 @@ final class TransportStrip {
 
   private static final int W_COMPONENT = 3;
 
-  private static final int FLOATS_PER_MATRIX = 16;
-
   private static final int ANCHOR_INDEX_STRIDE = 64;
+
+  private static final float RIGHT_Y = 0F;
+
+  private static final float DOWN_X = 0F;
+  private static final float DOWN_Y = -1F;
+  private static final float DOWN_Z = 0F;
+
+  private static final int MATRIX_START = 0;
 
   private static final int AXES = 3;
 
@@ -129,8 +132,8 @@ final class TransportStrip {
     int value = 0;
     for (int index = 0; index < count; index++) {
       final int at = bit + index;
-      final int symbol = symbolOrZero(colors, at / SYMBOL_BITS);
-      value |= ((symbol >> (at % SYMBOL_BITS)) & LOWEST_BIT_MASK) << index;
+      final int symbol = symbolOrZero(colors, at / Mcv2Maps.SYMBOL_BITS);
+      value |= ((symbol >> (at % Mcv2Maps.SYMBOL_BITS)) & LOWEST_BIT_MASK) << index;
     }
     return value;
   }
@@ -153,7 +156,7 @@ final class TransportStrip {
     for (int pixel = 0; pixel < PackLayout.PAGE_PIXELS; pixel++) {
       int word = 0;
       for (int index = 0; index < SYMBOLS_PER_PIXEL; index++) {
-        word |= symbolOrZero(page, pixel * SYMBOLS_PER_PIXEL + index) << (SYMBOL_BITS * index);
+        word |= symbolOrZero(page, pixel * SYMBOLS_PER_PIXEL + index) << (Mcv2Maps.SYMBOL_BITS * index);
       }
       writePixel(strip, firstPixel + pixel, word & BYTE_MASK, (word >> SECOND_BYTE_SHIFT) & BYTE_MASK, word >> THIRD_BYTE_SHIFT);
     }
@@ -173,8 +176,8 @@ final class TransportStrip {
 
   private static float[] computeDescriptorFloats(final StripAnchor anchor, final float[] viewRotation, final float[] projection) {
     final float[] corner = transform(viewRotation, anchor.getCornerX(), anchor.getCornerY(), anchor.getCornerZ(), POINT_W);
-    final float[] right = transform(viewRotation, rightX(anchor.getFacing()), 0, rightZ(anchor.getFacing()), DIRECTION_W);
-    final float[] down = transform(viewRotation, 0, -1, 0, DIRECTION_W);
+    final float[] right = transform(viewRotation, rightX(anchor.getFacing()), RIGHT_Y, rightZ(anchor.getFacing()), DIRECTION_W);
+    final float[] down = transform(viewRotation, DOWN_X, DOWN_Y, DOWN_Z, DIRECTION_W);
     final float[] floats = new float[DESCRIPTOR_FLOATS];
     for (int axis = 0; axis < AXES; axis++) {
       floats[ORIGIN_OFFSET + axis] = corner[axis] - anchor.getColumn() * right[axis] - anchor.getRow() * down[axis];
@@ -184,7 +187,7 @@ final class TransportStrip {
     floats[ORIGIN_OFFSET + W_COMPONENT] = anchor.getColumns();
     floats[RIGHT_OFFSET + W_COMPONENT] = anchor.getRows();
     floats[DOWN_OFFSET + W_COMPONENT] = anchor.getColumn() * ANCHOR_INDEX_STRIDE + anchor.getRow();
-    System.arraycopy(projection, 0, floats, PROJECTION_OFFSET, FLOATS_PER_MATRIX);
+    System.arraycopy(projection, MATRIX_START, floats, PROJECTION_OFFSET, GameMatrices.FLOATS_PER_MATRIX);
     return floats;
   }
 
