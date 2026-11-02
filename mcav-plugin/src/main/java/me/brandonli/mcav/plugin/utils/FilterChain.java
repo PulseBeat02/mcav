@@ -329,8 +329,24 @@ public final class FilterChain {
 
   private static Supplier<VideoFilter> parseFilter(final String specification, final Path overlays, final MediaKind kind) {
     final int equals = specification.indexOf(ARGUMENT_START);
-    final String name = (equals < 0 ? specification : specification.substring(0, equals)).toLowerCase(Locale.ROOT);
-    final List<String> arguments = equals < 0 ? List.of() : List.of(specification.substring(equals + 1).split(ARGUMENT_SEPARATOR, -1));
+    if (equals < 0) {
+      return createFilter(specification, List.of(), overlays, kind);
+    }
+
+    final String name = specification.substring(0, equals);
+    final String argumentText = specification.substring(equals + 1);
+    final String[] argumentValues = argumentText.split(ARGUMENT_SEPARATOR, -1);
+    final List<String> arguments = List.of(argumentValues);
+    return createFilter(name, arguments, overlays, kind);
+  }
+
+  private static Supplier<VideoFilter> createFilter(
+    final String typedName,
+    final List<String> arguments,
+    final Path overlays,
+    final MediaKind kind
+  ) {
+    final String name = typedName.toLowerCase(Locale.ROOT);
     return switch (name) {
       case GRAYSCALE_FILTER -> noArguments(name, arguments, GrayscaleFilter::new);
       case INVERT_FILTER -> noArguments(name, arguments, InvertFilter::new);
@@ -668,8 +684,9 @@ public final class FilterChain {
       if (current == null || pictureWidth != this.width || pictureHeight != this.height) {
         final int left = (pictureWidth * this.region.left()) / PERCENT;
         final int top = (pictureHeight * this.region.top()) / PERCENT;
-        final int regionWidth = Math.max(1, Math.min(pictureWidth - left, (pictureWidth * this.region.width()) / PERCENT));
-        final int regionHeight = Math.max(1, Math.min(pictureHeight - top, (pictureHeight * this.region.height()) / PERCENT));
+        // region() caps left + width and top + height at 100 percent
+        final int regionWidth = Math.max(1, (pictureWidth * this.region.width()) / PERCENT);
+        final int regionHeight = Math.max(1, (pictureHeight * this.region.height()) / PERCENT);
         current = this.factory.create(left, top, regionWidth, regionHeight, pictureWidth, pictureHeight);
         this.filter = current;
         this.width = pictureWidth;

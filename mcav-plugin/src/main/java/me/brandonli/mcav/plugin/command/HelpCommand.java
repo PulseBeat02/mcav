@@ -126,15 +126,11 @@ public final class HelpCommand implements AnnotationCommandFeature {
   }
 
   private String searchQuery(final @Nullable String query) {
-    if (query == null) {
+    if (query == null || query.isBlank()) {
       return "";
     }
 
     final String trimmed = query.strip();
-    if (trimmed.isEmpty()) {
-      return trimmed;
-    }
-
     final int separator = trimmed.indexOf(WORD_SEPARATOR);
     final String first = separator < 0 ? trimmed : trimmed.substring(0, separator);
     if (ROOT_COMMAND.equalsIgnoreCase(first)) {
