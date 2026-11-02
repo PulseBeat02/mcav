@@ -80,7 +80,7 @@ public final class ScoreboardRenderer extends MainThreadRenderer<Component[]> {
   private @Nullable Scoreboard scoreboard;
 
   /**
-   * Constructs a new scoreboard renderer. Nothing is shown until {@link #show()} is called.
+   * Creates a new scoreboard renderer. Nothing is shown until {@link #show()} is called.
    *
    * @param configuration the configuration describing the viewers and the size of the scoreboard image
    * @throws NullPointerException if the configuration is null

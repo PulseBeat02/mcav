@@ -44,7 +44,7 @@ public final class Mcv2Receiver {
   private int height;
 
   /**
-   * Constructs a receiver that holds no frame yet, so it accepts a keyframe first.
+   * Creates a receiver that holds no frame yet, so it accepts a keyframe first.
    *
    * @since 1.0.0
    */

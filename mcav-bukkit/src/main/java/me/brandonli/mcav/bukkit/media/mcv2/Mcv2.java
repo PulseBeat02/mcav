@@ -278,7 +278,7 @@ public final class Mcv2 {
    * @param pool         worker pool, retained but never shut down by this encoder
    * @param threads      maximum concurrent workers, at least one
    * @param verification whether finish checks every reconstructed pixel with Mcv2Decoder
-   * @throws NullPointerException     if settings, pool or verification is null
+   * @throws NullPointerException     if {@code settings}, {@code pool} or {@code verification} is null
    * @throws IllegalArgumentException if threads is less than one
    * @since 1.0.0
    */
@@ -303,7 +303,7 @@ public final class Mcv2 {
    * Changes settings for the next frame while retaining prediction history.
    *
    * @param next the new settings
-   * @throws NullPointerException if next is null
+   * @throws NullPointerException if {@code next} is null
    * @since 1.0.0
    */
   public void switchTo(final Settings next) {
@@ -457,8 +457,8 @@ public final class Mcv2 {
    *
    * @param pending an unfinished frame from this encoder, in begin order
    * @return the finished frame and statistics
-   * @throws NullPointerException     if pending is null
-   * @throws IllegalArgumentException if another encoder owns pending
+   * @throws NullPointerException     if {@code pending} is null
+   * @throws IllegalArgumentException if another encoder owns {@code pending}
    * @throws IllegalStateException    if order is wrong, pending is finished, or verification fails
    * @since 1.0.0
    */
@@ -509,7 +509,7 @@ public final class Mcv2 {
   }
 
   /**
-   * Tells which kernels the encoders use and why, deciding it if no encoder has yet: for example
+   * Returns which kernels the encoders use and why, deciding it if no encoder has yet: for example
    * {@code native avx2 (linux-x86_64)} or {@code Java, turned off by mcv2.native=off}.
    *
    * @return the description, as logged
@@ -3809,8 +3809,8 @@ public final class Mcv2 {
     /**
      * Creates low-priority daemon workers that share one concurrency limit.
      *
-     * @param threads worker count, 1 through MAXIMUM_THREADS
-     * @throws IllegalArgumentException if threads is outside that range
+     * @param threads worker count, 1 through {@link #MAXIMUM_THREADS}
+     * @throws IllegalArgumentException if {@code threads} is outside that range
      * @since 1.0.0
      */
     public Pool(final int threads) {
@@ -3874,7 +3874,7 @@ public final class Mcv2 {
      * Sets the worker count for the next shared pool, leaving existing encoders on their pool.
      *
      * @param threads worker count, or zero to use the processor-based default
-     * @throws IllegalArgumentException if threads is negative or exceeds MAXIMUM_THREADS
+     * @throws IllegalArgumentException if {@code threads} is negative or exceeds {@link #MAXIMUM_THREADS}
      * @since 1.0.0
      */
     public static synchronized void setSharedThreads(final int threads) {
@@ -3895,9 +3895,9 @@ public final class Mcv2 {
      * Creates a stream encoder sharing this pool's worker budget.
      *
      * @param settings     live search settings
-     * @param verification whether finish verifies reconstruction
+     * @param verification whether {@link Mcv2#finish(Pending)} verifies the reconstruction
      * @return a new stream encoder
-     * @throws NullPointerException if settings or verification is null
+     * @throws NullPointerException if {@code settings} or {@code verification} is null
      * @since 1.0.0
      */
     public Mcv2 encoder(final Settings settings, final Verification verification) {
@@ -3910,7 +3910,7 @@ public final class Mcv2 {
      * @param task         encoding job
      * @param <ResultType> result type
      * @return the job result
-     * @throws NullPointerException if task is null
+     * @throws NullPointerException if {@code task} is null
      * @throws Mcv2Exception        if the job throws a checked exception, or the calling thread is interrupted before or
      *                              while awaiting the job, which cancels the job and leaves the thread interrupted
      * @since 1.0.0

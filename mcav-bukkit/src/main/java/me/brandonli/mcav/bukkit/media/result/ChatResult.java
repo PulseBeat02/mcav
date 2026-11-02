@@ -47,7 +47,7 @@ public class ChatResult implements FunctionalVideoFilter {
   private final ChatConfiguration configuration;
 
   /**
-   * Constructs a new {@code ChatResult}.
+   * Creates a result that shows frames as chat messages.
    *
    * @param configuration the configuration describing the viewers, character, and size of the chat image
    * @throws NullPointerException if {@code configuration} is null

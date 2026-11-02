@@ -97,7 +97,8 @@ public class McPackHosting implements WebsiteHosting {
   private volatile @Nullable String url;
 
   /**
-   * Constructs a new {@code McPackHosting}. Nothing is uploaded until {@link #start()} is called.
+   * Creates a hosting that uploads the pack at {@code zip} to mc-packs.net. Nothing is uploaded until
+   * {@link #start()} is called.
    *
    * @param zip the path to the resource pack zip to upload
    * @throws NullPointerException if the zip path is null

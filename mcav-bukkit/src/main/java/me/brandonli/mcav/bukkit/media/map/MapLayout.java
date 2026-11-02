@@ -70,7 +70,7 @@ public final class MapLayout {
   private final MapRegion[] regions;
 
   /**
-   * Constructs a new layout.
+   * Creates a new layout.
    *
    * @param startMapId  the nonnegative id of the top left map
    * @param columns     the strictly positive number of maps horizontally

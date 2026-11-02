@@ -111,7 +111,7 @@ public class CompressedMapResult implements DitherResultStep {
   private boolean released;
 
   /**
-   * Constructs a new {@code CompressedMapResult} with an ordinary-update budget of
+   * Creates a result with an ordinary-update budget of
    * {@link DeltaMapEncoder#DEFAULT_MAXIMUM_BYTES_PER_FRAME} bytes per frame.
    *
    * @param configuration the configuration describing the map grid and the viewers
@@ -123,7 +123,7 @@ public class CompressedMapResult implements DitherResultStep {
   }
 
   /**
-   * Constructs a new {@code CompressedMapResult}.
+   * Creates a result with the given budget for ordinary delta updates.
    *
    * <p>The byte budget covers ordinary delta updates, including estimated patch overhead. The most urgent map is always
    * sent even if it exceeds the budget. Resize cleanup and new-viewer snapshots are additional. Lower values spread

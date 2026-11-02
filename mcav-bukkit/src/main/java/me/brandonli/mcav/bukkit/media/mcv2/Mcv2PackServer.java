@@ -208,7 +208,7 @@ public final class Mcv2PackServer {
   private @Nullable Listener listener;
 
   /**
-   * Constructs a server that writes the pack into a folder of its own and hosts it with the given strategy. Nothing is
+   * Creates a server that writes the pack into a folder of its own and hosts it with the given strategy. Nothing is
    * written or served before {@link #start()} and the first {@link #open(Mcv2Configuration)}.
    *
    * @param folder    where the pack is written; files of earlier runs left there are deleted

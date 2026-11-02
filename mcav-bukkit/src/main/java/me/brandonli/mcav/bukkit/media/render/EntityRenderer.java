@@ -73,7 +73,7 @@ public final class EntityRenderer extends MainThreadRenderer<Component> {
   private @Nullable Component lastText;
 
   /**
-   * Constructs a new entity renderer. Nothing is spawned until {@link #show()} is called.
+   * Creates a new entity renderer. Nothing is spawned until {@link #show()} is called.
    *
    * @param configuration the configuration describing the viewers, position, and size of the entity image
    * @throws NullPointerException if the configuration is null

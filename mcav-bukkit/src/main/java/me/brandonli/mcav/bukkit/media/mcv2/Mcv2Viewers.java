@@ -73,7 +73,7 @@ public final class Mcv2Viewers {
   private @Nullable Listener listener;
 
   /**
-   * Constructs a new tracker.
+   * Creates a new tracker.
    *
    * @param packId    the id of the pack request, as sent to the players
    * @param onRefused called with a player whose client just refused the pack or failed to load it, for example to
@@ -179,6 +179,7 @@ public final class Mcv2Viewers {
    * @param player the player's UUID
    * @return true if the tracked client status is LOADED and no report of the client mod rules decoding out; this is not
    *         a playback acknowledgment
+   * @throws NullPointerException if {@code player} is null
    * @since 1.0.0
    */
   public boolean isLoaded(final UUID player) {

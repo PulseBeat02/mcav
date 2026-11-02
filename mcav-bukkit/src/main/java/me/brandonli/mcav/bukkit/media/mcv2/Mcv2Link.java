@@ -59,7 +59,7 @@ public final class Mcv2Link {
   private long undecodable;
 
   /**
-   * Constructs the link of a viewer that has decoded nothing yet.
+   * Creates the link of a viewer that has decoded nothing yet.
    *
    * @param limit the nonnegative backlog threshold in estimated bytes before accepting another frame;
    *              zero admits a frame only when the tracked backlog is zero

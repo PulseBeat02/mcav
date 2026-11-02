@@ -61,7 +61,7 @@ public abstract class MainThreadRenderer<FrameType> {
   private long visibilityGeneration;
 
   /**
-   * Constructs a new renderer. Nothing is scheduled until {@link #startRendering()} is called.
+   * Creates a renderer. Nothing is scheduled until {@link #startRendering()} is called.
    *
    * @since 1.0.0
    */

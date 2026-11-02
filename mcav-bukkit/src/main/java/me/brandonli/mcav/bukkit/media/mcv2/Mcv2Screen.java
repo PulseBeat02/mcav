@@ -117,7 +117,7 @@ public final class Mcv2Screen {
   private final Set<HeldChunk> chunks;
 
   /**
-   * Constructs a new screen.
+   * Creates a new screen.
    *
    * @param configuration the screen
    * @throws NullPointerException if {@code configuration} is null

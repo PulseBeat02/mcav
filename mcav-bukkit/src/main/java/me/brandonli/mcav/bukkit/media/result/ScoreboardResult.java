@@ -42,7 +42,7 @@ public class ScoreboardResult implements FunctionalVideoFilter {
   private final ScoreboardRenderer renderer;
 
   /**
-   * Constructs a new {@code ScoreboardResult}.
+   * Creates a result that shows frames on the sidebar scoreboard.
    *
    * @param configuration the configuration describing the viewers, character, and size of the scoreboard image
    * @throws NullPointerException if {@code configuration} is null

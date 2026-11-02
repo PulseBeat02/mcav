@@ -52,7 +52,7 @@ public final class PageAssembler {
   private final Map<Long, Map<Integer, TransportPage>> pending = new LinkedHashMap<>();
 
   /**
-   * Constructs a new assembler.
+   * Creates a new assembler.
    *
    * @param streamId   the unsigned 32-bit stream id to accept, from 0 through 4,294,967,295; not checked here
    * @param symbolBits the negotiated width, 6 bits per symbol

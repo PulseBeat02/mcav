@@ -208,7 +208,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   private @Nullable Resizer resizer;
 
   /**
-   * Constructs a new result.
+   * Creates a new result.
    *
    * @param configuration     the screen
    * @param viewers           who has the pack loaded

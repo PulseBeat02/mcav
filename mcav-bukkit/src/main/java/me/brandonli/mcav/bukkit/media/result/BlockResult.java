@@ -42,7 +42,7 @@ public class BlockResult implements FunctionalVideoFilter {
   private final BlockRenderer renderer;
 
   /**
-   * Constructs a new {@code BlockResult}.
+   * Creates a result that shows frames as a wall of colored blocks.
    *
    * @param configuration the configuration describing the viewers, position, and size of the block wall
    * @throws NullPointerException if {@code configuration} is null

@@ -88,7 +88,7 @@ public final class DeltaMapEncoder {
   private final int[] changedPixelsPerTile;
 
   /**
-   * Constructs a new encoder for the specified layout.
+   * Creates a new encoder for the specified layout.
    *
    * @param layout               the layout of the image on the maps
    * @param maximumBytesPerFrame the maximum number of bytes to send per frame; the most urgent map is always sent,

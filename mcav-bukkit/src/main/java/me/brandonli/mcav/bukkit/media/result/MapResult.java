@@ -52,7 +52,7 @@ public class MapResult implements DitherResultStep {
   private final MapConfiguration configuration;
 
   /**
-   * Constructs a new {@code MapResult}.
+   * Creates a result that sends the complete picture in every frame.
    *
    * @param configuration the configuration describing the map grid and the viewers
    * @throws NullPointerException if {@code configuration} is null

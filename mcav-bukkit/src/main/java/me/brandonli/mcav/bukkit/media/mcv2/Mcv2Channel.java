@@ -67,8 +67,7 @@ import org.slf4j.LoggerFactory;
  * nothing: no frames, and no dithered maps either, as their client cannot see the wall. That holds while the dithered
  * maps stand in for the frames too, as the distances are still measured once the page frames are gone. Coming back, the
  * viewer is shown the screen again and starts on a keyframe. The distances are measured on the main thread once a
- * second; a viewer who is near goes out of range only {@value #RANGE_MARGIN} blocks farther, so one at the edge does
- * not come and go.
+ * second; a viewer who is near goes out of range only 32 blocks farther, so one at the edge does not come and go.
  *
  * @since 1.0.0
  */
@@ -105,7 +104,7 @@ public final class Mcv2Channel {
   private @Nullable BukkitTask ranging;
 
   /**
-   * Constructs a new channel.
+   * Creates a new channel.
    *
    * @param configuration the screen
    * @param viewers       who has the pack loaded

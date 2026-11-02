@@ -46,7 +46,8 @@ public class ServerPackHosting implements HttpHosting {
   private final FileHttpServer server;
 
   /**
-   * Constructs a new {@code ServerPackHosting}. Nothing is served until {@link #start()} is called.
+   * Creates a hosting that serves {@code zip} on {@code port}. Nothing is served until
+   * {@link #start()} is called.
    *
    * @param zip      the path to the resource pack zip to serve
    * @param hostName the host name or address players use to reach this server

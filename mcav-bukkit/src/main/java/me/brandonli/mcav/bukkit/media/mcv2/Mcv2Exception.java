@@ -38,7 +38,7 @@ public final class Mcv2Exception extends BukkitException {
   private static final long serialVersionUID = 4270539862718624891L;
 
   /**
-   * Constructs a new exception.
+   * Creates an exception with a message.
    *
    * @param message the detail message
    * @since 1.0.0
@@ -48,7 +48,7 @@ public final class Mcv2Exception extends BukkitException {
   }
 
   /**
-   * Constructs a new exception with the failure that caused it.
+   * Creates an exception with a message and the exception that caused it.
    *
    * @param message the detail message
    * @param cause   the failure that caused this exception

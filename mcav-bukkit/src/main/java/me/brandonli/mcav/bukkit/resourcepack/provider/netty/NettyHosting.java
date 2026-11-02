@@ -80,8 +80,7 @@ public final class NettyHosting implements InjectorHosting {
   private volatile @Nullable String url;
 
   /**
-   * Constructs a new {@code NettyHosting} for the specified resource pack. Nothing is served until
-   * {@link #start()} is called.
+   * Creates a hosting for the given resource pack. Nothing is served until {@link #start()} is called.
    *
    * @param zip the path to the resource pack zip to serve
    * @throws NullPointerException if {@code zip} is null

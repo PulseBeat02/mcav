@@ -56,8 +56,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <ul>
  *   <li>Viewers who start watching, because they joined the server or were added to the viewers, receive the
  *       complete wall during the next server tick.</li>
- *   <li>Every {@value #FULL_RESEND_INTERVAL_TICKS} ticks, which is once per second on a server running at full
- *       speed, every viewer receives the complete wall again, even while the picture does not change.</li>
+ *   <li>Every 20 ticks, which is once per second on a server running at full speed, every viewer receives the
+ *       complete wall again, even while the picture does not change.</li>
  *   <li>Viewers who are removed from the viewers while they are online receive the original blocks again.</li>
  * </ul>
  *
@@ -88,7 +88,7 @@ public final class BlockRenderer extends MainThreadRenderer<BlockData[]> {
   private int ticksSinceFullResend;
 
   /**
-   * Constructs a new block renderer. Nothing is shown until {@link #show()} is called.
+   * Creates a new block renderer. Nothing is shown until {@link #show()} is called.
    *
    * @param configuration the configuration describing the viewers, position, and size of the block wall
    * @throws NullPointerException if the configuration is null
@@ -266,10 +266,9 @@ public final class BlockRenderer extends MainThreadRenderer<BlockData[]> {
   }
 
   /**
-   * Sends the complete wall to viewers who started watching, and to every viewer every
-   * {@value #FULL_RESEND_INTERVAL_TICKS} ticks, then sends the original blocks back to viewers who were removed while
-   * online. This method runs on the main thread once per server tick while the renderer is running, right after the
-   * pending frame, if there was one, was applied.
+   * Sends the complete wall to viewers who started watching, and to every viewer every 20 ticks, then sends the
+   * original blocks back to viewers who were removed while online. This method runs on the main thread once per
+   * server tick while the renderer is running, right after the pending frame, if there was one, was applied.
    *
    * <p>Does nothing while the wall is not shown or before its first frame was applied.
    *

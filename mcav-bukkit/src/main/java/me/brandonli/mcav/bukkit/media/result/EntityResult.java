@@ -43,7 +43,7 @@ public class EntityResult implements FunctionalVideoFilter {
   private final EntityRenderer renderer;
 
   /**
-   * Constructs a new {@code EntityResult}.
+   * Creates a result that shows frames in a text display.
    *
    * @param configuration the configuration describing the viewers, character, position, and size of the entity
    * @throws NullPointerException if {@code configuration} is null

@@ -185,7 +185,7 @@ public final class PacketUtils {
    *
    * @param viewer   the UUID of the player
    * @param packet   the packet
-   * @param listener called on the player's connection thread when the packet was written, or could not be
+   * @param listener the listener called on the player's connection thread once the write succeeds or fails
    * @return true if the packet was handed to the player's connection, false for a player who is not online or a
    *         connection not open yet, in which case the listener is never called
    * @throws NullPointerException if {@code viewer}, {@code packet} or {@code listener} is null
