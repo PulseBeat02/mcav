@@ -41,18 +41,18 @@ public final class MCAVVoiceChatPlugin implements VoicechatPlugin {
 
   private static final String PLUGIN_ID = "mcav";
 
-  private final MCAVSandbox sandbox;
+  private final MCAVSandbox plugin;
 
   /**
    * Creates the voice chat plugin.
    *
-   * @param sandbox the plugin whose library receives the voice chat server API
+   * @param plugin the plugin whose library receives the voice chat server API
    * @since 1.0.0
    */
-  public MCAVVoiceChatPlugin(final MCAVSandbox sandbox) {
-    Preconditions.checkNotNull(sandbox, "Plugin must not be null!");
+  public MCAVVoiceChatPlugin(final MCAVSandbox plugin) {
+    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
 
-    this.sandbox = sandbox;
+    this.plugin = plugin;
   }
 
   /**
@@ -66,7 +66,7 @@ public final class MCAVVoiceChatPlugin implements VoicechatPlugin {
   public void initialize(final VoicechatApi api) {
     Preconditions.checkNotNull(api, "Voice chat API must not be null!");
 
-    final MCAVApi library = this.sandbox.getMCAV();
+    final MCAVApi library = this.plugin.getMCAV();
     final SvcModule module = library.getModule(SvcModule.class);
     final VoicechatServerApi serverApi = (VoicechatServerApi) api;
     module.inject(serverApi);

@@ -60,7 +60,7 @@ final class QemuHardwareValues {
     Map.entry("i8042", SWITCH)
   );
   private static final Map<String, Pattern> MEMORY_PROPERTIES = Map.of("size", SIZE, "slots", NUMBER, "maxmem", SIZE);
-  private static final Map<String, Pattern> SMP_PROPERTIES = Map.of(
+  private static final Map<String, Pattern> PROCESSORS_PROPERTIES = Map.of(
     "cpus",
     NUMBER,
     "maxcpus",
@@ -105,7 +105,7 @@ final class QemuHardwareValues {
     NUMBER
   );
   private static final Map<String, Pattern> NAME_PROPERTIES = Map.of("guest", GUEST_NAME, "process", WORD, "debug-threads", SWITCH);
-  private static final Map<String, Pattern> RTC_PROPERTIES = Map.of(
+  private static final Map<String, Pattern> CLOCK_PROPERTIES = Map.of(
     "base",
     Pattern.compile("utc|localtime|\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}:\\d{2})?"),
     "clock",
@@ -190,11 +190,11 @@ final class QemuHardwareValues {
     switch (name) {
       case MACHINE_OPTION -> checkFirstAndProperties(name, value, first, WORD, rest, MACHINE_PROPERTIES);
       case MEMORY_OPTION -> checkFirstAndProperties(name, value, first, SIZE, rest, MEMORY_PROPERTIES);
-      case PROCESSORS_OPTION -> checkFirstAndProperties(name, value, first, NUMBER, rest, SMP_PROPERTIES);
+      case PROCESSORS_OPTION -> checkFirstAndProperties(name, value, first, NUMBER, rest, PROCESSORS_PROPERTIES);
       case ACCELERATOR_OPTION -> checkFirstAndProperties(name, value, first, ACCELERATOR, rest, ACCELERATOR_PROPERTIES);
       case BOOT_OPTION -> checkFirstAndProperties(name, value, first, BOOT_DEVICES, rest, BOOT_PROPERTIES);
       case NAME_OPTION -> checkFirstAndProperties(name, value, first, GUEST_NAME, rest, NAME_PROPERTIES);
-      case CLOCK_OPTION -> checkProperties(name, value, parts, RTC_PROPERTIES);
+      case CLOCK_OPTION -> checkProperties(name, value, parts, CLOCK_PROPERTIES);
       case CPU_OPTION -> checkCpu(value, first, rest);
       case KEYBOARD_OPTION -> require(name, value, parts.size() == 1 && KEYBOARD.matcher(value).matches());
       case VGA_OPTION -> require(name, value, parts.size() == 1 && VGA.matcher(value).matches());
@@ -216,8 +216,8 @@ final class QemuHardwareValues {
       }
     }
     final char last = size.charAt(size.length() - 1);
-    final boolean suffix = Character.isLetter(last);
-    final long number = Long.parseLong(suffix ? size.substring(0, size.length() - 1) : size);
+    final boolean suffixed = Character.isLetter(last);
+    final long number = Long.parseLong(suffixed ? size.substring(0, size.length() - 1) : size);
     final int shift = switch (Character.toUpperCase(last)) {
       case KIBIBYTE_SUFFIX -> KIBIBYTE_SHIFT;
       case GIBIBYTE_SUFFIX -> GIBIBYTE_SHIFT;

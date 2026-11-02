@@ -124,7 +124,7 @@ public final class VideoScoreboardCommand extends AbstractVideoCommand {
       return;
     }
 
-    final Collection<UUID> players = ArgumentUtils.parsePlayerSelectors(playerSelector);
+    final Collection<UUID> players = ArgumentUtils.resolvePlayerIds(playerSelector);
     final VideoConfigurationProvider configurationProvider = resolution -> this.createConfiguration(resolution, players, character);
     this.playVideo(configurationProvider, sender, playerSelector, playerType, audioType, videoResolution, mrl, ytdlpOptions, filters);
   }

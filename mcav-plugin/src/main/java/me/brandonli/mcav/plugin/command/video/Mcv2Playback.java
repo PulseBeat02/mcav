@@ -61,7 +61,7 @@ final class Mcv2Playback implements Runnable {
       return;
     }
 
-    this.channel.send(this.shifted(this.frames.get(this.next)));
+    this.channel.send(this.copyWithShiftedIds(this.frames.get(this.next)));
     this.next++;
     if (this.next == this.frames.size()) {
       this.next = 0;
@@ -69,14 +69,14 @@ final class Mcv2Playback implements Runnable {
     }
   }
 
-  private byte[] shifted(final byte[] frame) {
+  private byte[] copyWithShiftedIds(final byte[] frame) {
     final byte[] copy = frame.clone();
-    shift(copy, Mcv2Decoder.FRAME_ID_OFFSET);
-    shift(copy, Mcv2Decoder.REFERENCE_ID_OFFSET);
+    shiftId(copy, Mcv2Decoder.FRAME_ID_OFFSET);
+    shiftId(copy, Mcv2Decoder.REFERENCE_ID_OFFSET);
     return copy;
   }
 
-  private void shift(final byte[] frame, final int field) {
-    Mcv2Decoder.putU32(frame, field, (Mcv2Decoder.u32(frame, field) + this.offset) & Mcv2Decoder.MAXIMUM_UNSIGNED_INT);
+  private void shiftId(final byte[] frame, final int fieldOffset) {
+    Mcv2Decoder.putU32(frame, fieldOffset, (Mcv2Decoder.u32(frame, fieldOffset) + this.offset) & Mcv2Decoder.MAXIMUM_UNSIGNED_INT);
   }
 }

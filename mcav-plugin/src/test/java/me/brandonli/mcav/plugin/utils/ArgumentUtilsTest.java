@@ -137,7 +137,7 @@ final class ArgumentUtilsTest {
     final MultiplePlayerSelector selector = mock(MultiplePlayerSelector.class);
     final List<Player> players = List.of(first, second);
     when(selector.values()).thenReturn(players);
-    final Collection<UUID> ids = ArgumentUtils.parsePlayerSelectors(selector);
+    final Collection<UUID> ids = ArgumentUtils.resolvePlayerIds(selector);
     final List<UUID> expected = List.of(firstId, secondId);
     assertEquals(expected, ids);
   }
@@ -147,7 +147,7 @@ final class ArgumentUtilsTest {
     final MultiplePlayerSelector selector = mock(MultiplePlayerSelector.class);
     final List<Player> players = List.of();
     when(selector.values()).thenReturn(players);
-    final Collection<UUID> ids = ArgumentUtils.parsePlayerSelectors(selector);
+    final Collection<UUID> ids = ArgumentUtils.resolvePlayerIds(selector);
     final boolean empty = ids.isEmpty();
     assertTrue(empty);
   }
@@ -159,7 +159,7 @@ final class ArgumentUtilsTest {
     when(everyone.inputString()).thenReturn("@a");
 
     final Set<UUID> expected = online.getPlayers();
-    final Collection<UUID> viewers = ArgumentUtils.parseViewers(everyone, online);
+    final Collection<UUID> viewers = ArgumentUtils.resolveViewers(everyone, online);
     assertSame(expected, viewers);
   }
 
@@ -173,7 +173,7 @@ final class ArgumentUtilsTest {
       when(selector.inputString()).thenReturn(input);
       when(selector.values()).thenReturn(List.of(player));
 
-      final Collection<UUID> viewers = ArgumentUtils.parseViewers(selector, new OnlinePlayers());
+      final Collection<UUID> viewers = ArgumentUtils.resolveViewers(selector, new OnlinePlayers());
       assertEquals(List.of(id), viewers, input);
     }
   }
@@ -182,9 +182,9 @@ final class ArgumentUtilsTest {
   void shouldRefuseNullArguments() {
     assertThrows(NullPointerException.class, () -> ArgumentUtils.parseDimensions(null));
     assertThrows(NullPointerException.class, () -> ArgumentUtils.parseScreenDimensions(null));
-    assertThrows(NullPointerException.class, () -> ArgumentUtils.parsePlayerSelectors(null));
-    assertThrows(NullPointerException.class, () -> ArgumentUtils.parseViewers(null, new OnlinePlayers()));
-    assertThrows(NullPointerException.class, () -> ArgumentUtils.parseViewers(mock(MultiplePlayerSelector.class), null));
+    assertThrows(NullPointerException.class, () -> ArgumentUtils.resolvePlayerIds(null));
+    assertThrows(NullPointerException.class, () -> ArgumentUtils.resolveViewers(null, new OnlinePlayers()));
+    assertThrows(NullPointerException.class, () -> ArgumentUtils.resolveViewers(mock(MultiplePlayerSelector.class), null));
   }
 
   @Test

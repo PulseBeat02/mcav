@@ -190,7 +190,7 @@ final class UrlPlaceholderTest {
   void shouldRestoreUrlsInsideHoverEntityNamesAndTranslationArguments() {
     final String url = QUOTED_URL;
     final UrlPlaceholder placeholder = new UrlPlaceholder();
-    final String marker = placeholder.prepare(URL_PLACEHOLDER);
+    final String marker = placeholder.replaceUrlTokens(URL_PLACEHOLDER);
     final Component text = Component.text(marker);
     final ClickEvent<?> click = ClickEvent.openUrl(marker);
     final Component linked = text.clickEvent(click);

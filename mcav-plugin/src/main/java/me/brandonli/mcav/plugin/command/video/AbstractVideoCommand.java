@@ -220,8 +220,8 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
       this.launch(sender, request);
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
-      final AtomicBoolean initializing = this.manager.getStatus();
-      initializing.set(false);
+      final AtomicBoolean starting = this.manager.getStarting();
+      starting.set(false);
       throw exception;
     }
   }
@@ -304,8 +304,8 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
   }
 
   private boolean claim() {
-    final AtomicBoolean initializing = this.manager.getStatus();
-    return initializing.compareAndSet(false, true);
+    final AtomicBoolean starting = this.manager.getStarting();
+    return starting.compareAndSet(false, true);
   }
 
   private Player[] collectViewers(final MultiplePlayerSelector selector) {
@@ -334,7 +334,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
   }
 
   private void launch(final CommandSender sender, final PlaybackRequest request) {
-    final AtomicBoolean initializing = this.manager.getStatus();
+    final AtomicBoolean starting = this.manager.getStarting();
     final ExecutorService service = this.manager.getService();
     final CompletableFuture<Boolean> start;
     final long generation;
@@ -342,7 +342,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
       generation = this.manager.beginStart();
       start = CompletableFuture.supplyAsync(() -> this.startPlayer(request, generation), service);
     } catch (final RejectedExecutionException | CancellationException exception) {
-      initializing.set(false);
+      starting.set(false);
       LOGGER.error("The video worker refused to start a video.", exception);
       final Component message = Message.VIDEO_START_ERROR.build();
       sender.sendMessage(message);
@@ -359,8 +359,8 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final @Nullable Boolean started,
     final @Nullable Throwable error
   ) {
-    final AtomicBoolean initializing = this.manager.getStatus();
-    initializing.set(false);
+    final AtomicBoolean starting = this.manager.getStarting();
+    starting.set(false);
     TaskUtils.runOnMainThread(this.plugin, () -> this.reportIfCurrent(sender, request, generation, started, error));
   }
 

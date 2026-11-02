@@ -227,8 +227,8 @@ final class PaperServerEndToEndTest {
       }
     }
 
-    final boolean matches = !expected.isEmpty();
-    assertTrue(matches, "the plugin must request the modules of this build");
+    final boolean modulesRequested = !expected.isEmpty();
+    assertTrue(modulesRequested, "the plugin must request the modules of this build");
 
     final Path modules = serverDirectory.resolve(MODULE_LIBRARIES_DIRECTORY);
     final List<Path> files;
@@ -348,8 +348,8 @@ final class PaperServerEndToEndTest {
     final int refused = vnc.getRefused();
     assertEquals(0, refused, "and never with another");
 
-    final boolean matches = vnc.getUpdates() > 1;
-    assertTrue(matches, "the desktop's pictures reach the maps");
+    final boolean updatesArrived = vnc.getUpdates() > 1;
+    assertTrue(updatesArrived, "the desktop's pictures reach the maps");
   }
 
   // force-loaded chunks: no player keeps them loaded and 26.3 keeps no spawn chunks
@@ -581,10 +581,10 @@ final class PaperServerEndToEndTest {
     return gamePort;
   }
 
-  private void copyResource(final String name, final Path folder) throws IOException {
+  private void copyResource(final String name, final Path directory) throws IOException {
     try (final InputStream resource = PaperServerEndToEndTest.class.getResourceAsStream("%s%s".formatted(MEDIA_RESOURCES, name))) {
       final String message = "Resource %s does not exist!".formatted(name);
-      Files.copy(Objects.requireNonNull(resource, message), folder.resolve(name));
+      Files.copy(Objects.requireNonNull(resource, message), directory.resolve(name));
     }
   }
 
@@ -616,8 +616,8 @@ final class PaperServerEndToEndTest {
 
   // the Discord bot needs a real token, so it stays off; no player can click, so sound autoplays
   private void writePluginConfiguration(final Path pluginsDirectory, final int httpPort, final FakeVncServer vnc) throws IOException {
-    final Path dataFolder = pluginsDirectory.resolve(PLUGIN_DATA_DIRECTORY);
-    Files.createDirectories(dataFolder);
+    final Path dataDirectory = pluginsDirectory.resolve(PLUGIN_DATA_DIRECTORY);
+    Files.createDirectories(dataDirectory);
     final String configuration = String.join(
       LINE_SEPARATOR,
       "language: EN_US",
@@ -642,16 +642,16 @@ final class PaperServerEndToEndTest {
       "      password: %s".formatted(vnc.getPassword()),
       ""
     );
-    final Path file = dataFolder.resolve(CONFIGURATION_FILE);
+    final Path file = dataDirectory.resolve(CONFIGURATION_FILE);
     Files.writeString(file, configuration, StandardCharsets.UTF_8);
   }
 
   // a free UDP port, so a voice chat server on the machine cannot clash
   private void writeVoiceChatConfiguration(final Path pluginsDirectory) throws IOException {
-    final Path voiceChatFolder = pluginsDirectory.resolve(VOICE_CHAT_DIRECTORY);
-    Files.createDirectories(voiceChatFolder);
+    final Path voiceChatDirectory = pluginsDirectory.resolve(VOICE_CHAT_DIRECTORY);
+    Files.createDirectories(voiceChatDirectory);
     final int voicePort = this.findFreeUdpPort();
-    final Path file = voiceChatFolder.resolve(VOICE_CHAT_PROPERTIES_FILE);
+    final Path file = voiceChatDirectory.resolve(VOICE_CHAT_PROPERTIES_FILE);
     Files.writeString(file, "port=%s%s".formatted(voicePort, LINE_SEPARATOR), StandardCharsets.UTF_8);
   }
 

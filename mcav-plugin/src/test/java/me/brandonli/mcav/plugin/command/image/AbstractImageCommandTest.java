@@ -496,7 +496,7 @@ final class AbstractImageCommandTest {
 
   @Test
   void shouldReleaseTheLoadedImageWhenThePluginWasDisabledMeanwhile() throws IOException {
-    final BukkitScheduler scheduler = TestServer.scheduler();
+    final BukkitScheduler scheduler = TestServer.getScheduler();
     final IllegalPluginAccessException disabled = new IllegalPluginAccessException("disabled!");
     when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(disabled);
     final Path file = this.writeImage(PICTURE_FILE_NAME, PNG_FORMAT);
@@ -680,7 +680,7 @@ final class AbstractImageCommandTest {
     final String mrl = file.toString();
     final IllegalStateException primary = new IllegalStateException("scheduler rejected the loaded image!");
     final RuntimeException cleanup = cleanupMode == 1 ? primary : new IllegalArgumentException("image release failed!");
-    final BukkitScheduler scheduler = TestServer.scheduler();
+    final BukkitScheduler scheduler = TestServer.getScheduler();
     when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(primary);
     final String output;
     try (
@@ -760,7 +760,7 @@ final class AbstractImageCommandTest {
     final Path file = this.writeImage(SCHEDULE_FATAL_FILE_NAME, PNG_FORMAT);
     final String mrl = file.toString();
     final OutOfMemoryError fatal = new OutOfMemoryError("fatal scheduling sentinel!");
-    final BukkitScheduler scheduler = TestServer.scheduler();
+    final BukkitScheduler scheduler = TestServer.getScheduler();
     when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(fatal);
 
     final String output;
@@ -787,7 +787,7 @@ final class AbstractImageCommandTest {
     final String mrl = file.toString();
     final IllegalStateException primary = new IllegalStateException("scheduling rejected!");
     final OutOfMemoryError fatal = new OutOfMemoryError("fatal discard sentinel!");
-    final BukkitScheduler scheduler = TestServer.scheduler();
+    final BukkitScheduler scheduler = TestServer.getScheduler();
     when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(primary);
 
     final String output;

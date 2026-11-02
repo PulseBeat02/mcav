@@ -140,11 +140,11 @@ public final class VideoMapCommand extends AbstractVideoCommand {
       return;
     }
 
-    final Collection<UUID> players = ArgumentUtils.parseViewers(playerSelector, this.plugin.getOnlinePlayers());
-    final MapCodec chosen = codec != null ? codec : this.plugin.getConfiguration().getMcv2DefaultCodec();
+    final Collection<UUID> players = ArgumentUtils.resolveViewers(playerSelector, this.plugin.getOnlinePlayers());
+    final MapCodec chosenCodec = codec != null ? codec : this.plugin.getConfiguration().getMcv2DefaultCodec();
     VideoConfigurationProvider configurationProvider = resolution ->
       this.createSettings(blocks, resolution, mapId, players, ditheringAlgorithm);
-    if (chosen == MapCodec.MCV2) {
+    if (chosenCodec == MapCodec.MCV2) {
       final Optional<Pair<Integer, Integer>> parsedResolution = parseDimensions(sender, videoResolution);
       final @Nullable Pair<Integer, Integer> resolution = parsedResolution.orElse(null);
       if (resolution == null) {
@@ -201,8 +201,8 @@ public final class VideoMapCommand extends AbstractVideoCommand {
     Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null!");
 
     final Object built = configurationProvider.buildConfiguration(resolution);
-    if (built instanceof final VideoMcv2Command.Mcv2Settings mcv2) {
-      final FunctionalVideoFilter output = VideoMcv2Command.mcv2Filter(this.plugin.getMcv2Support(), mcv2);
+    if (built instanceof final VideoMcv2Command.Mcv2Settings mcv2Settings) {
+      final FunctionalVideoFilter output = VideoMcv2Command.createMcv2Filter(this.plugin.getMcv2Support(), mcv2Settings);
       this.manager.startFilter(output);
       return VideoPipelineStep.of(output);
     }

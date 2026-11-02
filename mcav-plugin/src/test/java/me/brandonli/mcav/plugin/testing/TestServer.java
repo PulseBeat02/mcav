@@ -147,15 +147,15 @@ public final class TestServer {
     Preconditions.checkState(testServerInstalled, "Bukkit has a server that is not the test server!");
   }
 
-  public static Server server() {
+  public static Server getServer() {
     return SERVER;
   }
 
-  public static BukkitScheduler scheduler() {
+  public static BukkitScheduler getScheduler() {
     return SERVER.getScheduler();
   }
 
-  public static PluginManager pluginManager() {
+  public static PluginManager getPluginManager() {
     return SERVER.getPluginManager();
   }
 }

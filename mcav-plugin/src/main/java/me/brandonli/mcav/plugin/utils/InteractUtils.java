@@ -76,7 +76,7 @@ public final class InteractUtils {
    * @throws IllegalStateException    if the player targets a block face that is not a side of a block
    * @since 1.0.0
    */
-  public static Optional<int[]> getBoardCoordinates(final Player player) {
+  public static Optional<int[]> findBoardCoordinates(final Player player) {
     Preconditions.checkNotNull(player, PLAYER_NULL_MESSAGE);
 
     final Entity targetEntity = player.getTargetEntity(MAXIMUM_TARGET_DISTANCE);
@@ -84,7 +84,7 @@ public final class InteractUtils {
       return Optional.empty();
     }
 
-    return getBoardCoordinates(player, targetEntity);
+    return findBoardCoordinates(player, targetEntity);
   }
 
   /**
@@ -99,7 +99,7 @@ public final class InteractUtils {
    * @throws IllegalStateException    if the player targets a block face that is not a side of a block
    * @since 1.0.0
    */
-  public static Optional<int[]> getBoardCoordinates(final Player player, final Entity entity) {
+  public static Optional<int[]> findBoardCoordinates(final Player player, final Entity entity) {
     Preconditions.checkNotNull(player, PLAYER_NULL_MESSAGE);
     Preconditions.checkNotNull(entity, "Entity must not be null!");
 
@@ -108,12 +108,12 @@ public final class InteractUtils {
       throw new IllegalArgumentException(message);
     }
 
-    final int[] mapIndex = getRelativeMapIndex(player, frame);
+    final int[] mapIndex = findRelativeMapIndex(player, frame);
     if (mapIndex == null) {
       return Optional.empty();
     }
 
-    final double[] framePosition = getRotatedFramePosition(player, frame);
+    final double[] framePosition = findRotatedFramePosition(player, frame);
     if (framePosition == null) {
       return Optional.empty();
     }
@@ -126,7 +126,7 @@ public final class InteractUtils {
     return Optional.of(coordinates);
   }
 
-  private static int @Nullable [] getRelativeMapIndex(final Player player, final ItemFrame frame) {
+  private static int @Nullable [] findRelativeMapIndex(final Player player, final ItemFrame frame) {
     final BlockFace hitFace = player.getTargetBlockFace(MAXIMUM_TARGET_DISTANCE);
     if (hitFace == null) {
       return null;
@@ -176,8 +176,8 @@ public final class InteractUtils {
     };
   }
 
-  private static double @Nullable [] getRotatedFramePosition(final Player player, final ItemFrame frame) {
-    final double[] position = getFramePosition(player, frame);
+  private static double @Nullable [] findRotatedFramePosition(final Player player, final ItemFrame frame) {
+    final double[] position = findFramePosition(player, frame);
     if (position == null) {
       return null;
     }
@@ -194,7 +194,7 @@ public final class InteractUtils {
   }
 
   // as if the map were not rotated; null for misses and floor or ceiling frames
-  private static double @Nullable [] getFramePosition(final Player player, final ItemFrame frame) {
+  private static double @Nullable [] findFramePosition(final Player player, final ItemFrame frame) {
     final BlockFace face = frame.getAttachedFace();
     final boolean alongX = face == BlockFace.EAST || face == BlockFace.WEST;
     final boolean alongZ = face == BlockFace.NORTH || face == BlockFace.SOUTH;

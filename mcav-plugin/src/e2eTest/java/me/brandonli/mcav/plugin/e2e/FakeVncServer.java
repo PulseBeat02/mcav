@@ -40,7 +40,7 @@ final class FakeVncServer implements AutoCloseable {
 
   private static final int VNC_AUTHENTICATION = 2;
 
-  private static final int CHALLENGE = 16;
+  private static final int CHALLENGE_LENGTH = 16;
 
   private static final String PASSWORD_PREFIX = "e2e";
   private static final int PASSWORD_RANDOM_BYTES = 4;
@@ -149,46 +149,46 @@ final class FakeVncServer implements AutoCloseable {
   private void serve(final Socket client) {
     try (
       client;
-      final DataInputStream in = new DataInputStream(client.getInputStream());
-      final DataOutputStream out = new DataOutputStream(client.getOutputStream())
+      final DataInputStream input = new DataInputStream(client.getInputStream());
+      final DataOutputStream output = new DataOutputStream(client.getOutputStream())
     ) {
-      out.write(PROTOCOL_VERSION.getBytes(StandardCharsets.US_ASCII));
-      out.flush();
-      in.readFully(new byte[PROTOCOL_VERSION_LENGTH]);
-      out.write(new byte[] { 1, VNC_AUTHENTICATION });
-      out.flush();
+      output.write(PROTOCOL_VERSION.getBytes(StandardCharsets.US_ASCII));
+      output.flush();
+      input.readFully(new byte[PROTOCOL_VERSION_LENGTH]);
+      output.write(new byte[] { 1, VNC_AUTHENTICATION });
+      output.flush();
 
-      if (in.readUnsignedByte() != VNC_AUTHENTICATION || !this.authenticate(in, out)) {
+      if (input.readUnsignedByte() != VNC_AUTHENTICATION || !this.authenticate(input, output)) {
         return;
       }
 
-      in.readUnsignedByte();
+      input.readUnsignedByte();
       final PixelFormat format = new PixelFormat();
-      this.writeServerInit(out);
-      this.serveMessages(in, out, format);
+      this.writeServerInit(output);
+      this.serveMessages(input, output, format);
     } catch (final IOException | GeneralSecurityException exception) {
       // the client left, or sent what this server does not speak
     }
   }
 
-  private boolean authenticate(final DataInputStream in, final DataOutputStream out) throws IOException, GeneralSecurityException {
-    final byte[] challenge = new byte[CHALLENGE];
+  private boolean authenticate(final DataInputStream input, final DataOutputStream output) throws IOException, GeneralSecurityException {
+    final byte[] challenge = new byte[CHALLENGE_LENGTH];
     new SecureRandom().nextBytes(challenge);
-    out.write(challenge);
-    out.flush();
-    final byte[] response = new byte[CHALLENGE];
-    in.readFully(response);
+    output.write(challenge);
+    output.flush();
+    final byte[] response = new byte[CHALLENGE_LENGTH];
+    input.readFully(response);
     final boolean correct = MessageDigest.isEqual(response, this.encrypt(challenge, this.password));
-    out.writeInt(correct ? 0 : 1);
+    output.writeInt(correct ? 0 : 1);
     if (!correct) {
       final byte[] reason = "wrong password".getBytes(StandardCharsets.US_ASCII);
-      out.writeInt(reason.length);
-      out.write(reason);
+      output.writeInt(reason.length);
+      output.write(reason);
       this.refused.incrementAndGet();
     } else {
       this.logins.incrementAndGet();
     }
-    out.flush();
+    output.flush();
 
     return correct;
   }
@@ -205,39 +205,39 @@ final class FakeVncServer implements AutoCloseable {
     return cipher.doFinal(challenge);
   }
 
-  private void writeServerInit(final DataOutputStream out) throws IOException {
-    out.writeShort(WIDTH);
-    out.writeShort(HEIGHT);
-    out.write(SERVER_PIXEL_FORMAT);
+  private void writeServerInit(final DataOutputStream output) throws IOException {
+    output.writeShort(WIDTH);
+    output.writeShort(HEIGHT);
+    output.write(SERVER_PIXEL_FORMAT);
     final byte[] name = "mcav e2e desktop".getBytes(StandardCharsets.US_ASCII);
-    out.writeInt(name.length);
-    out.write(name);
-    out.flush();
+    output.writeInt(name.length);
+    output.write(name);
+    output.flush();
   }
 
-  private void serveMessages(final DataInputStream in, final DataOutputStream out, final PixelFormat format) throws IOException {
+  private void serveMessages(final DataInputStream input, final DataOutputStream output, final PixelFormat format) throws IOException {
     while (true) {
-      final int type = in.readUnsignedByte();
+      final int type = input.readUnsignedByte();
       switch (type) {
         case SET_PIXEL_FORMAT -> {
-          in.readFully(new byte[PIXEL_FORMAT_PADDING]);
+          input.readFully(new byte[PIXEL_FORMAT_PADDING]);
           final byte[] requested = new byte[PIXEL_FORMAT_LENGTH];
-          in.readFully(requested);
+          input.readFully(requested);
           format.set(requested);
         }
         case SET_ENCODINGS -> {
-          in.readUnsignedByte();
-          in.readFully(new byte[in.readUnsignedShort() * ENCODING_LENGTH]);
+          input.readUnsignedByte();
+          input.readFully(new byte[input.readUnsignedShort() * ENCODING_LENGTH]);
         }
         case FRAMEBUFFER_UPDATE_REQUEST -> {
-          in.readFully(new byte[UPDATE_REQUEST_LENGTH]);
-          this.writeUpdate(out, format);
+          input.readFully(new byte[UPDATE_REQUEST_LENGTH]);
+          this.writeUpdate(output, format);
         }
-        case KEY_EVENT -> in.readFully(new byte[KEY_EVENT_LENGTH]);
-        case POINTER_EVENT -> in.readFully(new byte[POINTER_EVENT_LENGTH]);
+        case KEY_EVENT -> input.readFully(new byte[KEY_EVENT_LENGTH]);
+        case POINTER_EVENT -> input.readFully(new byte[POINTER_EVENT_LENGTH]);
         case CLIENT_CUT_TEXT -> {
-          in.readFully(new byte[CUT_TEXT_PADDING]);
-          in.readFully(new byte[in.readInt()]);
+          input.readFully(new byte[CUT_TEXT_PADDING]);
+          input.readFully(new byte[input.readInt()]);
         }
         default -> {
           final String message = "Client message type %s is unknown!".formatted(type);
@@ -247,7 +247,7 @@ final class FakeVncServer implements AutoCloseable {
     }
   }
 
-  private void writeUpdate(final DataOutputStream out, final PixelFormat format) throws IOException {
+  private void writeUpdate(final DataOutputStream output, final PixelFormat format) throws IOException {
     final int count = this.updates.incrementAndGet();
     final int rgb =
       (((count * RED_STEP) & BYTE_MASK) << RED_SHIFT) |
@@ -258,16 +258,16 @@ final class FakeVncServer implements AutoCloseable {
     for (int at = 0; at < rectangle.length; at += pixel.length) {
       System.arraycopy(pixel, 0, rectangle, at, pixel.length);
     }
-    out.writeByte(0);
-    out.writeByte(0);
-    out.writeShort(1);
-    out.writeShort(0);
-    out.writeShort(0);
-    out.writeShort(WIDTH);
-    out.writeShort(HEIGHT);
-    out.writeInt(0);
-    out.write(rectangle);
-    out.flush();
+    output.writeByte(0);
+    output.writeByte(0);
+    output.writeShort(1);
+    output.writeShort(0);
+    output.writeShort(0);
+    output.writeShort(WIDTH);
+    output.writeShort(HEIGHT);
+    output.writeInt(0);
+    output.write(rectangle);
+    output.flush();
   }
 
   int getPort() {
@@ -292,7 +292,7 @@ final class FakeVncServer implements AutoCloseable {
 
   private static final class PixelFormat {
 
-    private int bytes = DEFAULT_BYTES_PER_PIXEL;
+    private int bytesPerPixel = DEFAULT_BYTES_PER_PIXEL;
 
     private boolean bigEndian;
 
@@ -301,7 +301,7 @@ final class FakeVncServer implements AutoCloseable {
     private int[] shift = { RED_SHIFT, GREEN_SHIFT, BLUE_SHIFT };
 
     void set(final byte[] format) {
-      this.bytes = (format[0] & BYTE_MASK) / BITS_PER_BYTE;
+      this.bytesPerPixel = (format[0] & BYTE_MASK) / BITS_PER_BYTE;
       this.bigEndian = format[BIG_ENDIAN_INDEX] != 0;
       this.maximum = new int[] {
         this.unsigned16(format, RED_MAXIMUM_INDEX),
@@ -325,9 +325,9 @@ final class FakeVncServer implements AutoCloseable {
         final int level = (rgb >> (RED_SHIFT - BITS_PER_BYTE * channel)) & BYTE_MASK;
         value |= (long) ((level * this.maximum[channel]) / CHANNEL_MAXIMUM) << this.shift[channel];
       }
-      final byte[] pixel = new byte[this.bytes];
-      for (int byteIndex = 0; byteIndex < this.bytes; byteIndex++) {
-        final int byteShift = this.bigEndian ? BITS_PER_BYTE * (this.bytes - 1 - byteIndex) : BITS_PER_BYTE * byteIndex;
+      final byte[] pixel = new byte[this.bytesPerPixel];
+      for (int byteIndex = 0; byteIndex < this.bytesPerPixel; byteIndex++) {
+        final int byteShift = this.bigEndian ? BITS_PER_BYTE * (this.bytesPerPixel - 1 - byteIndex) : BITS_PER_BYTE * byteIndex;
         pixel[byteIndex] = (byte) (value >> byteShift);
       }
       return pixel;

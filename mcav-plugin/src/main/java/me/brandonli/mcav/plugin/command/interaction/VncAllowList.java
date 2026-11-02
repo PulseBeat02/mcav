@@ -57,6 +57,8 @@ public final class VncAllowList {
 
   private static final String PORT_SEPARATOR = ":";
 
+  private static final String HEXTET_SEPARATOR = ":";
+
   private final List<Entry> entries;
 
   private VncAllowList(final List<Entry> entries) {
@@ -79,13 +81,13 @@ public final class VncAllowList {
   }
 
   static @Nullable Target parse(final String text) {
-    final int colon = text.lastIndexOf(PORT_SEPARATOR);
-    if (colon <= 0 || colon == text.length() - 1) {
+    final int separatorIndex = text.lastIndexOf(PORT_SEPARATOR);
+    if (separatorIndex <= 0 || separatorIndex == text.length() - 1) {
       return null;
     }
 
-    final String host = parseHost(text.substring(0, colon));
-    final int port = parsePort(text.substring(colon + 1));
+    final String host = parseHost(text.substring(0, separatorIndex));
+    final int port = parsePort(text.substring(separatorIndex + 1));
     if (host == null || port < 1) {
       return null;
     }
@@ -96,12 +98,16 @@ public final class VncAllowList {
   private static @Nullable String parseHost(final String text) {
     final boolean bracketed = text.startsWith(OPENING_BRACKET) && text.endsWith(CLOSING_BRACKET);
     final String host = bracketed ? text.substring(1, text.length() - 1) : text;
-    final boolean address = host.indexOf(PORT_SEPARATOR) >= 0;
-    final boolean invalid = host.isEmpty() || bracketed != address || host.chars().anyMatch(VncAllowList::isOutsideAHost);
+    final boolean ipv6Address = isIpv6Address(host);
+    final boolean invalid = host.isEmpty() || bracketed != ipv6Address || host.chars().anyMatch(VncAllowList::isForbiddenInHost);
     return invalid ? null : host;
   }
 
-  private static boolean isOutsideAHost(final int character) {
+  private static boolean isIpv6Address(final String host) {
+    return host.contains(HEXTET_SEPARATOR);
+  }
+
+  private static boolean isForbiddenInHost(final int character) {
     return character == OPENING_BRACKET_CHARACTER || character == CLOSING_BRACKET_CHARACTER || Character.isWhitespace(character);
   }
 
@@ -130,7 +136,7 @@ public final class VncAllowList {
   }
 
   static String format(final String host, final int port) {
-    return (host.indexOf(PORT_SEPARATOR) >= 0 ? OPENING_BRACKET + host + CLOSING_BRACKET : host) + PORT_SEPARATOR + port;
+    return (isIpv6Address(host) ? OPENING_BRACKET + host + CLOSING_BRACKET : host) + PORT_SEPARATOR + port;
   }
 
   /**
@@ -156,11 +162,11 @@ public final class VncAllowList {
       return true;
     }
 
-    if (!(other instanceof final VncAllowList list)) {
+    if (!(other instanceof final VncAllowList allowList)) {
       return false;
     }
 
-    return this.entries.equals(list.entries);
+    return this.entries.equals(allowList.entries);
   }
 
   /**

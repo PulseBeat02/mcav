@@ -121,11 +121,11 @@ public final class HelpCommand implements AnnotationCommandFeature {
   public void commandHelp(final CommandSender sender, @Greedy final @Nullable String query) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
 
-    final String search = this.searchQuery(query);
+    final String search = this.toHelpQuery(query);
     this.minecraftHelp.queryCommands(search, sender);
   }
 
-  private String searchQuery(final @Nullable String query) {
+  private String toHelpQuery(final @Nullable String query) {
     if (query == null || query.isBlank()) {
       return "";
     }

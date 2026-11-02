@@ -58,12 +58,12 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
  */
 public final class VideoMcv2Command extends AbstractVideoCommand {
 
-  private static final String NO_PROFILE = "none";
+  private static final String NO_LIMIT = "none";
 
   // for measurements; unset or 0 keeps mcav's default
-  static final String PAGE_SLOTS_PROPERTY = "mcav.sandbox.mcv2.pageSlots";
+  static final String PAGE_SLOTS_PROPERTY = "mcav.sandbox.mcv2.page_slots";
 
-  static final String BACKLOG_PROPERTY = "mcav.sandbox.mcv2.backlogLimit";
+  static final String BACKLOG_PROPERTY = "mcav.sandbox.mcv2.backlog_limit";
 
   /**
    * Creates the command.
@@ -135,7 +135,7 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
       return;
     }
 
-    final Collection<UUID> viewers = ArgumentUtils.parseViewers(playerSelector, this.plugin.getOnlinePlayers());
+    final Collection<UUID> viewers = ArgumentUtils.resolveViewers(playerSelector, this.plugin.getOnlinePlayers());
     final Mcv2Support support = this.plugin.getMcv2Support();
     final Optional<Mcv2Configuration> foundConfiguration = support.configure(
       sender,
@@ -154,18 +154,18 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
     this.playVideo(provider, sender, playerSelector, playerType, audioType, videoResolution, mrl, ytdlpOptions, filters);
   }
 
-  static long backlogLimit() {
+  static long readBacklogLimit() {
     final String value = System.getProperty(BACKLOG_PROPERTY);
     if (value == null) {
       return Mcv2Configuration.DEFAULT_BACKLOG_LIMIT;
     }
 
-    return value.equals(NO_PROFILE) ? Long.MAX_VALUE : Long.parseLong(value);
+    return value.equals(NO_LIMIT) ? Long.MAX_VALUE : Long.parseLong(value);
   }
 
   // none turns backpressure off, for measurements
-  static int unsentLimit() {
-    return NO_PROFILE.equals(System.getProperty(BACKLOG_PROPERTY)) ? 0 : Mcv2Configuration.DEFAULT_UNSENT_LIMIT;
+  static int readUnsentLimit() {
+    return NO_LIMIT.equals(System.getProperty(BACKLOG_PROPERTY)) ? 0 : Mcv2Configuration.DEFAULT_UNSENT_LIMIT;
   }
 
   /**
@@ -186,14 +186,14 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
     Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null!");
 
     final Mcv2Settings settings = (Mcv2Settings) configurationProvider.buildConfiguration(resolution);
-    final FunctionalVideoFilter output = mcv2Filter(this.plugin.getMcv2Support(), settings);
+    final FunctionalVideoFilter output = createMcv2Filter(this.plugin.getMcv2Support(), settings);
     this.manager.startFilter(output);
 
     return VideoPipelineStep.of(output);
   }
 
   // when every pack slot plays a screen, falls back to the dithered maps of the same wall
-  static FunctionalVideoFilter mcv2Filter(final Mcv2Support support, final Mcv2Settings settings) {
+  static FunctionalVideoFilter createMcv2Filter(final Mcv2Support support, final Mcv2Settings settings) {
     final Mcv2Configuration configuration = settings.configuration();
     final Optional<Mcv2Output> foundOutput = support.output(settings.sender(), configuration, settings.dithering());
     final @Nullable Mcv2Output output = foundOutput.orElse(null);
@@ -201,13 +201,13 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
       return output;
     }
 
-    final MapConfiguration maps = MapDisplaySettings.createConfiguration(
+    final MapConfiguration mapConfiguration = MapDisplaySettings.createConfiguration(
       Pair.pair(configuration.getColumns(), configuration.getRows()),
       Pair.pair(configuration.getVideoWidth(), configuration.getVideoHeight()),
       configuration.getMap(),
       configuration.getViewers()
     );
-    return DitherFilter.dither(settings.dithering().createAlgorithm(), new CompressedMapResult(maps));
+    return DitherFilter.dither(settings.dithering().createAlgorithm(), new CompressedMapResult(mapConfiguration));
   }
 
   record Mcv2Settings(Mcv2Configuration configuration, DitheringArgument dithering, CommandSender sender) {}

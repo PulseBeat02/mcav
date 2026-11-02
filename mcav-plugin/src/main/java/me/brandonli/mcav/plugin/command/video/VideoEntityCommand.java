@@ -115,7 +115,7 @@ public final class VideoEntityCommand extends AbstractVideoCommand {
     Preconditions.checkNotNull(character, "Character must not be null!");
     Preconditions.checkNotNull(location, "Location must not be null!");
 
-    final Collection<UUID> players = ArgumentUtils.parsePlayerSelectors(playerSelector);
+    final Collection<UUID> players = ArgumentUtils.resolvePlayerIds(playerSelector);
     final VideoConfigurationProvider configurationProvider = resolution ->
       this.createConfiguration(resolution, players, character, location);
     this.playVideo(configurationProvider, sender, playerSelector, playerType, audioType, videoResolution, mrl, ytdlpOptions, filters);

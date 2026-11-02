@@ -46,7 +46,7 @@ final class FilterChainFuzzTest {
     final boolean matches = text.length() <= FilterChain.MAXIMUM_LENGTH;
     assertTrue(matches, text);
 
-    final boolean secondMatches = chain.create().size() <= FilterChain.MAXIMUM_FILTERS;
+    final boolean secondMatches = chain.createFilters().size() <= FilterChain.MAXIMUM_FILTERS;
     assertTrue(secondMatches, text);
   }
 }

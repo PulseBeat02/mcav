@@ -105,7 +105,7 @@ final class Mcv2SupportTest {
     when(frame.getLocation()).thenReturn(new Location(this.world, 5.5, 64.5, 7.03));
     when(frame.getFacing()).thenReturn(BlockFace.SOUTH);
     when(this.world.getEntitiesByClass(ItemFrame.class)).thenReturn(List.of(frame));
-    when(TestServer.server().getWorlds()).thenReturn(List.of(this.world));
+    when(TestServer.getServer().getWorlds()).thenReturn(List.of(this.world));
   }
 
   static ItemStack map(final Material material, final boolean hasId, final int id) {
@@ -373,21 +373,21 @@ final class Mcv2SupportTest {
 
   @Test
   void shouldStepDownToTwoThirdsAndHalfOfTheVideo() {
-    final List<String> described = this.described(Mcv2Support.smallerSizes(1920, 1080));
+    final List<String> described = this.described(Mcv2Support.computeSmallerSizes(1920, 1080));
     assertEquals(List.of("1280x720", "960x540"), described);
 
-    final List<String> secondDescribed = this.described(Mcv2Support.smallerSizes(VIDEO_HEIGHT, 216));
+    final List<String> secondDescribed = this.described(Mcv2Support.computeSmallerSizes(VIDEO_HEIGHT, 216));
     assertEquals(List.of("256x144", "192x108"), secondDescribed);
     // a size under 128 by 72 is left out
 
-    final List<String> thirdDescribed = this.described(Mcv2Support.smallerSizes(240, 120));
+    final List<String> thirdDescribed = this.described(Mcv2Support.computeSmallerSizes(240, 120));
     assertEquals(List.of("160x80"), thirdDescribed);
 
-    final List<String> fourthDescribed = this.described(Mcv2Support.smallerSizes(200, 100));
+    final List<String> fourthDescribed = this.described(Mcv2Support.computeSmallerSizes(200, 100));
     assertEquals(List.of(), fourthDescribed);
     // exactly 128 by 72 is kept
 
-    final List<String> fifthDescribed = this.described(Mcv2Support.smallerSizes(192, 108));
+    final List<String> fifthDescribed = this.described(Mcv2Support.computeSmallerSizes(192, 108));
     assertEquals(List.of("128x72"), fifthDescribed);
   }
 
@@ -443,11 +443,11 @@ final class Mcv2SupportTest {
         this.recordDebugView(context, debugViews)
       )
     ) {
-      System.setProperty(Mcv2Support.DEBUG_VIEW, "true");
+      System.setProperty(Mcv2Support.DEBUG_VIEW_PROPERTY, "true");
       try {
         final Mcv2Support _ = new Mcv2Support(this.folder, PackHosting::injector);
       } finally {
-        System.clearProperty(Mcv2Support.DEBUG_VIEW);
+        System.clearProperty(Mcv2Support.DEBUG_VIEW_PROPERTY);
       }
       final Mcv2Support _ = new Mcv2Support(this.folder, PackHosting::injector);
     }

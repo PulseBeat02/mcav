@@ -81,30 +81,30 @@ final class SoundListener implements WebSocket.Listener, AutoCloseable {
   double awaitFrequency(final int seconds, final Duration timeout) throws InterruptedException {
     final long deadline = System.nanoTime() + timeout.toNanos();
     final int wanted = seconds * SAMPLE_RATE * FRAME_BYTES;
-    byte[] heard = this.heard();
+    byte[] heard = this.copyHeardBytes();
     while (heard.length < wanted) {
       if (System.nanoTime() > deadline) {
         final String message = "Within %s, only %s bytes of sound arrived!".formatted(timeout, heard.length);
         throw new AssertionError(message);
       }
       TimeUnit.MILLISECONDS.sleep(POLL_INTERVAL_MILLISECONDS);
-      heard = this.heard();
+      heard = this.copyHeardBytes();
     }
     final ByteBuffer samples = ByteBuffer.wrap(heard).order(ByteOrder.LITTLE_ENDIAN);
     final int frames = heard.length / FRAME_BYTES;
     int crossings = 0;
-    boolean negative = samples.getShort((frames - SAMPLE_RATE) * FRAME_BYTES) < 0;
+    boolean previousNegative = samples.getShort((frames - SAMPLE_RATE) * FRAME_BYTES) < 0;
     for (int frame = frames - SAMPLE_RATE + 1; frame < frames; frame++) {
-      final boolean now = samples.getShort(frame * FRAME_BYTES) < 0;
-      if (now != negative) {
+      final boolean currentNegative = samples.getShort(frame * FRAME_BYTES) < 0;
+      if (currentNegative != previousNegative) {
         crossings++;
       }
-      negative = now;
+      previousNegative = currentNegative;
     }
     return crossings / CROSSINGS_PER_CYCLE;
   }
 
-  private byte[] heard() {
+  private byte[] copyHeardBytes() {
     synchronized (this.pcm) {
       return this.pcm.toByteArray();
     }

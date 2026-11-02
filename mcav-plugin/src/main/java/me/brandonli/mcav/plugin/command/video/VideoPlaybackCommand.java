@@ -172,7 +172,7 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
     final Component message;
     if (player != null && !(player instanceof AbstractVideoPlayerCv)) {
       message = Message.VLC_UNSUPPORTED.build();
-    } else if (player instanceof final AbstractVideoPlayerCv decoded && decoded.setSpeed(factor)) {
+    } else if (player instanceof final AbstractVideoPlayerCv cvPlayer && cvPlayer.setSpeed(factor)) {
       message = Message.SPEED_SET.build(Double.toString(factor));
     } else {
       message = Message.SPEED_FAILED.build();

@@ -67,7 +67,7 @@ public final class Mcv2Support {
    *
    * @since 1.0.0
    */
-  public static final String DEBUG_VIEW = "mcav.mcv2.debugView";
+  public static final String DEBUG_VIEW_PROPERTY = "mcav.mcv2.debug_view";
 
   /**
    * The system property naming a folder that the frames every MCV2 screen started next sends are recorded into, one
@@ -85,7 +85,7 @@ public final class Mcv2Support {
 
   private static final int MINIMUM_HEIGHT = 72;
 
-  private final Mcv2PackServer packs;
+  private final Mcv2PackServer packServer;
 
   /**
    * Creates the support, which serves nothing until {@link #start()}.
@@ -97,19 +97,19 @@ public final class Mcv2Support {
   public Mcv2Support(final Path dataFolder, final Function<Path, PackHosting> hosting) {
     this(
       new Mcv2PackServer(
-        dataFolder.resolve(Mcv2PlayCommand.STREAMS).resolve(PACK_FOLDER),
+        dataFolder.resolve(Mcv2PlayCommand.STREAM_FOLDER).resolve(PACK_FOLDER),
         hosting,
-        Boolean.getBoolean(DEBUG_VIEW) ? Mcv2Pack.DebugView.SHOWN : Mcv2Pack.DebugView.HIDDEN,
+        Boolean.getBoolean(DEBUG_VIEW_PROPERTY) ? Mcv2Pack.DebugView.SHOWN : Mcv2Pack.DebugView.HIDDEN,
         Mcv2Support::tellOffered,
         Mcv2Support::tellRefused
       )
     );
   }
 
-  Mcv2Support(final Mcv2PackServer packs) {
-    Preconditions.checkNotNull(packs, "Pack server must not be null!");
+  Mcv2Support(final Mcv2PackServer packServer) {
+    Preconditions.checkNotNull(packServer, "Pack server must not be null!");
 
-    this.packs = packs;
+    this.packServer = packServer;
   }
 
   /**
@@ -118,7 +118,7 @@ public final class Mcv2Support {
    * @since 1.0.0
    */
   public void start() {
-    this.packs.start();
+    this.packServer.start();
   }
 
   /**
@@ -127,7 +127,7 @@ public final class Mcv2Support {
    * @since 1.0.0
    */
   public void shutdown() {
-    this.packs.shutdown();
+    this.packServer.shutdown();
   }
 
   static void tellOffered(final Player player) {
@@ -161,7 +161,7 @@ public final class Mcv2Support {
     final Collection<UUID> viewers
   ) {
     // the library refuses such a screen with an exception, which no command expects
-    if (!this.fitsMcv2(blocks, resolution)) {
+    if (!this.isWithinMcv2Limits(blocks, resolution)) {
       sender.sendMessage(Message.MCV2_SIZE_ERROR.build());
       return Optional.empty();
     }
@@ -183,17 +183,17 @@ public final class Mcv2Support {
       .video(resolution.getFirst(), resolution.getSecond())
       .settings(settings)
       .pageSlots(Integer.getInteger(VideoMcv2Command.PAGE_SLOTS_PROPERTY, 0))
-      .backlogLimit(VideoMcv2Command.backlogLimit())
-      .unsentLimit(VideoMcv2Command.unsentLimit())
+      .backlogLimit(VideoMcv2Command.readBacklogLimit())
+      .unsentLimit(VideoMcv2Command.readUnsentLimit())
       .build();
     return Optional.of(configuration);
   }
 
-  private boolean fitsMcv2(final Pair<Integer, Integer> blocks, final Pair<Integer, Integer> resolution) {
-    final boolean maps = blocks.getFirst() <= Mcv2Configuration.MAXIMUM_SIDE && blocks.getSecond() <= Mcv2Configuration.MAXIMUM_SIDE;
-    final boolean pixels =
+  private boolean isWithinMcv2Limits(final Pair<Integer, Integer> blocks, final Pair<Integer, Integer> resolution) {
+    final boolean mapsFit = blocks.getFirst() <= Mcv2Configuration.MAXIMUM_SIDE && blocks.getSecond() <= Mcv2Configuration.MAXIMUM_SIDE;
+    final boolean pixelsFit =
       resolution.getFirst() <= Mcv2Decoder.MAXIMUM_DIMENSION && resolution.getSecond() <= Mcv2Decoder.MAXIMUM_DIMENSION;
-    return maps && pixels;
+    return mapsFit && pixelsFit;
   }
 
   /**
@@ -207,7 +207,7 @@ public final class Mcv2Support {
    */
   public Optional<Mcv2PackServer.Lease> open(final CommandSender sender, final Mcv2Configuration configuration) {
     try {
-      final Mcv2PackServer.Lease lease = this.packs.open(configuration);
+      final Mcv2PackServer.Lease lease = this.packServer.open(configuration);
       return Optional.of(lease);
     } catch (final IllegalStateException exception) {
       sender.sendMessage(Message.MCV2_FULL.build());
@@ -236,7 +236,7 @@ public final class Mcv2Support {
     final Mcv2Configuration slotted = lease.getConfiguration();
     final Mcv2Result result = new Mcv2Result(slotted, this.getViewers(), dithering.createAlgorithm());
     result.setPacingListener(change -> sender.sendMessage(Message.MCV2_PACING.build(change.describe())));
-    result.setSmallerSizes(smallerSizes(slotted.getVideoWidth(), slotted.getVideoHeight()), lease);
+    result.setSmallerSizes(computeSmallerSizes(slotted.getVideoWidth(), slotted.getVideoHeight()), lease);
     final String record = System.getProperty(RECORD_PROPERTY);
     if (record != null) {
       final long streamId = slotted.getStreamId();
@@ -248,7 +248,7 @@ public final class Mcv2Support {
     return Optional.of(output);
   }
 
-  static List<int[]> smallerSizes(final int width, final int height) {
+  static List<int[]> computeSmallerSizes(final int width, final int height) {
     final List<int[]> sizes = new ArrayList<>();
     for (final int[] fraction : SMALLER_FRACTIONS) {
       final int smallerWidth = ((width * fraction[0]) / fraction[1]) & ~1;
@@ -293,7 +293,7 @@ public final class Mcv2Support {
     }
 
     final ItemMeta metadata = item.getItemMeta();
-    return metadata instanceof final MapMeta map && map.hasMapId() && map.getMapId() == mapId;
+    return metadata instanceof final MapMeta mapMetadata && mapMetadata.hasMapId() && mapMetadata.getMapId() == mapId;
   }
 
   /**
@@ -303,6 +303,6 @@ public final class Mcv2Support {
    * @since 1.0.0
    */
   public Mcv2Viewers getViewers() {
-    return this.packs.getViewers();
+    return this.packServer.getViewers();
   }
 }

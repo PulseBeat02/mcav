@@ -132,7 +132,7 @@ public abstract class MiniMessageTranslator implements Translator {
     final Component argumentComponent = argument.asComponent();
     final String plainText = PLAIN_TEXT_SERIALIZER.serialize(argumentComponent);
     final UrlPlaceholder placeholder = new UrlPlaceholder();
-    final String prepared = placeholder.prepare(message);
+    final String prepared = placeholder.replaceUrlTokens(message);
     final Component parsed = this.deserialize(prepared, arguments);
     return placeholder.render(parsed, plainText);
   }

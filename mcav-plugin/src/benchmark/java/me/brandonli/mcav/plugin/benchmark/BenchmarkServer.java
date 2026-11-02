@@ -36,7 +36,7 @@ import java.util.concurrent.TimeUnit;
 
 final class BenchmarkServer implements AutoCloseable {
 
-  private static final String FRAMES_PER_SECOND_PAGE = """
+  private static final String FRAME_RATE_PAGE = """
   <!doctype html><html><body style="margin:0;overflow:hidden">
   <div id="d" style="position:fixed;left:0;top:0;right:0;bottom:0;background:#dc0000"></div>
   <script>
@@ -59,7 +59,7 @@ final class BenchmarkServer implements AutoCloseable {
   private static final String URL_PREFIX = "http://127.0.0.1:";
   private static final String PATH_SEPARATOR = "/";
 
-  private static final String FRAME_RATE_PATH = "/fps";
+  private static final String FRAME_RATE_PATH = "/frame-rate";
   private static final String LATENCY_PATH = "/latency";
   private static final String EVENTS_PATH = "/events";
 
@@ -90,7 +90,7 @@ final class BenchmarkServer implements AutoCloseable {
     final HttpServer server = HttpServer.create(address, 0);
     final ExecutorService executor = Executors.newCachedThreadPool();
     final BenchmarkServer created = new BenchmarkServer(server, executor);
-    server.createContext(FRAME_RATE_PATH, exchange -> respond(exchange, FRAMES_PER_SECOND_PAGE));
+    server.createContext(FRAME_RATE_PATH, exchange -> respond(exchange, FRAME_RATE_PAGE));
     server.createContext(LATENCY_PATH, exchange -> respond(exchange, LATENCY_PAGE));
     server.createContext(EVENTS_PATH, created::openEvents);
     server.setExecutor(executor);
@@ -117,8 +117,8 @@ final class BenchmarkServer implements AutoCloseable {
     headers.set(CONTENT_TYPE_HEADER, HTML_CONTENT_TYPE);
     headers.set(CACHE_CONTROL_HEADER, NO_STORE);
     exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, body.length);
-    try (final OutputStream out = exchange.getResponseBody()) {
-      out.write(body);
+    try (final OutputStream output = exchange.getResponseBody()) {
+      output.write(body);
     }
   }
 
@@ -127,10 +127,10 @@ final class BenchmarkServer implements AutoCloseable {
     headers.set(CONTENT_TYPE_HEADER, EVENT_STREAM_CONTENT_TYPE);
     headers.set(CACHE_CONTROL_HEADER, NO_STORE);
     exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, 0);
-    final OutputStream out = exchange.getResponseBody();
-    out.write(OPEN_COMMENT.getBytes(StandardCharsets.UTF_8));
-    out.flush();
-    this.listeners.add(out);
+    final OutputStream output = exchange.getResponseBody();
+    output.write(OPEN_COMMENT.getBytes(StandardCharsets.UTF_8));
+    output.flush();
+    this.listeners.add(output);
     synchronized (this) {
       this.subscriptions++;
       this.notifyAll();

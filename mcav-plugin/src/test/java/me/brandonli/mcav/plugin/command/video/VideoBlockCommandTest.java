@@ -94,7 +94,7 @@ final class VideoBlockCommandTest {
     this.selector = this.mockSelector(this.viewer);
     this.sender = mock(CommandSender.class);
     final FakeWorld world = new FakeWorld();
-    this.location = world.location(1.0, 64.0, 2.0);
+    this.location = world.createLocation(1.0, 64.0, 2.0);
   }
 
   private @Nullable Object runFilterOnMainThread(final InvocationOnMock invocation, final MCAVSandbox plugin) {

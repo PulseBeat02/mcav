@@ -40,19 +40,19 @@ import org.bukkit.plugin.ServicesManager;
  */
 public final class ServerLoadListener implements Listener {
 
-  private final MCAVSandbox sandbox;
+  private final MCAVSandbox plugin;
 
   /**
    * Creates the listener.
    *
-   * @param sandbox the plugin
+   * @param plugin the plugin
    * @throws NullPointerException if the plugin is {@code null}
    * @since 1.0.0
    */
-  public ServerLoadListener(final MCAVSandbox sandbox) {
-    Preconditions.checkNotNull(sandbox, "Plugin must not be null!");
+  public ServerLoadListener(final MCAVSandbox plugin) {
+    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
 
-    this.sandbox = sandbox;
+    this.plugin = plugin;
   }
 
   /**
@@ -76,8 +76,8 @@ public final class ServerLoadListener implements Listener {
       throw new PluginException(message);
     }
 
-    final MCAVVoiceChatPlugin plugin = new MCAVVoiceChatPlugin(this.sandbox);
-    voiceChatService.registerPlugin(plugin);
+    final MCAVVoiceChatPlugin voiceChatPlugin = new MCAVVoiceChatPlugin(this.plugin);
+    voiceChatService.registerPlugin(voiceChatPlugin);
 
     final HandlerList handlers = ServerLoadEvent.getHandlerList();
     handlers.unregister(this);

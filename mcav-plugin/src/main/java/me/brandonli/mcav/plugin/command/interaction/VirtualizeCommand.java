@@ -176,19 +176,19 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
   /**
    * Stops the QEMU process of a virtual machine.
    *
-   * @param current the virtual machine to stop, which is no longer the running one
+   * @param player the virtual machine to stop, which is no longer the running one
    * @since 1.0.0
    */
   @Override
-  protected void releasePlayer(final VmPlayer current) {
-    Preconditions.checkNotNull(current, VIRTUAL_MACHINE_NULL_MESSAGE);
+  protected void releasePlayer(final VmPlayer player) {
+    Preconditions.checkNotNull(player, VIRTUAL_MACHINE_NULL_MESSAGE);
 
     // QEMU takes up to ten seconds to stop, and is then killed; no frame or sound of it meanwhile
     CleanupUtils.runAll(
-      () -> current.getVideoAttachableCallback().detach(),
-      () -> current.getAudioAttachableCallback().detach(),
-      () -> this.releaseSound(current),
-      () -> this.releaseInTheBackground(current::release)
+      () -> player.getVideoAttachableCallback().detach(),
+      () -> player.getAudioAttachableCallback().detach(),
+      () -> this.releaseSound(player),
+      () -> this.releaseInTheBackground(player::release)
     );
   }
 
@@ -444,8 +444,8 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
       }
       return builder.build();
     } catch (final IllegalArgumentException exception) {
-      final String cause = exception.getMessage();
-      final String reason = Objects.requireNonNullElse(cause, "The options are not valid");
+      final String detail = exception.getMessage();
+      final String reason = Objects.requireNonNullElse(detail, "The options are not valid");
       final Component message = Message.UNSUPPORTED_VM_FLAGS.build(reason);
       sender.sendMessage(message);
       return null;
@@ -526,8 +526,8 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
   }
 
   private static void requireFlagOption(final String name) {
-    final boolean isFlagOption = FLAG_OPTIONS.contains(name);
-    if (isFlagOption) {
+    final boolean flagOption = FLAG_OPTIONS.contains(name);
+    if (flagOption) {
       return;
     }
 
@@ -553,13 +553,13 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
       return resolved.toString();
     }
 
-    final boolean isDriveOption = name.equals(DRIVE_OPTION);
-    if (isDriveOption) {
+    final boolean driveOption = name.equals(DRIVE_OPTION);
+    if (driveOption) {
       return checkedDrive(value, imageFolder);
     }
 
-    final boolean isFlagOption = FLAG_OPTIONS.contains(name);
-    if (isFlagOption) {
+    final boolean flagOption = FLAG_OPTIONS.contains(name);
+    if (flagOption) {
       final String message = "QEMU option -%s takes no value!".formatted(name);
       throw new IllegalArgumentException(message);
     }
@@ -570,11 +570,11 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
   private static String checkedDrive(final String value, final Path imageFolder) {
     final List<String> parts = DRIVE_SPLITTER.splitToList(value);
     final List<String> checked = new ArrayList<>(parts.size());
-    int files = 0;
+    int fileCount = 0;
     for (final String part : parts) {
       final boolean namesFile = part.startsWith(FILE_KEY);
       if (namesFile) {
-        files++;
+        fileCount++;
         final String image = part.substring(FILE_KEY.length());
         final Path resolved = DiskImages.require(imageFolder, image);
         checked.add(FILE_KEY + resolved);
@@ -584,7 +584,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
         checked.add(part);
       }
     }
-    final boolean exactlyOneFile = files == 1;
+    final boolean exactlyOneFile = fileCount == 1;
     if (!exactlyOneFile) {
       final String message = "Drive %s must name its disk image exactly once, as file=<image>!".formatted(value);
       throw new IllegalArgumentException(message);
@@ -595,8 +595,8 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
 
   // only a disk image of the image folder may name a file
   private static void requireNoPath(final String name, final String value) {
-    final boolean path = value.indexOf(UNIX_SEPARATOR) >= 0 || value.indexOf(WINDOWS_SEPARATOR) >= 0;
-    if (path) {
+    final boolean namesPath = value.indexOf(UNIX_SEPARATOR) >= 0 || value.indexOf(WINDOWS_SEPARATOR) >= 0;
+    if (namesPath) {
       final String message = "QEMU option -%s must not name a file, but %s does!".formatted(name, value);
       throw new IllegalArgumentException(message);
     }

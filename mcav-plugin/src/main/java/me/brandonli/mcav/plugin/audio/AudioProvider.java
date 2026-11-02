@@ -81,7 +81,7 @@ public final class AudioProvider {
   private static final String PATH_SEPARATOR = "/";
 
   private final PluginDataConfigurationMapper configuration;
-  private final MCAVSandbox sandbox;
+  private final MCAVSandbox plugin;
   private final ExecutorService startup;
   private final Object lock;
 
@@ -97,21 +97,21 @@ public final class AudioProvider {
   /**
    * Creates the provider.
    *
-   * @param sandbox the plugin, whose configuration must be loaded
+   * @param plugin the plugin, whose configuration must be loaded
    * @since 1.0.0
    */
-  public AudioProvider(final MCAVSandbox sandbox) {
-    this(sandbox, Executors.newVirtualThreadPerTaskExecutor());
+  public AudioProvider(final MCAVSandbox plugin) {
+    this(plugin, Executors.newVirtualThreadPerTaskExecutor());
   }
 
-  // the sandbox's configuration must already be loaded
+  // the plugin's configuration must already be loaded
   @VisibleForTesting
-  AudioProvider(final MCAVSandbox sandbox, final ExecutorService startup) {
-    Preconditions.checkNotNull(sandbox, "Plugin must not be null!");
+  AudioProvider(final MCAVSandbox plugin, final ExecutorService startup) {
+    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
     Preconditions.checkNotNull(startup, "Startup executor must not be null!");
 
-    this.configuration = sandbox.getConfiguration();
-    this.sandbox = sandbox;
+    this.configuration = plugin.getConfiguration();
+    this.plugin = plugin;
     this.startup = startup;
     this.lock = new Object();
     this.outputLock = new Object();
@@ -185,8 +185,8 @@ public final class AudioProvider {
       throw new MissingVoiceChatException(message);
     }
 
-    final ServerLoadListener listener = new ServerLoadListener(this.sandbox);
-    pluginManager.registerEvents(listener, this.sandbox);
+    final ServerLoadListener listener = new ServerLoadListener(this.plugin);
+    pluginManager.registerEvents(listener, this.plugin);
   }
 
   private void startHttp() {

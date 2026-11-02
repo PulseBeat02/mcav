@@ -55,7 +55,7 @@ public final class ArgumentUtils {
    */
   public static final int MAXIMUM_SCREEN_SIDE = 64;
 
-  // parseViewers keeps following this selector
+  // resolveViewers keeps following this selector
   private static final String EVERYONE = "@a";
 
   private static final String DIMENSION_SEPARATOR = "x";
@@ -136,7 +136,7 @@ public final class ArgumentUtils {
    * @throws NullPointerException if the selector is {@code null}
    * @since 1.0.0
    */
-  public static Collection<UUID> parsePlayerSelectors(final MultiplePlayerSelector playerSelector) {
+  public static Collection<UUID> resolvePlayerIds(final MultiplePlayerSelector playerSelector) {
     Preconditions.checkNotNull(playerSelector, PLAYER_SELECTOR_NULL_MESSAGE);
 
     final Collection<Player> players = playerSelector.values();
@@ -148,17 +148,17 @@ public final class ArgumentUtils {
   /**
    * Resolves the viewers of a wall of maps: for {@code @a} exactly, every player online, including those who join
    * while the wall plays; for any other selector the players it matches right now, as
-   * {@link #parsePlayerSelectors(MultiplePlayerSelector)} does.
+   * {@link #resolvePlayerIds(MultiplePlayerSelector)} does.
    *
    * @param playerSelector the selector the command received
    * @param online         the players online
    * @return the unique ids of the viewers, a live view for {@code @a}
    * @since 1.0.0
    */
-  public static Collection<UUID> parseViewers(final MultiplePlayerSelector playerSelector, final OnlinePlayers online) {
+  public static Collection<UUID> resolveViewers(final MultiplePlayerSelector playerSelector, final OnlinePlayers online) {
     Preconditions.checkNotNull(playerSelector, PLAYER_SELECTOR_NULL_MESSAGE);
     Preconditions.checkNotNull(online, "Online players must not be null!");
 
-    return EVERYONE.equals(playerSelector.inputString()) ? online.getPlayers() : parsePlayerSelectors(playerSelector);
+    return EVERYONE.equals(playerSelector.inputString()) ? online.getPlayers() : resolvePlayerIds(playerSelector);
   }
 }

@@ -81,9 +81,9 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
  */
 public final class Mcv2PlayCommand implements AnnotationCommandFeature {
 
-  private static final long PROGRESS_NANOSECONDS = TimeUnit.SECONDS.toNanos(30);
+  private static final long PROGRESS_INTERVAL_NANOSECONDS = TimeUnit.SECONDS.toNanos(30);
 
-  static final String STREAMS = "mcv2";
+  static final String STREAM_FOLDER = "mcv2";
 
   // a stream is held in memory while it plays
   private static final long MAXIMUM_STREAM_BYTES = 1L << 30;
@@ -257,22 +257,22 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     final Consumer<Mcv2Playback> start
   ) {
     try {
-      final List<byte[]> frames = read(this.streamFile(file));
+      final List<byte[]> frames = read(this.prepareStreamFile(file));
       final Frame first = Mcv2Decoder.parse(frames.getFirst());
-      return () -> this.open(load, sender, playerSelector, blocks, mapId, frames, first, start);
+      return () -> this.openIfCurrent(load, sender, playerSelector, blocks, mapId, frames, first, start);
     } catch (final IOException | RuntimeException exception) {
       final Component message = Message.MCV2_FILE_ERROR.build(String.valueOf(exception.getMessage()));
-      return () -> this.report(load, sender, message);
+      return () -> this.reportIfCurrent(load, sender, message);
     }
   }
 
-  private void report(final long load, final CommandSender sender, final Component message) {
+  private void reportIfCurrent(final long load, final CommandSender sender, final Component message) {
     if (load == this.loads) {
       sender.sendMessage(message);
     }
   }
 
-  private void open(
+  private void openIfCurrent(
     final long load,
     final CommandSender sender,
     final MultiplePlayerSelector playerSelector,
@@ -294,7 +294,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
       resolution,
       mapId,
       Mcv2Profile.DEFAULT.getSettings(),
-      ArgumentUtils.parseViewers(playerSelector, this.plugin.getOnlinePlayers())
+      ArgumentUtils.resolveViewers(playerSelector, this.plugin.getOnlinePlayers())
     );
     final @Nullable Mcv2Configuration configuration = foundConfiguration.orElse(null);
     if (configuration == null) {
@@ -375,7 +375,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
 
   private @Nullable Path resolveStreamFile(final CommandSender sender, final String output) {
     try {
-      return this.streamFile(output);
+      return this.prepareStreamFile(output);
     } catch (final IOException exception) {
       sender.sendMessage(Message.MCV2_ENCODE_ERROR.build(String.valueOf(exception.getMessage())));
       return null;
@@ -417,7 +417,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
       final Thread thread = Thread.ofPlatform()
         .daemon()
         .name("mcav-mcv2-file-encode")
-        .start(() -> encodeFile(sender, stoppable, source, target, width, height, profile, budget, PROGRESS_NANOSECONDS));
+        .start(() -> encodeFile(sender, stoppable, source, target, width, height, profile, budget, PROGRESS_INTERVAL_NANOSECONDS));
       this.encoding = new FileEncode(thread, stopped);
     }
   }
@@ -436,11 +436,11 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     final Path fileName = target.getFileName();
     final Path partial = target.resolveSibling("%s%s".formatted(fileName, PARTIAL_SUFFIX));
     final long started = System.nanoTime();
-    final LongConsumer progress = progressReporter(sender, started, interval);
+    final LongConsumer progress = createProgressReporter(sender, started, interval);
     final Mcv2FileEncoder.Result result;
     try {
-      try (final OutputStream out = new BufferedOutputStream(Files.newOutputStream(partial))) {
-        result = Mcv2FileEncoder.encode(opener.open(source, width, height), width, height, profile.getSettings(), budget, out, progress);
+      try (final OutputStream output = new BufferedOutputStream(Files.newOutputStream(partial))) {
+        result = Mcv2FileEncoder.encode(opener.open(source, width, height), width, height, profile.getSettings(), budget, output, progress);
       }
       Files.move(partial, target, StandardCopyOption.REPLACE_EXISTING);
     } catch (final IOException | RuntimeException exception) {
@@ -476,7 +476,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     );
   }
 
-  private static LongConsumer progressReporter(final CommandSender sender, final long started, final long interval) {
+  private static LongConsumer createProgressReporter(final CommandSender sender, final long started, final long interval) {
     final long[] reported = { started };
     return frames -> reportProgress(sender, started, interval, reported, frames);
   }
@@ -503,8 +503,8 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     return elapsed >= interval;
   }
 
-  Path streamFile(final String name) throws IOException {
-    final Path folder = this.plugin.getDataFolder().toPath().resolve(STREAMS).toAbsolutePath().normalize();
+  Path prepareStreamFile(final String name) throws IOException {
+    final Path folder = this.plugin.getDataFolder().toPath().resolve(STREAM_FOLDER).toAbsolutePath().normalize();
     final Path file = folder.resolve(name).normalize();
     if (!file.startsWith(folder) || file.equals(folder)) {
       final String message = "Stream file %s is not a file in %s, where stream files are kept!".formatted(name, folder);
@@ -525,7 +525,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
   }
 
   // still set while a cancelled encode cleans up
-  synchronized @Nullable Thread getEncoding() {
+  synchronized @Nullable Thread getEncodingThread() {
     final FileEncode current = this.encoding;
     return current == null ? null : current.thread();
   }

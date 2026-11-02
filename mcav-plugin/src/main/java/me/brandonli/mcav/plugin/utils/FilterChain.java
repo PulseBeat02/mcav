@@ -94,21 +94,21 @@ public final class FilterChain {
    *
    * @since 1.0.0
    */
-  public static final int MAXIMUM_BLUR = 15;
+  public static final int MAXIMUM_BLUR_RADIUS = 15;
 
   /**
    * The largest diameter of {@code bilateral}, whose work grows with its square.
    *
    * @since 1.0.0
    */
-  public static final int MAXIMUM_BILATERAL = 9;
+  public static final int MAXIMUM_BILATERAL_DIAMETER = 9;
 
   /**
    * The largest kernel of {@code dilate} and {@code erode}.
    *
    * @since 1.0.0
    */
-  public static final int MAXIMUM_MORPHOLOGY = 15;
+  public static final int MAXIMUM_MORPHOLOGY_KERNEL = 15;
 
   /**
    * The largest contrast factor of {@code luminance}.
@@ -129,7 +129,7 @@ public final class FilterChain {
    *
    * @since 1.0.0
    */
-  public static final int MAXIMUM_TEXT = 32;
+  public static final int MAXIMUM_TEXT_LENGTH = 32;
 
   /**
    * The largest overlay file.
@@ -224,7 +224,7 @@ public final class FilterChain {
 
   private static final Pattern DECIMAL = Pattern.compile("\\d{1,2}(\\.\\d{1,3})?");
 
-  private static final Pattern TEXT = Pattern.compile("[A-Za-z0-9 .!?'()+-]{1," + MAXIMUM_TEXT + "}");
+  private static final Pattern TEXT = Pattern.compile("[A-Za-z0-9 .!?'()+-]{1," + MAXIMUM_TEXT_LENGTH + "}");
 
   private static final Pattern OVERLAY_NAME = Pattern.compile("[A-Za-z0-9_-]{1,32}");
 
@@ -256,7 +256,7 @@ public final class FilterChain {
 
   private static final int GREEN_SHIFT = 8;
 
-  private static final int BYTE = 0xff;
+  private static final int CHANNEL_MASK = 0xff;
 
   private static final String FILTER_SEPARATOR = ",";
   private static final char ARGUMENT_START = '=';
@@ -374,7 +374,7 @@ public final class FilterChain {
   }
 
   private static Supplier<VideoFilter> noArguments(final String name, final List<String> arguments, final Supplier<VideoFilter> filter) {
-    count(name, arguments, 0);
+    checkArgumentCount(name, arguments, 0);
 
     return filter;
   }
@@ -389,32 +389,32 @@ public final class FilterChain {
   }
 
   private static Supplier<VideoFilter> blur(final List<String> arguments) {
-    count(BLUR_FILTER, arguments, 1);
-    final int radius = whole(BLUR_FILTER, arguments.getFirst(), 1, MAXIMUM_BLUR);
+    checkArgumentCount(BLUR_FILTER, arguments, 1);
+    final int radius = parseWholeNumber(BLUR_FILTER, arguments.getFirst(), 1, MAXIMUM_BLUR_RADIUS);
     return () -> new BlurFilter(BlurFilter.BlurType.GAUSSIAN, KERNEL_SIDES * radius + 1);
   }
 
   private static Supplier<VideoFilter> bilateral(final List<String> arguments) {
-    count(BILATERAL_FILTER, arguments, 1);
-    final int diameter = whole(BILATERAL_FILTER, arguments.getFirst(), 1, MAXIMUM_BILATERAL);
+    checkArgumentCount(BILATERAL_FILTER, arguments, 1);
+    final int diameter = parseWholeNumber(BILATERAL_FILTER, arguments.getFirst(), 1, MAXIMUM_BILATERAL_DIAMETER);
     return () -> new BilateralFilter(diameter, BILATERAL_SIGMA, BILATERAL_SIGMA);
   }
 
   private static Supplier<VideoFilter> threshold(final List<String> arguments) {
-    count(THRESHOLD_FILTER, arguments, 1);
-    final int level = whole(THRESHOLD_FILTER, arguments.getFirst(), 0, MAXIMUM_LEVEL);
+    checkArgumentCount(THRESHOLD_FILTER, arguments, 1);
+    final int level = parseWholeNumber(THRESHOLD_FILTER, arguments.getFirst(), 0, MAXIMUM_LEVEL);
     return () -> new ThresholdFilter(level, MAXIMUM_LEVEL, opencv_imgproc.THRESH_BINARY);
   }
 
   private static Supplier<VideoFilter> luminance(final List<String> arguments) {
-    count(LUMINANCE_FILTER, arguments, LUMINANCE_ARGUMENTS);
-    final double contrast = decimal(LUMINANCE_FILTER, arguments.getFirst(), MAXIMUM_CONTRAST);
-    final int brightness = whole(LUMINANCE_FILTER, arguments.get(1), -MAXIMUM_BRIGHTNESS, MAXIMUM_BRIGHTNESS);
+    checkArgumentCount(LUMINANCE_FILTER, arguments, LUMINANCE_ARGUMENTS);
+    final double contrast = parseDecimal(LUMINANCE_FILTER, arguments.getFirst(), MAXIMUM_CONTRAST);
+    final int brightness = parseWholeNumber(LUMINANCE_FILTER, arguments.get(1), -MAXIMUM_BRIGHTNESS, MAXIMUM_BRIGHTNESS);
     return () -> new LuminanceFilter(contrast, brightness);
   }
 
   private static Supplier<VideoFilter> colorMap(final List<String> arguments) {
-    count(COLOR_MAP_FILTER, arguments, 1);
+    checkArgumentCount(COLOR_MAP_FILTER, arguments, 1);
     final Integer map = COLOR_MAPS.get(arguments.getFirst().toLowerCase(Locale.ROOT));
     if (map == null) {
       final String names = String.join(NAME_SEPARATOR, COLOR_MAPS.keySet().stream().sorted().toList());
@@ -431,14 +431,16 @@ public final class FilterChain {
       throw new IllegalArgumentException(message);
     }
 
-    final double[] color = color(TINT_FILTER, arguments.getFirst());
+    final double[] color = parseColor(TINT_FILTER, arguments.getFirst());
     final double strength =
-      arguments.size() == TINT_MAXIMUM_ARGUMENTS ? whole(TINT_FILTER, arguments.get(1), 0, PERCENT) / (double) PERCENT : DEFAULT_TINT;
+      arguments.size() == TINT_MAXIMUM_ARGUMENTS
+        ? parseWholeNumber(TINT_FILTER, arguments.get(1), 0, PERCENT) / (double) PERCENT
+        : DEFAULT_TINT;
     return () -> new TintFilter(color, strength);
   }
 
   private static Supplier<VideoFilter> flip(final List<String> arguments) {
-    count(FLIP_FILTER, arguments, 1);
+    checkArgumentCount(FLIP_FILTER, arguments, 1);
     final FlipFilter.FlipDirection direction = switch (arguments.getFirst()) {
       case HORIZONTAL_FLIP -> FlipFilter.FlipDirection.HORIZONTAL;
       case VERTICAL_FLIP -> FlipFilter.FlipDirection.VERTICAL;
@@ -452,7 +454,7 @@ public final class FilterChain {
   }
 
   private static Supplier<VideoFilter> rotate(final List<String> arguments) {
-    count(ROTATE_FILTER, arguments, 1);
+    checkArgumentCount(ROTATE_FILTER, arguments, 1);
     final RotationFilter.Rotation rotation = switch (arguments.getFirst()) {
       case QUARTER_TURN -> RotationFilter.Rotation.ROTATE_90_CLOCKWISE;
       case HALF_TURN -> RotationFilter.Rotation.ROTATE_180;
@@ -466,35 +468,35 @@ public final class FilterChain {
   }
 
   private static Supplier<VideoFilter> crop(final List<String> arguments) {
-    count(CROP_FILTER, arguments, CROP_ARGUMENTS);
-    final Region region = region(CROP_FILTER, arguments);
-    return () -> new RegionFilter(region, CropZoom::new);
+    checkArgumentCount(CROP_FILTER, arguments, CROP_ARGUMENTS);
+    final Region region = parseRegion(CROP_FILTER, arguments);
+    return () -> new RegionFilter(region, CropZoomFilter::new);
   }
 
   private static Supplier<VideoFilter> rectangle(final List<String> arguments) {
-    count(RECTANGLE_FILTER, arguments, RECTANGLE_ARGUMENTS);
-    final Region region = region(RECTANGLE_FILTER, arguments);
-    final double[] color = color(RECTANGLE_FILTER, arguments.get(RECTANGLE_COLOR_INDEX));
+    checkArgumentCount(RECTANGLE_FILTER, arguments, RECTANGLE_ARGUMENTS);
+    final Region region = parseRegion(RECTANGLE_FILTER, arguments);
+    final double[] color = parseColor(RECTANGLE_FILTER, arguments.get(RECTANGLE_COLOR_INDEX));
     return () -> new RegionFilter(region, (left, top, width, height, _, _) -> new RectangleFilter(left, top, width, height, color));
   }
 
   private static Supplier<VideoFilter> dilate(final List<String> arguments) {
-    count(DILATE_FILTER, arguments, 1);
-    final int kernel = whole(DILATE_FILTER, arguments.getFirst(), 1, MAXIMUM_MORPHOLOGY);
+    checkArgumentCount(DILATE_FILTER, arguments, 1);
+    final int kernel = parseWholeNumber(DILATE_FILTER, arguments.getFirst(), 1, MAXIMUM_MORPHOLOGY_KERNEL);
     return () -> new DilationFilter(kernel);
   }
 
   private static Supplier<VideoFilter> erode(final List<String> arguments) {
-    count(ERODE_FILTER, arguments, 1);
-    final int kernel = whole(ERODE_FILTER, arguments.getFirst(), 1, MAXIMUM_MORPHOLOGY);
+    checkArgumentCount(ERODE_FILTER, arguments, 1);
+    final int kernel = parseWholeNumber(ERODE_FILTER, arguments.getFirst(), 1, MAXIMUM_MORPHOLOGY_KERNEL);
     return () -> new ErosionFilter(kernel);
   }
 
   private static Supplier<VideoFilter> text(final List<String> arguments) {
-    count(TEXT_FILTER, arguments, 1);
+    checkArgumentCount(TEXT_FILTER, arguments, 1);
     final String text = arguments.getFirst();
     if (!TEXT.matcher(text).matches()) {
-      final String message = "Filter text takes up to %s letters, digits, spaces and .!?'()+- characters!".formatted(MAXIMUM_TEXT);
+      final String message = "Filter text takes up to %s letters, digits, spaces and .!?'()+- characters!".formatted(MAXIMUM_TEXT_LENGTH);
       throw new IllegalArgumentException(message);
     }
 
@@ -503,7 +505,7 @@ public final class FilterChain {
 
   // links in the overlay folder are not followed
   private static Supplier<VideoFilter> overlay(final List<String> arguments, final Path overlays) {
-    count(OVERLAY_FILTER, arguments, 1);
+    checkArgumentCount(OVERLAY_FILTER, arguments, 1);
     final String name = arguments.getFirst();
     if (!OVERLAY_NAME.matcher(name).matches()) {
       final String message = "Filter overlay takes the name of a PNG file of the overlays folder, without .png!";
@@ -552,14 +554,14 @@ public final class FilterChain {
     return image;
   }
 
-  private static void count(final String name, final List<String> arguments, final int expected) {
+  private static void checkArgumentCount(final String name, final List<String> arguments, final int expected) {
     if (arguments.size() != expected) {
       final String message = "Filter %s takes %s argument%s!".formatted(name, expected, expected == 1 ? "" : "s");
       throw new IllegalArgumentException(message);
     }
   }
 
-  private static int whole(final String name, final String text, final int minimum, final int maximum) {
+  private static int parseWholeNumber(final String name, final String text, final int minimum, final int maximum) {
     if (!WHOLE.matcher(text).matches()) {
       final String message = NOT_A_WHOLE_NUMBER.formatted(name, minimum, maximum, text);
       throw new IllegalArgumentException(message);
@@ -574,7 +576,7 @@ public final class FilterChain {
     return value;
   }
 
-  private static double decimal(final String name, final String text, final double maximum) {
+  private static double parseDecimal(final String name, final String text, final double maximum) {
     if (!DECIMAL.matcher(text).matches() || Double.parseDouble(text) > maximum) {
       final String message = "Filter %s takes a number from 0 to %s, and %s is not one!".formatted(name, maximum, text);
       throw new IllegalArgumentException(message);
@@ -584,21 +586,21 @@ public final class FilterChain {
   }
 
   // typed as rrggbb, stored in OpenCV's blue, green, red order
-  private static double[] color(final String name, final String text) {
+  private static double[] parseColor(final String name, final String text) {
     if (!HEXADECIMAL.matcher(text).matches()) {
       final String message = "Filter %s takes a color such as ff8000, and %s is not one!".formatted(name, text);
       throw new IllegalArgumentException(message);
     }
 
     final int rgb = Integer.parseInt(text, HEXADECIMAL_RADIX);
-    return new double[] { rgb & BYTE, (rgb >> GREEN_SHIFT) & BYTE, (rgb >> RED_SHIFT) & BYTE };
+    return new double[] { rgb & CHANNEL_MASK, (rgb >> GREEN_SHIFT) & CHANNEL_MASK, (rgb >> RED_SHIFT) & CHANNEL_MASK };
   }
 
-  private static Region region(final String name, final List<String> arguments) {
-    final int left = whole(name, arguments.getFirst(), 0, PERCENT - 1);
-    final int top = whole(name, arguments.get(1), 0, PERCENT - 1);
-    final int width = whole(name, arguments.get(WIDTH_INDEX), 1, PERCENT - left);
-    final int height = whole(name, arguments.get(HEIGHT_INDEX), 1, PERCENT - top);
+  private static Region parseRegion(final String name, final List<String> arguments) {
+    final int left = parseWholeNumber(name, arguments.getFirst(), 0, PERCENT - 1);
+    final int top = parseWholeNumber(name, arguments.get(1), 0, PERCENT - 1);
+    final int width = parseWholeNumber(name, arguments.get(WIDTH_INDEX), 1, PERCENT - left);
+    final int height = parseWholeNumber(name, arguments.get(HEIGHT_INDEX), 1, PERCENT - top);
     return new Region(left, top, width, height);
   }
 
@@ -608,7 +610,7 @@ public final class FilterChain {
    * @return the filters, in order
    * @since 1.0.0
    */
-  public List<VideoFilter> create() {
+  public List<VideoFilter> createFilters() {
     return this.filters.stream().map(Supplier::get).toList();
   }
 
@@ -622,7 +624,7 @@ public final class FilterChain {
   public VideoPipelineStep prepend(final VideoPipelineStep output) {
     Preconditions.checkNotNull(output, "Output must not be null!");
 
-    final List<VideoFilter> created = this.create();
+    final List<VideoFilter> created = this.createFilters();
     VideoPipelineStep first = output;
     for (int index = created.size() - 1; index >= 0; index--) {
       first = VideoPipelineStep.of(first, created.get(index));
@@ -639,7 +641,7 @@ public final class FilterChain {
   public void apply(final ImageBuffer picture) {
     Preconditions.checkNotNull(picture, "Picture must not be null!");
 
-    for (final VideoFilter filter : this.create()) {
+    for (final VideoFilter filter : this.createFilters()) {
       filter.applyFilter(picture);
     }
   }
@@ -687,7 +689,7 @@ public final class FilterChain {
       if (current == null || pictureWidth != this.width || pictureHeight != this.height) {
         final int left = (pictureWidth * this.region.left()) / PERCENT;
         final int top = (pictureHeight * this.region.top()) / PERCENT;
-        // region() caps left + width and top + height at 100 percent
+        // parseRegion() caps left + width and top + height at 100 percent
         final int regionWidth = Math.max(1, (pictureWidth * this.region.width()) / PERCENT);
         final int regionHeight = Math.max(1, (pictureHeight * this.region.height()) / PERCENT);
         current = this.factory.create(left, top, regionWidth, regionHeight, pictureWidth, pictureHeight);
@@ -699,13 +701,20 @@ public final class FilterChain {
     }
   }
 
-  private static final class CropZoom implements VideoFilter {
+  private static final class CropZoomFilter implements VideoFilter {
 
     private final CropFilter crop;
 
     private final ResizeFilter resize;
 
-    private CropZoom(final int left, final int top, final int width, final int height, final int pictureWidth, final int pictureHeight) {
+    private CropZoomFilter(
+      final int left,
+      final int top,
+      final int width,
+      final int height,
+      final int pictureWidth,
+      final int pictureHeight
+    ) {
       this.crop = new CropFilter(left, top, width, height);
       this.resize = new ResizeFilter(pictureWidth, pictureHeight);
     }

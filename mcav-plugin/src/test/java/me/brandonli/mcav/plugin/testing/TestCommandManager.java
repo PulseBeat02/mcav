@@ -51,25 +51,25 @@ public final class TestCommandManager extends CommandManager<CommandSender> {
   }
 
   // the real Paper manager can only be created inside a server
-  public LegacyPaperCommandManager<CommandSender> asPaperManager() {
+  public LegacyPaperCommandManager<CommandSender> createPaperManager() {
     final MockSettings settings = withSettings();
     final Answer<Object> delegation = AdditionalAnswers.delegatesTo(this);
     settings.defaultAnswer(delegation);
     return mock(settings);
   }
 
-  public Set<String> syntaxes() {
+  public Set<String> getSyntaxes() {
     final Set<String> syntaxes = new TreeSet<>();
     for (final Command<CommandSender> command : this.commands()) {
-      final String syntax = this.syntax(command);
+      final String syntax = this.formatSyntax(command);
       syntaxes.add(syntax);
     }
     return syntaxes;
   }
 
-  public Command<CommandSender> command(final String syntax) {
+  public Command<CommandSender> getCommand(final String syntax) {
     for (final Command<CommandSender> command : this.commands()) {
-      final String candidate = this.syntax(command);
+      final String candidate = this.formatSyntax(command);
       if (candidate.equals(syntax)) {
         return command;
       }
@@ -78,7 +78,7 @@ public final class TestCommandManager extends CommandManager<CommandSender> {
     throw new AssertionError(message);
   }
 
-  private String syntax(final Command<CommandSender> command) {
+  private String formatSyntax(final Command<CommandSender> command) {
     final List<CommandComponent<CommandSender>> components = command.components();
     final StringBuilder syntax = new StringBuilder();
     for (final CommandComponent<CommandSender> component : components) {

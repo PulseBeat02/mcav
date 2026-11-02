@@ -59,17 +59,17 @@ public final class PluginDataConfigurationMapper {
 
   private static final String PLUGIN_LANGUAGE = "language";
 
-  private static final String DISCORD_BOT_TOKEN_FIELD = "discord-bot.token";
+  private static final String DISCORD_BOT_TOKEN = "discord-bot.token";
 
-  private static final String DISCORD_BOT_CHANNEL_FIELD = "discord-bot.channel-id";
+  private static final String DISCORD_BOT_CHANNEL_ID = "discord-bot.channel-id";
 
-  private static final String DISCORD_BOT_GUILD_ID_FIELD = "discord-bot.guild-id";
+  private static final String DISCORD_BOT_GUILD_ID = "discord-bot.guild-id";
 
   private static final String DISCORD_BOT_ENABLED = "discord-bot.enabled";
 
-  private static final String HTTP_HOST_FIELD = "http-server.host-name";
+  private static final String HTTP_HOST_NAME = "http-server.host-name";
 
-  private static final String HTTP_PORT_FIELD = "http-server.port";
+  private static final String HTTP_PORT = "http-server.port";
 
   private static final String HTTP_ENABLED = "http-server.enabled";
 
@@ -192,12 +192,12 @@ public final class PluginDataConfigurationMapper {
     final String language = this.getString(configuration, PLUGIN_LANGUAGE, DEFAULT_LOCALE);
     this.locale = Locale.fromString(language);
     this.discordBotEnabled = configuration.getBoolean(DISCORD_BOT_ENABLED, false);
-    this.discordBotToken = this.getString(configuration, DISCORD_BOT_TOKEN_FIELD, "");
-    this.discordBotChannelId = this.getString(configuration, DISCORD_BOT_CHANNEL_FIELD, "");
-    this.discordBotGuildId = this.getString(configuration, DISCORD_BOT_GUILD_ID_FIELD, "");
+    this.discordBotToken = this.getString(configuration, DISCORD_BOT_TOKEN, "");
+    this.discordBotChannelId = this.getString(configuration, DISCORD_BOT_CHANNEL_ID, "");
+    this.discordBotGuildId = this.getString(configuration, DISCORD_BOT_GUILD_ID, "");
     this.httpEnabled = configuration.getBoolean(HTTP_ENABLED, false);
-    this.httpHostName = this.getString(configuration, HTTP_HOST_FIELD, DEFAULT_HOST);
-    this.httpPort = this.readPort(configuration, HTTP_PORT_FIELD, DEFAULT_HTTP_PORT);
+    this.httpHostName = this.getString(configuration, HTTP_HOST_NAME, DEFAULT_HOST);
+    this.httpPort = this.readPort(configuration, HTTP_PORT, DEFAULT_HTTP_PORT);
     this.simpleVoiceChatEnabled = configuration.getBoolean(SIMPLE_VOICE_CHAT_ENABLED, false);
     this.mcv2EncoderThreads = this.readEncoderThreads(configuration);
     this.mcv2Native = this.readNative(configuration);

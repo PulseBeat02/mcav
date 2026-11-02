@@ -152,7 +152,7 @@ final class AnnotationParserHandlerTest {
     when(this.plugin.getImageManager()).thenReturn(imageManager);
     when(this.plugin.getAudioProvider()).thenReturn(audioProvider);
     this.commands = new TestCommandManager();
-    this.paperManager = this.commands.asPaperManager();
+    this.paperManager = this.commands.createPaperManager();
     this.paperManagers = Mockito.mockStatic();
     this.paperManagers.when(() -> LegacyPaperCommandManager.createNative(eq(this.plugin), notNull())).thenReturn(this.paperManager);
   }
@@ -182,7 +182,7 @@ final class AnnotationParserHandlerTest {
   void shouldRegisterEveryCommandOfThePlugin() {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
-    final Set<String> syntaxes = this.commands.syntaxes();
+    final Set<String> syntaxes = this.commands.getSyntaxes();
     final int count = syntaxes.size();
     final String registeredSyntaxes = String.valueOf(syntaxes);
     assertEquals(39, count, registeredSyntaxes);
@@ -192,7 +192,7 @@ final class AnnotationParserHandlerTest {
       assertTrue(registered, syntax + " in " + syntaxes);
     }
 
-    final PluginManager pluginManager = TestServer.pluginManager();
+    final PluginManager pluginManager = TestServer.getPluginManager();
     verify(pluginManager).registerEvents(any(BrowserCommand.class), eq(this.plugin));
     verify(pluginManager).registerEvents(any(VirtualizeCommand.class), eq(this.plugin));
     verify(pluginManager).registerEvents(any(VncCommand.class), eq(this.plugin));
@@ -214,7 +214,7 @@ final class AnnotationParserHandlerTest {
   }
 
   private ArgumentParser<CommandSender, ?> parserOf(final String syntax, final String argument) {
-    final Command<CommandSender> command = this.commands.command(syntax);
+    final Command<CommandSender> command = this.commands.getCommand(syntax);
     final List<CommandComponent<CommandSender>> components = command.components();
     for (final CommandComponent<CommandSender> component : components) {
       final String name = component.name();
@@ -258,9 +258,9 @@ final class AnnotationParserHandlerTest {
   void shouldNameEveryArgumentOfACommandOnce() {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
-    for (final String syntax : this.commands.syntaxes()) {
+    for (final String syntax : this.commands.getSyntaxes()) {
       // an argument named like the component of the command's flags would be handed the flags
-      final List<String> names = this.commands.command(syntax).components().stream().map(CommandComponent::name).toList();
+      final List<String> names = this.commands.getCommand(syntax).components().stream().map(CommandComponent::name).toList();
 
       final int expected = names.size();
       final int size = Set.copyOf(names).size();
@@ -285,7 +285,7 @@ final class AnnotationParserHandlerTest {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
     for (final String syntax : List.of(VIDEO_SYNTAX, IMAGE_SYNTAX, BROWSER_SYNTAX, VNC_SYNTAX)) {
-      final Command<CommandSender> command = this.commands.command(syntax);
+      final Command<CommandSender> command = this.commands.getCommand(syntax);
       final CommandFlagParser<?> flags = assertInstanceOf(CommandFlagParser.class, command.components().getLast().parser(), syntax);
 
       final List<String> names = flags.flags().stream().map(CommandFlag::name).toList();
@@ -316,7 +316,7 @@ final class AnnotationParserHandlerTest {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
     final List<String> media = this.commands
-      .syntaxes()
+      .getSyntaxes()
       .stream()
       .filter(syntax -> (syntax.startsWith("mcav video ") || syntax.startsWith("mcav image ")) && syntax.contains(" mrl"))
       .toList();
@@ -325,7 +325,7 @@ final class AnnotationParserHandlerTest {
     assertEquals(11, size, String.valueOf(media));
 
     for (final String syntax : media) {
-      final Command<CommandSender> command = this.commands.command(syntax);
+      final Command<CommandSender> command = this.commands.getCommand(syntax);
       final CommandFlagParser<?> flags = assertInstanceOf(CommandFlagParser.class, command.components().getLast().parser(), syntax);
 
       final CommandFlag<?> filters = flags
@@ -362,7 +362,7 @@ final class AnnotationParserHandlerTest {
       final Collection<? extends Enum<?>> acceptedValues = outputs.acceptedValues();
       assertEquals(expected, acceptedValues, syntax);
     }
-    final Component description = ((RichDescription) this.commands.command(browser).commandDescription().description()).contents();
+    final Component description = ((RichDescription) this.commands.getCommand(browser).commandDescription().description()).contents();
 
     final String text = Components.plain(description);
     assertEquals("Opens a web page on a wall of maps, with its sound in an audio output", text);
@@ -372,7 +372,7 @@ final class AnnotationParserHandlerTest {
   void shouldDescribeTheCommandsInTheLanguageOfThePlugin() {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
-    final Command<CommandSender> dump = this.commands.command("mcav dump");
+    final Command<CommandSender> dump = this.commands.getCommand("mcav dump");
     final CommandDescription commandDescription = dump.commandDescription();
     final Description description = commandDescription.description();
     final RichDescription rich = (RichDescription) description;

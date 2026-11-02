@@ -154,7 +154,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    *
    * @since 1.0.0
    */
-  protected volatile @Nullable FunctionalVideoFilter result;
+  protected volatile @Nullable FunctionalVideoFilter output;
 
   /**
    * The running player. Changed only while holding the lock of this command.
@@ -240,19 +240,19 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    */
   protected final void releaseCurrent() {
     final PlayerType current;
-    final FunctionalVideoFilter maps;
+    final FunctionalVideoFilter output;
     final Screen oldScreen;
     synchronized (this.lock) {
       current = this.player;
-      maps = this.result;
+      output = this.output;
       oldScreen = this.screen;
       this.player = null;
-      this.result = null;
+      this.output = null;
       this.screen = null;
     }
     final boolean workerOwnsCleanup = oldScreen != null && oldScreen.cancel();
     final @Nullable PlayerType releasable = workerOwnsCleanup ? null : current;
-    CleanupUtils.runAll(() -> this.releasePlayerIfPresent(releasable), () -> this.releaseMapsIfPresent(maps));
+    CleanupUtils.runAll(() -> this.releasePlayerIfPresent(releasable), () -> this.releaseOutputIfPresent(output));
   }
 
   private void releasePlayerIfPresent(final @Nullable PlayerType player) {
@@ -261,9 +261,9 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     }
   }
 
-  private void releaseMapsIfPresent(final @Nullable FunctionalVideoFilter maps) {
-    if (maps != null) {
-      maps.release();
+  private void releaseOutputIfPresent(final @Nullable FunctionalVideoFilter output) {
+    if (output != null) {
+      output.release();
     }
   }
 
@@ -390,10 +390,10 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
       Preconditions.checkState(!this.closed, "The interactive command is shut down!");
     }
     this.releaseCurrent();
-    final Collection<UUID> players = ArgumentUtils.parseViewers(settings.getViewers(), this.plugin.getOnlinePlayers());
+    final Collection<UUID> players = ArgumentUtils.resolveViewers(settings.getViewers(), this.plugin.getOnlinePlayers());
     final FunctionalVideoFilter output = this.createOutput(settings, players);
     synchronized (this.lock) {
-      this.result = output;
+      this.output = output;
     }
     try {
       return this.startScreen(settings, output);
@@ -418,7 +418,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     final WallPicture picture = WallPicture.of(columns, rows, resolution.getFirst(), resolution.getSecond(), stretched);
     final Screen created = new Screen(output, pipeline, mapId, mapCount, picture);
     synchronized (this.lock) {
-      this.result = output;
+      this.output = output;
       this.screen = created;
     }
     return created;
@@ -582,8 +582,8 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
       }
     }
     screen.bindStart(start);
-    final FunctionalVideoFilter maps = screen.getOutput();
-    final StartAttempt<PlayerType> attempt = new StartAttempt<>(sender, started, maps, screen, description);
+    final FunctionalVideoFilter output = screen.getOutput();
+    final StartAttempt<PlayerType> attempt = new StartAttempt<>(sender, started, output, screen, description);
     TaskUtils.whenComplete(start, (succeeded, error) -> this.onStartCompleted(attempt, succeeded, error));
   }
 
@@ -598,8 +598,8 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
       final String description = attempt.getDescription();
       LOGGER.error("Starting {} failed.", description, error);
       final PlayerType failed = attempt.getPlayer();
-      final FunctionalVideoFilter maps = attempt.getMaps();
-      this.releaseIfCurrent(failed, maps);
+      final FunctionalVideoFilter output = attempt.getOutput();
+      this.releaseIfCurrent(failed, output);
     }
 
     final StartOutcome outcome = succeeded ? StartOutcome.STARTED : StartOutcome.FAILED;
@@ -614,26 +614,26 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     }
   }
 
-  // a player or maps no longer running were replaced and released by a newer command
-  private void releaseIfCurrent(final PlayerType failed, final FunctionalVideoFilter maps) {
+  // a player or output no longer running were replaced and released by a newer command
+  private void releaseIfCurrent(final PlayerType failed, final FunctionalVideoFilter output) {
     final boolean playerCurrent;
-    final boolean mapsCurrent;
+    final boolean outputCurrent;
     synchronized (this.lock) {
       final PlayerType current = this.player;
       playerCurrent = IDENTITY.equivalent(current, failed);
       if (playerCurrent) {
         this.player = null;
       }
-      mapsCurrent = IDENTITY.equivalent(maps, this.result);
-      if (mapsCurrent) {
-        this.result = null;
+      outputCurrent = IDENTITY.equivalent(output, this.output);
+      if (outputCurrent) {
+        this.output = null;
         this.screen = null;
       }
     }
 
     final @Nullable PlayerType releasable = playerCurrent ? failed : null;
-    final @Nullable FunctionalVideoFilter releasableMaps = mapsCurrent ? maps : null;
-    CleanupUtils.runAll(() -> this.releasePlayerIfPresent(releasable), () -> this.releaseMapsIfPresent(releasableMaps));
+    final @Nullable FunctionalVideoFilter releasableOutput = outputCurrent ? output : null;
+    CleanupUtils.runAll(() -> this.releasePlayerIfPresent(releasable), () -> this.releaseOutputIfPresent(releasableOutput));
   }
 
   /**
@@ -657,13 +657,13 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     }
 
     final Player breaker = event.getPlayer();
-    final ItemFrame frame = this.findScreenInSight(breaker);
+    final ItemFrame frame = this.findScreenFrameInSight(breaker);
     final Screen shown = frame == null ? null : this.screenOf(frame);
     if (frame == null || shown == null) {
       return;
     }
 
-    final Optional<int[]> foundCoordinates = InteractUtils.getBoardCoordinates(breaker, frame);
+    final Optional<int[]> foundCoordinates = InteractUtils.findBoardCoordinates(breaker, frame);
     final int @Nullable [] coordinates = foundCoordinates.orElse(null);
     if (coordinates == null) {
       return;
@@ -671,7 +671,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
 
     // the wall stays intact whoever breaks the block, but only a player with the permission clicks with it
     event.setCancelled(true);
-    final boolean allowed = this.mayInteract(breaker);
+    final boolean allowed = this.canInteract(breaker);
     final int[] pixel = shown.toSource(coordinates[0], coordinates[1]);
     if (allowed && pixel != null) {
       this.forwardLeftClick(current, pixel[0], pixel[1]);
@@ -699,7 +699,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     return current.ownsMap(mapId) ? current : null;
   }
 
-  private @Nullable ItemFrame findScreenInSight(final Player viewer) {
+  private @Nullable ItemFrame findScreenFrameInSight(final Player viewer) {
     final RayTraceResult ray = viewer.rayTraceBlocks(REACH, FluidCollisionMode.NEVER);
     if (ray == null) {
       return null;
@@ -710,31 +710,31 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
       return null;
     }
 
-    return this.findClosestScreen(block);
+    return this.findClosestScreenFrame(block);
   }
 
-  private @Nullable ItemFrame findClosestScreen(final Block block) {
+  private @Nullable ItemFrame findClosestScreenFrame(final Block block) {
     final Location location = block.getLocation();
     final World world = location.getWorld();
     final Collection<Entity> entities = world.getNearbyEntities(location, HALF_BLOCK, HALF_BLOCK, HALF_BLOCK);
     ItemFrame closest = null;
-    double closestDistance = Double.MAX_VALUE;
+    double closestDistanceSquared = Double.MAX_VALUE;
     for (final Entity entity : entities) {
-      final boolean isScreen = this.isScreen(entity);
-      if (!isScreen) {
+      final boolean screenFrame = this.isScreenFrame(entity);
+      if (!screenFrame) {
         continue;
       }
       final Location frameLocation = entity.getLocation();
-      final double distance = frameLocation.distanceSquared(location);
-      if (distance < closestDistance) {
-        closestDistance = distance;
+      final double distanceSquared = frameLocation.distanceSquared(location);
+      if (distanceSquared < closestDistanceSquared) {
+        closestDistanceSquared = distanceSquared;
         closest = (ItemFrame) entity;
       }
     }
     return closest;
   }
 
-  private boolean isScreen(final Entity entity) {
+  private boolean isScreenFrame(final Entity entity) {
     if (!(entity instanceof final ItemFrame frame)) {
       return false;
     }
@@ -759,8 +759,8 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     Preconditions.checkNotNull(event, EVENT_NULL_MESSAGE);
 
     final Entity entity = event.getEntity();
-    final boolean isScreen = this.isScreen(entity);
-    if (!isScreen) {
+    final boolean screenFrame = this.isScreenFrame(entity);
+    if (!screenFrame) {
       return;
     }
 
@@ -780,12 +780,12 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
       return;
     }
 
-    final boolean allowed = this.mayInteract(attacker);
+    final boolean allowed = this.canInteract(attacker);
     if (!allowed) {
       return;
     }
 
-    final Optional<int[]> foundCoordinates = InteractUtils.getBoardCoordinates(attacker, entity);
+    final Optional<int[]> foundCoordinates = InteractUtils.findBoardCoordinates(attacker, entity);
     final int @Nullable [] coordinates = foundCoordinates.orElse(null);
     final int[] pixel = coordinates == null ? null : shown.toSource(coordinates[0], coordinates[1]);
     if (pixel != null) {
@@ -823,14 +823,14 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
 
     final PlayerType current = this.player;
     final Entity entity = event.getRightClicked();
-    final boolean isScreen = this.isScreen(entity);
-    final Screen shown = isScreen ? this.screenOf((ItemFrame) entity) : null;
+    final boolean screenFrame = this.isScreenFrame(entity);
+    final Screen shown = screenFrame ? this.screenOf((ItemFrame) entity) : null;
     if (current == null || shown == null) {
       return;
     }
 
     final Player clicker = event.getPlayer();
-    final Optional<int[]> foundCoordinates = InteractUtils.getBoardCoordinates(clicker, entity);
+    final Optional<int[]> foundCoordinates = InteractUtils.findBoardCoordinates(clicker, entity);
     final int @Nullable [] coordinates = foundCoordinates.orElse(null);
     if (coordinates == null) {
       return;
@@ -838,7 +838,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
 
     // the map keeps its rotation whoever right clicks it, but only a player with the permission clicks with it
     event.setCancelled(true);
-    final boolean allowed = this.mayInteract(clicker);
+    final boolean allowed = this.canInteract(clicker);
     final int[] pixel = shown.toSource(coordinates[0], coordinates[1]);
     if (allowed && pixel != null) {
       this.forwardRightClick(current, pixel[0], pixel[1]);
@@ -868,7 +868,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     }
 
     // the permission is checked again here, because it may have been taken away since the sender switched this on
-    final boolean allowed = this.mayInteract(chatter);
+    final boolean allowed = this.canInteract(chatter);
     if (!allowed) {
       return;
     }
@@ -894,8 +894,8 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     Preconditions.checkNotNull(event, EVENT_NULL_MESSAGE);
 
     final Entity entity = event.getEntity();
-    final boolean isScreen = this.isScreen(entity);
-    if (isScreen) {
+    final boolean screenFrame = this.isScreenFrame(entity);
+    if (screenFrame) {
       event.setCancelled(true);
     }
   }
@@ -938,7 +938,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     sender.sendMessage(message);
   }
 
-  private boolean mayInteract(final Player player) {
+  private boolean canInteract(final Player player) {
     final String permission = this.getInteractionPermission();
     return player.hasPermission(permission);
   }
@@ -994,29 +994,29 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
   /**
    * Releases a player; its maps are released by the caller.
    *
-   * @param current the player to release, which is no longer the running one
+   * @param player the player to release, which is no longer the running one
    * @since 1.0.0
    */
-  protected abstract void releasePlayer(final PlayerType current);
+  protected abstract void releasePlayer(final PlayerType player);
 
   private static final class StartAttempt<PlayerType> {
 
     private final CommandSender sender;
     private final PlayerType player;
-    private final FunctionalVideoFilter maps;
+    private final FunctionalVideoFilter output;
     private final Screen screen;
     private final String description;
 
     StartAttempt(
       final CommandSender sender,
       final PlayerType player,
-      final FunctionalVideoFilter maps,
+      final FunctionalVideoFilter output,
       final Screen screen,
       final String description
     ) {
       this.sender = sender;
       this.player = player;
-      this.maps = maps;
+      this.output = output;
       this.screen = screen;
       this.description = description;
     }
@@ -1029,8 +1029,8 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
       return this.player;
     }
 
-    private FunctionalVideoFilter getMaps() {
-      return this.maps;
+    private FunctionalVideoFilter getOutput() {
+      return this.output;
     }
 
     private Screen getScreen() {

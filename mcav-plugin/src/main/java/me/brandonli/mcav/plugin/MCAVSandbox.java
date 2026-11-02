@@ -33,7 +33,7 @@ import me.brandonli.mcav.plugin.command.image.ImageManager;
 import me.brandonli.mcav.plugin.command.video.Mcv2Support;
 import me.brandonli.mcav.plugin.command.video.VideoPlayerManager;
 import me.brandonli.mcav.plugin.data.PluginDataConfigurationMapper;
-import me.brandonli.mcav.plugin.listener.JukeBoxListener;
+import me.brandonli.mcav.plugin.listener.JukeboxListener;
 import me.brandonli.mcav.plugin.listener.OnlinePlayers;
 import me.brandonli.mcav.plugin.utils.CleanupUtils;
 import me.brandonli.mcav.plugin.utils.Mcv2Hosting;
@@ -93,12 +93,12 @@ public final class MCAVSandbox extends JavaPlugin {
 
   private @Nullable AnnotationParserHandler annotationParserHandler;
 
-  private @Nullable JukeBoxListener listener;
+  private @Nullable JukeboxListener listener;
 
   private boolean qemuAvailable;
   private boolean browserSupported;
 
-  private boolean hasBeenDisabled;
+  private boolean disabled;
 
   /**
    * Creates the plugin. Paper creates it for you; everything else is created in {@link #onEnable()}.
@@ -128,7 +128,7 @@ public final class MCAVSandbox extends JavaPlugin {
     this.logger = this.getComponentLogger();
 
     // Paper closes the plugin loader and its lifecycle registrations when disabling it.
-    if (this.hasBeenDisabled) {
+    if (this.disabled) {
       this.disableBecause(new IllegalStateException(CANNOT_REENABLE), RESTART_REMEDY);
       return;
     }
@@ -136,6 +136,7 @@ public final class MCAVSandbox extends JavaPlugin {
     try {
       this.loadMCAV();
       this.loadPluginData();
+      this.loadMcv2Encoders();
       this.loadManagers();
       this.loadCommands();
       this.loadListeners();
@@ -154,10 +155,10 @@ public final class MCAVSandbox extends JavaPlugin {
    */
   @Override
   public void onDisable() {
-    this.hasBeenDisabled = true;
+    this.disabled = true;
     final VideoPlayerManager videos = this.videoPlayerManager;
     final ImageManager images = this.imageManager;
-    final JukeBoxListener jukebox = this.listener;
+    final JukeboxListener jukebox = this.listener;
     final AnnotationParserHandler commands = this.annotationParserHandler;
     final AudioProvider audio = this.audioProvider;
     final Mcv2Support mcv2 = this.mcv2Support;
@@ -174,11 +175,11 @@ public final class MCAVSandbox extends JavaPlugin {
     CleanupUtils.runAll(
       this.whenPresent(videos, VideoPlayerManager::shutdown),
       this.whenPresent(images, ImageManager::shutdown),
-      this.whenPresent(jukebox, JukeBoxListener::shutdown),
+      this.whenPresent(jukebox, JukeboxListener::shutdown),
       this.whenPresent(commands, AnnotationParserHandler::shutdownCommands),
       this.whenPresent(audio, AudioProvider::shutdown),
       this.whenPresent(mcv2, Mcv2Support::shutdown),
-      this.whenPresent(online, OnlinePlayers::stop),
+      this.whenPresent(online, OnlinePlayers::shutdown),
       this.whenPresent(library, MCAVApi::release)
     );
   }
@@ -225,6 +226,10 @@ public final class MCAVSandbox extends JavaPlugin {
     final PluginDataConfigurationMapper mapper = new PluginDataConfigurationMapper(this);
     mapper.deserialize();
     this.configurationMapper = mapper;
+  }
+
+  private void loadMcv2Encoders() {
+    final PluginDataConfigurationMapper mapper = this.getConfiguration();
     Pool.setSharedThreads(mapper.getMcv2EncoderThreads());
     final int processors = Runtime.getRuntime().availableProcessors();
     this.requireLogger().info("MCV2 encoders share {} of {} processors.", Pool.shared().getThreads(), processors);
@@ -259,9 +264,9 @@ public final class MCAVSandbox extends JavaPlugin {
   }
 
   private void loadListeners() {
-    final JukeBoxListener jukeBoxListener = new JukeBoxListener(this);
-    this.listener = jukeBoxListener;
-    jukeBoxListener.start();
+    final JukeboxListener jukeboxListener = new JukeboxListener(this);
+    this.listener = jukeboxListener;
+    jukeboxListener.start();
   }
 
   private <PartType> Runnable whenPresent(final @Nullable PartType part, final Consumer<PartType> cleanup) {

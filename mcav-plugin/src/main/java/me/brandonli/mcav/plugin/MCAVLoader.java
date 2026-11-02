@@ -52,7 +52,7 @@ import xyz.jpenilla.gremlin.runtime.platformsupport.PaperClasspathAppender;
  * {@code libraries/mcav}.
  *
  * <p>The modules of mcav the server downloads are snapshots, published apart from the plugin: modules older than the
- * plugin's code lack classes it uses. The build lists those classes in {@value #REQUIRED_CLASSES}, and the loader
+ * plugin's code lack classes it uses. The build lists those classes in {@value #REQUIRED_CLASSES_RESOURCE}, and the loader
  * refuses to start the plugin with a message saying so when a downloaded module lacks one, where the server would
  * otherwise fail on the first missing class.
  *
@@ -67,13 +67,13 @@ public final class MCAVLoader implements PluginLoader {
 
   private static final Logger GREMLIN_LOGGER = LoggerFactory.getLogger("Gremlin");
 
-  private static final String REQUIRED_CLASSES = "META-INF/mcav/required-classes.txt";
+  private static final String REQUIRED_CLASSES_RESOURCE = "META-INF/mcav/required-classes.txt";
 
   private static final String DEPENDENCIES_RESOURCE = "mcav/plugin/dependencies.txt";
 
   private static final String CLASS_SUFFIX = ".class";
 
-  private static final int NAMED_MISSING = 5;
+  private static final int MAXIMUM_NAMED_CLASSES = 5;
 
   private static final String LIBRARIES_DIRECTORY = "libraries/mcav";
 
@@ -103,13 +103,13 @@ public final class MCAVLoader implements PluginLoader {
 
   @VisibleForTesting
   static List<String> readRequiredClasses(final ClassLoader classLoader) {
-    final InputStream list = classLoader.getResourceAsStream(REQUIRED_CLASSES);
-    if (list == null) {
+    final InputStream input = classLoader.getResourceAsStream(REQUIRED_CLASSES_RESOURCE);
+    if (input == null) {
       return List.of();
     }
 
-    try (list) {
-      return new String(list.readAllBytes(), StandardCharsets.UTF_8)
+    try (input) {
+      return new String(input.readAllBytes(), StandardCharsets.UTF_8)
         .lines()
         .filter(line -> !line.isBlank())
         .toList();
@@ -125,7 +125,7 @@ public final class MCAVLoader implements PluginLoader {
     final List<String> missing = findMissing(requiredClasses, entries);
     if (!missing.isEmpty()) {
       final int count = missing.size();
-      final List<String> named = missing.subList(0, Math.min(NAMED_MISSING, count));
+      final List<String> named = missing.subList(0, Math.min(MAXIMUM_NAMED_CLASSES, count));
       final String names = String.join(NAME_SEPARATOR, named);
       final String message =
         "The MCAV modules the server downloaded are older than this plugin, which uses classes they lack (%s), such as %s. Publish the modules of the plugin's own version, or set -Pmcav.e2e=true when you build the plugin!".formatted(

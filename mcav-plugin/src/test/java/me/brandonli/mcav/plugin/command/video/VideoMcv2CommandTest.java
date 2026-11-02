@@ -226,25 +226,25 @@ final class VideoMcv2CommandTest {
   void shouldTakeTheBacklogLimitOfAMeasurement() {
     System.setProperty(VideoMcv2Command.BACKLOG_PROPERTY, "65536");
     try {
-      final long videoMcv2CommandBacklogLimit = VideoMcv2Command.backlogLimit();
+      final long videoMcv2CommandBacklogLimit = VideoMcv2Command.readBacklogLimit();
       assertEquals(65536, videoMcv2CommandBacklogLimit);
 
-      final int unsentLimit = VideoMcv2Command.unsentLimit();
+      final int unsentLimit = VideoMcv2Command.readUnsentLimit();
       assertEquals(Mcv2Configuration.DEFAULT_UNSENT_LIMIT, unsentLimit);
 
       System.setProperty(VideoMcv2Command.BACKLOG_PROPERTY, "none");
 
-      final long secondBacklogLimit = VideoMcv2Command.backlogLimit();
+      final long secondBacklogLimit = VideoMcv2Command.readBacklogLimit();
       assertEquals(Long.MAX_VALUE, secondBacklogLimit);
       // no backpressure at all: no cap on a viewer's unsent bytes either
 
-      final int videoMcv2CommandUnsentLimit = VideoMcv2Command.unsentLimit();
+      final int videoMcv2CommandUnsentLimit = VideoMcv2Command.readUnsentLimit();
       assertEquals(0, videoMcv2CommandUnsentLimit);
     } finally {
       System.clearProperty(VideoMcv2Command.BACKLOG_PROPERTY);
     }
 
-    final long backlogLimit = VideoMcv2Command.backlogLimit();
+    final long backlogLimit = VideoMcv2Command.readBacklogLimit();
     assertEquals(Mcv2Configuration.DEFAULT_BACKLOG_LIMIT, backlogLimit);
   }
 

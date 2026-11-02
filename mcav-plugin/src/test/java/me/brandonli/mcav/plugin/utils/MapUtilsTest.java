@@ -121,7 +121,7 @@ final class MapUtilsTest {
 
   @Test
   void shouldCreateAMapItemForAnExistingMap() {
-    final ItemStack item = MapUtils.getMapFromId(7);
+    final ItemStack item = MapUtils.createMapItem(7);
     final List<ItemStack> constructed = this.items.constructed();
     final int constructedCount = constructed.size();
     assertEquals(1, constructedCount);
@@ -144,7 +144,7 @@ final class MapUtilsTest {
 
   @Test
   void shouldCreateMapsUntilTheIdExists() {
-    final World world = this.fakeWorld.world();
+    final World world = this.fakeWorld.getWorld();
     when(this.server.getMap(MISSING_MAP_ID)).thenReturn(null);
     when(this.server.getWorlds()).thenReturn(List.of(world));
     final MapView third = mock(MapView.class);
@@ -154,7 +154,7 @@ final class MapUtilsTest {
     when(fourth.getId()).thenReturn(4);
     when(fifth.getId()).thenReturn(MISSING_MAP_ID);
     when(this.server.createMap(world)).thenReturn(third, fourth, fifth);
-    MapUtils.getMapFromId(MISSING_MAP_ID);
+    MapUtils.createMapItem(MISSING_MAP_ID);
     verify(this.server, times(3)).createMap(world);
 
     final MapMeta metadata = this.mapMetadata.getFirst();
@@ -163,13 +163,13 @@ final class MapUtilsTest {
 
   @Test
   void shouldCreateOneMapWhenTheNextIdIsTheWantedOne() {
-    final World world = this.fakeWorld.world();
+    final World world = this.fakeWorld.getWorld();
     when(this.server.getMap(8)).thenReturn(null);
     when(this.server.getWorlds()).thenReturn(List.of(world));
     final MapView created = mock(MapView.class);
     when(created.getId()).thenReturn(8);
     when(this.server.createMap(world)).thenReturn(created);
-    MapUtils.getMapFromId(8);
+    MapUtils.createMapItem(8);
     verify(this.server, times(1)).createMap(world);
 
     final MapMeta metadata = this.mapMetadata.getFirst();
@@ -178,11 +178,11 @@ final class MapUtilsTest {
 
   @Test
   void shouldCreateAsManyMapsAsTheLargestWallNeeds() {
-    final World world = this.fakeWorld.world();
+    final World world = this.fakeWorld.getWorld();
     final int wanted = NEXT_MAP_ID + MapUtils.MAXIMUM_NEW_MAPS;
     when(this.server.getMap(wanted)).thenReturn(null);
     this.handOutMapIdsFrom(world, NEXT_MAP_ID);
-    MapUtils.getMapFromId(wanted);
+    MapUtils.createMapItem(wanted);
     verify(this.server, times(MapUtils.MAXIMUM_NEW_MAPS + 1)).createMap(world);
 
     final int size = this.mapMetadata.size();
@@ -211,11 +211,11 @@ final class MapUtilsTest {
 
   @Test
   void shouldRefuseToCreateMoreMapsThanTheLargestWallNeeds() {
-    final World world = this.fakeWorld.world();
+    final World world = this.fakeWorld.getWorld();
     final int wanted = 11 + MapUtils.MAXIMUM_NEW_MAPS;
     when(this.server.getMap(wanted)).thenReturn(null);
     this.handOutMapIdsFrom(world, NEXT_MAP_ID);
-    final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () -> MapUtils.getMapFromId(wanted));
+    final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () -> MapUtils.createMapItem(wanted));
 
     final String message = failure.getMessage();
     assertEquals("Map id 4107 is more than 4096 ids past 10, the next map id!", message);
@@ -227,19 +227,19 @@ final class MapUtilsTest {
 
   @Test
   void shouldRefuseAFarAwayMapIdBeforeChangingTheWorld() {
-    final World world = this.fakeWorld.world();
+    final World world = this.fakeWorld.getWorld();
     final Player player = this.playerFacing(BlockFace.NORTH);
-    final Location location = this.fakeWorld.location(0, SCREEN_Y, 0);
+    final Location location = this.fakeWorld.createLocation(0, SCREEN_Y, 0);
     final int farId = Integer.MAX_VALUE - 1;
     when(this.server.getMap(Integer.MAX_VALUE)).thenReturn(null);
     this.handOutMapIdsFrom(world, 0);
     assertThrows(IllegalArgumentException.class, () -> MapUtils.buildMapScreen(player, location, Material.STONE, 2, 1, farId));
     verify(this.server, times(1)).createMap(world);
 
-    final int changedBlocks = this.fakeWorld.changedBlocks();
+    final int changedBlocks = this.fakeWorld.getChangedBlockCount();
     assertEquals(0, changedBlocks);
 
-    final boolean empty = this.fakeWorld.spawnedFrames().isEmpty();
+    final boolean empty = this.fakeWorld.getSpawnedFrames().isEmpty();
     assertTrue(empty);
 
     final boolean mapMetadataEmpty = this.mapMetadata.isEmpty();
@@ -255,13 +255,13 @@ final class MapUtilsTest {
 
   @Test
   void shouldRejectAMissingHistoricalMapInsteadOfDisplayingAnotherId() {
-    final World world = this.fakeWorld.world();
+    final World world = this.fakeWorld.getWorld();
     when(this.server.getMap(MISSING_MAP_ID)).thenReturn(null);
     when(this.server.getWorlds()).thenReturn(List.of(world));
     final MapView later = mock(MapView.class);
     when(later.getId()).thenReturn(20);
     when(this.server.createMap(world)).thenReturn(later);
-    final IllegalStateException failure = assertThrows(IllegalStateException.class, () -> MapUtils.getMapFromId(MISSING_MAP_ID));
+    final IllegalStateException failure = assertThrows(IllegalStateException.class, () -> MapUtils.createMapItem(MISSING_MAP_ID));
 
     final String message = failure.getMessage();
     assertEquals("Map id 5 is unavailable, because the server allocated 20 instead!", message);
@@ -275,16 +275,16 @@ final class MapUtilsTest {
   @Test
   void shouldRejectOverflowingScreenIdsBeforeChangingTheWorld() {
     final Player player = this.playerFacing(BlockFace.NORTH);
-    final Location location = this.fakeWorld.location(0, SCREEN_Y, 0);
+    final Location location = this.fakeWorld.createLocation(0, SCREEN_Y, 0);
     assertThrows(IllegalArgumentException.class, () -> MapUtils.buildMapScreen(player, location, Material.STONE, 2, 1, Integer.MAX_VALUE));
     assertThrows(IllegalArgumentException.class, () ->
       MapUtils.buildMapScreen(player, location, Material.STONE, Integer.MAX_VALUE, Integer.MAX_VALUE, 0)
     );
 
-    final int changedBlocks = this.fakeWorld.changedBlocks();
+    final int changedBlocks = this.fakeWorld.getChangedBlockCount();
     assertEquals(0, changedBlocks);
 
-    final boolean empty = this.fakeWorld.spawnedFrames().isEmpty();
+    final boolean empty = this.fakeWorld.getSpawnedFrames().isEmpty();
     assertTrue(empty);
 
     final boolean mapMetadataEmpty = this.mapMetadata.isEmpty();
@@ -307,13 +307,13 @@ final class MapUtilsTest {
     final String expectedFrames
   ) {
     final Player player = this.playerFacing(face);
-    final Location location = this.fakeWorld.location(0.5, SCREEN_Y, 0.5);
+    final Location location = this.fakeWorld.createLocation(0.5, SCREEN_Y, 0.5);
     MapUtils.buildMapScreen(player, location, Material.STONE, 2, 2, 10);
-    final List<ItemFrame> frames = this.fakeWorld.spawnedFrames();
+    final List<ItemFrame> frames = this.fakeWorld.getSpawnedFrames();
     final String positions = this.describe(frames);
     assertEquals(expectedFrames, positions);
 
-    final int changed = this.fakeWorld.changedBlocks();
+    final int changed = this.fakeWorld.getChangedBlockCount();
     assertEquals(4, changed);
 
     final int offsetX = face.getModX();
@@ -321,7 +321,7 @@ final class MapUtilsTest {
     for (int index = 0; index < frames.size(); index++) {
       final ItemFrame frame = frames.get(index);
       final int[] position = this.coordinates(frame);
-      final Material wall = this.fakeWorld.material(position[0] + offsetX, position[1], position[2] + offsetZ);
+      final Material wall = this.fakeWorld.getMaterial(position[0] + offsetX, position[1], position[2] + offsetZ);
       assertEquals(Material.STONE, wall);
       verify(frame).setFacingDirection(expectedFrameFacing);
       verify(frame).setInvulnerable(true);
@@ -364,11 +364,11 @@ final class MapUtilsTest {
   @Test
   void shouldGiveAllFramesOfOneScreenTheSameIdentityAndDifferentScreensDifferentIdentities() {
     final CommandSender console = mock(CommandSender.class);
-    final Location firstLocation = this.fakeWorld.location(0.5, SCREEN_Y, 0.5);
-    final Location secondLocation = this.fakeWorld.location(2.5, SCREEN_Y, 0.5);
+    final Location firstLocation = this.fakeWorld.createLocation(0.5, SCREEN_Y, 0.5);
+    final Location secondLocation = this.fakeWorld.createLocation(2.5, SCREEN_Y, 0.5);
     MapUtils.buildMapScreen(console, firstLocation, Material.STONE, 2, 1, 0);
     MapUtils.buildMapScreen(console, secondLocation, Material.STONE, 1, 1, 2);
-    final List<ItemFrame> frames = this.fakeWorld.spawnedFrames();
+    final List<ItemFrame> frames = this.fakeWorld.getSpawnedFrames();
     final PersistentDataContainer first = frames.get(0).getPersistentDataContainer();
     final PersistentDataContainer same = frames.get(1).getPersistentDataContainer();
     final PersistentDataContainer other = frames.get(2).getPersistentDataContainer();
@@ -384,14 +384,14 @@ final class MapUtilsTest {
   @Test
   void shouldBuildTheScreenToTheNorthForSendersThatAreNotPlayers() {
     final CommandSender console = mock(CommandSender.class);
-    final Location location = this.fakeWorld.location(0.5, SCREEN_Y, 0.5);
+    final Location location = this.fakeWorld.createLocation(0.5, SCREEN_Y, 0.5);
     MapUtils.buildMapScreen(console, location, Material.OBSIDIAN, 2, 1, 0);
-    final List<ItemFrame> frames = this.fakeWorld.spawnedFrames();
+    final List<ItemFrame> frames = this.fakeWorld.getSpawnedFrames();
     final String positions = this.describe(frames);
     assertEquals("0,64,0;1,64,0", positions);
 
-    final Material left = this.fakeWorld.material(0, SCREEN_Y, -1);
-    final Material right = this.fakeWorld.material(1, SCREEN_Y, -1);
+    final Material left = this.fakeWorld.getMaterial(0, SCREEN_Y, -1);
+    final Material right = this.fakeWorld.getMaterial(1, SCREEN_Y, -1);
     assertEquals(Material.OBSIDIAN, left);
     assertEquals(Material.OBSIDIAN, right);
 
@@ -402,13 +402,13 @@ final class MapUtilsTest {
   @Test
   void shouldKeepNonFrameOccupantsAndAdjacentFramesWhenRebuilding() {
     final CommandSender console = mock(CommandSender.class);
-    final Location location = this.fakeWorld.location(0.5, SCREEN_Y, 0.5);
-    final Location occupied = this.fakeWorld.location(0.5, BLOCK_CENTER_Y, 0.5);
+    final Location location = this.fakeWorld.createLocation(0.5, SCREEN_Y, 0.5);
+    final Location occupied = this.fakeWorld.createLocation(0.5, BLOCK_CENTER_Y, 0.5);
     final ItemFrame existing = this.fakeWorld.addFrame(occupied, BlockFace.SOUTH);
     final Entity other = mock(Entity.class);
     when(other.getLocation()).thenReturn(occupied);
     this.fakeWorld.addEntity(other);
-    final Location adjacentLocation = this.fakeWorld.location(1.5, BLOCK_CENTER_Y, 0.5);
+    final Location adjacentLocation = this.fakeWorld.createLocation(1.5, BLOCK_CENTER_Y, 0.5);
     final ItemFrame adjacent = this.fakeWorld.addFrame(adjacentLocation, BlockFace.SOUTH);
 
     MapUtils.buildMapScreen(console, location, Material.OBSIDIAN, 1, 1, 0);
@@ -421,15 +421,15 @@ final class MapUtilsTest {
   @Test
   void shouldRemoveTheFramesAlreadyHangingWhereTheScreenIsBuilt() {
     final CommandSender console = mock(CommandSender.class);
-    final Location location = this.fakeWorld.location(0.5, SCREEN_Y, 0.5);
-    final Location occupied = this.fakeWorld.location(0.5, BLOCK_CENTER_Y, 0.5);
+    final Location location = this.fakeWorld.createLocation(0.5, SCREEN_Y, 0.5);
+    final Location occupied = this.fakeWorld.createLocation(0.5, BLOCK_CENTER_Y, 0.5);
     final ItemFrame existing = this.fakeWorld.addFrame(occupied, BlockFace.SOUTH);
     MapUtils.buildMapScreen(console, location, Material.OBSIDIAN, 1, 1, 0);
     // the old frame has to go: a block holds one frame per side, so leaving it would push the new frame onto the
     // opposite side of the same block, back turned, right in front of the map
     verify(existing).remove();
 
-    final List<ItemFrame> frames = this.fakeWorld.spawnedFrames();
+    final List<ItemFrame> frames = this.fakeWorld.getSpawnedFrames();
     final int frameCount = frames.size();
     assertEquals(1, frameCount);
   }
@@ -437,9 +437,9 @@ final class MapUtilsTest {
   @Test
   void shouldMarkTheOnlyFrameOfASingleMapScreenAsBothCorners() {
     final Player player = this.playerFacing(BlockFace.NORTH);
-    final Location location = this.fakeWorld.location(0.5, SCREEN_Y, 0.5);
+    final Location location = this.fakeWorld.createLocation(0.5, SCREEN_Y, 0.5);
     MapUtils.buildMapScreen(player, location, Material.STONE, 1, 1, 0);
-    final List<ItemFrame> frames = this.fakeWorld.spawnedFrames();
+    final List<ItemFrame> frames = this.fakeWorld.getSpawnedFrames();
     final int frameCount = frames.size();
     assertEquals(1, frameCount);
 
@@ -455,11 +455,11 @@ final class MapUtilsTest {
   @Test
   void shouldBuildNothingForPlayersFacingUpOrDown() {
     final Player player = this.playerFacing(BlockFace.UP);
-    final Location location = this.fakeWorld.location(0.5, SCREEN_Y, 0.5);
+    final Location location = this.fakeWorld.createLocation(0.5, SCREEN_Y, 0.5);
     MapUtils.buildMapScreen(player, location, Material.STONE, 2, 2, 0);
-    final List<ItemFrame> frames = this.fakeWorld.spawnedFrames();
+    final List<ItemFrame> frames = this.fakeWorld.getSpawnedFrames();
     final boolean nothingSpawned = frames.isEmpty();
-    final int changed = this.fakeWorld.changedBlocks();
+    final int changed = this.fakeWorld.getChangedBlockCount();
     assertTrue(nothingSpawned);
     assertEquals(0, changed);
 
@@ -471,16 +471,16 @@ final class MapUtilsTest {
   @Test
   void shouldPlaceTheWallInFrontOfTheLocation() {
     final Player player = this.playerFacing(BlockFace.NORTH);
-    final Location location = this.fakeWorld.location(10.5, 70.0, -3.5);
+    final Location location = this.fakeWorld.createLocation(10.5, 70.0, -3.5);
     MapUtils.buildMapScreen(player, location, Material.STONE, 1, 2, 0);
-    final Material bottom = this.fakeWorld.material(10, 70, -5);
-    final Material top = this.fakeWorld.material(10, 71, -5);
-    final Material beside = this.fakeWorld.material(11, 70, -5);
+    final Material bottom = this.fakeWorld.getMaterial(10, 70, -5);
+    final Material top = this.fakeWorld.getMaterial(10, 71, -5);
+    final Material beside = this.fakeWorld.getMaterial(11, 70, -5);
     assertEquals(Material.STONE, bottom);
     assertEquals(Material.STONE, top);
     assertEquals(Material.AIR, beside);
 
-    final List<ItemFrame> frames = this.fakeWorld.spawnedFrames();
+    final List<ItemFrame> frames = this.fakeWorld.getSpawnedFrames();
     final String positions = this.describe(frames);
     assertEquals("10,71,-4;10,70,-4", positions);
 
@@ -492,9 +492,9 @@ final class MapUtilsTest {
   @Test
   void shouldBuildTheHighestTwoValidMapIdsWithoutOverflow() {
     final CommandSender console = mock(CommandSender.class);
-    final Location location = this.fakeWorld.location(0.5, SCREEN_Y, 0.5);
+    final Location location = this.fakeWorld.createLocation(0.5, SCREEN_Y, 0.5);
     MapUtils.buildMapScreen(console, location, Material.STONE, 2, 1, Integer.MAX_VALUE - 1);
-    final List<ItemFrame> frames = this.fakeWorld.spawnedFrames();
+    final List<ItemFrame> frames = this.fakeWorld.getSpawnedFrames();
 
     final int size = frames.size();
     assertEquals(2, size);
@@ -510,8 +510,8 @@ final class MapUtilsTest {
   @Test
   void shouldRefuseInvalidArguments() {
     final Player player = this.playerFacing(BlockFace.NORTH);
-    final Location location = this.fakeWorld.location(0.5, SCREEN_Y, 0.5);
-    assertThrows(IllegalArgumentException.class, () -> MapUtils.getMapFromId(-1));
+    final Location location = this.fakeWorld.createLocation(0.5, SCREEN_Y, 0.5);
+    assertThrows(IllegalArgumentException.class, () -> MapUtils.createMapItem(-1));
     assertThrows(NullPointerException.class, () -> MapUtils.buildMapScreen(null, location, Material.STONE, 1, 1, 0));
     assertThrows(NullPointerException.class, () -> MapUtils.buildMapScreen(player, null, Material.STONE, 1, 1, 0));
     assertThrows(NullPointerException.class, () -> MapUtils.buildMapScreen(player, location, null, 1, 1, 0));
@@ -519,7 +519,7 @@ final class MapUtilsTest {
     assertThrows(IllegalArgumentException.class, () -> MapUtils.buildMapScreen(player, location, Material.STONE, 1, 0, 0));
     assertThrows(IllegalArgumentException.class, () -> MapUtils.buildMapScreen(player, location, Material.STONE, 1, 1, -1));
 
-    final List<ItemFrame> frames = this.fakeWorld.spawnedFrames();
+    final List<ItemFrame> frames = this.fakeWorld.getSpawnedFrames();
     final boolean nothingSpawned = frames.isEmpty();
     assertTrue(nothingSpawned);
   }

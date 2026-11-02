@@ -173,7 +173,7 @@ final class VncCommandTest {
 
     this.assertReceived(Message.VNC_NOT_ALLOWED.build("10.0.0.2:5900"));
     this.desktops.verifyNoInteractions();
-    assertNull(this.command.result);
+    assertNull(this.command.output);
   }
 
   @Test
@@ -181,7 +181,7 @@ final class VncCommandTest {
     this.create("wide", DESKTOP_ADDRESS);
 
     this.desktops.verifyNoInteractions();
-    assertNull(this.command.result);
+    assertNull(this.command.output);
   }
 
   @Test
@@ -199,7 +199,7 @@ final class VncCommandTest {
     );
 
     this.desktops.verifyNoInteractions();
-    assertNull(this.command.result);
+    assertNull(this.command.output);
   }
 
   @Test

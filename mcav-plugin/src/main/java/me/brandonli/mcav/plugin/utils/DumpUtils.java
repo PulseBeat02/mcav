@@ -74,9 +74,9 @@ public final class DumpUtils {
   private static final Pattern WORD = Pattern.compile("\\S+");
   private static final Pattern IPV4_ADDRESS = Pattern.compile("\\b\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\b(?::\\d{1,5})?");
   private static final Pattern IPV6_ADDRESS = Pattern.compile("/\\[[0-9A-Fa-f:.]+(?:%[^\\]\\s]+)?](?::\\d{1,5})?");
-  private static final Pattern OTHER_COMMAND = Pattern.compile("(issued server command: /)([^\\s]+)(\\s.*)?$");
+  private static final Pattern ISSUED_COMMAND = Pattern.compile("(issued server command: /)([^\\s]+)(\\s.*)?$");
   private static final Pattern WEB_ADDRESS = Pattern.compile("\\b([A-Za-z][A-Za-z0-9+.-]*://)([^\\s/?#]*@)?([^\\s?#]*)([?#]\\S*)?");
-  private static final String OWN_COMMAND_PREFIX = "mcav";
+  private static final String OWN_COMMAND_NAME = "mcav";
   private static final long MEGABYTE = 1024L * 1024L;
 
   private static final String DOCUMENTS_PATH = "documents/";
@@ -337,23 +337,23 @@ public final class DumpUtils {
   }
 
   private static String redactAddresses(final String line) {
-    final Matcher sixth = IPV6_ADDRESS.matcher(line);
-    final String withoutSixth = sixth.replaceAll(ADDRESS_PREFIX + REDACTED_ADDRESS);
-    final Matcher fourth = IPV4_ADDRESS.matcher(withoutSixth);
-    return fourth.replaceAll(REDACTED_ADDRESS);
+    final Matcher ipv6Addresses = IPV6_ADDRESS.matcher(line);
+    final String withoutIpv6Addresses = ipv6Addresses.replaceAll(ADDRESS_PREFIX + REDACTED_ADDRESS);
+    final Matcher ipv4Addresses = IPV4_ADDRESS.matcher(withoutIpv6Addresses);
+    return ipv4Addresses.replaceAll(REDACTED_ADDRESS);
   }
 
   private static String redactOtherCommandArguments(final String line) {
-    final Matcher matcher = OTHER_COMMAND.matcher(line);
-    final boolean command = matcher.find();
-    if (!command) {
+    final Matcher matcher = ISSUED_COMMAND.matcher(line);
+    final boolean issued = matcher.find();
+    if (!issued) {
       return line;
     }
 
     final String name = matcher.group(COMMAND_NAME_GROUP);
     final String arguments = matcher.group(COMMAND_ARGUMENTS_GROUP);
     final String commandName = Objects.requireNonNull(name);
-    final boolean own = commandName.equalsIgnoreCase(OWN_COMMAND_PREFIX);
+    final boolean own = commandName.equalsIgnoreCase(OWN_COMMAND_NAME);
     if (own || arguments == null || arguments.isBlank()) {
       return line;
     }

@@ -71,7 +71,7 @@ public final class OnlinePlayers implements Listener {
    *
    * @since 1.0.0
    */
-  public void stop() {
+  public void shutdown() {
     HandlerList.unregisterAll(this);
     this.online.clear();
   }

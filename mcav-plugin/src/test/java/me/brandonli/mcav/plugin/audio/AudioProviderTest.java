@@ -223,7 +223,7 @@ final class AudioProviderTest {
     this.builders.verifyNoInteractions();
     this.httpResults.verifyNoInteractions();
 
-    final PluginManager pluginManager = TestServer.pluginManager();
+    final PluginManager pluginManager = TestServer.getPluginManager();
     verifyNoInteractions(pluginManager);
 
     final boolean discordReady = this.provider.isDiscordBotReady();
@@ -429,7 +429,7 @@ final class AudioProviderTest {
   @Test
   void shouldRegisterForTheServerLoadWhenVoiceChatIsInstalled() {
     when(this.configuration.isSimpleVoiceChatEnabled()).thenReturn(true);
-    final PluginManager pluginManager = TestServer.pluginManager();
+    final PluginManager pluginManager = TestServer.getPluginManager();
     when(pluginManager.isPluginEnabled("voicechat")).thenReturn(true);
     this.provider.initialize();
     verify(pluginManager).registerEvents(any(ServerLoadListener.class), eq(this.sandbox));
@@ -443,7 +443,7 @@ final class AudioProviderTest {
     final String message = exception.getMessage();
     assertEquals("Simple Voice Chat audio is enabled, but the voicechat plugin is not installed!", message);
 
-    final PluginManager pluginManager = TestServer.pluginManager();
+    final PluginManager pluginManager = TestServer.getPluginManager();
     verify(pluginManager, never()).registerEvents(any(), any());
   }
 

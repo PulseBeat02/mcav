@@ -198,7 +198,7 @@ final class VirtualizeCommandTest {
     // the screen's output owns its maps: releasing it releases them
     verify(this.ditherFilter).release();
     assertNull(this.command.player);
-    assertNull(this.command.result);
+    assertNull(this.command.output);
   }
 
   private void createWithoutFlags() {
@@ -958,7 +958,7 @@ final class VirtualizeCommandTest {
 
     this.machines.verifyNoInteractions();
     assertNull(this.command.player);
-    assertNull(this.command.result);
+    assertNull(this.command.output);
   }
 
   @Test

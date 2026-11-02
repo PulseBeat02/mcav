@@ -107,7 +107,7 @@ public final class MapUtils {
    * @throws IllegalStateException    if the requested historical map is missing and its id cannot be allocated again
    * @since 1.0.0
    */
-  public static ItemStack getMapFromId(final int id) {
+  public static ItemStack createMapItem(final int id) {
     Preconditions.checkArgument(id >= 0, MAP_ID_NEGATIVE_MESSAGE, id);
 
     final ItemStack map = createMapItemStack(id);
@@ -283,7 +283,7 @@ public final class MapUtils {
       final ItemFrame frame = this.world.spawn(frameLocation, ItemFrame.class);
       frame.setFacingDirection(this.outward);
 
-      final ItemStack item = getMapFromId(map);
+      final ItemStack item = createMapItem(map);
       frame.setItem(item);
       frame.setInvulnerable(true);
       frame.setGravity(false);

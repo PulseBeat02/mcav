@@ -194,15 +194,15 @@ public final class VideoFlagsParser {
       return;
     }
 
-    final int equals = trimmed.indexOf(VALUE_SEPARATOR);
-    if (equals < 0) {
+    final int separatorIndex = trimmed.indexOf(VALUE_SEPARATOR);
+    if (separatorIndex < 0) {
       this.requireFlagOption(trimmed);
       arguments.add(this.toLongOption(trimmed));
       return;
     }
 
-    final String name = trimmed.substring(0, equals);
-    final String value = trimmed.substring(equals + 1);
+    final String name = trimmed.substring(0, separatorIndex);
+    final String value = trimmed.substring(separatorIndex + 1);
     final String cleanName = name.trim();
     final String cleanValue = value.trim();
     if (cleanName.isEmpty()) {
@@ -231,7 +231,7 @@ public final class VideoFlagsParser {
       throw new IllegalArgumentException(message);
     }
 
-    throw this.unsupported(name);
+    throw this.createUnsupportedOptionException(name);
   }
 
   private void requireValueOption(final String name, final String value) {
@@ -243,7 +243,7 @@ public final class VideoFlagsParser {
         throw new IllegalArgumentException(message);
       }
 
-      throw this.unsupported(name);
+      throw this.createUnsupportedOptionException(name);
     }
 
     // yt-dlp reads an argument that starts with a dash as an option of its own, whatever option it follows
@@ -254,7 +254,7 @@ public final class VideoFlagsParser {
     }
   }
 
-  private IllegalArgumentException unsupported(final String name) {
+  private IllegalArgumentException createUnsupportedOptionException(final String name) {
     final String supported = String.join(NAME_SEPARATOR, supportedOptions());
     final String message = "yt-dlp option %s is not supported, use one of %s instead!".formatted(name, supported);
     return new IllegalArgumentException(message);

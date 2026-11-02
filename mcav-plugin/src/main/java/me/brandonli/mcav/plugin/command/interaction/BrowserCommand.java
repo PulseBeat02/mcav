@@ -138,19 +138,19 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
   /**
    * Closes a browser.
    *
-   * @param current the browser to close, which is no longer the running one
+   * @param player the browser to close, which is no longer the running one
    * @since 1.0.0
    */
   @Override
-  protected void releasePlayer(final BrowserPlayer current) {
-    Preconditions.checkNotNull(current, BROWSER_NULL_MESSAGE);
+  protected void releasePlayer(final BrowserPlayer player) {
+    Preconditions.checkNotNull(player, BROWSER_NULL_MESSAGE);
 
     // the browser helper takes seconds to stop and its session folder to be deleted; no frame or sound of it meanwhile
     CleanupUtils.runAll(
-      () -> current.getVideoAttachableCallback().detach(),
-      () -> current.getAudioAttachableCallback().detach(),
-      () -> this.releaseSound(current),
-      () -> this.releaseInTheBackground(current::release)
+      () -> player.getVideoAttachableCallback().detach(),
+      () -> player.getAudioAttachableCallback().detach(),
+      () -> this.releaseSound(player),
+      () -> this.releaseInTheBackground(player::release)
     );
   }
 

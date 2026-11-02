@@ -71,7 +71,7 @@ public final class BrowserBenchmark {
 
   private static final String JCEF_BACKEND = "jcef";
 
-  private static final String FRAME_RATE_PAGE_NAME = "fps";
+  private static final String FRAME_RATE_PAGE_NAME = "frame-rate";
   private static final String LATENCY_PAGE_NAME = "latency";
 
   private static final double NANOSECONDS_PER_SECOND = 1e9;
@@ -95,7 +95,7 @@ public final class BrowserBenchmark {
 
     final String backend = args[0];
     final Path output = Path.of(args[1]);
-    final Supplier<BrowserPlayer> factory = backends(backend);
+    final Supplier<BrowserPlayer> factory = createPlayerFactory(backend);
     final List<WallSize> sizes = WALL_SIZES;
     final List<String> rows = new ArrayList<>();
     try (final BenchmarkServer server = BenchmarkServer.start()) {
@@ -116,12 +116,12 @@ public final class BrowserBenchmark {
     lines.add(HEADER_RULE);
     lines.addAll(rows);
     Files.write(output, lines, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-    final PrintStream out = System.out;
-    out.println(String.join(System.lineSeparator(), lines));
+    final PrintStream standardOutput = System.out;
+    standardOutput.println(String.join(System.lineSeparator(), lines));
     System.exit(0);
   }
 
-  private static Supplier<BrowserPlayer> backends(final String backend) {
+  private static Supplier<BrowserPlayer> createPlayerFactory(final String backend) {
     final BrowserOptions local = BrowserOptions.builder().privateNetworks(true).build();
     return switch (backend) {
       case JCEF_BACKEND -> () -> BrowserPlayer.create(local);

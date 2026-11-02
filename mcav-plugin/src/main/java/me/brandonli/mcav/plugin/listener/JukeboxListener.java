@@ -51,7 +51,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * @since 1.0.0
  */
-public final class JukeBoxListener implements Listener {
+public final class JukeboxListener implements Listener {
 
   private static final PlainTextComponentSerializer PLAIN_TEXT = PlainTextComponentSerializer.plainText();
   private static final Pattern BRACKETS = Pattern.compile("[\\[\\]]");
@@ -60,20 +60,20 @@ public final class JukeBoxListener implements Listener {
 
   private static final String NAME_REPLACEMENT = "_";
 
-  private final MCAVSandbox sandbox;
+  private final MCAVSandbox plugin;
   private final Path isoFolder;
 
   /**
    * Creates the listener and the {@code iso} folder.
    *
-   * @param sandbox the plugin
+   * @param plugin the plugin
    * @since 1.0.0
    */
-  public JukeBoxListener(final MCAVSandbox sandbox) {
-    Preconditions.checkNotNull(sandbox, "Sandbox must not be null!");
+  public JukeboxListener(final MCAVSandbox plugin) {
+    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
 
-    this.sandbox = sandbox;
-    final Path dataFolder = sandbox.getDataPath();
+    this.plugin = plugin;
+    final Path dataFolder = plugin.getDataPath();
     this.isoFolder = DiskImages.folderOf(dataFolder);
     IoUtils.createDirectoryIfNotExists(this.isoFolder);
   }
@@ -86,7 +86,7 @@ public final class JukeBoxListener implements Listener {
   public void start() {
     final Server server = Bukkit.getServer();
     final PluginManager pluginManager = server.getPluginManager();
-    pluginManager.registerEvents(this, this.sandbox);
+    pluginManager.registerEvents(this, this.plugin);
   }
 
   /**

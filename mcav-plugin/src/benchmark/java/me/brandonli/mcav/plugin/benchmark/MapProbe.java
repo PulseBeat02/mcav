@@ -110,7 +110,7 @@ final class MapProbe implements DitherResultStep {
     }
     final Watch activeWatch = this.watch;
     if (activeWatch != null) {
-      activeWatch.inspect(patches, now);
+      activeWatch.recordPatches(patches, now);
     }
   }
 
@@ -170,28 +170,28 @@ final class MapProbe implements DitherResultStep {
     private final byte index;
     private final int firstMapId;
     private final BitSet covered;
-    private final int pixels;
+    private final int pagePixels;
     private final CountDownLatch first;
-    private final CountDownLatch done;
+    private final CountDownLatch full;
     private volatile long firstNanoseconds;
     private volatile long fullNanoseconds;
 
     Watch(final byte index, final int firstMapId, final int mapCount, final int pagePixels) {
       this.index = index;
       this.firstMapId = firstMapId;
-      this.pixels = pagePixels;
+      this.pagePixels = pagePixels;
       this.covered = new BitSet(mapCount * MapLayout.MAP_SIZE * MapLayout.MAP_SIZE);
       this.first = new CountDownLatch(1);
-      this.done = new CountDownLatch(1);
+      this.full = new CountDownLatch(1);
     }
 
-    private void inspect(final List<MapTilePatch> patches, final long now) {
+    private void recordPatches(final List<MapTilePatch> patches, final long now) {
       for (final MapTilePatch patch : patches) {
         this.recordShownPixels(patch, now);
       }
-      if (this.firstNanoseconds != 0L && this.fullNanoseconds == 0L && this.covered.cardinality() >= this.pixels * COVERED_FRACTION) {
+      if (this.firstNanoseconds != 0L && this.fullNanoseconds == 0L && this.covered.cardinality() >= this.pagePixels * COVERED_FRACTION) {
         this.fullNanoseconds = now;
-        this.done.countDown();
+        this.full.countDown();
       }
     }
 
@@ -221,7 +221,7 @@ final class MapProbe implements DitherResultStep {
     }
 
     boolean awaitFull(final long timeoutMilliseconds) throws InterruptedException {
-      return this.done.await(timeoutMilliseconds, TimeUnit.MILLISECONDS);
+      return this.full.await(timeoutMilliseconds, TimeUnit.MILLISECONDS);
     }
 
     long getFirstNanoseconds() {

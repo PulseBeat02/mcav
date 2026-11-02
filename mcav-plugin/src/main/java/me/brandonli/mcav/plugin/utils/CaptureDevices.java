@@ -61,10 +61,10 @@ public final class CaptureDevices {
   static final Path SYSFS = Path.of("/sys/class/video4linux");
 
   // device numbers tried where the system lists no devices
-  private static final int PROBED = 8;
+  private static final int PROBED_DEVICE_COUNT = 8;
 
   // sysfs does not bound device names
-  static final int MAXIMUM_NAME = 64;
+  static final int MAXIMUM_NAME_LENGTH = 64;
 
   private static final Pattern NODE = Pattern.compile("video(\\d{1,3})");
 
@@ -82,11 +82,11 @@ public final class CaptureDevices {
    * @since 1.0.0
    */
   public static List<Device> list() {
-    return list(OsUtils.getOs(), SYSFS, CaptureDevices::opens);
+    return list(OsUtils.getOs(), SYSFS, CaptureDevices::canOpen);
   }
 
-  static List<Device> list(final Os os, final Path sysfs, final IntPredicate opens) {
-    return os == Os.LINUX ? listSysfs(sysfs) : probe(PROBED, opens);
+  static List<Device> list(final Os os, final Path sysfs, final IntPredicate canOpen) {
+    return os == Os.LINUX ? listSysfs(sysfs) : probe(PROBED_DEVICE_COUNT, canOpen);
   }
 
   static List<Device> listSysfs(final Path folder) {
@@ -126,27 +126,27 @@ public final class CaptureDevices {
     } catch (final IOException exception) {
       name = "";
     }
-    final String shown = name.isEmpty() ? matcher.group() : name.substring(0, Math.min(name.length(), MAXIMUM_NAME));
+    final String shown = name.isEmpty() ? matcher.group() : name.substring(0, Math.min(name.length(), MAXIMUM_NAME_LENGTH));
     return Device.of(index, shown);
   }
 
-  static List<Device> probe(final int count, final IntPredicate opens) {
+  static List<Device> probe(final int count, final IntPredicate canOpen) {
     Preconditions.checkArgument(count >= 0, "Count %s must not be negative!", count);
 
     final List<Device> devices = new ArrayList<>();
     for (int index = 0; index < count; index++) {
-      if (opens.test(index)) {
+      if (canOpen.test(index)) {
         devices.add(Device.of(index, "device " + index));
       }
     }
     return List.copyOf(devices);
   }
 
-  static boolean opens(final int index) {
-    return opens(OpenCVFrameGrabber::new, index);
+  static boolean canOpen(final int index) {
+    return canOpen(OpenCVFrameGrabber::new, index);
   }
 
-  static boolean opens(final IntFunction<? extends FrameGrabber> grabbers, final int index) {
+  static boolean canOpen(final IntFunction<? extends FrameGrabber> grabbers, final int index) {
     try (final FrameGrabber grabber = grabbers.apply(index)) {
       grabber.start();
 

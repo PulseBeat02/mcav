@@ -55,7 +55,7 @@ final class OnlinePlayersTest {
 
     online.start(plugin);
 
-    verify(TestServer.pluginManager()).registerEvents(online, plugin);
+    verify(TestServer.getPluginManager()).registerEvents(online, plugin);
 
     final Set<UUID> players = online.getPlayers();
     assertEquals(Set.of(alice), players);
@@ -69,7 +69,7 @@ final class OnlinePlayersTest {
     assertThrows(UnsupportedOperationException.class, () -> players.add(alice));
 
     try (final MockedStatic<HandlerList> lists = Mockito.mockStatic(HandlerList.class)) {
-      online.stop();
+      online.shutdown();
       lists.verify(() -> HandlerList.unregisterAll(online));
     }
 

@@ -39,10 +39,10 @@ final class FilterChainPropertyTest {
     return Arbitraries.oneOf(
       Arbitraries.of("grayscale", "invert", "fps"),
       Arbitraries.integers()
-        .between(1, FilterChain.MAXIMUM_BLUR)
+        .between(1, FilterChain.MAXIMUM_BLUR_RADIUS)
         .map(radius -> "blur=" + radius),
       Arbitraries.integers()
-        .between(1, FilterChain.MAXIMUM_BILATERAL)
+        .between(1, FilterChain.MAXIMUM_BILATERAL_DIAMETER)
         .map(diameter -> "bilateral=" + diameter),
       Arbitraries.integers()
         .between(0, 255)
@@ -56,12 +56,12 @@ final class FilterChainPropertyTest {
         .between(0, 99)
         .map(left -> String.format(Locale.ROOT, "crop=%d:0:%d:100", left, 100 - left)),
       Arbitraries.integers()
-        .between(1, FilterChain.MAXIMUM_MORPHOLOGY)
+        .between(1, FilterChain.MAXIMUM_MORPHOLOGY_KERNEL)
         .map(kernel -> "dilate=" + kernel),
       Arbitraries.strings()
         .withChars("abcXYZ019 .!?'()+-")
         .ofMinLength(1)
-        .ofMaxLength(FilterChain.MAXIMUM_TEXT)
+        .ofMaxLength(FilterChain.MAXIMUM_TEXT_LENGTH)
         .map(text -> "text=" + text)
     );
   }
@@ -75,7 +75,7 @@ final class FilterChainPropertyTest {
     }
 
     final int expected = chain.size();
-    final int size = FilterChain.parse(text, NO_OVERLAYS, MediaKind.VIDEO).create().size();
+    final int size = FilterChain.parse(text, NO_OVERLAYS, MediaKind.VIDEO).createFilters().size();
     assertEquals(expected, size, text);
   }
 
@@ -84,7 +84,7 @@ final class FilterChainPropertyTest {
     try {
       final FilterChain chain = FilterChain.parse(text, NO_OVERLAYS, MediaKind.VIDEO);
 
-      final boolean matches = chain.create().size() <= FilterChain.MAXIMUM_FILTERS;
+      final boolean matches = chain.createFilters().size() <= FilterChain.MAXIMUM_FILTERS;
       assertTrue(matches, text);
     } catch (final IllegalArgumentException exception) {
       final boolean secondMatches = exception.getMessage() != null && !exception.getMessage().isBlank();

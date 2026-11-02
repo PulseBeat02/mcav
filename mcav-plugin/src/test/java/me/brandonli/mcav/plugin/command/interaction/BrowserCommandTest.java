@@ -214,7 +214,7 @@ final class BrowserCommandTest {
 
     this.assertReceived(Message.BROWSER_UNSUPPORTED.build());
     this.browsers.verify(() -> BrowserPlayer.create(any(BrowserOptions.class)), never());
-    assertNull(this.command.result);
+    assertNull(this.command.output);
   }
 
   @Test
@@ -335,7 +335,7 @@ final class BrowserCommandTest {
 
     verify(this.browser, timeout(RELEASE_MILLISECONDS)).release();
     assertNull(this.command.player);
-    assertNull(this.command.result);
+    assertNull(this.command.output);
 
     final Component failed = Message.BROWSER_ERROR.build();
     this.assertReceived(Message.BROWSER_LOADING.build(), failed);
@@ -479,7 +479,7 @@ final class BrowserCommandTest {
     // the screen's output owns its maps: releasing it releases them
     verify(this.ditherFilter).release();
     assertNull(this.command.player);
-    assertNull(this.command.result);
+    assertNull(this.command.output);
   }
 
   @Test

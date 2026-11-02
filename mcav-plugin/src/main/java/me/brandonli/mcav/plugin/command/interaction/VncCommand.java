@@ -127,15 +127,15 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
   /**
    * Disconnects from a desktop.
    *
-   * @param current the desktop to disconnect from, which is no longer the running one
+   * @param player the desktop to disconnect from, which is no longer the running one
    * @since 1.0.0
    */
   @Override
-  protected void releasePlayer(final VncPlayer current) {
-    Preconditions.checkNotNull(current, DESKTOP_NULL_MESSAGE);
+  protected void releasePlayer(final VncPlayer player) {
+    Preconditions.checkNotNull(player, DESKTOP_NULL_MESSAGE);
 
     // closing the connection waits for the client's threads, which a stalled server can hold up
-    CleanupUtils.runAll(() -> current.getVideoAttachableCallback().detach(), () -> this.releaseInTheBackground(current::release));
+    CleanupUtils.runAll(() -> player.getVideoAttachableCallback().detach(), () -> this.releaseInTheBackground(player::release));
   }
 
   /**

@@ -43,7 +43,7 @@ final class UrlPlaceholder implements ComponentRenderer<String> {
     this.marker = PLACEHOLDER_PREFIX + identifier;
   }
 
-  String prepare(final String message) {
+  String replaceUrlTokens(final String message) {
     return message.replace(URL_TOKEN, this.marker);
   }
 

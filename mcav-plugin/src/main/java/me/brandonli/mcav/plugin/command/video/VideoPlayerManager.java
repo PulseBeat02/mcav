@@ -62,7 +62,7 @@ import org.slf4j.LoggerFactory;
  * Holds the video that is playing: its player, the filter that shows its frames, and the hologram that shows its
  * title, together with the worker thread that starts videos.
  *
- * <p>Only one video plays at a time. {@link #getStatus()} is true while a video is starting, so a second command
+ * <p>Only one video plays at a time. {@link #getStarting()} is true while a video is starting, so a second command
  * cannot start one at the same time. The volume and whether videos loop are settings of the manager, which the
  * videos started later keep.
  *
@@ -86,7 +86,7 @@ public final class VideoPlayerManager {
 
   private final MCAVSandbox plugin;
   private final MCAVApi api;
-  private final AtomicBoolean status;
+  private final AtomicBoolean starting;
   private final ExecutorService service;
   private final AudioProvider provider;
   private final Object lifecycle = new Object();
@@ -94,7 +94,7 @@ public final class VideoPlayerManager {
   private long startGeneration;
   private boolean closed;
   private @Nullable VideoPlayerMultiplexer startingPlayer;
-  private final Set<WorldCleanup> pendingWorld = new HashSet<>();
+  private final Set<WorldCleanup> pendingWorldCleanups = new HashSet<>();
   private final VolumeFilter volume = new VolumeFilter();
   private @Nullable BukkitTask loopWatcher;
 
@@ -107,7 +107,7 @@ public final class VideoPlayerManager {
   public VideoPlayerManager(final MCAVSandbox plugin) {
     Preconditions.checkNotNull(plugin, "Plugin must not be null!");
 
-    this.status = new AtomicBoolean(false);
+    this.starting = new AtomicBoolean(false);
     this.service = Executors.newSingleThreadExecutor();
     this.provider = plugin.getAudioProvider();
     this.api = plugin.getMCAV();
@@ -242,7 +242,7 @@ public final class VideoPlayerManager {
       worldTask = new WorldCleanup(() ->
         CleanupUtils.runAll(() -> this.releaseOldFilter(oldFilter), () -> this.killOldHologram(oldHologram))
       );
-      this.pendingWorld.add(worldTask);
+      this.pendingWorldCleanups.add(worldTask);
     }
     CleanupUtils.runAll(
       this.provider::releaseAudioFilter,
@@ -378,7 +378,7 @@ public final class VideoPlayerManager {
       cleanup.run();
     } finally {
       synchronized (this.lifecycle) {
-        this.pendingWorld.remove(cleanup);
+        this.pendingWorldCleanups.remove(cleanup);
       }
     }
   }
@@ -386,7 +386,7 @@ public final class VideoPlayerManager {
   private void drainWorldCleanup() {
     final List<WorldCleanup> pending;
     synchronized (this.lifecycle) {
-      pending = new ArrayList<>(this.pendingWorld);
+      pending = new ArrayList<>(this.pendingWorldCleanups);
     }
     final Runnable[] actions = new Runnable[pending.size()];
     for (int index = 0; index < actions.length; index++) {
@@ -441,7 +441,7 @@ public final class VideoPlayerManager {
         return;
       }
 
-      final boolean starting = this.status.get();
+      final boolean starting = this.starting.get();
       if (!this.closed && (!starting || this.generation == this.startGeneration)) {
         this.player = player;
         return;
@@ -491,8 +491,8 @@ public final class VideoPlayerManager {
   // isPlaying() stays true while paused, so a paused video is left alone
   void restartEnded() {
     final VideoPlayerMultiplexer current = this.player;
-    if (this.looping && current instanceof final AbstractVideoPlayerCv decoded && !decoded.isPlaying()) {
-      decoded.seek(0L);
+    if (this.looping && current instanceof final AbstractVideoPlayerCv cvPlayer && !cvPlayer.isPlaying()) {
+      cvPlayer.seek(0L);
     }
   }
 
@@ -553,8 +553,8 @@ public final class VideoPlayerManager {
    * @return the flag, shared by every video command
    * @since 1.0.0
    */
-  public AtomicBoolean getStatus() {
-    return this.status;
+  public AtomicBoolean getStarting() {
+    return this.starting;
   }
 
   /**

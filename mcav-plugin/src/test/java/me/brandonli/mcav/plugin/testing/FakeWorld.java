@@ -93,17 +93,17 @@ public final class FakeWorld {
 
   private ItemFrame spawnFrame(final InvocationOnMock invocation) {
     final Location location = invocation.getArgument(0);
-    final ItemFrame frame = this.frame(location, BlockFace.SOUTH);
+    final ItemFrame frame = this.createFrame(location, BlockFace.SOUTH);
     this.spawnedFrames.add(frame);
 
     return frame;
   }
 
-  public World world() {
+  public World getWorld() {
     return this.world;
   }
 
-  public Location location(final double positionX, final double positionY, final double positionZ) {
+  public Location createLocation(final double positionX, final double positionY, final double positionZ) {
     return new Location(this.world, positionX, positionY, positionZ);
   }
 
@@ -120,7 +120,7 @@ public final class FakeWorld {
     when(block.getY()).thenReturn(blockY);
     when(block.getZ()).thenReturn(blockZ);
     when(block.getWorld()).thenReturn(this.world);
-    when(block.getLocation()).thenAnswer(_ -> this.location(blockX, blockY, blockZ));
+    when(block.getLocation()).thenAnswer(_ -> this.createLocation(blockX, blockY, blockZ));
     when(block.getRelative(any(BlockFace.class))).thenAnswer(invocation -> this.findRelativeBlock(invocation, blockX, blockY, blockZ));
     when(block.getRelative(any(BlockFace.class), anyInt())).thenAnswer(invocation ->
       this.findRelativeBlockAtDistance(invocation, blockX, blockY, blockZ)
@@ -158,16 +158,16 @@ public final class FakeWorld {
     return this.block(blockX + offsetX * distance, blockY + offsetY * distance, blockZ + offsetZ * distance);
   }
 
-  public Material material(final int blockX, final int blockY, final int blockZ) {
+  public Material getMaterial(final int blockX, final int blockY, final int blockZ) {
     final Block block = this.block(blockX, blockY, blockZ);
     return this.materials.getOrDefault(block, Material.AIR);
   }
 
-  public int changedBlocks() {
+  public int getChangedBlockCount() {
     return this.materials.size();
   }
 
-  public ItemFrame frame(final Location location, final BlockFace facing) {
+  public ItemFrame createFrame(final Location location, final BlockFace facing) {
     final ItemFrame frame = mock(ItemFrame.class);
     final Map<NamespacedKey, Object> data = new HashMap<>();
     final PersistentDataContainer container = mock(PersistentDataContainer.class);
@@ -206,7 +206,7 @@ public final class FakeWorld {
   }
 
   public ItemFrame addFrame(final Location location, final BlockFace facing, final NamespacedKey... keys) {
-    final ItemFrame frame = this.frame(location, facing);
+    final ItemFrame frame = this.createFrame(location, facing);
     final PersistentDataContainer container = frame.getPersistentDataContainer();
     for (final NamespacedKey key : keys) {
       container.set(key, PersistentDataType.BOOLEAN, true);
@@ -221,7 +221,7 @@ public final class FakeWorld {
     this.entities.add(entity);
   }
 
-  public List<ItemFrame> spawnedFrames() {
+  public List<ItemFrame> getSpawnedFrames() {
     return this.spawnedFrames;
   }
 

@@ -166,7 +166,7 @@ final class AbstractVideoCommandTest {
     this.provider = mock(AudioProvider.class);
     when(plugin.getVideoPlayerManager()).thenReturn(this.manager);
     when(plugin.getAudioProvider()).thenReturn(this.provider);
-    when(this.manager.getStatus()).thenReturn(this.status);
+    when(this.manager.getStarting()).thenReturn(this.status);
     when(this.manager.getService()).thenReturn(this.directExecutor);
     when(this.manager.isCurrent(ArgumentMatchers.anyLong())).thenReturn(true);
     when(this.manager.startNative(any(BooleanSupplier.class))).thenAnswer(this::runStart);
@@ -926,7 +926,7 @@ final class AbstractVideoCommandTest {
 
   @Test
   void shouldUnlockWithoutReportingWhenThePluginWasDisabledMeanwhile() throws IOException {
-    final BukkitScheduler scheduler = TestServer.scheduler();
+    final BukkitScheduler scheduler = TestServer.getScheduler();
     when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(new IllegalPluginAccessException("disabled!"));
     final Path file = this.createVideoFile();
     final String mrl = file.toString();

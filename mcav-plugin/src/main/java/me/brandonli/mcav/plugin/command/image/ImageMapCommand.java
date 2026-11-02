@@ -108,7 +108,7 @@ public final class ImageMapCommand extends AbstractImageCommand {
   @Command("mcav image map <playerSelector> <imageResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <mrl>")
   @Permission("mcav.command.image.map")
   @CommandDescription("mcav.command.image.map.info")
-  public void showMapImage(
+  public void showImage(
     final CommandSender sender,
     final MultiplePlayerSelector playerSelector,
     @Argument(suggestions = SuggestionProvider.RESOLUTIONS) @Quoted final String imageResolution,
@@ -133,7 +133,7 @@ public final class ImageMapCommand extends AbstractImageCommand {
       return;
     }
 
-    final Collection<UUID> players = ArgumentUtils.parseViewers(playerSelector, this.plugin.getOnlinePlayers());
+    final Collection<UUID> players = ArgumentUtils.resolveViewers(playerSelector, this.plugin.getOnlinePlayers());
     final MapCodec chosen = codec != null ? codec : this.plugin.getConfiguration().getMcv2DefaultCodec();
     final ImageConfigurationProvider configurationProvider =
       chosen == MapCodec.MCV2
@@ -171,7 +171,7 @@ public final class ImageMapCommand extends AbstractImageCommand {
   }
 
   /**
-   * Creates a map display from the {@link MapDisplaySettings} built by the provider of {@link #showMapImage}, with
+   * Creates a map display from the {@link MapDisplaySettings} built by the provider of {@link #showImage}, with
    * a dithering algorithm created for this image alone.
    *
    * @param resolution            the parsed resolution, in pixels
@@ -185,14 +185,19 @@ public final class ImageMapCommand extends AbstractImageCommand {
     Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null!");
 
     final Object built = configurationProvider.buildConfiguration(resolution);
-    if (built instanceof final Mcv2ImageSettings mcv2) {
-      final DisplayableImage image = this.createMcv2Image(mcv2);
+    if (built instanceof final Mcv2ImageSettings mcv2Settings) {
+      final DisplayableImage image = this.createMcv2Image(mcv2Settings);
       if (image != null) {
         return image;
       }
 
-      final MapConfiguration fallback = MapDisplaySettings.createConfiguration(mcv2.blocks(), resolution, mcv2.mapId(), mcv2.viewers());
-      return DisplayableImage.map(fallback, mcv2.dithering().createAlgorithm());
+      final MapConfiguration fallback = MapDisplaySettings.createConfiguration(
+        mcv2Settings.blocks(),
+        resolution,
+        mcv2Settings.mapId(),
+        mcv2Settings.viewers()
+      );
+      return DisplayableImage.map(fallback, mcv2Settings.dithering().createAlgorithm());
     }
 
     final MapDisplaySettings settings = (MapDisplaySettings) built;
