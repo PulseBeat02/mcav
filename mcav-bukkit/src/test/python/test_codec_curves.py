@@ -64,10 +64,11 @@ class ResumeTest(unittest.TestCase):
             mcv2_tools.codec_curves_resume(self.out, DOCUMENTED_SOURCE, other)
 
     def test_should_read_the_points_of_the_first_runs(self) -> None:
-        self.write({SOURCES_KEY: {}, POINTS_KEY: [{"source": NEW_SOURCE, "codec": "x264", "quality": 20}]})
+        point: dict[str, Any] = {"source": NEW_SOURCE, "codec": "x264", "quality": 20}
+        self.write({SOURCES_KEY: {}, POINTS_KEY: [point]})
         measured: Any | dict[Any, Any] = mcv2_tools.codec_curves_resume(self.out, NEW_SOURCE, {DIGEST_KEY: "1" * DIGEST_DIGITS})
         codecs: Any = measured[CODECS_KEY]
-        self.assertEqual([{"source": NEW_SOURCE, "codec": "x264", "quality": 20}], codecs)
+        self.assertEqual([point], codecs)
 
         self.assertNotIn(POINTS_KEY, measured)
 
@@ -77,8 +78,9 @@ class ResumeTest(unittest.TestCase):
             mcv2_tools.codec_curves_resume(self.out, NEW_SOURCE, {})
 
     def test_should_start_an_output_that_does_not_exist(self) -> None:
-        measured: Any | dict[Any, Any] = mcv2_tools.codec_curves_resume(self.out, NEW_SOURCE, {DIGEST_KEY: "2" * DIGEST_DIGITS})
-        self.assertEqual({SOURCES_KEY: {NEW_SOURCE: {DIGEST_KEY: "2" * DIGEST_DIGITS}}, CODECS_KEY: []}, measured)
+        digest: str = "2" * DIGEST_DIGITS
+        measured: Any | dict[Any, Any] = mcv2_tools.codec_curves_resume(self.out, NEW_SOURCE, {DIGEST_KEY: digest})
+        self.assertEqual({SOURCES_KEY: {NEW_SOURCE: {DIGEST_KEY: digest}}, CODECS_KEY: []}, measured)
 
     def write(self, measured: Any | dict[Any, Any]) -> None:
         with open(self.out, "w") as out:

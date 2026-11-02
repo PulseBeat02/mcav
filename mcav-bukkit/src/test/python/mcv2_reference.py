@@ -511,7 +511,8 @@ def _build_roots(descriptors: bytes, records: list[bytes], first_children: dict[
         mode, quantizer = _unpack_descriptor(descriptors[position])
         if mode == SPLIT:
             first_child: int = first_children[position]
-            nodes[position] = Node(mode, children=tuple(nodes[first_child + quadrant] for quadrant in range(SPLIT_CHILDREN)))
+            children: tuple[Node, ...] = tuple(nodes[first_child + quadrant] for quadrant in range(SPLIT_CHILDREN))
+            nodes[position] = Node(mode, children=children)
             continue
         nodes[position] = Node(mode, quantizer, records[position])
 

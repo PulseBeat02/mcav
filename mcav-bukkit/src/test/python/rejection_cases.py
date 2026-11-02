@@ -256,5 +256,6 @@ def _add_orientation_cases(cases: dict[str, dict[str, str]]) -> None:
 
 
 def _with_invalid_orientation(data: bytes, orientation: int) -> bytes:
-    offset: int = parse_frame(data).payload_start + mcv2_reference.PATTERN_ORIENTATION_INDEX
+    frame: mcv2_reference.Frame = parse_frame(data)
+    offset: int = frame.payload_start + mcv2_reference.PATTERN_ORIENTATION_INDEX
     return changed(data, offset, orientation)

@@ -84,7 +84,8 @@ class FixtureCoverageTest(unittest.TestCase):
         extremes_covered: bool = {b'\0\0', b'\x80\x7f', b'\x7f\x80', b'\x80\x80', b'\x7f\x7f'} <= vectors
         self.assertTrue(extremes_covered)
 
-        pattern_leaves: tuple[mcv2_reference.Leaf, ...] = parse_frame(self.streams[PATTERNS_STREAM][0]).leaves
+        pattern_frame: mcv2_reference.Frame = parse_frame(self.streams[PATTERNS_STREAM][0])
+        pattern_leaves: tuple[mcv2_reference.Leaf, ...] = pattern_frame.leaves
         patterns: set[tuple[int, int, bytes]] = {
             (leaf.size, leaf.record[mcv2_reference.PATTERN_ORIENTATION_INDEX], leaf.record[mcv2_reference.PATTERN_HEADER_BYTES :])
             for leaf in pattern_leaves
@@ -154,7 +155,8 @@ class FixtureToolTest(unittest.TestCase):
     def test_should_check_version_3_conformance_without_touching_streams(self) -> None:
         root: Path = self.create_conformance_root()
         output: Path = root / CONFORMANCE_FOLDER
-        data: bytes = pack_frame(1, 1, 3, 3, {0: Node(mcv2_reference.SOLID, record=bytes([10, 20, 30]))})
+        color: bytes = bytes([10, 20, 30])
+        data: bytes = pack_frame(1, 1, 3, 3, {0: Node(mcv2_reference.SOLID, record=color)})
         archive: bytes = mcv2_tools.archive_bytes([data])
         (output / NEW_STREAM).write_bytes(archive)
 
@@ -167,7 +169,8 @@ class FixtureToolTest(unittest.TestCase):
         self.assertEqual({'unchanged': True}, old_result)
 
         new_digests: Any = result[NEW_STREAM]['sha256_per_frame']
-        self.assertEqual([hashlib.sha256(bytes([10, 20, 30])).hexdigest()], new_digests)
+        expected_digest: str = hashlib.sha256(color).hexdigest()
+        self.assertEqual([expected_digest], new_digests)
 
         old_bytes: bytes = (output / OLD_STREAM).read_bytes()
         self.assertEqual(OLD_STREAM_BYTES, old_bytes)

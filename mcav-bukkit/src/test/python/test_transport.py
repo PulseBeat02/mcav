@@ -92,9 +92,9 @@ class TransportTest(unittest.TestCase):
         payload: bytes = raw[mcv2_reference.PAGE_HEADER_BYTES:]
         self.assertEqual(frame, payload)
 
-        fields: tuple[Any, ...] = tuple(getattr(read_page(pages[0]), field) for field in
-                                        ('stream_id', 'frame_id', 'number', 'count', 'reference_id', 'frame_bytes',
-                                         'flags', 'symbol_bits'))
+        page: mcv2_reference.Page = read_page(pages[0])
+        names: tuple[str, ...] = ('stream_id', 'frame_id', 'number', 'count', 'reference_id', 'frame_bytes', 'flags', 'symbol_bits')
+        fields: tuple[Any, ...] = tuple(getattr(page, name) for name in names)
         self.assertEqual((7, 9, 0, 1, 9, 48, 1, 6), fields)
 
         page_wire_bytes: int = wire_bytes(pages)
@@ -137,7 +137,8 @@ class TransportTest(unittest.TestCase):
         self.assertEqual({}, pending)
 
     def test_should_reject_bad_metadata_alphabet_and_padding(self) -> None:
-        raw: bytes = page_bytes(make_pages(large_frame())[0])
+        first_page: bytes = make_pages(large_frame())[0]
+        raw: bytes = page_bytes(first_page)
         mutations: list[tuple[int, int, str]] = [
             (PAGE_MAGIC_OFFSET, ord("X"), BYTE_CODE),
             (PAGE_VERSION_OFFSET, 2, BYTE_CODE),
@@ -152,19 +153,20 @@ class TransportTest(unittest.TestCase):
             with self.subTest(offset=offset), self.assertRaises(ValueError):
                 read_page(to_symbols(with_crc(changed(raw, offset, value, code))))
 
-        for symbols in (b'', bytes(42), bytes(mcv2_reference.PAGE_SYMBOLS + 1), make_pages(large_frame())[0][:-1]):
+        for symbols in (b'', bytes(42), bytes(mcv2_reference.PAGE_SYMBOLS + 1), first_page[:-1]):
             with self.assertRaises(ValueError):
                 read_page(symbols)
 
         # 80 bytes are 106 symbols and 4 bits: the last symbol has two padding bits.
-        page_symbols: bytearray = bytearray(make_pages(pack_frame(1, 1, 0, 0, {0: Node(mcv2_reference.SOLID, record=bytes(3))}))[0])
-        page_symbols[-1] |= 32
+        small_frame: bytes = pack_frame(1, 1, 0, 0, {0: Node(mcv2_reference.SOLID, record=bytes(3))})
+        page: bytearray = bytearray(make_pages(small_frame)[0])
+        page[-1] |= 32
         with self.assertRaisesRegex(ValueError, 'padding'):
-            read_page(bytes(page_symbols))
+            read_page(bytes(page))
 
-        page_symbols[0] |= mcv2_reference.ALPHABET_SIZE
+        page[0] |= mcv2_reference.ALPHABET_SIZE
         with self.assertRaisesRegex(ValueError, 'alphabet'):
-            read_page(bytes(page_symbols))
+            read_page(bytes(page))
 
     def test_should_keep_the_pending_limit_and_reject_wrong_streams_and_conflicts(self) -> None:
         assembler: Assembler = Assembler()
@@ -214,7 +216,8 @@ class TransportTest(unittest.TestCase):
         header: bytes = PAGE_HEADER.pack(mcv2_reference.PAGE_MAGIC, mcv2_reference.PAGE_VERSION, mcv2_reference.SYMBOL_BITS,
                                          1, 1, 0, 0, 1, 0, 20, 0)
         symbols: bytes = to_symbols(with_crc(header + bytes(20)))
-        frame_bytes: int = read_page(symbols).frame_bytes
+        page: mcv2_reference.Page = read_page(symbols)
+        frame_bytes: int = page.frame_bytes
         self.assertEqual(20, frame_bytes)
 
         with self.assertRaises(ValueError):
@@ -241,7 +244,8 @@ def large_frame(frame_id: int = 0) -> bytes:
 
 
 def page_bytes(symbols: bytes) -> bytes:
-    return from_symbols(symbols, mcv2_reference.SYMBOL_BITS, len(symbols) * mcv2_reference.SYMBOL_BITS // mcv2_reference.BITS_PER_BYTE)
+    byte_count: int = len(symbols) * mcv2_reference.SYMBOL_BITS // mcv2_reference.BITS_PER_BYTE
+    return from_symbols(symbols, mcv2_reference.SYMBOL_BITS, byte_count)
 
 
 def with_crc(raw: bytes) -> bytes:

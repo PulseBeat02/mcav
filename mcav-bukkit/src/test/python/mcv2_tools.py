@@ -1162,12 +1162,12 @@ def counter_video_main() -> None:
     size: Any = width * height * CHANNELS
     clip: numpy.memmap = numpy.memmap(arguments.clip, dtype=numpy.uint8, mode="r")
     count: Any = clip.size // size
+    minimum_width: int = COUNTER_VIDEO_BLOCK * LATENCY_SAMPLES
     if (
         count < 1
-        or width < COUNTER_VIDEO_BLOCK * (COUNTER_VIDEO_BITS + len(COUNTER_VIDEO_SYNCHRONIZATION_BITS))
+        or width < minimum_width
         or height < COUNTER_VIDEO_BLOCK
     ):
-        minimum_width: int = COUNTER_VIDEO_BLOCK * (COUNTER_VIDEO_BITS + len(COUNTER_VIDEO_SYNCHRONIZATION_BITS))
         message: str = f"The clip must have a frame at least {minimum_width} pixels wide and {COUNTER_VIDEO_BLOCK} pixels high!"
         sys.exit(message)
 
@@ -2604,10 +2604,11 @@ def shader_timing_main() -> None:
     options: dict[str, Any] = {"backend": arguments.backend} if arguments.backend == EGL_BACKEND else {}
     context: moderngl.Context = moderngl.create_standalone_context(require=GL_VERSION, **options)
     renderer: Any = context.info[GL_RENDERER_KEY]
-    print(renderer, context.info[GL_VERSION_KEY])
+    version: Any = context.info[GL_VERSION_KEY]
+    print(renderer, version)
     report: dict[str, Any] = dict(
         renderer=renderer,
-        version=context.info[GL_VERSION_KEY],
+        version=version,
         rounds=arguments.rounds,
         repeats=arguments.repeats,
         streams={},
@@ -2989,8 +2990,8 @@ def strip_check_read_strip_page(symbols: numpy.ndarray) -> mcv2_reference.Page:
     )
     fields: tuple[Any, ...] = PAGE_HEADER.unpack(numpy.packbits(bits[: PAGE_HEADER.size * BITS_PER_BYTE], bitorder=BIT_ORDER).tobytes())
     number: int = fields[PAGE_NUMBER_FIELD]
-    total: int = fields[PAGE_TOTAL_FIELD]
-    size: Any = min(page_capacity(), max(total - number * page_capacity(), 0))
+    frame_bytes: int = fields[PAGE_TOTAL_FIELD]
+    size: Any = min(page_capacity(), max(frame_bytes - number * page_capacity(), 0))
     length: Any = ((PAGE_HEADER.size + size) * BITS_PER_BYTE + SYMBOL_BITS - 1) // SYMBOL_BITS
     return read_page(symbols[:length].tobytes())
 
@@ -3034,23 +3035,23 @@ def strip_fit_check_main() -> int:
             )
         if decoded:
             failures.append("%dx%d, where the strip does not fit: a frame was decoded" % screen)
-    screen = STRIP_FIT_CHECK_FIT_SCREEN
-    rows: int = strip_fit_check_strip_rows(screen[0])
+    fit_screen: tuple[int, int] = STRIP_FIT_CHECK_FIT_SCREEN
+    rows: int = strip_fit_check_strip_rows(fit_screen[0])
     _: bool
-    scene, after, _ = strip_fit_check_frame(context, screen, arguments.spirv)
-    below: int = screen[1] - 1 - rows
+    scene, after, _ = strip_fit_check_frame(context, fit_screen, arguments.spirv)
+    below: int = fit_screen[1] - 1 - rows
     if not numpy.array_equal(after[: below + 1], scene[: below + 1]):
-        failures.append("%dx%d: the scene below the strip changed" % screen)
+        failures.append("%dx%d: the scene below the strip changed" % fit_screen)
     if not numpy.array_equal(
         after[below + 1 :], numpy.broadcast_to(scene[below], (rows,) + scene[below].shape)
     ):
-        failures.append("%dx%d: the strip is not covered with the scene row below it" % screen)
+        failures.append("%dx%d: the strip is not covered with the scene row below it" % fit_screen)
     # Later screens' passes read what earlier screens drew, so covering the strip again smears their pictures.
-    scene, after, _ = strip_fit_check_frame(context, screen, arguments.spirv, screen_index=1)
+    scene, after, _ = strip_fit_check_frame(context, fit_screen, arguments.spirv, screen_index=1)
     changed = int(numpy.count_nonzero(numpy.any(after != scene, axis=2)))
     if changed:
         failures.append(
-            "%dx%d, second screen: the screen pass changed %d pixels the first screen's pass drew" % (screen + (changed,))
+            "%dx%d, second screen: the screen pass changed %d pixels the first screen's pass drew" % (fit_screen + (changed,))
         )
     print(json.dumps({"checks": STRIP_FIT_CHECK_TOTAL_CHECKS, "failures": failures}))
 
@@ -3260,8 +3261,9 @@ def latency_captures(path: Any) -> list[tuple[float, Any]]:
         text=True,
     ).stdout
     metadata: Any = json.loads(probe)
-    width: int = metadata[FFPROBE_STREAMS_KEY][0]["width"]
-    height: int = metadata[FFPROBE_STREAMS_KEY][0]["height"]
+    stream: Any = metadata[FFPROBE_STREAMS_KEY][0]
+    width: int = stream["width"]
+    height: int = stream["height"]
     times: list[float] = [float(frame["pts_time"]) * MILLISECONDS_PER_SECOND for frame in metadata["frames"]]
     row: Any = min(LATENCY_SAMPLE_OFFSET, height - 1)
     columns: list[int] = [
@@ -3628,9 +3630,13 @@ def samples_main() -> None:
         logging.getLogger(FONT_MANAGER_LOGGER).setLevel(logging.ERROR)
         charts_style()
         IMAGES.mkdir(parents=True, exist_ok=True)
-    {TREE_COMMAND: samples_draw_tree, LEAVES_COMMAND: samples_draw_leaves, BYTES_COMMAND: samples_print_bytes}[
-        arguments.command
-    ](arguments)
+    actions: dict[str, Callable[[argparse.Namespace], None]] = {
+        TREE_COMMAND: samples_draw_tree,
+        LEAVES_COMMAND: samples_draw_leaves,
+        BYTES_COMMAND: samples_print_bytes,
+    }
+    action: Callable[[argparse.Namespace], None] = actions[arguments.command]
+    action(arguments)
 
 
 def samples_draw_tree(arguments: argparse.Namespace) -> None:
@@ -3860,9 +3866,9 @@ def samples_print_bytes(arguments: argparse.Namespace) -> None:
     print(
         f"width {frame.width} height {frame.height} keyframe {frame.keyframe} frame id {frame.frame_id} reference id {frame.reference_id} payload start {frame.payload_start} length {frame.frame_bytes}"
     )
-    print(
-        f"masks {[hex(mask) for mask in frame.masks]} directory {list(frame.directory)} levels {frame.level_counts} walk {[(value & WALK_CURSOR_MASK, value >> WALK_CURSOR_BITS) for value in frame.walk]}"
-    )
+    masks: list[str] = [hex(mask) for mask in frame.masks]
+    walk: list[tuple[int, int]] = [(value & WALK_CURSOR_MASK, value >> WALK_CURSOR_BITS) for value in frame.walk]
+    print(f"masks {masks} directory {list(frame.directory)} levels {frame.level_counts} walk {walk}")
     names: dict[int, str] = {mode: name for mode, name, _ in SAMPLES_MODES}
     names[mcv2_reference.SPLIT] = "SPLIT"
     for index, descriptor in enumerate(frame.descriptors):

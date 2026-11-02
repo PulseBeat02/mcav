@@ -104,8 +104,11 @@ class CaptureCheckTest(unittest.TestCase):
             root: Path = Path(directory)
             reference: Path = root / REFERENCE_NAME
             reference.write_bytes(b"".join(picture.tobytes() for picture in references))
+
             for index, picture in enumerate(captures):
-                Image.fromarray(picture).save(root / (CAPTURE_NAME % index))
+                image: Image.Image = Image.fromarray(picture)
+                image.save(root / (CAPTURE_NAME % index))
+
             height: int
             width: int
             _: int
@@ -114,7 +117,11 @@ class CaptureCheckTest(unittest.TestCase):
             output: StringIO = StringIO()
             with patch.object(sys, "argv", arguments), redirect_stdout(output), self.assertRaises(SystemExit) as ended:
                 mcv2_tools.capture_check_main()
-            return ended.exception.code, json.loads(output.getvalue().splitlines()[-1]), output.getvalue()
+
+            text: str = output.getvalue()
+            last_line: str = text.splitlines()[-1]
+            result: dict[str, float | int | str] = json.loads(last_line)
+            return ended.exception.code, result, text
 
 
 if __name__ == "__main__":
