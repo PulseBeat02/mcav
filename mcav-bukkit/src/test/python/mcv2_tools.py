@@ -812,7 +812,8 @@ def main() -> int | None:
     }
     if len(sys.argv) <= 1 or sys.argv[1] not in commands:
         names: str = "|".join(commands)
-        raise SystemExit(f"Usage: mcv2_tools.py <{names}> [arguments]")
+        message: str = f"Usage: mcv2_tools.py <{names}> [arguments]"
+        raise SystemExit(message)
 
     command: str = sys.argv.pop(1)
     sys.argv[0] = f"{sys.argv[0]} {command}"
