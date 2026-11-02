@@ -83,12 +83,15 @@ const page = vm.createContext({
 });
 const script = SCRIPT_UNDER_TEST;
 vm.runInContext(script, page);
-assert.equal(window.open("../next"), null);
-assert.equal(location.href, NEXT_URL);
+const opened = window.open("../next");
+assert.equal(opened, null);
+const openedAddress = location.href;
+assert.equal(openedAddress, NEXT_URL);
 
 page.navigator.userActivation.isActive = false;
 window.open("/blocked");
-assert.equal(location.href, NEXT_URL);
+const blockedAddress = location.href;
+assert.equal(blockedAddress, NEXT_URL);
 
 page.navigator.userActivation.isActive = true;
 const link = new Element();
@@ -102,17 +105,21 @@ const click = {
   },
 };
 listeners.get("click")[0](click);
-assert.equal(click.defaultPrevented, true);
-assert.equal(location.href, link.href);
+const prevented = click.defaultPrevented;
+assert.equal(prevented, true);
+const clickedAddress = location.href;
+assert.equal(clickedAddress, link.href);
 
 const form = new HTMLFormElement();
 form.target = NEW_WINDOW_TARGET;
 listeners.get("submit")[0]({ target: form });
-assert.equal(form.target, SAME_WINDOW_TARGET);
+const formTarget = form.target;
+assert.equal(formTarget, SAME_WINDOW_TARGET);
 
 const open = window.open;
 vm.runInContext(script, page);
-assert.equal(window.open, open, "Installing twice leaves the original wrapper!");
+const reinstalledOpen = window.open;
+assert.equal(reinstalledOpen, open, "Installing twice leaves the original wrapper!");
 
 const listenerCounts = [...listeners].map(countListeners);
 assert.deepEqual(listenerCounts, [
