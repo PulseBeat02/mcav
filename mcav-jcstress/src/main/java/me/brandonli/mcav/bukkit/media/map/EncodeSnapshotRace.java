@@ -46,8 +46,10 @@ import org.openjdk.jcstress.infra.results.II_Result;
 public class EncodeSnapshotRace {
 
   private static final int START_MAP_ID = 0;
+
   private static final int COLUMNS = 1;
   private static final int ROWS = 1;
+
   private static final int SIDE = 16;
 
   private static final byte OLD_COLOR = 4;

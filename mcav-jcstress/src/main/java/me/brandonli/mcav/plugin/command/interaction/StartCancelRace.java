@@ -46,6 +46,7 @@ public class StartCancelRace {
 
   private static final int COLUMNS = 1;
   private static final int ROWS = 1;
+
   private static final int SOURCE_WIDTH = 128;
   private static final int SOURCE_HEIGHT = 128;
 
