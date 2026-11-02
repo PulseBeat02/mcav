@@ -104,16 +104,6 @@ public final class Mcv2Support {
     this.packs = packs;
   }
 
-  /** Tells a viewer why their client is about to ask them to load a pack. */
-  static void tellOffered(final Player player) {
-    player.sendMessage(Message.MCV2_PACK.build());
-  }
-
-  /** Tells a viewer whose client declined the pack, or could not load it, why they see the dithered maps. */
-  static void tellRefused(final Player player) {
-    player.sendMessage(Message.MCV2_REFUSED.build());
-  }
-
   /**
    * Starts listening to the players for the pack. Call on the main thread.
    */
@@ -128,13 +118,14 @@ public final class Mcv2Support {
     this.packs.shutdown();
   }
 
-  /**
-   * Returns who loaded the pack.
-   *
-   * @return the viewers every screen shares
-   */
-  public Mcv2Viewers getViewers() {
-    return this.packs.getViewers();
+  /** Tells a viewer why their client is about to ask them to load a pack. */
+  static void tellOffered(final Player player) {
+    player.sendMessage(Message.MCV2_PACK.build());
+  }
+
+  /** Tells a viewer whose client declined the pack, or could not load it, why they see the dithered maps. */
+  static void tellRefused(final Player player) {
+    player.sendMessage(Message.MCV2_REFUSED.build());
   }
 
   /**
@@ -283,5 +274,14 @@ public final class Mcv2Support {
     }
     final ItemMeta metadata = item.getItemMeta();
     return metadata instanceof final MapMeta map && map.hasMapId() && map.getMapId() == mapId;
+  }
+
+  /**
+   * Returns who loaded the pack.
+   *
+   * @return the viewers every screen shares
+   */
+  public Mcv2Viewers getViewers() {
+    return this.packs.getViewers();
   }
 }

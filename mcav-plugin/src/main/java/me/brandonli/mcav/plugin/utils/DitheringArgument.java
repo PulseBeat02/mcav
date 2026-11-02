@@ -540,6 +540,18 @@ public enum DitheringArgument {
     bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_MAXIMUM, PixelMapper.MAXIMUM_STRENGTH)
   );
 
+  private final AlgorithmFactory algorithmFactory;
+  private final boolean stateful;
+
+  DitheringArgument(final AlgorithmFactory algorithmFactory) {
+    this(algorithmFactory, false);
+  }
+
+  DitheringArgument(final AlgorithmFactory algorithmFactory, final boolean stateful) {
+    this.algorithmFactory = algorithmFactory;
+    this.stateful = stateful;
+  }
+
   private static DitherAlgorithm bayer(final ThresholdMatrix matrix, final int maximum, final float strength) {
     final PixelMapper mapper = PixelMapper.ofPixelMapper(matrix, maximum, strength);
     final OrderedDitherBuilder builder = DitherAlgorithm.ordered();
@@ -562,18 +574,6 @@ public enum DitheringArgument {
     final ErrorDiffusionDitherBuilder builder = DitherAlgorithm.errorDiffusion();
     builder.withAlgorithm(type);
     return builder.build();
-  }
-
-  private final AlgorithmFactory algorithmFactory;
-  private final boolean stateful;
-
-  DitheringArgument(final AlgorithmFactory algorithmFactory) {
-    this(algorithmFactory, false);
-  }
-
-  DitheringArgument(final AlgorithmFactory algorithmFactory, final boolean stateful) {
-    this.algorithmFactory = algorithmFactory;
-    this.stateful = stateful;
   }
 
   /**

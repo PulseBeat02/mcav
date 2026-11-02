@@ -85,16 +85,6 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
   }
 
   /**
-   * Returns the permission a player needs to send input to the running browser.
-   *
-   * @return {@value #INTERACT_PERMISSION}
-   */
-  @Override
-  protected String getInteractionPermission() {
-    return INTERACT_PERMISSION;
-  }
-
-  /**
    * Clicks the page of the browser with the left mouse button.
    *
    * @param current the running browser
@@ -387,5 +377,15 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
       return Message.BROWSER_UNAVAILABLE.build();
     }
     return Message.BROWSER_ERROR.build();
+  }
+
+  /**
+   * Returns the permission a player needs to send input to the running browser.
+   *
+   * @return {@value #INTERACT_PERMISSION}
+   */
+  @Override
+  protected String getInteractionPermission() {
+    return INTERACT_PERMISSION;
   }
 }

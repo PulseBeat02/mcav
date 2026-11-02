@@ -88,10 +88,6 @@ final class Screen {
     return this.cancelled;
   }
 
-  synchronized boolean isCancelled() {
-    return this.cancelled;
-  }
-
   void bindStart(final CompletableFuture<Boolean> future) {
     final boolean shouldCancel;
     synchronized (this) {
@@ -120,6 +116,10 @@ final class Screen {
       future.cancel(false);
     }
     return running;
+  }
+
+  synchronized boolean isCancelled() {
+    return this.cancelled;
   }
 
   /**

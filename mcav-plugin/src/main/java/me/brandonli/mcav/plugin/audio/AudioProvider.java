@@ -130,6 +130,39 @@ public final class AudioProvider {
   }
 
   /**
+   * Stops every output, including those that are still starting.
+   *
+   * <p>Interrupts startup and waits up to ten seconds for its cleanup before Paper closes the library loader.
+   * A startup that does not terminate is reported; an interrupted wait preserves the caller's interrupt flag.
+   */
+  public void shutdown() {
+    synchronized (this.lock) {
+      this.stopped = true;
+    }
+    synchronized (this.outputLock) {
+      this.owner = null;
+      this.claims.clear();
+      this.releaseOutputs();
+    }
+    final HttpResult server;
+    final JDA bot;
+    synchronized (this.lock) {
+      server = this.httpServer;
+      bot = this.jda;
+      this.httpServer = null;
+      this.jda = null;
+      this.discord = null;
+    }
+    if (server != null) {
+      server.stop();
+    }
+    if (bot != null) {
+      bot.shutdown();
+    }
+    this.stopStartup();
+  }
+
+  /**
    * Starts the outputs enabled in the configuration. The Discord bot and the web server start on another thread,
    * so this returns at once; Simple Voice Chat is registered before it returns.
    *
@@ -285,42 +318,6 @@ public final class AudioProvider {
     final String host = this.configuration.getHttpHostName();
     final int port = this.configuration.getHttpPort();
     return HTTP_PREFIX + host + PORT_SEPARATOR + port + PATH_SEPARATOR;
-  }
-
-  /**
-   * Returns whether the Discord bot is enabled in the configuration.
-   *
-   * @return true if enabled
-   */
-  public boolean isDiscordBotEnabled() {
-    return this.configuration.isDiscordBotEnabled();
-  }
-
-  /**
-   * Returns whether the Discord bot has logged in and found its voice channel, so it can play.
-   *
-   * @return true if ready, false while it starts, after it failed to start, or when it is disabled
-   */
-  public boolean isDiscordBotReady() {
-    return this.discord != null;
-  }
-
-  /**
-   * Returns whether the audio web page is enabled in the configuration.
-   *
-   * @return true if enabled
-   */
-  public boolean isHttpEnabled() {
-    return this.configuration.isHttpEnabled();
-  }
-
-  /**
-   * Returns whether the web server of the audio web page has started, so it can play.
-   *
-   * @return true if ready, false while it starts, after it failed to start, or when it is disabled
-   */
-  public boolean isHttpReady() {
-    return this.httpServer != null;
   }
 
   /**
@@ -483,39 +480,6 @@ public final class AudioProvider {
     }
   }
 
-  /**
-   * Stops every output, including those that are still starting.
-   *
-   * <p>Interrupts startup and waits up to ten seconds for its cleanup before Paper closes the library loader.
-   * A startup that does not terminate is reported; an interrupted wait preserves the caller's interrupt flag.
-   */
-  public void shutdown() {
-    synchronized (this.lock) {
-      this.stopped = true;
-    }
-    synchronized (this.outputLock) {
-      this.owner = null;
-      this.claims.clear();
-      this.releaseOutputs();
-    }
-    final HttpResult server;
-    final JDA bot;
-    synchronized (this.lock) {
-      server = this.httpServer;
-      bot = this.jda;
-      this.httpServer = null;
-      this.jda = null;
-      this.discord = null;
-    }
-    if (server != null) {
-      server.stop();
-    }
-    if (bot != null) {
-      bot.shutdown();
-    }
-    this.stopStartup();
-  }
-
   private void stopStartup() {
     this.startup.shutdownNow();
     // Paper closes the library loader after onDisable returns, including jars a startup callback still needs.
@@ -529,6 +493,42 @@ public final class AudioProvider {
       current.interrupt();
       LOGGER.warn(STARTUP_WAIT_INTERRUPTED);
     }
+  }
+
+  /**
+   * Returns whether the Discord bot is enabled in the configuration.
+   *
+   * @return true if enabled
+   */
+  public boolean isDiscordBotEnabled() {
+    return this.configuration.isDiscordBotEnabled();
+  }
+
+  /**
+   * Returns whether the Discord bot has logged in and found its voice channel, so it can play.
+   *
+   * @return true if ready, false while it starts, after it failed to start, or when it is disabled
+   */
+  public boolean isDiscordBotReady() {
+    return this.discord != null;
+  }
+
+  /**
+   * Returns whether the audio web page is enabled in the configuration.
+   *
+   * @return true if enabled
+   */
+  public boolean isHttpEnabled() {
+    return this.configuration.isHttpEnabled();
+  }
+
+  /**
+   * Returns whether the web server of the audio web page has started, so it can play.
+   *
+   * @return true if ready, false while it starts, after it failed to start, or when it is disabled
+   */
+  public boolean isHttpReady() {
+    return this.httpServer != null;
   }
 
   /** A source's hold on the outputs: the output it chose, what it shows there, and the filter it plays into. */

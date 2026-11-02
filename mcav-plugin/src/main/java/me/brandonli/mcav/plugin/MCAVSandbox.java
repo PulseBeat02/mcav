@@ -149,6 +149,41 @@ public final class MCAVSandbox extends JavaPlugin {
   }
 
   /**
+   * Disables the plugin: stops the video and the images, the jukebox listener, the commands and the audio outputs,
+   * and releases the library. Parts that were never created, because the plugin failed to enable, are skipped.
+   */
+  @Override
+  public void onDisable() {
+    this.hasBeenDisabled = true;
+    final VideoPlayerManager videos = this.videoPlayerManager;
+    final ImageManager images = this.imageManager;
+    final JukeBoxListener jukebox = this.listener;
+    final AnnotationParserHandler commands = this.annotationParserHandler;
+    final AudioProvider audio = this.audioProvider;
+    final Mcv2Support mcv2 = this.mcv2Support;
+    final OnlinePlayers online = this.onlinePlayers;
+    final MCAVApi library = this.mcav;
+    this.mcv2Support = null;
+    this.onlinePlayers = null;
+    this.videoPlayerManager = null;
+    this.imageManager = null;
+    this.listener = null;
+    this.annotationParserHandler = null;
+    this.audioProvider = null;
+    this.mcav = null;
+    CleanupUtils.runAll(
+      whenPresent(videos, VideoPlayerManager::shutdown),
+      whenPresent(images, ImageManager::shutdown),
+      whenPresent(jukebox, JukeBoxListener::shutdown),
+      whenPresent(commands, AnnotationParserHandler::shutdownCommands),
+      whenPresent(audio, AudioProvider::shutdown),
+      whenPresent(mcv2, Mcv2Support::shutdown),
+      whenPresent(online, OnlinePlayers::stop),
+      whenPresent(library, MCAVApi::release)
+    );
+  }
+
+  /**
    * Logs on one line why the plugin cannot be enabled and how to fix it, and disables the plugin. The plugin manager
    * calls {@link #onDisable()}, which releases whatever was created before the failure.
    *
@@ -235,41 +270,6 @@ public final class MCAVSandbox extends JavaPlugin {
     jukeBoxListener.start();
   }
 
-  /**
-   * Disables the plugin: stops the video and the images, the jukebox listener, the commands and the audio outputs,
-   * and releases the library. Parts that were never created, because the plugin failed to enable, are skipped.
-   */
-  @Override
-  public void onDisable() {
-    this.hasBeenDisabled = true;
-    final VideoPlayerManager videos = this.videoPlayerManager;
-    final ImageManager images = this.imageManager;
-    final JukeBoxListener jukebox = this.listener;
-    final AnnotationParserHandler commands = this.annotationParserHandler;
-    final AudioProvider audio = this.audioProvider;
-    final Mcv2Support mcv2 = this.mcv2Support;
-    final OnlinePlayers online = this.onlinePlayers;
-    final MCAVApi library = this.mcav;
-    this.mcv2Support = null;
-    this.onlinePlayers = null;
-    this.videoPlayerManager = null;
-    this.imageManager = null;
-    this.listener = null;
-    this.annotationParserHandler = null;
-    this.audioProvider = null;
-    this.mcav = null;
-    CleanupUtils.runAll(
-      whenPresent(videos, VideoPlayerManager::shutdown),
-      whenPresent(images, ImageManager::shutdown),
-      whenPresent(jukebox, JukeBoxListener::shutdown),
-      whenPresent(commands, AnnotationParserHandler::shutdownCommands),
-      whenPresent(audio, AudioProvider::shutdown),
-      whenPresent(mcv2, Mcv2Support::shutdown),
-      whenPresent(online, OnlinePlayers::stop),
-      whenPresent(library, MCAVApi::release)
-    );
-  }
-
   private static <PartType> Runnable whenPresent(final @Nullable PartType part, final Consumer<PartType> cleanup) {
     return () -> {
       if (part != null) {
@@ -278,16 +278,16 @@ public final class MCAVSandbox extends JavaPlugin {
     };
   }
 
+  private ComponentLogger requireLogger() {
+    return require(this.logger, "logger");
+  }
+
   private static <ValueType> ValueType require(final @Nullable ValueType value, final String name) {
     if (value == null) {
       final String message = "The %s is not available before the plugin is enabled!".formatted(name);
       throw new IllegalStateException(message);
     }
     return value;
-  }
-
-  private ComponentLogger requireLogger() {
-    return require(this.logger, "logger");
   }
 
   /**

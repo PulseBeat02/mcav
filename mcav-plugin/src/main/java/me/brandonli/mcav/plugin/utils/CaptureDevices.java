@@ -66,14 +66,6 @@ public final class CaptureDevices {
   }
 
   /**
-   * A capture device.
-   *
-   * @param index the number the DEVICE player opens it by
-   * @param name  what the system calls it
-   */
-  public record Device(int index, String name) {}
-
-  /**
    * Lists the capture devices of the server. Off the main thread: trying devices takes a moment.
    *
    * @return the devices, by number
@@ -191,4 +183,12 @@ public final class CaptureDevices {
     }
     return null;
   }
+
+  /**
+   * A capture device.
+   *
+   * @param index the number the DEVICE player opens it by
+   * @param name  what the system calls it
+   */
+  public record Device(int index, String name) {}
 }

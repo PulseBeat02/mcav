@@ -49,20 +49,6 @@ public enum PlayerArgument {
    */
   DEVICE(VideoPlayer::device);
 
-  /**
-   * Creates the player of a constant. The factories capture nothing, so every constant stays immutable.
-   */
-  @Immutable
-  @FunctionalInterface
-  private interface PlayerFactory {
-    /**
-     * Creates a new, not yet started player.
-     *
-     * @return the player
-     */
-    VideoPlayerMultiplexer create();
-  }
-
   private final PlayerFactory factory;
 
   PlayerArgument(final PlayerFactory factory) {
@@ -76,5 +62,19 @@ public enum PlayerArgument {
    */
   public VideoPlayerMultiplexer createPlayer() {
     return this.factory.create();
+  }
+
+  /**
+   * Creates the player of a constant. The factories capture nothing, so every constant stays immutable.
+   */
+  @Immutable
+  @FunctionalInterface
+  private interface PlayerFactory {
+    /**
+     * Creates a new, not yet started player.
+     *
+     * @return the player
+     */
+    VideoPlayerMultiplexer create();
   }
 }

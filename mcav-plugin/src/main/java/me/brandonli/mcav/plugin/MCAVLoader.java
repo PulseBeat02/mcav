@@ -161,16 +161,6 @@ public final class MCAVLoader implements PluginLoader {
   }
 
   /**
-   * Returns the folder the libraries are cached in.
-   *
-   * @return the cache folder
-   */
-  @VisibleForTesting
-  Path getLibraries() {
-    return this.libraries;
-  }
-
-  /**
    * Resolves the libraries listed in {@code mcav/plugin/dependencies.txt}, downloading those missing from the cache folder,
    * checks that the downloaded modules are not older than the plugin, adds them to the classpath of the plugin, and
    * removes cached files that are no longer listed. Paper calls this once, before the plugin class is loaded.
@@ -197,5 +187,15 @@ public final class MCAVLoader implements PluginLoader {
       appender.append(jars);
     }
     cache.cleanup();
+  }
+
+  /**
+   * Returns the folder the libraries are cached in.
+   *
+   * @return the cache folder
+   */
+  @VisibleForTesting
+  Path getLibraries() {
+    return this.libraries;
   }
 }

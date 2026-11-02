@@ -279,6 +279,20 @@ public final class MapUtils {
       return this.spawnFrame(block, map);
     }
 
+    private ItemFrame spawnFrame(final Block block, final int map) {
+      final Block frameBlock = block.getRelative(this.outward);
+      this.clearFrames(frameBlock);
+      final Location frameLocation = frameBlock.getLocation();
+      final ItemFrame frame = this.world.spawn(frameLocation, ItemFrame.class);
+      frame.setFacingDirection(this.outward);
+
+      final ItemStack item = getMapFromId(map);
+      frame.setItem(item);
+      frame.setInvulnerable(true);
+      frame.setGravity(false);
+      return frame;
+    }
+
     /**
      * Removes the item frames already hanging in the block the new frame goes into.
      *
@@ -297,20 +311,6 @@ public final class MapUtils {
           occupant.remove();
         }
       }
-    }
-
-    private ItemFrame spawnFrame(final Block block, final int map) {
-      final Block frameBlock = block.getRelative(this.outward);
-      this.clearFrames(frameBlock);
-      final Location frameLocation = frameBlock.getLocation();
-      final ItemFrame frame = this.world.spawn(frameLocation, ItemFrame.class);
-      frame.setFacingDirection(this.outward);
-
-      final ItemStack item = getMapFromId(map);
-      frame.setItem(item);
-      frame.setInvulnerable(true);
-      frame.setGravity(false);
-      return frame;
     }
   }
 }

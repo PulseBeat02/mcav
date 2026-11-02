@@ -204,24 +204,17 @@ public final class DumpUtils {
     return dump.toString();
   }
 
-  private static void appendLine(final StringBuilder dump, final String name, final @Nullable Object value) {
-    dump.append(name);
-    dump.append(LABEL_SEPARATOR);
-    dump.append(value);
-    dump.append(LINE_SEPARATOR);
+  private static void appendSystem(final StringBuilder dump) {
+    appendSection(dump, "System");
+    appendOperatingSystem(dump);
+    appendMemory(dump);
+    appendJvm(dump);
   }
 
   private static void appendSection(final StringBuilder dump, final String title) {
     dump.append(SECTION_PREFIX);
     dump.append(title);
     dump.append(SECTION_SUFFIX);
-  }
-
-  private static void appendSystem(final StringBuilder dump) {
-    appendSection(dump, "System");
-    appendOperatingSystem(dump);
-    appendMemory(dump);
-    appendJvm(dump);
   }
 
   private static void appendOperatingSystem(final StringBuilder dump) {
@@ -235,6 +228,13 @@ public final class DumpUtils {
     appendLine(dump, "Architecture", architecture);
     appendLine(dump, "Java Version", javaVersion);
     appendLine(dump, "Java Vendor", javaVendor);
+  }
+
+  private static void appendLine(final StringBuilder dump, final String name, final @Nullable Object value) {
+    dump.append(name);
+    dump.append(LABEL_SEPARATOR);
+    dump.append(value);
+    dump.append(LINE_SEPARATOR);
   }
 
   private static void appendMemory(final StringBuilder dump) {

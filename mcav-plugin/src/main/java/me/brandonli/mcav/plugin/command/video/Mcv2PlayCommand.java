@@ -121,66 +121,6 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
 
   private Opener opener = Mcv2FileEncoder::ffmpeg;
 
-  /** Opens a video file's frames at a size. */
-  @FunctionalInterface
-  interface Opener {
-    /**
-     * Opens a video file.
-     *
-     * @param video  the file
-     * @param width  the frame width
-     * @param height the frame height
-     * @return the frames
-     * @throws IOException if the file cannot be opened
-     */
-    Mcv2FileEncoder.FrameReader open(Path video, int width, int height) throws IOException;
-  }
-
-  /**
-   * A file encode: its thread, and whether it was asked to stop.
-   *
-   * @param thread  the thread that encodes
-   * @param stopped whether a cancel or the plugin stopping asked it to stop
-   */
-  private record FileEncode(Thread thread, AtomicBoolean stopped) {
-    /** Asks the encode to stop. */
-    void stop() {
-      this.stopped.set(true);
-      this.thread.interrupt();
-    }
-  }
-
-  /**
-   * The frames of an encode that may be asked to stop. A stop interrupts the encode's thread, and the encoder ends at
-   * that interrupt, but code that runs on the thread may clear it before the encoder looks: an agent that instruments
-   * classes as the thread loads them did. So once a stop was asked, the thread is interrupted again before and after
-   * every read, and the encoder ends by the next frame.
-   *
-   * @param frames  the video's frames
-   * @param stopped whether the encode was asked to stop
-   */
-  private record StoppableFrames(Mcv2FileEncoder.FrameReader frames, AtomicBoolean stopped) implements Mcv2FileEncoder.FrameReader {
-    @Override
-    public boolean read(final byte[] rgb) {
-      // before, so a read that waits is interrupted
-      this.interruptIfStopped();
-      final boolean more = this.frames.read(rgb);
-      this.interruptIfStopped();
-      return more;
-    }
-
-    @Override
-    public void close() {
-      this.frames.close();
-    }
-
-    private void interruptIfStopped() {
-      if (this.stopped.get()) {
-        Thread.currentThread().interrupt();
-      }
-    }
-  }
-
   /**
    * Constructs the command.
    *
@@ -190,6 +130,24 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     Preconditions.checkNotNull(plugin, "Plugin must not be null!");
     this.plugin = plugin;
     this.reads = Executors.newSingleThreadExecutor(Thread.ofPlatform().daemon().name("mcav-mcv2-stream-read").factory());
+  }
+
+  /**
+   * Stops the stream, the reading of a stream file and the file encode when the plugin is disabled.
+   */
+  @Override
+  public void shutdown() {
+    this.loads++;
+    this.reads.shutdownNow();
+    this.stop();
+    final FileEncode running;
+    synchronized (this) {
+      running = this.encoding;
+      this.encoding = null;
+    }
+    if (running != null) {
+      running.stop();
+    }
   }
 
   /**
@@ -536,15 +494,6 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
   }
 
   /**
-   * Sets how video files are opened, instead of FFmpeg.
-   *
-   * @param replacement the opener
-   */
-  void setOpener(final Opener replacement) {
-    this.opener = replacement;
-  }
-
-  /**
    * Returns the thread of the file encode started last.
    *
    * @return the thread, also while a cancelled encode cleans up, or null if none was started
@@ -577,24 +526,6 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     }
     // the encode tells its sender that it stopped
     running.stop();
-  }
-
-  /**
-   * Stops the stream, the reading of a stream file and the file encode when the plugin is disabled.
-   */
-  @Override
-  public void shutdown() {
-    this.loads++;
-    this.reads.shutdownNow();
-    this.stop();
-    final FileEncode running;
-    synchronized (this) {
-      running = this.encoding;
-      this.encoding = null;
-    }
-    if (running != null) {
-      running.stop();
-    }
   }
 
   /**
@@ -701,5 +632,74 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
       throw new IOException("Empty stream!");
     }
     return frames;
+  }
+
+  /**
+   * Sets how video files are opened, instead of FFmpeg.
+   *
+   * @param replacement the opener
+   */
+  void setOpener(final Opener replacement) {
+    this.opener = replacement;
+  }
+
+  /** Opens a video file's frames at a size. */
+  @FunctionalInterface
+  interface Opener {
+    /**
+     * Opens a video file.
+     *
+     * @param video  the file
+     * @param width  the frame width
+     * @param height the frame height
+     * @return the frames
+     * @throws IOException if the file cannot be opened
+     */
+    Mcv2FileEncoder.FrameReader open(Path video, int width, int height) throws IOException;
+  }
+
+  /**
+   * A file encode: its thread, and whether it was asked to stop.
+   *
+   * @param thread  the thread that encodes
+   * @param stopped whether a cancel or the plugin stopping asked it to stop
+   */
+  private record FileEncode(Thread thread, AtomicBoolean stopped) {
+    /** Asks the encode to stop. */
+    void stop() {
+      this.stopped.set(true);
+      this.thread.interrupt();
+    }
+  }
+
+  /**
+   * The frames of an encode that may be asked to stop. A stop interrupts the encode's thread, and the encoder ends at
+   * that interrupt, but code that runs on the thread may clear it before the encoder looks: an agent that instruments
+   * classes as the thread loads them did. So once a stop was asked, the thread is interrupted again before and after
+   * every read, and the encoder ends by the next frame.
+   *
+   * @param frames  the video's frames
+   * @param stopped whether the encode was asked to stop
+   */
+  private record StoppableFrames(Mcv2FileEncoder.FrameReader frames, AtomicBoolean stopped) implements Mcv2FileEncoder.FrameReader {
+    @Override
+    public boolean read(final byte[] rgb) {
+      // before, so a read that waits is interrupted
+      this.interruptIfStopped();
+      final boolean more = this.frames.read(rgb);
+      this.interruptIfStopped();
+      return more;
+    }
+
+    @Override
+    public void close() {
+      this.frames.close();
+    }
+
+    private void interruptIfStopped() {
+      if (this.stopped.get()) {
+        Thread.currentThread().interrupt();
+      }
+    }
   }
 }

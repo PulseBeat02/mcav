@@ -80,15 +80,6 @@ public final class MapDisplaySettings {
   }
 
   /**
-   * Returns the maps that show the media.
-   *
-   * @return the map configuration
-   */
-  public MapConfiguration getConfiguration() {
-    return this.configuration;
-  }
-
-  /**
    * Creates the dithering algorithm that colors are reduced to the map palette with. Stateful dithering, such as
    * {@link DitheringArgument#FLOYD_STEINBERG_TEMPORAL}, remembers the previous frame, so each call gives a fresh
    * algorithm for it: call this once for every player or image and keep the result. Stateless algorithms are shared.
@@ -97,5 +88,14 @@ public final class MapDisplaySettings {
    */
   public DitherAlgorithm createAlgorithm() {
     return this.dithering.createAlgorithm();
+  }
+
+  /**
+   * Returns the maps that show the media.
+   *
+   * @return the map configuration
+   */
+  public MapConfiguration getConfiguration() {
+    return this.configuration;
   }
 }

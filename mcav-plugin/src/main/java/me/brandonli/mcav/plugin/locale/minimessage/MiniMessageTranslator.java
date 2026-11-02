@@ -109,14 +109,6 @@ public abstract class MiniMessageTranslator implements Translator {
     return combined.applyFallbackStyle(originalStyle);
   }
 
-  private Component deserialize(final String content, final List<? extends ComponentLike> arguments) {
-    if (arguments.isEmpty()) {
-      return this.miniMessage.deserialize(content);
-    }
-    final ArgumentTag tag = new ArgumentTag(arguments);
-    return this.miniMessage.deserialize(content, tag);
-  }
-
   private Component deserializeMessage(final String message, final List<? extends ComponentLike> arguments) {
     if (!message.contains(UrlPlaceholder.URL_TOKEN)) {
       return this.deserialize(message, arguments);
@@ -128,6 +120,14 @@ public abstract class MiniMessageTranslator implements Translator {
     final String prepared = placeholder.prepare(message);
     final Component parsed = this.deserialize(prepared, arguments);
     return placeholder.render(parsed, plainText);
+  }
+
+  private Component deserialize(final String content, final List<? extends ComponentLike> arguments) {
+    if (arguments.isEmpty()) {
+      return this.miniMessage.deserialize(content);
+    }
+    final ArgumentTag tag = new ArgumentTag(arguments);
+    return this.miniMessage.deserialize(content, tag);
   }
 
   /**

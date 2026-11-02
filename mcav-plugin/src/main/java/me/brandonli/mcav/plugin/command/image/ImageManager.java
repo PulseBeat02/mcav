@@ -74,6 +74,16 @@ public final class ImageManager {
   }
 
   /**
+   * Removes the image and stops the loading thread. Must be called on the server main thread.
+   */
+  public void shutdown() {
+    synchronized (this.loadingLock) {
+      this.closed = true;
+    }
+    CleanupUtils.runAll(() -> this.releaseImage(true), () -> ExecutorUtils.shutdownExecutorGracefully(this.service));
+  }
+
+  /**
    * Starts a new loading generation. Pending native images remain owned by the manager until a main-thread task
    * takes them, so cancellation of an already accepted scheduler task cannot leak them.
    */
@@ -122,6 +132,16 @@ public final class ImageManager {
     }
   }
 
+  /**
+   * Removes the image that is shown and frees its memory.
+   *
+   * @param force true to release at once on the calling thread, false to release on the main thread
+   */
+  public void releaseImage(final boolean force) {
+    final Runnable release = force ? this::releaseNow : this::scheduleRelease;
+    CleanupUtils.runAll(this::cancelPendingLoads, release);
+  }
+
   private void cancelPendingLoads() {
     final ImageBuffer pending;
     synchronized (this.loadingLock) {
@@ -132,26 +152,6 @@ public final class ImageManager {
     if (pending != null) {
       pending.release();
     }
-  }
-
-  /**
-   * Removes the image and stops the loading thread. Must be called on the server main thread.
-   */
-  public void shutdown() {
-    synchronized (this.loadingLock) {
-      this.closed = true;
-    }
-    CleanupUtils.runAll(() -> this.releaseImage(true), () -> ExecutorUtils.shutdownExecutorGracefully(this.service));
-  }
-
-  /**
-   * Removes the image that is shown and frees its memory.
-   *
-   * @param force true to release at once on the calling thread, false to release on the main thread
-   */
-  public void releaseImage(final boolean force) {
-    final Runnable release = force ? this::releaseNow : this::scheduleRelease;
-    CleanupUtils.runAll(this::cancelPendingLoads, release);
   }
 
   private void scheduleRelease() {

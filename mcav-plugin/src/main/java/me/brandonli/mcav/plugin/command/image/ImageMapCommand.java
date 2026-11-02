@@ -142,25 +142,6 @@ public final class ImageMapCommand extends AbstractImageCommand {
   }
 
   /**
-   * What an MCV2 image needs, once the image loaded and its resolution is known.
-   *
-   * @param sender     who ran the command
-   * @param blocks     the size of the wall in maps
-   * @param resolution the resolution the image is encoded at
-   * @param mapId      the id of the top-left map
-   * @param viewers    the players who watch
-   * @param dithering  how the image is dithered for the players without the pack
-   */
-  record Mcv2ImageSettings(
-    CommandSender sender,
-    Pair<Integer, Integer> blocks,
-    Pair<Integer, Integer> resolution,
-    int mapId,
-    Collection<UUID> viewers,
-    DitheringArgument dithering
-  ) {}
-
-  /**
    * Parses the size of the wall and tells the sender when it is invalid.
    *
    * @return the size in maps, or {@code null} if the sender was told that it is invalid
@@ -234,4 +215,23 @@ public final class ImageMapCommand extends AbstractImageCommand {
     final Mcv2Output output = support.output(settings.sender(), configuration, settings.dithering());
     return output == null ? null : new Mcv2Image(this.plugin, output);
   }
+
+  /**
+   * What an MCV2 image needs, once the image loaded and its resolution is known.
+   *
+   * @param sender     who ran the command
+   * @param blocks     the size of the wall in maps
+   * @param resolution the resolution the image is encoded at
+   * @param mapId      the id of the top-left map
+   * @param viewers    the players who watch
+   * @param dithering  how the image is dithered for the players without the pack
+   */
+  record Mcv2ImageSettings(
+    CommandSender sender,
+    Pair<Integer, Integer> blocks,
+    Pair<Integer, Integer> resolution,
+    int mapId,
+    Collection<UUID> viewers,
+    DitheringArgument dithering
+  ) {}
 }

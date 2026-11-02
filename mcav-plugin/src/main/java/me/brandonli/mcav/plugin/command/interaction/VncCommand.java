@@ -74,16 +74,6 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
   }
 
   /**
-   * Returns the permission a player needs to send input to the desktop.
-   *
-   * @return {@value #INTERACT_PERMISSION}
-   */
-  @Override
-  protected String getInteractionPermission() {
-    return INTERACT_PERMISSION;
-  }
-
-  /**
    * Clicks the desktop with the left mouse button.
    *
    * @param current the connected desktop
@@ -287,5 +277,15 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
   @Override
   protected Component createStartMessage(final boolean succeeded, final @Nullable Throwable error) {
     return succeeded ? Message.VNC_CREATE.build() : Message.VNC_ERROR.build();
+  }
+
+  /**
+   * Returns the permission a player needs to send input to the desktop.
+   *
+   * @return {@value #INTERACT_PERMISSION}
+   */
+  @Override
+  protected String getInteractionPermission() {
+    return INTERACT_PERMISSION;
   }
 }

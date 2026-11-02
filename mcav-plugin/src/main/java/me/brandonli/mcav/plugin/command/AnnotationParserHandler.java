@@ -144,15 +144,6 @@ public final class AnnotationParserHandler {
   }
 
   /**
-   * Returns the command manager.
-   *
-   * @return the command manager
-   */
-  public CommandManager<CommandSender> getManager() {
-    return this.manager;
-  }
-
-  /**
    * Sets up every feature and registers its commands.
    */
   public void registerCommands() {
@@ -191,5 +182,14 @@ public final class AnnotationParserHandler {
       cleanups[index] = feature::shutdown;
     }
     CleanupUtils.runAll(cleanups);
+  }
+
+  /**
+   * Returns the command manager.
+   *
+   * @return the command manager
+   */
+  public CommandManager<CommandSender> getManager() {
+    return this.manager;
   }
 }

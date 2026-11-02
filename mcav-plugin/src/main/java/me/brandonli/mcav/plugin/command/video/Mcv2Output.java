@@ -48,25 +48,16 @@ public final class Mcv2Output implements FunctionalVideoFilter {
   }
 
   /**
-   * Returns the screen's result.
-   *
-   * @return the result
-   */
-  public Mcv2Result getResult() {
-    return this.result;
-  }
-
-  @Override
-  public boolean applyFilter(final ImageBuffer samples, final OriginalVideoMetadata metadata) {
-    return this.result.applyFilter(samples, metadata);
-  }
-
-  /**
    * Starts the screen. Call on the main thread.
    */
   @Override
   public void start() {
     this.result.start();
+  }
+
+  @Override
+  public boolean applyFilter(final ImageBuffer samples, final OriginalVideoMetadata metadata) {
+    return this.result.applyFilter(samples, metadata);
   }
 
   /**
@@ -80,5 +71,14 @@ public final class Mcv2Output implements FunctionalVideoFilter {
     } finally {
       this.lease.close();
     }
+  }
+
+  /**
+   * Returns the screen's result.
+   *
+   * @return the result
+   */
+  public Mcv2Result getResult() {
+    return this.result;
   }
 }

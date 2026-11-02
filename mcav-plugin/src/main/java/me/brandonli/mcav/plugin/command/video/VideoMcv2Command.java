@@ -55,6 +55,19 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
   private static final String NO_PROFILE = "none";
 
   /**
+   * The system property that sets the page slots of the screens started next, for a measurement; unset or 0 for
+   * mcav's default.
+   */
+  static final String PAGE_SLOTS_PROPERTY = "mcav.sandbox.mcv2.pageSlots";
+
+  /**
+   * The system property that sets the backlog limit of the screens started next, in bytes, or {@code none} for no
+   * backpressure at all (no backlog limit and no cap on a viewer's unsent bytes), for a measurement; unset for mcav's
+   * default.
+   */
+  static final String BACKLOG_PROPERTY = "mcav.sandbox.mcv2.backlogLimit";
+
+  /**
    * Constructs the command.
    *
    * @param plugin the plugin
@@ -127,19 +140,6 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
     final VideoConfigurationProvider provider = _ -> new Mcv2Settings(configuration, ditheringAlgorithm, sender);
     this.playVideo(provider, sender, playerSelector, playerType, audioType, videoResolution, mrl, ytdlpOptions, filters);
   }
-
-  /**
-   * The system property that sets the page slots of the screens started next, for a measurement; unset or 0 for
-   * mcav's default.
-   */
-  static final String PAGE_SLOTS_PROPERTY = "mcav.sandbox.mcv2.pageSlots";
-
-  /**
-   * The system property that sets the backlog limit of the screens started next, in bytes, or {@code none} for no
-   * backpressure at all (no backlog limit and no cap on a viewer's unsent bytes), for a measurement; unset for mcav's
-   * default.
-   */
-  static final String BACKLOG_PROPERTY = "mcav.sandbox.mcv2.backlogLimit";
 
   /**
    * The backlog limit of new screens: the {@link #BACKLOG_PROPERTY} system property in bytes, {@code none} for no

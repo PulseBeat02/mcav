@@ -109,44 +109,6 @@ public final class VideoPlayerManager {
   }
 
   /**
-   * Sets the hologram that shows the title of the video.
-   *
-   * @param hologram the hologram, or {@code null} for none
-   */
-  public void setHologram(final @Nullable Hologram hologram) {
-    synchronized (this.lifecycle) {
-      this.hologram = hologram;
-    }
-  }
-
-  /**
-   * Returns the hologram that shows the title of the video.
-   *
-   * @return the hologram, or {@code null} if there is none
-   */
-  public @Nullable Hologram getHologram() {
-    return this.hologram;
-  }
-
-  /**
-   * Sets where the hologram of the next video appears.
-   *
-   * @param location the location, or {@code null} to show no hologram
-   */
-  public void setHologramLocation(final @Nullable Location location) {
-    this.hologramLocation = location;
-  }
-
-  /**
-   * Returns where the hologram of the next video appears.
-   *
-   * @return the location, or {@code null} if no hologram is shown
-   */
-  public @Nullable Location getHologramLocation() {
-    return this.hologramLocation;
-  }
-
-  /**
    * Releases the video and stops the worker thread. Called on the main thread when the plugin is disabled.
    */
   public void shutdown() {
@@ -166,13 +128,14 @@ public final class VideoPlayerManager {
   }
 
   /**
-   * Returns whether the library found VLC. While VLC is still being prepared in the background, it is not supported
-   * yet; {@link #isPreparing(Capability)} tells the two cases apart.
+   * Sets the hologram that shows the title of the video.
    *
-   * @return true if VLC players can be created
+   * @param hologram the hologram, or {@code null} for none
    */
-  public boolean isVlcSupported() {
-    return this.api.hasCapability(Capability.VLC);
+  public void setHologram(final @Nullable Hologram hologram) {
+    synchronized (this.lifecycle) {
+      this.hologram = hologram;
+    }
   }
 
   /**
@@ -407,31 +370,6 @@ public final class VideoPlayerManager {
     CleanupUtils.runAll(actions);
   }
 
-  private static final class WorldCleanup implements Runnable {
-
-    private final Runnable task;
-    private final AtomicBoolean claimed = new AtomicBoolean();
-    private final CompletableFuture<@Nullable Void> completion = new CompletableFuture<>();
-
-    private WorldCleanup(final Runnable task) {
-      this.task = task;
-    }
-
-    @Override
-    public void run() {
-      if (!this.claimed.compareAndSet(false, true)) {
-        return;
-      }
-      try {
-        this.task.run();
-        this.completion.complete(null);
-      } catch (final RuntimeException | Error exception) {
-        this.completion.completeExceptionally(exception);
-        throw exception;
-      }
-    }
-  }
-
   /**
    * Schedules a task on the main thread.
    *
@@ -468,24 +406,6 @@ public final class VideoPlayerManager {
   }
 
   /**
-   * Returns the worker thread that starts and releases videos.
-   *
-   * @return the executor
-   */
-  public ExecutorService getService() {
-    return this.service;
-  }
-
-  /**
-   * Returns the flag that is true while a video is starting.
-   *
-   * @return the flag, shared by every video command
-   */
-  public AtomicBoolean getStatus() {
-    return this.status;
-  }
-
-  /**
    * Sets the player of the video.
    *
    * @param player the player, or {@code null} for none
@@ -508,15 +428,6 @@ public final class VideoPlayerManager {
   }
 
   /**
-   * Returns the player of the video.
-   *
-   * @return the player, or {@code null} if no video plays
-   */
-  public @Nullable VideoPlayerMultiplexer getPlayer() {
-    return this.player;
-  }
-
-  /**
    * Sets the filter that shows the frames of the video.
    *
    * @param filter the filter, or {@code null} for none
@@ -525,24 +436,6 @@ public final class VideoPlayerManager {
     synchronized (this.lifecycle) {
       this.filter = filter;
     }
-  }
-
-  /**
-   * Returns the filter that shows the frames of the video.
-   *
-   * @return the filter, or {@code null} if no video plays
-   */
-  public @Nullable FunctionalVideoFilter getFilter() {
-    return this.filter;
-  }
-
-  /**
-   * Returns the volume every video plays at, which the audio pipeline of every video applies before its output.
-   *
-   * @return the volume filter, shared by the videos
-   */
-  public VolumeFilter getVolume() {
-    return this.volume;
   }
 
   /**
@@ -566,6 +459,96 @@ public final class VideoPlayerManager {
       watcher.cancel();
       this.loopWatcher = null;
     }
+  }
+
+  /** Plays a video that reached its end again from the start. A paused video still plays, so it is left alone. */
+  void restartEnded() {
+    final VideoPlayerMultiplexer current = this.player;
+    if (this.looping && current instanceof final AbstractVideoPlayerCv decoded && !decoded.isPlaying()) {
+      decoded.seek(0L);
+    }
+  }
+
+  /**
+   * Returns the hologram that shows the title of the video.
+   *
+   * @return the hologram, or {@code null} if there is none
+   */
+  public @Nullable Hologram getHologram() {
+    return this.hologram;
+  }
+
+  /**
+   * Sets where the hologram of the next video appears.
+   *
+   * @param location the location, or {@code null} to show no hologram
+   */
+  public void setHologramLocation(final @Nullable Location location) {
+    this.hologramLocation = location;
+  }
+
+  /**
+   * Returns where the hologram of the next video appears.
+   *
+   * @return the location, or {@code null} if no hologram is shown
+   */
+  public @Nullable Location getHologramLocation() {
+    return this.hologramLocation;
+  }
+
+  /**
+   * Returns whether the library found VLC. While VLC is still being prepared in the background, it is not supported
+   * yet; {@link #isPreparing(Capability)} tells the two cases apart.
+   *
+   * @return true if VLC players can be created
+   */
+  public boolean isVlcSupported() {
+    return this.api.hasCapability(Capability.VLC);
+  }
+
+  /**
+   * Returns the worker thread that starts and releases videos.
+   *
+   * @return the executor
+   */
+  public ExecutorService getService() {
+    return this.service;
+  }
+
+  /**
+   * Returns the flag that is true while a video is starting.
+   *
+   * @return the flag, shared by every video command
+   */
+  public AtomicBoolean getStatus() {
+    return this.status;
+  }
+
+  /**
+   * Returns the player of the video.
+   *
+   * @return the player, or {@code null} if no video plays
+   */
+  public @Nullable VideoPlayerMultiplexer getPlayer() {
+    return this.player;
+  }
+
+  /**
+   * Returns the filter that shows the frames of the video.
+   *
+   * @return the filter, or {@code null} if no video plays
+   */
+  public @Nullable FunctionalVideoFilter getFilter() {
+    return this.filter;
+  }
+
+  /**
+   * Returns the volume every video plays at, which the audio pipeline of every video applies before its output.
+   *
+   * @return the volume filter, shared by the videos
+   */
+  public VolumeFilter getVolume() {
+    return this.volume;
   }
 
   /**
@@ -595,11 +578,28 @@ public final class VideoPlayerManager {
     return this.devices;
   }
 
-  /** Plays a video that reached its end again from the start. A paused video still plays, so it is left alone. */
-  void restartEnded() {
-    final VideoPlayerMultiplexer current = this.player;
-    if (this.looping && current instanceof final AbstractVideoPlayerCv decoded && !decoded.isPlaying()) {
-      decoded.seek(0L);
+  private static final class WorldCleanup implements Runnable {
+
+    private final Runnable task;
+    private final AtomicBoolean claimed = new AtomicBoolean();
+    private final CompletableFuture<@Nullable Void> completion = new CompletableFuture<>();
+
+    private WorldCleanup(final Runnable task) {
+      this.task = task;
+    }
+
+    @Override
+    public void run() {
+      if (!this.claimed.compareAndSet(false, true)) {
+        return;
+      }
+      try {
+        this.task.run();
+        this.completion.complete(null);
+      } catch (final RuntimeException | Error exception) {
+        this.completion.completeExceptionally(exception);
+        throw exception;
+      }
     }
   }
 }

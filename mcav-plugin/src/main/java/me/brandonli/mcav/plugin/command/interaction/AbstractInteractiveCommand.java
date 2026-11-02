@@ -641,33 +641,6 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     );
   }
 
-  private static boolean isScreen(final Entity entity) {
-    if (!(entity instanceof final ItemFrame frame)) {
-      return false;
-    }
-    final PersistentDataContainer data = frame.getPersistentDataContainer();
-    return data.has(Keys.MAP_KEY, PersistentDataType.BOOLEAN);
-  }
-
-  /** The screen of this command a frame belongs to, or null if it belongs to none. */
-  private @Nullable Screen screenOf(final ItemFrame frame) {
-    final Screen current = this.screen;
-    if (current == null) {
-      return null;
-    }
-    final ItemStack item = frame.getItem();
-    final ItemMeta metadata = item.getItemMeta();
-    if (!(metadata instanceof final MapMeta mapMetadata)) {
-      return null;
-    }
-    final MapView map = mapMetadata.getMapView();
-    if (map == null) {
-      return null;
-    }
-    final int mapId = map.getId();
-    return current.ownsMap(mapId) ? current : null;
-  }
-
   /**
    * Turns breaking a block in front of the screen into a left click on the running player. Called by Bukkit.
    *
@@ -706,6 +679,25 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     }
   }
 
+  /** The screen of this command a frame belongs to, or null if it belongs to none. */
+  private @Nullable Screen screenOf(final ItemFrame frame) {
+    final Screen current = this.screen;
+    if (current == null) {
+      return null;
+    }
+    final ItemStack item = frame.getItem();
+    final ItemMeta metadata = item.getItemMeta();
+    if (!(metadata instanceof final MapMeta mapMetadata)) {
+      return null;
+    }
+    final MapView map = mapMetadata.getMapView();
+    if (map == null) {
+      return null;
+    }
+    final int mapId = map.getId();
+    return current.ownsMap(mapId) ? current : null;
+  }
+
   /**
    * Finds the screen frame on the block a player looks at, up to {@value #REACH} blocks away.
    *
@@ -742,6 +734,14 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
       }
     }
     return closest;
+  }
+
+  private static boolean isScreen(final Entity entity) {
+    if (!(entity instanceof final ItemFrame frame)) {
+      return false;
+    }
+    final PersistentDataContainer data = frame.getPersistentDataContainer();
+    return data.has(Keys.MAP_KEY, PersistentDataType.BOOLEAN);
   }
 
   /**

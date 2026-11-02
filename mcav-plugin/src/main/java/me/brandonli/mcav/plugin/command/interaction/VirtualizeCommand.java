@@ -140,16 +140,6 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
   }
 
   /**
-   * Returns the permission a player needs to send input to the running virtual machine.
-   *
-   * @return {@value #INTERACT_PERMISSION}
-   */
-  @Override
-  protected String getInteractionPermission() {
-    return INTERACT_PERMISSION;
-  }
-
-  /**
    * Clicks the display of the virtual machine with the left mouse button.
    *
    * @param current the running virtual machine
@@ -407,14 +397,6 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     }
     return Message.VM_ERROR.build();
   }
-
-  /**
-   * The QEMU options of a command, and the codec a trailing {@code --codec} names.
-   *
-   * @param options the QEMU options, without the codec flag
-   * @param codec   the codec, or null when the options end with none
-   */
-  record CodecSplit(String options, @Nullable MapCodec codec) {}
 
   /**
    * Splits a trailing {@code --codec dither} or {@code --codec mcv2}, in any case, off the QEMU options. Cloud's flags
@@ -720,4 +702,22 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     tokens.add(token);
     current.setLength(0);
   }
+
+  /**
+   * Returns the permission a player needs to send input to the running virtual machine.
+   *
+   * @return {@value #INTERACT_PERMISSION}
+   */
+  @Override
+  protected String getInteractionPermission() {
+    return INTERACT_PERMISSION;
+  }
+
+  /**
+   * The QEMU options of a command, and the codec a trailing {@code --codec} names.
+   *
+   * @param options the QEMU options, without the codec flag
+   * @param codec   the codec, or null when the options end with none
+   */
+  record CodecSplit(String options, @Nullable MapCodec codec) {}
 }

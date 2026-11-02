@@ -50,16 +50,6 @@ public final class MCAVVoiceChatPlugin implements VoicechatPlugin {
   }
 
   /**
-   * Returns the id Simple Voice Chat knows this plugin by.
-   *
-   * @return {@code mcav}
-   */
-  @Override
-  public String getPluginId() {
-    return PLUGIN_ID;
-  }
-
-  /**
    * Hands the voice chat server API to the {@link SvcModule} of the library. Simple Voice Chat calls this once it has
    * started on the server, where the API it passes is always a {@link VoicechatServerApi}.
    *
@@ -73,5 +63,15 @@ public final class MCAVVoiceChatPlugin implements VoicechatPlugin {
     final VoicechatServerApi serverApi = (VoicechatServerApi) api;
     module.inject(serverApi);
     LOGGER.info(READY);
+  }
+
+  /**
+   * Returns the id Simple Voice Chat knows this plugin by.
+   *
+   * @return {@code mcav}
+   */
+  @Override
+  public String getPluginId() {
+    return PLUGIN_ID;
   }
 }
