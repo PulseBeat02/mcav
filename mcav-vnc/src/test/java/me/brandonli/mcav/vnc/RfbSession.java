@@ -74,11 +74,11 @@ final class RfbSession {
   }
 
   // The server sends bytes; the guard throws if they break the protocol or a bound.
-  void server(final byte[] bytes) throws IOException {
+  void sendFromServer(final byte[] bytes) throws IOException {
     this.guard.acceptServer(bytes, 0, bytes.length);
   }
 
-  void client(final byte[] bytes) {
+  void sendFromClient(final byte[] bytes) {
     this.guard.acceptClient(bytes, 0, bytes.length);
   }
 
@@ -87,35 +87,35 @@ final class RfbSession {
   }
 
   // Runs the handshake up to and including the server initialisation and the client's pixel format.
-  void handshake(final int minor, final int security, final int width, final int height, final int clientBits) throws IOException {
-    this.server(version(minor));
-    this.client(version(minor));
+  void handshake(final int minor, final int security, final int width, final int height, final int clientBitsPerPixel) throws IOException {
+    this.sendFromServer(version(minor));
+    this.sendFromClient(version(minor));
     if (minor >= MINOR_VERSION_3_7) {
-      this.server(new byte[] { 1, (byte) security });
-      this.client(new byte[] { (byte) security });
+      this.sendFromServer(new byte[] { 1, (byte) security });
+      this.sendFromClient(new byte[] { (byte) security });
     } else {
-      this.server(unsigned32(security));
+      this.sendFromServer(unsigned32(security));
     }
     switch (security) {
       case VNC -> {
-        this.server(new byte[VNC_CHALLENGE_BYTES]);
-        this.client(new byte[VNC_RESPONSE_BYTES]);
-        this.server(unsigned32(SECURITY_RESULT_OK));
+        this.sendFromServer(new byte[VNC_CHALLENGE_BYTES]);
+        this.sendFromClient(new byte[VNC_RESPONSE_BYTES]);
+        this.sendFromServer(unsigned32(SECURITY_RESULT_OK));
       }
       case MS_LOGON -> {
-        this.server(new byte[24]);
-        this.client(new byte[8 + 256 + 64]);
-        this.server(unsigned32(SECURITY_RESULT_OK));
+        this.sendFromServer(new byte[24]);
+        this.sendFromClient(new byte[8 + 256 + 64]);
+        this.sendFromServer(unsigned32(SECURITY_RESULT_OK));
       }
       default -> {
         if (minor >= MINOR_VERSION_3_8) {
-          this.server(unsigned32(SECURITY_RESULT_OK));
+          this.sendFromServer(unsigned32(SECURITY_RESULT_OK));
         }
       }
     }
-    this.client(new byte[] { SHARE_DESKTOP });
-    this.server(serverInitialization(width, height, BITS_PER_PIXEL_32, DESKTOP_NAME));
-    this.client(setPixelFormat(clientBits));
+    this.sendFromClient(new byte[] { SHARE_DESKTOP });
+    this.sendFromServer(serverInitialization(width, height, BITS_PER_PIXEL_32, DESKTOP_NAME));
+    this.sendFromClient(setPixelFormat(clientBitsPerPixel));
   }
 
   static byte[] version(final int minor) {
@@ -130,12 +130,12 @@ final class RfbSession {
     return new byte[] { (byte) (value >>> 24), (byte) (value >>> 16), (byte) (value >>> 8), (byte) value };
   }
 
-  static byte[] concat(final byte[]... parts) {
-    final ByteArrayOutputStream out = new ByteArrayOutputStream();
+  static byte[] concatenate(final byte[]... parts) {
+    final ByteArrayOutputStream output = new ByteArrayOutputStream();
     for (final byte[] part : parts) {
-      out.writeBytes(part);
+      output.writeBytes(part);
     }
-    return out.toByteArray();
+    return output.toByteArray();
   }
 
   static byte[] pixelFormat(final int bitsPerPixel) {
@@ -148,26 +148,26 @@ final class RfbSession {
 
   static byte[] serverInitialization(final int width, final int height, final int bitsPerPixel, final String name) {
     final byte[] text = name.getBytes(StandardCharsets.UTF_8);
-    return concat(unsigned16(width), unsigned16(height), pixelFormat(bitsPerPixel), unsigned32(text.length), text);
+    return concatenate(unsigned16(width), unsigned16(height), pixelFormat(bitsPerPixel), unsigned32(text.length), text);
   }
 
   static byte[] setPixelFormat(final int bitsPerPixel) {
-    return concat(new byte[] { 0, 0, 0, 0 }, pixelFormat(bitsPerPixel));
+    return concatenate(new byte[] { 0, 0, 0, 0 }, pixelFormat(bitsPerPixel));
   }
 
   static byte[] update(final int rectangles) {
-    return concat(new byte[] { 0, 0 }, unsigned16(rectangles));
+    return concatenate(new byte[] { 0, 0 }, unsigned16(rectangles));
   }
 
   static byte[] rectangle(final int left, final int top, final int width, final int height, final int encoding) {
-    return concat(unsigned16(left), unsigned16(top), unsigned16(width), unsigned16(height), unsigned32(encoding));
+    return concatenate(unsigned16(left), unsigned16(top), unsigned16(width), unsigned16(height), unsigned32(encoding));
   }
 
   static byte[] cutText(final int length) {
-    return concat(new byte[] { SERVER_CUT_TEXT, 0, 0, 0 }, unsigned32(length), new byte[Math.max(length, 0)]);
+    return concatenate(new byte[] { SERVER_CUT_TEXT, 0, 0, 0 }, unsigned32(length), new byte[Math.max(length, 0)]);
   }
 
-  RfbGuard guard() {
+  RfbGuard getGuard() {
     return this.guard;
   }
 }

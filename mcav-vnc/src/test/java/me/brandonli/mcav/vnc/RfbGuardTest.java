@@ -42,7 +42,7 @@ import static me.brandonli.mcav.vnc.RfbSession.SET_COLOUR_MAP_ENTRIES;
 import static me.brandonli.mcav.vnc.RfbSession.SHARE_DESKTOP;
 import static me.brandonli.mcav.vnc.RfbSession.VNC;
 import static me.brandonli.mcav.vnc.RfbSession.ZLIB_ENCODING;
-import static me.brandonli.mcav.vnc.RfbSession.concat;
+import static me.brandonli.mcav.vnc.RfbSession.concatenate;
 import static me.brandonli.mcav.vnc.RfbSession.cutText;
 import static me.brandonli.mcav.vnc.RfbSession.rectangle;
 import static me.brandonli.mcav.vnc.RfbSession.serverInitialization;
@@ -84,7 +84,7 @@ final class RfbGuardTest {
   }
 
   private void assertRefused(final RfbSession session, final byte[] bytes, final String reason) {
-    final IOException refused = assertThrows(IOException.class, () -> session.server(bytes));
+    final IOException refused = assertThrows(IOException.class, () -> session.sendFromServer(bytes));
     final String message = refused.getMessage();
     final boolean named = message.contains(reason);
     assertTrue(named, message);
@@ -92,7 +92,7 @@ final class RfbGuardTest {
 
   // The guard waits for a server message: a bell passes, and the byte after it is refused as a message type.
   private void assertAtAMessage(final RfbSession session) throws IOException {
-    session.server(new byte[] { BELL });
+    session.sendFromServer(new byte[] { BELL });
     this.assertRefused(session, new byte[] { 9 }, "message type 9");
   }
 
@@ -129,16 +129,16 @@ final class RfbGuardTest {
   @Test
   void shouldRefuseSecurityDataBeforeTheClientChoseAVersion() throws IOException {
     final RfbSession session = new RfbSession();
-    session.server(version(MINOR_VERSION_3_8));
+    session.sendFromServer(version(MINOR_VERSION_3_8));
     this.assertRefused(session, new byte[] { 1, NONE }, "before the client chose a version");
   }
 
   @Test
   void shouldRefuseAChallengeBeforeTheClientChoseASecurityType() throws IOException {
     final RfbSession session = new RfbSession();
-    session.server(version(MINOR_VERSION_3_8));
-    session.client(version(MINOR_VERSION_3_8));
-    session.server(new byte[] { 1, VNC });
+    session.sendFromServer(version(MINOR_VERSION_3_8));
+    session.sendFromClient(version(MINOR_VERSION_3_8));
+    session.sendFromServer(new byte[] { 1, VNC });
     this.assertRefused(session, new byte[16], "before the client chose a security type");
   }
 
@@ -157,18 +157,18 @@ final class RfbGuardTest {
   @Test
   void shouldRefuseASecurityTypeTheClientDoesNotSupport() throws IOException {
     final RfbSession session = new RfbSession();
-    session.server(version(3));
-    session.client(version(3));
+    session.sendFromServer(version(3));
+    session.sendFromClient(version(3));
     this.assertRefused(session, unsigned32(19), "security type 19");
   }
 
   @Test
   void shouldRefuseTheInvalidSecurityTypeAsOneTheClientChose() throws IOException {
     final RfbSession session = new RfbSession();
-    session.server(version(MINOR_VERSION_3_8));
-    session.client(version(MINOR_VERSION_3_8));
-    session.server(new byte[] { 1, NONE });
-    session.client(new byte[] { 0 });
+    session.sendFromServer(version(MINOR_VERSION_3_8));
+    session.sendFromClient(version(MINOR_VERSION_3_8));
+    session.sendFromServer(new byte[] { 1, NONE });
+    session.sendFromClient(new byte[] { 0 });
     this.assertRefused(session, unsigned32(0), "security type 0");
   }
 
@@ -176,53 +176,53 @@ final class RfbGuardTest {
   @ValueSource(ints = { 3, 8 })
   void shouldAcceptAFailureReasonAndNothingAfterIt(final int minor) throws IOException {
     final RfbSession session = new RfbSession();
-    session.server(version(minor));
-    session.client(version(minor));
+    session.sendFromServer(version(minor));
+    session.sendFromClient(version(minor));
     final byte[] refusal = minor == MINOR_VERSION_3_3 ? unsigned32(0) : new byte[] { 0 };
-    session.server(concat(refusal, unsigned32(4), new byte[] { 'n', 'o', 'p', 'e' }));
+    session.sendFromServer(concatenate(refusal, unsigned32(4), new byte[] { 'n', 'o', 'p', 'e' }));
     this.assertRefused(session, new byte[] { 1 }, "after the connection ended");
   }
 
   @Test
   void shouldAcceptAnEmptyFailureReason() throws IOException {
     final RfbSession session = new RfbSession();
-    session.server(version(MINOR_VERSION_3_8));
-    session.client(version(MINOR_VERSION_3_8));
-    session.server(concat(new byte[] { 0 }, unsigned32(0)));
+    session.sendFromServer(version(MINOR_VERSION_3_8));
+    session.sendFromClient(version(MINOR_VERSION_3_8));
+    session.sendFromServer(concatenate(new byte[] { 0 }, unsigned32(0)));
     this.assertRefused(session, new byte[] { 1 }, "after the connection ended");
   }
 
   @Test
   void shouldRefuseAFailureReasonAboveItsBound() throws IOException {
     final RfbSession session = new RfbSession();
-    session.server(version(MINOR_VERSION_3_8));
-    session.client(version(MINOR_VERSION_3_8));
-    this.assertRefused(session, concat(new byte[] { 0 }, unsigned32(RfbGuard.MAXIMUM_REASON + 1)), "failure reason");
+    session.sendFromServer(version(MINOR_VERSION_3_8));
+    session.sendFromClient(version(MINOR_VERSION_3_8));
+    this.assertRefused(session, concatenate(new byte[] { 0 }, unsigned32(RfbGuard.MAXIMUM_REASON + 1)), "failure reason");
   }
 
   @Test
   void shouldEndAfterAFailedAuthenticationOfVersion37() throws IOException {
     final RfbSession session = new RfbSession();
-    session.server(version(7));
-    session.client(version(7));
-    session.server(new byte[] { 1, VNC });
-    session.client(new byte[] { VNC });
-    session.server(new byte[16]);
-    session.client(new byte[16]);
-    session.server(unsigned32(1));
+    session.sendFromServer(version(7));
+    session.sendFromClient(version(7));
+    session.sendFromServer(new byte[] { 1, VNC });
+    session.sendFromClient(new byte[] { VNC });
+    session.sendFromServer(new byte[16]);
+    session.sendFromClient(new byte[16]);
+    session.sendFromServer(unsigned32(1));
     this.assertRefused(session, new byte[] { 0 }, "after the connection ended");
   }
 
   @Test
   void shouldReadTheReasonOfAFailedAuthenticationOfVersion38() throws IOException {
     final RfbSession session = new RfbSession();
-    session.server(version(MINOR_VERSION_3_8));
-    session.client(version(MINOR_VERSION_3_8));
-    session.server(new byte[] { 1, VNC });
-    session.client(new byte[] { VNC });
-    session.server(new byte[16]);
-    session.client(new byte[16]);
-    session.server(concat(unsigned32(1), unsigned32(2), new byte[] { 'n', 'o' }));
+    session.sendFromServer(version(MINOR_VERSION_3_8));
+    session.sendFromClient(version(MINOR_VERSION_3_8));
+    session.sendFromServer(new byte[] { 1, VNC });
+    session.sendFromClient(new byte[] { VNC });
+    session.sendFromServer(new byte[16]);
+    session.sendFromClient(new byte[16]);
+    session.sendFromServer(concatenate(unsigned32(1), unsigned32(2), new byte[] { 'n', 'o' }));
     this.assertRefused(session, new byte[] { 0 }, "after the connection ended");
   }
 
@@ -230,10 +230,10 @@ final class RfbGuardTest {
   @ValueSource(ints = { 0, RfbGuard.MAXIMUM_SIDE + 1 })
   void shouldRefuseAFramebufferWidthOutsideItsBounds(final int width) throws IOException {
     final RfbSession session = new RfbSession();
-    session.server(version(3));
-    session.client(version(3));
-    session.server(unsigned32(NONE));
-    session.client(new byte[] { SHARE_DESKTOP });
+    session.sendFromServer(version(3));
+    session.sendFromClient(version(3));
+    session.sendFromServer(unsigned32(NONE));
+    session.sendFromClient(new byte[] { SHARE_DESKTOP });
     this.assertRefused(session, serverInitialization(width, SIDE, BITS_PER_PIXEL_32, DESKTOP_NAME), "framebuffer");
   }
 
@@ -241,52 +241,57 @@ final class RfbGuardTest {
   @ValueSource(ints = { 0, RfbGuard.MAXIMUM_SIDE + 1 })
   void shouldRefuseAFramebufferHeightOutsideItsBounds(final int height) throws IOException {
     final RfbSession session = new RfbSession();
-    session.server(version(3));
-    session.client(version(3));
-    session.server(unsigned32(NONE));
-    session.client(new byte[] { SHARE_DESKTOP });
+    session.sendFromServer(version(3));
+    session.sendFromClient(version(3));
+    session.sendFromServer(unsigned32(NONE));
+    session.sendFromClient(new byte[] { SHARE_DESKTOP });
     this.assertRefused(session, serverInitialization(SIDE, height, BITS_PER_PIXEL_32, DESKTOP_NAME), "framebuffer");
   }
 
   @Test
   void shouldRefusePixelsOfAnUnsupportedWidth() throws IOException {
     final RfbSession session = new RfbSession();
-    session.server(version(3));
-    session.client(version(3));
-    session.server(unsigned32(NONE));
-    session.client(new byte[] { SHARE_DESKTOP });
+    session.sendFromServer(version(3));
+    session.sendFromClient(version(3));
+    session.sendFromServer(unsigned32(NONE));
+    session.sendFromClient(new byte[] { SHARE_DESKTOP });
     this.assertRefused(session, serverInitialization(SIDE, SIDE, 24, DESKTOP_NAME), "24 bits per pixel");
   }
 
   @Test
   void shouldRefuseADesktopNameAboveItsBoundBeforeItsFirstByte() throws IOException {
     final RfbSession session = new RfbSession();
-    session.server(version(3));
-    session.client(version(3));
-    session.server(unsigned32(NONE));
-    session.client(new byte[] { SHARE_DESKTOP });
-    final byte[] header = concat(unsigned16(SIDE), unsigned16(SIDE), RfbSession.pixelFormat(32), unsigned32(RfbGuard.MAXIMUM_NAME + 1L));
+    session.sendFromServer(version(3));
+    session.sendFromClient(version(3));
+    session.sendFromServer(unsigned32(NONE));
+    session.sendFromClient(new byte[] { SHARE_DESKTOP });
+    final byte[] header = concatenate(
+      unsigned16(SIDE),
+      unsigned16(SIDE),
+      RfbSession.pixelFormat(32),
+      unsigned32(RfbGuard.MAXIMUM_NAME + 1L)
+    );
     this.assertRefused(session, header, "desktop name");
   }
 
   @Test
   void shouldAcceptClipboardTextWithinItsBound() throws IOException {
     final RfbSession session = this.connected();
-    session.server(cutText(RfbGuard.MAXIMUM_TEXT));
-    session.server(cutText(0));
+    session.sendFromServer(cutText(RfbGuard.MAXIMUM_TEXT));
+    session.sendFromServer(cutText(0));
     this.assertAtAMessage(session);
   }
 
   @Test
   void shouldRefuseClipboardTextAboveItsBound() throws IOException {
     final RfbSession session = this.connected();
-    this.assertRefused(session, concat(new byte[] { SERVER_CUT_TEXT, 0, 0, 0 }, unsigned32(0xFFFFFFFFL)), "clipboard text");
+    this.assertRefused(session, concatenate(new byte[] { SERVER_CUT_TEXT, 0, 0, 0 }, unsigned32(0xFFFFFFFFL)), "clipboard text");
   }
 
   @Test
   void shouldFrameColourMapEntries() throws IOException {
     final RfbSession session = this.connected();
-    session.server(concat(new byte[] { SET_COLOUR_MAP_ENTRIES, 0 }, unsigned16(0), unsigned16(2), new byte[12]));
+    session.sendFromServer(concatenate(new byte[] { SET_COLOUR_MAP_ENTRIES, 0 }, unsigned16(0), unsigned16(2), new byte[12]));
     this.assertAtAMessage(session);
   }
 
@@ -299,72 +304,80 @@ final class RfbGuardTest {
   @Test
   void shouldFrameRawRectanglesInTheClientsPixelFormat() throws IOException {
     final RfbSession session = this.connected();
-    session.server(concat(update(2), rectangle(0, 0, 3, 2, RAW_ENCODING), this.pixels(3 * 2 * 4), rectangle(1, 1, 0, 0, RAW_ENCODING)));
+    session.sendFromServer(
+      concatenate(update(2), rectangle(0, 0, 3, 2, RAW_ENCODING), this.pixels(3 * 2 * 4), rectangle(1, 1, 0, 0, RAW_ENCODING))
+    );
     this.assertAtAMessage(session);
   }
 
   @Test
   void shouldFrameRawRectanglesInTheServersPixelFormatUntilTheClientChoseOne() throws IOException {
     final RfbSession session = new RfbSession();
-    session.server(version(3));
-    session.client(version(3));
-    session.server(unsigned32(NONE));
-    session.client(new byte[] { SHARE_DESKTOP });
-    session.server(serverInitialization(SIDE, SIDE, BITS_PER_PIXEL_16, DESKTOP_NAME));
-    session.server(concat(update(1), rectangle(0, 0, 2, 2, RAW_ENCODING), this.pixels(2 * 2 * 2)));
+    session.sendFromServer(version(3));
+    session.sendFromClient(version(3));
+    session.sendFromServer(unsigned32(NONE));
+    session.sendFromClient(new byte[] { SHARE_DESKTOP });
+    session.sendFromServer(serverInitialization(SIDE, SIDE, BITS_PER_PIXEL_16, DESKTOP_NAME));
+    session.sendFromServer(concatenate(update(1), rectangle(0, 0, 2, 2, RAW_ENCODING), this.pixels(2 * 2 * 2)));
     this.assertAtAMessage(session);
   }
 
   @Test
   void shouldIgnoreAPixelFormatOfAnUnsupportedWidthFromTheClient() throws IOException {
     final RfbSession session = new RfbSession();
-    session.server(version(3));
-    session.client(version(3));
-    session.server(unsigned32(NONE));
-    session.client(new byte[] { SHARE_DESKTOP });
-    session.server(serverInitialization(SIDE, SIDE, BITS_PER_PIXEL_8, DESKTOP_NAME));
-    session.client(setPixelFormat(24));
-    session.server(concat(update(1), rectangle(0, 0, 2, 2, RAW_ENCODING), this.pixels(2 * 2)));
+    session.sendFromServer(version(3));
+    session.sendFromClient(version(3));
+    session.sendFromServer(unsigned32(NONE));
+    session.sendFromClient(new byte[] { SHARE_DESKTOP });
+    session.sendFromServer(serverInitialization(SIDE, SIDE, BITS_PER_PIXEL_8, DESKTOP_NAME));
+    session.sendFromClient(setPixelFormat(24));
+    session.sendFromServer(concatenate(update(1), rectangle(0, 0, 2, 2, RAW_ENCODING), this.pixels(2 * 2)));
     this.assertAtAMessage(session);
   }
 
   @Test
   void shouldFrameCopyRectangles() throws IOException {
     final RfbSession session = this.connected();
-    session.server(concat(update(1), rectangle(0, 0, 8, 8, COPY_RECTANGLE_ENCODING), unsigned16(8), unsigned16(8)));
+    session.sendFromServer(concatenate(update(1), rectangle(0, 0, 8, 8, COPY_RECTANGLE_ENCODING), unsigned16(8), unsigned16(8)));
     this.assertAtAMessage(session);
   }
 
   @Test
   void shouldFrameRreRectangles() throws IOException {
     final RfbSession session = this.connected();
-    session.server(concat(update(1), rectangle(0, 0, 4, 4, RRE_ENCODING), unsigned32(2), this.pixels(4), this.pixels(2 * (4 + 8))));
+    session.sendFromServer(
+      concatenate(update(1), rectangle(0, 0, 4, 4, RRE_ENCODING), unsigned32(2), this.pixels(4), this.pixels(2 * (4 + 8)))
+    );
     this.assertAtAMessage(session);
   }
 
   @Test
   void shouldRefuseMoreRreSubrectanglesThanPixels() throws IOException {
     final RfbSession session = this.connected();
-    this.assertRefused(session, concat(update(1), rectangle(0, 0, 2, 2, RRE_ENCODING), unsigned32(5), new byte[4]), "RRE subrectangles");
+    this.assertRefused(
+      session,
+      concatenate(update(1), rectangle(0, 0, 2, 2, RRE_ENCODING), unsigned32(5), new byte[4]),
+      "RRE subrectangles"
+    );
   }
 
   @Test
   void shouldFrameEveryKindOfHextileTile() throws IOException {
     final RfbSession session = this.connected();
-    final byte[] raw = concat(new byte[] { HEXTILE_RAW }, this.pixels(16 * 16 * 4));
+    final byte[] raw = concatenate(new byte[] { HEXTILE_RAW }, this.pixels(16 * 16 * 4));
     final byte[] colours = new byte[] { HEXTILE_BACKGROUND | HEXTILE_FOREGROUND, 0, 0, 0, 0, 0, 0, 0, 0 };
-    final byte[] coloured = concat(new byte[] { HEXTILE_SUBRECTANGLES | HEXTILE_COLOURED, 1 }, this.pixels(4 + 2));
-    final byte[] plain = concat(new byte[] { HEXTILE_BACKGROUND | HEXTILE_SUBRECTANGLES, 0, 0, 0, 0, 1 }, this.pixels(2));
-    session.server(concat(update(1), rectangle(0, 0, 20, 17, HEXTILE_ENCODING), raw, colours, coloured, plain));
-    session.server(concat(update(1), rectangle(0, 0, 16, 16, HEXTILE_ENCODING), new byte[] { 0 }));
+    final byte[] coloured = concatenate(new byte[] { HEXTILE_SUBRECTANGLES | HEXTILE_COLOURED, 1 }, this.pixels(4 + 2));
+    final byte[] plain = concatenate(new byte[] { HEXTILE_BACKGROUND | HEXTILE_SUBRECTANGLES, 0, 0, 0, 0, 1 }, this.pixels(2));
+    session.sendFromServer(concatenate(update(1), rectangle(0, 0, 20, 17, HEXTILE_ENCODING), raw, colours, coloured, plain));
+    session.sendFromServer(concatenate(update(1), rectangle(0, 0, 16, 16, HEXTILE_ENCODING), new byte[] { 0 }));
     this.assertAtAMessage(session);
   }
 
   @Test
   void shouldFrameZlibRectangles() throws IOException {
     final RfbSession session = this.connected();
-    session.server(concat(update(1), rectangle(0, 0, 4, 4, ZLIB_ENCODING), unsigned32(10), this.pixels(10)));
-    session.server(concat(update(1), rectangle(0, 0, 4, 4, ZLIB_ENCODING), unsigned32(0)));
+    session.sendFromServer(concatenate(update(1), rectangle(0, 0, 4, 4, ZLIB_ENCODING), unsigned32(10), this.pixels(10)));
+    session.sendFromServer(concatenate(update(1), rectangle(0, 0, 4, 4, ZLIB_ENCODING), unsigned32(0)));
     this.assertAtAMessage(session);
   }
 
@@ -372,22 +385,26 @@ final class RfbGuardTest {
   void shouldRefuseZlibDataFarLargerThanItsPixels() throws IOException {
     final RfbSession session = this.connected();
     final long limit = 4L * 4 * 4 + RfbGuard.ZLIB_SLACK;
-    this.assertRefused(session, concat(update(1), rectangle(0, 0, 4, 4, ZLIB_ENCODING), unsigned32(limit + 1)), "zlib data");
+    this.assertRefused(session, concatenate(update(1), rectangle(0, 0, 4, 4, ZLIB_ENCODING), unsigned32(limit + 1)), "zlib data");
   }
 
   @Test
   void shouldFollowANewDesktopSizeWithinItsBounds() throws IOException {
     final RfbSession session = this.connected();
-    session.server(concat(update(1), rectangle(0, 0, SIDE * 2, SIDE, DESKTOP_SIZE_ENCODING)));
-    session.server(concat(update(1), rectangle(SIDE, 0, SIDE, 1, COPY_RECTANGLE_ENCODING), unsigned32(0)));
-    this.assertRefused(session, concat(update(1), rectangle(0, 0, RfbGuard.MAXIMUM_SIDE + 1, SIDE, DESKTOP_SIZE_ENCODING)), "framebuffer");
+    session.sendFromServer(concatenate(update(1), rectangle(0, 0, SIDE * 2, SIDE, DESKTOP_SIZE_ENCODING)));
+    session.sendFromServer(concatenate(update(1), rectangle(SIDE, 0, SIDE, 1, COPY_RECTANGLE_ENCODING), unsigned32(0)));
+    this.assertRefused(
+      session,
+      concatenate(update(1), rectangle(0, 0, RfbGuard.MAXIMUM_SIDE + 1, SIDE, DESKTOP_SIZE_ENCODING)),
+      "framebuffer"
+    );
   }
 
   @Test
   void shouldFrameCursors() throws IOException {
     final RfbSession session = this.connected();
-    session.server(concat(update(1), rectangle(0, 0, 9, 2, CURSOR_ENCODING), this.pixels(9 * 2 * 4 + 2 * 2)));
-    session.server(concat(update(1), rectangle(0, 0, 0, 0, CURSOR_ENCODING)));
+    session.sendFromServer(concatenate(update(1), rectangle(0, 0, 9, 2, CURSOR_ENCODING), this.pixels(9 * 2 * 4 + 2 * 2)));
+    session.sendFromServer(concatenate(update(1), rectangle(0, 0, 0, 0, CURSOR_ENCODING)));
     this.assertAtAMessage(session);
   }
 
@@ -397,7 +414,7 @@ final class RfbGuardTest {
     final RfbSession session = this.connected();
     final int wide = tallInsteadOfWide == 1 ? 1 : RfbGuard.MAXIMUM_SIDE + 1;
     final int tall = tallInsteadOfWide == 1 ? RfbGuard.MAXIMUM_SIDE + 1 : 1;
-    this.assertRefused(session, concat(update(1), rectangle(0, 0, wide, tall, CURSOR_ENCODING)), "cursor");
+    this.assertRefused(session, concatenate(update(1), rectangle(0, 0, wide, tall, CURSOR_ENCODING)), "cursor");
   }
 
   @ParameterizedTest
@@ -406,21 +423,21 @@ final class RfbGuardTest {
     final RfbSession session = this.connected();
     final int left = belowInsteadOfRight == 1 ? 0 : SIDE - 1;
     final int top = belowInsteadOfRight == 1 ? SIDE - 1 : 0;
-    this.assertRefused(session, concat(update(1), rectangle(left, top, 2, 2, RAW_ENCODING)), "outside the framebuffer");
+    this.assertRefused(session, concatenate(update(1), rectangle(left, top, 2, 2, RAW_ENCODING)), "outside the framebuffer");
   }
 
   @Test
   void shouldRefuseAnEncodingTheClientCannotDecode() throws IOException {
     final RfbSession session = this.connected();
-    this.assertRefused(session, concat(update(1), rectangle(0, 0, 2, 2, 16)), "encoding 16");
+    this.assertRefused(session, concatenate(update(1), rectangle(0, 0, 2, 2, 16)), "encoding 16");
   }
 
   @Test
   void shouldCheckBytesThatArriveOneAtATime() throws IOException {
     final RfbSession session = this.connected();
-    final byte[] update = concat(update(1), rectangle(0, 0, 2, 2, RAW_ENCODING), this.pixels(2 * 2 * 4), cutText(3));
+    final byte[] update = concatenate(update(1), rectangle(0, 0, 2, 2, RAW_ENCODING), this.pixels(2 * 2 * 4), cutText(3));
     for (final byte value : update) {
-      session.server(new byte[] { value });
+      session.sendFromServer(new byte[] { value });
     }
     this.assertRefused(session, new byte[] { 9 }, "message type 9");
   }
@@ -428,27 +445,27 @@ final class RfbGuardTest {
   @Test
   void shouldFollowEveryMessageTheClientSends() throws IOException {
     final RfbSession session = this.connected();
-    session.client(concat(new byte[] { 2, 0 }, unsigned16(2), unsigned32(0)));
-    session.client(unsigned32(1));
-    session.client(concat(new byte[] { 2, 0 }, unsigned16(0)));
-    session.client(concat(new byte[] { 3, 0 }, unsigned16(0), unsigned16(0), unsigned16(SIDE), unsigned16(SIDE)));
-    session.client(concat(new byte[] { 4, 1, 0, 0 }, unsigned32(65)));
-    session.client(concat(new byte[] { 5, 0 }, unsigned16(1), unsigned16(1)));
-    session.client(concat(new byte[] { 6, 0, 0, 0 }, unsigned32(2), new byte[] { 'h', 'i' }));
-    session.client(concat(new byte[] { 6, 0, 0, 0 }, unsigned32(0)));
-    session.client(setPixelFormat(BITS_PER_PIXEL_16));
-    session.server(concat(update(1), rectangle(0, 0, 2, 2, RAW_ENCODING), this.pixels(2 * 2 * 2)));
-    session.client(setPixelFormat(BITS_PER_PIXEL_8));
-    session.server(concat(update(1), rectangle(0, 0, 2, 2, RAW_ENCODING), this.pixels(2 * 2)));
+    session.sendFromClient(concatenate(new byte[] { 2, 0 }, unsigned16(2), unsigned32(0)));
+    session.sendFromClient(unsigned32(1));
+    session.sendFromClient(concatenate(new byte[] { 2, 0 }, unsigned16(0)));
+    session.sendFromClient(concatenate(new byte[] { 3, 0 }, unsigned16(0), unsigned16(0), unsigned16(SIDE), unsigned16(SIDE)));
+    session.sendFromClient(concatenate(new byte[] { 4, 1, 0, 0 }, unsigned32(65)));
+    session.sendFromClient(concatenate(new byte[] { 5, 0 }, unsigned16(1), unsigned16(1)));
+    session.sendFromClient(concatenate(new byte[] { 6, 0, 0, 0 }, unsigned32(2), new byte[] { 'h', 'i' }));
+    session.sendFromClient(concatenate(new byte[] { 6, 0, 0, 0 }, unsigned32(0)));
+    session.sendFromClient(setPixelFormat(BITS_PER_PIXEL_16));
+    session.sendFromServer(concatenate(update(1), rectangle(0, 0, 2, 2, RAW_ENCODING), this.pixels(2 * 2 * 2)));
+    session.sendFromClient(setPixelFormat(BITS_PER_PIXEL_8));
+    session.sendFromServer(concatenate(update(1), rectangle(0, 0, 2, 2, RAW_ENCODING), this.pixels(2 * 2)));
     this.assertAtAMessage(session);
   }
 
   @Test
   void shouldStopFollowingAClientThatSendsAnUnknownMessage() throws IOException {
     final RfbSession session = this.connected();
-    session.client(new byte[] { 99, 1, 2, 3 });
-    session.client(setPixelFormat(BITS_PER_PIXEL_8));
-    session.server(concat(update(1), rectangle(0, 0, 1, 1, RAW_ENCODING), this.pixels(4)));
+    session.sendFromClient(new byte[] { 99, 1, 2, 3 });
+    session.sendFromClient(setPixelFormat(BITS_PER_PIXEL_8));
+    session.sendFromServer(concatenate(update(1), rectangle(0, 0, 1, 1, RAW_ENCODING), this.pixels(4)));
     this.assertAtAMessage(session);
   }
 
@@ -456,8 +473,8 @@ final class RfbGuardTest {
   @ValueSource(strings = { "RFB 003.0x8\n", "RFB 003.0 8\n" })
   void shouldStopFollowingAClientVersionThatIsNotANumber(final String clientVersion) throws IOException {
     final RfbSession session = new RfbSession();
-    session.server(version(MINOR_VERSION_3_8));
-    session.client(clientVersion.getBytes(StandardCharsets.US_ASCII));
+    session.sendFromServer(version(MINOR_VERSION_3_8));
+    session.sendFromClient(clientVersion.getBytes(StandardCharsets.US_ASCII));
     this.assertRefused(session, new byte[] { 1 }, "before the client chose a version");
   }
 
@@ -466,31 +483,31 @@ final class RfbGuardTest {
   void shouldFollowTheClientThroughEveryHandshakeToItsPixelFormat(final int minor, final int security) throws IOException {
     final RfbSession session = new RfbSession();
     session.handshake(minor, security, SIDE, SIDE, BITS_PER_PIXEL_8);
-    session.server(concat(update(1), rectangle(0, 0, 3, 2, RAW_ENCODING), this.pixels(3 * 2)));
+    session.sendFromServer(concatenate(update(1), rectangle(0, 0, 3, 2, RAW_ENCODING), this.pixels(3 * 2)));
     this.assertAtAMessage(session);
   }
 
   @Test
   void shouldFrameAListOfMoreSecurityTypesThanAFieldHolds() throws IOException {
     final RfbSession session = new RfbSession();
-    session.server(version(MINOR_VERSION_3_8));
-    session.client(version(MINOR_VERSION_3_8));
+    session.sendFromServer(version(MINOR_VERSION_3_8));
+    session.sendFromClient(version(MINOR_VERSION_3_8));
     final byte[] types = new byte[255];
     Arrays.fill(types, (byte) NONE);
-    session.server(concat(new byte[] { (byte) types.length }, types));
-    session.client(new byte[] { NONE });
-    session.server(unsigned32(0));
-    session.client(new byte[] { SHARE_DESKTOP });
-    session.server(serverInitialization(SIDE, SIDE, BITS_PER_PIXEL_32, DESKTOP_NAME));
+    session.sendFromServer(concatenate(new byte[] { (byte) types.length }, types));
+    session.sendFromClient(new byte[] { NONE });
+    session.sendFromServer(unsigned32(0));
+    session.sendFromClient(new byte[] { SHARE_DESKTOP });
+    session.sendFromServer(serverInitialization(SIDE, SIDE, BITS_PER_PIXEL_32, DESKTOP_NAME));
     this.assertAtAMessage(session);
   }
 
   @Test
   void shouldFollowTheClientPastEveryEncodingItLists() throws IOException {
     final RfbSession session = this.connected();
-    session.client(concat(new byte[] { 2, 0 }, unsigned16(3), this.pixels(3 * 4)));
-    session.client(setPixelFormat(BITS_PER_PIXEL_8));
-    session.server(concat(update(1), rectangle(0, 0, 2, 2, RAW_ENCODING), this.pixels(2 * 2)));
+    session.sendFromClient(concatenate(new byte[] { 2, 0 }, unsigned16(3), this.pixels(3 * 4)));
+    session.sendFromClient(setPixelFormat(BITS_PER_PIXEL_8));
+    session.sendFromServer(concatenate(update(1), rectangle(0, 0, 2, 2, RAW_ENCODING), this.pixels(2 * 2)));
     this.assertAtAMessage(session);
   }
 
@@ -502,7 +519,7 @@ final class RfbGuardTest {
     guard.acceptClient(version, 0, version.length);
     guard.acceptServer(new byte[] { 9, 9, 1, NONE }, 2, 2);
     guard.acceptClient(new byte[] { NONE }, 0, 1);
-    guard.acceptServer(concat(new byte[] { 9 }, unsigned32(0)), 1, 4);
+    guard.acceptServer(concatenate(new byte[] { 9 }, unsigned32(0)), 1, 4);
     guard.acceptClient(new byte[] { SHARE_DESKTOP }, 0, 1);
     final byte[] initialization = serverInitialization(SIDE, SIDE, BITS_PER_PIXEL_32, DESKTOP_NAME);
     guard.acceptServer(initialization, 0, initialization.length);
@@ -516,9 +533,9 @@ final class RfbGuardTest {
   @Test
   void shouldAcceptAFailureReasonOfItsBound() throws IOException {
     final RfbSession session = new RfbSession();
-    session.server(version(MINOR_VERSION_3_8));
-    session.client(version(MINOR_VERSION_3_8));
-    session.server(concat(new byte[] { 0 }, unsigned32(RfbGuard.MAXIMUM_REASON), this.pixels(RfbGuard.MAXIMUM_REASON)));
+    session.sendFromServer(version(MINOR_VERSION_3_8));
+    session.sendFromClient(version(MINOR_VERSION_3_8));
+    session.sendFromServer(concatenate(new byte[] { 0 }, unsigned32(RfbGuard.MAXIMUM_REASON), this.pixels(RfbGuard.MAXIMUM_REASON)));
     this.assertRefused(session, new byte[] { 2 }, "after the connection ended");
   }
 
@@ -529,7 +546,7 @@ final class RfbGuardTest {
     final int height = tallInsteadOfWide == 1 ? RfbGuard.MAXIMUM_SIDE : 1;
     final RfbSession session = new RfbSession();
     session.handshake(MINOR_VERSION_3_8, NONE, width, height);
-    session.server(concat(update(1), rectangle(width - 1, height - 1, 1, 1, RAW_ENCODING), this.pixels(4)));
+    session.sendFromServer(concatenate(update(1), rectangle(width - 1, height - 1, 1, 1, RAW_ENCODING), this.pixels(4)));
     this.assertAtAMessage(session);
   }
 
@@ -539,7 +556,9 @@ final class RfbGuardTest {
     final RfbSession session = this.connected();
     final int wide = tallInsteadOfWide == 1 ? 1 : RfbGuard.MAXIMUM_SIDE;
     final int tall = tallInsteadOfWide == 1 ? RfbGuard.MAXIMUM_SIDE : 1;
-    session.server(concat(update(1), rectangle(0, 0, wide, tall, CURSOR_ENCODING), this.pixels(wide * tall * 4 + ((wide + 7) / 8) * tall)));
+    session.sendFromServer(
+      concatenate(update(1), rectangle(0, 0, wide, tall, CURSOR_ENCODING), this.pixels(wide * tall * 4 + ((wide + 7) / 8) * tall))
+    );
     this.assertAtAMessage(session);
   }
 
@@ -547,15 +566,15 @@ final class RfbGuardTest {
   void shouldAcceptZlibDataUpToItsBound() throws IOException {
     final RfbSession session = this.connected();
     final int limit = 16 * 16 * 4 + RfbGuard.ZLIB_SLACK;
-    session.server(concat(update(1), rectangle(0, 0, 16, 16, ZLIB_ENCODING), unsigned32(limit), this.pixels(limit)));
+    session.sendFromServer(concatenate(update(1), rectangle(0, 0, 16, 16, ZLIB_ENCODING), unsigned32(limit), this.pixels(limit)));
     this.assertAtAMessage(session);
   }
 
   @Test
   void shouldCheckEveryByteReadOneAtATimeThroughItsStream() throws IOException {
     final RfbSession session = this.connected();
-    final byte[] bytes = concat(update(1), rectangle(0, 0, 1, 1, RAW_ENCODING), this.pixels(4), new byte[] { 9 });
-    final InputStream input = session.guard().serverInput(new ByteArrayInputStream(bytes));
+    final byte[] bytes = concatenate(update(1), rectangle(0, 0, 1, 1, RAW_ENCODING), this.pixels(4), new byte[] { 9 });
+    final InputStream input = session.getGuard().serverInput(new ByteArrayInputStream(bytes));
     for (int offset = 0; offset < bytes.length - 1; offset++) {
       final int expected = bytes[offset] & 0xFF;
       final int read = input.read();
@@ -574,7 +593,7 @@ final class RfbGuardTest {
     final byte[] version = version(MINOR_VERSION_3_8);
     final ByteArrayOutputStream sent = new ByteArrayOutputStream();
     final OutputStream output = guard.clientOutput(sent);
-    final InputStream input = guard.serverInput(new ByteArrayInputStream(concat(version, new byte[] { 1, NONE })));
+    final InputStream input = guard.serverInput(new ByteArrayInputStream(concatenate(version, new byte[] { 1, NONE })));
     final byte[] read = input.readNBytes(version.length);
     output.write(version);
     output.write(NONE);
@@ -589,7 +608,7 @@ final class RfbGuardTest {
     assertEquals(-1, end);
     assertEquals(-1, endOfBuffer);
 
-    final byte[] expected = concat(version, new byte[] { NONE });
+    final byte[] expected = concatenate(version, new byte[] { NONE });
     final byte[] written = sent.toByteArray();
     final boolean markSupported = input.markSupported();
     assertArrayEquals(expected, written);
@@ -599,7 +618,7 @@ final class RfbGuardTest {
   @Test
   void shouldSkipByReadingThroughTheGuard() throws IOException {
     final RfbGuard guard = new RfbGuard();
-    final InputStream input = guard.serverInput(new ByteArrayInputStream(concat(version(MINOR_VERSION_3_8), new byte[] { 1 })));
+    final InputStream input = guard.serverInput(new ByteArrayInputStream(concatenate(version(MINOR_VERSION_3_8), new byte[] { 1 })));
     final long skipped = input.skip(12);
     assertEquals(12, skipped);
 

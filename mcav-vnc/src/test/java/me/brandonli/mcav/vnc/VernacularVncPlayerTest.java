@@ -119,7 +119,7 @@ final class VernacularVncPlayerTest {
   private static final String PASSWORD = "secret";
 
   private static final String RETURN_KEY = "Return";
-  private static final int RETURN_KEYSYM = 0xff0d;
+  private static final int RETURN_KEY_SYMBOL = 0xff0d;
 
   private static final int UNKNOWN_MESSAGE_TYPE = 9;
 
@@ -358,15 +358,15 @@ final class VernacularVncPlayerTest {
     Await.until("six key events arrive", () -> server.getKeyCount() == 6);
 
     final List<RfbTestServer.ReceivedKey> keys = server.getKeys();
-    final int[] expectedSymbols = { RETURN_KEYSYM, RETURN_KEYSYM, 'h', 'h', 'i', 'i' };
+    final int[] expectedSymbols = { RETURN_KEY_SYMBOL, RETURN_KEY_SYMBOL, 'h', 'h', 'i', 'i' };
     final boolean[] expectedDown = { true, false, true, false, true, false };
     for (int index = 0; index < expectedSymbols.length; index++) {
       final RfbTestServer.ReceivedKey key = keys.get(index);
-      final int keysym = key.getKeysym();
+      final int keySymbol = key.getKeySymbol();
       final boolean down = key.isDown();
       final int expectedSymbol = expectedSymbols[index];
       final boolean expectedKeyDown = expectedDown[index];
-      assertEquals(expectedSymbol, keysym, "keysym " + index);
+      assertEquals(expectedSymbol, keySymbol, "keysym " + index);
       assertEquals(expectedKeyDown, down, "state " + index);
     }
   }
@@ -382,9 +382,9 @@ final class VernacularVncPlayerTest {
     Await.until("the press and release of the return key arrive", () -> server.getKeyCount() == 2);
 
     final List<RfbTestServer.ReceivedKey> keys = server.getKeys();
-    final List<Integer> keysyms = keys.stream().map(RfbTestServer.ReceivedKey::getKeysym).toList();
-    final List<Integer> expected = List.of(RETURN_KEYSYM, RETURN_KEYSYM);
-    assertEquals(expected, keysyms);
+    final List<Integer> keySymbols = keys.stream().map(RfbTestServer.ReceivedKey::getKeySymbol).toList();
+    final List<Integer> expected = List.of(RETURN_KEY_SYMBOL, RETURN_KEY_SYMBOL);
+    assertEquals(expected, keySymbols);
   }
 
   @Test

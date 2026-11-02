@@ -36,7 +36,7 @@ import org.junit.jupiter.api.Test;
 final class KeySymbolsTest {
 
   @Test
-  void shouldLookUpTheKeysymsOfKeyNames() {
+  void shouldLookUpTheKeySymbolsOfKeyNames() {
     final OptionalInt enter = KeySymbols.lookup("Return");
     final OptionalInt escape = KeySymbols.lookup("Escape");
     final OptionalInt backSpace = KeySymbols.lookup("BackSpace");

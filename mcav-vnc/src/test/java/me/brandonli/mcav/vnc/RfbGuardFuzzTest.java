@@ -48,13 +48,13 @@ final class RfbGuardFuzzTest {
     final RfbSession session = new RfbSession();
     final int minor = data.pickValue(new int[] { 3, 7, 8 });
     try {
-      session.server(data.consumeBytes(12));
-      session.client(version(minor));
+      session.sendFromServer(data.consumeBytes(12));
+      session.sendFromClient(version(minor));
       if (minor >= 7) {
-        session.server(data.consumeBytes(1 + data.consumeInt(0, 4)));
-        session.client(new byte[] { (byte) data.consumeInt(0, 255) });
+        session.sendFromServer(data.consumeBytes(1 + data.consumeInt(0, 4)));
+        session.sendFromClient(new byte[] { (byte) data.consumeInt(0, 255) });
       }
-      session.client(data.consumeBytes(data.consumeInt(0, 400)));
+      session.sendFromClient(data.consumeBytes(data.consumeInt(0, 400)));
     } catch (final IOException exception) {
       return;
     }
@@ -64,7 +64,7 @@ final class RfbGuardFuzzTest {
   private void feed(final RfbSession session, final FuzzedDataProvider data) {
     try {
       while (data.remainingBytes() > 0) {
-        session.server(data.consumeBytes(data.consumeInt(1, MAXIMUM_CHUNK)));
+        session.sendFromServer(data.consumeBytes(data.consumeInt(1, MAXIMUM_CHUNK)));
       }
     } catch (final IOException exception) {
       // the one failure the guard may report

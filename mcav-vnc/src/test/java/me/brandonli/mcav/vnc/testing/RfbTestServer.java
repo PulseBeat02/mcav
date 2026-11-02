@@ -376,8 +376,8 @@ public final class RfbTestServer implements AutoCloseable {
   private void readKeyEvent(final DataInputStream input) throws IOException {
     final boolean down = input.readBoolean();
     input.readUnsignedShort();
-    final int keysym = input.readInt();
-    final ReceivedKey key = new ReceivedKey(keysym, down);
+    final int keySymbol = input.readInt();
+    final ReceivedKey key = new ReceivedKey(keySymbol, down);
     synchronized (this.keys) {
       this.keys.add(key);
     }
@@ -478,9 +478,9 @@ public final class RfbTestServer implements AutoCloseable {
 
   // Sets whether update requests are answered. Requests received while not answering are answered once answering is
   // enabled again.
-  public void setAnswering(final boolean answer) {
-    this.answering.set(answer);
-    if (answer) {
+  public void setAnswering(final boolean answering) {
+    this.answering.set(answering);
+    if (answering) {
       this.answerPendingRequests();
     }
   }
@@ -603,16 +603,16 @@ public final class RfbTestServer implements AutoCloseable {
 
   public static final class ReceivedKey {
 
-    private final int keysym;
+    private final int keySymbol;
     private final boolean down;
 
-    ReceivedKey(final int keysym, final boolean down) {
-      this.keysym = keysym;
+    ReceivedKey(final int keySymbol, final boolean down) {
+      this.keySymbol = keySymbol;
       this.down = down;
     }
 
-    public int getKeysym() {
-      return this.keysym;
+    public int getKeySymbol() {
+      return this.keySymbol;
     }
 
     public boolean isDown() {
@@ -629,17 +629,17 @@ public final class RfbTestServer implements AutoCloseable {
         return false;
       }
 
-      return this.keysym == key.keysym && this.down == key.down;
+      return this.keySymbol == key.keySymbol && this.down == key.down;
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(this.keysym, this.down);
+      return Objects.hash(this.keySymbol, this.down);
     }
 
     @Override
     public String toString() {
-      return MoreObjects.toStringHelper(this).add("keysym", this.keysym).add("down", this.down).toString();
+      return MoreObjects.toStringHelper(this).add("keySymbol", this.keySymbol).add("down", this.down).toString();
     }
   }
 

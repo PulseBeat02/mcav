@@ -32,7 +32,7 @@ import static me.brandonli.mcav.vnc.RfbSession.RAW_ENCODING;
 import static me.brandonli.mcav.vnc.RfbSession.RRE_ENCODING;
 import static me.brandonli.mcav.vnc.RfbSession.SET_COLOUR_MAP_ENTRIES;
 import static me.brandonli.mcav.vnc.RfbSession.ZLIB_ENCODING;
-import static me.brandonli.mcav.vnc.RfbSession.concat;
+import static me.brandonli.mcav.vnc.RfbSession.concatenate;
 import static me.brandonli.mcav.vnc.RfbSession.cutText;
 import static me.brandonli.mcav.vnc.RfbSession.rectangle;
 import static me.brandonli.mcav.vnc.RfbSession.unsigned16;
@@ -74,10 +74,10 @@ final class RfbGuardPropertyTest {
     while (at < messages.length) {
       final int chunk = Math.min(1 + random.nextInt(64), messages.length - at);
       final byte[] part = Arrays.copyOfRange(messages, at, at + chunk);
-      assertDoesNotThrow(() -> session.server(part));
+      assertDoesNotThrow(() -> session.sendFromServer(part));
       at += chunk;
     }
-    final IOException boundary = assertThrows(IOException.class, () -> session.server(new byte[] { (byte) 255 }));
+    final IOException boundary = assertThrows(IOException.class, () -> session.sendFromServer(new byte[] { (byte) 255 }));
     final String message = boundary.getMessage();
     assertEquals("VNC server sent message type 255, which breaks the protocol or a bound!", message);
   }
@@ -90,7 +90,7 @@ final class RfbGuardPropertyTest {
     final RfbSession session = new RfbSession();
     session.handshake(MINOR_VERSION_3_8, NONE, SIDE, SIDE);
     try {
-      session.server(messages);
+      session.sendFromServer(messages);
     } catch (final IOException exception) {
       // the one failure the guard may report
     }
@@ -98,28 +98,28 @@ final class RfbGuardPropertyTest {
 
   // A run of valid server messages, each type and encoding the client decodes.
   private byte[] messages(final Random random) {
-    final ByteArrayOutputStream out = new ByteArrayOutputStream();
+    final ByteArrayOutputStream output = new ByteArrayOutputStream();
     for (int messageIndex = 0; messageIndex < MESSAGES; messageIndex++) {
       switch (random.nextInt(4)) {
-        case 0 -> out.writeBytes(new byte[] { BELL });
-        case 1 -> out.writeBytes(cutText(random.nextInt(300)));
-        case 2 -> out.writeBytes(this.colours(random));
-        default -> out.writeBytes(this.framebufferUpdate(random));
+        case 0 -> output.writeBytes(new byte[] { BELL });
+        case 1 -> output.writeBytes(cutText(random.nextInt(300)));
+        case 2 -> output.writeBytes(this.colours(random));
+        default -> output.writeBytes(this.framebufferUpdate(random));
       }
     }
-    out.writeBytes(new byte[] { BELL });
-    return out.toByteArray();
+    output.writeBytes(new byte[] { BELL });
+    return output.toByteArray();
   }
 
   private byte[] colours(final Random random) {
     final int count = random.nextInt(8);
-    return concat(new byte[] { SET_COLOUR_MAP_ENTRIES, 0 }, unsigned16(random.nextInt(256)), unsigned16(count), new byte[6 * count]);
+    return concatenate(new byte[] { SET_COLOUR_MAP_ENTRIES, 0 }, unsigned16(random.nextInt(256)), unsigned16(count), new byte[6 * count]);
   }
 
   private byte[] framebufferUpdate(final Random random) {
     final int count = 1 + random.nextInt(3);
-    final ByteArrayOutputStream out = new ByteArrayOutputStream();
-    out.writeBytes(update(count));
+    final ByteArrayOutputStream output = new ByteArrayOutputStream();
+    output.writeBytes(update(count));
     for (int rectangleIndex = 0; rectangleIndex < count; rectangleIndex++) {
       final int width = random.nextInt(SIDE / 2 + 1);
       final int height = random.nextInt(SIDE / 2 + 1);
@@ -127,12 +127,14 @@ final class RfbGuardPropertyTest {
       final int top = random.nextInt(SIDE - height + 1);
       final int encoding = random.nextInt(6);
       switch (encoding) {
-        case 0 -> out.writeBytes(concat(rectangle(left, top, width, height, RAW_ENCODING), new byte[width * height * PIXEL]));
-        case 1 -> out.writeBytes(concat(rectangle(left, top, width, height, COPY_RECTANGLE_ENCODING), unsigned16(0), unsigned16(0)));
+        case 0 -> output.writeBytes(concatenate(rectangle(left, top, width, height, RAW_ENCODING), new byte[width * height * PIXEL]));
+        case 1 -> output.writeBytes(
+          concatenate(rectangle(left, top, width, height, COPY_RECTANGLE_ENCODING), unsigned16(0), unsigned16(0))
+        );
         case 2 -> {
           final int subrectangles = random.nextInt(width * height + 1);
-          out.writeBytes(
-            concat(
+          output.writeBytes(
+            concatenate(
               rectangle(left, top, width, height, RRE_ENCODING),
               unsigned32(subrectangles),
               new byte[PIXEL],
@@ -140,56 +142,58 @@ final class RfbGuardPropertyTest {
             )
           );
         }
-        case 3 -> out.writeBytes(concat(rectangle(left, top, width, height, HEXTILE_ENCODING), this.hextile(random, width, height)));
+        case 3 -> output.writeBytes(
+          concatenate(rectangle(left, top, width, height, HEXTILE_ENCODING), this.hextile(random, width, height))
+        );
         case 4 -> {
           final int length = random.nextInt(width * height * PIXEL + 1);
-          out.writeBytes(concat(rectangle(left, top, width, height, ZLIB_ENCODING), unsigned32(length), new byte[length]));
+          output.writeBytes(concatenate(rectangle(left, top, width, height, ZLIB_ENCODING), unsigned32(length), new byte[length]));
         }
         default -> {
           final int cursor = random.nextInt(9);
-          out.writeBytes(
-            concat(rectangle(0, 0, cursor, cursor, CURSOR_ENCODING), new byte[cursor * cursor * PIXEL + ((cursor + 7) / 8) * cursor])
+          output.writeBytes(
+            concatenate(rectangle(0, 0, cursor, cursor, CURSOR_ENCODING), new byte[cursor * cursor * PIXEL + ((cursor + 7) / 8) * cursor])
           );
         }
       }
     }
-    return out.toByteArray();
+    return output.toByteArray();
   }
 
   private byte[] hextile(final Random random, final int width, final int height) {
-    final ByteArrayOutputStream out = new ByteArrayOutputStream();
+    final ByteArrayOutputStream output = new ByteArrayOutputStream();
     for (int tileTop = 0; tileTop < height; tileTop += TILE) {
       for (int tileLeft = 0; tileLeft < width; tileLeft += TILE) {
         final int tileWidth = Math.min(TILE, width - tileLeft);
         final int tileHeight = Math.min(TILE, height - tileTop);
-        this.tile(random, out, tileWidth, tileHeight);
+        this.tile(random, output, tileWidth, tileHeight);
       }
     }
 
-    return out.toByteArray();
+    return output.toByteArray();
   }
 
-  private void tile(final Random random, final ByteArrayOutputStream out, final int tileWidth, final int tileHeight) {
+  private void tile(final Random random, final ByteArrayOutputStream output, final int tileWidth, final int tileHeight) {
     final int flags = random.nextInt(32);
-    out.write(flags);
+    output.write(flags);
     if ((flags & HEXTILE_RAW) != 0) {
-      out.writeBytes(new byte[tileWidth * tileHeight * PIXEL]);
+      output.writeBytes(new byte[tileWidth * tileHeight * PIXEL]);
       return;
     }
 
     if ((flags & HEXTILE_BACKGROUND) != 0) {
-      out.writeBytes(new byte[PIXEL]);
+      output.writeBytes(new byte[PIXEL]);
     }
 
     if ((flags & HEXTILE_FOREGROUND) != 0) {
-      out.writeBytes(new byte[PIXEL]);
+      output.writeBytes(new byte[PIXEL]);
     }
 
     if ((flags & HEXTILE_SUBRECTANGLES) != 0) {
       final int count = random.nextInt(6);
       final int colour = (flags & HEXTILE_COLOURED) != 0 ? PIXEL : 0;
-      out.write(count);
-      out.writeBytes(new byte[count * (colour + 2)]);
+      output.write(count);
+      output.writeBytes(new byte[count * (colour + 2)]);
     }
   }
 }

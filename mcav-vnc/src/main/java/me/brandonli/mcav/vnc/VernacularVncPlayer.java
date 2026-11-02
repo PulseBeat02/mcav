@@ -239,7 +239,7 @@ public final class VernacularVncPlayer implements VncPlayer {
       this.closeQuietly(socket);
 
       final String reason = failure.getMessage();
-      final String message = this.startFailure(source, expired, reason);
+      final String message = this.startFailureMessage(source, expired, reason);
       throw new VncException(message, failure);
     }
 
@@ -260,7 +260,7 @@ public final class VernacularVncPlayer implements VncPlayer {
       this.closeQuietly(socket);
 
       final String reason = exception.getMessage();
-      final String message = this.startFailure(source, expired, reason);
+      final String message = this.startFailureMessage(source, expired, reason);
       throw new VncException(message, exception);
     } finally {
       deadline.cancel(DO_NOT_INTERRUPT);
@@ -280,7 +280,7 @@ public final class VernacularVncPlayer implements VncPlayer {
     this.closeQuietly(socket);
   }
 
-  private String startFailure(final VncSource source, final AtomicBoolean expired, final @Nullable String message) {
+  private String startFailureMessage(final VncSource source, final AtomicBoolean expired, final @Nullable String reason) {
     final String resource = source.getResource();
     if (expired.get()) {
       return "VNC session with %s could not start because the server did not finish the handshake within %s ms!".formatted(
@@ -289,7 +289,7 @@ public final class VernacularVncPlayer implements VncPlayer {
       );
     }
 
-    return "Because of \"%s\", VNC session with %s could not start!".formatted(message, resource);
+    return "Because of \"%s\", VNC session with %s could not start!".formatted(reason, resource);
   }
 
   // the client connects on its own thread and would only report failures later, so the socket is opened here; the
