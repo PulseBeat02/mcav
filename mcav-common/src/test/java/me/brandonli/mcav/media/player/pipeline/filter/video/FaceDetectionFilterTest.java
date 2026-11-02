@@ -174,7 +174,8 @@ final class FaceDetectionFilterTest {
       new FaceDetectionFilter(missing, RED)
     );
     final String missingMessage = missingFailure.getMessage();
-    assertEquals("Cascade file " + missing + " does not exist!", missingMessage);
+    final String expected = "Cascade file " + missing + " does not exist!";
+    assertEquals(expected, missingMessage);
     assertThrows(IllegalArgumentException.class, () -> new FaceDetectionFilter(unparsable, RED));
     assertThrows(IllegalArgumentException.class, () -> new FaceDetectionFilter(withoutCascade, RED));
     assertThrows(NullPointerException.class, () -> new FaceDetectionFilter((Path) null, RED));

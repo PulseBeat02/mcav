@@ -94,14 +94,17 @@ final class ErrorDiffusionDitherTest {
     final int[] source = { 0xFF646464, 0xFF646464 };
     final int[] inPlace = source.clone();
     dither.dither(inPlace, 2);
-    assertArrayEquals(new int[] { BLACK, WHITE }, inPlace);
+    final int[] expectedInPlace = new int[] { BLACK, WHITE };
+    assertArrayEquals(expectedInPlace, inPlace);
 
     try (final ImageBuffer image = ImageBuffer.buffer(source, 2, 1)) {
       final byte[] ditheredIndices = dither.ditherIntoBytes(image);
-      assertArrayEquals(new byte[] { 0, 1 }, ditheredIndices);
+      final byte[] expectedDitheredIndices = new byte[] { 0, 1 };
+      assertArrayEquals(expectedDitheredIndices, ditheredIndices);
 
       final int[] untouchedPixels = image.getPixels();
-      assertArrayEquals(new int[] { 0xFF646464, 0xFF646464 }, untouchedPixels);
+      final int[] expectedUntouchedPixels = new int[] { 0xFF646464, 0xFF646464 };
+      assertArrayEquals(expectedUntouchedPixels, untouchedPixels);
     }
   }
 
@@ -175,7 +178,8 @@ final class ErrorDiffusionDitherTest {
       try (final ImageBuffer image = ImageBuffer.buffer(pixels, 1, 1)) {
         final byte[] indices = dither.ditherIntoBytes(image);
         final String hexadecimal = Integer.toHexString(color);
-        assertArrayEquals(new byte[] { 0 }, indices, hexadecimal);
+        final byte[] expected = new byte[] { 0 };
+        assertArrayEquals(expected, indices, hexadecimal);
       }
     }
   }
@@ -337,7 +341,8 @@ final class ErrorDiffusionDitherTest {
     final ErrorDiffusionDither dither = build(ErrorDiffusionDitherBuilder.Algorithm.FLOYD_STEINBERG);
     try (final ImageBuffer image = ImageBuffer.buffer(pixels, 4, 1)) {
       final byte[] indices = dither.ditherIntoBytes(image);
-      assertArrayEquals(new byte[] { 1, 0, 1, 0 }, indices);
+      final byte[] expected = new byte[] { 1, 0, 1, 0 };
+      assertArrayEquals(expected, indices);
     }
   }
 
@@ -350,7 +355,8 @@ final class ErrorDiffusionDitherTest {
     final ErrorDiffusionDither dither = build(ErrorDiffusionDitherBuilder.Algorithm.FLOYD_STEINBERG);
     try (final ImageBuffer image = ImageBuffer.buffer(pixels, 3, 2)) {
       final byte[] indices = dither.ditherIntoBytes(image);
-      assertArrayEquals(new byte[] { 0, 0, 0, 0, 0, 1 }, indices);
+      final byte[] expected = new byte[] { 0, 0, 0, 0, 0, 1 };
+      assertArrayEquals(expected, indices);
     }
   }
 }

@@ -143,8 +143,10 @@ final class PipelineStepTest {
     final Optional<AudioPipelineStep> audioNext = AudioPipelineStep.NO_OP.next();
     final VideoFilter videoFilter = VideoPipelineStep.NO_OP.getFilter();
     final AudioFilter audioFilter = AudioPipelineStep.NO_OP.getFilter();
-    assertTrue(videoNext.isEmpty());
-    assertTrue(audioNext.isEmpty());
+    final boolean videoNextMissing = videoNext.isEmpty();
+    final boolean audioNextMissing = audioNext.isEmpty();
+    assertTrue(videoNextMissing);
+    assertTrue(audioNextMissing);
     assertSame(VideoFilter.NO_OP, videoFilter);
     assertSame(AudioFilter.NO_OP, audioFilter);
   }

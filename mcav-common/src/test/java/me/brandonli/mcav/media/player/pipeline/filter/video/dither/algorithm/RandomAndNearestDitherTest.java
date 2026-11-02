@@ -332,8 +332,9 @@ final class RandomAndNearestDitherTest {
     nearest.dither(pixels, 2);
     final NearestDither defaults = DitherAlgorithm.nearestColor();
     final DitherPalette defaultPalette = defaults.getPalette();
+    final int[] expected = new int[] { BLACK, WHITE };
     assertSame(builder, configured, "the builder returns itself for chaining");
-    assertArrayEquals(new int[] { BLACK, WHITE }, pixels);
+    assertArrayEquals(expected, pixels);
     assertSame(DitherPalette.DEFAULT_MAP_PALETTE, defaultPalette);
     assertThrows(NullPointerException.class, () -> builder.withPalette(null));
   }
@@ -444,7 +445,8 @@ final class RandomAndNearestDitherTest {
     final int[] pixels = { 0xFF7D7D7D };
     random.dither(pixels, 1);
     verify(provider, times(3)).nextInt(-3, 4);
-    assertArrayEquals(new int[] { WHITE }, pixels, "125 plus the largest noise of 3 reaches the white half");
+    final int[] expected = new int[] { WHITE };
+    assertArrayEquals(expected, pixels, "125 plus the largest noise of 3 reaches the white half");
   }
 
   @Test

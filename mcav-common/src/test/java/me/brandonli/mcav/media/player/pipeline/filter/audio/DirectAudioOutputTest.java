@@ -93,10 +93,11 @@ final class DirectAudioOutputTest {
     final float sampleRate = format.getSampleRate();
     final int channels = format.getChannels();
     final AudioFormat.Encoding encoding = format.getEncoding();
+    final int expected = (48_000 * 4) / 5;
     assertEquals(48_000.0f, sampleRate);
     assertEquals(2, channels);
     assertEquals(AudioFormat.Encoding.PCM_SIGNED, encoding);
-    assertEquals((48_000 * 4) / 5, bufferSize);
+    assertEquals(expected, bufferSize);
 
     opened.incrementAndGet();
     return line;
@@ -141,8 +142,9 @@ final class DirectAudioOutputTest {
     final PlayerException thrown = assertThrows(PlayerException.class, output::start);
     final Throwable cause = thrown.getCause();
     final Throwable[] suppressed = failure.getSuppressed();
+    final Throwable[] expected = new Throwable[] { cleanup };
     assertSame(failure, cause);
-    assertArrayEquals(new Throwable[] { cleanup }, suppressed);
+    assertArrayEquals(expected, suppressed);
     verify(line).close();
   }
 
@@ -159,8 +161,9 @@ final class DirectAudioOutputTest {
     output.start();
     final IllegalStateException thrown = assertThrows(IllegalStateException.class, output::release);
     final Throwable[] suppressed = thrown.getSuppressed();
+    final Throwable[] expected = new Throwable[] { flush, close };
     assertSame(failure, thrown);
-    assertArrayEquals(new Throwable[] { flush, close }, suppressed);
+    assertArrayEquals(expected, suppressed);
 
     final InOrder order = inOrder(line);
     order.verify(line).stop();

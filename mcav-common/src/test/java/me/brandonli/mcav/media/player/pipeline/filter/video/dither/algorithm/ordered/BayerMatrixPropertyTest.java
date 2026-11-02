@@ -103,7 +103,8 @@ final class BayerMatrixPropertyTest {
     final int[][] generated = BayerDither.createBayerMatrix(size);
     final int[][] entries = constant.toArray();
 
-    assertEquals(size * size, maximum, "the level count of the constant");
+    final int expectedMaximum = size * size;
+    assertEquals(expectedMaximum, maximum, "the level count of the constant");
 
     for (int row = 0; row < size; row++) {
       final int[] expected = new int[size];

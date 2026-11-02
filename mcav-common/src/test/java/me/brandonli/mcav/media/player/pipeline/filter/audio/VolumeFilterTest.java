@@ -62,7 +62,8 @@ final class VolumeFilterTest {
     assertFalse(changed);
 
     final short[] values = read(buffer);
-    assertArrayEquals(new short[] { 100, -7 }, values);
+    final short[] expected = new short[] { 100, -7 };
+    assertArrayEquals(expected, values);
   }
 
   @Test
@@ -74,7 +75,8 @@ final class VolumeFilterTest {
     assertTrue(halved);
 
     final short[] halvedValues = read(buffer);
-    assertArrayEquals(new short[] { 50, -3, 2, 0 }, halvedValues);
+    final short[] expectedHalvedValues = new short[] { 50, -3, 2, 0 };
+    assertArrayEquals(expectedHalvedValues, halvedValues);
 
     final int position = buffer.position();
     assertEquals(0, position);
@@ -84,7 +86,8 @@ final class VolumeFilterTest {
     assertTrue(silenced);
 
     final short[] silencedValues = read(buffer);
-    assertArrayEquals(new short[] { 0, 0, 0, 0 }, silencedValues);
+    final short[] expectedSilencedValues = new short[] { 0, 0, 0, 0 };
+    assertArrayEquals(expectedSilencedValues, silencedValues);
   }
 
   @Test
@@ -94,7 +97,8 @@ final class VolumeFilterTest {
     final ByteBuffer buffer = samples(Short.MAX_VALUE, Short.MIN_VALUE, (short) 20_000, (short) -16_384);
     filter.applyFilter(buffer, METADATA);
     final short[] values = read(buffer);
-    assertArrayEquals(new short[] { Short.MAX_VALUE, Short.MIN_VALUE, Short.MAX_VALUE, Short.MIN_VALUE }, values);
+    final short[] expected = new short[] { Short.MAX_VALUE, Short.MIN_VALUE, Short.MAX_VALUE, Short.MIN_VALUE };
+    assertArrayEquals(expected, values);
   }
 
   @Test
