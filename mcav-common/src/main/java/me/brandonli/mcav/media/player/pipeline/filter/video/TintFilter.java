@@ -60,17 +60,17 @@ public class TintFilter extends MatVideoFilter {
   /**
    * Blends the frame in place with a matrix of the tint color that is reused from frame to frame.
    *
-   * @param mat the 8-bit BGR matrix of the frame
+   * @param matrix the 8-bit BGR matrix of the frame
    * @return true, because the frame may have changed
    * @since 1.0.0
    */
   @Override
-  protected boolean modifyMat(final Mat mat) {
+  protected boolean modifyMat(final Mat matrix) {
     final double frameWeight = 1.0 - this.strength;
     final Mat solid = this.tint.borrow();
     try {
-      this.fillLike(solid, mat);
-      opencv_core.addWeighted(mat, frameWeight, solid, this.strength, 0.0, mat);
+      this.fillLike(solid, matrix);
+      opencv_core.addWeighted(matrix, frameWeight, solid, this.strength, 0.0, matrix);
     } finally {
       this.tint.giveBack(solid);
     }

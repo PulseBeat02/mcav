@@ -238,9 +238,9 @@ final class ColorFiltersTest {
   @Test
   void shouldFilterBareMatricesInPlaceWithBilateral() {
     final BilateralFilter filter = new BilateralFilter(BILATERAL_DIAMETER, BILATERAL_SIGMA, BILATERAL_SIGMA);
-    try (final Mat mat = new Mat(3, 3, opencv_core.CV_8UC3, new Scalar(0x60, 0x50, 0x40, 0.0))) {
-      final boolean modified = filter.modifyMat(mat);
-      final ByteBuffer pixels = mat.createBuffer();
+    try (final Mat matrix = new Mat(3, 3, opencv_core.CV_8UC3, new Scalar(0x60, 0x50, 0x40, 0.0))) {
+      final boolean modified = filter.modifyMat(matrix);
+      final ByteBuffer pixels = matrix.createBuffer();
       final int blue = pixels.get(12) & CHANNEL_MASK;
       final int red = pixels.get(14) & CHANNEL_MASK;
       assertTrue(modified);
@@ -268,11 +268,11 @@ final class ColorFiltersTest {
   @Test
   void shouldWriteTheSmoothedPixelsBackToABareMatrixWithBilateral() {
     final BilateralFilter filter = new BilateralFilter(KERNEL_SIZE, WIDE_BILATERAL_SIGMA, WIDE_BILATERAL_SIGMA);
-    try (final Scalar black = new Scalar(0.0); final Mat mat = new Mat(SPOT_SIDE, SPOT_SIDE, opencv_core.CV_8UC3, black)) {
-      final ByteBuffer original = mat.createBuffer();
+    try (final Scalar black = new Scalar(0.0); final Mat matrix = new Mat(SPOT_SIDE, SPOT_SIDE, opencv_core.CV_8UC3, black)) {
+      final ByteBuffer original = matrix.createBuffer();
       original.put(3 * 12 + 2, (byte) 100);
-      final boolean modified = filter.modifyMat(mat);
-      final ByteBuffer pixels = mat.createBuffer();
+      final boolean modified = filter.modifyMat(matrix);
+      final ByteBuffer pixels = matrix.createBuffer();
       assertTrue(modified);
       final int center = pixels.get(3 * 12 + 2) & CHANNEL_MASK;
       assertEquals(20, center);
@@ -288,10 +288,10 @@ final class ColorFiltersTest {
     final ColorMapFilter filter = new ColorMapFilter(opencv_imgproc.COLORMAP_JET);
     final int fromGray = applyToSolid(filter, SAMPLE_GRAY);
     final int fromColor = applyToSolid(filter, SAMPLE_COLOR);
-    final int fromMidGray = applyToSolid(filter, 0xFF808080);
+    final int fromMiddleGray = applyToSolid(filter, 0xFF808080);
     assertEquals(fromGray, fromColor, "0x102030 has the luma 0x1D of the gray, so both get the same color");
-    assertNotEquals(fromGray, fromMidGray, "other brightness levels get other colors");
-    assertNotEquals(0xFF808080, fromMidGray, "gray levels are replaced by colors");
+    assertNotEquals(fromGray, fromMiddleGray, "other brightness levels get other colors");
+    assertNotEquals(0xFF808080, fromMiddleGray, "gray levels are replaced by colors");
   }
 
   @Test

@@ -77,15 +77,15 @@ public class BilateralFilter extends MatVideoFilter {
    * Smooths a matrix in place through a temporary matrix, for subclasses and callers that only have a matrix; frames
    * go through {@link #modifyImage(MatImageBuffer)} instead, which needs no temporary matrix.
    *
-   * @param mat the 8-bit BGR matrix of the frame
+   * @param matrix the 8-bit BGR matrix of the frame
    * @return true, because the frame may have changed
    * @since 1.0.0
    */
   @Override
-  protected boolean modifyMat(final Mat mat) {
+  protected boolean modifyMat(final Mat matrix) {
     try (final Mat filtered = new Mat()) {
-      this.smooth(mat, filtered);
-      filtered.copyTo(mat);
+      this.smooth(matrix, filtered);
+      filtered.copyTo(matrix);
     }
 
     return true;

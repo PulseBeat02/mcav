@@ -38,7 +38,7 @@ import org.junit.jupiter.api.Test;
 
 final class OrderedDitherTest {
 
-  private static final int MID_GRAY = 0xFF808080;
+  private static final int MIDDLE_GRAY = 0xFF808080;
 
   private static final int GRADIENT_WIDTH = 64;
   private static final int TALL_GRADIENT_HEIGHT = 80;
@@ -93,18 +93,18 @@ final class OrderedDitherTest {
     return configured.build();
   }
 
-  private static byte[] ditherMidGray(final BayerDither dither, final int width, final int height) {
+  private static byte[] ditherMiddleGray(final BayerDither dither, final int width, final int height) {
     final int[] gray = new int[width * height];
-    Arrays.fill(gray, MID_GRAY);
+    Arrays.fill(gray, MIDDLE_GRAY);
     try (final ImageBuffer grayImage = ImageBuffer.buffer(gray, width, height)) {
       return dither.ditherIntoBytes(grayImage);
     }
   }
 
   @Test
-  void shouldTurnMidGrayIntoAPatternOfHalfBlackHalfWhite() {
+  void shouldTurnMiddleGrayIntoAPatternOfHalfBlackHalfWhite() {
     final OrderedDither dither = blackWhite4x4();
-    final byte[] indices = ditherMidGray(dither, 64, 64);
+    final byte[] indices = ditherMiddleGray(dither, 64, 64);
     final double ratio = DitherTestImages.whiteRatio(indices);
     assertEquals(0.5, ratio, "every 4x4 tile of mid-gray is half black and half white");
   }
@@ -212,7 +212,7 @@ final class OrderedDitherTest {
     final OrderedDitherBuilder builder = DitherAlgorithm.ordered();
     final OrderedDitherBuilder blackWhite = builder.withPalette(DitherTestImages.BLACK_WHITE);
     final BayerDither dither = blackWhite.build();
-    final byte[] indices = ditherMidGray(dither, 8, 8);
+    final byte[] indices = ditherMiddleGray(dither, 8, 8);
     final byte[] expected = new byte[64];
     for (int row = 0; row < 8; row++) {
       for (int column = 0; column < 8; column++) {
@@ -303,7 +303,7 @@ final class OrderedDitherTest {
     final PixelMapper strong = PixelMapper.ofPixelMapper(BayerDither.NORMAL_2X2, 1e30f);
     final OrderedDither dither = new OrderedDither(DitherPalette.colors(0x000000, 0xFFFFFF), strong);
     final int[] gray = new int[SMALL_IMAGE_WIDTH * SMALL_IMAGE_HEIGHT];
-    Arrays.fill(gray, MID_GRAY);
+    Arrays.fill(gray, MIDDLE_GRAY);
     try (final ImageBuffer image = ImageBuffer.buffer(gray, SMALL_IMAGE_WIDTH, SMALL_IMAGE_HEIGHT)) {
       final byte[] indices = dither.ditherIntoBytes(image);
       assertArrayEquals(new byte[] { 0, 1, 1, 0 }, indices, "a positive offset brightens to white, a negative one darkens to black");

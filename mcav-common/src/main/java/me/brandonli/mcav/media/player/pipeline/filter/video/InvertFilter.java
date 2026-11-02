@@ -39,13 +39,13 @@ public class InvertFilter extends MatVideoFilter {
   /**
    * Inverts every channel of the frame in place.
    *
-   * @param mat the 8-bit BGR matrix of the frame
+   * @param matrix the 8-bit BGR matrix of the frame
    * @return true, because every frame is changed
    * @since 1.0.0
    */
   @Override
-  protected boolean modifyMat(final Mat mat) {
-    opencv_core.bitwise_not(mat, mat);
+  protected boolean modifyMat(final Mat matrix) {
+    opencv_core.bitwise_not(matrix, matrix);
 
     return true;
   }

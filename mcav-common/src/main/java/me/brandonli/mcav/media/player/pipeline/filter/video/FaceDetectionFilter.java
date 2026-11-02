@@ -137,18 +137,18 @@ public class FaceDetectionFilter extends MatVideoFilter {
    * Detects faces on a grayscale copy of the frame and outlines each of them in the frame, in place. The copy and the
    * detections go into matrices the filter reuses, which is why only one frame is processed at a time.
    *
-   * @param mat the 8-bit BGR matrix of the frame
+   * @param matrix the 8-bit BGR matrix of the frame
    * @return true if at least one face was outlined, false if none was found and the frame was left untouched
    * @since 1.0.0
    */
   @Override
-  protected synchronized boolean modifyMat(final Mat mat) {
-    opencv_imgproc.cvtColor(mat, this.gray, opencv_imgproc.COLOR_BGR2GRAY);
+  protected synchronized boolean modifyMat(final Mat matrix) {
+    opencv_imgproc.cvtColor(matrix, this.gray, opencv_imgproc.COLOR_BGR2GRAY);
     this.classifier.detectMultiScale(this.gray, this.faces);
     final long count = this.faces.size();
     for (long faceIndex = 0; faceIndex < count; faceIndex++) {
       final Rect face = this.faces.get(faceIndex);
-      opencv_imgproc.rectangle(mat, face, this.color);
+      opencv_imgproc.rectangle(matrix, face, this.color);
     }
 
     return count > 0;

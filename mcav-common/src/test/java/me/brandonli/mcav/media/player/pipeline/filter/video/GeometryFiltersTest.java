@@ -128,8 +128,8 @@ final class GeometryFiltersTest {
     assertThrows(IllegalArgumentException.class, () -> new CropFilter(0, 0, 0, 1));
     assertThrows(IllegalArgumentException.class, () -> new CropFilter(0, 0, 1, 0));
 
-    try (final Mat mat = new Mat(1, 1, opencv_core.CV_8UC3)) {
-      assertThrows(UnsupportedOperationException.class, () -> filter.modifyMat(mat));
+    try (final Mat matrix = new Mat(1, 1, opencv_core.CV_8UC3)) {
+      assertThrows(UnsupportedOperationException.class, () -> filter.modifyMat(matrix));
     }
   }
 
@@ -204,8 +204,8 @@ final class GeometryFiltersTest {
     assertFalse(otherHeight);
     assertFalse(otherWidth);
 
-    try (final Mat mat = new Mat(1, 1, opencv_core.CV_8UC3)) {
-      assertThrows(UnsupportedOperationException.class, () -> filter.modifyMat(mat));
+    try (final Mat matrix = new Mat(1, 1, opencv_core.CV_8UC3)) {
+      assertThrows(UnsupportedOperationException.class, () -> filter.modifyMat(matrix));
     }
 
     assertThrows(IllegalArgumentException.class, () -> new ResizeFilter(0, 1));
@@ -249,8 +249,8 @@ final class GeometryFiltersTest {
     assertEquals(opencv_core.ROTATE_180, halfTurn);
     assertEquals(opencv_core.ROTATE_90_COUNTERCLOCKWISE, counterClockwise);
 
-    try (final Mat mat = new Mat(1, 1, opencv_core.CV_8UC3)) {
-      assertThrows(UnsupportedOperationException.class, () -> filter.modifyMat(mat));
+    try (final Mat matrix = new Mat(1, 1, opencv_core.CV_8UC3)) {
+      assertThrows(UnsupportedOperationException.class, () -> filter.modifyMat(matrix));
     }
 
     assertThrows(NullPointerException.class, () -> new RotationFilter(null));
@@ -268,9 +268,9 @@ final class GeometryFiltersTest {
       assertArrayEquals(new int[] { 0, 3, 1, 4, 2, 5 }, indices);
     }
 
-    try (final Mat mat = new Mat(1, 1, opencv_core.CV_8UC3)) {
+    try (final Mat matrix = new Mat(1, 1, opencv_core.CV_8UC3)) {
       final TransposeFilter filter = new TransposeFilter();
-      assertThrows(UnsupportedOperationException.class, () -> filter.modifyMat(mat));
+      assertThrows(UnsupportedOperationException.class, () -> filter.modifyMat(matrix));
     }
   }
 

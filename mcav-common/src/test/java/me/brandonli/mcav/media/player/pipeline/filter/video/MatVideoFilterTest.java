@@ -178,7 +178,7 @@ final class MatVideoFilterTest {
   private static final class UnchangedFilter extends MatVideoFilter {
 
     @Override
-    protected boolean modifyMat(final Mat mat) {
+    protected boolean modifyMat(final Mat matrix) {
       return false;
     }
   }

@@ -87,40 +87,48 @@ public class BlurFilter extends MatVideoFilter {
   /**
    * Blurs the frame in place with the algorithm of this filter.
    *
-   * @param mat the 8-bit BGR matrix of the frame
+   * @param matrix the 8-bit BGR matrix of the frame
    * @return true, because the frame may have changed
    * @since 1.0.0
    */
   @Override
-  protected boolean modifyMat(final Mat mat) {
+  protected boolean modifyMat(final Mat matrix) {
     return switch (this.type) {
-      case NORMAL -> this.normalBlur(mat);
-      case MEDIAN -> this.medianBlur(mat);
-      case GAUSSIAN -> this.gaussianBlur(mat);
-      case STACK -> this.stackBlur(mat);
+      case NORMAL -> this.normalBlur(matrix);
+      case MEDIAN -> this.medianBlur(matrix);
+      case GAUSSIAN -> this.gaussianBlur(matrix);
+      case STACK -> this.stackBlur(matrix);
     };
   }
 
-  private boolean normalBlur(final Mat mat) {
-    opencv_imgproc.blur(mat, mat, this.size);
+  private boolean normalBlur(final Mat matrix) {
+    opencv_imgproc.blur(matrix, matrix, this.size);
 
     return true;
   }
 
-  private boolean medianBlur(final Mat mat) {
-    opencv_imgproc.medianBlur(mat, mat, this.kernelSize);
+  private boolean medianBlur(final Mat matrix) {
+    opencv_imgproc.medianBlur(matrix, matrix, this.kernelSize);
 
     return true;
   }
 
-  private boolean gaussianBlur(final Mat mat) {
-    opencv_imgproc.GaussianBlur(mat, mat, this.size, this.sigmaX, this.sigmaY, opencv_core.BORDER_DEFAULT, opencv_core.ALGO_HINT_DEFAULT);
+  private boolean gaussianBlur(final Mat matrix) {
+    opencv_imgproc.GaussianBlur(
+      matrix,
+      matrix,
+      this.size,
+      this.sigmaX,
+      this.sigmaY,
+      opencv_core.BORDER_DEFAULT,
+      opencv_core.ALGO_HINT_DEFAULT
+    );
 
     return true;
   }
 
-  private boolean stackBlur(final Mat mat) {
-    opencv_imgproc.stackBlur(mat, mat, this.size);
+  private boolean stackBlur(final Mat matrix) {
+    opencv_imgproc.stackBlur(matrix, matrix, this.size);
 
     return true;
   }

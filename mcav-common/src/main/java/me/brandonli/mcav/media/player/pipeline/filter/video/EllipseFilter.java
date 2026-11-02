@@ -80,13 +80,13 @@ public class EllipseFilter extends MatVideoFilter {
    * Draws the ellipse outline, or its arc, onto the frame in place. Parts of the ellipse outside of the frame are cut
    * off.
    *
-   * @param mat the 8-bit BGR matrix of the frame
+   * @param matrix the 8-bit BGR matrix of the frame
    * @return true, because the frame may have changed
    * @since 1.0.0
    */
   @Override
-  protected boolean modifyMat(final Mat mat) {
-    opencv_imgproc.ellipse(mat, this.center, this.axes, this.angle, this.startAngle, this.endAngle, this.color);
+  protected boolean modifyMat(final Mat matrix) {
+    opencv_imgproc.ellipse(matrix, this.center, this.axes, this.angle, this.startAngle, this.endAngle, this.color);
 
     return true;
   }

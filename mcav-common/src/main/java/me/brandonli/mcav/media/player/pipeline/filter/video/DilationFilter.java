@@ -51,13 +51,13 @@ public class DilationFilter extends MatVideoFilter {
   /**
    * Dilates the frame in place with the structuring element.
    *
-   * @param mat the 8-bit BGR matrix of the frame
+   * @param matrix the 8-bit BGR matrix of the frame
    * @return true, because the frame may have changed
    * @since 1.0.0
    */
   @Override
-  protected boolean modifyMat(final Mat mat) {
-    opencv_imgproc.dilate(mat, mat, this.kernel);
+  protected boolean modifyMat(final Mat matrix) {
+    opencv_imgproc.dilate(matrix, matrix, this.kernel);
 
     return true;
   }

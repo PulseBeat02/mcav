@@ -107,13 +107,13 @@ public class ResizeFilter extends MatVideoFilter {
    * Always throws, because resizing changes the size of the frame and cannot be done in place;
    * {@link #modifyImage(MatImageBuffer)} resizes instead.
    *
-   * @param mat the matrix of the frame
+   * @param matrix the matrix of the frame
    * @return never returns normally
    * @throws UnsupportedOperationException always
    * @since 1.0.0
    */
   @Override
-  protected boolean modifyMat(final Mat mat) {
+  protected boolean modifyMat(final Mat matrix) {
     throw new UnsupportedOperationException("Resizing cannot be done in place!");
   }
 }

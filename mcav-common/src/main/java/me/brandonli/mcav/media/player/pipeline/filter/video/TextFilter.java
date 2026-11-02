@@ -73,13 +73,13 @@ public class TextFilter extends MatVideoFilter {
   /**
    * Draws the text onto the frame in place. Parts of the text outside of the frame are cut off.
    *
-   * @param mat the 8-bit BGR matrix of the frame
+   * @param matrix the 8-bit BGR matrix of the frame
    * @return true, because the frame may have changed
    * @since 1.0.0
    */
   @Override
-  protected boolean modifyMat(final Mat mat) {
-    opencv_imgproc.putText(mat, this.text, this.position, this.font, this.scale, this.color);
+  protected boolean modifyMat(final Mat matrix) {
+    opencv_imgproc.putText(matrix, this.text, this.position, this.font, this.scale, this.color);
 
     return true;
   }

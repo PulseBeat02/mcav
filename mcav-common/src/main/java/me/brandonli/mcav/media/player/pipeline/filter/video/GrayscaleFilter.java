@@ -48,16 +48,16 @@ public class GrayscaleFilter extends MatVideoFilter {
    * Converts the frame to gray through a reused single-channel matrix and writes the gray level back to all three
    * channels.
    *
-   * @param mat the 8-bit BGR matrix of the frame
+   * @param matrix the 8-bit BGR matrix of the frame
    * @return true, because the frame may have had colors before
    * @since 1.0.0
    */
   @Override
-  protected boolean modifyMat(final Mat mat) {
+  protected boolean modifyMat(final Mat matrix) {
     final Mat levels = this.gray.borrow();
     try {
-      opencv_imgproc.cvtColor(mat, levels, opencv_imgproc.COLOR_BGR2GRAY);
-      opencv_imgproc.cvtColor(levels, mat, opencv_imgproc.COLOR_GRAY2BGR);
+      opencv_imgproc.cvtColor(matrix, levels, opencv_imgproc.COLOR_BGR2GRAY);
+      opencv_imgproc.cvtColor(levels, matrix, opencv_imgproc.COLOR_GRAY2BGR);
     } finally {
       this.gray.giveBack(levels);
     }

@@ -65,22 +65,22 @@ public class RegionScalarFilter extends MatVideoFilter {
   /**
    * Fills the part of the rectangle that lies inside the frame with the color, in place.
    *
-   * @param mat the 8-bit BGR matrix of the frame
+   * @param matrix the 8-bit BGR matrix of the frame
    * @return true if part of the rectangle was filled, false if the rectangle lies outside of the frame and the frame
    *     was left untouched
    * @since 1.0.0
    */
   @Override
-  protected boolean modifyMat(final Mat mat) {
-    final int frameWidth = mat.cols();
-    final int frameHeight = mat.rows();
+  protected boolean modifyMat(final Mat matrix) {
+    final int frameWidth = matrix.cols();
+    final int frameHeight = matrix.rows();
     final int clampedWidth = Math.min(this.width, frameWidth - this.left);
     final int clampedHeight = Math.min(this.height, frameHeight - this.top);
     if (clampedWidth <= 0 || clampedHeight <= 0) {
       return false;
     }
 
-    try (final Rect bounds = new Rect(this.left, this.top, clampedWidth, clampedHeight); final Mat region = new Mat(mat, bounds)) {
+    try (final Rect bounds = new Rect(this.left, this.top, clampedWidth, clampedHeight); final Mat region = new Mat(matrix, bounds)) {
       region.put(this.color);
     }
 

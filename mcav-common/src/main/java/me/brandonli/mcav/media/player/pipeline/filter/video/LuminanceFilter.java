@@ -57,13 +57,13 @@ public class LuminanceFilter extends MatVideoFilter {
   /**
    * Scales and shifts every channel of the frame in place, clamping the results to the range from 0 to 255.
    *
-   * @param mat the 8-bit BGR matrix of the frame
+   * @param matrix the 8-bit BGR matrix of the frame
    * @return true, because the frame may have changed
    * @since 1.0.0
    */
   @Override
-  protected boolean modifyMat(final Mat mat) {
-    mat.convertTo(mat, -1, this.contrast, this.brightness);
+  protected boolean modifyMat(final Mat matrix) {
+    matrix.convertTo(matrix, -1, this.contrast, this.brightness);
 
     return true;
   }

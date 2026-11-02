@@ -61,13 +61,13 @@ public class RectangleFilter extends MatVideoFilter {
   /**
    * Draws the rectangle outline onto the frame in place. Parts of the rectangle outside of the frame are cut off.
    *
-   * @param mat the 8-bit BGR matrix of the frame
+   * @param matrix the 8-bit BGR matrix of the frame
    * @return true, because the frame may have changed
    * @since 1.0.0
    */
   @Override
-  protected boolean modifyMat(final Mat mat) {
-    opencv_imgproc.rectangle(mat, this.topLeft, this.bottomRight, this.color);
+  protected boolean modifyMat(final Mat matrix) {
+    opencv_imgproc.rectangle(matrix, this.topLeft, this.bottomRight, this.color);
 
     return true;
   }

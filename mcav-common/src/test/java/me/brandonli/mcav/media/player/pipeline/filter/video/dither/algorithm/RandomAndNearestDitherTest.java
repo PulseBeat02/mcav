@@ -241,7 +241,7 @@ final class RandomAndNearestDitherTest {
   }
 
   @Test
-  void shouldSplitAtMidGrayWhenNearestDithering() {
+  void shouldSplitAtMiddleGrayWhenNearestDithering() {
     final int[] pixels = DitherTestImages.gradient(WIDE_IMAGE_WIDTH, WIDE_IMAGE_HEIGHT);
     final NearestDither nearest = new ColorMapNearestDither(DitherTestImages.BLACK_WHITE);
     final byte[] indices = dither(nearest, pixels, WIDE_IMAGE_WIDTH);

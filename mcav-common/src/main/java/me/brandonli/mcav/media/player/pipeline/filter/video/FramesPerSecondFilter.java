@@ -65,16 +65,16 @@ public class FramesPerSecondFilter extends MatVideoFilter {
   /**
    * Counts the frame and draws the smoothed frame rate onto it in place, as white text with a black outline.
    *
-   * @param mat the 8-bit BGR matrix of the frame
+   * @param matrix the 8-bit BGR matrix of the frame
    * @return true, because the text is drawn onto every frame
    * @since 1.0.0
    */
   @Override
-  protected boolean modifyMat(final Mat mat) {
+  protected boolean modifyMat(final Mat matrix) {
     this.countFrame();
     final String text = this.displayedFrameRate + " fps";
-    drawText(mat, text, BLACK, OUTLINE_THICKNESS);
-    drawText(mat, text, WHITE, TEXT_THICKNESS);
+    drawText(matrix, text, BLACK, OUTLINE_THICKNESS);
+    drawText(matrix, text, WHITE, TEXT_THICKNESS);
 
     return true;
   }
@@ -93,9 +93,9 @@ public class FramesPerSecondFilter extends MatVideoFilter {
     this.windowStart = now;
   }
 
-  private static void drawText(final Mat mat, final String text, final Scalar color, final int thickness) {
+  private static void drawText(final Mat matrix, final String text, final Scalar color, final int thickness) {
     opencv_imgproc.putText(
-      mat,
+      matrix,
       text,
       POSITION,
       opencv_imgproc.FONT_HERSHEY_SIMPLEX,
