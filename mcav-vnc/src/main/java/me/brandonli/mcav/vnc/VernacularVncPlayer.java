@@ -700,17 +700,15 @@ public final class VernacularVncPlayer implements VncPlayer {
       return;
     }
 
-    final OptionalInt symbol = KeySymbols.lookup(text);
-    this.forward(() -> this.typeKey(vncClient, symbol, text));
+    this.forward(() -> this.typeKey(vncClient, text));
   }
 
-  private void typeKey(final VernacularClient vncClient, final OptionalInt symbol, final String text) {
-    if (symbol.isEmpty()) {
-      vncClient.type(text);
-      return;
-    }
+  private void typeKey(final VernacularClient vncClient, final String text) {
+    final OptionalInt symbol = KeySymbols.lookup(text);
+    symbol.ifPresentOrElse(code -> this.pressKey(vncClient, code), () -> vncClient.type(text));
+  }
 
-    final int code = symbol.getAsInt();
+  private void pressKey(final VernacularClient vncClient, final int code) {
     vncClient.updateKey(code, true);
     vncClient.updateKey(code, false);
   }
