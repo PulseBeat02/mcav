@@ -37,11 +37,13 @@ val javaAgent: NamedDomainObjectProvider<Configuration> = configurations.registe
 dependencies {
     implementation(libs.xz)
     buildPluginMarkers.forEach { implementation(it) }
+
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.mockito.core)
     testImplementation(libs.jazzer.junit)
     testImplementation(gradleTestKit())
+
     testRuntimeOnly(libs.junit.platform.launcher)
 
     javaAgent(libs.byte.buddy.agent)

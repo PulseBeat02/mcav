@@ -272,6 +272,7 @@ dependencies {
     add(endToEndImplementation, platform(CatalogUtils.libraryOf(libs, junitBomAlias)))
     add(endToEndImplementation, CatalogUtils.libraryOf(libs, junitJupiterAlias))
     add(endToEndImplementation, CatalogUtils.libraryOf(libs, gsonAlias))
+
     add(endToEndRuntimeOnly, CatalogUtils.libraryOf(libs, junitLauncherAlias))
 }
 

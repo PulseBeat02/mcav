@@ -83,6 +83,7 @@ val javaAgent: NamedDomainObjectProvider<Configuration> = configurations.registe
 dependencies {
     testImplementation(platform(CatalogUtils.libraryOf(libs, junitBomAlias)))
     testImplementation(CatalogUtils.bundleOf(libs, testingBundleAlias))
+
     testRuntimeOnly(CatalogUtils.libraryOf(libs, junitLauncherAlias))
 
     javaAgent(CatalogUtils.libraryOf(libs, byteBuddyAgentAlias))

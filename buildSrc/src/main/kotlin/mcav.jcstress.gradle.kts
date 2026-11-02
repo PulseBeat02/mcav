@@ -49,6 +49,7 @@ val consolePath: String = "console.txt"
 
 dependencies {
     implementation(CatalogUtils.libraryOf(libs, jcstressAlias))
+
     annotationProcessor(CatalogUtils.libraryOf(libs, jcstressAlias))
 }
 
