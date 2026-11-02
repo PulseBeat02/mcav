@@ -31,7 +31,8 @@ public final class HttpAudioExample {
   private static final int PORT = 3000;
 
   private HttpAudioExample() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   static void main(final String[] args) {

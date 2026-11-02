@@ -28,7 +28,8 @@ public final class WebSocketSessionUtils {
   private static final long TIMEOUT_MILLISECONDS = 10_000L;
 
   private WebSocketSessionUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   public static void verifyClosed(final WebSocketSession session, final CloseStatus status) throws IOException {
