@@ -69,6 +69,7 @@ tasks.test {
     this.dependsOn(tasks.shadowJar)
     this.jvmArgs(builtJar)
 }
+
 tasks.named("pitest") {
     this.dependsOn(tasks.shadowJar)
 }

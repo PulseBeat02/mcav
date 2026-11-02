@@ -131,9 +131,11 @@ val nativeResources: NamedDomainObjectProvider<Configuration> = configurations.r
     isCanBeConsumed = false
     isCanBeResolved = true
 }
+
 dependencies {
     add(nativeResources.name, project(path = bukkitProjectPath, configuration = nativeResourcesConfiguration))
 }
+
 tasks.shadowJar {
     this.from(nativeResources)
 }
@@ -249,6 +251,7 @@ if (endToEnd) {
     }
     repositories.remove(repository)
     repositories.addFirst(repository)
+
     tasks.named<WriteDependencySet>("writeDependencies") {
         this.dependsOn(downloadedModules.map { modules -> modules.map { "$it:$endToEndPublishTaskSuffix" } })
 

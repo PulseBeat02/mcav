@@ -37,6 +37,7 @@ val buildDocs: TaskProvider<JupyterBook> = tasks.register<JupyterBook>("buildDoc
     })
     this.outputDirectory = layout.buildDirectory.dir(docsOutputPath)
 }
+
 tasks.named("assemble") {
     this.dependsOn(buildDocs)
 }

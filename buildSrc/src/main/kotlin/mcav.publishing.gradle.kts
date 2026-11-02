@@ -117,6 +117,7 @@ afterEvaluate {
         this.dependsOn(generatedPom)
         this.jvmArgs(publishedPom)
     }
+
     pluginManager.withPlugin("info.solidsoft.pitest") {
         tasks.named("pitest") {
             this.dependsOn(generatedPom)

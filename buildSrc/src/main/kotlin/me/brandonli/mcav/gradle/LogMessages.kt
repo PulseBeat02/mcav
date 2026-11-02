@@ -87,6 +87,7 @@ object LogMessages {
                 character in CLOSING && depth > 0 -> depth--
                 closesCall || separatesArguments -> ends += index
             }
+
             if (closesCall) {
                 break
             }

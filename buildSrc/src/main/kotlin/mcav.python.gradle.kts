@@ -54,6 +54,7 @@ val packageMarkers: Map<String, String> = mapOf(
 )
 val uvArchive: String = "$uvTool-$uvTarget" + if (host.isWindows) zipExtension else gzipTarExtension
 val uvPath: String = if (host.isWindows) windowsUvExecutable else "$uvTool-$uvTarget/$uvTool"
+
 val downloadUv: TaskProvider<DownloadToolArchive> = tasks.register<DownloadToolArchive>("downloadUv") {
     this.group = "build setup"
     this.description = "Downloads the pinned uv and verifies its SHA-256"
@@ -62,6 +63,7 @@ val downloadUv: TaskProvider<DownloadToolArchive> = tasks.register<DownloadToolA
     this.executablePath = uvPath
     this.installationDirectory = layout.buildDirectory.dir("$uvToolsPath/$pinnedUvVersion")
 }
+
 val selectedUv: Provider<RegularFile> = Tools.selectTool(project, uvTool, downloadUv.flatMap { it.installationDirectory.file(uvPath) })
 val requirementsLock: RegularFile = layout.projectDirectory.file(requirementsLockPath)
 val pythonInstallation: Provider<Directory> = layout.buildDirectory.dir("$pythonToolsPath/$pinnedPythonVersion")
@@ -82,6 +84,7 @@ val lockRequirements: TaskProvider<LockPythonRequirements> = tasks.register<Lock
     this.installationDirectory = pythonInstallation
     this.cacheDirectory = uvCache
 }
+
 tasks.register<PythonEnvironment>("installPythonEnvironment") {
     this.group = "build setup"
     this.description = "Installs the pinned Python and the hash-locked packages of requirements.lock"

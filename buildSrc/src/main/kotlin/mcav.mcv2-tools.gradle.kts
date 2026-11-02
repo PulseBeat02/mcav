@@ -60,6 +60,7 @@ val writeToolsClasspath: TaskProvider<Task> = tasks.register("writeMcv2ToolsClas
 tasks.test {
     this.inputs.files(writeToolsClasspath)
 }
+
 pluginManager.withPlugin("info.solidsoft.pitest") {
     tasks.named("pitest") {
         this.inputs.files(writeToolsClasspath)
@@ -87,6 +88,7 @@ val pythonTest: TaskProvider<PythonTests> = tasks.register<PythonTests>("pythonT
     this.processCount = gradle.startParameter.maxWorkerCount
     this.reportDirectory = layout.buildDirectory.dir(pythonReportPath)
 }
+
 tasks.named("check") {
     this.dependsOn(pythonTest)
 }

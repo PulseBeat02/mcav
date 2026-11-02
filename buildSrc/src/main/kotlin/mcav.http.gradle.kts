@@ -144,6 +144,7 @@ tasks.test {
     this.dependsOn(tasks.jar)
     this.jvmArgs(builtJar)
 }
+
 tasks.named("pitest") {
     this.dependsOn(tasks.jar)
 }
