@@ -52,8 +52,8 @@ public final class Mcv2Trees {
       return Objects.requireNonNull(method.invoke(target, arguments));
     } catch (final InvocationTargetException exception) {
       final Throwable cause = exception.getCause();
-      if (cause instanceof final RuntimeException runtime) {
-        throw runtime;
+      if (cause instanceof final RuntimeException runtimeException) {
+        throw runtimeException;
       }
 
       if (cause instanceof final Error error) {

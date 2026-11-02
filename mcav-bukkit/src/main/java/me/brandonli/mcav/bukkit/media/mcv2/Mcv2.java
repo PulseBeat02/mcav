@@ -3943,8 +3943,8 @@ public final class Mcv2 {
         throw exception;
       } catch (final ExecutionException exception) {
         final Throwable cause = Objects.requireNonNull(exception.getCause()); // checker framework
-        if (cause instanceof final RuntimeException runtime) {
-          throw runtime;
+        if (cause instanceof final RuntimeException runtimeException) {
+          throw runtimeException;
         }
 
         if (cause instanceof final Error error) {

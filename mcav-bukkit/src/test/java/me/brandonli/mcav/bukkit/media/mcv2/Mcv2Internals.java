@@ -95,8 +95,8 @@ final class Mcv2Internals {
 
   private static RuntimeException failure(final InvocationTargetException exception) {
     final Throwable cause = exception.getCause();
-    if (cause instanceof final RuntimeException runtime) {
-      return runtime;
+    if (cause instanceof final RuntimeException runtimeException) {
+      return runtimeException;
     }
 
     if (cause instanceof final Error error) {
