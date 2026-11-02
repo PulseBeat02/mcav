@@ -53,6 +53,7 @@ final class CommandTaskTest {
   private static final String SLEEPER_SOURCE_FILE = "Sleeper.java";
   private static final String SPAWNER_SOURCE_FILE = "Spawner.java";
   private static final String ENVIRONMENT_SOURCE_FILE = "Environment.java";
+  private static final String MISSING_PROGRAM_FILE = "mcav-missing-program";
 
   private static final String VERSION_OPTION = "-version";
   private static final String UNKNOWN_OPTION = "-XX:+NoSuchOptionForMcav";
@@ -131,6 +132,21 @@ final class CommandTaskTest {
     assertNotEquals(0, exitCode);
     assertEquals(exitCode, recordedExitCode);
     assertThrows(ProcessException.class, checked::runChecked);
+  }
+
+  @Test
+  void shouldReportAProgramThatCannotBeStartedAndAllowAnotherLaunch() {
+    final Path missing = this.directory.resolve(MISSING_PROGRAM_FILE);
+    final String program = missing.toString();
+    final CommandTask task = new CommandTask(program);
+    final ProcessException exception = assertThrows(ProcessException.class, task::run);
+    final Throwable cause = exception.getCause();
+    final Optional<Process> process = task.getProcess();
+    assertInstanceOf(IOException.class, cause);
+    assertTrue(process.isEmpty());
+    assertThrows(IllegalStateException.class, task::getExitCode);
+
+    assertThrows(ProcessException.class, task::run);
   }
 
   @Test
