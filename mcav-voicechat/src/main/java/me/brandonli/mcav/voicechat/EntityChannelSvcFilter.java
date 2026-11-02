@@ -292,6 +292,7 @@ public final class EntityChannelSvcFilter implements SvcFilter {
     private @Nullable Throwable cleanup(final @Nullable Throwable previous, final Runnable cleanup) {
       try {
         cleanup.run();
+
         return previous;
       } catch (final RuntimeException | Error exception) {
         ThrowableUtils.throwIfFatal(exception);
