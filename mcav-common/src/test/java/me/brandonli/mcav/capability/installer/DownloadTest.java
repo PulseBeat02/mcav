@@ -66,5 +66,10 @@ final class DownloadTest {
     assertThrows(IllegalArgumentException.class, () -> new Download(LINUX, " "));
     assertThrows(NullPointerException.class, () -> new Download(null, TOOL_URL));
     assertThrows(NullPointerException.class, () -> new Download(LINUX, null));
+    assertThrows(NullPointerException.class, () -> new Download(null, Arch.X86, Bits.BITS_64, TOOL_URL));
+    assertThrows(NullPointerException.class, () -> new Download(Os.LINUX, null, Bits.BITS_64, TOOL_URL));
+    assertThrows(NullPointerException.class, () -> new Download(Os.LINUX, Arch.X86, null, TOOL_URL));
+    assertThrows(NullPointerException.class, () -> new Download(Os.LINUX, Arch.X86, Bits.BITS_64, null));
+    assertThrows(IllegalArgumentException.class, () -> new Download(Os.LINUX, Arch.X86, Bits.BITS_64, " "));
   }
 }
