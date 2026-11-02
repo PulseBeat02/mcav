@@ -190,7 +190,7 @@ public final class SpringHttpResult implements HttpResult {
       this.acceptingListeners = true;
 
       final String url = this.getFullUrl();
-      LOGGER.info("Audio web player is running at {}.", url);
+      LOGGER.info("Audio web player at {} is running.", url);
     } catch (final RuntimeException exception) {
       final String reason = exception.getMessage();
       final String message = "Web server on port %s failed with \"%s\" while starting!".formatted(this.port, reason);

@@ -52,7 +52,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * audio.attach(step);
  *
  * final String url = http.getFullUrl();
- * LOGGER.info("Listen at {}.", url);
+ * LOGGER.info("Open {} to listen.", url);
  * }
  *
  * @since 1.0.0

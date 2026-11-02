@@ -210,7 +210,7 @@ const loadPage = (permission = PERMISSION_GRANTED) => {
 
         resume() {
             if (permission === PERMISSION_REFUSED) {
-                return Promise.reject(new Error("NotAllowedError"));
+                return Promise.reject(new Error("Playing sound is not allowed!"));
             }
             if (permission === PERMISSION_AFTER_RESUME) {
                 this.state = "running";
