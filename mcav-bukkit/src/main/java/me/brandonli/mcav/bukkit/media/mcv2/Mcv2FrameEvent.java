@@ -35,7 +35,7 @@ final class Mcv2FrameEvent extends Event {
 
   static final int FINGERPRINT_PIXELS = 24;
 
-  private static final int HEX_DIGITS_PER_BYTE = 2;
+  private static final int HEXADECIMAL_DIGITS_PER_BYTE = 2;
 
   private static final int CENTRE_DIVISOR = 2;
 
@@ -92,7 +92,7 @@ final class Mcv2FrameEvent extends Event {
   String fingerprint = "";
 
   static String fingerprint(final byte[] pictureBytes, final int width, final int height) {
-    final StringBuilder builder = new StringBuilder(HEX_DIGITS_PER_BYTE * FINGERPRINT_PIXELS);
+    final StringBuilder builder = new StringBuilder(HEXADECIMAL_DIGITS_PER_BYTE * FINGERPRINT_PIXELS);
 
     final int centre = Mcv2Decoder.ROOT_SIZE / CENTRE_DIVISOR;
     for (
