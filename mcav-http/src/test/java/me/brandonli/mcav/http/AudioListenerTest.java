@@ -55,18 +55,19 @@ import org.springframework.web.socket.WebSocketSession;
 
 final class AudioListenerTest {
 
-  private static final long TIMEOUT_SECONDS = 10;
+  private static final long TIMEOUT_SECONDS = 10L;
   private static final long TIMEOUT_MILLISECONDS = TimeUnit.SECONDS.toMillis(TIMEOUT_SECONDS);
 
-  private static final long SEND_TIME_LIMIT_MILLISECONDS = 1000;
-  private static final long SHORT_SEND_TIME_LIMIT_MILLISECONDS = 50;
+  private static final long SEND_TIME_LIMIT_MILLISECONDS = 1000L;
+  private static final long SHORT_SEND_TIME_LIMIT_MILLISECONDS = 50L;
 
-  private static final long SILENCE_MILLISECONDS = 100;
+  private static final long SILENCE_MILLISECONDS = 100L;
 
   private static final int BUFFER_LIMIT_BYTES = 1024;
   private static final int SMALL_BUFFER_LIMIT_BYTES = 250;
 
   private static final int SMALL_CHUNK_BYTES = 10;
+  private static final int SECOND_CHUNK_BYTES = 20;
   private static final int MEDIUM_CHUNK_BYTES = 100;
 
   private static final String SESSION_ID = "listener-1";
@@ -113,7 +114,7 @@ final class AudioListenerTest {
     assertFalse(held, "reading queue depth must not retain the lock needed by other producer and sender threads");
 
     final CompletableFuture<Boolean> offered = new CompletableFuture<>();
-    final byte[] second = this.chunk(20, 2);
+    final byte[] second = this.chunk(SECOND_CHUNK_BYTES, 2);
     final Thread.Builder.OfVirtual builder = Thread.ofVirtual();
     final Thread producer = builder.start(() -> this.offerAndReport(listener, second, offered));
     final boolean accepted = offered.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
@@ -196,7 +197,7 @@ final class AudioListenerTest {
     final AudioListener listener = this.createListener();
     listener.start();
     final byte[] first = this.chunk(SMALL_CHUNK_BYTES, 1);
-    final byte[] second = this.chunk(20, 2);
+    final byte[] second = this.chunk(SECOND_CHUNK_BYTES, 2);
     final byte[] third = this.chunk(30, 3);
     final boolean firstQueued = listener.offer(first);
     final boolean secondQueued = listener.offer(second);
@@ -253,7 +254,8 @@ final class AudioListenerTest {
     this.awaitFirstSend();
     this.offerFiveMoreMediumChunks(listener);
     final int pending = listener.getPendingBytes();
-    assertEquals(2 * MEDIUM_CHUNK_BYTES, pending);
+    final int expected = 2 * MEDIUM_CHUNK_BYTES;
+    assertEquals(expected, pending);
 
     this.releaseSends.countDown();
     final byte[] firstSent = this.nextSent();

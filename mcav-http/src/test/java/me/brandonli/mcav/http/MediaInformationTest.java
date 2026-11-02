@@ -50,22 +50,22 @@ final class MediaInformationTest {
   private static final String UPLOADER_ID = "@artist";
   private static final String DESCRIPTION = "A description";
   private static final String THUMBNAIL = "https://example.com/thumbnail.jpg";
-  private static final long DURATION_SECONDS = 216;
+  private static final long DURATION_SECONDS = 216L;
   private static final long VIEW_COUNT = 3_000_000_000L;
-  private static final long LIKE_COUNT = 50;
+  private static final long LIKE_COUNT = 50L;
   private static final String UPLOAD_DATE = "20240101";
 
   private static final String OTHER_TEXT = "other";
-  private static final long OTHER_COUNT = 1;
+  private static final long OTHER_COUNT = 1L;
 
   @Test
   void shouldTakeTheShownFieldsFromYtDlpInYtDlpOrderAndNames() {
-    final UrlParseDump dump = UrlParseDumpUtils.completeDump();
+    final UrlParseDump dump = UrlParseDumpUtils.createCompleteDump();
     final MediaInformation information = MediaInformation.of(dump);
     final Map<String, Object> json = information.toJson();
     final Map<String, Object> expected = new LinkedHashMap<>();
     expected.put(TITLE_KEY, "Song");
-    expected.put(UPLOADER_KEY, "Artist");
+    expected.put(UPLOADER_KEY, UPLOADER);
     expected.put("channel", "Artist Channel");
     expected.put("uploader_id", "@artist");
     expected.put("description", "A description");
@@ -94,7 +94,7 @@ final class MediaInformationTest {
     final MediaInformation information = MediaInformation.of(dump);
     final Map<String, Object> json = information.toJson();
     final Map<String, Object> expected = new LinkedHashMap<>();
-    expected.put(UPLOADER_KEY, "Artist");
+    expected.put(UPLOADER_KEY, UPLOADER);
     expected.put(DURATION_KEY, 0L);
     expected.put(VIEW_COUNT_KEY, 0L);
     expected.put(LIKE_COUNT_KEY, 0L);
@@ -151,7 +151,7 @@ final class MediaInformationTest {
 
   @Test
   void shouldFollowTheEqualityContract() {
-    final UrlParseDump dump = UrlParseDumpUtils.completeDump();
+    final UrlParseDump dump = UrlParseDumpUtils.createCompleteDump();
     final MediaInformation information = MediaInformation.of(dump);
     final MediaInformation equal = this.createComplete();
     final Object[] differentValues = {

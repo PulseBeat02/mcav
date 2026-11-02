@@ -128,6 +128,7 @@ final class AudioListener {
       this.pendingBytes -= chunk.length;
       this.sending = true;
       this.sendStartNanoseconds = this.nanosecondClock.getAsLong();
+
       return chunk;
     } finally {
       this.lock.unlock();

@@ -87,7 +87,8 @@ final class HttpClassLoaderTest {
 
     this.addDependencyLocations(locations);
     final int locationCount = locations.size();
-    assertTrue(locationCount > ownLocationCount, "the isolated loader includes the real HTTP dependencies");
+    final boolean includesDependencies = locationCount > ownLocationCount;
+    assertTrue(includesDependencies, "the isolated loader includes the real HTTP dependencies");
 
     final Collection<URL> values = locations.values();
     return values.toArray(URL[]::new);

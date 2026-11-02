@@ -66,10 +66,10 @@ final class DefaultHttpResultBuilder implements HttpResultBuilder {
   }
 
   @Override
-  public HttpResultBuilder bindAddress(final InetAddress address) {
-    Preconditions.checkNotNull(address, "Bind address must not be null!");
+  public HttpResultBuilder bindAddress(final InetAddress bindAddress) {
+    Preconditions.checkNotNull(bindAddress, "Bind address must not be null!");
 
-    this.bindAddress = address;
+    this.bindAddress = bindAddress;
     return this;
   }
 

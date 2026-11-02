@@ -22,7 +22,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class SystemPropertyUtils {
 
   private SystemPropertyUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   public static void restore(final String property, final @Nullable String previous) {

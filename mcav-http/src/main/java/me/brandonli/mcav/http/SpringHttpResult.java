@@ -52,13 +52,12 @@ import org.springframework.web.socket.WebSocketSession;
  *
  * <p>Every listener gets an {@link AudioListener} with its own sender thread, so samples are handed over from the
  * audio thread without blocking on slow connections: a listener that cannot keep up loses its oldest samples
- * instead of stalling the pipeline, and one whose writes block for {@value #SEND_TIME_LIMIT_MILLISECONDS} milliseconds
- * is disconnected.
+ * instead of stalling the pipeline, and one whose writes block for five seconds is disconnected.
  *
  * <p>Spring Boot normally takes over the logging system of the JVM when it starts, resetting the levels and
  * handlers of {@code java.util.logging} or Log4j 2 for the whole server that hosts the library. Unless the system
- * property {@value #LOGGING_SYSTEM_PROPERTY} was already set, it is set to {@code none} before the first start,
- * so Spring logs through SLF4J like every other library and leaves the logging of the host alone.
+ * property {@code org.springframework.boot.logging.LoggingSystem} was already set, it is set to {@code none} before
+ * the first start, so Spring logs through SLF4J like every other library and leaves the logging of the host alone.
  *
  * <p>This class is thread-safe.
  *
@@ -69,13 +68,15 @@ public final class SpringHttpResult implements HttpResult {
   private static final String RESULT_BEAN_NAME = "mcavHttpResult";
 
   static final String LOGGING_SYSTEM_PROPERTY = "org.springframework.boot.logging.LoggingSystem";
+  private static final String NO_LOGGING_SYSTEM = "none";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SpringHttpResult.class);
+
   private static final int SEND_TIME_LIMIT_MILLISECONDS = 5_000;
   private static final int SEND_BUFFER_LIMIT_BYTES = 512 * 1024;
   private static final Duration CLOSE_TIME_LIMIT = Duration.ofSeconds(1);
 
-  private static final String NO_LOGGING_SYSTEM = "none";
+  private static final String URL_SCHEME = "http://";
 
   private static final String BUNDLED_PAGE_LOCATION = "classpath:/mcav/http/website/";
   private static final String PATH_SEPARATOR = "/";
@@ -151,6 +152,7 @@ public final class SpringHttpResult implements HttpResult {
    * connections are closed on other threads, and stopping waits at most one second for them, so a listener whose
    * write is stuck delays stopping by at most that long. Calling it while the server is stopped has no effect.
    *
+   * @throws RuntimeException if closing the embedded web framework fails
    * @since 1.0.0
    */
   @Override
@@ -190,7 +192,7 @@ public final class SpringHttpResult implements HttpResult {
       this.acceptingListeners = true;
 
       final String url = this.getFullUrl();
-      LOGGER.info("Audio web player is running at {}.", url);
+      LOGGER.info("Audio web player at {} is running.", url);
     } catch (final RuntimeException exception) {
       final String reason = exception.getMessage();
       final String message = "Web server on port %s failed with \"%s\" while starting!".formatted(this.port, reason);
@@ -279,6 +281,7 @@ public final class SpringHttpResult implements HttpResult {
     }
 
     this.listeners.clear();
+
     return closing;
   }
 
@@ -455,6 +458,7 @@ public final class SpringHttpResult implements HttpResult {
   @Override
   public void setCurrentMedia(final UrlParseDump dump) {
     Preconditions.checkNotNull(dump, "Dump must not be null!");
+
     this.currentMedia = MediaInformation.of(dump);
   }
 
@@ -489,7 +493,7 @@ public final class SpringHttpResult implements HttpResult {
   @Override
   public String getFullUrl() {
     final String host = this.urlHost(this.domain);
-    return "http://%s:%s/".formatted(host, this.port);
+    return "%s%s:%s/".formatted(URL_SCHEME, host, this.port);
   }
 
   @VisibleForTesting

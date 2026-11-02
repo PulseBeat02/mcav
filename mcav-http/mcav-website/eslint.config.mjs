@@ -20,10 +20,12 @@ import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTypeScript from "eslint-config-next/typescript";
 
-const eslintConfig = defineConfig([
+const IGNORED_PATHS = [".next/**", "out/**", "build/**", "next-env.d.ts"];
+
+const eslintConfiguration = defineConfig([
   ...nextVitals,
   ...nextTypeScript,
-  globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts"]),
+  globalIgnores(IGNORED_PATHS),
 ]);
 
-export default eslintConfig;
+export default eslintConfiguration;

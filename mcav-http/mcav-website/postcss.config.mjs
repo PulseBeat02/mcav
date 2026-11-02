@@ -16,8 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-const config = {
+const configuration = {
   plugins: ["@tailwindcss/postcss"],
 };
 
-export default config;
+export default configuration;

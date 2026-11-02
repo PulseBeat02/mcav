@@ -31,7 +31,8 @@ public final class HttpAudioExample {
   private static final int PORT = 3000;
 
   private HttpAudioExample() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   static void main(final String[] args) {
@@ -47,7 +48,7 @@ public final class HttpAudioExample {
     final HttpResult http = startServer(path);
     final VideoPlayerMultiplexer player = play(http, path);
     final String url = http.getFullUrl();
-    System.out.println("Listen at %s".formatted(url));
+    System.out.println("Open %s to listen.".formatted(url));
 
     final Thread shutdownHook = new Thread(() -> release(player, http, api));
     final Runtime runtime = Runtime.getRuntime();
