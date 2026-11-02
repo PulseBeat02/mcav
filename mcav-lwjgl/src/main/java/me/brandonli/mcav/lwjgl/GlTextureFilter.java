@@ -206,7 +206,7 @@ public class GlTextureFilter implements FunctionalVideoFilter {
    */
   @Override
   public boolean applyFilter(final ImageBuffer samples, final OriginalVideoMetadata metadata) {
-    Preconditions.checkNotNull(samples, "Frame must not be null!");
+    Preconditions.checkNotNull(samples, "Samples must not be null!");
     Preconditions.checkNotNull(metadata, "Metadata must not be null!");
 
     final int width = samples.getWidth();
