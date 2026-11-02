@@ -20,6 +20,7 @@ package me.brandonli.mcav.plugin.command.interaction;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.timeout;
@@ -245,6 +246,18 @@ final class VncCommandTest {
     verify(this.desktop, timeout(RELEASE_MILLISECONDS)).release();
     assertNull(this.command.player);
     this.assertReceived(Message.VNC_RELEASE.build());
+  }
+
+  @Test
+  void shouldReleaseTheDesktopWhenCallbackAttachmentFails() {
+    final IllegalStateException failure = new IllegalStateException("callback attach!");
+    Mockito.doThrow(failure).when(this.callback).attach(any(VideoPipelineStep.class));
+    final IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> this.create(RESOLUTION, DESKTOP_ADDRESS));
+    assertSame(failure, thrown);
+
+    verify(this.callback).detach();
+    verify(this.desktop, timeout(RELEASE_MILLISECONDS)).release();
+    assertNull(this.command.player);
   }
 
   @Test

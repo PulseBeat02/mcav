@@ -234,6 +234,7 @@ final class BrowserCommandTest {
     assertSame(output, filter);
 
     this.command.releaseBrowser(this.sender);
+    verify(audio).detach();
     verify(this.provider).releaseAudioFilter(this.browser);
   }
 
