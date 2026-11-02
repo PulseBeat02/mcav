@@ -52,7 +52,8 @@ final class PackLayoutFuzzTest {
 
     final Optional<PackLayout> layout = PackLayout.parse(packConstants);
     final boolean valid = this.isValid(streams, slots, firstSlots);
-    assertEquals(valid, layout.isPresent());
+    final boolean layoutFound = layout.isPresent();
+    assertEquals(valid, layoutFound);
 
     layout.ifPresent(parsed -> this.assertLayout(parsed, streams, slots));
   }

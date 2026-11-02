@@ -57,7 +57,8 @@ final class ShaderFrameTest {
     frame.posed(PAGE_TEXTURE, 7, 8, 9);
     frame.posed("never extracted", 7, 8, 9);
     final List<StripAnchor> anchors = frame.getAnchors();
-    assertEquals(List.of(StripAnchor.from(ANCHOR, 1, 2, 3)), anchors);
+    final List<StripAnchor> expectedAnchors = List.of(StripAnchor.from(ANCHOR, 1, 2, 3));
+    assertEquals(expectedAnchors, anchors);
   }
 
   @Test
@@ -81,7 +82,8 @@ final class ShaderFrameTest {
     frame.extracted("other", PICTURE);
     frame.posed("other", 1, 2, 3);
     final List<StripAnchor> anchors = frame.getAnchors();
-    assertTrue(anchors.isEmpty());
+    final boolean anchorsEmpty = anchors.isEmpty();
+    assertTrue(anchorsEmpty);
   }
 
   @Test
@@ -100,13 +102,15 @@ final class ShaderFrameTest {
     final boolean emptyNextFrame = frame.isEmpty();
     final List<byte[]> nextPages = frame.getPages();
     final float[] nextProjection = frame.getProjection();
+    final boolean nextPagesEmpty = nextPages.isEmpty();
     assertTrue(emptyNextFrame);
-    assertTrue(nextPages.isEmpty());
+    assertTrue(nextPagesEmpty);
     assertNull(nextProjection);
     frame.posed(ANCHOR_TEXTURE, 4, 5, 6);
     final List<StripAnchor> anchors = frame.getAnchors();
     final StripAnchor anchor = anchors.get(0);
     final float[] corner = { anchor.getCornerX(), anchor.getCornerY(), anchor.getCornerZ() };
-    assertArrayEquals(new float[] { 4, 5, 6 }, corner);
+    final float[] expectedCorner = { 4, 5, 6 };
+    assertArrayEquals(expectedCorner, corner);
   }
 }

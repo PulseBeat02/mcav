@@ -78,8 +78,9 @@ final class Mcv2ReporterTest {
     this.tickAfter(Mcv2Reporter.STEADY_NANOSECONDS);
     final int sentCount = this.channel.sent.size();
     final byte[] first = this.channel.sent.getFirst();
+    final byte[] expectedFirst = SHADERS_OFF.toBytes();
     assertEquals(1, sentCount, "the server is told once, past the wrap of the clock too");
-    assertArrayEquals(SHADERS_OFF.toBytes(), first);
+    assertArrayEquals(expectedFirst, first);
   }
 
   @Test
@@ -101,8 +102,9 @@ final class Mcv2ReporterTest {
     this.tickAfter(1);
     final int sentAfterASecond = this.channel.sent.size();
     final byte[] last = this.channel.sent.getLast();
+    final byte[] expectedLast = SHADERS_ON.toBytes();
     assertEquals(2, sentAfterASecond);
-    assertArrayEquals(SHADERS_ON.toBytes(), last);
+    assertArrayEquals(expectedLast, last);
   }
 
   @Test
@@ -116,8 +118,9 @@ final class Mcv2ReporterTest {
     this.tickAfter(Mcv2Reporter.STEADY_NANOSECONDS);
     final int sentOnceItHeld = this.channel.sent.size();
     final byte[] last = this.channel.sent.getLast();
+    final byte[] expectedLast = SHADERS_OFF.toBytes();
     assertEquals(2, sentOnceItHeld);
-    assertArrayEquals(SHADERS_OFF.toBytes(), last);
+    assertArrayEquals(expectedLast, last);
   }
 
   private static final class RecordingChannel implements ReportChannel {

@@ -52,7 +52,8 @@ final class GameMatricesTest {
     stack.translate(1F, 2F, 3F);
     stack.scale(2F, 4F, 8F);
     final float[] pose = matrices.readPose(stack.last());
-    assertArrayEquals(new float[] { 2, 0, 0, 0, 0, 4, 0, 0, 0, 0, 8, 0, 1, 2, 3, 1 }, pose);
+    final float[] expected = { 2, 0, 0, 0, 0, 4, 0, 0, 0, 0, 8, 0, 1, 2, 3, 1 };
+    assertArrayEquals(expected, pose);
   }
 
   @Test
@@ -66,7 +67,8 @@ final class GameMatricesTest {
     final Object translation = PoseStack.Pose.class.getMethod(POSE_METHOD).invoke(stack.last());
     CameraRenderState.class.getField(VIEW_ROTATION_FIELD).set(camera, translation);
     final float[] translatedRotation = matrices.readViewRotation(camera);
-    assertArrayEquals(new float[] { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 5, 6, 7, 1 }, translatedRotation);
+    final float[] expectedTranslatedRotation = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 5, 6, 7, 1 };
+    assertArrayEquals(expectedTranslatedRotation, translatedRotation);
   }
 
   @Test
@@ -91,11 +93,16 @@ final class GameMatricesTest {
     );
     final Optional<GameMatrices> foreignRotationField = GameMatrices.find(PoseStack.Pose.class, POSE_METHOD, Members.class, MATRIX_FIELD);
     final Optional<GameMatrices> gameMatrices = GameMatrices.find();
-    assertTrue(unknownPoseMethod.isEmpty());
-    assertTrue(unknownRotationField.isEmpty());
-    assertTrue(foreignPoseMethod.isEmpty());
-    assertTrue(foreignRotationField.isEmpty());
-    assertTrue(gameMatrices.isPresent());
+    final boolean unknownPoseMethodMissing = unknownPoseMethod.isEmpty();
+    final boolean unknownRotationFieldMissing = unknownRotationField.isEmpty();
+    final boolean foreignPoseMethodMissing = foreignPoseMethod.isEmpty();
+    final boolean foreignRotationFieldMissing = foreignRotationField.isEmpty();
+    final boolean gameMatricesFound = gameMatrices.isPresent();
+    assertTrue(unknownPoseMethodMissing);
+    assertTrue(unknownRotationFieldMissing);
+    assertTrue(foreignPoseMethodMissing);
+    assertTrue(foreignRotationFieldMissing);
+    assertTrue(gameMatricesFound);
   }
 
   @Test
@@ -133,7 +140,8 @@ final class GameMatricesTest {
     assertInstanceOf(IOException.class, tooLong);
     assertInstanceOf(IOException.class, negativeLength);
     final float[] floats = GameMatrices.readFloats(new Floats(16));
-    assertArrayEquals(new float[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 }, floats);
+    final float[] expected = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
+    assertArrayEquals(expected, floats);
   }
 
   // writes the floats 0, 1, 2 and on, as many as asked, or fails for a negative count

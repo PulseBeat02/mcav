@@ -48,7 +48,8 @@ final class StripAnchorTest {
     final int stream = (21 << 6) | 42;
     final byte[] colors = MapFixtures.colors(MapFixtures.anchorSymbols(5, 6, 7, 8, 2, stream));
     final StripAnchor anchor = StripAnchor.from(colors, 1.5F, -2F, 3.25F);
-    assertEquals(StripAnchor.of(5, 6, 7, 8, 2, stream, 1.5F, -2F, 3.25F), anchor);
+    final StripAnchor expected = StripAnchor.of(5, 6, 7, 8, 2, stream, 1.5F, -2F, 3.25F);
+    assertEquals(expected, anchor);
   }
 
   @Test

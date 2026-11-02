@@ -142,7 +142,8 @@ final class MinecraftStripOutputTest {
     final byte lastByteOfTheFirstRow = written.get(WIDTH * TransportStrip.CHANNELS - 1);
     final byte firstByteOfTheSecondRow = written.get(WIDTH * TransportStrip.CHANNELS);
     final byte lastByte = written.get(ROWS * WIDTH * TransportStrip.CHANNELS - 1);
-    assertEquals(ROWS * WIDTH * TransportStrip.CHANNELS, remaining);
+    final int expectedRemaining = ROWS * WIDTH * TransportStrip.CHANNELS;
+    assertEquals(expectedRemaining, remaining);
     assertEquals(3, firstByte);
     assertEquals(3, lastByteOfTheFirstRow);
     assertEquals(2, firstByteOfTheSecondRow);
@@ -159,7 +160,8 @@ final class MinecraftStripOutputTest {
     final ArgumentCaptor<ByteBuffer> zeros = ArgumentCaptor.forClass(ByteBuffer.class);
     verify(this.commands).writeToTexture(any(GpuTexture.class), zeros.capture(), eq(0), eq(0), eq(0), eq(0), eq(WIDTH), eq(HEIGHT));
     final int zerosRemaining = zeros.getValue().remaining();
-    assertEquals(WIDTH * HEIGHT * TransportStrip.CHANNELS, zerosRemaining);
+    final int expectedZerosRemaining = WIDTH * HEIGHT * TransportStrip.CHANNELS;
+    assertEquals(expectedZerosRemaining, zerosRemaining);
     for (int at = 0; at < zeros.getValue().limit(); at++) {
       final byte zero = zeros.getValue().get(at);
       assertEquals(0, zero);
@@ -252,7 +254,8 @@ final class MinecraftStripOutputTest {
       eq(ROWS)
     );
     final ByteBuffer reusedPixels = pixels.getAllValues().get(1);
-    assertSame(pixels.getAllValues().get(0), reusedPixels);
+    final ByteBuffer expectedReusedPixels = pixels.getAllValues().get(0);
+    assertSame(expectedReusedPixels, reusedPixels);
   }
 
   private Void addCountedPass(final InvocationOnMock invocation, final AtomicInteger passes) {
@@ -276,7 +279,8 @@ final class MinecraftStripOutputTest {
     verify(this.commands).writeToTexture(same(this.mainColor), pixels.capture(), eq(0), eq(0), eq(0), eq(470), eq(WIDTH), eq(10));
     final int tallRemaining = pixels.getValue().remaining();
     final byte flippedFirstByte = pixels.getValue().get(9 * WIDTH * TransportStrip.CHANNELS);
-    assertEquals(10 * WIDTH * TransportStrip.CHANNELS, tallRemaining);
+    final int expectedTallRemaining = 10 * WIDTH * TransportStrip.CHANNELS;
+    assertEquals(expectedTallRemaining, tallRemaining);
     assertEquals(9, flippedFirstByte);
     output.decode(this.strip(WIDTH), ROWS, this.allocator);
     verify(this.commands, times(2)).writeToTexture(
@@ -290,7 +294,8 @@ final class MinecraftStripOutputTest {
       eq(ROWS)
     );
     final int shortRemaining = pixels.getValue().remaining();
-    assertEquals(ROWS * WIDTH * TransportStrip.CHANNELS, shortRemaining);
+    final int expectedShortRemaining = ROWS * WIDTH * TransportStrip.CHANNELS;
+    assertEquals(expectedShortRemaining, shortRemaining);
   }
 
   @Test

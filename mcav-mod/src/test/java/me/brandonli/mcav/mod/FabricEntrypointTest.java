@@ -68,7 +68,8 @@ final class FabricEntrypointTest {
       final ArgumentCaptor<Mcv2Payload> sent = ArgumentCaptor.forClass(Mcv2Payload.class);
       networking.verify(() -> ClientPlayNetworking.send(sent.capture()));
       final byte[] report = sent.getValue().getReport();
-      assertArrayEquals(new byte[] { 1, 0, 0, 0 }, report, "no Iris, no shader pack");
+      final byte[] expected = { 1, 0, 0, 0 };
+      assertArrayEquals(expected, report, "no Iris, no shader pack");
 
       joins.invoker().onPlayReady(null, null, null);
       ticks.invoker().onEndTick(null);
@@ -99,7 +100,8 @@ final class FabricEntrypointTest {
       final ArgumentCaptor<Mcv2Payload> sent = ArgumentCaptor.forClass(Mcv2Payload.class);
       networking.verify(() -> ClientPlayNetworking.send(sent.capture()));
       final byte[] report = sent.getValue().getReport();
-      assertArrayEquals(new byte[] { 1, 1, 0, 0 }, report, "Iris, no shader pack");
+      final byte[] expected = { 1, 1, 0, 0 };
+      assertArrayEquals(expected, report, "Iris, no shader pack");
     }
   }
 
@@ -119,7 +121,8 @@ final class FabricEntrypointTest {
       verify(loader).getModContainer("iris");
     }
     final Optional<String> irisVersion = FabricEntrypoint.findIrisVersion(loader);
-    assertEquals(Optional.of(IRIS_VERSION), irisVersion);
+    final Optional<String> expectedIrisVersion = Optional.of(IRIS_VERSION);
+    assertEquals(expectedIrisVersion, irisVersion);
     when(loader.getModContainer(IrisShaders.MOD_ID)).thenReturn(Optional.empty());
     final Optional<String> missingVersion = FabricEntrypoint.findIrisVersion(loader);
     assertEquals(Optional.empty(), missingVersion);

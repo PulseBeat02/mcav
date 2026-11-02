@@ -133,10 +133,12 @@ final class PackLayoutTest {
       valid.replace("int MCV2_SCREEN_FIRST_SLOTS", "int MCV2_SCREEN_FIRST")
     )) {
       final Optional<PackLayout> layout = PackLayout.parse(packConstants);
-      assertTrue(layout.isEmpty(), packConstants);
+      final boolean layoutMissing = layout.isEmpty();
+      assertTrue(layoutMissing, packConstants);
     }
     final Optional<PackLayout> validLayout = PackLayout.parse(valid);
-    assertTrue(validLayout.isPresent());
+    final boolean validLayoutFound = validLayout.isPresent();
+    assertTrue(validLayoutFound);
   }
 
   @Test

@@ -137,7 +137,8 @@ final class ShaderDecoderTest {
     final StripAnchor anchor = StripAnchor.from(ANCHOR, CORNER_X, CORNER_Y, MAP_DEPTH + CORNER_Z);
     final byte[] written = strip.getValue();
     final boolean decodesUnderShaders = decoder.decodesUnderShaders();
-    assertArrayEquals(TransportStrip.build(LAYOUT, WIDTH, List.of(PAGE), List.of(anchor), IDENTITY, PROJECTION), written);
+    final byte[] expected = TransportStrip.build(LAYOUT, WIDTH, List.of(PAGE), List.of(anchor), IDENTITY, PROJECTION);
+    assertArrayEquals(expected, written);
     assertTrue(decodesUnderShaders);
   }
 
@@ -161,7 +162,8 @@ final class ShaderDecoderTest {
     verify(this.output).decode(strip.capture(), eq(ROWS), same(this.allocator));
     final StripAnchor anchor = StripAnchor.from(ANCHOR, CORNER_X, CORNER_Y, MAP_DEPTH + CORNER_Z);
     final byte[] written = strip.getValue();
-    assertArrayEquals(TransportStrip.build(LAYOUT, WIDTH, List.of(PAGE), List.of(anchor), IDENTITY, PROJECTION), written);
+    final byte[] expected = TransportStrip.build(LAYOUT, WIDTH, List.of(PAGE), List.of(anchor), IDENTITY, PROJECTION);
+    assertArrayEquals(expected, written);
     final ShaderDecoder unmarked = this.decoder(TESTED_IRIS, WIDTH, HEIGHT);
     unmarked.extracted(PAGE_TEXTURE, PAGE);
     unmarked.extracted(ANCHOR_TEXTURE, ANCHOR);
@@ -193,7 +195,8 @@ final class ShaderDecoderTest {
     verify(this.output).decode(strip.capture(), eq(ROWS), same(this.allocator));
     final StripAnchor anchor = StripAnchor.from(ANCHOR, CORNER_X, CORNER_Y, MAP_DEPTH + CORNER_Z);
     final byte[] written = strip.getValue();
-    assertArrayEquals(TransportStrip.build(LAYOUT, WIDTH, List.of(PAGE), List.of(anchor), IDENTITY, PROJECTION), written);
+    final byte[] expected = TransportStrip.build(LAYOUT, WIDTH, List.of(PAGE), List.of(anchor), IDENTITY, PROJECTION);
+    assertArrayEquals(expected, written);
   }
 
   @Test
@@ -299,7 +302,8 @@ final class ShaderDecoderTest {
     final ShaderDecoder decoder = this.decoder(TESTED_IRIS, WIDTH, HEIGHT);
     ShaderDecoder.install(decoder);
     final Optional<ShaderDecoder> current = ShaderDecoder.findCurrent();
-    assertEquals(Optional.of(decoder), current);
+    final Optional<ShaderDecoder> expectedCurrent = Optional.of(decoder);
+    assertEquals(expectedCurrent, current);
     ShaderDecoder.uninstall();
     final Optional<ShaderDecoder> currentAfterUninstalling = ShaderDecoder.findCurrent();
     assertEquals(Optional.empty(), currentAfterUninstalling);

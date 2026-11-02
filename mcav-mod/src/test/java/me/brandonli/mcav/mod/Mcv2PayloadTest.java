@@ -59,7 +59,8 @@ final class Mcv2PayloadTest {
     report[1] = 1;
     payload.getReport()[2] = 1;
     final byte[] kept = payload.getReport();
-    assertArrayEquals(new byte[] { 1, 0, 0, 0 }, kept);
+    final byte[] expected = { 1, 0, 0, 0 };
+    assertArrayEquals(expected, kept);
   }
 
   @Test

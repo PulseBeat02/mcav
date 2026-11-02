@@ -215,12 +215,15 @@ final class Mcv2ShadersTest {
       assertEquals(Optional.empty(), missingLayout);
       when(resources.getResource(Mcv2Shaders.LAYOUT)).thenReturn(Optional.of(layout));
       final Optional<String> loadedLayout = Mcv2Shaders.readLayout();
-      assertEquals(Optional.of("const int MCV2_SCREENS = 1;"), loadedLayout);
+      final Optional<String> expectedLoadedLayout = Optional.of("const int MCV2_SCREENS = 1;");
+      assertEquals(expectedLoadedLayout, loadedLayout);
     }
     final Identifier layoutLocation = Mcv2Shaders.LAYOUT;
     final Identifier outlineChainLocation = Mcv2Shaders.OUTLINE_CHAIN;
-    assertEquals(Identifier.fromNamespaceAndPath("mcav", LAYOUT_PATH), layoutLocation);
-    assertEquals(Identifier.withDefaultNamespace("entity_outline"), outlineChainLocation);
+    final Identifier expectedLayoutLocation = Identifier.fromNamespaceAndPath("mcav", LAYOUT_PATH);
+    final Identifier expectedOutlineChainLocation = Identifier.withDefaultNamespace("entity_outline");
+    assertEquals(expectedLayoutLocation, layoutLocation);
+    assertEquals(expectedOutlineChainLocation, outlineChainLocation);
   }
 
   @Test

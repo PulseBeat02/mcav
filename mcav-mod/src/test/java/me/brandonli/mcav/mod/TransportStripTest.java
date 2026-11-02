@@ -129,9 +129,12 @@ final class TransportStripTest {
     final int red = strip[40] & BYTE_MASK;
     final int green = strip[41] & BYTE_MASK;
     final int blue = strip[42] & BYTE_MASK;
-    assertEquals(word & BYTE_MASK, red);
-    assertEquals((word >> SECOND_BYTE_SHIFT) & BYTE_MASK, green);
-    assertEquals(word >> THIRD_BYTE_SHIFT, blue);
+    final int expectedRed = word & BYTE_MASK;
+    final int expectedGreen = (word >> SECOND_BYTE_SHIFT) & BYTE_MASK;
+    final int expectedBlue = word >> THIRD_BYTE_SHIFT;
+    assertEquals(expectedRed, red);
+    assertEquals(expectedGreen, green);
+    assertEquals(expectedBlue, blue);
     final byte[] bits = MapFixtures.colors(new int[] { 63, 63 });
     bits[0] = 3;
     final int firstTwelveBits = TransportStrip.readBits(bits, 0, 12);
@@ -177,15 +180,18 @@ final class TransportStripTest {
     final float[] floats = this.descriptor(strip, DESCRIPTORS + WIDTH);
     final float[] corner = Arrays.copyOf(floats, AXES);
     final byte[] firstScreenRow = Arrays.copyOfRange(strip, DESCRIPTORS * CHANNELS, (DESCRIPTORS + WIDTH) * CHANNELS);
-    assertArrayEquals(new float[] { 1, 2, 3 }, corner);
-    assertArrayEquals(new byte[WIDTH * CHANNELS], firstScreenRow, "screen 0 has none");
+    final float[] expectedCorner = { 1, 2, 3 };
+    final byte[] expectedFirstScreenRow = new byte[WIDTH * CHANNELS];
+    assertArrayEquals(expectedCorner, corner);
+    assertArrayEquals(expectedFirstScreenRow, firstScreenRow, "screen 0 has none");
   }
 
   @Test
   void shouldMultiplyAMatrixByAVectorAsItsWeightedColumns() {
     final float[] matrix = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
     final float[] transformed = TransportStrip.transform(matrix, 1, 2, 3, 4);
-    assertArrayEquals(new float[] { 1 + 10 + 27 + 52, 2 + 12 + 30 + 56, 3 + 14 + 33 + 60 }, transformed);
+    final float[] expected = { 1 + 10 + 27 + 52, 2 + 12 + 30 + 56, 3 + 14 + 33 + 60 };
+    assertArrayEquals(expected, transformed);
   }
 
   @Test
@@ -219,8 +225,10 @@ final class TransportStripTest {
     this.assertPixel(strip, DESCRIPTORS + TransportStrip.DESCRIPTOR_PIXELS, 0, 0, 0, 0);
     final byte[] rest = Arrays.copyOfRange(strip, (DESCRIPTORS + WIDTH) * CHANNELS, strip.length);
     final byte[] leadingPixels = Arrays.copyOf(strip, DESCRIPTORS * CHANNELS);
-    assertArrayEquals(new byte[rest.length], rest, "screen 1 has no anchor");
-    assertArrayEquals(new byte[DESCRIPTORS * CHANNELS], leadingPixels, "no page");
+    final byte[] expectedRest = new byte[rest.length];
+    final byte[] expectedLeadingPixels = new byte[DESCRIPTORS * CHANNELS];
+    assertArrayEquals(expectedRest, rest, "screen 1 has no anchor");
+    assertArrayEquals(expectedLeadingPixels, leadingPixels, "no page");
   }
 
   private float[] times(final float[] matrix, final float vectorX, final float vectorY, final float vectorZ, final float vectorW) {
@@ -261,7 +269,8 @@ final class TransportStripTest {
 
   private void assertPixel(final byte[] strip, final int pixel, final int red, final int green, final int blue, final int alpha) {
     final byte[] pixelBytes = Arrays.copyOfRange(strip, pixel * CHANNELS, pixel * CHANNELS + CHANNELS);
-    assertArrayEquals(new byte[] { (byte) red, (byte) green, (byte) blue, (byte) alpha }, pixelBytes);
+    final byte[] expected = { (byte) red, (byte) green, (byte) blue, (byte) alpha };
+    assertArrayEquals(expected, pixelBytes);
   }
 
   private void put(final byte[] strip, final int pixel, final int red, final int green, final int blue) {

@@ -38,9 +38,12 @@ final class Mcv2ReportTest {
     final byte[] withoutIris = Mcv2Report.of(IRIS_MISSING, ShaderPack.NONE, DOES_NOT_DECODE).toBytes();
     final byte[] withShaderPackInUse = Mcv2Report.of(IRIS_INSTALLED, ShaderPack.IN_USE, DOES_NOT_DECODE).toBytes();
     final byte[] decodingUnderAnUnknownPack = Mcv2Report.of(IRIS_INSTALLED, ShaderPack.UNKNOWN, DECODES).toBytes();
-    assertArrayEquals(new byte[] { 1, 0, 0, 0 }, withoutIris);
-    assertArrayEquals(new byte[] { 1, 1, 1, 0 }, withShaderPackInUse);
-    assertArrayEquals(new byte[] { 1, 1, 2, 1 }, decodingUnderAnUnknownPack);
+    final byte[] expectedWithoutIris = { 1, 0, 0, 0 };
+    final byte[] expectedWithShaderPackInUse = { 1, 1, 1, 0 };
+    final byte[] expectedDecodingUnderAnUnknownPack = { 1, 1, 2, 1 };
+    assertArrayEquals(expectedWithoutIris, withoutIris);
+    assertArrayEquals(expectedWithShaderPackInUse, withShaderPackInUse);
+    assertArrayEquals(expectedDecodingUnderAnUnknownPack, decodingUnderAnUnknownPack);
   }
 
   @Test
