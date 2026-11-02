@@ -99,6 +99,7 @@ final class BenchmarkServer implements AutoCloseable {
     server.createContext(EVENTS_PATH, created::openEvents);
     server.setExecutor(executor);
     server.start();
+
     return created;
   }
 

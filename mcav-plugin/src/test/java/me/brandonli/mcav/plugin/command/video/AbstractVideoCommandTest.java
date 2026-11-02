@@ -247,10 +247,12 @@ final class AbstractVideoCommandTest {
     this.assertOutputsAttached();
     final Source source = this.verifyStartedWithOneSource();
     final FileSource fileSource = assertInstanceOf(FileSource.class, source);
+
     final Path played = fileSource.getPath();
     assertEquals(file, played);
     this.assertFilterCreatedForTheResolution();
     this.holograms.verifyNoInteractions();
+
     final Component started = Message.START_VIDEO.build();
     this.assertSenderReceived(started);
     this.assertNotStarting();
@@ -281,6 +283,7 @@ final class AbstractVideoCommandTest {
     final ArgumentCaptor<UrlParseDump> dumps = ArgumentCaptor.forClass(UrlParseDump.class);
     final Object[] viewers = { this.viewer };
     verify(this.provider).constructFilter(eq(audioType), dumps.capture(), aryEq(viewers));
+
     return dumps.getValue();
   }
 
@@ -288,14 +291,17 @@ final class AbstractVideoCommandTest {
     final ArgumentCaptor<Source> sources = ArgumentCaptor.forClass(Source.class);
     verify(this.player).start(sources.capture());
     verify(this.player, never()).start(any(), any());
+
     return sources.getValue();
   }
 
   private void assertOutputsAttached() {
     verify(this.manager).setPlayer(this.player);
     verify(this.videoCallback).attach(this.command.pipeline);
+
     final ArgumentCaptor<AudioPipelineStep> audioSteps = ArgumentCaptor.forClass(AudioPipelineStep.class);
     verify(this.audioCallback).attach(audioSteps.capture());
+
     final AudioPipelineStep audioStep = audioSteps.getValue();
 
     final AudioFilter filter = audioStep.getFilter();
@@ -305,6 +311,7 @@ final class AbstractVideoCommandTest {
     final AudioPipelineStep output = next.orElseThrow();
     final AudioFilter audioFilter = output.getFilter();
     assertSame(AudioFilter.NO_OP, audioFilter);
+
     final Dimension dimension = new Dimension(VIDEO_WIDTH, VIDEO_HEIGHT);
     verify(this.dimensionCallback).attach(dimension);
   }
@@ -315,6 +322,7 @@ final class AbstractVideoCommandTest {
     final int height = resolution.getSecond();
     assertEquals(VIDEO_WIDTH, width);
     assertEquals(VIDEO_HEIGHT, height);
+
     final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.command.providers.getFirst();
     final Object configuration = configurationProvider.buildConfiguration(resolution);
     assertEquals(CONFIGURATION, configuration);
@@ -330,6 +338,7 @@ final class AbstractVideoCommandTest {
     this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, mrl, "");
 
     final UrlParseDump dump = this.verifyPlayedWithDump(AudioArgument.NONE);
+
     final InOrder order = inOrder(this.hologram, this.manager);
     order.verify(this.manager).setHologram(this.hologram);
     order.verify(this.hologram).spawn(location, dump);
@@ -365,6 +374,7 @@ final class AbstractVideoCommandTest {
 
     final Source source = this.verifyStartedWithOneSource();
     final FfmpegDirectSource input = assertInstanceOf(FfmpegDirectSource.class, source);
+
     final String format = input.getFormat();
     assertEquals("dshow", format);
   }
@@ -407,6 +417,7 @@ final class AbstractVideoCommandTest {
 
     final ArgumentCaptor<VideoPipelineStep> steps = ArgumentCaptor.forClass(VideoPipelineStep.class);
     verify(this.videoCallback).attach(steps.capture());
+
     final VideoPipelineStep first = steps.getValue();
 
     final VideoFilter filter = first.getFilter();
@@ -474,6 +485,7 @@ final class AbstractVideoCommandTest {
 
     final Source source = this.verifyStartedWithOneSource();
     final DeviceSource device = assertInstanceOf(DeviceSource.class, source);
+
     final int deviceId = device.getDeviceId();
     assertEquals(2, deviceId);
     this.videoPlayers.verify(VideoPlayer::device);
@@ -507,6 +519,7 @@ final class AbstractVideoCommandTest {
 
     final Source source = this.verifyStartedWithOneSource();
     final UriSource uri = assertInstanceOf(UriSource.class, source);
+
     final URI played = uri.getUri();
     final URI expected = URI.create("https://example.com/videos/clip.webm");
     assertEquals(expected, played);
@@ -534,6 +547,7 @@ final class AbstractVideoCommandTest {
     final UrlParseDump dump = this.verifyPlayedWithDump(AudioArgument.NONE);
     assertSame(resolved, dump);
     this.assertStartedWithStreams(videoStreamSource, audioStreamSource);
+
     final Component started = Message.START_VIDEO.build();
     this.assertSenderReceived(started);
   }
@@ -546,12 +560,14 @@ final class AbstractVideoCommandTest {
     final StrategySelector strategies = mock(StrategySelector.class);
     when(strategies.getVideoSource(resolved)).thenReturn(video);
     when(strategies.getAudioSource(resolved)).thenReturn(audio);
+
     return strategies;
   }
 
   private void assertResolvedTheWebPage() throws IOException {
     final ArgumentCaptor<UriSource> pages = ArgumentCaptor.forClass(UriSource.class);
     verify(this.parser).parse(pages.capture(), eq(FORMAT_OPTION), eq(BEST_FORMAT));
+
     final UriSource page = pages.getValue();
     final URI pageUri = page.getUri();
     final URI expected = URI.create(WEB_PAGE);
@@ -562,6 +578,7 @@ final class AbstractVideoCommandTest {
     final ArgumentCaptor<Source> videoSources = ArgumentCaptor.forClass(Source.class);
     final ArgumentCaptor<Source> audioSources = ArgumentCaptor.forClass(Source.class);
     verify(this.player).start(videoSources.capture(), audioSources.capture());
+
     final Source videoSource = videoSources.getValue();
     final Source audioSource = audioSources.getValue();
     assertSame(expectedVideo, videoSource);
@@ -616,6 +633,7 @@ final class AbstractVideoCommandTest {
     final Component error = Message.UNSUPPORTED_MRL.build();
     this.assertSenderReceived(error);
     verify(this.manager, never()).clearCurrentVideo();
+
     final boolean created = this.command.resolutions.isEmpty();
     assertTrue(created);
     this.assertNotStarting();
@@ -634,6 +652,7 @@ final class AbstractVideoCommandTest {
     this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, mrl, "");
     verify(this.manager, never()).clearCurrentVideo();
     verify(this.manager, never()).setPlayer(any());
+
     final boolean noDisplay = this.command.resolutions.isEmpty();
     assertTrue(noDisplay);
     verify(this.sender, never()).sendMessage(any(Component.class));
@@ -645,6 +664,7 @@ final class AbstractVideoCommandTest {
       cancelled.set(true);
       throw new CancellationException("released during resolution!");
     }
+
     return null;
   }
 
@@ -656,6 +676,7 @@ final class AbstractVideoCommandTest {
     this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, mrl, "");
     verify(this.manager, times(2)).clearCurrentVideo();
     verify(this.manager, never()).setPlayer(any());
+
     final Component failed = Message.VIDEO_START_ERROR.build();
     this.assertSenderReceived(failed);
     this.assertNotStarting();
@@ -683,6 +704,7 @@ final class AbstractVideoCommandTest {
     this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, mrl, "");
 
     verify(this.manager, times(2)).clearCurrentVideo();
+
     final Component error = Message.UNSUPPORTED_MRL.build();
     this.assertSenderReceived(error);
     verify(this.manager, never()).getHologramLocation();
@@ -697,6 +719,7 @@ final class AbstractVideoCommandTest {
     this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, mrl, "");
 
     verify(this.manager, times(2)).clearCurrentVideo();
+
     final Component error = Message.VIDEO_START_ERROR.build();
     this.assertSenderReceived(error);
     this.assertNotStarting();
@@ -798,6 +821,7 @@ final class AbstractVideoCommandTest {
     this.play(PlayerArgument.VLC, AudioArgument.NONE, MRL, "");
 
     this.videoPlayers.verify(VideoPlayer::vlc);
+
     final Component started = Message.START_VIDEO.build();
     this.assertSenderReceived(started);
   }
@@ -811,6 +835,7 @@ final class AbstractVideoCommandTest {
     final Component error = Message.PLAYER_ERROR.build();
     this.assertSenderReceived(error);
     verify(this.manager, never()).getService();
+
     final boolean starting = this.status.get();
     assertTrue(starting);
   }
@@ -827,6 +852,7 @@ final class AbstractVideoCommandTest {
     final Component link = Message.AUDIO_DISCORD.build("https://discord.com/channels/1/2");
     this.assertViewerReceived(loading, link);
     this.verifyPlayedWithDump(AudioArgument.DISCORD_BOT);
+
     final Component started = Message.START_VIDEO.build();
     this.assertSenderReceived(started);
   }
@@ -991,6 +1017,7 @@ final class AbstractVideoCommandTest {
     assertEquals(1, suppressed.length);
     assertSame(cleanup, suppressed[0]);
     verify(this.manager, times(2)).clearCurrentVideo();
+
     final Component error = Message.VIDEO_START_ERROR.build();
     this.assertSenderReceived(error);
     this.assertNotStarting();
@@ -1006,6 +1033,7 @@ final class AbstractVideoCommandTest {
     this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, mrl, "");
     final Throwable[] suppressed = failure.getSuppressed();
     assertEquals(0, suppressed.length);
+
     final Component error = Message.VIDEO_START_ERROR.build();
     this.assertSenderReceived(error);
     this.assertNotStarting();
@@ -1027,9 +1055,11 @@ final class AbstractVideoCommandTest {
     order.verify(this.hologram).start();
     order.verify(this.manager).setHologram(null);
     order.verify(this.hologram).kill();
+
     final Throwable[] suppressed = failure.getSuppressed();
     assertEquals(1, suppressed.length);
     assertSame(cleanup, suppressed[0]);
+
     final Component error = Message.VIDEO_START_ERROR.build();
     this.assertSenderReceived(error);
     this.assertNotStarting();
@@ -1044,6 +1074,7 @@ final class AbstractVideoCommandTest {
       this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, MRL, "")
     );
     assertSame(fatal, thrown);
+
     final boolean starting = this.status.get();
     assertTrue(starting, "status should not be reset to false on fatal error");
   }
@@ -1092,6 +1123,7 @@ final class AbstractVideoCommandTest {
     }
     final boolean reported = output.contains("java.lang.OutOfMemoryError: fatal sentinel");
     assertTrue(reported, output);
+
     final Component error = Message.VIDEO_START_ERROR.build();
     this.assertSenderReceived(error);
   }
@@ -1123,6 +1155,7 @@ final class AbstractVideoCommandTest {
 
   private @Nullable Object cancel(final AtomicBoolean cancelled) {
     cancelled.set(true);
+
     return null;
   }
 
@@ -1130,6 +1163,7 @@ final class AbstractVideoCommandTest {
     if (cancelled.get()) {
       throw new CancellationException(message);
     }
+
     return null;
   }
 
@@ -1169,6 +1203,7 @@ final class AbstractVideoCommandTest {
 
   private Object cancelAndConfigure(final AtomicBoolean cancelled) {
     cancelled.set(true);
+
     return CONFIGURATION;
   }
 
@@ -1194,6 +1229,7 @@ final class AbstractVideoCommandTest {
 
   private AudioFilter cancelAndPassNoAudio(final AtomicBoolean cancelled) {
     cancelled.set(true);
+
     return AudioFilter.NO_OP;
   }
 
@@ -1222,6 +1258,7 @@ final class AbstractVideoCommandTest {
       this.resolutions.add(resolution);
       this.providers.add(configurationProvider);
       configurationProvider.buildConfiguration(resolution);
+
       return this.pipeline;
     }
   }

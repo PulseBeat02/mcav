@@ -81,9 +81,11 @@ final class Mcv2ImageTest {
     final OriginalVideoMetadata metadata = invocation.getArgument(1);
     assertEquals(IMAGE_WIDTH, metadata.getVideoWidth());
     assertEquals(IMAGE_HEIGHT, metadata.getVideoHeight());
+
     this.given.add(frame.getPixels().clone());
     // the screen may resize the frame in place: it is the screen's own copy
     frame.getPixels()[0] = 0;
+
     return true;
   }
 
@@ -97,8 +99,10 @@ final class Mcv2ImageTest {
     picture.getPixels()[1] = 0;
 
     verify(this.output).start();
+
     final ArgumentCaptor<Runnable> feeds = ArgumentCaptor.forClass(Runnable.class);
     verify(TestServer.scheduler()).runTaskTimerAsynchronously(eq(this.plugin), feeds.capture(), eq(0L), eq(Mcv2Image.PERIOD_TICKS));
+
     feeds.getValue().run();
     feeds.getValue().run();
 
@@ -114,6 +118,7 @@ final class Mcv2ImageTest {
     image.release();
     verify(this.task).cancel();
     verify(this.output).release();
+
     image.release();
     verify(this.task, times(1)).cancel();
   }
@@ -130,6 +135,7 @@ final class Mcv2ImageTest {
 
     final ArgumentCaptor<Runnable> feeds = ArgumentCaptor.forClass(Runnable.class);
     verify(TestServer.scheduler()).runTaskTimerAsynchronously(eq(this.plugin), feeds.capture(), eq(0L), eq(Mcv2Image.PERIOD_TICKS));
+
     // a client that missed the keyframe its viewer started with shows nothing until the next, which a video of 30
     // frames a second has four seconds later, and the encoder's own every 120 frames, a minute at two a second
     final int fourSeconds = (int) ((4 * 20) / Mcv2Image.PERIOD_TICKS);
@@ -137,8 +143,10 @@ final class Mcv2ImageTest {
       feeds.getValue().run();
     }
     verify(channel, never()).requestKeyframe();
+
     feeds.getValue().run();
     verify(channel).requestKeyframe();
+
     for (int feed = 0; feed < fourSeconds; feed++) {
       feeds.getValue().run();
     }

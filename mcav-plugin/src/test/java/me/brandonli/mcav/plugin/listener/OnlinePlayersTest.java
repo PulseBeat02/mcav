@@ -59,14 +59,18 @@ final class OnlinePlayersTest {
     online.start(plugin);
 
     verify(TestServer.pluginManager()).registerEvents(online, plugin);
+
     final Set<UUID> players = online.getPlayers();
     assertEquals(Set.of(alice), players);
+
     final Player joining = this.player(bob);
     online.onPlayerJoin(new PlayerJoinEvent(joining, (Component) null));
     assertEquals(Set.of(alice, bob), players, "a view that follows the joins");
+
     online.onPlayerQuit(new PlayerQuitEvent(this.player(alice), (Component) null, PlayerQuitEvent.QuitReason.DISCONNECTED));
     assertEquals(Set.of(bob), players);
     assertThrows(UnsupportedOperationException.class, () -> players.add(alice));
+
     try (final MockedStatic<HandlerList> lists = Mockito.mockStatic(HandlerList.class)) {
       online.stop();
       lists.verify(() -> HandlerList.unregisterAll(online));
@@ -79,6 +83,7 @@ final class OnlinePlayersTest {
   private Player player(final UUID uuid) {
     final Player player = mock(Player.class);
     when(player.getUniqueId()).thenReturn(uuid);
+
     return player;
   }
 }

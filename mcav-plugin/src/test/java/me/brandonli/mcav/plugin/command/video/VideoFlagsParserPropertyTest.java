@@ -181,6 +181,7 @@ final class VideoFlagsParserPropertyTest {
     for (final String[] option : options) {
       final String name = option[0];
       expected.add("--" + name);
+
       if (option.length == 1) {
         typedOptions.add(name);
         continue;

@@ -54,6 +54,7 @@ final class DumpCommandTest {
     final Component loading = Message.CREATE_DUMP.build();
     final Component link = Message.SEND_DUMP.build("https://paste.helpch.at/abc");
     verify(sender, timeout(TIMEOUT_MILLISECONDS)).sendMessage(link);
+
     final InOrder order = Mockito.inOrder(sender);
     order.verify(sender).sendMessage(loading);
     order.verify(sender).sendMessage(link);
@@ -67,9 +68,11 @@ final class DumpCommandTest {
     command.createDump(sender);
     final boolean ran = attempted.await(10, TimeUnit.SECONDS);
     assertTrue(ran);
+
     final Component loading = Message.CREATE_DUMP.build();
     final Component failure = Message.DUMP_FAILED.build();
     verify(sender, timeout(TIMEOUT_MILLISECONDS)).sendMessage(failure);
+
     final InOrder order = Mockito.inOrder(sender);
     order.verify(sender).sendMessage(loading);
     order.verify(sender).sendMessage(failure);

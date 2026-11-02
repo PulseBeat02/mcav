@@ -118,6 +118,7 @@ final class ImageMapCommandTest {
     final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
     final Object built = provider.buildConfiguration(resolution);
     final MapDisplaySettings settings = assertInstanceOf(MapDisplaySettings.class, built);
+
     final MapConfiguration configuration = settings.getConfiguration();
 
     final Collection<UUID> viewers = configuration.getViewers();
@@ -142,6 +143,7 @@ final class ImageMapCommandTest {
       AbstractImageCommand.ImageConfigurationProvider.class
     );
     verify(this.command).displayImage(providers.capture(), eq(this.sender), eq(RESOLUTION), eq(MRL), isNull());
+
     return providers.getValue();
   }
 
@@ -168,6 +170,7 @@ final class ImageMapCommandTest {
     final MapConfiguration used = configurations.getValue();
     final int usedMap = used.getMap();
     assertEquals(MAP_ID, usedMap);
+
     return algorithms.getValue();
   }
 
@@ -186,6 +189,7 @@ final class ImageMapCommandTest {
   void shouldRefuseInvalidWallSizes(final String wall) {
     this.command.showMapImage(this.sender, this.selector, RESOLUTION, wall, MAP_ID, DitheringArgument.FILTER_LITE, MRL, null, null);
     verify(this.command, never()).displayImage(any(), any(), any(), any(), isNull());
+
     final List<Component> messages = Components.received(this.sender);
     final Component error = Message.UNSUPPORTED_DIMENSION.build();
     final List<Component> expected = List.of(error);
@@ -248,6 +252,7 @@ final class ImageMapCommandTest {
       AbstractImageCommand.ImageConfigurationProvider.class
     );
     verify(this.command).displayImage(providers.capture(), eq(this.sender), eq(RESOLUTION), eq(MRL), isNull());
+
     return providers.getValue();
   }
 

@@ -168,9 +168,11 @@ final class FakeVncServer implements AutoCloseable {
       in.readFully(new byte[PROTOCOL_VERSION_LENGTH]);
       out.write(new byte[] { 1, VNC_AUTHENTICATION });
       out.flush();
+
       if (in.readUnsignedByte() != VNC_AUTHENTICATION || !this.authenticate(in, out)) {
         return;
       }
+
       in.readUnsignedByte();
       final PixelFormat format = new PixelFormat();
       this.writeServerInit(out);
@@ -198,6 +200,7 @@ final class FakeVncServer implements AutoCloseable {
       this.logins.incrementAndGet();
     }
     out.flush();
+
     return correct;
   }
 

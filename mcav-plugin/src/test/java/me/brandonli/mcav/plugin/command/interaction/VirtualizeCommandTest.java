@@ -233,14 +233,17 @@ final class VirtualizeCommandTest {
     this.create(RESOLUTION, BLOCK_DIMENSIONS, "-cdrom \"alpine linux.iso\" -m 2048M");
 
     this.assertDithersOntoTheScreen();
+
     final ArgumentCaptor<VmConfiguration> configurations = ArgumentCaptor.forClass(VmConfiguration.class);
     final VmSettings settings = VmSettings.of(RESOLUTION_WIDTH, RESOLUTION_HEIGHT, FRAMES_PER_SECOND);
     verify(this.machine).startAsync(eq(settings), eq(VmPlayer.Architecture.X86_64), configurations.capture(), any());
+
     final VmConfiguration configuration = configurations.getValue();
     final List<String> arguments = configuration.getArguments();
     final List<String> expectedArguments = List.of(CDROM_OPTION, image, MEMORY_OPTION, MEMORY_SIZE);
     assertEquals(expectedArguments, arguments);
     assertSame(this.machine, this.command.player);
+
     final Component loading = Message.VM_LOADING.build();
     final Component created = Message.VM_CREATE.build();
     this.assertReceived(loading, created);
@@ -271,6 +274,7 @@ final class VirtualizeCommandTest {
   private void assertDithersOntoTheScreen() {
     final ArgumentCaptor<VideoPipelineStep> pipelines = ArgumentCaptor.forClass(VideoPipelineStep.class);
     verify(this.callback).attach(pipelines.capture());
+
     final VideoPipelineStep pipeline = pipelines.getValue();
     final VideoFilter filter = pipeline.getFilter();
     assertSame(this.ditherFilter, filter);
@@ -286,6 +290,7 @@ final class VirtualizeCommandTest {
 
     final ArgumentCaptor<VmConfiguration> configurations = ArgumentCaptor.forClass(VmConfiguration.class);
     verify(this.machine).startAsync(any(VmSettings.class), eq(VmPlayer.Architecture.X86_64), configurations.capture(), any());
+
     final VmConfiguration machine = configurations.getValue();
     final List<String> arguments = machine.getArguments();
     assertEquals(List.of(CDROM_OPTION, image, "-nic", "user"), arguments);
@@ -308,6 +313,7 @@ final class VirtualizeCommandTest {
       eq(Settings.DEFAULT),
       any()
     );
+
     final ArgumentCaptor<VmConfiguration> configurations = ArgumentCaptor.forClass(VmConfiguration.class);
     verify(this.machine).startAsync(any(VmSettings.class), eq(VmPlayer.Architecture.X86_64), configurations.capture(), any());
 
@@ -363,6 +369,7 @@ final class VirtualizeCommandTest {
 
     verify(this.machine, timeout(RELEASE_MILLISECONDS)).release();
     assertNull(this.command.player);
+
     final Component loading = Message.VM_LOADING.build();
     final Component path = Message.VM_PATH.build();
     this.assertReceived(loading, path);
@@ -492,6 +499,7 @@ final class VirtualizeCommandTest {
     this.command.releaseVm(this.sender);
 
     verify(this.machine, timeout(RELEASE_MILLISECONDS)).release();
+
     final Component released = Message.VM_RELEASE.build();
     this.assertReceived(released, released);
   }
@@ -610,6 +618,7 @@ final class VirtualizeCommandTest {
     );
     for (final String options : refused) {
       final IllegalArgumentException failure = this.assertRefusedOptions(options);
+
       final String message = failure.getMessage();
       final boolean explained = message.contains(" is not supported, use one of ");
       assertTrue(explained, options + " -> " + message);
@@ -632,6 +641,7 @@ final class VirtualizeCommandTest {
   )
   void shouldRefuseDiskImagesOutsideTheImageFolder(final String options) {
     final IllegalArgumentException failure = this.assertRefusedOptions(options);
+
     final String message = failure.getMessage();
     final boolean explained = message.contains("lies outside the iso folder") || message.contains("no disk image");
     assertTrue(explained, message);
@@ -641,6 +651,7 @@ final class VirtualizeCommandTest {
   void shouldRefuseADiskImageThatIsNotThere() throws IOException {
     this.image(PRESENT_FILE_NAME);
     final IllegalArgumentException failure = this.assertRefusedOptions("-cdrom absent.iso");
+
     final String message = failure.getMessage();
     assertEquals("There is no disk image absent.iso in the iso folder of the plugin!", message);
   }
@@ -662,6 +673,7 @@ final class VirtualizeCommandTest {
   void shouldRefuseHardwareOptionsThatNameAFileOrChangeTheSound(final String options) throws IOException {
     this.image(DISK_A_FILE_NAME);
     final IllegalArgumentException failure = this.assertRefusedOptions(options);
+
     final String message = failure.getMessage();
     final boolean explained = message.contains("must not name a file") || message.contains("is not allowed");
     assertTrue(explained, message);
@@ -877,6 +889,7 @@ final class VirtualizeCommandTest {
   void shouldRefuseADrivePropertyOutsideTheList(final String part) throws IOException {
     this.image(DISK_FILE_NAME);
     final IllegalArgumentException failure = this.assertRefusedOptions("-drive file=disk.img," + part);
+
     final String message = failure.getMessage();
     assertEquals("Value file=disk.img," + part + " of the QEMU option -drive contains " + part + ", which is not allowed!", message);
   }
@@ -914,6 +927,7 @@ final class VirtualizeCommandTest {
   @Test
   void shouldRefuseADriveWithoutADiskImage() {
     final IllegalArgumentException failure = this.assertRefusedOptions("-drive if=none,id=empty");
+
     final String message = failure.getMessage();
     assertEquals("Drive if=none,id=empty must name its disk image exactly once, as file=<image>!", message);
   }
@@ -921,6 +935,7 @@ final class VirtualizeCommandTest {
   @Test
   void shouldRefuseASwitchThatIsGivenAValue() {
     final IllegalArgumentException failure = this.assertRefusedOptions("-snapshot yes");
+
     final String message = failure.getMessage();
     assertEquals("QEMU option -snapshot takes no value!", message);
   }
@@ -929,6 +944,7 @@ final class VirtualizeCommandTest {
   @ValueSource(strings = { "-m", "-cdrom", "-drive" })
   void shouldRefuseAnOptionThatMissesItsValue(final String options) {
     final IllegalArgumentException failure = this.assertRefusedOptions(options);
+
     final String message = failure.getMessage();
     final String expected = "QEMU option " + options + " needs a value!";
     assertEquals(expected, message);
@@ -941,6 +957,7 @@ final class VirtualizeCommandTest {
     final List<Component> messages = Components.received(this.sender);
     final boolean toldOnce = messages.size() == 1;
     assertTrue(toldOnce, messages.toString());
+
     final String accepted = String.join(", ", VirtualizeCommand.supportedOptions());
 
     final String text = Components.plain(messages.getFirst());
@@ -987,6 +1004,7 @@ final class VirtualizeCommandTest {
 
     verify(this.machine, timeout(RELEASE_MILLISECONDS)).release();
     assertNull(this.command.player);
+
     final Component loading = Message.VM_LOADING.build();
     final Component failed = Message.VM_ERROR.build();
     this.assertReceived(loading, failed);

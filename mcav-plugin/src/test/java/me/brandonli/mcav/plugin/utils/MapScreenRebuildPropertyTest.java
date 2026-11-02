@@ -158,6 +158,7 @@ final class MapScreenRebuildPropertyTest {
     final int cellCount = rebuild.width * rebuild.height;
     final int frameCount = lastBuild.size();
     assertEquals(cellCount, frameCount, "one frame per block of the wall");
+
     final Set<List<Integer>> occupied = new HashSet<>();
     for (final ItemFrame frame : lastBuild) {
       final List<Integer> block = blockOf(frame);
@@ -275,6 +276,7 @@ final class MapScreenRebuildPropertyTest {
     private Player createPlayer() {
       final Player player = mock(Player.class);
       when(player.getFacing()).thenReturn(this.facing);
+
       return player;
     }
 

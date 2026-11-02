@@ -84,18 +84,23 @@ final class YtdlpArgumentAssertions {
       final String argument = arguments[index];
       final boolean option = argument.startsWith("--");
       assertTrue(option, () -> "'" + argument + "' reaches yt-dlp where an option belongs, from '" + typed + "'");
+
       final String name = argument.substring(2);
       final boolean accepted = SWITCHES.contains(name) || VALUE_OPTIONS.contains(name);
       assertTrue(accepted, () -> "the option " + name + " is not accepted, from '" + typed + "'");
+
       index++;
+
       if (SWITCHES.contains(name)) {
         continue;
       }
       final boolean hasValue = index < arguments.length;
       assertTrue(hasValue, () -> "the option " + name + " lost its value, from '" + typed + "'");
+
       final String value = arguments[index];
       final boolean readAsOption = value.startsWith("-");
       assertFalse(readAsOption, () -> "yt-dlp would read the value '" + value + "' as an option, from '" + typed + "'");
+
       index++;
     }
   }

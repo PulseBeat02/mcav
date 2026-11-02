@@ -41,6 +41,7 @@ final class MessageTest {
     final List<Field> fields = this.messageFields();
     final int fieldCount = fields.size();
     assertEquals(85, fieldCount);
+
     for (final Field field : fields) {
       final String name = field.getName();
       final Object value = field.get(null);
@@ -55,6 +56,7 @@ final class MessageTest {
       final String text = Components.plain(component);
       final boolean blank = text.isBlank();
       assertFalse(blank, name);
+
       final boolean unrendered = text.contains("<") || text.contains("$URL$");
       assertFalse(unrendered, name + " was not rendered: " + text);
     }
@@ -76,9 +78,11 @@ final class MessageTest {
     final Method build = LocaleTools.UniComponent.class.getMethod("build", Object.class);
     final Object built = build.invoke(message, "https://example.com/");
     final Component component = assertInstanceOf(Component.class, built);
+
     final String text = Components.plain(component);
     final boolean containsUrl = text.endsWith("https://example.com/");
     assertTrue(containsUrl, text);
+
     return component;
   }
 

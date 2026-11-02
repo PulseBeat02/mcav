@@ -54,6 +54,7 @@ final class QemuHardwareValuesFuzzTest {
     if (input.length == 0) {
       return;
     }
+
     final String option = OPTIONS.get((input[0] & 0xFF) % OPTIONS.size());
     final String value = new String(input, 1, input.length - 1, StandardCharsets.UTF_8);
     try {

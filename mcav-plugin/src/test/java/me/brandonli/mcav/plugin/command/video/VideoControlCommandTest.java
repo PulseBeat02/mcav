@@ -87,6 +87,7 @@ final class VideoControlCommandTest {
     this.command.resumeVideo(this.sender);
 
     verify(this.player).resume();
+
     final Component resumed = Message.RESUME_PLAYER.build();
     this.assertReceived(resumed);
   }
@@ -105,6 +106,7 @@ final class VideoControlCommandTest {
     this.command.resumeVideo(this.sender);
 
     verify(this.player).resume();
+
     final Component failed = Message.RESUME_PLAYER_FAILED.build();
     this.assertReceived(failed);
   }
@@ -116,6 +118,7 @@ final class VideoControlCommandTest {
     this.command.pauseVideo(this.sender);
 
     verify(this.player).pause();
+
     final Component paused = Message.PAUSE_PLAYER.build();
     this.assertReceived(paused);
   }
@@ -165,6 +168,7 @@ final class VideoControlCommandTest {
       controls.releaseVideo(this.sender);
       final boolean oldCurrent = owner.isCurrent(oldGeneration);
       assertFalse(oldCurrent, "release invalidates the previous request immediately");
+
       final long nextGeneration = owner.beginStart();
       final Runnable cleanup = pending.getFirst();
       cleanup.run();
@@ -179,6 +183,7 @@ final class VideoControlCommandTest {
   private @Nullable Object deferTask(final InvocationOnMock invocation, final List<Runnable> pending) {
     final Runnable task = invocation.getArgument(0);
     pending.add(task);
+
     return null;
   }
 
@@ -195,6 +200,7 @@ final class VideoControlCommandTest {
 
     final Component start = Message.RELEASE_PLAYER_START.build();
     this.assertReceived(start);
+
     final boolean logged = output.contains("Failed to release the video player");
     final boolean withCause = output.contains("the release failed!");
     assertTrue(logged, output);
@@ -208,6 +214,7 @@ final class VideoControlCommandTest {
     this.command.setHologramLocation(this.sender, location);
 
     verify(this.manager).setHologramLocation(location);
+
     final Component set = Message.HOLOGRAM_LOCATION_SET.build();
     this.assertReceived(set);
   }
@@ -217,6 +224,7 @@ final class VideoControlCommandTest {
     this.command.disableHologram(this.sender);
 
     verify(this.manager).setHologramLocation(null);
+
     final Component disabled = Message.HOLOGRAM_DISABLED.build();
     this.assertReceived(disabled);
   }

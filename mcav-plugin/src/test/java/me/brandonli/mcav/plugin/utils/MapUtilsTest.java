@@ -120,8 +120,10 @@ final class MapUtilsTest {
     if (known != null) {
       return known;
     }
+
     final MapView created = mock(MapView.class);
     this.existingMaps.put(id, created);
+
     return created;
   }
 
@@ -131,13 +133,17 @@ final class MapUtilsTest {
     final List<ItemStack> constructed = this.items.constructed();
     final int constructedCount = constructed.size();
     assertEquals(1, constructedCount);
+
     final ItemStack created = constructed.getFirst();
     assertSame(created, item);
+
     final List<?> arguments = this.constructorArguments.getFirst();
     assertEquals(List.of(Material.FILLED_MAP), arguments);
+
     final MapMeta metadata = this.mapMetadata.getFirst();
     final MapView existing = this.existingMap(7);
     verify(metadata).setMapView(existing);
+
     final Component lore = Component.text("Map ID [7]", NamedTextColor.RED);
     verify(metadata).lore(List.of(lore));
     verify(item, times(2)).setItemMeta(metadata);
@@ -158,6 +164,7 @@ final class MapUtilsTest {
     when(this.server.createMap(world)).thenReturn(third, fourth, fifth);
     MapUtils.getMapFromId(MISSING_MAP_ID);
     verify(this.server, times(3)).createMap(world);
+
     final MapMeta metadata = this.mapMetadata.getFirst();
     verify(metadata).setMapView(fifth);
   }
@@ -172,6 +179,7 @@ final class MapUtilsTest {
     when(this.server.createMap(world)).thenReturn(created);
     MapUtils.getMapFromId(8);
     verify(this.server, times(1)).createMap(world);
+
     final MapMeta metadata = this.mapMetadata.getFirst();
     verify(metadata).setMapView(created);
   }
@@ -207,8 +215,10 @@ final class MapUtilsTest {
       final String message = "Map %s was created, far more maps than any wall needs!".formatted(id);
       throw new AssertionError(message);
     }
+
     final MapView created = mock(MapView.class);
     when(created.getId()).thenReturn(id);
+
     return created;
   }
 
@@ -219,6 +229,7 @@ final class MapUtilsTest {
     when(this.server.getMap(wanted)).thenReturn(null);
     this.handOutMapIdsFrom(world, NEXT_MAP_ID);
     final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () -> MapUtils.getMapFromId(wanted));
+
     final String message = failure.getMessage();
     assertEquals("Map id 4107 is more than 4096 ids past 10, the next map id!", message);
     verify(this.server, times(1)).createMap(world);
@@ -251,6 +262,7 @@ final class MapUtilsTest {
   private Player playerFacing(final BlockFace face) {
     final Player player = mock(Player.class);
     when(player.getFacing()).thenReturn(face);
+
     return player;
   }
 
@@ -313,8 +325,10 @@ final class MapUtilsTest {
     final List<ItemFrame> frames = this.fakeWorld.spawnedFrames();
     final String positions = this.describe(frames);
     assertEquals(expectedFrames, positions);
+
     final int changed = this.fakeWorld.changedBlocks();
     assertEquals(4, changed);
+
     final int offsetX = face.getModX();
     final int offsetZ = face.getModZ();
     for (int index = 0; index < frames.size(); index++) {
@@ -325,12 +339,15 @@ final class MapUtilsTest {
       verify(frame).setFacingDirection(expectedFrameFacing);
       verify(frame).setInvulnerable(true);
       verify(frame).setGravity(false);
+
       final List<ItemStack> constructed = this.items.constructed();
       final ItemStack item = constructed.get(index);
       verify(frame).setItem(item);
+
       final MapMeta metadata = this.mapMetadata.get(index);
       final MapView shown = this.existingMap(10 + index);
       verify(metadata).setMapView(shown);
+
       final boolean hasMapTag = FakeWorld.hasTag(frame, Keys.MAP_KEY);
       final boolean first = FakeWorld.hasTag(frame, Keys.FIRST_MAP_KEY);
       final boolean last = FakeWorld.hasTag(frame, Keys.LAST_MAP_KEY);
@@ -385,10 +402,12 @@ final class MapUtilsTest {
     final List<ItemFrame> frames = this.fakeWorld.spawnedFrames();
     final String positions = this.describe(frames);
     assertEquals("0,64,0;1,64,0", positions);
+
     final Material left = this.fakeWorld.material(0, SCREEN_Y, -1);
     final Material right = this.fakeWorld.material(1, SCREEN_Y, -1);
     assertEquals(Material.OBSIDIAN, left);
     assertEquals(Material.OBSIDIAN, right);
+
     final ItemFrame first = frames.getFirst();
     verify(first).setFacingDirection(BlockFace.SOUTH);
   }
@@ -422,6 +441,7 @@ final class MapUtilsTest {
     // the old frame has to go: a block holds one frame per side, so leaving it would push the new frame onto the
     // opposite side of the same block, back turned, right in front of the map
     verify(existing).remove();
+
     final List<ItemFrame> frames = this.fakeWorld.spawnedFrames();
     final int frameCount = frames.size();
     assertEquals(1, frameCount);
@@ -435,6 +455,7 @@ final class MapUtilsTest {
     final List<ItemFrame> frames = this.fakeWorld.spawnedFrames();
     final int frameCount = frames.size();
     assertEquals(1, frameCount);
+
     final ItemFrame frame = frames.getFirst();
     final boolean hasMapTag = FakeWorld.hasTag(frame, Keys.MAP_KEY);
     final boolean first = FakeWorld.hasTag(frame, Keys.FIRST_MAP_KEY);
@@ -454,6 +475,7 @@ final class MapUtilsTest {
     final int changed = this.fakeWorld.changedBlocks();
     assertTrue(nothingSpawned);
     assertEquals(0, changed);
+
     final List<ItemStack> constructed = this.items.constructed();
     final boolean noItems = constructed.isEmpty();
     assertTrue(noItems);
@@ -470,9 +492,11 @@ final class MapUtilsTest {
     assertEquals(Material.STONE, bottom);
     assertEquals(Material.STONE, top);
     assertEquals(Material.AIR, beside);
+
     final List<ItemFrame> frames = this.fakeWorld.spawnedFrames();
     final String positions = this.describe(frames);
     assertEquals("10,71,-4;10,70,-4", positions);
+
     final ItemFrame lower = frames.get(1);
     final boolean lowerIsFirst = FakeWorld.hasTag(lower, Keys.FIRST_MAP_KEY);
     assertFalse(lowerIsFirst);
@@ -507,6 +531,7 @@ final class MapUtilsTest {
     assertThrows(IllegalArgumentException.class, () -> MapUtils.buildMapScreen(player, location, Material.STONE, 0, 1, 0));
     assertThrows(IllegalArgumentException.class, () -> MapUtils.buildMapScreen(player, location, Material.STONE, 1, 0, 0));
     assertThrows(IllegalArgumentException.class, () -> MapUtils.buildMapScreen(player, location, Material.STONE, 1, 1, -1));
+
     final List<ItemFrame> frames = this.fakeWorld.spawnedFrames();
     final boolean nothingSpawned = frames.isEmpty();
     assertTrue(nothingSpawned);

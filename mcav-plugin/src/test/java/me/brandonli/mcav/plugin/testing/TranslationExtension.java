@@ -74,6 +74,7 @@ public final class TranslationExtension implements BeforeAllCallback {
     if (initialized) {
       return;
     }
+
     final Path folder = createTemporaryFolder();
     final File folderFile = folder.toFile();
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
@@ -101,6 +102,7 @@ public final class TranslationExtension implements BeforeAllCallback {
         locale.resolve(ENGLISH_MESSAGES_FILE_NAME),
         "mcav.test.two=<arg:0>|<arg:1>\nmcav.test.three=<arg:0>|<arg:1>|<arg:2>\n"
       );
+
       return folder;
     } catch (final IOException exception) {
       throw new UncheckedIOException(exception);

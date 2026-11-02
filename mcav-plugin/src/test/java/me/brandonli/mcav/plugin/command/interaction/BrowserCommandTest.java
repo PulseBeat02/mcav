@@ -155,6 +155,7 @@ final class BrowserCommandTest {
     this.assertDithersOntoTheScreen();
     this.assertOpenedThePage();
     assertSame(this.browser, this.command.player);
+
     final Component started = Message.START_BROWSER.build();
     this.assertReceived(Message.BROWSER_LOADING.build(), started);
   }
@@ -187,6 +188,7 @@ final class BrowserCommandTest {
   private void assertDithersOntoTheScreen() {
     final ArgumentCaptor<VideoPipelineStep> pipelines = ArgumentCaptor.forClass(VideoPipelineStep.class);
     verify(this.callback).attach(pipelines.capture());
+
     final VideoPipelineStep pipeline = pipelines.getValue();
     final VideoFilter filter = pipeline.getFilter();
     assertSame(this.ditherFilter, filter);
@@ -195,6 +197,7 @@ final class BrowserCommandTest {
   private void assertOpenedThePage() {
     final ArgumentCaptor<BrowserSource> sources = ArgumentCaptor.forClass(BrowserSource.class);
     verify(this.browser).startAsync(sources.capture(), any());
+
     final BrowserSource source = sources.getValue();
     final URI uri = source.getUri();
     final URI expected = URI.create(PAGE_URL);
@@ -333,6 +336,7 @@ final class BrowserCommandTest {
     verify(this.browser, timeout(RELEASE_MILLISECONDS)).release();
     assertNull(this.command.player);
     assertNull(this.command.result);
+
     final Component failed = Message.BROWSER_ERROR.build();
     this.assertReceived(Message.BROWSER_LOADING.build(), failed);
   }
@@ -447,6 +451,7 @@ final class BrowserCommandTest {
     final Component error = Message.UNSUPPORTED_URL.build();
     this.assertReceived(error);
     this.browsers.verifyNoInteractions();
+
     final List<CompressedMapResult> created = this.maps.constructed();
 
     final int size = created.size();
@@ -532,8 +537,10 @@ final class BrowserCommandTest {
 
     verify(this.browser, timeout(RELEASE_MILLISECONDS)).release();
     assertNull(this.command.player);
+
     final Component released = Message.RELEASE_BROWSER.build();
     this.assertReceived(released);
+
     this.command.releaseBrowser(this.sender);
     verify(this.browser, timeout(RELEASE_MILLISECONDS)).release();
   }
@@ -575,6 +582,7 @@ final class BrowserCommandTest {
     this.create(RESOLUTION, BLOCK_DIMENSIONS, PAGE_URL);
 
     verify(this.browser, timeout(RELEASE_MILLISECONDS)).release();
+
     final Component failed = Message.BROWSER_ERROR.build();
     this.assertReceived(Message.BROWSER_LOADING.build(), failed);
   }
@@ -601,6 +609,7 @@ final class BrowserCommandTest {
     final Component error = Message.UNSUPPORTED_URL.build();
     this.assertReceived(error);
     this.browsers.verifyNoInteractions();
+
     final List<CompressedMapResult> created = this.maps.constructed();
 
     final int size = created.size();

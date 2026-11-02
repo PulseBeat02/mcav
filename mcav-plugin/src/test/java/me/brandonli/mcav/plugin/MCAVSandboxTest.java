@@ -209,6 +209,7 @@ final class MCAVSandboxTest {
     assertEquals("The video player manager is not available before the plugin is enabled!", videosMessage);
     assertEquals("The audio provider is not available before the plugin is enabled!", audioMessage);
     assertEquals("The image manager is not available before the plugin is enabled!", imagesMessage);
+
     final boolean hasQemu = this.sandbox.isQemuInstalled();
     assertFalse(hasQemu);
 
@@ -235,8 +236,10 @@ final class MCAVSandboxTest {
     final ImageManager imageManager = this.sandbox.getImageManager();
     final OnlinePlayers online = this.sandbox.getOnlinePlayers();
     verify(TestServer.pluginManager()).registerEvents(online, this.sandbox);
+
     this.sandbox.onDisable();
     verify(this.api).release();
+
     final ExecutorService videoWorker = videoManager.getService();
     final ExecutorService imageWorker = imageManager.getService();
     final boolean videoStopped = videoWorker.isShutdown();
@@ -258,6 +261,7 @@ final class MCAVSandboxTest {
     );
     verify(this.api, times(1)).install(BukkitModule.class, BrowserModule.class, VmModule.class, SvcModule.class);
     assertThrows(IllegalStateException.class, this.sandbox::getVideoPlayerManager);
+
     this.sandbox.onDisable();
     verify(this.api, times(1)).release();
   }
@@ -266,8 +270,10 @@ final class MCAVSandboxTest {
     verify(this.api).install(BukkitModule.class, BrowserModule.class, VmModule.class, SvcModule.class);
     verify(this.bukkitModule).inject(this.sandbox);
     verify(this.logger, never()).warn(anyString());
+
     final MCAVApi library = this.sandbox.getMCAV();
     assertSame(this.api, library);
+
     final boolean hasQemu = this.sandbox.isQemuInstalled();
     assertTrue(hasQemu);
 
@@ -279,6 +285,7 @@ final class MCAVSandboxTest {
     final PluginDataConfigurationMapper configuration = this.sandbox.getConfiguration();
     final String host = configuration.getHttpHostName();
     assertEquals("localhost", host);
+
     final AudioProvider audioProvider = this.sandbox.getAudioProvider();
     final VideoPlayerManager videoManager = this.sandbox.getVideoPlayerManager();
     final ImageManager imageManager = this.sandbox.getImageManager();
@@ -298,6 +305,7 @@ final class MCAVSandboxTest {
     final Set<String> syntaxes = this.commands.syntaxes();
     final int count = syntaxes.size();
     assertEquals(39, count);
+
     final PluginManager pluginManager = TestServer.pluginManager();
     verify(pluginManager).registerEvents(any(JukeBoxListener.class), eq(this.sandbox));
   }
@@ -320,6 +328,7 @@ final class MCAVSandboxTest {
       assertEquals(3, threads);
 
       verify(this.logger).info("MCV2 encoders share {} of {} processors.", 3, Runtime.getRuntime().availableProcessors());
+
       this.sandbox.onDisable();
     } finally {
       Pool.setSharedThreads(0);
@@ -394,6 +403,7 @@ final class MCAVSandboxTest {
     ) {
       final IllegalStateException thrown = assertThrows(IllegalStateException.class, this.sandbox::onEnable);
       assertSame(failure, thrown);
+
       this.sandbox.onDisable();
       final List<AnnotationParserHandler> constructed = handlers.constructed();
       final AnnotationParserHandler handler = constructed.getFirst();
@@ -416,6 +426,7 @@ final class MCAVSandboxTest {
     ) {
       final IllegalStateException thrown = assertThrows(IllegalStateException.class, this.sandbox::onEnable);
       assertSame(failure, thrown);
+
       this.sandbox.onDisable();
       final List<JukeBoxListener> constructed = listeners.constructed();
       final JukeBoxListener listener = constructed.getFirst();
@@ -446,8 +457,10 @@ final class MCAVSandboxTest {
       this.sandbox.onEnable();
       final IllegalStateException thrown = assertThrows(IllegalStateException.class, this.sandbox::onDisable);
       assertSame(first, thrown);
+
       final Throwable[] suppressed = thrown.getSuppressed();
       assertArrayEquals(new Throwable[] { second }, suppressed);
+
       this.sandbox.onDisable();
       final List<VideoPlayerManager> videoManagers = videos.constructed();
       final List<ImageManager> imageManagers = images.constructed();
@@ -487,6 +500,7 @@ final class MCAVSandboxTest {
     final ArgumentCaptor<Object> duration = ArgumentCaptor.forClass(Object.class);
     verify(this.logger).info("Loading MCAV.");
     verify(this.logger).info(eq("MCAV loaded in {} ms."), duration.capture());
+
     final Object logged = duration.getValue();
     final long milliseconds = (Long) logged;
 
@@ -499,6 +513,7 @@ final class MCAVSandboxTest {
     // a sum of two timestamps instead of their difference would be billions of milliseconds
     final boolean plausible = milliseconds >= 0 && milliseconds < 600_000;
     assertTrue(plausible, "the log reports how long loading took, which was " + milliseconds + " ms");
+
     this.sandbox.onDisable();
   }
 
@@ -506,6 +521,7 @@ final class MCAVSandboxTest {
     final long before = System.currentTimeMillis();
     Thread.sleep(25);
     installationMilliseconds.set(System.currentTimeMillis() - before);
+
     return null;
   }
 
@@ -526,8 +542,10 @@ final class MCAVSandboxTest {
     when(this.browserModule.isSupported()).thenReturn(true);
     this.sandbox.onEnable();
     verify(this.logger).warn("QEMU is not installed, virtual machines will not be available.");
+
     final boolean hasQemu = this.sandbox.isQemuInstalled();
     assertFalse(hasQemu);
+
     this.sandbox.onDisable();
   }
 
@@ -539,6 +557,7 @@ final class MCAVSandboxTest {
       UnsupportedServerVersionException.class,
       ServerEnvironment::checkSupported
     );
+
     doThrow(failure).when(this.bukkitModule).inject(this.sandbox);
 
     this.sandbox.onEnable();
@@ -546,6 +565,7 @@ final class MCAVSandboxTest {
     final String reason = "MCAV only supports Minecraft 26.3, but the server is running 1.20.1!";
     this.assertDisabledItselfWithOneError(reason, "run MCAV on a Minecraft 26.3 server");
     assertThrows(IllegalStateException.class, this.sandbox::getConfiguration, "nothing after the library is loaded");
+
     this.sandbox.onDisable();
     verify(this.api).release();
   }
@@ -560,9 +580,11 @@ final class MCAVSandboxTest {
     final String reason = "Simple Voice Chat audio is enabled, but the voicechat plugin is not installed!";
     final String remedy = "install the Simple Voice Chat plugin or set simple-voice-chat.enabled to false in config.yml";
     this.assertDisabledItselfWithOneError(reason, remedy);
+
     final AudioProvider audioProvider = this.sandbox.getAudioProvider();
     assertNotNull(audioProvider);
     assertThrows(IllegalStateException.class, this.sandbox::getVideoPlayerManager, "nothing after the audio is created");
+
     this.sandbox.onDisable();
     verify(this.api).release();
   }
@@ -570,6 +592,7 @@ final class MCAVSandboxTest {
   private void assertDisabledItselfWithOneError(final String reason, final String remedy) {
     verify(this.logger).error("MCAV cannot be enabled: {} To fix it, {}.", reason, remedy);
     verify(this.logger).error(anyString(), any(), any());
+
     final PluginManager pluginManager = TestServer.pluginManager();
     verify(pluginManager).disablePlugin(this.sandbox);
   }
@@ -582,9 +605,11 @@ final class MCAVSandboxTest {
     final IllegalStateException exception = assertThrows(IllegalStateException.class, this.sandbox::onEnable);
 
     assertSame(failure, exception, "an unexpected failure is not turned into a setup problem");
+
     final PluginManager pluginManager = TestServer.pluginManager();
     verify(pluginManager, never()).disablePlugin(this.sandbox);
     verify(this.logger, never()).error(anyString(), any(), any());
+
     this.sandbox.onDisable();
     verify(this.api).release();
   }
@@ -595,6 +620,7 @@ final class MCAVSandboxTest {
     doThrow(failure).when(this.api).install(BukkitModule.class, BrowserModule.class, VmModule.class, SvcModule.class);
     final IllegalStateException exception = assertThrows(IllegalStateException.class, this.sandbox::onEnable);
     assertSame(failure, exception);
+
     this.sandbox.onDisable();
     verify(this.api).release();
   }

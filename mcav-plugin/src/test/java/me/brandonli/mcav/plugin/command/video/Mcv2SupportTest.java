@@ -121,12 +121,14 @@ final class Mcv2SupportTest {
     when(metadata.hasMapId()).thenReturn(hasId);
     when(metadata.getMapId()).thenReturn(id);
     when(item.getItemMeta()).thenReturn(metadata);
+
     return item;
   }
 
   static ItemFrame frame(final ItemStack item) {
     final ItemFrame frame = mock(ItemFrame.class);
     when(frame.getItem()).thenReturn(item);
+
     return frame;
   }
 
@@ -256,6 +258,7 @@ final class Mcv2SupportTest {
     assertNull(fourthConfigured);
 
     verify(this.sender, times(4)).sendMessage(Message.MCV2_SIZE_ERROR.build());
+
     final Mcv2Configuration largest = Objects.requireNonNull(this.configure(63, 63, 4096, 4096));
 
     final int columns = largest.getColumns();
@@ -325,6 +328,7 @@ final class Mcv2SupportTest {
       @SuppressWarnings("unchecked") // a class literal has no type arguments
       final ArgumentCaptor<Consumer<Mcv2Pacer.Change>> listeners = ArgumentCaptor.forClass(Consumer.class);
       verify(result).setPacingListener(listeners.capture());
+
       final Mcv2Pacer.Change change = Mcv2Pacer.Change.of(
         Mcv2Pacer.Rung.of(VIDEO_WIDTH, VIDEO_HEIGHT, 1),
         Mcv2Pacer.Rung.of(VIDEO_WIDTH, VIDEO_HEIGHT, 2),
@@ -335,6 +339,7 @@ final class Mcv2SupportTest {
       );
       listeners.getValue().accept(change);
       verify(this.sender).sendMessage(Message.MCV2_PACING.build(change.describe()));
+
       @SuppressWarnings("unchecked") // a class literal has no type arguments
       final ArgumentCaptor<List<int[]>> sizes = ArgumentCaptor.forClass(List.class);
       verify(result).setSmallerSizes(sizes.capture(), any());

@@ -48,6 +48,7 @@ public final class StandardErrorCapture implements AutoCloseable {
     final ByteArrayOutputStream recorded = new ByteArrayOutputStream();
     final PrintStream recording = new PrintStream(recorded, true, StandardCharsets.UTF_8);
     System.setErr(recording);
+
     return new StandardErrorCapture(previous, recorded);
   }
 

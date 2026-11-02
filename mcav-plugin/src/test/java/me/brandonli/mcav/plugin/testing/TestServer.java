@@ -94,6 +94,7 @@ public final class TestServer {
     when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenAnswer(TestServer::runTask);
     when(scheduler.callSyncMethod(any(Plugin.class), any())).thenAnswer(TestServer::runCallable);
     when(SERVER.getScheduler()).thenReturn(scheduler);
+
     return SERVER;
   }
 
@@ -105,6 +106,7 @@ public final class TestServer {
   private static @Nullable Object runTask(final InvocationOnMock invocation) {
     final Runnable task = invocation.getArgument(1);
     task.run();
+
     return null;
   }
 
@@ -128,12 +130,14 @@ public final class TestServer {
     when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenAnswer(TestServer::deferTask);
     when(scheduler.callSyncMethod(any(Plugin.class), any())).thenAnswer(TestServer::deferCallable);
     when(server.getScheduler()).thenReturn(scheduler);
+
     return server;
   }
 
   private static @Nullable Object deferTask(final InvocationOnMock invocation) {
     final Runnable task = invocation.getArgument(1);
     PENDING_TASKS.add(task);
+
     return null;
   }
 
@@ -141,6 +145,7 @@ public final class TestServer {
     final Callable<?> call = invocation.getArgument(1);
     final FutureTask<?> task = new FutureTask<>(call);
     PENDING_TASKS.add(task);
+
     return task;
   }
 

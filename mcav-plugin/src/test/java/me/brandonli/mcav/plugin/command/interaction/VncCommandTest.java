@@ -125,6 +125,7 @@ final class VncCommandTest {
 
     final ArgumentCaptor<VncSource> sources = ArgumentCaptor.forClass(VncSource.class);
     verify(this.desktop).startAsync(sources.capture(), any());
+
     final VncSource source = sources.getValue();
 
     final String host = source.getHost();

@@ -74,6 +74,7 @@ final class IoUtilsTest {
   @Test
   void shouldFailForMissingResources() {
     final NullPointerException exception = assertThrows(NullPointerException.class, () -> this.openAndClose(MISSING_RESOURCE_NAME));
+
     final String message = exception.getMessage();
     assertEquals("Resource missing.yml does not exist!", message);
   }
@@ -88,6 +89,7 @@ final class IoUtilsTest {
   @Test
   void shouldRefuseANullPath() {
     final NullPointerException exception = assertThrows(NullPointerException.class, () -> this.openAndClose(null));
+
     final String message = exception.getMessage();
     assertEquals("Path must not be null!", message);
   }

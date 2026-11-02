@@ -168,9 +168,11 @@ final class AbstractImageCommandTest {
     final int resolutionHeight = resolution.getSecond();
     assertEquals(SCREEN_WIDTH, resolutionWidth);
     assertEquals(SCREEN_HEIGHT, resolutionHeight);
+
     final AbstractImageCommand.ImageConfigurationProvider provider = this.command.providers.getFirst();
     final Object configuration = provider.buildConfiguration(resolution);
     assertEquals(CONFIGURATION, configuration);
+
     final List<Component> messages = Components.received(this.sender);
     final Component start = Message.LOAD_IMAGE_START.build();
     final Component done = Message.LOAD_IMAGE.build();
@@ -196,10 +198,12 @@ final class AbstractImageCommandTest {
   private ImageBuffer verifyShown() {
     final ArgumentCaptor<ImageBuffer> captor = ArgumentCaptor.forClass(ImageBuffer.class);
     verify(this.manager).setCurrentImage(captor.capture());
+
     final ImageBuffer image = captor.getValue();
     verify(this.manager).releaseImage(true);
     verify(this.manager).setImage(this.display);
     verify(this.display).displayImage(image);
+
     return image;
   }
 
@@ -278,6 +282,7 @@ final class AbstractImageCommandTest {
       assertEquals(1, size);
 
       verify(buffers.constructed().getFirst(), times(1)).release();
+
       final Throwable[] expected = sameFailure ? new Throwable[0] : new Throwable[] { cleanupFailure };
 
       final Throwable[] suppressed = failure.getSuppressed();
@@ -344,6 +349,7 @@ final class AbstractImageCommandTest {
     final String mrl = quoted ? QUOTE + path + QUOTE : path;
     this.command.displayImage(_ -> CONFIGURATION, this.sender, LARGE_SCREEN_SIZE, mrl, null);
     final ImageBuffer image = this.verifyShown();
+
     final int[] pixels = image.getPixels();
     assertEquals(RED_PIXEL, pixels[0]);
   }
@@ -354,6 +360,7 @@ final class AbstractImageCommandTest {
     final String mrl = QUOTE + url + QUOTE;
     this.command.displayImage(_ -> CONFIGURATION, this.sender, LARGE_SCREEN_SIZE, mrl, null);
     final ImageBuffer image = this.verifyShown();
+
     final int[] pixels = image.getPixels();
     assertEquals(RED_PIXEL, pixels[0]);
   }
@@ -363,6 +370,7 @@ final class AbstractImageCommandTest {
   void shouldRejectEmptyOrMalformedQuotedSources(final String mrl) {
     this.command.displayImage(_ -> CONFIGURATION, this.sender, LARGE_SCREEN_SIZE, mrl, null);
     this.assertNothingShown();
+
     final List<Component> messages = Components.received(this.sender);
     final Component invalid = Message.UNSUPPORTED_MRL.build();
     final List<Component> expected = List.of(invalid);
@@ -382,9 +390,11 @@ final class AbstractImageCommandTest {
     ) {
       this.command.displayImage(_ -> CONFIGURATION, this.sender, LARGE_SCREEN_SIZE, "\"\"", null);
       this.assertNothingShown();
+
       final List<Component> messages = Components.received(this.sender);
       final Component invalid = Message.UNSUPPORTED_MRL.build();
       assertEquals(List.of(invalid), messages);
+
       final List<SourceDetectionHelper> lookups = detection.constructed();
 
       final int size = lookups.size();
@@ -478,12 +488,14 @@ final class AbstractImageCommandTest {
       final List<MatImageBuffer> constructed = buffers.constructed();
       final int count = constructed.size();
       assertEquals(1, count);
+
       final MatImageBuffer image = constructed.getFirst();
       verify(image).release();
     }
 
     this.assertNothingShown();
     verify(this.manager, never()).setCurrentImage(any());
+
     final List<Component> messages = Components.received(this.sender);
     final Component start = Message.LOAD_IMAGE_START.build();
     final List<Component> expected = List.of(start);
@@ -500,8 +512,10 @@ final class AbstractImageCommandTest {
       final List<MatImageBuffer> constructed = buffers.constructed();
       final MatImageBuffer image = constructed.getFirst();
       verify(image, never()).release();
+
       this.manager.shutdown();
       verify(image, times(1)).release();
+
       TestServer.runPendingTasks();
       verify(image, times(1)).release();
       this.assertNothingShown();
@@ -520,10 +534,12 @@ final class AbstractImageCommandTest {
       final MatImageBuffer first = constructed.get(0);
       final MatImageBuffer second = constructed.get(1);
       verify(first, times(1)).release();
+
       TestServer.runPendingTasks();
       verify(this.display, never()).displayImage(first);
       verify(this.display, times(1)).displayImage(second);
       verify(first, times(1)).release();
+
       final int creations = this.command.resolutions.size();
       assertEquals(1, creations);
     }
@@ -596,6 +612,7 @@ final class AbstractImageCommandTest {
   private @Nullable Object deferTask(final InvocationOnMock invocation, final List<Runnable> work) {
     final Runnable task = invocation.getArgument(0);
     work.add(task);
+
     return null;
   }
 
@@ -658,13 +675,16 @@ final class AbstractImageCommandTest {
       final List<MatImageBuffer> constructed = buffers.constructed();
       final MatImageBuffer image = constructed.getFirst();
       verify(image, times(1)).release();
+
       this.manager.shutdown();
       verify(image, times(1)).release();
+
       output = capture.getOutput();
     }
     final Throwable[] suppressed = primary.getSuppressed();
     final Throwable[] expected = cleanupMode == 2 ? new Throwable[] { cleanup } : new Throwable[0];
     assertArrayEquals(expected, suppressed);
+
     final boolean reported = output.contains("scheduler rejected the loaded image!");
     assertTrue(reported, "the callback reports the scheduling failure after releasing the image");
     this.assertNothingShown();
@@ -694,9 +714,11 @@ final class AbstractImageCommandTest {
       failing.displayImage(_ -> CONFIGURATION, this.sender, SCREEN_SIZE, mrl, null);
       final IllegalStateException thrown = assertThrows(IllegalStateException.class, TestServer::runPendingTasks);
       assertSame(primary, thrown);
+
       final Throwable[] suppressed = thrown.getSuppressed();
       final Throwable[] expected = sameFailure ? new Throwable[0] : new Throwable[] { cleanup };
       assertArrayEquals(expected, suppressed);
+
       final List<MatImageBuffer> constructed = buffers.constructed();
       final MatImageBuffer image = constructed.getFirst();
       verify(image, times(1)).release();
@@ -731,6 +753,7 @@ final class AbstractImageCommandTest {
       this.command.displayImage(_ -> CONFIGURATION, this.sender, SCREEN_SIZE, mrl, null);
       output = capture.getOutput();
       verify(this.manager, never()).discardLoaded(Mockito.anyLong());
+
       final List<MatImageBuffer> constructed = buffers.constructed();
       final MatImageBuffer image = constructed.getFirst();
       verify(image, never()).release();
@@ -759,12 +782,14 @@ final class AbstractImageCommandTest {
       this.command.displayImage(_ -> CONFIGURATION, this.sender, SCREEN_SIZE, mrl, null);
       output = capture.getOutput();
       verify(this.manager, times(1)).discardLoaded(Mockito.anyLong());
+
       final List<MatImageBuffer> constructed = buffers.constructed();
       final MatImageBuffer image = constructed.getFirst();
       verify(image, times(1)).release();
     }
     final Throwable[] suppressed = primary.getSuppressed();
     assertEquals(0, suppressed.length, "fatal cleanup failure must not be suppressed onto recoverable primary exception");
+
     final boolean reported = output.contains("fatal discard sentinel!");
     assertTrue(reported, "the fatal discard failure is logged as the escaping callback error");
     this.assertNothingShown();
@@ -791,8 +816,10 @@ final class AbstractImageCommandTest {
       failing.displayImage(_ -> CONFIGURATION, this.sender, SCREEN_SIZE, mrl, null);
       final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, TestServer::runPendingTasks);
       assertSame(fatal, thrown);
+
       final Throwable[] suppressed = primary.getSuppressed();
       assertEquals(0, suppressed.length, "fatal cleanup error must not be suppressed onto recoverable primary exception");
+
       final List<MatImageBuffer> constructed = buffers.constructed();
       final MatImageBuffer image = constructed.getFirst();
       verify(image, times(1)).release();
@@ -820,6 +847,7 @@ final class AbstractImageCommandTest {
     public DisplayableImage createImage(final Pair<Integer, Integer> resolution, final ImageConfigurationProvider configurationProvider) {
       this.resolutions.add(resolution);
       this.providers.add(configurationProvider);
+
       return this.display;
     }
   }

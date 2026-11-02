@@ -78,12 +78,15 @@ final class ServerLoadListenerTest {
     final ServerLoadEvent event = mock(ServerLoadEvent.class);
     final boolean registeredBefore = this.isRegistered();
     assertTrue(registeredBefore);
+
     this.listener.onServerLoad(event);
     final ArgumentCaptor<VoicechatPlugin> captor = ArgumentCaptor.forClass(VoicechatPlugin.class);
     verify(voiceChat).registerPlugin(captor.capture());
+
     final VoicechatPlugin plugin = captor.getValue();
     final String id = plugin.getPluginId();
     assertEquals("mcav", id);
+
     final boolean registeredAfter = this.isRegistered();
     assertFalse(registeredAfter);
   }
@@ -99,6 +102,7 @@ final class ServerLoadListenerTest {
   void shouldFailWithAClearMessageWhenSimpleVoiceChatOffersNoService() {
     final ServerLoadEvent event = mock(ServerLoadEvent.class);
     final IllegalStateException exception = assertThrows(IllegalStateException.class, () -> this.listener.onServerLoad(event));
+
     final String message = exception.getMessage();
     assertEquals(
       "Simple Voice Chat audio is enabled, but Simple Voice Chat offers no voice chat service, so voice chat audio is not available!",

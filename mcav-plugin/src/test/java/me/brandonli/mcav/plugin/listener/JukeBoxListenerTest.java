@@ -116,6 +116,7 @@ final class JukeBoxListenerTest {
     final PlayerInteractEvent event = this.interaction(Action.RIGHT_CLICK_BLOCK, Material.JUKEBOX, Material.MUSIC_DISC_CAT, DISC_NAME);
     this.listener.onJukeboxInteract(event);
     verify(event).setCancelled(true);
+
     final Path absolute = image.toAbsolutePath();
     verify(this.player).performCommand(VM_CREATE_COMMAND_PREFIX + absolute + VM_CREATE_COMMAND_SUFFIX);
   }
@@ -132,6 +133,7 @@ final class JukeBoxListenerTest {
     when(event.getClickedBlock()).thenReturn(block);
     when(event.getItem()).thenReturn(item);
     when(event.getPlayer()).thenReturn(this.player);
+
     return event;
   }
 
@@ -181,6 +183,7 @@ final class JukeBoxListenerTest {
     );
     this.dispatch(this.discOnJukebox(), protection, this.registered());
     verify(this.player, never()).performCommand(anyString());
+
     this.dispatch(this.discOnJukebox(), this.registered());
     verify(this.player, times(1)).performCommand(anyString());
   }
@@ -193,6 +196,7 @@ final class JukeBoxListenerTest {
     when(disc.getType()).thenReturn(Material.MUSIC_DISC_CAT);
     final Component name = Component.text(DISC_NAME);
     when(disc.displayName()).thenReturn(name);
+
     return new PlayerInteractEvent(this.player, Action.RIGHT_CLICK_BLOCK, disc, jukebox, BlockFace.UP);
   }
 

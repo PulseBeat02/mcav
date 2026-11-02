@@ -112,6 +112,7 @@ final class ImageEntityCommandTest {
       AbstractImageCommand.ImageConfigurationProvider.class
     );
     verify(this.command).displayImage(providers.capture(), eq(this.sender), eq(RESOLUTION), eq(MRL), isNull());
+
     return providers.getValue();
   }
 

@@ -72,6 +72,7 @@ final class ImageManagerTest {
     verify(this.display, times(1)).release();
     verify(this.image, times(1)).close();
     verify(this.player, times(1)).release();
+
     final int pending = TestServer.runPendingTasks();
     assertEquals(0, pending);
   }
@@ -87,6 +88,7 @@ final class ImageManagerTest {
     this.fill();
     this.manager.releaseImage(false);
     verify(this.display, never()).release();
+
     final int pending = TestServer.runPendingTasks();
     assertEquals(1, pending);
     verify(this.display).release();
@@ -110,6 +112,7 @@ final class ImageManagerTest {
     final IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> this.manager.releaseImage(true));
     assertEquals(failure, thrown);
     verify(this.player, times(1)).release();
+
     this.manager.releaseImage(true);
     verify(this.image, times(1)).close();
     verify(this.display, times(1)).release();
@@ -121,6 +124,7 @@ final class ImageManagerTest {
     this.fill();
     this.manager.shutdown();
     verify(this.display).release();
+
     final ExecutorService service = this.manager.getService();
     final boolean isShutdown = service.isShutdown();
     assertTrue(isShutdown);
@@ -132,6 +136,7 @@ final class ImageManagerTest {
     this.manager.releaseImage(true);
     final boolean retainedAfterClear = this.manager.retainLoaded(beforeClear, this.image);
     assertFalse(retainedAfterClear);
+
     final long beforeShutdown = this.manager.beginLoad();
     this.manager.shutdown();
     final boolean retainedAfterShutdown = this.manager.retainLoaded(beforeShutdown, this.image);
@@ -148,6 +153,7 @@ final class ImageManagerTest {
     assertEquals(failure, thrown);
     verify(this.image).close();
     verify(this.player).release();
+
     final ExecutorService service = this.manager.getService();
     final boolean stopped = service.isShutdown();
     assertTrue(stopped);
@@ -159,10 +165,13 @@ final class ImageManagerTest {
     final long newRequest = this.manager.beginLoad();
     final boolean retained = this.manager.retainLoaded(newRequest, this.image);
     assertTrue(retained);
+
     this.manager.discardLoaded(oldRequest);
     verify(this.image, never()).release();
+
     this.manager.discardLoaded(newRequest);
     verify(this.image, times(1)).release();
+
     this.manager.discardLoaded(newRequest);
     verify(this.image, times(1)).release();
   }
@@ -176,6 +185,7 @@ final class ImageManagerTest {
     final boolean replacedAccepted = this.manager.retainLoaded(replaced, this.image);
     assertFalse(oldestAccepted);
     assertFalse(replacedAccepted);
+
     final long current = this.manager.beginLoad();
 
     final boolean retained = this.manager.retainLoaded(oldest, this.image);

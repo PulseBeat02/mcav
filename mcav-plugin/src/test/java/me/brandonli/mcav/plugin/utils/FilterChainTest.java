@@ -277,6 +277,7 @@ final class FilterChainTest {
     assertEquals(FilterChain.MAXIMUM_FILTERS, size);
     assertThrows(IllegalArgumentException.class, this::parseTooLongChain);
     assertThrows(IllegalArgumentException.class, () -> this.parse(TEXT_FILTER_PREFIX + FILLER_TEXT.repeat(FilterChain.MAXIMUM_TEXT + 1)));
+
     this.parse(TEXT_FILTER_PREFIX + FILLER_TEXT.repeat(FilterChain.MAXIMUM_TEXT));
     assertThrows(IllegalArgumentException.class, () -> this.parse("invert," + "x".repeat(FilterChain.MAXIMUM_LENGTH)));
     assertThrows(IllegalArgumentException.class, () -> FilterChain.parse("fps", this.overlays, false), "an image has no frame rate");
@@ -380,6 +381,7 @@ final class FilterChainTest {
     final int[] dot = new int[DOT_SIZE * DOT_SIZE];
     Arrays.fill(dot, OPAQUE);
     dot[2 + DOT_SIZE * 2] = OPAQUE | WHITE;
+
     return ImageBuffer.buffer(dot, DOT_SIZE, DOT_SIZE);
   }
 
@@ -432,8 +434,10 @@ final class FilterChainTest {
   void shouldReadOverlaysOnlyAsSmallPngFilesOfTheOverlayFolder() throws IOException {
     Files.write(this.overlays.resolve(BIG_OVERLAY_FILE_NAME), new byte[(int) FilterChain.MAXIMUM_OVERLAY_BYTES + 1]);
     assertThrows(IllegalArgumentException.class, () -> this.parse("overlay=big"));
+
     Files.createDirectory(this.overlays.resolve(FOLDER_OVERLAY_FILE_NAME));
     assertThrows(IllegalArgumentException.class, () -> this.parse("overlay=folder"));
+
     final Path outside = Files.createTempFile(OUTSIDE_FILE_PREFIX, PNG_SUFFIX);
     try {
       Files.createSymbolicLink(this.overlays.resolve(LINK_OVERLAY_FILE_NAME), outside);
@@ -452,6 +456,7 @@ final class FilterChainTest {
     final int pixel = gray.getPixels()[0];
     assertEquals((pixel >> 16) & CHANNEL_MASK, pixel & CHANNEL_MASK);
     assertEquals((pixel >> 8) & CHANNEL_MASK, pixel & CHANNEL_MASK);
+
     final ImageBuffer inverted = this.picture(4, 2, 0x204060);
     this.parse(INVERT_FILTER).apply(inverted);
 
@@ -495,6 +500,7 @@ final class FilterChainTest {
     final ImageBuffer decoded = this.picture(2, 2, RED);
     final VideoFilter overlay = FilterChain.overlayFilter(decoded);
     assertThrows(IllegalStateException.class, decoded::getWidth, "the decoded picture is released");
+
     final ImageBuffer covered = this.picture(4, 4, BLUE);
     overlay.applyFilter(covered);
 

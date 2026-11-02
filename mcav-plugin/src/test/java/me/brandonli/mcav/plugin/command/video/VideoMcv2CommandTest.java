@@ -138,6 +138,7 @@ final class VideoMcv2CommandTest {
       eq(""),
       isNull()
     );
+
     final Object built = providers.getValue().buildConfiguration(Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT));
     final VideoMcv2Command.Mcv2Settings settings = assertInstanceOf(VideoMcv2Command.Mcv2Settings.class, built);
 
@@ -255,6 +256,7 @@ final class VideoMcv2CommandTest {
     this.play(RESOLUTION, "65x1", MAP_ID);
     this.play("nope", BLOCK_DIMENSIONS, MAP_ID);
     verify(this.support, never()).configure(any(), any(), any(), eq(MAP_ID), any(), any());
+
     this.play(RESOLUTION, BLOCK_DIMENSIONS, 21);
     verify(this.support).configure(any(), any(), any(), eq(21), any(), any());
     verify(this.command, never()).playVideo(any(), any(), any(), any(), any(), anyString(), anyString(), anyString(), isNull());

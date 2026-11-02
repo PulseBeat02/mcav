@@ -496,6 +496,7 @@ final class InteractUtilsTest {
     final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
       InteractUtils.getBoardCoordinates(this.player, zombie)
     );
+
     final String message = exception.getMessage();
     assertEquals("Target entity is not an ItemFrame!", message);
   }

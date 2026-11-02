@@ -80,6 +80,7 @@ final class Mcv2PlaybackTest {
     final long[] third = this.sent(3);
     assertEquals(2, third[0]);
     assertEquals(1, third[1]);
+
     // the fourth run starts the stream over, three ids later
     playback.run();
     final long[] fourth = this.sent(4);
@@ -90,6 +91,7 @@ final class Mcv2PlaybackTest {
   private long[] sent(final int times) {
     final ArgumentCaptor<byte[]> frames = ArgumentCaptor.forClass(byte[].class);
     verify(this.channel, times(times)).send(frames.capture());
+
     final List<byte[]> all = frames.getAllValues();
     final byte[] last = all.getLast();
     return new long[] { Mcv2Decoder.u32(last, 12), Mcv2Decoder.u32(last, 16) };

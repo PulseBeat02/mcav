@@ -110,6 +110,7 @@ public final class BrowserBenchmark {
     if (args.length != ARGUMENT_COUNT) {
       throw new IllegalArgumentException("Usage: BrowserBenchmark <backend> <output file>");
     }
+
     final String backend = args[0];
     final Path output = Path.of(args[1]);
     final Supplier<BrowserPlayer> factory = backends(backend);
@@ -193,6 +194,7 @@ public final class BrowserBenchmark {
     final VideoPipelineStep pipeline = VideoPipelineStep.of(filter);
     final VideoAttachableCallback callback = player.getVideoAttachableCallback();
     callback.attach(pipeline);
+
     return probe;
   }
 
@@ -234,6 +236,7 @@ public final class BrowserBenchmark {
     if (!shown) {
       return;
     }
+
     first.add((watch.getFirstNanoseconds() - sent) / NANOSECONDS_PER_MILLISECOND);
     final boolean complete = watch.awaitFull(FULL_TIMEOUT_MILLISECONDS);
     if (complete) {
@@ -247,6 +250,7 @@ public final class BrowserBenchmark {
     if (!started) {
       throw new IllegalStateException("The browser did not start!");
     }
+
     final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(START_TIMEOUT_MILLISECONDS);
     while (probe.getFrames() == 0) {
       if (System.nanoTime() > deadline) {
@@ -260,6 +264,7 @@ public final class BrowserBenchmark {
     if (values.isEmpty()) {
       return "n/a";
     }
+
     final List<Double> sorted = new ArrayList<>(values);
     Collections.sort(sorted);
     final double median = sorted.get(sorted.size() / MEDIAN_DIVISOR);

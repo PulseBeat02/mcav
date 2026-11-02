@@ -336,6 +336,7 @@ final class PluginDataConfigurationMapperTest {
     this.saveBundledResources();
     this.mapper.deserialize();
     verify(this.plugin).saveResource(CONFIGURATION_FILE_NAME, false);
+
     final Path file = this.folder.resolve(CONFIGURATION_FILE_NAME);
     final boolean exists = Files.isRegularFile(file);
     assertTrue(exists);
@@ -462,6 +463,7 @@ final class PluginDataConfigurationMapperTest {
     this.writeConfiguration(FULL_CONFIGURATION);
     this.mapper.deserialize();
     verify(this.plugin, never()).saveResource(anyString(), anyBoolean());
+
     final String token = this.mapper.getDiscordBotToken();
     final String channel = this.mapper.getDiscordBotChannelId();
     final String guild = this.mapper.getDiscordBotGuildId();
@@ -636,9 +638,11 @@ final class PluginDataConfigurationMapperTest {
     final byte[] invalidUtf8 = { (byte) 0xC3, (byte) 0x28 };
     Files.write(file, invalidUtf8);
     final IllegalStateException exception = assertThrows(IllegalStateException.class, this.mapper::deserialize);
+
     final String message = exception.getMessage();
     final boolean mentionsFile = message.startsWith("File " + file + " could not be read (");
     assertTrue(mentionsFile, message);
+
     final Throwable cause = exception.getCause();
     assertInstanceOf(IOException.class, cause);
   }
@@ -647,10 +651,12 @@ final class PluginDataConfigurationMapperTest {
   void shouldFailInsteadOfUsingTheDefaultsWhenTheFileIsNotValidYaml() throws IOException {
     this.writeConfiguration("a: [\n");
     final IllegalStateException exception = assertThrows(IllegalStateException.class, this.mapper::deserialize);
+
     final Path file = this.folder.resolve(CONFIGURATION_FILE_NAME);
     final String message = exception.getMessage();
     final boolean mentionsFile = message.startsWith("File " + file + " is not valid YAML (");
     assertTrue(mentionsFile, message);
+
     final Throwable cause = exception.getCause();
     assertInstanceOf(InvalidConfigurationException.class, cause);
   }
@@ -661,6 +667,7 @@ final class PluginDataConfigurationMapperTest {
     this.mapper.deserialize();
     this.writeConfiguration("http-server:\n  port: [\n");
     assertThrows(IllegalStateException.class, this.mapper::deserialize);
+
     final int port = this.mapper.getHttpPort();
     assertEquals(CONFIGURED_HTTP_PORT, port);
   }
@@ -674,6 +681,7 @@ final class PluginDataConfigurationMapperTest {
   void shouldFailWhenTheBundledFileCannotBeSaved() {
     final IllegalStateException exception = assertThrows(IllegalStateException.class, this.mapper::deserialize);
     verify(this.plugin).saveResource(CONFIGURATION_FILE_NAME, false);
+
     final Throwable cause = exception.getCause();
     assertInstanceOf(IOException.class, cause);
   }

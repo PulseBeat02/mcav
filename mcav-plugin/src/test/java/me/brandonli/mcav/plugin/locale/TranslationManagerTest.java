@@ -91,6 +91,7 @@ final class TranslationManagerTest {
     final byte[] copied = Files.readAllBytes(file);
     final byte[] bundled = this.readBundledMessages();
     assertArrayEquals(bundled, copied);
+
     final String title = manager.getProperty(HELP_COMMAND_KEY);
     assertEquals(HELP_COMMAND_TITLE, title);
   }
@@ -123,6 +124,7 @@ final class TranslationManagerTest {
     final TranslationManager manager = new TranslationManager();
     final String title = manager.getProperty(HELP_COMMAND_KEY);
     assertEquals(HELP_COMMAND_TITLE, title);
+
     final String edited = Files.readString(file, StandardCharsets.UTF_8);
     assertEquals(EDITED_SCREEN_BUILD_LINE, edited);
     assertThrows(MissingResourceException.class, () -> manager.getProperty(UNKNOWN_KEY));
@@ -150,6 +152,7 @@ final class TranslationManagerTest {
     final Path file = this.folder.resolve(RESOURCE);
     Files.createDirectories(file);
     final IllegalStateException exception = assertThrows(IllegalStateException.class, TranslationManager::new);
+
     final String message = exception.getMessage();
     final boolean mentionsFile = message.startsWith("Messages could not be loaded from " + file + " (");
     assertTrue(mentionsFile, message);
@@ -160,6 +163,7 @@ final class TranslationManagerTest {
     final Path blocker = this.folder.resolve(LOCALE_FOLDER_NAME);
     Files.writeString(blocker, "not a folder", StandardCharsets.UTF_8);
     final IllegalStateException exception = assertThrows(IllegalStateException.class, TranslationManager::new);
+
     final Throwable cause = exception.getCause();
     assertInstanceOf(IOException.class, cause);
   }

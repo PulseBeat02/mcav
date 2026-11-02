@@ -97,6 +97,7 @@ final class ImageControlCommandTest {
     final List<Component> messages = Components.received(sender);
     final List<Component> expected = List.of(start);
     assertEquals(expected, messages);
+
     final boolean logged = output.contains("Failed to release the image");
     final boolean withCause = output.contains("the release failed!");
     assertTrue(logged, output);

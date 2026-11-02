@@ -79,6 +79,7 @@ final class SoundListener implements WebSocket.Listener, AutoCloseable {
       this.pcm.writeBytes(bytes);
     }
     webSocket.request(1);
+
     return null;
   }
 

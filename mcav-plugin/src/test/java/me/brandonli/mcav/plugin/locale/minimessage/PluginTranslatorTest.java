@@ -89,6 +89,7 @@ final class PluginTranslatorTest {
   private String render(final TranslatableComponent component) {
     final Component rendered = this.translator.translate(component, Locale.ENGLISH);
     assertNotNull(rendered);
+
     return Components.plain(rendered);
   }
 
@@ -99,6 +100,7 @@ final class PluginTranslatorTest {
     final TranslatableComponent component = Component.translatable("colored", name, role);
     final Component rendered = this.translator.translate(component, Locale.ENGLISH);
     assertNotNull(rendered);
+
     final String text = Components.plain(rendered);
     final TextColor color = rendered.color();
     assertEquals("Hello Steve, you are admin", text);
@@ -131,6 +133,7 @@ final class PluginTranslatorTest {
     final TranslatableComponent component = bold.append(suffix);
     final Component rendered = this.translator.translate(component, Locale.ENGLISH);
     assertNotNull(rendered);
+
     final TextComponent expectedStart = Component.text("Hello ", NamedTextColor.BLUE);
     final TextComponent expectedStyled = expectedStart.decorate(TextDecoration.BOLD);
     final TextComponent redWord = Component.text("world", NamedTextColor.RED);

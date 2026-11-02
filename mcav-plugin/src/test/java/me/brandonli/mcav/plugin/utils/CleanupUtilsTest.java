@@ -36,8 +36,10 @@ final class CleanupUtilsTest {
     final IllegalArgumentException second = new IllegalArgumentException("second!");
     final IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> this.runThreeCleanups(cleaned, first, second));
     assertSame(first, thrown);
+
     final Throwable[] suppressed = thrown.getSuppressed();
     assertArrayEquals(new Throwable[] { second }, suppressed);
+
     final List<Integer> expected = List.of(1, 2, 3);
     assertEquals(expected, cleaned);
   }
@@ -57,8 +59,10 @@ final class CleanupUtilsTest {
     final List<Integer> cleaned = new ArrayList<>();
     final AssertionError thrown = assertThrows(AssertionError.class, () -> this.runFailingCleanups(failure, cleaned));
     assertSame(failure, thrown);
+
     final Throwable[] suppressed = thrown.getSuppressed();
     assertEquals(0, suppressed.length);
+
     final List<Integer> expected = List.of(1);
     assertEquals(expected, cleaned);
   }
@@ -77,6 +81,7 @@ final class CleanupUtilsTest {
     final List<Integer> cleaned = new ArrayList<>();
     final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () -> this.runFatalCleanup(fatal, cleaned));
     assertSame(fatal, thrown);
+
     final int count = cleaned.size();
     assertEquals(0, count);
   }

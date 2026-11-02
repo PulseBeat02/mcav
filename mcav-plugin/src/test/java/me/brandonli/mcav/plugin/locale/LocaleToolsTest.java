@@ -65,6 +65,7 @@ final class LocaleToolsTest {
     if (color != null) {
       return color;
     }
+
     final List<Component> children = component.children();
     final Component first = children.getFirst();
     return this.findColor(first);
@@ -78,11 +79,14 @@ final class LocaleToolsTest {
     final List<ClickEvent<?>> events = new ArrayList<>();
     this.collectClickEvents(component, events);
     assertEquals(LINK_PREFIX + "http://localhost:3000/", text);
+
     final int eventCount = events.size();
     assertEquals(1, eventCount);
+
     final ClickEvent<?> event = events.getFirst();
     final ClickEvent.Action<?> action = event.action();
     assertEquals(ClickEvent.Action.OPEN_URL, action);
+
     final ClickEvent.Payload payload = event.payload();
     final ClickEvent.Payload.Text textPayload = (ClickEvent.Payload.Text) payload;
     final String url = textPayload.value();
@@ -116,6 +120,7 @@ final class LocaleToolsTest {
     final Component component = message.build("http://a/", "ignored");
     final String text = Components.plain(component);
     assertEquals(LINK_PREFIX + "HTTP://A/", text);
+
     final LocaleTools.BiComponent<String, String> pair = LocaleTools.direct("mcav.test.two", upper, value -> "length=" + value.length());
 
     final String componentsText = Components.plain(assertDoesNotThrow(() -> pair.build(FIRST_ARGUMENT, SECOND_ARGUMENT)));
@@ -128,6 +133,7 @@ final class LocaleToolsTest {
     final Component component = message.build("http://b/", SECOND_ARGUMENT, "third");
     final String text = Components.plain(component);
     assertEquals(LINK_PREFIX + "http://b/", text);
+
     final LocaleTools.TriComponent<String, String, Integer> triple = LocaleTools.direct(
       "mcav.test.three",
       value -> value.toUpperCase(Locale.ROOT),
@@ -174,6 +180,7 @@ final class LocaleToolsTest {
   void shouldShareOneTranslationManager() {
     final TranslationManager manager = LocaleTools.MANAGER;
     assertNotNull(manager);
+
     try (final MockedConstruction<TranslationManager> managers = Mockito.mockConstruction(TranslationManager.class)) {
       final Component first = LocaleTools.direct(SCREEN_BUILD_KEY).build();
       final Component second = LocaleTools.direct(SCREEN_BUILD_KEY).build();

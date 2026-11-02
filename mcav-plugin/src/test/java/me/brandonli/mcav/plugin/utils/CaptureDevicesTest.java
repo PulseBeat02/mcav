@@ -133,6 +133,7 @@ final class CaptureDevicesTest {
       Files.getFileStore(locked).supportsFileAttributeView(PosixFileAttributeView.class),
       "The file system must support POSIX permissions!"
     );
+
     final Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(locked);
     Files.setPosixFilePermissions(locked, Set.of());
     try {

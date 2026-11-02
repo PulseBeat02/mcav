@@ -152,6 +152,7 @@ final class HelpCommandTest {
     this.putListingMessages(expected);
     this.putNavigationMessages(expected);
     assertEquals(expected, messages, "every text the help knows is filled in from the locale file");
+
     final Collection<String> texts = messages.values();
     for (final String text : texts) {
       final boolean untranslated = text.startsWith("mcav.");

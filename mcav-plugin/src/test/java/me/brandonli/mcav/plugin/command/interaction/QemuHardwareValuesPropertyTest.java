@@ -128,6 +128,7 @@ final class QemuHardwareValuesPropertyTest {
       default -> "pc";
     };
     assertDoesNotThrow(() -> QemuHardwareValues.check(option, validBase));
+
     final String value = validBase + PROPERTY_SEPARATOR + property + VALUE_SEPARATOR + prefix.replace(PROPERTY_SEPARATOR, "") + "file";
     assertThrows(IllegalArgumentException.class, () -> QemuHardwareValues.check(option, value));
   }

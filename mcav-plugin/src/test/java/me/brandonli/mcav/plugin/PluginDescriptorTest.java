@@ -57,11 +57,13 @@ final class PluginDescriptorTest {
     descriptor.options().pathSeparator('/');
     try (final InputStream in = PluginDescriptorTest.class.getResourceAsStream(DESCRIPTOR_RESOURCE_PATH)) {
       assertNotNull(in, "the build writes the descriptor");
+
       final Reader reader = new InputStreamReader(in, StandardCharsets.UTF_8);
       descriptor.load(reader);
     }
     final ConfigurationSection permissions = descriptor.getConfigurationSection("permissions");
     assertNotNull(permissions, "the descriptor declares permissions");
+
     final Set<String> declared = new TreeSet<>(permissions.getKeys(false));
 
     final Set<String> expected = this.checkedPermissions();

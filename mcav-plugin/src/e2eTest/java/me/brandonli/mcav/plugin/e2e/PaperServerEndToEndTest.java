@@ -155,6 +155,7 @@ final class PaperServerEndToEndTest {
   void shouldEnableThePluginWithItsAudioOutputsOnAHeadlessServer(@TempDir final Path serverDirectory) throws Exception {
     final boolean eulaAccepted = Boolean.getBoolean("mcav.e2e.acceptEula");
     Assumptions.assumeTrue(eulaAccepted, "Running a Minecraft server needs the Minecraft EULA; pass -Pmcav.acceptMinecraftEula=true");
+
     final Path cache = this.requirePath("mcav.e2e.cacheDirectory");
     final Path paperJar = this.download(cache, PAPER);
     final Path voiceChatJar = this.download(cache, VOICE_CHAT);
@@ -176,6 +177,7 @@ final class PaperServerEndToEndTest {
       server.awaitLine(0, this::isStartupComplete, STARTUP_TIMEOUT);
       final int servedFileCount = repository.getServedFileCount();
       this.assertCurrentModuleJars(serverDirectory, pluginJar);
+
       System.out.println("Local repository files served: " + servedFileCount + "; cached module hashes verified against this plugin");
       this.runCommand(server, "plugins", "MCAV");
       this.runCommand(server, "mcav help", "mcav dump");
@@ -192,6 +194,7 @@ final class PaperServerEndToEndTest {
       final int exitCode = server.awaitExit(SHUTDOWN_TIMEOUT);
       final List<String> output = server.getLines();
       assertRanCleanly(exitCode, mediaInformation, output);
+
       final boolean passwordLogged = output.stream().anyMatch(line -> line.contains(vnc.getPassword()));
       assertFalse(passwordLogged, "the VNC password is never logged");
     }
@@ -217,6 +220,7 @@ final class PaperServerEndToEndTest {
     try (final ZipFile plugin = new ZipFile(pluginJar.toFile())) {
       final ZipEntry entry = plugin.getEntry(DEPENDENCIES_ENTRY);
       assertNotNull(entry, "the plugin must carry the dependency hashes produced by this build");
+
       try (final InputStream input = plugin.getInputStream(entry)) {
         final byte[] bytes = input.readAllBytes();
         manifest = new String(bytes, StandardCharsets.UTF_8);
@@ -228,6 +232,7 @@ final class PaperServerEndToEndTest {
       if (line.startsWith("me.brandonli:mcav-")) {
         final String[] fields = line.split(FIELD_SEPARATOR, 2);
         assertEquals(2, fields.length, "module coordinates must have a SHA-256 digest");
+
         expected.add(fields[1]);
       }
     }
@@ -275,6 +280,7 @@ final class PaperServerEndToEndTest {
 
   static void assertRanCleanly(final int exitCode, final String mediaInformation, final List<String> output) {
     assertEquals(0, exitCode, "the server stops cleanly");
+
     final Gson gson = new GsonBuilder().setStrictness(Strictness.STRICT).create();
     final JsonElement actual = gson.fromJson(mediaInformation, JsonElement.class);
     final JsonObject expected = new JsonObject();
@@ -483,6 +489,7 @@ final class PaperServerEndToEndTest {
       left = this.findLeft(server, matcher, before);
     }
     assertEquals(List.of(), left, "no process of the " + what + " is left after its release");
+
     System.out.println("After the release of the " + what + ", none of its " + before.size() + " processes is left");
   }
 
@@ -527,6 +534,7 @@ final class PaperServerEndToEndTest {
       final HttpResponse<String> response = client.send(request, handler);
       final int status = response.statusCode();
       assertEquals(HTTP_OK, status, "the audio web server answers the media request");
+
       return response.body();
     }
   }
@@ -612,6 +620,7 @@ final class PaperServerEndToEndTest {
     final Path media = Files.createDirectories(serverDirectory.resolve(MEDIA_DIRECTORY));
     this.copyResource(CLIP, media);
     this.copyResource(PICTURE, media);
+
     return gamePort;
   }
 
@@ -648,6 +657,7 @@ final class PaperServerEndToEndTest {
     );
     final Path file = serverDirectory.resolve(SERVER_PROPERTIES_FILE);
     Files.writeString(file, properties, StandardCharsets.UTF_8);
+
     return port;
   }
 
@@ -726,6 +736,7 @@ final class PaperServerEndToEndTest {
     this.fetch(remoteFile.url, partial);
     final String downloadedHash = this.hash(partial, remoteFile.algorithm);
     assertEquals(remoteFile.expectedHash, downloadedHash, "the file downloaded from " + remoteFile.url + " is corrupt");
+
     Files.move(partial, file, StandardCopyOption.REPLACE_EXISTING);
     return file;
   }
@@ -777,12 +788,14 @@ final class PaperServerEndToEndTest {
   private Path requirePath(final String property) {
     final String value = System.getProperty(property);
     assertNotNull(value, "the build passes -D" + property + " to this test");
+
     return Path.of(value);
   }
 
   private int requirePort(final String property) {
     final int port = Integer.getInteger(property, 0);
     assertTrue(port > 0, "the build passes -D" + property + " to this test");
+
     return port;
   }
 

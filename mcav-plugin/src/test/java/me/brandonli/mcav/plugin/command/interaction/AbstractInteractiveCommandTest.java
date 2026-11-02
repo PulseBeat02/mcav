@@ -226,6 +226,7 @@ final class AbstractInteractiveCommandTest {
     verify(maps).release();
     assertNull(this.command.player);
     assertNull(this.command.result);
+
     final boolean stopped = this.command.service.isShutdown();
     assertTrue(stopped);
   }
@@ -293,6 +294,7 @@ final class AbstractInteractiveCommandTest {
 
     final Pair<Integer, Integer> valid = AbstractInteractiveCommand.parseDimensions(sender, "5x3");
     assertNotNull(valid);
+
     final int width = valid.getFirst();
     final int height = valid.getSecond();
     assertEquals(5, width);
@@ -301,6 +303,7 @@ final class AbstractInteractiveCommandTest {
 
     final Pair<Integer, Integer> invalid = AbstractInteractiveCommand.parseDimensions(sender, "5 by 3");
     assertNull(invalid);
+
     final List<Component> messages = Components.received(sender);
     final Component error = Message.UNSUPPORTED_DIMENSION.build();
     final List<Component> expectedMessages = List.of(error);
@@ -354,6 +357,7 @@ final class AbstractInteractiveCommandTest {
     final MultiplePlayerSelector viewers = mock(MultiplePlayerSelector.class);
     final List<Player> players = List.of(viewerPlayer);
     when(viewers.values()).thenReturn(players);
+
     return viewers;
   }
 
@@ -365,6 +369,7 @@ final class AbstractInteractiveCommandTest {
   ) {
     final FunctionalVideoFilter screenMaps = screen.getOutput();
     assertSame(ditherFilter, screenMaps);
+
     for (int mapId = FIRST_MAP_ID; mapId < MAP_ID_ABOVE_RANGE; mapId++) {
       final boolean secondOwnsMap = screen.ownsMap(mapId);
       assertTrue(secondOwnsMap, "all twelve maps of the 4x3 wall accept interaction");
@@ -379,6 +384,7 @@ final class AbstractInteractiveCommandTest {
     final DitherAlgorithm algorithm = DitheringArgument.NEAREST_COLOR.createAlgorithm();
     dithers.verify(() -> DitherFilter.dither(algorithm, maps));
     verify(ditherFilter).start();
+
     final VideoPipelineStep pipeline = screen.getPipeline();
     final VideoFilter filter = pipeline.getFilter();
     assertSame(ditherFilter, filter);
@@ -439,6 +445,7 @@ final class AbstractInteractiveCommandTest {
     this.assertReceivedText(sender, STARTED_TEXT);
     assertEquals(BROWSER, this.command.player);
     assertSame(maps, this.command.result);
+
     final boolean nothingReleased = this.command.released.isEmpty();
     assertTrue(nothingReleased);
     verify(maps, never()).release();
@@ -613,6 +620,7 @@ final class AbstractInteractiveCommandTest {
 
   private Boolean markOpened(final AtomicBoolean opened) {
     opened.set(true);
+
     return true;
   }
 
@@ -625,12 +633,14 @@ final class AbstractInteractiveCommandTest {
       .execute(any(Runnable.class));
     when(executor.awaitTermination(Mockito.anyLong(), any(TimeUnit.class))).thenReturn(true);
     this.command = new RecordingCommand(this.plugin, executor);
+
     return pending;
   }
 
   private @Nullable Object deferTask(final InvocationOnMock invocation, final List<Runnable> pending) {
     final Runnable task = invocation.getArgument(0);
     pending.add(task);
+
     return null;
   }
 
@@ -645,6 +655,7 @@ final class AbstractInteractiveCommandTest {
     final Runnable task = pending.getFirst();
     task.run();
     this.assertReleased(BROWSER);
+
     final FunctionalVideoFilter maps = screen.getOutput();
     verify(maps, times(1)).release();
     assertNull(this.command.player);
@@ -655,6 +666,7 @@ final class AbstractInteractiveCommandTest {
     // Models a release command arriving after startup began but before it creates its native resource.
     this.command.releaseCurrent();
     this.assertReleased();
+
     return true;
   }
 
@@ -710,6 +722,7 @@ final class AbstractInteractiveCommandTest {
     final EntityDamageByEntityEvent event = mock(EntityDamageByEntityEvent.class);
     when(event.getEntity()).thenReturn(target);
     when(event.getDamager()).thenReturn(damager);
+
     return event;
   }
 
@@ -717,6 +730,7 @@ final class AbstractInteractiveCommandTest {
     final PlayerInteractEntityEvent event = mock(PlayerInteractEntityEvent.class);
     when(event.getPlayer()).thenReturn(this.player);
     when(event.getRightClicked()).thenReturn(clicked);
+
     return event;
   }
 
@@ -737,6 +751,7 @@ final class AbstractInteractiveCommandTest {
       assertSame(failure, thrown);
       verify(maps).release();
       handlers.verify(() -> HandlerList.unregisterAll(this.command));
+
       final boolean stopped = this.command.service.isShutdown();
       assertTrue(stopped);
     }
@@ -784,6 +799,7 @@ final class AbstractInteractiveCommandTest {
   private BlockBreakEvent blockBreak() {
     final BlockBreakEvent event = mock(BlockBreakEvent.class);
     when(event.getPlayer()).thenReturn(this.player);
+
     return event;
   }
 
@@ -868,6 +884,7 @@ final class AbstractInteractiveCommandTest {
     this.command.onBlockBreak(event);
 
     verify(event, never()).setCancelled(anyBoolean());
+
     final boolean nothingForwarded = this.command.forwarded.isEmpty();
     assertTrue(nothingForwarded);
   }
@@ -960,6 +977,7 @@ final class AbstractInteractiveCommandTest {
     this.command.onScreenDamage(event);
 
     verify(event).setCancelled(true);
+
     final boolean nothingForwarded = this.command.forwarded.isEmpty();
     assertTrue(nothingForwarded);
   }
@@ -996,6 +1014,7 @@ final class AbstractInteractiveCommandTest {
     verify(withoutPlayer, never()).setCancelled(anyBoolean());
     verify(onZombie, never()).setCancelled(anyBoolean());
     verify(missed, never()).setCancelled(anyBoolean());
+
     final boolean nothingForwarded = this.command.forwarded.isEmpty();
     assertTrue(nothingForwarded);
   }
@@ -1028,6 +1047,7 @@ final class AbstractInteractiveCommandTest {
     final AsyncChatEvent event = mock(AsyncChatEvent.class);
     when(event.getPlayer()).thenReturn(this.player);
     when(event.message()).thenReturn(message);
+
     return event;
   }
 
@@ -1100,6 +1120,7 @@ final class AbstractInteractiveCommandTest {
     this.command.onChatMessage(event);
 
     verify(event, never()).setCancelled(anyBoolean());
+
     final boolean nothingForwarded = this.command.forwarded.isEmpty();
     assertTrue(nothingForwarded);
   }
@@ -1121,6 +1142,7 @@ final class AbstractInteractiveCommandTest {
   private HangingBreakEvent hangingBreak(final ItemFrame frame) {
     final HangingBreakEvent event = mock(HangingBreakEvent.class);
     when(event.getEntity()).thenReturn(frame);
+
     return event;
   }
 
@@ -1144,8 +1166,10 @@ final class AbstractInteractiveCommandTest {
     final ScreenSettings settings = this.wallSettings(UUID.randomUUID(), DitheringArgument.NEAREST_COLOR);
     try (final MockedConstruction<CompressedMapResult> maps = Mockito.mockConstruction(CompressedMapResult.class)) {
       final IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> this.command.createScreen(settings));
+
       final String message = thrown.getMessage();
       assertEquals("The interactive command is shut down!", message);
+
       final List<CompressedMapResult> constructed = maps.constructed();
 
       final boolean empty = constructed.isEmpty();
@@ -1164,6 +1188,7 @@ final class AbstractInteractiveCommandTest {
       dithers.when(() -> DitherFilter.dither(any(), any())).thenThrow(failure);
       final IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> this.command.createScreen(settings));
       assertSame(failure, thrown);
+
       final List<CompressedMapResult> constructed = maps.constructed();
 
       final int size = constructed.size();
@@ -1285,6 +1310,7 @@ final class AbstractInteractiveCommandTest {
     final IllegalStateException failure = new IllegalStateException("attach failed!");
     final IllegalStateException cleanup = new IllegalStateException("close failed!");
     this.assertSynchronousFailureCleanup(failure, cleanup);
+
     final Throwable[] suppressed = failure.getSuppressed();
     assertEquals(1, suppressed.length);
     assertSame(cleanup, suppressed[0]);
@@ -1315,6 +1341,7 @@ final class AbstractInteractiveCommandTest {
   void shouldNotSelfSuppressARepeatedSetupAndCleanupFailure() {
     final IllegalStateException failure = new IllegalStateException("same backend failure!");
     this.assertSynchronousFailureCleanup(failure, failure);
+
     final Throwable[] suppressed = failure.getSuppressed();
     assertEquals(0, suppressed.length);
   }
@@ -1332,8 +1359,10 @@ final class AbstractInteractiveCommandTest {
     this.assertReceivedText(sender, STARTED_TEXT);
     this.assertReleased();
     assertEquals(BROWSER, this.command.player);
+
     final FunctionalVideoFilter maps = screen.getOutput();
     verify(maps, never()).release();
+
     this.command.releaseCurrent();
     this.assertReleased(BROWSER);
     verify(maps).release();
@@ -1391,13 +1420,16 @@ final class AbstractInteractiveCommandTest {
     final Runnable task = pending.getFirst();
     final RuntimeException thrown = assertThrows(RuntimeException.class, task::run);
     assertSame(failure, thrown);
+
     if (shouldCancel) {
       this.assertReleased(BROWSER);
+
       final FunctionalVideoFilter maps = screen.getOutput();
       verify(maps).release();
       assertNull(this.command.player);
     } else {
       this.assertReleased();
+
       this.command.releaseCurrent();
       this.assertReleased(BROWSER);
     }
@@ -1441,6 +1473,7 @@ final class AbstractInteractiveCommandTest {
     final Runnable task = pending.getFirst();
     final RuntimeException thrown = assertThrows(RuntimeException.class, task::run);
     assertSame(failure, thrown);
+
     final Throwable[] suppressed = thrown.getSuppressed();
     assertEquals(0, suppressed.length);
     this.assertReleased(BROWSER);
@@ -1535,6 +1568,7 @@ final class AbstractInteractiveCommandTest {
       try {
         final boolean reachedFailure = loggedFailure.await(10, TimeUnit.SECONDS);
         assertTrue(reachedFailure, "The failed start must reach its log before replacement");
+
         final Screen secondScreen = this.createMockedScreen();
         final FunctionalVideoFilter secondMaps = secondScreen.getOutput();
         final CompletableFuture<Boolean> secondStart = new CompletableFuture<>();
@@ -1553,6 +1587,7 @@ final class AbstractInteractiveCommandTest {
         verify(firstMaps, times(1)).release();
         verify(secondMaps, never()).release();
         verify(sender, never()).sendMessage(any(Component.class));
+
         secondStart.complete(true);
         TestServer.runPendingTasks();
         this.assertReceivedText(sender, STARTED_TEXT);
@@ -1572,6 +1607,7 @@ final class AbstractInteractiveCommandTest {
     try {
       final boolean resumed = resumeFailure.await(10, TimeUnit.SECONDS);
       assertTrue(resumed, "The main thread must release the failure callback");
+
       return invocation.callRealMethod();
     } catch (final Throwable exception) {
       callbackFailure.set(exception);
@@ -1593,6 +1629,7 @@ final class AbstractInteractiveCommandTest {
       Mockito.doThrow(fatal).when(ditherFilter).start();
       final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () -> this.command.createScreen(settings));
       assertSame(fatal, thrown);
+
       final List<CompressedMapResult> constructed = results.constructed();
 
       final int size = constructed.size();
@@ -1671,6 +1708,7 @@ final class AbstractInteractiveCommandTest {
     final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, task::run);
     assertSame(fatal, thrown);
     this.assertReleased(BROWSER);
+
     this.command.releaseFailure = null;
   }
 
@@ -1861,6 +1899,7 @@ final class AbstractInteractiveCommandTest {
       if (succeeded) {
         return Component.text(STARTED_TEXT);
       }
+
       final String reason = error == null ? "refused" : error.getMessage();
       return Component.text("failed: " + reason);
     }
@@ -1872,6 +1911,7 @@ final class AbstractInteractiveCommandTest {
       if (failure instanceof final RuntimeException runtime) {
         throw runtime;
       }
+
       if (failure instanceof final Error error) {
         throw error;
       }

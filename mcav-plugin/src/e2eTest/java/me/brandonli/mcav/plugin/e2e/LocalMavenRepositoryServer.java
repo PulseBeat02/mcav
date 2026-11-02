@@ -82,6 +82,7 @@ final class LocalMavenRepositoryServer implements AutoCloseable {
     final HttpServer server = HttpServer.create(address, 0);
     final LocalMavenRepositoryServer repository = new LocalMavenRepositoryServer(root, server);
     server.start();
+
     return repository;
   }
 
@@ -103,12 +104,14 @@ final class LocalMavenRepositoryServer implements AutoCloseable {
         exchange.sendResponseHeaders(HTTP_METHOD_NOT_ALLOWED, NO_BODY);
         return;
       }
+
       final URI requestUri = exchange.getRequestURI();
       final Optional<Path> file = this.findFile(requestUri);
       if (file.isEmpty()) {
         exchange.sendResponseHeaders(HTTP_NOT_FOUND, NO_BODY);
         return;
       }
+
       final Path existingFile = file.get();
       this.sendFile(exchange, existingFile, isHeadRequest);
     } finally {
@@ -124,6 +127,7 @@ final class LocalMavenRepositoryServer implements AutoCloseable {
     if (requestPath == null) {
       return Optional.empty();
     }
+
     final String relativePath = requestPath.startsWith(PATH_SEPARATOR) ? requestPath.substring(1) : requestPath;
     final Path candidate;
     try {
@@ -136,16 +140,19 @@ final class LocalMavenRepositoryServer implements AutoCloseable {
     if (!inside || !Files.isRegularFile(file)) {
       return Optional.empty();
     }
+
     return Optional.of(file);
   }
 
   private void sendFile(final HttpExchange exchange, final Path file, final boolean isHeadRequest) throws IOException {
     final Headers responseHeaders = exchange.getResponseHeaders();
     responseHeaders.set("Content-Type", "application/octet-stream");
+
     if (isHeadRequest) {
       exchange.sendResponseHeaders(HTTP_OK, NO_BODY);
       return;
     }
+
     final long size = Files.size(file);
     // a length of 0 would make the server send a chunked body, so an empty file is sent without one
     final long responseLength = size == 0 ? NO_BODY : size;

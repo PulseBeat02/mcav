@@ -144,6 +144,7 @@ final class MapProbe implements DitherResultStep {
     final MapLayout layout = new MapLayout(startMapId, columns, rows, width, height);
     final DeltaMapEncoder created = new DeltaMapEncoder(layout, DeltaMapEncoder.DEFAULT_MAXIMUM_BYTES_PER_FRAME);
     this.encoder = created;
+
     return created;
   }
 
@@ -173,11 +174,13 @@ final class MapProbe implements DitherResultStep {
     if (current == null) {
       throw new IllegalStateException("No frame was encoded yet!");
     }
+
     final MapLayout layout = current.getLayout();
     final int firstMapId = layout.getMapId(0);
     final int pagePixels = layout.getImageWidth() * layout.getImageHeight();
     final Watch created = new Watch(index, firstMapId, layout.getMapCount(), pagePixels);
     this.watch = created;
+
     return created;
   }
 

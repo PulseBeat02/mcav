@@ -68,6 +68,7 @@ final class UrlPlaceholderTest {
     final TranslatableComponent input = Component.translatable(MESSAGE_KEY, argument);
     final Component actual = translator.translate(input, Locale.ENGLISH);
     assertNotNull(actual);
+
     final ClickEvent<?> click = ClickEvent.openUrl(url);
     final Component text = Component.text(url);
     final Component expected = text.clickEvent(click);
@@ -91,8 +92,10 @@ final class UrlPlaceholderTest {
     final TranslatableComponent input = Component.translatable(MESSAGE_KEY, argument);
     final Component actual = translator.translate(input, Locale.ENGLISH);
     assertNotNull(actual);
+
     final Component expected = Component.text(url);
     assertEquals(expected, actual);
+
     final ClickEvent<?> click = actual.clickEvent();
     assertNull(click);
     this.assertNoRunCommands(actual);
@@ -112,8 +115,10 @@ final class UrlPlaceholderTest {
     final TranslatableComponent input = base.append(suffix);
     final Component actual = translator.translate(input, Locale.ENGLISH);
     assertNotNull(actual);
+
     final String plain = Components.plain(actual);
     assertEquals(INJECTION + " literal $URL$ hover suffix $URL$", plain);
+
     final Component red = Component.text(INJECTION, NamedTextColor.RED);
     final Component space = Component.text(" ");
     final Component hoverText = Component.text(INJECTION);
@@ -138,6 +143,7 @@ final class UrlPlaceholderTest {
     final TranslatableComponent input = Component.translatable(MESSAGE_KEY, argument);
     final Component actual = translator.translate(input, Locale.ENGLISH);
     assertNotNull(actual);
+
     final String target = "https://redirect.test/?to=" + url + "&again=" + url;
     final ClickEvent<?> click = ClickEvent.openUrl(target);
     final Component label = Component.text("go");
@@ -156,6 +162,7 @@ final class UrlPlaceholderTest {
     final TranslatableComponent input = Component.translatable(MESSAGE_KEY, argument);
     final Component actual = translator.translate(input, Locale.ENGLISH);
     assertNotNull(actual);
+
     final Component expected = Component.text("<click:open_url:'" + INJECTION + "'>" + INJECTION + "</click>", NamedTextColor.RED);
     assertEquals(expected, actual);
     this.assertNoRunCommands(actual);
@@ -172,6 +179,7 @@ final class UrlPlaceholderTest {
     final TranslatableComponent input = Component.translatable(MESSAGE_KEY, argument);
     final Component actual = translator.translate(input, Locale.ENGLISH);
     assertNotNull(actual);
+
     final Component expected = Component.text(INJECTION, NamedTextColor.GOLD);
     assertEquals(expected, actual);
     this.assertNoRunCommands(actual);

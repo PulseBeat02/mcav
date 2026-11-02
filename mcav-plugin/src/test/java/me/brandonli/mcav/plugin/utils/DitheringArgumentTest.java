@@ -83,6 +83,7 @@ final class DitheringArgumentTest {
     final DitherAlgorithm secondAlgorithm = second.get();
     assertNotNull(firstAlgorithm);
     assertSame(firstAlgorithm, secondAlgorithm);
+
     final DitherAlgorithm later = argument.createAlgorithm();
     assertSame(firstAlgorithm, later);
   }
@@ -94,6 +95,7 @@ final class DitheringArgumentTest {
     while (state != Thread.State.BLOCKED) {
       final long now = System.nanoTime();
       assertTrue(now < deadline, "the thread never waited for the lock");
+
       Thread.onSpinWait();
       state = thread.getState();
     }

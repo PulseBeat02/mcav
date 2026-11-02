@@ -67,6 +67,7 @@ final class LibraryCache implements AutoCloseable {
     if (!Files.isDirectory(this.serverLibraries)) {
       return;
     }
+
     deleteRecursively(this.cacheDirectory);
     transfer(this.serverLibraries, this.cacheDirectory);
   }
@@ -105,6 +106,7 @@ final class LibraryCache implements AutoCloseable {
     if (!Files.exists(directory)) {
       return;
     }
+
     final List<Path> entries;
     try (final Stream<Path> walk = Files.walk(directory)) {
       final Comparator<Path> deepestFirst = Comparator.reverseOrder();

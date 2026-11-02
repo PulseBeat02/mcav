@@ -204,12 +204,14 @@ final class VideoFlagsParserTest {
     final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () ->
       this.parser.parseYtdlpFlags(FLAG_OPENING + option + "=value}")
     );
+
     final String message = refused.getMessage();
     final boolean namesTheOption = message.startsWith("yt-dlp option " + option + " is not supported, ");
     assertTrue(namesTheOption, message);
     final IllegalArgumentException asSwitch = assertThrows(IllegalArgumentException.class, () ->
       this.parser.parseYtdlpFlags(FLAG_OPENING + option + FLAG_CLOSING)
     );
+
     final String switchMessage = asSwitch.getMessage();
 
     final boolean prefixed = switchMessage.startsWith("yt-dlp option " + option + " is not supported, ");
@@ -221,6 +223,7 @@ final class VideoFlagsParserTest {
     final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () ->
       this.parser.parseYtdlpFlags("--yt-dlp{no-playlist=https://example.com/other}")
     );
+
     final String message = refused.getMessage();
     assertEquals("yt-dlp option no-playlist takes no value!", message);
   }
@@ -230,6 +233,7 @@ final class VideoFlagsParserTest {
     final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () ->
       this.parser.parseYtdlpFlags("--yt-dlp{format}")
     );
+
     final String message = refused.getMessage();
     assertEquals("yt-dlp option format needs a value, written as format=value!", message);
   }
@@ -240,6 +244,7 @@ final class VideoFlagsParserTest {
     final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () ->
       this.parser.parseYtdlpFlags(FORMAT_FLAG_OPENING + value + FLAG_CLOSING)
     );
+
     final String message = refused.getMessage();
     final String expected = "Value " + value + " of the yt-dlp option format must not start with a dash!";
     assertEquals(expected, message);

@@ -63,13 +63,17 @@ final class TaskUtilsTest {
     final Runnable handover = TaskUtils.createMainThreadHandover(plugin, task);
     final int pendingBefore = TestServer.runPendingTasks();
     assertEquals(0, pendingBefore);
+
     handover.run();
     final BukkitScheduler scheduler = TestServer.scheduler();
     verify(scheduler).runTask(plugin, task);
+
     final int runsBeforeTick = runs.get();
     assertEquals(0, runsBeforeTick);
+
     final int pending = TestServer.runPendingTasks();
     assertEquals(1, pending);
+
     final int runsAfterTick = runs.get();
     assertEquals(1, runsAfterTick);
   }
@@ -85,10 +89,13 @@ final class TaskUtilsTest {
     final AtomicInteger runs = new AtomicInteger();
     final boolean scheduled = TaskUtils.runOnMainThread(plugin, runs::incrementAndGet);
     assertTrue(scheduled);
+
     final int runsBeforeTick = runs.get();
     assertEquals(0, runsBeforeTick);
+
     final int pending = TestServer.runPendingTasks();
     assertEquals(1, pending);
+
     final int runsAfterTick = runs.get();
     assertEquals(1, runsAfterTick);
   }
@@ -101,6 +108,7 @@ final class TaskUtilsTest {
     final AtomicInteger runs = new AtomicInteger();
     final boolean scheduled = TaskUtils.runOnMainThread(plugin, runs::incrementAndGet);
     assertFalse(scheduled);
+
     final Runnable handover = TaskUtils.createMainThreadHandover(plugin, runs::incrementAndGet);
     handover.run();
     final int count = runs.get();

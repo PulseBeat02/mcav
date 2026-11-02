@@ -131,8 +131,10 @@ final class MCAVLoaderTest {
     }
     final ArgumentCaptor<ClassPathLibrary> captor = ArgumentCaptor.forClass(ClassPathLibrary.class);
     verify(builder).addLibrary(captor.capture());
+
     final ClassPathLibrary library = captor.getValue();
     assertInstanceOf(JarLibrary.class, library);
+
     final LibraryStore store = mock(LibraryStore.class);
     library.register(store);
     verify(store).addLibrary(jar);

@@ -121,6 +121,7 @@ final class DiskImagesTest {
   @ValueSource(strings = { "../outside.iso", "../../outside.iso", "/etc/passwd", "linux/../../outside.iso" })
   void shouldRefuseAnImageOutsideTheFolder(final String image) {
     final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () -> DiskImages.require(this.folder, image));
+
     final String message = failure.getMessage();
     final boolean explained = message.contains(OUTSIDE_FOLDER_EXPLANATION);
     assertTrue(explained, message);
@@ -129,6 +130,7 @@ final class DiskImagesTest {
   @Test
   void shouldRefuseTheFolderItself() {
     final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () -> DiskImages.require(this.folder, "."));
+
     final String message = failure.getMessage();
     final boolean explained = message.contains(OUTSIDE_FOLDER_EXPLANATION);
     assertTrue(explained, message);
@@ -165,6 +167,7 @@ final class DiskImagesTest {
   void shouldRefuseANameTheFileSystemCannotRepresent() {
     final String invalid = INVALID_IMAGE_FILE_NAME;
     final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () -> DiskImages.require(this.folder, invalid));
+
     final String message = failure.getMessage();
     final boolean explained = message.contains("is not a valid file name");
     assertTrue(explained, message);

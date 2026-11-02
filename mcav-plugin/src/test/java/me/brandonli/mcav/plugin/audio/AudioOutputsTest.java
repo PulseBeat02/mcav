@@ -68,9 +68,11 @@ final class AudioOutputsTest {
     final Player viewer = mock(Player.class);
     AudioOutputs.sendLink(this.provider, AudioArgument.DISCORD_BOT, new Player[] { viewer });
     verify(viewer).sendMessage(Message.AUDIO_DISCORD.build("https://discord.com/channels/1/2"));
+
     final Player silent = mock(Player.class);
     AudioOutputs.sendLink(this.provider, AudioArgument.NONE, new Player[] { silent });
     verifyNoInteractions(silent);
+
     when(this.provider.constructHttpUrl()).thenReturn("http://mc.example.com:3000");
 
     final Component expected = Message.AUDIO_HTTP.build("http://mc.example.com:3000");

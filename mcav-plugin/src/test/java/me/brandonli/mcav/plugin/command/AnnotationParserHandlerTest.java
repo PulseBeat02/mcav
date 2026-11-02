@@ -189,6 +189,7 @@ final class AnnotationParserHandlerTest {
     final int count = syntaxes.size();
     final String registeredSyntaxes = String.valueOf(syntaxes);
     assertEquals(39, count, registeredSyntaxes);
+
     for (final String syntax : EXPECTED_SYNTAXES) {
       final boolean registered = syntaxes.contains(syntax);
       assertTrue(registered, syntax + " in " + syntaxes);
@@ -207,6 +208,7 @@ final class AnnotationParserHandlerTest {
     final String syntax = VM_SYNTAX;
     final ArgumentParser<CommandSender, ?> parser = this.parserOf(syntax, "targetFramesPerSecond");
     final IntegerParser<?> framesPerSecond = assertInstanceOf(IntegerParser.class, parser);
+
     final IntRange range = framesPerSecond.range();
     final int minimum = range.minInt();
     final int maximum = range.maxInt();
@@ -291,6 +293,7 @@ final class AnnotationParserHandlerTest {
     for (final String syntax : List.of(VIDEO_SYNTAX, IMAGE_SYNTAX, BROWSER_SYNTAX, VNC_SYNTAX)) {
       final Command<CommandSender> command = this.commands.command(syntax);
       final CommandFlagParser<?> flags = assertInstanceOf(CommandFlagParser.class, command.components().getLast().parser(), syntax);
+
       final List<String> names = flags.flags().stream().map(CommandFlag::name).toList();
 
       final String name = names.getFirst();
@@ -330,6 +333,7 @@ final class AnnotationParserHandlerTest {
     for (final String syntax : media) {
       final Command<CommandSender> command = this.commands.command(syntax);
       final CommandFlagParser<?> flags = assertInstanceOf(CommandFlagParser.class, command.components().getLast().parser(), syntax);
+
       final CommandFlag<?> filters = flags
         .flags()
         .stream()
@@ -360,6 +364,7 @@ final class AnnotationParserHandlerTest {
       final EnumParser<?, ?> outputs = assertInstanceOf(EnumParser.class, audio);
 
       final Collection<?> expected = assertInstanceOf(EnumParser.class, videoAudio).acceptedValues();
+
       final Collection<? extends Enum<?>> acceptedValues = outputs.acceptedValues();
       assertEquals(expected, acceptedValues, syntax);
     }
@@ -394,6 +399,7 @@ final class AnnotationParserHandlerTest {
     final CompletableFuture<CommandResult<CommandSender>> execution = executor.executeCommand(sender, "mcav video pause");
     execution.join();
     verify(player).pause();
+
     final List<Component> messages = Components.received(sender);
     final Component paused = Message.PAUSE_PLAYER.build();
     assertEquals(List.of(paused), messages);
@@ -422,6 +428,7 @@ final class AnnotationParserHandlerTest {
       final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
       final IllegalStateException thrown = assertThrows(IllegalStateException.class, handler::registerCommands);
       assertSame(failure, thrown);
+
       handler.shutdownCommands();
       final List<BrowserCommand> createdBrowsers = browsers.constructed();
       final List<VirtualizeCommand> createdMachines = machines.constructed();
@@ -450,9 +457,11 @@ final class AnnotationParserHandlerTest {
       final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
       final IllegalStateException thrown = assertThrows(IllegalStateException.class, handler::registerCommands);
       assertSame(primary, thrown);
+
       final Throwable[] suppressed = thrown.getSuppressed();
       final Throwable[] expected = sameFailure ? new Throwable[0] : new Throwable[] { cleanup };
       assertArrayEquals(expected, suppressed);
+
       handler.shutdownCommands();
       final List<BrowserCommand> createdBrowsers = browsers.constructed();
       final List<VirtualizeCommand> createdMachines = machines.constructed();
@@ -480,6 +489,7 @@ final class AnnotationParserHandlerTest {
       final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
       final IllegalStateException thrown = assertThrows(IllegalStateException.class, handler::shutdownCommands);
       assertSame(failure, thrown);
+
       handler.shutdownCommands();
       final List<BrowserCommand> createdBrowsers = browsers.constructed();
       final List<VirtualizeCommand> createdMachines = machines.constructed();
@@ -500,6 +510,7 @@ final class AnnotationParserHandlerTest {
     final Component contents = description.contents();
     final String text = Components.plain(contents);
     assertEquals("Pauses the current video player", text);
+
     final RichDescription none = AnnotationParserHandler.describe("");
     final boolean empty = none.isEmpty();
     assertTrue(empty);
@@ -523,6 +534,7 @@ final class AnnotationParserHandlerTest {
       final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
       final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, handler::registerCommands);
       assertSame(fatal, thrown);
+
       final List<BrowserCommand> createdBrowsers = browsers.constructed();
       final List<VirtualizeCommand> createdMachines = machines.constructed();
       final BrowserCommand browser = createdBrowsers.getFirst();
@@ -545,6 +557,7 @@ final class AnnotationParserHandlerTest {
       final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
       final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, handler::registerCommands);
       assertSame(fatal, thrown);
+
       final List<BrowserCommand> createdBrowsers = browsers.constructed();
       final List<VirtualizeCommand> createdMachines = machines.constructed();
       final BrowserCommand browser = createdBrowsers.getFirst();

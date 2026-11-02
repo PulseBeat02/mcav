@@ -161,11 +161,13 @@ final class DumpUtilsTest {
     final Path log = this.missingLog();
     final String url = DumpUtils.createAndUploadDump(this.client, site, log);
     assertEquals(site + "abc123", url);
+
     final String path = this.uploadedPath.get();
     final String type = this.contentType.get();
     final String body = this.uploadedBody.get();
     assertEquals("/documents/", path);
     assertEquals("text/plain", type);
+
     final boolean system = body.contains("\n=== System ===\n");
     final boolean properties = body.contains("\n=== JVM Properties ===\n");
     final boolean threads = body.contains("\n=== Threads ===\n");
@@ -194,8 +196,10 @@ final class DumpUtilsTest {
     final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
       DumpUtils.createAndUploadDump(this.client, site, log)
     );
+
     final String message = exception.getMessage();
     assertEquals("The dump could not be uploaded (The paste site answered with HTTP status 500, which is not a success!)!", message);
+
     final Throwable cause = exception.getCause();
     assertInstanceOf(IOException.class, cause);
   }
@@ -209,6 +213,7 @@ final class DumpUtilsTest {
     final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
       DumpUtils.createAndUploadDump(this.client, site, log)
     );
+
     final String message = exception.getMessage();
     assertEquals("Paste site answer " + response + " has no document key!", message);
   }
@@ -221,6 +226,7 @@ final class DumpUtilsTest {
     final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
       DumpUtils.createAndUploadDump(this.client, site, log)
     );
+
     final String message = exception.getMessage();
     assertEquals("Paste site answer {\"key\": is not JSON!", message);
   }
@@ -233,6 +239,7 @@ final class DumpUtilsTest {
     final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
       DumpUtils.createAndUploadDump(this.client, site, log)
     );
+
     final String message = exception.getMessage();
     final boolean upload = message.startsWith("The dump could not be uploaded (");
     assertTrue(upload, message);
@@ -248,8 +255,10 @@ final class DumpUtilsTest {
     final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
       DumpUtils.createAndUploadDump(this.client, site, log)
     );
+
     final boolean interrupted = Thread.interrupted();
     assertTrue(interrupted);
+
     final String message = exception.getMessage();
     assertEquals("Interrupted while uploading the dump!", message);
   }
@@ -260,6 +269,7 @@ final class DumpUtilsTest {
       dumps.when(() -> DumpUtils.createAndUploadDump(any(HttpClient.class), any(String.class), any(Path.class))).thenReturn("link");
       final String url = DumpUtils.createAndUploadDump();
       assertEquals("link", url);
+
       final Path log = Path.of(LOGS_FOLDER_NAME, LOG_FILE_NAME);
       dumps.verify(() -> DumpUtils.createAndUploadDump(any(HttpClient.class), eq("https://paste.helpch.at/"), eq(log)));
     }
@@ -334,6 +344,7 @@ final class DumpUtilsTest {
     final String marker = "\n" + label + ": ";
     final int start = dump.indexOf(marker);
     assertTrue(start >= 0, "the dump has no " + label + " line: " + dump);
+
     final int valueStart = start + marker.length();
     final int end = dump.indexOf('\n', valueStart);
     final String value = dump.substring(valueStart, end);
@@ -457,6 +468,7 @@ final class DumpUtilsTest {
     assertEquals("[12:34:56 INFO]: Steve issued server command: /login <redacted>", redactedLogin);
     assertEquals(own, keptOwn, "the arguments of this plugin are what a bug report is about");
     assertEquals(bare, keptBare, "a command without arguments has nothing to redact");
+
     final String keptTrailing = DumpUtils.redactLogLine(trailing);
     assertEquals(trailing, keptTrailing, "blank arguments have nothing to redact either");
   }
@@ -499,6 +511,7 @@ final class DumpUtilsTest {
     final List<String> tail = logLines.subList(1, lineCount);
     final int tailSize = tail.size();
     assertEquals(2000, tailSize);
+
     final String first = tail.getFirst();
     final String last = tail.getLast();
     assertEquals("line 500", first);

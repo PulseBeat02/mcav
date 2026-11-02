@@ -132,6 +132,7 @@ final class VideoMapCommandTest {
     final FunctionalVideoFilter filter = invocation.getArgument(0);
     final BukkitScheduler scheduler = Bukkit.getScheduler();
     scheduler.runTask(plugin, filter::start);
+
     return null;
   }
 
@@ -157,6 +158,7 @@ final class VideoMapCommandTest {
     final MultiplePlayerSelector selector = mock(MultiplePlayerSelector.class);
     final List<Player> players = List.of(player);
     when(selector.values()).thenReturn(players);
+
     return selector;
   }
 
@@ -170,6 +172,7 @@ final class VideoMapCommandTest {
     final Object built = configurationProvider.buildConfiguration(resolution);
 
     final MapDisplaySettings settings = assertInstanceOf(MapDisplaySettings.class, built);
+
     final MapConfiguration configuration = settings.getConfiguration();
     this.assertWall(configuration);
   }
@@ -190,6 +193,7 @@ final class VideoMapCommandTest {
       eq(""),
       isNull()
     );
+
     return providers.getValue();
   }
 
@@ -247,6 +251,7 @@ final class VideoMapCommandTest {
       final List<CompressedMapResult> constructed = results.constructed();
       final CompressedMapResult result = constructed.getFirst();
       dithers.verify(() -> DitherFilter.dither(algorithm, result));
+
       final VideoFilter filter = pipeline.getFilter();
       assertSame(ditherFilter, filter);
       this.assertStartedOnTheMainThread(ditherFilter);
@@ -265,6 +270,7 @@ final class VideoMapCommandTest {
   private void assertStartedOnTheMainThread(final FunctionalVideoFilter ditherFilter) {
     verify(this.manager).startFilter(ditherFilter);
     verify(ditherFilter, never()).start();
+
     final int tasks = TestServer.runPendingTasks();
     assertEquals(1, tasks);
     verify(ditherFilter).start();
@@ -310,6 +316,7 @@ final class VideoMapCommandTest {
       anyString(),
       isNull()
     );
+
     final List<Component> messages = Components.received(this.sender);
     final Component error = Message.UNSUPPORTED_DIMENSION.build();
     final List<Component> expectedMessages = List.of(error);
@@ -344,6 +351,7 @@ final class VideoMapCommandTest {
       eq(""),
       isNull()
     );
+
     final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
     final VideoMcv2Command.Mcv2Settings settings = assertInstanceOf(
       VideoMcv2Command.Mcv2Settings.class,

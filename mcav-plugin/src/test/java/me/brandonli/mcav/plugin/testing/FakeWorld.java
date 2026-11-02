@@ -104,6 +104,7 @@ public final class FakeWorld {
     final Location location = invocation.getArgument(0);
     final ItemFrame frame = this.frame(location, BlockFace.SOUTH);
     this.spawnedFrames.add(frame);
+
     return frame;
   }
 
@@ -142,6 +143,7 @@ public final class FakeWorld {
     if (existing != null) {
       return existing;
     }
+
     final Block block = mock(Block.class);
     this.blocks.put(key, block);
     when(block.getX()).thenReturn(blockX);
@@ -157,6 +159,7 @@ public final class FakeWorld {
     doAnswer(invocation -> this.setMaterial(invocation, block))
       .when(block)
       .setType(any(Material.class));
+
     return block;
   }
 
@@ -174,6 +177,7 @@ public final class FakeWorld {
   private @Nullable Object setMaterial(final InvocationOnMock invocation, final Block block) {
     final Material material = invocation.getArgument(0);
     this.materials.put(block, material);
+
     return null;
   }
 
@@ -229,6 +233,7 @@ public final class FakeWorld {
     final BlockFace attached = facing.getOppositeFace();
     when(frame.getAttachedFace()).thenReturn(attached);
     when(frame.getRotation()).thenReturn(Rotation.NONE);
+
     return frame;
   }
 
@@ -236,6 +241,7 @@ public final class FakeWorld {
     final NamespacedKey key = invocation.getArgument(0);
     final Object value = invocation.getArgument(2);
     data.put(key, value);
+
     return null;
   }
 
@@ -264,6 +270,7 @@ public final class FakeWorld {
       container.set(key, PersistentDataType.BOOLEAN, true);
     }
     this.entities.add(frame);
+
     return frame;
   }
 

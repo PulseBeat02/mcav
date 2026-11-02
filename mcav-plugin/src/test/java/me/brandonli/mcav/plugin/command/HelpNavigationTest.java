@@ -112,6 +112,7 @@ final class HelpNavigationTest {
     final String secondPage = this.text();
     final boolean numberedPage = secondPage.contains("2/4");
     assertTrue(numberedPage, secondPage);
+
     this.followGeneratedClick("/mcav help 1");
     final List<Component> restored = Components.received(this.sender);
     assertEquals(firstPage, restored, "previous-page navigation must return to the same index, query and click targets");
@@ -125,6 +126,7 @@ final class HelpNavigationTest {
     final String secondPage = this.text();
     final boolean lastClip = secondPage.contains("mcav video clip8");
     assertTrue(lastClip, secondPage);
+
     this.followGeneratedClick(FIRST_VIDEO_PAGE_COMMAND);
     final List<Component> restored = Components.received(this.sender);
     assertEquals(firstPage, restored, "filtered navigation must add the mcav root exactly once");
@@ -166,6 +168,7 @@ final class HelpNavigationTest {
     final boolean rootPage = rootClicks.contains("/mcav help mcav 2");
     final String rootTargets = rootClicks.toString();
     assertTrue(rootPage, rootTargets);
+
     clearInvocations(this.sender);
     this.help.commandHelp(this.sender, "video 2");
     final Set<String> filteredClicks = this.clickCommands();
@@ -178,6 +181,7 @@ final class HelpNavigationTest {
     final Set<String> available = this.clickCommands();
     final boolean generated = available.contains(command);
     assertTrue(generated, "Expected a real generated click target among " + available);
+
     clearInvocations(this.sender);
     final CommandExecutor<CommandSender> executor = this.manager.commandExecutor();
     final String input = command.substring(1);

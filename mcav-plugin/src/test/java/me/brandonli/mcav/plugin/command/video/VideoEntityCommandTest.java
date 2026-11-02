@@ -107,6 +107,7 @@ final class VideoEntityCommandTest {
     final FunctionalVideoFilter filter = invocation.getArgument(0);
     final BukkitScheduler scheduler = Bukkit.getScheduler();
     scheduler.runTask(plugin, filter::start);
+
     return null;
   }
 
@@ -132,6 +133,7 @@ final class VideoEntityCommandTest {
     final MultiplePlayerSelector selector = mock(MultiplePlayerSelector.class);
     final List<Player> players = List.of(player);
     when(selector.values()).thenReturn(players);
+
     return selector;
   }
 
@@ -173,6 +175,7 @@ final class VideoEntityCommandTest {
       eq(""),
       isNull()
     );
+
     return providers.getValue();
   }
 
@@ -222,6 +225,7 @@ final class VideoEntityCommandTest {
   private void assertStartedOnTheMainThread(final FunctionalVideoFilter result) {
     verify(this.manager).startFilter(result);
     verify(result, never()).start();
+
     final int tasks = TestServer.runPendingTasks();
     assertEquals(1, tasks);
     verify(result).start();

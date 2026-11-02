@@ -108,6 +108,7 @@ final class ImageScoreboardCommandTest {
       AbstractImageCommand.ImageConfigurationProvider.class
     );
     verify(this.command).displayImage(providers.capture(), eq(this.sender), eq(RESOLUTION), eq(MRL), isNull());
+
     return providers.getValue();
   }
 
@@ -128,6 +129,7 @@ final class ImageScoreboardCommandTest {
   void shouldRefuseMoreLinesThanAScoreboardShows() {
     this.command.showImage(this.sender, this.selector, "24x16", CHARACTER, MRL, null);
     verify(this.command, never()).displayImage(any(), any(), any(), any(), isNull());
+
     final List<Component> messages = Components.received(this.sender);
     final Component error = Message.SCOREBOARD_LINES.build();
     final List<Component> expected = List.of(error);

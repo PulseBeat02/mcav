@@ -89,6 +89,7 @@ final class ServerProcess implements AutoCloseable {
     if (!this.process.isAlive()) {
       return;
     }
+
     this.process.destroy();
     final long milliseconds = DESTROY_TIMEOUT.toMillis();
     try {
@@ -199,6 +200,7 @@ final class ServerProcess implements AutoCloseable {
       final String message = "The server took longer than %s to print the expected line!".formatted(timeout);
       throw new AssertionError(message);
     }
+
     final long waitNanoseconds = Math.min(remaining, POLL_INTERVAL_NANOSECONDS);
     TimeUnit.NANOSECONDS.timedWait(this.lines, waitNanoseconds);
   }
@@ -240,7 +242,9 @@ final class ServerProcess implements AutoCloseable {
       final String message = "The server took longer than %s to stop!".formatted(timeout);
       throw new AssertionError(message);
     }
+
     this.reader.join(milliseconds);
+
     return this.process.exitValue();
   }
 

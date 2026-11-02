@@ -90,6 +90,7 @@ final class VmCodecFlagPropertyTest {
 
       return;
     }
+
     if (split.codec() == null) {
       final String options = split.options();
       assertEquals(typed, options);

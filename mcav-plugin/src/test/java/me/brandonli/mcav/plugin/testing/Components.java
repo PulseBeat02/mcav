@@ -57,6 +57,7 @@ public final class Components {
   public static List<Component> received(final Audience audience) {
     final ArgumentCaptor<Component> captor = ArgumentCaptor.forClass(Component.class);
     verify(audience, atLeastOnce()).sendMessage(captor.capture());
+
     final List<Component> values = captor.getAllValues();
     return new ArrayList<>(values);
   }

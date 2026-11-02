@@ -237,11 +237,13 @@ final class Mcv2PlayCommandTest {
 
   private Mcv2PackServer.Lease openLease(final InvocationOnMock invocation, final AtomicReference<Mcv2Configuration> opened) {
     opened.set(invocation.getArgument(0));
+
     return this.lease;
   }
 
   private @Nullable Object recordHandOver(final InvocationOnMock invocation) {
     this.handedOver.add(invocation.getArgument(1));
+
     return null;
   }
 
@@ -253,6 +255,7 @@ final class Mcv2PlayCommandTest {
       this.runHandedOver();
       final Mcv2Channel channel = channels.constructed().getFirst();
       verify(channel).open();
+
       final ArgumentCaptor<Mcv2Configuration> configurations = ArgumentCaptor.forClass(Mcv2Configuration.class);
       verify(this.packs).open(configurations.capture());
 
@@ -272,11 +275,13 @@ final class Mcv2PlayCommandTest {
       assertInstanceOf(Mcv2Playback.class, value);
 
       verify(this.sender).sendMessage(Message.MCV2_PLAY.build());
+
       this.command.play(this.sender, this.selector, SCREEN_SIZE, MAP_ID, TICKS, file.toString());
       this.runHandedOver();
       verify(this.task).cancel();
       verify(channel).close();
       verify(this.lease).close();
+
       this.command.stop(this.sender);
       verify(channels.constructed().getLast()).close();
       verify(this.sender).sendMessage(Message.MCV2_STOP.build());
@@ -292,6 +297,7 @@ final class Mcv2PlayCommandTest {
   private void runHandedOver() throws InterruptedException {
     final Runnable handed = this.handedOver.poll(HAND_OVER_TIMEOUT_SECONDS, TimeUnit.SECONDS);
     assertNotNull(handed, "the command handed nothing over to the main thread");
+
     handed.run();
   }
 
@@ -318,6 +324,7 @@ final class Mcv2PlayCommandTest {
       this.command.play(this.sender, this.selector, SCREEN_SIZE, MAP_ID, TICKS, file.toString());
       verify(this.packs, never()).open(any());
       verify(this.sender, never()).sendMessage(any(Component.class));
+
       this.runHandedOver();
       assertEquals(List.of(false), fromMainThread, "the file is read on a thread of its own, which hands the screen over");
       verify(channels.constructed().getFirst()).open();
@@ -330,6 +337,7 @@ final class Mcv2PlayCommandTest {
   private @Nullable Object recordThreadAndHandOver(final InvocationOnMock invocation, final List<Boolean> fromMainThread) {
     fromMainThread.add(Bukkit.isPrimaryThread());
     this.handedOver.add(invocation.getArgument(1));
+
     return null;
   }
 
@@ -388,6 +396,7 @@ final class Mcv2PlayCommandTest {
       final Runnable second = this.handedOver.poll(HAND_OVER_TIMEOUT_SECONDS, TimeUnit.SECONDS);
       assertNotNull(first);
       assertNotNull(second);
+
       this.command.shutdown();
       first.run();
       second.run();
@@ -416,11 +425,14 @@ final class Mcv2PlayCommandTest {
       verify(channel, Mockito.timeout(5000).atLeast(10)).send(any());
       verify(TestServer.scheduler(), never()).runTaskTimerAsynchronously(any(Plugin.class), any(Runnable.class), anyLong(), anyLong());
       verify(this.sender).sendMessage(Message.MCV2_PLAY.build());
+
       this.command.stop(this.sender);
       verify(channel).close();
+
       Mockito.clearInvocations(channel);
       Thread.sleep(100);
       verify(channel, never()).send(any());
+
       this.command.stream(
         this.sender,
         this.selector,
@@ -461,6 +473,7 @@ final class Mcv2PlayCommandTest {
     this.runHandedOver();
     // the wall size, the missing file and the frame that is not MCV2 are each reported
     verify(this.sender, Mockito.times(3)).sendMessage(any(Component.class));
+
     final ArgumentCaptor<Component> messages = ArgumentCaptor.captor();
     verify(this.sender, Mockito.times(3)).sendMessage(messages.capture());
 
@@ -527,6 +540,7 @@ final class Mcv2PlayCommandTest {
     final SolidFrames frames
   ) {
     opened.add(video + " " + width + "x" + height);
+
     return frames;
   }
 
@@ -545,6 +559,7 @@ final class Mcv2PlayCommandTest {
     }
     final ArgumentCaptor<Component> messages = ArgumentCaptor.forClass(Component.class);
     verify(this.sender, Mockito.atLeast(0)).sendMessage(messages.capture());
+
     return messages.getAllValues().stream().map(this::text).toList();
   }
 
@@ -713,6 +728,7 @@ final class Mcv2PlayCommandTest {
     final Thread thread = this.command.getEncoding();
     this.command.encode(this.sender, OTHER_VIDEO_FILE_NAME, OTHER_STREAM_FILE_NAME, ENCODE_DIMENSIONS, Mcv2Profile.DEFAULT);
     verify(this.sender).sendMessage(Message.MCV2_ENCODE_BUSY.build());
+
     this.command.cancel(this.sender);
 
     final Thread encoding = this.command.getEncoding();
@@ -734,6 +750,7 @@ final class Mcv2PlayCommandTest {
 
     this.command.cancel(this.sender);
     verify(this.sender).sendMessage(Message.MCV2_ENCODE_NONE.build());
+
     this.command.encode(this.sender, VIDEO_FILE_NAME, LONG_STREAM_FILE_NAME, "big", Mcv2Profile.DEFAULT);
 
     final Thread commandEncoding = this.command.getEncoding();
@@ -789,6 +806,7 @@ final class Mcv2PlayCommandTest {
   private Mcv2FileEncoder.FrameReader openDroppingTheInterrupt(final CountDownLatch cancelled, final AtomicBoolean dropped) {
     Uninterruptibles.awaitUninterruptibly(cancelled);
     dropped.set(Thread.interrupted());
+
     return new WaitsForInterrupt();
   }
 
@@ -888,6 +906,7 @@ final class Mcv2PlayCommandTest {
     final List<String> told = this.finish();
     final double openingMilliseconds = openingNanoseconds.get() / 1e6;
     assertTrue(openingMilliseconds >= 600, "opening consumed independently measured time");
+
     final Matcher progress = Pattern.compile(PROGRESS_PATTERN).matcher(told.get(2));
 
     final boolean found = progress.find();
@@ -923,6 +942,7 @@ final class Mcv2PlayCommandTest {
       throw new IOException(exception);
     }
     openingNanoseconds.set(System.nanoTime() - openingStarted);
+
     return new SolidFrames(FRAME_COUNT, new CountDownLatch(0));
   }
 
@@ -938,6 +958,7 @@ final class Mcv2PlayCommandTest {
     final boolean alive = thread.isAlive();
     assertFalse(alive);
     assertTrue(frames.closed);
+
     this.command.shutdown();
   }
 
@@ -978,6 +999,7 @@ final class Mcv2PlayCommandTest {
     this.command.stream(this.sender, this.selector, SCREEN_SIZE, MAP_ID, FRAMES_PER_SECOND, PARENT_PLAY_PATH);
     this.runHandedOver();
     verify(this.packs, never()).open(any());
+
     this.command.encode(this.sender, VIDEO_FILE_NAME, ESCAPING_ENCODE_PATH, ENCODE_DIMENSIONS, Mcv2Profile.DEFAULT);
 
     final Thread encoding = this.command.getEncoding();
@@ -1089,6 +1111,7 @@ final class Mcv2PlayCommandTest {
   private byte[] record(final int length) {
     final byte[] record = new byte[Integer.BYTES + length];
     ByteBuffer.wrap(record).order(ByteOrder.LITTLE_ENDIAN).putInt(0, length);
+
     return record;
   }
 
@@ -1129,6 +1152,7 @@ final class Mcv2PlayCommandTest {
         }
       }
       Arrays.fill(rgb, (byte) (this.read * COLOR_STEP));
+
       return this.read++ < this.count;
     }
   }
@@ -1196,6 +1220,7 @@ final class Mcv2PlayCommandTest {
         this.dropped = true;
       }
       Arrays.fill(rgb, (byte) (this.read * COLOR_STEP));
+
       return this.read++ < 3;
     }
   }
