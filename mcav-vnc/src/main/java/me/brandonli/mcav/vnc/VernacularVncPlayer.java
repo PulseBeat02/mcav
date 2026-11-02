@@ -168,6 +168,7 @@ public final class VernacularVncPlayer implements VncPlayer {
 
       this.resetForNewSession(source);
       this.launchSession(source);
+
       return true;
     } finally {
       this.lock.unlock();
@@ -356,6 +357,7 @@ public final class VernacularVncPlayer implements VncPlayer {
       final int height = frame.getHeight();
       this.remoteWidth = width;
       this.remoteHeight = height;
+
       final boolean pausedNow = this.paused.get();
       if (pausedNow) {
         return;
@@ -792,6 +794,7 @@ public final class VernacularVncPlayer implements VncPlayer {
   @Override
   public void setExceptionHandler(final BiConsumer<String, Throwable> exceptionHandler) {
     Preconditions.checkNotNull(exceptionHandler, "Exception handler must not be null!");
+
     this.exceptionHandler.setExceptionHandler(exceptionHandler);
   }
 

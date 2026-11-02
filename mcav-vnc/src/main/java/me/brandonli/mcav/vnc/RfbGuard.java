@@ -391,6 +391,7 @@ final class RfbGuard {
     private void skip(final long bytes, final Then after, final Server next) {
       this.then = after;
       this.skipTo = next;
+
       if (bytes == 0) {
         this.continueAfterSkip();
         return;
@@ -676,6 +677,7 @@ final class RfbGuard {
       }
 
       this.tileFlags = flags;
+
       final int background = (flags & TILE_BACKGROUND) != 0 ? pixel : 0;
       final int foreground = (flags & TILE_FOREGROUND) != 0 ? pixel : 0;
       final int colours = background + foreground;
@@ -727,12 +729,14 @@ final class RfbGuard {
       final Server next = minor >= MINIMUM_MINOR_WITH_TYPE_LIST ? Server.SECURITY_COUNT : Server.SECURITY_TYPE;
       this.mode = Mode.FIELD;
       this.expect(next);
+
       return at;
     }
 
     private int afterChoice(final int at) throws IOException {
       this.mode = Mode.FIELD;
       this.afterSecurity(RfbGuard.this.securityType);
+
       return at;
     }
 
@@ -871,6 +875,7 @@ final class RfbGuard {
       }
 
       RfbGuard.this.minorVersion = minor;
+
       if (minor >= MINIMUM_MINOR_WITH_TYPE_LIST) {
         this.expect(Client.CHOICE, CHOICE_BYTES);
         return;
@@ -899,6 +904,7 @@ final class RfbGuard {
 
     private void message() {
       this.type = this.unsigned8(0);
+
       final int body = switch (this.type) {
         case SET_PIXEL_FORMAT -> PIXEL_FORMAT_BODY;
         case SET_ENCODINGS -> ENCODINGS_BODY;

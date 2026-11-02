@@ -130,6 +130,7 @@ public final class RfbTestServer implements AutoCloseable {
     Preconditions.checkArgument(height > 0, "Height %s must be positive!", height);
     Preconditions.checkNotNull(security, "Security must not be null!");
     Preconditions.checkNotNull(password, "Password must not be null!");
+
     try {
       final InetAddress loopback = InetAddress.getLoopbackAddress();
       final ServerSocket socket = new ServerSocket(0, 5, loopback);
@@ -164,6 +165,7 @@ public final class RfbTestServer implements AutoCloseable {
     if (current == null) {
       throw new IllegalStateException("No client is connected!");
     }
+
     synchronized (this.outputLock) {
       try {
         current.writeByte(0x7F);
@@ -223,6 +225,7 @@ public final class RfbTestServer implements AutoCloseable {
   private void acceptConnection() {
     try (final Socket client = this.serverSocket.accept()) {
       this.connections.incrementAndGet();
+
       if (this.security == Security.HANG_UP) {
         return;
       }
@@ -281,6 +284,7 @@ public final class RfbTestServer implements AutoCloseable {
 
   private boolean refuseSecurity(final DataOutputStream clientOutput) throws IOException {
     this.offerSecurityType(clientOutput, SECURITY_UNSUPPORTED);
+
     return false;
   }
 
@@ -289,6 +293,7 @@ public final class RfbTestServer implements AutoCloseable {
     input.readUnsignedByte();
     clientOutput.writeInt(0);
     clientOutput.flush();
+
     return true;
   }
 
@@ -312,11 +317,13 @@ public final class RfbTestServer implements AutoCloseable {
       clientOutput.writeInt(reason.length);
       clientOutput.write(reason);
       clientOutput.flush();
+
       return false;
     }
 
     clientOutput.writeInt(0);
     clientOutput.flush();
+
     return true;
   }
 
@@ -403,6 +410,7 @@ public final class RfbTestServer implements AutoCloseable {
     synchronized (this.outputLock) {
       this.pendingRequests++;
     }
+
     final boolean answerNow = this.answering.get();
     if (answerNow) {
       this.answerPendingRequests();
@@ -576,6 +584,7 @@ public final class RfbTestServer implements AutoCloseable {
         final int shift = byteIndex * BITS_PER_BYTE;
         bytes[index] = (byte) (value >>> shift);
       }
+
       return bytes;
     }
 

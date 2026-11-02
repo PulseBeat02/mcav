@@ -36,6 +36,7 @@ public final class Await {
   public static void until(final String description, final BooleanSupplier condition) {
     Preconditions.checkNotNull(description, "Description must not be null!");
     Preconditions.checkNotNull(condition, "Condition must not be null!");
+
     final long start = System.nanoTime();
     final long deadline = start + TIMEOUT_NANOSECONDS;
     while (!condition.getAsBoolean()) {
