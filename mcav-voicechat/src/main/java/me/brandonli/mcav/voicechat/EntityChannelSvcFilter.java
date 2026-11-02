@@ -39,7 +39,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * The default {@link SvcFilter}.
  *
- * <p>Samples are mixed to mono and cut into 20 millisecond frames of {@value #FRAME_SAMPLES} samples. Every
+ * <p>Samples are mixed to mono and cut into 20 millisecond frames of 960 samples. Every
  * speaker has its own queue, so each of them plays every frame; a speaker that falls behind drops its oldest
  * frames. Voice chat pulls frames on its own thread, and a speaker without a frame plays silence instead of
  * stopping. When {@link #start()} fails part way, every speaker it created is stopped again, so the filter stays
