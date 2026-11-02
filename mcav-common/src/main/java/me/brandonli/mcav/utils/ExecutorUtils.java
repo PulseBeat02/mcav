@@ -38,7 +38,8 @@ public final class ExecutorUtils {
   private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(5);
 
   private ExecutorUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**
@@ -51,8 +52,6 @@ public final class ExecutorUtils {
    * @since 1.0.0
    */
   public static boolean shutdownExecutorGracefully(final ExecutorService service) {
-    Preconditions.checkNotNull(service, "Executor must not be null!");
-
     return shutdownExecutorGracefully(service, DEFAULT_TIMEOUT);
   }
 

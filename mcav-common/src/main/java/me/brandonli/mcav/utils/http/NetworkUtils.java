@@ -76,7 +76,8 @@ public final class NetworkUtils {
   private static final String IPV6_HOST_END = "]";
 
   private NetworkUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**

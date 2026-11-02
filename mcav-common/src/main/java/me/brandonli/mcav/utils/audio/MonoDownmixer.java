@@ -45,7 +45,8 @@ import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 public final class MonoDownmixer {
 
   private MonoDownmixer() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**

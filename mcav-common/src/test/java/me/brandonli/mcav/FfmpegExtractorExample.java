@@ -45,7 +45,8 @@ public final class FfmpegExtractorExample {
       final CompletableFuture<Boolean> ready = api.whenCapabilityReady(Capability.YT_DLP);
       final boolean available = ready.join();
       if (!available) {
-        throw new IllegalStateException("yt-dlp is unavailable!");
+        final String message = "yt-dlp is unavailable!";
+        throw new IllegalStateException(message);
       }
 
       final URI uri = URI.create("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
@@ -65,7 +66,7 @@ public final class FfmpegExtractorExample {
 
       final CommandTask task = command.createTask();
       task.runChecked();
-      System.out.println("Wrote " + absolute);
+      System.out.println("Wrote %s".formatted(absolute));
     } finally {
       api.release();
     }

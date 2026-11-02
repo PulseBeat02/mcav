@@ -235,14 +235,14 @@ final class MetadataUtilsTest {
     final InputMetadataException videoFailure = assertThrows(InputMetadataException.class, () -> MetadataUtils.parseVideoMetadata(source));
     final FrameGrabber.Exception videoCause = assertInstanceOf(FrameGrabber.Exception.class, videoFailure.getCause());
     final String videoReason = videoCause.getMessage();
-    final String expectedVideoMessage = "Video metadata of %s could not be read because of \"%s\"!".formatted(resource, videoReason);
+    final String expectedVideoMessage = "Because of \"%s\", the video metadata of %s could not be read!".formatted(videoReason, resource);
     final String videoMessage = videoFailure.getMessage();
     assertEquals(expectedVideoMessage, videoMessage);
 
     final InputMetadataException audioFailure = assertThrows(InputMetadataException.class, () -> MetadataUtils.parseAudioMetadata(source));
     final FrameGrabber.Exception audioCause = assertInstanceOf(FrameGrabber.Exception.class, audioFailure.getCause());
     final String audioReason = audioCause.getMessage();
-    final String expectedAudioMessage = "Audio metadata of %s could not be read because of \"%s\"!".formatted(resource, audioReason);
+    final String expectedAudioMessage = "Because of \"%s\", the audio metadata of %s could not be read!".formatted(audioReason, resource);
     final String audioMessage = audioFailure.getMessage();
     assertEquals(expectedAudioMessage, audioMessage);
   }

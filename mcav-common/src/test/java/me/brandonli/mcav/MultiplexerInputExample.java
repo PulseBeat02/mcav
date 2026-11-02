@@ -44,8 +44,6 @@ public final class MultiplexerInputExample {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MultiplexerInputExample.class);
 
-  private static final String PLAYBACK_FAILED = "Playback failed in {}";
-
   private MultiplexerInputExample() {}
 
   static void main() throws IOException, InterruptedException {
@@ -56,7 +54,8 @@ public final class MultiplexerInputExample {
       final CompletableFuture<Boolean> ready = api.whenCapabilityReady(Capability.YT_DLP);
       final boolean available = ready.join();
       if (!available) {
-        throw new IllegalStateException("yt-dlp is unavailable!");
+        final String message = "yt-dlp is unavailable!";
+        throw new IllegalStateException(message);
       }
 
       final URI uri = URI.create("https://www.youtube.com/watch?v=47dtFZ8CFo8");
@@ -81,7 +80,7 @@ public final class MultiplexerInputExample {
 
       final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
       resources.add(player::release);
-      player.setExceptionHandler((context, throwable) -> LOGGER.error(PLAYBACK_FAILED, context, throwable));
+      player.setExceptionHandler((context, throwable) -> LOGGER.error("Playback in {} failed.", context, throwable));
       final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
       videoCallback.attach(videoPipeline);
       final AudioAttachableCallback audioCallback = player.getAudioAttachableCallback();
@@ -92,7 +91,8 @@ public final class MultiplexerInputExample {
 
       final boolean started = player.start(videoSource, audioSource);
       if (!started) {
-        throw new IllegalStateException("Playback could not start!");
+        final String message = "Playback could not start!";
+        throw new IllegalStateException(message);
       }
 
       window.awaitClosed();

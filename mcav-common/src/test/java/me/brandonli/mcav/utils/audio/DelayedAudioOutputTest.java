@@ -74,6 +74,9 @@ class DelayedAudioOutputTest {
   private static final String SOURCE_NAME = "the virtual machine";
   private static final String VALIDATED_SOURCE_NAME = "a source";
 
+  private static final String FILTER_BROKE_MESSAGE = "filter broke!";
+  private static final String FILTER_FAILED_MESSAGE = "filter failed!";
+
   private final List<byte[]> processed = new CopyOnWriteArrayList<>();
   private final List<OriginalAudioMetadata> formats = new CopyOnWriteArrayList<>();
   private final List<String> failures = new CopyOnWriteArrayList<>();
@@ -112,7 +115,8 @@ class DelayedAudioOutputTest {
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(AWAIT_SECONDS);
     while (!condition.getAsBoolean()) {
       if (System.nanoTime() > deadline) {
-        throw new AssertionError("timed out!");
+        final String message = "timed out!";
+        throw new AssertionError(message);
       }
       Thread.onSpinWait();
     }
@@ -197,7 +201,7 @@ class DelayedAudioOutputTest {
 
   private boolean breakOnMarkedChunkOrHear(final ByteBuffer samples, final List<byte[]> heard) {
     if (samples.get(0) == 1) {
-      throw new IllegalStateException("filter broke!");
+      throw new IllegalStateException(FILTER_BROKE_MESSAGE);
     }
 
     final byte[] copy = new byte[samples.remaining()];
@@ -208,7 +212,8 @@ class DelayedAudioOutputTest {
   }
 
   private void breakHandler() {
-    throw new IllegalStateException("handler broke too!");
+    final String message = "handler broke too!";
+    throw new IllegalStateException(message);
   }
 
   @ParameterizedTest
@@ -252,7 +257,7 @@ class DelayedAudioOutputTest {
     final CountDownLatch settled
   ) {
     if (samples.get(0) == 1) {
-      throw new IllegalStateException("filter failed!");
+      throw new IllegalStateException(FILTER_FAILED_MESSAGE);
     }
 
     final byte[] copy = new byte[samples.remaining()];
@@ -309,7 +314,7 @@ class DelayedAudioOutputTest {
     final CountDownLatch settled
   ) {
     if (samples.get(0) == 1) {
-      throw new IllegalStateException("filter failed!");
+      throw new IllegalStateException(FILTER_FAILED_MESSAGE);
     }
 
     continued.set(true);
@@ -740,7 +745,7 @@ class DelayedAudioOutputTest {
     failing.accept(new byte[AudioFilter.FRAME_SIZE], AudioFilter.FRAME_SIZE);
     waitUntil(() -> !this.failures.isEmpty());
     failing.close();
-    assertEquals(List.of("Failed to process the audio of the virtual machine: filter broke!"), this.failures);
+    assertEquals(List.of("The audio of the virtual machine could not be processed.: filter broke!"), this.failures);
 
     final DelayedAudioOutput fatal = start(
       () -> AudioPipelineStep.of((samples, metadata) -> this.failFatally()),
@@ -753,11 +758,12 @@ class DelayedAudioOutputTest {
   }
 
   private boolean breakFilter() {
-    throw new IllegalStateException("filter broke!");
+    throw new IllegalStateException(FILTER_BROKE_MESSAGE);
   }
 
   private boolean failFatally() {
-    throw new OutOfMemoryError("fatal!");
+    final String message = "fatal!";
+    throw new OutOfMemoryError(message);
   }
 
   @Test
@@ -883,7 +889,7 @@ class DelayedAudioOutputTest {
       DelayedAudioOutput.start(VALIDATED_SOURCE_NAME, 10, 10, pipeline, ignored)
     );
     final String fullMessage = full.getMessage();
-    assertEquals("At most 10 ms may wait, which leaves no room past the delay of 10 ms!", fullMessage);
+    assertEquals("At most 10 ms may wait, but the delay of 10 ms leaves no room past it!", fullMessage);
     assertThrows(NullPointerException.class, () -> DelayedAudioOutput.start(null, 0, 1, pipeline, ignored));
     assertThrows(NullPointerException.class, () -> DelayedAudioOutput.start(VALIDATED_SOURCE_NAME, 0, 1, null, ignored));
     assertThrows(NullPointerException.class, () -> DelayedAudioOutput.start(VALIDATED_SOURCE_NAME, 0, 1, pipeline, null));

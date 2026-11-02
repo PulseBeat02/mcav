@@ -63,6 +63,7 @@ final class BackgroundInstallation {
     this(dependencyLoader, guard, LOGGER, CANCEL_TIMEOUT);
   }
 
+  // Takes the logger and the timeout, so a test sees each log call, which kills the mutants that skip them, and need not wait ten seconds.
   @VisibleForTesting
   BackgroundInstallation(
     final DependencyLoader dependencyLoader,

@@ -71,7 +71,8 @@ public final class FfmpegPlayerExample {
       final UriSource source = UriSource.uri(uri);
       final boolean started = player.start(source);
       if (!started) {
-        throw new IllegalStateException("Playback could not start!");
+        final String message = "Playback could not start!";
+        throw new IllegalStateException(message);
       }
 
       TimeUnit.SECONDS.sleep(5);

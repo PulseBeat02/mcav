@@ -223,11 +223,13 @@ final class SourceUtilsTest {
   }
 
   private UrlParseDump failOffline() {
-    throw new InstallationException("offline!");
+    final String message = "offline!";
+    throw new InstallationException(message);
   }
 
   private UrlParseDump rejectUrl() {
-    throw new IllegalArgumentException("not a web URL!");
+    final String message = "not a web URL!";
+    throw new IllegalArgumentException(message);
   }
 
   private static UrlParseDump parseDump(final String json) {

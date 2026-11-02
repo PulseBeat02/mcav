@@ -137,11 +137,15 @@ public final class IoUtils {
   private static final String EXECUTION_PROBE_SUFFIX = ".tmp";
 
   private static final String TRUNCATED_ARCHIVE_MESSAGE = "Zip archive %s is truncated!";
+  private static final String PATH_NULL_MESSAGE = "Path must not be null!";
+  private static final String SOURCE_NULL_MESSAGE = "Source must not be null!";
+  private static final String RESOURCE_NULL_MESSAGE = "Resource must not be null!";
 
   private static final String PARENT_DIRECTORY = "..";
 
   private IoUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**
@@ -203,7 +207,7 @@ public final class IoUtils {
    * @since 1.0.0
    */
   public static boolean createDirectoryIfNotExists(final Path path) {
-    Preconditions.checkNotNull(path, "Path must not be null!");
+    Preconditions.checkNotNull(path, PATH_NULL_MESSAGE);
 
     final boolean exists = Files.isDirectory(path);
     if (exists) {
@@ -230,7 +234,7 @@ public final class IoUtils {
    * @since 1.0.0
    */
   public static boolean createFileIfNotExists(final Path path) {
-    Preconditions.checkNotNull(path, "Path must not be null!");
+    Preconditions.checkNotNull(path, PATH_NULL_MESSAGE);
 
     final boolean exists = Files.exists(path);
     if (exists) {
@@ -289,7 +293,7 @@ public final class IoUtils {
    * @since 1.0.0
    */
   public static void deleteRecursively(final Path path) {
-    Preconditions.checkNotNull(path, "Path must not be null!");
+    Preconditions.checkNotNull(path, PATH_NULL_MESSAGE);
 
     try {
       deleteTree(path);
@@ -334,7 +338,7 @@ public final class IoUtils {
    * @since 1.0.0
    */
   public static void moveReplacing(final Path source, final Path target) {
-    Preconditions.checkNotNull(source, "Source must not be null!");
+    Preconditions.checkNotNull(source, SOURCE_NULL_MESSAGE);
     Preconditions.checkNotNull(target, "Target must not be null!");
 
     try {
@@ -380,7 +384,8 @@ public final class IoUtils {
     } catch (final InterruptedException exception) {
       final Thread currentThread = Thread.currentThread();
       currentThread.interrupt();
-      final InterruptedIOException interrupted = new InterruptedIOException("Interrupted while waiting to retry a denied move!");
+      final String message = "Interrupted while waiting to retry a denied move!";
+      final InterruptedIOException interrupted = new InterruptedIOException(message);
       interrupted.initCause(failure);
       throw interrupted;
     }
@@ -396,7 +401,7 @@ public final class IoUtils {
    * @since 1.0.0
    */
   public static String getSha256Hash(final Path path) {
-    Preconditions.checkNotNull(path, "Path must not be null!");
+    Preconditions.checkNotNull(path, PATH_NULL_MESSAGE);
 
     return hashFile(path, SHA_256);
   }
@@ -412,7 +417,7 @@ public final class IoUtils {
    * @since 1.0.0
    */
   public static String getSha1Hash(final Path path) {
-    Preconditions.checkNotNull(path, "Path must not be null!");
+    Preconditions.checkNotNull(path, PATH_NULL_MESSAGE);
 
     return hashFile(path, SHA_1);
   }
@@ -442,7 +447,7 @@ public final class IoUtils {
       return MessageDigest.getInstance(algorithm);
     } catch (final NoSuchAlgorithmException exception) {
       final String message = "Digest algorithm %s is not provided by the Java runtime!".formatted(algorithm);
-      throw new IllegalStateException(message, exception);
+      throw new AssertionError(message, exception);
     }
   }
 
@@ -480,7 +485,7 @@ public final class IoUtils {
    * @since 1.0.0
    */
   public static String getName(final Path path) {
-    Preconditions.checkNotNull(path, "Path must not be null!");
+    Preconditions.checkNotNull(path, PATH_NULL_MESSAGE);
 
     final Path fileName = path.getFileName();
     if (fileName == null) {
@@ -508,7 +513,7 @@ public final class IoUtils {
    * @since 1.0.0
    */
   public static Path downloadImage(final UriSource source) {
-    Preconditions.checkNotNull(source, "Source must not be null!");
+    Preconditions.checkNotNull(source, SOURCE_NULL_MESSAGE);
 
     final String url = source.getResource();
     final byte[] urlBytes = url.getBytes(StandardCharsets.UTF_8);
@@ -647,7 +652,7 @@ public final class IoUtils {
     try {
       return gson.fromJson(reader, downloadArrayType);
     } catch (final JsonSyntaxException exception) {
-      final String message = exception.getMessage();
+      final String message = "Download list is not valid JSON!";
       throw new IOException(message, exception);
     }
   }
@@ -665,7 +670,8 @@ public final class IoUtils {
       final @Nullable String hash = fields.hash();
       return new Download(platform, url, hash);
     } catch (final NullPointerException | IllegalArgumentException exception) {
-      throw new IOException("Download list has an incomplete download!", exception);
+      final String message = "Download list has an incomplete download!";
+      throw new IOException(message, exception);
     }
   }
 
@@ -679,7 +685,7 @@ public final class IoUtils {
    * @since 1.0.0
    */
   public static Reader getResourceAsStreamReader(final String resource) {
-    Preconditions.checkNotNull(resource, "Resource must not be null!");
+    Preconditions.checkNotNull(resource, RESOURCE_NULL_MESSAGE);
 
     final InputStream stream = getResourceAsInputStream(resource);
     return new InputStreamReader(stream, StandardCharsets.UTF_8);
@@ -695,7 +701,7 @@ public final class IoUtils {
    * @since 1.0.0
    */
   public static InputStream getResourceAsInputStream(final String resource) {
-    Preconditions.checkNotNull(resource, "Resource must not be null!");
+    Preconditions.checkNotNull(resource, RESOURCE_NULL_MESSAGE);
 
     return getResourceAsInputStream(resource, IoUtils.class);
   }
@@ -711,7 +717,7 @@ public final class IoUtils {
    * @since 1.0.0
    */
   public static InputStream getResourceAsInputStream(final String resource, final Class<?> loaderClass) {
-    Preconditions.checkNotNull(resource, "Resource must not be null!");
+    Preconditions.checkNotNull(resource, RESOURCE_NULL_MESSAGE);
     Preconditions.checkNotNull(loaderClass, "Class must not be null!");
 
     final ClassLoader classLoader = loaderClass.getClassLoader();
@@ -750,10 +756,8 @@ public final class IoUtils {
 
   @VisibleForTesting
   static void unzip(final Path archive, final Path destination, final long maximumEntrySize, final long maximumTotalSize) {
-    Preconditions.checkNotNull(archive, "Archive must not be null!");
-    Preconditions.checkNotNull(destination, "Destination must not be null!");
-    Preconditions.checkArgument(maximumEntrySize >= 0, "Entry size limit must not be negative!");
-    Preconditions.checkArgument(maximumTotalSize >= 0, "Total size limit must not be negative!");
+    Preconditions.checkArgument(maximumEntrySize >= 0, "Entry size limit %s must not be negative!", maximumEntrySize);
+    Preconditions.checkArgument(maximumTotalSize >= 0, "Total size limit %s must not be negative!", maximumTotalSize);
 
     final Path absoluteDestination = destination.toAbsolutePath();
     final Path normalizedDestination = absoluteDestination.normalize();
@@ -958,7 +962,8 @@ public final class IoUtils {
         throw new ZipEntryIntegrityException(message);
       }
       if (read > remainingTotalSize - entrySize) {
-        throw new ZipEntryIntegrityException("Total extracted size exceeds the limit!");
+        final String message = "Total extracted size exceeds the limit!";
+        throw new ZipEntryIntegrityException(message);
       }
       output.write(buffer, 0, read);
       entrySize += read;

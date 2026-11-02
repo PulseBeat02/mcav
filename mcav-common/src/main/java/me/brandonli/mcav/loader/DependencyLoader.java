@@ -165,7 +165,7 @@ public final class DependencyLoader {
     }
 
     final long start = System.currentTimeMillis();
-    LOGGER.info("Loading JavaCV natives...");
+    LOGGER.info("Loading the JavaCV natives.");
     try {
       nativeLoader.run();
     } catch (final UnsatisfiedLinkError | NoClassDefFoundError exception) {
@@ -367,7 +367,7 @@ public final class DependencyLoader {
   @VisibleForTesting
   void installVlc(final VlcStarter starter) {
     final Object preparation = this.beginPreparation(Capability.VLC);
-    this.logger.info("Preparing VLC...");
+    this.logger.info("Preparing VLC.");
     final long start = System.currentTimeMillis();
     try {
       starter.start();
@@ -450,7 +450,7 @@ public final class DependencyLoader {
       return;
     }
 
-    this.logger.info("Preparing yt-dlp...");
+    this.logger.info("Preparing yt-dlp.");
     final long start = System.currentTimeMillis();
     try {
       installer.download(FileMode.EXECUTABLE);

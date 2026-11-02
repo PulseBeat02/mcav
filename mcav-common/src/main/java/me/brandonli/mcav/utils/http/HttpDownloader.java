@@ -120,9 +120,11 @@ public final class HttpDownloader {
   private static final Striped<Lock> TARGET_LOCKS = Striped.lock(TARGET_LOCK_STRIPES);
 
   private static final String SIZE_LIMIT_MESSAGE = "Size limit %s must be positive!";
+  private static final String URI_NULL_MESSAGE = "URI must not be null!";
 
   private HttpDownloader() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**
@@ -153,7 +155,7 @@ public final class HttpDownloader {
    * @since 1.0.0
    */
   public static HttpRequest createRequest(final URI uri) {
-    Preconditions.checkNotNull(uri, "URI must not be null!");
+    Preconditions.checkNotNull(uri, URI_NULL_MESSAGE);
 
     final HttpRequest.Builder builder = HttpRequest.newBuilder(uri);
     builder.timeout(REQUEST_TIMEOUT);
@@ -177,7 +179,7 @@ public final class HttpDownloader {
    * @since 1.0.0
    */
   public static InputStream openStream(final URI uri) {
-    Preconditions.checkNotNull(uri, "URI must not be null!");
+    Preconditions.checkNotNull(uri, URI_NULL_MESSAGE);
 
     try {
       return openUnpinnedStream(uri);
@@ -398,7 +400,7 @@ public final class HttpDownloader {
     final long maximumBytes,
     final @Nullable Duration pinnedDeadline
   ) {
-    Preconditions.checkNotNull(uri, "URI must not be null!");
+    Preconditions.checkNotNull(uri, URI_NULL_MESSAGE);
     Preconditions.checkNotNull(destination, "Destination must not be null!");
 
     final Path target = destination.toAbsolutePath();
@@ -604,7 +606,9 @@ public final class HttpDownloader {
     } catch (final InterruptedException exception) {
       final Thread currentThread = Thread.currentThread();
       currentThread.interrupt();
-      throw new DownloadException("Interrupted while waiting to retry a download!", exception);
+
+      final String message = "Interrupted while waiting to retry a download!";
+      throw new DownloadException(message, exception);
     }
   }
 
@@ -620,7 +624,7 @@ public final class HttpDownloader {
    * @since 1.0.0
    */
   public static Optional<String> fetchText(final URI uri) {
-    Preconditions.checkNotNull(uri, "URI must not be null!");
+    Preconditions.checkNotNull(uri, URI_NULL_MESSAGE);
 
     final HttpRequest request = createRequest(uri);
     final HttpResponse.BodyHandler<String> bodyHandler = HttpResponse.BodyHandlers.ofString();

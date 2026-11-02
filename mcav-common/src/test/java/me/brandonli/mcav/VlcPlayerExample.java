@@ -44,8 +44,6 @@ public final class VlcPlayerExample {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(VlcPlayerExample.class);
 
-  private static final String PLAYBACK_FAILED = "Playback failed in {}";
-
   private VlcPlayerExample() {}
 
   static void main() throws InterruptedException {
@@ -56,7 +54,8 @@ public final class VlcPlayerExample {
       final CompletableFuture<Boolean> ready = api.whenCapabilityReady(Capability.VLC);
       final boolean available = ready.join();
       if (!available) {
-        throw new IllegalStateException("VLC is unavailable!");
+        final String message = "VLC is unavailable!";
+        throw new IllegalStateException(message);
       }
 
       final SwingVideoWindow window = SwingVideoWindow.open("VLC Player", 960, 540);
@@ -82,7 +81,7 @@ public final class VlcPlayerExample {
 
       final VideoPlayerMultiplexer player = VideoPlayer.vlc();
       resources.add(player::release);
-      player.setExceptionHandler((context, throwable) -> LOGGER.error(PLAYBACK_FAILED, context, throwable));
+      player.setExceptionHandler((context, throwable) -> LOGGER.error("Playback in {} failed.", context, throwable));
       final AudioAttachableCallback audioCallback = player.getAudioAttachableCallback();
       audioCallback.attach(audioPipeline);
       final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
@@ -95,7 +94,8 @@ public final class VlcPlayerExample {
       final UriSource source = UriSource.uri(uri);
       final boolean started = player.start(source);
       if (!started) {
-        throw new IllegalStateException("Playback could not start!");
+        final String message = "Playback could not start!";
+        throw new IllegalStateException(message);
       }
 
       window.awaitClosed();

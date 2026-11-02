@@ -143,7 +143,8 @@ final class NativeHeapTrimmerTest {
 
   private void failTheFirstTrim(final AtomicInteger attempts, final CountDownLatch trims) {
     if (attempts.incrementAndGet() == 1) {
-      throw new IllegalStateException("the first trim fails on purpose!");
+      final String message = "the first trim fails on purpose!";
+      throw new IllegalStateException(message);
     }
 
     trims.countDown();
@@ -223,7 +224,8 @@ final class NativeHeapTrimmerTest {
   }
 
   private void failTheThreshold() {
-    throw new IllegalStateException("the threshold fails on purpose!");
+    final String message = "the threshold fails on purpose!";
+    throw new IllegalStateException(message);
   }
 
   @Test
@@ -477,7 +479,8 @@ final class NativeHeapTrimmerTest {
       }
     }
 
-    throw new IllegalStateException("no resident size in /proc/self/status!");
+    final String message = "no resident size in /proc/self/status!";
+    throw new IllegalStateException(message);
   }
 
   @Test

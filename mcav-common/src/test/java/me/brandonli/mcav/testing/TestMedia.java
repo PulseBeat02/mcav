@@ -59,7 +59,8 @@ public final class TestMedia {
   private static final Path DIRECTORY = createDirectory();
 
   private TestMedia() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   private static Path createDirectory() {

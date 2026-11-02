@@ -31,7 +31,8 @@ import java.lang.reflect.Modifier;
 public final class UtilityClassAssertions {
 
   private UtilityClassAssertions() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   public static void assertNotInstantiable(final Class<?> utilityClass) throws ReflectiveOperationException {

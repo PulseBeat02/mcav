@@ -39,8 +39,11 @@ public final class MetadataUtils {
 
   private static final String UNKNOWN_CODEC = "unknown";
 
+  private static final String SOURCE_NULL_MESSAGE = "Source must not be null!";
+
   private MetadataUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**
@@ -54,7 +57,7 @@ public final class MetadataUtils {
    * @since 1.0.0
    */
   public static OriginalVideoMetadata parseVideoMetadata(final Source source) {
-    Preconditions.checkNotNull(source, "Source must not be null!");
+    Preconditions.checkNotNull(source, SOURCE_NULL_MESSAGE);
 
     final String resource = source.getResource();
     try (final FFmpegFrameGrabber grabber = new FFmpegFrameGrabber(resource)) {
@@ -62,7 +65,7 @@ public final class MetadataUtils {
       return readVideoMetadata(grabber, resource);
     } catch (final FrameGrabber.Exception exception) {
       final String reason = exception.getMessage();
-      final String message = "Video metadata of %s could not be read because of \"%s\"!".formatted(resource, reason);
+      final String message = "Because of \"%s\", the video metadata of %s could not be read!".formatted(reason, resource);
       throw new InputMetadataException(message, exception);
     }
   }
@@ -99,7 +102,7 @@ public final class MetadataUtils {
    * @since 1.0.0
    */
   public static OriginalAudioMetadata parseAudioMetadata(final Source source) {
-    Preconditions.checkNotNull(source, "Source must not be null!");
+    Preconditions.checkNotNull(source, SOURCE_NULL_MESSAGE);
 
     final String resource = source.getResource();
     try (final FFmpegFrameGrabber grabber = new FFmpegFrameGrabber(resource)) {
@@ -107,7 +110,7 @@ public final class MetadataUtils {
       return readAudioMetadata(grabber, resource);
     } catch (final FrameGrabber.Exception exception) {
       final String reason = exception.getMessage();
-      final String message = "Audio metadata of %s could not be read because of \"%s\"!".formatted(resource, reason);
+      final String message = "Because of \"%s\", the audio metadata of %s could not be read!".formatted(reason, resource);
       throw new InputMetadataException(message, exception);
     }
   }

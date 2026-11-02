@@ -129,7 +129,8 @@ final class IdleTimeoutInputStreamTest {
     final InputStream unused = new InputStream() {
       @Override
       public int read() {
-        throw new AssertionError("An empty or invalid read must not access the source!");
+        final String message = "An empty or invalid read must not access the source!";
+        throw new AssertionError(message);
       }
 
       @Override
@@ -198,11 +199,14 @@ final class IdleTimeoutInputStreamTest {
       } catch (final InterruptedException exception) {
         final Thread currentThread = Thread.currentThread();
         currentThread.interrupt();
-        throw new InterruptedIOException("interrupted!");
+
+        final String message = "interrupted!";
+        throw new InterruptedIOException(message);
       }
 
       if (!closedInTime) {
-        throw new IOException("the source was never closed!");
+        final String message = "the source was never closed!";
+        throw new IOException(message);
       }
 
       return -1;

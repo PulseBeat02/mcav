@@ -43,6 +43,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public final class SourceUtils {
 
+  private static final String RAW_NULL_MESSAGE = "Raw must not be null!";
+
   private static final String GIF_EXTENSION = "gif";
 
   private static final Set<String> MEDIA_EXTENSIONS = Set.of(
@@ -97,7 +99,8 @@ public final class SourceUtils {
   );
 
   private SourceUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**
@@ -139,7 +142,7 @@ public final class SourceUtils {
    * @since 1.0.0
    */
   public static boolean isUri(final String raw) {
-    Preconditions.checkNotNull(raw, "Raw must not be null!");
+    Preconditions.checkNotNull(raw, RAW_NULL_MESSAGE);
 
     try {
       final URI uri = URI.create(raw);
@@ -190,7 +193,7 @@ public final class SourceUtils {
    * @since 1.0.0
    */
   public static boolean isPath(final String raw) {
-    Preconditions.checkNotNull(raw, "Raw must not be null!");
+    Preconditions.checkNotNull(raw, RAW_NULL_MESSAGE);
 
     try {
       final Path path = Path.of(raw);

@@ -47,7 +47,7 @@ public final class SourceExamples {
       } else {
         name = "unknown";
       }
-      System.out.println(input + " -> " + name);
+      System.out.println("%s -> %s".formatted(input, name));
     }
   }
 }

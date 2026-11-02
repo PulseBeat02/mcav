@@ -133,7 +133,8 @@ final class GeneratedMediaTest {
   }
 
   private List<String> rejectRegeneration() {
-    throw new AssertionError("successfully generated media must be reused!");
+    final String message = "successfully generated media must be reused!";
+    throw new AssertionError(message);
   }
 
   @Test

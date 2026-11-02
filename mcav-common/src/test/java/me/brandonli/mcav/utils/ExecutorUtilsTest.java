@@ -222,7 +222,8 @@ final class ExecutorUtilsTest {
 
     @Override
     public void execute(final Runnable command) {
-      throw new UnsupportedOperationException("The recording executor runs no tasks!");
+      final String message = "The recording executor runs no tasks!";
+      throw new UnsupportedOperationException(message);
     }
 
     List<Long> getWaits() {

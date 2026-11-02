@@ -63,6 +63,8 @@ public final class MCAV implements MCAVApi {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MCAV.class);
 
+  private static final String CAPABILITY_NULL_MESSAGE = "Capability must not be null!";
+
   private final DependencyLoader dependencyLoader;
   private final ModuleLoader moduleLoader;
   private final CapabilityGuard guard;
@@ -112,7 +114,7 @@ public final class MCAV implements MCAVApi {
    */
   @Override
   public boolean hasCapability(final Capability capability) {
-    Preconditions.checkNotNull(capability, "Capability must not be null!");
+    Preconditions.checkNotNull(capability, CAPABILITY_NULL_MESSAGE);
 
     final BackgroundInstallation installation = this.requireInstalled();
     return installation.isAvailable(capability);
@@ -137,7 +139,7 @@ public final class MCAV implements MCAVApi {
    */
   @Override
   public CompletableFuture<Boolean> whenCapabilityReady(final Capability capability) {
-    Preconditions.checkNotNull(capability, "Capability must not be null!");
+    Preconditions.checkNotNull(capability, CAPABILITY_NULL_MESSAGE);
 
     final BackgroundInstallation installation = this.requireInstalled();
     return installation.whenReady(capability);
@@ -146,7 +148,8 @@ public final class MCAV implements MCAVApi {
   private BackgroundInstallation requireInstalled() {
     final BackgroundInstallation installation = this.background;
     if (installation == null) {
-      throw new MCAVLoadingException("MCAV has not been installed yet, call install() first!");
+      final String message = "MCAV has not been installed yet, call install() first!";
+      throw new MCAVLoadingException(message);
     }
 
     return installation;
@@ -174,7 +177,8 @@ public final class MCAV implements MCAVApi {
 
     final boolean claimed = this.installing.compareAndSet(false, true);
     if (!claimed) {
-      throw new MCAVLoadingException("MCAV has already been installed!");
+      final String message = "MCAV has already been installed!";
+      throw new MCAVLoadingException(message);
     }
 
     // release() takes this lock and must wait for startup or installation failure.
@@ -199,7 +203,7 @@ public final class MCAV implements MCAVApi {
       final Throwable cause = exception.getCause();
       final Throwable failure = cause == null ? exception : cause;
       final String reason = failure.getMessage();
-      final String message = "MCAV failed to install because of \"%s\"!".formatted(reason);
+      final String message = "Because of \"%s\", MCAV failed to install!".formatted(reason);
       throw new MCAVLoadingException(message, failure);
     }
   }

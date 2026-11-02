@@ -91,7 +91,8 @@ final class IdleTimeoutInputStream extends InputStream {
       final Thread currentThread = Thread.currentThread();
       currentThread.interrupt();
       pending.cancel(true);
-      final InterruptedIOException interrupted = new InterruptedIOException("Interrupted while waiting for data!");
+      final String message = "Interrupted while waiting for data!";
+      final InterruptedIOException interrupted = new InterruptedIOException(message);
       interrupted.initCause(exception);
       throw interrupted;
     } catch (final ExecutionException exception) {

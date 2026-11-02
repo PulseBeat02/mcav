@@ -194,7 +194,7 @@ public final class DelayedAudioOutput implements AutoCloseable {
     Preconditions.checkArgument(delayMilliseconds >= 0, "Delay %s must not be negative!", delayMilliseconds);
     Preconditions.checkArgument(
       maximumQueuedMilliseconds > delayMilliseconds,
-      "At most %s ms may wait, which leaves no room past the delay of %s ms!",
+      "At most %s ms may wait, but the delay of %s ms leaves no room past it!",
       maximumQueuedMilliseconds,
       delayMilliseconds
     );
@@ -390,7 +390,7 @@ public final class DelayedAudioOutput implements AutoCloseable {
 
   private void report(final Throwable failure) {
     try {
-      this.failures.accept("Failed to process the audio of " + this.source, failure);
+      this.failures.accept("The audio of %s could not be processed.".formatted(this.source), failure);
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
       // the exception handler is user code too; the sound goes on, and nothing else is left to tell

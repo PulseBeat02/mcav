@@ -193,7 +193,7 @@ public final class AudioResampler implements AutoCloseable {
 
   private static void checkChannels(final int channels, final String side) {
     final boolean inRange = channels >= 1 && channels <= MAXIMUM_CHANNELS;
-    Preconditions.checkArgument(inRange, "%s channel count %s must be between 1 and %s!", side, channels, MAXIMUM_CHANNELS);
+    Preconditions.checkArgument(inRange, "%s channel count %s must be between 1 and %s inclusive!", side, channels, MAXIMUM_CHANNELS);
   }
 
   // Package-private so a test can make the allocation fail, which kills the mutant that skips its check.

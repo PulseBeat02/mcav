@@ -42,7 +42,8 @@ public final class Images {
   private static final int RGB_RANGE = 0x1000000;
 
   private Images() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   public static ImageBuffer solid(final int width, final int height, final int argb) {

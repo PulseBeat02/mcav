@@ -49,7 +49,8 @@ public final class GeneratedMedia {
   private static final String LOG_EXTENSION = ".log";
 
   private GeneratedMedia() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   public static Path ffmpegPath() {
@@ -70,7 +71,9 @@ public final class GeneratedMedia {
     } catch (final InterruptedException exception) {
       final Thread current = Thread.currentThread();
       current.interrupt();
-      throw new IllegalStateException("Interrupted while generating test media!", exception);
+
+      final String message = "Interrupted while generating test media!";
+      throw new IllegalStateException(message, exception);
     }
   }
 
@@ -137,7 +140,7 @@ public final class GeneratedMedia {
       final int code = process.exitValue();
       if (code != 0) {
         final String diagnostic = readLog(log);
-        final String message = "Fixture command failed with exit code %s and the diagnostic \"%s\"!".formatted(code, diagnostic);
+        final String message = "Fixture command failed with exit code %s!\n%s".formatted(code, diagnostic);
         throw new IOException(message);
       }
 

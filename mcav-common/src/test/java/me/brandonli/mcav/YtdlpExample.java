@@ -39,7 +39,8 @@ public final class YtdlpExample {
       final CompletableFuture<Boolean> ready = api.whenCapabilityReady(Capability.YT_DLP);
       final boolean available = ready.join();
       if (!available) {
-        throw new IllegalStateException("yt-dlp is unavailable!");
+        final String message = "yt-dlp is unavailable!";
+        throw new IllegalStateException(message);
       }
 
       final URI uri = URI.create("https://www.youtube.com/watch?v=47dtFZ8CFo8");
@@ -51,8 +52,8 @@ public final class YtdlpExample {
       final Format audioFormat = selector.getAudioSource(dump);
       final UriSource videoSource = videoFormat.toUriSource();
       final UriSource audioSource = audioFormat.toUriSource();
-      System.out.println("Video: " + videoSource);
-      System.out.println("Audio: " + audioSource);
+      System.out.println("Video: %s".formatted(videoSource));
+      System.out.println("Audio: %s".formatted(audioSource));
     } finally {
       api.release();
     }

@@ -129,6 +129,8 @@ final class DependencyLoaderTest {
   private static final String YTDLP_FILE_NAME = "yt-dlp";
   private static final String PREPARED_FILE_NAME = "prepared";
 
+  private static final String INTERRUPTED_DOWNLOAD_MESSAGE = "Interrupted while downloading!";
+
   @Test
   void shouldStartWithEveryCapability() {
     final DependencyLoader loader = new DependencyLoader();
@@ -572,7 +574,8 @@ final class DependencyLoaderTest {
     Uninterruptibles.awaitUninterruptibly(finish);
 
     if (latestOutcome == PreparationOutcome.SUCCEEDS) {
-      throw new IllegalStateException("old failure!");
+      final String message = "old failure!";
+      throw new IllegalStateException(message);
     }
   }
 
@@ -596,7 +599,8 @@ final class DependencyLoaderTest {
 
   private void runNewerPreparation(final PreparationOutcome latestOutcome) {
     if (latestOutcome == PreparationOutcome.FAILS) {
-      throw new IllegalStateException("new failure!");
+      final String message = "new failure!";
+      throw new IllegalStateException(message);
     }
   }
 
@@ -930,7 +934,7 @@ final class DependencyLoaderTest {
     final Logger logger = mock(Logger.class);
     final DependencyLoader loader = new DependencyLoader(logger);
     loader.installVlc(() -> {});
-    verify(logger).info("Preparing VLC...");
+    verify(logger).info("Preparing VLC.");
     assertLoggedAPlausibleTime(logger, "VLC ready in {} ms.");
   }
 
@@ -974,7 +978,7 @@ final class DependencyLoaderTest {
   private void interruptAndFailVlcStart() {
     final Thread current = Thread.currentThread();
     current.interrupt();
-    throw new InstallationException("Interrupted while downloading!");
+    throw new InstallationException(INTERRUPTED_DOWNLOAD_MESSAGE);
   }
 
   @Test
@@ -1021,7 +1025,7 @@ final class DependencyLoaderTest {
   private Path interruptAndFailDownload() {
     final Thread current = Thread.currentThread();
     current.interrupt();
-    throw new InstallationException("Interrupted while downloading!");
+    throw new InstallationException(INTERRUPTED_DOWNLOAD_MESSAGE);
   }
 
   private static boolean vlcAvailableAfter(final DependencyLoader.VlcStarter starter) {
@@ -1052,7 +1056,8 @@ final class DependencyLoaderTest {
     private FailingDeviceLibrary() {}
 
     private static int fail() {
-      throw new UnsatisfiedLinkError("no jniavdevice in java.library.path!");
+      final String message = "no jniavdevice in java.library.path!";
+      throw new UnsatisfiedLinkError(message);
     }
 
     static void touch() {

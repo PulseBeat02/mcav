@@ -50,6 +50,8 @@ public final class ModuleLoader {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ModuleLoader.class);
 
+  private static final String MODULE_CLASS_NULL_MESSAGE = "Module class must not be null!";
+
   private final Map<Class<?>, MCAVModule> modules;
   private final List<MCAVModule> startOrder;
 
@@ -74,7 +76,7 @@ public final class ModuleLoader {
    * @since 1.0.0
    */
   public <ModuleType extends MCAVModule> ModuleType getModule(final Class<ModuleType> moduleClass) {
-    Preconditions.checkNotNull(moduleClass, "Module class must not be null!");
+    Preconditions.checkNotNull(moduleClass, MODULE_CLASS_NULL_MESSAGE);
 
     final MCAVModule module = this.modules.get(moduleClass);
     if (module == null) {
@@ -104,11 +106,11 @@ public final class ModuleLoader {
     Preconditions.checkNotNull(moduleClasses, "Module classes must not be null!");
 
     for (final Class<?> moduleClass : moduleClasses) {
-      Preconditions.checkNotNull(moduleClass, "Module class must not be null!");
+      Preconditions.checkNotNull(moduleClass, MODULE_CLASS_NULL_MESSAGE);
       final boolean isModule = MCAVModule.class.isAssignableFrom(moduleClass);
       if (!isModule) {
         final String name = moduleClass.getSimpleName();
-        final String message = "%s does not implement MCAVModule!".formatted(name);
+        final String message = "Class %s does not implement MCAVModule!".formatted(name);
         throw new ModuleException(message);
       }
     }
