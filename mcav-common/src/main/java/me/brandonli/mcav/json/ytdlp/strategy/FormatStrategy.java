@@ -136,7 +136,7 @@ public interface FormatStrategy {
   }
 
   /**
-   * Checks whether a stream contains video, with or without audio.
+   * Returns whether a stream contains video, with or without audio.
    *
    * @param format the stream
    * @return true if {@link Format#getVideoExtension()} is present and not {@code none}; no stream is opened or inspected
@@ -152,7 +152,7 @@ public interface FormatStrategy {
   }
 
   /**
-   * Checks whether a stream is served over plain HTTPS rather than a streaming protocol such as HLS or DASH.
+   * Returns whether a stream is served over plain HTTPS rather than a streaming protocol such as HLS or DASH.
    *
    * @param format the stream
    * @return true if {@link Format#getProtocol()} equals {@code https}, case-sensitively; the URL is not parsed

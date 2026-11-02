@@ -218,10 +218,10 @@ public final class Format {
   }
 
   /**
-   * Returns A short readable note about the stream, such as {@code 1080p} or {@code medium}, or empty if yt-dlp did
+   * Returns a short readable note about the stream, such as {@code 1080p} or {@code medium}, or empty if yt-dlp did
    * not report it.
    *
-   * @return A short readable note about the stream, such as {@code 1080p} or {@code medium}, or empty if yt-dlp did
+   * @return a short readable note about the stream, such as {@code 1080p} or {@code medium}, or empty if yt-dlp did
    * not report it
    * @since 1.0.0
    */
@@ -452,10 +452,10 @@ public final class Format {
   }
 
   /**
-   * Returns A readable description of the stream, such as {@code 251 - audio only (medium)}, or empty if yt-dlp did
+   * Returns a readable description of the stream, such as {@code 251 - audio only (medium)}, or empty if yt-dlp did
    * not report it.
    *
-   * @return A readable description of the stream, such as {@code 251 - audio only (medium)}, or empty if yt-dlp did
+   * @return a readable description of the stream, such as {@code 251 - audio only (medium)}, or empty if yt-dlp did
    * not report it
    * @since 1.0.0
    */
