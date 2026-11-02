@@ -45,6 +45,7 @@ public final class JdaAudioExample {
     final String guildId = getEnvironmentVariable("DISCORD_GUILD");
     final String channelId = getEnvironmentVariable("DISCORD_CHANNEL");
     final String file = getEnvironmentVariable("MEDIA_FILE");
+
     final MCAVApi api = MCAV.api();
     api.install(JdaModule.class);
 
@@ -58,6 +59,7 @@ public final class JdaAudioExample {
 
     final VideoPlayerMultiplexer multiplexer = play(player, file);
     player.setPlaying(file);
+
     final Thread shutdownHook = new Thread(() -> release(multiplexer, audioManager, jda, api));
     final Runtime runtime = Runtime.getRuntime();
     runtime.addShutdownHook(shutdownHook);
@@ -78,6 +80,7 @@ public final class JdaAudioExample {
     builder.enableCache(CacheFlag.VOICE_STATE);
     final JDA jda = builder.build();
     jda.awaitReady();
+
     return jda;
   }
 
@@ -106,6 +109,7 @@ public final class JdaAudioExample {
     final VideoPlayerMultiplexer multiplexer = VideoPlayer.ffmpeg();
     final AudioAttachableCallback audio = multiplexer.getAudioAttachableCallback();
     audio.attach(audioPipeline);
+
     final Path path = Path.of(file);
     final Source source = FileSource.path(path);
     multiplexer.start(source);
