@@ -707,6 +707,27 @@ class DelayedAudioOutputTest {
   }
 
   @Test
+  void shouldRejectSamplesItCannotQueue() {
+    assertThrows(NullPointerException.class, () -> this.output.accept(null, AudioFilter.FRAME_SIZE));
+    assertThrows(IllegalArgumentException.class, () -> this.output.accept(new byte[AudioFilter.FRAME_SIZE], -AudioFilter.FRAME_SIZE));
+    assertThrows(IndexOutOfBoundsException.class, () -> this.output.accept(new byte[AudioFilter.FRAME_SIZE], TWO_FRAMES_BYTES));
+
+    final int queuedBytes = this.output.getQueuedBytes();
+    assertEquals(0, queuedBytes);
+  }
+
+  @Test
+  void shouldNotCheckTheSamplesItDrops() {
+    this.output.pause();
+    this.output.accept(null, AudioFilter.FRAME_SIZE);
+    this.output.accept(new byte[AudioFilter.FRAME_SIZE], -AudioFilter.FRAME_SIZE);
+    this.output.accept(new byte[AudioFilter.FRAME_SIZE], TWO_FRAMES_BYTES);
+
+    final int queuedBytes = this.output.getQueuedBytes();
+    assertEquals(0, queuedBytes);
+  }
+
+  @Test
   void shouldReportAFailingPipelineAndSkipAnEmptyOne() {
     final DelayedAudioOutput empty = start(() -> AudioPipelineStep.NO_OP, (message, failure) -> this.failures.add(message));
     empty.accept(new byte[AudioFilter.FRAME_SIZE], AudioFilter.FRAME_SIZE);
@@ -772,6 +793,20 @@ class DelayedAudioOutputTest {
     live.getThread().join(JOIN_MILLISECONDS);
     final boolean liveAlive = live.getThread().isAlive();
     assertFalse(liveAlive);
+  }
+
+  @Test
+  void shouldStayClosedAfterAResume() {
+    this.output.close();
+    this.output.resume();
+    this.output.accept(new byte[AudioFilter.FRAME_SIZE], AudioFilter.FRAME_SIZE);
+
+    final int queuedBytes = this.output.getQueuedBytes();
+    assertEquals(0, queuedBytes);
+
+    final Thread thread = this.output.getThread();
+    final boolean alive = thread.isAlive();
+    assertFalse(alive);
   }
 
   @Test
