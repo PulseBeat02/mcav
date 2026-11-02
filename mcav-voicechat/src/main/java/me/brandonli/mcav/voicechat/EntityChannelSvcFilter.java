@@ -277,7 +277,7 @@ public final class EntityChannelSvcFilter implements SvcFilter {
       }
 
       final @Nullable Throwable failure = this.stopPlayer(initialFailure);
-      return this.cleanup(failure, this.encoder::close);
+      return this.runCleanup(failure, this.encoder::close);
     }
 
     private @Nullable Throwable stopPlayer(final @Nullable Throwable initialFailure) {
@@ -286,10 +286,10 @@ public final class EntityChannelSvcFilter implements SvcFilter {
         return initialFailure;
       }
 
-      return this.cleanup(initialFailure, current::stopPlaying);
+      return this.runCleanup(initialFailure, current::stopPlaying);
     }
 
-    private @Nullable Throwable cleanup(final @Nullable Throwable previous, final Runnable cleanup) {
+    private @Nullable Throwable runCleanup(final @Nullable Throwable previous, final Runnable cleanup) {
       try {
         cleanup.run();
 
