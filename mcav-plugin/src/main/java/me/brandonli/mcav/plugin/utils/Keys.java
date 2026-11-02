@@ -22,6 +22,8 @@ import org.bukkit.NamespacedKey;
 /**
  * The keys of the persistent data the plugin stores on the item frames of map screens.
  *
+ * <p>This class is stateless and thread-safe.
+ *
  * @since 1.0.0
  */
 public final class Keys {

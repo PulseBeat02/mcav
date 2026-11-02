@@ -107,6 +107,11 @@ import org.slf4j.LoggerFactory;
  * it. Protecting the frames of the screen needs no permission, so a player without it can neither break the wall nor
  * turn the maps in their frames.
  *
+ * <p>This class is thread-safe: the running player and its output change only while holding the lock of this command,
+ * and {@link #onChatMessage(AsyncChatEvent)}, which Paper calls off the main thread, reads them through volatile fields
+ * and a synchronized set. Cloud runs the commands, and Paper the other listeners, on the server main thread; players
+ * start and stop on the thread of {@link #service}.
+ *
  * @param <PlayerType> the type of the interactive player
  * @since 1.0.0
  */

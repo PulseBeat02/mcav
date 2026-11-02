@@ -50,6 +50,8 @@ import org.checkerframework.checker.initialization.qual.UnderInitialization;
  * owners can edit them. The bundled file is copied there when it does not exist yet, and messages missing from the
  * file, such as messages added by a newer version of the plugin, are taken from the bundled file.
  *
+ * <p>This class is immutable and thread-safe.
+ *
  * @since 1.0.0
  */
 public final class TranslationManager {

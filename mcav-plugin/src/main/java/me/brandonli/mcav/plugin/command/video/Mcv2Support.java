@@ -55,6 +55,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>A screen asks for a slot of the pack when it starts and gives it back when it is released. Players who decline
  * the pack, or whose client cannot load it, are told so and keep the dithered maps.
  *
+ * <p>This class is not thread-safe: use it on the server main thread, except {@code open} and {@code output}, which may
+ * be called from any thread.
+ *
  * @since 1.0.0
  */
 public final class Mcv2Support {

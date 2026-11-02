@@ -29,6 +29,8 @@ import java.nio.file.Path;
  * it in. Creating such a link needs access to the files of the server, so it is the owner's decision, not a decision
  * a command can make.
  *
+ * <p>This class is stateless and thread-safe.
+ *
  * @since 1.0.0
  */
 public final class DiskImages {

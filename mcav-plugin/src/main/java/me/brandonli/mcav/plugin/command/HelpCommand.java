@@ -49,6 +49,8 @@ import org.incendo.cloud.minecraft.extras.MinecraftHelp;
 /**
  * {@code /mcav help [query]}: lists the commands, with texts from the plugin's locale file.
  *
+ * <p>This class is not thread-safe: use it on the server main thread, where Cloud runs its commands.
+ *
  * @since 1.0.0
  */
 public final class HelpCommand implements AnnotationCommandFeature {

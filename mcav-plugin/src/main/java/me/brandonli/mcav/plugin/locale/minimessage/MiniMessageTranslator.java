@@ -45,6 +45,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * placeholder. A custom resolver should insert those values through the appropriate Adventure API instead.
  * Subclasses only decide where the message text for a key comes from.
  *
+ * <p>This class is immutable and thread-safe.
+ *
  * @since 1.0.0
  */
 public abstract class MiniMessageTranslator implements Translator {

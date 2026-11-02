@@ -29,6 +29,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * What the commands that play sound tell their sender and viewers about the audio output they chose: whether it can
  * play now, and the link to the Discord channel or the web page the sound plays in.
  *
+ * <p>This class is stateless and thread-safe.
+ *
  * @since 1.0.0
  */
 public final class AudioOutputs {

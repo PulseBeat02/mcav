@@ -28,6 +28,8 @@ import me.brandonli.mcav.plugin.MCAVSandbox;
 /**
  * Locates the plugin's data folder and its bundled resources.
  *
+ * <p>This class is stateless and thread-safe.
+ *
  * @since 1.0.0
  */
 public final class IoUtils {

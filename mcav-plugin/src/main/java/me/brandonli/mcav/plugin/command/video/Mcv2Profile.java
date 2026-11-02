@@ -22,6 +22,8 @@ import me.brandonli.mcav.bukkit.media.mcv2.Mcv2.Settings;
 /**
  * The version 3 encoder presets offered by the sandbox.
  *
+ * <p>This enum is immutable and thread-safe.
+ *
  * @since 1.0.0
  */
 public enum Mcv2Profile {
@@ -38,6 +40,12 @@ public enum Mcv2Profile {
    */
   FAST;
 
+  /**
+   * Returns the encoder settings of this preset.
+   *
+   * @return the settings
+   * @since 1.0.0
+   */
   public Settings getSettings() {
     return switch (this) {
       case DEFAULT -> Settings.DEFAULT;

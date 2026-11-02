@@ -43,6 +43,8 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 /**
  * {@code /mcav image chat}: shows an image to the selected players.
  *
+ * <p>This class is not thread-safe: use it on the server main thread.
+ *
  * @since 1.0.0
  */
 public final class ImageChatCommand extends AbstractImageCommand {

@@ -53,6 +53,9 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 /**
  * {@code /mcav video map}: shows a video on a wall of maps built with {@code /mcav screen}, dithered or with MCV2.
  *
+ * <p>This class is not thread-safe: use it on the server main thread, except {@code createVideoFilter}, which {@link
+ * AbstractVideoCommand} calls on the worker thread.
+ *
  * @since 1.0.0
  */
 public final class VideoMapCommand extends AbstractVideoCommand {

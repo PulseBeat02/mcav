@@ -25,6 +25,8 @@ import org.incendo.cloud.annotations.suggestion.Suggestions;
 /**
  * Tab completions shared by the commands, referenced by name in their {@code @Argument(suggestions = ...)}.
  *
+ * <p>This class is stateless and thread-safe.
+ *
  * @since 1.0.0
  */
 public final class SuggestionProvider implements AnnotationCommandFeature {

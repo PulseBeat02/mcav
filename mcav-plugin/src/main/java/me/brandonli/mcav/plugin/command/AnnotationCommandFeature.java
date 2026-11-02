@@ -26,6 +26,9 @@ import org.incendo.cloud.annotations.AnnotationParser;
  * constructor; {@link #registerFeature(AnnotationParser)} is called once before the annotations are parsed and
  * {@link #shutdown()} once when the plugin is disabled.
  *
+ * <p>Implementations need not be thread-safe: the plugin registers them on the server main thread, where Cloud also
+ * runs their commands.
+ *
  * @since 1.0.0
  */
 public interface AnnotationCommandFeature {

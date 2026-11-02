@@ -31,6 +31,8 @@ import org.slf4j.LoggerFactory;
  * The plugin MCAV registers with Simple Voice Chat. Once Simple Voice Chat has started, it hands its server API to
  * the {@link SvcModule} of the library, which voice chat audio needs before it can play.
  *
+ * <p>This class is thread-safe: it keeps no state of its own, and {@link SvcModule} is thread-safe.
+ *
  * @since 1.0.0
  */
 public final class MCAVVoiceChatPlugin implements VoicechatPlugin {

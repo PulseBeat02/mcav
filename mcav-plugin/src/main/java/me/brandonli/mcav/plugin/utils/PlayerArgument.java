@@ -27,6 +27,8 @@ import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
  * <p>The backend only changes how the media is read; the display and the audio output are chosen by the other
  * arguments. When unsure, use {@link #FFMPEG}.
  *
+ * <p>This enum is immutable and thread-safe.
+ *
  * @since 1.0.0
  */
 public enum PlayerArgument {

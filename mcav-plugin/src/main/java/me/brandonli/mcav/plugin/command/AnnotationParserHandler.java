@@ -58,6 +58,8 @@ import org.incendo.cloud.paper.LegacyPaperCommandManager;
 /**
  * Creates the Cloud command manager and every command feature of the plugin.
  *
+ * <p>This class is not thread-safe: use it on the server main thread.
+ *
  * @since 1.0.0
  */
 public final class AnnotationParserHandler {

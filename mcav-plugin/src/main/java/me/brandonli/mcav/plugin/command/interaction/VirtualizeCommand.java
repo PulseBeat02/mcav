@@ -74,6 +74,8 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
  * server, load a plugin library of its own, share a folder of the host with the guest and publish its display and its
  * monitor on the network, none of which belongs in a chat command.
  *
+ * <p>This class keeps no state of its own; {@link AbstractInteractiveCommand} names the threads that call its methods.
+ *
  * @since 1.0.0
  */
 public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer> {

@@ -58,6 +58,8 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
  * its network that way. A server's password is written in its entry there, never in the command, where the server's
  * log would keep it, and it is not logged or shown anywhere.
  *
+ * <p>This class keeps no state of its own; {@link AbstractInteractiveCommand} names the threads that call its methods.
+ *
  * @since 1.0.0
  */
 public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {

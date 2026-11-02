@@ -47,6 +47,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * New screens also carry a shared {@link Keys#SCREEN_KEY}; neighboring legacy screens with ambiguous corners are
  * rejected. The pixel coordinates are measured from the top left corner of the wall, with every map being {@value #MAP_PIXELS} pixels wide.
  *
+ * <p>This class is stateless; call it on the server main thread, since it reads the entities of the world.
+ *
  * @since 1.0.0
  */
 public final class InteractUtils {

@@ -36,6 +36,8 @@ import org.incendo.cloud.annotations.Permission;
 /**
  * {@code /mcav screen}: builds a wall of item frames holding consecutive maps to display media on.
  *
+ * <p>This class is not thread-safe: use it on the server main thread, where Cloud runs its commands.
+ *
  * @since 1.0.0
  */
 public final class ScreenCommand implements AnnotationCommandFeature {

@@ -47,6 +47,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Boots a virtual machine when a player puts a renamed music disc into a jukebox: the disc's name selects an ISO
  * image from the plugin's {@code iso} folder, and the machine is shown to the player on map 0.
  *
+ * <p>This class is not thread-safe: use it on the server main thread.
+ *
  * @since 1.0.0
  */
 public final class JukeBoxListener implements Listener {

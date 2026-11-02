@@ -38,6 +38,8 @@ import org.checkerframework.checker.nullness.qual.NonNull;
  * files in the {@code locale} folder of the plugin can move these tags around or drop them, but must not use an
  * index the message does not receive.
  *
+ * <p>This class is thread-safe when the list it was given does not change.
+ *
  * @since 1.0.0
  */
 public final class ArgumentTag implements TagResolver {

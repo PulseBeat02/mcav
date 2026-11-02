@@ -25,6 +25,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * Runs independent resource cleanup actions even when an earlier action fails.
  *
+ * <p>This class is stateless and thread-safe.
+ *
  * @since 1.0.0
  */
 public final class CleanupUtils {

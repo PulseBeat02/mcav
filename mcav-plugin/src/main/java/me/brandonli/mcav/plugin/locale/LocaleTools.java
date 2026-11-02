@@ -36,6 +36,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * the special placeholder {@code $URL$} in text and {@code open_url} click targets. Other tag parameters do
  * not support this placeholder; see {@link me.brandonli.mcav.plugin.locale.minimessage.MiniMessageTranslator}.
  *
+ * <p>This interface is stateless and thread-safe; the builders it returns are immutable and thread-safe.
+ *
  * @since 1.0.0
  */
 public interface LocaleTools {
@@ -199,6 +201,8 @@ public interface LocaleTools {
   /**
    * A message without arguments.
    *
+   * <p>Implementations in this library are immutable and thread-safe.
+   *
    * @since 1.0.0
    */
   @FunctionalInterface
@@ -215,6 +219,8 @@ public interface LocaleTools {
 
   /**
    * A message with one argument.
+   *
+   * <p>Implementations in this library are immutable and thread-safe.
    *
    * @param <ArgumentType> the type of the argument
    * @since 1.0.0
@@ -234,6 +240,8 @@ public interface LocaleTools {
 
   /**
    * A message with two arguments.
+   *
+   * <p>Implementations in this library are immutable and thread-safe.
    *
    * @param <FirstType>  the type of the first argument
    * @param <SecondType> the type of the second argument
@@ -255,6 +263,8 @@ public interface LocaleTools {
 
   /**
    * A message with three arguments.
+   *
+   * <p>Implementations in this library are immutable and thread-safe.
    *
    * @param <FirstType>  the type of the first argument
    * @param <SecondType> the type of the second argument

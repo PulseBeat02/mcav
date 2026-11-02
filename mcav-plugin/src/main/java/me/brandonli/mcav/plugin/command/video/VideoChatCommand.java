@@ -45,6 +45,9 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 /**
  * {@code /mcav video chat}: plays a video to the selected players.
  *
+ * <p>This class is not thread-safe: use it on the server main thread, except {@code createVideoFilter}, which {@link
+ * AbstractVideoCommand} calls on the worker thread.
+ *
  * @since 1.0.0
  */
 public final class VideoChatCommand extends AbstractVideoCommand {

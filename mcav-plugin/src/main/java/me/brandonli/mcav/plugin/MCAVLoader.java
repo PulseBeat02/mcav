@@ -59,6 +59,8 @@ import xyz.jpenilla.gremlin.runtime.platformsupport.PaperClasspathAppender;
  * <p>The loader runs before the downloaded modules are on the classpath, so it reports failures with JDK exceptions
  * instead of {@link PluginException}, whose superclass {@code MCAVException} comes from one of those modules.
  *
+ * <p>This class is immutable and thread-safe.
+ *
  * @since 1.0.0
  */
 public final class MCAVLoader implements PluginLoader {

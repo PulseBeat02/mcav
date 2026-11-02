@@ -45,6 +45,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * number is that of {@code /dev/video<number>}, named in sysfs, and listing opens nothing; elsewhere the first numbers
  * are tried, which briefly opens every device there is.
  *
+ * <p>This class is stateless and thread-safe.
+ *
  * @since 1.0.0
  */
 public final class CaptureDevices {

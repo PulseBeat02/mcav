@@ -34,6 +34,8 @@ import org.bukkit.plugin.ServicesManager;
  * Registers the plugin with Simple Voice Chat once the server has loaded, because Simple Voice Chat offers its
  * service only then. The listener unregisters itself afterwards.
  *
+ * <p>This class is not thread-safe: use it on the server main thread.
+ *
  * @since 1.0.0
  */
 public final class ServerLoadListener implements Listener {

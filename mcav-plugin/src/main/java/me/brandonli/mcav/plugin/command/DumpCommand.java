@@ -36,6 +36,8 @@ import org.slf4j.LoggerFactory;
 /**
  * {@code /mcav dump}: uploads diagnostic information for bug reports and prints the link.
  *
+ * <p>This class is not thread-safe: use it on the server main thread, where Cloud runs its commands.
+ *
  * @since 1.0.0
  */
 public final class DumpCommand implements AnnotationCommandFeature {

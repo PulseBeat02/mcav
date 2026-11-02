@@ -26,6 +26,8 @@ import static me.brandonli.mcav.plugin.locale.LocaleTools.direct;
  * the plugin; the keys listed here must stay. Call {@code build()} on a constant to render its message in the
  * configured language right before sending it.
  *
+ * <p>This interface only holds constants, which are immutable and thread-safe.
+ *
  * @since 1.0.0
  */
 public interface Message extends LocaleTools {

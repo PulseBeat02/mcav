@@ -38,6 +38,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * option given a value it does not take, one missing the value it needs, or a value that yt-dlp would read as
  * another option is refused, and the command tells the sender instead of running yt-dlp.
  *
+ * <p>This class is stateless and thread-safe.
+ *
  * @since 1.0.0
  */
 public final class VideoFlagsParser {

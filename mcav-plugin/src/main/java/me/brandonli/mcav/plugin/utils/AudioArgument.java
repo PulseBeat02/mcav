@@ -26,6 +26,8 @@ package me.brandonli.mcav.plugin.utils;
  * in the background when the plugin is enabled, and until they are ready the command answers that the output is
  * not ready yet.
  *
+ * <p>This enum is immutable and thread-safe.
+ *
  * @since 1.0.0
  */
 public enum AudioArgument {

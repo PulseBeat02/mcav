@@ -777,6 +777,8 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
   /**
    * Creates the display configuration of a video command for a resolution.
    *
+   * <p>Implementations in this library are immutable and thread-safe.
+   *
    * @since 1.0.0
    */
   @FunctionalInterface

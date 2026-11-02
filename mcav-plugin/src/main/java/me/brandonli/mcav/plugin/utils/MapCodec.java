@@ -23,6 +23,8 @@ package me.brandonli.mcav.plugin.utils;
  * the players. A command without the flag uses {@code mcv2.default-codec} of the configuration. Block, chat, entity,
  * scoreboard and hologram outputs draw no maps, so the flag does not apply to them.
  *
+ * <p>This enum is immutable and thread-safe.
+ *
  * @since 1.0.0
  */
 public enum MapCodec {

@@ -28,6 +28,8 @@ import java.util.Map;
  * {@code locale/mcav_en_us.properties}, which is copied into the data folder of the plugin on first start so server
  * owners can edit the messages.
  *
+ * <p>This enum is immutable and thread-safe.
+ *
  * @since 1.0.0
  */
 public enum Locale {

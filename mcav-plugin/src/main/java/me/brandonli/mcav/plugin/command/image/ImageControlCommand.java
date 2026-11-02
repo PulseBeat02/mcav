@@ -36,6 +36,8 @@ import org.slf4j.LoggerFactory;
 /**
  * {@code /mcav image release}: removes the image that is shown.
  *
+ * <p>This class is not thread-safe: use it on the server main thread, where Cloud runs its commands.
+ *
  * @since 1.0.0
  */
 public final class ImageControlCommand implements AnnotationCommandFeature {

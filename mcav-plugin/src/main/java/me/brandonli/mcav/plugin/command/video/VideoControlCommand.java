@@ -39,6 +39,8 @@ import org.slf4j.LoggerFactory;
 /**
  * {@code /mcav video pause|resume|release} and the hologram that shows the title of the video.
  *
+ * <p>This class is not thread-safe: use it on the server main thread, where Cloud runs its commands.
+ *
  * @since 1.0.0
  */
 public final class VideoControlCommand implements AnnotationCommandFeature {

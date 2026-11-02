@@ -54,6 +54,8 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 /**
  * {@code /mcav image map}: shows an image on a wall of maps built with {@code /mcav screen}, dithered or with MCV2.
  *
+ * <p>This class is not thread-safe: use it on the server main thread.
+ *
  * @since 1.0.0
  */
 public final class ImageMapCommand extends AbstractImageCommand {

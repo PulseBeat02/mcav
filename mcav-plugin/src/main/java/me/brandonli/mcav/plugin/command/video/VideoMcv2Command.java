@@ -51,6 +51,9 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
  * {@code /mcav video mcv2}: plays a video on a wall of maps built with {@code /mcav screen}, encoded with MCV2 for the
  * players whose client loads the MCV2 resource pack, and dithered onto the maps for everyone else.
  *
+ * <p>This class is not thread-safe: use it on the server main thread, except {@code createVideoFilter}, which {@link
+ * AbstractVideoCommand} calls on the worker thread.
+ *
  * @since 1.0.0
  */
 public final class VideoMcv2Command extends AbstractVideoCommand {

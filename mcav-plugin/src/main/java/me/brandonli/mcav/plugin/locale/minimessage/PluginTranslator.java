@@ -29,6 +29,8 @@ import org.checkerframework.checker.nullness.qual.NonNull;
  * language. Every message is taken from the same bundle, whatever locale Adventure asks for, so all players see
  * the language chosen in {@code config.yml}.
  *
+ * <p>This class is immutable and thread-safe.
+ *
  * @since 1.0.0
  */
 public final class PluginTranslator extends MiniMessageTranslator {

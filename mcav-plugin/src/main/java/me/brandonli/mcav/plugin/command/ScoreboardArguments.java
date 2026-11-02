@@ -25,6 +25,8 @@ import me.brandonli.mcav.utils.immutable.Pair;
 /**
  * Checks the arguments of the scoreboard commands before they load any media.
  *
+ * <p>This class is stateless and thread-safe.
+ *
  * @since 1.0.0
  */
 public final class ScoreboardArguments {

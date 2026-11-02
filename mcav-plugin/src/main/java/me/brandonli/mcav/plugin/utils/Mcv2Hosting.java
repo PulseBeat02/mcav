@@ -25,6 +25,8 @@ import me.brandonli.mcav.bukkit.utils.ServerAddress;
 /**
  * Where the players download the MCV2 resource pack from, {@code mcv2.pack.hosting} of the configuration.
  *
+ * <p>This enum is immutable and thread-safe.
+ *
  * @since 1.0.0
  */
 public enum Mcv2Hosting {

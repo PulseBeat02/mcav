@@ -39,6 +39,8 @@ import org.slf4j.LoggerFactory;
  * {@code /mcav video devices}: lists the cameras and capture cards of the server, the only devices the DEVICE player
  * then plays, by the number listed.
  *
+ * <p>This class is not thread-safe: use it on the server main thread, where Cloud runs its commands.
+ *
  * @since 1.0.0
  */
 public final class VideoDevicesCommand implements AnnotationCommandFeature {

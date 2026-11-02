@@ -57,6 +57,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * log is included. Redaction is heuristic: unlabelled secrets and application-specific credential formats may
  * still appear in diagnostic text.
  *
+ * <p>This class is stateless and thread-safe.
+ *
  * @since 1.0.0
  */
 public final class DumpUtils {

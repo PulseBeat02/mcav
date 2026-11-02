@@ -30,6 +30,8 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 /**
  * Parses the command arguments shared by the commands of the plugin.
  *
+ * <p>This class is stateless and thread-safe.
+ *
  * @since 1.0.0
  */
 public final class ArgumentUtils {

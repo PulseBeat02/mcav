@@ -45,6 +45,8 @@ import org.slf4j.LoggerFactory;
  * OpenCV jump to any time, change the speed of a file and loop it; the VLC player only jumps to a time from the start.
  * A live stream or a camera plays on at its own pace: it only changes volume.
  *
+ * <p>This class is not thread-safe: use it on the server main thread, where Cloud runs its commands.
+ *
  * @since 1.0.0
  */
 public final class VideoPlaybackCommand implements AnnotationCommandFeature {

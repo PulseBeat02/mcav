@@ -73,6 +73,8 @@ import org.bukkit.persistence.PersistentDataType;
  * Builds map screens: walls of item frames that hold consecutive maps, tagged with {@link Keys} so clicks on the
  * wall can be translated into pixels by {@link InteractUtils}.
  *
+ * <p>This class is stateless; call it on the server main thread, since it creates maps and changes the world.
+ *
  * @since 1.0.0
  */
 public final class MapUtils {

@@ -67,6 +67,8 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ran
  * they are used and then shared by every command that selects them; the stateful {@link #FLOYD_STEINBERG_TEMPORAL} is
  * created anew for every screen.
  *
+ * <p>This enum is immutable and thread-safe.
+ *
  * @since 1.0.0
  */
 public enum DitheringArgument {

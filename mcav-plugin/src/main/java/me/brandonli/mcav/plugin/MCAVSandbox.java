@@ -53,6 +53,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * and media managers, the commands, and the listeners. The getters fail with an {@link IllegalStateException}
  * when called before the plugin is enabled.
  *
+ * <p>Paper constructs this class from the plugin descriptor, and the commands it registers are documented in the plugin
+ * pages of the MCAV docs.
+ *
+ * <p>This class is not thread-safe: Paper calls {@link #onEnable()} and {@link #onDisable()} on the server main thread,
+ * and other threads may call its getters only while it is enabled.
+ *
  * @since 1.0.0
  */
 public final class MCAVSandbox extends JavaPlugin {

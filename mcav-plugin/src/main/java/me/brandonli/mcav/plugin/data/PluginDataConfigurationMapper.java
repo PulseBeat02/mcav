@@ -47,6 +47,8 @@ import org.slf4j.LoggerFactory;
  * Reads {@code config.yml} into typed settings. Missing values fall back to defaults instead of failing, but a
  * file that cannot be read or is not valid YAML fails, so a broken file never silently turns into the defaults.
  *
+ * <p>This class is thread-safe: {@link #deserialize()} and the getters of the settings are synchronized.
+ *
  * @since 1.0.0
  */
 public final class PluginDataConfigurationMapper {

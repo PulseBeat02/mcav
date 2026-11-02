@@ -67,6 +67,8 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
  * configuration with the Discord token, on the maps. Pages reach public addresses of the internet only, unless
  * {@code browser.allow-private-networks} in {@code config.yml} allows the server's own network.
  *
+ * <p>This class keeps no state of its own; {@link AbstractInteractiveCommand} names the threads that call its methods.
+ *
  * @since 1.0.0
  */
 public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlayer> {

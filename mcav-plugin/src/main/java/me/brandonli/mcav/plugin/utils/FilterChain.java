@@ -62,6 +62,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * overlay only from the plugin's {@code overlays} folder, by name; the pictures are filtered at the size they are
  * shown at, which the command's resolution bounds.
  *
+ * <p>This class is immutable and thread-safe; each call creates new filters.
+ *
  * @since 1.0.0
  */
 public final class FilterChain {
