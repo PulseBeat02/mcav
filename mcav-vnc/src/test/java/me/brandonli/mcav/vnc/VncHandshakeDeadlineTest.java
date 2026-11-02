@@ -108,6 +108,7 @@ final class VncHandshakeDeadlineTest {
     private DeadlineProbe() {}
 
     public static void main(final String[] arguments) throws Exception {
+      final DeadlineProbe probe = new DeadlineProbe();
       final ForkJoinPool pool = ForkJoinPool.commonPool();
       final int parallelism = pool.getParallelism();
       assertEquals(2, parallelism);
@@ -122,22 +123,10 @@ final class VncHandshakeDeadlineTest {
         final VernacularClient client = mock(VernacularClient.class);
         when(socket.getInputStream()).thenReturn(InputStream.nullInputStream());
         when(socket.getOutputStream()).thenReturn(OutputStream.nullOutputStream());
-        doAnswer(_ -> {
-          stopped.countDown();
-          return null;
-        })
+        doAnswer(_ -> probe.recordSocketClosure(stopped))
           .when(socket)
           .close();
-        doAnswer(_ -> {
-          entered.countDown();
-          final boolean bothEntered = entered.await(TIMEOUT_SECONDS, TimeUnit.SECONDS);
-          final boolean closedByDeadline = stopped.await(TIMEOUT_SECONDS, TimeUnit.SECONDS);
-          assertTrue(bothEntered);
-          assertTrue(closedByDeadline, "the handshake is closed");
-
-          final String message = "socket closed!";
-          throw new IllegalStateException(message);
-        })
+        doAnswer(_ -> probe.failClosedHandshake(entered, stopped))
           .when(client)
           .start(any(Socket.class));
         closed.add(stopped);
@@ -168,6 +157,23 @@ final class VncHandshakeDeadlineTest {
         }
         players.forEach(VernacularVncPlayer::release);
       }
+    }
+
+    private Void recordSocketClosure(final CountDownLatch stopped) {
+      stopped.countDown();
+
+      return null;
+    }
+
+    private Void failClosedHandshake(final CountDownLatch entered, final CountDownLatch stopped) throws InterruptedException {
+      entered.countDown();
+      final boolean bothEntered = entered.await(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+      final boolean closedByDeadline = stopped.await(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+      assertTrue(bothEntered);
+      assertTrue(closedByDeadline, "the handshake is closed");
+
+      final String message = "socket closed!";
+      throw new IllegalStateException(message);
     }
   }
 }
