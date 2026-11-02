@@ -130,8 +130,9 @@ final class MatImageBufferTest {
       assertEquals(0x22, green);
 
       final int red = data.get(2) & 0xFF;
+      final double[] expected = new double[] { 0x66, 0x55, 0x44 };
       assertEquals(0x11, red);
-      assertArrayEquals(new double[] { 0x66, 0x55, 0x44 }, pixel);
+      assertArrayEquals(expected, pixel);
     }
   }
 
@@ -340,7 +341,8 @@ final class MatImageBufferTest {
     final FileSource path = FileSource.path(file);
     final IllegalArgumentException fromFile = assertThrowsWhileOpening(IllegalArgumentException.class, () -> ImageBuffer.path(path));
     final String fileMessage = fromFile.getMessage();
-    assertEquals("File " + file + " is not a supported image!", fileMessage);
+    final String expected = "File " + file + " is not a supported image!";
+    assertEquals(expected, fileMessage);
   }
 
   @Test
@@ -355,7 +357,8 @@ final class MatImageBufferTest {
     final FileSource path = FileSource.path(file);
     final IllegalArgumentException fromFile = assertThrowsWhileOpening(IllegalArgumentException.class, () -> ImageBuffer.path(path));
     final String fileMessage = fromFile.getMessage();
-    assertEquals("File " + file + " is not a supported image!", fileMessage);
+    final String expected = "File " + file + " is not a supported image!";
+    assertEquals(expected, fileMessage);
   }
 
   private static void restoreMaximumPixels(final @Nullable String previous) {
@@ -454,8 +457,9 @@ final class MatImageBufferTest {
       final int pixel = argbAt(fromSixteenBitGray, 1, 1);
       final ByteBuffer data = fromSixteenBitGray.getData();
       final int bytes = data.remaining();
+      final int expected = 2 * 2 * 3;
       assertEquals(0xFF646464, pixel, "25700 of 65535 is 100 of 255, in every channel");
-      assertEquals(2 * 2 * 3, bytes, "the image holds three channels per pixel");
+      assertEquals(expected, bytes, "the image holds three channels per pixel");
     }
   }
 
@@ -862,10 +866,13 @@ final class MatImageBufferTest {
       final double[] partial = image.getPixel(2, 2);
       final double[] firstColumn = image.getPixel(0, 0);
       final int packed = argbAt(image, 1, 1);
+      final double[] expectedClamped = new double[] { CHANNEL_MAXIMUM, 0.0, 128.0 };
+      final double[] expectedPartial = new double[] { 10.0, 0.0, 0.0 };
+      final double[] expectedFirstColumn = new double[] { 1.0, 2.0, 3.0 };
       assertEquals(BLACK, black);
-      assertArrayEquals(new double[] { CHANNEL_MAXIMUM, 0.0, 128.0 }, clamped);
-      assertArrayEquals(new double[] { 10.0, 0.0, 0.0 }, partial);
-      assertArrayEquals(new double[] { 1.0, 2.0, 3.0 }, firstColumn, "the first column and row belong to the image");
+      assertArrayEquals(expectedClamped, clamped);
+      assertArrayEquals(expectedPartial, partial);
+      assertArrayEquals(expectedFirstColumn, firstColumn, "the first column and row belong to the image");
       assertEquals(0xFF8000FF, packed, "setting a pixel invalidates the packed cache");
 
       final double[] blackPixel = { 0.0, 0.0, 0.0 };
@@ -915,8 +922,9 @@ final class MatImageBufferTest {
       final int[] taller = Images.indexedPixels(3, 4);
       image.updateArgb(taller, 3, 4);
       final int tallerHeight = image.getHeight();
+      final int[] expected = new int[] { 0xFF000001, 0xFF000002, 0xFF000003, 0xFF000004 };
       assertEquals(4, tallerHeight, "same width, different height");
-      assertArrayEquals(new int[] { 0xFF000001, 0xFF000002, 0xFF000003, 0xFF000004 }, afterSameSize, "the alpha channel is discarded");
+      assertArrayEquals(expected, afterSameSize, "the alpha channel is discarded");
       assertArrayEquals(larger, afterLarger);
       assertNotSame(larger, afterLarger, "the input is copied");
       assertEquals(3, height);

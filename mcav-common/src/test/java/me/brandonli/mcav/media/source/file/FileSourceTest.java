@@ -69,12 +69,13 @@ final class FileSourceTest {
     final boolean isStatic = source.isStatic();
     final boolean isDynamic = source.isDynamic();
     final String text = source.toString();
+    final String expectedText = "DefaultFileSource{path=" + path + "}";
     assertFalse(isDynamic);
     assertEquals(path, storedPath);
     assertEquals(expectedResource, resource);
     assertEquals("file", name);
     assertTrue(isStatic);
-    assertEquals("DefaultFileSource{path=" + path + "}", text);
+    assertEquals(expectedText, text);
   }
 
   @Test

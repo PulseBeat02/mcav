@@ -198,7 +198,8 @@ final class DeclaredImageSizeTest {
     final Size decoded = decodedByOpenCv(encoded);
     final Size declared = read(encoded);
     final String declaredSize = sizeOf(declared);
-    assertEquals(sizeOf(decoded), declaredSize, name);
+    final String expected = sizeOf(decoded);
+    assertEquals(expected, declaredSize, name);
 
     final long pixels = decoded.width() * decoded.height();
     assertDoesNotThrow(() -> DeclaredImageSize.checkBytes(encoded, pixels), name);
@@ -638,7 +639,8 @@ final class DeclaredImageSizeTest {
   void shouldReadTheSizeTheHeaderDeclares(final String name, final byte[] encoded, final long width, final long height) {
     final Size size = read(encoded);
     final String declaredSize = sizeOf(size);
-    assertEquals(width + SIZE_SEPARATOR + height, declaredSize, name);
+    final String expected = width + SIZE_SEPARATOR + height;
+    assertEquals(expected, declaredSize, name);
   }
 
   static Stream<Arguments> unreadableHeaders() {
@@ -888,7 +890,8 @@ final class DeclaredImageSizeTest {
     Files.writeString(text, NOT_AN_IMAGE);
     final IllegalArgumentException unsupported = assertThrows(IllegalArgumentException.class, () -> DeclaredImageSize.checkFile(text, 256));
     final String unsupportedMessage = unsupported.getMessage();
-    assertEquals("File " + text + " is not a supported image!", unsupportedMessage);
+    final String expectedUnsupportedMessage = "File " + text + " is not a supported image!";
+    assertEquals(expectedUnsupportedMessage, unsupportedMessage);
 
     final Path empty = this.directory.resolve(EMPTY_FILE_NAME);
     Files.write(empty, new byte[0]);
@@ -897,7 +900,8 @@ final class DeclaredImageSizeTest {
     final Path missing = this.directory.resolve(MISSING_FILE_NAME);
     final IllegalArgumentException absent = assertThrows(IllegalArgumentException.class, () -> DeclaredImageSize.checkFile(missing, 256));
     final String absentMessage = absent.getMessage();
-    assertEquals("File " + missing + " is not a supported image!", absentMessage);
+    final String expectedAbsentMessage = "File " + missing + " is not a supported image!";
+    assertEquals(expectedAbsentMessage, absentMessage);
 
     final Throwable absentCause = absent.getCause();
     assertInstanceOf(NoSuchFileException.class, absentCause);

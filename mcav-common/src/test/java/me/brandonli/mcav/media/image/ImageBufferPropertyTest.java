@@ -120,7 +120,8 @@ final class ImageBufferPropertyTest {
         final int green = bgr[pixel * CHANNELS + 1] & CHANNEL_MASK;
         final int red = bgr[pixel * CHANNELS + 2] & CHANNEL_MASK;
         final int storedColor = (red << RED_SHIFT) | (green << GREEN_SHIFT) | blue;
-        assertEquals(expected & 0xFFFFFF, storedColor, "pixel " + pixel + " as blue, green, red");
+        final int expectedStoredColor = expected & 0xFFFFFF;
+        assertEquals(expectedStoredColor, storedColor, "pixel " + pixel + " as blue, green, red");
       }
     } finally {
       buffer.release();

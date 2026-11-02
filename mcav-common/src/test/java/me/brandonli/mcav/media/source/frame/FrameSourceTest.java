@@ -114,7 +114,8 @@ final class FrameSourceTest {
     raster.setDataElements(0, 0, new int[] { 0x12345678 });
     final int[] pixels = supply(image);
     final int[] expected = readWithGetRgb(image);
-    assertArrayEquals(new int[] { 0xFF345678 }, pixels);
+    final int[] expectedPixels = new int[] { 0xFF345678 };
+    assertArrayEquals(expectedPixels, pixels);
     assertArrayEquals(expected, pixels);
   }
 
