@@ -76,6 +76,9 @@ final class VmAudioClientTest {
 
   private static final String VNC_AUTHENTICATION_MESSAGE = "VNC authentication";
 
+  private static final int EPHEMERAL_PORT = 0;
+  private static final int BACKLOG = 1;
+
   private static final long TIMEOUT_SECONDS = 10L;
 
   // shorter than close waits for the reader
@@ -87,7 +90,7 @@ final class VmAudioClientTest {
 
   @BeforeEach
   void listen() throws IOException {
-    this.server = new ServerSocket(0, 1, InetAddress.getLoopbackAddress());
+    this.server = new ServerSocket(EPHEMERAL_PORT, BACKLOG, InetAddress.getLoopbackAddress());
   }
 
   @AfterEach
