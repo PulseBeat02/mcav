@@ -140,7 +140,10 @@ final class PaperServerEndToEndTest {
   @Test
   void shouldEnableThePluginWithItsAudioOutputsOnAHeadlessServer(@TempDir final Path serverDirectory) throws Exception {
     final boolean eulaAccepted = Boolean.getBoolean("mcav.e2e.acceptEula");
-    Assumptions.assumeTrue(eulaAccepted, "Running a Minecraft server needs the Minecraft EULA; pass -Pmcav.acceptMinecraftEula=true");
+    Assumptions.assumeTrue(
+      eulaAccepted,
+      "Running a Minecraft server needs the Minecraft EULA; pass -Pmcav.acceptMinecraftEula=true to accept it!"
+    );
 
     final Path cache = this.requirePath("mcav.e2e.cacheDirectory");
     final Path paperJar = this.download(cache, PAPER);
