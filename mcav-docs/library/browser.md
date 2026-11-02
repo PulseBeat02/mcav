@@ -36,6 +36,7 @@ fixed at the next start.
 | Linux            | x86-64, ARM64           | Nothing to install: no X server, no Xvfb, no packages; see below.            |
 | Windows          | x86-64, ARM64           | ARM64 is supported by the build but untested.                                |
 | macOS            | x86-64, ARM64 (Apple)   |                                                                              |
+| FreeBSD          | Any                     | Not available: jcefmaven publishes no FreeBSD build.                         |
 
 `BrowserPlayer.isSupported()` tells whether there is a CEF build for the machine. On any other platform, and on 32-bit
 systems, `start` fails with a `BrowserUnavailableException` that names the platform, and nothing is downloaded; so

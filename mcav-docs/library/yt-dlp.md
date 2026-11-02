@@ -21,6 +21,7 @@ MCAV checks every file against its SHA-256 hash before it uses it, so it rejects
 | Linux ARM64 (glibc)       | `yt-dlp_linux_aarch64`                                       |
 | Linux ARMv7 (glibc 2.31+) | `yt-dlp_linux_armv7l.zip`, unpacked into `yt-dlp-unpacked`   |
 | macOS (Intel and Apple)   | `yt-dlp_macos`, one universal build                          |
+| FreeBSD (any)             | None: yt-dlp publishes no FreeBSD build                      |
 
 The Linux builds need the GNU C library, so they do not run on musl-based systems such as Alpine Linux without a
 compatibility layer. yt-dlp is optional: on a platform where MCAV cannot install it, only parsing web pages is
