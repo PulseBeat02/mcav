@@ -61,7 +61,7 @@ final class NeoForgeChannelTest {
       new NeoForgeChannel().send(new byte[] { 1, 1, 2, 0 });
       final ArgumentCaptor<Mcv2Payload> sent = ArgumentCaptor.forClass(Mcv2Payload.class);
       distributor.verify(() -> ClientPacketDistributor.sendToServer(sent.capture()));
-      final byte[] report = sent.getValue().report();
+      final byte[] report = sent.getValue().getReport();
       assertArrayEquals(new byte[] { 1, 1, 2, 0 }, report);
     }
   }

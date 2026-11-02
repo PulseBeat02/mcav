@@ -73,7 +73,7 @@ public final class Mcv2Shaders {
   public static void extracted(final MapRenderState state, final MapItemSavedData data) {
     final Identifier texture = state.texture;
     if (texture != null) {
-      final Optional<ShaderDecoder> current = ShaderDecoder.current();
+      final Optional<ShaderDecoder> current = ShaderDecoder.findCurrent();
       current.ifPresent(decoder -> decoder.extracted(texture, data.colors));
     }
   }
@@ -90,7 +90,7 @@ public final class Mcv2Shaders {
     final Identifier texture = state.texture;
     if (texture != null) {
       final PoseStack.Pose lastPose = pose.last();
-      final Optional<ShaderDecoder> current = ShaderDecoder.current();
+      final Optional<ShaderDecoder> current = ShaderDecoder.findCurrent();
       current.ifPresent(decoder -> decoder.posed(texture, lastPose));
     }
   }
@@ -102,7 +102,7 @@ public final class Mcv2Shaders {
    * @since 1.0.0
    */
   public static void projecting() {
-    final Optional<ShaderDecoder> current = ShaderDecoder.current();
+    final Optional<ShaderDecoder> current = ShaderDecoder.findCurrent();
     current.ifPresent(ShaderDecoder::projecting);
   }
 
@@ -113,7 +113,7 @@ public final class Mcv2Shaders {
    * @since 1.0.0
    */
   public static void projected(final @Nullable Object projection) {
-    final Optional<ShaderDecoder> current = ShaderDecoder.current();
+    final Optional<ShaderDecoder> current = ShaderDecoder.findCurrent();
     current.ifPresent(decoder -> decoder.projected(projection));
   }
 
@@ -126,31 +126,35 @@ public final class Mcv2Shaders {
    * @since 1.0.0
    */
   public static void rendered(final GraphicsResourceAllocator allocator, final CameraRenderState camera) {
-    final Optional<ShaderDecoder> current = ShaderDecoder.current();
+    final Optional<ShaderDecoder> current = ShaderDecoder.findCurrent();
     current.ifPresent(decoder -> decoder.rendered(allocator, camera));
   }
 
   // answers false for good when the game's matrices cannot be read
   static BooleanSupplier start(final @Nullable String irisVersion) {
-    final Optional<ShaderDecoder> decoder = decoder(irisVersion);
+    final Optional<ShaderDecoder> decoder = createDecoder(irisVersion);
     decoder.ifPresentOrElse(ShaderDecoder::install, ShaderDecoder::uninstall);
     return () -> decoder.filter(ShaderDecoder::decodesUnderShaders).isPresent();
   }
 
   // empty when the game's matrices cannot be read
-  static Optional<ShaderDecoder> decoder(final @Nullable String irisVersion) {
+  static Optional<ShaderDecoder> createDecoder(final @Nullable String irisVersion) {
     final Optional<GameMatrices> found = GameMatrices.find();
-    return found.map(matrices -> decoder(irisVersion, matrices));
+    return found.map(matrices -> createDecoder(irisVersion, matrices));
   }
 
-  private static ShaderDecoder decoder(final @Nullable String irisVersion, final GameMatrices matrices) {
-    final MinecraftStripOutput output = new MinecraftStripOutput(Mcv2Shaders::mainTarget, Mcv2Shaders::outlineChain, Mcv2Shaders::commands);
+  private static ShaderDecoder createDecoder(final @Nullable String irisVersion, final GameMatrices matrices) {
+    final MinecraftStripOutput output = new MinecraftStripOutput(
+      Mcv2Shaders::mainTarget,
+      Mcv2Shaders::outlineChain,
+      Mcv2Shaders::createCommandEncoder
+    );
     final boolean tested = irisVersion != null && IrisShaders.isTested(irisVersion);
     return new ShaderDecoder(
       tested,
-      Mcv2Shaders::shaderPackInUse,
-      Mcv2Shaders::shadowPass,
-      Mcv2Shaders::layout,
+      Mcv2Shaders::isShaderPackInUse,
+      Mcv2Shaders::isRenderingShadowPass,
+      Mcv2Shaders::readLayout,
       System::nanoTime,
       matrices,
       output
@@ -170,22 +174,22 @@ public final class Mcv2Shaders {
     return shaders.getPostChain(OUTLINE_CHAIN, LevelTargetBundle.OUTLINE_TARGETS);
   }
 
-  static CommandEncoder commands() {
+  static CommandEncoder createCommandEncoder() {
     final GpuDevice device = RenderSystem.getDevice();
     return device.createCommandEncoder();
   }
 
-  static boolean shaderPackInUse() {
+  static boolean isShaderPackInUse() {
     final IrisApi iris = IrisApi.getInstance();
     return iris.isShaderPackInUse();
   }
 
-  static boolean shadowPass() {
+  static boolean isRenderingShadowPass() {
     final IrisApi iris = IrisApi.getInstance();
     return iris.isRenderingShadowPass();
   }
 
-  static Optional<String> layout() {
+  static Optional<String> readLayout() {
     final Minecraft minecraft = Minecraft.getInstance();
     final ResourceManager resources = minecraft.getResourceManager();
     final Optional<Resource> layout = resources.getResource(LAYOUT);

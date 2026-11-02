@@ -50,7 +50,7 @@ final class Mcv2ReporterTest {
   @BeforeEach
   void createReporter() {
     this.shaders = mock(IrisShaders.class);
-    when(this.shaders.report()).thenReturn(SHADERS_OFF);
+    when(this.shaders.createReport()).thenReturn(SHADERS_OFF);
     this.reporter = new Mcv2Reporter(this.shaders, this.channel, this.clock::get);
   }
 
@@ -88,14 +88,14 @@ final class Mcv2ReporterTest {
   void shouldSendAChangeThatHeldASecondButNotAShorterOne() {
     this.tickAfter(0);
     this.tickAfter(Mcv2Reporter.STEADY_NANOSECONDS);
-    when(this.shaders.report()).thenReturn(SHADERS_ON);
+    when(this.shaders.createReport()).thenReturn(SHADERS_ON);
     this.tickAfter(1);
-    when(this.shaders.report()).thenReturn(SHADERS_OFF);
+    when(this.shaders.createReport()).thenReturn(SHADERS_OFF);
     this.tickAfter(Mcv2Reporter.STEADY_NANOSECONDS);
     final int sentAfterABriefChange = this.channel.sent.size();
     assertEquals(1, sentAfterABriefChange);
 
-    when(this.shaders.report()).thenReturn(SHADERS_ON);
+    when(this.shaders.createReport()).thenReturn(SHADERS_ON);
     this.tickAfter(1);
     this.tickAfter(Mcv2Reporter.STEADY_NANOSECONDS - 1);
     final int sentBeforeASecond = this.channel.sent.size();

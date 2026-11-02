@@ -82,7 +82,7 @@ final class StripAnchor {
   }
 
   // colors of a map Mcv2Maps.isAnchor accepted
-  static StripAnchor of(final byte[] colors, final float cornerX, final float cornerY, final float cornerZ) {
+  static StripAnchor from(final byte[] colors, final float cornerX, final float cornerY, final float cornerZ) {
     final long stream = Mcv2Maps.symbol(colors, STREAM_LOW) | ((long) Mcv2Maps.symbol(colors, STREAM_HIGH) << SYMBOL_BITS);
     return new StripAnchor(
       Mcv2Maps.symbol(colors, COLUMN),

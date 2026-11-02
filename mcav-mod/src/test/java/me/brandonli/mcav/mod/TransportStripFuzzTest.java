@@ -57,7 +57,7 @@ final class TransportStripFuzzTest {
     MapFixtures.writeBits(symbols, bit, count, value);
     final byte[] colors = MapFixtures.colors(symbols);
 
-    final int read = TransportStrip.bits(colors, bit, count);
+    final int read = TransportStrip.readBits(colors, bit, count);
     assertEquals(value, read);
   }
 
@@ -70,7 +70,7 @@ final class TransportStripFuzzTest {
     final float[] projection = this.matrix(data);
 
     final byte[] strip = TransportStrip.build(LAYOUT, width, pages, anchors, viewRotation, projection);
-    final int expected = LAYOUT.stripRows(width) * width * CHANNELS;
+    final int expected = LAYOUT.getStripRows(width) * width * CHANNELS;
     assertEquals(expected, strip.length);
   }
 

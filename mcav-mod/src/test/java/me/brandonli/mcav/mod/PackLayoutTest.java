@@ -52,16 +52,16 @@ final class PackLayoutTest {
   @Test
   void shouldReadTheScreensTheServerGenerated() {
     final PackLayout layout = PackLayout.parse(packConstants("7u, 4294967295u", SLOTS, FIRST_SLOTS, 2)).orElseThrow();
-    final int screens = layout.screens();
-    final int firstScreenSlots = layout.slots(0);
-    final int secondScreenSlots = layout.slots(1);
-    final int firstScreenFirstSlot = layout.firstSlot(0);
-    final int secondScreenFirstSlot = layout.firstSlot(1);
-    final int totalSlots = layout.totalSlots();
-    final int screenOfSeven = layout.screenOf(7);
-    final int screenOfTheLargestStream = layout.screenOf(4_294_967_295L);
-    final int screenOfAnUnknownStream = layout.screenOf(8);
-    final int stripRows = layout.stripRows(WIDTH);
+    final int screens = layout.getScreenCount();
+    final int firstScreenSlots = layout.getSlotCount(0);
+    final int secondScreenSlots = layout.getSlotCount(1);
+    final int firstScreenFirstSlot = layout.getFirstSlot(0);
+    final int secondScreenFirstSlot = layout.getFirstSlot(1);
+    final int totalSlots = layout.getTotalSlots();
+    final int screenOfSeven = layout.findScreen(7);
+    final int screenOfTheLargestStream = layout.findScreen(4_294_967_295L);
+    final int screenOfAnUnknownStream = layout.findScreen(8);
+    final int stripRows = layout.getStripRows(WIDTH);
     assertEquals(2, screens);
     assertEquals(3, firstScreenSlots);
     assertEquals(2, secondScreenSlots);
@@ -77,16 +77,16 @@ final class PackLayoutTest {
   @Test
   void shouldReadOneScreenOfOneSlotAndEightScreensOfEightSlots() {
     final PackLayout one = PackLayout.parse(packConstants("0u", "1", "0", 1)).orElseThrow();
-    final int screensOfOne = one.screens();
-    final int totalSlotsOfOne = one.totalSlots();
+    final int screensOfOne = one.getScreenCount();
+    final int totalSlotsOfOne = one.getTotalSlots();
     assertEquals(1, screensOfOne);
     assertEquals(1, totalSlotsOfOne);
     final PackLayout eight = PackLayout.parse(
       packConstants("1u, 2u, 3u, 4u, 5u, 6u, 7u, 8u", "8, 8, 8, 8, 8, 8, 8, 8", "0, 8, 16, 24, 32, 40, 48, 56", 8)
     ).orElseThrow();
-    final int screensOfEight = eight.screens();
-    final int firstSlotOfTheLastScreen = eight.firstSlot(7);
-    final int totalSlotsOfEight = eight.totalSlots();
+    final int screensOfEight = eight.getScreenCount();
+    final int firstSlotOfTheLastScreen = eight.getFirstSlot(7);
+    final int totalSlotsOfEight = eight.getTotalSlots();
     assertEquals(8, screensOfEight);
     assertEquals(56, firstSlotOfTheLastScreen);
     assertEquals(64, totalSlotsOfEight);
@@ -94,11 +94,11 @@ final class PackLayoutTest {
 
   @Test
   void shouldGiveAPageTheRowsItsFourThousandPixelsNeed() {
-    final int rowsAtWidthOne = PackLayout.rowsPerPage(1);
-    final int rowsAtScreenWidth = PackLayout.rowsPerPage(WIDTH);
-    final int rowsAtPageWidth = PackLayout.rowsPerPage(4096);
-    final int rowsAbovePageWidth = PackLayout.rowsPerPage(4097);
-    final int rowsBelowPageWidth = PackLayout.rowsPerPage(4095);
+    final int rowsAtWidthOne = PackLayout.getRowsPerPage(1);
+    final int rowsAtScreenWidth = PackLayout.getRowsPerPage(WIDTH);
+    final int rowsAtPageWidth = PackLayout.getRowsPerPage(4096);
+    final int rowsAbovePageWidth = PackLayout.getRowsPerPage(4097);
+    final int rowsBelowPageWidth = PackLayout.getRowsPerPage(4095);
     assertEquals(4096, rowsAtWidthOne);
     assertEquals(5, rowsAtScreenWidth);
     assertEquals(1, rowsAtPageWidth);

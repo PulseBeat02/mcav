@@ -118,8 +118,8 @@ final class MinecraftStripOutputTest {
   void shouldWriteTheStripOverTheTopRowsAndRunThePacksChainOnAnEmptyOutline() {
     final PostChain chain = mock(PostChain.class);
     final MinecraftStripOutput output = new MinecraftStripOutput(() -> this.main, () -> chain, () -> this.commands);
-    final int width = output.width();
-    final int height = output.height();
+    final int width = output.getWidth();
+    final int height = output.getHeight();
     assertEquals(WIDTH, width);
     assertEquals(HEIGHT, height);
     final ArgumentCaptor<ByteBuffer> pixels = ArgumentCaptor.forClass(ByteBuffer.class);

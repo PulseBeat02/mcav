@@ -71,13 +71,13 @@ final class MinecraftStripOutput implements StripOutput {
   }
 
   @Override
-  public int width() {
+  public int getWidth() {
     final RenderTarget target = this.main.get();
     return target.width;
   }
 
   @Override
-  public int height() {
+  public int getHeight() {
     final RenderTarget target = this.main.get();
     return target.height;
   }
@@ -102,7 +102,7 @@ final class MinecraftStripOutput implements StripOutput {
     this.pixels.flip();
     final CommandEncoder commands = this.encoder.get();
     commands.writeToTexture(color(target), this.pixels, BASE_MIP_LEVEL, FIRST_LAYER, LEFT_COLUMN, target.height - rows, target.width, rows);
-    final TextureTarget empty = this.emptyOutline(target, commands);
+    final TextureTarget empty = this.resetEmptyOutline(target, commands);
     final FrameGraphBuilder frame = new FrameGraphBuilder();
     final LevelTargetBundle targets = new LevelTargetBundle();
     targets.main = frame.importExternal(LevelTargetBundle.MAIN_TARGET_ID.toString(), target);
@@ -113,7 +113,7 @@ final class MinecraftStripOutput implements StripOutput {
   }
 
   // copied over again each frame, since the chain wrote into the last frame's
-  private TextureTarget emptyOutline(final RenderTarget target, final CommandEncoder commands) {
+  private TextureTarget resetEmptyOutline(final RenderTarget target, final CommandEncoder commands) {
     final OutlineTargets targets = this.sizeOutlineTargets(target, commands);
     final TextureTarget empty = targets.empty();
     final TextureTarget transparent = targets.transparent();

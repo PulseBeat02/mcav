@@ -51,7 +51,7 @@ final class GameMatricesTest {
     final PoseStack stack = new PoseStack();
     stack.translate(1F, 2F, 3F);
     stack.scale(2F, 4F, 8F);
-    final float[] pose = matrices.pose(stack.last());
+    final float[] pose = matrices.readPose(stack.last());
     assertArrayEquals(new float[] { 2, 0, 0, 0, 0, 4, 0, 0, 0, 0, 8, 0, 1, 2, 3, 1 }, pose);
   }
 
@@ -59,13 +59,13 @@ final class GameMatricesTest {
   void shouldReadTheRotationOfTheCamera() throws ReflectiveOperationException {
     final GameMatrices matrices = GameMatrices.find().orElseThrow();
     final CameraRenderState camera = new CameraRenderState();
-    final float[] rotation = matrices.viewRotation(camera);
+    final float[] rotation = matrices.readViewRotation(camera);
     assertArrayEquals(IDENTITY, rotation);
     final PoseStack stack = new PoseStack();
     stack.translate(5F, 6F, 7F);
     final Object translation = PoseStack.Pose.class.getMethod(POSE_METHOD).invoke(stack.last());
     CameraRenderState.class.getField(VIEW_ROTATION_FIELD).set(camera, translation);
-    final float[] translatedRotation = matrices.viewRotation(camera);
+    final float[] translatedRotation = matrices.readViewRotation(camera);
     assertArrayEquals(new float[] { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 5, 6, 7, 1 }, translatedRotation);
   }
 
@@ -103,17 +103,17 @@ final class GameMatricesTest {
     final PoseStack.Pose pose = new PoseStack().last();
     final CameraRenderState camera = new CameraRenderState();
     final GameMatrices hidden = new GameMatrices(Members.class.getDeclaredMethod("hidden"), Members.class.getDeclaredField("secret"));
-    final Throwable hiddenPose = this.causeOf(() -> hidden.pose(pose));
-    final Throwable hiddenRotation = this.causeOf(() -> hidden.viewRotation(camera));
+    final Throwable hiddenPose = this.causeOf(() -> hidden.readPose(pose));
+    final Throwable hiddenRotation = this.causeOf(() -> hidden.readViewRotation(camera));
     assertInstanceOf(IllegalAccessException.class, hiddenPose);
     assertInstanceOf(IllegalAccessException.class, hiddenRotation);
     final GameMatrices failing = new GameMatrices(Members.class.getMethod("fails"), Members.class.getField(MATRIX_FIELD));
-    final Throwable failingPose = this.causeOf(() -> failing.pose(pose));
-    final Throwable failingRotation = this.causeOf(() -> failing.viewRotation(camera));
+    final Throwable failingPose = this.causeOf(() -> failing.readPose(pose));
+    final Throwable failingRotation = this.causeOf(() -> failing.readViewRotation(camera));
     assertInstanceOf(InvocationTargetException.class, failingPose);
     assertInstanceOf(IllegalArgumentException.class, failingRotation);
     final GameMatrices strings = new GameMatrices(String.class.getMethod(LENGTH_METHOD), Members.class.getField(MATRIX_FIELD));
-    final Throwable stringPose = this.causeOf(() -> strings.pose(pose));
+    final Throwable stringPose = this.causeOf(() -> strings.readPose(pose));
     assertInstanceOf(IllegalArgumentException.class, stringPose);
   }
 
@@ -124,15 +124,15 @@ final class GameMatricesTest {
 
   @Test
   void shouldReadOnlyAFourByFourFloatMatrixAsOne() {
-    assertThrows(IllegalStateException.class, () -> GameMatrices.floats(null));
-    assertThrows(IllegalStateException.class, () -> GameMatrices.floats("a matrix"));
-    final Throwable tooShort = this.causeOf(() -> GameMatrices.floats(new Floats(9)));
-    final Throwable tooLong = this.causeOf(() -> GameMatrices.floats(new Floats(17)));
-    final Throwable negativeLength = this.causeOf(() -> GameMatrices.floats(new Floats(-1)));
+    assertThrows(IllegalStateException.class, () -> GameMatrices.readFloats(null));
+    assertThrows(IllegalStateException.class, () -> GameMatrices.readFloats("a matrix"));
+    final Throwable tooShort = this.causeOf(() -> GameMatrices.readFloats(new Floats(9)));
+    final Throwable tooLong = this.causeOf(() -> GameMatrices.readFloats(new Floats(17)));
+    final Throwable negativeLength = this.causeOf(() -> GameMatrices.readFloats(new Floats(-1)));
     assertInstanceOf(IOException.class, tooShort);
     assertInstanceOf(IOException.class, tooLong);
     assertInstanceOf(IOException.class, negativeLength);
-    final float[] floats = GameMatrices.floats(new Floats(16));
+    final float[] floats = GameMatrices.readFloats(new Floats(16));
     assertArrayEquals(new float[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 }, floats);
   }
 

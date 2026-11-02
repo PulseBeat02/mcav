@@ -42,7 +42,7 @@ final class FabricChannelTest {
       channel.send(new byte[] { 1, 1, 1, 0 });
       final ArgumentCaptor<Mcv2Payload> sent = ArgumentCaptor.forClass(Mcv2Payload.class);
       networking.verify(() -> ClientPlayNetworking.send(sent.capture()));
-      final byte[] report = sent.getValue().report();
+      final byte[] report = sent.getValue().getReport();
       assertArrayEquals(new byte[] { 1, 1, 1, 0 }, report);
     }
   }

@@ -31,7 +31,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 final class ShaderDecoder {
 
   // a new pack comes with a resource reload, at most every few seconds
-  private static final long LAYOUT_NANOSECONDS = 1_000_000_000L;
+  private static final long LAYOUT_READ_INTERVAL_NANOSECONDS = 1_000_000_000L;
 
   // a map's top left corner in its own space, just in front of the frame
   private static final float MAP_CORNER_X = 0F;
@@ -94,7 +94,7 @@ final class ShaderDecoder {
     this.output = output;
   }
 
-  static Optional<ShaderDecoder> current() {
+  static Optional<ShaderDecoder> findCurrent() {
     return Optional.ofNullable(current);
   }
 
@@ -125,7 +125,7 @@ final class ShaderDecoder {
     }
 
     final float[] corner = TransportStrip.transform(
-      this.matrices.pose(pose),
+      this.matrices.readPose(pose),
       MAP_CORNER_X,
       MAP_CORNER_Y,
       MAP_DEPTH,
@@ -148,41 +148,42 @@ final class ShaderDecoder {
 
     this.levelProjection = false;
     this.hooks |= PROJECTED;
-    this.frame.projected(GameMatrices.floats(projection));
+    this.frame.projected(GameMatrices.readFloats(projection));
   }
 
   void rendered(final GraphicsResourceAllocator allocator, final CameraRenderState camera) {
     this.hooks |= RENDERED;
     try {
-      final float @Nullable [] projection = this.frame.projection();
+      final float @Nullable [] projection = this.frame.getProjection();
       if (!this.testedIris || projection == null || this.frame.isEmpty() || !this.shaderPackInUse.getAsBoolean()) {
         return;
       }
-      final @Nullable PackLayout pack = this.layout();
-      if (pack == null) {
+      this.refreshStaleLayout();
+
+      final @Nullable PackLayout layout = this.layout;
+      if (layout == null) {
         return;
       }
-      final int width = this.output.width();
-      if (width < TransportStrip.DESCRIPTOR_PIXELS || pack.stripRows(width) >= this.output.height()) {
+      final int width = this.output.getWidth();
+      if (width < TransportStrip.DESCRIPTOR_PIXELS || layout.getStripRows(width) >= this.output.getHeight()) {
         return;
       }
-      final float[] viewRotation = this.matrices.viewRotation(camera);
-      final byte[] strip = TransportStrip.build(pack, width, this.frame.pages(), this.frame.anchors(), viewRotation, projection);
-      this.output.decode(strip, pack.stripRows(width), allocator);
+      final float[] viewRotation = this.matrices.readViewRotation(camera);
+      final byte[] strip = TransportStrip.build(layout, width, this.frame.getPages(), this.frame.getAnchors(), viewRotation, projection);
+      this.output.decode(strip, layout.getStripRows(width), allocator);
     } finally {
       this.frame.finish();
     }
   }
 
-  private @Nullable PackLayout layout() {
+  private void refreshStaleLayout() {
     final long now = this.clock.getAsLong();
-    if (!this.layoutKnown || now - this.layoutRead >= LAYOUT_NANOSECONDS) {
+    if (!this.layoutKnown || now - this.layoutRead >= LAYOUT_READ_INTERVAL_NANOSECONDS) {
       final Optional<String> constants = this.packConstants.get();
       final Optional<PackLayout> parsed = constants.flatMap(PackLayout::parse);
       this.layout = parsed.orElse(null);
       this.layoutRead = now;
       this.layoutKnown = true;
     }
-    return this.layout;
   }
 }

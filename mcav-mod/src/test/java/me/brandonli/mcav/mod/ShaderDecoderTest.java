@@ -97,8 +97,8 @@ final class ShaderDecoderTest {
   private final CameraRenderState camera = new CameraRenderState();
 
   private ShaderDecoder decoder(final boolean testedIris, final int width, final int height) {
-    when(this.output.width()).thenReturn(width);
-    when(this.output.height()).thenReturn(height);
+    when(this.output.getWidth()).thenReturn(width);
+    when(this.output.getHeight()).thenReturn(height);
     return new ShaderDecoder(
       testedIris,
       this.shaderPack::get,
@@ -138,7 +138,7 @@ final class ShaderDecoderTest {
     decoder.rendered(this.allocator, this.camera);
     final ArgumentCaptor<byte[]> strip = ArgumentCaptor.forClass(byte[].class);
     verify(this.output).decode(strip.capture(), eq(ROWS), same(this.allocator));
-    final StripAnchor anchor = StripAnchor.of(ANCHOR, CORNER_X, CORNER_Y, MAP_DEPTH + CORNER_Z);
+    final StripAnchor anchor = StripAnchor.from(ANCHOR, CORNER_X, CORNER_Y, MAP_DEPTH + CORNER_Z);
     final byte[] written = strip.getValue();
     final boolean decodesUnderShaders = decoder.decodesUnderShaders();
     assertArrayEquals(TransportStrip.build(LAYOUT, WIDTH, List.of(PAGE), List.of(anchor), IDENTITY, PROJECTION), written);
@@ -163,7 +163,7 @@ final class ShaderDecoderTest {
     decoder.rendered(this.allocator, this.camera);
     final ArgumentCaptor<byte[]> strip = ArgumentCaptor.forClass(byte[].class);
     verify(this.output).decode(strip.capture(), eq(ROWS), same(this.allocator));
-    final StripAnchor anchor = StripAnchor.of(ANCHOR, CORNER_X, CORNER_Y, MAP_DEPTH + CORNER_Z);
+    final StripAnchor anchor = StripAnchor.from(ANCHOR, CORNER_X, CORNER_Y, MAP_DEPTH + CORNER_Z);
     final byte[] written = strip.getValue();
     assertArrayEquals(TransportStrip.build(LAYOUT, WIDTH, List.of(PAGE), List.of(anchor), IDENTITY, PROJECTION), written);
     final ShaderDecoder unmarked = this.decoder(TESTED_IRIS, WIDTH, HEIGHT);
@@ -195,7 +195,7 @@ final class ShaderDecoderTest {
     decoder.rendered(this.allocator, this.camera);
     final ArgumentCaptor<byte[]> strip = ArgumentCaptor.forClass(byte[].class);
     verify(this.output).decode(strip.capture(), eq(ROWS), same(this.allocator));
-    final StripAnchor anchor = StripAnchor.of(ANCHOR, CORNER_X, CORNER_Y, MAP_DEPTH + CORNER_Z);
+    final StripAnchor anchor = StripAnchor.from(ANCHOR, CORNER_X, CORNER_Y, MAP_DEPTH + CORNER_Z);
     final byte[] written = strip.getValue();
     assertArrayEquals(TransportStrip.build(LAYOUT, WIDTH, List.of(PAGE), List.of(anchor), IDENTITY, PROJECTION), written);
   }
@@ -276,7 +276,7 @@ final class ShaderDecoderTest {
     final ShaderDecoder narrow = this.decoder(TESTED_IRIS, 64, 4096);
     this.frame(narrow);
     narrow.rendered(this.allocator, this.camera);
-    verify(this.output).decode(any(), eq(PackLayout.rowsPerPage(64) * 2 + 1), same(this.allocator));
+    verify(this.output).decode(any(), eq(PackLayout.getRowsPerPage(64) * 2 + 1), same(this.allocator));
   }
 
   @Test
@@ -302,10 +302,10 @@ final class ShaderDecoderTest {
   void shouldMakeTheMixinsReportToTheInstalledDecoder() {
     final ShaderDecoder decoder = this.decoder(TESTED_IRIS, WIDTH, HEIGHT);
     ShaderDecoder.install(decoder);
-    final Optional<ShaderDecoder> current = ShaderDecoder.current();
+    final Optional<ShaderDecoder> current = ShaderDecoder.findCurrent();
     assertEquals(Optional.of(decoder), current);
     ShaderDecoder.uninstall();
-    final Optional<ShaderDecoder> currentAfterUninstalling = ShaderDecoder.current();
+    final Optional<ShaderDecoder> currentAfterUninstalling = ShaderDecoder.findCurrent();
     assertEquals(Optional.empty(), currentAfterUninstalling);
   }
 }

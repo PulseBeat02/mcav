@@ -57,7 +57,7 @@ final class Mcv2Reporter {
     }
 
     final long now = this.clock.getAsLong();
-    final Mcv2Report report = this.shaders.report();
+    final Mcv2Report report = this.shaders.createReport();
     if (!Objects.equals(this.seen, report)) {
       this.seen = report;
       this.seenSince = now;

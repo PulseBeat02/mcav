@@ -108,7 +108,7 @@ final class NeoForgeEntrypointTest {
       ticks.accept(new ClientTickEvent.Post());
       final ArgumentCaptor<Mcv2Payload> sent = ArgumentCaptor.forClass(Mcv2Payload.class);
       distributor.verify(() -> ClientPacketDistributor.sendToServer(sent.capture()));
-      final byte[] report = sent.getValue().report();
+      final byte[] report = sent.getValue().getReport();
       assertArrayEquals(new byte[] { 1, 0, 0, 0 }, report, "no Iris, no shader pack");
 
       loggingOut.accept(logout);
@@ -144,12 +144,12 @@ final class NeoForgeEntrypointTest {
       verify(mods).getModContainerById("iris");
       verify(this.modBus).addListener(eq(RegisterPayloadHandlersEvent.class), any());
     }
-    final Optional<ShaderDecoder> decoder = ShaderDecoder.current();
-    final Optional<String> version = NeoForgeEntrypoint.irisVersion(mods);
+    final Optional<ShaderDecoder> decoder = ShaderDecoder.findCurrent();
+    final Optional<String> version = NeoForgeEntrypoint.findIrisVersion(mods);
     assertTrue(decoder.isPresent(), "the decoder the mixins report to");
     assertEquals(Optional.of("1.11.7+mc26.3"), version);
     doReturn(Optional.empty()).when(mods).getModContainerById("iris");
-    final Optional<String> missingVersion = NeoForgeEntrypoint.irisVersion(mods);
+    final Optional<String> missingVersion = NeoForgeEntrypoint.findIrisVersion(mods);
     assertEquals(Optional.empty(), missingVersion);
   }
 }

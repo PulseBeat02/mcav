@@ -42,7 +42,7 @@ final class Mcv2PayloadTest {
     Mcv2Payload.CODEC.encode(buffer, new Mcv2Payload(new byte[] { 1, 1, 1, 0 }));
     final byte[] written = new byte[buffer.readableBytes()];
     buffer.getBytes(buffer.readerIndex(), written);
-    final byte[] decoded = Mcv2Payload.CODEC.decode(buffer).report();
+    final byte[] decoded = Mcv2Payload.CODEC.decode(buffer).getReport();
     final int remaining = buffer.readableBytes();
     assertArrayEquals(new byte[] { 1, 1, 1, 0 }, written);
     assertArrayEquals(new byte[] { 1, 1, 1, 0 }, decoded);
@@ -54,8 +54,8 @@ final class Mcv2PayloadTest {
     final byte[] report = { 1, 0, 0, 0 };
     final Mcv2Payload payload = new Mcv2Payload(report);
     report[1] = 1;
-    payload.report()[2] = 1;
-    final byte[] kept = payload.report();
+    payload.getReport()[2] = 1;
+    final byte[] kept = payload.getReport();
     assertArrayEquals(new byte[] { 1, 0, 0, 0 }, kept);
   }
 }

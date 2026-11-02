@@ -62,8 +62,8 @@ final class GameMatrices {
       final GameMatrices matrices = new GameMatrices(poses.getMethod(poseMethod), cameras.getField(rotationField));
       final PoseStack stack = new PoseStack();
       final PoseStack.Pose pose = stack.last();
-      matrices.pose(pose);
-      matrices.viewRotation(new CameraRenderState());
+      matrices.readPose(pose);
+      matrices.readViewRotation(new CameraRenderState());
       return Optional.of(matrices);
     } catch (final NoSuchMethodException | NoSuchFieldException | IllegalStateException exception) {
       return Optional.empty();
@@ -71,25 +71,25 @@ final class GameMatrices {
   }
 
   // column-major
-  float[] pose(final PoseStack.Pose pose) {
+  float[] readPose(final PoseStack.Pose pose) {
     try {
-      return floats(this.pose.invoke(pose));
+      return readFloats(this.pose.invoke(pose));
     } catch (final IllegalAccessException | InvocationTargetException | IllegalArgumentException exception) {
       throw new IllegalStateException(UNREADABLE, exception);
     }
   }
 
   // column-major
-  float[] viewRotation(final CameraRenderState camera) {
+  float[] readViewRotation(final CameraRenderState camera) {
     try {
-      return floats(this.viewRotation.get(camera));
+      return readFloats(this.viewRotation.get(camera));
     } catch (final IllegalAccessException | IllegalArgumentException exception) {
       throw new IllegalStateException(UNREADABLE, exception);
     }
   }
 
   // the floats of a JOML 4x4 float matrix, column-major
-  static float[] floats(final @Nullable Object matrix) {
+  static float[] readFloats(final @Nullable Object matrix) {
     if (!(matrix instanceof final Externalizable serializable)) {
       final String message = NOT_A_MATRIX.formatted(matrix);
       throw new IllegalStateException(message);

@@ -44,7 +44,7 @@ final class StripAnchorFuzzTest {
       return;
     }
 
-    final StripAnchor anchor = StripAnchor.of(colors, cornerX, cornerY, cornerZ);
+    final StripAnchor anchor = StripAnchor.from(colors, cornerX, cornerY, cornerZ);
     this.assertFields(anchor);
     this.assertCorner(anchor, cornerX, cornerY, cornerZ);
   }

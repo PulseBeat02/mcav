@@ -51,7 +51,7 @@ final class ShaderFrame {
   void posed(final Object texture, final float cornerX, final float cornerY, final float cornerZ) {
     final byte[] colors = this.anchorColors.get(texture);
     if (colors != null) {
-      this.anchors.add(StripAnchor.of(colors, cornerX, cornerY, cornerZ));
+      this.anchors.add(StripAnchor.from(colors, cornerX, cornerY, cornerZ));
     }
   }
 
@@ -60,15 +60,15 @@ final class ShaderFrame {
     this.projection = projection;
   }
 
-  float @Nullable [] projection() {
+  float @Nullable [] getProjection() {
     return this.projection;
   }
 
-  List<byte[]> pages() {
+  List<byte[]> getPages() {
     return this.pages;
   }
 
-  List<StripAnchor> anchors() {
+  List<StripAnchor> getAnchors() {
     return this.anchors;
   }
 

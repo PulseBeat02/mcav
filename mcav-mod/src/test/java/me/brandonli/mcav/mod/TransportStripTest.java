@@ -118,16 +118,16 @@ final class TransportStripTest {
     assertEquals(word >> THIRD_BYTE_SHIFT, blue);
     final byte[] bits = MapFixtures.colors(new int[] { 63, 63 });
     bits[0] = 3;
-    final int firstTwelveBits = TransportStrip.bits(bits, 0, 12);
+    final int firstTwelveBits = TransportStrip.readBits(bits, 0, 12);
     assertEquals(0b111111_000000, firstTwelveBits);
   }
 
   @Test
   void shouldReadTheStreamAndNumberOfAPage() {
     final byte[] page = MapFixtures.colors(MapFixtures.pageSymbols(0xCAFE_BABEL, 0x1234));
-    final int lowStreamHalf = TransportStrip.bits(page, 64, 16);
-    final int highStreamHalf = TransportStrip.bits(page, 80, 16);
-    final int pageNumber = TransportStrip.bits(page, 128, 16);
+    final int lowStreamHalf = TransportStrip.readBits(page, 64, 16);
+    final int highStreamHalf = TransportStrip.readBits(page, 80, 16);
+    final int pageNumber = TransportStrip.readBits(page, 128, 16);
     assertEquals(0xBABE, lowStreamHalf);
     assertEquals(0xCAFE, highStreamHalf);
     assertEquals(0x1234, pageNumber);

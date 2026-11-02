@@ -35,7 +35,7 @@ final class Mcv2Payload implements CustomPacketPayload {
     this.report = report.clone();
   }
 
-  byte[] report() {
+  byte[] getReport() {
     return this.report.clone();
   }
 

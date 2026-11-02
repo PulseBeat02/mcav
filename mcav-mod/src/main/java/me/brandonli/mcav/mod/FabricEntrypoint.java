@@ -62,7 +62,7 @@ public final class FabricEntrypoint implements ClientModInitializer {
   public FabricEntrypoint() {
     final PayloadTypeRegistry<RegistryFriendlyByteBuf> payloads = PayloadTypeRegistry.serverboundPlay();
     final FabricLoader loader = FabricLoader.getInstance();
-    final Optional<String> version = irisVersion(loader);
+    final Optional<String> version = findIrisVersion(loader);
     final @Nullable String irisVersion = version.orElse(null);
     this(payloads, ClientPlayConnectionEvents.JOIN, ClientTickEvents.END_CLIENT_TICK, irisVersion, System::nanoTime);
   }
@@ -81,7 +81,7 @@ public final class FabricEntrypoint implements ClientModInitializer {
     this.clock = clock;
   }
 
-  static Optional<String> irisVersion(final FabricLoader loader) {
+  static Optional<String> findIrisVersion(final FabricLoader loader) {
     final Optional<ModContainer> iris = loader.getModContainer(IrisShaders.MOD_ID);
     return iris.map(FabricEntrypoint::versionOf);
   }

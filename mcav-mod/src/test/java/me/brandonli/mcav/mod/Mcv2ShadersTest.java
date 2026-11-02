@@ -136,7 +136,7 @@ final class Mcv2ShadersTest {
   private boolean hooked(final BooleanSupplier decodes) throws ReflectiveOperationException {
     final boolean decodesUnderShaders = decodes.getAsBoolean();
     assertFalse(decodesUnderShaders);
-    final ShaderDecoder decoder = ShaderDecoder.current().orElseThrow();
+    final ShaderDecoder decoder = ShaderDecoder.findCurrent().orElseThrow();
     final PoseStack stack = new PoseStack();
     decoder.extracted(TEXTURE, new byte[Mcv2Maps.COLORS]);
     decoder.posed(TEXTURE, stack.last());
@@ -170,7 +170,7 @@ final class Mcv2ShadersTest {
       system.when(RenderSystem::getDevice).thenReturn(device);
       final RenderTarget mainTarget = Mcv2Shaders.mainTarget();
       final PostChain outlineChain = Mcv2Shaders.outlineChain();
-      final CommandEncoder commandEncoder = Mcv2Shaders.commands();
+      final CommandEncoder commandEncoder = Mcv2Shaders.createCommandEncoder();
       assertSame(main, mainTarget);
       assertSame(chain, outlineChain);
       assertSame(commands, commandEncoder);
@@ -183,16 +183,16 @@ final class Mcv2ShadersTest {
     try (final MockedStatic<IrisApi> iris = mockStatic(IrisApi.class)) {
       iris.when(IrisApi::getInstance).thenReturn(api);
       when(api.isShaderPackInUse()).thenReturn(true);
-      final boolean inUseWhenOn = Mcv2Shaders.shaderPackInUse();
+      final boolean inUseWhenOn = Mcv2Shaders.isShaderPackInUse();
       assertTrue(inUseWhenOn);
       when(api.isShaderPackInUse()).thenReturn(false);
-      final boolean inUseWhenOff = Mcv2Shaders.shaderPackInUse();
+      final boolean inUseWhenOff = Mcv2Shaders.isShaderPackInUse();
       assertFalse(inUseWhenOff);
       when(api.isRenderingShadowPass()).thenReturn(true);
-      final boolean shadowPassWhenOn = Mcv2Shaders.shadowPass();
+      final boolean shadowPassWhenOn = Mcv2Shaders.isRenderingShadowPass();
       assertTrue(shadowPassWhenOn);
       when(api.isRenderingShadowPass()).thenReturn(false);
-      final boolean shadowPassWhenOff = Mcv2Shaders.shadowPass();
+      final boolean shadowPassWhenOff = Mcv2Shaders.isRenderingShadowPass();
       assertFalse(shadowPassWhenOff);
     }
   }
@@ -208,10 +208,10 @@ final class Mcv2ShadersTest {
     try (final MockedStatic<Minecraft> game = mockStatic(Minecraft.class)) {
       game.when(Minecraft::getInstance).thenReturn(minecraft);
       when(resources.getResource(Mcv2Shaders.LAYOUT)).thenReturn(Optional.empty());
-      final Optional<String> missingLayout = Mcv2Shaders.layout();
+      final Optional<String> missingLayout = Mcv2Shaders.readLayout();
       assertEquals(Optional.empty(), missingLayout);
       when(resources.getResource(Mcv2Shaders.LAYOUT)).thenReturn(Optional.of(layout));
-      final Optional<String> loadedLayout = Mcv2Shaders.layout();
+      final Optional<String> loadedLayout = Mcv2Shaders.readLayout();
       assertEquals(Optional.of("const int MCV2_SCREENS = 1;"), loadedLayout);
     }
     final Identifier layoutLocation = Mcv2Shaders.LAYOUT;

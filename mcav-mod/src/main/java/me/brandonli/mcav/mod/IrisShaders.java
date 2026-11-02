@@ -46,7 +46,7 @@ final class IrisShaders {
     return version.equals(TESTED_VERSION) || version.startsWith(TESTED_VERSION + BUILD_METADATA_SEPARATOR);
   }
 
-  Mcv2Report report() {
+  Mcv2Report createReport() {
     if (!this.installed) {
       final boolean irisPresent = false;
       final boolean decodesUnderShaders = false;
@@ -55,7 +55,7 @@ final class IrisShaders {
 
     if (!this.apiMissing) {
       try {
-        return this.reportShaderPack();
+        return this.createShaderPackReport();
       } catch (final LinkageError exception) {
         this.apiMissing = true;
       }
@@ -66,7 +66,7 @@ final class IrisShaders {
     return Mcv2Report.of(irisPresent, ShaderPack.UNKNOWN, decodesUnderShaders);
   }
 
-  private Mcv2Report reportShaderPack() {
+  private Mcv2Report createShaderPackReport() {
     final IrisApi iris = IrisApi.getInstance();
     final boolean inUse = iris.isShaderPackInUse();
     final boolean irisPresent = true;
