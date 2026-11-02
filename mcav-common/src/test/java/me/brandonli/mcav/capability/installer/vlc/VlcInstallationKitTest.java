@@ -49,6 +49,7 @@ import me.brandonli.mcav.utils.os.Platform;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 
 final class VlcInstallationKitTest {
@@ -264,9 +265,9 @@ final class VlcInstallationKitTest {
   }
 
   @ParameterizedTest
-  @EnumSource(value = Os.class, names = { "WINDOWS", "MAC", "FREEBSD" })
-  void shouldDownloadVlcOnEveryOtherPlatform(final Os os, @TempDir final Path home) {
-    final Platform platform = Platform.ofPlatform(os, Arch.X86, Bits.BITS_64);
+  @CsvSource({ "WINDOWS, X86, BITS_64", "MAC, X86, BITS_64", "FREEBSD, X86, BITS_64", "LINUX, X86, BITS_32", "LINUX, ARM, BITS_32" })
+  void shouldDownloadVlcOnEveryOtherPlatform(final Os os, final Arch architecture, final Bits bits, @TempDir final Path home) {
+    final Platform platform = Platform.ofPlatform(os, architecture, bits);
     final VlcInstallationKit kit;
     final Path expectedFolder;
     try (final TemporaryUserHome redirected = TemporaryUserHome.redirectTo(home)) {
