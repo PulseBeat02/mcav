@@ -231,8 +231,8 @@ final class VmProcessTest {
     final VmProcess.Launcher launcher = command -> {
       this.commands.add(command);
       final Object next = this.outcomes.removeFirst();
-      if (next instanceof final IOException failure) {
-        throw failure;
+      if (next instanceof final IOException ioException) {
+        throw ioException;
       }
       final Process started = (Process) next;
       final boolean alive = started.isAlive();
