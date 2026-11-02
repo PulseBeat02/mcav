@@ -56,6 +56,7 @@ final class RecordingSession implements InvocationHandler {
   private Object recordClose() {
     final Thread thread = Thread.currentThread();
     final String threadName = thread.getName();
+    // SpringHttpResult closes a refused session on the registering thread, every other one on its own close thread
     final boolean asynchronous = threadName.startsWith(CLOSING_THREAD_PREFIX);
     if (!asynchronous) {
       this.closedSynchronously.set(true);
