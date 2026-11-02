@@ -132,7 +132,7 @@ final class VmAudioClientTest {
       output.write(challenge);
       final byte[] response = new byte[CHALLENGE_BYTES];
       input.readFully(response);
-      final byte[] expectedResponse = VncPasswords.response(challenge, password);
+      final byte[] expectedResponse = VncPasswords.computeResponse(challenge, password);
       assertArrayEquals(expectedResponse, response, "the answer of the password");
     }
 

@@ -83,17 +83,17 @@ final class DefaultVmConfigurationBuilder implements VmConfigurationBuilder {
   }
 
   @Override
-  public VmConfigurationBuilder hda(final String hdaPath) {
-    Preconditions.checkNotNull(hdaPath, DISK_PATH_NULL_MESSAGE);
+  public VmConfigurationBuilder firstHardDisk(final String imagePath) {
+    Preconditions.checkNotNull(imagePath, DISK_PATH_NULL_MESSAGE);
 
-    return this.option("hda", hdaPath);
+    return this.option("hda", imagePath);
   }
 
   @Override
-  public VmConfigurationBuilder hdb(final String hdbPath) {
-    Preconditions.checkNotNull(hdbPath, DISK_PATH_NULL_MESSAGE);
+  public VmConfigurationBuilder secondHardDisk(final String imagePath) {
+    Preconditions.checkNotNull(imagePath, DISK_PATH_NULL_MESSAGE);
 
-    return this.option("hdb", hdbPath);
+    return this.option("hdb", imagePath);
   }
 
   @Override

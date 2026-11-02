@@ -38,7 +38,7 @@ public final class VncPasswords {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
-  public static byte[] response(final byte[] challenge, final String password) throws IOException {
+  public static byte[] computeResponse(final byte[] challenge, final String password) throws IOException {
     final VernacularConfig configuration = new VernacularConfig();
     configuration.setPasswordSupplier(() -> password);
     final byte[] received = Arrays.copyOf(challenge, challenge.length + RESULT_BYTES);

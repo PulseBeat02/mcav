@@ -146,7 +146,7 @@ public final class QemuVmPlayer implements VmPlayer {
 
   // the caller holds the lock
   private void launchMachine(final VmSettings settings, final Architecture architecture, final VmConfiguration configuration) {
-    final QemuProgram program = this.findProgram(architecture);
+    final QemuProgram program = this.findOrInstallProgram(architecture);
     final VmProcess qemu = this.processFactory.create(settings, architecture, program, configuration);
     // start() can fail after creating a live child. Keep ownership before invoking any process lifecycle code.
     this.process = qemu;
@@ -193,13 +193,13 @@ public final class QemuVmPlayer implements VmPlayer {
   private void shutdownAfterFailure(final Throwable failure) {
     try {
       this.shutdownMachine();
-    } catch (final RuntimeException | Error cleanupException) {
-      ThrowableUtils.throwIfFatal(cleanupException);
+    } catch (final RuntimeException | Error exception) {
+      ThrowableUtils.throwIfFatal(exception);
 
       final Equivalence<Object> identity = Equivalence.identity();
-      final boolean sameFailure = identity.equivalent(failure, cleanupException);
+      final boolean sameFailure = identity.equivalent(failure, exception);
       if (!sameFailure) {
-        failure.addSuppressed(cleanupException);
+        failure.addSuppressed(exception);
       }
     }
   }
@@ -266,7 +266,7 @@ public final class QemuVmPlayer implements VmPlayer {
     handler.accept(message, failure);
   }
 
-  private QemuProgram findProgram(final Architecture architecture) {
+  private QemuProgram findOrInstallProgram(final Architecture architecture) {
     final String command = architecture.getCommand();
     final Optional<Path> found = this.finder.find(command);
     final Optional<QemuProgram> system = found.map(QemuProgram::of);

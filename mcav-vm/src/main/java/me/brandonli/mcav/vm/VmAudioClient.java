@@ -40,7 +40,7 @@ final class VmAudioClient implements Closeable {
 
   static final int HANDSHAKE_TIMEOUT_MILLISECONDS = 5_000;
 
-  private static final String UNSTARTED_READER_NAME = "mcav-vm-audio-not-started";
+  private static final String UNSTARTED_READER_THREAD_NAME = "mcav-vm-audio-not-started";
   private static final String READER_THREAD_NAME = "mcav-vm-audio";
   private static final String DEADLINE_THREAD_NAME = "mcav-vm-audio-deadline";
 
@@ -57,7 +57,7 @@ final class VmAudioClient implements Closeable {
     this.input = input;
     this.sink = sink;
     this.failures = failures;
-    this.reader = new Thread(UNSTARTED_READER_NAME);
+    this.reader = new Thread(UNSTARTED_READER_THREAD_NAME);
   }
 
   static VmAudioClient connect(
@@ -95,7 +95,7 @@ final class VmAudioClient implements Closeable {
     final Executor later = CompletableFuture.delayedExecutor(
       HANDSHAKE_TIMEOUT_MILLISECONDS,
       TimeUnit.MILLISECONDS,
-      VmAudioClient::onOwnThread
+      VmAudioClient::startDeadlineThread
     );
     return CompletableFuture.runAsync(() -> closeQuietly(socket), later);
   }
@@ -164,14 +164,14 @@ final class VmAudioClient implements Closeable {
     join(this.reader);
   }
 
-  private static void onOwnThread(final Runnable task) {
+  private static void startDeadlineThread(final Runnable task) {
     Thread.ofVirtual().name(DEADLINE_THREAD_NAME).start(task);
   }
 
   // a filter or failure callback that releases the player runs on the thread it would wait for
   static void join(final Thread thread) {
-    final Thread caller = Thread.currentThread();
-    final boolean ownThread = thread.equals(caller);
+    final Thread current = Thread.currentThread();
+    final boolean ownThread = thread.equals(current);
     if (ownThread) {
       return;
     }
@@ -179,7 +179,7 @@ final class VmAudioClient implements Closeable {
     try {
       thread.join(HANDSHAKE_TIMEOUT_MILLISECONDS);
     } catch (final InterruptedException exception) {
-      caller.interrupt();
+      current.interrupt();
     }
   }
 

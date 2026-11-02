@@ -62,7 +62,7 @@ final class QemuProcessRecordsTest {
   private static final String SLEEPER_PREFIX = "Sleep";
   private static final String JAVA_SUFFIX = ".java";
 
-  private static final String HOME_PROPERTY = "user.home";
+  private static final String USER_HOME_PROPERTY = "user.home";
   private static final String MCAV_FOLDER = ".mcav";
   private static final String VM_FOLDER = "vm";
 
@@ -179,7 +179,7 @@ final class QemuProcessRecordsTest {
     final boolean recorded = Files.isRegularFile(this.recordOf(qemu.pid()));
     qemu.destroyForcibly();
     qemu.waitFor(TIMEOUT_SECONDS, TimeUnit.SECONDS);
-    launcher.ended(qemu);
+    launcher.onProcessEnded(qemu);
 
     final boolean recordLeft = Files.exists(this.recordOf(qemu.pid()));
     assertTrue(recorded, "a started QEMU is recorded at once, before anything can kill this JVM");
@@ -383,8 +383,8 @@ final class QemuProcessRecordsTest {
 
   @Test
   void shouldKeepTheRecordsOfAUserInTheirHome() throws IOException {
-    final String previous = System.getProperty(HOME_PROPERTY);
-    System.setProperty(HOME_PROPERTY, this.directory.toString());
+    final String previous = System.getProperty(USER_HOME_PROPERTY);
+    System.setProperty(USER_HOME_PROPERTY, this.directory.toString());
     try {
       final QemuProcessRecords records = QemuProcessRecords.ofUser();
       final Process qemu = this.child(StopRequest.OBEYED);
@@ -400,7 +400,7 @@ final class QemuProcessRecordsTest {
       final boolean recordLeft = Files.exists(record);
       assertFalse(recordLeft);
     } finally {
-      System.setProperty(HOME_PROPERTY, previous);
+      System.setProperty(USER_HOME_PROPERTY, previous);
     }
   }
 

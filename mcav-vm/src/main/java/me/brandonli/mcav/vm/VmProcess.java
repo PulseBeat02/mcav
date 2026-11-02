@@ -764,33 +764,33 @@ final class VmProcess {
     }
 
     this.process = null;
-    this.launcher.ended(current);
+    this.launcher.onProcessEnded(current);
   }
 
-  private boolean awaitGracefulExit(final Process current) {
-    final Thread thread = Thread.currentThread();
-    final boolean interrupted = thread.isInterrupted();
+  private boolean awaitGracefulExit(final Process running) {
+    final Thread current = Thread.currentThread();
+    final boolean interrupted = current.isInterrupted();
     if (interrupted) {
       return false;
     }
 
     try {
-      return current.waitFor(STOP_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+      return running.waitFor(STOP_TIMEOUT_SECONDS, TimeUnit.SECONDS);
     } catch (final InterruptedException exception) {
-      thread.interrupt();
+      current.interrupt();
 
       return false;
     }
   }
 
-  private void awaitForcedExit(final Process current) {
+  private void awaitForcedExit(final Process running) {
     final long timeoutNanoseconds = TimeUnit.SECONDS.toNanos(STOP_TIMEOUT_SECONDS);
     final long deadline = System.nanoTime() + timeoutNanoseconds;
     boolean interrupted = Thread.interrupted();
     long remaining = deadline - System.nanoTime();
-    while (current.isAlive() && remaining > 0) {
+    while (running.isAlive() && remaining > 0) {
       try {
-        current.waitFor(remaining, TimeUnit.NANOSECONDS);
+        running.waitFor(remaining, TimeUnit.NANOSECONDS);
       } catch (final InterruptedException exception) {
         interrupted = true;
       }
@@ -798,8 +798,8 @@ final class VmProcess {
     }
 
     if (interrupted) {
-      final Thread thread = Thread.currentThread();
-      thread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
     }
   }
 
@@ -852,7 +852,7 @@ final class VmProcess {
     }
 
     @Override
-    public void ended(final Process process) {
+    public void onProcessEnded(final Process process) {
       final long processId = process.pid();
       this.records.remove(processId);
     }
@@ -863,6 +863,6 @@ final class VmProcess {
     // the error output must be merged into the standard output, the only stream that is drained
     Process launch(List<String> command) throws IOException;
 
-    default void ended(final Process process) {}
+    default void onProcessEnded(final Process process) {}
   }
 }

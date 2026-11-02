@@ -213,7 +213,7 @@ final class VmProcessTest {
     return new VmSettings(unusedPort, WIDTH, HEIGHT, FRAME_RATE);
   }
 
-  private VmProcess process(final VmSettings settings, final VmConfiguration configuration, final Os os, final Object... results) {
+  private VmProcess createProcess(final VmSettings settings, final VmConfiguration configuration, final Os os, final Object... results) {
     for (final Object result : results) {
       this.outcomes.addLast(result);
     }
@@ -247,7 +247,7 @@ final class VmProcessTest {
   private VmProcess reachable(final Os os, final Object... results) {
     final VmSettings settings = this.reachableSettings();
     final VmConfiguration configuration = VmConfiguration.builder().build();
-    return this.process(settings, configuration, os, results);
+    return this.createProcess(settings, configuration, os, results);
   }
 
   private List<String> command(final String... arguments) {
@@ -286,7 +286,7 @@ final class VmProcessTest {
   }
 
   private List<String> commandWithoutAccelerator(final VmSettings settings, final VmConfiguration configuration) {
-    final VmProcess process = this.process(settings, configuration, Os.LINUX);
+    final VmProcess process = this.createProcess(settings, configuration, Os.LINUX);
     return process.buildCommand(null, this.passwordFile());
   }
 
@@ -317,7 +317,7 @@ final class VmProcessTest {
     final FakeProcess qemu = FakeProcess.running("");
     final VmSettings settings = this.reachableSettings();
     final VmConfiguration configuration = VmConfiguration.builder().memory(64).build();
-    final VmProcess process = this.process(settings, configuration, Os.WINDOWS, qemu);
+    final VmProcess process = this.createProcess(settings, configuration, Os.WINDOWS, qemu);
     final boolean aliveBefore = process.isAlive();
     process.start();
     final boolean alive = process.isAlive();
@@ -488,7 +488,7 @@ final class VmProcessTest {
     final FakeProcess failed = FakeProcess.exited(FAILURE_EXIT_CODE, "kvm accel is not available\n");
     final VmSettings settings = this.reachableSettings();
     final VmConfiguration configuration = VmConfiguration.builder().accelerator(KVM_ACCELERATOR).build();
-    final VmProcess process = this.process(settings, configuration, Os.WINDOWS, failed);
+    final VmProcess process = this.createProcess(settings, configuration, Os.WINDOWS, failed);
     assertThrows(VmException.class, process::start);
 
     final List<String> expected = this.command(ACCELERATOR_ARGUMENT, KVM_ACCELERATOR);
@@ -501,7 +501,7 @@ final class VmProcessTest {
     final FakeProcess qemu = FakeProcess.running("");
     final VmSettings settings = this.reachableSettings();
     final VmConfiguration configuration = VmConfiguration.builder().flag("enable-kvm").build();
-    final VmProcess process = this.process(settings, configuration, Os.MAC, qemu);
+    final VmProcess process = this.createProcess(settings, configuration, Os.MAC, qemu);
     process.start();
     final List<String> expected = this.command("-enable-kvm");
     final List<List<String>> expectedCommands = List.of(expected);
@@ -624,7 +624,7 @@ final class VmProcessTest {
       }
 
       @Override
-      public void ended(final Process process) {
+      public void onProcessEnded(final Process process) {
         ended.add(process);
       }
     };
@@ -789,7 +789,7 @@ final class VmProcessTest {
       .option("display", "gtk")
       .option("usbdevice", "tablet")
       .build();
-    final VmProcess process = this.process(settings, configuration, Os.LINUX);
+    final VmProcess process = this.createProcess(settings, configuration, Os.LINUX);
     final List<String> command = process.buildCommand(null, this.passwordFile());
     final String program = QEMU_EXECUTABLE.toString();
     final List<String> expected = List.of(
@@ -1062,7 +1062,7 @@ final class VmProcessTest {
     VmProcess.checkModuleOptions(fine);
     final VmSettings settings = this.reachableSettings();
     final VmConfiguration display = VmConfiguration.builder().option("vnc", ":7").build();
-    final VmProcess process = this.process(settings, display, Os.LINUX);
+    final VmProcess process = this.createProcess(settings, display, Os.LINUX);
     assertThrows(IllegalArgumentException.class, process::start);
     assertEquals(List.of(), this.commands, "a refused configuration never starts QEMU");
   }
@@ -1071,7 +1071,7 @@ final class VmProcessTest {
   void shouldAddNoDisplayWhenTheMachineRunsWithoutGraphics() {
     final VmSettings settings = new VmSettings(DISPLAY_ONE_PORT, WIDTH, HEIGHT, FRAME_RATE);
     final VmConfiguration configuration = VmConfiguration.builder().flag("nographic").build();
-    final VmProcess process = this.process(settings, configuration, Os.LINUX);
+    final VmProcess process = this.createProcess(settings, configuration, Os.LINUX);
     final List<String> command = process.buildCommand(SOFTWARE_ACCELERATOR, this.passwordFile());
     final String program = QEMU_EXECUTABLE.toString();
     final List<String> expected = List.of(
@@ -1234,7 +1234,7 @@ final class VmProcessTest {
     final FakeProcess qemu = FakeProcess.running("VNC server running on 127.0.0.1:5999\n");
     final VmSettings settings = this.unreachableSettings();
     final VmConfiguration configuration = VmConfiguration.builder().build();
-    final VmProcess process = this.process(settings, configuration, Os.FREEBSD, qemu);
+    final VmProcess process = this.createProcess(settings, configuration, Os.FREEBSD, qemu);
     final VmException exception = assertThrows(VmException.class, process::start);
     final String message = exception.getMessage();
     final int port = settings.getPort();
@@ -1255,7 +1255,7 @@ final class VmProcessTest {
     qemu.interruptingWaits();
     final VmSettings settings = this.unreachableSettings();
     final VmConfiguration configuration = VmConfiguration.builder().build();
-    final VmProcess process = this.process(settings, configuration, Os.FREEBSD, qemu);
+    final VmProcess process = this.createProcess(settings, configuration, Os.FREEBSD, qemu);
     final VmException exception;
     try {
       exception = assertThrows(VmException.class, process::start);
@@ -1757,7 +1757,7 @@ final class VmProcessTest {
     qemu.interruptingFirstWait();
     final VmSettings settings = this.unreachableSettings();
     final VmConfiguration configuration = VmConfiguration.builder().build();
-    final VmProcess process = this.process(settings, configuration, Os.FREEBSD, qemu);
+    final VmProcess process = this.createProcess(settings, configuration, Os.FREEBSD, qemu);
     final VmException exception;
     try {
       exception = assertThrows(VmException.class, process::start);

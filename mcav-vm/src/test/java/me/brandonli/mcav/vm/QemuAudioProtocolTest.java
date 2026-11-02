@@ -185,7 +185,7 @@ final class QemuAudioProtocolTest {
     for (final String password : List.of(PASSWORD, "pw", "a much longer password")) {
       final ByteArrayOutputStream answer = new ByteArrayOutputStream();
       QemuAudioProtocol.answerChallenge(this.input(challenge), new DataOutputStream(answer), password);
-      final byte[] expected = VncPasswords.response(challenge, password);
+      final byte[] expected = VncPasswords.computeResponse(challenge, password);
       final byte[] response = answer.toByteArray();
       assertArrayEquals(expected, response, password);
     }
@@ -305,7 +305,7 @@ final class QemuAudioProtocolTest {
   void shouldSkipMessagesAVncServerSendsUnasked() throws IOException {
     final byte[] stream = bytes(output -> {
       output.writeByte(QemuAudioProtocol.SERVER_BELL);
-      output.writeByte(QemuAudioProtocol.SERVER_COLOUR_MAP);
+      output.writeByte(QemuAudioProtocol.SERVER_COLOR_MAP);
       output.writeByte(0);
       output.writeShort(0);
       output.writeShort(2);
@@ -318,12 +318,12 @@ final class QemuAudioProtocolTest {
     });
     final DataInputStream input = this.input(stream);
     final QemuAudioProtocol.Message bell = QemuAudioProtocol.readMessage(input, FRAME, byte[]::new);
-    final QemuAudioProtocol.Message colourMap = QemuAudioProtocol.readMessage(input, FRAME, byte[]::new);
+    final QemuAudioProtocol.Message colorMap = QemuAudioProtocol.readMessage(input, FRAME, byte[]::new);
     final QemuAudioProtocol.Message cutText = QemuAudioProtocol.readMessage(input, FRAME, byte[]::new);
     final QemuAudioProtocol.Message audio = QemuAudioProtocol.readMessage(input, FRAME, byte[]::new);
     final int audioLength = audio.getLength();
     assertSame(QemuAudioProtocol.Message.IGNORED, bell);
-    assertSame(QemuAudioProtocol.Message.IGNORED, colourMap);
+    assertSame(QemuAudioProtocol.Message.IGNORED, colorMap);
     assertSame(QemuAudioProtocol.Message.IGNORED, cutText);
     assertEquals(4, audioLength);
   }

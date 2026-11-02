@@ -46,7 +46,7 @@ final class QemuProcessRecords {
 
   private static final String NOT_RECORDED = "QEMU process {} could not be recorded, so it keeps running if this server is killed.";
 
-  private static final String HOME_PROPERTY = "user.home";
+  private static final String USER_HOME_PROPERTY = "user.home";
   private static final String MCAV_FOLDER = ".mcav";
   private static final String RECORDS_FOLDER = "vm";
 
@@ -78,7 +78,7 @@ final class QemuProcessRecords {
   }
 
   static QemuProcessRecords ofUser() {
-    final @Nullable String homeOrNull = System.getProperty(HOME_PROPERTY);
+    final @Nullable String homeOrNull = System.getProperty(USER_HOME_PROPERTY);
     final String home = requireNonNull(homeOrNull, "The JVM always sets the user home!");
     final Path folder = Path.of(home, MCAV_FOLDER, RECORDS_FOLDER);
     final ProcessHandle owner = ProcessHandle.current();

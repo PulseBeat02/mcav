@@ -48,7 +48,7 @@ final class QemuAudioProtocol {
   static final int MAXIMUM_RECTANGLES = 16;
 
   static final int SERVER_UPDATE = 0;
-  static final int SERVER_COLOUR_MAP = 1;
+  static final int SERVER_COLOR_MAP = 1;
   static final int SERVER_BELL = 2;
   static final int SERVER_CUT_TEXT = 3;
   static final int SERVER_QEMU = 255;
@@ -100,9 +100,9 @@ final class QemuAudioProtocol {
   private static final int FRAMEBUFFER_SIZE_BYTES = 4;
   private static final int PIXEL_FORMAT_BYTES = 16;
   private static final int UPDATE_PADDING_BYTES = 1;
-  private static final int COLOUR_MAP_PADDING_BYTES = 1;
-  private static final int FIRST_COLOUR_BYTES = 2;
-  private static final int COLOUR_BYTES = 6;
+  private static final int COLOR_MAP_PADDING_BYTES = 1;
+  private static final int FIRST_COLOR_BYTES = 2;
+  private static final int COLOR_BYTES = 6;
   private static final int CUT_TEXT_PADDING_BYTES = 3;
   private static final int RECTANGLE_BYTES = 8;
 
@@ -262,7 +262,7 @@ final class QemuAudioProtocol {
     final int type = input.readUnsignedByte();
     return switch (type) {
       case SERVER_UPDATE -> readUpdate(input);
-      case SERVER_COLOUR_MAP -> readColourMap(input);
+      case SERVER_COLOR_MAP -> readColorMap(input);
       case SERVER_BELL -> Message.IGNORED;
       case SERVER_CUT_TEXT -> readCutText(input);
       case SERVER_QEMU -> readQemu(input, frameSize, buffers);
@@ -294,12 +294,12 @@ final class QemuAudioProtocol {
     return rectangles == 0 ? Message.IGNORED : Message.ACKNOWLEDGED;
   }
 
-  private static Message readColourMap(final DataInput input) throws IOException {
-    skipFully(input, COLOUR_MAP_PADDING_BYTES + FIRST_COLOUR_BYTES);
+  private static Message readColorMap(final DataInput input) throws IOException {
+    skipFully(input, COLOR_MAP_PADDING_BYTES + FIRST_COLOR_BYTES);
 
-    final int colours = input.readUnsignedShort();
-    final long colourBytes = (long) colours * COLOUR_BYTES;
-    skipFully(input, colourBytes);
+    final int colors = input.readUnsignedShort();
+    final long colorBytes = (long) colors * COLOR_BYTES;
+    skipFully(input, colorBytes);
 
     return Message.IGNORED;
   }

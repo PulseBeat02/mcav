@@ -101,8 +101,8 @@ final class VmConfigurationTest {
       .memory(2048)
       .cores(4)
       .cdrom(CDROM_IMAGE)
-      .hda(FIRST_DISK)
-      .hdb(SECOND_DISK)
+      .firstHardDisk(FIRST_DISK)
+      .secondHardDisk(SECOND_DISK)
       .boot("d")
       .network("user,model=virtio-net-pci")
       .cpu("max")
@@ -290,8 +290,8 @@ final class VmConfigurationTest {
       candidate -> candidate.memory(1, GIGABYTES),
       candidate -> candidate.cores(1),
       candidate -> candidate.cdrom("a"),
-      candidate -> candidate.hda("a"),
-      candidate -> candidate.hdb("a"),
+      candidate -> candidate.firstHardDisk("a"),
+      candidate -> candidate.secondHardDisk("a"),
       candidate -> candidate.boot("a"),
       candidate -> candidate.network("a"),
       candidate -> candidate.cpu("a"),
@@ -331,8 +331,8 @@ final class VmConfigurationTest {
     assertThrows(NullPointerException.class, () -> builder.memory(1, null));
     assertThrows(IllegalArgumentException.class, () -> builder.cores(0));
     assertThrows(NullPointerException.class, () -> builder.cdrom(null));
-    assertThrows(NullPointerException.class, () -> builder.hda(null));
-    assertThrows(NullPointerException.class, () -> builder.hdb(null));
+    assertThrows(NullPointerException.class, () -> builder.firstHardDisk(null));
+    assertThrows(NullPointerException.class, () -> builder.secondHardDisk(null));
     assertThrows(NullPointerException.class, () -> builder.boot(null));
     assertThrows(NullPointerException.class, () -> builder.network(null));
     assertThrows(NullPointerException.class, () -> builder.cpu(null));
