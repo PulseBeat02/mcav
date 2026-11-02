@@ -54,10 +54,7 @@ public final class VncInputExample {
     openWindow(label);
 
     final VideoPipelineStepBuilder builder = PipelineBuilder.video();
-    builder.then((image, _) -> {
-      show(label, image);
-      return false;
-    });
+    builder.then((image, _) -> show(label, image));
     final VideoPipelineStep pipeline = builder.build();
 
     final VncSourceBuilder sourceBuilder = VncSource.builder();
@@ -100,17 +97,21 @@ public final class VncInputExample {
   }
 
   private static void releaseOnExit(final MCAVApi api, final VncPlayer player) {
-    final Thread hook = new Thread(() -> {
-      player.release();
-      api.release();
-    });
+    final Thread hook = new Thread(() -> release(player, api));
     final Runtime runtime = Runtime.getRuntime();
     runtime.addShutdownHook(hook);
   }
 
-  private static void show(final JLabel label, final ImageBuffer samples) {
+  private static void release(final VncPlayer player, final MCAVApi api) {
+    player.release();
+    api.release();
+  }
+
+  private static boolean show(final JLabel label, final ImageBuffer samples) {
     final BufferedImage image = samples.toBufferedImage();
     final ImageIcon icon = new ImageIcon(image);
     SwingUtilities.invokeLater(() -> label.setIcon(icon));
+
+    return false;
   }
 }
