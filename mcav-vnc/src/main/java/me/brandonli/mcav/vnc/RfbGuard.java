@@ -62,13 +62,10 @@ final class RfbGuard {
   private static final int UNKNOWN = -1;
 
   private static final int NONE = 1;
-
   private static final int VNC = 2;
-
   private static final int MS_LOGON = 113;
 
   private static final int MINIMUM_MINOR_WITH_TYPE_LIST = 7;
-
   private static final int MINIMUM_MINOR_WITH_REASONS = 8;
 
   private final Object lock;
@@ -265,6 +262,7 @@ final class RfbGuard {
     private static final int COLOR_ENTRY = 6;
     private static final int SUBRECTANGLE_GEOMETRY = 8;
     private static final int HEXTILE_GEOMETRY = 2;
+    private static final int COPY_RECTANGLE_SOURCE = 4;
 
     private static final int TILE_SIDE = 16;
 
@@ -614,7 +612,7 @@ final class RfbGuard {
     private void encodedRectangle(final int encoding) throws IOException {
       switch (encoding) {
         case RAW -> this.raw();
-        case COPY_RECTANGLE -> this.skip(Integer.BYTES, Then.RECTANGLE, Server.MESSAGE);
+        case COPY_RECTANGLE -> this.skip(COPY_RECTANGLE_SOURCE, Then.RECTANGLE, Server.MESSAGE);
         case RRE_ENCODING -> this.expect(Server.RRE);
         case HEXTILE -> this.firstTile();
         case ZLIB -> this.expect(Server.ZLIB_LENGTH);
@@ -791,6 +789,7 @@ final class RfbGuard {
 
     private static final int MESSAGE_TYPE_BYTES = 1;
     private static final int CHOICE_BYTES = 1;
+
     private static final int PENDING_LENGTH = 0;
     private static final int UNTRACKED_BODY = -1;
 

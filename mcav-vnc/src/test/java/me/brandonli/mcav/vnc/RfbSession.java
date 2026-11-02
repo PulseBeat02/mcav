@@ -27,10 +27,10 @@ import java.util.Locale;
 final class RfbSession {
 
   static final int NONE = 1;
-
   static final int VNC = 2;
-
   static final int MS_LOGON = 113;
+
+  private static final int SECURITY_TYPE_COUNT = 1;
 
   static final int MINOR_VERSION_3_3 = 3;
   static final int MINOR_VERSION_3_7 = 7;
@@ -38,6 +38,8 @@ final class RfbSession {
 
   static final int VNC_CHALLENGE_BYTES = 16;
   static final int VNC_RESPONSE_BYTES = 16;
+  private static final int MS_LOGON_PARAMETER_BYTES = 24;
+  private static final int MS_LOGON_RESPONSE_BYTES = 8 + 256 + 64;
 
   static final int SECURITY_RESULT_OK = 0;
 
@@ -49,6 +51,14 @@ final class RfbSession {
   static final int BITS_PER_PIXEL_16 = 16;
   static final int BITS_PER_PIXEL_8 = 8;
 
+  private static final int PIXEL_FORMAT_BYTES = 16;
+  private static final int MAXIMUM_DEPTH = 24;
+  private static final int TRUE_COLOR_FLAG_INDEX = 3;
+  private static final byte TRUE_COLOR_FLAG = 1;
+
+  private static final int SET_PIXEL_FORMAT = 0;
+
+  private static final int FRAMEBUFFER_UPDATE = 0;
   static final int SET_COLOR_MAP_ENTRIES = 1;
   static final int BELL = 2;
   static final int SERVER_CUT_TEXT = 3;
@@ -91,7 +101,7 @@ final class RfbSession {
     this.sendFromServer(version(minor));
     this.sendFromClient(version(minor));
     if (minor >= MINOR_VERSION_3_7) {
-      this.sendFromServer(new byte[] { 1, (byte) security });
+      this.sendFromServer(new byte[] { SECURITY_TYPE_COUNT, (byte) security });
       this.sendFromClient(new byte[] { (byte) security });
     } else {
       this.sendFromServer(unsigned32(security));
@@ -103,8 +113,8 @@ final class RfbSession {
         this.sendFromServer(unsigned32(SECURITY_RESULT_OK));
       }
       case MS_LOGON -> {
-        this.sendFromServer(new byte[24]);
-        this.sendFromClient(new byte[8 + 256 + 64]);
+        this.sendFromServer(new byte[MS_LOGON_PARAMETER_BYTES]);
+        this.sendFromClient(new byte[MS_LOGON_RESPONSE_BYTES]);
         this.sendFromServer(unsigned32(SECURITY_RESULT_OK));
       }
       default -> {
@@ -139,10 +149,10 @@ final class RfbSession {
   }
 
   static byte[] pixelFormat(final int bitsPerPixel) {
-    final byte[] format = new byte[16];
+    final byte[] format = new byte[PIXEL_FORMAT_BYTES];
     format[0] = (byte) bitsPerPixel;
-    format[1] = (byte) Math.min(bitsPerPixel, 24);
-    format[3] = 1;
+    format[1] = (byte) Math.min(bitsPerPixel, MAXIMUM_DEPTH);
+    format[TRUE_COLOR_FLAG_INDEX] = TRUE_COLOR_FLAG;
     return format;
   }
 
@@ -152,11 +162,11 @@ final class RfbSession {
   }
 
   static byte[] setPixelFormat(final int bitsPerPixel) {
-    return concatenate(new byte[] { 0, 0, 0, 0 }, pixelFormat(bitsPerPixel));
+    return concatenate(new byte[] { SET_PIXEL_FORMAT, 0, 0, 0 }, pixelFormat(bitsPerPixel));
   }
 
   static byte[] update(final int rectangles) {
-    return concatenate(new byte[] { 0, 0 }, unsigned16(rectangles));
+    return concatenate(new byte[] { FRAMEBUFFER_UPDATE, 0 }, unsigned16(rectangles));
   }
 
   static byte[] rectangle(final int left, final int top, final int width, final int height, final int encoding) {

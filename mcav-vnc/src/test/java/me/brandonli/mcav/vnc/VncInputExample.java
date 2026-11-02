@@ -39,8 +39,13 @@ import me.brandonli.mcav.utils.interaction.MouseClick;
 // Shows the screen of the VNC server at localhost:5900 in a window and forwards clicks to it.
 public final class VncInputExample {
 
+  private static final String HOST = "localhost";
+  private static final int PORT = 5900;
+
   private static final int WIDTH = 1024;
   private static final int HEIGHT = 768;
+
+  private static final int FRAME_RATE = 30;
 
   private VncInputExample() {
     final String message = "Example class cannot be instantiated!";
@@ -59,11 +64,11 @@ public final class VncInputExample {
     final VideoPipelineStep pipeline = builder.build();
 
     final VncSourceBuilder sourceBuilder = VncSource.builder();
-    sourceBuilder.host("localhost");
-    sourceBuilder.port(5900);
+    sourceBuilder.host(HOST);
+    sourceBuilder.port(PORT);
     sourceBuilder.screenWidth(WIDTH);
     sourceBuilder.screenHeight(HEIGHT);
-    sourceBuilder.targetFrameRate(30);
+    sourceBuilder.targetFrameRate(FRAME_RATE);
     final VncSource source = sourceBuilder.build();
 
     final VncPlayer player = VncPlayer.create();

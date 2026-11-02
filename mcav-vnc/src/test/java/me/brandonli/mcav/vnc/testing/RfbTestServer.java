@@ -50,18 +50,38 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class RfbTestServer implements AutoCloseable {
 
   private static final byte[] VERSION = "RFB 003.008\n".getBytes(StandardCharsets.US_ASCII);
+
   private static final int SECURITY_NONE = 1;
   private static final int SECURITY_VNC = 2;
   private static final int SECURITY_UNSUPPORTED = 99;
+
   private static final String NAME = "mcav-test";
 
+  private static final String ACCEPT_THREAD_NAME = "rfb-test-server";
+
+  private static final int BACKLOG = 5;
+
+  private static final long CLOSE_TIMEOUT_MILLISECONDS = 2_000L;
+
+  private static final int SECURITY_TYPE_COUNT = 1;
+  private static final int SECURITY_RESULT_OK = 0;
+  private static final int SECURITY_RESULT_FAILED = 1;
+
   private static final int CHALLENGE_BYTES = 16;
+  private static final byte CHALLENGE_FILL_BYTE = 7;
+
+  private static final int DES_KEY_LENGTH = 8;
+  private static final int MIRRORED_BYTE_SHIFT = 24;
+  private static final String CIPHER_TRANSFORMATION = "DES/ECB/NoPadding";
+  private static final String CIPHER_ALGORITHM = "DES";
 
   private static final int PADDING_BYTES = 3;
 
   private static final int BITS_PER_PIXEL = 32;
   private static final int DEPTH = 24;
   private static final int BITS_PER_BYTE = 8;
+  private static final int BIG_ENDIAN_FLAG = 1;
+  private static final int TRUE_COLOR_FLAG = 1;
 
   private static final int CHANNEL_MAXIMUM = 255;
   private static final int BYTE_MASK = 0xFF;
@@ -69,6 +89,25 @@ public final class RfbTestServer implements AutoCloseable {
   private static final int RED_SHIFT = 16;
   private static final int GREEN_SHIFT = 8;
   private static final int BLUE_SHIFT = 0;
+
+  private static final int INITIAL_COLOR = 0xFF0000;
+  private static final int RGB_MASK = 0xFFFFFF;
+
+  private static final int SET_PIXEL_FORMAT = 0;
+  private static final int SET_ENCODINGS = 2;
+  private static final int FRAMEBUFFER_UPDATE_REQUEST = 3;
+  private static final int KEY_EVENT = 4;
+  private static final int POINTER_EVENT = 5;
+  private static final int CLIENT_CUT_TEXT = 6;
+
+  private static final int ENCODING_LENGTH = 4;
+  private static final int UPDATE_REQUEST_LENGTH = 9;
+
+  private static final int FRAMEBUFFER_UPDATE = 0;
+  private static final int UNKNOWN_MESSAGE_TYPE = 0x7F;
+
+  private static final int RECTANGLE_COUNT = 1;
+  private static final int RAW_ENCODING = 0;
 
   private final ServerSocket serverSocket;
   private final int width;
@@ -110,9 +149,9 @@ public final class RfbTestServer implements AutoCloseable {
     this.authenticated = new AtomicBoolean(false);
     this.disconnected = new CountDownLatch(1);
     this.outputLock = new Object();
-    this.color = 0xFF0000;
+    this.color = INITIAL_COLOR;
     this.layout = PixelLayout.SERVER;
-    this.acceptThread = new Thread(this::acceptLoop, "rfb-test-server");
+    this.acceptThread = new Thread(this::acceptLoop, ACCEPT_THREAD_NAME);
     this.acceptThread.setDaemon(true);
   }
 
@@ -128,7 +167,7 @@ public final class RfbTestServer implements AutoCloseable {
 
     try {
       final InetAddress loopback = InetAddress.getLoopbackAddress();
-      final ServerSocket socket = new ServerSocket(0, 5, loopback);
+      final ServerSocket socket = new ServerSocket(0, BACKLOG, loopback);
       final RfbTestServer server = new RfbTestServer(socket, width, height, security, password);
       server.acceptThread.start();
       return server;
@@ -142,7 +181,7 @@ public final class RfbTestServer implements AutoCloseable {
   public void close() {
     try {
       this.serverSocket.close();
-      this.acceptThread.join(2_000L);
+      this.acceptThread.join(CLOSE_TIMEOUT_MILLISECONDS);
     } catch (final IOException exception) {
       throw new UncheckedIOException(exception);
     } catch (final InterruptedException exception) {
@@ -161,7 +200,7 @@ public final class RfbTestServer implements AutoCloseable {
 
     synchronized (this.outputLock) {
       try {
-        current.writeByte(0x7F);
+        current.writeByte(UNKNOWN_MESSAGE_TYPE);
         current.flush();
       } catch (final IOException exception) {
         throw new UncheckedIOException(exception);
@@ -200,7 +239,7 @@ public final class RfbTestServer implements AutoCloseable {
     final DataOutputStream clientOutput = new DataOutputStream(bufferedOutput);
     clientOutput.write(VERSION);
     clientOutput.flush();
-    final byte[] clientVersion = new byte[12];
+    final byte[] clientVersion = new byte[VERSION.length];
     input.readFully(clientVersion);
 
     final boolean accepted = this.negotiateSecurity(input, clientOutput);
@@ -230,7 +269,7 @@ public final class RfbTestServer implements AutoCloseable {
   }
 
   private void offerSecurityType(final DataOutputStream clientOutput, final int type) throws IOException {
-    clientOutput.writeByte(1);
+    clientOutput.writeByte(SECURITY_TYPE_COUNT);
     clientOutput.writeByte(type);
     clientOutput.flush();
   }
@@ -244,7 +283,7 @@ public final class RfbTestServer implements AutoCloseable {
   private boolean acceptWithoutSecurity(final DataInputStream input, final DataOutputStream clientOutput) throws IOException {
     this.offerSecurityType(clientOutput, SECURITY_NONE);
     input.readUnsignedByte();
-    clientOutput.writeInt(0);
+    clientOutput.writeInt(SECURITY_RESULT_OK);
     clientOutput.flush();
 
     return true;
@@ -255,7 +294,7 @@ public final class RfbTestServer implements AutoCloseable {
     this.offerSecurityType(clientOutput, SECURITY_VNC);
     input.readUnsignedByte();
     final byte[] challenge = new byte[CHALLENGE_BYTES];
-    Arrays.fill(challenge, (byte) 7);
+    Arrays.fill(challenge, CHALLENGE_FILL_BYTE);
     clientOutput.write(challenge);
     clientOutput.flush();
 
@@ -266,7 +305,7 @@ public final class RfbTestServer implements AutoCloseable {
     this.authenticated.set(correct);
     if (!correct) {
       final byte[] reason = "Wrong password".getBytes(StandardCharsets.US_ASCII);
-      clientOutput.writeInt(1);
+      clientOutput.writeInt(SECURITY_RESULT_FAILED);
       clientOutput.writeInt(reason.length);
       clientOutput.write(reason);
       clientOutput.flush();
@@ -274,7 +313,7 @@ public final class RfbTestServer implements AutoCloseable {
       return false;
     }
 
-    clientOutput.writeInt(0);
+    clientOutput.writeInt(SECURITY_RESULT_OK);
     clientOutput.flush();
 
     return true;
@@ -282,18 +321,18 @@ public final class RfbTestServer implements AutoCloseable {
 
   private byte[] encryptChallenge(final byte[] challenge, final String secret) throws GeneralSecurityException {
     final byte[] passwordBytes = secret.getBytes(StandardCharsets.US_ASCII);
-    final byte[] key = new byte[8];
+    final byte[] key = new byte[DES_KEY_LENGTH];
     final int copied = Math.min(passwordBytes.length, key.length);
     System.arraycopy(passwordBytes, 0, key, 0, copied);
     // VNC authentication uses the bits of every key byte in reverse order
     for (int index = 0; index < key.length; index++) {
-      final int keyByte = key[index] & 0xFF;
-      final int reversed = Integer.reverse(keyByte) >>> 24;
+      final int keyByte = key[index] & BYTE_MASK;
+      final int reversed = Integer.reverse(keyByte) >>> MIRRORED_BYTE_SHIFT;
       key[index] = (byte) reversed;
     }
 
-    final Cipher cipher = Cipher.getInstance("DES/ECB/NoPadding");
-    final SecretKeySpec keySpecification = new SecretKeySpec(key, "DES");
+    final Cipher cipher = Cipher.getInstance(CIPHER_TRANSFORMATION);
+    final SecretKeySpec keySpecification = new SecretKeySpec(key, CIPHER_ALGORITHM);
     cipher.init(Cipher.ENCRYPT_MODE, keySpecification);
     return cipher.doFinal(challenge);
   }
@@ -303,8 +342,8 @@ public final class RfbTestServer implements AutoCloseable {
     clientOutput.writeShort(this.height);
     clientOutput.writeByte(BITS_PER_PIXEL);
     clientOutput.writeByte(DEPTH);
-    clientOutput.writeByte(1);
-    clientOutput.writeByte(1);
+    clientOutput.writeByte(BIG_ENDIAN_FLAG);
+    clientOutput.writeByte(TRUE_COLOR_FLAG);
     clientOutput.writeShort(CHANNEL_MAXIMUM);
     clientOutput.writeShort(CHANNEL_MAXIMUM);
     clientOutput.writeShort(CHANNEL_MAXIMUM);
@@ -331,12 +370,12 @@ public final class RfbTestServer implements AutoCloseable {
 
   private void readMessage(final DataInputStream input, final int type) throws IOException {
     switch (type) {
-      case 0 -> this.readPixelFormat(input);
-      case 2 -> this.skipEncodings(input);
-      case 3 -> this.readUpdateRequest(input);
-      case 4 -> this.readKeyEvent(input);
-      case 5 -> this.readPointerEvent(input);
-      case 6 -> this.skipCutText(input);
+      case SET_PIXEL_FORMAT -> this.readPixelFormat(input);
+      case SET_ENCODINGS -> this.skipEncodings(input);
+      case FRAMEBUFFER_UPDATE_REQUEST -> this.readUpdateRequest(input);
+      case KEY_EVENT -> this.readKeyEvent(input);
+      case POINTER_EVENT -> this.readPointerEvent(input);
+      case CLIENT_CUT_TEXT -> this.skipCutText(input);
       default -> {
         final String message = "Client message %s is unknown!".formatted(type);
         throw new IOException(message);
@@ -352,7 +391,7 @@ public final class RfbTestServer implements AutoCloseable {
   private void skipEncodings(final DataInputStream input) throws IOException {
     input.readUnsignedByte();
     final int count = input.readUnsignedShort();
-    this.discard(input, count * 4);
+    this.discard(input, count * ENCODING_LENGTH);
   }
 
   private void skipCutText(final DataInputStream input) throws IOException {
@@ -362,7 +401,7 @@ public final class RfbTestServer implements AutoCloseable {
   }
 
   private void readUpdateRequest(final DataInputStream input) throws IOException {
-    this.discard(input, 9);
+    this.discard(input, UPDATE_REQUEST_LENGTH);
     synchronized (this.outputLock) {
       this.pendingRequests++;
     }
@@ -443,14 +482,14 @@ public final class RfbTestServer implements AutoCloseable {
   private void writeUpdate(final DataOutputStream clientOutput) throws IOException {
     final PixelLayout current = this.layout;
     final byte[] pixel = current.encode(this.color);
+    clientOutput.writeByte(FRAMEBUFFER_UPDATE);
     clientOutput.writeByte(0);
-    clientOutput.writeByte(0);
-    clientOutput.writeShort(1);
+    clientOutput.writeShort(RECTANGLE_COUNT);
     clientOutput.writeShort(0);
     clientOutput.writeShort(0);
     clientOutput.writeShort(this.width);
     clientOutput.writeShort(this.height);
-    clientOutput.writeInt(0);
+    clientOutput.writeInt(RAW_ENCODING);
     final int count = this.width * this.height;
     for (int index = 0; index < count; index++) {
       clientOutput.write(pixel);
@@ -473,7 +512,7 @@ public final class RfbTestServer implements AutoCloseable {
   }
 
   public void setColor(final int rgb) {
-    this.color = rgb & 0xFFFFFF;
+    this.color = rgb & RGB_MASK;
   }
 
   // Sets whether update requests are answered. Requests received while not answering are answered once answering is
