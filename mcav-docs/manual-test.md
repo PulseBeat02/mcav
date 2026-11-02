@@ -3,7 +3,7 @@
 This is the checklist for seeing MCAV play media with your own eyes, with a real Minecraft client, rather than
 trusting the automated tests. It takes about fifteen minutes the first time, and about two minutes afterwards.
 
-You need a Minecraft 26.3 client. The MCAV plugin is built against Paper 26.3, and a 26.3 server refuses
+You need a Minecraft 26.3 client. MCAV builds the plugin against Paper 26.3, and a 26.3 server refuses
 older clients unless you add ViaBackwards, so the server rejects a client of any other version at login.
 
 ## 1. Forward the server port to your PC
@@ -94,12 +94,13 @@ mcav image release
 mcav video map @a VLC HTTP_SERVER "1920x1080" "15x9" 0 FLOYD_STEINBERG "" "/absolute/path/to/mcav.mp4"
 ```
 
-> **Image paths may be quoted or unquoted.** Image commands consume the rest of the line and strip one
+> **You can quote image paths or leave them unquoted.** Image commands consume the rest of the line and strip one
 > enclosing pair of double quotes. Both forms support paths containing spaces. Use quotes for video MRLs
 > containing spaces. Empty and malformed image sources still report `Invalid MRL!`.
 
 `HTTP_SERVER` audio needs the audio web page, which is off by default: set `enabled: true` under `http-server` in
-`mcav-plugin/run/plugins/MCAV/config.yml` and restart the server, or the command is refused. At startup the console then
+`mcav-plugin/run/plugins/MCAV/config.yml` and restart the server, or the plugin refuses the command. At startup the
+console then
 prints `The audio web page is available at http://localhost:3000/.` (port 3000 unless `http-server.port` says
 otherwise); open that page in a browser (forward port 3000 the same way) and press play. Listen for audio and compare
 its timing with the video; a successful connection alone does not verify synchronization.
@@ -109,7 +110,8 @@ its timing with the video; a successful connection alone does not verify synchro
 - The whole wall fills. Every map in the grid should show part of the picture, including the outer rows and
   columns. If a map stays blank, check its ID, frame facing and duplicate frames as well as packet delivery.
   Rebuild the same screen once and verify it remains visible with one item frame per cell.
-- No tearing between maps. Watch motion across tile boundaries. Packets are bundled, but large updates can be split
+- No tearing between maps. Watch motion across tile boundaries. The plugin bundles packets, but it can split large
+  updates
   and delta budgeting can defer tiles. A bundle is not a guarantee that the whole wall displays one decoded
   frame atomically; record any visible split or stale tiles.
 - Motion is smooth, or evenly slow. Playback that stutters in bursts — a second of motion, then several

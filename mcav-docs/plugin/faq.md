@@ -18,15 +18,15 @@ such as a 32-bit one.
 
 ## Why is the browser silent?
 
-As in a desktop browser, a page plays sound only once a player clicked its screen or typed into it, so a page cannot
-play sound before anyone looked at it; click the screen once, or turn on `browser.autoplay-sound` in the
+As in a desktop browser, a page plays sound only once a player has clicked its screen or typed into it, so a page cannot
+play sound before anyone has looked at it; click the screen once, or turn on `browser.autoplay-sound` in the
 [configuration](./config). Choose an audio type other than `NONE` in `/mcav browser create`. The sound of frames from
 another site embedded in the page (open the address of the embedded player instead), of media from another site that
 does not allow it, and of protected media (DRM) cannot be captured.
 
 ---
 
-## Why can the browser not open a page of my own network?
+## Why can the browser not open a page of your own network?
 
 By default the browser reaches public addresses of the internet only, so that a page, or a player clicking on it,
 cannot read services that only the server can reach, such as a router or the metadata service of a cloud server.
@@ -64,7 +64,7 @@ chunks), when eight MCV2 screens already play, or when even the fastest encoder 
 
 ---
 
-## The MCV2 pack does not download behind my proxy
+## Why does the MCV2 pack not download behind your proxy?
 
 By default the pack is served on the Minecraft server's port, which players behind Velocity or BungeeCord never reach.
 Set `mcv2.pack.hosting` to `http` with a port the players can reach, or to `website` to upload it to mc-packs.net,
@@ -72,7 +72,7 @@ in the MCV2 part of the [configuration file](./config.md).
 
 ---
 
-## My server already sends a resource pack. Does it clash with the MCV2 pack?
+## Does the resource pack your server already sends clash with the MCV2 pack?
 
 Only if your pack changes the text shaders (`assets/minecraft/shaders/core/text.vsh`, `text.fsh`) or the glow outline
 (`assets/minecraft/post_effect/entity_outline.json`), which the MCV2 pack replaces to decode the video. The pack that a
@@ -97,7 +97,7 @@ while a player is near its wall: the server only knows the item frames of loaded
 
 ---
 
-## Why does my screen stay blank?
+## Why does your screen stay blank?
 
 A wall of maps shows nothing, or the backs of item frames, when more than one item frame hangs in a block of it: placed
 by hand, by another plugin or by an old version of MCAV, the extra frames hang in front of the maps, backwards, and
@@ -131,14 +131,14 @@ commands answer that VLC is not supported.
 
 ## Does the server's memory grow while videos play for days?
 
-Not by much anymore. FFmpeg and OpenCV free large buffers on many threads, and the C library of Linux keeps that memory
-for later, so a server's memory used to grow by about 20 MB an hour. MCAV now hands it back to the system once a minute,
+Not by much. FFmpeg and OpenCV free large buffers on many threads, and the C library of Linux keeps that memory
+for later, which would grow a server's memory by about 20 MB an hour. MCAV hands it back to the system once a minute,
 and has the C library hand back the free memory at the end of each thread's share of it as soon as a large buffer is
 freed. Start the server with `-Dmcav.nativeTrimSeconds=<n>` to trim every `n` seconds, or `0` to turn both off.
 
 ---
 
-## I'm getting an `UnsatisfiedLinkError` saying that version `GLIBC_2.38` is not found, how do I fix this?
+## How do you fix an `UnsatisfiedLinkError` saying that version `GLIBC_2.38` is not found?
 
 The selected VLC build or one of its native dependencies requires a glibc version the server's runtime does not
 provide. MCAV catches this native-loading failure, logs why VLC is unavailable and leaves VLC commands unsupported;

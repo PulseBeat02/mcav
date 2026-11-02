@@ -84,7 +84,7 @@ counts, and sample formats with FFmpeg's libswresample, which is bundled with MC
 something other than the 48 kHz stereo audio of the pipeline, such as a speech recognizer at 16 kHz mono, a telephony
 bridge at 8 kHz, or an engine that mixes floating point samples.
 
-There are two factories. Both return a new resampler that the caller must close:
+There are two factories. Both return a new resampler that you must close:
 
 | Factory                                                                                                  | Input                                                   |
 |----------------------------------------------------------------------------------------------------------|---------------------------------------------------------|
@@ -93,7 +93,7 @@ There are two factories. Both return a new resampler that the caller must close:
 
 Sample rates are in hertz and must be positive, and channel counts must be between 1 and
 `AudioResampler.MAXIMUM_CHANNELS`, which is 8, the number of channels of a 7.1 layout. Otherwise the factories throw an
-`IllegalArgumentException`; a `null` format throws a `NullPointerException`, and an `IllegalStateException` is thrown
+`IllegalArgumentException`; a `null` format throws a `NullPointerException`, and they throw an `IllegalStateException`
 if FFmpeg cannot set up the conversion. Channel counts map to FFmpeg's default layouts (mono, stereo, 2.1, quad, 5.0,
 5.1, 6.1, and 7.1). FFmpeg rematrixes channels according to their speaker positions; surround downmixing uses
 weighted contributions rather than an equal average of every channel.
@@ -101,15 +101,15 @@ weighted contributions rather than an equal average of every channel.
 The resampler has three methods:
 
 - `resample(ByteBuffer)` converts the samples between the position and the limit of the buffer without changing the
-  buffer, so the buffer of an audio pipeline can be passed directly. It returns the converted interleaved samples as a
+  buffer, so you can pass the buffer of an audio pipeline directly. It returns the converted interleaved samples as a
   `byte[]`, which can be empty. A trailing incomplete frame is ignored.
-- `flush()` returns the samples that earlier calls held back, then resets the resampler, so it can be reused for a new
+- `flush()` returns the samples that earlier calls held back, then resets the resampler, so you can reuse it for a new
   stream that does not continue the previous one. Changing the sample rate needs a few samples of look-ahead, so
   every call to `resample` holds back a short tail and emits it with the next call; the output of a single call can be
   slightly shorter than the rate ratio suggests, while the output of the whole stream is not. Call `flush()` at the end
   of a stream to get that tail.
 - `close()` frees the native resampling context. Samples still held back are discarded, so call `flush()` first to
-  keep them. Closing a closed resampler does nothing. `AudioResampler` implements `AutoCloseable`, so it can be used
+  keep them. Closing a closed resampler does nothing. `AudioResampler` implements `AutoCloseable`, so you can use it
   in a try-with-resources statement.
 
 After `close()`, `resample` and `flush` throw an `IllegalStateException`, which they also throw if FFmpeg fails to
@@ -203,8 +203,9 @@ into 48 kHz stereo floating point samples:
 
 `SampleFormat` is the encoding of a single sample. Every format is packed (interleaved): the samples of all channels
 of one frame follow each other, so a stereo stream is laid out as `left, right, left, right, ...`. Samples are stored in
-the native byte order of the platform, which is little-endian on every platform MCAV runs on (x86 and ARM), so the
-little-endian audio of the pipeline can be passed to `resample` as it is. Floating point formats use the nominal range
+the native byte order of the platform, which is little-endian on every platform MCAV runs on (x86 and ARM), so
+you can pass the little-endian audio of the pipeline to `resample` as it is. Floating point formats use the nominal
+range
 `-1.0` to `1.0`.
 
 | Constant         | Encoding                                                      | Bytes per sample |
@@ -222,8 +223,8 @@ packed `avutil.AV_SAMPLE_FMT_*` constant, for use with the FFmpeg bindings of Ja
 ## Extracting audio
 
 `AudioExtractor` in `me.brandonli.mcav.utils.ffmpeg` extracts the audio track of media into a standalone audio file
-with the FFmpeg program bundled with MCAV. The audio is written as stereo Ogg Vorbis, a compact and royalty-free format
-that is played by Minecraft resource packs, web browsers, game engines, and most media players. The
+with the FFmpeg program bundled with MCAV. It writes the audio as stereo Ogg Vorbis, a compact and royalty-free format
+that Minecraft resource packs, web browsers, game engines, and most media players play. The
 [audio resource packs](../bukkit/resourcepack.md) of the Bukkit module use it.
 
 `AudioExtractor.extractOggVorbis(Source)` transcodes the audio of the source, such as a file or a URL, to stereo Ogg
@@ -237,7 +238,7 @@ threads that must stay responsive, such as the main thread of a Minecraft server
 | Exception                     | Meaning                                                                                                   |
 |-------------------------------|-----------------------------------------------------------------------------------------------------------|
 | `NullPointerException`        | The source is `null`.                                                                                     |
-| `ProcessException`            | FFmpeg cannot be started, its output cannot be read, the thread was interrupted while waiting for it, or FFmpeg exited with a non-zero exit code, for example because the source does not exist, cannot be decoded, or has no audio track. |
+| `ProcessException`            | FFmpeg cannot be started, its output cannot be read, the thread is interrupted while waiting for it, or FFmpeg exits with a non-zero exit code, for example because the source does not exist, cannot be decoded, or has no audio track. |
 | `FileOperationException`      | The cache folder cannot be created.                                                                       |
 | `UnsatisfiedLinkError`        | The bundled FFmpeg is not available for this platform.                                                    |
 
@@ -269,7 +270,7 @@ convert:
 
 `NetworkUtils` in `me.brandonli.mcav.utils.http` answers two questions: what the public address of this machine is,
 and whether a URL can still be downloaded. Every method blocks for at most a few seconds per request, so call them off
-threads that must stay responsive. They never throw because of network failures; a failure is reported as an empty
+threads that must stay responsive. They never throw because of network failures; they report a failure as an empty
 result or `false` instead. If the calling thread is interrupted while waiting, the method gives up and the interrupt
 flag of the thread stays set.
 

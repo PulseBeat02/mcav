@@ -78,7 +78,7 @@ add. QEMU's own default network, which `network("user")` gives back, reaches the
 10.0.2.2 is the machine QEMU runs on: the guest reaches every service there that listens only on the loopback address.
 `network("none")` gives the guest no network card at all.
 
-Options that QEMU accepts more than once, such as `-drive` or `-device`, are added to the builder with `drive(...)`,
+Add options that QEMU accepts more than once, such as `-drive` or `-device`, with `drive(...)`,
 `device(...)`, or `repeatable(key, value)`; every other option replaces its earlier value. `start` throws an
 `ExecutableNotInPathException` when the QEMU program of the architecture is missing and MCAV cannot install it on the
 platform, and a `VmException` with the output of QEMU when the machine fails to start. When the installation of QEMU
@@ -113,5 +113,5 @@ earliest, and later when the screen was idle, so the player holds the sound for 
 most 130 ms of sound wait for the pipeline, the hold included; a slow pipeline loses the oldest sound, so the sound
 never falls further behind. QEMU sends nothing while the guest plays no sound, so when the guest stops playing the
 player hands silence to the pipeline instead, for two seconds at most: a pause between two sounds keeps its length.
-While the player is paused, the sound of the guest is dropped. A sound connection that cannot be made is reported to
+While the player is paused, it drops the sound of the guest. The player reports a sound connection it cannot make to
 the exception handler, and the machine runs without sound.

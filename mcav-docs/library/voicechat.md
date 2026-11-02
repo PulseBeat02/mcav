@@ -10,8 +10,8 @@ dependencies {
 ```
 
 ```{warning}
-Unlike the other modules, you must shade this module into your plugin, because its classes must be loaded by a class
-loader that can see the classes of the Simple Voice Chat plugin.
+Unlike the other modules, you must shade this module into your plugin, because a class
+loader that can see the classes of the Simple Voice Chat plugin must load its classes.
 ```
 
 Install the `SvcModule` when you create the library instance, and hand it the voice chat server API from your
@@ -63,11 +63,13 @@ server has loaded:
 
 The `SvcFilter` is an audio filter that makes one or more entities speakers: nearby players hear the audio with
 positional voice chat audio. Pass the platform entities, such as Bukkit `Player`s, to `SvcFilter.svc(Object...)`, or
-use `SvcFilter.withDistance(float, Object...)` to set the distance in blocks the audio can be heard from instead of
-the default of 32 blocks (`SvcFilter.DEFAULT_DISTANCE`). At least one entity is required, and the distance must be
+use `SvcFilter.withDistance(float, Object...)` to set the distance in blocks from which players hear the audio instead
+of
+the default of 32 blocks (`SvcFilter.DEFAULT_DISTANCE`). You must pass at least one entity, and the distance must be
 positive.
 
-Creating a filter throws an `IllegalStateException` if the voice chat API was not injected into the `SvcModule` yet.
+Creating a filter throws an `IllegalStateException` if you have not injected the voice chat API into the `SvcModule`
+yet.
 Call `start()` before attaching the filter and `release()` when playback ends; the pipeline does not call them for you.
 
 ```java
@@ -94,12 +96,13 @@ Call `start()` before attaching the filter and `release()` when playback ends; t
 The filter mixes the stereo samples down to mono and cuts them into 20 millisecond frames. Every speaker has its own
 queue of up to half a second, so each of them plays every frame; a speaker that falls behind drops its oldest audio
 instead of delaying the others, and a speaker without audio plays silence instead of stopping.
-`getQueuedFrames()` returns the number of frames waiting for the slowest speaker. The samples are passed on to the next
+`getQueuedFrames()` returns the number of frames waiting for the slowest speaker. The filter passes the samples on to
+the next
 step unchanged, and a filter that is not started simply ignores them.
 
 If `start()` fails part way, for example with an `SvcException` because Simple Voice Chat refuses to create an audio
 channel for one of the entities, it releases every speaker, encoder, and audio player it had already created before
-throwing. The filter stays stopped and can simply be started again.
+throwing. The filter stays stopped and you can start it again.
 
 ## Mono downmixing
 

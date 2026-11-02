@@ -207,8 +207,8 @@ sent. On Linux and macOS, ports below 1024 need administrator rights, so keep th
 The page keeps a tenth of a second of sound ahead of what it plays, so a short hold-up of the connection does not
 break the sound. Sound that arrives while the browser's audio is still starting, such as for a player who opens the
 page while a video plays, or all at once after a stalled connection, is dropped instead of delaying everything after
-it. Measured with a vanilla client drawing in software and a browser playing into a virtual sound device, the sound
-left the device 0.1 to 0.15 s after the wall showed the same moment.
+it. With a vanilla client drawing in software and a browser playing into a virtual sound device, the sound
+leaves the device 0.1 to 0.15 s after the wall shows the same moment.
 
 The Discord bot and the web page start in the background, so they never delay the server start. The console reports
 when each output is ready: `The audio web page is available at <link>.` for the web page and
@@ -231,7 +231,7 @@ addresses, public ones included. Turn on
 every page they open and every player who may click on it reach services that only the server can reach, such as a
 router, a database console or the metadata service of a cloud server. `browser.javascript-jit` makes pages with heavy
 scripts faster, at the cost of the protection described in the [browser module](../library/browser.md#security).
-`browser.autoplay-sound` lets pages play sound before a player clicked their screen.
+`browser.autoplay-sound` lets pages play sound before a player clicks their screen.
 
 The browser keeps what it downloads in the MCAV cache folder of the user running the server, like VLC and yt-dlp:
 Chromium in `~/.mcav/cache/jcef` (about 136 to 163 MiB) and, on Linux, the libraries it needs that the server lacks in
@@ -240,7 +240,7 @@ has no setting of its own; delete it to download everything again.
 
 A virtual machine's guest gets a network card that reaches nothing, neither the internet nor the server.
 `vm.allow-network` gives it QEMU's own user-mode network instead, which reaches the internet and every service the
-server offers only on its loopback address. Where a machine's sound plays is chosen with the audio type of
+server offers only on its loopback address. You choose where a machine's sound plays with the audio type of
 `/mcav vm create`, and MCAV gives an `X86_64` machine its sound card itself.
 
 ## MCV2

@@ -1,7 +1,8 @@
 # Upgrading from the May 2026 Snapshot
 
 The rewrite changes public APIs from the `1.0.0-SNAPSHOT` artifacts published on May 11, 2026
-(`20260511.021315`). It is not a binary-compatible replacement for that snapshot. Recompile applications and plugins
+(`20260511.021315`). It is not a binary-compatible replacement for that snapshot. Recompile your applications and
+plugins
 against the rewritten modules, and update the calls and implementations described below before replacing their runtime
 libraries. Updating a jar without rebuilding its callers can produce linkage errors even when its Maven version still
 reads `1.0.0-SNAPSHOT`.
@@ -13,7 +14,7 @@ uses a local repository to test the plugin with its own modules. A distributable
 from its dependency repositories.
 
 The release check compared all ten published modules with japicmp 0.26.2, including public and protected members and
-synthetic bridges. No missing classes were ignored in these module comparisons. Counts below are incompatible
+synthetic bridges. These comparisons ignored no missing classes. Counts below are incompatible
 classes, not independent problems; one class can have several changed members.
 
 | Module | Binary-incompatible classes | Source-incompatible classes |
@@ -103,7 +104,7 @@ Names that abbreviated a word now spell it out:
 | `VolumeFilter.MAX_VOLUME` | `MAXIMUM_VOLUME` |
 | `WinInstallationStrategy` | `WindowsInstallationStrategy` |
 
-Implementation classes are named for how they work, or start with `Default` when nothing else sets them apart:
+Implementation classes take their names from how they work, or start with `Default` when nothing else sets them apart:
 
 | Former name | Current name |
 | --- | --- |
@@ -128,9 +129,10 @@ Implementation classes are named for how they work, or start with `Default` when
 
 ## Browser players
 
-The browser backend is now embedded Chromium through JCEF, in a helper process. The Selenium and Playwright player
+The browser backend is now embedded Chromium through JCEF, in a helper process. The rewrite removes the Selenium and
+Playwright player
 and service-provider classes, `BrowserPlayer.selenium(...)`, `BrowserPlayer.playwright(...)`, and
-`DEFAULT_CHROME_ARGUMENTS` are removed by the rewrite.
+`DEFAULT_CHROME_ARGUMENTS`.
 
 Replace those factories with `BrowserPlayer.create()` or `BrowserPlayer.create(BrowserOptions)`. Configure the
 browser through `BrowserOptions.builder()` instead of passing arbitrary Chrome arguments. A source still describes
@@ -142,24 +144,25 @@ takes a screencast quality setting. Replace `getScreencastWidth`, `getScreencast
 with `getWidth`, `getHeight` and `getFrameInterval`. `getScreencastQuality` has no replacement.
 
 Custom implementations of `BrowserPlayer` must also implement its new methods, including `scroll`, `isPlaying` and
-`getAudioAttachableCallback`. Prefer the supplied factory unless an application specifically needs another backend.
+`getAudioAttachableCallback`. Prefer the supplied factory unless your application needs another backend.
 
 ## Runtime preparation
 
-Application code should use `MCAV.api()` and `MCAVApi.install(...)`, with the capability API described in the
+Use `MCAV.api()` and `MCAVApi.install(...)` in your application, with the capability API described in the
 [instance chapter](instance.md). The rewrite removes the old `CLibrary` and system package installer helpers.
-FFmpeg and OpenCV are prepared before installation returns; VLC and yt-dlp are prepared asynchronously. Code that
-needs an optional capability should inspect it or wait for `whenCapabilityReady` before using it. Custom
+MCAV prepares FFmpeg and OpenCV before installation returns, and VLC and yt-dlp asynchronously. If your code
+needs an optional capability, inspect it or wait for `whenCapabilityReady` before using it. Custom
 implementations of `MCAVApi` must implement the new readiness method as well.
 
 MCAV installs QEMU from Debian packages on x86-64 and ARM64 Linux when the system has none; on other platforms,
 install QEMU yourself. The public `QemuInstaller` of earlier versions is gone, and the new one is internal: use the
 [VM API](vm.md) instead. The browser prepares its own runtime on first use, as described above.
 
-Applications that extend the installation infrastructure must also update `Installer.getPath()`, the constructors
+If your application extends the installation infrastructure, also update `Installer.getPath()`, the constructors
 of `AbstractInstaller`, and the VLC installation strategies. `InstallationStrategy.execute` now takes a destination
-`Path`; its installed-path result has changed generic types. The old release-package and native-discovery helpers
-are removed or restricted. Prefer the capability API over invoking those implementation details directly.
+`Path`; its installed-path result has changed generic types. The rewrite removes or restricts the old release-package
+and native-discovery
+helpers. Prefer the capability API over invoking those implementation details directly.
 
 ## Images, playback and pipelines
 
@@ -167,21 +170,23 @@ Image buffers now have explicit ownership and lifetime operations. Custom `Image
 must implement the current close, copy, cache-invalidation and ARGB-update contracts. `ImageBuffer.updateData` is now
 abstract; implementations can no longer inherit its old default. `ImageBuffer.image(BufferedImage)` no longer
 declares its old checked exception, so remove an unreachable catch if that call was the only operation in the block
-that threw it. The examinable-property access to `MatImageBuffer` is removed. Use the image interfaces and release
+that threw it. The rewrite removes the examinable-property access to `MatImageBuffer`. Use the image interfaces and
+release
 owned buffers.
 
-`VideoPlayer.jcodec()` is removed. Choose a current `VideoPlayer` factory for the backend needed by the application.
+The rewrite removes `VideoPlayer.jcodec()`. Choose a current `VideoPlayer` factory for the backend that your application
+needs.
 Subclasses of `AbstractVideoPlayerCv` must use its current constructor and implement `createFrameGrabber` instead of
-`getFrameGrabber`. Several supplied player and callback implementations are now final, and their old `retrieve`
-helpers are removed; use the callback interfaces to attach and invoke pipelines. `OriginalVideoMetadata.NO_OP` is
-also removed: use the metadata factories and their documented values.
+`getFrameGrabber`. Several supplied player and callback implementations are now final, and
+lose their old `retrieve` helpers; use the callback interfaces to attach and invoke pipelines. The rewrite also removes
+`OriginalVideoMetadata.NO_OP`: use the metadata factories and their documented values.
 
 Pipeline builders and steps use more specific generic types. Recompile calls to `PipelineBuilder.audio()` and `video()`
 even if their source still compiles. `AudioPipelineStepBuilder` and `VideoPipelineStepBuilder` are now interfaces,
 and their implementations are internal. `PipelineStep.next()` now returns an `Optional` of the next pipeline step
 rather than `Object`; custom steps must also implement `self` and the filter accessors, with the current audio
 processing contract. Prefer the supplied builders and `AudioPipelineStep.of` / `VideoPipelineStep.of` factories.
-`FrameSource.getFrameSupplier()` is removed; use the source's current frame-production interface rather than
+The rewrite removes `FrameSource.getFrameSupplier()`; use the source's current frame-production interface rather than
 extracting its implementation supplier.
 
 `BlendFilter` and `OverlayImageFilter` now accept the image interface through their current constructors, and
@@ -198,22 +203,25 @@ builder interfaces no longer take type parameters, and their implementations are
 `DitherAlgorithm` factories, such as `DitherAlgorithm.errorDiffusion()`.
 
 `BayerDither` constants now contain `ThresholdMatrix` values instead of `int[][]`. Pass the matrix to the current
-mapper API, or call `toArray()` when an independent array is required; create a custom matrix with
+mapper API, or call `toArray()` when you need an independent array; create a custom matrix with
 `ThresholdMatrix.of(...)`. Custom `PixelMapper` implementations must supply `getStrength`, and custom
 `DitherPalette` implementations must supply `getReservedIndices` and `getSize`.
 
 The abstract and temporal dither constructors, protected diffusion hooks and native-entry helpers changed.
 Rework subclasses against the current APIs; do not call the removed `FilterLiteDither.ditherNatively` entry point.
-The old `MurmurHash3` and `Xoroshiro128PlusRandom` utility classes are removed. Applications using them outside
-dithering need their own random-number implementation; this guide does not promise the same sequence from another
+The rewrite removes the old `MurmurHash3` and `Xoroshiro128PlusRandom` utility classes. If your application uses them
+outside
+dithering, it needs its own random-number implementation; this guide does not promise the same sequence from another
 generator.
 
 ## Bukkit, HTTP and audio integrations
 
-The Bukkit rewrite targets Minecraft 26.3. The old `ServerVersion` enumeration, all its version constants, and
-`ServerEnvironment.getNMSRevision()` are removed. Use `ServerEnvironment.getMinecraftVersion()` and
-`isSupported()` / `checkSupported()` instead of comparing old NMS revision strings. `MapConfiguration.getMapIds()`
-and the old `LocationData` type are removed; use the current map configuration and result APIs. Internal resource-pack
+The Bukkit rewrite targets Minecraft 26.3. The rewrite removes the old `ServerVersion` enumeration, all its version
+constants, and
+`ServerEnvironment.getNMSRevision()`. Use `ServerEnvironment.getMinecraftVersion()` and
+`isSupported()` / `checkSupported()` instead of comparing old NMS revision strings. The rewrite removes
+`MapConfiguration.getMapIds()`
+and the old `LocationData` type; use the current map configuration and result APIs. Internal resource-pack
 injection hooks and several resource-pack exception constructors changed as well.
 
 Types of `mcav-bukkit` whose names held an upper-case acronym now case it as a word:
@@ -225,8 +233,9 @@ Types of `mcav-bukkit` whose names held an upper-case acronym now case it as a w
 
 The configuration builders are now top-level interfaces with internal implementations. Declare builder variables as
 `MapConfigurationBuilder`, `BlockConfigurationBuilder`, `ChatConfigurationBuilder`, `EntityConfigurationBuilder` or
-`ScoreboardConfigurationBuilder` rather than `MapConfiguration.Builder<?>` and the other nested builders; the nested
-result builders, such as `MapConfiguration.MapResultBuilder`, are removed.
+`ScoreboardConfigurationBuilder` rather than `MapConfiguration.Builder<?>` and the other nested builders; the rewrite
+removes the nested
+result builders, such as `MapConfiguration.MapResultBuilder`.
 
 The exceptions of `mcav-bukkit` now extend `BukkitException`, an unchecked subtype of `MCAVException`.
 `HttpServerException`, `InjectorException` and `McPacksException` no longer extend `AssertionError`, so a catch of
@@ -252,7 +261,7 @@ Replace `VMPlayer.vm()` with `VmPlayer.create()` and `VNCPlayer.vm()` with `VncP
 `build()` for the immutable `VmConfiguration` that `VmPlayer.start` takes.
 
 Types of `mcav-vm` and `mcav-vnc` whose names held an upper-case acronym now case it as a word, and implementation
-classes are named for how they work:
+classes take their names from how they work:
 
 | Former name | Current name |
 | --- | --- |
@@ -268,15 +277,16 @@ classes are named for how they work:
 | `VNCSourceImpl` | `DefaultVncSource` |
 
 `ExecutableFinder.find` now returns an `Optional<Path>` rather than a string; handle a missing executable before
-using its path. `VMConfiguration.audio`, `diskSize`, `display`, `graphics` and `kvm` are removed. Use the builder
-methods, such as `drive` and `accelerator`, for the QEMU command needed by the application. Create disk images
+using its path. The rewrite removes `VMConfiguration.audio`, `diskSize`, `display`, `graphics` and `kvm`. Use the
+builder
+methods, such as `drive` and `accelerator`, for the QEMU command that your application needs. Create disk images
 separately. The player controls its own display and audio options; consult the [VM chapter](vm.md) before adding raw
 options.
 
 The VM player reports failures that come from QEMU or the machine as a `VmException`, the base of `mcav-vm` under
 `MCAVException`, rather than a `PlayerException`: a VNC port that is taken, a password file that cannot be written,
 and a QEMU that cannot start, exits early or never opens its display. `ExecutableNotInPathException` now extends
-`VmException` and is final. A configuration that sets an option the player reserves is refused with an
+`VmException` and is final. The player refuses a configuration that sets an option it reserves with an
 `IllegalArgumentException`.
 
 ## Maven installer failures
@@ -286,18 +296,20 @@ exception. Replace catches of the removed `InstallationError` and `JarEntryInteg
 handling those failures. Class-loader injection failures use `JarInjectorException`. The [installer
 chapter](installer.md) describes the current factory, loading callbacks and failure handling.
 `MCAVInstaller` is now final. Obtain it through `MCAVInstaller.injector(...)`; use a `JarLoader` callback to control
-where downloaded jars are loaded instead of subclassing the installer.
+where the installer loads downloaded jars instead of subclassing the installer.
 
 ## Utility APIs
 
-The old MCAV `UncheckedIOException` is removed. `IoUtils` reports I/O failures as a `FileOperationException` and a
+The rewrite removes the old MCAV `UncheckedIOException`. `IoUtils` reports I/O failures as a `FileOperationException`
+and a
 port search that finds no free port as an `MCAVException`; update imports and catch clauses.
 Audio extraction uses `AudioExtractor` in `me.brandonli.mcav.utils.ffmpeg`, replacing the old Bukkit
 `SoundExtractorUtils`. Network helpers are in `me.brandonli.mcav.utils.http.NetworkUtils`; update imports from the
 old Bukkit utility and use the current return types and failure handling described in [utilities](utilities.md).
 
 The rewrite also removes general-purpose collection, reflection, unsafe-memory, functional-interface and examinable
-helpers. Applications that called them need their own equivalents or suitable Java library APIs; there is no general
+helpers. If your application called them, it needs its own equivalents or suitable Java library APIs; there is no
+general
 one-to-one compatibility adapter. Avoid importing a player's implementation classes for construction or inheritance:
 use the public factories, interfaces and callbacks documented in the relevant module chapter.
 
@@ -306,8 +318,8 @@ The removed utility types include `CollectionUtils`, `CopyUtils`, `LockUtils`, `
 `me.brandonli.mcav.utils.examinable`. Review both imports and exception handling when replacing these helpers.
 
 Some implementation classes and their constructors are now package-private or final. For example, use the factories
-on `DynamicImageBuffer` instead of constructing `DynamicImageBufferImpl`. Code that subclasses an implementation or
-calls its former constructors must move to the public interface and its factories, even if its playback behavior
+on `DynamicImageBuffer` instead of constructing `DynamicImageBufferImpl`. If your code subclasses an implementation or
+calls its former constructors, move it to the public interface and its factories, even if its playback behavior
 does not otherwise change.
 
 Other utility callers need these updates:
@@ -338,12 +350,12 @@ and `UrlParseDump.getDuration()` and `getFramesPerSecond()` are `double`.
 
 Several exception types no longer inherit the removed MCAV unchecked-I/O type; review catches for the concrete exception
 or its current superclass, not just imports. The exceptions of `mcav-common` now extend `MCAVException`, an unchecked
-base for failures outside the caller's control: `NativeLoadingException` and `PaletteLoadingException` are no longer an
+base for failures outside your control: `NativeLoadingException` and `PaletteLoadingException` are no longer an
 `IllegalStateException`, and `UnsupportedOperatingSystemException` is no longer an `UnsupportedOperationException`.
 
 ## Operational failures
 
-Public methods of `mcav-common` no longer declare `IOException`. A failure outside the caller's control is reported as
+Public methods of `mcav-common` no longer declare `IOException`. They report a failure outside your control as
 an unchecked subtype of `MCAVException`, so remove `throws IOException` clauses that only existed for these calls and
 replace catches of `IOException` around them with the exception below:
 
@@ -365,15 +377,15 @@ replace catches of `IOException` around them with the exception below:
 exceptions above.
 
 The `FaceDetectionFilter` constructors throw `NativeLoadingException` in `me.brandonli.mcav.utils.natives` instead of
-`IllegalStateException` when the OpenCV object detection natives cannot be loaded.
+`IllegalStateException` when they cannot load the OpenCV object detection natives.
 
 ## Bundled dependencies
 
 The Maven installer bundles its resolver dependencies under `me.brandonli.mcav.libs`. Those classes change with the
-resolver and its dependencies. Code that imported them should declare the upstream library it needs and use that
+resolver and its dependencies. If your code imported them, declare the upstream library it needs and use that
 library's original package names. The supported installation entry points are in `me.brandonli.mcav.installer`.
 
 Use the dependency metadata of the new modules when rebuilding. In particular, the ordinary JNA artifacts already
-supply the classes needed by VLCJ; adding the alternative `jna-jpms` and `jna-platform-jpms` artifacts puts duplicate
-definitions on the same class path. HTTP and Discord consumers should retain the Jackson and Tomcat versions declared
-by their modules when excluding or overriding transitive dependencies.
+supply the classes vlcj needs; adding the alternative `jna-jpms` and `jna-platform-jpms` artifacts puts duplicate
+definitions on the same class path. If you use the HTTP or Discord module, keep the Jackson and Tomcat versions
+it declares when excluding or overriding transitive dependencies.
