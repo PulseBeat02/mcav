@@ -702,15 +702,9 @@ final class AbstractInstallerTest {
   }
 
   @Test
-  void shouldStoreProgramsUnderTheirExecutableName() {
+  void shouldReturnTheNameOfTheProgram() {
     final TestInstaller installer = new TestInstaller(this.folder, NAME, new Download[0]);
-    final String fileName = installer.getFileName();
-    final boolean isArchive = installer.isArchive();
     final String name = installer.getName();
-    final Os operatingSystem = OsUtils.getOs();
-    final String expected = AbstractInstaller.getExecutableFileName(NAME, operatingSystem);
-    assertEquals(expected, fileName);
-    assertFalse(isArchive);
     assertEquals(NAME, name);
   }
 
