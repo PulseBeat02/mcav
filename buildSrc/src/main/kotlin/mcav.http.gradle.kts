@@ -18,6 +18,7 @@
 
 import com.github.gradle.node.NodeExtension
 import me.brandonli.mcav.gradle.HostPlatform
+import me.brandonli.mcav.gradle.NodeLayout
 
 plugins {
     id("mcav.module")
@@ -29,6 +30,8 @@ val corepackPromptVariable: String = "COREPACK_ENABLE_DOWNLOAD_PROMPT"
 val disabledPrompt: String = "0"
 val nodeOptionsVariable: String = "NODE_OPTIONS"
 val nodeHeapMegabytes: Int = 4096
+
+val pnpmCommand: String = "pnpm"
 
 val websitePath: String = "mcav-website"
 val packageJsonPath: String = "mcav-website/package.json"
@@ -54,7 +57,7 @@ val builtJarProperty: String = "mcav.http.jar"
 val builtJarPath: String = "libs/mcav-http.jar"
 
 val node: NodeExtension = rootProject.extensions.getByType<NodeExtension>()
-val nodeSetup: TaskProvider<Task> = rootProject.tasks.named("nodeSetup")
+val nodeSetup: TaskProvider<Task> = rootProject.tasks.named(NodeLayout.SETUP_TASK_NAME)
 val host: HostPlatform = HostPlatform.current()
 val isWindows: Boolean = host.isWindows
 val nodeDirectory: Directory = node.resolvedNodeDir.get()
@@ -72,7 +75,7 @@ val pnpmProjectInstall: TaskProvider<Exec> = tasks.register<Exec>("pnpmProjectIn
     this.executable = nodeExecutable.absolutePath
     this.environment(pathVariable, nodePath)
     this.environment(corepackPromptVariable, disabledPrompt)
-    this.args(corepack.absolutePath, "pnpm", "install", "--frozen-lockfile")
+    this.args(corepack.absolutePath, pnpmCommand, "install", "--frozen-lockfile")
     this.inputs.file(packageJsonPath)
     this.inputs.file(pnpmLockPath)
     this.outputs.file(installedModulesPath)
@@ -87,7 +90,7 @@ val buildWebsite: TaskProvider<Exec> = tasks.register<Exec>("buildWebsite") {
     this.environment(pathVariable, nodePath)
     this.environment(corepackPromptVariable, disabledPrompt)
     this.environment(nodeOptionsVariable, "--max-old-space-size=$nodeHeapMegabytes")
-    this.args(corepack.absolutePath, "pnpm", "run", "build")
+    this.args(corepack.absolutePath, pnpmCommand, "run", "build")
     this.inputs.dir(websiteSourcePath)
     this.inputs.dir(websitePublicPath)
     this.inputs.file(packageJsonPath)
@@ -105,7 +108,7 @@ val testWebsite: TaskProvider<Exec> = tasks.register<Exec>("testWebsite") {
     this.executable = nodeExecutable.absolutePath
     this.environment(pathVariable, nodePath)
     this.environment(corepackPromptVariable, disabledPrompt)
-    this.args(corepack.absolutePath, "pnpm", "test")
+    this.args(corepack.absolutePath, pnpmCommand, "test")
     this.inputs.dir(websiteSourcePath)
     this.inputs.dir(websiteTestPath)
     this.inputs.file(packageJsonPath)

@@ -22,11 +22,16 @@ import org.gradle.api.file.Directory
 import org.gradle.api.file.RegularFile
 
 /**
- * Locates the executable of a Node.js installation that the Node Gradle plugin unpacked.
+ * Names the setup task of the Node Gradle plugin and locates the executable of the Node.js installation it unpacks.
  *
  * Node's archives for Linux and macOS keep the executable in `bin`; the Windows archive keeps it at its top.
  */
 object NodeLayout {
+
+    /**
+     * The name of the Node Gradle plugin's task that unpacks the Node.js installation.
+     */
+    const val SETUP_TASK_NAME: String = "nodeSetup"
 
     private const val UNIX_EXECUTABLE: String = "bin/node"
     private const val WINDOWS_EXECUTABLE: String = "node.exe"

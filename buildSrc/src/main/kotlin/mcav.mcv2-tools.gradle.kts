@@ -68,7 +68,7 @@ pluginManager.withPlugin("info.solidsoft.pitest") {
     }
 }
 
-val pythonEnvironment: TaskProvider<PythonEnvironment> = rootProject.tasks.named<PythonEnvironment>("installPythonEnvironment")
+val pythonEnvironment: TaskProvider<PythonEnvironment> = rootProject.tasks.named<PythonEnvironment>(PythonEnvironment.TASK_NAME)
 val pythonSources: Directory = layout.projectDirectory.dir(pythonSourcePath)
 val pythonTest: TaskProvider<PythonTests> = tasks.register<PythonTests>("pythonTest") {
     this.group = "verification"

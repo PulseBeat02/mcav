@@ -191,7 +191,7 @@ val fuzzTasks: List<TaskProvider<Test>> = fuzzTargets.map { target ->
 
 val fuzzTest: TaskProvider<Test> = tasks.register<Test>(fuzzTestName) {
     this.group = "verification"
-    this.description = "Replays the committed fuzz inputs of this module, and fuzzes every fuzz test method with -Pfuzz.seconds=<n>"
+    this.description = "Replays the committed fuzz inputs of this module, and fuzzes every fuzz test method with -P$fuzzSecondsProperty=<n>"
     this.dependsOn(fuzzTasks)
 }
 

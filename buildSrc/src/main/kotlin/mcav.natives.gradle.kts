@@ -95,7 +95,7 @@ artifacts.add(nativeResources.name, buildMcv2Natives.flatMap { it.outputDirector
 }
 
 val pinnedClangFormatVersion: String = CatalogUtils.versionOf(libs, clangFormatAlias)
-val pythonEnvironment: TaskProvider<PythonEnvironment> = rootProject.tasks.named<PythonEnvironment>("installPythonEnvironment")
+val pythonEnvironment: TaskProvider<PythonEnvironment> = rootProject.tasks.named<PythonEnvironment>(PythonEnvironment.TASK_NAME)
 val installedClangFormat: Provider<RegularFile> = pythonEnvironment.flatMap { it.executable(clangFormatTool) }
 val selectedClangFormat: Provider<RegularFile> = Tools.selectTool(project, clangFormatTool, installedClangFormat)
 val formattedSources: ConfigurableFileTree = fileTree(nativeSources) { include(nativeSourcePattern) }

@@ -48,10 +48,15 @@ import org.gradle.work.DisableCachingByDefault
 @DisableCachingByDefault(because = "Python virtual environments contain absolute installation paths")
 abstract class PythonEnvironment : DefaultTask() {
 
-    private companion object {
+    companion object {
 
-        const val VIRTUAL_ENVIRONMENT_DIRECTORY: String = "venv"
-        const val PATH_SEPARATOR: String = "/"
+        /**
+         * The name under which `mcav.python` registers this task in the root project.
+         */
+        const val TASK_NAME: String = "installPythonEnvironment"
+
+        private const val VIRTUAL_ENVIRONMENT_DIRECTORY: String = "venv"
+        private const val PATH_SEPARATOR: String = "/"
     }
 
     /**

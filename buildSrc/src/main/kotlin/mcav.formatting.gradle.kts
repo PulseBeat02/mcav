@@ -49,7 +49,7 @@ val excludedResourcePatterns: List<String> = listOf("**/build/**", "**/node_modu
 val spotlessJavaTaskPrefix: String = "spotlessJava"
 
 val node: NodeExtension = rootProject.extensions.getByType<NodeExtension>()
-val nodeSetup: TaskProvider<Task> = rootProject.tasks.named("nodeSetup")
+val nodeSetup: TaskProvider<Task> = rootProject.tasks.named(NodeLayout.SETUP_TASK_NAME)
 val host: HostPlatform = HostPlatform.current()
 val nodeExecutable: Provider<File> = node.resolvedNodeDir.map { NodeLayout.executable(it, host).asFile }
 val prettierVersion: String = CatalogUtils.versionOf(libs, prettierAlias)

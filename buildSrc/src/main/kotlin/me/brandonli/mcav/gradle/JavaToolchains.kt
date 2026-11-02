@@ -27,9 +27,14 @@ import org.gradle.jvm.toolchain.JvmVendorSpec
 import org.gradle.kotlin.dsl.getByType
 
 /**
- * Finds the Java toolchain of the version that the catalog pins.
+ * Finds the Java toolchain of the version that the catalog pins, and names the compiler options that convention scripts share.
  */
 object JavaToolchains {
+
+    /**
+     * The javac option that fails the compilation on any warning.
+     */
+    const val WARNINGS_AS_ERRORS: String = "-Werror"
 
     private const val JAVA_VERSION_ALIAS: String = "java"
 

@@ -101,7 +101,7 @@ java {
 tasks.withType<JavaCompile>().configureEach {
     this.options.release = javaRelease
     this.options.encoding = sourceEncoding
-    this.options.compilerArgs.addAll(listOf("-parameters", "-Xlint:all", "-Xlint:-processing", "-Werror"))
+    this.options.compilerArgs.addAll(listOf("-parameters", "-Xlint:all", "-Xlint:-processing", JavaToolchains.WARNINGS_AS_ERRORS))
     this.options.isFork = true
     this.options.forkOptions.memoryMaximumSize = compilerHeapSize
     this.options.forkOptions.jvmArgumentProviders.add(CommandLineArgumentProvider {

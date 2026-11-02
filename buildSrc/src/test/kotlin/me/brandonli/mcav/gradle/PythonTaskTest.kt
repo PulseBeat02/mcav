@@ -44,7 +44,8 @@ class PythonTaskTest {
     @Test
     fun shouldRunATaskThatUsesTheEnvironmentAfterItOnItsLockPythonAndHost(): Unit {
         val project: Project = ProjectBuilder.builder().withProjectDir(this.directory.toFile()).build()
-        val environment: TaskProvider<PythonEnvironment> = project.tasks.register("installPythonEnvironment", PythonEnvironment::class.java)
+        val environment: TaskProvider<PythonEnvironment> =
+            project.tasks.register(PythonEnvironment.TASK_NAME, PythonEnvironment::class.java)
         environment.get().requirements.set(this.directory.resolve(LOCK_FILE).toFile())
         environment.get().pythonVersion.set("3.13.16")
         environment.get().installationDirectory.set(this.directory.resolve(PYTHON_DIRECTORY).toFile())

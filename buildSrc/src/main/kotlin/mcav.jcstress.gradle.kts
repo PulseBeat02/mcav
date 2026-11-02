@@ -17,6 +17,7 @@
  */
 
 import me.brandonli.mcav.gradle.CatalogUtils
+import me.brandonli.mcav.gradle.JavaToolchains
 import me.brandonli.mcav.gradle.JcstressBudget
 import me.brandonli.mcav.gradle.JcstressConsole
 import me.brandonli.mcav.gradle.libs
@@ -58,7 +59,7 @@ checkerFramework {
 }
 
 tasks.named<JavaCompile>("compileJava") {
-    this.options.compilerArgs.remove("-Werror")
+    this.options.compilerArgs.remove(JavaToolchains.WARNINGS_AS_ERRORS)
     this.options.errorprone {
         this.excludedPaths = generatedSourcePattern
     }

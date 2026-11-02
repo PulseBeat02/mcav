@@ -28,8 +28,10 @@ import me.brandonli.mcav.gradle.libs
 val uvTool: String = "uv"
 val pythonAlias: String = "python"
 val pythonPackageAliasPrefix: String = "python-"
+val clangFormatPackage: String = "clang-format"
+val modernglPackage: String = "moderngl"
 val pythonPackages: List<String> =
-    listOf("clang-format", "jupyter-book", "matplotlib", "moderngl", "numpy", "pillow", "pytest", "pytest-xdist", "sphinx-design")
+    listOf(clangFormatPackage, "jupyter-book", "matplotlib", modernglPackage, "numpy", "pillow", "pytest", "pytest-xdist", "sphinx-design")
 
 val uvReleasesUrl: String = "https://github.com/astral-sh/uv/releases/download"
 val zipExtension: String = ".zip"
@@ -49,8 +51,8 @@ val pinnedUvVersion: String = CatalogUtils.versionOf(libs, uvTool)
 val pinnedPythonVersion: String = CatalogUtils.versionOf(libs, pythonAlias)
 val pinnedPackages: Map<String, String> = pythonPackages.associateWith { CatalogUtils.versionOf(libs, "$pythonPackageAliasPrefix$it") }
 val packageMarkers: Map<String, String> = mapOf(
-    "clang-format" to "sys_platform != 'win32' or platform_machine != 'ARM64'",
-    "moderngl" to "platform_machine != 'aarch64' and platform_machine != 'ARM64'"
+    clangFormatPackage to "sys_platform != 'win32' or platform_machine != 'ARM64'",
+    modernglPackage to "platform_machine != 'aarch64' and platform_machine != 'ARM64'"
 )
 val uvFolder: String = "$uvTool-$uvTarget"
 val uvArchiveExtension: String = if (host.isWindows) zipExtension else gzipTarExtension
@@ -87,7 +89,7 @@ val lockRequirements: TaskProvider<LockPythonRequirements> = tasks.register<Lock
     this.cacheDirectory = uvCache
 }
 
-tasks.register<PythonEnvironment>("installPythonEnvironment") {
+tasks.register<PythonEnvironment>(PythonEnvironment.TASK_NAME) {
     this.group = "build setup"
     this.description = "Installs the pinned Python and the hash-locked packages of requirements.lock"
     this.mustRunAfter(lockRequirements)
