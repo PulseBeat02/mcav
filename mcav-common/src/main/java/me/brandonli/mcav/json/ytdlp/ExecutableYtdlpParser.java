@@ -131,19 +131,19 @@ public final class ExecutableYtdlpParser implements YtdlpParser {
     }
 
     final URI uri = input.getUri();
-    requireWebUri(uri);
+    this.requireWebUri(uri);
     final String url = uri.toString();
     final String output = this.runYtdlp(url, arguments);
-    final String json = firstLine(output);
+    final String json = this.firstLine(output);
     if (json.isEmpty()) {
       final String message = NO_METADATA_MESSAGE.formatted(url);
       throw new YtdlpParseException(message);
     }
 
-    return parseDump(json, url);
+    return this.parseDump(json, url);
   }
 
-  private static void requireWebUri(final URI uri) {
+  private void requireWebUri(final URI uri) {
     final String scheme = uri.getScheme();
     final String lowerScheme = scheme == null ? "" : scheme.toLowerCase(Locale.ROOT);
     final boolean isWebUri = uri.isAbsolute() && WEB_SCHEMES.contains(lowerScheme);
@@ -153,7 +153,7 @@ public final class ExecutableYtdlpParser implements YtdlpParser {
   private String runYtdlp(final String url, final String[] arguments) {
     final Path executablePath = this.locator.locate();
     final String executable = executablePath.toString();
-    final String[] command = buildCommand(executable, url, arguments);
+    final String[] command = this.buildCommand(executable, url, arguments);
     final CommandTask task = this.taskFactory.apply(command);
     final int exitCode = task.run(TIMEOUT);
     final String output = task.getOutput();
@@ -168,7 +168,7 @@ public final class ExecutableYtdlpParser implements YtdlpParser {
     return output;
   }
 
-  private static UrlParseDump parseDump(final String json, final String url) {
+  private UrlParseDump parseDump(final String json, final String url) {
     final Gson gson = GsonProvider.getSimple();
     final UrlParseDump dump;
     try {
@@ -186,7 +186,7 @@ public final class ExecutableYtdlpParser implements YtdlpParser {
     return dump;
   }
 
-  private static String[] buildCommand(final String executable, final String url, final String[] arguments) {
+  private String[] buildCommand(final String executable, final String url, final String[] arguments) {
     final List<String> command = new ArrayList<>(FIXED_ARGUMENTS + arguments.length);
     command.add(executable);
     command.add(DUMP_JSON);
@@ -202,7 +202,7 @@ public final class ExecutableYtdlpParser implements YtdlpParser {
     return command.toArray(new String[0]);
   }
 
-  private static String firstLine(final String output) {
+  private String firstLine(final String output) {
     final String trimmed = output.strip();
     final int newline = trimmed.indexOf(LINE_SEPARATOR);
     if (newline < 0) {
