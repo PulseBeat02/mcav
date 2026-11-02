@@ -87,7 +87,8 @@ final class VmSoundTest {
     final ExecutableFinder finder = new ExecutableFinder();
     final String command = VmPlayer.Architecture.X86_64.getCommand();
     final Optional<Path> qemu = finder.find(command);
-    assumeTrue(qemu.isPresent(), "QEMU for x86-64 is not installed!");
+    final boolean qemuIsPresent = qemu.isPresent();
+    assumeTrue(qemuIsPresent, "QEMU for x86-64 is not installed!");
   }
 
   private Path bootSector(final String name) throws IOException {
