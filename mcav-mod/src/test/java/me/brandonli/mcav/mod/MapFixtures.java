@@ -45,7 +45,8 @@ final class MapFixtures {
   private static final int CHECKSUM = 15;
 
   private MapFixtures() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   // the symbols, and symbol 0 after them

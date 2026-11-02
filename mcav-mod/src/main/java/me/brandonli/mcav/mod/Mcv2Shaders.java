@@ -61,7 +61,8 @@ public final class Mcv2Shaders {
   static final Identifier OUTLINE_CHAIN = Identifier.withDefaultNamespace("entity_outline");
 
   private Mcv2Shaders() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**

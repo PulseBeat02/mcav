@@ -94,7 +94,8 @@ final class TransportStrip {
   private static final int NORTH = 3;
 
   private TransportStrip() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   // the first anchor of each screen describes it; matrices are column-major

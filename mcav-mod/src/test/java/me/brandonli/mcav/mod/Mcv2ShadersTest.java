@@ -35,6 +35,7 @@ import com.mojang.renderpearl.api.commands.CommandEncoder;
 import com.mojang.renderpearl.api.device.GpuDevice;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
@@ -224,11 +225,14 @@ final class Mcv2ShadersTest {
 
   @Test
   void shouldFindNoLayoutWhenItCannotBeRead() {
-    final Resource unreadable = new Resource(null, () -> {
-      throw new IOException("The resource is gone!");
-    });
+    final Resource unreadable = new Resource(null, this::failToOpen);
     final Optional<String> layout = Mcv2Shaders.read(unreadable);
     assertEquals(Optional.empty(), layout);
+  }
+
+  private InputStream failToOpen() throws IOException {
+    final String message = "The resource is gone!";
+    throw new IOException(message);
   }
 
   @Test
