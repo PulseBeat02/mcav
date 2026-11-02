@@ -28,8 +28,7 @@
  * The installer closes each resolver session and its copy executor, while the caller keeps ownership of the
  * class loader. Successful injection lasts for that loader's lifetime and has no uninstall operation.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */
