@@ -61,7 +61,8 @@ public final class MapPaletteLoader {
   private static final int[] COLORS = loadColors(PALETTE_RESOURCE);
 
   private MapPaletteLoader() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   @VisibleForTesting
@@ -84,11 +85,13 @@ public final class MapPaletteLoader {
       components = gson.fromJson(reader, type);
     } catch (final JsonSyntaxException | IllegalArgumentException exception) {
       // Gson reads an empty element of an int array as a null and reports it with an IllegalArgumentException
-      throw new PaletteLoadingException("Map palette resource is malformed!", exception);
+      final String message = "Map palette resource is malformed!";
+      throw new PaletteLoadingException(message, exception);
     }
 
     if (components == null || components.length == 0) {
-      throw new PaletteLoadingException("Map palette resource is empty!");
+      final String message = "Map palette resource is empty!";
+      throw new PaletteLoadingException(message);
     }
 
     final int[] colors = new int[components.length];

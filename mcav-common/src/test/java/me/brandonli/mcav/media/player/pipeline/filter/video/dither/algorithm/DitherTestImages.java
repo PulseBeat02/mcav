@@ -32,7 +32,8 @@ public final class DitherTestImages {
   private static final int WHITE_INDEX = 1;
 
   private DitherTestImages() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   public static int[] gradient(final int width, final int height) {

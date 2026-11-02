@@ -48,7 +48,8 @@ public final class DitherUtils {
   private static final String PALETTE_NULL_MESSAGE = "Palette must not be null!";
 
   private DitherUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**

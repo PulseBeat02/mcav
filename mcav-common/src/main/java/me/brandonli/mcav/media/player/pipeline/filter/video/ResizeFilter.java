@@ -114,6 +114,7 @@ public class ResizeFilter extends MatVideoFilter {
    */
   @Override
   protected boolean modifyMat(final Mat matrix) {
-    throw new UnsupportedOperationException("Resizing cannot be done in place!");
+    final String message = "Resizing cannot be done in place!";
+    throw new UnsupportedOperationException(message);
   }
 }

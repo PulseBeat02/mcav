@@ -68,6 +68,7 @@ public class TransposeFilter extends MatVideoFilter {
    */
   @Override
   protected boolean modifyMat(final Mat matrix) {
-    throw new UnsupportedOperationException("Transposing cannot be done in place!");
+    final String message = "Transposing cannot be done in place!";
+    throw new UnsupportedOperationException(message);
   }
 }

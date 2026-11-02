@@ -110,6 +110,7 @@ public class CropFilter extends MatVideoFilter {
    */
   @Override
   protected boolean modifyMat(final Mat matrix) {
-    throw new UnsupportedOperationException("Cropping cannot be done in place!");
+    final String message = "Cropping cannot be done in place!";
+    throw new UnsupportedOperationException(message);
   }
 }

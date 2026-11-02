@@ -80,7 +80,8 @@ public class RotationFilter extends MatVideoFilter {
    */
   @Override
   protected boolean modifyMat(final Mat matrix) {
-    throw new UnsupportedOperationException("Rotation cannot be done in place!");
+    final String message = "Rotation cannot be done in place!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**
