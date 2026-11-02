@@ -44,6 +44,7 @@ another thread instead.
   final int port = 8080;
   final HttpResult http = HttpResult.http(domain, port);
   http.start();
+
   final MediaInformation information = MediaInformation.titled("My Video");
   http.setCurrentMedia(information);
 
@@ -51,6 +52,7 @@ another thread instead.
   final VideoPlayerMultiplexer multiplexer = VideoPlayer.ffmpeg();
   final AudioAttachableCallback audioCallback = multiplexer.getAudioAttachableCallback();
   audioCallback.attach(audioPipelineStep);
+
   final String fileName = "video.mp4";
   final Path path = Path.of(fileName);
   final FileSource source = FileSource.path(path);

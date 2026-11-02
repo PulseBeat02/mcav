@@ -75,9 +75,9 @@ Call `start()` before attaching the filter and `release()` when playback ends; t
   final float hearingDistance = 48.0f;
   final SvcFilter voiceChat = SvcFilter.withDistance(hearingDistance, (Object[]) speakers);
   voiceChat.start();
-  final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(voiceChat);
 
   final VideoPlayerMultiplexer multiplexer = VideoPlayer.ffmpeg();
+  final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(voiceChat);
   final AudioAttachableCallback audioCallback = multiplexer.getAudioAttachableCallback();
   audioCallback.attach(audioPipelineStep);
 

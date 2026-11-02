@@ -136,6 +136,7 @@ example, a Minecraft plugin installs the Bukkit module and hands it the plugin i
 ```java
   final MCAVApi api = MCAV.api();
   api.install(BukkitModule.class);
+
   final BukkitModule bukkit = api.getModule(BukkitModule.class);
   bukkit.inject(plugin);
 ```

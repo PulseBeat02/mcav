@@ -46,6 +46,7 @@ Pass the class to `install` and look the instance up with `getModule`:
 ```java
   final MCAVApi api = MCAV.api();
   api.install(ExampleModule.class);
+
   final ExampleModule exampleModule = api.getModule(ExampleModule.class);
 ```
 

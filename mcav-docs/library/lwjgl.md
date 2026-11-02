@@ -27,6 +27,7 @@ well, so call the method below there, with the OpenGL context current.
 
     while (keepRendering.getAsBoolean()) {
       texture.upload();
+
       final int textureId = texture.getTextureId();
       GL11.glBindTexture(GL11.GL_TEXTURE_2D, textureId);
       // draw a textured quad of texture.getWidth() by texture.getHeight() pixels

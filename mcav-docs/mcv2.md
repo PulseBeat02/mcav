@@ -1389,12 +1389,13 @@ import me.brandonli.mcav.bukkit.resourcepack.provider.PackHosting;
 
   public Mcv2PackServer setUpMcv2(final Path dataFolder) {
     final int defaultThreads = 0;
-    final String nativesName = "natives";
-    final String packName = "mcv2-pack";
     Mcv2.Pool.setSharedThreads(defaultThreads);
+
+    final String nativesName = "natives";
     final Path nativesFolder = dataFolder.resolve(nativesName);
     Mcv2.installNatives(nativesFolder, Mcv2.NATIVE_AUTO);
 
+    final String packName = "mcv2-pack";
     final Path packFolder = dataFolder.resolve(packName);
     final Mcv2Pack.DebugView debugView = Mcv2Pack.DebugView.HIDDEN;
     final Mcv2PackServer packs = new Mcv2PackServer(
@@ -1479,6 +1480,7 @@ import org.bukkit.entity.ItemFrame;
     final Mcv2Result result = new Mcv2Result(configuration, packViewers, fallback);
     try {
       result.start();
+
       final VideoPipelineStep pipeline = VideoPipelineStep.of(result);
       final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
       videoCallback.attach(pipeline);

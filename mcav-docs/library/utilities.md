@@ -55,6 +55,7 @@ it, which checks the downmix without a Minecraft server:
     final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
     final AudioAttachableCallback audio = player.getAudioAttachableCallback();
     audio.attach(pipeline);
+
     final String fileName = "video.mp4";
     final Path path = Path.of(fileName);
     final FileSource source = FileSource.path(path);
@@ -145,15 +146,18 @@ through the speakers of your computer, so you can hear the result:
     final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
     final AudioAttachableCallback audio = player.getAudioAttachableCallback();
     audio.attach(pipeline);
+
     final String fileName = "video.mp4";
     final Path path = Path.of(fileName);
     final FileSource source = FileSource.path(path);
     player.start(source);
-    // ... once playback has ended
 
+    // ... once playback has ended
     player.release();
+
     final byte[] remaining = resampler.flush();
     line.write(remaining, 0, remaining.length);
+
     resampler.close();
     line.drain();
     line.close();

@@ -47,6 +47,7 @@ Players download resource packs from a URL. `PackHosting` offers three ways to p
 
     final String url = hosting.getRawUrl();
     LOGGER.info("The resource pack is hosted at {}.", url);
+
     return hosting;
   }
 ```

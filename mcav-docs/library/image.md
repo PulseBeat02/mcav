@@ -15,8 +15,10 @@ otherwise the memory is only freed when the garbage collector finds the object.
       final int thumbnailSize = 200;
       final ResizeFilter resize = new ResizeFilter(thumbnailSize, thumbnailSize);
       resize.applyFilter(image);
+
       final InvertFilter invert = new InvertFilter();
       invert.applyFilter(image);
+
       final BufferedImage thumbnail = image.toBufferedImage();
       return thumbnail;
     }
@@ -60,6 +62,7 @@ with `updateArgb(int[], width, height)`:
       final int[] editable = image.copyPixels();
       final int opaqueRed = 0xFFFF0000;
       editable[0] = opaqueRed;
+
       final int width = image.getWidth();
       final int height = image.getHeight();
       image.updateArgb(editable, width, height);

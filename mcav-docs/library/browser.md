@@ -100,6 +100,7 @@ be shown.
     callback.attach(videoPipelineStep);
 
     browser.start(source);
+
     final int clickX = 640;
     final int clickY = 360;
     final String enterKey = "Enter";

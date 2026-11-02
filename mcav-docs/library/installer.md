@@ -39,6 +39,7 @@ server:
   final URLClassLoader loader = new URLClassLoader(new URL[0], parent);
   final MCAVInstaller installer = MCAVInstaller.injector(folder, loader);
   installer.loadMCAVDependencies(Artifact.COMMON);
+
   final String apiClassName = "me.brandonli.mcav.MCAV";
   final Class<?> api = Class.forName(apiClassName, false, loader);
 ```

@@ -49,11 +49,14 @@ window. `speakers.start()` throws a `PlayerException` on a machine without a sou
     final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
     try {
       speakers.start();
-      final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(speakers);
+
       final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
       videoCallback.attach(videoPipelineStep);
+
+      final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(speakers);
       final AudioAttachableCallback audioCallback = player.getAudioAttachableCallback();
       audioCallback.attach(audioPipelineStep);
+
       final DimensionAttachableCallback dimensionCallback = player.getDimensionAttachableCallback();
       final int width = 640;
       final int height = 360;
@@ -100,6 +103,7 @@ every player and every audio output behind it.
     if (player instanceof final AbstractVideoPlayerCv decoded) {
       final long position = decoded.getPositionMilliseconds();
       LOGGER.debug("Speeding up at {} milliseconds.", position);
+
       final double speed = 1.5;
       return decoded.setSpeed(speed);
     }

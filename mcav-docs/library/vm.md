@@ -20,6 +20,7 @@ dependencies {
 ```java
   final MCAVApi api = MCAV.api();
   api.install(VncModule.class, VmModule.class);
+
   final VmModule vmModule = api.getModule(VmModule.class);
   final boolean qemuAvailable = vmModule.isQemuAvailable();
   if (!qemuAvailable) {
@@ -60,6 +61,7 @@ QEMU whose JVM is gone and logs it; a QEMU of another JVM that still runs is lef
     videoCallback.attach(pipeline);
 
     player.start(settings, VmPlayer.Architecture.X86_64, configuration);
+
     final int clickX = 512;
     final int clickY = 384;
     final String returnKey = "Return";

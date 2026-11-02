@@ -89,6 +89,7 @@ public final class YouTubeExample {
     final JFrame frame = new JFrame("Video Player");
     frame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
     frame.setSize(WINDOW_WIDTH, WINDOW_HEIGHT);
+
     final JLabel label = new JLabel();
     final BorderLayout layout = new BorderLayout();
     frame.setLayout(layout);
