@@ -663,7 +663,8 @@ final class AbstractVideoCommandTest {
   private @Nullable Object cancelOnSecondCheck(final AtomicInteger checks, final AtomicBoolean cancelled) {
     if (checks.incrementAndGet() == 2) {
       cancelled.set(true);
-      throw new CancellationException("released during resolution!");
+      final String message = "released during resolution!";
+      throw new CancellationException(message);
     }
 
     return null;

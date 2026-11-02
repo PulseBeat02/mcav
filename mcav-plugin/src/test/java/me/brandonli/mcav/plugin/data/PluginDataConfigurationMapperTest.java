@@ -661,7 +661,7 @@ final class PluginDataConfigurationMapperTest {
     final PluginException exception = assertThrows(PluginException.class, this.mapper::deserialize);
 
     final String message = exception.getMessage();
-    final boolean mentionsFile = message.startsWith("File " + file + " could not be read (");
+    final boolean mentionsFile = message.endsWith("\", file %s could not be read!".formatted(file));
     assertTrue(mentionsFile, message);
 
     final Throwable cause = exception.getCause();
@@ -675,7 +675,7 @@ final class PluginDataConfigurationMapperTest {
 
     final Path file = this.folder.resolve(CONFIGURATION_FILE_NAME);
     final String message = exception.getMessage();
-    final boolean mentionsFile = message.startsWith("File " + file + " is not valid YAML (");
+    final boolean mentionsFile = message.endsWith("\", file %s is not valid YAML!".formatted(file));
     assertTrue(mentionsFile, message);
 
     final Throwable cause = exception.getCause();

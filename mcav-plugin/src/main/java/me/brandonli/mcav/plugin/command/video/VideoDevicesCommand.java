@@ -47,8 +47,6 @@ public final class VideoDevicesCommand implements AnnotationCommandFeature {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(VideoDevicesCommand.class);
 
-  private static final String LIST_ERROR = "Failed to list the capture devices.";
-
   private static final String LABEL_SEPARATOR = ": ";
 
   private static final String NAME_SEPARATOR = ", ";
@@ -94,15 +92,18 @@ public final class VideoDevicesCommand implements AnnotationCommandFeature {
 
   private void report(final CommandSender sender, final @Nullable List<CaptureDevices.Device> devices, final @Nullable Throwable error) {
     if (error != null) {
-      LOGGER.error(LIST_ERROR, error);
+      LOGGER.error("Failed to list the capture devices.", error);
     }
     final List<CaptureDevices.Device> listed = devices == null ? List.of() : devices;
     this.manager.setDevices(listed);
-    final String names = listed
-      .stream()
-      .map(device -> device.getIndex() + LABEL_SEPARATOR + device.getName())
-      .collect(Collectors.joining(NAME_SEPARATOR));
+    final String names = listed.stream().map(this::describeDevice).collect(Collectors.joining(NAME_SEPARATOR));
     final Component message = listed.isEmpty() ? Message.DEVICE_NONE.build() : Message.DEVICE_LIST.build(names);
     TaskUtils.runOnMainThread(this.plugin, () -> sender.sendMessage(message));
+  }
+
+  private String describeDevice(final CaptureDevices.Device device) {
+    final int index = device.getIndex();
+    final String name = device.getName();
+    return "%s%s%s".formatted(index, LABEL_SEPARATOR, name);
   }
 }

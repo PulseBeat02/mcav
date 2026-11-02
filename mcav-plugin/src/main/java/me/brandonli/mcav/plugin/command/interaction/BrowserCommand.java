@@ -73,6 +73,9 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
  */
 public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlayer> {
 
+  private static final String BROWSER_NULL_MESSAGE = "Browser must not be null!";
+  private static final String SENDER_NULL_MESSAGE = "Sender must not be null!";
+
   private static final String INTERACT_PERMISSION = "mcav.browser.interact";
 
   private static final Set<String> WEB_SCHEMES = Set.of("http", "https");
@@ -97,7 +100,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    */
   @Override
   protected void forwardLeftClick(final BrowserPlayer current, final int screenX, final int screenY) {
-    Preconditions.checkNotNull(current, "Browser must not be null!");
+    Preconditions.checkNotNull(current, BROWSER_NULL_MESSAGE);
 
     current.sendMouseEvent(MouseClick.LEFT, screenX, screenY);
   }
@@ -112,7 +115,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    */
   @Override
   protected void forwardRightClick(final BrowserPlayer current, final int screenX, final int screenY) {
-    Preconditions.checkNotNull(current, "Browser must not be null!");
+    Preconditions.checkNotNull(current, BROWSER_NULL_MESSAGE);
 
     current.sendMouseEvent(MouseClick.RIGHT, screenX, screenY);
   }
@@ -126,7 +129,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    */
   @Override
   protected void forwardTextInput(final BrowserPlayer current, final String text) {
-    Preconditions.checkNotNull(current, "Browser must not be null!");
+    Preconditions.checkNotNull(current, BROWSER_NULL_MESSAGE);
     Preconditions.checkNotNull(text, "Text must not be null!");
 
     current.sendKeyEvent(text);
@@ -140,7 +143,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    */
   @Override
   protected void releasePlayer(final BrowserPlayer current) {
-    Preconditions.checkNotNull(current, "Browser must not be null!");
+    Preconditions.checkNotNull(current, BROWSER_NULL_MESSAGE);
 
     // the browser helper takes seconds to stop and its session folder to be deleted; no frame or sound of it meanwhile
     CleanupUtils.runAll(
@@ -169,7 +172,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
   @Permission(INTERACT_PERMISSION)
   @CommandDescription("mcav.command.browser.interact.info")
   public void toggleInteraction(final Player sender) {
-    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
 
     final Component enabled = Message.INTERACT_ENABLE.build();
     final Component disabled = Message.INTERACT_DISABLE.build();
@@ -190,7 +193,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
   @Permission("mcav.browser.release")
   @CommandDescription("mcav.command.browser.release.info")
   public void releaseBrowser(final CommandSender sender) {
-    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
 
     final Component released = Message.RELEASE_BROWSER.build();
     this.releaseResource(sender, released);
@@ -352,7 +355,8 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     final ExecutorService executor = this.startExecutor(browser, screen);
     final CompletableFuture<Boolean> start = browser.startAsync(source, executor);
     final URI uri = source.getUri();
-    this.reportStartWhenDone(sender, browser, screen, start, "the browser for " + uri);
+    final String description = "the browser for %s".formatted(uri);
+    this.reportStartWhenDone(sender, browser, screen, start, description);
     this.sendSoundLinkWhenStarted(start, screen, sound);
   }
 

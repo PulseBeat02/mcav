@@ -38,6 +38,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public final class VncAllowList {
 
+  private static final int MINIMUM_PORT = 1;
   private static final int MAXIMUM_PORT = 65_535;
   private static final int MAXIMUM_PORT_DIGITS = 5;
 
@@ -78,8 +79,6 @@ public final class VncAllowList {
   }
 
   static @Nullable Target parse(final String text) {
-    Preconditions.checkNotNull(text, "Text must not be null!");
-
     final int colon = text.lastIndexOf(PORT_SEPARATOR);
     if (colon <= 0 || colon == text.length() - 1) {
       return null;
@@ -223,7 +222,13 @@ public final class VncAllowList {
       final boolean bracketed = host.startsWith(OPENING_BRACKET) && host.endsWith(CLOSING_BRACKET);
       final String strippedHost = bracketed ? host.substring(1, host.length() - 1) : host;
       Preconditions.checkArgument(!strippedHost.isBlank(), "Host must not be blank!");
-      Preconditions.checkArgument(port >= 1 && port <= MAXIMUM_PORT, "Port must be from 1 to 65535!");
+      Preconditions.checkArgument(
+        port >= MINIMUM_PORT && port <= MAXIMUM_PORT,
+        "Port %s must be between %s and %s inclusive!",
+        port,
+        MINIMUM_PORT,
+        MAXIMUM_PORT
+      );
 
       return new Entry(strippedHost, port, password);
     }

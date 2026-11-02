@@ -117,7 +117,7 @@ final class ArgumentUtilsTest {
     );
 
     final String message = exception.getMessage();
-    assertEquals("Wall " + text + " may be at most 64 maps on each side!", message);
+    assertEquals("Wall %s must be at most 64 maps on each side!".formatted(text), message);
   }
 
   @ParameterizedTest

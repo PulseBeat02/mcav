@@ -211,7 +211,7 @@ it. Measured with a vanilla client drawing in software and a browser playing int
 left the device 0.1 to 0.15 s after the wall showed the same moment.
 
 The Discord bot and the web page start in the background, so they never delay the server start. The console reports
-when each output is ready: `The audio web page is available at <link>.` for the web page and
+when each output is ready: `Audio web page <link> is available.` for the web page and
 `Simple Voice Chat audio is ready.` for Simple Voice Chat. If the Discord bot or the web page cannot start, the plugin
 logs an error and that output stays off without affecting the rest of the plugin; until an output is ready, video
 commands that use it tell the player so.

@@ -262,7 +262,8 @@ final class AbstractInteractiveCommandTest {
   }
 
   private void throwReleaseFailure() {
-    throw new IllegalStateException("release broke!");
+    final String message = "release broke!";
+    throw new IllegalStateException(message);
   }
 
   @Test
@@ -1726,7 +1727,8 @@ final class AbstractInteractiveCommandTest {
   }
 
   private void throwResourceFailure() {
-    throw new IllegalStateException("resource failure!");
+    final String message = "resource failure!";
+    throw new IllegalStateException(message);
   }
 
   @Test
@@ -1767,7 +1769,8 @@ final class AbstractInteractiveCommandTest {
   private void cancelAndFailStartupTask(final Screen screen, final OutOfMemoryError fatal) {
     screen.cancel();
     this.command.releaseFailure = fatal;
-    throw new IllegalStateException("startup task failed!");
+    final String message = "startup task failed!";
+    throw new IllegalStateException(message);
   }
 
   @Test
@@ -1782,7 +1785,7 @@ final class AbstractInteractiveCommandTest {
       final ByteBuffer expected = ByteBuffer.wrap(pixels);
       final ByteBuffer data = frame.getData();
       assertEquals(expected, data);
-      assertEquals(List.of("Maps 4 to 9 show their first picture"), messages, "at the first picture");
+      assertEquals(List.of("Maps 4 to 9 show their first picture."), messages, "at the first picture");
 
       final boolean announcementFiltered = announcement.applyFilter(frame, OriginalVideoMetadata.EMPTY);
       assertFalse(announcementFiltered);
@@ -1797,7 +1800,7 @@ final class AbstractInteractiveCommandTest {
       final ByteBuffer secondExpected = ByteBuffer.wrap(pixels);
       final ByteBuffer secondData = frame.getData();
       assertEquals(secondExpected, secondData);
-      assertEquals(List.of("Maps 4 to 9 show their first picture"), messages, "and never again");
+      assertEquals(List.of("Maps 4 to 9 show their first picture."), messages, "and never again");
     }
   }
 

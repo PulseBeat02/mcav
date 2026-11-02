@@ -142,7 +142,8 @@ final class BenchmarkServer implements AutoCloseable {
     while (this.subscriptions <= before) {
       final long remaining = TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime());
       if (remaining <= 0) {
-        throw new IllegalStateException("The page never subscribed to the events!");
+        final String message = "The page never subscribed to the events!";
+        throw new IllegalStateException(message);
       }
       this.wait(remaining);
     }

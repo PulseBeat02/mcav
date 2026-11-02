@@ -71,7 +71,8 @@ public final class CaptureDevices {
   private static final String NAME_FILE = "name";
 
   private CaptureDevices() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**
@@ -130,7 +131,7 @@ public final class CaptureDevices {
   }
 
   static List<Device> probe(final int count, final IntPredicate opens) {
-    Preconditions.checkArgument(count >= 0, "Count must not be negative!");
+    Preconditions.checkArgument(count >= 0, "Count %s must not be negative!", count);
 
     final List<Device> devices = new ArrayList<>();
     for (int index = 0; index < count; index++) {

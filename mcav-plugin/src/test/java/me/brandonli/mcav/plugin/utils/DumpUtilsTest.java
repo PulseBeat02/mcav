@@ -194,10 +194,13 @@ final class DumpUtilsTest {
     final PluginException exception = assertThrows(PluginException.class, () -> DumpUtils.createAndUploadDump(this.client, site, log));
 
     final String message = exception.getMessage();
-    assertEquals("The dump could not be uploaded (The paste site answered with HTTP status 500, which is not a success!)!", message);
+    assertEquals("The dump could not be uploaded!", message);
 
     final Throwable cause = exception.getCause();
-    assertInstanceOf(IOException.class, cause);
+    final IOException ioException = assertInstanceOf(IOException.class, cause);
+
+    final String causeMessage = ioException.getMessage();
+    assertEquals("The paste site answered with HTTP status 500, which is not a success!", causeMessage);
   }
 
   @ParameterizedTest
@@ -231,8 +234,10 @@ final class DumpUtilsTest {
     final PluginException exception = assertThrows(PluginException.class, () -> DumpUtils.createAndUploadDump(this.client, site, log));
 
     final String message = exception.getMessage();
-    final boolean upload = message.startsWith("The dump could not be uploaded (");
-    assertTrue(upload, message);
+    assertEquals("The dump could not be uploaded!", message);
+
+    final Throwable cause = exception.getCause();
+    assertInstanceOf(IOException.class, cause);
   }
 
   @Test

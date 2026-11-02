@@ -45,6 +45,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public final class ImageManager {
 
+  private static final String PLUGIN_NULL_MESSAGE = "Plugin must not be null!";
+
   private @Nullable ImagePlayer player;
   private @Nullable DisplayableImage image;
   private @Nullable Image currentImage;
@@ -63,7 +65,7 @@ public final class ImageManager {
    * @since 1.0.0
    */
   public ImageManager(final MCAVSandbox plugin) {
-    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
+    Preconditions.checkNotNull(plugin, PLUGIN_NULL_MESSAGE);
 
     this.plugin = plugin;
     this.service = Executors.newSingleThreadExecutor();
@@ -71,7 +73,7 @@ public final class ImageManager {
   }
 
   ImageManager(final MCAVSandbox plugin, final ExecutorService service) {
-    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
+    Preconditions.checkNotNull(plugin, PLUGIN_NULL_MESSAGE);
     Preconditions.checkNotNull(service, "Executor must not be null!");
 
     this.plugin = plugin;
@@ -100,7 +102,8 @@ public final class ImageManager {
     final long generation;
     synchronized (this.loadingLock) {
       if (this.closed) {
-        throw new RejectedExecutionException("The image manager is shut down!");
+        final String message = "The image manager is shut down!";
+        throw new RejectedExecutionException(message);
       }
 
       generation = ++this.loadGeneration;

@@ -95,8 +95,7 @@ public final class TranslationManager {
         return LayeredBundle.of(reader, bundled);
       }
     } catch (final IOException exception) {
-      final String reason = exception.getMessage();
-      final String message = "Messages could not be loaded from %s (%s)!".formatted(file, reason);
+      final String message = "Messages could not be loaded from %s!".formatted(file);
       throw new PluginException(message, exception);
     }
   }

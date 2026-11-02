@@ -179,7 +179,8 @@ final class QemuHardwareValues {
   private static final int NAME_AND_VALUE_PARTS = 2;
 
   private QemuHardwareValues() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   static void check(final String name, final String value) {

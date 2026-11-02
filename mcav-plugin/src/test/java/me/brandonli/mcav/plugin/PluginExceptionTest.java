@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Test;
 
 final class PluginExceptionTest {
 
-  private static final String MESSAGE = "The dump could not be uploaded (Connection refused)!";
+  private static final String MESSAGE = "The dump could not be uploaded!";
 
   @Test
   void shouldKeepTheMessage() {

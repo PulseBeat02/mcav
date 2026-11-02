@@ -78,7 +78,8 @@ final class DumpCommandTest {
 
   private String failUpload(final CountDownLatch attempted) {
     attempted.countDown();
-    throw new IllegalStateException("offline!");
+    final String message = "offline!";
+    throw new IllegalStateException(message);
   }
 
   @Test

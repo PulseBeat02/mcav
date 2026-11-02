@@ -61,6 +61,8 @@ import xyz.jpenilla.gremlin.runtime.DependencySet;
 // libraries come from a prepared cache, so nothing is downloaded
 final class MCAVLoaderTest {
 
+  private static final String JAR_REPLACED_MESSAGE = "the jar was replaced while the server started!";
+
   private static final String LIBRARY_COORDINATE = "com.example:library:1.0@jar";
   private static final String LIBRARY_JAR_PATH = "com/example/library/1.0/library-1.0.jar";
   private static final String STALE_LIBRARY_JAR_PATH = "com/example/library/0.9/library-0.9.jar";
@@ -210,7 +212,7 @@ final class MCAVLoaderTest {
 
     final String message = refused.getMessage();
     final String expected =
-      "The mcav modules the server downloaded are older than this plugin, which uses classes they lack (1), such as me.brandonli.mcav.bukkit.media.mcv2.Mcv2Result. Publish the modules of the plugin's own version, or set -Pmcav.e2e=true when you build the plugin!";
+      "The MCAV modules the server downloaded are older than this plugin, which uses classes they lack (1), such as me.brandonli.mcav.bukkit.media.mcv2.Mcv2Result. Publish the modules of the plugin's own version, or set -Pmcav.e2e=true when you build the plugin!";
     assertEquals(expected, message);
   }
 
@@ -292,12 +294,12 @@ final class MCAVLoaderTest {
         return new InputStream() {
           @Override
           public int read() throws IOException {
-            throw new IOException("the jar was replaced while the server started!");
+            throw new IOException(JAR_REPLACED_MESSAGE);
           }
 
           @Override
           public int read(final byte[] buffer, final int offset, final int length) throws IOException {
-            throw new IOException("the jar was replaced while the server started!");
+            throw new IOException(JAR_REPLACED_MESSAGE);
           }
         };
       }

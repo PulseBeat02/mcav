@@ -34,9 +34,6 @@ final class SoundListener implements WebSocket.Listener, AutoCloseable {
 
   private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(30);
 
-  private static final String URL_PREFIX = "ws://127.0.0.1:";
-  private static final String AUDIO_PATH = "/audio";
-
   private static final int POLL_INTERVAL_MILLISECONDS = 100;
 
   private static final double CROSSINGS_PER_CYCLE = 2.0;
@@ -52,7 +49,9 @@ final class SoundListener implements WebSocket.Listener, AutoCloseable {
   }
 
   static SoundListener connect(final int port) {
-    return new SoundListener(HttpClient.newHttpClient(), URI.create(URL_PREFIX + port + AUDIO_PATH));
+    final HttpClient client = HttpClient.newHttpClient();
+    final URI uri = URI.create("ws://127.0.0.1:%s/audio".formatted(port));
+    return new SoundListener(client, uri);
   }
 
   @Override

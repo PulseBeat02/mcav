@@ -107,14 +107,7 @@ public final class PluginDataConfigurationMapper {
 
   private static final int MAXIMUM_PORT = 65535;
 
-  private static final String INVALID_PORT = "Invalid {} {}, using {} instead.";
-
-  private static final String INVALID_REFUSED_HOST = "Ignoring the entry {} of {}, which is not a host name or address.";
-  private static final String INVALID_THREADS = "Invalid {} {}, using half the processors.";
-
-  private static final String INVALID_NATIVE = "Invalid {} {}, using " + Mcv2.NATIVE_AUTO + " instead.";
-
-  private static final String INVALID_CHOICE = "Invalid {} {}, using {} instead.";
+  private static final String INVALID_SETTING = "Invalid {} {}, using {} instead.";
 
   // names the host and the port of the entry, never its password
   private static final String INVALID_VNC_HOST = "Ignoring the entry {}:{} of {}, which is not a host and a port from 1 to 65535.";
@@ -234,11 +227,11 @@ public final class PluginDataConfigurationMapper {
       return configuration;
     } catch (final IOException exception) {
       final String reason = exception.getMessage();
-      final String message = "File %s could not be read (%s)!".formatted(file, reason);
+      final String message = "Because of \"%s\", file %s could not be read!".formatted(reason, file);
       throw new PluginException(message, exception);
     } catch (final InvalidConfigurationException exception) {
       final String reason = exception.getMessage();
-      final String message = "File %s is not valid YAML (%s)!".formatted(file, reason);
+      final String message = "Because of \"%s\", file %s is not valid YAML!".formatted(reason, file);
       throw new PluginException(message, exception);
     }
   }
@@ -254,7 +247,7 @@ public final class PluginDataConfigurationMapper {
     // a fraction down to a whole number
     final Object value = configuration.get(key, fallback);
     if (!(value instanceof final Integer port) || port < 1 || port > MAXIMUM_PORT) {
-      LOGGER.warn(INVALID_PORT, key, value, fallback);
+      LOGGER.warn(INVALID_SETTING, key, value, fallback);
       return fallback;
     }
 
@@ -273,7 +266,7 @@ public final class PluginDataConfigurationMapper {
         return constant;
       }
     }
-    LOGGER.warn(INVALID_CHOICE, key, value, fallback);
+    LOGGER.warn(INVALID_SETTING, key, value, fallback);
 
     return fallback;
   }
@@ -283,7 +276,7 @@ public final class PluginDataConfigurationMapper {
     for (final String entry : configuration.getStringList(BROWSER_REFUSED_HOSTS)) {
       final String host = entry.strip();
       if (host.isEmpty() || host.chars().anyMatch(character -> character == HOST_SEPARATOR || Character.isWhitespace(character))) {
-        LOGGER.warn(INVALID_REFUSED_HOST, entry, BROWSER_REFUSED_HOSTS);
+        LOGGER.warn("Ignoring the entry {} of {}, which is not a host name or address.", entry, BROWSER_REFUSED_HOSTS);
       } else {
         hosts.add(host);
       }
@@ -295,7 +288,7 @@ public final class PluginDataConfigurationMapper {
     // only a YAML int is taken, as for a port
     final Object value = configuration.get(MCV2_ENCODER_THREADS, 0);
     if (!(value instanceof final Integer threads) || threads < 0 || threads > Pool.MAXIMUM_THREADS) {
-      LOGGER.warn(INVALID_THREADS, MCV2_ENCODER_THREADS, value);
+      LOGGER.warn("Invalid {} {}, using half the processors.", MCV2_ENCODER_THREADS, value);
       return 0;
     }
 
@@ -310,7 +303,7 @@ public final class PluginDataConfigurationMapper {
 
     final String mode = this.getString(configuration, MCV2_NATIVE, Mcv2.NATIVE_AUTO);
     if (!mode.equals(Mcv2.NATIVE_AUTO) && !mode.equals(Mcv2.NATIVE_OFF)) {
-      LOGGER.warn(INVALID_NATIVE, MCV2_NATIVE, mode);
+      LOGGER.warn(INVALID_SETTING, MCV2_NATIVE, mode, Mcv2.NATIVE_AUTO);
       return Mcv2.NATIVE_AUTO;
     }
 

@@ -117,12 +117,15 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class AbstractInteractiveCommand<PlayerType> implements AnnotationCommandFeature, Listener {
 
+  private static final String PLUGIN_NULL_MESSAGE = "Plugin must not be null!";
+  private static final String SENDER_NULL_MESSAGE = "Sender must not be null!";
+  private static final String TEXT_NULL_MESSAGE = "Text must not be null!";
+  private static final String EVENT_NULL_MESSAGE = "Event must not be null!";
+
   private static final Equivalence<Object> IDENTITY = Equivalence.identity();
   private static final Logger LOGGER = LoggerFactory.getLogger(AbstractInteractiveCommand.class);
-  private static final String START_FAILED = "Starting {} failed.";
   private static final PlainTextComponentSerializer PLAIN_TEXT = PlainTextComponentSerializer.plainText();
   private static final int REACH = 100;
-  private static final String CANNOT_RELEASE = "A player failed to stop.";
 
   private static final double HALF_BLOCK = 0.5;
 
@@ -171,7 +174,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * @since 1.0.0
    */
   protected AbstractInteractiveCommand(final MCAVSandbox plugin) {
-    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
+    Preconditions.checkNotNull(plugin, PLUGIN_NULL_MESSAGE);
 
     this.plugin = plugin;
     this.service = Executors.newSingleThreadExecutor();
@@ -182,7 +185,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
   }
 
   AbstractInteractiveCommand(final MCAVSandbox plugin, final ExecutorService service) {
-    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
+    Preconditions.checkNotNull(plugin, PLUGIN_NULL_MESSAGE);
     Preconditions.checkNotNull(service, "Executor must not be null!");
 
     this.plugin = plugin;
@@ -286,7 +289,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
       release.run();
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
-      LOGGER.error(CANNOT_RELEASE, exception);
+      LOGGER.error("A player failed to stop.", exception);
     }
   }
 
@@ -345,8 +348,8 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * @since 1.0.0
    */
   protected static Optional<Pair<Integer, Integer>> parseDimensions(final CommandSender sender, final String text) {
-    Preconditions.checkNotNull(sender, "Sender must not be null!");
-    Preconditions.checkNotNull(text, "Text must not be null!");
+    Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
+    Preconditions.checkNotNull(text, TEXT_NULL_MESSAGE);
 
     try {
       final Pair<Integer, Integer> dimensions = ArgumentUtils.parseDimensions(text);
@@ -369,8 +372,8 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * @since 1.0.0
    */
   protected static Optional<Pair<Integer, Integer>> parseScreenDimensions(final CommandSender sender, final String text) {
-    Preconditions.checkNotNull(sender, "Sender must not be null!");
-    Preconditions.checkNotNull(text, "Text must not be null!");
+    Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
+    Preconditions.checkNotNull(text, TEXT_NULL_MESSAGE);
 
     try {
       final Pair<Integer, Integer> dimensions = ArgumentUtils.parseScreenDimensions(text);
@@ -474,7 +477,8 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
 
   static VideoFilter announceFirstPicture(final int mapId, final long mapCount, final Consumer<String> log) {
     final AtomicBoolean announced = new AtomicBoolean();
-    final String message = "Maps " + mapId + " to " + (mapId + mapCount - 1) + " show their first picture";
+    final long lastMapId = mapId + mapCount - 1;
+    final String message = "Maps %s to %s show their first picture.".formatted(mapId, lastMapId);
     return (image, metadata) -> announceOnce(announced, message, log);
   }
 
@@ -592,7 +596,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     final boolean succeeded = error == null && Boolean.TRUE.equals(started);
     if (!succeeded) {
       final String description = attempt.getDescription();
-      LOGGER.error(START_FAILED, description, error);
+      LOGGER.error("Starting {} failed.", description, error);
       final PlayerType failed = attempt.getPlayer();
       final FunctionalVideoFilter maps = attempt.getMaps();
       this.releaseIfCurrent(failed, maps);
@@ -645,7 +649,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    */
   @EventHandler
   public void onBlockBreak(final BlockBreakEvent event) {
-    Preconditions.checkNotNull(event, "Event must not be null!");
+    Preconditions.checkNotNull(event, EVENT_NULL_MESSAGE);
 
     final PlayerType current = this.player;
     if (current == null) {
@@ -752,7 +756,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    */
   @EventHandler
   public void onScreenDamage(final EntityDamageByEntityEvent event) {
-    Preconditions.checkNotNull(event, "Event must not be null!");
+    Preconditions.checkNotNull(event, EVENT_NULL_MESSAGE);
 
     final Entity entity = event.getEntity();
     final boolean isScreen = this.isScreen(entity);
@@ -815,7 +819,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    */
   @EventHandler
   public void onPlayerInteractEntity(final PlayerInteractEntityEvent event) {
-    Preconditions.checkNotNull(event, "Event must not be null!");
+    Preconditions.checkNotNull(event, EVENT_NULL_MESSAGE);
 
     final PlayerType current = this.player;
     final Entity entity = event.getRightClicked();
@@ -854,7 +858,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    */
   @EventHandler
   public void onChatMessage(final AsyncChatEvent event) {
-    Preconditions.checkNotNull(event, "Event must not be null!");
+    Preconditions.checkNotNull(event, EVENT_NULL_MESSAGE);
 
     final Player chatter = event.getPlayer();
     final boolean active = this.activePlayers.contains(chatter);
@@ -887,7 +891,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    */
   @EventHandler
   public void onScreenBreak(final HangingBreakEvent event) {
-    Preconditions.checkNotNull(event, "Event must not be null!");
+    Preconditions.checkNotNull(event, EVENT_NULL_MESSAGE);
 
     final Entity entity = event.getEntity();
     final boolean isScreen = this.isScreen(entity);
@@ -927,7 +931,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * @since 1.0.0
    */
   protected void releaseResource(final CommandSender sender, final Component message) {
-    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
     Preconditions.checkNotNull(message, "Message must not be null!");
 
     this.releaseCurrent();

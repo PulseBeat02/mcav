@@ -71,9 +71,9 @@ public final class ServerLoadListener implements Listener {
     final ServicesManager manager = server.getServicesManager();
     final BukkitVoicechatService voiceChatService = manager.load(BukkitVoicechatService.class);
     if (voiceChatService == null) {
-      throw new PluginException(
-        "Simple Voice Chat audio is enabled, but Simple Voice Chat offers no voice chat service, so voice chat audio is not available!"
-      );
+      final String message =
+        "Simple Voice Chat audio is enabled, but Simple Voice Chat offers no voice chat service, so voice chat audio is not available!";
+      throw new PluginException(message);
     }
 
     final MCAVVoiceChatPlugin plugin = new MCAVVoiceChatPlugin(this.sandbox);

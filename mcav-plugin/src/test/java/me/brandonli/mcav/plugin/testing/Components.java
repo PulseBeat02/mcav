@@ -32,7 +32,8 @@ public final class Components {
   private static final PlainTextComponentSerializer PLAIN_TEXT = PlainTextComponentSerializer.plainText();
 
   private Components() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   public static String plain(final Component component) {

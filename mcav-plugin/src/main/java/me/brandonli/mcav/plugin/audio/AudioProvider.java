@@ -63,20 +63,9 @@ import org.slf4j.LoggerFactory;
  */
 public final class AudioProvider {
 
+  private static final String SOURCE_NULL_MESSAGE = "Source must not be null!";
+
   private static final Logger LOGGER = LoggerFactory.getLogger(AudioProvider.class);
-
-  private static final String WEB_PAGE_FAILED = "The audio web page could not be started, so its audio is not available.";
-
-  private static final String WEB_PAGE_AVAILABLE = "The audio web page is available at {}.";
-
-  private static final String DISCORD_FAILED = "The Discord bot could not connect, so its audio is not available.";
-
-  private static final String HAND_BACK_FAILED = "The audio outputs could not go back to the source that played before.";
-
-  private static final String STARTUP_NOT_STOPPED =
-    "Audio startup did not stop within {} seconds; restart the server before enabling MCAV again.";
-
-  private static final String STARTUP_WAIT_INTERRUPTED = "Interrupted while waiting for audio startup to stop.";
 
   private static final long STARTUP_STOP_TIMEOUT_SECONDS = 10L;
 
@@ -192,7 +181,8 @@ public final class AudioProvider {
     final PluginManager pluginManager = server.getPluginManager();
     final boolean installed = pluginManager.isPluginEnabled(VOICE_CHAT_PLUGIN);
     if (!installed) {
-      throw new MissingVoiceChatException("Simple Voice Chat audio is enabled, but the voicechat plugin is not installed!");
+      final String message = "Simple Voice Chat audio is enabled, but the voicechat plugin is not installed!";
+      throw new MissingVoiceChatException(message);
     }
 
     final ServerLoadListener listener = new ServerLoadListener(this.sandbox);
@@ -209,7 +199,7 @@ public final class AudioProvider {
 
   private void onHttpStarted(final HttpResult server, final @Nullable Throwable error) {
     if (error != null) {
-      LOGGER.error(WEB_PAGE_FAILED, error);
+      LOGGER.error("The audio web page could not be started, so its audio is not available.", error);
       return;
     }
 
@@ -226,7 +216,7 @@ public final class AudioProvider {
     }
 
     final String address = server.getFullUrl();
-    LOGGER.info(WEB_PAGE_AVAILABLE, address);
+    LOGGER.info("Audio web page {} is available.", address);
   }
 
   private void startDiscord() {
@@ -256,7 +246,9 @@ public final class AudioProvider {
     } catch (final InterruptedException exception) {
       final Thread current = Thread.currentThread();
       current.interrupt();
-      throw new PluginException("Interrupted while logging the Discord bot in!", exception);
+
+      final String message = "Interrupted while logging the Discord bot in!";
+      throw new PluginException(message, exception);
     }
     final Guild guild = bot.getGuildById(guildId);
     if (guild == null) {
@@ -289,7 +281,7 @@ public final class AudioProvider {
   }
 
   private void onDiscordFailed(final JDA bot, final Throwable error) {
-    LOGGER.error(DISCORD_FAILED, error);
+    LOGGER.error("The Discord bot could not connect, so its audio is not available.", error);
     final boolean current;
     synchronized (this.lock) {
       // JDA does not override equals, so this asks whether the failed bot is still the very instance in use
@@ -364,7 +356,7 @@ public final class AudioProvider {
     Preconditions.checkNotNull(argument, "Audio argument must not be null!");
     Preconditions.checkNotNull(dump, "Dump must not be null!");
     Preconditions.checkNotNull(players, "Players must not be null!");
-    Preconditions.checkNotNull(source, "Source must not be null!");
+    Preconditions.checkNotNull(source, SOURCE_NULL_MESSAGE);
 
     if (argument == AudioArgument.NONE) {
       return AudioFilter.NO_OP;
@@ -417,7 +409,8 @@ public final class AudioProvider {
   private AudioFilter constructHttpFilter(final UrlParseDump dump) {
     final HttpResult server = this.httpServer;
     if (server == null) {
-      throw new IllegalStateException("The audio web page is not ready!");
+      final String message = "The audio web page is not ready!";
+      throw new IllegalStateException(message);
     }
 
     server.setCurrentMedia(dump);
@@ -427,7 +420,8 @@ public final class AudioProvider {
   private AudioFilter constructDiscordFilter(final UrlParseDump dump) {
     final DiscordConnection connection = this.discord;
     if (connection == null) {
-      throw new IllegalStateException("The Discord bot is not ready!");
+      final String message = "The Discord bot is not ready!";
+      throw new IllegalStateException(message);
     }
 
     final VoiceChannel voiceChannel = connection.getChannel();
@@ -458,7 +452,7 @@ public final class AudioProvider {
    * @since 1.0.0
    */
   public void releaseAudioFilter(final Object source) {
-    Preconditions.checkNotNull(source, "Source must not be null!");
+    Preconditions.checkNotNull(source, SOURCE_NULL_MESSAGE);
 
     synchronized (this.outputLock) {
       this.claims.removeIf(held -> IDENTITY.equivalent(held.source, source));
@@ -479,7 +473,7 @@ public final class AudioProvider {
         this.owner = previous;
       } catch (final RuntimeException exception) {
         this.claims.remove(previous);
-        LOGGER.warn(HAND_BACK_FAILED, exception);
+        LOGGER.warn("The audio outputs could not go back to the source that played before.", exception);
       }
     }
   }
@@ -514,12 +508,15 @@ public final class AudioProvider {
     try {
       final boolean terminated = this.startup.awaitTermination(STARTUP_STOP_TIMEOUT_SECONDS, TimeUnit.SECONDS);
       if (!terminated) {
-        LOGGER.warn(STARTUP_NOT_STOPPED, STARTUP_STOP_TIMEOUT_SECONDS);
+        LOGGER.warn(
+          "Audio startup did not stop within {} seconds; restart the server before enabling MCAV again.",
+          STARTUP_STOP_TIMEOUT_SECONDS
+        );
       }
     } catch (final InterruptedException exception) {
       final Thread current = Thread.currentThread();
       current.interrupt();
-      LOGGER.warn(STARTUP_WAIT_INTERRUPTED);
+      LOGGER.warn("Interrupted while waiting for audio startup to stop.");
     }
   }
 

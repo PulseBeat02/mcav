@@ -100,7 +100,7 @@ mcav video map @a VLC HTTP_SERVER "1920x1080" "15x9" 0 FLOYD_STEINBERG "" "/abso
 
 `HTTP_SERVER` audio needs the audio web page, which is off by default: set `enabled: true` under `http-server` in
 `mcav-plugin/run/plugins/MCAV/config.yml` and restart the server, or the command is refused. At startup the console then
-prints `The audio web page is available at http://localhost:3000/.` (port 3000 unless `http-server.port` says
+prints `Audio web page http://localhost:3000/ is available.` (port 3000 unless `http-server.port` says
 otherwise); open that page in a browser (forward port 3000 the same way) and press play. Listen for audio and compare
 its timing with the video; a successful connection alone does not verify synchronization.
 

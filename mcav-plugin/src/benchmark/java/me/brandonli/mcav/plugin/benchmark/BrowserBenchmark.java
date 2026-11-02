@@ -83,12 +83,14 @@ public final class BrowserBenchmark {
   private static final double NINETIETH_PERCENTILE = 0.9;
 
   private BrowserBenchmark() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   public static void main(final String[] args) throws Exception {
     if (args.length != ARGUMENT_COUNT) {
-      throw new IllegalArgumentException("Usage: BrowserBenchmark <backend> <output file>");
+      final String message = "Usage: BrowserBenchmark <backend> <output file>";
+      throw new IllegalArgumentException(message);
     }
 
     final String backend = args[0];
@@ -222,13 +224,15 @@ public final class BrowserBenchmark {
     throws InterruptedException {
     final boolean started = player.start(source);
     if (!started) {
-      throw new IllegalStateException("The browser did not start!");
+      final String message = "The browser did not start!";
+      throw new IllegalStateException(message);
     }
 
     final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(START_TIMEOUT_MILLISECONDS);
     while (probe.getFrames() == 0) {
       if (System.nanoTime() > deadline) {
-        throw new IllegalStateException("No frame reached the map encoder!");
+        final String message = "No frame reached the map encoder!";
+        throw new IllegalStateException(message);
       }
       Thread.sleep(POLL_INTERVAL_MILLISECONDS);
     }

@@ -114,7 +114,8 @@ public final class MCAVLoader implements PluginLoader {
         .filter(line -> !line.isBlank())
         .toList();
     } catch (final IOException exception) {
-      throw new UncheckedIOException("Cannot read the classes the plugin needs from its modules!", exception);
+      final String message = "Cannot read the classes the plugin needs from its modules!";
+      throw new UncheckedIOException(message, exception);
     }
   }
 
@@ -127,7 +128,7 @@ public final class MCAVLoader implements PluginLoader {
       final List<String> named = missing.subList(0, Math.min(NAMED_MISSING, count));
       final String names = String.join(NAME_SEPARATOR, named);
       final String message =
-        "The mcav modules the server downloaded are older than this plugin, which uses classes they lack (%s), such as %s. Publish the modules of the plugin's own version, or set -Pmcav.e2e=true when you build the plugin!".formatted(
+        "The MCAV modules the server downloaded are older than this plugin, which uses classes they lack (%s), such as %s. Publish the modules of the plugin's own version, or set -Pmcav.e2e=true when you build the plugin!".formatted(
           count,
           names
         );

@@ -61,7 +61,8 @@ final class YtdlpArgumentAssertions {
   );
 
   private YtdlpArgumentAssertions() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   static void assertSafe(final String typed, final String[] arguments) {

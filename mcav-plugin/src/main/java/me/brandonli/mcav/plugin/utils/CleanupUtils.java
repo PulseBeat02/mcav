@@ -34,7 +34,8 @@ public final class CleanupUtils {
   private static final Equivalence<Object> FAILURE_IDENTITY = Equivalence.identity();
 
   private CleanupUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**

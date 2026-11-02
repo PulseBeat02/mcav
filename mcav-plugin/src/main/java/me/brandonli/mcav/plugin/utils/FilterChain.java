@@ -310,13 +310,13 @@ public final class FilterChain {
     }
 
     if (text.length() > MAXIMUM_LENGTH) {
-      final String message = "Filters may have at most %s characters!".formatted(MAXIMUM_LENGTH);
+      final String message = "A filter chain must have at most %s characters!".formatted(MAXIMUM_LENGTH);
       throw new IllegalArgumentException(message);
     }
 
     final String[] specifications = text.split(FILTER_SEPARATOR, -1);
     if (specifications.length > MAXIMUM_FILTERS) {
-      final String message = "At most %s filters may be chained!".formatted(MAXIMUM_FILTERS);
+      final String message = "A filter chain must have at most %s filters!".formatted(MAXIMUM_FILTERS);
       throw new IllegalArgumentException(message);
     }
 
@@ -381,7 +381,8 @@ public final class FilterChain {
 
   private static Supplier<VideoFilter> framesPerSecond(final List<String> arguments, final MediaKind kind) {
     if (kind == MediaKind.IMAGE) {
-      throw new IllegalArgumentException("Filter fps counts the frames of a video, and an image has one!");
+      final String message = "Filter fps counts the frames of a video, and an image has one!";
+      throw new IllegalArgumentException(message);
     }
 
     return noArguments(FRAMES_PER_SECOND_FILTER, arguments, FramesPerSecondFilter::new);
@@ -417,7 +418,7 @@ public final class FilterChain {
     final Integer map = COLOR_MAPS.get(arguments.getFirst().toLowerCase(Locale.ROOT));
     if (map == null) {
       final String names = String.join(NAME_SEPARATOR, COLOR_MAPS.keySet().stream().sorted().toList());
-      final String message = "Colour map %s does not exist, use one of %s instead!".formatted(arguments.getFirst(), names);
+      final String message = "Color map %s does not exist, use one of %s instead!".formatted(arguments.getFirst(), names);
       throw new IllegalArgumentException(message);
     }
 
@@ -426,7 +427,8 @@ public final class FilterChain {
 
   private static Supplier<VideoFilter> tint(final List<String> arguments) {
     if (arguments.isEmpty() || arguments.size() > TINT_MAXIMUM_ARGUMENTS) {
-      throw new IllegalArgumentException("Filter tint takes a colour such as ff8000, and a strength from 0 to 100!");
+      final String message = "Filter tint takes a color such as ff8000, and a strength from 0 to 100!";
+      throw new IllegalArgumentException(message);
     }
 
     final double[] color = color(TINT_FILTER, arguments.getFirst());
@@ -504,7 +506,8 @@ public final class FilterChain {
     count(OVERLAY_FILTER, arguments, 1);
     final String name = arguments.getFirst();
     if (!OVERLAY_NAME.matcher(name).matches()) {
-      throw new IllegalArgumentException("Filter overlay takes the name of a PNG file of the overlays folder, without .png!");
+      final String message = "Filter overlay takes the name of a PNG file of the overlays folder, without .png!";
+      throw new IllegalArgumentException(message);
     }
 
     final Path file = overlays.resolve(name + OVERLAY_SUFFIX);
@@ -583,7 +586,7 @@ public final class FilterChain {
   // typed as rrggbb, stored in OpenCV's blue, green, red order
   private static double[] color(final String name, final String text) {
     if (!HEXADECIMAL.matcher(text).matches()) {
-      final String message = "Filter %s takes a colour such as ff8000, and %s is not one!".formatted(name, text);
+      final String message = "Filter %s takes a color such as ff8000, and %s is not one!".formatted(name, text);
       throw new IllegalArgumentException(message);
     }
 

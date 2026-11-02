@@ -53,13 +53,16 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public final class InteractUtils {
 
+  private static final String PLAYER_NULL_MESSAGE = "Player must not be null!";
+
   private static final int MAP_PIXELS = 128;
   private static final int MAXIMUM_TARGET_DISTANCE = 100;
   private static final double FRAME_SEARCH_RADIUS = 2.0;
   private static final double BLOCK_CENTER_OFFSET = 0.5;
 
   private InteractUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**
@@ -74,7 +77,7 @@ public final class InteractUtils {
    * @since 1.0.0
    */
   public static Optional<int[]> getBoardCoordinates(final Player player) {
-    Preconditions.checkNotNull(player, "Player must not be null!");
+    Preconditions.checkNotNull(player, PLAYER_NULL_MESSAGE);
 
     final Entity targetEntity = player.getTargetEntity(MAXIMUM_TARGET_DISTANCE);
     if (targetEntity == null) {
@@ -97,11 +100,12 @@ public final class InteractUtils {
    * @since 1.0.0
    */
   public static Optional<int[]> getBoardCoordinates(final Player player, final Entity entity) {
-    Preconditions.checkNotNull(player, "Player must not be null!");
+    Preconditions.checkNotNull(player, PLAYER_NULL_MESSAGE);
     Preconditions.checkNotNull(entity, "Entity must not be null!");
 
     if (!(entity instanceof final ItemFrame frame)) {
-      throw new IllegalArgumentException("Target entity is not an ItemFrame!");
+      final String message = "Target entity is not an ItemFrame!";
+      throw new IllegalArgumentException(message);
     }
 
     final int[] mapIndex = getRelativeMapIndex(player, frame);

@@ -50,7 +50,8 @@ public final class TestServer {
   private static final String LOGGER_NAME = "TestServer";
 
   private TestServer() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   private static Server install() {

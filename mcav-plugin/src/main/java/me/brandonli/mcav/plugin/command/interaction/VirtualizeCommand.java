@@ -80,6 +80,9 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
  */
 public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer> {
 
+  private static final String VIRTUAL_MACHINE_NULL_MESSAGE = "Virtual machine must not be null!";
+  private static final String SENDER_NULL_MESSAGE = "Sender must not be null!";
+
   private static final String INTERACT_PERMISSION = "mcav.vm.interact";
 
   private static final Set<String> REPEATABLE_OPTIONS = Set.of("drive");
@@ -135,7 +138,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    */
   @Override
   protected void forwardLeftClick(final VmPlayer current, final int screenX, final int screenY) {
-    Preconditions.checkNotNull(current, "Virtual machine must not be null!");
+    Preconditions.checkNotNull(current, VIRTUAL_MACHINE_NULL_MESSAGE);
 
     current.sendMouseEvent(MouseClick.LEFT, screenX, screenY);
   }
@@ -150,7 +153,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    */
   @Override
   protected void forwardRightClick(final VmPlayer current, final int screenX, final int screenY) {
-    Preconditions.checkNotNull(current, "Virtual machine must not be null!");
+    Preconditions.checkNotNull(current, VIRTUAL_MACHINE_NULL_MESSAGE);
 
     current.sendMouseEvent(MouseClick.RIGHT, screenX, screenY);
   }
@@ -164,7 +167,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    */
   @Override
   protected void forwardTextInput(final VmPlayer current, final String text) {
-    Preconditions.checkNotNull(current, "Virtual machine must not be null!");
+    Preconditions.checkNotNull(current, VIRTUAL_MACHINE_NULL_MESSAGE);
     Preconditions.checkNotNull(text, "Text must not be null!");
 
     current.sendKeyEvent(text);
@@ -178,7 +181,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    */
   @Override
   protected void releasePlayer(final VmPlayer current) {
-    Preconditions.checkNotNull(current, "Virtual machine must not be null!");
+    Preconditions.checkNotNull(current, VIRTUAL_MACHINE_NULL_MESSAGE);
 
     // QEMU takes up to ten seconds to stop, and is then killed; no frame or sound of it meanwhile
     CleanupUtils.runAll(
@@ -208,7 +211,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
   @Permission(INTERACT_PERMISSION)
   @CommandDescription("mcav.command.vm.interact.info")
   public void toggleInteraction(final Player sender) {
-    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
 
     final Component enabled = Message.INTERACT_ENABLE.build();
     final Component disabled = Message.INTERACT_DISABLE.build();
@@ -230,7 +233,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
   @Permission("mcav.vm.release")
   @CommandDescription("mcav.command.vm.release.info")
   public void releaseVm(final CommandSender sender) {
-    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
 
     final Component released = Message.VM_RELEASE.build();
     this.releaseResource(sender, released);
@@ -297,7 +300,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     final AudioArgument audioType,
     @Greedy final String flags
   ) {
-    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
     Preconditions.checkNotNull(playerSelector, "Player selector must not be null!");
     Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null!");
     Preconditions.checkNotNull(architecture, "Architecture must not be null!");
@@ -581,8 +584,11 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
         checked.add(part);
       }
     }
-    final boolean one = files == 1;
-    Preconditions.checkArgument(one, "Drive %s must name its disk image exactly once, as file=<image>!", value);
+    final boolean exactlyOneFile = files == 1;
+    if (!exactlyOneFile) {
+      final String message = "Drive %s must name its disk image exactly once, as file=<image>!".formatted(value);
+      throw new IllegalArgumentException(message);
+    }
 
     return String.join(VALUE_SEPARATOR, checked);
   }

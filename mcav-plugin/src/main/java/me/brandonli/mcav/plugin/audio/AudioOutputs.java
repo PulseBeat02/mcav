@@ -35,8 +35,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public final class AudioOutputs {
 
+  private static final String PROVIDER_NULL_MESSAGE = "Provider must not be null!";
+  private static final String AUDIO_TYPE_NULL_MESSAGE = "Audio type must not be null!";
+
   private AudioOutputs() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**
@@ -50,8 +54,8 @@ public final class AudioOutputs {
    * @since 1.0.0
    */
   public static Optional<Component> findProblem(final AudioProvider provider, final AudioArgument audioType) {
-    Preconditions.checkNotNull(provider, "Provider must not be null!");
-    Preconditions.checkNotNull(audioType, "Audio type must not be null!");
+    Preconditions.checkNotNull(provider, PROVIDER_NULL_MESSAGE);
+    Preconditions.checkNotNull(audioType, AUDIO_TYPE_NULL_MESSAGE);
 
     return switch (audioType) {
       case DISCORD_BOT -> describe(provider.isDiscordBotEnabled(), provider.isDiscordBotReady());
@@ -106,8 +110,8 @@ public final class AudioOutputs {
    * @since 1.0.0
    */
   public static Optional<Component> createLink(final AudioProvider provider, final AudioArgument audioType) {
-    Preconditions.checkNotNull(provider, "Provider must not be null!");
-    Preconditions.checkNotNull(audioType, "Audio type must not be null!");
+    Preconditions.checkNotNull(provider, PROVIDER_NULL_MESSAGE);
+    Preconditions.checkNotNull(audioType, AUDIO_TYPE_NULL_MESSAGE);
 
     return switch (audioType) {
       case DISCORD_BOT -> Optional.of(Message.AUDIO_DISCORD.build(provider.constructVoiceChannelUrl()));

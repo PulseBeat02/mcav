@@ -67,17 +67,21 @@ import org.junit.jupiter.api.io.TempDir;
 
 final class PaperServerEndToEndTest {
 
+  private static final String PROPERTY_MISSING_MESSAGE = "the build passes -D%s to this test";
+
   private static final String PAPER_FILE_NAME = Objects.requireNonNull(System.getProperty("mcav.e2e.paperFileName"));
   private static final String VOICE_CHAT_FILE_NAME = Objects.requireNonNull(System.getProperty("mcav.e2e.voiceChatFileName"));
 
   private static final RemoteFile PAPER = new RemoteFile(
-    "https://fill-data.papermc.io/v1/objects/dd64988a011729e6812f2fff1be32ba5c572ecdc8890e6abc7a56aa91b53f77d/" + PAPER_FILE_NAME,
+    "https://fill-data.papermc.io/v1/objects/dd64988a011729e6812f2fff1be32ba5c572ecdc8890e6abc7a56aa91b53f77d/%s".formatted(
+      PAPER_FILE_NAME
+    ),
     PAPER_FILE_NAME,
     "SHA-256",
     "dd64988a011729e6812f2fff1be32ba5c572ecdc8890e6abc7a56aa91b53f77d"
   );
   private static final RemoteFile VOICE_CHAT = new RemoteFile(
-    "https://cdn.modrinth.com/data/9eGKb6K1/versions/EJth3OAr/" + VOICE_CHAT_FILE_NAME,
+    "https://cdn.modrinth.com/data/9eGKb6K1/versions/EJth3OAr/%s".formatted(VOICE_CHAT_FILE_NAME),
     VOICE_CHAT_FILE_NAME,
     "SHA-512",
     "7f1d5765e79cd42616f14f40322d1171a8505e1116dfff71c7bd0e59af9d255c06f70a68a5b622015c0407d40c80e70298c172992007ff339cedcef0116fec42"
@@ -130,7 +134,6 @@ final class PaperServerEndToEndTest {
   private static final String DEPENDENCIES_ENTRY = "mcav/plugin/dependencies.txt";
   private static final String ENTITY_OUTLINE_EFFECT = "assets/minecraft/post_effect/entity_outline.json";
   private static final String MEDIA_RESOURCES = "/media/";
-  private static final String MEDIA_PATH = "/media";
 
   private static final String JAR_SUFFIX = ".jar";
   private static final String PARTIAL_SUFFIX = ".part";
@@ -167,7 +170,7 @@ final class PaperServerEndToEndTest {
       final int servedFileCount = repository.getServedFileCount();
       this.assertCurrentModuleJars(serverDirectory, pluginJar);
 
-      System.out.println("Local repository files served: " + servedFileCount + "; cached module hashes verified against this plugin");
+      System.out.println("Local repository files served: %s; cached module hashes verified against this plugin".formatted(servedFileCount));
       this.runCommand(server, "plugins", "MCAV");
       this.runCommand(server, "mcav help", "mcav dump");
       final String mediaInformation = this.fetchMediaInformation(server, httpPort);
@@ -242,7 +245,7 @@ final class PaperServerEndToEndTest {
     }
     for (final String digest : expected) {
       final boolean contained = actual.contains(digest);
-      assertTrue(contained, "the running server's module cache must contain build digest " + digest);
+      assertTrue(contained, "the running server's module cache must contain build digest %s".formatted(digest));
     }
   }
 
@@ -277,14 +280,14 @@ final class PaperServerEndToEndTest {
 
   private void streamABrowser(final ServerProcess server, final SoundListener sound, final TonePage page) throws InterruptedException {
     final int firstLine = server.getLineCount();
-    final String create = "mcav browser create @a 320x240 1 3x2 0 NEAREST_COLOR HTTP_SERVER " + page.getUri();
+    final String create = "mcav browser create @a 320x240 1 3x2 0 NEAREST_COLOR HTTP_SERVER %s".formatted(page.getUri());
     this.runCommand(server, create, BROWSER_STARTED, BROWSER_TIMEOUT);
     server.awaitLine(firstLine, line -> line.contains("Maps 0 to 5 show their first picture"), COMMAND_TIMEOUT);
     final double frequency = sound.awaitFrequency(SOUND_SECONDS, SOUND_TIMEOUT);
     System.out.printf(Locale.ROOT, "The page of the browser plays %.1f Hz in the audio web page%n", frequency);
 
     final boolean matches = Math.abs(frequency - TonePage.TONE_HERTZ) < FREQUENCY_TOLERANCE_HERTZ;
-    assertTrue(matches, "the tone of the page has " + frequency + " Hz");
+    assertTrue(matches, "the tone of the page has %s Hz".formatted(frequency));
 
     // a helper runs the Java of the server, which starts no other Java; CEF's processes run programs of its folder
     final Predicate<String> browser = command -> this.isJava(command) || command.contains("jcef") || command.contains("Xvfb");
@@ -301,16 +304,16 @@ final class PaperServerEndToEndTest {
     sound.clear();
     final int firstLine = server.getLineCount();
     final String create =
-      "mcav vm create @a 320x200 10 3x2 6 NEAREST_COLOR X86_64 HTTP_SERVER -m 16 -drive file=" +
-      TONE_IMAGE +
-      ",format=raw,if=floppy -boot a";
+      "mcav vm create @a 320x200 10 3x2 6 NEAREST_COLOR X86_64 HTTP_SERVER -m 16 -drive file=%s,format=raw,if=floppy -boot a".formatted(
+        TONE_IMAGE
+      );
     this.runCommand(server, create, "Created virtual machine!", COMMAND_TIMEOUT);
     server.awaitLine(firstLine, line -> line.contains("Maps 6 to 11 show their first picture"), COMMAND_TIMEOUT);
     final double frequency = sound.awaitFrequency(SOUND_SECONDS, SOUND_TIMEOUT);
     System.out.printf(Locale.ROOT, "The virtual machine plays %.1f Hz in the audio web page%n", frequency);
 
     final boolean matches = Math.abs(frequency - TonePage.TONE_HERTZ) < FREQUENCY_TOLERANCE_HERTZ;
-    assertTrue(matches, "the tone of the machine has " + frequency + " Hz");
+    assertTrue(matches, "the tone of the machine has %s Hz".formatted(frequency));
 
     final Predicate<String> machine = command -> command.contains("qemu-system");
     final List<ProcessHandle> running = server.findDescendants(machine);
@@ -326,7 +329,7 @@ final class PaperServerEndToEndTest {
     final int firstLine = server.getLineCount();
     this.runCommand(
       server,
-      "mcav vnc create @a 320x240 10 3x2 12 NEAREST_COLOR 127.0.0.1:" + vnc.getPort(),
+      "mcav vnc create @a 320x240 10 3x2 12 NEAREST_COLOR 127.0.0.1:%s".formatted(vnc.getPort()),
       "Connected to the VNC desktop!"
     );
     server.awaitLine(firstLine, line -> line.contains("Maps 12 to 17 show their first picture"), COMMAND_TIMEOUT);
@@ -357,7 +360,7 @@ final class PaperServerEndToEndTest {
     final int firstLine = server.getLineCount();
     this.runCommand(
       server,
-      "mcav browser create @a 320x240 1 3x2 20 NEAREST_COLOR NONE " + page.getUri() + " --codec mcv2",
+      "mcav browser create @a 320x240 1 3x2 20 NEAREST_COLOR NONE %s --codec mcv2".formatted(page.getUri()),
       BROWSER_STARTED,
       BROWSER_TIMEOUT
     );
@@ -374,7 +377,7 @@ final class PaperServerEndToEndTest {
 
     final byte[] zip = this.fetchBytes(pack);
     final String sha1 = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-1").digest(zip));
-    final UUID id = UUID.nameUUIDFromBytes(("mcav-mcv2:" + sha1).getBytes(StandardCharsets.UTF_8));
+    final UUID id = UUID.nameUUIDFromBytes("mcav-mcv2:%s".formatted(sha1).getBytes(StandardCharsets.UTF_8));
 
     final String expected = matcher.group(1);
     final String text = id.toString();
@@ -390,7 +393,7 @@ final class PaperServerEndToEndTest {
     final boolean matches = entries.contains("pack.mcmeta") && entries.contains(ENTITY_OUTLINE_EFFECT);
     assertTrue(matches, String.valueOf(entries));
 
-    System.out.println("The MCV2 pack " + id + " of " + zip.length + " bytes is hosted at " + pack);
+    System.out.println("The MCV2 pack %s of %s bytes is hosted at %s".formatted(id, zip.length, pack));
     this.runCommand(server, RELEASE_BROWSER_COMMAND, BROWSER_RELEASED, COMMAND_TIMEOUT);
 
     final List<String> lines = server.getLines();
@@ -401,7 +404,7 @@ final class PaperServerEndToEndTest {
     final String clip = media.resolve(CLIP).toString();
     this.runCommand(
       server,
-      "mcav video map @a FFMPEG NONE \"64x64\" \"1x1\" 30 NEAREST_COLOR \"\" \"" + clip + "\" --filters \"grayscale,invert\"",
+      "mcav video map @a FFMPEG NONE \"64x64\" \"1x1\" 30 NEAREST_COLOR \"\" \"%s\" --filters \"grayscale,invert\"".formatted(clip),
       "Video metadata loaded and playing now!"
     );
     this.runCommand(server, "mcav video loop true", "Videos play again from their start whenever they end.");
@@ -426,7 +429,7 @@ final class PaperServerEndToEndTest {
     final String picture = media.resolve(PICTURE).toString();
     this.runCommand(
       server,
-      "mcav image map @a \"64x64\" \"1x1\" 31 NEAREST_COLOR " + picture + " --filters \"blur=2,text=e2e\"",
+      "mcav image map @a \"64x64\" \"1x1\" 31 NEAREST_COLOR %s --filters \"blur=2,text=e2e\"".formatted(picture),
       "Image loaded!"
     );
     this.runCommand(server, "mcav image release", "Image released!");
@@ -449,16 +452,16 @@ final class PaperServerEndToEndTest {
       TimeUnit.MILLISECONDS.sleep(200);
       left = this.findLeft(server, matcher, before);
     }
-    assertEquals(List.of(), left, "no process of the " + what + " is left after its release");
+    assertEquals(List.of(), left, "no process of the %s is left after its release".formatted(what));
 
-    System.out.println("After the release of the " + what + ", none of its " + before.size() + " processes is left");
+    System.out.println("After the release of the %s, none of its %s processes is left".formatted(what, before.size()));
   }
 
   private List<String> findLeft(final ServerProcess server, final Predicate<String> matcher, final List<ProcessHandle> before) {
     return Stream.concat(before.stream(), server.findDescendants(matcher).stream())
       .filter(ProcessHandle::isAlive)
       .distinct()
-      .map(handle -> handle.pid() + FIELD_SEPARATOR + ServerProcess.programOf(handle))
+      .map(handle -> "%s%s%s".formatted(handle.pid(), FIELD_SEPARATOR, ServerProcess.programOf(handle)))
       .toList();
   }
 
@@ -478,8 +481,8 @@ final class PaperServerEndToEndTest {
   }
 
   private String fetchMediaInformation(final ServerProcess server, final int port) throws IOException, InterruptedException {
-    server.awaitLine(0, line -> line.contains("The audio web page is available at"), HTTP_TIMEOUT);
-    final URI uri = URI.create("http://127.0.0.1:" + port + MEDIA_PATH);
+    server.awaitLine(0, line -> line.contains("Audio web page "), HTTP_TIMEOUT);
+    final URI uri = URI.create("http://127.0.0.1:%s/media".formatted(port));
     final HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(uri);
     requestBuilder.timeout(REQUEST_TIMEOUT);
     final HttpRequest request = requestBuilder.build();
@@ -499,7 +502,7 @@ final class PaperServerEndToEndTest {
       final HttpResponse<byte[]> response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
 
       final int statusCode = response.statusCode();
-      assertEquals(HTTP_OK, statusCode, "the server hosts " + uri);
+      assertEquals(HTTP_OK, statusCode, "the server hosts %s".formatted(uri));
 
       return response.body();
     }
@@ -538,7 +541,7 @@ final class PaperServerEndToEndTest {
     final String separator = System.lineSeparator();
     final String report = String.join(separator, errors);
     final boolean clean = errors.isEmpty();
-    assertTrue(clean, "the server logged errors:" + separator + report);
+    assertTrue(clean, "the server logged errors:%s%s".formatted(separator, report));
   }
 
   private List<String> createCommand(final Path paperJar) {
@@ -579,7 +582,7 @@ final class PaperServerEndToEndTest {
   }
 
   private void copyResource(final String name, final Path folder) throws IOException {
-    try (final InputStream resource = PaperServerEndToEndTest.class.getResourceAsStream(MEDIA_RESOURCES + name)) {
+    try (final InputStream resource = PaperServerEndToEndTest.class.getResourceAsStream("%s%s".formatted(MEDIA_RESOURCES, name))) {
       final String message = "Resource %s does not exist!".formatted(name);
       Files.copy(Objects.requireNonNull(resource, message), folder.resolve(name));
     }
@@ -592,9 +595,9 @@ final class PaperServerEndToEndTest {
       LINE_SEPARATOR,
       "online-mode=false",
       "server-ip=127.0.0.1",
-      "server-port=" + port,
+      "server-port=%s".formatted(port),
       "level-type=minecraft\\:flat",
-      "generator-settings=" + FLAT_WORLD_SETTINGS,
+      "generator-settings=%s".formatted(FLAT_WORLD_SETTINGS),
       "generate-structures=false",
       "spawn-protection=0",
       "view-distance=3",
@@ -626,7 +629,7 @@ final class PaperServerEndToEndTest {
       "http-server:",
       "  enabled: true",
       "  host-name: localhost",
-      "  port: " + httpPort,
+      "  port: %s".formatted(httpPort),
       "simple-voice-chat:",
       "  enabled: true",
       "browser:",
@@ -635,8 +638,8 @@ final class PaperServerEndToEndTest {
       "vnc:",
       "  allowed-hosts:",
       "    - host: 127.0.0.1",
-      "      port: " + vnc.getPort(),
-      "      password: " + vnc.getPassword(),
+      "      port: %s".formatted(vnc.getPort()),
+      "      password: %s".formatted(vnc.getPassword()),
       ""
     );
     final Path file = dataFolder.resolve(CONFIGURATION_FILE);
@@ -649,7 +652,7 @@ final class PaperServerEndToEndTest {
     Files.createDirectories(voiceChatFolder);
     final int voicePort = this.findFreeUdpPort();
     final Path file = voiceChatFolder.resolve(VOICE_CHAT_PROPERTIES_FILE);
-    Files.writeString(file, "port=" + voicePort + LINE_SEPARATOR, StandardCharsets.UTF_8);
+    Files.writeString(file, "port=%s%s".formatted(voicePort, LINE_SEPARATOR), StandardCharsets.UTF_8);
   }
 
   private int findFreePort() throws IOException {
@@ -673,10 +676,10 @@ final class PaperServerEndToEndTest {
         return file;
       }
     }
-    final Path partial = cache.resolve(remoteFile.fileName + PARTIAL_SUFFIX);
+    final Path partial = cache.resolve("%s%s".formatted(remoteFile.fileName, PARTIAL_SUFFIX));
     this.fetch(remoteFile.url, partial);
     final String downloadedHash = this.hash(partial, remoteFile.algorithm);
-    assertEquals(remoteFile.expectedHash, downloadedHash, "the file downloaded from " + remoteFile.url + " is corrupt");
+    assertEquals(remoteFile.expectedHash, downloadedHash, "the file downloaded from %s is corrupt".formatted(remoteFile.url));
 
     Files.move(partial, file, StandardCopyOption.REPLACE_EXISTING);
     return file;
@@ -698,7 +701,7 @@ final class PaperServerEndToEndTest {
     try (final HttpClient client = clientBuilder.build()) {
       final HttpResponse<Path> response = client.send(request, handler);
       final int status = response.statusCode();
-      assertEquals(HTTP_OK, status, "the file could not be downloaded from " + url);
+      assertEquals(HTTP_OK, status, "the file could not be downloaded from %s".formatted(url));
     }
   }
 
@@ -728,14 +731,14 @@ final class PaperServerEndToEndTest {
 
   private Path requirePath(final String property) {
     final String value = System.getProperty(property);
-    assertNotNull(value, "the build passes -D" + property + " to this test");
+    assertNotNull(value, PROPERTY_MISSING_MESSAGE.formatted(property));
 
     return Path.of(value);
   }
 
   private int requirePort(final String property) {
     final int port = Integer.getInteger(property, 0);
-    assertTrue(port > 0, "the build passes -D" + property + " to this test");
+    assertTrue(port > 0, PROPERTY_MISSING_MESSAGE.formatted(property));
 
     return port;
   }

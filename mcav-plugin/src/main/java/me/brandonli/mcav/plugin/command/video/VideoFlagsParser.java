@@ -197,7 +197,7 @@ public final class VideoFlagsParser {
     final int equals = trimmed.indexOf(VALUE_SEPARATOR);
     if (equals < 0) {
       this.requireFlagOption(trimmed);
-      arguments.add(LONG_OPTION_PREFIX + trimmed);
+      arguments.add(this.toLongOption(trimmed));
       return;
     }
 
@@ -206,12 +206,17 @@ public final class VideoFlagsParser {
     final String cleanName = name.trim();
     final String cleanValue = value.trim();
     if (cleanName.isEmpty()) {
-      throw new IllegalArgumentException("yt-dlp option name must not be empty!");
+      final String message = "yt-dlp option name must not be empty!";
+      throw new IllegalArgumentException(message);
     }
 
     this.requireValueOption(cleanName, cleanValue);
-    arguments.add(LONG_OPTION_PREFIX + cleanName);
+    arguments.add(this.toLongOption(cleanName));
     arguments.add(cleanValue);
+  }
+
+  private String toLongOption(final String name) {
+    return "%s%s".formatted(LONG_OPTION_PREFIX, name);
   }
 
   private void requireFlagOption(final String name) {

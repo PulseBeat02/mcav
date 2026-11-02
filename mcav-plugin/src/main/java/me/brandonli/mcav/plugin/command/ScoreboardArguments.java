@@ -32,7 +32,8 @@ import me.brandonli.mcav.utils.immutable.Pair;
 public final class ScoreboardArguments {
 
   private ScoreboardArguments() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**

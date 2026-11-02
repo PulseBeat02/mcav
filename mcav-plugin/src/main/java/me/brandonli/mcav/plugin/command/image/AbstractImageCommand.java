@@ -60,10 +60,6 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
   private static final Equivalence<Object> FAILURE_IDENTITY = Equivalence.identity();
   private static final Logger LOGGER = LoggerFactory.getLogger(AbstractImageCommand.class);
 
-  private static final String WORKER_REFUSED = "The image worker refused to load an image.";
-
-  private static final String LOAD_FAILED = "Image {} could not be loaded.";
-
   private static final char QUOTE = '"';
   private static final int QUOTE_COUNT = 2;
 
@@ -188,7 +184,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
       generation = this.manager.beginLoad();
       loading = CompletableFuture.supplyAsync(loader, service);
     } catch (final RejectedExecutionException exception) {
-      LOGGER.error(WORKER_REFUSED, exception);
+      LOGGER.error("The image worker refused to load an image.", exception);
       final Component message = Message.UNSUPPORTED_MRL.build();
       sender.sendMessage(message);
       return;
@@ -206,7 +202,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     final CommandSender sender = request.getSender();
     if (error != null) {
       final String mrl = request.getMrl();
-      LOGGER.error(LOAD_FAILED, mrl, error);
+      LOGGER.error("Image {} could not be loaded.", mrl, error);
       final Component message = Message.UNSUPPORTED_MRL.build();
       TaskUtils.runOnMainThread(this.plugin, () -> sender.sendMessage(message));
       return;

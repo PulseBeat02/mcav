@@ -196,7 +196,8 @@ final class TaskUtilsTest {
   }
 
   private void throwCallbackFailure() {
-    throw new IllegalStateException("the callback failed!");
+    final String message = "the callback failed!";
+    throw new IllegalStateException(message);
   }
 
   @Test

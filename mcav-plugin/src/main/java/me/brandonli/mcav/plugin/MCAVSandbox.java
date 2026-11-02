@@ -51,7 +51,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>Everything is created in {@link #onEnable()} in dependency order: the library, the configuration, the audio
  * and media managers, the commands, and the listeners. The getters fail with an {@link IllegalStateException}
- * when called before the plugin is enabled.
+ * when called before the plugin is enabled and, except {@link #getConfiguration()}, after it is disabled.
  *
  * <p>Paper constructs this class from the plugin descriptor, and the commands it registers are documented in the plugin
  * pages of the MCAV docs.
@@ -69,25 +69,9 @@ public final class MCAVSandbox extends JavaPlugin {
   private static final String MISSING_VOICE_CHAT_REMEDY =
     "install the Simple Voice Chat plugin or set simple-voice-chat.enabled to false in config.yml";
 
-  private static final String CANNOT_ENABLE = "MCAV cannot be enabled: {} To fix it, {}.";
-
   private static final String CANNOT_REENABLE = "Paper cannot re-enable this plugin after it has been disabled!";
 
   private static final String RESTART_REMEDY = "restart the server to enable MCAV";
-
-  private static final String LOADING = "Loading MCAV.";
-
-  private static final String NO_QEMU =
-    "QEMU is not installed and MCAV cannot install it on this server, so virtual machines will not be available.";
-
-  private static final String NO_BROWSER =
-    "There is no browser for the operating system and processor of this server, browsers will not be available.";
-
-  private static final String LOADED = "MCAV loaded in {} ms.";
-
-  private static final String ENCODER_SHARE = "MCV2 encoders share {} of {} processors.";
-
-  private static final String ENCODER_KERNELS = "MCV2 kernels: {}.";
 
   private static final String NATIVES_FOLDER = "natives";
 
@@ -203,7 +187,7 @@ public final class MCAVSandbox extends JavaPlugin {
   private void disableBecause(final RuntimeException failure, final String remedy) {
     final ComponentLogger pluginLogger = this.requireLogger();
     final String reason = failure.getMessage();
-    pluginLogger.error(CANNOT_ENABLE, reason, remedy);
+    pluginLogger.error("MCAV cannot be enabled: {} To fix it, {}.", reason, remedy);
 
     final Server server = this.getServer();
     final PluginManager pluginManager = server.getPluginManager();
@@ -212,7 +196,7 @@ public final class MCAVSandbox extends JavaPlugin {
 
   private void loadMCAV() {
     final ComponentLogger pluginLogger = this.requireLogger();
-    pluginLogger.info(LOADING);
+    pluginLogger.info("Loading MCAV.");
     final long start = System.currentTimeMillis();
     final MCAVApi api = MCAV.api();
     // kept before installing, so onDisable releases whatever the modules created even when installing fails
@@ -224,17 +208,17 @@ public final class MCAVSandbox extends JavaPlugin {
     final VmModule vmModule = api.getModule(VmModule.class);
     this.qemuAvailable = vmModule.isQemuAvailable();
     if (!this.qemuAvailable) {
-      pluginLogger.warn(NO_QEMU);
+      pluginLogger.warn("QEMU is not installed and MCAV cannot install it on this server, so virtual machines will not be available.");
     }
     final BrowserModule browserModule = api.getModule(BrowserModule.class);
     this.browserSupported = browserModule.isSupported();
     if (!this.browserSupported) {
-      pluginLogger.warn(NO_BROWSER);
+      pluginLogger.warn("There is no browser for the operating system and processor of this server, so browsers will not be available.");
     }
 
     final long end = System.currentTimeMillis();
     final long duration = end - start;
-    pluginLogger.info(LOADED, duration);
+    pluginLogger.info("MCAV loaded in {} ms.", duration);
   }
 
   private void loadPluginData() {
@@ -243,10 +227,10 @@ public final class MCAVSandbox extends JavaPlugin {
     this.configurationMapper = mapper;
     Pool.setSharedThreads(mapper.getMcv2EncoderThreads());
     final int processors = Runtime.getRuntime().availableProcessors();
-    this.requireLogger().info(ENCODER_SHARE, Pool.shared().getThreads(), processors);
+    this.requireLogger().info("MCV2 encoders share {} of {} processors.", Pool.shared().getThreads(), processors);
     // the native kernels extract into the data folder, never /tmp; installing them decides which kernels run and logs it
     Mcv2.installNatives(this.getDataFolder().toPath().resolve(NATIVES_FOLDER), mapper.getMcv2Native());
-    this.requireLogger().info(ENCODER_KERNELS, Mcv2.describeNatives());
+    this.requireLogger().info("MCV2 kernels: {}.", Mcv2.describeNatives());
   }
 
   private void loadManagers() {
@@ -296,7 +280,7 @@ public final class MCAVSandbox extends JavaPlugin {
 
   private <ValueType> ValueType require(final @Nullable ValueType value, final String name) {
     if (value == null) {
-      final String message = "The %s is not available before the plugin is enabled!".formatted(name);
+      final String message = "The %s is only available while the plugin is enabled!".formatted(name);
       throw new IllegalStateException(message);
     }
 

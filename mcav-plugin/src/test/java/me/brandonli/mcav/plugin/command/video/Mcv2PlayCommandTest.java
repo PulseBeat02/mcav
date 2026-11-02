@@ -641,7 +641,8 @@ final class Mcv2PlayCommandTest {
   }
 
   private Mcv2FileEncoder.FrameReader throwMissingVideo() throws IOException {
-    throw new IOException("no such video!");
+    final String message = "no such video!";
+    throw new IOException(message);
   }
 
   @Test
@@ -726,7 +727,8 @@ final class Mcv2PlayCommandTest {
   }
 
   private Mcv2FileEncoder.FrameReader throwRejectedSource() {
-    throw new IllegalStateException("reader rejected the source!");
+    final String message = "reader rejected the source!";
+    throw new IllegalStateException(message);
   }
 
   @Test

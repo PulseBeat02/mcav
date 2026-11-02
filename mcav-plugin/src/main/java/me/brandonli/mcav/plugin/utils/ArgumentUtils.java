@@ -36,6 +36,8 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
  */
 public final class ArgumentUtils {
 
+  private static final String PLAYER_SELECTOR_NULL_MESSAGE = "Player selector must not be null!";
+
   /**
    * The largest width or height {@link #parseDimensions(String)} accepts, in pixels or blocks. 8192 pixels is the
    * native resolution of a wall of {@value #MAXIMUM_SCREEN_SIDE} maps, so no display of the plugin needs more.
@@ -60,7 +62,8 @@ public final class ArgumentUtils {
   private static final int DIMENSION_PARTS = 2;
 
   private ArgumentUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**
@@ -116,7 +119,7 @@ public final class ArgumentUtils {
     final int width = dimensions.getFirst();
     final int height = dimensions.getSecond();
     if (width > MAXIMUM_SCREEN_SIDE || height > MAXIMUM_SCREEN_SIDE) {
-      final String message = "Wall %s may be at most %s maps on each side!".formatted(argument, MAXIMUM_SCREEN_SIDE);
+      final String message = "Wall %s must be at most %s maps on each side!".formatted(argument, MAXIMUM_SCREEN_SIDE);
       throw new IllegalArgumentException(message);
     }
 
@@ -134,7 +137,7 @@ public final class ArgumentUtils {
    * @since 1.0.0
    */
   public static Collection<UUID> parsePlayerSelectors(final MultiplePlayerSelector playerSelector) {
-    Preconditions.checkNotNull(playerSelector, "Player selector must not be null!");
+    Preconditions.checkNotNull(playerSelector, PLAYER_SELECTOR_NULL_MESSAGE);
 
     final Collection<Player> players = playerSelector.values();
     final Stream<Player> playerStream = players.stream();
@@ -153,7 +156,7 @@ public final class ArgumentUtils {
    * @since 1.0.0
    */
   public static Collection<UUID> parseViewers(final MultiplePlayerSelector playerSelector, final OnlinePlayers online) {
-    Preconditions.checkNotNull(playerSelector, "Player selector must not be null!");
+    Preconditions.checkNotNull(playerSelector, PLAYER_SELECTOR_NULL_MESSAGE);
     Preconditions.checkNotNull(online, "Online players must not be null!");
 
     return EVERYONE.equals(playerSelector.inputString()) ? online.getPlayers() : parsePlayerSelectors(playerSelector);

@@ -64,6 +64,9 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
  */
 public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
 
+  private static final String DESKTOP_NULL_MESSAGE = "Desktop must not be null!";
+  private static final String SENDER_NULL_MESSAGE = "Sender must not be null!";
+
   static final String INTERACT_PERMISSION = "mcav.vnc.interact";
 
   /**
@@ -86,7 +89,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    */
   @Override
   protected void forwardLeftClick(final VncPlayer current, final int screenX, final int screenY) {
-    Preconditions.checkNotNull(current, "Desktop must not be null!");
+    Preconditions.checkNotNull(current, DESKTOP_NULL_MESSAGE);
 
     current.sendMouseEvent(MouseClick.LEFT, screenX, screenY);
   }
@@ -101,7 +104,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    */
   @Override
   protected void forwardRightClick(final VncPlayer current, final int screenX, final int screenY) {
-    Preconditions.checkNotNull(current, "Desktop must not be null!");
+    Preconditions.checkNotNull(current, DESKTOP_NULL_MESSAGE);
 
     current.sendMouseEvent(MouseClick.RIGHT, screenX, screenY);
   }
@@ -115,7 +118,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    */
   @Override
   protected void forwardTextInput(final VncPlayer current, final String text) {
-    Preconditions.checkNotNull(current, "Desktop must not be null!");
+    Preconditions.checkNotNull(current, DESKTOP_NULL_MESSAGE);
     Preconditions.checkNotNull(text, "Text must not be null!");
 
     current.sendKeyEvent(text);
@@ -129,7 +132,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    */
   @Override
   protected void releasePlayer(final VncPlayer current) {
-    Preconditions.checkNotNull(current, "Desktop must not be null!");
+    Preconditions.checkNotNull(current, DESKTOP_NULL_MESSAGE);
 
     // closing the connection waits for the client's threads, which a stalled server can hold up
     CleanupUtils.runAll(() -> current.getVideoAttachableCallback().detach(), () -> this.releaseInTheBackground(current::release));
@@ -150,7 +153,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
   @Permission(INTERACT_PERMISSION)
   @CommandDescription("mcav.command.vnc.interact.info")
   public void toggleInteraction(final Player sender) {
-    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
 
     final Component enabled = Message.INTERACT_ENABLE.build();
     final Component disabled = Message.INTERACT_DISABLE.build();
@@ -170,7 +173,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
   @Permission("mcav.vnc.release")
   @CommandDescription("mcav.command.vnc.release.info")
   public void releaseVnc(final CommandSender sender) {
-    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
 
     final Component released = Message.VNC_RELEASE.build();
     this.releaseResource(sender, released);
@@ -274,7 +277,8 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
     final ExecutorService executor = this.startExecutor(desktop, screen);
     final CompletableFuture<Boolean> start = desktop.startAsync(source, executor);
     final String server = VncAllowList.format(entry.getHost(), entry.getPort());
-    this.reportStartWhenDone(sender, desktop, screen, start, "the VNC desktop of " + server);
+    final String description = "the VNC desktop of %s".formatted(server);
+    this.reportStartWhenDone(sender, desktop, screen, start, description);
   }
 
   /**

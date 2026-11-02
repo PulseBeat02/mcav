@@ -45,9 +45,9 @@ import org.slf4j.LoggerFactory;
  */
 public final class VideoControlCommand implements AnnotationCommandFeature {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(VideoControlCommand.class);
+  private static final String SENDER_NULL_MESSAGE = "Sender must not be null!";
 
-  private static final String RELEASE_FAILED = "Failed to release the video player.";
+  private static final Logger LOGGER = LoggerFactory.getLogger(VideoControlCommand.class);
 
   private final MCAVSandbox plugin;
   private final VideoPlayerManager manager;
@@ -81,7 +81,7 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
   @Permission("mcav.command.video.resume")
   @CommandDescription("mcav.command.video.resume.info")
   public void resumeVideo(final CommandSender sender) {
-    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
 
     final Optional<VideoPlayerMultiplexer> foundPlayer = this.manager.getPlayer();
     final @Nullable VideoPlayerMultiplexer player = foundPlayer.orElse(null);
@@ -104,7 +104,7 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
   @Permission("mcav.command.video.pause")
   @CommandDescription("mcav.command.video.pause.info")
   public void pauseVideo(final CommandSender sender) {
-    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
 
     final Optional<VideoPlayerMultiplexer> foundPlayer = this.manager.getPlayer();
     final @Nullable VideoPlayerMultiplexer player = foundPlayer.orElse(null);
@@ -130,7 +130,7 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
   @Permission("mcav.command.video.release")
   @CommandDescription("mcav.command.video.release.info")
   public void releaseVideo(final CommandSender sender) {
-    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
 
     this.manager.cancelStart();
     final Component starting = Message.RELEASE_PLAYER_START.build();
@@ -145,7 +145,7 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
 
   private void reportRelease(final Runnable done, final @Nullable Throwable error) {
     if (error != null) {
-      LOGGER.error(RELEASE_FAILED, error);
+      LOGGER.error("Failed to release the video player.", error);
       return;
     }
 
@@ -168,7 +168,7 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
   @Permission("mcav.command.hologram.set")
   @CommandDescription("mcav.command.hologram.set.info")
   public void setHologramLocation(final CommandSender sender, final Location location) {
-    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
     Preconditions.checkNotNull(location, "Location must not be null!");
 
     this.manager.setHologramLocation(location);
@@ -190,7 +190,7 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
   @Permission("mcav.command.hologram.disable")
   @CommandDescription("mcav.command.hologram.disable.info")
   public void disableHologram(final CommandSender sender) {
-    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
 
     this.manager.setHologramLocation(null);
     final Component message = Message.HOLOGRAM_DISABLED.build();

@@ -108,7 +108,8 @@ public final class DumpUtils {
   private static final String STACK_FRAME_PREFIX = "\tat ";
 
   private DumpUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**
@@ -131,13 +132,14 @@ public final class DumpUtils {
       final String documentKey = parseDocumentKey(response);
       return pasteSite + documentKey;
     } catch (final IOException exception) {
-      final String reason = exception.getMessage();
-      final String message = "The dump could not be uploaded (%s)!".formatted(reason);
+      final String message = "The dump could not be uploaded!";
       throw new PluginException(message, exception);
     } catch (final InterruptedException exception) {
       final Thread current = Thread.currentThread();
       current.interrupt();
-      throw new PluginException("Interrupted while uploading the dump!", exception);
+
+      final String message = "Interrupted while uploading the dump!";
+      throw new PluginException(message, exception);
     }
   }
 

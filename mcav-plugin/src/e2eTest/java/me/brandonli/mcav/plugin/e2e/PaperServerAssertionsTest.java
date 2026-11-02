@@ -30,7 +30,7 @@ final class PaperServerAssertionsTest {
   private static final String IDLE_MEDIA = "{\"duration\":0,\"view_count\":0,\"like_count\":0}";
   private static final List<String> STARTUP = List.of(
     "MCAV loaded in 1 ms.",
-    "JavaCV natives loaded in 1 ms",
+    "JavaCV natives loaded in 1 ms.",
     "Simple Voice Chat audio is ready."
   );
 

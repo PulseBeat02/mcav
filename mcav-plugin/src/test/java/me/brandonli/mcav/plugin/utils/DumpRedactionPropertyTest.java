@@ -68,7 +68,8 @@ final class DumpRedactionPropertyTest {
       final InetAddress address = scoped ? Inet6Address.getByAddress(null, bytes, scope) : InetAddress.getByAddress(bytes);
       return new InetSocketAddress(address, port);
     } catch (final UnknownHostException exception) {
-      throw new IllegalStateException("4 and 16 bytes are always an address!", exception);
+      final String message = "4 and 16 bytes are always an address!";
+      throw new IllegalStateException(message, exception);
     }
   }
 

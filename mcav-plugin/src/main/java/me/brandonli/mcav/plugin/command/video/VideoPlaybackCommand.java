@@ -51,9 +51,9 @@ import org.slf4j.LoggerFactory;
  */
 public final class VideoPlaybackCommand implements AnnotationCommandFeature {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(VideoPlaybackCommand.class);
+  private static final String SENDER_NULL_MESSAGE = "Sender must not be null!";
 
-  private static final String SEEK_ERROR = "Failed to seek the video.";
+  private static final Logger LOGGER = LoggerFactory.getLogger(VideoPlaybackCommand.class);
 
   private static final double PERCENT = 100.0;
 
@@ -91,7 +91,7 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
   @Permission("mcav.command.video.seek")
   @CommandDescription("mcav.command.video.seek.info")
   public void seekVideo(final CommandSender sender, @Argument(suggestions = "positions") @Greedy final String position) {
-    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
     Preconditions.checkNotNull(position, "Position must not be null!");
 
     final Optional<SeekPosition> parsedPosition = SeekPosition.parse(position);
@@ -122,7 +122,7 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
 
   private void reportSeek(final CommandSender sender, final long target, final @Nullable Boolean seeked, final @Nullable Throwable error) {
     if (error != null) {
-      LOGGER.error(SEEK_ERROR, error);
+      LOGGER.error("Failed to seek the video.", error);
     }
     final Component message = Boolean.TRUE.equals(seeked)
       ? Message.SEEK_PLAYER.build(SeekPosition.format(target))
@@ -144,7 +144,7 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
   @Permission("mcav.command.video.volume")
   @CommandDescription("mcav.command.video.volume.info")
   public void setVolume(final CommandSender sender, @Argument(suggestions = "volumes") @Range(min = "0", max = "200") final int percent) {
-    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
 
     final VolumeFilter volume = this.manager.getVolume();
     volume.setVolume(percent / PERCENT);
@@ -165,7 +165,7 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
   @Permission("mcav.command.video.speed")
   @CommandDescription("mcav.command.video.speed.info")
   public void setSpeed(final CommandSender sender, @Argument(suggestions = "speeds") @Range(min = "0.5", max = "2") final double factor) {
-    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
 
     final Optional<VideoPlayerMultiplexer> foundPlayer = this.manager.getPlayer();
     final @Nullable VideoPlayerMultiplexer player = foundPlayer.orElse(null);
@@ -195,7 +195,7 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
   @Permission("mcav.command.video.loop")
   @CommandDescription("mcav.command.video.loop.info")
   public void setLoop(final CommandSender sender, final boolean enabled) {
-    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
 
     this.manager.setLooping(enabled);
     sender.sendMessage(enabled ? Message.LOOP_ON.build() : Message.LOOP_OFF.build());

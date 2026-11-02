@@ -27,7 +27,7 @@ to set the `host-name` to your public IP address or domain if the server is open
 3) Change the `enabled` option under `http-server` to `true`.
 4) Restart your server to apply the changes.
 5) The web server starts in the background. Once it is listening, the console prints
-`The audio web page is available at <link>.`; open that link in a browser to check it.
+`Audio web page <link> is available.`; open that link in a browser to check it.
 
 ### Option 2: Discord audio streaming
 

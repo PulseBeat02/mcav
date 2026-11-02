@@ -90,11 +90,10 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
 
+  private static final String SENDER_NULL_MESSAGE = "Sender must not be null!";
+  private static final String TEXT_NULL_MESSAGE = "Text must not be null!";
+
   private static final Logger LOGGER = LoggerFactory.getLogger(AbstractVideoCommand.class);
-
-  private static final String WORKER_REFUSED = "The video worker refused to start a video.";
-
-  private static final String PLAYBACK_FAILED = "Failed to play a video.";
 
   private static final FfmpegDirectSourceDetector RAW_INPUTS = new FfmpegDirectSourceDetector();
 
@@ -166,7 +165,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final @Nullable String filters
   ) {
     Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null!");
-    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
     Preconditions.checkNotNull(selector, "Player selector must not be null!");
     Preconditions.checkNotNull(playerType, "Player type must not be null!");
     Preconditions.checkNotNull(audioType, "Audio type must not be null!");
@@ -267,8 +266,8 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    * @since 1.0.0
    */
   protected static Optional<Pair<Integer, Integer>> parseDimensions(final CommandSender sender, final String text) {
-    Preconditions.checkNotNull(sender, "Sender must not be null!");
-    Preconditions.checkNotNull(text, "Text must not be null!");
+    Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
+    Preconditions.checkNotNull(text, TEXT_NULL_MESSAGE);
 
     try {
       final Pair<Integer, Integer> dimensions = ArgumentUtils.parseDimensions(text);
@@ -291,8 +290,8 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    * @since 1.0.0
    */
   protected static Optional<Pair<Integer, Integer>> parseScreenDimensions(final CommandSender sender, final String text) {
-    Preconditions.checkNotNull(sender, "Sender must not be null!");
-    Preconditions.checkNotNull(text, "Text must not be null!");
+    Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
+    Preconditions.checkNotNull(text, TEXT_NULL_MESSAGE);
 
     try {
       final Pair<Integer, Integer> dimensions = ArgumentUtils.parseScreenDimensions(text);
@@ -344,7 +343,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
       start = CompletableFuture.supplyAsync(() -> this.startPlayer(request, generation), service);
     } catch (final RejectedExecutionException | CancellationException exception) {
       initializing.set(false);
-      LOGGER.error(WORKER_REFUSED, exception);
+      LOGGER.error("The video worker refused to start a video.", exception);
       final Component message = Message.VIDEO_START_ERROR.build();
       sender.sendMessage(message);
       return;
@@ -387,7 +386,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final @Nullable Throwable error
   ) {
     if (error != null) {
-      LOGGER.error(PLAYBACK_FAILED, error);
+      LOGGER.error("Failed to play a video.", error);
       final Component message = Message.VIDEO_START_ERROR.build();
       sender.sendMessage(message);
       return;
@@ -630,12 +629,12 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     if (source instanceof final FfmpegDirectSource ffmpegSource) {
       final String input = ffmpegSource.getMrl();
       final String format = ffmpegSource.getFormat();
-      return this.createDump(input, "FFmpeg input " + format);
+      return this.createDump(input, "FFmpeg input %s".formatted(format));
     }
 
     if (source instanceof final DeviceSource device) {
       final int deviceId = device.getDeviceId();
-      return this.createDump("Device " + deviceId, "Video from a capture device");
+      return this.createDump("Device %s".formatted(deviceId), "Video from a capture device");
     }
 
     if (source instanceof final FileSource file) {
@@ -660,7 +659,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     } catch (final InstallationException | DownloadException | FileOperationException | ProcessException exception) {
       final String reason = exception.getMessage();
       final URI uri = page.getUri();
-      final String message = "yt-dlp could not resolve %s (%s)!".formatted(uri, reason);
+      final String message = "Because of \"%s\", yt-dlp could not resolve %s!".formatted(reason, uri);
       throw new PluginException(message, exception);
     }
 

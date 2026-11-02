@@ -95,13 +95,13 @@ final class ServerProcess implements AutoCloseable {
     try (final BufferedReader bufferedReader = new BufferedReader(streamReader)) {
       String line = bufferedReader.readLine();
       while (line != null) {
-        System.out.println("[server] " + line);
+        System.out.println("[server] %s".formatted(line));
         this.addLine(line);
         line = bufferedReader.readLine();
       }
     } catch (final IOException exception) {
       final String message = exception.getMessage();
-      this.addLine("[output closed: " + message + "]");
+      this.addLine("[output closed: %s]".formatted(message));
     }
   }
 
@@ -114,14 +114,15 @@ final class ServerProcess implements AutoCloseable {
 
   void command(final String command) {
     final String separator = System.lineSeparator();
-    final String consoleLine = command + separator;
+    final String consoleLine = "%s%s".formatted(command, separator);
     final byte[] bytes = consoleLine.getBytes(StandardCharsets.UTF_8);
     final OutputStream consoleInput = this.process.getOutputStream();
     try {
       consoleInput.write(bytes);
       consoleInput.flush();
     } catch (final IOException exception) {
-      throw new UncheckedIOException("The server console is closed!", exception);
+      final String message = "The server console is closed!";
+      throw new UncheckedIOException(message, exception);
     }
   }
 

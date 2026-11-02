@@ -402,9 +402,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
 
       sender.sendMessage(
         Message.MCV2_ENCODE_START.build(
-          String.format(
-            Locale.getDefault(Locale.Category.FORMAT),
-            "%s into %s at %dx%d with the %s profile, on %d encoder threads",
+          "%s into %s at %sx%s with the %s profile, on %s encoder threads".formatted(
             source,
             target,
             width,
@@ -435,7 +433,8 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     final Pool budget,
     final long interval
   ) {
-    final Path partial = target.resolveSibling(target.getFileName() + PARTIAL_SUFFIX);
+    final Path fileName = target.getFileName();
+    final Path partial = target.resolveSibling("%s%s".formatted(fileName, PARTIAL_SUFFIX));
     final long started = System.nanoTime();
     final LongConsumer progress = progressReporter(sender, started, interval);
     final Mcv2FileEncoder.Result result;
@@ -462,16 +461,16 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
   }
 
   private static void reportDone(final CommandSender sender, final Mcv2FileEncoder.Result result, final Path target, final long started) {
+    final long elapsedSeconds = Math.round((System.nanoTime() - started) / NANOSECONDS_PER_SECOND);
+    final long millisecondsPerFrame = Math.round(result.millisecondsPerFrame());
     sender.sendMessage(
       Message.MCV2_ENCODE_DONE.build(
-        String.format(
-          Locale.ROOT,
-          "%d frames (%d keyframes) into %s in %.0f s, %.0f ms per frame",
+        "%s frames (%s keyframes) into %s in %s s, %s ms per frame".formatted(
           result.getFrames(),
           result.getKeyframes(),
           target,
-          (System.nanoTime() - started) / NANOSECONDS_PER_SECOND,
-          result.millisecondsPerFrame()
+          elapsedSeconds,
+          millisecondsPerFrame
         )
       )
     );
@@ -493,9 +492,8 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     if (isProgressDue(now, reported[0], interval)) {
       reported[0] = now;
       final double millisecondsPerFrame = (now - started) / NANOSECONDS_PER_MILLISECOND / frames;
-      sender.sendMessage(
-        Message.MCV2_ENCODE_PROGRESS.build(String.format(Locale.ROOT, "%d frames, %.0f ms per frame", frames, millisecondsPerFrame))
-      );
+      final long roundedMillisecondsPerFrame = Math.round(millisecondsPerFrame);
+      sender.sendMessage(Message.MCV2_ENCODE_PROGRESS.build("%s frames, %s ms per frame".formatted(frames, roundedMillisecondsPerFrame)));
     }
   }
 
@@ -629,11 +627,13 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     int offset = 0;
     while (offset < data.length) {
       if (data.length - offset < LENGTH_BYTES) {
-        throw new IOException("Truncated frame length!");
+        final String message = "Truncated frame length!";
+        throw new IOException(message);
       }
       final long length = Mcv2Decoder.u32(data, offset);
       if (length > data.length - offset - LENGTH_BYTES) {
-        throw new IOException("Truncated frame!");
+        final String message = "Truncated frame!";
+        throw new IOException(message);
       }
       // a record no frame can be is refused before it is copied: records of a few bytes each would make the copies
       // take several times the file's size in memory
@@ -647,7 +647,8 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
       offset += LENGTH_BYTES + frame.length;
     }
     if (frames.isEmpty()) {
-      throw new IOException("Empty stream!");
+      final String message = "Empty stream!";
+      throw new IOException(message);
     }
 
     return frames;

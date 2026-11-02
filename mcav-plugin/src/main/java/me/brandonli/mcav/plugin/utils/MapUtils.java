@@ -79,6 +79,8 @@ import org.bukkit.persistence.PersistentDataType;
  */
 public final class MapUtils {
 
+  private static final String MAP_ID_NEGATIVE_MESSAGE = "Map id %s must not be negative!";
+
   /**
    * The largest number of maps one call creates to reach a map id, which is the number of maps of the largest wall.
    * Creating a map writes a file, so an id far past the maps of the world would otherwise tie up the main thread.
@@ -90,7 +92,8 @@ public final class MapUtils {
   private static final double HALF_BLOCK = 0.5;
 
   private MapUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**
@@ -105,7 +108,7 @@ public final class MapUtils {
    * @since 1.0.0
    */
   public static ItemStack getMapFromId(final int id) {
-    Preconditions.checkArgument(id >= 0, "Map id %s must not be negative!", id);
+    Preconditions.checkArgument(id >= 0, MAP_ID_NEGATIVE_MESSAGE, id);
 
     final ItemStack map = createMapItemStack(id);
     final ItemMeta nullableMetadata = map.getItemMeta();
@@ -194,7 +197,7 @@ public final class MapUtils {
     Preconditions.checkNotNull(material, "Material must not be null!");
     Preconditions.checkArgument(width > 0, "Width %s must be positive!", width);
     Preconditions.checkArgument(height > 0, "Height %s must be positive!", height);
-    Preconditions.checkArgument(map >= 0, "Map id %s must not be negative!", map);
+    Preconditions.checkArgument(map >= 0, MAP_ID_NEGATIVE_MESSAGE, map);
 
     final long count = (long) width * height;
     final long lastMap = map + count - 1;

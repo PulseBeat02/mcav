@@ -70,11 +70,10 @@ import org.slf4j.LoggerFactory;
  */
 public final class VideoPlayerManager {
 
+  private static final String STARTUP_CANCELLED_MESSAGE = "The video startup was cancelled!";
+
   private static final Equivalence<Object> IDENTITY = Equivalence.identity();
   private static final Logger LOGGER = LoggerFactory.getLogger(VideoPlayerManager.class);
-
-  private static final String CLEANUP_RETAINED =
-    "The plugin is disabled; display and hologram cleanup is retained for the main-thread shutdown drain.";
 
   private static final long LOOP_CHECK_TICKS = 10L;
 
@@ -197,7 +196,8 @@ public final class VideoPlayerManager {
   long beginStart() {
     synchronized (this.lifecycle) {
       if (this.closed) {
-        throw new CancellationException("The video manager is shut down!");
+        final String message = "The video manager is shut down!";
+        throw new CancellationException(message);
       }
 
       this.startGeneration = ++this.generation;
@@ -220,7 +220,7 @@ public final class VideoPlayerManager {
 
   private void checkStartLocked() {
     if (this.closed || this.generation != this.startGeneration) {
-      throw new CancellationException("The video startup was cancelled!");
+      throw new CancellationException(STARTUP_CANCELLED_MESSAGE);
     }
   }
 
@@ -403,7 +403,7 @@ public final class VideoPlayerManager {
     try {
       return scheduler.callSyncMethod(this.plugin, call);
     } catch (final IllegalPluginAccessException exception) {
-      LOGGER.warn(CLEANUP_RETAINED, exception);
+      LOGGER.debug("The plugin is disabled; display and hologram cleanup is retained for the main-thread shutdown drain.", exception);
       return null;
     }
   }
@@ -414,14 +414,17 @@ public final class VideoPlayerManager {
     } catch (final InterruptedException exception) {
       final Thread current = Thread.currentThread();
       current.interrupt();
-      throw new PluginException("Interrupted while releasing the video on the main thread!", exception);
+
+      final String message = "Interrupted while releasing the video on the main thread!";
+      throw new PluginException(message, exception);
     } catch (final ExecutionException exception) {
       final Throwable cause = requireNonNull(exception.getCause()); // checker framework
-      if (cause instanceof final VirtualMachineError fatal) {
-        throw fatal;
+      if (cause instanceof final VirtualMachineError virtualMachineError) {
+        throw virtualMachineError;
       }
 
-      throw new PluginException("Failed to release the video on the main thread!", cause);
+      final String message = "Failed to release the video on the main thread!";
+      throw new PluginException(message, cause);
     }
   }
 
@@ -444,7 +447,7 @@ public final class VideoPlayerManager {
         return;
       }
     }
-    final CancellationException failure = new CancellationException("The video startup was cancelled!");
+    final CancellationException failure = new CancellationException(STARTUP_CANCELLED_MESSAGE);
     this.cleanupAfterFailure(failure, player::release);
     throw failure;
   }
