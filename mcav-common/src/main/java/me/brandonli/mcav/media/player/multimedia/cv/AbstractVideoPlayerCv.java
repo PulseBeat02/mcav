@@ -533,7 +533,7 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
   }
 
   /**
-   * Checks whether media is currently being played or paused, as opposed to stopped or finished.
+   * Returns whether media is being played or paused, as opposed to stopped or finished.
    *
    * @return true if a playback session is active
    * @since 1.0.0

@@ -71,7 +71,7 @@ public abstract class AbstractAttachableCallback<ValueType> implements Attachabl
   }
 
   /**
-   * Checks whether a value was explicitly attached to this callback, even if it equals the fallback value.
+   * Returns whether a value was explicitly attached to this callback, even if it equals the fallback value.
    *
    * @return a snapshot of the attached state, which can change immediately after this call
    * @since 1.0.0

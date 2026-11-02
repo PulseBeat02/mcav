@@ -129,10 +129,11 @@ public final class VlcPlayer implements VideoPlayerMultiplexer {
   /**
    * Starts playing a source that contains both video and audio, replacing the current playback. Waits until VLC has reported an opening
    * event or the five-second event wait expires. The current playback keeps playing if VLC cannot even be set up for the new source.
+   * Source failures are reported to the exception handler.
    *
    * @param combined the source
-   * @return true if playback was accepted, including a slow open that outlives the event wait; false if the player is released, another start is in progress, or the source
-   * cannot be opened. Source failures are reported to the exception handler.
+   * @return true if playback was accepted, including a slow open that outlives the event wait; false if the player is released, another
+   * start is in progress, or the source cannot be opened
    * @throws NullPointerException if {@code combined} is null
    * @since 1.0.0
    */
@@ -147,11 +148,12 @@ public final class VlcPlayer implements VideoPlayerMultiplexer {
    * Starts playing video from one source and audio from another, replacing the current playback. Equal sources are
    * played as one combined source. Both sources open concurrently and share the opening-event timeout;
    * expiry alone is accepted even if VLC is still opening. The current playback keeps playing if VLC cannot even be set up.
+   * Source failures are reported to the exception handler.
    *
    * @param video the video source
    * @param audio the audio source
-   * @return true if playback was accepted, including a slow open that outlives the event wait; false if the player is released, another start is in progress, or a source
-   * cannot be opened. Source failures are reported to the exception handler.
+   * @return true if playback was accepted, including a slow open that outlives the event wait; false if the player is released, another
+   * start is in progress, or a source cannot be opened
    * @throws NullPointerException if {@code video} or {@code audio} is null
    * @since 1.0.0
    */
