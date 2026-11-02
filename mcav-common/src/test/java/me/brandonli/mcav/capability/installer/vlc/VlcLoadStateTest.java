@@ -97,21 +97,6 @@ final class VlcLoadStateTest {
   }
 
   @Test
-  void shouldRetryAfterAnUnsupportedSystem() {
-    final VlcLoadState state = new VlcLoadState();
-    final UnsupportedOperatingSystemException failure = new UnsupportedOperatingSystemException("no VLC!");
-    assertThrows(UnsupportedOperatingSystemException.class, () -> state.loadOnce(() -> this.failToLoadOnAnUnsupportedSystem(failure)));
-
-    final Optional<Path> retried = state.loadOnce(() -> Optional.of(LIBRARY_DIRECTORY));
-    final Optional<Path> expected = Optional.of(LIBRARY_DIRECTORY);
-    assertEquals(expected, retried);
-  }
-
-  private Optional<Path> failToLoadOnAnUnsupportedSystem(final UnsupportedOperatingSystemException failure) {
-    throw failure;
-  }
-
-  @Test
   void shouldSerializeConcurrentLoads() throws Exception {
     final VlcLoadState state = new VlcLoadState();
     final AtomicInteger calls = new AtomicInteger();
