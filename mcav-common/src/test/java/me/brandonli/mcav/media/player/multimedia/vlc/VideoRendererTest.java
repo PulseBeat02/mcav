@@ -53,9 +53,9 @@ import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.player.multimedia.vlc.VlcTestFrames.RecordedFrame;
-import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
+import me.brandonli.mcav.testing.OpenCvNatives;
 import me.brandonli.mcav.utils.immutable.Dimension;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -91,14 +91,9 @@ final class VideoRendererTest {
     this.errors.add(error);
   }
 
-  // Loads the OpenCV natives before any timed test, because the first image buffer of the JVM loads them on the render
-  // thread, which takes seconds on a busy machine.
   @BeforeAll
   static void loadTheNativeLibrariesAheadOfTheTimedTests() {
-    final ImageBuffer warmUp = ImageBuffer.bytes(new byte[3], 1, 1);
-    final ResizeFilter resize = new ResizeFilter(2, 2);
-    resize.applyFilter(warmUp);
-    warmUp.release();
+    OpenCvNatives.load();
   }
 
   @AfterEach

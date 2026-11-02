@@ -42,8 +42,10 @@ import me.brandonli.mcav.media.player.attachable.DimensionAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
+import me.brandonli.mcav.testing.OpenCvNatives;
 import org.bytedeco.javacv.FrameGrabber;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -60,6 +62,11 @@ final class PlaybackSessionFailureTest {
   private static final int FRAME_WIDTH = 4;
   private static final int FRAME_HEIGHT = 2;
   private static final long FRAME_INTERVAL_MICROSECONDS = 33_333L;
+
+  @BeforeAll
+  static void loadTheNativeLibrariesAheadOfTheTimedTests() {
+    OpenCvNatives.load();
+  }
 
   private static Stream<Throwable> recoverableFailures() {
     return Stream.of(
