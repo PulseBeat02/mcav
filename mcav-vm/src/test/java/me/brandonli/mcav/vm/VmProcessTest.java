@@ -693,7 +693,8 @@ final class VmProcessTest {
   void shouldStopTheStartBeforeQemuWhenThePasswordCannotBeWritten() {
     final VmSettings settings = this.reachableSettings();
     final VmProcess.Launcher launcher = command -> {
-      throw new AssertionError("QEMU must not start without the password of its display!");
+      final String message = "QEMU must not start without the password of its display!";
+      throw new AssertionError(message);
     };
     final VmProcess process = new VmProcess(
       settings,
@@ -705,7 +706,8 @@ final class VmProcessTest {
       this.missingKvm,
       SHORT_TIMEOUT_MILLISECONDS,
       () -> {
-        throw new IOException("disk full!");
+        final String message = "disk full!";
+        throw new IOException(message);
       }
     );
     final VmException failure = assertThrows(VmException.class, process::start);
@@ -1408,7 +1410,8 @@ final class VmProcessTest {
 
     final boolean firstForcedWait = interruptedOnce.compareAndSet(false, true);
     if (firstForcedWait) {
-      throw new InterruptedException("interrupt while forced exit is pending!");
+      final String message = "interrupt while forced exit is pending!";
+      throw new InterruptedException(message);
     }
 
     return invocation.callRealMethod();
@@ -1909,13 +1912,15 @@ final class VmProcessTest {
 
     @Override
     public int read() throws IOException {
-      throw new IOException("read single bytes is not supported!");
+      final String message = "read single bytes is not supported!";
+      throw new IOException(message);
     }
 
     @Override
     public int read(final byte @NonNull [] buffer, final int offset, final int length) throws IOException {
       if (this.delivered) {
-        throw new IOException("Stream closed!");
+        final String message = "Stream closed!";
+        throw new IOException(message);
       }
 
       this.delivered = true;

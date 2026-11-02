@@ -53,7 +53,8 @@ public final class VmInputExample {
   private static final String RETURN_KEY = "Return";
 
   private VmInputExample() {
-    throw new UnsupportedOperationException("Example class cannot be instantiated!");
+    final String message = "Example class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   static void main(final String[] args) {

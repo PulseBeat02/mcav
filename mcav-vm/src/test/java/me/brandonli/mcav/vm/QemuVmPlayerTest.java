@@ -440,7 +440,8 @@ final class QemuVmPlayerTest {
       this.installer,
       (_, _, _, _) -> this.qemu,
       (address, password, sink, failures) -> {
-        throw new IOException("connection refused!");
+        final String message = "connection refused!";
+        throw new IOException(message);
       }
     );
     final long outputsBefore = this.countOutputThreads();

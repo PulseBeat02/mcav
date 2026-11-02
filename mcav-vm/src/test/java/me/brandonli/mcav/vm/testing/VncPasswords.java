@@ -38,7 +38,8 @@ public final class VncPasswords {
   private static final int PROTOCOL_MINOR_VERSION = 8;
 
   private VncPasswords() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   public static byte[] computeResponse(final byte[] challenge, final String password) throws IOException {

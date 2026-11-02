@@ -295,7 +295,8 @@ final class VmAudioClientTest {
       }
     });
     final VmAudioClient.Sink failing = (samples, length) -> {
-      throw new IllegalStateException("sink broke!");
+      final String message = "sink broke!";
+      throw new IllegalStateException(message);
     };
     try (
       final VmAudioClient client = VmAudioClient.connect(this.address(), PASSWORD, failing, (message, failure) ->
@@ -533,7 +534,9 @@ final class VmAudioClientTest {
     final AtomicInteger closed = new AtomicInteger();
     VmAudioClient.closeQuietly(() -> {
       closed.incrementAndGet();
-      throw new IOException("gone!");
+
+      final String message = "gone!";
+      throw new IOException(message);
     });
     final int closeCalls = closed.get();
     assertEquals(1, closeCalls);
@@ -543,7 +546,8 @@ final class VmAudioClientTest {
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(TIMEOUT_SECONDS);
     while (!condition.getAsBoolean()) {
       if (System.nanoTime() > deadline) {
-        throw new AssertionError("Condition did not hold in time!");
+        final String message = "Condition did not hold in time!";
+        throw new AssertionError(message);
       }
       Thread.onSpinWait();
     }

@@ -111,7 +111,8 @@ final class QemuAudioProtocol {
   private static final String REFUSED_MESSAGE = "Because of \"%s\", VNC server refused the connection!";
 
   private QemuAudioProtocol() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   static void readVersion(final DataInput input) throws IOException {
