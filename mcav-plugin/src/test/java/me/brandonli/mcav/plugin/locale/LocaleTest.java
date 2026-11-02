@@ -24,27 +24,24 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-/**
- * Tests {@link Locale}.
- */
 final class LocaleTest {
 
   @ParameterizedTest
   @ValueSource(strings = { "EN_US", "en_us", "En_Us" })
-  void findsTheLocaleIgnoringCase(final String name) {
+  void shouldFindTheLocaleIgnoringCase(final String name) {
     final Locale locale = Locale.fromString(name);
     assertSame(Locale.EN_US, locale);
   }
 
   @ParameterizedTest
   @ValueSource(strings = { "FR_FR", "", "english" })
-  void fallsBackToEnglishForUnknownLanguages(final String name) {
+  void shouldFallBackToEnglishForUnknownLanguages(final String name) {
     final Locale locale = Locale.fromString(name);
     assertSame(Locale.EN_US, locale);
   }
 
   @Test
-  void refusesANullName() {
+  void shouldRefuseANullName() {
     assertThrows(NullPointerException.class, () -> Locale.fromString(null));
   }
 }

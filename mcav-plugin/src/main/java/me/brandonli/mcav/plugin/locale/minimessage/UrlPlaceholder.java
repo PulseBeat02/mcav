@@ -28,44 +28,34 @@ import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.renderer.ComponentRenderer;
 
-/** Keeps URL data out of the MiniMessage parser, including quoted click arguments. */
+// keeps URLs, quoted click arguments included, out of the MiniMessage parser
 final class UrlPlaceholder implements ComponentRenderer<String> {
+
+  private static final String PLACEHOLDER_PREFIX = "mcav_url_";
+
+  static final String URL_TOKEN = "$URL$";
 
   // A fresh opaque marker distinguishes placeholders in the template from literal $URL$ in argument components.
   private final String marker;
 
   UrlPlaceholder() {
     final UUID identifier = UUID.randomUUID();
-    this.marker = "mcav_url_" + identifier;
+    this.marker = PLACEHOLDER_PREFIX + identifier;
   }
 
   String prepare(final String message) {
-    return message.replace("$URL$", this.marker);
+    return message.replace(URL_TOKEN, this.marker);
   }
 
   @Override
   public Component render(final Component component, final String url) {
-    Component rendered = this.replaceContent(component, url);
-    final List<Component> originalChildren = component.children();
-    final List<Component> children = new ArrayList<>(originalChildren.size());
-    for (final Component child : originalChildren) {
-      final Component replacement = this.render(child, url);
-      children.add(replacement);
-    }
-    rendered = rendered.children(children);
+    final Component content = this.replaceContent(component, url);
+    final List<Component> children = this.renderChildren(component, url);
+    Component rendered = content.children(children);
 
     final ClickEvent<?> click = component.clickEvent();
     if (click != null && ClickEvent.Action.OPEN_URL.equals(click.action())) {
-      final ClickEvent.Payload.Text payload = (ClickEvent.Payload.Text) click.payload();
-      final String originalTarget = payload.value();
-      final String target = originalTarget.replace(this.marker, url);
-      try {
-        final ClickEvent<?> replacement = ClickEvent.openUrl(target);
-        rendered = rendered.clickEvent(replacement);
-      } catch (final IllegalArgumentException invalidUri) {
-        // Adventure validates URI syntax. Preserve the displayed data without offering a malformed click target.
-        rendered = rendered.clickEvent(null);
-      }
+      rendered = this.renderClick(rendered, click, url);
     }
     final HoverEvent<?> hover = component.hoverEvent();
     if (hover != null) {
@@ -75,27 +65,56 @@ final class UrlPlaceholder implements ComponentRenderer<String> {
     return rendered;
   }
 
+  private List<Component> renderChildren(final Component component, final String url) {
+    final List<Component> originalChildren = component.children();
+    final List<Component> children = new ArrayList<>(originalChildren.size());
+    for (final Component child : originalChildren) {
+      final Component replacement = this.render(child, url);
+      children.add(replacement);
+    }
+    return children;
+  }
+
+  private Component renderClick(final Component rendered, final ClickEvent<?> click, final String url) {
+    final ClickEvent.Payload.Text payload = (ClickEvent.Payload.Text) click.payload();
+    final String originalTarget = payload.value();
+    final String target = originalTarget.replace(this.marker, url);
+    try {
+      final ClickEvent<?> replacement = ClickEvent.openUrl(target);
+      return rendered.clickEvent(replacement);
+    } catch (final IllegalArgumentException exception) {
+      // Adventure validates URI syntax. Preserve the displayed data without offering a malformed click target.
+      return rendered.clickEvent(null);
+    }
+  }
+
   private Component replaceContent(final Component component, final String url) {
     if (component instanceof TextComponent text) {
       final String original = text.content();
       final String content = original.replace(this.marker, url);
       return text.content(content);
     }
+
     if (component instanceof TranslatableComponent translatable) {
       final List<TranslationArgument> originalArguments = translatable.arguments();
       final List<TranslationArgument> arguments = new ArrayList<>(originalArguments.size());
       for (final TranslationArgument argument : originalArguments) {
-        final Object value = argument.value();
-        if (value instanceof Component nested) {
-          final Component replacement = this.render(nested, url);
-          final TranslationArgument rendered = TranslationArgument.component(replacement);
-          arguments.add(rendered);
-        } else {
-          arguments.add(argument);
-        }
+        final TranslationArgument rendered = this.renderArgument(argument, url);
+        arguments.add(rendered);
       }
       return translatable.arguments(arguments);
     }
+
     return component;
+  }
+
+  private TranslationArgument renderArgument(final TranslationArgument argument, final String url) {
+    final Object value = argument.value();
+    if (value instanceof Component nested) {
+      final Component replacement = this.render(nested, url);
+      return TranslationArgument.component(replacement);
+    }
+
+    return argument;
   }
 }

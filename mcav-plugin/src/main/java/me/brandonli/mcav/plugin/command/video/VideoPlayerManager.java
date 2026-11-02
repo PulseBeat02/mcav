@@ -17,11 +17,14 @@
  */
 package me.brandonli.mcav.plugin.command.video;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.base.Equivalence;
 import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
@@ -40,6 +43,7 @@ import me.brandonli.mcav.media.player.multimedia.cv.AbstractVideoPlayerCv;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.VolumeFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
 import me.brandonli.mcav.plugin.MCAVSandbox;
+import me.brandonli.mcav.plugin.PluginException;
 import me.brandonli.mcav.plugin.audio.AudioProvider;
 import me.brandonli.mcav.plugin.utils.CaptureDevices;
 import me.brandonli.mcav.plugin.utils.CleanupUtils;
@@ -61,6 +65,8 @@ import org.slf4j.LoggerFactory;
  * <p>Only one video plays at a time. {@link #getStatus()} is true while a video is starting, so a second command
  * cannot start one at the same time. The volume and whether videos loop are settings of the manager, which the
  * videos started later keep.
+ *
+ * @since 1.0.0
  */
 public final class VideoPlayerManager {
 
@@ -68,9 +74,8 @@ public final class VideoPlayerManager {
   private static final Logger LOGGER = LoggerFactory.getLogger(VideoPlayerManager.class);
 
   private static final String CLEANUP_RETAINED =
-    "The plugin is disabled; display and hologram cleanup is retained for the main-thread shutdown drain";
+    "The plugin is disabled; display and hologram cleanup is retained for the main-thread shutdown drain.";
 
-  /** How often a looping video is checked for its end, in ticks: twice a second. */
   private static final long LOOP_CHECK_TICKS = 10L;
 
   private volatile @Nullable VideoPlayerMultiplexer player;
@@ -98,9 +103,11 @@ public final class VideoPlayerManager {
    * Constructs the manager and its worker thread.
    *
    * @param plugin the plugin, whose library and audio provider must be available
+   * @since 1.0.0
    */
   public VideoPlayerManager(final MCAVSandbox plugin) {
-    Preconditions.checkNotNull(plugin, "Plugin must not be null");
+    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
+
     this.status = new AtomicBoolean(false);
     this.service = Executors.newSingleThreadExecutor();
     this.provider = plugin.getAudioProvider();
@@ -109,51 +116,16 @@ public final class VideoPlayerManager {
   }
 
   /**
-   * Sets the hologram that shows the title of the video.
-   *
-   * @param hologram the hologram, or {@code null} for none
-   */
-  public void setHologram(final @Nullable Hologram hologram) {
-    synchronized (this.lifecycle) {
-      this.hologram = hologram;
-    }
-  }
-
-  /**
-   * Gets the hologram that shows the title of the video.
-   *
-   * @return the hologram, or {@code null} if there is none
-   */
-  public @Nullable Hologram getHologram() {
-    return this.hologram;
-  }
-
-  /**
-   * Sets where the hologram of the next video appears.
-   *
-   * @param location the location, or {@code null} to show no hologram
-   */
-  public void setHologramLocation(final @Nullable Location location) {
-    this.hologramLocation = location;
-  }
-
-  /**
-   * Gets where the hologram of the next video appears.
-   *
-   * @return the location, or {@code null} if no hologram is shown
-   */
-  public @Nullable Location getHologramLocation() {
-    return this.hologramLocation;
-  }
-
-  /**
    * Releases the video and stops the worker thread. Called on the main thread when the plugin is disabled.
+   *
+   * @since 1.0.0
    */
   public void shutdown() {
     synchronized (this.lifecycle) {
       if (this.closed) {
         return;
       }
+
       this.closed = true;
     }
     CleanupUtils.runAll(
@@ -166,24 +138,28 @@ public final class VideoPlayerManager {
   }
 
   /**
-   * Checks whether the library found VLC. While VLC is still being prepared in the background, it is not supported
-   * yet; {@link #isPreparing(Capability)} tells the two cases apart.
+   * Sets the hologram that shows the title of the video.
    *
-   * @return true if VLC players can be created
+   * @param hologram the hologram, or {@code null} for none
+   * @since 1.0.0
    */
-  public boolean isVLCSupported() {
-    return this.api.hasCapability(Capability.VLC);
+  public void setHologram(final @Nullable Hologram hologram) {
+    synchronized (this.lifecycle) {
+      this.hologram = hologram;
+    }
   }
 
   /**
-   * Checks whether the library is still preparing a capability in the background, such as VLC or yt-dlp, which are
+   * Returns whether the library is still preparing a capability in the background, such as VLC or yt-dlp, which are
    * downloaded on the first start of a server that does not have them.
    *
    * @param capability the capability
    * @return true if the preparation has not finished yet, false if the capability is available or failed
+   * @since 1.0.0
    */
   public boolean isPreparing(final Capability capability) {
-    Preconditions.checkNotNull(capability, "Capability must not be null");
+    Preconditions.checkNotNull(capability, "Capability must not be null!");
+
     final CompletableFuture<Boolean> ready = this.api.whenCapabilityReady(capability);
     final boolean done = ready.isDone();
     return !done;
@@ -199,14 +175,19 @@ public final class VideoPlayerManager {
    * main thread accepts no more tasks; cleanup remains owned until the explicit main-thread shutdown drain.
    * Accepted cleanup tasks are also retained, so shutdown can complete them before waiting for the worker.
    *
-   * @throws IllegalStateException if the thread is interrupted while waiting, or releasing on the main thread fails
+   * @throws PluginException if the thread is interrupted while waiting, or releasing on the main thread fails
+   * @since 1.0.0
    */
   public void releaseVideoPlayer() {
     this.cancelStart();
     this.clearCurrentVideo();
   }
 
-  /** Invalidates queued resolution, display starts, native completion and notifications immediately. */
+  /**
+   * Invalidates queued resolution, display starts, native completion and notifications immediately.
+   *
+   * @since 1.0.0
+   */
   public void cancelStart() {
     synchronized (this.lifecycle) {
       this.generation++;
@@ -216,9 +197,11 @@ public final class VideoPlayerManager {
   long beginStart() {
     synchronized (this.lifecycle) {
       if (this.closed) {
-        throw new CancellationException("The video manager is shut down");
+        throw new CancellationException("The video manager is shut down!");
       }
+
       this.startGeneration = ++this.generation;
+
       return this.startGeneration;
     }
   }
@@ -237,7 +220,7 @@ public final class VideoPlayerManager {
 
   private void checkStartLocked() {
     if (this.closed || this.generation != this.startGeneration) {
-      throw new CancellationException("The video startup was cancelled");
+      throw new CancellationException("The video startup was cancelled!");
     }
   }
 
@@ -257,30 +240,33 @@ public final class VideoPlayerManager {
       this.filter = null;
       this.hologram = null;
       worldTask = new WorldCleanup(() ->
-        CleanupUtils.runAll(
-          () -> {
-            if (oldFilter != null) {
-              oldFilter.release();
-            }
-          },
-          () -> {
-            if (oldHologram != null) {
-              oldHologram.kill();
-            }
-          }
-        )
+        CleanupUtils.runAll(() -> this.releaseOldFilter(oldFilter), () -> this.killOldHologram(oldHologram))
       );
       this.pendingWorld.add(worldTask);
     }
     CleanupUtils.runAll(
       this.provider::releaseAudioFilter,
-      () -> {
-        if (oldPlayer != null) {
-          oldPlayer.release();
-        }
-      },
+      () -> this.releaseOldPlayer(oldPlayer),
       () -> this.runOnMainThreadAndWait(worldTask)
     );
+  }
+
+  private void releaseOldFilter(final @Nullable FunctionalVideoFilter oldFilter) {
+    if (oldFilter != null) {
+      oldFilter.release();
+    }
+  }
+
+  private void killOldHologram(final @Nullable Hologram oldHologram) {
+    if (oldHologram != null) {
+      oldHologram.kill();
+    }
+  }
+
+  private void releaseOldPlayer(final @Nullable VideoPlayerMultiplexer oldPlayer) {
+    if (oldPlayer != null) {
+      oldPlayer.release();
+    }
   }
 
   /**
@@ -288,6 +274,7 @@ public final class VideoPlayerManager {
    * The shared startup claim serializes callers with the worker that resolves and configures the video.
    *
    * @param output the new display filter
+   * @since 1.0.0
    */
   public void startFilter(final FunctionalVideoFilter output) {
     final long expected;
@@ -301,7 +288,7 @@ public final class VideoPlayerManager {
       scheduler.runTask(this.plugin, () -> this.startIfCurrent(expected, output));
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
-      cleanupAfterFailure(exception, this::clearCurrentVideo);
+      this.cleanupAfterFailure(exception, this::clearCurrentVideo);
       throw exception;
     }
   }
@@ -314,11 +301,12 @@ public final class VideoPlayerManager {
     if (!current) {
       return;
     }
+
     try {
       output.start();
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
-      cleanupAfterFailure(exception, this::releaseVideoPlayer);
+      this.cleanupAfterFailure(exception, this::releaseVideoPlayer);
       throw exception;
     }
   }
@@ -328,7 +316,7 @@ public final class VideoPlayerManager {
     final VideoPlayerMultiplexer candidate;
     synchronized (this.lifecycle) {
       this.checkStartLocked();
-      candidate = Preconditions.checkNotNull(this.player, "No video player was configured");
+      candidate = Preconditions.checkNotNull(this.player, "No video player was configured!");
       this.startingPlayer = candidate;
     }
     final boolean started;
@@ -336,22 +324,22 @@ public final class VideoPlayerManager {
       started = start.getAsBoolean();
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
-      cleanupAfterFailure(exception, () -> this.finishNative(candidate));
+      this.cleanupAfterFailure(exception, () -> this.finishNative(candidate));
       throw exception;
     }
     this.finishNative(candidate);
     this.checkStart();
+
     return started;
   }
 
-  /** Runs one cleanup after a recoverable failure; the caller explicitly rethrows that original failure. */
-  private static void cleanupAfterFailure(final Throwable failure, final Runnable cleanup) {
+  private void cleanupAfterFailure(final Throwable failure, final Runnable cleanup) {
     try {
       cleanup.run();
-    } catch (final RuntimeException | Error cleanupFailure) {
-      ThrowableUtils.throwIfFatal(cleanupFailure);
-      if (!IDENTITY.equivalent(failure, cleanupFailure)) {
-        failure.addSuppressed(cleanupFailure);
+    } catch (final RuntimeException | Error exception) {
+      ThrowableUtils.throwIfFatal(exception);
+      if (!IDENTITY.equivalent(failure, exception)) {
+        failure.addSuppressed(exception);
       }
     }
   }
@@ -373,6 +361,7 @@ public final class VideoPlayerManager {
       this.executeWorldCleanup(cleanup);
       return;
     }
+
     final CompletableFuture<@Nullable Void> completion = cleanup.completion;
     if (!completion.isDone()) {
       final Future<@Nullable Void> scheduled = this.scheduleOnMainThread(() -> this.executeWorldCleanup(cleanup));
@@ -381,7 +370,7 @@ public final class VideoPlayerManager {
         return;
       }
     }
-    awaitMainThread(completion);
+    this.awaitMainThread(completion);
   }
 
   private void executeWorldCleanup(final WorldCleanup cleanup) {
@@ -407,42 +396,10 @@ public final class VideoPlayerManager {
     CleanupUtils.runAll(actions);
   }
 
-  private static final class WorldCleanup implements Runnable {
-
-    private final Runnable task;
-    private final AtomicBoolean claimed = new AtomicBoolean();
-    private final CompletableFuture<@Nullable Void> completion = new CompletableFuture<>();
-
-    private WorldCleanup(final Runnable task) {
-      this.task = task;
-    }
-
-    @Override
-    public void run() {
-      if (!this.claimed.compareAndSet(false, true)) {
-        return;
-      }
-      try {
-        this.task.run();
-        this.completion.complete(null);
-      } catch (final RuntimeException | Error exception) {
-        this.completion.completeExceptionally(exception);
-        throw exception;
-      }
-    }
-  }
-
-  /**
-   * Schedules a task on the main thread.
-   *
-   * @return the result of the task, or {@code null} if the plugin is disabled and the task was not scheduled
-   */
+  // null when the plugin is disabled and the task was not scheduled
   private @Nullable Future<@Nullable Void> scheduleOnMainThread(final Runnable task) {
     final BukkitScheduler scheduler = Bukkit.getScheduler();
-    final Callable<@Nullable Void> call = () -> {
-      task.run();
-      return null;
-    };
+    final Callable<@Nullable Void> call = Executors.callable(task, null);
     try {
       return scheduler.callSyncMethod(this.plugin, call);
     } catch (final IllegalPluginAccessException exception) {
@@ -451,44 +408,28 @@ public final class VideoPlayerManager {
     }
   }
 
-  private static void awaitMainThread(final Future<@Nullable Void> result) {
+  private void awaitMainThread(final Future<@Nullable Void> result) {
     try {
       result.get();
     } catch (final InterruptedException exception) {
       final Thread current = Thread.currentThread();
       current.interrupt();
-      throw new IllegalStateException("Interrupted while releasing the video on the main thread", exception);
+      throw new PluginException("Interrupted while releasing the video on the main thread!", exception);
     } catch (final ExecutionException exception) {
-      final Throwable cause = exception.getCause();
+      final Throwable cause = requireNonNull(exception.getCause()); // checker framework
       if (cause instanceof final VirtualMachineError fatal) {
         throw fatal;
       }
-      throw new IllegalStateException("Failed to release the video on the main thread", cause);
+
+      throw new PluginException("Failed to release the video on the main thread!", cause);
     }
-  }
-
-  /**
-   * Gets the worker thread that starts and releases videos.
-   *
-   * @return the executor
-   */
-  public ExecutorService getService() {
-    return this.service;
-  }
-
-  /**
-   * Gets the flag that is true while a video is starting.
-   *
-   * @return the flag, shared by every video command
-   */
-  public AtomicBoolean getStatus() {
-    return this.status;
   }
 
   /**
    * Sets the player of the video.
    *
    * @param player the player, or {@code null} for none
+   * @since 1.0.0
    */
   public void setPlayer(final @Nullable VideoPlayerMultiplexer player) {
     synchronized (this.lifecycle) {
@@ -496,30 +437,23 @@ public final class VideoPlayerManager {
         this.player = null;
         return;
       }
+
       final boolean starting = this.status.get();
       if (!this.closed && (!starting || this.generation == this.startGeneration)) {
         this.player = player;
         return;
       }
     }
-    final CancellationException failure = new CancellationException("The video startup was cancelled");
-    cleanupAfterFailure(failure, player::release);
+    final CancellationException failure = new CancellationException("The video startup was cancelled!");
+    this.cleanupAfterFailure(failure, player::release);
     throw failure;
-  }
-
-  /**
-   * Gets the player of the video.
-   *
-   * @return the player, or {@code null} if no video plays
-   */
-  public @Nullable VideoPlayerMultiplexer getPlayer() {
-    return this.player;
   }
 
   /**
    * Sets the filter that shows the frames of the video.
    *
    * @param filter the filter, or {@code null} for none
+   * @since 1.0.0
    */
   public void setFilter(final @Nullable FunctionalVideoFilter filter) {
     synchronized (this.lifecycle) {
@@ -528,29 +462,12 @@ public final class VideoPlayerManager {
   }
 
   /**
-   * Gets the filter that shows the frames of the video.
-   *
-   * @return the filter, or {@code null} if no video plays
-   */
-  public @Nullable FunctionalVideoFilter getFilter() {
-    return this.filter;
-  }
-
-  /**
-   * Gets the volume every video plays at, which the audio pipeline of every video applies before its output.
-   *
-   * @return the volume filter, shared by the videos
-   */
-  public VolumeFilter getVolume() {
-    return this.volume;
-  }
-
-  /**
    * Makes the videos play again from their start whenever they end, or stop at their end. A video is checked for its
    * end twice a second, off the main thread. Only the players that decode with FFmpeg or OpenCV restart a video; a
    * live stream or a camera has no end to restart from.
    *
    * @param looping true to loop
+   * @since 1.0.0
    */
   public synchronized void setLooping(final boolean looping) {
     this.looping = looping;
@@ -568,10 +485,110 @@ public final class VideoPlayerManager {
     }
   }
 
+  // isPlaying() stays true while paused, so a paused video is left alone
+  void restartEnded() {
+    final VideoPlayerMultiplexer current = this.player;
+    if (this.looping && current instanceof final AbstractVideoPlayerCv decoded && !decoded.isPlaying()) {
+      decoded.seek(0L);
+    }
+  }
+
   /**
-   * Checks whether the videos loop.
+   * Returns the hologram that shows the title of the video.
+   *
+   * @return the hologram, or empty if there is none
+   * @since 1.0.0
+   */
+  public Optional<Hologram> getHologram() {
+    return Optional.ofNullable(this.hologram);
+  }
+
+  /**
+   * Sets where the hologram of the next video appears.
+   *
+   * @param location the location, or {@code null} to show no hologram
+   * @since 1.0.0
+   */
+  public void setHologramLocation(final @Nullable Location location) {
+    this.hologramLocation = location;
+  }
+
+  /**
+   * Returns where the hologram of the next video appears.
+   *
+   * @return the location, or empty if no hologram is shown
+   * @since 1.0.0
+   */
+  public Optional<Location> getHologramLocation() {
+    return Optional.ofNullable(this.hologramLocation);
+  }
+
+  /**
+   * Returns whether the library found VLC. While VLC is still being prepared in the background, it is not supported
+   * yet; {@link #isPreparing(Capability)} tells the two cases apart.
+   *
+   * @return true if VLC players can be created
+   * @since 1.0.0
+   */
+  public boolean isVlcSupported() {
+    return this.api.hasCapability(Capability.VLC);
+  }
+
+  /**
+   * Returns the worker thread that starts and releases videos.
+   *
+   * @return the executor
+   * @since 1.0.0
+   */
+  public ExecutorService getService() {
+    return this.service;
+  }
+
+  /**
+   * Returns the flag that is true while a video is starting.
+   *
+   * @return the flag, shared by every video command
+   * @since 1.0.0
+   */
+  public AtomicBoolean getStatus() {
+    return this.status;
+  }
+
+  /**
+   * Returns the player of the video.
+   *
+   * @return the player, or empty if no video plays
+   * @since 1.0.0
+   */
+  public Optional<VideoPlayerMultiplexer> getPlayer() {
+    return Optional.ofNullable(this.player);
+  }
+
+  /**
+   * Returns the filter that shows the frames of the video.
+   *
+   * @return the filter, or empty if no video plays
+   * @since 1.0.0
+   */
+  public Optional<FunctionalVideoFilter> getFilter() {
+    return Optional.ofNullable(this.filter);
+  }
+
+  /**
+   * Returns the volume every video plays at, which the audio pipeline of every video applies before its output.
+   *
+   * @return the volume filter, shared by the videos
+   * @since 1.0.0
+   */
+  public VolumeFilter getVolume() {
+    return this.volume;
+  }
+
+  /**
+   * Returns whether the videos loop.
    *
    * @return true if a video plays again from its start when it ends
+   * @since 1.0.0
    */
   public boolean isLooping() {
     return this.looping;
@@ -581,25 +598,45 @@ public final class VideoPlayerManager {
    * Remembers the capture devices {@code /mcav video devices} listed last, the only ones the DEVICE player may open.
    *
    * @param listed the devices
+   * @since 1.0.0
    */
   public void setDevices(final List<CaptureDevices.Device> listed) {
     this.devices = List.copyOf(listed);
   }
 
   /**
-   * Gets the capture devices listed last.
+   * Returns the capture devices listed last.
    *
    * @return the devices, none before the first listing
+   * @since 1.0.0
    */
   public List<CaptureDevices.Device> getDevices() {
     return this.devices;
   }
 
-  /** Plays a video that reached its end again from the start. A paused video still plays, so it is left alone. */
-  void restartEnded() {
-    final VideoPlayerMultiplexer current = this.player;
-    if (this.looping && current instanceof final AbstractVideoPlayerCv decoded && !decoded.isPlaying()) {
-      decoded.seek(0L);
+  private static final class WorldCleanup implements Runnable {
+
+    private final Runnable task;
+    private final AtomicBoolean claimed = new AtomicBoolean();
+    private final CompletableFuture<@Nullable Void> completion = new CompletableFuture<>();
+
+    private WorldCleanup(final Runnable task) {
+      this.task = task;
+    }
+
+    @Override
+    public void run() {
+      if (!this.claimed.compareAndSet(false, true)) {
+        return;
+      }
+
+      try {
+        this.task.run();
+        this.completion.complete(null);
+      } catch (final RuntimeException | Error exception) {
+        this.completion.completeExceptionally(exception);
+        throw exception;
+      }
     }
   }
 }

@@ -29,13 +29,13 @@ final class PaperServerAssertionsTest {
 
   private static final String IDLE_MEDIA = "{\"duration\":0,\"view_count\":0,\"like_count\":0}";
   private static final List<String> STARTUP = List.of(
-    "MCAV loaded in 1 ms",
+    "MCAV loaded in 1 ms.",
     "JavaCV natives loaded in 1 ms",
-    "Simple Voice Chat audio is ready"
+    "Simple Voice Chat audio is ready."
   );
 
   @Test
-  void acceptsTheCompleteIdleSnapshotInAnyFieldOrder() {
+  void shouldAcceptTheCompleteIdleSnapshotInAnyFieldOrder() {
     PaperServerEndToEndTest.assertRanCleanly(0, IDLE_MEDIA, STARTUP);
     PaperServerEndToEndTest.assertRanCleanly(0, "{\"like_count\":0,\"duration\":0,\"view_count\":0}", STARTUP);
   }
@@ -50,13 +50,13 @@ final class PaperServerAssertionsTest {
       "{\"duration\":0,\"view_count\":0,\"like_count\":0,\"title\":\"stale\"}",
     }
   )
-  void refusesIncompleteOrStaleIdleSnapshots(final String response) {
+  void shouldRefuseIncompleteOrStaleIdleSnapshots(final String response) {
     assertThrows(AssertionError.class, () -> PaperServerEndToEndTest.assertRanCleanly(0, response, STARTUP));
   }
 
   @ParameterizedTest
   @ValueSource(strings = { "{", "{duration:0,view_count:0,like_count:0}", "{\"duration\":0,\"view_count\":0,\"like_count\":0} trailing" })
-  void refusesMalformedMediaInformation(final String response) {
+  void shouldRefuseMalformedMediaInformation(final String response) {
     assertThrows(JsonParseException.class, () -> PaperServerEndToEndTest.assertRanCleanly(0, response, STARTUP));
   }
 
@@ -74,12 +74,12 @@ final class PaperServerAssertionsTest {
       "[render/WARN]: Failed to start VLC playback of clip.mp4",
     }
   )
-  void refusesPlaybackFailuresAndUncaughtExceptions(final String line) {
+  void shouldRefusePlaybackFailuresAndUncaughtExceptions(final String line) {
     assertThrows(AssertionError.class, () -> PaperServerEndToEndTest.assertNoErrors(List.of(line)));
   }
 
   @Test
-  void acceptsUnrelatedServerWarnings() {
+  void shouldAcceptUnrelatedServerWarnings() {
     PaperServerEndToEndTest.assertNoErrors(
       List.of("[Server thread/WARN]: This server is running in offline mode", "[Server thread/WARN]: Can't keep up!")
     );

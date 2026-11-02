@@ -54,10 +54,16 @@ import org.incendo.cloud.annotations.AnnotationParser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-/**
- * Tests {@link HelpCommand} with the help and dump commands registered like the plugin registers them.
- */
 final class HelpCommandTest {
+
+  private static final String DUMP_COMMAND = "/mcav dump";
+  private static final String HELP_COMMAND = "/mcav help";
+  private static final String DUMP_QUERY = "dump";
+
+  private static final String DUMP_DESCRIPTION = "Creates a dump of the current server information";
+  private static final String HELP_DESCRIPTION = "Shows the commands of the plugin and how to use them";
+
+  private static final String MESSAGE_KEY_PREFIX = "mcav.command.";
 
   private HelpCommand help;
   private CommandSender sender;
@@ -76,42 +82,16 @@ final class HelpCommandTest {
     doCallRealMethod().when(this.sender).sendMessage(any(ComponentLike.class));
   }
 
-  private static void appendText(final Component component, final StringBuilder text) {
-    final String plain = Components.plain(component);
-    text.append(plain);
-    text.append('\n');
-    final HoverEvent<?> hover = component.hoverEvent();
-    if (hover != null) {
-      final Object value = hover.value();
-      if (value instanceof final Component hoverText) {
-        appendText(hoverText, text);
-      }
-    }
-    final List<Component> children = component.children();
-    for (final Component child : children) {
-      appendText(child, text);
-    }
-  }
-
-  private String helpText() {
-    final List<Component> messages = Components.received(this.sender);
-    final StringBuilder text = new StringBuilder();
-    for (final Component message : messages) {
-      appendText(message, text);
-    }
-    return text.toString();
-  }
-
   @Test
-  void listsTheCommandsWithTheirTranslatedDescriptions() {
+  void shouldListTheCommandsWithTheirTranslatedDescriptions() {
     this.help.commandHelp(this.sender, null);
     final String text = this.helpText();
     final boolean title = text.contains("Available Commands");
-    final boolean listsDump = text.contains("/mcav dump");
-    final boolean listsHelp = text.contains("/mcav help");
-    final boolean describesDump = text.contains("Creates a dump of the current server information");
-    final boolean describesHelp = text.contains("Shows the commands of the plugin and how to use them");
-    final boolean untranslated = text.contains("mcav.command.");
+    final boolean listsDump = text.contains(DUMP_COMMAND);
+    final boolean listsHelp = text.contains(HELP_COMMAND);
+    final boolean describesDump = text.contains(DUMP_DESCRIPTION);
+    final boolean describesHelp = text.contains(HELP_DESCRIPTION);
+    final boolean untranslated = text.contains(MESSAGE_KEY_PREFIX);
     assertTrue(title, text);
     assertTrue(listsDump, text);
     assertTrue(listsHelp, text);
@@ -120,15 +100,41 @@ final class HelpCommandTest {
     assertFalse(untranslated, text);
   }
 
+  private String helpText() {
+    final List<Component> messages = Components.received(this.sender);
+    final StringBuilder text = new StringBuilder();
+    for (final Component message : messages) {
+      this.appendText(message, text);
+    }
+    return text.toString();
+  }
+
+  private void appendText(final Component component, final StringBuilder text) {
+    final String plain = Components.plain(component);
+    text.append(plain);
+    text.append('\n');
+    final HoverEvent<?> hover = component.hoverEvent();
+    if (hover != null) {
+      final Object value = hover.value();
+      if (value instanceof final Component hoverText) {
+        this.appendText(hoverText, text);
+      }
+    }
+    final List<Component> children = component.children();
+    for (final Component child : children) {
+      this.appendText(child, text);
+    }
+  }
+
   @Test
-  void showsOnlyTheCommandsMatchingAQuery() {
-    this.help.commandHelp(this.sender, "dump");
+  void shouldShowOnlyTheCommandsMatchingAQuery() {
+    this.help.commandHelp(this.sender, DUMP_QUERY);
     final String text = this.helpText();
-    final boolean dumpListed = text.contains("/mcav dump");
-    final boolean describesDump = text.contains("Creates a dump of the current server information");
-    final boolean helpListed = text.contains("/mcav help");
-    final boolean describesHelp = text.contains("Shows the commands of the plugin and how to use them");
-    final boolean untranslated = text.contains("mcav.command.");
+    final boolean dumpListed = text.contains(DUMP_COMMAND);
+    final boolean describesDump = text.contains(DUMP_DESCRIPTION);
+    final boolean helpListed = text.contains(HELP_COMMAND);
+    final boolean describesHelp = text.contains(HELP_DESCRIPTION);
+    final boolean untranslated = text.contains(MESSAGE_KEY_PREFIX);
     assertTrue(dumpListed, text);
     assertTrue(describesDump, text);
     assertFalse(helpListed, text);
@@ -136,23 +142,28 @@ final class HelpCommandTest {
     assertFalse(untranslated, text);
   }
 
-  private static String translation(final String key) {
-    final TranslationManager translations = LocaleTools.MANAGER;
-    return translations.getProperty(key);
+  @Test
+  void shouldTranslateEveryTextOfTheHelp() {
+    final Map<String, String> messages = HelpCommand.createMessages();
+    final Map<String, String> expected = new HashMap<>();
+    this.putListingMessages(expected);
+    this.putNavigationMessages(expected);
+    assertEquals(expected, messages, "every text the help knows is filled in from the locale file");
+
+    final Collection<String> texts = messages.values();
+    for (final String text : texts) {
+      final boolean untranslated = text.startsWith("mcav.");
+      assertFalse(untranslated, text);
+    }
   }
 
-  /**
-   * Adds the texts of the command listing to the expected messages.
-   *
-   * @param expected the expected messages, by the key of the help
-   */
-  private static void putListingMessages(final Map<String, String> expected) {
-    final String title = translation("mcav.command.help.command");
-    final String description = translation("mcav.command.help.description");
-    final String arguments = translation("mcav.command.help.arguments");
-    final String optional = translation("mcav.command.help.optional");
-    final String available = translation("mcav.command.help.available_commands");
-    final String showHelp = translation("mcav.command.help.show_help");
+  private void putListingMessages(final Map<String, String> expected) {
+    final String title = this.translation("mcav.command.help.command");
+    final String description = this.translation("mcav.command.help.description");
+    final String arguments = this.translation("mcav.command.help.arguments");
+    final String optional = this.translation("mcav.command.help.optional");
+    final String available = this.translation("mcav.command.help.available_commands");
+    final String showHelp = this.translation("mcav.command.help.show_help");
     expected.put(MESSAGE_HELP_TITLE, title);
     expected.put(MESSAGE_DESCRIPTION, description);
     expected.put(MESSAGE_ARGUMENTS, arguments);
@@ -161,17 +172,17 @@ final class HelpCommandTest {
     expected.put(MESSAGE_CLICK_TO_SHOW_HELP, showHelp);
   }
 
-  /**
-   * Adds the texts of the search and of the page navigation to the expected messages.
-   *
-   * @param expected the expected messages, by the key of the help
-   */
-  private static void putNavigationMessages(final Map<String, String> expected) {
-    final String query = translation("mcav.command.help.search_query");
-    final String noResults = translation("mcav.command.help.none_query");
-    final String invalidPage = translation("mcav.command.help.page_invalid");
-    final String nextPage = translation("mcav.command.help.next_page");
-    final String previousPage = translation("mcav.command.help.previous_page");
+  private String translation(final String key) {
+    final TranslationManager translations = LocaleTools.MANAGER;
+    return translations.getProperty(key);
+  }
+
+  private void putNavigationMessages(final Map<String, String> expected) {
+    final String query = this.translation("mcav.command.help.search_query");
+    final String noResults = this.translation("mcav.command.help.none_query");
+    final String invalidPage = this.translation("mcav.command.help.page_invalid");
+    final String nextPage = this.translation("mcav.command.help.next_page");
+    final String previousPage = this.translation("mcav.command.help.previous_page");
     expected.put(MESSAGE_SHOWING_RESULTS_FOR_QUERY, query);
     expected.put(MESSAGE_NO_RESULTS_FOR_QUERY, noResults);
     expected.put(MESSAGE_PAGE_OUT_OF_RANGE, invalidPage);
@@ -180,22 +191,8 @@ final class HelpCommandTest {
   }
 
   @Test
-  void translatesEveryTextOfTheHelp() {
-    final Map<String, String> messages = HelpCommand.createMessages();
-    final Map<String, String> expected = new HashMap<>();
-    putListingMessages(expected);
-    putNavigationMessages(expected);
-    assertEquals(expected, messages, "every text the help knows is filled in from the locale file");
-    final Collection<String> texts = messages.values();
-    for (final String text : texts) {
-      final boolean untranslated = text.startsWith("mcav.");
-      assertFalse(untranslated, text);
-    }
-  }
-
-  @Test
-  void refusesNullArguments() {
+  void shouldRefuseNullArguments() {
     assertThrows(NullPointerException.class, () -> new HelpCommand(null));
-    assertThrows(NullPointerException.class, () -> this.help.commandHelp(null, "dump"));
+    assertThrows(NullPointerException.class, () -> this.help.commandHelp(null, DUMP_QUERY));
   }
 }

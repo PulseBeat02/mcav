@@ -35,11 +35,17 @@ import org.incendo.cloud.annotations.Permission;
 
 /**
  * {@code /mcav screen}: builds a wall of item frames holding consecutive maps to display media on.
+ *
+ * <p>This class is not thread-safe: use it on the server main thread, where Cloud runs its commands.
+ *
+ * @since 1.0.0
  */
 public final class ScreenCommand implements AnnotationCommandFeature {
 
   /**
    * Constructs the command.
+   *
+   * @since 1.0.0
    */
   public ScreenCommand() {}
 
@@ -59,28 +65,30 @@ public final class ScreenCommand implements AnnotationCommandFeature {
    *
    * @param sender          who builds the screen
    * @param blockDimensions the size of the wall as {@code <width>x<height>} in blocks, such as {@code 5x5}, at most
-   *                        {@value ArgumentUtils#MAX_SCREEN_SIDE} on each side; each block holds one 128x128 pixel
+   *                        {@value ArgumentUtils#MAXIMUM_SCREEN_SIDE} on each side; each block holds one 128x128 pixel
    *                        map
    * @param mapId           the id of the map in the top left corner; the wall uses this id and the following
-   *                        width times height minus one ids, which may lie at most {@value MapUtils#MAX_NEW_MAPS} ids
+   *                        width times height minus one ids, which may lie at most {@value MapUtils#MAXIMUM_NEW_MAPS} ids
    *                        past the maps the world already has
    * @param material        the block the wall is made of, such as {@code black_concrete}
    * @param location        where the wall is built, such as {@code ~ ~ ~}
+   * @since 1.0.0
    */
   @Command("mcav screen <blockDimensions> <mapId> <material> <location>")
   @Permission("mcav.command.screen")
   @CommandDescription("mcav.command.screen.info")
   public void buildScreen(
     final CommandSender sender,
-    @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
-    @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
+    @Argument(suggestions = SuggestionProvider.DIMENSIONS) @Quoted final String blockDimensions,
+    @Argument(suggestions = SuggestionProvider.IDS) @Range(min = "0") final int mapId,
     final Material material,
     final Location location
   ) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
-    Preconditions.checkNotNull(blockDimensions, "Block dimensions must not be null");
-    Preconditions.checkNotNull(material, "Material must not be null");
-    Preconditions.checkNotNull(location, "Location must not be null");
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(blockDimensions, "Block dimensions must not be null!");
+    Preconditions.checkNotNull(material, "Material must not be null!");
+    Preconditions.checkNotNull(location, "Location must not be null!");
+
     final Pair<Integer, Integer> dimensions;
     try {
       dimensions = ArgumentUtils.parseScreenDimensions(blockDimensions);

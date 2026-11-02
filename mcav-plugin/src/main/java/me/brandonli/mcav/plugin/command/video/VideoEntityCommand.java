@@ -26,6 +26,7 @@ import me.brandonli.mcav.bukkit.media.result.EntityResult;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.plugin.MCAVSandbox;
+import me.brandonli.mcav.plugin.command.SuggestionProvider;
 import me.brandonli.mcav.plugin.utils.ArgumentUtils;
 import me.brandonli.mcav.plugin.utils.AudioArgument;
 import me.brandonli.mcav.plugin.utils.FilterChain;
@@ -44,6 +45,11 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 
 /**
  * {@code /mcav video entity}: plays a video to the selected players.
+ *
+ * <p>This class is not thread-safe: use it on the server main thread, except {@code createVideoFilter}, which {@link
+ * AbstractVideoCommand} calls on the worker thread.
+ *
+ * @since 1.0.0
  */
 public final class VideoEntityCommand extends AbstractVideoCommand {
 
@@ -51,6 +57,7 @@ public final class VideoEntityCommand extends AbstractVideoCommand {
    * Constructs the command.
    *
    * @param plugin the plugin
+   * @since 1.0.0
    */
   public VideoEntityCommand(final MCAVSandbox plugin) {
     super(plugin);
@@ -58,7 +65,7 @@ public final class VideoEntityCommand extends AbstractVideoCommand {
 
   /**
    * Handles {@code /mcav video entity <playerSelector> <playerType> <audioType> <videoResolution> <character>
-   * <location> <ytDlpOptions> <mrl>}: plays a video as colored text inside a floating text display entity.
+   * <location> <ytdlpOptions> <mrl>}: plays a video as colored text inside a floating text display entity.
    *
    * <p>Every frame is drawn with the chosen character in the color of each pixel, one line of text per row of
    * pixels. The entity always turns to face the viewer horizontally and is only visible to the selected players who
@@ -80,15 +87,16 @@ public final class VideoEntityCommand extends AbstractVideoCommand {
    * @param character       the character every pixel is drawn with, in quotes; a full block {@code █} gives the
    *                        most solid picture
    * @param location        where the entity is spawned, such as {@code ~ ~2 ~}
-   * @param ytDlpOptions    extra options, in quotes; {@code ""} for none, or yt-dlp options such as
+   * @param ytdlpOptions    extra options, in quotes; {@code ""} for none, or yt-dlp options such as
    *                        {@code "--yt-dlp{format=best,no-playlist}"}
    * @param mrl             the media, in quotes if it contains spaces: a file path on the server, a direct media
    *                        URL, a website yt-dlp understands such as YouTube, a capture device number such as
    *                        {@code 0}, or a raw FFmpeg input written as {@code format||input}
    * @param filters         the {@code --filters} option: filters applied to every frame in order, such as
    *                        {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
+   * @since 1.0.0
    */
-  @Command("mcav video entity <playerSelector> <playerType> <audioType> <videoResolution> <character> <location> <ytDlpOptions> <mrl>")
+  @Command("mcav video entity <playerSelector> <playerType> <audioType> <videoResolution> <character> <location> <ytdlpOptions> <mrl>")
   @Permission("mcav.command.video.entity")
   @CommandDescription("mcav.command.video.entity.info")
   public void playVideo(
@@ -96,20 +104,21 @@ public final class VideoEntityCommand extends AbstractVideoCommand {
     final MultiplePlayerSelector playerSelector,
     final PlayerArgument playerType,
     final AudioArgument audioType,
-    @Argument(suggestions = "dimensions") @Quoted final String videoResolution,
-    @Argument(suggestions = "chat-characters") @Quoted final String character,
+    @Argument(suggestions = SuggestionProvider.DIMENSIONS) @Quoted final String videoResolution,
+    @Argument(suggestions = SuggestionProvider.CHAT_CHARACTERS) @Quoted final String character,
     final Location location,
-    @Quoted final String ytDlpOptions,
+    @Quoted final String ytdlpOptions,
     @Quoted final String mrl,
     @Flag("filters") @Quoted final @Nullable String filters
   ) {
-    Preconditions.checkNotNull(playerSelector, "Player selector must not be null");
-    Preconditions.checkNotNull(character, "Character must not be null");
-    Preconditions.checkNotNull(location, "Location must not be null");
+    Preconditions.checkNotNull(playerSelector, "Player selector must not be null!");
+    Preconditions.checkNotNull(character, "Character must not be null!");
+    Preconditions.checkNotNull(location, "Location must not be null!");
 
     final Collection<UUID> players = ArgumentUtils.parsePlayerSelectors(playerSelector);
-    final VideoConfigurationProvider configurationProvider = resolution -> createConfiguration(resolution, players, character, location);
-    this.playVideo(configurationProvider, sender, playerSelector, playerType, audioType, videoResolution, mrl, ytDlpOptions, filters);
+    final VideoConfigurationProvider configurationProvider = resolution ->
+      this.createConfiguration(resolution, players, character, location);
+    this.playVideo(configurationProvider, sender, playerSelector, playerType, audioType, videoResolution, mrl, ytdlpOptions, filters);
   }
 
   /**
@@ -121,22 +130,24 @@ public final class VideoEntityCommand extends AbstractVideoCommand {
    *                              {@link #playVideo(CommandSender, MultiplePlayerSelector, PlayerArgument, AudioArgument, String, String, Location, String, String, String)},
    *                              which returns an {@link EntityConfiguration}
    * @return the pipeline that shows the frames in the entity
+   * @since 1.0.0
    */
   @Override
   public VideoPipelineStep createVideoFilter(
     final Pair<Integer, Integer> resolution,
     final VideoConfigurationProvider configurationProvider
   ) {
-    Preconditions.checkNotNull(resolution, "Resolution must not be null");
-    Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null");
+    Preconditions.checkNotNull(resolution, "Resolution must not be null!");
+    Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null!");
 
     final EntityConfiguration configuration = (EntityConfiguration) configurationProvider.buildConfiguration(resolution);
     final FunctionalVideoFilter result = new EntityResult(configuration);
     this.manager.startFilter(result);
+
     return VideoPipelineStep.of(result);
   }
 
-  private static EntityConfiguration createConfiguration(
+  private EntityConfiguration createConfiguration(
     final Pair<Integer, Integer> resolution,
     final Collection<UUID> players,
     final String character,

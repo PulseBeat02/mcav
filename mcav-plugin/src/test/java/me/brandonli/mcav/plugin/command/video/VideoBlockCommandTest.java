@@ -52,18 +52,21 @@ import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitScheduler;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
 
-/**
- * Tests {@link VideoBlockCommand}. The common playback flow is skipped, so only the arguments passed to it and
- * the block wall it creates are checked.
- */
 final class VideoBlockCommandTest {
+
+  private static final int RESOLUTION_WIDTH = 32;
+  private static final int RESOLUTION_HEIGHT = 18;
+
+  private static final String VIDEO_FILE_NAME = "clip.mp4";
 
   private VideoPlayerManager manager;
   private VideoBlockCommand command;
@@ -77,12 +80,7 @@ final class VideoBlockCommandTest {
     TestServer.resetWithDeferredTasks();
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
     this.manager = mock(VideoPlayerManager.class);
-    Mockito.doAnswer(invocation -> {
-      final FunctionalVideoFilter filter = invocation.getArgument(0);
-      final BukkitScheduler scheduler = Bukkit.getScheduler();
-      scheduler.runTask(plugin, filter::start);
-      return null;
-    })
+    Mockito.doAnswer(invocation -> this.runFilterOnMainThread(invocation, plugin))
       .when(this.manager)
       .startFilter(any(FunctionalVideoFilter.class));
     final AudioProvider provider = mock(AudioProvider.class);
@@ -90,16 +88,24 @@ final class VideoBlockCommandTest {
     when(plugin.getAudioProvider()).thenReturn(provider);
     final VideoBlockCommand realCommand = new VideoBlockCommand(plugin);
     this.command = spy(realCommand);
-    skipPlayback(this.command);
+    this.skipPlayback(this.command);
 
     this.viewer = UUID.randomUUID();
-    this.selector = mockSelector(this.viewer);
+    this.selector = this.mockSelector(this.viewer);
     this.sender = mock(CommandSender.class);
     final FakeWorld world = new FakeWorld();
     this.location = world.location(1.0, 64.0, 2.0);
   }
 
-  private static void skipPlayback(final AbstractVideoCommand command) {
+  private @Nullable Object runFilterOnMainThread(final InvocationOnMock invocation, final MCAVSandbox plugin) {
+    final FunctionalVideoFilter filter = invocation.getArgument(0);
+    final BukkitScheduler scheduler = Bukkit.getScheduler();
+    scheduler.runTask(plugin, filter::start);
+
+    return null;
+  }
+
+  private void skipPlayback(final AbstractVideoCommand command) {
     doNothing()
       .when(command)
       .playVideo(
@@ -115,13 +121,25 @@ final class VideoBlockCommandTest {
       );
   }
 
-  private static MultiplePlayerSelector mockSelector(final UUID viewer) {
+  private MultiplePlayerSelector mockSelector(final UUID viewer) {
     final Player player = mock(Player.class);
     when(player.getUniqueId()).thenReturn(viewer);
     final MultiplePlayerSelector selector = mock(MultiplePlayerSelector.class);
     final List<Player> players = List.of(player);
     when(selector.values()).thenReturn(players);
+
     return selector;
+  }
+
+  @Test
+  void shouldPassTheArgumentsOnAndConfigureTheWall() {
+    final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
+
+    final Object built = configurationProvider.buildConfiguration(resolution);
+
+    final BlockConfiguration configuration = assertInstanceOf(BlockConfiguration.class, built);
+    this.assertWall(configuration);
   }
 
   private AbstractVideoCommand.VideoConfigurationProvider playAndCaptureProvider() {
@@ -133,7 +151,7 @@ final class VideoBlockCommandTest {
       "32x18",
       this.location,
       "--loop",
-      "clip.mp4",
+      VIDEO_FILE_NAME,
       null
     );
     final ArgumentCaptor<AbstractVideoCommand.VideoConfigurationProvider> providers = ArgumentCaptor.forClass(
@@ -146,10 +164,11 @@ final class VideoBlockCommandTest {
       eq(PlayerArgument.FFMPEG),
       eq(AudioArgument.HTTP_SERVER),
       eq("32x18"),
-      eq("clip.mp4"),
+      eq(VIDEO_FILE_NAME),
       eq("--loop"),
       isNull()
     );
+
     return providers.getValue();
   }
 
@@ -161,40 +180,20 @@ final class VideoBlockCommandTest {
     final int height = configuration.getBlockHeight();
     final Location position = configuration.getPosition();
     assertEquals(expectedViewers, viewerList);
-    assertEquals(32, width);
-    assertEquals(18, height);
+    assertEquals(RESOLUTION_WIDTH, width);
+    assertEquals(RESOLUTION_HEIGHT, height);
     assertEquals(this.location, position);
   }
 
-  private void assertStartedOnTheMainThread(final FunctionalVideoFilter result) {
-    verify(this.manager).startFilter(result);
-    verify(result, never()).start();
-    final int tasks = TestServer.runPendingTasks();
-    assertEquals(1, tasks);
-    verify(result).start();
-  }
-
   @Test
-  void passesTheArgumentsOnAndConfiguresTheWall() {
+  void shouldShowTheFramesOnAWallStartedOnTheMainThread() {
     final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
-    final Pair<Integer, Integer> resolution = Pair.pair(32, 18);
-
-    final Object built = configurationProvider.buildConfiguration(resolution);
-
-    final BlockConfiguration configuration = assertInstanceOf(BlockConfiguration.class, built);
-    this.assertWall(configuration);
-  }
-
-  @Test
-  void showsTheFramesOnAWallStartedOnTheMainThread() {
-    final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
-    final Pair<Integer, Integer> resolution = Pair.pair(32, 18);
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
     final List<List<?>> arguments = new ArrayList<>();
     try (
-      final MockedConstruction<BlockResult> results = Mockito.mockConstruction(BlockResult.class, (_, context) -> {
-        final List<?> constructorArguments = context.arguments();
-        arguments.add(constructorArguments);
-      })
+      final MockedConstruction<BlockResult> results = Mockito.mockConstruction(BlockResult.class, (_, context) ->
+        this.recordArguments(context, arguments)
+      )
     ) {
       final VideoPipelineStep pipeline = this.command.createVideoFilter(resolution, configurationProvider);
       final List<BlockResult> constructed = results.constructed();
@@ -207,5 +206,19 @@ final class VideoBlockCommandTest {
     final List<?> constructorArguments = arguments.getFirst();
     final BlockConfiguration configuration = (BlockConfiguration) constructorArguments.getFirst();
     this.assertWall(configuration);
+  }
+
+  private void recordArguments(final MockedConstruction.Context context, final List<List<?>> arguments) {
+    final List<?> constructorArguments = context.arguments();
+    arguments.add(constructorArguments);
+  }
+
+  private void assertStartedOnTheMainThread(final FunctionalVideoFilter result) {
+    verify(this.manager).startFilter(result);
+    verify(result, never()).start();
+
+    final int tasks = TestServer.runPendingTasks();
+    assertEquals(1, tasks);
+    verify(result).start();
   }
 }

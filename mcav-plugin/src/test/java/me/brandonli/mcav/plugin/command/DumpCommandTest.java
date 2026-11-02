@@ -39,46 +39,50 @@ import org.mockito.InOrder;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
-/**
- * Tests {@link DumpCommand}.
- */
 final class DumpCommandTest {
 
+  private static final int TIMEOUT_MILLISECONDS = 10_000;
+
   @Test
-  void sendsTheLinkOnceTheDumpIsUploaded() {
+  void shouldSendTheLinkOnceTheDumpIsUploaded() {
     final CommandSender sender = mock(CommandSender.class);
     final DumpCommand command = new DumpCommand(() -> "https://paste.helpch.at/abc");
     command.createDump(sender);
     final Component loading = Message.CREATE_DUMP.build();
     final Component link = Message.SEND_DUMP.build("https://paste.helpch.at/abc");
-    verify(sender, timeout(10_000)).sendMessage(link);
+    verify(sender, timeout(TIMEOUT_MILLISECONDS)).sendMessage(link);
+
     final InOrder order = Mockito.inOrder(sender);
     order.verify(sender).sendMessage(loading);
     order.verify(sender).sendMessage(link);
   }
 
   @Test
-  void tellsTheSenderWhenTheUploadFails() throws InterruptedException {
+  void shouldTellTheSenderWhenTheUploadFails() throws InterruptedException {
     final CommandSender sender = mock(CommandSender.class);
     final CountDownLatch attempted = new CountDownLatch(1);
-    final DumpCommand command = new DumpCommand(() -> {
-      attempted.countDown();
-      throw new IllegalStateException("offline");
-    });
+    final DumpCommand command = new DumpCommand(() -> this.failUpload(attempted));
     command.createDump(sender);
     final boolean ran = attempted.await(10, TimeUnit.SECONDS);
     assertTrue(ran);
+
     final Component loading = Message.CREATE_DUMP.build();
     final Component failure = Message.DUMP_FAILED.build();
-    verify(sender, timeout(10_000)).sendMessage(failure);
+    verify(sender, timeout(TIMEOUT_MILLISECONDS)).sendMessage(failure);
+
     final InOrder order = Mockito.inOrder(sender);
     order.verify(sender).sendMessage(loading);
     order.verify(sender).sendMessage(failure);
     verify(sender, times(2)).sendMessage(any(Component.class));
   }
 
+  private String failUpload(final CountDownLatch attempted) {
+    attempted.countDown();
+    throw new IllegalStateException("offline!");
+  }
+
   @Test
-  void uploadsWithTheDumpUtilitiesByDefault() throws ReflectiveOperationException {
+  void shouldUploadWithTheDumpUtilitiesByDefault() throws ReflectiveOperationException {
     final DumpCommand command = new DumpCommand();
     final Field field = DumpCommand.class.getDeclaredField("uploader");
     field.setAccessible(true);
@@ -93,7 +97,7 @@ final class DumpCommandTest {
   }
 
   @Test
-  void refusesNullArguments() {
+  void shouldRefuseNullArguments() {
     final DumpCommand command = new DumpCommand(() -> "unused");
     assertThrows(NullPointerException.class, () -> new DumpCommand(null));
     assertThrows(NullPointerException.class, () -> command.createDump(null));

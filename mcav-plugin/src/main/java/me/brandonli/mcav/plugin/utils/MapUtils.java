@@ -72,17 +72,25 @@ import org.bukkit.persistence.PersistentDataType;
 /**
  * Builds map screens: walls of item frames that hold consecutive maps, tagged with {@link Keys} so clicks on the
  * wall can be translated into pixels by {@link InteractUtils}.
+ *
+ * <p>This class is stateless; call it on the server main thread, since it creates maps and changes the world.
+ *
+ * @since 1.0.0
  */
 public final class MapUtils {
 
   /**
    * The largest number of maps one call creates to reach a map id, which is the number of maps of the largest wall.
    * Creating a map writes a file, so an id far past the maps of the world would otherwise tie up the main thread.
+   *
+   * @since 1.0.0
    */
-  public static final int MAX_NEW_MAPS = ArgumentUtils.MAX_SCREEN_SIDE * ArgumentUtils.MAX_SCREEN_SIDE;
+  public static final int MAXIMUM_NEW_MAPS = ArgumentUtils.MAXIMUM_SCREEN_SIDE * ArgumentUtils.MAXIMUM_SCREEN_SIDE;
+
+  private static final double HALF_BLOCK = 0.5;
 
   private MapUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   /**
@@ -91,52 +99,46 @@ public final class MapUtils {
    *
    * @param id the id of the map, zero or more
    * @return the map item, with the id in its lore
-   * @throws IllegalArgumentException if the id is negative, or more than {@link #MAX_NEW_MAPS} ids past the next map
+   * @throws IllegalArgumentException if the id is negative, or more than {@link #MAXIMUM_NEW_MAPS} ids past the next map
    *                                  id the server hands out
-   * @throws IllegalStateException if the requested historical map is missing and its id cannot be allocated again
+   * @throws IllegalStateException    if the requested historical map is missing and its id cannot be allocated again
+   * @since 1.0.0
    */
-  public static ItemStack getMapFromID(final int id) {
-    Preconditions.checkArgument(id >= 0, "Map id must not be negative: %s", id);
+  public static ItemStack getMapFromId(final int id) {
+    Preconditions.checkArgument(id >= 0, "Map id %s must not be negative!", id);
+
     final ItemStack map = createMapItemStack(id);
-    final ItemMeta nullableMeta = map.getItemMeta();
-    final ItemMeta itemMeta = requireNonNull(nullableMeta);
+    final ItemMeta nullableMetadata = map.getItemMeta();
+    final ItemMeta itemMetadata = requireNonNull(nullableMetadata);
 
     final String name = "Map ID [%s]".formatted(id);
     final Component lore = text(name, RED);
     final List<Component> lines = List.of(lore);
-    itemMeta.lore(lines);
-    map.setItemMeta(itemMeta);
+    itemMetadata.lore(lines);
+    map.setItemMeta(itemMetadata);
     return map;
   }
 
   private static ItemStack createMapItemStack(final int id) {
     final MapView view = findOrCreateMap(id);
     final ItemStack map = new ItemStack(Material.FILLED_MAP);
-    final MapMeta nullableMeta = (MapMeta) map.getItemMeta();
-    final MapMeta mapMeta = requireNonNull(nullableMeta);
-    mapMeta.setMapView(view);
-    map.setItemMeta(mapMeta);
+    final MapMeta nullableMetadata = (MapMeta) map.getItemMeta();
+    final MapMeta mapMetadata = requireNonNull(nullableMetadata);
+    mapMetadata.setMapView(view);
+    map.setItemMeta(mapMetadata);
     return map;
   }
 
-  /**
-   * Gets the map with an id, creating maps in the first world until it exists.
-   */
   private static MapView findOrCreateMap(final int id) {
     final MapView existing = Bukkit.getMap(id);
     if (existing != null) {
       return existing;
     }
+
     return createMapsUpTo(id);
   }
 
-  /**
-   * Creates maps until the map with the id exists. The server hands out map ids in increasing order.
-   *
-   * @return the created map with exactly the requested id
-   * @throws IllegalArgumentException if the id is more than {@link #MAX_NEW_MAPS} ids past the next map id
-   * @throws IllegalStateException    if the server has already advanced past a missing map id
-   */
+  // the server hands out map ids in increasing order
   private static MapView createMapsUpTo(final int id) {
     final List<World> worlds = Bukkit.getWorlds();
     final World world = worlds.getFirst();
@@ -144,17 +146,19 @@ public final class MapUtils {
     int currentId = created.getId();
     final long missing = (long) id - currentId;
     Preconditions.checkArgument(
-      missing <= MAX_NEW_MAPS,
-      "Map id %s is more than %s ids past the next map id %s",
+      missing <= MAXIMUM_NEW_MAPS,
+      "Map id %s is more than %s ids past %s, the next map id!",
       id,
-      MAX_NEW_MAPS,
+      MAXIMUM_NEW_MAPS,
       currentId
     );
+
     while (currentId < id) {
       created = Bukkit.createMap(world);
       currentId = created.getId();
     }
-    Preconditions.checkState(currentId == id, "Map id %s is unavailable; the server allocated %s", id, currentId);
+    Preconditions.checkState(currentId == id, "Map id %s is unavailable, because the server allocated %s instead!", id, currentId);
+
     return created;
   }
 
@@ -172,9 +176,10 @@ public final class MapUtils {
    * @param map      the id of the map in the top left corner, zero or more
    * @throws NullPointerException     if the sender, the location or the material is {@code null}
    * @throws IllegalArgumentException if the width or the height is not positive, the map id is negative, or the
-   *                                  last map id of the screen is more than {@link #MAX_NEW_MAPS} ids past the next
+   *                                  last map id of the screen is more than {@link #MAXIMUM_NEW_MAPS} ids past the next
    *                                  map id; nothing is built then
    * @throws IllegalStateException    if a map id of the screen belonged to a map that no longer exists
+   * @since 1.0.0
    */
   public static void buildMapScreen(
     final CommandSender sender,
@@ -184,15 +189,16 @@ public final class MapUtils {
     final int height,
     final int map
   ) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
-    Preconditions.checkNotNull(location, "Location must not be null");
-    Preconditions.checkNotNull(material, "Material must not be null");
-    Preconditions.checkArgument(width > 0, "Width must be positive: %s", width);
-    Preconditions.checkArgument(height > 0, "Height must be positive: %s", height);
-    Preconditions.checkArgument(map >= 0, "Map id must not be negative: %s", map);
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(location, "Location must not be null!");
+    Preconditions.checkNotNull(material, "Material must not be null!");
+    Preconditions.checkArgument(width > 0, "Width %s must be positive!", width);
+    Preconditions.checkArgument(height > 0, "Height %s must be positive!", height);
+    Preconditions.checkArgument(map >= 0, "Map id %s must not be negative!", map);
+
     final long count = (long) width * height;
     final long lastMap = map + count - 1;
-    Preconditions.checkArgument(lastMap <= Integer.MAX_VALUE, "Screen map ids exceed the integer range: %s", lastMap);
+    Preconditions.checkArgument(lastMap <= Integer.MAX_VALUE, "Last screen map id %s exceeds the integer range!", lastMap);
 
     final BlockFace face = sender instanceof final Player player ? player.getFacing() : BlockFace.NORTH;
     final boolean alongX = face == BlockFace.NORTH || face == BlockFace.SOUTH;
@@ -200,6 +206,7 @@ public final class MapUtils {
     if (!alongX && !alongZ) {
       return;
     }
+
     final int lastMapId = (int) lastMap;
     findOrCreateMap(lastMapId);
 
@@ -237,9 +244,6 @@ public final class MapUtils {
     container.set(Keys.SCREEN_KEY, PersistentDataType.STRING, screen);
   }
 
-  /**
-   * The wall of a map screen being built: where it starts, which way it faces, and what it is made of.
-   */
   private static final class Wall {
 
     private final World world;
@@ -259,15 +263,7 @@ public final class MapUtils {
       this.reversed = face == BlockFace.SOUTH || face == BlockFace.EAST;
     }
 
-    /**
-     * Places the block of a cell of the wall and hangs a frame with a map on it.
-     *
-     * @param column the column as seen by the builder, counted from the left
-     * @param row    the row, counted from the bottom
-     * @param width  the number of columns
-     * @param map    the id of the map in the frame
-     * @return the frame
-     */
+    // column counts from the builder's left, row from the bottom
     ItemFrame place(final int column, final int row, final int width, final int map) {
       final int offset = this.reversed ? width - 1 - column : column;
       final Block raised = this.start.getRelative(BlockFace.UP, row);
@@ -277,26 +273,6 @@ public final class MapUtils {
       return this.spawnFrame(block, map);
     }
 
-    /**
-     * Removes the item frames already hanging in the block the new frame goes into.
-     *
-     * <p>Without this, building a screen where one already stands leaves the old frame in place. A block holds
-     * only one frame per side, so the new frame cannot take the side it is asked for and keeps the one it was
-     * spawned with, hanging on the opposite side of the same block with its back to the viewer, directly in front
-     * of the map. The screen then shows the backs of item frames and stays blank however much media is sent to
-     * it, with nothing wrong in the packets.
-     */
-    private void clearFrames(final Block frameBlock) {
-      final Location centre = frameBlock.getLocation();
-      centre.add(0.5, 0.5, 0.5);
-      final Collection<Entity> occupants = this.world.getNearbyEntities(centre, 0.5, 0.5, 0.5);
-      for (final Entity occupant : occupants) {
-        if (occupant instanceof ItemFrame) {
-          occupant.remove();
-        }
-      }
-    }
-
     private ItemFrame spawnFrame(final Block block, final int map) {
       final Block frameBlock = block.getRelative(this.outward);
       this.clearFrames(frameBlock);
@@ -304,11 +280,23 @@ public final class MapUtils {
       final ItemFrame frame = this.world.spawn(frameLocation, ItemFrame.class);
       frame.setFacingDirection(this.outward);
 
-      final ItemStack item = getMapFromID(map);
+      final ItemStack item = getMapFromId(map);
       frame.setItem(item);
       frame.setInvulnerable(true);
       frame.setGravity(false);
       return frame;
+    }
+
+    // a block holds one frame per side, so an old frame would push the new one behind the map
+    private void clearFrames(final Block frameBlock) {
+      final Location centre = frameBlock.getLocation();
+      centre.add(HALF_BLOCK, HALF_BLOCK, HALF_BLOCK);
+      final Collection<Entity> occupants = this.world.getNearbyEntities(centre, HALF_BLOCK, HALF_BLOCK, HALF_BLOCK);
+      for (final Entity occupant : occupants) {
+        if (occupant instanceof ItemFrame) {
+          occupant.remove();
+        }
+      }
     }
   }
 }

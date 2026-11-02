@@ -19,7 +19,6 @@ package me.brandonli.mcav.plugin.utils;
 
 import com.google.common.base.Preconditions;
 import java.util.Collection;
-import java.util.Locale;
 import java.util.UUID;
 import java.util.stream.Stream;
 import me.brandonli.mcav.plugin.listener.OnlinePlayers;
@@ -30,27 +29,38 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 
 /**
  * Parses the command arguments shared by the commands of the plugin.
+ *
+ * <p>This class is stateless and thread-safe.
+ *
+ * @since 1.0.0
  */
 public final class ArgumentUtils {
 
   /**
    * The largest width or height {@link #parseDimensions(String)} accepts, in pixels or blocks. 8192 pixels is the
-   * native resolution of a wall of {@value #MAX_SCREEN_SIDE} maps, so no display of the plugin needs more.
+   * native resolution of a wall of {@value #MAXIMUM_SCREEN_SIDE} maps, so no display of the plugin needs more.
+   *
+   * @since 1.0.0
    */
-  public static final int MAX_SIDE = 8192;
+  public static final int MAXIMUM_SIDE = 8192;
 
   /**
    * The largest width or height of a wall of maps that {@link #parseScreenDimensions(String)} accepts, in maps. The
    * largest wall, 64 by 64, has 4096 maps, which is the number of packets a client accepts in one bundle, so a whole
    * frame of it, and clearing it, still reach every viewer at once.
+   *
+   * @since 1.0.0
    */
-  public static final int MAX_SCREEN_SIDE = 64;
+  public static final int MAXIMUM_SCREEN_SIDE = 64;
 
-  /** The selector of every player online, which {@link #parseViewers} keeps following. */
+  // parseViewers keeps following this selector
   private static final String EVERYONE = "@a";
 
+  private static final String DIMENSION_SEPARATOR = "x";
+  private static final int DIMENSION_PARTS = 2;
+
   private ArgumentUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   /**
@@ -63,52 +73,53 @@ public final class ArgumentUtils {
    * @throws NullPointerException     if the argument is {@code null}
    * @throws IllegalArgumentException if the text has no {@code x}, if either side is not a whole number (reported as
    *                                  the subclass {@link NumberFormatException}), or if either side is zero,
-   *                                  negative or larger than {@link #MAX_SIDE}
+   *                                  negative or larger than {@link #MAXIMUM_SIDE}
+   * @since 1.0.0
    */
   public static Pair<Integer, Integer> parseDimensions(final String argument) {
-    Preconditions.checkNotNull(argument, "Argument must not be null");
-    final String[] sides = argument.split("x", 2);
-    if (sides.length != 2) {
-      throw new IllegalArgumentException("Invalid dimensions format: " + argument);
+    Preconditions.checkNotNull(argument, "Argument must not be null!");
+
+    final String[] sides = argument.split(DIMENSION_SEPARATOR, DIMENSION_PARTS);
+    if (sides.length != DIMENSION_PARTS) {
+      final String message = "Dimensions %s have an invalid format!".formatted(argument);
+      throw new IllegalArgumentException(message);
     }
 
     final int width = Integer.parseInt(sides[0]);
     final int height = Integer.parseInt(sides[1]);
     if (width <= 0 || height <= 0) {
-      throw new IllegalArgumentException("Dimensions must be positive integers: " + argument);
+      final String message = "Dimensions %s must be positive integers!".formatted(argument);
+      throw new IllegalArgumentException(message);
     }
-    if (width > MAX_SIDE || height > MAX_SIDE) {
-      throw new IllegalArgumentException(
-        String.format(Locale.getDefault(Locale.Category.FORMAT), "Dimensions must be at most %d on each side: %s", MAX_SIDE, argument)
-      );
+
+    if (width > MAXIMUM_SIDE || height > MAXIMUM_SIDE) {
+      final String message = "Dimensions %s must be at most %s on each side!".formatted(argument, MAXIMUM_SIDE);
+      throw new IllegalArgumentException(message);
     }
+
     return Pair.pair(width, height);
   }
 
   /**
    * Parses the size of a wall of maps written as {@code <width>x<height>}, such as {@code 5x5}. Besides the rules of
-   * {@link #parseDimensions(String)}, a side may have at most {@value #MAX_SCREEN_SIDE} maps, because every map of a
+   * {@link #parseDimensions(String)}, a side may have at most {@value #MAXIMUM_SCREEN_SIDE} maps, because every map of a
    * wall is built on the main thread and sent to every viewer.
    *
    * @param argument the size as the player typed it
    * @return the width as the first value and the height as the second value, both at least 1
    * @throws NullPointerException     if the argument is {@code null}
    * @throws IllegalArgumentException if the text is not a valid size, or the wall is larger than the limits
+   * @since 1.0.0
    */
   public static Pair<Integer, Integer> parseScreenDimensions(final String argument) {
     final Pair<Integer, Integer> dimensions = parseDimensions(argument);
     final int width = dimensions.getFirst();
     final int height = dimensions.getSecond();
-    if (width > MAX_SCREEN_SIDE || height > MAX_SCREEN_SIDE) {
-      throw new IllegalArgumentException(
-        String.format(
-          Locale.getDefault(Locale.Category.FORMAT),
-          "A wall may be at most %d maps on each side: %s",
-          MAX_SCREEN_SIDE,
-          argument
-        )
-      );
+    if (width > MAXIMUM_SCREEN_SIDE || height > MAXIMUM_SCREEN_SIDE) {
+      final String message = "Wall %s may be at most %s maps on each side!".formatted(argument, MAXIMUM_SCREEN_SIDE);
+      throw new IllegalArgumentException(message);
     }
+
     return dimensions;
   }
 
@@ -120,9 +131,11 @@ public final class ArgumentUtils {
    * @param playerSelector the selector the command received
    * @return the unique ids of the matched players, as an unmodifiable collection
    * @throws NullPointerException if the selector is {@code null}
+   * @since 1.0.0
    */
   public static Collection<UUID> parsePlayerSelectors(final MultiplePlayerSelector playerSelector) {
-    Preconditions.checkNotNull(playerSelector, "Player selector must not be null");
+    Preconditions.checkNotNull(playerSelector, "Player selector must not be null!");
+
     final Collection<Player> players = playerSelector.values();
     final Stream<Player> playerStream = players.stream();
     final Stream<UUID> ids = playerStream.map(Entity::getUniqueId);
@@ -137,10 +150,12 @@ public final class ArgumentUtils {
    * @param playerSelector the selector the command received
    * @param online         the players online
    * @return the unique ids of the viewers, a live view for {@code @a}
+   * @since 1.0.0
    */
   public static Collection<UUID> parseViewers(final MultiplePlayerSelector playerSelector, final OnlinePlayers online) {
-    Preconditions.checkNotNull(playerSelector, "Player selector must not be null");
-    Preconditions.checkNotNull(online, "Online players must not be null");
+    Preconditions.checkNotNull(playerSelector, "Player selector must not be null!");
+    Preconditions.checkNotNull(online, "Online players must not be null!");
+
     return EVERYONE.equals(playerSelector.inputString()) ? online.getPlayers() : parsePlayerSelectors(playerSelector);
   }
 }

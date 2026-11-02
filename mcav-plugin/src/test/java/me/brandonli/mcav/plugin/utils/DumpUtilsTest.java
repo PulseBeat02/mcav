@@ -48,6 +48,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import me.brandonli.mcav.plugin.PluginException;
 import me.brandonli.mcav.plugin.testing.UtilityClassAssertions;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -58,12 +59,24 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
-/**
- * Tests {@link DumpUtils} against a paste site on the loopback interface.
- */
 final class DumpUtilsTest {
 
   private static final long MEGABYTE = 1024L * 1024L;
+
+  private static final int AWAIT_TIMEOUT_SECONDS = 10;
+
+  private static final String ROOT_PATH = "/";
+
+  private static final String PUBLIC_ADDRESS = "203.0.113.7";
+  private static final String REDACTED_ADDRESS = "<redacted-address>";
+
+  private static final String SECRET_VALUE = "hunter2";
+
+  private static final String LOG_FILE_NAME = "latest.log";
+  private static final String SERVER_JAR_FILE_NAME = "paper.jar";
+  private static final String LOGS_FOLDER_NAME = "logs";
+
+  private static final String COMMAND_PROPERTY = "sun.java.command";
 
   @TempDir
   private Path folder;
@@ -88,7 +101,7 @@ final class DumpUtilsTest {
     final InetAddress loopback = InetAddress.getLoopbackAddress();
     final InetSocketAddress address = new InetSocketAddress(loopback, 0);
     this.server = HttpServer.create(address, 0);
-    this.server.createContext("/", this::handle);
+    this.server.createContext(ROOT_PATH, this::handle);
     this.server.setExecutor(this.handlers);
     this.server.start();
   }
@@ -99,8 +112,12 @@ final class DumpUtilsTest {
     this.server.stop(0);
     this.client.close();
     this.handlers.shutdown();
-    assertTrue(this.handlers.awaitTermination(10, TimeUnit.SECONDS), "the paste callbacks finish");
-    assertEquals(null, this.handlerFailure.get(), "HTTP handler assertions reach JUnit");
+
+    final boolean terminated = this.handlers.awaitTermination(AWAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+    assertTrue(terminated, "the paste callbacks finish");
+
+    final AssertionError handlerFailure = this.handlerFailure.get();
+    assertEquals(null, handlerFailure, "HTTP handler assertions reach JUnit");
   }
 
   private void handle(final HttpExchange exchange) throws IOException {
@@ -116,12 +133,14 @@ final class DumpUtilsTest {
     final String type = headers.getFirst("Content-Type");
     this.contentType.set(type);
     try {
-      final boolean released = this.release.await(10, TimeUnit.SECONDS);
+      final boolean released = this.release.await(AWAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
       try {
         assertTrue(released, "the test never let the paste site answer");
-        assertEquals("POST", exchange.getRequestMethod(), "a dump is uploaded by POST");
-      } catch (final AssertionError failure) {
-        this.handlerFailure.compareAndSet(null, failure);
+
+        final String requestMethod = exchange.getRequestMethod();
+        assertEquals("POST", requestMethod, "a dump is uploaded by POST");
+      } catch (final AssertionError exception) {
+        this.handlerFailure.compareAndSet(null, exception);
       }
     } catch (final InterruptedException exception) {
       final Thread current = Thread.currentThread();
@@ -134,27 +153,19 @@ final class DumpUtilsTest {
     }
   }
 
-  private String pasteSite() {
-    final InetSocketAddress address = this.server.getAddress();
-    final int port = address.getPort();
-    return "http://127.0.0.1:" + port + "/";
-  }
-
-  private Path missingLog() {
-    return this.folder.resolve("latest.log");
-  }
-
   @Test
-  void uploadsTheDumpAndReturnsItsLink() {
+  void shouldUploadTheDumpAndReturnItsLink() {
     final String site = this.pasteSite();
     final Path log = this.missingLog();
     final String url = DumpUtils.createAndUploadDump(this.client, site, log);
     assertEquals(site + "abc123", url);
+
     final String path = this.uploadedPath.get();
     final String type = this.contentType.get();
     final String body = this.uploadedBody.get();
     assertEquals("/documents/", path);
     assertEquals("text/plain", type);
+
     final boolean system = body.contains("\n=== System ===\n");
     final boolean properties = body.contains("\n=== JVM Properties ===\n");
     final boolean threads = body.contains("\n=== Threads ===\n");
@@ -165,87 +176,95 @@ final class DumpUtilsTest {
     assertTrue(noLog);
   }
 
+  private String pasteSite() {
+    final InetSocketAddress address = this.server.getAddress();
+    final int port = address.getPort();
+    return "http://127.0.0.1:" + port + ROOT_PATH;
+  }
+
+  private Path missingLog() {
+    return this.folder.resolve(LOG_FILE_NAME);
+  }
+
   @Test
-  void failsWhenThePasteSiteAnswersWithAnError() {
+  void shouldFailWhenThePasteSiteAnswersWithAnError() {
     this.status = 500;
     final String site = this.pasteSite();
     final Path log = this.missingLog();
-    final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
-      DumpUtils.createAndUploadDump(this.client, site, log)
-    );
+    final PluginException exception = assertThrows(PluginException.class, () -> DumpUtils.createAndUploadDump(this.client, site, log));
+
     final String message = exception.getMessage();
-    assertEquals("Failed to upload the dump: The paste site answered with HTTP 500", message);
+    assertEquals("The dump could not be uploaded (The paste site answered with HTTP status 500, which is not a success!)!", message);
+
     final Throwable cause = exception.getCause();
     assertInstanceOf(IOException.class, cause);
   }
 
   @ParameterizedTest
   @ValueSource(strings = { "{}", "[]", "\"abc\"", "{\"key\":{}}", "{\"key\":null}" })
-  void failsWhenThePasteSiteAnswersWithoutADocumentKey(final String response) {
+  void shouldFailWhenThePasteSiteAnswersWithoutADocumentKey(final String response) {
     this.answer = response;
     final String site = this.pasteSite();
     final Path log = this.missingLog();
-    final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
-      DumpUtils.createAndUploadDump(this.client, site, log)
-    );
+    final PluginException exception = assertThrows(PluginException.class, () -> DumpUtils.createAndUploadDump(this.client, site, log));
+
     final String message = exception.getMessage();
-    assertEquals("The paste site did not answer with a document key: " + response, message);
+    assertEquals("Paste site answer " + response + " has no document key!", message);
   }
 
   @Test
-  void failsWhenThePasteSiteDoesNotAnswerWithJson() {
+  void shouldFailWhenThePasteSiteDoesNotAnswerWithJson() {
     this.answer = "{\"key\":";
     final String site = this.pasteSite();
     final Path log = this.missingLog();
-    final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
-      DumpUtils.createAndUploadDump(this.client, site, log)
-    );
+    final PluginException exception = assertThrows(PluginException.class, () -> DumpUtils.createAndUploadDump(this.client, site, log));
+
     final String message = exception.getMessage();
-    assertEquals("The paste site did not answer with JSON: {\"key\":", message);
+    assertEquals("Paste site answer {\"key\": is not JSON!", message);
   }
 
   @Test
-  void failsWhenThePasteSiteIsUnreachable() {
+  void shouldFailWhenThePasteSiteIsUnreachable() {
     final String site = this.pasteSite();
     this.server.stop(0);
     final Path log = this.missingLog();
-    final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
-      DumpUtils.createAndUploadDump(this.client, site, log)
-    );
+    final PluginException exception = assertThrows(PluginException.class, () -> DumpUtils.createAndUploadDump(this.client, site, log));
+
     final String message = exception.getMessage();
-    final boolean upload = message.startsWith("Failed to upload the dump: ");
+    final boolean upload = message.startsWith("The dump could not be uploaded (");
     assertTrue(upload, message);
   }
 
   @Test
-  void keepsTheInterruptWhenInterruptedWhileUploading() {
+  void shouldKeepTheInterruptWhenInterruptedWhileUploading() {
     this.release = new CountDownLatch(1);
     final String site = this.pasteSite();
     final Path log = this.missingLog();
     final Thread current = Thread.currentThread();
     current.interrupt();
-    final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
-      DumpUtils.createAndUploadDump(this.client, site, log)
-    );
+    final PluginException exception = assertThrows(PluginException.class, () -> DumpUtils.createAndUploadDump(this.client, site, log));
+
     final boolean interrupted = Thread.interrupted();
     assertTrue(interrupted);
+
     final String message = exception.getMessage();
-    assertEquals("Interrupted while uploading the dump", message);
+    assertEquals("Interrupted while uploading the dump!", message);
   }
 
   @Test
-  void uploadsToThePublicPasteSiteWithTheServerLog() {
+  void shouldUploadToThePublicPasteSiteWithTheServerLog() {
     try (final MockedStatic<DumpUtils> dumps = Mockito.mockStatic(DumpUtils.class, Mockito.CALLS_REAL_METHODS)) {
       dumps.when(() -> DumpUtils.createAndUploadDump(any(HttpClient.class), any(String.class), any(Path.class))).thenReturn("link");
       final String url = DumpUtils.createAndUploadDump();
       assertEquals("link", url);
-      final Path log = Path.of("logs", "latest.log");
+
+      final Path log = Path.of(LOGS_FOLDER_NAME, LOG_FILE_NAME);
       dumps.verify(() -> DumpUtils.createAndUploadDump(any(HttpClient.class), eq("https://paste.helpch.at/"), eq(log)));
     }
   }
 
   @Test
-  void describesTheSystem() {
+  void shouldDescribeTheSystem() {
     final Path log = this.missingLog();
     final String dump = DumpUtils.createDumpContents(log);
     final String osName = System.getProperty("os.name");
@@ -263,25 +282,8 @@ final class DumpUtilsTest {
     assertTrue(stack);
   }
 
-  /**
-   * Reads the number of a labelled line of the dump, such as {@code Free Memory (MB): 123}.
-   *
-   * @param dump  the dump
-   * @param label the label of the line
-   * @return the number the line reports
-   */
-  private static long readNumber(final String dump, final String label) {
-    final String marker = "\n" + label + ": ";
-    final int start = dump.indexOf(marker);
-    assertTrue(start >= 0, "the dump has no " + label + " line: " + dump);
-    final int valueStart = start + marker.length();
-    final int end = dump.indexOf('\n', valueStart);
-    final String value = dump.substring(valueStart, end);
-    return Long.parseLong(value);
-  }
-
   @Test
-  void describesTheOperatingSystemAndTheJavaRuntime() {
+  void shouldDescribeTheOperatingSystemAndTheJavaRuntime() {
     final Path log = this.missingLog();
     final String dump = DumpUtils.createDumpContents(log);
     final String osVersion = System.getProperty("os.version");
@@ -289,46 +291,57 @@ final class DumpUtilsTest {
     final String javaVersion = System.getProperty("java.version");
     final String javaVendor = System.getProperty("java.vendor");
     final boolean version = dump.contains("\nOS Version: " + osVersion + "\n");
-    final boolean arch = dump.contains("\nArchitecture: " + architecture + "\n");
+    final boolean namesArchitecture = dump.contains("\nArchitecture: " + architecture + "\n");
     final boolean namesJavaVersion = dump.contains("\nJava Version: " + javaVersion + "\n");
     final boolean vendor = dump.contains("\nJava Vendor: " + javaVendor + "\n");
     assertTrue(version, dump);
-    assertTrue(arch, dump);
+    assertTrue(namesArchitecture, dump);
     assertTrue(namesJavaVersion, dump);
     assertTrue(vendor, dump);
   }
 
   @Test
-  void reportsTheMemoryInMegabytesAndTheUptime() {
+  void shouldReportTheMemoryInMegabytesAndTheUptime() {
     final Path log = this.missingLog();
     final RuntimeMXBean runtimeBean = ManagementFactory.getRuntimeMXBean();
     final long beforeDump = runtimeBean.getUptime();
     final String dump = DumpUtils.createDumpContents(log);
     final long afterDump = runtimeBean.getUptime();
     final Runtime runtime = Runtime.getRuntime();
-    final long maxMemory = runtime.maxMemory();
-    final long expectedMax = maxMemory / MEGABYTE;
-    final long free = readNumber(dump, "Free Memory (MB)");
-    final long total = readNumber(dump, "Total Memory (MB)");
-    final long reportedMax = readNumber(dump, "Max Memory (MB)");
-    final long uptime = readNumber(dump, "Uptime (ms)");
-    assertEquals(expectedMax, reportedMax);
+    final long maximumMemory = runtime.maxMemory();
+    final long expectedMaximum = maximumMemory / MEGABYTE;
+    final long free = this.readNumber(dump, "Free Memory (MB)");
+    final long total = this.readNumber(dump, "Total Memory (MB)");
+    final long reportedMaximum = this.readNumber(dump, "Max Memory (MB)");
+    final long uptime = this.readNumber(dump, "Uptime (ms)");
+    assertEquals(expectedMaximum, reportedMaximum);
     assertTrue(free <= total, "free memory of " + free + " MB above the total of " + total + " MB");
-    assertTrue(total <= expectedMax, "total memory of " + total + " MB above the maximum of " + expectedMax + " MB");
+    assertTrue(total <= expectedMaximum, "total memory of " + total + " MB above the maximum of " + expectedMaximum + " MB");
     assertTrue(beforeDump > 0, "the fixture has a nonzero uptime");
     assertTrue(uptime >= beforeDump && uptime <= afterDump, "uptime of " + uptime + " ms outside [" + beforeDump + ", " + afterDump + "]");
   }
 
+  private long readNumber(final String dump, final String label) {
+    final String marker = "\n" + label + ": ";
+    final int start = dump.indexOf(marker);
+    assertTrue(start >= 0, "the dump has no " + label + " line: " + dump);
+
+    final int valueStart = start + marker.length();
+    final int end = dump.indexOf('\n', valueStart);
+    final String value = dump.substring(valueStart, end);
+    return Long.parseLong(value);
+  }
+
   @Test
-  void redactsPropertiesThatLookSecret() {
-    System.setProperty("mcav.test.Api-Token", "hunter2");
+  void shouldRedactPropertiesThatLookSecret() {
+    System.setProperty("mcav.test.Api-Token", SECRET_VALUE);
     System.setProperty("mcav.test.visible", "shown");
     try {
       final Path log = this.missingLog();
       final String dump = DumpUtils.createDumpContents(log);
       final boolean redacted = dump.contains("\nmcav.test.Api-Token: <redacted>\n");
       final boolean visible = dump.contains("\nmcav.test.visible: shown\n");
-      final boolean leaked = dump.contains("hunter2");
+      final boolean leaked = dump.contains(SECRET_VALUE);
       assertTrue(redacted);
       assertTrue(visible);
       assertFalse(leaked);
@@ -339,43 +352,59 @@ final class DumpUtilsTest {
   }
 
   @Test
-  void redactsThePlayerAddressesOfTheLog() {
+  void shouldRedactThePlayerAddressesOfTheLog() {
     final String join = "[12:34:56 INFO]: Player[/203.0.113.7:50514] logged in with entity id 42";
     final String sixth = "[12:34:56 INFO]: Player[/[2001:db8::1]:50514] logged in with entity id 42";
 
     final String redactedJoin = DumpUtils.redactLogLine(join);
     final String redactedSixth = DumpUtils.redactLogLine(sixth);
 
-    assertFalse(redactedJoin.contains("203.0.113.7"), redactedJoin);
-    assertTrue(redactedJoin.contains("<redacted-address>"), redactedJoin);
-    assertTrue(redactedJoin.startsWith("[12:34:56 INFO]: Player"), "the time of day is not an address: " + redactedJoin);
-    assertTrue(redactedJoin.contains("entity id 42"), redactedJoin);
-    assertFalse(redactedSixth.contains("2001:db8"), redactedSixth);
-    assertTrue(redactedSixth.contains("<redacted-address>"), redactedSixth);
+    final boolean contained = redactedJoin.contains(PUBLIC_ADDRESS);
+    assertFalse(contained, redactedJoin);
+
+    final boolean redactedJoinContained = redactedJoin.contains(REDACTED_ADDRESS);
+    assertTrue(redactedJoinContained, redactedJoin);
+
+    final boolean prefixed = redactedJoin.startsWith("[12:34:56 INFO]: Player");
+    assertTrue(prefixed, "the time of day is not an address: " + redactedJoin);
+
+    final boolean secondContained = redactedJoin.contains("entity id 42");
+    assertTrue(secondContained, redactedJoin);
+
+    final boolean redactedSixthContained = redactedSixth.contains("2001:db8");
+    assertFalse(redactedSixthContained, redactedSixth);
+
+    final boolean thirdContained = redactedSixth.contains(REDACTED_ADDRESS);
+    assertTrue(thirdContained, redactedSixth);
   }
 
-  /**
-   * Found by {@code DumpRedactionPropertyTest}: the JDK writes the zone of a link-local IPv6 address after a percent
-   * sign, as in {@code /[fe80:0:0:0:0:0:0:1%eth0]:50514}, which a player on the local network connects from. The first
-   * line is the smallest case the property shrank to.
-   */
+  // the JDK writes the zone of a link-local IPv6 address after a percent sign
   @Test
-  void redactsTheAddressOfAPlayerOnALinkLocalConnection() {
+  void shouldRedactTheAddressOfAPlayerOnALinkLocalConnection() {
     final String shrunk = "[12:34:56 INFO]: aaa[/[0:0:0:0:0:0:0:0%0]:0] logged in with entity id 42 at ([world]1.5, 64.0, -3.5)";
     final String named = "[12:34:56 INFO]: Player[/[fe80:0:0:0:0:0:0:1%eth0]:50514] logged in with entity id 42";
 
     final String redactedShrunk = DumpUtils.redactLogLine(shrunk);
     final String redactedNamed = DumpUtils.redactLogLine(named);
 
-    assertFalse(redactedShrunk.contains("0:0:0:0:0:0:0:0%0"), redactedShrunk);
-    assertTrue(redactedShrunk.contains("<redacted-address>"), redactedShrunk);
-    assertFalse(redactedNamed.contains("fe80:"), redactedNamed);
-    assertFalse(redactedNamed.contains("%eth0"), redactedNamed);
-    assertTrue(redactedNamed.contains("<redacted-address>"), redactedNamed);
+    final boolean contained = redactedShrunk.contains("0:0:0:0:0:0:0:0%0");
+    assertFalse(contained, redactedShrunk);
+
+    final boolean redactedShrunkContained = redactedShrunk.contains(REDACTED_ADDRESS);
+    assertTrue(redactedShrunkContained, redactedShrunk);
+
+    final boolean redactedNamedContained = redactedNamed.contains("fe80:");
+    assertFalse(redactedNamedContained, redactedNamed);
+
+    final boolean secondContained = redactedNamed.contains("%eth0");
+    assertFalse(secondContained, redactedNamed);
+
+    final boolean thirdContained = redactedNamed.contains(REDACTED_ADDRESS);
+    assertTrue(thirdContained, redactedNamed);
   }
 
   @Test
-  void redactsTheUserTheQueryAndTheFragmentOfEveryWebAddress() {
+  void shouldRedactTheUserTheQueryAndTheFragmentOfEveryWebAddress() {
     final String command =
       "[12:34:56 INFO]: Steve issued server command: /mcav browser create @a 640x360 1 5x3 0 NEAREST_COLOR NONE https://alice:open@example.com/page?code=abc#frag";
     final String notice = "[12:34:56 INFO]: [HelperSession] Browser: Refused a navigation to myapp://callback?code=abc";
@@ -383,27 +412,27 @@ final class DumpUtilsTest {
     final String plain = "[12:34:56 INFO]: Steve issued server command: /mcav video play @a https://example.com/clip.mp4";
     final String numeric = "[12:34:56 INFO]: Browser: The browser could not load http://203.0.113.7:8080/admin?session=1";
 
+    final String redacted = DumpUtils.redactLogLine(command);
     assertEquals(
       "[12:34:56 INFO]: Steve issued server command: /mcav browser create @a 640x360 1 5x3 0 NEAREST_COLOR NONE https://<redacted>@example.com/page?<redacted>",
-      DumpUtils.redactLogLine(command)
+      redacted
     );
-    assertEquals(
-      "[12:34:56 INFO]: [HelperSession] Browser: Refused a navigation to myapp://callback?<redacted>",
-      DumpUtils.redactLogLine(notice)
-    );
-    assertEquals(
-      "[12:34:56 INFO]: Failed to start https://cdn.example.com/clip.mp4?<redacted> for 2 viewers",
-      DumpUtils.redactLogLine(video)
-    );
-    assertEquals(plain, DumpUtils.redactLogLine(plain), "an address without secrets is what a bug report is about");
-    assertEquals(
-      "[12:34:56 INFO]: Browser: The browser could not load http://<redacted-address>/admin?<redacted>",
-      DumpUtils.redactLogLine(numeric)
-    );
+
+    final String dumpUtilsRedacted = DumpUtils.redactLogLine(notice);
+    assertEquals("[12:34:56 INFO]: [HelperSession] Browser: Refused a navigation to myapp://callback?<redacted>", dumpUtilsRedacted);
+
+    final String secondRedacted = DumpUtils.redactLogLine(video);
+    assertEquals("[12:34:56 INFO]: Failed to start https://cdn.example.com/clip.mp4?<redacted> for 2 viewers", secondRedacted);
+
+    final String thirdRedacted = DumpUtils.redactLogLine(plain);
+    assertEquals(plain, thirdRedacted, "an address without secrets is what a bug report is about");
+
+    final String fourthRedacted = DumpUtils.redactLogLine(numeric);
+    assertEquals("[12:34:56 INFO]: Browser: The browser could not load http://<redacted-address>/admin?<redacted>", fourthRedacted);
   }
 
   @Test
-  void redactsWhatPlayersTypedAfterTheCommandsOfOtherPlugins() {
+  void shouldRedactWhatPlayersTypedAfterTheCommandsOfOtherPlugins() {
     final String login = "[12:34:56 INFO]: Steve issued server command: /login hunter2";
     final String own = "[12:34:56 INFO]: Steve issued server command: /mcav video map @a FFMPEG NONE 640x360 5x3 0 FILTER_LITE  clip.mp4";
     final String bare = "[12:34:56 INFO]: Steve issued server command: /spawn";
@@ -416,13 +445,14 @@ final class DumpUtilsTest {
     assertEquals("[12:34:56 INFO]: Steve issued server command: /login <redacted>", redactedLogin);
     assertEquals(own, keptOwn, "the arguments of this plugin are what a bug report is about");
     assertEquals(bare, keptBare, "a command without arguments has nothing to redact");
+
     final String keptTrailing = DumpUtils.redactLogLine(trailing);
     assertEquals(trailing, keptTrailing, "blank arguments have nothing to redact either");
   }
 
   @Test
-  void redactsTheAddressesAndCommandsOfTheUploadedLog() throws IOException {
-    final Path log = this.folder.resolve("latest.log");
+  void shouldRedactTheAddressesAndCommandsOfTheUploadedLog() throws IOException {
+    final Path log = this.folder.resolve(LOG_FILE_NAME);
     final List<String> lines = List.of(
       "[12:34:56 INFO]: Steve[/203.0.113.7:50514] logged in",
       "[12:34:57 INFO]: Steve issued server command: /login hunter2"
@@ -431,14 +461,19 @@ final class DumpUtilsTest {
 
     final String dump = DumpUtils.createDumpContents(log);
 
-    assertFalse(dump.contains("203.0.113.7"), dump);
-    assertFalse(dump.contains("hunter2"), dump);
-    assertTrue(dump.contains("<redacted-address>"), dump);
+    final boolean contained = dump.contains(PUBLIC_ADDRESS);
+    assertFalse(contained, dump);
+
+    final boolean dumpContained = dump.contains(SECRET_VALUE);
+    assertFalse(dumpContained, dump);
+
+    final boolean secondContained = dump.contains(REDACTED_ADDRESS);
+    assertTrue(secondContained, dump);
   }
 
   @Test
-  void includesOnlyTheEndOfALongLog() throws IOException {
-    final Path log = this.folder.resolve("latest.log");
+  void shouldIncludeOnlyTheEndOfALongLog() throws IOException {
+    final Path log = this.folder.resolve(LOG_FILE_NAME);
     final List<String> lines = new ArrayList<>();
     for (int index = 0; index < 2500; index++) {
       lines.add("line " + index);
@@ -453,6 +488,7 @@ final class DumpUtilsTest {
     final List<String> tail = logLines.subList(1, lineCount);
     final int tailSize = tail.size();
     assertEquals(2000, tailSize);
+
     final String first = tail.getFirst();
     final String last = tail.getLast();
     assertEquals("line 500", first);
@@ -460,8 +496,8 @@ final class DumpUtilsTest {
   }
 
   @Test
-  void includesAShortLogCompletely() throws IOException {
-    final Path log = this.folder.resolve("latest.log");
+  void shouldIncludeAShortLogCompletely() throws IOException {
+    final Path log = this.folder.resolve(LOG_FILE_NAME);
     Files.writeString(log, "started\nstopped\n", StandardCharsets.UTF_8);
     final String dump = DumpUtils.createDumpContents(log);
     final boolean ends = dump.endsWith("=== Latest Log ===\nstarted\nstopped\n");
@@ -469,8 +505,8 @@ final class DumpUtilsTest {
   }
 
   @Test
-  void reportsALogThatCannotBeRead() throws IOException {
-    final Path log = this.folder.resolve("latest.log");
+  void shouldReportALogThatCannotBeRead() throws IOException {
+    final Path log = this.folder.resolve(LOG_FILE_NAME);
     final byte[] invalidUtf8 = { (byte) 0xC3, (byte) 0x28 };
     Files.write(log, invalidUtf8);
     final String dump = DumpUtils.createDumpContents(log);
@@ -479,12 +515,12 @@ final class DumpUtilsTest {
   }
 
   @Test
-  void isNotInstantiable() {
+  void shouldNotBeInstantiable() {
     UtilityClassAssertions.assertNotInstantiable(DumpUtils.class);
   }
 
   @Test
-  void redactsJvmArgumentsThatLookSecret() {
+  void shouldRedactJvmArgumentsThatLookSecret() {
     final List<String> arguments = List.of(
       "-Xmx2G",
       "-Dsome.token=hunter2",
@@ -510,7 +546,7 @@ final class DumpUtilsTest {
   }
 
   @Test
-  void listsTheJvmArgumentsWithSecretsRedacted() {
+  void shouldListTheJvmArgumentsWithSecretsRedacted() {
     final Path log = this.missingLog();
     final String dump = DumpUtils.createDumpContents(log);
     final RuntimeMXBean bean = ManagementFactory.getRuntimeMXBean();
@@ -529,17 +565,17 @@ final class DumpUtilsTest {
       "paper.jar -javaagent:agent.jar=token=topsecret hidden-tail",
     }
   )
-  void redactsTheWholeSecretFromPropertiesAndLogs(final String command) throws IOException {
-    final String property = "sun.java.command";
+  void shouldRedactTheWholeSecretFromPropertiesAndLogs(final String command) throws IOException {
+    final String property = COMMAND_PROPERTY;
     final String previous = System.getProperty(property);
-    final Path log = this.folder.resolve("latest.log");
+    final Path log = this.folder.resolve(LOG_FILE_NAME);
     Files.writeString(log, command);
     System.setProperty(property, command);
     try {
       final String dump = DumpUtils.createDumpContents(log);
       final boolean firstPart = dump.contains("topsecret");
       final boolean trailingPart = dump.contains("hidden-tail");
-      final boolean keptProgram = dump.contains("paper.jar");
+      final boolean keptProgram = dump.contains(SERVER_JAR_FILE_NAME);
       final boolean redacted = dump.contains("<redacted>");
       assertFalse(firstPart);
       assertFalse(trailingPart, "quoted or ambiguous trailing secret text must also be omitted");
@@ -555,18 +591,18 @@ final class DumpUtilsTest {
   }
 
   @Test
-  void redactsASecretThatHidesInsideAPropertyValue() {
+  void shouldRedactASecretThatHidesInsideAPropertyValue() {
     // the dump goes to a public paste site. sun.java.command holds the whole command line of the program, and no
     // secret word appears in that property NAME, so redacting by name alone would publish the secret verbatim.
-    final String property = "sun.java.command";
+    final String property = COMMAND_PROPERTY;
     final String previous = System.getProperty(property);
     System.setProperty(property, "paper.jar --api-token=hunter2 --world world");
     try {
       final Path log = this.missingLog();
       final String dump = DumpUtils.createDumpContents(log);
-      final boolean leaked = dump.contains("hunter2");
+      final boolean leaked = dump.contains(SECRET_VALUE);
       final boolean redacted = dump.contains("--api-token=<redacted>");
-      final boolean keptTheRest = dump.contains("paper.jar");
+      final boolean keptTheRest = dump.contains(SERVER_JAR_FILE_NAME);
       assertFalse(leaked, "a secret inside a property value must never reach the paste site");
       assertTrue(redacted, dump);
       assertTrue(keptTheRest, "only the secret is removed, the rest of the value stays useful");

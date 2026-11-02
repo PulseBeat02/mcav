@@ -21,25 +21,20 @@ import com.code_intelligence.jazzer.junit.FuzzTest;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Tag;
 
-/**
- * Fuzzes the flags of the video commands, which players type: whatever the text, the parser either refuses it with an
- * {@link IllegalArgumentException} the command reports, or hands yt-dlp nothing but accepted options and their values.
- * The seeds are the flag strings the tests of the parser use.
- */
 @Tag("fuzz")
 final class VideoFlagsParserFuzzTest {
 
   private final VideoFlagsParser parser = new VideoFlagsParser();
 
   @FuzzTest(maxDuration = "30s")
-  void onlyAcceptedOptionsAndTheirValuesReachYtDlp(final byte[] input) {
+  void shouldPassOnlyAcceptedOptionsAndTheirValuesToYtdlp(final byte[] input) {
     final String typed = new String(input, StandardCharsets.UTF_8);
     final String[] arguments;
     try {
-      arguments = this.parser.parseYTDLPFlags(typed);
-    } catch (final IllegalArgumentException refused) {
+      arguments = this.parser.parseYtdlpFlags(typed);
+    } catch (final IllegalArgumentException exception) {
       return;
     }
-    YtDlpArgumentAssertions.assertSafe(typed, arguments);
+    YtdlpArgumentAssertions.assertSafe(typed, arguments);
   }
 }

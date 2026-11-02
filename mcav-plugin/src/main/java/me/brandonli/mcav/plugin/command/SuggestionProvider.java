@@ -17,17 +17,90 @@
  */
 package me.brandonli.mcav.plugin.command;
 
+import java.util.List;
 import java.util.stream.Stream;
 import me.brandonli.mcav.bukkit.media.result.Characters;
 import org.incendo.cloud.annotations.suggestion.Suggestions;
 
 /**
  * Tab completions shared by the commands, referenced by name in their {@code @Argument(suggestions = ...)}.
+ *
+ * <p>This class is stateless and thread-safe.
+ *
+ * @since 1.0.0
  */
 public final class SuggestionProvider implements AnnotationCommandFeature {
 
   /**
+   * The name of the map id suggestions.
+   *
+   * @since 1.0.0
+   */
+  public static final String IDS = "ids";
+
+  /**
+   * The name of the size suggestions.
+   *
+   * @since 1.0.0
+   */
+  public static final String DIMENSIONS = "dimensions";
+
+  /**
+   * The name of the pixel resolution suggestions.
+   *
+   * @since 1.0.0
+   */
+  public static final String RESOLUTIONS = "resolutions";
+
+  /**
+   * The name of the chat character suggestions.
+   *
+   * @since 1.0.0
+   */
+  public static final String CHAT_CHARACTERS = "chat-characters";
+
+  /**
+   * The name of the frame rate suggestions.
+   *
+   * @since 1.0.0
+   */
+  public static final String TARGET_FRAMES_PER_SECOND = "target-frames-per-second";
+
+  private static final List<String> ID_SUGGESTIONS = List.of("0", "5", "10", "100", "1000", "10000", "100000");
+
+  private static final List<String> DIMENSION_SUGGESTIONS = List.of("4x4", "5x5", "16x9", "16x16", "32x18");
+
+  private static final List<String> RESOLUTION_SUGGESTIONS = List.of("512x512", "640x640", "1280x720", "1280x1280", "1920x1080");
+
+  private static final List<String> CHAT_RESOLUTION_SUGGESTIONS = List.of("8x8", "16x16", "32x32");
+
+  private static final List<String> NTH_SUGGESTIONS = List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10");
+
+  private static final List<String> TARGET_FRAMES_PER_SECOND_SUGGESTIONS = List.of(
+    "20",
+    "30",
+    "40",
+    "50",
+    "60",
+    "70",
+    "80",
+    "90",
+    "100",
+    "120",
+    "144",
+    "240"
+  );
+
+  private static final List<String> POSITION_SUGGESTIONS = List.of("0", "+10", "-10", "+1:00", "-1:00", "1:30");
+
+  private static final List<String> VOLUME_SUGGESTIONS = List.of("0", "25", "50", "75", "100", "150", "200");
+
+  private static final List<String> SPEED_SUGGESTIONS = List.of("0.5", "0.75", "1", "1.25", "1.5", "2");
+
+  /**
    * Constructs the provider.
+   *
+   * @since 1.0.0
    */
   public SuggestionProvider() {}
 
@@ -36,10 +109,11 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
    * from 0 up can be typed; pick one whose following ids are not used by other maps on the server.
    *
    * @return the suggested ids
+   * @since 1.0.0
    */
-  @Suggestions("ids")
+  @Suggestions(IDS)
   public Stream<String> suggestId() {
-    return Stream.of("0", "5", "10", "100", "1000", "10000", "100000");
+    return ID_SUGGESTIONS.stream();
   }
 
   /**
@@ -47,10 +121,11 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
    * map commands or {@code <imageResolution>} of the block, chat, entity, and scoreboard commands.
    *
    * @return the suggested sizes, written as {@code <width>x<height>}
+   * @since 1.0.0
    */
-  @Suggestions("dimensions")
+  @Suggestions(DIMENSIONS)
   public Stream<String> suggestDimensions() {
-    return Stream.of("4x4", "5x5", "16x9", "16x16", "32x18");
+    return DIMENSION_SUGGESTIONS.stream();
   }
 
   /**
@@ -58,20 +133,22 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
    * {@code 640x640}, which fills a 5x5 wall of 128x128 pixel maps exactly.
    *
    * @return the suggested resolutions, written as {@code <width>x<height>}
+   * @since 1.0.0
    */
-  @Suggestions("resolutions")
+  @Suggestions(RESOLUTIONS)
   public Stream<String> suggestResolutions() {
-    return Stream.of("512x512", "640x640", "1280x720", "1280x1280", "1920x1080");
+    return RESOLUTION_SUGGESTIONS.stream();
   }
 
   /**
    * Suggests small sizes that fit into the chat window, in characters per line and lines.
    *
    * @return the suggested sizes, written as {@code <width>x<height>}
+   * @since 1.0.0
    */
   @Suggestions("chat-resolutions")
   public Stream<String> suggestChatResolutions() {
-    return Stream.of("8x8", "16x16", "32x32");
+    return CHAT_RESOLUTION_SUGGESTIONS.stream();
   }
 
   /**
@@ -79,8 +156,9 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
    * gives the most solid picture, a black circle, and a small black square.
    *
    * @return the suggested characters
+   * @since 1.0.0
    */
-  @Suggestions("chat-characters")
+  @Suggestions(CHAT_CHARACTERS)
   public Stream<String> suggestChatCharacters() {
     return Stream.of(Characters.FULL_CHARACTER, Characters.BLACK_CIRCLE, Characters.SMALL_BLACK_SQUARE);
   }
@@ -90,21 +168,23 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
    * frame of the browser and 10 every tenth.
    *
    * @return the suggested intervals
+   * @since 1.0.0
    */
   @Suggestions("nth")
   public Stream<String> suggestNth() {
-    return Stream.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10");
+    return NTH_SUGGESTIONS.stream();
   }
 
   /**
-   * Suggests frame rates for the {@code <targetFps>} argument of {@code /mcav vm create}. Higher rates feel smoother
+   * Suggests frame rates for the {@code <targetFramesPerSecond>} argument of {@code /mcav vm create}. Higher rates feel smoother
    * but cost more CPU for dithering and more bandwidth for the maps.
    *
    * @return the suggested frame rates
+   * @since 1.0.0
    */
-  @Suggestions("target-fps")
-  public Stream<String> suggestTargetFps() {
-    return Stream.of("20", "30", "40", "50", "60", "70", "80", "90", "100", "120", "144", "240");
+  @Suggestions(TARGET_FRAMES_PER_SECOND)
+  public Stream<String> suggestTargetFramesPerSecond() {
+    return TARGET_FRAMES_PER_SECOND_SUGGESTIONS.stream();
   }
 
   /**
@@ -112,29 +192,32 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
    * the current position.
    *
    * @return the suggested positions
+   * @since 1.0.0
    */
   @Suggestions("positions")
   public Stream<String> suggestPositions() {
-    return Stream.of("0", "+10", "-10", "+1:00", "-1:00", "1:30");
+    return POSITION_SUGGESTIONS.stream();
   }
 
   /**
    * Suggests volumes for {@code /mcav video volume}, in percent of the video's own loudness.
    *
    * @return the suggested volumes
+   * @since 1.0.0
    */
   @Suggestions("volumes")
   public Stream<String> suggestVolumes() {
-    return Stream.of("0", "25", "50", "75", "100", "150", "200");
+    return VOLUME_SUGGESTIONS.stream();
   }
 
   /**
    * Suggests speeds for {@code /mcav video speed}, as factors of the normal speed.
    *
    * @return the suggested speeds
+   * @since 1.0.0
    */
   @Suggestions("speeds")
   public Stream<String> suggestSpeeds() {
-    return Stream.of("0.5", "0.75", "1", "1.25", "1.5", "2");
+    return SPEED_SUGGESTIONS.stream();
   }
 }

@@ -29,6 +29,7 @@ import static org.mockito.Mockito.when;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import me.brandonli.mcav.MCAVApi;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
@@ -41,16 +42,15 @@ import me.brandonli.mcav.plugin.testing.TestServer;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
 import org.mockito.InOrder;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
 
-/**
- * Tests {@link VideoControlCommand}.
- */
 final class VideoControlCommandTest {
 
   private final ExecutorService directExecutor = MoreExecutors.newDirectExecutorService();
@@ -77,6 +77,19 @@ final class VideoControlCommandTest {
     this.directExecutor.shutdown();
   }
 
+  @Test
+  void shouldResumeTheVideo() {
+    when(this.manager.getPlayer()).thenReturn(Optional.of(this.player));
+    when(this.player.resume()).thenReturn(true);
+
+    this.command.resumeVideo(this.sender);
+
+    verify(this.player).resume();
+
+    final Component resumed = Message.RESUME_PLAYER.build();
+    this.assertReceived(resumed);
+  }
+
   private void assertReceived(final Component... expected) {
     final List<Component> messages = Components.received(this.sender);
     final List<Component> expectedMessages = List.of(expected);
@@ -84,42 +97,32 @@ final class VideoControlCommandTest {
   }
 
   @Test
-  void resumesTheVideo() {
-    when(this.manager.getPlayer()).thenReturn(this.player);
-    when(this.player.resume()).thenReturn(true);
-
-    this.command.resumeVideo(this.sender);
-
-    verify(this.player).resume();
-    final Component resumed = Message.RESUME_PLAYER.build();
-    this.assertReceived(resumed);
-  }
-
-  @Test
-  void tellsTheSenderWhenAVideoThatEndedCannotBeResumed() {
-    when(this.manager.getPlayer()).thenReturn(this.player);
+  void shouldTellTheSenderWhenAVideoThatEndedCannotBeResumed() {
+    when(this.manager.getPlayer()).thenReturn(Optional.of(this.player));
     when(this.player.resume()).thenReturn(false);
 
     this.command.resumeVideo(this.sender);
 
     verify(this.player).resume();
+
     final Component failed = Message.RESUME_PLAYER_FAILED.build();
     this.assertReceived(failed);
   }
 
   @Test
-  void pausesTheVideo() {
-    when(this.manager.getPlayer()).thenReturn(this.player);
+  void shouldPauseTheVideo() {
+    when(this.manager.getPlayer()).thenReturn(Optional.of(this.player));
 
     this.command.pauseVideo(this.sender);
 
     verify(this.player).pause();
+
     final Component paused = Message.PAUSE_PLAYER.build();
     this.assertReceived(paused);
   }
 
   @Test
-  void answersEvenWithoutAVideo() {
+  void shouldAnswerEvenWithoutAVideo() {
     this.command.resumeVideo(this.sender);
     this.command.pauseVideo(this.sender);
 
@@ -129,7 +132,7 @@ final class VideoControlCommandTest {
   }
 
   @Test
-  void releasesTheVideoOnTheWorkerThreadAndReportsIt() {
+  void shouldReleaseTheVideoOnTheWorkerThreadAndReportIt() {
     this.command.releaseVideo(this.sender);
 
     final Component start = Message.RELEASE_PLAYER_START.build();
@@ -142,7 +145,7 @@ final class VideoControlCommandTest {
   }
 
   @Test
-  void queuedReleaseDoesNotCancelARequestSubmittedAfterIt() {
+  void shouldNotLetAQueuedReleaseCancelARequestSubmittedAfterIt() {
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
     final MCAVApi api = mock(MCAVApi.class);
     final AudioProvider provider = mock(AudioProvider.class);
@@ -152,11 +155,7 @@ final class VideoControlCommandTest {
     final VideoPlayerManager owner = Mockito.spy(realManager);
     final ExecutorService deferred = mock(ExecutorService.class);
     final List<Runnable> pending = new ArrayList<>();
-    Mockito.doAnswer(invocation -> {
-      final Runnable task = invocation.getArgument(0);
-      pending.add(task);
-      return null;
-    })
+    Mockito.doAnswer(invocation -> this.deferTask(invocation, pending))
       .when(deferred)
       .execute(ArgumentMatchers.any(Runnable.class));
     Mockito.doReturn(deferred).when(owner).getService();
@@ -167,6 +166,7 @@ final class VideoControlCommandTest {
       controls.releaseVideo(this.sender);
       final boolean oldCurrent = owner.isCurrent(oldGeneration);
       assertFalse(oldCurrent, "release invalidates the previous request immediately");
+
       final long nextGeneration = owner.beginStart();
       final Runnable cleanup = pending.getFirst();
       cleanup.run();
@@ -178,9 +178,16 @@ final class VideoControlCommandTest {
     }
   }
 
+  private @Nullable Object deferTask(final InvocationOnMock invocation, final List<Runnable> pending) {
+    final Runnable task = invocation.getArgument(0);
+    pending.add(task);
+
+    return null;
+  }
+
   @Test
-  void logsAFailedReleaseAndDoesNotReportThePlayerAsReleased() {
-    final IllegalStateException failure = new IllegalStateException("the release failed");
+  void shouldLogAFailedReleaseAndNotReportThePlayerAsReleased() {
+    final IllegalStateException failure = new IllegalStateException("the release failed!");
     doThrow(failure).when(this.manager).clearCurrentVideo();
 
     final String output;
@@ -191,28 +198,31 @@ final class VideoControlCommandTest {
 
     final Component start = Message.RELEASE_PLAYER_START.build();
     this.assertReceived(start);
+
     final boolean logged = output.contains("Failed to release the video player");
-    final boolean withCause = output.contains("the release failed");
+    final boolean withCause = output.contains("the release failed!");
     assertTrue(logged, output);
     assertTrue(withCause, output);
   }
 
   @Test
-  void setsTheLocationOfTheHologram() {
+  void shouldSetTheLocationOfTheHologram() {
     final Location location = new Location(null, 1.0, 70.0, 1.0);
 
     this.command.setHologramLocation(this.sender, location);
 
     verify(this.manager).setHologramLocation(location);
+
     final Component set = Message.HOLOGRAM_LOCATION_SET.build();
     this.assertReceived(set);
   }
 
   @Test
-  void disablesTheHologram() {
+  void shouldDisableTheHologram() {
     this.command.disableHologram(this.sender);
 
     verify(this.manager).setHologramLocation(null);
+
     final Component disabled = Message.HOLOGRAM_DISABLED.build();
     this.assertReceived(disabled);
   }

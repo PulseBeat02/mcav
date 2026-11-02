@@ -27,6 +27,11 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilte
 /**
  * An MCV2 screen as the last filter of a pipeline: its result, which encodes the frames for the viewers with the MCV2
  * pack and dithers them for the others, and the slot of the pack it holds until it is released.
+ *
+ * <p>This class is not thread-safe: use it on the server main thread, except {@code applyFilter}, which the video
+ * player calls with each frame from its own thread.
+ *
+ * @since 1.0.0
  */
 public final class Mcv2Output implements FunctionalVideoFilter {
 
@@ -34,35 +39,18 @@ public final class Mcv2Output implements FunctionalVideoFilter {
 
   private final Mcv2PackServer.Lease lease;
 
-  /**
-   * Constructs the output.
-   *
-   * @param result the screen's result
-   * @param lease  the screen's slot of the pack
-   */
   Mcv2Output(final Mcv2Result result, final Mcv2PackServer.Lease lease) {
-    Preconditions.checkNotNull(result, "Result must not be null");
-    Preconditions.checkNotNull(lease, "Lease must not be null");
+    Preconditions.checkNotNull(result, "Result must not be null!");
+    Preconditions.checkNotNull(lease, "Lease must not be null!");
+
     this.result = result;
     this.lease = lease;
   }
 
   /**
-   * Gets the screen's result.
-   *
-   * @return the result
-   */
-  public Mcv2Result getResult() {
-    return this.result;
-  }
-
-  @Override
-  public boolean applyFilter(final ImageBuffer samples, final OriginalVideoMetadata metadata) {
-    return this.result.applyFilter(samples, metadata);
-  }
-
-  /**
    * Starts the screen. Call on the main thread.
+   *
+   * @since 1.0.0
    */
   @Override
   public void start() {
@@ -70,8 +58,26 @@ public final class Mcv2Output implements FunctionalVideoFilter {
   }
 
   /**
+   * Hands the frame to the result of the screen, which encodes it for the viewers with the MCV2 pack and dithers it
+   * for the others.
+   *
+   * @param samples  the frame, resized in place to the video size of the screen
+   * @param metadata the metadata of the original video
+   * @return false when rate limiting skips the frame before conversion, otherwise true because it may have been
+   *         resized
+   * @throws NullPointerException if {@code samples} or {@code metadata} is null
+   * @since 1.0.0
+   */
+  @Override
+  public boolean applyFilter(final ImageBuffer samples, final OriginalVideoMetadata metadata) {
+    return this.result.applyFilter(samples, metadata);
+  }
+
+  /**
    * Stops the screen and gives its slot back to the pack, which keeps it for the next screen of its size. Call on the
    * main thread.
+   *
+   * @since 1.0.0
    */
   @Override
   public void release() {
@@ -80,5 +86,15 @@ public final class Mcv2Output implements FunctionalVideoFilter {
     } finally {
       this.lease.close();
     }
+  }
+
+  /**
+   * Returns the screen's result.
+   *
+   * @return the result
+   * @since 1.0.0
+   */
+  public Mcv2Result getResult() {
+    return this.result;
   }
 }

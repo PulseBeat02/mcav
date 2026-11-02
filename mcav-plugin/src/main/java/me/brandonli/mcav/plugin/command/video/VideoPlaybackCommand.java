@@ -18,6 +18,7 @@
 package me.brandonli.mcav.plugin.command.video;
 
 import com.google.common.base.Preconditions;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.player.multimedia.cv.AbstractVideoPlayerCv;
@@ -43,12 +44,16 @@ import org.slf4j.LoggerFactory;
  * {@code /mcav video seek|volume|speed|loop}: controls the video that plays. The players that decode with FFmpeg or
  * OpenCV jump to any time, change the speed of a file and loop it; the VLC player only jumps to a time from the start.
  * A live stream or a camera plays on at its own pace: it only changes volume.
+ *
+ * <p>This class is not thread-safe: use it on the server main thread, where Cloud runs its commands.
+ *
+ * @since 1.0.0
  */
 public final class VideoPlaybackCommand implements AnnotationCommandFeature {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(VideoPlaybackCommand.class);
 
-  private static final String SEEK_ERROR = "Failed to seek the video";
+  private static final String SEEK_ERROR = "Failed to seek the video.";
 
   private static final double PERCENT = 100.0;
 
@@ -60,9 +65,11 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
    * Constructs the command.
    *
    * @param plugin the plugin, whose video player manager must be available
+   * @since 1.0.0
    */
   public VideoPlaybackCommand(final MCAVSandbox plugin) {
-    Preconditions.checkNotNull(plugin, "Plugin must not be null");
+    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
+
     this.plugin = plugin;
     this.manager = plugin.getVideoPlayerManager();
   }
@@ -78,28 +85,35 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
    *
    * @param sender   who ran the command
    * @param position the time
+   * @since 1.0.0
    */
   @Command("mcav video seek <position>")
   @Permission("mcav.command.video.seek")
   @CommandDescription("mcav.command.video.seek.info")
   public void seekVideo(final CommandSender sender, @Argument(suggestions = "positions") @Greedy final String position) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
-    Preconditions.checkNotNull(position, "Position must not be null");
-    final SeekPosition parsed = SeekPosition.parse(position);
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(position, "Position must not be null!");
+
+    final Optional<SeekPosition> parsedPosition = SeekPosition.parse(position);
+    final @Nullable SeekPosition parsed = parsedPosition.orElse(null);
     if (parsed == null) {
       sender.sendMessage(Message.SEEK_INVALID.build(position));
       return;
     }
-    final VideoPlayerMultiplexer player = this.manager.getPlayer();
+
+    final Optional<VideoPlayerMultiplexer> foundPlayer = this.manager.getPlayer();
+    final @Nullable VideoPlayerMultiplexer player = foundPlayer.orElse(null);
     if (player == null) {
       sender.sendMessage(Message.SEEK_FAILED.build());
       return;
     }
+
     final boolean decoded = player instanceof AbstractVideoPlayerCv;
-    if (parsed.relative() && !decoded) {
+    if (parsed.isRelative() && !decoded) {
       sender.sendMessage(Message.SEEK_RELATIVE_UNSUPPORTED.build());
       return;
     }
+
     final long current = player instanceof final AbstractVideoPlayerCv cvPlayer ? cvPlayer.getPositionMilliseconds() : 0L;
     final long target = parsed.resolve(current);
     final CompletableFuture<Boolean> seek = CompletableFuture.supplyAsync(() -> player.seek(target), this.manager.getService());
@@ -124,12 +138,14 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
    *
    * @param sender  who ran the command
    * @param percent the volume, from 0 to 200
+   * @since 1.0.0
    */
   @Command("mcav video volume <percent>")
   @Permission("mcav.command.video.volume")
   @CommandDescription("mcav.command.video.volume.info")
   public void setVolume(final CommandSender sender, @Argument(suggestions = "volumes") @Range(min = "0", max = "200") final int percent) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
+
     final VolumeFilter volume = this.manager.getVolume();
     volume.setVolume(percent / PERCENT);
     sender.sendMessage(Message.VOLUME_SET.build(percent));
@@ -143,13 +159,16 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
    *
    * @param sender who ran the command
    * @param factor the factor of the normal speed, from 0.5 to 2
+   * @since 1.0.0
    */
   @Command("mcav video speed <factor>")
   @Permission("mcav.command.video.speed")
   @CommandDescription("mcav.command.video.speed.info")
   public void setSpeed(final CommandSender sender, @Argument(suggestions = "speeds") @Range(min = "0.5", max = "2") final double factor) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
-    final VideoPlayerMultiplexer player = this.manager.getPlayer();
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
+
+    final Optional<VideoPlayerMultiplexer> foundPlayer = this.manager.getPlayer();
+    final @Nullable VideoPlayerMultiplexer player = foundPlayer.orElse(null);
     final Component message;
     if (player != null && !(player instanceof AbstractVideoPlayerCv)) {
       message = Message.VLC_UNSUPPORTED.build();
@@ -168,17 +187,20 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
    * <p>Requires the permission {@code mcav.command.video.loop}; players and the console can run it. With the VLC player
    * the sender is also told that it does not loop.
    *
-   * @param sender who ran the command
+   * @param sender  who ran the command
    * @param enabled true to loop
+   * @since 1.0.0
    */
   @Command("mcav video loop <enabled>")
   @Permission("mcav.command.video.loop")
   @CommandDescription("mcav.command.video.loop.info")
   public void setLoop(final CommandSender sender, final boolean enabled) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
+
     this.manager.setLooping(enabled);
     sender.sendMessage(enabled ? Message.LOOP_ON.build() : Message.LOOP_OFF.build());
-    final VideoPlayerMultiplexer player = this.manager.getPlayer();
+    final Optional<VideoPlayerMultiplexer> foundPlayer = this.manager.getPlayer();
+    final @Nullable VideoPlayerMultiplexer player = foundPlayer.orElse(null);
     if (enabled && player != null && !(player instanceof AbstractVideoPlayerCv)) {
       sender.sendMessage(Message.VLC_UNSUPPORTED.build());
     }

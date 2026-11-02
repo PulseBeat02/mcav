@@ -26,6 +26,10 @@ import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
  *
  * <p>The backend only changes how the media is read; the display and the audio output are chosen by the other
  * arguments. When unsure, use {@link #FFMPEG}.
+ *
+ * <p>This enum is immutable and thread-safe.
+ *
+ * @since 1.0.0
  */
 public enum PlayerArgument {
   /**
@@ -33,6 +37,8 @@ public enum PlayerArgument {
    * server or installable by the plugin. A server without VLC downloads it in the background on its first start;
    * until it is ready, the command answers that VLC is still being prepared, and when it is not available at all,
    * that VLC is not supported, and nothing plays.
+   *
+   * @since 1.0.0
    */
   VLC(VideoPlayer::vlc),
 
@@ -40,28 +46,18 @@ public enum PlayerArgument {
    * Decodes with the FFmpeg libraries bundled with the plugin, so nothing has to be installed. This is the
    * recommended choice for files, direct URLs, websites resolved through yt-dlp, and raw FFmpeg inputs written as
    * {@code format||input}.
+   *
+   * @since 1.0.0
    */
   FFMPEG(VideoPlayer::ffmpeg),
 
   /**
    * Captures from a camera or capture card attached to the server. Use it with a device number, such as {@code 0}
    * for the first device, as the media argument.
+   *
+   * @since 1.0.0
    */
   DEVICE(VideoPlayer::device);
-
-  /**
-   * Creates the player of a constant. The factories capture nothing, so every constant stays immutable.
-   */
-  @Immutable
-  @FunctionalInterface
-  private interface PlayerFactory {
-    /**
-     * Creates a new, not yet started player.
-     *
-     * @return the player
-     */
-    VideoPlayerMultiplexer create();
-  }
 
   private final PlayerFactory factory;
 
@@ -73,8 +69,15 @@ public enum PlayerArgument {
    * Creates a new, not yet started player with this backend. Every video gets its own player.
    *
    * @return the player
+   * @since 1.0.0
    */
   public VideoPlayerMultiplexer createPlayer() {
     return this.factory.create();
+  }
+
+  @Immutable
+  @FunctionalInterface
+  private interface PlayerFactory {
+    VideoPlayerMultiplexer create();
   }
 }

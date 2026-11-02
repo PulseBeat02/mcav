@@ -19,6 +19,7 @@ package me.brandonli.mcav.plugin.command.video;
 
 import com.google.common.base.Preconditions;
 import java.util.Collection;
+import java.util.Optional;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2.Settings;
@@ -30,6 +31,7 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.Dit
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.plugin.MCAVSandbox;
 import me.brandonli.mcav.plugin.command.MapDisplaySettings;
+import me.brandonli.mcav.plugin.command.SuggestionProvider;
 import me.brandonli.mcav.plugin.utils.ArgumentUtils;
 import me.brandonli.mcav.plugin.utils.AudioArgument;
 import me.brandonli.mcav.plugin.utils.DitheringArgument;
@@ -50,6 +52,11 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 
 /**
  * {@code /mcav video map}: shows a video on a wall of maps built with {@code /mcav screen}, dithered or with MCV2.
+ *
+ * <p>This class is not thread-safe: use it on the server main thread, except {@code createVideoFilter}, which {@link
+ * AbstractVideoCommand} calls on the worker thread.
+ *
+ * @since 1.0.0
  */
 public final class VideoMapCommand extends AbstractVideoCommand {
 
@@ -57,6 +64,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
    * Constructs the command.
    *
    * @param plugin the plugin
+   * @since 1.0.0
    */
   public VideoMapCommand(final MCAVSandbox plugin) {
     super(plugin);
@@ -64,7 +72,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
 
   /**
    * Handles {@code /mcav video map <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions>
-   * <mapId> <ditheringAlgorithm> <ytDlpOptions> <mrl> [--codec dither|mcv2]}: shows a video on a wall of maps, the
+   * <mapId> <ditheringAlgorithm> <ytdlpOptions> <mrl> [--codec dither|mcv2]}: shows a video on a wall of maps, the
    * highest quality way to show a video in the world. The yt-dlp options are named so, not {@code flags} as in the
    * other video commands, because Cloud names the component of the command's flags so. With {@code --codec mcv2}, or without the flag when
    * {@code mcv2.default-codec} is {@code mcv2}, the video is encoded as it plays with the default live preset for the
@@ -93,7 +101,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
    * @param mapId              the id of the top left map of the wall, as given to {@code /mcav screen}
    * @param ditheringAlgorithm how colors are reduced to the map palette; {@code FILTER_LITE} is recommended, and
    *                           {@code FLOYD_STEINBERG_TEMPORAL} flickers least, see {@link DitheringArgument}
-   * @param ytDlpOptions       extra options, in quotes; {@code ""} for none, or yt-dlp options such as
+   * @param ytdlpOptions       extra options, in quotes; {@code ""} for none, or yt-dlp options such as
    *                           {@code "--yt-dlp{format=best,no-playlist}"}
    * @param mrl                the media, in quotes if it contains spaces: a file path on the server, a direct media
    *                           URL, a website yt-dlp understands such as YouTube, a capture device number such as
@@ -102,9 +110,10 @@ public final class VideoMapCommand extends AbstractVideoCommand {
    *                           absent
    * @param filters            the {@code --filters} option: filters applied to every frame in order, such as
    *                           {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
+   * @since 1.0.0
    */
   @Command(
-    "mcav video map <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <ytDlpOptions> <mrl>"
+    "mcav video map <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <ytdlpOptions> <mrl>"
   )
   @Permission("mcav.command.video.map")
   @CommandDescription("mcav.command.video.map.info")
@@ -113,41 +122,53 @@ public final class VideoMapCommand extends AbstractVideoCommand {
     final MultiplePlayerSelector playerSelector,
     final PlayerArgument playerType,
     final AudioArgument audioType,
-    @Argument(suggestions = "resolutions") @Quoted final String videoResolution,
-    @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
-    @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
+    @Argument(suggestions = SuggestionProvider.RESOLUTIONS) @Quoted final String videoResolution,
+    @Argument(suggestions = SuggestionProvider.DIMENSIONS) @Quoted final String blockDimensions,
+    @Argument(suggestions = SuggestionProvider.IDS) @Range(min = "0") final int mapId,
     final DitheringArgument ditheringAlgorithm,
-    @Quoted final String ytDlpOptions,
+    @Quoted final String ytdlpOptions,
     @Quoted final String mrl,
     @Flag("codec") final @Nullable MapCodec codec,
     @Flag("filters") @Quoted final @Nullable String filters
   ) {
-    Preconditions.checkNotNull(playerSelector, "Player selector must not be null");
-    Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null");
+    Preconditions.checkNotNull(playerSelector, "Player selector must not be null!");
+    Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null!");
 
-    final Pair<Integer, Integer> blocks = parseScreenDimensions(sender, blockDimensions);
+    final Optional<Pair<Integer, Integer>> parsedBlocks = parseScreenDimensions(sender, blockDimensions);
+    final @Nullable Pair<Integer, Integer> blocks = parsedBlocks.orElse(null);
     if (blocks == null) {
       return;
     }
 
     final Collection<UUID> players = ArgumentUtils.parseViewers(playerSelector, this.plugin.getOnlinePlayers());
     final MapCodec chosen = codec != null ? codec : this.plugin.getConfiguration().getMcv2DefaultCodec();
-    VideoConfigurationProvider configurationProvider = resolution -> createSettings(blocks, resolution, mapId, players, ditheringAlgorithm);
+    VideoConfigurationProvider configurationProvider = resolution ->
+      this.createSettings(blocks, resolution, mapId, players, ditheringAlgorithm);
     if (chosen == MapCodec.MCV2) {
-      final Pair<Integer, Integer> resolution = parseDimensions(sender, videoResolution);
+      final Optional<Pair<Integer, Integer>> parsedResolution = parseDimensions(sender, videoResolution);
+      final @Nullable Pair<Integer, Integer> resolution = parsedResolution.orElse(null);
       if (resolution == null) {
         return;
       }
+
       final Mcv2Support support = this.plugin.getMcv2Support();
-      final Mcv2Configuration configuration = support.configure(sender, blocks, resolution, mapId, Settings.DEFAULT, players);
+      final Optional<Mcv2Configuration> foundConfiguration = support.configure(
+        sender,
+        blocks,
+        resolution,
+        mapId,
+        Settings.DEFAULT,
+        players
+      );
+      final @Nullable Mcv2Configuration configuration = foundConfiguration.orElse(null);
       if (configuration != null) {
         configurationProvider = _ -> new VideoMcv2Command.Mcv2Settings(configuration, ditheringAlgorithm, sender);
       }
     }
-    this.playVideo(configurationProvider, sender, playerSelector, playerType, audioType, videoResolution, mrl, ytDlpOptions, filters);
+    this.playVideo(configurationProvider, sender, playerSelector, playerType, audioType, videoResolution, mrl, ytdlpOptions, filters);
   }
 
-  private static MapDisplaySettings createSettings(
+  private MapDisplaySettings createSettings(
     final Pair<Integer, Integer> blocks,
     final Pair<Integer, Integer> resolution,
     final int mapId,
@@ -155,7 +176,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
     final DitheringArgument ditheringAlgorithm
   ) {
     final MapConfiguration configuration = MapDisplaySettings.createConfiguration(blocks, resolution, mapId, players);
-    return new MapDisplaySettings(configuration, ditheringAlgorithm);
+    return MapDisplaySettings.of(configuration, ditheringAlgorithm);
   }
 
   /**
@@ -169,14 +190,15 @@ public final class VideoMapCommand extends AbstractVideoCommand {
    *                              which returns {@link MapDisplaySettings}, or {@link VideoMcv2Command.Mcv2Settings}
    *                              for MCV2
    * @return the pipeline that dithers the frames onto the maps
+   * @since 1.0.0
    */
   @Override
   public VideoPipelineStep createVideoFilter(
     final Pair<Integer, Integer> resolution,
     final VideoConfigurationProvider configurationProvider
   ) {
-    Preconditions.checkNotNull(resolution, "Resolution must not be null");
-    Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null");
+    Preconditions.checkNotNull(resolution, "Resolution must not be null!");
+    Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null!");
 
     final Object built = configurationProvider.buildConfiguration(resolution);
     if (built instanceof final VideoMcv2Command.Mcv2Settings mcv2) {
@@ -184,6 +206,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
       this.manager.startFilter(output);
       return VideoPipelineStep.of(output);
     }
+
     final MapDisplaySettings settings = (MapDisplaySettings) built;
     final MapConfiguration configuration = settings.getConfiguration();
     final DitherAlgorithm algorithm = settings.createAlgorithm();
@@ -191,6 +214,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
     final FunctionalVideoFilter ditherFilter = DitherFilter.dither(algorithm, result);
 
     this.manager.startFilter(ditherFilter);
+
     return VideoPipelineStep.of(ditherFilter);
   }
 }

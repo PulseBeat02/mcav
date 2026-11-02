@@ -36,105 +36,97 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.messaging.StandardMessenger;
 import org.bukkit.scheduler.BukkitScheduler;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
 
-/**
- * The mocked server behind {@link Bukkit} for all tests of the plugin.
- *
- * <p>Bukkit accepts its server only once per JVM, so every test shares one mock and calls {@link #reset()} before
- * it runs. Unlike a static mock of {@link Bukkit}, the shared server is also reachable from the worker threads of
- * the code under test.
- */
+// Bukkit accepts its server once per JVM, so every test shares one mock
 public final class TestServer {
 
   private static final Server SERVER = install();
   private static final List<Runnable> PENDING_TASKS = Collections.synchronizedList(new ArrayList<>());
 
+  private static final String LOGGER_NAME = "TestServer";
+
   private TestServer() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   private static Server install() {
     final Server server = mock(Server.class);
-    final Logger logger = Logger.getLogger("TestServer");
+    final Logger logger = Logger.getLogger(LOGGER_NAME);
     when(server.getLogger()).thenReturn(logger);
-    final ServerBuildInfo buildInfo = mock(ServerBuildInfo.class);
+    final ServerBuildInfo buildInformation = mock(ServerBuildInfo.class);
     try (final MockedStatic<ServerBuildInfo> mocked = Mockito.mockStatic(ServerBuildInfo.class)) {
-      mocked.when(ServerBuildInfo::buildInfo).thenReturn(buildInfo);
+      mocked.when(ServerBuildInfo::buildInfo).thenReturn(buildInformation);
       Bukkit.setServer(server);
     }
     return server;
   }
 
-  /**
-   * Resets the server and gives it a new plugin manager, Bukkit's own messenger of plugin channels and a scheduler
-   * that runs every task at once, as if the caller were the main thread.
-   *
-   * <p>The thread that calls this method is the main thread of the server: {@link Bukkit#isPrimaryThread()} is true
-   * only on it, so code that must not touch the world from other threads can be checked.
-   *
-   * @return the server
-   */
   public static Server reset() {
     Mockito.reset(SERVER);
     PENDING_TASKS.clear();
     final Thread mainThread = Thread.currentThread();
-    when(SERVER.isPrimaryThread()).thenAnswer(_ -> {
-      final Thread current = Thread.currentThread();
-      return mainThread.equals(current);
-    });
-    final Logger logger = Logger.getLogger("TestServer");
+    when(SERVER.isPrimaryThread()).thenAnswer(_ -> TestServer.isMainThread(mainThread));
+    final Logger logger = Logger.getLogger(LOGGER_NAME);
     when(SERVER.getLogger()).thenReturn(logger);
     final PluginManager pluginManager = mock(PluginManager.class);
     when(SERVER.getPluginManager()).thenReturn(pluginManager);
     when(SERVER.getMessenger()).thenReturn(new StandardMessenger());
     final BukkitScheduler scheduler = mock(BukkitScheduler.class);
-    when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenAnswer(invocation -> {
-      final Runnable task = invocation.getArgument(1);
-      task.run();
-      return null;
-    });
-    when(scheduler.callSyncMethod(any(Plugin.class), any())).thenAnswer(invocation -> {
-      final Callable<?> call = invocation.getArgument(1);
-      final FutureTask<?> task = new FutureTask<>(call);
-      task.run();
-      return task;
-    });
+    when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenAnswer(TestServer::runTask);
+    when(scheduler.callSyncMethod(any(Plugin.class), any())).thenAnswer(TestServer::runCallable);
     when(SERVER.getScheduler()).thenReturn(scheduler);
+
     return SERVER;
   }
 
-  /**
-   * Resets the server like {@link #reset()}, but its scheduler only collects the tasks, which
-   * {@link #runPendingTasks()} runs later. Tasks given to {@link BukkitScheduler#callSyncMethod} are collected as
-   * well, and their futures complete once they ran.
-   *
-   * @return the server
-   */
+  private static boolean isMainThread(final Thread mainThread) {
+    final Thread current = Thread.currentThread();
+    return mainThread.equals(current);
+  }
+
+  private static @Nullable Object runTask(final InvocationOnMock invocation) {
+    final Runnable task = invocation.getArgument(1);
+    task.run();
+
+    return null;
+  }
+
+  private static FutureTask<?> runCallable(final InvocationOnMock invocation) {
+    final Callable<?> call = invocation.getArgument(1);
+    final FutureTask<?> task = new FutureTask<>(call);
+    task.run();
+    return task;
+  }
+
   public static Server resetWithDeferredTasks() {
     final Server server = reset();
     final BukkitScheduler scheduler = mock(BukkitScheduler.class);
-    when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenAnswer(invocation -> {
-      final Runnable task = invocation.getArgument(1);
-      PENDING_TASKS.add(task);
-      return null;
-    });
-    when(scheduler.callSyncMethod(any(Plugin.class), any())).thenAnswer(invocation -> {
-      final Callable<?> call = invocation.getArgument(1);
-      final FutureTask<?> task = new FutureTask<>(call);
-      PENDING_TASKS.add(task);
-      return task;
-    });
+    when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenAnswer(TestServer::deferTask);
+    when(scheduler.callSyncMethod(any(Plugin.class), any())).thenAnswer(TestServer::deferCallable);
     when(server.getScheduler()).thenReturn(scheduler);
+
     return server;
   }
 
-  /**
-   * Runs the tasks collected since {@link #resetWithDeferredTasks()}.
-   *
-   * @return how many tasks ran
-   */
+  private static @Nullable Object deferTask(final InvocationOnMock invocation) {
+    final Runnable task = invocation.getArgument(1);
+    PENDING_TASKS.add(task);
+
+    return null;
+  }
+
+  private static FutureTask<?> deferCallable(final InvocationOnMock invocation) {
+    final Callable<?> call = invocation.getArgument(1);
+    final FutureTask<?> task = new FutureTask<>(call);
+    PENDING_TASKS.add(task);
+
+    return task;
+  }
+
   public static int runPendingTasks() {
     final List<Runnable> tasks;
     synchronized (PENDING_TASKS) {
@@ -147,41 +139,21 @@ public final class TestServer {
     return tasks.size();
   }
 
-  /**
-   * Makes sure the shared server is installed behind {@link Bukkit}. It is installed when this class is loaded, so
-   * code that needs Bukkit before any test touched this class only has to call this method.
-   *
-   * @throws IllegalStateException if Bukkit has a server other than the test server
-   */
+  // installed when this class loads, for code that needs Bukkit before any test runs
   public static void ensureInstalled() {
     final Server installed = Bukkit.getServer();
     final boolean testServerInstalled = Objects.equals(installed, SERVER);
-    Preconditions.checkState(testServerInstalled, "Bukkit has a server that is not the test server");
+    Preconditions.checkState(testServerInstalled, "Bukkit has a server that is not the test server!");
   }
 
-  /**
-   * Gets the server.
-   *
-   * @return the server
-   */
   public static Server server() {
     return SERVER;
   }
 
-  /**
-   * Gets the scheduler of the server.
-   *
-   * @return the scheduler
-   */
   public static BukkitScheduler scheduler() {
     return SERVER.getScheduler();
   }
 
-  /**
-   * Gets the plugin manager of the server.
-   *
-   * @return the plugin manager
-   */
   public static PluginManager pluginManager() {
     return SERVER.getPluginManager();
   }

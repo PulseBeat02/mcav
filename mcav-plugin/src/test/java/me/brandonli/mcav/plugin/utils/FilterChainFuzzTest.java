@@ -24,27 +24,29 @@ import com.code_intelligence.jazzer.junit.FuzzTest;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Tag;
 
-/**
- * Fuzzes the {@code --filters} option a player types: whatever the text, it is refused with a reason, or it is a chain of
- * at most the allowed number of filters, which can all be made.
- */
 @Tag("fuzz")
 final class FilterChainFuzzTest {
 
   private static final Path NO_OVERLAYS = Path.of("no-overlays-here");
 
   @FuzzTest(maxDuration = "30s")
-  void everyTypedChainIsBoundedOrRefused(final FuzzedDataProvider data) {
-    final boolean isVideo = data.consumeBoolean();
+  void shouldBoundOrRefuseEveryTypedChain(final FuzzedDataProvider data) {
+    final MediaKind kind = data.consumeBoolean() ? MediaKind.VIDEO : MediaKind.IMAGE;
     final String text = data.consumeRemainingAsString();
     final FilterChain chain;
     try {
-      chain = FilterChain.parse(text, NO_OVERLAYS, isVideo);
-    } catch (final IllegalArgumentException refused) {
-      assertTrue(refused.getMessage() != null && !refused.getMessage().isBlank(), text);
+      chain = FilterChain.parse(text, NO_OVERLAYS, kind);
+    } catch (final IllegalArgumentException exception) {
+      final boolean thirdMatches = exception.getMessage() != null && !exception.getMessage().isBlank();
+      assertTrue(thirdMatches, text);
+
       return;
     }
-    assertTrue(text.length() <= FilterChain.MAX_LENGTH, text);
-    assertTrue(chain.create().size() <= FilterChain.MAX_FILTERS, text);
+
+    final boolean matches = text.length() <= FilterChain.MAXIMUM_LENGTH;
+    assertTrue(matches, text);
+
+    final boolean secondMatches = chain.create().size() <= FilterChain.MAXIMUM_FILTERS;
+    assertTrue(secondMatches, text);
   }
 }

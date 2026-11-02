@@ -24,32 +24,43 @@ import me.brandonli.mcav.bukkit.utils.ServerAddress;
 
 /**
  * Where the players download the MCV2 resource pack from, {@code mcv2.pack.hosting} of the configuration.
+ *
+ * <p>This enum is immutable and thread-safe.
+ *
+ * @since 1.0.0
  */
 public enum Mcv2Hosting {
   /**
    * The Minecraft server's own port: nothing to set up, and the right choice for a server players join directly. It
    * does not work behind a proxy such as Velocity or BungeeCord, where the players' connections reach the proxy's
    * port, not this server's.
+   *
+   * @since 1.0.0
    */
   INJECTOR,
   /**
    * A dedicated HTTP server on a port of its own, which the players must be able to reach: the choice behind a proxy
    * when the port can be opened.
+   *
+   * @since 1.0.0
    */
   HTTP,
   /**
    * An upload to mc-packs.net: no port at all, for a server behind a proxy or a firewall that opens none. The pack is
    * public there.
+   *
+   * @since 1.0.0
    */
   WEBSITE;
 
   /**
-   * Gets the hosting of a written pack.
+   * Returns the hosting of a written pack.
    *
    * @param host the host name or address players reach the HTTP server by, for {@link #HTTP}; empty for the address
    *             the server finds for itself, looked up when a pack is hosted
    * @param port the port of the HTTP server, for {@link #HTTP}
    * @return what hosts a pack zip
+   * @since 1.0.0
    */
   public Function<Path, PackHosting> hosting(final String host, final int port) {
     return switch (this) {

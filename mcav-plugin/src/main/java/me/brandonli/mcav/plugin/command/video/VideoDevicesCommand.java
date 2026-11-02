@@ -38,12 +38,20 @@ import org.slf4j.LoggerFactory;
 /**
  * {@code /mcav video devices}: lists the cameras and capture cards of the server, the only devices the DEVICE player
  * then plays, by the number listed.
+ *
+ * <p>This class is not thread-safe: use it on the server main thread, where Cloud runs its commands.
+ *
+ * @since 1.0.0
  */
 public final class VideoDevicesCommand implements AnnotationCommandFeature {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(VideoDevicesCommand.class);
 
-  private static final String LIST_ERROR = "Failed to list the capture devices";
+  private static final String LIST_ERROR = "Failed to list the capture devices.";
+
+  private static final String LABEL_SEPARATOR = ": ";
+
+  private static final String NAME_SEPARATOR = ", ";
 
   private final MCAVSandbox plugin;
 
@@ -53,9 +61,11 @@ public final class VideoDevicesCommand implements AnnotationCommandFeature {
    * Constructs the command.
    *
    * @param plugin the plugin, whose video player manager must be available
+   * @since 1.0.0
    */
   public VideoDevicesCommand(final MCAVSandbox plugin) {
-    Preconditions.checkNotNull(plugin, "Plugin must not be null");
+    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
+
     this.plugin = plugin;
     this.manager = plugin.getVideoPlayerManager();
   }
@@ -67,12 +77,14 @@ public final class VideoDevicesCommand implements AnnotationCommandFeature {
    * <p>Requires the permission {@code mcav.command.video.device}, which playing a device requires too.
    *
    * @param sender who ran the command
+   * @since 1.0.0
    */
   @Command("mcav video devices")
   @Permission(CaptureDevices.PERMISSION)
   @CommandDescription("mcav.command.video.devices.info")
   public void listDevices(final CommandSender sender) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
+
     final CompletableFuture<List<CaptureDevices.Device>> listing = CompletableFuture.supplyAsync(
       CaptureDevices::list,
       this.manager.getService()
@@ -88,8 +100,8 @@ public final class VideoDevicesCommand implements AnnotationCommandFeature {
     this.manager.setDevices(listed);
     final String names = listed
       .stream()
-      .map(device -> device.index() + ": " + device.name())
-      .collect(Collectors.joining(", "));
+      .map(device -> device.getIndex() + LABEL_SEPARATOR + device.getName())
+      .collect(Collectors.joining(NAME_SEPARATOR));
     final Component message = listed.isEmpty() ? Message.DEVICE_NONE.build() : Message.DEVICE_LIST.build(names);
     TaskUtils.runOnMainThread(this.plugin, () -> sender.sendMessage(message));
   }

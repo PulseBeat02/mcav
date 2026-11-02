@@ -75,13 +75,17 @@ import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
-/**
- * Tests {@link BrowserCommand}. The browser, the maps and the dithering are mocked.
- */
 final class BrowserCommandTest {
 
-  /** How long a test waits for a player stopped in the background. */
-  private static final long RELEASE_MILLIS = 5000;
+  private static final long RELEASE_MILLISECONDS = 5000;
+
+  private static final String RESOLUTION = "1280x720";
+  private static final int FRAME_INTERVAL = 2;
+  private static final String BLOCK_DIMENSIONS = "5x3";
+
+  private static final String PAGE_URL = "https://example.com/page";
+  private static final String SITE_URL = "https://example.com";
+  private static final String AUDIO_HTTP_URL = "http://mc.example.com:3000/";
 
   private BrowserCommand command;
   private MCAVSandbox plugin;
@@ -137,12 +141,38 @@ final class BrowserCommandTest {
     this.command.shutdown();
   }
 
+  @Test
+  void shouldOpenThePageInABrowserOnTheScreen() {
+    final CompletableFuture<Boolean> start = CompletableFuture.completedFuture(true);
+    when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(start);
+
+    this.create(RESOLUTION, BLOCK_DIMENSIONS, PAGE_URL);
+
+    this.assertDithersOntoTheScreen();
+    this.assertOpenedThePage();
+    assertSame(this.browser, this.command.player);
+
+    final Component started = Message.START_BROWSER.build();
+    this.assertReceived(Message.BROWSER_LOADING.build(), started);
+  }
+
   private void create(final String resolution, final String blocks, final String url) {
     this.create(resolution, blocks, AudioArgument.NONE, url);
   }
 
   private void create(final String resolution, final String blocks, final AudioArgument audio, final String url) {
-    this.command.createBrowser(this.sender, this.selector, resolution, 2, blocks, 0, DitheringArgument.FILTER_LITE, audio, url, null);
+    this.command.createBrowser(
+      this.sender,
+      this.selector,
+      resolution,
+      FRAME_INTERVAL,
+      blocks,
+      0,
+      DitheringArgument.FILTER_LITE,
+      audio,
+      url,
+      null
+    );
   }
 
   private void assertReceived(final Component... expected) {
@@ -154,6 +184,7 @@ final class BrowserCommandTest {
   private void assertDithersOntoTheScreen() {
     final ArgumentCaptor<VideoPipelineStep> pipelines = ArgumentCaptor.forClass(VideoPipelineStep.class);
     verify(this.callback).attach(pipelines.capture());
+
     final VideoPipelineStep pipeline = pipelines.getValue();
     final VideoFilter filter = pipeline.getFilter();
     assertSame(this.ditherFilter, filter);
@@ -162,37 +193,24 @@ final class BrowserCommandTest {
   private void assertOpenedThePage() {
     final ArgumentCaptor<BrowserSource> sources = ArgumentCaptor.forClass(BrowserSource.class);
     verify(this.browser).startAsync(sources.capture(), any());
+
     final BrowserSource source = sources.getValue();
     final URI uri = source.getUri();
-    final URI expected = URI.create("https://example.com/page");
+    final URI expected = URI.create(PAGE_URL);
     final int width = source.getWidth();
     final int height = source.getHeight();
     final int nth = source.getFrameInterval();
     assertEquals(expected, uri);
     assertEquals(1280, width);
     assertEquals(720, height);
-    assertEquals(2, nth);
+    assertEquals(FRAME_INTERVAL, nth);
   }
 
   @Test
-  void opensThePageInABrowserOnTheScreen() {
-    final CompletableFuture<Boolean> start = CompletableFuture.completedFuture(true);
-    when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(start);
-
-    this.create("1280x720", "5x3", "https://example.com/page");
-
-    this.assertDithersOntoTheScreen();
-    this.assertOpenedThePage();
-    assertSame(this.browser, this.command.player);
-    final Component started = Message.START_BROWSER.build();
-    this.assertReceived(Message.BROWSER_LOADING.build(), started);
-  }
-
-  @Test
-  void aServerTheBrowserDoesNotRunOnIsToldSoAndGetsNoBrowser() {
+  void shouldTellAServerTheBrowserDoesNotRunOnSoAndGiveItNoBrowser() {
     when(this.plugin.isBrowserSupported()).thenReturn(false);
 
-    this.create("1280x720", "5x3", "https://example.com/page");
+    this.create(RESOLUTION, BLOCK_DIMENSIONS, PAGE_URL);
 
     this.assertReceived(Message.BROWSER_UNSUPPORTED.build());
     this.browsers.verify(() -> BrowserPlayer.create(any(BrowserOptions.class)), never());
@@ -200,114 +218,138 @@ final class BrowserCommandTest {
   }
 
   @Test
-  void theSoundOfThePagePlaysIntoTheChosenOutputAndIsLetGoOfOnRelease() {
+  void shouldPlayTheSoundOfThePageIntoTheChosenOutputAndLetGoOfItOnRelease() {
     final AudioFilter output = mock(AudioFilter.class);
     when(this.provider.constructFilter(eq(AudioArgument.SIMPLE_VOICE_CHAT), any(), any(), eq(this.browser))).thenReturn(output);
     final AudioAttachableCallback audio = mock(AudioAttachableCallback.class);
     when(this.browser.getAudioAttachableCallback()).thenReturn(audio);
     when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(CompletableFuture.completedFuture(true));
 
-    this.create("1280x720", "5x3", AudioArgument.SIMPLE_VOICE_CHAT, "https://example.com/page");
+    this.create(RESOLUTION, BLOCK_DIMENSIONS, AudioArgument.SIMPLE_VOICE_CHAT, PAGE_URL);
 
     final ArgumentCaptor<AudioPipelineStep> pipelines = ArgumentCaptor.forClass(AudioPipelineStep.class);
     verify(audio).attach(pipelines.capture());
-    assertSame(output, pipelines.getValue().getFilter());
+
+    final AudioFilter filter = pipelines.getValue().getFilter();
+    assertSame(output, filter);
+
     this.command.releaseBrowser(this.sender);
+    verify(audio).detach();
     verify(this.provider).releaseAudioFilter(this.browser);
   }
 
   @Test
-  void theSoundIsLetGoOfWhenTheReleaseFailsAndWhileThePluginDisables() {
+  void shouldLetGoOfTheSoundWhenTheReleaseFailsAndWhileThePluginDisables() {
     when(this.provider.constructFilter(eq(AudioArgument.SIMPLE_VOICE_CHAT), any(), any(), eq(this.browser))).thenReturn(
       mock(AudioFilter.class)
     );
     when(this.browser.getAudioAttachableCallback()).thenReturn(mock(AudioAttachableCallback.class));
     when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(CompletableFuture.completedFuture(true));
-    this.create("1280x720", "5x3", AudioArgument.SIMPLE_VOICE_CHAT, "https://example.com/page");
-    when(this.plugin.getAudioProvider()).thenThrow(new IllegalStateException("The audio provider is not available"));
-    Mockito.doThrow(new IllegalStateException("release broke")).when(this.browser).release();
+    this.create(RESOLUTION, BLOCK_DIMENSIONS, AudioArgument.SIMPLE_VOICE_CHAT, PAGE_URL);
+    when(this.plugin.getAudioProvider()).thenThrow(new IllegalStateException("The audio provider is not available!"));
+    Mockito.doThrow(new IllegalStateException("release broke!")).when(this.browser).release();
     this.command.releaseBrowser(this.sender);
     verify(this.provider).releaseAudioFilter(this.browser);
     verify(this.callback).detach();
-    verify(this.browser, timeout(RELEASE_MILLIS)).release();
+    verify(this.browser, timeout(RELEASE_MILLISECONDS)).release();
   }
 
   @Test
-  void aBrowserThatFailsToStopWhileTheCommandShutsDownFailsTheShutdown() {
+  void shouldFailTheShutdownWhenABrowserFailsToStopWhileTheCommandShutsDown() {
     when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(CompletableFuture.completedFuture(true));
-    this.create("1280x720", "5x3", "https://example.com/page");
-    Mockito.doThrow(new IllegalStateException("release broke")).when(this.browser).release();
+    this.create(RESOLUTION, BLOCK_DIMENSIONS, PAGE_URL);
+    Mockito.doThrow(new IllegalStateException("release broke!")).when(this.browser).release();
     final IllegalStateException failure = assertThrows(IllegalStateException.class, this.command::shutdown);
-    assertEquals("release broke", failure.getMessage());
+
+    final String message = failure.getMessage();
+    assertEquals("release broke!", message);
+  }
+
+  @Test
+  void shouldSendTheLinkOfABrowserThatStartsWithTheWebPageAndNoneForOneThatFails() {
+    final List<Component> expected = List.of(Message.AUDIO_HTTP.build(AUDIO_HTTP_URL));
+    this.createWithTheWebPage(CompletableFuture.completedFuture(true));
+    verify(this.provider).constructHttpUrl();
+
+    final List<Component> received = Components.received(this.viewer);
+    assertEquals(expected, received);
+
+    final List<String> receivedText = Components.receivedText(this.viewer);
+    assertEquals(List.of("Click on the URL to listen onto the website! http://mc.example.com:3000/"), receivedText);
+
+    this.createWithTheWebPage(CompletableFuture.failedFuture(new IllegalStateException("the page broke!")));
+    verify(this.provider).constructHttpUrl();
+
+    final List<Component> componentsReceived = Components.received(this.viewer);
+    assertEquals(expected, componentsReceived);
+
+    final List<String> componentsReceivedText = Components.receivedText(this.viewer);
+    assertEquals(List.of("Click on the URL to listen onto the website! http://mc.example.com:3000/"), componentsReceivedText);
   }
 
   private void createWithTheWebPage(final CompletableFuture<Boolean> start) {
     when(this.provider.isHttpEnabled()).thenReturn(true);
     when(this.provider.isHttpReady()).thenReturn(true);
-    when(this.provider.constructHttpUrl()).thenReturn("http://mc.example.com:3000/");
+    when(this.provider.constructHttpUrl()).thenReturn(AUDIO_HTTP_URL);
     when(this.provider.constructFilter(eq(AudioArgument.HTTP_SERVER), any(), any(), eq(this.browser))).thenReturn(mock(AudioFilter.class));
     when(this.browser.getAudioAttachableCallback()).thenReturn(mock(AudioAttachableCallback.class));
     when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(start);
-    this.create("1280x720", "5x3", AudioArgument.HTTP_SERVER, "https://example.com/page");
+    this.create(RESOLUTION, BLOCK_DIMENSIONS, AudioArgument.HTTP_SERVER, PAGE_URL);
   }
 
   @Test
-  void aBrowserThatStartsWithTheWebPageSendsItsLinkAndOneThatFailsSendsNone() {
-    final List<Component> expected = List.of(Message.AUDIO_HTTP.build("http://mc.example.com:3000/"));
-    this.createWithTheWebPage(CompletableFuture.completedFuture(true));
-    verify(this.provider).constructHttpUrl();
-    assertEquals(expected, Components.received(this.viewer));
-    assertEquals(List.of("Click on the URL to listen onto the website! http://mc.example.com:3000/"), Components.receivedText(this.viewer));
-    this.createWithTheWebPage(CompletableFuture.failedFuture(new IllegalStateException("the page broke")));
-    verify(this.provider).constructHttpUrl();
-    assertEquals(expected, Components.received(this.viewer));
-    assertEquals(List.of("Click on the URL to listen onto the website! http://mc.example.com:3000/"), Components.receivedText(this.viewer));
-  }
-
-  @Test
-  void anAudioOutputThatCannotPlayStartsNoBrowser() {
-    this.create("1280x720", "5x3", AudioArgument.DISCORD_BOT, "https://example.com/page");
+  void shouldStartNoBrowserForAnAudioOutputThatCannotPlay() {
+    this.create(RESOLUTION, BLOCK_DIMENSIONS, AudioArgument.DISCORD_BOT, PAGE_URL);
 
     this.assertReceived(Message.UNSUPPORTED_AUDIO.build());
     this.browsers.verify(() -> BrowserPlayer.create(any(BrowserOptions.class)), never());
   }
 
   @Test
-  void aBrowserThatCannotRunOnThisServerIsDescribedSo() {
-    final BrowserUnavailableException unavailable = new BrowserUnavailableException("The browser cannot be installed: offline");
+  void shouldDescribeABrowserThatCannotRunOnThisServerSo() {
+    final BrowserUnavailableException unavailable = new BrowserUnavailableException("The browser cannot be installed: offline!");
 
-    final Component direct = this.command.createStartMessage(false, unavailable);
-    final Component wrapped = this.command.createStartMessage(false, new CompletionException(unavailable));
-    final Component other = this.command.createStartMessage(false, new CompletionException(new IllegalStateException("page")));
+    final Component direct = this.command.createStartMessage(StartOutcome.FAILED, unavailable);
+    final Component wrapped = this.command.createStartMessage(StartOutcome.FAILED, new CompletionException(unavailable));
+    final Component other = this.command.createStartMessage(
+      StartOutcome.FAILED,
+      new CompletionException(new IllegalStateException("page!"))
+    );
 
-    assertEquals(Message.BROWSER_UNAVAILABLE.build(), direct);
-    assertEquals(Message.BROWSER_UNAVAILABLE.build(), wrapped);
-    assertEquals(Message.BROWSER_ERROR.build(), other);
+    final Component expected = Message.BROWSER_UNAVAILABLE.build();
+    assertEquals(expected, direct);
+
+    final Component BROWSER_UNAVAILABLEExpected = Message.BROWSER_UNAVAILABLE.build();
+    assertEquals(BROWSER_UNAVAILABLEExpected, wrapped);
+
+    final Component BROWSER_ERRORExpected = Message.BROWSER_ERROR.build();
+    assertEquals(BROWSER_ERRORExpected, other);
   }
 
   @Test
-  void releasesTheBrowserWhenItFailsToStart() {
+  void shouldReleaseTheBrowserWhenItFailsToStart() {
     final CompletableFuture<Boolean> start = CompletableFuture.completedFuture(false);
     when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(start);
 
-    this.create("1280x720", "5x3", "https://example.com/page");
+    this.create(RESOLUTION, BLOCK_DIMENSIONS, PAGE_URL);
 
-    verify(this.browser, timeout(RELEASE_MILLIS)).release();
+    verify(this.browser, timeout(RELEASE_MILLISECONDS)).release();
     assertNull(this.command.player);
     assertNull(this.command.result);
+
     final Component failed = Message.BROWSER_ERROR.build();
     this.assertReceived(Message.BROWSER_LOADING.build(), failed);
   }
 
   @Test
-  void needsTheInteractPermissionForInput() {
+  void shouldNeedTheInteractPermissionForInput() {
     final String permission = this.command.getInteractionPermission();
     assertEquals("mcav.browser.interact", permission, "clicks and chat are the input of the interact subcommand");
   }
 
   @Test
-  void refusesInvalidResolutions() {
-    this.create("big", "5x3", "https://example.com/page");
+  void shouldRefuseInvalidResolutions() {
+    this.create("big", BLOCK_DIMENSIONS, PAGE_URL);
 
     final Component error = Message.UNSUPPORTED_DIMENSION.build();
     this.assertReceived(error);
@@ -315,8 +357,8 @@ final class BrowserCommandTest {
   }
 
   @Test
-  void refusesInvalidScreenSizes() {
-    this.create("1280x720", "0x3", "https://example.com/page");
+  void shouldRefuseInvalidScreenSizes() {
+    this.create(RESOLUTION, "0x3", PAGE_URL);
 
     final Component error = Message.UNSUPPORTED_DIMENSION.build();
     this.assertReceived(error);
@@ -324,8 +366,8 @@ final class BrowserCommandTest {
   }
 
   @Test
-  void refusesScreensLargerThanTheLimit() {
-    this.create("1280x720", "5x65", "https://example.com/page");
+  void shouldRefuseScreensLargerThanTheLimit() {
+    this.create(RESOLUTION, "5x65", PAGE_URL);
 
     final Component error = Message.UNSUPPORTED_DIMENSION.build();
     this.assertReceived(error);
@@ -333,8 +375,8 @@ final class BrowserCommandTest {
   }
 
   @Test
-  void refusesResolutionsLargerThanTheLimit() {
-    this.create("8193x720", "5x3", "https://example.com/page");
+  void shouldRefuseResolutionsLargerThanTheLimit() {
+    this.create("8193x720", BLOCK_DIMENSIONS, PAGE_URL);
 
     final Component error = Message.UNSUPPORTED_DIMENSION.build();
     this.assertReceived(error);
@@ -342,9 +384,9 @@ final class BrowserCommandTest {
   }
 
   @Test
-  void refusesBrowsersLargerThanTheBrowserCanPaint() {
-    this.create("4097x720", "5x3", "https://example.com/page");
-    this.create("1280x4097", "5x3", "https://example.com/page");
+  void shouldRefuseBrowsersLargerThanTheBrowserCanPaint() {
+    this.create("4097x720", BLOCK_DIMENSIONS, PAGE_URL);
+    this.create("1280x4097", BLOCK_DIMENSIONS, PAGE_URL);
 
     final Component error = Message.UNSUPPORTED_DIMENSION.build();
     this.assertReceived(error, error);
@@ -352,26 +394,26 @@ final class BrowserCommandTest {
   }
 
   @Test
-  void aBrowserOfTheLargestSizeTheBrowserCanPaintStarts() {
+  void shouldStartABrowserOfTheLargestSizeTheBrowserCanPaint() {
     final CompletableFuture<Boolean> start = CompletableFuture.completedFuture(true);
     when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(start);
-    this.create("4096x4096", "5x3", "https://example.com/page");
+    this.create("4096x4096", BLOCK_DIMENSIONS, PAGE_URL);
     final ArgumentCaptor<BrowserSource> sources = ArgumentCaptor.forClass(BrowserSource.class);
     verify(this.browser).startAsync(sources.capture(), any());
-    assertEquals(4096, sources.getValue().getWidth());
-    assertEquals(4096, sources.getValue().getHeight());
+
+    final int width = sources.getValue().getWidth();
+    assertEquals(4096, width);
+
+    final int height = sources.getValue().getHeight();
+    assertEquals(4096, height);
   }
 
   @Test
-  void theBrowserFollowsTheConfiguration() {
+  void shouldLetTheBrowserFollowTheConfiguration() {
     final CompletableFuture<Boolean> start = CompletableFuture.completedFuture(true);
     when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(start);
-    this.create("1280x720", "5x3", "https://example.com/page");
-    this.browsers.verify(() ->
-      BrowserPlayer.create(
-        argThat(options -> !options.isPrivateNetworks() && !options.isJavaScriptJit() && !options.isAutoplay() && !options.isConfined())
-      )
-    );
+    this.create(RESOLUTION, BLOCK_DIMENSIONS, PAGE_URL);
+    this.browsers.verify(this::createWithConfiguredOptions);
 
     when(this.configuration.isBrowserPrivateNetworks()).thenReturn(true);
     when(this.configuration.isBrowserJavaScriptJit()).thenReturn(true);
@@ -379,27 +421,61 @@ final class BrowserCommandTest {
     when(this.configuration.isBrowserConfineChromium()).thenReturn(true);
     when(this.configuration.getBrowserRefusedHosts()).thenReturn(List.of("203.0.113.5"));
     final BrowserOptions options = this.command.createOptions();
-    assertTrue(options.isPrivateNetworks());
-    assertTrue(options.isJavaScriptJit());
-    assertTrue(options.isAutoplay());
-    assertTrue(options.isConfined());
-    assertEquals(List.of("203.0.113.5"), options.getRefusedHosts());
+
+    final boolean privateNetworks = options.isPrivateNetworks();
+    assertTrue(privateNetworks);
+
+    final boolean javaScriptJit = options.isJavaScriptJit();
+    assertTrue(javaScriptJit);
+
+    final boolean autoplay = options.isAutoplay();
+    assertTrue(autoplay);
+
+    final boolean confined = options.isConfined();
+    assertTrue(confined);
+
+    final List<String> refusedHosts = options.getRefusedHosts();
+    assertEquals(List.of("203.0.113.5"), refusedHosts);
+  }
+
+  private void createWithConfiguredOptions() {
+    BrowserPlayer.create(
+      argThat(options -> !options.isPrivateNetworks() && !options.isJavaScriptJit() && !options.isAutoplay() && !options.isConfined())
+    );
   }
 
   @Test
-  void refusesInvalidUrls() {
-    this.create("1280x720", "5x3", "https://exa mple.com/page");
+  void shouldRefuseInvalidUrls() {
+    this.create(RESOLUTION, BLOCK_DIMENSIONS, "https://exa mple.com/page");
 
     final Component error = Message.UNSUPPORTED_URL.build();
     this.assertReceived(error);
     this.browsers.verifyNoInteractions();
+
     final List<CompressedMapResult> created = this.maps.constructed();
-    assertEquals(0, created.size());
+
+    final int size = created.size();
+    assertEquals(0, size);
+  }
+
+  @Test
+  void shouldReleaseTheScreenWhenTheBrowserFactoryFails() {
+    final IllegalStateException failure = new IllegalStateException("browser factory!");
+    this.browsers.when(() -> BrowserPlayer.create(any(BrowserOptions.class))).thenThrow(failure);
+    final IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
+      this.create(RESOLUTION, BLOCK_DIMENSIONS, SITE_URL)
+    );
+    assertSame(failure, thrown);
+    this.assertCreatedScreenReleased();
+    verify(this.browser, never()).release();
   }
 
   private void assertCreatedScreenReleased() {
     final List<CompressedMapResult> created = this.maps.constructed();
-    assertEquals(1, created.size());
+
+    final int size = created.size();
+    assertEquals(1, size);
+
     // the screen's output owns its maps: releasing it releases them
     verify(this.ditherFilter).release();
     assertNull(this.command.player);
@@ -407,47 +483,35 @@ final class BrowserCommandTest {
   }
 
   @Test
-  void releasesTheScreenWhenTheBrowserFactoryFails() {
-    final IllegalStateException failure = new IllegalStateException("browser factory");
-    this.browsers.when(() -> BrowserPlayer.create(any(BrowserOptions.class))).thenThrow(failure);
-    final IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
-      this.create("1280x720", "5x3", "https://example.com")
-    );
-    assertSame(failure, thrown);
-    this.assertCreatedScreenReleased();
-    verify(this.browser, never()).release();
-  }
-
-  @Test
-  void releasesTheBrowserAndScreenWhenCallbackAttachmentFails() {
-    final IllegalStateException failure = new IllegalStateException("callback attach");
+  void shouldReleaseTheBrowserAndScreenWhenCallbackAttachmentFails() {
+    final IllegalStateException failure = new IllegalStateException("callback attach!");
     Mockito.doThrow(failure).when(this.callback).attach(any(VideoPipelineStep.class));
     final IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
-      this.create("1280x720", "5x3", "https://example.com")
+      this.create(RESOLUTION, BLOCK_DIMENSIONS, SITE_URL)
     );
     assertSame(failure, thrown);
-    verify(this.browser, timeout(RELEASE_MILLIS)).release();
+    verify(this.browser, timeout(RELEASE_MILLISECONDS)).release();
     this.assertCreatedScreenReleased();
   }
 
   @Test
-  void releasesTheBrowserAndScreenWhenSubmissionIsRejected() {
-    final RejectedExecutionException failure = new RejectedExecutionException("executor stopped");
+  void shouldReleaseTheBrowserAndScreenWhenSubmissionIsRejected() {
+    final RejectedExecutionException failure = new RejectedExecutionException("executor stopped!");
     when(this.browser.startAsync(any(BrowserSource.class), any())).thenThrow(failure);
     final RejectedExecutionException thrown = assertThrows(RejectedExecutionException.class, () ->
-      this.create("1280x720", "5x3", "https://example.com")
+      this.create(RESOLUTION, BLOCK_DIMENSIONS, SITE_URL)
     );
     assertSame(failure, thrown);
-    verify(this.browser, timeout(RELEASE_MILLIS)).release();
+    verify(this.browser, timeout(RELEASE_MILLISECONDS)).release();
     this.assertCreatedScreenReleased();
   }
 
   @Test
-  void releasesTheUnpublishedScreenWhenFilterStartupFails() {
-    final IllegalStateException failure = new IllegalStateException("display start");
+  void shouldReleaseTheUnpublishedScreenWhenFilterStartupFails() {
+    final IllegalStateException failure = new IllegalStateException("display start!");
     Mockito.doThrow(failure).when(this.ditherFilter).start();
     final IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
-      this.create("1280x720", "5x3", "https://example.com")
+      this.create(RESOLUTION, BLOCK_DIMENSIONS, SITE_URL)
     );
     assertSame(failure, thrown);
     this.assertCreatedScreenReleased();
@@ -455,10 +519,10 @@ final class BrowserCommandTest {
   }
 
   @Test
-  void forwardsClicksAndTextToTheBrowser() {
-    this.command.handleLeftClick(this.browser, 10, 20);
-    this.command.handleRightClick(this.browser, 30, 40);
-    this.command.handleTextInput(this.browser, "hello");
+  void shouldForwardClicksAndTextToTheBrowser() {
+    this.command.forwardLeftClick(this.browser, 10, 20);
+    this.command.forwardRightClick(this.browser, 30, 40);
+    this.command.forwardTextInput(this.browser, "hello");
 
     verify(this.browser).sendMouseEvent(MouseClick.LEFT, 10, 20);
     verify(this.browser).sendMouseEvent(MouseClick.RIGHT, 30, 40);
@@ -466,21 +530,23 @@ final class BrowserCommandTest {
   }
 
   @Test
-  void releasesTheBrowserWhenAsked() {
+  void shouldReleaseTheBrowserWhenAsked() {
     this.command.player = this.browser;
 
     this.command.releaseBrowser(this.sender);
 
-    verify(this.browser, timeout(RELEASE_MILLIS)).release();
+    verify(this.browser, timeout(RELEASE_MILLISECONDS)).release();
     assertNull(this.command.player);
+
     final Component released = Message.RELEASE_BROWSER.build();
     this.assertReceived(released);
+
     this.command.releaseBrowser(this.sender);
-    verify(this.browser, timeout(RELEASE_MILLIS)).release();
+    verify(this.browser, timeout(RELEASE_MILLISECONDS)).release();
   }
 
   @Test
-  void togglesTheChatInteractionOfAPlayer() {
+  void shouldToggleTheChatInteractionOfAPlayer() {
     final Player player = mock(Player.class);
 
     this.command.toggleInteraction(player);
@@ -495,11 +561,11 @@ final class BrowserCommandTest {
   }
 
   @Test
-  void describesTheOutcomeOfTheStart() {
-    final IllegalStateException error = new IllegalStateException("no browser");
+  void shouldDescribeTheOutcomeOfTheStart() {
+    final IllegalStateException error = new IllegalStateException("no browser!");
 
-    final Component success = this.command.createStartMessage(true, null);
-    final Component failure = this.command.createStartMessage(false, error);
+    final Component success = this.command.createStartMessage(StartOutcome.STARTED, null);
+    final Component failure = this.command.createStartMessage(StartOutcome.FAILED, error);
 
     final Component started = Message.START_BROWSER.build();
     final Component notStarted = Message.BROWSER_ERROR.build();
@@ -508,14 +574,15 @@ final class BrowserCommandTest {
   }
 
   @Test
-  void reportsABrowserThatCannotStartWithoutBlamingTheUrl() {
-    final IllegalStateException missingNatives = new IllegalStateException("The browser cannot be installed: no route to host");
+  void shouldReportABrowserThatCannotStartWithoutBlamingTheUrl() {
+    final IllegalStateException missingNatives = new IllegalStateException("The browser cannot be installed: no route to host!");
     final CompletableFuture<Boolean> start = CompletableFuture.failedFuture(missingNatives);
     when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(start);
 
-    this.create("1280x720", "5x3", "https://example.com/page");
+    this.create(RESOLUTION, BLOCK_DIMENSIONS, PAGE_URL);
 
-    verify(this.browser, timeout(RELEASE_MILLIS)).release();
+    verify(this.browser, timeout(RELEASE_MILLISECONDS)).release();
+
     final Component failed = Message.BROWSER_ERROR.build();
     this.assertReceived(Message.BROWSER_LOADING.build(), failed);
   }
@@ -536,19 +603,22 @@ final class BrowserCommandTest {
       "http:example.com",
     }
   )
-  void refusesAddressesThatAreNotWebPages(final String url) {
-    this.create("1280x720", "5x3", url);
+  void shouldRefuseAddressesThatAreNotWebPages(final String url) {
+    this.create(RESOLUTION, BLOCK_DIMENSIONS, url);
 
     final Component error = Message.UNSUPPORTED_URL.build();
     this.assertReceived(error);
     this.browsers.verifyNoInteractions();
+
     final List<CompressedMapResult> created = this.maps.constructed();
-    assertEquals(0, created.size());
+
+    final int size = created.size();
+    assertEquals(0, size);
   }
 
   @ParameterizedTest
   @ValueSource(strings = { "http://example.com", "https://example.com/page?q=1#top", "HTTPS://Example.com/" })
-  void acceptsWebPageAddresses(final String url) {
+  void shouldAcceptWebPageAddresses(final String url) {
     final URI uri = BrowserCommand.parseWebAddress(url);
 
     final URI expected = URI.create(url);

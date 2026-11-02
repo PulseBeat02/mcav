@@ -30,6 +30,7 @@ import java.io.StringReader;
 import java.text.MessageFormat;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.PropertyResourceBundle;
 import java.util.ResourceBundle;
 import me.brandonli.mcav.plugin.testing.Components;
@@ -47,9 +48,6 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-/**
- * Tests {@link PluginTranslator}, {@link MiniMessageTranslator} and {@link ArgumentTag}.
- */
 final class PluginTranslatorTest {
 
   private static final Key KEY = Key.key("mcav", "test");
@@ -60,6 +58,10 @@ final class PluginTranslatorTest {
   rich=Hello <red>world</red>
   """;
 
+  private static final String SUFFIX_TEXT = "!";
+
+  private static final String PLAIN_KEY = "plain";
+
   private PluginTranslator translator;
 
   @BeforeEach
@@ -69,32 +71,34 @@ final class PluginTranslatorTest {
     this.translator = new PluginTranslator(KEY, bundle);
   }
 
-  private String render(final TranslatableComponent component) {
-    final Component rendered = this.translator.translate(component, Locale.ENGLISH);
-    assertNotNull(rendered);
-    return Components.plain(rendered);
-  }
-
   @Test
-  void isNamedByItsKey() {
+  void shouldBeNamedByItsKey() {
     final Key name = this.translator.name();
     assertSame(KEY, name);
   }
 
   @Test
-  void rendersMessagesWithoutArguments() {
-    final TranslatableComponent component = Component.translatable("plain");
+  void shouldRenderMessagesWithoutArguments() {
+    final TranslatableComponent component = Component.translatable(PLAIN_KEY);
     final String text = this.render(component);
     assertEquals("Plain text", text);
   }
 
+  private String render(final TranslatableComponent component) {
+    final Component rendered = this.translator.translate(component, Locale.ENGLISH);
+    assertNotNull(rendered);
+
+    return Components.plain(rendered);
+  }
+
   @Test
-  void insertsArgumentsIntoArgumentTags() {
+  void shouldInsertArgumentsIntoArgumentTags() {
     final TextComponent name = Component.text("Steve");
     final TextComponent role = Component.text("admin");
     final TranslatableComponent component = Component.translatable("colored", name, role);
     final Component rendered = this.translator.translate(component, Locale.ENGLISH);
     assertNotNull(rendered);
+
     final String text = Components.plain(rendered);
     final TextColor color = rendered.color();
     assertEquals("Hello Steve, you are admin", text);
@@ -102,7 +106,7 @@ final class PluginTranslatorTest {
   }
 
   @Test
-  void replacesTheUrlPlaceholderWithTheFirstArgument() {
+  void shouldReplaceTheUrlPlaceholderWithTheFirstArgument() {
     final TextComponent url = Component.text("https://example.com/");
     final TranslatableComponent component = Component.translatable("link", url);
     final String text = this.render(component);
@@ -110,23 +114,24 @@ final class PluginTranslatorTest {
   }
 
   @Test
-  void keepsTheChildrenOfTheComponent() {
-    final TranslatableComponent translatable = Component.translatable("plain");
-    final TextComponent suffix = Component.text("!");
+  void shouldKeepTheChildrenOfTheComponent() {
+    final TranslatableComponent translatable = Component.translatable(PLAIN_KEY);
+    final TextComponent suffix = Component.text(SUFFIX_TEXT);
     final TranslatableComponent component = translatable.append(suffix);
     final String text = this.render(component);
     assertEquals("Plain text!", text);
   }
 
   @Test
-  void keepsParsedChildrenOriginalSuffixAndFallbackStyle() {
+  void shouldKeepParsedChildrenOriginalSuffixAndFallbackStyle() {
     final TranslatableComponent base = Component.translatable("rich");
     final TranslatableComponent blue = base.color(NamedTextColor.BLUE);
     final TranslatableComponent bold = blue.decorate(TextDecoration.BOLD);
-    final TextComponent suffix = Component.text("!");
+    final TextComponent suffix = Component.text(SUFFIX_TEXT);
     final TranslatableComponent component = bold.append(suffix);
     final Component rendered = this.translator.translate(component, Locale.ENGLISH);
     assertNotNull(rendered);
+
     final TextComponent expectedStart = Component.text("Hello ", NamedTextColor.BLUE);
     final TextComponent expectedStyled = expectedStart.decorate(TextDecoration.BOLD);
     final TextComponent redWord = Component.text("world", NamedTextColor.RED);
@@ -137,30 +142,30 @@ final class PluginTranslatorTest {
   }
 
   @Test
-  void declinesUnknownKeys() {
+  void shouldDeclineUnknownKeys() {
     final TranslatableComponent component = Component.translatable("missing");
     final Component rendered = this.translator.translate(component, Locale.ENGLISH);
     assertNull(rendered);
   }
 
   @Test
-  void doesNotTranslateToMessageFormats() {
-    final MessageFormat rendered = this.translator.translate("plain", Locale.ENGLISH);
+  void shouldNotTranslateToMessageFormats() {
+    final MessageFormat rendered = this.translator.translate(PLAIN_KEY, Locale.ENGLISH);
     assertNull(rendered);
   }
 
   @Test
-  void resolvesOnlyTheArgumentTag() {
+  void shouldResolveOnlyTheArgumentTag() {
     final List<ComponentLike> arguments = List.of(Component.text("value"));
     final ArgumentTag tag = new ArgumentTag(arguments);
-    final boolean hasArg = tag.has("arg");
+    final boolean hasShortName = tag.has("arg");
     final boolean hasArgument = tag.has("argument");
-    assertTrue(hasArg);
+    assertTrue(hasShortName);
     assertFalse(hasArgument);
   }
 
   @Test
-  void insertsTheArgumentAtTheIndexOfTheTag() {
+  void shouldInsertTheArgumentAtTheIndexOfTheTag() {
     final List<ComponentLike> arguments = List.of(Component.text("zero"), Component.text("one"));
     final TagResolver tag = new ArgumentTag(arguments);
     final MiniMessage miniMessage = MiniMessage.miniMessage();
@@ -170,14 +175,15 @@ final class PluginTranslatorTest {
   }
 
   @Test
-  void usesTheMiniMessageInstanceItWasGiven() {
+  void shouldUseTheMiniMessageInstanceItWasGiven() {
     final MiniMessage.Builder builder = MiniMessage.builder();
     builder.strict(true);
     final MiniMessage strict = builder.build();
     final MiniMessageTranslator custom = new MiniMessageTranslator(strict) {
       @Override
-      protected String getMiniMessageString(final String key, final Locale locale) {
-        return "<green>" + key;
+      protected Optional<String> getMiniMessageString(final String key, final Locale locale) {
+        final String message = "<green>" + key;
+        return Optional.of(message);
       }
 
       @Override
@@ -190,7 +196,7 @@ final class PluginTranslatorTest {
   }
 
   @Test
-  void refusesNullArguments() {
+  void shouldRefuseNullArguments() {
     assertThrows(NullPointerException.class, () -> new ArgumentTag(null));
     assertThrows(NullPointerException.class, () -> new PluginTranslator(KEY, null));
   }

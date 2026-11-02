@@ -22,13 +22,23 @@ package me.brandonli.mcav.plugin.utils;
  * map}, {@code /mcav browser create}, {@code /mcav vm create} and {@code /mcav vnc create}): how the picture reaches
  * the players. A command without the flag uses {@code mcv2.default-codec} of the configuration. Block, chat, entity,
  * scoreboard and hologram outputs draw no maps, so the flag does not apply to them.
+ *
+ * <p>This enum is immutable and thread-safe.
+ *
+ * @since 1.0.0
  */
 public enum MapCodec {
-  /** Map colours, dithered: every client shows them, at 128 by 128 pixels a map. */
+  /**
+   * Map colours, dithered: every client shows them, at 128 by 128 pixels a map.
+   *
+   * @since 1.0.0
+   */
   DITHER,
   /**
    * MCV2: the picture is encoded for the MCV2 resource pack, which decodes it over the wall at the resolution the
    * command asked for. A player whose client has not loaded the pack, or who declined it, sees the dithered maps.
+   *
+   * @since 1.0.0
    */
   MCV2,
 }

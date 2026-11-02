@@ -34,17 +34,24 @@ import net.jqwik.api.Provide;
 import net.jqwik.api.arbitraries.ListArbitrary;
 import net.jqwik.api.arbitraries.StringArbitrary;
 
-/**
- * Properties of {@link VideoFlagsParser}, whose input is typed by players. Pass 4 limited the yt-dlp options to the ones
- * that only pick a stream, because yt-dlp's full option set reads and writes files, runs programs and sends
- * credentials. These state what may reach the yt-dlp command line for every text a player can type: an argument that
- * starts with a dash is always an accepted option, a switch never takes the next argument, and an option with a value
- * takes exactly one argument that yt-dlp cannot read as an option.
- */
 final class VideoFlagsParserPropertyTest {
 
   private static final String SEED = "20260925";
-  private static final Set<String> SWITCHES = YtDlpArgumentAssertions.SWITCHES;
+  private static final Set<String> SWITCHES = YtdlpArgumentAssertions.SWITCHES;
+
+  private static final int MAXIMUM_PIECE_LENGTH = 12;
+  private static final int MAXIMUM_OPTIONS = 5;
+
+  private static final String FLAG_OPENING = "--yt-dlp{";
+  private static final String FLAG_CLOSING = "}";
+  private static final String OPTION_SEPARATOR = ",";
+  private static final String VALUE_SEPARATOR = "=";
+  private static final String ESCAPE = "\\";
+  private static final String ESCAPED_SEPARATOR = "\\,";
+  private static final String ESCAPED_CLOSING = "\\}";
+
+  // the parser's old regex, which overflowed the stack on long options; kept as the oracle for short inputs
+  private static final Pattern ORIGINAL_OPTIONS = Pattern.compile(Pattern.quote("--yt-dlp") + "\\{((?:[^\\\\}]|\\\\.)*)}");
 
   private final VideoFlagsParser parser = new VideoFlagsParser();
 
@@ -66,51 +73,49 @@ final class VideoFlagsParserPropertyTest {
     // every arbitrary starts from a fresh base: jqwik 1.10 shares settings between an arbitrary and those made from it
     final StringArbitrary pieceStrings = Arbitraries.strings();
     final StringArbitrary tricky = pieceStrings.withChars("=,}{\\- abcf0\t");
-    final StringArbitrary pieces = tricky.ofMaxLength(12);
+    final StringArbitrary pieces = tricky.ofMaxLength(MAXIMUM_PIECE_LENGTH);
     final Arbitrary<String> anyName = Arbitraries.oneOf(names, dangerous, pieces);
-    final Arbitrary<String> separators = Arbitraries.of("", "=");
+    final Arbitrary<String> separators = Arbitraries.of("", VALUE_SEPARATOR);
     final Combinators.Combinator3<String, String, String> parts = Combinators.combine(anyName, pieces, separators);
     final Arbitrary<String> option = parts.as((name, value, equals) -> name + equals + value);
     final ListArbitrary<String> options = option.list();
-    final ListArbitrary<String> fewOptions = options.ofMaxSize(5);
-    final Arbitrary<String> joined = fewOptions.map(list -> String.join(",", list));
-    final Arbitrary<String> wrapped = joined.map(content -> "--yt-dlp{" + content + "}");
+    final ListArbitrary<String> fewOptions = options.ofMaxSize(MAXIMUM_OPTIONS);
+    final Arbitrary<String> joined = fewOptions.map(list -> String.join(OPTION_SEPARATOR, list));
+    final Arbitrary<String> wrapped = joined.map(content -> FLAG_OPENING + content + FLAG_CLOSING);
     final Arbitrary<String> dashed = pieces.map(piece -> "-" + piece);
     final Arbitrary<String> values = Arbitraries.oneOf(pieces, dashed);
     final Combinators.Combinator2<String, String> acceptedParts = Combinators.combine(names, values);
-    final Arbitrary<String> acceptedOption = acceptedParts.as((name, value) -> SWITCHES.contains(name) ? name : name + "=" + value);
+    final Arbitrary<String> acceptedOption = acceptedParts.as(this::toOption);
     final ListArbitrary<String> acceptedList = acceptedOption.list();
     final ListArbitrary<String> fewAccepted = acceptedList.ofMaxSize(4);
-    final Arbitrary<String> acceptedJoined = fewAccepted.map(list -> String.join(",", list));
-    final Arbitrary<String> acceptedWrapped = acceptedJoined.map(content -> "--yt-dlp{" + content + "}");
+    final Arbitrary<String> acceptedJoined = fewAccepted.map(list -> String.join(OPTION_SEPARATOR, list));
+    final Arbitrary<String> acceptedWrapped = acceptedJoined.map(content -> FLAG_OPENING + content + FLAG_CLOSING);
     final StringArbitrary textStrings = Arbitraries.strings();
     final StringArbitrary anyText = textStrings.ofMaxLength(60);
     return Arbitraries.oneOf(wrapped, acceptedWrapped, anyText);
   }
 
-  @Property(seed = SEED)
-  void onlyAcceptedOptionsAndTheirValuesReachYtDlp(@ForAll("typedFlags") final String typed) {
-    final String[] arguments;
-    try {
-      arguments = this.parser.parseYTDLPFlags(typed);
-    } catch (final IllegalArgumentException refused) {
-      return;
-    }
-    YtDlpArgumentAssertions.assertSafe(typed, arguments);
+  private String toOption(final String name, final String value) {
+    return SWITCHES.contains(name) ? name : name + VALUE_SEPARATOR + value;
   }
 
-  /**
-   * The regular expression the parser found the options with until the fuzzer showed it overflowing the stack on long
-   * options. It is kept as the oracle for inputs short enough for it.
-   */
-  private static final Pattern ORIGINAL_OPTIONS = Pattern.compile(Pattern.quote("--yt-dlp") + "\\{((?:[^\\\\}]|\\\\.)*)}");
+  @Property(seed = SEED)
+  void shouldPassOnlyAcceptedOptionsAndTheirValuesToYtdlp(@ForAll("typedFlags") final String typed) {
+    final String[] arguments;
+    try {
+      arguments = this.parser.parseYtdlpFlags(typed);
+    } catch (final IllegalArgumentException exception) {
+      return;
+    }
+    YtdlpArgumentAssertions.assertSafe(typed, arguments);
+  }
 
   @Provide
   Arbitrary<String> flagTexts() {
     final StringArbitrary pieceStrings = Arbitraries.strings();
     final StringArbitrary tricky = pieceStrings.withChars("{}\\,=ab- \n\r\u0085\u2028\u2029");
-    final StringArbitrary pieces = tricky.ofMaxLength(12);
-    final Arbitrary<String> openings = Arbitraries.of("--yt-dlp{", "--yt-dlp", "--yt-dlp{}", "\\");
+    final StringArbitrary pieces = tricky.ofMaxLength(MAXIMUM_PIECE_LENGTH);
+    final Arbitrary<String> openings = Arbitraries.of(FLAG_OPENING, "--yt-dlp", "--yt-dlp{}", ESCAPE);
     final Arbitrary<String> part = Arbitraries.oneOf(pieces, openings);
     final ListArbitrary<String> parts = part.list();
     final ListArbitrary<String> fewParts = parts.ofMaxSize(8);
@@ -118,7 +123,7 @@ final class VideoFlagsParserPropertyTest {
   }
 
   @Property(seed = SEED)
-  void findsTheOptionsWhereTheRegularExpressionItReplacedFoundThem(@ForAll("flagTexts") final String flags) {
+  void shouldFindTheOptionsWhereTheRegularExpressionItReplacedFoundThem(@ForAll("flagTexts") final String flags) {
     final Matcher matcher = ORIGINAL_OPTIONS.matcher(flags);
     final boolean found = matcher.find();
     final String group = found ? matcher.group(1) : null;
@@ -137,46 +142,47 @@ final class VideoFlagsParserPropertyTest {
     final StringArbitrary valueCharacters = strings.withChars("abc01=,}{\\/. ");
     final StringArbitrary values = valueCharacters.ofMinLength(1);
     final StringArbitrary shortValues = values.ofMaxLength(10);
-    final Arbitrary<String> expressibleValues = shortValues.filter(value -> {
-      final String trimmed = value.strip();
-      final boolean escapable = !value.contains("\\,") && !value.contains("\\}") && !value.endsWith("\\");
-      return !trimmed.isEmpty() && trimmed.equals(value) && escapable;
-    });
+    final Arbitrary<String> expressibleValues = shortValues.filter(this::isExpressible);
     final Combinators.Combinator2<String, String> parts = Combinators.combine(names, expressibleValues);
-    final Arbitrary<String[]> option = parts.as((name, value) -> {
-      final boolean isSwitch = SWITCHES.contains(name);
-      return isSwitch ? new String[] { name } : new String[] { name, value };
-    });
+    final Arbitrary<String[]> option = parts.as(this::toArguments);
     final ListArbitrary<String[]> options = option.list();
-    return options.ofMaxSize(5);
+    return options.ofMaxSize(MAXIMUM_OPTIONS);
   }
 
-  /**
-   * A player who escapes commas and closing braces inside values, as the command help says, gets exactly the options
-   * and values they meant.
-   */
+  private boolean isExpressible(final String value) {
+    final String trimmed = value.strip();
+    final boolean escapable = !value.contains(ESCAPED_SEPARATOR) && !value.contains(ESCAPED_CLOSING) && !value.endsWith(ESCAPE);
+    return !trimmed.isEmpty() && trimmed.equals(value) && escapable;
+  }
+
+  private String[] toArguments(final String name, final String value) {
+    final boolean isSwitch = SWITCHES.contains(name);
+    return isSwitch ? new String[] { name } : new String[] { name, value };
+  }
+
   @Property(seed = SEED)
-  void escapedValuesReachYtDlpUnchanged(@ForAll("validOptions") final List<String[]> options) {
+  void shouldPassEscapedValuesToYtdlpUnchanged(@ForAll("validOptions") final List<String[]> options) {
     final List<String> typedOptions = new ArrayList<>();
     final List<String> expected = new ArrayList<>();
     for (final String[] option : options) {
       final String name = option[0];
       expected.add("--" + name);
+
       if (option.length == 1) {
         typedOptions.add(name);
         continue;
       }
       final String value = option[1];
-      final String commasEscaped = value.replace(",", "\\,");
-      final String escaped = commasEscaped.replace("}", "\\}");
-      typedOptions.add(name + "=" + escaped);
+      final String commasEscaped = value.replace(OPTION_SEPARATOR, ESCAPED_SEPARATOR);
+      final String escaped = commasEscaped.replace(FLAG_CLOSING, ESCAPED_CLOSING);
+      typedOptions.add(name + VALUE_SEPARATOR + escaped);
       expected.add(value);
     }
-    final String content = String.join(",", typedOptions);
-    final String typed = "--yt-dlp{" + content + "}";
+    final String content = String.join(OPTION_SEPARATOR, typedOptions);
+    final String typed = FLAG_OPENING + content + FLAG_CLOSING;
     final String[] expectedArguments = expected.toArray(new String[0]);
 
-    final String[] arguments = this.parser.parseYTDLPFlags(typed);
+    final String[] arguments = this.parser.parseYtdlpFlags(typed);
 
     assertArrayEquals(expectedArguments, arguments, () -> "typed " + typed);
   }

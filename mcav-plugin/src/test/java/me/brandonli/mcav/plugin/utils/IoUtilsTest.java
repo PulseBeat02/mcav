@@ -36,19 +36,20 @@ import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
-/**
- * Tests {@link IOUtils}.
- */
-final class IOUtilsTest {
+final class IoUtilsTest {
+
+  private static final String DATA_FOLDER_PATH = "plugins/MCAV";
+  private static final String CONFIGURATION_FILE_NAME = "config.yml";
+  private static final String MISSING_RESOURCE_NAME = "missing.yml";
 
   @Test
-  void resolvesTheDataFolderToAnAbsolutePath() {
+  void shouldResolveTheDataFolderToAnAbsolutePath() {
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
-    final File relative = new File("plugins/MCAV");
+    final File relative = new File(DATA_FOLDER_PATH);
     when(plugin.getDataFolder()).thenReturn(relative);
     try (final MockedStatic<JavaPlugin> javaPlugin = Mockito.mockStatic(JavaPlugin.class)) {
       javaPlugin.when(() -> JavaPlugin.getPlugin(MCAVSandbox.class)).thenReturn(plugin);
-      final Path folder = IOUtils.getPluginDataFolderPath();
+      final Path folder = IoUtils.getPluginDataFolderPath();
       final Path relativePath = relative.toPath();
       final Path expected = relativePath.toAbsolutePath();
       final boolean absolute = folder.isAbsolute();
@@ -58,8 +59,8 @@ final class IOUtilsTest {
   }
 
   @Test
-  void opensBundledResources() throws IOException {
-    try (final InputStream stream = IOUtils.getResourceAsStream("config.yml")) {
+  void shouldOpenBundledResources() throws IOException {
+    try (final InputStream stream = IoUtils.getResourceAsStream(CONFIGURATION_FILE_NAME)) {
       final byte[] bytes = stream.readAllBytes();
       final String content = new String(bytes, StandardCharsets.UTF_8);
       final boolean configuration = content.startsWith("# MCAV Configuration File");
@@ -67,28 +68,31 @@ final class IOUtilsTest {
     }
   }
 
-  private static void openAndClose(final String path) throws IOException {
-    try (final InputStream stream = IOUtils.getResourceAsStream(path)) {
-      fail("opened " + path + " as " + stream);
+  @Test
+  void shouldFailForMissingResources() {
+    final NullPointerException exception = assertThrows(NullPointerException.class, () -> this.openAndClose(MISSING_RESOURCE_NAME));
+
+    final String message = exception.getMessage();
+    assertEquals("Resource missing.yml does not exist!", message);
+  }
+
+  private void openAndClose(final String path) throws IOException {
+    try (final InputStream stream = IoUtils.getResourceAsStream(path)) {
+      final String message = "Path %s opened as %s, but it must not open!".formatted(path, stream);
+      fail(message);
     }
   }
 
   @Test
-  void failsForMissingResources() {
-    final NullPointerException exception = assertThrows(NullPointerException.class, () -> openAndClose("missing.yml"));
+  void shouldRefuseANullPath() {
+    final NullPointerException exception = assertThrows(NullPointerException.class, () -> this.openAndClose(null));
+
     final String message = exception.getMessage();
-    assertEquals("missing.yml", message);
+    assertEquals("Path must not be null!", message);
   }
 
   @Test
-  void refusesANullPath() {
-    final NullPointerException exception = assertThrows(NullPointerException.class, () -> openAndClose(null));
-    final String message = exception.getMessage();
-    assertEquals("Path must not be null", message);
-  }
-
-  @Test
-  void isNotInstantiable() {
-    UtilityClassAssertions.assertNotInstantiable(IOUtils.class);
+  void shouldNotBeInstantiable() {
+    UtilityClassAssertions.assertNotInstantiable(IoUtils.class);
   }
 }

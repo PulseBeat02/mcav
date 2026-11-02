@@ -28,26 +28,34 @@ import java.nio.file.Path;
  * <p>A symbolic link inside the folder is followed, which lets the owner keep a library of images elsewhere and link
  * it in. Creating such a link needs access to the files of the server, so it is the owner's decision, not a decision
  * a command can make.
+ *
+ * <p>This class is stateless and thread-safe.
+ *
+ * @since 1.0.0
  */
 public final class DiskImages {
 
   /**
    * The name of the folder that holds the disk images, inside the data folder of the plugin.
+   *
+   * @since 1.0.0
    */
   public static final String FOLDER_NAME = "iso";
 
   private DiskImages() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   /**
-   * Gets the folder that holds the disk images. The folder is not created here.
+   * Returns the folder that holds the disk images. The folder is not created here.
    *
    * @param dataFolder the data folder of the plugin
    * @return the folder of the disk images
+   * @since 1.0.0
    */
   public static Path folderOf(final Path dataFolder) {
-    Preconditions.checkNotNull(dataFolder, "Data folder must not be null");
+    Preconditions.checkNotNull(dataFolder, "Data folder must not be null!");
+
     return dataFolder.resolve(FOLDER_NAME);
   }
 
@@ -59,12 +67,14 @@ public final class DiskImages {
    * @return the path of the image
    * @throws NullPointerException     if the folder or the image is {@code null}
    * @throws IllegalArgumentException if the image is empty, lies outside the folder, or is not a file there
+   * @since 1.0.0
    */
   public static Path require(final Path folder, final String image) {
-    Preconditions.checkNotNull(folder, "Folder must not be null");
-    Preconditions.checkNotNull(image, "Image must not be null");
+    Preconditions.checkNotNull(folder, "Folder must not be null!");
+    Preconditions.checkNotNull(image, "Image must not be null!");
+
     final boolean named = !image.isBlank();
-    Preconditions.checkArgument(named, "A disk image must be named");
+    Preconditions.checkArgument(named, "A disk image must be named!");
 
     final Path resolved = resolve(folder, image);
     final Path normalizedFolder = folder.toAbsolutePath().normalize();
@@ -72,21 +82,23 @@ public final class DiskImages {
     final boolean inside = normalizedImage.startsWith(normalizedFolder) && !normalizedImage.equals(normalizedFolder);
     Preconditions.checkArgument(
       inside,
-      "The disk image %s lies outside the %s folder of the plugin; put the image there and name it",
+      "The disk image %s lies outside the %s folder of the plugin; put the image there and name it!",
       image,
       FOLDER_NAME
     );
+
     final boolean file = Files.isRegularFile(normalizedImage);
-    Preconditions.checkArgument(file, "There is no disk image %s in the %s folder of the plugin", image, FOLDER_NAME);
+    Preconditions.checkArgument(file, "There is no disk image %s in the %s folder of the plugin!", image, FOLDER_NAME);
+
     return normalizedImage;
   }
 
   private static Path resolve(final Path folder, final String image) {
     try {
       return folder.resolve(image);
-    } catch (final RuntimeException invalidPath) {
-      final String message = "The disk image %s is not a valid file name".formatted(image);
-      throw new IllegalArgumentException(message, invalidPath);
+    } catch (final RuntimeException exception) {
+      final String message = "The disk image %s is not a valid file name!".formatted(image);
+      throw new IllegalArgumentException(message, exception);
     }
   }
 }

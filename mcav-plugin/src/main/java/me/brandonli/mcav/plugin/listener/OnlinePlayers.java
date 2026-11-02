@@ -34,6 +34,8 @@ import org.bukkit.plugin.Plugin;
 /**
  * The players online, kept as they join and leave. A screen shown to {@code @a} watches through this set, so a player
  * who joins while it plays is one of its viewers; the set may be read from any thread, unlike the server's own list.
+ *
+ * @since 1.0.0
  */
 public final class OnlinePlayers implements Listener {
 
@@ -43,6 +45,8 @@ public final class OnlinePlayers implements Listener {
 
   /**
    * Constructs an empty set; {@link #start(Plugin)} fills it.
+   *
+   * @since 1.0.0
    */
   public OnlinePlayers() {
     this.online = ConcurrentHashMap.newKeySet();
@@ -53,6 +57,7 @@ public final class OnlinePlayers implements Listener {
    * Starts following the players, from those online now. Call on the main thread.
    *
    * @param plugin the plugin that listens
+   * @since 1.0.0
    */
   public void start(final Plugin plugin) {
     for (final Player player : Bukkit.getOnlinePlayers()) {
@@ -63,6 +68,8 @@ public final class OnlinePlayers implements Listener {
 
   /**
    * Stops following the players.
+   *
+   * @since 1.0.0
    */
   public void stop() {
     HandlerList.unregisterAll(this);
@@ -73,9 +80,10 @@ public final class OnlinePlayers implements Listener {
    * Counts a player who joins before any other listener hears of it.
    *
    * @param event the join
+   * @since 1.0.0
    */
   @EventHandler(priority = EventPriority.LOWEST)
-  public void onJoin(final PlayerJoinEvent event) {
+  public void onPlayerJoin(final PlayerJoinEvent event) {
     this.online.add(event.getPlayer().getUniqueId());
   }
 
@@ -83,16 +91,18 @@ public final class OnlinePlayers implements Listener {
    * Forgets a player who leaves once every other listener heard of it.
    *
    * @param event the quit
+   * @since 1.0.0
    */
   @EventHandler(priority = EventPriority.MONITOR)
-  public void onQuit(final PlayerQuitEvent event) {
+  public void onPlayerQuit(final PlayerQuitEvent event) {
     this.online.remove(event.getPlayer().getUniqueId());
   }
 
   /**
-   * Gets the players online.
+   * Returns the players online.
    *
    * @return their UUIDs, a view that follows joins and quits
+   * @since 1.0.0
    */
   public Set<UUID> getPlayers() {
     return this.view;

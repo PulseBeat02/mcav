@@ -18,26 +18,24 @@
 package me.brandonli.mcav.plugin.audio;
 
 import java.io.Serial;
+import me.brandonli.mcav.plugin.PluginException;
 
 /**
  * Thrown when Simple Voice Chat audio is enabled in {@code config.yml} but the Simple Voice Chat plugin
  * ({@code voicechat}) is not installed on the server.
  *
- * <p>This is an {@link IllegalStateException}: the configuration asks for an audio output that the server cannot
- * provide, which is a state of the server that its owner fixes by installing the plugin or by turning the option off.
- * It has a type of its own, so {@link me.brandonli.mcav.plugin.MCAVSandbox} can tell it apart from unexpected
+ * <p>This is a {@link PluginException}: the configuration asks for an audio output that the server cannot provide, a
+ * failure outside the caller's control that the server's owner fixes by installing the plugin or by turning the option
+ * off. It has a type of its own, so {@link me.brandonli.mcav.plugin.MCAVSandbox} can tell it apart from unexpected
  * failures, log what to do, and disable itself cleanly instead of failing with a stack trace.
+ *
+ * @since 1.0.0
  */
-public final class MissingVoiceChatException extends IllegalStateException {
+public final class MissingVoiceChatException extends PluginException {
 
   @Serial
   private static final long serialVersionUID = 4127518399460184733L;
 
-  /**
-   * Constructs a new exception with a detail message and no cause.
-   *
-   * @param message the detail message, which says that the voicechat plugin is missing
-   */
   MissingVoiceChatException(final String message) {
     super(message);
   }

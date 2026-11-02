@@ -48,10 +48,18 @@ import org.incendo.cloud.minecraft.extras.MinecraftHelp;
 
 /**
  * {@code /mcav help [query]}: lists the commands, with texts from the plugin's locale file.
+ *
+ * <p>This class is not thread-safe: use it on the server main thread, where Cloud runs its commands.
+ *
+ * @since 1.0.0
  */
 public final class HelpCommand implements AnnotationCommandFeature {
 
   private static final String ROOT_COMMAND = "mcav";
+
+  private static final String HELP_COMMAND = "/mcav help";
+
+  private static final String WORD_SEPARATOR = " ";
 
   private final MinecraftHelp<CommandSender> minecraftHelp;
 
@@ -59,25 +67,22 @@ public final class HelpCommand implements AnnotationCommandFeature {
    * Constructs the command.
    *
    * @param manager the command manager whose commands are listed
+   * @since 1.0.0
    */
   public HelpCommand(final CommandManager<CommandSender> manager) {
-    Preconditions.checkNotNull(manager, "Command manager must not be null");
+    Preconditions.checkNotNull(manager, "Command manager must not be null!");
+
     final Map<String, String> messages = createMessages();
     final AudienceProvider<CommandSender> audiences = AudienceProvider.nativeAudience();
     final ImmutableMinecraftHelp.CommandManagerBuildStage<CommandSender> managerStage = MinecraftHelp.builder();
     final ImmutableMinecraftHelp.AudienceProviderBuildStage<CommandSender> audienceStage = managerStage.commandManager(manager);
     final ImmutableMinecraftHelp.CommandPrefixBuildStage<CommandSender> prefixStage = audienceStage.audienceProvider(audiences);
-    final ImmutableMinecraftHelp.BuildFinal<CommandSender> finalStage = prefixStage.commandPrefix("/mcav help");
+    final ImmutableMinecraftHelp.BuildFinal<CommandSender> finalStage = prefixStage.commandPrefix(HELP_COMMAND);
     finalStage.messages(messages);
     this.minecraftHelp = finalStage.build();
   }
 
-  /**
-   * Creates the texts the help shows, each read from the locale file of the plugin. A key that is missing here makes
-   * the help fall back to its own English text, so every key it knows is filled in. Visible for testing.
-   *
-   * @return the help messages by the key of the help
-   */
+  // every key is filled in: a missing one falls back to the help's English text
   @VisibleForTesting
   static Map<String, String> createMessages() {
     final Map<String, String> messages = new HashMap<>();
@@ -108,35 +113,36 @@ public final class HelpCommand implements AnnotationCommandFeature {
    *
    * @param sender who ran the command
    * @param query  the command to show, or {@code null} to list every command
+   * @since 1.0.0
    */
   @Permission("mcav.command.help")
   @CommandDescription("mcav.command.help.info")
   @Command("mcav help [query]")
   public void commandHelp(final CommandSender sender, @Greedy final @Nullable String query) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
-    final String search = searchQuery(query);
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
+
+    final String search = this.searchQuery(query);
     this.minecraftHelp.queryCommands(search, sender);
   }
 
-  private static String searchQuery(final @Nullable String query) {
-    if (query == null) {
+  private String searchQuery(final @Nullable String query) {
+    if (query == null || query.isBlank()) {
       return "";
     }
+
     final String trimmed = query.strip();
-    if (trimmed.isEmpty()) {
-      return trimmed;
-    }
-    final int separator = trimmed.indexOf(' ');
+    final int separator = trimmed.indexOf(WORD_SEPARATOR);
     final String first = separator < 0 ? trimmed : trimmed.substring(0, separator);
     if (ROOT_COMMAND.equalsIgnoreCase(first)) {
       return trimmed;
     }
+
     try {
       // Cloud reserves a trailing integer for pagination, including a page with no command query.
       Integer.parseInt(trimmed);
       return trimmed;
-    } catch (final NumberFormatException notPageNumber) {
-      return ROOT_COMMAND + " " + trimmed;
+    } catch (final NumberFormatException exception) {
+      return ROOT_COMMAND + WORD_SEPARATOR + trimmed;
     }
   }
 }

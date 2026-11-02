@@ -17,22 +17,18 @@
  */
 package me.brandonli.mcav.plugin.e2e;
 
+import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 
-/**
- * Serves a page on this machine that shows red and plays a 1000 Hz tone through Web Audio as soon as it may.
- */
 final class TonePage implements AutoCloseable {
 
-  /**
-   * The frequency of the tone, in hertz.
-   */
   static final int TONE_HERTZ = 1000;
 
   private static final String PAGE = """
@@ -50,44 +46,42 @@ final class TonePage implements AutoCloseable {
   </script></body></html>
   """;
 
+  private static final String LOOPBACK_HOST = "localhost";
+  private static final byte[] LOOPBACK_OCTETS = { 127, 0, 0, 1 };
+
+  private static final String TONE_PATH = "/tone";
+  private static final String URL_PREFIX = "http://127.0.0.1:";
+
   private final HttpServer server;
 
   private TonePage(final HttpServer server) {
     this.server = server;
   }
 
-  /**
-   * Starts the page on a free port of 127.0.0.1, the address the browser is sent to, also where Java prefers IPv6.
-   *
-   * @return the running page
-   * @throws IOException if no port is free
-   */
+  // 127.0.0.1, the address the browser is sent to, even where Java prefers IPv6
   static TonePage start() throws IOException {
-    final InetAddress loopback = InetAddress.getByAddress("localhost", new byte[] { 127, 0, 0, 1 });
+    final InetAddress loopback = InetAddress.getByAddress(LOOPBACK_HOST, LOOPBACK_OCTETS);
     final HttpServer server = HttpServer.create(new InetSocketAddress(loopback, 0), 0);
-    server.createContext("/tone", exchange -> {
-      final byte[] body = PAGE.getBytes(StandardCharsets.UTF_8);
-      exchange.getResponseHeaders().add("Content-Type", "text/html; charset=utf-8");
-      exchange.sendResponseHeaders(200, body.length);
-      try (final OutputStream output = exchange.getResponseBody()) {
-        output.write(body);
-      }
-    });
+    server.createContext(TONE_PATH, TonePage::sendPage);
     server.start();
     return new TonePage(server);
   }
 
-  /**
-   * Gets the address of the page.
-   *
-   * @return the address
-   */
-  URI getUri() {
-    return URI.create("http://127.0.0.1:" + this.server.getAddress().getPort() + "/tone");
+  private static void sendPage(final HttpExchange exchange) throws IOException {
+    final byte[] body = PAGE.getBytes(StandardCharsets.UTF_8);
+    exchange.getResponseHeaders().add("Content-Type", "text/html; charset=utf-8");
+    exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, body.length);
+    try (final OutputStream output = exchange.getResponseBody()) {
+      output.write(body);
+    }
   }
 
   @Override
   public void close() {
     this.server.stop(0);
+  }
+
+  URI getUri() {
+    return URI.create(URL_PREFIX + this.server.getAddress().getPort() + TONE_PATH);
   }
 }

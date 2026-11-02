@@ -30,71 +30,68 @@ import org.junit.jupiter.api.Test;
 final class CleanupUtilsTest {
 
   @Test
-  void attemptsEveryCleanupAndPreservesAllFailures() {
+  void shouldAttemptEveryCleanupAndPreserveAllFailures() {
     final List<Integer> cleaned = new ArrayList<>();
-    final IllegalStateException first = new IllegalStateException("first");
-    final IllegalArgumentException second = new IllegalArgumentException("second");
-    final IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
-      CleanupUtils.runAll(
-        () -> {
-          cleaned.add(1);
-          throw first;
-        },
-        () -> {
-          cleaned.add(2);
-          throw second;
-        },
-        () -> cleaned.add(3)
-      )
-    );
+    final IllegalStateException first = new IllegalStateException("first!");
+    final IllegalArgumentException second = new IllegalArgumentException("second!");
+    final IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> this.runThreeCleanups(cleaned, first, second));
     assertSame(first, thrown);
+
     final Throwable[] suppressed = thrown.getSuppressed();
     assertArrayEquals(new Throwable[] { second }, suppressed);
+
     final List<Integer> expected = List.of(1, 2, 3);
     assertEquals(expected, cleaned);
   }
 
+  private void runThreeCleanups(final List<Integer> cleaned, final IllegalStateException first, final IllegalArgumentException second) {
+    CleanupUtils.runAll(() -> this.cleanAndFail(cleaned, 1, first), () -> this.cleanAndFail(cleaned, 2, second), () -> cleaned.add(3));
+  }
+
+  private void cleanAndFail(final List<Integer> cleaned, final int number, final RuntimeException failure) {
+    cleaned.add(number);
+    throw failure;
+  }
+
   @Test
-  void preservesAnErrorAndDoesNotSuppressItAgainstItself() {
-    final AssertionError failure = new AssertionError("failed cleanup");
+  void shouldPreserveAnErrorAndNotSuppressItAgainstItself() {
+    final AssertionError failure = new AssertionError("failed cleanup!");
     final List<Integer> cleaned = new ArrayList<>();
-    final AssertionError thrown = assertThrows(AssertionError.class, () ->
-      CleanupUtils.runAll(
-        () -> {
-          throw failure;
-        },
-        () -> {
-          throw failure;
-        },
-        () -> cleaned.add(1)
-      )
-    );
+    final AssertionError thrown = assertThrows(AssertionError.class, () -> this.runFailingCleanups(failure, cleaned));
     assertSame(failure, thrown);
+
     final Throwable[] suppressed = thrown.getSuppressed();
     assertEquals(0, suppressed.length);
+
     final List<Integer> expected = List.of(1);
     assertEquals(expected, cleaned);
   }
 
+  private void runFailingCleanups(final AssertionError failure, final List<Integer> cleaned) {
+    CleanupUtils.runAll(() -> this.throwFailure(failure), () -> this.throwFailure(failure), () -> cleaned.add(1));
+  }
+
+  private void throwFailure(final Error failure) {
+    throw failure;
+  }
+
   @Test
-  void propagatesFatalFailuresWithoutAttemptingLaterCleanup() {
-    final OutOfMemoryError fatal = new OutOfMemoryError("fatal cleanup failure");
+  void shouldPropagateFatalFailuresWithoutAttemptingLaterCleanup() {
+    final OutOfMemoryError fatal = new OutOfMemoryError("fatal cleanup failure!");
     final List<Integer> cleaned = new ArrayList<>();
-    final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () ->
-      CleanupUtils.runAll(
-        () -> {
-          throw fatal;
-        },
-        () -> cleaned.add(1)
-      )
-    );
+    final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () -> this.runFatalCleanup(fatal, cleaned));
     assertSame(fatal, thrown);
+
     final int count = cleaned.size();
     assertEquals(0, count);
   }
 
+  private void runFatalCleanup(final OutOfMemoryError fatal, final List<Integer> cleaned) {
+    CleanupUtils.runAll(() -> this.throwFailure(fatal), () -> cleaned.add(1));
+  }
+
   @Test
-  void acceptsNoActionsAndRejectsANullArray() {
+  void shouldAcceptNoActionsAndRejectANullArray() {
     CleanupUtils.runAll();
     assertThrows(NullPointerException.class, () -> CleanupUtils.runAll((Runnable[]) null));
     UtilityClassAssertions.assertNotInstantiable(CleanupUtils.class);

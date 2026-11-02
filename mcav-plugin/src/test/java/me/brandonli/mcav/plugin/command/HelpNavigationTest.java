@@ -51,8 +51,15 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-/** Replays Cloud-generated click commands through the actual annotation parser and command executor. */
 final class HelpNavigationTest {
+
+  private static final String ROOT_COMMAND = "mcav";
+  private static final String SIMILAR_COMMAND = "mcavity";
+  private static final String VIDEO_COMMAND = "video";
+  private static final String FIRST_VIDEO_PAGE_COMMAND = "/mcav help mcav video 1";
+
+  private static final String SIMILAR_COMMAND_DESCRIPTION = "Description for mcavity";
+  private static final String FIRST_TOPIC_DESCRIPTION = "Description for topic0";
 
   private TestCommandManager manager;
   private HelpCommand help;
@@ -65,21 +72,21 @@ final class HelpNavigationTest {
     this.help = new HelpCommand(this.manager);
     parser.parse(this.help);
     for (int index = 0; index < 9; index++) {
-      final Command.Builder<CommandSender> root = this.manager.commandBuilder("mcav");
+      final Command.Builder<CommandSender> root = this.manager.commandBuilder(ROOT_COMMAND);
       final Command.Builder<CommandSender> topic = root.literal("topic" + index);
       final Description description = Description.of("Description for topic" + index);
       final Command.Builder<CommandSender> described = topic.commandDescription(description);
       this.manager.command(described);
 
-      final Command.Builder<CommandSender> video = root.literal("video");
+      final Command.Builder<CommandSender> video = root.literal(VIDEO_COMMAND);
       final Command.Builder<CommandSender> clip = video.literal("clip" + index);
       final Description clipDescription = Description.of("Description for clip" + index);
       final Command.Builder<CommandSender> describedClip = clip.commandDescription(clipDescription);
       this.manager.command(describedClip);
     }
-    final Command.Builder<CommandSender> root = this.manager.commandBuilder("mcav");
-    final Command.Builder<CommandSender> similar = root.literal("mcavity");
-    final Description description = Description.of("Description for mcavity");
+    final Command.Builder<CommandSender> root = this.manager.commandBuilder(ROOT_COMMAND);
+    final Command.Builder<CommandSender> similar = root.literal(SIMILAR_COMMAND);
+    final Description description = Description.of(SIMILAR_COMMAND_DESCRIPTION);
     final Command.Builder<CommandSender> described = similar.commandDescription(description);
     this.manager.command(described);
     this.sender = mock(CommandSender.class);
@@ -88,53 +95,55 @@ final class HelpNavigationTest {
   }
 
   @Test
-  void generatedEntryLinksOpenTheirOwnCommandHelp() {
+  void shouldOpenTheirOwnCommandHelpFromGeneratedEntryLinks() {
     this.help.commandHelp(this.sender, null);
     this.followGeneratedClick("/mcav help mcav topic0");
     final String text = this.text();
-    final boolean showsDescription = text.contains("Description for topic0");
+    final boolean showsDescription = text.contains(FIRST_TOPIC_DESCRIPTION);
     assertTrue(showsDescription, text);
   }
 
   @Test
-  void indexPaginationPreservesTheWholeCommandIndexInBothDirections() {
+  void shouldPreserveTheWholeCommandIndexInBothDirectionsWhenPaginatingTheIndex() {
     this.help.commandHelp(this.sender, null);
     final List<Component> firstPage = Components.received(this.sender);
     this.followGeneratedClick("/mcav help 2");
     final String secondPage = this.text();
     final boolean numberedPage = secondPage.contains("2/4");
     assertTrue(numberedPage, secondPage);
+
     this.followGeneratedClick("/mcav help 1");
     final List<Component> restored = Components.received(this.sender);
     assertEquals(firstPage, restored, "previous-page navigation must return to the same index, query and click targets");
   }
 
   @Test
-  void filteredPaginationPreservesTheQueryInBothDirections() {
-    this.help.commandHelp(this.sender, "video");
+  void shouldPreserveTheQueryInBothDirectionsWhenPaginatingAFilter() {
+    this.help.commandHelp(this.sender, VIDEO_COMMAND);
     final List<Component> firstPage = Components.received(this.sender);
     this.followGeneratedClick("/mcav help mcav video 2");
     final String secondPage = this.text();
     final boolean lastClip = secondPage.contains("mcav video clip8");
     assertTrue(lastClip, secondPage);
-    this.followGeneratedClick("/mcav help mcav video 1");
+
+    this.followGeneratedClick(FIRST_VIDEO_PAGE_COMMAND);
     final List<Component> restored = Components.received(this.sender);
     assertEquals(firstPage, restored, "filtered navigation must add the mcav root exactly once");
   }
 
   @ParameterizedTest
   @ValueSource(strings = { "topic0", "mcav topic0", "MCAV topic0", "  mcav topic0  " })
-  void acceptsShorthandAndFullManualQueries(final String query) {
+  void shouldAcceptShorthandAndFullManualQueries(final String query) {
     this.help.commandHelp(this.sender, query);
     final String text = this.text();
-    final boolean showsDescription = text.contains("Description for topic0");
+    final boolean showsDescription = text.contains(FIRST_TOPIC_DESCRIPTION);
     assertTrue(showsDescription, text);
   }
 
   @ParameterizedTest
   @NullAndEmptySource
   @ValueSource(strings = { "   " })
-  void missingAndBlankQueriesShowTheSameIndex(final String query) {
+  void shouldShowTheSameIndexForMissingAndBlankQueries(final String query) {
     this.help.commandHelp(this.sender, null);
     final List<Component> expected = Components.received(this.sender);
     clearInvocations(this.sender);
@@ -144,24 +153,25 @@ final class HelpNavigationTest {
   }
 
   @Test
-  void rootPrefixInASubcommandNameDoesNotCountAsTheWholeRoot() {
-    this.help.commandHelp(this.sender, "mcavity");
+  void shouldNotCountARootPrefixInASubcommandNameAsTheWholeRoot() {
+    this.help.commandHelp(this.sender, SIMILAR_COMMAND);
     final String text = this.text();
-    final boolean showsDescription = text.contains("Description for mcavity");
+    final boolean showsDescription = text.contains(SIMILAR_COMMAND_DESCRIPTION);
     assertTrue(showsDescription, text);
   }
 
   @Test
-  void wholeRootQueriesAndManualFilteredPagesRemainSupported() {
-    this.help.commandHelp(this.sender, "mcav");
+  void shouldKeepSupportingWholeRootQueriesAndManualFilteredPages() {
+    this.help.commandHelp(this.sender, ROOT_COMMAND);
     final Set<String> rootClicks = this.clickCommands();
     final boolean rootPage = rootClicks.contains("/mcav help mcav 2");
     final String rootTargets = rootClicks.toString();
     assertTrue(rootPage, rootTargets);
+
     clearInvocations(this.sender);
     this.help.commandHelp(this.sender, "video 2");
     final Set<String> filteredClicks = this.clickCommands();
-    final boolean previousPage = filteredClicks.contains("/mcav help mcav video 1");
+    final boolean previousPage = filteredClicks.contains(FIRST_VIDEO_PAGE_COMMAND);
     final String filteredTargets = filteredClicks.toString();
     assertTrue(previousPage, filteredTargets);
   }
@@ -170,6 +180,7 @@ final class HelpNavigationTest {
     final Set<String> available = this.clickCommands();
     final boolean generated = available.contains(command);
     assertTrue(generated, "Expected a real generated click target among " + available);
+
     clearInvocations(this.sender);
     final CommandExecutor<CommandSender> executor = this.manager.commandExecutor();
     final String input = command.substring(1);
@@ -182,17 +193,21 @@ final class HelpNavigationTest {
     final List<Component> messages = Components.received(this.sender);
     final EnumSet<ComponentIteratorFlag> flags = EnumSet.allOf(ComponentIteratorFlag.class);
     for (final Component message : messages) {
-      final Iterable<Component> parts = message.iterable(ComponentIteratorType.DEPTH_FIRST, flags);
-      for (final Component part : parts) {
-        final ClickEvent<?> click = part.clickEvent();
-        if (click != null && ClickEvent.Action.RUN_COMMAND.equals(click.action())) {
-          final ClickEvent.Payload.Text payload = (ClickEvent.Payload.Text) click.payload();
-          final String command = payload.value();
-          commands.add(command);
-        }
-      }
+      this.addClickCommands(message, flags, commands);
     }
     return commands;
+  }
+
+  private void addClickCommands(final Component message, final EnumSet<ComponentIteratorFlag> flags, final Set<String> commands) {
+    final Iterable<Component> parts = message.iterable(ComponentIteratorType.DEPTH_FIRST, flags);
+    for (final Component part : parts) {
+      final ClickEvent<?> click = part.clickEvent();
+      if (click != null && ClickEvent.Action.RUN_COMMAND.equals(click.action())) {
+        final ClickEvent.Payload.Text payload = (ClickEvent.Payload.Text) click.payload();
+        final String command = payload.value();
+        commands.add(command);
+      }
+    }
   }
 
   private String text() {

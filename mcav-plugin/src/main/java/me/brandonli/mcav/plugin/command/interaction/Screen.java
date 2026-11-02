@@ -22,10 +22,6 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilte
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * The maps an interactive player is shown on, together with the pipeline that brings its frames onto them: dithered, or
- * encoded with MCV2 for the viewers with the pack.
- */
 final class Screen {
 
   private final FunctionalVideoFilter output;
@@ -37,15 +33,6 @@ final class Screen {
   private boolean starting;
   private @Nullable CompletableFuture<Boolean> start;
 
-  /**
-   * Constructs the screen.
-   *
-   * @param output     the output the frames go to: the dithered maps or the MCV2 screen, which releasing releases
-   * @param pipeline   the pipeline to attach to the player
-   * @param firstMapId the first map identifier of the screen
-   * @param mapCount   the number of consecutive maps in the screen
-   * @param picture    how the picture of the source sits on the wall
-   */
   Screen(
     final FunctionalVideoFilter output,
     final VideoPipelineStep pipeline,
@@ -60,13 +47,6 @@ final class Screen {
     this.picture = picture;
   }
 
-  /**
-   * Gets the pixel of the source a player clicks at a pixel of the wall.
-   *
-   * @param wallX the column of the pixel on the wall
-   * @param wallY the row of the pixel on the wall
-   * @return the column and row of the source's pixel, or null for the empty border around a smaller picture
-   */
   int @Nullable [] toSource(final int wallX, final int wallY) {
     return this.picture.toSource(wallX, wallY);
   }
@@ -79,16 +59,15 @@ final class Screen {
     if (this.cancelled) {
       return false;
     }
+
     this.starting = true;
+
     return true;
   }
 
   synchronized boolean finishStart() {
     this.starting = false;
-    return this.cancelled;
-  }
 
-  synchronized boolean isCancelled() {
     return this.cancelled;
   }
 
@@ -103,11 +82,7 @@ final class Screen {
     }
   }
 
-  /**
-   * Cancels the start of the player.
-   *
-   * @return whether the start is running, so its worker owns the final cleanup of the player
-   */
+  // true while the start runs: its worker then owns the player's final cleanup
   boolean cancel() {
     final CompletableFuture<Boolean> future;
     final boolean running;
@@ -122,20 +97,14 @@ final class Screen {
     return running;
   }
 
-  /**
-   * Gets the output the frames go to.
-   *
-   * @return the dithered maps or the MCV2 screen
-   */
+  synchronized boolean isCancelled() {
+    return this.cancelled;
+  }
+
   FunctionalVideoFilter getOutput() {
     return this.output;
   }
 
-  /**
-   * Gets the pipeline that brings the frames of the player onto the maps.
-   *
-   * @return the pipeline
-   */
   VideoPipelineStep getPipeline() {
     return this.pipeline;
   }

@@ -35,30 +35,32 @@ import org.slf4j.LoggerFactory;
 
 /**
  * {@code /mcav dump}: uploads diagnostic information for bug reports and prints the link.
+ *
+ * <p>This class is not thread-safe: use it on the server main thread, where Cloud runs its commands.
+ *
+ * @since 1.0.0
  */
 public final class DumpCommand implements AnnotationCommandFeature {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(DumpCommand.class);
 
-  private static final String UPLOAD_FAILED = "Failed to upload the dump";
+  private static final String UPLOAD_FAILED = "Failed to upload the dump.";
 
   private final Supplier<String> uploader;
 
   /**
    * Constructs the command.
+   *
+   * @since 1.0.0
    */
   public DumpCommand() {
     this(DumpUtils::createAndUploadDump);
   }
 
-  /**
-   * Constructs a command that uploads dumps with another uploader.
-   *
-   * @param uploader collects and uploads a dump, returning its URL
-   */
   @VisibleForTesting
   DumpCommand(final Supplier<String> uploader) {
-    Preconditions.checkNotNull(uploader, "Uploader must not be null");
+    Preconditions.checkNotNull(uploader, "Uploader must not be null!");
+
     this.uploader = uploader;
   }
 
@@ -66,26 +68,29 @@ public final class DumpCommand implements AnnotationCommandFeature {
    * Uploads a dump in the background and sends its link to the sender. Failures are only logged.
    *
    * @param sender who ran the command
+   * @since 1.0.0
    */
   @Permission("mcav.command.dump")
   @Command(value = "mcav dump", requiredSender = CommandSender.class)
   @CommandDescription("mcav.command.dump.info")
   public void createDump(final CommandSender sender) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
+
     final Component loading = Message.CREATE_DUMP.build();
     sender.sendMessage(loading);
 
     final CompletableFuture<String> upload = CompletableFuture.supplyAsync(this.uploader);
-    TaskUtils.whenComplete(upload, (url, error) -> reportUpload(sender, url, error));
+    TaskUtils.whenComplete(upload, (url, error) -> this.reportUpload(sender, url, error));
   }
 
-  private static void reportUpload(final CommandSender sender, final String url, final @Nullable Throwable error) {
+  private void reportUpload(final CommandSender sender, final String url, final @Nullable Throwable error) {
     if (error != null) {
       LOGGER.error(UPLOAD_FAILED, error);
       final Component failure = Message.DUMP_FAILED.build();
       sender.sendMessage(failure);
       return;
     }
+
     final Component result = Message.SEND_DUMP.build(url);
     sender.sendMessage(result);
   }

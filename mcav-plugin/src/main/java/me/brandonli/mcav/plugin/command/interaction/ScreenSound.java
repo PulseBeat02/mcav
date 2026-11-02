@@ -20,20 +20,11 @@ package me.brandonli.mcav.plugin.command.interaction;
 import me.brandonli.mcav.plugin.utils.AudioArgument;
 import org.bukkit.entity.Player;
 
-/**
- * Where the sound of a screen plays, and who hears it: the sound of a browser or of a virtual machine.
- */
 final class ScreenSound {
 
   private final AudioArgument type;
   private final Player[] viewers;
 
-  /**
-   * Constructs the sound of a screen.
-   *
-   * @param type    the audio output
-   * @param viewers the players who see the screen
-   */
   ScreenSound(final AudioArgument type, final Player[] viewers) {
     this.type = type;
     this.viewers = viewers.clone();

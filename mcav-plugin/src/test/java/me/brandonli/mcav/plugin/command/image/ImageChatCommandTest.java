@@ -46,14 +46,14 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
-/**
- * Tests {@link ImageChatCommand}.
- */
 final class ImageChatCommandTest {
 
   private static final String RESOLUTION = "16x8";
   private static final String CHARACTER = "#";
   private static final String MRL = "picture.png";
+
+  private static final int RESOLUTION_WIDTH = 16;
+  private static final int RESOLUTION_HEIGHT = 8;
 
   private ImageChatCommand command;
   private MultiplePlayerSelector selector;
@@ -78,16 +78,35 @@ final class ImageChatCommandTest {
     this.sender = mock(CommandSender.class);
   }
 
+  @Test
+  void shouldShowTheImageInTheChatOfTheSelectedPlayers() {
+    this.command.showImage(this.sender, this.selector, RESOLUTION, CHARACTER, MRL, null);
+    final AbstractImageCommand.ImageConfigurationProvider provider = this.captureProvider();
+    final ChatConfiguration configuration = this.createImage(provider);
+
+    final Collection<UUID> viewers = configuration.getViewers();
+    final List<UUID> viewerList = new ArrayList<>(viewers);
+    final List<UUID> expectedViewers = List.of(this.viewer);
+    final int width = configuration.getChatWidth();
+    final int height = configuration.getChatHeight();
+    final String character = configuration.getCharacter();
+    assertEquals(expectedViewers, viewerList);
+    assertEquals(RESOLUTION_WIDTH, width);
+    assertEquals(RESOLUTION_HEIGHT, height);
+    assertEquals(CHARACTER, character);
+  }
+
   private AbstractImageCommand.ImageConfigurationProvider captureProvider() {
     final ArgumentCaptor<AbstractImageCommand.ImageConfigurationProvider> providers = ArgumentCaptor.forClass(
       AbstractImageCommand.ImageConfigurationProvider.class
     );
     verify(this.command).displayImage(providers.capture(), eq(this.sender), eq(RESOLUTION), eq(MRL), isNull());
+
     return providers.getValue();
   }
 
   private ChatConfiguration createImage(final AbstractImageCommand.ImageConfigurationProvider provider) {
-    final Pair<Integer, Integer> resolution = Pair.pair(16, 8);
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
     final DisplayableImage display = mock(DisplayableImage.class);
     final ArgumentCaptor<ChatConfiguration> configurations = ArgumentCaptor.forClass(ChatConfiguration.class);
     try (final MockedStatic<DisplayableImage> displays = Mockito.mockStatic(DisplayableImage.class)) {
@@ -100,27 +119,9 @@ final class ImageChatCommandTest {
   }
 
   @Test
-  void showsTheImageInTheChatOfTheSelectedPlayers() {
-    this.command.showImage(this.sender, this.selector, RESOLUTION, CHARACTER, MRL, null);
-    final AbstractImageCommand.ImageConfigurationProvider provider = this.captureProvider();
-    final ChatConfiguration configuration = this.createImage(provider);
-
-    final Collection<UUID> viewers = configuration.getViewers();
-    final List<UUID> viewerList = new ArrayList<>(viewers);
-    final List<UUID> expectedViewers = List.of(this.viewer);
-    final int width = configuration.getChatWidth();
-    final int height = configuration.getChatHeight();
-    final String character = configuration.getCharacter();
-    assertEquals(expectedViewers, viewerList);
-    assertEquals(16, width);
-    assertEquals(8, height);
-    assertEquals(CHARACTER, character);
-  }
-
-  @Test
-  void refusesNullArguments() {
+  void shouldRefuseNullArguments() {
     final AbstractImageCommand.ImageConfigurationProvider provider = _ -> "configuration";
-    final Pair<Integer, Integer> resolution = Pair.pair(16, 8);
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
     assertThrows(NullPointerException.class, () -> this.command.showImage(null, this.selector, RESOLUTION, CHARACTER, MRL, null));
     assertThrows(NullPointerException.class, () -> this.command.showImage(this.sender, null, RESOLUTION, CHARACTER, MRL, null));
     assertThrows(NullPointerException.class, () -> this.command.showImage(this.sender, this.selector, null, CHARACTER, MRL, null));

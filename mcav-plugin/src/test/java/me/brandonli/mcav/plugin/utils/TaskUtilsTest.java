@@ -39,13 +39,13 @@ import me.brandonli.mcav.plugin.testing.UtilityClassAssertions;
 import org.bukkit.plugin.IllegalPluginAccessException;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitScheduler;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-/**
- * Tests {@link TaskUtils}.
- */
 final class TaskUtilsTest {
+
+  private static final String FUTURE_RESULT = "done";
 
   @BeforeEach
   void resetServer() {
@@ -53,89 +53,102 @@ final class TaskUtilsTest {
   }
 
   @Test
-  void schedulesTheTaskOnTheMainThreadOnlyWhenRun() {
+  void shouldScheduleTheTaskOnTheMainThreadOnlyWhenRun() {
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
     final AtomicInteger runs = new AtomicInteger();
     final Runnable task = runs::incrementAndGet;
-    final Runnable handover = TaskUtils.handleAsyncTask(plugin, task);
+    final Runnable handover = TaskUtils.createMainThreadHandover(plugin, task);
     final int pendingBefore = TestServer.runPendingTasks();
     assertEquals(0, pendingBefore);
+
     handover.run();
     final BukkitScheduler scheduler = TestServer.scheduler();
     verify(scheduler).runTask(plugin, task);
+
     final int runsBeforeTick = runs.get();
     assertEquals(0, runsBeforeTick);
+
     final int pending = TestServer.runPendingTasks();
     assertEquals(1, pending);
+
     final int runsAfterTick = runs.get();
     assertEquals(1, runsAfterTick);
   }
 
   @Test
-  void isNotInstantiable() {
+  void shouldNotBeInstantiable() {
     UtilityClassAssertions.assertNotInstantiable(TaskUtils.class);
   }
 
   @Test
-  void schedulesATaskOnTheMainThread() {
+  void shouldScheduleATaskOnTheMainThread() {
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
     final AtomicInteger runs = new AtomicInteger();
     final boolean scheduled = TaskUtils.runOnMainThread(plugin, runs::incrementAndGet);
     assertTrue(scheduled);
+
     final int runsBeforeTick = runs.get();
     assertEquals(0, runsBeforeTick);
+
     final int pending = TestServer.runPendingTasks();
     assertEquals(1, pending);
+
     final int runsAfterTick = runs.get();
     assertEquals(1, runsAfterTick);
   }
 
   @Test
-  void dropsTheTaskWhenThePluginIsDisabled() {
+  void shouldDropTheTaskWhenThePluginIsDisabled() {
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
     final BukkitScheduler scheduler = TestServer.scheduler();
-    when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(new IllegalPluginAccessException("disabled"));
+    when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(new IllegalPluginAccessException("disabled!"));
     final AtomicInteger runs = new AtomicInteger();
     final boolean scheduled = TaskUtils.runOnMainThread(plugin, runs::incrementAndGet);
     assertFalse(scheduled);
-    final Runnable handover = TaskUtils.handleAsyncTask(plugin, runs::incrementAndGet);
+
+    final Runnable handover = TaskUtils.createMainThreadHandover(plugin, runs::incrementAndGet);
     handover.run();
     final int count = runs.get();
     assertEquals(0, count);
   }
 
   @Test
-  void passesTheResultOfTheFutureToTheCallback() {
-    final CompletableFuture<String> future = CompletableFuture.completedFuture("done");
+  void shouldPassTheResultOfTheFutureToTheCallback() {
+    final CompletableFuture<String> future = CompletableFuture.completedFuture(FUTURE_RESULT);
     final AtomicReference<String> result = new AtomicReference<>();
     final AtomicReference<Throwable> failure = new AtomicReference<>();
     final AtomicInteger calls = new AtomicInteger();
 
-    TaskUtils.whenComplete(future, (value, error) -> {
-      calls.incrementAndGet();
-      result.set(value);
-      failure.set(error);
-    });
+    TaskUtils.whenComplete(future, (value, error) -> this.recordCall(value, error, calls, result, failure));
 
     final int callCount = calls.get();
     final String received = result.get();
     final Throwable receivedFailure = failure.get();
     assertEquals(1, callCount);
-    assertEquals("done", received);
+    assertEquals(FUTURE_RESULT, received);
     assertNull(receivedFailure);
   }
 
+  private void recordCall(
+    final String value,
+    final @Nullable Throwable error,
+    final AtomicInteger calls,
+    final AtomicReference<String> result,
+    final AtomicReference<Throwable> failure
+  ) {
+    calls.incrementAndGet();
+    result.set(value);
+    failure.set(error);
+  }
+
   @Test
-  void passesTheFailureOfTheFutureToTheCallback() {
-    final IllegalStateException boom = new IllegalStateException("boom");
+  void shouldPassTheFailureOfTheFutureToTheCallback() {
+    final IllegalStateException boom = new IllegalStateException("boom!");
     final CompletableFuture<String> future = CompletableFuture.failedFuture(boom);
     final AtomicReference<String> result = new AtomicReference<>("not called");
     final AtomicReference<Throwable> failure = new AtomicReference<>();
 
-    TaskUtils.whenComplete(future, (value, error) -> {
-      result.set(value);
-      failure.set(error);
-    });
+    TaskUtils.whenComplete(future, (value, error) -> this.recordOutcome(value, error, result, failure));
 
     final String received = result.get();
     final Throwable receivedFailure = failure.get();
@@ -143,8 +156,18 @@ final class TaskUtilsTest {
     assertSame(boom, receivedFailure);
   }
 
+  private void recordOutcome(
+    final String value,
+    final @Nullable Throwable error,
+    final AtomicReference<String> result,
+    final AtomicReference<Throwable> failure
+  ) {
+    result.set(value);
+    failure.set(error);
+  }
+
   @Test
-  void runsTheCallbackOnceTheFutureCompletesLater() {
+  void shouldRunTheCallbackOnceTheFutureCompletesLater() {
     final CompletableFuture<String> future = new CompletableFuture<>();
     final AtomicReference<String> result = new AtomicReference<>();
     TaskUtils.whenComplete(future, (value, _) -> result.set(value));
@@ -158,13 +181,11 @@ final class TaskUtilsTest {
   }
 
   @Test
-  void logsACallbackThatFailsInsteadOfLosingIt() {
-    final CompletableFuture<String> future = CompletableFuture.completedFuture("done");
+  void shouldLogACallbackThatFailsInsteadOfLosingIt() {
+    final CompletableFuture<String> future = CompletableFuture.completedFuture(FUTURE_RESULT);
     final String output;
     try (final StandardErrorCapture errors = StandardErrorCapture.start()) {
-      TaskUtils.whenComplete(future, (_, _) -> {
-        throw new IllegalStateException("the callback failed");
-      });
+      TaskUtils.whenComplete(future, (_, _) -> this.throwCallbackFailure());
       output = errors.getOutput();
     }
 
@@ -174,16 +195,20 @@ final class TaskUtilsTest {
     assertTrue(withCause, output);
   }
 
+  private void throwCallbackFailure() {
+    throw new IllegalStateException("the callback failed!");
+  }
+
   @Test
-  void refusesNullArguments() {
+  void shouldRefuseNullArguments() {
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
     final Runnable task = () -> {};
-    final CompletableFuture<String> future = CompletableFuture.completedFuture("done");
+    final CompletableFuture<String> future = CompletableFuture.completedFuture(FUTURE_RESULT);
     final BiConsumer<String, Throwable> callback = (_, _) -> {};
     assertThrows(NullPointerException.class, () -> TaskUtils.runOnMainThread(null, task));
     assertThrows(NullPointerException.class, () -> TaskUtils.runOnMainThread(plugin, null));
-    assertThrows(NullPointerException.class, () -> TaskUtils.handleAsyncTask(null, task));
-    assertThrows(NullPointerException.class, () -> TaskUtils.handleAsyncTask(plugin, null));
+    assertThrows(NullPointerException.class, () -> TaskUtils.createMainThreadHandover(null, task));
+    assertThrows(NullPointerException.class, () -> TaskUtils.createMainThreadHandover(plugin, null));
     assertThrows(NullPointerException.class, () -> TaskUtils.whenComplete(null, callback));
     assertThrows(NullPointerException.class, () -> TaskUtils.whenComplete(future, null));
   }

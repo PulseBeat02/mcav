@@ -39,42 +39,16 @@ import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
-/**
- * Tests {@link DitheringArgument}.
- *
- * <p>Stateless algorithms are cached for the lifetime of the JVM, so the test of concurrent creation runs first and
- * uses an argument no other test touches.
- */
+// algorithms are cached for the JVM's lifetime, so the concurrent-creation test runs first, on an argument no other test touches
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 final class DitheringArgumentTest {
 
-  private static final long TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(10);
-  private static final long TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(10);
-
-  private static void awaitBlocked(final Thread thread) {
-    final long start = System.nanoTime();
-    final long deadline = start + TIMEOUT_NANOS;
-    Thread.State state = thread.getState();
-    while (state != Thread.State.BLOCKED) {
-      final long now = System.nanoTime();
-      assertTrue(now < deadline, "the thread never waited for the lock");
-      Thread.onSpinWait();
-      state = thread.getState();
-    }
-  }
-
-  private static Thread startCreating(final DitheringArgument argument, final AtomicReference<DitherAlgorithm> result) {
-    final Thread thread = new Thread(() -> {
-      final DitherAlgorithm algorithm = argument.createAlgorithm();
-      result.set(algorithm);
-    });
-    thread.start();
-    return thread;
-  }
+  private static final long TIMEOUT_NANOSECONDS = TimeUnit.SECONDS.toNanos(10);
+  private static final long TIMEOUT_MILLISECONDS = TimeUnit.SECONDS.toMillis(10);
 
   @Test
   @Order(0)
-  void createsTheSharedAlgorithmOfAnArgumentOnItsFirstUse() {
+  void shouldCreateTheSharedAlgorithmOfAnArgumentOnItsFirstUse() {
     final DitheringArgument argument = DitheringArgument.CLUSTERED_DOT_4X4_LIGHT;
     final DitherAlgorithm first = argument.createAlgorithm();
     final DitherAlgorithm second = argument.createAlgorithm();
@@ -84,7 +58,7 @@ final class DitheringArgumentTest {
 
   @Test
   @Order(1)
-  void threadsThatRaceForTheFirstUseShareOneStatelessAlgorithm() throws InterruptedException {
+  void shouldShareOneStatelessAlgorithmBetweenThreadsThatRaceForTheFirstUse() throws InterruptedException {
     final DitheringArgument argument = DitheringArgument.HORIZONTAL_3X5_HEAVY;
     final AtomicReference<DitherAlgorithm> first = new AtomicReference<>();
     final AtomicReference<DitherAlgorithm> second = new AtomicReference<>();
@@ -92,26 +66,51 @@ final class DitheringArgumentTest {
     final Thread secondThread;
 
     synchronized (argument) {
-      firstThread = startCreating(argument, first);
-      secondThread = startCreating(argument, second);
-      awaitBlocked(firstThread);
-      awaitBlocked(secondThread);
+      firstThread = this.startCreating(argument, first);
+      secondThread = this.startCreating(argument, second);
+      this.awaitBlocked(firstThread);
+      this.awaitBlocked(secondThread);
     }
-    firstThread.join(TIMEOUT_MILLIS);
-    secondThread.join(TIMEOUT_MILLIS);
+    firstThread.join(TIMEOUT_MILLISECONDS);
+    secondThread.join(TIMEOUT_MILLISECONDS);
 
     final DitherAlgorithm firstAlgorithm = first.get();
     final DitherAlgorithm secondAlgorithm = second.get();
     assertNotNull(firstAlgorithm);
     assertSame(firstAlgorithm, secondAlgorithm);
+
     final DitherAlgorithm later = argument.createAlgorithm();
     assertSame(firstAlgorithm, later);
+  }
+
+  private void awaitBlocked(final Thread thread) {
+    final long start = System.nanoTime();
+    final long deadline = start + TIMEOUT_NANOSECONDS;
+    Thread.State state = thread.getState();
+    while (state != Thread.State.BLOCKED) {
+      final long now = System.nanoTime();
+      assertTrue(now < deadline, "the thread never waited for the lock");
+
+      Thread.onSpinWait();
+      state = thread.getState();
+    }
+  }
+
+  private Thread startCreating(final DitheringArgument argument, final AtomicReference<DitherAlgorithm> result) {
+    final Thread thread = new Thread(() -> this.createAlgorithmInto(argument, result));
+    thread.start();
+    return thread;
+  }
+
+  private void createAlgorithmInto(final DitheringArgument argument, final AtomicReference<DitherAlgorithm> result) {
+    final DitherAlgorithm algorithm = argument.createAlgorithm();
+    result.set(algorithm);
   }
 
   @ParameterizedTest
   @Order(2)
   @EnumSource(DitheringArgument.class)
-  void createsAnAlgorithmOfTheNamedFamily(final DitheringArgument argument) {
+  void shouldCreateAnAlgorithmOfTheNamedFamily(final DitheringArgument argument) {
     final DitherAlgorithm algorithm = argument.createAlgorithm();
     final String name = argument.name();
     final Class<?> expected;
@@ -132,14 +131,14 @@ final class DitheringArgumentTest {
   @ParameterizedTest
   @Order(3)
   @EnumSource(value = DitheringArgument.class, mode = EnumSource.Mode.EXCLUDE, names = "FLOYD_STEINBERG_TEMPORAL")
-  void sharesTheStatelessAlgorithm(final DitheringArgument argument) {
+  void shouldShareTheStatelessAlgorithm(final DitheringArgument argument) {
     final DitherAlgorithm first = argument.createAlgorithm();
     final DitherAlgorithm second = argument.createAlgorithm();
     assertSame(first, second);
   }
 
   @Test
-  void cachedAlgorithmDoesNotWaitForTheInitializationLock() throws Exception {
+  void shouldNotWaitForTheInitializationLockWithACachedAlgorithm() throws Exception {
     final DitheringArgument argument = DitheringArgument.NEAREST_COLOR;
     final DitherAlgorithm expected = argument.createAlgorithm();
     final CompletableFuture<DitherAlgorithm> completed = new CompletableFuture<>();
@@ -151,13 +150,13 @@ final class DitheringArgumentTest {
         assertSame(expected, actual, "a warm cache read never waits for first-use initialization");
       }
     } finally {
-      reader.join(TIMEOUT_MILLIS);
+      reader.join(TIMEOUT_MILLISECONDS);
     }
   }
 
   @Test
   @Order(4)
-  void createsANewTemporalAlgorithmForEveryStream() {
+  void shouldCreateANewTemporalAlgorithmForEveryStream() {
     final DitheringArgument argument = DitheringArgument.FLOYD_STEINBERG_TEMPORAL;
     final DitherAlgorithm first = argument.createAlgorithm();
     final DitherAlgorithm second = argument.createAlgorithm();

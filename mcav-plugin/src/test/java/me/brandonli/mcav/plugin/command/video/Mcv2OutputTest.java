@@ -35,10 +35,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 
-/**
- * Tests {@link Mcv2Output}: frames and the start reach the screen's result, and a release gives the screen's slot of
- * the pack back, even when the result fails to release.
- */
 final class Mcv2OutputTest {
 
   private Mcv2Result result;
@@ -55,19 +51,26 @@ final class Mcv2OutputTest {
   }
 
   @Test
-  void passesTheFramesAndTheStartToTheResult() {
+  void shouldPassTheFramesAndTheStartToTheResult() {
     final ImageBuffer frame = mock(ImageBuffer.class);
     final OriginalVideoMetadata metadata = OriginalVideoMetadata.of(64, 32);
     when(this.result.applyFilter(frame, metadata)).thenReturn(true);
-    assertTrue(this.output.applyFilter(frame, metadata));
-    assertFalse(this.output.applyFilter(mock(ImageBuffer.class), metadata), "what the result answers comes back");
+
+    final boolean filtered = this.output.applyFilter(frame, metadata);
+    assertTrue(filtered);
+
+    final boolean outputFiltered = this.output.applyFilter(mock(ImageBuffer.class), metadata);
+    assertFalse(outputFiltered, "what the result answers comes back");
+
     this.output.start();
     verify(this.result).start();
-    assertSame(this.result, this.output.getResult());
+
+    final Mcv2Result result = this.output.getResult();
+    assertSame(this.result, result);
   }
 
   @Test
-  void releasesTheResultThenGivesTheSlotBack() {
+  void shouldReleaseTheResultThenGiveTheSlotBack() {
     this.output.release();
     final InOrder order = inOrder(this.result, this.lease);
     order.verify(this.result).release();
@@ -75,15 +78,18 @@ final class Mcv2OutputTest {
   }
 
   @Test
-  void givesTheSlotBackWhenTheResultFailsToRelease() {
-    final IllegalStateException failure = new IllegalStateException("release");
+  void shouldGiveTheSlotBackWhenTheResultFailsToRelease() {
+    final IllegalStateException failure = new IllegalStateException("release!");
     doThrow(failure).when(this.result).release();
-    assertSame(failure, assertThrows(IllegalStateException.class, this.output::release));
+
+    final IllegalStateException exception = assertThrows(IllegalStateException.class, this.output::release);
+    assertSame(failure, exception);
+
     verify(this.lease).close();
   }
 
   @Test
-  void refusesMissingParts() {
+  void shouldRefuseMissingParts() {
     assertThrows(NullPointerException.class, () -> new Mcv2Output(null, this.lease));
     assertThrows(NullPointerException.class, () -> new Mcv2Output(this.result, null));
   }

@@ -26,12 +26,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Stream;
 
-/**
- * Keeps the libraries the plugin downloads between test runs, so only the first run downloads them. The cached
- * libraries are moved into the library folder of the server before it starts, and moved back once it has stopped,
- * with whatever the server downloaded or removed since. The plugin still checks the SHA-256 hash of every cached
- * library against its {@code mcav/plugin/dependencies.txt}, and downloads a library again when the hash does not match.
- */
 final class LibraryCache implements AutoCloseable {
 
   private final Path cacheDirectory;
@@ -42,14 +36,6 @@ final class LibraryCache implements AutoCloseable {
     this.serverLibraries = serverLibraries;
   }
 
-  /**
-   * Moves the cached libraries into the library folder of a server that has not started yet.
-   *
-   * @param cacheDirectory  the folder that keeps the libraries between runs
-   * @param serverLibraries the library folder of the server, which must not exist yet
-   * @return the cache, which takes the libraries back when it is closed
-   * @throws IOException if the libraries cannot be moved
-   */
   static LibraryCache lend(final Path cacheDirectory, final Path serverLibraries) throws IOException {
     if (Files.isDirectory(cacheDirectory)) {
       transfer(cacheDirectory, serverLibraries);
@@ -57,23 +43,16 @@ final class LibraryCache implements AutoCloseable {
     return new LibraryCache(cacheDirectory, serverLibraries);
   }
 
-  /**
-   * Moves the library folder of the stopped server back into the cache, replacing what the cache still holds.
-   *
-   * @throws IOException if the libraries cannot be moved
-   */
   @Override
   public void close() throws IOException {
     if (!Files.isDirectory(this.serverLibraries)) {
       return;
     }
+
     deleteRecursively(this.cacheDirectory);
     transfer(this.serverLibraries, this.cacheDirectory);
   }
 
-  /**
-   * Moves a folder, which is a single rename on the same file system and a copy followed by a delete otherwise.
-   */
   private static void transfer(final Path source, final Path target) throws IOException {
     final Path targetParent = target.getParent();
     Files.createDirectories(targetParent);
@@ -105,6 +84,7 @@ final class LibraryCache implements AutoCloseable {
     if (!Files.exists(directory)) {
       return;
     }
+
     final List<Path> entries;
     try (final Stream<Path> walk = Files.walk(directory)) {
       final Comparator<Path> deepestFirst = Comparator.reverseOrder();

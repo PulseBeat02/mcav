@@ -20,6 +20,7 @@ package me.brandonli.mcav.plugin.audio;
 import com.google.common.base.Preconditions;
 import de.maxhenkel.voicechat.api.BukkitVoicechatService;
 import me.brandonli.mcav.plugin.MCAVSandbox;
+import me.brandonli.mcav.plugin.PluginException;
 import org.bukkit.Bukkit;
 import org.bukkit.Server;
 import org.bukkit.event.EventHandler;
@@ -32,6 +33,10 @@ import org.bukkit.plugin.ServicesManager;
 /**
  * Registers the plugin with Simple Voice Chat once the server has loaded, because Simple Voice Chat offers its
  * service only then. The listener unregisters itself afterwards.
+ *
+ * <p>This class is not thread-safe: use it on the server main thread.
+ *
+ * @since 1.0.0
  */
 public final class ServerLoadListener implements Listener {
 
@@ -42,9 +47,11 @@ public final class ServerLoadListener implements Listener {
    *
    * @param sandbox the plugin
    * @throws NullPointerException if the plugin is {@code null}
+   * @since 1.0.0
    */
   public ServerLoadListener(final MCAVSandbox sandbox) {
-    Preconditions.checkNotNull(sandbox, "Plugin must not be null");
+    Preconditions.checkNotNull(sandbox, "Plugin must not be null!");
+
     this.sandbox = sandbox;
   }
 
@@ -52,18 +59,20 @@ public final class ServerLoadListener implements Listener {
    * Registers the plugin with Simple Voice Chat.
    *
    * @param event the event, fired once the server has loaded its plugins and worlds
-   * @throws NullPointerException  if the event is {@code null}
-   * @throws IllegalStateException if Simple Voice Chat offers no service, for example because it failed to start
+   * @throws NullPointerException if the event is {@code null}
+   * @throws PluginException      if Simple Voice Chat offers no service, for example because it failed to start
+   * @since 1.0.0
    */
   @EventHandler(priority = EventPriority.HIGHEST)
   public void onServerLoad(final ServerLoadEvent event) {
-    Preconditions.checkNotNull(event, "Event must not be null");
+    Preconditions.checkNotNull(event, "Event must not be null!");
+
     final Server server = Bukkit.getServer();
     final ServicesManager manager = server.getServicesManager();
     final BukkitVoicechatService voiceChatService = manager.load(BukkitVoicechatService.class);
     if (voiceChatService == null) {
-      throw new IllegalStateException(
-        "Simple Voice Chat audio is enabled, but Simple Voice Chat offers no voice chat service, so voice chat audio is not available"
+      throw new PluginException(
+        "Simple Voice Chat audio is enabled, but Simple Voice Chat offers no voice chat service, so voice chat audio is not available!"
       );
     }
 

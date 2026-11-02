@@ -40,9 +40,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 
-/**
- * Tests {@link ImageControlCommand}.
- */
 final class ImageControlCommandTest {
 
   private final ExecutorService direct = MoreExecutors.newDirectExecutorService();
@@ -66,14 +63,14 @@ final class ImageControlCommandTest {
   }
 
   @Test
-  void releasesTheImageOnTheLoadingThreadAndReportsIt() {
+  void shouldReleaseTheImageOnTheLoadingThreadAndReportIt() {
     final CommandSender sender = mock(CommandSender.class);
     this.command.releaseImage(sender);
     final Component start = Message.RELEASE_IMAGE_START.build();
     final Component done = Message.RELEASE_IMAGE.build();
     final InOrder order = inOrder(sender, this.manager);
     order.verify(sender).sendMessage(start);
-    order.verify(this.manager).releaseImage(false);
+    order.verify(this.manager).releaseImage(ReleaseThread.MAIN_THREAD);
     order.verify(sender).sendMessage(done);
 
     final List<Component> messages = Components.received(sender);
@@ -82,10 +79,10 @@ final class ImageControlCommandTest {
   }
 
   @Test
-  void logsAFailedReleaseAndDoesNotReportTheImageAsReleased() {
+  void shouldLogAFailedReleaseAndNotReportTheImageAsReleased() {
     final CommandSender sender = mock(CommandSender.class);
-    final IllegalStateException failure = new IllegalStateException("the release failed");
-    doThrow(failure).when(this.manager).releaseImage(false);
+    final IllegalStateException failure = new IllegalStateException("the release failed!");
+    doThrow(failure).when(this.manager).releaseImage(ReleaseThread.MAIN_THREAD);
 
     final String output;
     try (final StandardErrorCapture errors = StandardErrorCapture.start()) {
@@ -97,14 +94,15 @@ final class ImageControlCommandTest {
     final List<Component> messages = Components.received(sender);
     final List<Component> expected = List.of(start);
     assertEquals(expected, messages);
+
     final boolean logged = output.contains("Failed to release the image");
-    final boolean withCause = output.contains("the release failed");
+    final boolean withCause = output.contains("the release failed!");
     assertTrue(logged, output);
     assertTrue(withCause, output);
   }
 
   @Test
-  void refusesNullArguments() {
+  void shouldRefuseNullArguments() {
     assertThrows(NullPointerException.class, () -> new ImageControlCommand(null));
     assertThrows(NullPointerException.class, () -> this.command.releaseImage(null));
   }

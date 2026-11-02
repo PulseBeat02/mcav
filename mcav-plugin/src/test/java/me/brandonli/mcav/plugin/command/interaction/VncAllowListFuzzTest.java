@@ -24,27 +24,25 @@ import com.code_intelligence.jazzer.junit.FuzzTest;
 import java.util.List;
 import org.junit.jupiter.api.Tag;
 
-/**
- * Fuzzes the server a player names in {@code /mcav vnc create}: whatever the text, it is read as a host and a TCP port
- * or refused, and it finds a listed server only when it names that server's host and port.
- */
 @Tag("fuzz")
 final class VncAllowListFuzzTest {
 
-  private static final VncAllowList.Entry LISTED = new VncAllowList.Entry("desktop.example", 5901, "secret");
+  private static final VncAllowList.Entry LISTED = VncAllowList.Entry.of("desktop.example", 5901, "secret");
 
-  private static final VncAllowList LIST = new VncAllowList(List.of(LISTED));
+  private static final VncAllowList LIST = VncAllowList.of(List.of(LISTED));
 
   @FuzzTest(maxDuration = "30s")
-  void findsOnlyTheListedServer(final FuzzedDataProvider data) {
+  void shouldFindOnlyTheListedServer(final FuzzedDataProvider data) {
     final String text = data.consumeRemainingAsString();
     final VncAllowList.Target target = VncAllowList.parse(text);
     final VncAllowList.Entry found = LIST.find(text);
     if (found != null) {
-      assertTrue(target != null && target.port() == LISTED.port() && target.host().equalsIgnoreCase(LISTED.host()), text);
+      final boolean matches = target != null && target.port() == LISTED.getPort() && target.host().equalsIgnoreCase(LISTED.getHost());
+      assertTrue(matches, text);
     }
     if (target != null) {
-      assertTrue(!target.host().isBlank() && target.port() >= 1 && target.port() <= 65_535, text);
+      final boolean secondMatches = !target.host().isBlank() && target.port() >= 1 && target.port() <= 65_535;
+      assertTrue(secondMatches, text);
     }
   }
 }

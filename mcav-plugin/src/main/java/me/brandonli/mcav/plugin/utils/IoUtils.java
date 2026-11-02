@@ -27,17 +27,22 @@ import me.brandonli.mcav.plugin.MCAVSandbox;
 
 /**
  * Locates the plugin's data folder and its bundled resources.
+ *
+ * <p>This class is stateless and thread-safe.
+ *
+ * @since 1.0.0
  */
-public final class IOUtils {
+public final class IoUtils {
 
-  private IOUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+  private IoUtils() {
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   /**
-   * Gets the absolute path of the plugin's data folder.
+   * Returns the absolute path of the plugin's data folder.
    *
    * @return the data folder
+   * @since 1.0.0
    */
   public static Path getPluginDataFolderPath() {
     final MCAVSandbox plugin = MCAVSandbox.getPlugin(MCAVSandbox.class);
@@ -53,17 +58,21 @@ public final class IOUtils {
    * @return the stream of the resource, which the caller closes
    * @throws NullPointerException if the path is {@code null} or there is no such resource, with the path as the
    *                              message in the second case
+   * @since 1.0.0
    */
   public static InputStream getResourceAsStream(final String path) {
-    Preconditions.checkNotNull(path, "Path must not be null");
-    final Class<IOUtils> utilsClass = IOUtils.class;
+    Preconditions.checkNotNull(path, "Path must not be null!");
+
+    final Class<IoUtils> utilsClass = IoUtils.class;
     final ClassLoader nullableLoader = utilsClass.getClassLoader();
     final ClassLoader loader = requireNonNull(nullableLoader);
 
     final InputStream stream = loader.getResourceAsStream(path);
     if (stream == null) {
-      throw new NullPointerException(path);
+      final String message = "Resource %s does not exist!".formatted(path);
+      throw new NullPointerException(message);
     }
+
     return stream;
   }
 }

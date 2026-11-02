@@ -40,23 +40,14 @@ import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
-/**
- * Tests {@link OnlinePlayers}: the set starts from the players online and follows every join and quit.
- */
 final class OnlinePlayersTest {
 
-  private static Player player(final UUID uuid) {
-    final Player player = mock(Player.class);
-    when(player.getUniqueId()).thenReturn(uuid);
-    return player;
-  }
-
   @Test
-  void followsThePlayersFromThoseOnlineAtTheStart() {
+  void shouldFollowThePlayersFromThoseOnlineAtTheStart() {
     final Server server = TestServer.reset();
     final UUID alice = UUID.randomUUID();
     final UUID bob = UUID.randomUUID();
-    doReturn(List.of(player(alice)))
+    doReturn(List.of(this.player(alice)))
       .when(server)
       .getOnlinePlayers();
     final Plugin plugin = mock(Plugin.class);
@@ -65,18 +56,31 @@ final class OnlinePlayersTest {
     online.start(plugin);
 
     verify(TestServer.pluginManager()).registerEvents(online, plugin);
+
     final Set<UUID> players = online.getPlayers();
     assertEquals(Set.of(alice), players);
-    final Player joining = player(bob);
-    online.onJoin(new PlayerJoinEvent(joining, (Component) null));
+
+    final Player joining = this.player(bob);
+    online.onPlayerJoin(new PlayerJoinEvent(joining, (Component) null));
     assertEquals(Set.of(alice, bob), players, "a view that follows the joins");
-    online.onQuit(new PlayerQuitEvent(player(alice), (Component) null, PlayerQuitEvent.QuitReason.DISCONNECTED));
+
+    online.onPlayerQuit(new PlayerQuitEvent(this.player(alice), (Component) null, PlayerQuitEvent.QuitReason.DISCONNECTED));
     assertEquals(Set.of(bob), players);
     assertThrows(UnsupportedOperationException.class, () -> players.add(alice));
+
     try (final MockedStatic<HandlerList> lists = Mockito.mockStatic(HandlerList.class)) {
       online.stop();
       lists.verify(() -> HandlerList.unregisterAll(online));
     }
-    assertTrue(players.isEmpty());
+
+    final boolean empty = players.isEmpty();
+    assertTrue(empty);
+  }
+
+  private Player player(final UUID uuid) {
+    final Player player = mock(Player.class);
+    when(player.getUniqueId()).thenReturn(uuid);
+
+    return player;
   }
 }

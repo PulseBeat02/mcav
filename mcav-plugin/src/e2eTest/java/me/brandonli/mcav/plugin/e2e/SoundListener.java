@@ -27,14 +27,19 @@ import java.time.Duration;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Listens to the audio web page of the plugin like a browser does: its {@code /audio} WebSocket sends the samples of
- * the audio pipeline, 16-bit little-endian stereo at 48 kHz.
- */
 final class SoundListener implements WebSocket.Listener, AutoCloseable {
 
   private static final int SAMPLE_RATE = 48_000;
   private static final int FRAME_BYTES = 4;
+
+  private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(30);
+
+  private static final String URL_PREFIX = "ws://127.0.0.1:";
+  private static final String AUDIO_PATH = "/audio";
+
+  private static final int POLL_INTERVAL_MILLISECONDS = 100;
+
+  private static final double CROSSINGS_PER_CYCLE = 2.0;
 
   private final HttpClient client;
   private final ByteArrayOutputStream pcm;
@@ -43,17 +48,17 @@ final class SoundListener implements WebSocket.Listener, AutoCloseable {
   private SoundListener(final HttpClient client, final URI uri) {
     this.client = client;
     this.pcm = new ByteArrayOutputStream();
-    this.socket = client.newWebSocketBuilder().connectTimeout(Duration.ofSeconds(30)).buildAsync(uri, this).join();
+    this.socket = client.newWebSocketBuilder().connectTimeout(CONNECT_TIMEOUT).buildAsync(uri, this).join();
   }
 
-  /**
-   * Connects to the audio web page of a server.
-   *
-   * @param port the port of the audio web page
-   * @return the connected listener
-   */
   static SoundListener connect(final int port) {
-    return new SoundListener(HttpClient.newHttpClient(), URI.create("ws://127.0.0.1:" + port + "/audio"));
+    return new SoundListener(HttpClient.newHttpClient(), URI.create(URL_PREFIX + port + AUDIO_PATH));
+  }
+
+  @Override
+  public void close() {
+    this.socket.abort();
+    this.client.close();
   }
 
   @Override
@@ -64,35 +69,26 @@ final class SoundListener implements WebSocket.Listener, AutoCloseable {
       this.pcm.writeBytes(bytes);
     }
     webSocket.request(1);
+
     return null;
   }
 
-  /**
-   * Forgets what was heard so far.
-   */
   void clear() {
     synchronized (this.pcm) {
       this.pcm.reset();
     }
   }
 
-  /**
-   * Waits until some seconds of sound were heard, and measures the frequency of the last second by its zero crossings.
-   *
-   * @param seconds how much sound to wait for
-   * @param timeout how long to wait at most
-   * @return the frequency of the left channel in the last second, in hertz
-   * @throws InterruptedException if the wait is interrupted
-   */
   double awaitFrequency(final int seconds, final Duration timeout) throws InterruptedException {
     final long deadline = System.nanoTime() + timeout.toNanos();
     final int wanted = seconds * SAMPLE_RATE * FRAME_BYTES;
     byte[] heard = this.heard();
     while (heard.length < wanted) {
       if (System.nanoTime() > deadline) {
-        throw new AssertionError("Only " + heard.length + " bytes of sound arrived within " + timeout);
+        final String message = "Within %s, only %s bytes of sound arrived!".formatted(timeout, heard.length);
+        throw new AssertionError(message);
       }
-      TimeUnit.MILLISECONDS.sleep(100);
+      TimeUnit.MILLISECONDS.sleep(POLL_INTERVAL_MILLISECONDS);
       heard = this.heard();
     }
     final ByteBuffer samples = ByteBuffer.wrap(heard).order(ByteOrder.LITTLE_ENDIAN);
@@ -106,18 +102,12 @@ final class SoundListener implements WebSocket.Listener, AutoCloseable {
       }
       negative = now;
     }
-    return crossings / 2.0;
+    return crossings / CROSSINGS_PER_CYCLE;
   }
 
   private byte[] heard() {
     synchronized (this.pcm) {
       return this.pcm.toByteArray();
     }
-  }
-
-  @Override
-  public void close() {
-    this.socket.abort();
-    this.client.close();
   }
 }

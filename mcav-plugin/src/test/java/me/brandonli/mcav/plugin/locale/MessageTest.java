@@ -31,12 +31,35 @@ import me.brandonli.mcav.plugin.testing.Components;
 import net.kyori.adventure.text.Component;
 import org.junit.jupiter.api.Test;
 
-/**
- * Tests {@link Message}.
- */
 final class MessageTest {
 
-  private static List<Field> messageFields() {
+  @Test
+  void shouldHaveATextInTheBundledLanguageForEveryMessage() throws ReflectiveOperationException {
+    final List<Field> fields = this.messageFields();
+    final int fieldCount = fields.size();
+    assertEquals(85, fieldCount);
+
+    for (final Field field : fields) {
+      final String name = field.getName();
+      final Object value = field.get(null);
+      final Component component = switch (value) {
+        case final LocaleTools.NullComponent nullComponent -> nullComponent.build();
+        case final LocaleTools.UniComponent<?> uniComponent -> this.buildWithUrl(uniComponent);
+        default -> {
+          final String message = "Message %s has an unexpected type!".formatted(name);
+          throw new AssertionError(message);
+        }
+      };
+      final String text = Components.plain(component);
+      final boolean blank = text.isBlank();
+      assertFalse(blank, name);
+
+      final boolean unrendered = text.contains("<") || text.contains("$URL$");
+      assertFalse(unrendered, name + " was not rendered: " + text);
+    }
+  }
+
+  private List<Field> messageFields() {
     final Field[] fields = Message.class.getDeclaredFields();
     final List<Field> messages = new ArrayList<>();
     for (final Field field : fields) {
@@ -48,53 +71,34 @@ final class MessageTest {
     return messages;
   }
 
-  @Test
-  void everyMessageHasATextInTheBundledLanguage() throws ReflectiveOperationException {
-    final List<Field> fields = messageFields();
-    final int fieldCount = fields.size();
-    assertEquals(85, fieldCount);
-    for (final Field field : fields) {
-      final String name = field.getName();
-      final Object message = field.get(null);
-      final Component component = switch (message) {
-        case final LocaleTools.NullComponent nullComponent -> nullComponent.build();
-        case final LocaleTools.UniComponent<?> uniComponent -> buildWithUrl(uniComponent);
-        default -> throw new AssertionError("Unexpected message type of " + name);
-      };
-      final String text = Components.plain(component);
-      final boolean blank = text.isBlank();
-      assertFalse(blank, name);
-      final boolean unrendered = text.contains("<") || text.contains("$URL$");
-      assertFalse(unrendered, name + " was not rendered: " + text);
-    }
-  }
-
-  private static Component buildWithUrl(final LocaleTools.UniComponent<?> message) throws ReflectiveOperationException {
+  private Component buildWithUrl(final LocaleTools.UniComponent<?> message) throws ReflectiveOperationException {
     final Method build = LocaleTools.UniComponent.class.getMethod("build", Object.class);
     final Object built = build.invoke(message, "https://example.com/");
     final Component component = assertInstanceOf(Component.class, built);
+
     final String text = Components.plain(component);
     final boolean containsUrl = text.endsWith("https://example.com/");
     assertTrue(containsUrl, text);
+
     return component;
   }
 
   @Test
-  void rendersTheDumpLink() {
+  void shouldRenderTheDumpLink() {
     final Component component = Message.SEND_DUMP.build("https://paste.helpch.at/abc");
     final String text = Components.plain(component);
     assertEquals("Created a new dump! Copy and paste this link for support: https://paste.helpch.at/abc", text);
   }
 
   @Test
-  void rendersTheDiscordLink() {
+  void shouldRenderTheDiscordLink() {
     final Component component = Message.AUDIO_DISCORD.build("https://discord.com/channels/1/2");
     final String text = Components.plain(component);
     assertEquals("Click on the URL to join the Discord voice channel! https://discord.com/channels/1/2", text);
   }
 
   @Test
-  void tellsThatVlcAndYtdlpAreStillBeingPrepared() {
+  void shouldTellThatVlcAndYtdlpAreStillBeingPrepared() {
     final Component vlc = Message.VLC_PREPARING.build();
     final Component ytdlp = Message.YTDLP_PREPARING.build();
     final Component unsupported = Message.UNSUPPORTED_PLAYER.build();
@@ -107,7 +111,7 @@ final class MessageTest {
   }
 
   @Test
-  void namesTheLineLimitOfScoreboards() {
+  void shouldNameTheLineLimitOfScoreboards() {
     final Component component = Message.SCOREBOARD_LINES.build();
     final String text = Components.plain(component);
     final String limit = String.valueOf(ScoreboardConfiguration.MAXIMUM_LINES);

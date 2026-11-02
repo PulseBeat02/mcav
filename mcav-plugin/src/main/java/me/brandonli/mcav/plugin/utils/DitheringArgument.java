@@ -66,6 +66,10 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ran
  * <p>Call {@link #createAlgorithm()} once for every screen or image. Stateless algorithms are created the first time
  * they are used and then shared by every command that selects them; the stateful {@link #FLOYD_STEINBERG_TEMPORAL} is
  * created anew for every screen.
+ *
+ * <p>This enum is immutable and thread-safe.
+ *
+ * @since 1.0.0
  */
 public enum DitheringArgument {
   /**
@@ -75,6 +79,8 @@ public enum DitheringArgument {
    * Frames are dithered in parallel strips, which keeps it fast on large screens. The remembered frame
    * belongs to one stream, so {@link #createAlgorithm()} returns a new instance for every screen; for still images it
    * looks the same as {@link #FLOYD_STEINBERG}.
+   *
+   * @since 1.0.0
    */
   FLOYD_STEINBERG_TEMPORAL(() -> errorDiffusion(ErrorDiffusionDitherBuilder.Algorithm.TEMPORAL_FLOYD_STEINBERG), true),
 
@@ -82,12 +88,16 @@ public enum DitheringArgument {
    * Filter Lite (also known as Sierra Lite) error diffusion. It spreads the error over only three neighbors, which
    * makes it the fastest error diffusion while looking almost identical to {@link #FLOYD_STEINBERG}. This is the
    * recommended algorithm for video and images on maps.
+   *
+   * @since 1.0.0
    */
   FILTER_LITE(() -> errorDiffusion(ErrorDiffusionDitherBuilder.Algorithm.FILTER_LITE)),
 
   /**
    * Floyd-Steinberg error diffusion, the classic algorithm that spreads the error over four neighbors. It gives
    * fine, evenly distributed dithering at a moderate cost, slightly slower than {@link #FILTER_LITE}.
+   *
+   * @since 1.0.0
    */
   FLOYD_STEINBERG(() -> errorDiffusion(ErrorDiffusionDitherBuilder.Algorithm.FLOYD_STEINBERG)),
 
@@ -95,12 +105,16 @@ public enum DitheringArgument {
    * Jarvis, Judice, and Ninke error diffusion, which spreads the error over twelve neighbors in three rows. It gives
    * very smooth gradients with little visible pattern, but costs about three times as much CPU as
    * {@link #FLOYD_STEINBERG}, so it suits images and small screens better than large videos.
+   *
+   * @since 1.0.0
    */
   JARVIS_JUDICE_NINKE(() -> errorDiffusion(ErrorDiffusionDitherBuilder.Algorithm.JARVIS_JUDICE_NINKE)),
 
   /**
    * Stucki error diffusion, which spreads the error over twelve neighbors in three rows like
    * {@link #JARVIS_JUDICE_NINKE}, with weights that keep edges sharper. It is just as slow.
+   *
+   * @since 1.0.0
    */
   STUCKI(() -> errorDiffusion(ErrorDiffusionDitherBuilder.Algorithm.STUCKI)),
 
@@ -108,18 +122,24 @@ public enum DitheringArgument {
    * Atkinson error diffusion, the algorithm of the original Macintosh. It passes on only three quarters of the
    * error, which raises contrast and gives a distinctive look where very light and very dark areas wash out into
    * flat colors. It costs about as much as {@link #FLOYD_STEINBERG}.
+   *
+   * @since 1.0.0
    */
   ATKINSON(() -> errorDiffusion(ErrorDiffusionDitherBuilder.Algorithm.ATKINSON)),
 
   /**
    * Stevenson and Arce error diffusion, which spreads the error over twelve neighbors on a hexagonal pattern across
    * four rows. It produces the least visible pattern of all error diffusion algorithms, at the highest CPU cost.
+   *
+   * @since 1.0.0
    */
   STEVENSON_ARCE(() -> errorDiffusion(ErrorDiffusionDitherBuilder.Algorithm.STEVENSON_ARCE)),
 
   /**
    * Burkes error diffusion, which spreads the error over seven neighbors in two rows. It is a faster simplification
    * of {@link #STUCKI} that is still smoother than {@link #FLOYD_STEINBERG}.
+   *
+   * @since 1.0.0
    */
   BURKES(() -> errorDiffusion(ErrorDiffusionDitherBuilder.Algorithm.BURKES)),
 
@@ -127,18 +147,24 @@ public enum DitheringArgument {
    * Random dithering with light noise: up to 32 is added to or subtracted from every color channel before the
    * closest palette color is picked. It hides only the worst color bands and keeps the picture fairly clean. Fast,
    * but the grain changes every frame, so video shimmers.
+   *
+   * @since 1.0.0
    */
   RANDOM_LIGHT_WEIGHT(() -> random(RandomDither.LIGHT_WEIGHT)),
 
   /**
    * Random dithering with normal noise: up to 64 is added to or subtracted from every color channel. It removes
    * most color bands at the cost of a clearly grainy picture that changes every frame.
+   *
+   * @since 1.0.0
    */
   RANDOM_NORMAL_WEIGHT(() -> random(RandomDither.NORMAL_WEIGHT)),
 
   /**
    * Random dithering with heavy noise: up to 128 is added to or subtracted from every color channel. Gradients are
    * fully smoothed out, but the picture is very noisy and colors are often far off; mostly useful as an effect.
+   *
+   * @since 1.0.0
    */
   RANDOM_HEAVY_WEIGHT(() -> random(RandomDither.HEAVY_WEIGHT)),
 
@@ -146,6 +172,8 @@ public enum DitheringArgument {
    * No dithering: every pixel becomes the closest palette color. This is the fastest option and produces
    * perfectly stable frames, which also keeps the data sent to players low, but gradients such as skies show hard
    * color bands. A good choice for pixel art, text, and user interfaces such as the browser.
+   *
+   * @since 1.0.0
    */
   NEAREST_COLOR(DitheringArgument::nearest),
 
@@ -153,54 +181,72 @@ public enum DitheringArgument {
    * Bayer ordered dithering with the 2x2 matrix at light strength. The 2x2 matrix has the finest possible
    * checkerboard pattern but only 5 shades between two palette colors; at light strength it barely changes the
    * picture.
+   *
+   * @since 1.0.0
    */
   BAYER_2X2_LIGHT(() -> bayer(BayerDither.NORMAL_2X2, BayerDither.NORMAL_2X2_MAXIMUM, PixelMapper.MINIMUM_STRENGTH)),
 
   /**
    * Bayer ordered dithering with the 2x2 matrix at normal strength: a fine, hardly visible checkerboard with only 5
    * shades between two palette colors, so gradients still show steps.
+   *
+   * @since 1.0.0
    */
   BAYER_2X2_NORMAL(() -> bayer(BayerDither.NORMAL_2X2, BayerDither.NORMAL_2X2_MAXIMUM, PixelMapper.NORMAL_STRENGTH)),
 
   /**
    * Bayer ordered dithering with the 2x2 matrix at heavy strength: the checkerboard becomes clearly visible and
    * colors get noisier, in exchange for softer gradients.
+   *
+   * @since 1.0.0
    */
   BAYER_2X2_HEAVY(() -> bayer(BayerDither.NORMAL_2X2, BayerDither.NORMAL_2X2_MAXIMUM, PixelMapper.MAXIMUM_STRENGTH)),
 
   /**
    * Bayer ordered dithering with the 4x4 matrix at light strength. The 4x4 matrix represents 17 shades between two
    * palette colors with a small crosshatch pattern; light strength only breaks up color bands.
+   *
+   * @since 1.0.0
    */
   BAYER_4X4_LIGHT(() -> bayer(BayerDither.NORMAL_4X4, BayerDither.NORMAL_4X4_MAXIMUM, PixelMapper.MINIMUM_STRENGTH)),
 
   /**
    * Bayer ordered dithering with the 4x4 matrix at normal strength. This is the classic, balanced ordered dither:
    * 17 shades between two palette colors, a small regular crosshatch, fast, and stable on video.
+   *
+   * @since 1.0.0
    */
   BAYER_4X4_NORMAL(() -> bayer(BayerDither.NORMAL_4X4, BayerDither.NORMAL_4X4_MAXIMUM, PixelMapper.NORMAL_STRENGTH)),
 
   /**
    * Bayer ordered dithering with the 4x4 matrix at heavy strength: smoother gradients, but a clearly visible
    * crosshatch and noisier colors.
+   *
+   * @since 1.0.0
    */
   BAYER_4X4_HEAVY(() -> bayer(BayerDither.NORMAL_4X4, BayerDither.NORMAL_4X4_MAXIMUM, PixelMapper.MAXIMUM_STRENGTH)),
 
   /**
    * Bayer ordered dithering with the 8x8 matrix at light strength. The 8x8 matrix represents 65 shades between two
    * palette colors, the most of the Bayer matrices; light strength keeps its pattern subtle.
+   *
+   * @since 1.0.0
    */
   BAYER_8X8_LIGHT(() -> bayer(BayerDither.NORMAL_8X8, BayerDither.NORMAL_8X8_MAXIMUM, PixelMapper.MINIMUM_STRENGTH)),
 
   /**
    * Bayer ordered dithering with the 8x8 matrix at normal strength: the smoothest Bayer gradients, 65 shades between
    * two palette colors, with a slightly larger pattern than {@link #BAYER_4X4_NORMAL}.
+   *
+   * @since 1.0.0
    */
   BAYER_8X8_NORMAL(() -> bayer(BayerDither.NORMAL_8X8, BayerDither.NORMAL_8X8_MAXIMUM, PixelMapper.NORMAL_STRENGTH)),
 
   /**
    * Bayer ordered dithering with the 8x8 matrix at heavy strength: very smooth gradients from a distance, but a
    * clearly visible pattern and noisy colors up close.
+   *
+   * @since 1.0.0
    */
   BAYER_8X8_HEAVY(() -> bayer(BayerDither.NORMAL_8X8, BayerDither.NORMAL_8X8_MAXIMUM, PixelMapper.MAXIMUM_STRENGTH)),
 
@@ -208,18 +254,24 @@ public enum DitheringArgument {
    * Clustered-dot ordered dithering with the 6x6 matrix from Ulichney's Digital Halftoning at light strength. The
    * matrix grows round dots like newspaper halftoning and represents 37 shades; light strength keeps the dots
    * faint.
+   *
+   * @since 1.0.0
    */
   CLUSTERED_DOT_6X6_LIGHT(() -> bayer(BayerDither.CLUSTERED_DOT_6X6, BayerDither.CLUSTERED_DOT_6X6_MAXIMUM, PixelMapper.MINIMUM_STRENGTH)),
 
   /**
    * Clustered-dot ordered dithering with the 6x6 matrix from Ulichney's Digital Halftoning at normal strength: a
    * newspaper-like halftone with 37 shades that looks coarser than Bayer but less busy on large map walls.
+   *
+   * @since 1.0.0
    */
   CLUSTERED_DOT_6X6_NORMAL(() -> bayer(BayerDither.CLUSTERED_DOT_6X6, BayerDither.CLUSTERED_DOT_6X6_MAXIMUM, PixelMapper.NORMAL_STRENGTH)),
 
   /**
    * Clustered-dot ordered dithering with the 6x6 matrix from Ulichney's Digital Halftoning at heavy strength: bold,
    * clearly visible halftone dots.
+   *
+   * @since 1.0.0
    */
   CLUSTERED_DOT_6X6_HEAVY(() -> bayer(BayerDither.CLUSTERED_DOT_6X6, BayerDither.CLUSTERED_DOT_6X6_MAXIMUM, PixelMapper.MAXIMUM_STRENGTH)),
 
@@ -227,6 +279,8 @@ public enum DitheringArgument {
    * Clustered-dot ordered dithering with the non-diagonal 8x8 matrix from Lau and Arce's Modern Digital Halftoning at
    * light strength. The matrix represents 65 shades with large square-aligned dots; light strength keeps them
    * faint.
+   *
+   * @since 1.0.0
    */
   CLUSTERED_DOT_8X8_LIGHT(() -> bayer(BayerDither.CLUSTERED_DOT_8X8, BayerDither.CLUSTERED_DOT_8X8_MAXIMUM, PixelMapper.MINIMUM_STRENGTH)),
 
@@ -234,18 +288,24 @@ public enum DitheringArgument {
    * Clustered-dot ordered dithering with the non-diagonal 8x8 matrix from Lau and Arce's Modern Digital Halftoning at
    * normal strength: smooth halftone gradients with 65 shades, but the dots are large and visible on small
    * screens.
+   *
+   * @since 1.0.0
    */
   CLUSTERED_DOT_8X8_NORMAL(() -> bayer(BayerDither.CLUSTERED_DOT_8X8, BayerDither.CLUSTERED_DOT_8X8_MAXIMUM, PixelMapper.NORMAL_STRENGTH)),
 
   /**
    * Clustered-dot ordered dithering with the non-diagonal 8x8 matrix from Lau and Arce's Modern Digital Halftoning at
    * heavy strength: large, bold halftone dots.
+   *
+   * @since 1.0.0
    */
   CLUSTERED_DOT_8X8_HEAVY(() -> bayer(BayerDither.CLUSTERED_DOT_8X8, BayerDither.CLUSTERED_DOT_8X8_MAXIMUM, PixelMapper.MAXIMUM_STRENGTH)),
 
   /**
    * Clustered-dot ordered dithering with the 6x6 "central white point" matrix at light strength. It looks nearly
    * identical to {@link #CLUSTERED_DOT_6X6_LIGHT}, with 37 shades and faint dots.
+   *
+   * @since 1.0.0
    */
   CLUSTERED_DOT_6X6_2_LIGHT(() ->
     bayer(BayerDither.CLUSTERED_DOT_6X6_2, BayerDither.CLUSTERED_DOT_6X6_2_MAXIMUM, PixelMapper.MINIMUM_STRENGTH)
@@ -254,6 +314,8 @@ public enum DitheringArgument {
   /**
    * Clustered-dot ordered dithering with the 6x6 "central white point" matrix at normal strength, a close variant
    * of {@link #CLUSTERED_DOT_6X6_NORMAL} with 37 shades.
+   *
+   * @since 1.0.0
    */
   CLUSTERED_DOT_6X6_2_NORMAL(() ->
     bayer(BayerDither.CLUSTERED_DOT_6X6_2, BayerDither.CLUSTERED_DOT_6X6_2_MAXIMUM, PixelMapper.NORMAL_STRENGTH)
@@ -262,6 +324,8 @@ public enum DitheringArgument {
   /**
    * Clustered-dot ordered dithering with the 6x6 "central white point" matrix at heavy strength: bold, clearly
    * visible halftone dots.
+   *
+   * @since 1.0.0
    */
   CLUSTERED_DOT_6X6_2_HEAVY(() ->
     bayer(BayerDither.CLUSTERED_DOT_6X6_2, BayerDither.CLUSTERED_DOT_6X6_2_MAXIMUM, PixelMapper.MAXIMUM_STRENGTH)
@@ -270,6 +334,8 @@ public enum DitheringArgument {
   /**
    * Clustered-dot ordered dithering with the 6x6 "balanced centered point" matrix at light strength. It looks
    * nearly identical to {@link #CLUSTERED_DOT_6X6_LIGHT}, with 37 shades and faint dots.
+   *
+   * @since 1.0.0
    */
   CLUSTERED_DOT_6X6_3_LIGHT(() ->
     bayer(BayerDither.CLUSTERED_DOT_6X6_3, BayerDither.CLUSTERED_DOT_6X6_3_MAXIMUM, PixelMapper.MINIMUM_STRENGTH)
@@ -278,6 +344,8 @@ public enum DitheringArgument {
   /**
    * Clustered-dot ordered dithering with the 6x6 "balanced centered point" matrix at normal strength, a close
    * variant of {@link #CLUSTERED_DOT_6X6_NORMAL} with 37 shades.
+   *
+   * @since 1.0.0
    */
   CLUSTERED_DOT_6X6_3_NORMAL(() ->
     bayer(BayerDither.CLUSTERED_DOT_6X6_3, BayerDither.CLUSTERED_DOT_6X6_3_MAXIMUM, PixelMapper.NORMAL_STRENGTH)
@@ -286,6 +354,8 @@ public enum DitheringArgument {
   /**
    * Clustered-dot ordered dithering with the 6x6 "balanced centered point" matrix at heavy strength: bold, clearly
    * visible halftone dots.
+   *
+   * @since 1.0.0
    */
   CLUSTERED_DOT_6X6_3_HEAVY(() ->
     bayer(BayerDither.CLUSTERED_DOT_6X6_3, BayerDither.CLUSTERED_DOT_6X6_3_MAXIMUM, PixelMapper.MAXIMUM_STRENGTH)
@@ -295,6 +365,8 @@ public enum DitheringArgument {
    * Clustered-dot ordered dithering with the diagonal 8x8 "balanced centered points" matrix at light strength. Its
    * dots run at 45 degrees, but it represents only 33 shades, so {@link #CLUSTERED_DOT_DIAGONAL_8X8_LIGHT} is
    * usually the better choice.
+   *
+   * @since 1.0.0
    */
   CLUSTERED_DOT_DIAGONAL_8X8_3_LIGHT(() ->
     bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_3, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_3_MAXIMUM, PixelMapper.MINIMUM_STRENGTH)
@@ -304,6 +376,8 @@ public enum DitheringArgument {
    * Clustered-dot ordered dithering with the diagonal 8x8 "balanced centered points" matrix at normal strength: a
    * 45-degree halftone with 33 shades, almost identical to but less smooth than
    * {@link #CLUSTERED_DOT_DIAGONAL_8X8_NORMAL}.
+   *
+   * @since 1.0.0
    */
   CLUSTERED_DOT_DIAGONAL_8X8_3_NORMAL(() ->
     bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_3, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_3_MAXIMUM, PixelMapper.NORMAL_STRENGTH)
@@ -312,6 +386,8 @@ public enum DitheringArgument {
   /**
    * Clustered-dot ordered dithering with the diagonal 8x8 "balanced centered points" matrix at heavy strength: bold
    * 45-degree halftone dots with only 33 shades.
+   *
+   * @since 1.0.0
    */
   CLUSTERED_DOT_DIAGONAL_8X8_3_HEAVY(() ->
     bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_3, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_3_MAXIMUM, PixelMapper.MAXIMUM_STRENGTH)
@@ -320,53 +396,71 @@ public enum DitheringArgument {
   /**
    * Clustered-dot ordered dithering with the 4x4 matrix at light strength. The smallest clustered-dot matrix, with
    * 17 shades and small, faint newspaper-like dots.
+   *
+   * @since 1.0.0
    */
   CLUSTERED_DOT_4X4_LIGHT(() -> bayer(BayerDither.CLUSTERED_DOT_4X4, BayerDither.CLUSTERED_DOT_4X4_MAXIMUM, PixelMapper.MINIMUM_STRENGTH)),
 
   /**
    * Clustered-dot ordered dithering with the 4x4 matrix at normal strength: a compact halftone with 17 shades whose
    * small dots suit small map screens.
+   *
+   * @since 1.0.0
    */
   CLUSTERED_DOT_4X4_NORMAL(() -> bayer(BayerDither.CLUSTERED_DOT_4X4, BayerDither.CLUSTERED_DOT_4X4_MAXIMUM, PixelMapper.NORMAL_STRENGTH)),
 
   /**
    * Clustered-dot ordered dithering with the 4x4 matrix at heavy strength: small but clearly visible halftone dots
    * and noisier colors.
+   *
+   * @since 1.0.0
    */
   CLUSTERED_DOT_4X4_HEAVY(() -> bayer(BayerDither.CLUSTERED_DOT_4X4, BayerDither.CLUSTERED_DOT_4X4_MAXIMUM, PixelMapper.MAXIMUM_STRENGTH)),
 
   /**
    * Ordered dithering with the 5x3 vertical line matrix at light strength. An artistic pattern of faint vertical
    * lines with 16 shades.
+   *
+   * @since 1.0.0
    */
   VERTICAL_5X3_LIGHT(() -> bayer(BayerDither.VERTICAL_5X3, BayerDither.VERTICAL_5X3_MAXIMUM, PixelMapper.MINIMUM_STRENGTH)),
 
   /**
    * Ordered dithering with the 5x3 vertical line matrix at normal strength: shades are drawn as vertical line
    * artifacts, 16 of them, for a stylized look rather than accuracy.
+   *
+   * @since 1.0.0
    */
   VERTICAL_5X3_NORMAL(() -> bayer(BayerDither.VERTICAL_5X3, BayerDither.VERTICAL_5X3_MAXIMUM, PixelMapper.NORMAL_STRENGTH)),
 
   /**
    * Ordered dithering with the 5x3 vertical line matrix at heavy strength: strong, clearly visible vertical lines.
+   *
+   * @since 1.0.0
    */
   VERTICAL_5X3_HEAVY(() -> bayer(BayerDither.VERTICAL_5X3, BayerDither.VERTICAL_5X3_MAXIMUM, PixelMapper.MAXIMUM_STRENGTH)),
 
   /**
    * Ordered dithering with the 3x5 horizontal line matrix, the rotated {@link #VERTICAL_5X3_LIGHT}, at light
    * strength: faint horizontal lines with 16 shades.
+   *
+   * @since 1.0.0
    */
   HORIZONTAL_3X5_LIGHT(() -> bayer(BayerDither.HORIZONTAL_3X5, BayerDither.HORIZONTAL_3X5_MAXIMUM, PixelMapper.MINIMUM_STRENGTH)),
 
   /**
    * Ordered dithering with the 3x5 horizontal line matrix at normal strength: shades are drawn as horizontal line
    * artifacts, 16 of them, reminiscent of scan lines.
+   *
+   * @since 1.0.0
    */
   HORIZONTAL_3X5_NORMAL(() -> bayer(BayerDither.HORIZONTAL_3X5, BayerDither.HORIZONTAL_3X5_MAXIMUM, PixelMapper.NORMAL_STRENGTH)),
 
   /**
    * Ordered dithering with the 3x5 horizontal line matrix at heavy strength: strong, clearly visible horizontal
    * lines.
+   *
+   * @since 1.0.0
    */
   HORIZONTAL_3X5_HEAVY(() -> bayer(BayerDither.HORIZONTAL_3X5, BayerDither.HORIZONTAL_3X5_MAXIMUM, PixelMapper.MAXIMUM_STRENGTH)),
 
@@ -374,6 +468,8 @@ public enum DitheringArgument {
    * Clustered-dot ordered dithering with Ulichney's diagonal 6x6 matrix at light strength. Its dots run at 45
    * degrees, which the eye notices less than a square grid, and it represents 19 shades; light strength keeps the
    * dots faint.
+   *
+   * @since 1.0.0
    */
   CLUSTERED_DOT_DIAGONAL_6X6_LIGHT(() ->
     bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_6X6, BayerDither.CLUSTERED_DOT_DIAGONAL_6X6_MAXIMUM, PixelMapper.MINIMUM_STRENGTH)
@@ -382,6 +478,8 @@ public enum DitheringArgument {
   /**
    * Clustered-dot ordered dithering with Ulichney's diagonal 6x6 matrix at normal strength: a compact 45-degree
    * halftone with 19 shades, so gradients show some steps.
+   *
+   * @since 1.0.0
    */
   CLUSTERED_DOT_DIAGONAL_6X6_NORMAL(() ->
     bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_6X6, BayerDither.CLUSTERED_DOT_DIAGONAL_6X6_MAXIMUM, PixelMapper.NORMAL_STRENGTH)
@@ -390,6 +488,8 @@ public enum DitheringArgument {
   /**
    * Clustered-dot ordered dithering with Ulichney's diagonal 6x6 matrix at heavy strength: bold 45-degree halftone
    * dots.
+   *
+   * @since 1.0.0
    */
   CLUSTERED_DOT_DIAGONAL_6X6_HEAVY(() ->
     bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_6X6, BayerDither.CLUSTERED_DOT_DIAGONAL_6X6_MAXIMUM, PixelMapper.MAXIMUM_STRENGTH)
@@ -398,6 +498,8 @@ public enum DitheringArgument {
   /**
    * Clustered-dot ordered dithering with Ulichney's alternative diagonal 8x8 matrix at light strength. It represents
    * only 33 shades, so {@link #CLUSTERED_DOT_DIAGONAL_8X8_LIGHT} is usually the better choice.
+   *
+   * @since 1.0.0
    */
   CLUSTERED_DOT_DIAGONAL_8X8_2_LIGHT(() ->
     bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_2, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_2_MAXIMUM, PixelMapper.MINIMUM_STRENGTH)
@@ -406,6 +508,8 @@ public enum DitheringArgument {
   /**
    * Clustered-dot ordered dithering with Ulichney's alternative diagonal 8x8 matrix at normal strength: a 45-degree
    * halftone with 33 shades, almost identical to but less smooth than {@link #CLUSTERED_DOT_DIAGONAL_8X8_NORMAL}.
+   *
+   * @since 1.0.0
    */
   CLUSTERED_DOT_DIAGONAL_8X8_2_NORMAL(() ->
     bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_2, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_2_MAXIMUM, PixelMapper.NORMAL_STRENGTH)
@@ -414,6 +518,8 @@ public enum DitheringArgument {
   /**
    * Clustered-dot ordered dithering with Ulichney's alternative diagonal 8x8 matrix at heavy strength: bold
    * 45-degree halftone dots with only 33 shades.
+   *
+   * @since 1.0.0
    */
   CLUSTERED_DOT_DIAGONAL_8X8_2_HEAVY(() ->
     bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_2, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_2_MAXIMUM, PixelMapper.MAXIMUM_STRENGTH)
@@ -422,6 +528,8 @@ public enum DitheringArgument {
   /**
    * Clustered-dot ordered dithering with Ulichney's diagonal 16x16 matrix at light strength. The largest matrix,
    * with 129 shades; light strength keeps its large dots faint.
+   *
+   * @since 1.0.0
    */
   CLUSTERED_DOT_DIAGONAL_16X16_LIGHT(() ->
     bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_16X16, BayerDither.CLUSTERED_DOT_DIAGONAL_16X16_MAXIMUM, PixelMapper.MINIMUM_STRENGTH)
@@ -431,6 +539,8 @@ public enum DitheringArgument {
    * Clustered-dot ordered dithering with Ulichney's diagonal 16x16 matrix at normal strength: the smoothest
    * gradients of all ordered patterns, 129 shades, but its 45-degree dots are so large that they only look good on
    * big map walls viewed from a distance.
+   *
+   * @since 1.0.0
    */
   CLUSTERED_DOT_DIAGONAL_16X16_NORMAL(() ->
     bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_16X16, BayerDither.CLUSTERED_DOT_DIAGONAL_16X16_MAXIMUM, PixelMapper.NORMAL_STRENGTH)
@@ -439,6 +549,8 @@ public enum DitheringArgument {
   /**
    * Clustered-dot ordered dithering with Ulichney's diagonal 16x16 matrix at heavy strength: very large, bold
    * 45-degree halftone dots.
+   *
+   * @since 1.0.0
    */
   CLUSTERED_DOT_DIAGONAL_16X16_HEAVY(() ->
     bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_16X16, BayerDither.CLUSTERED_DOT_DIAGONAL_16X16_MAXIMUM, PixelMapper.MAXIMUM_STRENGTH)
@@ -447,6 +559,8 @@ public enum DitheringArgument {
   /**
    * Clustered-dot ordered dithering with Ulichney's 5x5 spiral matrix at light strength. Instead of alternating
    * light and dark dots, dark areas grow in a spiral to fill each cell; 26 shades, faint at light strength.
+   *
+   * @since 1.0.0
    */
   CLUSTERED_DOT_SPIRAL_5X5_LIGHT(() ->
     bayer(BayerDither.CLUSTERED_DOT_SPIRAL_5X5, BayerDither.CLUSTERED_DOT_SPIRAL_5X5_MAXIMUM, PixelMapper.MINIMUM_STRENGTH)
@@ -455,6 +569,8 @@ public enum DitheringArgument {
   /**
    * Clustered-dot ordered dithering with Ulichney's 5x5 spiral matrix at normal strength: dark areas grow in a
    * spiral to fill each 5x5 cell, 26 shades.
+   *
+   * @since 1.0.0
    */
   CLUSTERED_DOT_SPIRAL_5X5_NORMAL(() ->
     bayer(BayerDither.CLUSTERED_DOT_SPIRAL_5X5, BayerDither.CLUSTERED_DOT_SPIRAL_5X5_MAXIMUM, PixelMapper.NORMAL_STRENGTH)
@@ -463,6 +579,8 @@ public enum DitheringArgument {
   /**
    * Clustered-dot ordered dithering with Ulichney's 5x5 spiral matrix at heavy strength: bold, clearly visible
    * spiral cells.
+   *
+   * @since 1.0.0
    */
   CLUSTERED_DOT_SPIRAL_5X5_HEAVY(() ->
     bayer(BayerDither.CLUSTERED_DOT_SPIRAL_5X5, BayerDither.CLUSTERED_DOT_SPIRAL_5X5_MAXIMUM, PixelMapper.MAXIMUM_STRENGTH)
@@ -471,6 +589,8 @@ public enum DitheringArgument {
   /**
    * Clustered-dot ordered dithering with Ulichney's 6x6 horizontal line matrix at light strength. It clusters pixels
    * about horizontal lines, with 37 shades; faint at light strength.
+   *
+   * @since 1.0.0
    */
   CLUSTERED_DOT_HORIZONTAL_LINE_LIGHT(() ->
     bayer(BayerDither.CLUSTERED_DOT_HORIZONTAL_LINE, BayerDither.CLUSTERED_DOT_HORIZONTAL_LINE_MAXIMUM, PixelMapper.MINIMUM_STRENGTH)
@@ -479,6 +599,8 @@ public enum DitheringArgument {
   /**
    * Clustered-dot ordered dithering with Ulichney's 6x6 horizontal line matrix at normal strength: a line-screen
    * halftone of horizontal lines with 37 shades.
+   *
+   * @since 1.0.0
    */
   CLUSTERED_DOT_HORIZONTAL_LINE_NORMAL(() ->
     bayer(BayerDither.CLUSTERED_DOT_HORIZONTAL_LINE, BayerDither.CLUSTERED_DOT_HORIZONTAL_LINE_MAXIMUM, PixelMapper.NORMAL_STRENGTH)
@@ -487,6 +609,8 @@ public enum DitheringArgument {
   /**
    * Clustered-dot ordered dithering with Ulichney's 6x6 horizontal line matrix at heavy strength: bold, clearly
    * visible horizontal lines.
+   *
+   * @since 1.0.0
    */
   CLUSTERED_DOT_HORIZONTAL_LINE_HEAVY(() ->
     bayer(BayerDither.CLUSTERED_DOT_HORIZONTAL_LINE, BayerDither.CLUSTERED_DOT_HORIZONTAL_LINE_MAXIMUM, PixelMapper.MAXIMUM_STRENGTH)
@@ -495,6 +619,8 @@ public enum DitheringArgument {
   /**
    * Clustered-dot ordered dithering with the 6x6 vertical line matrix, the rotated
    * {@link #CLUSTERED_DOT_HORIZONTAL_LINE_LIGHT}, at light strength: faint vertical lines with 37 shades.
+   *
+   * @since 1.0.0
    */
   CLUSTERED_DOT_VERTICAL_LINE_LIGHT(() ->
     bayer(BayerDither.CLUSTERED_DOT_VERTICAL_LINE, BayerDither.CLUSTERED_DOT_VERTICAL_LINE_MAXIMUM, PixelMapper.MINIMUM_STRENGTH)
@@ -503,6 +629,8 @@ public enum DitheringArgument {
   /**
    * Clustered-dot ordered dithering with the 6x6 vertical line matrix at normal strength: a line-screen halftone of
    * vertical lines with 37 shades.
+   *
+   * @since 1.0.0
    */
   CLUSTERED_DOT_VERTICAL_LINE_NORMAL(() ->
     bayer(BayerDither.CLUSTERED_DOT_VERTICAL_LINE, BayerDither.CLUSTERED_DOT_VERTICAL_LINE_MAXIMUM, PixelMapper.NORMAL_STRENGTH)
@@ -511,6 +639,8 @@ public enum DitheringArgument {
   /**
    * Clustered-dot ordered dithering with the 6x6 vertical line matrix at heavy strength: bold, clearly visible
    * vertical lines.
+   *
+   * @since 1.0.0
    */
   CLUSTERED_DOT_VERTICAL_LINE_HEAVY(() ->
     bayer(BayerDither.CLUSTERED_DOT_VERTICAL_LINE, BayerDither.CLUSTERED_DOT_VERTICAL_LINE_MAXIMUM, PixelMapper.MAXIMUM_STRENGTH)
@@ -519,6 +649,8 @@ public enum DitheringArgument {
   /**
    * Clustered-dot ordered dithering with the diagonal 8x8 matrix at light strength. Its newspaper-like dots run at 45
    * degrees and it represents 65 shades; light strength keeps the dots faint.
+   *
+   * @since 1.0.0
    */
   CLUSTERED_DOT_DIAGONAL_8X8_LIGHT(() ->
     bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_MAXIMUM, PixelMapper.MINIMUM_STRENGTH)
@@ -527,6 +659,8 @@ public enum DitheringArgument {
   /**
    * Clustered-dot ordered dithering with the diagonal 8x8 matrix at normal strength: the best balance of the
    * clustered-dot patterns, a classic 45-degree newspaper halftone with 65 shades.
+   *
+   * @since 1.0.0
    */
   CLUSTERED_DOT_DIAGONAL_8X8_NORMAL(() ->
     bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_MAXIMUM, PixelMapper.NORMAL_STRENGTH)
@@ -535,13 +669,27 @@ public enum DitheringArgument {
   /**
    * Clustered-dot ordered dithering with the diagonal 8x8 matrix at heavy strength: bold, clearly visible 45-degree
    * halftone dots.
+   *
+   * @since 1.0.0
    */
   CLUSTERED_DOT_DIAGONAL_8X8_HEAVY(() ->
     bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_MAXIMUM, PixelMapper.MAXIMUM_STRENGTH)
   );
 
-  private static DitherAlgorithm bayer(final ThresholdMatrix matrix, final int max, final float strength) {
-    final PixelMapper mapper = PixelMapper.ofPixelMapper(matrix, max, strength);
+  private final AlgorithmFactory algorithmFactory;
+  private final boolean stateful;
+
+  DitheringArgument(final AlgorithmFactory algorithmFactory) {
+    this(algorithmFactory, false);
+  }
+
+  DitheringArgument(final AlgorithmFactory algorithmFactory, final boolean stateful) {
+    this.algorithmFactory = algorithmFactory;
+    this.stateful = stateful;
+  }
+
+  private static DitherAlgorithm bayer(final ThresholdMatrix matrix, final int maximum, final float strength) {
+    final PixelMapper mapper = PixelMapper.ofPixelMapper(matrix, maximum, strength);
     final OrderedDitherBuilder builder = DitherAlgorithm.ordered();
     builder.withDitherMatrix(mapper);
     return builder.build();
@@ -564,18 +712,6 @@ public enum DitheringArgument {
     return builder.build();
   }
 
-  private final AlgorithmFactory algorithmFactory;
-  private final boolean stateful;
-
-  DitheringArgument(final AlgorithmFactory algorithmFactory) {
-    this(algorithmFactory, false);
-  }
-
-  DitheringArgument(final AlgorithmFactory algorithmFactory, final boolean stateful) {
-    this.algorithmFactory = algorithmFactory;
-    this.stateful = stateful;
-  }
-
   /**
    * Creates the algorithm for one stream of frames, such as one map screen or one image.
    *
@@ -586,11 +722,13 @@ public enum DitheringArgument {
    * call returns that same instance.
    *
    * @return a new instance of a stateful algorithm, or the shared instance of a stateless one
+   * @since 1.0.0
    */
   public DitherAlgorithm createAlgorithm() {
     if (this.stateful) {
       return this.algorithmFactory.create();
     }
+
     return this.getSharedAlgorithm();
   }
 
@@ -606,30 +744,21 @@ public enum DitheringArgument {
       if (createdByAnotherThread != null) {
         return createdByAnotherThread;
       }
+
       final DitherAlgorithm created = this.algorithmFactory.create();
       SharedAlgorithms.ALGORITHMS.put(this, created);
+
       return created;
     }
   }
 
-  /**
-   * Creates the algorithm of a constant. The factories capture nothing, so every constant stays immutable.
-   */
   @Immutable
   @FunctionalInterface
   private interface AlgorithmFactory {
-    /**
-     * Creates a new instance of the algorithm.
-     *
-     * @return the algorithm
-     */
     DitherAlgorithm create();
   }
 
-  /**
-   * Holds the shared instances of the stateless algorithms, by their constant, once they were first used. They are
-   * kept here rather than in the constants, so the constants stay immutable.
-   */
+  // kept outside the constants, so they stay immutable
   private static final class SharedAlgorithms {
 
     private static final ConcurrentMap<DitheringArgument, DitherAlgorithm> ALGORITHMS = new ConcurrentHashMap<>();

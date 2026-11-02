@@ -41,14 +41,10 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.ItemFrame;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.mockito.invocation.InvocationOnMock;
 
-/**
- * A world of mocked blocks and entities with real coordinates, for code that walks from block to block and looks
- * for entities around them.
- *
- * <p>Every coordinate has exactly one block, so blocks can be compared by identity. Blocks remember the material
- * they were set to, and item frames remember the persistent data set on them.
- */
+// one block per coordinate, so blocks compare by identity
 public final class FakeWorld {
 
   private final World world;
@@ -57,9 +53,6 @@ public final class FakeWorld {
   private final List<Entity> entities;
   private final List<ItemFrame> spawnedFrames;
 
-  /**
-   * Creates an empty world.
-   */
   public FakeWorld() {
     this.world = mock(World.class);
     this.blocks = new HashMap<>();
@@ -67,69 +60,60 @@ public final class FakeWorld {
     this.entities = new ArrayList<>();
     this.spawnedFrames = new ArrayList<>();
     when(this.world.getName()).thenReturn("world");
-    when(this.world.getBlockAt(any(Location.class))).thenAnswer(invocation -> {
-      final Location location = invocation.getArgument(0);
-      final int blockX = location.getBlockX();
-      final int blockY = location.getBlockY();
-      final int blockZ = location.getBlockZ();
-      return this.block(blockX, blockY, blockZ);
-    });
-    when(this.world.getBlockAt(anyInt(), anyInt(), anyInt())).thenAnswer(invocation -> {
-      final int blockX = invocation.getArgument(0);
-      final int blockY = invocation.getArgument(1);
-      final int blockZ = invocation.getArgument(2);
-      return this.block(blockX, blockY, blockZ);
-    });
-    when(this.world.getNearbyEntities(any(Location.class), anyDouble(), anyDouble(), anyDouble())).thenAnswer(invocation -> {
-      final Location center = invocation.getArgument(0);
-      final double radiusX = invocation.getArgument(1);
-      final double radiusY = invocation.getArgument(2);
-      final double radiusZ = invocation.getArgument(3);
-      return this.findNearbyEntities(center, radiusX, radiusY, radiusZ);
-    });
-    when(this.world.spawn(any(Location.class), eq(ItemFrame.class))).thenAnswer(invocation -> {
-      final Location location = invocation.getArgument(0);
-      final ItemFrame frame = this.frame(location, BlockFace.SOUTH);
-      this.spawnedFrames.add(frame);
-      return frame;
-    });
+    when(this.world.getBlockAt(any(Location.class))).thenAnswer(this::findBlockAtLocation);
+    when(this.world.getBlockAt(anyInt(), anyInt(), anyInt())).thenAnswer(this::findBlockAtCoordinates);
+    when(this.world.getNearbyEntities(any(Location.class), anyDouble(), anyDouble(), anyDouble())).thenAnswer(
+      this::findEntitiesNearLocation
+    );
+    when(this.world.spawn(any(Location.class), eq(ItemFrame.class))).thenAnswer(this::spawnFrame);
   }
 
-  /**
-   * Gets the mocked world.
-   *
-   * @return the world
-   */
+  private Block findBlockAtLocation(final InvocationOnMock invocation) {
+    final Location location = invocation.getArgument(0);
+    final int blockX = location.getBlockX();
+    final int blockY = location.getBlockY();
+    final int blockZ = location.getBlockZ();
+    return this.block(blockX, blockY, blockZ);
+  }
+
+  private Block findBlockAtCoordinates(final InvocationOnMock invocation) {
+    final int blockX = invocation.getArgument(0);
+    final int blockY = invocation.getArgument(1);
+    final int blockZ = invocation.getArgument(2);
+    return this.block(blockX, blockY, blockZ);
+  }
+
+  private Collection<Entity> findEntitiesNearLocation(final InvocationOnMock invocation) {
+    final Location center = invocation.getArgument(0);
+    final double radiusX = invocation.getArgument(1);
+    final double radiusY = invocation.getArgument(2);
+    final double radiusZ = invocation.getArgument(3);
+    return this.findNearbyEntities(center, radiusX, radiusY, radiusZ);
+  }
+
+  private ItemFrame spawnFrame(final InvocationOnMock invocation) {
+    final Location location = invocation.getArgument(0);
+    final ItemFrame frame = this.frame(location, BlockFace.SOUTH);
+    this.spawnedFrames.add(frame);
+
+    return frame;
+  }
+
   public World world() {
     return this.world;
   }
 
-  /**
-   * Creates a location in this world.
-   *
-   * @param positionX the x coordinate
-   * @param positionY the y coordinate
-   * @param positionZ the z coordinate
-   * @return the location
-   */
   public Location location(final double positionX, final double positionY, final double positionZ) {
     return new Location(this.world, positionX, positionY, positionZ);
   }
 
-  /**
-   * Gets the block at a position.
-   *
-   * @param blockX the x coordinate
-   * @param blockY the y coordinate
-   * @param blockZ the z coordinate
-   * @return the block, the same instance for the same position
-   */
   public Block block(final int blockX, final int blockY, final int blockZ) {
     final List<Integer> key = List.of(blockX, blockY, blockZ);
     final Block existing = this.blocks.get(key);
     if (existing != null) {
       return existing;
     }
+
     final Block block = mock(Block.class);
     this.blocks.put(key, block);
     when(block.getX()).thenReturn(blockX);
@@ -137,24 +121,34 @@ public final class FakeWorld {
     when(block.getZ()).thenReturn(blockZ);
     when(block.getWorld()).thenReturn(this.world);
     when(block.getLocation()).thenAnswer(_ -> this.location(blockX, blockY, blockZ));
-    when(block.getRelative(any(BlockFace.class))).thenAnswer(invocation -> {
-      final BlockFace face = invocation.getArgument(0);
-      return this.relative(blockX, blockY, blockZ, face, 1);
-    });
-    when(block.getRelative(any(BlockFace.class), anyInt())).thenAnswer(invocation -> {
-      final BlockFace face = invocation.getArgument(0);
-      final int distance = invocation.getArgument(1);
-      return this.relative(blockX, blockY, blockZ, face, distance);
-    });
+    when(block.getRelative(any(BlockFace.class))).thenAnswer(invocation -> this.findRelativeBlock(invocation, blockX, blockY, blockZ));
+    when(block.getRelative(any(BlockFace.class), anyInt())).thenAnswer(invocation ->
+      this.findRelativeBlockAtDistance(invocation, blockX, blockY, blockZ)
+    );
     when(block.getType()).thenAnswer(_ -> this.materials.getOrDefault(block, Material.AIR));
-    doAnswer(invocation -> {
-      final Material material = invocation.getArgument(0);
-      this.materials.put(block, material);
-      return null;
-    })
+    doAnswer(invocation -> this.setMaterial(invocation, block))
       .when(block)
       .setType(any(Material.class));
+
     return block;
+  }
+
+  private Block findRelativeBlock(final InvocationOnMock invocation, final int blockX, final int blockY, final int blockZ) {
+    final BlockFace face = invocation.getArgument(0);
+    return this.relative(blockX, blockY, blockZ, face, 1);
+  }
+
+  private Block findRelativeBlockAtDistance(final InvocationOnMock invocation, final int blockX, final int blockY, final int blockZ) {
+    final BlockFace face = invocation.getArgument(0);
+    final int distance = invocation.getArgument(1);
+    return this.relative(blockX, blockY, blockZ, face, distance);
+  }
+
+  private @Nullable Object setMaterial(final InvocationOnMock invocation, final Block block) {
+    final Material material = invocation.getArgument(0);
+    this.materials.put(block, material);
+
+    return null;
   }
 
   private Block relative(final int blockX, final int blockY, final int blockZ, final BlockFace face, final int distance) {
@@ -164,55 +158,24 @@ public final class FakeWorld {
     return this.block(blockX + offsetX * distance, blockY + offsetY * distance, blockZ + offsetZ * distance);
   }
 
-  /**
-   * Gets the material a block was set to.
-   *
-   * @param blockX the x coordinate
-   * @param blockY the y coordinate
-   * @param blockZ the z coordinate
-   * @return the material, {@link Material#AIR} if it was never set
-   */
   public Material material(final int blockX, final int blockY, final int blockZ) {
     final Block block = this.block(blockX, blockY, blockZ);
     return this.materials.getOrDefault(block, Material.AIR);
   }
 
-  /**
-   * Counts the blocks whose material was set.
-   *
-   * @return the number of blocks
-   */
   public int changedBlocks() {
     return this.materials.size();
   }
 
-  /**
-   * Creates an item frame without adding it to the world.
-   *
-   * @param location where the frame is
-   * @param facing   the direction the front of the frame faces
-   * @return the frame
-   */
   public ItemFrame frame(final Location location, final BlockFace facing) {
     final ItemFrame frame = mock(ItemFrame.class);
     final Map<NamespacedKey, Object> data = new HashMap<>();
     final PersistentDataContainer container = mock(PersistentDataContainer.class);
-    doAnswer(invocation -> {
-      final NamespacedKey key = invocation.getArgument(0);
-      final Object value = invocation.getArgument(2);
-      data.put(key, value);
-      return null;
-    })
+    doAnswer(invocation -> this.storeData(invocation, data))
       .when(container)
       .set(any(NamespacedKey.class), any(), any());
-    when(container.has(any(NamespacedKey.class), eq(PersistentDataType.BOOLEAN))).thenAnswer(invocation -> {
-      final NamespacedKey key = invocation.getArgument(0);
-      return data.containsKey(key);
-    });
-    when(container.get(any(NamespacedKey.class), eq(PersistentDataType.STRING))).thenAnswer(invocation -> {
-      final NamespacedKey key = invocation.getArgument(0);
-      return data.get(key);
-    });
+    when(container.has(any(NamespacedKey.class), eq(PersistentDataType.BOOLEAN))).thenAnswer(invocation -> this.hasData(invocation, data));
+    when(container.get(any(NamespacedKey.class), eq(PersistentDataType.STRING))).thenAnswer(invocation -> this.readData(invocation, data));
     when(frame.getPersistentDataContainer()).thenReturn(container);
     when(frame.getLocation()).thenAnswer(_ -> location.clone());
     when(frame.getWorld()).thenReturn(this.world);
@@ -220,17 +183,28 @@ public final class FakeWorld {
     final BlockFace attached = facing.getOppositeFace();
     when(frame.getAttachedFace()).thenReturn(attached);
     when(frame.getRotation()).thenReturn(Rotation.NONE);
+
     return frame;
   }
 
-  /**
-   * Creates an item frame of a map screen and adds it to the world.
-   *
-   * @param location where the frame is
-   * @param facing   the direction the front of the frame faces
-   * @param keys     the tags of the frame, such as {@link me.brandonli.mcav.plugin.utils.Keys#MAP_KEY}
-   * @return the frame
-   */
+  private @Nullable Object storeData(final InvocationOnMock invocation, final Map<NamespacedKey, Object> data) {
+    final NamespacedKey key = invocation.getArgument(0);
+    final Object value = invocation.getArgument(2);
+    data.put(key, value);
+
+    return null;
+  }
+
+  private boolean hasData(final InvocationOnMock invocation, final Map<NamespacedKey, Object> data) {
+    final NamespacedKey key = invocation.getArgument(0);
+    return data.containsKey(key);
+  }
+
+  private @Nullable Object readData(final InvocationOnMock invocation, final Map<NamespacedKey, Object> data) {
+    final NamespacedKey key = invocation.getArgument(0);
+    return data.get(key);
+  }
+
   public ItemFrame addFrame(final Location location, final BlockFace facing, final NamespacedKey... keys) {
     final ItemFrame frame = this.frame(location, facing);
     final PersistentDataContainer container = frame.getPersistentDataContainer();
@@ -238,34 +212,19 @@ public final class FakeWorld {
       container.set(key, PersistentDataType.BOOLEAN, true);
     }
     this.entities.add(frame);
+
     return frame;
   }
 
-  /**
-   * Adds an entity to the world.
-   *
-   * @param entity the entity, whose location must be mocked
-   */
+  // the entity's location must be mocked
   public void addEntity(final Entity entity) {
     this.entities.add(entity);
   }
 
-  /**
-   * Gets the item frames spawned through {@link World#spawn(Location, Class)}, in order.
-   *
-   * @return the frames
-   */
   public List<ItemFrame> spawnedFrames() {
     return this.spawnedFrames;
   }
 
-  /**
-   * Checks whether an item frame has a tag.
-   *
-   * @param frame the frame
-   * @param key   the tag
-   * @return true if the tag was set
-   */
   public static boolean hasTag(final ItemFrame frame, final NamespacedKey key) {
     final PersistentDataContainer container = frame.getPersistentDataContainer();
     return container.has(key, PersistentDataType.BOOLEAN);
@@ -275,7 +234,7 @@ public final class FakeWorld {
     final List<Entity> nearby = new ArrayList<>();
     for (final Entity entity : this.entities) {
       final Location location = entity.getLocation();
-      final boolean near = isWithin(location, center, radiusX, radiusY, radiusZ);
+      final boolean near = this.isWithin(location, center, radiusX, radiusY, radiusZ);
       if (near) {
         nearby.add(entity);
       }
@@ -283,7 +242,7 @@ public final class FakeWorld {
     return nearby;
   }
 
-  private static boolean isWithin(
+  private boolean isWithin(
     final Location location,
     final Location center,
     final double radiusX,

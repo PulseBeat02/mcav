@@ -48,14 +48,14 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
-/**
- * Tests {@link ImageEntityCommand}.
- */
 final class ImageEntityCommandTest {
 
   private static final String RESOLUTION = "32x16";
   private static final String CHARACTER = "@";
   private static final String MRL = "picture.png";
+
+  private static final int RESOLUTION_WIDTH = 32;
+  private static final int RESOLUTION_HEIGHT = 16;
 
   private ImageEntityCommand command;
   private MultiplePlayerSelector selector;
@@ -84,29 +84,8 @@ final class ImageEntityCommandTest {
     this.location = world.location(5.0, 70.0, -5.0);
   }
 
-  private AbstractImageCommand.ImageConfigurationProvider captureProvider() {
-    final ArgumentCaptor<AbstractImageCommand.ImageConfigurationProvider> providers = ArgumentCaptor.forClass(
-      AbstractImageCommand.ImageConfigurationProvider.class
-    );
-    verify(this.command).displayImage(providers.capture(), eq(this.sender), eq(RESOLUTION), eq(MRL), isNull());
-    return providers.getValue();
-  }
-
-  private EntityConfiguration createImage(final AbstractImageCommand.ImageConfigurationProvider provider) {
-    final Pair<Integer, Integer> resolution = Pair.pair(32, 16);
-    final DisplayableImage display = mock(DisplayableImage.class);
-    final ArgumentCaptor<EntityConfiguration> configurations = ArgumentCaptor.forClass(EntityConfiguration.class);
-    try (final MockedStatic<DisplayableImage> displays = Mockito.mockStatic(DisplayableImage.class)) {
-      displays.when(() -> DisplayableImage.entity(any())).thenReturn(display);
-      final DisplayableImage created = this.command.createImage(resolution, provider);
-      assertSame(display, created);
-      displays.verify(() -> DisplayableImage.entity(configurations.capture()));
-    }
-    return configurations.getValue();
-  }
-
   @Test
-  void showsTheImageAsTextEntitiesToTheSelectedPlayers() {
+  void shouldShowTheImageAsTextEntitiesToTheSelectedPlayers() {
     this.command.showImage(this.sender, this.selector, RESOLUTION, CHARACTER, this.location, MRL, null);
     final AbstractImageCommand.ImageConfigurationProvider provider = this.captureProvider();
     final EntityConfiguration configuration = this.createImage(provider);
@@ -119,16 +98,38 @@ final class ImageEntityCommandTest {
     final String character = configuration.getCharacter();
     final Location position = configuration.getPosition();
     assertEquals(expectedViewers, viewerList);
-    assertEquals(32, width);
-    assertEquals(16, height);
+    assertEquals(RESOLUTION_WIDTH, width);
+    assertEquals(RESOLUTION_HEIGHT, height);
     assertEquals(CHARACTER, character);
     assertEquals(this.location, position);
   }
 
+  private AbstractImageCommand.ImageConfigurationProvider captureProvider() {
+    final ArgumentCaptor<AbstractImageCommand.ImageConfigurationProvider> providers = ArgumentCaptor.forClass(
+      AbstractImageCommand.ImageConfigurationProvider.class
+    );
+    verify(this.command).displayImage(providers.capture(), eq(this.sender), eq(RESOLUTION), eq(MRL), isNull());
+
+    return providers.getValue();
+  }
+
+  private EntityConfiguration createImage(final AbstractImageCommand.ImageConfigurationProvider provider) {
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
+    final DisplayableImage display = mock(DisplayableImage.class);
+    final ArgumentCaptor<EntityConfiguration> configurations = ArgumentCaptor.forClass(EntityConfiguration.class);
+    try (final MockedStatic<DisplayableImage> displays = Mockito.mockStatic(DisplayableImage.class)) {
+      displays.when(() -> DisplayableImage.entity(any())).thenReturn(display);
+      final DisplayableImage created = this.command.createImage(resolution, provider);
+      assertSame(display, created);
+      displays.verify(() -> DisplayableImage.entity(configurations.capture()));
+    }
+    return configurations.getValue();
+  }
+
   @Test
-  void refusesNullArguments() {
+  void shouldRefuseNullArguments() {
     final AbstractImageCommand.ImageConfigurationProvider provider = _ -> "configuration";
-    final Pair<Integer, Integer> resolution = Pair.pair(32, 16);
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
     final Location position = this.location;
     assertThrows(NullPointerException.class, () -> this.command.showImage(null, this.selector, RESOLUTION, CHARACTER, position, MRL, null));
     assertThrows(NullPointerException.class, () -> this.command.showImage(this.sender, null, RESOLUTION, CHARACTER, position, MRL, null));

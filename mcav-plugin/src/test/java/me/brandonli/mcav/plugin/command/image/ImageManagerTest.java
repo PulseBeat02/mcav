@@ -39,9 +39,6 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-/**
- * Tests {@link ImageManager}.
- */
 final class ImageManagerTest {
 
   private ImageManager manager;
@@ -64,6 +61,19 @@ final class ImageManagerTest {
     this.manager.shutdown();
   }
 
+  @Test
+  void shouldReleaseEverythingOnceWhenForced() {
+    this.fill();
+    this.manager.releaseImage(ReleaseThread.CALLING_THREAD);
+    this.manager.releaseImage(ReleaseThread.CALLING_THREAD);
+    verify(this.display, times(1)).release();
+    verify(this.image, times(1)).close();
+    verify(this.player, times(1)).release();
+
+    final int pending = TestServer.runPendingTasks();
+    assertEquals(0, pending);
+  }
+
   private void fill() {
     this.manager.setPlayer(this.player);
     this.manager.setImage(this.display);
@@ -71,22 +81,11 @@ final class ImageManagerTest {
   }
 
   @Test
-  void releasesEverythingOnceWhenForced() {
+  void shouldReleaseOnTheMainThreadWhenNotForced() {
     this.fill();
-    this.manager.releaseImage(true);
-    this.manager.releaseImage(true);
-    verify(this.display, times(1)).release();
-    verify(this.image, times(1)).close();
-    verify(this.player, times(1)).release();
-    final int pending = TestServer.runPendingTasks();
-    assertEquals(0, pending);
-  }
-
-  @Test
-  void releasesOnTheMainThreadWhenNotForced() {
-    this.fill();
-    this.manager.releaseImage(false);
+    this.manager.releaseImage(ReleaseThread.MAIN_THREAD);
     verify(this.display, never()).release();
+
     final int pending = TestServer.runPendingTasks();
     assertEquals(1, pending);
     verify(this.display).release();
@@ -95,43 +94,48 @@ final class ImageManagerTest {
   }
 
   @Test
-  void releasesNothingWhenEmpty() {
-    this.manager.releaseImage(true);
+  void shouldReleaseNothingWhenEmpty() {
+    this.manager.releaseImage(ReleaseThread.CALLING_THREAD);
     this.manager.setImage(this.display);
-    this.manager.releaseImage(true);
+    this.manager.releaseImage(ReleaseThread.CALLING_THREAD);
     verify(this.display).release();
   }
 
   @Test
-  void forgetsAnImageThatFailedToClose() {
+  void shouldForgetAnImageThatFailedToClose() {
     this.fill();
-    final IllegalStateException failure = new IllegalStateException("already closed");
+    final IllegalStateException failure = new IllegalStateException("already closed!");
     doThrow(failure).when(this.image).close();
-    final IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> this.manager.releaseImage(true));
+    final IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
+      this.manager.releaseImage(ReleaseThread.CALLING_THREAD)
+    );
     assertEquals(failure, thrown);
     verify(this.player, times(1)).release();
-    this.manager.releaseImage(true);
+
+    this.manager.releaseImage(ReleaseThread.CALLING_THREAD);
     verify(this.image, times(1)).close();
     verify(this.display, times(1)).release();
     verify(this.player, times(1)).release();
   }
 
   @Test
-  void stopsItsWorkerWhenShutDown() {
+  void shouldStopItsWorkerWhenShutDown() {
     this.fill();
     this.manager.shutdown();
     verify(this.display).release();
+
     final ExecutorService service = this.manager.getService();
     final boolean isShutdown = service.isShutdown();
     assertTrue(isShutdown);
   }
 
   @Test
-  void rejectsALoadThatFinishesAfterShutdownOrClear() {
+  void shouldRejectALoadThatFinishesAfterShutdownOrClear() {
     final long beforeClear = this.manager.beginLoad();
-    this.manager.releaseImage(true);
+    this.manager.releaseImage(ReleaseThread.CALLING_THREAD);
     final boolean retainedAfterClear = this.manager.retainLoaded(beforeClear, this.image);
     assertFalse(retainedAfterClear);
+
     final long beforeShutdown = this.manager.beginLoad();
     this.manager.shutdown();
     final boolean retainedAfterShutdown = this.manager.retainLoaded(beforeShutdown, this.image);
@@ -140,52 +144,72 @@ final class ImageManagerTest {
   }
 
   @Test
-  void shutsDownTheWorkerEvenWhenDisplayCleanupFails() {
+  void shouldShutDownTheWorkerEvenWhenDisplayCleanupFails() {
     this.fill();
-    final IllegalStateException failure = new IllegalStateException("display cleanup failed");
+    final IllegalStateException failure = new IllegalStateException("display cleanup failed!");
     doThrow(failure).when(this.display).release();
     final IllegalStateException thrown = assertThrows(IllegalStateException.class, this.manager::shutdown);
     assertEquals(failure, thrown);
     verify(this.image).close();
     verify(this.player).release();
+
     final ExecutorService service = this.manager.getService();
     final boolean stopped = service.isShutdown();
     assertTrue(stopped);
   }
 
   @Test
-  void discardingAnOldRequestCannotReleaseTheNewRequestsImage() {
+  void shouldNotReleaseTheNewRequestsImageWhenDiscardingAnOldRequest() {
     final long oldRequest = this.manager.beginLoad();
     final long newRequest = this.manager.beginLoad();
     final boolean retained = this.manager.retainLoaded(newRequest, this.image);
     assertTrue(retained);
+
     this.manager.discardLoaded(oldRequest);
     verify(this.image, never()).release();
+
     this.manager.discardLoaded(newRequest);
     verify(this.image, times(1)).release();
+
     this.manager.discardLoaded(newRequest);
     verify(this.image, times(1)).release();
   }
 
   @Test
-  void cancellationAndReplacementNeverReviveAnOlderLoadToken() {
+  void shouldNeverReviveAnOlderLoadTokenOnCancellationAndReplacement() {
     final long oldest = this.manager.beginLoad();
     final long replaced = this.manager.beginLoad();
-    this.manager.releaseImage(true);
+    this.manager.releaseImage(ReleaseThread.CALLING_THREAD);
     final boolean oldestAccepted = this.manager.retainLoaded(oldest, this.image);
     final boolean replacedAccepted = this.manager.retainLoaded(replaced, this.image);
     assertFalse(oldestAccepted);
     assertFalse(replacedAccepted);
+
     final long current = this.manager.beginLoad();
-    assertFalse(this.manager.retainLoaded(oldest, this.image));
-    assertFalse(this.manager.retainLoaded(replaced, this.image));
-    assertTrue(this.manager.retainLoaded(current, this.image));
+
+    final boolean retained = this.manager.retainLoaded(oldest, this.image);
+    assertFalse(retained);
+
+    final boolean managerRetained = this.manager.retainLoaded(replaced, this.image);
+    assertFalse(managerRetained);
+
+    final boolean secondRetained = this.manager.retainLoaded(current, this.image);
+    assertTrue(secondRetained);
+
     final ImageBuffer taken = this.manager.takeLoaded(current);
     Assertions.assertSame(this.image, taken);
   }
 
   @Test
-  void refusesANullPlugin() {
+  void shouldRejectANullReleaseThread() {
+    final NullPointerException exception = assertThrows(NullPointerException.class, () -> this.manager.releaseImage(null));
+
+    final String message = exception.getMessage();
+    assertEquals("Release thread must not be null!", message);
+  }
+
+  @Test
+  void shouldRefuseANullPlugin() {
     assertThrows(NullPointerException.class, () -> new ImageManager(null));
   }
 }

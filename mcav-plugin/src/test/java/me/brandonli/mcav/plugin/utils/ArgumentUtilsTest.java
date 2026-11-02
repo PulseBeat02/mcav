@@ -26,6 +26,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import me.brandonli.mcav.plugin.listener.OnlinePlayers;
 import me.brandonli.mcav.plugin.testing.UtilityClassAssertions;
@@ -36,13 +37,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-/**
- * Tests {@link ArgumentUtils}.
- */
 final class ArgumentUtilsTest {
 
   @Test
-  void parsesWidthAndHeight() {
+  void shouldParseWidthAndHeight() {
     final Pair<Integer, Integer> dimensions = ArgumentUtils.parseDimensions("16x9");
     final int width = dimensions.getFirst();
     final int height = dimensions.getSecond();
@@ -51,7 +49,7 @@ final class ArgumentUtilsTest {
   }
 
   @Test
-  void acceptsTheSmallestDimensions() {
+  void shouldAcceptTheSmallestDimensions() {
     final Pair<Integer, Integer> dimensions = ArgumentUtils.parseDimensions("1x1");
     final int width = dimensions.getFirst();
     final int height = dimensions.getSecond();
@@ -60,45 +58,48 @@ final class ArgumentUtilsTest {
   }
 
   @Test
-  void rejectsTextWithoutSeparator() {
+  void shouldRejectTextWithoutSeparator() {
     final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> ArgumentUtils.parseDimensions("128"));
+
     final String message = exception.getMessage();
-    assertEquals("Invalid dimensions format: 128", message);
+    assertEquals("Dimensions 128 have an invalid format!", message);
   }
 
   @ParameterizedTest
   @ValueSource(strings = { "0x5", "5x0", "-1x5", "5x-1", "0x0" })
-  void rejectsSidesThatAreNotPositive(final String text) {
+  void shouldRejectSidesThatAreNotPositive(final String text) {
     final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> ArgumentUtils.parseDimensions(text));
+
     final String message = exception.getMessage();
-    assertEquals("Dimensions must be positive integers: " + text, message);
+    assertEquals("Dimensions " + text + " must be positive integers!", message);
   }
 
   @ParameterizedTest
   @ValueSource(strings = { "ax5", "5xb", "4x4x4", "x5", "5x", "", "16X9" })
-  void rejectsSidesThatAreNotNumbers(final String text) {
+  void shouldRejectSidesThatAreNotNumbers(final String text) {
     assertThrows(IllegalArgumentException.class, () -> ArgumentUtils.parseDimensions(text));
   }
 
   @Test
-  void acceptsTheLargestSides() {
+  void shouldAcceptTheLargestSides() {
     final Pair<Integer, Integer> dimensions = ArgumentUtils.parseDimensions("8192x8192");
     final int width = dimensions.getFirst();
     final int height = dimensions.getSecond();
-    assertEquals(ArgumentUtils.MAX_SIDE, width);
-    assertEquals(ArgumentUtils.MAX_SIDE, height);
+    assertEquals(ArgumentUtils.MAXIMUM_SIDE, width);
+    assertEquals(ArgumentUtils.MAXIMUM_SIDE, height);
   }
 
   @ParameterizedTest
   @ValueSource(strings = { "8193x1", "1x8193", "100000x100000", "2147483647x2147483647" })
-  void rejectsSidesLargerThanTheLimit(final String text) {
+  void shouldRejectSidesLargerThanTheLimit(final String text) {
     final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> ArgumentUtils.parseDimensions(text));
+
     final String message = exception.getMessage();
-    assertEquals("Dimensions must be at most 8192 on each side: " + text, message);
+    assertEquals("Dimensions " + text + " must be at most 8192 on each side!", message);
   }
 
   @Test
-  void acceptsTheLargestWall() {
+  void shouldAcceptTheLargestWall() {
     final Pair<Integer, Integer> dimensions = ArgumentUtils.parseScreenDimensions("64x64");
     final int width = dimensions.getFirst();
     final int height = dimensions.getSecond();
@@ -110,22 +111,23 @@ final class ArgumentUtilsTest {
 
   @ParameterizedTest
   @ValueSource(strings = { "65x1", "1x65", "65x65", "8192x1" })
-  void rejectsWallsWiderOrTallerThanTheLimit(final String text) {
+  void shouldRejectWallsWiderOrTallerThanTheLimit(final String text) {
     final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
       ArgumentUtils.parseScreenDimensions(text)
     );
+
     final String message = exception.getMessage();
-    assertEquals("A wall may be at most 64 maps on each side: " + text, message);
+    assertEquals("Wall " + text + " may be at most 64 maps on each side!", message);
   }
 
   @ParameterizedTest
   @ValueSource(strings = { "100000x100000", "0x5", "5", "ax5" })
-  void rejectsWallsThatAreNoValidDimensions(final String text) {
+  void shouldRejectWallsThatAreNoValidDimensions(final String text) {
     assertThrows(IllegalArgumentException.class, () -> ArgumentUtils.parseScreenDimensions(text));
   }
 
   @Test
-  void collectsTheIdsOfTheSelectedPlayers() {
+  void shouldCollectTheIdsOfTheSelectedPlayers() {
     final UUID firstId = UUID.randomUUID();
     final UUID secondId = UUID.randomUUID();
     final Player first = mock(Player.class);
@@ -141,7 +143,7 @@ final class ArgumentUtilsTest {
   }
 
   @Test
-  void collectsNothingForAnEmptySelection() {
+  void shouldCollectNothingForAnEmptySelection() {
     final MultiplePlayerSelector selector = mock(MultiplePlayerSelector.class);
     final List<Player> players = List.of();
     when(selector.values()).thenReturn(players);
@@ -151,15 +153,18 @@ final class ArgumentUtilsTest {
   }
 
   @Test
-  void theViewersOfEveryoneFollowThePlayersOnline() {
+  void shouldLetTheViewersOfEveryoneFollowThePlayersOnline() {
     final OnlinePlayers online = new OnlinePlayers();
     final MultiplePlayerSelector everyone = mock(MultiplePlayerSelector.class);
     when(everyone.inputString()).thenReturn("@a");
-    assertSame(online.getPlayers(), ArgumentUtils.parseViewers(everyone, online));
+
+    final Set<UUID> expected = online.getPlayers();
+    final Collection<UUID> viewers = ArgumentUtils.parseViewers(everyone, online);
+    assertSame(expected, viewers);
   }
 
   @Test
-  void theViewersOfAnyOtherSelectorAreThePlayersItMatchesNow() {
+  void shouldMakeTheViewersOfAnyOtherSelectorThePlayersItMatchesNow() {
     final UUID id = UUID.randomUUID();
     final Player player = mock(Player.class);
     when(player.getUniqueId()).thenReturn(id);
@@ -167,12 +172,14 @@ final class ArgumentUtilsTest {
       final MultiplePlayerSelector selector = mock(MultiplePlayerSelector.class);
       when(selector.inputString()).thenReturn(input);
       when(selector.values()).thenReturn(List.of(player));
-      assertEquals(List.of(id), ArgumentUtils.parseViewers(selector, new OnlinePlayers()), input);
+
+      final Collection<UUID> viewers = ArgumentUtils.parseViewers(selector, new OnlinePlayers());
+      assertEquals(List.of(id), viewers, input);
     }
   }
 
   @Test
-  void refusesNullArguments() {
+  void shouldRefuseNullArguments() {
     assertThrows(NullPointerException.class, () -> ArgumentUtils.parseDimensions(null));
     assertThrows(NullPointerException.class, () -> ArgumentUtils.parseScreenDimensions(null));
     assertThrows(NullPointerException.class, () -> ArgumentUtils.parsePlayerSelectors(null));
@@ -181,7 +188,7 @@ final class ArgumentUtilsTest {
   }
 
   @Test
-  void isNotInstantiable() {
+  void shouldNotBeInstantiable() {
     UtilityClassAssertions.assertNotInstantiable(ArgumentUtils.class);
   }
 }

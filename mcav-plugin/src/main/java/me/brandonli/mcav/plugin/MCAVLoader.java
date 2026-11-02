@@ -32,7 +32,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -56,10 +55,18 @@ import xyz.jpenilla.gremlin.runtime.platformsupport.PaperClasspathAppender;
  * plugin's code lack classes it uses. The build lists those classes in {@value #REQUIRED_CLASSES}, and the loader
  * refuses to start the plugin with a message saying so when a downloaded module lacks one, where the server would
  * otherwise fail on the first missing class.
+ *
+ * <p>The loader runs before the downloaded modules are on the classpath, so it reports failures with JDK exceptions
+ * instead of {@link PluginException}, whose superclass {@code MCAVException} comes from one of those modules.
+ *
+ * <p>This class is immutable and thread-safe.
+ *
+ * @since 1.0.0
  */
 public final class MCAVLoader implements PluginLoader {
 
-  /** The classes of the downloaded modules that the plugin's code uses, one internal name per line, from the build. */
+  private static final Logger GREMLIN_LOGGER = LoggerFactory.getLogger("Gremlin");
+
   private static final String REQUIRED_CLASSES = "META-INF/mcav/required-classes.txt";
 
   private static final String DEPENDENCIES_RESOURCE = "mcav/plugin/dependencies.txt";
@@ -68,97 +75,87 @@ public final class MCAVLoader implements PluginLoader {
 
   private static final int NAMED_MISSING = 5;
 
+  private static final String LIBRARIES_DIRECTORY = "libraries/mcav";
+
+  private static final char PATH_SEPARATOR = '/';
+  private static final char PACKAGE_SEPARATOR = '.';
+
+  private static final String NAME_SEPARATOR = ", ";
+
   private final Path libraries;
 
   private final List<String> requiredClasses;
 
   /**
    * Constructs the loader. Paper creates it for you.
+   *
+   * @since 1.0.0
    */
   public MCAVLoader() {
-    this(Path.of("libraries/mcav"), readRequiredClasses(requireNonNull(MCAVLoader.class.getClassLoader())));
+    this(Path.of(LIBRARIES_DIRECTORY), readRequiredClasses(requireNonNull(MCAVLoader.class.getClassLoader())));
   }
 
-  /**
-   * Constructs a loader that caches the libraries in another folder and checks the downloaded modules for other classes.
-   *
-   * @param libraries       the cache folder
-   * @param requiredClasses the classes, by internal name, the downloaded modules must have
-   */
   @VisibleForTesting
   MCAVLoader(final Path libraries, final Collection<String> requiredClasses) {
     this.libraries = libraries;
     this.requiredClasses = List.copyOf(requiredClasses);
   }
 
-  /**
-   * Reads the classes the plugin's code uses from the downloaded modules, as the build listed them.
-   *
-   * @param classLoader the class loader of the plugin
-   * @return the classes by internal name; none when the plugin was built without the list
-   * @throws UncheckedIOException if the list cannot be read
-   */
   @VisibleForTesting
   static List<String> readRequiredClasses(final ClassLoader classLoader) {
     final InputStream list = classLoader.getResourceAsStream(REQUIRED_CLASSES);
     if (list == null) {
       return List.of();
     }
+
     try (list) {
       return new String(list.readAllBytes(), StandardCharsets.UTF_8)
         .lines()
         .filter(line -> !line.isBlank())
         .toList();
     } catch (final IOException exception) {
-      throw new UncheckedIOException("Cannot read the classes the plugin needs from its modules", exception);
+      throw new UncheckedIOException("Cannot read the classes the plugin needs from its modules!", exception);
     }
   }
 
-  /**
-   * Checks that downloaded jars hold every class the plugin needs from them.
-   *
-   * @param requiredClasses the classes, by internal name
-   * @param jars            the downloaded jars
-   * @throws IllegalStateException if a class is in none of the jars: the modules are older than the plugin
-   * @throws UncheckedIOException  if a jar cannot be read
-   */
   @VisibleForTesting
   static void checkModules(final Collection<String> requiredClasses, final Collection<Path> jars) {
+    final Set<String> entries = listEntries(jars);
+    final List<String> missing = findMissing(requiredClasses, entries);
+    if (!missing.isEmpty()) {
+      final int count = missing.size();
+      final List<String> named = missing.subList(0, Math.min(NAMED_MISSING, count));
+      final String names = String.join(NAME_SEPARATOR, named);
+      final String message =
+        "The mcav modules the server downloaded are older than this plugin, which uses classes they lack (%s), such as %s. Publish the modules of the plugin's own version, or set -Pmcav.e2e=true when you build the plugin!".formatted(
+          count,
+          names
+        );
+      throw new IllegalStateException(message);
+    }
+  }
+
+  private static Set<String> listEntries(final Collection<Path> jars) {
     final Set<String> entries = new HashSet<>();
     for (final Path jar : jars) {
       try (final ZipFile file = new ZipFile(jar.toFile())) {
         file.stream().map(ZipEntry::getName).forEach(entries::add);
       } catch (final IOException exception) {
-        throw new UncheckedIOException("Cannot read the downloaded library " + jar, exception);
+        final String message = "Downloaded library %s could not be read!".formatted(jar);
+        throw new UncheckedIOException(message, exception);
       }
     }
+    return entries;
+  }
+
+  private static List<String> findMissing(final Collection<String> requiredClasses, final Set<String> entries) {
     final List<String> missing = new ArrayList<>();
     for (final String required : requiredClasses) {
       if (!entries.contains(required + CLASS_SUFFIX)) {
-        missing.add(required.replace('/', '.'));
+        missing.add(required.replace(PATH_SEPARATOR, PACKAGE_SEPARATOR));
       }
     }
-    if (!missing.isEmpty()) {
-      throw new IllegalStateException(
-        String.format(
-          Locale.getDefault(Locale.Category.FORMAT),
-          "The mcav modules the server downloaded are older than this plugin, which uses classes they lack (%d), such as %s. " +
-            "Publish the modules of the plugin's own version, or build the plugin with -Pmcav.e2e=true",
-          missing.size(),
-          String.join(", ", missing.subList(0, Math.min(NAMED_MISSING, missing.size())))
-        )
-      );
-    }
-  }
-
-  /**
-   * Gets the folder the libraries are cached in.
-   *
-   * @return the cache folder
-   */
-  @VisibleForTesting
-  Path getLibraries() {
-    return this.libraries;
+    return missing;
   }
 
   /**
@@ -169,18 +166,19 @@ public final class MCAVLoader implements PluginLoader {
    * @param classpathBuilder the classpath of the plugin, which receives the library jars
    * @throws NullPointerException  if the classpath builder is {@code null}
    * @throws IllegalStateException if a downloaded module lacks a class the plugin uses
+   * @since 1.0.0
    */
   @Override
   public void classloader(final @NonNull PluginClasspathBuilder classpathBuilder) {
-    Preconditions.checkNotNull(classpathBuilder, "Classpath builder must not be null");
+    Preconditions.checkNotNull(classpathBuilder, "Classpath builder must not be null!");
+
     final Class<?> loaderClass = this.getClass();
     final ClassLoader nullableClassLoader = loaderClass.getClassLoader();
     final ClassLoader classLoader = requireNonNull(nullableClassLoader);
     final DependencySet dependencies = DependencySet.readFromClasspathResource(classLoader, DEPENDENCIES_RESOURCE);
     final DependencyCache cache = new DependencyCache(this.libraries);
 
-    final Logger logger = LoggerFactory.getLogger("Gremlin");
-    final GremlinLogger gremlinLogger = new Slf4jGremlinLogger(logger);
+    final GremlinLogger gremlinLogger = new Slf4jGremlinLogger(GREMLIN_LOGGER);
     try (final DependencyResolver downloader = new DependencyResolver(gremlinLogger)) {
       final ResolvedDependencySet resolvedDependencies = downloader.resolve(dependencies, cache);
       final Set<Path> jars = resolvedDependencies.jarFiles();
@@ -189,5 +187,10 @@ public final class MCAVLoader implements PluginLoader {
       appender.append(jars);
     }
     cache.cleanup();
+  }
+
+  @VisibleForTesting
+  Path getLibraries() {
+    return this.libraries;
   }
 }

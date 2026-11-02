@@ -18,6 +18,7 @@
 package me.brandonli.mcav.plugin.audio;
 
 import com.google.common.base.Preconditions;
+import java.util.Optional;
 import me.brandonli.mcav.plugin.locale.Message;
 import me.brandonli.mcav.plugin.utils.AudioArgument;
 import net.kyori.adventure.text.Component;
@@ -27,11 +28,15 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * What the commands that play sound tell their sender and viewers about the audio output they chose: whether it can
  * play now, and the link to the Discord channel or the web page the sound plays in.
+ *
+ * <p>This class is stateless and thread-safe.
+ *
+ * @since 1.0.0
  */
 public final class AudioOutputs {
 
   private AudioOutputs() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   /**
@@ -40,26 +45,33 @@ public final class AudioOutputs {
    *
    * @param provider  the provider of the audio outputs
    * @param audioType the chosen output
-   * @return the message that explains why the output cannot play, or {@code null} if it can
+   * @return the message that explains why the output cannot play, or empty if it can
+   * @throws NullPointerException if an argument is null
+   * @since 1.0.0
    */
-  public static @Nullable Component findProblem(final AudioProvider provider, final AudioArgument audioType) {
-    Preconditions.checkNotNull(provider, "Provider must not be null");
-    Preconditions.checkNotNull(audioType, "Audio type must not be null");
+  public static Optional<Component> findProblem(final AudioProvider provider, final AudioArgument audioType) {
+    Preconditions.checkNotNull(provider, "Provider must not be null!");
+    Preconditions.checkNotNull(audioType, "Audio type must not be null!");
+
     return switch (audioType) {
       case DISCORD_BOT -> describe(provider.isDiscordBotEnabled(), provider.isDiscordBotReady());
       case HTTP_SERVER -> describe(provider.isHttpEnabled(), provider.isHttpReady());
-      case NONE, SIMPLE_VOICE_CHAT -> null;
+      case NONE, SIMPLE_VOICE_CHAT -> Optional.empty();
     };
   }
 
-  private static @Nullable Component describe(final boolean enabled, final boolean ready) {
+  private static Optional<Component> describe(final boolean enabled, final boolean ready) {
     if (!enabled) {
-      return Message.UNSUPPORTED_AUDIO.build();
+      final Component message = Message.UNSUPPORTED_AUDIO.build();
+      return Optional.of(message);
     }
+
     if (!ready) {
-      return Message.AUDIO_NOT_READY.build();
+      final Component message = Message.AUDIO_NOT_READY.build();
+      return Optional.of(message);
     }
-    return null;
+
+    return Optional.empty();
   }
 
   /**
@@ -68,13 +80,17 @@ public final class AudioOutputs {
    * @param provider  the provider of the audio outputs
    * @param audioType the chosen output
    * @param viewers   the players who see the picture
+   * @since 1.0.0
    */
   public static void sendLink(final AudioProvider provider, final AudioArgument audioType, final Player[] viewers) {
-    Preconditions.checkNotNull(viewers, "Viewers must not be null");
-    final Component link = createLink(provider, audioType);
+    Preconditions.checkNotNull(viewers, "Viewers must not be null!");
+
+    final Optional<Component> foundLink = createLink(provider, audioType);
+    final @Nullable Component link = foundLink.orElse(null);
     if (link == null) {
       return;
     }
+
     for (final Player viewer : viewers) {
       viewer.sendMessage(link);
     }
@@ -85,15 +101,18 @@ public final class AudioOutputs {
    *
    * @param provider  the provider of the audio outputs
    * @param audioType the chosen output
-   * @return the link, or {@code null} for outputs without one
+   * @return the link, or empty for outputs without one
+   * @throws NullPointerException if an argument is null
+   * @since 1.0.0
    */
-  public static @Nullable Component createLink(final AudioProvider provider, final AudioArgument audioType) {
-    Preconditions.checkNotNull(provider, "Provider must not be null");
-    Preconditions.checkNotNull(audioType, "Audio type must not be null");
+  public static Optional<Component> createLink(final AudioProvider provider, final AudioArgument audioType) {
+    Preconditions.checkNotNull(provider, "Provider must not be null!");
+    Preconditions.checkNotNull(audioType, "Audio type must not be null!");
+
     return switch (audioType) {
-      case DISCORD_BOT -> Message.AUDIO_DISCORD.build(provider.constructVoiceChannelUrl());
-      case HTTP_SERVER -> Message.AUDIO_HTTP.build(provider.constructHttpUrl());
-      case NONE, SIMPLE_VOICE_CHAT -> null;
+      case DISCORD_BOT -> Optional.of(Message.AUDIO_DISCORD.build(provider.constructVoiceChannelUrl()));
+      case HTTP_SERVER -> Optional.of(Message.AUDIO_HTTP.build(provider.constructHttpUrl()));
+      case NONE, SIMPLE_VOICE_CHAT -> Optional.empty();
     };
   }
 }

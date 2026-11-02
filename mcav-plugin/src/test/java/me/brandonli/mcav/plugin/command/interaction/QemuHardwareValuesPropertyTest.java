@@ -20,6 +20,7 @@ package me.brandonli.mcav.plugin.command.interaction;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.List;
 import java.util.Set;
 import net.jqwik.api.Arbitraries;
 import net.jqwik.api.Arbitrary;
@@ -27,11 +28,6 @@ import net.jqwik.api.ForAll;
 import net.jqwik.api.Property;
 import net.jqwik.api.Provide;
 
-/**
- * Properties of {@link QemuHardwareValues}: whatever a player types, a value that holds a path separator, or a
- * property QEMU uses to read or write a file, is refused for every hardware option, and a property of {@code -drive}
- * outside its list is refused whatever its value.
- */
 final class QemuHardwareValuesPropertyTest {
 
   private static final String SEED = "20260925";
@@ -56,14 +52,40 @@ final class QemuHardwareValuesPropertyTest {
     "rerror"
   );
 
+  private static final String PROPERTY_SEPARATOR = ",";
+  private static final String VALUE_SEPARATOR = "=";
+
+  private static final String MACHINE_OPTION = "machine";
+  private static final String MEMORY_OPTION = "m";
+  private static final String SMP_OPTION = "smp";
+  private static final String ACCELERATOR_OPTION = "accel";
+  private static final String BOOT_OPTION = "boot";
+  private static final String NAME_OPTION = "name";
+  private static final String RTC_OPTION = "rtc";
+  private static final String CPU_OPTION = "cpu";
+  private static final String KEYBOARD_OPTION = "k";
+  private static final String VGA_OPTION = "vga";
+  private static final List<String> OPTIONS = List.of(
+    MACHINE_OPTION,
+    MEMORY_OPTION,
+    SMP_OPTION,
+    ACCELERATOR_OPTION,
+    BOOT_OPTION,
+    NAME_OPTION,
+    RTC_OPTION,
+    CPU_OPTION,
+    KEYBOARD_OPTION,
+    VGA_OPTION
+  );
+
   @Provide
   Arbitrary<String> options() {
-    return Arbitraries.of("machine", "m", "smp", "accel", "boot", "name", "rtc", "cpu", "k", "vga");
+    return Arbitraries.of(OPTIONS);
   }
 
   @Provide
   Arbitrary<String> optionsWithProperties() {
-    return Arbitraries.of("machine", "m", "smp", "accel", "boot", "name", "rtc", "cpu", "k", "vga");
+    return Arbitraries.of(OPTIONS);
   }
 
   @Provide
@@ -72,7 +94,7 @@ final class QemuHardwareValuesPropertyTest {
   }
 
   @Property(seed = SEED, tries = 1000)
-  void aValueWithAPathSeparatorIsRefused(
+  void shouldRefuseAValueWithAPathSeparator(
     @ForAll("options") final String option,
     @ForAll final String before,
     @ForAll final boolean backslash,
@@ -83,25 +105,26 @@ final class QemuHardwareValuesPropertyTest {
   }
 
   @Property(seed = SEED, tries = 1000)
-  void aPropertyThatNamesAFileIsRefused(
+  void shouldRefuseAPropertyThatNamesAFile(
     @ForAll("optionsWithProperties") final String option,
     @ForAll("fileProperties") final String property,
     @ForAll final String prefix
   ) {
     final String validBase = switch (option) {
-      case "m" -> "512";
-      case "smp" -> "2";
-      case "accel" -> "tcg";
-      case "boot" -> "c";
-      case "name" -> "guest";
-      case "rtc" -> "base=utc";
-      case "cpu" -> "max";
-      case "k" -> "en-us";
-      case "vga" -> "std";
+      case MEMORY_OPTION -> "512";
+      case SMP_OPTION -> "2";
+      case ACCELERATOR_OPTION -> "tcg";
+      case BOOT_OPTION -> "c";
+      case NAME_OPTION -> "guest";
+      case RTC_OPTION -> "base=utc";
+      case CPU_OPTION -> "max";
+      case KEYBOARD_OPTION -> "en-us";
+      case VGA_OPTION -> "std";
       default -> "pc";
     };
     assertDoesNotThrow(() -> QemuHardwareValues.check(option, validBase));
-    final String value = validBase + "," + property + "=" + prefix.replace(",", "") + "file";
+
+    final String value = validBase + PROPERTY_SEPARATOR + property + VALUE_SEPARATOR + prefix.replace(PROPERTY_SEPARATOR, "") + "file";
     assertThrows(IllegalArgumentException.class, () -> QemuHardwareValues.check(option, value));
   }
 
@@ -115,11 +138,11 @@ final class QemuHardwareValuesPropertyTest {
   }
 
   @Property(seed = SEED, tries = 1000)
-  void aDrivePropertyOutsideTheListIsRefusedWhateverItsValue(
+  void shouldRefuseADrivePropertyOutsideTheListWhateverItsValue(
     @ForAll("unlistedDriveProperties") final String property,
     @ForAll final String value
   ) {
-    final String part = property + "=" + value.replace(",", "");
+    final String part = property + VALUE_SEPARATOR + value.replace(PROPERTY_SEPARATOR, "");
     assertThrows(IllegalArgumentException.class, () -> QemuHardwareValues.checkDriveProperty(part, "file=disk.img," + part));
   }
 }

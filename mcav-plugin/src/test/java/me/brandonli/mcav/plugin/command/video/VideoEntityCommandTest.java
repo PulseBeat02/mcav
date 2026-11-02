@@ -52,18 +52,23 @@ import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitScheduler;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
 
-/**
- * Tests {@link VideoEntityCommand}. The common playback flow is skipped, so only the arguments passed to it and
- * the text display it creates are checked.
- */
 final class VideoEntityCommandTest {
+
+  private static final int RESOLUTION_HEIGHT = 36;
+  private static final int RESOLUTION_WIDTH = 64;
+
+  private static final String CHARACTER = "@";
+
+  private static final String VIDEO_FILE_NAME = "clip.mp4";
 
   private VideoPlayerManager manager;
   private VideoEntityCommand command;
@@ -77,12 +82,7 @@ final class VideoEntityCommandTest {
     TestServer.resetWithDeferredTasks();
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
     this.manager = mock(VideoPlayerManager.class);
-    Mockito.doAnswer(invocation -> {
-      final FunctionalVideoFilter filter = invocation.getArgument(0);
-      final BukkitScheduler scheduler = Bukkit.getScheduler();
-      scheduler.runTask(plugin, filter::start);
-      return null;
-    })
+    Mockito.doAnswer(invocation -> this.runFilterOnMainThread(invocation, plugin))
       .when(this.manager)
       .startFilter(any(FunctionalVideoFilter.class));
     final AudioProvider provider = mock(AudioProvider.class);
@@ -90,16 +90,24 @@ final class VideoEntityCommandTest {
     when(plugin.getAudioProvider()).thenReturn(provider);
     final VideoEntityCommand realCommand = new VideoEntityCommand(plugin);
     this.command = spy(realCommand);
-    skipPlayback(this.command);
+    this.skipPlayback(this.command);
 
     this.viewer = UUID.randomUUID();
-    this.selector = mockSelector(this.viewer);
+    this.selector = this.mockSelector(this.viewer);
     this.sender = mock(CommandSender.class);
     final FakeWorld world = new FakeWorld();
     this.location = world.location(0.0, 80.0, 0.0);
   }
 
-  private static void skipPlayback(final AbstractVideoCommand command) {
+  private @Nullable Object runFilterOnMainThread(final InvocationOnMock invocation, final MCAVSandbox plugin) {
+    final FunctionalVideoFilter filter = invocation.getArgument(0);
+    final BukkitScheduler scheduler = Bukkit.getScheduler();
+    scheduler.runTask(plugin, filter::start);
+
+    return null;
+  }
+
+  private void skipPlayback(final AbstractVideoCommand command) {
     doNothing()
       .when(command)
       .playVideo(
@@ -115,13 +123,25 @@ final class VideoEntityCommandTest {
       );
   }
 
-  private static MultiplePlayerSelector mockSelector(final UUID viewer) {
+  private MultiplePlayerSelector mockSelector(final UUID viewer) {
     final Player player = mock(Player.class);
     when(player.getUniqueId()).thenReturn(viewer);
     final MultiplePlayerSelector selector = mock(MultiplePlayerSelector.class);
     final List<Player> players = List.of(player);
     when(selector.values()).thenReturn(players);
+
     return selector;
+  }
+
+  @Test
+  void shouldPassTheArgumentsOnAndConfigureTheEntity() {
+    final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
+
+    final Object built = configurationProvider.buildConfiguration(resolution);
+
+    final EntityConfiguration configuration = assertInstanceOf(EntityConfiguration.class, built);
+    this.assertEntity(configuration);
   }
 
   private AbstractVideoCommand.VideoConfigurationProvider playAndCaptureProvider() {
@@ -131,10 +151,10 @@ final class VideoEntityCommandTest {
       PlayerArgument.FFMPEG,
       AudioArgument.DISCORD_BOT,
       "64x36",
-      "@",
+      CHARACTER,
       this.location,
       "",
-      "clip.mp4",
+      VIDEO_FILE_NAME,
       null
     );
     final ArgumentCaptor<AbstractVideoCommand.VideoConfigurationProvider> providers = ArgumentCaptor.forClass(
@@ -147,10 +167,11 @@ final class VideoEntityCommandTest {
       eq(PlayerArgument.FFMPEG),
       eq(AudioArgument.DISCORD_BOT),
       eq("64x36"),
-      eq("clip.mp4"),
+      eq(VIDEO_FILE_NAME),
       eq(""),
       isNull()
     );
+
     return providers.getValue();
   }
 
@@ -163,41 +184,21 @@ final class VideoEntityCommandTest {
     final String character = configuration.getCharacter();
     final Location position = configuration.getPosition();
     assertEquals(expectedViewers, viewerList);
-    assertEquals(64, width);
-    assertEquals(36, height);
-    assertEquals("@", character);
+    assertEquals(RESOLUTION_WIDTH, width);
+    assertEquals(RESOLUTION_HEIGHT, height);
+    assertEquals(CHARACTER, character);
     assertEquals(this.location, position);
   }
 
-  private void assertStartedOnTheMainThread(final FunctionalVideoFilter result) {
-    verify(this.manager).startFilter(result);
-    verify(result, never()).start();
-    final int tasks = TestServer.runPendingTasks();
-    assertEquals(1, tasks);
-    verify(result).start();
-  }
-
   @Test
-  void passesTheArgumentsOnAndConfiguresTheEntity() {
+  void shouldShowTheFramesInAnEntitySpawnedOnTheMainThread() {
     final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
-    final Pair<Integer, Integer> resolution = Pair.pair(64, 36);
-
-    final Object built = configurationProvider.buildConfiguration(resolution);
-
-    final EntityConfiguration configuration = assertInstanceOf(EntityConfiguration.class, built);
-    this.assertEntity(configuration);
-  }
-
-  @Test
-  void showsTheFramesInAnEntitySpawnedOnTheMainThread() {
-    final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
-    final Pair<Integer, Integer> resolution = Pair.pair(64, 36);
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
     final List<List<?>> arguments = new ArrayList<>();
     try (
-      final MockedConstruction<EntityResult> results = Mockito.mockConstruction(EntityResult.class, (_, context) -> {
-        final List<?> constructorArguments = context.arguments();
-        arguments.add(constructorArguments);
-      })
+      final MockedConstruction<EntityResult> results = Mockito.mockConstruction(EntityResult.class, (_, context) ->
+        this.recordArguments(context, arguments)
+      )
     ) {
       final VideoPipelineStep pipeline = this.command.createVideoFilter(resolution, configurationProvider);
       final List<EntityResult> constructed = results.constructed();
@@ -210,5 +211,19 @@ final class VideoEntityCommandTest {
     final List<?> constructorArguments = arguments.getFirst();
     final EntityConfiguration configuration = (EntityConfiguration) constructorArguments.getFirst();
     this.assertEntity(configuration);
+  }
+
+  private void recordArguments(final MockedConstruction.Context context, final List<List<?>> arguments) {
+    final List<?> constructorArguments = context.arguments();
+    arguments.add(constructorArguments);
+  }
+
+  private void assertStartedOnTheMainThread(final FunctionalVideoFilter result) {
+    verify(this.manager).startFilter(result);
+    verify(result, never()).start();
+
+    final int tasks = TestServer.runPendingTasks();
+    assertEquals(1, tasks);
+    verify(result).start();
   }
 }

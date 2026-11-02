@@ -67,7 +67,7 @@ import me.brandonli.mcav.plugin.listener.JukeBoxListener;
 import me.brandonli.mcav.plugin.listener.OnlinePlayers;
 import me.brandonli.mcav.plugin.testing.TestCommandManager;
 import me.brandonli.mcav.plugin.testing.TestServer;
-import me.brandonli.mcav.plugin.utils.IOUtils;
+import me.brandonli.mcav.plugin.utils.IoUtils;
 import me.brandonli.mcav.vm.VmModule;
 import me.brandonli.mcav.voicechat.SvcModule;
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
@@ -88,11 +88,12 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 
-/**
- * Tests {@link MCAVSandbox}. The plugin is a mock that runs its real methods, because Paper only lets its own class
- * loader construct plugins; the library and the Paper command manager are mocked.
- */
+// the plugin is a mock running its real methods: only Paper's class loader may construct plugins
 final class MCAVSandboxTest {
+
+  private static final String CONFIGURATION_FILE_NAME = "config.yml";
+  private static final String ISO_FOLDER_NAME = "iso";
+  private static final String NATIVES_FOLDER_NAME = "natives";
 
   @TempDir
   private Path folder;
@@ -138,6 +139,14 @@ final class MCAVSandboxTest {
     this.paperManagers.when(() -> LegacyPaperCommandManager.createNative(eq(this.sandbox), notNull())).thenReturn(paperManager);
   }
 
+  @AfterEach
+  void closeMocks() {
+    this.javaPlugins.close();
+    this.libraries.close();
+    this.paperManagers.close();
+    this.bukkitModules.close();
+  }
+
   private void mockPluginEnvironment(final Server server) {
     final File folderFile = this.folder.toFile();
     doReturn(this.logger).when(this.sandbox).getComponentLogger();
@@ -150,7 +159,7 @@ final class MCAVSandboxTest {
   private @Nullable Object copyResource(final InvocationOnMock invocation) throws IOException {
     final String name = invocation.getArgument(0);
     final Path target = this.folder.resolve(name);
-    try (final InputStream stream = IOUtils.getResourceAsStream(name)) {
+    try (final InputStream stream = IoUtils.getResourceAsStream(name)) {
       Files.copy(stream, target);
     }
     return null;
@@ -170,48 +179,49 @@ final class MCAVSandboxTest {
     this.bukkitModules.when(BukkitModule::getPlugin).thenReturn(this.sandbox);
   }
 
-  @AfterEach
-  void closeMocks() {
-    this.javaPlugins.close();
-    this.libraries.close();
-    this.paperManagers.close();
-    this.bukkitModules.close();
-  }
-
   @Test
-  void refusesItsPartsBeforeItIsEnabled() {
+  void shouldRefuseItsPartsBeforeItIsEnabled() {
     final IllegalStateException library = assertThrows(IllegalStateException.class, this.sandbox::getMCAV);
     final IllegalStateException configuration = assertThrows(IllegalStateException.class, this.sandbox::getConfiguration);
     final IllegalStateException videos = assertThrows(IllegalStateException.class, this.sandbox::getVideoPlayerManager);
     final IllegalStateException audio = assertThrows(IllegalStateException.class, this.sandbox::getAudioProvider);
     final IllegalStateException images = assertThrows(IllegalStateException.class, this.sandbox::getImageManager);
     final IllegalStateException mcv2 = assertThrows(IllegalStateException.class, this.sandbox::getMcv2Support);
-    assertEquals("The MCV2 support is not available before the plugin is enabled", mcv2.getMessage());
+
+    final String message = mcv2.getMessage();
+    assertEquals("The MCV2 support is not available before the plugin is enabled!", message);
+
     final IllegalStateException online = assertThrows(IllegalStateException.class, this.sandbox::getOnlinePlayers);
-    assertEquals("The list of online players is not available before the plugin is enabled", online.getMessage());
+
+    final String onlineMessage = online.getMessage();
+    assertEquals("The list of online players is not available before the plugin is enabled!", onlineMessage);
+
     final String libraryMessage = library.getMessage();
     final String configurationMessage = configuration.getMessage();
     final String videosMessage = videos.getMessage();
     final String audioMessage = audio.getMessage();
     final String imagesMessage = images.getMessage();
-    assertEquals("The library is not available before the plugin is enabled", libraryMessage);
-    assertEquals("The configuration is not available before the plugin is enabled", configurationMessage);
-    assertEquals("The video player manager is not available before the plugin is enabled", videosMessage);
-    assertEquals("The audio provider is not available before the plugin is enabled", audioMessage);
-    assertEquals("The image manager is not available before the plugin is enabled", imagesMessage);
+    assertEquals("The library is not available before the plugin is enabled!", libraryMessage);
+    assertEquals("The configuration is not available before the plugin is enabled!", configurationMessage);
+    assertEquals("The video player manager is not available before the plugin is enabled!", videosMessage);
+    assertEquals("The audio provider is not available before the plugin is enabled!", audioMessage);
+    assertEquals("The image manager is not available before the plugin is enabled!", imagesMessage);
+
     final boolean hasQemu = this.sandbox.isQemuInstalled();
     assertFalse(hasQemu);
-    assertFalse(this.sandbox.isBrowserSupported());
+
+    final boolean browserSupported = this.sandbox.isBrowserSupported();
+    assertFalse(browserSupported);
   }
 
   @Test
-  void disablesCleanlyWhenItWasNeverEnabled() {
+  void shouldDisableCleanlyWhenItWasNeverEnabled() {
     this.sandbox.onDisable();
     verify(this.api, never()).release();
   }
 
   @Test
-  void enablesTheLibraryTheConfigurationTheCommandsAndTheListener() {
+  void shouldEnableTheLibraryTheConfigurationTheCommandsAndTheListener() {
     when(this.vmModule.isQemuInstalled()).thenReturn(true);
     when(this.browserModule.isSupported()).thenReturn(true);
     this.sandbox.onEnable();
@@ -223,8 +233,10 @@ final class MCAVSandboxTest {
     final ImageManager imageManager = this.sandbox.getImageManager();
     final OnlinePlayers online = this.sandbox.getOnlinePlayers();
     verify(TestServer.pluginManager()).registerEvents(online, this.sandbox);
+
     this.sandbox.onDisable();
     verify(this.api).release();
+
     final ExecutorService videoWorker = videoManager.getService();
     final ExecutorService imageWorker = imageManager.getService();
     final boolean videoStopped = videoWorker.isShutdown();
@@ -234,18 +246,19 @@ final class MCAVSandboxTest {
   }
 
   @Test
-  void refusesReenableBeforeStartingResourcesOfAClosedPluginLoader() {
+  void shouldRefuseReenableBeforeStartingResourcesOfAClosedPluginLoader() {
     this.sandbox.onEnable();
     this.sandbox.onDisable();
 
     this.sandbox.onEnable();
 
     this.assertDisabledItselfWithOneError(
-      "Paper cannot re-enable this plugin after it has been disabled",
+      "Paper cannot re-enable this plugin after it has been disabled!",
       "restart the server to enable MCAV"
     );
     verify(this.api, times(1)).install(BukkitModule.class, BrowserModule.class, VmModule.class, SvcModule.class);
     assertThrows(IllegalStateException.class, this.sandbox::getVideoPlayerManager);
+
     this.sandbox.onDisable();
     verify(this.api, times(1)).release();
   }
@@ -254,25 +267,33 @@ final class MCAVSandboxTest {
     verify(this.api).install(BukkitModule.class, BrowserModule.class, VmModule.class, SvcModule.class);
     verify(this.bukkitModule).inject(this.sandbox);
     verify(this.logger, never()).warn(anyString());
+
     final MCAVApi library = this.sandbox.getMCAV();
     assertSame(this.api, library);
+
     final boolean hasQemu = this.sandbox.isQemuInstalled();
     assertTrue(hasQemu);
-    assertTrue(this.sandbox.isBrowserSupported());
+
+    final boolean browserSupported = this.sandbox.isBrowserSupported();
+    assertTrue(browserSupported);
   }
 
   private void assertConfigurationAndManagersCreated() {
     final PluginDataConfigurationMapper configuration = this.sandbox.getConfiguration();
     final String host = configuration.getHttpHostName();
     assertEquals("localhost", host);
+
     final AudioProvider audioProvider = this.sandbox.getAudioProvider();
     final VideoPlayerManager videoManager = this.sandbox.getVideoPlayerManager();
     final ImageManager imageManager = this.sandbox.getImageManager();
     assertNotNull(audioProvider);
     assertNotNull(videoManager);
     assertNotNull(imageManager);
-    assertNotNull(this.sandbox.getMcv2Support());
-    final Path iso = this.folder.resolve("iso");
+
+    final Mcv2Support mcv2Support = this.sandbox.getMcv2Support();
+    assertNotNull(mcv2Support);
+
+    final Path iso = this.folder.resolve(ISO_FOLDER_NAME);
     final boolean isoFolder = Files.isDirectory(iso);
     assertTrue(isoFolder);
   }
@@ -281,22 +302,30 @@ final class MCAVSandboxTest {
     final Set<String> syntaxes = this.commands.syntaxes();
     final int count = syntaxes.size();
     assertEquals(39, count);
+
     final PluginManager pluginManager = TestServer.pluginManager();
     verify(pluginManager).registerEvents(any(JukeBoxListener.class), eq(this.sandbox));
   }
 
   @Test
-  void appliesAndLogsTheMcv2EncoderBudget() throws IOException {
+  void shouldApplyAndLogTheMcv2EncoderBudget() throws IOException {
     final String defaults;
-    try (final InputStream stream = IOUtils.getResourceAsStream("config.yml")) {
+    try (final InputStream stream = IoUtils.getResourceAsStream(CONFIGURATION_FILE_NAME)) {
       defaults = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
     }
-    assertTrue(defaults.contains("  encoder-threads: 0\n"));
-    Files.writeString(this.folder.resolve("config.yml"), defaults.replace("  encoder-threads: 0\n", "  encoder-threads: 3\n"));
+
+    final boolean contained = defaults.contains("  encoder-threads: 0\n");
+    assertTrue(contained);
+
+    Files.writeString(this.folder.resolve(CONFIGURATION_FILE_NAME), defaults.replace("  encoder-threads: 0\n", "  encoder-threads: 3\n"));
     try {
       this.sandbox.onEnable();
-      assertEquals(3, Pool.shared().getThreads());
-      verify(this.logger).info("MCV2 encoders share {} of {} processors", 3, Runtime.getRuntime().availableProcessors());
+
+      final int threads = Pool.shared().getThreads();
+      assertEquals(3, threads);
+
+      verify(this.logger).info("MCV2 encoders share {} of {} processors.", 3, Runtime.getRuntime().availableProcessors());
+
       this.sandbox.onDisable();
     } finally {
       Pool.setSharedThreads(0);
@@ -304,24 +333,31 @@ final class MCAVSandboxTest {
   }
 
   @Test
-  void decidesTheNativeKernelsAtStartup() throws IOException {
+  void shouldDecideTheNativeKernelsAtStartup() throws IOException {
     final String defaults;
-    try (final InputStream stream = IOUtils.getResourceAsStream("config.yml")) {
+    try (final InputStream stream = IoUtils.getResourceAsStream(CONFIGURATION_FILE_NAME)) {
       defaults = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
     }
-    assertTrue(defaults.contains("  native: auto\n"));
-    Files.writeString(this.folder.resolve("config.yml"), defaults.replace("  native: auto\n", "  native: \"off\"\n"));
+
+    final boolean contained = defaults.contains("  native: auto\n");
+    assertTrue(contained);
+
+    Files.writeString(this.folder.resolve(CONFIGURATION_FILE_NAME), defaults.replace("  native: auto\n", "  native: \"off\"\n"));
     try {
       this.sandbox.onEnable();
-      assertEquals("Java, turned off by mcv2.native=off", Mcv2.describeNatives());
+
+      final String describeNatives = Mcv2.describeNatives();
+      assertEquals("Java, turned off by mcv2.native=off", describeNatives);
+      verify(this.logger).info("MCV2 kernels: {}.", describeNatives);
+
       this.sandbox.onDisable();
     } finally {
-      Mcv2.installNatives(this.folder.resolve("natives"), "auto");
+      Mcv2.installNatives(this.folder.resolve(NATIVES_FOLDER_NAME), "auto");
     }
   }
 
   @Test
-  void stopsTheListenerTheCommandsAndTheAudioWhenDisabled() {
+  void shouldStopTheListenerTheCommandsAndTheAudioWhenDisabled() {
     try (
       final MockedConstruction<JukeBoxListener> listeners = Mockito.mockConstruction(JukeBoxListener.class);
       final MockedConstruction<AnnotationParserHandler> handlers = Mockito.mockConstruction(AnnotationParserHandler.class);
@@ -336,9 +372,15 @@ final class MCAVSandboxTest {
       final List<JukeBoxListener> constructedListeners = listeners.constructed();
       final List<AnnotationParserHandler> constructedHandlers = handlers.constructed();
       final List<AudioProvider> constructedProviders = providers.constructed();
-      assertEquals(1, constructedListeners.size());
-      assertEquals(1, constructedHandlers.size());
-      assertEquals(1, constructedProviders.size());
+
+      final int size = constructedListeners.size();
+      assertEquals(1, size);
+
+      final int constructedHandlersSize = constructedHandlers.size();
+      assertEquals(1, constructedHandlersSize);
+
+      final int constructedProvidersSize = constructedProviders.size();
+      assertEquals(1, constructedProvidersSize);
 
       final JukeBoxListener listener = constructedListeners.getFirst();
       final AnnotationParserHandler handler = constructedHandlers.getFirst();
@@ -350,15 +392,16 @@ final class MCAVSandboxTest {
   }
 
   @Test
-  void keepsOwnershipWhenCommandRegistrationFailsPartwayThrough() {
-    final IllegalStateException failure = new IllegalStateException("partial registration");
+  void shouldKeepOwnershipWhenCommandRegistrationFailsPartwayThrough() {
+    final IllegalStateException failure = new IllegalStateException("partial registration!");
     try (
       final MockedConstruction<AnnotationParserHandler> handlers = Mockito.mockConstruction(AnnotationParserHandler.class, (handler, _) ->
-        doThrow(failure).when(handler).registerCommands()
+        this.failCommandRegistration(handler, failure)
       )
     ) {
       final IllegalStateException thrown = assertThrows(IllegalStateException.class, this.sandbox::onEnable);
       assertSame(failure, thrown);
+
       this.sandbox.onDisable();
       final List<AnnotationParserHandler> constructed = handlers.constructed();
       final AnnotationParserHandler handler = constructed.getFirst();
@@ -367,16 +410,21 @@ final class MCAVSandboxTest {
     }
   }
 
+  private void failCommandRegistration(final AnnotationParserHandler handler, final IllegalStateException failure) {
+    doThrow(failure).when(handler).registerCommands();
+  }
+
   @Test
-  void keepsOwnershipWhenListenerStartupFails() {
-    final IllegalStateException failure = new IllegalStateException("partial listener startup");
+  void shouldKeepOwnershipWhenListenerStartupFails() {
+    final IllegalStateException failure = new IllegalStateException("partial listener startup!");
     try (
       final MockedConstruction<JukeBoxListener> listeners = Mockito.mockConstruction(JukeBoxListener.class, (listener, _) ->
-        doThrow(failure).when(listener).start()
+        this.failListenerStart(listener, failure)
       )
     ) {
       final IllegalStateException thrown = assertThrows(IllegalStateException.class, this.sandbox::onEnable);
       assertSame(failure, thrown);
+
       this.sandbox.onDisable();
       final List<JukeBoxListener> constructed = listeners.constructed();
       final JukeBoxListener listener = constructed.getFirst();
@@ -385,16 +433,20 @@ final class MCAVSandboxTest {
     }
   }
 
+  private void failListenerStart(final JukeBoxListener listener, final IllegalStateException failure) {
+    doThrow(failure).when(listener).start();
+  }
+
   @Test
-  void attemptsEveryOwnedCleanupOnceEvenWhenTheFirstTwoFail() {
-    final IllegalStateException first = new IllegalStateException("video cleanup");
-    final IllegalArgumentException second = new IllegalArgumentException("image cleanup");
+  void shouldAttemptEveryOwnedCleanupOnceEvenWhenTheFirstTwoFail() {
+    final IllegalStateException first = new IllegalStateException("video cleanup!");
+    final IllegalArgumentException second = new IllegalArgumentException("image cleanup!");
     try (
       final MockedConstruction<VideoPlayerManager> videos = Mockito.mockConstruction(VideoPlayerManager.class, (manager, _) ->
-        doThrow(first).when(manager).shutdown()
+        this.failShutdown(manager, first)
       );
       final MockedConstruction<ImageManager> images = Mockito.mockConstruction(ImageManager.class, (manager, _) ->
-        doThrow(second).when(manager).shutdown()
+        this.failShutdown(manager, second)
       );
       final MockedConstruction<JukeBoxListener> listeners = Mockito.mockConstruction(JukeBoxListener.class);
       final MockedConstruction<AnnotationParserHandler> handlers = Mockito.mockConstruction(AnnotationParserHandler.class);
@@ -403,8 +455,10 @@ final class MCAVSandboxTest {
       this.sandbox.onEnable();
       final IllegalStateException thrown = assertThrows(IllegalStateException.class, this.sandbox::onDisable);
       assertSame(first, thrown);
+
       final Throwable[] suppressed = thrown.getSuppressed();
       assertArrayEquals(new Throwable[] { second }, suppressed);
+
       this.sandbox.onDisable();
       final List<VideoPlayerManager> videoManagers = videos.constructed();
       final List<ImageManager> imageManagers = images.constructed();
@@ -425,59 +479,83 @@ final class MCAVSandboxTest {
     }
   }
 
+  private void failShutdown(final VideoPlayerManager manager, final RuntimeException failure) {
+    doThrow(failure).when(manager).shutdown();
+  }
+
+  private void failShutdown(final ImageManager manager, final RuntimeException failure) {
+    doThrow(failure).when(manager).shutdown();
+  }
+
   @Test
-  void logsTheStartAndHowLongLoadingTook() {
-    final AtomicLong installationMillis = new AtomicLong();
-    doAnswer(_ -> {
-      final long before = System.currentTimeMillis();
-      Thread.sleep(25);
-      installationMillis.set(System.currentTimeMillis() - before);
-      return null;
-    })
+  void shouldLogTheStartAndHowLongLoadingTook() {
+    final AtomicLong installationMilliseconds = new AtomicLong();
+    doAnswer(_ -> this.recordSlowInstallation(installationMilliseconds))
       .when(this.api)
       .install(BukkitModule.class, BrowserModule.class, VmModule.class, SvcModule.class);
     this.sandbox.onEnable();
 
     final ArgumentCaptor<Object> duration = ArgumentCaptor.forClass(Object.class);
-    verify(this.logger).info("Loading MCAV");
-    verify(this.logger).info(eq("MCAV loaded in {} ms"), duration.capture());
+    verify(this.logger).info("Loading MCAV.");
+    verify(this.logger).info(eq("MCAV loaded in {} ms."), duration.capture());
+
     final Object logged = duration.getValue();
     final long milliseconds = (Long) logged;
-    assertTrue(installationMillis.get() > 0, "installation consumed measurable time");
-    assertTrue(milliseconds >= installationMillis.get(), "the logged duration includes the entire installation");
+
+    final boolean matches = installationMilliseconds.get() > 0;
+    assertTrue(matches, "installation consumed measurable time");
+
+    final boolean secondMatches = milliseconds >= installationMilliseconds.get();
+    assertTrue(secondMatches, "the logged duration includes the entire installation");
+
     // a sum of two timestamps instead of their difference would be billions of milliseconds
     final boolean plausible = milliseconds >= 0 && milliseconds < 600_000;
     assertTrue(plausible, "the log reports how long loading took, which was " + milliseconds + " ms");
+
     this.sandbox.onDisable();
   }
 
+  private @Nullable Object recordSlowInstallation(final AtomicLong installationMilliseconds) throws InterruptedException {
+    final long before = System.currentTimeMillis();
+    Thread.sleep(25);
+    installationMilliseconds.set(System.currentTimeMillis() - before);
+
+    return null;
+  }
+
   @Test
-  void warnsWhenThereIsNoBrowserForThisServer() {
+  void shouldWarnWhenThereIsNoBrowserForThisServer() {
     when(this.vmModule.isQemuInstalled()).thenReturn(true);
     this.sandbox.onEnable();
-    verify(this.logger).warn("There is no browser for the operating system and processor of this server, browsers will not be available");
-    assertFalse(this.sandbox.isBrowserSupported());
+    verify(this.logger).warn("There is no browser for the operating system and processor of this server, browsers will not be available.");
+
+    final boolean browserSupported = this.sandbox.isBrowserSupported();
+    assertFalse(browserSupported);
+
     this.sandbox.onDisable();
   }
 
   @Test
-  void warnsWhenQemuIsNotInstalled() {
+  void shouldWarnWhenQemuIsNotInstalled() {
     when(this.browserModule.isSupported()).thenReturn(true);
     this.sandbox.onEnable();
-    verify(this.logger).warn("QEMU is not installed, virtual machines will not be available");
+    verify(this.logger).warn("QEMU is not installed, virtual machines will not be available.");
+
     final boolean hasQemu = this.sandbox.isQemuInstalled();
     assertFalse(hasQemu);
+
     this.sandbox.onDisable();
   }
 
   @Test
-  void disablesItselfWithOneErrorOnAnUnsupportedServerVersion() {
+  void shouldDisableItselfWithOneErrorOnAnUnsupportedServerVersion() {
     final Server server = TestServer.server();
     when(server.getMinecraftVersion()).thenReturn("1.20.1");
     final UnsupportedServerVersionException failure = assertThrows(
       UnsupportedServerVersionException.class,
       ServerEnvironment::checkSupported
     );
+
     doThrow(failure).when(this.bukkitModule).inject(this.sandbox);
 
     this.sandbox.onEnable();
@@ -485,55 +563,62 @@ final class MCAVSandboxTest {
     final String reason = "MCAV only supports Minecraft 26.3, but the server is running 1.20.1!";
     this.assertDisabledItselfWithOneError(reason, "run MCAV on a Minecraft 26.3 server");
     assertThrows(IllegalStateException.class, this.sandbox::getConfiguration, "nothing after the library is loaded");
+
     this.sandbox.onDisable();
     verify(this.api).release();
   }
 
   @Test
-  void disablesItselfWithOneErrorWhenVoiceChatIsEnabledButMissing() throws IOException {
-    final Path config = this.folder.resolve("config.yml");
-    Files.writeString(config, "simple-voice-chat:\n  enabled: true\n");
+  void shouldDisableItselfWithOneErrorWhenVoiceChatIsEnabledButMissing() throws IOException {
+    final Path configuration = this.folder.resolve(CONFIGURATION_FILE_NAME);
+    Files.writeString(configuration, "simple-voice-chat:\n  enabled: true\n");
 
     this.sandbox.onEnable();
 
-    final String reason = "Simple Voice Chat audio is enabled, but the voicechat plugin is not installed";
+    final String reason = "Simple Voice Chat audio is enabled, but the voicechat plugin is not installed!";
     final String remedy = "install the Simple Voice Chat plugin or set simple-voice-chat.enabled to false in config.yml";
     this.assertDisabledItselfWithOneError(reason, remedy);
+
     final AudioProvider audioProvider = this.sandbox.getAudioProvider();
     assertNotNull(audioProvider);
     assertThrows(IllegalStateException.class, this.sandbox::getVideoPlayerManager, "nothing after the audio is created");
+
     this.sandbox.onDisable();
     verify(this.api).release();
   }
 
   private void assertDisabledItselfWithOneError(final String reason, final String remedy) {
-    verify(this.logger).error("MCAV cannot be enabled: {} ({})", reason, remedy);
+    verify(this.logger).error("MCAV cannot be enabled: {} To fix it, {}.", reason, remedy);
     verify(this.logger).error(anyString(), any(), any());
+
     final PluginManager pluginManager = TestServer.pluginManager();
     verify(pluginManager).disablePlugin(this.sandbox);
   }
 
   @Test
-  void letsUnexpectedFailuresEscapeWithoutDisablingItself() {
-    final IllegalStateException failure = new IllegalStateException("the packet listener failed");
+  void shouldLetUnexpectedFailuresEscapeWithoutDisablingItself() {
+    final IllegalStateException failure = new IllegalStateException("the packet listener failed!");
     doThrow(failure).when(this.bukkitModule).inject(this.sandbox);
 
     final IllegalStateException exception = assertThrows(IllegalStateException.class, this.sandbox::onEnable);
 
     assertSame(failure, exception, "an unexpected failure is not turned into a setup problem");
+
     final PluginManager pluginManager = TestServer.pluginManager();
     verify(pluginManager, never()).disablePlugin(this.sandbox);
     verify(this.logger, never()).error(anyString(), any(), any());
+
     this.sandbox.onDisable();
     verify(this.api).release();
   }
 
   @Test
-  void releasesTheLibraryWhenInstallingItsModulesFails() {
-    final IllegalStateException failure = new IllegalStateException("a module failed to start");
+  void shouldReleaseTheLibraryWhenInstallingItsModulesFails() {
+    final IllegalStateException failure = new IllegalStateException("a module failed to start!");
     doThrow(failure).when(this.api).install(BukkitModule.class, BrowserModule.class, VmModule.class, SvcModule.class);
     final IllegalStateException exception = assertThrows(IllegalStateException.class, this.sandbox::onEnable);
     assertSame(failure, exception);
+
     this.sandbox.onDisable();
     verify(this.api).release();
   }

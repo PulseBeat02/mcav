@@ -31,17 +31,19 @@ import org.slf4j.LoggerFactory;
 /**
  * Hands work from worker threads over to the main thread of the server, and reacts to work that finishes in the
  * background.
+ *
+ * @since 1.0.0
  */
 public final class TaskUtils {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(TaskUtils.class);
 
-  private static final String TASK_DROPPED = "Dropped a task for the main thread because the plugin is disabled";
+  private static final String TASK_DROPPED = "Dropped a task for the main thread because the plugin is disabled.";
 
-  private static final String CALLBACK_FAILED = "A callback of a background task failed";
+  private static final String CALLBACK_FAILED = "A callback of a background task failed.";
 
   private TaskUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   /**
@@ -51,10 +53,12 @@ public final class TaskUtils {
    * @param task   the task to run on the main thread
    * @return the task that schedules it; it drops the task when the plugin is disabled, see
    * {@link #runOnMainThread(MCAVSandbox, Runnable)}
+   * @since 1.0.0
    */
-  public static Runnable handleAsyncTask(final MCAVSandbox plugin, final Runnable task) {
-    Preconditions.checkNotNull(plugin, "Plugin must not be null");
-    Preconditions.checkNotNull(task, "Task must not be null");
+  public static Runnable createMainThreadHandover(final MCAVSandbox plugin, final Runnable task) {
+    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
+    Preconditions.checkNotNull(task, "Task must not be null!");
+
     return () -> runOnMainThread(plugin, task);
   }
 
@@ -65,13 +69,16 @@ public final class TaskUtils {
    * @param plugin the plugin that owns the task
    * @param task   the task to run on the main thread
    * @return true if the task was scheduled, false if it was dropped because the plugin is disabled
+   * @since 1.0.0
    */
   public static boolean runOnMainThread(final MCAVSandbox plugin, final Runnable task) {
-    Preconditions.checkNotNull(plugin, "Plugin must not be null");
-    Preconditions.checkNotNull(task, "Task must not be null");
+    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
+    Preconditions.checkNotNull(task, "Task must not be null!");
+
     final BukkitScheduler scheduler = Bukkit.getScheduler();
     try {
       scheduler.runTask(plugin, task);
+
       return true;
     } catch (final IllegalPluginAccessException exception) {
       LOGGER.warn(TASK_DROPPED, exception);
@@ -87,32 +94,36 @@ public final class TaskUtils {
    * <p>The callback runs on the thread that completes the future, or at once on the calling thread if the future has
    * already completed.
    *
-   * @param future   the future to wait for
-   * @param callback receives the result, which is null if the future failed, and the failure, which is null if the
-   *                 future succeeded
-   * @param <T>      the type of the result
+   * @param future       the future to wait for
+   * @param callback     receives the result, which is null if the future failed, and the failure, which is null if the
+   *                     future succeeded
+   * @param <ResultType> the type of the result
+   * @since 1.0.0
    */
-  public static <T> void whenComplete(
-    final CompletableFuture<T> future,
-    final BiConsumer<? super T, ? super @Nullable Throwable> callback
+  public static <ResultType> void whenComplete(
+    final CompletableFuture<ResultType> future,
+    final BiConsumer<? super ResultType, ? super @Nullable Throwable> callback
   ) {
-    Preconditions.checkNotNull(future, "Future must not be null");
-    Preconditions.checkNotNull(callback, "Callback must not be null");
+    Preconditions.checkNotNull(future, "Future must not be null!");
+    Preconditions.checkNotNull(callback, "Callback must not be null!");
+
     final CompletableFuture<@Nullable Void> handled = future.handle((result, error) -> runCallback(callback, result, error));
     handled.exceptionally(TaskUtils::logCallbackFailure);
   }
 
-  private static <T> @Nullable Void runCallback(
-    final BiConsumer<? super T, ? super @Nullable Throwable> callback,
-    final T result,
+  private static <ResultType> @Nullable Void runCallback(
+    final BiConsumer<? super ResultType, ? super @Nullable Throwable> callback,
+    final ResultType result,
     final @Nullable Throwable error
   ) {
     callback.accept(result, error);
+
     return null;
   }
 
   private static @Nullable Void logCallbackFailure(final Throwable failure) {
     LOGGER.error(CALLBACK_FAILED, failure);
+
     return null;
   }
 }

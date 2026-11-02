@@ -21,25 +21,29 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.code_intelligence.jazzer.api.FuzzedDataProvider;
 import com.code_intelligence.jazzer.junit.FuzzTest;
+import java.util.Optional;
 import org.junit.jupiter.api.Tag;
 
-/**
- * Fuzzes the position a player types in {@code /mcav video seek}: whatever the text, it is refused or read as a time
- * within the bounds, which then resolves to a position at or after the start of the video.
- */
 @Tag("fuzz")
 final class SeekPositionFuzzTest {
 
   @FuzzTest(maxDuration = "30s")
-  void everyTypedPositionIsBoundedOrRefused(final FuzzedDataProvider data) {
-    final long current = data.consumeLong(0, SeekPosition.MAX_MILLIS);
+  void shouldBoundOrRefuseEveryTypedPosition(final FuzzedDataProvider data) {
+    final long current = data.consumeLong(0, SeekPosition.MAXIMUM_MILLISECONDS);
     final String text = data.consumeRemainingAsString();
-    final SeekPosition position = SeekPosition.parse(text);
-    if (position == null) {
+    final Optional<SeekPosition> parsedPosition = SeekPosition.parse(text);
+    if (parsedPosition.isEmpty()) {
       return;
     }
-    assertTrue(Math.abs(position.millis()) <= SeekPosition.MAX_MILLIS, text);
-    assertTrue(position.relative() || position.millis() >= 0, text);
-    assertTrue(position.resolve(current) >= 0, text);
+
+    final SeekPosition position = parsedPosition.orElseThrow();
+    final boolean matches = Math.abs(position.getMilliseconds()) <= SeekPosition.MAXIMUM_MILLISECONDS;
+    assertTrue(matches, text);
+
+    final boolean secondMatches = position.isRelative() || position.getMilliseconds() >= 0;
+    assertTrue(secondMatches, text);
+
+    final boolean thirdMatches = position.resolve(current) >= 0;
+    assertTrue(thirdMatches, text);
   }
 }

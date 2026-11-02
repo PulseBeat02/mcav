@@ -46,6 +46,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * Boots a virtual machine when a player puts a renamed music disc into a jukebox: the disc's name selects an ISO
  * image from the plugin's {@code iso} folder, and the machine is shown to the player on map 0.
+ *
+ * <p>This class is not thread-safe: use it on the server main thread.
+ *
+ * @since 1.0.0
  */
 public final class JukeBoxListener implements Listener {
 
@@ -54,6 +58,8 @@ public final class JukeBoxListener implements Listener {
   private static final Pattern ILLEGAL_FILE_NAME_CHARACTERS = Pattern.compile("[\\\\/:*?\"<>|]");
   private static final String MUSIC_DISC_PREFIX = "MUSIC_DISC_";
 
+  private static final String NAME_REPLACEMENT = "_";
+
   private final MCAVSandbox sandbox;
   private final Path isoFolder;
 
@@ -61,9 +67,11 @@ public final class JukeBoxListener implements Listener {
    * Constructs the listener and creates the {@code iso} folder.
    *
    * @param sandbox the plugin
+   * @since 1.0.0
    */
   public JukeBoxListener(final MCAVSandbox sandbox) {
-    Preconditions.checkNotNull(sandbox, "Sandbox must not be null");
+    Preconditions.checkNotNull(sandbox, "Sandbox must not be null!");
+
     this.sandbox = sandbox;
     final Path dataFolder = sandbox.getDataPath();
     this.isoFolder = DiskImages.folderOf(dataFolder);
@@ -72,6 +80,8 @@ public final class JukeBoxListener implements Listener {
 
   /**
    * Registers the listener.
+   *
+   * @since 1.0.0
    */
   public void start() {
     final Server server = Bukkit.getServer();
@@ -81,6 +91,8 @@ public final class JukeBoxListener implements Listener {
 
   /**
    * Unregisters the listener.
+   *
+   * @since 1.0.0
    */
   public void shutdown() {
     HandlerList.unregisterAll(this);
@@ -92,21 +104,26 @@ public final class JukeBoxListener implements Listener {
    * lower priorities, may have denied the player the jukebox; a denied use boots nothing.
    *
    * @param event the interaction
+   * @since 1.0.0
    */
   @EventHandler(priority = EventPriority.HIGHEST)
   public void onJukeboxInteract(final PlayerInteractEvent event) {
-    Preconditions.checkNotNull(event, "Event must not be null");
+    Preconditions.checkNotNull(event, "Event must not be null!");
+
     if (event.useInteractedBlock() == Event.Result.DENY) {
       return;
     }
+
     final ItemStack item = event.getItem();
-    if (item == null || !isDiscOnJukebox(event, item)) {
+    if (item == null || !this.isDiscOnJukebox(event, item)) {
       return;
     }
+
     final Path image = this.findDiskImage(item);
     if (image == null) {
       return;
     }
+
     event.setCancelled(true);
     final Player player = event.getPlayer();
     final String playerName = player.getName();
@@ -118,31 +135,27 @@ public final class JukeBoxListener implements Listener {
     player.performCommand(command);
   }
 
-  private static boolean isDiscOnJukebox(final PlayerInteractEvent event, final ItemStack item) {
+  private boolean isDiscOnJukebox(final PlayerInteractEvent event, final ItemStack item) {
     final Action action = event.getAction();
     final Block block = event.getClickedBlock();
     if (action != Action.RIGHT_CLICK_BLOCK || block == null) {
       return false;
     }
+
     final Material blockType = block.getType();
     final Material itemType = item.getType();
     final String itemName = itemType.name();
     return blockType == Material.JUKEBOX && itemName.startsWith(MUSIC_DISC_PREFIX);
   }
 
-  /**
-   * Finds the disk image in the ISO folder that is named like the disc, such as {@code alpine.iso} for a disc
-   * renamed to "alpine.iso" in an anvil.
-   *
-   * @return the disk image, or {@code null} if there is none or the name would leave the ISO folder
-   */
+  // a disc renamed in an anvil, such as "alpine.iso", names its disk image
   private @Nullable Path findDiskImage(final ItemStack item) {
     final Component name = item.displayName();
     final String displayName = PLAIN_TEXT.serialize(name);
     final Matcher bracketMatcher = BRACKETS.matcher(displayName);
     final String withoutBrackets = bracketMatcher.replaceAll("");
     final Matcher illegalMatcher = ILLEGAL_FILE_NAME_CHARACTERS.matcher(withoutBrackets);
-    final String fileName = illegalMatcher.replaceAll("_");
+    final String fileName = illegalMatcher.replaceAll(NAME_REPLACEMENT);
     final Path image = this.isoFolder.resolve(fileName);
     final Path normalized = image.normalize();
     final boolean inside = normalized.startsWith(this.isoFolder);
@@ -150,6 +163,7 @@ public final class JukeBoxListener implements Listener {
     if (!inside || !exists) {
       return null;
     }
+
     return normalized;
   }
 }

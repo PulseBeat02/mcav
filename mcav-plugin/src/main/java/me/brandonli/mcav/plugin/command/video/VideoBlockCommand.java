@@ -26,6 +26,7 @@ import me.brandonli.mcav.bukkit.media.result.BlockResult;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.plugin.MCAVSandbox;
+import me.brandonli.mcav.plugin.command.SuggestionProvider;
 import me.brandonli.mcav.plugin.utils.ArgumentUtils;
 import me.brandonli.mcav.plugin.utils.AudioArgument;
 import me.brandonli.mcav.plugin.utils.FilterChain;
@@ -45,6 +46,11 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 
 /**
  * {@code /mcav video block}: plays a video to the selected players.
+ *
+ * <p>This class is not thread-safe: use it on the server main thread, except {@code createVideoFilter}, which {@link
+ * AbstractVideoCommand} calls on the worker thread.
+ *
+ * @since 1.0.0
  */
 public final class VideoBlockCommand extends AbstractVideoCommand {
 
@@ -52,13 +58,14 @@ public final class VideoBlockCommand extends AbstractVideoCommand {
    * Constructs the command.
    *
    * @param plugin the plugin
+   * @since 1.0.0
    */
   public VideoBlockCommand(final MCAVSandbox plugin) {
     super(plugin);
   }
 
   /**
-   * Handles {@code /mcav video block <playerSelector> <playerType> <audioType> <videoResolution> <location> <ytDlpOptions>
+   * Handles {@code /mcav video block <playerSelector> <playerType> <audioType> <videoResolution> <location> <ytdlpOptions>
    * <mrl>}: plays a video as an upright wall of colored blocks, one block per pixel.
    *
    * <p>The wall stands along the x axis, is centered horizontally on the location, and grows upward from it. The
@@ -78,15 +85,16 @@ public final class VideoBlockCommand extends AbstractVideoCommand {
    * @param audioType       where the sound is played, see {@link AudioArgument}
    * @param videoResolution the size of the wall as {@code <width>x<height>} in blocks, such as {@code 32x18}
    * @param location        the bottom center of the wall, such as {@code ~ ~ ~}
-   * @param ytDlpOptions    extra options, in quotes; {@code ""} for none, or yt-dlp options such as
+   * @param ytdlpOptions    extra options, in quotes; {@code ""} for none, or yt-dlp options such as
    *                        {@code "--yt-dlp{format=best,no-playlist}"}
    * @param mrl             the media, in quotes if it contains spaces: a file path on the server, a direct media
    *                        URL, a website yt-dlp understands such as YouTube, a capture device number such as
    *                        {@code 0}, or a raw FFmpeg input written as {@code format||input}
    * @param filters         the {@code --filters} option: filters applied to every frame in order, such as
    *                        {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
+   * @since 1.0.0
    */
-  @Command("mcav video block <playerSelector> <playerType> <audioType> <videoResolution> <location> <ytDlpOptions> <mrl>")
+  @Command("mcav video block <playerSelector> <playerType> <audioType> <videoResolution> <location> <ytdlpOptions> <mrl>")
   @Permission("mcav.command.video.block")
   @CommandDescription("mcav.command.video.block.info")
   public void playVideo(
@@ -94,18 +102,18 @@ public final class VideoBlockCommand extends AbstractVideoCommand {
     final MultiplePlayerSelector playerSelector,
     final PlayerArgument playerType,
     final AudioArgument audioType,
-    @Argument(suggestions = "dimensions") @Quoted final String videoResolution,
+    @Argument(suggestions = SuggestionProvider.DIMENSIONS) @Quoted final String videoResolution,
     final Location location,
-    @Default @Quoted final String ytDlpOptions,
+    @Default @Quoted final String ytdlpOptions,
     @Quoted final String mrl,
     @Flag("filters") @Quoted final @Nullable String filters
   ) {
-    Preconditions.checkNotNull(playerSelector, "Player selector must not be null");
-    Preconditions.checkNotNull(location, "Location must not be null");
+    Preconditions.checkNotNull(playerSelector, "Player selector must not be null!");
+    Preconditions.checkNotNull(location, "Location must not be null!");
 
     final Collection<UUID> players = ArgumentUtils.parsePlayerSelectors(playerSelector);
-    final VideoConfigurationProvider configurationProvider = resolution -> createConfiguration(resolution, players, location);
-    this.playVideo(configurationProvider, sender, playerSelector, playerType, audioType, videoResolution, mrl, ytDlpOptions, filters);
+    final VideoConfigurationProvider configurationProvider = resolution -> this.createConfiguration(resolution, players, location);
+    this.playVideo(configurationProvider, sender, playerSelector, playerType, audioType, videoResolution, mrl, ytdlpOptions, filters);
   }
 
   /**
@@ -117,22 +125,24 @@ public final class VideoBlockCommand extends AbstractVideoCommand {
    *                              {@link #playVideo(CommandSender, MultiplePlayerSelector, PlayerArgument, AudioArgument, String, Location, String, String, String)},
    *                              which returns a {@link BlockConfiguration}
    * @return the pipeline that shows the frames on the wall
+   * @since 1.0.0
    */
   @Override
   public VideoPipelineStep createVideoFilter(
     final Pair<Integer, Integer> resolution,
     final VideoConfigurationProvider configurationProvider
   ) {
-    Preconditions.checkNotNull(resolution, "Resolution must not be null");
-    Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null");
+    Preconditions.checkNotNull(resolution, "Resolution must not be null!");
+    Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null!");
 
     final BlockConfiguration configuration = (BlockConfiguration) configurationProvider.buildConfiguration(resolution);
     final FunctionalVideoFilter result = new BlockResult(configuration);
     this.manager.startFilter(result);
+
     return VideoPipelineStep.of(result);
   }
 
-  private static BlockConfiguration createConfiguration(
+  private BlockConfiguration createConfiguration(
     final Pair<Integer, Integer> resolution,
     final Collection<UUID> players,
     final Location location

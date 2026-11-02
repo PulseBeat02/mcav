@@ -22,6 +22,7 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -33,13 +34,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Serves the benchmark pages on the loopback address: {@code /fps}, whose color changes on every animation frame,
- * and {@code /latency}, whose color changes whenever {@link #send(String)} pushes a server-sent event.
- */
 final class BenchmarkServer implements AutoCloseable {
 
-  private static final String FPS_PAGE = """
+  private static final String FRAMES_PER_SECOND_PAGE = """
   <!doctype html><html><body style="margin:0;overflow:hidden">
   <div id="d" style="position:fixed;left:0;top:0;right:0;bottom:0;background:#dc0000"></div>
   <script>
@@ -58,6 +55,24 @@ final class BenchmarkServer implements AutoCloseable {
   </script></body></html>
   """;
 
+  private static final String LOOPBACK_ADDRESS = "127.0.0.1";
+  private static final String URL_PREFIX = "http://127.0.0.1:";
+  private static final String PATH_SEPARATOR = "/";
+
+  private static final String FRAME_RATE_PATH = "/fps";
+  private static final String LATENCY_PATH = "/latency";
+  private static final String EVENTS_PATH = "/events";
+
+  private static final String CONTENT_TYPE_HEADER = "Content-Type";
+  private static final String CACHE_CONTROL_HEADER = "Cache-Control";
+  private static final String NO_STORE = "no-store";
+  private static final String HTML_CONTENT_TYPE = "text/html; charset=utf-8";
+  private static final String EVENT_STREAM_CONTENT_TYPE = "text/event-stream";
+
+  private static final String OPEN_COMMENT = ": open\n\n";
+  private static final String DATA_PREFIX = "data: ";
+  private static final String EVENT_END = "\n\n";
+
   private final HttpServer server;
   private final ExecutorService executor;
   private final List<OutputStream> listeners;
@@ -70,31 +85,38 @@ final class BenchmarkServer implements AutoCloseable {
   }
 
   static BenchmarkServer start() throws IOException {
-    final InetAddress loopback = InetAddress.ofLiteral("127.0.0.1");
+    final InetAddress loopback = InetAddress.ofLiteral(LOOPBACK_ADDRESS);
     final InetSocketAddress address = new InetSocketAddress(loopback, 0);
     final HttpServer server = HttpServer.create(address, 0);
     final ExecutorService executor = Executors.newCachedThreadPool();
     final BenchmarkServer created = new BenchmarkServer(server, executor);
-    server.createContext("/fps", exchange -> respond(exchange, FPS_PAGE));
-    server.createContext("/latency", exchange -> respond(exchange, LATENCY_PAGE));
-    server.createContext("/events", created::openEvents);
+    server.createContext(FRAME_RATE_PATH, exchange -> respond(exchange, FRAMES_PER_SECOND_PAGE));
+    server.createContext(LATENCY_PATH, exchange -> respond(exchange, LATENCY_PAGE));
+    server.createContext(EVENTS_PATH, created::openEvents);
     server.setExecutor(executor);
     server.start();
+
     return created;
+  }
+
+  @Override
+  public void close() {
+    this.server.stop(0);
+    this.executor.shutdownNow();
   }
 
   URI page(final String name) {
     final InetSocketAddress address = this.server.getAddress();
     final int port = address.getPort();
-    return URI.create("http://127.0.0.1:" + port + "/" + name);
+    return URI.create(URL_PREFIX + port + PATH_SEPARATOR + name);
   }
 
   private static void respond(final HttpExchange exchange, final String page) throws IOException {
     final byte[] body = page.getBytes(StandardCharsets.UTF_8);
     final Headers headers = exchange.getResponseHeaders();
-    headers.set("Content-Type", "text/html; charset=utf-8");
-    headers.set("Cache-Control", "no-store");
-    exchange.sendResponseHeaders(200, body.length);
+    headers.set(CONTENT_TYPE_HEADER, HTML_CONTENT_TYPE);
+    headers.set(CACHE_CONTROL_HEADER, NO_STORE);
+    exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, body.length);
     try (final OutputStream out = exchange.getResponseBody()) {
       out.write(body);
     }
@@ -102,11 +124,11 @@ final class BenchmarkServer implements AutoCloseable {
 
   private void openEvents(final HttpExchange exchange) throws IOException {
     final Headers headers = exchange.getResponseHeaders();
-    headers.set("Content-Type", "text/event-stream");
-    headers.set("Cache-Control", "no-store");
-    exchange.sendResponseHeaders(200, 0);
+    headers.set(CONTENT_TYPE_HEADER, EVENT_STREAM_CONTENT_TYPE);
+    headers.set(CACHE_CONTROL_HEADER, NO_STORE);
+    exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, 0);
     final OutputStream out = exchange.getResponseBody();
-    out.write(": open\n\n".getBytes(StandardCharsets.UTF_8));
+    out.write(OPEN_COMMENT.getBytes(StandardCharsets.UTF_8));
     out.flush();
     this.listeners.add(out);
     synchronized (this) {
@@ -115,30 +137,19 @@ final class BenchmarkServer implements AutoCloseable {
     }
   }
 
-  synchronized int getSubscriptions() {
-    return this.subscriptions;
-  }
-
-  /**
-   * Waits until a page subscribed to the events after an earlier count of subscriptions.
-   *
-   * @param before        the count before the page was opened
-   * @param timeoutMillis how long to wait
-   * @throws InterruptedException if interrupted
-   */
-  synchronized void awaitSubscription(final int before, final long timeoutMillis) throws InterruptedException {
-    final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
+  synchronized void awaitSubscription(final int before, final long timeoutMilliseconds) throws InterruptedException {
+    final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMilliseconds);
     while (this.subscriptions <= before) {
       final long remaining = TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime());
       if (remaining <= 0) {
-        throw new IllegalStateException("The page never subscribed to the events");
+        throw new IllegalStateException("The page never subscribed to the events!");
       }
       this.wait(remaining);
     }
   }
 
   void send(final String color) {
-    final byte[] event = ("data: " + color + "\n\n").getBytes(StandardCharsets.UTF_8);
+    final byte[] event = (DATA_PREFIX + color + EVENT_END).getBytes(StandardCharsets.UTF_8);
     final List<OutputStream> gone = new ArrayList<>();
     for (final OutputStream listener : this.listeners) {
       try {
@@ -151,9 +162,7 @@ final class BenchmarkServer implements AutoCloseable {
     this.listeners.removeAll(gone);
   }
 
-  @Override
-  public void close() {
-    this.server.stop(0);
-    this.executor.shutdownNow();
+  synchronized int getSubscriptions() {
+    return this.subscriptions;
   }
 }

@@ -28,13 +28,10 @@ import org.bukkit.command.CommandSender;
 import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 import org.junit.jupiter.api.Test;
 
-/**
- * Tests {@link ScreenSettings}.
- */
 final class ScreenSettingsTest {
 
   @Test
-  void keepsEverySetting() {
+  void shouldKeepEverySetting() {
     final MultiplePlayerSelector viewers = mock(MultiplePlayerSelector.class);
     final Pair<Integer, Integer> blocks = Pair.pair(5, 3);
     final Pair<Integer, Integer> resolution = Pair.pair(640, 384);
@@ -50,7 +47,11 @@ final class ScreenSettingsTest {
     assertSame(resolution, keptResolution);
     assertEquals(12, mapId);
     assertSame(DitheringArgument.ATKINSON, dithering);
-    assertSame(sender, settings.getSender());
-    assertSame(MapCodec.MCV2, settings.getCodec());
+
+    final CommandSender settingsSender = settings.getSender();
+    assertSame(sender, settingsSender);
+
+    final MapCodec codec = settings.getCodec();
+    assertSame(MapCodec.MCV2, codec);
   }
 }

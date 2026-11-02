@@ -23,28 +23,25 @@ import me.brandonli.mcav.plugin.testing.UtilityClassAssertions;
 import org.bukkit.NamespacedKey;
 import org.junit.jupiter.api.Test;
 
-/**
- * Tests {@link Keys}.
- */
 final class KeysTest {
 
-  private static String format(final NamespacedKey key) {
-    return key.asString();
-  }
-
   @Test
-  void namesEveryKeyInThePluginNamespace() {
-    final String map = format(Keys.MAP_KEY);
-    final String first = format(Keys.FIRST_MAP_KEY);
-    final String last = format(Keys.LAST_MAP_KEY);
+  void shouldNameEveryKeyInThePluginNamespace() {
+    final String map = this.format(Keys.MAP_KEY);
+    final String first = this.format(Keys.FIRST_MAP_KEY);
+    final String last = this.format(Keys.LAST_MAP_KEY);
     assertEquals("mcav", Keys.NAMESPACE);
     assertEquals("mcav:map", map);
     assertEquals("mcav:first_map", first);
     assertEquals("mcav:second_map", last);
   }
 
+  private String format(final NamespacedKey key) {
+    return key.asString();
+  }
+
   @Test
-  void isNotInstantiable() {
+  void shouldNotBeInstantiable() {
     UtilityClassAssertions.assertNotInstantiable(Keys.class);
   }
 }

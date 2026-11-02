@@ -24,6 +24,7 @@ import me.brandonli.mcav.bukkit.media.config.ChatConfiguration;
 import me.brandonli.mcav.bukkit.media.config.ChatConfigurationBuilder;
 import me.brandonli.mcav.bukkit.media.image.DisplayableImage;
 import me.brandonli.mcav.plugin.MCAVSandbox;
+import me.brandonli.mcav.plugin.command.SuggestionProvider;
 import me.brandonli.mcav.plugin.utils.ArgumentUtils;
 import me.brandonli.mcav.plugin.utils.FilterChain;
 import me.brandonli.mcav.utils.immutable.Pair;
@@ -41,6 +42,10 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 
 /**
  * {@code /mcav image chat}: shows an image to the selected players.
+ *
+ * <p>This class is not thread-safe: use it on the server main thread.
+ *
+ * @since 1.0.0
  */
 public final class ImageChatCommand extends AbstractImageCommand {
 
@@ -48,6 +53,7 @@ public final class ImageChatCommand extends AbstractImageCommand {
    * Constructs the command.
    *
    * @param plugin the plugin
+   * @since 1.0.0
    */
   public ImageChatCommand(final MCAVSandbox plugin) {
     super(plugin);
@@ -77,6 +83,7 @@ public final class ImageChatCommand extends AbstractImageCommand {
    *                        URL; the rest of the command line, so it may contain spaces
    * @param filters         the {@code --filters} option: filters applied to the image in order, such as
    *                        {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
+   * @since 1.0.0
    */
   @Command("mcav image chat <playerSelector> <imageResolution> <character> <mrl>")
   @Permission("mcav.command.image.chat")
@@ -84,38 +91,41 @@ public final class ImageChatCommand extends AbstractImageCommand {
   public void showImage(
     final CommandSender sender,
     final MultiplePlayerSelector playerSelector,
-    @Argument(suggestions = "dimensions") @Quoted final String imageResolution,
-    @Argument(suggestions = "chat-characters") @Quoted final String character,
+    @Argument(suggestions = SuggestionProvider.DIMENSIONS) @Quoted final String imageResolution,
+    @Argument(suggestions = SuggestionProvider.CHAT_CHARACTERS) @Quoted final String character,
     @Greedy @FlagYielding final String mrl,
     @Flag("filters") @Quoted final @Nullable String filters
   ) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
-    Preconditions.checkNotNull(playerSelector, "Player selector must not be null");
-    Preconditions.checkNotNull(imageResolution, "Image resolution must not be null");
-    Preconditions.checkNotNull(character, "Character must not be null");
-    Preconditions.checkNotNull(mrl, "MRL must not be null");
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(playerSelector, "Player selector must not be null!");
+    Preconditions.checkNotNull(imageResolution, "Image resolution must not be null!");
+    Preconditions.checkNotNull(character, "Character must not be null!");
+    Preconditions.checkNotNull(mrl, "MRL must not be null!");
+
     final Collection<UUID> players = ArgumentUtils.parsePlayerSelectors(playerSelector);
-    final ImageConfigurationProvider configProvider = resolution -> createConfiguration(resolution, players, character);
-    this.displayImage(configProvider, sender, imageResolution, mrl, filters);
+    final ImageConfigurationProvider configurationProvider = resolution -> this.createConfiguration(resolution, players, character);
+    this.displayImage(configurationProvider, sender, imageResolution, mrl, filters);
   }
 
   /**
    * Creates a chat display from the {@link ChatConfiguration} built by the provider that the command passed to
    * {@link #displayImage}.
    *
-   * @param resolution     the parsed resolution, in characters per line and lines
-   * @param configProvider the provider that builds the chat configuration
+   * @param resolution            the parsed resolution, in characters per line and lines
+   * @param configurationProvider the provider that builds the chat configuration
    * @return the chat display
+   * @since 1.0.0
    */
   @Override
-  public DisplayableImage createImage(final Pair<Integer, Integer> resolution, final ImageConfigurationProvider configProvider) {
-    Preconditions.checkNotNull(resolution, "Resolution must not be null");
-    Preconditions.checkNotNull(configProvider, "Configuration provider must not be null");
-    final ChatConfiguration configuration = (ChatConfiguration) configProvider.buildConfiguration(resolution);
+  public DisplayableImage createImage(final Pair<Integer, Integer> resolution, final ImageConfigurationProvider configurationProvider) {
+    Preconditions.checkNotNull(resolution, "Resolution must not be null!");
+    Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null!");
+
+    final ChatConfiguration configuration = (ChatConfiguration) configurationProvider.buildConfiguration(resolution);
     return DisplayableImage.chat(configuration);
   }
 
-  private static ChatConfiguration createConfiguration(
+  private ChatConfiguration createConfiguration(
     final Pair<Integer, Integer> resolution,
     final Collection<UUID> players,
     final String character

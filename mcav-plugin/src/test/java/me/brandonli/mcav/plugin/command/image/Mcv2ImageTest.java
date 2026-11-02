@@ -43,14 +43,14 @@ import org.bukkit.scheduler.BukkitTask;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.invocation.InvocationOnMock;
 
-/**
- * Tests {@link Mcv2Image}: the screen starts with the image and is given a copy of it twice a second, off the main
- * thread, until it is released, and is asked for a keyframe every fourth second.
- */
 final class Mcv2ImageTest {
 
   private static final int[] PIXELS = { 0xFF102030, 0xFF405060, 0xFF708090, 0xFFA0B0C0, 0xFFD0E0F0, 0xFF000000 };
+
+  private static final int IMAGE_WIDTH = 3;
+  private static final int IMAGE_HEIGHT = 2;
 
   private Plugin plugin;
 
@@ -69,56 +69,69 @@ final class Mcv2ImageTest {
     when(TestServer.scheduler().runTaskTimerAsynchronously(any(Plugin.class), any(Runnable.class), anyLong(), anyLong())).thenReturn(
       this.task
     );
-    doAnswer(invocation -> {
-      final ImageBuffer frame = invocation.getArgument(0);
-      final OriginalVideoMetadata metadata = invocation.getArgument(1);
-      assertEquals(3, metadata.getVideoWidth());
-      assertEquals(2, metadata.getVideoHeight());
-      this.given.add(frame.getPixels().clone());
-      // the screen may resize the frame in place: it is the screen's own copy
-      frame.getPixels()[0] = 0;
-      return true;
-    })
-      .when(this.output)
-      .applyFilter(any(), any());
+    doAnswer(this::recordAndAlterFrame).when(this.output).applyFilter(any(), any());
+  }
+
+  private boolean recordAndAlterFrame(final InvocationOnMock invocation) {
+    final ImageBuffer frame = invocation.getArgument(0);
+    final OriginalVideoMetadata metadata = invocation.getArgument(1);
+    assertEquals(IMAGE_WIDTH, metadata.getVideoWidth());
+    assertEquals(IMAGE_HEIGHT, metadata.getVideoHeight());
+
+    this.given.add(frame.getPixels().clone());
+    // the screen may resize the frame in place: it is the screen's own copy
+    frame.getPixels()[0] = 0;
+
+    return true;
   }
 
   @Test
-  void startsTheScreenAndGivesItTheImageTwiceASecondUntilReleased() {
+  void shouldStartTheScreenAndGiveItTheImageTwiceASecondUntilReleased() {
     final Mcv2Image image = new Mcv2Image(this.plugin, this.output);
-    final ImageBuffer picture = ImageBuffer.buffer(PIXELS.clone(), 3, 2);
+    final ImageBuffer picture = ImageBuffer.buffer(PIXELS.clone(), IMAGE_WIDTH, IMAGE_HEIGHT);
 
     image.displayImage(picture);
     // the caller keeps its image and may change or release it
     picture.getPixels()[1] = 0;
 
     verify(this.output).start();
+
     final ArgumentCaptor<Runnable> feeds = ArgumentCaptor.forClass(Runnable.class);
     verify(TestServer.scheduler()).runTaskTimerAsynchronously(eq(this.plugin), feeds.capture(), eq(0L), eq(Mcv2Image.PERIOD_TICKS));
+
     feeds.getValue().run();
     feeds.getValue().run();
-    assertEquals(2, this.given.size());
-    assertArrayEquals(PIXELS, this.given.getFirst());
-    assertArrayEquals(PIXELS, this.given.getLast(), "every frame is a fresh copy of the image");
+
+    final int size = this.given.size();
+    assertEquals(2, size);
+
+    final int[] given = this.given.getFirst();
+    assertArrayEquals(PIXELS, given);
+
+    final int[] givenGiven = this.given.getLast();
+    assertArrayEquals(PIXELS, givenGiven, "every frame is a fresh copy of the image");
+
     image.release();
     verify(this.task).cancel();
     verify(this.output).release();
+
     image.release();
     verify(this.task, times(1)).cancel();
   }
 
   @Test
-  void asksForAKeyframeEveryFourthSecond() {
+  void shouldAskForAKeyframeEveryFourthSecond() {
     final Mcv2Result result = mock(Mcv2Result.class);
     final Mcv2Channel channel = mock(Mcv2Channel.class);
     when(this.output.getResult()).thenReturn(result);
     when(result.getChannel()).thenReturn(channel);
     final Mcv2Image image = new Mcv2Image(this.plugin, this.output);
 
-    image.displayImage(ImageBuffer.buffer(PIXELS.clone(), 3, 2));
+    image.displayImage(ImageBuffer.buffer(PIXELS.clone(), IMAGE_WIDTH, IMAGE_HEIGHT));
 
     final ArgumentCaptor<Runnable> feeds = ArgumentCaptor.forClass(Runnable.class);
     verify(TestServer.scheduler()).runTaskTimerAsynchronously(eq(this.plugin), feeds.capture(), eq(0L), eq(Mcv2Image.PERIOD_TICKS));
+
     // a client that missed the keyframe its viewer started with shows nothing until the next, which a video of 30
     // frames a second has four seconds later, and the encoder's own every 120 frames, a minute at two a second
     final int fourSeconds = (int) ((4 * 20) / Mcv2Image.PERIOD_TICKS);
@@ -126,17 +139,21 @@ final class Mcv2ImageTest {
       feeds.getValue().run();
     }
     verify(channel, never()).requestKeyframe();
+
     feeds.getValue().run();
     verify(channel).requestKeyframe();
+
     for (int feed = 0; feed < fourSeconds; feed++) {
       feeds.getValue().run();
     }
     verify(channel, times(2)).requestKeyframe();
-    assertEquals(2 * fourSeconds, this.given.size(), "every feed gives the image");
+
+    final int size = this.given.size();
+    assertEquals(2 * fourSeconds, size, "every feed gives the image");
   }
 
   @Test
-  void releasesAScreenThatShowedNothing() {
+  void shouldReleaseAScreenThatShowedNothing() {
     final Mcv2Image image = new Mcv2Image(this.plugin, this.output);
     image.release();
     verify(this.output).release();
@@ -144,7 +161,7 @@ final class Mcv2ImageTest {
   }
 
   @Test
-  void refusesMissingParts() {
+  void shouldRefuseMissingParts() {
     assertThrows(NullPointerException.class, () -> new Mcv2Image(null, this.output));
     assertThrows(NullPointerException.class, () -> new Mcv2Image(this.plugin, null));
     assertThrows(NullPointerException.class, () -> new Mcv2Image(this.plugin, this.output).displayImage(null));

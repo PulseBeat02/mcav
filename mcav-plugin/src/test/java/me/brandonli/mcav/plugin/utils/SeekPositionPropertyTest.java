@@ -18,42 +18,59 @@
 package me.brandonli.mcav.plugin.utils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Locale;
+import java.util.Optional;
 import net.jqwik.api.ForAll;
 import net.jqwik.api.Property;
 import net.jqwik.api.constraints.LongRange;
 
 final class SeekPositionPropertyTest {
 
+  private static final long MILLISECONDS_PER_SECOND = 1_000L;
+
   @Property
-  void readsBackEveryFormattedTime(@ForAll @LongRange(min = 0, max = SeekPosition.MAX_MILLIS) final long millis) {
-    final long whole = millis - (millis % 1_000L);
-    final SeekPosition absolute = SeekPosition.parse(SeekPosition.format(whole));
-    final SeekPosition forward = SeekPosition.parse("+" + SeekPosition.format(whole));
-    final SeekPosition back = SeekPosition.parse("-" + SeekPosition.format(whole));
-    assertEquals(new SeekPosition(false, whole), absolute);
-    assertEquals(new SeekPosition(true, whole), forward);
-    assertEquals(new SeekPosition(true, -whole), back);
+  void shouldReadBackEveryFormattedTime(@ForAll @LongRange(min = 0, max = SeekPosition.MAXIMUM_MILLISECONDS) final long milliseconds) {
+    final long whole = milliseconds - (milliseconds % MILLISECONDS_PER_SECOND);
+    final Optional<SeekPosition> absolute = SeekPosition.parse(SeekPosition.format(whole));
+    final Optional<SeekPosition> forward = SeekPosition.parse("+" + SeekPosition.format(whole));
+    final Optional<SeekPosition> back = SeekPosition.parse("-" + SeekPosition.format(whole));
+
+    final SeekPosition expected = SeekPosition.of(false, whole);
+    assertEquals(Optional.of(expected), absolute);
+
+    final SeekPosition secondExpected = SeekPosition.of(true, whole);
+    assertEquals(Optional.of(secondExpected), forward);
+
+    final SeekPosition thirdExpected = SeekPosition.of(true, -whole);
+    assertEquals(Optional.of(thirdExpected), back);
   }
 
   @Property
-  void readsSecondsWithTheirMilliseconds(@ForAll @LongRange(min = 0, max = SeekPosition.MAX_MILLIS) final long millis) {
-    final String text = String.format(Locale.ROOT, "%d.%03d", millis / 1_000L, millis % 1_000L);
-    final SeekPosition position = SeekPosition.parse(text);
-    assertNotNull(position, text);
-    assertEquals(millis, position.millis());
-  }
-
-  @Property
-  void neverResolvesBeforeTheStart(
-    @ForAll @LongRange(min = -SeekPosition.MAX_MILLIS, max = SeekPosition.MAX_MILLIS) final long millis,
-    @ForAll @LongRange(min = 0, max = SeekPosition.MAX_MILLIS) final long current
+  void shouldReadSecondsWithTheirMilliseconds(
+    @ForAll @LongRange(min = 0, max = SeekPosition.MAXIMUM_MILLISECONDS) final long milliseconds
   ) {
-    final long target = new SeekPosition(true, millis).resolve(current);
+    final String text = String.format(
+      Locale.ROOT,
+      "%d.%03d",
+      milliseconds / MILLISECONDS_PER_SECOND,
+      milliseconds % MILLISECONDS_PER_SECOND
+    );
+    final SeekPosition position = SeekPosition.parse(text).orElseThrow();
+    final long positionMilliseconds = position.getMilliseconds();
+    assertEquals(milliseconds, positionMilliseconds);
+  }
+
+  @Property
+  void shouldNeverResolveBeforeTheStart(
+    @ForAll @LongRange(min = -SeekPosition.MAXIMUM_MILLISECONDS, max = SeekPosition.MAXIMUM_MILLISECONDS) final long milliseconds,
+    @ForAll @LongRange(min = 0, max = SeekPosition.MAXIMUM_MILLISECONDS) final long current
+  ) {
+    final long target = SeekPosition.of(true, milliseconds).resolve(current);
     assertTrue(target >= 0);
-    assertEquals(Math.max(0, current + millis), target);
+
+    final long expected = Math.max(0, current + milliseconds);
+    assertEquals(expected, target);
   }
 }

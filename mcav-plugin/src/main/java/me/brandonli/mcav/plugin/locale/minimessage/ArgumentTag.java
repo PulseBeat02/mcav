@@ -37,6 +37,10 @@ import org.checkerframework.checker.nullness.qual.NonNull;
  * {@code <gold><arg:0> has <arg:1> maps</gold>} renders as "Steve has 5 maps" in gold. Server owners who edit the
  * files in the {@code locale} folder of the plugin can move these tags around or drop them, but must not use an
  * index the message does not receive.
+ *
+ * <p>This class is thread-safe when the list it was given does not change.
+ *
+ * @since 1.0.0
  */
 public final class ArgumentTag implements TagResolver {
 
@@ -50,9 +54,11 @@ public final class ArgumentTag implements TagResolver {
    * @param argumentComponents the arguments of the translatable component being rendered, in order; the list is
    *                           used as is, not copied
    * @throws NullPointerException if the list is {@code null}
+   * @since 1.0.0
    */
   public ArgumentTag(final List<? extends ComponentLike> argumentComponents) {
-    Preconditions.checkNotNull(argumentComponents, "Argument components must not be null");
+    Preconditions.checkNotNull(argumentComponents, "Argument components must not be null!");
+
     this.argumentComponents = argumentComponents;
   }
 
@@ -66,11 +72,13 @@ public final class ArgumentTag implements TagResolver {
    * @throws ParsingException                 if the tag has no index
    * @throws java.util.NoSuchElementException if the index is not a whole number
    * @throws IndexOutOfBoundsException        if the message has no argument with the index
+   * @since 1.0.0
    */
   @Override
   public Tag resolve(final @NonNull String name, final @NonNull ArgumentQueue arguments, final @NonNull Context context)
     throws ParsingException {
-    Preconditions.checkNotNull(arguments, "Arguments must not be null");
+    Preconditions.checkNotNull(arguments, "Arguments must not be null!");
+
     final Argument indexArgument = arguments.pop();
     final OptionalInt parsedIndex = indexArgument.asInt();
     final int index = parsedIndex.orElseThrow();
@@ -79,10 +87,11 @@ public final class ArgumentTag implements TagResolver {
   }
 
   /**
-   * Checks whether a tag is handled by this resolver, which is only the case for {@code arg}.
+   * Returns whether a tag is handled by this resolver, which is only the case for {@code arg}.
    *
    * @param name the name of the tag
    * @return true if the name is {@code arg}
+   * @since 1.0.0
    */
   @Override
   public boolean has(final @NonNull String name) {

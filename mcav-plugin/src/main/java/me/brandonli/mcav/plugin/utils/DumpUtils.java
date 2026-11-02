@@ -26,6 +26,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
+import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -45,6 +46,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import me.brandonli.mcav.plugin.PluginException;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -54,6 +56,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * arguments whose names suggest secrets, such as {@code -Dbot.token=...}, are redacted. Only the end of the server
  * log is included. Redaction is heuristic: unlabelled secrets and application-specific credential formats may
  * still appear in diagnostic text.
+ *
+ * <p>This class is stateless and thread-safe.
+ *
+ * @since 1.0.0
  */
 public final class DumpUtils {
 
@@ -61,7 +67,7 @@ public final class DumpUtils {
   private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
   private static final Duration UPLOAD_TIMEOUT = Duration.ofSeconds(30);
   private static final Path LOG_FILE = Path.of("logs", "latest.log");
-  private static final int MAX_LOG_LINES = 2_000;
+  private static final int MAXIMUM_LOG_LINES = 2_000;
   private static final List<String> SECRET_WORDS = List.of("token", "password", "passwd", "secret", "key", "credential", "auth");
   private static final String REDACTED = "<redacted>";
   private static final String REDACTED_ADDRESS = "<redacted-address>";
@@ -73,50 +79,68 @@ public final class DumpUtils {
   private static final String OWN_COMMAND_PREFIX = "mcav";
   private static final long MEGABYTE = 1024L * 1024L;
 
+  private static final String DOCUMENTS_PATH = "documents/";
+
+  private static final String LABEL_SEPARATOR = ": ";
+
+  private static final char LINE_SEPARATOR = '\n';
+
+  private static final String SECTION_PREFIX = "\n=== ";
+  private static final String SECTION_SUFFIX = " ===\n";
+
+  private static final String PROPERTY_SEPARATOR = "=";
+
+  private static final String OPTION_PREFIX = "-";
+
+  private static final String WORD_SEPARATOR = " ";
+
+  private static final int USER_GROUP = 2;
+  private static final int HOST_GROUP = 3;
+  private static final int QUERY_OR_FRAGMENT_GROUP = 4;
+
+  private static final String USER_SEPARATOR = "@";
+
+  private static final String ADDRESS_PREFIX = "/";
+
+  private static final int COMMAND_NAME_GROUP = 2;
+  private static final int COMMAND_ARGUMENTS_GROUP = 3;
+
+  private static final String STACK_FRAME_PREFIX = "\tat ";
+
   private DumpUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   /**
    * Collects the dump and uploads it.
    *
    * @return the URL of the uploaded dump
-   * @throws IllegalStateException if the upload fails
+   * @throws PluginException if the upload fails
+   * @since 1.0.0
    */
   public static String createAndUploadDump() {
     return createAndUploadDump(HTTP_CLIENT, PASTE_SITE, LOG_FILE);
   }
 
-  /**
-   * Collects the dump and uploads it to a paste site that speaks the hastebin protocol.
-   *
-   * @param client    the HTTP client
-   * @param pasteSite the URL of the paste site, ending with a slash
-   * @param logFile   the server log whose end is included
-   * @return the URL of the uploaded dump
-   * @throws IllegalStateException if the upload fails
-   */
   @VisibleForTesting
   static String createAndUploadDump(final HttpClient client, final String pasteSite, final Path logFile) {
     final String dump = createDumpContents(logFile);
     try {
-      final URI endpoint = URI.create(pasteSite + "documents/");
+      final URI endpoint = URI.create(pasteSite + DOCUMENTS_PATH);
       final String response = uploadDump(client, endpoint, dump);
       final String documentKey = parseDocumentKey(response);
       return pasteSite + documentKey;
     } catch (final IOException exception) {
-      final String message = exception.getMessage();
-      throw new IllegalStateException("Failed to upload the dump: " + message, exception);
+      final String reason = exception.getMessage();
+      final String message = "The dump could not be uploaded (%s)!".formatted(reason);
+      throw new PluginException(message, exception);
     } catch (final InterruptedException exception) {
       final Thread current = Thread.currentThread();
       current.interrupt();
-      throw new IllegalStateException("Interrupted while uploading the dump", exception);
+      throw new PluginException("Interrupted while uploading the dump!", exception);
     }
   }
 
-  /**
-   * Reads the key of the uploaded document from the answer of the paste site, such as {@code {"key":"abc"}}.
-   */
   private static String parseDocumentKey(final String response) {
     final JsonElement element = parseJson(response);
     if (element.isJsonObject()) {
@@ -126,14 +150,16 @@ public final class DumpUtils {
         return key.getAsString();
       }
     }
-    throw new IllegalStateException("The paste site did not answer with a document key: " + response);
+    final String message = "Paste site answer %s has no document key!".formatted(response);
+    throw new PluginException(message);
   }
 
   private static JsonElement parseJson(final String response) {
     try {
       return JsonParser.parseString(response);
     } catch (final JsonParseException exception) {
-      throw new IllegalStateException("The paste site did not answer with JSON: " + response, exception);
+      final String message = "Paste site answer %s is not JSON!".formatted(response);
+      throw new PluginException(message, exception);
     }
   }
 
@@ -148,19 +174,14 @@ public final class DumpUtils {
     final HttpResponse.BodyHandler<String> handler = HttpResponse.BodyHandlers.ofString();
     final HttpResponse<String> response = client.send(request, handler);
     final int status = response.statusCode();
-    if (status != 200) {
-      throw new IOException("The paste site answered with HTTP " + status);
+    if (status != HttpURLConnection.HTTP_OK) {
+      final String message = "The paste site answered with HTTP status %s, which is not a success!".formatted(status);
+      throw new IOException(message);
     }
+
     return response.body();
   }
 
-  /**
-   * Collects the dump: the system, the JVM properties with secrets redacted, the stack traces of every thread,
-   * and the end of the server log.
-   *
-   * @param logFile the server log
-   * @return the dump
-   */
   @VisibleForTesting
   static String createDumpContents(final Path logFile) {
     final StringBuilder dump = new StringBuilder();
@@ -171,24 +192,17 @@ public final class DumpUtils {
     return dump.toString();
   }
 
-  private static void appendLine(final StringBuilder dump, final String name, final @Nullable Object value) {
-    dump.append(name);
-    dump.append(": ");
-    dump.append(value);
-    dump.append('\n');
-  }
-
-  private static void appendSection(final StringBuilder dump, final String title) {
-    dump.append("\n=== ");
-    dump.append(title);
-    dump.append(" ===\n");
-  }
-
   private static void appendSystem(final StringBuilder dump) {
     appendSection(dump, "System");
     appendOperatingSystem(dump);
     appendMemory(dump);
     appendJvm(dump);
+  }
+
+  private static void appendSection(final StringBuilder dump, final String title) {
+    dump.append(SECTION_PREFIX);
+    dump.append(title);
+    dump.append(SECTION_SUFFIX);
   }
 
   private static void appendOperatingSystem(final StringBuilder dump) {
@@ -204,16 +218,23 @@ public final class DumpUtils {
     appendLine(dump, "Java Vendor", javaVendor);
   }
 
+  private static void appendLine(final StringBuilder dump, final String name, final @Nullable Object value) {
+    dump.append(name);
+    dump.append(LABEL_SEPARATOR);
+    dump.append(value);
+    dump.append(LINE_SEPARATOR);
+  }
+
   private static void appendMemory(final StringBuilder dump) {
     final Runtime runtime = Runtime.getRuntime();
     final int processors = runtime.availableProcessors();
     final long freeMemory = runtime.freeMemory();
     final long totalMemory = runtime.totalMemory();
-    final long maxMemory = runtime.maxMemory();
+    final long maximumMemory = runtime.maxMemory();
     appendLine(dump, "Processors", processors);
     appendLine(dump, "Free Memory (MB)", freeMemory / MEGABYTE);
     appendLine(dump, "Total Memory (MB)", totalMemory / MEGABYTE);
-    appendLine(dump, "Max Memory (MB)", maxMemory / MEGABYTE);
+    appendLine(dump, "Max Memory (MB)", maximumMemory / MEGABYTE);
   }
 
   private static void appendJvm(final StringBuilder dump) {
@@ -225,15 +246,7 @@ public final class DumpUtils {
     appendLine(dump, "JVM Arguments", redactedArguments);
   }
 
-  /**
-   * Redacts the values of JVM arguments that look secret, such as {@code -Dbot.token=abc} or
-   * {@code -Djavax.net.ssl.keyStorePassword=abc}. Everything after the first equals sign of an argument is
-   * redacted when the text before its last equals sign looks secret, so a secret among the options of an agent,
-   * such as {@code -javaagent:agent.jar=token=abc}, is redacted as well.
-   *
-   * @param arguments the arguments
-   * @return the arguments with secrets redacted, in the same order
-   */
+  // everything after the first equals sign is redacted
   @VisibleForTesting
   static List<String> redactArguments(final List<String> arguments) {
     final List<String> redacted = new ArrayList<>();
@@ -245,18 +258,20 @@ public final class DumpUtils {
   }
 
   private static String redactArgument(final String argument) {
-    final int lastEquals = argument.lastIndexOf('=');
+    final int lastEquals = argument.lastIndexOf(PROPERTY_SEPARATOR);
     if (lastEquals < 0) {
       return argument;
     }
+
     final String names = argument.substring(0, lastEquals);
     final boolean secret = isSecret(names);
     if (!secret) {
       return argument;
     }
-    final int firstEquals = argument.indexOf('=');
+
+    final int firstEquals = argument.indexOf(PROPERTY_SEPARATOR);
     final String name = argument.substring(0, firstEquals);
-    return name + "=" + REDACTED;
+    return name + PROPERTY_SEPARATOR + REDACTED;
   }
 
   private static void appendProperties(final StringBuilder dump) {
@@ -277,20 +292,7 @@ public final class DumpUtils {
     }
   }
 
-  /**
-   * Redacts the secrets a property value carries even though the name of the property does not look secret.
-   *
-   * <p>The dump is uploaded to a public paste site, so a value that repeats the command line must not pass through
-   * untouched. {@code sun.java.command} holds the whole command line of the program, so a server started with
-   * {@code --api-token=abc} publishes that token under a property name in which no secret word appears. Every
-   * value is scanned for assignments and secret command options. From the first secret onward the remainder is
-   * omitted, including quoted or space-separated values. This intentionally sacrifices trailing diagnostics
-   * because the JVM does not retain shell quoting reliably. The same heuristic applies to log lines; it cannot
-   * identify unlabelled secrets or every application-specific credential format.
-   *
-   * @param value the property value or log line
-   * @return the text before the first secret followed by a redaction marker
-   */
+  // sun.java.command repeats the command line, so tokens such as --api-token=abc hide under harmless names
   private static String redactSecretsInside(final String value) {
     final Matcher words = WORD.matcher(value);
     while (words.find()) {
@@ -300,23 +302,15 @@ public final class DumpUtils {
         final String prefix = value.substring(0, words.start());
         return prefix + redacted;
       }
-      if (word.startsWith("-") && isSecret(word)) {
+      if (word.startsWith(OPTION_PREFIX) && isSecret(word)) {
         final String prefix = value.substring(0, words.end());
-        return prefix + " " + REDACTED;
+        return prefix + WORD_SEPARATOR + REDACTED;
       }
     }
     return value;
   }
 
-  /**
-   * Redacts a line of the server log before it is published. The dump goes to a paste site anyone can read, so the
-   * addresses of players and what they typed after the commands of other plugins never belong in it; the arguments of
-   * the commands of this plugin stay, because they are what a bug report is about, but the user name and password, the
-   * query and the fragment of every web address in the line are redacted, as they often carry secrets.
-   *
-   * @param line the line of the log
-   * @return the line as it may be published
-   */
+  // the dump is public: other plugins' command arguments and URL credentials, queries and fragments are redacted
   @VisibleForTesting
   static String redactLogLine(final String line) {
     final String withoutSecrets = redactSecretsInside(line);
@@ -329,11 +323,11 @@ public final class DumpUtils {
     final Matcher address = WEB_ADDRESS.matcher(line);
     final StringBuilder redacted = new StringBuilder(line.length());
     while (address.find()) {
-      final String user = address.group(2);
-      final String queryOrFragment = address.group(4);
-      final String userPart = user == null ? "" : REDACTED + "@";
+      final String user = address.group(USER_GROUP);
+      final String queryOrFragment = address.group(QUERY_OR_FRAGMENT_GROUP);
+      final String userPart = user == null ? "" : REDACTED + USER_SEPARATOR;
       final String tail = queryOrFragment == null ? "" : queryOrFragment.charAt(0) + REDACTED;
-      final String replacement = address.group(1) + userPart + address.group(3) + tail;
+      final String replacement = address.group(1) + userPart + address.group(HOST_GROUP) + tail;
       address.appendReplacement(redacted, Matcher.quoteReplacement(replacement));
     }
     address.appendTail(redacted);
@@ -342,7 +336,7 @@ public final class DumpUtils {
 
   private static String redactAddresses(final String line) {
     final Matcher sixth = IPV6_ADDRESS.matcher(line);
-    final String withoutSixth = sixth.replaceAll("/" + REDACTED_ADDRESS);
+    final String withoutSixth = sixth.replaceAll(ADDRESS_PREFIX + REDACTED_ADDRESS);
     final Matcher fourth = IPV4_ADDRESS.matcher(withoutSixth);
     return fourth.replaceAll(REDACTED_ADDRESS);
   }
@@ -353,15 +347,17 @@ public final class DumpUtils {
     if (!command) {
       return line;
     }
-    final String name = matcher.group(2);
-    final String arguments = matcher.group(3);
+
+    final String name = matcher.group(COMMAND_NAME_GROUP);
+    final String arguments = matcher.group(COMMAND_ARGUMENTS_GROUP);
     final String commandName = Objects.requireNonNull(name);
     final boolean own = commandName.equalsIgnoreCase(OWN_COMMAND_PREFIX);
     if (own || arguments == null || arguments.isBlank()) {
       return line;
     }
-    final String prefix = line.substring(0, matcher.start(3));
-    return prefix + " " + REDACTED;
+
+    final String prefix = line.substring(0, matcher.start(COMMAND_ARGUMENTS_GROUP));
+    return prefix + WORD_SEPARATOR + REDACTED;
   }
 
   private static boolean isSecret(final String name) {
@@ -384,9 +380,9 @@ public final class DumpUtils {
       appendLine(dump, "Thread", threadName + " (" + state + ")");
       final StackTraceElement[] elements = entry.getValue();
       for (final StackTraceElement element : elements) {
-        dump.append("\tat ");
+        dump.append(STACK_FRAME_PREFIX);
         dump.append(element);
-        dump.append('\n');
+        dump.append(LINE_SEPARATOR);
       }
     }
   }
@@ -398,23 +394,29 @@ public final class DumpUtils {
       dump.append("No log found\n");
       return;
     }
+
     try (final BufferedReader reader = Files.newBufferedReader(logFile)) {
-      final Deque<String> tail = new ArrayDeque<>();
-      String line;
-      while ((line = reader.readLine()) != null) {
-        tail.addLast(line);
-        if (tail.size() > MAX_LOG_LINES) {
-          tail.removeFirst();
-        }
-      }
+      final Deque<String> tail = readTail(reader);
       for (final String retained : tail) {
         final String safe = redactLogLine(retained);
         dump.append(safe);
-        dump.append('\n');
+        dump.append(LINE_SEPARATOR);
       }
     } catch (final IOException exception) {
       final String message = exception.getMessage();
       appendLine(dump, "Failed to read the log", message);
     }
+  }
+
+  private static Deque<String> readTail(final BufferedReader reader) throws IOException {
+    final Deque<String> tail = new ArrayDeque<>();
+    String line;
+    while ((line = reader.readLine()) != null) {
+      tail.addLast(line);
+      if (tail.size() > MAXIMUM_LOG_LINES) {
+        tail.removeFirst();
+      }
+    }
+    return tail;
   }
 }

@@ -50,14 +50,14 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
-/**
- * Tests {@link ImageScoreboardCommand}.
- */
 final class ImageScoreboardCommandTest {
 
   private static final String RESOLUTION = "24x15";
   private static final String CHARACTER = "#";
   private static final String MRL = "picture.png";
+
+  private static final int RESOLUTION_WIDTH = 24;
+  private static final int RESOLUTION_HEIGHT = 15;
 
   private ImageScoreboardCommand command;
   private MultiplePlayerSelector selector;
@@ -82,16 +82,35 @@ final class ImageScoreboardCommandTest {
     this.sender = mock(CommandSender.class);
   }
 
+  @Test
+  void shouldShowTheImageOnTheScoreboardOfTheSelectedPlayers() {
+    this.command.showImage(this.sender, this.selector, RESOLUTION, CHARACTER, MRL, null);
+    final AbstractImageCommand.ImageConfigurationProvider provider = this.captureProvider();
+    final ScoreboardConfiguration configuration = this.createImage(provider);
+
+    final Collection<UUID> viewers = configuration.getViewers();
+    final List<UUID> viewerList = new ArrayList<>(viewers);
+    final List<UUID> expectedViewers = List.of(this.viewer);
+    final int width = configuration.getWidth();
+    final int lines = configuration.getLines();
+    final String character = configuration.getCharacter();
+    assertEquals(expectedViewers, viewerList);
+    assertEquals(RESOLUTION_WIDTH, width);
+    assertEquals(RESOLUTION_HEIGHT, lines);
+    assertEquals(CHARACTER, character);
+  }
+
   private AbstractImageCommand.ImageConfigurationProvider captureProvider() {
     final ArgumentCaptor<AbstractImageCommand.ImageConfigurationProvider> providers = ArgumentCaptor.forClass(
       AbstractImageCommand.ImageConfigurationProvider.class
     );
     verify(this.command).displayImage(providers.capture(), eq(this.sender), eq(RESOLUTION), eq(MRL), isNull());
+
     return providers.getValue();
   }
 
   private ScoreboardConfiguration createImage(final AbstractImageCommand.ImageConfigurationProvider provider) {
-    final Pair<Integer, Integer> resolution = Pair.pair(24, 15);
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
     final DisplayableImage display = mock(DisplayableImage.class);
     final ArgumentCaptor<ScoreboardConfiguration> configurations = ArgumentCaptor.forClass(ScoreboardConfiguration.class);
     try (final MockedStatic<DisplayableImage> displays = Mockito.mockStatic(DisplayableImage.class)) {
@@ -104,27 +123,10 @@ final class ImageScoreboardCommandTest {
   }
 
   @Test
-  void showsTheImageOnTheScoreboardOfTheSelectedPlayers() {
-    this.command.showImage(this.sender, this.selector, RESOLUTION, CHARACTER, MRL, null);
-    final AbstractImageCommand.ImageConfigurationProvider provider = this.captureProvider();
-    final ScoreboardConfiguration configuration = this.createImage(provider);
-
-    final Collection<UUID> viewers = configuration.getViewers();
-    final List<UUID> viewerList = new ArrayList<>(viewers);
-    final List<UUID> expectedViewers = List.of(this.viewer);
-    final int width = configuration.getWidth();
-    final int lines = configuration.getLines();
-    final String character = configuration.getCharacter();
-    assertEquals(expectedViewers, viewerList);
-    assertEquals(24, width);
-    assertEquals(15, lines);
-    assertEquals(CHARACTER, character);
-  }
-
-  @Test
-  void refusesMoreLinesThanAScoreboardShows() {
+  void shouldRefuseMoreLinesThanAScoreboardShows() {
     this.command.showImage(this.sender, this.selector, "24x16", CHARACTER, MRL, null);
     verify(this.command, never()).displayImage(any(), any(), any(), any(), isNull());
+
     final List<Component> messages = Components.received(this.sender);
     final Component error = Message.SCOREBOARD_LINES.build();
     final List<Component> expected = List.of(error);
@@ -132,9 +134,9 @@ final class ImageScoreboardCommandTest {
   }
 
   @Test
-  void refusesNullArguments() {
+  void shouldRefuseNullArguments() {
     final AbstractImageCommand.ImageConfigurationProvider provider = _ -> "configuration";
-    final Pair<Integer, Integer> resolution = Pair.pair(24, 15);
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
     assertThrows(NullPointerException.class, () -> this.command.showImage(null, this.selector, RESOLUTION, CHARACTER, MRL, null));
     assertThrows(NullPointerException.class, () -> this.command.showImage(this.sender, null, RESOLUTION, CHARACTER, MRL, null));
     assertThrows(NullPointerException.class, () -> this.command.showImage(this.sender, this.selector, null, CHARACTER, MRL, null));

@@ -29,6 +29,7 @@ import static org.mockito.Mockito.when;
 
 import com.google.common.util.concurrent.MoreExecutors;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.player.multimedia.cv.AbstractVideoPlayerCv;
@@ -46,6 +47,8 @@ import org.junit.jupiter.api.Test;
 
 final class VideoPlaybackCommandTest {
 
+  private static final String SEEK_OFFSET = "+10";
+
   private final ExecutorService directExecutor = MoreExecutors.newDirectExecutorService();
 
   private final VolumeFilter volume = new VolumeFilter();
@@ -56,7 +59,6 @@ final class VideoPlaybackCommandTest {
 
   private CommandSender sender;
 
-  /** A player of another kind than FFmpeg's and OpenCV's, such as VLC's. */
   private VideoPlayerMultiplexer other;
 
   private AbstractVideoPlayerCv decoded;
@@ -80,23 +82,24 @@ final class VideoPlaybackCommandTest {
     this.directExecutor.shutdown();
   }
 
-  private void assertReceived(final Component... expected) {
-    assertEquals(List.of(expected), Components.received(this.sender));
-  }
-
   @Test
-  void refusesWhatIsNotATimeAndAnswersWithoutAVideo() {
+  void shouldRefuseWhatIsNotATimeAndAnswerWithoutAVideo() {
     this.command.seekVideo(this.sender, "1:60");
-    this.command.seekVideo(this.sender, "+10");
+    this.command.seekVideo(this.sender, SEEK_OFFSET);
     this.assertReceived(Message.SEEK_INVALID.build("1:60"), Message.SEEK_FAILED.build());
   }
 
+  private void assertReceived(final Component... expected) {
+    final List<Component> received = Components.received(this.sender);
+    assertEquals(List.of(expected), received);
+  }
+
   @Test
-  void jumpsFromWhereADecodedVideoPlays() {
-    when(this.manager.getPlayer()).thenReturn(this.decoded);
+  void shouldJumpFromWhereADecodedVideoPlays() {
+    when(this.manager.getPlayer()).thenReturn(Optional.of(this.decoded));
     when(this.decoded.getPositionMilliseconds()).thenReturn(5_000L);
     when(this.decoded.seek(anyLong())).thenReturn(true);
-    this.command.seekVideo(this.sender, "+10");
+    this.command.seekVideo(this.sender, SEEK_OFFSET);
     this.command.seekVideo(this.sender, "-1:00");
     verify(this.decoded).seek(15_000L);
     verify(this.decoded).seek(0L);
@@ -104,8 +107,8 @@ final class VideoPlaybackCommandTest {
   }
 
   @Test
-  void jumpsOnlyToATimeFromTheStartWithAPlayerThatDoesNotTellItsPosition() {
-    when(this.manager.getPlayer()).thenReturn(this.other);
+  void shouldJumpOnlyToATimeFromTheStartWithAPlayerThatDoesNotTellItsPosition() {
+    when(this.manager.getPlayer()).thenReturn(Optional.of(this.other));
     when(this.other.seek(90_000L)).thenReturn(true);
     this.command.seekVideo(this.sender, "-10");
     this.command.seekVideo(this.sender, "1:30");
@@ -114,10 +117,10 @@ final class VideoPlaybackCommandTest {
   }
 
   @Test
-  void reportsAJumpThatFailsOrThrows() {
-    when(this.manager.getPlayer()).thenReturn(this.other);
+  void shouldReportAJumpThatFailsOrThrows() {
+    when(this.manager.getPlayer()).thenReturn(Optional.of(this.other));
     when(this.other.seek(1_000L)).thenReturn(false);
-    when(this.other.seek(2_000L)).thenThrow(new IllegalStateException("the grabber broke"));
+    when(this.other.seek(2_000L)).thenThrow(new IllegalStateException("the grabber broke!"));
     final String output;
     try (final StandardErrorCapture errors = StandardErrorCapture.start()) {
       this.command.seekVideo(this.sender, "1");
@@ -125,24 +128,32 @@ final class VideoPlaybackCommandTest {
       output = errors.getOutput();
     }
     this.assertReceived(Message.SEEK_FAILED.build(), Message.SEEK_FAILED.build());
-    assertTrue(output.contains("Failed to seek the video") && output.contains("the grabber broke"), output);
+
+    final boolean matches = output.contains("Failed to seek the video") && output.contains("the grabber broke");
+    assertTrue(matches, output);
   }
 
   @Test
-  void setsTheVolumeInPercent() {
+  void shouldSetTheVolumeInPercent() {
     this.command.setVolume(this.sender, 80);
-    assertEquals(0.8, this.volume.getVolume());
+
+    final double volume = this.volume.getVolume();
+    assertEquals(0.8, volume);
+
     this.command.setVolume(this.sender, 200);
-    assertEquals(VolumeFilter.MAXIMUM_VOLUME, this.volume.getVolume());
+
+    final double volumeVolume = this.volume.getVolume();
+    assertEquals(VolumeFilter.MAXIMUM_VOLUME, volumeVolume);
+
     this.assertReceived(Message.VOLUME_SET.build(80), Message.VOLUME_SET.build(200));
   }
 
   @Test
-  void changesTheSpeedOfAFileOnly() {
+  void shouldChangeTheSpeedOfAFileOnly() {
     this.command.setSpeed(this.sender, 1.5);
-    when(this.manager.getPlayer()).thenReturn(this.other);
+    when(this.manager.getPlayer()).thenReturn(Optional.of(this.other));
     this.command.setSpeed(this.sender, 1.5);
-    when(this.manager.getPlayer()).thenReturn(this.decoded);
+    when(this.manager.getPlayer()).thenReturn(Optional.of(this.decoded));
     when(this.decoded.setSpeed(1.5)).thenReturn(true);
     this.command.setSpeed(this.sender, 1.5);
     when(this.decoded.setSpeed(2)).thenReturn(false);
@@ -160,12 +171,12 @@ final class VideoPlaybackCommandTest {
   }
 
   @Test
-  void loopsAndSaysWhenThePlayerCannot() {
+  void shouldLoopAndSayWhenThePlayerCannot() {
     this.command.setLoop(this.sender, true);
-    when(this.manager.getPlayer()).thenReturn(this.other);
+    when(this.manager.getPlayer()).thenReturn(Optional.of(this.other));
     this.command.setLoop(this.sender, true);
     this.command.setLoop(this.sender, false);
-    when(this.manager.getPlayer()).thenReturn(this.decoded);
+    when(this.manager.getPlayer()).thenReturn(Optional.of(this.decoded));
     this.command.setLoop(this.sender, true);
     verify(this.manager, times(3)).setLooping(true);
     verify(this.manager).setLooping(false);

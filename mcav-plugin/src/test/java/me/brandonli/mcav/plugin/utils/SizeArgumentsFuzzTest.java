@@ -21,30 +21,25 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.code_intelligence.jazzer.junit.FuzzTest;
 import java.nio.charset.StandardCharsets;
+import java.util.function.Function;
 import me.brandonli.mcav.utils.immutable.Pair;
 import org.junit.jupiter.api.Tag;
 
-/**
- * Fuzzes the sizes players type into the display commands, a resolution such as {@code 1920x1080} or a wall such as
- * {@code 5x3}: whatever the text, it either becomes a size within the bounds the commands document, which keep the main
- * thread and the memory of the server safe, or is refused with the {@link IllegalArgumentException} the commands turn
- * into a message. The seeds are the sizes of the tests and the documentation.
- */
 @Tag("fuzz")
 final class SizeArgumentsFuzzTest {
 
   @FuzzTest(maxDuration = "30s")
-  void everyTypedSizeIsBoundedOrRefused(final byte[] input) {
+  void shouldBoundOrRefuseEveryTypedSize(final byte[] input) {
     final String typed = new String(input, StandardCharsets.UTF_8);
-    assertBoundedOrRefused(typed, false, ArgumentUtils.MAX_SIDE);
-    assertBoundedOrRefused(typed, true, ArgumentUtils.MAX_SCREEN_SIDE);
+    this.assertBoundedOrRefused(typed, ArgumentUtils::parseDimensions, ArgumentUtils.MAXIMUM_SIDE);
+    this.assertBoundedOrRefused(typed, ArgumentUtils::parseScreenDimensions, ArgumentUtils.MAXIMUM_SCREEN_SIDE);
   }
 
-  private static void assertBoundedOrRefused(final String typed, final boolean wall, final int maximum) {
+  private void assertBoundedOrRefused(final String typed, final Function<String, Pair<Integer, Integer>> parser, final int maximum) {
     final Pair<Integer, Integer> size;
     try {
-      size = wall ? ArgumentUtils.parseScreenDimensions(typed) : ArgumentUtils.parseDimensions(typed);
-    } catch (final IllegalArgumentException refused) {
+      size = parser.apply(typed);
+    } catch (final IllegalArgumentException exception) {
       return;
     }
     final int width = size.getFirst();

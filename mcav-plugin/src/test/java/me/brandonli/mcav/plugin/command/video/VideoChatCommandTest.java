@@ -50,18 +50,22 @@ import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitScheduler;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
 
-/**
- * Tests {@link VideoChatCommand}. The common playback flow is skipped, so only the arguments passed to it and the
- * chat output it creates are checked.
- */
 final class VideoChatCommandTest {
+
+  private static final int RESOLUTION_SIDE = 16;
+
+  private static final String CHARACTER = "#";
+
+  private static final String VIDEO_FILE_NAME = "clip.mp4";
 
   private VideoPlayerManager manager;
   private VideoChatCommand command;
@@ -74,12 +78,7 @@ final class VideoChatCommandTest {
     TestServer.resetWithDeferredTasks();
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
     this.manager = mock(VideoPlayerManager.class);
-    Mockito.doAnswer(invocation -> {
-      final FunctionalVideoFilter filter = invocation.getArgument(0);
-      final BukkitScheduler scheduler = Bukkit.getScheduler();
-      scheduler.runTask(plugin, filter::start);
-      return null;
-    })
+    Mockito.doAnswer(invocation -> this.runFilterOnMainThread(invocation, plugin))
       .when(this.manager)
       .startFilter(any(FunctionalVideoFilter.class));
     final AudioProvider provider = mock(AudioProvider.class);
@@ -87,14 +86,22 @@ final class VideoChatCommandTest {
     when(plugin.getAudioProvider()).thenReturn(provider);
     final VideoChatCommand realCommand = new VideoChatCommand(plugin);
     this.command = spy(realCommand);
-    skipPlayback(this.command);
+    this.skipPlayback(this.command);
 
     this.viewer = UUID.randomUUID();
-    this.selector = mockSelector(this.viewer);
+    this.selector = this.mockSelector(this.viewer);
     this.sender = mock(CommandSender.class);
   }
 
-  private static void skipPlayback(final AbstractVideoCommand command) {
+  private @Nullable Object runFilterOnMainThread(final InvocationOnMock invocation, final MCAVSandbox plugin) {
+    final FunctionalVideoFilter filter = invocation.getArgument(0);
+    final BukkitScheduler scheduler = Bukkit.getScheduler();
+    scheduler.runTask(plugin, filter::start);
+
+    return null;
+  }
+
+  private void skipPlayback(final AbstractVideoCommand command) {
     doNothing()
       .when(command)
       .playVideo(
@@ -110,17 +117,39 @@ final class VideoChatCommandTest {
       );
   }
 
-  private static MultiplePlayerSelector mockSelector(final UUID viewer) {
+  private MultiplePlayerSelector mockSelector(final UUID viewer) {
     final Player player = mock(Player.class);
     when(player.getUniqueId()).thenReturn(viewer);
     final MultiplePlayerSelector selector = mock(MultiplePlayerSelector.class);
     final List<Player> players = List.of(player);
     when(selector.values()).thenReturn(players);
+
     return selector;
   }
 
+  @Test
+  void shouldPassTheArgumentsOnAndConfigureTheChat() {
+    final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_SIDE, RESOLUTION_SIDE);
+
+    final Object built = configurationProvider.buildConfiguration(resolution);
+
+    final ChatConfiguration configuration = assertInstanceOf(ChatConfiguration.class, built);
+    this.assertChat(configuration);
+  }
+
   private AbstractVideoCommand.VideoConfigurationProvider playAndCaptureProvider() {
-    this.command.playVideo(this.sender, this.selector, PlayerArgument.VLC, AudioArgument.NONE, "16x16", "#", "", "clip.mp4", null);
+    this.command.playVideo(
+      this.sender,
+      this.selector,
+      PlayerArgument.VLC,
+      AudioArgument.NONE,
+      "16x16",
+      CHARACTER,
+      "",
+      VIDEO_FILE_NAME,
+      null
+    );
     final ArgumentCaptor<AbstractVideoCommand.VideoConfigurationProvider> providers = ArgumentCaptor.forClass(
       AbstractVideoCommand.VideoConfigurationProvider.class
     );
@@ -131,10 +160,11 @@ final class VideoChatCommandTest {
       eq(PlayerArgument.VLC),
       eq(AudioArgument.NONE),
       eq("16x16"),
-      eq("clip.mp4"),
+      eq(VIDEO_FILE_NAME),
       eq(""),
       isNull()
     );
+
     return providers.getValue();
   }
 
@@ -146,40 +176,20 @@ final class VideoChatCommandTest {
     final int height = configuration.getChatHeight();
     final String character = configuration.getCharacter();
     assertEquals(expectedViewers, viewerList);
-    assertEquals(16, width);
-    assertEquals(16, height);
-    assertEquals("#", character);
-  }
-
-  private void assertStartedOnTheMainThread(final FunctionalVideoFilter result) {
-    verify(this.manager).startFilter(result);
-    verify(result, never()).start();
-    final int tasks = TestServer.runPendingTasks();
-    assertEquals(1, tasks);
-    verify(result).start();
+    assertEquals(RESOLUTION_SIDE, width);
+    assertEquals(RESOLUTION_SIDE, height);
+    assertEquals(CHARACTER, character);
   }
 
   @Test
-  void passesTheArgumentsOnAndConfiguresTheChat() {
+  void shouldShowTheFramesInTheChatStartedOnTheMainThread() {
     final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
-    final Pair<Integer, Integer> resolution = Pair.pair(16, 16);
-
-    final Object built = configurationProvider.buildConfiguration(resolution);
-
-    final ChatConfiguration configuration = assertInstanceOf(ChatConfiguration.class, built);
-    this.assertChat(configuration);
-  }
-
-  @Test
-  void showsTheFramesInTheChatStartedOnTheMainThread() {
-    final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
-    final Pair<Integer, Integer> resolution = Pair.pair(16, 16);
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_SIDE, RESOLUTION_SIDE);
     final List<List<?>> arguments = new ArrayList<>();
     try (
-      final MockedConstruction<ChatResult> results = Mockito.mockConstruction(ChatResult.class, (_, context) -> {
-        final List<?> constructorArguments = context.arguments();
-        arguments.add(constructorArguments);
-      })
+      final MockedConstruction<ChatResult> results = Mockito.mockConstruction(ChatResult.class, (_, context) ->
+        this.recordArguments(context, arguments)
+      )
     ) {
       final VideoPipelineStep pipeline = this.command.createVideoFilter(resolution, configurationProvider);
       final List<ChatResult> constructed = results.constructed();
@@ -192,5 +202,19 @@ final class VideoChatCommandTest {
     final List<?> constructorArguments = arguments.getFirst();
     final ChatConfiguration configuration = (ChatConfiguration) constructorArguments.getFirst();
     this.assertChat(configuration);
+  }
+
+  private void recordArguments(final MockedConstruction.Context context, final List<List<?>> arguments) {
+    final List<?> constructorArguments = context.arguments();
+    arguments.add(constructorArguments);
+  }
+
+  private void assertStartedOnTheMainThread(final FunctionalVideoFilter result) {
+    verify(this.manager).startFilter(result);
+    verify(result, never()).start();
+
+    final int tasks = TestServer.runPendingTasks();
+    assertEquals(1, tasks);
+    verify(result).start();
   }
 }

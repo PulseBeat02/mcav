@@ -25,19 +25,27 @@ import org.incendo.cloud.annotations.AnnotationParser;
  * A group of commands declared with Cloud annotations. Features receive everything they need through their
  * constructor; {@link #registerFeature(AnnotationParser)} is called once before the annotations are parsed and
  * {@link #shutdown()} once when the plugin is disabled.
+ *
+ * <p>Implementations need not be thread-safe: the plugin registers them on the server main thread, where Cloud also
+ * runs their commands.
+ *
+ * @since 1.0.0
  */
 public interface AnnotationCommandFeature {
   /**
    * Performs setup that needs the fully constructed feature, such as registering listeners.
    *
    * @param parser the parser the feature's annotations are about to be parsed with
+   * @since 1.0.0
    */
   default void registerFeature(final AnnotationParser<CommandSender> parser) {
-    Preconditions.checkNotNull(parser, "Parser must not be null");
+    Preconditions.checkNotNull(parser, "Parser must not be null!");
   }
 
   /**
    * Releases everything the feature holds.
+   *
+   * @since 1.0.0
    */
   default void shutdown() {}
 }

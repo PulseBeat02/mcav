@@ -35,16 +35,24 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.Par
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * The end of the benchmark pipeline: does what {@code CompressedMapResult} does with a frame (resize to the wall,
- * dither, encode the changes into map patches with {@link DeltaMapEncoder}) and stops where the patches would be
- * turned into map packets and sent. It counts the frames and watches the patches for a color.
- */
 final class MapProbe implements DitherResultStep {
+
+  private static final int PARALLELISM_DIVISOR = 2;
+
+  private static final int HEXADECIMAL_RADIX = 16;
+  private static final int RED_SHIFT = 16;
+  private static final int GREEN_SHIFT = 8;
+  private static final int CHANNEL_MASK = 0xFF;
+  private static final int RGB_MASK = 0xFFFFFF;
+  private static final int FIRST_OPAQUE_COLOR_INDEX = 4;
+
+  private static final long POLL_INTERVAL_MILLISECONDS = 10L;
+
+  private static final double COVERED_FRACTION = 0.9;
 
   private final MapConfiguration configuration;
   private final AtomicLong frames;
-  private final AtomicLong lastPatchNanos;
+  private final AtomicLong lastPatchNanoseconds;
   private final ForkJoinPool ditherPool;
   private @Nullable DeltaMapEncoder encoder;
   private volatile @Nullable Watch watch;
@@ -52,33 +60,31 @@ final class MapProbe implements DitherResultStep {
   MapProbe(final MapConfiguration configuration) {
     this.configuration = configuration;
     this.frames = new AtomicLong();
-    this.lastPatchNanos = new AtomicLong(System.nanoTime());
+    this.lastPatchNanoseconds = new AtomicLong(System.nanoTime());
     final Runtime runtime = Runtime.getRuntime();
     final int processors = runtime.availableProcessors();
-    final int parallelism = Math.max(1, processors / 2 - 1);
+    final int parallelism = Math.max(1, processors / PARALLELISM_DIVISOR - 1);
     this.ditherPool = new ForkJoinPool(parallelism);
   }
 
-  /**
-   * Gets the index of a map palette color, given as {@code #rrggbb}.
-   *
-   * @param color the color
-   * @return the palette index
-   */
+  @Override
+  public void start() {}
+
   static byte paletteIndex(final String color) {
-    final int rgb = Integer.parseInt(color.substring(1), 16);
-    final int red = (rgb >> 16) & 0xFF;
-    final int green = (rgb >> 8) & 0xFF;
-    final int blue = rgb & 0xFF;
+    final int rgb = Integer.parseInt(color.substring(1), HEXADECIMAL_RADIX);
+    final int red = (rgb >> RED_SHIFT) & CHANNEL_MASK;
+    final int green = (rgb >> GREEN_SHIFT) & CHANNEL_MASK;
+    final int blue = rgb & CHANNEL_MASK;
     final DitherPalette palette = DitherPalette.DEFAULT_MAP_PALETTE;
     final int[] colors = palette.getPalette();
     for (int index = 0; index < colors.length; index++) {
-      final int candidate = colors[index] & 0xFFFFFF;
-      if (candidate == ((red << 16) | (green << 8) | blue) && index >= 4) {
+      final int candidate = colors[index] & RGB_MASK;
+      if (candidate == ((red << RED_SHIFT) | (green << GREEN_SHIFT) | blue) && index >= FIRST_OPAQUE_COLOR_INDEX) {
         return (byte) index;
       }
     }
-    throw new IllegalArgumentException("Not a map palette color: " + color);
+    final String message = "Color %s is not a map palette color!".formatted(color);
+    throw new IllegalArgumentException(message);
   }
 
   @Override
@@ -100,16 +106,13 @@ final class MapProbe implements DitherResultStep {
     final long now = System.nanoTime();
     this.frames.incrementAndGet();
     if (!patches.isEmpty()) {
-      this.lastPatchNanos.set(now);
+      this.lastPatchNanoseconds.set(now);
     }
     final Watch activeWatch = this.watch;
     if (activeWatch != null) {
       activeWatch.inspect(patches, now);
     }
   }
-
-  @Override
-  public void start() {}
 
   @Override
   public void release() {
@@ -130,6 +133,30 @@ final class MapProbe implements DitherResultStep {
     final MapLayout layout = new MapLayout(startMapId, columns, rows, width, height);
     final DeltaMapEncoder created = new DeltaMapEncoder(layout, DeltaMapEncoder.DEFAULT_MAXIMUM_BYTES_PER_FRAME);
     this.encoder = created;
+
+    return created;
+  }
+
+  void awaitQuiet(final long quietMilliseconds, final long timeoutMilliseconds) throws InterruptedException {
+    final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMilliseconds);
+    final long quietNanoseconds = TimeUnit.MILLISECONDS.toNanos(quietMilliseconds);
+    while (System.nanoTime() - this.lastPatchNanoseconds.get() < quietNanoseconds && System.nanoTime() < deadline) {
+      Thread.sleep(POLL_INTERVAL_MILLISECONDS);
+    }
+  }
+
+  Watch watch(final byte index) {
+    final DeltaMapEncoder current = this.encoder;
+    if (current == null) {
+      throw new IllegalStateException("No frame was encoded yet!");
+    }
+
+    final MapLayout layout = current.getLayout();
+    final int firstMapId = layout.getMapId(0);
+    final int pagePixels = layout.getImageWidth() * layout.getImageHeight();
+    final Watch created = new Watch(index, firstMapId, layout.getMapCount(), pagePixels);
+    this.watch = created;
+
     return created;
   }
 
@@ -137,43 +164,6 @@ final class MapProbe implements DitherResultStep {
     return this.frames.get();
   }
 
-  /**
-   * Waits until no patch was produced for a while, so the next change starts from a settled wall.
-   *
-   * @param quietMillis   how long no patch may have been produced
-   * @param timeoutMillis how long to wait at most
-   * @throws InterruptedException if interrupted
-   */
-  void awaitQuiet(final long quietMillis, final long timeoutMillis) throws InterruptedException {
-    final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
-    final long quietNanos = TimeUnit.MILLISECONDS.toNanos(quietMillis);
-    while (System.nanoTime() - this.lastPatchNanos.get() < quietNanos && System.nanoTime() < deadline) {
-      Thread.sleep(10L);
-    }
-  }
-
-  /**
-   * Starts watching the patches for a color.
-   *
-   * @param index the palette index of the color
-   * @return the watch
-   */
-  Watch watch(final byte index) {
-    final DeltaMapEncoder current = this.encoder;
-    if (current == null) {
-      throw new IllegalStateException("No frame was encoded yet");
-    }
-    final MapLayout layout = current.getLayout();
-    final int firstMapId = layout.getMapId(0);
-    final int pagePixels = layout.getImageWidth() * layout.getImageHeight();
-    final Watch created = new Watch(index, firstMapId, layout.getMapCount(), pagePixels);
-    this.watch = created;
-    return created;
-  }
-
-  /**
-   * Watches the patches for a color: when the first patch shows it, and when every pixel of the wall has shown it.
-   */
   static final class Watch {
 
     private final byte index;
@@ -182,8 +172,8 @@ final class MapProbe implements DitherResultStep {
     private final int pixels;
     private final CountDownLatch first;
     private final CountDownLatch done;
-    private volatile long firstNanos;
-    private volatile long fullNanos;
+    private volatile long firstNanoseconds;
+    private volatile long fullNanoseconds;
 
     Watch(final byte index, final int firstMapId, final int mapCount, final int pagePixels) {
       this.index = index;
@@ -196,45 +186,49 @@ final class MapProbe implements DitherResultStep {
 
     private void inspect(final List<MapTilePatch> patches, final long now) {
       for (final MapTilePatch patch : patches) {
-        final byte[] colors = patch.getColors();
-        final int mapOffset = (patch.getMapId() - this.firstMapId) * MapLayout.MAP_SIZE * MapLayout.MAP_SIZE;
-        final int left = patch.getX();
-        final int top = patch.getY();
-        final int width = patch.getWidth();
-        boolean shows = false;
-        for (int position = 0; position < colors.length; position++) {
-          if (colors[position] == this.index) {
-            shows = true;
-            final int row = top + position / width;
-            final int column = left + (position % width);
-            this.covered.set(mapOffset + row * MapLayout.MAP_SIZE + column);
-          }
-        }
-        if (shows && this.firstNanos == 0L) {
-          this.firstNanos = now;
-          this.first.countDown();
-        }
+        this.recordShownPixels(patch, now);
       }
-      if (this.firstNanos != 0L && this.fullNanos == 0L && this.covered.cardinality() >= this.pixels * 0.9) {
-        this.fullNanos = now;
+      if (this.firstNanoseconds != 0L && this.fullNanoseconds == 0L && this.covered.cardinality() >= this.pixels * COVERED_FRACTION) {
+        this.fullNanoseconds = now;
         this.done.countDown();
       }
     }
 
-    boolean awaitFirst(final long timeoutMillis) throws InterruptedException {
-      return this.first.await(timeoutMillis, TimeUnit.MILLISECONDS);
+    private void recordShownPixels(final MapTilePatch patch, final long now) {
+      final byte[] colors = patch.getColors();
+      final int mapOffset = (patch.getMapId() - this.firstMapId) * MapLayout.MAP_SIZE * MapLayout.MAP_SIZE;
+      final int left = patch.getX();
+      final int top = patch.getY();
+      final int width = patch.getWidth();
+      boolean shows = false;
+      for (int position = 0; position < colors.length; position++) {
+        if (colors[position] == this.index) {
+          shows = true;
+          final int row = top + position / width;
+          final int column = left + (position % width);
+          this.covered.set(mapOffset + row * MapLayout.MAP_SIZE + column);
+        }
+      }
+      if (shows && this.firstNanoseconds == 0L) {
+        this.firstNanoseconds = now;
+        this.first.countDown();
+      }
     }
 
-    boolean awaitFull(final long timeoutMillis) throws InterruptedException {
-      return this.done.await(timeoutMillis, TimeUnit.MILLISECONDS);
+    boolean awaitFirst(final long timeoutMilliseconds) throws InterruptedException {
+      return this.first.await(timeoutMilliseconds, TimeUnit.MILLISECONDS);
     }
 
-    long getFirstNanos() {
-      return this.firstNanos;
+    boolean awaitFull(final long timeoutMilliseconds) throws InterruptedException {
+      return this.done.await(timeoutMilliseconds, TimeUnit.MILLISECONDS);
     }
 
-    long getFullNanos() {
-      return this.fullNanos;
+    long getFirstNanoseconds() {
+      return this.firstNanoseconds;
+    }
+
+    long getFullNanoseconds() {
+      return this.fullNanoseconds;
     }
   }
 }

@@ -22,13 +22,7 @@ import java.util.List;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Channel;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder;
 
-/**
- * Plays an encoded MCV2 stream on a screen, one frame per run, looping. A stream cannot make a keyframe on request, so
- * when the channel asks for one, for a viewer who just started watching, playback starts over from the first frame,
- * which is a keyframe. Frame and reference ids are shifted so they keep increasing across every start and loop, from
- * the first frame id the screen's slot of the pack gave it: clients only decode frames newer than the last one they
- * decoded.
- */
+// a stream cannot make a keyframe on request, so a new viewer restarts playback from the first frame
 final class Mcv2Playback implements Runnable {
 
   private final Mcv2Channel channel;
@@ -41,16 +35,11 @@ final class Mcv2Playback implements Runnable {
 
   private long offset;
 
-  /**
-   * Constructs a playback.
-   *
-   * @param channel      the screen's channel
-   * @param frames       the stream's frames, starting with a keyframe
-   * @param firstFrameId the id the first frame sent gets
-   */
+  // the frames start with a keyframe
   Mcv2Playback(final Mcv2Channel channel, final List<byte[]> frames, final long firstFrameId) {
-    Preconditions.checkNotNull(channel, "Channel must not be null");
-    Preconditions.checkArgument(!frames.isEmpty(), "A stream has at least one frame");
+    Preconditions.checkNotNull(channel, "Channel must not be null!");
+    Preconditions.checkArgument(!frames.isEmpty(), "A stream has at least one frame!");
+
     this.channel = channel;
     this.frames = List.copyOf(frames);
     long highest = 0;
@@ -61,9 +50,6 @@ final class Mcv2Playback implements Runnable {
     this.offset = firstFrameId;
   }
 
-  /**
-   * Sends the next frame to the viewers that watch, if there are any.
-   */
   @Override
   public void run() {
     this.channel.update();
@@ -74,6 +60,7 @@ final class Mcv2Playback implements Runnable {
     if (this.channel.getRecipients().isEmpty()) {
       return;
     }
+
     this.channel.send(this.shifted(this.frames.get(this.next)));
     this.next++;
     if (this.next == this.frames.size()) {
@@ -82,7 +69,6 @@ final class Mcv2Playback implements Runnable {
     }
   }
 
-  /** A copy of a frame with its frame and reference ids shifted by the current offset. */
   private byte[] shifted(final byte[] frame) {
     final byte[] copy = frame.clone();
     shift(copy, Mcv2Decoder.FRAME_ID_OFFSET);

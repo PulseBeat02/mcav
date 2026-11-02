@@ -24,12 +24,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.junit.jupiter.api.Tag;
 
-/**
- * Fuzzes the hardware values players type into {@code /mcav vm create}: whatever the text, it is either refused with the
- * {@link IllegalArgumentException} the command turns into a message, or accepted as a value that names no file — no
- * separator of a path and none of the properties through which QEMU reads or writes one. The first byte of an input
- * picks the option. The seeds are the values of the tests and the documentation.
- */
 @Tag("fuzz")
 final class QemuHardwareValuesFuzzTest {
 
@@ -47,24 +41,32 @@ final class QemuHardwareValuesFuzzTest {
     "pcspk-audiodev"
   );
 
+  private static final String PROPERTY_SEPARATOR = ",";
+
   @FuzzTest(maxDuration = "30s")
-  void everyTypedValueNamesNoFileOrIsRefused(final byte[] input) {
+  void shouldNameNoFileOrRefuseEveryTypedValue(final byte[] input) {
     if (input.length == 0) {
       return;
     }
+
     final String option = OPTIONS.get((input[0] & 0xFF) % OPTIONS.size());
     final String value = new String(input, 1, input.length - 1, StandardCharsets.UTF_8);
     try {
       QemuHardwareValues.check(option, value);
-    } catch (final IllegalArgumentException refused) {
+    } catch (final IllegalArgumentException exception) {
       return;
     }
-    assertFalse(value.indexOf('/') >= 0 || value.indexOf('\\') >= 0, () -> "-" + option + " accepted a path: " + value);
-    for (final String part : value.split(",", -1)) {
+
+    final boolean matches = value.indexOf('/') >= 0 || value.indexOf('\\') >= 0;
+    assertFalse(matches, () -> "-" + option + " accepted a path: " + value);
+
+    for (final String part : value.split(PROPERTY_SEPARATOR, -1)) {
       final int equals = part.indexOf('=');
       if (equals > 0) {
         final String property = part.substring(0, equals);
-        assertFalse(FILE_PROPERTIES.contains(property), () -> "-" + option + " accepted the property " + property + " in " + value);
+
+        final boolean contained = FILE_PROPERTIES.contains(property);
+        assertFalse(contained, () -> "-" + option + " accepted the property " + property + " in " + value);
       }
     }
   }

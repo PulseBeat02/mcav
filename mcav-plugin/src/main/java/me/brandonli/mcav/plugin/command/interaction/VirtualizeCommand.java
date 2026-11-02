@@ -38,6 +38,7 @@ import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.plugin.MCAVSandbox;
 import me.brandonli.mcav.plugin.audio.AudioOutputs;
 import me.brandonli.mcav.plugin.audio.AudioProvider;
+import me.brandonli.mcav.plugin.command.SuggestionProvider;
 import me.brandonli.mcav.plugin.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.plugin.locale.Message;
 import me.brandonli.mcav.plugin.utils.AudioArgument;
@@ -72,68 +73,56 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
  * of the {@value DiskImages#FOLDER_NAME} folder of the plugin. QEMU can otherwise read and write any file of the
  * server, load a plugin library of its own, share a folder of the host with the guest and publish its display and its
  * monitor on the network, none of which belongs in a chat command.
+ *
+ * <p>This class keeps no state of its own; {@link AbstractInteractiveCommand} names the threads that call its methods.
+ *
+ * @since 1.0.0
  */
 public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer> {
 
-  /**
-   * The permission a player needs to send input to the running virtual machine, by chat or by clicking the screen.
-   */
   private static final String INTERACT_PERMISSION = "mcav.vm.interact";
 
-  /**
-   * The options QEMU accepts more than once, of those the command supports.
-   */
   private static final Set<String> REPEATABLE_OPTIONS = Set.of("drive");
 
-  /**
-   * The options that are a switch, so they must not be given a value.
-   */
   private static final Set<String> FLAG_OPTIONS = Set.of("snapshot", "no-reboot", "no-hpet", "no-fd-bootchk", "enable-kvm", "usb");
 
-  /**
-   * The options that describe the hardware of the machine. Their values must have a form {@link QemuHardwareValues}
-   * allows, so they never name a file nor change what mcav owns.
-   */
+  // their values must match QemuHardwareValues, so they never name a file
   private static final Set<String> HARDWARE_OPTIONS = Set.of("m", "smp", "cpu", "machine", "accel", "boot", "name", "k", "vga", "rtc");
 
-  /**
-   * The options whose value is a disk image of the {@value DiskImages#FOLDER_NAME} folder.
-   */
   private static final Set<String> IMAGE_OPTIONS = Set.of("cdrom", "hda", "hdb", "hdc", "hdd", "fda", "fdb");
 
-  /**
-   * The option that describes a drive, whose {@code file} names a disk image.
-   */
   private static final String DRIVE_OPTION = "drive";
 
   private static final String FILE_KEY = "file=";
   // QEMU's own user-mode network, which vm.allow-network gives a guest
   private static final String QEMU_NETWORK = "user";
   // the least memory a machine may always have, whatever the memory of the server
-  private static final long MIN_MACHINE_MEMORY_BYTES = 512L << 20;
+  private static final long MINIMUM_MACHINE_MEMORY_BYTES = 512L << 20;
+  private static final int MACHINE_MEMORY_DIVISOR = 2;
 
   private static final Splitter DRIVE_SPLITTER = Splitter.on(',');
 
-  /** A {@code --codec} and its value at the very end of the options, after whitespace or alone. */
   private static final Pattern TRAILING_CODEC = Pattern.compile("(?:^|\\s)--codec\\s+(\\S+)\\s*$");
+
+  private static final String OPTION_PREFIX = "-";
+
+  private static final String VALUE_SEPARATOR = ",";
+
+  private static final char UNIX_SEPARATOR = '/';
+  private static final char WINDOWS_SEPARATOR = '\\';
+
+  private static final String NAME_SEPARATOR = ", ";
+
+  private static final char QUOTE = '"';
 
   /**
    * Constructs the command.
    *
    * @param plugin the plugin
+   * @since 1.0.0
    */
   public VirtualizeCommand(final MCAVSandbox plugin) {
     super(plugin);
-  }
-
-  /**
-   * Gets the permission a player needs to send input to the running virtual machine.
-   *
-   * @return {@value #INTERACT_PERMISSION}
-   */
-  @Override
-  protected String getInteractionPermission() {
-    return INTERACT_PERMISSION;
   }
 
   /**
@@ -142,10 +131,12 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    * @param current the running virtual machine
    * @param screenX the x coordinate on the display, in pixels
    * @param screenY the y coordinate on the display, in pixels
+   * @since 1.0.0
    */
   @Override
-  protected void handleLeftClick(final VmPlayer current, final int screenX, final int screenY) {
-    Preconditions.checkNotNull(current, "Virtual machine must not be null");
+  protected void forwardLeftClick(final VmPlayer current, final int screenX, final int screenY) {
+    Preconditions.checkNotNull(current, "Virtual machine must not be null!");
+
     current.sendMouseEvent(MouseClick.LEFT, screenX, screenY);
   }
 
@@ -155,10 +146,12 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    * @param current the running virtual machine
    * @param screenX the x coordinate on the display, in pixels
    * @param screenY the y coordinate on the display, in pixels
+   * @since 1.0.0
    */
   @Override
-  protected void handleRightClick(final VmPlayer current, final int screenX, final int screenY) {
-    Preconditions.checkNotNull(current, "Virtual machine must not be null");
+  protected void forwardRightClick(final VmPlayer current, final int screenX, final int screenY) {
+    Preconditions.checkNotNull(current, "Virtual machine must not be null!");
+
     current.sendMouseEvent(MouseClick.RIGHT, screenX, screenY);
   }
 
@@ -167,11 +160,13 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    *
    * @param current the running virtual machine
    * @param text    the text to type
+   * @since 1.0.0
    */
   @Override
-  protected void handleTextInput(final VmPlayer current, final String text) {
-    Preconditions.checkNotNull(current, "Virtual machine must not be null");
-    Preconditions.checkNotNull(text, "Text must not be null");
+  protected void forwardTextInput(final VmPlayer current, final String text) {
+    Preconditions.checkNotNull(current, "Virtual machine must not be null!");
+    Preconditions.checkNotNull(text, "Text must not be null!");
+
     current.sendKeyEvent(text);
   }
 
@@ -179,10 +174,12 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    * Stops the QEMU process of a virtual machine.
    *
    * @param current the virtual machine to stop, which is no longer the running one
+   * @since 1.0.0
    */
   @Override
   protected void releasePlayer(final VmPlayer current) {
-    Preconditions.checkNotNull(current, "Virtual machine must not be null");
+    Preconditions.checkNotNull(current, "Virtual machine must not be null!");
+
     // QEMU takes up to ten seconds to stop, and is then killed; no frame or sound of it meanwhile
     CleanupUtils.runAll(
       () -> current.getVideoAttachableCallback().detach(),
@@ -205,12 +202,14 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    * forward.
    *
    * @param sender the player who switches their chat input
+   * @since 1.0.0
    */
   @Command("mcav vm interact")
   @Permission(INTERACT_PERMISSION)
   @CommandDescription("mcav.command.vm.interact.info")
   public void toggleInteraction(final Player sender) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
+
     final Component enabled = Message.INTERACT_ENABLE.build();
     final Component disabled = Message.INTERACT_DISABLE.build();
     this.toggleInteraction(sender, enabled, disabled);
@@ -225,18 +224,20 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    * "Virtual machine released!", also when no virtual machine was running.
    *
    * @param sender who ran the command
+   * @since 1.0.0
    */
   @Command("mcav vm release")
   @Permission("mcav.vm.release")
   @CommandDescription("mcav.command.vm.release.info")
-  public void releaseVM(final CommandSender sender) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
+  public void releaseVm(final CommandSender sender) {
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
+
     final Component released = Message.VM_RELEASE.build();
     this.releaseResource(sender, released);
   }
 
   /**
-   * Handles {@code /mcav vm create <playerSelector> <vmResolution> <targetFps> <blockDimensions> <mapId>
+   * Handles {@code /mcav vm create <playerSelector> <vmResolution> <targetFramesPerSecond> <blockDimensions> <mapId>
    * <ditheringAlgorithm> <architecture> <audioType> <flags> [--codec dither|mcv2]}: boots a QEMU virtual machine and
    * streams its display onto a wall of maps, dithered or with MCV2, and its sound into the chosen audio output. Only x86-64 PC and Q35 machines have sound; mcav
    * adds their sound card itself, and the flags cannot change it.
@@ -253,54 +254,55 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    * sender is told "Loading virtual machine...", and later that it was created, that the QEMU program for the
    * architecture is not on the {@code PATH}, or that it failed to start, with the details in the console.
    *
-   * @param sender             who ran the command
-   * @param playerSelector     the players who see the virtual machine on the maps, such as a player name or
-   *                           {@code @a}
-   * @param vmResolution       the resolution of the display of the guest as {@code <width>x<height>} in pixels,
-   *                           such as {@code 1280x720}; use 128 times the block dimensions to fill the wall exactly
-   * @param targetFps          how many frames per second are captured from the display, from 1 to 240; higher
-   *                           values feel smoother but cost more CPU and bandwidth
-   * @param blockDimensions    the size of the wall as {@code <width>x<height>} in maps, such as {@code 5x5}
-   * @param mapId              the id of the top left map of the wall, as given to {@code /mcav screen}
-   * @param ditheringAlgorithm how colors are reduced to the map palette; {@code NEAREST_COLOR} keeps text and
-   *                           desktops sharp and stable, {@code FILTER_LITE} looks best for pictures, see
-   *                           {@link DitheringArgument}
-   * @param architecture       the processor the guest is emulated with: {@code X86_64}, {@code ARM},
-   *                           {@code AARCH64}, or {@code RISCV64}, each run by its own {@code qemu-system-*} program
-   * @param audioType          where the sound of the guest plays, as for the video commands, see
-   *                           {@link AudioArgument}; {@code NONE} keeps the machine silent
-   * @param flags              the QEMU options, the rest of the command line, such as
-   *                           {@code -cdrom "alpine linux.iso" -m 2048M}; quote values with spaces, and options QEMU
-   *                           accepts more than once, such as {@code -drive}, may be repeated. Only the options of
-   *                           {@link #supportedOptions()} are accepted, and a disk image must be a file of the
-   *                           {@value DiskImages#FOLDER_NAME} folder of the plugin, named without its folder.
-   *                           A trailing {@code --codec dither} or {@code --codec mcv2} is not a QEMU option: it
-   *                           chooses how the picture reaches the players, as the flag of the other map commands
-   *                           does, and the configured default applies without it
+   * @param sender                who ran the command
+   * @param playerSelector        the players who see the virtual machine on the maps, such as a player name or
+   *                              {@code @a}
+   * @param vmResolution          the resolution of the display of the guest as {@code <width>x<height>} in pixels,
+   *                              such as {@code 1280x720}; use 128 times the block dimensions to fill the wall exactly
+   * @param targetFramesPerSecond how many frames per second are captured from the display, from 1 to 240; higher
+   *                              values feel smoother but cost more CPU and bandwidth
+   * @param blockDimensions       the size of the wall as {@code <width>x<height>} in maps, such as {@code 5x5}
+   * @param mapId                 the id of the top left map of the wall, as given to {@code /mcav screen}
+   * @param ditheringAlgorithm    how colors are reduced to the map palette; {@code NEAREST_COLOR} keeps text and
+   *                              desktops sharp and stable, {@code FILTER_LITE} looks best for pictures, see
+   *                              {@link DitheringArgument}
+   * @param architecture          the processor the guest is emulated with: {@code X86_64}, {@code ARM},
+   *                              {@code AARCH64}, or {@code RISCV64}, each run by its own {@code qemu-system-*} program
+   * @param audioType             where the sound of the guest plays, as for the video commands, see
+   *                              {@link AudioArgument}; {@code NONE} keeps the machine silent
+   * @param flags                 the QEMU options, the rest of the command line, such as
+   *                              {@code -cdrom "alpine linux.iso" -m 2048M}; quote values with spaces, and options QEMU
+   *                              accepts more than once, such as {@code -drive}, may be repeated. Only the options of
+   *                              {@link #supportedOptions()} are accepted, and a disk image must be a file of the
+   *                              {@value DiskImages#FOLDER_NAME} folder of the plugin, named without its folder.
+   *                              A trailing {@code --codec dither} or {@code --codec mcv2} is not a QEMU option: it
+   *                              chooses how the picture reaches the players, as the flag of the other map commands
+   *                              does, and the configured default applies without it
+   * @since 1.0.0
    */
   @Command(
-    "mcav vm create <playerSelector> <vmResolution> <targetFps> <blockDimensions> <mapId> <ditheringAlgorithm> <architecture> <audioType> <flags>"
+    "mcav vm create <playerSelector> <vmResolution> <targetFramesPerSecond> <blockDimensions> <mapId> <ditheringAlgorithm> <architecture> <audioType> <flags>"
   )
   @Permission("mcav.command.vm.create")
   @CommandDescription("mcav.command.vm.create.info")
-  public void createVM(
+  public void createVm(
     final CommandSender sender,
     final MultiplePlayerSelector playerSelector,
-    @Argument(suggestions = "resolutions") @Quoted final String vmResolution,
-    @Argument(suggestions = "target-fps") @Range(min = "1", max = "240") final int targetFps,
-    @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
-    @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
+    @Argument(suggestions = SuggestionProvider.RESOLUTIONS) @Quoted final String vmResolution,
+    @Argument(suggestions = SuggestionProvider.TARGET_FRAMES_PER_SECOND) @Range(min = "1", max = "240") final int targetFramesPerSecond,
+    @Argument(suggestions = SuggestionProvider.DIMENSIONS) @Quoted final String blockDimensions,
+    @Argument(suggestions = SuggestionProvider.IDS) @Range(min = "0") final int mapId,
     final DitheringArgument ditheringAlgorithm,
     final VmPlayer.Architecture architecture,
     final AudioArgument audioType,
     @Greedy final String flags
   ) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
-    Preconditions.checkNotNull(playerSelector, "Player selector must not be null");
-    Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null");
-    Preconditions.checkNotNull(architecture, "Architecture must not be null");
-    Preconditions.checkNotNull(audioType, "Audio type must not be null");
-    Preconditions.checkNotNull(flags, "Flags must not be null");
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(playerSelector, "Player selector must not be null!");
+    Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null!");
+    Preconditions.checkNotNull(architecture, "Architecture must not be null!");
+    Preconditions.checkNotNull(audioType, "Audio type must not be null!");
+    Preconditions.checkNotNull(flags, "Flags must not be null!");
 
     final boolean hasQemu = this.plugin.isQemuInstalled();
     if (!hasQemu) {
@@ -309,8 +311,11 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
       return;
     }
 
-    final Pair<Integer, Integer> resolution = parseDimensions(sender, vmResolution);
-    final Pair<Integer, Integer> blocks = resolution == null ? null : parseScreenDimensions(sender, blockDimensions);
+    final Optional<Pair<Integer, Integer>> parsedResolution = parseDimensions(sender, vmResolution);
+    final @Nullable Pair<Integer, Integer> resolution = parsedResolution.orElse(null);
+    final Optional<Pair<Integer, Integer>> parsedBlocks =
+      resolution == null ? Optional.empty() : parseScreenDimensions(sender, blockDimensions);
+    final @Nullable Pair<Integer, Integer> blocks = parsedBlocks.orElse(null);
     if (resolution == null || blocks == null) {
       return;
     }
@@ -320,31 +325,42 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
       sender.sendMessage(Message.UNKNOWN_CODEC.build());
       return;
     }
+
     final VmConfiguration vmConfiguration = this.parseOptions(sender, split.options());
     if (vmConfiguration == null) {
       return;
     }
-    // only x86-64 PC and Q35 machines get a sound card from mcav-vm
-    if (audioType != AudioArgument.NONE && architecture != VmPlayer.Architecture.X86_64) {
-      final Component silent = Message.VM_NO_SOUND.build();
-      sender.sendMessage(silent);
-      return;
-    }
-    final AudioProvider provider = this.plugin.getAudioProvider();
-    final Component audioProblem = AudioOutputs.findProblem(provider, audioType);
+
+    final @Nullable Component audioProblem = this.findAudioProblem(architecture, audioType);
     if (audioProblem != null) {
       sender.sendMessage(audioProblem);
       return;
     }
-    final int width = resolution.getFirst();
-    final int height = resolution.getSecond();
-    final VmSettings vmSettings = VmSettings.of(width, height, targetFps);
+
+    final VmSettings vmSettings = this.createVmSettings(resolution, targetFramesPerSecond);
     final MapCodec codec = this.chooseCodec(split.codec());
     final ScreenSettings settings = new ScreenSettings(sender, playerSelector, blocks, resolution, mapId, ditheringAlgorithm, codec);
     final Screen screen = this.createScreen(settings);
     final Player[] viewers = playerSelector.values().toArray(Player[]::new);
     final ScreenSound sound = new ScreenSound(audioType, viewers);
     this.createResource(() -> this.startMachine(sender, screen, vmSettings, architecture, vmConfiguration, sound));
+  }
+
+  private @Nullable Component findAudioProblem(final VmPlayer.Architecture architecture, final AudioArgument audioType) {
+    // only x86-64 PC and Q35 machines get a sound card from mcav-vm
+    if (audioType != AudioArgument.NONE && architecture != VmPlayer.Architecture.X86_64) {
+      return Message.VM_NO_SOUND.build();
+    }
+
+    final AudioProvider provider = this.plugin.getAudioProvider();
+    final Optional<Component> foundAudioProblem = AudioOutputs.findProblem(provider, audioType);
+    return foundAudioProblem.orElse(null);
+  }
+
+  private VmSettings createVmSettings(final Pair<Integer, Integer> resolution, final int targetFramesPerSecond) {
+    final int width = resolution.getFirst();
+    final int height = resolution.getSecond();
+    return VmSettings.of(width, height, targetFramesPerSecond);
   }
 
   private void startMachine(
@@ -375,13 +391,14 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    * {@code PATH} gets its own message, also when wrapped in a {@link CompletionException}; other reasons are
    * logged, not shown.
    *
-   * @param succeeded whether the virtual machine started
-   * @param error     why the virtual machine failed to start, if known
+   * @param outcome whether the virtual machine started
+   * @param error   why the virtual machine failed to start, if known
    * @return the message
+   * @since 1.0.0
    */
   @Override
-  protected Component createStartMessage(final boolean succeeded, final @Nullable Throwable error) {
-    if (succeeded) {
+  protected Component createStartMessage(final StartOutcome outcome, final @Nullable Throwable error) {
+    if (outcome == StartOutcome.STARTED) {
       return Message.VM_CREATE.build();
     }
 
@@ -392,30 +409,17 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     if (cause instanceof ExecutableNotInPathException) {
       return Message.VM_PATH.build();
     }
+
     return Message.VM_ERROR.build();
   }
 
-  /**
-   * The QEMU options of a command, and the codec a trailing {@code --codec} names.
-   *
-   * @param options the QEMU options, without the codec flag
-   * @param codec   the codec, or null when the options end with none
-   */
-  record CodecSplit(String options, @Nullable MapCodec codec) {}
-
-  /**
-   * Splits a trailing {@code --codec dither} or {@code --codec mcv2}, in any case, off the QEMU options. Cloud's flags
-   * cannot follow the options, which start with a dash too; a {@code --codec} anywhere else is left to the options,
-   * which refuse it.
-   *
-   * @param flags the rest of the command line
-   * @return the options and the codec, or null when the flag names no codec
-   */
+  // Cloud flags cannot follow the QEMU options, which start with a dash too
   static @Nullable CodecSplit splitCodec(final String flags) {
     final Matcher matcher = TRAILING_CODEC.matcher(flags);
     if (!matcher.find()) {
       return new CodecSplit(flags, null);
     }
+
     final String name = matcher.group(1);
     for (final MapCodec codec : MapCodec.values()) {
       if (codec.name().equalsIgnoreCase(name)) {
@@ -425,18 +429,11 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     return null;
   }
 
-  /**
-   * Parses the QEMU options of the sender, telling them when an option is not supported.
-   *
-   * @param sender who ran the command
-   * @param flags  the options as entered
-   * @return the configuration, or {@code null} if an option was refused
-   */
   private @Nullable VmConfiguration parseOptions(final CommandSender sender, final String flags) {
     final Path dataFolder = this.plugin.getDataPath();
     final Path imageFolder = DiskImages.folderOf(dataFolder);
     try {
-      final VmConfigurationBuilder builder = parseOptions(flags, imageFolder, maxMemoryBytes());
+      final VmConfigurationBuilder builder = parseOptions(flags, imageFolder, maximumMemoryBytes());
       // without it, the guest gets mcav's network that reaches nothing, as no option of the command chooses one
       final PluginDataConfigurationMapper settings = this.plugin.getConfiguration();
       if (settings.isVmAllowNetwork()) {
@@ -452,65 +449,39 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     }
   }
 
-  /**
-   * Parses QEMU options such as {@code -cdrom "alpine linux.iso" -m 2048M -enable-kvm}. Quoted values may contain
-   * spaces, and options QEMU accepts more than once, such as {@code -drive}, are kept. Only the options of
-   * {@link #supportedOptions()} are accepted, and every disk image is resolved in the image folder.
-   *
-   * @param commandLine the options
-   * @param imageFolder the folder the disk images live in
-   * @return a builder holding the options
-   * @throws IllegalArgumentException if an option is not supported, is given a value it does not take, misses the
-   *                                  value it needs, or names a disk image outside the image folder
-   */
+  // quoted values may hold spaces; options QEMU repeats, such as -drive, are kept
   static VmConfigurationBuilder parseOptions(final String commandLine, final Path imageFolder) {
     return parseOptions(commandLine, imageFolder, Long.MAX_VALUE);
   }
 
-  /**
-   * Parses QEMU options as {@link #parseOptions(String, Path)} does, and refuses a machine with more memory than the
-   * server lets one have: a guest can use all of it, and the memory of a machine is memory of the server.
-   *
-   * @param commandLine    the options
-   * @param imageFolder    the folder the disk images live in
-   * @param maxMemoryBytes the most memory a machine may have, in bytes
-   * @return a builder holding the options
-   * @throws IllegalArgumentException if an option is refused, or the machine would have more memory than allowed
-   */
-  static VmConfigurationBuilder parseOptions(final String commandLine, final Path imageFolder, final long maxMemoryBytes) {
+  // a guest can use all of its memory, so the server's limit applies
+  static VmConfigurationBuilder parseOptions(final String commandLine, final Path imageFolder, final long maximumMemoryBytes) {
     final VmConfigurationBuilder builder = parseAllowedOptions(commandLine, imageFolder);
     final VmConfiguration configuration = builder.build();
-    final Optional<String> requestedMemory = configuration.find("m");
+    final Optional<String> requestedMemory = configuration.find(QemuHardwareValues.MEMORY_OPTION);
     final @Nullable String requestedValue = requestedMemory.orElse(null);
-    final String memory = Objects.requireNonNullElse(requestedValue, "128");
+    final String memory = Objects.requireNonNullElse(requestedValue, QemuHardwareValues.DEFAULT_MEMORY_SIZE);
     final long requested = QemuHardwareValues.memoryBytes(memory);
-    if (requested > maxMemoryBytes) {
-      throw new IllegalArgumentException(
-        "The QEMU option -m " + memory + " asks for more memory than a machine may have on this server, " + (maxMemoryBytes >> 20) + " MiB"
+    if (requested > maximumMemoryBytes) {
+      final long maximumMebibytes = maximumMemoryBytes >> QemuHardwareValues.MEBIBYTE_SHIFT;
+      final String message = "QEMU option -m %s asks for more than the %s MiB a machine may have on this server!".formatted(
+        memory,
+        maximumMebibytes
       );
+      throw new IllegalArgumentException(message);
     }
+
     return builder;
   }
 
-  /**
-   * Gets the most memory a machine may have on this server: half of the memory of the server, or of its container, as
-   * the JVM sees it, and at least 512 MiB.
-   *
-   * @return the most memory in bytes
-   */
-  static long maxMemoryBytes() {
+  // the JVM reports a container's memory limit here, not the host's
+  static long maximumMemoryBytes() {
     final OperatingSystemMXBean system = ManagementFactory.getPlatformMXBean(OperatingSystemMXBean.class);
-    return maxMemoryBytes(system.getTotalMemorySize());
+    return maximumMemoryBytes(system.getTotalMemorySize());
   }
 
-  /**
-   * Gets the most memory a machine may have on a server with a given memory: half of it, and at least 512 MiB.
-   *
-   * @param totalMemoryBytes the memory of the server in bytes
-   * @return the most memory in bytes
-   */
-  static long maxMemoryBytes(final long totalMemoryBytes) {
-    return Math.max(MIN_MACHINE_MEMORY_BYTES, totalMemoryBytes / 2);
+  static long maximumMemoryBytes(final long totalMemoryBytes) {
+    return Math.max(MINIMUM_MACHINE_MEMORY_BYTES, totalMemoryBytes / MACHINE_MEMORY_DIVISOR);
   }
 
   private static VmConfigurationBuilder parseAllowedOptions(final String commandLine, final Path imageFolder) {
@@ -524,16 +495,10 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     return builder;
   }
 
-  /**
-   * Adds the option at an index to the builder, with the token after it as its value unless that token is an
-   * option too. Words that are not options are skipped.
-   *
-   * @return the index of the token after the option and its value
-   */
   private static int addOption(final VmConfigurationBuilder builder, final List<String> tokens, final int index, final Path imageFolder) {
     final String token = tokens.get(index);
     final int next = index + 1;
-    if (!token.startsWith("-")) {
+    if (!token.startsWith(OPTION_PREFIX)) {
       return next;
     }
 
@@ -562,43 +527,43 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     if (isFlagOption) {
       return;
     }
+
     final boolean needsValue = HARDWARE_OPTIONS.contains(name) || IMAGE_OPTIONS.contains(name) || name.equals(DRIVE_OPTION);
     if (needsValue) {
-      throw new IllegalArgumentException("The QEMU option -" + name + " needs a value");
+      final String message = "QEMU option -%s needs a value!".formatted(name);
+      throw new IllegalArgumentException(message);
     }
+
     throw unsupported(name);
   }
 
-  /**
-   * Checks the value of an option and returns the value the machine is given, which is the resolved path of a disk
-   * image and the value as written for every other option.
-   */
   private static String checkedValue(final String name, final String value, final Path imageFolder) {
     final boolean hardware = HARDWARE_OPTIONS.contains(name);
     if (hardware) {
       QemuHardwareValues.check(name, value);
       return value;
     }
+
     final boolean image = IMAGE_OPTIONS.contains(name);
     if (image) {
       final Path resolved = DiskImages.require(imageFolder, value);
       return resolved.toString();
     }
+
     final boolean isDriveOption = name.equals(DRIVE_OPTION);
     if (isDriveOption) {
       return checkedDrive(value, imageFolder);
     }
+
     final boolean isFlagOption = FLAG_OPTIONS.contains(name);
     if (isFlagOption) {
-      throw new IllegalArgumentException("The QEMU option -" + name + " takes no value");
+      final String message = "QEMU option -%s takes no value!".formatted(name);
+      throw new IllegalArgumentException(message);
     }
+
     throw unsupported(name);
   }
 
-  /**
-   * Checks the parts of a drive, whose {@code file} names a disk image and whose other parts describe how the drive
-   * is attached, as {@link QemuHardwareValues#checkDriveProperty} allows.
-   */
   private static String checkedDrive(final String value, final Path imageFolder) {
     final List<String> parts = DRIVE_SPLITTER.splitToList(value);
     final List<String> checked = new ArrayList<>(parts.size());
@@ -617,58 +582,54 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
       }
     }
     final boolean one = files == 1;
-    Preconditions.checkArgument(one, "A drive names its disk image exactly once, as file=<image>, but got %s", value);
-    return String.join(",", checked);
+    Preconditions.checkArgument(one, "Drive %s must name its disk image exactly once, as file=<image>!", value);
+
+    return String.join(VALUE_SEPARATOR, checked);
   }
 
-  /**
-   * Refuses a value that names a file, because only a disk image of the image folder may.
-   */
+  // only a disk image of the image folder may name a file
   private static void requireNoPath(final String name, final String value) {
-    final boolean path = value.indexOf('/') >= 0 || value.indexOf('\\') >= 0;
+    final boolean path = value.indexOf(UNIX_SEPARATOR) >= 0 || value.indexOf(WINDOWS_SEPARATOR) >= 0;
     if (path) {
-      throw new IllegalArgumentException("The QEMU option -" + name + " must not name a file, but got " + value);
+      final String message = "QEMU option -%s must not name a file, but %s does!".formatted(name, value);
+      throw new IllegalArgumentException(message);
     }
   }
 
   private static IllegalArgumentException unsupported(final String name) {
-    final String supported = String.join(", ", supportedOptions());
-    return new IllegalArgumentException("Unsupported QEMU option -" + name + "; the command accepts " + supported);
+    final String supported = String.join(NAME_SEPARATOR, supportedOptions());
+    final String message = "QEMU option -%s is not supported, use one of %s instead!".formatted(name, supported);
+    return new IllegalArgumentException(message);
   }
 
   /**
-   * Gets the QEMU options the command accepts, with a dash and in alphabetical order.
+   * Returns the QEMU options the command accepts, with a dash and in alphabetical order.
    *
    * @return the option names, as an unmodifiable list
+   * @since 1.0.0
    */
   public static List<String> supportedOptions() {
     final List<String> names = new ArrayList<>();
     for (final String flag : FLAG_OPTIONS) {
-      names.add("-" + flag);
+      names.add(OPTION_PREFIX + flag);
     }
     for (final String hardware : HARDWARE_OPTIONS) {
-      names.add("-" + hardware);
+      names.add(OPTION_PREFIX + hardware);
     }
     for (final String image : IMAGE_OPTIONS) {
-      names.add("-" + image);
+      names.add(OPTION_PREFIX + image);
     }
-    names.add("-" + DRIVE_OPTION);
+    names.add(OPTION_PREFIX + DRIVE_OPTION);
     Collections.sort(names);
     return Collections.unmodifiableList(names);
   }
 
   private static boolean isValue(final List<String> tokens, final int index) {
     final String token = tokens.get(index);
-    return !token.startsWith("-");
+    return !token.startsWith(OPTION_PREFIX);
   }
 
-  /**
-   * Splits a command line at unquoted whitespace. Double quotes group words and are removed, so {@code ""} is an
-   * empty token.
-   *
-   * @param commandLine the command line
-   * @return the tokens
-   */
+  // "" is an empty token
   static List<String> tokenize(final String commandLine) {
     final List<String> tokens = new ArrayList<>();
     final StringBuilder current = new StringBuilder();
@@ -677,7 +638,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     final int length = commandLine.length();
     for (int index = 0; index < length; index++) {
       final char character = commandLine.charAt(index);
-      if (character == '"') {
+      if (character == QUOTE) {
         quoted = !quoted;
         inToken = true;
       } else if (quoted || !Character.isWhitespace(character)) {
@@ -700,4 +661,17 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     tokens.add(token);
     current.setLength(0);
   }
+
+  /**
+   * Returns the permission a player needs to send input to the running virtual machine.
+   *
+   * @return {@value #INTERACT_PERMISSION}
+   * @since 1.0.0
+   */
+  @Override
+  protected String getInteractionPermission() {
+    return INTERACT_PERMISSION;
+  }
+
+  record CodecSplit(String options, @Nullable MapCodec codec) {}
 }

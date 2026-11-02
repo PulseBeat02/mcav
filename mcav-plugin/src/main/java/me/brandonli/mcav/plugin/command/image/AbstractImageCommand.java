@@ -38,6 +38,7 @@ import me.brandonli.mcav.plugin.command.video.AbstractVideoCommand;
 import me.brandonli.mcav.plugin.locale.Message;
 import me.brandonli.mcav.plugin.utils.ArgumentUtils;
 import me.brandonli.mcav.plugin.utils.FilterChain;
+import me.brandonli.mcav.plugin.utils.MediaKind;
 import me.brandonli.mcav.plugin.utils.TaskUtils;
 import me.brandonli.mcav.utils.SourceUtils;
 import me.brandonli.mcav.utils.ThrowableUtils;
@@ -51,23 +52,32 @@ import org.slf4j.LoggerFactory;
 /**
  * The common flow of the image commands: parse the resolution, load the image on the worker thread, and show it
  * on the main thread with the display type of the subclass.
+ *
+ * @since 1.0.0
  */
 public abstract class AbstractImageCommand implements AnnotationCommandFeature {
 
   private static final Equivalence<Object> FAILURE_IDENTITY = Equivalence.identity();
   private static final Logger LOGGER = LoggerFactory.getLogger(AbstractImageCommand.class);
 
-  private static final String WORKER_REFUSED = "The image worker refused to load an image";
+  private static final String WORKER_REFUSED = "The image worker refused to load an image.";
 
-  private static final String LOAD_FAILED = "Failed to load the image {}";
+  private static final String LOAD_FAILED = "Image {} could not be loaded.";
+
+  private static final char QUOTE = '"';
+  private static final int QUOTE_COUNT = 2;
 
   /**
    * The plugin.
+   *
+   * @since 1.0.0
    */
   protected final MCAVSandbox plugin;
 
   /**
    * The manager of the displayed image.
+   *
+   * @since 1.0.0
    */
   protected final ImageManager manager;
 
@@ -75,9 +85,11 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
    * Constructs the command.
    *
    * @param plugin the plugin
+   * @since 1.0.0
    */
   protected AbstractImageCommand(final MCAVSandbox plugin) {
-    Preconditions.checkNotNull(plugin, "Plugin must not be null");
+    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
+
     this.plugin = plugin;
     this.manager = plugin.getImageManager();
   }
@@ -85,71 +97,82 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
   /**
    * Loads and shows an image, replacing the image shown before.
    *
-   * @param configProvider   creates the display configuration for the parsed resolution
-   * @param sender           who ran the command
-   * @param imageResolution  the resolution argument, such as {@code 640x640}
-   * @param mrl              the path or URL of the image, optionally enclosed in one pair of double quotes
-   * @param filters          the {@code --filters} option, see {@link FilterChain}, or {@code null} for none
+   * @param configurationProvider creates the display configuration for the parsed resolution
+   * @param sender                who ran the command
+   * @param imageResolution       the resolution argument, such as {@code 640x640}
+   * @param mrl                   the path or URL of the image, optionally enclosed in one pair of double quotes
+   * @param filters               the {@code --filters} option, see {@link FilterChain}, or {@code null} for none
+   * @since 1.0.0
    */
   public void displayImage(
-    final ImageConfigurationProvider configProvider,
+    final ImageConfigurationProvider configurationProvider,
     final CommandSender sender,
     final String imageResolution,
     final String mrl,
     final @Nullable String filters
   ) {
-    Preconditions.checkNotNull(configProvider, "Configuration provider must not be null");
-    Preconditions.checkNotNull(sender, "Sender must not be null");
-    Preconditions.checkNotNull(imageResolution, "Image resolution must not be null");
-    Preconditions.checkNotNull(mrl, "MRL must not be null");
-    final Pair<Integer, Integer> resolution = parseResolution(imageResolution);
+    Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null!");
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(imageResolution, "Image resolution must not be null!");
+    Preconditions.checkNotNull(mrl, "MRL must not be null!");
+
+    final Pair<Integer, Integer> resolution = this.parseResolution(imageResolution);
     if (resolution == null) {
       final Component message = Message.UNSUPPORTED_DIMENSION.build();
       sender.sendMessage(message);
       return;
     }
 
-    final FilterChain chain = AbstractVideoCommand.parseFilters(sender, this.plugin, filters, false);
+    final Optional<FilterChain> parsedChain = AbstractVideoCommand.parseFilters(sender, this.plugin, filters, MediaKind.IMAGE);
+    final @Nullable FilterChain chain = parsedChain.orElse(null);
     if (chain == null) {
       return;
     }
-    final String sourceMrl = unwrapMrl(mrl);
-    final Supplier<ImageBuffer> loader = createLoader(sourceMrl);
+
+    final String sourceMrl = this.unwrapMrl(mrl);
+    final Supplier<ImageBuffer> loader = this.createLoader(sourceMrl);
     if (loader == null) {
       final Component message = Message.UNSUPPORTED_MRL.build();
       sender.sendMessage(message);
       return;
     }
 
-    final ImageRequest request = new ImageRequest(sender, sourceMrl, resolution, configProvider);
-    this.startLoading(chain.isEmpty() ? loader : () -> filter(loader.get(), resolution, chain), request);
+    final ImageRequest request = new ImageRequest(sender, sourceMrl, resolution, configurationProvider);
+    this.startLoading(chain.isEmpty() ? loader : () -> this.filter(loader.get(), resolution, chain), request);
   }
 
-  /** Filters an image at the size it is shown at, which bounds the work of the filters, on the loading thread. */
-  private static ImageBuffer filter(final ImageBuffer image, final Pair<Integer, Integer> resolution, final FilterChain chain) {
+  // resized first, which bounds the filters' work
+  private ImageBuffer filter(final ImageBuffer image, final Pair<Integer, Integer> resolution, final FilterChain chain) {
     try {
       new ResizeFilter(resolution.getFirst(), resolution.getSecond()).applyFilter(image);
       chain.apply(image);
+
       return image;
-    } catch (final RuntimeException | Error failure) {
-      ThrowableUtils.throwIfFatal(failure);
-      try {
-        image.release();
-      } catch (final RuntimeException | Error cleanupFailure) {
-        ThrowableUtils.throwIfFatal(cleanupFailure);
-        if (!FAILURE_IDENTITY.equivalent(failure, cleanupFailure)) {
-          failure.addSuppressed(cleanupFailure);
-        }
-      }
-      throw failure;
+    } catch (final RuntimeException | Error exception) {
+      ThrowableUtils.throwIfFatal(exception);
+      this.cleanupAfterFailure(exception, image::release);
+      throw exception;
     }
   }
 
-  private static String unwrapMrl(final String mrl) {
+  private void cleanupAfterFailure(final Throwable failure, final Runnable cleanup) {
+    try {
+      cleanup.run();
+    } catch (final RuntimeException | Error exception) {
+      ThrowableUtils.throwIfFatal(exception);
+      final boolean sameFailure = FAILURE_IDENTITY.equivalent(failure, exception);
+      if (!sameFailure) {
+        failure.addSuppressed(exception);
+      }
+    }
+  }
+
+  private String unwrapMrl(final String mrl) {
     final int length = mrl.length();
-    if (length >= 2 && mrl.charAt(0) == '"' && mrl.charAt(length - 1) == '"') {
+    if (length >= QUOTE_COUNT && mrl.charAt(0) == QUOTE && mrl.charAt(length - 1) == QUOTE) {
       return mrl.substring(1, length - 1);
     }
+
     return mrl;
   }
 
@@ -173,10 +196,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     TaskUtils.whenComplete(loading, (image, error) -> this.onImageLoaded(request, generation, image, error));
   }
 
-  /**
-   * Hands the loaded image over to the main thread. When the plugin is disabled, the main thread accepts no more
-   * tasks, so the image is released at once instead of leaking its native memory.
-   */
+  // a disabled plugin's main thread takes no tasks, so the image is released at once
   private void onImageLoaded(
     final ImageRequest request,
     final long generation,
@@ -191,54 +211,46 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
       TaskUtils.runOnMainThread(this.plugin, () -> sender.sendMessage(message));
       return;
     }
+
     final ImageBuffer loaded = Objects.requireNonNull(image);
     final boolean retained = this.manager.retainLoaded(generation, loaded);
     if (!retained) {
       loaded.release();
       return;
     }
+
     final Pair<Integer, Integer> resolution = request.getResolution();
-    final ImageConfigurationProvider configProvider = request.getConfigProvider();
+    final ImageConfigurationProvider configurationProvider = request.getConfigurationProvider();
     try {
       final boolean scheduled = TaskUtils.runOnMainThread(this.plugin, () ->
-        this.showImage(generation, resolution, configProvider, sender)
+        this.showImage(generation, resolution, configurationProvider, sender)
       );
       if (!scheduled) {
         this.manager.discardLoaded(generation);
       }
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
-      try {
-        this.manager.discardLoaded(generation);
-      } catch (final RuntimeException | Error cleanupFailure) {
-        ThrowableUtils.throwIfFatal(cleanupFailure);
-        final boolean sameFailure = FAILURE_IDENTITY.equivalent(exception, cleanupFailure);
-        if (!sameFailure) {
-          exception.addSuppressed(cleanupFailure);
-        }
-      }
+      this.cleanupAfterFailure(exception, () -> this.manager.discardLoaded(generation));
       throw exception;
     }
   }
 
-  /**
-   * Runs only on the server main thread, as do manager shutdown and display ownership changes. Taking a pending
-   * image and publishing its display cannot interleave with shutdown on that thread.
-   */
+  // main thread only, like shutdown, so showing an image cannot interleave with shutdown
   private void showImage(
     final long generation,
     final Pair<Integer, Integer> resolution,
-    final ImageConfigurationProvider configProvider,
+    final ImageConfigurationProvider configurationProvider,
     final CommandSender sender
   ) {
     final ImageBuffer image = this.manager.takeLoaded(generation);
     if (image == null) {
       return;
     }
+
     boolean adopted = false;
     try {
-      this.manager.releaseImage(true);
-      final DisplayableImage display = this.createImage(resolution, configProvider);
+      this.manager.releaseImage(ReleaseThread.CALLING_THREAD);
+      final DisplayableImage display = this.createImage(resolution, configurationProvider);
       this.manager.setImage(display);
       this.manager.setCurrentImage(image);
       adopted = true;
@@ -247,24 +259,16 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
       sender.sendMessage(message);
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
-      try {
-        if (adopted) {
-          this.manager.releaseImage(true);
-        } else {
-          image.release();
-        }
-      } catch (final RuntimeException | Error cleanupFailure) {
-        ThrowableUtils.throwIfFatal(cleanupFailure);
-        final boolean sameFailure = FAILURE_IDENTITY.equivalent(exception, cleanupFailure);
-        if (!sameFailure) {
-          exception.addSuppressed(cleanupFailure);
-        }
+      if (adopted) {
+        this.cleanupAfterFailure(exception, () -> this.manager.releaseImage(ReleaseThread.CALLING_THREAD));
+      } else {
+        this.cleanupAfterFailure(exception, image::release);
       }
       throw exception;
     }
   }
 
-  private static @Nullable Pair<Integer, Integer> parseResolution(final String imageResolution) {
+  private @Nullable Pair<Integer, Integer> parseResolution(final String imageResolution) {
     try {
       return ArgumentUtils.parseDimensions(imageResolution);
     } catch (final IllegalArgumentException exception) {
@@ -272,63 +276,64 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     }
   }
 
-  /**
-   * Creates the loader of a still image from a file or a URL.
-   *
-   * @return the loader, or {@code null} if the media is not such an image
-   */
-  private static @Nullable Supplier<ImageBuffer> createLoader(final String mrl) {
+  private @Nullable Supplier<ImageBuffer> createLoader(final String mrl) {
     if (mrl.isBlank()) {
       return null;
     }
+
     final SourceDetectionHelper helper = new SourceDetectionHelper();
     final Optional<Source> detected = helper.detectSource(mrl);
     if (detected.isEmpty()) {
       return null;
     }
+
     final Source source = detected.get();
     final boolean animated = SourceUtils.isImageGif(source);
     if (animated) {
       return null;
     }
+
     if (source instanceof final FileSource fileSource) {
       return () -> ImageBuffer.path(fileSource);
     }
+
     if (source instanceof final UriSource uriSource) {
       return () -> ImageBuffer.uri(uriSource);
     }
+
     return null;
   }
 
   /**
    * Creates the display for the image. Called on the main thread.
    *
-   * @param resolution     the parsed resolution
-   * @param configProvider the provider passed to {@link #displayImage}
+   * @param resolution            the parsed resolution
+   * @param configurationProvider the provider passed to {@link #displayImage}
    * @return the display
+   * @since 1.0.0
    */
-  public abstract DisplayableImage createImage(final Pair<Integer, Integer> resolution, final ImageConfigurationProvider configProvider);
+  public abstract DisplayableImage createImage(
+    final Pair<Integer, Integer> resolution,
+    final ImageConfigurationProvider configurationProvider
+  );
 
-  /**
-   * What the sender asked to show, kept while the image loads.
-   */
   private static final class ImageRequest {
 
     private final CommandSender sender;
     private final String mrl;
     private final Pair<Integer, Integer> resolution;
-    private final ImageConfigurationProvider configProvider;
+    private final ImageConfigurationProvider configurationProvider;
 
     ImageRequest(
       final CommandSender sender,
       final String mrl,
       final Pair<Integer, Integer> resolution,
-      final ImageConfigurationProvider configProvider
+      final ImageConfigurationProvider configurationProvider
     ) {
       this.sender = sender;
       this.mrl = mrl;
       this.resolution = resolution;
-      this.configProvider = configProvider;
+      this.configurationProvider = configurationProvider;
     }
 
     private CommandSender getSender() {
@@ -343,13 +348,17 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
       return this.resolution;
     }
 
-    private ImageConfigurationProvider getConfigProvider() {
-      return this.configProvider;
+    private ImageConfigurationProvider getConfigurationProvider() {
+      return this.configurationProvider;
     }
   }
 
   /**
    * Creates the display configuration of an image command for a resolution.
+   *
+   * <p>Implementations in this library are immutable and thread-safe.
+   *
+   * @since 1.0.0
    */
   @FunctionalInterface
   public interface ImageConfigurationProvider {
@@ -358,6 +367,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
      *
      * @param resolution the parsed resolution
      * @return the configuration object the subclass expects
+     * @since 1.0.0
      */
     Object buildConfiguration(final Pair<Integer, Integer> resolution);
   }

@@ -27,11 +27,14 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilte
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.plugin.MCAVSandbox;
 import me.brandonli.mcav.plugin.command.ScoreboardArguments;
+import me.brandonli.mcav.plugin.command.SuggestionProvider;
+import me.brandonli.mcav.plugin.locale.Message;
 import me.brandonli.mcav.plugin.utils.ArgumentUtils;
 import me.brandonli.mcav.plugin.utils.AudioArgument;
 import me.brandonli.mcav.plugin.utils.FilterChain;
 import me.brandonli.mcav.plugin.utils.PlayerArgument;
 import me.brandonli.mcav.utils.immutable.Pair;
+import net.kyori.adventure.text.Component;
 import org.bukkit.command.CommandSender;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.incendo.cloud.annotation.specifier.Quoted;
@@ -45,6 +48,11 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 /**
  * {@code /mcav video scoreboard}: plays a video to the selected players. The height of the resolution is the
  * number of lines, at most {@value ScoreboardConfiguration#MAXIMUM_LINES}.
+ *
+ * <p>This class is not thread-safe: use it on the server main thread, except {@code createVideoFilter}, which {@link
+ * AbstractVideoCommand} calls on the worker thread.
+ *
+ * @since 1.0.0
  */
 public final class VideoScoreboardCommand extends AbstractVideoCommand {
 
@@ -52,6 +60,7 @@ public final class VideoScoreboardCommand extends AbstractVideoCommand {
    * Constructs the command.
    *
    * @param plugin the plugin
+   * @since 1.0.0
    */
   public VideoScoreboardCommand(final MCAVSandbox plugin) {
     super(plugin);
@@ -59,7 +68,7 @@ public final class VideoScoreboardCommand extends AbstractVideoCommand {
 
   /**
    * Handles {@code /mcav video scoreboard <playerSelector> <playerType> <audioType> <videoResolution> <character>
-   * <ytDlpOptions> <mrl>}: plays a video on the sidebar scoreboard of the selected players.
+   * <ytdlpOptions> <mrl>}: plays a video on the sidebar scoreboard of the selected players.
    *
    * <p>Every frame is drawn with the chosen character in the color of each pixel, one sidebar line per row of
    * pixels. The sidebar replaces any other sidebar the players see while the video plays. Only one video plays at a
@@ -80,15 +89,16 @@ public final class VideoScoreboardCommand extends AbstractVideoCommand {
    *                        {@code 24x15}; the height is at most {@value ScoreboardConfiguration#MAXIMUM_LINES}
    * @param character       the character every pixel is drawn with, in quotes; a full block {@code █} gives the
    *                        most solid picture
-   * @param ytDlpOptions    extra options, in quotes; {@code ""} for none, or yt-dlp options such as
+   * @param ytdlpOptions    extra options, in quotes; {@code ""} for none, or yt-dlp options such as
    *                        {@code "--yt-dlp{format=best,no-playlist}"}
    * @param mrl             the media, in quotes if it contains spaces: a file path on the server, a direct media
    *                        URL, a website yt-dlp understands such as YouTube, a capture device number such as
    *                        {@code 0}, or a raw FFmpeg input written as {@code format||input}
    * @param filters         the {@code --filters} option: filters applied to every frame in order, such as
    *                        {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
+   * @since 1.0.0
    */
-  @Command("mcav video scoreboard <playerSelector> <playerType> <audioType> <videoResolution> <character> <ytDlpOptions> <mrl>")
+  @Command("mcav video scoreboard <playerSelector> <playerType> <audioType> <videoResolution> <character> <ytdlpOptions> <mrl>")
   @Permission("mcav.command.video.scoreboard")
   @CommandDescription("mcav.command.video.scoreboard.info")
   public void playVideo(
@@ -96,25 +106,27 @@ public final class VideoScoreboardCommand extends AbstractVideoCommand {
     final MultiplePlayerSelector playerSelector,
     final PlayerArgument playerType,
     final AudioArgument audioType,
-    @Argument(suggestions = "dimensions") @Quoted final String videoResolution,
-    @Argument(suggestions = "chat-characters") @Quoted final String character,
-    @Quoted final String ytDlpOptions,
+    @Argument(suggestions = SuggestionProvider.DIMENSIONS) @Quoted final String videoResolution,
+    @Argument(suggestions = SuggestionProvider.CHAT_CHARACTERS) @Quoted final String character,
+    @Quoted final String ytdlpOptions,
     @Quoted final String mrl,
     @Flag("filters") @Quoted final @Nullable String filters
   ) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
-    Preconditions.checkNotNull(playerSelector, "Player selector must not be null");
-    Preconditions.checkNotNull(videoResolution, "Video resolution must not be null");
-    Preconditions.checkNotNull(character, "Character must not be null");
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(playerSelector, "Player selector must not be null!");
+    Preconditions.checkNotNull(videoResolution, "Video resolution must not be null!");
+    Preconditions.checkNotNull(character, "Character must not be null!");
 
-    final boolean fits = ScoreboardArguments.checkLines(sender, videoResolution);
-    if (!fits) {
+    final boolean tooTall = ScoreboardArguments.isTooTall(videoResolution);
+    if (tooTall) {
+      final Component message = Message.SCOREBOARD_LINES.build();
+      sender.sendMessage(message);
       return;
     }
 
     final Collection<UUID> players = ArgumentUtils.parsePlayerSelectors(playerSelector);
-    final VideoConfigurationProvider configurationProvider = resolution -> createConfiguration(resolution, players, character);
-    this.playVideo(configurationProvider, sender, playerSelector, playerType, audioType, videoResolution, mrl, ytDlpOptions, filters);
+    final VideoConfigurationProvider configurationProvider = resolution -> this.createConfiguration(resolution, players, character);
+    this.playVideo(configurationProvider, sender, playerSelector, playerType, audioType, videoResolution, mrl, ytdlpOptions, filters);
   }
 
   /**
@@ -125,22 +137,24 @@ public final class VideoScoreboardCommand extends AbstractVideoCommand {
    *                              {@link #playVideo(CommandSender, MultiplePlayerSelector, PlayerArgument, AudioArgument, String, String, String, String, String)},
    *                              which returns a {@link ScoreboardConfiguration}
    * @return the pipeline that shows the frames on the sidebar
+   * @since 1.0.0
    */
   @Override
   public VideoPipelineStep createVideoFilter(
     final Pair<Integer, Integer> resolution,
     final VideoConfigurationProvider configurationProvider
   ) {
-    Preconditions.checkNotNull(resolution, "Resolution must not be null");
-    Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null");
+    Preconditions.checkNotNull(resolution, "Resolution must not be null!");
+    Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null!");
 
     final ScoreboardConfiguration configuration = (ScoreboardConfiguration) configurationProvider.buildConfiguration(resolution);
     final FunctionalVideoFilter result = new ScoreboardResult(configuration);
     this.manager.startFilter(result);
+
     return VideoPipelineStep.of(result);
   }
 
-  private static ScoreboardConfiguration createConfiguration(
+  private ScoreboardConfiguration createConfiguration(
     final Pair<Integer, Integer> resolution,
     final Collection<UUID> players,
     final String character

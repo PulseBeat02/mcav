@@ -211,8 +211,8 @@ it. Measured with a vanilla client drawing in software and a browser playing int
 left the device 0.1 to 0.15 s after the wall showed the same moment.
 
 The Discord bot and the web page start in the background, so they never delay the server start. The console reports
-when each output is ready: `The audio web page is available at <link>` for the web page and
-`Simple Voice Chat audio is ready` for Simple Voice Chat. If the Discord bot or the web page cannot start, the plugin
+when each output is ready: `The audio web page is available at <link>.` for the web page and
+`Simple Voice Chat audio is ready.` for Simple Voice Chat. If the Discord bot or the web page cannot start, the plugin
 logs an error and that output stays off without affecting the rest of the plugin; until an output is ready, video
 commands that use it tell the player so.
 
@@ -220,7 +220,7 @@ Simple Voice Chat audio is checked when the plugin starts: if `simple-voice-chat
 Voice Chat plugin (`voicechat`) is not installed, MCAV logs one error line and disables itself:
 
 ```text
-MCAV cannot be enabled: Simple Voice Chat audio is enabled, but the voicechat plugin is not installed (install the Simple Voice Chat plugin or set simple-voice-chat.enabled to false in config.yml)
+MCAV cannot be enabled: Simple Voice Chat audio is enabled, but the voicechat plugin is not installed! To fix it, install the Simple Voice Chat plugin or set simple-voice-chat.enabled to false in config.yml.
 ```
 
 Install the plugin or set the option to `false`, then restart the server.

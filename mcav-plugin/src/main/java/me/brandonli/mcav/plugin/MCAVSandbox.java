@@ -52,6 +52,14 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>Everything is created in {@link #onEnable()} in dependency order: the library, the configuration, the audio
  * and media managers, the commands, and the listeners. The getters fail with an {@link IllegalStateException}
  * when called before the plugin is enabled.
+ *
+ * <p>Paper constructs this class from the plugin descriptor, and the commands it registers are documented in the plugin
+ * pages of the MCAV docs.
+ *
+ * <p>This class is not thread-safe: Paper calls {@link #onEnable()} and {@link #onDisable()} on the server main thread,
+ * and other threads may call its getters only while it is enabled.
+ *
+ * @since 1.0.0
  */
 public final class MCAVSandbox extends JavaPlugin {
 
@@ -61,24 +69,24 @@ public final class MCAVSandbox extends JavaPlugin {
   private static final String MISSING_VOICE_CHAT_REMEDY =
     "install the Simple Voice Chat plugin or set simple-voice-chat.enabled to false in config.yml";
 
-  private static final String CANNOT_ENABLE = "MCAV cannot be enabled: {} ({})";
+  private static final String CANNOT_ENABLE = "MCAV cannot be enabled: {} To fix it, {}.";
 
-  private static final String CANNOT_REENABLE = "Paper cannot re-enable this plugin after it has been disabled";
+  private static final String CANNOT_REENABLE = "Paper cannot re-enable this plugin after it has been disabled!";
 
   private static final String RESTART_REMEDY = "restart the server to enable MCAV";
 
-  private static final String LOADING = "Loading MCAV";
+  private static final String LOADING = "Loading MCAV.";
 
-  private static final String NO_QEMU = "QEMU is not installed, virtual machines will not be available";
+  private static final String NO_QEMU = "QEMU is not installed, virtual machines will not be available.";
 
   private static final String NO_BROWSER =
-    "There is no browser for the operating system and processor of this server, browsers will not be available";
+    "There is no browser for the operating system and processor of this server, browsers will not be available.";
 
-  private static final String LOADED = "MCAV loaded in {} ms";
+  private static final String LOADED = "MCAV loaded in {} ms.";
 
-  private static final String ENCODER_SHARE = "MCV2 encoders share {} of {} processors";
+  private static final String ENCODER_SHARE = "MCV2 encoders share {} of {} processors.";
 
-  private static final String ENCODER_KERNELS = "MCV2 kernels: {}";
+  private static final String ENCODER_KERNELS = "MCV2 kernels: {}.";
 
   private static final String NATIVES_FOLDER = "natives";
 
@@ -109,6 +117,8 @@ public final class MCAVSandbox extends JavaPlugin {
 
   /**
    * Constructs the plugin. Paper creates it for you; everything else is created in {@link #onEnable()}.
+   *
+   * @since 1.0.0
    */
   public MCAVSandbox() {}
 
@@ -126,15 +136,18 @@ public final class MCAVSandbox extends JavaPlugin {
    *
    * @throws RuntimeException if anything else fails; Paper then reports the failure and disables the plugin, and
    *                          {@link #onDisable()} releases what was created
+   * @since 1.0.0
    */
   @Override
   public void onEnable() {
     this.logger = this.getComponentLogger();
+
     // Paper closes the plugin loader and its lifecycle registrations when disabling it.
     if (this.hasBeenDisabled) {
       this.disableBecause(new IllegalStateException(CANNOT_REENABLE), RESTART_REMEDY);
       return;
     }
+
     try {
       this.loadMCAV();
       this.loadPluginData();
@@ -149,12 +162,43 @@ public final class MCAVSandbox extends JavaPlugin {
   }
 
   /**
-   * Logs on one line why the plugin cannot be enabled and how to fix it, and disables the plugin. The plugin manager
-   * calls {@link #onDisable()}, which releases whatever was created before the failure.
+   * Disables the plugin: stops the video and the images, the jukebox listener, the commands and the audio outputs,
+   * and releases the library. Parts that were never created, because the plugin failed to enable, are skipped.
    *
-   * @param failure the setup problem
-   * @param remedy  what the server owner has to do about it
+   * @since 1.0.0
    */
+  @Override
+  public void onDisable() {
+    this.hasBeenDisabled = true;
+    final VideoPlayerManager videos = this.videoPlayerManager;
+    final ImageManager images = this.imageManager;
+    final JukeBoxListener jukebox = this.listener;
+    final AnnotationParserHandler commands = this.annotationParserHandler;
+    final AudioProvider audio = this.audioProvider;
+    final Mcv2Support mcv2 = this.mcv2Support;
+    final OnlinePlayers online = this.onlinePlayers;
+    final MCAVApi library = this.mcav;
+    this.mcv2Support = null;
+    this.onlinePlayers = null;
+    this.videoPlayerManager = null;
+    this.imageManager = null;
+    this.listener = null;
+    this.annotationParserHandler = null;
+    this.audioProvider = null;
+    this.mcav = null;
+    CleanupUtils.runAll(
+      this.whenPresent(videos, VideoPlayerManager::shutdown),
+      this.whenPresent(images, ImageManager::shutdown),
+      this.whenPresent(jukebox, JukeBoxListener::shutdown),
+      this.whenPresent(commands, AnnotationParserHandler::shutdownCommands),
+      this.whenPresent(audio, AudioProvider::shutdown),
+      this.whenPresent(mcv2, Mcv2Support::shutdown),
+      this.whenPresent(online, OnlinePlayers::stop),
+      this.whenPresent(library, MCAVApi::release)
+    );
+  }
+
+  // disabling runs onDisable(), which releases what was created before the failure
   private void disableBecause(final RuntimeException failure, final String remedy) {
     final ComponentLogger pluginLogger = this.requireLogger();
     final String reason = failure.getMessage();
@@ -235,137 +279,115 @@ public final class MCAVSandbox extends JavaPlugin {
     jukeBoxListener.start();
   }
 
-  /**
-   * Disables the plugin: stops the video and the images, the jukebox listener, the commands and the audio outputs,
-   * and releases the library. Parts that were never created, because the plugin failed to enable, are skipped.
-   */
-  @Override
-  public void onDisable() {
-    this.hasBeenDisabled = true;
-    final VideoPlayerManager videos = this.videoPlayerManager;
-    final ImageManager images = this.imageManager;
-    final JukeBoxListener jukebox = this.listener;
-    final AnnotationParserHandler commands = this.annotationParserHandler;
-    final AudioProvider audio = this.audioProvider;
-    final Mcv2Support mcv2 = this.mcv2Support;
-    final OnlinePlayers online = this.onlinePlayers;
-    final MCAVApi library = this.mcav;
-    this.mcv2Support = null;
-    this.onlinePlayers = null;
-    this.videoPlayerManager = null;
-    this.imageManager = null;
-    this.listener = null;
-    this.annotationParserHandler = null;
-    this.audioProvider = null;
-    this.mcav = null;
-    CleanupUtils.runAll(
-      whenPresent(videos, VideoPlayerManager::shutdown),
-      whenPresent(images, ImageManager::shutdown),
-      whenPresent(jukebox, JukeBoxListener::shutdown),
-      whenPresent(commands, AnnotationParserHandler::shutdownCommands),
-      whenPresent(audio, AudioProvider::shutdown),
-      whenPresent(mcv2, Mcv2Support::shutdown),
-      whenPresent(online, OnlinePlayers::stop),
-      whenPresent(library, MCAVApi::release)
-    );
+  private <PartType> Runnable whenPresent(final @Nullable PartType part, final Consumer<PartType> cleanup) {
+    return () -> this.cleanUpIfPresent(part, cleanup);
   }
 
-  private static <T> Runnable whenPresent(final @Nullable T part, final Consumer<T> cleanup) {
-    return () -> {
-      if (part != null) {
-        cleanup.accept(part);
-      }
-    };
-  }
-
-  private static <T> T require(final @Nullable T value, final String name) {
-    if (value == null) {
-      throw new IllegalStateException("The " + name + " is not available before the plugin is enabled");
+  private <PartType> void cleanUpIfPresent(final @Nullable PartType part, final Consumer<PartType> cleanup) {
+    if (part != null) {
+      cleanup.accept(part);
     }
-    return value;
   }
 
   private ComponentLogger requireLogger() {
-    return require(this.logger, "logger");
+    return this.require(this.logger, "logger");
+  }
+
+  private <ValueType> ValueType require(final @Nullable ValueType value, final String name) {
+    if (value == null) {
+      final String message = "The %s is not available before the plugin is enabled!".formatted(name);
+      throw new IllegalStateException(message);
+    }
+
+    return value;
   }
 
   /**
-   * Gets the library instance.
+   * Returns the library instance.
    *
    * @return the library
+   * @since 1.0.0
    */
   public MCAVApi getMCAV() {
-    return require(this.mcav, "library");
+    return this.require(this.mcav, "library");
   }
 
   /**
-   * Gets the configuration.
+   * Returns the configuration.
    *
    * @return the configuration
+   * @since 1.0.0
    */
   public PluginDataConfigurationMapper getConfiguration() {
-    return require(this.configurationMapper, "configuration");
+    return this.require(this.configurationMapper, "configuration");
   }
 
   /**
-   * Gets the manager of the video player.
+   * Returns the manager of the video player.
    *
    * @return the video player manager
+   * @since 1.0.0
    */
   public VideoPlayerManager getVideoPlayerManager() {
-    return require(this.videoPlayerManager, "video player manager");
+    return this.require(this.videoPlayerManager, "video player manager");
   }
 
   /**
-   * Gets the provider of audio outputs.
+   * Returns the provider of audio outputs.
    *
    * @return the audio provider
+   * @since 1.0.0
    */
   public AudioProvider getAudioProvider() {
-    return require(this.audioProvider, "audio provider");
+    return this.require(this.audioProvider, "audio provider");
   }
 
   /**
-   * Gets the manager of displayed images.
+   * Returns the manager of displayed images.
    *
    * @return the image manager
+   * @since 1.0.0
    */
   public ImageManager getImageManager() {
-    return require(this.imageManager, "image manager");
+    return this.require(this.imageManager, "image manager");
   }
 
   /**
-   * Gets what the MCV2 screens share: the one pack that decodes them all, and who loaded it.
+   * Returns what the MCV2 screens share: the one pack that decodes them all, and who loaded it.
    *
    * @return the MCV2 support
+   * @since 1.0.0
    */
   public Mcv2Support getMcv2Support() {
-    return require(this.mcv2Support, "MCV2 support");
+    return this.require(this.mcv2Support, "MCV2 support");
   }
 
   /**
-   * Gets the players online, which a wall shown to {@code @a} keeps following.
+   * Returns the players online, which a wall shown to {@code @a} keeps following.
    *
    * @return the online players
+   * @since 1.0.0
    */
   public OnlinePlayers getOnlinePlayers() {
-    return require(this.onlinePlayers, "list of online players");
+    return this.require(this.onlinePlayers, "list of online players");
   }
 
   /**
-   * Checks whether QEMU was found when the plugin was enabled.
+   * Returns whether QEMU was found when the plugin was enabled.
    *
    * @return true if virtual machines can be created
+   * @since 1.0.0
    */
   public boolean isQemuInstalled() {
     return this.qemuInstalled;
   }
 
   /**
-   * Checks whether the browser can run on the operating system and processor of this server, as found when the plugin
+   * Returns whether the browser can run on the operating system and processor of this server, as found when the plugin
    * was enabled.
    *
    * @return true if browsers can be created
+   * @since 1.0.0
    */
   public boolean isBrowserSupported() {
     return this.browserSupported;

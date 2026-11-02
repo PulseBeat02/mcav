@@ -28,16 +28,12 @@ import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Records the frames an MCV2 screen sends into a stream file, each after its length as a little-endian 32-bit number,
- * the format {@code /mcav mcv2 play} reads, so a measurement can decode what the viewers were sent with the reference
- * decoder. The first failure to write is logged and ends the recording; the screen plays on.
- */
+// writes the stream format /mcav mcv2 play reads, so measurements can decode what viewers were sent
 final class FrameRecorder implements Consumer<byte[]> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FrameRecorder.class);
 
-  private static final String CANNOT_RECORD = "Cannot record the MCV2 frames into {}, the recording stops";
+  private static final String CANNOT_RECORD = "Cannot record the MCV2 frames into {}, the recording stops.";
 
   private final Path file;
 
@@ -45,19 +41,16 @@ final class FrameRecorder implements Consumer<byte[]> {
 
   private volatile boolean failed;
 
-  /**
-   * Constructs a recorder.
-   *
-   * @param file the stream file, appended to
-   * @throws IllegalArgumentException if the file is the root of the file system
-   */
   FrameRecorder(final Path file) {
-    Preconditions.checkNotNull(file, "File must not be null");
+    Preconditions.checkNotNull(file, "File must not be null!");
+
     final Path absolute = file.toAbsolutePath();
     final Path parent = absolute.getParent();
     if (parent == null) {
-      throw new IllegalArgumentException("A stream file is not the root of the file system: " + file);
+      final String message = "Stream file %s must not be the root of the file system!".formatted(file);
+      throw new IllegalArgumentException(message);
     }
+
     this.file = absolute;
     this.folder = parent;
   }
@@ -67,6 +60,7 @@ final class FrameRecorder implements Consumer<byte[]> {
     if (this.failed) {
       return;
     }
+
     final ByteBuffer record = ByteBuffer.allocate(Integer.BYTES + frame.length).order(ByteOrder.LITTLE_ENDIAN);
     record.putInt(frame.length).put(frame);
     try {

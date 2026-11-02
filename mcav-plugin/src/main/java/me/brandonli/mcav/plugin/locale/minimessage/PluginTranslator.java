@@ -19,15 +19,19 @@ package me.brandonli.mcav.plugin.locale.minimessage;
 
 import com.google.common.base.Preconditions;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.ResourceBundle;
 import net.kyori.adventure.key.Key;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * The translator of the plugin: renders MiniMessage messages read from the message file of the configured
  * language. Every message is taken from the same bundle, whatever locale Adventure asks for, so all players see
  * the language chosen in {@code config.yml}.
+ *
+ * <p>This class is immutable and thread-safe.
+ *
+ * @since 1.0.0
  */
 public final class PluginTranslator extends MiniMessageTranslator {
 
@@ -40,31 +44,39 @@ public final class PluginTranslator extends MiniMessageTranslator {
    * @param key    the name of the translator, which identifies it to Adventure
    * @param bundle the messages, keyed like {@code mcav.command.image.load}
    * @throws NullPointerException if the key or the bundle is {@code null}
+   * @since 1.0.0
    */
   public PluginTranslator(final Key key, final ResourceBundle bundle) {
-    Preconditions.checkNotNull(key, "Key must not be null");
-    Preconditions.checkNotNull(bundle, "Bundle must not be null");
+    Preconditions.checkNotNull(key, "Key must not be null!");
+    Preconditions.checkNotNull(bundle, "Bundle must not be null!");
+
     this.key = key;
     this.bundle = bundle;
   }
 
   /**
-   * Gets the MiniMessage text of a message from the bundle, whatever the locale.
+   * Returns the MiniMessage text of a message from the bundle, whatever the locale.
    *
    * @param key    the key of the message, such as {@code mcav.command.image.load}
    * @param locale the locale Adventure renders for, which is ignored because the plugin serves one language
-   * @return the message text, or null when the bundle has no message with the key
+   * @return the message text, or empty when the bundle has no message with the key
+   * @since 1.0.0
    */
   @Override
-  protected @Nullable String getMiniMessageString(final String key, final Locale locale) {
-    final boolean known = this.bundle.containsKey(key);
-    return known ? this.bundle.getString(key) : null;
+  protected Optional<String> getMiniMessageString(final String key, final Locale locale) {
+    if (!this.bundle.containsKey(key)) {
+      return Optional.empty();
+    }
+
+    final String message = this.bundle.getString(key);
+    return Optional.of(message);
   }
 
   /**
-   * Gets the name that identifies this translator to Adventure.
+   * Returns the name that identifies this translator to Adventure.
    *
    * @return the key given to the constructor
+   * @since 1.0.0
    */
   @Override
   public @NonNull Key name() {

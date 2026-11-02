@@ -37,39 +37,27 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
-/**
- * Loads the messages of the plugin before any test runs.
- *
- * <p>{@link LocaleTools#MANAGER} is created once per JVM and asks Paper for the plugin, which only works inside a
- * server. This extension is registered for every test class through {@code junit-platform.properties} and creates
- * the manager with a mocked plugin whose data folder is a temporary directory.
- */
+// LocaleTools.MANAGER asks Paper for the plugin, which only works in a server, so the plugin is mocked
 public final class TranslationExtension implements BeforeAllCallback {
+
+  private static final String LOCALE_FOLDER_NAME = "locale";
+  private static final String ENGLISH_MESSAGES_FILE_NAME = "mcav_en_us.properties";
+  private static final String TEMPORARY_FOLDER_PREFIX = "mcav-plugin-messages";
 
   private static boolean initialized;
 
-  /**
-   * Constructs the extension. JUnit creates it for you.
-   */
   public TranslationExtension() {}
 
-  /**
-   * Loads the messages before the first test class runs; later calls do nothing.
-   *
-   * @param context the context of the test class, which is not used
-   */
   @Override
   public void beforeAll(final @NonNull ExtensionContext context) {
     initialize();
   }
 
-  /**
-   * Creates {@link LocaleTools#MANAGER} if it does not exist yet.
-   */
   public static synchronized void initialize() {
     if (initialized) {
       return;
     }
+
     final Path folder = createTemporaryFolder();
     final File folderFile = folder.toFile();
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
@@ -82,7 +70,7 @@ public final class TranslationExtension implements BeforeAllCallback {
       final TranslationManager manager = LocaleTools.MANAGER;
       final String title = manager.getProperty("mcav.command.help.command");
       if (title.isEmpty()) {
-        throw new IllegalStateException("The messages were not loaded");
+        throw new IllegalStateException("The messages were not loaded!");
       }
     }
     deleteOnExit(folder);
@@ -91,12 +79,13 @@ public final class TranslationExtension implements BeforeAllCallback {
 
   private static Path createTemporaryFolder() {
     try {
-      final Path folder = Files.createTempDirectory("mcav-plugin-messages");
-      final Path locale = Files.createDirectories(folder.resolve("locale"));
+      final Path folder = Files.createTempDirectory(TEMPORARY_FOLDER_PREFIX);
+      final Path locale = Files.createDirectories(folder.resolve(LOCALE_FOLDER_NAME));
       Files.writeString(
-        locale.resolve("mcav_en_us.properties"),
+        locale.resolve(ENGLISH_MESSAGES_FILE_NAME),
         "mcav.test.two=<arg:0>|<arg:1>\nmcav.test.three=<arg:0>|<arg:1>|<arg:2>\n"
       );
+
       return folder;
     } catch (final IOException exception) {
       throw new UncheckedIOException(exception);
@@ -104,8 +93,8 @@ public final class TranslationExtension implements BeforeAllCallback {
   }
 
   private static void deleteOnExit(final Path folder) {
-    final Path localeFolder = folder.resolve("locale");
-    final Path messages = localeFolder.resolve("mcav_en_us.properties");
+    final Path localeFolder = folder.resolve(LOCALE_FOLDER_NAME);
+    final Path messages = localeFolder.resolve(ENGLISH_MESSAGES_FILE_NAME);
     final File folderFile = folder.toFile();
     final File localeFile = localeFolder.toFile();
     final File messagesFile = messages.toFile();

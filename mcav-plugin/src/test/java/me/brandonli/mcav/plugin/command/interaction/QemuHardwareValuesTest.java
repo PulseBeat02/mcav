@@ -26,10 +26,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
-/**
- * Tests {@link QemuHardwareValues}.
- */
 final class QemuHardwareValuesTest {
+
+  private static final String DISK_FILE_PROPERTY = "file=disk.img,";
 
   @ParameterizedTest
   @CsvSource(
@@ -60,7 +59,7 @@ final class QemuHardwareValuesTest {
       "vga|virtio",
     }
   )
-  void acceptsTheValuesOfItsForms(final String name, final String value) {
+  void shouldAcceptTheValuesOfItsForms(final String name, final String value) {
     QemuHardwareValues.check(name, value);
   }
 
@@ -98,9 +97,11 @@ final class QemuHardwareValuesTest {
       "vga|std,x",
     }
   )
-  void refusesEveryOtherValue(final String name, final String value) {
+  void shouldRefuseEveryOtherValue(final String name, final String value) {
     final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () -> QemuHardwareValues.check(name, value));
-    assertEquals(true, refused.getMessage().startsWith("The QEMU option -" + name + " does not allow"), refused.getMessage());
+
+    final boolean prefixed = refused.getMessage().startsWith("Value " + value + " of the QEMU option -" + name + " ");
+    assertEquals(true, prefixed, refused.getMessage());
   }
 
   @ParameterizedTest
@@ -136,8 +137,8 @@ final class QemuHardwareValuesTest {
       "rerror=report",
     }
   )
-  void acceptsThePropertiesThatSayHowADriveIsAttached(final String part) {
-    QemuHardwareValues.checkDriveProperty(part, "file=disk.img," + part);
+  void shouldAcceptThePropertiesThatSayHowADriveIsAttached(final String part) {
+    QemuHardwareValues.checkDriveProperty(part, DISK_FILE_PROPERTY + part);
   }
 
   @ParameterizedTest
@@ -159,12 +160,14 @@ final class QemuHardwareValuesTest {
       "werror=enospc,rerror=enospc",
     }
   )
-  void refusesEveryOtherPropertyOfADrive(final String part) {
-    final String value = "file=disk.img," + part;
+  void shouldRefuseEveryOtherPropertyOfADrive(final String part) {
+    final String value = DISK_FILE_PROPERTY + part;
     final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () ->
       QemuHardwareValues.checkDriveProperty(part, value)
     );
-    assertEquals(true, refused.getMessage().startsWith("The QEMU option -drive does not allow"), refused.getMessage());
+
+    final boolean prefixed = refused.getMessage().startsWith("Value " + value + " of the QEMU option -drive ");
+    assertEquals(true, prefixed, refused.getMessage());
   }
 
   @ParameterizedTest
@@ -187,21 +190,26 @@ final class QemuHardwareValuesTest {
       "999999999|1048575998951424",
     }
   )
-  void theMemoryOfAMachineIsReadAsQemuReadsIt(final String value, final long bytes) {
-    assertEquals(bytes, QemuHardwareValues.memoryBytes(value));
+  void shouldReadTheMemoryOfAMachineAsQemuReadsIt(final String value, final long bytes) {
+    final long memoryBytes = QemuHardwareValues.memoryBytes(value);
+    assertEquals(bytes, memoryBytes);
   }
 
   @Test
-  void onlyHardwareOptionsAreChecked() {
+  void shouldCheckOnlyHardwareOptions() {
     final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () -> QemuHardwareValues.check("fda", "a"));
-    assertEquals("The QEMU option -fda is not a hardware option", refused.getMessage());
+
+    final String message = refused.getMessage();
+    assertEquals("QEMU option -fda is not a hardware option!", message);
   }
 
   @Test
-  void theValuesAreNotInstantiable() throws ReflectiveOperationException {
+  void shouldRefuseToInstantiateTheValues() throws ReflectiveOperationException {
     final Constructor<QemuHardwareValues> constructor = QemuHardwareValues.class.getDeclaredConstructor();
     constructor.setAccessible(true);
     final InvocationTargetException failure = assertThrows(InvocationTargetException.class, constructor::newInstance);
-    assertEquals(UnsupportedOperationException.class, failure.getCause().getClass());
+
+    final Class<? extends Throwable> failureClass = failure.getCause().getClass();
+    assertEquals(UnsupportedOperationException.class, failureClass);
   }
 }

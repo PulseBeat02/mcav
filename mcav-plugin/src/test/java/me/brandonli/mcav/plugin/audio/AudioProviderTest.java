@@ -65,21 +65,38 @@ import net.dv8tion.jda.api.managers.AudioManager;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.utils.cache.CacheFlag;
 import org.bukkit.plugin.PluginManager;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
 
-/**
- * Tests {@link AudioProvider}.
- *
- * <p>Most tests start the outputs on the calling thread, so they are ready when {@code initialize} returns. The
- * tests about starting in the background use an executor that only collects the tasks, which run when the test
- * says so.
- */
+// most tests start the outputs on the calling thread, so they are ready when initialize returns
 final class AudioProviderTest {
+
+  private static final int HTTP_PORT = 3000;
+  private static final String HTTP_SERVER_URL = "http://mc.example.com:3000/";
+  private static final String HTTP_HOST_NAME = "mc.example.com";
+
+  private static final String GUILD_ID = "100";
+  private static final String CHANNEL_ID = "200";
+  private static final String BOT_TOKEN = "token";
+
+  private static final String DISCORD_NOT_READY_MESSAGE = "The Discord bot is not ready!";
+  private static final String WEB_PAGE_NOT_READY_MESSAGE = "The audio web page is not ready!";
+
+  private static final int BIT_RATE = 1_536_000;
+  private static final int SAMPLE_RATE = 48_000;
+  private static final int SAMPLE_BUFFER_BYTES = 4;
+  private static final int AUDIO_CHANNEL_COUNT = 2;
+  private static final String AUDIO_CODEC = "pcm_s16le";
+
+  private static final int SHUTDOWN_DEADLINE_SECONDS = 10;
+
+  private static final String MACHINE_TITLE = "The machine";
 
   private final UrlParseDump dump = GsonProvider.getSimple().fromJson("{}", UrlParseDump.class);
   private final Object[] players = { "Steve" };
@@ -109,14 +126,23 @@ final class AudioProviderTest {
     this.sandbox = mock(MCAVSandbox.class);
     this.configuration = mock(PluginDataConfigurationMapper.class);
     when(this.sandbox.getConfiguration()).thenReturn(this.configuration);
-    when(this.configuration.getDiscordBotToken()).thenReturn("token");
-    when(this.configuration.getDiscordBotGuildId()).thenReturn("100");
-    when(this.configuration.getDiscordBotChannelId()).thenReturn("200");
-    when(this.configuration.getHttpHostName()).thenReturn("mc.example.com");
-    when(this.configuration.getHttpPort()).thenReturn(3000);
+    when(this.configuration.getDiscordBotToken()).thenReturn(BOT_TOKEN);
+    when(this.configuration.getDiscordBotGuildId()).thenReturn(GUILD_ID);
+    when(this.configuration.getDiscordBotChannelId()).thenReturn(CHANNEL_ID);
+    when(this.configuration.getHttpHostName()).thenReturn(HTTP_HOST_NAME);
+    when(this.configuration.getHttpPort()).thenReturn(HTTP_PORT);
     this.startup = MoreExecutors.newDirectExecutorService();
     this.provider = new AudioProvider(this.sandbox, this.startup);
     this.mockOutputs();
+  }
+
+  @AfterEach
+  void closeStaticMocks() {
+    this.builders.close();
+    this.discordPlayers.close();
+    this.httpResults.close();
+    this.svcFilters.close();
+    this.startup.shutdownNow();
   }
 
   private void mockOutputs() {
@@ -129,31 +155,58 @@ final class AudioProviderTest {
     this.httpServer = mock(HttpResult.class);
     this.voiceChatFilter = mock(SvcFilter.class);
     when(this.builder.build()).thenReturn(this.jda);
-    when(this.jda.getGuildById("100")).thenReturn(this.guild);
-    when(this.guild.getVoiceChannelById("200")).thenReturn(this.channel);
+    when(this.jda.getGuildById(GUILD_ID)).thenReturn(this.guild);
+    when(this.guild.getVoiceChannelById(CHANNEL_ID)).thenReturn(this.channel);
     when(this.guild.getAudioManager()).thenReturn(this.audioManager);
     this.builders = Mockito.mockStatic(JDABuilder.class);
-    // JDA requires the result of createLight to be used, so the stubbed call assigns it to an unnamed variable
-    this.builders
-      .when(() -> {
-        final JDABuilder _ = JDABuilder.createLight("token", GatewayIntent.GUILD_VOICE_STATES);
-      })
-      .thenReturn(this.builder);
+    this.builders.when(this::createLightBuilder).thenReturn(this.builder);
     this.discordPlayers = Mockito.mockStatic(DiscordPlayer.class);
     this.discordPlayers.when(() -> DiscordPlayer.voice(this.jda)).thenReturn(this.discord);
     this.httpResults = Mockito.mockStatic(HttpResult.class);
-    this.httpResults.when(() -> HttpResult.http("mc.example.com", 3000)).thenReturn(this.httpServer);
+    this.httpResults.when(() -> HttpResult.http(HTTP_HOST_NAME, HTTP_PORT)).thenReturn(this.httpServer);
     this.svcFilters = Mockito.mockStatic(SvcFilter.class);
     this.svcFilters.when(() -> SvcFilter.svc(this.players)).thenReturn(this.voiceChatFilter);
   }
 
-  @AfterEach
-  void closeStaticMocks() {
-    this.builders.close();
-    this.discordPlayers.close();
-    this.httpResults.close();
-    this.svcFilters.close();
-    this.startup.shutdownNow();
+  private void createLightBuilder() {
+    // JDA requires the result of createLight to be used, so the stubbed call assigns it to an unnamed variable
+    final JDABuilder _ = JDABuilder.createLight(BOT_TOKEN, GatewayIntent.GUILD_VOICE_STATES);
+  }
+
+  @Test
+  void shouldRefuseNullArguments() {
+    assertThrows(NullPointerException.class, () -> new AudioProvider(null));
+    assertThrows(NullPointerException.class, () -> new AudioProvider(this.sandbox, null));
+    assertThrows(NullPointerException.class, () -> this.provider.constructFilter(null, this.dump, this.players));
+    assertThrows(NullPointerException.class, () -> this.provider.constructFilter(AudioArgument.NONE, null, this.players));
+    assertThrows(NullPointerException.class, () -> this.provider.constructFilter(AudioArgument.NONE, this.dump, null));
+  }
+
+  @Test
+  void shouldLinkToTheConfiguredVoiceChannel() {
+    final String url = this.provider.constructVoiceChannelUrl();
+    assertEquals("https://discord.com/channels/100/200", url);
+  }
+
+  @Test
+  void shouldLinkToTheConfiguredWebPageBeforeItStarts() {
+    final String url = this.provider.constructHttpUrl();
+    assertEquals(HTTP_SERVER_URL, url);
+  }
+
+  @Test
+  void shouldReportWhichOutputsAreEnabled() {
+    final boolean discordEnabledBefore = this.provider.isDiscordBotEnabled();
+    final boolean httpEnabledBefore = this.provider.isHttpEnabled();
+    assertFalse(discordEnabledBefore);
+    assertFalse(httpEnabledBefore);
+
+    this.enableDiscord();
+    this.enableHttp();
+    final boolean discordEnabledAfter = this.provider.isDiscordBotEnabled();
+    final boolean httpEnabledAfter = this.provider.isHttpEnabled();
+    assertTrue(discordEnabledAfter);
+    assertTrue(httpEnabledAfter);
   }
 
   private void enableDiscord() {
@@ -164,17 +217,78 @@ final class AudioProviderTest {
     when(this.configuration.isHttpEnabled()).thenReturn(true);
   }
 
+  @Test
+  void shouldStartNothingWhenEveryOutputIsDisabled() {
+    this.provider.initialize();
+    this.builders.verifyNoInteractions();
+    this.httpResults.verifyNoInteractions();
+
+    final PluginManager pluginManager = TestServer.pluginManager();
+    verifyNoInteractions(pluginManager);
+
+    final boolean discordReady = this.provider.isDiscordBotReady();
+    final boolean httpReady = this.provider.isHttpReady();
+    assertFalse(discordReady);
+    assertFalse(httpReady);
+  }
+
+  @Test
+  void shouldLogTheBotInAndPlayIntoTheConfiguredChannel() throws InterruptedException {
+    this.enableDiscord();
+    this.provider.initialize();
+    verify(this.builder).enableCache(CacheFlag.VOICE_STATE);
+    verify(this.jda).awaitReady();
+
+    final boolean ready = this.provider.isDiscordBotReady();
+    assertTrue(ready);
+
+    final AudioFilter filter = this.provider.constructFilter(AudioArgument.DISCORD_BOT, this.dump, this.players);
+    this.assertPlaysInto(this.discord, filter);
+
+    final InOrder order = inOrder(this.discord, this.audioManager);
+    order.verify(this.discord).flush();
+    order.verify(this.audioManager).setSendingHandler(this.discord);
+    order.verify(this.audioManager).openAudioConnection(this.channel);
+    order.verify(this.discord).setCurrentMedia(this.dump);
+  }
+
+  @Test
+  void shouldLogTheBotInWithoutMakingTheCallerWait() throws InterruptedException {
+    this.startInTheBackground();
+    this.enableDiscord();
+    this.provider.initialize();
+    verify(this.builder).build();
+    verify(this.jda, never()).awaitReady();
+
+    final boolean readyWhileStarting = this.provider.isDiscordBotReady();
+    assertFalse(readyWhileStarting);
+
+    final String message = this.discordFailure();
+    assertEquals(DISCORD_NOT_READY_MESSAGE, message);
+
+    final int ran = this.runDeferred();
+    assertEquals(1, ran);
+    verify(this.jda).awaitReady();
+
+    final boolean ready = this.provider.isDiscordBotReady();
+    assertTrue(ready);
+
+    final AudioFilter filter = this.provider.constructFilter(AudioArgument.DISCORD_BOT, this.dump, this.players);
+    this.assertPlaysInto(this.discord, filter);
+  }
+
   private void startInTheBackground() {
     final ExecutorService executor = mock(ExecutorService.class);
-    doAnswer(invocation -> {
-      final Runnable task = invocation.getArgument(0);
-      this.deferred.add(task);
-      return null;
-    })
-      .when(executor)
-      .execute(any(Runnable.class));
+    doAnswer(this::deferTask).when(executor).execute(any(Runnable.class));
     this.startup = executor;
     this.provider = new AudioProvider(this.sandbox, executor);
+  }
+
+  private @Nullable Object deferTask(final InvocationOnMock invocation) {
+    final Runnable task = invocation.getArgument(0);
+    this.deferred.add(task);
+
+    return null;
   }
 
   private int runDeferred() {
@@ -190,199 +304,130 @@ final class AudioProviderTest {
     final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
       this.provider.constructFilter(AudioArgument.DISCORD_BOT, this.dump, this.players)
     );
-    return exception.getMessage();
-  }
 
-  private String httpFailure() {
-    final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
-      this.provider.constructFilter(AudioArgument.HTTP_SERVER, this.dump, this.players)
-    );
     return exception.getMessage();
   }
 
   @Test
-  void refusesNullArguments() {
-    assertThrows(NullPointerException.class, () -> new AudioProvider(null));
-    assertThrows(NullPointerException.class, () -> new AudioProvider(this.sandbox, null));
-    assertThrows(NullPointerException.class, () -> this.provider.constructFilter(null, this.dump, this.players));
-    assertThrows(NullPointerException.class, () -> this.provider.constructFilter(AudioArgument.NONE, null, this.players));
-    assertThrows(NullPointerException.class, () -> this.provider.constructFilter(AudioArgument.NONE, this.dump, null));
-  }
-
-  @Test
-  void linksToTheConfiguredVoiceChannel() {
-    final String url = this.provider.constructVoiceChannelUrl();
-    assertEquals("https://discord.com/channels/100/200", url);
-  }
-
-  @Test
-  void linksToTheConfiguredWebPageBeforeItStarts() {
-    final String url = this.provider.constructHttpUrl();
-    assertEquals("http://mc.example.com:3000/", url);
-  }
-
-  @Test
-  void reportsWhichOutputsAreEnabled() {
-    final boolean discordEnabledBefore = this.provider.isDiscordBotEnabled();
-    final boolean httpEnabledBefore = this.provider.isHttpEnabled();
-    assertFalse(discordEnabledBefore);
-    assertFalse(httpEnabledBefore);
+  void shouldShutTheBotDownWhenItIsNotAMemberOfTheGuild() {
     this.enableDiscord();
-    this.enableHttp();
-    final boolean discordEnabledAfter = this.provider.isDiscordBotEnabled();
-    final boolean httpEnabledAfter = this.provider.isHttpEnabled();
-    assertTrue(discordEnabledAfter);
-    assertTrue(httpEnabledAfter);
-  }
-
-  @Test
-  void startsNothingWhenEveryOutputIsDisabled() {
-    this.provider.initialize();
-    this.builders.verifyNoInteractions();
-    this.httpResults.verifyNoInteractions();
-    final PluginManager pluginManager = TestServer.pluginManager();
-    verifyNoInteractions(pluginManager);
-    final boolean discordReady = this.provider.isDiscordBotReady();
-    final boolean httpReady = this.provider.isHttpReady();
-    assertFalse(discordReady);
-    assertFalse(httpReady);
-  }
-
-  @Test
-  void logsTheBotInAndPlaysIntoTheConfiguredChannel() throws InterruptedException {
-    this.enableDiscord();
-    this.provider.initialize();
-    verify(this.builder).enableCache(CacheFlag.VOICE_STATE);
-    verify(this.jda).awaitReady();
-    final boolean ready = this.provider.isDiscordBotReady();
-    assertTrue(ready);
-    final AudioFilter filter = this.provider.constructFilter(AudioArgument.DISCORD_BOT, this.dump, this.players);
-    assertPlaysInto(this.discord, filter);
-    final InOrder order = inOrder(this.discord, this.audioManager);
-    order.verify(this.discord).flush();
-    order.verify(this.audioManager).setSendingHandler(this.discord);
-    order.verify(this.audioManager).openAudioConnection(this.channel);
-    order.verify(this.discord).setCurrentMedia(this.dump);
-  }
-
-  @Test
-  void logsTheBotInWithoutMakingTheCallerWait() throws InterruptedException {
-    this.startInTheBackground();
-    this.enableDiscord();
-    this.provider.initialize();
-    verify(this.builder).build();
-    verify(this.jda, never()).awaitReady();
-    final boolean readyWhileStarting = this.provider.isDiscordBotReady();
-    assertFalse(readyWhileStarting);
-    final String message = this.discordFailure();
-    assertEquals("The Discord bot is not ready", message);
-    final int ran = this.runDeferred();
-    assertEquals(1, ran);
-    verify(this.jda).awaitReady();
-    final boolean ready = this.provider.isDiscordBotReady();
-    assertTrue(ready);
-    final AudioFilter filter = this.provider.constructFilter(AudioArgument.DISCORD_BOT, this.dump, this.players);
-    assertPlaysInto(this.discord, filter);
-  }
-
-  @Test
-  void shutsTheBotDownWhenItIsNotAMemberOfTheGuild() {
-    this.enableDiscord();
-    when(this.jda.getGuildById("100")).thenReturn(null);
+    when(this.jda.getGuildById(GUILD_ID)).thenReturn(null);
     this.provider.initialize();
     verify(this.jda).shutdownNow();
+
     final boolean ready = this.provider.isDiscordBotReady();
     assertFalse(ready);
+
     final String message = this.discordFailure();
-    assertEquals("The Discord bot is not ready", message);
+    assertEquals(DISCORD_NOT_READY_MESSAGE, message);
+
     this.provider.shutdown();
     verify(this.jda, never()).shutdown();
   }
 
   @Test
-  void shutsTheBotDownWhenTheVoiceChannelDoesNotExist() {
+  void shouldShutTheBotDownWhenTheVoiceChannelDoesNotExist() {
     this.enableDiscord();
-    when(this.guild.getVoiceChannelById("200")).thenReturn(null);
+    when(this.guild.getVoiceChannelById(CHANNEL_ID)).thenReturn(null);
     this.provider.initialize();
     verify(this.jda).shutdownNow();
+
     final boolean ready = this.provider.isDiscordBotReady();
     assertFalse(ready);
     this.discordPlayers.verifyNoInteractions();
   }
 
   @Test
-  void shutsTheBotDownAndKeepsTheInterruptWhenInterruptedWhileLoggingIn() throws InterruptedException {
+  void shouldShutTheBotDownAndKeepTheInterruptWhenInterruptedWhileLoggingIn() throws InterruptedException {
     this.enableDiscord();
-    doThrow(new InterruptedException("stop")).when(this.jda).awaitReady();
+    doThrow(new InterruptedException("stop!")).when(this.jda).awaitReady();
     this.provider.initialize();
     final boolean interrupted = Thread.interrupted();
     assertTrue(interrupted);
     verify(this.jda).shutdownNow();
+
     final boolean ready = this.provider.isDiscordBotReady();
     assertFalse(ready);
   }
 
   @Test
-  void startsTheWebPageAndShowsTheMediaOnIt() {
+  void shouldStartTheWebPageAndShowTheMediaOnIt() {
     this.enableHttp();
-    when(this.httpServer.getFullUrl()).thenReturn("http://mc.example.com:3000/");
+    when(this.httpServer.getFullUrl()).thenReturn(HTTP_SERVER_URL);
     this.provider.initialize();
     verify(this.httpServer).start();
+
     final boolean ready = this.provider.isHttpReady();
     assertTrue(ready);
+
     final String url = this.provider.constructHttpUrl();
-    assertEquals("http://mc.example.com:3000/", url);
+    assertEquals(HTTP_SERVER_URL, url);
+
     final AudioFilter filter = this.provider.constructFilter(AudioArgument.HTTP_SERVER, this.dump, this.players);
-    assertPlaysInto(this.httpServer, filter);
+    this.assertPlaysInto(this.httpServer, filter);
     verify(this.httpServer).setCurrentMedia(this.dump);
   }
 
   @Test
-  void startsTheWebPageWithoutMakingTheCallerWait() {
+  void shouldStartTheWebPageWithoutMakingTheCallerWait() {
     this.startInTheBackground();
     this.enableHttp();
     this.provider.initialize();
     verify(this.httpServer, never()).start();
+
     final boolean readyWhileStarting = this.provider.isHttpReady();
     assertFalse(readyWhileStarting);
+
     final String message = this.httpFailure();
-    assertEquals("The audio web page is not ready", message);
+    assertEquals(WEB_PAGE_NOT_READY_MESSAGE, message);
+
     final int ran = this.runDeferred();
     assertEquals(1, ran);
     verify(this.httpServer).start();
+
     final boolean ready = this.provider.isHttpReady();
     assertTrue(ready);
   }
 
+  private String httpFailure() {
+    final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
+      this.provider.constructFilter(AudioArgument.HTTP_SERVER, this.dump, this.players)
+    );
+
+    return exception.getMessage();
+  }
+
   @Test
-  void leavesTheWebPageUnavailableWhenItFailsToStart() {
+  void shouldLeaveTheWebPageUnavailableWhenItFailsToStart() {
     this.enableHttp();
-    doThrow(new IllegalStateException("port 3000 is in use")).when(this.httpServer).start();
+    doThrow(new IllegalStateException("port 3000 is in use!")).when(this.httpServer).start();
     this.provider.initialize();
     final boolean ready = this.provider.isHttpReady();
     assertFalse(ready);
+
     final String message = this.httpFailure();
-    assertEquals("The audio web page is not ready", message);
+    assertEquals(WEB_PAGE_NOT_READY_MESSAGE, message);
+
     final String url = this.provider.constructHttpUrl();
-    assertEquals("http://mc.example.com:3000/", url);
+    assertEquals(HTTP_SERVER_URL, url);
   }
 
   @Test
-  void refusesOutputsThatWereNotStarted() {
+  void shouldRefuseOutputsThatWereNotStarted() {
     final String httpMessage = this.httpFailure();
     final String discordMessage = this.discordFailure();
-    assertEquals("The audio web page is not ready", httpMessage);
-    assertEquals("The Discord bot is not ready", discordMessage);
+    assertEquals(WEB_PAGE_NOT_READY_MESSAGE, httpMessage);
+    assertEquals(DISCORD_NOT_READY_MESSAGE, discordMessage);
   }
 
   @Test
-  void playsNoAudioForTheNoneOutput() {
+  void shouldPlayNoAudioForTheNoneOutput() {
     final AudioFilter filter = this.provider.constructFilter(AudioArgument.NONE, this.dump, this.players);
     assertSame(AudioFilter.NO_OP, filter);
   }
 
   @Test
-  void registersForTheServerLoadWhenVoiceChatIsInstalled() {
+  void shouldRegisterForTheServerLoadWhenVoiceChatIsInstalled() {
     when(this.configuration.isSimpleVoiceChatEnabled()).thenReturn(true);
     final PluginManager pluginManager = TestServer.pluginManager();
     when(pluginManager.isPluginEnabled("voicechat")).thenReturn(true);
@@ -391,25 +436,30 @@ final class AudioProviderTest {
   }
 
   @Test
-  void failsWhenVoiceChatIsEnabledButNotInstalled() {
+  void shouldFailWhenVoiceChatIsEnabledButNotInstalled() {
     when(this.configuration.isSimpleVoiceChatEnabled()).thenReturn(true);
-    final IllegalStateException exception = assertThrows(IllegalStateException.class, this.provider::initialize);
+    final MissingVoiceChatException exception = assertThrows(MissingVoiceChatException.class, this.provider::initialize);
+
     final String message = exception.getMessage();
-    assertEquals("Simple Voice Chat audio is enabled, but the voicechat plugin is not installed", message);
+    assertEquals("Simple Voice Chat audio is enabled, but the voicechat plugin is not installed!", message);
+
     final PluginManager pluginManager = TestServer.pluginManager();
     verify(pluginManager, never()).registerEvents(any(), any());
   }
 
-  private static void assertPlaysInto(final AudioFilter output, final AudioFilter filter) {
-    final ByteBuffer samples = ByteBuffer.allocate(4);
-    final OriginalAudioMetadata metadata = OriginalAudioMetadata.of("pcm_s16le", 1_536_000, 48_000, 2, 1);
+  private void assertPlaysInto(final AudioFilter output, final AudioFilter filter) {
+    final ByteBuffer samples = ByteBuffer.allocate(SAMPLE_BUFFER_BYTES);
+    final OriginalAudioMetadata metadata = OriginalAudioMetadata.of(AUDIO_CODEC, BIT_RATE, SAMPLE_RATE, AUDIO_CHANNEL_COUNT, 1);
     when(output.applyFilter(samples, metadata)).thenReturn(true);
-    assertTrue(filter.applyFilter(samples, metadata));
+
+    final boolean filtered = filter.applyFilter(samples, metadata);
+    assertTrue(filtered);
+
     verify(output).applyFilter(samples, metadata);
   }
 
   @Test
-  void replacingTheSameSourcesSpeakersReleasesThePreviousFilter() {
+  void shouldReleaseThePreviousFilterWhenReplacingTheSameSourcesSpeakers() {
     final Object source = new Object();
     final Object[] replacementPlayers = { "Alex" };
     final SvcFilter replacementSpeakers = mock(SvcFilter.class);
@@ -420,18 +470,24 @@ final class AudioProviderTest {
     ownership.verify(this.voiceChatFilter).start();
     ownership.verify(replacementSpeakers).start();
     ownership.verify(this.voiceChatFilter).release();
-    final ByteBuffer samples = ByteBuffer.allocate(4);
-    final OriginalAudioMetadata metadata = OriginalAudioMetadata.of("pcm_s16le", 1_536_000, 48_000, 2, 1);
-    assertFalse(previous.applyFilter(samples, metadata));
-    assertPlaysInto(replacementSpeakers, replacement);
+
+    final ByteBuffer samples = ByteBuffer.allocate(SAMPLE_BUFFER_BYTES);
+    final OriginalAudioMetadata metadata = OriginalAudioMetadata.of(AUDIO_CODEC, BIT_RATE, SAMPLE_RATE, AUDIO_CHANNEL_COUNT, 1);
+
+    final boolean filtered = previous.applyFilter(samples, metadata);
+    assertFalse(filtered);
+    this.assertPlaysInto(replacementSpeakers, replacement);
+
     this.provider.releaseAudioFilter(source);
     verify(this.voiceChatFilter, times(1)).release();
     verify(replacementSpeakers, times(1)).release();
-    assertFalse(replacement.applyFilter(samples, metadata));
+
+    final boolean replacementFiltered = replacement.applyFilter(samples, metadata);
+    assertFalse(replacementFiltered);
   }
 
   @Test
-  void theOutputsPlayOneSourceAtATime() {
+  void shouldPlayOneSourceAtATimeOnTheOutputs() {
     final SvcFilter videoSpeakers = this.voiceChatFilter;
     final SvcFilter machineSpeakers = mock(SvcFilter.class);
     final SvcFilter replacementSpeakers = mock(SvcFilter.class);
@@ -440,58 +496,76 @@ final class AudioProviderTest {
     final AudioFilter video = this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players);
     final AudioFilter sound = this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players, machine);
     verify(videoSpeakers).release();
-    final ByteBuffer samples = ByteBuffer.allocate(4);
-    final OriginalAudioMetadata metadata = OriginalAudioMetadata.of("pcm_s16le", 1_536_000, 48_000, 2, 1);
-    assertFalse(video.applyFilter(samples, metadata));
+
+    final ByteBuffer samples = ByteBuffer.allocate(SAMPLE_BUFFER_BYTES);
+    final OriginalAudioMetadata metadata = OriginalAudioMetadata.of(AUDIO_CODEC, BIT_RATE, SAMPLE_RATE, AUDIO_CHANNEL_COUNT, 1);
+
+    final boolean filtered = video.applyFilter(samples, metadata);
+    assertFalse(filtered);
+
     verify(videoSpeakers, never()).applyFilter(any(), any());
-    assertPlaysInto(machineSpeakers, sound);
-    assertFalse(sound.applyFilter(ByteBuffer.allocate(8), metadata), "what the output answers comes back");
+    this.assertPlaysInto(machineSpeakers, sound);
+
+    final boolean soundFiltered = sound.applyFilter(ByteBuffer.allocate(8), metadata);
+    assertFalse(soundFiltered, "what the output answers comes back");
+
     final AudioFilter replacement = this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players, machine);
     verify(machineSpeakers).release();
     verify(replacementSpeakers, never()).release();
-    assertFalse(sound.applyFilter(samples, metadata));
-    assertPlaysInto(replacementSpeakers, replacement);
+
+    final boolean secondFiltered = sound.applyFilter(samples, metadata);
+    assertFalse(secondFiltered);
+    this.assertPlaysInto(replacementSpeakers, replacement);
+
     this.provider.releaseAudioFilter();
     verify(replacementSpeakers, never()).release();
+
     this.provider.releaseAudioFilter(new Object());
     verify(replacementSpeakers, never()).release();
+
     this.provider.releaseAudioFilter(machine);
     verify(machineSpeakers, times(1)).release();
     verify(replacementSpeakers, times(1)).release();
-    assertFalse(replacement.applyFilter(samples, metadata));
-    assertFalse(sound.applyFilter(samples, metadata), "a released source plays no more");
+
+    final boolean replacementFiltered = replacement.applyFilter(samples, metadata);
+    assertFalse(replacementFiltered);
+
+    final boolean thirdFiltered = sound.applyFilter(samples, metadata);
+    assertFalse(thirdFiltered, "a released source plays no more");
     assertThrows(NullPointerException.class, () -> this.provider.releaseAudioFilter(null));
     assertThrows(NullPointerException.class, () -> this.provider.constructFilter(AudioArgument.NONE, this.dump, this.players, null));
-    assertSame(AudioFilter.NO_OP, this.provider.constructFilter(AudioArgument.NONE, this.dump, this.players, machine));
+
+    final AudioFilter constructFilter = this.provider.constructFilter(AudioArgument.NONE, this.dump, this.players, machine);
+    assertSame(AudioFilter.NO_OP, constructFilter);
   }
 
   @Test
-  void theWebPageGoesBackToTheVideoWhenTheMachineIsReleased() {
+  void shouldGiveTheWebPageBackToTheVideoWhenTheMachineIsReleased() {
     this.enableHttp();
     this.provider.initialize();
     final Object machine = new Object();
     final AudioFilter video = this.provider.constructFilter(AudioArgument.HTTP_SERVER, this.dump, this.players);
-    this.provider.constructFilter(AudioArgument.HTTP_SERVER, UrlParseDump.of("The machine"), this.players, machine);
+    this.provider.constructFilter(AudioArgument.HTTP_SERVER, UrlParseDump.of(MACHINE_TITLE), this.players, machine);
     this.provider.releaseAudioFilter(machine);
-    assertPlaysInto(this.httpServer, video);
+    this.assertPlaysInto(this.httpServer, video);
     verify(this.httpServer, times(2)).setCurrentMedia(this.dump);
   }
 
   @Test
-  void theBotGoesBackToTheVideoWhenTheMachineIsReleased() {
+  void shouldGiveTheBotBackToTheVideoWhenTheMachineIsReleased() {
     this.enableDiscord();
     this.provider.initialize();
     final Object machine = new Object();
     final AudioFilter video = this.provider.constructFilter(AudioArgument.DISCORD_BOT, this.dump, this.players);
-    this.provider.constructFilter(AudioArgument.DISCORD_BOT, UrlParseDump.of("The machine"), this.players, machine);
+    this.provider.constructFilter(AudioArgument.DISCORD_BOT, UrlParseDump.of(MACHINE_TITLE), this.players, machine);
     this.provider.releaseAudioFilter(machine);
-    assertPlaysInto(this.discord, video);
+    this.assertPlaysInto(this.discord, video);
     verify(this.audioManager, times(3)).openAudioConnection(this.channel);
     verify(this.discord, times(2)).setCurrentMedia(this.dump);
   }
 
   @Test
-  void theVideoGetsSpeakersAgainWhenTheMachineIsReleased() {
+  void shouldGiveTheVideoSpeakersAgainWhenTheMachineIsReleased() {
     final SvcFilter videoSpeakers = this.voiceChatFilter;
     final SvcFilter machineSpeakers = mock(SvcFilter.class);
     final SvcFilter videoSpeakersAgain = mock(SvcFilter.class);
@@ -502,67 +576,84 @@ final class AudioProviderTest {
     this.provider.releaseAudioFilter(machine);
     verify(machineSpeakers).release();
     verify(videoSpeakersAgain).start();
-    assertPlaysInto(videoSpeakersAgain, video);
+    this.assertPlaysInto(videoSpeakersAgain, video);
   }
 
   @Test
-  void aVideoStoppedWhileTheMachinePlayedDoesNotGetTheOutputsBack() {
+  void shouldNotGiveTheOutputsBackToAVideoStoppedWhileTheMachinePlayed() {
     this.enableHttp();
     this.provider.initialize();
     final Object machine = new Object();
     final AudioFilter video = this.provider.constructFilter(AudioArgument.HTTP_SERVER, this.dump, this.players);
-    this.provider.constructFilter(AudioArgument.HTTP_SERVER, UrlParseDump.of("The machine"), this.players, machine);
+    this.provider.constructFilter(AudioArgument.HTTP_SERVER, UrlParseDump.of(MACHINE_TITLE), this.players, machine);
     this.provider.releaseAudioFilter();
     this.provider.releaseAudioFilter(machine);
-    assertFalse(video.applyFilter(ByteBuffer.allocate(4), OriginalAudioMetadata.of("pcm_s16le", 1_536_000, 48_000, 2, 1)));
+
+    final boolean filtered = video.applyFilter(
+      ByteBuffer.allocate(SAMPLE_BUFFER_BYTES),
+      OriginalAudioMetadata.of(AUDIO_CODEC, BIT_RATE, SAMPLE_RATE, AUDIO_CHANNEL_COUNT, 1)
+    );
+    assertFalse(filtered);
+
     verify(this.httpServer).setCurrentMedia(MediaInformation.EMPTY);
     verify(this.httpServer, times(1)).setCurrentMedia(this.dump);
   }
 
   @Test
-  void theOutputsStayFreeWhenTheSourceBeforeCannotHaveThemBack() {
+  void shouldKeepTheOutputsFreeWhenTheSourceBeforeCannotHaveThemBack() {
     this.enableDiscord();
     this.enableHttp();
     this.provider.initialize();
     final Object machine = new Object();
     final AudioFilter video = this.provider.constructFilter(AudioArgument.DISCORD_BOT, this.dump, this.players);
-    this.provider.constructFilter(AudioArgument.HTTP_SERVER, UrlParseDump.of("The machine"), this.players, machine);
-    doThrow(new IllegalStateException("Missing permission VOICE_CONNECT")).when(this.audioManager).openAudioConnection(this.channel);
+    this.provider.constructFilter(AudioArgument.HTTP_SERVER, UrlParseDump.of(MACHINE_TITLE), this.players, machine);
+    doThrow(new IllegalStateException("Missing permission VOICE_CONNECT!")).when(this.audioManager).openAudioConnection(this.channel);
     this.provider.releaseAudioFilter(machine);
-    assertFalse(video.applyFilter(ByteBuffer.allocate(4), OriginalAudioMetadata.of("pcm_s16le", 1_536_000, 48_000, 2, 1)));
+
+    final boolean filtered = video.applyFilter(
+      ByteBuffer.allocate(SAMPLE_BUFFER_BYTES),
+      OriginalAudioMetadata.of(AUDIO_CODEC, BIT_RATE, SAMPLE_RATE, AUDIO_CHANNEL_COUNT, 1)
+    );
+    assertFalse(filtered);
+
     verify(this.httpServer).setCurrentMedia(MediaInformation.EMPTY);
+
     this.provider.releaseAudioFilter();
     verify(this.httpServer, times(2)).setCurrentMedia(MediaInformation.EMPTY);
   }
 
   @Test
-  void aTakeoverThatFailsLeavesTheSourceBeforePlayingThroughItsSpeakers() {
+  void shouldLeaveTheSourceBeforePlayingThroughItsSpeakersWhenATakeoverFails() {
     final Object machine = new Object();
     final AudioFilter video = this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players);
     final IllegalStateException failure = assertThrows(IllegalStateException.class, () ->
       this.provider.constructFilter(AudioArgument.DISCORD_BOT, this.dump, this.players, machine)
     );
-    assertEquals("The Discord bot is not ready", failure.getMessage());
+
+    final String message = failure.getMessage();
+    assertEquals(DISCORD_NOT_READY_MESSAGE, message);
+
     this.provider.releaseAudioFilter(machine);
     verify(this.voiceChatFilter, never()).release();
-    assertPlaysInto(this.voiceChatFilter, video);
+    this.assertPlaysInto(this.voiceChatFilter, video);
   }
 
   @Test
-  void theSpeakersOfTheSourceBeforeStopWhenTheNewSourcePlaysOnTheWebPage() {
+  void shouldStopTheSpeakersOfTheSourceBeforeWhenTheNewSourcePlaysOnTheWebPage() {
     this.enableHttp();
     this.provider.initialize();
     final Object machine = new Object();
     this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players);
     final AudioFilter sound = this.provider.constructFilter(AudioArgument.HTTP_SERVER, this.dump, this.players, machine);
     verify(this.voiceChatFilter).release();
-    assertPlaysInto(this.httpServer, sound);
+    this.assertPlaysInto(this.httpServer, sound);
+
     this.provider.releaseAudioFilter(machine);
     verify(this.voiceChatFilter, times(1)).release();
   }
 
   @Test
-  void aSourceThatChoseAgainIsNeverHandedItsEarlierChoiceBack() {
+  void shouldNeverHandASourceThatChoseAgainItsEarlierChoiceBack() {
     this.enableDiscord();
     this.enableHttp();
     this.provider.initialize();
@@ -571,7 +662,7 @@ final class AudioProviderTest {
     this.provider.constructFilter(AudioArgument.HTTP_SERVER, this.dump, this.players);
     this.provider.constructFilter(AudioArgument.DISCORD_BOT, this.dump, this.players);
     this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players, machine);
-    doThrow(new IllegalStateException("Missing permission VOICE_CONNECT")).when(this.audioManager).openAudioConnection(this.channel);
+    doThrow(new IllegalStateException("Missing permission VOICE_CONNECT!")).when(this.audioManager).openAudioConnection(this.channel);
     this.provider.releaseAudioFilter(machine);
     this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players, browser);
     this.provider.releaseAudioFilter(browser);
@@ -579,7 +670,7 @@ final class AudioProviderTest {
   }
 
   @Test
-  void aSourceReleasedAfterTheShutdownStartsNoOutputAgain() {
+  void shouldStartNoOutputAgainForASourceReleasedAfterTheShutdown() {
     final SvcFilter lateSpeakers = mock(SvcFilter.class);
     this.svcFilters.when(() -> SvcFilter.svc(this.players)).thenReturn(this.voiceChatFilter, this.voiceChatFilter, lateSpeakers);
     final Object machine = new Object();
@@ -592,17 +683,18 @@ final class AudioProviderTest {
   }
 
   @Test
-  void playsThroughVoiceChatSpeakersUntilReleased() {
+  void shouldPlayThroughVoiceChatSpeakersUntilReleased() {
     final AudioFilter filter = this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players);
-    assertPlaysInto(this.voiceChatFilter, filter);
+    this.assertPlaysInto(this.voiceChatFilter, filter);
     verify(this.voiceChatFilter).start();
+
     this.provider.releaseAudioFilter();
     this.provider.releaseAudioFilter();
     verify(this.voiceChatFilter, times(1)).release();
   }
 
   @Test
-  void disconnectsEveryOutputWhenTheVideoIsReleased() {
+  void shouldDisconnectEveryOutputWhenTheVideoIsReleased() {
     this.enableDiscord();
     this.enableHttp();
     this.provider.initialize();
@@ -616,16 +708,17 @@ final class AudioProviderTest {
   }
 
   @Test
-  void releasesNothingWhenNothingWasStarted() {
+  void shouldReleaseNothingWhenNothingWasStarted() {
     this.provider.releaseAudioFilter();
     this.provider.shutdown();
     verifyNoInteractions(this.audioManager, this.discord, this.httpServer, this.voiceChatFilter, this.jda);
+
     final boolean stopped = this.startup.isShutdown();
     assertTrue(stopped);
   }
 
   @Test
-  void stopsEveryOutputOnceWhenShutDown() {
+  void shouldStopEveryOutputOnceWhenShutDown() {
     this.enableDiscord();
     this.enableHttp();
     this.provider.initialize();
@@ -634,18 +727,22 @@ final class AudioProviderTest {
     verify(this.httpServer, times(1)).stop();
     verify(this.jda, times(1)).shutdown();
     verify(this.audioManager, times(1)).closeAudioConnection();
+
     final String message = this.discordFailure();
-    assertEquals("The Discord bot is not ready", message);
+    assertEquals(DISCORD_NOT_READY_MESSAGE, message);
+
     final boolean httpReady = this.provider.isHttpReady();
     assertFalse(httpReady);
+
     final String url = this.provider.constructHttpUrl();
-    assertEquals("http://mc.example.com:3000/", url);
+    assertEquals(HTTP_SERVER_URL, url);
+
     final boolean stopped = this.startup.isShutdown();
     assertTrue(stopped);
   }
 
   @Test
-  void waitsForInterruptedHttpStartupToCloseBeforeReturningFromShutdown() throws Exception {
+  void shouldWaitForInterruptedHttpStartupToCloseBeforeReturningFromShutdown() throws Exception {
     final CountDownLatch entered = new CountDownLatch(1);
     final CountDownLatch interrupted = new CountDownLatch(1);
     final CountDownLatch finishStartup = new CountDownLatch(1);
@@ -653,25 +750,19 @@ final class AudioProviderTest {
     this.startup = Executors.newSingleThreadExecutor();
     this.provider = new AudioProvider(this.sandbox, this.startup);
     this.enableHttp();
-    doAnswer(_ -> {
-      entered.countDown();
-      try {
-        assertTrue(finishStartup.await(10, TimeUnit.SECONDS));
-      } catch (final InterruptedException exception) {
-        interrupted.countDown();
-        assertTrue(finishStartup.await(10, TimeUnit.SECONDS));
-      }
-      return null;
-    })
+    doAnswer(_ -> this.holdStartupUntilFinished(entered, finishStartup, interrupted))
       .when(this.httpServer)
       .start();
     this.provider.initialize();
     final ExecutorService stopping = Executors.newSingleThreadExecutor();
     try {
-      assertTrue(entered.await(10, TimeUnit.SECONDS));
+      final boolean completed = entered.await(10, TimeUnit.SECONDS);
+      assertTrue(completed);
+
       final Future<?> shutdown = stopping.submit(this.provider::shutdown);
       try {
-        assertTrue(interrupted.await(10, TimeUnit.SECONDS));
+        final boolean interruptedCompleted = interrupted.await(10, TimeUnit.SECONDS);
+        assertTrue(interruptedCompleted);
         assertThrows(
           TimeoutException.class,
           () -> shutdown.get(1, TimeUnit.SECONDS),
@@ -681,36 +772,62 @@ final class AudioProviderTest {
         finishStartup.countDown();
         shutdown.get(10, TimeUnit.SECONDS);
       }
-      assertTrue(this.startup.awaitTermination(10, TimeUnit.SECONDS));
+
+      final boolean terminated = this.startup.awaitTermination(10, TimeUnit.SECONDS);
+      assertTrue(terminated);
+
       verify(this.httpServer).stop();
-      assertFalse(this.provider.isHttpReady());
+
+      final boolean httpReady = this.provider.isHttpReady();
+      assertFalse(httpReady);
     } finally {
       finishStartup.countDown();
       this.startup.shutdownNow();
       stopping.shutdownNow();
-      assertTrue(this.startup.awaitTermination(10, TimeUnit.SECONDS));
-      assertTrue(stopping.awaitTermination(10, TimeUnit.SECONDS));
+
+      final boolean startupTerminated = this.startup.awaitTermination(10, TimeUnit.SECONDS);
+      assertTrue(startupTerminated);
+
+      final boolean stoppingTerminated = stopping.awaitTermination(10, TimeUnit.SECONDS);
+      assertTrue(stoppingTerminated);
     }
   }
 
+  private @Nullable Object holdStartupUntilFinished(
+    final CountDownLatch entered,
+    final CountDownLatch finishStartup,
+    final CountDownLatch interrupted
+  ) throws InterruptedException {
+    entered.countDown();
+    try {
+      assertTrue(finishStartup.await(10, TimeUnit.SECONDS));
+    } catch (final InterruptedException exception) {
+      interrupted.countDown();
+      assertTrue(finishStartup.await(10, TimeUnit.SECONDS));
+    }
+    return null;
+  }
+
   @Test
-  void reportsStartupThatDoesNotTerminateBeforeTheShutdownDeadline() throws InterruptedException {
+  void shouldReportStartupThatDoesNotTerminateBeforeTheShutdownDeadline() throws InterruptedException {
     this.startInTheBackground();
-    when(this.startup.awaitTermination(10, TimeUnit.SECONDS)).thenReturn(false);
+    when(this.startup.awaitTermination(SHUTDOWN_DEADLINE_SECONDS, TimeUnit.SECONDS)).thenReturn(false);
     final String output;
     try (final StandardErrorCapture errors = StandardErrorCapture.start()) {
       this.provider.shutdown();
       output = errors.getOutput();
     }
     verify(this.startup).shutdownNow();
-    verify(this.startup).awaitTermination(10, TimeUnit.SECONDS);
-    assertTrue(output.contains("Audio startup did not stop within 10 seconds"), output);
+    verify(this.startup).awaitTermination(SHUTDOWN_DEADLINE_SECONDS, TimeUnit.SECONDS);
+
+    final boolean contained = output.contains("Audio startup did not stop within 10 seconds");
+    assertTrue(contained, output);
   }
 
   @Test
-  void preservesTheInterruptWhenShutdownCannotWaitForStartup() throws InterruptedException {
+  void shouldPreserveTheInterruptWhenShutdownCannotWaitForStartup() throws InterruptedException {
     this.startInTheBackground();
-    when(this.startup.awaitTermination(10, TimeUnit.SECONDS)).thenThrow(new InterruptedException("stop waiting"));
+    when(this.startup.awaitTermination(SHUTDOWN_DEADLINE_SECONDS, TimeUnit.SECONDS)).thenThrow(new InterruptedException("stop waiting!"));
     final String output;
     try (final StandardErrorCapture errors = StandardErrorCapture.start()) {
       this.provider.shutdown();
@@ -719,11 +836,13 @@ final class AudioProviderTest {
     final boolean interrupted = Thread.interrupted();
     assertTrue(interrupted);
     verify(this.startup).shutdownNow();
-    assertTrue(output.contains("Interrupted while waiting for audio startup to stop"), output);
+
+    final boolean contained = output.contains("Interrupted while waiting for audio startup to stop");
+    assertTrue(contained, output);
   }
 
   @Test
-  void stopsOutputsThatFinishStartingAfterTheShutdown() throws InterruptedException {
+  void shouldStopOutputsThatFinishStartingAfterTheShutdown() throws InterruptedException {
     this.startInTheBackground();
     this.enableDiscord();
     this.enableHttp();
@@ -732,11 +851,13 @@ final class AudioProviderTest {
     verify(this.jda).shutdown();
     verify(this.startup).shutdownNow();
     verify(this.httpServer, never()).stop();
+
     final int ran = this.runDeferred();
     assertEquals(2, ran);
     verify(this.jda).awaitReady();
     verify(this.httpServer).start();
     verify(this.httpServer).stop();
+
     final boolean discordReady = this.provider.isDiscordBotReady();
     final boolean httpReady = this.provider.isHttpReady();
     assertFalse(discordReady);
@@ -745,15 +866,16 @@ final class AudioProviderTest {
   }
 
   @Test
-  void doesNotShutDownABotTwiceWhenItFailsAfterTheShutdown() {
+  void shouldNotShutDownABotTwiceWhenItFailsAfterTheShutdown() {
     this.startInTheBackground();
     this.enableDiscord();
-    when(this.jda.getGuildById("100")).thenReturn(null);
+    when(this.jda.getGuildById(GUILD_ID)).thenReturn(null);
     this.provider.initialize();
     this.provider.shutdown();
     this.runDeferred();
     verify(this.jda, times(1)).shutdown();
     verify(this.jda, never()).shutdownNow();
+
     final boolean ready = this.provider.isDiscordBotReady();
     assertFalse(ready);
   }

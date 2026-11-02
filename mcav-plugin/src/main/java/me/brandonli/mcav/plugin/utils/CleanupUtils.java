@@ -24,13 +24,17 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Runs independent resource cleanup actions even when an earlier action fails.
+ *
+ * <p>This class is stateless and thread-safe.
+ *
+ * @since 1.0.0
  */
 public final class CleanupUtils {
 
   private static final Equivalence<Object> FAILURE_IDENTITY = Equivalence.identity();
 
   private CleanupUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   /**
@@ -38,9 +42,11 @@ public final class CleanupUtils {
    * Fatal virtual-machine failures are rethrown immediately without attempting further cleanup.
    *
    * @param actions the independent cleanup actions
+   * @since 1.0.0
    */
   public static void runAll(final Runnable... actions) {
-    Preconditions.checkNotNull(actions, "Cleanup actions must not be null");
+    Preconditions.checkNotNull(actions, "Cleanup actions must not be null!");
+
     Throwable failure = null;
     for (final Runnable action : actions) {
       try {
@@ -53,6 +59,7 @@ public final class CleanupUtils {
     if (failure instanceof final RuntimeException exception) {
       throw exception;
     }
+
     if (failure instanceof final Error error) {
       throw error;
     }
@@ -62,6 +69,7 @@ public final class CleanupUtils {
     if (first == null) {
       return next;
     }
+
     final boolean sameFailure = FAILURE_IDENTITY.equivalent(first, next);
     if (!sameFailure) {
       first.addSuppressed(next);

@@ -37,6 +37,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * chat command. Every accepted option only selects which stream of a page is played. An option outside the list, an
  * option given a value it does not take, one missing the value it needs, or a value that yt-dlp would read as
  * another option is refused, and the command tells the sender instead of running yt-dlp.
+ *
+ * <p>This class is stateless and thread-safe.
+ *
+ * @since 1.0.0
  */
 public final class VideoFlagsParser {
 
@@ -46,9 +50,6 @@ public final class VideoFlagsParser {
   private static final Pattern UNESCAPED_COMMA = Pattern.compile("(?<!\\\\),");
   private static final Splitter OPTION_SPLITTER = Splitter.on(UNESCAPED_COMMA);
 
-  /**
-   * The options that are a switch, so they must not be given a value.
-   */
   private static final Set<String> FLAG_OPTIONS = Set.of(
     "no-playlist",
     "yes-playlist",
@@ -68,9 +69,6 @@ public final class VideoFlagsParser {
     "no-match-filters"
   );
 
-  /**
-   * The options that need a value, which is passed to yt-dlp as the argument after the option.
-   */
   private static final Set<String> VALUE_OPTIONS = Set.of(
     "format",
     "format-sort",
@@ -88,8 +86,28 @@ public final class VideoFlagsParser {
     "referer"
   );
 
+  private static final char LINE_FEED = '\n';
+  private static final char CARRIAGE_RETURN = '\r';
+  private static final char NEXT_LINE = '\u0085';
+  private static final char LINE_SEPARATOR = '\u2028';
+  private static final char PARAGRAPH_SEPARATOR = '\u2029';
+
+  private static final String ESCAPED_COMMA = "\\,";
+  private static final String COMMA = ",";
+  private static final String ESCAPED_BRACE = "\\}";
+  private static final String BRACE = "}";
+
+  private static final char VALUE_SEPARATOR = '=';
+
+  private static final String OPTION_PREFIX = "-";
+  private static final String LONG_OPTION_PREFIX = "--";
+
+  private static final String NAME_SEPARATOR = ", ";
+
   /**
    * Constructs the parser, which keeps no state and can be shared.
+   *
+   * @since 1.0.0
    */
   public VideoFlagsParser() {}
 
@@ -99,8 +117,9 @@ public final class VideoFlagsParser {
    * @param flags the flags argument of the command, may be empty or {@code null}
    * @return the arguments to pass to yt-dlp, empty if there are none
    * @throws IllegalArgumentException if an option with a value has an empty name
+   * @since 1.0.0
    */
-  public String[] parseYTDLPFlags(final @Nullable String flags) {
+  public String[] parseYtdlpFlags(final @Nullable String flags) {
     final String content = extractOptions(flags);
     if (content == null) {
       return new String[0];
@@ -109,21 +128,12 @@ public final class VideoFlagsParser {
     final List<String> arguments = new ArrayList<>();
     final Iterable<String> options = OPTION_SPLITTER.split(content);
     for (final String option : options) {
-      appendOption(option, arguments);
+      this.appendOption(option, arguments);
     }
     return arguments.toArray(new String[0]);
   }
 
-  /**
-   * Finds the options inside {@code --yt-dlp{...}}: the first <code>--yt-dlp{</code> whose options end with a closing
-   * brace that is not escaped. A backslash escapes the character after it, except the end of a line. Visible for
-   * testing.
-   *
-   * <p>The options are found by scanning rather than with a regular expression: the expression that did this recursed
-   * once per character, so options of about 1600 characters overflowed the stack of a thread of the default size.
-   *
-   * @return the options, or {@code null} if the flags contain no yt-dlp options
-   */
+  // a backslash escapes the next character, so an escaped brace does not end the options
   @VisibleForTesting
   static @Nullable String extractOptions(final @Nullable String flags) {
     if (flags == null || flags.isBlank()) {
@@ -143,12 +153,7 @@ public final class VideoFlagsParser {
     return null;
   }
 
-  /**
-   * Finds the first closing brace from an index on that is not escaped.
-   *
-   * @return the index of the brace, or -1 if the options never end, including when a backslash has nothing after it
-   * but the end of a line or of the text
-   */
+  // -1 also when a trailing backslash has nothing to escape
   private static int findClosingBrace(final String text, final int from) {
     final int length = text.length();
     int index = from;
@@ -172,24 +177,27 @@ public final class VideoFlagsParser {
   }
 
   private static boolean isLineTerminator(final char character) {
-    return character == '\n' || character == '\r' || character == '\u0085' || character == '\u2028' || character == '\u2029';
+    return (
+      character == LINE_FEED ||
+      character == CARRIAGE_RETURN ||
+      character == NEXT_LINE ||
+      character == LINE_SEPARATOR ||
+      character == PARAGRAPH_SEPARATOR
+    );
   }
 
-  /**
-   * Turns one {@code name=value} or {@code name} option into yt-dlp arguments.
-   */
-  private static void appendOption(final String option, final List<String> arguments) {
-    final String commasUnescaped = option.replace("\\,", ",");
-    final String unescaped = commasUnescaped.replace("\\}", "}");
+  private void appendOption(final String option, final List<String> arguments) {
+    final String commasUnescaped = option.replace(ESCAPED_COMMA, COMMA);
+    final String unescaped = commasUnescaped.replace(ESCAPED_BRACE, BRACE);
     final String trimmed = unescaped.trim();
     if (trimmed.isEmpty()) {
       return;
     }
 
-    final int equals = trimmed.indexOf('=');
+    final int equals = trimmed.indexOf(VALUE_SEPARATOR);
     if (equals < 0) {
-      requireFlagOption(trimmed);
-      arguments.add("--" + trimmed);
+      this.requireFlagOption(trimmed);
+      arguments.add(LONG_OPTION_PREFIX + trimmed);
       return;
     }
 
@@ -198,51 +206,61 @@ public final class VideoFlagsParser {
     final String cleanName = name.trim();
     final String cleanValue = value.trim();
     if (cleanName.isEmpty()) {
-      throw new IllegalArgumentException("yt-dlp option name must not be empty");
+      throw new IllegalArgumentException("yt-dlp option name must not be empty!");
     }
-    requireValueOption(cleanName, cleanValue);
-    arguments.add("--" + cleanName);
+
+    this.requireValueOption(cleanName, cleanValue);
+    arguments.add(LONG_OPTION_PREFIX + cleanName);
     arguments.add(cleanValue);
   }
 
-  private static void requireFlagOption(final String name) {
+  private void requireFlagOption(final String name) {
     final boolean isFlagOption = FLAG_OPTIONS.contains(name);
     if (isFlagOption) {
       return;
     }
+
     final boolean needsValue = VALUE_OPTIONS.contains(name);
     if (needsValue) {
-      throw new IllegalArgumentException("The yt-dlp option " + name + " needs a value, written as " + name + "=value");
+      final String message = "yt-dlp option %s needs a value, written as %s=value!".formatted(name, name);
+      throw new IllegalArgumentException(message);
     }
-    throw unsupported(name);
+
+    throw this.unsupported(name);
   }
 
-  private static void requireValueOption(final String name, final String value) {
+  private void requireValueOption(final String name, final String value) {
     final boolean takesValue = VALUE_OPTIONS.contains(name);
     if (!takesValue) {
       final boolean isFlagOption = FLAG_OPTIONS.contains(name);
       if (isFlagOption) {
-        throw new IllegalArgumentException("The yt-dlp option " + name + " takes no value");
+        final String message = "yt-dlp option %s takes no value!".formatted(name);
+        throw new IllegalArgumentException(message);
       }
-      throw unsupported(name);
+
+      throw this.unsupported(name);
     }
+
     // yt-dlp reads an argument that starts with a dash as an option of its own, whatever option it follows
-    final boolean readAsOption = value.startsWith("-");
+    final boolean readAsOption = value.startsWith(OPTION_PREFIX);
     if (readAsOption) {
-      throw new IllegalArgumentException("The value of the yt-dlp option " + name + " must not start with a dash: " + value);
+      final String message = "Value %s of the yt-dlp option %s must not start with a dash!".formatted(value, name);
+      throw new IllegalArgumentException(message);
     }
   }
 
-  private static IllegalArgumentException unsupported(final String name) {
-    final String supported = String.join(", ", supportedOptions());
-    return new IllegalArgumentException("Unsupported yt-dlp option " + name + "; the video commands accept " + supported);
+  private IllegalArgumentException unsupported(final String name) {
+    final String supported = String.join(NAME_SEPARATOR, supportedOptions());
+    final String message = "yt-dlp option %s is not supported, use one of %s instead!".formatted(name, supported);
+    return new IllegalArgumentException(message);
   }
 
   /**
-   * Gets the names of the yt-dlp options the video commands accept, in alphabetical order. A switch is written as
+   * Returns the names of the yt-dlp options the video commands accept, in alphabetical order. A switch is written as
    * {@code name} and an option with a value as {@code name=value}.
    *
    * @return the option names, as an unmodifiable list
+   * @since 1.0.0
    */
   public static List<String> supportedOptions() {
     final List<String> names = new ArrayList<>(FLAG_OPTIONS);

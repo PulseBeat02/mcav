@@ -27,6 +27,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -44,6 +45,7 @@ import me.brandonli.mcav.bukkit.media.mcv2.Mcv2FileEncoder;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2PackServer;
 import me.brandonli.mcav.plugin.MCAVSandbox;
 import me.brandonli.mcav.plugin.command.AnnotationCommandFeature;
+import me.brandonli.mcav.plugin.command.SuggestionProvider;
 import me.brandonli.mcav.plugin.locale.Message;
 import me.brandonli.mcav.plugin.utils.ArgumentUtils;
 import me.brandonli.mcav.plugin.utils.TaskUtils;
@@ -74,24 +76,25 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
  * <p>Stream files are kept in the {@code mcv2} folder of the plugin's data folder: a command names a file inside it,
  * and a name that leads out of it, absolute or climbing with {@code ..}, is refused, so a command can neither read nor
  * replace other files of the server.
+ *
+ * @since 1.0.0
  */
 public final class Mcv2PlayCommand implements AnnotationCommandFeature {
 
-  /** How often a running file encode tells its progress. */
-  private static final long PROGRESS_NANOS = TimeUnit.SECONDS.toNanos(30);
+  private static final long PROGRESS_NANOSECONDS = TimeUnit.SECONDS.toNanos(30);
 
-  /** The folder of the stream files, in the plugin's data folder. */
   static final String STREAMS = "mcv2";
 
-  /** The largest stream file played, one gibibyte: a stream is held in memory while it plays. */
-  private static final long MAX_STREAM_BYTES = 1L << 30;
+  // a stream is held in memory while it plays
+  private static final long MAXIMUM_STREAM_BYTES = 1L << 30;
 
   private static final double NANOSECONDS_PER_MILLISECOND = 1e6;
 
   private static final double NANOSECONDS_PER_SECOND = 1e9;
 
-  /** A stream file frames each frame with its length, a little-endian 32-bit word. */
   private static final int LENGTH_BYTES = Integer.BYTES;
+
+  private static final String PARTIAL_SUFFIX = ".part";
 
   private final MCAVSandbox plugin;
 
@@ -107,86 +110,45 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
 
   private @Nullable FileEncode encoding;
 
-  /** Reads stream files, one at a time, so that commands given quickly one after another hold one file at a time. */
+  // one thread, so quick repeated commands hold one file at a time
   private final ExecutorService reads;
 
-  /**
-   * How many streams were asked for or stopped: a stream whose file is read once a later play, stream or stop command
-   * was given is dropped. Read and written on the main thread.
-   */
+  // a load is dropped once a later play, stream or stop command was given; main thread only
   private long loads;
 
   private Opener opener = Mcv2FileEncoder::ffmpeg;
-
-  /** Opens a video file's frames at a size. */
-  @FunctionalInterface
-  interface Opener {
-    /**
-     * Opens a video file.
-     *
-     * @param video  the file
-     * @param width  the frame width
-     * @param height the frame height
-     * @return the frames
-     * @throws IOException if the file cannot be opened
-     */
-    Mcv2FileEncoder.FrameReader open(Path video, int width, int height) throws IOException;
-  }
-
-  /**
-   * A file encode: its thread, and whether it was asked to stop.
-   *
-   * @param thread  the thread that encodes
-   * @param stopped whether a cancel or the plugin stopping asked it to stop
-   */
-  private record FileEncode(Thread thread, AtomicBoolean stopped) {
-    /** Asks the encode to stop. */
-    void stop() {
-      this.stopped.set(true);
-      this.thread.interrupt();
-    }
-  }
-
-  /**
-   * The frames of an encode that may be asked to stop. A stop interrupts the encode's thread, and the encoder ends at
-   * that interrupt, but code that runs on the thread may clear it before the encoder looks: an agent that instruments
-   * classes as the thread loads them did. So once a stop was asked, the thread is interrupted again before and after
-   * every read, and the encoder ends by the next frame.
-   *
-   * @param frames  the video's frames
-   * @param stopped whether the encode was asked to stop
-   */
-  private record StoppableFrames(Mcv2FileEncoder.FrameReader frames, AtomicBoolean stopped) implements Mcv2FileEncoder.FrameReader {
-    @Override
-    public boolean read(final byte[] rgb) {
-      // before, so a read that waits is interrupted
-      this.interruptIfStopped();
-      final boolean more = this.frames.read(rgb);
-      this.interruptIfStopped();
-      return more;
-    }
-
-    @Override
-    public void close() {
-      this.frames.close();
-    }
-
-    private void interruptIfStopped() {
-      if (this.stopped.get()) {
-        Thread.currentThread().interrupt();
-      }
-    }
-  }
 
   /**
    * Constructs the command.
    *
    * @param plugin the plugin
+   * @since 1.0.0
    */
   public Mcv2PlayCommand(final MCAVSandbox plugin) {
-    Preconditions.checkNotNull(plugin, "Plugin must not be null");
+    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
+
     this.plugin = plugin;
     this.reads = Executors.newSingleThreadExecutor(Thread.ofPlatform().daemon().name("mcav-mcv2-stream-read").factory());
+  }
+
+  /**
+   * Stops the stream, the reading of a stream file and the file encode when the plugin is disabled.
+   *
+   * @since 1.0.0
+   */
+  @Override
+  public void shutdown() {
+    this.loads++;
+    this.reads.shutdownNow();
+    this.stop();
+    final FileEncode running;
+    synchronized (this) {
+      running = this.encoding;
+      this.encoding = null;
+    }
+    if (running != null) {
+      running.stop();
+    }
   }
 
   /**
@@ -205,6 +167,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
    * @param mapId           the id of the top-left map of the wall
    * @param ticks           the server ticks between frames, 1 or more
    * @param file            the stream file, in the plugin's {@code mcv2} folder
+   * @since 1.0.0
    */
   @Command("mcav mcv2 play <playerSelector> <blockDimensions> <mapId> <ticks> <file>")
   @Permission("mcav.command.mcv2.play")
@@ -212,19 +175,21 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
   public void play(
     final CommandSender sender,
     final MultiplePlayerSelector playerSelector,
-    @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
-    @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
+    @Argument(suggestions = SuggestionProvider.DIMENSIONS) @Quoted final String blockDimensions,
+    @Argument(suggestions = SuggestionProvider.IDS) @Range(min = "0") final int mapId,
     @Range(min = "1") final int ticks,
     @Quoted final String file
   ) {
-    this.load(sender, playerSelector, blockDimensions, mapId, file, playback -> {
-      this.task = Bukkit.getScheduler().runTaskTimerAsynchronously(this.plugin, playback, 0, ticks);
-      sender.sendMessage(Message.MCV2_PLAY.build());
-    });
+    this.load(sender, playerSelector, blockDimensions, mapId, file, playback -> this.startTask(sender, ticks, playback));
+  }
+
+  private void startTask(final CommandSender sender, final int ticks, final Mcv2Playback playback) {
+    this.task = Bukkit.getScheduler().runTaskTimerAsynchronously(this.plugin, playback, 0, ticks);
+    sender.sendMessage(Message.MCV2_PLAY.build());
   }
 
   /**
-   * Handles {@code /mcav mcv2 stream <playerSelector> <blockDimensions> <mapId> <fps> <file>}: plays an MCV2 stream
+   * Handles {@code /mcav mcv2 stream <playerSelector> <blockDimensions> <mapId> <framesPerSecond> <file>}: plays an MCV2 stream
    * like {@code /mcav mcv2 play}, but at a frame rate, on its own thread: a server runs 20 ticks a second, and a stream
    * of 30 or 60 frames a second is sent between them, the way the encoder's frames are. Replaces the stream played
    * before.
@@ -235,37 +200,33 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
    * @param playerSelector  the players who watch
    * @param blockDimensions the size of the wall as {@code <width>x<height>} in maps
    * @param mapId           the id of the top-left map of the wall
-   * @param fps             the frames sent per second, 1 to 240
+   * @param framesPerSecond the frames sent per second, 1 to 240
    * @param file            the stream file, in the plugin's {@code mcv2} folder
+   * @since 1.0.0
    */
-  @Command("mcav mcv2 stream <playerSelector> <blockDimensions> <mapId> <fps> <file>")
+  @Command("mcav mcv2 stream <playerSelector> <blockDimensions> <mapId> <framesPerSecond> <file>")
   @Permission("mcav.command.mcv2.play")
   @CommandDescription("mcav.command.mcv2.stream.info")
   public void stream(
     final CommandSender sender,
     final MultiplePlayerSelector playerSelector,
-    @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
-    @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
-    @Range(min = "1", max = "240") final int fps,
+    @Argument(suggestions = SuggestionProvider.DIMENSIONS) @Quoted final String blockDimensions,
+    @Argument(suggestions = SuggestionProvider.IDS) @Range(min = "0") final int mapId,
+    @Range(min = "1", max = "240") final int framesPerSecond,
     @Quoted final String file
   ) {
-    this.load(sender, playerSelector, blockDimensions, mapId, file, playback -> {
-      final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(
-        Thread.ofPlatform().daemon().name("mcav-mcv2-stream").factory()
-      );
-      this.streaming = executor.scheduleAtFixedRate(playback, 0, TimeUnit.SECONDS.toNanos(1) / fps, TimeUnit.NANOSECONDS);
-      this.streamer = executor;
-      sender.sendMessage(Message.MCV2_PLAY.build());
-    });
+    this.load(sender, playerSelector, blockDimensions, mapId, file, playback -> this.startStream(sender, framesPerSecond, playback));
   }
 
-  /**
-   * Starts a stream: checks the wall's size, then reads the stream file on the reading thread, and opens the screen and
-   * starts the playback on the main thread once it is read, unless a later play, stream or stop command came first.
-   * Errors are reported to the sender.
-   *
-   * @param start schedules the playback, on the main thread
-   */
+  private void startStream(final CommandSender sender, final int framesPerSecond, final Mcv2Playback playback) {
+    final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(
+      Thread.ofPlatform().daemon().name("mcav-mcv2-stream").factory()
+    );
+    this.streaming = executor.scheduleAtFixedRate(playback, 0, TimeUnit.SECONDS.toNanos(1) / framesPerSecond, TimeUnit.NANOSECONDS);
+    this.streamer = executor;
+    sender.sendMessage(Message.MCV2_PLAY.build());
+  }
+
   private void load(
     final CommandSender sender,
     final MultiplePlayerSelector playerSelector,
@@ -274,21 +235,18 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     final String file,
     final Consumer<Mcv2Playback> start
   ) {
-    final Pair<Integer, Integer> blocks = AbstractVideoCommand.parseScreenDimensions(sender, blockDimensions);
+    final Optional<Pair<Integer, Integer>> parsedBlocks = AbstractVideoCommand.parseScreenDimensions(sender, blockDimensions);
+    final @Nullable Pair<Integer, Integer> blocks = parsedBlocks.orElse(null);
     if (blocks == null) {
       return;
     }
+
     final long load = ++this.loads;
     this.reads.execute(() ->
       TaskUtils.runOnMainThread(this.plugin, this.readStream(load, sender, playerSelector, blocks, mapId, file, start))
     );
   }
 
-  /**
-   * Reads a stream file and its first frame, on the reading thread.
-   *
-   * @return what the main thread does next: open the screen, or tell the sender why the file cannot be played
-   */
   private Runnable readStream(
     final long load,
     final CommandSender sender,
@@ -308,17 +266,12 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     }
   }
 
-  /** Tells the sender why their stream cannot be played, unless a later command replaced it. Runs on the main thread. */
   private void report(final long load, final CommandSender sender, final Component message) {
     if (load == this.loads) {
       sender.sendMessage(message);
     }
   }
 
-  /**
-   * Opens the screen of a stream that was read, unless a later command replaced it: stops the stream played before,
-   * offers the players the pack, opens the channel and starts the playback. Runs on the main thread.
-   */
   private void open(
     final long load,
     final CommandSender sender,
@@ -332,9 +285,10 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     if (load != this.loads) {
       return;
     }
+
     final Pair<Integer, Integer> resolution = Pair.pair(first.getWidth(), first.getHeight());
     final Mcv2Support support = this.plugin.getMcv2Support();
-    final Mcv2Configuration configuration = support.configure(
+    final Optional<Mcv2Configuration> foundConfiguration = support.configure(
       sender,
       blocks,
       resolution,
@@ -342,14 +296,18 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
       Mcv2Profile.DEFAULT.getSettings(),
       ArgumentUtils.parseViewers(playerSelector, this.plugin.getOnlinePlayers())
     );
+    final @Nullable Mcv2Configuration configuration = foundConfiguration.orElse(null);
     if (configuration == null) {
       return;
     }
+
     this.stop();
-    final Mcv2PackServer.Lease slot = support.open(sender, configuration);
+    final Optional<Mcv2PackServer.Lease> foundSlot = support.open(sender, configuration);
+    final Mcv2PackServer.@Nullable Lease slot = foundSlot.orElse(null);
     if (slot == null) {
       return;
     }
+
     final Mcv2Configuration slotted = slot.getConfiguration();
     final Mcv2Channel opened = new Mcv2Channel(slotted, support.getViewers());
     opened.open();
@@ -372,6 +330,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
    * @param output     the stream file to write, in the plugin's {@code mcv2} folder, replaced when it exists
    * @param resolution the video size as {@code <width>x<height>}
    * @param profile    the encoder profile, {@code DEFAULT} or {@code FAST}
+   * @since 1.0.0
    */
   @Command("mcav mcv2 encode <file> <output> <resolution> <profile>")
   @Permission("mcav.command.mcv2.encode")
@@ -380,27 +339,58 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     final CommandSender sender,
     @Quoted final String file,
     @Quoted final String output,
-    @Argument(suggestions = "resolutions") @Quoted final String resolution,
+    @Argument(suggestions = SuggestionProvider.RESOLUTIONS) @Quoted final String resolution,
     final Mcv2Profile profile
   ) {
-    final Pair<Integer, Integer> size = AbstractVideoCommand.parseDimensions(sender, resolution);
+    final Pair<Integer, Integer> size = this.parseEncodeSize(sender, resolution);
     if (size == null) {
       return;
     }
+
+    final Path source = Path.of(file);
+    final Path target = this.resolveStreamFile(sender, output);
+    if (target == null) {
+      return;
+    }
+
+    this.startEncode(sender, source, target, size, profile);
+  }
+
+  private @Nullable Pair<Integer, Integer> parseEncodeSize(final CommandSender sender, final String resolution) {
+    final Optional<Pair<Integer, Integer>> parsedSize = AbstractVideoCommand.parseDimensions(sender, resolution);
+    final @Nullable Pair<Integer, Integer> size = parsedSize.orElse(null);
+    if (size == null) {
+      return null;
+    }
+
     final int width = size.getFirst();
     final int height = size.getSecond();
     if (width > Mcv2Decoder.MAXIMUM_DIMENSION || height > Mcv2Decoder.MAXIMUM_DIMENSION) {
       sender.sendMessage(Message.UNSUPPORTED_DIMENSION.build());
-      return;
+      return null;
     }
-    final Path source = Path.of(file);
-    final Path target;
+
+    return size;
+  }
+
+  private @Nullable Path resolveStreamFile(final CommandSender sender, final String output) {
     try {
-      target = this.streamFile(output);
+      return this.streamFile(output);
     } catch (final IOException exception) {
       sender.sendMessage(Message.MCV2_ENCODE_ERROR.build(String.valueOf(exception.getMessage())));
-      return;
+      return null;
     }
+  }
+
+  private void startEncode(
+    final CommandSender sender,
+    final Path source,
+    final Path target,
+    final Pair<Integer, Integer> size,
+    final Mcv2Profile profile
+  ) {
+    final int width = size.getFirst();
+    final int height = size.getSecond();
     final Pool budget = Pool.shared();
     final Opener open = this.opener;
     synchronized (this) {
@@ -409,6 +399,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
         sender.sendMessage(Message.MCV2_ENCODE_BUSY.build());
         return;
       }
+
       sender.sendMessage(
         Message.MCV2_ENCODE_START.build(
           String.format(
@@ -428,25 +419,11 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
       final Thread thread = Thread.ofPlatform()
         .daemon()
         .name("mcav-mcv2-file-encode")
-        .start(() -> encodeFile(sender, stoppable, source, target, width, height, profile, budget, PROGRESS_NANOS));
+        .start(() -> encodeFile(sender, stoppable, source, target, width, height, profile, budget, PROGRESS_NANOSECONDS));
       this.encoding = new FileEncode(thread, stopped);
     }
   }
 
-  /**
-   * Encodes a video file into a stream file, first into a file next to it that replaces it when the encode is done,
-   * and tells the sender how it goes.
-   *
-   * @param sender   who is told
-   * @param opener   opens the video file
-   * @param source   the video file
-   * @param target   the stream file
-   * @param width    the video width
-   * @param height   the video height
-   * @param profile  the encoder profile
-   * @param budget   the encoder budget
-   * @param interval how often the progress is told, in nanoseconds
-   */
   static void encodeFile(
     final CommandSender sender,
     final Opener opener,
@@ -458,7 +435,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     final Pool budget,
     final long interval
   ) {
-    final Path partial = target.resolveSibling(target.getFileName() + ".part");
+    final Path partial = target.resolveSibling(target.getFileName() + PARTIAL_SUFFIX);
     final long started = System.nanoTime();
     final LongConsumer progress = progressReporter(sender, started, interval);
     final Mcv2FileEncoder.Result result;
@@ -469,14 +446,22 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
       Files.move(partial, target, StandardCopyOption.REPLACE_EXISTING);
     } catch (final IOException | RuntimeException exception) {
       deleteQuietly(partial);
-      if (exception.getCause() instanceof InterruptedException) {
-        sender.sendMessage(Message.MCV2_ENCODE_CANCELLED.build());
-        return;
-      }
-
-      sender.sendMessage(Message.MCV2_ENCODE_ERROR.build(String.valueOf(exception.getMessage())));
+      reportFailure(sender, exception);
       return;
     }
+    reportDone(sender, result, target, started);
+  }
+
+  private static void reportFailure(final CommandSender sender, final Exception exception) {
+    if (exception.getCause() instanceof InterruptedException) {
+      sender.sendMessage(Message.MCV2_ENCODE_CANCELLED.build());
+      return;
+    }
+
+    sender.sendMessage(Message.MCV2_ENCODE_ERROR.build(String.valueOf(exception.getMessage())));
+  }
+
+  private static void reportDone(final CommandSender sender, final Mcv2FileEncoder.Result result, final Path target, final long started) {
     sender.sendMessage(
       Message.MCV2_ENCODE_DONE.build(
         String.format(
@@ -494,32 +479,42 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
 
   private static LongConsumer progressReporter(final CommandSender sender, final long started, final long interval) {
     final long[] reported = { started };
-    return frames -> {
-      final long now = System.nanoTime();
-      if (now - reported[0] >= interval) {
-        reported[0] = now;
-        final double millisPerFrame = (now - started) / NANOSECONDS_PER_MILLISECOND / frames;
-        sender.sendMessage(
-          Message.MCV2_ENCODE_PROGRESS.build(String.format(Locale.ROOT, "%d frames, %.0f ms per frame", frames, millisPerFrame))
-        );
-      }
-    };
+    return frames -> reportProgress(sender, started, interval, reported, frames);
   }
 
-  /**
-   * Resolves a stream file a command names inside the plugin's {@code mcv2} folder, which is created when missing.
-   *
-   * @param name the file name, or a path relative to the folder
-   * @return the file
-   * @throws IOException if the name leads out of the folder or the folder cannot be created
-   */
+  private static void reportProgress(
+    final CommandSender sender,
+    final long started,
+    final long interval,
+    final long[] reported,
+    final long frames
+  ) {
+    final long now = System.nanoTime();
+    if (isProgressDue(now, reported[0], interval)) {
+      reported[0] = now;
+      final double millisecondsPerFrame = (now - started) / NANOSECONDS_PER_MILLISECOND / frames;
+      sender.sendMessage(
+        Message.MCV2_ENCODE_PROGRESS.build(String.format(Locale.ROOT, "%d frames, %.0f ms per frame", frames, millisecondsPerFrame))
+      );
+    }
+  }
+
+  // a hook so a test can kill the boundary mutant of the progress interval check
+  static boolean isProgressDue(final long now, final long reported, final long interval) {
+    final long elapsed = now - reported;
+    return elapsed >= interval;
+  }
+
   Path streamFile(final String name) throws IOException {
     final Path folder = this.plugin.getDataFolder().toPath().resolve(STREAMS).toAbsolutePath().normalize();
     final Path file = folder.resolve(name).normalize();
     if (!file.startsWith(folder) || file.equals(folder)) {
-      throw new IOException("Stream files are kept in " + folder + ", and " + name + " is not a file in it");
+      final String message = "Stream file %s is not a file in %s, where stream files are kept!".formatted(name, folder);
+      throw new IOException(message);
     }
+
     Files.createDirectories(folder);
+
     return file;
   }
 
@@ -531,20 +526,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     }
   }
 
-  /**
-   * Sets how video files are opened, instead of FFmpeg.
-   *
-   * @param replacement the opener
-   */
-  void setOpener(final Opener replacement) {
-    this.opener = replacement;
-  }
-
-  /**
-   * Gets the thread of the file encode started last.
-   *
-   * @return the thread, also while a cancelled encode cleans up, or null if none was started
-   */
+  // still set while a cancelled encode cleans up
   synchronized @Nullable Thread getEncoding() {
     final FileEncode current = this.encoding;
     return current == null ? null : current.thread();
@@ -556,6 +538,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
    * <p>Requires the permission {@code mcav.command.mcv2.encode}.
    *
    * @param sender who ran the command
+   * @since 1.0.0
    */
   @Command("mcav mcv2 cancel")
   @Permission("mcav.command.mcv2.encode")
@@ -571,26 +554,9 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
       sender.sendMessage(Message.MCV2_ENCODE_NONE.build());
       return;
     }
+
     // the encode tells its sender that it stopped
     running.stop();
-  }
-
-  /**
-   * Stops the stream, the reading of a stream file and the file encode when the plugin is disabled.
-   */
-  @Override
-  public void shutdown() {
-    this.loads++;
-    this.reads.shutdownNow();
-    this.stop();
-    final FileEncode running;
-    synchronized (this) {
-      running = this.encoding;
-      this.encoding = null;
-    }
-    if (running != null) {
-      running.stop();
-    }
   }
 
   /**
@@ -598,6 +564,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
    * page frames.
    *
    * @param sender who ran the command
+   * @since 1.0.0
    */
   @Command("mcav mcv2 stop")
   @Permission("mcav.command.mcv2.play")
@@ -608,11 +575,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     sender.sendMessage(Message.MCV2_STOP.build());
   }
 
-  /**
-   * Stops the stream played before, if any, and gives its slot of the pack back. The pack stays served and loaded, so
-   * the players' clients do not reload their resources when the next stream of the same size starts. Call on the main
-   * thread.
-   */
+  // the pack stays loaded, so clients do not reload their resources for the next stream
   void stop() {
     final BukkitTask running = this.task;
     if (running != null) {
@@ -641,49 +604,42 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     }
   }
 
-  /**
-   * Reads a stream: frames, each preceded by its length as a little-endian 32-bit number.
-   *
-   * @param file the stream
-   * @return the frames
-   * @throws IOException if the file is not a regular file of at most {@link #MAX_STREAM_BYTES}, cannot be read or is
-   *                     cut off
-   */
   static List<byte[]> read(final Path file) throws IOException {
-    return read(file, MAX_STREAM_BYTES);
+    return read(file, MAXIMUM_STREAM_BYTES);
   }
 
-  /**
-   * Reads a stream of at most some size. Only a regular file is read, and its size is checked first: a device such as
-   * {@code /dev/zero} would never end, and a huge file would fill the memory.
-   *
-   * @param file  the stream
-   * @param limit the most bytes read
-   * @return the frames
-   * @throws IOException if the file is not a regular file of at most the limit, cannot be read or is cut off
-   */
+  // regular files only, size checked first: /dev/zero never ends and a huge file fills the memory
   static List<byte[]> read(final Path file, final long limit) throws IOException {
     if (!Files.isRegularFile(file)) {
-      throw new IOException("Not a stream file: " + file.getFileName());
+      final String message = "File %s is not a stream file!".formatted(file.getFileName());
+      throw new IOException(message);
     }
+
     if (Files.size(file) > limit) {
-      throw new IOException("The stream file is larger than " + limit + " bytes");
+      final String message = "The stream file is larger than %s bytes!".formatted(limit);
+      throw new IOException(message);
     }
+
     final byte[] data = Files.readAllBytes(file);
+    return splitFrames(data);
+  }
+
+  private static List<byte[]> splitFrames(final byte[] data) throws IOException {
     final List<byte[]> frames = new ArrayList<>();
     int offset = 0;
     while (offset < data.length) {
       if (data.length - offset < LENGTH_BYTES) {
-        throw new IOException("Truncated frame length");
+        throw new IOException("Truncated frame length!");
       }
       final long length = Mcv2Decoder.u32(data, offset);
       if (length > data.length - offset - LENGTH_BYTES) {
-        throw new IOException("Truncated frame");
+        throw new IOException("Truncated frame!");
       }
       // a record no frame can be is refused before it is copied: records of a few bytes each would make the copies
       // take several times the file's size in memory
       if (length < Mcv2Decoder.HEADER_BYTES || length > Mcv2Decoder.MAXIMUM_FRAME_BYTES) {
-        throw new IOException("Invalid MCV2 frame length: " + length);
+        final String message = "MCV2 frame length %s is invalid!".formatted(length);
+        throw new IOException(message);
       }
       final byte[] frame = new byte[(int) length];
       System.arraycopy(data, offset + LENGTH_BYTES, frame, 0, frame.length);
@@ -691,8 +647,49 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
       offset += LENGTH_BYTES + frame.length;
     }
     if (frames.isEmpty()) {
-      throw new IOException("Empty stream");
+      throw new IOException("Empty stream!");
     }
+
     return frames;
+  }
+
+  void setOpener(final Opener replacement) {
+    this.opener = replacement;
+  }
+
+  @FunctionalInterface
+  interface Opener {
+    Mcv2FileEncoder.FrameReader open(Path video, int width, int height) throws IOException;
+  }
+
+  private record FileEncode(Thread thread, AtomicBoolean stopped) {
+    void stop() {
+      this.stopped.set(true);
+      this.thread.interrupt();
+    }
+  }
+
+  // re-interrupts around every read: code on the thread, such as an instrumenting agent, may clear the interrupt
+  private record StoppableFrames(Mcv2FileEncoder.FrameReader frames, AtomicBoolean stopped) implements Mcv2FileEncoder.FrameReader {
+    @Override
+    public boolean read(final byte[] rgb) {
+      // before, so a read that waits is interrupted
+      this.interruptIfStopped();
+      final boolean more = this.frames.read(rgb);
+      this.interruptIfStopped();
+
+      return more;
+    }
+
+    @Override
+    public void close() {
+      this.frames.close();
+    }
+
+    private void interruptIfStopped() {
+      if (this.stopped.get()) {
+        Thread.currentThread().interrupt();
+      }
+    }
   }
 }

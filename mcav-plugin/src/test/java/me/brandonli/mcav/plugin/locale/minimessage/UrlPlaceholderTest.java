@@ -27,6 +27,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.UUID;
 import me.brandonli.mcav.plugin.testing.Components;
 import net.kyori.adventure.key.Key;
@@ -52,20 +53,28 @@ final class UrlPlaceholderTest {
   private static final String INJECTION =
     "https://example.test/'><click:run_command:'/say injected'>owned</click><click:open_url:'https://example.test";
 
+  private static final String URL_PLACEHOLDER = "$URL$";
+  private static final String CLICKABLE_URL_TEMPLATE = "<click:open_url:'$URL$'>$URL$</click>";
+
+  private static final String QUOTED_URL = "https://example.test/a'b";
+
+  private static final String MESSAGE_KEY = "message";
+
   @ParameterizedTest
   @ValueSource(strings = { "https://example.test/normal", "https://example.test/a'b", "https://example.test/a%5Cb?x=$URL$" })
-  void legacyQuotedClickTargetsAndVisibleUrlsRemainLiteral(final String url) {
+  void shouldKeepLegacyQuotedClickTargetsAndVisibleUrlsLiteral(final String url) {
     final MiniMessage parser = MiniMessage.miniMessage();
-    final MiniMessageTranslator translator = translator("<click:open_url:'$URL$'>$URL$</click>", parser);
+    final MiniMessageTranslator translator = this.translator(CLICKABLE_URL_TEMPLATE, parser);
     final Component argument = Component.text(url);
-    final TranslatableComponent input = Component.translatable("message", argument);
+    final TranslatableComponent input = Component.translatable(MESSAGE_KEY, argument);
     final Component actual = translator.translate(input, Locale.ENGLISH);
     assertNotNull(actual);
+
     final ClickEvent<?> click = ClickEvent.openUrl(url);
     final Component text = Component.text(url);
     final Component expected = text.clickEvent(click);
     assertEquals(expected, actual, "URL text and the click payload must round-trip without MiniMessage interpretation");
-    assertNoRunCommands(actual);
+    this.assertNoRunCommands(actual);
   }
 
   @ParameterizedTest
@@ -77,33 +86,40 @@ final class UrlPlaceholderTest {
       INJECTION,
     }
   )
-  void invalidClickTargetsKeepLiteralTextWithoutAnEvent(final String url) {
+  void shouldKeepTheLiteralTextOfAnInvalidClickTargetWithoutAnEvent(final String url) {
     final MiniMessage parser = MiniMessage.miniMessage();
-    final MiniMessageTranslator translator = translator("<click:open_url:'$URL$'>$URL$</click>", parser);
+    final MiniMessageTranslator translator = this.translator(CLICKABLE_URL_TEMPLATE, parser);
     final Component argument = Component.text(url);
-    final TranslatableComponent input = Component.translatable("message", argument);
+    final TranslatableComponent input = Component.translatable(MESSAGE_KEY, argument);
     final Component actual = translator.translate(input, Locale.ENGLISH);
     assertNotNull(actual);
+
     final Component expected = Component.text(url);
     assertEquals(expected, actual);
+
     final ClickEvent<?> click = actual.clickEvent();
     assertNull(click);
-    assertNoRunCommands(actual);
+    this.assertNoRunCommands(actual);
   }
 
   @Test
-  void preservesUrlTextHoverTextAndTheOriginalArgumentAndSuffix() {
+  void shouldPreserveUrlTextHoverTextAndTheOriginalArgumentAndSuffix() {
     final MiniMessage parser = MiniMessage.miniMessage();
-    final MiniMessageTranslator translator = translator("<red>$URL$</red> <arg:1></arg> <hover:show_text:'$URL$'>hover</hover>", parser);
+    final MiniMessageTranslator translator = this.translator(
+      "<red>$URL$</red> <arg:1></arg> <hover:show_text:'$URL$'>hover</hover>",
+      parser
+    );
     final Component argument = Component.text(INJECTION);
     final Component second = Component.text("literal $URL$", NamedTextColor.GOLD);
     final Component suffix = Component.text(" suffix $URL$", NamedTextColor.BLUE);
-    final TranslatableComponent base = Component.translatable("message", argument, second);
+    final TranslatableComponent base = Component.translatable(MESSAGE_KEY, argument, second);
     final TranslatableComponent input = base.append(suffix);
     final Component actual = translator.translate(input, Locale.ENGLISH);
     assertNotNull(actual);
+
     final String plain = Components.plain(actual);
     assertEquals(INJECTION + " literal $URL$ hover suffix $URL$", plain);
+
     final Component red = Component.text(INJECTION, NamedTextColor.RED);
     final Component space = Component.text(" ");
     final Component hoverText = Component.text(INJECTION);
@@ -113,18 +129,22 @@ final class UrlPlaceholderTest {
     final Component empty = Component.empty();
     final Component expected = empty.append(red, space, second, space, hovering, suffix);
     assertEquals(expected, actual);
-    assertNoRunCommands(actual);
+    this.assertNoRunCommands(actual);
   }
 
   @Test
-  void preservesRepeatedPlaceholdersWithinExistingClickTargets() {
-    final String url = "https://example.test/a'b";
+  void shouldPreserveRepeatedPlaceholdersWithinExistingClickTargets() {
+    final String url = QUOTED_URL;
     final MiniMessage parser = MiniMessage.miniMessage();
-    final MiniMessageTranslator translator = translator("<click:open_url:'https://redirect.test/?to=$URL$&again=$URL$'>go</click>", parser);
+    final MiniMessageTranslator translator = this.translator(
+      "<click:open_url:'https://redirect.test/?to=$URL$&again=$URL$'>go</click>",
+      parser
+    );
     final Component argument = Component.text(url);
-    final TranslatableComponent input = Component.translatable("message", argument);
+    final TranslatableComponent input = Component.translatable(MESSAGE_KEY, argument);
     final Component actual = translator.translate(input, Locale.ENGLISH);
     assertNotNull(actual);
+
     final String target = "https://redirect.test/?to=" + url + "&again=" + url;
     final ClickEvent<?> click = ClickEvent.openUrl(target);
     final Component label = Component.text("go");
@@ -133,42 +153,44 @@ final class UrlPlaceholderTest {
   }
 
   @Test
-  void doesNotEnableClickTagsExcludedByTheSuppliedParser() {
+  void shouldNotEnableClickTagsExcludedByTheSuppliedParser() {
     final TagResolver colors = StandardTags.color();
     final MiniMessage.Builder builder = MiniMessage.builder();
     builder.tags(colors);
     final MiniMessage parser = builder.build();
-    final MiniMessageTranslator translator = translator("<red><click:open_url:'$URL$'>$URL$</click></red>", parser);
+    final MiniMessageTranslator translator = this.translator("<red><click:open_url:'$URL$'>$URL$</click></red>", parser);
     final Component argument = Component.text(INJECTION);
-    final TranslatableComponent input = Component.translatable("message", argument);
+    final TranslatableComponent input = Component.translatable(MESSAGE_KEY, argument);
     final Component actual = translator.translate(input, Locale.ENGLISH);
     assertNotNull(actual);
+
     final Component expected = Component.text("<click:open_url:'" + INJECTION + "'>" + INJECTION + "</click>", NamedTextColor.RED);
     assertEquals(expected, actual);
-    assertNoRunCommands(actual);
+    this.assertNoRunCommands(actual);
   }
 
   @Test
-  void retainsCustomClickResolverSemantics() {
+  void shouldRetainCustomClickResolverSemantics() {
     final TagResolver customClick = TagResolver.resolver("click", (arguments, context) -> Tag.styling(NamedTextColor.GOLD));
     final MiniMessage.Builder builder = MiniMessage.builder();
     builder.tags(customClick);
     final MiniMessage parser = builder.build();
-    final MiniMessageTranslator translator = translator("<click:open_url:'$URL$'>$URL$</click>", parser);
+    final MiniMessageTranslator translator = this.translator(CLICKABLE_URL_TEMPLATE, parser);
     final Component argument = Component.text(INJECTION);
-    final TranslatableComponent input = Component.translatable("message", argument);
+    final TranslatableComponent input = Component.translatable(MESSAGE_KEY, argument);
     final Component actual = translator.translate(input, Locale.ENGLISH);
     assertNotNull(actual);
+
     final Component expected = Component.text(INJECTION, NamedTextColor.GOLD);
     assertEquals(expected, actual);
-    assertNoRunCommands(actual);
+    this.assertNoRunCommands(actual);
   }
 
   @Test
-  void restoresUrlsInsideHoverEntityNamesAndTranslationArguments() {
-    final String url = "https://example.test/a'b";
+  void shouldRestoreUrlsInsideHoverEntityNamesAndTranslationArguments() {
+    final String url = QUOTED_URL;
     final UrlPlaceholder placeholder = new UrlPlaceholder();
-    final String marker = placeholder.prepare("$URL$");
+    final String marker = placeholder.prepare(URL_PLACEHOLDER);
     final Component text = Component.text(marker);
     final ClickEvent<?> click = ClickEvent.openUrl(marker);
     final Component linked = text.clickEvent(click);
@@ -191,11 +213,11 @@ final class UrlPlaceholderTest {
     final TranslatableComponent expectedBase = original.arguments(expectedArguments);
     final Component expected = expectedBase.hoverEvent(expectedHover);
     assertEquals(expected, actual);
-    assertNoRunCommands(actual);
+    this.assertNoRunCommands(actual);
   }
 
   @Test
-  void leavesNonUrlEventsIntactAndSupportsNonTextComponents() {
+  void shouldLeaveNonUrlEventsIntactAndSupportsNonTextComponents() {
     final UrlPlaceholder placeholder = new UrlPlaceholder();
     final ClickEvent<?> click = ClickEvent.suggestCommand("/say ready");
     final Component score = Component.score("reviewer", "points");
@@ -205,18 +227,18 @@ final class UrlPlaceholderTest {
   }
 
   @Test
-  void missingUrlArgumentsStillFailClearly() {
+  void shouldStillFailClearlyOnMissingUrlArguments() {
     final MiniMessage parser = MiniMessage.miniMessage();
-    final MiniMessageTranslator translator = translator("$URL$", parser);
-    final TranslatableComponent input = Component.translatable("message");
+    final MiniMessageTranslator translator = this.translator(URL_PLACEHOLDER, parser);
+    final TranslatableComponent input = Component.translatable(MESSAGE_KEY);
     assertThrows(NoSuchElementException.class, () -> translator.translate(input, Locale.ENGLISH));
   }
 
-  private static MiniMessageTranslator translator(final String template, final MiniMessage parser) {
+  private MiniMessageTranslator translator(final String template, final MiniMessage parser) {
     return new MiniMessageTranslator(parser) {
       @Override
-      protected String getMiniMessageString(final String key, final Locale locale) {
-        return template;
+      protected Optional<String> getMiniMessageString(final String key, final Locale locale) {
+        return Optional.of(template);
       }
 
       @Override
@@ -226,17 +248,14 @@ final class UrlPlaceholderTest {
     };
   }
 
-  private static void assertNoRunCommands(final Component component) {
+  private void assertNoRunCommands(final Component component) {
     final EnumSet<ComponentIteratorFlag> flags = EnumSet.allOf(ComponentIteratorFlag.class);
     final Iterable<Component> descendants = component.iterable(ComponentIteratorType.DEPTH_FIRST, flags);
     for (final Component descendant : descendants) {
       final ClickEvent<?> click = descendant.clickEvent();
       if (click != null) {
-        assertNotEquals(
-          ClickEvent.Action.RUN_COMMAND,
-          click.action(),
-          "URL data must not inject commands in text, hover or argument components"
-        );
+        final ClickEvent.Action<? extends ClickEvent.Payload> action = click.action();
+        assertNotEquals(ClickEvent.Action.RUN_COMMAND, action, "URL data must not inject commands in text, hover or argument components");
       }
     }
   }

@@ -23,19 +23,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-/**
- * The values the hardware options of {@code /mcav vm create} may have: every comma-separated part of a value must have
- * one of the forms listed for its option, and everything else is refused.
- *
- * <p>QEMU's options take properties that name files: {@code -machine dumpdtb=} writes the device tree into a file and
- * {@code firmware=}, {@code kernel=}, {@code initrd=} and {@code dtb=} read one into the guest, relative to the
- * working folder of the server; {@code -boot splash=} reads a picture, and {@code -machine pcspk-audiodev=} would route
- * the sound of the guest, which mcav owns. A check for path separators lets all of them through, so the values are
- * checked against a positive list instead: machine types, accelerators, sizes, counts, CPU models and features, and
- * the switches of each option. The parts of {@code -drive} besides its disk image are checked the same way: only the
- * properties that say how the drive is attached, cached and reported are allowed, none that opens another file or
- * block node.
- */
+// every comma-separated part of a value must match a form listed for its option
 final class QemuHardwareValues {
 
   private static final Pattern WORD = Pattern.compile("[A-Za-z0-9._-]{1,64}");
@@ -88,7 +76,7 @@ final class QemuHardwareValues {
     "threads",
     NUMBER
   );
-  private static final Map<String, Pattern> ACCEL_PROPERTIES = Map.of(
+  private static final Map<String, Pattern> ACCELERATOR_PROPERTIES = Map.of(
     "thread",
     Pattern.compile("single|multi"),
     "tb-size",
@@ -161,79 +149,87 @@ final class QemuHardwareValues {
   private static final Splitter PARTS = Splitter.on(',');
   private static final Splitter PROPERTY = Splitter.on('=').limit(2);
 
+  private static final String MACHINE_OPTION = "machine";
+  static final String MEMORY_OPTION = "m";
+  private static final String PROCESSORS_OPTION = "smp";
+  private static final String ACCELERATOR_OPTION = "accel";
+  private static final String BOOT_OPTION = "boot";
+  private static final String NAME_OPTION = "name";
+  private static final String CLOCK_OPTION = "rtc";
+  private static final String CPU_OPTION = "cpu";
+  private static final String KEYBOARD_OPTION = "k";
+  private static final String VGA_OPTION = "vga";
+  private static final String DRIVE_OPTION = "drive";
+
+  static final String DEFAULT_MEMORY_SIZE = "128";
+
+  private static final String PROPERTY_SEPARATOR = "=";
+
+  private static final String SIZE_PROPERTY = "size=";
+
+  private static final char KIBIBYTE_SUFFIX = 'K';
+  private static final char GIBIBYTE_SUFFIX = 'G';
+  private static final char TEBIBYTE_SUFFIX = 'T';
+
+  private static final int KIBIBYTE_SHIFT = 10;
+  static final int MEBIBYTE_SHIFT = 20;
+  private static final int GIBIBYTE_SHIFT = 30;
+  private static final int TEBIBYTE_SHIFT = 40;
+
+  private static final int NAME_AND_VALUE_PARTS = 2;
+
   private QemuHardwareValues() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
-  /**
-   * Checks the value of a hardware option.
-   *
-   * @param name  the option, without its dash
-   * @param value the value as entered
-   * @throws IllegalArgumentException if a part of the value has no form the option allows
-   */
   static void check(final String name, final String value) {
     final List<String> parts = PARTS.splitToList(value);
     final String first = parts.getFirst();
     final List<String> rest = parts.subList(1, parts.size());
     switch (name) {
-      case "machine" -> checkFirstAndProperties(name, value, first, WORD, rest, MACHINE_PROPERTIES);
-      case "m" -> checkFirstAndProperties(name, value, first, SIZE, rest, MEMORY_PROPERTIES);
-      case "smp" -> checkFirstAndProperties(name, value, first, NUMBER, rest, SMP_PROPERTIES);
-      case "accel" -> checkFirstAndProperties(name, value, first, ACCELERATOR, rest, ACCEL_PROPERTIES);
-      case "boot" -> checkFirstAndProperties(name, value, first, BOOT_DEVICES, rest, BOOT_PROPERTIES);
-      case "name" -> checkFirstAndProperties(name, value, first, GUEST_NAME, rest, NAME_PROPERTIES);
-      case "rtc" -> checkProperties(name, value, parts, RTC_PROPERTIES);
-      case "cpu" -> checkCpu(value, first, rest);
-      case "k" -> require(name, value, parts.size() == 1 && KEYBOARD.matcher(value).matches());
-      case "vga" -> require(name, value, parts.size() == 1 && VGA.matcher(value).matches());
-      default -> throw new IllegalArgumentException("The QEMU option -" + name + " is not a hardware option");
+      case MACHINE_OPTION -> checkFirstAndProperties(name, value, first, WORD, rest, MACHINE_PROPERTIES);
+      case MEMORY_OPTION -> checkFirstAndProperties(name, value, first, SIZE, rest, MEMORY_PROPERTIES);
+      case PROCESSORS_OPTION -> checkFirstAndProperties(name, value, first, NUMBER, rest, SMP_PROPERTIES);
+      case ACCELERATOR_OPTION -> checkFirstAndProperties(name, value, first, ACCELERATOR, rest, ACCELERATOR_PROPERTIES);
+      case BOOT_OPTION -> checkFirstAndProperties(name, value, first, BOOT_DEVICES, rest, BOOT_PROPERTIES);
+      case NAME_OPTION -> checkFirstAndProperties(name, value, first, GUEST_NAME, rest, NAME_PROPERTIES);
+      case CLOCK_OPTION -> checkProperties(name, value, parts, RTC_PROPERTIES);
+      case CPU_OPTION -> checkCpu(value, first, rest);
+      case KEYBOARD_OPTION -> require(name, value, parts.size() == 1 && KEYBOARD.matcher(value).matches());
+      case VGA_OPTION -> require(name, value, parts.size() == 1 && VGA.matcher(value).matches());
+      default -> {
+        final String message = "QEMU option -%s is not a hardware option!".formatted(name);
+        throw new IllegalArgumentException(message);
+      }
     }
   }
 
-  /**
-   * Gets the memory an {@code -m} value gives the machine, as QEMU reads it: a number of MiB, or of the unit its suffix
-   * names, as the value itself or as its {@code size} property.
-   *
-   * @param value an {@code -m} value that {@link #check} accepted
-   * @return the size in bytes, {@link Long#MAX_VALUE} for a size beyond it, or QEMU's default of 128 MiB for a value
-   *         that sets no size
-   */
+  // as QEMU reads it: MiB without a suffix, 128 MiB when no size is set
   static long memoryBytes(final String value) {
-    String size = "128";
+    String size = DEFAULT_MEMORY_SIZE;
     for (final String part : PARTS.split(value)) {
-      if (!part.contains("=")) {
+      if (!part.contains(PROPERTY_SEPARATOR)) {
         size = part;
-      } else if (part.startsWith("size=")) {
-        size = part.substring("size=".length());
+      } else if (part.startsWith(SIZE_PROPERTY)) {
+        size = part.substring(SIZE_PROPERTY.length());
       }
     }
     final char last = size.charAt(size.length() - 1);
     final boolean suffix = Character.isLetter(last);
     final long number = Long.parseLong(suffix ? size.substring(0, size.length() - 1) : size);
     final int shift = switch (Character.toUpperCase(last)) {
-      case 'K' -> 10;
-      case 'G' -> 30;
-      case 'T' -> 40;
-      default -> 20;
+      case KIBIBYTE_SUFFIX -> KIBIBYTE_SHIFT;
+      case GIBIBYTE_SUFFIX -> GIBIBYTE_SHIFT;
+      case TEBIBYTE_SUFFIX -> TEBIBYTE_SHIFT;
+      default -> MEBIBYTE_SHIFT;
     };
     return number > Long.MAX_VALUE >> shift ? Long.MAX_VALUE : number << shift;
   }
 
-  /**
-   * Checks a part of a {@code -drive} value other than its disk image.
-   *
-   * @param part  the part, such as {@code media=disk}
-   * @param value the whole value as entered, for the message
-   * @throws IllegalArgumentException if the part is not a property of the list, or its value has another form
-   */
   static void checkDriveProperty(final String part, final String value) {
-    checkProperties("drive", value, List.of(part), DRIVE_PROPERTIES);
+    checkProperties(DRIVE_OPTION, value, List.of(part), DRIVE_PROPERTIES);
   }
 
-  /**
-   * Checks a value whose first part is either a plain value of a form or a property, followed by properties.
-   */
   private static void checkFirstAndProperties(
     final String name,
     final String value,
@@ -242,11 +238,12 @@ final class QemuHardwareValues {
     final List<String> rest,
     final Map<String, Pattern> properties
   ) {
-    if (!first.contains("=")) {
+    if (!first.contains(PROPERTY_SEPARATOR)) {
       require(name, value, plain.matcher(first).matches());
       checkProperties(name, value, rest, properties);
       return;
     }
+
     checkProperties(name, value, PARTS.splitToList(value), properties);
   }
 
@@ -258,28 +255,30 @@ final class QemuHardwareValues {
   ) {
     for (final String part : parts) {
       final List<String> nameAndValue = PROPERTY.splitToList(part);
-      final Pattern form = nameAndValue.size() == 2 ? properties.get(nameAndValue.getFirst()) : null;
+      final Pattern form = nameAndValue.size() == NAME_AND_VALUE_PARTS ? properties.get(nameAndValue.getFirst()) : null;
       if (form == null) {
-        throw new IllegalArgumentException("The QEMU option -" + name + " does not allow " + part + " in " + value);
+        final String message = "Value %s of the QEMU option -%s contains %s, which is not allowed!".formatted(value, name, part);
+        throw new IllegalArgumentException(message);
       }
       require(name, value, form.matcher(nameAndValue.getLast()).matches());
     }
   }
 
   private static void checkCpu(final String value, final String model, final List<String> features) {
-    require("cpu", value, WORD.matcher(model).matches());
+    require(CPU_OPTION, value, WORD.matcher(model).matches());
     for (final String feature : features) {
-      require("cpu", value, CPU_FEATURE.matcher(feature).matches());
-      if (feature.contains("=")) {
+      require(CPU_OPTION, value, CPU_FEATURE.matcher(feature).matches());
+      if (feature.contains(PROPERTY_SEPARATOR)) {
         final String property = PROPERTY.splitToList(feature).getFirst();
-        require("cpu", value, !FILE_PROPERTIES.contains(property));
+        require(CPU_OPTION, value, !FILE_PROPERTIES.contains(property));
       }
     }
   }
 
   private static void require(final String name, final String value, final boolean allowed) {
     if (!allowed) {
-      throw new IllegalArgumentException("The QEMU option -" + name + " does not allow the value " + value);
+      final String message = "Value %s of the QEMU option -%s is not allowed!".formatted(value, name);
+      throw new IllegalArgumentException(message);
     }
   }
 }

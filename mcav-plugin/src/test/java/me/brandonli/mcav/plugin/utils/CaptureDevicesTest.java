@@ -19,7 +19,6 @@ package me.brandonli.mcav.plugin.utils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -35,7 +34,10 @@ import java.nio.file.Path;
 import java.nio.file.attribute.PosixFileAttributeView;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
+import me.brandonli.mcav.plugin.testing.EqualityAssertions;
 import me.brandonli.mcav.utils.os.Os;
 import me.brandonli.mcav.utils.os.OsUtils;
 import org.bytedeco.javacv.FrameGrabber;
@@ -48,114 +50,198 @@ import org.mockito.Mockito;
 
 final class CaptureDevicesTest {
 
+  private static final String FIRST_PROBED_DEVICE_NAME = "device 1";
+  private static final String DEVICE_ZERO_NAME = "device 0";
+
+  private static final int CAPTURE_CARD_INDEX = 3;
+  private static final String CAPTURE_CARD_NAME = "Capture Card";
+
+  private static final String DEVICE_NAME_FILE_NAME = "name";
+  private static final String FIRST_VIDEO_FOLDER_NAME = "video0";
+  private static final String CAPTURE_CARD_FOLDER_NAME = "video3";
+  private static final String VIRTUAL_CAMERA_FOLDER_NAME = "video2";
+  private static final String UNNAMED_VIDEO_FOLDER_NAME = "video10";
+  private static final String LONG_NAME_VIDEO_FOLDER_NAME = "video11";
+  private static final String VBI_FOLDER_NAME = "vbi0";
+  private static final String LONG_NUMBER_FOLDER_NAME = "video1234";
+  private static final String MISSING_FOLDER_NAME = "missing";
+  private static final String PLAIN_FILE_NAME = "a file";
+  private static final String LOCKED_FOLDER_NAME = "locked";
+
+  private static final int DEVICE_INDEX = 4;
+  private static final String DEVICE_NAME = "Webcam";
+
   @TempDir
   Path folder;
 
   @Test
-  void isAUtilityClass() throws ReflectiveOperationException {
+  void shouldBeAUtilityClass() throws ReflectiveOperationException {
     final Constructor<CaptureDevices> constructor = CaptureDevices.class.getDeclaredConstructor();
     constructor.setAccessible(true);
     final InvocationTargetException thrown = assertThrows(InvocationTargetException.class, constructor::newInstance);
-    assertEquals(UnsupportedOperationException.class, thrown.getCause().getClass());
+
+    final Class<? extends Throwable> thrownClass = thrown.getCause().getClass();
+    assertEquals(UnsupportedOperationException.class, thrownClass);
   }
 
   @Test
-  void listsWhatLinuxNamesOnLinuxAndTriesNumbersElsewhere() throws IOException {
-    Files.writeString(Files.createDirectory(this.folder.resolve("video3")).resolve("name"), "Capture Card");
-    assertEquals(List.of(new CaptureDevices.Device(3, "Capture Card")), CaptureDevices.list(Os.LINUX, this.folder, _ -> true));
-    final List<CaptureDevices.Device> tried = CaptureDevices.list(Os.WINDOWS, this.folder, index -> index == 1);
-    assertEquals(List.of(new CaptureDevices.Device(1, "device 1")), tried);
-  }
-
-  @Test
-  void listsTheVideoDevicesLinuxDescribesByNumber() throws IOException {
-    Files.writeString(Files.createDirectory(this.folder.resolve("video2")).resolve("name"), "OBS Virtual Camera\n");
-    Files.writeString(Files.createDirectory(this.folder.resolve("video0")).resolve("name"), "Integrated Camera");
-    Files.createDirectory(this.folder.resolve("video10"));
-    Files.writeString(Files.createDirectory(this.folder.resolve("video11")).resolve("name"), "x".repeat(100));
-    Files.writeString(Files.createDirectory(this.folder.resolve("vbi0")).resolve("name"), "not a camera");
-    Files.createDirectory(this.folder.resolve("video1234"));
-    final List<CaptureDevices.Device> devices = CaptureDevices.listSysfs(this.folder);
-    assertEquals(
-      List.of(
-        new CaptureDevices.Device(0, "Integrated Camera"),
-        new CaptureDevices.Device(2, "OBS Virtual Camera"),
-        new CaptureDevices.Device(10, "video10"),
-        new CaptureDevices.Device(11, "x".repeat(CaptureDevices.MAX_NAME))
-      ),
-      devices
+  void shouldListWhatLinuxNamesOnLinuxAndTryNumbersElsewhere() throws IOException {
+    Files.writeString(
+      Files.createDirectory(this.folder.resolve(CAPTURE_CARD_FOLDER_NAME)).resolve(DEVICE_NAME_FILE_NAME),
+      CAPTURE_CARD_NAME
     );
+
+    final List<CaptureDevices.Device> expected = List.of(CaptureDevices.Device.of(CAPTURE_CARD_INDEX, CAPTURE_CARD_NAME));
+    final List<CaptureDevices.Device> listed = CaptureDevices.list(Os.LINUX, this.folder, _ -> true);
+    assertEquals(expected, listed);
+
+    final List<CaptureDevices.Device> tried = CaptureDevices.list(Os.WINDOWS, this.folder, index -> index == 1);
+
+    final List<CaptureDevices.Device> listExpected = List.of(CaptureDevices.Device.of(1, FIRST_PROBED_DEVICE_NAME));
+    assertEquals(listExpected, tried);
   }
 
   @Test
-  void listsNothingWithoutTheFolderOrWhenItCannotBeRead() throws IOException {
-    assertEquals(List.of(), CaptureDevices.listSysfs(this.folder.resolve("missing")));
-    assertEquals(List.of(), CaptureDevices.listSysfs(Files.writeString(this.folder.resolve("a file"), "")));
-    final Path locked = Files.createDirectory(this.folder.resolve("locked"));
-    Files.createDirectory(locked.resolve("video0"));
-    assumeTrue(Files.getFileStore(locked).supportsFileAttributeView(PosixFileAttributeView.class), "POSIX permissions");
+  void shouldListTheVideoDevicesLinuxDescribesByNumber() throws IOException {
+    Files.writeString(
+      Files.createDirectory(this.folder.resolve(VIRTUAL_CAMERA_FOLDER_NAME)).resolve(DEVICE_NAME_FILE_NAME),
+      "OBS Virtual Camera\n"
+    );
+    Files.writeString(
+      Files.createDirectory(this.folder.resolve(FIRST_VIDEO_FOLDER_NAME)).resolve(DEVICE_NAME_FILE_NAME),
+      "Integrated Camera"
+    );
+    Files.createDirectory(this.folder.resolve(UNNAMED_VIDEO_FOLDER_NAME));
+    Files.writeString(
+      Files.createDirectory(this.folder.resolve(LONG_NAME_VIDEO_FOLDER_NAME)).resolve(DEVICE_NAME_FILE_NAME),
+      "x".repeat(100)
+    );
+    Files.writeString(Files.createDirectory(this.folder.resolve(VBI_FOLDER_NAME)).resolve(DEVICE_NAME_FILE_NAME), "not a camera");
+    Files.createDirectory(this.folder.resolve(LONG_NUMBER_FOLDER_NAME));
+    final List<CaptureDevices.Device> devices = CaptureDevices.listSysfs(this.folder);
+
+    final List<CaptureDevices.Device> expected = List.of(
+      CaptureDevices.Device.of(0, "Integrated Camera"),
+      CaptureDevices.Device.of(2, "OBS Virtual Camera"),
+      CaptureDevices.Device.of(10, UNNAMED_VIDEO_FOLDER_NAME),
+      CaptureDevices.Device.of(11, "x".repeat(CaptureDevices.MAXIMUM_NAME))
+    );
+    assertEquals(expected, devices);
+  }
+
+  @Test
+  void shouldListNothingWithoutTheFolderOrWhenItCannotBeRead() throws IOException {
+    final List<CaptureDevices.Device> listed = CaptureDevices.listSysfs(this.folder.resolve(MISSING_FOLDER_NAME));
+    assertEquals(List.of(), listed);
+
+    final List<CaptureDevices.Device> captureDevicesListed = CaptureDevices.listSysfs(
+      Files.writeString(this.folder.resolve(PLAIN_FILE_NAME), "")
+    );
+    assertEquals(List.of(), captureDevicesListed);
+
+    final Path locked = Files.createDirectory(this.folder.resolve(LOCKED_FOLDER_NAME));
+    Files.createDirectory(locked.resolve(FIRST_VIDEO_FOLDER_NAME));
+    assumeTrue(
+      Files.getFileStore(locked).supportsFileAttributeView(PosixFileAttributeView.class),
+      "The file system must support POSIX permissions!"
+    );
+
     final Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(locked);
     Files.setPosixFilePermissions(locked, Set.of());
     try {
-      assertEquals(List.of(), CaptureDevices.listSysfs(locked));
+      final List<CaptureDevices.Device> secondListed = CaptureDevices.listSysfs(locked);
+      assertEquals(List.of(), secondListed);
     } finally {
       Files.setPosixFilePermissions(locked, permissions);
     }
   }
 
   @Test
-  void triesTheFirstNumbersWhereTheSystemDoesNotListDevices() {
+  void shouldTryTheFirstNumbersWhereTheSystemDoesNotListDevices() {
     final List<CaptureDevices.Device> devices = CaptureDevices.probe(4, index -> index % 2 == 1);
-    assertEquals(List.of(new CaptureDevices.Device(1, "device 1"), new CaptureDevices.Device(3, "device 3")), devices);
-    assertEquals(List.of(), CaptureDevices.probe(0, _ -> true));
+
+    final List<CaptureDevices.Device> expected = List.of(
+      CaptureDevices.Device.of(1, FIRST_PROBED_DEVICE_NAME),
+      CaptureDevices.Device.of(3, "device 3")
+    );
+    assertEquals(expected, devices);
+
+    final List<CaptureDevices.Device> captureDevicesDevices = CaptureDevices.probe(0, _ -> true);
+    assertEquals(List.of(), captureDevicesDevices);
     assertThrows(IllegalArgumentException.class, () -> CaptureDevices.probe(-1, _ -> true));
   }
 
   @Test
-  void aDeviceOpensWhenItsGrabberStartsAndIsClosedAgain() throws IOException {
+  void shouldOpenADeviceWhenItsGrabberStartsAndCloseItAgain() throws IOException {
     final FrameGrabber grabber = mock(FrameGrabber.class);
-    assertTrue(CaptureDevices.opens(_ -> grabber, 0));
+
+    final boolean opened = CaptureDevices.opens(_ -> grabber, 0);
+    assertTrue(opened);
+
     verify(grabber).start();
     verify(grabber).close();
   }
 
   @Test
-  void aNumberWithoutADeviceDoesNotOpen() {
-    assertFalse(CaptureDevices.opens(63));
+  void shouldNotOpenANumberWithoutADevice() {
+    final boolean opened = CaptureDevices.opens(63);
+    assertFalse(opened);
   }
 
   @Test
-  void triesDevicesOnlyWhereTheSystemDoesNotListThem() {
-    final FrameGrabber.Exception noCamera = new FrameGrabber.Exception("no camera");
+  void shouldTryDevicesOnlyWhereTheSystemDoesNotListThem() {
+    final FrameGrabber.Exception noCamera = new FrameGrabber.Exception("no camera!");
     try (
       final MockedStatic<OsUtils> systems = Mockito.mockStatic(OsUtils.class);
       final MockedConstruction<OpenCVFrameGrabber> grabbers = Mockito.mockConstruction(OpenCVFrameGrabber.class, (grabber, _) ->
-        doThrow(noCamera).when(grabber).start()
+        this.failStart(grabber, noCamera)
       )
     ) {
       systems.when(OsUtils::getOs).thenReturn(Os.WINDOWS);
-      assertEquals(List.of(), CaptureDevices.list());
+
+      final List<CaptureDevices.Device> listed = CaptureDevices.list();
+      assertEquals(List.of(), listed);
+
       final int tried = grabbers.constructed().size();
       systems.when(OsUtils::getOs).thenReturn(Os.LINUX);
-      assertEquals(CaptureDevices.listSysfs(CaptureDevices.SYSFS), CaptureDevices.list());
+
+      final List<CaptureDevices.Device> expected = CaptureDevices.listSysfs(CaptureDevices.SYSFS);
+      final List<CaptureDevices.Device> captureDevicesListed = CaptureDevices.list();
+      assertEquals(expected, captureDevicesListed);
 
       assertTrue(tried > 0, "the numbers are tried");
-      assertEquals(tried, grabbers.constructed().size(), "Linux names its devices, and listing them opens none");
+
+      final int size = grabbers.constructed().size();
+      assertEquals(tried, size, "Linux names its devices, and listing them opens none");
     }
   }
 
+  private void failStart(final OpenCVFrameGrabber grabber, final FrameGrabber.Exception noCamera) throws FrameGrabber.Exception {
+    doThrow(noCamera).when(grabber).start();
+  }
+
   @Test
-  void listsTheNumbersWhoseOpenCvGrabberStartsWhereTheSystemDoesNotListDevices() throws IOException {
+  void shouldListTheNumbersWhoseOpenCvGrabberStartsWhereTheSystemDoesNotListDevices() throws IOException {
     try (
       final MockedStatic<OsUtils> systems = Mockito.mockStatic(OsUtils.class);
       final MockedConstruction<OpenCVFrameGrabber> grabbers = Mockito.mockConstruction(OpenCVFrameGrabber.class)
     ) {
       systems.when(OsUtils::getOs).thenReturn(Os.WINDOWS);
       final List<CaptureDevices.Device> devices = CaptureDevices.list();
-      assertEquals(new CaptureDevices.Device(0, "device 0"), devices.getFirst());
-      assertTrue(CaptureDevices.opens(5));
+
+      final CaptureDevices.Device expected = CaptureDevices.Device.of(0, DEVICE_ZERO_NAME);
+      final CaptureDevices.Device device = devices.getFirst();
+      assertEquals(expected, device);
+
+      final boolean captureDevicesOpened = CaptureDevices.opens(5);
+      assertTrue(captureDevicesOpened);
+
       final List<OpenCVFrameGrabber> opened = grabbers.constructed();
-      assertEquals(devices.size() + 1, opened.size());
+
+      final int secondExpected = devices.size() + 1;
+      final int size = opened.size();
+      assertEquals(secondExpected, size);
+
       for (final OpenCVFrameGrabber grabber : opened) {
         verify(grabber).close();
       }
@@ -163,14 +249,67 @@ final class CaptureDevicesTest {
   }
 
   @Test
-  void findsAListedDeviceOnlyByItsExactNumber() {
-    final List<CaptureDevices.Device> devices = List.of(new CaptureDevices.Device(0, "a"), new CaptureDevices.Device(12, "b"));
-    assertEquals(devices.get(1), CaptureDevices.find(devices, "12"));
-    assertNull(CaptureDevices.find(devices, "012"));
-    assertNull(CaptureDevices.find(devices, "1"));
-    assertNull(CaptureDevices.find(devices, " 0"));
-    assertNull(CaptureDevices.find(List.of(), "0"));
+  void shouldFindAListedDeviceOnlyByItsExactNumber() {
+    final List<CaptureDevices.Device> devices = List.of(CaptureDevices.Device.of(0, "a"), CaptureDevices.Device.of(12, "b"));
+
+    final CaptureDevices.Device expected = devices.get(1);
+    final Optional<CaptureDevices.Device> found = CaptureDevices.find(devices, "12");
+    assertEquals(Optional.of(expected), found);
+
+    final Optional<CaptureDevices.Device> captureDevicesFound = CaptureDevices.find(devices, "012");
+    assertEquals(Optional.empty(), captureDevicesFound);
+
+    final Optional<CaptureDevices.Device> secondFound = CaptureDevices.find(devices, "1");
+    assertEquals(Optional.empty(), secondFound);
+
+    final Optional<CaptureDevices.Device> thirdFound = CaptureDevices.find(devices, " 0");
+    assertEquals(Optional.empty(), thirdFound);
+
+    final Optional<CaptureDevices.Device> fourthFound = CaptureDevices.find(List.of(), "0");
+    assertEquals(Optional.empty(), fourthFound);
     assertThrows(NullPointerException.class, () -> CaptureDevices.find(null, "0"));
     assertThrows(NullPointerException.class, () -> CaptureDevices.find(devices, null));
+  }
+
+  @Test
+  void shouldFollowTheEqualityContract() {
+    final CaptureDevices.Device device = CaptureDevices.Device.of(DEVICE_INDEX, DEVICE_NAME);
+    final CaptureDevices.Device equalDevice = CaptureDevices.Device.of(DEVICE_INDEX, DEVICE_NAME);
+    final CaptureDevices.Device otherIndex = CaptureDevices.Device.of(DEVICE_INDEX + 1, DEVICE_NAME);
+    final CaptureDevices.Device otherName = CaptureDevices.Device.of(DEVICE_INDEX, "Webcam 2");
+    EqualityAssertions.assertEqualityContract(device, equalDevice, otherIndex, otherName);
+  }
+
+  @Test
+  void shouldHashTheIndexThenTheName() {
+    final CaptureDevices.Device device = CaptureDevices.Device.of(DEVICE_INDEX, DEVICE_NAME);
+
+    final int hash = device.hashCode();
+    final int expected = Objects.hash(DEVICE_INDEX, DEVICE_NAME);
+    assertEquals(expected, hash);
+  }
+
+  @Test
+  void shouldRenderTheIndexAndTheName() {
+    final CaptureDevices.Device device = CaptureDevices.Device.of(0, DEVICE_ZERO_NAME);
+    final String text = device.toString();
+    assertEquals("Device{index=0, name=device 0}", text);
+  }
+
+  @Test
+  void shouldKeepTheIndexAndTheNameOfADevice() {
+    final CaptureDevices.Device device = CaptureDevices.Device.of(CAPTURE_CARD_INDEX, CAPTURE_CARD_NAME);
+    final int index = device.getIndex();
+    final String name = device.getName();
+    assertEquals(CAPTURE_CARD_INDEX, index);
+    assertEquals(CAPTURE_CARD_NAME, name);
+  }
+
+  @Test
+  void shouldRefuseADeviceWithoutAName() {
+    final NullPointerException thrown = assertThrows(NullPointerException.class, () -> CaptureDevices.Device.of(0, null));
+
+    final String message = thrown.getMessage();
+    assertEquals("Name must not be null!", message);
   }
 }

@@ -53,18 +53,23 @@ import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitScheduler;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
 
-/**
- * Tests {@link VideoScoreboardCommand}. The common playback flow is skipped, so only the arguments passed to it
- * and the sidebar it creates are checked.
- */
 final class VideoScoreboardCommandTest {
+
+  private static final int RESOLUTION_WIDTH = 24;
+  private static final int RESOLUTION_HEIGHT = 15;
+
+  private static final String CHARACTER = "#";
+
+  private static final String MRL = "0";
 
   private VideoPlayerManager manager;
   private VideoScoreboardCommand command;
@@ -77,12 +82,7 @@ final class VideoScoreboardCommandTest {
     TestServer.resetWithDeferredTasks();
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
     this.manager = mock(VideoPlayerManager.class);
-    Mockito.doAnswer(invocation -> {
-      final FunctionalVideoFilter filter = invocation.getArgument(0);
-      final BukkitScheduler scheduler = Bukkit.getScheduler();
-      scheduler.runTask(plugin, filter::start);
-      return null;
-    })
+    Mockito.doAnswer(invocation -> this.runFilterOnMainThread(invocation, plugin))
       .when(this.manager)
       .startFilter(any(FunctionalVideoFilter.class));
     final AudioProvider provider = mock(AudioProvider.class);
@@ -90,14 +90,22 @@ final class VideoScoreboardCommandTest {
     when(plugin.getAudioProvider()).thenReturn(provider);
     final VideoScoreboardCommand realCommand = new VideoScoreboardCommand(plugin);
     this.command = spy(realCommand);
-    skipPlayback(this.command);
+    this.skipPlayback(this.command);
 
     this.viewer = UUID.randomUUID();
-    this.selector = mockSelector(this.viewer);
+    this.selector = this.mockSelector(this.viewer);
     this.sender = mock(CommandSender.class);
   }
 
-  private static void skipPlayback(final AbstractVideoCommand command) {
+  private @Nullable Object runFilterOnMainThread(final InvocationOnMock invocation, final MCAVSandbox plugin) {
+    final FunctionalVideoFilter filter = invocation.getArgument(0);
+    final BukkitScheduler scheduler = Bukkit.getScheduler();
+    scheduler.runTask(plugin, filter::start);
+
+    return null;
+  }
+
+  private void skipPlayback(final AbstractVideoCommand command) {
     doNothing()
       .when(command)
       .playVideo(
@@ -113,17 +121,39 @@ final class VideoScoreboardCommandTest {
       );
   }
 
-  private static MultiplePlayerSelector mockSelector(final UUID viewer) {
+  private MultiplePlayerSelector mockSelector(final UUID viewer) {
     final Player player = mock(Player.class);
     when(player.getUniqueId()).thenReturn(viewer);
     final MultiplePlayerSelector selector = mock(MultiplePlayerSelector.class);
     final List<Player> players = List.of(player);
     when(selector.values()).thenReturn(players);
+
     return selector;
   }
 
+  @Test
+  void shouldPassTheArgumentsOnAndConfigureTheSidebar() {
+    final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
+
+    final Object built = configurationProvider.buildConfiguration(resolution);
+
+    final ScoreboardConfiguration configuration = assertInstanceOf(ScoreboardConfiguration.class, built);
+    this.assertSidebar(configuration);
+  }
+
   private AbstractVideoCommand.VideoConfigurationProvider playAndCaptureProvider() {
-    this.command.playVideo(this.sender, this.selector, PlayerArgument.DEVICE, AudioArgument.SIMPLE_VOICE_CHAT, "24x15", "#", "", "0", null);
+    this.command.playVideo(
+      this.sender,
+      this.selector,
+      PlayerArgument.DEVICE,
+      AudioArgument.SIMPLE_VOICE_CHAT,
+      "24x15",
+      CHARACTER,
+      "",
+      MRL,
+      null
+    );
     final ArgumentCaptor<AbstractVideoCommand.VideoConfigurationProvider> providers = ArgumentCaptor.forClass(
       AbstractVideoCommand.VideoConfigurationProvider.class
     );
@@ -134,10 +164,11 @@ final class VideoScoreboardCommandTest {
       eq(PlayerArgument.DEVICE),
       eq(AudioArgument.SIMPLE_VOICE_CHAT),
       eq("24x15"),
-      eq("0"),
+      eq(MRL),
       eq(""),
       isNull()
     );
+
     return providers.getValue();
   }
 
@@ -149,40 +180,20 @@ final class VideoScoreboardCommandTest {
     final int lines = configuration.getLines();
     final String character = configuration.getCharacter();
     assertEquals(expectedViewers, viewerList);
-    assertEquals(24, width);
-    assertEquals(15, lines);
-    assertEquals("#", character);
-  }
-
-  private void assertStartedOnTheMainThread(final FunctionalVideoFilter result) {
-    verify(this.manager).startFilter(result);
-    verify(result, never()).start();
-    final int tasks = TestServer.runPendingTasks();
-    assertEquals(1, tasks);
-    verify(result).start();
+    assertEquals(RESOLUTION_WIDTH, width);
+    assertEquals(RESOLUTION_HEIGHT, lines);
+    assertEquals(CHARACTER, character);
   }
 
   @Test
-  void passesTheArgumentsOnAndConfiguresTheSidebar() {
+  void shouldShowTheFramesOnASidebarShownOnTheMainThread() {
     final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
-    final Pair<Integer, Integer> resolution = Pair.pair(24, 15);
-
-    final Object built = configurationProvider.buildConfiguration(resolution);
-
-    final ScoreboardConfiguration configuration = assertInstanceOf(ScoreboardConfiguration.class, built);
-    this.assertSidebar(configuration);
-  }
-
-  @Test
-  void showsTheFramesOnASidebarShownOnTheMainThread() {
-    final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
-    final Pair<Integer, Integer> resolution = Pair.pair(24, 15);
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
     final List<List<?>> arguments = new ArrayList<>();
     try (
-      final MockedConstruction<ScoreboardResult> results = Mockito.mockConstruction(ScoreboardResult.class, (_, context) -> {
-        final List<?> constructorArguments = context.arguments();
-        arguments.add(constructorArguments);
-      })
+      final MockedConstruction<ScoreboardResult> results = Mockito.mockConstruction(ScoreboardResult.class, (_, context) ->
+        this.recordArguments(context, arguments)
+      )
     ) {
       final VideoPipelineStep pipeline = this.command.createVideoFilter(resolution, configurationProvider);
       final List<ScoreboardResult> constructed = results.constructed();
@@ -197,9 +208,23 @@ final class VideoScoreboardCommandTest {
     this.assertSidebar(configuration);
   }
 
+  private void recordArguments(final MockedConstruction.Context context, final List<List<?>> arguments) {
+    final List<?> constructorArguments = context.arguments();
+    arguments.add(constructorArguments);
+  }
+
+  private void assertStartedOnTheMainThread(final FunctionalVideoFilter result) {
+    verify(this.manager).startFilter(result);
+    verify(result, never()).start();
+
+    final int tasks = TestServer.runPendingTasks();
+    assertEquals(1, tasks);
+    verify(result).start();
+  }
+
   @Test
-  void refusesMoreLinesThanAScoreboardShows() {
-    this.command.playVideo(this.sender, this.selector, PlayerArgument.DEVICE, AudioArgument.NONE, "24x16", "#", "", "0", null);
+  void shouldRefuseMoreLinesThanAScoreboardShows() {
+    this.command.playVideo(this.sender, this.selector, PlayerArgument.DEVICE, AudioArgument.NONE, "24x16", CHARACTER, "", MRL, null);
 
     final List<Component> messages = Components.received(this.sender);
     final Component error = Message.SCOREBOARD_LINES.build();

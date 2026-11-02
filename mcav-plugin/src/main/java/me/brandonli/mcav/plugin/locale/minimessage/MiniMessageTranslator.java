@@ -21,6 +21,7 @@ import com.google.common.base.Preconditions;
 import java.text.MessageFormat;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.ComponentLike;
 import net.kyori.adventure.text.TranslatableComponent;
@@ -43,6 +44,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * insertion text, non-URL click actions, and parameters interpreted by custom resolvers, do not support this
  * placeholder. A custom resolver should insert those values through the appropriate Adventure API instead.
  * Subclasses only decide where the message text for a key comes from.
+ *
+ * <p>This class is immutable and thread-safe.
+ *
+ * @since 1.0.0
  */
 public abstract class MiniMessageTranslator implements Translator {
 
@@ -53,6 +58,8 @@ public abstract class MiniMessageTranslator implements Translator {
   /**
    * Creates a translator that parses messages with the default MiniMessage instance, which understands every
    * standard tag.
+   *
+   * @since 1.0.0
    */
   public MiniMessageTranslator() {
     this(MiniMessage.miniMessage());
@@ -64,9 +71,11 @@ public abstract class MiniMessageTranslator implements Translator {
    *
    * @param miniMessage the parser of the messages
    * @throws NullPointerException if the parser is {@code null}
+   * @since 1.0.0
    */
   public MiniMessageTranslator(final MiniMessage miniMessage) {
-    Preconditions.checkNotNull(miniMessage, "MiniMessage must not be null");
+    Preconditions.checkNotNull(miniMessage, "MiniMessage must not be null!");
+
     this.miniMessage = miniMessage;
   }
 
@@ -77,6 +86,7 @@ public abstract class MiniMessageTranslator implements Translator {
    * @param key    the key of the message
    * @param locale the locale Adventure renders for
    * @return null so Adventure can try another translation source
+   * @since 1.0.0
    */
   @Override
   public @Nullable MessageFormat translate(final @NonNull String key, final @NonNull Locale locale) {
@@ -90,17 +100,21 @@ public abstract class MiniMessageTranslator implements Translator {
    * @param component the component to render
    * @param locale    the locale Adventure renders for, passed on to {@link #getMiniMessageString(String, Locale)}
    * @return the rendered component, or null when this translator has no message for the key
-   * @throws NullPointerException               if the component or the locale is {@code null}
+   * @throws NullPointerException if the component or the locale is {@code null}
+   * @since 1.0.0
    */
   @Override
   public @Nullable Component translate(final @NonNull TranslatableComponent component, final @NonNull Locale locale) {
-    Preconditions.checkNotNull(component, "Component must not be null");
-    Preconditions.checkNotNull(locale, "Locale must not be null");
+    Preconditions.checkNotNull(component, "Component must not be null!");
+    Preconditions.checkNotNull(locale, "Locale must not be null!");
+
     final String key = component.key();
-    final String message = this.getMiniMessageString(key, locale);
+    final Optional<String> foundMessage = this.getMiniMessageString(key, locale);
+    final @Nullable String message = foundMessage.orElse(null);
     if (message == null) {
       return null;
     }
+
     final List<? extends ComponentLike> arguments = component.arguments();
     final Component rendered = this.deserializeMessage(message, arguments);
     final List<Component> children = component.children();
@@ -109,18 +123,11 @@ public abstract class MiniMessageTranslator implements Translator {
     return combined.applyFallbackStyle(originalStyle);
   }
 
-  private Component deserialize(final String content, final List<? extends ComponentLike> arguments) {
-    if (arguments.isEmpty()) {
-      return this.miniMessage.deserialize(content);
-    }
-    final ArgumentTag tag = new ArgumentTag(arguments);
-    return this.miniMessage.deserialize(content, tag);
-  }
-
   private Component deserializeMessage(final String message, final List<? extends ComponentLike> arguments) {
-    if (!message.contains("$URL$")) {
+    if (!message.contains(UrlPlaceholder.URL_TOKEN)) {
       return this.deserialize(message, arguments);
     }
+
     final ComponentLike argument = arguments.getFirst();
     final Component argumentComponent = argument.asComponent();
     final String plainText = PLAIN_TEXT_SERIALIZER.serialize(argumentComponent);
@@ -130,13 +137,22 @@ public abstract class MiniMessageTranslator implements Translator {
     return placeholder.render(parsed, plainText);
   }
 
+  private Component deserialize(final String content, final List<? extends ComponentLike> arguments) {
+    if (arguments.isEmpty()) {
+      return this.miniMessage.deserialize(content);
+    }
+
+    final ArgumentTag tag = new ArgumentTag(arguments);
+    return this.miniMessage.deserialize(content, tag);
+  }
+
   /**
-   * Gets the MiniMessage text of a message.
+   * Returns the MiniMessage text of a message.
    *
    * @param key    the key of the message, such as {@code mcav.command.image.load}
    * @param locale the locale Adventure renders for; implementations may ignore it when they serve one language
-   * @return the message text, or null when the key is unknown
-   * @throws java.util.MissingResourceException if there is no message with the key
+   * @return the message text, or empty when the key is unknown
+   * @since 1.0.0
    */
-  protected abstract @Nullable String getMiniMessageString(final String key, final Locale locale);
+  protected abstract Optional<String> getMiniMessageString(final String key, final Locale locale);
 }

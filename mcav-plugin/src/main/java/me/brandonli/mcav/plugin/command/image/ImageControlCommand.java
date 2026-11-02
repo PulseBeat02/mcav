@@ -35,12 +35,16 @@ import org.slf4j.LoggerFactory;
 
 /**
  * {@code /mcav image release}: removes the image that is shown.
+ *
+ * <p>This class is not thread-safe: use it on the server main thread, where Cloud runs its commands.
+ *
+ * @since 1.0.0
  */
 public final class ImageControlCommand implements AnnotationCommandFeature {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ImageControlCommand.class);
 
-  private static final String RELEASE_FAILED = "Failed to release the image";
+  private static final String RELEASE_FAILED = "Failed to release the image.";
 
   private final MCAVSandbox plugin;
   private final ImageManager manager;
@@ -49,9 +53,11 @@ public final class ImageControlCommand implements AnnotationCommandFeature {
    * Constructs the command.
    *
    * @param plugin the plugin
+   * @since 1.0.0
    */
   public ImageControlCommand(final MCAVSandbox plugin) {
-    Preconditions.checkNotNull(plugin, "Plugin must not be null");
+    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
+
     this.plugin = plugin;
     this.manager = plugin.getImageManager();
   }
@@ -66,31 +72,30 @@ public final class ImageControlCommand implements AnnotationCommandFeature {
    * command does nothing but still sends both messages.
    *
    * @param sender who ran the command
+   * @since 1.0.0
    */
   @Command("mcav image release")
   @Permission("mcav.command.image.release")
   @CommandDescription("mcav.command.image.release.info")
   public void releaseImage(final CommandSender sender) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
+
     final Component starting = Message.RELEASE_IMAGE_START.build();
     sender.sendMessage(starting);
 
     final ExecutorService service = this.manager.getService();
     final Component released = Message.RELEASE_IMAGE.build();
-    final Runnable done = TaskUtils.handleAsyncTask(this.plugin, () -> sender.sendMessage(released));
-    final CompletableFuture<Void> release = CompletableFuture.runAsync(() -> this.manager.releaseImage(false), service);
-    TaskUtils.whenComplete(release, (_, error) -> reportRelease(done, error));
+    final Runnable done = TaskUtils.createMainThreadHandover(this.plugin, () -> sender.sendMessage(released));
+    final CompletableFuture<Void> release = CompletableFuture.runAsync(() -> this.manager.releaseImage(ReleaseThread.MAIN_THREAD), service);
+    TaskUtils.whenComplete(release, (_, error) -> this.reportRelease(done, error));
   }
 
-  /**
-   * Tells the sender that the image is released once it is. A release that failed is logged, and the sender is not
-   * told that the image was released.
-   */
-  private static void reportRelease(final Runnable done, final @Nullable Throwable error) {
+  private void reportRelease(final Runnable done, final @Nullable Throwable error) {
     if (error != null) {
       LOGGER.error(RELEASE_FAILED, error);
       return;
     }
+
     done.run();
   }
 }

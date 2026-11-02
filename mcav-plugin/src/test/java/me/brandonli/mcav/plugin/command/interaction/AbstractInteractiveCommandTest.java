@@ -19,7 +19,6 @@ package me.brandonli.mcav.plugin.command.interaction;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -34,6 +33,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.common.util.concurrent.MoreExecutors;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import java.io.PrintStream;
 import java.nio.ByteBuffer;
@@ -41,6 +41,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -114,83 +115,64 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
 
-/**
- * Tests {@link AbstractInteractiveCommand} with an interactive player that is a plain string and a command that
- * records what it forwards. The Bukkit events are mocked, since their constructors are internal to the server.
- */
+// Bukkit events are mocked: their constructors are internal to the server
 final class AbstractInteractiveCommandTest {
 
   private static final String INTERACT_PERMISSION = "mcav.test.interact";
+
+  private static final int BLOCK_Y = 64;
+  private static final double BLOCK_CENTER_X = 0.5;
+  private static final double BLOCK_CENTER_Y = 64.5;
+  private static final double BLOCK_CENTER_Z = -0.5;
+
+  private static final double CORNER_FRAME_X = 0.1;
+  private static final double CORNER_FRAME_Y = 64.1;
+  private static final double CORNER_FRAME_Z = -0.9;
+  private static final double FRONT_FRAME_Z = -0.1;
+
+  private static final double RAY_TRACE_DISTANCE = 100.0;
+
+  private static final int AIMED_BOARD_X = 10;
+  private static final int AIMED_BOARD_Y = 20;
+  private static final int PUNCHED_BOARD_X = 3;
+  private static final int PUNCHED_BOARD_Y = 4;
+  private static final int SOURCE_BOARD_X = 200;
+  private static final int SOURCE_BOARD_Y = 100;
+  private static final int OTHER_BOARD_COORDINATE = 99;
+
+  private static final int WALL_BLOCK_WIDTH = 4;
+  private static final int WALL_BLOCK_HEIGHT = 3;
+  private static final int WALL_PIXEL_WIDTH = 512;
+  private static final int WALL_PIXEL_HEIGHT = 384;
+
+  private static final int SOURCE_PIXEL_WIDTH = 384;
+  private static final int SOURCE_PIXEL_HEIGHT = 256;
+
+  private static final int FIRST_MAP_ID = 7;
+  private static final int MAP_ID_BELOW_RANGE = 6;
+  private static final int MAP_ID_ABOVE_RANGE = 19;
+
+  private static final String BROWSER = "browser";
+  private static final String BROWSER_DESCRIPTION = "the browser";
+  private static final String FIRST_BROWSER = "first";
+  private static final String SECOND_BROWSER = "second";
+
+  private static final String STARTED_TEXT = "started";
+  private static final String REFUSED_TEXT = "failed: refused";
+  private static final String ENABLED_TEXT = "on";
+  private static final String DISABLED_TEXT = "off";
+  private static final String CHAT_TEXT = "hello world";
+
+  private static final String COORDINATE_SEPARATOR = ",";
+  private static final String AIMED_LEFT_CLICK = "browser left 10,20";
 
   private MCAVSandbox plugin;
   private RecordingCommand command;
   private FakeWorld fakeWorld;
   private Player player;
   private MockedStatic<InteractUtils> interactions;
-
-  /**
-   * A command that records the clicks and texts it forwards and the players it releases.
-   */
-  private static final class RecordingCommand extends AbstractInteractiveCommand<String> {
-
-    private final List<String> forwarded;
-    private final List<String> released;
-    private @Nullable Throwable releaseFailure;
-
-    RecordingCommand(final MCAVSandbox plugin) {
-      super(plugin);
-      this.forwarded = new ArrayList<>();
-      this.released = new ArrayList<>();
-    }
-
-    RecordingCommand(final MCAVSandbox plugin, final ExecutorService executor) {
-      super(plugin, executor);
-      this.forwarded = new ArrayList<>();
-      this.released = new ArrayList<>();
-    }
-
-    @Override
-    protected String getInteractionPermission() {
-      return INTERACT_PERMISSION;
-    }
-
-    @Override
-    protected void handleLeftClick(final String current, final int screenX, final int screenY) {
-      this.forwarded.add(current + " left " + screenX + "," + screenY);
-    }
-
-    @Override
-    protected void handleRightClick(final String current, final int screenX, final int screenY) {
-      this.forwarded.add(current + " right " + screenX + "," + screenY);
-    }
-
-    @Override
-    protected void handleTextInput(final String current, final String text) {
-      this.forwarded.add(current + " text " + text);
-    }
-
-    @Override
-    protected Component createStartMessage(final boolean succeeded, final @Nullable Throwable error) {
-      if (succeeded) {
-        return Component.text("started");
-      }
-      final String reason = error == null ? "refused" : error.getMessage();
-      return Component.text("failed: " + reason);
-    }
-
-    @Override
-    protected void releasePlayer(final String current) {
-      this.released.add(current);
-      final Throwable failure = this.releaseFailure;
-      if (failure instanceof final RuntimeException runtime) {
-        throw runtime;
-      }
-      if (failure instanceof final Error error) {
-        throw error;
-      }
-    }
-  }
 
   @BeforeEach
   void createCommand() {
@@ -214,161 +196,8 @@ final class AbstractInteractiveCommandTest {
     this.command.shutdown();
   }
 
-  private ItemFrame addScreenFrame(final double frameX, final double frameY, final double frameZ) {
-    final Location location = this.fakeWorld.location(frameX, frameY, frameZ);
-    final ItemFrame frame = this.fakeWorld.addFrame(location, BlockFace.SOUTH, Keys.MAP_KEY);
-    setMapId(frame, 7);
-    return frame;
-  }
-
-  private static void setMapId(final ItemFrame frame, final int id) {
-    final ItemStack item = mock(ItemStack.class);
-    final MapMeta metadata = mock(MapMeta.class);
-    final MapView map = mock(MapView.class);
-    when(map.getId()).thenReturn(id);
-    when(metadata.getMapView()).thenReturn(map);
-    when(item.getItemMeta()).thenReturn(metadata);
-    when(frame.getItem()).thenReturn(item);
-  }
-
-  private ItemFrame addPlainFrame(final double frameX, final double frameZ) {
-    final Location location = this.fakeWorld.location(frameX, 64.5, frameZ);
-    return this.fakeWorld.addFrame(location, BlockFace.SOUTH);
-  }
-
-  private void aimAtBlock(final Block block) {
-    final Vector hit = new Vector(0.5, 64.5, 0.0);
-    final RayTraceResult ray = new RayTraceResult(hit, block, BlockFace.SOUTH);
-    when(this.player.rayTraceBlocks(100.0, FluidCollisionMode.NEVER)).thenReturn(ray);
-  }
-
-  private static MultiplePlayerSelector mockViewers(final UUID viewer) {
-    final Player viewerPlayer = mock(Player.class);
-    when(viewerPlayer.getUniqueId()).thenReturn(viewer);
-    final MultiplePlayerSelector viewers = mock(MultiplePlayerSelector.class);
-    final List<Player> players = List.of(viewerPlayer);
-    when(viewers.values()).thenReturn(players);
-    return viewers;
-  }
-
-  private static ScreenSettings wallSettings(final UUID viewer, final DitheringArgument dithering) {
-    final MultiplePlayerSelector viewers = mockViewers(viewer);
-    final Pair<Integer, Integer> blocks = Pair.pair(4, 3);
-    final Pair<Integer, Integer> resolution = Pair.pair(512, 384);
-    return new ScreenSettings(mock(CommandSender.class), viewers, blocks, resolution, 7, dithering, MapCodec.DITHER);
-  }
-
-  private Screen createMockedScreen() {
-    final UUID viewer = UUID.randomUUID();
-    return this.createMockedScreen(wallSettings(viewer, DitheringArgument.NEAREST_COLOR));
-  }
-
-  private Screen createMockedScreen(final ScreenSettings settings) {
-    final FunctionalVideoFilter ditherFilter = mock(FunctionalVideoFilter.class);
-    try (
-      final MockedConstruction<CompressedMapResult> results = Mockito.mockConstruction(CompressedMapResult.class);
-      final MockedStatic<DitherFilter> dithers = Mockito.mockStatic(DitherFilter.class)
-    ) {
-      dithers.when(() -> DitherFilter.dither(any(), any())).thenReturn(ditherFilter);
-      final Screen screen = this.command.createScreen(settings);
-      final List<CompressedMapResult> constructed = results.constructed();
-      assertEquals(1, constructed.size());
-      return screen;
-    }
-  }
-
-  private static EntityDamageByEntityEvent damage(final Entity target, final Entity damager) {
-    final EntityDamageByEntityEvent event = mock(EntityDamageByEntityEvent.class);
-    when(event.getEntity()).thenReturn(target);
-    when(event.getDamager()).thenReturn(damager);
-    return event;
-  }
-
-  private BlockBreakEvent blockBreak() {
-    final BlockBreakEvent event = mock(BlockBreakEvent.class);
-    when(event.getPlayer()).thenReturn(this.player);
-    return event;
-  }
-
-  private PlayerInteractEntityEvent rightClick(final Entity clicked) {
-    final PlayerInteractEntityEvent event = mock(PlayerInteractEntityEvent.class);
-    when(event.getPlayer()).thenReturn(this.player);
-    when(event.getRightClicked()).thenReturn(clicked);
-    return event;
-  }
-
-  private static HangingBreakEvent hangingBreak(final ItemFrame frame) {
-    final HangingBreakEvent event = mock(HangingBreakEvent.class);
-    when(event.getEntity()).thenReturn(frame);
-    return event;
-  }
-
-  private AsyncChatEvent chat(final Component message) {
-    final AsyncChatEvent event = mock(AsyncChatEvent.class);
-    when(event.getPlayer()).thenReturn(this.player);
-    when(event.message()).thenReturn(message);
-    return event;
-  }
-
-  private void assertForwarded(final String... expected) {
-    final List<String> expectedForwarded = List.of(expected);
-    assertEquals(expectedForwarded, this.command.forwarded);
-  }
-
-  private void assertReleased(final String... expected) {
-    final List<String> expectedReleased = List.of(expected);
-    assertEquals(expectedReleased, this.command.released);
-  }
-
-  private static void assertReceivedText(final CommandSender sender, final String... expected) {
-    final List<String> messages = Components.receivedText(sender);
-    final List<String> expectedMessages = List.of(expected);
-    assertEquals(expectedMessages, messages);
-  }
-
-  private void assertScreenDithersOnto(
-    final Screen screen,
-    final CompressedMapResult maps,
-    final FunctionalVideoFilter ditherFilter,
-    final MockedStatic<DitherFilter> dithers
-  ) {
-    final FunctionalVideoFilter screenMaps = screen.getOutput();
-    assertSame(ditherFilter, screenMaps);
-    for (int mapId = 7; mapId < 19; mapId++) {
-      assertTrue(screen.ownsMap(mapId), "all twelve maps of the 4x3 wall accept interaction");
-    }
-    assertFalse(screen.ownsMap(6));
-    assertFalse(screen.ownsMap(19));
-    final DitherAlgorithm algorithm = DitheringArgument.NEAREST_COLOR.createAlgorithm();
-    dithers.verify(() -> DitherFilter.dither(algorithm, maps));
-    verify(ditherFilter).start();
-    final VideoPipelineStep pipeline = screen.getPipeline();
-    final VideoFilter filter = pipeline.getFilter();
-    assertSame(ditherFilter, filter);
-    assertSame(ditherFilter, this.command.result);
-  }
-
-  private static void assertWallConfiguration(final List<List<?>> arguments, final UUID viewer) {
-    final List<?> constructorArguments = arguments.getFirst();
-    final MapConfiguration configuration = (MapConfiguration) constructorArguments.getFirst();
-    final Collection<UUID> viewerCollection = configuration.getViewers();
-    final List<UUID> viewerIds = new ArrayList<>(viewerCollection);
-    final List<UUID> expectedViewers = List.of(viewer);
-    final int map = configuration.getMap();
-    final int blockWidth = configuration.getMapBlockWidth();
-    final int blockHeight = configuration.getMapBlockHeight();
-    final int width = configuration.getMapWidthResolution();
-    final int height = configuration.getMapHeightResolution();
-    assertEquals(7, map);
-    assertEquals(4, blockWidth);
-    assertEquals(3, blockHeight);
-    assertEquals(512, width);
-    assertEquals(384, height);
-    assertEquals(expectedViewers, viewerIds);
-  }
-
   @Test
-  void listensForEventsOnceRegistered() {
+  void shouldListenForEventsOnceRegistered() {
     final TestCommandManager manager = new TestCommandManager();
     final AnnotationParser<CommandSender> parser = new AnnotationParser<>(manager, CommandSender.class);
 
@@ -379,8 +208,8 @@ final class AbstractInteractiveCommandTest {
   }
 
   @Test
-  void releasesEverythingAndStopsListeningWhenShutDown() {
-    this.command.player = "browser";
+  void shouldReleaseEverythingAndStopListeningWhenShutDown() {
+    this.command.player = BROWSER;
     final FunctionalVideoFilter maps = mock(FunctionalVideoFilter.class);
     this.command.result = maps;
     this.interactions.close();
@@ -391,46 +220,66 @@ final class AbstractInteractiveCommandTest {
     }
 
     this.interactions = Mockito.mockStatic(InteractUtils.class);
-    this.assertReleased("browser");
+    this.assertReleased(BROWSER);
     verify(maps).release();
     assertNull(this.command.player);
     assertNull(this.command.result);
+
     final boolean stopped = this.command.service.isShutdown();
     assertTrue(stopped);
   }
 
-  @Test
-  void stopsAPlayerInTheBackgroundUntilItShutsDown() throws InterruptedException {
-    final Thread caller = Thread.currentThread();
-    final CountDownLatch stopped = new CountDownLatch(1);
-    final AtomicReference<Thread> where = new AtomicReference<>();
-    this.command.releaseInTheBackground(() -> {
-      where.set(Thread.currentThread());
-      stopped.countDown();
-    });
-    assertTrue(stopped.await(5, TimeUnit.SECONDS));
-    assertNotSame(caller, where.get(), "the calling thread, often the main thread, does not wait");
-    this.command.releaseInTheBackground(() -> {
-      throw new IllegalStateException("release broke");
-    });
-    this.command.shutdown();
-    final AtomicReference<Thread> atShutdown = new AtomicReference<>();
-    this.command.releaseInTheBackground(() -> atShutdown.set(Thread.currentThread()));
-    assertSame(caller, atShutdown.get(), "a command that shuts down stops its player before it is gone");
+  private void assertReleased(final String... expected) {
+    final List<String> expectedReleased = List.of(expected);
+    assertEquals(expectedReleased, this.command.released);
   }
 
   @Test
-  void stopsAPlayerAtOnceWhenItsThreadTakesNoMoreWork() {
+  void shouldStopAPlayerInTheBackgroundUntilItShutsDown() throws InterruptedException {
+    final Thread caller = Thread.currentThread();
+    final CountDownLatch stopped = new CountDownLatch(1);
+    final AtomicReference<Thread> where = new AtomicReference<>();
+    this.command.releaseInTheBackground(() -> this.recordStoppingThread(where, stopped));
+
+    final boolean completed = stopped.await(5, TimeUnit.SECONDS);
+    assertTrue(completed);
+
+    final Thread whereWhere = where.get();
+    assertNotSame(caller, whereWhere, "the calling thread, often the main thread, does not wait");
+
+    this.command.releaseInTheBackground(this::throwReleaseFailure);
+    this.command.shutdown();
+    final AtomicReference<Thread> atShutdown = new AtomicReference<>();
+    this.command.releaseInTheBackground(() -> atShutdown.set(Thread.currentThread()));
+
+    final Thread atShutdownAtShutdown = atShutdown.get();
+    assertSame(caller, atShutdownAtShutdown, "a command that shuts down stops its player before it is gone");
+  }
+
+  private void recordStoppingThread(final AtomicReference<Thread> where, final CountDownLatch stopped) {
+    where.set(Thread.currentThread());
+    stopped.countDown();
+  }
+
+  private void throwReleaseFailure() {
+    throw new IllegalStateException("release broke!");
+  }
+
+  @Test
+  void shouldStopAPlayerAtOnceWhenItsThreadTakesNoMoreWork() {
     final ExecutorService stoppedWorker = Executors.newSingleThreadExecutor();
     stoppedWorker.shutdown();
     final RecordingCommand command = new RecordingCommand(this.plugin, stoppedWorker);
     final AtomicReference<Thread> where = new AtomicReference<>();
     command.releaseInTheBackground(() -> where.set(Thread.currentThread()));
-    assertSame(Thread.currentThread(), where.get());
+
+    final Thread expected = Thread.currentThread();
+    final Thread whereWhere = where.get();
+    assertSame(expected, whereWhere);
   }
 
   @Test
-  void releasesNothingWhenNothingRuns() {
+  void shouldReleaseNothingWhenNothingRuns() {
     this.command.releaseCurrent();
 
     final boolean nothingReleased = this.command.released.isEmpty();
@@ -438,19 +287,20 @@ final class AbstractInteractiveCommandTest {
   }
 
   @Test
-  void parsesDimensionsAndTellsTheSenderWhenTheyAreInvalid() {
+  void shouldParseDimensionsAndTellTheSenderWhenTheyAreInvalid() {
     final CommandSender sender = mock(CommandSender.class);
 
-    final Pair<Integer, Integer> valid = AbstractInteractiveCommand.parseDimensions(sender, "5x3");
-    assertNotNull(valid);
+    final Pair<Integer, Integer> valid = AbstractInteractiveCommand.parseDimensions(sender, "5x3").orElseThrow();
+
     final int width = valid.getFirst();
     final int height = valid.getSecond();
     assertEquals(5, width);
     assertEquals(3, height);
     verify(sender, never()).sendMessage(any(Component.class));
 
-    final Pair<Integer, Integer> invalid = AbstractInteractiveCommand.parseDimensions(sender, "5 by 3");
-    assertNull(invalid);
+    final Optional<Pair<Integer, Integer>> invalid = AbstractInteractiveCommand.parseDimensions(sender, "5 by 3");
+    assertEquals(Optional.empty(), invalid);
+
     final List<Component> messages = Components.received(sender);
     final Component error = Message.UNSUPPORTED_DIMENSION.build();
     final List<Component> expectedMessages = List.of(error);
@@ -458,20 +308,19 @@ final class AbstractInteractiveCommandTest {
   }
 
   @Test
-  void createsTheMapsOfTheScreenAndReleasesTheOldOnes() {
+  void shouldCreateTheMapsOfTheScreenAndReleaseTheOldOnes() {
     this.command.player = "old";
     final FunctionalVideoFilter oldMaps = mock(FunctionalVideoFilter.class);
     this.command.result = oldMaps;
     final UUID viewer = UUID.randomUUID();
-    final ScreenSettings settings = wallSettings(viewer, DitheringArgument.NEAREST_COLOR);
+    final ScreenSettings settings = this.wallSettings(viewer, DitheringArgument.NEAREST_COLOR);
     final FunctionalVideoFilter ditherFilter = mock(FunctionalVideoFilter.class);
     final List<List<?>> arguments = new ArrayList<>();
 
     try (
-      final MockedConstruction<CompressedMapResult> results = Mockito.mockConstruction(CompressedMapResult.class, (_, context) -> {
-        final List<?> constructorArguments = context.arguments();
-        arguments.add(constructorArguments);
-      });
+      final MockedConstruction<CompressedMapResult> results = Mockito.mockConstruction(CompressedMapResult.class, (_, context) ->
+        this.recordArguments(context, arguments)
+      );
       final MockedStatic<DitherFilter> dithers = Mockito.mockStatic(DitherFilter.class)
     ) {
       dithers.when(() -> DitherFilter.dither(any(), any())).thenReturn(ditherFilter);
@@ -484,13 +333,84 @@ final class AbstractInteractiveCommandTest {
     this.assertReleased("old");
     verify(oldMaps).release();
     assertNull(this.command.player);
-    assertWallConfiguration(arguments, viewer);
+    this.assertWallConfiguration(arguments, viewer);
+  }
+
+  private void recordArguments(final MockedConstruction.Context context, final List<List<?>> arguments) {
+    final List<?> constructorArguments = context.arguments();
+    arguments.add(constructorArguments);
+  }
+
+  private ScreenSettings wallSettings(final UUID viewer, final DitheringArgument dithering) {
+    final MultiplePlayerSelector viewers = this.mockViewers(viewer);
+    final Pair<Integer, Integer> blocks = Pair.pair(WALL_BLOCK_WIDTH, WALL_BLOCK_HEIGHT);
+    final Pair<Integer, Integer> resolution = Pair.pair(WALL_PIXEL_WIDTH, WALL_PIXEL_HEIGHT);
+    return new ScreenSettings(mock(CommandSender.class), viewers, blocks, resolution, FIRST_MAP_ID, dithering, MapCodec.DITHER);
+  }
+
+  private MultiplePlayerSelector mockViewers(final UUID viewer) {
+    final Player viewerPlayer = mock(Player.class);
+    when(viewerPlayer.getUniqueId()).thenReturn(viewer);
+    final MultiplePlayerSelector viewers = mock(MultiplePlayerSelector.class);
+    final List<Player> players = List.of(viewerPlayer);
+    when(viewers.values()).thenReturn(players);
+
+    return viewers;
+  }
+
+  private void assertScreenDithersOnto(
+    final Screen screen,
+    final CompressedMapResult maps,
+    final FunctionalVideoFilter ditherFilter,
+    final MockedStatic<DitherFilter> dithers
+  ) {
+    final FunctionalVideoFilter screenMaps = screen.getOutput();
+    assertSame(ditherFilter, screenMaps);
+
+    for (int mapId = FIRST_MAP_ID; mapId < MAP_ID_ABOVE_RANGE; mapId++) {
+      final boolean secondOwnsMap = screen.ownsMap(mapId);
+      assertTrue(secondOwnsMap, "all twelve maps of the 4x3 wall accept interaction");
+    }
+
+    final boolean ownsMap = screen.ownsMap(MAP_ID_BELOW_RANGE);
+    assertFalse(ownsMap);
+
+    final boolean screenOwnsMap = screen.ownsMap(MAP_ID_ABOVE_RANGE);
+    assertFalse(screenOwnsMap);
+
+    final DitherAlgorithm algorithm = DitheringArgument.NEAREST_COLOR.createAlgorithm();
+    dithers.verify(() -> DitherFilter.dither(algorithm, maps));
+    verify(ditherFilter).start();
+
+    final VideoPipelineStep pipeline = screen.getPipeline();
+    final VideoFilter filter = pipeline.getFilter();
+    assertSame(ditherFilter, filter);
+    assertSame(ditherFilter, this.command.result);
+  }
+
+  private void assertWallConfiguration(final List<List<?>> arguments, final UUID viewer) {
+    final List<?> constructorArguments = arguments.getFirst();
+    final MapConfiguration configuration = (MapConfiguration) constructorArguments.getFirst();
+    final Collection<UUID> viewerCollection = configuration.getViewers();
+    final List<UUID> viewerIds = new ArrayList<>(viewerCollection);
+    final List<UUID> expectedViewers = List.of(viewer);
+    final int map = configuration.getMap();
+    final int blockWidth = configuration.getMapBlockWidth();
+    final int blockHeight = configuration.getMapBlockHeight();
+    final int width = configuration.getMapWidthResolution();
+    final int height = configuration.getMapHeightResolution();
+    assertEquals(FIRST_MAP_ID, map);
+    assertEquals(WALL_BLOCK_WIDTH, blockWidth);
+    assertEquals(WALL_BLOCK_HEIGHT, blockHeight);
+    assertEquals(WALL_PIXEL_WIDTH, width);
+    assertEquals(WALL_PIXEL_HEIGHT, height);
+    assertEquals(expectedViewers, viewerIds);
   }
 
   @Test
-  void givesEveryScreenItsOwnTemporalDitheringAlgorithm() {
+  void shouldGiveEveryScreenItsOwnTemporalDitheringAlgorithm() {
     final UUID viewer = UUID.randomUUID();
-    final ScreenSettings settings = wallSettings(viewer, DitheringArgument.FLOYD_STEINBERG_TEMPORAL);
+    final ScreenSettings settings = this.wallSettings(viewer, DitheringArgument.FLOYD_STEINBERG_TEMPORAL);
     final FunctionalVideoFilter ditherFilter = mock(FunctionalVideoFilter.class);
     final ArgumentCaptor<DitherAlgorithm> algorithms = ArgumentCaptor.forClass(DitherAlgorithm.class);
 
@@ -511,117 +431,146 @@ final class AbstractInteractiveCommandTest {
   }
 
   @Test
-  void tellsTheSenderWhenThePlayerStarted() {
+  void shouldTellTheSenderWhenThePlayerStarted() {
     final Screen screen = this.createMockedScreen();
     final FunctionalVideoFilter maps = screen.getOutput();
     final CommandSender sender = mock(CommandSender.class);
     final CompletableFuture<Boolean> start = CompletableFuture.completedFuture(true);
 
-    this.command.reportStartWhenDone(sender, "browser", screen, start, "the browser");
+    this.command.reportStartWhenDone(sender, BROWSER, screen, start, BROWSER_DESCRIPTION);
 
-    assertReceivedText(sender, "started");
-    assertEquals("browser", this.command.player);
+    this.assertReceivedText(sender, STARTED_TEXT);
+    assertEquals(BROWSER, this.command.player);
     assertSame(maps, this.command.result);
+
     final boolean nothingReleased = this.command.released.isEmpty();
     assertTrue(nothingReleased);
     verify(maps, never()).release();
   }
 
+  private Screen createMockedScreen() {
+    final UUID viewer = UUID.randomUUID();
+    return this.createMockedScreen(this.wallSettings(viewer, DitheringArgument.NEAREST_COLOR));
+  }
+
+  private Screen createMockedScreen(final ScreenSettings settings) {
+    final FunctionalVideoFilter ditherFilter = mock(FunctionalVideoFilter.class);
+    try (
+      final MockedConstruction<CompressedMapResult> results = Mockito.mockConstruction(CompressedMapResult.class);
+      final MockedStatic<DitherFilter> dithers = Mockito.mockStatic(DitherFilter.class)
+    ) {
+      dithers.when(() -> DitherFilter.dither(any(), any())).thenReturn(ditherFilter);
+      final Screen screen = this.command.createScreen(settings);
+      final List<CompressedMapResult> constructed = results.constructed();
+
+      final int size = constructed.size();
+      assertEquals(1, size);
+
+      return screen;
+    }
+  }
+
+  private void assertReceivedText(final CommandSender sender, final String... expected) {
+    final List<String> messages = Components.receivedText(sender);
+    final List<String> expectedMessages = List.of(expected);
+    assertEquals(expectedMessages, messages);
+  }
+
   @Test
-  void releasesAPlayerThatRefusedToStart() {
+  void shouldReleaseAPlayerThatRefusedToStart() {
     final Screen screen = this.createMockedScreen();
     final FunctionalVideoFilter maps = screen.getOutput();
     final CommandSender sender = mock(CommandSender.class);
     final CompletableFuture<Boolean> start = CompletableFuture.completedFuture(false);
 
-    this.command.reportStartWhenDone(sender, "browser", screen, start, "the browser");
+    this.command.reportStartWhenDone(sender, BROWSER, screen, start, BROWSER_DESCRIPTION);
 
-    assertReceivedText(sender, "failed: refused");
-    this.assertReleased("browser");
+    this.assertReceivedText(sender, REFUSED_TEXT);
+    this.assertReleased(BROWSER);
     verify(maps).release();
     assertNull(this.command.player);
     assertNull(this.command.result);
   }
 
   @Test
-  void namesWhatFailedToStartInTheLog() {
+  void shouldNameWhatFailedToStartInTheLog() {
     final Screen screen = this.createMockedScreen();
     final CommandSender sender = mock(CommandSender.class);
-    final IllegalStateException missingChrome = new IllegalStateException("no chrome");
+    final IllegalStateException missingChrome = new IllegalStateException("no chrome!");
     final CompletableFuture<Boolean> start = CompletableFuture.failedFuture(missingChrome);
     final String output;
     try (final StandardErrorCapture capture = StandardErrorCapture.start()) {
-      this.command.reportStartWhenDone(sender, "browser", screen, start, "the browser");
+      this.command.reportStartWhenDone(sender, BROWSER, screen, start, BROWSER_DESCRIPTION);
       output = capture.getOutput();
     }
-    final boolean named = output.contains("the browser");
+    final boolean named = output.contains(BROWSER_DESCRIPTION);
     assertTrue(named, "the log of a failed start names what could not be started");
   }
 
   @Test
-  void releasesAPlayerThatFailedToStart() {
+  void shouldReleaseAPlayerThatFailedToStart() {
     final Screen screen = this.createMockedScreen();
     final FunctionalVideoFilter maps = screen.getOutput();
     final CommandSender sender = mock(CommandSender.class);
-    final IllegalStateException missingChrome = new IllegalStateException("no chrome");
+    final IllegalStateException missingChrome = new IllegalStateException("no chrome!");
     final CompletableFuture<Boolean> start = CompletableFuture.failedFuture(missingChrome);
 
-    this.command.reportStartWhenDone(sender, "browser", screen, start, "the browser");
+    this.command.reportStartWhenDone(sender, BROWSER, screen, start, BROWSER_DESCRIPTION);
 
-    assertReceivedText(sender, "failed: no chrome");
-    this.assertReleased("browser");
+    this.assertReceivedText(sender, "failed: no chrome!");
+    this.assertReleased(BROWSER);
     verify(maps).release();
   }
 
   @Test
-  void releasesOnlyItsOwnPlayerAndMapsWhenAnOverlappingStartFails() {
+  void shouldReleaseOnlyItsOwnPlayerAndMapsWhenAnOverlappingStartFails() {
     final CommandSender sender = mock(CommandSender.class);
     final Screen firstScreen = this.createMockedScreen();
     final FunctionalVideoFilter firstMaps = firstScreen.getOutput();
     final CompletableFuture<Boolean> firstStart = new CompletableFuture<>();
-    this.command.reportStartWhenDone(sender, "first", firstScreen, firstStart, "the first browser");
+    this.command.reportStartWhenDone(sender, FIRST_BROWSER, firstScreen, firstStart, "the first browser");
 
     // a second create command replaces the first player while it is still starting
     final Screen secondScreen = this.createMockedScreen();
     final FunctionalVideoFilter secondMaps = secondScreen.getOutput();
     final CompletableFuture<Boolean> secondStart = new CompletableFuture<>();
-    this.command.reportStartWhenDone(sender, "second", secondScreen, secondStart, "the second browser");
-    this.assertReleased("first");
+    this.command.reportStartWhenDone(sender, SECOND_BROWSER, secondScreen, secondStart, "the second browser");
+    this.assertReleased(FIRST_BROWSER);
     verify(firstMaps).release();
 
-    final IllegalStateException missingChrome = new IllegalStateException("no chrome");
+    final IllegalStateException missingChrome = new IllegalStateException("no chrome!");
     firstStart.completeExceptionally(missingChrome);
-    assertEquals("second", this.command.player);
+    assertEquals(SECOND_BROWSER, this.command.player);
     assertSame(secondMaps, this.command.result);
-    this.assertReleased("first");
+    this.assertReleased(FIRST_BROWSER);
     verify(firstMaps, times(1)).release();
     verify(secondMaps, never()).release();
 
     secondStart.complete(false);
-    this.assertReleased("first", "second");
+    this.assertReleased(FIRST_BROWSER, SECOND_BROWSER);
     verify(secondMaps).release();
     assertNull(this.command.player);
     assertNull(this.command.result);
-    assertReceivedText(sender, "failed: refused");
+    this.assertReceivedText(sender, REFUSED_TEXT);
   }
 
   @Test
-  void leavesAFailedPlayerAloneThatWasAlreadyReleased() {
+  void shouldLeaveAFailedPlayerAloneThatWasAlreadyReleased() {
     final CommandSender sender = mock(CommandSender.class);
     final Screen screen = this.createMockedScreen();
     final FunctionalVideoFilter maps = screen.getOutput();
     final CompletableFuture<Boolean> start = new CompletableFuture<>();
-    this.command.reportStartWhenDone(sender, "browser", screen, start, "the browser");
+    this.command.reportStartWhenDone(sender, BROWSER, screen, start, BROWSER_DESCRIPTION);
 
     // the screen is released while the player is still starting, so no player is running when the start fails
     this.command.releaseCurrent();
-    this.assertReleased("browser");
+    this.assertReleased(BROWSER);
     verify(maps).release();
 
-    final IllegalStateException missingChrome = new IllegalStateException("no chrome");
+    final IllegalStateException missingChrome = new IllegalStateException("no chrome!");
     start.completeExceptionally(missingChrome);
 
-    this.assertReleased("browser");
+    this.assertReleased(BROWSER);
     verify(maps, times(1)).release();
     assertNull(this.command.player);
     assertNull(this.command.result);
@@ -629,50 +578,31 @@ final class AbstractInteractiveCommandTest {
   }
 
   @Test
-  void stillReleasesAFailedPlayerWhenThePluginIsDisabledMeanwhile() {
+  void shouldStillReleaseAFailedPlayerWhenThePluginIsDisabledMeanwhile() {
     final Screen screen = this.createMockedScreen();
     final FunctionalVideoFilter maps = screen.getOutput();
     final BukkitScheduler scheduler = TestServer.scheduler();
-    when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(new IllegalPluginAccessException("disabled"));
+    when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(new IllegalPluginAccessException("disabled!"));
     final CommandSender sender = mock(CommandSender.class);
     final CompletableFuture<Boolean> start = new CompletableFuture<>();
-    this.command.reportStartWhenDone(sender, "browser", screen, start, "the browser");
+    this.command.reportStartWhenDone(sender, BROWSER, screen, start, BROWSER_DESCRIPTION);
 
     start.complete(false);
 
-    this.assertReleased("browser");
+    this.assertReleased(BROWSER);
     verify(maps).release();
     verify(sender, never()).sendMessage(any(Component.class));
   }
 
-  private List<Runnable> useDeferredStartup() throws InterruptedException {
-    this.command.shutdown();
-    final ExecutorService executor = mock(ExecutorService.class);
-    final List<Runnable> pending = new ArrayList<>();
-    Mockito.doAnswer(invocation -> {
-      final Runnable task = invocation.getArgument(0);
-      pending.add(task);
-      return null;
-    })
-      .when(executor)
-      .execute(any(Runnable.class));
-    when(executor.awaitTermination(Mockito.anyLong(), any(TimeUnit.class))).thenReturn(true);
-    this.command = new RecordingCommand(this.plugin, executor);
-    return pending;
-  }
-
   @Test
-  void neverStartsAQueuedPlayerAfterShutdown() throws InterruptedException {
+  void shouldNeverStartAQueuedPlayerAfterShutdown() throws InterruptedException {
     final List<Runnable> pending = this.useDeferredStartup();
     final Screen screen = this.createMockedScreen();
     final AtomicBoolean opened = new AtomicBoolean();
-    final ExecutorService executor = this.command.startExecutor("browser", screen);
-    final CompletableFuture<Boolean> start = CompletableFuture.supplyAsync(() -> {
-      opened.set(true);
-      return true;
-    }, executor);
+    final ExecutorService executor = this.command.startExecutor(BROWSER, screen);
+    final CompletableFuture<Boolean> start = CompletableFuture.supplyAsync(() -> this.markOpened(opened), executor);
     final CommandSender sender = mock(CommandSender.class);
-    this.command.reportStartWhenDone(sender, "browser", screen, start, "queued browser");
+    this.command.reportStartWhenDone(sender, BROWSER, screen, start, "queued browser");
     this.command.shutdown();
     final Runnable task = pending.getFirst();
     task.run();
@@ -680,54 +610,86 @@ final class AbstractInteractiveCommandTest {
     final boolean cancelled = start.isCancelled();
     assertFalse(didOpen);
     assertTrue(cancelled);
-    this.assertReleased("browser");
+    this.assertReleased(BROWSER);
     assertNull(this.command.player);
     verify(sender, never()).sendMessage(any(Component.class));
   }
 
+  private Boolean markOpened(final AtomicBoolean opened) {
+    opened.set(true);
+
+    return true;
+  }
+
+  private List<Runnable> useDeferredStartup() throws InterruptedException {
+    this.command.shutdown();
+    final ExecutorService executor = mock(ExecutorService.class);
+    final List<Runnable> pending = new ArrayList<>();
+    Mockito.doAnswer(invocation -> this.deferTask(invocation, pending))
+      .when(executor)
+      .execute(any(Runnable.class));
+    when(executor.awaitTermination(Mockito.anyLong(), any(TimeUnit.class))).thenReturn(true);
+    this.command = new RecordingCommand(this.plugin, executor);
+
+    return pending;
+  }
+
+  private @Nullable Object deferTask(final InvocationOnMock invocation, final List<Runnable> pending) {
+    final Runnable task = invocation.getArgument(0);
+    pending.add(task);
+
+    return null;
+  }
+
   @Test
-  void releasesAnInFlightPlayerOnlyAfterItsCancelledStartupReturns() throws InterruptedException {
+  void shouldReleaseAnInFlightPlayerOnlyAfterItsCancelledStartupReturns() throws InterruptedException {
     final List<Runnable> pending = this.useDeferredStartup();
     final Screen screen = this.createMockedScreen();
-    final ExecutorService executor = this.command.startExecutor("browser", screen);
-    final CompletableFuture<Boolean> start = CompletableFuture.supplyAsync(() -> {
-      // Models a release command arriving after startup began but before it creates its native resource.
-      this.command.releaseCurrent();
-      this.assertReleased();
-      return true;
-    }, executor);
+    final ExecutorService executor = this.command.startExecutor(BROWSER, screen);
+    final CompletableFuture<Boolean> start = CompletableFuture.supplyAsync(this::releaseDuringStartup, executor);
     final CommandSender sender = mock(CommandSender.class);
-    this.command.reportStartWhenDone(sender, "browser", screen, start, "late browser");
+    this.command.reportStartWhenDone(sender, BROWSER, screen, start, "late browser");
     final Runnable task = pending.getFirst();
     task.run();
-    this.assertReleased("browser");
+    this.assertReleased(BROWSER);
+
     final FunctionalVideoFilter maps = screen.getOutput();
     verify(maps, times(1)).release();
     assertNull(this.command.player);
     verify(sender, never()).sendMessage(any(Component.class));
   }
 
+  private Boolean releaseDuringStartup() {
+    // Models a release command arriving after startup began but before it creates its native resource.
+    this.command.releaseCurrent();
+    this.assertReleased();
+
+    return true;
+  }
+
   @Test
-  void ignoresAQueuedSuccessMessageAfterTheScreenWasReleased() {
+  void shouldIgnoreAQueuedSuccessMessageAfterTheScreenWasReleased() {
     TestServer.resetWithDeferredTasks();
     final Screen screen = this.createMockedScreen();
     final CommandSender sender = mock(CommandSender.class);
     final CompletableFuture<Boolean> start = CompletableFuture.completedFuture(true);
-    this.command.reportStartWhenDone(sender, "browser", screen, start, "browser");
+    this.command.reportStartWhenDone(sender, BROWSER, screen, start, BROWSER);
     this.command.releaseCurrent();
     TestServer.runPendingTasks();
     verify(sender, never()).sendMessage(any(Component.class));
   }
 
   @Test
-  void doesNotForwardClicksOnAnotherCommandsMapRange() {
+  void shouldNotForwardClicksOnAnotherCommandsMapRange() {
     this.createMockedScreen();
-    this.command.player = "browser";
-    final ItemFrame otherScreen = this.addScreenFrame(0.5, 64.5, 0.0);
-    setMapId(otherScreen, 19); // this command owns 7..18, so 19 belongs to another screen
+    this.command.player = BROWSER;
+    final ItemFrame otherScreen = this.addScreenFrame(BLOCK_CENTER_X, BLOCK_CENTER_Y, 0.0);
+    this.setMapId(otherScreen, MAP_ID_ABOVE_RANGE); // this command owns 7..18, so 19 belongs to another screen
     final PlayerInteractEntityEvent right = this.rightClick(otherScreen);
-    final EntityDamageByEntityEvent left = damage(otherScreen, this.player);
-    this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, otherScreen)).thenReturn(new int[] { 3, 4 });
+    final EntityDamageByEntityEvent left = this.damage(otherScreen, this.player);
+    this.interactions
+      .when(() -> InteractUtils.getBoardCoordinates(this.player, otherScreen))
+      .thenReturn(Optional.of(new int[] { PUNCHED_BOARD_X, PUNCHED_BOARD_Y }));
     this.command.onPlayerInteractEntity(right);
     this.command.onScreenDamage(left);
     this.assertForwarded();
@@ -736,71 +698,136 @@ final class AbstractInteractiveCommandTest {
     this.interactions.verifyNoInteractions();
   }
 
+  private void setMapId(final ItemFrame frame, final int id) {
+    final ItemStack item = mock(ItemStack.class);
+    final MapMeta metadata = mock(MapMeta.class);
+    final MapView map = mock(MapView.class);
+    when(map.getId()).thenReturn(id);
+    when(metadata.getMapView()).thenReturn(map);
+    when(item.getItemMeta()).thenReturn(metadata);
+    when(frame.getItem()).thenReturn(item);
+  }
+
+  private ItemFrame addScreenFrame(final double frameX, final double frameY, final double frameZ) {
+    final Location location = this.fakeWorld.location(frameX, frameY, frameZ);
+    final ItemFrame frame = this.fakeWorld.addFrame(location, BlockFace.SOUTH, Keys.MAP_KEY);
+    this.setMapId(frame, FIRST_MAP_ID);
+    return frame;
+  }
+
+  private EntityDamageByEntityEvent damage(final Entity target, final Entity damager) {
+    final EntityDamageByEntityEvent event = mock(EntityDamageByEntityEvent.class);
+    when(event.getEntity()).thenReturn(target);
+    when(event.getDamager()).thenReturn(damager);
+
+    return event;
+  }
+
+  private PlayerInteractEntityEvent rightClick(final Entity clicked) {
+    final PlayerInteractEntityEvent event = mock(PlayerInteractEntityEvent.class);
+    when(event.getPlayer()).thenReturn(this.player);
+    when(event.getRightClicked()).thenReturn(clicked);
+
+    return event;
+  }
+
+  private void assertForwarded(final String... expected) {
+    final List<String> expectedForwarded = List.of(expected);
+    assertEquals(expectedForwarded, this.command.forwarded);
+  }
+
   @Test
-  void releasesMapsAndStopsListeningEvenWhenPlayerCleanupFails() {
+  void shouldReleaseMapsAndStopListeningEvenWhenPlayerCleanupFails() {
     this.createMockedScreen();
-    this.command.player = "browser";
+    this.command.player = BROWSER;
     final FunctionalVideoFilter maps = Objects.requireNonNull(this.command.result);
-    final IllegalStateException failure = new IllegalStateException("backend cleanup");
+    final IllegalStateException failure = new IllegalStateException("backend cleanup!");
     this.command.releaseFailure = failure;
     try (final MockedStatic<HandlerList> handlers = Mockito.mockStatic(HandlerList.class)) {
       final IllegalStateException thrown = assertThrows(IllegalStateException.class, this.command::shutdown);
       assertSame(failure, thrown);
       verify(maps).release();
       handlers.verify(() -> HandlerList.unregisterAll(this.command));
+
       final boolean stopped = this.command.service.isShutdown();
       assertTrue(stopped);
     }
   }
 
   @Test
-  void forwardsBrokenBlocksBehindTheScreenAsLeftClicks() {
+  void shouldForwardBrokenBlocksBehindTheScreenAsLeftClicks() {
     this.createMockedScreen();
-    this.command.player = "browser";
-    final Block block = this.fakeWorld.block(0, 64, -1);
+    this.command.player = BROWSER;
+    final Block block = this.fakeWorld.block(0, BLOCK_Y, -1);
     this.aimAtBlock(block);
     final Zombie zombie = mock(Zombie.class);
     final Location zombieLocation = this.fakeWorld.location(0.4, 64.4, -0.6);
     when(zombie.getLocation()).thenReturn(zombieLocation);
     this.fakeWorld.addEntity(zombie);
-    this.addPlainFrame(0.5, -0.5);
-    final ItemFrame far = this.addScreenFrame(0.5, 64.5, -0.1);
-    final ItemFrame near = this.addScreenFrame(0.1, 64.1, -0.9);
+    this.addPlainFrame(BLOCK_CENTER_X, BLOCK_CENTER_Z);
+    final ItemFrame far = this.addScreenFrame(BLOCK_CENTER_X, BLOCK_CENTER_Y, FRONT_FRAME_Z);
+    final ItemFrame near = this.addScreenFrame(CORNER_FRAME_X, CORNER_FRAME_Y, CORNER_FRAME_Z);
     this.addScreenFrame(0.4, 64.4, -0.6);
-    this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, near)).thenReturn(new int[] { 10, 20 });
-    this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, far)).thenReturn(new int[] { 99, 99 });
+    this.interactions
+      .when(() -> InteractUtils.getBoardCoordinates(this.player, near))
+      .thenReturn(Optional.of(new int[] { AIMED_BOARD_X, AIMED_BOARD_Y }));
+    this.interactions
+      .when(() -> InteractUtils.getBoardCoordinates(this.player, far))
+      .thenReturn(Optional.of(new int[] { OTHER_BOARD_COORDINATE, OTHER_BOARD_COORDINATE }));
     final BlockBreakEvent event = this.blockBreak();
 
     this.command.onBlockBreak(event);
 
     verify(event).setCancelled(true);
-    this.assertForwarded("browser left 10,20");
+    this.assertForwarded(AIMED_LEFT_CLICK);
+  }
+
+  private ItemFrame addPlainFrame(final double frameX, final double frameZ) {
+    final Location location = this.fakeWorld.location(frameX, BLOCK_CENTER_Y, frameZ);
+    return this.fakeWorld.addFrame(location, BlockFace.SOUTH);
+  }
+
+  private void aimAtBlock(final Block block) {
+    final Vector hit = new Vector(BLOCK_CENTER_X, BLOCK_CENTER_Y, 0.0);
+    final RayTraceResult ray = new RayTraceResult(hit, block, BlockFace.SOUTH);
+    when(this.player.rayTraceBlocks(RAY_TRACE_DISTANCE, FluidCollisionMode.NEVER)).thenReturn(ray);
+  }
+
+  private BlockBreakEvent blockBreak() {
+    final BlockBreakEvent event = mock(BlockBreakEvent.class);
+    when(event.getPlayer()).thenReturn(this.player);
+
+    return event;
   }
 
   @Test
-  void forwardsTheClickToTheFirstOfTwoEquallyCloseScreens() {
+  void shouldForwardTheClickToTheFirstOfTwoEquallyCloseScreens() {
     this.createMockedScreen();
-    this.command.player = "browser";
-    final Block block = this.fakeWorld.block(0, 64, -1);
+    this.command.player = BROWSER;
+    final Block block = this.fakeWorld.block(0, BLOCK_Y, -1);
     this.aimAtBlock(block);
     // both frames are exactly as far from the block, so the one that was found first stays the closest
     final ItemFrame first = this.addScreenFrame(0.2, 64.2, -0.8);
     final ItemFrame second = this.addScreenFrame(-0.2, 63.8, -0.8);
-    this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, first)).thenReturn(new int[] { 10, 20 });
-    this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, second)).thenReturn(new int[] { 99, 99 });
+    this.interactions
+      .when(() -> InteractUtils.getBoardCoordinates(this.player, first))
+      .thenReturn(Optional.of(new int[] { AIMED_BOARD_X, AIMED_BOARD_Y }));
+    this.interactions
+      .when(() -> InteractUtils.getBoardCoordinates(this.player, second))
+      .thenReturn(Optional.of(new int[] { OTHER_BOARD_COORDINATE, OTHER_BOARD_COORDINATE }));
     final BlockBreakEvent event = this.blockBreak();
 
     this.command.onBlockBreak(event);
 
     verify(event).setCancelled(true);
-    this.assertForwarded("browser left 10,20");
+    this.assertForwarded(AIMED_LEFT_CLICK);
   }
 
   @Test
-  void letsBlocksBreakWhenNoPlayerRuns() {
-    final Block block = this.fakeWorld.block(0, 64, -1);
+  void shouldLetBlocksBreakWhenNoPlayerRuns() {
+    final Block block = this.fakeWorld.block(0, BLOCK_Y, -1);
     this.aimAtBlock(block);
-    this.addScreenFrame(0.5, 64.5, -0.5);
+    this.addScreenFrame(BLOCK_CENTER_X, BLOCK_CENTER_Y, BLOCK_CENTER_Z);
     final BlockBreakEvent event = this.blockBreak();
 
     this.command.onBlockBreak(event);
@@ -810,15 +837,15 @@ final class AbstractInteractiveCommandTest {
   }
 
   @Test
-  void letsBlocksBreakWhenThePlayerLooksAtNothing() {
+  void shouldLetBlocksBreakWhenThePlayerLooksAtNothing() {
     this.createMockedScreen();
-    this.command.player = "browser";
+    this.command.player = BROWSER;
     final BlockBreakEvent withoutRay = this.blockBreak();
     this.command.onBlockBreak(withoutRay);
 
-    final Vector hit = new Vector(0.5, 64.5, 0.0);
+    final Vector hit = new Vector(BLOCK_CENTER_X, BLOCK_CENTER_Y, 0.0);
     final RayTraceResult entityRay = new RayTraceResult(hit);
-    when(this.player.rayTraceBlocks(100.0, FluidCollisionMode.NEVER)).thenReturn(entityRay);
+    when(this.player.rayTraceBlocks(RAY_TRACE_DISTANCE, FluidCollisionMode.NEVER)).thenReturn(entityRay);
     final BlockBreakEvent withoutBlock = this.blockBreak();
     this.command.onBlockBreak(withoutBlock);
 
@@ -828,10 +855,10 @@ final class AbstractInteractiveCommandTest {
   }
 
   @Test
-  void letsBlocksBreakAwayFromScreens() {
+  void shouldLetBlocksBreakAwayFromScreens() {
     this.createMockedScreen();
-    this.command.player = "browser";
-    final Block block = this.fakeWorld.block(0, 64, -1);
+    this.command.player = BROWSER;
+    final Block block = this.fakeWorld.block(0, BLOCK_Y, -1);
     this.aimAtBlock(block);
     final BlockBreakEvent event = this.blockBreak();
 
@@ -842,29 +869,32 @@ final class AbstractInteractiveCommandTest {
   }
 
   @Test
-  void letsBlocksBreakWhenTheScreenIsIncomplete() {
+  void shouldLetBlocksBreakWhenTheScreenIsIncomplete() {
     this.createMockedScreen();
-    this.command.player = "browser";
-    final Block block = this.fakeWorld.block(0, 64, -1);
+    this.command.player = BROWSER;
+    final Block block = this.fakeWorld.block(0, BLOCK_Y, -1);
     this.aimAtBlock(block);
-    final ItemFrame frame = this.addScreenFrame(0.5, 64.5, -0.5);
-    this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, frame)).thenReturn(null);
+    final ItemFrame frame = this.addScreenFrame(BLOCK_CENTER_X, BLOCK_CENTER_Y, BLOCK_CENTER_Z);
+    this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, frame)).thenReturn(Optional.empty());
     final BlockBreakEvent event = this.blockBreak();
 
     this.command.onBlockBreak(event);
 
     verify(event, never()).setCancelled(anyBoolean());
+
     final boolean nothingForwarded = this.command.forwarded.isEmpty();
     assertTrue(nothingForwarded);
   }
 
   @Test
-  void forwardsPunchesOnTheScreenAsLeftClicks() {
+  void shouldForwardPunchesOnTheScreenAsLeftClicks() {
     this.createMockedScreen();
-    this.command.player = "browser";
-    final ItemFrame frame = this.addScreenFrame(0.5, 64.5, 0.0);
-    this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, frame)).thenReturn(new int[] { 3, 4 });
-    final EntityDamageByEntityEvent event = damage(frame, this.player);
+    this.command.player = BROWSER;
+    final ItemFrame frame = this.addScreenFrame(BLOCK_CENTER_X, BLOCK_CENTER_Y, 0.0);
+    this.interactions
+      .when(() -> InteractUtils.getBoardCoordinates(this.player, frame))
+      .thenReturn(Optional.of(new int[] { PUNCHED_BOARD_X, PUNCHED_BOARD_Y }));
+    final EntityDamageByEntityEvent event = this.damage(frame, this.player);
 
     this.command.onScreenDamage(event);
 
@@ -873,9 +903,9 @@ final class AbstractInteractiveCommandTest {
   }
 
   @Test
-  void protectsTheScreenWithoutClickingWhenNoPlayerRuns() {
-    final ItemFrame frame = this.addScreenFrame(0.5, 64.5, 0.0);
-    final EntityDamageByEntityEvent event = damage(frame, this.player);
+  void shouldProtectTheScreenWithoutClickingWhenNoPlayerRuns() {
+    final ItemFrame frame = this.addScreenFrame(BLOCK_CENTER_X, BLOCK_CENTER_Y, 0.0);
+    final EntityDamageByEntityEvent event = this.damage(frame, this.player);
 
     this.command.onScreenDamage(event);
 
@@ -884,13 +914,13 @@ final class AbstractInteractiveCommandTest {
   }
 
   @Test
-  void protectsTheScreenFromArrowsWithoutClicking() {
+  void shouldProtectTheScreenFromArrowsWithoutClicking() {
     this.createMockedScreen();
-    this.command.player = "browser";
-    final ItemFrame frame = this.addScreenFrame(0.5, 64.5, 0.0);
+    this.command.player = BROWSER;
+    final ItemFrame frame = this.addScreenFrame(BLOCK_CENTER_X, BLOCK_CENTER_Y, 0.0);
     final Arrow arrow = mock(Arrow.class);
     when(arrow.getShooter()).thenReturn(this.player);
-    final EntityDamageByEntityEvent event = damage(frame, arrow);
+    final EntityDamageByEntityEvent event = this.damage(frame, arrow);
 
     this.command.onScreenDamage(event);
 
@@ -899,16 +929,16 @@ final class AbstractInteractiveCommandTest {
   }
 
   @Test
-  void ignoresDamageThatNoPlayerCaused() {
+  void shouldIgnoreDamageThatNoPlayerCaused() {
     this.createMockedScreen();
-    this.command.player = "browser";
-    final ItemFrame frame = this.addScreenFrame(0.5, 64.5, 0.0);
+    this.command.player = BROWSER;
+    final ItemFrame frame = this.addScreenFrame(BLOCK_CENTER_X, BLOCK_CENTER_Y, 0.0);
     final Arrow arrow = mock(Arrow.class);
     final Skeleton skeleton = mock(Skeleton.class);
     when(arrow.getShooter()).thenReturn(skeleton);
-    final EntityDamageByEntityEvent byArrow = damage(frame, arrow);
+    final EntityDamageByEntityEvent byArrow = this.damage(frame, arrow);
     final Zombie zombie = mock(Zombie.class);
-    final EntityDamageByEntityEvent byZombie = damage(frame, zombie);
+    final EntityDamageByEntityEvent byZombie = this.damage(frame, zombie);
 
     this.command.onScreenDamage(byArrow);
     this.command.onScreenDamage(byZombie);
@@ -918,13 +948,13 @@ final class AbstractInteractiveCommandTest {
   }
 
   @Test
-  void ignoresDamageToOtherEntities() {
+  void shouldIgnoreDamageToOtherEntities() {
     this.createMockedScreen();
-    this.command.player = "browser";
-    final ItemFrame plainFrame = this.addPlainFrame(0.5, 0.0);
+    this.command.player = BROWSER;
+    final ItemFrame plainFrame = this.addPlainFrame(BLOCK_CENTER_X, 0.0);
     final Zombie zombie = mock(Zombie.class);
-    final EntityDamageByEntityEvent frameEvent = damage(plainFrame, this.player);
-    final EntityDamageByEntityEvent zombieEvent = damage(zombie, this.player);
+    final EntityDamageByEntityEvent frameEvent = this.damage(plainFrame, this.player);
+    final EntityDamageByEntityEvent zombieEvent = this.damage(zombie, this.player);
 
     this.command.onScreenDamage(frameEvent);
     this.command.onScreenDamage(zombieEvent);
@@ -934,26 +964,27 @@ final class AbstractInteractiveCommandTest {
   }
 
   @Test
-  void protectsTheScreenWhenThePunchMissesThePicture() {
+  void shouldProtectTheScreenWhenThePunchMissesThePicture() {
     this.createMockedScreen();
-    this.command.player = "browser";
-    final ItemFrame frame = this.addScreenFrame(0.5, 64.5, 0.0);
-    this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, frame)).thenReturn(null);
-    final EntityDamageByEntityEvent event = damage(frame, this.player);
+    this.command.player = BROWSER;
+    final ItemFrame frame = this.addScreenFrame(BLOCK_CENTER_X, BLOCK_CENTER_Y, 0.0);
+    this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, frame)).thenReturn(Optional.empty());
+    final EntityDamageByEntityEvent event = this.damage(frame, this.player);
 
     this.command.onScreenDamage(event);
 
     verify(event).setCancelled(true);
+
     final boolean nothingForwarded = this.command.forwarded.isEmpty();
     assertTrue(nothingForwarded);
   }
 
   @Test
-  void forwardsRightClicksOnTheScreen() {
+  void shouldForwardRightClicksOnTheScreen() {
     this.createMockedScreen();
-    this.command.player = "browser";
-    final ItemFrame frame = this.addScreenFrame(0.5, 64.5, 0.0);
-    this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, frame)).thenReturn(new int[] { 7, 8 });
+    this.command.player = BROWSER;
+    final ItemFrame frame = this.addScreenFrame(BLOCK_CENTER_X, BLOCK_CENTER_Y, 0.0);
+    this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, frame)).thenReturn(Optional.of(new int[] { 7, 8 }));
     final PlayerInteractEntityEvent event = this.rightClick(frame);
 
     this.command.onPlayerInteractEntity(event);
@@ -963,34 +994,35 @@ final class AbstractInteractiveCommandTest {
   }
 
   @Test
-  void ignoresRightClicksThatCannotBeForwarded() {
-    final ItemFrame frame = this.addScreenFrame(0.5, 64.5, 0.0);
+  void shouldIgnoreRightClicksThatCannotBeForwarded() {
+    final ItemFrame frame = this.addScreenFrame(BLOCK_CENTER_X, BLOCK_CENTER_Y, 0.0);
     final PlayerInteractEntityEvent withoutPlayer = this.rightClick(frame);
     this.command.onPlayerInteractEntity(withoutPlayer);
 
     this.createMockedScreen();
-    this.command.player = "browser";
+    this.command.player = BROWSER;
     final Zombie zombie = mock(Zombie.class);
     final PlayerInteractEntityEvent onZombie = this.rightClick(zombie);
     this.command.onPlayerInteractEntity(onZombie);
-    this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, frame)).thenReturn(null);
+    this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, frame)).thenReturn(Optional.empty());
     final PlayerInteractEntityEvent missed = this.rightClick(frame);
     this.command.onPlayerInteractEntity(missed);
 
     verify(withoutPlayer, never()).setCancelled(anyBoolean());
     verify(onZombie, never()).setCancelled(anyBoolean());
     verify(missed, never()).setCancelled(anyBoolean());
+
     final boolean nothingForwarded = this.command.forwarded.isEmpty();
     assertTrue(nothingForwarded);
   }
 
   @Test
-  void forwardsTheChatOfPlayersWhoEnabledInteraction() {
+  void shouldForwardTheChatOfPlayersWhoEnabledInteraction() {
     this.createMockedScreen();
-    this.command.player = "browser";
-    final Component enable = Component.text("on");
-    final Component disable = Component.text("off");
-    final Component message = Component.text("hello world");
+    this.command.player = BROWSER;
+    final Component enable = Component.text(ENABLED_TEXT);
+    final Component disable = Component.text(DISABLED_TEXT);
+    final Component message = Component.text(CHAT_TEXT);
 
     this.command.toggleInteraction(this.player, enable, disable);
     final AsyncChatEvent event = this.chat(message);
@@ -1008,19 +1040,29 @@ final class AbstractInteractiveCommandTest {
     assertEquals(expectedReplies, replies);
   }
 
+  private AsyncChatEvent chat(final Component message) {
+    final AsyncChatEvent event = mock(AsyncChatEvent.class);
+    when(event.getPlayer()).thenReturn(this.player);
+    when(event.message()).thenReturn(message);
+
+    return event;
+  }
+
   @Test
-  void keepsTheScreenSafeFromAPlayerWhoMayNotInteractWithoutForwardingTheClick() {
+  void shouldKeepTheScreenSafeFromAPlayerWhoMayNotInteractWithoutForwardingTheClick() {
     this.createMockedScreen();
-    this.command.player = "browser";
+    this.command.player = BROWSER;
     when(this.player.hasPermission(INTERACT_PERMISSION)).thenReturn(false);
-    final Block block = this.fakeWorld.block(0, 64, -1);
+    final Block block = this.fakeWorld.block(0, BLOCK_Y, -1);
     this.aimAtBlock(block);
     // the frame hangs on the block the player looks at, as in the test that forwards the click
-    final ItemFrame frame = this.addScreenFrame(0.1, 64.1, -0.9);
-    this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, frame)).thenReturn(new int[] { 10, 20 });
+    final ItemFrame frame = this.addScreenFrame(CORNER_FRAME_X, CORNER_FRAME_Y, CORNER_FRAME_Z);
+    this.interactions
+      .when(() -> InteractUtils.getBoardCoordinates(this.player, frame))
+      .thenReturn(Optional.of(new int[] { AIMED_BOARD_X, AIMED_BOARD_Y }));
     final BlockBreakEvent broken = this.blockBreak();
     final PlayerInteractEntityEvent right = this.rightClick(frame);
-    final EntityDamageByEntityEvent punch = damage(frame, this.player);
+    final EntityDamageByEntityEvent punch = this.damage(frame, this.player);
 
     this.command.onBlockBreak(broken);
     this.command.onPlayerInteractEntity(right);
@@ -1033,13 +1075,13 @@ final class AbstractInteractiveCommandTest {
   }
 
   @Test
-  void forwardsTheClicksOfAPlayerWhoMayInteract() {
+  void shouldForwardTheClicksOfAPlayerWhoMayInteract() {
     this.createMockedScreen();
-    this.command.player = "browser";
-    final ItemFrame frame = this.addScreenFrame(0.5, 64.5, -0.1);
-    this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, frame)).thenReturn(new int[] { 1, 2 });
+    this.command.player = BROWSER;
+    final ItemFrame frame = this.addScreenFrame(BLOCK_CENTER_X, BLOCK_CENTER_Y, FRONT_FRAME_Z);
+    this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, frame)).thenReturn(Optional.of(new int[] { 1, 2 }));
     final PlayerInteractEntityEvent right = this.rightClick(frame);
-    final EntityDamageByEntityEvent punch = damage(frame, this.player);
+    final EntityDamageByEntityEvent punch = this.damage(frame, this.player);
 
     this.command.onPlayerInteractEntity(right);
     this.command.onScreenDamage(punch);
@@ -1048,12 +1090,12 @@ final class AbstractInteractiveCommandTest {
   }
 
   @Test
-  void stopsForwardingTheChatOfAPlayerWhoLostThePermission() {
+  void shouldStopForwardingTheChatOfAPlayerWhoLostThePermission() {
     this.createMockedScreen();
-    this.command.player = "browser";
-    final Component enable = Component.text("on");
-    final Component disable = Component.text("off");
-    final Component message = Component.text("hello world");
+    this.command.player = BROWSER;
+    final Component enable = Component.text(ENABLED_TEXT);
+    final Component disable = Component.text(DISABLED_TEXT);
+    final Component message = Component.text(CHAT_TEXT);
     this.command.toggleInteraction(this.player, enable, disable);
     when(this.player.hasPermission(INTERACT_PERMISSION)).thenReturn(false);
     final AsyncChatEvent event = this.chat(message);
@@ -1065,26 +1107,27 @@ final class AbstractInteractiveCommandTest {
   }
 
   @Test
-  void keepsTheChatWhenNoPlayerRuns() {
-    final Component enable = Component.text("on");
-    final Component disable = Component.text("off");
-    final Component message = Component.text("hello world");
+  void shouldKeepTheChatWhenNoPlayerRuns() {
+    final Component enable = Component.text(ENABLED_TEXT);
+    final Component disable = Component.text(DISABLED_TEXT);
+    final Component message = Component.text(CHAT_TEXT);
     this.command.toggleInteraction(this.player, enable, disable);
     final AsyncChatEvent event = this.chat(message);
 
     this.command.onChatMessage(event);
 
     verify(event, never()).setCancelled(anyBoolean());
+
     final boolean nothingForwarded = this.command.forwarded.isEmpty();
     assertTrue(nothingForwarded);
   }
 
   @Test
-  void protectsScreenFramesFromBreaking() {
-    final ItemFrame frame = this.addScreenFrame(0.5, 64.5, 0.0);
+  void shouldProtectScreenFramesFromBreaking() {
+    final ItemFrame frame = this.addScreenFrame(BLOCK_CENTER_X, BLOCK_CENTER_Y, 0.0);
     final ItemFrame plainFrame = this.addPlainFrame(1.5, 0.0);
-    final HangingBreakEvent screenEvent = hangingBreak(frame);
-    final HangingBreakEvent plainEvent = hangingBreak(plainFrame);
+    final HangingBreakEvent screenEvent = this.hangingBreak(frame);
+    final HangingBreakEvent plainEvent = this.hangingBreak(plainFrame);
 
     this.command.onScreenBreak(screenEvent);
     this.command.onScreenBreak(plainEvent);
@@ -1093,37 +1136,48 @@ final class AbstractInteractiveCommandTest {
     verify(plainEvent, never()).setCancelled(anyBoolean());
   }
 
+  private HangingBreakEvent hangingBreak(final ItemFrame frame) {
+    final HangingBreakEvent event = mock(HangingBreakEvent.class);
+    when(event.getEntity()).thenReturn(frame);
+
+    return event;
+  }
+
   @Test
-  void releasesThePlayerAndTellsTheSender() {
+  void shouldReleaseThePlayerAndTellTheSender() {
     this.createMockedScreen();
-    this.command.player = "browser";
+    this.command.player = BROWSER;
     final CommandSender sender = mock(CommandSender.class);
     final Component message = Component.text("released");
 
     this.command.releaseResource(sender, message);
 
     verify(sender).sendMessage(message);
-    this.assertReleased("browser");
+    this.assertReleased(BROWSER);
     assertNull(this.command.player);
   }
 
   @Test
-  void rejectsScreenCreationAfterShutdownWithoutAcquiringMaps() {
+  void shouldRejectScreenCreationAfterShutdownWithoutAcquiringMaps() {
     this.command.shutdown();
-    final ScreenSettings settings = wallSettings(UUID.randomUUID(), DitheringArgument.NEAREST_COLOR);
+    final ScreenSettings settings = this.wallSettings(UUID.randomUUID(), DitheringArgument.NEAREST_COLOR);
     try (final MockedConstruction<CompressedMapResult> maps = Mockito.mockConstruction(CompressedMapResult.class)) {
       final IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> this.command.createScreen(settings));
+
       final String message = thrown.getMessage();
-      assertEquals("The interactive command is shut down", message);
+      assertEquals("The interactive command is shut down!", message);
+
       final List<CompressedMapResult> constructed = maps.constructed();
-      assertTrue(constructed.isEmpty());
+
+      final boolean empty = constructed.isEmpty();
+      assertTrue(empty);
     }
   }
 
   @Test
-  void closesOwnedMapsWhenDitherCreationFails() {
-    final ScreenSettings settings = wallSettings(UUID.randomUUID(), DitheringArgument.NEAREST_COLOR);
-    final IllegalStateException failure = new IllegalStateException("dither unavailable");
+  void shouldCloseOwnedMapsWhenDitherCreationFails() {
+    final ScreenSettings settings = this.wallSettings(UUID.randomUUID(), DitheringArgument.NEAREST_COLOR);
+    final IllegalStateException failure = new IllegalStateException("dither unavailable!");
     try (
       final MockedConstruction<CompressedMapResult> maps = Mockito.mockConstruction(CompressedMapResult.class);
       final MockedStatic<DitherFilter> dithers = Mockito.mockStatic(DitherFilter.class)
@@ -1131,8 +1185,12 @@ final class AbstractInteractiveCommandTest {
       dithers.when(() -> DitherFilter.dither(any(), any())).thenThrow(failure);
       final IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> this.command.createScreen(settings));
       assertSame(failure, thrown);
+
       final List<CompressedMapResult> constructed = maps.constructed();
-      assertEquals(1, constructed.size());
+
+      final int size = constructed.size();
+      assertEquals(1, size);
+
       final CompressedMapResult acquired = constructed.getFirst();
       verify(acquired).release();
       assertNull(this.command.result);
@@ -1140,259 +1198,357 @@ final class AbstractInteractiveCommandTest {
   }
 
   @Test
-  void keepsTheDitherFailureWhenTheMapsFailToReleaseToo() {
-    final ScreenSettings settings = wallSettings(UUID.randomUUID(), DitheringArgument.NEAREST_COLOR);
-    final IllegalStateException failure = new IllegalStateException("dither unavailable");
-    final IllegalStateException cleanup = new IllegalStateException("maps stuck");
+  void shouldKeepTheDitherFailureWhenTheMapsFailToReleaseToo() {
+    final ScreenSettings settings = this.wallSettings(UUID.randomUUID(), DitheringArgument.NEAREST_COLOR);
+    final IllegalStateException failure = new IllegalStateException("dither unavailable!");
+    final IllegalStateException cleanup = new IllegalStateException("maps stuck!");
     try (
       final MockedConstruction<CompressedMapResult> _ = Mockito.mockConstruction(CompressedMapResult.class, (maps, _) ->
-        Mockito.doThrow(cleanup).when(maps).release()
+        this.failMapsRelease(maps, cleanup)
       );
       final MockedStatic<DitherFilter> dithers = Mockito.mockStatic(DitherFilter.class)
     ) {
       dithers.when(() -> DitherFilter.dither(any(), any())).thenThrow(failure);
       final IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> this.command.createScreen(settings));
       assertSame(failure, thrown);
-      assertEquals(List.of(cleanup), List.of(thrown.getSuppressed()));
+
+      final List<Throwable> list = List.of(thrown.getSuppressed());
+      assertEquals(List.of(cleanup), list);
     }
   }
 
-  private static ScreenSettings mcv2Settings(final CommandSender sender, final UUID viewer) {
-    final MultiplePlayerSelector viewers = mockViewers(viewer);
-    return new ScreenSettings(sender, viewers, Pair.pair(4, 3), Pair.pair(512, 384), 7, DitheringArgument.NEAREST_COLOR, MapCodec.MCV2);
+  private void failMapsRelease(final CompressedMapResult maps, final Throwable cleanup) {
+    Mockito.doThrow(cleanup).when(maps).release();
   }
 
   @Test
-  void createsAnMcv2ScreenWhenTheSettingsAskForIt() {
+  void shouldPropagateFatalDitherFailureWithoutReleasingTheMaps() {
+    final ScreenSettings settings = this.wallSettings(UUID.randomUUID(), DitheringArgument.NEAREST_COLOR);
+    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
+    try (
+      final MockedConstruction<CompressedMapResult> maps = Mockito.mockConstruction(CompressedMapResult.class);
+      final MockedStatic<DitherFilter> dithers = Mockito.mockStatic(DitherFilter.class)
+    ) {
+      dithers.when(() -> DitherFilter.dither(any(), any())).thenThrow(fatal);
+      final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () -> this.command.createScreen(settings));
+      assertSame(fatal, thrown);
+
+      final List<CompressedMapResult> constructed = maps.constructed();
+
+      final int size = constructed.size();
+      assertEquals(1, size);
+
+      final CompressedMapResult acquired = constructed.getFirst();
+      verify(acquired, never()).release();
+    }
+  }
+
+  @Test
+  void shouldPropagateFatalMapsReleaseFailureAfterADitherFailure() {
+    final ScreenSettings settings = this.wallSettings(UUID.randomUUID(), DitheringArgument.NEAREST_COLOR);
+    final IllegalStateException failure = new IllegalStateException("dither unavailable!");
+    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
+    try (
+      final MockedConstruction<CompressedMapResult> _ = Mockito.mockConstruction(CompressedMapResult.class, (maps, _) ->
+        this.failMapsRelease(maps, fatal)
+      );
+      final MockedStatic<DitherFilter> dithers = Mockito.mockStatic(DitherFilter.class)
+    ) {
+      dithers.when(() -> DitherFilter.dither(any(), any())).thenThrow(failure);
+      final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () -> this.command.createScreen(settings));
+      assertSame(fatal, thrown);
+    }
+  }
+
+  @Test
+  void shouldCreateAnMcv2ScreenWhenTheSettingsAskForIt() {
     final CommandSender sender = mock(CommandSender.class);
     final UUID viewer = UUID.randomUUID();
     final Mcv2Support support = mock(Mcv2Support.class);
     when(this.plugin.getMcv2Support()).thenReturn(support);
     final Mcv2Configuration configuration = mock(Mcv2Configuration.class);
-    when(support.configure(sender, Pair.pair(4, 3), Pair.pair(512, 384), 7, Settings.DEFAULT, List.of(viewer))).thenReturn(configuration);
+    when(
+      support.configure(
+        sender,
+        Pair.pair(WALL_BLOCK_WIDTH, WALL_BLOCK_HEIGHT),
+        Pair.pair(WALL_PIXEL_WIDTH, WALL_PIXEL_HEIGHT),
+        FIRST_MAP_ID,
+        Settings.DEFAULT,
+        List.of(viewer)
+      )
+    ).thenReturn(Optional.of(configuration));
     final Mcv2Output output = mock(Mcv2Output.class);
-    when(support.output(sender, configuration, DitheringArgument.NEAREST_COLOR)).thenReturn(output);
+    when(support.output(sender, configuration, DitheringArgument.NEAREST_COLOR)).thenReturn(Optional.of(output));
     try (final MockedConstruction<CompressedMapResult> maps = Mockito.mockConstruction(CompressedMapResult.class)) {
-      final Screen screen = this.command.createScreen(mcv2Settings(sender, viewer));
+      final Screen screen = this.command.createScreen(this.mcv2Settings(sender, viewer));
 
-      assertSame(output, screen.getOutput());
+      final FunctionalVideoFilter screenOutput = screen.getOutput();
+      assertSame(output, screenOutput);
       assertSame(output, this.command.result);
       verify(output).start();
-      assertTrue(maps.constructed().isEmpty(), "the MCV2 output dithers for the viewers without the pack itself");
+
+      final boolean empty = maps.constructed().isEmpty();
+      assertTrue(empty, "the MCV2 output dithers for the viewers without the pack itself");
     }
   }
 
+  private ScreenSettings mcv2Settings(final CommandSender sender, final UUID viewer) {
+    final MultiplePlayerSelector viewers = this.mockViewers(viewer);
+    return new ScreenSettings(
+      sender,
+      viewers,
+      Pair.pair(WALL_BLOCK_WIDTH, WALL_BLOCK_HEIGHT),
+      Pair.pair(WALL_PIXEL_WIDTH, WALL_PIXEL_HEIGHT),
+      FIRST_MAP_ID,
+      DitheringArgument.NEAREST_COLOR,
+      MapCodec.MCV2
+    );
+  }
+
   @Test
-  void dithersTheScreenWhenMcv2CannotBeHad() {
+  void shouldDitherTheScreenWhenMcv2CannotBeHad() {
     final CommandSender sender = mock(CommandSender.class);
     final Mcv2Support support = mock(Mcv2Support.class);
     when(this.plugin.getMcv2Support()).thenReturn(support);
     final Mcv2Configuration configuration = mock(Mcv2Configuration.class);
     // no frame holds the map the first time, and every slot of the pack plays the second time
-    when(support.configure(any(), any(), any(), eq(7), any(), any())).thenReturn(null, configuration);
+    when(support.configure(any(), any(), any(), eq(FIRST_MAP_ID), any(), any()))
+      .thenReturn(Optional.empty())
+      .thenReturn(Optional.of(configuration));
     final FunctionalVideoFilter ditherFilter = mock(FunctionalVideoFilter.class);
     try (
       final MockedConstruction<CompressedMapResult> maps = Mockito.mockConstruction(CompressedMapResult.class);
       final MockedStatic<DitherFilter> dithers = Mockito.mockStatic(DitherFilter.class)
     ) {
       dithers.when(() -> DitherFilter.dither(any(), any())).thenReturn(ditherFilter);
-      assertSame(ditherFilter, this.command.createScreen(mcv2Settings(sender, UUID.randomUUID())).getOutput());
-      assertSame(ditherFilter, this.command.createScreen(mcv2Settings(sender, UUID.randomUUID())).getOutput());
-      assertEquals(2, maps.constructed().size());
+
+      final FunctionalVideoFilter output = this.command.createScreen(this.mcv2Settings(sender, UUID.randomUUID())).getOutput();
+      assertSame(ditherFilter, output);
+
+      final FunctionalVideoFilter commandOutput = this.command.createScreen(this.mcv2Settings(sender, UUID.randomUUID())).getOutput();
+      assertSame(ditherFilter, commandOutput);
+
+      final int size = maps.constructed().size();
+      assertEquals(2, size);
     }
     verify(support).output(sender, configuration, DitheringArgument.NEAREST_COLOR);
   }
 
   @Test
-  void theFlagChoosesTheCodecOverTheConfiguredDefault() {
-    assertSame(MapCodec.MCV2, this.command.chooseCodec(MapCodec.MCV2));
-    assertSame(MapCodec.DITHER, this.command.chooseCodec(null));
+  void shouldLetTheFlagChooseTheCodecOverTheConfiguredDefault() {
+    final MapCodec codec = this.command.chooseCodec(MapCodec.MCV2);
+    assertSame(MapCodec.MCV2, codec);
+
+    final MapCodec commandCodec = this.command.chooseCodec(null);
+    assertSame(MapCodec.DITHER, commandCodec);
+  }
+
+  @Test
+  void shouldPreserveSetupFailureAndSuppressADistinctCleanupFailure() {
+    final IllegalStateException failure = new IllegalStateException("attach failed!");
+    final IllegalStateException cleanup = new IllegalStateException("close failed!");
+    this.assertSynchronousFailureCleanup(failure, cleanup);
+
+    final Throwable[] suppressed = failure.getSuppressed();
+    assertEquals(1, suppressed.length);
+    assertSame(cleanup, suppressed[0]);
   }
 
   private void assertSynchronousFailureCleanup(final RuntimeException failure, final RuntimeException cleanup) {
     final Screen screen = this.createMockedScreen();
     final FunctionalVideoFilter maps = screen.getOutput();
-    this.command.ownCreatedPlayer("browser");
+    this.command.ownCreatedPlayer(BROWSER);
     this.command.releaseFailure = cleanup;
-    final RuntimeException thrown = assertThrows(RuntimeException.class, () ->
-      this.command.createResource(() -> {
-        throw failure;
-      })
-    );
+    final RuntimeException thrown = assertThrows(RuntimeException.class, () -> this.createFailingResource(failure));
     assertSame(failure, thrown);
-    this.assertReleased("browser");
+    this.assertReleased(BROWSER);
     verify(maps).release();
     assertNull(this.command.player);
     assertNull(this.command.result);
   }
 
-  @Test
-  void preservesSetupFailureAndSuppressesADistinctCleanupFailure() {
-    final IllegalStateException failure = new IllegalStateException("attach failed");
-    final IllegalStateException cleanup = new IllegalStateException("close failed");
-    this.assertSynchronousFailureCleanup(failure, cleanup);
-    final Throwable[] suppressed = failure.getSuppressed();
-    assertEquals(1, suppressed.length);
-    assertSame(cleanup, suppressed[0]);
+  private void createFailingResource(final RuntimeException failure) {
+    this.command.createResource(() -> this.throwFailure(failure));
+  }
+
+  private void throwFailure(final RuntimeException failure) {
+    throw failure;
   }
 
   @Test
-  void doesNotSelfSuppressARepeatedSetupAndCleanupFailure() {
-    final IllegalStateException failure = new IllegalStateException("same backend failure");
+  void shouldNotSelfSuppressARepeatedSetupAndCleanupFailure() {
+    final IllegalStateException failure = new IllegalStateException("same backend failure!");
     this.assertSynchronousFailureCleanup(failure, failure);
+
     final Throwable[] suppressed = failure.getSuppressed();
     assertEquals(0, suppressed.length);
   }
 
   @Test
-  void retainsASuccessfullyStartedPlayerUntilExplicitRelease() throws InterruptedException {
+  void shouldRetainASuccessfullyStartedPlayerUntilExplicitRelease() throws InterruptedException {
     final List<Runnable> pending = this.useDeferredStartup();
     final Screen screen = this.createMockedScreen();
-    final ExecutorService executor = this.command.startExecutor("browser", screen);
+    final ExecutorService executor = this.command.startExecutor(BROWSER, screen);
     final CompletableFuture<Boolean> start = CompletableFuture.supplyAsync(() -> true, executor);
     final CommandSender sender = mock(CommandSender.class);
-    this.command.reportStartWhenDone(sender, "browser", screen, start, "browser");
+    this.command.reportStartWhenDone(sender, BROWSER, screen, start, BROWSER);
     final Runnable task = pending.getFirst();
     task.run();
-    assertReceivedText(sender, "started");
+    this.assertReceivedText(sender, STARTED_TEXT);
     this.assertReleased();
-    assertEquals("browser", this.command.player);
+    assertEquals(BROWSER, this.command.player);
+
     final FunctionalVideoFilter maps = screen.getOutput();
     verify(maps, never()).release();
+
     this.command.releaseCurrent();
-    this.assertReleased("browser");
+    this.assertReleased(BROWSER);
     verify(maps).release();
   }
 
   @Test
-  void cancelsAStartFutureBoundAfterItsScreenWasReleased() {
+  void shouldCancelAStartFutureBoundAfterItsScreenWasReleased() {
     final Screen screen = this.createMockedScreen();
-    this.command.ownCreatedPlayer("browser");
+    this.command.ownCreatedPlayer(BROWSER);
     this.command.releaseCurrent();
     final CompletableFuture<Boolean> start = new CompletableFuture<>();
     final CommandSender sender = mock(CommandSender.class);
-    this.command.reportStartWhenDone(sender, "browser", screen, start, "browser");
+    this.command.reportStartWhenDone(sender, BROWSER, screen, start, BROWSER);
     final boolean cancelled = start.isCancelled();
     assertTrue(cancelled);
     assertNull(this.command.player);
-    this.assertReleased("browser");
+    this.assertReleased(BROWSER);
     verify(sender, never()).sendMessage(any(Component.class));
   }
 
   @Test
-  void cancelsAStartFutureBoundAfterShutdown() {
+  void shouldCancelAStartFutureBoundAfterShutdown() {
     final Screen screen = this.createMockedScreen();
-    this.command.ownCreatedPlayer("browser");
+    this.command.ownCreatedPlayer(BROWSER);
     this.command.shutdown();
     final CompletableFuture<Boolean> start = new CompletableFuture<>();
     final CommandSender sender = mock(CommandSender.class);
-    this.command.reportStartWhenDone(sender, "browser", screen, start, "browser");
+    this.command.reportStartWhenDone(sender, BROWSER, screen, start, BROWSER);
     final boolean cancelled = start.isCancelled();
     assertTrue(cancelled);
     assertNull(this.command.player);
-    this.assertReleased("browser");
+    this.assertReleased(BROWSER);
     verify(sender, never()).sendMessage(any(Component.class));
   }
 
-  private RuntimeException runFailedStartupTask(final boolean shouldCancel, final @Nullable RuntimeException cleanup)
+  @Test
+  void shouldFinishStartupOwnershipWhenAnExecutorTaskThrows() throws InterruptedException {
+    final RuntimeException failure = this.runFailedStartupTask(TaskCancellation.NONE, null);
+    final Throwable[] suppressed = failure.getSuppressed();
+    assertEquals(0, suppressed.length);
+  }
+
+  private RuntimeException runFailedStartupTask(final TaskCancellation cancellation, final @Nullable RuntimeException cleanup)
     throws InterruptedException {
     final List<Runnable> pending = this.useDeferredStartup();
     final Screen screen = this.createMockedScreen();
-    this.command.ownCreatedPlayer("browser");
-    final ExecutorService executor = this.command.startExecutor("browser", screen);
-    final RuntimeException failure = new IllegalStateException("startup task failed");
-    executor.execute(() -> {
-      if (shouldCancel) {
-        this.command.releaseCurrent();
-      }
-      this.command.releaseFailure = cleanup;
-      throw failure;
-    });
+    this.command.ownCreatedPlayer(BROWSER);
+    final ExecutorService executor = this.command.startExecutor(BROWSER, screen);
+    final RuntimeException failure = new IllegalStateException("startup task failed!");
+    if (cancellation == TaskCancellation.CANCEL_BEFORE_THROWING) {
+      executor.execute(() -> this.releaseAndFailStartupTask(cleanup, failure));
+    } else {
+      executor.execute(() -> this.failStartupTask(cleanup, failure));
+    }
     final Runnable task = pending.getFirst();
     final RuntimeException thrown = assertThrows(RuntimeException.class, task::run);
     assertSame(failure, thrown);
-    if (shouldCancel) {
-      this.assertReleased("browser");
+
+    if (cancellation == TaskCancellation.CANCEL_BEFORE_THROWING) {
+      this.assertReleased(BROWSER);
+
       final FunctionalVideoFilter maps = screen.getOutput();
       verify(maps).release();
       assertNull(this.command.player);
     } else {
       this.assertReleased();
+
       this.command.releaseCurrent();
-      this.assertReleased("browser");
+      this.assertReleased(BROWSER);
     }
     return failure;
   }
 
+  private void releaseAndFailStartupTask(final @Nullable RuntimeException cleanup, final RuntimeException failure) {
+    this.command.releaseCurrent();
+    this.failStartupTask(cleanup, failure);
+  }
+
+  private void failStartupTask(final @Nullable RuntimeException cleanup, final RuntimeException failure) {
+    this.command.releaseFailure = cleanup;
+    throw failure;
+  }
+
   @Test
-  void finishesStartupOwnershipWhenAnExecutorTaskThrows() throws InterruptedException {
-    final RuntimeException failure = this.runFailedStartupTask(false, null);
+  void shouldReleaseACancelledExecutorTaskEvenWhenItThrows() throws InterruptedException {
+    final RuntimeException failure = this.runFailedStartupTask(TaskCancellation.CANCEL_BEFORE_THROWING, null);
     final Throwable[] suppressed = failure.getSuppressed();
     assertEquals(0, suppressed.length);
   }
 
   @Test
-  void releasesACancelledExecutorTaskEvenWhenItThrows() throws InterruptedException {
-    final RuntimeException failure = this.runFailedStartupTask(true, null);
-    final Throwable[] suppressed = failure.getSuppressed();
-    assertEquals(0, suppressed.length);
-  }
-
-  @Test
-  void preservesExecutorTaskFailureWhenCancelledCleanupAlsoFails() throws InterruptedException {
-    final RuntimeException cleanup = new IllegalStateException("backend close failed");
-    final RuntimeException failure = this.runFailedStartupTask(true, cleanup);
+  void shouldPreserveExecutorTaskFailureWhenCancelledCleanupAlsoFails() throws InterruptedException {
+    final RuntimeException cleanup = new IllegalStateException("backend close failed!");
+    final RuntimeException failure = this.runFailedStartupTask(TaskCancellation.CANCEL_BEFORE_THROWING, cleanup);
     final Throwable[] suppressed = failure.getSuppressed();
     assertEquals(1, suppressed.length);
     assertSame(cleanup, suppressed[0]);
   }
 
   @Test
-  void avoidsSelfSuppressionWhenStartupAndCleanupThrowTheSameFailure() throws InterruptedException {
+  void shouldAvoidSelfSuppressionWhenStartupAndCleanupThrowTheSameFailure() throws InterruptedException {
     final List<Runnable> pending = this.useDeferredStartup();
     final Screen screen = this.createMockedScreen();
-    this.command.ownCreatedPlayer("browser");
-    final ExecutorService executor = this.command.startExecutor("browser", screen);
-    final RuntimeException failure = new IllegalStateException("backend failure");
-    executor.execute(() -> {
-      this.command.releaseCurrent();
-      this.command.releaseFailure = failure;
-      throw failure;
-    });
+    this.command.ownCreatedPlayer(BROWSER);
+    final ExecutorService executor = this.command.startExecutor(BROWSER, screen);
+    final RuntimeException failure = new IllegalStateException("backend failure!");
+    executor.execute(() -> this.releaseAndFail(failure));
     final Runnable task = pending.getFirst();
     final RuntimeException thrown = assertThrows(RuntimeException.class, task::run);
     assertSame(failure, thrown);
+
     final Throwable[] suppressed = thrown.getSuppressed();
     assertEquals(0, suppressed.length);
-    this.assertReleased("browser");
+    this.assertReleased(BROWSER);
+  }
+
+  private void releaseAndFail(final RuntimeException failure) {
+    this.command.releaseCurrent();
+    this.command.releaseFailure = failure;
+    throw failure;
   }
 
   @Test
-  void ignoresMarkedFramesWithMissingMapMetadata() {
+  void shouldIgnoreMarkedFramesWithMissingMapMetadata() {
     this.createMockedScreen();
-    this.command.player = "browser";
-    final ItemFrame frame = this.addScreenFrame(0.5, 64.5, 0.0);
+    this.command.player = BROWSER;
+    final ItemFrame frame = this.addScreenFrame(BLOCK_CENTER_X, BLOCK_CENTER_Y, 0.0);
     final ItemStack item = mock(ItemStack.class);
     final ItemMeta metadata = mock(ItemMeta.class);
     when(item.getItemMeta()).thenReturn(metadata);
     when(frame.getItem()).thenReturn(item);
-    final PlayerInteractEntityEvent wrongMeta = this.rightClick(frame);
-    this.command.onPlayerInteractEntity(wrongMeta);
+    final PlayerInteractEntityEvent wrongMetadata = this.rightClick(frame);
+    this.command.onPlayerInteractEntity(wrongMetadata);
     final MapMeta mapMetadata = mock(MapMeta.class);
     when(item.getItemMeta()).thenReturn(mapMetadata);
     final PlayerInteractEntityEvent missingView = this.rightClick(frame);
     this.command.onPlayerInteractEntity(missingView);
-    verify(wrongMeta, never()).setCancelled(anyBoolean());
+    verify(wrongMetadata, never()).setCancelled(anyBoolean());
     verify(missingView, never()).setCancelled(anyBoolean());
     this.assertForwarded();
     this.interactions.verifyNoInteractions();
   }
 
   @Test
-  void ignoresAPlayerWhoseScreenOwnershipWasAlreadyCleared() {
+  void shouldIgnoreAPlayerWhoseScreenOwnershipWasAlreadyCleared() {
     // A startup failure clears screen ownership on the worker after the event captured its player.
-    this.command.player = "browser";
-    final ItemFrame frame = this.addScreenFrame(0.5, 64.5, 0.0);
+    this.command.player = BROWSER;
+    final ItemFrame frame = this.addScreenFrame(BLOCK_CENTER_X, BLOCK_CENTER_Y, 0.0);
     final PlayerInteractEntityEvent event = this.rightClick(frame);
     this.command.onPlayerInteractEntity(event);
     verify(event, never()).setCancelled(anyBoolean());
@@ -1401,11 +1557,11 @@ final class AbstractInteractiveCommandTest {
   }
 
   @Test
-  void ignoresMapsImmediatelyBelowTheOwnedRange() {
+  void shouldIgnoreMapsImmediatelyBelowTheOwnedRange() {
     this.createMockedScreen();
-    this.command.player = "browser";
-    final ItemFrame frame = this.addScreenFrame(0.5, 64.5, 0.0);
-    setMapId(frame, 6);
+    this.command.player = BROWSER;
+    final ItemFrame frame = this.addScreenFrame(BLOCK_CENTER_X, BLOCK_CENTER_Y, 0.0);
+    this.setMapId(frame, MAP_ID_BELOW_RANGE);
     final PlayerInteractEntityEvent event = this.rightClick(frame);
     this.command.onPlayerInteractEntity(event);
     verify(event, never()).setCancelled(anyBoolean());
@@ -1414,13 +1570,13 @@ final class AbstractInteractiveCommandTest {
   }
 
   @Test
-  void letsBlocksBehindAnotherCommandsScreenBreak() {
+  void shouldLetBlocksBehindAnotherCommandsScreenBreak() {
     this.createMockedScreen();
-    this.command.player = "browser";
-    final Block block = this.fakeWorld.block(0, 64, -1);
+    this.command.player = BROWSER;
+    final Block block = this.fakeWorld.block(0, BLOCK_Y, -1);
     this.aimAtBlock(block);
-    final ItemFrame frame = this.addScreenFrame(0.5, 64.5, -0.5);
-    setMapId(frame, 19);
+    final ItemFrame frame = this.addScreenFrame(BLOCK_CENTER_X, BLOCK_CENTER_Y, BLOCK_CENTER_Z);
+    this.setMapId(frame, MAP_ID_ABOVE_RANGE);
     final BlockBreakEvent event = this.blockBreak();
     this.command.onBlockBreak(event);
     verify(event, never()).setCancelled(anyBoolean());
@@ -1429,30 +1585,20 @@ final class AbstractInteractiveCommandTest {
   }
 
   @Test
-  void preservesANewerScreenWhenFailureRacesAfterTheCancellationCheck() throws Exception {
+  void shouldPreserveANewerScreenWhenFailureRacesAfterTheCancellationCheck() throws Exception {
     TestServer.resetWithDeferredTasks();
     final Screen firstScreen = this.createMockedScreen();
     final FunctionalVideoFilter firstMaps = firstScreen.getOutput();
     final CompletableFuture<Boolean> firstStart = new CompletableFuture<>();
     final CommandSender sender = mock(CommandSender.class);
-    this.command.reportStartWhenDone(sender, "first", firstScreen, firstStart, "first browser");
+    this.command.reportStartWhenDone(sender, FIRST_BROWSER, firstScreen, firstStart, "first browser");
     final AtomicReference<Throwable> callbackFailure = new AtomicReference<>();
     final CountDownLatch loggedFailure = new CountDownLatch(1);
     final CountDownLatch resumeFailure = new CountDownLatch(1);
-    final IllegalStateException failure = Mockito.spy(new IllegalStateException("startup failed"));
+    final IllegalStateException failure = Mockito.spy(new IllegalStateException("startup failed!"));
     // Logging is after the cancellation check and before the ownership lock. Pause only that observable
     // boundary so the main thread can really replace the screen while its completion worker is in flight.
-    Mockito.doAnswer(invocation -> {
-      loggedFailure.countDown();
-      try {
-        final boolean resumed = resumeFailure.await(10, TimeUnit.SECONDS);
-        assertTrue(resumed, "The main thread must release the failure callback");
-        return invocation.callRealMethod();
-      } catch (final Throwable callbackProblem) {
-        callbackFailure.set(callbackProblem);
-        throw callbackProblem;
-      }
-    })
+    Mockito.doAnswer(invocation -> this.pauseFailureLogging(invocation, loggedFailure, resumeFailure, callbackFailure))
       .when(failure)
       .printStackTrace(any(PrintStream.class));
     try (final ExecutorService worker = Executors.newSingleThreadExecutor()) {
@@ -1460,36 +1606,59 @@ final class AbstractInteractiveCommandTest {
       try {
         final boolean reachedFailure = loggedFailure.await(10, TimeUnit.SECONDS);
         assertTrue(reachedFailure, "The failed start must reach its log before replacement");
+
         final Screen secondScreen = this.createMockedScreen();
         final FunctionalVideoFilter secondMaps = secondScreen.getOutput();
         final CompletableFuture<Boolean> secondStart = new CompletableFuture<>();
-        this.command.reportStartWhenDone(sender, "second", secondScreen, secondStart, "second browser");
+        this.command.reportStartWhenDone(sender, SECOND_BROWSER, secondScreen, secondStart, "second browser");
         resumeFailure.countDown();
         final boolean completed = completion.get(10, TimeUnit.SECONDS);
         assertTrue(completed);
-        assertNull(callbackFailure.get(), "callback assertions reach the test thread");
+
+        final Throwable callbackFailureCallbackFailure = callbackFailure.get();
+        assertNull(callbackFailureCallbackFailure, "callback assertions reach the test thread");
+
         TestServer.runPendingTasks();
-        assertEquals("second", this.command.player);
+        assertEquals(SECOND_BROWSER, this.command.player);
         assertSame(secondMaps, this.command.result);
-        this.assertReleased("first");
+        this.assertReleased(FIRST_BROWSER);
         verify(firstMaps, times(1)).release();
         verify(secondMaps, never()).release();
         verify(sender, never()).sendMessage(any(Component.class));
+
         secondStart.complete(true);
         TestServer.runPendingTasks();
-        assertReceivedText(sender, "started");
+        this.assertReceivedText(sender, STARTED_TEXT);
       } finally {
         resumeFailure.countDown();
       }
     }
   }
 
+  private @Nullable Object pauseFailureLogging(
+    final InvocationOnMock invocation,
+    final CountDownLatch loggedFailure,
+    final CountDownLatch resumeFailure,
+    final AtomicReference<Throwable> callbackFailure
+  ) throws Throwable {
+    loggedFailure.countDown();
+    try {
+      final boolean resumed = resumeFailure.await(10, TimeUnit.SECONDS);
+      assertTrue(resumed, "The main thread must release the failure callback");
+
+      return invocation.callRealMethod();
+    } catch (final Throwable exception) {
+      callbackFailure.set(exception);
+      throw exception;
+    }
+  }
+
   @Test
-  void propagatesFatalScreenCreationFailureWithoutAttemptingCleanup() {
+  void shouldPropagateFatalScreenCreationFailureWithoutAttemptingCleanup() {
     final UUID viewer = UUID.randomUUID();
-    final ScreenSettings settings = wallSettings(viewer, DitheringArgument.NEAREST_COLOR);
+    final ScreenSettings settings = this.wallSettings(viewer, DitheringArgument.NEAREST_COLOR);
     final FunctionalVideoFilter ditherFilter = mock(FunctionalVideoFilter.class);
-    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel");
+    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
     try (
       final MockedConstruction<CompressedMapResult> results = Mockito.mockConstruction(CompressedMapResult.class);
       final MockedStatic<DitherFilter> dithers = Mockito.mockStatic(DitherFilter.class)
@@ -1498,129 +1667,194 @@ final class AbstractInteractiveCommandTest {
       Mockito.doThrow(fatal).when(ditherFilter).start();
       final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () -> this.command.createScreen(settings));
       assertSame(fatal, thrown);
+
       final List<CompressedMapResult> constructed = results.constructed();
-      assertEquals(1, constructed.size());
+
+      final int size = constructed.size();
+      assertEquals(1, size);
+
       final CompressedMapResult maps = constructed.getFirst();
       verify(maps, never()).release();
+      verify(ditherFilter, never()).release();
       this.assertReleased();
     }
   }
 
   @Test
-  void propagatesFatalResourceCreationFailureWithoutAttemptingCleanup() {
-    this.command.ownCreatedPlayer("browser");
-    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel");
-    final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () ->
-      this.command.createResource(() -> {
-        throw fatal;
-      })
-    );
+  void shouldPropagateFatalResourceCreationFailureWithoutAttemptingCleanup() {
+    this.command.ownCreatedPlayer(BROWSER);
+    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
+    final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () -> this.createFatallyFailingResource(fatal));
     assertSame(fatal, thrown);
     this.assertReleased();
-    assertEquals("browser", this.command.player);
+    assertEquals(BROWSER, this.command.player);
+  }
+
+  private void createFatallyFailingResource(final OutOfMemoryError fatal) {
+    this.command.createResource(() -> this.throwFatal(fatal));
+  }
+
+  private void throwFatal(final OutOfMemoryError fatal) {
+    throw fatal;
   }
 
   @Test
-  void propagatesFatalCleanupFailureDuringFailureRelease() {
-    this.command.ownCreatedPlayer("browser");
-    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel");
+  void shouldPropagateFatalBackgroundReleaseFailure() {
+    final ExecutorService direct = MoreExecutors.newDirectExecutorService();
+    final RecordingCommand command = new RecordingCommand(this.plugin, direct);
+    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
+    final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () -> this.releaseFatallyInTheBackground(command, fatal));
+    assertSame(fatal, thrown);
+  }
+
+  private void releaseFatallyInTheBackground(final RecordingCommand command, final OutOfMemoryError fatal) {
+    command.releaseInTheBackground(() -> this.throwFatal(fatal));
+  }
+
+  @Test
+  void shouldPropagateFatalCleanupFailureDuringFailureRelease() {
+    this.command.ownCreatedPlayer(BROWSER);
+    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
     this.command.releaseFailure = fatal;
-    final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () ->
-      this.command.createResource(() -> {
-        throw new IllegalStateException("resource failure");
-      })
-    );
+    final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, this::createBrokenResource);
     assertSame(fatal, thrown);
-    this.assertReleased("browser");
+    this.assertReleased(BROWSER);
+  }
+
+  private void createBrokenResource() {
+    this.command.createResource(this::throwResourceFailure);
+  }
+
+  private void throwResourceFailure() {
+    throw new IllegalStateException("resource failure!");
   }
 
   @Test
-  void propagatesFatalStartTaskFailureWithoutAttemptingFinishStartTask() throws InterruptedException {
+  void shouldPropagateFatalStartTaskFailureWithoutAttemptingFinishStartTask() throws InterruptedException {
     final List<Runnable> pending = this.useDeferredStartup();
     final Screen screen = this.createMockedScreen();
-    this.command.ownCreatedPlayer("browser");
-    final ExecutorService executor = this.command.startExecutor("browser", screen);
-    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel");
-    executor.execute(() -> {
-      screen.cancel();
-      throw fatal;
-    });
+    this.command.ownCreatedPlayer(BROWSER);
+    final ExecutorService executor = this.command.startExecutor(BROWSER, screen);
+    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
+    executor.execute(() -> this.cancelAndFail(screen, fatal));
     final Runnable task = pending.getFirst();
     final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, task::run);
     assertSame(fatal, thrown);
     this.assertReleased();
   }
 
+  private void cancelAndFail(final Screen screen, final OutOfMemoryError fatal) {
+    screen.cancel();
+    throw fatal;
+  }
+
   @Test
-  void propagatesFatalCleanupFailureDuringStartTaskFailureHandling() throws InterruptedException {
+  void shouldPropagateFatalCleanupFailureDuringStartTaskFailureHandling() throws InterruptedException {
     final List<Runnable> pending = this.useDeferredStartup();
     final Screen screen = this.createMockedScreen();
-    this.command.ownCreatedPlayer("browser");
-    final ExecutorService executor = this.command.startExecutor("browser", screen);
-    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel");
-    executor.execute(() -> {
-      screen.cancel();
-      this.command.releaseFailure = fatal;
-      throw new IllegalStateException("startup task failed");
-    });
+    this.command.ownCreatedPlayer(BROWSER);
+    final ExecutorService executor = this.command.startExecutor(BROWSER, screen);
+    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
+    executor.execute(() -> this.cancelAndFailStartupTask(screen, fatal));
     final Runnable task = pending.getFirst();
     final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, task::run);
     assertSame(fatal, thrown);
-    this.assertReleased("browser");
+    this.assertReleased(BROWSER);
+
     this.command.releaseFailure = null;
   }
 
+  private void cancelAndFailStartupTask(final Screen screen, final OutOfMemoryError fatal) {
+    screen.cancel();
+    this.command.releaseFailure = fatal;
+    throw new IllegalStateException("startup task failed!");
+  }
+
   @Test
-  void aScreenTellsTheLogOnceThatItsMapsShowAPicture() {
+  void shouldTellTheLogOnceThatTheMapsOfAScreenShowAPicture() {
     final List<String> messages = new ArrayList<>();
     final VideoFilter announcement = AbstractInteractiveCommand.announceFirstPicture(4, 6, messages::add);
     final byte[] pixels = { 3, 5, 7, 11, 13, 17 };
     try (final ImageBuffer frame = ImageBuffer.bytes(pixels.clone(), 2, 1)) {
-      assertFalse(announcement.applyFilter(frame, OriginalVideoMetadata.EMPTY), "the step leaves the frame as it is");
-      assertEquals(ByteBuffer.wrap(pixels), frame.getData());
+      final boolean filtered = announcement.applyFilter(frame, OriginalVideoMetadata.EMPTY);
+      assertFalse(filtered, "the step leaves the frame as it is");
+
+      final ByteBuffer expected = ByteBuffer.wrap(pixels);
+      final ByteBuffer data = frame.getData();
+      assertEquals(expected, data);
       assertEquals(List.of("Maps 4 to 9 show their first picture"), messages, "at the first picture");
-      assertFalse(announcement.applyFilter(frame, OriginalVideoMetadata.EMPTY));
-      assertEquals(ByteBuffer.wrap(pixels), frame.getData());
-      assertFalse(announcement.applyFilter(frame, OriginalVideoMetadata.EMPTY));
-      assertEquals(ByteBuffer.wrap(pixels), frame.getData());
+
+      final boolean announcementFiltered = announcement.applyFilter(frame, OriginalVideoMetadata.EMPTY);
+      assertFalse(announcementFiltered);
+
+      final ByteBuffer byteBufferExpected = ByteBuffer.wrap(pixels);
+      final ByteBuffer frameData = frame.getData();
+      assertEquals(byteBufferExpected, frameData);
+
+      final boolean secondFiltered = announcement.applyFilter(frame, OriginalVideoMetadata.EMPTY);
+      assertFalse(secondFiltered);
+
+      final ByteBuffer secondExpected = ByteBuffer.wrap(pixels);
+      final ByteBuffer secondData = frame.getData();
+      assertEquals(secondExpected, secondData);
       assertEquals(List.of("Maps 4 to 9 show their first picture"), messages, "and never again");
     }
   }
 
   @Test
-  void forwardsTheClickedPixelOfTheSourceCentredOnTheWall() {
+  void shouldForwardTheClickedPixelOfTheSourceCentredOnTheWall() {
     // a 384x256 source on a wall of 4x3 maps, 512x384 pixels: the dithered maps leave a 64-pixel border around it
-    final MultiplePlayerSelector viewers = mockViewers(UUID.randomUUID());
-    final Pair<Integer, Integer> blocks = Pair.pair(4, 3);
-    final Pair<Integer, Integer> resolution = Pair.pair(384, 256);
+    final MultiplePlayerSelector viewers = this.mockViewers(UUID.randomUUID());
+    final Pair<Integer, Integer> blocks = Pair.pair(WALL_BLOCK_WIDTH, WALL_BLOCK_HEIGHT);
+    final Pair<Integer, Integer> resolution = Pair.pair(SOURCE_PIXEL_WIDTH, SOURCE_PIXEL_HEIGHT);
     this.createMockedScreen(
-      new ScreenSettings(mock(CommandSender.class), viewers, blocks, resolution, 7, DitheringArgument.NEAREST_COLOR, MapCodec.DITHER)
+      new ScreenSettings(
+        mock(CommandSender.class),
+        viewers,
+        blocks,
+        resolution,
+        FIRST_MAP_ID,
+        DitheringArgument.NEAREST_COLOR,
+        MapCodec.DITHER
+      )
     );
-    this.command.player = "browser";
-    final ItemFrame frame = this.addScreenFrame(0.5, 64.5, -0.1);
-    this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, frame)).thenReturn(new int[] { 200, 100 });
+    this.command.player = BROWSER;
+    final ItemFrame frame = this.addScreenFrame(BLOCK_CENTER_X, BLOCK_CENTER_Y, FRONT_FRAME_Z);
+    this.interactions
+      .when(() -> InteractUtils.getBoardCoordinates(this.player, frame))
+      .thenReturn(Optional.of(new int[] { SOURCE_BOARD_X, SOURCE_BOARD_Y }));
 
     this.command.onPlayerInteractEntity(this.rightClick(frame));
-    this.command.onScreenDamage(damage(frame, this.player));
+    this.command.onScreenDamage(this.damage(frame, this.player));
 
     this.assertForwarded("browser right 136,36", "browser left 136,36");
   }
 
   @Test
-  void forwardsNoClickOnTheBorderAroundASmallerSource() {
-    final MultiplePlayerSelector viewers = mockViewers(UUID.randomUUID());
-    final Pair<Integer, Integer> blocks = Pair.pair(4, 3);
-    final Pair<Integer, Integer> resolution = Pair.pair(384, 256);
+  void shouldForwardNoClickOnTheBorderAroundASmallerSource() {
+    final MultiplePlayerSelector viewers = this.mockViewers(UUID.randomUUID());
+    final Pair<Integer, Integer> blocks = Pair.pair(WALL_BLOCK_WIDTH, WALL_BLOCK_HEIGHT);
+    final Pair<Integer, Integer> resolution = Pair.pair(SOURCE_PIXEL_WIDTH, SOURCE_PIXEL_HEIGHT);
     this.createMockedScreen(
-      new ScreenSettings(mock(CommandSender.class), viewers, blocks, resolution, 7, DitheringArgument.NEAREST_COLOR, MapCodec.DITHER)
+      new ScreenSettings(
+        mock(CommandSender.class),
+        viewers,
+        blocks,
+        resolution,
+        FIRST_MAP_ID,
+        DitheringArgument.NEAREST_COLOR,
+        MapCodec.DITHER
+      )
     );
-    this.command.player = "browser";
-    final Block block = this.fakeWorld.block(0, 64, -1);
+    this.command.player = BROWSER;
+    final Block block = this.fakeWorld.block(0, BLOCK_Y, -1);
     this.aimAtBlock(block);
-    final ItemFrame frame = this.addScreenFrame(0.1, 64.1, -0.9);
-    this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, frame)).thenReturn(new int[] { 10, 20 });
+    final ItemFrame frame = this.addScreenFrame(CORNER_FRAME_X, CORNER_FRAME_Y, CORNER_FRAME_Z);
+    this.interactions
+      .when(() -> InteractUtils.getBoardCoordinates(this.player, frame))
+      .thenReturn(Optional.of(new int[] { AIMED_BOARD_X, AIMED_BOARD_Y }));
     final PlayerInteractEntityEvent right = this.rightClick(frame);
-    final EntityDamageByEntityEvent punch = damage(frame, this.player);
+    final EntityDamageByEntityEvent punch = this.damage(frame, this.player);
     final BlockBreakEvent broken = this.blockBreak();
 
     this.command.onPlayerInteractEntity(right);
@@ -1635,25 +1869,111 @@ final class AbstractInteractiveCommandTest {
   }
 
   @Test
-  void forwardsTheClickedPixelOfTheSourceStretchedOverAnMcv2Wall() {
+  void shouldForwardTheClickedPixelOfTheSourceStretchedOverAnMcv2Wall() {
     final CommandSender sender = mock(CommandSender.class);
     final UUID viewer = UUID.randomUUID();
     final Mcv2Support support = mock(Mcv2Support.class);
     when(this.plugin.getMcv2Support()).thenReturn(support);
     final Mcv2Configuration configuration = mock(Mcv2Configuration.class);
-    when(support.configure(sender, Pair.pair(4, 3), Pair.pair(1024, 768), 7, Settings.DEFAULT, List.of(viewer))).thenReturn(configuration);
-    when(support.output(sender, configuration, DitheringArgument.NEAREST_COLOR)).thenReturn(mock(Mcv2Output.class));
-    final MultiplePlayerSelector viewers = mockViewers(viewer);
+    when(
+      support.configure(
+        sender,
+        Pair.pair(WALL_BLOCK_WIDTH, WALL_BLOCK_HEIGHT),
+        Pair.pair(1024, 768),
+        FIRST_MAP_ID,
+        Settings.DEFAULT,
+        List.of(viewer)
+      )
+    ).thenReturn(Optional.of(configuration));
+    when(support.output(sender, configuration, DitheringArgument.NEAREST_COLOR)).thenReturn(Optional.of(mock(Mcv2Output.class)));
+    final MultiplePlayerSelector viewers = this.mockViewers(viewer);
     this.command.createScreen(
-      new ScreenSettings(sender, viewers, Pair.pair(4, 3), Pair.pair(1024, 768), 7, DitheringArgument.NEAREST_COLOR, MapCodec.MCV2)
+      new ScreenSettings(
+        sender,
+        viewers,
+        Pair.pair(WALL_BLOCK_WIDTH, WALL_BLOCK_HEIGHT),
+        Pair.pair(1024, 768),
+        FIRST_MAP_ID,
+        DitheringArgument.NEAREST_COLOR,
+        MapCodec.MCV2
+      )
     );
-    this.command.player = "browser";
-    final ItemFrame frame = this.addScreenFrame(0.5, 64.5, -0.1);
-    this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, frame)).thenReturn(new int[] { 200, 100 });
+    this.command.player = BROWSER;
+    final ItemFrame frame = this.addScreenFrame(BLOCK_CENTER_X, BLOCK_CENTER_Y, FRONT_FRAME_Z);
+    this.interactions
+      .when(() -> InteractUtils.getBoardCoordinates(this.player, frame))
+      .thenReturn(Optional.of(new int[] { SOURCE_BOARD_X, SOURCE_BOARD_Y }));
 
     this.command.onPlayerInteractEntity(this.rightClick(frame));
 
     // the pack stretches the 1024x768 picture over the 512x384 pixels of the wall
     this.assertForwarded("browser right 400,200");
+  }
+
+  private static final class RecordingCommand extends AbstractInteractiveCommand<String> {
+
+    private final List<String> forwarded;
+    private final List<String> released;
+    private @Nullable Throwable releaseFailure;
+
+    RecordingCommand(final MCAVSandbox plugin) {
+      super(plugin);
+      this.forwarded = new ArrayList<>();
+      this.released = new ArrayList<>();
+    }
+
+    RecordingCommand(final MCAVSandbox plugin, final ExecutorService executor) {
+      super(plugin, executor);
+      this.forwarded = new ArrayList<>();
+      this.released = new ArrayList<>();
+    }
+
+    @Override
+    protected void forwardLeftClick(final String current, final int screenX, final int screenY) {
+      this.forwarded.add(current + " left " + screenX + COORDINATE_SEPARATOR + screenY);
+    }
+
+    @Override
+    protected void forwardRightClick(final String current, final int screenX, final int screenY) {
+      this.forwarded.add(current + " right " + screenX + COORDINATE_SEPARATOR + screenY);
+    }
+
+    @Override
+    protected void forwardTextInput(final String current, final String text) {
+      this.forwarded.add(current + " text " + text);
+    }
+
+    @Override
+    protected Component createStartMessage(final StartOutcome outcome, final @Nullable Throwable error) {
+      if (outcome == StartOutcome.STARTED) {
+        return Component.text(STARTED_TEXT);
+      }
+
+      final String reason = error == null ? "refused" : error.getMessage();
+      return Component.text("failed: " + reason);
+    }
+
+    @Override
+    protected void releasePlayer(final String current) {
+      this.released.add(current);
+      final Throwable failure = this.releaseFailure;
+      if (failure instanceof final RuntimeException runtime) {
+        throw runtime;
+      }
+
+      if (failure instanceof final Error error) {
+        throw error;
+      }
+    }
+
+    @Override
+    protected String getInteractionPermission() {
+      return INTERACT_PERMISSION;
+    }
+  }
+
+  private enum TaskCancellation {
+    CANCEL_BEFORE_THROWING,
+    NONE,
   }
 }

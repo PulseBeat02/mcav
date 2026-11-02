@@ -33,12 +33,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * Serves a Maven repository folder over plain HTTP on the loopback address. The plugin downloads its libraries with
- * Gremlin, whose {@link java.net.http.HttpClient} cannot read {@code file:} URIs, so the modules this build publishes
- * into a folder reach the server through this repository. Only {@code GET} and {@code HEAD} of files inside the folder
- * are answered; everything else gets a 404 or a 405. Closing it stops the server.
- */
+// Gremlin's HttpClient cannot read file: URIs, so the build's modules are served over HTTP
 final class LocalMavenRepositoryServer implements AutoCloseable {
 
   private static final InetAddress LOOPBACK_ADDRESS = InetAddress.ofLiteral("127.0.0.1");
@@ -46,6 +41,12 @@ final class LocalMavenRepositoryServer implements AutoCloseable {
   private static final int HTTP_NOT_FOUND = 404;
   private static final int HTTP_METHOD_NOT_ALLOWED = 405;
   private static final long NO_BODY = -1;
+
+  private static final String ROOT_PATH = "/";
+  private static final String PATH_SEPARATOR = "/";
+
+  private static final String HEAD_METHOD = "HEAD";
+  private static final String GET_METHOD = "GET";
 
   private final Path root;
   private final HttpServer server;
@@ -57,18 +58,10 @@ final class LocalMavenRepositoryServer implements AutoCloseable {
     this.server = server;
     this.executor = Executors.newVirtualThreadPerTaskExecutor();
     this.servedFileCount = new AtomicInteger();
-    server.createContext("/", this::handle);
+    server.createContext(ROOT_PATH, this::handle);
     server.setExecutor(this.executor);
   }
 
-  /**
-   * Starts serving a repository folder on {@code http://127.0.0.1:<port>/}.
-   *
-   * @param directory the repository folder
-   * @param port      the port to listen on
-   * @return the running repository server
-   * @throws IOException if the port cannot be bound
-   */
   static LocalMavenRepositoryServer start(final Path directory, final int port) throws IOException {
     final Path absoluteDirectory = directory.toAbsolutePath();
     final Path root = absoluteDirectory.normalize();
@@ -76,33 +69,33 @@ final class LocalMavenRepositoryServer implements AutoCloseable {
     final HttpServer server = HttpServer.create(address, 0);
     final LocalMavenRepositoryServer repository = new LocalMavenRepositoryServer(root, server);
     server.start();
+
     return repository;
   }
 
-  /**
-   * Gets how many files the repository has served so far.
-   *
-   * @return the number of successful {@code GET} requests
-   */
-  int getServedFileCount() {
-    return this.servedFileCount.get();
+  @Override
+  public void close() {
+    this.server.stop(0);
+    this.executor.close();
   }
 
   private void handle(final HttpExchange exchange) throws IOException {
     try {
       final String method = exchange.getRequestMethod();
-      final boolean isHeadRequest = method.equals("HEAD");
-      final boolean isGetRequest = method.equals("GET");
+      final boolean isHeadRequest = method.equals(HEAD_METHOD);
+      final boolean isGetRequest = method.equals(GET_METHOD);
       if (!isHeadRequest && !isGetRequest) {
         exchange.sendResponseHeaders(HTTP_METHOD_NOT_ALLOWED, NO_BODY);
         return;
       }
+
       final URI requestUri = exchange.getRequestURI();
       final Optional<Path> file = this.findFile(requestUri);
       if (file.isEmpty()) {
         exchange.sendResponseHeaders(HTTP_NOT_FOUND, NO_BODY);
         return;
       }
+
       final Path existingFile = file.get();
       this.sendFile(exchange, existingFile, isHeadRequest);
     } finally {
@@ -110,15 +103,14 @@ final class LocalMavenRepositoryServer implements AutoCloseable {
     }
   }
 
-  /**
-   * Finds the file a request asks for; paths that would leave the repository folder are treated as missing.
-   */
+  // paths leaving the repository folder count as missing
   private Optional<Path> findFile(final URI requestUri) {
     final String requestPath = requestUri.getPath();
     if (requestPath == null) {
       return Optional.empty();
     }
-    final String relativePath = requestPath.startsWith("/") ? requestPath.substring(1) : requestPath;
+
+    final String relativePath = requestPath.startsWith(PATH_SEPARATOR) ? requestPath.substring(1) : requestPath;
     final Path candidate;
     try {
       candidate = this.root.resolve(relativePath);
@@ -130,16 +122,19 @@ final class LocalMavenRepositoryServer implements AutoCloseable {
     if (!inside || !Files.isRegularFile(file)) {
       return Optional.empty();
     }
+
     return Optional.of(file);
   }
 
   private void sendFile(final HttpExchange exchange, final Path file, final boolean isHeadRequest) throws IOException {
     final Headers responseHeaders = exchange.getResponseHeaders();
     responseHeaders.set("Content-Type", "application/octet-stream");
+
     if (isHeadRequest) {
       exchange.sendResponseHeaders(HTTP_OK, NO_BODY);
       return;
     }
+
     final long size = Files.size(file);
     // a length of 0 would make the server send a chunked body, so an empty file is sent without one
     final long responseLength = size == 0 ? NO_BODY : size;
@@ -150,12 +145,7 @@ final class LocalMavenRepositoryServer implements AutoCloseable {
     this.servedFileCount.incrementAndGet();
   }
 
-  /**
-   * Stops the server at once and ends its request threads.
-   */
-  @Override
-  public void close() {
-    this.server.stop(0);
-    this.executor.close();
+  int getServedFileCount() {
+    return this.servedFileCount.get();
   }
 }

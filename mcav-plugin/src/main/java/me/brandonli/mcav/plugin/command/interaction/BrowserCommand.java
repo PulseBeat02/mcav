@@ -21,6 +21,7 @@ import com.google.common.base.Preconditions;
 import java.net.URI;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -34,6 +35,7 @@ import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.plugin.MCAVSandbox;
 import me.brandonli.mcav.plugin.audio.AudioOutputs;
 import me.brandonli.mcav.plugin.audio.AudioProvider;
+import me.brandonli.mcav.plugin.command.SuggestionProvider;
 import me.brandonli.mcav.plugin.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.plugin.locale.Message;
 import me.brandonli.mcav.plugin.utils.AudioArgument;
@@ -64,12 +66,13 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
  * {@code file:} or {@code chrome:}, would let anyone with the permission show local files of the server, like the
  * configuration with the Discord token, on the maps. Pages reach public addresses of the internet only, unless
  * {@code browser.allow-private-networks} in {@code config.yml} allows the server's own network.
+ *
+ * <p>This class keeps no state of its own; {@link AbstractInteractiveCommand} names the threads that call its methods.
+ *
+ * @since 1.0.0
  */
 public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlayer> {
 
-  /**
-   * The permission a player needs to send input to the running browser, by chat or by clicking the screen.
-   */
   private static final String INTERACT_PERMISSION = "mcav.browser.interact";
 
   private static final Set<String> WEB_SCHEMES = Set.of("http", "https");
@@ -78,19 +81,10 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    * Constructs the command.
    *
    * @param plugin the plugin
+   * @since 1.0.0
    */
   public BrowserCommand(final MCAVSandbox plugin) {
     super(plugin);
-  }
-
-  /**
-   * Gets the permission a player needs to send input to the running browser.
-   *
-   * @return {@value #INTERACT_PERMISSION}
-   */
-  @Override
-  protected String getInteractionPermission() {
-    return INTERACT_PERMISSION;
   }
 
   /**
@@ -99,10 +93,12 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    * @param current the running browser
    * @param screenX the x coordinate on the page, in pixels
    * @param screenY the y coordinate on the page, in pixels
+   * @since 1.0.0
    */
   @Override
-  protected void handleLeftClick(final BrowserPlayer current, final int screenX, final int screenY) {
-    Preconditions.checkNotNull(current, "Browser must not be null");
+  protected void forwardLeftClick(final BrowserPlayer current, final int screenX, final int screenY) {
+    Preconditions.checkNotNull(current, "Browser must not be null!");
+
     current.sendMouseEvent(MouseClick.LEFT, screenX, screenY);
   }
 
@@ -112,10 +108,12 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    * @param current the running browser
    * @param screenX the x coordinate on the page, in pixels
    * @param screenY the y coordinate on the page, in pixels
+   * @since 1.0.0
    */
   @Override
-  protected void handleRightClick(final BrowserPlayer current, final int screenX, final int screenY) {
-    Preconditions.checkNotNull(current, "Browser must not be null");
+  protected void forwardRightClick(final BrowserPlayer current, final int screenX, final int screenY) {
+    Preconditions.checkNotNull(current, "Browser must not be null!");
+
     current.sendMouseEvent(MouseClick.RIGHT, screenX, screenY);
   }
 
@@ -124,11 +122,13 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    *
    * @param current the running browser
    * @param text    the text to type
+   * @since 1.0.0
    */
   @Override
-  protected void handleTextInput(final BrowserPlayer current, final String text) {
-    Preconditions.checkNotNull(current, "Browser must not be null");
-    Preconditions.checkNotNull(text, "Text must not be null");
+  protected void forwardTextInput(final BrowserPlayer current, final String text) {
+    Preconditions.checkNotNull(current, "Browser must not be null!");
+    Preconditions.checkNotNull(text, "Text must not be null!");
+
     current.sendKeyEvent(text);
   }
 
@@ -136,10 +136,12 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    * Closes a browser.
    *
    * @param current the browser to close, which is no longer the running one
+   * @since 1.0.0
    */
   @Override
   protected void releasePlayer(final BrowserPlayer current) {
-    Preconditions.checkNotNull(current, "Browser must not be null");
+    Preconditions.checkNotNull(current, "Browser must not be null!");
+
     // the browser helper takes seconds to stop and its session folder to be deleted; no frame or sound of it meanwhile
     CleanupUtils.runAll(
       () -> current.getVideoAttachableCallback().detach(),
@@ -161,12 +163,14 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    * to forward.
    *
    * @param sender the player who switches their chat input
+   * @since 1.0.0
    */
   @Command("mcav browser interact")
   @Permission(INTERACT_PERMISSION)
   @CommandDescription("mcav.command.browser.interact.info")
   public void toggleInteraction(final Player sender) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
+
     final Component enabled = Message.INTERACT_ENABLE.build();
     final Component disabled = Message.INTERACT_DISABLE.build();
     this.toggleInteraction(sender, enabled, disabled);
@@ -180,12 +184,14 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    * told "Browser released!", also when no browser was running.
    *
    * @param sender who ran the command
+   * @since 1.0.0
    */
   @Command("mcav browser release")
   @Permission("mcav.browser.release")
   @CommandDescription("mcav.command.browser.release.info")
   public void releaseBrowser(final CommandSender sender) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
+
     final Component released = Message.RELEASE_BROWSER.build();
     this.releaseResource(sender, released);
   }
@@ -228,6 +234,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    *                           the maps cannot show files of the server
    * @param codec              how the picture reaches the players, see {@link MapCodec}; the configured default when
    *                           absent
+   * @since 1.0.0
    */
   @Command(
     "mcav browser create <playerSelector> <browserResolution> <nth> <blockDimensions> <mapId> <ditheringAlgorithm> <audioType> <url>"
@@ -237,19 +244,19 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
   public void createBrowser(
     final CommandSender sender,
     final MultiplePlayerSelector playerSelector,
-    @Argument(suggestions = "resolutions") @Quoted final String browserResolution,
+    @Argument(suggestions = SuggestionProvider.RESOLUTIONS) @Quoted final String browserResolution,
     @Argument(suggestions = "nth") @Range(min = "1", max = "1000") final int nth,
-    @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
-    @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
+    @Argument(suggestions = SuggestionProvider.DIMENSIONS) @Quoted final String blockDimensions,
+    @Argument(suggestions = SuggestionProvider.IDS) @Range(min = "0") final int mapId,
     final DitheringArgument ditheringAlgorithm,
     final AudioArgument audioType,
     @Greedy @FlagYielding final String url,
     @Flag("codec") final @Nullable MapCodec codec
   ) {
-    Preconditions.checkNotNull(playerSelector, "Player selector must not be null");
-    Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null");
-    Preconditions.checkNotNull(audioType, "Audio type must not be null");
-    Preconditions.checkNotNull(url, "URL must not be null");
+    Preconditions.checkNotNull(playerSelector, "Player selector must not be null!");
+    Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null!");
+    Preconditions.checkNotNull(audioType, "Audio type must not be null!");
+    Preconditions.checkNotNull(url, "URL must not be null!");
 
     if (!this.plugin.isBrowserSupported()) {
       final Component message = Message.BROWSER_UNSUPPORTED.build();
@@ -257,20 +264,17 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
       return;
     }
 
-    final Pair<Integer, Integer> resolution = parseDimensions(sender, browserResolution);
+    final Pair<Integer, Integer> resolution = this.parseBrowserResolution(sender, browserResolution);
     if (resolution == null) {
       return;
     }
-    // the browser paints at most this many pixels per side, fewer than a wall of maps can show
-    if (resolution.getFirst() > BrowserSource.MAX_SIDE || resolution.getSecond() > BrowserSource.MAX_SIDE) {
-      final Component message = Message.UNSUPPORTED_DIMENSION.build();
-      sender.sendMessage(message);
-      return;
-    }
-    final Pair<Integer, Integer> blocks = parseScreenDimensions(sender, blockDimensions);
+
+    final Optional<Pair<Integer, Integer>> parsedBlocks = parseScreenDimensions(sender, blockDimensions);
+    final @Nullable Pair<Integer, Integer> blocks = parsedBlocks.orElse(null);
     if (blocks == null) {
       return;
     }
+
     final URI uri = parseWebAddress(url);
     if (uri == null) {
       final Component message = Message.UNSUPPORTED_URL.build();
@@ -279,13 +283,14 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     }
 
     final AudioProvider provider = this.plugin.getAudioProvider();
-    final Component audioProblem = AudioOutputs.findProblem(provider, audioType);
+    final Optional<Component> foundAudioProblem = AudioOutputs.findProblem(provider, audioType);
+    final @Nullable Component audioProblem = foundAudioProblem.orElse(null);
     if (audioProblem != null) {
       sender.sendMessage(audioProblem);
       return;
     }
 
-    final BrowserSource source = createSource(uri, nth, resolution);
+    final BrowserSource source = this.createSource(uri, nth, resolution);
     final MapCodec chosen = this.chooseCodec(codec);
     final ScreenSettings settings = new ScreenSettings(sender, playerSelector, blocks, resolution, mapId, ditheringAlgorithm, chosen);
     final Screen screen = this.createScreen(settings);
@@ -294,17 +299,29 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     this.createResource(() -> this.startBrowser(sender, screen, source, sound));
   }
 
-  private static BrowserSource createSource(final URI uri, final int nth, final Pair<Integer, Integer> resolution) {
+  private @Nullable Pair<Integer, Integer> parseBrowserResolution(final CommandSender sender, final String browserResolution) {
+    final Optional<Pair<Integer, Integer>> parsedResolution = parseDimensions(sender, browserResolution);
+    final @Nullable Pair<Integer, Integer> resolution = parsedResolution.orElse(null);
+    if (resolution == null) {
+      return null;
+    }
+
+    // the browser paints at most this many pixels per side, fewer than a wall of maps can show
+    if (resolution.getFirst() > BrowserSource.MAX_SIDE || resolution.getSecond() > BrowserSource.MAX_SIDE) {
+      final Component message = Message.UNSUPPORTED_DIMENSION.build();
+      sender.sendMessage(message);
+      return null;
+    }
+
+    return resolution;
+  }
+
+  private BrowserSource createSource(final URI uri, final int nth, final Pair<Integer, Integer> resolution) {
     final int width = resolution.getFirst();
     final int height = resolution.getSecond();
     return BrowserSource.uri(uri, width, height, nth);
   }
 
-  /**
-   * Builds the options of a new browser from {@code config.yml}.
-   *
-   * @return the options
-   */
   BrowserOptions createOptions() {
     final PluginDataConfigurationMapper configuration = this.plugin.getConfiguration();
     final boolean allowsPrivateNetworks = configuration.isBrowserPrivateNetworks();
@@ -339,13 +356,6 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     this.sendSoundLinkWhenStarted(start, screen, sound);
   }
 
-  /**
-   * Parses the address of a web page.
-   *
-   * @param url the address as entered
-   * @return the address, or {@code null} if it is not valid or not an absolute {@code http} or {@code https}
-   * address with a host
-   */
   static @Nullable URI parseWebAddress(final String url) {
     final URI uri;
     try {
@@ -359,6 +369,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     if (scheme == null || host == null) {
       return null;
     }
+
     final String lowerScheme = scheme.toLowerCase(Locale.ROOT);
     final boolean isWebAddress = WEB_SCHEMES.contains(lowerScheme);
     return isWebAddress ? uri : null;
@@ -369,15 +380,17 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    * as when its download failed, gets its own message, also when wrapped in a {@link CompletionException}. The reason
    * of a failure is logged, not shown, since it may contain details of the server.
    *
-   * @param succeeded whether the browser started
-   * @param error     why the browser failed to start, if known
+   * @param outcome whether the browser started
+   * @param error   why the browser failed to start, if known
    * @return "Browser started!" on success, otherwise the message of the failure
+   * @since 1.0.0
    */
   @Override
-  protected Component createStartMessage(final boolean succeeded, final @Nullable Throwable error) {
-    if (succeeded) {
+  protected Component createStartMessage(final StartOutcome outcome, final @Nullable Throwable error) {
+    if (outcome == StartOutcome.STARTED) {
       return Message.START_BROWSER.build();
     }
+
     Throwable cause = error;
     if (cause instanceof CompletionException) {
       cause = cause.getCause();
@@ -385,6 +398,18 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     if (cause instanceof BrowserUnavailableException) {
       return Message.BROWSER_UNAVAILABLE.build();
     }
+
     return Message.BROWSER_ERROR.build();
+  }
+
+  /**
+   * Returns the permission a player needs to send input to the running browser.
+   *
+   * @return {@value #INTERACT_PERMISSION}
+   * @since 1.0.0
+   */
+  @Override
+  protected String getInteractionPermission() {
+    return INTERACT_PERMISSION;
   }
 }

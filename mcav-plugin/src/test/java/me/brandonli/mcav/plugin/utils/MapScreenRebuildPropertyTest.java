@@ -57,18 +57,14 @@ import org.mockito.MockingDetails;
 import org.mockito.Mockito;
 import org.mockito.invocation.Invocation;
 
-/**
- * A property of building a wall of maps where one already hangs. The live pass found the most serious runtime defect of
- * this branch here: running {@code /mcav screen} twice on one wall left a second item frame in every block, back
- * turned and right in front of the map, so the wall showed nothing. The fix clears the frames of a block before it
- * hangs a new one; the examples check one block. This checks every wall size and facing, built up to three times, over
- * old frames facing either way, other entities in the wall, and frames next to it: afterwards every block of the wall
- * holds exactly one frame, the one of the last build, and nothing that is not a frame of the wall was removed.
- */
 final class MapScreenRebuildPropertyTest {
 
   private static final String SEED = "20260925";
   private static final List<BlockFace> FACINGS = List.of(BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST);
+
+  private static final int SCREEN_Y = 64;
+
+  private static final double HALF_BLOCK = 0.5;
 
   private MockedConstruction<ItemStack> items;
 
@@ -76,10 +72,12 @@ final class MapScreenRebuildPropertyTest {
   void setUp() {
     final Server server = TestServer.reset();
     when(server.getMap(anyInt())).thenAnswer(_ -> mock(MapView.class));
-    this.items = Mockito.mockConstruction(ItemStack.class, (item, _) -> {
-      final MapMeta meta = mock(MapMeta.class);
-      when(item.getItemMeta()).thenReturn(meta);
-    });
+    this.items = Mockito.mockConstruction(ItemStack.class, (item, _) -> this.giveMapMeta(item));
+  }
+
+  private void giveMapMeta(final ItemStack item) {
+    final MapMeta metadata = mock(MapMeta.class);
+    when(item.getItemMeta()).thenReturn(metadata);
   }
 
   @AfterTry
@@ -89,10 +87,10 @@ final class MapScreenRebuildPropertyTest {
 
   @Provide
   Arbitrary<Rebuild> rebuilds() {
-    final Arbitrary<Integer> sides = between(1, 4);
+    final Arbitrary<Integer> sides = this.between(1, 4);
     final Arbitrary<BlockFace> facings = Arbitraries.of(FACINGS);
-    final Arbitrary<Integer> builds = between(1, 3);
-    final Arbitrary<Obstacle> obstacle = obstacles();
+    final Arbitrary<Integer> builds = this.between(1, 3);
+    final Arbitrary<Obstacle> obstacle = this.obstacles();
     final ListArbitrary<Obstacle> obstacleList = obstacle.list();
     final ListArbitrary<Obstacle> someObstacles = obstacleList.ofMaxSize(6);
     final Combinators.Combinator5<Integer, Integer, BlockFace, Integer, List<Obstacle>> rebuilds = Combinators.combine(
@@ -105,25 +103,22 @@ final class MapScreenRebuildPropertyTest {
     return rebuilds.as(Rebuild::new);
   }
 
-  private static Arbitrary<Obstacle> obstacles() {
-    final Arbitrary<Integer> cells = between(0, 15);
+  private Arbitrary<Obstacle> obstacles() {
+    final Arbitrary<Integer> cells = this.between(0, 15);
     final Arbitrary<ObstacleKind> kinds = Arbitraries.of(ObstacleKind.class);
     final Arbitrary<BlockFace> facings = Arbitraries.of(FACINGS);
     final Combinators.Combinator3<Integer, ObstacleKind, BlockFace> obstacles = Combinators.combine(cells, kinds, facings);
     return obstacles.as(Obstacle::new);
   }
 
-  /**
-   * Creates integers in a range from a fresh arbitrary: jqwik 1.10 shares the range between an arbitrary and the ones
-   * configured from it, so one base configured twice would hand every user the last range.
-   */
-  private static Arbitrary<Integer> between(final int min, final int max) {
+  // a fresh arbitrary: jqwik 1.10 shares ranges between an arbitrary and those configured from it
+  private Arbitrary<Integer> between(final int minimum, final int maximum) {
     final IntegerArbitrary integers = Arbitraries.integers();
-    return integers.between(min, max);
+    return integers.between(minimum, maximum);
   }
 
   @Property(seed = SEED, tries = 150)
-  void everyBlockOfARebuiltWallHoldsExactlyTheFrameOfTheLastBuild(@ForAll("rebuilds") final Rebuild rebuild) {
+  void shouldHoldExactlyTheFrameOfTheLastBuildInEveryBlockOfARebuiltWall(@ForAll("rebuilds") final Rebuild rebuild) {
     final List<List<Integer>> cells = rebuild.findCells();
     final FakeWorld world = new FakeWorld();
     final List<Entity> keep = new ArrayList<>();
@@ -131,7 +126,7 @@ final class MapScreenRebuildPropertyTest {
     rebuild.placeObstacles(world, cells, keep, doomed);
 
     final Player player = rebuild.createPlayer();
-    final Location location = world.location(0.5, 64.0, 0.5);
+    final Location location = world.location(0.5, SCREEN_Y, 0.5);
     List<ItemFrame> lastBuild = List.of();
     for (int build = 0; build < rebuild.builds; build++) {
       final List<ItemFrame> spawned = world.spawnedFrames();
@@ -143,7 +138,7 @@ final class MapScreenRebuildPropertyTest {
       final List<ItemFrame> built = new ArrayList<>(newFrames);
       doomed.addAll(lastBuild);
       for (final ItemFrame frame : built) {
-        hangInsideItsBlock(frame);
+        this.hangInsideItsBlock(frame);
         world.addEntity(frame);
       }
       lastBuild = built;
@@ -152,30 +147,33 @@ final class MapScreenRebuildPropertyTest {
     final int cellCount = rebuild.width * rebuild.height;
     final int frameCount = lastBuild.size();
     assertEquals(cellCount, frameCount, "one frame per block of the wall");
+
     final Set<List<Integer>> occupied = new HashSet<>();
     for (final ItemFrame frame : lastBuild) {
       final List<Integer> block = blockOf(frame);
       final boolean alone = occupied.add(block);
       assertTrue(alone, () -> "two frames of the wall hang in the block " + block);
-      assertFalse(wasRemoved(frame), () -> "the frame of the last build in " + block + " was removed");
+
+      final boolean removed = this.wasRemoved(frame);
+      assertFalse(removed, () -> "the frame of the last build in " + block + " was removed");
     }
     for (final ItemFrame frame : doomed) {
       final List<Integer> block = blockOf(frame);
-      assertTrue(wasRemoved(frame), () -> "an old frame still hangs in the block " + block + " of the wall");
+
+      final boolean secondRemoved = this.wasRemoved(frame);
+      assertTrue(secondRemoved, () -> "an old frame still hangs in the block " + block + " of the wall");
     }
     for (final Entity entity : keep) {
-      assertFalse(wasRemoved(entity), () -> "an entity that is not a frame of the wall was removed: " + entity);
+      final boolean thirdRemoved = this.wasRemoved(entity);
+      assertFalse(thirdRemoved, () -> "an entity that is not a frame of the wall was removed: " + entity);
     }
   }
 
-  /**
-   * The world spawns frames at the corner of their block; a real frame hangs inside it, and a frame on the corner
-   * would also be found by the search of the neighbouring block.
-   */
-  private static void hangInsideItsBlock(final ItemFrame frame) {
+  // spawned frames sit on the block corner, where the neighbour block's search would find them too
+  private void hangInsideItsBlock(final ItemFrame frame) {
     final Location corner = frame.getLocation();
     final Location inside = corner.clone();
-    inside.add(0.5, 0.5, 0.5);
+    inside.add(HALF_BLOCK, HALF_BLOCK, HALF_BLOCK);
     when(frame.getLocation()).thenAnswer(_ -> inside.clone());
   }
 
@@ -184,7 +182,7 @@ final class MapScreenRebuildPropertyTest {
     return List.of(location.getBlockX(), location.getBlockY(), location.getBlockZ());
   }
 
-  private static boolean wasRemoved(final Entity entity) {
+  private boolean wasRemoved(final Entity entity) {
     final MockingDetails details = Mockito.mockingDetails(entity);
     final Collection<Invocation> invocations = details.getInvocations();
     for (final Invocation invocation : invocations) {
@@ -197,18 +195,12 @@ final class MapScreenRebuildPropertyTest {
     return false;
   }
 
-  /**
-   * What stands in or next to the wall before it is built.
-   */
   enum ObstacleKind {
     OLD_FRAME,
     OTHER_ENTITY,
     NEIGHBOUR_FRAME,
   }
 
-  /**
-   * One thing in or next to a block of the wall.
-   */
   private static final class Obstacle {
 
     private final int cell;
@@ -227,9 +219,6 @@ final class MapScreenRebuildPropertyTest {
     }
   }
 
-  /**
-   * A wall built a number of times by a player facing one way, with things already standing where it goes.
-   */
   private static final class Rebuild {
 
     private final int width;
@@ -246,25 +235,23 @@ final class MapScreenRebuildPropertyTest {
       this.obstacles = obstacles;
     }
 
-    private Player createPlayer() {
-      final Player player = mock(Player.class);
-      when(player.getFacing()).thenReturn(this.facing);
-      return player;
-    }
-
-    /**
-     * Builds the wall once in an empty world to learn which blocks its frames hang in.
-     */
     private List<List<Integer>> findCells() {
       final FakeWorld empty = new FakeWorld();
       final Player player = this.createPlayer();
-      final Location location = empty.location(0.5, 64.0, 0.5);
+      final Location location = empty.location(0.5, SCREEN_Y, 0.5);
       MapUtils.buildMapScreen(player, location, Material.STONE, this.width, this.height, 0);
       final List<List<Integer>> cells = new ArrayList<>();
       for (final ItemFrame frame : empty.spawnedFrames()) {
         cells.add(blockOf(frame));
       }
       return cells;
+    }
+
+    private Player createPlayer() {
+      final Player player = mock(Player.class);
+      when(player.getFacing()).thenReturn(this.facing);
+
+      return player;
     }
 
     private void placeObstacles(
@@ -280,19 +267,19 @@ final class MapScreenRebuildPropertyTest {
         final int blockZ = cell.get(2);
         switch (obstacle.kind) {
           case OLD_FRAME -> {
-            final Location inside = world.location(blockX + 0.5, blockY + 0.5, blockZ + 0.5);
+            final Location inside = world.location(blockX + HALF_BLOCK, blockY + HALF_BLOCK, blockZ + HALF_BLOCK);
             final ItemFrame frame = world.addFrame(inside, obstacle.facing);
             doomed.add(frame);
           }
           case OTHER_ENTITY -> {
-            final Location inside = world.location(blockX + 0.5, blockY + 0.5, blockZ + 0.5);
+            final Location inside = world.location(blockX + HALF_BLOCK, blockY + HALF_BLOCK, blockZ + HALF_BLOCK);
             final Entity entity = mock(Entity.class);
             when(entity.getLocation()).thenAnswer(_ -> inside.clone());
             world.addEntity(entity);
             keep.add(entity);
           }
           case NEIGHBOUR_FRAME -> {
-            final Location above = world.location(blockX + 0.5, 64 + this.height + 0.5, blockZ + 0.5);
+            final Location above = world.location(blockX + HALF_BLOCK, SCREEN_Y + this.height + HALF_BLOCK, blockZ + HALF_BLOCK);
             final ItemFrame frame = world.addFrame(above, obstacle.facing);
             keep.add(frame);
           }

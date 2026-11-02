@@ -18,6 +18,7 @@
 package me.brandonli.mcav.plugin.command.video;
 
 import com.google.common.base.Preconditions;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
@@ -37,12 +38,16 @@ import org.slf4j.LoggerFactory;
 
 /**
  * {@code /mcav video pause|resume|release} and the hologram that shows the title of the video.
+ *
+ * <p>This class is not thread-safe: use it on the server main thread, where Cloud runs its commands.
+ *
+ * @since 1.0.0
  */
 public final class VideoControlCommand implements AnnotationCommandFeature {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(VideoControlCommand.class);
 
-  private static final String RELEASE_FAILED = "Failed to release the video player";
+  private static final String RELEASE_FAILED = "Failed to release the video player.";
 
   private final MCAVSandbox plugin;
   private final VideoPlayerManager manager;
@@ -51,9 +56,11 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
    * Constructs the command.
    *
    * @param plugin the plugin, whose video player manager must be available
+   * @since 1.0.0
    */
   public VideoControlCommand(final MCAVSandbox plugin) {
-    Preconditions.checkNotNull(plugin, "Plugin must not be null");
+    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
+
     this.plugin = plugin;
     this.manager = plugin.getVideoPlayerManager();
   }
@@ -68,13 +75,16 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
    * again.
    *
    * @param sender who ran the command
+   * @since 1.0.0
    */
   @Command("mcav video resume")
   @Permission("mcav.command.video.resume")
   @CommandDescription("mcav.command.video.resume.info")
   public void resumeVideo(final CommandSender sender) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
-    final VideoPlayerMultiplexer player = this.manager.getPlayer();
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
+
+    final Optional<VideoPlayerMultiplexer> foundPlayer = this.manager.getPlayer();
+    final @Nullable VideoPlayerMultiplexer player = foundPlayer.orElse(null);
     final boolean resumed = player == null || player.resume();
     final Component message = resumed ? Message.RESUME_PLAYER.build() : Message.RESUME_PLAYER_FAILED.build();
     sender.sendMessage(message);
@@ -88,13 +98,16 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
    * told that the video paused, also when no video is loaded, in which case nothing happens.
    *
    * @param sender who ran the command
+   * @since 1.0.0
    */
   @Command("mcav video pause")
   @Permission("mcav.command.video.pause")
   @CommandDescription("mcav.command.video.pause.info")
   public void pauseVideo(final CommandSender sender) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
-    final VideoPlayerMultiplexer player = this.manager.getPlayer();
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
+
+    final Optional<VideoPlayerMultiplexer> foundPlayer = this.manager.getPlayer();
+    final @Nullable VideoPlayerMultiplexer player = foundPlayer.orElse(null);
     if (player != null) {
       player.pause();
     }
@@ -111,32 +124,31 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
    * background. When no video is loaded, both messages are still sent.
    *
    * @param sender who ran the command
+   * @since 1.0.0
    */
   @Command("mcav video release")
   @Permission("mcav.command.video.release")
   @CommandDescription("mcav.command.video.release.info")
   public void releaseVideo(final CommandSender sender) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
+
     this.manager.cancelStart();
     final Component starting = Message.RELEASE_PLAYER_START.build();
     sender.sendMessage(starting);
 
     final ExecutorService service = this.manager.getService();
     final Component released = Message.RELEASE_PLAYER.build();
-    final Runnable done = TaskUtils.handleAsyncTask(this.plugin, () -> sender.sendMessage(released));
+    final Runnable done = TaskUtils.createMainThreadHandover(this.plugin, () -> sender.sendMessage(released));
     final CompletableFuture<Void> release = CompletableFuture.runAsync(this.manager::clearCurrentVideo, service);
-    TaskUtils.whenComplete(release, (_, error) -> reportRelease(done, error));
+    TaskUtils.whenComplete(release, (_, error) -> this.reportRelease(done, error));
   }
 
-  /**
-   * Tells the sender that the video player is released once it is. A release that failed is logged, and the sender
-   * is not told that the video player was released.
-   */
-  private static void reportRelease(final Runnable done, final @Nullable Throwable error) {
+  private void reportRelease(final Runnable done, final @Nullable Throwable error) {
     if (error != null) {
       LOGGER.error(RELEASE_FAILED, error);
       return;
     }
+
     done.run();
   }
 
@@ -150,13 +162,15 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
    *
    * @param sender   who ran the command
    * @param location where the hologram floats, such as {@code ~ ~2 ~}
+   * @since 1.0.0
    */
   @Command("mcav video hologram set <location>")
   @Permission("mcav.command.hologram.set")
   @CommandDescription("mcav.command.hologram.set.info")
   public void setHologramLocation(final CommandSender sender, final Location location) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
-    Preconditions.checkNotNull(location, "Location must not be null");
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(location, "Location must not be null!");
+
     this.manager.setHologramLocation(location);
     final Component message = Message.HOLOGRAM_LOCATION_SET.build();
     sender.sendMessage(message);
@@ -170,12 +184,14 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
    * is told that the hologram is disabled.
    *
    * @param sender who ran the command
+   * @since 1.0.0
    */
   @Command("mcav video hologram disable")
   @Permission("mcav.command.hologram.disable")
   @CommandDescription("mcav.command.hologram.disable.info")
   public void disableHologram(final CommandSender sender) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
+
     this.manager.setHologramLocation(null);
     final Component message = Message.HOLOGRAM_DISABLED.build();
     sender.sendMessage(message);

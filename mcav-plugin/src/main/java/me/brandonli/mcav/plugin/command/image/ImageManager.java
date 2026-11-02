@@ -35,10 +35,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * Holds the image that is shown, together with the thread that loads images.
  *
- * <p>Display ownership is confined to the server main thread: {@link #shutdown()}, all setters and forced
- * {@link #releaseImage(boolean)} calls must run there. An unforced release schedules its display cleanup there.
- * Pending-load ownership and generation invalidation are synchronized separately so loader callbacks may safely
- * retain or discard their native image from a worker thread.
+ * <p>Display ownership is confined to the server main thread: {@link #shutdown()}, all setters and
+ * {@link #releaseImage(ReleaseThread)} calls with {@link ReleaseThread#CALLING_THREAD} must run there. A release with
+ * {@link ReleaseThread#MAIN_THREAD} schedules its display cleanup there. Pending-load ownership and generation
+ * invalidation are synchronized separately so loader callbacks may safely retain or discard their native image from a
+ * worker thread.
+ *
+ * @since 1.0.0
  */
 public final class ImageManager {
 
@@ -57,33 +60,49 @@ public final class ImageManager {
    * Constructs the manager.
    *
    * @param plugin the plugin
+   * @since 1.0.0
    */
   public ImageManager(final MCAVSandbox plugin) {
-    Preconditions.checkNotNull(plugin, "Plugin must not be null");
+    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
+
     this.plugin = plugin;
     this.service = Executors.newSingleThreadExecutor();
     this.loadingLock = new Object();
   }
 
   ImageManager(final MCAVSandbox plugin, final ExecutorService service) {
-    Preconditions.checkNotNull(plugin, "Plugin must not be null");
-    Preconditions.checkNotNull(service, "Executor must not be null");
+    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
+    Preconditions.checkNotNull(service, "Executor must not be null!");
+
     this.plugin = plugin;
     this.service = service;
     this.loadingLock = new Object();
   }
 
   /**
-   * Starts a new loading generation. Pending native images remain owned by the manager until a main-thread task
-   * takes them, so cancellation of an already accepted scheduler task cannot leak them.
+   * Removes the image and stops the loading thread. Must be called on the server main thread.
+   *
+   * @since 1.0.0
    */
+  public void shutdown() {
+    synchronized (this.loadingLock) {
+      this.closed = true;
+    }
+    CleanupUtils.runAll(
+      () -> this.releaseImage(ReleaseThread.CALLING_THREAD),
+      () -> ExecutorUtils.shutdownExecutorGracefully(this.service)
+    );
+  }
+
+  // pending images stay the manager's until a main-thread task takes them, so cancelling cannot leak them
   long beginLoad() {
     final ImageBuffer previous;
     final long generation;
     synchronized (this.loadingLock) {
       if (this.closed) {
-        throw new RejectedExecutionException("The image manager is shut down");
+        throw new RejectedExecutionException("The image manager is shut down!");
       }
+
       generation = ++this.loadGeneration;
       previous = this.pendingImage;
       this.pendingImage = null;
@@ -99,7 +118,9 @@ public final class ImageManager {
       if (this.closed || generation != this.loadGeneration) {
         return false;
       }
+
       this.pendingImage = loaded;
+
       return true;
     }
   }
@@ -109,8 +130,10 @@ public final class ImageManager {
       if (this.closed || generation != this.loadGeneration) {
         return null;
       }
+
       final ImageBuffer loaded = this.pendingImage;
       this.pendingImage = null;
+
       return loaded;
     }
   }
@@ -120,6 +143,20 @@ public final class ImageManager {
     if (loaded != null) {
       loaded.release();
     }
+  }
+
+  /**
+   * Removes the image that is shown and frees its memory.
+   *
+   * @param thread the thread that frees the image
+   * @throws NullPointerException if {@code thread} is null
+   * @since 1.0.0
+   */
+  public void releaseImage(final ReleaseThread thread) {
+    Preconditions.checkNotNull(thread, "Release thread must not be null!");
+
+    final Runnable release = thread == ReleaseThread.CALLING_THREAD ? this::releaseNow : this::scheduleRelease;
+    CleanupUtils.runAll(this::cancelPendingLoads, release);
   }
 
   private void cancelPendingLoads() {
@@ -134,26 +171,6 @@ public final class ImageManager {
     }
   }
 
-  /**
-   * Removes the image and stops the loading thread. Must be called on the server main thread.
-   */
-  public void shutdown() {
-    synchronized (this.loadingLock) {
-      this.closed = true;
-    }
-    CleanupUtils.runAll(() -> this.releaseImage(true), () -> ExecutorUtils.shutdownExecutorGracefully(this.service));
-  }
-
-  /**
-   * Removes the image that is shown and frees its memory.
-   *
-   * @param force true to release at once on the calling thread, false to release on the main thread
-   */
-  public void releaseImage(final boolean force) {
-    final Runnable release = force ? this::releaseNow : this::scheduleRelease;
-    CleanupUtils.runAll(this::cancelPendingLoads, release);
-  }
-
   private void scheduleRelease() {
     final BukkitScheduler scheduler = Bukkit.getScheduler();
     scheduler.runTask(this.plugin, this::releaseNow);
@@ -166,29 +183,32 @@ public final class ImageManager {
     this.image = null;
     this.currentImage = null;
     this.player = null;
-    CleanupUtils.runAll(
-      () -> {
-        if (display != null) {
-          display.release();
-        }
-      },
-      () -> {
-        if (shown != null) {
-          shown.close();
-        }
-      },
-      () -> {
-        if (imagePlayer != null) {
-          imagePlayer.release();
-        }
-      }
-    );
+    CleanupUtils.runAll(() -> this.releaseOldDisplay(display), () -> this.closeShownImage(shown), () -> this.releaseOldPlayer(imagePlayer));
+  }
+
+  private void releaseOldDisplay(final @Nullable DisplayableImage display) {
+    if (display != null) {
+      display.release();
+    }
+  }
+
+  private void closeShownImage(final @Nullable Image shown) {
+    if (shown != null) {
+      shown.close();
+    }
+  }
+
+  private void releaseOldPlayer(final @Nullable ImagePlayer imagePlayer) {
+    if (imagePlayer != null) {
+      imagePlayer.release();
+    }
   }
 
   /**
    * Sets the player of an animated image. Must be called on the server main thread.
    *
    * @param player the player, or {@code null} for none
+   * @since 1.0.0
    */
   public void setPlayer(final @Nullable ImagePlayer player) {
     this.player = player;
@@ -198,15 +218,17 @@ public final class ImageManager {
    * Sets the display that shows the image. Must be called on the server main thread.
    *
    * @param image the display, or {@code null} for none
+   * @since 1.0.0
    */
   public void setImage(final @Nullable DisplayableImage image) {
     this.image = image;
   }
 
   /**
-   * Gets the thread that loads images.
+   * Returns the thread that loads images.
    *
    * @return the executor
+   * @since 1.0.0
    */
   public ExecutorService getService() {
     return this.service;
@@ -216,6 +238,7 @@ public final class ImageManager {
    * Sets the image that is shown, which is closed when it is released. Must be called on the server main thread.
    *
    * @param currentImage the image, or {@code null} for none
+   * @since 1.0.0
    */
   public void setCurrentImage(final @Nullable ImageBuffer currentImage) {
     this.currentImage = currentImage;
