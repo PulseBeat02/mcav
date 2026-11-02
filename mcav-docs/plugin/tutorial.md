@@ -41,7 +41,8 @@ intents.
 token secret: anyone who has it can control your bot.
 5) Copy and paste that token into the `token` field under the `discord-bot` section in your `config.yml`.
 6) Enable Developer Mode in Discord by going to `User Settings > Advanced > Developer Mode`. Then right-click on your
-server icon in Discord and select `Copy Server ID`. Paste that ID into the `guild-id` field under the `discord-bot`.
+server icon in Discord and select `Copy Server ID`. Paste that ID into the `guild-id` field under the `discord-bot`
+section.
 7) In your server, right-click the voice-channel you want to use for audio streaming and click `Copy Channel ID`.
 Paste that ID into the `channel-id` field under the `discord-bot` section in your `config.yml`.
 8) Set the `enabled` option under `discord-bot` to `true`.
@@ -77,7 +78,7 @@ First, run the `/mcav screen` command with arguments to create a new map screen.
 1) If you would like to play a video on the screen you just created, run the `/mcav video map` command. Otherwise, you
 can use other commands like `/mcav video block`.
 2) Set the audio type to whatever audio you configured in Step 2 (HTTP, Discord, or Simple Voice Chat).
-3) Specify the other arguments accordingly to its [command usage](./commands).
+3) Specify the other arguments according to its [command usage](./commands).
 4) Set the `mrl` to either a local file path, or pretty much any valid URL to a website like YouTube, Vimeo, or Twitch.
 yt-dlp lists every site it supports in
 [its supported sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md).
@@ -111,7 +112,7 @@ static image can also produce no map updates, so packet silence alone does not i
    install nothing. As in a desktop browser, a page plays sound only after a player clicks its screen or types into it;
    turn on `browser.autoplay-sound` in the [configuration](./config) to let pages play sound right away.
 2) If you want to interact with the browser, you can use the `/mcav browser interact` command, which takes all your
-   chat input and send it to the browser as if you were typing in a real web browser. For special keys like enter, type
+   chat input and sends it to the browser as if you were typing in a real web browser. For special keys like enter, type
    the key in "Enter" to simulate pressing the enter key. A left or right click on the browser simulates a mouse
    click, for every player with the permission `mcav.browser.interact`. For more information on possible keys, see the
    `KeyboardEvent.key` column

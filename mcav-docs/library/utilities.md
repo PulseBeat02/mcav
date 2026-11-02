@@ -7,9 +7,9 @@ extra module.
 
 Every player hands its audio pipeline signed 16-bit little-endian PCM at 48 kHz with two interleaved channels,
 whatever the source format is (see `AudioFilter.SAMPLE_RATE`, `AudioFilter.CHANNELS` and `AudioFilter.FRAME_SIZE`).
-The audio helpers below take exactly that buffer, so the `samples` of an `AudioPipelineStep.of((samples, metadata) ->
-...)` filter can be passed to them directly. They read the buffer without changing its position, so the next steps
-of the pipeline still see every sample.
+The audio helpers below take exactly that buffer, so you can pass them the `samples` of an
+`AudioPipelineStep.of((samples, metadata) -> ...)` filter directly. They read the buffer without changing its
+position, so the next steps of the pipeline still see every sample.
 
 ```{note}
 A filter returns whether it changed the samples. The filters on this page only read them, so they return `false`;
