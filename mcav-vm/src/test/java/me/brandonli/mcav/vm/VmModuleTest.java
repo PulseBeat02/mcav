@@ -58,6 +58,8 @@ final class VmModuleTest {
 
   private static final Platform LINUX_X86_64 = Platform.ofPlatform(Os.LINUX, Arch.X86, Bits.BITS_64);
 
+  private static final boolean AUTO_FLUSH = true;
+
   @TempDir
   private Path directory;
 
@@ -226,7 +228,7 @@ final class VmModuleTest {
   private String captureStandardError(final Runnable action) {
     final PrintStream original = System.err;
     final ByteArrayOutputStream captured = new ByteArrayOutputStream();
-    final PrintStream capture = new PrintStream(captured, true, StandardCharsets.UTF_8);
+    final PrintStream capture = new PrintStream(captured, AUTO_FLUSH, StandardCharsets.UTF_8);
     System.setErr(capture);
     try {
       action.run();

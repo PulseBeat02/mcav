@@ -41,6 +41,8 @@ final class VmAudioClient implements Closeable {
 
   private static final int READER_JOIN_TIMEOUT_MILLISECONDS = 5_000;
 
+  private static final boolean DO_NOT_INTERRUPT = false;
+
   private static final String UNSTARTED_READER_THREAD_NAME = "mcav-vm-audio-not-started";
   private static final String READER_THREAD_NAME = "mcav-vm-audio";
   private static final String DEADLINE_THREAD_NAME = "mcav-vm-audio-deadline";
@@ -77,7 +79,7 @@ final class VmAudioClient implements Closeable {
       final OutputStream rawOutput = socket.getOutputStream();
       final DataOutputStream output = new DataOutputStream(new BufferedOutputStream(rawOutput));
       handshake(input, output, password);
-      deadline.cancel(false);
+      deadline.cancel(DO_NOT_INTERRUPT);
 
       final VmAudioClient client = new VmAudioClient(socket, input, sink, failures);
       client.startReading();
