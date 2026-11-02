@@ -281,6 +281,7 @@ public final class SpringHttpResult implements HttpResult {
     }
 
     this.listeners.clear();
+
     return closing;
   }
 
@@ -457,6 +458,7 @@ public final class SpringHttpResult implements HttpResult {
   @Override
   public void setCurrentMedia(final UrlParseDump dump) {
     Preconditions.checkNotNull(dump, "Dump must not be null!");
+
     this.currentMedia = MediaInformation.of(dump);
   }
 

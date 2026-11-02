@@ -54,6 +54,7 @@ class FakeServer {
 
     fetch(path) {
         this.requestedPaths.push(path);
+
         return this.answer();
     }
 }

@@ -59,6 +59,7 @@ const buildProcessorScript = () => {
     const source = readFileSync(PAGE, ENCODING);
     const start = source.indexOf(PROCESSOR_DECLARATION);
     assert.ok(start >= 0, `the page declares the class ${PROCESSOR_CLASS}`);
+
     let depth = 0;
     let end = source.indexOf(OPENING_BRACE, start);
     do {
@@ -70,6 +71,7 @@ const buildProcessorScript = () => {
         }
         end++;
     } while (depth > 0);
+
     const constants = source.match(CONSTANT_DECLARATION).join(LINE_SEPARATOR);
     return stripTypeScriptTypes([constants, source.slice(start, end), `${PROCESSOR_CLASS};`].join(LINE_SEPARATOR));
 };
@@ -115,11 +117,14 @@ class FakeAudioContext {
 }
 
 const createProcessor = state => {
-    const PcmProcessor = vm.runInContext(buildProcessorScript(), vm.createContext({
+    const script = buildProcessorScript();
+    const sandbox = vm.createContext({
         Float32Array, DataView, ArrayBuffer, Math, Date, Set, window: {},
-    }), {filename: PAGE.pathname});
+    });
+    const PcmProcessor = vm.runInContext(script, sandbox, {filename: PAGE.pathname});
     const context = new FakeAudioContext(state);
-    return {processor: new PcmProcessor({encoding: SOUND_ENCODING, channels: CHANNELS, sampleRate: SAMPLE_RATE, audioContext: context}), context};
+    const processor = new PcmProcessor({encoding: SOUND_ENCODING, channels: CHANNELS, sampleRate: SAMPLE_RATE, audioContext: context});
+    return {processor, context};
 };
 
 const createChunk = () => {
@@ -129,6 +134,7 @@ const createChunk = () => {
         view.setInt16(frame * BYTES_PER_FRAME, sample, LITTLE_ENDIAN);
         view.setInt16(frame * BYTES_PER_FRAME + BYTES_PER_SAMPLE, sample, LITTLE_ENDIAN);
     }
+
     return view.buffer;
 };
 

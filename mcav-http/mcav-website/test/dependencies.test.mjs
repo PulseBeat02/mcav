@@ -48,8 +48,10 @@ const findSources = folder => {
     return entries.flatMap(entry => findEntrySources(folder, entry));
 };
 
-const readManifest = name => {
-    return JSON.parse(readFileSync(join(ROOT, MODULES_DIRECTORY, name, MANIFEST_FILE), ENCODING));
+const readManifest = directory => {
+    const path = join(directory, MANIFEST_FILE);
+    const text = readFileSync(path, ENCODING);
+    return JSON.parse(text);
 };
 
 const findImportedNames = file => {
@@ -59,12 +61,13 @@ const findImportedNames = file => {
 };
 
 const findPeerNames = name => {
-    const peers = readManifest(name).peerDependencies ?? {};
+    const packageManifest = readManifest(join(ROOT, MODULES_DIRECTORY, name));
+    const peers = packageManifest.peerDependencies ?? {};
     return Object.keys(peers);
 };
 
 test("should use every dependency in the website, directly or as a peer of one it imports", () => {
-    const rootManifest = JSON.parse(readFileSync(join(ROOT, MANIFEST_FILE), ENCODING));
+    const rootManifest = readManifest(ROOT);
     const declared = Object.keys(rootManifest.dependencies);
     const files = findSources(join(ROOT, SOURCE_DIRECTORY));
     const imported = new Set(files.flatMap(findImportedNames));

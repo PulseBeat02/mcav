@@ -27,7 +27,7 @@ const ENCODING = "utf8";
 
 const CONSTANT_DECLARATION = /^const [A-Z][A-Z0-9_]*: .+;$/gm;
 const ARROW_BODY = "=> {";
-const HELPERS = ["toHslColor", "createGradient", "traceWaveform", "drawWaveform"];
+const HELPERS = ["createAudioContext", "toHslColor", "createGradient", "traceWaveform", "drawWaveform"];
 const CALLBACKS = [
     "cancelAnimation",
     "animateVisualizer",
@@ -83,6 +83,7 @@ const skipString = (source, index) => {
     while (source[at] !== source[index]) {
         at += source[at] === ESCAPE_CHARACTER ? ESCAPE_SEQUENCE_LENGTH : 1;
     }
+
     return at + 1;
 };
 
@@ -97,6 +98,7 @@ const skipTemplate = (source, index) => {
             at++;
         }
     }
+
     return at + 1;
 };
 
@@ -118,30 +120,39 @@ const skipBalanced = (source, index) => {
         } else if (character in CLOSING_BRACKETS) {
             expected.push(CLOSING_BRACKETS[character]);
             at++;
+        } else if (character === expected.at(-1)) {
+            expected.pop();
+            at++;
         } else {
-            if (character === expected.at(-1)) {
-                expected.pop();
-            }
             at++;
         }
     }
+
     return at;
+};
+
+const extractHelper = (source, name) => {
+    const start = source.indexOf(`const ${name} = (`);
+    assert.ok(start >= 0, `the page declares the helper ${name}`);
+    const body = source.indexOf(ARROW_BODY, start) + ARROW_BODY.length - 1;
+    const end = skipBalanced(source, body);
+    const declaration = source.slice(start, end);
+    return `${declaration};`;
+};
+
+const extractCallback = (source, name) => {
+    const prefix = `const ${name} = useCallback(`;
+    const start = source.indexOf(prefix);
+    assert.ok(start >= 0, `the page declares ${name} with useCallback`);
+    const end = skipBalanced(source, start + prefix.length - 1);
+    const declaration = source.slice(start, end);
+    return `${declaration};`;
 };
 
 const buildCallbackScript = () => {
     const source = readFileSync(PAGE, ENCODING);
-    const helpers = HELPERS.map(name => {
-        const start = source.indexOf(`const ${name} = (`);
-        assert.ok(start >= 0, `the page declares the helper ${name}`);
-        const body = source.indexOf(ARROW_BODY, start) + ARROW_BODY.length - 1;
-        return `${source.slice(start, skipBalanced(source, body))};`;
-    });
-    const declarations = CALLBACKS.map(name => {
-        const declaration = `const ${name} = useCallback(`;
-        const start = source.indexOf(declaration);
-        assert.ok(start >= 0, `the page declares ${name} with useCallback`);
-        return `${source.slice(start, skipBalanced(source, start + declaration.length - 1))};`;
-    });
+    const helpers = HELPERS.map(name => extractHelper(source, name));
+    const declarations = CALLBACKS.map(name => extractCallback(source, name));
     const constants = source.match(CONSTANT_DECLARATION).join(LINE_SEPARATOR);
     const script = [
         constants,
@@ -198,7 +209,6 @@ const loadPage = (permission = PERMISSION_GRANTED) => {
         constructor() {
             this.destroyed = false;
             this.fed = 0;
-            this.gainNode = {gain: {value: 1}};
             processors.push(this);
         }
 
@@ -211,6 +221,9 @@ const loadPage = (permission = PERMISSION_GRANTED) => {
         }
 
         flush() {
+        }
+
+        setVolume() {
         }
 
         isDestroyed() {
@@ -235,6 +248,7 @@ const loadPage = (permission = PERMISSION_GRANTED) => {
             if (permission === PERMISSION_REFUSED) {
                 return Promise.reject(new Error("Playing sound is not allowed!"));
             }
+
             if (permission === PERMISSION_AFTER_RESUME) {
                 this.state = "running";
             }
@@ -250,22 +264,26 @@ const loadPage = (permission = PERMISSION_GRANTED) => {
     const ref = current => ({current});
     const doNothing = () => {
     };
+    const fakeSetTimeout = callback => {
+        const id = nextTimer++;
+        timers.set(id, callback);
+
+        return id;
+    };
+    const fakeRequestAnimationFrame = callback => {
+        const identifier = nextAnimation++;
+        animations.set(identifier, callback);
+
+        return identifier;
+    };
     const context = vm.createContext({
         console, ArrayBuffer, Promise, Math,
         WebSocket: FakeSocket, PcmProcessor: FakeProcessor, AudioContext: FakeAudioContext,
         window: {location: {protocol: "http:", host: "player.test"}},
         useCallback: callback => callback,
-        setTimeout: callback => {
-            const id = nextTimer++;
-            timers.set(id, callback);
-            return id;
-        },
+        setTimeout: fakeSetTimeout,
         clearTimeout: id => timers.delete(id),
-        requestAnimationFrame: callback => {
-            const identifier = nextAnimation++;
-            animations.set(identifier, callback);
-            return identifier;
-        },
+        requestAnimationFrame: fakeRequestAnimationFrame,
         cancelAnimationFrame: identifier => animations.delete(identifier),
         socketRef: ref(undefined), pcmProcessorRef: ref(undefined), audioContextRef: ref(undefined), connectRef: ref(doNothing),
         shouldReconnectRef: ref(false), streamingRef: ref(false), reconnectTimeoutRef: ref(undefined),
@@ -290,6 +308,7 @@ const loadPage = (permission = PERMISSION_GRANTED) => {
     });
     const page = vm.runInContext(buildCallbackScript(), context, {filename: PAGE.pathname});
     context.connectRef.current = page.connectWebSocket;
+
     return {
         ...page, sockets, processors, contexts, state,
         activeAnimations: () => animations.size,
@@ -298,13 +317,17 @@ const loadPage = (permission = PERMISSION_GRANTED) => {
         runAnimationFrame() {
             const due = [...animations.values()];
             animations.clear();
-            due.forEach(callback => callback());
+            for (const callback of due) {
+                callback();
+            }
         },
         runTimers() {
             for (let round = 0; round < MAXIMUM_TIMER_ROUNDS && timers.size > 0; round++) {
                 const due = [...timers.entries()];
                 timers.clear();
-                due.forEach(([, callback]) => callback());
+                for (const [, callback] of due) {
+                    callback();
+                }
             }
         },
         liveProcessors: () => processors.filter(processor => !processor.isDestroyed()).length,
@@ -341,7 +364,10 @@ test("should leave no stream behind after a Stop that follows two Starts", () =>
     page.startPlayback();
     page.startPlayback();
     page.runTimers();
-    page.sockets.forEach(socket => socket.opened());
+    for (const socket of page.sockets) {
+        socket.opened();
+    }
+
     page.stopPlayback();
 
     const openSockets = page.openSockets();

@@ -17,7 +17,7 @@
  */
 
 import { type BinaryToTextEncoding, createHash, type Hash } from "node:crypto";
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readdirSync, readFileSync, type Stats, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import type { NextConfig } from "next";
 
@@ -41,24 +41,40 @@ const CURRENT_DIRECTORY: string = ".";
 const PATH_SEPARATOR: string = "/";
 const PATH_TERMINATOR: string = "\0";
 
+const collectFiles = (path: string, files: string[]): void => {
+    const stats: Stats = statSync(path);
+    if (!stats.isDirectory()) {
+        files.push(path);
+        return;
+    }
+
+    const names: string[] = readdirSync(path);
+    names.sort();
+    for (const name of names) {
+        const child: string = join(path, name);
+        collectFiles(child, files);
+    }
+};
+
 // Next.js names the manifest folder after the build id; one derived from the sources keeps the jar reproducible
 const createBuildIdFromSources = (): string => {
     const files: string[] = [];
-    const collect = (path: string): void => {
-        if (statSync(path).isDirectory()) {
-            readdirSync(path).sort().forEach((name: string) => collect(join(path, name)));
-        } else {
-            files.push(path);
-        }
-    };
-    SOURCES.forEach(collect);
+    for (const source of SOURCES) {
+        collectFiles(source, files);
+    }
+
     const hash: Hash = createHash(HASH_ALGORITHM);
     for (const file of files) {
-        hash.update(relative(CURRENT_DIRECTORY, file).split(sep).join(PATH_SEPARATOR));
+        const relativePath: string = relative(CURRENT_DIRECTORY, file);
+        const portablePath: string = relativePath.split(sep).join(PATH_SEPARATOR);
+        hash.update(portablePath);
         hash.update(PATH_TERMINATOR);
-        hash.update(readFileSync(file));
+        const content: Buffer = readFileSync(file);
+        hash.update(content);
     }
-    return hash.digest(HASH_ENCODING).slice(0, BUILD_ID_LENGTH);
+
+    const digest: string = hash.digest(HASH_ENCODING);
+    return digest.slice(0, BUILD_ID_LENGTH);
 };
 
 const nextConfiguration: NextConfig = {
