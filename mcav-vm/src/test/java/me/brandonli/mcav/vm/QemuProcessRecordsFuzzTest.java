@@ -72,7 +72,8 @@ final class QemuProcessRecordsFuzzTest {
 
     final String content = input.substring(nameEnd + 1);
     final Path folder = Files.createTempDirectory(TEMPORARY_DIRECTORY_PREFIX);
-    final Path record = folder.resolve(name + RECORD_SUFFIX);
+    final String recordName = "%s%s".formatted(name, RECORD_SUFFIX);
+    final Path record = folder.resolve(recordName);
     try {
       Files.writeString(record, content, StandardCharsets.US_ASCII);
       this.checkReap(folder, record, name);

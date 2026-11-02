@@ -35,6 +35,8 @@ public final class FakeProcess extends Process {
   private static final int TERMINATED_EXIT_CODE = 143;
   private static final int KILLED_EXIT_CODE = 137;
 
+  private static final int NO_EXIT_CODE_ON_WAIT = -1;
+
   private static final String TERMINATION_THREAD_NAME = "fake-qemu-termination";
 
   private final InputStream output;
@@ -46,7 +48,7 @@ public final class FakeProcess extends Process {
   private volatile boolean exitsOnDestroy;
   private volatile boolean interruptsWaits;
   private volatile boolean interruptsFirstWait;
-  private volatile int exitCodeOnWait = -1;
+  private volatile int exitCodeOnWait;
   private volatile long forcedExitDelayMilliseconds;
 
   private FakeProcess(final InputStream output) {
@@ -55,6 +57,7 @@ public final class FakeProcess extends Process {
     this.destroyCalls = new AtomicInteger();
     this.forcibleDestroyCalls = new AtomicInteger();
     this.exitsOnDestroy = true;
+    this.exitCodeOnWait = NO_EXIT_CODE_ON_WAIT;
   }
 
   public static FakeProcess running(final String text) {
@@ -104,14 +107,6 @@ public final class FakeProcess extends Process {
     }
   }
 
-  public int getDestroyCalls() {
-    return this.destroyCalls.get();
-  }
-
-  public int getForcibleDestroyCalls() {
-    return this.forcibleDestroyCalls.get();
-  }
-
   @Override
   public OutputStream getOutputStream() {
     return OutputStream.nullOutputStream();
@@ -137,12 +132,15 @@ public final class FakeProcess extends Process {
   public boolean waitFor(final long timeout, final TimeUnit unit) throws InterruptedException {
     Preconditions.checkNotNull(unit, "Unit must not be null!");
     if (this.interruptsWaits) {
-      throw new InterruptedException("interrupted on purpose!");
+      final String message = "Interrupted on purpose!";
+      throw new InterruptedException(message);
     }
 
     if (this.interruptsFirstWait) {
       this.interruptsFirstWait = false;
-      throw new InterruptedException("the first wait is interrupted on purpose!");
+
+      final String message = "The first wait is interrupted on purpose!";
+      throw new InterruptedException(message);
     }
 
     final int codeOnWait = this.exitCodeOnWait;
@@ -158,7 +156,8 @@ public final class FakeProcess extends Process {
   @Override
   public int exitValue() {
     if (this.exited.getCount() > 0) {
-      throw new IllegalThreadStateException("process has not exited!");
+      final String message = "Process has not exited!";
+      throw new IllegalThreadStateException(message);
     }
 
     return this.exitCode;
@@ -201,5 +200,13 @@ public final class FakeProcess extends Process {
     } finally {
       this.exit(KILLED_EXIT_CODE);
     }
+  }
+
+  public int getDestroyCalls() {
+    return this.destroyCalls.get();
+  }
+
+  public int getForcibleDestroyCalls() {
+    return this.forcibleDestroyCalls.get();
   }
 }

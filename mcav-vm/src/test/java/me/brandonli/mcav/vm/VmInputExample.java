@@ -44,8 +44,17 @@ public final class VmInputExample {
   private static final int WIDTH = 1024;
   private static final int HEIGHT = 768;
 
+  private static final int FRAME_RATE = 30;
+
+  private static final int MEMORY_MEGABYTES = 2048;
+  private static final int CORES = 2;
+
+  private static final char ENTER_CHARACTER = '\n';
+  private static final String RETURN_KEY = "Return";
+
   private VmInputExample() {
-    throw new UnsupportedOperationException("Example class cannot be instantiated!");
+    final String message = "Example class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   static void main(final String[] args) {
@@ -65,10 +74,7 @@ public final class VmInputExample {
     forwardInput(player, label);
 
     final Runtime runtime = Runtime.getRuntime();
-    final Thread cleanup = new Thread(() -> {
-      player.release();
-      api.release();
-    });
+    final Thread cleanup = new Thread(() -> release(player, api));
     runtime.addShutdownHook(cleanup);
   }
 
@@ -88,10 +94,7 @@ public final class VmInputExample {
 
   private static void showFrames(final VmPlayer player, final JLabel label) {
     final VideoPipelineStepBuilder builder = PipelineBuilder.video();
-    builder.then((image, _) -> {
-      show(label, image);
-      return false;
-    });
+    builder.then((image, _) -> show(label, image));
     final VideoPipelineStep pipeline = builder.build();
 
     final VideoAttachableCallback callback = player.getVideoAttachableCallback();
@@ -99,8 +102,8 @@ public final class VmInputExample {
   }
 
   private static void startMachine(final VmPlayer player, final String iso) {
-    final VmConfiguration configuration = VmConfiguration.builder().cdrom(iso).memory(2048).cores(2).build();
-    final VmSettings settings = VmSettings.of(WIDTH, HEIGHT, 30);
+    final VmConfiguration configuration = VmConfiguration.builder().cdrom(iso).memory(MEMORY_MEGABYTES).cores(CORES).build();
+    final VmSettings settings = VmSettings.of(WIDTH, HEIGHT, FRAME_RATE);
     player.start(settings, VmPlayer.Architecture.X86_64, configuration);
   }
 
@@ -120,16 +123,23 @@ public final class VmInputExample {
       @Override
       public void keyTyped(final KeyEvent event) {
         final char character = event.getKeyChar();
-        final String text = character == '\n' ? "Return" : String.valueOf(character);
+        final String text = character == ENTER_CHARACTER ? RETURN_KEY : String.valueOf(character);
         player.sendKeyEvent(text);
       }
     };
     label.addKeyListener(keys);
   }
 
-  private static void show(final JLabel label, final ImageBuffer samples) {
+  private static void release(final VmPlayer player, final MCAVApi api) {
+    player.release();
+    api.release();
+  }
+
+  private static boolean show(final JLabel label, final ImageBuffer samples) {
     final BufferedImage image = samples.toBufferedImage();
     final ImageIcon icon = new ImageIcon(image);
     SwingUtilities.invokeLater(() -> label.setIcon(icon));
+
+    return false;
   }
 }
