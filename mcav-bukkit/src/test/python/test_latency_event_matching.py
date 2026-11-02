@@ -43,7 +43,7 @@ LATER_CAPTURE_TIME: int = 210
 
 FIRST_FRAME_LATENCY: int = 200
 
-LATENCY_KEY_PREFIX: str = "glass_to_glass_ms_"
+LATENCY_KEY_PREFIX: str = "glass_to_glass_milliseconds_"
 MEAN_LATENCY_KEY: str = LATENCY_KEY_PREFIX + "mean"
 
 
@@ -53,7 +53,7 @@ class LatencyTest(unittest.TestCase):
         displayed: float | int = result["displayed"]
         self.assertEqual(1, displayed)
 
-        for statistic in ("mean", "p50", "p95", "max"):
+        for statistic in ("mean", "p50", "p95", "maximum"):
             glass_to_glass: float | int = result[LATENCY_KEY_PREFIX + statistic]
             self.assertEqual(FIRST_FRAME_LATENCY, glass_to_glass)
 

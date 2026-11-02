@@ -53,9 +53,9 @@ GL_VERSION: str = "3.3"
 
 STREAMS_KEY: str = "streams"
 NEW_KEYFRAME_KEY: str = "new_keyframe"
-NEW_PREDICTED_KEY: str = "new_p"
+NEW_PREDICTED_KEY: str = "new_predicted_frame"
 TOTAL_KEY: str = "total"
-COUNT_KEY: str = "n"
+COUNT_KEY: str = "count"
 
 PACKAGE: str = "mcvideo"
 PACKAGE_INIT: str = "__init__.py"

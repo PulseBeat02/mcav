@@ -2572,7 +2572,7 @@ def shader_timing_stream(
         frames=len(frames),
         mismatches=rounds.mismatches,
         new_keyframe=shader_timing_summarize(rounds.new_keyframes, rounds.names),
-        new_p=shader_timing_summarize(rounds.new_predicted_frames, rounds.names),
+        new_predicted_frame=shader_timing_summarize(rounds.new_predicted_frames, rounds.names),
         idle=shader_timing_summarize(rounds.idle, rounds.names),
     )
     shader_timing_print(Path(stream).name, result, rounds.names, arguments.rounds - 1)
@@ -2722,7 +2722,7 @@ def shader_timing_summarize(samples: list[dict[str, float]], names: tuple[str, .
     out: dict[str, dict[str, float]] = {}
     for name in names + (TOTAL_TIMING_NAME,):
         values: numpy.ndarray = numpy.array([sample[name] for sample in samples]) if samples else numpy.zeros(1)
-        out[name] = dict(mean=float(values.mean()), p95=float(numpy.percentile(values, TAIL_PERCENTILE)), n=len(samples))
+        out[name] = dict(mean=float(values.mean()), p95=float(numpy.percentile(values, TAIL_PERCENTILE)), count=len(samples))
 
     return out
 
@@ -2739,7 +2739,7 @@ def shader_timing_print(
         % ("pass (ms)", "new P frame mean/p95", "new keyframe mean/p95", "no new video mean/p95")
     )
     for name in names + (TOTAL_TIMING_NAME,):
-        cells: list[dict[str, float | int] | Any] = [result[kind][name] for kind in ("new_p", "new_keyframe", "idle")]
+        cells: list[dict[str, float | int] | Any] = [result[kind][name] for kind in ("new_predicted_frame", "new_keyframe", "idle")]
         print(
             "  %-24s %22s %22s %22s"
             % (name, *("%9.3f / %9.3f" % (cell["mean"], cell["p95"]) for cell in cells))
@@ -3045,19 +3045,19 @@ def latency_main() -> None:
         held_back_for_backlog=sum(event["behind"] for event in frames),
         held_back_for_reference=sum(event["waiting"] for event in frames),
         not_sent_too_large=sum(1 for event in frames if event["colors"] < 0),
-        backlog_max=max((event["backlog"] for event in frames), default=0),
+        backlog_maximum=max((event["backlog"] for event in frames), default=0),
         backlog_p95=latency_percentile([event["backlog"] for event in frames], TAIL_PERCENTILE),
         captured=len(shots),
         capture_seconds=duration,
         displayed=len(first_seen),
         ambiguous_displayed=len(ambiguous),
-        displayed_fps=len(first_seen) / duration if duration == duration and duration > 0 else math.nan,
-        server_ms_mean=float(numpy.mean(server)) if server else math.nan,
-        server_ms_p95=latency_percentile(server, TAIL_PERCENTILE),
-        glass_to_glass_ms_mean=float(numpy.mean(latencies)) if latencies else math.nan,
-        glass_to_glass_ms_p50=latency_percentile(latencies, MEDIAN_PERCENTILE),
-        glass_to_glass_ms_p95=latency_percentile(latencies, TAIL_PERCENTILE),
-        glass_to_glass_ms_max=max(latencies, default=math.nan),
+        displayed_frames_per_second=len(first_seen) / duration if duration == duration and duration > 0 else math.nan,
+        server_milliseconds_mean=float(numpy.mean(server)) if server else math.nan,
+        server_milliseconds_p95=latency_percentile(server, TAIL_PERCENTILE),
+        glass_to_glass_milliseconds_mean=float(numpy.mean(latencies)) if latencies else math.nan,
+        glass_to_glass_milliseconds_p50=latency_percentile(latencies, MEDIAN_PERCENTILE),
+        glass_to_glass_milliseconds_p95=latency_percentile(latencies, TAIL_PERCENTILE),
+        glass_to_glass_milliseconds_maximum=max(latencies, default=math.nan),
     )
     for key, value in report.items():
         print("%-26s %s" % (key, round(value, LATENCY_PRINTED_DIGITS) if isinstance(value, float) else value))
