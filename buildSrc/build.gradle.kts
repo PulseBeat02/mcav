@@ -89,15 +89,16 @@ val generateCatalogVersions: TaskProvider<Task> = tasks.register("generateCatalo
     this.doLast {
         val file: File = catalogVersions.get().file(catalogVersionsFile).asFile
         file.parentFile.mkdirs()
-        file.writeText(
-            repositoryHeader.asFile.readText() + lineSeparator + """
+
+        val header: String = repositoryHeader.asFile.readText()
+        val source: String = """
             |package me.brandonli.mcav.gradle
             |
             |object CatalogVersions {
             |    const val JACOCO: String = "${jacocoVersion.get()}"
             |}
             |""".trimMargin()
-        )
+        file.writeText("$header$lineSeparator$source")
     }
 }
 

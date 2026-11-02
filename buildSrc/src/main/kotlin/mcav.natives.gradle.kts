@@ -33,7 +33,6 @@ val zigTool: String = "zig"
 val clangFormatTool: String = "clang-format"
 val clangFormatAlias: String = "python-clang-format"
 
-val windowsSystem: String = "windows"
 val zipExtension: String = ".zip"
 val xzTarExtension: String = ".tar.xz"
 val executableExtension: String = ".exe"
@@ -54,8 +53,10 @@ val system: String = host.zigSystem
 val architecture: String = host.architecture
 val pinnedZigVersion: String = CatalogUtils.versionOf(libs, zigTool)
 val zigFolder: String = "$zigTool-$architecture-$system-$pinnedZigVersion"
-val zigArchive: String = zigFolder + if (system == windowsSystem) zipExtension else xzTarExtension
-val zigPath: String = "$zigFolder/$zigTool" + if (system == windowsSystem) executableExtension else ""
+val archiveExtension: String = if (host.isWindows) zipExtension else xzTarExtension
+val executableSuffix: String = if (host.isWindows) executableExtension else ""
+val zigArchive: String = "$zigFolder$archiveExtension"
+val zigPath: String = "$zigFolder/$zigTool$executableSuffix"
 val zigChecksum: Provider<String> = Tools.pinnedSha256(project, zigTool, pinnedZigVersion, zigArchive)
 
 val downloadZig: TaskProvider<DownloadToolArchive> = tasks.register<DownloadToolArchive>("downloadZig") {

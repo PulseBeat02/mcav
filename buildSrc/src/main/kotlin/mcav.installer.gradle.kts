@@ -66,7 +66,8 @@ tasks.assemble {
     this.dependsOn(tasks.shadowJar)
 }
 
-val builtJar: String = "-D$builtJarProperty=" + layout.buildDirectory.file(builtJarPath).get().asFile.absolutePath
+val builtJarFile: String = layout.buildDirectory.file(builtJarPath).get().asFile.absolutePath
+val builtJar: String = "-D$builtJarProperty=$builtJarFile"
 tasks.test {
     this.jvmArgs("--add-opens", "java.base/java.net=ALL-UNNAMED")
     this.dependsOn(tasks.shadowJar)

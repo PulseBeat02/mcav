@@ -155,7 +155,7 @@ class JavaLintTaskTest {
     }
 
     private fun checkFailing(task: JavaLintTask, input: String): Pair<String?, Boolean> {
-        val source: File = this.directory.resolve(task.name + ".java").toFile()
+        val source: File = this.directory.resolve("${task.name}.java").toFile()
         source.writeText(input)
         this.configureLint(task, source)
 

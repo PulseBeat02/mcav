@@ -114,7 +114,8 @@ afterEvaluate {
     }
 
     val generatedPom: TaskProvider<GenerateMavenPom> = tasks.named<GenerateMavenPom>("generatePomFileForMavenPublication")
-    val publishedPom: String = "-D$publishedPomProperty=" + generatedPom.get().destination.absolutePath
+    val publishedPomFile: String = generatedPom.get().destination.absolutePath
+    val publishedPom: String = "-D$publishedPomProperty=$publishedPomFile"
     tasks.named<Test>("test") {
         this.dependsOn(generatedPom)
         this.jvmArgs(publishedPom)

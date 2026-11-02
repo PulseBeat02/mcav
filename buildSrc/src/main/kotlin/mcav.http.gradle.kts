@@ -62,7 +62,7 @@ val nodeExecutable: File = nodeDirectory.file(if (isWindows) "node.exe" else "bi
 // node-gradle unpacks the bin/corepack symlink as an empty file, so corepack runs through node
 val corepackScript: String = if (isWindows) "node_modules/corepack/dist/corepack.js" else "lib/node_modules/corepack/dist/corepack.js"
 val corepack: File = nodeDirectory.file(corepackScript).asFile
-val nodePath: String = nodeExecutable.parentFile.absolutePath + File.pathSeparator + System.getenv("PATH")
+val nodePath: String = "${nodeExecutable.parentFile.absolutePath}${File.pathSeparator}${System.getenv(pathVariable)}"
 
 val pnpmProjectInstall: TaskProvider<Exec> = tasks.register<Exec>("pnpmProjectInstall") {
     this.group = "build"
@@ -139,7 +139,8 @@ tasks.named<Jar>("sourcesJar") {
     }
 }
 
-val builtJar: String = "-D$builtJarProperty=" + layout.buildDirectory.file(builtJarPath).get().asFile.absolutePath
+val builtJarFile: String = layout.buildDirectory.file(builtJarPath).get().asFile.absolutePath
+val builtJar: String = "-D$builtJarProperty=$builtJarFile"
 tasks.test {
     this.dependsOn(tasks.jar)
     this.jvmArgs(builtJar)

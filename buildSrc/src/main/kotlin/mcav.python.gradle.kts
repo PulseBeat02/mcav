@@ -52,8 +52,10 @@ val packageMarkers: Map<String, String> = mapOf(
     "clang-format" to "sys_platform != 'win32' or platform_machine != 'ARM64'",
     "moderngl" to "platform_machine != 'aarch64' and platform_machine != 'ARM64'"
 )
-val uvArchive: String = "$uvTool-$uvTarget" + if (host.isWindows) zipExtension else gzipTarExtension
-val uvPath: String = if (host.isWindows) windowsUvExecutable else "$uvTool-$uvTarget/$uvTool"
+val uvFolder: String = "$uvTool-$uvTarget"
+val uvArchiveExtension: String = if (host.isWindows) zipExtension else gzipTarExtension
+val uvArchive: String = "$uvFolder$uvArchiveExtension"
+val uvPath: String = if (host.isWindows) windowsUvExecutable else "$uvFolder/$uvTool"
 
 val downloadUv: TaskProvider<DownloadToolArchive> = tasks.register<DownloadToolArchive>("downloadUv") {
     this.group = "build setup"

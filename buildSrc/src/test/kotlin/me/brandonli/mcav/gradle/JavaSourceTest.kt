@@ -35,12 +35,12 @@ class JavaSourceTest {
             "  $quotes;",
         ).joinToString("\n")
         val expected: String = listOf(
-            "int a = 1;" + " ".repeat(8),
+            "int a = 1;${" ".repeat(8)}",
             " ".repeat(8),
-            " ".repeat(9) + " call(" + " ".repeat(9) + ", " + " ".repeat(3) + ");",
-            "String b = " + " ".repeat(3),
+            "${" ".repeat(9)} call(${" ".repeat(9)}, ${" ".repeat(3)});",
+            "String b = ${" ".repeat(3)}",
             " ".repeat(11),
-            " ".repeat(5) + ";",
+            "${" ".repeat(5)};",
         ).joinToString("\n")
         val masked: String = JavaSource.mask(source)
         assertEquals(expected, masked)
@@ -61,7 +61,7 @@ class JavaSourceTest {
     @Test
     fun shouldBlankCommentsAndKeepLiteralsWhenRemovingComments(): Unit {
         val source: String = "call(\"a // b\"); // note\n/* c */ 'd';"
-        val expected: String = "call(\"a // b\");" + " ".repeat(8) + "\n" + " ".repeat(8) + "'d';"
+        val expected: String = "call(\"a // b\");${" ".repeat(8)}\n${" ".repeat(8)}'d';"
         val withoutComments: String = JavaSource.withoutComments(source)
         assertEquals(expected, withoutComments)
     }
