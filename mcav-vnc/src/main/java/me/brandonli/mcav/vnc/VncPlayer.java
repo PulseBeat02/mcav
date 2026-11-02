@@ -42,14 +42,16 @@ import me.brandonli.mcav.utils.interaction.MouseClick;
  * promptly without throwing.
  *
  * {@snippet :
- * final VncPlayer player = VncPlayer.create();
- * final VideoAttachableCallback video = player.getVideoAttachableCallback();
- * video.attach(videoPipeline);
- * player.start(source);
- * final String enterKey = "Return";
- * player.sendKeyEvent(enterKey);
- * // when done
- * player.release();
+ * void showScreen(final VideoPipelineStep videoPipeline, final VncSource source) {
+ *   final VncPlayer player = VncPlayer.create();
+ *   final VideoAttachableCallback video = player.getVideoAttachableCallback();
+ *   video.attach(videoPipeline);
+ *   player.start(source);
+ *   final String enterKey = "Return";
+ *   player.sendKeyEvent(enterKey);
+ *   // when done
+ *   player.release();
+ * }
  * }
  *
  * <p>Implementations in this library are thread-safe.
