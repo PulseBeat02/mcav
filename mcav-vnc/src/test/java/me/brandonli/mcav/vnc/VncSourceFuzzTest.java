@@ -60,10 +60,12 @@ final class VncSourceFuzzTest {
     final int builtWidth = first.getScreenWidth();
     final int builtHeight = first.getScreenHeight();
     final int builtFrameRate = first.getTargetFrameRate();
+    final Optional<String> expectedUsername = Optional.of(username);
+    final Optional<String> expectedPassword = Optional.of(password);
     assertEquals(host, builtHost);
     assertEquals(port, builtPort);
-    assertEquals(Optional.of(username), builtUsername);
-    assertEquals(Optional.of(password), builtPassword);
+    assertEquals(expectedUsername, builtUsername);
+    assertEquals(expectedPassword, builtPassword);
     assertEquals(width, builtWidth);
     assertEquals(height, builtHeight);
     assertEquals(frameRate, builtFrameRate);

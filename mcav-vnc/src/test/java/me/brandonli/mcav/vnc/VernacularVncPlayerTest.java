@@ -364,8 +364,10 @@ final class VernacularVncPlayerTest {
       final RfbTestServer.ReceivedKey key = keys.get(index);
       final int keysym = key.getKeysym();
       final boolean down = key.isDown();
-      assertEquals(expectedSymbols[index], keysym, "keysym " + index);
-      assertEquals(expectedDown[index], down, "state " + index);
+      final int expectedSymbol = expectedSymbols[index];
+      final boolean expectedKeyDown = expectedDown[index];
+      assertEquals(expectedSymbol, keysym, "keysym " + index);
+      assertEquals(expectedKeyDown, down, "state " + index);
     }
   }
 
@@ -381,7 +383,8 @@ final class VernacularVncPlayerTest {
 
     final List<RfbTestServer.ReceivedKey> keys = server.getKeys();
     final List<Integer> keysyms = keys.stream().map(RfbTestServer.ReceivedKey::getKeysym).toList();
-    assertEquals(List.of(RETURN_KEYSYM, RETURN_KEYSYM), keysyms);
+    final List<Integer> expected = List.of(RETURN_KEYSYM, RETURN_KEYSYM);
+    assertEquals(expected, keysyms);
   }
 
   @Test
@@ -405,9 +408,12 @@ final class VernacularVncPlayerTest {
       final int mask = pointer.getButtonMask();
       final int screenX = pointer.getX();
       final int screenY = pointer.getY();
-      assertEquals(expected[index][0], mask, "mask " + index);
-      assertEquals(expected[index][1], screenX, "x " + index);
-      assertEquals(expected[index][2], screenY, "y " + index);
+      final int expectedMask = expected[index][0];
+      final int expectedScreenX = expected[index][1];
+      final int expectedScreenY = expected[index][2];
+      assertEquals(expectedMask, mask, "mask " + index);
+      assertEquals(expectedScreenX, screenX, "x " + index);
+      assertEquals(expectedScreenY, screenY, "y " + index);
     }
   }
 

@@ -120,8 +120,10 @@ final class RfbTestServerTest {
     assertEquals(1, width);
     assertEquals(1, height);
     final byte[] format = input.readNBytes(16);
-    assertEquals(32, format[0]);
-    assertEquals(1, format[2]);
+    final byte bitsPerPixel = format[0];
+    final byte bigEndianFlag = format[2];
+    assertEquals(32, bitsPerPixel);
+    assertEquals(1, bigEndianFlag);
     final int nameLength = input.readInt();
     input.skipNBytes(nameLength);
   }

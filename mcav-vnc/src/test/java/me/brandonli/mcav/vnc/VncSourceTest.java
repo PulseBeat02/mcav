@@ -84,10 +84,12 @@ final class VncSourceTest {
     final int width = source.getScreenWidth();
     final int height = source.getScreenHeight();
     final int frameRate = source.getTargetFrameRate();
+    final Optional<String> expectedUsername = Optional.of("user");
+    final Optional<String> expectedPassword = Optional.of("secret");
     assertEquals(HOST, host);
     assertEquals(PORT, port);
-    assertEquals(Optional.of("user"), username);
-    assertEquals(Optional.of("secret"), password);
+    assertEquals(expectedUsername, username);
+    assertEquals(expectedPassword, password);
     assertEquals(WIDTH, width);
     assertEquals(HEIGHT, height);
     assertEquals(FRAME_RATE, frameRate);
