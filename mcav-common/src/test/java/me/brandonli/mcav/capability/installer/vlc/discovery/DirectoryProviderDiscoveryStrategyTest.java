@@ -445,6 +445,22 @@ final class DirectoryProviderDiscoveryStrategyTest {
   }
 
   @Test
+  void shouldCopyThePluginDirectoriesItIsConstructedWith() throws IOException {
+    final Path libraries = createLibraries(this.temporaryDirectory, VLC_DIRECTORY);
+    createDirectory(libraries, PLUGIN_DIRECTORY);
+    final List<Path> pluginDirectories = new ArrayList<>(PLUGIN_DIRECTORIES);
+    final List<String> published = new ArrayList<>();
+    final TestStrategy strategy = recordingStrategy(published, SetterOutcome.SUCCEEDS, pluginDirectories);
+    pluginDirectories.clear();
+    final String libraryPath = libraries.toString();
+    final boolean pathSet = strategy.onSetPluginPath(libraryPath);
+    final Path plugins = libraries.resolve(PLUGIN_DIRECTORY);
+    final List<String> expected = List.of(PLUGIN_PATH_ASSIGNMENT + plugins);
+    assertTrue(pathSet);
+    assertEquals(expected, published);
+  }
+
+  @Test
   void shouldPublishTheFirstExistingPluginDirectory() throws IOException {
     final Path libraries = createLibraries(this.temporaryDirectory, VLC_DIRECTORY);
     createDirectory(libraries, PLUGIN_DIRECTORY);
@@ -571,9 +587,17 @@ final class DirectoryProviderDiscoveryStrategyTest {
   }
 
   private static TestStrategy recordingStrategy(final List<String> published, final SetterOutcome outcome) {
+    return recordingStrategy(published, outcome, PLUGIN_DIRECTORIES);
+  }
+
+  private static TestStrategy recordingStrategy(
+    final List<String> published,
+    final SetterOutcome outcome,
+    final List<Path> pluginDirectories
+  ) {
     final EnvironmentSetter setter = (name, value) -> recordVariable(published, outcome, name, value);
     final List<SearchProvider> noProviders = List.of();
-    return new TestStrategy(PATTERNS, PLUGIN_DIRECTORIES, noProviders, setter);
+    return new TestStrategy(PATTERNS, pluginDirectories, noProviders, setter);
   }
 
   private static boolean recordVariable(final List<String> published, final SetterOutcome outcome, final String name, final String value) {
