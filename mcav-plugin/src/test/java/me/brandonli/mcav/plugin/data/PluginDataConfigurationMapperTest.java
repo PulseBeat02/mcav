@@ -152,12 +152,12 @@ final class PluginDataConfigurationMapperTest {
     this.mapper.deserialize();
     final VncAllowList list = this.mapper.getVncAllowList();
     final List<VncAllowList.Entry> expected = List.of(
-      new VncAllowList.Entry("127.0.0.1", 5901, "secret"),
-      new VncAllowList.Entry("desktop.example", 5902, "1234"),
-      new VncAllowList.Entry("open.example", 5903, null)
+      VncAllowList.Entry.of("127.0.0.1", 5901, "secret"),
+      VncAllowList.Entry.of("desktop.example", 5902, "1234"),
+      VncAllowList.Entry.of("open.example", 5903, null)
     );
 
-    final List<VncAllowList.Entry> entries = list.entries();
+    final List<VncAllowList.Entry> entries = list.getEntries();
     assertEquals(expected, entries);
   }
 
@@ -166,7 +166,7 @@ final class PluginDataConfigurationMapperTest {
     this.saveBundledResources();
     this.mapper.deserialize();
 
-    final List<VncAllowList.Entry> entries = this.mapper.getVncAllowList().entries();
+    final List<VncAllowList.Entry> entries = this.mapper.getVncAllowList().getEntries();
     assertEquals(List.of(), entries);
   }
 
@@ -217,8 +217,8 @@ final class PluginDataConfigurationMapperTest {
       System.setErr(original);
     }
 
-    final List<VncAllowList.Entry> expected = List.of(new VncAllowList.Entry(KEPT_VNC_HOST, KEPT_VNC_PORT, null));
-    final List<VncAllowList.Entry> entries = this.mapper.getVncAllowList().entries();
+    final List<VncAllowList.Entry> expected = List.of(VncAllowList.Entry.of(KEPT_VNC_HOST, KEPT_VNC_PORT, null));
+    final List<VncAllowList.Entry> entries = this.mapper.getVncAllowList().getEntries();
     assertEquals(expected, entries);
 
     final String text = logged.toString(StandardCharsets.UTF_8);
@@ -253,8 +253,8 @@ final class PluginDataConfigurationMapperTest {
       System.setErr(original);
     }
 
-    final List<VncAllowList.Entry> expected = List.of(new VncAllowList.Entry(KEPT_VNC_HOST, KEPT_VNC_PORT, null));
-    final List<VncAllowList.Entry> entries = this.mapper.getVncAllowList().entries();
+    final List<VncAllowList.Entry> expected = List.of(VncAllowList.Entry.of(KEPT_VNC_HOST, KEPT_VNC_PORT, null));
+    final List<VncAllowList.Entry> entries = this.mapper.getVncAllowList().getEntries();
     assertEquals(expected, entries);
 
     final String text = logged.toString(StandardCharsets.UTF_8);

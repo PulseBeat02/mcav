@@ -41,10 +41,10 @@ final class SeekPositionFuzzTest {
     }
 
     final SeekPosition position = parsedPosition.orElseThrow();
-    final boolean matches = Math.abs(position.milliseconds()) <= SeekPosition.MAXIMUM_MILLISECONDS;
+    final boolean matches = Math.abs(position.getMilliseconds()) <= SeekPosition.MAXIMUM_MILLISECONDS;
     assertTrue(matches, text);
 
-    final boolean secondMatches = position.relative() || position.milliseconds() >= 0;
+    final boolean secondMatches = position.isRelative() || position.getMilliseconds() >= 0;
     assertTrue(secondMatches, text);
 
     final boolean thirdMatches = position.resolve(current) >= 0;

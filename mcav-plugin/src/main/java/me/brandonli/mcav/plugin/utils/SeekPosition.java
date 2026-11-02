@@ -17,22 +17,26 @@
  */
 package me.brandonli.mcav.plugin.utils;
 
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Where {@code /mcav video seek} jumps to: a time from the start of the video, such as {@code 90}, {@code 1:30} or
  * {@code 1:02:03}, or a time from the current position, such as {@code +10} or {@code -1:00}. Seconds may have up to
  * three decimals, minutes and seconds after a colon are below 60, and no time is longer than {@link #MAXIMUM_MILLISECONDS}.
  *
- * @param relative     whether the time counts from the current position
- * @param milliseconds the time in milliseconds, negative only for a jump back
+ * <p>This class is immutable and thread-safe.
+ *
+ * @since 1.0.0
  */
-public record SeekPosition(boolean relative, long milliseconds) {
+public final class SeekPosition {
+
   /** The longest time: 99 hours, 59 minutes and 59.999 seconds, beyond any video a server plays. */
   public static final long MAXIMUM_MILLISECONDS = 359_999_999L;
 
@@ -54,6 +58,26 @@ public record SeekPosition(boolean relative, long milliseconds) {
   private static final String FRACTION_PADDING = "00";
 
   private static final String BACKWARD_SIGN = "-";
+
+  private final boolean relative;
+  private final long milliseconds;
+
+  private SeekPosition(final boolean relative, final long milliseconds) {
+    this.relative = relative;
+    this.milliseconds = milliseconds;
+  }
+
+  /**
+   * Creates a position.
+   *
+   * @param relative     whether the time counts from the current position
+   * @param milliseconds the time in milliseconds, negative only for a jump back
+   * @return the position
+   * @since 1.0.0
+   */
+  public static SeekPosition of(final boolean relative, final long milliseconds) {
+    return new SeekPosition(relative, milliseconds);
+  }
 
   /**
    * Parses a position.
@@ -123,5 +147,67 @@ public record SeekPosition(boolean relative, long milliseconds) {
     return hours > 0
       ? String.format(Locale.getDefault(Locale.Category.FORMAT), "%d:%02d:%02d", hours, minutes, seconds)
       : String.format(Locale.getDefault(Locale.Category.FORMAT), "%d:%02d", minutes, seconds);
+  }
+
+  /**
+   * Returns whether the time counts from the current position.
+   *
+   * @return true if the time counts from the current position, false if from the start
+   * @since 1.0.0
+   */
+  public boolean isRelative() {
+    return this.relative;
+  }
+
+  /**
+   * Returns the time.
+   *
+   * @return the time in milliseconds, negative only for a jump back
+   * @since 1.0.0
+   */
+  public long getMilliseconds() {
+    return this.milliseconds;
+  }
+
+  /**
+   * Returns whether {@code other} is a position with the same starting point and time.
+   *
+   * @param other the object to compare with
+   * @return whether both match
+   * @since 1.0.0
+   */
+  @Override
+  public boolean equals(final @Nullable Object other) {
+    if (this == other) {
+      return true;
+    }
+
+    if (!(other instanceof final SeekPosition position)) {
+      return false;
+    }
+
+    return this.relative == position.relative && this.milliseconds == position.milliseconds;
+  }
+
+  /**
+   * Returns a hash code built from the starting point and the time.
+   *
+   * @return the hash code
+   * @since 1.0.0
+   */
+  @Override
+  public int hashCode() {
+    return Objects.hash(this.relative, this.milliseconds);
+  }
+
+  /**
+   * Returns a debugging representation with the starting point and the time.
+   *
+   * @return the representation
+   * @since 1.0.0
+   */
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(this).add("relative", this.relative).add("milliseconds", this.milliseconds).toString();
   }
 }

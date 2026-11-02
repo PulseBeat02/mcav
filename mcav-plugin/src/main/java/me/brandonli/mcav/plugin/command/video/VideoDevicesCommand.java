@@ -94,7 +94,7 @@ public final class VideoDevicesCommand implements AnnotationCommandFeature {
     this.manager.setDevices(listed);
     final String names = listed
       .stream()
-      .map(device -> device.index() + LABEL_SEPARATOR + device.name())
+      .map(device -> device.getIndex() + LABEL_SEPARATOR + device.getName())
       .collect(Collectors.joining(NAME_SEPARATOR));
     final Component message = listed.isEmpty() ? Message.DEVICE_NONE.build() : Message.DEVICE_LIST.build(names);
     TaskUtils.runOnMainThread(this.plugin, () -> sender.sendMessage(message));

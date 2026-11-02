@@ -37,13 +37,13 @@ final class SeekPositionPropertyTest {
     final Optional<SeekPosition> forward = SeekPosition.parse("+" + SeekPosition.format(whole));
     final Optional<SeekPosition> back = SeekPosition.parse("-" + SeekPosition.format(whole));
 
-    final SeekPosition expected = new SeekPosition(false, whole);
+    final SeekPosition expected = SeekPosition.of(false, whole);
     assertEquals(Optional.of(expected), absolute);
 
-    final SeekPosition secondExpected = new SeekPosition(true, whole);
+    final SeekPosition secondExpected = SeekPosition.of(true, whole);
     assertEquals(Optional.of(secondExpected), forward);
 
-    final SeekPosition thirdExpected = new SeekPosition(true, -whole);
+    final SeekPosition thirdExpected = SeekPosition.of(true, -whole);
     assertEquals(Optional.of(thirdExpected), back);
   }
 
@@ -58,7 +58,7 @@ final class SeekPositionPropertyTest {
       milliseconds % MILLISECONDS_PER_SECOND
     );
     final SeekPosition position = SeekPosition.parse(text).orElseThrow();
-    final long positionMilliseconds = position.milliseconds();
+    final long positionMilliseconds = position.getMilliseconds();
     assertEquals(milliseconds, positionMilliseconds);
   }
 
@@ -67,7 +67,7 @@ final class SeekPositionPropertyTest {
     @ForAll @LongRange(min = -SeekPosition.MAXIMUM_MILLISECONDS, max = SeekPosition.MAXIMUM_MILLISECONDS) final long milliseconds,
     @ForAll @LongRange(min = 0, max = SeekPosition.MAXIMUM_MILLISECONDS) final long current
   ) {
-    final long target = new SeekPosition(true, milliseconds).resolve(current);
+    final long target = SeekPosition.of(true, milliseconds).resolve(current);
     assertTrue(target >= 0);
 
     final long expected = Math.max(0, current + milliseconds);

@@ -31,9 +31,9 @@ import org.junit.jupiter.api.Tag;
 @Tag("fuzz")
 final class VncAllowListFuzzTest {
 
-  private static final VncAllowList.Entry LISTED = new VncAllowList.Entry("desktop.example", 5901, "secret");
+  private static final VncAllowList.Entry LISTED = VncAllowList.Entry.of("desktop.example", 5901, "secret");
 
-  private static final VncAllowList LIST = new VncAllowList(List.of(LISTED));
+  private static final VncAllowList LIST = VncAllowList.of(List.of(LISTED));
 
   @FuzzTest(maxDuration = "30s")
   void shouldFindOnlyTheListedServer(final FuzzedDataProvider data) {
@@ -41,7 +41,7 @@ final class VncAllowListFuzzTest {
     final VncAllowList.Target target = VncAllowList.parse(text);
     final VncAllowList.Entry found = LIST.find(text);
     if (found != null) {
-      final boolean matches = target != null && target.port() == LISTED.port() && target.host().equalsIgnoreCase(LISTED.host());
+      final boolean matches = target != null && target.port() == LISTED.getPort() && target.host().equalsIgnoreCase(LISTED.getHost());
       assertTrue(matches, text);
     }
     if (target != null) {

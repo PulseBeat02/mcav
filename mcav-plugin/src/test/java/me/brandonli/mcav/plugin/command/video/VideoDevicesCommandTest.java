@@ -73,8 +73,8 @@ final class VideoDevicesCommandTest {
   @Test
   void shouldListTheDevicesAndRememberThemForTheDevicePlayer() {
     final List<CaptureDevices.Device> listed = List.of(
-      new CaptureDevices.Device(0, "Integrated Camera"),
-      new CaptureDevices.Device(2, "OBS Virtual Camera")
+      CaptureDevices.Device.of(0, "Integrated Camera"),
+      CaptureDevices.Device.of(2, "OBS Virtual Camera")
     );
     this.devices.when(CaptureDevices::list).thenReturn(listed);
     this.command.listDevices(this.sender);

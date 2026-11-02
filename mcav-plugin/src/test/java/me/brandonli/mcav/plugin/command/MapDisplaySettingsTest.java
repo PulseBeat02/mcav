@@ -22,13 +22,16 @@ import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.google.common.base.MoreObjects;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.config.MapConfigurationBuilder;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
+import me.brandonli.mcav.plugin.testing.EqualityAssertions;
 import me.brandonli.mcav.plugin.utils.DitheringArgument;
 import me.brandonli.mcav.utils.immutable.Pair;
 import org.junit.jupiter.api.Test;
@@ -51,7 +54,7 @@ final class MapDisplaySettingsTest {
     builder.mapHeightResolution(128);
     final MapConfiguration configuration = builder.build();
 
-    final MapDisplaySettings settings = new MapDisplaySettings(configuration, DitheringArgument.NEAREST_COLOR);
+    final MapDisplaySettings settings = MapDisplaySettings.of(configuration, DitheringArgument.NEAREST_COLOR);
     final MapConfiguration kept = settings.getConfiguration();
     final DitherAlgorithm algorithm = settings.createAlgorithm();
     final DitherAlgorithm expected = DitheringArgument.NEAREST_COLOR.createAlgorithm();
@@ -62,7 +65,7 @@ final class MapDisplaySettingsTest {
   @Test
   void shouldCreateAFreshTemporalAlgorithmOnEveryCall() {
     final MapConfiguration configuration = this.createSingleMapConfiguration();
-    final MapDisplaySettings settings = new MapDisplaySettings(configuration, DitheringArgument.FLOYD_STEINBERG_TEMPORAL);
+    final MapDisplaySettings settings = MapDisplaySettings.of(configuration, DitheringArgument.FLOYD_STEINBERG_TEMPORAL);
     final DitherAlgorithm first = settings.createAlgorithm();
     final DitherAlgorithm second = settings.createAlgorithm();
     assertNotSame(first, second);
@@ -103,10 +106,52 @@ final class MapDisplaySettingsTest {
     final Pair<Integer, Integer> size = Pair.pair(1, 1);
     final List<UUID> viewers = List.of();
     final MapConfiguration configuration = this.createSingleMapConfiguration();
-    assertThrows(NullPointerException.class, () -> new MapDisplaySettings(null, DitheringArgument.NEAREST_COLOR));
-    assertThrows(NullPointerException.class, () -> new MapDisplaySettings(configuration, null));
+    assertThrows(NullPointerException.class, () -> MapDisplaySettings.of(null, DitheringArgument.NEAREST_COLOR));
+    assertThrows(NullPointerException.class, () -> MapDisplaySettings.of(configuration, null));
     assertThrows(NullPointerException.class, () -> MapDisplaySettings.createConfiguration(null, size, 0, viewers));
     assertThrows(NullPointerException.class, () -> MapDisplaySettings.createConfiguration(size, null, 0, viewers));
     assertThrows(NullPointerException.class, () -> MapDisplaySettings.createConfiguration(size, size, 0, null));
+  }
+
+  @Test
+  void shouldFollowTheEqualityContract() {
+    final MapConfiguration configuration = this.createSingleMapConfiguration();
+    final MapDisplaySettings settings = MapDisplaySettings.of(configuration, DitheringArgument.NEAREST_COLOR);
+    final MapDisplaySettings equalSettings = MapDisplaySettings.of(configuration, DitheringArgument.NEAREST_COLOR);
+    final MapConfiguration otherConfiguration = this.createSingleMapConfiguration();
+    final MapDisplaySettings otherConfigurationSettings = MapDisplaySettings.of(otherConfiguration, DitheringArgument.NEAREST_COLOR);
+    final MapDisplaySettings otherDithering = MapDisplaySettings.of(configuration, DitheringArgument.FLOYD_STEINBERG_TEMPORAL);
+    EqualityAssertions.assertEqualityContract(settings, equalSettings, otherConfigurationSettings, otherDithering);
+  }
+
+  @Test
+  void shouldHashTheConfigurationThenTheDithering() {
+    final MapConfiguration configuration = this.createSingleMapConfiguration();
+    final MapDisplaySettings settings = MapDisplaySettings.of(configuration, DitheringArgument.NEAREST_COLOR);
+
+    final int hash = settings.hashCode();
+    final int expected = Objects.hash(configuration, DitheringArgument.NEAREST_COLOR);
+    assertEquals(expected, hash);
+  }
+
+  @Test
+  void shouldRenderTheConfigurationAndTheDithering() {
+    final MapConfiguration configuration = this.createSingleMapConfiguration();
+    final MapDisplaySettings settings = MapDisplaySettings.of(configuration, DitheringArgument.NEAREST_COLOR);
+
+    final String text = settings.toString();
+    final String expected = MoreObjects.toStringHelper("MapDisplaySettings")
+      .add("configuration", configuration)
+      .add("dithering", DitheringArgument.NEAREST_COLOR)
+      .toString();
+    assertEquals(expected, text);
+  }
+
+  @Test
+  void shouldKeepTheDithering() {
+    final MapConfiguration configuration = this.createSingleMapConfiguration();
+    final MapDisplaySettings settings = MapDisplaySettings.of(configuration, DitheringArgument.FLOYD_STEINBERG_TEMPORAL);
+    final DitheringArgument dithering = settings.getDithering();
+    assertEquals(DitheringArgument.FLOYD_STEINBERG_TEMPORAL, dithering);
   }
 }

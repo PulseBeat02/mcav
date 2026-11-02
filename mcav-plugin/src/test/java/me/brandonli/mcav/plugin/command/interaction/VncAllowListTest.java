@@ -24,6 +24,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import me.brandonli.mcav.plugin.testing.EqualityAssertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -34,14 +37,16 @@ import org.junit.jupiter.params.provider.ValueSource;
  */
 final class VncAllowListTest {
 
+  private static final String DESKTOP_HOST = "Desktop.Example";
   private static final int DESKTOP_PORT = 5901;
-  private static final VncAllowList.Entry DESKTOP = new VncAllowList.Entry("Desktop.Example", DESKTOP_PORT, "secret");
+  private static final String DESKTOP_PASSWORD = "secret";
+  private static final VncAllowList.Entry DESKTOP = VncAllowList.Entry.of(DESKTOP_HOST, DESKTOP_PORT, DESKTOP_PASSWORD);
 
   private static final String LOOPBACK_HOST = "::1";
   private static final int LOOPBACK_PORT = 5902;
-  private static final VncAllowList.Entry LOOPBACK = new VncAllowList.Entry(LOOPBACK_HOST, LOOPBACK_PORT, null);
+  private static final VncAllowList.Entry LOOPBACK = VncAllowList.Entry.of(LOOPBACK_HOST, LOOPBACK_PORT, null);
 
-  private static final VncAllowList LIST = new VncAllowList(List.of(DESKTOP, LOOPBACK));
+  private static final VncAllowList LIST = VncAllowList.of(List.of(DESKTOP, LOOPBACK));
 
   private static final String DESKTOP_ADDRESS = "desktop.example:5901";
   private static final String LOOPBACK_ADDRESS = "[::1]:5902";
@@ -123,57 +128,108 @@ final class VncAllowListTest {
   }
 
   @Test
-  void shouldNameAServerWithoutItsPassword() {
-    final String text = DESKTOP.toString();
+  void shouldFormatAServerAsACommandNamesIt() {
+    final String text = VncAllowList.format(DESKTOP.getHost(), DESKTOP.getPort());
     assertEquals("Desktop.Example:5901", text);
 
-    final String loopbackText = LOOPBACK.toString();
+    final String loopbackText = VncAllowList.format(LOOPBACK.getHost(), LOOPBACK.getPort());
     assertEquals(LOOPBACK_ADDRESS, loopbackText);
   }
 
   @Test
   void shouldFindAnIpv6AddressListedInBrackets() {
-    final VncAllowList.Entry bracketed = new VncAllowList.Entry("[::1]", LOOPBACK_PORT, null);
+    final VncAllowList.Entry bracketed = VncAllowList.Entry.of("[::1]", LOOPBACK_PORT, null);
 
-    final String text = bracketed.host();
+    final String text = bracketed.getHost();
     assertEquals(LOOPBACK_HOST, text);
 
-    final VncAllowList.Entry found = new VncAllowList(List.of(bracketed)).find(LOOPBACK_ADDRESS);
+    final VncAllowList.Entry found = VncAllowList.of(List.of(bracketed)).find(LOOPBACK_ADDRESS);
     assertSame(bracketed, found);
 
-    final String bracketedText = bracketed.toString();
+    final String bracketedText = VncAllowList.format(bracketed.getHost(), bracketed.getPort());
     assertEquals(LOOPBACK_ADDRESS, bracketedText);
 
-    final VncAllowList.Entry unbalanced = new VncAllowList.Entry("[::1", LOOPBACK_PORT, null);
+    final VncAllowList.Entry unbalanced = VncAllowList.Entry.of("[::1", LOOPBACK_PORT, null);
 
-    final String unbalancedText = unbalanced.host();
+    final String unbalancedText = unbalanced.getHost();
     assertEquals("[::1", unbalancedText, "only a host in both brackets loses them");
   }
 
   @Test
   void shouldRefuseAnEntryWithoutAHostOrWithoutATcpPort() {
-    assertThrows(IllegalArgumentException.class, () -> new VncAllowList.Entry(" ", DESKTOP_PORT, null));
-    assertThrows(IllegalArgumentException.class, () -> new VncAllowList.Entry("[]", DESKTOP_PORT, null));
-    assertThrows(IllegalArgumentException.class, () -> new VncAllowList.Entry(HOST_NAME, 0, null));
-    assertThrows(IllegalArgumentException.class, () -> new VncAllowList.Entry(HOST_NAME, 65_536, null));
+    assertThrows(IllegalArgumentException.class, () -> VncAllowList.Entry.of(" ", DESKTOP_PORT, null));
+    assertThrows(IllegalArgumentException.class, () -> VncAllowList.Entry.of("[]", DESKTOP_PORT, null));
+    assertThrows(IllegalArgumentException.class, () -> VncAllowList.Entry.of(HOST_NAME, 0, null));
+    assertThrows(IllegalArgumentException.class, () -> VncAllowList.Entry.of(HOST_NAME, 65_536, null));
   }
 
   @Test
   void shouldTakeAnEntryOnTheFirstOrTheLastTcpPort() {
-    final int port = new VncAllowList.Entry(HOST_NAME, 1, null).port();
+    final int port = VncAllowList.Entry.of(HOST_NAME, 1, null).getPort();
     assertEquals(1, port);
 
-    final int secondPort = new VncAllowList.Entry(HOST_NAME, LAST_TCP_PORT, null).port();
+    final int secondPort = VncAllowList.Entry.of(HOST_NAME, LAST_TCP_PORT, null).getPort();
     assertEquals(LAST_TCP_PORT, secondPort);
   }
 
   @Test
   void shouldKeepItsEntriesWhenTheListItWasGivenChanges() {
     final List<VncAllowList.Entry> entries = new ArrayList<>(List.of(DESKTOP));
-    final VncAllowList list = new VncAllowList(entries);
+    final VncAllowList list = VncAllowList.of(entries);
     entries.clear();
 
     final VncAllowList.Entry found = list.find(DESKTOP_ADDRESS);
     assertSame(DESKTOP, found);
+  }
+
+  @Test
+  void shouldFollowTheEqualityContract() {
+    final VncAllowList equalList = VncAllowList.of(List.of(DESKTOP, LOOPBACK));
+    final VncAllowList otherEntries = VncAllowList.of(List.of(LOOPBACK, DESKTOP));
+    EqualityAssertions.assertEqualityContract(LIST, equalList, otherEntries, VncAllowList.NONE);
+  }
+
+  @Test
+  void shouldFollowTheEqualityContractOfAnEntry() {
+    final VncAllowList.Entry equalEntry = VncAllowList.Entry.of(DESKTOP_HOST, DESKTOP_PORT, DESKTOP_PASSWORD);
+    final VncAllowList.Entry otherHost = VncAllowList.Entry.of("Laptop.Example", DESKTOP_PORT, DESKTOP_PASSWORD);
+    final VncAllowList.Entry otherPort = VncAllowList.Entry.of(DESKTOP_HOST, DESKTOP_PORT + 1, DESKTOP_PASSWORD);
+    final VncAllowList.Entry otherPassword = VncAllowList.Entry.of(DESKTOP_HOST, DESKTOP_PORT, null);
+    EqualityAssertions.assertEqualityContract(DESKTOP, equalEntry, otherHost, otherPort, otherPassword);
+  }
+
+  @Test
+  void shouldHashTheEntries() {
+    final int hash = LIST.hashCode();
+    final int expected = Objects.hash(List.of(DESKTOP, LOOPBACK));
+    assertEquals(expected, hash);
+  }
+
+  @Test
+  void shouldHashTheHostThenThePortThenThePassword() {
+    final int hash = DESKTOP.hashCode();
+    final int expected = Objects.hash(DESKTOP_HOST, DESKTOP_PORT, DESKTOP_PASSWORD);
+    assertEquals(expected, hash);
+  }
+
+  @Test
+  void shouldRenderAListWithItsEntries() {
+    final String text = LIST.toString();
+    assertEquals("VncAllowList{entries=[Entry{host=Desktop.Example, port=5901}, Entry{host=::1, port=5902}]}", text);
+  }
+
+  @Test
+  void shouldRenderAnEntryWithoutItsPassword() {
+    final String text = DESKTOP.toString();
+    assertEquals("Entry{host=Desktop.Example, port=5901}", text);
+  }
+
+  @Test
+  void shouldGiveThePasswordOnlyOfAServerThatHasOne() {
+    final Optional<String> password = DESKTOP.getPassword();
+    assertEquals(Optional.of(DESKTOP_PASSWORD), password);
+
+    final Optional<String> loopbackPassword = LOOPBACK.getPassword();
+    assertEquals(Optional.empty(), loopbackPassword);
   }
 }

@@ -34,8 +34,10 @@ import java.nio.file.Path;
 import java.nio.file.attribute.PosixFileAttributeView;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import me.brandonli.mcav.plugin.testing.EqualityAssertions;
 import me.brandonli.mcav.utils.os.Os;
 import me.brandonli.mcav.utils.os.OsUtils;
 import org.bytedeco.javacv.FrameGrabber;
@@ -49,6 +51,10 @@ import org.mockito.Mockito;
 final class CaptureDevicesTest {
 
   private static final String FIRST_PROBED_DEVICE_NAME = "device 1";
+  private static final String DEVICE_ZERO_NAME = "device 0";
+
+  private static final int CAPTURE_CARD_INDEX = 3;
+  private static final String CAPTURE_CARD_NAME = "Capture Card";
 
   private static final String DEVICE_NAME_FILE_NAME = "name";
   private static final String FIRST_VIDEO_FOLDER_NAME = "video0";
@@ -61,6 +67,9 @@ final class CaptureDevicesTest {
   private static final String MISSING_FOLDER_NAME = "missing";
   private static final String PLAIN_FILE_NAME = "a file";
   private static final String LOCKED_FOLDER_NAME = "locked";
+
+  private static final int DEVICE_INDEX = 4;
+  private static final String DEVICE_NAME = "Webcam";
 
   @TempDir
   Path folder;
@@ -77,15 +86,18 @@ final class CaptureDevicesTest {
 
   @Test
   void shouldListWhatLinuxNamesOnLinuxAndTryNumbersElsewhere() throws IOException {
-    Files.writeString(Files.createDirectory(this.folder.resolve(CAPTURE_CARD_FOLDER_NAME)).resolve(DEVICE_NAME_FILE_NAME), "Capture Card");
+    Files.writeString(
+      Files.createDirectory(this.folder.resolve(CAPTURE_CARD_FOLDER_NAME)).resolve(DEVICE_NAME_FILE_NAME),
+      CAPTURE_CARD_NAME
+    );
 
-    final List<CaptureDevices.Device> expected = List.of(new CaptureDevices.Device(3, "Capture Card"));
+    final List<CaptureDevices.Device> expected = List.of(CaptureDevices.Device.of(CAPTURE_CARD_INDEX, CAPTURE_CARD_NAME));
     final List<CaptureDevices.Device> listed = CaptureDevices.list(Os.LINUX, this.folder, _ -> true);
     assertEquals(expected, listed);
 
     final List<CaptureDevices.Device> tried = CaptureDevices.list(Os.WINDOWS, this.folder, index -> index == 1);
 
-    final List<CaptureDevices.Device> listExpected = List.of(new CaptureDevices.Device(1, FIRST_PROBED_DEVICE_NAME));
+    final List<CaptureDevices.Device> listExpected = List.of(CaptureDevices.Device.of(1, FIRST_PROBED_DEVICE_NAME));
     assertEquals(listExpected, tried);
   }
 
@@ -109,10 +121,10 @@ final class CaptureDevicesTest {
     final List<CaptureDevices.Device> devices = CaptureDevices.listSysfs(this.folder);
 
     final List<CaptureDevices.Device> expected = List.of(
-      new CaptureDevices.Device(0, "Integrated Camera"),
-      new CaptureDevices.Device(2, "OBS Virtual Camera"),
-      new CaptureDevices.Device(10, UNNAMED_VIDEO_FOLDER_NAME),
-      new CaptureDevices.Device(11, "x".repeat(CaptureDevices.MAXIMUM_NAME))
+      CaptureDevices.Device.of(0, "Integrated Camera"),
+      CaptureDevices.Device.of(2, "OBS Virtual Camera"),
+      CaptureDevices.Device.of(10, UNNAMED_VIDEO_FOLDER_NAME),
+      CaptureDevices.Device.of(11, "x".repeat(CaptureDevices.MAXIMUM_NAME))
     );
     assertEquals(expected, devices);
   }
@@ -149,8 +161,8 @@ final class CaptureDevicesTest {
     final List<CaptureDevices.Device> devices = CaptureDevices.probe(4, index -> index % 2 == 1);
 
     final List<CaptureDevices.Device> expected = List.of(
-      new CaptureDevices.Device(1, FIRST_PROBED_DEVICE_NAME),
-      new CaptureDevices.Device(3, "device 3")
+      CaptureDevices.Device.of(1, FIRST_PROBED_DEVICE_NAME),
+      CaptureDevices.Device.of(3, "device 3")
     );
     assertEquals(expected, devices);
 
@@ -217,7 +229,7 @@ final class CaptureDevicesTest {
       systems.when(OsUtils::getOs).thenReturn(Os.WINDOWS);
       final List<CaptureDevices.Device> devices = CaptureDevices.list();
 
-      final CaptureDevices.Device expected = new CaptureDevices.Device(0, "device 0");
+      final CaptureDevices.Device expected = CaptureDevices.Device.of(0, DEVICE_ZERO_NAME);
       final CaptureDevices.Device device = devices.getFirst();
       assertEquals(expected, device);
 
@@ -238,7 +250,7 @@ final class CaptureDevicesTest {
 
   @Test
   void shouldFindAListedDeviceOnlyByItsExactNumber() {
-    final List<CaptureDevices.Device> devices = List.of(new CaptureDevices.Device(0, "a"), new CaptureDevices.Device(12, "b"));
+    final List<CaptureDevices.Device> devices = List.of(CaptureDevices.Device.of(0, "a"), CaptureDevices.Device.of(12, "b"));
 
     final CaptureDevices.Device expected = devices.get(1);
     final Optional<CaptureDevices.Device> found = CaptureDevices.find(devices, "12");
@@ -257,5 +269,47 @@ final class CaptureDevicesTest {
     assertEquals(Optional.empty(), fourthFound);
     assertThrows(NullPointerException.class, () -> CaptureDevices.find(null, "0"));
     assertThrows(NullPointerException.class, () -> CaptureDevices.find(devices, null));
+  }
+
+  @Test
+  void shouldFollowTheEqualityContract() {
+    final CaptureDevices.Device device = CaptureDevices.Device.of(DEVICE_INDEX, DEVICE_NAME);
+    final CaptureDevices.Device equalDevice = CaptureDevices.Device.of(DEVICE_INDEX, DEVICE_NAME);
+    final CaptureDevices.Device otherIndex = CaptureDevices.Device.of(DEVICE_INDEX + 1, DEVICE_NAME);
+    final CaptureDevices.Device otherName = CaptureDevices.Device.of(DEVICE_INDEX, "Webcam 2");
+    EqualityAssertions.assertEqualityContract(device, equalDevice, otherIndex, otherName);
+  }
+
+  @Test
+  void shouldHashTheIndexThenTheName() {
+    final CaptureDevices.Device device = CaptureDevices.Device.of(DEVICE_INDEX, DEVICE_NAME);
+
+    final int hash = device.hashCode();
+    final int expected = Objects.hash(DEVICE_INDEX, DEVICE_NAME);
+    assertEquals(expected, hash);
+  }
+
+  @Test
+  void shouldRenderTheIndexAndTheName() {
+    final CaptureDevices.Device device = CaptureDevices.Device.of(0, DEVICE_ZERO_NAME);
+    final String text = device.toString();
+    assertEquals("Device{index=0, name=device 0}", text);
+  }
+
+  @Test
+  void shouldKeepTheIndexAndTheNameOfADevice() {
+    final CaptureDevices.Device device = CaptureDevices.Device.of(CAPTURE_CARD_INDEX, CAPTURE_CARD_NAME);
+    final int index = device.getIndex();
+    final String name = device.getName();
+    assertEquals(CAPTURE_CARD_INDEX, index);
+    assertEquals(CAPTURE_CARD_NAME, name);
+  }
+
+  @Test
+  void shouldRefuseADeviceWithoutAName() {
+    final NullPointerException thrown = assertThrows(NullPointerException.class, () -> CaptureDevices.Device.of(0, null));
+
+    final String message = thrown.getMessage();
+    assertEquals("Name must not be null!", message);
   }
 }

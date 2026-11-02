@@ -251,12 +251,10 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    */
   static VncSource createSource(final VncAllowList.Entry entry, final Pair<Integer, Integer> resolution, final int targetFramesPerSecond) {
     final VncSourceBuilder builder = VncSource.builder();
-    builder.host(entry.host());
-    builder.port(entry.port());
-    final String password = entry.password();
-    if (password != null) {
-      builder.password(password);
-    }
+    builder.host(entry.getHost());
+    builder.port(entry.getPort());
+    final Optional<String> password = entry.getPassword();
+    password.ifPresent(builder::password);
     builder.screenWidth(resolution.getFirst());
     builder.screenHeight(resolution.getSecond());
     builder.targetFrameRate(targetFramesPerSecond);
@@ -273,8 +271,8 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
     sender.sendMessage(Message.VNC_LOADING.build());
     final ExecutorService executor = this.startExecutor(desktop, screen);
     final CompletableFuture<Boolean> start = desktop.startAsync(source, executor);
-    // the entry names the server by host and port only
-    this.reportStartWhenDone(sender, desktop, screen, start, "the VNC desktop of " + entry);
+    final String server = VncAllowList.format(entry.getHost(), entry.getPort());
+    this.reportStartWhenDone(sender, desktop, screen, start, "the VNC desktop of " + server);
   }
 
   /**

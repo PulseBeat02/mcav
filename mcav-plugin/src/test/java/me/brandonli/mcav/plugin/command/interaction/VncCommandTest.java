@@ -68,7 +68,7 @@ final class VncCommandTest {
   private static final long RELEASE_MILLISECONDS = 5000;
 
   private static final String LOOPBACK_HOST = "127.0.0.1";
-  private static final VncAllowList.Entry DESKTOP = new VncAllowList.Entry(LOOPBACK_HOST, 5901, "secret");
+  private static final VncAllowList.Entry DESKTOP = VncAllowList.Entry.of(LOOPBACK_HOST, 5901, "secret");
 
   private static final String DESKTOP_ADDRESS = "127.0.0.1:5901";
 
@@ -93,7 +93,7 @@ final class VncCommandTest {
     when(plugin.getServer()).thenReturn(server);
     this.configuration = mock(PluginDataConfigurationMapper.class);
     when(plugin.getConfiguration()).thenReturn(this.configuration);
-    when(this.configuration.getVncAllowList()).thenReturn(new VncAllowList(List.of(DESKTOP)));
+    when(this.configuration.getVncAllowList()).thenReturn(VncAllowList.of(List.of(DESKTOP)));
     when(this.configuration.getMcv2DefaultCodec()).thenReturn(MapCodec.DITHER);
     this.command = new VncCommand(plugin);
     this.sender = mock(CommandSender.class);
@@ -218,7 +218,7 @@ final class VncCommandTest {
 
   @Test
   void shouldGiveNoPasswordToAServerWithoutOne() {
-    final VncAllowList.Entry open = new VncAllowList.Entry(LOOPBACK_HOST, 5902, null);
+    final VncAllowList.Entry open = VncAllowList.Entry.of(LOOPBACK_HOST, 5902, null);
     final VncSource source = VncCommand.createSource(open, Pair.pair(640, 480), 10);
 
     final Optional<String> password = source.getPassword();

@@ -103,7 +103,7 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
     }
 
     final boolean decoded = player instanceof AbstractVideoPlayerCv;
-    if (parsed.relative() && !decoded) {
+    if (parsed.isRelative() && !decoded) {
       sender.sendMessage(Message.SEEK_RELATIVE_UNSUPPORTED.build());
       return;
     }

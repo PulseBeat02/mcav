@@ -166,7 +166,7 @@ public final class ImageMapCommand extends AbstractImageCommand {
     final DitheringArgument dithering
   ) {
     final MapConfiguration configuration = MapDisplaySettings.createConfiguration(blocks, resolution, mapId, players);
-    return new MapDisplaySettings(configuration, dithering);
+    return MapDisplaySettings.of(configuration, dithering);
   }
 
   /**

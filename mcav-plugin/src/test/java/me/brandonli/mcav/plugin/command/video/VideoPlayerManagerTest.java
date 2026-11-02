@@ -984,11 +984,11 @@ final class VideoPlayerManagerTest {
     final List<CaptureDevices.Device> devices = this.manager.getDevices();
     assertEquals(List.of(), devices);
 
-    final List<CaptureDevices.Device> listed = new ArrayList<>(List.of(new CaptureDevices.Device(0, "camera")));
+    final List<CaptureDevices.Device> listed = new ArrayList<>(List.of(CaptureDevices.Device.of(0, "camera")));
     this.manager.setDevices(listed);
     listed.clear();
 
-    final List<CaptureDevices.Device> expected = List.of(new CaptureDevices.Device(0, "camera"));
+    final List<CaptureDevices.Device> expected = List.of(CaptureDevices.Device.of(0, "camera"));
     final List<CaptureDevices.Device> managerDevices = this.manager.getDevices();
     assertEquals(expected, managerDevices);
   }

@@ -17,9 +17,12 @@
  */
 package me.brandonli.mcav.plugin.command.interaction;
 
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
+import java.util.Optional;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -29,9 +32,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * is listed by default. The password of a server is written in its entry, never in the command, where the server's log
  * would keep it.
  *
- * @param entries the allowed servers
+ * <p>This class is immutable and thread-safe.
+ *
+ * @since 1.0.0
  */
-public record VncAllowList(List<Entry> entries) {
+public final class VncAllowList {
+
   private static final int MAXIMUM_PORT = 65_535;
   private static final int MAXIMUM_PORT_DIGITS = 5;
 
@@ -48,57 +54,26 @@ public record VncAllowList(List<Entry> entries) {
 
   private static final String PORT_SEPARATOR = ":";
 
+  private final List<Entry> entries;
+
+  private VncAllowList(final List<Entry> entries) {
+    this.entries = entries;
+  }
+
   /**
-   * Copies the entries.
+   * Creates an allow list.
    *
-   * @param entries the allowed servers
+   * @param entries the allowed servers, which the list copies
+   * @return the allow list
+   * @throws NullPointerException if {@code entries} or one of them is null
+   * @since 1.0.0
    */
-  public VncAllowList {
+  public static VncAllowList of(final List<Entry> entries) {
     Preconditions.checkNotNull(entries, "Entries must not be null!");
 
-    entries = List.copyOf(entries);
+    final List<Entry> copy = List.copyOf(entries);
+    return new VncAllowList(copy);
   }
-
-  /**
-   * An allowed VNC server.
-   *
-   * @param host     its host name or address, compared without regard to case; an IPv6 address may be written in
-   *                 brackets, as in a command, which the entry leaves out
-   * @param port     its port
-   * @param password its password, or null if it has none
-   */
-  public record Entry(String host, int port, @Nullable String password) {
-    /**
-     * Validates the entry.
-     *
-     * @throws IllegalArgumentException if the host is blank or the port is not a TCP port
-     */
-    public Entry {
-      Preconditions.checkNotNull(host, "Host must not be null!");
-
-      host = host.startsWith(OPENING_BRACKET) && host.endsWith(CLOSING_BRACKET) ? host.substring(1, host.length() - 1) : host;
-      Preconditions.checkArgument(!host.isBlank(), "Host must not be blank!");
-      Preconditions.checkArgument(port >= 1 && port <= MAXIMUM_PORT, "Port must be from 1 to 65535!");
-    }
-
-    /**
-     * Names the server by its host and port, never its password, so the entry can be logged.
-     *
-     * @return {@code host:port}
-     */
-    @Override
-    public String toString() {
-      return format(this.host, this.port);
-    }
-  }
-
-  /**
-   * A server as a command names it: {@code host:port}, or {@code [address]:port} for an IPv6 address.
-   *
-   * @param host the host
-   * @param port the port
-   */
-  record Target(String host, int port) {}
 
   /**
    * Parses a server as a command names it.
@@ -159,7 +134,7 @@ public record VncAllowList(List<Entry> entries) {
 
     final String host = target.host().toLowerCase(Locale.ROOT);
     for (final Entry entry : this.entries) {
-      if (entry.port() == target.port() && entry.host().toLowerCase(Locale.ROOT).equals(host)) {
+      if (entry.getPort() == target.port() && entry.getHost().toLowerCase(Locale.ROOT).equals(host)) {
         return entry;
       }
     }
@@ -173,7 +148,182 @@ public record VncAllowList(List<Entry> entries) {
    * @param port the port
    * @return {@code host:port}, with an IPv6 address in brackets
    */
-  private static String format(final String host, final int port) {
+  static String format(final String host, final int port) {
     return (host.indexOf(PORT_SEPARATOR) >= 0 ? OPENING_BRACKET + host + CLOSING_BRACKET : host) + PORT_SEPARATOR + port;
   }
+
+  /**
+   * Returns the allowed servers.
+   *
+   * @return the unmodifiable entries, in the order they were given
+   * @since 1.0.0
+   */
+  public List<Entry> getEntries() {
+    return this.entries;
+  }
+
+  /**
+   * Returns whether {@code other} is an allow list with the same entries.
+   *
+   * @param other the object to compare with
+   * @return whether the entries match
+   * @since 1.0.0
+   */
+  @Override
+  public boolean equals(final @Nullable Object other) {
+    if (this == other) {
+      return true;
+    }
+
+    if (!(other instanceof final VncAllowList list)) {
+      return false;
+    }
+
+    return this.entries.equals(list.entries);
+  }
+
+  /**
+   * Returns a hash code built from the entries.
+   *
+   * @return the hash code
+   * @since 1.0.0
+   */
+  @Override
+  public int hashCode() {
+    return Objects.hash(this.entries);
+  }
+
+  /**
+   * Returns a debugging representation with the entries.
+   *
+   * @return the representation
+   * @since 1.0.0
+   */
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(this).add("entries", this.entries).toString();
+  }
+
+  /**
+   * An allowed VNC server.
+   *
+   * <p>This class is immutable and thread-safe.
+   *
+   * @since 1.0.0
+   */
+  public static final class Entry {
+
+    private final String host;
+    private final int port;
+    private final @Nullable String password;
+
+    private Entry(final String host, final int port, final @Nullable String password) {
+      this.host = host;
+      this.port = port;
+      this.password = password;
+    }
+
+    /**
+     * Creates an entry.
+     *
+     * @param host     the host name or address, compared without regard to case; an IPv6 address may be
+     *                 written in brackets, as in a command, which the entry leaves out
+     * @param port     the port, from 1 to 65535
+     * @param password the password, or null if the server has none
+     * @return the entry
+     * @throws NullPointerException     if {@code host} is null
+     * @throws IllegalArgumentException if the host is blank or the port is not a TCP port
+     * @since 1.0.0
+     */
+    public static Entry of(final String host, final int port, final @Nullable String password) {
+      Preconditions.checkNotNull(host, "Host must not be null!");
+
+      final boolean bracketed = host.startsWith(OPENING_BRACKET) && host.endsWith(CLOSING_BRACKET);
+      final String strippedHost = bracketed ? host.substring(1, host.length() - 1) : host;
+      Preconditions.checkArgument(!strippedHost.isBlank(), "Host must not be blank!");
+      Preconditions.checkArgument(port >= 1 && port <= MAXIMUM_PORT, "Port must be from 1 to 65535!");
+
+      return new Entry(strippedHost, port, password);
+    }
+
+    /**
+     * Returns the host name or address, without the brackets of an IPv6 address.
+     *
+     * @return the host
+     * @since 1.0.0
+     */
+    public String getHost() {
+      return this.host;
+    }
+
+    /**
+     * Returns the port.
+     *
+     * @return the port, from 1 to 65535
+     * @since 1.0.0
+     */
+    public int getPort() {
+      return this.port;
+    }
+
+    /**
+     * Returns the password of the server.
+     *
+     * @return the password, or empty if the server has none
+     * @since 1.0.0
+     */
+    public Optional<String> getPassword() {
+      return Optional.ofNullable(this.password);
+    }
+
+    /**
+     * Returns whether {@code other} is an entry with the same host, port and password.
+     *
+     * @param other the object to compare with
+     * @return whether all three match
+     * @since 1.0.0
+     */
+    @Override
+    public boolean equals(final @Nullable Object other) {
+      if (this == other) {
+        return true;
+      }
+
+      if (!(other instanceof final Entry entry)) {
+        return false;
+      }
+
+      return this.host.equals(entry.host) && this.port == entry.port && Objects.equals(this.password, entry.password);
+    }
+
+    /**
+     * Returns a hash code built from the host, the port and the password.
+     *
+     * @return the hash code
+     * @since 1.0.0
+     */
+    @Override
+    public int hashCode() {
+      return Objects.hash(this.host, this.port, this.password);
+    }
+
+    /**
+     * Returns a debugging representation with the host and the port, never the password, so the entry can be logged.
+     *
+     * @return the representation
+     * @since 1.0.0
+     */
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this).add("host", this.host).add("port", this.port).toString();
+    }
+  }
+
+  /**
+   * A server as a command names it: {@code host:port}, or {@code [address]:port} for an IPv6 address.
+   *
+   * @param host the host
+   * @param port the port
+   */
+  record Target(String host, int port) {}
 }

@@ -394,7 +394,7 @@ final class AbstractVideoCommandTest {
   @Test
   void shouldPlayOnlyACaptureDeviceTheServerListed() {
     when(this.sender.hasPermission(CaptureDevices.PERMISSION)).thenReturn(true);
-    when(this.manager.getDevices()).thenReturn(List.of(new CaptureDevices.Device(0, DEVICE_NAME)));
+    when(this.manager.getDevices()).thenReturn(List.of(CaptureDevices.Device.of(0, DEVICE_NAME)));
     this.play(PlayerArgument.DEVICE, AudioArgument.NONE, DEVICE_MRL, "");
 
     this.assertSenderReceived(Message.DEVICE_UNLISTED.build(DEVICE_MRL));
@@ -478,7 +478,7 @@ final class AbstractVideoCommandTest {
   @Test
   void shouldPlayACaptureDevice() {
     when(this.sender.hasPermission(CaptureDevices.PERMISSION)).thenReturn(true);
-    when(this.manager.getDevices()).thenReturn(List.of(new CaptureDevices.Device(2, DEVICE_NAME)));
+    when(this.manager.getDevices()).thenReturn(List.of(CaptureDevices.Device.of(2, DEVICE_NAME)));
     this.play(PlayerArgument.DEVICE, AudioArgument.NONE, DEVICE_MRL, "");
 
     final UrlParseDump dump = this.verifyPlayedWithDump(AudioArgument.NONE);

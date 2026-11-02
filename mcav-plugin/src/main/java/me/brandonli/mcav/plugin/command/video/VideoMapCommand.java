@@ -169,7 +169,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
     final DitheringArgument ditheringAlgorithm
   ) {
     final MapConfiguration configuration = MapDisplaySettings.createConfiguration(blocks, resolution, mapId, players);
-    return new MapDisplaySettings(configuration, ditheringAlgorithm);
+    return MapDisplaySettings.of(configuration, ditheringAlgorithm);
   }
 
   /**

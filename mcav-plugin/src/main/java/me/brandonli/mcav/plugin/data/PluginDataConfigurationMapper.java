@@ -319,7 +319,7 @@ public final class PluginDataConfigurationMapper {
         entries.add(entry);
       }
     }
-    return new VncAllowList(entries);
+    return VncAllowList.of(entries);
   }
 
   private VncAllowList.@Nullable Entry readVncHost(final Map<?, ?> map) {
@@ -339,7 +339,7 @@ public final class PluginDataConfigurationMapper {
     final Object password = map.get("password");
     final String secret = password == null ? "" : password.toString();
     try {
-      return new VncAllowList.Entry(host, port, secret.isEmpty() ? null : secret);
+      return VncAllowList.Entry.of(host, port, secret.isEmpty() ? null : secret);
     } catch (final IllegalArgumentException exception) {
       LOGGER.warn(INVALID_VNC_HOST, hostValue, portValue, VNC_ALLOWED_HOSTS);
       return null;

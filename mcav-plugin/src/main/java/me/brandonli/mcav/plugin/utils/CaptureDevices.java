@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.plugin.utils;
 
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -106,7 +107,7 @@ public final class CaptureDevices {
     } catch (final IOException exception) {
       return List.of();
     }
-    devices.sort(Comparator.comparingInt(Device::index));
+    devices.sort(Comparator.comparingInt(Device::getIndex));
     return List.copyOf(devices);
   }
 
@@ -131,7 +132,7 @@ public final class CaptureDevices {
       name = "";
     }
     final String shown = name.isEmpty() ? matcher.group() : name.substring(0, Math.min(name.length(), MAXIMUM_NAME));
-    return new Device(index, shown);
+    return Device.of(index, shown);
   }
 
   /**
@@ -147,7 +148,7 @@ public final class CaptureDevices {
     final List<Device> devices = new ArrayList<>();
     for (int index = 0; index < count; index++) {
       if (opens.test(index)) {
-        devices.add(new Device(index, "device " + index));
+        devices.add(Device.of(index, "device " + index));
       }
     }
     return List.copyOf(devices);
@@ -188,7 +189,7 @@ public final class CaptureDevices {
     Preconditions.checkNotNull(typed, "Typed number must not be null!");
 
     for (final Device device : devices) {
-      if (Integer.toString(device.index()).equals(typed)) {
+      if (Integer.toString(device.getIndex()).equals(typed)) {
         return Optional.of(device);
       }
     }
@@ -198,8 +199,95 @@ public final class CaptureDevices {
   /**
    * A capture device.
    *
-   * @param index the number the DEVICE player opens it by
-   * @param name  what the system calls it
+   * <p>This class is immutable and thread-safe.
+   *
+   * @since 1.0.0
    */
-  public record Device(int index, String name) {}
+  public static final class Device {
+
+    private final int index;
+    private final String name;
+
+    private Device(final int index, final String name) {
+      this.index = index;
+      this.name = name;
+    }
+
+    /**
+     * Creates a device.
+     *
+     * @param index the number the DEVICE player opens it by
+     * @param name  what the system calls it
+     * @return the device
+     * @throws NullPointerException if {@code name} is null
+     * @since 1.0.0
+     */
+    public static Device of(final int index, final String name) {
+      Preconditions.checkNotNull(name, "Name must not be null!");
+
+      return new Device(index, name);
+    }
+
+    /**
+     * Returns the number the DEVICE player opens the device by.
+     *
+     * @return the number
+     * @since 1.0.0
+     */
+    public int getIndex() {
+      return this.index;
+    }
+
+    /**
+     * Returns what the system calls the device.
+     *
+     * @return the name
+     * @since 1.0.0
+     */
+    public String getName() {
+      return this.name;
+    }
+
+    /**
+     * Returns whether {@code other} is a device with the same index and name.
+     *
+     * @param other the object to compare with
+     * @return whether both match
+     * @since 1.0.0
+     */
+    @Override
+    public boolean equals(final @Nullable Object other) {
+      if (this == other) {
+        return true;
+      }
+
+      if (!(other instanceof final Device device)) {
+        return false;
+      }
+
+      return this.index == device.index && this.name.equals(device.name);
+    }
+
+    /**
+     * Returns a hash code built from the index and the name.
+     *
+     * @return the hash code
+     * @since 1.0.0
+     */
+    @Override
+    public int hashCode() {
+      return Objects.hash(this.index, this.name);
+    }
+
+    /**
+     * Returns a debugging representation with the index and the name.
+     *
+     * @return the representation
+     * @since 1.0.0
+     */
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this).add("index", this.index).add("name", this.name).toString();
+    }
+  }
 }
