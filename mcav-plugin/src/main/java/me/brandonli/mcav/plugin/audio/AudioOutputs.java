@@ -45,6 +45,7 @@ public final class AudioOutputs {
   public static @Nullable Component findProblem(final AudioProvider provider, final AudioArgument audioType) {
     Preconditions.checkNotNull(provider, "Provider must not be null!");
     Preconditions.checkNotNull(audioType, "Audio type must not be null!");
+
     return switch (audioType) {
       case DISCORD_BOT -> describe(provider.isDiscordBotEnabled(), provider.isDiscordBotReady());
       case HTTP_SERVER -> describe(provider.isHttpEnabled(), provider.isHttpReady());
@@ -56,9 +57,11 @@ public final class AudioOutputs {
     if (!enabled) {
       return Message.UNSUPPORTED_AUDIO.build();
     }
+
     if (!ready) {
       return Message.AUDIO_NOT_READY.build();
     }
+
     return null;
   }
 
@@ -71,10 +74,12 @@ public final class AudioOutputs {
    */
   public static void sendLink(final AudioProvider provider, final AudioArgument audioType, final Player[] viewers) {
     Preconditions.checkNotNull(viewers, "Viewers must not be null!");
+
     final Component link = createLink(provider, audioType);
     if (link == null) {
       return;
     }
+
     for (final Player viewer : viewers) {
       viewer.sendMessage(link);
     }
@@ -90,6 +95,7 @@ public final class AudioOutputs {
   public static @Nullable Component createLink(final AudioProvider provider, final AudioArgument audioType) {
     Preconditions.checkNotNull(provider, "Provider must not be null!");
     Preconditions.checkNotNull(audioType, "Audio type must not be null!");
+
     return switch (audioType) {
       case DISCORD_BOT -> Message.AUDIO_DISCORD.build(provider.constructVoiceChannelUrl());
       case HTTP_SERVER -> Message.AUDIO_HTTP.build(provider.constructHttpUrl());

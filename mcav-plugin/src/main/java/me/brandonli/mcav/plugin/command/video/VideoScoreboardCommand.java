@@ -142,6 +142,7 @@ public final class VideoScoreboardCommand extends AbstractVideoCommand {
     final ScoreboardConfiguration configuration = (ScoreboardConfiguration) configurationProvider.buildConfiguration(resolution);
     final FunctionalVideoFilter result = new ScoreboardResult(configuration);
     this.manager.startFilter(result);
+
     return VideoPipelineStep.of(result);
   }
 

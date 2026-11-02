@@ -224,6 +224,7 @@ public final class VideoFlagsParser {
     if (cleanName.isEmpty()) {
       throw new IllegalArgumentException("yt-dlp option name must not be empty!");
     }
+
     this.requireValueOption(cleanName, cleanValue);
     arguments.add(LONG_OPTION_PREFIX + cleanName);
     arguments.add(cleanValue);
@@ -234,11 +235,13 @@ public final class VideoFlagsParser {
     if (isFlagOption) {
       return;
     }
+
     final boolean needsValue = VALUE_OPTIONS.contains(name);
     if (needsValue) {
       final String message = "yt-dlp option %s needs a value, written as %s=value!".formatted(name, name);
       throw new IllegalArgumentException(message);
     }
+
     throw this.unsupported(name);
   }
 
@@ -250,8 +253,10 @@ public final class VideoFlagsParser {
         final String message = "yt-dlp option %s takes no value!".formatted(name);
         throw new IllegalArgumentException(message);
       }
+
       throw this.unsupported(name);
     }
+
     // yt-dlp reads an argument that starts with a dash as an option of its own, whatever option it follows
     final boolean readAsOption = value.startsWith(OPTION_PREFIX);
     if (readAsOption) {

@@ -55,6 +55,7 @@ public final class TaskUtils {
   public static Runnable createMainThreadHandover(final MCAVSandbox plugin, final Runnable task) {
     Preconditions.checkNotNull(plugin, "Plugin must not be null!");
     Preconditions.checkNotNull(task, "Task must not be null!");
+
     return () -> runOnMainThread(plugin, task);
   }
 
@@ -69,9 +70,11 @@ public final class TaskUtils {
   public static boolean runOnMainThread(final MCAVSandbox plugin, final Runnable task) {
     Preconditions.checkNotNull(plugin, "Plugin must not be null!");
     Preconditions.checkNotNull(task, "Task must not be null!");
+
     final BukkitScheduler scheduler = Bukkit.getScheduler();
     try {
       scheduler.runTask(plugin, task);
+
       return true;
     } catch (final IllegalPluginAccessException exception) {
       LOGGER.warn(TASK_DROPPED, exception);
@@ -98,6 +101,7 @@ public final class TaskUtils {
   ) {
     Preconditions.checkNotNull(future, "Future must not be null!");
     Preconditions.checkNotNull(callback, "Callback must not be null!");
+
     final CompletableFuture<@Nullable Void> handled = future.handle((result, error) -> runCallback(callback, result, error));
     handled.exceptionally(TaskUtils::logCallbackFailure);
   }
@@ -108,11 +112,13 @@ public final class TaskUtils {
     final @Nullable Throwable error
   ) {
     callback.accept(result, error);
+
     return null;
   }
 
   private static @Nullable Void logCallbackFailure(final Throwable failure) {
     LOGGER.error(CALLBACK_FAILED, failure);
+
     return null;
   }
 }

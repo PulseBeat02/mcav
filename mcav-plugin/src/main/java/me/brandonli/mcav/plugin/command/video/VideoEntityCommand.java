@@ -135,6 +135,7 @@ public final class VideoEntityCommand extends AbstractVideoCommand {
     final EntityConfiguration configuration = (EntityConfiguration) configurationProvider.buildConfiguration(resolution);
     final FunctionalVideoFilter result = new EntityResult(configuration);
     this.manager.startFilter(result);
+
     return VideoPipelineStep.of(result);
   }
 

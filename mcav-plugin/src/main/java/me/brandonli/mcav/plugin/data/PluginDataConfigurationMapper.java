@@ -172,6 +172,7 @@ public final class PluginDataConfigurationMapper {
    */
   public PluginDataConfigurationMapper(final MCAVSandbox plugin) {
     Preconditions.checkNotNull(plugin, "Plugin must not be null!");
+
     this.plugin = plugin;
     this.locale = Locale.EN_US;
     this.discordBotToken = "";
@@ -249,6 +250,7 @@ public final class PluginDataConfigurationMapper {
       LOGGER.warn(INVALID_PORT, key, value, fallback);
       return fallback;
     }
+
     return port;
   }
 
@@ -266,6 +268,7 @@ public final class PluginDataConfigurationMapper {
       }
     }
     LOGGER.warn(INVALID_CHOICE, key, value, fallback);
+
     return fallback;
   }
 
@@ -289,6 +292,7 @@ public final class PluginDataConfigurationMapper {
       LOGGER.warn(INVALID_THREADS, MCV2_ENCODER_THREADS, value);
       return 0;
     }
+
     return threads;
   }
 
@@ -297,11 +301,13 @@ public final class PluginDataConfigurationMapper {
     if (configuration.isBoolean(MCV2_NATIVE)) {
       return configuration.getBoolean(MCV2_NATIVE) ? Mcv2.NATIVE_AUTO : Mcv2.NATIVE_OFF;
     }
+
     final String mode = this.getString(configuration, MCV2_NATIVE, Mcv2.NATIVE_AUTO);
     if (!mode.equals(Mcv2.NATIVE_AUTO) && !mode.equals(Mcv2.NATIVE_OFF)) {
       LOGGER.warn(INVALID_NATIVE, MCV2_NATIVE, mode);
       return Mcv2.NATIVE_AUTO;
     }
+
     return mode;
   }
 
@@ -329,6 +335,7 @@ public final class PluginDataConfigurationMapper {
       LOGGER.warn(INVALID_VNC_HOST, hostValue, portValue, VNC_ALLOWED_HOSTS);
       return null;
     }
+
     final Object password = map.get("password");
     final String secret = password == null ? "" : password.toString();
     try {

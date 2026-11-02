@@ -99,6 +99,7 @@ public final class ImageEntityCommand extends AbstractImageCommand {
     Preconditions.checkNotNull(character, "Character must not be null!");
     Preconditions.checkNotNull(location, "Location must not be null!");
     Preconditions.checkNotNull(mrl, "MRL must not be null!");
+
     final Collection<UUID> players = ArgumentUtils.parsePlayerSelectors(playerSelector);
     final ImageConfigurationProvider configurationProvider = resolution ->
       this.createConfiguration(resolution, players, character, location);
@@ -117,6 +118,7 @@ public final class ImageEntityCommand extends AbstractImageCommand {
   public DisplayableImage createImage(final Pair<Integer, Integer> resolution, final ImageConfigurationProvider configurationProvider) {
     Preconditions.checkNotNull(resolution, "Resolution must not be null!");
     Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null!");
+
     final EntityConfiguration configuration = (EntityConfiguration) configurationProvider.buildConfiguration(resolution);
     return DisplayableImage.entity(configuration);
   }

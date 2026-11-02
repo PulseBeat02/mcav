@@ -63,6 +63,7 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
    */
   public VideoPlaybackCommand(final MCAVSandbox plugin) {
     Preconditions.checkNotNull(plugin, "Plugin must not be null!");
+
     this.plugin = plugin;
     this.manager = plugin.getVideoPlayerManager();
   }
@@ -85,21 +86,25 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
   public void seekVideo(final CommandSender sender, @Argument(suggestions = "positions") @Greedy final String position) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
     Preconditions.checkNotNull(position, "Position must not be null!");
+
     final SeekPosition parsed = SeekPosition.parse(position);
     if (parsed == null) {
       sender.sendMessage(Message.SEEK_INVALID.build(position));
       return;
     }
+
     final VideoPlayerMultiplexer player = this.manager.getPlayer();
     if (player == null) {
       sender.sendMessage(Message.SEEK_FAILED.build());
       return;
     }
+
     final boolean decoded = player instanceof AbstractVideoPlayerCv;
     if (parsed.relative() && !decoded) {
       sender.sendMessage(Message.SEEK_RELATIVE_UNSUPPORTED.build());
       return;
     }
+
     final long current = player instanceof final AbstractVideoPlayerCv cvPlayer ? cvPlayer.getPositionMilliseconds() : 0L;
     final long target = parsed.resolve(current);
     final CompletableFuture<Boolean> seek = CompletableFuture.supplyAsync(() -> player.seek(target), this.manager.getService());
@@ -130,6 +135,7 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
   @CommandDescription("mcav.command.video.volume.info")
   public void setVolume(final CommandSender sender, @Argument(suggestions = "volumes") @Range(min = "0", max = "200") final int percent) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
+
     final VolumeFilter volume = this.manager.getVolume();
     volume.setVolume(percent / PERCENT);
     sender.sendMessage(Message.VOLUME_SET.build(percent));
@@ -149,6 +155,7 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
   @CommandDescription("mcav.command.video.speed.info")
   public void setSpeed(final CommandSender sender, @Argument(suggestions = "speeds") @Range(min = "0.5", max = "2") final double factor) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
+
     final VideoPlayerMultiplexer player = this.manager.getPlayer();
     final Component message;
     if (player != null && !(player instanceof AbstractVideoPlayerCv)) {
@@ -176,6 +183,7 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
   @CommandDescription("mcav.command.video.loop.info")
   public void setLoop(final CommandSender sender, final boolean enabled) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
+
     this.manager.setLooping(enabled);
     sender.sendMessage(enabled ? Message.LOOP_ON.build() : Message.LOOP_OFF.build());
     final VideoPlayerMultiplexer player = this.manager.getPlayer();

@@ -67,6 +67,7 @@ public abstract class MiniMessageTranslator implements Translator {
    */
   public MiniMessageTranslator(final MiniMessage miniMessage) {
     Preconditions.checkNotNull(miniMessage, "MiniMessage must not be null!");
+
     this.miniMessage = miniMessage;
   }
 
@@ -96,11 +97,13 @@ public abstract class MiniMessageTranslator implements Translator {
   public @Nullable Component translate(final @NonNull TranslatableComponent component, final @NonNull Locale locale) {
     Preconditions.checkNotNull(component, "Component must not be null!");
     Preconditions.checkNotNull(locale, "Locale must not be null!");
+
     final String key = component.key();
     final String message = this.getMiniMessageString(key, locale);
     if (message == null) {
       return null;
     }
+
     final List<? extends ComponentLike> arguments = component.arguments();
     final Component rendered = this.deserializeMessage(message, arguments);
     final List<Component> children = component.children();
@@ -113,6 +116,7 @@ public abstract class MiniMessageTranslator implements Translator {
     if (!message.contains(UrlPlaceholder.URL_TOKEN)) {
       return this.deserialize(message, arguments);
     }
+
     final ComponentLike argument = arguments.getFirst();
     final Component argumentComponent = argument.asComponent();
     final String plainText = PLAIN_TEXT_SERIALIZER.serialize(argumentComponent);
@@ -126,6 +130,7 @@ public abstract class MiniMessageTranslator implements Translator {
     if (arguments.isEmpty()) {
       return this.miniMessage.deserialize(content);
     }
+
     final ArgumentTag tag = new ArgumentTag(arguments);
     return this.miniMessage.deserialize(content, tag);
   }

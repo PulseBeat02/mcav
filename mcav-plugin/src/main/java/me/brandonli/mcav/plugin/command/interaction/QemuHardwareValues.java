@@ -279,6 +279,7 @@ final class QemuHardwareValues {
       checkProperties(name, value, rest, properties);
       return;
     }
+
     checkProperties(name, value, PARTS.splitToList(value), properties);
   }
 

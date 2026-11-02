@@ -66,6 +66,7 @@ public final class JukeBoxListener implements Listener {
    */
   public JukeBoxListener(final MCAVSandbox sandbox) {
     Preconditions.checkNotNull(sandbox, "Sandbox must not be null!");
+
     this.sandbox = sandbox;
     final Path dataFolder = sandbox.getDataPath();
     this.isoFolder = DiskImages.folderOf(dataFolder);
@@ -98,17 +99,21 @@ public final class JukeBoxListener implements Listener {
   @EventHandler(priority = EventPriority.HIGHEST)
   public void onJukeboxInteract(final PlayerInteractEvent event) {
     Preconditions.checkNotNull(event, "Event must not be null!");
+
     if (event.useInteractedBlock() == Event.Result.DENY) {
       return;
     }
+
     final ItemStack item = event.getItem();
     if (item == null || !this.isDiscOnJukebox(event, item)) {
       return;
     }
+
     final Path image = this.findDiskImage(item);
     if (image == null) {
       return;
     }
+
     event.setCancelled(true);
     final Player player = event.getPlayer();
     final String playerName = player.getName();
@@ -126,6 +131,7 @@ public final class JukeBoxListener implements Listener {
     if (action != Action.RIGHT_CLICK_BLOCK || block == null) {
       return false;
     }
+
     final Material blockType = block.getType();
     final Material itemType = item.getType();
     final String itemName = itemType.name();
@@ -152,6 +158,7 @@ public final class JukeBoxListener implements Listener {
     if (!inside || !exists) {
       return null;
     }
+
     return normalized;
   }
 }

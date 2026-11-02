@@ -69,6 +69,7 @@ public final class ArgumentUtils {
    */
   public static Pair<Integer, Integer> parseDimensions(final String argument) {
     Preconditions.checkNotNull(argument, "Argument must not be null!");
+
     final String[] sides = argument.split(DIMENSION_SEPARATOR, DIMENSION_PARTS);
     if (sides.length != DIMENSION_PARTS) {
       final String message = "Dimensions %s have an invalid format!".formatted(argument);
@@ -81,10 +82,12 @@ public final class ArgumentUtils {
       final String message = "Dimensions %s must be positive integers!".formatted(argument);
       throw new IllegalArgumentException(message);
     }
+
     if (width > MAXIMUM_SIDE || height > MAXIMUM_SIDE) {
       final String message = "Dimensions %s must be at most %s on each side!".formatted(argument, MAXIMUM_SIDE);
       throw new IllegalArgumentException(message);
     }
+
     return Pair.pair(width, height);
   }
 
@@ -106,6 +109,7 @@ public final class ArgumentUtils {
       final String message = "Wall %s may be at most %s maps on each side!".formatted(argument, MAXIMUM_SCREEN_SIDE);
       throw new IllegalArgumentException(message);
     }
+
     return dimensions;
   }
 
@@ -120,6 +124,7 @@ public final class ArgumentUtils {
    */
   public static Collection<UUID> parsePlayerSelectors(final MultiplePlayerSelector playerSelector) {
     Preconditions.checkNotNull(playerSelector, "Player selector must not be null!");
+
     final Collection<Player> players = playerSelector.values();
     final Stream<Player> playerStream = players.stream();
     final Stream<UUID> ids = playerStream.map(Entity::getUniqueId);
@@ -138,6 +143,7 @@ public final class ArgumentUtils {
   public static Collection<UUID> parseViewers(final MultiplePlayerSelector playerSelector, final OnlinePlayers online) {
     Preconditions.checkNotNull(playerSelector, "Player selector must not be null!");
     Preconditions.checkNotNull(online, "Online players must not be null!");
+
     return EVERYONE.equals(playerSelector.inputString()) ? online.getPlayers() : parsePlayerSelectors(playerSelector);
   }
 }

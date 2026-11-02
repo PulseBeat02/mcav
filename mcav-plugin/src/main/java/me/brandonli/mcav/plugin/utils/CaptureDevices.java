@@ -96,6 +96,7 @@ public final class CaptureDevices {
     if (!Files.isDirectory(folder)) {
       return List.of();
     }
+
     final List<Device> devices = new ArrayList<>();
     try (final Stream<Path> nodes = Files.list(folder)) {
       for (final Path node : (Iterable<Path>) nodes::iterator) {
@@ -120,6 +121,7 @@ public final class CaptureDevices {
     if (!matcher.matches()) {
       return null;
     }
+
     final int index = Integer.parseInt(Objects.requireNonNull(matcher.group(1)));
     String name;
     try {
@@ -140,6 +142,7 @@ public final class CaptureDevices {
    */
   static List<Device> probe(final int count, final IntPredicate opens) {
     Preconditions.checkArgument(count >= 0, "Count must not be negative!");
+
     final List<Device> devices = new ArrayList<>();
     for (int index = 0; index < count; index++) {
       if (opens.test(index)) {
@@ -164,6 +167,7 @@ public final class CaptureDevices {
   static boolean opens(final IntFunction<? extends FrameGrabber> grabbers, final int index) {
     try (final FrameGrabber grabber = grabbers.apply(index)) {
       grabber.start();
+
       return true;
     } catch (final IOException | RuntimeException | LinkageError exception) {
       return false;
@@ -180,6 +184,7 @@ public final class CaptureDevices {
   public static @Nullable Device find(final List<Device> devices, final String typed) {
     Preconditions.checkNotNull(devices, "Devices must not be null!");
     Preconditions.checkNotNull(typed, "Typed number must not be null!");
+
     for (final Device device : devices) {
       if (Integer.toString(device.index()).equals(typed)) {
         return device;

@@ -52,6 +52,7 @@ public final class ImageControlCommand implements AnnotationCommandFeature {
    */
   public ImageControlCommand(final MCAVSandbox plugin) {
     Preconditions.checkNotNull(plugin, "Plugin must not be null!");
+
     this.plugin = plugin;
     this.manager = plugin.getImageManager();
   }
@@ -72,6 +73,7 @@ public final class ImageControlCommand implements AnnotationCommandFeature {
   @CommandDescription("mcav.command.image.release.info")
   public void releaseImage(final CommandSender sender) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
+
     final Component starting = Message.RELEASE_IMAGE_START.build();
     sender.sendMessage(starting);
 
@@ -91,6 +93,7 @@ public final class ImageControlCommand implements AnnotationCommandFeature {
       LOGGER.error(RELEASE_FAILED, error);
       return;
     }
+
     done.run();
   }
 }

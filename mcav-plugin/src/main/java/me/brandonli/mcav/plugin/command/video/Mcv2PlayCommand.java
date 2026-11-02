@@ -128,6 +128,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
    */
   public Mcv2PlayCommand(final MCAVSandbox plugin) {
     Preconditions.checkNotNull(plugin, "Plugin must not be null!");
+
     this.plugin = plugin;
     this.reads = Executors.newSingleThreadExecutor(Thread.ofPlatform().daemon().name("mcav-mcv2-stream-read").factory());
   }
@@ -243,6 +244,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     if (blocks == null) {
       return;
     }
+
     final long load = ++this.loads;
     this.reads.execute(() ->
       TaskUtils.runOnMainThread(this.plugin, this.readStream(load, sender, playerSelector, blocks, mapId, file, start))
@@ -297,6 +299,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     if (load != this.loads) {
       return;
     }
+
     final Pair<Integer, Integer> resolution = Pair.pair(first.getWidth(), first.getHeight());
     final Mcv2Support support = this.plugin.getMcv2Support();
     final Mcv2Configuration configuration = support.configure(
@@ -310,11 +313,13 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     if (configuration == null) {
       return;
     }
+
     this.stop();
     final Mcv2PackServer.Lease slot = support.open(sender, configuration);
     if (slot == null) {
       return;
     }
+
     final Mcv2Configuration slotted = slot.getConfiguration();
     final Mcv2Channel opened = new Mcv2Channel(slotted, support.getViewers());
     opened.open();
@@ -352,11 +357,13 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     if (size == null) {
       return;
     }
+
     final Path source = Path.of(file);
     final Path target = this.resolveStreamFile(sender, output);
     if (target == null) {
       return;
     }
+
     this.startEncode(sender, source, target, size, profile);
   }
 
@@ -365,12 +372,14 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     if (size == null) {
       return null;
     }
+
     final int width = size.getFirst();
     final int height = size.getSecond();
     if (width > Mcv2Decoder.MAXIMUM_DIMENSION || height > Mcv2Decoder.MAXIMUM_DIMENSION) {
       sender.sendMessage(Message.UNSUPPORTED_DIMENSION.build());
       return null;
     }
+
     return size;
   }
 
@@ -400,6 +409,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
         sender.sendMessage(Message.MCV2_ENCODE_BUSY.build());
         return;
       }
+
       sender.sendMessage(
         Message.MCV2_ENCODE_START.build(
           String.format(
@@ -527,7 +537,9 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
       final String message = "Stream file %s is not a file in %s, where stream files are kept!".formatted(name, folder);
       throw new IOException(message);
     }
+
     Files.createDirectories(folder);
+
     return file;
   }
 
@@ -570,6 +582,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
       sender.sendMessage(Message.MCV2_ENCODE_NONE.build());
       return;
     }
+
     // the encode tells its sender that it stopped
     running.stop();
   }
@@ -648,10 +661,12 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
       final String message = "File %s is not a stream file!".formatted(file.getFileName());
       throw new IOException(message);
     }
+
     if (Files.size(file) > limit) {
       final String message = "The stream file is larger than %s bytes!".formatted(limit);
       throw new IOException(message);
     }
+
     final byte[] data = Files.readAllBytes(file);
     return splitFrames(data);
   }
@@ -681,6 +696,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     if (frames.isEmpty()) {
       throw new IOException("Empty stream!");
     }
+
     return frames;
   }
 
@@ -738,6 +754,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
       this.interruptIfStopped();
       final boolean more = this.frames.read(rgb);
       this.interruptIfStopped();
+
       return more;
     }
 

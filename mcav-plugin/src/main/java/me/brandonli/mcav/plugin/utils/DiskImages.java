@@ -48,6 +48,7 @@ public final class DiskImages {
    */
   public static Path folderOf(final Path dataFolder) {
     Preconditions.checkNotNull(dataFolder, "Data folder must not be null!");
+
     return dataFolder.resolve(FOLDER_NAME);
   }
 
@@ -63,6 +64,7 @@ public final class DiskImages {
   public static Path require(final Path folder, final String image) {
     Preconditions.checkNotNull(folder, "Folder must not be null!");
     Preconditions.checkNotNull(image, "Image must not be null!");
+
     final boolean named = !image.isBlank();
     Preconditions.checkArgument(named, "A disk image must be named!");
 
@@ -76,8 +78,10 @@ public final class DiskImages {
       image,
       FOLDER_NAME
     );
+
     final boolean file = Files.isRegularFile(normalizedImage);
     Preconditions.checkArgument(file, "There is no disk image %s in the %s folder of the plugin!", image, FOLDER_NAME);
+
     return normalizedImage;
   }
 

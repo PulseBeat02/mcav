@@ -60,6 +60,7 @@ public final class ImageManager {
    */
   public ImageManager(final MCAVSandbox plugin) {
     Preconditions.checkNotNull(plugin, "Plugin must not be null!");
+
     this.plugin = plugin;
     this.service = Executors.newSingleThreadExecutor();
     this.loadingLock = new Object();
@@ -68,6 +69,7 @@ public final class ImageManager {
   ImageManager(final MCAVSandbox plugin, final ExecutorService service) {
     Preconditions.checkNotNull(plugin, "Plugin must not be null!");
     Preconditions.checkNotNull(service, "Executor must not be null!");
+
     this.plugin = plugin;
     this.service = service;
     this.loadingLock = new Object();
@@ -94,6 +96,7 @@ public final class ImageManager {
       if (this.closed) {
         throw new RejectedExecutionException("The image manager is shut down!");
       }
+
       generation = ++this.loadGeneration;
       previous = this.pendingImage;
       this.pendingImage = null;
@@ -109,7 +112,9 @@ public final class ImageManager {
       if (this.closed || generation != this.loadGeneration) {
         return false;
       }
+
       this.pendingImage = loaded;
+
       return true;
     }
   }
@@ -119,8 +124,10 @@ public final class ImageManager {
       if (this.closed || generation != this.loadGeneration) {
         return null;
       }
+
       final ImageBuffer loaded = this.pendingImage;
       this.pendingImage = null;
+
       return loaded;
     }
   }

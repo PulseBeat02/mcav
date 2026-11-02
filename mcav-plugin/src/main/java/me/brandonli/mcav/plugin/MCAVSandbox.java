@@ -130,11 +130,13 @@ public final class MCAVSandbox extends JavaPlugin {
   @Override
   public void onEnable() {
     this.logger = this.getComponentLogger();
+
     // Paper closes the plugin loader and its lifecycle registrations when disabling it.
     if (this.hasBeenDisabled) {
       this.disableBecause(new IllegalStateException(CANNOT_REENABLE), RESTART_REMEDY);
       return;
     }
+
     try {
       this.loadMCAV();
       this.loadPluginData();
@@ -289,6 +291,7 @@ public final class MCAVSandbox extends JavaPlugin {
       final String message = "The %s is not available before the plugin is enabled!".formatted(name);
       throw new IllegalStateException(message);
     }
+
     return value;
   }
 

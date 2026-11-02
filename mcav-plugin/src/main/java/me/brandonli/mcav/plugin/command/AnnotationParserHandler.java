@@ -77,6 +77,7 @@ public final class AnnotationParserHandler {
    */
   public AnnotationParserHandler(final MCAVSandbox plugin) {
     Preconditions.checkNotNull(plugin, "Plugin must not be null!");
+
     this.manager = this.createCommandManager(plugin);
     this.parser = this.createAnnotationParser(this.manager);
     this.features = this.createFeatures(plugin, this.manager);
@@ -114,6 +115,7 @@ public final class AnnotationParserHandler {
     if (key.isEmpty()) {
       return RichDescription.empty();
     }
+
     final TranslatableComponent translatable = Component.translatable(key);
     final Component rendered = LocaleTools.MANAGER.render(translatable);
     return RichDescription.of(rendered);
@@ -186,6 +188,7 @@ public final class AnnotationParserHandler {
     if (this.shutDown) {
       return;
     }
+
     this.shutDown = true;
     final int count = this.features.size();
     final Runnable[] cleanups = new Runnable[count];

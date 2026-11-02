@@ -94,6 +94,7 @@ final class UrlPlaceholder implements ComponentRenderer<String> {
       final String content = original.replace(this.marker, url);
       return text.content(content);
     }
+
     if (component instanceof TranslatableComponent translatable) {
       final List<TranslationArgument> originalArguments = translatable.arguments();
       final List<TranslationArgument> arguments = new ArrayList<>(originalArguments.size());
@@ -103,6 +104,7 @@ final class UrlPlaceholder implements ComponentRenderer<String> {
       }
       return translatable.arguments(arguments);
     }
+
     return component;
   }
 
@@ -112,6 +114,7 @@ final class UrlPlaceholder implements ComponentRenderer<String> {
       final Component replacement = this.render(nested, url);
       return TranslationArgument.component(replacement);
     }
+
     return argument;
   }
 }

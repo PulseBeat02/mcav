@@ -53,6 +53,7 @@ public interface LocaleTools {
    */
   static NullComponent direct(final String key) {
     Preconditions.checkNotNull(key, "Key must not be null!");
+
     return () -> renderMessage(key);
   }
 
@@ -67,6 +68,7 @@ public interface LocaleTools {
    */
   static <ArgumentType> UniComponent<ArgumentType> direct(final String key, final @Nullable Function<ArgumentType, String> function) {
     Preconditions.checkNotNull(key, "Key must not be null!");
+
     return argument -> renderMessage(key, argument, function);
   }
 
@@ -89,6 +91,7 @@ public interface LocaleTools {
     final @Nullable Function<SecondType, String> secondFunction
   ) {
     Preconditions.checkNotNull(key, "Key must not be null!");
+
     return (firstArgument, secondArgument) -> renderMessage(key, firstArgument, firstFunction, secondArgument, secondFunction);
   }
 
@@ -116,6 +119,7 @@ public interface LocaleTools {
     final @Nullable Function<ThirdType, String> thirdFunction
   ) {
     Preconditions.checkNotNull(key, "Key must not be null!");
+
     return (firstArgument, secondArgument, thirdArgument) ->
       renderMessage(key, firstArgument, firstFunction, secondArgument, secondFunction, thirdArgument, thirdFunction);
   }

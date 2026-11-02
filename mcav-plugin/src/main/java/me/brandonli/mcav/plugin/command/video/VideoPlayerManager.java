@@ -101,6 +101,7 @@ public final class VideoPlayerManager {
    */
   public VideoPlayerManager(final MCAVSandbox plugin) {
     Preconditions.checkNotNull(plugin, "Plugin must not be null!");
+
     this.status = new AtomicBoolean(false);
     this.service = Executors.newSingleThreadExecutor();
     this.provider = plugin.getAudioProvider();
@@ -116,6 +117,7 @@ public final class VideoPlayerManager {
       if (this.closed) {
         return;
       }
+
       this.closed = true;
     }
     CleanupUtils.runAll(
@@ -147,6 +149,7 @@ public final class VideoPlayerManager {
    */
   public boolean isPreparing(final Capability capability) {
     Preconditions.checkNotNull(capability, "Capability must not be null!");
+
     final CompletableFuture<Boolean> ready = this.api.whenCapabilityReady(capability);
     final boolean done = ready.isDone();
     return !done;
@@ -181,7 +184,9 @@ public final class VideoPlayerManager {
       if (this.closed) {
         throw new CancellationException("The video manager is shut down!");
       }
+
       this.startGeneration = ++this.generation;
+
       return this.startGeneration;
     }
   }
@@ -280,6 +285,7 @@ public final class VideoPlayerManager {
     if (!current) {
       return;
     }
+
     try {
       output.start();
     } catch (final RuntimeException | Error exception) {
@@ -307,6 +313,7 @@ public final class VideoPlayerManager {
     }
     this.finishNative(candidate);
     this.checkStart();
+
     return started;
   }
 
@@ -339,6 +346,7 @@ public final class VideoPlayerManager {
       this.executeWorldCleanup(cleanup);
       return;
     }
+
     final CompletableFuture<@Nullable Void> completion = cleanup.completion;
     if (!completion.isDone()) {
       final Future<@Nullable Void> scheduled = this.scheduleOnMainThread(() -> this.executeWorldCleanup(cleanup));
@@ -401,6 +409,7 @@ public final class VideoPlayerManager {
       if (cause instanceof final VirtualMachineError fatal) {
         throw fatal;
       }
+
       throw new IllegalStateException("Failed to release the video on the main thread!", cause);
     }
   }
@@ -416,6 +425,7 @@ public final class VideoPlayerManager {
         this.player = null;
         return;
       }
+
       final boolean starting = this.status.get();
       if (!this.closed && (!starting || this.generation == this.startGeneration)) {
         this.player = player;
@@ -593,6 +603,7 @@ public final class VideoPlayerManager {
       if (!this.claimed.compareAndSet(false, true)) {
         return;
       }
+
       try {
         this.task.run();
         this.completion.complete(null);

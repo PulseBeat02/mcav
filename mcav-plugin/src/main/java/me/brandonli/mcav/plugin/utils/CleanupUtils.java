@@ -41,6 +41,7 @@ public final class CleanupUtils {
    */
   public static void runAll(final Runnable... actions) {
     Preconditions.checkNotNull(actions, "Cleanup actions must not be null!");
+
     Throwable failure = null;
     for (final Runnable action : actions) {
       try {
@@ -53,6 +54,7 @@ public final class CleanupUtils {
     if (failure instanceof final RuntimeException exception) {
       throw exception;
     }
+
     if (failure instanceof final Error error) {
       throw error;
     }
@@ -62,6 +64,7 @@ public final class CleanupUtils {
     if (first == null) {
       return next;
     }
+
     final boolean sameFailure = FAILURE_IDENTITY.equivalent(first, next);
     if (!sameFailure) {
       first.addSuppressed(next);

@@ -129,6 +129,7 @@ public final class VideoChatCommand extends AbstractVideoCommand {
     final ChatConfiguration configuration = (ChatConfiguration) configurationProvider.buildConfiguration(resolution);
     final FunctionalVideoFilter result = new ChatResult(configuration);
     this.manager.startFilter(result);
+
     return VideoPipelineStep.of(result);
   }
 

@@ -63,6 +63,7 @@ record WallPicture(int wallWidth, int wallHeight, int sourceWidth, int sourceHei
       final int sourceY = (int) (((long) wallY * this.sourceHeight) / this.wallHeight);
       return new int[] { sourceX, sourceY };
     }
+
     // centred as the maps centre it (MapLayout): the same offset on both sides, rounded down
     final int sourceX = wallX - (this.wallWidth - this.sourceWidth) / SIDES;
     final int sourceY = wallY - (this.wallHeight - this.sourceHeight) / SIDES;

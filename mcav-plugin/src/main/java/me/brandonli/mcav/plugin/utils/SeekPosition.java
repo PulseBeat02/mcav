@@ -63,10 +63,12 @@ public record SeekPosition(boolean relative, long milliseconds) {
    */
   public static @Nullable SeekPosition parse(final String text) {
     Preconditions.checkNotNull(text, "Text must not be null!");
+
     final Matcher matcher = FORMAT.matcher(text);
     if (!matcher.matches()) {
       return null;
     }
+
     final String sign = Objects.requireNonNull(matcher.group(1));
     final String hours = matcher.group(HOURS_GROUP);
     final String minutes = matcher.group(MINUTES_GROUP);
@@ -77,6 +79,7 @@ public record SeekPosition(boolean relative, long milliseconds) {
     if ((minutes != null && secondCount >= SECONDS_PER_MINUTE) || (hours != null && minuteCount >= MINUTES_PER_HOUR)) {
       return null;
     }
+
     final long hourCount = hours == null ? 0 : Long.parseLong(hours);
     final long wholeSeconds = (hourCount * MINUTES_PER_HOUR + minuteCount) * SECONDS_PER_MINUTE + secondCount;
     final long fractionMilliseconds =
@@ -85,6 +88,7 @@ public record SeekPosition(boolean relative, long milliseconds) {
     if (milliseconds > MAXIMUM_MILLISECONDS) {
       return null;
     }
+
     final boolean relative = !sign.isEmpty();
     return new SeekPosition(relative, sign.equals(BACKWARD_SIGN) ? -milliseconds : milliseconds);
   }
@@ -108,6 +112,7 @@ public record SeekPosition(boolean relative, long milliseconds) {
    */
   public static String format(final long milliseconds) {
     Preconditions.checkArgument(milliseconds >= 0, "Time %s must not be negative!", milliseconds);
+
     final long totalSeconds = milliseconds / MILLISECONDS_PER_SECOND;
     final long seconds = totalSeconds % SECONDS_PER_MINUTE;
     final long totalMinutes = totalSeconds / SECONDS_PER_MINUTE;

@@ -45,6 +45,7 @@ public final class ServerLoadListener implements Listener {
    */
   public ServerLoadListener(final MCAVSandbox sandbox) {
     Preconditions.checkNotNull(sandbox, "Plugin must not be null!");
+
     this.sandbox = sandbox;
   }
 
@@ -58,6 +59,7 @@ public final class ServerLoadListener implements Listener {
   @EventHandler(priority = EventPriority.HIGHEST)
   public void onServerLoad(final ServerLoadEvent event) {
     Preconditions.checkNotNull(event, "Event must not be null!");
+
     final Server server = Bukkit.getServer();
     final ServicesManager manager = server.getServicesManager();
     final BukkitVoicechatService voiceChatService = manager.load(BukkitVoicechatService.class);

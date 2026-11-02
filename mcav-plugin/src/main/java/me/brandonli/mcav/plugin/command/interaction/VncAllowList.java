@@ -55,6 +55,7 @@ public record VncAllowList(List<Entry> entries) {
    */
   public VncAllowList {
     Preconditions.checkNotNull(entries, "Entries must not be null!");
+
     entries = List.copyOf(entries);
   }
 
@@ -74,6 +75,7 @@ public record VncAllowList(List<Entry> entries) {
      */
     public Entry {
       Preconditions.checkNotNull(host, "Host must not be null!");
+
       host = host.startsWith(OPENING_BRACKET) && host.endsWith(CLOSING_BRACKET) ? host.substring(1, host.length() - 1) : host;
       Preconditions.checkArgument(!host.isBlank(), "Host must not be blank!");
       Preconditions.checkArgument(port >= 1 && port <= MAXIMUM_PORT, "Port must be from 1 to 65535!");
@@ -106,15 +108,18 @@ public record VncAllowList(List<Entry> entries) {
    */
   static @Nullable Target parse(final String text) {
     Preconditions.checkNotNull(text, "Text must not be null!");
+
     final int colon = text.lastIndexOf(PORT_SEPARATOR);
     if (colon <= 0 || colon == text.length() - 1) {
       return null;
     }
+
     final String host = parseHost(text.substring(0, colon));
     final int port = parsePort(text.substring(colon + 1));
     if (host == null || port < 1) {
       return null;
     }
+
     return new Target(host, port);
   }
 
@@ -135,6 +140,7 @@ public record VncAllowList(List<Entry> entries) {
     if (text.length() > MAXIMUM_PORT_DIGITS || !text.chars().allMatch(Character::isDigit)) {
       return -1;
     }
+
     final int port = Integer.parseInt(text);
     return port <= MAXIMUM_PORT ? port : -1;
   }
@@ -150,6 +156,7 @@ public record VncAllowList(List<Entry> entries) {
     if (target == null) {
       return null;
     }
+
     final String host = target.host().toLowerCase(Locale.ROOT);
     for (final Entry entry : this.entries) {
       if (entry.port() == target.port() && entry.host().toLowerCase(Locale.ROOT).equals(host)) {

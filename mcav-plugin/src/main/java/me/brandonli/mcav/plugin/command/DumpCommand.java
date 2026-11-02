@@ -59,6 +59,7 @@ public final class DumpCommand implements AnnotationCommandFeature {
   @VisibleForTesting
   DumpCommand(final Supplier<String> uploader) {
     Preconditions.checkNotNull(uploader, "Uploader must not be null!");
+
     this.uploader = uploader;
   }
 
@@ -72,6 +73,7 @@ public final class DumpCommand implements AnnotationCommandFeature {
   @CommandDescription("mcav.command.dump.info")
   public void createDump(final CommandSender sender) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
+
     final Component loading = Message.CREATE_DUMP.build();
     sender.sendMessage(loading);
 
@@ -86,6 +88,7 @@ public final class DumpCommand implements AnnotationCommandFeature {
       sender.sendMessage(failure);
       return;
     }
+
     final Component result = Message.SEND_DUMP.build(url);
     sender.sendMessage(result);
   }

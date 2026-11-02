@@ -95,6 +95,7 @@ public final class ImageChatCommand extends AbstractImageCommand {
     Preconditions.checkNotNull(imageResolution, "Image resolution must not be null!");
     Preconditions.checkNotNull(character, "Character must not be null!");
     Preconditions.checkNotNull(mrl, "MRL must not be null!");
+
     final Collection<UUID> players = ArgumentUtils.parsePlayerSelectors(playerSelector);
     final ImageConfigurationProvider configurationProvider = resolution -> this.createConfiguration(resolution, players, character);
     this.displayImage(configurationProvider, sender, imageResolution, mrl, filters);
@@ -112,6 +113,7 @@ public final class ImageChatCommand extends AbstractImageCommand {
   public DisplayableImage createImage(final Pair<Integer, Integer> resolution, final ImageConfigurationProvider configurationProvider) {
     Preconditions.checkNotNull(resolution, "Resolution must not be null!");
     Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null!");
+
     final ChatConfiguration configuration = (ChatConfiguration) configurationProvider.buildConfiguration(resolution);
     return DisplayableImage.chat(configuration);
   }

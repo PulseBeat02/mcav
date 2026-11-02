@@ -245,18 +245,22 @@ public final class FilterChain {
   public static FilterChain parse(final String text, final Path overlays, final boolean isVideo) {
     Preconditions.checkNotNull(text, "Text must not be null!");
     Preconditions.checkNotNull(overlays, "Overlay folder must not be null!");
+
     if (text.isEmpty()) {
       return NONE;
     }
+
     if (text.length() > MAXIMUM_LENGTH) {
       final String message = "Filters may have at most %s characters!".formatted(MAXIMUM_LENGTH);
       throw new IllegalArgumentException(message);
     }
+
     final String[] specifications = text.split(FILTER_SEPARATOR, -1);
     if (specifications.length > MAXIMUM_FILTERS) {
       final String message = "At most %s filters may be chained!".formatted(MAXIMUM_FILTERS);
       throw new IllegalArgumentException(message);
     }
+
     final List<Supplier<VideoFilter>> filters = new ArrayList<>();
     for (final String specification : specifications) {
       filters.add(parseFilter(specification, overlays, isVideo));
@@ -296,6 +300,7 @@ public final class FilterChain {
 
   private static Supplier<VideoFilter> noArguments(final String name, final List<String> arguments, final Supplier<VideoFilter> filter) {
     count(name, arguments, 0);
+
     return filter;
   }
 
@@ -303,6 +308,7 @@ public final class FilterChain {
     if (!isVideo) {
       throw new IllegalArgumentException("Filter fps counts the frames of a video, and an image has one!");
     }
+
     return noArguments(FRAMES_PER_SECOND_FILTER, arguments, FramesPerSecondFilter::new);
   }
 
@@ -339,6 +345,7 @@ public final class FilterChain {
       final String message = "Colour map %s does not exist, use one of %s instead!".formatted(arguments.getFirst(), names);
       throw new IllegalArgumentException(message);
     }
+
     return () -> new ColorMapFilter(map);
   }
 
@@ -346,6 +353,7 @@ public final class FilterChain {
     if (arguments.isEmpty() || arguments.size() > TINT_MAXIMUM_ARGUMENTS) {
       throw new IllegalArgumentException("Filter tint takes a colour such as ff8000, and a strength from 0 to 100!");
     }
+
     final double[] color = color(TINT_FILTER, arguments.getFirst());
     final double strength =
       arguments.size() == TINT_MAXIMUM_ARGUMENTS ? whole(TINT_FILTER, arguments.get(1), 0, PERCENT) / (double) PERCENT : DEFAULT_TINT;
@@ -412,6 +420,7 @@ public final class FilterChain {
       final String message = "Filter text takes up to %s letters, digits, spaces and .!?'()+- characters!".formatted(MAXIMUM_TEXT);
       throw new IllegalArgumentException(message);
     }
+
     return () -> new TextFilter(text, TEXT_X, TEXT_Y, TextFilter.DEFAULT_FONT, TEXT_SCALE, WHITE);
   }
 
@@ -422,6 +431,7 @@ public final class FilterChain {
     if (!OVERLAY_NAME.matcher(name).matches()) {
       throw new IllegalArgumentException("Filter overlay takes the name of a PNG file of the overlays folder, without .png!");
     }
+
     final Path file = overlays.resolve(name + OVERLAY_SUFFIX);
     final BasicFileAttributes attributes;
     try {
@@ -434,11 +444,13 @@ public final class FilterChain {
       final String message = NO_OVERLAY.formatted(name);
       throw new IllegalArgumentException(message);
     }
+
     final long size = attributes.size();
     if (size > MAXIMUM_OVERLAY_BYTES) {
       final String message = "Overlay %s is larger than %s bytes!".formatted(name, MAXIMUM_OVERLAY_BYTES);
       throw new IllegalArgumentException(message);
     }
+
     return () -> overlayFilter(readOverlay(file));
   }
 
@@ -478,11 +490,13 @@ public final class FilterChain {
       final String message = NOT_A_WHOLE_NUMBER.formatted(name, minimum, maximum, text);
       throw new IllegalArgumentException(message);
     }
+
     final int value = Integer.parseInt(text);
     if (value < minimum || value > maximum) {
       final String message = NOT_A_WHOLE_NUMBER.formatted(name, minimum, maximum, text);
       throw new IllegalArgumentException(message);
     }
+
     return value;
   }
 
@@ -491,6 +505,7 @@ public final class FilterChain {
       final String message = "Filter %s takes a number from 0 to %s, and %s is not one!".formatted(name, maximum, text);
       throw new IllegalArgumentException(message);
     }
+
     return Double.parseDouble(text);
   }
 
@@ -500,6 +515,7 @@ public final class FilterChain {
       final String message = "Filter %s takes a colour such as ff8000, and %s is not one!".formatted(name, text);
       throw new IllegalArgumentException(message);
     }
+
     final int rgb = Integer.parseInt(text, HEXADECIMAL_RADIX);
     return new double[] { rgb & BYTE, (rgb >> GREEN_SHIFT) & BYTE, (rgb >> RED_SHIFT) & BYTE };
   }
@@ -529,6 +545,7 @@ public final class FilterChain {
    */
   public VideoPipelineStep prepend(final VideoPipelineStep output) {
     Preconditions.checkNotNull(output, "Output must not be null!");
+
     final List<VideoFilter> created = this.create();
     VideoPipelineStep first = output;
     for (int index = created.size() - 1; index >= 0; index--) {
@@ -544,6 +561,7 @@ public final class FilterChain {
    */
   public void apply(final ImageBuffer picture) {
     Preconditions.checkNotNull(picture, "Picture must not be null!");
+
     for (final VideoFilter filter : this.create()) {
       filter.applyFilter(picture);
     }
@@ -620,6 +638,7 @@ public final class FilterChain {
     public boolean applyFilter(final ImageBuffer samples, final OriginalVideoMetadata metadata) {
       this.crop.applyFilter(samples, metadata);
       this.resize.applyFilter(samples, metadata);
+
       return true;
     }
   }

@@ -140,6 +140,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
       if (resolution == null) {
         return;
       }
+
       final Mcv2Support support = this.plugin.getMcv2Support();
       final Mcv2Configuration configuration = support.configure(sender, blocks, resolution, mapId, Settings.DEFAULT, players);
       if (configuration != null) {
@@ -186,6 +187,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
       this.manager.startFilter(output);
       return VideoPipelineStep.of(output);
     }
+
     final MapDisplaySettings settings = (MapDisplaySettings) built;
     final MapConfiguration configuration = settings.getConfiguration();
     final DitherAlgorithm algorithm = settings.createAlgorithm();
@@ -193,6 +195,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
     final FunctionalVideoFilter ditherFilter = DitherFilter.dither(algorithm, result);
 
     this.manager.startFilter(ditherFilter);
+
     return VideoPipelineStep.of(ditherFilter);
   }
 }

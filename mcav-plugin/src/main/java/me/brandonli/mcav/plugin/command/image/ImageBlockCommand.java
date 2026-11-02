@@ -96,6 +96,7 @@ public final class ImageBlockCommand extends AbstractImageCommand {
     Preconditions.checkNotNull(imageResolution, "Image resolution must not be null!");
     Preconditions.checkNotNull(location, "Location must not be null!");
     Preconditions.checkNotNull(mrl, "MRL must not be null!");
+
     final Collection<UUID> players = ArgumentUtils.parsePlayerSelectors(playerSelector);
     final ImageConfigurationProvider configurationProvider = resolution -> this.createConfiguration(resolution, players, location);
     this.displayImage(configurationProvider, sender, imageResolution, mrl, filters);
@@ -113,6 +114,7 @@ public final class ImageBlockCommand extends AbstractImageCommand {
   public DisplayableImage createImage(final Pair<Integer, Integer> resolution, final ImageConfigurationProvider configurationProvider) {
     Preconditions.checkNotNull(resolution, "Resolution must not be null!");
     Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null!");
+
     final BlockConfiguration configuration = (BlockConfiguration) configurationProvider.buildConfiguration(resolution);
     return DisplayableImage.block(configuration);
   }

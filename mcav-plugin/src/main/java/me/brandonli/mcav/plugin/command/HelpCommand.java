@@ -66,6 +66,7 @@ public final class HelpCommand implements AnnotationCommandFeature {
    */
   public HelpCommand(final CommandManager<CommandSender> manager) {
     Preconditions.checkNotNull(manager, "Command manager must not be null!");
+
     final Map<String, String> messages = createMessages();
     final AudienceProvider<CommandSender> audiences = AudienceProvider.nativeAudience();
     final ImmutableMinecraftHelp.CommandManagerBuildStage<CommandSender> managerStage = MinecraftHelp.builder();
@@ -118,6 +119,7 @@ public final class HelpCommand implements AnnotationCommandFeature {
   @Command("mcav help [query]")
   public void commandHelp(final CommandSender sender, @Greedy final @Nullable String query) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
+
     final String search = this.searchQuery(query);
     this.minecraftHelp.queryCommands(search, sender);
   }
@@ -126,15 +128,18 @@ public final class HelpCommand implements AnnotationCommandFeature {
     if (query == null) {
       return "";
     }
+
     final String trimmed = query.strip();
     if (trimmed.isEmpty()) {
       return trimmed;
     }
+
     final int separator = trimmed.indexOf(WORD_SEPARATOR);
     final String first = separator < 0 ? trimmed : trimmed.substring(0, separator);
     if (ROOT_COMMAND.equalsIgnoreCase(first)) {
       return trimmed;
     }
+
     try {
       // Cloud reserves a trailing integer for pagination, including a page with no command query.
       Integer.parseInt(trimmed);

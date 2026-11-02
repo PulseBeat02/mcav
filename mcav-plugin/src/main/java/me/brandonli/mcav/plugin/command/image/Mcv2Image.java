@@ -63,6 +63,7 @@ final class Mcv2Image implements DisplayableImage {
   Mcv2Image(final Plugin plugin, final Mcv2Output output) {
     Preconditions.checkNotNull(plugin, "Plugin must not be null!");
     Preconditions.checkNotNull(output, "Output must not be null!");
+
     this.plugin = plugin;
     this.output = output;
   }
@@ -75,6 +76,7 @@ final class Mcv2Image implements DisplayableImage {
   @Override
   public void displayImage(final ImageBuffer image) {
     Preconditions.checkNotNull(image, "Image must not be null!");
+
     final int width = image.getWidth();
     final int height = image.getHeight();
     final int[] pixels = image.copyPixels();

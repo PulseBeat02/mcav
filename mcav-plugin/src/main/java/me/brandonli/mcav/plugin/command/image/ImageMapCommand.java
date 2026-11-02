@@ -118,6 +118,7 @@ public final class ImageMapCommand extends AbstractImageCommand {
     Preconditions.checkNotNull(blockDimensions, "Block dimensions must not be null!");
     Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null!");
     Preconditions.checkNotNull(mrl, "MRL must not be null!");
+
     final Pair<Integer, Integer> blocks = this.parseBlocks(sender, blockDimensions);
     if (blocks == null) {
       return;
@@ -179,15 +180,18 @@ public final class ImageMapCommand extends AbstractImageCommand {
   public DisplayableImage createImage(final Pair<Integer, Integer> resolution, final ImageConfigurationProvider configurationProvider) {
     Preconditions.checkNotNull(resolution, "Resolution must not be null!");
     Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null!");
+
     final Object built = configurationProvider.buildConfiguration(resolution);
     if (built instanceof final Mcv2ImageSettings mcv2) {
       final DisplayableImage image = this.createMcv2Image(mcv2);
       if (image != null) {
         return image;
       }
+
       final MapConfiguration fallback = MapDisplaySettings.createConfiguration(mcv2.blocks(), resolution, mcv2.mapId(), mcv2.viewers());
       return DisplayableImage.map(fallback, mcv2.dithering().createAlgorithm());
     }
+
     final MapDisplaySettings settings = (MapDisplaySettings) built;
     final MapConfiguration configuration = settings.getConfiguration();
     final DitherAlgorithm algorithm = settings.createAlgorithm();
@@ -212,6 +216,7 @@ public final class ImageMapCommand extends AbstractImageCommand {
     if (configuration == null) {
       return null;
     }
+
     final Mcv2Output output = support.output(settings.sender(), configuration, settings.dithering());
     return output == null ? null : new Mcv2Image(this.plugin, output);
   }

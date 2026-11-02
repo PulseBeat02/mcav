@@ -66,10 +66,12 @@ public final class InteractUtils {
    */
   public static int @Nullable [] getBoardCoordinates(final Player player) {
     Preconditions.checkNotNull(player, "Player must not be null!");
+
     final Entity targetEntity = player.getTargetEntity(MAXIMUM_TARGET_DISTANCE);
     if (targetEntity == null) {
       return null;
     }
+
     return getBoardCoordinates(player, targetEntity);
   }
 
@@ -85,17 +87,21 @@ public final class InteractUtils {
   public static int @Nullable [] getBoardCoordinates(final Player player, final Entity entity) {
     Preconditions.checkNotNull(player, "Player must not be null!");
     Preconditions.checkNotNull(entity, "Entity must not be null!");
+
     if (!(entity instanceof final ItemFrame frame)) {
       throw new IllegalArgumentException("Target entity is not an ItemFrame!");
     }
+
     final int[] mapIndex = getRelativeMapIndex(player, frame);
     if (mapIndex == null) {
       return null;
     }
+
     final double[] framePosition = getRotatedFramePosition(player, frame);
     if (framePosition == null) {
       return null;
     }
+
     final int pixelX = Math.clamp((int) (framePosition[0] * MAP_PIXELS), 0, MAP_PIXELS - 1);
     final int pixelY = Math.clamp((int) (framePosition[1] * MAP_PIXELS), 0, MAP_PIXELS - 1);
     final int absoluteX = mapIndex[0] * MAP_PIXELS + pixelX;
@@ -114,6 +120,7 @@ public final class InteractUtils {
     if (hitFace == null) {
       return null;
     }
+
     final ItemFrame firstCorner = findFirstCorner(player, hitFace, frame);
     if (firstCorner == null) {
       return null;
@@ -157,6 +164,7 @@ public final class InteractUtils {
     if (position == null) {
       return null;
     }
+
     final double horizontal = position[0];
     final double vertical = position[1];
     final Rotation rotation = frame.getRotation();
@@ -179,10 +187,12 @@ public final class InteractUtils {
     if (!alongX && !alongZ) {
       return null;
     }
+
     final Vector lookedAt = findLookedAtPoint(player, frame, alongX);
     if (lookedAt == null) {
       return null;
     }
+
     final Location frameLocation = frame.getLocation();
     final double horizontalCoordinate = alongX ? lookedAt.getZ() : lookedAt.getX();
     final int horizontalOrigin = alongX ? frameLocation.getBlockZ() : frameLocation.getBlockX();
@@ -191,6 +201,7 @@ public final class InteractUtils {
     if (!(horizontal >= 0 && horizontal <= 1 && verticalFraction >= 0 && verticalFraction <= 1)) {
       return null;
     }
+
     final boolean mirrored = face == BlockFace.WEST || face == BlockFace.SOUTH;
     final double fromLeft = mirrored ? 1 - horizontal : horizontal;
     final double fromTop = 1 - verticalFraction;
@@ -213,6 +224,7 @@ public final class InteractUtils {
     if (!Double.isFinite(scale) || scale < 0) {
       return null;
     }
+
     direction.multiply(scale);
     final Vector eyePosition = eyeLocation.toVector();
     return eyePosition.add(direction);
@@ -229,6 +241,7 @@ public final class InteractUtils {
     if (lastCorner == null) {
       return null;
     }
+
     return firstCorner;
   }
 

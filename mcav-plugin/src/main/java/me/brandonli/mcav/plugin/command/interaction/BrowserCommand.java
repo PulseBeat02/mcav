@@ -94,6 +94,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
   @Override
   protected void forwardLeftClick(final BrowserPlayer current, final int screenX, final int screenY) {
     Preconditions.checkNotNull(current, "Browser must not be null!");
+
     current.sendMouseEvent(MouseClick.LEFT, screenX, screenY);
   }
 
@@ -107,6 +108,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
   @Override
   protected void forwardRightClick(final BrowserPlayer current, final int screenX, final int screenY) {
     Preconditions.checkNotNull(current, "Browser must not be null!");
+
     current.sendMouseEvent(MouseClick.RIGHT, screenX, screenY);
   }
 
@@ -120,6 +122,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
   protected void forwardTextInput(final BrowserPlayer current, final String text) {
     Preconditions.checkNotNull(current, "Browser must not be null!");
     Preconditions.checkNotNull(text, "Text must not be null!");
+
     current.sendKeyEvent(text);
   }
 
@@ -131,6 +134,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
   @Override
   protected void releasePlayer(final BrowserPlayer current) {
     Preconditions.checkNotNull(current, "Browser must not be null!");
+
     // the browser helper takes seconds to stop and its session folder to be deleted; no frame or sound of it meanwhile
     CleanupUtils.runAll(
       () -> current.getVideoAttachableCallback().detach(),
@@ -158,6 +162,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
   @CommandDescription("mcav.command.browser.interact.info")
   public void toggleInteraction(final Player sender) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
+
     final Component enabled = Message.INTERACT_ENABLE.build();
     final Component disabled = Message.INTERACT_DISABLE.build();
     this.toggleInteraction(sender, enabled, disabled);
@@ -177,6 +182,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
   @CommandDescription("mcav.command.browser.release.info")
   public void releaseBrowser(final CommandSender sender) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
+
     final Component released = Message.RELEASE_BROWSER.build();
     this.releaseResource(sender, released);
   }
@@ -252,10 +258,12 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     if (resolution == null) {
       return;
     }
+
     final Pair<Integer, Integer> blocks = parseScreenDimensions(sender, blockDimensions);
     if (blocks == null) {
       return;
     }
+
     final URI uri = parseWebAddress(url);
     if (uri == null) {
       final Component message = Message.UNSUPPORTED_URL.build();
@@ -284,12 +292,14 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     if (resolution == null) {
       return null;
     }
+
     // the browser paints at most this many pixels per side, fewer than a wall of maps can show
     if (resolution.getFirst() > BrowserSource.MAX_SIDE || resolution.getSecond() > BrowserSource.MAX_SIDE) {
       final Component message = Message.UNSUPPORTED_DIMENSION.build();
       sender.sendMessage(message);
       return null;
     }
+
     return resolution;
   }
 
@@ -358,6 +368,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     if (scheme == null || host == null) {
       return null;
     }
+
     final String lowerScheme = scheme.toLowerCase(Locale.ROOT);
     final boolean isWebAddress = WEB_SCHEMES.contains(lowerScheme);
     return isWebAddress ? uri : null;
@@ -377,6 +388,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     if (succeeded) {
       return Message.START_BROWSER.build();
     }
+
     Throwable cause = error;
     if (cause instanceof CompletionException) {
       cause = cause.getCause();
@@ -384,6 +396,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     if (cause instanceof BrowserUnavailableException) {
       return Message.BROWSER_UNAVAILABLE.build();
     }
+
     return Message.BROWSER_ERROR.build();
   }
 

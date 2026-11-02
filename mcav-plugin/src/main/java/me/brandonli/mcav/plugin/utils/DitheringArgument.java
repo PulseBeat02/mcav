@@ -591,6 +591,7 @@ public enum DitheringArgument {
     if (this.stateful) {
       return this.algorithmFactory.create();
     }
+
     return this.getSharedAlgorithm();
   }
 
@@ -606,8 +607,10 @@ public enum DitheringArgument {
       if (createdByAnotherThread != null) {
         return createdByAnotherThread;
       }
+
       final DitherAlgorithm created = this.algorithmFactory.create();
       SharedAlgorithms.ALGORITHMS.put(this, created);
+
       return created;
     }
   }

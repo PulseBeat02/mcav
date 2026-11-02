@@ -79,12 +79,15 @@ final class Screen {
     if (this.cancelled) {
       return false;
     }
+
     this.starting = true;
+
     return true;
   }
 
   synchronized boolean finishStart() {
     this.starting = false;
+
     return this.cancelled;
   }
 

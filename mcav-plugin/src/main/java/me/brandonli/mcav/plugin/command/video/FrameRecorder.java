@@ -53,12 +53,14 @@ final class FrameRecorder implements Consumer<byte[]> {
    */
   FrameRecorder(final Path file) {
     Preconditions.checkNotNull(file, "File must not be null!");
+
     final Path absolute = file.toAbsolutePath();
     final Path parent = absolute.getParent();
     if (parent == null) {
       final String message = "Stream file %s must not be the root of the file system!".formatted(file);
       throw new IllegalArgumentException(message);
     }
+
     this.file = absolute;
     this.folder = parent;
   }
@@ -68,6 +70,7 @@ final class FrameRecorder implements Consumer<byte[]> {
     if (this.failed) {
       return;
     }
+
     final ByteBuffer record = ByteBuffer.allocate(Integer.BYTES + frame.length).order(ByteOrder.LITTLE_ENDIAN);
     record.putInt(frame.length).put(frame);
     try {

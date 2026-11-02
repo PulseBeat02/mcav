@@ -54,6 +54,7 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
    */
   public VideoControlCommand(final MCAVSandbox plugin) {
     Preconditions.checkNotNull(plugin, "Plugin must not be null!");
+
     this.plugin = plugin;
     this.manager = plugin.getVideoPlayerManager();
   }
@@ -74,6 +75,7 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
   @CommandDescription("mcav.command.video.resume.info")
   public void resumeVideo(final CommandSender sender) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
+
     final VideoPlayerMultiplexer player = this.manager.getPlayer();
     final boolean resumed = player == null || player.resume();
     final Component message = resumed ? Message.RESUME_PLAYER.build() : Message.RESUME_PLAYER_FAILED.build();
@@ -94,6 +96,7 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
   @CommandDescription("mcav.command.video.pause.info")
   public void pauseVideo(final CommandSender sender) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
+
     final VideoPlayerMultiplexer player = this.manager.getPlayer();
     if (player != null) {
       player.pause();
@@ -117,6 +120,7 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
   @CommandDescription("mcav.command.video.release.info")
   public void releaseVideo(final CommandSender sender) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
+
     this.manager.cancelStart();
     final Component starting = Message.RELEASE_PLAYER_START.build();
     sender.sendMessage(starting);
@@ -137,6 +141,7 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
       LOGGER.error(RELEASE_FAILED, error);
       return;
     }
+
     done.run();
   }
 
@@ -157,6 +162,7 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
   public void setHologramLocation(final CommandSender sender, final Location location) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
     Preconditions.checkNotNull(location, "Location must not be null!");
+
     this.manager.setHologramLocation(location);
     final Component message = Message.HOLOGRAM_LOCATION_SET.build();
     sender.sendMessage(message);
@@ -176,6 +182,7 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
   @CommandDescription("mcav.command.hologram.disable.info")
   public void disableHologram(final CommandSender sender) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
+
     this.manager.setHologramLocation(null);
     final Component message = Message.HOLOGRAM_DISABLED.build();
     sender.sendMessage(message);

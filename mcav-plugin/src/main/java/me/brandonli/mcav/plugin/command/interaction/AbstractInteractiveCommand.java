@@ -156,6 +156,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    */
   protected AbstractInteractiveCommand(final MCAVSandbox plugin) {
     Preconditions.checkNotNull(plugin, "Plugin must not be null!");
+
     this.plugin = plugin;
     this.service = Executors.newSingleThreadExecutor();
     final WeakHashMap<Player, Boolean> backing = new WeakHashMap<>();
@@ -167,6 +168,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
   AbstractInteractiveCommand(final MCAVSandbox plugin, final ExecutorService service) {
     Preconditions.checkNotNull(plugin, "Plugin must not be null!");
     Preconditions.checkNotNull(service, "Executor must not be null!");
+
     this.plugin = plugin;
     this.service = service;
     final WeakHashMap<Player, Boolean> backing = new WeakHashMap<>();
@@ -183,6 +185,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
   @Override
   public void registerFeature(final AnnotationParser<CommandSender> parser) {
     Preconditions.checkNotNull(parser, "Parser must not be null!");
+
     final Server server = this.plugin.getServer();
     final PluginManager pluginManager = server.getPluginManager();
     pluginManager.registerEvents(this, this.plugin);
@@ -198,6 +201,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
       if (this.closed) {
         return;
       }
+
       this.closed = true;
     }
     CleanupUtils.runAll(
@@ -286,6 +290,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     if (type == AudioArgument.NONE) {
       return;
     }
+
     final AudioProvider provider = this.plugin.getAudioProvider();
     this.soundProvider = provider;
     final UrlParseDump dump = UrlParseDump.of(title);
@@ -347,6 +352,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
   protected static @Nullable Pair<Integer, Integer> parseDimensions(final CommandSender sender, final String text) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
     Preconditions.checkNotNull(text, "Text must not be null!");
+
     try {
       return ArgumentUtils.parseDimensions(text);
     } catch (final IllegalArgumentException exception) {
@@ -367,6 +373,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
   protected static @Nullable Pair<Integer, Integer> parseScreenDimensions(final CommandSender sender, final String text) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
     Preconditions.checkNotNull(text, "Text must not be null!");
+
     try {
       return ArgumentUtils.parseScreenDimensions(text);
     } catch (final IllegalArgumentException exception) {
@@ -558,6 +565,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     if (!screen.beginStart()) {
       return;
     }
+
     try {
       task.run();
     } catch (final RuntimeException | Error exception) {
@@ -623,6 +631,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     if (screen.isCancelled()) {
       return;
     }
+
     final boolean succeeded = error == null && Boolean.TRUE.equals(started);
     if (!succeeded) {
       final String description = attempt.getDescription();
@@ -681,6 +690,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
   @EventHandler
   public void onBlockBreak(final BlockBreakEvent event) {
     Preconditions.checkNotNull(event, "Event must not be null!");
+
     final PlayerType current = this.player;
     if (current == null) {
       return;
@@ -697,6 +707,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     if (coordinates == null) {
       return;
     }
+
     // the wall stays intact whoever breaks the block, but only a player with the permission clicks with it
     event.setCancelled(true);
     final boolean allowed = this.mayInteract(breaker);
@@ -712,15 +723,18 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     if (current == null) {
       return null;
     }
+
     final ItemStack item = frame.getItem();
     final ItemMeta metadata = item.getItemMeta();
     if (!(metadata instanceof final MapMeta mapMetadata)) {
       return null;
     }
+
     final MapView map = mapMetadata.getMapView();
     if (map == null) {
       return null;
     }
+
     final int mapId = map.getId();
     return current.ownsMap(mapId) ? current : null;
   }
@@ -735,10 +749,12 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     if (ray == null) {
       return null;
     }
+
     final Block block = ray.getHitBlock();
     if (block == null) {
       return null;
     }
+
     return this.findClosestScreen(block);
   }
 
@@ -767,6 +783,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     if (!(entity instanceof final ItemFrame frame)) {
       return false;
     }
+
     final PersistentDataContainer data = frame.getPersistentDataContainer();
     return data.has(Keys.MAP_KEY, PersistentDataType.BOOLEAN);
   }
@@ -784,6 +801,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
   @EventHandler
   public void onScreenDamage(final EntityDamageByEntityEvent event) {
     Preconditions.checkNotNull(event, "Event must not be null!");
+
     final Entity entity = event.getEntity();
     final boolean isScreen = this.isScreen(entity);
     if (!isScreen) {
@@ -795,6 +813,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     if (attacker == null) {
       return;
     }
+
     event.setCancelled(true);
 
     // only a punch is forwarded; a projectile is not the player who shot it
@@ -804,10 +823,12 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     if (current == null || !punched || shown == null) {
       return;
     }
+
     final boolean allowed = this.mayInteract(attacker);
     if (!allowed) {
       return;
     }
+
     final int[] coordinates = InteractUtils.getBoardCoordinates(attacker, entity);
     final int[] pixel = coordinates == null ? null : shown.toSource(coordinates[0], coordinates[1]);
     if (pixel != null) {
@@ -819,6 +840,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     if (damager instanceof final Player direct) {
       return direct;
     }
+
     if (damager instanceof final Projectile projectile) {
       final ProjectileSource shooter = projectile.getShooter();
       if (shooter instanceof final Player shooterPlayer) {
@@ -840,6 +862,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
   @EventHandler
   public void onPlayerInteractEntity(final PlayerInteractEntityEvent event) {
     Preconditions.checkNotNull(event, "Event must not be null!");
+
     final PlayerType current = this.player;
     final Entity entity = event.getRightClicked();
     final boolean isScreen = this.isScreen(entity);
@@ -853,6 +876,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     if (coordinates == null) {
       return;
     }
+
     // the map keeps its rotation whoever right clicks it, but only a player with the permission clicks with it
     event.setCancelled(true);
     final boolean allowed = this.mayInteract(clicker);
@@ -875,12 +899,14 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
   @EventHandler
   public void onChatMessage(final AsyncChatEvent event) {
     Preconditions.checkNotNull(event, "Event must not be null!");
+
     final Player chatter = event.getPlayer();
     final boolean active = this.activePlayers.contains(chatter);
     final PlayerType current = this.player;
     if (!active || current == null) {
       return;
     }
+
     // the permission is checked again here, because it may have been taken away since the sender switched this on
     final boolean allowed = this.mayInteract(chatter);
     if (!allowed) {
@@ -905,6 +931,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
   @EventHandler
   public void onScreenBreak(final HangingBreakEvent event) {
     Preconditions.checkNotNull(event, "Event must not be null!");
+
     final Entity entity = event.getEntity();
     final boolean isScreen = this.isScreen(entity);
     if (isScreen) {
@@ -923,11 +950,13 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     Preconditions.checkNotNull(chatter, "Player must not be null!");
     Preconditions.checkNotNull(enableMessage, "Enable message must not be null!");
     Preconditions.checkNotNull(disableMessage, "Disable message must not be null!");
+
     final boolean removed = this.activePlayers.remove(chatter);
     if (removed) {
       chatter.sendMessage(disableMessage);
       return;
     }
+
     this.activePlayers.add(chatter);
     chatter.sendMessage(enableMessage);
   }
@@ -941,6 +970,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
   protected void releaseResource(final CommandSender sender, final Component message) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
     Preconditions.checkNotNull(message, "Message must not be null!");
+
     this.releaseCurrent();
     sender.sendMessage(message);
   }

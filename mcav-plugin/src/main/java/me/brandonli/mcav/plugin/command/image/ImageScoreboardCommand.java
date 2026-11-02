@@ -100,6 +100,7 @@ public final class ImageScoreboardCommand extends AbstractImageCommand {
     Preconditions.checkNotNull(imageResolution, "Image resolution must not be null!");
     Preconditions.checkNotNull(character, "Character must not be null!");
     Preconditions.checkNotNull(mrl, "MRL must not be null!");
+
     final boolean tooTall = ScoreboardArguments.isTooTall(imageResolution);
     if (tooTall) {
       final Component message = Message.SCOREBOARD_LINES.build();
@@ -124,6 +125,7 @@ public final class ImageScoreboardCommand extends AbstractImageCommand {
   public DisplayableImage createImage(final Pair<Integer, Integer> resolution, final ImageConfigurationProvider configurationProvider) {
     Preconditions.checkNotNull(resolution, "Resolution must not be null!");
     Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null!");
+
     final ScoreboardConfiguration configuration = (ScoreboardConfiguration) configurationProvider.buildConfiguration(resolution);
     return DisplayableImage.scoreboard(configuration);
   }

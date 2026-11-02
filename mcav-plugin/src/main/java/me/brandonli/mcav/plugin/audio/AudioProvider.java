@@ -121,6 +121,7 @@ public final class AudioProvider {
   AudioProvider(final MCAVSandbox sandbox, final ExecutorService startup) {
     Preconditions.checkNotNull(sandbox, "Plugin must not be null!");
     Preconditions.checkNotNull(startup, "Startup executor must not be null!");
+
     this.configuration = sandbox.getConfiguration();
     this.sandbox = sandbox;
     this.startup = startup;
@@ -191,6 +192,7 @@ public final class AudioProvider {
     if (!installed) {
       throw new MissingVoiceChatException("Simple Voice Chat audio is enabled, but the voicechat plugin is not installed!");
     }
+
     final ServerLoadListener listener = new ServerLoadListener(this.sandbox);
     pluginManager.registerEvents(listener, this.sandbox);
   }
@@ -208,6 +210,7 @@ public final class AudioProvider {
       LOGGER.error(WEB_PAGE_FAILED, error);
       return;
     }
+
     final boolean accepted;
     synchronized (this.lock) {
       accepted = !this.stopped;
@@ -219,6 +222,7 @@ public final class AudioProvider {
       server.stop();
       return;
     }
+
     final String address = server.getFullUrl();
     LOGGER.info(WEB_PAGE_AVAILABLE, address);
   }
@@ -257,11 +261,13 @@ public final class AudioProvider {
       final String message = "Guild %s has not added the Discord bot!".formatted(guildId);
       throw new IllegalStateException(message);
     }
+
     final VoiceChannel voiceChannel = guild.getVoiceChannelById(channelId);
     if (voiceChannel == null) {
       final String message = "Discord voice channel %s does not exist!".formatted(channelId);
       throw new IllegalStateException(message);
     }
+
     final AudioManager audioManager = guild.getAudioManager();
     final DiscordPlayer player = DiscordPlayer.voice(bot);
     return new DiscordConnection(voiceChannel, audioManager, player);
@@ -272,6 +278,7 @@ public final class AudioProvider {
       this.onDiscordFailed(bot, error);
       return;
     }
+
     synchronized (this.lock) {
       if (!this.stopped) {
         this.discord = connection;
@@ -315,6 +322,7 @@ public final class AudioProvider {
     if (server != null) {
       return server.getFullUrl();
     }
+
     final String host = this.configuration.getHttpHostName();
     final int port = this.configuration.getHttpPort();
     return HTTP_PREFIX + host + PORT_SEPARATOR + port + PATH_SEPARATOR;
@@ -351,9 +359,11 @@ public final class AudioProvider {
     Preconditions.checkNotNull(dump, "Dump must not be null!");
     Preconditions.checkNotNull(players, "Players must not be null!");
     Preconditions.checkNotNull(source, "Source must not be null!");
+
     if (argument == AudioArgument.NONE) {
       return AudioFilter.NO_OP;
     }
+
     synchronized (this.outputLock) {
       // the speakers of the previous source stop only once the new source has its output, so a takeover that fails,
       // such as one through a bot that is not ready, leaves the previous source playing
@@ -391,6 +401,7 @@ public final class AudioProvider {
     final SvcFilter filter = SvcFilter.svc(players);
     filter.start();
     this.voiceChatFilter = filter;
+
     return filter;
   }
 
@@ -399,6 +410,7 @@ public final class AudioProvider {
     if (server == null) {
       throw new IllegalStateException("The audio web page is not ready!");
     }
+
     server.setCurrentMedia(dump);
     return server;
   }
@@ -408,6 +420,7 @@ public final class AudioProvider {
     if (connection == null) {
       throw new IllegalStateException("The Discord bot is not ready!");
     }
+
     final VoiceChannel voiceChannel = connection.getChannel();
     final AudioManager manager = connection.getAudioManager();
     final DiscordPlayer player = connection.getPlayer();
@@ -434,18 +447,21 @@ public final class AudioProvider {
    */
   public void releaseAudioFilter(final Object source) {
     Preconditions.checkNotNull(source, "Source must not be null!");
+
     synchronized (this.outputLock) {
       this.claims.removeIf(held -> IDENTITY.equivalent(held.source, source));
       final Claim current = this.owner;
       if (current != null && !IDENTITY.equivalent(current.source, source)) {
         return;
       }
+
       this.owner = null;
       this.releaseOutputs();
       final Claim previous = this.claims.peek();
       if (previous == null) {
         return;
       }
+
       try {
         previous.output = this.connect(previous);
         this.owner = previous;

@@ -83,6 +83,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
   @Override
   protected void forwardLeftClick(final VncPlayer current, final int screenX, final int screenY) {
     Preconditions.checkNotNull(current, "Desktop must not be null!");
+
     current.sendMouseEvent(MouseClick.LEFT, screenX, screenY);
   }
 
@@ -96,6 +97,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
   @Override
   protected void forwardRightClick(final VncPlayer current, final int screenX, final int screenY) {
     Preconditions.checkNotNull(current, "Desktop must not be null!");
+
     current.sendMouseEvent(MouseClick.RIGHT, screenX, screenY);
   }
 
@@ -109,6 +111,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
   protected void forwardTextInput(final VncPlayer current, final String text) {
     Preconditions.checkNotNull(current, "Desktop must not be null!");
     Preconditions.checkNotNull(text, "Text must not be null!");
+
     current.sendKeyEvent(text);
   }
 
@@ -120,6 +123,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
   @Override
   protected void releasePlayer(final VncPlayer current) {
     Preconditions.checkNotNull(current, "Desktop must not be null!");
+
     // closing the connection waits for the client's threads, which a stalled server can hold up
     CleanupUtils.runAll(() -> current.getVideoAttachableCallback().detach(), () -> this.releaseInTheBackground(current::release));
   }
@@ -139,6 +143,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
   @CommandDescription("mcav.command.vnc.interact.info")
   public void toggleInteraction(final Player sender) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
+
     final Component enabled = Message.INTERACT_ENABLE.build();
     final Component disabled = Message.INTERACT_DISABLE.build();
     this.toggleInteraction(sender, enabled, disabled);
@@ -157,6 +162,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
   @CommandDescription("mcav.command.vnc.release.info")
   public void releaseVnc(final CommandSender sender) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
+
     final Component released = Message.VNC_RELEASE.build();
     this.releaseResource(sender, released);
   }
@@ -217,6 +223,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
       sender.sendMessage(Message.VNC_NOT_ALLOWED.build(server));
       return;
     }
+
     final Pair<Integer, Integer> resolution = parseDimensions(sender, vncResolution);
     final Pair<Integer, Integer> blocks = resolution == null ? null : parseScreenDimensions(sender, blockDimensions);
     if (resolution == null || blocks == null) {

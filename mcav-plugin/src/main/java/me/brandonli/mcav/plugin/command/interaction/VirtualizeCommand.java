@@ -149,6 +149,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
   @Override
   protected void forwardLeftClick(final VmPlayer current, final int screenX, final int screenY) {
     Preconditions.checkNotNull(current, "Virtual machine must not be null!");
+
     current.sendMouseEvent(MouseClick.LEFT, screenX, screenY);
   }
 
@@ -162,6 +163,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
   @Override
   protected void forwardRightClick(final VmPlayer current, final int screenX, final int screenY) {
     Preconditions.checkNotNull(current, "Virtual machine must not be null!");
+
     current.sendMouseEvent(MouseClick.RIGHT, screenX, screenY);
   }
 
@@ -175,6 +177,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
   protected void forwardTextInput(final VmPlayer current, final String text) {
     Preconditions.checkNotNull(current, "Virtual machine must not be null!");
     Preconditions.checkNotNull(text, "Text must not be null!");
+
     current.sendKeyEvent(text);
   }
 
@@ -186,6 +189,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
   @Override
   protected void releasePlayer(final VmPlayer current) {
     Preconditions.checkNotNull(current, "Virtual machine must not be null!");
+
     // QEMU takes up to ten seconds to stop, and is then killed; no frame or sound of it meanwhile
     CleanupUtils.runAll(
       () -> current.getVideoAttachableCallback().detach(),
@@ -214,6 +218,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
   @CommandDescription("mcav.command.vm.interact.info")
   public void toggleInteraction(final Player sender) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
+
     final Component enabled = Message.INTERACT_ENABLE.build();
     final Component disabled = Message.INTERACT_DISABLE.build();
     this.toggleInteraction(sender, enabled, disabled);
@@ -234,6 +239,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
   @CommandDescription("mcav.command.vm.release.info")
   public void releaseVm(final CommandSender sender) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
+
     final Component released = Message.VM_RELEASE.build();
     this.releaseResource(sender, released);
   }
@@ -323,15 +329,18 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
       sender.sendMessage(Message.UNKNOWN_CODEC.build());
       return;
     }
+
     final VmConfiguration vmConfiguration = this.parseOptions(sender, split.options());
     if (vmConfiguration == null) {
       return;
     }
+
     final @Nullable Component audioProblem = this.findAudioProblem(architecture, audioType);
     if (audioProblem != null) {
       sender.sendMessage(audioProblem);
       return;
     }
+
     final VmSettings vmSettings = this.createVmSettings(resolution, targetFramesPerSecond);
     final MapCodec codec = this.chooseCodec(split.codec());
     final ScreenSettings settings = new ScreenSettings(sender, playerSelector, blocks, resolution, mapId, ditheringAlgorithm, codec);
@@ -346,6 +355,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     if (audioType != AudioArgument.NONE && architecture != VmPlayer.Architecture.X86_64) {
       return Message.VM_NO_SOUND.build();
     }
+
     final AudioProvider provider = this.plugin.getAudioProvider();
     return AudioOutputs.findProblem(provider, audioType);
   }
@@ -401,6 +411,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     if (cause instanceof ExecutableNotInPathException) {
       return Message.VM_PATH.build();
     }
+
     return Message.VM_ERROR.build();
   }
 
@@ -417,6 +428,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     if (!matcher.find()) {
       return new CodecSplit(flags, null);
     }
+
     final String name = matcher.group(1);
     for (final MapCodec codec : MapCodec.values()) {
       if (codec.name().equalsIgnoreCase(name)) {
@@ -493,6 +505,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
       );
       throw new IllegalArgumentException(message);
     }
+
     return builder;
   }
 
@@ -566,11 +579,13 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     if (isFlagOption) {
       return;
     }
+
     final boolean needsValue = HARDWARE_OPTIONS.contains(name) || IMAGE_OPTIONS.contains(name) || name.equals(DRIVE_OPTION);
     if (needsValue) {
       final String message = "QEMU option -%s needs a value!".formatted(name);
       throw new IllegalArgumentException(message);
     }
+
     throw unsupported(name);
   }
 
@@ -584,20 +599,24 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
       QemuHardwareValues.check(name, value);
       return value;
     }
+
     final boolean image = IMAGE_OPTIONS.contains(name);
     if (image) {
       final Path resolved = DiskImages.require(imageFolder, value);
       return resolved.toString();
     }
+
     final boolean isDriveOption = name.equals(DRIVE_OPTION);
     if (isDriveOption) {
       return checkedDrive(value, imageFolder);
     }
+
     final boolean isFlagOption = FLAG_OPTIONS.contains(name);
     if (isFlagOption) {
       final String message = "QEMU option -%s takes no value!".formatted(name);
       throw new IllegalArgumentException(message);
     }
+
     throw unsupported(name);
   }
 
@@ -624,6 +643,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     }
     final boolean one = files == 1;
     Preconditions.checkArgument(one, "Drive %s must name its disk image exactly once, as file=<image>!", value);
+
     return String.join(VALUE_SEPARATOR, checked);
   }
 

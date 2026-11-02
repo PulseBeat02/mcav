@@ -99,6 +99,7 @@ public final class MapUtils {
    */
   public static ItemStack getMapFromId(final int id) {
     Preconditions.checkArgument(id >= 0, "Map id %s must not be negative!", id);
+
     final ItemStack map = createMapItemStack(id);
     final ItemMeta nullableMetadata = map.getItemMeta();
     final ItemMeta itemMetadata = requireNonNull(nullableMetadata);
@@ -129,6 +130,7 @@ public final class MapUtils {
     if (existing != null) {
       return existing;
     }
+
     return createMapsUpTo(id);
   }
 
@@ -152,11 +154,13 @@ public final class MapUtils {
       MAXIMUM_NEW_MAPS,
       currentId
     );
+
     while (currentId < id) {
       created = Bukkit.createMap(world);
       currentId = created.getId();
     }
     Preconditions.checkState(currentId == id, "Map id %s is unavailable, because the server allocated %s instead!", id, currentId);
+
     return created;
   }
 
@@ -192,6 +196,7 @@ public final class MapUtils {
     Preconditions.checkArgument(width > 0, "Width %s must be positive!", width);
     Preconditions.checkArgument(height > 0, "Height %s must be positive!", height);
     Preconditions.checkArgument(map >= 0, "Map id %s must not be negative!", map);
+
     final long count = (long) width * height;
     final long lastMap = map + count - 1;
     Preconditions.checkArgument(lastMap <= Integer.MAX_VALUE, "Last screen map id %s exceeds the integer range!", lastMap);
@@ -202,6 +207,7 @@ public final class MapUtils {
     if (!alongX && !alongZ) {
       return;
     }
+
     final int lastMapId = (int) lastMap;
     findOrCreateMap(lastMapId);
 

@@ -81,6 +81,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
    */
   protected AbstractImageCommand(final MCAVSandbox plugin) {
     Preconditions.checkNotNull(plugin, "Plugin must not be null!");
+
     this.plugin = plugin;
     this.manager = plugin.getImageManager();
   }
@@ -105,6 +106,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
     Preconditions.checkNotNull(imageResolution, "Image resolution must not be null!");
     Preconditions.checkNotNull(mrl, "MRL must not be null!");
+
     final Pair<Integer, Integer> resolution = this.parseResolution(imageResolution);
     if (resolution == null) {
       final Component message = Message.UNSUPPORTED_DIMENSION.build();
@@ -116,6 +118,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     if (chain == null) {
       return;
     }
+
     final String sourceMrl = this.unwrapMrl(mrl);
     final Supplier<ImageBuffer> loader = this.createLoader(sourceMrl);
     if (loader == null) {
@@ -133,6 +136,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     try {
       new ResizeFilter(resolution.getFirst(), resolution.getSecond()).applyFilter(image);
       chain.apply(image);
+
       return image;
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
@@ -158,6 +162,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     if (length >= QUOTE_COUNT && mrl.charAt(0) == QUOTE && mrl.charAt(length - 1) == QUOTE) {
       return mrl.substring(1, length - 1);
     }
+
     return mrl;
   }
 
@@ -199,12 +204,14 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
       TaskUtils.runOnMainThread(this.plugin, () -> sender.sendMessage(message));
       return;
     }
+
     final ImageBuffer loaded = Objects.requireNonNull(image);
     final boolean retained = this.manager.retainLoaded(generation, loaded);
     if (!retained) {
       loaded.release();
       return;
     }
+
     final Pair<Integer, Integer> resolution = request.getResolution();
     final ImageConfigurationProvider configurationProvider = request.getConfigurationProvider();
     try {
@@ -235,6 +242,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     if (image == null) {
       return;
     }
+
     boolean adopted = false;
     try {
       this.manager.releaseImage(true);
@@ -273,22 +281,27 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     if (mrl.isBlank()) {
       return null;
     }
+
     final SourceDetectionHelper helper = new SourceDetectionHelper();
     final Optional<Source> detected = helper.detectSource(mrl);
     if (detected.isEmpty()) {
       return null;
     }
+
     final Source source = detected.get();
     final boolean animated = SourceUtils.isImageGif(source);
     if (animated) {
       return null;
     }
+
     if (source instanceof final FileSource fileSource) {
       return () -> ImageBuffer.path(fileSource);
     }
+
     if (source instanceof final UriSource uriSource) {
       return () -> ImageBuffer.uri(uriSource);
     }
+
     return null;
   }
 

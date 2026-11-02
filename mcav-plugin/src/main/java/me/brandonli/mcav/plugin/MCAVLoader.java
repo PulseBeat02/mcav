@@ -112,6 +112,7 @@ public final class MCAVLoader implements PluginLoader {
     if (list == null) {
       return List.of();
     }
+
     try (list) {
       return new String(list.readAllBytes(), StandardCharsets.UTF_8)
         .lines()
@@ -182,6 +183,7 @@ public final class MCAVLoader implements PluginLoader {
   @Override
   public void classloader(final @NonNull PluginClasspathBuilder classpathBuilder) {
     Preconditions.checkNotNull(classpathBuilder, "Classpath builder must not be null!");
+
     final Class<?> loaderClass = this.getClass();
     final ClassLoader nullableClassLoader = loaderClass.getClassLoader();
     final ClassLoader classLoader = requireNonNull(nullableClassLoader);

@@ -124,6 +124,7 @@ public final class TranslationManager {
    */
   public String getProperty(final String key) {
     Preconditions.checkNotNull(key, "Key must not be null!");
+
     return this.bundle.getString(key);
   }
 
@@ -137,12 +138,14 @@ public final class TranslationManager {
    */
   public Component render(final TranslatableComponent component) {
     Preconditions.checkNotNull(component, "Component must not be null!");
+
     final Component rendered = this.translator.translate(component, DEFAULT_LOCALE);
     if (rendered == null) {
       final String key = component.key();
       final String message = "Translation key %s has no configured translation!".formatted(key);
       throw new MissingResourceException(message, PluginTranslator.class.getName(), key);
     }
+
     return rendered;
   }
 

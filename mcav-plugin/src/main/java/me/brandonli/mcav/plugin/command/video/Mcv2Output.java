@@ -43,6 +43,7 @@ public final class Mcv2Output implements FunctionalVideoFilter {
   Mcv2Output(final Mcv2Result result, final Mcv2PackServer.Lease lease) {
     Preconditions.checkNotNull(result, "Result must not be null!");
     Preconditions.checkNotNull(lease, "Lease must not be null!");
+
     this.result = result;
     this.lease = lease;
   }

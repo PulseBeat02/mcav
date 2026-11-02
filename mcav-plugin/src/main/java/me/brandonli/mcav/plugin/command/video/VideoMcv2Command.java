@@ -126,17 +126,20 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
     Preconditions.checkNotNull(playerSelector, "Player selector must not be null!");
     Preconditions.checkNotNull(profile, "Profile must not be null!");
     Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null!");
+
     final Pair<Integer, Integer> blocks = parseScreenDimensions(sender, blockDimensions);
     final Pair<Integer, Integer> resolution = parseDimensions(sender, videoResolution);
     if (blocks == null || resolution == null) {
       return;
     }
+
     final Collection<UUID> viewers = ArgumentUtils.parseViewers(playerSelector, this.plugin.getOnlinePlayers());
     final Mcv2Support support = this.plugin.getMcv2Support();
     final Mcv2Configuration configuration = support.configure(sender, blocks, resolution, mapId, profile.getSettings(), viewers);
     if (configuration == null) {
       return;
     }
+
     final VideoConfigurationProvider provider = _ -> new Mcv2Settings(configuration, ditheringAlgorithm, sender);
     this.playVideo(provider, sender, playerSelector, playerType, audioType, videoResolution, mrl, ytdlpOptions, filters);
   }
@@ -152,6 +155,7 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
     if (value == null) {
       return Mcv2Configuration.DEFAULT_BACKLOG_LIMIT;
     }
+
     return value.equals(NO_PROFILE) ? Long.MAX_VALUE : Long.parseLong(value);
   }
 
@@ -180,9 +184,11 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
   ) {
     Preconditions.checkNotNull(resolution, "Resolution must not be null!");
     Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null!");
+
     final Mcv2Settings settings = (Mcv2Settings) configurationProvider.buildConfiguration(resolution);
     final FunctionalVideoFilter output = mcv2Filter(this.plugin.getMcv2Support(), settings);
     this.manager.startFilter(output);
+
     return VideoPipelineStep.of(output);
   }
 
@@ -200,6 +206,7 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
     if (output != null) {
       return output;
     }
+
     final MapConfiguration maps = MapDisplaySettings.createConfiguration(
       Pair.pair(configuration.getColumns(), configuration.getRows()),
       Pair.pair(configuration.getVideoWidth(), configuration.getVideoHeight()),

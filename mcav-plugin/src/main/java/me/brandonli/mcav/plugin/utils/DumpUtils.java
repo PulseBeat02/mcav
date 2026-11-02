@@ -184,6 +184,7 @@ public final class DumpUtils {
       final String message = "The paste site answered with HTTP status %s, which is not a success!".formatted(status);
       throw new IOException(message);
     }
+
     return response.body();
   }
 
@@ -282,11 +283,13 @@ public final class DumpUtils {
     if (lastEquals < 0) {
       return argument;
     }
+
     final String names = argument.substring(0, lastEquals);
     final boolean secret = isSecret(names);
     if (!secret) {
       return argument;
     }
+
     final int firstEquals = argument.indexOf(PROPERTY_SEPARATOR);
     final String name = argument.substring(0, firstEquals);
     return name + PROPERTY_SEPARATOR + REDACTED;
@@ -386,6 +389,7 @@ public final class DumpUtils {
     if (!command) {
       return line;
     }
+
     final String name = matcher.group(COMMAND_NAME_GROUP);
     final String arguments = matcher.group(COMMAND_ARGUMENTS_GROUP);
     final String commandName = Objects.requireNonNull(name);
@@ -393,6 +397,7 @@ public final class DumpUtils {
     if (own || arguments == null || arguments.isBlank()) {
       return line;
     }
+
     final String prefix = line.substring(0, matcher.start(COMMAND_ARGUMENTS_GROUP));
     return prefix + WORD_SEPARATOR + REDACTED;
   }
@@ -431,6 +436,7 @@ public final class DumpUtils {
       dump.append("No log found\n");
       return;
     }
+
     try (final BufferedReader reader = Files.newBufferedReader(logFile)) {
       final Deque<String> tail = readTail(reader);
       for (final String retained : tail) {

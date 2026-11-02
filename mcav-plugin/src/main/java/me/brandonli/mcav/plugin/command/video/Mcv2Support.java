@@ -101,6 +101,7 @@ public final class Mcv2Support {
 
   Mcv2Support(final Mcv2PackServer packs) {
     Preconditions.checkNotNull(packs, "Pack server must not be null!");
+
     this.packs = packs;
   }
 
@@ -154,11 +155,13 @@ public final class Mcv2Support {
       sender.sendMessage(Message.MCV2_SIZE_ERROR.build());
       return null;
     }
+
     final ItemFrame frame = findFrame(Bukkit.getWorlds(), mapId);
     if (frame == null) {
       sender.sendMessage(Message.MCV2_SCREEN_ERROR.build(mapId));
       return null;
     }
+
     return Mcv2Configuration.builder()
       .viewers(viewers)
       .origin(frame.getLocation())
@@ -213,6 +216,7 @@ public final class Mcv2Support {
     if (lease == null) {
       return null;
     }
+
     final Mcv2Configuration slotted = lease.getConfiguration();
     final Mcv2Result result = new Mcv2Result(slotted, this.getViewers(), dithering.createAlgorithm());
     result.setPacingListener(change -> sender.sendMessage(Message.MCV2_PACING.build(change.describe())));
@@ -280,6 +284,7 @@ public final class Mcv2Support {
     if (item.getType() != Material.FILLED_MAP) {
       return false;
     }
+
     final ItemMeta metadata = item.getItemMeta();
     return metadata instanceof final MapMeta map && map.hasMapId() && map.getMapId() == mapId;
   }

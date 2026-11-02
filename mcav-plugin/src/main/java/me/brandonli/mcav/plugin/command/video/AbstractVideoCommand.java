@@ -120,6 +120,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    */
   protected AbstractVideoCommand(final MCAVSandbox plugin) {
     Preconditions.checkNotNull(plugin, "Plugin must not be null!");
+
     this.plugin = plugin;
     this.manager = plugin.getVideoPlayerManager();
     this.provider = plugin.getAudioProvider();
@@ -166,19 +167,23 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     if (resolution == null) {
       return;
     }
+
     final String[] ytdlpArguments = this.parseFlags(sender, flags);
     if (ytdlpArguments == null) {
       return;
     }
+
     final FilterChain chain = parseFilters(sender, this.plugin, filters, true);
     if (chain == null) {
       return;
     }
+
     final @Nullable Component problem = this.findBackendProblem(sender, playerType, audioType, mrl);
     if (problem != null) {
       sender.sendMessage(problem);
       return;
     }
+
     final boolean claimed = this.claim();
     if (!claimed) {
       final Component message = Message.PLAYER_ERROR.build();
@@ -227,6 +232,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     if (filters == null || filters.isEmpty()) {
       return FilterChain.NONE;
     }
+
     final Path overlays = plugin.getDataFolder().toPath().resolve(FilterChain.OVERLAY_FOLDER);
     try {
       return FilterChain.parse(filters, overlays, isVideo);
@@ -246,6 +252,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
   protected static @Nullable Pair<Integer, Integer> parseDimensions(final CommandSender sender, final String text) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
     Preconditions.checkNotNull(text, "Text must not be null!");
+
     try {
       return ArgumentUtils.parseDimensions(text);
     } catch (final IllegalArgumentException exception) {
@@ -266,6 +273,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
   protected static @Nullable Pair<Integer, Integer> parseScreenDimensions(final CommandSender sender, final String text) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
     Preconditions.checkNotNull(text, "Text must not be null!");
+
     try {
       return ArgumentUtils.parseScreenDimensions(text);
     } catch (final IllegalArgumentException exception) {
@@ -412,9 +420,11 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     if (!isDevice && !RAW_INPUTS.isDetectedSource(mrl)) {
       return null;
     }
+
     if (!sender.hasPermission(CaptureDevices.PERMISSION)) {
       return Message.DEVICE_PERMISSION.build();
     }
+
     return isDevice && CaptureDevices.find(this.manager.getDevices(), mrl) == null ? Message.DEVICE_UNLISTED.build(mrl) : null;
   }
 
@@ -428,10 +438,12 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     if (audioProblem != null) {
       return audioProblem;
     }
+
     final Component playerProblem = this.findPlayerProblem(playerType);
     if (playerProblem != null) {
       return playerProblem;
     }
+
     return this.findYtdlpProblem(mrl);
   }
 
@@ -445,14 +457,17 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     if (playerType != PlayerArgument.VLC) {
       return null;
     }
+
     final boolean preparing = this.manager.isPreparing(Capability.VLC);
     if (preparing) {
       return Message.VLC_PREPARING.build();
     }
+
     final boolean supported = this.manager.isVlcSupported();
     if (!supported) {
       return Message.UNSUPPORTED_PLAYER.build();
     }
+
     return null;
   }
 
@@ -469,6 +484,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     if (!url || direct) {
       return null;
     }
+
     final boolean preparing = this.manager.isPreparing(Capability.YT_DLP);
     return preparing ? Message.YTDLP_PREPARING.build() : null;
   }
@@ -479,6 +495,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final String[] ytdlpArguments = request.getYtdlpArguments();
     final SourceSelection selection = this.selectSources(mrl, ytdlpArguments);
     this.manager.checkStart();
+
     if (selection == null) {
       return false;
     }
@@ -493,7 +510,9 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
         this.manager.clearCurrentVideo();
         return false;
       }
+
       TaskUtils.runOnMainThread(this.plugin, () -> this.showHologramIfCurrent(generation, dump));
+
       return true;
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
@@ -626,6 +645,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     if (source instanceof final UriSource page && !page.isDirect()) {
       return this.resolveWithYtdlp(page, ytdlpArguments);
     }
+
     final UrlParseDump dump = this.describeDirectSource(source, mrl);
     return new SourceSelection(source, null, dump);
   }
@@ -642,15 +662,18 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
       final String format = ffmpegSource.getFormat();
       return this.createDump(input, "FFmpeg input " + format);
     }
+
     if (source instanceof final DeviceSource device) {
       final int deviceId = device.getDeviceId();
       return this.createDump("Device " + deviceId, "Video from a capture device");
     }
+
     if (source instanceof final FileSource file) {
       final Path path = file.getPath();
       final String fileName = IoUtils.getName(path);
       return this.createDump(fileName, "Video from a file");
     }
+
     final String fileName = IoUtils.getFileNameFromUrl(mrl);
     return this.createDump(fileName, "Video from a URL");
   }

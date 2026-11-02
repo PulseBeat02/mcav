@@ -42,6 +42,7 @@ public final class ScoreboardArguments {
    */
   public static boolean isTooTall(final String resolution) {
     Preconditions.checkNotNull(resolution, "Resolution must not be null!");
+
     final Pair<Integer, Integer> dimensions;
     try {
       dimensions = ArgumentUtils.parseDimensions(resolution);

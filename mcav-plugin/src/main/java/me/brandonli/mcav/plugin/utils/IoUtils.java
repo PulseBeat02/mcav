@@ -56,6 +56,7 @@ public final class IoUtils {
    */
   public static InputStream getResourceAsStream(final String path) {
     Preconditions.checkNotNull(path, "Path must not be null!");
+
     final Class<IoUtils> utilsClass = IoUtils.class;
     final ClassLoader nullableLoader = utilsClass.getClassLoader();
     final ClassLoader loader = requireNonNull(nullableLoader);
@@ -65,6 +66,7 @@ public final class IoUtils {
       final String message = "Resource %s does not exist!".formatted(path);
       throw new NullPointerException(message);
     }
+
     return stream;
   }
 }

@@ -130,6 +130,7 @@ public final class VideoBlockCommand extends AbstractVideoCommand {
     final BlockConfiguration configuration = (BlockConfiguration) configurationProvider.buildConfiguration(resolution);
     final FunctionalVideoFilter result = new BlockResult(configuration);
     this.manager.startFilter(result);
+
     return VideoPipelineStep.of(result);
   }
 
