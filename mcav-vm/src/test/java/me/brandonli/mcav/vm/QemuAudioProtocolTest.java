@@ -250,7 +250,7 @@ final class QemuAudioProtocolTest {
       QemuAudioProtocol.negotiateSecurity(this.input(refusal), new DataOutputStream(new ByteArrayOutputStream()), "")
     );
     final String refusedMessage = refused.getMessage();
-    assertEquals("VNC server refused the connection because of \"full\"!", refusedMessage);
+    assertEquals("Because of \"full\", VNC server refused the connection!", refusedMessage);
 
     final ProtocolException password = assertThrows(ProtocolException.class, () ->
       QemuAudioProtocol.negotiateSecurity(

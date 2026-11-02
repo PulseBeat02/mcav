@@ -137,12 +137,12 @@ public final class FakeProcess extends Process {
   public boolean waitFor(final long timeout, final TimeUnit unit) throws InterruptedException {
     Preconditions.checkNotNull(unit, "Unit must not be null!");
     if (this.interruptsWaits) {
-      throw new InterruptedException("interrupted on purpose!");
+      throw new InterruptedException("Interrupted on purpose!");
     }
 
     if (this.interruptsFirstWait) {
       this.interruptsFirstWait = false;
-      throw new InterruptedException("the first wait is interrupted on purpose!");
+      throw new InterruptedException("The first wait is interrupted on purpose!");
     }
 
     final int codeOnWait = this.exitCodeOnWait;
@@ -158,7 +158,7 @@ public final class FakeProcess extends Process {
   @Override
   public int exitValue() {
     if (this.exited.getCount() > 0) {
-      throw new IllegalThreadStateException("process has not exited!");
+      throw new IllegalThreadStateException("Process has not exited!");
     }
 
     return this.exitCode;

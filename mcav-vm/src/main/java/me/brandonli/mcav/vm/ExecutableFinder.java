@@ -36,6 +36,8 @@ import java.util.regex.Pattern;
 import me.brandonli.mcav.utils.os.Os;
 import me.brandonli.mcav.utils.os.OsUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Finds programs the way a shell does, and in the folders package managers install them to when those are missing
@@ -57,6 +59,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * program. Found programs are returned as absolute paths.
  */
 public final class ExecutableFinder {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(ExecutableFinder.class);
 
   private static final List<String> WINDOWS_EXTENSIONS = List.of(".com", ".exe", ".bat", ".cmd");
   private static final Path SYSTEM_ROOT = Path.of("/");
@@ -103,8 +107,8 @@ public final class ExecutableFinder {
    * @throws NullPointerException if {@code name} is null
    */
   public Optional<Path> find(final String name) {
-    Preconditions.checkNotNull(name, "Name must not be null");
-    Preconditions.checkArgument(!name.isBlank(), "Name must not be blank");
+    Preconditions.checkNotNull(name, "Name must not be null!");
+    Preconditions.checkArgument(!name.isBlank(), "Name must not be blank!");
 
     final Path direct = Path.of(name);
     final Path parent = direct.getParent();
@@ -254,6 +258,7 @@ public final class ExecutableFinder {
       final List<String> lines = Files.readAllLines(file);
       return toDirectories(lines);
     } catch (final IOException exception) {
+      LOGGER.debug("Could not read the paths file {}, skipping it.", file, exception);
       return List.of();
     }
   }

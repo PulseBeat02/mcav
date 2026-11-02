@@ -136,7 +136,7 @@ final class QemuProcessRecords {
     try {
       return this.reapOne(record);
     } catch (final IOException exception) {
-      LOGGER.warn("The record {} of a QEMU process could not be read.", record, exception);
+      LOGGER.warn("The record {} of a QEMU process could not be read or deleted.", record, exception);
       return 0;
     }
   }

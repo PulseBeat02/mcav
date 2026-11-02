@@ -66,7 +66,7 @@ public final class ExecutableNotInPathException extends VmException {
 
     final Os os = platform.getOs();
     final Arch arch = platform.getArch();
-    final String message = "Program %s is not installed or not on the PATH, and MCAV cannot install it on %s %s!".formatted(
+    final String message = "Program %s is not installed or not on the PATH, and on %s %s MCAV cannot install it!".formatted(
       executable,
       os,
       arch

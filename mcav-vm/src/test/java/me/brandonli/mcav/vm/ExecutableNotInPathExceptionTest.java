@@ -55,7 +55,7 @@ final class ExecutableNotInPathExceptionTest {
     final ExecutableNotInPathException exception = new ExecutableNotInPathException(PROGRAM, UNSUPPORTED_PLATFORM);
 
     final String message = exception.getMessage();
-    assertEquals("Program qemu-system-riscv64 is not installed or not on the PATH, and MCAV cannot install it on FREEBSD ARM!", message);
+    assertEquals("Program qemu-system-riscv64 is not installed or not on the PATH, and on FREEBSD ARM MCAV cannot install it!", message);
   }
 
   @Test

@@ -106,7 +106,7 @@ public final class VmModule implements MCAVModule {
     }
 
     final Path path = qemu.orElseThrow();
-    LOGGER.info("QEMU for x86-64 guests is available at {}.", path);
+    LOGGER.info("QEMU at {} is available for x86-64 guests.", path);
   }
 
   private void logMissingQemu(final String command) {

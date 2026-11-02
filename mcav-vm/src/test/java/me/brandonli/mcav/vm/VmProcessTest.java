@@ -261,6 +261,11 @@ final class VmProcessTest {
     return command;
   }
 
+  private String joinLines(final String... lines) {
+    final String separator = System.lineSeparator();
+    return String.join(separator, lines);
+  }
+
   private List<String> defaults() {
     final int display = this.port - VmProcess.FIRST_VNC_PORT;
     return List.of(
@@ -362,7 +367,8 @@ final class VmProcessTest {
     final VmProcess process = this.reachable(Os.WINDOWS, failed, failedAgain);
     final VmException exception = assertThrows(VmException.class, process::start);
     final String message = exception.getMessage();
-    assertEquals("QEMU exited with code 2, printing \"could not open disk image alpine.qcow2\"!", message);
+    final String expected = this.joinLines("QEMU exited with code 2!", "could not open disk image alpine.qcow2");
+    assertEquals(expected, message);
   }
 
   @Test
@@ -373,7 +379,8 @@ final class VmProcessTest {
     final String message = exception.getMessage();
     final int launches = this.commands.size();
     final boolean alive = process.isAlive();
-    assertEquals("QEMU exited with code 1, printing \"could not open disk image alpine.qcow2\"!", message);
+    final String expected = this.joinLines("QEMU exited with code 1!", "could not open disk image alpine.qcow2");
+    assertEquals(expected, message);
     assertEquals(1, launches);
     assertFalse(alive);
   }
@@ -407,7 +414,8 @@ final class VmProcessTest {
     final VmException exception = assertThrows(VmException.class, process::start);
     final String message = exception.getMessage();
     final int launches = this.commands.size();
-    assertEquals("QEMU exited with code 3, printing \"tcg accel failed to start\"!", message);
+    final String expected = this.joinLines("QEMU exited with code 3!", "tcg accel failed to start");
+    assertEquals(expected, message);
     assertEquals(1, launches);
   }
 
@@ -692,7 +700,7 @@ final class VmProcessTest {
     final VmException failure = assertThrows(VmException.class, process::start);
     final String message = failure.getMessage();
     final boolean alive = process.isAlive();
-    assertEquals("Password of the display could not be written because of \"disk full!\"!", message);
+    assertEquals("Because of \"disk full!\", the password of the display could not be written!", message);
     assertFalse(alive);
   }
 
@@ -1126,7 +1134,7 @@ final class VmProcessTest {
     final String message = exception.getMessage();
     final Throwable cause = exception.getCause();
     final boolean alive = process.isAlive();
-    assertEquals("QEMU could not be started because of \"CreateProcess error=2!\"!", message);
+    assertEquals("Because of \"CreateProcess error=2!\", QEMU could not be started!", message);
     assertSame(failure, cause);
     assertFalse(alive);
   }
@@ -1170,7 +1178,7 @@ final class VmProcessTest {
 
     final String separator = System.lineSeparator();
     final String lines = String.join(separator, kept);
-    final String expected = "QEMU exited with code 2, printing \"%s\"!".formatted(lines);
+    final String expected = this.joinLines("QEMU exited with code 2!", lines);
     assertEquals(expected, message);
   }
 
@@ -1183,7 +1191,7 @@ final class VmProcessTest {
     final VmProcess process = this.reachable(Os.FREEBSD, failed);
     final VmException exception = assertThrows(VmException.class, process::start);
     final String message = exception.getMessage();
-    final String expected = "QEMU exited with code 1, printing \"%s\"!".formatted(suffix);
+    final String expected = this.joinLines("QEMU exited with code 1!", suffix);
     assertEquals(expected, message);
   }
 
@@ -1193,8 +1201,7 @@ final class VmProcessTest {
     final VmProcess process = this.reachable(Os.FREEBSD, failed);
     final VmException exception = assertThrows(VmException.class, process::start);
     final String message = exception.getMessage();
-    final String separator = System.lineSeparator();
-    final String expected = "QEMU exited with code 1, printing \"first%slast words\"!".formatted(separator);
+    final String expected = this.joinLines("QEMU exited with code 1!", "first", "last words");
     assertEquals(expected, message);
   }
 
@@ -1206,8 +1213,7 @@ final class VmProcessTest {
     final VmProcess process = this.reachable(Os.FREEBSD, failed);
     final VmException exception = assertThrows(VmException.class, process::start);
     final String message = exception.getMessage();
-    final String separator = System.lineSeparator();
-    final String expected = "QEMU exited with code 1, printing \"first%ssecond\"!".formatted(separator);
+    final String expected = this.joinLines("QEMU exited with code 1!", "first", "second");
     assertEquals(expected, message);
   }
 
@@ -1219,7 +1225,8 @@ final class VmProcessTest {
     final VmProcess process = this.reachable(Os.FREEBSD, failed);
     final VmException exception = assertThrows(VmException.class, process::start);
     final String message = exception.getMessage();
-    assertEquals("QEMU exited with code 1, printing \"Gerät nicht gefunden: 磁盘\"!", message);
+    final String expected = this.joinLines("QEMU exited with code 1!", "Gerät nicht gefunden: 磁盘");
+    assertEquals(expected, message);
   }
 
   @Test
@@ -1234,8 +1241,8 @@ final class VmProcessTest {
     final boolean alive = process.isAlive();
     final int destroyCalls = qemu.getDestroyCalls();
     final boolean qemuAlive = qemu.isAlive();
-    final String expected =
-      "QEMU display on port %s did not become reachable, and QEMU printed \"VNC server running on 127.0.0.1:5999\"!".formatted(port);
+    final String headline = "QEMU display on port %s did not become reachable!".formatted(port);
+    final String expected = this.joinLines(headline, "VNC server running on 127.0.0.1:5999");
     assertEquals(expected, message);
     assertFalse(alive);
     assertEquals(1, destroyCalls);
@@ -1284,7 +1291,7 @@ final class VmProcessTest {
     }
 
     final String message = exception.getMessage();
-    final boolean messageStartsWith = message.startsWith("QEMU exited with code 4, printing ");
+    final boolean messageStartsWith = message.startsWith("QEMU exited with code 4!");
     assertTrue(messageStartsWith, message);
   }
 
@@ -1572,7 +1579,7 @@ final class VmProcessTest {
     final VmException exception = assertThrows(VmException.class, process::start);
     final String message = exception.getMessage();
     final int launches = this.commands.size();
-    final boolean namesPort = message.startsWith("VNC port %s is already in use".formatted(this.port));
+    final boolean namesPort = message.endsWith(", VNC port %s is already in use!".formatted(this.port));
     final boolean otherOpen = !other.isClosed();
     assertTrue(namesPort, message);
     assertEquals(0, launches);
@@ -1587,7 +1594,8 @@ final class VmProcessTest {
     final VmException exception = assertThrows(VmException.class, process::start);
     final String message = exception.getMessage();
     final boolean alive = process.isAlive();
-    assertEquals("QEMU exited with code 1, printing \"Failed to start VNC server: address in use\"!", message);
+    final String expected = this.joinLines("QEMU exited with code 1!", "Failed to start VNC server: address in use");
+    assertEquals(expected, message);
     assertFalse(alive);
   }
 

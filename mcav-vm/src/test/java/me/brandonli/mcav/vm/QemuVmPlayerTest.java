@@ -128,7 +128,7 @@ final class QemuVmPlayerTest {
 
   private static final Platform LINUX_X86_64 = Platform.ofPlatform(Os.LINUX, Arch.X86, Bits.BITS_64);
 
-  private static final String REPORT_SEPARATOR = ": ";
+  private static final String REPORT_SEPARATOR = " Cause: ";
 
   private static final String RELEASE_FAILURE = "VNC release failed!";
   private static final String TERMINATION_FAILURE = "process termination failed!";
@@ -440,7 +440,7 @@ final class QemuVmPlayerTest {
     final long outputsBefore = this.countOutputThreads();
     final boolean started = this.startDefaultMachine(player);
     final List<String> expectedReports = List.of(
-      "The sound of the virtual machine could not be connected, it runs without sound: connection refused!"
+      "The sound of the virtual machine could not be connected, so it runs without sound. Cause: connection refused!"
     );
     final long outputsAfter = this.countOutputThreads();
     assertTrue(started);

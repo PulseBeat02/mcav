@@ -72,7 +72,7 @@ final class VmAudioClientTest {
   private static final byte[] AUDIO_END = { (byte) 255, 1, 0, 0 };
   private static final byte[] SAMPLES = { 1, 2, 3, 4 };
 
-  private static final String CONNECTION_ENDED = "The audio connection of the virtual machine ended";
+  private static final String CONNECTION_ENDED = "The audio connection of the virtual machine ended.";
 
   private static final long TIMEOUT_SECONDS = 10L;
 
@@ -199,7 +199,7 @@ final class VmAudioClientTest {
     });
     final ProtocolException refused = assertThrows(ProtocolException.class, this::connect);
     final String message = refused.getMessage();
-    assertEquals("VNC server refused the connection because of \"Authentication failed\"!", message);
+    assertEquals("Because of \"Authentication failed\", VNC server refused the connection!", message);
 
     served.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
   }

@@ -108,7 +108,7 @@ final class QemuAudioProtocol {
 
   private static final int SKIP_BUFFER_BYTES = 8192;
 
-  private static final String REFUSED_MESSAGE = "VNC server refused the connection because of \"%s\"!";
+  private static final String REFUSED_MESSAGE = "Because of \"%s\", VNC server refused the connection!";
 
   private QemuAudioProtocol() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");

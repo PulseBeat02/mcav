@@ -286,7 +286,7 @@ final class VmProcess {
       return folder;
     } catch (final IOException exception) {
       final String reason = exception.getMessage();
-      final String message = "Password of the display could not be written because of \"%s\"!".formatted(reason);
+      final String message = "Because of \"%s\", the password of the display could not be written!".formatted(reason);
       throw new VmException(message, exception);
     }
   }
@@ -385,7 +385,7 @@ final class VmProcess {
       probe.bind(address);
     } catch (final IOException exception) {
       final String reason = exception.getMessage();
-      final String message = "VNC port %s is already in use because of \"%s\"!".formatted(port, reason);
+      final String message = "Because of \"%s\", VNC port %s is already in use!".formatted(reason, port);
       throw new VmException(message, exception);
     }
   }
@@ -402,7 +402,7 @@ final class VmProcess {
   private void launch(final @Nullable String accelerator, final Path passwordFile) {
     final List<String> command = this.buildCommand(accelerator, passwordFile);
     final String rendered = String.join(ARGUMENT_SEPARATOR, command);
-    LOGGER.debug("QEMU is started with the command line {}.", rendered);
+    LOGGER.debug("Command line {} starts QEMU.", rendered);
 
     final Process started = this.startQemu(command);
     this.process = started;
@@ -416,7 +416,7 @@ final class VmProcess {
       return this.launcher.launch(command);
     } catch (final IOException exception) {
       final String reason = exception.getMessage();
-      final String message = "QEMU could not be started because of \"%s\"!".formatted(reason);
+      final String message = "Because of \"%s\", QEMU could not be started!".formatted(reason);
       throw new VmException(message, exception);
     }
   }
@@ -640,7 +640,7 @@ final class VmProcess {
       return;
     }
 
-    LOGGER.debug("QEMU printed \"{}\".", line);
+    LOGGER.debug("QEMU printed \"{}\" on its output.", line);
     synchronized (this.outputTail) {
       this.outputTail.addLast(line);
       while (this.outputTail.size() > OUTPUT_TAIL_LINES) {
@@ -667,10 +667,10 @@ final class VmProcess {
       this.waitBeforeNextAttempt(started);
     }
 
-    final String output = this.getOutputTail();
+    final String headline = "QEMU display on port %s did not become reachable!".formatted(port);
+    final String message = this.appendOutputTail(headline);
     this.shutdown();
 
-    final String message = "QEMU display on port %s did not become reachable, and QEMU printed \"%s\"!".formatted(port, output);
     throw new VmException(message);
   }
 
@@ -682,10 +682,10 @@ final class VmProcess {
 
     final int exitCode = started.exitValue();
     this.awaitOutput();
-    final String output = this.getOutputTail();
     this.process = null;
 
-    final String message = "QEMU exited with code %s, printing \"%s\"!".formatted(exitCode, output);
+    final String headline = "QEMU exited with code %s!".formatted(exitCode);
+    final String message = this.appendOutputTail(headline);
     throw new VmException(message);
   }
 
@@ -723,11 +723,15 @@ final class VmProcess {
     }
   }
 
-  private String getOutputTail() {
-    final String separator = System.lineSeparator();
+  private String appendOutputTail(final String headline) {
+    final List<String> lines = new ArrayList<>();
+    lines.add(headline);
     synchronized (this.outputTail) {
-      return String.join(separator, this.outputTail);
+      lines.addAll(this.outputTail);
     }
+
+    final String separator = System.lineSeparator();
+    return String.join(separator, lines);
   }
 
   boolean isAlive() {

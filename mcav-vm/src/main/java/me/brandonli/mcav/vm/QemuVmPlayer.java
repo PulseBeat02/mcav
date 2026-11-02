@@ -243,7 +243,7 @@ public final class QemuVmPlayer implements VmPlayer {
       this.audioClient = this.audioConnector.connect(address, password, sink, this::report);
     } catch (final IOException exception) {
       this.disconnectAudio();
-      this.report("The sound of the virtual machine could not be connected, it runs without sound", exception);
+      this.report("The sound of the virtual machine could not be connected, so it runs without sound.", exception);
     }
   }
 

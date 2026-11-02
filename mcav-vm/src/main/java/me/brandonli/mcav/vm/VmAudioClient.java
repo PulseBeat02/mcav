@@ -140,7 +140,7 @@ final class VmAudioClient implements Closeable {
     } catch (final IOException | RuntimeException exception) {
       if (!this.closed) {
         closeQuietly(this.socket);
-        this.failures.accept("The audio connection of the virtual machine ended", exception);
+        this.failures.accept("The audio connection of the virtual machine ended.", exception);
       }
     }
   }
