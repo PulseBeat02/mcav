@@ -125,6 +125,11 @@ final class AbstractInstallerTest {
 
   private static final String MCAV_FOLDER_NAME = ".mcav";
   private static final String CACHE_FOLDER_NAME = "cache";
+  private static final String HOME_FILE_NAME = "home";
+  private static final String TEMPORARY_FOLDER_NAME = "temporary";
+  private static final String TEMPORARY_CACHE_ROOT_NAME = "mcav";
+
+  private static final String TEMPORARY_DIRECTORY_PROPERTY = "java.io.tmpdir";
 
   @TempDir
   private Path folder;
@@ -168,6 +173,29 @@ final class AbstractInstallerTest {
       assertEquals(defaultFolder, installerFolder);
       assertEquals(cachedFolder, defaultFolder);
       assertTrue(created);
+    }
+  }
+
+  @Test
+  void shouldInstallIntoTheTemporaryCacheWhenTheHomeCannotHoldIt(@TempDir final Path directory) throws IOException {
+    final Path home = directory.resolve(HOME_FILE_NAME);
+    Files.writeString(home, "home is a file");
+    final Path temporary = directory.resolve(TEMPORARY_FOLDER_NAME);
+
+    final String previousTemporary = System.getProperty(TEMPORARY_DIRECTORY_PROPERTY);
+    final String rawTemporary = temporary.toString();
+    System.setProperty(TEMPORARY_DIRECTORY_PROPERTY, rawTemporary);
+    try (final TemporaryUserHome _ = TemporaryUserHome.redirectTo(home)) {
+      final TestInstaller installer = new TestInstaller(NAME, new Download[0]);
+      final Path installerFolder = installer.getFolder();
+      final Path temporaryRoot = temporary.resolve(TEMPORARY_CACHE_ROOT_NAME);
+      final Path temporaryCache = temporaryRoot.resolve(CACHE_FOLDER_NAME);
+      final Path expected = temporaryCache.toAbsolutePath();
+      final boolean created = Files.isDirectory(installerFolder);
+      assertEquals(expected, installerFolder);
+      assertTrue(created);
+    } finally {
+      System.setProperty(TEMPORARY_DIRECTORY_PROPERTY, previousTemporary);
     }
   }
 
