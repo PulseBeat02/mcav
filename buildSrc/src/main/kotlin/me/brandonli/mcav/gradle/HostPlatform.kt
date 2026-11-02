@@ -95,7 +95,7 @@ class HostPlatform private constructor(val operatingSystem: String, val architec
          * @return the host platform
          */
         fun current(): HostPlatform {
-            return normalize(System.getProperty(OPERATING_SYSTEM_PROPERTY), System.getProperty(ARCHITECTURE_PROPERTY))
+            return this.normalize(System.getProperty(OPERATING_SYSTEM_PROPERTY), System.getProperty(ARCHITECTURE_PROPERTY))
         }
 
         /**

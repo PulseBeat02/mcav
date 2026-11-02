@@ -125,7 +125,7 @@ tasks.withType<Test>().configureEach {
         this.executable = HostPlatform.current().javaExecutable(testJavaHome.get())
     }
 
-    this.systemProperty(jqwikDatabaseProperty, "$jqwikDatabasePath-$name")
+    this.systemProperty(jqwikDatabaseProperty, "$jqwikDatabasePath-${this.name}")
     this.systemProperty(jqwikFailuresProperty, previousSeed)
 
     if (measuresSync) {
@@ -168,8 +168,8 @@ tasks.withType<Test>().matching { it.name in fuzzTaskNames }.configureEach {
     this.inputs.files(fuzzInputs)
         .withPropertyName("fuzzInputs")
         .withPathSensitivity(PathSensitivity.RELATIVE)
-    this.outputs.dir(layout.buildDirectory.dir("$jazzerPath/$name")).withPropertyName("jazzerDirectory")
-    this.systemProperty(jazzerBaseDirectoryProperty, "$jazzerBaseDirectoryPath/$name")
+    this.outputs.dir(layout.buildDirectory.dir("$jazzerPath/${this.name}")).withPropertyName("jazzerDirectory")
+    this.systemProperty(jazzerBaseDirectoryProperty, "$jazzerBaseDirectoryPath/${this.name}")
     this.systemProperty(testTemplateTimeoutProperty, replayTimeout)
     this.maxHeapSize = fuzzHeapSize
 }

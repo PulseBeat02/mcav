@@ -109,7 +109,7 @@ tasks.withType<JavaCompile>().configureEach {
     })
     this.options.errorprone {
         this.disableWarningsInGeneratedCode = true
-        error(*enforcedChecks.toTypedArray())
+        this.error(*enforcedChecks.toTypedArray())
         // the style guide keeps stateless private helpers as instance methods called with this.
         this.disable("MethodCanBeStatic")
     }

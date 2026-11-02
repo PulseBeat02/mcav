@@ -80,7 +80,7 @@ val pythonTest: TaskProvider<PythonTests> = tasks.register<PythonTests>("pythonT
     })
     this.serialTests.from(pythonSources.file(timingTestFile))
     this.sources.from(
-        fileTree(pythonSources) { exclude(pythonTestPattern, pythonCachePattern) },
+        fileTree(pythonSources) { this.exclude(pythonTestPattern, pythonCachePattern) },
         layout.projectDirectory.dir(testResourcePath),
         layout.projectDirectory.dir(packResourcePath),
         layout.settingsDirectory.dir(docsImagePath)

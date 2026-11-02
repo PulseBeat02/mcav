@@ -42,10 +42,10 @@ val unusedJavacvPresets: List<String> = listOf(
 
 configurations.api {
     dependencies.withType<ModuleDependency>().configureEach {
-        if (group == bytedecoGroup && name == javacvPlatformModule) {
+        if (this.group == bytedecoGroup && this.name == javacvPlatformModule) {
             for (preset in unusedJavacvPresets) {
-                exclude(group = bytedecoGroup, module = preset)
-                exclude(group = bytedecoGroup, module = "$preset$platformSuffix")
+                this.exclude(group = bytedecoGroup, module = preset)
+                this.exclude(group = bytedecoGroup, module = "$preset$platformSuffix")
             }
         }
     }
