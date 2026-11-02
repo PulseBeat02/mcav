@@ -3572,7 +3572,7 @@ def samples_draw_tree(arguments: argparse.Namespace) -> None:
         for axis in (top, bottom):
             axis.set_xlim(-SAMPLES_HALF_PIXEL, width - SAMPLES_HALF_PIXEL)
             axis.set_ylim(height - SAMPLES_HALF_PIXEL, -SAMPLES_HALF_PIXEL)
-        samples_finish(top, f"Frame {number} ({kind}): {frame.total:,} bytes, {len(frame.leaves):,} leaves")
+        samples_finish(top, f"Frame {number} ({kind}): {frame.frame_bytes:,} bytes, {len(frame.leaves):,} leaves")
         samples_finish(bottom, f"The leaves of frame {number} by mode")
     handles: list[Patch] = [
         Patch(facecolor=colour, edgecolor=CHARTS_SECONDARY, linewidth=CHARTS_FINE_LINE_WIDTH, label=name)
@@ -3589,7 +3589,7 @@ def samples_draw_tree(arguments: argparse.Namespace) -> None:
             size: sum(1 for leaf in frame.leaves if leaf.size == size) for size in mcv2_reference.LEAF_SIZES
         }
         print(
-            f"frame {number}: keyframe={frame.keyframe} bytes={frame.total} leaves={len(frame.leaves)} by size {sizes} by mode "
+            f"frame {number}: keyframe={frame.keyframe} bytes={frame.frame_bytes} leaves={len(frame.leaves)} by size {sizes} by mode "
             + str(
                 {
                     name: sum(1 for leaf in frame.leaves if leaf.mode == mode)
@@ -3742,13 +3742,13 @@ def samples_print_bytes(arguments: argparse.Namespace) -> None:
     ):
         parts.append((name, offset, offset + length))
         offset += length
-    parts.append(("records", offset, frame.total))
+    parts.append(("records", offset, frame.frame_bytes))
     for name, start, end in parts:
         print(f"{name} ({end - start} bytes, offsets {start}-{end - 1}):")
         for line in range(start, end, SAMPLES_HEXDUMP_WIDTH):
             print(f"  {line:5d}  " + WORD_SEPARATOR.join(f"{value:02x}" for value in data[line : min(line + SAMPLES_HEXDUMP_WIDTH, end)]))
     print(
-        f"width {frame.width} height {frame.height} keyframe {frame.keyframe} frame id {frame.frame_id} reference id {frame.reference_id} payload start {frame.payload_start} length {frame.total}"
+        f"width {frame.width} height {frame.height} keyframe {frame.keyframe} frame id {frame.frame_id} reference id {frame.reference_id} payload start {frame.payload_start} length {frame.frame_bytes}"
     )
     print(
         f"masks {[hex(mask) for mask in frame.masks]} directory {list(frame.directory)} levels {frame.level_counts} walk {[(value & WALK_CURSOR_MASK, value >> WALK_CURSOR_BITS) for value in frame.walk]}"

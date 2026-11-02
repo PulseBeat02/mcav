@@ -101,18 +101,18 @@ class FixtureCoverageTest(unittest.TestCase):
         maximum_splits: int = max(checkpoint >> mcv2_reference.WALK_CURSOR_BITS for checkpoint in checkpoints)
         self.assertGreater(maximum_splits, 20000)
 
-        maximum_length: int = max(frame.total for frame in self.frames)
+        maximum_length: int = max(frame.frame_bytes for frame in self.frames)
         self.assertEqual(mcv2_reference.MAXIMUM_FRAME_BYTES, maximum_length)
 
     def test_should_commit_edge_streams_equal_to_the_deterministic_serializer_output(self) -> None:
-        root: Path = RESOURCES / EDGE_FOLDER
-        committed: set[str] = {path.name for path in root.glob(STREAM_PATTERN)}
+        edge_folder: Path = RESOURCES / EDGE_FOLDER
+        committed: set[str] = {path.name for path in edge_folder.glob(STREAM_PATTERN)}
         self.assertEqual(set(self.streams), committed)
 
         for name, frames in self.streams.items():
             with self.subTest(stream=name):
                 archive: bytes = mcv2_tools.archive_bytes(frames)
-                self.assertEqual((root / name).read_bytes(), archive)
+                self.assertEqual((edge_folder / name).read_bytes(), archive)
 
     def test_should_reproduce_and_decode_random_streams(self) -> None:
         left: list[bytes] = mcv2_tools.edge_streams_random_stream(random.Random(57))
@@ -168,17 +168,17 @@ class FixtureToolTest(unittest.TestCase):
         new_bytes: bytes = (output / NEW_STREAM).read_bytes()
         self.assertEqual(archive, new_bytes)
 
-        pages: Any = json.loads((output / PAGES_NAME).read_text())
-        source: Any = pages['source']
+        table: Any = json.loads((output / PAGES_NAME).read_text())
+        source: Any = table['source']
         self.assertEqual('committed v3 conformance streams', source)
 
-        symbol_bits: Any = pages[SYMBOL_BITS_KEY]
+        symbol_bits: Any = table[SYMBOL_BITS_KEY]
         self.assertEqual(mcv2_reference.SYMBOL_BITS, symbol_bits)
 
-        frame_count: int = len(pages[FRAMES_KEY])
+        frame_count: int = len(table[FRAMES_KEY])
         self.assertEqual(4, frame_count)
 
-        streams: set[Any] = {entry[STREAM_KEY] for entry in pages[FRAMES_KEY]}
+        streams: set[Any] = {entry[STREAM_KEY] for entry in table[FRAMES_KEY]}
         self.assertEqual({'conformance/new.mcs'}, streams)
 
     def test_should_only_decode_encoder_fixtures_and_never_rewrite_them(self) -> None:

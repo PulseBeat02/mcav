@@ -50,7 +50,7 @@ class CaptureCheckTest(unittest.TestCase):
         status: str | int | None
         result: dict[str, float | int | str]
         text: str
-        status, result, text = self.report([picture, picture], [picture, picture])
+        status, result, text = self.run_capture_check([picture, picture], [picture, picture])
         self.assertEqual(0, status)
 
         exact_captures: float | int | str = result[EXACT_CAPTURES_KEY]
@@ -76,7 +76,7 @@ class CaptureCheckTest(unittest.TestCase):
         status: str | int | None
         result: dict[str, float | int | str]
         _: str
-        status, result, _ = self.report([first, first, second], [first, first])
+        status, result, _ = self.run_capture_check([first, first, second], [first, first])
         self.assertEqual(1, status)
 
         exact_captures: float | int | str = result[EXACT_CAPTURES_KEY]
@@ -89,13 +89,13 @@ class CaptureCheckTest(unittest.TestCase):
         status: str | int | None
         result: dict[str, float | int | str]
         _: str
-        status, result, _ = self.report([first, second], [first[:SIDE], second[:SIDE]])
+        status, result, _ = self.run_capture_check([first, second], [first[:SIDE], second[:SIDE]])
         self.assertEqual(0, status)
 
         ambiguous_reference_frames: float | int | str = result[AMBIGUOUS_REFERENCE_FRAMES_KEY]
         self.assertEqual(2, ambiguous_reference_frames)
 
-    def report(
+    def run_capture_check(
         self, references: list[numpy.ndarray], captures: list[numpy.ndarray]
     ) -> tuple[str | int | None, dict[str, float | int | str], str]:
         with tempfile.TemporaryDirectory() as directory:

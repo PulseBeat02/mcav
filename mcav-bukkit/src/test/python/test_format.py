@@ -42,7 +42,7 @@ class FormatTest(unittest.TestCase):
             frame.reference_id,
             frame.keyframe,
             frame.payload_start,
-            frame.total,
+            frame.frame_bytes,
         )
         self.assertEqual((1, 1, 9, 9, True, 45, 48), header)
 
@@ -142,8 +142,8 @@ class FormatTest(unittest.TestCase):
         length: int = len(data)
         self.assertEqual(mcv2_reference.MAXIMUM_FRAME_BYTES, length)
 
-        total: int = parse_frame(data).total
-        self.assertEqual(mcv2_reference.MAXIMUM_FRAME_BYTES, total)
+        frame_bytes: int = parse_frame(data).frame_bytes
+        self.assertEqual(mcv2_reference.MAXIMUM_FRAME_BYTES, frame_bytes)
 
         with self.assertRaisesRegex(ValueError, 'frame length'):
             parse_frame(data + b'\0')

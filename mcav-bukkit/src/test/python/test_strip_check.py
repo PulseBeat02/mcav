@@ -25,7 +25,7 @@ from mcv2_reference import pack_frame
 import mcv2_tools
 
 
-class StripTest(unittest.TestCase):
+class StripCheckTest(unittest.TestCase):
     def test_should_return_the_exact_six_bit_symbols_of_an_rgb_strip_and_read_its_page(self) -> None:
         frame: bytes = pack_frame(1, 1, 7, 7, {})
         symbols: bytes = make_pages(frame, 5)[0]
@@ -42,8 +42,8 @@ class StripTest(unittest.TestCase):
         payload: bytes = page.payload
         self.assertEqual(frame, payload)
 
-        identifiers: tuple[int, int, int] = (page.stream_id, page.frame_id, page.symbol_bits)
-        self.assertEqual((5, 7, 6), identifiers)
+        fields: tuple[int, int, int] = (page.stream_id, page.frame_id, page.symbol_bits)
+        self.assertEqual((5, 7, 6), fields)
 
     def test_should_reject_invalid_and_truncated_strip_pages(self) -> None:
         for symbols in (numpy.zeros(0, numpy.uint8), numpy.zeros(42, numpy.uint8), numpy.zeros(mcv2_reference.PAGE_SYMBOLS, numpy.uint8)):

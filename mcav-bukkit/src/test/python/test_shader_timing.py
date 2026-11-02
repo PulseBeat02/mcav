@@ -181,10 +181,10 @@ def run(
         (FakeChain,),
         dict(missed=frozenset(missed), again=frozenset(again), changed=frozenset(changed), received=received),
     )
-    argv: list[Any] = [PROGRAM, STREAM_NAME, *options]
+    arguments: list[str] = [PROGRAM, STREAM_NAME, *options]
     with (
         mock.patch.dict(sys.modules, {MODERNGL_MODULE: moderngl}),
-        mock.patch.object(sys, "argv", argv),
+        mock.patch.object(sys, "argv", arguments),
         mock.patch.object(mcv2_tools, "make_pages", lambda data, stream_id, symbol_bits: [data]),
         mock.patch.object(mcv2_tools, "TimedShaderChain", chain),
         mock.patch.object(

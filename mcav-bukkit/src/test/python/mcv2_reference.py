@@ -160,7 +160,7 @@ class Frame:
     reference_id: int
     keyframe: bool
     payload_start: int
-    total: int
+    frame_bytes: int
     leaves: tuple[Leaf, ...]
     masks: tuple[int, ...]
     directory: tuple[int, ...]
@@ -196,10 +196,10 @@ class MapCharge(Enum):
 class _FrameIndex:
     masks: tuple[int, ...]
     directory: tuple[int, ...]
-    levels: tuple[int, int, int]
+    level_counts: tuple[int, int, int]
     descriptors: bytes
     walk: tuple[int, ...]
-    payload: int
+    payload_start: int
 
 
 # exactly the syntax of spec section 9; anything else raises ValueError
@@ -217,26 +217,26 @@ def parse_frame(data: bytes) -> Frame:
     offsets, records = _read_records(data, frame_index, keyframe)
 
     columns: int = _divide_rounding_up(width, SUPERBLOCK_SIZE)
-    root_indexes: list[int] = [root for root in range(root_count) if _is_present(frame_index.masks, root)]
+    present_roots: list[int] = [root for root in range(root_count) if _is_present(frame_index.masks, root)]
     absent_roots: list[int] = [root for root in range(root_count) if not _is_present(frame_index.masks, root)]
     coordinates: list[tuple[int, int, int]]
     first_children: dict[int, int]
-    coordinates, first_children = _place_descriptors(frame_index.descriptors, root_indexes, columns)
+    coordinates, first_children = _place_descriptors(frame_index.descriptors, present_roots, columns)
     present_leaves: list[Leaf] = _present_leaves(frame_index.descriptors, coordinates, offsets, records)
     absent_leaves: list[Leaf] = [_absent_leaf(root, columns) for root in absent_roots]
-    roots: dict[int, Node] = _build_roots(frame_index.descriptors, records, first_children, root_indexes)
+    roots: dict[int, Node] = _build_roots(frame_index.descriptors, records, first_children, present_roots)
     return Frame(
         width,
         height,
         frame_id,
         reference_id,
         keyframe,
-        frame_index.payload,
+        frame_index.payload_start,
         len(data),
         tuple(present_leaves + absent_leaves),
         frame_index.masks,
         frame_index.directory,
-        frame_index.levels,
+        frame_index.level_counts,
         frame_index.descriptors,
         frame_index.walk,
         roots,
@@ -300,21 +300,21 @@ def _read_index(data: bytes, root_count: int) -> _FrameIndex:
     directory: tuple[int, ...] = _read_words(data, directory_offset, checkpoints)
     _check_presence(masks, directory, root_count)
 
-    levels: tuple[Any, ...] = LEVEL_COUNTS.unpack_from(data, counts_offset)
-    level_zero_count: Any = levels[0]
+    level_counts: tuple[Any, ...] = LEVEL_COUNTS.unpack_from(data, counts_offset)
+    level_zero_count: Any = level_counts[0]
     present: int = sum(mask.bit_count() for mask in masks)
     _require(level_zero_count == present, "The level 0 count differs from the presence masks!")
 
-    count: Any = sum(levels)
-    walk_count: int = _divide_rounding_up(count, WALK_STRIDE)
+    descriptor_count: Any = sum(level_counts)
+    walk_count: int = _divide_rounding_up(descriptor_count, WALK_STRIDE)
     descriptor_offset: int = counts_offset + LEVEL_COUNTS.size
-    walk_offset: Any = descriptor_offset + count
-    payload: Any = walk_offset + WORD_BYTES * walk_count
-    _require(payload <= len(data), "The frame has truncated descriptors or walk!")
+    walk_offset: Any = descriptor_offset + descriptor_count
+    payload_start: Any = walk_offset + WORD_BYTES * walk_count
+    _require(payload_start <= len(data), "The frame has truncated descriptors or walk!")
 
     descriptors: bytes = data[descriptor_offset:walk_offset]
     walk: tuple[int, ...] = _read_words(data, walk_offset, walk_count)
-    return _FrameIndex(masks, directory, levels, descriptors, walk, payload)
+    return _FrameIndex(masks, directory, level_counts, descriptors, walk, payload_start)
 
 
 def _read_words(data: bytes, offset: int, count: int) -> tuple[int, ...]:
@@ -350,12 +350,12 @@ def _read_records(data: bytes, frame_index: _FrameIndex, keyframe: bool) -> tupl
         if position % WALK_STRIDE == 0:
             checkpoint: int = frame_index.walk[position // WALK_STRIDE]
             _require(checkpoint == _walk_checkpoint(cursor, splits), "The frame has a walk checkpoint mismatch!")
-        size: int = _block_size(position, frame_index.levels)
+        size: int = _block_size(position, frame_index.level_counts)
         mode: int
         quantizer: int
         mode, quantizer = _unpack_descriptor(descriptor)
         _check_descriptor(mode, quantizer, size, keyframe)
-        offset: int = frame_index.payload + cursor
+        offset: int = frame_index.payload_start + cursor
         record: bytes = _read_record(data, offset, mode, size)
         offsets.append(offset)
         records.append(record)
@@ -363,8 +363,8 @@ def _read_records(data: bytes, frame_index: _FrameIndex, keyframe: bool) -> tupl
         if mode == SPLIT:
             splits += 1
 
-    _check_split_children(frame_index.descriptors, frame_index.levels)
-    _require(frame_index.payload + cursor == len(data), "The records do not end at the end of the frame!")
+    _check_split_children(frame_index.descriptors, frame_index.level_counts)
+    _require(frame_index.payload_start + cursor == len(data), "The records do not end at the end of the frame!")
 
     return offsets, records
 
@@ -373,11 +373,11 @@ def _walk_checkpoint(cursor: int, splits: int) -> int:
     return cursor | (splits << WALK_CURSOR_BITS)
 
 
-def _block_size(position: int, levels: tuple[int, int, int]) -> int:
+def _block_size(position: int, level_counts: tuple[int, int, int]) -> int:
     level_zero_count: int
     level_one_count: int
     _: int
-    level_zero_count, level_one_count, _ = levels
+    level_zero_count, level_one_count, _ = level_counts
     if position < level_zero_count:
         return SUPERBLOCK_SIZE
 
@@ -429,11 +429,11 @@ def _record_length(mode: int, size: int) -> int:
     return COMPACT_BYTES
 
 
-def _check_split_children(descriptors: bytes, levels: tuple[int, int, int]) -> None:
+def _check_split_children(descriptors: bytes, level_counts: tuple[int, int, int]) -> None:
     level_zero_count: int
     level_one_count: int
     level_two_count: int
-    level_zero_count, level_one_count, level_two_count = levels
+    level_zero_count, level_one_count, level_two_count = level_counts
     level_two_start: int = level_zero_count + level_one_count
     level_zero_splits: int = _count_splits(descriptors[:level_zero_count])
     level_one_splits: int = _count_splits(descriptors[level_zero_count:level_two_start])
@@ -452,9 +452,9 @@ def _is_present(masks: Sequence[int], root: int) -> bool:
 
 
 def _place_descriptors(
-    descriptors: bytes, root_indexes: list[int], columns: int
+    descriptors: bytes, present_roots: list[int], columns: int
 ) -> tuple[list[tuple[int, int, int]], dict[int, int]]:
-    coordinates: list[tuple[int, int, int]] = [_root_coordinates(root, columns) for root in root_indexes]
+    coordinates: list[tuple[int, int, int]] = [_root_coordinates(root, columns) for root in present_roots]
     first_children: dict[int, int] = {}
     for position, descriptor in enumerate(descriptors):
         mode: int
@@ -509,7 +509,7 @@ def _absent_leaf(root: int, columns: int) -> Leaf:
 
 
 def _build_roots(
-    descriptors: bytes, records: list[bytes], first_children: dict[int, int], root_indexes: list[int]
+    descriptors: bytes, records: list[bytes], first_children: dict[int, int], present_roots: list[int]
 ) -> dict[int, Node]:
     nodes: dict[int, Node] = {}
     for position in reversed(range(len(descriptors))):
@@ -522,12 +522,12 @@ def _build_roots(
             continue
         nodes[position] = Node(mode, quantizer, records[position])
 
-    return {root: nodes[position] for position, root in enumerate(root_indexes)}
+    return {root: nodes[position] for position, root in enumerate(present_roots)}
 
 
 def pack_frame(width: int, height: int, frame_id: int, reference_id: int, roots: Mapping[int, Node]) -> bytes:
     _require(_is_dimension_valid(width) and _is_dimension_valid(height), INVALID_DIMENSIONS_MESSAGE)
-    _require(_is_id_valid(frame_id) and _is_id_valid(reference_id), "The frame and reference ids must be u32!")
+    _require(_is_id_valid(frame_id) and _is_id_valid(reference_id), "The frame and reference ids must be unsigned 32-bit values!")
 
     keyframe: bool = frame_id == reference_id
     root_count: int = _root_count(width, height)
@@ -540,12 +540,12 @@ def pack_frame(width: int, height: int, frame_id: int, reference_id: int, roots:
     index: bytes = (
         _pack_words(masks)
         + _pack_words(directory)
-        + LEVEL_COUNTS.pack(*writer.levels)
+        + LEVEL_COUNTS.pack(*writer.level_counts)
         + writer.descriptors
         + _pack_words(writer.walk)
     )
-    total: int = HEADER_BYTES + len(index) + len(writer.records)
-    _require(total <= MAXIMUM_FRAME_BYTES, LENGTH_LIMIT_MESSAGE)
+    frame_bytes: int = HEADER_BYTES + len(index) + len(writer.records)
+    _require(frame_bytes <= MAXIMUM_FRAME_BYTES, LENGTH_LIMIT_MESSAGE)
 
     header: bytes = HEADER.pack(MAGIC, VERSION, width, height, frame_id, reference_id)
     return header + index + writer.records
@@ -570,7 +570,7 @@ def _presence_masks(roots: Mapping[int, Node], root_count: int) -> list[int]:
 class _TreeWriter:
     def __init__(self, keyframe: bool) -> None:
         self.keyframe: bool = keyframe
-        self.levels: list[int] = []
+        self.level_counts: list[int] = []
         self.descriptors: bytearray = bytearray()
         self.records: bytearray = bytearray()
         self.walk: list[int] = []
@@ -579,7 +579,7 @@ class _TreeWriter:
     def write_tree(self, roots: Mapping[int, Node]) -> None:
         current: list[Node] = [roots[root] for root in sorted(roots)]
         for size in LEAF_SIZES:
-            self.levels.append(len(current))
+            self.level_counts.append(len(current))
             current = self.write_level(current, size)
             _require(len(self.records) + len(self.descriptors) <= MAXIMUM_FRAME_BYTES, LENGTH_LIMIT_MESSAGE)
 
@@ -818,11 +818,11 @@ def make_pages(frame_data: bytes, stream_id: int = DEFAULT_STREAM_ID, symbol_bit
     _check_symbol_bits(symbol_bits)
 
     if not _is_id_valid(stream_id):
-        message: str = "The stream id must be u32!"
+        message: str = "The stream id must be an unsigned 32-bit value!"
         raise ValueError(message)
 
     frame: Frame = parse_frame(frame_data)
-    count: int = _page_count(frame.total)
+    count: int = _page_count(frame.frame_bytes)
     return [_make_page(frame_data, frame, stream_id, number) for number in range(count)]
 
 
@@ -831,7 +831,7 @@ def _page_count(frame_bytes: int) -> int:
 
 
 def _make_page(frame_data: bytes, frame: Frame, stream_id: int, number: int) -> bytes:
-    count: int = _page_count(frame.total)
+    count: int = _page_count(frame.frame_bytes)
     start: int = number * PAGE_CAPACITY
     payload: bytes = frame_data[start : start + PAGE_CAPACITY]
     header: bytes = PAGE_HEADER.pack(
@@ -844,7 +844,7 @@ def _make_page(frame_data: bytes, frame: Frame, stream_id: int, number: int) -> 
         number,
         count,
         frame.reference_id,
-        frame.total,
+        frame.frame_bytes,
         0,
     )
     crc: int = zlib.crc32(header + payload)
@@ -873,31 +873,31 @@ def read_page(symbols: bytes, symbol_bits: int = SYMBOL_BITS) -> Page:
     header: bytes = _read_page_header(symbols)
     magic: bytes
     version: int
-    width: int
+    page_symbol_bits: int
     flags: int
-    stream: int
-    frame: int
+    stream_id: int
+    frame_id: int
     number: int
     count: int
-    reference: int
-    total: int
+    reference_id: int
+    frame_bytes: int
     crc: int
-    magic, version, width, flags, stream, frame, number, count, reference, total, crc = PAGE_HEADER.unpack(header)
-    if magic != PAGE_MAGIC or version != PAGE_VERSION or width != SYMBOL_BITS or flags > MAXIMUM_PAGE_FLAGS:
+    magic, version, page_symbol_bits, flags, stream_id, frame_id, number, count, reference_id, frame_bytes, crc = PAGE_HEADER.unpack(header)
+    if magic != PAGE_MAGIC or version != PAGE_VERSION or page_symbol_bits != SYMBOL_BITS or flags > MAXIMUM_PAGE_FLAGS:
         message = "The page header is not supported!"
         raise ValueError(message)
 
-    if not MINIMUM_FRAME_BYTES <= total <= MAXIMUM_FRAME_BYTES or count != _page_count(total) or number >= count:
+    if not MINIMUM_FRAME_BYTES <= frame_bytes <= MAXIMUM_FRAME_BYTES or count != _page_count(frame_bytes) or number >= count:
         message = "The page metadata is invalid!"
         raise ValueError(message)
 
-    size: Any = min(PAGE_CAPACITY, total - number * PAGE_CAPACITY)
+    size: Any = min(PAGE_CAPACITY, frame_bytes - number * PAGE_CAPACITY)
     raw: bytes = from_symbols(symbols, SYMBOL_BITS, PAGE_HEADER.size + size)
     if _page_crc(raw) != crc:
         message = "The page CRC does not match!"
         raise ValueError(message)
 
-    return Page(stream, frame, number, count, reference, total, flags, width, raw[PAGE_HEADER_BYTES:])
+    return Page(stream_id, frame_id, number, count, reference_id, frame_bytes, flags, page_symbol_bits, raw[PAGE_HEADER_BYTES:])
 
 
 def _read_page_header(symbols: bytes) -> bytes:

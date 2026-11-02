@@ -121,14 +121,14 @@ def _add_presence_cases(cases: dict[str, dict[str, str]]) -> None:
     _add(cases, 'directory-zero', changed(empty, DIRECTORY_OFFSET, 1, WORD_CODE), INDEX_RULE, DIRECTORY_PREFIX_REASON)
 
     wide: bytes = pack_frame(4096, 65, 0, 0, {0: Node(mcv2_reference.SKIP), 256: Node(mcv2_reference.SKIP)})
-    later_prefix: int = MASK_OFFSET + 12 * mcv2_reference.WORD_BYTES + mcv2_reference.WORD_BYTES
-    _add(cases, 'directory-later-prefix', changed(wide, later_prefix, 0, WORD_CODE), INDEX_RULE, DIRECTORY_PREFIX_REASON)
+    later_prefix_offset: int = MASK_OFFSET + 12 * mcv2_reference.WORD_BYTES + mcv2_reference.WORD_BYTES
+    _add(cases, 'directory-later-prefix', changed(wide, later_prefix_offset, 0, WORD_CODE), INDEX_RULE, DIRECTORY_PREFIX_REASON)
 
 
 def _add_count_cases(cases: dict[str, dict[str, str]]) -> None:
     _add(cases, 'n0-popcount', changed(_solid_frame(), COUNTS_OFFSET, 0, WORD_CODE), INDEX_RULE, 'level 0 count')
-    level_one_count: int = COUNTS_OFFSET + mcv2_reference.WORD_BYTES
-    count_overflow: bytes = changed(_frame(), level_one_count, 0xFFFFFFFF, WORD_CODE)
+    level_one_count_offset: int = COUNTS_OFFSET + mcv2_reference.WORD_BYTES
+    count_overflow: bytes = changed(_frame(), level_one_count_offset, 0xFFFFFFFF, WORD_CODE)
     _add(cases, 'count-overflow', count_overflow, INDEX_RULE, TRUNCATED_DESCRIPTORS_REASON)
 
     split: Node = _skip_split()
