@@ -67,6 +67,12 @@ final class PcmDiscordPlayerTest {
   private static final String UNKNOWN_TITLE = "Unknown title";
   private static final String ELLIPSIS = "…";
 
+  private static final String TITLE = "Song";
+  private static final String BLANK_TITLE = "   ";
+  private static final String FILLER_TEXT = "a";
+
+  private static final String NO_CHANGE_MESSAGE = "the filter only reads the sample, so it reports no change";
+
   private static final OriginalAudioMetadata METADATA = OriginalAudioMetadata.of(
     "pcm_s16le",
     OriginalAudioMetadata.UNKNOWN,
@@ -119,7 +125,7 @@ final class PcmDiscordPlayerTest {
 
     final boolean changed = this.player.applyFilter(samples, METADATA);
     final int inputPosition = samples.position();
-    assertFalse(changed, "the filter only reads the sample, so it reports no change");
+    assertFalse(changed, NO_CHANGE_MESSAGE);
     assertEquals(0, inputPosition);
 
     final ByteBuffer frame = this.player.provide20MsAudio();
@@ -169,10 +175,11 @@ final class PcmDiscordPlayerTest {
 
   @Test
   void shouldStripSurroundingWhitespaceFromTheTitle() {
-    this.player.setPlaying("  \t Song \n");
+    final String paddedTitle = "  \t %s \n".formatted(TITLE);
+    this.player.setPlaying(paddedTitle);
 
     final String name = this.shownActivityName();
-    assertEquals("Song", name);
+    assertEquals(TITLE, name);
   }
 
   private String shownActivityName() {
@@ -195,7 +202,7 @@ final class PcmDiscordPlayerTest {
 
   @Test
   void shouldShowUnknownTitleForBlankTitles() {
-    final List<String> blanks = List.of("", "   ", "\n\t");
+    final List<String> blanks = List.of("", BLANK_TITLE, "\n\t");
     for (final String blank : blanks) {
       this.player.setPlaying(blank);
       final String name = this.shownActivityName();
@@ -212,7 +219,7 @@ final class PcmDiscordPlayerTest {
       assertEquals(UNKNOWN_TITLE, name);
     }
 
-    final String title = "a".repeat(200);
+    final String title = FILLER_TEXT.repeat(200);
     this.player.setPlaying("\u0000" + title);
 
     final String name = this.shownActivityName();
@@ -223,15 +230,16 @@ final class PcmDiscordPlayerTest {
 
   @Test
   void shouldRemoveWhitespaceAndControlCharactersAroundTheTitleInAnyOrder() {
-    this.player.setPlaying("\u0001\u2003Song\u2003\u0001");
+    final String wrappedTitle = "\u0001\u2003%s\u2003\u0001".formatted(TITLE);
+    this.player.setPlaying(wrappedTitle);
 
     final String name = this.shownActivityName();
-    assertEquals("Song", name);
+    assertEquals(TITLE, name);
   }
 
   @Test
   void shouldKeepTitlesOfExactlyTheMaximumLength() {
-    final String title = "a".repeat(MAXIMUM_NAME_LENGTH);
+    final String title = FILLER_TEXT.repeat(MAXIMUM_NAME_LENGTH);
     this.player.setPlaying("  " + title + "  ");
 
     final String name = this.shownActivityName();
@@ -270,14 +278,14 @@ final class PcmDiscordPlayerTest {
   void shouldCutLongTitlesWithoutSplittingAnEmoji() {
     final String emoji = "😀";
     final String tail = "b".repeat(10);
-    final String splitPrefix = "a".repeat(126);
+    final String splitPrefix = FILLER_TEXT.repeat(126);
     this.player.setPlaying(splitPrefix + emoji + tail);
 
     final String withoutEmoji = this.shownActivityName();
     final String expectedWithoutEmoji = splitPrefix + ELLIPSIS;
     assertEquals(expectedWithoutEmoji, withoutEmoji, "half an emoji is dropped instead of shown as a broken character");
 
-    final String fittingPrefix = "a".repeat(125);
+    final String fittingPrefix = FILLER_TEXT.repeat(125);
     this.player.setPlaying(fittingPrefix + emoji + tail);
 
     final String withEmoji = this.shownActivityName();
@@ -418,7 +426,7 @@ final class PcmDiscordPlayerTest {
 
     final boolean changed = this.player.applyFilter(empty, METADATA);
     final boolean canProvide = this.player.canProvide();
-    assertFalse(changed, "the filter only reads the sample, so it reports no change");
+    assertFalse(changed, NO_CHANGE_MESSAGE);
     assertFalse(canProvide);
   }
 
@@ -526,7 +534,7 @@ final class PcmDiscordPlayerTest {
   void shouldShowUnknownTitleForMissingOrBlankTitlesOfTheDump() {
     final Gson gson = GsonProvider.getSimple();
     final UrlParseDump missing = gson.fromJson("{}", UrlParseDump.class);
-    final UrlParseDump blank = UrlParseDump.of("   ");
+    final UrlParseDump blank = UrlParseDump.of(BLANK_TITLE);
     this.player.setCurrentMedia(missing);
     this.player.setCurrentMedia(blank);
 
