@@ -221,7 +221,7 @@ public final class RfbTestServer implements AutoCloseable {
     return switch (this.security) {
       case UNSUPPORTED -> this.refuseSecurity(clientOutput);
       case PASSWORD -> this.negotiatePassword(input, clientOutput);
-      default -> this.acceptWithoutSecurity(input, clientOutput);
+      case NONE, HANG_UP -> this.acceptWithoutSecurity(input, clientOutput);
     };
   }
 
