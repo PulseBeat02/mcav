@@ -149,8 +149,8 @@ final class ErrorDiffusionDitherTest {
     dither.dither(pixels, 64);
     for (final int pixel : pixels) {
       final boolean paletteColor = pixel == BLACK || pixel == WHITE;
-      final String hex = Integer.toHexString(pixel);
-      assertTrue(paletteColor, hex);
+      final String hexadecimal = Integer.toHexString(pixel);
+      assertTrue(paletteColor, hexadecimal);
     }
   }
 
@@ -174,8 +174,8 @@ final class ErrorDiffusionDitherTest {
       final int[] pixels = { color };
       try (final ImageBuffer image = ImageBuffer.buffer(pixels, 1, 1)) {
         final byte[] indices = dither.ditherIntoBytes(image);
-        final String hex = Integer.toHexString(color);
-        assertArrayEquals(new byte[] { 0 }, indices, hex);
+        final String hexadecimal = Integer.toHexString(color);
+        assertArrayEquals(new byte[] { 0 }, indices, hexadecimal);
       }
     }
   }

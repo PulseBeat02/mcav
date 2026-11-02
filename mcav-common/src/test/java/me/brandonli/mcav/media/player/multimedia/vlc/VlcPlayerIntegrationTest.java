@@ -230,14 +230,14 @@ final class VlcPlayerIntegrationTest {
     final int redChannel = (center >> 16) & 0xFF;
     final int greenChannel = (center >> 8) & 0xFF;
     final int blueChannel = center & 0xFF;
-    final String centerHex = Integer.toHexString(center);
+    final String centerHexadecimal = Integer.toHexString(center);
     final int width = this.frameWidth.get();
     final int height = this.frameHeight.get();
     assertEquals(100, width, "the visible width, not the padded decoder width");
     assertEquals(60, height, "the visible height, not the padded decoder height");
 
     final boolean centerRed = redChannel > 200 && greenChannel < 60 && blueChannel < 60;
-    assertTrue(centerRed, "expected red but got " + centerHex);
+    assertTrue(centerRed, "expected red but got " + centerHexadecimal);
   }
 
   @Test

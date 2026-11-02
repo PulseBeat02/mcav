@@ -146,7 +146,7 @@ final class McPackHostingTest {
   private String sha1(final byte[] bytes) throws NoSuchAlgorithmException {
     final MessageDigest digest = MessageDigest.getInstance(HASH_ALGORITHM);
     final byte[] hash = digest.digest(bytes);
-    return IoUtils.bytesToHex(hash);
+    return IoUtils.bytesToHexadecimal(hash);
   }
 
   private Path getCacheFile() {

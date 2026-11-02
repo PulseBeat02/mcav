@@ -450,8 +450,8 @@ final class YtdlpInstallerTest {
   private static String sha256(final byte[] content) {
     final MessageDigest digest = createSha256Digest();
     final byte[] hash = digest.digest(content);
-    final HexFormat hex = HexFormat.of();
-    return hex.formatHex(hash);
+    final HexFormat hexadecimal = HexFormat.of();
+    return hexadecimal.formatHex(hash);
   }
 
   private static MessageDigest createSha256Digest() {

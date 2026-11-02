@@ -801,8 +801,8 @@ final class AbstractInstallerTest {
     try {
       final MessageDigest digest = MessageDigest.getInstance(DIGEST_ALGORITHM);
       final byte[] hash = digest.digest(content);
-      final HexFormat hex = HexFormat.of();
-      return hex.formatHex(hash);
+      final HexFormat hexadecimal = HexFormat.of();
+      return hexadecimal.formatHex(hash);
     } catch (final NoSuchAlgorithmException exception) {
       throw new AssertionError(exception);
     }
