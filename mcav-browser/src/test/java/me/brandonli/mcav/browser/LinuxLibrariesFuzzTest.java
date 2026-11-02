@@ -44,17 +44,9 @@ import org.junit.jupiter.api.Tag;
 import org.tukaani.xz.LZMA2Options;
 import org.tukaani.xz.XZOutputStream;
 
-/**
- * Fuzzes the extraction of the pinned libraries out of a Debian package: an ar archive whose data.tar.xz holds them.
- * The packages are pinned by their hashes, so this is a second line of defense: whatever the package, extraction
- * either fails with an {@link IOException} or writes nothing but the pinned libraries, each a plain file of at most the
- * size limit under the name its pin gives it, all of them when it succeeds, and nothing outside the target folder.
- *
- * <p>The first byte of an input says what the rest of it is: the whole package (0), the data.tar.xz the fuzz target
- * puts into a package (1), or the tar the fuzz target compresses and puts into a package (2 and 3), so the fuzzer can
- * work on each layer's format. The seeds are packages built like real ones, with the libraries, other files, links,
- * folders and names with and without {@code ./}, and their tar and xz layers.
- */
+// The packages are pinned by their hashes, so this fuzzes a second line of defense: extraction fails with an
+// IOException or writes only the pinned libraries, as plain files inside the target. The first byte of an input picks
+// its layer: the whole package (0), its data.tar.xz (1), or its tar (2 and 3).
 @Tag("fuzz")
 final class LinuxLibrariesFuzzTest {
 
@@ -64,77 +56,92 @@ final class LinuxLibrariesFuzzTest {
     "usr/lib/x86_64-linux-gnu/libmcavother.so.2",
     "libmcavother.so.2"
   );
-  private static final long MAX_FILE_BYTES = 1024;
-  private static final int MAX_ENTRIES = 32;
   private static final int XZ_PRESET = 0;
 
   @FuzzTest(maxDuration = "30s")
-  void writesOnlyThePinnedLibrariesOrRefusesThePackage(final byte[] input) throws IOException {
+  void shouldWriteOnlyThePinnedLibrariesOrRefuseThePackage(final byte[] input) throws IOException {
     if (input.length == 0) {
       return;
     }
+
     final byte[] layer = Arrays.copyOfRange(input, 1, input.length);
-    final byte[] deb = switch (input[0] & 0b11) {
+    final byte[] debianPackage = switch (input[0] & 0b11) {
       case 0 -> layer;
-      case 1 -> debOf(layer);
-      default -> debOf(xz(layer));
+      case 1 -> this.debianPackageOf(layer);
+      default -> this.debianPackageOf(this.xz(layer));
     };
     final Path root = Files.createTempDirectory("mcav-deb-fuzz");
     try {
-      final Path file = Files.write(root.resolve("package.deb"), deb);
+      final Path file = Files.write(root.resolve("package.deb"), debianPackage);
       final Path target = Files.createDirectory(root.resolve("target"));
-      boolean extracted;
-      try {
-        LinuxLibraries.extract(file, PINNED, target, MAX_FILE_BYTES, MAX_ENTRIES);
-        extracted = true;
-      } catch (final IOException refused) {
-        extracted = false;
-      }
-      check(root, file, target, extracted);
+      final Outcome outcome = this.extract(file, target);
+      this.check(root, file, target, outcome);
     } finally {
       IoUtils.deleteRecursively(root);
     }
   }
 
-  private static void check(final Path root, final Path file, final Path target, final boolean extracted) throws IOException {
+  private Outcome extract(final Path file, final Path target) {
+    try {
+      LinuxLibraries.extract(file, PINNED, target);
+
+      return Outcome.EXTRACTED;
+    } catch (final IOException exception) {
+      return Outcome.REFUSED;
+    }
+  }
+
+  private void check(final Path root, final Path file, final Path target, final Outcome outcome) throws IOException {
     final boolean supportsPosix = FileSystems.getDefault().supportedFileAttributeViews().contains("posix");
     final Set<String> written = new HashSet<>();
-    try (final Stream<Path> paths = Files.walk(root)) {
-      final List<Path> all = paths.toList();
-      for (final Path path : all) {
-        if (path.equals(root) || path.equals(file) || path.equals(target)) {
-          continue;
-        }
-        assertEquals(target, path.getParent(), () -> "outside the target or in a folder of its own: " + path);
-        assertTrue(Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS), () -> "not a plain file: " + path);
-        final String name = path.getFileName().toString();
-        assertTrue(PINNED.containsValue(name), () -> "not a pinned library: " + path);
-        assertTrue(Files.size(path) <= MAX_FILE_BYTES, () -> "larger than the limit: " + path);
-        if (supportsPosix) {
-          final Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(path);
-          assertFalse(permissions.contains(PosixFilePermission.OTHERS_WRITE), () -> "writable by others: " + path);
-        }
-        written.add(name);
+    final List<Path> all = this.listAllPaths(root);
+    for (final Path path : all) {
+      if (path.equals(root) || path.equals(file) || path.equals(target)) {
+        continue;
       }
-    } catch (final UncheckedIOException exception) {
-      throw exception.getCause();
+      final Path parent = path.getParent();
+      assertEquals(target, parent, () -> "outside the target or in a folder of its own: " + path);
+
+      final boolean regularFile = Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS);
+      assertTrue(regularFile, () -> "not a plain file: " + path);
+
+      final String name = path.getFileName().toString();
+      final boolean pinned = PINNED.containsValue(name);
+      assertTrue(pinned, () -> "not a pinned library: " + path);
+
+      if (supportsPosix) {
+        final Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(path);
+        final boolean writableByOthers = permissions.contains(PosixFilePermission.OTHERS_WRITE);
+        assertFalse(writableByOthers, () -> "writable by others: " + path);
+      }
+      written.add(name);
     }
-    if (extracted) {
+
+    if (outcome == Outcome.EXTRACTED) {
       assertEquals(Set.copyOf(PINNED.values()), written, "a package that extracts holds every pinned library");
     }
   }
 
-  private static byte[] xz(final byte[] tar) throws IOException {
+  private List<Path> listAllPaths(final Path root) throws IOException {
+    try (final Stream<Path> paths = Files.walk(root)) {
+      return paths.toList();
+    } catch (final UncheckedIOException exception) {
+      throw exception.getCause();
+    }
+  }
+
+  private byte[] xz(final byte[] tar) throws IOException {
     final ByteArrayOutputStream compressed = new ByteArrayOutputStream();
     try (final XZOutputStream xz = new XZOutputStream(compressed, new LZMA2Options(XZ_PRESET))) {
       xz.write(tar);
     }
+
     return compressed.toByteArray();
   }
 
-  private static byte[] debOf(final byte[] data) throws IOException {
-    final ByteArrayOutputStream deb = new ByteArrayOutputStream();
-    try (final ArArchiveOutputStream archive = new ArArchiveOutputStream(deb)) {
+  private byte[] debianPackageOf(final byte[] data) throws IOException {
+    final ByteArrayOutputStream debianPackage = new ByteArrayOutputStream();
+    try (final ArArchiveOutputStream archive = new ArArchiveOutputStream(debianPackage)) {
       final byte[] version = "2.0\n".getBytes(StandardCharsets.US_ASCII);
       archive.putArchiveEntry(new ArArchiveEntry("debian-binary", version.length));
       archive.write(version);
@@ -143,6 +150,12 @@ final class LinuxLibrariesFuzzTest {
       archive.write(data);
       archive.closeArchiveEntry();
     }
-    return deb.toByteArray();
+
+    return debianPackage.toByteArray();
+  }
+
+  private enum Outcome {
+    EXTRACTED,
+    REFUSED,
   }
 }

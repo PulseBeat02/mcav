@@ -21,34 +21,20 @@ import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 
-/**
- * Captures what is written to the standard error while it is open, which is the log a browser helper keeps for its
- * server. The tests of a module run one after the other, so no other test writes meanwhile.
- */
+// The tests of a module run one after the other, so no other test writes meanwhile.
 public final class StandardError implements AutoCloseable {
 
   private final PrintStream original = System.err;
   private final ByteArrayOutputStream captured = new ByteArrayOutputStream();
 
-  /**
-   * Starts capturing.
-   */
   public StandardError() {
     System.setErr(new PrintStream(this.captured, true, StandardCharsets.UTF_8));
   }
 
-  /**
-   * Gets what was written so far.
-   *
-   * @return the text
-   */
   public String text() {
     return this.captured.toString(StandardCharsets.UTF_8);
   }
 
-  /**
-   * Stops capturing.
-   */
   @Override
   public void close() {
     System.setErr(this.original);

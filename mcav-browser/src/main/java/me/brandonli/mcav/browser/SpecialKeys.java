@@ -26,21 +26,17 @@ import java.io.Reader;
 import java.lang.reflect.Type;
 import java.util.Set;
 import me.brandonli.mcav.json.GsonProvider;
-import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.utils.IoUtils;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * The key names {@link BrowserPlayer#sendKeyEvent(String)} presses rather than types: the W3C
- * {@code KeyboardEvent.key} values, such as {@code Enter}, {@code Backspace} or {@code ArrowLeft}, listed in the
- * {@code mcav/browser/keybinds.json} resource.
- */
+// listed in the mcav/browser/keybinds.json resource
 final class SpecialKeys {
 
   private static final String RESOURCE = "mcav/browser/keybinds.json";
   private static final Set<String> SPECIAL_KEYS = loadSpecialKeys();
 
   private SpecialKeys() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   private static Set<String> loadSpecialKeys() {
@@ -48,13 +44,6 @@ final class SpecialKeys {
     return parse(reader);
   }
 
-  /**
-   * Reads a key list, a JSON array of key names, and closes the reader.
-   *
-   * @param reader the reader of the list
-   * @return the key names
-   * @throws PlayerException if the list is empty or cannot be read
-   */
   @VisibleForTesting
   static Set<String> parse(final Reader reader) {
     final Gson gson = GsonProvider.getSimple();
@@ -63,23 +52,21 @@ final class SpecialKeys {
     try (reader) {
       final Set<String> keys = gson.fromJson(reader, type);
       if (keys == null || keys.isEmpty()) {
-        throw new PlayerException("The key list resource " + RESOURCE + " is empty");
+        final String message = "The key list resource %s is empty!".formatted(RESOURCE);
+        throw new BrowserException(message);
       }
+
       return Set.copyOf(keys);
     } catch (final IOException exception) {
-      final String message = exception.getMessage();
-      throw new PlayerException("Failed to read the key list resource: " + message, exception);
+      final @Nullable String reason = exception.getMessage();
+      final String message = "The key list resource could not be read (%s)!".formatted(reason);
+      throw new BrowserException(message, exception);
     }
   }
 
-  /**
-   * Checks whether the text is the name of a special key rather than text to type.
-   *
-   * @param text the text passed to {@link BrowserPlayer#sendKeyEvent(String)}
-   * @return true if the text names a key
-   */
   static boolean isSpecialKey(final String text) {
-    Preconditions.checkNotNull(text, "Text must not be null");
+    Preconditions.checkNotNull(text, "Text must not be null!");
+
     return SPECIAL_KEYS.contains(text);
   }
 }

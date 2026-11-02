@@ -30,58 +30,109 @@ class NavigationPolicyTest {
 
   @ParameterizedTest
   @ValueSource(strings = { "http://example.com", "https://example.com/a?b#c", "HTTPS://EXAMPLE.COM", "http://127.0.0.1:8080/" })
-  void webAddressesAreAbsoluteHttpOrHttpsWithAHost(final String address) {
-    assertTrue(NavigationPolicy.isWebAddress(URI.create(address)));
+  void shouldAcceptOnlyAbsoluteHttpOrHttpsAddressesWithAHostAsWebAddresses(final String address) {
+    final boolean webAddress = NavigationPolicy.isWebAddress(URI.create(address));
+    assertTrue(webAddress);
   }
 
   @ParameterizedTest
   @ValueSource(
     strings = { "file:///etc/passwd", "chrome://settings", "ftp://example.com/", "https:///no-host", "relative/path", "mailto:a@b.c" }
   )
-  void otherAddressesAreNotWebAddresses(final String address) {
-    assertFalse(NavigationPolicy.isWebAddress(URI.create(address)));
+  void shouldNotAcceptOtherAddressesAsWebAddresses(final String address) {
+    final boolean webAddress = NavigationPolicy.isWebAddress(URI.create(address));
+    assertFalse(webAddress);
   }
 
   @Test
-  void thePageMayOnlyNavigateToWebAddresses() {
-    assertTrue(NavigationPolicy.allowsNavigation("https://example.com/", true));
-    assertFalse(NavigationPolicy.allowsNavigation("file:///etc/passwd", true));
-    assertTrue(NavigationPolicy.allowsNavigation("about:blank", true), "the empty document the browser starts with");
-    assertFalse(NavigationPolicy.allowsNavigation("about:srcdoc", true));
-    assertFalse(NavigationPolicy.allowsNavigation("data:text/html,x", true));
-    assertFalse(NavigationPolicy.allowsNavigation("not a uri at all", true));
-    assertFalse(NavigationPolicy.allowsNavigation("chrome://gpu", true));
-    assertTrue(NavigationPolicy.allowsNavigation("https://example.com/a|b?q=%7C", true), "Chromium's canonical form may hold '|'");
+  void shouldOnlyLetThePageNavigateToWebAddresses() {
+    final boolean httpsAllowed = NavigationPolicy.allowsNavigation("https://example.com/", FrameKind.MAIN);
+    assertTrue(httpsAllowed);
+
+    final boolean fileAllowed = NavigationPolicy.allowsNavigation("file:///etc/passwd", FrameKind.MAIN);
+    assertFalse(fileAllowed);
+
+    final boolean aboutBlankAllowed = NavigationPolicy.allowsNavigation("about:blank", FrameKind.MAIN);
+    assertTrue(aboutBlankAllowed, "the empty document the browser starts with");
+
+    final boolean aboutSrcdocAllowed = NavigationPolicy.allowsNavigation("about:srcdoc", FrameKind.MAIN);
+    assertFalse(aboutSrcdocAllowed);
+
+    final boolean dataAllowed = NavigationPolicy.allowsNavigation("data:text/html,x", FrameKind.MAIN);
+    assertFalse(dataAllowed);
+
+    final boolean malformedAllowed = NavigationPolicy.allowsNavigation("not a uri at all", FrameKind.MAIN);
+    assertFalse(malformedAllowed);
+
+    final boolean chromeAllowed = NavigationPolicy.allowsNavigation("chrome://gpu", FrameKind.MAIN);
+    assertFalse(chromeAllowed);
+
+    final boolean pipeAllowed = NavigationPolicy.allowsNavigation("https://example.com/a|b?q=%7C", FrameKind.MAIN);
+    assertTrue(pipeAllowed, "Chromium's canonical form may hold '|'");
   }
 
   @Test
-  void framesMayAlsoHoldLocalDocumentsOfTheBrowser() {
-    assertTrue(NavigationPolicy.allowsNavigation("about:blank", false));
-    assertTrue(NavigationPolicy.allowsNavigation("about:srcdoc", false));
-    assertTrue(NavigationPolicy.allowsNavigation("data:text/html,x", false));
-    assertTrue(NavigationPolicy.allowsNavigation("blob:https://example.com/1234", false));
-    assertTrue(NavigationPolicy.allowsNavigation("HTTP://example.com/", false));
-    assertFalse(NavigationPolicy.allowsNavigation("about:settings", false));
-    assertFalse(NavigationPolicy.allowsNavigation("file:///etc/passwd", false));
-    assertFalse(NavigationPolicy.allowsNavigation("javascript:alert(1)", false));
-    assertFalse(NavigationPolicy.allowsNavigation(":nothing", false));
-    assertFalse(NavigationPolicy.allowsNavigation("noscheme", false));
+  void shouldAlsoLetFramesHoldLocalDocumentsOfTheBrowser() {
+    final boolean aboutBlankAllowed = NavigationPolicy.allowsNavigation("about:blank", FrameKind.CHILD);
+    assertTrue(aboutBlankAllowed);
+
+    final boolean aboutSrcdocAllowed = NavigationPolicy.allowsNavigation("about:srcdoc", FrameKind.CHILD);
+    assertTrue(aboutSrcdocAllowed);
+
+    final boolean dataAllowed = NavigationPolicy.allowsNavigation("data:text/html,x", FrameKind.CHILD);
+    assertTrue(dataAllowed);
+
+    final boolean blobAllowed = NavigationPolicy.allowsNavigation("blob:https://example.com/1234", FrameKind.CHILD);
+    assertTrue(blobAllowed);
+
+    final boolean upperCaseHttpAllowed = NavigationPolicy.allowsNavigation("HTTP://example.com/", FrameKind.CHILD);
+    assertTrue(upperCaseHttpAllowed);
+
+    final boolean aboutSettingsAllowed = NavigationPolicy.allowsNavigation("about:settings", FrameKind.CHILD);
+    assertFalse(aboutSettingsAllowed);
+
+    final boolean fileAllowed = NavigationPolicy.allowsNavigation("file:///etc/passwd", FrameKind.CHILD);
+    assertFalse(fileAllowed);
+
+    final boolean javascriptAllowed = NavigationPolicy.allowsNavigation("javascript:alert(1)", FrameKind.CHILD);
+    assertFalse(javascriptAllowed);
+
+    final boolean emptySchemeAllowed = NavigationPolicy.allowsNavigation(":nothing", FrameKind.CHILD);
+    assertFalse(emptySchemeAllowed);
+
+    final boolean noSchemeAllowed = NavigationPolicy.allowsNavigation("noscheme", FrameKind.CHILD);
+    assertFalse(noSchemeAllowed);
   }
 
   @Test
-  void requestsMayOnlyUseTheWebSchemes() {
-    assertTrue(NavigationPolicy.allowsRequest("https://example.com/a.png"));
-    assertTrue(NavigationPolicy.allowsRequest("wss://example.com/socket"));
-    assertTrue(NavigationPolicy.allowsRequest("ws://example.com/socket"));
-    assertTrue(NavigationPolicy.allowsRequest("data:image/png;base64,AA=="));
-    assertTrue(NavigationPolicy.allowsRequest("blob:https://example.com/1"));
-    assertFalse(NavigationPolicy.allowsRequest("file:///home/user/config.yml"));
-    assertFalse(NavigationPolicy.allowsRequest("chrome-extension://abc/x.js"));
-    assertFalse(NavigationPolicy.allowsRequest("steam://run/1"));
+  void shouldOnlyLetRequestsUseTheWebSchemes() {
+    final boolean httpsAllowed = NavigationPolicy.allowsRequest("https://example.com/a.png");
+    assertTrue(httpsAllowed);
+
+    final boolean secureSocketAllowed = NavigationPolicy.allowsRequest("wss://example.com/socket");
+    assertTrue(secureSocketAllowed);
+
+    final boolean socketAllowed = NavigationPolicy.allowsRequest("ws://example.com/socket");
+    assertTrue(socketAllowed);
+
+    final boolean dataAllowed = NavigationPolicy.allowsRequest("data:image/png;base64,AA==");
+    assertTrue(dataAllowed);
+
+    final boolean blobAllowed = NavigationPolicy.allowsRequest("blob:https://example.com/1");
+    assertTrue(blobAllowed);
+
+    final boolean fileAllowed = NavigationPolicy.allowsRequest("file:///home/user/config.yml");
+    assertFalse(fileAllowed);
+
+    final boolean extensionAllowed = NavigationPolicy.allowsRequest("chrome-extension://abc/x.js");
+    assertFalse(extensionAllowed);
+
+    final boolean steamAllowed = NavigationPolicy.allowsRequest("steam://run/1");
+    assertFalse(steamAllowed);
   }
 
   @Test
-  void thePolicyIsNotInstantiable() {
+  void shouldNotInstantiateThePolicy() {
     UtilityClassAssertions.assertNotInstantiable(NavigationPolicy.class);
   }
 }

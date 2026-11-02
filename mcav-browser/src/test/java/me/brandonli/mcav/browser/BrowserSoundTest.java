@@ -34,6 +34,8 @@ import java.util.stream.Stream;
 import me.brandonli.mcav.browser.testing.Await;
 import me.brandonli.mcav.browser.testing.HelperCoverage;
 import me.brandonli.mcav.browser.testing.TestPages;
+import me.brandonli.mcav.media.image.ImageBuffer;
+import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
@@ -42,19 +44,20 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
-/**
- * Proves with real Chromium that the sound of a page reaches the audio pipeline of the player: a Web Audio tone and an
- * audio element, each once the page may play, after the first click on it, and in step with the picture. The A/V
- * measurement times real events, which a busy machine delays, so it runs on request:
- * {@code -Pmcav.syncMeasurement=true}.
- */
+// Plays page sound through real Chromium. The A/V sync measurement runs only with -Pmcav.syncMeasurement=true: a busy
+// machine delays the real events it times.
 @Tag("cef")
 class BrowserSoundTest {
 
   private static final int WIDTH = 320;
   private static final int HEIGHT = 240;
+
   private static final int WINDOW_FRAMES = AudioFilter.SAMPLE_RATE / 200;
+
   private static final BrowserOptions LOCAL = BrowserOptions.builder().privateNetworks(true).build();
+
+  private static final int FREQUENCY_TOLERANCE_HERTZ = 20;
+  private static final double TONE_SHARE_THRESHOLD = 0.5;
 
   private final TestPages pages = TestPages.start();
   private final List<BrowserPlayer> players = new ArrayList<>();
@@ -71,6 +74,7 @@ class BrowserSoundTest {
     );
     player.setExceptionHandler((message, error) -> this.failures.add(message + ": " + error.getMessage()));
     this.players.add(player);
+
     return player;
   }
 
@@ -79,10 +83,13 @@ class BrowserSoundTest {
     for (final BrowserPlayer player : this.players) {
       player.release();
     }
+
     this.pages.close();
-    assertEquals(0, HelperProcesses.count());
+    final int processCount = HelperProcesses.count();
+    assertEquals(0, processCount);
+
     Await.until("every browser process of this test has ended", () -> CefBrowserIntegrationTest.countBrowserProcesses() == 0);
-    // a CEF process that lost its parent is no longer below this JVM; they are only told, as other programs may run CEF
+    // orphaned CEF processes are no longer below this JVM; only print them, as other programs may run CEF
     try (final Stream<ProcessHandle> all = ProcessHandle.allProcesses()) {
       final List<String> stray = all
         .filter(handle -> handle.info().command().orElse("").contains("jcef"))
@@ -92,64 +99,20 @@ class BrowserSoundTest {
         System.out.println("CEF processes on this machine after the test: " + stray);
       }
     }
+
     assertEquals(List.of(), this.failures);
   }
 
-  /**
-   * Records the sound that reaches the audio pipeline of a player.
-   */
-  private static final class Recording {
-
-    private final ByteArrayOutputStream pcm = new ByteArrayOutputStream();
-
-    static Recording attach(final BrowserPlayer player) {
-      final Recording recording = new Recording();
-      player.getAudioAttachableCallback().attach(
-        AudioPipelineStep.of((samples, metadata) -> {
-          assertEquals(AudioFilter.SAMPLE_RATE, metadata.getAudioSampleRate());
-          assertEquals(AudioFilter.CHANNELS, metadata.getAudioChannels());
-          final byte[] copy = new byte[samples.remaining()];
-          samples.get(copy);
-          synchronized (recording.pcm) {
-            recording.pcm.writeBytes(copy);
-          }
-          return true;
-        })
-      );
-      return recording;
-    }
-
-    int size() {
-      synchronized (this.pcm) {
-        return this.pcm.size();
-      }
-    }
-
-    short[] left() {
-      final byte[] captured;
-      synchronized (this.pcm) {
-        captured = this.pcm.toByteArray();
-      }
-      return leftChannel(captured);
-    }
-  }
-
-  /**
-   * Waits up to 30 s, as long as the first sound of a helper can take on a busy or slow machine, for as many bytes of
-   * sound, and fails with what the page reported about its sound.
-   *
-   * @param recording the sound of a player
-   * @param bytes     how many bytes must arrive
-   * @param what      the sound that is waited for
-   * @throws InterruptedException if the wait is interrupted
-   */
+  // the first sound of a helper can take 30 s on a busy machine
   private void awaitSound(final Recording recording, final int bytes, final String what) throws InterruptedException {
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
     while (recording.size() < bytes) {
+      final boolean beforeDeadline = System.nanoTime() < deadline;
       assertTrue(
-        System.nanoTime() < deadline,
+        beforeDeadline,
         () -> what + " arrived, only " + recording.size() + " bytes did; the page reported " + this.soundReports()
       );
+
       Thread.sleep(50L);
     }
   }
@@ -162,30 +125,37 @@ class BrowserSoundTest {
         reports.add(type + " " + event.getKey());
       }
     }
+
     return reports;
   }
 
   private void startAndClick(final BrowserPlayer player, final String path) {
-    assertTrue(player.start(BrowserSource.uri(this.pages.uri(path), WIDTH, HEIGHT, 1)));
+    final boolean started = player.start(BrowserSource.uri(this.pages.uri(path), WIDTH, HEIGHT, 1));
+    assertTrue(started);
+
     Await.until("the page reported its size", () -> this.pages.count("size") > 0);
     this.startClicking(player);
   }
 
   @Test
-  void theToneOfAPageReachesTheAudioPipelineOnceAPlayerClickedIt() throws InterruptedException {
+  void shouldPassTheToneOfAPageToTheAudioPipelineOnceAPlayerClickedIt() throws InterruptedException {
     final BrowserPlayer player = this.player();
     final Recording recording = Recording.attach(player);
-    assertTrue(player.start(BrowserSource.uri(this.pages.uri("/tone"), WIDTH, HEIGHT, 1)));
+    final boolean started = player.start(BrowserSource.uri(this.pages.uri("/tone"), WIDTH, HEIGHT, 1));
+    assertTrue(started);
+
     Await.until("the page reported its size", () -> this.pages.count("size") > 0);
     Thread.sleep(2_000L);
-    assertEquals(0, recording.size(), "no sound before the first click");
+    final int recordedByteCount = recording.size();
+    assertEquals(0, recordedByteCount, "no sound before the first click");
+
     this.startClicking(player);
     this.awaitSound(recording, 2 * AudioFilter.SAMPLE_RATE * AudioFilter.FRAME_SIZE, "two seconds of sound");
     final short[] left = recording.left();
     final int start = left.length - AudioFilter.SAMPLE_RATE;
-    final double frequency = zeroCrossings(left, start) / 2.0;
-    final double level = meanLevel(left, start);
-    final int held = toneWindows(left, start);
+    final double frequency = this.zeroCrossings(left, start) / 2.0;
+    final double level = this.meanLevel(left, start);
+    final int held = this.toneWindows(left, start);
     System.out.printf(
       Locale.ROOT,
       "captured %d frames, zero crossings say %.1f Hz, mean level %.0f, the tone holds in %d of %d windows%n",
@@ -195,21 +165,24 @@ class BrowserSoundTest {
       held,
       AudioFilter.SAMPLE_RATE / WINDOW_FRAMES
     );
-    assertTrue(Math.abs(frequency - TestPages.TONE_HERTZ) < 20, "the tone has " + frequency + " Hz");
-    assertTrue(held > ((AudioFilter.SAMPLE_RATE / WINDOW_FRAMES) * 9) / 10, "the tone holds in " + held + " windows");
+    final boolean atTheToneFrequency = Math.abs(frequency - TestPages.TONE_HERTZ) < FREQUENCY_TOLERANCE_HERTZ;
+    assertTrue(atTheToneFrequency, "the tone has " + frequency + " Hz");
+
+    final boolean toneHolds = held > ((AudioFilter.SAMPLE_RATE / WINDOW_FRAMES) * 9) / 10;
+    assertTrue(toneHolds, "the tone holds in " + held + " windows");
+
     final double expected = (2 * TestPages.TONE_AMPLITUDE * Short.MAX_VALUE) / Math.PI;
-    assertTrue(Math.abs(level - expected) < expected * 0.1, "the tone plays at its own level, " + level);
+    final boolean atItsOwnLevel = Math.abs(level - expected) < expected * 0.1;
+    assertTrue(atItsOwnLevel, "the tone plays at its own level, " + level);
   }
 
-  /**
-   * Clicks the page until it reports a click: Chromium ignores clicks for a moment after a page appears.
-   *
-   * @param player the player showing a page of {@link #pages}
-   */
+  // Chromium ignores clicks for a moment after a page appears
   private void startClicking(final BrowserPlayer player) {
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(20);
     while (this.pages.count("mousedown") == 0) {
-      assertTrue(System.nanoTime() < deadline, "the page never took a click");
+      final boolean beforeDeadline = System.nanoTime() < deadline;
+      assertTrue(beforeDeadline, "the page never took a click");
+
       player.sendMouseEvent(MouseClick.LEFT, 10, 10);
       final long probeEnd = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(250);
       while (this.pages.count("mousedown") == 0 && System.nanoTime() < probeEnd) {
@@ -219,32 +192,42 @@ class BrowserSoundTest {
   }
 
   @Test
-  void aPageThatWrapsWebAudioBeforeItsFirstContextCannotReachTheCaptureAndPlaysOnlyAfterAClick() throws InterruptedException {
+  void shouldKeepAPageThatWrapsWebAudioBeforeItsFirstContextFromTheCaptureAndPlayItOnlyAfterAClick() throws InterruptedException {
     final BrowserPlayer player = this.player();
     final Recording recording = Recording.attach(player);
-    assertTrue(player.start(BrowserSource.uri(this.pages.uri("/tone-wrapped"), WIDTH, HEIGHT, 1)));
+    final boolean started = player.start(BrowserSource.uri(this.pages.uri("/tone-wrapped"), WIDTH, HEIGHT, 1));
+    assertTrue(started);
+
     Await.until("the page reported what its wrappers saw", () -> this.pages.count("taps") > 0);
-    assertEquals(0, this.pages.getEvents("taps").getFirst().getX(), "no node of the capture passed the page's wrappers");
+    final int wrappedNodeCount = this.pages.getEvents("taps").getFirst().getX();
+    assertEquals(0, wrappedNodeCount, "no node of the capture passed the page's wrappers");
+
     Thread.sleep(2_000L);
-    assertEquals(0, recording.size(), "no sound before the first click, neither played nor forged");
+    final int recordedByteCount = recording.size();
+    assertEquals(0, recordedByteCount, "no sound before the first click, neither played nor forged");
+
     this.startClicking(player);
     this.awaitSound(recording, 2 * AudioFilter.SAMPLE_RATE * AudioFilter.FRAME_SIZE, "two seconds of sound");
     final short[] left = recording.left();
-    final double frequency = zeroCrossings(left, left.length - AudioFilter.SAMPLE_RATE) / 2.0;
-    assertTrue(Math.abs(frequency - TestPages.TONE_HERTZ) < 20, "after the click the page's own tone plays: " + frequency + " Hz");
+    final double frequency = this.zeroCrossings(left, left.length - AudioFilter.SAMPLE_RATE) / 2.0;
+    final boolean atTheToneFrequency = Math.abs(frequency - TestPages.TONE_HERTZ) < FREQUENCY_TOLERANCE_HERTZ;
+    assertTrue(atTheToneFrequency, "after the click the page's own tone plays: " + frequency + " Hz");
   }
 
   @Test
-  void aPageMayPlayRightAwayWhenTheOptionsLetIt() throws InterruptedException {
+  void shouldLetAPagePlayRightAwayWhenTheOptionsAllowIt() throws InterruptedException {
     final BrowserPlayer player = this.player(BrowserOptions.builder().privateNetworks(true).autoplay(true).build());
     final Recording recording = Recording.attach(player);
-    assertTrue(player.start(BrowserSource.uri(this.pages.uri("/tone"), WIDTH, HEIGHT, 1)));
+    final boolean started = player.start(BrowserSource.uri(this.pages.uri("/tone"), WIDTH, HEIGHT, 1));
+    assertTrue(started);
+
     this.awaitSound(recording, AudioFilter.SAMPLE_RATE * AudioFilter.FRAME_SIZE, "a second of sound nobody clicked for");
-    assertEquals(0, this.pages.count("mousedown"), "nobody clicked the page");
+    final int clickCount = this.pages.count("mousedown");
+    assertEquals(0, clickCount, "nobody clicked the page");
   }
 
   @Test
-  void anAudioElementPlaysAtItsVolumeAndAMutedOneStaysSilent() throws InterruptedException {
+  void shouldPlayAnAudioElementAtItsVolumeAndKeepAMutedOneSilent() throws InterruptedException {
     final BrowserPlayer half = this.player();
     final Recording halfRecording = Recording.attach(half);
     this.startAndClick(half, "/tone-element?volume=0.5");
@@ -252,126 +235,111 @@ class BrowserSoundTest {
     Thread.sleep(1_000L);
     final short[] left = halfRecording.left();
     final int start = left.length - AudioFilter.SAMPLE_RATE / 2;
-    final double level = meanLevel(left, start);
+    final double level = this.meanLevel(left, start);
     final double full = (2 * TestPages.TONE_AMPLITUDE * Short.MAX_VALUE) / Math.PI;
     System.out.printf(Locale.ROOT, "an element at half volume: mean level %.0f of %.0f at full volume%n", level, full);
-    assertTrue(Math.abs(level - full / 2) < full * 0.1, "the element plays at half volume, once: " + level);
+    final boolean atHalfVolume = Math.abs(level - full / 2) < full * 0.1;
+    assertTrue(atHalfVolume, "the element plays at half volume, once: " + level);
+
     half.release();
     this.pages.clearEvents();
     final BrowserPlayer muted = this.player();
     final Recording mutedRecording = Recording.attach(muted);
     this.startAndClick(muted, "/tone-element?muted=1");
     Thread.sleep(3_000L);
-    assertEquals(0, mutedRecording.size(), "a muted element plays nothing");
+    final int mutedByteCount = mutedRecording.size();
+    assertEquals(0, mutedByteCount, "a muted element plays nothing");
   }
 
   @Test
-  void theSoundOfAPageKeepsUpWithItsPicture() throws InterruptedException {
-    assumeTrue(Boolean.getBoolean("mcav.syncMeasurement"), "times real events; run with -Pmcav.syncMeasurement=true on a quiet machine");
+  void shouldKeepTheSoundOfAPageUpWithItsPicture() throws InterruptedException {
+    assumeTrue(
+      Boolean.getBoolean("mcav.syncMeasurement"),
+      "This test times real events; run it with -Pmcav.syncMeasurement=true on a quiet machine!"
+    );
     final BrowserPlayer player = this.player();
     final List<long[]> sound = new CopyOnWriteArrayList<>();
     final List<long[]> picture = new CopyOnWriteArrayList<>();
-    player.getAudioAttachableCallback().attach(
-      AudioPipelineStep.of((samples, metadata) -> {
-        final long arrival = System.nanoTime();
-        final byte[] copy = new byte[samples.remaining()];
-        samples.get(copy);
-        final short[] left = leftChannel(copy);
-        final int windows = left.length / WINDOW_FRAMES;
-        for (int window = 0; window < windows; window++) {
-          final boolean hasTone = toneShare(left, window * WINDOW_FRAMES, WINDOW_FRAMES) > 0.5;
-          final long end = (long) (window + 1) * WINDOW_FRAMES;
-          final long before = TimeUnit.SECONDS.toNanos(left.length - end) / AudioFilter.SAMPLE_RATE;
-          sound.add(new long[] { arrival - before, hasTone ? 1 : 0 });
-        }
-        return true;
-      })
-    );
-    player.getVideoAttachableCallback().attach(
-      VideoPipelineStep.of((image, metadata) -> {
-        final int[] pixels = image.getPixels();
-        final int center = pixels[(image.getHeight() / 2) * image.getWidth() + image.getWidth() / 2];
-        picture.add(new long[] { System.nanoTime(), (center & 0xFF) > 128 ? 1 : 0 });
-        return false;
-      })
-    );
+    player.getAudioAttachableCallback().attach(AudioPipelineStep.of((samples, _) -> this.recordToneWindows(sound, samples)));
+    player.getVideoAttachableCallback().attach(VideoPipelineStep.of((image, _) -> this.recordCenterBrightness(picture, image)));
     this.startAndClick(player, "/av-sync");
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(90);
-    while (onsets(picture).size() < 50) {
-      assertTrue(System.nanoTime() < deadline, "the page turned on " + onsets(picture).size() + " times");
+    while (this.onsets(picture).size() < 50) {
+      final boolean beforeDeadline = System.nanoTime() < deadline;
+      assertTrue(beforeDeadline, "the page turned on " + this.onsets(picture).size() + " times");
+
       Thread.sleep(100L);
     }
+
     player.release();
-    final long matchWindow = TimeUnit.MILLISECONDS.toNanos(TestPages.TOGGLE_MILLIS);
-    final SyncJudgement judgement = SyncJudgement.of(onsets(picture), onsets(sound), matchWindow);
+    final long matchWindow = TimeUnit.MILLISECONDS.toNanos(TestPages.TOGGLE_MILLISECONDS);
+    final SyncJudgement judgement = SyncJudgement.of(this.onsets(picture), this.onsets(sound), matchWindow);
     final List<Double> offsets = judgement.offsets();
     final int changes = judgement.changes();
     final List<Double> sorted = new ArrayList<>(offsets);
     Collections.sort(sorted);
     final int halfCount = offsets.size() / 2;
-    final double firstHalf = median(offsets.subList(0, halfCount));
-    final double secondHalf = median(offsets.subList(halfCount, offsets.size()));
+    final double firstHalf = this.median(offsets.subList(0, halfCount));
+    final double secondHalf = this.median(offsets.subList(halfCount, offsets.size()));
     final long within = judgement.within(-40, 80);
     System.out.printf(
       Locale.ROOT,
       "A/V sync: %d changes matched of %d, sound minus picture: median %.1f ms, p5 %.1f ms, p95 %.1f ms, %d within [-40, +80] ms; first half %.1f ms, second half %.1f ms%n",
       offsets.size(),
       changes,
-      median(sorted),
+      this.median(sorted),
       sorted.get(sorted.size() / 20),
       sorted.get((sorted.size() * 19) / 20),
       within,
       firstHalf,
       secondHalf
     );
-    // ITU-R BT.1359: sound may lead the picture by 90 ms and lag it by 185 ms before viewers find it unacceptable
+    // ITU-R BT.1359: sound may lead the picture by 90 ms and lag it by 185 ms
     final long acceptable = judgement.within(-90, 185);
     System.out.printf(Locale.ROOT, "A/V sync: %d of %d within ITU-R BT.1359 acceptability [-90, +185] ms%n", acceptable, changes);
-    assertTrue(offsets.size() >= Math.ceil(changes * 0.9), "matched " + offsets.size() + " of " + changes + " changes of the picture");
-    final double middle = median(sorted);
-    assertTrue(middle >= -40 && middle <= 80, "the sound and the picture arrive together in the middle: " + middle);
-    assertTrue(within >= Math.ceil(changes * 0.95), within + " of " + changes + " changes are within the target");
-    assertTrue(acceptable >= Math.ceil(changes * 0.9), acceptable + " of " + changes + " changes are in sync");
-    assertTrue(Math.abs(secondHalf - firstHalf) < 25, "the sound does not drift from the picture");
+    final boolean mostChangesMatched = offsets.size() >= Math.ceil(changes * 0.9);
+    assertTrue(mostChangesMatched, "matched " + offsets.size() + " of " + changes + " changes of the picture");
+
+    final double middle = this.median(sorted);
+    final boolean togetherInTheMiddle = middle >= -40 && middle <= 80;
+    assertTrue(togetherInTheMiddle, "the sound and the picture arrive together in the middle: " + middle);
+
+    final boolean mostChangesWithinTarget = within >= Math.ceil(changes * 0.95);
+    assertTrue(mostChangesWithinTarget, within + " of " + changes + " changes are within the target");
+
+    final boolean mostChangesAcceptable = acceptable >= Math.ceil(changes * 0.9);
+    assertTrue(mostChangesAcceptable, acceptable + " of " + changes + " changes are in sync");
+
+    final boolean noDrift = Math.abs(secondHalf - firstHalf) < 25;
+    assertTrue(noDrift, "the sound does not drift from the picture");
   }
 
-  /**
-   * What the changes of a picture and of its sound say about their sync. Every change of the picture is matched with
-   * the nearest change of the sound within a window of half the shortest time between two changes of the fixture, and a
-   * change without one counts against every rate: leaving those out before the rates were taken let a stream out of sync
-   * for most of its changes pass on the few that matched (deep review DR-016).
-   *
-   * @param changes the changes of the picture
-   * @param offsets the sound minus the picture of each matched change, in milliseconds, in the order of the picture
-   */
-  record SyncJudgement(int changes, List<Double> offsets) {
-    static SyncJudgement of(final List<Long> pictureOnsets, final List<Long> soundOnsets, final long windowNanos) {
-      final List<Double> offsets = new ArrayList<>();
-      for (final long shown : pictureOnsets) {
-        long nearest = Long.MAX_VALUE;
-        for (final long heard : soundOnsets) {
-          if (Math.abs(heard - shown) < Math.abs(nearest)) {
-            nearest = heard - shown;
-          }
-        }
-        if (Math.abs(nearest) <= windowNanos) {
-          offsets.add(nearest / 1e6);
-        }
-      }
-      return new SyncJudgement(pictureOnsets.size(), List.copyOf(offsets));
+  private boolean recordToneWindows(final List<long[]> sound, final ByteBuffer samples) {
+    final long arrival = System.nanoTime();
+    final byte[] copy = new byte[samples.remaining()];
+    samples.get(copy);
+    final short[] left = leftChannel(copy);
+    final int windows = left.length / WINDOW_FRAMES;
+    for (int window = 0; window < windows; window++) {
+      final boolean hasTone = this.toneShare(left, window * WINDOW_FRAMES, WINDOW_FRAMES) > TONE_SHARE_THRESHOLD;
+      final long end = (long) (window + 1) * WINDOW_FRAMES;
+      final long before = TimeUnit.SECONDS.toNanos(left.length - end) / AudioFilter.SAMPLE_RATE;
+      sound.add(new long[] { arrival - before, hasTone ? 1 : 0 });
     }
 
-    /** How many changes of the picture had their sound in the range, in milliseconds; a change without sound never. */
-    long within(final double low, final double high) {
-      return this.offsets
-        .stream()
-        .filter(offset -> offset >= low && offset <= high)
-        .count();
-    }
+    return true;
+  }
+
+  private boolean recordCenterBrightness(final List<long[]> picture, final ImageBuffer image) {
+    final int[] pixels = image.getPixels();
+    final int center = pixels[(image.getHeight() / 2) * image.getWidth() + image.getWidth() / 2];
+    picture.add(new long[] { System.nanoTime(), (center & 0xFF) > 128 ? 1 : 0 });
+
+    return false;
   }
 
   @Test
-  void theSyncOracleCountsAChangeWithoutItsSoundAsOutOfSync() {
+  void shouldCountAChangeWithoutItsSoundAsOutOfSyncInTheSyncOracle() {
     final List<Long> picture = new ArrayList<>();
     final List<Long> sound = new ArrayList<>();
     for (int change = 0; change < 50; change++) {
@@ -379,54 +347,56 @@ class BrowserSoundTest {
       picture.add(shown);
       sound.add(shown + TimeUnit.MILLISECONDS.toNanos(change < 10 ? 20 : 300));
     }
+
     final SyncJudgement late = SyncJudgement.of(picture, sound, TimeUnit.MILLISECONDS.toNanos(400));
-    assertEquals(50, late.changes());
-    assertTrue(late.within(-90, 185) < Math.ceil(late.changes() * 0.9), "40 of 50 changes 300 ms late are not in sync");
+    final int lateChanges = late.changes();
+    assertEquals(50, lateChanges);
+
+    final boolean lateOutOfSync = late.within(-90, 185) < Math.ceil(late.changes() * 0.9);
+    assertTrue(lateOutOfSync, "40 of 50 changes 300 ms late are not in sync");
+
     final List<Long> onTime = picture
       .stream()
       .map(shown -> shown + TimeUnit.MILLISECONDS.toNanos(20))
       .toList();
     final SyncJudgement inSync = SyncJudgement.of(picture, onTime, TimeUnit.MILLISECONDS.toNanos(400));
-    assertEquals(50, inSync.within(-40, 80));
+    final long changesWithinTarget = inSync.within(-40, 80);
+    assertEquals(50, changesWithinTarget);
   }
 
-  private static int zeroCrossings(final short[] left, final int start) {
+  private int zeroCrossings(final short[] left, final int start) {
     int crossings = 0;
     for (int index = start + 1; index < left.length; index++) {
       if (left[index - 1] < 0 != left[index] < 0) {
         crossings++;
       }
     }
+
     return crossings;
   }
 
-  private static double meanLevel(final short[] left, final int start) {
+  private double meanLevel(final short[] left, final int start) {
     double sum = 0;
     for (int index = start; index < left.length; index++) {
       sum += Math.abs(left[index]);
     }
+
     return sum / (left.length - start);
   }
 
-  private static int toneWindows(final short[] left, final int start) {
+  private int toneWindows(final short[] left, final int start) {
     int windows = 0;
     for (int window = start; window + WINDOW_FRAMES <= left.length; window += WINDOW_FRAMES) {
-      if (toneShare(left, window, WINDOW_FRAMES) > 0.5) {
+      if (this.toneShare(left, window, WINDOW_FRAMES) > TONE_SHARE_THRESHOLD) {
         windows++;
       }
     }
+
     return windows;
   }
 
-  /**
-   * Measures how strong the tone is in a window of the left channel, compared with everything in it (Goertzel).
-   *
-   * @param left   the samples of the left channel
-   * @param start  the first sample of the window
-   * @param length the number of samples
-   * @return the share of the energy at the tone, from 0 to 1, or 0 for silence
-   */
-  private static double toneShare(final short[] left, final int start, final int length) {
+  // Goertzel: the share of the tone in the window of the left channel
+  private double toneShare(final short[] left, final int start, final int length) {
     final double omega = (2 * Math.PI * TestPages.TONE_HERTZ) / AudioFilter.SAMPLE_RATE;
     final double coefficient = 2 * Math.cos(omega);
     double previous = 0;
@@ -439,9 +409,11 @@ class BrowserSoundTest {
       beforePrevious = previous;
       previous = current;
     }
+
     if (energy < length * 100.0 * 100.0) {
       return 0;
     }
+
     final double power = previous * previous + beforePrevious * beforePrevious - coefficient * previous * beforePrevious;
     return Math.min(1, power / ((energy * length) / 2));
   }
@@ -452,23 +424,19 @@ class BrowserSoundTest {
     for (int index = 0; index < left.length; index++) {
       left[index] = samples.getShort(index * AudioFilter.FRAME_SIZE);
     }
+
     return left;
   }
 
-  private static double median(final List<Double> values) {
+  private double median(final List<Double> values) {
     final List<Double> sorted = new ArrayList<>(values);
     Collections.sort(sorted);
+
     return sorted.get(sorted.size() / 2);
   }
 
-  /**
-   * Finds the times at which a signal switches on: a sample that is on after one that is off, or after a gap. The page
-   * sends no sound while it is silent, so the sound has gaps where the picture has dark frames.
-   *
-   * @param samples pairs of a time in nanoseconds and a state, 1 for on
-   * @return the times the signal switched on
-   */
-  private static List<Long> onsets(final List<long[]> samples) {
+  // a gap counts as off: the page sends no sound while it is silent
+  private List<Long> onsets(final List<long[]> samples) {
     final List<long[]> ordered = new ArrayList<>(samples);
     ordered.sort((first, second) -> Long.compare(first[0], second[0]));
     final long gap = TimeUnit.MILLISECONDS.toNanos(60);
@@ -485,6 +453,85 @@ class BrowserSoundTest {
         onsets.add(current[0]);
       }
     }
+
     return onsets;
+  }
+
+  private static final class Recording {
+
+    private final ByteArrayOutputStream pcm = new ByteArrayOutputStream();
+
+    static Recording attach(final BrowserPlayer player) {
+      final Recording recording = new Recording();
+      player.getAudioAttachableCallback().attach(AudioPipelineStep.of(recording::record));
+
+      return recording;
+    }
+
+    private boolean record(final ByteBuffer samples, final OriginalAudioMetadata metadata) {
+      final int audioSampleRate = metadata.getAudioSampleRate();
+      assertEquals(AudioFilter.SAMPLE_RATE, audioSampleRate);
+
+      final int audioChannels = metadata.getAudioChannels();
+      assertEquals(AudioFilter.CHANNELS, audioChannels);
+
+      final byte[] copy = new byte[samples.remaining()];
+      samples.get(copy);
+      synchronized (this.pcm) {
+        this.pcm.writeBytes(copy);
+      }
+
+      return true;
+    }
+
+    int size() {
+      synchronized (this.pcm) {
+        return this.pcm.size();
+      }
+    }
+
+    short[] left() {
+      final byte[] captured;
+      synchronized (this.pcm) {
+        captured = this.pcm.toByteArray();
+      }
+
+      return leftChannel(captured);
+    }
+  }
+
+  // Matches each change of the picture with the nearest change of the sound within half the shortest period of the
+  // fixture. An unmatched change counts against every rate, so a stream out of sync cannot pass on its few matches.
+  record SyncJudgement(int changes, List<Double> offsets) {
+    static SyncJudgement of(final List<Long> pictureOnsets, final List<Long> soundOnsets, final long windowNanoseconds) {
+      final List<Double> offsets = new ArrayList<>();
+      for (final long shown : pictureOnsets) {
+        final long nearest = nearestOffset(shown, soundOnsets);
+        if (Math.abs(nearest) <= windowNanoseconds) {
+          offsets.add(nearest / 1e6);
+        }
+      }
+
+      return new SyncJudgement(pictureOnsets.size(), List.copyOf(offsets));
+    }
+
+    private static long nearestOffset(final long shown, final List<Long> soundOnsets) {
+      long nearest = Long.MAX_VALUE;
+      for (final long heard : soundOnsets) {
+        if (Math.abs(heard - shown) < Math.abs(nearest)) {
+          nearest = heard - shown;
+        }
+      }
+
+      return nearest;
+    }
+
+    // low and high in milliseconds; a change without sound never counts
+    long within(final double low, final double high) {
+      return this.offsets
+        .stream()
+        .filter(offset -> offset >= low && offset <= high)
+        .count();
+    }
   }
 }

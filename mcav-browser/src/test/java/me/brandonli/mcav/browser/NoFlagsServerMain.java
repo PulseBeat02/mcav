@@ -27,19 +27,10 @@ import me.brandonli.mcav.browser.testing.Await;
 import me.brandonli.mcav.browser.testing.Frames;
 import me.brandonli.mcav.browser.testing.TestPages;
 
-/**
- * The server side of {@link NoFlagsServerTest}: a JVM started like a Minecraft server on a machine without a display,
- * with no option but {@code -Djava.awt.headless=true}, installs mcav with the browser module as a plugin does, streams
- * a page and checks the color of the frame, then disables and enables the "plugin" and does it again.
- *
- * <p>The first round releases the player before mcav, as a plugin that cleans up after itself does; the second round
- * leaves the player running, so stopping the module has to end its browser.
- */
+// The child JVM of NoFlagsServerTest, run twice like a plugin: the first round releases its player before MCAV, the
+// second leaves it running, so stopping the module has to end its browser.
 public final class NoFlagsServerMain {
 
-  /**
-   * The line printed when every check passed.
-   */
   static final String PASSED = "NO-FLAGS PROOF PASSED";
 
   private static final List<String> GRAALVM_DEFAULTS = List.of(
@@ -51,14 +42,9 @@ public final class NoFlagsServerMain {
   );
 
   private NoFlagsServerMain() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
-  /**
-   * Runs the proof.
-   *
-   * @param args the address of a red test page
-   */
   public static void main(final String[] args) {
     final URI page = URI.create(args[0]);
     final List<String> arguments = ManagementFactory.getRuntimeMXBean().getInputArguments();
@@ -89,13 +75,15 @@ public final class NoFlagsServerMain {
       Await.until("every browser process ended", () -> CefBrowserIntegrationTest.countBrowserProcesses() == 0);
       System.out.printf("round %d: disabled, no browser process left%n", round);
     }
+
     System.out.println(PASSED);
     System.exit(0);
   }
 
   private static void check(final boolean holds, final String description) {
     if (!holds) {
-      throw new AssertionError("Failed: " + description);
+      final String message = "The check that %s failed!".formatted(description);
+      throw new AssertionError(message);
     }
   }
 }

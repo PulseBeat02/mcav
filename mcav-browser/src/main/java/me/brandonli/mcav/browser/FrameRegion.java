@@ -17,10 +17,7 @@
  */
 package me.brandonli.mcav.browser;
 
-/**
- * A changed rectangle of a page and its pixels, four bytes per pixel in BGRA order, row by row from the start of the
- * pixel array. The array may be longer than the region needs, so a buffer can be reused for regions of any size.
- */
+// BGRA, row by row; the array may be longer than the region, so a buffer can be reused
 final class FrameRegion {
 
   private final int pageWidth;
@@ -31,17 +28,7 @@ final class FrameRegion {
   private final int height;
   private final byte[] pixels;
 
-  /**
-   * Constructs a region. The values are not checked; {@link HelperProtocol} checks what it reads.
-   *
-   * @param pageWidth  the width of the page in pixels
-   * @param pageHeight the height of the page in pixels
-   * @param left       the left edge of the region
-   * @param top        the top edge of the region
-   * @param width      the width of the region
-   * @param height     the height of the region
-   * @param pixels     the pixels of the region, at least {@code width * height * 4} bytes
-   */
+  // not checked; HelperProtocol checks what it reads
   FrameRegion(
     final int pageWidth,
     final int pageHeight,
@@ -58,6 +45,10 @@ final class FrameRegion {
     this.width = width;
     this.height = height;
     this.pixels = pixels;
+  }
+
+  int getPixelBytes() {
+    return this.width * this.height * HelperProtocol.PIXEL_BYTES;
   }
 
   int getPageWidth() {
@@ -84,21 +75,7 @@ final class FrameRegion {
     return this.height;
   }
 
-  /**
-   * Gets the pixel array, which may be longer than the region.
-   *
-   * @return the pixels
-   */
   byte[] getPixels() {
     return this.pixels;
-  }
-
-  /**
-   * Gets how many bytes of the pixel array belong to the region.
-   *
-   * @return {@code width * height * 4}
-   */
-  int getPixelBytes() {
-    return this.width * this.height * HelperProtocol.PIXEL_BYTES;
   }
 }

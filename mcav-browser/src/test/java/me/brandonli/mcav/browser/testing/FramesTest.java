@@ -31,12 +31,11 @@ import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
-/** Checks center sampling on nonuniform images and the read-only recorder contract. */
 final class FramesTest {
 
   @ParameterizedTest
   @CsvSource({ "4,2", "3,5", "5,2" })
-  void recordsTheGeometricCenterWithoutChangingTheImage(final int width, final int height) {
+  void shouldRecordTheGeometricCenterWithoutChangingTheImage(final int width, final int height) {
     final int blue = 0xFF0000FF;
     final int red = 0xFFFF0000;
     final int[] pixels = new int[width * height];

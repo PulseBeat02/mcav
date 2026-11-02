@@ -38,19 +38,27 @@ import org.cef.handler.CefScreenInfo;
  * <p>JCEF's own off-screen browser, {@code CefBrowserOsr}, draws every frame into a JOGL {@code GLCanvas}, which needs
  * a display and the JVM options JOGL requires. The base class of every JCEF browser is package-private, so this class
  * lives in JCEF's package; it must be loaded by the class loader that loaded JCEF, which is the case whenever both
- * are on one class path, as in the helper process of mcav's browser.
+ * are on one class path, as in the helper process of MCAV's browser.
  *
  * <p>Two JCEF defects are worked around here. {@link #getScreenInfo} returns false, because JCEF's native side deletes
  * a JNI reference twice when it returns true; CEF then takes the screen from {@link #getViewRect}. And
  * {@link #setFocus} ignores calls that do not change the focus, because {@link CefClient#onGotFocus} gives the browser
  * focus again from inside the focus event, which otherwise recurses through CEF until the stack overflows.
+ *
+ * <p>This class is thread-safe: the focus state is guarded by the browser's lock and the size of the page never
+ * changes. JCEF calls the render handler methods on CEF's user-interface thread.
+ *
+ * @since 1.0.0
  */
 public final class McavOffscreenBrowser extends CefBrowser_N implements CefRenderHandler {
 
   private static final Component DETACHED = new DetachedComponent();
 
+  private static final String PAINT_LISTENER_MESSAGE = "The frames go to the paint listener of the browser!";
+
   private final Rectangle viewBounds;
   private final PaintListener listener;
+
   private boolean focused;
 
   /**
@@ -62,6 +70,7 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
    * @param height   the height of the page in pixels
    * @param listener receives the painted frames
    * @param settings the settings of the browser, such as its frame rate
+   * @since 1.0.0
    */
   public McavOffscreenBrowser(
     final CefClient client,
@@ -78,6 +87,8 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
 
   /**
    * Creates the browser in CEF as a windowless browser with an opaque background.
+   *
+   * @since 1.0.0
    */
   @Override
   public void createImmediately() {
@@ -88,30 +99,10 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
   }
 
   /**
-   * Gets a component that is never shown. JCEF looks up the component of a browser in its focus and close handling,
-   * and this one keeps those paths from failing on a browser that has no window.
-   *
-   * @return the component
-   */
-  @Override
-  public Component getUIComponent() {
-    return DETACHED;
-  }
-
-  /**
-   * Gets this browser, which renders its own frames.
-   *
-   * @return this browser
-   */
-  @Override
-  public CefRenderHandler getRenderHandler() {
-    return this;
-  }
-
-  /**
    * Refuses to open developer tools, which would need a window.
    *
    * @throws UnsupportedOperationException always
+   * @since 1.0.0
    */
   @Override
   protected CefBrowser_N createDevToolsBrowser(
@@ -121,7 +112,8 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
     final CefBrowser_N parent,
     final Point inspectAt
   ) {
-    throw new UnsupportedOperationException("Developer tools are not available in an off-screen browser");
+    final String message = "Developer tools are not available in an off-screen browser!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**
@@ -129,15 +121,18 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
    *
    * @param nativeResolution ignored
    * @return a future that failed with an {@link UnsupportedOperationException}
+   * @since 1.0.0
    */
   @Override
   public CompletableFuture<BufferedImage> createScreenshot(final boolean nativeResolution) {
-    final UnsupportedOperationException failure = new UnsupportedOperationException("Screenshots are taken from the painted frames");
+    final UnsupportedOperationException failure = new UnsupportedOperationException("Screenshots are taken from the painted frames!");
     return CompletableFuture.failedFuture(failure);
   }
 
   /**
    * Asks CEF to paint the whole view again, which reaches the listeners as a new frame.
+   *
+   * @since 1.0.0
    */
   public void repaint() {
     this.invalidate();
@@ -147,30 +142,24 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
    * Gives the browser focus or takes it away, unless it already has that state.
    *
    * @param enable true to give the browser focus
+   * @since 1.0.0
    */
   @Override
   public synchronized void setFocus(final boolean enable) {
     if (this.focused == enable) {
       return;
     }
+
     this.focused = enable;
     super.setFocus(enable);
   }
 
   /**
-   * Checks whether the browser has focus, as far as this browser told CEF.
-   *
-   * @return true if the browser has focus
-   */
-  public synchronized boolean hasFocus() {
-    return this.focused;
-  }
-
-  /**
-   * Gets the size of the page.
+   * Returns the size of the page.
    *
    * @param browser the browser, which is this one
    * @return the size of the page at the origin
+   * @since 1.0.0
    */
   @Override
   public Rectangle getViewRect(final CefBrowser browser) {
@@ -180,12 +169,13 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
   /**
    * Leaves the screen information to CEF, which takes it from {@link #getViewRect}.
    *
-   * @param browser    the browser, which is this one
-   * @param screenInfo the screen information, left unchanged
+   * @param browser           the browser, which is this one
+   * @param screenInformation the screen information, left unchanged
    * @return false
+   * @since 1.0.0
    */
   @Override
-  public boolean getScreenInfo(final CefBrowser browser, final CefScreenInfo screenInfo) {
+  public boolean getScreenInfo(final CefBrowser browser, final CefScreenInfo screenInformation) {
     return false;
   }
 
@@ -195,6 +185,7 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
    * @param browser   the browser, which is this one
    * @param viewPoint the point on the page
    * @return the same point
+   * @since 1.0.0
    */
   @Override
   public Point getScreenPoint(final CefBrowser browser, final Point viewPoint) {
@@ -206,6 +197,7 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
    *
    * @param browser the browser, which is this one
    * @param isShown true if it was shown
+   * @since 1.0.0
    */
   @Override
   public void onPopupShow(final CefBrowser browser, final boolean isShown) {
@@ -217,6 +209,7 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
    *
    * @param browser the browser, which is this one
    * @param size    the bounds of the popup on the page
+   * @since 1.0.0
    */
   @Override
   public void onPopupSize(final CefBrowser browser, final Rectangle size) {
@@ -226,23 +219,24 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
   /**
    * Hands a painted frame to the listener. The buffer belongs to CEF and is only valid during the call.
    *
-   * @param browser    the browser, which is this one
-   * @param isPopup    true if the buffer holds a popup widget rather than the page
-   * @param dirtyRects the parts of the buffer that changed
-   * @param buffer     the pixels, four bytes per pixel in BGRA order, row by row
-   * @param width      the width of the buffer in pixels
-   * @param height     the height of the buffer in pixels
+   * @param browser         the browser, which is this one
+   * @param isPopup         true if the buffer holds a popup widget rather than the page
+   * @param dirtyRectangles the parts of the buffer that changed
+   * @param buffer          the pixels, four bytes per pixel in BGRA order, row by row
+   * @param width           the width of the buffer in pixels
+   * @param height          the height of the buffer in pixels
+   * @since 1.0.0
    */
   @Override
   public void onPaint(
     final CefBrowser browser,
     final boolean isPopup,
-    final Rectangle[] dirtyRects,
+    final Rectangle[] dirtyRectangles,
     final ByteBuffer buffer,
     final int width,
     final int height
   ) {
-    this.listener.onPaint(isPopup, dirtyRects, buffer, width, height);
+    this.listener.onPaint(isPopup, dirtyRectangles, buffer, width, height);
   }
 
   /**
@@ -250,27 +244,18 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
    *
    * @param listener ignored
    * @throws UnsupportedOperationException always
+   * @since 1.0.0
    */
   @Override
   public void addOnPaintListener(final Consumer<CefPaintEvent> listener) {
-    throw new UnsupportedOperationException("The frames go to the paint listener of the browser");
-  }
-
-  /**
-   * Refuses paint event listeners; the frames go to the listener given when the browser was constructed.
-   *
-   * @param listener ignored
-   * @throws UnsupportedOperationException always
-   */
-  @Override
-  public void setOnPaintListener(final Consumer<CefPaintEvent> listener) {
-    throw new UnsupportedOperationException("The frames go to the paint listener of the browser");
+    throw new UnsupportedOperationException(PAINT_LISTENER_MESSAGE);
   }
 
   /**
    * Does nothing, as no paint event listener can be added.
    *
    * @param listener ignored
+   * @since 1.0.0
    */
   @Override
   public void removeOnPaintListener(final Consumer<CefPaintEvent> listener) {}
@@ -281,6 +266,7 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
    * @param browser    the browser, which is this one
    * @param cursorType the cursor CEF wants to show
    * @return true, so CEF does not try to show it itself
+   * @since 1.0.0
    */
   @Override
   public boolean onCursorChange(final CefBrowser browser, final int cursorType) {
@@ -296,6 +282,7 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
    * @param pageX    the x coordinate where the drag started
    * @param pageY    the y coordinate where the drag started
    * @return false, so CEF cancels the drag
+   * @since 1.0.0
    */
   @Override
   public boolean startDragging(final CefBrowser browser, final CefDragData dragData, final int mask, final int pageX, final int pageY) {
@@ -307,43 +294,94 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
    *
    * @param browser   the browser, which is this one
    * @param operation the current drag operation
+   * @since 1.0.0
    */
   @Override
   public void updateDragCursor(final CefBrowser browser, final int operation) {}
 
   /**
+   * Returns a component that is never shown. JCEF looks up the component of a browser in its focus and close handling,
+   * and this one keeps those paths from failing on a browser that has no window.
+   *
+   * @return the component
+   * @since 1.0.0
+   */
+  @Override
+  public Component getUIComponent() {
+    return DETACHED;
+  }
+
+  /**
+   * Returns this browser, which renders its own frames.
+   *
+   * @return this browser
+   * @since 1.0.0
+   */
+  @Override
+  public CefRenderHandler getRenderHandler() {
+    return this;
+  }
+
+  /**
+   * Refuses paint event listeners; the frames go to the listener given when the browser was constructed.
+   *
+   * @param listener ignored
+   * @throws UnsupportedOperationException always
+   * @since 1.0.0
+   */
+  @Override
+  public void setOnPaintListener(final Consumer<CefPaintEvent> listener) {
+    throw new UnsupportedOperationException(PAINT_LISTENER_MESSAGE);
+  }
+
+  /**
+   * Returns whether the browser has focus, as far as this browser told CEF.
+   *
+   * @return true if the browser has focus
+   * @since 1.0.0
+   */
+  public synchronized boolean hasFocus() {
+    return this.focused;
+  }
+
+  /**
    * Receives the painted frames of a browser.
+   *
+   * <p>The methods are called on CEF's user-interface thread; an implementation that shares state with other threads
+   * must guard it.
+   *
+   * @since 1.0.0
    */
   public interface PaintListener {
     /**
      * Receives a painted frame. The buffer belongs to CEF and is only valid during the call.
      *
-     * @param isPopup    true if the buffer holds a popup widget rather than the page
-     * @param dirtyRects the parts of the buffer that changed
-     * @param buffer     the pixels, four bytes per pixel in BGRA order, row by row
-     * @param width      the width of the buffer in pixels
-     * @param height     the height of the buffer in pixels
+     * @param isPopup         true if the buffer holds a popup widget rather than the page
+     * @param dirtyRectangles the parts of the buffer that changed
+     * @param buffer          the pixels, four bytes per pixel in BGRA order, row by row
+     * @param width           the width of the buffer in pixels
+     * @param height          the height of the buffer in pixels
+     * @since 1.0.0
      */
-    void onPaint(boolean isPopup, Rectangle[] dirtyRects, ByteBuffer buffer, int width, int height);
+    void onPaint(final boolean isPopup, final Rectangle[] dirtyRectangles, final ByteBuffer buffer, final int width, final int height);
 
     /**
      * Receives that a popup widget was shown or hidden.
      *
      * @param isShown true if it was shown
+     * @since 1.0.0
      */
-    void onPopupShow(boolean isShown);
+    void onPopupShow(final boolean isShown);
 
     /**
      * Receives where a popup widget is drawn.
      *
      * @param bounds the bounds of the popup on the page
+     * @since 1.0.0
      */
-    void onPopupSize(Rectangle bounds);
+    void onPopupSize(final Rectangle bounds);
   }
 
-  /**
-   * A component that is never added to a window.
-   */
   private static final class DetachedComponent extends Component {
 
     @Serial

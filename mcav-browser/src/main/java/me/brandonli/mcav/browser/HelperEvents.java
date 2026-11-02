@@ -17,58 +17,20 @@
  */
 package me.brandonli.mcav.browser;
 
-/**
- * What the browser engine of the helper process reports to the helper, which passes it on to the server.
- */
 interface HelperEvents {
-  /**
-   * The browser was created and shows the page.
-   *
-   * @param engineVersion the version of CEF and Chromium
-   */
-  void onReady(String engineVersion);
+  void onReady(final String engineVersion);
 
-  /**
-   * The browser started to load a new page in its main frame. Its sound waits for the next press of a mouse button or a
-   * key, as a press on the page before does not count for it.
-   */
+  // a press on the page before does not count for the sound of the new page
   void onPageStart();
 
-  /**
-   * The page started or stopped loading.
-   *
-   * @param loading true while the page loads
-   */
-  void onLoading(boolean loading);
+  void onLoading(final boolean loading);
 
-  /**
-   * The page failed to load.
-   *
-   * @param code the network error code of Chromium
-   * @param text the description of the error
-   * @param url  the address that failed
-   */
-  void onLoadError(int code, String text, String url);
+  void onLoadError(final int code, final String text, final String url);
 
-  /**
-   * The browser refused or changed something the page asked for, such as a popup, a download or a dialog.
-   *
-   * @param text what happened
-   */
-  void onNotice(String text);
+  void onNotice(final String text);
 
-  /**
-   * The browser cannot go on, for example because its renderer crashed; the helper exits.
-   *
-   * @param text what happened
-   */
-  void onFailure(String text);
+  // the helper exits
+  void onFailure(final String text);
 
-  /**
-   * The page played sound.
-   *
-   * @param samples 16-bit little-endian stereo samples at 48 kHz, whole frames and at most
-   *                {@link HelperProtocol#MAX_AUDIO_BYTES} bytes, which the receiver owns
-   */
-  void onAudio(byte[] samples);
+  void onAudio(final byte[] samples);
 }

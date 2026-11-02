@@ -22,44 +22,45 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 final class HelperProcessesFailureTest {
 
   @Test
-  void aFailureSharedByTwoListenersDoesNotLeaveLaterHelpersRunning() {
+  void shouldNotLeaveLaterHelpersRunningAfterAFailureSharedByTwoListeners() {
     final IllegalStateException sharedFailure = new IllegalStateException("shared listener failure");
     final HelperSession first = Mockito.mock(HelperSession.class);
     final HelperSession second = Mockito.mock(HelperSession.class);
     final HelperSession last = Mockito.mock(HelperSession.class);
     final long generation = HelperProcesses.requireOpen();
-    Mockito.doAnswer(invocation -> {
-      HelperProcesses.deregister(first);
-      throw sharedFailure;
-    })
+    Mockito.doAnswer(_ -> this.deregisterAndFail(first, sharedFailure))
       .when(first)
       .endAndClose(Mockito.anyString());
-    Mockito.doAnswer(invocation -> {
-      HelperProcesses.deregister(second);
-      throw sharedFailure;
-    })
+    Mockito.doAnswer(_ -> this.deregisterAndFail(second, sharedFailure))
       .when(second)
       .endAndClose(Mockito.anyString());
-    Mockito.doAnswer(invocation -> {
-      HelperProcesses.deregister(last);
-      return null;
-    })
+    Mockito.doAnswer(_ -> this.deregisterAndAnswerNothing(last))
       .when(last)
       .endAndClose(Mockito.anyString());
     try {
-      assertTrue(HelperProcesses.register(first, generation));
-      assertTrue(HelperProcesses.register(second, generation));
-      assertTrue(HelperProcesses.register(last, generation));
+      final boolean firstRegistered = HelperProcesses.register(first, generation);
+      assertTrue(firstRegistered);
+
+      final boolean secondRegistered = HelperProcesses.register(second, generation);
+      assertTrue(secondRegistered);
+
+      final boolean lastRegistered = HelperProcesses.register(last, generation);
+      assertTrue(lastRegistered);
+
       final RuntimeException thrown = assertThrows(RuntimeException.class, HelperProcesses::closeAll);
-      assertEquals(0, HelperProcesses.count(), "every registered helper must be ended");
+      final int helperCount = HelperProcesses.count();
+      assertEquals(0, helperCount, "every registered helper must be ended");
       assertSame(sharedFailure, thrown, "the original listener failure remains the primary failure");
-      assertEquals(0, thrown.getSuppressed().length);
+
+      final Throwable[] suppressed = thrown.getSuppressed();
+      assertEquals(0, suppressed.length);
       Mockito.verify(last).endAndClose(Mockito.anyString());
     } finally {
       HelperProcesses.deregister(first);
@@ -67,5 +68,16 @@ final class HelperProcessesFailureTest {
       HelperProcesses.deregister(last);
       HelperProcesses.open();
     }
+  }
+
+  private Object deregisterAndFail(final HelperSession session, final IllegalStateException failure) {
+    HelperProcesses.deregister(session);
+    throw failure;
+  }
+
+  private @Nullable Object deregisterAndAnswerNothing(final HelperSession session) {
+    HelperProcesses.deregister(session);
+
+    return null;
   }
 }

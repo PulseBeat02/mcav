@@ -83,7 +83,7 @@ of the page and its frames (at most 4096 pixels per side), and how many painted 
 `BrowserPlayer.create()` uses the default options; `BrowserPlayer.create(BrowserOptions)` takes others.
 
 The example opens a page, clicks into it, and types a search. The `display` filter is yours and shows the frames;
-release the returned browser when you are done with the page. `start` throws a `PlayerException` if the page cannot
+release the returned browser when you are done with the page. `start` throws a `BrowserException` if the page cannot
 be shown.
 
 ```java

@@ -29,6 +29,8 @@
  * installs the programs of a package list instead, to run as processes. Packages are downloaded from
  * {@code snapshot.debian.org}, checked against their pinned SHA-256 and extracted by MCAV itself into the cache
  * folder.
+ * {@link me.brandonli.mcav.capability.installer.debian.DebianPackageExtractor#extract(java.nio.file.Path, java.nio.file.Path)}
+ * extracts the library trees of one package for modules that place the libraries themselves.
  *
  * <p>Downloading, extraction and loading block the caller. Installed libraries are kept for reuse.
  *

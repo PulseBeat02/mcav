@@ -26,18 +26,15 @@ import java.io.IOException;
 import java.nio.ByteOrder;
 import org.junit.jupiter.api.Tag;
 
-/**
- * Fuzzes the null display, which answers X11 connections on the loopback interface: a client with the cookie, such as
- * a renderer of the page, is untrusted. Whatever the bytes after a valid setup, the display answers or ends the
- * connection with an {@link IOException}, and it never answers with more than a bounded number of bytes per request.
- */
+// A client with the cookie, such as a renderer of the page, is untrusted: the display answers or ends the connection,
+// never with more than a bounded reply per request.
 @Tag("fuzz")
 final class NullDisplayFuzzTest {
 
   private static final byte[] COOKIE = { 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 1, 2, 3, 4, 5, 6 };
 
   @FuzzTest(maxDuration = "30s")
-  void everyRequestIsAnsweredOrEndsTheConnection(final byte[] input) {
+  void shouldAnswerEveryRequestOrEndTheConnection(final byte[] input) {
     final byte[] setup = NullDisplayTest.setup(ByteOrder.LITTLE_ENDIAN, 11, "MIT-MAGIC-COOKIE-1", COOKIE);
     final ByteArrayOutputStream stream = new ByteArrayOutputStream();
     stream.writeBytes(setup);
@@ -45,19 +42,21 @@ final class NullDisplayFuzzTest {
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
     try {
       NullDisplay.serve(new ByteArrayInputStream(stream.toByteArray()), output, COOKIE, new NullDisplay.Atoms());
-    } catch (final IOException ended) {
+    } catch (final IOException exception) {
       // a request the display does not accept ends the connection
     }
-    final long largestReply = 32L + 4L * NullDisplay.MAX_REQUEST_UNITS;
+
+    final long largestReply = 32L + 4L * NullDisplay.MAXIMUM_REQUEST_UNITS;
     final long bound = 1_000L + (input.length / 4L + 1L) * largestReply;
-    assertTrue(output.size() <= bound, output.size() + " bytes answered to " + input.length);
+    final boolean answerBounded = output.size() <= bound;
+    assertTrue(answerBounded, output.size() + " bytes answered to " + input.length);
   }
 
   @FuzzTest(maxDuration = "30s")
-  void everySetupIsAcceptedOrRefused(final byte[] input) {
+  void shouldAcceptOrRefuseEverySetup(final byte[] input) {
     try {
       NullDisplay.serve(new ByteArrayInputStream(input), new ByteArrayOutputStream(), COOKIE, new NullDisplay.Atoms());
-    } catch (final IOException refused) {
+    } catch (final IOException exception) {
       // not a setup with the cookie
     }
   }

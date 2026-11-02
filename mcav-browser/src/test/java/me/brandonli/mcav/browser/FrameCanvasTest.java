@@ -27,11 +27,12 @@ import java.net.ProtocolException;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 import me.brandonli.mcav.media.image.ImageBuffer;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Test;
 
 class FrameCanvasTest {
 
-  private static byte[] bgra(final int width, final int height, final int blue, final int green, final int red) {
+  private byte[] bgra(final int width, final int height, final int blue, final int green, final int red) {
     final byte[] pixels = new byte[width * height * 4];
     for (int index = 0; index < pixels.length; index += 4) {
       pixels[index] = (byte) blue;
@@ -39,101 +40,138 @@ class FrameCanvasTest {
       pixels[index + 2] = (byte) red;
       pixels[index + 3] = (byte) 255;
     }
+
     return pixels;
   }
 
-  private static int[] bgr(final ImageBuffer image, final int column, final int row) {
+  private int[] bgr(final ImageBuffer image, final int column, final int row) {
     final ByteBuffer pixels = image.getData();
     final int offset = (row * image.getWidth() + column) * 3;
     return new int[] { pixels.get(offset) & 0xFF, pixels.get(offset + 1) & 0xFF, pixels.get(offset + 2) & 0xFF };
   }
 
-  private static ImageBuffer snapshot(final FrameCanvas canvas) {
+  private ImageBuffer snapshot(final FrameCanvas canvas) {
     return Objects.requireNonNull(canvas.snapshot(), "an open canvas has a picture");
   }
 
   @Test
-  void aNewCanvasIsWhite() {
-    try (final FrameCanvas canvas = new FrameCanvas(4, 3); final ImageBuffer image = snapshot(canvas)) {
-      assertEquals(4, canvas.getWidth());
-      assertEquals(3, canvas.getHeight());
-      assertEquals(4, image.getWidth());
-      assertEquals(3, image.getHeight());
-      assertEquals(255, bgr(image, 3, 2)[0]);
-      assertEquals(255, bgr(image, 3, 2)[2]);
+  void shouldStartWhite() {
+    try (final FrameCanvas canvas = new FrameCanvas(4, 3); final ImageBuffer image = this.snapshot(canvas)) {
+      final int canvasWidth = canvas.getWidth();
+      assertEquals(4, canvasWidth);
+
+      final int canvasHeight = canvas.getHeight();
+      assertEquals(3, canvasHeight);
+
+      final int imageWidth = image.getWidth();
+      assertEquals(4, imageWidth);
+
+      final int imageHeight = image.getHeight();
+      assertEquals(3, imageHeight);
+
+      final int cornerBlue = this.bgr(image, 3, 2)[0];
+      assertEquals(255, cornerBlue);
+
+      final int cornerRed = this.bgr(image, 3, 2)[2];
+      assertEquals(255, cornerRed);
     }
   }
 
   @Test
-  void aRegionReplacesItsPixelsOnly() throws ProtocolException {
+  void shouldReplaceOnlyThePixelsOfARegion() throws ProtocolException {
     try (final FrameCanvas canvas = new FrameCanvas(4, 3)) {
-      canvas.apply(new FrameRegion(4, 3, 1, 1, 2, 2, bgra(2, 2, 10, 20, 30)));
-      try (final ImageBuffer image = snapshot(canvas)) {
-        final int[] inside = bgr(image, 2, 2);
-        assertEquals(10, inside[0]);
-        assertEquals(20, inside[1]);
-        assertEquals(30, inside[2]);
-        assertEquals(255, bgr(image, 0, 0)[0]);
-        assertEquals(255, bgr(image, 3, 1)[1]);
+      canvas.apply(new FrameRegion(4, 3, 1, 1, 2, 2, this.bgra(2, 2, 10, 20, 30)));
+      try (final ImageBuffer image = this.snapshot(canvas)) {
+        final int[] inside = this.bgr(image, 2, 2);
+        final int insideBlue = inside[0];
+        assertEquals(10, insideBlue);
+
+        final int insideGreen = inside[1];
+        assertEquals(20, insideGreen);
+
+        final int insideRed = inside[2];
+        assertEquals(30, insideRed);
+
+        final int outsideBlue = this.bgr(image, 0, 0)[0];
+        assertEquals(255, outsideBlue);
+
+        final int outsideGreen = this.bgr(image, 3, 1)[1];
+        assertEquals(255, outsideGreen);
       }
     }
   }
 
   @Test
-  void aRegionReadsOnlyTheBytesItNeedsFromALongerBuffer() throws ProtocolException {
+  void shouldReadOnlyTheBytesARegionNeedsFromALongerBuffer() throws ProtocolException {
     try (final FrameCanvas canvas = new FrameCanvas(2, 1)) {
       final byte[] longer = new byte[64];
       longer[0] = 1;
       longer[1] = 2;
       longer[2] = 3;
       canvas.apply(new FrameRegion(2, 1, 1, 0, 1, 1, longer));
-      try (final ImageBuffer image = snapshot(canvas)) {
-        assertEquals(1, bgr(image, 1, 0)[0]);
-        assertEquals(3, bgr(image, 1, 0)[2]);
+      try (final ImageBuffer image = this.snapshot(canvas)) {
+        final int blue = this.bgr(image, 1, 0)[0];
+        assertEquals(1, blue);
+
+        final int red = this.bgr(image, 1, 0)[2];
+        assertEquals(3, red);
       }
     }
   }
 
   @Test
-  void aRegionOfAnotherPageIsAProtocolError() {
+  void shouldTreatARegionOfAnotherPageAsAProtocolError() {
     try (final FrameCanvas canvas = new FrameCanvas(4, 3)) {
       assertThrows(ProtocolException.class, () -> canvas.apply(new FrameRegion(5, 3, 0, 0, 1, 1, new byte[4])));
-      final ProtocolException height = assertThrows(ProtocolException.class, () ->
-        canvas.apply(new FrameRegion(4, 2, 0, 0, 1, 1, new byte[4]))
-      );
-      assertTrue(height.getMessage().contains("4x2"));
+
+      final ProtocolException height = assertThrows(ProtocolException.class, () -> this.applyARegionOfAnotherHeight(canvas));
+      final boolean namesTheOtherSize = height.getMessage().contains("4x2");
+      assertTrue(namesTheOtherSize);
     }
   }
 
+  private void applyARegionOfAnotherHeight(final FrameCanvas canvas) throws ProtocolException {
+    canvas.apply(new FrameRegion(4, 2, 0, 0, 1, 1, new byte[4]));
+  }
+
   @Test
-  void aClosedCanvasIgnoresRegionsAndHasNoPicture() throws ProtocolException {
+  void shouldIgnoreRegionsAndHaveNoPictureOnceClosed() throws ProtocolException {
     final FrameCanvas canvas = new FrameCanvas(2, 2);
     canvas.close();
     canvas.close();
     canvas.apply(new FrameRegion(2, 2, 0, 0, 1, 1, new byte[4]));
-    assertNull(canvas.snapshot());
+    final @Nullable ImageBuffer picture = canvas.snapshot();
+    assertNull(picture);
   }
 
   @Test
-  void everyRowOfARegionLandsOnItsOwnRow() throws ProtocolException {
+  void shouldPlaceEveryRowOfARegionOnItsOwnRow() throws ProtocolException {
     try (final FrameCanvas canvas = new FrameCanvas(4, 3)) {
       final byte[] pixels = new byte[2 * 2 * 4];
-      System.arraycopy(bgra(2, 1, 10, 20, 30), 0, pixels, 0, 8);
-      System.arraycopy(bgra(2, 1, 40, 50, 60), 0, pixels, 8, 8);
+      System.arraycopy(this.bgra(2, 1, 10, 20, 30), 0, pixels, 0, 8);
+      System.arraycopy(this.bgra(2, 1, 40, 50, 60), 0, pixels, 8, 8);
       canvas.apply(new FrameRegion(4, 3, 1, 1, 2, 2, pixels));
-      try (final ImageBuffer image = snapshot(canvas)) {
-        assertEquals(10, bgr(image, 1, 1)[0]);
-        assertEquals(40, bgr(image, 1, 2)[0]);
-        assertEquals(60, bgr(image, 2, 2)[2]);
+      try (final ImageBuffer image = this.snapshot(canvas)) {
+        final int firstRowBlue = this.bgr(image, 1, 1)[0];
+        assertEquals(10, firstRowBlue);
+
+        final int secondRowBlue = this.bgr(image, 1, 2)[0];
+        assertEquals(40, secondRowBlue);
+
+        final int secondRowRed = this.bgr(image, 2, 2)[2];
+        assertEquals(60, secondRowRed);
       }
     }
   }
 
   @Test
-  void closingReleasesTheNativePicture() {
+  void shouldReleaseTheNativePictureOnClose() {
     final FrameCanvas canvas = new FrameCanvas(4, 3);
-    assertFalse(canvas.getPage().isNull());
+    final boolean releasedWhileOpen = canvas.getPage().isNull();
+    assertFalse(releasedWhileOpen);
+
     canvas.close();
-    assertTrue(canvas.getPage().isNull());
+    final boolean releasedAfterClose = canvas.getPage().isNull();
+    assertTrue(releasedAfterClose);
   }
 }

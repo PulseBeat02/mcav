@@ -21,26 +21,27 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import me.brandonli.mcav.browser.testing.UtilityClassAssertions;
-import me.brandonli.mcav.media.player.PlayerException;
 import org.junit.jupiter.api.Test;
 
 class HelperProcessesTest {
 
   @Test
-  void aStoppedRegistryRefusesStartsUntilItIsOpenedAgain() {
+  void shouldRefuseStartsInAStoppedRegistryUntilItIsOpenedAgain() {
     HelperProcesses.requireOpen();
     HelperProcesses.closeAll();
     try {
-      final PlayerException failure = assertThrows(PlayerException.class, HelperProcesses::requireOpen);
-      assertEquals("The browser module is stopped", failure.getMessage());
+      final BrowserException failure = assertThrows(BrowserException.class, HelperProcesses::requireOpen);
+      final String message = failure.getMessage();
+      assertEquals("The browser module is stopped!", message);
     } finally {
       HelperProcesses.open();
     }
+
     HelperProcesses.requireOpen();
   }
 
   @Test
-  void theRegistryIsNotInstantiable() {
+  void shouldNotInstantiateTheRegistry() {
     UtilityClassAssertions.assertNotInstantiable(HelperProcesses.class);
   }
 }

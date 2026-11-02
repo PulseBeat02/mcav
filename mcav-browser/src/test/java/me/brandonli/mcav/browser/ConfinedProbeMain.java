@@ -21,20 +21,18 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
 
-/**
- * Restricts its main thread as a confined helper does, hiding the folder of its first argument, and then runs
- * {@code cat} on the file of its second argument and on its own status, to show that a process started afterwards is
- * restricted too.
- */
+// Restricts its main thread as a confined helper does, then runs cat to show that a later process is restricted too.
 final class ConfinedProbeMain {
 
+  private static final Path ROOT = Path.of("/");
+
   private ConfinedProbeMain() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   public static void main(final String[] arguments) throws Exception {
     final Path hidden = Path.of(arguments[0]);
-    final List<Landlock.Rule> rules = ChromiumConfinement.rules(Path.of("/"), List.of(hidden), List.of(), List.of());
+    final List<Landlock.Rule> rules = ChromiumConfinement.rules(ROOT, List.of(hidden), List.of(), List.of());
     Landlock.restrictThread(Landlock.version(), rules);
     final Process cat = new ProcessBuilder("cat", arguments[1], "/proc/self/status").redirectErrorStream(true).start();
     final String output = new String(cat.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
