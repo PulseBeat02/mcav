@@ -223,14 +223,14 @@ public final class RfbTestServer implements AutoCloseable {
       }
 
       this.serve(client);
-    } catch (final IOException | GeneralSecurityException exception) {
+    } catch (final IOException exception) {
       // the client went away or the server was closed
     } finally {
       this.output = null;
     }
   }
 
-  private void serve(final Socket client) throws IOException, GeneralSecurityException {
+  private void serve(final Socket client) throws IOException {
     final InputStream rawInput = client.getInputStream();
     final OutputStream rawOutput = client.getOutputStream();
     final BufferedInputStream bufferedInput = new BufferedInputStream(rawInput);
@@ -259,8 +259,7 @@ public final class RfbTestServer implements AutoCloseable {
     }
   }
 
-  private boolean negotiateSecurity(final DataInputStream input, final DataOutputStream clientOutput)
-    throws IOException, GeneralSecurityException {
+  private boolean negotiateSecurity(final DataInputStream input, final DataOutputStream clientOutput) throws IOException {
     return switch (this.security) {
       case UNSUPPORTED -> this.refuseSecurity(clientOutput);
       case PASSWORD -> this.negotiatePassword(input, clientOutput);
@@ -289,8 +288,7 @@ public final class RfbTestServer implements AutoCloseable {
     return true;
   }
 
-  private boolean negotiatePassword(final DataInputStream input, final DataOutputStream clientOutput)
-    throws IOException, GeneralSecurityException {
+  private boolean negotiatePassword(final DataInputStream input, final DataOutputStream clientOutput) throws IOException {
     this.offerSecurityType(clientOutput, SECURITY_VNC);
     input.readUnsignedByte();
     final byte[] challenge = new byte[CHALLENGE_BYTES];
@@ -319,7 +317,7 @@ public final class RfbTestServer implements AutoCloseable {
     return true;
   }
 
-  private byte[] encryptChallenge(final byte[] challenge, final String secret) throws GeneralSecurityException {
+  private byte[] encryptChallenge(final byte[] challenge, final String secret) {
     final byte[] passwordBytes = secret.getBytes(StandardCharsets.US_ASCII);
     final byte[] key = new byte[DES_KEY_LENGTH];
     final int copied = Math.min(passwordBytes.length, key.length);
@@ -331,10 +329,14 @@ public final class RfbTestServer implements AutoCloseable {
       key[index] = (byte) reversed;
     }
 
-    final Cipher cipher = Cipher.getInstance(CIPHER_TRANSFORMATION);
-    final SecretKeySpec keySpecification = new SecretKeySpec(key, CIPHER_ALGORITHM);
-    cipher.init(Cipher.ENCRYPT_MODE, keySpecification);
-    return cipher.doFinal(challenge);
+    try {
+      final Cipher cipher = Cipher.getInstance(CIPHER_TRANSFORMATION);
+      final SecretKeySpec keySpecification = new SecretKeySpec(key, CIPHER_ALGORITHM);
+      cipher.init(Cipher.ENCRYPT_MODE, keySpecification);
+      return cipher.doFinal(challenge);
+    } catch (final GeneralSecurityException exception) {
+      throw new AssertionError(exception);
+    }
   }
 
   private void writeServerInitialization(final DataOutputStream clientOutput) throws IOException {
