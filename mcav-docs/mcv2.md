@@ -1775,15 +1775,21 @@ To redraw `frame.png`, put the 71 bytes from [A real frame, byte by byte](#a-rea
 one-frame archive, then draw its whole picture:
 
 ```sh
-python - <<'PY'
-from pathlib import Path
+python3 -I - <<'PY'
 import struct
-frame = bytes.fromhex(
+from pathlib import Path
+
+ARCHIVE_PATH: Path = Path("frame.mcs")
+
+LENGTH_FORMAT: str = "<I"
+
+frame: bytes = bytes.fromhex(
     "4d43563203000000400020000000000000000000030000000000000002000000"
     "04000000000000000206020202040000000091b2fa91b2fa97b6f991b2fa92b3"
     "fabccef600f0ff"
 )
-Path("frame.mcs").write_bytes(struct.pack("<I", len(frame)) + frame)
+length: bytes = struct.pack(LENGTH_FORMAT, len(frame))
+ARCHIVE_PATH.write_bytes(length + frame)
 PY
 python "${MCV2_PYTHON_TOOLS}" samples --size 64x32 tree frame.mcs --frames 0 --crop 0,0,64,32 --out frame.png
 ```
