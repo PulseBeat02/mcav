@@ -35,6 +35,8 @@ public final class FakeProcess extends Process {
   private static final int TERMINATED_EXIT_CODE = 143;
   private static final int KILLED_EXIT_CODE = 137;
 
+  private static final int NO_EXIT_CODE_ON_WAIT = -1;
+
   private static final String TERMINATION_THREAD_NAME = "fake-qemu-termination";
 
   private final InputStream output;
@@ -46,7 +48,7 @@ public final class FakeProcess extends Process {
   private volatile boolean exitsOnDestroy;
   private volatile boolean interruptsWaits;
   private volatile boolean interruptsFirstWait;
-  private volatile int exitCodeOnWait = -1;
+  private volatile int exitCodeOnWait;
   private volatile long forcedExitDelayMilliseconds;
 
   private FakeProcess(final InputStream output) {
@@ -55,6 +57,7 @@ public final class FakeProcess extends Process {
     this.destroyCalls = new AtomicInteger();
     this.forcibleDestroyCalls = new AtomicInteger();
     this.exitsOnDestroy = true;
+    this.exitCodeOnWait = NO_EXIT_CODE_ON_WAIT;
   }
 
   public static FakeProcess running(final String text) {
@@ -102,14 +105,6 @@ public final class FakeProcess extends Process {
       this.exitCode = code;
       this.exited.countDown();
     }
-  }
-
-  public int getDestroyCalls() {
-    return this.destroyCalls.get();
-  }
-
-  public int getForcibleDestroyCalls() {
-    return this.forcibleDestroyCalls.get();
   }
 
   @Override
@@ -201,5 +196,13 @@ public final class FakeProcess extends Process {
     } finally {
       this.exit(KILLED_EXIT_CODE);
     }
+  }
+
+  public int getDestroyCalls() {
+    return this.destroyCalls.get();
+  }
+
+  public int getForcibleDestroyCalls() {
+    return this.forcibleDestroyCalls.get();
   }
 }

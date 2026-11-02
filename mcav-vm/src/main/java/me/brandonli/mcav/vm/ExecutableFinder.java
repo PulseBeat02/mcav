@@ -139,6 +139,7 @@ public final class ExecutableFinder {
         return found;
       }
     }
+
     return Optional.empty();
   }
 
@@ -146,12 +147,13 @@ public final class ExecutableFinder {
     final List<String> candidates = this.getCandidateNames(name);
     for (final String candidateName : candidates) {
       final Path candidate = directory.resolve(candidateName);
-      final boolean executable = isExecutable(candidate);
+      final boolean executable = this.isExecutable(candidate);
       if (executable) {
         final Path absolute = candidate.toAbsolutePath();
         return Optional.of(absolute);
       }
     }
+
     return Optional.empty();
   }
 
@@ -174,6 +176,7 @@ public final class ExecutableFinder {
       final String candidateName = "%s%s".formatted(name, extension);
       names.add(candidateName);
     }
+
     return names;
   }
 
@@ -181,7 +184,7 @@ public final class ExecutableFinder {
     final String path = this.getVariable(PATH_VARIABLE);
     final String[] segments = PATH_SEPARATOR.split(path);
     final List<String> entries = List.of(segments);
-    final List<Path> directories = toDirectories(entries);
+    final List<Path> directories = this.toDirectories(entries);
 
     final List<Path> fallbacks = switch (this.os) {
       case MAC -> this.getMacDirectories();
@@ -195,7 +198,7 @@ public final class ExecutableFinder {
 
   private List<Path> getMacDirectories() {
     final Path pathsFile = this.root.resolve(PATHS_FILE);
-    final List<Path> listed = readPathsFile(pathsFile);
+    final List<Path> listed = this.readPathsFile(pathsFile);
     final List<Path> directories = new ArrayList<>(listed);
 
     final List<Path> fromPathsDirectory = this.readPathsDirectory();
@@ -223,9 +226,10 @@ public final class ExecutableFinder {
     final List<Path> directories = new ArrayList<>();
     for (final File file : files) {
       final Path filePath = file.toPath();
-      final List<Path> fromFile = readPathsFile(filePath);
+      final List<Path> fromFile = this.readPathsFile(filePath);
       directories.addAll(fromFile);
     }
+
     return directories;
   }
 
@@ -242,6 +246,7 @@ public final class ExecutableFinder {
       final Path directory = this.root.resolve(folder);
       directories.add(directory);
     }
+
     return directories;
   }
 
@@ -259,39 +264,43 @@ public final class ExecutableFinder {
         return entry.getValue();
       }
     }
+
     return "";
   }
 
-  private static List<Path> readPathsFile(final Path file) {
+  private List<Path> readPathsFile(final Path file) {
     final boolean exists = Files.isRegularFile(file);
     if (!exists) {
       return List.of();
     }
+
     try {
       final List<String> lines = Files.readAllLines(file);
-      return toDirectories(lines);
+      return this.toDirectories(lines);
     } catch (final IOException exception) {
       LOGGER.debug("Could not read the paths file {}, skipping it.", file, exception);
       return List.of();
     }
   }
 
-  private static List<Path> toDirectories(final List<String> entries) {
+  private List<Path> toDirectories(final List<String> entries) {
     final List<Path> directories = new ArrayList<>();
     for (final String entry : entries) {
-      final Path directory = toDirectory(entry);
+      final Path directory = this.toDirectory(entry);
       if (directory != null) {
         directories.add(directory);
       }
     }
+
     return directories;
   }
 
-  private static @Nullable Path toDirectory(final String entry) {
+  private @Nullable Path toDirectory(final String entry) {
     final String trimmed = entry.strip();
     if (trimmed.isEmpty()) {
       return null;
     }
+
     try {
       return Path.of(trimmed);
     } catch (final InvalidPathException exception) {
@@ -299,7 +308,7 @@ public final class ExecutableFinder {
     }
   }
 
-  private static boolean isExecutable(final Path path) {
+  private boolean isExecutable(final Path path) {
     return Files.isRegularFile(path) && Files.isExecutable(path);
   }
 }

@@ -73,10 +73,7 @@ public final class VmInputExample {
     forwardInput(player, label);
 
     final Runtime runtime = Runtime.getRuntime();
-    final Thread cleanup = new Thread(() -> {
-      player.release();
-      api.release();
-    });
+    final Thread cleanup = new Thread(() -> release(player, api));
     runtime.addShutdownHook(cleanup);
   }
 
@@ -96,10 +93,7 @@ public final class VmInputExample {
 
   private static void showFrames(final VmPlayer player, final JLabel label) {
     final VideoPipelineStepBuilder builder = PipelineBuilder.video();
-    builder.then((image, _) -> {
-      show(label, image);
-      return false;
-    });
+    builder.then((image, _) -> show(label, image));
     final VideoPipelineStep pipeline = builder.build();
 
     final VideoAttachableCallback callback = player.getVideoAttachableCallback();
@@ -135,9 +129,16 @@ public final class VmInputExample {
     label.addKeyListener(keys);
   }
 
-  private static void show(final JLabel label, final ImageBuffer samples) {
+  private static void release(final VmPlayer player, final MCAVApi api) {
+    player.release();
+    api.release();
+  }
+
+  private static boolean show(final JLabel label, final ImageBuffer samples) {
     final BufferedImage image = samples.toBufferedImage();
     final ImageIcon icon = new ImageIcon(image);
     SwingUtilities.invokeLater(() -> label.setIcon(icon));
+
+    return false;
   }
 }

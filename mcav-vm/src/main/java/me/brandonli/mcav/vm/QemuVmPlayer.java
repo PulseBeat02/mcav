@@ -496,7 +496,12 @@ public final class QemuVmPlayer implements VmPlayer {
 
   @FunctionalInterface
   interface ProcessFactory {
-    VmProcess create(VmSettings settings, Architecture architecture, QemuProgram program, VmConfiguration configuration);
+    VmProcess create(
+      final VmSettings settings,
+      final Architecture architecture,
+      final QemuProgram program,
+      final VmConfiguration configuration
+    );
   }
 
   private static final class OutputSink implements VmAudioClient.Sink {
@@ -520,7 +525,11 @@ public final class QemuVmPlayer implements VmPlayer {
 
   @FunctionalInterface
   interface AudioConnector {
-    VmAudioClient connect(InetSocketAddress address, String password, VmAudioClient.Sink sink, BiConsumer<String, Throwable> failures)
-      throws IOException;
+    VmAudioClient connect(
+      final InetSocketAddress address,
+      final String password,
+      final VmAudioClient.Sink sink,
+      final BiConsumer<String, Throwable> failures
+    ) throws IOException;
   }
 }

@@ -205,7 +205,7 @@ final class VmAudioClient implements Closeable {
   @FunctionalInterface
   interface Sink {
     // the buffer is reused for the next message, so the samples must be copied
-    void accept(byte[] samples, int length);
+    void accept(final byte[] samples, final int length);
 
     // the guest stopped playing: nothing arrives until it plays again
     default void quiet() {}

@@ -441,6 +441,6 @@ final class QemuAudioProtocolTest {
 
   @FunctionalInterface
   interface Writer {
-    void write(DataOutputStream output) throws IOException;
+    void write(final DataOutputStream output) throws IOException;
   }
 }

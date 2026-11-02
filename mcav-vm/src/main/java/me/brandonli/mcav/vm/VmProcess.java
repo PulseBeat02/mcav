@@ -249,7 +249,7 @@ final class VmProcess {
   }
 
   void start() {
-    checkModuleOptions(this.configuration);
+    this.checkModuleOptions(this.configuration);
     this.ensurePortIsFree();
 
     final Path folder = this.writePassword();
@@ -268,7 +268,7 @@ final class VmProcess {
       return;
     }
 
-    final String accelerator = detectAccelerator(this.os, this.kvmDevice);
+    final String accelerator = this.detectAccelerator(this.os, this.kvmDevice);
     final boolean software = accelerator.equals(SOFTWARE_ACCELERATOR);
     if (software) {
       this.launch(SOFTWARE_ACCELERATOR, passwordFile);
@@ -308,7 +308,7 @@ final class VmProcess {
       this.launch(accelerator, passwordFile);
     } catch (final VmException exception) {
       final String reason = exception.getMessage();
-      final boolean acceleratorProblem = mentionsAccelerator(reason, accelerator);
+      final boolean acceleratorProblem = this.mentionsAccelerator(reason, accelerator);
       if (!acceleratorProblem) {
         throw exception;
       }
@@ -319,7 +319,7 @@ final class VmProcess {
   }
 
   @VisibleForTesting
-  static void checkModuleOptions(final VmConfiguration configuration) {
+  void checkModuleOptions(final VmConfiguration configuration) {
     for (final String option : MODULE_OPTIONS) {
       if (configuration.has(option)) {
         final String message = "Option -%s is set by MCAV itself and must be removed from the configuration!".formatted(option);
@@ -327,7 +327,7 @@ final class VmProcess {
       }
     }
 
-    for (final String machine : machineValues(configuration)) {
+    for (final String machine : this.machineValues(configuration)) {
       if (machine.contains(SPEAKER_PROPERTY)) {
         final String message = "PC speaker is routed by MCAV itself, so pcspk-audiodev must be removed from -machine!";
         throw new IllegalArgumentException(message);
@@ -336,23 +336,23 @@ final class VmProcess {
   }
 
   boolean hasAudio() {
-    final String type = machineType(this.configuration);
-    final boolean pcMachine = isPcMachine(type);
+    final String type = this.machineType(this.configuration);
+    final boolean pcMachine = this.isPcMachine(type);
     return this.architecture == VmPlayer.Architecture.X86_64 && pcMachine;
   }
 
   // QEMU merges every -machine and -M option: a value names the type first or in type=, and the last type wins
   @VisibleForTesting
-  static String machineType(final VmConfiguration configuration) {
+  String machineType(final VmConfiguration configuration) {
     String type = "";
-    for (final String machine : machineValues(configuration)) {
-      type = mergeMachineType(type, machine);
+    for (final String machine : this.machineValues(configuration)) {
+      type = this.mergeMachineType(type, machine);
     }
 
     return type.toLowerCase(Locale.ROOT);
   }
 
-  private static String mergeMachineType(final String earlierType, final String machine) {
+  private String mergeMachineType(final String earlierType, final String machine) {
     String type = earlierType;
     boolean first = true;
     for (final String part : PROPERTY_SPLITTER.split(machine)) {
@@ -367,7 +367,7 @@ final class VmProcess {
     return type;
   }
 
-  private static List<String> machineValues(final VmConfiguration configuration) {
+  private List<String> machineValues(final VmConfiguration configuration) {
     // in the order of the arguments QEMU gets: grouped by spelling, -M q35 -machine microvm would read as q35 where QEMU
     // runs microvm; and by option name, as a scan of every argument would read -name -M -cpu host as the machine -cpu
     return configuration.valuesOf(MACHINE_OPTIONS);
@@ -375,7 +375,7 @@ final class VmProcess {
 
   // an empty type is the default machine of QEMU, a PC
   @VisibleForTesting
-  static boolean isPcMachine(final String type) {
+  boolean isPcMachine(final String type) {
     return type.isEmpty() || type.equals(PC_MACHINE) || type.equals(Q35_MACHINE) || type.startsWith(PC_VERSION_PREFIX);
   }
 
@@ -393,7 +393,7 @@ final class VmProcess {
   }
 
   @VisibleForTesting
-  static boolean mentionsAccelerator(final @Nullable String reason, final String accelerator) {
+  boolean mentionsAccelerator(final @Nullable String reason, final String accelerator) {
     final String message = Objects.requireNonNullElse(reason, "");
     final String lower = message.toLowerCase(Locale.ROOT);
     final boolean namesAccelerator = lower.contains(accelerator);
@@ -525,7 +525,7 @@ final class VmProcess {
     command.add("-audiodev");
     command.add(backend);
 
-    final String type = machineType(this.configuration);
+    final String type = this.machineType(this.configuration);
     final boolean q35 = this.isQ35(type);
     final String card = q35 ? ICH9_SOUND_CARD : SOUND_CARD;
     final String soundCard = "%s,id=%s".formatted(card, SOUND_CARD_ID);
@@ -561,7 +561,7 @@ final class VmProcess {
   }
 
   private Optional<String> findLastUsbProperty() {
-    final List<String> machines = machineValues(this.configuration);
+    final List<String> machines = this.machineValues(this.configuration);
     return machines
       .stream()
       .flatMap(PROPERTY_SPLITTER::splitToStream)
@@ -590,7 +590,7 @@ final class VmProcess {
   }
 
   @VisibleForTesting
-  static String detectAccelerator(final Os os, final Path kvmDevice) {
+  String detectAccelerator(final Os os, final Path kvmDevice) {
     return switch (os) {
       case LINUX -> Files.isWritable(kvmDevice) ? KVM_ACCELERATOR : SOFTWARE_ACCELERATOR;
       case WINDOWS -> WHPX_ACCELERATOR;
@@ -863,7 +863,7 @@ final class VmProcess {
   @FunctionalInterface
   interface Launcher {
     // the error output must be merged into the standard output, the only stream that is drained
-    Process launch(List<String> command) throws IOException;
+    Process launch(final List<String> command) throws IOException;
 
     default void onProcessEnded(final Process process) {}
   }

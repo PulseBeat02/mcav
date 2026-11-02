@@ -953,11 +953,12 @@ final class VmProcessTest {
     final boolean speakerRouted = command.contains(SPEAKER_ROUTE);
     assertTrue(speakerRouted, command::toString);
 
+    final VmProcess process = this.reachable(Os.LINUX);
     final VmConfiguration routed = VmConfiguration.builder().option(SHORT_MACHINE_OPTION, ROUTED_PC_MACHINE).build();
-    assertThrows(IllegalArgumentException.class, () -> VmProcess.checkModuleOptions(routed));
+    assertThrows(IllegalArgumentException.class, () -> process.checkModuleOptions(routed));
 
     final VmConfiguration repeated = VmConfiguration.builder().repeatable(MACHINE_OPTION, "pcspk-audiodev=snd0").build();
-    assertThrows(IllegalArgumentException.class, () -> VmProcess.checkModuleOptions(repeated));
+    assertThrows(IllegalArgumentException.class, () -> process.checkModuleOptions(repeated));
   }
 
   @Test
@@ -983,24 +984,25 @@ final class VmProcessTest {
 
   @Test
   void shouldReadTheMachineTypeFromTheMachineOption() {
+    final VmProcess process = this.reachable(Os.LINUX);
     final VmConfiguration none = VmConfiguration.builder().build();
-    final String noneType = VmProcess.machineType(none);
+    final String noneType = process.machineType(none);
     assertEquals("", noneType);
 
     final VmConfiguration named = VmConfiguration.builder().machine("Q35,usb=on").build();
-    final String namedType = VmProcess.machineType(named);
+    final String namedType = process.machineType(named);
     assertEquals(Q35_MACHINE, namedType);
 
     final VmConfiguration typed = VmConfiguration.builder().machine("usb=on,type=PC").build();
-    final String typedType = VmProcess.machineType(typed);
+    final String typedType = process.machineType(typed);
     assertEquals("pc", typedType);
 
     final VmConfiguration properties = VmConfiguration.builder().machine("accel=kvm").build();
-    final String propertiesType = VmProcess.machineType(properties);
+    final String propertiesType = process.machineType(properties);
     assertEquals("", propertiesType);
 
     final VmConfiguration last = VmConfiguration.builder().machine("pc,type=q35").build();
-    final String lastType = VmProcess.machineType(last);
+    final String lastType = process.machineType(last);
     assertEquals(Q35_MACHINE, lastType);
 
     final VmConfiguration both = VmConfiguration.builder()
@@ -1008,22 +1010,22 @@ final class VmProcessTest {
       .option(SHORT_MACHINE_OPTION, MICROVM_MACHINE)
       .repeatable(MACHINE_OPTION, USB_ON)
       .build();
-    final String bothType = VmProcess.machineType(both);
+    final String bothType = process.machineType(both);
     assertEquals(MICROVM_MACHINE, bothType);
 
     final VmConfiguration aliases = VmConfiguration.builder().option(SHORT_MACHINE_OPTION, Q35_MACHINE).machine(MICROVM_MACHINE).build();
-    final String aliasesType = VmProcess.machineType(aliases);
+    final String aliasesType = process.machineType(aliases);
     assertEquals(MICROVM_MACHINE, aliasesType);
 
     final VmConfiguration repeated = VmConfiguration.builder()
       .repeatable(SHORT_MACHINE_OPTION, MICROVM_MACHINE)
       .repeatable(MACHINE_OPTION, Q35_MACHINE)
       .build();
-    final String repeatedType = VmProcess.machineType(repeated);
+    final String repeatedType = process.machineType(repeated);
     assertEquals(Q35_MACHINE, repeatedType);
 
     final VmConfiguration empty = VmConfiguration.builder().machine(",usb=on").build();
-    final String emptyType = VmProcess.machineType(empty);
+    final String emptyType = process.machineType(empty);
     assertEquals("", emptyType);
 
     for (final String lookalike : List.of(SHORT_MACHINE_ARGUMENT, MACHINE_ARGUMENT)) {
@@ -1034,16 +1036,16 @@ final class VmProcessTest {
         .repeatable("device", lookalike)
         .repeatable("device", "e1000")
         .build();
-      final String valuedType = VmProcess.machineType(valued);
+      final String valuedType = process.machineType(valued);
       assertEquals(Q35_MACHINE, valuedType, valued::toString);
     }
 
-    final boolean defaultIsPc = VmProcess.isPcMachine("");
-    final boolean pcIsPc = VmProcess.isPcMachine("pc");
-    final boolean q35IsPc = VmProcess.isPcMachine(Q35_MACHINE);
-    final boolean versionedQ35IsPc = VmProcess.isPcMachine("pc-q35-9.0");
-    final boolean microvmIsPc = VmProcess.isPcMachine(MICROVM_MACHINE);
-    final boolean isapcIsPc = VmProcess.isPcMachine("isapc");
+    final boolean defaultIsPc = process.isPcMachine("");
+    final boolean pcIsPc = process.isPcMachine("pc");
+    final boolean q35IsPc = process.isPcMachine(Q35_MACHINE);
+    final boolean versionedQ35IsPc = process.isPcMachine("pc-q35-9.0");
+    final boolean microvmIsPc = process.isPcMachine(MICROVM_MACHINE);
+    final boolean isapcIsPc = process.isPcMachine("isapc");
     assertTrue(defaultIsPc);
     assertTrue(pcIsPc);
     assertTrue(q35IsPc);
@@ -1054,10 +1056,11 @@ final class VmProcessTest {
 
   @Test
   void shouldRefuseAConfigurationThatSetsTheDisplayOrTheSoundOfTheMachine() {
+    final VmProcess process = this.reachable(Os.LINUX);
     for (final String option : List.of("vnc", "audio", "audiodev")) {
       final VmConfiguration configuration = VmConfiguration.builder().option(option, "x").build();
       final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () ->
-        VmProcess.checkModuleOptions(configuration)
+        process.checkModuleOptions(configuration)
       );
       final String expected = "Option -%s is set by MCAV itself and must be removed from the configuration!".formatted(option);
       final String message = refused.getMessage();
@@ -1065,16 +1068,16 @@ final class VmProcessTest {
     }
 
     final VmConfiguration speaker = VmConfiguration.builder().machine(ROUTED_PC_MACHINE).build();
-    final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () -> VmProcess.checkModuleOptions(speaker));
+    final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () -> process.checkModuleOptions(speaker));
     final String message = refused.getMessage();
     assertEquals("PC speaker is routed by MCAV itself, so pcspk-audiodev must be removed from -machine!", message);
 
     final VmConfiguration fine = VmConfiguration.builder().machine(Q35_MACHINE).build();
-    VmProcess.checkModuleOptions(fine);
+    process.checkModuleOptions(fine);
     final VmSettings settings = this.reachableSettings();
     final VmConfiguration display = VmConfiguration.builder().option("vnc", ":7").build();
-    final VmProcess process = this.createProcess(settings, display, Os.LINUX);
-    assertThrows(IllegalArgumentException.class, process::start);
+    final VmProcess displayProcess = this.createProcess(settings, display, Os.LINUX);
+    assertThrows(IllegalArgumentException.class, displayProcess::start);
     assertEquals(List.of(), this.commands, "a refused configuration never starts QEMU");
   }
 
@@ -1107,13 +1110,14 @@ final class VmProcessTest {
 
   @Test
   void shouldPickTheAcceleratorOfEveryOperatingSystem() throws IOException {
+    final VmProcess process = this.reachable(Os.LINUX);
     final Path writableKvm = this.directory.resolve(WRITABLE_KVM_DEVICE);
     Files.writeString(writableKvm, "");
-    final String windows = VmProcess.detectAccelerator(Os.WINDOWS, this.missingKvm);
-    final String mac = VmProcess.detectAccelerator(Os.MAC, this.missingKvm);
-    final String freeBsd = VmProcess.detectAccelerator(Os.FREEBSD, this.missingKvm);
-    final String linuxWithoutKvm = VmProcess.detectAccelerator(Os.LINUX, this.missingKvm);
-    final String linuxWithKvm = VmProcess.detectAccelerator(Os.LINUX, writableKvm);
+    final String windows = process.detectAccelerator(Os.WINDOWS, this.missingKvm);
+    final String mac = process.detectAccelerator(Os.MAC, this.missingKvm);
+    final String freeBsd = process.detectAccelerator(Os.FREEBSD, this.missingKvm);
+    final String linuxWithoutKvm = process.detectAccelerator(Os.LINUX, this.missingKvm);
+    final String linuxWithKvm = process.detectAccelerator(Os.LINUX, writableKvm);
     assertEquals(WINDOWS_ACCELERATOR, windows);
     assertEquals(MAC_ACCELERATOR, mac);
     assertEquals(SOFTWARE_ACCELERATOR, freeBsd);
@@ -1123,12 +1127,13 @@ final class VmProcessTest {
 
   @Test
   void shouldBlameTheAcceleratorOnlyForMessagesThatMentionIt() {
-    final boolean named = VmProcess.mentionsAccelerator("HVF: error", MAC_ACCELERATOR);
-    final boolean generic = VmProcess.mentionsAccelerator("no ACCEL", MAC_ACCELERATOR);
-    final boolean hypervisor = VmProcess.mentionsAccelerator("Hypervisor.framework missing", MAC_ACCELERATOR);
-    final boolean virtualization = VmProcess.mentionsAccelerator("enable VIRTUALIZATION", MAC_ACCELERATOR);
-    final boolean unrelated = VmProcess.mentionsAccelerator("disk not found", MAC_ACCELERATOR);
-    final boolean missing = VmProcess.mentionsAccelerator(null, MAC_ACCELERATOR);
+    final VmProcess process = this.reachable(Os.LINUX);
+    final boolean named = process.mentionsAccelerator("HVF: error", MAC_ACCELERATOR);
+    final boolean generic = process.mentionsAccelerator("no ACCEL", MAC_ACCELERATOR);
+    final boolean hypervisor = process.mentionsAccelerator("Hypervisor.framework missing", MAC_ACCELERATOR);
+    final boolean virtualization = process.mentionsAccelerator("enable VIRTUALIZATION", MAC_ACCELERATOR);
+    final boolean unrelated = process.mentionsAccelerator("disk not found", MAC_ACCELERATOR);
+    final boolean missing = process.mentionsAccelerator(null, MAC_ACCELERATOR);
     assertTrue(named);
     assertTrue(generic);
     assertTrue(hypervisor);
