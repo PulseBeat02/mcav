@@ -67,7 +67,6 @@ A page is untrusted content, and the browser runs without Chromium's sandbox, wh
   needs Linux 5.13 or later (Landlock) or macOS (Seatbelt); on Windows and older Linux kernels the browser runs as
   before, and the server log says `Chromium runs without confinement` with the reason. `browser.confine-chromium:
   false` turns it off.
-
 - Only the public internet. Every connection goes through a guard that refuses loopback, private, link-local (such
   as a cloud server's metadata service) and every other special address, also when a public name resolves to one, and
   every address of the server's own network interfaces. So a page, or a player clicking on it, cannot read a service

@@ -150,7 +150,6 @@ a page can do instead:
   `BrowserOptions.builder().confinement(false)` turns it off, for a page that needs something it hides. As Chromium
   binds a socket in the folder of the session, the temporary folder of the server (`java.io.tmpdir`) may have at most
   47 characters on Linux; a browser in a longer one is refused with that reason.
-
 - Only `http` and `https` pages are shown, besides the empty `about:blank`; frames may also hold `data:` and `blob:`
   documents. `file:`, `chrome:` and other addresses are refused, and so is handing an address to another program.
 - By default, pages reach public addresses of the internet only. Every connection goes through a guard in the helper
@@ -178,7 +177,6 @@ a page can do instead:
   folder names the server that made it, so a folder a killed server left behind is deleted when the browser module
   starts again. On Linux and macOS only folders of the user running the server are deleted, as other users of the
   machine share the temporary folder.
-
 - The sound of the page reaches the helper through a DevTools binding that the page could call too, before MCAV's
   script takes it away; the helper takes only exact calls with whole frames of sound, at most two seconds of sound per
   second, and passes none of it on before a press of a mouse button or a key on the page that plays it, unless

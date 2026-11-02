@@ -20,7 +20,7 @@ such as a 32-bit one.
 
 As in a desktop browser, a page plays sound only once a player has clicked its screen or typed into it, so a page cannot
 play sound before anyone has looked at it; click the screen once, or turn on `browser.autoplay-sound` in the
-[configuration](./config). Choose an audio type other than `NONE` in `/mcav browser create`. The sound of frames from
+[configuration](./config.md). Choose an audio type other than `NONE` in `/mcav browser create`. The sound of frames from
 another site embedded in the page (open the address of the embedded player instead), of media from another site that
 does not allow it, and of protected media (DRM) cannot be captured.
 
@@ -30,7 +30,7 @@ does not allow it, and of protected media (DRM) cannot be captured.
 
 By default the browser reaches public addresses of the internet only, so that a page, or a player clicking on it,
 cannot read services that only the server can reach, such as a router or the metadata service of a cloud server.
-Turn on `browser.allow-private-networks` in the [configuration](./config) only if you trust everyone who may create a
+Turn on `browser.allow-private-networks` in the [configuration](./config.md) only if you trust everyone who may create a
 browser, every page they open and every player who may click on it.
 
 ---

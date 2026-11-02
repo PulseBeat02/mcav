@@ -78,7 +78,7 @@ First, run the `/mcav screen` command with arguments to create a new map screen.
 1) If you would like to play a video on the screen you just created, run the `/mcav video map` command. Otherwise, you
 can use other commands like `/mcav video block`.
 2) Set the audio type to whatever audio you configured in Step 2 (HTTP, Discord, or Simple Voice Chat).
-3) Specify the other arguments according to its [command usage](./commands).
+3) Specify the other arguments according to its [command usage](./commands.md).
 4) Set the `mrl` to either a local file path, or pretty much any valid URL to a website like YouTube, Vimeo, or Twitch.
 yt-dlp lists every site it supports in
 [its supported sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md).
@@ -110,7 +110,7 @@ static image can also produce no map updates, so packet silence alone does not i
    audio type for a silent page. The first browser on a server downloads Chromium once (about 136 to 163 MiB), and on
    Linux the libraries it needs that the server lacks (about 13 MB), so it takes a moment longer to start; you
    install nothing. As in a desktop browser, a page plays sound only after a player clicks its screen or types into it;
-   turn on `browser.autoplay-sound` in the [configuration](./config) to let pages play sound right away.
+   turn on `browser.autoplay-sound` in the [configuration](./config.md) to let pages play sound right away.
 2) If you want to interact with the browser, you can use the `/mcav browser interact` command, which takes all your
    chat input and sends it to the browser as if you were typing in a real web browser. For a special key, type its key
    name, such as `Enter`, to press it. A left or right click on the browser simulates a mouse
@@ -135,7 +135,7 @@ cameras, microphones and screen, so it needs the permission `mcav.command.video.
 1) Use the `/mcav vm create` command to create a new virtual machine on that screen. You can create a virtual machine
    only
 on a wall of maps.
-2) Follow the command argument usage in the [Commands Guide](./commands) to specify the VM parameters. You are
+2) Follow the command argument usage in the [Commands Guide](./commands.md) to specify the VM parameters. You are
 on your own to provide the valid QEMU arguments for the VM to run. For some examples of valid VM arguments, here is one
 for providing an ISO image of the plugin's `iso` folder with 2 GB of RAM and 2 CPU cores, whose sound plays through
 Simple Voice Chat. Put names that contain spaces in double quotes.
@@ -155,7 +155,7 @@ and where disk images go.
 or `/mcav vm create`, for example
 `/mcav video map @a FFMPEG NONE 1280x720 10x6 0 NEAREST_COLOR "" https://www.youtube.com/watch?v=... --codec mcv2`.
 The resolution is what the players see: 1280x720 on a 10x6 wall is sharper than the 128 pixels a map shows. To use
-MCV2 whenever a command has no flag, set `mcv2.default-codec` to `mcv2` in the [configuration](./config).
+MCV2 whenever a command has no flag, set `mcv2.default-codec` to `mcv2` in the [configuration](./config.md).
 3) MCAV asks the players who watch to load its MCV2 resource pack. Those who accept see the MCV2 picture once their
 client has loaded it; those who decline, or whose client cannot load it, keep seeing the dithered maps. The same pack
 serves every MCV2 screen of the server, so a player loads it once, and again only when a screen of a new video size
@@ -168,8 +168,8 @@ with Iris 1.11.7, and with other Iris versions shows them the dithered maps whil
 5) MCV2 encodes on the server's CPU, on the threads of `mcv2.encoder-threads`, which every MCV2 screen shares. When a
 screen asks for more than they can give, it steps down to a faster encoder, a smaller video or fewer frames, and tells
 you. You can encode a video file you show often ahead of time at the best quality with `/mcav mcv2 encode` and show it
-with `/mcav mcv2 play` (without sound). [MCV2 on Maps](../bukkit/mcv2.md) helps you choose a preset, host the pack and
-troubleshoot.
+with `/mcav mcv2 play` (without sound). [Using MCV2](../mcv2.md#part-13-using-mcv2) helps you choose a preset, host the
+pack and troubleshoot.
 
 ### Showing a VNC desktop
 1) List the VNC server in `vnc.allowed-hosts` of the [configuration file](./config.md), with its password if it has one,
