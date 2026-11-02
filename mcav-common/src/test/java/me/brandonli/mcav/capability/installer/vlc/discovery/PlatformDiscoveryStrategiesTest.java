@@ -421,6 +421,30 @@ final class PlatformDiscoveryStrategiesTest {
   }
 
   @Test
+  void shouldTryTheCLibraryAgainAfterAFailedLoad() {
+    final AtomicInteger loads = new AtomicInteger();
+    final LibC libc = mock(LibC.class);
+    when(libc.setenv(VARIABLE_NAME, VARIABLE_VALUE, 1)).thenReturn(0);
+    final EnvironmentVariables variables = new EnvironmentVariables(() -> this.failFirstThenLoad(loads, libc));
+    final boolean firstSet = variables.setPosixVariable(VARIABLE_NAME, VARIABLE_VALUE);
+    final boolean secondSet = variables.setPosixVariable(VARIABLE_NAME, VARIABLE_VALUE);
+    final int loadCount = loads.get();
+    assertFalse(firstSet);
+    assertTrue(secondSet);
+    assertEquals(2, loadCount, "a failed load of the C library is tried again");
+  }
+
+  private LibC failFirstThenLoad(final AtomicInteger loads, final LibC libc) {
+    final int previousLoads = loads.getAndIncrement();
+    if (previousLoads == 0) {
+      final String message = "Unable to load library 'c'!";
+      throw new UnsatisfiedLinkError(message);
+    }
+
+    return libc;
+  }
+
+  @Test
   void shouldPreloadTheCoreLibraryFromTheGivenDirectory() throws IOException {
     final String coreLibraryName = RuntimeUtil.getLibVlcCoreLibraryName();
     final String coreFileName = System.mapLibraryName(coreLibraryName);
