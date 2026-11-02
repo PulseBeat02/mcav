@@ -75,7 +75,6 @@ import org.slf4j.LoggerFactory;
 public final class Mcv2Channel {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Mcv2Channel.class);
-  private static final String UNSENT_LIMIT_REFUSED = "The connection of viewer {} refused the limit of unsent bytes.";
 
   private static final int RANGE_MARGIN = 32;
 
@@ -334,7 +333,7 @@ public final class Mcv2Channel {
         PacketUtils.limitUnsent(viewer, unsent);
       } catch (final RuntimeException exception) {
         // A closing epoll connection may reject this optional backlog limit.
-        LOGGER.debug(UNSENT_LIMIT_REFUSED, viewer, exception);
+        LOGGER.debug("The connection of viewer {} refused the limit of unsent bytes.", viewer, exception);
       }
     }
 
@@ -403,7 +402,7 @@ public final class Mcv2Channel {
       header = Mcv2Decoder.parse(frame);
       pages = TransportPages.makePages(header, this.configuration.getStreamId());
     } catch (final Mcv2Exception exception) {
-      final String message = "Not a valid MCV2 frame (%s)!".formatted(exception.getMessage());
+      final String message = "Frame is not a valid MCV2 frame!";
       throw new IllegalArgumentException(message, exception);
     }
 

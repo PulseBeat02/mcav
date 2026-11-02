@@ -183,7 +183,8 @@ public final class TransportPages {
     Preconditions.checkNotNull(symbols, SYMBOLS_NULL_MESSAGE);
 
     if (byteCount < 0 || symbols.length != symbolCount(byteCount)) {
-      throw new Mcv2Exception("Invalid symbol extent!");
+      final String message = "Invalid symbol extent!";
+      throw new Mcv2Exception(message);
     }
 
     final byte[] data = new byte[byteCount];
@@ -193,7 +194,8 @@ public final class TransportPages {
     for (final byte symbol : symbols) {
       final int value = Byte.toUnsignedInt(symbol);
       if (value >= 1 << SYMBOL_BITS) {
-        throw new Mcv2Exception("Out-of-alphabet symbol!");
+        final String message = "Out-of-alphabet symbol!";
+        throw new Mcv2Exception(message);
       }
       buffer |= (long) value << held;
       held += SYMBOL_BITS;
@@ -205,7 +207,8 @@ public final class TransportPages {
     }
 
     if (buffer != 0) {
-      throw new Mcv2Exception("Nonzero symbol padding!");
+      final String message = "Nonzero symbol padding!";
+      throw new Mcv2Exception(message);
     }
 
     return data;
@@ -291,12 +294,14 @@ public final class TransportPages {
     Preconditions.checkNotNull(symbols, SYMBOLS_NULL_MESSAGE);
 
     if (symbols.length > PAGE_SYMBOLS) {
-      throw new Mcv2Exception("Oversize map page!");
+      final String message = "Oversize map page!";
+      throw new Mcv2Exception(message);
     }
 
     final int headerSymbols = (int) symbolCount(HEADER_BYTES);
     if (symbols.length < headerSymbols) {
-      throw new Mcv2Exception("Truncated page header!");
+      final String message = "Truncated page header!";
+      throw new Mcv2Exception(message);
     }
 
     final byte[] header = new byte[HEADER_BYTES];
@@ -324,7 +329,8 @@ public final class TransportPages {
       Byte.toUnsignedInt(header[SYMBOL_BITS_OFFSET]) != SYMBOL_BITS ||
       Mcv2Decoder.u16(header, TYPE_OFFSET) > 1
     ) {
-      throw new Mcv2Exception("Unsupported page header!");
+      final String message = "Unsupported page header!";
+      throw new Mcv2Exception(message);
     }
 
     final long total = Mcv2Decoder.u32(header, LENGTH_OFFSET);
@@ -336,7 +342,8 @@ public final class TransportPages {
       count != (total + capacity - 1) / capacity ||
       number >= count
     ) {
-      throw new Mcv2Exception("Invalid page metadata!");
+      final String message = "Invalid page metadata!";
+      throw new Mcv2Exception(message);
     }
 
     return (int) Math.min(capacity, total - (long) number * capacity);
@@ -362,7 +369,8 @@ public final class TransportPages {
     checksum.update(pageBytes);
 
     if (checksum.getValue() != stored) {
-      throw new Mcv2Exception("Page CRC mismatch!");
+      final String message = "Page CRC mismatch!";
+      throw new Mcv2Exception(message);
     }
 
     final byte[] payload = new byte[size];

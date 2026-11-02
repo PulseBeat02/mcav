@@ -407,7 +407,7 @@ final class DeltaMapEncoderTest {
     final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> encoder.encode(tooLong));
     final String message = exception.getMessage();
 
-    assertEquals("Image size does not match layout!", message);
+    assertEquals("Image length 16385 does not match the layout's 16384 pixels!", message);
   }
 
   @Test

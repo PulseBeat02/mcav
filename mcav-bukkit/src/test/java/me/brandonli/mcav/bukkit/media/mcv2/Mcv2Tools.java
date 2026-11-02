@@ -162,7 +162,8 @@ final class Mcv2Tools {
 
   static void main(final String[] arguments) throws Exception {
     if (arguments.length == 0) {
-      throw new IllegalArgumentException("Expected bench, digests, generate-fixtures or shader-compile!");
+      final String message = "Expected bench, digests, generate-fixtures or shader-compile!";
+      throw new IllegalArgumentException(message);
     }
 
     final String[] options = Arrays.copyOfRange(arguments, 1, arguments.length);
@@ -221,7 +222,8 @@ final class Mcv2Tools {
 
   private static Path installNatives(final String mode) throws IOException {
     if (!mode.equals(Mcv2.NATIVE_AUTO) && !mode.equals(Mcv2.NATIVE_OFF)) {
-      throw new IllegalArgumentException("natives must be auto or off!");
+      final String message = "Natives mode %s must be auto or off!".formatted(mode);
+      throw new IllegalArgumentException(message);
     }
 
     final Path folder = Files.createTempDirectory("mcv2-bench-natives-");
@@ -412,7 +414,7 @@ final class Mcv2Tools {
       OutputStream pictures = rgb ? new BufferedOutputStream(Files.newOutputStream(Path.of(arguments[1]))) : OutputStream.nullOutputStream()
     ) {
       for (final String argument : archives) {
-        System.out.println(argument + digests(Files.readAllBytes(Path.of(argument)), sha256, pictures));
+        System.out.println("%s%s".formatted(argument, digests(Files.readAllBytes(Path.of(argument)), sha256, pictures)));
       }
     }
   }
@@ -487,8 +489,8 @@ final class Mcv2Tools {
       golden(fixtures, pool, Settings.FAST, CROP_FAST_STREAM);
     }
 
-    Files.writeString(fixtures.resolve(DIGESTS_PATH), JSON.toJson(digests) + "\n");
-    Files.writeString(fixtures.resolve(PAGES_PATH), JSON.toJson(pages) + "\n");
+    Files.writeString(fixtures.resolve(DIGESTS_PATH), "%s\n".formatted(JSON.toJson(digests)));
+    Files.writeString(fixtures.resolve(PAGES_PATH), "%s\n".formatted(JSON.toJson(pages)));
   }
 
   private static void generate(
@@ -509,7 +511,7 @@ final class Mcv2Tools {
     final List<String> hashes = new ArrayList<>();
     final byte[] rgb = new byte[width * height * CHANNELS];
     final FixtureArchive fixture = new FixtureArchive(name, encoder, archive, hashes, pages, rgb, width, height);
-    final String raw = source + "30_pp600_1920x1080.rgb";
+    final String raw = "%s30_pp600_1920x1080.rgb".formatted(source);
     try (final RandomAccessFile input = new RandomAccessFile(sources.resolve(raw).toFile(), READ_MODE)) {
       boolean fits = true;
       for (int id = 0; id < count && fits; id++) {
@@ -518,13 +520,13 @@ final class Mcv2Tools {
       }
     }
 
-    Files.write(fixtures.resolve(CONFORMANCE_FOLDER + name), archive.toByteArray());
+    Files.write(fixtures.resolve("%s%s".formatted(CONFORMANCE_FOLDER, name)), archive.toByteArray());
     final Map<String, Object> expected = new LinkedHashMap<>();
     expected.put("source", raw);
     expected.put("crop", List.of((SOURCE_WIDTH - width) / 2, (SOURCE_HEIGHT - height) / 2, width, height));
     expected.put("sha256_per_frame", hashes);
     digests.put(name, expected);
-    System.out.println(name + ": " + hashes.size() + " frames, " + archive.size() + " bytes");
+    System.out.println("%s: %s frames, %s bytes".formatted(name, hashes.size(), archive.size()));
   }
 
   private static void crop(final RandomAccessFile input, final int frame, final byte[] rgb, final int width, final int height)
@@ -542,7 +544,8 @@ final class Mcv2Tools {
     final byte[] source = Files.readAllBytes(fixtures.resolve(CROP_SOURCE_PATH));
     final int bytes = FIXTURE_WIDTH * FIXTURE_HEIGHT * CHANNELS;
     if (source.length != bytes * 4) {
-      throw new IllegalArgumentException("Expected exactly four 320x180 frames!");
+      final String message = "Expected exactly four 320x180 frames!";
+      throw new IllegalArgumentException(message);
     }
 
     final Mcv2 encoder = new Mcv2(settings, pool, 1, Mcv2.Verification.VERIFIED);
@@ -551,8 +554,8 @@ final class Mcv2Tools {
       frame(archive, encoder.encode(Arrays.copyOfRange(source, id * bytes, (id + 1) * bytes), FIXTURE_WIDTH, FIXTURE_HEIGHT, id));
     }
 
-    Files.write(fixtures.resolve(ENCODER_FOLDER + name), archive.toByteArray());
-    System.out.println(name + ": 4 frames, " + archive.size() + " bytes");
+    Files.write(fixtures.resolve("%s%s".formatted(ENCODER_FOLDER, name)), archive.toByteArray());
+    System.out.println("%s: 4 frames, %s bytes".formatted(name, archive.size()));
   }
 
   private static void frame(final ByteArrayOutputStream out, final byte[] data) {
@@ -585,8 +588,16 @@ final class Mcv2Tools {
       ? Map.<String, Map<String, String>>of().entrySet()
       : TEXT_VARIANTS.entrySet()) {
       for (final String stage : List.of(VERTEX_STAGE, FRAGMENT_STAGE)) {
-        final Path source = pack.resolve(TEXT_SHADER_PREFIX + stage);
-        failures += compile(pack, generated, vanilla, source, stage, variant.getValue(), output.resolve(variant.getKey() + "." + stage));
+        final Path source = pack.resolve("%s%s".formatted(TEXT_SHADER_PREFIX, stage));
+        failures += compile(
+          pack,
+          generated,
+          vanilla,
+          source,
+          stage,
+          variant.getValue(),
+          output.resolve("%s.%s".formatted(variant.getKey(), stage))
+        );
       }
     }
 
@@ -599,7 +610,7 @@ final class Mcv2Tools {
       }
     }
 
-    System.out.println(failures == 0 ? "every stage compiled" : failures + " stages failed");
+    System.out.println(failures == 0 ? "every stage compiled" : "%s stages failed".formatted(failures));
     return failures;
   }
 
@@ -642,7 +653,7 @@ final class Mcv2Tools {
       final int kind = shaderStage == ShaderStage.VERTEX ? Shaderc.shaderc_vertex_shader : Shaderc.shaderc_fragment_shader;
       final long result = Shaderc.shaderc_compile_into_spv(compiler, text, kind, source.getFileName().toString(), "main", options);
       if (Shaderc.shaderc_result_get_compilation_status(result) != Shaderc.shaderc_compilation_status_success) {
-        System.out.println("FAIL " + target.getFileName() + ": " + Shaderc.shaderc_result_get_error_message(result));
+        System.out.println("FAIL %s: %s".formatted(target.getFileName(), Shaderc.shaderc_result_get_error_message(result)));
         Shaderc.shaderc_result_release(result);
         return 1;
       }
@@ -651,7 +662,7 @@ final class Mcv2Tools {
       final String glsl = crossCompile(spirv, shaderStage);
       Shaderc.shaderc_result_release(result);
       Files.writeString(target, glsl);
-      System.out.println("ok   " + target.getFileName());
+      System.out.println("ok   %s".formatted(target.getFileName()));
       return 0;
     } finally {
       Shaderc.shaderc_compile_options_release(options);
@@ -755,7 +766,7 @@ final class Mcv2Tools {
 
   private static void check(final int result, final String step) {
     if (result != Spvc.SPVC_SUCCESS) {
-      final String message = "SPIRV-Cross failed at %s with result %s!".formatted(step, result);
+      final String message = "SPIRV-Cross returned %s at the %s step!".formatted(result, step);
       throw new IllegalStateException(message);
     }
   }

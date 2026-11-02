@@ -150,14 +150,14 @@ final class KernelDifferential {
     }
 
     if (finishedJava != finishedOther) {
-      return name + " finished";
+      return "%s finished".formatted(name);
     }
 
     if (finishedJava && java.distortion() != other.distortion()) {
-      return name + " distortion";
+      return "%s distortion".formatted(name);
     }
 
-    return unless(Arrays.equals(expected, actual), name + " reconstruction");
+    return unless(Arrays.equals(expected, actual), "%s reconstruction".formatted(name));
   }
 
   private static @Nullable String unscored(

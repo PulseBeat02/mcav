@@ -233,7 +233,7 @@ final class MapResultTest {
     try (final ImageBuffer image = Images.solid(2, 2, FRAME_COLOR)) {
       final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () -> result.process(image, this.algorithm));
       final @Nullable String message = failure.getMessage();
-      assertEquals("Image size does not match layout!", message);
+      assertEquals("Image length %s does not match the layout's 4 pixels!".formatted(length), message);
     }
 
     final List<Packet<?>> sent = this.server.getSentPackets(VIEWER);

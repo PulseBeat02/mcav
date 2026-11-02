@@ -165,8 +165,9 @@ final class BlockPaletteLookupTest {
 
       final Throwable cause = exception.getCause();
       final String message = exception.getMessage();
+      final String expected = "Block palette resource %s could not be read!".formatted(PALETTE_RESOURCE);
       assertInstanceOf(IOException.class, cause);
-      assertEquals(CLOSE_FAILURE_MESSAGE, message);
+      assertEquals(expected, message);
     }
   }
 

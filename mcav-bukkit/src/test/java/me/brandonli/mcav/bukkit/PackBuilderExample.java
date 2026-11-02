@@ -36,7 +36,8 @@ public final class PackBuilderExample {
 
   static void main(final String[] args) throws IOException {
     if (args.length != 1) {
-      throw new IllegalArgumentException("Usage: PackBuilderExample <resource-pack-format>");
+      final String message = "Usage: PackBuilderExample <resource-pack-format>";
+      throw new IllegalArgumentException(message);
     }
 
     final int format = Integer.parseInt(args[0]);

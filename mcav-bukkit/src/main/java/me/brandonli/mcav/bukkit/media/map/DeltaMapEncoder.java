@@ -99,7 +99,7 @@ public final class DeltaMapEncoder {
    */
   public DeltaMapEncoder(final MapLayout layout, final int maximumBytesPerFrame) {
     Preconditions.checkNotNull(layout, "Layout must not be null!");
-    Preconditions.checkArgument(maximumBytesPerFrame > 0, "Byte budget must be positive!");
+    Preconditions.checkArgument(maximumBytesPerFrame > 0, "Byte budget %s must be positive!", maximumBytesPerFrame);
 
     final int mapCount = layout.getMapCount();
     this.layout = layout;
@@ -127,7 +127,12 @@ public final class DeltaMapEncoder {
     final int imageWidth = this.layout.getImageWidth();
     final int imageHeight = this.layout.getImageHeight();
     final int expectedLength = imageWidth * imageHeight;
-    Preconditions.checkArgument(image.length == expectedLength, "Image size does not match layout!");
+    Preconditions.checkArgument(
+      image.length == expectedLength,
+      "Image length %s does not match the layout's %s pixels!",
+      image.length,
+      expectedLength
+    );
 
     final List<MapCandidate> candidates = this.collectCandidates(image);
     if (candidates.isEmpty()) {

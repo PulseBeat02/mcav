@@ -25,7 +25,6 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.CopyOption;
@@ -43,6 +42,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+import me.brandonli.mcav.bukkit.BukkitException;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -71,6 +71,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * @since 1.0.0
  */
 public final class SimpleResourcePack {
+
+  private static final String PATH_NULL_MESSAGE = "Path must not be null!";
 
   private static final Pattern KEY_PATTERN = Pattern.compile("[a-z0-9_.-]+:[a-z0-9_./-]+");
 
@@ -148,8 +150,8 @@ public final class SimpleResourcePack {
    * @since 1.0.0
    */
   public void sound(final String key, final Path path) {
-    Preconditions.checkNotNull(key);
-    Preconditions.checkNotNull(path);
+    Preconditions.checkNotNull(key, "Key must not be null!");
+    Preconditions.checkNotNull(path, PATH_NULL_MESSAGE);
 
     final Matcher keyMatcher = KEY_PATTERN.matcher(key);
     final boolean validKey = keyMatcher.matches();
@@ -161,7 +163,7 @@ public final class SimpleResourcePack {
     final int separator = key.indexOf(NAMESPACE_SEPARATOR);
     final String namespace = key.substring(0, separator);
     final String value = key.substring(separator + 1);
-    final String soundPath = namespace + PATH_SEPARATOR + value;
+    final String soundPath = String.join(PATH_SEPARATOR, namespace, value);
     this.checkPathSegments(soundPath);
 
     final Map<String, Path> namespaceSounds = this.sounds.computeIfAbsent(namespace, _ -> new LinkedHashMap<>());
@@ -183,8 +185,8 @@ public final class SimpleResourcePack {
    * @since 1.0.0
    */
   public void external(final String path, final Path file) {
-    Preconditions.checkNotNull(path);
-    Preconditions.checkNotNull(file);
+    Preconditions.checkNotNull(path, PATH_NULL_MESSAGE);
+    Preconditions.checkNotNull(file, "File must not be null!");
     this.checkEntryPath(path);
 
     final boolean exists = Files.isRegularFile(file);
@@ -206,8 +208,8 @@ public final class SimpleResourcePack {
    * @since 1.0.0
    */
   public void data(final String path, final byte[] content) {
-    Preconditions.checkNotNull(path);
-    Preconditions.checkNotNull(content);
+    Preconditions.checkNotNull(path, PATH_NULL_MESSAGE);
+    Preconditions.checkNotNull(content, "Content must not be null!");
     this.checkEntryPath(path);
 
     this.files.remove(path);
@@ -244,8 +246,8 @@ public final class SimpleResourcePack {
    * @since 1.0.0
    */
   public void meta(final int format, final String description) {
-    Preconditions.checkArgument(format > 0, "Pack format must be positive!");
-    Preconditions.checkNotNull(description);
+    Preconditions.checkArgument(format > 0, "Pack format %s must be positive!", format);
+    Preconditions.checkNotNull(description, "Description must not be null!");
 
     this.format = format;
     this.description = description;
@@ -260,29 +262,31 @@ public final class SimpleResourcePack {
    * @param destination the destination path of the zipped resource pack
    * @throws IllegalStateException    if {@link #meta(int, String)} was never called
    * @throws IllegalArgumentException if the destination is a root directory
-   * @throws UncheckedIOException     if the pack could not be written
+   * @throws BukkitException          if the pack could not be written
    * @throws NullPointerException     if {@code destination} is null
    * @since 1.0.0
    */
   public void zip(final Path destination) {
-    Preconditions.checkNotNull(destination);
+    Preconditions.checkNotNull(destination, "Destination must not be null!");
 
     final String packDescription = this.description;
     if (packDescription == null) {
-      throw new IllegalStateException("Pack metadata must be set using meta(format, description)!");
+      final String message = "Pack metadata must be set using meta(format, description)!";
+      throw new IllegalStateException(message);
     }
 
     final Path absolute = destination.toAbsolutePath();
     final Path parent = absolute.getParent();
     if (parent == null) {
-      throw new IllegalArgumentException("Destination must be a file, not a root directory!");
+      final String message = "Destination must be a file, not a root directory!";
+      throw new IllegalArgumentException(message);
     }
 
     try {
       this.writeAtomically(parent, absolute, packDescription);
     } catch (final IOException exception) {
-      final String message = exception.getMessage();
-      throw new UncheckedIOException(message, exception);
+      final String message = "Resource pack %s could not be written!".formatted(absolute);
+      throw new BukkitException(message, exception);
     }
   }
 

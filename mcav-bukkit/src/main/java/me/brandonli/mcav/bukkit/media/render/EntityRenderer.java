@@ -138,7 +138,8 @@ public final class EntityRenderer extends MainThreadRenderer<Component> {
     final Location location = configuredPosition.clone();
     final World world = location.getWorld();
     if (world == null) {
-      throw new IllegalStateException("Entity position has no world!");
+      final String message = "Entity position has no world!";
+      throw new IllegalStateException(message);
     }
 
     final TextDisplay display = world.spawn(location, TextDisplay.class, this::configureDisplay);

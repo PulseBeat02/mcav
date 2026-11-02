@@ -36,10 +36,11 @@ final class Mcv2Internals {
   }
 
   static Class<?> nested(final String name) {
+    final String message = "Nested class Mcv2.%s is missing!".formatted(name);
     return Arrays.stream(Mcv2.class.getDeclaredClasses())
       .filter(type -> type.getSimpleName().equals(name))
       .findFirst()
-      .orElseThrow();
+      .orElseThrow(() -> new LinkageError(message));
   }
 
   static Object construct(final Class<?> type, final Class<?>[] parameters, final @Nullable Object... arguments) {

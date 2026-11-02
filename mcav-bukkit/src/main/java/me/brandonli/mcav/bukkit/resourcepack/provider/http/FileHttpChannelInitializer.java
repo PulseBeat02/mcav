@@ -66,7 +66,7 @@ final class FileHttpChannelInitializer extends ChannelInitializer<SocketChannel>
 
   @Override
   public void initChannel(final SocketChannel channel) {
-    Preconditions.checkNotNull(channel);
+    Preconditions.checkNotNull(channel, "Channel must not be null!");
 
     final int open = this.openConnections.incrementAndGet();
     final ChannelFuture closed = channel.closeFuture();

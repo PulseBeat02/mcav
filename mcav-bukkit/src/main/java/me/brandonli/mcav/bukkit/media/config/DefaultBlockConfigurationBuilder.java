@@ -68,8 +68,8 @@ final class DefaultBlockConfigurationBuilder implements BlockConfigurationBuilde
 
     final World world = configuredPosition.getWorld();
     Preconditions.checkArgument(world != null, "Position must have a world!");
-    Preconditions.checkArgument(this.blockWidth > 0, "Block width must be positive!");
-    Preconditions.checkArgument(this.blockHeight > 0, "Block height must be positive!");
+    Preconditions.checkArgument(this.blockWidth > 0, "Block width %s must be positive!", this.blockWidth);
+    Preconditions.checkArgument(this.blockHeight > 0, "Block height %s must be positive!", this.blockHeight);
 
     return new BlockConfiguration(configuredViewers, this.blockWidth, this.blockHeight, configuredPosition);
   }

@@ -376,10 +376,10 @@ final class Mcv2ConfigurationTest {
     this.refuses("Columns must be between 1 and 63 inclusive!", builder -> builder.columns(Mcv2Configuration.MAXIMUM_SIDE + 1));
     this.refuses("Rows must be between 1 and 63 inclusive!", builder -> builder.rows(0));
     this.refuses("Rows must be between 1 and 63 inclusive!", builder -> builder.rows(Mcv2Configuration.MAXIMUM_SIDE + 1));
-    this.refuses("Video width must be 0 to 4096!", builder -> builder.video(-1, 10));
-    this.refuses("Video width must be 0 to 4096!", builder -> builder.video(4097, 10));
-    this.refuses("Video height must be 0 to 4096!", builder -> builder.video(10, -1));
-    this.refuses("Video height must be 0 to 4096!", builder -> builder.video(10, 4097));
+    this.refuses("Video width must be between 0 and 4096 inclusive!", builder -> builder.video(-1, 10));
+    this.refuses("Video width must be between 0 and 4096 inclusive!", builder -> builder.video(4097, 10));
+    this.refuses("Video height must be between 0 and 4096 inclusive!", builder -> builder.video(10, -1));
+    this.refuses("Video height must be between 0 and 4096 inclusive!", builder -> builder.video(10, 4097));
     this.refuses("Page slots must be between 0 and 8 inclusive!", builder -> builder.pageSlots(-1));
     this.refuses("Page slots must be between 0 and 8 inclusive!", builder -> builder.pageSlots(Mcv2Configuration.MAXIMUM_PAGE_SLOTS + 1));
     this.refuses("Stream id must be between 0 and 4095 inclusive!", builder -> builder.streamId(-1));
@@ -389,7 +389,7 @@ final class Mcv2ConfigurationTest {
     this.refuses("Page map ids must be non-negative ints!", builder -> builder.pageMap(-1));
     this.refuses("Page map ids must be non-negative ints!", builder -> builder.pageMap(Integer.MAX_VALUE));
     this.refuses("Map ids exceed the integer range!", builder -> builder.map(Integer.MAX_VALUE));
-    this.refuses("The outline colour must not be black!", builder -> builder.outlineColor(NamedTextColor.BLACK));
+    this.refuses("Outline color must not be black!", builder -> builder.outlineColor(NamedTextColor.BLACK));
   }
 
   @Test

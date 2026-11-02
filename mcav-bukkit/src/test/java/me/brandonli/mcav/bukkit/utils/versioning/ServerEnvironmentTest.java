@@ -77,7 +77,7 @@ final class ServerEnvironmentTest {
       );
       final String message = exception.getMessage();
       assertFalse(supported);
-      assertEquals("MCAV only supports Minecraft 26.3, but the server is running 1.21.4!", message);
+      assertEquals("Minecraft 1.21.4 is not supported, MCAV only runs on Minecraft 26.3 and its patch releases!", message);
       assertInstanceOf(BukkitException.class, exception);
     }
   }

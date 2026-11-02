@@ -79,8 +79,8 @@ final class DefaultEntityConfigurationBuilder implements EntityConfigurationBuil
     final World world = configuredPosition.getWorld();
     Preconditions.checkArgument(world != null, "Position must have a world!");
     Preconditions.checkArgument(!configuredCharacter.isEmpty(), "Character must not be empty!");
-    Preconditions.checkArgument(this.entityWidth > 0, "Entity width must be positive!");
-    Preconditions.checkArgument(this.entityHeight > 0, "Entity height must be positive!");
+    Preconditions.checkArgument(this.entityWidth > 0, "Entity width %s must be positive!", this.entityWidth);
+    Preconditions.checkArgument(this.entityHeight > 0, "Entity height %s must be positive!", this.entityHeight);
 
     return new EntityConfiguration(configuredViewers, configuredCharacter, this.entityWidth, this.entityHeight, configuredPosition);
   }

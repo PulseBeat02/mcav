@@ -121,7 +121,7 @@ public final class Mcv2PackServer {
 
   private static final String PACK_SERVED = "Serving the MCV2 pack {} with {} at {} to the online players.";
 
-  private static final String PACK_FAILED = "Cannot serve the MCV2 pack with {}.";
+  private static final String PACK_FAILED = "The MCV2 pack with {} cannot be served.";
 
   private static final String PACK_LOADED = "{} loaded the MCV2 pack {} {} ms after it was offered.";
 
@@ -136,9 +136,9 @@ public final class Mcv2PackServer {
 
   private static final String NO_SLOT = "No MCV2 slot is free for a {}x{} video: the screen is dithered at that size.";
 
-  private static final String FOLDER_FAILED = "Cannot clear the old MCV2 packs from {}.";
+  private static final String FOLDER_FAILED = "The old MCV2 packs in {} cannot be cleared.";
 
-  private static final String PACK_WITHDRAWN = "No MCV2 screen plays any more: the players remove the MCV2 pack {}.";
+  private static final String PACK_WITHDRAWN = "The players remove the MCV2 pack {} because no MCV2 screen plays any more.";
 
   private static final String FILE_PREFIX = "mcav-mcv2-";
 
@@ -585,7 +585,7 @@ public final class Mcv2PackServer {
     this.current = null;
     this.viewers.retarget(NO_PACK);
     this.offered.clear();
-    LOGGER.info(PACK_WITHDRAWN, previousPack.packId());
+    LOGGER.debug(PACK_WITHDRAWN, previousPack.packId());
     for (final Player player : Bukkit.getOnlinePlayers()) {
       player.removeResourcePacks(previousPack.packId());
     }
@@ -767,7 +767,8 @@ public final class Mcv2PackServer {
     } catch (final IOException exception) {
       throw new UncheckedIOException("Cannot hash the MCV2 pack!", exception);
     } catch (final NoSuchAlgorithmException exception) {
-      throw new IllegalStateException(algorithm + " is not available", exception);
+      final String message = "Hash algorithm %s is not available!".formatted(algorithm);
+      throw new IllegalStateException(message, exception);
     }
   }
 

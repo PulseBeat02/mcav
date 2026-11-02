@@ -161,7 +161,8 @@ public final class BlockRenderer extends MainThreadRenderer<BlockData[]> {
     final Location origin = this.configuration.getPosition();
     final World world = origin.getWorld();
     if (world == null) {
-      throw new IllegalStateException("Block position has no world!");
+      final String message = "Block position has no world!";
+      throw new IllegalStateException(message);
     }
 
     final int blockCount = this.getBlockCount();

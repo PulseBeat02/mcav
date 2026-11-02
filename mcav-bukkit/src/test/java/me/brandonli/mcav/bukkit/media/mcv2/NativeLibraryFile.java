@@ -99,12 +99,14 @@ record NativeLibraryFile(NativeLibraryFile.Format format, int machine, Set<Strin
       return pe(file);
     }
 
-    throw new IllegalArgumentException("Not a 64-bit ELF, PE or Mach-O library!");
+    final String message = "Not a 64-bit ELF, PE or Mach-O library!";
+    throw new IllegalArgumentException(message);
   }
 
   private static NativeLibraryFile elf(final ByteBuffer file) {
     if (file.get(4) != ELF_CLASS_64 || file.get(5) != ELF_LITTLE_ENDIAN) {
-      throw new IllegalArgumentException("Not a 64-bit little-endian ELF file!");
+      final String message = "Not a 64-bit little-endian ELF file!";
+      throw new IllegalArgumentException(message);
     }
 
     final int machine = Short.toUnsignedInt(file.getShort(18));
@@ -162,14 +164,16 @@ record NativeLibraryFile(NativeLibraryFile.Format format, int machine, Set<Strin
   private static NativeLibraryFile pe(final ByteBuffer file) {
     final int signature = file.getInt(0x3c);
     if (file.getInt(signature) != PE_SIGNATURE) {
-      throw new IllegalArgumentException("No PE signature!");
+      final String message = "No PE signature!";
+      throw new IllegalArgumentException(message);
     }
 
     final int machine = Short.toUnsignedInt(file.getShort(signature + 4));
     final int sections = Short.toUnsignedInt(file.getShort(signature + 6));
     final int optional = signature + 24;
     if (file.getShort(optional) != PE32_PLUS) {
-      throw new IllegalArgumentException("Not a PE32+ file!");
+      final String message = "Not a PE32+ file!";
+      throw new IllegalArgumentException(message);
     }
 
     final int sectionTable = optional + Short.toUnsignedInt(file.getShort(signature + 20));

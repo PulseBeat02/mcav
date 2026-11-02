@@ -40,7 +40,8 @@ import org.checkerframework.checker.initialization.qual.UnderInitialization;
 public final class MapLayout {
 
   private static final String IMAGE_NULL_MESSAGE = "Image must not be null!";
-  private static final String IMAGE_SIZE_MISMATCH_MESSAGE = "Image size does not match layout!";
+
+  private static final String IMAGE_SIZE_MISMATCH_MESSAGE = "Image length %s does not match the layout's %s pixels!";
 
   /**
    * The width and height of a single map in pixels.
@@ -104,9 +105,9 @@ public final class MapLayout {
     final int imageWidth,
     final int imageHeight
   ) {
-    Preconditions.checkArgument(startMapId >= 0, "Map id must be non-negative!");
-    Preconditions.checkArgument(columns > 0 && rows > 0, "Map grid must be at least 1x1!");
-    Preconditions.checkArgument(imageWidth > 0 && imageHeight > 0, "Image must not be empty!");
+    Preconditions.checkArgument(startMapId >= 0, "Map id %s must not be negative!", startMapId);
+    Preconditions.checkArgument(columns > 0 && rows > 0, "Map grid of %sx%s maps must be at least 1x1!", columns, rows);
+    Preconditions.checkArgument(imageWidth > 0 && imageHeight > 0, "Image of %sx%s pixels must not be empty!", imageWidth, imageHeight);
 
     final long longMapCount = (long) columns * rows;
     Preconditions.checkArgument(longMapCount <= Integer.MAX_VALUE, "Map grid of %sx%s maps has too many maps!", columns, rows);
@@ -222,7 +223,7 @@ public final class MapLayout {
     Preconditions.checkElementIndex(index, this.regions.length, "Map index");
 
     final int expectedLength = this.imageWidth * this.imageHeight;
-    Preconditions.checkArgument(image.length == expectedLength, IMAGE_SIZE_MISMATCH_MESSAGE);
+    Preconditions.checkArgument(image.length == expectedLength, IMAGE_SIZE_MISMATCH_MESSAGE, image.length, expectedLength);
 
     final MapRegion region = this.regions[index];
     this.checkInsideRegion(region, index, left, top, width, height);
@@ -279,7 +280,7 @@ public final class MapLayout {
     Preconditions.checkNotNull(image, IMAGE_NULL_MESSAGE);
 
     final int expectedLength = this.imageWidth * this.imageHeight;
-    Preconditions.checkArgument(image.length == expectedLength, IMAGE_SIZE_MISMATCH_MESSAGE);
+    Preconditions.checkArgument(image.length == expectedLength, IMAGE_SIZE_MISMATCH_MESSAGE, image.length, expectedLength);
 
     final List<MapTilePatch> patches = new ArrayList<>(this.regions.length);
     for (int index = 0; index < this.regions.length; index++) {

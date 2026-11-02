@@ -392,7 +392,7 @@ final class PaperServerEndToEndTest {
 
     System.out.println("The MCV2 pack " + id + " of " + zip.length + " bytes is hosted at " + pack);
     this.runCommand(server, RELEASE_BROWSER_COMMAND, BROWSER_RELEASED, COMMAND_TIMEOUT);
-    assertLogged(server.getLines(), "MCV2 kernels: ");
+    assertLogged(server.getLines(), "MCV2 uses the ");
   }
 
   private void controlAVideo(final ServerProcess server, final Path media) throws InterruptedException {

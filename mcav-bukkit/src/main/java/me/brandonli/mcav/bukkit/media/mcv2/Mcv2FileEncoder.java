@@ -76,7 +76,8 @@ public final class Mcv2FileEncoder {
   private static final double NANOSECONDS_PER_MILLISECOND = 1e6;
 
   private Mcv2FileEncoder() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**
@@ -191,7 +192,7 @@ public final class Mcv2FileEncoder {
       grabber.start();
     } catch (final FFmpegFrameGrabber.Exception exception) {
       closeQuietly(grabber);
-      final String message = "Cannot open %s (%s)!".formatted(name, exception.getMessage());
+      final String message = "Video %s could not be opened!".formatted(name);
       throw new Mcv2Exception(message, exception);
     }
 
@@ -403,7 +404,7 @@ public final class Mcv2FileEncoder {
       try {
         frame = this.grabber.grabImage();
       } catch (final FFmpegFrameGrabber.Exception exception) {
-        final String message = "Cannot decode the video (%s)!".formatted(exception.getMessage());
+        final String message = "The video could not be decoded!";
         throw new Mcv2Exception(message, exception);
       }
 
@@ -421,7 +422,7 @@ public final class Mcv2FileEncoder {
       try {
         this.grabber.close();
       } catch (final FrameGrabber.Exception exception) {
-        final String message = "Cannot close the video (%s)!".formatted(exception.getMessage());
+        final String message = "The video could not be closed!";
         throw new Mcv2Exception(message, exception);
       }
     }

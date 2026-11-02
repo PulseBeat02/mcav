@@ -162,7 +162,8 @@ public final class Mcv2Decoder {
   }
 
   private Mcv2Decoder() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**
@@ -178,30 +179,36 @@ public final class Mcv2Decoder {
     Preconditions.checkNotNull(bytes, "Frame bytes must not be null!");
 
     if (bytes.length >= Integer.BYTES && u32(bytes, MAGIC_OFFSET) == LEGACY_MAGIC) {
-      throw new Mcv2Exception("MCV1 version 1 is no longer supported; re-encode as MCV2 version 3!");
+      final String message = "MCV1 version 1 is no longer supported; re-encode as MCV2 version 3!";
+      throw new Mcv2Exception(message);
     }
 
     if (bytes.length < Integer.BYTES || u32(bytes, MAGIC_OFFSET) != MAGIC) {
-      throw new Mcv2Exception("Not an MCV2 frame!");
+      final String message = "Not an MCV2 frame!";
+      throw new Mcv2Exception(message);
     }
 
     if (bytes.length > Integer.BYTES && bytes[VERSION_OFFSET] == LEGACY_VERSION) {
-      throw new Mcv2Exception("MCV2 version 2 is no longer supported; re-encode as version 3!");
+      final String message = "MCV2 version 2 is no longer supported; re-encode as version 3!";
+      throw new Mcv2Exception(message);
     }
 
     if (bytes.length < HEADER_BYTES || bytes.length > MAXIMUM_FRAME_BYTES) {
-      throw new Mcv2Exception("Invalid frame length!");
+      final String message = "Invalid frame length!";
+      throw new Mcv2Exception(message);
     }
 
     final byte[] data = bytes.clone();
     if (u32(data, VERSION_OFFSET) != VERSION) {
-      throw new Mcv2Exception("Not an MCV2 version 3 frame!");
+      final String message = "Not an MCV2 version 3 frame!";
+      throw new Mcv2Exception(message);
     }
 
     final int width = u16(data, DIMENSIONS_OFFSET);
     final int height = u16(data, DIMENSIONS_OFFSET + Short.BYTES);
     if (width < 1 || width > MAXIMUM_DIMENSION || height < 1 || height > MAXIMUM_DIMENSION) {
-      throw new Mcv2Exception("Invalid dimensions!");
+      final String message = "Invalid dimensions!";
+      throw new Mcv2Exception(message);
     }
 
     final boolean keyframe = u32(data, FRAME_ID_OFFSET) == u32(data, REFERENCE_ID_OFFSET);
@@ -308,7 +315,8 @@ public final class Mcv2Decoder {
     }
 
     if (reference == null || referenceId != frame.referenceId || reference.length != frame.width * frame.height * CHANNELS) {
-      throw new Mcv2Exception("Reference frame mismatch!");
+      final String message = "Reference frame mismatch!";
+      throw new Mcv2Exception(message);
     }
 
     return reference;
@@ -433,7 +441,10 @@ public final class Mcv2Decoder {
       case MODE_SOLID -> CHANNELS;
       case MODE_PALETTE -> RECORD_COLORS * CHANNELS + (size * size) / Byte.SIZE;
       case MODE_PATTERN -> patternSize(size);
-      default -> throw new IllegalArgumentException("Invalid record mode!");
+      default -> {
+        final String message = "Invalid record mode!";
+        throw new IllegalArgumentException(message);
+      }
     };
   }
 
@@ -576,7 +587,8 @@ public final class Mcv2Decoder {
       final int countsAt = HEADER_BYTES + (groups + checkpoints) * Integer.BYTES;
       final int descriptorsAt = countsAt + BLOCK_SIZES * Integer.BYTES;
       if (descriptorsAt > this.data.length) {
-        throw new Mcv2Exception("Truncated index!");
+        final String message = "Truncated index!";
+        throw new Mcv2Exception(message);
       }
 
       // Unsigned counts must fit the input before narrowing to int.
@@ -586,7 +598,8 @@ public final class Mcv2Decoder {
       final long count = levelZero + levelOne + levelTwo;
       final long start = descriptorsAt + count + ((count + WALK_SPAN - 1) / WALK_SPAN) * Integer.BYTES;
       if (start > this.data.length) {
-        throw new Mcv2Exception("Invalid index length!");
+        final String message = "Invalid index length!";
+        throw new Mcv2Exception(message);
       }
 
       this.start = (int) start;
@@ -603,7 +616,8 @@ public final class Mcv2Decoder {
           continue;
         }
         if (index >= lastLevel) {
-          throw new Mcv2Exception("Split below the bounded depth!");
+          final String message = "Split below the bounded depth!";
+          throw new Mcv2Exception(message);
         }
         splits++;
         if (index < firstChildren) {
@@ -612,7 +626,8 @@ public final class Mcv2Decoder {
       }
 
       if ((long) QUARTERS * firstSplits != levelOne || (long) QUARTERS * (splits - firstSplits) != levelTwo) {
-        throw new Mcv2Exception("Level counts disagree with splits!");
+        final String message = "Level counts disagree with splits!";
+        throw new Mcv2Exception(message);
       }
 
       final int[] positions = new int[descriptors * POSITION_INTS];
@@ -648,7 +663,8 @@ public final class Mcv2Decoder {
           index % WALK_SPAN == 0 &&
           u32(this.data, walksAt + (index / WALK_SPAN) * Integer.BYTES) != (cursor | ((long) splits << CURSOR_BITS))
         ) {
-          throw new Mcv2Exception("Invalid walk checkpoint!");
+          final String message = "Invalid walk checkpoint!";
+          throw new Mcv2Exception(message);
         }
         final int descriptor = this.data[descriptorsAt + index] & BYTE_MASK;
         final int mode = descriptor & MODE_MASK;
@@ -664,7 +680,8 @@ public final class Mcv2Decoder {
       }
 
       if (this.start + cursor != payloadEnd) {
-        throw new Mcv2Exception("Records do not end at the frame end!");
+        final String message = "Records do not end at the frame end!";
+        throw new Mcv2Exception(message);
       }
 
       int listed = 0;
@@ -686,16 +703,19 @@ public final class Mcv2Decoder {
         final long mask = u32(this.data, HEADER_BYTES + group * Integer.BYTES);
         final int valid = Math.min(GROUP_ROOTS, this.roots - group * GROUP_ROOTS);
         if (mask >>> valid != 0 || Long.bitCount(mask) > count - seen) {
-          throw new Mcv2Exception("Invalid presence mask!");
+          final String message = "Invalid presence mask!";
+          throw new Mcv2Exception(message);
         }
         if (group % CHECKPOINT_GROUPS == 0 && u32(this.data, HEADER_BYTES + (groups + group / CHECKPOINT_GROUPS) * Integer.BYTES) != seen) {
-          throw new Mcv2Exception("Invalid directory checkpoint!");
+          final String message = "Invalid directory checkpoint!";
+          throw new Mcv2Exception(message);
         }
         seen = this.listPresent(present, seen, mask, valid, group);
       }
 
       if (seen != count) {
-        throw new Mcv2Exception("Presence count differs from level zero!");
+        final String message = "Presence count differs from level zero!";
+        throw new Mcv2Exception(message);
       }
 
       return present;
@@ -722,7 +742,8 @@ public final class Mcv2Decoder {
         (quantizer != 0 && mode != MODE_COMPACT) ||
         (this.keyframe && (mode == MODE_MOTION || mode == MODE_COMPACT))
       ) {
-        throw new Mcv2Exception("Invalid descriptor!");
+        final String message = "Invalid descriptor!";
+        throw new Mcv2Exception(message);
       }
 
       return mode;
@@ -731,11 +752,13 @@ public final class Mcv2Decoder {
     private int recordLength(final int mode, final int size, final int offset) {
       final int length = recordSize(mode, size);
       if (length > this.data.length - offset) {
-        throw new Mcv2Exception("Truncated record!");
+        final String message = "Truncated record!";
+        throw new Mcv2Exception(message);
       }
 
       if (mode == MODE_PATTERN && (this.data[offset + RECORD_COLORS * CHANNELS] & BYTE_MASK) > 1) {
-        throw new Mcv2Exception("Invalid pattern selector!");
+        final String message = "Invalid pattern selector!";
+        throw new Mcv2Exception(message);
       }
 
       return length;

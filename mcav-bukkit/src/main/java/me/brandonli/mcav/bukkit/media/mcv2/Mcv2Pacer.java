@@ -523,7 +523,7 @@ public final class Mcv2Pacer {
     }
 
     private String suffix() {
-      return this.name.isEmpty() ? "" : " with the " + this.name + " search";
+      return this.name.isEmpty() ? "" : " with the %s search".formatted(this.name);
     }
 
     /**

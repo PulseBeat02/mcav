@@ -96,8 +96,6 @@ public class CompressedMapResult implements DitherResultStep {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(CompressedMapResult.class);
 
-  private static final String DITHERING_THREAD_FAILED = "Map dithering thread {} failed with an uncaught exception.";
-
   private static final int MINIMUM_PARALLELISM = 1;
 
   private static final int PROCESSORS_PER_DITHER_THREAD = 2;
@@ -139,7 +137,7 @@ public class CompressedMapResult implements DitherResultStep {
    */
   public CompressedMapResult(final MapConfiguration configuration, final int maximumBytesPerFrame) {
     Preconditions.checkNotNull(configuration, "Map configuration must not be null!");
-    Preconditions.checkArgument(maximumBytesPerFrame > 0, "Byte budget must be positive!");
+    Preconditions.checkArgument(maximumBytesPerFrame > 0, "Byte budget %s must be positive!", maximumBytesPerFrame);
 
     this.configuration = configuration;
     this.maximumBytesPerFrame = maximumBytesPerFrame;
@@ -363,7 +361,7 @@ public class CompressedMapResult implements DitherResultStep {
 
   private void logUncaughtException(final Thread thread, final Throwable throwable) {
     final String threadName = thread.getName();
-    LOGGER.error(DITHERING_THREAD_FAILED, threadName, throwable);
+    LOGGER.error("Map dithering thread {} failed with an uncaught exception.", threadName, throwable);
   }
 
   private ForkJoinWorkerThread createDitherThread(final ForkJoinPool pool) {

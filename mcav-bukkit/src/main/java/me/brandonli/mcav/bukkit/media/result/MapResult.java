@@ -95,7 +95,14 @@ public class MapResult implements DitherResultStep {
 
   private List<MapTilePatch> completeGrid(final MapLayout layout, final byte[] image) {
     final int width = layout.getImageWidth();
-    Preconditions.checkArgument(image.length == width * layout.getImageHeight(), "Image size does not match layout!");
+    final int height = layout.getImageHeight();
+    final int expectedLength = width * height;
+    Preconditions.checkArgument(
+      image.length == expectedLength,
+      "Image length %s does not match the layout's %s pixels!",
+      image.length,
+      expectedLength
+    );
 
     final List<MapTilePatch> patches = new ArrayList<>(layout.getMapCount());
     for (int index = 0; index < layout.getMapCount(); index++) {

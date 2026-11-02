@@ -64,7 +64,9 @@ public final class GeneratedMedia {
     } catch (final InterruptedException exception) {
       final Thread current = Thread.currentThread();
       current.interrupt();
-      throw new IllegalStateException("Interrupted while generating test media!", exception);
+
+      final String message = "Interrupted while generating test media!";
+      throw new IllegalStateException(message, exception);
     }
   }
 

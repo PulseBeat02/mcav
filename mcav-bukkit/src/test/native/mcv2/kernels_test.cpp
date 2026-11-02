@@ -548,7 +548,7 @@ int main(int argument_count, char** arguments) {
 
   void* library = dlopen(arguments[1], RTLD_NOW | RTLD_LOCAL);
   if (library == nullptr) {
-    fprintf(stderr, "cannot load %s: %s\n", arguments[1], dlerror());
+    fprintf(stderr, "Library %s could not be loaded (%s), so no level can run!\n", arguments[1], dlerror());
     return SETUP_FAILURE_EXIT_CODE;
   }
 
@@ -564,7 +564,7 @@ int main(int argument_count, char** arguments) {
   snprintf(symbol, sizeof(symbol), KERNEL_SYMBOL_FORMAT, candidate.name_, #kernel);                                    \
   level.kernel##_ = (type(*) parameters)dlsym(library, symbol);                                                        \
   if (level.kernel##_ == nullptr) {                                                                                    \
-    fprintf(stderr, "missing %s\n", symbol);                                                                           \
+    fprintf(stderr, "Symbol %s is missing from the library!\n", symbol);                                              \
     return SETUP_FAILURE_EXIT_CODE;                                                                                    \
   }
     MCV2_KERNELS(MCV2_LOAD)
@@ -578,14 +578,15 @@ int main(int argument_count, char** arguments) {
   printf("\ndispatched: %s\n", best_level_name(available));
 
   if (expected != nullptr && strcmp(expected, best_level_name(available)) != 0) {
-    fprintf(stderr, "expected the %s level, the dispatcher takes %s\n", expected, best_level_name(available));
+    fprintf(stderr, "The dispatcher takes level %s where level %s was expected!\n", best_level_name(available),
+            expected);
     return FAILURE_EXIT_CODE;
   }
 
   run(levels, TRIALS);
 
   if (failures) {
-    fprintf(stderr, "%d differences\n", failures);
+    fprintf(stderr, "Levels differ in %d results!\n", failures);
     return FAILURE_EXIT_CODE;
   }
 

@@ -255,7 +255,7 @@ final class Mcv2NativesTest {
   }
 
   private byte @Nullable [] unexpected(final String platform) {
-    final String message = "No library should be read for %s!".formatted(platform);
+    final String message = "For platform %s, no library should be read!".formatted(platform);
     throw new AssertionError(message);
   }
 

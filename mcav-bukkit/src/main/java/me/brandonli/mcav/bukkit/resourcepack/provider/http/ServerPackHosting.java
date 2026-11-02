@@ -61,10 +61,10 @@ public class ServerPackHosting implements HttpHosting {
 
   @VisibleForTesting
   ServerPackHosting(final Path zip, final String hostName, final int port, final FileHttpServer server) {
-    Preconditions.checkNotNull(zip);
-    Preconditions.checkNotNull(hostName);
-    Preconditions.checkArgument(port > 0 && port <= MAXIMUM_PORT, "Port must be between 1 and 65535!");
-    Preconditions.checkNotNull(server);
+    Preconditions.checkNotNull(zip, "Resource pack path must not be null!");
+    Preconditions.checkNotNull(hostName, "Host name must not be null!");
+    Preconditions.checkArgument(port > 0 && port <= MAXIMUM_PORT, "Port %s must be between 1 and %s!", port, MAXIMUM_PORT);
+    Preconditions.checkNotNull(server, "Server must not be null!");
 
     this.zip = zip;
     this.hostName = hostName;

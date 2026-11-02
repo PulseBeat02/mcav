@@ -93,7 +93,8 @@ final class FileHttpServer {
   synchronized int getLocalPort() {
     final Channel channel = this.serverChannel;
     if (channel == null) {
-      throw new IllegalStateException("The resource pack server is not running!");
+      final String message = "The resource pack server is not running!";
+      throw new IllegalStateException(message);
     }
 
     final SocketAddress address = channel.localAddress();

@@ -125,11 +125,11 @@ public final class MapPacketFactory {
    */
   public static void clear(final Collection<UUID> viewers, final int startMapId, final int count) {
     Preconditions.checkNotNull(viewers, VIEWERS_NULL_MESSAGE);
-    Preconditions.checkArgument(startMapId >= 0, "Map id must be non-negative!");
-    Preconditions.checkArgument(count >= 0, "Map count must be non-negative!");
+    Preconditions.checkArgument(startMapId >= 0, "Map id %s must not be negative!", startMapId);
+    Preconditions.checkArgument(count >= 0, "Map count %s must not be negative!", count);
 
     final long lastMapId = (long) startMapId + count - 1;
-    Preconditions.checkArgument(lastMapId <= Integer.MAX_VALUE, "Map ids exceed the integer range!");
+    Preconditions.checkArgument(lastMapId <= Integer.MAX_VALUE, "Map ids %s to %s exceed the largest map id!", startMapId, lastMapId);
 
     final int size = MapLayout.MAP_SIZE;
     final byte[] transparent = new byte[size * size];

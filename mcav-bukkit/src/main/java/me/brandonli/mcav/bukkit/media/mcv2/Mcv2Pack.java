@@ -36,6 +36,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import me.brandonli.mcav.bukkit.BukkitException;
 import me.brandonli.mcav.bukkit.media.mcv2.transport.MapAlphabet;
 import me.brandonli.mcav.bukkit.media.mcv2.transport.TransportPages;
 import me.brandonli.mcav.bukkit.resourcepack.SimpleResourcePack;
@@ -207,7 +208,8 @@ public final class Mcv2Pack {
    * @param configuration the screen
    * @param debugView     whether the pack also draws the decoded picture one to one below the strip, for testing
    * @param archivePath   where the pack is written, atomically
-   * @throws UncheckedIOException if the pack cannot be written
+   * @throws BukkitException      if the pack cannot be written
+   * @throws UncheckedIOException if a pack resource cannot be read
    * @throws NullPointerException if {@code configuration}, {@code debugView} or {@code archivePath} is null
    * @since 1.0.0
    */
@@ -227,14 +229,15 @@ public final class Mcv2Pack {
    * @param archivePath where the pack is written, atomically
    * @throws IllegalArgumentException if there are no screens or more than {@link #MAXIMUM_SCREENS}, two share a stream
    *                                  id, or their outline colours differ
-   * @throws UncheckedIOException     if the pack cannot be written
+   * @throws BukkitException          if the pack cannot be written
+   * @throws UncheckedIOException     if a pack resource cannot be read
    * @throws NullPointerException     if {@code screens}, {@code debugView} or {@code archivePath} is null
    * @since 1.0.0
    */
   public static void write(final List<Mcv2Configuration> screens, final DebugView debugView, final Path archivePath) {
     Preconditions.checkNotNull(screens, "Screens must not be null!");
     Preconditions.checkNotNull(debugView, "Debug view must not be null!");
-    Preconditions.checkNotNull(archivePath, "Zip must not be null!");
+    Preconditions.checkNotNull(archivePath, "Archive path must not be null!");
     checkScreens(screens);
 
     final SimpleResourcePack pack = SimpleResourcePack.pack();
@@ -274,7 +277,7 @@ public final class Mcv2Pack {
 
     final NamedTextColor outline = screens.getFirst().getOutlineColor();
     final boolean oneOutline = screens.stream().allMatch(screen -> screen.getOutlineColor().equals(outline));
-    Preconditions.checkArgument(oneOutline, "The screens of a pack share one outline colour!");
+    Preconditions.checkArgument(oneOutline, "The screens of a pack share one outline color!");
   }
 
   static String describe(final List<Mcv2Configuration> screens) {
@@ -455,7 +458,7 @@ public final class Mcv2Pack {
     final Set<Integer> seen = new HashSet<>();
     for (int symbol = 0; symbol < colors.length; symbol++) {
       if (!seen.add(colors[symbol])) {
-        final String message = "Map colours %s and another symbol are the same RGB!".formatted(symbol + MapAlphabet.FIRST_COLOR);
+        final String message = "Map color %s and another symbol are the same RGB!".formatted(symbol + MapAlphabet.FIRST_COLOR);
         throw new IllegalStateException(message);
       }
     }
@@ -512,11 +515,7 @@ public final class Mcv2Pack {
       }
     }
 
-    final String message = String.format(
-      Locale.ROOT,
-      "No odd multiplier up to %d gives the map colours distinct symbol entries!",
-      maximumMultiplier
-    );
+    final String message = "No odd multiplier up to %s gives the map colors distinct symbol entries!".formatted(maximumMultiplier);
     throw new IllegalStateException(message);
   }
 

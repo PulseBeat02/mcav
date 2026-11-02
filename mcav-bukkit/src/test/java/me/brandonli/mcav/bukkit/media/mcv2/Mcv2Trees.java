@@ -165,7 +165,8 @@ public final class Mcv2Trees {
     }
 
     if (size == 8) {
-      throw new AssertionError("Missing terminal leaf!");
+      final String message = "Missing terminal leaf!";
+      throw new AssertionError(message);
     }
 
     final int half = size / 2;

@@ -67,11 +67,11 @@ final class DefaultScoreboardConfigurationBuilder implements ScoreboardConfigura
     Preconditions.checkArgument(!configuredCharacter.isEmpty(), "Character must not be empty!");
     Preconditions.checkArgument(
       this.lines > 0 && this.lines <= ScoreboardConfiguration.MAXIMUM_LINES,
-      "Lines %s must be between 1 and %s!",
+      "Lines %s must be between 1 and %s inclusive!",
       this.lines,
       ScoreboardConfiguration.MAXIMUM_LINES
     );
-    Preconditions.checkArgument(this.width > 0, "Width must be positive!");
+    Preconditions.checkArgument(this.width > 0, "Width %s must be positive!", this.width);
 
     return new ScoreboardConfiguration(configuredViewers, configuredCharacter, this.lines, this.width);
   }

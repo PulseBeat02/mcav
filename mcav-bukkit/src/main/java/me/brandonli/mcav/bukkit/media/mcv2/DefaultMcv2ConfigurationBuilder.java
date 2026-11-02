@@ -172,7 +172,7 @@ final class DefaultMcv2ConfigurationBuilder implements Mcv2ConfigurationBuilder 
   @Override
   public Mcv2ConfigurationBuilder outlineColor(final NamedTextColor outlineColor) {
     Preconditions.checkNotNull(outlineColor, "Outline color must not be null!");
-    Preconditions.checkArgument(outlineColor.value() != 0, "The outline colour must not be black!");
+    Preconditions.checkArgument(outlineColor.value() != 0, "Outline color must not be black!");
 
     this.outlineColor = outlineColor;
     return this;
@@ -212,10 +212,15 @@ final class DefaultMcv2ConfigurationBuilder implements Mcv2ConfigurationBuilder 
       "Rows must be between 1 and %s inclusive!",
       Mcv2Configuration.MAXIMUM_SIDE
     );
-    Preconditions.checkArgument(this.videoWidth >= 0 && this.videoWidth <= Mcv2Decoder.MAXIMUM_DIMENSION, "Video width must be 0 to 4096!");
+    Preconditions.checkArgument(
+      this.videoWidth >= 0 && this.videoWidth <= Mcv2Decoder.MAXIMUM_DIMENSION,
+      "Video width must be between 0 and %s inclusive!",
+      Mcv2Decoder.MAXIMUM_DIMENSION
+    );
     Preconditions.checkArgument(
       this.videoHeight >= 0 && this.videoHeight <= Mcv2Decoder.MAXIMUM_DIMENSION,
-      "Video height must be 0 to 4096!"
+      "Video height must be between 0 and %s inclusive!",
+      Mcv2Decoder.MAXIMUM_DIMENSION
     );
 
     final int width = Mcv2Configuration.videoSize(this.videoWidth, this.columns);

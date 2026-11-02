@@ -100,7 +100,10 @@ public final class ServerEnvironment {
       return;
     }
 
-    final String message = "MCAV only supports Minecraft %s, but the server is running %s!".formatted(SUPPORTED_MINECRAFT_VERSION, version);
+    final String message = "Minecraft %s is not supported, MCAV only runs on Minecraft %s and its patch releases!".formatted(
+      version,
+      SUPPORTED_MINECRAFT_VERSION
+    );
     throw new UnsupportedServerVersionException(message);
   }
 }

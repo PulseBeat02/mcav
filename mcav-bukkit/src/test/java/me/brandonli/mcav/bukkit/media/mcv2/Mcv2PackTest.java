@@ -507,7 +507,7 @@ final class Mcv2PackTest {
     clash[5] = clash[4];
     final IllegalStateException clashException = assertThrows(IllegalStateException.class, () -> Mcv2Pack.alphabet(clash));
     final String clashMessage = clashException.getMessage();
-    assertEquals("Map colours 9 and another symbol are the same RGB!", clashMessage);
+    assertEquals("Map color 9 and another symbol are the same RGB!", clashMessage);
 
     final int[] two = { 0x010203, 0x040506 };
     final String empty = " 4294967295u,";
@@ -532,7 +532,7 @@ final class Mcv2PackTest {
 
     final IllegalStateException exhaustedException = assertThrows(IllegalStateException.class, () -> Mcv2Pack.alphabet(two, 63));
     final String exhaustedMessage = exhaustedException.getMessage();
-    assertEquals("No odd multiplier up to 63 gives the map colours distinct symbol entries!", exhaustedMessage);
+    assertEquals("No odd multiplier up to 63 gives the map colors distinct symbol entries!", exhaustedMessage);
   }
 
   @Test

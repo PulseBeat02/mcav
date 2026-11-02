@@ -96,7 +96,8 @@ public final class MapAlphabet {
     for (int index = 0; index < colors.length; index++) {
       final int symbol = Byte.toUnsignedInt(colors[index]) - FIRST_COLOR;
       if (symbol < 0 || symbol >= SIZE) {
-        throw new Mcv2Exception("Map colour outside the alphabet!");
+        final String message = "Map color is outside the alphabet!";
+        throw new Mcv2Exception(message);
       }
       symbols[index] = (byte) symbol;
     }

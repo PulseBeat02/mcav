@@ -71,7 +71,7 @@ final class NativeTesting {
     final String platform = Natives.platform(System.getProperty(OS_NAME_PROPERTY, ""), System.getProperty(OS_ARCHITECTURE_PROPERTY, ""));
     final Resolution current = Natives.resolve(Mcv2.NATIVE_AUTO, platform, FOLDER, NativeTesting::readLibrary, null);
     if (expected() && current.binding() == null) {
-      final String message = "The MCV2 native kernels must load here and did not (%s)!".formatted(current.description());
+      final String message = "The MCV2 native kernels did not load (%s) but must load on this platform!".formatted(current.description());
       throw new IllegalStateException(message);
     }
 
@@ -100,7 +100,8 @@ final class NativeTesting {
   @SuppressWarnings("restricted") // a library lookup is a restricted method of the foreign function API
   static SymbolLookup library() {
     if (resolution().binding() == null) {
-      throw new IllegalStateException("No MCV2 native library loads on this platform!");
+      final String message = "No MCV2 native library loads on this platform!";
+      throw new IllegalStateException(message);
     }
 
     final String platform = Objects.requireNonNull(

@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -31,8 +33,8 @@ import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.TreeMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 // made by mcv2_tools.py fixtures and edge_streams with the Python reference
 public final class Mcv2Fixtures {
@@ -46,10 +48,14 @@ public final class Mcv2Fixtures {
   }
 
   public static byte[] read(final String path) {
-    try (final InputStream stream = Objects.requireNonNull(Mcv2Fixtures.class.getResourceAsStream(ROOT + path), path)) {
+    final String resource = "%s%s".formatted(ROOT, path);
+    final String missingMessage = "Fixture %s is missing!".formatted(path);
+    final @Nullable InputStream resourceStream = Mcv2Fixtures.class.getResourceAsStream(resource);
+    try (final InputStream stream = requireNonNull(resourceStream, missingMessage)) {
       return stream.readAllBytes();
     } catch (final IOException exception) {
-      throw new UncheckedIOException(exception);
+      final String message = "Fixture %s could not be read!".formatted(path);
+      throw new UncheckedIOException(message, exception);
     }
   }
 

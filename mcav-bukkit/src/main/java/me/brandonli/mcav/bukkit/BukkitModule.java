@@ -83,7 +83,8 @@ public final class BukkitModule implements MCAVModule {
   public static Plugin getPlugin() {
     final Plugin plugin = injectedPlugin;
     if (plugin == null) {
-      throw new IllegalStateException("No plugin has been injected, call BukkitModule#inject(Plugin) first!");
+      final String message = "No plugin has been injected, call BukkitModule#inject(Plugin) first!";
+      throw new IllegalStateException(message);
     }
 
     return plugin;

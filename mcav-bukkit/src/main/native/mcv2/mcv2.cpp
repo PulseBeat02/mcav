@@ -95,7 +95,7 @@ static_assert((-7 >> 1) == -4, "right shifts of negative values must be arithmet
 #include <arm_neon.h>
 #include <arm_sve.h>
 #elif !defined(MCV2_SIMD_SCALAR)
-#error "define one of the MCV2_SIMD_ levels"
+#error "Define one of the MCV2_SIMD_ levels!"
 #endif
 
 namespace mcv2 {

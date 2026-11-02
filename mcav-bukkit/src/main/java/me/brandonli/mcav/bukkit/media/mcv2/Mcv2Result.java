@@ -132,13 +132,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
 
   private static final int UNDECODABLE = 2;
 
-  private static final String FRAME_TOO_LARGE = "MCV2 frame {} of {} bytes needs more than {} pages; it is not sent.";
-
-  private static final String PACING_STEP = "{}.";
-
-  private static final String ENCODER_FAILED = "The MCV2 screen stops: encoding a frame failed.";
-
-  private static final String SENDER_FAILED = "The MCV2 screen stops: verifying or sending a frame failed.";
+  private static final String PACING_STEP = "{} during playback.";
 
   private static final double NANOSECONDS_PER_SECOND = 1e9;
 
@@ -584,7 +578,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     } catch (final InterruptedException exception) {
       Thread.currentThread().interrupt();
     } catch (final RuntimeException exception) {
-      LOGGER.error(ENCODER_FAILED, exception);
+      LOGGER.error("The MCV2 screen stops: encoding a frame failed.", exception);
     } finally {
       this.stopPipeline(own);
     }
@@ -733,7 +727,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     } catch (final InterruptedException exception) {
       Thread.currentThread().interrupt();
     } catch (final RuntimeException exception) {
-      LOGGER.error(SENDER_FAILED, exception);
+      LOGGER.error("The MCV2 screen stops: verifying or sending a frame failed.", exception);
     } finally {
       this.stopPipeline(running);
       // Interrupt even after release clears the pipeline, or the screen thread can wait forever.
@@ -769,7 +763,12 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     }
 
     if (colors < 0) {
-      LOGGER.warn(FRAME_TOO_LARGE, frameId, frame.length, current.configuration().getPageSlots());
+      LOGGER.warn(
+        "MCV2 frame {} of {} bytes needs more than {} pages; it is not sent.",
+        frameId,
+        frame.length,
+        current.configuration().getPageSlots()
+      );
       this.statistics.drop();
       return;
     }

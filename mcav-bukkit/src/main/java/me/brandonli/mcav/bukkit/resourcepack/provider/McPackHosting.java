@@ -70,7 +70,7 @@ import org.slf4j.LoggerFactory;
 public class McPackHosting implements WebsiteHosting {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(McPackHosting.class);
-  private static final String UPLOAD_CACHE_NOT_WRITTEN = "Could not write the upload cache {}, the pack will be uploaded again next time.";
+
   private static final URI UPLOAD_URI = URI.create("https://mc-packs.net");
   private static final String DOWNLOAD_URL_FORMAT = "https://download.mc-packs.net/pack/%s.zip";
   private static final String HASH_ALGORITHM = "SHA-1";
@@ -134,7 +134,8 @@ public class McPackHosting implements WebsiteHosting {
   public String getRawUrl() {
     final String currentUrl = this.url;
     if (currentUrl == null) {
-      throw new IllegalStateException("The resource pack has not been uploaded yet, call start() first!");
+      final String message = "The resource pack has not been uploaded yet, call start() first!";
+      throw new IllegalStateException(message);
     }
 
     return currentUrl;
@@ -142,7 +143,7 @@ public class McPackHosting implements WebsiteHosting {
 
   /**
    * Uploads the resource pack unless an identical pack was uploaded before and is still available. Calling this
-   * method again after a successful upload has no effect. If the upload cache cannot be written, a warning is
+   * method again after a successful upload has no effect. If the upload cache cannot be read or written, a warning is
    * logged and the uploaded pack is used anyway.
    *
    * @throws McPacksException if the pack cannot be read or the upload fails
@@ -254,7 +255,9 @@ public class McPackHosting implements WebsiteHosting {
     } catch (final InterruptedException exception) {
       final Thread currentThread = Thread.currentThread();
       currentThread.interrupt();
-      throw new McPacksException("Interrupted while uploading the resource pack!", exception);
+
+      final String message = "Interrupted while uploading the resource pack!";
+      throw new McPacksException(message, exception);
     }
   }
 
@@ -325,6 +328,7 @@ public class McPackHosting implements WebsiteHosting {
       final Map<String, String> cache = gson.fromJson(reader, CACHE_TYPE);
       return this.copyCache(cache);
     } catch (final IOException | JsonSyntaxException exception) {
+      LOGGER.warn("Could not read the upload cache {}, the pack will be uploaded again.", cacheFile, exception);
       return new HashMap<>();
     }
   }
@@ -343,7 +347,7 @@ public class McPackHosting implements WebsiteHosting {
     try (final Writer writer = Files.newBufferedWriter(cacheFile)) {
       gson.toJson(cache, CACHE_TYPE, writer);
     } catch (final IOException exception) {
-      LOGGER.warn(UPLOAD_CACHE_NOT_WRITTEN, cacheFile, exception);
+      LOGGER.warn("Could not write the upload cache {}, the pack will be uploaded again next time.", cacheFile, exception);
     }
   }
 

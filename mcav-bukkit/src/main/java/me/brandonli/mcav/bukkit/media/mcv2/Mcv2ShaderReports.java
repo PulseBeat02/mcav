@@ -44,20 +44,6 @@ final class Mcv2ShaderReports implements PluginMessageListener {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Mcv2ShaderReports.class);
 
-  private static final String TOO_LONG = "Ignoring an MCV2 client report of {} bytes from {}: a report has at most {} bytes.";
-
-  private static final String TOO_OFTEN = "Ignoring an MCV2 client report from {}: more than one a second.";
-
-  private static final String UNKNOWN_VERSION = "Ignoring an MCV2 client report of version {} from {}.";
-
-  private static final String MALFORMED = "Ignoring a malformed MCV2 client report from {}.";
-
-  private static final String REPORTED = "The MCV2 client mod of {} reports {}: MCV2 screens show them {}.";
-
-  private static final String DITHERED_MAPS = "the dithered maps";
-
-  private static final String VIDEO = "the video";
-
   private static final int REPORT_BYTES = 4;
 
   private static final int IRIS_PRESENT_INDEX = 1;
@@ -88,13 +74,18 @@ final class Mcv2ShaderReports implements PluginMessageListener {
   public synchronized void onPluginMessageReceived(final String channel, final Player player, final byte[] message) {
     final String name = player.getName();
     if (message.length > MAXIMUM_BYTES) {
-      LOGGER.debug(TOO_LONG, message.length, name, MAXIMUM_BYTES);
+      LOGGER.debug(
+        "Ignoring an MCV2 client report of {} bytes from {}: a report has at most {} bytes.",
+        message.length,
+        name,
+        MAXIMUM_BYTES
+      );
       return;
     }
 
     final UUID viewerId = player.getUniqueId();
     if (!this.admit(viewerId)) {
-      LOGGER.debug(TOO_OFTEN, name);
+      LOGGER.debug("Ignoring an MCV2 client report from {}: more than one a second.", name);
       return;
     }
 
@@ -105,7 +96,12 @@ final class Mcv2ShaderReports implements PluginMessageListener {
 
     final Report before = this.reports.put(viewerId, report);
     if (!Objects.equals(before, report)) {
-      LOGGER.debug(REPORTED, name, report.describe(), report.blocksDecoding() ? DITHERED_MAPS : VIDEO);
+      LOGGER.debug(
+        "The MCV2 client mod of {} reports {}: MCV2 screens show them {} as a result.",
+        name,
+        report.describe(),
+        report.blocksDecoding() ? "the dithered maps" : "the video"
+      );
     }
   }
 
@@ -124,7 +120,7 @@ final class Mcv2ShaderReports implements PluginMessageListener {
 
   private static @Nullable Report parse(final byte[] message, final String name) {
     if (message.length > 0 && message[0] != VERSION) {
-      LOGGER.debug(UNKNOWN_VERSION, message[0], name);
+      LOGGER.debug("An MCV2 client report of version {} from {} is being ignored.", message[0], name);
       return null;
     }
 
@@ -134,7 +130,7 @@ final class Mcv2ShaderReports implements PluginMessageListener {
       !isFlag(message[DECODES_UNDER_SHADERS_INDEX]) ||
       !hasValidShaderPack(message)
     ) {
-      LOGGER.debug(MALFORMED, name);
+      LOGGER.debug("A malformed MCV2 client report from {} is being ignored.", name);
       return null;
     }
 

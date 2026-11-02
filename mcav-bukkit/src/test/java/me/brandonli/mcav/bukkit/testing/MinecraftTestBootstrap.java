@@ -60,7 +60,8 @@ public final class MinecraftTestBootstrap implements BeforeAllCallback {
 
       final Criteria initialized = Criteria.DUMMY;
       if (initialized == null) {
-        throw new IllegalStateException("The scoreboard criteria were initialized before the bootstrap!");
+        final String message = "The scoreboard criteria were initialized before the bootstrap!";
+        throw new IllegalStateException(message);
       }
 
       BlockPaletteLookup.initialize();

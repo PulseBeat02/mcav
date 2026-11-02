@@ -51,6 +51,8 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
 
   static final String STALL_NAME = "mcav_resource_pack_stall";
 
+  private static final String CONTEXT_NULL_MESSAGE = "Context must not be null!";
+
   private static final String CHUNKS_NAME = "mcav_resource_pack_chunks";
 
   static final long STALL_SECONDS = 60;
@@ -58,7 +60,7 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
   private static final int CHUNK_BYTES = 8 * 1024;
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ResourcePackHttpHandler.class);
-  private static final String PACK_NOT_READ = "Could not read the resource pack for an HTTP download.";
+
   private static final String GET_REQUEST_PREFIX = "GET ";
   private static final String HEAD_REQUEST_PREFIX = "HEAD ";
   private static final String REQUEST_PATH_TERMINATOR = " ";
@@ -68,10 +70,6 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
   private static final String STATUS_ERROR = "500 Internal Server Error";
   private static final String CONTENT_TYPE_ZIP = "application/zip";
   private static final String CONTENT_TYPE_TEXT = "text/plain";
-
-  private static final String STATUS_LINE_PREFIX = "HTTP/1.1 ";
-
-  private static final String LINE_TERMINATOR = "\r\n";
 
   private final ResourcePackFile packFile;
   private final byte[] getPrefix;
@@ -88,8 +86,8 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
 
   @Override
   public void channelRead(final ChannelHandlerContext context, final Object message) {
-    Preconditions.checkNotNull(context);
-    Preconditions.checkNotNull(message);
+    Preconditions.checkNotNull(context, CONTEXT_NULL_MESSAGE);
+    Preconditions.checkNotNull(message, "Message must not be null!");
 
     if (this.served) {
       ReferenceCountUtil.release(message);
@@ -195,7 +193,7 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
     try {
       body = this.packFile.read();
     } catch (final IOException exception) {
-      LOGGER.warn(PACK_NOT_READ, exception);
+      LOGGER.warn("Could not read the resource pack for an HTTP download.", exception);
       this.respondWithError(context);
       return;
     }
@@ -222,18 +220,11 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
 
   private ByteBuf createHeaders(final String status, final String contentType, final int contentLength) {
     final String text =
-      STATUS_LINE_PREFIX +
-      status +
-      LINE_TERMINATOR +
-      "Content-Type: " +
-      contentType +
-      LINE_TERMINATOR +
-      "Content-Length: " +
-      contentLength +
-      LINE_TERMINATOR +
-      "Cache-Control: no-store\r\n" +
-      "Connection: close\r\n" +
-      LINE_TERMINATOR;
+      "HTTP/1.1 %s\r\nContent-Type: %s\r\nContent-Length: %s\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n".formatted(
+        status,
+        contentType,
+        contentLength
+      );
     return Unpooled.copiedBuffer(text, StandardCharsets.US_ASCII);
   }
 
@@ -272,14 +263,14 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
 
   @Override
   public void handlerRemoved(final ChannelHandlerContext context) {
-    Preconditions.checkNotNull(context);
+    Preconditions.checkNotNull(context, CONTEXT_NULL_MESSAGE);
 
     this.releaseCumulation();
   }
 
   @Override
   public void channelInactive(final ChannelHandlerContext context) {
-    Preconditions.checkNotNull(context);
+    Preconditions.checkNotNull(context, CONTEXT_NULL_MESSAGE);
 
     this.releaseCumulation();
     context.fireChannelInactive();

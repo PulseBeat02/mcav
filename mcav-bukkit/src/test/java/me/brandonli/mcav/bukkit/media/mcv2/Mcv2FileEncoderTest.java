@@ -373,7 +373,7 @@ final class Mcv2FileEncoderTest {
       Mcv2FileEncoder.ffmpeg(this.directory.resolve("missing.mp4"), 8, 8)
     );
     final String message = missing.getMessage();
-    final boolean reportsTheOpen = message.startsWith("Cannot open ");
+    final boolean reportsTheOpen = message.startsWith("Video ") && message.endsWith(" could not be opened!");
     assertTrue(reportsTheOpen);
   }
 
@@ -384,8 +384,7 @@ final class Mcv2FileEncoderTest {
     doThrow(new FFmpegFrameGrabber.Exception("not open!")).when(grabber).close();
     final Mcv2Exception thrown = assertThrows(Mcv2Exception.class, () -> Mcv2FileEncoder.open(grabber, "clip.mp4", 8, 8));
     final String message = thrown.getMessage();
-    final boolean reportsTheStart = message.startsWith("Cannot open clip.mp4 (no stream");
-    assertTrue(reportsTheStart, thrown.getMessage());
+    assertEquals("Video clip.mp4 could not be opened!", message);
 
     verify(grabber).close();
   }
@@ -398,13 +397,11 @@ final class Mcv2FileEncoderTest {
     final Mcv2FileEncoder.GrabberReader reader = new Mcv2FileEncoder.GrabberReader(grabber, 8, 8);
     final Mcv2Exception decodeFailure = assertThrows(Mcv2Exception.class, () -> reader.read(new byte[192]));
     final String decodeMessage = decodeFailure.getMessage();
-    final boolean reportsTheDecode = decodeMessage.startsWith("Cannot decode the video (broken");
-    assertTrue(reportsTheDecode);
+    assertEquals("The video could not be decoded!", decodeMessage);
 
     final Mcv2Exception closeFailure = assertThrows(Mcv2Exception.class, reader::close);
     final String closeMessage = closeFailure.getMessage();
-    final boolean reportsTheClose = closeMessage.startsWith("Cannot close the video (stuck");
-    assertTrue(reportsTheClose);
+    assertEquals("The video could not be closed!", closeMessage);
   }
 
   @Test

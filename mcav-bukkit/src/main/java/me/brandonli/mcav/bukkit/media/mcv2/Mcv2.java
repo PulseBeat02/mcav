@@ -21,6 +21,7 @@ import static java.lang.foreign.ValueLayout.ADDRESS;
 import static java.lang.foreign.ValueLayout.JAVA_DOUBLE;
 import static java.lang.foreign.ValueLayout.JAVA_INT;
 import static java.lang.foreign.ValueLayout.JAVA_LONG;
+import static java.util.Objects.requireNonNull;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.BLOCK_SIZES;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.CHANNELS;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.CHECKPOINT_GROUPS;
@@ -362,7 +363,7 @@ public final class Mcv2 {
     );
     Preconditions.checkArgument(sourcePixels.length == width * height * CHANNELS, "Picture size does not match the dimensions!");
     Preconditions.checkArgument(frameId >= 0 && frameId <= MAXIMUM_UNSIGNED_INT, "Frame id must be an unsigned 32-bit value!");
-    Preconditions.checkArgument(this.lastFrameId < 0 || follows(frameId, this.lastFrameId), "Stale or ambiguous frame number!");
+    Preconditions.checkArgument(this.lastFrameId < 0 || follows(frameId, this.lastFrameId), "Stale or ambiguous frame id!");
 
     final long started = System.nanoTime();
     final byte[] previous = this.reference;
@@ -1112,7 +1113,8 @@ public final class Mcv2 {
 
       Preconditions.checkState(same.get(), "MCV2 live picture and decoded picture disagree!");
     } catch (final Mcv2Exception exception) {
-      throw new IllegalStateException("The encoder wrote a frame the decoder rejects!", exception);
+      final String message = "The encoder wrote a frame the decoder rejects!";
+      throw new IllegalStateException(message, exception);
     }
   }
 
@@ -2318,10 +2320,6 @@ public final class Mcv2 {
 
     private static final FunctionDescriptor LEVELS = FunctionDescriptor.of(JAVA_INT, JAVA_LONG);
 
-    private static final String ACTIVE = "MCV2 kernels: {}.";
-
-    private static final String FAILED = "MCV2 native kernels did not load ({}), so the Java kernels run.";
-
     private static final String OPERATING_SYSTEM_NAME_PROPERTY = "os.name";
     private static final String PROCESSOR_ARCHITECTURE_PROPERTY = "os.arch";
 
@@ -2393,10 +2391,10 @@ public final class Mcv2 {
           System.getProperty(LEVEL_PROPERTY)
         );
         if (current.failed()) {
-          LOGGER.warn(FAILED, current.description());
+          LOGGER.warn("MCV2 native kernels did not load ({}), so the Java kernels run.", current.description());
         }
 
-        LOGGER.info(ACTIVE, current.description());
+        LOGGER.info("MCV2 uses the {} kernels.", current.description());
         resolution = current;
       }
 
@@ -2461,10 +2459,10 @@ public final class Mcv2 {
         if (!matcher.matches()) {
           return Map.of();
         }
-        final String platform = Preconditions.checkNotNull(matcher.group(PLATFORM_GROUP));
+        final String platform = requireNonNull(matcher.group(PLATFORM_GROUP));
         if (
           !libraryName(platform).equals(matcher.group(FILE_GROUP)) ||
-          digests.put(platform, Preconditions.checkNotNull(matcher.group(DIGEST_GROUP))) != null
+          digests.put(platform, requireNonNull(matcher.group(DIGEST_GROUP))) != null
         ) {
           return Map.of();
         }
@@ -2516,7 +2514,7 @@ public final class Mcv2 {
       final @Nullable String highest
     ) {
       if (!digest.equals(Mcv2Resources.sha256(bytes))) {
-        return Resolution.failure("the library for " + platform + " does not match its SHA-256");
+        return Resolution.failure("the library for %s does not match its SHA-256".formatted(platform));
       }
 
       if (folder == null) {
@@ -2527,14 +2525,14 @@ public final class Mcv2 {
       try {
         file = extract(folder, EXTRACTED_PREFIX + digest + EXTRACTED_SEPARATOR + libraryName(platform), bytes, digest);
       } catch (final IOException exception) {
-        return Resolution.failure("the library could not be extracted: " + exception);
+        return Resolution.failure("the library could not be extracted: %s".formatted(exception));
       }
 
       final SymbolLookup library;
       try {
         library = SymbolLookup.libraryLookup(file, Arena.global());
       } catch (final IllegalCallerException | IllegalArgumentException exception) {
-        return Resolution.failure("the library could not be loaded: " + exception);
+        return Resolution.failure("the library could not be loaded: %s".formatted(exception));
       }
 
       return bind(library, platform, highest, ABI_VERSION);
@@ -2565,7 +2563,7 @@ public final class Mcv2 {
       try {
         final int interfaceVersion = (int) linker.downcallHandle(library.findOrThrow(ABI_SYMBOL), QUERY).invokeExact();
         if (interfaceVersion != expected) {
-          return Resolution.failure("the library's interface " + interfaceVersion + " is not " + expected);
+          return Resolution.failure("the library's interface %s is not %s".formatted(interfaceVersion, expected));
         }
 
         // The dependency-free AArch64 library cannot query the kernel for SVE permission.
@@ -2577,9 +2575,9 @@ public final class Mcv2 {
         );
         final int levels = (int) cpuLevels.invokeExact();
         final Level level = level(levels, highest);
-        return new Resolution(Binding.of(library, level), levels, "native " + level.symbol() + " (" + platform + ")", false);
+        return new Resolution(Binding.of(library, level), levels, "native %s (%s)".formatted(level.symbol(), platform), false);
       } catch (final Throwable exception) {
-        return Resolution.failure("the library could not be bound: " + exception);
+        return Resolution.failure("the library could not be bound: %s".formatted(exception));
       }
     }
 
@@ -2588,6 +2586,7 @@ public final class Mcv2 {
       try {
         bytes = Files.readAllBytes(auxiliaryVectorFile);
       } catch (final IOException exception) {
+        LOGGER.debug("Could not read the auxiliary vector {}, so no hardware capabilities are assumed.", auxiliaryVectorFile, exception);
         return 0;
       }
 
@@ -3788,8 +3787,6 @@ public final class Mcv2 {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Pool.class);
 
-    private static final String THREAD_FAILED = "MCV2 encoder thread {} failed.";
-
     private static final String THREAD_NAME_PREFIX = "mcav-mcv2-encoder-";
 
     private static final String THREAD_GROUP_NAME = "mcav-mcv2-encoders";
@@ -3819,7 +3816,8 @@ public final class Mcv2 {
     public Pool(final int threads) {
       Preconditions.checkArgument(
         threads >= 1 && threads <= MAXIMUM_THREADS,
-        "Threads must be between 1 and %s inclusive!",
+        "Threads %s must be between 1 and %s inclusive!",
+        threads,
         MAXIMUM_THREADS
       );
       this.threads = threads;
@@ -3882,7 +3880,8 @@ public final class Mcv2 {
     public static synchronized void setSharedThreads(final int threads) {
       Preconditions.checkArgument(
         threads >= 0 && threads <= MAXIMUM_THREADS,
-        "Threads must be between 0 and %s inclusive!",
+        "Threads %s must be between 0 and %s inclusive!",
+        threads,
         MAXIMUM_THREADS
       );
 
@@ -3932,7 +3931,8 @@ public final class Mcv2 {
 
     <ResultType> ResultType runInterruptibly(final Callable<ResultType> task) throws InterruptedException {
       if (Thread.interrupted()) {
-        throw new InterruptedException("Interrupted before the task started!");
+        final String message = "Interrupted before the task started!";
+        throw new InterruptedException(message);
       }
 
       final ForkJoinTask<ResultType> job = this.pool.submit(task);
@@ -3957,7 +3957,8 @@ public final class Mcv2 {
     }
 
     private static void uncaught(final Thread thread, final Throwable exception) {
-      LOGGER.error(THREAD_FAILED, thread.getName(), exception);
+      final String threadName = thread.getName();
+      LOGGER.error("MCV2 encoder thread {} failed.", threadName, exception);
     }
 
     /**

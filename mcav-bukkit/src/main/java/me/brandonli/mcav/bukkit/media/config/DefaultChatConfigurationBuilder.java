@@ -65,8 +65,8 @@ final class DefaultChatConfigurationBuilder implements ChatConfigurationBuilder 
     final String configuredCharacter = Preconditions.checkNotNull(this.character, "Character must be set!");
 
     Preconditions.checkArgument(!configuredCharacter.isEmpty(), "Character must not be empty!");
-    Preconditions.checkArgument(this.chatWidth > 0, "Chat width must be positive!");
-    Preconditions.checkArgument(this.chatHeight > 0, "Chat height must be positive!");
+    Preconditions.checkArgument(this.chatWidth > 0, "Chat width %s must be positive!", this.chatWidth);
+    Preconditions.checkArgument(this.chatHeight > 0, "Chat height %s must be positive!", this.chatHeight);
 
     return new ChatConfiguration(configuredViewers, configuredCharacter, this.chatWidth, this.chatHeight);
   }

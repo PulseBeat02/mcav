@@ -124,7 +124,7 @@ final class BlockConfigurationTest {
     final IllegalArgumentException noHeightException = assertThrows(IllegalArgumentException.class, noHeight::build);
     final String noWidthMessage = noWidthException.getMessage();
     final String noHeightMessage = noHeightException.getMessage();
-    assertEquals("Block width must be positive!", noWidthMessage);
-    assertEquals("Block height must be positive!", noHeightMessage);
+    assertEquals("Block width 0 must be positive!", noWidthMessage);
+    assertEquals("Block height 0 must be positive!", noHeightMessage);
   }
 }

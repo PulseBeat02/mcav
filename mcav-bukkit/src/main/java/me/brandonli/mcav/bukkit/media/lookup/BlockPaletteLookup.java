@@ -141,7 +141,7 @@ public final class BlockPaletteLookup {
 
       return palette;
     } catch (final IOException exception) {
-      final String message = exception.getMessage();
+      final String message = "Block palette resource %s could not be read!".formatted(PALETTE_RESOURCE);
       throw new UncheckedIOException(message, exception);
     }
   }

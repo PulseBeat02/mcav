@@ -33,7 +33,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.CopyOption;
@@ -52,6 +51,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import me.brandonli.mcav.bukkit.BukkitException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -613,7 +613,7 @@ final class SimpleResourcePackTest {
     blocked.meta(1, "pack");
     Files.write(file, CREDITS);
 
-    assertThrows(UncheckedIOException.class, () -> blocked.zip(belowFile));
+    assertThrows(BukkitException.class, () -> blocked.zip(belowFile));
   }
 
   @Test
@@ -626,7 +626,7 @@ final class SimpleResourcePackTest {
     Files.delete(this.firstSound);
     Files.createDirectory(output);
 
-    assertThrows(UncheckedIOException.class, () -> vanished.zip(zip));
+    assertThrows(BukkitException.class, () -> vanished.zip(zip));
 
     final List<Path> outputFiles = this.listFiles(output);
     final List<Path> nothing = List.of();

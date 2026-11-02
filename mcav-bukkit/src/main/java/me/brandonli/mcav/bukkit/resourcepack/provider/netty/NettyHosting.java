@@ -56,7 +56,7 @@ import org.slf4j.LoggerFactory;
 public final class NettyHosting implements InjectorHosting {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(NettyHosting.class);
-  private static final String PACK_NOT_READ = "Could not read the resource pack {} ahead of the first download.";
+
   private static final AtomicInteger INSTANCE_COUNTER = new AtomicInteger();
   private static final String KEY_NAMESPACE = "mcav";
 
@@ -171,7 +171,7 @@ public final class NettyHosting implements InjectorHosting {
     try {
       this.packFile.read();
     } catch (final IOException exception) {
-      LOGGER.warn(PACK_NOT_READ, this.zip, exception);
+      LOGGER.warn("Could not read the resource pack {} ahead of the first download.", this.zip, exception);
     }
   }
 
