@@ -25,6 +25,8 @@ import org.junit.jupiter.api.Test;
 
 final class PointTest {
 
+  private static final double NEGATIVE_ZERO = -0.0;
+
   @Test
   void shouldStoreCoordinates() {
     final Point point = Point.point(1.5, -2.25);
@@ -57,6 +59,30 @@ final class PointTest {
     final Point point = Point.point(Double.NaN, 0.0);
     final Point equalPoint = Point.point(Double.NaN, 0.0);
     EqualityAssertions.assertEqualityContract(point, equalPoint);
+  }
+
+  @Test
+  void shouldTellSignedZerosApart() {
+    final Point point = Point.point(0.0, 0.0);
+    final Point equalPoint = Point.point(0.0, 0.0);
+    final Point negativeX = Point.point(NEGATIVE_ZERO, 0.0);
+    final Point negativeY = Point.point(0.0, NEGATIVE_ZERO);
+    EqualityAssertions.assertEqualityContract(point, equalPoint, negativeX, negativeY);
+  }
+
+  @Test
+  void shouldRetainSignedZeroInfinitiesAndNotANumber() {
+    final Point negativePoint = Point.point(NEGATIVE_ZERO, Double.NEGATIVE_INFINITY);
+    final double negativeZero = negativePoint.getX();
+    final double negativeInfinity = negativePoint.getY();
+    assertEquals(NEGATIVE_ZERO, negativeZero);
+    assertEquals(Double.NEGATIVE_INFINITY, negativeInfinity);
+
+    final Point undefinedPoint = Point.point(Double.NaN, Double.POSITIVE_INFINITY);
+    final double notANumber = undefinedPoint.getX();
+    final double positiveInfinity = undefinedPoint.getY();
+    assertEquals(Double.NaN, notANumber);
+    assertEquals(Double.POSITIVE_INFINITY, positiveInfinity);
   }
 
   @Test
