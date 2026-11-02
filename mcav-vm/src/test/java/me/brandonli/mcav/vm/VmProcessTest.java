@@ -228,19 +228,7 @@ final class VmProcessTest {
       this.outcomes.addLast(result);
     }
 
-    final VmProcess.Launcher launcher = command -> {
-      this.commands.add(command);
-      final Object next = this.outcomes.removeFirst();
-      if (next instanceof final IOException ioException) {
-        throw ioException;
-      }
-      final Process started = (Process) next;
-      final boolean alive = started.isAlive();
-      if (alive) {
-        this.openDisplay();
-      }
-      return started;
-    };
+    final VmProcess.Launcher launcher = this::launchNextOutcome;
     return new VmProcess(
       settings,
       VmPlayer.Architecture.AARCH64,
@@ -252,6 +240,22 @@ final class VmProcessTest {
       SHORT_TIMEOUT_MILLISECONDS,
       this::secretFolder
     );
+  }
+
+  private Process launchNextOutcome(final List<String> command) throws IOException {
+    this.commands.add(command);
+    final Object next = this.outcomes.removeFirst();
+    if (next instanceof final IOException ioException) {
+      throw ioException;
+    }
+
+    final Process started = (Process) next;
+    final boolean alive = started.isAlive();
+    if (alive) {
+      this.openDisplay();
+    }
+
+    return started;
   }
 
   private VmProcess reachable(final Os os, final Object... results) {
@@ -439,10 +443,7 @@ final class VmProcessTest {
     final LongSupplier clock = times::removeFirst;
     final VmSettings settings = this.reachableSettings();
     final VmConfiguration configuration = VmConfiguration.builder().build();
-    final VmProcess.Launcher launcher = command -> {
-      this.openDisplay();
-      return qemu;
-    };
+    final VmProcess.Launcher launcher = _ -> this.openDisplayAtDeadline(qemu);
     final VmProcess process = new VmProcess(
       settings,
       VmPlayer.Architecture.AARCH64,
@@ -461,6 +462,11 @@ final class VmProcessTest {
     assertFalse(alive, "an expired startup must terminate QEMU even if its display is reachable");
   }
 
+  private Process openDisplayAtDeadline(final FakeProcess qemu) throws IOException {
+    this.openDisplay();
+    return qemu;
+  }
+
   @Test
   void shouldAcceptAReachableDisplayBeforeTheStartupDeadline() {
     final FakeProcess qemu = FakeProcess.running("");
@@ -469,10 +475,7 @@ final class VmProcessTest {
     final LongSupplier clock = times::removeFirst;
     final VmSettings settings = this.reachableSettings();
     final VmConfiguration configuration = VmConfiguration.builder().build();
-    final VmProcess.Launcher launcher = command -> {
-      this.openDisplay();
-      return qemu;
-    };
+    final VmProcess.Launcher launcher = _ -> this.openDisplayBeforeDeadline(qemu);
     final VmProcess process = new VmProcess(
       settings,
       VmPlayer.Architecture.AARCH64,
@@ -492,6 +495,11 @@ final class VmProcessTest {
     } finally {
       process.shutdown();
     }
+  }
+
+  private Process openDisplayBeforeDeadline(final FakeProcess qemu) throws IOException {
+    this.openDisplay();
+    return qemu;
   }
 
   @Test
@@ -523,19 +531,7 @@ final class VmProcessTest {
   void shouldAskForAPasswordOnlyTheServerKnowsOnTheDisplay() throws IOException {
     final List<String> secrets = new CopyOnWriteArrayList<>();
     final VmSettings settings = this.reachableSettings();
-    final VmProcess.Launcher launcher = command -> {
-      this.commands.add(command);
-      final int object = command.indexOf(OBJECT_ARGUMENT);
-      final boolean hasSecretObject = object > 0;
-      assertTrue(hasSecretObject, () -> "a secret object in %s".formatted(command));
-      final String secret = command.get(object + 1);
-      final boolean prefixed = secret.startsWith(SECRET_OBJECT_PREFIX);
-      assertTrue(prefixed, secret);
-      final Path file = Path.of(secret.substring(SECRET_OBJECT_PREFIX.length()));
-      secrets.add(Files.readString(file, StandardCharsets.US_ASCII));
-      this.openDisplay();
-      return FakeProcess.running("");
-    };
+    final VmProcess.Launcher launcher = command -> this.readDisplayPasswordAndLaunch(command, secrets);
     final VmProcess process = new VmProcess(
       settings,
       VmPlayer.Architecture.AARCH64,
@@ -571,6 +567,20 @@ final class VmProcessTest {
     } finally {
       process.shutdown();
     }
+  }
+
+  private Process readDisplayPasswordAndLaunch(final List<String> command, final List<String> secrets) throws IOException {
+    this.commands.add(command);
+    final int object = command.indexOf(OBJECT_ARGUMENT);
+    final boolean hasSecretObject = object > 0;
+    assertTrue(hasSecretObject, () -> "a secret object in %s".formatted(command));
+    final String secret = command.get(object + 1);
+    final boolean prefixed = secret.startsWith(SECRET_OBJECT_PREFIX);
+    assertTrue(prefixed, secret);
+    final Path file = Path.of(secret.substring(SECRET_OBJECT_PREFIX.length()));
+    secrets.add(Files.readString(file, StandardCharsets.US_ASCII));
+    this.openDisplay();
+    return FakeProcess.running("");
   }
 
   @Test
@@ -663,11 +673,7 @@ final class VmProcessTest {
   void shouldWriteACommaOfThePasswordPathTwice() throws IOException {
     final VmSettings settings = this.reachableSettings();
     final Path folder = this.directory.resolve(COMMA_FOLDER);
-    final VmProcess.Launcher launcher = command -> {
-      this.commands.add(command);
-      this.openDisplay();
-      return FakeProcess.running("");
-    };
+    final VmProcess.Launcher launcher = this::recordCommandAndOpenDisplay;
     final VmProcess process = new VmProcess(
       settings,
       VmPlayer.Architecture.AARCH64,
@@ -689,13 +695,16 @@ final class VmProcessTest {
     assertEquals(expected, secret);
   }
 
+  private Process recordCommandAndOpenDisplay(final List<String> command) throws IOException {
+    this.commands.add(command);
+    this.openDisplay();
+    return FakeProcess.running("");
+  }
+
   @Test
   void shouldStopTheStartBeforeQemuWhenThePasswordCannotBeWritten() {
     final VmSettings settings = this.reachableSettings();
-    final VmProcess.Launcher launcher = command -> {
-      final String message = "QEMU must not start without the password of its display!";
-      throw new AssertionError(message);
-    };
+    final VmProcess.Launcher launcher = this::failLaunchWithoutPassword;
     final VmProcess process = new VmProcess(
       settings,
       VmPlayer.Architecture.AARCH64,
@@ -705,16 +714,23 @@ final class VmProcessTest {
       Os.LINUX,
       this.missingKvm,
       SHORT_TIMEOUT_MILLISECONDS,
-      () -> {
-        final String message = "disk full!";
-        throw new IOException(message);
-      }
+      this::failPasswordCreationWithFullDisk
     );
     final VmException failure = assertThrows(VmException.class, process::start);
     final String message = failure.getMessage();
     final boolean alive = process.isAlive();
     assertEquals("Because of \"disk full!\", the password of the display could not be written!", message);
     assertFalse(alive);
+  }
+
+  private Process failLaunchWithoutPassword(final List<String> command) {
+    final String message = "QEMU must not start without the password of its display!";
+    throw new AssertionError(message);
+  }
+
+  private Path failPasswordCreationWithFullDisk() throws IOException {
+    final String message = "disk full!";
+    throw new IOException(message);
   }
 
   @Test
@@ -731,11 +747,7 @@ final class VmProcessTest {
   void shouldLeaveTheMachineRunningWhenThePasswordFolderCannotBeDeleted() throws IOException {
     final VmSettings settings = this.reachableSettings();
     final Path folder = this.directory.resolve(SECRET_FOLDER);
-    final VmProcess.Launcher launcher = command -> {
-      Files.writeString(folder.resolve(OTHER_FILE), "kept");
-      this.openDisplay();
-      return FakeProcess.running("");
-    };
+    final VmProcess.Launcher launcher = _ -> this.leaveFileInPasswordFolderAndLaunch(folder);
     final VmProcess process = new VmProcess(
       settings,
       VmPlayer.Architecture.AARCH64,
@@ -758,6 +770,12 @@ final class VmProcessTest {
     } finally {
       process.shutdown();
     }
+  }
+
+  private Process leaveFileInPasswordFolderAndLaunch(final Path folder) throws IOException {
+    Files.writeString(folder.resolve(OTHER_FILE), "kept");
+    this.openDisplay();
+    return FakeProcess.running("");
   }
 
   @Test
@@ -829,9 +847,7 @@ final class VmProcessTest {
     final VmConfiguration configuration = VmConfiguration.builder().memory(MEMORY_MEGABYTES).build();
     final List<String> dataArguments = List.of("-L", "data");
     final QemuProgram program = QemuProgram.of(QEMU_EXECUTABLE, dataArguments, Map.of());
-    final VmProcess.Launcher launcher = _ -> {
-      throw new IOException(NOT_STARTED_MESSAGE);
-    };
+    final VmProcess.Launcher launcher = this::failLaunchWithDataFolders;
     final VmProcess process = new VmProcess(
       settings,
       VmPlayer.Architecture.X86_64,
@@ -852,11 +868,13 @@ final class VmProcessTest {
     assertEquals(expected, start);
   }
 
+  private Process failLaunchWithDataFolders(final List<String> command) throws IOException {
+    throw new IOException(NOT_STARTED_MESSAGE);
+  }
+
   private List<String> x86Command(final VmConfiguration configuration) {
     final VmSettings settings = new VmSettings(DISPLAY_THREE_PORT, WIDTH, HEIGHT, FRAME_RATE);
-    final VmProcess.Launcher launcher = command -> {
-      throw new IOException(NOT_STARTED_MESSAGE);
-    };
+    final VmProcess.Launcher launcher = this::failLaunchForCommandInspection;
     final VmProcess process = new VmProcess(
       settings,
       VmPlayer.Architecture.X86_64,
@@ -869,6 +887,10 @@ final class VmProcessTest {
       this::secretFolder
     );
     return process.buildCommand(null, this.passwordFile());
+  }
+
+  private Process failLaunchForCommandInspection(final List<String> command) throws IOException {
+    throw new IOException(NOT_STARTED_MESSAGE);
   }
 
   @Test
@@ -1497,17 +1519,10 @@ final class VmProcessTest {
     final AtomicBoolean restored = new AtomicBoolean();
     final AtomicReference<Throwable> failure = new AtomicReference<>();
     final CountDownLatch returned = new CountDownLatch(1);
-    final Thread stopping = new Thread(() -> {
-      try {
-        process.shutdown();
-        final Thread current = Thread.currentThread();
-        restored.set(current.isInterrupted());
-      } catch (final Throwable exception) {
-        failure.set(exception);
-      } finally {
-        returned.countDown();
-      }
-    }, "interrupted-output-shutdown");
+    final Thread stopping = new Thread(
+      () -> this.shutDownAndRecordInterrupt(process, restored, failure, returned),
+      "interrupted-output-shutdown"
+    );
     stopping.setDaemon(true);
     try {
       stopping.start();
@@ -1564,6 +1579,23 @@ final class VmProcessTest {
     }
 
     return false;
+  }
+
+  private void shutDownAndRecordInterrupt(
+    final VmProcess process,
+    final AtomicBoolean restored,
+    final AtomicReference<Throwable> failure,
+    final CountDownLatch returned
+  ) {
+    try {
+      process.shutdown();
+      final Thread current = Thread.currentThread();
+      restored.set(current.isInterrupted());
+    } catch (final Throwable exception) {
+      failure.set(exception);
+    } finally {
+      returned.countDown();
+    }
   }
 
   @Test

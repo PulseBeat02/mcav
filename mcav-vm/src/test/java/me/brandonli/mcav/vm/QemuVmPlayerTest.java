@@ -61,6 +61,7 @@ import java.util.concurrent.locks.LockSupport;
 import java.util.function.BiConsumer;
 import java.util.function.BooleanSupplier;
 import me.brandonli.mcav.capability.installer.FileMode;
+import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
@@ -83,6 +84,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
+import org.mockito.invocation.InvocationOnMock;
 import org.mockito.verification.VerificationMode;
 
 final class QemuVmPlayerTest {
@@ -149,12 +151,7 @@ final class QemuVmPlayerTest {
   private final List<InetSocketAddress> audioAddresses = new CopyOnWriteArrayList<>();
   private final List<String> audioPasswords = new CopyOnWriteArrayList<>();
   private final VmAudioClient audioClient = mock(VmAudioClient.class);
-  private final QemuVmPlayer.AudioConnector audio = (address, password, sink, failures) -> {
-    this.audioAddresses.add(address);
-    this.audioPasswords.add(password);
-    this.sinks.add(sink);
-    return this.audioClient;
-  };
+  private final QemuVmPlayer.AudioConnector audio = this::recordAudioConnection;
 
   private VncPlayer vnc;
   private VmProcess qemu;
@@ -170,16 +167,10 @@ final class QemuVmPlayerTest {
     final AtomicBoolean alive = new AtomicBoolean();
     this.processAlive = alive;
     when(this.qemu.isAlive()).thenAnswer(_ -> alive.get());
-    doAnswer(_ -> {
-      alive.set(true);
-      return null;
-    })
+    doAnswer(_ -> this.markMachineAlive(alive))
       .when(this.qemu)
       .start();
-    doAnswer(_ -> {
-      alive.set(false);
-      return null;
-    })
+    doAnswer(_ -> this.markMachineStopped(alive))
       .when(this.qemu)
       .shutdown();
 
@@ -207,6 +198,18 @@ final class QemuVmPlayerTest {
     }
   }
 
+  private Void markMachineAlive(final AtomicBoolean alive) {
+    alive.set(true);
+
+    return null;
+  }
+
+  private Void markMachineStopped(final AtomicBoolean alive) {
+    alive.set(false);
+
+    return null;
+  }
+
   private void useFinderWithoutQemu() {
     final Path root = this.directory.resolve(EMPTY_ROOT_FOLDER);
     final Map<String, String> environment = Map.of(PATH_VARIABLE, "");
@@ -225,14 +228,33 @@ final class QemuVmPlayerTest {
   }
 
   private QemuVmPlayer player() {
-    final QemuVmPlayer.ProcessFactory factory = (settings, _, program, configuration) -> {
-      this.createdSettings.add(settings);
-      final Path executable = program.getExecutable();
-      this.executables.add(executable);
-      this.createdConfigurations.add(configuration);
-      return this.qemu;
-    };
+    final QemuVmPlayer.ProcessFactory factory = this::recordMachineCreation;
     return new QemuVmPlayer(this.vnc, this.finder, this.installer, factory, this.audio);
+  }
+
+  private VmProcess recordMachineCreation(
+    final VmSettings settings,
+    final VmPlayer.Architecture architecture,
+    final QemuProgram program,
+    final VmConfiguration configuration
+  ) {
+    this.createdSettings.add(settings);
+    final Path executable = program.getExecutable();
+    this.executables.add(executable);
+    this.createdConfigurations.add(configuration);
+    return this.qemu;
+  }
+
+  private VmAudioClient recordAudioConnection(
+    final InetSocketAddress address,
+    final String password,
+    final VmAudioClient.Sink sink,
+    final BiConsumer<String, Throwable> failures
+  ) {
+    this.audioAddresses.add(address);
+    this.audioPasswords.add(password);
+    this.sinks.add(sink);
+    return this.audioClient;
   }
 
   private void stubConnectingStream() {
@@ -397,11 +419,7 @@ final class QemuVmPlayerTest {
     when(this.qemu.hasAudio()).thenReturn(true);
     final CountDownLatch insidePause = new CountDownLatch(1);
     final CountDownLatch finishPause = new CountDownLatch(1);
-    when(this.vnc.pause()).thenAnswer(invocation -> {
-      insidePause.countDown();
-      finishPause.await(TIMEOUT_SECONDS, TimeUnit.SECONDS);
-      return true;
-    });
+    when(this.vnc.pause()).thenAnswer(_ -> this.awaitPauseCompletion(insidePause, finishPause));
     when(this.vnc.resume()).thenReturn(true);
     when(this.vnc.isPlaying()).thenReturn(true);
     final List<Integer> heard = new CopyOnWriteArrayList<>();
@@ -426,6 +444,12 @@ final class QemuVmPlayerTest {
     player.release();
   }
 
+  private boolean awaitPauseCompletion(final CountDownLatch insidePause, final CountDownLatch finishPause) throws InterruptedException {
+    insidePause.countDown();
+    finishPause.await(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+    return true;
+  }
+
   @Test
   void shouldRunWithoutSoundWhenTheSoundCannotBeConnected() {
     when(this.qemu.hasAudio()).thenReturn(true);
@@ -439,10 +463,7 @@ final class QemuVmPlayerTest {
       this.finder,
       this.installer,
       (_, _, _, _) -> this.qemu,
-      (address, password, sink, failures) -> {
-        final String message = "connection refused!";
-        throw new IOException(message);
-      }
+      this::failAudioConnection
     );
     final long outputsBefore = this.countOutputThreads();
     final boolean started = this.startDefaultMachine(player);
@@ -463,6 +484,16 @@ final class QemuVmPlayerTest {
     assertTrue(resumed);
 
     player.release();
+  }
+
+  private VmAudioClient failAudioConnection(
+    final InetSocketAddress address,
+    final String password,
+    final VmAudioClient.Sink sink,
+    final BiConsumer<String, Throwable> failures
+  ) throws IOException {
+    final String message = "connection refused!";
+    throw new IOException(message);
   }
 
   @Test
@@ -674,10 +705,7 @@ final class QemuVmPlayerTest {
     when(exited.isAlive()).thenReturn(false);
     this.assertIgnoresInputAndPlayback(player);
 
-    doAnswer(_ -> {
-      this.assertIgnoresInputAndPlayback(player);
-      return null;
-    })
+    doAnswer(_ -> this.assertInputAndPlaybackIgnoredDuringStart(player))
       .when(next)
       .start();
     final boolean restarted = this.startDefaultMachine(player);
@@ -711,6 +739,12 @@ final class QemuVmPlayerTest {
     final VerificationMode none = never();
     this.verifyInputForwarded(none);
     verify(this.vnc, never()).pause();
+  }
+
+  private Void assertInputAndPlaybackIgnoredDuringStart(final QemuVmPlayer player) {
+    this.assertIgnoresInputAndPlayback(player);
+
+    return null;
   }
 
   @Test
@@ -834,12 +868,7 @@ final class QemuVmPlayerTest {
     final AtomicBoolean alive = new AtomicBoolean(true);
     final AtomicInteger attempts = new AtomicInteger();
     when(this.qemu.isAlive()).thenAnswer(_ -> alive.get());
-    doAnswer(_ -> {
-      if (attempts.incrementAndGet() == 2) {
-        alive.set(false);
-      }
-      return null;
-    })
+    doAnswer(_ -> this.stopMachineOnSecondAttempt(attempts, alive))
       .when(this.qemu)
       .shutdown();
     final boolean firstRelease = player.release();
@@ -854,6 +883,14 @@ final class QemuVmPlayerTest {
     verify(this.vnc).release();
   }
 
+  private Void stopMachineOnSecondAttempt(final AtomicInteger attempts, final AtomicBoolean alive) {
+    if (attempts.incrementAndGet() == 2) {
+      alive.set(false);
+    }
+
+    return null;
+  }
+
   @Test
   void shouldRefuseToReplaceAnUnstoppableFailedStartAndRetryBeforeLaunchingItsReplacement() {
     final VmProcess previous = this.qemu;
@@ -864,12 +901,7 @@ final class QemuVmPlayerTest {
     final AtomicInteger attempts = new AtomicInteger();
     final AtomicInteger created = new AtomicInteger();
     when(previous.isAlive()).thenAnswer(_ -> alive.get());
-    doAnswer(_ -> {
-      if (attempts.incrementAndGet() == 3) {
-        alive.set(false);
-      }
-      return null;
-    })
+    doAnswer(_ -> this.stopMachineOnThirdAttempt(attempts, alive))
       .when(previous)
       .shutdown();
     final QemuVmPlayer.ProcessFactory factory = (_, _, _, _) -> created.getAndIncrement() == 0 ? previous : next;
@@ -900,6 +932,14 @@ final class QemuVmPlayerTest {
     order.verify(next).start();
   }
 
+  private Void stopMachineOnThirdAttempt(final AtomicInteger attempts, final AtomicBoolean alive) {
+    if (attempts.incrementAndGet() == 3) {
+      alive.set(false);
+    }
+
+    return null;
+  }
+
   @Test
   void shouldRetainAChildThatSurvivesAPartiallyFailedQemuStart() {
     final QemuVmPlayer player = this.player();
@@ -908,12 +948,7 @@ final class QemuVmPlayerTest {
     final AtomicInteger attempts = new AtomicInteger();
     when(this.qemu.isAlive()).thenAnswer(_ -> alive.get());
     doThrow(startFailure).when(this.qemu).start();
-    doAnswer(_ -> {
-      if (attempts.incrementAndGet() == 2) {
-        alive.set(false);
-      }
-      return null;
-    })
+    doAnswer(_ -> this.stopChildOnSecondAttempt(attempts, alive))
       .when(this.qemu)
       .shutdown();
     final VmException thrown = assertThrows(VmException.class, () -> this.startDefaultMachine(player));
@@ -926,6 +961,14 @@ final class QemuVmPlayerTest {
     assertFalse(releasedAgain);
     verify(this.qemu, times(2)).shutdown();
     verify(this.vnc, never()).start(any(VncSource.class));
+  }
+
+  private Void stopChildOnSecondAttempt(final AtomicInteger attempts, final AtomicBoolean alive) {
+    if (attempts.incrementAndGet() == 2) {
+      alive.set(false);
+    }
+
+    return null;
   }
 
   @Test
@@ -1067,10 +1110,7 @@ final class QemuVmPlayerTest {
   // the action takes the lock of the player, so it only finishes while no lock is left held
   private void assertDoesNotBlock(final String description, final Runnable action) {
     final CountDownLatch finished = new CountDownLatch(1);
-    final Runnable probe = () -> {
-      action.run();
-      finished.countDown();
-    };
+    final Runnable probe = () -> this.runLockProbe(action, finished);
     final Thread probing = new Thread(probe, "lock-probe");
     probing.setDaemon(true);
     probing.start();
@@ -1086,6 +1126,11 @@ final class QemuVmPlayerTest {
       current.interrupt();
       return false;
     }
+  }
+
+  private void runLockProbe(final Runnable action, final CountDownLatch finished) {
+    action.run();
+    finished.countDown();
   }
 
   @Test
@@ -1125,11 +1170,7 @@ final class QemuVmPlayerTest {
   void shouldStartAsynchronously() throws Exception {
     this.stubConnectingStream();
     final AtomicReference<Thread> startupThread = new AtomicReference<>();
-    doAnswer(_ -> {
-      startupThread.set(Thread.currentThread());
-      this.processAlive.set(true);
-      return null;
-    })
+    doAnswer(_ -> this.recordStartupThread(startupThread))
       .when(this.qemu)
       .start();
     final VmPlayer player = this.player();
@@ -1146,10 +1187,7 @@ final class QemuVmPlayerTest {
 
       final ExecutorService executor = mock(ExecutorService.class);
       final List<Runnable> queued = new CopyOnWriteArrayList<>();
-      doAnswer(invocation -> {
-        queued.add(invocation.getArgument(0));
-        return null;
-      })
+      doAnswer(invocation -> this.queueStartupTask(invocation, queued))
         .when(executor)
         .execute(any());
       try (executor) {
@@ -1172,6 +1210,19 @@ final class QemuVmPlayerTest {
     } finally {
       player.release();
     }
+  }
+
+  private Void recordStartupThread(final AtomicReference<Thread> startupThread) {
+    startupThread.set(Thread.currentThread());
+    this.processAlive.set(true);
+
+    return null;
+  }
+
+  private Void queueStartupTask(final InvocationOnMock invocation, final List<Runnable> queued) {
+    queued.add(invocation.getArgument(0));
+
+    return null;
   }
 
   @Test
@@ -1250,18 +1301,20 @@ final class QemuVmPlayerTest {
   }
 
   private void attachRecorder(final VmPlayer player, final List<int[]> sizes) {
-    final VideoFilter recorder = (image, _) -> {
-      final int width = image.getWidth();
-      final int height = image.getHeight();
-      final int[] size = { width, height };
-      sizes.add(size);
-      return false;
-    };
+    final VideoFilter recorder = (image, _) -> this.recordFrameSize(image, sizes);
     final VideoPipelineStepBuilder builder = PipelineBuilder.video();
     builder.then(recorder);
     final VideoPipelineStep pipeline = builder.build();
     final VideoAttachableCallback callback = player.getVideoAttachableCallback();
     callback.attach(pipeline);
+  }
+
+  private boolean recordFrameSize(final ImageBuffer image, final List<int[]> sizes) {
+    final int width = image.getWidth();
+    final int height = image.getHeight();
+    final int[] size = { width, height };
+    sizes.add(size);
+    return false;
   }
 
   private void awaitFirstFrame(final List<int[]> sizes, final List<String> errors) {

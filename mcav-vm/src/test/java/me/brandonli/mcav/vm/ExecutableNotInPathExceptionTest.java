@@ -45,11 +45,13 @@ final class ExecutableNotInPathExceptionTest {
 
   @Test
   void shouldRejectANullProgramName() {
-    final NullPointerException exception = assertThrows(NullPointerException.class, () -> {
-      throw new ExecutableNotInPathException(null);
-    });
+    final NullPointerException exception = assertThrows(NullPointerException.class, this::throwForNullProgramName);
     final String message = exception.getMessage();
     assertEquals(NULL_EXECUTABLE_MESSAGE, message);
+  }
+
+  private void throwForNullProgramName() {
+    throw new ExecutableNotInPathException(null);
   }
 
   @Test
@@ -62,19 +64,23 @@ final class ExecutableNotInPathExceptionTest {
 
   @Test
   void shouldRejectANullProgramNameWithAPlatform() {
-    final NullPointerException exception = assertThrows(NullPointerException.class, () -> {
-      throw new ExecutableNotInPathException(null, UNSUPPORTED_PLATFORM);
-    });
+    final NullPointerException exception = assertThrows(NullPointerException.class, this::throwForNullProgramNameWithPlatform);
     final String message = exception.getMessage();
     assertEquals(NULL_EXECUTABLE_MESSAGE, message);
   }
 
+  private void throwForNullProgramNameWithPlatform() {
+    throw new ExecutableNotInPathException(null, UNSUPPORTED_PLATFORM);
+  }
+
   @Test
   void shouldRejectANullPlatform() {
-    final NullPointerException exception = assertThrows(NullPointerException.class, () -> {
-      throw new ExecutableNotInPathException(PROGRAM, null);
-    });
+    final NullPointerException exception = assertThrows(NullPointerException.class, this::throwForNullPlatform);
     final String message = exception.getMessage();
     assertEquals("Platform must not be null!", message);
+  }
+
+  private void throwForNullPlatform() {
+    throw new ExecutableNotInPathException(PROGRAM, null);
   }
 }
