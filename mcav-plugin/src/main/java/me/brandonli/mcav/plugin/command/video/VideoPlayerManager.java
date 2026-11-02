@@ -380,10 +380,7 @@ public final class VideoPlayerManager {
    */
   private @Nullable Future<@Nullable Void> scheduleOnMainThread(final Runnable task) {
     final BukkitScheduler scheduler = Bukkit.getScheduler();
-    final Callable<@Nullable Void> call = () -> {
-      task.run();
-      return null;
-    };
+    final Callable<@Nullable Void> call = Executors.callable(task, null);
     try {
       return scheduler.callSyncMethod(this.plugin, call);
     } catch (final IllegalPluginAccessException exception) {

@@ -327,27 +327,33 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     if (vmConfiguration == null) {
       return;
     }
-    // only x86-64 PC and Q35 machines get a sound card from mcav-vm
-    if (audioType != AudioArgument.NONE && architecture != VmPlayer.Architecture.X86_64) {
-      final Component silent = Message.VM_NO_SOUND.build();
-      sender.sendMessage(silent);
-      return;
-    }
-    final AudioProvider provider = this.plugin.getAudioProvider();
-    final Component audioProblem = AudioOutputs.findProblem(provider, audioType);
+    final @Nullable Component audioProblem = this.findAudioProblem(architecture, audioType);
     if (audioProblem != null) {
       sender.sendMessage(audioProblem);
       return;
     }
-    final int width = resolution.getFirst();
-    final int height = resolution.getSecond();
-    final VmSettings vmSettings = VmSettings.of(width, height, targetFramesPerSecond);
+    final VmSettings vmSettings = this.createVmSettings(resolution, targetFramesPerSecond);
     final MapCodec codec = this.chooseCodec(split.codec());
     final ScreenSettings settings = new ScreenSettings(sender, playerSelector, blocks, resolution, mapId, ditheringAlgorithm, codec);
     final Screen screen = this.createScreen(settings);
     final Player[] viewers = playerSelector.values().toArray(Player[]::new);
     final ScreenSound sound = new ScreenSound(audioType, viewers);
     this.createResource(() -> this.startMachine(sender, screen, vmSettings, architecture, vmConfiguration, sound));
+  }
+
+  private @Nullable Component findAudioProblem(final VmPlayer.Architecture architecture, final AudioArgument audioType) {
+    // only x86-64 PC and Q35 machines get a sound card from mcav-vm
+    if (audioType != AudioArgument.NONE && architecture != VmPlayer.Architecture.X86_64) {
+      return Message.VM_NO_SOUND.build();
+    }
+    final AudioProvider provider = this.plugin.getAudioProvider();
+    return AudioOutputs.findProblem(provider, audioType);
+  }
+
+  private VmSettings createVmSettings(final Pair<Integer, Integer> resolution, final int targetFramesPerSecond) {
+    final int width = resolution.getFirst();
+    final int height = resolution.getSecond();
+    return VmSettings.of(width, height, targetFramesPerSecond);
   }
 
   private void startMachine(

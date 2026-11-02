@@ -178,10 +178,12 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     @Range(min = "1") final int ticks,
     @Quoted final String file
   ) {
-    this.load(sender, playerSelector, blockDimensions, mapId, file, playback -> {
-      this.task = Bukkit.getScheduler().runTaskTimerAsynchronously(this.plugin, playback, 0, ticks);
-      sender.sendMessage(Message.MCV2_PLAY.build());
-    });
+    this.load(sender, playerSelector, blockDimensions, mapId, file, playback -> this.startTask(sender, ticks, playback));
+  }
+
+  private void startTask(final CommandSender sender, final int ticks, final Mcv2Playback playback) {
+    this.task = Bukkit.getScheduler().runTaskTimerAsynchronously(this.plugin, playback, 0, ticks);
+    sender.sendMessage(Message.MCV2_PLAY.build());
   }
 
   /**
@@ -210,14 +212,16 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     @Range(min = "1", max = "240") final int framesPerSecond,
     @Quoted final String file
   ) {
-    this.load(sender, playerSelector, blockDimensions, mapId, file, playback -> {
-      final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(
-        Thread.ofPlatform().daemon().name("mcav-mcv2-stream").factory()
-      );
-      this.streaming = executor.scheduleAtFixedRate(playback, 0, TimeUnit.SECONDS.toNanos(1) / framesPerSecond, TimeUnit.NANOSECONDS);
-      this.streamer = executor;
-      sender.sendMessage(Message.MCV2_PLAY.build());
-    });
+    this.load(sender, playerSelector, blockDimensions, mapId, file, playback -> this.startStream(sender, framesPerSecond, playback));
+  }
+
+  private void startStream(final CommandSender sender, final int framesPerSecond, final Mcv2Playback playback) {
+    final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(
+      Thread.ofPlatform().daemon().name("mcav-mcv2-stream").factory()
+    );
+    this.streaming = executor.scheduleAtFixedRate(playback, 0, TimeUnit.SECONDS.toNanos(1) / framesPerSecond, TimeUnit.NANOSECONDS);
+    this.streamer = executor;
+    sender.sendMessage(Message.MCV2_PLAY.build());
   }
 
   /**
@@ -344,24 +348,50 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     @Argument(suggestions = SuggestionProvider.RESOLUTIONS) @Quoted final String resolution,
     final Mcv2Profile profile
   ) {
-    final Pair<Integer, Integer> size = AbstractVideoCommand.parseDimensions(sender, resolution);
+    final Pair<Integer, Integer> size = this.parseEncodeSize(sender, resolution);
     if (size == null) {
       return;
+    }
+    final Path source = Path.of(file);
+    final Path target = this.resolveStreamFile(sender, output);
+    if (target == null) {
+      return;
+    }
+    this.startEncode(sender, source, target, size, profile);
+  }
+
+  private @Nullable Pair<Integer, Integer> parseEncodeSize(final CommandSender sender, final String resolution) {
+    final Pair<Integer, Integer> size = AbstractVideoCommand.parseDimensions(sender, resolution);
+    if (size == null) {
+      return null;
     }
     final int width = size.getFirst();
     final int height = size.getSecond();
     if (width > Mcv2Decoder.MAXIMUM_DIMENSION || height > Mcv2Decoder.MAXIMUM_DIMENSION) {
       sender.sendMessage(Message.UNSUPPORTED_DIMENSION.build());
-      return;
+      return null;
     }
-    final Path source = Path.of(file);
-    final Path target;
+    return size;
+  }
+
+  private @Nullable Path resolveStreamFile(final CommandSender sender, final String output) {
     try {
-      target = this.streamFile(output);
+      return this.streamFile(output);
     } catch (final IOException exception) {
       sender.sendMessage(Message.MCV2_ENCODE_ERROR.build(String.valueOf(exception.getMessage())));
-      return;
+      return null;
     }
+  }
+
+  private void startEncode(
+    final CommandSender sender,
+    final Path source,
+    final Path target,
+    final Pair<Integer, Integer> size,
+    final Mcv2Profile profile
+  ) {
+    final int width = size.getFirst();
+    final int height = size.getSecond();
     final Pool budget = Pool.shared();
     final Opener open = this.opener;
     synchronized (this) {
@@ -430,14 +460,22 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
       Files.move(partial, target, StandardCopyOption.REPLACE_EXISTING);
     } catch (final IOException | RuntimeException exception) {
       deleteQuietly(partial);
-      if (exception.getCause() instanceof InterruptedException) {
-        sender.sendMessage(Message.MCV2_ENCODE_CANCELLED.build());
-        return;
-      }
-
-      sender.sendMessage(Message.MCV2_ENCODE_ERROR.build(String.valueOf(exception.getMessage())));
+      reportFailure(sender, exception);
       return;
     }
+    reportDone(sender, result, target, started);
+  }
+
+  private static void reportFailure(final CommandSender sender, final Exception exception) {
+    if (exception.getCause() instanceof InterruptedException) {
+      sender.sendMessage(Message.MCV2_ENCODE_CANCELLED.build());
+      return;
+    }
+
+    sender.sendMessage(Message.MCV2_ENCODE_ERROR.build(String.valueOf(exception.getMessage())));
+  }
+
+  private static void reportDone(final CommandSender sender, final Mcv2FileEncoder.Result result, final Path target, final long started) {
     sender.sendMessage(
       Message.MCV2_ENCODE_DONE.build(
         String.format(
@@ -455,16 +493,24 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
 
   private static LongConsumer progressReporter(final CommandSender sender, final long started, final long interval) {
     final long[] reported = { started };
-    return frames -> {
-      final long now = System.nanoTime();
-      if (now - reported[0] >= interval) {
-        reported[0] = now;
-        final double millisecondsPerFrame = (now - started) / NANOSECONDS_PER_MILLISECOND / frames;
-        sender.sendMessage(
-          Message.MCV2_ENCODE_PROGRESS.build(String.format(Locale.ROOT, "%d frames, %.0f ms per frame", frames, millisecondsPerFrame))
-        );
-      }
-    };
+    return frames -> reportProgress(sender, started, interval, reported, frames);
+  }
+
+  private static void reportProgress(
+    final CommandSender sender,
+    final long started,
+    final long interval,
+    final long[] reported,
+    final long frames
+  ) {
+    final long now = System.nanoTime();
+    if (now - reported[0] >= interval) {
+      reported[0] = now;
+      final double millisecondsPerFrame = (now - started) / NANOSECONDS_PER_MILLISECOND / frames;
+      sender.sendMessage(
+        Message.MCV2_ENCODE_PROGRESS.build(String.format(Locale.ROOT, "%d frames, %.0f ms per frame", frames, millisecondsPerFrame))
+      );
+    }
   }
 
   /**
@@ -607,6 +653,10 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
       throw new IOException(message);
     }
     final byte[] data = Files.readAllBytes(file);
+    return splitFrames(data);
+  }
+
+  private static List<byte[]> splitFrames(final byte[] data) throws IOException {
     final List<byte[]> frames = new ArrayList<>();
     int offset = 0;
     while (offset < data.length) {

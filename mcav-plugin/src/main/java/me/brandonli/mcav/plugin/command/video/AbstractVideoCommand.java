@@ -29,6 +29,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 import me.brandonli.mcav.bukkit.hologram.Hologram;
 import me.brandonli.mcav.capability.Capability;
 import me.brandonli.mcav.capability.installer.InstallationException;
@@ -185,19 +186,20 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
       return;
     }
 
+    final Function<Player[], PlaybackRequest> requestFactory = viewers ->
+      new PlaybackRequest(playerType, audioType, mrl, ytdlpArguments, resolution, configurationProvider, viewers, chain);
+    this.launchForViewers(sender, selector, requestFactory);
+  }
+
+  private void launchForViewers(
+    final CommandSender sender,
+    final MultiplePlayerSelector selector,
+    final Function<Player[], PlaybackRequest> requestFactory
+  ) {
     try {
       final Player[] viewers = this.collectViewers(selector);
       this.notifyLoading(viewers);
-      final PlaybackRequest request = new PlaybackRequest(
-        playerType,
-        audioType,
-        mrl,
-        ytdlpArguments,
-        resolution,
-        configurationProvider,
-        viewers,
-        chain
-      );
+      final PlaybackRequest request = requestFactory.apply(viewers);
       this.launch(sender, request);
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);

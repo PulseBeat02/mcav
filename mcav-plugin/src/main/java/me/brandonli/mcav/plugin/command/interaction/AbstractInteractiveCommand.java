@@ -223,18 +223,20 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
       this.screen = null;
     }
     final boolean workerOwnsCleanup = oldScreen != null && oldScreen.cancel();
-    CleanupUtils.runAll(
-      () -> {
-        if (current != null && !workerOwnsCleanup) {
-          this.releasePlayer(current);
-        }
-      },
-      () -> {
-        if (maps != null) {
-          maps.release();
-        }
-      }
-    );
+    final @Nullable PlayerType releasable = workerOwnsCleanup ? null : current;
+    CleanupUtils.runAll(() -> this.releasePlayerIfPresent(releasable), () -> this.releaseMapsIfPresent(maps));
+  }
+
+  private void releasePlayerIfPresent(final @Nullable PlayerType player) {
+    if (player != null) {
+      this.releasePlayer(player);
+    }
+  }
+
+  private void releaseMapsIfPresent(final @Nullable FunctionalVideoFilter maps) {
+    if (maps != null) {
+      maps.release();
+    }
   }
 
   /**
@@ -389,33 +391,37 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     }
     this.releaseCurrent();
     final Collection<UUID> players = ArgumentUtils.parseViewers(settings.getViewers(), this.plugin.getOnlinePlayers());
-    final Pair<Integer, Integer> blocks = settings.getBlocks();
-    final int mapId = settings.getMapId();
     final FunctionalVideoFilter output = this.createOutput(settings, players);
     synchronized (this.lock) {
       this.result = output;
     }
     try {
-      output.start();
-      final int columns = blocks.getFirst();
-      final int rows = blocks.getSecond();
-      final long mapCount = (long) columns * rows;
-      final VideoPipelineStep announcement = VideoPipelineStep.of(announceFirstPicture(mapId, mapCount, LOGGER::info));
-      final VideoPipelineStep pipeline = VideoPipelineStep.of(announcement, output);
-      final Pair<Integer, Integer> resolution = settings.getResolution();
-      final boolean stretched = output instanceof Mcv2Output;
-      final WallPicture picture = WallPicture.of(columns, rows, resolution.getFirst(), resolution.getSecond(), stretched);
-      final Screen created = new Screen(output, pipeline, mapId, mapCount, picture);
-      synchronized (this.lock) {
-        this.result = output;
-        this.screen = created;
-      }
-      return created;
+      return this.startScreen(settings, output);
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
       this.releaseAfterFailure(exception);
       throw exception;
     }
+  }
+
+  private Screen startScreen(final ScreenSettings settings, final FunctionalVideoFilter output) {
+    final Pair<Integer, Integer> blocks = settings.getBlocks();
+    final int mapId = settings.getMapId();
+    output.start();
+    final int columns = blocks.getFirst();
+    final int rows = blocks.getSecond();
+    final long mapCount = (long) columns * rows;
+    final VideoPipelineStep announcement = VideoPipelineStep.of(announceFirstPicture(mapId, mapCount, LOGGER::info));
+    final VideoPipelineStep pipeline = VideoPipelineStep.of(announcement, output);
+    final Pair<Integer, Integer> resolution = settings.getResolution();
+    final boolean stretched = output instanceof Mcv2Output;
+    final WallPicture picture = WallPicture.of(columns, rows, resolution.getFirst(), resolution.getSecond(), stretched);
+    final Screen created = new Screen(output, pipeline, mapId, mapCount, picture);
+    synchronized (this.lock) {
+      this.result = output;
+      this.screen = created;
+    }
+    return created;
   }
 
   /**
@@ -433,19 +439,32 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * maps. Releasing the output releases the maps.
    */
   private FunctionalVideoFilter createOutput(final ScreenSettings settings, final Collection<UUID> players) {
-    final Pair<Integer, Integer> blocks = settings.getBlocks();
-    final Pair<Integer, Integer> resolution = settings.getResolution();
-    final int mapId = settings.getMapId();
-    final DitheringArgument dithering = settings.getDithering();
     if (settings.getCodec() == MapCodec.MCV2) {
-      final Mcv2Support support = this.plugin.getMcv2Support();
-      final CommandSender sender = settings.getSender();
-      final Mcv2Configuration configuration = support.configure(sender, blocks, resolution, mapId, Settings.DEFAULT, players);
-      final Mcv2Output output = configuration == null ? null : support.output(sender, configuration, dithering);
+      final Mcv2Output output = this.createMcv2Output(settings, players);
       if (output != null) {
         return output;
       }
     }
+    return this.createDitheredOutput(settings, players);
+  }
+
+  private @Nullable Mcv2Output createMcv2Output(final ScreenSettings settings, final Collection<UUID> players) {
+    final Pair<Integer, Integer> blocks = settings.getBlocks();
+    final Pair<Integer, Integer> resolution = settings.getResolution();
+    final int mapId = settings.getMapId();
+    final DitheringArgument dithering = settings.getDithering();
+    final Mcv2Support support = this.plugin.getMcv2Support();
+    final CommandSender sender = settings.getSender();
+    final Mcv2Configuration configuration = support.configure(sender, blocks, resolution, mapId, Settings.DEFAULT, players);
+    final Mcv2Output output = configuration == null ? null : support.output(sender, configuration, dithering);
+    return output;
+  }
+
+  private FunctionalVideoFilter createDitheredOutput(final ScreenSettings settings, final Collection<UUID> players) {
+    final Pair<Integer, Integer> blocks = settings.getBlocks();
+    final Pair<Integer, Integer> resolution = settings.getResolution();
+    final int mapId = settings.getMapId();
+    final DitheringArgument dithering = settings.getDithering();
     final MapConfiguration configuration = MapDisplaySettings.createConfiguration(blocks, resolution, mapId, players);
     final DitherAlgorithm algorithm = dithering.createAlgorithm();
     final CompressedMapResult maps = new CompressedMapResult(configuration);
@@ -474,12 +493,14 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
   static VideoFilter announceFirstPicture(final int mapId, final long mapCount, final Consumer<String> log) {
     final AtomicBoolean announced = new AtomicBoolean();
     final String message = "Maps " + mapId + " to " + (mapId + mapCount - 1) + " show their first picture";
-    return (image, metadata) -> {
-      if (announced.compareAndSet(false, true)) {
-        log.accept(message);
-      }
-      return false;
-    };
+    return (image, metadata) -> announceOnce(announced, message, log);
+  }
+
+  private static boolean announceOnce(final AtomicBoolean announced, final String message, final Consumer<String> log) {
+    if (announced.compareAndSet(false, true)) {
+      log.accept(message);
+    }
+    return false;
   }
 
   /** Takes ownership on the main thread before callback attachment or executor submission can fail. */
@@ -613,11 +634,13 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
 
     final Component message = this.createStartMessage(succeeded, error);
     final CommandSender sender = attempt.getSender();
-    TaskUtils.runOnMainThread(this.plugin, () -> {
-      if (!screen.isCancelled()) {
-        sender.sendMessage(message);
-      }
-    });
+    TaskUtils.runOnMainThread(this.plugin, () -> this.sendUnlessCancelled(screen, sender, message));
+  }
+
+  private void sendUnlessCancelled(final Screen screen, final CommandSender sender, final Component message) {
+    if (!screen.isCancelled()) {
+      sender.sendMessage(message);
+    }
   }
 
   /**
@@ -640,18 +663,9 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
       }
     }
 
-    CleanupUtils.runAll(
-      () -> {
-        if (playerCurrent) {
-          this.releasePlayer(failed);
-        }
-      },
-      () -> {
-        if (mapsCurrent) {
-          maps.release();
-        }
-      }
-    );
+    final @Nullable PlayerType releasable = playerCurrent ? failed : null;
+    final @Nullable FunctionalVideoFilter releasableMaps = mapsCurrent ? maps : null;
+    CleanupUtils.runAll(() -> this.releasePlayerIfPresent(releasable), () -> this.releaseMapsIfPresent(releasableMaps));
   }
 
   /**

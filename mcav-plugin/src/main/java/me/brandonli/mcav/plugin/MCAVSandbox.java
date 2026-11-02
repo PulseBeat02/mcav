@@ -271,11 +271,13 @@ public final class MCAVSandbox extends JavaPlugin {
   }
 
   private <PartType> Runnable whenPresent(final @Nullable PartType part, final Consumer<PartType> cleanup) {
-    return () -> {
-      if (part != null) {
-        cleanup.accept(part);
-      }
-    };
+    return () -> this.cleanUpIfPresent(part, cleanup);
+  }
+
+  private <PartType> void cleanUpIfPresent(final @Nullable PartType part, final Consumer<PartType> cleanup) {
+    if (part != null) {
+      cleanup.accept(part);
+    }
   }
 
   private ComponentLogger requireLogger() {

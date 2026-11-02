@@ -166,23 +166,25 @@ public final class ImageManager {
     this.image = null;
     this.currentImage = null;
     this.player = null;
-    CleanupUtils.runAll(
-      () -> {
-        if (display != null) {
-          display.release();
-        }
-      },
-      () -> {
-        if (shown != null) {
-          shown.close();
-        }
-      },
-      () -> {
-        if (imagePlayer != null) {
-          imagePlayer.release();
-        }
-      }
-    );
+    CleanupUtils.runAll(() -> this.releaseOldDisplay(display), () -> this.closeShownImage(shown), () -> this.releaseOldPlayer(imagePlayer));
+  }
+
+  private void releaseOldDisplay(final @Nullable DisplayableImage display) {
+    if (display != null) {
+      display.release();
+    }
+  }
+
+  private void closeShownImage(final @Nullable Image shown) {
+    if (shown != null) {
+      shown.close();
+    }
+  }
+
+  private void releaseOldPlayer(final @Nullable ImagePlayer imagePlayer) {
+    if (imagePlayer != null) {
+      imagePlayer.release();
+    }
   }
 
   /**

@@ -248,14 +248,8 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
       return;
     }
 
-    final Pair<Integer, Integer> resolution = parseDimensions(sender, browserResolution);
+    final Pair<Integer, Integer> resolution = this.parseBrowserResolution(sender, browserResolution);
     if (resolution == null) {
-      return;
-    }
-    // the browser paints at most this many pixels per side, fewer than a wall of maps can show
-    if (resolution.getFirst() > BrowserSource.MAX_SIDE || resolution.getSecond() > BrowserSource.MAX_SIDE) {
-      final Component message = Message.UNSUPPORTED_DIMENSION.build();
-      sender.sendMessage(message);
       return;
     }
     final Pair<Integer, Integer> blocks = parseScreenDimensions(sender, blockDimensions);
@@ -283,6 +277,20 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     final Player[] viewers = playerSelector.values().toArray(Player[]::new);
     final ScreenSound sound = new ScreenSound(audioType, viewers);
     this.createResource(() -> this.startBrowser(sender, screen, source, sound));
+  }
+
+  private @Nullable Pair<Integer, Integer> parseBrowserResolution(final CommandSender sender, final String browserResolution) {
+    final Pair<Integer, Integer> resolution = parseDimensions(sender, browserResolution);
+    if (resolution == null) {
+      return null;
+    }
+    // the browser paints at most this many pixels per side, fewer than a wall of maps can show
+    if (resolution.getFirst() > BrowserSource.MAX_SIDE || resolution.getSecond() > BrowserSource.MAX_SIDE) {
+      final Component message = Message.UNSUPPORTED_DIMENSION.build();
+      sender.sendMessage(message);
+      return null;
+    }
+    return resolution;
   }
 
   private BrowserSource createSource(final URI uri, final int nth, final Pair<Integer, Integer> resolution) {

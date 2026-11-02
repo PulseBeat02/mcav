@@ -53,10 +53,7 @@ public interface LocaleTools {
    */
   static NullComponent direct(final String key) {
     Preconditions.checkNotNull(key, "Key must not be null!");
-    return () -> {
-      final TranslatableComponent component = translatable(key);
-      return MANAGER.render(component);
-    };
+    return () -> renderMessage(key);
   }
 
   /**
@@ -70,11 +67,7 @@ public interface LocaleTools {
    */
   static <ArgumentType> UniComponent<ArgumentType> direct(final String key, final @Nullable Function<ArgumentType, String> function) {
     Preconditions.checkNotNull(key, "Key must not be null!");
-    return argument -> {
-      final Component text = createFinalText(argument, function);
-      final TranslatableComponent component = translatable(key, text);
-      return MANAGER.render(component);
-    };
+    return argument -> renderMessage(key, argument, function);
   }
 
   /**
@@ -96,12 +89,7 @@ public interface LocaleTools {
     final @Nullable Function<SecondType, String> secondFunction
   ) {
     Preconditions.checkNotNull(key, "Key must not be null!");
-    return (firstArgument, secondArgument) -> {
-      final Component firstText = createFinalText(firstArgument, firstFunction);
-      final Component secondText = createFinalText(secondArgument, secondFunction);
-      final TranslatableComponent component = translatable(key, firstText, secondText);
-      return MANAGER.render(component);
-    };
+    return (firstArgument, secondArgument) -> renderMessage(key, firstArgument, firstFunction, secondArgument, secondFunction);
   }
 
   /**
@@ -128,13 +116,52 @@ public interface LocaleTools {
     final @Nullable Function<ThirdType, String> thirdFunction
   ) {
     Preconditions.checkNotNull(key, "Key must not be null!");
-    return (firstArgument, secondArgument, thirdArgument) -> {
-      final Component firstText = createFinalText(firstArgument, firstFunction);
-      final Component secondText = createFinalText(secondArgument, secondFunction);
-      final Component thirdText = createFinalText(thirdArgument, thirdFunction);
-      final TranslatableComponent component = translatable(key, firstText, secondText, thirdText);
-      return MANAGER.render(component);
-    };
+    return (firstArgument, secondArgument, thirdArgument) ->
+      renderMessage(key, firstArgument, firstFunction, secondArgument, secondFunction, thirdArgument, thirdFunction);
+  }
+
+  private static Component renderMessage(final String key) {
+    final TranslatableComponent component = translatable(key);
+    return MANAGER.render(component);
+  }
+
+  private static <ArgumentType> Component renderMessage(
+    final String key,
+    final ArgumentType argument,
+    final @Nullable Function<ArgumentType, String> function
+  ) {
+    final Component text = createFinalText(argument, function);
+    final TranslatableComponent component = translatable(key, text);
+    return MANAGER.render(component);
+  }
+
+  private static <FirstType, SecondType> Component renderMessage(
+    final String key,
+    final FirstType firstArgument,
+    final @Nullable Function<FirstType, String> firstFunction,
+    final SecondType secondArgument,
+    final @Nullable Function<SecondType, String> secondFunction
+  ) {
+    final Component firstText = createFinalText(firstArgument, firstFunction);
+    final Component secondText = createFinalText(secondArgument, secondFunction);
+    final TranslatableComponent component = translatable(key, firstText, secondText);
+    return MANAGER.render(component);
+  }
+
+  private static <FirstType, SecondType, ThirdType> Component renderMessage(
+    final String key,
+    final FirstType firstArgument,
+    final @Nullable Function<FirstType, String> firstFunction,
+    final SecondType secondArgument,
+    final @Nullable Function<SecondType, String> secondFunction,
+    final ThirdType thirdArgument,
+    final @Nullable Function<ThirdType, String> thirdFunction
+  ) {
+    final Component firstText = createFinalText(firstArgument, firstFunction);
+    final Component secondText = createFinalText(secondArgument, secondFunction);
+    final Component thirdText = createFinalText(thirdArgument, thirdFunction);
+    final TranslatableComponent component = translatable(key, firstText, secondText, thirdText);
+    return MANAGER.render(component);
   }
 
   /**

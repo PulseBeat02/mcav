@@ -132,21 +132,8 @@ public final class MCAVLoader implements PluginLoader {
    */
   @VisibleForTesting
   static void checkModules(final Collection<String> requiredClasses, final Collection<Path> jars) {
-    final Set<String> entries = new HashSet<>();
-    for (final Path jar : jars) {
-      try (final ZipFile file = new ZipFile(jar.toFile())) {
-        file.stream().map(ZipEntry::getName).forEach(entries::add);
-      } catch (final IOException exception) {
-        final String message = "Downloaded library %s could not be read!".formatted(jar);
-        throw new UncheckedIOException(message, exception);
-      }
-    }
-    final List<String> missing = new ArrayList<>();
-    for (final String required : requiredClasses) {
-      if (!entries.contains(required + CLASS_SUFFIX)) {
-        missing.add(required.replace(PATH_SEPARATOR, PACKAGE_SEPARATOR));
-      }
-    }
+    final Set<String> entries = listEntries(jars);
+    final List<String> missing = findMissing(requiredClasses, entries);
     if (!missing.isEmpty()) {
       final int count = missing.size();
       final List<String> named = missing.subList(0, Math.min(NAMED_MISSING, count));
@@ -158,6 +145,29 @@ public final class MCAVLoader implements PluginLoader {
         );
       throw new IllegalStateException(message);
     }
+  }
+
+  private static Set<String> listEntries(final Collection<Path> jars) {
+    final Set<String> entries = new HashSet<>();
+    for (final Path jar : jars) {
+      try (final ZipFile file = new ZipFile(jar.toFile())) {
+        file.stream().map(ZipEntry::getName).forEach(entries::add);
+      } catch (final IOException exception) {
+        final String message = "Downloaded library %s could not be read!".formatted(jar);
+        throw new UncheckedIOException(message, exception);
+      }
+    }
+    return entries;
+  }
+
+  private static List<String> findMissing(final Collection<String> requiredClasses, final Set<String> entries) {
+    final List<String> missing = new ArrayList<>();
+    for (final String required : requiredClasses) {
+      if (!entries.contains(required + CLASS_SUFFIX)) {
+        missing.add(required.replace(PATH_SEPARATOR, PACKAGE_SEPARATOR));
+      }
+    }
+    return missing;
   }
 
   /**

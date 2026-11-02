@@ -49,27 +49,13 @@ final class UrlPlaceholder implements ComponentRenderer<String> {
 
   @Override
   public Component render(final Component component, final String url) {
-    Component rendered = this.replaceContent(component, url);
-    final List<Component> originalChildren = component.children();
-    final List<Component> children = new ArrayList<>(originalChildren.size());
-    for (final Component child : originalChildren) {
-      final Component replacement = this.render(child, url);
-      children.add(replacement);
-    }
-    rendered = rendered.children(children);
+    final Component content = this.replaceContent(component, url);
+    final List<Component> children = this.renderChildren(component, url);
+    Component rendered = content.children(children);
 
     final ClickEvent<?> click = component.clickEvent();
     if (click != null && ClickEvent.Action.OPEN_URL.equals(click.action())) {
-      final ClickEvent.Payload.Text payload = (ClickEvent.Payload.Text) click.payload();
-      final String originalTarget = payload.value();
-      final String target = originalTarget.replace(this.marker, url);
-      try {
-        final ClickEvent<?> replacement = ClickEvent.openUrl(target);
-        rendered = rendered.clickEvent(replacement);
-      } catch (final IllegalArgumentException exception) {
-        // Adventure validates URI syntax. Preserve the displayed data without offering a malformed click target.
-        rendered = rendered.clickEvent(null);
-      }
+      rendered = this.renderClick(rendered, click, url);
     }
     final HoverEvent<?> hover = component.hoverEvent();
     if (hover != null) {
@@ -77,6 +63,29 @@ final class UrlPlaceholder implements ComponentRenderer<String> {
       rendered = rendered.hoverEvent(replacement);
     }
     return rendered;
+  }
+
+  private List<Component> renderChildren(final Component component, final String url) {
+    final List<Component> originalChildren = component.children();
+    final List<Component> children = new ArrayList<>(originalChildren.size());
+    for (final Component child : originalChildren) {
+      final Component replacement = this.render(child, url);
+      children.add(replacement);
+    }
+    return children;
+  }
+
+  private Component renderClick(final Component rendered, final ClickEvent<?> click, final String url) {
+    final ClickEvent.Payload.Text payload = (ClickEvent.Payload.Text) click.payload();
+    final String originalTarget = payload.value();
+    final String target = originalTarget.replace(this.marker, url);
+    try {
+      final ClickEvent<?> replacement = ClickEvent.openUrl(target);
+      return rendered.clickEvent(replacement);
+    } catch (final IllegalArgumentException exception) {
+      // Adventure validates URI syntax. Preserve the displayed data without offering a malformed click target.
+      return rendered.clickEvent(null);
+    }
   }
 
   private Component replaceContent(final Component component, final String url) {
