@@ -110,10 +110,7 @@ final class FramePixelsTest {
     final ByteBuffer small = ByteBuffer.allocate(5);
     try (final Frame compact = frame(2, 1, 6, new byte[6])) {
       assertThrows(IllegalArgumentException.class, () -> FramePixels.copyBgr(compact, small));
-      assertThrows(NullPointerException.class, () -> FramePixels.copyBgr(compact, null));
     }
-
-    assertThrows(NullPointerException.class, () -> FramePixels.copyBgr(null, small));
   }
 
   @Test
@@ -132,7 +129,16 @@ final class FramePixelsTest {
       assertThrows(IllegalArgumentException.class, () -> FramePixels.copyBgr(shortSamples));
       assertThrows(IllegalArgumentException.class, () -> FramePixels.copyBgr(shortRows));
     }
+  }
 
+  @Test
+  void shouldRejectNullArguments() {
+    final ByteBuffer target = ByteBuffer.allocate(6);
+    try (final Frame compact = frame(2, 1, 6, new byte[6])) {
+      assertThrows(NullPointerException.class, () -> FramePixels.copyBgr(compact, null));
+    }
+
+    assertThrows(NullPointerException.class, () -> FramePixels.copyBgr(null, target));
     assertThrows(NullPointerException.class, () -> FramePixels.copyBgr(null));
   }
 
