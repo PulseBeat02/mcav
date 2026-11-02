@@ -102,6 +102,10 @@ final class ByteUtilsTest {
   void shouldRejectUnsupportedBuffers() {
     final IntBuffer integers = IntBuffer.allocate(1);
     assertThrows(PlayerException.class, () -> ByteUtils.toLittleEndian(integers));
+  }
+
+  @Test
+  void shouldRejectNullBuffers() {
     assertThrows(NullPointerException.class, () -> ByteUtils.toLittleEndian(null));
     assertThrows(NullPointerException.class, () -> ByteUtils.toBigEndian(null));
   }
