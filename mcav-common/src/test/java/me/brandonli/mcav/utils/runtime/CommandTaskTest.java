@@ -199,6 +199,19 @@ final class CommandTaskTest {
   }
 
   @Test
+  void shouldNotRunAgainAfterAWaitFailure() {
+    final String java = javaExecutable();
+    final CommandTask task = new CommandTask(java, VERSION_OPTION);
+    final Thread current = Thread.currentThread();
+    current.interrupt();
+    assertThrows(ProcessException.class, task::run);
+
+    final boolean interrupted = Thread.interrupted();
+    assertTrue(interrupted);
+    assertThrows(IllegalStateException.class, task::run);
+  }
+
+  @Test
   void shouldReportOutputThatCannotBeRead() throws IOException, InterruptedException {
     final String java = javaExecutable();
     final ProcessBuilder builder = new ProcessBuilder(java, VERSION_OPTION);
