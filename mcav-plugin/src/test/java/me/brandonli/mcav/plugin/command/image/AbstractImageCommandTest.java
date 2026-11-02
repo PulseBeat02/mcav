@@ -177,12 +177,12 @@ final class AbstractImageCommandTest {
 
   private Path writeImage(final String name, final String format) throws IOException {
     final Path file = this.folder.resolve(name);
-    final byte[] bytes = encode(format);
+    final byte[] bytes = this.encode(format);
     Files.write(file, bytes);
     return file;
   }
 
-  private static byte[] encode(final String format) throws IOException {
+  private byte[] encode(final String format) throws IOException {
     final BufferedImage image = new BufferedImage(IMAGE_WIDTH, IMAGE_HEIGHT, BufferedImage.TYPE_INT_RGB);
     image.setRGB(0, 0, 0xFF0000);
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
@@ -307,7 +307,7 @@ final class AbstractImageCommandTest {
 
   private String serveImage() throws IOException {
     final String path = PICTURE_PATH;
-    final byte[] bytes = encode(PNG_FORMAT);
+    final byte[] bytes = this.encode(PNG_FORMAT);
     final InetAddress loopback = InetAddress.getLoopbackAddress();
     final InetSocketAddress address = new InetSocketAddress(loopback, 0);
     this.server = HttpServer.create(address, 0);

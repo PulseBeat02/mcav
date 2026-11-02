@@ -89,13 +89,13 @@ final class TranslationManagerTest {
     final TranslationManager manager = new TranslationManager();
     final Path file = this.folder.resolve(RESOURCE);
     final byte[] copied = Files.readAllBytes(file);
-    final byte[] bundled = readBundledMessages();
+    final byte[] bundled = this.readBundledMessages();
     assertArrayEquals(bundled, copied);
     final String title = manager.getProperty(HELP_COMMAND_KEY);
     assertEquals(HELP_COMMAND_TITLE, title);
   }
 
-  private static byte[] readBundledMessages() throws IOException {
+  private byte[] readBundledMessages() throws IOException {
     try (final InputStream stream = IoUtils.getResourceAsStream(RESOURCE)) {
       return stream.readAllBytes();
     }

@@ -312,10 +312,10 @@ final class DumpUtilsTest {
     final Runtime runtime = Runtime.getRuntime();
     final long maximumMemory = runtime.maxMemory();
     final long expectedMaximum = maximumMemory / MEGABYTE;
-    final long free = readNumber(dump, "Free Memory (MB)");
-    final long total = readNumber(dump, "Total Memory (MB)");
-    final long reportedMaximum = readNumber(dump, "Max Memory (MB)");
-    final long uptime = readNumber(dump, "Uptime (ms)");
+    final long free = this.readNumber(dump, "Free Memory (MB)");
+    final long total = this.readNumber(dump, "Total Memory (MB)");
+    final long reportedMaximum = this.readNumber(dump, "Max Memory (MB)");
+    final long uptime = this.readNumber(dump, "Uptime (ms)");
     assertEquals(expectedMaximum, reportedMaximum);
     assertTrue(free <= total, "free memory of " + free + " MB above the total of " + total + " MB");
     assertTrue(total <= expectedMaximum, "total memory of " + total + " MB above the maximum of " + expectedMaximum + " MB");
@@ -330,7 +330,7 @@ final class DumpUtilsTest {
    * @param label the label of the line
    * @return the number the line reports
    */
-  private static long readNumber(final String dump, final String label) {
+  private long readNumber(final String dump, final String label) {
     final String marker = "\n" + label + ": ";
     final int start = dump.indexOf(marker);
     assertTrue(start >= 0, "the dump has no " + label + " line: " + dump);

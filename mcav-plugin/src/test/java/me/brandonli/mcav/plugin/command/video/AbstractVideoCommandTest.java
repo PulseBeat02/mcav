@@ -517,7 +517,7 @@ final class AbstractVideoCommandTest {
     final URI audioStream = URI.create("https://cdn.example.com/audio");
     final UriSource videoStreamSource = UriSource.uri(videoStream);
     final UriSource audioStreamSource = UriSource.uri(audioStream);
-    final StrategySelector strategies = mockStrategies(resolved, videoStreamSource, audioStreamSource);
+    final StrategySelector strategies = this.mockStrategies(resolved, videoStreamSource, audioStreamSource);
 
     try (final MockedStatic<StrategySelector> selectors = Mockito.mockStatic(StrategySelector.class)) {
       selectors
@@ -534,7 +534,7 @@ final class AbstractVideoCommandTest {
     this.assertSenderReceived(started);
   }
 
-  private static StrategySelector mockStrategies(final UrlParseDump resolved, final UriSource videoSource, final UriSource audioSource) {
+  private StrategySelector mockStrategies(final UrlParseDump resolved, final UriSource videoSource, final UriSource audioSource) {
     final Format video = mock(Format.class);
     final Format audio = mock(Format.class);
     when(video.toUriSource()).thenReturn(videoSource);
@@ -576,7 +576,7 @@ final class AbstractVideoCommandTest {
     when(this.parser.parse(any(UriSource.class))).thenReturn(resolved);
     final UriSource videoStreamSource = UriSource.uri(URI.create(videoStream));
     final UriSource audioStreamSource = UriSource.uri(URI.create(audioStream));
-    final StrategySelector strategies = mockStrategies(resolved, videoStreamSource, audioStreamSource);
+    final StrategySelector strategies = this.mockStrategies(resolved, videoStreamSource, audioStreamSource);
 
     try (final MockedStatic<StrategySelector> selectors = Mockito.mockStatic(StrategySelector.class)) {
       selectors

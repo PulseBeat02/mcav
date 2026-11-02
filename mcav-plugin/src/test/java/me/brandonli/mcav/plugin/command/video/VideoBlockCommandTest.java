@@ -95,16 +95,16 @@ final class VideoBlockCommandTest {
     when(plugin.getAudioProvider()).thenReturn(provider);
     final VideoBlockCommand realCommand = new VideoBlockCommand(plugin);
     this.command = spy(realCommand);
-    skipPlayback(this.command);
+    this.skipPlayback(this.command);
 
     this.viewer = UUID.randomUUID();
-    this.selector = mockSelector(this.viewer);
+    this.selector = this.mockSelector(this.viewer);
     this.sender = mock(CommandSender.class);
     final FakeWorld world = new FakeWorld();
     this.location = world.location(1.0, 64.0, 2.0);
   }
 
-  private static void skipPlayback(final AbstractVideoCommand command) {
+  private void skipPlayback(final AbstractVideoCommand command) {
     doNothing()
       .when(command)
       .playVideo(
@@ -120,7 +120,7 @@ final class VideoBlockCommandTest {
       );
   }
 
-  private static MultiplePlayerSelector mockSelector(final UUID viewer) {
+  private MultiplePlayerSelector mockSelector(final UUID viewer) {
     final Player player = mock(Player.class);
     when(player.getUniqueId()).thenReturn(viewer);
     final MultiplePlayerSelector selector = mock(MultiplePlayerSelector.class);

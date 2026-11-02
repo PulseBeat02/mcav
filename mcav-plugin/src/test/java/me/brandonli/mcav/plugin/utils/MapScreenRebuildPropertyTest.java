@@ -93,10 +93,10 @@ final class MapScreenRebuildPropertyTest {
 
   @Provide
   Arbitrary<Rebuild> rebuilds() {
-    final Arbitrary<Integer> sides = between(1, 4);
+    final Arbitrary<Integer> sides = this.between(1, 4);
     final Arbitrary<BlockFace> facings = Arbitraries.of(FACINGS);
-    final Arbitrary<Integer> builds = between(1, 3);
-    final Arbitrary<Obstacle> obstacle = obstacles();
+    final Arbitrary<Integer> builds = this.between(1, 3);
+    final Arbitrary<Obstacle> obstacle = this.obstacles();
     final ListArbitrary<Obstacle> obstacleList = obstacle.list();
     final ListArbitrary<Obstacle> someObstacles = obstacleList.ofMaxSize(6);
     final Combinators.Combinator5<Integer, Integer, BlockFace, Integer, List<Obstacle>> rebuilds = Combinators.combine(
@@ -109,8 +109,8 @@ final class MapScreenRebuildPropertyTest {
     return rebuilds.as(Rebuild::new);
   }
 
-  private static Arbitrary<Obstacle> obstacles() {
-    final Arbitrary<Integer> cells = between(0, 15);
+  private Arbitrary<Obstacle> obstacles() {
+    final Arbitrary<Integer> cells = this.between(0, 15);
     final Arbitrary<ObstacleKind> kinds = Arbitraries.of(ObstacleKind.class);
     final Arbitrary<BlockFace> facings = Arbitraries.of(FACINGS);
     final Combinators.Combinator3<Integer, ObstacleKind, BlockFace> obstacles = Combinators.combine(cells, kinds, facings);
@@ -121,7 +121,7 @@ final class MapScreenRebuildPropertyTest {
    * Creates integers in a range from a fresh arbitrary: jqwik 1.10 shares the range between an arbitrary and the ones
    * configured from it, so one base configured twice would hand every user the last range.
    */
-  private static Arbitrary<Integer> between(final int minimum, final int maximum) {
+  private Arbitrary<Integer> between(final int minimum, final int maximum) {
     final IntegerArbitrary integers = Arbitraries.integers();
     return integers.between(minimum, maximum);
   }
@@ -147,7 +147,7 @@ final class MapScreenRebuildPropertyTest {
       final List<ItemFrame> built = new ArrayList<>(newFrames);
       doomed.addAll(lastBuild);
       for (final ItemFrame frame : built) {
-        hangInsideItsBlock(frame);
+        this.hangInsideItsBlock(frame);
         world.addEntity(frame);
       }
       lastBuild = built;
@@ -162,17 +162,17 @@ final class MapScreenRebuildPropertyTest {
       final boolean alone = occupied.add(block);
       assertTrue(alone, () -> "two frames of the wall hang in the block " + block);
 
-      final boolean removed = wasRemoved(frame);
+      final boolean removed = this.wasRemoved(frame);
       assertFalse(removed, () -> "the frame of the last build in " + block + " was removed");
     }
     for (final ItemFrame frame : doomed) {
       final List<Integer> block = blockOf(frame);
 
-      final boolean secondRemoved = wasRemoved(frame);
+      final boolean secondRemoved = this.wasRemoved(frame);
       assertTrue(secondRemoved, () -> "an old frame still hangs in the block " + block + " of the wall");
     }
     for (final Entity entity : keep) {
-      final boolean thirdRemoved = wasRemoved(entity);
+      final boolean thirdRemoved = this.wasRemoved(entity);
       assertFalse(thirdRemoved, () -> "an entity that is not a frame of the wall was removed: " + entity);
     }
   }
@@ -181,7 +181,7 @@ final class MapScreenRebuildPropertyTest {
    * The world spawns frames at the corner of their block; a real frame hangs inside it, and a frame on the corner
    * would also be found by the search of the neighbouring block.
    */
-  private static void hangInsideItsBlock(final ItemFrame frame) {
+  private void hangInsideItsBlock(final ItemFrame frame) {
     final Location corner = frame.getLocation();
     final Location inside = corner.clone();
     inside.add(HALF_BLOCK, HALF_BLOCK, HALF_BLOCK);
@@ -193,7 +193,7 @@ final class MapScreenRebuildPropertyTest {
     return List.of(location.getBlockX(), location.getBlockY(), location.getBlockZ());
   }
 
-  private static boolean wasRemoved(final Entity entity) {
+  private boolean wasRemoved(final Entity entity) {
     final MockingDetails details = Mockito.mockingDetails(entity);
     final Collection<Invocation> invocations = details.getInvocations();
     for (final Invocation invocation : invocations) {

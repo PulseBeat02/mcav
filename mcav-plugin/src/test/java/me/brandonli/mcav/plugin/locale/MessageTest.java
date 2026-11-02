@@ -38,7 +38,7 @@ final class MessageTest {
 
   @Test
   void shouldHaveATextInTheBundledLanguageForEveryMessage() throws ReflectiveOperationException {
-    final List<Field> fields = messageFields();
+    final List<Field> fields = this.messageFields();
     final int fieldCount = fields.size();
     assertEquals(85, fieldCount);
     for (final Field field : fields) {
@@ -46,7 +46,7 @@ final class MessageTest {
       final Object value = field.get(null);
       final Component component = switch (value) {
         case final LocaleTools.NullComponent nullComponent -> nullComponent.build();
-        case final LocaleTools.UniComponent<?> uniComponent -> buildWithUrl(uniComponent);
+        case final LocaleTools.UniComponent<?> uniComponent -> this.buildWithUrl(uniComponent);
         default -> {
           final String message = "Message %s has an unexpected type!".formatted(name);
           throw new AssertionError(message);
@@ -60,7 +60,7 @@ final class MessageTest {
     }
   }
 
-  private static List<Field> messageFields() {
+  private List<Field> messageFields() {
     final Field[] fields = Message.class.getDeclaredFields();
     final List<Field> messages = new ArrayList<>();
     for (final Field field : fields) {
@@ -72,7 +72,7 @@ final class MessageTest {
     return messages;
   }
 
-  private static Component buildWithUrl(final LocaleTools.UniComponent<?> message) throws ReflectiveOperationException {
+  private Component buildWithUrl(final LocaleTools.UniComponent<?> message) throws ReflectiveOperationException {
     final Method build = LocaleTools.UniComponent.class.getMethod("build", Object.class);
     final Object built = build.invoke(message, "https://example.com/");
     final Component component = assertInstanceOf(Component.class, built);

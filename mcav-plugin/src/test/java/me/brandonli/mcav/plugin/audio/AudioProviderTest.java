@@ -242,7 +242,7 @@ final class AudioProviderTest {
     final boolean ready = this.provider.isDiscordBotReady();
     assertTrue(ready);
     final AudioFilter filter = this.provider.constructFilter(AudioArgument.DISCORD_BOT, this.dump, this.players);
-    assertPlaysInto(this.discord, filter);
+    this.assertPlaysInto(this.discord, filter);
     final InOrder order = inOrder(this.discord, this.audioManager);
     order.verify(this.discord).flush();
     order.verify(this.audioManager).setSendingHandler(this.discord);
@@ -267,7 +267,7 @@ final class AudioProviderTest {
     final boolean ready = this.provider.isDiscordBotReady();
     assertTrue(ready);
     final AudioFilter filter = this.provider.constructFilter(AudioArgument.DISCORD_BOT, this.dump, this.players);
-    assertPlaysInto(this.discord, filter);
+    this.assertPlaysInto(this.discord, filter);
   }
 
   private void startInTheBackground() {
@@ -347,7 +347,7 @@ final class AudioProviderTest {
     final String url = this.provider.constructHttpUrl();
     assertEquals(HTTP_SERVER_URL, url);
     final AudioFilter filter = this.provider.constructFilter(AudioArgument.HTTP_SERVER, this.dump, this.players);
-    assertPlaysInto(this.httpServer, filter);
+    this.assertPlaysInto(this.httpServer, filter);
     verify(this.httpServer).setCurrentMedia(this.dump);
   }
 
@@ -421,7 +421,7 @@ final class AudioProviderTest {
     verify(pluginManager, never()).registerEvents(any(), any());
   }
 
-  private static void assertPlaysInto(final AudioFilter output, final AudioFilter filter) {
+  private void assertPlaysInto(final AudioFilter output, final AudioFilter filter) {
     final ByteBuffer samples = ByteBuffer.allocate(SAMPLE_BUFFER_BYTES);
     final OriginalAudioMetadata metadata = OriginalAudioMetadata.of(AUDIO_CODEC, BIT_RATE, SAMPLE_RATE, AUDIO_CHANNEL_COUNT, 1);
     when(output.applyFilter(samples, metadata)).thenReturn(true);
@@ -449,7 +449,7 @@ final class AudioProviderTest {
 
     final boolean filtered = previous.applyFilter(samples, metadata);
     assertFalse(filtered);
-    assertPlaysInto(replacementSpeakers, replacement);
+    this.assertPlaysInto(replacementSpeakers, replacement);
     this.provider.releaseAudioFilter(source);
     verify(this.voiceChatFilter, times(1)).release();
     verify(replacementSpeakers, times(1)).release();
@@ -475,7 +475,7 @@ final class AudioProviderTest {
     assertFalse(filtered);
 
     verify(videoSpeakers, never()).applyFilter(any(), any());
-    assertPlaysInto(machineSpeakers, sound);
+    this.assertPlaysInto(machineSpeakers, sound);
 
     final boolean soundFiltered = sound.applyFilter(ByteBuffer.allocate(8), metadata);
     assertFalse(soundFiltered, "what the output answers comes back");
@@ -486,7 +486,7 @@ final class AudioProviderTest {
 
     final boolean secondFiltered = sound.applyFilter(samples, metadata);
     assertFalse(secondFiltered);
-    assertPlaysInto(replacementSpeakers, replacement);
+    this.assertPlaysInto(replacementSpeakers, replacement);
     this.provider.releaseAudioFilter();
     verify(replacementSpeakers, never()).release();
     this.provider.releaseAudioFilter(new Object());
@@ -515,7 +515,7 @@ final class AudioProviderTest {
     final AudioFilter video = this.provider.constructFilter(AudioArgument.HTTP_SERVER, this.dump, this.players);
     this.provider.constructFilter(AudioArgument.HTTP_SERVER, UrlParseDump.of(MACHINE_TITLE), this.players, machine);
     this.provider.releaseAudioFilter(machine);
-    assertPlaysInto(this.httpServer, video);
+    this.assertPlaysInto(this.httpServer, video);
     verify(this.httpServer, times(2)).setCurrentMedia(this.dump);
   }
 
@@ -527,7 +527,7 @@ final class AudioProviderTest {
     final AudioFilter video = this.provider.constructFilter(AudioArgument.DISCORD_BOT, this.dump, this.players);
     this.provider.constructFilter(AudioArgument.DISCORD_BOT, UrlParseDump.of(MACHINE_TITLE), this.players, machine);
     this.provider.releaseAudioFilter(machine);
-    assertPlaysInto(this.discord, video);
+    this.assertPlaysInto(this.discord, video);
     verify(this.audioManager, times(3)).openAudioConnection(this.channel);
     verify(this.discord, times(2)).setCurrentMedia(this.dump);
   }
@@ -544,7 +544,7 @@ final class AudioProviderTest {
     this.provider.releaseAudioFilter(machine);
     verify(machineSpeakers).release();
     verify(videoSpeakersAgain).start();
-    assertPlaysInto(videoSpeakersAgain, video);
+    this.assertPlaysInto(videoSpeakersAgain, video);
   }
 
   @Test
@@ -602,7 +602,7 @@ final class AudioProviderTest {
 
     this.provider.releaseAudioFilter(machine);
     verify(this.voiceChatFilter, never()).release();
-    assertPlaysInto(this.voiceChatFilter, video);
+    this.assertPlaysInto(this.voiceChatFilter, video);
   }
 
   @Test
@@ -613,7 +613,7 @@ final class AudioProviderTest {
     this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players);
     final AudioFilter sound = this.provider.constructFilter(AudioArgument.HTTP_SERVER, this.dump, this.players, machine);
     verify(this.voiceChatFilter).release();
-    assertPlaysInto(this.httpServer, sound);
+    this.assertPlaysInto(this.httpServer, sound);
     this.provider.releaseAudioFilter(machine);
     verify(this.voiceChatFilter, times(1)).release();
   }
@@ -651,7 +651,7 @@ final class AudioProviderTest {
   @Test
   void shouldPlayThroughVoiceChatSpeakersUntilReleased() {
     final AudioFilter filter = this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players);
-    assertPlaysInto(this.voiceChatFilter, filter);
+    this.assertPlaysInto(this.voiceChatFilter, filter);
     verify(this.voiceChatFilter).start();
     this.provider.releaseAudioFilter();
     this.provider.releaseAudioFilter();

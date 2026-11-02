@@ -108,8 +108,8 @@ final class VideoPlayerManagerTest {
     this.player = mock(VideoPlayerMultiplexer.class);
     this.filter = mock(FunctionalVideoFilter.class);
     this.hologram = mock(Hologram.class);
-    final Answer<Void> recordPlayerThread = recordThread(this.playerThreads);
-    final Answer<Void> recordWorldThread = recordThread(this.worldThreads);
+    final Answer<Void> recordPlayerThread = this.recordThread(this.playerThreads);
+    final Answer<Void> recordWorldThread = this.recordThread(this.worldThreads);
     doAnswer(recordPlayerThread).when(this.player).release();
     doAnswer(recordWorldThread).when(this.filter).release();
     doAnswer(recordWorldThread).when(this.hologram).kill();
@@ -121,7 +121,7 @@ final class VideoPlayerManagerTest {
     this.manager.shutdown();
   }
 
-  private static Answer<Void> recordThread(final List<Thread> threads) {
+  private Answer<Void> recordThread(final List<Thread> threads) {
     return _ -> {
       final Thread current = Thread.currentThread();
       threads.add(current);
@@ -230,10 +230,10 @@ final class VideoPlayerManagerTest {
   void shouldReleaseTheWorldOnTheMainThreadAndWaitForItWhenCalledFromTheWorker()
     throws InterruptedException, ExecutionException, TimeoutException {
     this.fill();
-    final BlockingQueue<Runnable> mainThreadTasks = interceptMainThreadTasks();
+    final BlockingQueue<Runnable> mainThreadTasks = this.interceptMainThreadTasks();
 
     final Future<?> release = this.releaseOnTheWorker();
-    final Runnable worldTask = awaitMainThreadTask(mainThreadTasks);
+    final Runnable worldTask = this.awaitMainThreadTask(mainThreadTasks);
 
     final boolean doneBeforeTick = release.isDone();
     assertFalse(doneBeforeTick);
@@ -259,7 +259,7 @@ final class VideoPlayerManagerTest {
    * Makes the scheduler hand every task for the main thread to the returned queue, so the test can wait for the
    * worker to schedule one and decide when it runs.
    */
-  private static BlockingQueue<Runnable> interceptMainThreadTasks() {
+  private BlockingQueue<Runnable> interceptMainThreadTasks() {
     final BlockingQueue<Runnable> tasks = new LinkedBlockingQueue<>();
     final BukkitScheduler scheduler = TestServer.scheduler();
     when(scheduler.callSyncMethod(any(Plugin.class), any())).thenAnswer(invocation -> {
@@ -271,7 +271,7 @@ final class VideoPlayerManagerTest {
     return tasks;
   }
 
-  private static Runnable awaitMainThreadTask(final BlockingQueue<Runnable> tasks) throws InterruptedException {
+  private Runnable awaitMainThreadTask(final BlockingQueue<Runnable> tasks) throws InterruptedException {
     final Runnable task = tasks.poll(TIMEOUT_SECONDS, TimeUnit.SECONDS);
     assertNotNull(task, "No task was scheduled on the main thread");
     return task;
@@ -306,9 +306,9 @@ final class VideoPlayerManagerTest {
   @Test
   void shouldFailWhenInterruptedWhileWaitingForTheMainThread() throws InterruptedException {
     this.fill();
-    final BlockingQueue<Runnable> mainThreadTasks = interceptMainThreadTasks();
+    final BlockingQueue<Runnable> mainThreadTasks = this.interceptMainThreadTasks();
     final Future<?> release = this.releaseOnTheWorker();
-    awaitMainThreadTask(mainThreadTasks);
+    this.awaitMainThreadTask(mainThreadTasks);
 
     final ExecutorService service = this.manager.getService();
     service.shutdownNow();
@@ -326,7 +326,7 @@ final class VideoPlayerManagerTest {
   void shouldKeepTheInterruptWhenInterruptedWhileWaitingForTheMainThread()
     throws InterruptedException, ExecutionException, TimeoutException {
     this.fill();
-    final BlockingQueue<Runnable> mainThreadTasks = interceptMainThreadTasks();
+    final BlockingQueue<Runnable> mainThreadTasks = this.interceptMainThreadTasks();
     final AtomicBoolean keptInterrupt = new AtomicBoolean();
     final ExecutorService service = this.manager.getService();
     final Future<?> release = service.submit(() -> {
@@ -337,7 +337,7 @@ final class VideoPlayerManagerTest {
         keptInterrupt.set(interrupted);
       }
     });
-    awaitMainThreadTask(mainThreadTasks);
+    this.awaitMainThreadTask(mainThreadTasks);
 
     service.shutdownNow();
 
@@ -387,9 +387,9 @@ final class VideoPlayerManagerTest {
   @Test
   void shouldDrainOnShutdownTheWorldCleanupWhoseScheduledTaskNeverRuns() throws InterruptedException, ExecutionException, TimeoutException {
     this.fill();
-    final BlockingQueue<Runnable> tasks = interceptMainThreadTasks();
+    final BlockingQueue<Runnable> tasks = this.interceptMainThreadTasks();
     final Future<?> release = this.releaseOnTheWorker();
-    final Runnable accepted = awaitMainThreadTask(tasks);
+    final Runnable accepted = this.awaitMainThreadTask(tasks);
     this.manager.shutdown();
     release.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
     verify(this.filter, times(1)).release();
@@ -732,9 +732,9 @@ final class VideoPlayerManagerTest {
     this.fill();
     final InternalError fatal = new InternalError("fatal display cleanup!");
     doThrow(fatal).when(this.filter).release();
-    final BlockingQueue<Runnable> tasks = interceptMainThreadTasks();
+    final BlockingQueue<Runnable> tasks = this.interceptMainThreadTasks();
     final Future<?> release = this.releaseOnTheWorker();
-    final Runnable accepted = awaitMainThreadTask(tasks);
+    final Runnable accepted = this.awaitMainThreadTask(tasks);
     accepted.run();
     final ExecutionException thrown = assertThrows(ExecutionException.class, () -> release.get(TIMEOUT_SECONDS, TimeUnit.SECONDS));
     final Throwable cause = thrown.getCause();
@@ -854,7 +854,7 @@ final class VideoPlayerManagerTest {
 
   @Test
   void shouldWatchForTheEndOnlyWhileLooping() {
-    final BukkitTask task = stubLoopWatcher();
+    final BukkitTask task = this.stubLoopWatcher();
     final BukkitScheduler scheduler = Bukkit.getScheduler();
 
     final boolean looping = this.manager.isLooping();
@@ -879,7 +879,7 @@ final class VideoPlayerManagerTest {
     verify(task, times(2)).cancel();
   }
 
-  private static BukkitTask stubLoopWatcher() {
+  private BukkitTask stubLoopWatcher() {
     final BukkitScheduler scheduler = Bukkit.getScheduler();
     final BukkitTask task = mock(BukkitTask.class);
     when(scheduler.runTaskTimerAsynchronously(any(Plugin.class), any(Runnable.class), anyLong(), anyLong())).thenReturn(task);
@@ -888,7 +888,7 @@ final class VideoPlayerManagerTest {
 
   @Test
   void shouldPlayAgainOnlyADecodedVideoThatEndedWhileLooping() {
-    stubLoopWatcher();
+    this.stubLoopWatcher();
     final AbstractVideoPlayerCv decoded = mock(AbstractVideoPlayerCv.class);
     this.manager.setPlayer(decoded);
     this.manager.restartEnded();

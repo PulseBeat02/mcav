@@ -73,12 +73,12 @@ final class IoUtilsTest {
 
   @Test
   void shouldFailForMissingResources() {
-    final NullPointerException exception = assertThrows(NullPointerException.class, () -> openAndClose(MISSING_RESOURCE_NAME));
+    final NullPointerException exception = assertThrows(NullPointerException.class, () -> this.openAndClose(MISSING_RESOURCE_NAME));
     final String message = exception.getMessage();
     assertEquals("Resource missing.yml does not exist!", message);
   }
 
-  private static void openAndClose(final String path) throws IOException {
+  private void openAndClose(final String path) throws IOException {
     try (final InputStream stream = IoUtils.getResourceAsStream(path)) {
       final String message = "Path %s opened as %s, but it must not open!".formatted(path, stream);
       fail(message);
@@ -87,7 +87,7 @@ final class IoUtilsTest {
 
   @Test
   void shouldRefuseANullPath() {
-    final NullPointerException exception = assertThrows(NullPointerException.class, () -> openAndClose(null));
+    final NullPointerException exception = assertThrows(NullPointerException.class, () -> this.openAndClose(null));
     final String message = exception.getMessage();
     assertEquals("Path must not be null!", message);
   }

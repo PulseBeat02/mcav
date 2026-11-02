@@ -179,9 +179,9 @@ final class JukeBoxListenerTest {
       this.sandbox,
       false
     );
-    dispatch(this.discOnJukebox(), protection, this.registered());
+    this.dispatch(this.discOnJukebox(), protection, this.registered());
     verify(this.player, never()).performCommand(anyString());
-    dispatch(this.discOnJukebox(), this.registered());
+    this.dispatch(this.discOnJukebox(), this.registered());
     verify(this.player, times(1)).performCommand(anyString());
   }
 
@@ -211,7 +211,7 @@ final class JukeBoxListenerTest {
   }
 
   /** Calls the listeners of an event as the server does, in the order of their priorities. */
-  private static void dispatch(final Event event, final RegisteredListener... listeners) throws EventException {
+  private void dispatch(final Event event, final RegisteredListener... listeners) throws EventException {
     final HandlerList handlers = new HandlerList();
     for (final RegisteredListener listener : listeners) {
       handlers.register(listener);

@@ -61,14 +61,14 @@ final class MapDisplaySettingsTest {
 
   @Test
   void shouldCreateAFreshTemporalAlgorithmOnEveryCall() {
-    final MapConfiguration configuration = createSingleMapConfiguration();
+    final MapConfiguration configuration = this.createSingleMapConfiguration();
     final MapDisplaySettings settings = new MapDisplaySettings(configuration, DitheringArgument.FLOYD_STEINBERG_TEMPORAL);
     final DitherAlgorithm first = settings.createAlgorithm();
     final DitherAlgorithm second = settings.createAlgorithm();
     assertNotSame(first, second);
   }
 
-  private static MapConfiguration createSingleMapConfiguration() {
+  private MapConfiguration createSingleMapConfiguration() {
     final Pair<Integer, Integer> size = Pair.pair(1, 1);
     final UUID viewer = UUID.randomUUID();
     final List<UUID> viewers = List.of(viewer);
@@ -102,7 +102,7 @@ final class MapDisplaySettingsTest {
   void shouldRefuseNullArguments() {
     final Pair<Integer, Integer> size = Pair.pair(1, 1);
     final List<UUID> viewers = List.of();
-    final MapConfiguration configuration = createSingleMapConfiguration();
+    final MapConfiguration configuration = this.createSingleMapConfiguration();
     assertThrows(NullPointerException.class, () -> new MapDisplaySettings(null, DitheringArgument.NEAREST_COLOR));
     assertThrows(NullPointerException.class, () -> new MapDisplaySettings(configuration, null));
     assertThrows(NullPointerException.class, () -> MapDisplaySettings.createConfiguration(null, size, 0, viewers));

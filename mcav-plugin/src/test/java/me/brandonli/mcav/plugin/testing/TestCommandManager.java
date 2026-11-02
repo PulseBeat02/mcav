@@ -85,7 +85,7 @@ public final class TestCommandManager extends CommandManager<CommandSender> {
   public Set<String> syntaxes() {
     final Set<String> syntaxes = new TreeSet<>();
     for (final Command<CommandSender> command : this.commands()) {
-      final String syntax = syntax(command);
+      final String syntax = this.syntax(command);
       syntaxes.add(syntax);
     }
     return syntaxes;
@@ -100,7 +100,7 @@ public final class TestCommandManager extends CommandManager<CommandSender> {
    */
   public Command<CommandSender> command(final String syntax) {
     for (final Command<CommandSender> command : this.commands()) {
-      final String candidate = syntax(command);
+      final String candidate = this.syntax(command);
       if (candidate.equals(syntax)) {
         return command;
       }
@@ -109,7 +109,7 @@ public final class TestCommandManager extends CommandManager<CommandSender> {
     throw new AssertionError(message);
   }
 
-  private static String syntax(final Command<CommandSender> command) {
+  private String syntax(final Command<CommandSender> command) {
     final List<CommandComponent<CommandSender>> components = command.components();
     final StringBuilder syntax = new StringBuilder();
     for (final CommandComponent<CommandSender> component : components) {

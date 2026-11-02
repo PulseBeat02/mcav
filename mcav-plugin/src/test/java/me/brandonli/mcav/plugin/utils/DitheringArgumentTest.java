@@ -71,10 +71,10 @@ final class DitheringArgumentTest {
     final Thread secondThread;
 
     synchronized (argument) {
-      firstThread = startCreating(argument, first);
-      secondThread = startCreating(argument, second);
-      awaitBlocked(firstThread);
-      awaitBlocked(secondThread);
+      firstThread = this.startCreating(argument, first);
+      secondThread = this.startCreating(argument, second);
+      this.awaitBlocked(firstThread);
+      this.awaitBlocked(secondThread);
     }
     firstThread.join(TIMEOUT_MILLISECONDS);
     secondThread.join(TIMEOUT_MILLISECONDS);
@@ -87,7 +87,7 @@ final class DitheringArgumentTest {
     assertSame(firstAlgorithm, later);
   }
 
-  private static void awaitBlocked(final Thread thread) {
+  private void awaitBlocked(final Thread thread) {
     final long start = System.nanoTime();
     final long deadline = start + TIMEOUT_NANOSECONDS;
     Thread.State state = thread.getState();
@@ -99,7 +99,7 @@ final class DitheringArgumentTest {
     }
   }
 
-  private static Thread startCreating(final DitheringArgument argument, final AtomicReference<DitherAlgorithm> result) {
+  private Thread startCreating(final DitheringArgument argument, final AtomicReference<DitherAlgorithm> result) {
     final Thread thread = new Thread(() -> {
       final DitherAlgorithm algorithm = argument.createAlgorithm();
       result.set(algorithm);

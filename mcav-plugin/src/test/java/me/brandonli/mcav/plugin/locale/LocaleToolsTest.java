@@ -55,19 +55,19 @@ final class LocaleToolsTest {
     final LocaleTools.NullComponent message = LocaleTools.direct(SCREEN_BUILD_KEY);
     final Component component = message.build();
     final String text = Components.plain(component);
-    final TextColor color = findColor(component);
+    final TextColor color = this.findColor(component);
     assertEquals(SCREEN_BUILT_TEXT, text);
     assertEquals(NamedTextColor.GOLD, color);
   }
 
-  private static TextColor findColor(final Component component) {
+  private TextColor findColor(final Component component) {
     final TextColor color = component.color();
     if (color != null) {
       return color;
     }
     final List<Component> children = component.children();
     final Component first = children.getFirst();
-    return findColor(first);
+    return this.findColor(first);
   }
 
   @Test
@@ -76,7 +76,7 @@ final class LocaleToolsTest {
     final Component component = message.build("http://localhost:3000/");
     final String text = Components.plain(component);
     final List<ClickEvent<?>> events = new ArrayList<>();
-    collectClickEvents(component, events);
+    this.collectClickEvents(component, events);
     assertEquals(LINK_PREFIX + "http://localhost:3000/", text);
     final int eventCount = events.size();
     assertEquals(1, eventCount);
@@ -89,14 +89,14 @@ final class LocaleToolsTest {
     assertEquals("http://localhost:3000/", url);
   }
 
-  private static void collectClickEvents(final Component component, final List<ClickEvent<?>> events) {
+  private void collectClickEvents(final Component component, final List<ClickEvent<?>> events) {
     final ClickEvent<?> event = component.clickEvent();
     if (event != null) {
       events.add(event);
     }
     final List<Component> children = component.children();
     for (final Component child : children) {
-      collectClickEvents(child, events);
+      this.collectClickEvents(child, events);
     }
   }
 

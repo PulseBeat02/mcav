@@ -577,10 +577,10 @@ final class VirtualizeCommandTest {
 
   @Test
   void shouldSplitAtUnquotedWhitespace() {
-    assertTokens("a  \"b c\"\t\"\" x\"y z\"w \"open quote", "a", "b c", "", "xy zw", "open quote");
+    this.assertTokens("a  \"b c\"\t\"\" x\"y z\"w \"open quote", "a", "b c", "", "xy zw", "open quote");
   }
 
-  private static void assertTokens(final String commandLine, final String... expected) {
+  private void assertTokens(final String commandLine, final String... expected) {
     final List<String> tokens = VirtualizeCommand.tokenize(commandLine);
     final List<String> expectedTokens = List.of(expected);
     assertEquals(expectedTokens, tokens);
@@ -588,7 +588,7 @@ final class VirtualizeCommandTest {
 
   @Test
   void shouldTokenizAnEmptyLineToNothing() {
-    assertTokens("");
+    this.assertTokens("");
   }
 
   @Test

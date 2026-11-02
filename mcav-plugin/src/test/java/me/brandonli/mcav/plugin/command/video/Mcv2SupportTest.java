@@ -370,25 +370,25 @@ final class Mcv2SupportTest {
 
   @Test
   void shouldStepDownToTwoThirdsAndHalfOfTheVideo() {
-    final List<String> described = described(Mcv2Support.smallerSizes(1920, 1080));
+    final List<String> described = this.described(Mcv2Support.smallerSizes(1920, 1080));
     assertEquals(List.of("1280x720", "960x540"), described);
 
-    final List<String> secondDescribed = described(Mcv2Support.smallerSizes(VIDEO_HEIGHT, 216));
+    final List<String> secondDescribed = this.described(Mcv2Support.smallerSizes(VIDEO_HEIGHT, 216));
     assertEquals(List.of("256x144", "192x108"), secondDescribed);
     // a size under 128 by 72 is left out
 
-    final List<String> thirdDescribed = described(Mcv2Support.smallerSizes(240, 120));
+    final List<String> thirdDescribed = this.described(Mcv2Support.smallerSizes(240, 120));
     assertEquals(List.of("160x80"), thirdDescribed);
 
-    final List<String> fourthDescribed = described(Mcv2Support.smallerSizes(200, 100));
+    final List<String> fourthDescribed = this.described(Mcv2Support.smallerSizes(200, 100));
     assertEquals(List.of(), fourthDescribed);
     // exactly 128 by 72 is kept
 
-    final List<String> fifthDescribed = described(Mcv2Support.smallerSizes(192, 108));
+    final List<String> fifthDescribed = this.described(Mcv2Support.smallerSizes(192, 108));
     assertEquals(List.of("128x72"), fifthDescribed);
   }
 
-  private static List<String> described(final List<int[]> sizes) {
+  private List<String> described(final List<int[]> sizes) {
     return sizes
       .stream()
       .map(size -> size[0] + DIMENSION_SEPARATOR + size[1])

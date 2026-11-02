@@ -173,7 +173,7 @@ final class FakeVncServer implements AutoCloseable {
       }
       in.readUnsignedByte();
       final PixelFormat format = new PixelFormat();
-      writeServerInit(out);
+      this.writeServerInit(out);
       this.serveMessages(in, out, format);
     } catch (final IOException | GeneralSecurityException exception) {
       // the client left, or sent what this server does not speak
@@ -187,7 +187,7 @@ final class FakeVncServer implements AutoCloseable {
     out.flush();
     final byte[] response = new byte[CHALLENGE];
     in.readFully(response);
-    final boolean correct = MessageDigest.isEqual(response, encrypt(challenge, this.password));
+    final boolean correct = MessageDigest.isEqual(response, this.encrypt(challenge, this.password));
     out.writeInt(correct ? 0 : 1);
     if (!correct) {
       final byte[] reason = "wrong password".getBytes(StandardCharsets.US_ASCII);
@@ -202,7 +202,7 @@ final class FakeVncServer implements AutoCloseable {
   }
 
   /** VNC authentication encrypts the challenge with DES, its key the password with the bits of every byte reversed. */
-  private static byte[] encrypt(final byte[] challenge, final String password) throws GeneralSecurityException {
+  private byte[] encrypt(final byte[] challenge, final String password) throws GeneralSecurityException {
     final byte[] key = new byte[DES_KEY_LENGTH];
     final byte[] bytes = password.getBytes(StandardCharsets.ISO_8859_1);
     for (int index = 0; index < Math.min(bytes.length, key.length); index++) {
@@ -213,7 +213,7 @@ final class FakeVncServer implements AutoCloseable {
     return cipher.doFinal(challenge);
   }
 
-  private static void writeServerInit(final DataOutputStream out) throws IOException {
+  private void writeServerInit(final DataOutputStream out) throws IOException {
     out.writeShort(WIDTH);
     out.writeShort(HEIGHT);
     out.write(SERVER_PIXEL_FORMAT);
@@ -313,9 +313,9 @@ final class FakeVncServer implements AutoCloseable {
       this.bytes = (format[0] & BYTE_MASK) / BITS_PER_BYTE;
       this.bigEndian = format[BIG_ENDIAN_INDEX] != 0;
       this.maximum = new int[] {
-        unsigned16(format, RED_MAXIMUM_INDEX),
-        unsigned16(format, GREEN_MAXIMUM_INDEX),
-        unsigned16(format, BLUE_MAXIMUM_INDEX),
+        this.unsigned16(format, RED_MAXIMUM_INDEX),
+        this.unsigned16(format, GREEN_MAXIMUM_INDEX),
+        this.unsigned16(format, BLUE_MAXIMUM_INDEX),
       };
       this.shift = new int[] {
         format[RED_SHIFT_INDEX] & BYTE_MASK,
@@ -324,7 +324,7 @@ final class FakeVncServer implements AutoCloseable {
       };
     }
 
-    private static int unsigned16(final byte[] bytes, final int at) {
+    private int unsigned16(final byte[] bytes, final int at) {
       return ((bytes[at] & BYTE_MASK) << BITS_PER_BYTE) | (bytes[at + 1] & BYTE_MASK);
     }
 

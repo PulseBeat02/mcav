@@ -62,13 +62,13 @@ final class DumpRedactionPropertyTest {
     final IntegerArbitrary portIntegers = Arbitraries.integers();
     final Arbitrary<Integer> ports = portIntegers.between(0, 65_535);
     final Combinators.Combinator3<List<Byte>, Integer, Integer> addresses = Combinators.combine(raw, scopes, ports);
-    return addresses.as(DumpRedactionPropertyTest::createAddress);
+    return addresses.as(this::createAddress);
   }
 
   /**
    * Creates the address of a connection; a scope below zero stands for an address without a zone.
    */
-  private static InetSocketAddress createAddress(final List<Byte> raw, final int scope, final int port) {
+  private InetSocketAddress createAddress(final List<Byte> raw, final int scope, final int port) {
     final byte[] bytes = new byte[raw.size()];
     for (int index = 0; index < bytes.length; index++) {
       bytes[index] = raw.get(index);

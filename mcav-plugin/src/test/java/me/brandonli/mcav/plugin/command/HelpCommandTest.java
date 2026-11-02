@@ -107,12 +107,12 @@ final class HelpCommandTest {
     final List<Component> messages = Components.received(this.sender);
     final StringBuilder text = new StringBuilder();
     for (final Component message : messages) {
-      appendText(message, text);
+      this.appendText(message, text);
     }
     return text.toString();
   }
 
-  private static void appendText(final Component component, final StringBuilder text) {
+  private void appendText(final Component component, final StringBuilder text) {
     final String plain = Components.plain(component);
     text.append(plain);
     text.append('\n');
@@ -120,12 +120,12 @@ final class HelpCommandTest {
     if (hover != null) {
       final Object value = hover.value();
       if (value instanceof final Component hoverText) {
-        appendText(hoverText, text);
+        this.appendText(hoverText, text);
       }
     }
     final List<Component> children = component.children();
     for (final Component child : children) {
-      appendText(child, text);
+      this.appendText(child, text);
     }
   }
 
@@ -149,8 +149,8 @@ final class HelpCommandTest {
   void shouldTranslateEveryTextOfTheHelp() {
     final Map<String, String> messages = HelpCommand.createMessages();
     final Map<String, String> expected = new HashMap<>();
-    putListingMessages(expected);
-    putNavigationMessages(expected);
+    this.putListingMessages(expected);
+    this.putNavigationMessages(expected);
     assertEquals(expected, messages, "every text the help knows is filled in from the locale file");
     final Collection<String> texts = messages.values();
     for (final String text : texts) {
@@ -164,13 +164,13 @@ final class HelpCommandTest {
    *
    * @param expected the expected messages, by the key of the help
    */
-  private static void putListingMessages(final Map<String, String> expected) {
-    final String title = translation("mcav.command.help.command");
-    final String description = translation("mcav.command.help.description");
-    final String arguments = translation("mcav.command.help.arguments");
-    final String optional = translation("mcav.command.help.optional");
-    final String available = translation("mcav.command.help.available_commands");
-    final String showHelp = translation("mcav.command.help.show_help");
+  private void putListingMessages(final Map<String, String> expected) {
+    final String title = this.translation("mcav.command.help.command");
+    final String description = this.translation("mcav.command.help.description");
+    final String arguments = this.translation("mcav.command.help.arguments");
+    final String optional = this.translation("mcav.command.help.optional");
+    final String available = this.translation("mcav.command.help.available_commands");
+    final String showHelp = this.translation("mcav.command.help.show_help");
     expected.put(MESSAGE_HELP_TITLE, title);
     expected.put(MESSAGE_DESCRIPTION, description);
     expected.put(MESSAGE_ARGUMENTS, arguments);
@@ -179,7 +179,7 @@ final class HelpCommandTest {
     expected.put(MESSAGE_CLICK_TO_SHOW_HELP, showHelp);
   }
 
-  private static String translation(final String key) {
+  private String translation(final String key) {
     final TranslationManager translations = LocaleTools.MANAGER;
     return translations.getProperty(key);
   }
@@ -189,12 +189,12 @@ final class HelpCommandTest {
    *
    * @param expected the expected messages, by the key of the help
    */
-  private static void putNavigationMessages(final Map<String, String> expected) {
-    final String query = translation("mcav.command.help.search_query");
-    final String noResults = translation("mcav.command.help.none_query");
-    final String invalidPage = translation("mcav.command.help.page_invalid");
-    final String nextPage = translation("mcav.command.help.next_page");
-    final String previousPage = translation("mcav.command.help.previous_page");
+  private void putNavigationMessages(final Map<String, String> expected) {
+    final String query = this.translation("mcav.command.help.search_query");
+    final String noResults = this.translation("mcav.command.help.none_query");
+    final String invalidPage = this.translation("mcav.command.help.page_invalid");
+    final String nextPage = this.translation("mcav.command.help.next_page");
+    final String previousPage = this.translation("mcav.command.help.previous_page");
     expected.put(MESSAGE_SHOWING_RESULTS_FOR_QUERY, query);
     expected.put(MESSAGE_NO_RESULTS_FOR_QUERY, noResults);
     expected.put(MESSAGE_PAGE_OUT_OF_RANGE, invalidPage);

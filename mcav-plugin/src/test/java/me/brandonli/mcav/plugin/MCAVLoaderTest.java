@@ -120,9 +120,9 @@ final class MCAVLoaderTest {
     final Path parent = jar.getParent();
     Files.createDirectories(parent);
     Files.write(jar, EMPTY_ZIP_ARCHIVE);
-    final String hash = sha256(EMPTY_ZIP_ARCHIVE);
+    final String hash = this.sha256(EMPTY_ZIP_ARCHIVE);
     final Dependency dependency = Dependency.parse(LIBRARY_COORDINATE, hash);
-    final DependencySet set = dependencies(List.of(dependency));
+    final DependencySet set = this.dependencies(List.of(dependency));
     final PluginClasspathBuilder builder = mock(PluginClasspathBuilder.class);
     try (final MockedStatic<DependencySet> sets = Mockito.mockStatic(DependencySet.class, Mockito.CALLS_REAL_METHODS)) {
       sets.when(() -> DependencySet.readFromClasspathResource(any(ClassLoader.class), eq(DEPENDENCIES_RESOURCE_PATH))).thenReturn(set);
@@ -138,14 +138,14 @@ final class MCAVLoaderTest {
     verify(store).addLibrary(jar);
   }
 
-  private static String sha256(final byte[] bytes) throws NoSuchAlgorithmException {
+  private String sha256(final byte[] bytes) throws NoSuchAlgorithmException {
     final MessageDigest digest = MessageDigest.getInstance("SHA-256");
     final byte[] hash = digest.digest(bytes);
     final HexFormat format = HexFormat.of();
     return format.formatHex(hash);
   }
 
-  private static DependencySet dependencies(final List<Dependency> dependencies) {
+  private DependencySet dependencies(final List<Dependency> dependencies) {
     final List<String> repositories = List.of();
     final Map<String, ?> extensionData = Map.of();
     return new DependencySet(repositories, dependencies, DependencySet.defaultExtensions(), extensionData);
@@ -171,10 +171,10 @@ final class MCAVLoaderTest {
     final String lastUsedText = String.valueOf(lastUsedMilliseconds);
     Files.writeString(staleLastUsed, lastUsedText);
 
-    final String hash = sha256(EMPTY_ZIP_ARCHIVE);
+    final String hash = this.sha256(EMPTY_ZIP_ARCHIVE);
     final Dependency dependency = Dependency.parse(LIBRARY_COORDINATE, hash);
     final List<Dependency> listed = List.of(dependency);
-    final DependencySet set = dependencies(listed);
+    final DependencySet set = this.dependencies(listed);
     final PluginClasspathBuilder builder = mock(PluginClasspathBuilder.class);
     try (final MockedStatic<DependencySet> sets = Mockito.mockStatic(DependencySet.class, Mockito.CALLS_REAL_METHODS)) {
       sets.when(() -> DependencySet.readFromClasspathResource(any(ClassLoader.class), eq(DEPENDENCIES_RESOURCE_PATH))).thenReturn(set);
@@ -192,7 +192,7 @@ final class MCAVLoaderTest {
 
   @Test
   void shouldAddNothingWithoutLibraries() {
-    final DependencySet set = dependencies(List.of());
+    final DependencySet set = this.dependencies(List.of());
     final PluginClasspathBuilder builder = mock(PluginClasspathBuilder.class);
     try (final MockedStatic<DependencySet> sets = Mockito.mockStatic(DependencySet.class, Mockito.CALLS_REAL_METHODS)) {
       sets.when(() -> DependencySet.readFromClasspathResource(any(ClassLoader.class), eq(DEPENDENCIES_RESOURCE_PATH))).thenReturn(set);
@@ -251,8 +251,8 @@ final class MCAVLoaderTest {
     final Path jar = this.cache.resolve(LIBRARY_JAR_PATH);
     Files.createDirectories(jar.getParent());
     Files.write(jar, EMPTY_ZIP_ARCHIVE);
-    final Dependency dependency = Dependency.parse(LIBRARY_COORDINATE, sha256(EMPTY_ZIP_ARCHIVE));
-    final DependencySet set = dependencies(List.of(dependency));
+    final Dependency dependency = Dependency.parse(LIBRARY_COORDINATE, this.sha256(EMPTY_ZIP_ARCHIVE));
+    final DependencySet set = this.dependencies(List.of(dependency));
     final PluginClasspathBuilder builder = mock(PluginClasspathBuilder.class);
     try (final MockedStatic<DependencySet> sets = Mockito.mockStatic(DependencySet.class, Mockito.CALLS_REAL_METHODS)) {
       sets.when(() -> DependencySet.readFromClasspathResource(any(ClassLoader.class), eq(DEPENDENCIES_RESOURCE_PATH))).thenReturn(set);

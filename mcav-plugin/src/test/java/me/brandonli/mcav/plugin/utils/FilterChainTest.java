@@ -330,13 +330,13 @@ final class FilterChainTest {
 
   @Test
   void shouldApplyTheExactValuesTyped() {
-    final ImageBuffer brighter = picture(2, 2, 0x102030);
+    final ImageBuffer brighter = this.picture(2, 2, 0x102030);
     this.parse("luminance=3:0").apply(brighter);
 
     final int matches = brighter.getPixels()[0] & RGB_MASK;
     assertEquals(0x306090, matches, "the largest contrast");
 
-    final ImageBuffer outlined = picture(4, 4, 0);
+    final ImageBuffer outlined = this.picture(4, 4, 0);
     this.parse("rectangle=0:0:100:100:123456").apply(outlined);
 
     final int secondMatches = outlined.getPixels()[0] & RGB_MASK;
@@ -352,7 +352,7 @@ final class FilterChainTest {
     assertTrue(thirdMatches, "a blur of radius 1 reaches the next pixel");
   }
 
-  private static ImageBuffer picture(final int width, final int height, final int rgb) {
+  private ImageBuffer picture(final int width, final int height, final int rgb) {
     final int[] pixels = new int[width * height];
     Arrays.fill(pixels, OPAQUE | rgb);
     return ImageBuffer.buffer(pixels, width, height);
@@ -360,13 +360,13 @@ final class FilterChainTest {
 
   @Test
   void shouldLetABlurReachAsFarAsItsRadius() {
-    final ImageBuffer narrow = whiteDot();
+    final ImageBuffer narrow = this.whiteDot();
     this.parse(NARROW_BLUR_FILTER).apply(narrow);
 
     final int matches = narrow.getPixels()[DOT_SIZE * 2] & CHANNEL_MASK;
     assertEquals(0, matches, "a blur of radius 1 stops before the second pixel");
 
-    final ImageBuffer wide = whiteDot();
+    final ImageBuffer wide = this.whiteDot();
     this.parse("blur=2").apply(wide);
 
     final boolean secondMatches = (wide.getPixels()[DOT_SIZE * 2] & CHANNEL_MASK) > 0;
@@ -374,7 +374,7 @@ final class FilterChainTest {
   }
 
   // a white pixel in the middle of a black 5x5 picture
-  private static ImageBuffer whiteDot() {
+  private ImageBuffer whiteDot() {
     final int[] dot = new int[DOT_SIZE * DOT_SIZE];
     Arrays.fill(dot, OPAQUE);
     dot[2 + DOT_SIZE * 2] = OPAQUE | WHITE;
@@ -384,7 +384,7 @@ final class FilterChainTest {
   @Test
   void shouldPlaceARegionAtThePercentsTyped() {
     final VideoFilter inside = this.parse("rectangle=25:50:50:25:ffffff").create().getFirst();
-    final ImageBuffer framed = picture(40, 40, 0);
+    final ImageBuffer framed = this.picture(40, 40, 0);
 
     final boolean filtered = inside.applyFilter(framed);
     assertTrue(filtered);
@@ -397,7 +397,7 @@ final class FilterChainTest {
       final int secondMatches = framed.getPixels()[black[0] + 40 * black[1]] & RGB_MASK;
       assertEquals(0, secondMatches, Arrays.toString(black));
     }
-    try (final ImageBuffer cropped = quadrantPicture()) {
+    try (final ImageBuffer cropped = this.quadrantPicture()) {
       final boolean secondFiltered = this.parse("crop=0:0:50:50").create().getFirst().applyFilter(cropped);
       assertTrue(secondFiltered);
 
@@ -415,7 +415,7 @@ final class FilterChainTest {
     }
   }
 
-  private static ImageBuffer quadrantPicture() {
+  private ImageBuffer quadrantPicture() {
     final int[] pixels = new int[QUADRANT_PIXEL_COUNT];
     final int[] colors = { TOP_LEFT_COLOR, 0x789ABC, 0xFEDCBA, BOTTOM_RIGHT_COLOR };
     for (int row = 0; row < QUADRANT_PICTURE_SIZE; row++) {
@@ -445,18 +445,18 @@ final class FilterChainTest {
 
   @Test
   void shouldFilterPicturesAtTheirSize() throws IOException {
-    final ImageBuffer gray = picture(4, 2, 0x204060);
+    final ImageBuffer gray = this.picture(4, 2, 0x204060);
     this.parse(GRAYSCALE_FILTER).apply(gray);
     final int pixel = gray.getPixels()[0];
     assertEquals((pixel >> 16) & CHANNEL_MASK, pixel & CHANNEL_MASK);
     assertEquals((pixel >> 8) & CHANNEL_MASK, pixel & CHANNEL_MASK);
-    final ImageBuffer inverted = picture(4, 2, 0x204060);
+    final ImageBuffer inverted = this.picture(4, 2, 0x204060);
     this.parse(INVERT_FILTER).apply(inverted);
 
     final int matches = inverted.getPixels()[3] & RGB_MASK;
     assertEquals(0xdfbf9f, matches);
 
-    try (final ImageBuffer zoomed = quadrantPicture()) {
+    try (final ImageBuffer zoomed = this.quadrantPicture()) {
       this.parse("crop=50:50:50:50").apply(zoomed);
 
       final int width = zoomed.getWidth();
@@ -471,14 +471,14 @@ final class FilterChainTest {
       final int[] pixels = zoomed.getPixels();
       assertArrayEquals(expected, pixels, "the bottom-right quadrant fills the result");
     }
-    final ImageBuffer framed = picture(20, 20, 0x000000);
+    final ImageBuffer framed = this.picture(20, 20, 0x000000);
     this.parse("rectangle=0:0:50:50:00ff00").apply(framed);
 
     final int secondMatches = framed.getPixels()[0] & RGB_MASK;
     assertEquals(0x00ff00, secondMatches);
 
     this.writeOverlay("red", 2, 2);
-    final ImageBuffer covered = picture(8, 8, BLUE);
+    final ImageBuffer covered = this.picture(8, 8, BLUE);
     this.parse("overlay=red").apply(covered);
 
     final int thirdMatches = covered.getPixels()[0] & RGB_MASK;
@@ -490,10 +490,10 @@ final class FilterChainTest {
 
   @Test
   void shouldReleaseTheDecodedOverlayOnceItsFilterHoldsACopy() {
-    final ImageBuffer decoded = picture(2, 2, RED);
+    final ImageBuffer decoded = this.picture(2, 2, RED);
     final VideoFilter overlay = FilterChain.overlayFilter(decoded);
     assertThrows(IllegalStateException.class, decoded::getWidth, "the decoded picture is released");
-    final ImageBuffer covered = picture(4, 4, BLUE);
+    final ImageBuffer covered = this.picture(4, 4, BLUE);
     overlay.applyFilter(covered);
 
     final int matches = covered.getPixels()[0] & RGB_MASK;
@@ -507,7 +507,7 @@ final class FilterChainTest {
   void shouldScaleALargeOverlayDownAndRemakesARegionForEverySize() throws IOException {
     this.writeOverlay("wide", 2_048, 16);
     final VideoFilter overlay = this.parse("overlay=wide").create().getFirst();
-    final ImageBuffer large = picture(1_100, 16, BLUE);
+    final ImageBuffer large = this.picture(1_100, 16, BLUE);
     overlay.applyFilter(large);
 
     final int matches = large.getPixels()[1_023] & RGB_MASK;
@@ -520,20 +520,20 @@ final class FilterChainTest {
     assertEquals(RED, thirdMatches, "eight rows high");
 
     final VideoFilter rectangle = this.parse("rectangle=50:0:50:50:ffffff").create().getFirst();
-    final ImageBuffer small = picture(10, 10, 0);
+    final ImageBuffer small = this.picture(10, 10, 0);
     rectangle.applyFilter(small);
 
     final int fourthMatches = small.getPixels()[5] & RGB_MASK;
     assertEquals(WHITE, fourthMatches);
 
     rectangle.applyFilter(small);
-    final ImageBuffer other = picture(20, 20, 0);
+    final ImageBuffer other = this.picture(20, 20, 0);
     rectangle.applyFilter(other);
 
     final int fifthMatches = other.getPixels()[10] & RGB_MASK;
     assertEquals(WHITE, fifthMatches);
 
-    final ImageBuffer taller = picture(20, 40, 0);
+    final ImageBuffer taller = this.picture(20, 40, 0);
     rectangle.applyFilter(taller);
 
     final int sixthMatches = taller.getPixels()[10 + 20 * 15] & RGB_MASK;
@@ -542,7 +542,7 @@ final class FilterChainTest {
     final int seventhMatches = taller.getPixels()[10 + 20 * 30] & RGB_MASK;
     assertEquals(0, seventhMatches);
 
-    final ImageBuffer wider = picture(40, 40, 0);
+    final ImageBuffer wider = this.picture(40, 40, 0);
     rectangle.applyFilter(wider);
 
     final int eighthMatches = wider.getPixels()[20 + 40 * 5] & RGB_MASK;

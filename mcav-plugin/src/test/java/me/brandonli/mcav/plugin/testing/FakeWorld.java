@@ -275,7 +275,7 @@ public final class FakeWorld {
     final List<Entity> nearby = new ArrayList<>();
     for (final Entity entity : this.entities) {
       final Location location = entity.getLocation();
-      final boolean near = isWithin(location, center, radiusX, radiusY, radiusZ);
+      final boolean near = this.isWithin(location, center, radiusX, radiusY, radiusZ);
       if (near) {
         nearby.add(entity);
       }
@@ -283,7 +283,7 @@ public final class FakeWorld {
     return nearby;
   }
 
-  private static boolean isWithin(
+  private boolean isWithin(
     final Location location,
     final Location center,
     final double radiusX,

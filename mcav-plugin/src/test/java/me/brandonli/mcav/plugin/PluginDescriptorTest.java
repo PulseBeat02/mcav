@@ -64,7 +64,7 @@ final class PluginDescriptorTest {
     assertNotNull(permissions, "the descriptor declares permissions");
     final Set<String> declared = new TreeSet<>(permissions.getKeys(false));
 
-    final Set<String> expected = checkedPermissions();
+    final Set<String> expected = this.checkedPermissions();
     assertEquals(expected, declared);
 
     final String pluginDefault = descriptor.getString("default-permission");
@@ -77,7 +77,7 @@ final class PluginDescriptorTest {
     }
   }
 
-  private static Set<String> checkedPermissions() throws IOException, URISyntaxException {
+  private Set<String> checkedPermissions() throws IOException, URISyntaxException {
     final Path classes = Path.of(MCAVSandbox.class.getProtectionDomain().getCodeSource().getLocation().toURI());
     final Set<String> checked = new TreeSet<>();
     final List<Path> files;

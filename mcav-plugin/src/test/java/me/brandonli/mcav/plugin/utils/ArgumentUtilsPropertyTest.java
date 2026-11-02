@@ -58,8 +58,8 @@ final class ArgumentUtilsPropertyTest {
     final IntegerArbitrary integers = Arbitraries.integers();
     final Arbitrary<String> numbers = integers.map(String::valueOf);
     final Arbitrary<String> pairs = numbers.flatMap(width -> numbers.map(height -> width + DIMENSION_SEPARATOR + height));
-    final Arbitrary<Integer> nearWalls = nearBound(ArgumentUtils.MAXIMUM_SCREEN_SIDE);
-    final Arbitrary<Integer> nearSides = nearBound(ArgumentUtils.MAXIMUM_SIDE);
+    final Arbitrary<Integer> nearWalls = this.nearBound(ArgumentUtils.MAXIMUM_SCREEN_SIDE);
+    final Arbitrary<Integer> nearSides = this.nearBound(ArgumentUtils.MAXIMUM_SIDE);
     final Arbitrary<Integer> near = Arbitraries.oneOf(nearWalls, nearSides);
     final Arbitrary<String> nearPairs = near.flatMap(width -> near.map(height -> width + DIMENSION_SEPARATOR + height));
     final int wall = ArgumentUtils.MAXIMUM_SCREEN_SIDE;
@@ -85,22 +85,22 @@ final class ArgumentUtilsPropertyTest {
    * Creates sides from nothing to three times a bound, from a fresh arbitrary: jqwik 1.10 shares the range between an
    * arbitrary and the ones configured from it.
    */
-  private static Arbitrary<Integer> nearBound(final int bound) {
+  private Arbitrary<Integer> nearBound(final int bound) {
     final IntegerArbitrary integers = Arbitraries.integers();
     return integers.between(0, 3 * bound);
   }
 
   @Property(seed = SEED)
   void shouldKeepEveryTypedSizeWithinTheBoundsOrRefuseIt(@ForAll("typedSizes") final String typed) {
-    assertBoundedOrRefused(typed, ArgumentUtils::parseDimensions, ArgumentUtils.MAXIMUM_SIDE);
+    this.assertBoundedOrRefused(typed, ArgumentUtils::parseDimensions, ArgumentUtils.MAXIMUM_SIDE);
   }
 
   @Property(seed = SEED)
   void shouldKeepEveryTypedWallWithinTheBoundsOrRefuseIt(@ForAll("typedSizes") final String typed) {
-    assertBoundedOrRefused(typed, ArgumentUtils::parseScreenDimensions, ArgumentUtils.MAXIMUM_SCREEN_SIDE);
+    this.assertBoundedOrRefused(typed, ArgumentUtils::parseScreenDimensions, ArgumentUtils.MAXIMUM_SCREEN_SIDE);
   }
 
-  private static void assertBoundedOrRefused(final String typed, final Function<String, Pair<Integer, Integer>> parser, final int maximum) {
+  private void assertBoundedOrRefused(final String typed, final Function<String, Pair<Integer, Integer>> parser, final int maximum) {
     final Pair<Integer, Integer> size;
     try {
       size = parser.apply(typed);

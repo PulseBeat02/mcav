@@ -155,47 +155,47 @@ final class PaperServerEndToEndTest {
   void shouldEnableThePluginWithItsAudioOutputsOnAHeadlessServer(@TempDir final Path serverDirectory) throws Exception {
     final boolean eulaAccepted = Boolean.getBoolean("mcav.e2e.acceptEula");
     Assumptions.assumeTrue(eulaAccepted, "Running a Minecraft server needs the Minecraft EULA; pass -Pmcav.acceptMinecraftEula=true");
-    final Path cache = requirePath("mcav.e2e.cacheDirectory");
-    final Path paperJar = download(cache, PAPER);
-    final Path voiceChatJar = download(cache, VOICE_CHAT);
-    final Path pluginJar = requirePath("mcav.e2e.pluginJar");
-    final int httpPort = findFreePort();
+    final Path cache = this.requirePath("mcav.e2e.cacheDirectory");
+    final Path paperJar = this.download(cache, PAPER);
+    final Path voiceChatJar = this.download(cache, VOICE_CHAT);
+    final Path pluginJar = this.requirePath("mcav.e2e.pluginJar");
+    final int httpPort = this.findFreePort();
     final FakeVncServer vnc = FakeVncServer.start();
-    final int gamePort = prepareServer(serverDirectory, pluginJar, voiceChatJar, httpPort, vnc);
+    final int gamePort = this.prepareServer(serverDirectory, pluginJar, voiceChatJar, httpPort, vnc);
     final Path media = serverDirectory.resolve(MEDIA_DIRECTORY);
 
-    final List<String> command = createCommand(paperJar);
-    final LibraryCache libraryCache = lendLibraries(cache, serverDirectory);
+    final List<String> command = this.createCommand(paperJar);
+    final LibraryCache libraryCache = this.lendLibraries(cache, serverDirectory);
     // closed in reverse order: the server stops first, then the repository, then the libraries go back to the cache
     try (
       vnc;
       libraryCache;
-      final LocalMavenRepositoryServer repository = startRepository();
+      final LocalMavenRepositoryServer repository = this.startRepository();
       final ServerProcess server = ServerProcess.start(serverDirectory, command)
     ) {
-      server.awaitLine(0, PaperServerEndToEndTest::isStartupComplete, STARTUP_TIMEOUT);
+      server.awaitLine(0, this::isStartupComplete, STARTUP_TIMEOUT);
       final int servedFileCount = repository.getServedFileCount();
-      assertCurrentModuleJars(serverDirectory, pluginJar);
+      this.assertCurrentModuleJars(serverDirectory, pluginJar);
       System.out.println("Local repository files served: " + servedFileCount + "; cached module hashes verified against this plugin");
-      runCommand(server, "plugins", "MCAV");
-      runCommand(server, "mcav help", "mcav dump");
-      final String mediaInformation = fetchMediaInformation(server, httpPort);
+      this.runCommand(server, "plugins", "MCAV");
+      this.runCommand(server, "mcav help", "mcav dump");
+      final String mediaInformation = this.fetchMediaInformation(server, httpPort);
       try (final SoundListener sound = SoundListener.connect(httpPort); final TonePage page = TonePage.start()) {
-        streamABrowser(server, sound, page);
+        this.streamABrowser(server, sound, page);
         final boolean hasQemu = server
           .getLines()
           .stream()
           .noneMatch(line -> line.contains("QEMU is not installed"));
         if (hasQemu) {
-          runAMachine(server, sound);
+          this.runAMachine(server, sound);
         } else {
           System.out.println("QEMU is not installed on this machine, so no virtual machine runs");
         }
-        showAVncDesktop(server, vnc);
-        playThroughMcv2(server, page, gamePort);
+        this.showAVncDesktop(server, vnc);
+        this.playThroughMcv2(server, page, gamePort);
       }
-      controlAVideo(server, media);
-      filterAnImage(server, media);
+      this.controlAVideo(server, media);
+      this.filterAnImage(server, media);
       server.command("stop");
       final int exitCode = server.awaitExit(SHUTDOWN_TIMEOUT);
       final List<String> output = server.getLines();
@@ -208,7 +208,7 @@ final class PaperServerEndToEndTest {
   /**
    * Verifies current module bytes even on a warm cache, where valid Gremlin hashes deliberately avoid HTTP.
    */
-  private static void assertCurrentModuleJars(final Path serverDirectory, final Path pluginJar) throws IOException {
+  private void assertCurrentModuleJars(final Path serverDirectory, final Path pluginJar) throws IOException {
     final String manifest;
     try (final ZipFile plugin = new ZipFile(pluginJar.toFile())) {
       final ZipEntry entry = plugin.getEntry(DEPENDENCIES_ENTRY);
@@ -241,7 +241,7 @@ final class PaperServerEndToEndTest {
       final Path fileName = file.getFileName();
       final String name = fileName.toString();
       if (name.endsWith(JAR_SUFFIX)) {
-        actual.add(hash(file, "SHA-256"));
+        actual.add(this.hash(file, "SHA-256"));
       }
     }
     for (final String digest : expected) {
@@ -253,7 +253,7 @@ final class PaperServerEndToEndTest {
   /**
    * Hands the libraries that earlier runs downloaded, kept in the download cache of the build, to the server.
    */
-  private static LibraryCache lendLibraries(final Path cache, final Path serverDirectory) throws IOException {
+  private LibraryCache lendLibraries(final Path cache, final Path serverDirectory) throws IOException {
     final Path cachedLibraries = cache.resolve(LIBRARIES_DIRECTORY);
     final Path serverLibraries = serverDirectory.resolve(MCAV_LIBRARIES_DIRECTORY);
     return LibraryCache.lend(cachedLibraries, serverLibraries);
@@ -263,9 +263,9 @@ final class PaperServerEndToEndTest {
    * Serves the repository the build published the modules into, on the port the build wrote into
    * {@code mcav/plugin/dependencies.txt} as the first repository, so the server downloads the modules of this build.
    */
-  private static LocalMavenRepositoryServer startRepository() throws IOException {
-    final Path repositoryDirectory = requirePath("mcav.e2e.repositoryDirectory");
-    final int repositoryPort = requirePort("mcav.e2e.repositoryPort");
+  private LocalMavenRepositoryServer startRepository() throws IOException {
+    final Path repositoryDirectory = this.requirePath("mcav.e2e.repositoryDirectory");
+    final int repositoryPort = this.requirePort("mcav.e2e.repositoryPort");
     return LocalMavenRepositoryServer.start(repositoryDirectory, repositoryPort);
   }
 
@@ -287,11 +287,10 @@ final class PaperServerEndToEndTest {
   /**
    * Streams the tone page onto six maps with its sound in the audio web page, and releases the browser.
    */
-  private static void streamABrowser(final ServerProcess server, final SoundListener sound, final TonePage page)
-    throws InterruptedException {
+  private void streamABrowser(final ServerProcess server, final SoundListener sound, final TonePage page) throws InterruptedException {
     final int firstLine = server.getLineCount();
     final String create = "mcav browser create @a 320x240 1 3x2 0 NEAREST_COLOR HTTP_SERVER " + page.getUri();
-    runCommand(server, create, BROWSER_STARTED, BROWSER_TIMEOUT);
+    this.runCommand(server, create, BROWSER_STARTED, BROWSER_TIMEOUT);
     server.awaitLine(firstLine, line -> line.contains("Maps 0 to 5 show their first picture"), COMMAND_TIMEOUT);
     final double frequency = sound.awaitFrequency(SOUND_SECONDS, SOUND_TIMEOUT);
     System.out.printf(Locale.ROOT, "The page of the browser plays %.1f Hz in the audio web page%n", frequency);
@@ -300,27 +299,27 @@ final class PaperServerEndToEndTest {
     assertTrue(matches, "the tone of the page has " + frequency + " Hz");
 
     // a helper runs the Java of the server, which starts no other Java; CEF's processes run programs of its folder
-    final Predicate<String> browser = command -> isJava(command) || command.contains("jcef") || command.contains("Xvfb");
+    final Predicate<String> browser = command -> this.isJava(command) || command.contains("jcef") || command.contains("Xvfb");
     final List<ProcessHandle> running = server.findDescendants(browser);
 
     final boolean empty = running.isEmpty();
     assertFalse(empty, "the browser runs in processes of its own");
 
-    runCommand(server, RELEASE_BROWSER_COMMAND, BROWSER_RELEASED, COMMAND_TIMEOUT);
-    awaitNoneLeft(server, "browser", browser, running);
+    this.runCommand(server, RELEASE_BROWSER_COMMAND, BROWSER_RELEASED, COMMAND_TIMEOUT);
+    this.awaitNoneLeft(server, "browser", browser, running);
   }
 
   /**
    * Boots a machine whose PC speaker plays a tone onto six maps with its sound in the audio web page, and releases it.
    */
-  private static void runAMachine(final ServerProcess server, final SoundListener sound) throws InterruptedException {
+  private void runAMachine(final ServerProcess server, final SoundListener sound) throws InterruptedException {
     sound.clear();
     final int firstLine = server.getLineCount();
     final String create =
       "mcav vm create @a 320x200 10 3x2 6 NEAREST_COLOR X86_64 HTTP_SERVER -m 16 -drive file=" +
       TONE_IMAGE +
       ",format=raw,if=floppy -boot a";
-    runCommand(server, create, "Created virtual machine!", COMMAND_TIMEOUT);
+    this.runCommand(server, create, "Created virtual machine!", COMMAND_TIMEOUT);
     server.awaitLine(firstLine, line -> line.contains("Maps 6 to 11 show their first picture"), COMMAND_TIMEOUT);
     final double frequency = sound.awaitFrequency(SOUND_SECONDS, SOUND_TIMEOUT);
     System.out.printf(Locale.ROOT, "The virtual machine plays %.1f Hz in the audio web page%n", frequency);
@@ -334,16 +333,20 @@ final class PaperServerEndToEndTest {
     final boolean empty = running.isEmpty();
     assertFalse(empty, "the machine runs in a QEMU process");
 
-    runCommand(server, "mcav vm release", "Virtual machine released!", COMMAND_TIMEOUT);
-    awaitNoneLeft(server, "virtual machine", machine, running);
+    this.runCommand(server, "mcav vm release", "Virtual machine released!", COMMAND_TIMEOUT);
+    this.awaitNoneLeft(server, "virtual machine", machine, running);
   }
 
   /**
    * Shows the desktop of the test's VNC server, listed with its password, on six maps, and releases it.
    */
-  private static void showAVncDesktop(final ServerProcess server, final FakeVncServer vnc) throws InterruptedException {
+  private void showAVncDesktop(final ServerProcess server, final FakeVncServer vnc) throws InterruptedException {
     final int firstLine = server.getLineCount();
-    runCommand(server, "mcav vnc create @a 320x240 10 3x2 12 NEAREST_COLOR 127.0.0.1:" + vnc.getPort(), "Connected to the VNC desktop!");
+    this.runCommand(
+      server,
+      "mcav vnc create @a 320x240 10 3x2 12 NEAREST_COLOR 127.0.0.1:" + vnc.getPort(),
+      "Connected to the VNC desktop!"
+    );
     server.awaitLine(firstLine, line -> line.contains("Maps 12 to 17 show their first picture"), COMMAND_TIMEOUT);
     // the client asks for the desktop's next picture at the screen's rate, ten a second here, and a release sent at once
     // after the first picture comes back before that; a desktop that sends only one picture still fails below
@@ -351,7 +354,7 @@ final class PaperServerEndToEndTest {
     while (vnc.getUpdates() < 2 && System.nanoTime() < deadline) {
       TimeUnit.MILLISECONDS.sleep(50);
     }
-    runCommand(server, "mcav vnc release", "VNC desktop released!");
+    this.runCommand(server, "mcav vnc release", "VNC desktop released!");
     System.out.printf(Locale.ROOT, "The VNC desktop logged in %d time(s) and sent %d updates%n", vnc.getLogins(), vnc.getUpdates());
 
     final int logins = vnc.getLogins();
@@ -369,12 +372,12 @@ final class PaperServerEndToEndTest {
    * loaded and 26.3 keeps no spawn chunks, and checks the pack the server hosts on its game port: its hash names the
    * pack.
    */
-  private static void playThroughMcv2(final ServerProcess server, final TonePage page, final int gamePort) throws Exception {
+  private void playThroughMcv2(final ServerProcess server, final TonePage page, final int gamePort) throws Exception {
     // a wall the console builds faces north, so this one stands at z 2 and 3 within two blocks of x 0
-    runCommand(server, "forceload add -16 0 15 15", "to be force loaded");
-    runCommand(server, "mcav screen \"3x2\" 20 STONE 0 -60 3", "Built a new map screen!");
+    this.runCommand(server, "forceload add -16 0 15 15", "to be force loaded");
+    this.runCommand(server, "mcav screen \"3x2\" 20 STONE 0 -60 3", "Built a new map screen!");
     final int firstLine = server.getLineCount();
-    runCommand(
+    this.runCommand(
       server,
       "mcav browser create @a 320x240 1 3x2 20 NEAREST_COLOR NONE " + page.getUri() + " --codec mcv2",
       BROWSER_STARTED,
@@ -391,7 +394,7 @@ final class PaperServerEndToEndTest {
     final int port = pack.getPort();
     assertEquals(gamePort, port, "the pack is hosted on the game port");
 
-    final byte[] zip = fetchBytes(pack);
+    final byte[] zip = this.fetchBytes(pack);
     final String sha1 = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-1").digest(zip));
     final UUID id = UUID.nameUUIDFromBytes(("mcav-mcv2:" + sha1).getBytes(StandardCharsets.UTF_8));
 
@@ -410,29 +413,29 @@ final class PaperServerEndToEndTest {
     assertTrue(matches, String.valueOf(entries));
 
     System.out.println("The MCV2 pack " + id + " of " + zip.length + " bytes is hosted at " + pack);
-    runCommand(server, RELEASE_BROWSER_COMMAND, BROWSER_RELEASED, COMMAND_TIMEOUT);
+    this.runCommand(server, RELEASE_BROWSER_COMMAND, BROWSER_RELEASED, COMMAND_TIMEOUT);
     assertLogged(server.getLines(), "MCV2 kernels: ");
   }
 
   /**
    * Plays the test clip on a map with two filters, and seeks, speeds up, loops and turns down the video.
    */
-  private static void controlAVideo(final ServerProcess server, final Path media) throws InterruptedException {
+  private void controlAVideo(final ServerProcess server, final Path media) throws InterruptedException {
     final String clip = media.resolve(CLIP).toString();
-    runCommand(
+    this.runCommand(
       server,
       "mcav video map @a FFMPEG NONE \"64x64\" \"1x1\" 30 NEAREST_COLOR \"\" \"" + clip + "\" --filters \"grayscale,invert\"",
       "Video metadata loaded and playing now!"
     );
-    runCommand(server, "mcav video loop true", "Videos play again from their start whenever they end.");
-    runCommand(server, "mcav video seek 0:01", "Jumped to 0:01");
-    runCommand(server, "mcav video speed 2", "Playing at a speed of 2.0");
-    runCommand(server, "mcav video volume 50", "Volume in percent: 50");
+    this.runCommand(server, "mcav video loop true", "Videos play again from their start whenever they end.");
+    this.runCommand(server, "mcav video seek 0:01", "Jumped to 0:01");
+    this.runCommand(server, "mcav video speed 2", "Playing at a speed of 2.0");
+    this.runCommand(server, "mcav video volume 50", "Volume in percent: 50");
     // past the end of the clip, which plays again from its start
     TimeUnit.SECONDS.sleep(4);
-    runCommand(server, "mcav video seek -0:01", "Jumped to ");
-    runCommand(server, "mcav video loop false", "Videos stop at their end.");
-    runCommand(server, "mcav video release", "Video player released!");
+    this.runCommand(server, "mcav video seek -0:01", "Jumped to ");
+    this.runCommand(server, "mcav video loop false", "Videos stop at their end.");
+    this.runCommand(server, "mcav video release", "Video player released!");
     final int firstLine = server.getLineCount();
     server.command("mcav video devices");
     server.awaitLine(
@@ -445,17 +448,17 @@ final class PaperServerEndToEndTest {
   /**
    * Shows the test picture on a map through a blur and a text.
    */
-  private static void filterAnImage(final ServerProcess server, final Path media) throws InterruptedException {
+  private void filterAnImage(final ServerProcess server, final Path media) throws InterruptedException {
     final String picture = media.resolve(PICTURE).toString();
-    runCommand(
+    this.runCommand(
       server,
       "mcav image map @a \"64x64\" \"1x1\" 31 NEAREST_COLOR " + picture + " --filters \"blur=2,text=e2e\"",
       "Image loaded!"
     );
-    runCommand(server, "mcav image release", "Image released!");
+    this.runCommand(server, "mcav image release", "Image released!");
   }
 
-  private static boolean isJava(final String command) {
+  private boolean isJava(final String command) {
     return command.endsWith(UNIX_JAVA_SUFFIX) || command.endsWith(WINDOWS_JAVA_SUFFIX);
   }
 
@@ -463,23 +466,23 @@ final class PaperServerEndToEndTest {
    * Waits until no process of a player is left: none that ran before its release, even one that lost its parent and
    * is no longer below the server, and none below the server that runs its programs.
    */
-  private static void awaitNoneLeft(
+  private void awaitNoneLeft(
     final ServerProcess server,
     final String what,
     final Predicate<String> matcher,
     final List<ProcessHandle> before
   ) throws InterruptedException {
     final long deadline = System.nanoTime() + RELEASE_TIMEOUT.toNanos();
-    List<String> left = findLeft(server, matcher, before);
+    List<String> left = this.findLeft(server, matcher, before);
     while (!left.isEmpty() && System.nanoTime() < deadline) {
       TimeUnit.MILLISECONDS.sleep(200);
-      left = findLeft(server, matcher, before);
+      left = this.findLeft(server, matcher, before);
     }
     assertEquals(List.of(), left, "no process of the " + what + " is left after its release");
     System.out.println("After the release of the " + what + ", none of its " + before.size() + " processes is left");
   }
 
-  private static List<String> findLeft(final ServerProcess server, final Predicate<String> matcher, final List<ProcessHandle> before) {
+  private List<String> findLeft(final ServerProcess server, final Predicate<String> matcher, final List<ProcessHandle> before) {
     return Stream.concat(before.stream(), server.findDescendants(matcher).stream())
       .filter(ProcessHandle::isAlive)
       .distinct()
@@ -487,18 +490,18 @@ final class PaperServerEndToEndTest {
       .toList();
   }
 
-  private static boolean isStartupComplete(final String line) {
+  private boolean isStartupComplete(final String line) {
     return line.contains("Done (") && line.contains("For help, type");
   }
 
   /**
    * Sends a console command and waits for its answer; the test fails when the expected text does not appear in time.
    */
-  private static void runCommand(final ServerProcess server, final String command, final String expectedText) throws InterruptedException {
-    runCommand(server, command, expectedText, COMMAND_TIMEOUT);
+  private void runCommand(final ServerProcess server, final String command, final String expectedText) throws InterruptedException {
+    this.runCommand(server, command, expectedText, COMMAND_TIMEOUT);
   }
 
-  private static void runCommand(final ServerProcess server, final String command, final String expectedText, final Duration timeout)
+  private void runCommand(final ServerProcess server, final String command, final String expectedText, final Duration timeout)
     throws InterruptedException {
     final int firstLine = server.getLineCount();
     server.command(command);
@@ -509,7 +512,7 @@ final class PaperServerEndToEndTest {
    * Waits until the plugin reports that its audio web server, which it starts in the background, is listening, and
    * then asks the server for the media information.
    */
-  private static String fetchMediaInformation(final ServerProcess server, final int port) throws IOException, InterruptedException {
+  private String fetchMediaInformation(final ServerProcess server, final int port) throws IOException, InterruptedException {
     server.awaitLine(0, line -> line.contains("The audio web page is available at"), HTTP_TIMEOUT);
     final URI uri = URI.create("http://127.0.0.1:" + port + MEDIA_PATH);
     final HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(uri);
@@ -524,7 +527,7 @@ final class PaperServerEndToEndTest {
     }
   }
 
-  private static byte[] fetchBytes(final URI uri) throws IOException, InterruptedException {
+  private byte[] fetchBytes(final URI uri) throws IOException, InterruptedException {
     final HttpRequest request = HttpRequest.newBuilder(uri).timeout(REQUEST_TIMEOUT).build();
     try (final HttpClient client = HttpClient.newHttpClient()) {
       final HttpResponse<byte[]> response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
@@ -572,20 +575,20 @@ final class PaperServerEndToEndTest {
     assertTrue(clean, "the server logged errors:" + separator + report);
   }
 
-  private static List<String> createCommand(final Path paperJar) {
+  private List<String> createCommand(final Path paperJar) {
     final String java = System.getProperty("mcav.e2e.java", "java");
     final String jar = paperJar.toString();
     return List.of(java, "-Xms1G", "-Xmx3G", "-Djava.awt.headless=true", "-jar", jar, "--nogui");
   }
 
-  private static int prepareServer(
+  private int prepareServer(
     final Path serverDirectory,
     final Path pluginJar,
     final Path voiceChatJar,
     final int httpPort,
     final FakeVncServer vnc
   ) throws IOException {
-    final int gamePort = writeServerProperties(serverDirectory);
+    final int gamePort = this.writeServerProperties(serverDirectory);
     final Path eula = serverDirectory.resolve(EULA_FILE);
     Files.writeString(eula, "eula=true\n", StandardCharsets.UTF_8);
 
@@ -596,19 +599,19 @@ final class PaperServerEndToEndTest {
     final Path installedVoiceChat = pluginsDirectory.resolve(VOICE_CHAT.fileName);
     Files.copy(voiceChatJar, installedVoiceChat);
 
-    writePluginConfiguration(pluginsDirectory, httpPort, vnc);
-    writeVoiceChatConfiguration(pluginsDirectory);
+    this.writePluginConfiguration(pluginsDirectory, httpPort, vnc);
+    this.writeVoiceChatConfiguration(pluginsDirectory);
     // the boot sector of mcav-vm's sound test (beep.asm there): it plays a 1000 Hz tone on the PC speaker
     final Path images = pluginsDirectory.resolve(PLUGIN_DATA_DIRECTORY).resolve(ISO_DIRECTORY);
     Files.createDirectories(images);
-    copyResource(TONE_IMAGE, images);
+    this.copyResource(TONE_IMAGE, images);
     final Path media = Files.createDirectories(serverDirectory.resolve(MEDIA_DIRECTORY));
-    copyResource(CLIP, media);
-    copyResource(PICTURE, media);
+    this.copyResource(CLIP, media);
+    this.copyResource(PICTURE, media);
     return gamePort;
   }
 
-  private static void copyResource(final String name, final Path folder) throws IOException {
+  private void copyResource(final String name, final Path folder) throws IOException {
     try (final InputStream resource = PaperServerEndToEndTest.class.getResourceAsStream(MEDIA_RESOURCES + name)) {
       final String message = "Resource %s does not exist!".formatted(name);
       Files.copy(Objects.requireNonNull(resource, message), folder.resolve(name));
@@ -620,8 +623,8 @@ final class PaperServerEndToEndTest {
    * world without them, and no network services beyond the game port, on the loopback address, which the URL of the
    * MCV2 pack the game port serves then names instead of the public address of the machine.
    */
-  private static int writeServerProperties(final Path serverDirectory) throws IOException {
-    final int port = findFreePort();
+  private int writeServerProperties(final Path serverDirectory) throws IOException {
+    final int port = this.findFreePort();
     final String properties = String.join(
       LINE_SEPARATOR,
       "online-mode=false",
@@ -649,8 +652,7 @@ final class PaperServerEndToEndTest {
    * The browser may open the page of this machine, and plays its sound without a click, as no player is there. The
    * VNC server of the test is the one listed server, with its password.
    */
-  private static void writePluginConfiguration(final Path pluginsDirectory, final int httpPort, final FakeVncServer vnc)
-    throws IOException {
+  private void writePluginConfiguration(final Path pluginsDirectory, final int httpPort, final FakeVncServer vnc) throws IOException {
     final Path dataFolder = pluginsDirectory.resolve(PLUGIN_DATA_DIRECTORY);
     Files.createDirectories(dataFolder);
     final String configuration = String.join(
@@ -684,21 +686,21 @@ final class PaperServerEndToEndTest {
   /**
    * Moves the voice chat server to a free UDP port, so the test never clashes with a voice chat server on the machine.
    */
-  private static void writeVoiceChatConfiguration(final Path pluginsDirectory) throws IOException {
+  private void writeVoiceChatConfiguration(final Path pluginsDirectory) throws IOException {
     final Path voiceChatFolder = pluginsDirectory.resolve(VOICE_CHAT_DIRECTORY);
     Files.createDirectories(voiceChatFolder);
-    final int voicePort = findFreeUdpPort();
+    final int voicePort = this.findFreeUdpPort();
     final Path file = voiceChatFolder.resolve(VOICE_CHAT_PROPERTIES_FILE);
     Files.writeString(file, "port=" + voicePort + LINE_SEPARATOR, StandardCharsets.UTF_8);
   }
 
-  private static int findFreePort() throws IOException {
+  private int findFreePort() throws IOException {
     try (final ServerSocket socket = new ServerSocket(0)) {
       return socket.getLocalPort();
     }
   }
 
-  private static int findFreeUdpPort() throws IOException {
+  private int findFreeUdpPort() throws IOException {
     try (final DatagramSocket socket = new DatagramSocket(0)) {
       return socket.getLocalPort();
     }
@@ -707,24 +709,24 @@ final class PaperServerEndToEndTest {
   /**
    * Returns a file from the download cache of the build, downloading it first when it is missing or damaged.
    */
-  private static Path download(final Path cache, final RemoteFile remoteFile) throws IOException, InterruptedException {
+  private Path download(final Path cache, final RemoteFile remoteFile) throws IOException, InterruptedException {
     Files.createDirectories(cache);
     final Path file = cache.resolve(remoteFile.fileName);
     if (Files.isRegularFile(file)) {
-      final String cachedHash = hash(file, remoteFile.algorithm);
+      final String cachedHash = this.hash(file, remoteFile.algorithm);
       if (cachedHash.equals(remoteFile.expectedHash)) {
         return file;
       }
     }
     final Path partial = cache.resolve(remoteFile.fileName + PARTIAL_SUFFIX);
-    fetch(remoteFile.url, partial);
-    final String downloadedHash = hash(partial, remoteFile.algorithm);
+    this.fetch(remoteFile.url, partial);
+    final String downloadedHash = this.hash(partial, remoteFile.algorithm);
     assertEquals(remoteFile.expectedHash, downloadedHash, "the file downloaded from " + remoteFile.url + " is corrupt");
     Files.move(partial, file, StandardCopyOption.REPLACE_EXISTING);
     return file;
   }
 
-  private static void fetch(final String url, final Path target) throws IOException, InterruptedException {
+  private void fetch(final String url, final Path target) throws IOException, InterruptedException {
     final URI uri = URI.create(url);
     final HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(uri);
     final HttpRequest request = requestBuilder.build();
@@ -744,8 +746,8 @@ final class PaperServerEndToEndTest {
     }
   }
 
-  private static String hash(final Path file, final String algorithm) throws IOException {
-    final MessageDigest digest = createDigest(algorithm);
+  private String hash(final Path file, final String algorithm) throws IOException {
+    final MessageDigest digest = this.createDigest(algorithm);
     try (final InputStream input = Files.newInputStream(file)) {
       final byte[] chunk = new byte[64 * 1024];
       int readCount = input.read(chunk);
@@ -759,7 +761,7 @@ final class PaperServerEndToEndTest {
     return hexadecimalFormat.formatHex(hashBytes);
   }
 
-  private static MessageDigest createDigest(final String algorithm) {
+  private MessageDigest createDigest(final String algorithm) {
     try {
       return MessageDigest.getInstance(algorithm);
     } catch (final NoSuchAlgorithmException exception) {
@@ -768,13 +770,13 @@ final class PaperServerEndToEndTest {
     }
   }
 
-  private static Path requirePath(final String property) {
+  private Path requirePath(final String property) {
     final String value = System.getProperty(property);
     assertNotNull(value, "the build passes -D" + property + " to this test");
     return Path.of(value);
   }
 
-  private static int requirePort(final String property) {
+  private int requirePort(final String property) {
     final int port = Integer.getInteger(property, 0);
     assertTrue(port > 0, "the build passes -D" + property + " to this test");
     return port;
