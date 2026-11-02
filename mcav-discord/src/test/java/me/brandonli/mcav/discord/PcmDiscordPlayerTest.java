@@ -217,7 +217,8 @@ final class PcmDiscordPlayerTest {
 
     final String name = this.shownActivityName();
     final String kept = title.substring(0, MAXIMUM_NAME_LENGTH - ELLIPSIS.length());
-    assertEquals(kept + ELLIPSIS, name);
+    final String expected = kept + ELLIPSIS;
+    assertEquals(expected, name);
   }
 
   @Test
@@ -273,14 +274,16 @@ final class PcmDiscordPlayerTest {
     this.player.setPlaying(splitPrefix + emoji + tail);
 
     final String withoutEmoji = this.shownActivityName();
-    assertEquals(splitPrefix + ELLIPSIS, withoutEmoji, "half an emoji is dropped instead of shown as a broken character");
+    final String expectedWithoutEmoji = splitPrefix + ELLIPSIS;
+    assertEquals(expectedWithoutEmoji, withoutEmoji, "half an emoji is dropped instead of shown as a broken character");
 
     final String fittingPrefix = "a".repeat(125);
     this.player.setPlaying(fittingPrefix + emoji + tail);
 
     final String withEmoji = this.shownActivityName();
     final int length = withEmoji.length();
-    assertEquals(fittingPrefix + emoji + ELLIPSIS, withEmoji, "an emoji that fits is kept whole");
+    final String expectedWithEmoji = fittingPrefix + emoji + ELLIPSIS;
+    assertEquals(expectedWithEmoji, withEmoji, "an emoji that fits is kept whole");
     assertEquals(MAXIMUM_NAME_LENGTH, length);
   }
 
