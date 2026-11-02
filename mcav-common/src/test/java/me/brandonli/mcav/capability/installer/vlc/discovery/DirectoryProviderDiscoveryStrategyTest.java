@@ -393,6 +393,18 @@ final class DirectoryProviderDiscoveryStrategyTest {
   }
 
   @Test
+  void shouldReturnANewListOfDirectoriesOnEveryCall() {
+    final StaticDirectoryProvider provider = new StaticDirectoryProvider(1, ProviderSupport.SUPPORTED, SUPPORTED_DIRECTORY);
+    final SearchProvider search = new SearchProvider(provider, 0);
+    final TestStrategy strategy = strategy(search);
+    final List<String> first = strategy.discoveryDirectories();
+    first.clear();
+    final List<String> second = strategy.discoveryDirectories();
+    final List<String> expected = List.of(SUPPORTED_DIRECTORY);
+    assertEquals(expected, second);
+  }
+
+  @Test
   void shouldReadTheJnaLibraryPathInTheDefaultProviders() throws IOException {
     final Path libraries = createLibraries(this.temporaryDirectory, JNA_DIRECTORY);
     final String rawLibraries = libraries.toString();
