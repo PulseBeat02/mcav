@@ -410,18 +410,26 @@ final class EntityChannelSvcFilterTest {
     assertEquals(1, queuedAfterSecond);
 
     final short[] firstFrame = this.nextFrameOf(0);
-    assertEquals(1, firstFrame[0]);
-    assertEquals(1, firstFrame[499]);
-    assertEquals(2, firstFrame[500]);
-    assertEquals(2, firstFrame[FRAME_SAMPLES - 1]);
+    final short firstInputStart = firstFrame[0];
+    final short firstInputEnd = firstFrame[499];
+    final short secondInputStart = firstFrame[500];
+    final short firstFrameEnd = firstFrame[FRAME_SAMPLES - 1];
+    assertEquals(1, firstInputStart);
+    assertEquals(1, firstInputEnd);
+    assertEquals(2, secondInputStart);
+    assertEquals(2, firstFrameEnd);
 
     final short[] third = this.constant(FRAME_SAMPLES - 100, 3);
     this.feed(filter, third);
     final short[] secondFrame = this.nextFrameOf(0);
-    assertEquals(2, secondFrame[0]);
-    assertEquals(2, secondFrame[99]);
-    assertEquals(3, secondFrame[100]);
-    assertEquals(3, secondFrame[FRAME_SAMPLES - 1]);
+    final short secondFrameStart = secondFrame[0];
+    final short secondInputEnd = secondFrame[99];
+    final short thirdInputStart = secondFrame[100];
+    final short secondFrameEnd = secondFrame[FRAME_SAMPLES - 1];
+    assertEquals(2, secondFrameStart);
+    assertEquals(2, secondInputEnd);
+    assertEquals(3, thirdInputStart);
+    assertEquals(3, secondFrameEnd);
 
     filter.release();
   }
@@ -472,7 +480,8 @@ final class EntityChannelSvcFilterTest {
     assertEquals(MAXIMUM_FRAMES, queued);
 
     final short[] oldest = this.nextFrameOf(0);
-    assertEquals(2, oldest[0]);
+    final short oldestFrameIndex = oldest[0];
+    assertEquals(2, oldestFrameIndex);
 
     final short[] bobFrame = this.nextFrameOf(1);
     final short[] silence = new short[FRAME_SAMPLES];
@@ -800,7 +809,8 @@ final class EntityChannelSvcFilterTest {
 
     for (int index = 0; index < CONCURRENT_FRAMES; index++) {
       final short value = received.get(index);
-      assertEquals(index + 1, value);
+      final int expected = index + 1;
+      assertEquals(expected, value);
     }
   }
 
@@ -902,7 +912,8 @@ final class EntityChannelSvcFilterTest {
 
   private void assertRestartedSpeakersPlay(final SvcFilter filter, final short[] frame, final int playersBefore) {
     final int playersAfter = this.players.size();
-    assertEquals(playersBefore + 2, playersAfter, "one new speaker per entity, no leftovers of the failed start");
+    final int expectedPlayers = playersBefore + 2;
+    assertEquals(expectedPlayers, playersAfter, "one new speaker per entity, no leftovers of the failed start");
 
     this.feed(filter, frame);
     final int queuedAfterRestart = filter.getQueuedFrames();
