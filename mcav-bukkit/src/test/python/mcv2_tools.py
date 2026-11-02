@@ -938,7 +938,10 @@ def codec_curves_sha256(path: Any) -> str:
 
 
 def codec_curves_resume(out: str, name: str, identity: dict[str, Any] | dict[Any, Any]) -> Any | dict[Any, Any]:
-    measured: Any | dict[Any, Any] = json.loads(Path(out).read_text()) if os.path.exists(out) else {SOURCES_KEY: {}, CODECS_KEY: []}
+    measured: Any | dict[Any, Any] = {SOURCES_KEY: {}, CODECS_KEY: []}
+    if os.path.exists(out):
+        measured = json.loads(Path(out).read_text())
+
     if LEGACY_CODECS_KEY in measured:
         if CODECS_KEY in measured:
             message: str = f"Dataset {out} holds both points and codecs; resolve the two datasets first!"
@@ -1113,7 +1116,10 @@ def codec_curves_rgb_psnr(source: Any, decoded: str, frames: Any, width: Any, he
         difference: Any = reference_frame.astype(numpy.float64) - decoded_frame.astype(numpy.float64)
         errors.append(float(numpy.mean(difference * difference)))
     mean_squared_error: float = float(numpy.mean(errors))
-    return IDENTICAL_PSNR if mean_squared_error == 0 else float(DECIBELS_PER_BEL * numpy.log10(MAXIMUM_CHANNEL**2 / mean_squared_error))
+    if mean_squared_error == 0:
+        return IDENTICAL_PSNR
+
+    return float(DECIBELS_PER_BEL * numpy.log10(MAXIMUM_CHANNEL**2 / mean_squared_error))
 
 
 def codec_curves_placeholders(command: list[Any], replacements: dict[Any, str]) -> list[Any]:
@@ -1167,10 +1173,9 @@ def counter_video_main() -> None:
 
     frames: int = int(arguments.seconds * arguments.frames_per_second)
     raw: Any = arguments.out.endswith(RAW_SUFFIX)
-    encoder: subprocess.Popen[bytes] | None = (
-        None
-        if raw
-        else subprocess.Popen(
+    encoder: subprocess.Popen[bytes] | None = None
+    if not raw:
+        encoder = subprocess.Popen(
             [
                 arguments.ffmpeg,
                 NO_STANDARD_INPUT_FLAG,
@@ -1201,8 +1206,13 @@ def counter_video_main() -> None:
             ],
             stdin=subprocess.PIPE,
         )
-    )
-    sink: Any | IO[bytes] | None = open(arguments.out, "wb") if raw else encoder.stdin
+
+    sink: Any | IO[bytes] | None
+    if raw:
+        sink = open(arguments.out, "wb")
+    else:
+        sink = encoder.stdin
+
     period: Any = max(1, 2 * (count - 1))
     for number in range(frames):
         phase: Any = number % period
@@ -1211,7 +1221,10 @@ def counter_video_main() -> None:
         counter_video_stamp(frame, number)
         sink.write(frame.tobytes())
     sink.close()
-    sys.exit(SUCCESS_EXIT_CODE if raw else encoder.wait())
+    if raw:
+        sys.exit(SUCCESS_EXIT_CODE)
+
+    sys.exit(encoder.wait())
 
 
 def counter_video_stamp(frame: numpy.ndarray, number: int) -> None:
@@ -1317,7 +1330,11 @@ def capture_check_main() -> None:
 
 def capture_check_psnr(captured: numpy.ndarray, expected: numpy.ndarray) -> float:
     mean_squared_error: numpy.floating = numpy.mean((captured.astype(numpy.float64) - expected.astype(numpy.float64)) ** 2)
-    return math.inf if mean_squared_error == 0 else float(DECIBELS_PER_BEL * numpy.log10(MAXIMUM_CHANNEL**2 / mean_squared_error))
+    if mean_squared_error == 0:
+        return math.inf
+
+    ratio: numpy.floating = MAXIMUM_CHANNEL**2 / mean_squared_error
+    return float(DECIBELS_PER_BEL * numpy.log10(ratio))
 
 
 def capture_check_ssim(captured: numpy.ndarray, expected: numpy.ndarray) -> float:
@@ -1659,8 +1676,12 @@ def edge_streams_random_stream(
     height: int | None = None,
     frame_count: int = EDGE_STREAMS_FRAMES
 ) -> list[bytes]:
-    width = randomizer.randint(MINIMUM_DIMENSION, EDGE_STREAMS_MAXIMUM_WIDTH) if width is None else width
-    height = randomizer.randint(MINIMUM_DIMENSION, EDGE_STREAMS_MAXIMUM_HEIGHT) if height is None else height
+    if width is None:
+        width = randomizer.randint(MINIMUM_DIMENSION, EDGE_STREAMS_MAXIMUM_WIDTH)
+
+    if height is None:
+        height = randomizer.randint(MINIMUM_DIMENSION, EDGE_STREAMS_MAXIMUM_HEIGHT)
+
     count: int = (width + SUPERBLOCK_SIZE - 1) // SUPERBLOCK_SIZE * ((height + SUPERBLOCK_SIZE - 1) // SUPERBLOCK_SIZE)
     stream: list[bytes] = []
     for frame_id in range(frame_count):
@@ -1961,7 +1982,8 @@ def differential_mutant(original: list[bytes], randomizer: random.Random) -> lis
     else:
         for _ in range(randomizer.randint(1, DIFFERENTIAL_MAXIMUM_FLIPS)):
             victim: bytearray = mutated[randomizer.choice(nonempty)]
-            limit: int = min(len(victim), DIFFERENTIAL_HEAD_BYTES) if randomizer.random() < DIFFERENTIAL_HEAD_CHANCE else len(victim)
+            head_only: bool = randomizer.random() < DIFFERENTIAL_HEAD_CHANCE
+            limit: int = min(len(victim), DIFFERENTIAL_HEAD_BYTES) if head_only else len(victim)
             victim[randomizer.randrange(limit)] ^= randomizer.randint(1, BYTE_VALUES - 1)
     if mutated == original:
         mutated[nonempty[0]][0] ^= 1
@@ -2763,7 +2785,8 @@ class ShaderTimingRounds:
             self.failures += 1
             print("  frame %d: decoded %s, decoded again %s" % (index, decoded, decoded_again))
         if round_index > 0:
-            (self.new_keyframes if self.keyframes[index] else self.new_predicted_frames).append(times)
+            samples: list[dict[str, float]] = self.new_keyframes if self.keyframes[index] else self.new_predicted_frames
+            samples.append(times)
             self.idle.append(idle_times)
 
         return picture
@@ -3080,11 +3103,12 @@ def latency_main() -> None:
         "--stream", type=int, default=0, help="the frames of a pre-encoded stream played by /mcav mcv2 stream"
     )
     arguments: argparse.Namespace = parser.parse_args()
-    frames: list[Any] = (
-        latency_sends(arguments.recording, arguments.jfr, arguments.stream)
-        if arguments.stream
-        else latency_events(arguments.recording, arguments.jfr)
-    )
+    frames: list[Any]
+    if arguments.stream:
+        frames = latency_sends(arguments.recording, arguments.jfr, arguments.stream)
+    else:
+        frames = latency_events(arguments.recording, arguments.jfr)
+
     shots: list[tuple[float, Any]] = latency_captures(arguments.capture)
     numbered: list[Any] = [event for event in frames if event["number"] is not None and math.isfinite(event["arrived"])]
     by_number: dict[Any, Any] = {}
@@ -3096,8 +3120,18 @@ def latency_main() -> None:
     latencies: list[float | int] = [timestamp - arrival for (number, arrival), timestamp in first_seen.items()]
     arrived: dict[Any, Any] = {event["number"]: event for event in numbered}
     server: list[Any] = [event["sent"] - event["arrived"] for event in frames]
-    duration: float = (shots[-1][0] - shots[0][0]) / MILLISECONDS_PER_SECOND if len(shots) > 1 else math.nan
-    source: Any | int = max(arrived) - min(arrived) + 1 if arrived else 0
+    duration: float = math.nan
+    if len(shots) > 1:
+        duration = (shots[-1][0] - shots[0][0]) / MILLISECONDS_PER_SECOND
+
+    source: int = 0
+    if arrived:
+        source = max(arrived) - min(arrived) + 1
+
+    displayed_rate: float = math.nan
+    if duration > 0:
+        displayed_rate = len(first_seen) / duration
+
     report: dict[str, Any] = dict(
         source_frames=source,
         encoded=len(frames),
@@ -3112,7 +3146,7 @@ def latency_main() -> None:
         capture_seconds=duration,
         displayed=len(first_seen),
         ambiguous_displayed=len(ambiguous),
-        displayed_frames_per_second=len(first_seen) / duration if duration == duration and duration > 0 else math.nan,
+        displayed_frames_per_second=displayed_rate,
         server_milliseconds_mean=float(numpy.mean(server)) if server else math.nan,
         server_milliseconds_p95=latency_percentile(server, TAIL_PERCENTILE),
         glass_to_glass_milliseconds_mean=float(numpy.mean(latencies)) if latencies else math.nan,
@@ -3303,7 +3337,10 @@ def latency_number_changes(shots: list[tuple[float, Any]]) -> Iterator[tuple[flo
 
 
 def latency_percentile(values: list[float | int] | list[int], percent: int) -> float:
-    return float(numpy.percentile(values, percent)) if values else math.nan
+    if not values:
+        return math.nan
+
+    return float(numpy.percentile(values, percent))
 
 
 def charts_main() -> None:
@@ -3322,7 +3359,10 @@ def charts_main() -> None:
     data: Any = json.loads((CHARTS_DATA / CODEC_CURVES_DATA_NAME).read_text())
     charts_draw_codecs(data)
     ablation_file: Path = CHARTS_DATA / ABLATION_DATA_NAME
-    ablation: Any | dict[Any, Any] = json.loads(ablation_file.read_text()) if ablation_file.exists() else {}
+    ablation: Any = {}
+    if ablation_file.exists():
+        ablation = json.loads(ablation_file.read_text())
+
     rows: list[dict[str, Any]] = charts_ablation_rates(ablation)
     if rows:
         charts_draw_features(rows)
@@ -3449,11 +3489,7 @@ def charts_draw_features(rows: list[dict[str, Any]]) -> None:
     rows = sorted(rows, key=lambda row: row[GAMEPLAY_SOURCE][0] + row[PROXY_SOURCE][0])
     values: list[float] = [row[source][0] for row in rows for source, _ in CHARTS_SOURCES]
     ordered: list[float] = sorted(values, reverse=True)
-    limit: float | None = (
-        max(ordered[1] * CHARTS_CLIPPED_HEADROOM, CHARTS_MINIMUM_CLIPPED_LIMIT)
-        if len(ordered) > 1 and ordered[0] > CHARTS_OUTLIER_RATIO * ordered[1]
-        else None
-    )
+    limit: float | None = charts_clipped_limit(ordered)
     height: float = CHARTS_BAR_HEIGHT
     figure: Any
     axis: Any
@@ -3490,6 +3526,14 @@ def charts_draw_features(rows: list[dict[str, Any]]) -> None:
     figure.tight_layout()
     figure.savefig(IMAGES / FEATURES_FIGURE_NAME, dpi=CHARTS_DOTS_PER_INCH, facecolor=CHARTS_SURFACE)
     pyplot.close(figure)
+
+
+def charts_clipped_limit(ordered: list[float]) -> float | None:
+    has_outlier: bool = len(ordered) > 1 and ordered[0] > CHARTS_OUTLIER_RATIO * ordered[1]
+    if not has_outlier:
+        return None
+
+    return max(ordered[1] * CHARTS_CLIPPED_HEADROOM, CHARTS_MINIMUM_CLIPPED_LIMIT)
 
 
 def charts_print_tables(data: Any, rows: list[dict[str, Any]], removed: Any) -> None:
@@ -3775,7 +3819,10 @@ def samples_source_frame(path: Any, index: Any, width: Any, height: Any) -> nump
 def samples_biggest(frame: mcv2_reference.Frame, mode: int, crop: tuple[int, int, int, int]) -> mcv2_reference.Leaf | None:
     candidates: list[mcv2_reference.Leaf] = [leaf for leaf in frame.leaves if leaf.mode == mode and samples_inside(leaf, crop)]
     candidates = candidates or [leaf for leaf in frame.leaves if leaf.mode == mode]
-    return max(candidates, key=lambda leaf: (leaf.size, -leaf.pixel_y, -leaf.pixel_x)) if candidates else None
+    if not candidates:
+        return None
+
+    return max(candidates, key=lambda leaf: (leaf.size, -leaf.pixel_y, -leaf.pixel_x))
 
 
 def samples_bits_of(leaf: mcv2_reference.Leaf | None) -> Any | numpy.ndarray:
