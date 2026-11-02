@@ -505,7 +505,7 @@ public final class IoUtils {
    *
    * @param source the URL of the image
    * @return the cached file path; releasing a decoded image does not remove this file
-   * @throws DownloadException       if the image cannot be downloaded, including when it is larger than
+   * @throws DownloadException        if the image cannot be downloaded, including when it is larger than
    *                                  {@link #MAXIMUM_IMAGE_BYTES}
    * @throws FileOperationException   if the downloaded image cannot be moved into the cache folder
    * @throws IllegalArgumentException if the source does not describe an absolute HTTP or HTTPS URI with a host
