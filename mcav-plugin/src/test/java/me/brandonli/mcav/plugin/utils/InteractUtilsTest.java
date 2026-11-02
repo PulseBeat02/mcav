@@ -439,14 +439,16 @@ final class InteractUtilsTest {
   }
 
   @Test
-  void shouldReturnNullForWallsThatDoNotFaceAlongAnAxis() {
+  void shouldFailForWallsThatDoNotFaceAlongAnAxis() {
     final Location location = this.fakeWorld.location(0.5, FRAME_CENTER_Y, 0.0);
     final ItemFrame target = this.fakeWorld.addFrame(location, BlockFace.NORTH_EAST, Keys.MAP_KEY, Keys.FIRST_MAP_KEY, Keys.LAST_MAP_KEY);
     final Block wallBlock = this.fakeWorld.block(0, BLOCK_Y, -1);
     final Location eye = this.eye(0.3, EYE_Y, EYE_DISTANCE, LOOK_NORTH);
     this.aimAt(target, BlockFace.NORTH_EAST, wallBlock, eye);
-    final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
-    assertNull(coordinates);
+    final IllegalStateException exception = assertThrows(IllegalStateException.class, () -> InteractUtils.getBoardCoordinates(this.player));
+
+    final String message = exception.getMessage();
+    assertEquals("Block face NORTH_EAST is not a side of a block!", message);
   }
 
   @Test

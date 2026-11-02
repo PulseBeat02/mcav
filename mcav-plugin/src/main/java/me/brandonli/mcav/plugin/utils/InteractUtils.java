@@ -63,6 +63,9 @@ public final class InteractUtils {
    * @param player the player
    * @return the x and y pixel coordinates on the wall, or {@code null} if the player does not look at a map frame
    * of a complete vertical wall
+   * @throws NullPointerException     if {@code player} is null
+   * @throws IllegalArgumentException if the player looks at an entity that is not an item frame
+   * @throws IllegalStateException    if the player targets a block face that is not a side of a block
    */
   public static int @Nullable [] getBoardCoordinates(final Player player) {
     Preconditions.checkNotNull(player, "Player must not be null!");
@@ -82,7 +85,9 @@ public final class InteractUtils {
    * @param entity the item frame the player looks at
    * @return the x and y pixel coordinates on the wall, or {@code null} if the frame does not belong to a complete
    * vertical wall or the line of sight misses the frame
+   * @throws NullPointerException     if an argument is null
    * @throws IllegalArgumentException if the entity is not an item frame
+   * @throws IllegalStateException    if the player targets a block face that is not a side of a block
    */
   public static int @Nullable [] getBoardCoordinates(final Player player, final Entity entity) {
     Preconditions.checkNotNull(player, "Player must not be null!");
@@ -135,9 +140,9 @@ public final class InteractUtils {
    * Returns the column and row of a frame from its distance to the first corner of the wall, measured along the two
    * axes the wall spans.
    *
-   * @return the column and row, or {@code null} if the wall does not face along an axis
+   * @return the column and row
    */
-  private static int @Nullable [] indexOnWall(final BlockFace hitFace, final Location frameLocation, final Location cornerLocation) {
+  private static int[] indexOnWall(final BlockFace hitFace, final Location frameLocation, final Location cornerLocation) {
     final int frameX = frameLocation.getBlockX();
     final int frameY = frameLocation.getBlockY();
     final int frameZ = frameLocation.getBlockZ();
@@ -151,7 +156,23 @@ public final class InteractUtils {
       case NORTH, SOUTH -> new int[] { deltaX, deltaY };
       case EAST, WEST -> new int[] { deltaZ, deltaY };
       case UP, DOWN -> new int[] { deltaX, deltaZ };
-      default -> null;
+      case
+        NORTH_EAST,
+        NORTH_WEST,
+        SOUTH_EAST,
+        SOUTH_WEST,
+        WEST_NORTH_WEST,
+        NORTH_NORTH_WEST,
+        NORTH_NORTH_EAST,
+        EAST_NORTH_EAST,
+        EAST_SOUTH_EAST,
+        SOUTH_SOUTH_EAST,
+        SOUTH_SOUTH_WEST,
+        WEST_SOUTH_WEST,
+        SELF -> {
+        final String message = "Block face %s is not a side of a block!".formatted(hitFace);
+        throw new IllegalStateException(message);
+      }
     };
   }
 
@@ -172,7 +193,7 @@ public final class InteractUtils {
       case FLIPPED_45, CLOCKWISE_45 -> new double[] { vertical, 1 - horizontal };
       case COUNTER_CLOCKWISE, CLOCKWISE -> new double[] { 1 - horizontal, 1 - vertical };
       case COUNTER_CLOCKWISE_45, CLOCKWISE_135 -> new double[] { 1 - vertical, horizontal };
-      default -> new double[] { horizontal, vertical };
+      case NONE, FLIPPED -> new double[] { horizontal, vertical };
     };
   }
 

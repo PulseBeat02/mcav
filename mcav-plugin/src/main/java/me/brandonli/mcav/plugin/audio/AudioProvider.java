@@ -393,7 +393,11 @@ public final class AudioProvider {
     return switch (claim.argument) {
       case DISCORD_BOT -> this.constructDiscordFilter(claim.dump);
       case HTTP_SERVER -> this.constructHttpFilter(claim.dump);
-      default -> this.constructSvcFilter(claim.players);
+      case SIMPLE_VOICE_CHAT -> this.constructSvcFilter(claim.players);
+      case NONE -> {
+        final String message = "Audio argument NONE has no output to connect!";
+        throw new IllegalStateException(message);
+      }
     };
   }
 
