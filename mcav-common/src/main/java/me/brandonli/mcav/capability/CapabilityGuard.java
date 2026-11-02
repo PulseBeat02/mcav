@@ -43,7 +43,7 @@ public final class CapabilityGuard {
   private final Map<Capability, State> states;
 
   /**
-   * Constructs a guard that knows nothing about any capability and is independent of {@link #shared()}. The library
+   * Creates a guard that knows nothing about any capability and is independent of {@link #shared()}. The library
    * itself always uses the shared guard; separate guards are for tests and custom bootstraps.
    *
    * @since 1.0.0
@@ -112,7 +112,7 @@ public final class CapabilityGuard {
   }
 
   /**
-   * Checks whether a capability is still being prepared in the background.
+   * Returns whether a capability is still being prepared in the background.
    *
    * @param capability the capability
    * @return true if its preparation has not finished yet

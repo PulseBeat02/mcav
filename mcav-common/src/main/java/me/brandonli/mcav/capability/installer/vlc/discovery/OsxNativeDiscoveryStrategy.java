@@ -69,7 +69,7 @@ public class OsxNativeDiscoveryStrategy extends DirectoryProviderDiscoveryStrate
   private final Os operatingSystem;
 
   /**
-   * Constructs a strategy that searches vlcj's directories, publishes the plugin path with {@code setenv}, and
+   * Creates a strategy that searches vlcj's directories, publishes the plugin path with {@code setenv}, and
    * preloads the core library through JNA.
    *
    * @since 1.0.0

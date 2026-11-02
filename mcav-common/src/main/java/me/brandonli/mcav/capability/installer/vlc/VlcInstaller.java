@@ -130,7 +130,7 @@ public final class VlcInstaller extends AbstractInstaller {
   }
 
   /**
-   * Checks whether VLC can be used from this installer: either an earlier installation exists, or the bundled
+   * Returns whether VLC can be used from this installer: either an earlier installation exists, or the bundled
    * downloads list one for the current platform. Neither check asks the network.
    *
    * @return true if VLC is installed already or can be installed on this platform
@@ -261,7 +261,7 @@ public final class VlcInstaller extends AbstractInstaller {
   }
 
   /**
-   * Checks whether the download is an archive, which is always the case for VLC.
+   * Returns whether the download is an archive, which is always the case for VLC.
    *
    * @return true
    * @since 1.0.0

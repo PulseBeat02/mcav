@@ -43,7 +43,7 @@ public final class Download {
   private final @Nullable String hash;
 
   /**
-   * Constructs a new download.
+   * Creates a new download.
    *
    * @param platform the platform the file is built for
    * @param url      the non-null, nonblank URL of the file; URI syntax is checked when downloading
@@ -63,7 +63,7 @@ public final class Download {
   }
 
   /**
-   * Constructs a new download without hash verification.
+   * Creates a new download without hash verification.
    *
    * @param platform the platform the file is built for
    * @param url      the non-null, nonblank URL of the file; URI syntax is checked when downloading
@@ -76,7 +76,7 @@ public final class Download {
   }
 
   /**
-   * Constructs a new download.
+   * Creates a new download.
    *
    * @param operatingSystem the operating system the file is built for
    * @param architecture    the CPU architecture the file is built for
@@ -93,7 +93,7 @@ public final class Download {
   }
 
   /**
-   * Constructs a new download without hash verification.
+   * Creates a new download without hash verification.
    *
    * @param operatingSystem the operating system the file is built for
    * @param architecture    the CPU architecture the file is built for

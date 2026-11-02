@@ -91,7 +91,7 @@ public abstract class AbstractInstaller implements Installer {
   private volatile @Nullable Path installedPath;
 
   /**
-   * Constructs a new installer with lazily resolved downloads.
+   * Creates a new installer with lazily resolved downloads.
    *
    * @param folder    the folder the program is installed into
    * @param name      the non-null, nonblank program name, used as the file name and configuration key
@@ -116,7 +116,7 @@ public abstract class AbstractInstaller implements Installer {
   }
 
   /**
-   * Constructs a new installer with a fixed list of downloads.
+   * Creates a new installer with a fixed list of downloads.
    *
    * @param folder    the folder the program is installed into
    * @param name      the non-null, nonblank program name, used as the file name and configuration key
@@ -133,7 +133,7 @@ public abstract class AbstractInstaller implements Installer {
   }
 
   /**
-   * Constructs a new installer that installs into the cache folder of the library (see
+   * Creates a new installer that installs into the cache folder of the library (see
    * {@link #getDefaultExecutableFolderPath()}).
    *
    * @param name      the non-null, nonblank program name, used as the file name and configuration key
@@ -305,7 +305,7 @@ public abstract class AbstractInstaller implements Installer {
   }
 
   /**
-   * Checks whether a download exists for the current platform. The downloads are resolved on the first call.
+   * Returns whether a download exists for the current platform. The downloads are resolved on the first call.
    *
    * @return true if the program can be installed on this platform
    * @since 1.0.0
@@ -610,7 +610,7 @@ public abstract class AbstractInstaller implements Installer {
   }
 
   /**
-   * Checks whether the download is an archive that has to be extracted, rather than a program that can be run
+   * Returns whether the download is an archive that has to be extracted, rather than a program that can be run
    * directly. Archives are stored under their original file name and are never renamed to {@code .exe}.
    *
    * @return true if the download is an archive

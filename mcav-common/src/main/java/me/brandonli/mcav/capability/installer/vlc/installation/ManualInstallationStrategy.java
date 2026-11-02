@@ -55,7 +55,7 @@ public abstract class ManualInstallationStrategy implements InstallationStrategy
   private final ProcessRunner processRunner;
 
   /**
-   * Constructs a new strategy for the installer that runs external tools as child processes.
+   * Creates a new strategy for the installer that runs external tools as child processes.
    *
    * @param installer the installer whose installation directory is used
    * @throws NullPointerException if {@code installer} is null
@@ -66,7 +66,7 @@ public abstract class ManualInstallationStrategy implements InstallationStrategy
   }
 
   /**
-   * Constructs a new strategy for the installer that runs external tools through the specified runner.
+   * Creates a new strategy for the installer that runs external tools through the specified runner.
    *
    * @param installer     the installer whose installation directory is used
    * @param processRunner runs the external tools the installation needs

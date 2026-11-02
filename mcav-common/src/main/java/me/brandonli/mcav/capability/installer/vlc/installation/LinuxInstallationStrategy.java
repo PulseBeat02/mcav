@@ -48,7 +48,7 @@ public final class LinuxInstallationStrategy extends ManualInstallationStrategy 
   private static final String EXTRACT_OPTION = "--appimage-extract";
 
   /**
-   * Constructs a new strategy for the installer.
+   * Creates a new strategy for the installer.
    *
    * @param installer the installer whose installation directory is used
    * @throws NullPointerException if {@code installer} is null

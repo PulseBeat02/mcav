@@ -92,7 +92,7 @@ public abstract class DirectoryProviderDiscoveryStrategy implements NativeDiscov
   private final EnvironmentSetter environmentSetter;
 
   /**
-   * Constructs a new strategy that searches the directories of vlcj's providers.
+   * Creates a new strategy that searches the directories of vlcj's providers.
    *
    * @param filenamePatterns  a non-null, nonempty array of non-null regular expressions; each must match a
    *                          library file name; expressions are compiled during construction

@@ -47,7 +47,7 @@ public final class WindowsInstallationStrategy extends ManualInstallationStrateg
   private static final String TEMPORARY_DIRECTORY = "vlc-extract";
 
   /**
-   * Constructs a new strategy for the installer.
+   * Creates a new strategy for the installer.
    *
    * @param installer the installer whose installation directory is used
    * @throws NullPointerException if {@code installer} is null

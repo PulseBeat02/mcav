@@ -135,7 +135,7 @@ public final class VlcInstallationKit {
    *
    * @return the directory the native libraries were loaded from, or empty if vlcj had already loaded them without
    * reporting a location
-   * @throws InstallationException              if installation discovery or extraction fails
+   * @throws InstallationException               if installation discovery or extraction fails
    * @throws DownloadException                   if the download of VLC fails or does not match its hash
    * @throws FileOperationException              if a downloaded or extracted file cannot be moved or deleted
    * @throws UnsupportedOperatingSystemException if VLC cannot be found or installed on this system, or

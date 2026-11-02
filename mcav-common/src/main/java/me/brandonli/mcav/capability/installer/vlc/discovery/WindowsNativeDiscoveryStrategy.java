@@ -58,7 +58,7 @@ public class WindowsNativeDiscoveryStrategy extends DirectoryProviderDiscoverySt
   private final Os operatingSystem;
 
   /**
-   * Constructs a strategy that searches vlcj's directories and publishes the plugin path with {@code _putenv}.
+   * Creates a strategy that searches vlcj's directories and publishes the plugin path with {@code _putenv}.
    *
    * @since 1.0.0
    */

@@ -46,7 +46,7 @@ public interface Installer {
   Path download(final FileMode mode);
 
   /**
-   * Checks whether a download exists for the current platform. Unsupported platforms can still use the program if
+   * Returns whether a download exists for the current platform. Unsupported platforms can still use the program if
    * it is installed on the system by other means.
    *
    * @return true if the program can be installed on this platform

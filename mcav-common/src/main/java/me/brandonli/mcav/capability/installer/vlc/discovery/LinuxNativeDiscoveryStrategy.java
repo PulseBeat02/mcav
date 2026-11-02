@@ -58,7 +58,7 @@ public class LinuxNativeDiscoveryStrategy extends DirectoryProviderDiscoveryStra
   private final Os operatingSystem;
 
   /**
-   * Constructs a strategy that searches vlcj's directories and publishes the plugin path with {@code setenv}.
+   * Creates a strategy that searches vlcj's directories and publishes the plugin path with {@code setenv}.
    *
    * @since 1.0.0
    */

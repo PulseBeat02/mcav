@@ -116,7 +116,7 @@ public final class YtdlpInstaller extends AbstractInstaller {
   }
 
   /**
-   * Checks whether the download of the current platform is a zip archive that has to be unpacked, rather than a
+   * Returns whether the download of the current platform is a zip archive that has to be unpacked, rather than a
    * standalone executable.
    *
    * @return true if the file name of the download of the current platform ends in {@code .zip}, false for a
