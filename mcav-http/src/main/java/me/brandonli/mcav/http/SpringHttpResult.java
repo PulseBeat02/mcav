@@ -52,13 +52,12 @@ import org.springframework.web.socket.WebSocketSession;
  *
  * <p>Every listener gets an {@link AudioListener} with its own sender thread, so samples are handed over from the
  * audio thread without blocking on slow connections: a listener that cannot keep up loses its oldest samples
- * instead of stalling the pipeline, and one whose writes block for {@value #SEND_TIME_LIMIT_MILLISECONDS} milliseconds
- * is disconnected.
+ * instead of stalling the pipeline, and one whose writes block for five seconds is disconnected.
  *
  * <p>Spring Boot normally takes over the logging system of the JVM when it starts, resetting the levels and
  * handlers of {@code java.util.logging} or Log4j 2 for the whole server that hosts the library. Unless the system
- * property {@value #LOGGING_SYSTEM_PROPERTY} was already set, it is set to {@code none} before the first start,
- * so Spring logs through SLF4J like every other library and leaves the logging of the host alone.
+ * property {@code org.springframework.boot.logging.LoggingSystem} was already set, it is set to {@code none} before
+ * the first start, so Spring logs through SLF4J like every other library and leaves the logging of the host alone.
  *
  * <p>This class is thread-safe.
  *
@@ -153,6 +152,7 @@ public final class SpringHttpResult implements HttpResult {
    * connections are closed on other threads, and stopping waits at most one second for them, so a listener whose
    * write is stuck delays stopping by at most that long. Calling it while the server is stopped has no effect.
    *
+   * @throws RuntimeException if closing the embedded web framework fails
    * @since 1.0.0
    */
   @Override
