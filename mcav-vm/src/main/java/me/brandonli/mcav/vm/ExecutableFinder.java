@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.vm;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import java.io.File;
@@ -114,7 +116,7 @@ public final class ExecutableFinder {
     final Path parent = direct.getParent();
     if (parent != null) {
       final Path fileNameOrNull = direct.getFileName();
-      final Path fileName = Objects.requireNonNull(fileNameOrNull, "A path with a parent has a file name");
+      final Path fileName = requireNonNull(fileNameOrNull); // checker framework
       final String bareName = fileName.toString();
       return this.findIn(parent, bareName);
     }

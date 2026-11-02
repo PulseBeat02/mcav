@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.vm;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Splitter;
 import com.google.common.util.concurrent.Uninterruptibles;
@@ -690,7 +692,7 @@ final class VmProcess {
   }
 
   private void awaitOutput() {
-    final Thread drain = Objects.requireNonNull(this.drainThread, "Output of QEMU must be drained while QEMU runs!");
+    final Thread drain = requireNonNull(this.drainThread, "Output of QEMU must be drained while QEMU runs!");
     Uninterruptibles.joinUninterruptibly(drain, OUTPUT_TIMEOUT_MILLISECONDS, TimeUnit.MILLISECONDS);
 
     final boolean alive = drain.isAlive();

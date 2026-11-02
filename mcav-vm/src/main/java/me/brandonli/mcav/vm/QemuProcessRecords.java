@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.vm;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -27,7 +29,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -78,7 +79,7 @@ final class QemuProcessRecords {
 
   static QemuProcessRecords ofUser() {
     final @Nullable String homeOrNull = System.getProperty(HOME_PROPERTY);
-    final String home = Objects.requireNonNull(homeOrNull, "The JVM always sets the user home!");
+    final String home = requireNonNull(homeOrNull, "The JVM always sets the user home!");
     final Path folder = Path.of(home, MCAV_FOLDER, RECORDS_FOLDER);
     final ProcessHandle owner = ProcessHandle.current();
     return new QemuProcessRecords(folder, owner, ProcessHandle::of, STOP_TIMEOUT);
