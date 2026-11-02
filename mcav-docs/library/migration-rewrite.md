@@ -104,6 +104,9 @@ Names that abbreviated a word now spell it out:
 | `VolumeFilter.MAX_VOLUME` | `MAXIMUM_VOLUME` |
 | `WinInstallationStrategy` | `WindowsInstallationStrategy` |
 
+Types of `mcav-lwjgl` case their acronyms as words too: `GLTextureFilter` is now `GlTextureFilter` and `LWJGLModule` is
+now `LwjglModule`.
+
 Implementation classes take their names from how they work, or start with `Default` when nothing else sets them apart:
 
 | Former name | Current name |
@@ -141,7 +144,8 @@ input methods, audio callback and release lifecycle.
 
 Replace the five-argument `BrowserSource.uri` overload with `uri(uri, width, height, frameInterval)`; it no longer
 takes a screencast quality setting. Replace `getScreencastWidth`, `getScreencastHeight` and `getScreencastNthFrame`
-with `getWidth`, `getHeight` and `getFrameInterval`. `getScreencastQuality` has no replacement.
+with `getWidth`, `getHeight` and `getFrameInterval`. `getScreencastQuality` has no replacement. The public
+`BrowserSourceImpl` is gone; create sources with `BrowserSource.uri(...)`.
 
 Custom implementations of `BrowserPlayer` must also implement its new methods, including `scroll`, `isPlaying` and
 `getAudioAttachableCallback`. Prefer the supplied factory unless your application needs another backend.
@@ -152,15 +156,20 @@ Use `MCAV.api()` and `MCAVApi.install(...)` in your application, with the capabi
 [instance chapter](instance.md). The rewrite removes the old `CLibrary` and system package installer helpers.
 MCAV prepares FFmpeg and OpenCV before installation returns, and VLC and yt-dlp asynchronously. If your code
 needs an optional capability, inspect it or wait for `whenCapabilityReady` before using it. Custom
-implementations of `MCAVApi` must implement the new readiness method as well.
+implementations of `MCAVApi` must implement `whenCapabilityReady` as well.
 
 MCAV installs QEMU from Debian packages on x86-64 and ARM64 Linux when the system has none; on other platforms,
 install QEMU yourself. The public `QemuInstaller` of earlier versions is gone, and the new one is internal: use the
-[VM API](vm.md) instead. The browser prepares its own runtime on first use, as described above.
+[VM API](vm.md) instead. The browser prepares its own runtime on first use, as the [browser chapter](browser.md)
+describes.
 
-If your application extends the installation infrastructure, also update `Installer.getPath()`, the constructors
-of `AbstractInstaller`, and the VLC installation strategies. `InstallationStrategy.execute` now takes a destination
-`Path`; its installed-path result has changed generic types. The rewrite removes or restricts the old release-package
+If your application extends the installation infrastructure, also implement the new `Installer.getPath()` and update the
+constructors of `AbstractInstaller` and the VLC installation strategies. `Installer.download(boolean)` is now
+`download(FileMode)`: pass `FileMode.EXECUTABLE` where you passed `true` and `FileMode.UNCHANGED` where you passed
+`false`. `AbstractInstaller.getHash()` now returns an `Optional<String>`, and its `isFolder()` is gone.
+`InstallationStrategy.execute()` is now `execute(Path archive)`: it takes the downloaded archive, extracts it into the
+installation directory and deletes it. Its `Path` result and `getInstalledPath()` are unchanged. The rewrite removes or
+restricts the old release-package
 and native-discovery
 helpers. Prefer the capability API over invoking those implementation details directly.
 
@@ -195,7 +204,8 @@ constructing concrete image-buffer implementations.
 
 ## Dithering
 
-The types in `media.player.pipeline.filter.video.dither` now use typed builder interfaces and immutable threshold
+The types in `me.brandonli.mcav.media.player.pipeline.filter.video.dither` now use typed builder interfaces and
+immutable threshold
 matrices. Replace setter calls with the relevant builder's fluent methods, and keep the returned builder. Recompile
 all fluent calls: several return descriptors and generic bounds changed even when the method name stayed the same.
 Error-strength and temporal settings belong to the error-diffusion builder, rather than the general builder. The
@@ -242,9 +252,12 @@ The exceptions of `mcav-bukkit` now extend `BukkitException`, an unchecked subty
 `AssertionError` around resource-pack hosting no longer sees them; catch `BukkitException` instead.
 
 Custom `HttpResult` implementations must now supply `getCurrentMedia`, `setCurrentMedia`, `getListenerCount` and
-`isRunning`. Custom `DiscordPlayer` implementations must supply `flush`, `getQueuedMilliseconds` and `setPlaying`.
+`isRunning`. The result that `HttpResult.builder()` builds, formerly `HttpResultImpl`, is now `SpringHttpResult`. Custom
+`DiscordPlayer` implementations must supply `flush`, `getQueuedMilliseconds` and `setPlaying`.
 `SVCFilter` and `SVCModule` are now `SvcFilter` and `SvcModule`, and custom `SvcFilter` implementations must supply
-`getQueuedFrames`. If you only call the factories, recompiling is usually enough; the new `final` modifiers may also
+`getQueuedFrames`. The filter that `SvcFilter.svc(...)` and `withDistance(...)` return, formerly `SVCFilterImpl`, is now
+`EntityChannelSvcFilter`. If you only call the factories, recompiling is usually enough; the new `final` modifiers may
+also
 break your subclasses of the implementations.
 
 The Discord module cases its acronym as a word: install `JdaModule` instead of `JDAModule`. The player that
@@ -291,7 +304,8 @@ and a QEMU that cannot start, exits early or never opens its display. `Executabl
 
 ## Maven installer failures
 
-The installer reports failed resolution, verification and copying through `InstallationException`, an unchecked
+The installer reports failed resolution, verification and copying through `InstallationException` in
+`me.brandonli.mcav.installer`, an unchecked
 exception. Replace catches of the removed `InstallationError` and `JarEntryIntegrityException` with that exception when
 handling those failures. Class-loader injection failures use `JarInjectorException`. The [installer
 chapter](installer.md) describes the current factory, loading callbacks and failure handling.
@@ -302,10 +316,14 @@ where the installer loads downloaded jars instead of subclassing the installer.
 
 The rewrite removes the old MCAV `UncheckedIOException`. `IoUtils` reports I/O failures as a `FileOperationException`
 and a
-port search that finds no free port as an `MCAVException`; update imports and catch clauses.
+port search that finds no free port as an `MCAVException`; update imports and catch clauses. The removed
+`InvalidMouseClickArgument` and `InvalidErrorDiffusionAlgorithmException` were `IllegalArgumentException`s; catch that
+instead.
 Audio extraction uses `AudioExtractor` in `me.brandonli.mcav.utils.ffmpeg`, replacing the old Bukkit
 `SoundExtractorUtils`. Network helpers are in `me.brandonli.mcav.utils.http.NetworkUtils`; update imports from the
 old Bukkit utility and use the current return types and failure handling described in [utilities](utilities.md).
+`getPublicIPAddress()` is now `lookUpPublicAddress()` and returns an `Optional<String>`, and `checkValidUrl(URI)` is now
+`isReachable(URI)`.
 
 The rewrite also removes general-purpose collection, reflection, unsafe-memory, functional-interface and examinable
 helpers. If your application called them, it needs its own equivalents or suitable Java library APIs; there is no
@@ -334,7 +352,8 @@ Other utility callers need these updates:
 | Checked-exception catches around `getOutput()` / `getErrorOutput()` | Handle execution failures at the run operation; the getters no longer declare that exception |
 | `IOUtils.getSHA256Hash(String)` | `IoUtils.getSha256Hash(Path)` |
 | `KeyCode.charAt(int)` | Use `getKeyChar`, `getCodePoint` or `asString` for the needed representation |
-| Removed `SourceUtils.getSource` and `ByteUtils` conversion helpers | Use the current source and buffer APIs; do not depend on their former implementation helpers |
+| Removed `SourceUtils.getSource` | Use the current source APIs; do not depend on their former implementation helpers |
+| `ByteUtils.convertAudioSamplesToLittleEndian` / `clampNormalBufferToBigEndian` | `ByteUtils.toLittleEndian(Buffer)` / `toBigEndian(ByteBuffer)`; `clampNativeBufferToLittleEndian` has no replacement |
 | `ByteUtils.isLittleEndian()` / `isBigEndian()` | Compare `ByteOrder.nativeOrder()` with `ByteOrder.LITTLE_ENDIAN` or `ByteOrder.BIG_ENDIAN` |
 | `DirectoryProviderDiscoveryStrategy` plugin path formats such as `"%s/plugins"` | Pass the plugin directories relative to the library directory as a `List<Path>`, such as `List.of(Path.of("plugins"))` |
 

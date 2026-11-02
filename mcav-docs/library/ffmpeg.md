@@ -43,8 +43,8 @@ thumbnails, and converting containers. `FfmpegCommand.builder()` builds any othe
 once. `run()` returns the exit code, while `runChecked()` throws a `ProcessException` (an unchecked `MCAVException` in
 `me.brandonli.mcav.utils.runtime`) with the error output of FFmpeg when it exits with a non-zero code. Both throw a
 `ProcessException` as well when FFmpeg cannot be started or the wait is interrupted. `run(Duration)` and
-`runChecked(Duration)` kill FFmpeg when it takes longer than the timeout. Every method of `FfmpegCommandBuilder`
-returns the builder.
+`runChecked(Duration)` kill FFmpeg when it takes longer than the timeout. Every `add` method of `FfmpegCommandBuilder`
+returns the builder, and `build()` returns the `FfmpegCommand`.
 
 ```{note}
 Always add `addOverwrite()` when the output may exist already; otherwise FFmpeg waits for a confirmation on the

@@ -5,7 +5,7 @@ There are many ways to contribute to the MCAV project. Here are some of them:
 - Translations for the `mcav-plugin` module
 - Video filters for the `mcav-common` module
 - Audio filters for the `mcav-common` module
-- JavaDocs and documentation improvements
+- Javadoc and documentation improvements
 - Bug reports and feature requests
 - Pull requests with code improvements
 
