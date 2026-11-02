@@ -264,7 +264,9 @@ final class CommandTaskTest {
   @Test
   void shouldWrapStreamFailuresWhileReading() throws IOException {
     try (final InputStream broken = new FailingStream()) {
-      assertThrows(ProcessException.class, () -> CommandTask.readFully(broken));
+      final ProcessException exception = assertThrows(ProcessException.class, () -> CommandTask.readFully(broken));
+      final Throwable cause = exception.getCause();
+      assertInstanceOf(IOException.class, cause);
     }
   }
 
