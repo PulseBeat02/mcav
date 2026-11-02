@@ -1,6 +1,5 @@
 plugins {
-    id("mcav.module")
-    id("mcav.publishing")
+    id("mcav.vm")
 }
 
 dependencies {

@@ -1,9 +1,9 @@
 # Virtualization Module
 
 ```{warning}
-You must install QEMU 6.0 or newer yourself to use the virtual machine player; MCAV never installs it. Install it from
-your package manager or follow the steps [here](https://www.qemu.org/download/), and make sure the `qemu-system-*`
-programs are on the `PATH`.
+On x86-64 and ARM64 Linux, MCAV installs QEMU from Debian packages when it is missing. Elsewhere you must install QEMU
+6.0 or newer yourself to use the virtual machine player: install it from your package manager or follow the steps
+[here](https://www.qemu.org/download/), and make sure the `qemu-system-*` programs are on the `PATH`.
 ```
 
 One of the most unique features of MCAV is streaming virtual machines. Add the `mcav-vm` module together with the
@@ -21,9 +21,9 @@ dependencies {
   final MCAVApi api = MCAV.api();
   api.install(VncModule.class, VmModule.class);
   final VmModule vmModule = api.getModule(VmModule.class);
-  final boolean qemuInstalled = vmModule.isQemuInstalled();
-  if (!qemuInstalled) {
-    LOGGER.warn("QEMU is missing, so virtual machines cannot be started.");
+  final boolean qemuAvailable = vmModule.isQemuAvailable();
+  if (!qemuAvailable) {
+    LOGGER.warn("QEMU is missing and MCAV cannot install it on this platform, so virtual machines cannot start.");
   }
 ```
 
@@ -78,9 +78,11 @@ add. QEMU's own default network, which `network("user")` gives back, reaches the
 
 Options that QEMU accepts more than once, such as `-drive` or `-device`, are added to the builder with `drive(...)`,
 `device(...)`, or `repeatable(key, value)`; every other option replaces its earlier value. `start` throws an
-`ExecutableNotInPathException` when the QEMU program of the architecture is not installed, and a `VmException` with
-the output of QEMU when the machine fails to start; catch `VmException` to handle both. A configuration that sets an
-option the player reserves is refused with an `IllegalArgumentException`.
+`ExecutableNotInPathException` when the QEMU program of the architecture is missing and MCAV cannot install it on the
+platform, and a `VmException` with the output of QEMU when the machine fails to start. When the installation of QEMU
+fails, `start` throws the `InstallationException`, `DownloadException` or `FileOperationException` of `mcav-common`
+instead; catch `MCAVException` to handle both the virtual machine and the installation failures. A configuration that
+sets an option the player reserves is refused with an `IllegalArgumentException`.
 
 Behind the scenes, the player starts QEMU with a VNC display bound to the local machine and connects the `mcav-vnc`
 player to it. You are responsible for giving QEMU a valid configuration; MCAV reports QEMU's errors but does not

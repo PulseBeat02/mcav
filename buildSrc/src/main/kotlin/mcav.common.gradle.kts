@@ -53,6 +53,12 @@ configurations.api {
 
 val pinGeneratorClass: String = "me.brandonli.mcav.capability.installer.debian.DebianPinGenerator"
 val installerResourcePath: String = "src/main/resources/mcav/common/installers"
+val leftOutIndependentPackages: String = "LEFT_OUT"
+val pinBundles: List<String> = listOf(
+    "debian-vlc.json=libvlc5,libvlccore9,vlc-plugin-base",
+    "debian-gtk2.json=libgtk2.0-0",
+    "debian-ffmpeg.json=libasound2,libpulse0,libxcb1,libxcb-shm0,libudev1"
+)
 
 val installerResources: Directory = layout.projectDirectory.dir(installerResourcePath)
 val testSourceSet: SourceSet = sourceSets.test.get()
@@ -62,5 +68,6 @@ tasks.register<JavaExec>("generateDebianPins") {
     this.description = "Pins the Debian packages that mcav fetches libraries from to the latest Debian archive and security snapshots"
     this.classpath = testSourceSet.runtimeClasspath
     this.mainClass.set(pinGeneratorClass)
-    this.args(installerResources.asFile.path)
+    this.args(installerResources.asFile.path, leftOutIndependentPackages)
+    this.args(pinBundles)
 }

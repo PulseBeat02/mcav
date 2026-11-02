@@ -21,19 +21,29 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.lang.reflect.Constructor;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BooleanSupplier;
+import me.brandonli.mcav.utils.os.Arch;
+import me.brandonli.mcav.utils.os.Bits;
 import me.brandonli.mcav.utils.os.Os;
+import me.brandonli.mcav.utils.os.Platform;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.parallel.ResourceLock;
+import org.junit.jupiter.api.parallel.Resources;
 
 final class VmModuleTest {
 
@@ -44,6 +54,9 @@ final class VmModuleTest {
   private static final String EMPTY_FOLDER = "empty";
   private static final String QEMU_EXECUTABLE = "qemu-system-x86_64";
   private static final String SLEEPER_SOURCE = "Sleep.java";
+  private static final String INSTALLATION_FOLDER = "installation";
+
+  private static final Platform LINUX_X86_64 = Platform.ofPlatform(Os.LINUX, Arch.X86, Bits.BITS_64);
 
   @TempDir
   private Path directory;
@@ -60,6 +73,12 @@ final class VmModuleTest {
     return new ExecutableFinder(Os.LINUX, environment, macPaths);
   }
 
+  private QemuInstaller installer(final BooleanSupplier supported) {
+    final Path installation = this.directory.resolve(INSTALLATION_FOLDER);
+    final QemuPackages packages = new QemuPackages(supported, _ -> installation, List::of);
+    return new QemuInstaller(_ -> packages, LINUX_X86_64);
+  }
+
   @Test
   void shouldFindQemuWhenStarted() throws IOException {
     final Path folder = this.directory.resolve(BIN_FOLDER);
@@ -71,12 +90,18 @@ final class VmModuleTest {
     assertTrue(madeExecutable);
 
     final ExecutableFinder finder = this.finderWithPath(folder);
-    final VmModule module = new VmModule(finder, this.records());
+    final VmModule module = new VmModule(finder, this.installer(() -> false), this.records());
     final boolean beforeStart = module.isQemuInstalled();
-    module.start();
-    final boolean qemuFoundAfterStart = module.isQemuInstalled();
+    final boolean availableBeforeStart = module.isQemuAvailable();
     assertFalse(beforeStart);
+    assertFalse(availableBeforeStart);
+
+    module.start();
+
+    final boolean qemuFoundAfterStart = module.isQemuInstalled();
+    final boolean availableAfterStart = module.isQemuAvailable();
     assertTrue(qemuFoundAfterStart);
+    assertTrue(availableAfterStart);
   }
 
   @Test
@@ -96,7 +121,7 @@ final class VmModuleTest {
       Files.writeString(record, "%s\n%s\n%s\n".formatted(started, Long.MAX_VALUE, started));
       final Path empty = this.directory.resolve(EMPTY_FOLDER);
       Files.createDirectories(empty);
-      final VmModule module = new VmModule(this.finderWithPath(empty), this.records());
+      final VmModule module = new VmModule(this.finderWithPath(empty), this.installer(() -> false), this.records());
 
       module.start();
 
@@ -121,10 +146,51 @@ final class VmModuleTest {
     final Path empty = this.directory.resolve(EMPTY_FOLDER);
     Files.createDirectories(empty);
     final ExecutableFinder finder = this.finderWithPath(empty);
-    final VmModule module = new VmModule(finder, this.records());
+    final VmModule module = new VmModule(finder, this.installer(() -> false), this.records());
+
     module.start();
+
     final boolean installed = module.isQemuInstalled();
+    final boolean available = module.isQemuAvailable();
     assertFalse(installed);
+    assertFalse(available);
+  }
+
+  @Test
+  @ResourceLock(Resources.SYSTEM_ERR)
+  void shouldLogThatQemuWillBeInstalled() throws IOException {
+    final Path empty = this.directory.resolve(EMPTY_FOLDER);
+    Files.createDirectories(empty);
+    final ExecutableFinder finder = this.finderWithPath(empty);
+    final VmModule module = new VmModule(finder, this.installer(() -> true), this.records());
+
+    final String log = this.captureStandardError(module::start);
+
+    final boolean installed = module.isQemuInstalled();
+    final boolean available = module.isQemuAvailable();
+    assertFalse(installed);
+    assertTrue(available);
+
+    final boolean announced = log.contains(
+      "QEMU program qemu-system-x86_64 is not on the PATH, so MCAV installs it from Debian packages when the first virtual machine starts."
+    );
+    assertTrue(announced, log);
+  }
+
+  @Test
+  @ResourceLock(Resources.SYSTEM_ERR)
+  void shouldWarnThatVirtualMachinesCannotStartWithoutQemu() throws IOException {
+    final Path empty = this.directory.resolve(EMPTY_FOLDER);
+    Files.createDirectories(empty);
+    final ExecutableFinder finder = this.finderWithPath(empty);
+    final VmModule module = new VmModule(finder, this.installer(() -> false), this.records());
+
+    final String log = this.captureStandardError(module::start);
+
+    final boolean warned = log.contains(
+      "QEMU program qemu-system-x86_64 is not on the PATH or in the usual install folders, so virtual machines cannot be started."
+    );
+    assertTrue(warned, log);
   }
 
   @Test
@@ -154,5 +220,19 @@ final class VmModuleTest {
     final VmModule module = constructor.newInstance();
     final boolean installed = module.isQemuInstalled();
     assertFalse(installed, "nothing is looked up before the module starts");
+  }
+
+  private String captureStandardError(final Runnable action) {
+    final PrintStream original = System.err;
+    final ByteArrayOutputStream captured = new ByteArrayOutputStream();
+    final PrintStream capture = new PrintStream(captured, true, StandardCharsets.UTF_8);
+    System.setErr(capture);
+    try {
+      action.run();
+    } finally {
+      System.setErr(original);
+    }
+
+    return captured.toString(StandardCharsets.UTF_8);
   }
 }

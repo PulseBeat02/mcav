@@ -102,11 +102,12 @@ final class VmProcessPortProbeTest {
     final VmSettings display = VmSettings.of(5905, 320, 240, 15);
     final VmConfiguration configuration = VmConfiguration.builder().build();
     final Path executable = Path.of(UNUSED_EXECUTABLE);
+    final QemuProgram program = QemuProgram.of(executable);
     final Path kvm = Path.of(UNUSED_KVM_DEVICE);
     final VmProcess.Launcher launcher = _ -> {
       throw new AssertionError("QEMU must not launch after the port probe fails!");
     };
-    return new VmProcess(display, VmPlayer.Architecture.X86_64, executable, configuration, launcher, Os.LINUX, kvm, 1, () -> {
+    return new VmProcess(display, VmPlayer.Architecture.X86_64, program, configuration, launcher, Os.LINUX, kvm, 1, () -> {
       throw new AssertionError("no password is written after the port probe fails!");
     });
   }

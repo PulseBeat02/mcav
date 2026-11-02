@@ -58,6 +58,7 @@ The same happens when Simple Voice Chat audio is enabled but the Simple Voice Ch
 plugin is disabled.
 
 ```{warning}
-To use the virtual machine commands, install QEMU from your package manager or from the
+On x86-64 and ARM64 Linux, MCAV installs QEMU from Debian packages for the virtual machine commands when it is missing.
+On other platforms, install QEMU 6.0 or newer from your package manager or from the
 [official QEMU website](https://www.qemu.org/download/) and make sure it is on the `PATH` of the server.
 ```

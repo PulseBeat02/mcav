@@ -242,15 +242,15 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    * streams its display onto a wall of maps, dithered or with MCV2, and its sound into the chosen audio output. Only x86-64 PC and Q35 machines have sound; mcav
    * adds their sound card itself, and the flags cannot change it.
    *
-   * <p>QEMU must be installed on the server, with the program for the chosen architecture on the {@code PATH}. Build
-   * the wall first with {@code /mcav screen}, using the same block dimensions and map id. Players can then left
-   * click or right click the screen to click inside the guest, and type into it after enabling
-   * {@code /mcav vm interact}. Only one virtual machine runs at a time: creating a new one powers off the running
-   * one.
+   * <p>QEMU must be installed on the server, with the program for the chosen architecture on the {@code PATH}, except on
+   * x86-64 and ARM64 Linux, where MCAV installs it when it is missing. Build the wall first with {@code /mcav screen},
+   * using the same block dimensions and map id. Players can then left click or right click the screen to click inside
+   * the guest, and type into it after enabling {@code /mcav vm interact}. Only one virtual machine runs at a time:
+   * creating a new one powers off the running one.
    *
    * <p>Requires the permission {@code mcav.command.vm.create}; players and the console can run it. When QEMU is not
-   * installed, the dimensions are invalid, or an option is not supported, the sender gets an error message and
-   * nothing starts. Otherwise the
+   * installed and MCAV cannot install it, the dimensions are invalid, or an option is not supported, the sender gets an
+   * error message and nothing starts. Otherwise the
    * sender is told "Loading virtual machine...", and later that it was created, that the QEMU program for the
    * architecture is not on the {@code PATH}, or that it failed to start, with the details in the console.
    *
@@ -304,8 +304,8 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     Preconditions.checkNotNull(audioType, "Audio type must not be null!");
     Preconditions.checkNotNull(flags, "Flags must not be null!");
 
-    final boolean hasQemu = this.plugin.isQemuInstalled();
-    if (!hasQemu) {
+    final boolean qemuAvailable = this.plugin.isQemuAvailable();
+    if (!qemuAvailable) {
       final Component message = Message.QEMU_NOT_INSTALLED.build();
       sender.sendMessage(message);
       return;

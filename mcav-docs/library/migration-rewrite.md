@@ -152,8 +152,9 @@ FFmpeg and OpenCV are prepared before installation returns; VLC and yt-dlp are p
 needs an optional capability should inspect it or wait for `whenCapabilityReady` before using it. Custom
 implementations of `MCAVApi` must implement the new readiness method as well.
 
-QEMU is installed by the server administrator. The rewrite removes `QemuInstaller`; use the [VM API](vm.md) with an
-installed QEMU instead. The browser prepares its own runtime on first use, as described above.
+MCAV installs QEMU from Debian packages on x86-64 and ARM64 Linux when the system has none; on other platforms,
+install QEMU yourself. The public `QemuInstaller` of earlier versions is gone, and the new one is internal: use the
+[VM API](vm.md) instead. The browser prepares its own runtime on first use, as described above.
 
 Applications that extend the installation infrastructure must also update `Installer.getPath()`, the constructors
 of `AbstractInstaller`, and the VLC installation strategies. `InstallationStrategy.execute` now takes a destination

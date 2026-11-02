@@ -48,7 +48,8 @@ public interface Message extends LocaleTools {
   NullComponent HOLOGRAM_LOCATION_SET = direct("mcav.command.hologram.set");
 
   /**
-   * Key {@code mcav.qemu.error}: {@code /mcav vm create} was run, but QEMU was not found when the plugin started.
+   * Key {@code mcav.qemu.error}: {@code /mcav vm create} was run, but QEMU was not found when the plugin started and
+   * MCAV cannot install it on this server.
    *
    * @since 1.0.0
    */

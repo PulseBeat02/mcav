@@ -60,6 +60,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.BiConsumer;
 import java.util.function.BooleanSupplier;
+import me.brandonli.mcav.capability.installer.FileMode;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
@@ -69,7 +70,10 @@ import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.utils.audio.DelayedAudioOutput;
 import me.brandonli.mcav.utils.interaction.MouseClick;
+import me.brandonli.mcav.utils.os.Arch;
+import me.brandonli.mcav.utils.os.Bits;
 import me.brandonli.mcav.utils.os.Os;
+import me.brandonli.mcav.utils.os.Platform;
 import me.brandonli.mcav.vm.testing.FreePorts;
 import me.brandonli.mcav.vnc.VncException;
 import me.brandonli.mcav.vnc.VncPlayer;
@@ -115,9 +119,14 @@ final class QemuVmPlayerTest {
   private static final String PATH_VARIABLE = "PATH";
   private static final String BIN_FOLDER = "bin";
   private static final String EMPTY_ROOT_FOLDER = "empty-root";
+  private static final String INSTALLATION_FOLDER = "installation";
+  private static final String PROGRAM_FOLDER = "usr/bin";
 
+  private static final String X86_64_COMMAND = "qemu-system-x86_64";
   private static final String AARCH64_COMMAND = "qemu-system-aarch64";
   private static final String RISCV64_COMMAND = "qemu-system-riscv64";
+
+  private static final Platform LINUX_X86_64 = Platform.ofPlatform(Os.LINUX, Arch.X86, Bits.BITS_64);
 
   private static final String REPORT_SEPARATOR = ": ";
 
@@ -128,6 +137,7 @@ final class QemuVmPlayerTest {
   private Path directory;
 
   private final List<Path> executables = new CopyOnWriteArrayList<>();
+  private final List<Path> downloads = new CopyOnWriteArrayList<>();
   private final List<VmSettings> createdSettings = new CopyOnWriteArrayList<>();
   private final List<VmConfiguration> createdConfigurations = new CopyOnWriteArrayList<>();
 
@@ -146,6 +156,7 @@ final class QemuVmPlayerTest {
   private VmProcess qemu;
   private AtomicBoolean processAlive;
   private ExecutableFinder finder;
+  private QemuInstaller installer;
 
   @BeforeEach
   void createParts() throws IOException {
@@ -175,6 +186,8 @@ final class QemuVmPlayerTest {
     final Map<String, String> environment = Map.of(PATH_VARIABLE, path);
     final Path root = this.directory.resolve(EMPTY_ROOT_FOLDER);
     this.finder = new ExecutableFinder(Os.LINUX, environment, root);
+
+    this.installer = this.createInstaller(() -> false);
   }
 
   private void installFakePrograms(final Path bin) throws IOException {
@@ -196,14 +209,26 @@ final class QemuVmPlayerTest {
     this.finder = new ExecutableFinder(Os.LINUX, environment, root);
   }
 
+  private QemuInstaller createInstaller(final BooleanSupplier supported) {
+    final QemuPackages packages = new QemuPackages(supported, this::download, List::of);
+    return new QemuInstaller(_ -> packages, LINUX_X86_64);
+  }
+
+  private Path download(final FileMode mode) {
+    final Path installation = this.directory.resolve(INSTALLATION_FOLDER);
+    this.downloads.add(installation);
+    return installation;
+  }
+
   private QemuVmPlayer player() {
-    final QemuVmPlayer.ProcessFactory factory = (settings, architecture, executable, configuration) -> {
+    final QemuVmPlayer.ProcessFactory factory = (settings, _, program, configuration) -> {
       this.createdSettings.add(settings);
+      final Path executable = program.getExecutable();
       this.executables.add(executable);
       this.createdConfigurations.add(configuration);
       return this.qemu;
     };
-    return new QemuVmPlayer(this.vnc, this.finder, factory, this.audio);
+    return new QemuVmPlayer(this.vnc, this.finder, this.installer, factory, this.audio);
   }
 
   private void stubConnectingStream() {
@@ -406,7 +431,8 @@ final class QemuVmPlayerTest {
     final QemuVmPlayer player = new QemuVmPlayer(
       this.vnc,
       this.finder,
-      (settings, architecture, executable, configuration) -> this.qemu,
+      this.installer,
+      (_, _, _, _) -> this.qemu,
       (address, password, sink, failures) -> {
         throw new IOException("connection refused!");
       }
@@ -590,6 +616,39 @@ final class QemuVmPlayerTest {
   }
 
   @Test
+  void shouldInstallQemuWhenTheSystemHasNone() {
+    this.useFinderWithoutQemu();
+    this.installer = this.createInstaller(() -> true);
+    this.stubConnectingStream();
+    final QemuVmPlayer player = this.player();
+
+    final boolean started = this.startDefaultMachine(player);
+
+    final Path executable = this.executables.getFirst();
+    final Path installation = this.directory.resolve(INSTALLATION_FOLDER);
+    final Path expected = installation.resolve(PROGRAM_FOLDER).resolve(X86_64_COMMAND);
+    assertTrue(started);
+    assertEquals(expected, executable);
+  }
+
+  @Test
+  void shouldPreferTheSystemQemu() {
+    this.installer = this.createInstaller(() -> true);
+    this.stubConnectingStream();
+    final QemuVmPlayer player = this.player();
+
+    final boolean started = this.startDefaultMachine(player);
+
+    final Path executable = this.executables.getFirst();
+    final Path bin = this.directory.resolve(BIN_FOLDER);
+    final Path expected = bin.resolve(X86_64_COMMAND);
+    final boolean nothingDownloaded = this.downloads.isEmpty();
+    assertTrue(started);
+    assertEquals(expected, executable);
+    assertTrue(nothingDownloaded);
+  }
+
+  @Test
   void shouldStopWhenQemuExitsAndStartAgain() {
     final VmProcess exited = this.qemu;
     final VmProcess next = mock(VmProcess.class);
@@ -599,7 +658,7 @@ final class QemuVmPlayerTest {
     final List<VmProcess> processes = new CopyOnWriteArrayList<>(initialProcesses);
     final QemuVmPlayer.ProcessFactory factory = (_, _, _, _) -> processes.removeFirst();
     this.stubRunningStream();
-    final QemuVmPlayer player = new QemuVmPlayer(this.vnc, this.finder, factory, this.audio);
+    final QemuVmPlayer player = new QemuVmPlayer(this.vnc, this.finder, this.installer, factory, this.audio);
     final boolean started = this.startDefaultMachine(player);
     final boolean playingBefore = player.isPlaying();
     assertTrue(started);
@@ -807,7 +866,7 @@ final class QemuVmPlayerTest {
       .when(previous)
       .shutdown();
     final QemuVmPlayer.ProcessFactory factory = (_, _, _, _) -> created.getAndIncrement() == 0 ? previous : next;
-    final QemuVmPlayer player = new QemuVmPlayer(this.vnc, this.finder, factory, this.audio);
+    final QemuVmPlayer player = new QemuVmPlayer(this.vnc, this.finder, this.installer, factory, this.audio);
     final IllegalStateException connectionFailure = new IllegalStateException("VNC initialization failed!");
     when(this.vnc.start(any(VncSource.class)))
       .thenThrow(connectionFailure)

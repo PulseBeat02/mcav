@@ -77,7 +77,8 @@ public final class MCAVSandbox extends JavaPlugin {
 
   private static final String LOADING = "Loading MCAV.";
 
-  private static final String NO_QEMU = "QEMU is not installed, virtual machines will not be available.";
+  private static final String NO_QEMU =
+    "QEMU is not installed and MCAV cannot install it on this server, so virtual machines will not be available.";
 
   private static final String NO_BROWSER =
     "There is no browser for the operating system and processor of this server, browsers will not be available.";
@@ -110,7 +111,7 @@ public final class MCAVSandbox extends JavaPlugin {
 
   private @Nullable JukeBoxListener listener;
 
-  private boolean qemuInstalled;
+  private boolean qemuAvailable;
   private boolean browserSupported;
 
   private boolean hasBeenDisabled;
@@ -221,8 +222,8 @@ public final class MCAVSandbox extends JavaPlugin {
     final BukkitModule bukkitModule = api.getModule(BukkitModule.class);
     bukkitModule.inject(this);
     final VmModule vmModule = api.getModule(VmModule.class);
-    this.qemuInstalled = vmModule.isQemuInstalled();
-    if (!this.qemuInstalled) {
+    this.qemuAvailable = vmModule.isQemuAvailable();
+    if (!this.qemuAvailable) {
       pluginLogger.warn(NO_QEMU);
     }
     final BrowserModule browserModule = api.getModule(BrowserModule.class);
@@ -373,13 +374,14 @@ public final class MCAVSandbox extends JavaPlugin {
   }
 
   /**
-   * Returns whether QEMU was found when the plugin was enabled.
+   * Returns whether virtual machines can start: QEMU was found when the plugin was enabled, or MCAV installs it when the
+   * first virtual machine starts.
    *
    * @return true if virtual machines can be created
    * @since 1.0.0
    */
-  public boolean isQemuInstalled() {
-    return this.qemuInstalled;
+  public boolean isQemuAvailable() {
+    return this.qemuAvailable;
   }
 
   /**

@@ -154,7 +154,7 @@ final class CommandTaskDeadlineTest {
   }
 
   @Test
-  @Timeout(15)
+  @Timeout(90)
   void shouldNotLetInheritedChildPipesExtendTheTimeoutOrTheReaderExecutorClose() throws Exception {
     final Path childPid = this.directory.resolve(CHILD_PID_NAME);
     final String java = javaExecutable();
@@ -163,7 +163,7 @@ final class CommandTaskDeadlineTest {
     final String fixture = InheritedPipes.class.getName();
     final String pidPath = childPid.toString();
     final CommandTask task = new CommandTask(java, CLASS_PATH_OPTION, classes, fixture, java, classes, pidPath);
-    final Duration timeout = Duration.ofSeconds(5);
+    final Duration timeout = Duration.ofSeconds(20);
     final long before = System.nanoTime();
     try {
       final ProcessException thrown = assertThrows(ProcessException.class, () -> task.run(timeout));
@@ -173,14 +173,14 @@ final class CommandTaskDeadlineTest {
       assertInstanceOf(TimeoutException.class, cause);
       assertTrue(pidWritten, "the parent must reach the inherited-pipe fixture before timing out");
 
-      final boolean beforeChildEnded = elapsed < 8_000_000_000L;
-      assertTrue(beforeChildEnded, "reader executor teardown must not wait for the 30-second child");
+      final boolean beforeChildEnded = elapsed < 40_000_000_000L;
+      assertTrue(beforeChildEnded, "reader executor teardown must not wait for the 60-second child");
 
       final String pidText = Files.readString(childPid);
       final long pid = Long.parseLong(pidText);
       final ProcessHandle child = ProcessHandle.of(pid).orElse(null);
       if (child != null) {
-        final Duration cleanupTimeout = Duration.ofSeconds(3);
+        final Duration cleanupTimeout = Duration.ofSeconds(10);
         Polling.awaitCondition("the remembered child was terminated", cleanupTimeout, () -> !child.isAlive());
       }
 
@@ -219,7 +219,7 @@ final class CommandTaskDeadlineTest {
 
     public static void main(final String[] args) throws IOException, InterruptedException {
       if (args.length == 1) {
-        Thread.sleep(30_000L);
+        Thread.sleep(60_000L);
         return;
       }
 

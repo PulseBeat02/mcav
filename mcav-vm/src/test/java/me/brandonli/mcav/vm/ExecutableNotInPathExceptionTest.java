@@ -21,9 +21,17 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import me.brandonli.mcav.utils.os.Arch;
+import me.brandonli.mcav.utils.os.Bits;
+import me.brandonli.mcav.utils.os.Os;
+import me.brandonli.mcav.utils.os.Platform;
 import org.junit.jupiter.api.Test;
 
 final class ExecutableNotInPathExceptionTest {
+
+  private static final String PROGRAM = "qemu-system-riscv64";
+
+  private static final Platform UNSUPPORTED_PLATFORM = Platform.ofPlatform(Os.FREEBSD, Arch.ARM, Bits.BITS_64);
 
   @Test
   void shouldNameTheMissingProgram() {
@@ -40,5 +48,31 @@ final class ExecutableNotInPathExceptionTest {
     });
     final String message = exception.getMessage();
     assertEquals("Executable must not be null!", message);
+  }
+
+  @Test
+  void shouldNameThePlatformThatMcavCannotInstallTheProgramOn() {
+    final ExecutableNotInPathException exception = new ExecutableNotInPathException(PROGRAM, UNSUPPORTED_PLATFORM);
+
+    final String message = exception.getMessage();
+    assertEquals("Program qemu-system-riscv64 is not installed or not on the PATH, and MCAV cannot install it on FREEBSD ARM!", message);
+  }
+
+  @Test
+  void shouldRejectANullProgramNameWithAPlatform() {
+    final NullPointerException exception = assertThrows(NullPointerException.class, () -> {
+      throw new ExecutableNotInPathException(null, UNSUPPORTED_PLATFORM);
+    });
+    final String message = exception.getMessage();
+    assertEquals("Executable must not be null!", message);
+  }
+
+  @Test
+  void shouldRejectANullPlatform() {
+    final NullPointerException exception = assertThrows(NullPointerException.class, () -> {
+      throw new ExecutableNotInPathException(PROGRAM, null);
+    });
+    final String message = exception.getMessage();
+    assertEquals("Platform must not be null!", message);
   }
 }

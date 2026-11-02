@@ -19,10 +19,13 @@ package me.brandonli.mcav.vm;
 
 import com.google.common.base.Preconditions;
 import java.io.Serial;
+import me.brandonli.mcav.utils.os.Arch;
+import me.brandonli.mcav.utils.os.Os;
+import me.brandonli.mcav.utils.os.Platform;
 
 /**
  * Thrown when a program that must be installed on the machine, such as QEMU, is not on the {@code PATH} or in one of
- * the folders {@link ExecutableFinder} also searches.
+ * the folders {@link ExecutableFinder} also searches, and MCAV cannot install it on this platform.
  *
  * <p>It is a {@link VmException}, so catching that handles it too.
  *
@@ -33,6 +36,8 @@ public final class ExecutableNotInPathException extends VmException {
   @Serial
   private static final long serialVersionUID = 4163726305184327011L;
 
+  private static final String EXECUTABLE_NULL_MESSAGE = "Executable must not be null!";
+
   /**
    * Constructs a new exception.
    *
@@ -41,9 +46,31 @@ public final class ExecutableNotInPathException extends VmException {
    * @since 1.0.0
    */
   public ExecutableNotInPathException(final String executable) {
-    Preconditions.checkNotNull(executable, "Executable must not be null!");
+    Preconditions.checkNotNull(executable, EXECUTABLE_NULL_MESSAGE);
 
     final String message = "Program %s is not installed or not on the PATH!".formatted(executable);
+    super(message);
+  }
+
+  /**
+   * Creates an exception for a program that is not installed and that MCAV cannot install on this platform.
+   *
+   * @param executable the name of the missing program
+   * @param platform   the platform that MCAV has no packages of the program for
+   * @throws NullPointerException if an argument is null
+   * @since 1.0.0
+   */
+  public ExecutableNotInPathException(final String executable, final Platform platform) {
+    Preconditions.checkNotNull(executable, EXECUTABLE_NULL_MESSAGE);
+    Preconditions.checkNotNull(platform, "Platform must not be null!");
+
+    final Os os = platform.getOs();
+    final Arch arch = platform.getArch();
+    final String message = "Program %s is not installed or not on the PATH, and MCAV cannot install it on %s %s!".formatted(
+      executable,
+      os,
+      arch
+    );
     super(message);
   }
 }

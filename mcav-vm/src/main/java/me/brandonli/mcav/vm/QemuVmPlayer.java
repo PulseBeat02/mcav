@@ -60,6 +60,7 @@ public final class QemuVmPlayer implements VmPlayer {
 
   private final VncPlayer vncPlayer;
   private final ExecutableFinder finder;
+  private final QemuInstaller installer;
   private final ProcessFactory processFactory;
   private final AudioConnector audioConnector;
   private final AudioAttachableCallback audioCallback;
@@ -76,11 +77,13 @@ public final class QemuVmPlayer implements VmPlayer {
   QemuVmPlayer(
     final VncPlayer vncPlayer,
     final ExecutableFinder finder,
+    final QemuInstaller installer,
     final ProcessFactory processFactory,
     final AudioConnector audioConnector
   ) {
     this.vncPlayer = vncPlayer;
     this.finder = finder;
+    this.installer = installer;
     this.processFactory = processFactory;
     this.audioConnector = audioConnector;
     this.audioCallback = AudioAttachableCallback.create();
@@ -93,20 +96,23 @@ public final class QemuVmPlayer implements VmPlayer {
   static QemuVmPlayer createDefault() {
     final VncPlayer vncPlayer = VncPlayer.create();
     final ExecutableFinder finder = new ExecutableFinder();
-    return new QemuVmPlayer(vncPlayer, finder, VmProcess::create, VmAudioClient::connect);
+    final QemuInstaller installer = new QemuInstaller();
+    return new QemuVmPlayer(vncPlayer, finder, installer, VmProcess::create, VmAudioClient::connect);
   }
 
   /**
    * Starts QEMU and connects to its display. Starting takes a few seconds; the call returns once the VNC display
    * is reachable. Each QEMU launch waits up to 60 seconds for its display, and an automatic accelerator fallback
    * can make another launch attempt. An audio connection failure is reported to the exception handler and may
-   * leave an otherwise successful machine running without audio.
+   * leave an otherwise successful machine running without audio. On x86-64 and ARM64 Linux without QEMU, the first
+   * start downloads it.
    *
    * @param settings      the non-null output dimensions, requested frame rate and local VNC port
    * @param architecture  the non-null guest architecture, which picks the QEMU program
    * @param configuration the non-null QEMU options
    * @return true if the machine started, false if the player is already running or released
-   * @throws ExecutableNotInPathException       if the QEMU program is not installed
+   * @throws ExecutableNotInPathException       if the QEMU program is not installed and MCAV cannot install it on this platform
+   * @throws me.brandonli.mcav.MCAVException    if QEMU has to be installed and its download or installation fails
    * @throws IllegalArgumentException           if the configuration sets a display or sound option the player reserves
    * @throws VmException                        if the port cannot be bound, QEMU cannot launch or exits, the display
    *                                            does not open within the startup deadline, the wait is interrupted, or a
@@ -140,8 +146,8 @@ public final class QemuVmPlayer implements VmPlayer {
 
   // the caller holds the lock
   private void launchMachine(final VmSettings settings, final Architecture architecture, final VmConfiguration configuration) {
-    final Path executable = this.findExecutable(architecture);
-    final VmProcess qemu = this.processFactory.create(settings, architecture, executable, configuration);
+    final QemuProgram program = this.findProgram(architecture);
+    final VmProcess qemu = this.processFactory.create(settings, architecture, program, configuration);
     // start() can fail after creating a live child. Keep ownership before invoking any process lifecycle code.
     this.process = qemu;
 
@@ -260,10 +266,11 @@ public final class QemuVmPlayer implements VmPlayer {
     handler.accept(message, failure);
   }
 
-  private Path findExecutable(final Architecture architecture) {
+  private QemuProgram findProgram(final Architecture architecture) {
     final String command = architecture.getCommand();
     final Optional<Path> found = this.finder.find(command);
-    return found.orElseThrow(() -> new ExecutableNotInPathException(command));
+    final Optional<QemuProgram> system = found.map(QemuProgram::of);
+    return system.orElseGet(() -> this.installer.install(architecture));
   }
 
   private VncSource createSource(final VmSettings settings, final String password) {
@@ -488,7 +495,7 @@ public final class QemuVmPlayer implements VmPlayer {
 
   @FunctionalInterface
   interface ProcessFactory {
-    VmProcess create(VmSettings settings, Architecture architecture, Path executable, VmConfiguration configuration);
+    VmProcess create(VmSettings settings, Architecture architecture, QemuProgram program, VmConfiguration configuration);
   }
 
   private static final class OutputSink implements VmAudioClient.Sink {

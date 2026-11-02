@@ -78,8 +78,16 @@ MCAV installs the Debian 12 packages of `libgtk2.0-0` and its dependencies on x8
 VLC above: pinned, checked against their hashes, unpacked into the cache without administrator rights, and loaded before
 OpenCV. When that installation fails, only face detection is unavailable.
 
-QEMU is never installed by MCAV. To use the [virtual machine module](vm.md), install QEMU yourself and make sure it is
-on the `PATH`.
+For the [virtual machine module](vm.md), MCAV uses the QEMU of the system when the `qemu-system-*` program of the guest
+is on the `PATH`. Otherwise:
+
+| Platform     | QEMU                                                          |
+|--------------|---------------------------------------------------------------|
+| Linux x86-64 | Installed from Debian 12 packages into the cache on first use |
+| Linux ARM64  | Installed from Debian 12 packages into the cache on first use |
+| Windows      | Install it yourself and put it on the `PATH`                  |
+| macOS        | Install it yourself and put it on the `PATH`                  |
+| FreeBSD      | Install it yourself and put it on the `PATH`                  |
 
 ## Native access warnings
 

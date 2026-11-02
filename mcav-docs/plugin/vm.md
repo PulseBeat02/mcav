@@ -4,9 +4,9 @@
 output. Players click it by clicking the wall and type into it through chat, like a [browser](browser.md).
 
 ```{warning}
-QEMU 6.0 or newer must be installed on the server and on the `PATH` of the server's process; MCAV never installs it.
-Install it from your package manager or from the [QEMU website](https://www.qemu.org/download/). Without it the
-command says so.
+On x86-64 and ARM64 Linux, MCAV installs QEMU from Debian packages when it is missing. On other platforms, QEMU 6.0 or
+newer must be installed on the server and on the `PATH` of the server's process: install it from your package manager
+or from the [QEMU website](https://www.qemu.org/download/). Without it the command says so.
 ```
 
 ```text

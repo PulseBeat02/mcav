@@ -38,6 +38,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -172,7 +173,7 @@ final class QemuProcessRecordsTest {
 
   @Test
   void shouldRecordAProcessTheLauncherStartsUntilItEnds() throws IOException, InterruptedException {
-    final VmProcess.RecordingLauncher launcher = new VmProcess.RecordingLauncher(this.records(ProcessHandle.current()));
+    final VmProcess.RecordingLauncher launcher = new VmProcess.RecordingLauncher(this.records(ProcessHandle.current()), Map.of());
     final Process qemu = launcher.launch(this.sleeper(StopRequest.OBEYED));
     this.children.add(qemu);
     final boolean recorded = Files.isRegularFile(this.recordOf(qemu.pid()));
@@ -183,6 +184,23 @@ final class QemuProcessRecordsTest {
     final boolean recordLeft = Files.exists(this.recordOf(qemu.pid()));
     assertTrue(recorded, "a started QEMU is recorded at once, before anything can kill this JVM");
     assertFalse(recordLeft, "an ended QEMU is forgotten");
+  }
+
+  @Test
+  void shouldStartQemuWithTheEnvironmentOfItsProgram() {
+    final Map<String, String> environment = Map.of("QEMU_MODULE_DIR", "modules");
+    final VmProcess.RecordingLauncher launcher = new VmProcess.RecordingLauncher(this.records(ProcessHandle.current()), environment);
+    final List<String> command = List.of("qemu-system-x86_64");
+
+    final ProcessBuilder builder = launcher.createBuilder(command);
+
+    final Map<String, String> builderEnvironment = builder.environment();
+    final String modules = builderEnvironment.get("QEMU_MODULE_DIR");
+    final boolean merged = builder.redirectErrorStream();
+    final List<String> builderCommand = builder.command();
+    assertEquals("modules", modules);
+    assertTrue(merged);
+    assertEquals(command, builderCommand);
   }
 
   @Test
