@@ -30,7 +30,7 @@ final class HelperProcessesFailureTest {
 
   @Test
   void shouldNotLeaveLaterHelpersRunningAfterAFailureSharedByTwoListeners() {
-    final IllegalStateException sharedFailure = new IllegalStateException("shared listener failure");
+    final IllegalStateException sharedFailure = new IllegalStateException("The shared listener failed!");
     final HelperSession first = Mockito.mock(HelperSession.class);
     final HelperSession second = Mockito.mock(HelperSession.class);
     final HelperSession last = Mockito.mock(HelperSession.class);

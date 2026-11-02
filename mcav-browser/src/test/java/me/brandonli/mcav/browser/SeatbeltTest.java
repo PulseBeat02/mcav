@@ -177,7 +177,7 @@ class SeatbeltTest {
 
   @Test
   void shouldTreatACallTheJvmCannotMakeAsAnIllegalState() {
-    final IllegalCallerException refused = new IllegalCallerException("native access is not enabled");
+    final IllegalCallerException refused = new IllegalCallerException("Native access is not enabled!");
     final MethodHandle throwing = MethodHandles.throwException(int.class, IllegalCallerException.class);
     final MethodHandle call = MethodHandles.insertArguments(throwing, 0, refused);
     final IllegalStateException failure = assertThrows(IllegalStateException.class, () -> Seatbelt.call(call));
@@ -190,7 +190,7 @@ class SeatbeltTest {
 
   @Test
   void shouldPassAVirtualMachineErrorOfACallOnAsItIs() {
-    final OutOfMemoryError exhausted = new OutOfMemoryError("no memory for the call");
+    final OutOfMemoryError exhausted = new OutOfMemoryError("The call has no memory available!");
     final MethodHandle throwing = MethodHandles.throwException(int.class, OutOfMemoryError.class);
     final MethodHandle call = MethodHandles.insertArguments(throwing, 0, exhausted);
     final OutOfMemoryError thrownError = assertThrows(OutOfMemoryError.class, () -> Seatbelt.call(call));

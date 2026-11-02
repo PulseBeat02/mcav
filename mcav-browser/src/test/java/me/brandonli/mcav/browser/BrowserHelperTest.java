@@ -389,7 +389,7 @@ class BrowserHelperTest {
       new Reader() {
         @Override
         public int read(final char[] buffer, final int offset, final int length) throws IOException {
-          throw new IOException("broken pipe");
+          throw new IOException("The pipe broke!");
         }
 
         @Override
@@ -449,13 +449,13 @@ class BrowserHelperTest {
       new OutputStream() {
         @Override
         public void write(final int value) throws IOException {
-          throw new IOException("connection reset");
+          throw new IOException("The connection was reset!");
         }
       }
     );
     helper.sendFrames(broken);
     final @Nullable String stopReason = helper.getStopReason();
-    assertEquals("a frame could not be sent (connection reset)", stopReason);
+    assertEquals("a frame could not be sent (The connection was reset!)", stopReason);
   }
 
   @Test
@@ -485,7 +485,7 @@ class BrowserHelperTest {
     try (final Peer peer = new Peer(this.server.accept())) {
       final HelperMessage failure = peer.readUntil(HelperProtocol.FAILURE);
       final String failureText = failure.getText();
-      assertEquals("The browser could not be started (java.lang.IllegalStateException: scripted start failure)", failureText);
+      assertEquals("The browser could not be started (java.lang.IllegalStateException: The scripted start failed!)", failureText);
 
       final Integer exitStatus = result.get(RESULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
       assertEquals(1, exitStatus);
@@ -499,7 +499,10 @@ class BrowserHelperTest {
     try (final Peer peer = new Peer(this.server.accept())) {
       final HelperMessage failure = peer.readUntil(HelperProtocol.FAILURE);
       final String failureText = failure.getText();
-      assertEquals("The browser could not be started (java.lang.UnsatisfiedLinkError: scripted missing native library)", failureText);
+      assertEquals(
+        "The browser could not be started (java.lang.UnsatisfiedLinkError: The scripted native library is missing!)",
+        failureText
+      );
 
       final Integer exitStatus = result.get(RESULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
       assertEquals(1, exitStatus);
@@ -527,11 +530,11 @@ class BrowserHelperTest {
   }
 
   private SocketChannel refuseTheConnection() throws IOException {
-    throw new IOException("no server");
+    throw new IOException("The server is unavailable!");
   }
 
   private void neverHalts(final int status) {
-    throw new AssertionError("the helper halted with " + status);
+    throw new AssertionError("The helper halted with status %s before the test ended!".formatted(status));
   }
 
   @Test
@@ -821,13 +824,13 @@ class BrowserHelperTest {
     final OutputStream gone = new OutputStream() {
       @Override
       public void write(final int value) throws IOException {
-        throw new IOException("the server is gone");
+        throw new IOException("The server is gone!");
       }
     };
     final BrowserHelper.Reporter reporter = helper.new Reporter(new DataOutputStream(gone));
     reporter.onNotice("lost");
     final @Nullable String stopReason = helper.getStopReason();
-    assertEquals("a message could not be sent (the server is gone)", stopReason);
+    assertEquals("a message could not be sent (The server is gone!)", stopReason);
   }
 
   @Test
@@ -835,7 +838,7 @@ class BrowserHelperTest {
     final BufferedReader broken = new BufferedReader(new StringReader("x")) {
       @Override
       public String readLine() throws IOException {
-        throw new IOException("closed");
+        throw new IOException("The connection is closed!");
       }
     };
     final int statusForABrokenInput = BrowserHelper.runFromInput(broken, new ScriptedEngine(), this::neverHalts);

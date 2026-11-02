@@ -40,7 +40,10 @@ final class ScriptAssertions {
     }
 
     final String program = fixture.replace("SCRIPT_UNDER_TEST", DevToolsInput.quote(script));
-    final String node = Objects.requireNonNull(System.getProperty("mcav.testNode"), "The script-testing convention supplies Node");
+    final String node = Objects.requireNonNull(
+      System.getProperty("mcav.testNode"),
+      "Node must be supplied by the script-testing convention!"
+    );
     final Path output = Files.createTempFile("mcav-script-", ".log");
     final Process process = new ProcessBuilder(node, "--input-type=module", "-")
       .redirectErrorStream(true)

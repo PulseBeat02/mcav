@@ -294,7 +294,7 @@ class ChromiumConfinementTest {
   @EnabledOnOs(OS.LINUX)
   void shouldNotLetAConfinedHelperReadTheFolderOfTheServerOrTheTemporaryFolder() throws Exception {
     final int version = Landlock.version();
-    assumeTrue(version >= 1, () -> "This kernel cannot restrict (%s)!".formatted(Landlock.describeMissing(version)));
+    assumeTrue(version >= 1, () -> "%s, so this kernel cannot restrict!".formatted(Landlock.describeMissing(version)));
     final Path server = Files.createDirectories(this.folder.resolve(SERVER_FOLDER));
     final Path serverConfiguration = Files.writeString(server.resolve("config.yml"), "token: secret");
     final Path otherSession = Files.createDirectories(this.folder.resolve("tmp").resolve("other-session"));
@@ -349,7 +349,7 @@ class ChromiumConfinementTest {
   @EnabledOnOs(OS.LINUX)
   void shouldConfineWithTheFirstVersionOfLandlock() throws Exception {
     final int version = Landlock.version();
-    assumeTrue(version >= 1, () -> "This kernel cannot restrict (%s)!".formatted(Landlock.describeMissing(version)));
+    assumeTrue(version >= 1, () -> "%s, so this kernel cannot restrict!".formatted(Landlock.describeMissing(version)));
     final Path server = Files.createDirectories(this.folder.resolve(SERVER_FOLDER));
     final HelperConfiguration configuration = this.configuration(Confinement.ASKED, server);
     Files.createDirectories(configuration.getSocket().getParent());
@@ -384,7 +384,7 @@ class ChromiumConfinementTest {
   @EnabledOnOs(OS.LINUX)
   void shouldGiveNothingBeneathAFolderThatCannotBeListedEvenByRoot() throws Exception {
     final int version = Landlock.version();
-    assumeTrue(version >= 1, () -> "This kernel cannot restrict (%s)!".formatted(Landlock.describeMissing(version)));
+    assumeTrue(version >= 1, () -> "%s, so this kernel cannot restrict!".formatted(Landlock.describeMissing(version)));
     final Path root = this.folder.toRealPath();
     final Path beside = Files.createDirectories(root.resolve("beside"));
     final List<Landlock.Rule> openRules = ChromiumConfinement.rules(root, List.of(), List.of(), List.of());

@@ -333,7 +333,7 @@ class CefBrowserPlayerTest {
   private BrowserSession openSessionThatEndsFirst(final BrowserSession.Listener sessionListener, final List<FakeSession> opened) {
     final FakeSession session = new FakeSession();
     if (opened.isEmpty()) {
-      sessionListener.onEnded("The browser helper exited", new IllegalStateException("exit 1"));
+      sessionListener.onEnded("The browser helper exited", new IllegalStateException("The helper exited with code 1!"));
     }
 
     opened.add(session);
@@ -383,7 +383,7 @@ class CefBrowserPlayerTest {
     assertTrue(started);
 
     final BrowserSession.Listener ended = this.listener;
-    ended.onEnded(END_REASON, new IllegalStateException("crash"));
+    ended.onEnded(END_REASON, new IllegalStateException("The helper crashed!"));
     Await.until("the audio thread of the failed session ended", () -> before.containsAll(this.audioThreads()));
     ended.onAudio(new byte[] { 6, 0, 6, 0 });
     this.player.deliverAudio(this.sessions.getFirst(), new byte[] { 7, 0, 7, 0 });
@@ -400,7 +400,7 @@ class CefBrowserPlayerTest {
   }
 
   private BrowserSession openSessionThatEnds(final BrowserSession.Listener sessionListener) {
-    sessionListener.onEnded("The browser helper exited", new IllegalStateException("exit 1"));
+    sessionListener.onEnded("The browser helper exited", new IllegalStateException("The helper exited with code 1!"));
 
     return new FakeSession();
   }
@@ -418,11 +418,11 @@ class CefBrowserPlayerTest {
       assertTrue(closed, "a failed pipeline still returns the frame's ownership");
     }
 
-    assertEquals(List.of("Failed to process a browser frame: filter broke"), this.reports);
+    assertEquals(List.of("Failed to process a browser frame: The filter broke!"), this.reports);
   }
 
   private boolean breakTheFilter() {
-    throw new IllegalStateException("filter broke");
+    throw new IllegalStateException("The filter broke!");
   }
 
   @Test
@@ -441,17 +441,17 @@ class CefBrowserPlayerTest {
   }
 
   private boolean runOutOfMemory() {
-    throw new OutOfMemoryError("full");
+    throw new OutOfMemoryError("The memory is full!");
   }
 
   @Test
   void shouldIgnoreFramesAndEndsOfAReplacedSession() {
     this.player.start(SOURCE);
     final BrowserSession.Listener first = this.listener;
-    first.onEnded(END_REASON, new IllegalStateException("crash"));
+    first.onEnded(END_REASON, new IllegalStateException("The helper crashed!"));
     final boolean playingAfterEnd = this.player.isPlaying();
     assertFalse(playingAfterEnd);
-    assertEquals(List.of("gone: crash"), this.reports);
+    assertEquals(List.of("gone: The helper crashed!"), this.reports);
 
     final boolean startedAgain = this.player.start(SOURCE);
     assertTrue(startedAgain);
@@ -460,7 +460,7 @@ class CefBrowserPlayerTest {
     assertEquals(1, session.closed);
 
     first.onFrame(this.frame());
-    first.onEnded("late", new IllegalStateException("late"));
+    first.onEnded("late", new IllegalStateException("The failure arrived late!"));
     final int processedCount = this.processed.size();
     assertEquals(0, processedCount);
 
@@ -474,7 +474,7 @@ class CefBrowserPlayerTest {
   @Test
   void shouldDropAFrameOfTheCurrentSessionAfterItFailed() {
     this.player.start(SOURCE);
-    this.listener.onEnded(END_REASON, new IllegalStateException("crash"));
+    this.listener.onEnded(END_REASON, new IllegalStateException("The helper crashed!"));
     final ImageBuffer late = this.frame();
     this.listener.onFrame(late);
     final int processedCount = this.processed.size();
@@ -484,9 +484,9 @@ class CefBrowserPlayerTest {
   @Test
   void shouldReportAnEndOnce() {
     this.player.start(SOURCE);
-    this.listener.onEnded(END_REASON, new IllegalStateException("one"));
-    this.listener.onEnded("gone again", new IllegalStateException("two"));
-    assertEquals(List.of("gone: one"), this.reports);
+    this.listener.onEnded(END_REASON, new IllegalStateException("The first failure!"));
+    this.listener.onEnded("gone again", new IllegalStateException("The second failure!"));
+    assertEquals(List.of("gone: The first failure!"), this.reports);
   }
 
   @Test
@@ -634,7 +634,7 @@ class CefBrowserPlayerTest {
   }
 
   private BrowserSession breakTheHelper() {
-    throw new IllegalStateException("the helper broke");
+    throw new IllegalStateException("The helper broke!");
   }
 
   @Test
@@ -770,7 +770,7 @@ class CefBrowserPlayerTest {
     this.player.scroll(1, 1, 0, 10);
     this.player.sendKeyEvent("x");
     this.player.start(SOURCE);
-    this.listener.onEnded(END_REASON, new IllegalStateException("crash"));
+    this.listener.onEnded(END_REASON, new IllegalStateException("The helper crashed!"));
     this.player.sendKeyEvent("x");
     final FakeSession session = this.sessions.getFirst();
     assertEquals(List.of(), session.sent);
@@ -938,7 +938,7 @@ class CefBrowserPlayerTest {
 
   private void recordAndFailDownload(final List<URI> downloads, final URI uri) throws IOException {
     downloads.add(uri);
-    throw new IOException("offline");
+    throw new IOException("The helper is offline!");
   }
 
   private BrowserSession openWithARecordingListener(final CefBrowserPlayer.DefaultSessionFactory factory) {
@@ -976,7 +976,7 @@ class CefBrowserPlayerTest {
   }
 
   private void failDownload() throws IOException {
-    throw new IOException("offline");
+    throw new IOException("The helper is offline!");
   }
 
   @Test

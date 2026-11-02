@@ -152,7 +152,7 @@ class LandlockTest {
 
   @Test
   void shouldTreatACallTheJvmCannotMakeAsAnIllegalState() throws ReflectiveOperationException {
-    final IllegalCallerException refused = new IllegalCallerException("native access refused");
+    final IllegalCallerException refused = new IllegalCallerException("Native access was refused!");
     final MethodHandle throwing = MethodHandles.throwException(long.class, IllegalCallerException.class);
     final MethodHandle call = MethodHandles.insertArguments(throwing, 0, refused);
     final IllegalStateException failure = assertThrows(IllegalStateException.class, () -> Landlock.invoke(call));
@@ -170,7 +170,7 @@ class LandlockTest {
 
   @Test
   void shouldNotTurnAVirtualMachineErrorIntoAnAnswerOfTheCall() {
-    final OutOfMemoryError exhausted = new OutOfMemoryError("no memory for the call");
+    final OutOfMemoryError exhausted = new OutOfMemoryError("The call has no memory available!");
     final MethodHandle throwing = MethodHandles.throwException(long.class, OutOfMemoryError.class);
     final MethodHandle call = MethodHandles.insertArguments(throwing, 0, exhausted);
     final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () -> Landlock.invoke(call));
@@ -198,7 +198,7 @@ class LandlockTest {
 
   private int availableVersion() {
     final int version = Landlock.version();
-    assumeTrue(version >= 1, () -> "This kernel cannot restrict (%s)!".formatted(Landlock.describeMissing(version)));
+    assumeTrue(version >= 1, () -> "%s, so this kernel cannot restrict!".formatted(Landlock.describeMissing(version)));
 
     return version;
   }
@@ -207,7 +207,7 @@ class LandlockTest {
   @EnabledOnOs(OS.LINUX)
   void shouldRefuseRightsTheKernelDoesNotKnowWithItsErrorNumber() throws InterruptedException {
     final int version = this.availableVersion();
-    assumeTrue(version < 5, () -> "This kernel already knows every right of the fifth version (Landlock %s)!".formatted(version));
+    assumeTrue(version < 5, () -> "Landlock %s of this kernel already knows every right of the fifth version!".formatted(version));
     final Throwable failure = this.onThread(() -> Landlock.restrictThread(5, List.of()));
     assertInstanceOf(IOException.class, failure);
 

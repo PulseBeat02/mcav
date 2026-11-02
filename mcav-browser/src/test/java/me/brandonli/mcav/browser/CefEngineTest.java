@@ -94,11 +94,11 @@ class CefEngineTest {
     CefEngine.runOnOwnThread("mcav-browser-chromium", () -> names.add(Thread.currentThread().getName()));
     assertEquals(List.of("mcav-browser-chromium"), names);
 
-    final IOException refused = new IOException("Landlock could not restrict the thread (error 1)");
+    final IOException refused = new IOException("Landlock could not restrict the thread because of error 1 from the kernel!");
     final IOException rethrownRefusal = assertThrows(IOException.class, () -> this.runFailingOnOwnThread(refused));
     assertSame(refused, rethrownRefusal);
 
-    final UnsatisfiedLinkError unlinked = new UnsatisfiedLinkError("libcef.so");
+    final UnsatisfiedLinkError unlinked = new UnsatisfiedLinkError("The libcef.so native library is missing!");
     final UnsatisfiedLinkError rethrownLinkError = assertThrows(UnsatisfiedLinkError.class, () -> this.runUnlinkedOnOwnThread(unlinked));
     assertSame(unlinked, rethrownLinkError);
   }
@@ -310,7 +310,7 @@ class CefEngineTest {
 
     final CefDevToolsClient devTools = mock(CefDevToolsClient.class);
     when(browser.getDevToolsClient()).thenReturn(devTools);
-    final CompletableFuture<String> failed = CompletableFuture.failedFuture(new IllegalStateException("closed"));
+    final CompletableFuture<String> failed = CompletableFuture.failedFuture(new IllegalStateException("The browser is closed!"));
     when(devTools.executeDevToolsMethod(anyString(), anyString())).thenReturn(failed);
     CefEngine.openPage(browser, "https://example.com/", 1_000L, audio, notices::add);
     EventQueue.invokeAndWait(() -> {});
@@ -472,7 +472,7 @@ class CefEngineTest {
       CefEngine.shutDown(this::failToDispose, new CountDownLatch(1), 1_000L);
       final boolean reportsTheDisposeFailure = errors
         .text()
-        .contains("Failed to shut CEF down (java.lang.IllegalStateException: dispose failed).");
+        .contains("Failed to shut CEF down (java.lang.IllegalStateException: The disposal failed!).");
       assertTrue(reportsTheDisposeFailure, errors.text());
     }
 
@@ -487,7 +487,7 @@ class CefEngineTest {
   }
 
   private void failToDispose() {
-    throw new IllegalStateException("dispose failed");
+    throw new IllegalStateException("The disposal failed!");
   }
 
   @Test
@@ -518,10 +518,12 @@ class CefEngineTest {
   @Test
   void shouldLogAFailedDevToolsCall() {
     try (final StandardError errors = new StandardError()) {
-      final String fallback = CefEngine.logFailedCall(new IllegalStateException("gone"));
+      final String fallback = CefEngine.logFailedCall(new IllegalStateException("The browser is gone!"));
       assertEquals("", fallback);
 
-      final boolean reportsTheFailedCall = errors.text().contains("A DevTools call failed (java.lang.IllegalStateException: gone).");
+      final boolean reportsTheFailedCall = errors
+        .text()
+        .contains("A DevTools call failed (java.lang.IllegalStateException: The browser is gone!).");
       assertTrue(reportsTheFailedCall, errors.text());
     }
   }

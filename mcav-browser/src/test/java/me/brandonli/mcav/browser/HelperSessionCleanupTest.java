@@ -60,7 +60,8 @@ final class HelperSessionCleanupTest {
     final Process process = mock(Process.class);
     final ProcessBuilder builder = mock(ProcessBuilder.class);
     final ServerSocketChannel server = mock(ServerSocketChannel.class);
-    final Throwable failure = kind == FailureKind.UNCHECKED ? new IllegalStateException("unlink failed") : new IOException("unlink failed");
+    final Throwable failure =
+      kind == FailureKind.UNCHECKED ? new IllegalStateException("The unlink failed!") : new IOException("The unlink failed!");
     when(process.getOutputStream()).thenReturn(new ByteArrayOutputStream());
     when(process.descendants()).thenAnswer(_ -> Stream.empty());
     when(process.waitFor(anyLong(), eq(TimeUnit.MILLISECONDS))).thenReturn(true);

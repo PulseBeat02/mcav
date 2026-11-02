@@ -450,7 +450,7 @@ class HelperSessionTest {
     }
 
     final String message = failure.getMessage();
-    final boolean reportsTheStartFailure = message.contains("scripted start failure after output");
+    final boolean reportsTheStartFailure = message.contains("The scripted start failed after output!");
     assertTrue(reportsTheStartFailure, message);
 
     final String log = captured.toString(StandardCharsets.UTF_8);
@@ -685,7 +685,7 @@ class HelperSessionTest {
   @Test
   void shouldFailTheStartWhenTheBrowserCannotStart() {
     final BrowserException failure = this.openFails(ScriptedEngine.class.getName(), "/throw", START_TIMEOUT_MILLISECONDS);
-    final boolean reportsTheStartFailure = failure.getMessage().contains("scripted start failure");
+    final boolean reportsTheStartFailure = failure.getMessage().contains("The scripted start failed!");
     assertTrue(reportsTheStartFailure, failure.getMessage());
   }
 
@@ -850,7 +850,7 @@ class HelperSessionTest {
     final Path parent = this.shortDirectory();
     final BrowserException failure = assertThrows(BrowserException.class, () -> this.openSessionIn(launcher, source, parent));
     final String message = failure.getMessage();
-    assertEquals("The browser helper could not be started (no space left)!", message);
+    assertEquals("The browser helper could not be started (The disk has no space left!)!", message);
 
     try (final Stream<Path> left = Files.list(parent)) {
       final List<Path> remainingFiles = left.toList();
@@ -859,7 +859,7 @@ class HelperSessionTest {
   }
 
   private Path failToLinkLibraries() throws IOException {
-    throw new IOException("no space left");
+    throw new IOException("The disk has no space left!");
   }
 
   @Test
@@ -958,7 +958,7 @@ class HelperSessionTest {
 
       @Override
       public void onEnded(final String reason, final Throwable cause) {
-        throw new IllegalStateException("the listener fails: " + reason);
+        throw new IllegalStateException("Because of \"%s\", the listener failed as the test asked!".formatted(reason));
       }
     };
     final HelperLauncher launcher = launcher(ScriptedEngine.class.getName(), START_TIMEOUT_MILLISECONDS);
@@ -975,7 +975,7 @@ class HelperSessionTest {
 
     final String message = failure.getMessage();
     final Throwable[] suppressed = failure.getSuppressed();
-    assertEquals("the listener fails: The browser module was stopped!", message);
+    assertEquals("Because of \"The browser module was stopped!\", the listener failed as the test asked!", message);
     assertEquals(1, suppressed.length, "the failure of the other listener goes along");
 
     final boolean firstAlive = first.isAlive();
@@ -1200,12 +1200,12 @@ class HelperSessionTest {
       new InputStream() {
         @Override
         public int read() throws IOException {
-          throw new IOException("gone");
+          throw new IOException("The helper is gone!");
         }
 
         @Override
         public int read(final byte[] buffer, final int offset, final int length) throws IOException {
-          throw new IOException("gone");
+          throw new IOException("The helper is gone!");
         }
       }
     );
@@ -1333,7 +1333,7 @@ class HelperSessionTest {
 
   private void countAndFailClosing(final AtomicInteger calls) throws IOException {
     calls.incrementAndGet();
-    throw new IOException("already closed");
+    throw new IOException("The connection is already closed!");
   }
 
   @Test

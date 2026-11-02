@@ -74,12 +74,12 @@ class SpecialKeysTest {
     final Reader throwing = new FilterReader(new StringReader("[\"A\"]")) {
       @Override
       public void close() throws IOException {
-        throw new IOException("disk gone");
+        throw new IOException("The disk is gone!");
       }
     };
     final BrowserException failure = assertThrows(BrowserException.class, () -> SpecialKeys.parse(throwing));
     final String message = failure.getMessage();
-    assertEquals("The key list resource could not be read (disk gone)!", message);
+    assertEquals("The key list resource could not be read (The disk is gone!)!", message);
 
     final Throwable cause = failure.getCause();
     assertInstanceOf(IOException.class, cause);

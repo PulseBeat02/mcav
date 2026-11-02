@@ -142,7 +142,7 @@ class JcefNativesTest {
     }
 
     if (!sha256.equals(PINNED_HASH)) {
-      throw new IOException("Checksum mismatch");
+      throw new IOException("The checksum does not match!");
     }
 
     try (final OutputStream output = Files.newOutputStream(destination)) {
@@ -388,7 +388,7 @@ class JcefNativesTest {
     final JcefNatives natives = this.natives(this.nativesJar(JarContent.WITH_ARCHIVE));
     final IOException failure = assertThrows(IOException.class, () -> natives.install(PLATFORM, "tampered", PINNED_SIZE));
     final String message = failure.getMessage();
-    assertEquals("Checksum mismatch", message);
+    assertEquals("The checksum does not match!", message);
 
     final List<String> leftoverNames = this.leftovers();
     assertEquals(List.of(), leftoverNames);

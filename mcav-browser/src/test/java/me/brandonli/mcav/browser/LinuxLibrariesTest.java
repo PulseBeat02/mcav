@@ -245,11 +245,11 @@ class LinuxLibrariesTest {
     assertEquals(debianPackage.length, size, "the pinned size bounds the download");
 
     if (uri.getHost().equals("broken.test")) {
-      throw new IOException("mirror down");
+      throw new IOException("The mirror is down!");
     }
 
     if (!sha256.equals(this.sha256(debianPackage))) {
-      throw new IOException("hash mismatch");
+      throw new IOException("The hash does not match!");
     }
 
     Files.write(destination, debianPackage);
@@ -311,12 +311,12 @@ class LinuxLibrariesTest {
         return new InputStream() {
           @Override
           public int read() throws IOException {
-            throw new IOException("disk gone");
+            throw new IOException("The disk is gone!");
           }
 
           @Override
           public int read(final byte[] buffer, final int offset, final int length) throws IOException {
-            throw new IOException("disk gone");
+            throw new IOException("The disk is gone!");
           }
         };
       }
@@ -547,10 +547,10 @@ class LinuxLibrariesTest {
     assertEquals("The package libmcavtest1 could not be downloaded from any mirror!", failureMessage);
 
     final String firstMirrorMessage = failure.getCause().getMessage();
-    assertEquals("down first.test", firstMirrorMessage);
+    assertEquals("The mirror first.test is down!", firstMirrorMessage);
 
     final String secondMirrorMessage = failure.getCause().getSuppressed()[0].getMessage();
-    assertEquals("down second.test", secondMirrorMessage);
+    assertEquals("The mirror second.test is down!", secondMirrorMessage);
 
     try (final Stream<Path> left = Files.list(this.folder.resolve("other-cache"))) {
       final List<String> leftFileNames = left.map(file -> file.getFileName().toString()).toList();
@@ -561,7 +561,7 @@ class LinuxLibrariesTest {
   private void writeAndFailDownload(final URI uri, final Path destination) throws IOException {
     this.downloads.add(uri);
     Files.write(destination, new byte[1]);
-    throw new IOException("down " + uri.getHost());
+    throw new IOException("The mirror %s is down!".formatted(uri.getHost()));
   }
 
   @Test

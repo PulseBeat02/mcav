@@ -312,7 +312,7 @@ class NetworkGuardTest {
   }
 
   private Socket timeOutConnecting() throws SocketTimeoutException {
-    throw new SocketTimeoutException("connect timed out");
+    throw new SocketTimeoutException("The connection timed out!");
   }
 
   @Test
@@ -626,7 +626,7 @@ class NetworkGuardTest {
   }
 
   private NetworkInterface failToListInterfaces() throws SocketException {
-    throw new SocketException("no interfaces");
+    throw new SocketException("No network interfaces are available!");
   }
 
   @Test
@@ -752,7 +752,7 @@ class NetworkGuardTest {
       assertTrue(connected);
     }
 
-    final ConnectException refusal = new ConnectException("fixture refused connection");
+    final ConnectException refusal = new ConnectException("The fixture refused the connection!");
     final MockedConstruction.MockInitializer<Socket> refusingSockets = (socket, _) -> this.refuseConnecting(socket, refusal);
     try (final MockedConstruction<Socket> sockets = Mockito.mockConstruction(Socket.class, refusingSockets)) {
       final ConnectException thrown = assertThrows(ConnectException.class, () -> this.connectToLoopback(closedPort));
@@ -782,7 +782,7 @@ class NetworkGuardTest {
 
   private void countAndFailClosing(final AtomicInteger closed) throws IOException {
     closed.incrementAndGet();
-    throw new IOException("already gone");
+    throw new IOException("The connection is already gone!");
   }
 
   private static final class TranslatingResolver implements NetworkGuard.Resolver {

@@ -51,7 +51,7 @@ class FrameCanvasTest {
   }
 
   private ImageBuffer snapshot(final FrameCanvas canvas) {
-    return Objects.requireNonNull(canvas.snapshot(), "an open canvas has a picture");
+    return Objects.requireNonNull(canvas.snapshot(), "An open canvas must have a picture!");
   }
 
   @Test
