@@ -184,7 +184,11 @@ class ChartCommandTest(unittest.TestCase):
 
 
 def fake_strip_frame(
-    damaged: tuple[tuple[int, int], int] | None, context: SimpleNamespace, screen: tuple[int, int], classpath: None, screen_index: int = 0
+    damaged: tuple[tuple[int, int], int] | None,
+    context: SimpleNamespace,
+    screen: tuple[int, int],
+    classpath: None,
+    screen_index: int = 0
 ) -> tuple[numpy.ndarray, numpy.ndarray, bool]:
     scene: numpy.ndarray = numpy.zeros((screen[1], screen[0], RGBA_CHANNELS), numpy.uint8)
     after: numpy.ndarray = scene.copy()

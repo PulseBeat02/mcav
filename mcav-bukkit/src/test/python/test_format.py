@@ -73,8 +73,8 @@ class FormatTest(unittest.TestCase):
         )
         fine: Node = Node(mcv2_reference.SPLIT, children=solids)
         roots: dict[int, Node] = {1: Node(mcv2_reference.SPLIT, children=(Node(mcv2_reference.SKIP), fine, Node(mcv2_reference.SKIP),
-                                                         Node(mcv2_reference.SKIP))),
-                 0: Node(mcv2_reference.SOLID, record=b'abc')}
+                                                                          Node(mcv2_reference.SKIP))),
+                                  0: Node(mcv2_reference.SOLID, record=b'abc')}
         frame: mcv2_reference.Frame = parse_frame(pack_frame(65, 17, 1, 1, roots))
         level_counts: tuple[int, int, int] = frame.level_counts
         self.assertEqual((2, 4, 4), level_counts)
@@ -96,8 +96,8 @@ class FormatTest(unittest.TestCase):
         randomizer: random.Random = random.Random(1541)
         for _ in range(16):
             roots: dict[int, Node] = {0: random_pattern_tree(randomizer, mcv2_reference.SUPERBLOCK_SIZE),
-                     1: random_pattern_leaf(randomizer, mcv2_reference.SUPERBLOCK_SIZE),
-                     2: random_pattern_tree(randomizer, mcv2_reference.SUPERBLOCK_SIZE), 3: Node(mcv2_reference.SKIP)}
+                                      1: random_pattern_leaf(randomizer, mcv2_reference.SUPERBLOCK_SIZE),
+                                      2: random_pattern_tree(randomizer, mcv2_reference.SUPERBLOCK_SIZE), 3: Node(mcv2_reference.SKIP)}
             data: bytes = pack_frame(51, 35, 44, 44, roots)
             frame: mcv2_reference.Frame = parse_frame(data)
             parsed_roots: dict[int, Node] = frame.roots

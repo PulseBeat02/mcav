@@ -80,8 +80,12 @@ class LatencyTest(unittest.TestCase):
             arguments: list[str] = [PROGRAM, RECORDING_PATH, CAPTURE_PATH, "--json", str(output)]
             events: list[dict[str, bool | float | int] | dict[str, bool | int]] = [event(0, 0, FIRST_SENT), later]
             captures: list[tuple[int, int]] = [(CAPTURE_TIME, FRAME_NUMBER), (LATER_CAPTURE_TIME, FRAME_NUMBER)]
-            with patch.object(sys, "argv", arguments), patch.object(mcv2_tools, "latency_events", return_value=events),\
-                    patch.object(mcv2_tools, "latency_captures", return_value=captures), redirect_stdout(StringIO()):
+            with (
+                patch.object(sys, "argv", arguments),
+                patch.object(mcv2_tools, "latency_events", return_value=events),
+                patch.object(mcv2_tools, "latency_captures", return_value=captures),
+                redirect_stdout(StringIO()),
+            ):
                 mcv2_tools.latency_main()
 
             return json.loads(output.read_text())

@@ -226,9 +226,10 @@ def _add_keyframe_mode_cases(cases: dict[str, dict[str, str]]) -> None:
 
 def _add_truncated_record_cases(cases: dict[str, dict[str, str]]) -> None:
     nodes: list[Node] = [Node(mcv2_reference.MOTION, record=bytes(mcv2_reference.MOTION_BYTES)),
-             Node(mcv2_reference.SOLID, record=bytes(mcv2_reference.SOLID_BYTES)),
-             Node(mcv2_reference.PALETTE, record=bytes(134)), Node(mcv2_reference.PATTERN, record=bytes(SUPERBLOCK_PATTERN_BYTES)),
-             Node(mcv2_reference.COMPACT, record=bytes(mcv2_reference.COMPACT_BYTES))]
+                         Node(mcv2_reference.SOLID, record=bytes(mcv2_reference.SOLID_BYTES)),
+                         Node(mcv2_reference.PALETTE, record=bytes(134)),
+                         Node(mcv2_reference.PATTERN, record=bytes(SUPERBLOCK_PATTERN_BYTES)),
+                         Node(mcv2_reference.COMPACT, record=bytes(mcv2_reference.COMPACT_BYTES))]
     for node in nodes:
         data: bytes = _predicted_frame(node)
         _add(cases, f'truncated-record-{node.mode}', data[:-1], DESCRIPTOR_RULE, 'record exceeds')

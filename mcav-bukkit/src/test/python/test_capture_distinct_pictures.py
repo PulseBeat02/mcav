@@ -96,7 +96,9 @@ class CaptureCheckTest(unittest.TestCase):
         self.assertEqual(2, ambiguous_reference_frames)
 
     def run_capture_check(
-        self, references: list[numpy.ndarray], captures: list[numpy.ndarray]
+        self,
+        references: list[numpy.ndarray],
+        captures: list[numpy.ndarray]
     ) -> tuple[str | int | None, dict[str, float | int | str], str]:
         with tempfile.TemporaryDirectory() as directory:
             root: Path = Path(directory)

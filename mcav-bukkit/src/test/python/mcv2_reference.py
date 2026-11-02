@@ -450,9 +450,7 @@ def _is_present(masks: Sequence[int], root: int) -> bool:
     return (mask >> (root % MASK_BITS)) & 1 == 1
 
 
-def _place_descriptors(
-    descriptors: bytes, present_roots: list[int], columns: int
-) -> tuple[list[tuple[int, int, int]], dict[int, int]]:
+def _place_descriptors(descriptors: bytes, present_roots: list[int], columns: int) -> tuple[list[tuple[int, int, int]], dict[int, int]]:
     coordinates: list[tuple[int, int, int]] = [_root_coordinates(root, columns) for root in present_roots]
     first_children: dict[int, int] = {}
     for position, descriptor in enumerate(descriptors):
@@ -481,9 +479,7 @@ def _quadrant_coordinates(coordinate: tuple[int, int, int]) -> list[tuple[int, i
     return [(pixel_x + delta_x * half, pixel_y + delta_y * half, half) for delta_x, delta_y in QUADRANT_OFFSETS]
 
 
-def _present_leaves(
-    descriptors: bytes, coordinates: list[tuple[int, int, int]], offsets: list[int], records: list[bytes]
-) -> list[Leaf]:
+def _present_leaves(descriptors: bytes, coordinates: list[tuple[int, int, int]], offsets: list[int], records: list[bytes]) -> list[Leaf]:
     leaves: list[Leaf] = []
     for position, descriptor in enumerate(descriptors):
         mode: int
@@ -507,9 +503,7 @@ def _absent_leaf(root: int, columns: int) -> Leaf:
     return Leaf(pixel_x, pixel_y, size, SKIP, 0, None, b"", None)
 
 
-def _build_roots(
-    descriptors: bytes, records: list[bytes], first_children: dict[int, int], present_roots: list[int]
-) -> dict[int, Node]:
+def _build_roots(descriptors: bytes, records: list[bytes], first_children: dict[int, int], present_roots: list[int]) -> dict[int, Node]:
     nodes: dict[int, Node] = {}
     for position in reversed(range(len(descriptors))):
         mode: int
@@ -635,9 +629,7 @@ def _pack_words(words: Sequence[int]) -> bytes:
     return struct.pack(words_format, *words)
 
 
-def decode(
-    data: bytes, reference: numpy.ndarray | None = None, reference_id: int | None = None
-) -> numpy.ndarray:
+def decode(data: bytes, reference: numpy.ndarray | None = None, reference_id: int | None = None) -> numpy.ndarray:
     frame: Frame = parse_frame(data)
     return _decode(frame, reference, reference_id)
 

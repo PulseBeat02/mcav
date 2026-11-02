@@ -178,9 +178,11 @@ class DifferentialTest(unittest.TestCase):
     def test_should_report_java_failures_as_findings(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             arguments: SimpleNamespace = SimpleNamespace(out=Path(directory), java=PLACEHOLDER, classpath=PLACEHOLDER, seed=SEED)
-            with patch.object(mcv2_tools, BUILD_ARCHIVES, return_value={ARCHIVE_NAME: [FOREIGN_FRAME]}),\
-                    patch.object(mcv2_tools.subprocess, RUN_FUNCTION, return_value=SimpleNamespace(returncode=2, stderr='crash')),\
-                    redirect_stderr(StringIO()):
+            with (
+                patch.object(mcv2_tools, BUILD_ARCHIVES, return_value={ARCHIVE_NAME: [FOREIGN_FRAME]}),
+                patch.object(mcv2_tools.subprocess, RUN_FUNCTION, return_value=SimpleNamespace(returncode=2, stderr='crash')),
+                redirect_stderr(StringIO()),
+            ):
                 status: int = mcv2_tools.differential_run(arguments)
                 self.assertEqual(2, status)
 
@@ -192,9 +194,12 @@ class DifferentialTest(unittest.TestCase):
             response: SimpleNamespace = SimpleNamespace(
                 returncode=0, stderr="", stdout=archive_path + TOKEN_SEPARATOR + TOKEN_SEPARATOR.join(tokens)
             )
-            with patch.object(mcv2_tools, BUILD_ARCHIVES, return_value={ARCHIVE_NAME: frames}),\
-                    patch.object(mcv2_tools, 'differential_reference_tokens', return_value=[REFERENCE_DIGEST] * len(frames)),\
-                    patch.object(mcv2_tools.subprocess, RUN_FUNCTION, return_value=response) as launch, redirect_stdout(StringIO()):
+            with (
+                patch.object(mcv2_tools, BUILD_ARCHIVES, return_value={ARCHIVE_NAME: frames}),
+                patch.object(mcv2_tools, 'differential_reference_tokens', return_value=[REFERENCE_DIGEST] * len(frames)),
+                patch.object(mcv2_tools.subprocess, RUN_FUNCTION, return_value=response) as launch,
+                redirect_stdout(StringIO()),
+            ):
                 status: int = mcv2_tools.differential_run(arguments)
 
             command: Any = launch.call_args.args[0]

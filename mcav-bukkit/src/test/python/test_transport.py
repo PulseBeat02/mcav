@@ -93,7 +93,8 @@ class TransportTest(unittest.TestCase):
         self.assertEqual(frame, payload)
 
         fields: tuple[Any, ...] = tuple(getattr(read_page(pages[0]), field) for field in
-                       ('stream_id', 'frame_id', 'number', 'count', 'reference_id', 'frame_bytes', 'flags', 'symbol_bits'))
+                                        ('stream_id', 'frame_id', 'number', 'count', 'reference_id', 'frame_bytes',
+                                         'flags', 'symbol_bits'))
         self.assertEqual((7, 9, 0, 1, 9, 48, 1, 6), fields)
 
         page_wire_bytes: int = wire_bytes(pages)
@@ -211,7 +212,7 @@ class TransportTest(unittest.TestCase):
 
         # A page may hold 20 bytes even though those bytes cannot hold a complete v3 index.
         header: bytes = PAGE_HEADER.pack(mcv2_reference.PAGE_MAGIC, mcv2_reference.PAGE_VERSION, mcv2_reference.SYMBOL_BITS,
-                                  1, 1, 0, 0, 1, 0, 20, 0)
+                                         1, 1, 0, 0, 1, 0, 20, 0)
         symbols: bytes = to_symbols(with_crc(header + bytes(20)))
         frame_bytes: int = read_page(symbols).frame_bytes
         self.assertEqual(20, frame_bytes)

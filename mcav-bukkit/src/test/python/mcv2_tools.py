@@ -1354,7 +1354,11 @@ def capture_check_ssim(captured: numpy.ndarray, expected: numpy.ndarray) -> floa
 
 
 def capture_check_vmaf(
-    ffmpeg: Any, reference_frames: list[Any], captured: list[numpy.ndarray], width: Any, height: Any
+    ffmpeg: Any,
+    reference_frames: list[Any],
+    captured: list[numpy.ndarray],
+    width: Any,
+    height: Any
 ) -> tuple[float, float]:
     with tempfile.TemporaryDirectory() as folder:
         reference_picture: Path = Path(folder, REFERENCE_PICTURES_NAME)
@@ -1431,8 +1435,8 @@ def edge_streams_build_streams(seed: int = EDGE_STREAMS_DEFAULT_SEED) -> dict[st
     }
     for name, width, height in EDGE_STREAMS_RANDOM_CASES:
         streams[f"edge-{name}.mcs"] = edge_streams_random_stream(randomizer, width, height)
-    streams[
-        "edge-absent.mcs"] = [pack_frame(EDGE_STREAMS_SMALL_WIDTH, EDGE_STREAMS_SMALL_HEIGHT, 0, 0, {}),
+    streams["edge-absent.mcs"] = [
+        pack_frame(EDGE_STREAMS_SMALL_WIDTH, EDGE_STREAMS_SMALL_HEIGHT, 0, 0, {}),
         pack_frame(EDGE_STREAMS_SMALL_WIDTH, EDGE_STREAMS_SMALL_HEIGHT, 1, 0, {}),
     ]
     motion: list[bytes] = [
@@ -1483,8 +1487,8 @@ def edge_streams_build_streams(seed: int = EDGE_STREAMS_DEFAULT_SEED) -> dict[st
         )
         for index in range(EDGE_STREAMS_LONG_WALK_ROOTS)
     }
-    streams[
-        "edge-long-walk.mcs"] = [pack_frame(EDGE_STREAMS_LONG_WALK_WIDTH, EDGE_STREAMS_LONG_WALK_HEIGHT, 0, 0, {}),
+    streams["edge-long-walk.mcs"] = [
+        pack_frame(EDGE_STREAMS_LONG_WALK_WIDTH, EDGE_STREAMS_LONG_WALK_HEIGHT, 0, 0, {}),
         pack_frame(EDGE_STREAMS_LONG_WALK_WIDTH, EDGE_STREAMS_LONG_WALK_HEIGHT, 1, 0, long_roots),
     ]
     roots: dict[int, Node] = {
@@ -1650,7 +1654,10 @@ def edge_streams_pattern_axes(randomizer: random.Random, size: int) -> tuple[byt
 
 
 def edge_streams_random_stream(
-    randomizer: random.Random, width: int | None = None, height: int | None = None, frame_count: int = EDGE_STREAMS_FRAMES
+    randomizer: random.Random,
+    width: int | None = None,
+    height: int | None = None,
+    frame_count: int = EDGE_STREAMS_FRAMES
 ) -> list[bytes]:
     width = randomizer.randint(MINIMUM_DIMENSION, EDGE_STREAMS_MAXIMUM_WIDTH) if width is None else width
     height = randomizer.randint(MINIMUM_DIMENSION, EDGE_STREAMS_MAXIMUM_HEIGHT) if height is None else height
@@ -2596,7 +2603,10 @@ def shader_timing_main() -> None:
 
 
 def shader_timing_stream(
-    context: "moderngl.Context", arguments: argparse.Namespace, page_maker: Any, stream: str
+    context: "moderngl.Context",
+    arguments: argparse.Namespace,
+    page_maker: Any,
+    stream: str
 ) -> tuple[dict[str, Any], int]:
     frames: list[bytes] = list(read_archive(stream))
     width: int
@@ -2777,7 +2787,10 @@ def shader_timing_summarize(samples: list[dict[str, float]], names: tuple[str, .
 
 
 def shader_timing_print(
-    stream_name: str, result: dict[str, dict[str, dict[str, float | int]] | int], names: tuple[str, ...], rounds_counted: int
+    stream_name: str,
+    result: dict[str, dict[str, dict[str, float | int]] | int],
+    names: tuple[str, ...],
+    rounds_counted: int
 ) -> None:
     print(
         "%s (%dx%d, %d frames, %d rounds counted, %d picture mismatches between rounds)"
@@ -2810,8 +2823,7 @@ def strip_check_main() -> None:
         "--screens", type=int, default=STRIP_CHECK_DEFAULT_SCREENS, help="number of screens sharing the strip (default: %(default)s)"
     )
     parser.add_argument(
-        "--screen", type=int, default=0,
-        help="zero-based screen index for its anchor descriptor (default: 0)",
+        "--screen", type=int, default=0, help="zero-based screen index for its anchor descriptor (default: 0)",
     )
     parser.add_argument(
         "--first-slot", type=int, default=0, help="first global page slot for this screen (default: 0)"
@@ -2820,8 +2832,7 @@ def strip_check_main() -> None:
         "--total-slots", type=int, help="total page slots across all screens (defaults to --slots)"
     )
     parser.add_argument(
-        "--debug-top", type=int, default=0,
-        help="rows between the anchor descriptors and debug view (default: 0)",
+        "--debug-top", type=int, default=0, help="rows between the anchor descriptors and debug view (default: 0)",
     )
     arguments: argparse.Namespace = parser.parse_args()
     from PIL import Image
@@ -3029,7 +3040,10 @@ def strip_fit_check_strip_rows(width: int) -> int:
 
 # one random scene for every size, so strip coverage compares exactly
 def strip_fit_check_frame(
-    context: "moderngl.Context", screen: tuple[int, int], classpath: str | None = None, screen_index: int = 0
+    context: "moderngl.Context",
+    screen: tuple[int, int],
+    classpath: str | None = None,
+    screen_index: int = 0
 ) -> tuple[numpy.ndarray | Any, numpy.ndarray, bool]:
     global shader_check_screen, shader_check_screen_index, shader_check_first_slot
     shader_check_screen = screen
