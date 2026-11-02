@@ -64,7 +64,7 @@ public class StartCancelRace {
   }
 
   /**
-   * The worker running the start, as {@code runStartTask} and {@code finishStartTask} do: a start that begins releases
+   * Runs the start as the worker does in {@code runStartTask} and {@code finishStartTask}: a start that begins releases
    * its player itself when the screen was cancelled while it ran.
    */
   @Actor
@@ -81,7 +81,7 @@ public class StartCancelRace {
   }
 
   /**
-   * A second {@code create} replacing the screen, as {@code releaseCurrent} does: it releases the player unless the
+   * Replaces the screen as a second {@code create} does in {@code releaseCurrent}: it releases the player unless the
    * worker owns the cleanup because the start is running.
    */
   @Actor

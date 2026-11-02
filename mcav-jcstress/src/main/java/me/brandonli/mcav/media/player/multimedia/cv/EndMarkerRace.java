@@ -73,7 +73,7 @@ public class EndMarkerRace {
   }
 
   /**
-   * The decoder queuing the frame it just decoded. The decoder blocks in {@code put} until there is room or it is
+   * Queues the frame the decoder just decoded. The decoder blocks in {@code put} until there is room or it is
    * interrupted by {@code stop()}; one attempt that does not block covers the interleavings that matter here without a
    * thread that could wait forever.
    */
@@ -84,7 +84,7 @@ public class EndMarkerRace {
   }
 
   /**
-   * {@code stop()} replacing the queued frames with the end marker.
+   * Replaces the queued frames with the end marker, as {@code stop()} does.
    */
   @Actor
   public void stop() {
