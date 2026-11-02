@@ -612,6 +612,11 @@ final class AbstractInstallerTest {
   }
 
   @Test
+  void shouldRejectANullFileToMarkExecutable() {
+    assertThrows(NullPointerException.class, () -> AbstractInstaller.markExecutable(null));
+  }
+
+  @Test
   void shouldReportAFolderThatCannotBeCreated() throws IOException {
     final Path blocker = this.createFileInFolder(BLOCKER_FILE_NAME);
     final Path tools = blocker.resolve(TOOLS_FOLDER_NAME);
