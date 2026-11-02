@@ -18,7 +18,6 @@
 package me.brandonli.mcav.json.ytdlp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
@@ -49,9 +48,7 @@ final class YtdlpParseExceptionTest {
 
   @Test
   void shouldBeAnMCAVExceptionApartFromIllegalArguments() {
-    final YtdlpParseException exception = new YtdlpParseException("Failure!");
     final Class<?> superclass = YtdlpParseException.class.getSuperclass();
-    assertInstanceOf(MCAVException.class, exception, "a failing URL is recoverable, so it is no Error");
     assertEquals(MCAVException.class, superclass);
   }
 }
