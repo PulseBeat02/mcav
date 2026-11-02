@@ -36,15 +36,20 @@ import net.dv8tion.jda.api.utils.cache.CacheFlag;
 
 public final class JdaAudioExample {
 
+  private static final String TOKEN_VARIABLE = "DISCORD_TOKEN";
+  private static final String GUILD_VARIABLE = "DISCORD_GUILD";
+  private static final String CHANNEL_VARIABLE = "DISCORD_CHANNEL";
+  private static final String MEDIA_FILE_VARIABLE = "MEDIA_FILE";
+
   private JdaAudioExample() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   static void main() throws InterruptedException {
-    final String token = getEnvironmentVariable("DISCORD_TOKEN");
-    final String guildId = getEnvironmentVariable("DISCORD_GUILD");
-    final String channelId = getEnvironmentVariable("DISCORD_CHANNEL");
-    final String file = getEnvironmentVariable("MEDIA_FILE");
+    final String token = getEnvironmentVariable(TOKEN_VARIABLE);
+    final String guildId = getEnvironmentVariable(GUILD_VARIABLE);
+    final String channelId = getEnvironmentVariable(CHANNEL_VARIABLE);
+    final String file = getEnvironmentVariable(MEDIA_FILE_VARIABLE);
 
     final MCAVApi api = MCAV.api();
     api.install(JdaModule.class);
