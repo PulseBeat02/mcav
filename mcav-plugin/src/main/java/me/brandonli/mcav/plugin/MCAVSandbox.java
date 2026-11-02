@@ -198,13 +198,7 @@ public final class MCAVSandbox extends JavaPlugin {
     );
   }
 
-  /**
-   * Logs on one line why the plugin cannot be enabled and how to fix it, and disables the plugin. The plugin manager
-   * calls {@link #onDisable()}, which releases whatever was created before the failure.
-   *
-   * @param failure the setup problem
-   * @param remedy  what the server owner has to do about it
-   */
+  // disabling runs onDisable(), which releases what was created before the failure
   private void disableBecause(final RuntimeException failure, final String remedy) {
     final ComponentLogger pluginLogger = this.requireLogger();
     final String reason = failure.getMessage();

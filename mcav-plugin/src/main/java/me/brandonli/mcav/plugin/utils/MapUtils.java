@@ -129,9 +129,6 @@ public final class MapUtils {
     return map;
   }
 
-  /**
-   * Returns the map with an id, creating maps in the first world until it exists.
-   */
   private static MapView findOrCreateMap(final int id) {
     final MapView existing = Bukkit.getMap(id);
     if (existing != null) {
@@ -141,13 +138,7 @@ public final class MapUtils {
     return createMapsUpTo(id);
   }
 
-  /**
-   * Creates maps until the map with the id exists. The server hands out map ids in increasing order.
-   *
-   * @return the created map with exactly the requested id
-   * @throws IllegalArgumentException if the id is more than {@link #MAXIMUM_NEW_MAPS} ids past the next map id
-   * @throws IllegalStateException    if the server has already advanced past a missing map id
-   */
+  // the server hands out map ids in increasing order
   private static MapView createMapsUpTo(final int id) {
     final List<World> worlds = Bukkit.getWorlds();
     final World world = worlds.getFirst();
@@ -253,9 +244,6 @@ public final class MapUtils {
     container.set(Keys.SCREEN_KEY, PersistentDataType.STRING, screen);
   }
 
-  /**
-   * The wall of a map screen being built: where it starts, which way it faces, and what it is made of.
-   */
   private static final class Wall {
 
     private final World world;
@@ -275,15 +263,7 @@ public final class MapUtils {
       this.reversed = face == BlockFace.SOUTH || face == BlockFace.EAST;
     }
 
-    /**
-     * Places the block of a cell of the wall and hangs a frame with a map on it.
-     *
-     * @param column the column as seen by the builder, counted from the left
-     * @param row    the row, counted from the bottom
-     * @param width  the number of columns
-     * @param map    the id of the map in the frame
-     * @return the frame
-     */
+    // column counts from the builder's left, row from the bottom
     ItemFrame place(final int column, final int row, final int width, final int map) {
       final int offset = this.reversed ? width - 1 - column : column;
       final Block raised = this.start.getRelative(BlockFace.UP, row);
@@ -307,15 +287,7 @@ public final class MapUtils {
       return frame;
     }
 
-    /**
-     * Removes the item frames already hanging in the block the new frame goes into.
-     *
-     * <p>Without this, building a screen where one already stands leaves the old frame in place. A block holds
-     * only one frame per side, so the new frame cannot take the side it is asked for and keeps the one it was
-     * spawned with, hanging on the opposite side of the same block with its back to the viewer, directly in front
-     * of the map. The screen then shows the backs of item frames and stays blank however much media is sent to
-     * it, with nothing wrong in the packets.
-     */
+    // a block holds one frame per side, so an old frame would push the new one behind the map
     private void clearFrames(final Block frameBlock) {
       final Location centre = frameBlock.getLocation();
       centre.add(HALF_BLOCK, HALF_BLOCK, HALF_BLOCK);

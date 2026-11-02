@@ -60,17 +60,9 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
 
   private static final String NO_PROFILE = "none";
 
-  /**
-   * The system property that sets the page slots of the screens started next, for a measurement; unset or 0 for
-   * mcav's default.
-   */
+  // for measurements; unset or 0 keeps mcav's default
   static final String PAGE_SLOTS_PROPERTY = "mcav.sandbox.mcv2.pageSlots";
 
-  /**
-   * The system property that sets the backlog limit of the screens started next, in bytes, or {@code none} for no
-   * backpressure at all (no backlog limit and no cap on a viewer's unsent bytes), for a measurement; unset for mcav's
-   * default.
-   */
   static final String BACKLOG_PROPERTY = "mcav.sandbox.mcv2.backlogLimit";
 
   /**
@@ -162,12 +154,6 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
     this.playVideo(provider, sender, playerSelector, playerType, audioType, videoResolution, mrl, ytdlpOptions, filters);
   }
 
-  /**
-   * The backlog limit of new screens: the {@link #BACKLOG_PROPERTY} system property in bytes, {@code none} for no
-   * limit, or mcav's default when it is not set.
-   *
-   * @return the limit in bytes
-   */
   static long backlogLimit() {
     final String value = System.getProperty(BACKLOG_PROPERTY);
     if (value == null) {
@@ -177,12 +163,7 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
     return value.equals(NO_PROFILE) ? Long.MAX_VALUE : Long.parseLong(value);
   }
 
-  /**
-   * The cap on a viewer's unsent bytes of new screens: none when the {@link #BACKLOG_PROPERTY} system property is
-   * {@code none}, a measurement without backpressure, and mcav's default otherwise.
-   *
-   * @return the cap in bytes, 0 for none
-   */
+  // none turns backpressure off, for measurements
   static int unsentLimit() {
     return NO_PROFILE.equals(System.getProperty(BACKLOG_PROPERTY)) ? 0 : Mcv2Configuration.DEFAULT_UNSENT_LIMIT;
   }
@@ -211,14 +192,7 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
     return VideoPipelineStep.of(output);
   }
 
-  /**
-   * The filter of an MCV2 video screen: its output in a slot of the pack, or, when every slot plays a screen, the
-   * dithered maps of the same wall.
-   *
-   * @param support  the plugin's MCV2 support
-   * @param settings the screen
-   * @return the filter, not started
-   */
+  // when every pack slot plays a screen, falls back to the dithered maps of the same wall
   static FunctionalVideoFilter mcv2Filter(final Mcv2Support support, final Mcv2Settings settings) {
     final Mcv2Configuration configuration = settings.configuration();
     final Optional<Mcv2Output> foundOutput = support.output(settings.sender(), configuration, settings.dithering());
@@ -236,12 +210,5 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
     return DitherFilter.dither(settings.dithering().createAlgorithm(), new CompressedMapResult(maps));
   }
 
-  /**
-   * What {@link #createVideoFilter} needs.
-   *
-   * @param configuration the screen
-   * @param dithering     the fallback dithering
-   * @param sender        who started the screen, who is told when it steps down or back up
-   */
   record Mcv2Settings(Mcv2Configuration configuration, DitheringArgument dithering, CommandSender sender) {}
 }

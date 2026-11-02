@@ -96,7 +96,6 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
 
   private static final String PLAYBACK_FAILED = "Failed to play a video.";
 
-  /** Recognises a raw FFmpeg input, {@code format||input}, as the media argument. */
   private static final FfmpegDirectSourceDetector RAW_INPUTS = new FfmpegDirectSourceDetector();
 
   private static final String HTTP_SCHEME = "http";
@@ -305,11 +304,6 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     }
   }
 
-  /**
-   * Claims the right to start a video, which only one command may do at a time.
-   *
-   * @return true if claimed, false if another video is still starting
-   */
   private boolean claim() {
     final AtomicBoolean initializing = this.manager.getStatus();
     return initializing.compareAndSet(false, true);
@@ -327,11 +321,6 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     }
   }
 
-  /**
-   * Parses the yt-dlp options of the flags, telling the sender when one of them is not supported.
-   *
-   * @return the arguments for yt-dlp, or {@code null} if an option was refused
-   */
   private String @Nullable [] parseFlags(final CommandSender sender, final String flags) {
     final VideoFlagsParser flagsParser = new VideoFlagsParser();
     try {
@@ -345,10 +334,6 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     }
   }
 
-  /**
-   * Starts the video on the worker thread and reports the outcome to the sender on the main thread. The claim of
-   * {@link #claim()} is given up once the worker is done, or at once if it refuses the video.
-   */
   private void launch(final CommandSender sender, final PlaybackRequest request) {
     final AtomicBoolean initializing = this.manager.getStatus();
     final ExecutorService service = this.manager.getService();
@@ -430,13 +415,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     return deviceProblem != null ? deviceProblem : this.findProblem(playerType, audioType, mrl);
   }
 
-  /**
-   * Checks that a device of the server is one the sender may open. The DEVICE player and a raw FFmpeg input
-   * ({@code format||input}, which can open the server's cameras, microphones and screen) need their own permission,
-   * and the DEVICE player opens only a number {@code /mcav video devices} listed, never one guessed.
-   *
-   * @return the message that explains why the device cannot be played, or {@code null} if it can, or no device is asked
-   */
+  // DEVICE players and raw FFmpeg inputs (format||input) can open the server's cameras and microphones
   private @Nullable Component findDeviceProblem(final CommandSender sender, final PlayerArgument playerType, final String mrl) {
     final boolean isDevice = playerType == PlayerArgument.DEVICE;
     if (!isDevice && !RAW_INPUTS.isDetectedSource(mrl)) {
@@ -450,11 +429,6 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     return isDevice && CaptureDevices.find(this.manager.getDevices(), mrl).isEmpty() ? Message.DEVICE_UNLISTED.build(mrl) : null;
   }
 
-  /**
-   * Finds the first reason the video cannot play now: the audio output, then the player backend, then yt-dlp.
-   *
-   * @return the message that explains the problem, or {@code null} if the video can play
-   */
   private @Nullable Component findProblem(final PlayerArgument playerType, final AudioArgument audioType, final String mrl) {
     final Optional<Component> foundAudioProblem = AudioOutputs.findProblem(this.provider, audioType);
     final @Nullable Component audioProblem = foundAudioProblem.orElse(null);
@@ -470,12 +444,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     return this.findYtdlpProblem(mrl);
   }
 
-  /**
-   * Checks whether the player backend can play now. VLC is prepared in the background when the plugin is enabled, so
-   * it may still be downloading, or it may have turned out to be unavailable.
-   *
-   * @return the message that explains why the backend cannot play, or {@code null} if it can
-   */
+  // VLC is prepared in the background, so it may still be downloading or unavailable
   private @Nullable Component findPlayerProblem(final PlayerArgument playerType) {
     if (playerType != PlayerArgument.VLC) {
       return null;
@@ -494,13 +463,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     return null;
   }
 
-  /**
-   * Checks whether the media can be resolved now. A web page, such as a YouTube video, is resolved with yt-dlp, which
-   * is prepared in the background when the plugin is enabled and may still be downloading. Files, devices, FFmpeg
-   * inputs and direct links to media need no yt-dlp.
-   *
-   * @return the message that explains why the media cannot be resolved yet, or {@code null} if it can
-   */
+  // yt-dlp is prepared in the background, so it may still be downloading or unavailable
   private @Nullable Component findYtdlpProblem(final String mrl) {
     final boolean url = SourceUtils.isUri(mrl);
     final boolean direct = SourceUtils.isDirectVideo(mrl);
@@ -550,12 +513,6 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     }
   }
 
-  /**
-   * Creates the player of the request, makes it the running one, and attaches the video, audio, and dimension
-   * outputs to it.
-   *
-   * @return the player, which has not started yet
-   */
   private VideoPlayerMultiplexer createPlayer(final PlaybackRequest request, final UrlParseDump dump) {
     final Pair<Integer, Integer> resolution = request.getResolution();
     final VideoConfigurationProvider configurationProvider = request.getConfigurationProvider();
@@ -594,19 +551,12 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     dimensionCallback.attach(dimension);
   }
 
-  /**
-   * Starts the player. When it fails to start, the player and its outputs are released at once, so nothing is
-   * left on the screens of the viewers.
-   *
-   * @return true if the player started, false if it refused to start
-   */
   private boolean startPlayback(final VideoPlayerMultiplexer player, final SourceSelection selection) {
     final Source video = selection.getVideo();
     final Source audio = selection.getAudio();
     return this.manager.startNative(() -> audio == null ? player.start(video) : player.start(video, audio));
   }
 
-  /** Runs one cleanup after a recoverable failure; the caller explicitly rethrows that original failure. */
   private void cleanupAfterFailure(final Throwable failure, final Runnable cleanup) {
     try {
       cleanup.run();
@@ -676,12 +626,6 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     return new SourceSelection(source, null, dump);
   }
 
-  /**
-   * Describes a source that can be played as it is, without asking yt-dlp: an FFmpeg input, a capture device, a
-   * file, or a URL that points directly at a media file.
-   *
-   * @return the description
-   */
   private UrlParseDump describeDirectSource(final Source source, final String mrl) {
     if (source instanceof final FfmpegDirectSource ffmpegSource) {
       final String input = ffmpegSource.getMrl();
@@ -730,11 +674,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     return new SourceSelection(video, audio, dump);
   }
 
-  /**
-   * Refuses a stream that is not on the web. The page, not the player, chooses the stream URLs yt-dlp reports, and
-   * FFmpeg and VLC open whatever their protocols reach, such as a file of the server or a service only it can connect
-   * to; a player needs the capture permission even to name such an input.
-   */
+  // the page chooses the stream URLs, and FFmpeg and VLC would open server files or local services too
   private void checkWebStream(final UriSource page, final UriSource stream) {
     final URI uri = stream.getUri();
     final String scheme = uri.getScheme();
@@ -746,9 +686,6 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     }
   }
 
-  /**
-   * The video source, the optional separate audio source, and the information shown about the media.
-   */
   private static final class SourceSelection {
 
     private final Source video;
@@ -793,9 +730,6 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     Object buildConfiguration(final Pair<Integer, Integer> resolution);
   }
 
-  /**
-   * Everything the worker thread needs to start a video, as entered by the command sender.
-   */
   private static final class PlaybackRequest {
 
     private final PlayerArgument playerType;

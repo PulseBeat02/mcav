@@ -122,12 +122,6 @@ public final class InteractUtils {
     return Optional.of(coordinates);
   }
 
-  /**
-   * Returns the column and row of the frame on its wall, counted from the first corner of the wall.
-   *
-   * @return the column and row, or {@code null} if the player does not look at a block face or the wall is not
-   * complete
-   */
   private static int @Nullable [] getRelativeMapIndex(final Player player, final ItemFrame frame) {
     final BlockFace hitFace = player.getTargetBlockFace(MAXIMUM_TARGET_DISTANCE);
     if (hitFace == null) {
@@ -144,12 +138,6 @@ public final class InteractUtils {
     return indexOnWall(hitFace, frameLocation, cornerLocation);
   }
 
-  /**
-   * Returns the column and row of a frame from its distance to the first corner of the wall, measured along the two
-   * axes the wall spans.
-   *
-   * @return the column and row
-   */
   private static int[] indexOnWall(final BlockFace hitFace, final Location frameLocation, final Location cornerLocation) {
     final int frameX = frameLocation.getBlockX();
     final int frameY = frameLocation.getBlockY();
@@ -184,10 +172,6 @@ public final class InteractUtils {
     };
   }
 
-  /**
-   * Returns the position the player looks at inside the frame, from 0 to 1 on both axes, taking the rotation of the
-   * map inside the frame into account.
-   */
   private static double @Nullable [] getRotatedFramePosition(final Player player, final ItemFrame frame) {
     final double[] position = getFramePosition(player, frame);
     if (position == null) {
@@ -205,10 +189,7 @@ public final class InteractUtils {
     };
   }
 
-  /**
-   * Returns the position the player looks at inside the frame, from 0 to 1 on both axes, as if the map were not
-   * rotated. Returns {@code null} for misses and unsupported floor or ceiling frames.
-   */
+  // as if the map were not rotated; null for misses and floor or ceiling frames
   private static double @Nullable [] getFramePosition(final Player player, final ItemFrame frame) {
     final BlockFace face = frame.getAttachedFace();
     final boolean alongX = face == BlockFace.EAST || face == BlockFace.WEST;
@@ -237,11 +218,6 @@ public final class InteractUtils {
     return new double[] { fromLeft, fromTop };
   }
 
-  /**
-   * Follows the line of sight of the player to the plane of the frame.
-   *
-   * @param alongX true if the frame hangs on a wall facing east or west, false if it faces north or south
-   */
   private static @Nullable Vector findLookedAtPoint(final Player player, final ItemFrame frame, final boolean alongX) {
     final Location eyeLocation = player.getEyeLocation();
     final Location frameLocation = frame.getLocation();
@@ -259,10 +235,6 @@ public final class InteractUtils {
     return eyePosition.add(direction);
   }
 
-  /**
-   * Finds the first corner of the wall the player looks at by walking from the targeted block through all
-   * connected map frames that face the same direction.
-   */
   private static @Nullable ItemFrame findFirstCorner(final Player player, final BlockFace hitFace, final ItemFrame target) {
     final Set<ItemFrame> wallFrames = collectWallFrames(player, hitFace, target);
     final ItemFrame firstCorner = findTaggedFrame(wallFrames, Keys.FIRST_MAP_KEY);

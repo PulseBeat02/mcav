@@ -28,11 +28,7 @@ import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Records the frames an MCV2 screen sends into a stream file, each after its length as a little-endian 32-bit number,
- * the format {@code /mcav mcv2 play} reads, so a measurement can decode what the viewers were sent with the reference
- * decoder. The first failure to write is logged and ends the recording; the screen plays on.
- */
+// writes the stream format /mcav mcv2 play reads, so measurements can decode what viewers were sent
 final class FrameRecorder implements Consumer<byte[]> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FrameRecorder.class);
@@ -45,12 +41,6 @@ final class FrameRecorder implements Consumer<byte[]> {
 
   private volatile boolean failed;
 
-  /**
-   * Constructs a recorder.
-   *
-   * @param file the stream file, appended to
-   * @throws IllegalArgumentException if the file is the root of the file system
-   */
   FrameRecorder(final Path file) {
     Preconditions.checkNotNull(file, "File must not be null!");
 

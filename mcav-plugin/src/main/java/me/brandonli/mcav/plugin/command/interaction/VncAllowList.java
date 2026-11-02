@@ -77,12 +77,6 @@ public final class VncAllowList {
     return new VncAllowList(copy);
   }
 
-  /**
-   * Parses a server as a command names it.
-   *
-   * @param text {@code host:port}, or {@code [address]:port} for an IPv6 address
-   * @return the server, or null if the text is not a host and a TCP port
-   */
   static @Nullable Target parse(final String text) {
     Preconditions.checkNotNull(text, "Text must not be null!");
 
@@ -100,7 +94,6 @@ public final class VncAllowList {
     return new Target(host, port);
   }
 
-  /** A host as a command names it: brackets only around an IPv6 address, and no spaces. */
   private static @Nullable String parseHost(final String text) {
     final boolean bracketed = text.startsWith(OPENING_BRACKET) && text.endsWith(CLOSING_BRACKET);
     final String host = bracketed ? text.substring(1, text.length() - 1) : text;
@@ -122,12 +115,6 @@ public final class VncAllowList {
     return port <= MAXIMUM_PORT ? port : -1;
   }
 
-  /**
-   * Finds the entry of a server a command names.
-   *
-   * @param text the server as the command names it
-   * @return its entry, or null if the text is not a server or the server is not allowed
-   */
   @Nullable Entry find(final String text) {
     final Target target = parse(text);
     if (target == null) {
@@ -143,13 +130,6 @@ public final class VncAllowList {
     return null;
   }
 
-  /**
-   * Formats a server as a command names it.
-   *
-   * @param host the host
-   * @param port the port
-   * @return {@code host:port}, with an IPv6 address in brackets
-   */
   static String format(final String host, final int port) {
     return (host.indexOf(PORT_SEPARATOR) >= 0 ? OPENING_BRACKET + host + CLOSING_BRACKET : host) + PORT_SEPARATOR + port;
   }
@@ -321,11 +301,5 @@ public final class VncAllowList {
     }
   }
 
-  /**
-   * A server as a command names it: {@code host:port}, or {@code [address]:port} for an IPv6 address.
-   *
-   * @param host the host
-   * @param port the port
-   */
   record Target(String host, int port) {}
 }

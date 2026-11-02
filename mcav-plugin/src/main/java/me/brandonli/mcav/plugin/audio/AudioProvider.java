@@ -115,12 +115,7 @@ public final class AudioProvider {
     this(sandbox, Executors.newVirtualThreadPerTaskExecutor());
   }
 
-  /**
-   * Constructs the provider with the executor that starts the Discord bot and the web server.
-   *
-   * @param sandbox the plugin, whose configuration must be loaded
-   * @param startup the executor, which {@link #shutdown()} shuts down
-   */
+  // the sandbox's configuration must already be loaded
   @VisibleForTesting
   AudioProvider(final MCAVSandbox sandbox, final ExecutorService startup) {
     Preconditions.checkNotNull(sandbox, "Plugin must not be null!");
@@ -399,7 +394,6 @@ public final class AudioProvider {
     speakers.release();
   }
 
-  /** Connects the output a source chose to it. */
   private AudioFilter connect(final Claim claim) {
     return switch (claim.argument) {
       case DISCORD_BOT -> this.constructDiscordFilter(claim.dump);
@@ -569,7 +563,6 @@ public final class AudioProvider {
     return this.httpServer != null;
   }
 
-  /** A source's hold on the outputs: the output it chose, what it shows there, and the filter it plays into. */
   private static final class Claim {
 
     private final Object source;
@@ -587,9 +580,6 @@ public final class AudioProvider {
     }
   }
 
-  /**
-   * The voice channel the bot plays into, the audio connection of its guild, and the player that sends the audio.
-   */
   private static final class DiscordConnection {
 
     private final VoiceChannel channel;

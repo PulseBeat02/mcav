@@ -53,7 +53,7 @@ public final class ArgumentUtils {
    */
   public static final int MAXIMUM_SCREEN_SIDE = 64;
 
-  /** The selector of every player online, which {@link #parseViewers} keeps following. */
+  // parseViewers keeps following this selector
   private static final String EVERYONE = "@a";
 
   private static final String DIMENSION_SEPARATOR = "x";

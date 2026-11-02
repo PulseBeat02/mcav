@@ -73,9 +73,6 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
  */
 public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlayer> {
 
-  /**
-   * The permission a player needs to send input to the running browser, by chat or by clicking the screen.
-   */
   private static final String INTERACT_PERMISSION = "mcav.browser.interact";
 
   private static final Set<String> WEB_SCHEMES = Set.of("http", "https");
@@ -325,11 +322,6 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     return BrowserSource.uri(uri, width, height, nth);
   }
 
-  /**
-   * Builds the options of a new browser from {@code config.yml}.
-   *
-   * @return the options
-   */
   BrowserOptions createOptions() {
     final PluginDataConfigurationMapper configuration = this.plugin.getConfiguration();
     final boolean allowsPrivateNetworks = configuration.isBrowserPrivateNetworks();
@@ -364,13 +356,6 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     this.sendSoundLinkWhenStarted(start, screen, sound);
   }
 
-  /**
-   * Parses the address of a web page.
-   *
-   * @param url the address as entered
-   * @return the address, or {@code null} if it is not valid or not an absolute {@code http} or {@code https}
-   * address with a host
-   */
   static @Nullable URI parseWebAddress(final String url) {
     final URI uri;
     try {

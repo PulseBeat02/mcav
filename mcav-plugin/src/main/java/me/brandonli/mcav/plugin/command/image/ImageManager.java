@@ -94,10 +94,7 @@ public final class ImageManager {
     );
   }
 
-  /**
-   * Starts a new loading generation. Pending native images remain owned by the manager until a main-thread task
-   * takes them, so cancellation of an already accepted scheduler task cannot leak them.
-   */
+  // pending images stay the manager's until a main-thread task takes them, so cancelling cannot leak them
   long beginLoad() {
     final ImageBuffer previous;
     final long generation;

@@ -80,35 +80,17 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
  */
 public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer> {
 
-  /**
-   * The permission a player needs to send input to the running virtual machine, by chat or by clicking the screen.
-   */
   private static final String INTERACT_PERMISSION = "mcav.vm.interact";
 
-  /**
-   * The options QEMU accepts more than once, of those the command supports.
-   */
   private static final Set<String> REPEATABLE_OPTIONS = Set.of("drive");
 
-  /**
-   * The options that are a switch, so they must not be given a value.
-   */
   private static final Set<String> FLAG_OPTIONS = Set.of("snapshot", "no-reboot", "no-hpet", "no-fd-bootchk", "enable-kvm", "usb");
 
-  /**
-   * The options that describe the hardware of the machine. Their values must have a form {@link QemuHardwareValues}
-   * allows, so they never name a file nor change what mcav owns.
-   */
+  // their values must match QemuHardwareValues, so they never name a file
   private static final Set<String> HARDWARE_OPTIONS = Set.of("m", "smp", "cpu", "machine", "accel", "boot", "name", "k", "vga", "rtc");
 
-  /**
-   * The options whose value is a disk image of the {@value DiskImages#FOLDER_NAME} folder.
-   */
   private static final Set<String> IMAGE_OPTIONS = Set.of("cdrom", "hda", "hdb", "hdc", "hdd", "fda", "fdb");
 
-  /**
-   * The option that describes a drive, whose {@code file} names a disk image.
-   */
   private static final String DRIVE_OPTION = "drive";
 
   private static final String FILE_KEY = "file=";
@@ -120,7 +102,6 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
 
   private static final Splitter DRIVE_SPLITTER = Splitter.on(',');
 
-  /** A {@code --codec} and its value at the very end of the options, after whitespace or alone. */
   private static final Pattern TRAILING_CODEC = Pattern.compile("(?:^|\\s)--codec\\s+(\\S+)\\s*$");
 
   private static final String OPTION_PREFIX = "-";
@@ -432,14 +413,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     return Message.VM_ERROR.build();
   }
 
-  /**
-   * Splits a trailing {@code --codec dither} or {@code --codec mcv2}, in any case, off the QEMU options. Cloud's flags
-   * cannot follow the options, which start with a dash too; a {@code --codec} anywhere else is left to the options,
-   * which refuse it.
-   *
-   * @param flags the rest of the command line
-   * @return the options and the codec, or null when the flag names no codec
-   */
+  // Cloud flags cannot follow the QEMU options, which start with a dash too
   static @Nullable CodecSplit splitCodec(final String flags) {
     final Matcher matcher = TRAILING_CODEC.matcher(flags);
     if (!matcher.find()) {
@@ -455,13 +429,6 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     return null;
   }
 
-  /**
-   * Parses the QEMU options of the sender, telling them when an option is not supported.
-   *
-   * @param sender who ran the command
-   * @param flags  the options as entered
-   * @return the configuration, or {@code null} if an option was refused
-   */
   private @Nullable VmConfiguration parseOptions(final CommandSender sender, final String flags) {
     final Path dataFolder = this.plugin.getDataPath();
     final Path imageFolder = DiskImages.folderOf(dataFolder);
@@ -482,31 +449,12 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     }
   }
 
-  /**
-   * Parses QEMU options such as {@code -cdrom "alpine linux.iso" -m 2048M -enable-kvm}. Quoted values may contain
-   * spaces, and options QEMU accepts more than once, such as {@code -drive}, are kept. Only the options of
-   * {@link #supportedOptions()} are accepted, and every disk image is resolved in the image folder.
-   *
-   * @param commandLine the options
-   * @param imageFolder the folder the disk images live in
-   * @return a builder holding the options
-   * @throws IllegalArgumentException if an option is not supported, is given a value it does not take, misses the
-   *                                  value it needs, or names a disk image outside the image folder
-   */
+  // quoted values may hold spaces; options QEMU repeats, such as -drive, are kept
   static VmConfigurationBuilder parseOptions(final String commandLine, final Path imageFolder) {
     return parseOptions(commandLine, imageFolder, Long.MAX_VALUE);
   }
 
-  /**
-   * Parses QEMU options as {@link #parseOptions(String, Path)} does, and refuses a machine with more memory than the
-   * server lets one have: a guest can use all of it, and the memory of a machine is memory of the server.
-   *
-   * @param commandLine        the options
-   * @param imageFolder        the folder the disk images live in
-   * @param maximumMemoryBytes the most memory a machine may have, in bytes
-   * @return a builder holding the options
-   * @throws IllegalArgumentException if an option is refused, or the machine would have more memory than allowed
-   */
+  // a guest can use all of its memory, so the server's limit applies
   static VmConfigurationBuilder parseOptions(final String commandLine, final Path imageFolder, final long maximumMemoryBytes) {
     final VmConfigurationBuilder builder = parseAllowedOptions(commandLine, imageFolder);
     final VmConfiguration configuration = builder.build();
@@ -526,23 +474,12 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     return builder;
   }
 
-  /**
-   * Returns the most memory a machine may have on this server: half of the memory of the server, or of its container, as
-   * the JVM sees it, and at least 512 MiB.
-   *
-   * @return the most memory in bytes
-   */
+  // the JVM reports a container's memory limit here, not the host's
   static long maximumMemoryBytes() {
     final OperatingSystemMXBean system = ManagementFactory.getPlatformMXBean(OperatingSystemMXBean.class);
     return maximumMemoryBytes(system.getTotalMemorySize());
   }
 
-  /**
-   * Returns the most memory a machine may have on a server with a given memory: half of it, and at least 512 MiB.
-   *
-   * @param totalMemoryBytes the memory of the server in bytes
-   * @return the most memory in bytes
-   */
   static long maximumMemoryBytes(final long totalMemoryBytes) {
     return Math.max(MINIMUM_MACHINE_MEMORY_BYTES, totalMemoryBytes / MACHINE_MEMORY_DIVISOR);
   }
@@ -558,12 +495,6 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     return builder;
   }
 
-  /**
-   * Adds the option at an index to the builder, with the token after it as its value unless that token is an
-   * option too. Words that are not options are skipped.
-   *
-   * @return the index of the token after the option and its value
-   */
   private static int addOption(final VmConfigurationBuilder builder, final List<String> tokens, final int index, final Path imageFolder) {
     final String token = tokens.get(index);
     final int next = index + 1;
@@ -606,10 +537,6 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     throw unsupported(name);
   }
 
-  /**
-   * Checks the value of an option and returns the value the machine is given, which is the resolved path of a disk
-   * image and the value as written for every other option.
-   */
   private static String checkedValue(final String name, final String value, final Path imageFolder) {
     final boolean hardware = HARDWARE_OPTIONS.contains(name);
     if (hardware) {
@@ -637,10 +564,6 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     throw unsupported(name);
   }
 
-  /**
-   * Checks the parts of a drive, whose {@code file} names a disk image and whose other parts describe how the drive
-   * is attached, as {@link QemuHardwareValues#checkDriveProperty} allows.
-   */
   private static String checkedDrive(final String value, final Path imageFolder) {
     final List<String> parts = DRIVE_SPLITTER.splitToList(value);
     final List<String> checked = new ArrayList<>(parts.size());
@@ -664,9 +587,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     return String.join(VALUE_SEPARATOR, checked);
   }
 
-  /**
-   * Refuses a value that names a file, because only a disk image of the image folder may.
-   */
+  // only a disk image of the image folder may name a file
   private static void requireNoPath(final String name, final String value) {
     final boolean path = value.indexOf(UNIX_SEPARATOR) >= 0 || value.indexOf(WINDOWS_SEPARATOR) >= 0;
     if (path) {
@@ -708,13 +629,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     return !token.startsWith(OPTION_PREFIX);
   }
 
-  /**
-   * Splits a command line at unquoted whitespace. Double quotes group words and are removed, so {@code ""} is an
-   * empty token.
-   *
-   * @param commandLine the command line
-   * @return the tokens
-   */
+  // "" is an empty token
   static List<String> tokenize(final String commandLine) {
     final List<String> tokens = new ArrayList<>();
     final StringBuilder current = new StringBuilder();
@@ -758,11 +673,5 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     return INTERACT_PERMISSION;
   }
 
-  /**
-   * The QEMU options of a command, and the codec a trailing {@code --codec} names.
-   *
-   * @param options the QEMU options, without the codec flag
-   * @param codec   the codec, or null when the options end with none
-   */
   record CodecSplit(String options, @Nullable MapCodec codec) {}
 }

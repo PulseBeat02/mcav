@@ -483,7 +483,7 @@ public final class FilterChain {
     return () -> new TextFilter(text, TEXT_X, TEXT_Y, TextFilter.DEFAULT_FONT, TEXT_SCALE, WHITE);
   }
 
-  /** An overlay is a PNG file of the overlay folder, named without its folder or extension; links are not followed. */
+  // links in the overlay folder are not followed
   private static Supplier<VideoFilter> overlay(final List<String> arguments, final Path overlays) {
     count(OVERLAY_FILTER, arguments, 1);
     final String name = arguments.getFirst();
@@ -513,10 +513,7 @@ public final class FilterChain {
     return () -> overlayFilter(readOverlay(file));
   }
 
-  /**
-   * Creates the filter of an overlay and releases the decoded picture, which the filter copied: up to a few megabytes of
-   * native memory that otherwise waited for the garbage collector, for every filter created.
-   */
+  // the filter copied the picture, so its native memory is released now, not at garbage collection
   static OverlayImageFilter overlayFilter(final ImageBuffer decoded) {
     try {
       return new OverlayImageFilter(decoded, 0, 0);
@@ -525,7 +522,6 @@ public final class FilterChain {
     }
   }
 
-  /** Decodes an overlay, where the pictures are filtered, scaled down to at most the largest side. */
   private static ImageBuffer readOverlay(final Path file) {
     final ImageBuffer image = ImageBuffer.path(FileSource.path(file));
     final int side = Math.max(image.getWidth(), image.getHeight());
@@ -568,7 +564,7 @@ public final class FilterChain {
     return Double.parseDouble(text);
   }
 
-  /** A colour typed as {@code rrggbb}, in the blue, green, red order of OpenCV. */
+  // typed as rrggbb, stored in OpenCV's blue, green, red order
   private static double[] color(final String name, final String text) {
     if (!HEXADECIMAL.matcher(text).matches()) {
       final String message = "Filter %s takes a colour such as ff8000, and %s is not one!".formatted(name, text);
@@ -639,16 +635,14 @@ public final class FilterChain {
     return this.filters.isEmpty();
   }
 
-  /** A region in percent of the picture. */
+  // in percent of the picture
   private record Region(int left, int top, int width, int height) {}
 
-  /** Makes a filter for a region in pixels of pictures of a size. */
   @FunctionalInterface
   private interface RegionFactory {
     VideoFilter create(int left, int top, int width, int height, int pictureWidth, int pictureHeight);
   }
 
-  /** A filter over a region given in percent, made again whenever the pictures change size. */
   private static final class RegionFilter implements VideoFilter {
 
     private final Region region;
@@ -685,7 +679,6 @@ public final class FilterChain {
     }
   }
 
-  /** Crops a region and scales it back to the size of the picture, so every display gets the size it expects. */
   private static final class CropZoom implements VideoFilter {
 
     private final CropFilter crop;

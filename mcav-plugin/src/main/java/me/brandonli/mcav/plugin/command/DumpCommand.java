@@ -57,11 +57,6 @@ public final class DumpCommand implements AnnotationCommandFeature {
     this(DumpUtils::createAndUploadDump);
   }
 
-  /**
-   * Constructs a command that uploads dumps with another uploader.
-   *
-   * @param uploader collects and uploads a dump, returning its URL
-   */
   @VisibleForTesting
   DumpCommand(final Supplier<String> uploader) {
     Preconditions.checkNotNull(uploader, "Uploader must not be null!");

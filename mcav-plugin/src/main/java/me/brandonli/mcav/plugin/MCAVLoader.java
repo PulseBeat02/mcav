@@ -67,7 +67,6 @@ public final class MCAVLoader implements PluginLoader {
 
   private static final Logger GREMLIN_LOGGER = LoggerFactory.getLogger("Gremlin");
 
-  /** The classes of the downloaded modules that the plugin's code uses, one internal name per line, from the build. */
   private static final String REQUIRED_CLASSES = "META-INF/mcav/required-classes.txt";
 
   private static final String DEPENDENCIES_RESOURCE = "mcav/plugin/dependencies.txt";
@@ -96,25 +95,12 @@ public final class MCAVLoader implements PluginLoader {
     this(Path.of(LIBRARIES_DIRECTORY), readRequiredClasses(requireNonNull(MCAVLoader.class.getClassLoader())));
   }
 
-  /**
-   * Constructs a loader that caches the libraries in another folder and checks the downloaded modules for other classes.
-   *
-   * @param libraries       the cache folder
-   * @param requiredClasses the classes, by internal name, the downloaded modules must have
-   */
   @VisibleForTesting
   MCAVLoader(final Path libraries, final Collection<String> requiredClasses) {
     this.libraries = libraries;
     this.requiredClasses = List.copyOf(requiredClasses);
   }
 
-  /**
-   * Reads the classes the plugin's code uses from the downloaded modules, as the build listed them.
-   *
-   * @param classLoader the class loader of the plugin
-   * @return the classes by internal name; none when the plugin was built without the list
-   * @throws UncheckedIOException if the list cannot be read
-   */
   @VisibleForTesting
   static List<String> readRequiredClasses(final ClassLoader classLoader) {
     final InputStream list = classLoader.getResourceAsStream(REQUIRED_CLASSES);
@@ -132,14 +118,6 @@ public final class MCAVLoader implements PluginLoader {
     }
   }
 
-  /**
-   * Checks that downloaded jars hold every class the plugin needs from them.
-   *
-   * @param requiredClasses the classes, by internal name
-   * @param jars            the downloaded jars
-   * @throws IllegalStateException if a class is in none of the jars: the modules are older than the plugin
-   * @throws UncheckedIOException  if a jar cannot be read
-   */
   @VisibleForTesting
   static void checkModules(final Collection<String> requiredClasses, final Collection<Path> jars) {
     final Set<String> entries = listEntries(jars);
@@ -211,11 +189,6 @@ public final class MCAVLoader implements PluginLoader {
     cache.cleanup();
   }
 
-  /**
-   * Returns the folder the libraries are cached in.
-   *
-   * @return the cache folder
-   */
   @VisibleForTesting
   Path getLibraries() {
     return this.libraries;

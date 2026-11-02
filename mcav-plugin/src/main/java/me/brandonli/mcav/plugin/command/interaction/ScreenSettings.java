@@ -23,9 +23,6 @@ import me.brandonli.mcav.utils.immutable.Pair;
 import org.bukkit.command.CommandSender;
 import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 
-/**
- * The map screen an interactive player is shown on, as entered by the command sender.
- */
 final class ScreenSettings {
 
   private final CommandSender sender;
@@ -36,18 +33,6 @@ final class ScreenSettings {
   private final DitheringArgument dithering;
   private final MapCodec codec;
 
-  /**
-   * Constructs the settings of a screen.
-   *
-   * @param sender     who ran the command, who is told when the screen cannot use MCV2 or steps down
-   * @param viewers    the players who see the screen
-   * @param blocks     the width and height of the screen in blocks
-   * @param resolution the width and height of the picture in pixels
-   * @param mapId      the id of the first map of the screen
-   * @param dithering  the dithering algorithm that reduces the picture to map colors, for every viewer or for those
-   *                   without the MCV2 pack
-   * @param codec      how the picture reaches the players
-   */
   ScreenSettings(
     final CommandSender sender,
     final MultiplePlayerSelector viewers,
@@ -66,65 +51,30 @@ final class ScreenSettings {
     this.codec = codec;
   }
 
-  /**
-   * Returns who ran the command.
-   *
-   * @return the sender
-   */
   CommandSender getSender() {
     return this.sender;
   }
 
-  /**
-   * Returns the players who see the screen.
-   *
-   * @return the player selector
-   */
   MultiplePlayerSelector getViewers() {
     return this.viewers;
   }
 
-  /**
-   * Returns the width and height of the screen in blocks.
-   *
-   * @return the size in blocks
-   */
   Pair<Integer, Integer> getBlocks() {
     return this.blocks;
   }
 
-  /**
-   * Returns the width and height of the picture in pixels.
-   *
-   * @return the resolution
-   */
   Pair<Integer, Integer> getResolution() {
     return this.resolution;
   }
 
-  /**
-   * Returns the id of the first map of the screen.
-   *
-   * @return the map id
-   */
   int getMapId() {
     return this.mapId;
   }
 
-  /**
-   * Returns the dithering algorithm that reduces the picture to map colors.
-   *
-   * @return the dithering argument
-   */
   DitheringArgument getDithering() {
     return this.dithering;
   }
 
-  /**
-   * Returns how the picture reaches the players.
-   *
-   * @return the codec
-   */
   MapCodec getCodec() {
     return this.codec;
   }

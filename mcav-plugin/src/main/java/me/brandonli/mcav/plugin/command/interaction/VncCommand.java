@@ -64,9 +64,6 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
  */
 public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
 
-  /**
-   * The permission a player needs to send input to the desktop, by chat or by clicking the screen.
-   */
   static final String INTERACT_PERMISSION = "mcav.vnc.interact";
 
   /**
@@ -253,14 +250,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
     this.createResource(() -> this.connect(sender, screen, source, entry));
   }
 
-  /**
-   * The source of a desktop. The password is the one of the server's entry, which only the source keeps.
-   *
-   * @param entry                 the allowed server
-   * @param resolution            the size the desktop is scaled to
-   * @param targetFramesPerSecond the frames per second
-   * @return the source
-   */
+  // only the source keeps the entry's password
   static VncSource createSource(final VncAllowList.Entry entry, final Pair<Integer, Integer> resolution, final int targetFramesPerSecond) {
     final VncSourceBuilder builder = VncSource.builder();
     builder.host(entry.getHost());

@@ -752,24 +752,13 @@ public enum DitheringArgument {
     }
   }
 
-  /**
-   * Creates the algorithm of a constant. The factories capture nothing, so every constant stays immutable.
-   */
   @Immutable
   @FunctionalInterface
   private interface AlgorithmFactory {
-    /**
-     * Creates a new instance of the algorithm.
-     *
-     * @return the algorithm
-     */
     DitherAlgorithm create();
   }
 
-  /**
-   * Holds the shared instances of the stateless algorithms, by their constant, once they were first used. They are
-   * kept here rather than in the constants, so the constants stay immutable.
-   */
+  // kept outside the constants, so they stay immutable
   private static final class SharedAlgorithms {
 
     private static final ConcurrentMap<DitheringArgument, DitherAlgorithm> ALGORITHMS = new ConcurrentHashMap<>();

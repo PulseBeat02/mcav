@@ -28,7 +28,7 @@ import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.renderer.ComponentRenderer;
 
-/** Keeps URL data out of the MiniMessage parser, including quoted click arguments. */
+// keeps URLs, quoted click arguments included, out of the MiniMessage parser
 final class UrlPlaceholder implements ComponentRenderer<String> {
 
   private static final String PLACEHOLDER_PREFIX = "mcav_url_";

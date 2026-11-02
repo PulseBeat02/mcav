@@ -36,11 +36,6 @@ public final class MissingVoiceChatException extends PluginException {
   @Serial
   private static final long serialVersionUID = 4127518399460184733L;
 
-  /**
-   * Constructs a new exception with a detail message and no cause.
-   *
-   * @param message the detail message, which says that the voicechat plugin is missing
-   */
   MissingVoiceChatException(final String message) {
     super(message);
   }

@@ -149,11 +149,6 @@ public final class ImageMapCommand extends AbstractImageCommand {
     return resolution -> this.createSettings(blocks, resolution, mapId, players, dithering);
   }
 
-  /**
-   * Parses the size of the wall and tells the sender when it is invalid.
-   *
-   * @return the size in maps, or {@code null} if the sender was told that it is invalid
-   */
   private @Nullable Pair<Integer, Integer> parseBlocks(final CommandSender sender, final String blockDimensions) {
     try {
       return ArgumentUtils.parseScreenDimensions(blockDimensions);
@@ -206,11 +201,6 @@ public final class ImageMapCommand extends AbstractImageCommand {
     return DisplayableImage.map(configuration, algorithm);
   }
 
-  /**
-   * Creates an MCV2 image in a slot of the pack, or null, which the sender is told, when the wall or the picture is larger
-   * than MCV2 plays, no item frame holds the wall's top-left map, or every slot plays a screen. Called on the main
-   * thread.
-   */
   private @Nullable DisplayableImage createMcv2Image(final Mcv2ImageSettings settings) {
     final Mcv2Support support = this.plugin.getMcv2Support();
     final Optional<Mcv2Configuration> foundConfiguration = support.configure(
@@ -231,16 +221,6 @@ public final class ImageMapCommand extends AbstractImageCommand {
     return output == null ? null : new Mcv2Image(this.plugin, output);
   }
 
-  /**
-   * What an MCV2 image needs, once the image loaded and its resolution is known.
-   *
-   * @param sender     who ran the command
-   * @param blocks     the size of the wall in maps
-   * @param resolution the resolution the image is encoded at
-   * @param mapId      the id of the top-left map
-   * @param viewers    the players who watch
-   * @param dithering  how the image is dithered for the players without the pack
-   */
   record Mcv2ImageSettings(
     CommandSender sender,
     Pair<Integer, Integer> blocks,

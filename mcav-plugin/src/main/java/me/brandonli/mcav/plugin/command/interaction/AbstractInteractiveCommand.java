@@ -264,13 +264,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     }
   }
 
-  /**
-   * Stops a player on the thread that starts players, so the main thread never waits for a browser or a virtual machine
-   * to stop, which takes up to ten seconds and more on a busy server; while the command shuts down, or once that thread
-   * takes no more work, at once. Detach the player's pipelines first: its maps are released right after this returns.
-   *
-   * @param release stops the player
-   */
+  // off the main thread: a browser or virtual machine takes up to ten seconds to stop
   final void releaseInTheBackground(final Runnable release) {
     final boolean closing;
     synchronized (this.lock) {
@@ -287,7 +281,6 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     release.run();
   }
 
-  /** Stops a player in the background, where nobody waits for a failure but the log. */
   private void releaseLogged(final Runnable release) {
     try {
       release.run();
@@ -297,15 +290,6 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     }
   }
 
-  /**
-   * Plays the sound of a player into the chosen audio output, which the player takes over from any video, browser or
-   * virtual machine until it is released; {@link AudioArgument#NONE} plays nothing.
-   *
-   * @param owner the player, which owns the output while its sound plays
-   * @param audio the slot of the audio pipeline of the player
-   * @param sound the output and the players who hear it
-   * @param title the title the output shows, such as {@code Virtual machine}
-   */
   final void attachSound(final Object owner, final AudioAttachableCallback audio, final ScreenSound sound, final String title) {
     final AudioArgument type = sound.getType();
     if (type == AudioArgument.NONE) {
@@ -319,13 +303,6 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     audio.attach(AudioPipelineStep.of(filter));
   }
 
-  /**
-   * Sends the viewers the link of the audio output once the player started.
-   *
-   * @param start  the start of the player
-   * @param screen the screen of the player
-   * @param sound  the output and the players who hear it
-   */
   final void sendSoundLinkWhenStarted(final CompletableFuture<Boolean> start, final Screen screen, final ScreenSound sound) {
     TaskUtils.whenComplete(start, (started, error) -> this.sendSoundLinkIfStarted(started, error, screen, sound));
   }
@@ -350,12 +327,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     }
   }
 
-  /**
-   * Lets go of the audio outputs of a player that was released, unless a video or another player took them over
-   * meanwhile.
-   *
-   * @param owner the released player
-   */
+  // skipped when a video or another player took the outputs over meanwhile
   final void releaseSound(final Object owner) {
     final AudioProvider provider = this.soundProvider;
     if (provider != null) {
@@ -410,15 +382,6 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     }
   }
 
-  /**
-   * Releases the running player and creates the maps a new player is shown on, together with the pipeline that brings
-   * the frames of the player onto them: dithered, or with MCV2 when the settings ask for it, a frame holds the wall's
-   * top-left map and a slot of the MCV2 pack is free, which the sender is told otherwise. Every screen gets its own
-   * dithering algorithm, so a stateful algorithm never mixes up the frames of two players.
-   *
-   * @param settings the screen as entered by the sender
-   * @return the maps, which become the running ones, and the pipeline to attach to the new player
-   */
   final Screen createScreen(final ScreenSettings settings) {
     synchronized (this.lock) {
       Preconditions.checkState(!this.closed, "The interactive command is shut down!");
@@ -458,20 +421,11 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     return created;
   }
 
-  /**
-   * Returns the codec of a screen: the one its command's {@code --codec} flag names, or the configured default.
-   *
-   * @param flag the flag's value, or null when the command has none
-   * @return the codec
-   */
   final MapCodec chooseCodec(final @Nullable MapCodec flag) {
     return flag != null ? flag : this.plugin.getConfiguration().getMcv2DefaultCodec();
   }
 
-  /**
-   * Creates the output of a screen: its MCV2 screen when it asks for MCV2 and one can be had, otherwise its dithered
-   * maps. Releasing the output releases the maps.
-   */
+  // releasing the output releases the maps
   private FunctionalVideoFilter createOutput(final ScreenSettings settings, final Collection<UUID> players) {
     if (settings.getCodec() == MapCodec.MCV2) {
       final Mcv2Output output = this.createMcv2Output(settings, players);
@@ -518,14 +472,6 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     }
   }
 
-  /**
-   * Creates the last step of the pipeline of a screen, which tells the log once that its maps show a picture.
-   *
-   * @param mapId    the id of the first map
-   * @param mapCount the number of maps
-   * @param log      receives the message
-   * @return the filter of the step
-   */
   static VideoFilter announceFirstPicture(final int mapId, final long mapCount, final Consumer<String> log) {
     final AtomicBoolean announced = new AtomicBoolean();
     final String message = "Maps " + mapId + " to " + (mapId + mapCount - 1) + " show their first picture";
@@ -539,14 +485,13 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     return false;
   }
 
-  /** Takes ownership on the main thread before callback attachment or executor submission can fail. */
+  // taken before attaching callbacks or submitting the start, which can fail
   final void ownCreatedPlayer(final PlayerType created) {
     synchronized (this.lock) {
       this.player = created;
     }
   }
 
-  /** Releases the screen and any adopted backend if synchronous startup preparation fails. */
   final void createResource(final Runnable create) {
     try {
       create.run();
@@ -569,12 +514,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     }
   }
 
-  /**
-   * Gates queued startup by this specific screen and assigns in-flight cancellation cleanup to the worker.
-   * A canceled queued task is skipped; its future is canceled by Screen even if it was bound after cancellation.
-   * BrowserPlayer and VmPlayer submit their CompletableFuture startup through execute. Screen creation,
-   * reportStartWhenDone, release commands and shutdown are main-thread operations; startup runs on the worker.
-   */
+  // a cancelled queued start is skipped; the worker cleans up a start cancelled in flight
   final ExecutorService startExecutor(final PlayerType started, final Screen screen) {
     return new ForwardingExecutorService() {
       @Override
@@ -624,18 +564,6 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     }
   }
 
-  /**
-   * Makes a player that is starting the running one, and waits in the background for it to start. When it fails,
-   * that player and the maps of its screen are released, unless a newer command has replaced them in the meantime,
-   * which released them already; a newer player is never touched. Either way, the sender is told on the main
-   * thread.
-   *
-   * @param sender      who ran the command
-   * @param started     the player that is starting
-   * @param screen      the screen created for it with {@link #createScreen(ScreenSettings)}
-   * @param start       completes with whether the player started
-   * @param description what was started, for the log
-   */
   final void reportStartWhenDone(
     final CommandSender sender,
     final PlayerType started,
@@ -682,10 +610,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     }
   }
 
-  /**
-   * Releases a player that failed to start and the maps of its screen, each only while it is still the running
-   * one. One that is no longer running was replaced by a newer command, which released it already.
-   */
+  // a player or maps no longer running were replaced and released by a newer command
   private void releaseIfCurrent(final PlayerType failed, final FunctionalVideoFilter maps) {
     final boolean playerCurrent;
     final boolean mapsCurrent;
@@ -749,7 +674,6 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     }
   }
 
-  /** The screen of this command a frame belongs to, or null if it belongs to none. */
   private @Nullable Screen screenOf(final ItemFrame frame) {
     final Screen current = this.screen;
     if (current == null) {
@@ -771,11 +695,6 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     return current.ownsMap(mapId) ? current : null;
   }
 
-  /**
-   * Finds the screen frame on the block a player looks at, up to {@value #REACH} blocks away.
-   *
-   * @return the frame closest to that block, or {@code null} if the player looks at no block or it has no screen
-   */
   private @Nullable ItemFrame findScreenInSight(final Player viewer) {
     final RayTraceResult ray = viewer.rayTraceBlocks(REACH, FluidCollisionMode.NEVER);
     if (ray == null) {
@@ -1015,9 +934,6 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     sender.sendMessage(message);
   }
 
-  /**
-   * Returns whether a player may send input to the running player.
-   */
   private boolean mayInteract(final Player player) {
     final String permission = this.getInteractionPermission();
     return player.hasPermission(permission);
@@ -1079,11 +995,6 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    */
   protected abstract void releasePlayer(final PlayerType current);
 
-  /**
-   * A player that is starting, with everything needed to report or undo its start.
-   *
-   * @param <PlayerType> the type of the interactive player
-   */
   private static final class StartAttempt<PlayerType> {
 
     private final CommandSender sender;

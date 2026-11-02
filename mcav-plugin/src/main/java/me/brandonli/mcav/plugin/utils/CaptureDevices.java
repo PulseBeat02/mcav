@@ -58,13 +58,12 @@ public final class CaptureDevices {
    */
   public static final String PERMISSION = "mcav.command.video.device";
 
-  /** Where Linux describes its video devices. */
   static final Path SYSFS = Path.of("/sys/class/video4linux");
 
-  /** How many numbers are tried where the system does not list its devices. */
+  // device numbers tried where the system lists no devices
   private static final int PROBED = 8;
 
-  /** The longest name shown, which sysfs does not bound. */
+  // sysfs does not bound device names
   static final int MAXIMUM_NAME = 64;
 
   private static final Pattern NODE = Pattern.compile("video(\\d{1,3})");
@@ -85,24 +84,10 @@ public final class CaptureDevices {
     return list(OsUtils.getOs(), SYSFS, CaptureDevices::opens);
   }
 
-  /**
-   * Lists the capture devices: on Linux those sysfs names, elsewhere the first numbers that open.
-   *
-   * @param os    the operating system
-   * @param sysfs the folder in which Linux names its video devices
-   * @param opens whether the device of a number opens
-   * @return the devices, by number
-   */
   static List<Device> list(final Os os, final Path sysfs, final IntPredicate opens) {
     return os == Os.LINUX ? listSysfs(sysfs) : probe(PROBED, opens);
   }
 
-  /**
-   * Lists the video devices sysfs describes.
-   *
-   * @param folder the sysfs folder of video4linux
-   * @return the devices, by number; none if the folder cannot be read
-   */
   static List<Device> listSysfs(final Path folder) {
     if (!Files.isDirectory(folder)) {
       return List.of();
@@ -144,13 +129,6 @@ public final class CaptureDevices {
     return Device.of(index, shown);
   }
 
-  /**
-   * Tries the first numbers.
-   *
-   * @param count how many numbers
-   * @param opens whether the device of a number opens
-   * @return the devices that opened, named by their number
-   */
   static List<Device> probe(final int count, final IntPredicate opens) {
     Preconditions.checkArgument(count >= 0, "Count must not be negative!");
 
@@ -163,18 +141,10 @@ public final class CaptureDevices {
     return List.copyOf(devices);
   }
 
-  /** Returns whether the device of a number opens, which briefly opens it. */
   static boolean opens(final int index) {
     return opens(OpenCVFrameGrabber::new, index);
   }
 
-  /**
-   * Returns whether the device of a number opens, which briefly opens it.
-   *
-   * @param grabbers makes the grabber of a number
-   * @param index    the number
-   * @return true if its grabber started
-   */
   static boolean opens(final IntFunction<? extends FrameGrabber> grabbers, final int index) {
     try (final FrameGrabber grabber = grabbers.apply(index)) {
       grabber.start();

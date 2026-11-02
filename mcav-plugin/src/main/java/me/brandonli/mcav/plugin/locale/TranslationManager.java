@@ -157,9 +157,6 @@ public final class TranslationManager {
     return rendered;
   }
 
-  /**
-   * The messages of the data folder, with the bundled messages as the fallback for keys the file does not have.
-   */
   private static final class LayeredBundle extends PropertyResourceBundle {
 
     private LayeredBundle(final Reader reader) throws IOException {

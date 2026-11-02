@@ -82,12 +82,7 @@ public final class HelpCommand implements AnnotationCommandFeature {
     this.minecraftHelp = finalStage.build();
   }
 
-  /**
-   * Creates the texts the help shows, each read from the locale file of the plugin. A key that is missing here makes
-   * the help fall back to its own English text, so every key it knows is filled in. Visible for testing.
-   *
-   * @return the help messages by the key of the help
-   */
+  // every key is filled in: a missing one falls back to the help's English text
   @VisibleForTesting
   static Map<String, String> createMessages() {
     final Map<String, String> messages = new HashMap<>();

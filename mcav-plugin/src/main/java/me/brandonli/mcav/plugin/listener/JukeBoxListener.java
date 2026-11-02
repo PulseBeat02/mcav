@@ -148,12 +148,7 @@ public final class JukeBoxListener implements Listener {
     return blockType == Material.JUKEBOX && itemName.startsWith(MUSIC_DISC_PREFIX);
   }
 
-  /**
-   * Finds the disk image in the ISO folder that is named like the disc, such as {@code alpine.iso} for a disc
-   * renamed to "alpine.iso" in an anvil.
-   *
-   * @return the disk image, or {@code null} if there is none or the name would leave the ISO folder
-   */
+  // a disc renamed in an anvil, such as "alpine.iso", names its disk image
   private @Nullable Path findDiskImage(final ItemStack item) {
     final Component name = item.displayName();
     final String displayName = PLAIN_TEXT.serialize(name);

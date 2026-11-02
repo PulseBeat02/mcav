@@ -122,15 +122,6 @@ public final class DumpUtils {
     return createAndUploadDump(HTTP_CLIENT, PASTE_SITE, LOG_FILE);
   }
 
-  /**
-   * Collects the dump and uploads it to a paste site that speaks the hastebin protocol.
-   *
-   * @param client    the HTTP client
-   * @param pasteSite the URL of the paste site, ending with a slash
-   * @param logFile   the server log whose end is included
-   * @return the URL of the uploaded dump
-   * @throws PluginException if the upload fails
-   */
   @VisibleForTesting
   static String createAndUploadDump(final HttpClient client, final String pasteSite, final Path logFile) {
     final String dump = createDumpContents(logFile);
@@ -150,9 +141,6 @@ public final class DumpUtils {
     }
   }
 
-  /**
-   * Reads the key of the uploaded document from the answer of the paste site, such as {@code {"key":"abc"}}.
-   */
   private static String parseDocumentKey(final String response) {
     final JsonElement element = parseJson(response);
     if (element.isJsonObject()) {
@@ -194,13 +182,6 @@ public final class DumpUtils {
     return response.body();
   }
 
-  /**
-   * Collects the dump: the system, the JVM properties with secrets redacted, the stack traces of every thread,
-   * and the end of the server log.
-   *
-   * @param logFile the server log
-   * @return the dump
-   */
   @VisibleForTesting
   static String createDumpContents(final Path logFile) {
     final StringBuilder dump = new StringBuilder();
@@ -265,15 +246,7 @@ public final class DumpUtils {
     appendLine(dump, "JVM Arguments", redactedArguments);
   }
 
-  /**
-   * Redacts the values of JVM arguments that look secret, such as {@code -Dbot.token=abc} or
-   * {@code -Djavax.net.ssl.keyStorePassword=abc}. Everything after the first equals sign of an argument is
-   * redacted when the text before its last equals sign looks secret, so a secret among the options of an agent,
-   * such as {@code -javaagent:agent.jar=token=abc}, is redacted as well.
-   *
-   * @param arguments the arguments
-   * @return the arguments with secrets redacted, in the same order
-   */
+  // everything after the first equals sign is redacted
   @VisibleForTesting
   static List<String> redactArguments(final List<String> arguments) {
     final List<String> redacted = new ArrayList<>();
@@ -319,20 +292,7 @@ public final class DumpUtils {
     }
   }
 
-  /**
-   * Redacts the secrets a property value carries even though the name of the property does not look secret.
-   *
-   * <p>The dump is uploaded to a public paste site, so a value that repeats the command line must not pass through
-   * untouched. {@code sun.java.command} holds the whole command line of the program, so a server started with
-   * {@code --api-token=abc} publishes that token under a property name in which no secret word appears. Every
-   * value is scanned for assignments and secret command options. From the first secret onward the remainder is
-   * omitted, including quoted or space-separated values. This intentionally sacrifices trailing diagnostics
-   * because the JVM does not retain shell quoting reliably. The same heuristic applies to log lines; it cannot
-   * identify unlabelled secrets or every application-specific credential format.
-   *
-   * @param value the property value or log line
-   * @return the text before the first secret followed by a redaction marker
-   */
+  // sun.java.command repeats the command line, so tokens such as --api-token=abc hide under harmless names
   private static String redactSecretsInside(final String value) {
     final Matcher words = WORD.matcher(value);
     while (words.find()) {
@@ -350,15 +310,7 @@ public final class DumpUtils {
     return value;
   }
 
-  /**
-   * Redacts a line of the server log before it is published. The dump goes to a paste site anyone can read, so the
-   * addresses of players and what they typed after the commands of other plugins never belong in it; the arguments of
-   * the commands of this plugin stay, because they are what a bug report is about, but the user name and password, the
-   * query and the fragment of every web address in the line are redacted, as they often carry secrets.
-   *
-   * @param line the line of the log
-   * @return the line as it may be published
-   */
+  // the dump is public: other plugins' command arguments and URL credentials, queries and fragments are redacted
   @VisibleForTesting
   static String redactLogLine(final String line) {
     final String withoutSecrets = redactSecretsInside(line);

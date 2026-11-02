@@ -107,14 +107,7 @@ public final class AnnotationParserHandler {
     return annotationParser;
   }
 
-  /**
-   * Renders the description of a command or argument with the messages of the plugin. The server only translates
-   * the keys of the game itself, so a translatable description would show its key in the help and the command
-   * suggestions.
-   *
-   * @param key the key of the message, or an empty string for no description
-   * @return the rendered description
-   */
+  // the server translates only the game's own keys, so plugin descriptions are rendered here
   @VisibleForTesting
   static RichDescription describe(final String key) {
     if (key.isEmpty()) {

@@ -261,7 +261,6 @@ public final class PluginDataConfigurationMapper {
     return port;
   }
 
-  /** Reads a setting that names a constant of an enum, in any case. */
   private <ChoiceType extends Enum<ChoiceType>> ChoiceType readChoice(
     final FileConfiguration configuration,
     final String key,

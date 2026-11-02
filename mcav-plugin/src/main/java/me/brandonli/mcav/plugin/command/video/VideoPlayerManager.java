@@ -76,7 +76,6 @@ public final class VideoPlayerManager {
   private static final String CLEANUP_RETAINED =
     "The plugin is disabled; display and hologram cleanup is retained for the main-thread shutdown drain.";
 
-  /** How often a looping video is checked for its end, in ticks: twice a second. */
   private static final long LOOP_CHECK_TICKS = 10L;
 
   private volatile @Nullable VideoPlayerMultiplexer player;
@@ -334,7 +333,6 @@ public final class VideoPlayerManager {
     return started;
   }
 
-  /** Runs one cleanup after a recoverable failure; the caller explicitly rethrows that original failure. */
   private void cleanupAfterFailure(final Throwable failure, final Runnable cleanup) {
     try {
       cleanup.run();
@@ -398,11 +396,7 @@ public final class VideoPlayerManager {
     CleanupUtils.runAll(actions);
   }
 
-  /**
-   * Schedules a task on the main thread.
-   *
-   * @return the result of the task, or {@code null} if the plugin is disabled and the task was not scheduled
-   */
+  // null when the plugin is disabled and the task was not scheduled
   private @Nullable Future<@Nullable Void> scheduleOnMainThread(final Runnable task) {
     final BukkitScheduler scheduler = Bukkit.getScheduler();
     final Callable<@Nullable Void> call = Executors.callable(task, null);
@@ -491,7 +485,7 @@ public final class VideoPlayerManager {
     }
   }
 
-  /** Plays a video that reached its end again from the start. A paused video still plays, so it is left alone. */
+  // isPlaying() stays true while paused, so a paused video is left alone
   void restartEnded() {
     final VideoPlayerMultiplexer current = this.player;
     if (this.looping && current instanceof final AbstractVideoPlayerCv decoded && !decoded.isPlaying()) {

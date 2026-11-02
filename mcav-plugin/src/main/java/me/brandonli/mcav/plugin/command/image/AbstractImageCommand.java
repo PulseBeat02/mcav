@@ -141,7 +141,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     this.startLoading(chain.isEmpty() ? loader : () -> this.filter(loader.get(), resolution, chain), request);
   }
 
-  /** Filters an image at the size it is shown at, which bounds the work of the filters, on the loading thread. */
+  // resized first, which bounds the filters' work
   private ImageBuffer filter(final ImageBuffer image, final Pair<Integer, Integer> resolution, final FilterChain chain) {
     try {
       new ResizeFilter(resolution.getFirst(), resolution.getSecond()).applyFilter(image);
@@ -196,10 +196,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     TaskUtils.whenComplete(loading, (image, error) -> this.onImageLoaded(request, generation, image, error));
   }
 
-  /**
-   * Hands the loaded image over to the main thread. When the plugin is disabled, the main thread accepts no more
-   * tasks, so the image is released at once instead of leaking its native memory.
-   */
+  // a disabled plugin's main thread takes no tasks, so the image is released at once
   private void onImageLoaded(
     final ImageRequest request,
     final long generation,
@@ -238,10 +235,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     }
   }
 
-  /**
-   * Runs only on the server main thread, as do manager shutdown and display ownership changes. Taking a pending
-   * image and publishing its display cannot interleave with shutdown on that thread.
-   */
+  // main thread only, like shutdown, so showing an image cannot interleave with shutdown
   private void showImage(
     final long generation,
     final Pair<Integer, Integer> resolution,
@@ -282,11 +276,6 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     }
   }
 
-  /**
-   * Creates the loader of a still image from a file or a URL.
-   *
-   * @return the loader, or {@code null} if the media is not such an image
-   */
   private @Nullable Supplier<ImageBuffer> createLoader(final String mrl) {
     if (mrl.isBlank()) {
       return null;
@@ -328,9 +317,6 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     final ImageConfigurationProvider configurationProvider
   );
 
-  /**
-   * What the sender asked to show, kept while the image loads.
-   */
   private static final class ImageRequest {
 
     private final CommandSender sender;

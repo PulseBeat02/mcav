@@ -39,12 +39,6 @@ public final class Mcv2Output implements FunctionalVideoFilter {
 
   private final Mcv2PackServer.Lease lease;
 
-  /**
-   * Constructs the output.
-   *
-   * @param result the screen's result
-   * @param lease  the screen's slot of the pack
-   */
   Mcv2Output(final Mcv2Result result, final Mcv2PackServer.Lease lease) {
     Preconditions.checkNotNull(result, "Result must not be null!");
     Preconditions.checkNotNull(lease, "Lease must not be null!");

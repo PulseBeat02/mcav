@@ -81,20 +81,17 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
  */
 public final class Mcv2PlayCommand implements AnnotationCommandFeature {
 
-  /** How often a running file encode tells its progress. */
   private static final long PROGRESS_NANOSECONDS = TimeUnit.SECONDS.toNanos(30);
 
-  /** The folder of the stream files, in the plugin's data folder. */
   static final String STREAMS = "mcv2";
 
-  /** The largest stream file played, one gibibyte: a stream is held in memory while it plays. */
+  // a stream is held in memory while it plays
   private static final long MAXIMUM_STREAM_BYTES = 1L << 30;
 
   private static final double NANOSECONDS_PER_MILLISECOND = 1e6;
 
   private static final double NANOSECONDS_PER_SECOND = 1e9;
 
-  /** A stream file frames each frame with its length, a little-endian 32-bit word. */
   private static final int LENGTH_BYTES = Integer.BYTES;
 
   private static final String PARTIAL_SUFFIX = ".part";
@@ -113,13 +110,10 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
 
   private @Nullable FileEncode encoding;
 
-  /** Reads stream files, one at a time, so that commands given quickly one after another hold one file at a time. */
+  // one thread, so quick repeated commands hold one file at a time
   private final ExecutorService reads;
 
-  /**
-   * How many streams were asked for or stopped: a stream whose file is read once a later play, stream or stop command
-   * was given is dropped. Read and written on the main thread.
-   */
+  // a load is dropped once a later play, stream or stop command was given; main thread only
   private long loads;
 
   private Opener opener = Mcv2FileEncoder::ffmpeg;
@@ -233,13 +227,6 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     sender.sendMessage(Message.MCV2_PLAY.build());
   }
 
-  /**
-   * Starts a stream: checks the wall's size, then reads the stream file on the reading thread, and opens the screen and
-   * starts the playback on the main thread once it is read, unless a later play, stream or stop command came first.
-   * Errors are reported to the sender.
-   *
-   * @param start schedules the playback, on the main thread
-   */
   private void load(
     final CommandSender sender,
     final MultiplePlayerSelector playerSelector,
@@ -260,11 +247,6 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     );
   }
 
-  /**
-   * Reads a stream file and its first frame, on the reading thread.
-   *
-   * @return what the main thread does next: open the screen, or tell the sender why the file cannot be played
-   */
   private Runnable readStream(
     final long load,
     final CommandSender sender,
@@ -284,17 +266,12 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     }
   }
 
-  /** Tells the sender why their stream cannot be played, unless a later command replaced it. Runs on the main thread. */
   private void report(final long load, final CommandSender sender, final Component message) {
     if (load == this.loads) {
       sender.sendMessage(message);
     }
   }
 
-  /**
-   * Opens the screen of a stream that was read, unless a later command replaced it: stops the stream played before,
-   * offers the players the pack, opens the channel and starts the playback. Runs on the main thread.
-   */
   private void open(
     final long load,
     final CommandSender sender,
@@ -447,20 +424,6 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     }
   }
 
-  /**
-   * Encodes a video file into a stream file, first into a file next to it that replaces it when the encode is done,
-   * and tells the sender how it goes.
-   *
-   * @param sender   who is told
-   * @param opener   opens the video file
-   * @param source   the video file
-   * @param target   the stream file
-   * @param width    the video width
-   * @param height   the video height
-   * @param profile  the encoder profile
-   * @param budget   the encoder budget
-   * @param interval how often the progress is told, in nanoseconds
-   */
   static void encodeFile(
     final CommandSender sender,
     final Opener opener,
@@ -536,13 +499,6 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     }
   }
 
-  /**
-   * Resolves a stream file a command names inside the plugin's {@code mcv2} folder, which is created when missing.
-   *
-   * @param name the file name, or a path relative to the folder
-   * @return the file
-   * @throws IOException if the name leads out of the folder or the folder cannot be created
-   */
   Path streamFile(final String name) throws IOException {
     final Path folder = this.plugin.getDataFolder().toPath().resolve(STREAMS).toAbsolutePath().normalize();
     final Path file = folder.resolve(name).normalize();
@@ -564,11 +520,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     }
   }
 
-  /**
-   * Returns the thread of the file encode started last.
-   *
-   * @return the thread, also while a cancelled encode cleans up, or null if none was started
-   */
+  // still set while a cancelled encode cleans up
   synchronized @Nullable Thread getEncoding() {
     final FileEncode current = this.encoding;
     return current == null ? null : current.thread();
@@ -617,11 +569,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     sender.sendMessage(Message.MCV2_STOP.build());
   }
 
-  /**
-   * Stops the stream played before, if any, and gives its slot of the pack back. The pack stays served and loaded, so
-   * the players' clients do not reload their resources when the next stream of the same size starts. Call on the main
-   * thread.
-   */
+  // the pack stays loaded, so clients do not reload their resources for the next stream
   void stop() {
     final BukkitTask running = this.task;
     if (running != null) {
@@ -650,27 +598,11 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     }
   }
 
-  /**
-   * Reads a stream: frames, each preceded by its length as a little-endian 32-bit number.
-   *
-   * @param file the stream
-   * @return the frames
-   * @throws IOException if the file is not a regular file of at most {@link #MAXIMUM_STREAM_BYTES}, cannot be read or is
-   *                     cut off
-   */
   static List<byte[]> read(final Path file) throws IOException {
     return read(file, MAXIMUM_STREAM_BYTES);
   }
 
-  /**
-   * Reads a stream of at most some size. Only a regular file is read, and its size is checked first: a device such as
-   * {@code /dev/zero} would never end, and a huge file would fill the memory.
-   *
-   * @param file  the stream
-   * @param limit the most bytes read
-   * @return the frames
-   * @throws IOException if the file is not a regular file of at most the limit, cannot be read or is cut off
-   */
+  // regular files only, size checked first: /dev/zero never ends and a huge file fills the memory
   static List<byte[]> read(final Path file, final long limit) throws IOException {
     if (!Files.isRegularFile(file)) {
       final String message = "File %s is not a stream file!".formatted(file.getFileName());
@@ -715,53 +647,23 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     return frames;
   }
 
-  /**
-   * Sets how video files are opened, instead of FFmpeg.
-   *
-   * @param replacement the opener
-   */
   void setOpener(final Opener replacement) {
     this.opener = replacement;
   }
 
-  /** Opens a video file's frames at a size. */
   @FunctionalInterface
   interface Opener {
-    /**
-     * Opens a video file.
-     *
-     * @param video  the file
-     * @param width  the frame width
-     * @param height the frame height
-     * @return the frames
-     * @throws IOException if the file cannot be opened
-     */
     Mcv2FileEncoder.FrameReader open(Path video, int width, int height) throws IOException;
   }
 
-  /**
-   * A file encode: its thread, and whether it was asked to stop.
-   *
-   * @param thread  the thread that encodes
-   * @param stopped whether a cancel or the plugin stopping asked it to stop
-   */
   private record FileEncode(Thread thread, AtomicBoolean stopped) {
-    /** Asks the encode to stop. */
     void stop() {
       this.stopped.set(true);
       this.thread.interrupt();
     }
   }
 
-  /**
-   * The frames of an encode that may be asked to stop. A stop interrupts the encode's thread, and the encoder ends at
-   * that interrupt, but code that runs on the thread may clear it before the encoder looks: an agent that instruments
-   * classes as the thread loads them did. So once a stop was asked, the thread is interrupted again before and after
-   * every read, and the encoder ends by the next frame.
-   *
-   * @param frames  the video's frames
-   * @param stopped whether the encode was asked to stop
-   */
+  // re-interrupts around every read: code on the thread, such as an instrumenting agent, may clear the interrupt
   private record StoppableFrames(Mcv2FileEncoder.FrameReader frames, AtomicBoolean stopped) implements Mcv2FileEncoder.FrameReader {
     @Override
     public boolean read(final byte[] rgb) {

@@ -23,19 +23,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-/**
- * The values the hardware options of {@code /mcav vm create} may have: every comma-separated part of a value must have
- * one of the forms listed for its option, and everything else is refused.
- *
- * <p>QEMU's options take properties that name files: {@code -machine dumpdtb=} writes the device tree into a file and
- * {@code firmware=}, {@code kernel=}, {@code initrd=} and {@code dtb=} read one into the guest, relative to the
- * working folder of the server; {@code -boot splash=} reads a picture, and {@code -machine pcspk-audiodev=} would route
- * the sound of the guest, which mcav owns. A check for path separators lets all of them through, so the values are
- * checked against a positive list instead: machine types, accelerators, sizes, counts, CPU models and features, and
- * the switches of each option. The parts of {@code -drive} besides its disk image are checked the same way: only the
- * properties that say how the drive is attached, cached and reported are allowed, none that opens another file or
- * block node.
- */
+// every comma-separated part of a value must match a form listed for its option
 final class QemuHardwareValues {
 
   private static final Pattern WORD = Pattern.compile("[A-Za-z0-9._-]{1,64}");
@@ -194,13 +182,6 @@ final class QemuHardwareValues {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
-  /**
-   * Checks the value of a hardware option.
-   *
-   * @param name  the option, without its dash
-   * @param value the value as entered
-   * @throws IllegalArgumentException if a part of the value has no form the option allows
-   */
   static void check(final String name, final String value) {
     final List<String> parts = PARTS.splitToList(value);
     final String first = parts.getFirst();
@@ -223,14 +204,7 @@ final class QemuHardwareValues {
     }
   }
 
-  /**
-   * Returns the memory an {@code -m} value gives the machine, as QEMU reads it: a number of MiB, or of the unit its suffix
-   * names, as the value itself or as its {@code size} property.
-   *
-   * @param value an {@code -m} value that {@link #check} accepted
-   * @return the size in bytes, {@link Long#MAX_VALUE} for a size beyond it, or QEMU's default of 128 MiB for a value
-   *         that sets no size
-   */
+  // as QEMU reads it: MiB without a suffix, 128 MiB when no size is set
   static long memoryBytes(final String value) {
     String size = DEFAULT_MEMORY_SIZE;
     for (final String part : PARTS.split(value)) {
@@ -252,20 +226,10 @@ final class QemuHardwareValues {
     return number > Long.MAX_VALUE >> shift ? Long.MAX_VALUE : number << shift;
   }
 
-  /**
-   * Checks a part of a {@code -drive} value other than its disk image.
-   *
-   * @param part  the part, such as {@code media=disk}
-   * @param value the whole value as entered, for the message
-   * @throws IllegalArgumentException if the part is not a property of the list, or its value has another form
-   */
   static void checkDriveProperty(final String part, final String value) {
     checkProperties(DRIVE_OPTION, value, List.of(part), DRIVE_PROPERTIES);
   }
 
-  /**
-   * Checks a value whose first part is either a plain value of a form or a property, followed by properties.
-   */
   private static void checkFirstAndProperties(
     final String name,
     final String value,

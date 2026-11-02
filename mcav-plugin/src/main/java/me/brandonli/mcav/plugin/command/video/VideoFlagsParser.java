@@ -50,9 +50,6 @@ public final class VideoFlagsParser {
   private static final Pattern UNESCAPED_COMMA = Pattern.compile("(?<!\\\\),");
   private static final Splitter OPTION_SPLITTER = Splitter.on(UNESCAPED_COMMA);
 
-  /**
-   * The options that are a switch, so they must not be given a value.
-   */
   private static final Set<String> FLAG_OPTIONS = Set.of(
     "no-playlist",
     "yes-playlist",
@@ -72,9 +69,6 @@ public final class VideoFlagsParser {
     "no-match-filters"
   );
 
-  /**
-   * The options that need a value, which is passed to yt-dlp as the argument after the option.
-   */
   private static final Set<String> VALUE_OPTIONS = Set.of(
     "format",
     "format-sort",
@@ -139,16 +133,7 @@ public final class VideoFlagsParser {
     return arguments.toArray(new String[0]);
   }
 
-  /**
-   * Finds the options inside {@code --yt-dlp{...}}: the first <code>--yt-dlp{</code> whose options end with a closing
-   * brace that is not escaped. A backslash escapes the character after it, except the end of a line. Visible for
-   * testing.
-   *
-   * <p>The options are found by scanning rather than with a regular expression: the expression that did this recursed
-   * once per character, so options of about 1600 characters overflowed the stack of a thread of the default size.
-   *
-   * @return the options, or {@code null} if the flags contain no yt-dlp options
-   */
+  // a backslash escapes the next character, so an escaped brace does not end the options
   @VisibleForTesting
   static @Nullable String extractOptions(final @Nullable String flags) {
     if (flags == null || flags.isBlank()) {
@@ -168,12 +153,7 @@ public final class VideoFlagsParser {
     return null;
   }
 
-  /**
-   * Finds the first closing brace from an index on that is not escaped.
-   *
-   * @return the index of the brace, or -1 if the options never end, including when a backslash has nothing after it
-   * but the end of a line or of the text
-   */
+  // -1 also when a trailing backslash has nothing to escape
   private static int findClosingBrace(final String text, final int from) {
     final int length = text.length();
     int index = from;
@@ -206,9 +186,6 @@ public final class VideoFlagsParser {
     );
   }
 
-  /**
-   * Turns one {@code name=value} or {@code name} option into yt-dlp arguments.
-   */
   private void appendOption(final String option, final List<String> arguments) {
     final String commasUnescaped = option.replace(ESCAPED_COMMA, COMMA);
     final String unescaped = commasUnescaped.replace(ESCAPED_BRACE, BRACE);
