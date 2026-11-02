@@ -59,6 +59,10 @@ import org.slf4j.LoggerFactory;
  * <p>On Windows only files with an executable extension ({@code .com}, {@code .exe}, {@code .bat}, or {@code .cmd})
  * are found, and the working folder is never searched, so a file planted there cannot be run in place of the real
  * program. Found programs are returned as absolute paths.
+ *
+ * <p>This class is immutable and thread-safe.
+ *
+ * @since 1.0.0
  */
 public final class ExecutableFinder {
 
@@ -87,7 +91,9 @@ public final class ExecutableFinder {
   private final Path root;
 
   /**
-   * Constructs a finder for the current operating system.
+   * Creates a finder for the current operating system.
+   *
+   * @since 1.0.0
    */
   public ExecutableFinder() {
     final Os currentOs = OsUtils.getOs();
@@ -97,14 +103,6 @@ public final class ExecutableFinder {
     this.root = SYSTEM_ROOT;
   }
 
-  /**
-   * Constructs a finder for an operating system and environment, so tests can simulate other machines.
-   *
-   * @param os          the operating system
-   * @param environment the environment variables, which provide the {@code PATH} and, on Windows, the
-   *                    {@code ProgramFiles} folder
-   * @param root        the root folder the fixed Unix folders such as {@code /etc/paths} are resolved against
-   */
   @VisibleForTesting
   ExecutableFinder(final Os os, final Map<String, String> environment, final Path root) {
     this.os = os;
@@ -117,7 +115,9 @@ public final class ExecutableFinder {
    *
    * @param name the program name, such as {@code qemu-system-x86_64}, or a path to it
    * @return the absolute path of the program, or empty if it is not installed where this finder looks
-   * @throws NullPointerException if {@code name} is null
+   * @throws NullPointerException     if {@code name} is null
+   * @throws IllegalArgumentException if {@code name} is blank or not a valid path
+   * @since 1.0.0
    */
   public Optional<Path> find(final String name) {
     Preconditions.checkNotNull(name, "Name must not be null!");
@@ -157,10 +157,6 @@ public final class ExecutableFinder {
     return Optional.empty();
   }
 
-  /**
-   * Gets the file names a program may have: on Windows the name with each executable extension, or the name itself
-   * if it already has one; elsewhere the name itself.
-   */
   private List<String> getCandidateNames(final String name) {
     if (this.os != Os.WINDOWS) {
       return List.of(name);
@@ -209,18 +205,13 @@ public final class ExecutableFinder {
     return directories;
   }
 
-  /**
-   * Reads the folders listed in the files of {@code /etc/paths.d}, file by file in the order of their names, as a
-   * login shell on macOS does.
-   *
-   * @return the listed folders
-   */
   private List<Path> readPathsDirectory() {
     final Path pathsDirectory = this.root.resolve(PATHS_DIRECTORY);
     final File pathsFolder = pathsDirectory.toFile();
     final File[] children = pathsFolder.listFiles(File::isFile);
     final File[] files = Objects.requireNonNullElse(children, NO_FILES);
     final Comparator<File> byName = Comparator.comparing(File::getName);
+    // a macOS login shell reads them in name order
     Arrays.sort(files, byName);
 
     final List<Path> directories = new ArrayList<>();

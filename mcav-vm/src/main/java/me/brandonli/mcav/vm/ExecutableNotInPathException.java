@@ -39,7 +39,7 @@ public final class ExecutableNotInPathException extends VmException {
   private static final String EXECUTABLE_NULL_MESSAGE = "Executable must not be null!";
 
   /**
-   * Constructs a new exception.
+   * Creates an exception for a program that is not installed or not on the {@code PATH}.
    *
    * @param executable the name of the missing program
    * @throws NullPointerException if the name is null

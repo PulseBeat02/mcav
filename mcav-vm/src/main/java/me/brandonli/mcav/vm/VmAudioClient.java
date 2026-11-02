@@ -34,8 +34,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 
-// QEMU converts the sound to the format of the audio pipeline itself. Only the handshake has a deadline: afterwards
-// the reader waits as long as the guest stays silent, and an end nobody asked for is reported once.
+// QEMU converts the sound to the pipeline's format; only the handshake has a deadline
 final class VmAudioClient implements Closeable {
 
   static final int HANDSHAKE_TIMEOUT_MILLISECONDS = 5_000;
@@ -91,9 +90,7 @@ final class VmAudioClient implements Closeable {
   }
 
   private static CompletableFuture<Void> scheduleHandshakeDeadline(final Socket socket) {
-    // the read timeout only limits a pause, so a server that trickles its handshake is cut off once it took too long;
-    // a deadline cancelled in time never runs, and one that runs gets a thread of its own, as the common pool of the
-    // server may be busy with the tasks of other plugins for longer than the deadline
+    // a read timeout bounds one pause, not a trickled handshake; own thread, as the common pool may be busy
     final Executor later = CompletableFuture.delayedExecutor(
       HANDSHAKE_TIMEOUT_MILLISECONDS,
       TimeUnit.MILLISECONDS,

@@ -149,7 +149,7 @@ public final class QemuVmPlayer implements VmPlayer {
   private void launchMachine(final VmSettings settings, final Architecture architecture, final VmConfiguration configuration) {
     final QemuProgram program = this.findOrInstallProgram(architecture);
     final VmProcess qemu = this.processFactory.create(settings, architecture, program, configuration);
-    // start() can fail after creating a live child. Keep ownership before invoking any process lifecycle code.
+    // start() can fail after spawning QEMU, so own the process first
     this.process = qemu;
 
     try {
@@ -309,7 +309,7 @@ public final class QemuVmPlayer implements VmPlayer {
         this.releaseDisplay();
       }
 
-      // A repeated release still owns cleanup if QEMU survived the preceding bounded termination attempt.
+      // a repeated release retries a QEMU that survived the last termination
       this.shutdownMachine();
 
       return first;

@@ -206,6 +206,8 @@ public interface VmPlayer extends ControllablePlayer, ReleasablePlayer, Exceptio
   /**
    * The guest architectures QEMU can emulate, each with its own program.
    *
+   * <p>This enum is immutable and thread-safe.
+   *
    * @since 1.0.0
    */
   enum Architecture {

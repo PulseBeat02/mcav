@@ -38,8 +38,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// A killed JVM cannot stop its QEMU processes, which keep their memory and VNC port, so each one is recorded with its
-// start instant and that of its JVM. reap() stops those whose JVM is gone; a matching start instant keeps a reused id safe.
+// records each QEMU process with its JVM, so reap() can stop those a killed JVM left running
 final class QemuProcessRecords {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(QemuProcessRecords.class);

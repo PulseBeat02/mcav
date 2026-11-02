@@ -34,7 +34,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>MCAV uses the QEMU of the machine when it finds one. The {@code qemu-system-*} programs must be on the
  * {@code PATH} of the Java process, or in a folder {@link ExecutableFinder} also searches: {@code /usr/local/bin}
- * and {@code /usr/bin} on Linux, the Homebrew folders and {@code /etc/paths} on macOS, and
+ * and {@code /usr/bin} on Linux and FreeBSD, the Homebrew folders and {@code /etc/paths} on macOS, and
  * {@code C:\Program Files\qemu} on Windows. Services often run with a shorter {@code PATH} than a login shell, so a
  * QEMU installed elsewhere must be added to the {@code PATH} of the service. When the machine has none, MCAV installs
  * the Debian 12 packages of the QEMU of the guest into its cache folder at the first start, on x86-64 and ARM64 Linux
@@ -61,7 +61,7 @@ public final class VmModule implements MCAVModule {
   private volatile boolean qemuAvailable;
 
   /**
-   * Constructs the module. The module loader creates it for you.
+   * Creates the module; the module loader calls this for you.
    *
    * @since 1.0.0
    */
