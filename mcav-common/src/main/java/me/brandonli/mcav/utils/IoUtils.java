@@ -569,7 +569,7 @@ public final class IoUtils {
     try {
       createDirectoryIfNotExists(directory);
       final Path probe = Files.createTempFile(directory, EXECUTION_PROBE_PREFIX, EXECUTION_PROBE_SUFFIX);
-      return isExecutableProbe(probe, executable);
+      return probeExecution(probe, executable);
     } catch (final FileOperationException | IOException exception) {
       return false;
     }
@@ -577,7 +577,7 @@ public final class IoUtils {
 
   // Linux refuses the execute access check on every regular file of a noexec mount, even one marked executable, so a
   // probe marked executable answers for the whole file system.
-  private static boolean isExecutableProbe(final Path probe, final Predicate<Path> executable) throws IOException {
+  private static boolean probeExecution(final Path probe, final Predicate<Path> executable) throws IOException {
     try {
       markExecutable(probe);
       return executable.test(probe);
