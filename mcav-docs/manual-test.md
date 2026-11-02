@@ -42,25 +42,27 @@ The first start takes several minutes: it downloads Paper, then the plugin asks 
 modules, the JavaCV natives, VLC and yt-dlp. Wait for `Done (…)! For help, type "help"` and, just before it,
 `MCAV loaded in … ms.`.
 
-> **Testing your own changes.** `runServer` downloads the **published** `1.0.0-SNAPSHOT` modules, so by default you
-> are not watching your working tree at all. To run the modules of your build, publish them into a local repository
-> and let the server download them from there. From the repository root, build and publish before starting either
-> server, then serve the repository with a separately installed Python 3 (`python3` on `PATH`):
->
-> ```sh
-> ./gradlew :mcav-plugin:shadowJar -Pmcav.e2e=true -Pmcav.e2e.repositoryPort=8765
-> python3 -m http.server 8765 --bind 127.0.0.1 --directory build/e2e-repository
-> ```
->
-> In a second shell at the repository root:
->
-> ```sh
-> ./gradlew :mcav-plugin:runServer -Pmcav.e2e=true -Pmcav.e2e.repositoryPort=8765
-> ```
->
-> The build bakes the port into the plugin's `mcav/plugin/dependencies.txt` as the first repository, so the server asks
-> it first. You can confirm it worked: the request log of that small HTTP server must show a request for
-> `mcav-bukkit-1.0.0-<timestamp>.jar`. The `e2eTest` task uses the same mechanism.
+````{note}
+`runServer` downloads the published `1.0.0-SNAPSHOT` modules, so by default you are not watching your working tree at
+all. To test your own changes, publish the modules of your build into a local repository and let the server download
+them from there. From the repository root, build and publish before starting either server, then serve the repository
+with a separately installed Python 3 (`python3` on `PATH`):
+
+```sh
+./gradlew :mcav-plugin:shadowJar -Pmcav.e2e=true -Pmcav.e2e.repositoryPort=8765
+python3 -m http.server 8765 --bind 127.0.0.1 --directory build/e2e-repository
+```
+
+In a second shell at the repository root:
+
+```sh
+./gradlew :mcav-plugin:runServer -Pmcav.e2e=true -Pmcav.e2e.repositoryPort=8765
+```
+
+The build bakes the port into the plugin's `mcav/plugin/dependencies.txt` as the first repository, so the server asks it
+first. You can confirm it worked: the request log of that small HTTP server must show a request for
+`mcav-bukkit-1.0.0-<timestamp>.jar`. The `e2eTest` task uses the same mechanism.
+````
 
 Let a bot or yourself join without a Mojang account by setting `online-mode=false` in
 `mcav-plugin/run/server.properties` before starting, and accept the EULA in `mcav-plugin/run/eula.txt` (`eula=true`).
@@ -94,9 +96,11 @@ mcav image release
 mcav video map @a VLC HTTP_SERVER "1920x1080" "15x9" 0 FLOYD_STEINBERG "" "/absolute/path/to/mcav.mp4"
 ```
 
-> **You can quote image paths or leave them unquoted.** Image commands consume the rest of the line and strip one
-> enclosing pair of double quotes. Both forms support paths containing spaces. Use quotes for video MRLs
-> containing spaces. Empty and malformed image sources still report `Invalid MRL!`.
+```{note}
+You can quote image paths or leave them unquoted. Image commands consume the rest of the line and strip one enclosing
+pair of double quotes. Both forms support paths containing spaces. Use quotes for video MRLs containing spaces. Empty
+and malformed image sources still report `Invalid MRL!`.
+```
 
 `HTTP_SERVER` audio needs the audio web page, which is off by default: set `enabled: true` under `http-server` in
 `mcav-plugin/run/plugins/MCAV/config.yml` and restart the server, or the plugin refuses the command. At startup the
