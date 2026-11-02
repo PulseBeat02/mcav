@@ -27,8 +27,7 @@
  * releasing the filter on the render thread. {@link me.brandonli.mcav.lwjgl.LwjglModule} does not create or
  * release contexts or filters.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */
