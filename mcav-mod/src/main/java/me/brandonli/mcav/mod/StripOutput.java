@@ -25,5 +25,5 @@ interface StripOutput {
   int getHeight();
 
   // writes the strip, top row first, over the main target's top rows and runs the pack's chain; false without a chain
-  boolean decode(byte[] strip, int rows, GraphicsResourceAllocator allocator);
+  boolean decode(final byte[] strip, final int rows, final GraphicsResourceAllocator allocator);
 }
