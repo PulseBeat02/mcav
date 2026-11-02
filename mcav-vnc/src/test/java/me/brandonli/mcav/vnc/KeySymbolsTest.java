@@ -36,7 +36,7 @@ import org.junit.jupiter.api.Test;
 final class KeySymbolsTest {
 
   @Test
-  void shouldLookUpTheKeysymsOfKeyNames() {
+  void shouldLookUpTheKeySymbolsOfKeyNames() {
     final OptionalInt enter = KeySymbols.lookup("Return");
     final OptionalInt escape = KeySymbols.lookup("Escape");
     final OptionalInt backSpace = KeySymbols.lookup("BackSpace");
@@ -92,15 +92,17 @@ final class KeySymbolsTest {
 
   @Test
   void shouldWrapReadFailures() {
-    final VncException exception = assertThrows(VncException.class, () -> {
-      final ClosingReader reader = new ClosingReader("{}", true);
-      KeySymbols.parse(reader);
-    });
+    final VncException exception = assertThrows(VncException.class, this::parseWithFailingReader);
     final Throwable cause = exception.getCause();
     final String message = exception.getMessage();
     assertInstanceOf(IOException.class, cause);
     final boolean messageContains = message.contains("close failed");
     assertTrue(messageContains, message);
+  }
+
+  private void parseWithFailingReader() {
+    final ClosingReader reader = new ClosingReader("{}", true);
+    KeySymbols.parse(reader);
   }
 
   @Test
@@ -167,7 +169,8 @@ final class KeySymbolsTest {
       this.closed = true;
       this.content.close();
       if (this.failOnClose) {
-        throw new IOException("close failed!");
+        final String message = "close failed!";
+        throw new IOException(message);
       }
     }
   }

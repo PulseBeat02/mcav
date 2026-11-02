@@ -19,56 +19,48 @@ package me.brandonli.mcav.vnc.testing;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.common.base.Preconditions;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// Assertions for the Object#equals(Object) and Object#hashCode() contract of value types.
 public final class EqualityAssertions {
 
   private EqualityAssertions() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
-  // Asserts that a value equals itself, that two values are equal in both directions with equal hash codes, that
-  // neither equals null or an unrelated object, and that the value differs from every one of the different values in
-  // both directions and remains distinct from them as a hash map key. Unequal values may have equal hash codes, even
-  // when only one property differs. Hash maps use equality to distinguish keys that collide; the contract requires
-  // equal hashes only for equal values.
   public static void assertEqualityContract(final Object value, final Object equalValue, final Object... differentValues) {
     Preconditions.checkNotNull(value, "Value must not be null!");
     Preconditions.checkNotNull(equalValue, "Equal value must not be null!");
     Preconditions.checkNotNull(differentValues, "Different values must not be null!");
 
-    final List<Object> equalValues = List.of(value, equalValue);
-    for (final Object left : equalValues) {
-      for (final Object right : equalValues) {
-        assertEquals(left, right);
-        final int leftHash = left.hashCode();
-        final int rightHash = right.hashCode();
-        assertEquals(leftHash, rightHash);
-      }
-    }
-
-    final List<@Nullable Object> strangers = new ArrayList<>();
-    strangers.add(null);
-    final Object unrelated = new Object();
-    strangers.add(unrelated);
-    for (@Nullable final Object stranger : strangers) {
-      final boolean equalsStranger = value.equals(stranger);
-      assertFalse(equalsStranger);
-    }
+    assertReflexiveAndSymmetric(value, equalValue);
+    assertEqualHashCodes(value, equalValue);
+    assertNotEqualToNullOrUnrelated(value);
 
     for (final Object differentValue : differentValues) {
-      assertNotEquals(value, differentValue);
-      assertNotEquals(differentValue, value);
+      assertDifferentInBothDirections(value, differentValue);
       assertDistinctMapKeys(value, equalValue, differentValue);
     }
+  }
+
+  private static void assertReflexiveAndSymmetric(final Object value, final Object equalValue) {
+    final boolean reflexive = isEqual(value, value);
+    final boolean forward = isEqual(value, equalValue);
+    final boolean backward = isEqual(equalValue, value);
+    assertTrue(reflexive, "a value must equal itself");
+    assertTrue(forward, "the value must equal the equal value");
+    assertTrue(backward, "the equal value must equal the value");
+  }
+
+  private static void assertEqualHashCodes(final Object value, final Object equalValue) {
+    final int hash = value.hashCode();
+    final int equalHash = equalValue.hashCode();
+    assertEquals(hash, equalHash, "equal values must have equal hash codes");
   }
 
   private static void assertDistinctMapKeys(final Object value, final Object equalValue, final Object differentValue) {
@@ -81,5 +73,26 @@ public final class EqualityAssertions {
     assertEquals(2, size, "unequal values remain distinct keys, even if their hashes collide");
     assertEquals("original", original, "an equal value retrieves the original entry");
     assertEquals("different", different);
+  }
+
+  private static void assertNotEqualToNullOrUnrelated(final Object value) {
+    final Object unrelated = new Object();
+    final @Nullable Object[] outsiders = { null, unrelated };
+    for (final @Nullable Object outsider : outsiders) {
+      final boolean equal = isEqual(value, outsider);
+      assertFalse(equal, () -> "a value must not equal %s".formatted(outsider));
+    }
+  }
+
+  private static void assertDifferentInBothDirections(final Object value, final Object differentValue) {
+    final boolean forward = isEqual(value, differentValue);
+    final boolean backward = isEqual(differentValue, value);
+    assertFalse(forward, () -> "the value must differ from %s".formatted(differentValue));
+    assertFalse(backward, () -> "%s must differ from the value".formatted(differentValue));
+  }
+
+  // not Objects.equals, whose identity shortcut would skip the implementation
+  private static boolean isEqual(final Object receiver, final @Nullable Object argument) {
+    return receiver.equals(argument);
   }
 }
