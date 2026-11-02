@@ -45,7 +45,7 @@ public final class BrowserModule implements MCAVModule {
   private static final String MODULE_NAME = "browser";
 
   /**
-   * Constructs the module. The module loader creates it for you.
+   * Creates the module. The module loader creates it for you.
    *
    * @since 1.0.0
    */

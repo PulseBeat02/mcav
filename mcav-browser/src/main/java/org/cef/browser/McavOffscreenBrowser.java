@@ -62,7 +62,7 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
   private boolean focused;
 
   /**
-   * Constructs a browser. It is created in CEF by {@link #createImmediately()}.
+   * Creates a browser, which {@link #createImmediately()} then creates in CEF.
    *
    * @param client   the client the browser belongs to
    * @param url      the page to open
