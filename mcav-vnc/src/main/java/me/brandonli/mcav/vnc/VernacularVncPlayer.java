@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.vnc;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.shinyhut.vernacular.client.VernacularClient;
@@ -27,7 +29,6 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.concurrent.CompletableFuture;
@@ -404,7 +405,7 @@ public final class VernacularVncPlayer implements VncPlayer {
         metadata = OriginalVideoMetadata.of(width, height, frameRate);
       }
 
-      final OriginalVideoMetadata current = Objects.requireNonNull(metadata, "Metadata must exist with the filter!");
+      final OriginalVideoMetadata current = requireNonNull(metadata, "Metadata must exist with the filter!");
       this.deliverWhileAlive(owner, frame, resizeFilter, current);
     }
   }
@@ -739,7 +740,7 @@ public final class VernacularVncPlayer implements VncPlayer {
   }
 
   private int[] translateCoordinates(final int frameX, final int frameY) {
-    final VncSource current = Objects.requireNonNull(this.source, "Source must be set while connected!");
+    final VncSource current = requireNonNull(this.source, "Source must be set while connected!");
     final int targetWidth = this.remoteWidth;
     final int targetHeight = this.remoteHeight;
 
