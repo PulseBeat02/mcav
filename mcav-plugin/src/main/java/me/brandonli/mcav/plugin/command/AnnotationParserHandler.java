@@ -47,6 +47,7 @@ import me.brandonli.mcav.utils.ThrowableUtils;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TranslatableComponent;
 import org.bukkit.command.CommandSender;
+import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.incendo.cloud.CommandManager;
 import org.incendo.cloud.annotations.AnnotationParser;
 import org.incendo.cloud.bukkit.CloudBukkitCapabilities;
@@ -76,12 +77,12 @@ public final class AnnotationParserHandler {
    */
   public AnnotationParserHandler(final MCAVSandbox plugin) {
     Preconditions.checkNotNull(plugin, "Plugin must not be null!");
-    this.manager = createCommandManager(plugin);
-    this.parser = createAnnotationParser(this.manager);
-    this.features = createFeatures(plugin, this.manager);
+    this.manager = this.createCommandManager(plugin);
+    this.parser = this.createAnnotationParser(this.manager);
+    this.features = this.createFeatures(plugin, this.manager);
   }
 
-  private static CommandManager<CommandSender> createCommandManager(final MCAVSandbox plugin) {
+  private CommandManager<CommandSender> createCommandManager(@UnderInitialization AnnotationParserHandler this, final MCAVSandbox plugin) {
     final ExecutionCoordinator<CommandSender> coordinator = ExecutionCoordinator.simpleCoordinator();
     final LegacyPaperCommandManager<CommandSender> paperManager = LegacyPaperCommandManager.createNative(plugin, coordinator);
     final boolean brigadier = paperManager.hasCapability(CloudBukkitCapabilities.NATIVE_BRIGADIER);
@@ -91,7 +92,10 @@ public final class AnnotationParserHandler {
     return paperManager;
   }
 
-  private static AnnotationParser<CommandSender> createAnnotationParser(final CommandManager<CommandSender> manager) {
+  private AnnotationParser<CommandSender> createAnnotationParser(
+    @UnderInitialization AnnotationParserHandler this,
+    final CommandManager<CommandSender> manager
+  ) {
     final AnnotationParser<CommandSender> annotationParser = new AnnotationParser<>(manager, CommandSender.class);
     annotationParser.descriptionMapper(AnnotationParserHandler::describe);
     return annotationParser;
@@ -115,7 +119,11 @@ public final class AnnotationParserHandler {
     return RichDescription.of(rendered);
   }
 
-  private static List<AnnotationCommandFeature> createFeatures(final MCAVSandbox plugin, final CommandManager<CommandSender> manager) {
+  private List<AnnotationCommandFeature> createFeatures(
+    @UnderInitialization AnnotationParserHandler this,
+    final MCAVSandbox plugin,
+    final CommandManager<CommandSender> manager
+  ) {
     return List.of(
       new SuggestionProvider(),
       new BrowserCommand(plugin),

@@ -40,6 +40,7 @@ import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TranslatableComponent;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.checkerframework.checker.initialization.qual.UnderInitialization;
 
 /**
  * Loads the messages of the configured language and renders translatable components with them.
@@ -69,11 +70,11 @@ public final class TranslationManager {
     final PluginDataConfigurationMapper mapper = plugin.getConfiguration();
     final Locale locale = mapper.getLocale();
     final Path folder = IoUtils.getPluginDataFolderPath();
-    this.bundle = loadBundle(folder, locale);
+    this.bundle = this.loadBundle(folder, locale);
     this.translator = new PluginTranslator(ADVENTURE_KEY, this.bundle);
   }
 
-  private static ResourceBundle loadBundle(final Path folder, final Locale locale) {
+  private ResourceBundle loadBundle(@UnderInitialization TranslationManager this, final Path folder, final Locale locale) {
     final String name = locale.name();
     final String lowerCaseName = name.toLowerCase(java.util.Locale.ROOT); // fqn: Locale is this package's language
     final String propertiesPath = LOCALE_FILE_PREFIX + lowerCaseName + LOCALE_FILE_SUFFIX;
@@ -81,9 +82,9 @@ public final class TranslationManager {
     try {
       final boolean missing = Files.notExists(file);
       if (missing) {
-        copyBundledFile(propertiesPath, file);
+        this.copyBundledFile(propertiesPath, file);
       }
-      final ResourceBundle bundled = readBundledFile(propertiesPath);
+      final ResourceBundle bundled = this.readBundledFile(propertiesPath);
       try (final Reader reader = Files.newBufferedReader(file)) {
         return LayeredBundle.of(reader, bundled);
       }
@@ -94,7 +95,8 @@ public final class TranslationManager {
     }
   }
 
-  private static void copyBundledFile(final String propertiesPath, final Path file) throws IOException {
+  private void copyBundledFile(@UnderInitialization TranslationManager this, final String propertiesPath, final Path file)
+    throws IOException {
     final Path nullableParent = file.getParent();
     final Path parent = requireNonNull(nullableParent);
     Files.createDirectories(parent);
@@ -103,7 +105,7 @@ public final class TranslationManager {
     }
   }
 
-  private static ResourceBundle readBundledFile(final String propertiesPath) throws IOException {
+  private ResourceBundle readBundledFile(@UnderInitialization TranslationManager this, final String propertiesPath) throws IOException {
     try (
       final InputStream stream = IoUtils.getResourceAsStream(propertiesPath);
       final Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)

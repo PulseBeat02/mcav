@@ -105,7 +105,7 @@ public final class VideoBlockCommand extends AbstractVideoCommand {
     Preconditions.checkNotNull(location, "Location must not be null!");
 
     final Collection<UUID> players = ArgumentUtils.parsePlayerSelectors(playerSelector);
-    final VideoConfigurationProvider configurationProvider = resolution -> createConfiguration(resolution, players, location);
+    final VideoConfigurationProvider configurationProvider = resolution -> this.createConfiguration(resolution, players, location);
     this.playVideo(configurationProvider, sender, playerSelector, playerType, audioType, videoResolution, mrl, ytdlpOptions, filters);
   }
 
@@ -133,7 +133,7 @@ public final class VideoBlockCommand extends AbstractVideoCommand {
     return VideoPipelineStep.of(result);
   }
 
-  private static BlockConfiguration createConfiguration(
+  private BlockConfiguration createConfiguration(
     final Pair<Integer, Integer> resolution,
     final Collection<UUID> players,
     final Location location

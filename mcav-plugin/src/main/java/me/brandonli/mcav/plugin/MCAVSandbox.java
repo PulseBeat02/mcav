@@ -172,14 +172,14 @@ public final class MCAVSandbox extends JavaPlugin {
     this.audioProvider = null;
     this.mcav = null;
     CleanupUtils.runAll(
-      whenPresent(videos, VideoPlayerManager::shutdown),
-      whenPresent(images, ImageManager::shutdown),
-      whenPresent(jukebox, JukeBoxListener::shutdown),
-      whenPresent(commands, AnnotationParserHandler::shutdownCommands),
-      whenPresent(audio, AudioProvider::shutdown),
-      whenPresent(mcv2, Mcv2Support::shutdown),
-      whenPresent(online, OnlinePlayers::stop),
-      whenPresent(library, MCAVApi::release)
+      this.whenPresent(videos, VideoPlayerManager::shutdown),
+      this.whenPresent(images, ImageManager::shutdown),
+      this.whenPresent(jukebox, JukeBoxListener::shutdown),
+      this.whenPresent(commands, AnnotationParserHandler::shutdownCommands),
+      this.whenPresent(audio, AudioProvider::shutdown),
+      this.whenPresent(mcv2, Mcv2Support::shutdown),
+      this.whenPresent(online, OnlinePlayers::stop),
+      this.whenPresent(library, MCAVApi::release)
     );
   }
 
@@ -270,7 +270,7 @@ public final class MCAVSandbox extends JavaPlugin {
     jukeBoxListener.start();
   }
 
-  private static <PartType> Runnable whenPresent(final @Nullable PartType part, final Consumer<PartType> cleanup) {
+  private <PartType> Runnable whenPresent(final @Nullable PartType part, final Consumer<PartType> cleanup) {
     return () -> {
       if (part != null) {
         cleanup.accept(part);
@@ -279,10 +279,10 @@ public final class MCAVSandbox extends JavaPlugin {
   }
 
   private ComponentLogger requireLogger() {
-    return require(this.logger, "logger");
+    return this.require(this.logger, "logger");
   }
 
-  private static <ValueType> ValueType require(final @Nullable ValueType value, final String name) {
+  private <ValueType> ValueType require(final @Nullable ValueType value, final String name) {
     if (value == null) {
       final String message = "The %s is not available before the plugin is enabled!".formatted(name);
       throw new IllegalStateException(message);
@@ -296,7 +296,7 @@ public final class MCAVSandbox extends JavaPlugin {
    * @return the library
    */
   public MCAVApi getMCAV() {
-    return require(this.mcav, "library");
+    return this.require(this.mcav, "library");
   }
 
   /**
@@ -305,7 +305,7 @@ public final class MCAVSandbox extends JavaPlugin {
    * @return the configuration
    */
   public PluginDataConfigurationMapper getConfiguration() {
-    return require(this.configurationMapper, "configuration");
+    return this.require(this.configurationMapper, "configuration");
   }
 
   /**
@@ -314,7 +314,7 @@ public final class MCAVSandbox extends JavaPlugin {
    * @return the video player manager
    */
   public VideoPlayerManager getVideoPlayerManager() {
-    return require(this.videoPlayerManager, "video player manager");
+    return this.require(this.videoPlayerManager, "video player manager");
   }
 
   /**
@@ -323,7 +323,7 @@ public final class MCAVSandbox extends JavaPlugin {
    * @return the audio provider
    */
   public AudioProvider getAudioProvider() {
-    return require(this.audioProvider, "audio provider");
+    return this.require(this.audioProvider, "audio provider");
   }
 
   /**
@@ -332,7 +332,7 @@ public final class MCAVSandbox extends JavaPlugin {
    * @return the image manager
    */
   public ImageManager getImageManager() {
-    return require(this.imageManager, "image manager");
+    return this.require(this.imageManager, "image manager");
   }
 
   /**
@@ -341,7 +341,7 @@ public final class MCAVSandbox extends JavaPlugin {
    * @return the MCV2 support
    */
   public Mcv2Support getMcv2Support() {
-    return require(this.mcv2Support, "MCV2 support");
+    return this.require(this.mcv2Support, "MCV2 support");
   }
 
   /**
@@ -350,7 +350,7 @@ public final class MCAVSandbox extends JavaPlugin {
    * @return the online players
    */
   public OnlinePlayers getOnlinePlayers() {
-    return require(this.onlinePlayers, "list of online players");
+    return this.require(this.onlinePlayers, "list of online players");
   }
 
   /**

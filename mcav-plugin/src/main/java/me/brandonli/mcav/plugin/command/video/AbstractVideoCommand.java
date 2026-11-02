@@ -165,7 +165,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     if (resolution == null) {
       return;
     }
-    final String[] ytdlpArguments = parseFlags(sender, flags);
+    final String[] ytdlpArguments = this.parseFlags(sender, flags);
     if (ytdlpArguments == null) {
       return;
     }
@@ -186,8 +186,8 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     }
 
     try {
-      final Player[] viewers = collectViewers(selector);
-      notifyLoading(viewers);
+      final Player[] viewers = this.collectViewers(selector);
+      this.notifyLoading(viewers);
       final PlaybackRequest request = new PlaybackRequest(
         playerType,
         audioType,
@@ -283,12 +283,12 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     return initializing.compareAndSet(false, true);
   }
 
-  private static Player[] collectViewers(final MultiplePlayerSelector selector) {
+  private Player[] collectViewers(final MultiplePlayerSelector selector) {
     final Collection<Player> players = selector.values();
     return players.toArray(new Player[0]);
   }
 
-  private static void notifyLoading(final Player[] viewers) {
+  private void notifyLoading(final Player[] viewers) {
     final Component loading = Message.LOAD_VIDEO.build();
     for (final Player viewer : viewers) {
       viewer.sendMessage(loading);
@@ -300,7 +300,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    *
    * @return the arguments for yt-dlp, or {@code null} if an option was refused
    */
-  private static String @Nullable [] parseFlags(final CommandSender sender, final String flags) {
+  private String @Nullable [] parseFlags(final CommandSender sender, final String flags) {
     final VideoFlagsParser flagsParser = new VideoFlagsParser();
     try {
       return flagsParser.parseYtdlpFlags(flags);
@@ -458,7 +458,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     this.manager.checkStart();
     final String mrl = request.getMrl();
     final String[] ytdlpArguments = request.getYtdlpArguments();
-    final SourceSelection selection = selectSources(mrl, ytdlpArguments);
+    final SourceSelection selection = this.selectSources(mrl, ytdlpArguments);
     this.manager.checkStart();
     if (selection == null) {
       return false;
@@ -482,7 +482,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
       return true;
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
-      cleanupAfterFailure(exception, this.manager::clearCurrentVideo);
+      this.cleanupAfterFailure(exception, this.manager::clearCurrentVideo);
       throw exception;
     }
   }
@@ -509,11 +509,11 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final PlayerArgument playerType = request.getPlayerType();
     final VideoPlayerMultiplexer player = playerType.createPlayer();
     this.manager.setPlayer(player);
-    attachPipelines(player, videoPipeline, audioPipeline, resolution);
+    this.attachPipelines(player, videoPipeline, audioPipeline, resolution);
     return player;
   }
 
-  private static void attachPipelines(
+  private void attachPipelines(
     final VideoPlayerMultiplexer player,
     final VideoPipelineStep videoPipeline,
     final AudioPipelineStep audioPipeline,
@@ -544,7 +544,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
   }
 
   /** Runs one cleanup after a recoverable failure; the caller explicitly rethrows that original failure. */
-  private static void cleanupAfterFailure(final Throwable failure, final Runnable cleanup) {
+  private void cleanupAfterFailure(final Throwable failure, final Runnable cleanup) {
     try {
       cleanup.run();
     } catch (final RuntimeException | Error exception) {
@@ -576,7 +576,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
       this.manager.setHologram(null);
-      cleanupAfterFailure(exception, hologram::kill);
+      this.cleanupAfterFailure(exception, hologram::kill);
       throw exception;
     }
   }
@@ -594,7 +594,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final VideoConfigurationProvider configurationProvider
   );
 
-  private static @Nullable SourceSelection selectSources(final String mrl, final String[] ytdlpArguments) {
+  private @Nullable SourceSelection selectSources(final String mrl, final String[] ytdlpArguments) {
     final SourceDetectionHelper helper = new SourceDetectionHelper();
     final Optional<Source> detected = helper.detectSource(mrl);
     if (detected.isEmpty()) {
@@ -603,9 +603,9 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
 
     final Source source = detected.get();
     if (source instanceof final UriSource page && !page.isDirect()) {
-      return resolveWithYtdlp(page, ytdlpArguments);
+      return this.resolveWithYtdlp(page, ytdlpArguments);
     }
-    final UrlParseDump dump = describeDirectSource(source, mrl);
+    final UrlParseDump dump = this.describeDirectSource(source, mrl);
     return new SourceSelection(source, null, dump);
   }
 
@@ -615,30 +615,30 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    *
    * @return the description
    */
-  private static UrlParseDump describeDirectSource(final Source source, final String mrl) {
+  private UrlParseDump describeDirectSource(final Source source, final String mrl) {
     if (source instanceof final FfmpegDirectSource ffmpegSource) {
       final String input = ffmpegSource.getMrl();
       final String format = ffmpegSource.getFormat();
-      return createDump(input, "FFmpeg input " + format);
+      return this.createDump(input, "FFmpeg input " + format);
     }
     if (source instanceof final DeviceSource device) {
       final int deviceId = device.getDeviceId();
-      return createDump("Device " + deviceId, "Video from a capture device");
+      return this.createDump("Device " + deviceId, "Video from a capture device");
     }
     if (source instanceof final FileSource file) {
       final Path path = file.getPath();
       final String fileName = IoUtils.getName(path);
-      return createDump(fileName, "Video from a file");
+      return this.createDump(fileName, "Video from a file");
     }
     final String fileName = IoUtils.getFileNameFromUrl(mrl);
-    return createDump(fileName, "Video from a URL");
+    return this.createDump(fileName, "Video from a URL");
   }
 
-  private static UrlParseDump createDump(final String title, final String description) {
+  private UrlParseDump createDump(final String title, final String description) {
     return UrlParseDump.of(title, description);
   }
 
-  private static SourceSelection resolveWithYtdlp(final UriSource page, final String[] ytdlpArguments) {
+  private SourceSelection resolveWithYtdlp(final UriSource page, final String[] ytdlpArguments) {
     final YtdlpParser parser = YtdlpParser.simple();
     final UrlParseDump dump;
     try {
@@ -655,8 +655,8 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final Format audioFormat = selector.getAudioSource(dump);
     final UriSource video = videoFormat.toUriSource();
     final UriSource audio = audioFormat.toUriSource();
-    checkWebStream(page, video);
-    checkWebStream(page, audio);
+    this.checkWebStream(page, video);
+    this.checkWebStream(page, audio);
     return new SourceSelection(video, audio, dump);
   }
 
@@ -665,7 +665,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    * FFmpeg and VLC open whatever their protocols reach, such as a file of the server or a service only it can connect
    * to; a player needs the capture permission even to name such an input.
    */
-  private static void checkWebStream(final UriSource page, final UriSource stream) {
+  private void checkWebStream(final UriSource page, final UriSource stream) {
     final URI uri = stream.getUri();
     final String scheme = uri.getScheme();
     final boolean web = HTTP_SCHEME.equalsIgnoreCase(scheme) || HTTPS_SCHEME.equalsIgnoreCase(scheme);

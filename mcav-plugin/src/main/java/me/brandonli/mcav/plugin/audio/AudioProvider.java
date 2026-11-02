@@ -227,24 +227,24 @@ public final class AudioProvider {
     final String token = this.configuration.getDiscordBotToken();
     final String guildId = this.configuration.getDiscordBotGuildId();
     final String channelId = this.configuration.getDiscordBotChannelId();
-    final JDA bot = createJda(token);
+    final JDA bot = this.createJda(token);
     synchronized (this.lock) {
       this.jda = bot;
     }
     final CompletableFuture<DiscordConnection> login = CompletableFuture.supplyAsync(
-      () -> connectDiscord(bot, guildId, channelId),
+      () -> this.connectDiscord(bot, guildId, channelId),
       this.startup
     );
     TaskUtils.whenComplete(login, (connection, error) -> this.onDiscordConnected(bot, connection, error));
   }
 
-  private static JDA createJda(final String token) {
+  private JDA createJda(final String token) {
     final JDABuilder builder = JDABuilder.createLight(token, GatewayIntent.GUILD_VOICE_STATES);
     builder.enableCache(CacheFlag.VOICE_STATE);
     return builder.build();
   }
 
-  private static DiscordConnection connectDiscord(final JDA bot, final String guildId, final String channelId) {
+  private DiscordConnection connectDiscord(final JDA bot, final String guildId, final String channelId) {
     try {
       bot.awaitReady();
     } catch (final InterruptedException exception) {

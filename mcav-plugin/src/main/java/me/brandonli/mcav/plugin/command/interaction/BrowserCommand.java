@@ -276,7 +276,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
       return;
     }
 
-    final BrowserSource source = createSource(uri, nth, resolution);
+    final BrowserSource source = this.createSource(uri, nth, resolution);
     final MapCodec chosen = this.chooseCodec(codec);
     final ScreenSettings settings = new ScreenSettings(sender, playerSelector, blocks, resolution, mapId, ditheringAlgorithm, chosen);
     final Screen screen = this.createScreen(settings);
@@ -285,7 +285,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     this.createResource(() -> this.startBrowser(sender, screen, source, sound));
   }
 
-  private static BrowserSource createSource(final URI uri, final int nth, final Pair<Integer, Integer> resolution) {
+  private BrowserSource createSource(final URI uri, final int nth, final Pair<Integer, Integer> resolution) {
     final int width = resolution.getFirst();
     final int height = resolution.getSecond();
     return BrowserSource.uri(uri, width, height, nth);

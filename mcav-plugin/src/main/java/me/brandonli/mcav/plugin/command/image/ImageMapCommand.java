@@ -118,7 +118,7 @@ public final class ImageMapCommand extends AbstractImageCommand {
     Preconditions.checkNotNull(blockDimensions, "Block dimensions must not be null!");
     Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null!");
     Preconditions.checkNotNull(mrl, "MRL must not be null!");
-    final Pair<Integer, Integer> blocks = parseBlocks(sender, blockDimensions);
+    final Pair<Integer, Integer> blocks = this.parseBlocks(sender, blockDimensions);
     if (blocks == null) {
       return;
     }
@@ -128,17 +128,17 @@ public final class ImageMapCommand extends AbstractImageCommand {
     final ImageConfigurationProvider configurationProvider =
       chosen == MapCodec.MCV2
         ? resolution -> new Mcv2ImageSettings(sender, blocks, resolution, mapId, players, ditheringAlgorithm)
-        : createProvider(blocks, mapId, players, ditheringAlgorithm);
+        : this.createProvider(blocks, mapId, players, ditheringAlgorithm);
     this.displayImage(configurationProvider, sender, imageResolution, mrl, filters);
   }
 
-  private static ImageConfigurationProvider createProvider(
+  private ImageConfigurationProvider createProvider(
     final Pair<Integer, Integer> blocks,
     final int mapId,
     final Collection<UUID> players,
     final DitheringArgument dithering
   ) {
-    return resolution -> createSettings(blocks, resolution, mapId, players, dithering);
+    return resolution -> this.createSettings(blocks, resolution, mapId, players, dithering);
   }
 
   /**
@@ -146,7 +146,7 @@ public final class ImageMapCommand extends AbstractImageCommand {
    *
    * @return the size in maps, or {@code null} if the sender was told that it is invalid
    */
-  private static @Nullable Pair<Integer, Integer> parseBlocks(final CommandSender sender, final String blockDimensions) {
+  private @Nullable Pair<Integer, Integer> parseBlocks(final CommandSender sender, final String blockDimensions) {
     try {
       return ArgumentUtils.parseScreenDimensions(blockDimensions);
     } catch (final IllegalArgumentException exception) {
@@ -156,7 +156,7 @@ public final class ImageMapCommand extends AbstractImageCommand {
     }
   }
 
-  private static MapDisplaySettings createSettings(
+  private MapDisplaySettings createSettings(
     final Pair<Integer, Integer> blocks,
     final Pair<Integer, Integer> resolution,
     final int mapId,

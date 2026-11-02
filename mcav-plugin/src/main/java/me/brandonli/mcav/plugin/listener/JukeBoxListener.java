@@ -102,7 +102,7 @@ public final class JukeBoxListener implements Listener {
       return;
     }
     final ItemStack item = event.getItem();
-    if (item == null || !isDiscOnJukebox(event, item)) {
+    if (item == null || !this.isDiscOnJukebox(event, item)) {
       return;
     }
     final Path image = this.findDiskImage(item);
@@ -120,7 +120,7 @@ public final class JukeBoxListener implements Listener {
     player.performCommand(command);
   }
 
-  private static boolean isDiscOnJukebox(final PlayerInteractEvent event, final ItemStack item) {
+  private boolean isDiscOnJukebox(final PlayerInteractEvent event, final ItemStack item) {
     final Action action = event.getAction();
     final Block block = event.getClickedBlock();
     if (action != Action.RIGHT_CLICK_BLOCK || block == null) {

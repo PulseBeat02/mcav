@@ -108,7 +108,7 @@ public final class ImageScoreboardCommand extends AbstractImageCommand {
     }
 
     final Collection<UUID> players = ArgumentUtils.parsePlayerSelectors(playerSelector);
-    final ImageConfigurationProvider configurationProvider = resolution -> createConfiguration(resolution, players, character);
+    final ImageConfigurationProvider configurationProvider = resolution -> this.createConfiguration(resolution, players, character);
     this.displayImage(configurationProvider, sender, imageResolution, mrl, filters);
   }
 
@@ -128,7 +128,7 @@ public final class ImageScoreboardCommand extends AbstractImageCommand {
     return DisplayableImage.scoreboard(configuration);
   }
 
-  private static ScoreboardConfiguration createConfiguration(
+  private ScoreboardConfiguration createConfiguration(
     final Pair<Integer, Integer> resolution,
     final Collection<UUID> players,
     final String character

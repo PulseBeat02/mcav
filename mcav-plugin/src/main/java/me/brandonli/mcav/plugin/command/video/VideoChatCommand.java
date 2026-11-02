@@ -105,7 +105,7 @@ public final class VideoChatCommand extends AbstractVideoCommand {
     Preconditions.checkNotNull(character, "Character must not be null!");
 
     final Collection<UUID> players = ArgumentUtils.parsePlayerSelectors(playerSelector);
-    final VideoConfigurationProvider configurationProvider = resolution -> createConfiguration(resolution, players, character);
+    final VideoConfigurationProvider configurationProvider = resolution -> this.createConfiguration(resolution, players, character);
     this.playVideo(configurationProvider, sender, playerSelector, playerType, audioType, videoResolution, mrl, ytdlpOptions, filters);
   }
 
@@ -132,7 +132,7 @@ public final class VideoChatCommand extends AbstractVideoCommand {
     return VideoPipelineStep.of(result);
   }
 
-  private static ChatConfiguration createConfiguration(
+  private ChatConfiguration createConfiguration(
     final Pair<Integer, Integer> resolution,
     final Collection<UUID> players,
     final String character

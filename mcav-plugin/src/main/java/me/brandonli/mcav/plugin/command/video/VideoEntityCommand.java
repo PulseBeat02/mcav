@@ -109,7 +109,8 @@ public final class VideoEntityCommand extends AbstractVideoCommand {
     Preconditions.checkNotNull(location, "Location must not be null!");
 
     final Collection<UUID> players = ArgumentUtils.parsePlayerSelectors(playerSelector);
-    final VideoConfigurationProvider configurationProvider = resolution -> createConfiguration(resolution, players, character, location);
+    final VideoConfigurationProvider configurationProvider = resolution ->
+      this.createConfiguration(resolution, players, character, location);
     this.playVideo(configurationProvider, sender, playerSelector, playerType, audioType, videoResolution, mrl, ytdlpOptions, filters);
   }
 
@@ -137,7 +138,7 @@ public final class VideoEntityCommand extends AbstractVideoCommand {
     return VideoPipelineStep.of(result);
   }
 
-  private static EntityConfiguration createConfiguration(
+  private EntityConfiguration createConfiguration(
     final Pair<Integer, Integer> resolution,
     final Collection<UUID> players,
     final String character,

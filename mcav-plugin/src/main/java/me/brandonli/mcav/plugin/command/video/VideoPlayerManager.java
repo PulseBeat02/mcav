@@ -264,7 +264,7 @@ public final class VideoPlayerManager {
       scheduler.runTask(this.plugin, () -> this.startIfCurrent(expected, output));
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
-      cleanupAfterFailure(exception, this::clearCurrentVideo);
+      this.cleanupAfterFailure(exception, this::clearCurrentVideo);
       throw exception;
     }
   }
@@ -281,7 +281,7 @@ public final class VideoPlayerManager {
       output.start();
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
-      cleanupAfterFailure(exception, this::releaseVideoPlayer);
+      this.cleanupAfterFailure(exception, this::releaseVideoPlayer);
       throw exception;
     }
   }
@@ -299,7 +299,7 @@ public final class VideoPlayerManager {
       started = start.getAsBoolean();
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
-      cleanupAfterFailure(exception, () -> this.finishNative(candidate));
+      this.cleanupAfterFailure(exception, () -> this.finishNative(candidate));
       throw exception;
     }
     this.finishNative(candidate);
@@ -308,7 +308,7 @@ public final class VideoPlayerManager {
   }
 
   /** Runs one cleanup after a recoverable failure; the caller explicitly rethrows that original failure. */
-  private static void cleanupAfterFailure(final Throwable failure, final Runnable cleanup) {
+  private void cleanupAfterFailure(final Throwable failure, final Runnable cleanup) {
     try {
       cleanup.run();
     } catch (final RuntimeException | Error exception) {
@@ -344,7 +344,7 @@ public final class VideoPlayerManager {
         return;
       }
     }
-    awaitMainThread(completion);
+    this.awaitMainThread(completion);
   }
 
   private void executeWorldCleanup(final WorldCleanup cleanup) {
@@ -389,7 +389,7 @@ public final class VideoPlayerManager {
     }
   }
 
-  private static void awaitMainThread(final Future<@Nullable Void> result) {
+  private void awaitMainThread(final Future<@Nullable Void> result) {
     try {
       result.get();
     } catch (final InterruptedException exception) {
@@ -423,7 +423,7 @@ public final class VideoPlayerManager {
       }
     }
     final CancellationException failure = new CancellationException("The video startup was cancelled!");
-    cleanupAfterFailure(failure, player::release);
+    this.cleanupAfterFailure(failure, player::release);
     throw failure;
   }
 

@@ -251,7 +251,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     }
     if (!closing) {
       try {
-        this.service.execute(() -> releaseLogged(release));
+        this.service.execute(() -> this.releaseLogged(release));
         return;
       } catch (final RejectedExecutionException exception) {
         // the thread takes no more work, so the player stops here
@@ -261,7 +261,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
   }
 
   /** Stops a player in the background, where nobody waits for a failure but the log. */
-  private static void releaseLogged(final Runnable release) {
+  private void releaseLogged(final Runnable release) {
     try {
       release.run();
     } catch (final RuntimeException | Error exception) {
@@ -660,7 +660,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     }
 
     final Player breaker = event.getPlayer();
-    final ItemFrame frame = findScreenInSight(breaker);
+    final ItemFrame frame = this.findScreenInSight(breaker);
     final Screen shown = frame == null ? null : this.screenOf(frame);
     if (frame == null || shown == null) {
       return;
@@ -703,7 +703,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    *
    * @return the frame closest to that block, or {@code null} if the player looks at no block or it has no screen
    */
-  private static @Nullable ItemFrame findScreenInSight(final Player viewer) {
+  private @Nullable ItemFrame findScreenInSight(final Player viewer) {
     final RayTraceResult ray = viewer.rayTraceBlocks(REACH, FluidCollisionMode.NEVER);
     if (ray == null) {
       return null;
@@ -712,17 +712,17 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     if (block == null) {
       return null;
     }
-    return findClosestScreen(block);
+    return this.findClosestScreen(block);
   }
 
-  private static @Nullable ItemFrame findClosestScreen(final Block block) {
+  private @Nullable ItemFrame findClosestScreen(final Block block) {
     final Location location = block.getLocation();
     final World world = location.getWorld();
     final Collection<Entity> entities = world.getNearbyEntities(location, HALF_BLOCK, HALF_BLOCK, HALF_BLOCK);
     ItemFrame closest = null;
     double closestDistance = Double.MAX_VALUE;
     for (final Entity entity : entities) {
-      final boolean isScreen = isScreen(entity);
+      final boolean isScreen = this.isScreen(entity);
       if (!isScreen) {
         continue;
       }
@@ -736,7 +736,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     return closest;
   }
 
-  private static boolean isScreen(final Entity entity) {
+  private boolean isScreen(final Entity entity) {
     if (!(entity instanceof final ItemFrame frame)) {
       return false;
     }
@@ -758,13 +758,13 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
   public void onScreenDamage(final EntityDamageByEntityEvent event) {
     Preconditions.checkNotNull(event, "Event must not be null!");
     final Entity entity = event.getEntity();
-    final boolean isScreen = isScreen(entity);
+    final boolean isScreen = this.isScreen(entity);
     if (!isScreen) {
       return;
     }
 
     final Entity damager = event.getDamager();
-    final Player attacker = findAttacker(damager);
+    final Player attacker = this.findAttacker(damager);
     if (attacker == null) {
       return;
     }
@@ -788,7 +788,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     }
   }
 
-  private static @Nullable Player findAttacker(final Entity damager) {
+  private @Nullable Player findAttacker(final Entity damager) {
     if (damager instanceof final Player direct) {
       return direct;
     }
@@ -815,7 +815,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     Preconditions.checkNotNull(event, "Event must not be null!");
     final PlayerType current = this.player;
     final Entity entity = event.getRightClicked();
-    final boolean isScreen = isScreen(entity);
+    final boolean isScreen = this.isScreen(entity);
     final Screen shown = isScreen ? this.screenOf((ItemFrame) entity) : null;
     if (current == null || shown == null) {
       return;
@@ -879,7 +879,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
   public void onScreenBreak(final HangingBreakEvent event) {
     Preconditions.checkNotNull(event, "Event must not be null!");
     final Entity entity = event.getEntity();
-    final boolean isScreen = isScreen(entity);
+    final boolean isScreen = this.isScreen(entity);
     if (isScreen) {
       event.setCancelled(true);
     }

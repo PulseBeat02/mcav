@@ -105,7 +105,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
     Preconditions.checkNotNull(imageResolution, "Image resolution must not be null!");
     Preconditions.checkNotNull(mrl, "MRL must not be null!");
-    final Pair<Integer, Integer> resolution = parseResolution(imageResolution);
+    final Pair<Integer, Integer> resolution = this.parseResolution(imageResolution);
     if (resolution == null) {
       final Component message = Message.UNSUPPORTED_DIMENSION.build();
       sender.sendMessage(message);
@@ -116,8 +116,8 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     if (chain == null) {
       return;
     }
-    final String sourceMrl = unwrapMrl(mrl);
-    final Supplier<ImageBuffer> loader = createLoader(sourceMrl);
+    final String sourceMrl = this.unwrapMrl(mrl);
+    final Supplier<ImageBuffer> loader = this.createLoader(sourceMrl);
     if (loader == null) {
       final Component message = Message.UNSUPPORTED_MRL.build();
       sender.sendMessage(message);
@@ -125,11 +125,11 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     }
 
     final ImageRequest request = new ImageRequest(sender, sourceMrl, resolution, configurationProvider);
-    this.startLoading(chain.isEmpty() ? loader : () -> filter(loader.get(), resolution, chain), request);
+    this.startLoading(chain.isEmpty() ? loader : () -> this.filter(loader.get(), resolution, chain), request);
   }
 
   /** Filters an image at the size it is shown at, which bounds the work of the filters, on the loading thread. */
-  private static ImageBuffer filter(final ImageBuffer image, final Pair<Integer, Integer> resolution, final FilterChain chain) {
+  private ImageBuffer filter(final ImageBuffer image, final Pair<Integer, Integer> resolution, final FilterChain chain) {
     try {
       new ResizeFilter(resolution.getFirst(), resolution.getSecond()).applyFilter(image);
       chain.apply(image);
@@ -148,7 +148,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     }
   }
 
-  private static String unwrapMrl(final String mrl) {
+  private String unwrapMrl(final String mrl) {
     final int length = mrl.length();
     if (length >= QUOTE_COUNT && mrl.charAt(0) == QUOTE && mrl.charAt(length - 1) == QUOTE) {
       return mrl.substring(1, length - 1);
@@ -267,7 +267,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     }
   }
 
-  private static @Nullable Pair<Integer, Integer> parseResolution(final String imageResolution) {
+  private @Nullable Pair<Integer, Integer> parseResolution(final String imageResolution) {
     try {
       return ArgumentUtils.parseDimensions(imageResolution);
     } catch (final IllegalArgumentException exception) {
@@ -280,7 +280,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
    *
    * @return the loader, or {@code null} if the media is not such an image
    */
-  private static @Nullable Supplier<ImageBuffer> createLoader(final String mrl) {
+  private @Nullable Supplier<ImageBuffer> createLoader(final String mrl) {
     if (mrl.isBlank()) {
       return null;
     }

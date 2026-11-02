@@ -133,7 +133,8 @@ public final class VideoMapCommand extends AbstractVideoCommand {
 
     final Collection<UUID> players = ArgumentUtils.parseViewers(playerSelector, this.plugin.getOnlinePlayers());
     final MapCodec chosen = codec != null ? codec : this.plugin.getConfiguration().getMcv2DefaultCodec();
-    VideoConfigurationProvider configurationProvider = resolution -> createSettings(blocks, resolution, mapId, players, ditheringAlgorithm);
+    VideoConfigurationProvider configurationProvider = resolution ->
+      this.createSettings(blocks, resolution, mapId, players, ditheringAlgorithm);
     if (chosen == MapCodec.MCV2) {
       final Pair<Integer, Integer> resolution = parseDimensions(sender, videoResolution);
       if (resolution == null) {
@@ -148,7 +149,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
     this.playVideo(configurationProvider, sender, playerSelector, playerType, audioType, videoResolution, mrl, ytdlpOptions, filters);
   }
 
-  private static MapDisplaySettings createSettings(
+  private MapDisplaySettings createSettings(
     final Pair<Integer, Integer> blocks,
     final Pair<Integer, Integer> resolution,
     final int mapId,

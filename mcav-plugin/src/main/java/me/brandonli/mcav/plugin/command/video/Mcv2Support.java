@@ -150,7 +150,7 @@ public final class Mcv2Support {
     final Collection<UUID> viewers
   ) {
     // the library refuses such a screen with an exception, which no command expects
-    if (!fitsMcv2(blocks, resolution)) {
+    if (!this.fitsMcv2(blocks, resolution)) {
       sender.sendMessage(Message.MCV2_SIZE_ERROR.build());
       return null;
     }
@@ -174,7 +174,7 @@ public final class Mcv2Support {
       .build();
   }
 
-  private static boolean fitsMcv2(final Pair<Integer, Integer> blocks, final Pair<Integer, Integer> resolution) {
+  private boolean fitsMcv2(final Pair<Integer, Integer> blocks, final Pair<Integer, Integer> resolution) {
     final boolean maps = blocks.getFirst() <= Mcv2Configuration.MAXIMUM_SIDE && blocks.getSecond() <= Mcv2Configuration.MAXIMUM_SIDE;
     final boolean pixels =
       resolution.getFirst() <= Mcv2Decoder.MAXIMUM_DIMENSION && resolution.getSecond() <= Mcv2Decoder.MAXIMUM_DIMENSION;
