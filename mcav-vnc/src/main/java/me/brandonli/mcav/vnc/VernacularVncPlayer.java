@@ -115,7 +115,7 @@ public final class VernacularVncPlayer implements VncPlayer {
     this(clientFactory, socketFactory, IDLE_PARK_NANOSECONDS);
   }
 
-  // Constructs a player with a replaceable idle wait so wake-up behavior can be tested without timing races.
+  // Creates a player with a replaceable idle wait so wake-up behavior can be tested without timing races.
   @VisibleForTesting
   VernacularVncPlayer(
     final Function<VernacularConfig, VernacularClient> clientFactory,
