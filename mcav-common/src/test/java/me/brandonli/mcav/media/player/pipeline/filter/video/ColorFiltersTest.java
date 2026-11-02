@@ -72,6 +72,8 @@ final class ColorFiltersTest {
   private static final double TOO_LOW_WEIGHT = -0.1;
   private static final double TOO_HIGH_WEIGHT = 1.1;
 
+  private static final String CHANGE_REPORTED_MESSAGE = "the filter reports the change, which decides whether the result is written back";
+
   private static int pixelAt(final ImageBuffer image, final int column, final int row) {
     final int[] pixels = image.getPixels();
     final int width = image.getWidth();
@@ -429,7 +431,7 @@ final class ColorFiltersTest {
       final boolean modified = filter.applyFilter(image);
       final int neighbor = pixelAt(image, 1, 1);
       final int corner = pixelAt(image, 0, 0);
-      assertTrue(modified, "the filter reports the change, which decides whether the result is written back");
+      assertTrue(modified, CHANGE_REPORTED_MESSAGE);
       assertEquals(WHITE, neighbor);
       assertEquals(BLACK, corner);
     }
@@ -445,7 +447,7 @@ final class ColorFiltersTest {
       final boolean modified = filter.applyFilter(image);
       final int neighbor = pixelAt(image, 1, 1);
       final int corner = pixelAt(image, 0, 0);
-      assertTrue(modified, "the filter reports the change, which decides whether the result is written back");
+      assertTrue(modified, CHANGE_REPORTED_MESSAGE);
       assertEquals(BLACK, neighbor);
       assertEquals(WHITE, corner);
     }

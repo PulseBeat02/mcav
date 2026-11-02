@@ -50,6 +50,9 @@ final class ErrorDiffusionDitherTest {
 
   private static final int BLACK = 0xFF000000;
   private static final int WHITE = 0xFFFFFFFF;
+  private static final int DARK_RED = 0xFF640000;
+  private static final int DARK_GREEN = 0xFF006400;
+  private static final int DARK_BLUE = 0xFF000064;
 
   private static final int MIDDLE_GRAY_LEVEL = 128;
 
@@ -159,7 +162,7 @@ final class ErrorDiffusionDitherTest {
 
   @Test
   void shouldDiffuseErrorsOfSingleChannels() {
-    final int[] pixels = { 0xFF006400, 0xFF000064, 0xFF640000, 0xFF000000 };
+    final int[] pixels = { DARK_GREEN, DARK_BLUE, DARK_RED, BLACK };
     final ErrorDiffusionDither dither = build(ErrorDiffusionDitherBuilder.Algorithm.FLOYD_STEINBERG);
     try (final ImageBuffer image = ImageBuffer.buffer(pixels, 2, 2)) {
       final byte[] indices = dither.ditherIntoBytes(image);
@@ -171,7 +174,7 @@ final class ErrorDiffusionDitherTest {
 
   @Test
   void shouldMapLonePrimaryPixelsToBlack() {
-    final int[] colors = { 0xFF640000, 0xFF006400, 0xFF000064 };
+    final int[] colors = { DARK_RED, DARK_GREEN, DARK_BLUE };
     for (final int color : colors) {
       final ErrorDiffusionDither dither = build(ErrorDiffusionDitherBuilder.Algorithm.FLOYD_STEINBERG);
       final int[] pixels = { color };

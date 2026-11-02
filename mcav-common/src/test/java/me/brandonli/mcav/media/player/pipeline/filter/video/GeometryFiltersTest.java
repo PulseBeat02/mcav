@@ -47,6 +47,8 @@ final class GeometryFiltersTest {
 
   private static final int BLACK = 0xFF000000;
 
+  private static final String CHANGE_REPORTED_MESSAGE = "the filter reports the change, which decides whether the result is written back";
+
   private static int[] indices(final ImageBuffer image) {
     final int[] pixels = image.getPixels();
     final int[] indices = new int[pixels.length];
@@ -229,7 +231,7 @@ final class GeometryFiltersTest {
       final boolean clockwiseModified = clockwiseFilter.applyFilter(clockwise);
       final boolean halfTurnModified = halfTurnFilter.applyFilter(halfTurn);
       final boolean counterClockwiseModified = counterClockwiseFilter.applyFilter(counterClockwise);
-      assertTrue(clockwiseModified, "the filter reports the change, which decides whether the result is written back");
+      assertTrue(clockwiseModified, CHANGE_REPORTED_MESSAGE);
       assertTrue(halfTurnModified);
       assertTrue(counterClockwiseModified);
       final int clockwiseWidth = clockwise.getWidth();
@@ -295,7 +297,7 @@ final class GeometryFiltersTest {
       final boolean horizontalModified = horizontalFilter.applyFilter(horizontal);
       final boolean verticalModified = verticalFilter.applyFilter(vertical);
       final boolean bothModified = bothFilter.applyFilter(both);
-      assertTrue(horizontalModified, "the filter reports the change, which decides whether the result is written back");
+      assertTrue(horizontalModified, CHANGE_REPORTED_MESSAGE);
       assertTrue(verticalModified);
       assertTrue(bothModified);
       final int[] horizontalIndices = indices(horizontal);

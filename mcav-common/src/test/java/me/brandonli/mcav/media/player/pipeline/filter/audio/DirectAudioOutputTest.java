@@ -54,13 +54,19 @@ final class DirectAudioOutputTest {
 
   private static final OriginalAudioMetadata METADATA = OriginalAudioMetadata.of("pcm", -1, 48_000, 2, -1);
 
+  private static final String START_FAILURE_MESSAGE = "Start failed!";
+  private static final String STOP_FAILURE_MESSAGE = "Stop failed!";
+  private static final String CLOSE_FAILURE_MESSAGE = "Close failed!";
+
+  private static final String READ_ONLY_MESSAGE = "the samples are only read";
+
   @Test
   void shouldWriteNothingBeforeItIsStarted() {
     final SourceDataLine line = mock(SourceDataLine.class);
     final DirectAudioOutput output = new DirectAudioOutput((_, _) -> line);
     final ByteBuffer samples = ByteBuffer.allocate(4);
     final boolean changed = output.applyFilter(samples, METADATA);
-    assertFalse(changed, "the samples are only read");
+    assertFalse(changed, READ_ONLY_MESSAGE);
 
     verifyNoInteractions(line);
   }
@@ -77,7 +83,7 @@ final class DirectAudioOutputTest {
     final boolean changed = output.applyFilter(samples, METADATA);
     final int position = samples.position();
     final int openCount = opened.get();
-    assertFalse(changed, "the samples are only read");
+    assertFalse(changed, READ_ONLY_MESSAGE);
     assertEquals(1, openCount);
     assertEquals(1, position, "the samples must not be consumed");
     verify(line).start();
@@ -120,7 +126,7 @@ final class DirectAudioOutputTest {
   @Test
   void shouldCloseAnAcquiredLineWhenStartingItFails() {
     final SourceDataLine line = mock(SourceDataLine.class);
-    final IllegalStateException failure = new IllegalStateException("Start failed!");
+    final IllegalStateException failure = new IllegalStateException(START_FAILURE_MESSAGE);
     doThrow(failure).when(line).start();
     final DirectAudioOutput output = new DirectAudioOutput((_, _) -> line);
     final IllegalStateException thrown = assertThrows(IllegalStateException.class, output::start);
@@ -134,8 +140,8 @@ final class DirectAudioOutputTest {
   @Test
   void shouldPreserveStartFailureWhenClosingTheLineAlsoFails() {
     final SourceDataLine line = mock(SourceDataLine.class);
-    final IllegalArgumentException failure = new IllegalArgumentException("Start failed!");
-    final AssertionError cleanup = new AssertionError("Close failed!");
+    final IllegalArgumentException failure = new IllegalArgumentException(START_FAILURE_MESSAGE);
+    final AssertionError cleanup = new AssertionError(CLOSE_FAILURE_MESSAGE);
     doThrow(failure).when(line).start();
     doThrow(cleanup).when(line).close();
     final DirectAudioOutput output = new DirectAudioOutput((_, _) -> line);
@@ -151,9 +157,9 @@ final class DirectAudioOutputTest {
   @Test
   void shouldAttemptEveryReleaseStageAndPreserveTheFirstFailure() {
     final SourceDataLine line = mock(SourceDataLine.class);
-    final IllegalStateException failure = new IllegalStateException("Stop failed!");
+    final IllegalStateException failure = new IllegalStateException(STOP_FAILURE_MESSAGE);
     final AssertionError flush = new AssertionError("Flush failed!");
-    final IllegalArgumentException close = new IllegalArgumentException("Close failed!");
+    final IllegalArgumentException close = new IllegalArgumentException(CLOSE_FAILURE_MESSAGE);
     doThrow(failure).when(line).stop();
     doThrow(flush).when(line).flush();
     doThrow(close).when(line).close();
@@ -176,7 +182,7 @@ final class DirectAudioOutputTest {
   @Test
   void shouldKeepAReleaseFailureWhenTheLaterStagesSucceed() {
     final SourceDataLine line = mock(SourceDataLine.class);
-    final IllegalStateException failure = new IllegalStateException("Stop failed!");
+    final IllegalStateException failure = new IllegalStateException(STOP_FAILURE_MESSAGE);
     doThrow(failure).when(line).stop();
     final DirectAudioOutput output = new DirectAudioOutput((_, _) -> line);
     output.start();
@@ -216,7 +222,7 @@ final class DirectAudioOutputTest {
   @Test
   void shouldPropagateFatalCleanupAfterAStartFailure() {
     final SourceDataLine line = mock(SourceDataLine.class);
-    final IllegalStateException failure = new IllegalStateException("Start failed!");
+    final IllegalStateException failure = new IllegalStateException(START_FAILURE_MESSAGE);
     final InternalError fatal = new InternalError("Fatal close!");
     doThrow(failure).when(line).start();
     doThrow(fatal).when(line).close();

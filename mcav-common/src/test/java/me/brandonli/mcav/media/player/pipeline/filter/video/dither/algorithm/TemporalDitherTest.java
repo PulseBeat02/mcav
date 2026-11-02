@@ -68,6 +68,8 @@ final class TemporalDitherTest {
 
   private static final int PARALLELISM = 4;
 
+  private static final String PURE_RED_MESSAGE = "pure red is red";
+
   private static byte[] ditherSolid(final TemporalDitherAlgorithm dither, final int argb) {
     final int[] pixels = new int[SOLID_FRAME_SIDE * SOLID_FRAME_SIDE];
     Arrays.fill(pixels, argb);
@@ -177,7 +179,7 @@ final class TemporalDitherTest {
     final byte[] exact = ditherSolid(dither, OPAQUE_RED);
     final byte[] darkRed = ditherSolid(dither, DARK_RED);
     final byte[] freshDarkRed = ditherSolid(fresh, DARK_RED);
-    assertAll(exact, RED, "pure red is red");
+    assertAll(exact, RED, PURE_RED_MESSAGE);
     assertAll(freshDarkRed, BLACK, "without a previous frame, a dark red is closest to black");
     assertAll(darkRed, RED, "a drift of exactly the threshold, 0xFF - 0x40 = 191, keeps the previous color");
   }
@@ -347,7 +349,7 @@ final class TemporalDitherTest {
     try {
       final byte[] red = ditherSolidInParallel(dither, OPAQUE_RED, pool);
       final byte[] darkRed = ditherSolidInParallel(dither, DARK_RED, pool);
-      assertAll(red, RED, "pure red is red");
+      assertAll(red, RED, PURE_RED_MESSAGE);
       assertAll(darkRed, RED, "the parallel path remembers its frame, so a drift of exactly 191 keeps red");
     } finally {
       pool.shutdownNow();
