@@ -59,6 +59,7 @@ public final class RfbTestServer implements AutoCloseable {
 
   private static final String ACCEPT_THREAD_NAME = "rfb-test-server";
 
+  private static final int EPHEMERAL_PORT = 0;
   private static final int BACKLOG = 5;
 
   private static final long CLOSE_TIMEOUT_MILLISECONDS = 2_000L;
@@ -167,7 +168,7 @@ public final class RfbTestServer implements AutoCloseable {
 
     try {
       final InetAddress loopback = InetAddress.getLoopbackAddress();
-      final ServerSocket socket = new ServerSocket(0, BACKLOG, loopback);
+      final ServerSocket socket = new ServerSocket(EPHEMERAL_PORT, BACKLOG, loopback);
       final RfbTestServer server = new RfbTestServer(socket, width, height, security, password);
       server.acceptThread.start();
       return server;

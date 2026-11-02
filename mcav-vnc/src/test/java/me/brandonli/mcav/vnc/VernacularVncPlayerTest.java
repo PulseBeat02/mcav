@@ -135,6 +135,8 @@ final class VernacularVncPlayerTest {
 
   private static final int UNKNOWN_MESSAGE_TYPE = 9;
 
+  private static final int EPHEMERAL_PORT = 0;
+
   private static final long SHORT_IDLE_NANOSECONDS = TimeUnit.MILLISECONDS.toNanos(10);
   private static final long HANDSHAKE_DEADLINE_MILLISECONDS = 500;
   private static final String DEADLINE_MESSAGE_ENDING = " could not start because the server did not finish the handshake within 500 ms!";
@@ -181,7 +183,7 @@ final class VernacularVncPlayerTest {
 
   private ServerSocket listeningSocket() throws IOException {
     final InetAddress loopback = InetAddress.getLoopbackAddress();
-    final ServerSocket socket = new ServerSocket(0, 5, loopback);
+    final ServerSocket socket = new ServerSocket(EPHEMERAL_PORT, 5, loopback);
     this.resources.add(socket);
     return socket;
   }
@@ -1285,7 +1287,7 @@ final class VernacularVncPlayerTest {
   @Test
   void shouldNeverLoseAnErrorThatArrivesAroundTheEndOfTheHandshake() throws IOException {
     final InetAddress loopback = InetAddress.getLoopbackAddress();
-    final ServerSocket listening = new ServerSocket(0, 200, loopback);
+    final ServerSocket listening = new ServerSocket(EPHEMERAL_PORT, 200, loopback);
     this.resources.add(listening);
     final VncSource source = this.source(listening, 0, 0);
     int started = 0;
