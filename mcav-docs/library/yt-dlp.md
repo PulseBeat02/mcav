@@ -52,7 +52,8 @@ All of these are unchecked. `YtdlpParseException`, `NoMatchingFormatException` (
 file and process exceptions extend `MCAVException`, the base of every MCAV failure.
 
 ```java
-  final URI pageUri = URI.create("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+  final String pageAddress = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+  final URI pageUri = URI.create(pageAddress);
   final UriSource page = UriSource.uri(pageUri);
   final YtdlpParser parser = YtdlpParser.simple();
   final UrlParseDump dump = parser.parse(page);
@@ -66,10 +67,7 @@ Sites usually offer many formats, so a `StrategySelector` picks one for video an
 
 ```java
   public boolean playBestQuality(final UrlParseDump dump, final VideoPlayerMultiplexer player) {
-    final StrategySelector selector = StrategySelector.of(
-      FormatStrategy.BEST_QUALITY_AUDIO,
-      FormatStrategy.BEST_QUALITY_VIDEO
-    );
+    final StrategySelector selector = StrategySelector.of(FormatStrategy.BEST_QUALITY_AUDIO, FormatStrategy.BEST_QUALITY_VIDEO);
     final Format videoFormat = selector.getVideoSource(dump);
     final Format audioFormat = selector.getAudioSource(dump);
     final UriSource videoSource = videoFormat.toUriSource();

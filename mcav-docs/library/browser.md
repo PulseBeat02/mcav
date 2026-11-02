@@ -190,12 +190,15 @@ a page can do instead:
 ## Sound
 
 The sound a page plays through Web Audio and its audio and video elements arrives at the audio pipeline of the player,
-as 16-bit little-endian stereo samples at 48 kHz, like the sound of every MCAV player:
+as 16-bit little-endian stereo samples at 48 kHz, like the sound of every MCAV player. The `speakers` filter is
+yours and plays the sound:
 
 ```java
-  final AudioPipelineStep audioPipeline = AudioPipelineStep.of(speakers);
-  final AudioAttachableCallback audio = browser.getAudioAttachableCallback();
-  audio.attach(audioPipeline);
+  public void attachSpeakers(final BrowserPlayer browser, final AudioFilter speakers) {
+    final AudioPipelineStep audioPipeline = AudioPipelineStep.of(speakers);
+    final AudioAttachableCallback audio = browser.getAudioAttachableCallback();
+    audio.attach(audioPipeline);
+  }
 ```
 
 JCEF has no way to hand over Chromium's own audio, so a script that MCAV adds to every document before the page's own

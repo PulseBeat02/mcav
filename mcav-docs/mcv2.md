@@ -1531,12 +1531,13 @@ and a stream encoded ahead can't send a fresh keyframe to recover. Encode off th
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2FileEncoder;
 
-  public Mcv2FileEncoder.Result preEncode(final Path video, final Path stream) throws IOException {
+  public Mcv2FileEncoder.Result preEncode(final Path video, final Path stream) {
     final int width = 1920;
     final int height = 1080;
     final Mcv2.Pool budget = Mcv2.Pool.shared();
@@ -1546,6 +1547,9 @@ import me.brandonli.mcav.bukkit.media.mcv2.Mcv2FileEncoder;
       final OutputStream output = new BufferedOutputStream(file)
     ) {
       return Mcv2FileEncoder.encode(frames, width, height, Mcv2.Settings.DEFAULT, budget, output, frame -> {});
+    } catch (final IOException exception) {
+      final String message = "Could not write the pre-encoded stream!";
+      throw new UncheckedIOException(message, exception);
     }
   }
 ```

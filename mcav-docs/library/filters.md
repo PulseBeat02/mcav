@@ -93,12 +93,14 @@ entity and scoreboard results of `mcav-bukkit` ([Bukkit integration](../bukkit/b
 A `VolumeFilter` before an output turns the output down or up; one filter in front of several outputs sets them all:
 
 ```java
+  final DirectAudioOutput speakers = new DirectAudioOutput();
   final VolumeFilter volume = new VolumeFilter();
   final AudioPipelineStepBuilder builder = PipelineBuilder.audio();
   builder.then(volume);
   builder.then(speakers);
   final AudioPipelineStep audioPipeline = builder.build();
-  // ... attach it, start the player, and later:
+
+  // ... attach it, start the speakers and the player, and later:
   final double halfAmplitude = 0.5;
   volume.setVolume(halfAmplitude);
 ```

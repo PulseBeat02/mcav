@@ -42,8 +42,7 @@ on a worker thread; it waits during playback. The `display` filter is yours and 
 window. `speakers.start()` throws a `PlayerException` on a machine without a sound device.
 
 ```java
-  public void playVideoFile(final Path videoFile, final VideoFilter display, final Duration playTime)
-    throws InterruptedException {
+  public void playVideoFile(final Path videoFile, final VideoFilter display, final Duration playTime) {
     final VideoPipelineStep videoPipelineStep = VideoPipelineStep.of(display);
     final DirectAudioOutput speakers = new DirectAudioOutput();
     final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
@@ -69,6 +68,12 @@ window. `speakers.start()` throws a `PlayerException` on a machine without a sou
       if (started) {
         Thread.sleep(playTime);
       }
+    } catch (final InterruptedException exception) {
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+
+      final String message = "Video playback was interrupted!";
+      throw new IllegalStateException(message, exception);
     } finally {
       try {
         player.release();
@@ -168,7 +173,7 @@ The animation must stay open while it plays, so the example below plays it for a
 and only then closes the animation:
 
 ```java
-  public void playGif(final Path gifFile, final VideoFilter display, final Duration playTime) throws InterruptedException {
+  public void playGif(final Path gifFile, final VideoFilter display, final Duration playTime) {
     final FileSource file = FileSource.path(gifFile);
     try (final DynamicImageBuffer gif = DynamicImageBuffer.path(file)) {
       final RepeatingFrameSource frameSource = RepeatingFrameSource.repeating(gif);
@@ -181,6 +186,12 @@ and only then closes the animation:
       try {
         player.start(frameSource);
         Thread.sleep(playTime);
+      } catch (final InterruptedException exception) {
+        final Thread current = Thread.currentThread();
+        current.interrupt();
+
+        final String message = "GIF playback was interrupted!";
+        throw new IllegalStateException(message, exception);
       } finally {
         player.release();
       }

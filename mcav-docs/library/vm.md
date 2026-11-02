@@ -93,12 +93,15 @@ try to fix them.
 ## Sound
 
 The player hands the sound of the guest to its audio pipeline, in the format every audio filter of MCAV takes: 16-bit
-little-endian stereo PCM at 48 kHz. Attach a pipeline like the video one:
+little-endian stereo PCM at 48 kHz. Attach a pipeline like the video one; the `speakers` filter is yours and plays
+the sound, for example a started `DirectAudioOutput`:
 
 ```java
+  public void attachSpeakers(final VmPlayer player, final AudioFilter speakers) {
     final AudioPipelineStep audioPipeline = AudioPipelineStep.of(speakers);
     final AudioAttachableCallback audioCallback = player.getAudioAttachableCallback();
     audioCallback.attach(audioPipeline);
+  }
 ```
 
 Only x86-64 machines of the PC and Q35 families (the default machine, `pc`, `q35` and their versions) have sound.

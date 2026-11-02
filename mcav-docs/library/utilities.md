@@ -37,7 +37,7 @@ The example below plays a file through the speakers of your computer in mono, ex
 it, which checks the downmix without a Minecraft server:
 
 ```java
-  public void playInMono() throws LineUnavailableException {
+  public void playInMono() {
     final MCAVApi api = MCAV.api();
     api.install();
 
@@ -47,8 +47,7 @@ it, which checks the downmix without a Minecraft server:
     final boolean signed = true;
     final boolean bigEndian = false;
     final AudioFormat format = new AudioFormat(sampleRate, sampleBits, monoChannels, signed, bigEndian);
-    final SourceDataLine line = AudioSystem.getSourceDataLine(format);
-    line.open(format);
+    final SourceDataLine line = this.openAudioLine(format);
     line.start();
 
     final AudioPipelineStep pipeline = AudioPipelineStep.of((samples, metadata) -> this.writeMono(line, samples));
@@ -60,6 +59,23 @@ it, which checks the downmix without a Minecraft server:
     final Path path = Path.of(fileName);
     final FileSource source = FileSource.path(path);
     player.start(source);
+
+    // ... once playback has ended
+    player.release();
+    line.drain();
+    line.close();
+  }
+
+  private SourceDataLine openAudioLine(final AudioFormat format) {
+    try {
+      final SourceDataLine line = AudioSystem.getSourceDataLine(format);
+      line.open(format);
+
+      return line;
+    } catch (final LineUnavailableException exception) {
+      final String message = "Could not open the audio output line!";
+      throw new IllegalStateException(message, exception);
+    }
   }
 
   private boolean writeMono(final SourceDataLine line, final ByteBuffer samples) {
@@ -127,7 +143,7 @@ The example below converts the audio of a file to 16 kHz mono, the format of mos
 through the speakers of your computer, so you can hear the result:
 
 ```java
-  public void playAsSpeech() throws LineUnavailableException {
+  public void playAsSpeech() {
     final MCAVApi api = MCAV.api();
     api.install();
 
@@ -137,8 +153,7 @@ through the speakers of your computer, so you can hear the result:
     final boolean signed = true;
     final boolean bigEndian = false;
     final AudioFormat speechFormat = new AudioFormat(speechRate, sampleBits, monoChannels, signed, bigEndian);
-    final SourceDataLine line = AudioSystem.getSourceDataLine(speechFormat);
-    line.open(speechFormat);
+    final SourceDataLine line = this.openAudioLine(speechFormat);
     line.start();
 
     final AudioResampler resampler = AudioResampler.fromPipelineFormat(speechRate, monoChannels, SampleFormat.SIGNED_16_BIT);
@@ -161,6 +176,18 @@ through the speakers of your computer, so you can hear the result:
     resampler.close();
     line.drain();
     line.close();
+  }
+
+  private SourceDataLine openAudioLine(final AudioFormat format) {
+    try {
+      final SourceDataLine line = AudioSystem.getSourceDataLine(format);
+      line.open(format);
+
+      return line;
+    } catch (final LineUnavailableException exception) {
+      final String message = "Could not open the audio output line!";
+      throw new IllegalStateException(message, exception);
+    }
   }
 
   private boolean writeSpeech(final AudioResampler resampler, final SourceDataLine line, final ByteBuffer samples) {
@@ -245,12 +272,11 @@ threads that must stay responsive, such as the main thread of a Minecraft server
 None of them is checked. `ProcessException` and `FileOperationException` extend `MCAVException`, the unchecked base of
 every MCAV failure, so `catch (MCAVException exception)` catches both. Catch
 `ProcessException` (in `me.brandonli.mcav.utils.runtime`) explicitly if you want to handle a source that FFmpeg cannot
-convert:
+convert. The `service` executor is yours: create it once and shut it down when your plugin stops:
 
 ```java
-  public void extractAudioInBackground() {
-    final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
-    executor.execute(this::extractAudio);
+  public void extractAudioInBackground(final ExecutorService service) {
+    final CompletableFuture<Void> _ = CompletableFuture.runAsync(this::extractAudio, service);
   }
 
   private void extractAudio() {

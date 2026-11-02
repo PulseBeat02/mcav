@@ -19,28 +19,28 @@ voice chat plugin once voice chat has started. On a server, the `VoicechatApi` y
 `VoicechatServerApi`:
 
 ```java
-  public final class MyVoiceChatPlugin implements VoicechatPlugin {
+public final class MyVoiceChatPlugin implements VoicechatPlugin {
 
-    private static final String PLUGIN_ID = "my-plugin";
+  private static final String PLUGIN_ID = "my-plugin";
 
-    private final MCAVApi mcav;
+  private final MCAVApi mcav;
 
-    public MyVoiceChatPlugin(final MCAVApi mcav) {
-      this.mcav = mcav;
-    }
-
-    @Override
-    public String getPluginId() {
-      return PLUGIN_ID;
-    }
-
-    @Override
-    public void initialize(final VoicechatApi api) {
-      final VoicechatServerApi serverApi = (VoicechatServerApi) api;
-      final SvcModule voiceChatModule = this.mcav.getModule(SvcModule.class);
-      voiceChatModule.inject(serverApi);
-    }
+  public MyVoiceChatPlugin(final MCAVApi mcav) {
+    this.mcav = mcav;
   }
+
+  @Override
+  public String getPluginId() {
+    return PLUGIN_ID;
+  }
+
+  @Override
+  public void initialize(final VoicechatApi api) {
+    final VoicechatServerApi serverApi = (VoicechatServerApi) api;
+    final SvcModule voiceChatModule = this.mcav.getModule(SvcModule.class);
+    voiceChatModule.inject(serverApi);
+  }
+}
 ```
 
 On Paper, register the voice chat plugin with the `BukkitVoicechatService` of Simple Voice Chat, for example once the
@@ -52,10 +52,10 @@ server has loaded:
 
   final Server server = Bukkit.getServer();
   final ServicesManager servicesManager = server.getServicesManager();
-  final BukkitVoicechatService voicechatService = servicesManager.load(BukkitVoicechatService.class);
-  if (voicechatService != null) {
+  final @Nullable BukkitVoicechatService voiceChatService = servicesManager.load(BukkitVoicechatService.class);
+  if (voiceChatService != null) {
     final MyVoiceChatPlugin voiceChatPlugin = new MyVoiceChatPlugin(mcav);
-    voicechatService.registerPlugin(voiceChatPlugin);
+    voiceChatService.registerPlugin(voiceChatPlugin);
   }
 ```
 

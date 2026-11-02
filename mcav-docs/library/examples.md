@@ -50,7 +50,7 @@ public final class YouTubeExample {
   private static final int WINDOW_WIDTH = 1280;
   private static final int WINDOW_HEIGHT = 720;
 
-  public static void main(final String[] args) throws InterruptedException, ExecutionException {
+  public static void main(final String[] args) {
     final MCAVApi api = MCAV.api();
     try {
       api.install();
@@ -62,7 +62,7 @@ public final class YouTubeExample {
     }
   }
 
-  private void play(final MCAVApi api) throws InterruptedException, ExecutionException {
+  private void play(final MCAVApi api) {
     final CompletableFuture<Boolean> ready = api.whenCapabilityReady(Capability.YT_DLP);
     final boolean available = ready.join();
     if (!available) {
@@ -79,10 +79,22 @@ public final class YouTubeExample {
     }
   }
 
-  private View openView(final CountDownLatch closed) throws InterruptedException, ExecutionException {
+  private View openView(final CountDownLatch closed) {
     final FutureTask<View> createView = new FutureTask<>(() -> this.createView(closed));
     SwingUtilities.invokeLater(createView);
-    return createView.get();
+
+    try {
+      return createView.get();
+    } catch (final InterruptedException exception) {
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+
+      final String message = "Opening the video window was interrupted!";
+      throw new IllegalStateException(message, exception);
+    } catch (final ExecutionException exception) {
+      final String message = "Could not open the video window!";
+      throw new IllegalStateException(message, exception);
+    }
   }
 
   private View createView(final CountDownLatch closed) {
@@ -104,7 +116,7 @@ public final class YouTubeExample {
     return new View(frame, label);
   }
 
-  private void playThroughSpeakers(final View view, final CountDownLatch closed) throws InterruptedException {
+  private void playThroughSpeakers(final View view, final CountDownLatch closed) {
     final DirectAudioOutput speakers = new DirectAudioOutput();
     try {
       speakers.start();
@@ -114,12 +126,18 @@ public final class YouTubeExample {
     }
   }
 
-  private void playUntilClosed(final DirectAudioOutput speakers, final View view, final CountDownLatch closed) throws InterruptedException {
+  private void playUntilClosed(final DirectAudioOutput speakers, final View view, final CountDownLatch closed) {
     final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
     try {
       this.attachPipelines(player, speakers, view);
       this.startPlayback(player);
       closed.await();
+    } catch (final InterruptedException exception) {
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+
+      final String message = "Waiting for the video window to close was interrupted!";
+      throw new IllegalStateException(message, exception);
     } finally {
       player.release();
     }
