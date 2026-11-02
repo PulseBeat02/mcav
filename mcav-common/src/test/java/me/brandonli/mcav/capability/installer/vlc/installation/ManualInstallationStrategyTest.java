@@ -98,6 +98,12 @@ final class ManualInstallationStrategyTest {
     assertThrows(NullPointerException.class, () -> new TestStrategy(installer, null));
     assertThrows(NullPointerException.class, () -> ManualInstallationStrategy.findLibraryDirectory(null, LIBRARY));
     assertThrows(NullPointerException.class, () -> ManualInstallationStrategy.findLibraryDirectory(this.temporaryDirectory, null));
+    assertThrows(NullPointerException.class, () ->
+      ManualInstallationStrategy.findLibraryDirectory(this.temporaryDirectory, LIBRARY, (Pattern[]) null)
+    );
+    assertThrows(NullPointerException.class, () ->
+      ManualInstallationStrategy.findLibraryDirectory(this.temporaryDirectory, LIBRARY, LIBRARY, null)
+    );
   }
 
   @Test
