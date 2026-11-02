@@ -52,6 +52,7 @@ class TransportTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 from_symbols(values, mcv2_reference.SYMBOL_BITS, 1)
 
+    def test_should_reject_symbol_widths_other_than_six(self) -> None:
         calls: list[
             tuple[
                 int,
@@ -186,14 +187,16 @@ class TransportTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'duplicate'):
             assembler.push(to_symbols(conflicting))
 
-        self.assertNotIn(4, assembler.pending)
+        pending = list(assembler.pending)
+        self.assertNotIn(4, pending)
 
         assembler.push(first)
         disagreement: bytes = with_crc(changed(page_bytes(last), REFERENCE_ID_OFFSET, 17, WORD_CODE))
         with self.assertRaisesRegex(ValueError, 'inconsistent'):
             assembler.push(to_symbols(disagreement))
 
-        self.assertNotIn(4, assembler.pending)
+        pending = list(assembler.pending)
+        self.assertNotIn(4, pending)
 
     def test_should_validate_complete_frames_and_their_identity(self) -> None:
         frame: bytes = pack_frame(1, 1, 0, 0, {})

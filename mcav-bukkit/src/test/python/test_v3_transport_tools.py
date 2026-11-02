@@ -26,7 +26,7 @@ import mcv2_tools
 
 
 class StripTest(unittest.TestCase):
-    def test_should_return_the_exact_six_bit_symbols_of_an_rgb_strip(self) -> None:
+    def test_should_return_the_exact_six_bit_symbols_of_an_rgb_strip_and_read_its_page(self) -> None:
         frame: bytes = pack_frame(1, 1, 7, 7, {})
         symbols: bytes = make_pages(frame, 5)[0]
         padded: numpy.ndarray = numpy.zeros(mcv2_reference.PAGE_SYMBOLS, numpy.uint32)

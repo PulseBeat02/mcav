@@ -58,14 +58,15 @@ VECTOR_BYTES: int = mcv2_reference.COMPACT_BYTES - mcv2_reference.GRID_BYTES
 
 class FixtureCoverageTest(unittest.TestCase):
     streams: dict[str, list[bytes]]
+    frames: list[mcv2_reference.Frame]
 
     @classmethod
     def setUpClass(cls) -> None:
         cls.streams = mcv2_tools.edge_streams_build_streams()
+        cls.frames = [parse_frame(data) for stream in cls.streams.values() for data in stream]
 
     def test_should_cover_every_leaf_size_quantizer_vector_extreme_and_pattern_axis(self) -> None:
-        frames: list[mcv2_reference.Frame] = [parse_frame(data) for stream in self.streams.values() for data in stream]
-        leaves: list[mcv2_reference.Leaf] = [leaf for frame in frames for leaf in frame.leaves]
+        leaves: list[mcv2_reference.Leaf] = [leaf for frame in self.frames for leaf in frame.leaves]
         modes: set[tuple[int, int]] = {(leaf.mode, leaf.size) for leaf in leaves}
         self.assertEqual({(mode, size) for mode in range(mcv2_reference.SPLIT) for size in mcv2_reference.LEAF_SIZES}, modes)
 
@@ -78,20 +79,6 @@ class FixtureCoverageTest(unittest.TestCase):
         extremes_covered: bool = {b'\0\0', b'\x80\x7f', b'\x7f\x80', b'\x80\x80', b'\x7f\x7f'} <= vectors
         self.assertTrue(extremes_covered)
 
-        dimensions: set[tuple[int, int]] = {(frame.width, frame.height) for frame in frames}
-        dimensions_covered: bool = {(1, 1), (1, 97), (97, 1), (97, 65), (4096, 4096)} <= dimensions
-        self.assertTrue(dimensions_covered)
-
-        checkpoints: list[int] = [checkpoint for frame in frames for checkpoint in frame.walk]
-        maximum_cursor: int = max(checkpoint & WALK_CURSOR_MASK for checkpoint in checkpoints)
-        self.assertGreater(maximum_cursor, 128000)
-
-        maximum_splits: int = max(checkpoint >> mcv2_reference.WALK_CURSOR_BITS for checkpoint in checkpoints)
-        self.assertGreater(maximum_splits, 20000)
-
-        maximum_length: int = max(frame.total for frame in frames)
-        self.assertEqual(mcv2_reference.MAXIMUM_FRAME_BYTES, maximum_length)
-
         pattern_leaves: tuple[mcv2_reference.Leaf, ...] = parse_frame(self.streams[PATTERNS_STREAM][0]).leaves
         patterns: set[tuple[int, int, bytes]] = {
             (leaf.size, leaf.record[mcv2_reference.PATTERN_ORIENTATION_INDEX], leaf.record[mcv2_reference.PATTERN_HEADER_BYTES :])
@@ -101,6 +88,21 @@ class FixtureCoverageTest(unittest.TestCase):
         for size, orientation, axis in itertools.product(mcv2_reference.LEAF_SIZES, orientations, (0, 255, 0xA5)):
             pattern: tuple[int, int, bytes] = (size, orientation, bytes([axis]) * (size // mcv2_reference.BITS_PER_BYTE))
             self.assertIn(pattern, patterns)
+
+    def test_should_cover_extreme_dimensions_walks_and_frame_lengths(self) -> None:
+        dimensions: set[tuple[int, int]] = {(frame.width, frame.height) for frame in self.frames}
+        dimensions_covered: bool = {(1, 1), (1, 97), (97, 1), (97, 65), (4096, 4096)} <= dimensions
+        self.assertTrue(dimensions_covered)
+
+        checkpoints: list[int] = [checkpoint for frame in self.frames for checkpoint in frame.walk]
+        maximum_cursor: int = max(checkpoint & WALK_CURSOR_MASK for checkpoint in checkpoints)
+        self.assertGreater(maximum_cursor, 128000)
+
+        maximum_splits: int = max(checkpoint >> mcv2_reference.WALK_CURSOR_BITS for checkpoint in checkpoints)
+        self.assertGreater(maximum_splits, 20000)
+
+        maximum_length: int = max(frame.total for frame in self.frames)
+        self.assertEqual(mcv2_reference.MAXIMUM_FRAME_BYTES, maximum_length)
 
     def test_should_commit_edge_streams_equal_to_the_deterministic_serializer_output(self) -> None:
         root: Path = RESOURCES / EDGE_FOLDER
