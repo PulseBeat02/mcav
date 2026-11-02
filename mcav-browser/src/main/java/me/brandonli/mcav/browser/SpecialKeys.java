@@ -36,7 +36,8 @@ final class SpecialKeys {
   private static final Set<String> SPECIAL_KEYS = loadSpecialKeys();
 
   private SpecialKeys() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   private static Set<String> loadSpecialKeys() {

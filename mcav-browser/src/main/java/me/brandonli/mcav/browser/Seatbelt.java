@@ -38,8 +38,6 @@ final class Seatbelt {
   private static final String SANDBOX_INIT = "sandbox_init";
   private static final String FREE_ERROR = "sandbox_free_error";
 
-  private static final String UNCALLABLE = "The C library could not be called!";
-
   private static final Integer SUCCESS = 0;
   private static final long PROFILE_TEXT = 0L;
 
@@ -106,7 +104,8 @@ final class Seatbelt {
         throw fatal;
       }
 
-      throw new IllegalStateException(UNCALLABLE, exception);
+      final String message = "The C library could not be called!";
+      throw new IllegalStateException(message, exception);
     }
   }
 

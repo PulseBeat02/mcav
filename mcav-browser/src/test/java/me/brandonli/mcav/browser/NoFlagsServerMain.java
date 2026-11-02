@@ -42,7 +42,8 @@ public final class NoFlagsServerMain {
   );
 
   private NoFlagsServerMain() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   public static void main(final String[] args) {

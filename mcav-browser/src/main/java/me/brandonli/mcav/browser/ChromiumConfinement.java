@@ -52,7 +52,8 @@ final class ChromiumConfinement {
   private static final String LIBRARY_PATH_VARIABLE = "LD_LIBRARY_PATH";
 
   private ChromiumConfinement() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   static String confine(final HelperConfiguration configuration, final OperatingSystem system) throws IOException {

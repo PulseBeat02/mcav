@@ -142,7 +142,8 @@ class JcefNativesTest {
     }
 
     if (!sha256.equals(PINNED_HASH)) {
-      throw new IOException("The checksum does not match!");
+      final String message = "The checksum does not match!";
+      throw new IOException(message);
     }
 
     try (final OutputStream output = Files.newOutputStream(destination)) {

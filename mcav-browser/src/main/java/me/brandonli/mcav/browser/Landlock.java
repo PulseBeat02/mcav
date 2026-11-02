@@ -89,7 +89,8 @@ final class Landlock {
   private static final int DEVICE_CONTROL_VERSION = 5;
 
   private Landlock() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   static int version() {

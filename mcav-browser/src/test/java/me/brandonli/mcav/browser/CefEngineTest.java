@@ -487,7 +487,8 @@ class CefEngineTest {
   }
 
   private void failToDispose() {
-    throw new IllegalStateException("The disposal failed!");
+    final String message = "The disposal failed!";
+    throw new IllegalStateException(message);
   }
 
   @Test

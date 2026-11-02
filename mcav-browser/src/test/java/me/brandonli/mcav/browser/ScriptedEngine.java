@@ -72,9 +72,15 @@ final class ScriptedEngine implements HelperEngine {
     final URI url = configuration.getUrl();
     final String path = url.getPath();
     switch (path) {
-      case "/throw" -> throw new IllegalStateException("The scripted start failed!");
+      case "/throw" -> {
+        final String message = "The scripted start failed!";
+        throw new IllegalStateException(message);
+      }
       case "/throw-after-output" -> this.failAfterOutput();
-      case "/unlinked" -> throw new UnsatisfiedLinkError("The scripted native library is missing!");
+      case "/unlinked" -> {
+        final String message = "The scripted native library is missing!";
+        throw new UnsatisfiedLinkError(message);
+      }
       case "/exit" -> System.exit(3);
       case "/never" -> {
       }
@@ -100,7 +106,8 @@ final class ScriptedEngine implements HelperEngine {
     System.out.println(OUTPUT_BEFORE_FAILURE);
     System.out.flush();
     Thread.sleep(OUTPUT_READ_MILLISECONDS);
-    throw new IllegalStateException("The scripted start failed after output!");
+    final String message = "The scripted start failed after output!";
+    throw new IllegalStateException(message);
   }
 
   private void playSound(final HelperEvents events) {

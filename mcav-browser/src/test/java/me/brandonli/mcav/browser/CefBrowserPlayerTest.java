@@ -72,6 +72,9 @@ class CefBrowserPlayerTest {
 
   private static final String END_REASON = "gone";
 
+  private static final String INTERRUPTED_START_MESSAGE = "Interrupted while starting the browser!";
+  private static final String OFFLINE_MESSAGE = "The helper is offline!";
+
   private final List<FakeSession> sessions = new ArrayList<>();
   private final List<String> reports = new ArrayList<>();
   private final List<ImageBuffer> processed = new ArrayList<>();
@@ -292,7 +295,7 @@ class CefBrowserPlayerTest {
       new CountDownLatch(1).await();
     } catch (final InterruptedException exception) {
       Thread.currentThread().interrupt();
-      throw new BrowserException("Interrupted while starting the browser!", exception);
+      throw new BrowserException(INTERRUPTED_START_MESSAGE, exception);
     }
 
     return new FakeSession();
@@ -422,7 +425,8 @@ class CefBrowserPlayerTest {
   }
 
   private boolean breakTheFilter() {
-    throw new IllegalStateException("The filter broke!");
+    final String message = "The filter broke!";
+    throw new IllegalStateException(message);
   }
 
   @Test
@@ -441,7 +445,8 @@ class CefBrowserPlayerTest {
   }
 
   private boolean runOutOfMemory() {
-    throw new OutOfMemoryError("The memory is full!");
+    final String message = "The memory is full!";
+    throw new OutOfMemoryError(message);
   }
 
   @Test
@@ -634,7 +639,8 @@ class CefBrowserPlayerTest {
   }
 
   private BrowserSession breakTheHelper() {
-    throw new IllegalStateException("The helper broke!");
+    final String message = "The helper broke!";
+    throw new IllegalStateException(message);
   }
 
   @Test
@@ -678,7 +684,7 @@ class CefBrowserPlayerTest {
     final boolean released = self.get().release();
     assertTrue(released);
 
-    throw new BrowserException("Interrupted while starting the browser!");
+    throw new BrowserException(INTERRUPTED_START_MESSAGE);
   }
 
   @Test
@@ -938,7 +944,7 @@ class CefBrowserPlayerTest {
 
   private void recordAndFailDownload(final List<URI> downloads, final URI uri) throws IOException {
     downloads.add(uri);
-    throw new IOException("The helper is offline!");
+    throw new IOException(OFFLINE_MESSAGE);
   }
 
   private BrowserSession openWithARecordingListener(final CefBrowserPlayer.DefaultSessionFactory factory) {
@@ -976,7 +982,7 @@ class CefBrowserPlayerTest {
   }
 
   private void failDownload() throws IOException {
-    throw new IOException("The helper is offline!");
+    throw new IOException(OFFLINE_MESSAGE);
   }
 
   @Test

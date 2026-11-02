@@ -28,7 +28,8 @@ final class AddressText {
   private static final String PATH_ENDS = "?#";
 
   private AddressText() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   static String describe(final String address) {

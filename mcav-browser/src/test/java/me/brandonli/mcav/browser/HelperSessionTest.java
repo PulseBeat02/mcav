@@ -97,6 +97,8 @@ class HelperSessionTest {
   private static final Path TEMPORARY_FOLDER = Path.of("/tmp");
   private static final Pattern SESSION_FOLDER_NAME = Pattern.compile("mcavb-[a-z0-9]{8}");
 
+  private static final String HELPER_GONE_MESSAGE = "The helper is gone!";
+
   @TempDir
   private Path directory;
 
@@ -859,7 +861,8 @@ class HelperSessionTest {
   }
 
   private Path failToLinkLibraries() throws IOException {
-    throw new IOException("The disk has no space left!");
+    final String message = "The disk has no space left!";
+    throw new IOException(message);
   }
 
   @Test
@@ -958,7 +961,8 @@ class HelperSessionTest {
 
       @Override
       public void onEnded(final String reason, final Throwable cause) {
-        throw new IllegalStateException("Because of \"%s\", the listener failed as the test asked!".formatted(reason));
+        final String message = "Because of \"%s\", the listener failed as the test asked!".formatted(reason);
+        throw new IllegalStateException(message);
       }
     };
     final HelperLauncher launcher = launcher(ScriptedEngine.class.getName(), START_TIMEOUT_MILLISECONDS);
@@ -1200,12 +1204,12 @@ class HelperSessionTest {
       new InputStream() {
         @Override
         public int read() throws IOException {
-          throw new IOException("The helper is gone!");
+          throw new IOException(HELPER_GONE_MESSAGE);
         }
 
         @Override
         public int read(final byte[] buffer, final int offset, final int length) throws IOException {
-          throw new IOException("The helper is gone!");
+          throw new IOException(HELPER_GONE_MESSAGE);
         }
       }
     );
@@ -1333,7 +1337,8 @@ class HelperSessionTest {
 
   private void countAndFailClosing(final AtomicInteger calls) throws IOException {
     calls.incrementAndGet();
-    throw new IOException("The connection is already closed!");
+    final String message = "The connection is already closed!";
+    throw new IOException(message);
   }
 
   @Test

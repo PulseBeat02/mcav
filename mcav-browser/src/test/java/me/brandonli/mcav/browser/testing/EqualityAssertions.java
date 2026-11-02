@@ -28,7 +28,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class EqualityAssertions {
 
   private EqualityAssertions() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   public static void assertEqualityContract(final Object value, final Object equalValue, final Object... differentValues) {

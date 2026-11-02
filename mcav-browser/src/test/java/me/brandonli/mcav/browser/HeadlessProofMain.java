@@ -63,7 +63,8 @@ public final class HeadlessProofMain {
     "<p style=\"margin:8px;font:bold 40px sans-serif;color:#000000\">mcav headless</p></body></html>";
 
   private HeadlessProofMain() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   public static void main(final String[] args) {

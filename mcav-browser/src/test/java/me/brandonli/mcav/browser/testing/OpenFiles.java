@@ -33,7 +33,8 @@ public final class OpenFiles {
   private static final Path DESCRIPTORS = Path.of("/proc/self/fd");
 
   private OpenFiles() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   public static void leaveNoneOpen(final String description, final Runnable attempt) {

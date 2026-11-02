@@ -52,7 +52,8 @@ final class SocksProtocol {
   private static final int UNSIGNED_BYTE_MASK = 0xFF;
 
   private SocksProtocol() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   static boolean readGreeting(final DataInput input) throws IOException {

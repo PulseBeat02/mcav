@@ -113,7 +113,8 @@ public final class Frames {
   public Frame requireLast() {
     final Frame frame = this.last();
     if (frame == null) {
-      throw new AssertionError("No frame was delivered!");
+      final String message = "No frame was delivered!";
+      throw new AssertionError(message);
     }
 
     return frame;

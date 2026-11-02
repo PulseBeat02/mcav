@@ -158,7 +158,8 @@ final class DevToolsInput {
   private static final Map<String, KeyDefinition> KEYS = createKeys();
 
   private DevToolsInput() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   private static Map<String, KeyDefinition> createKeys() {

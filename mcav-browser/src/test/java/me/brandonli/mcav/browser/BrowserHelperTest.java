@@ -389,7 +389,8 @@ class BrowserHelperTest {
       new Reader() {
         @Override
         public int read(final char[] buffer, final int offset, final int length) throws IOException {
-          throw new IOException("The pipe broke!");
+          final String message = "The pipe broke!";
+          throw new IOException(message);
         }
 
         @Override
@@ -449,7 +450,8 @@ class BrowserHelperTest {
       new OutputStream() {
         @Override
         public void write(final int value) throws IOException {
-          throw new IOException("The connection was reset!");
+          final String message = "The connection was reset!";
+          throw new IOException(message);
         }
       }
     );
@@ -530,11 +532,13 @@ class BrowserHelperTest {
   }
 
   private SocketChannel refuseTheConnection() throws IOException {
-    throw new IOException("The server is unavailable!");
+    final String message = "The server is unavailable!";
+    throw new IOException(message);
   }
 
   private void neverHalts(final int status) {
-    throw new AssertionError("The helper halted with status %s before the test ended!".formatted(status));
+    final String message = "The helper halted with status %s before the test ended!".formatted(status);
+    throw new AssertionError(message);
   }
 
   @Test
@@ -824,7 +828,8 @@ class BrowserHelperTest {
     final OutputStream gone = new OutputStream() {
       @Override
       public void write(final int value) throws IOException {
-        throw new IOException("The server is gone!");
+        final String message = "The server is gone!";
+        throw new IOException(message);
       }
     };
     final BrowserHelper.Reporter reporter = helper.new Reporter(new DataOutputStream(gone));
@@ -838,7 +843,8 @@ class BrowserHelperTest {
     final BufferedReader broken = new BufferedReader(new StringReader("x")) {
       @Override
       public String readLine() throws IOException {
-        throw new IOException("The connection is closed!");
+        final String message = "The connection is closed!";
+        throw new IOException(message);
       }
     };
     final int statusForABrokenInput = BrowserHelper.runFromInput(broken, new ScriptedEngine(), this::neverHalts);

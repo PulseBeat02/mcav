@@ -58,7 +58,8 @@ final class HelperEnvironment {
   );
 
   private HelperEnvironment() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   // names compare without case, as on Windows

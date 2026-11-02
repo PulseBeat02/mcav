@@ -105,7 +105,8 @@ final class HelperProtocol {
   private static final int UTF8_CONTINUATION_BITS = 0x80;
 
   private HelperProtocol() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   static void writeHello(final DataOutput output, final byte[] token) throws IOException {
@@ -468,7 +469,8 @@ final class HelperProtocol {
       final CharBuffer decoded = decoder.decode(input);
       return decoded.toString();
     } catch (final CharacterCodingException exception) {
-      final ProtocolException failure = new ProtocolException("A string is not valid UTF-8!");
+      final String message = "A string is not valid UTF-8!";
+      final ProtocolException failure = new ProtocolException(message);
       failure.initCause(exception);
       throw failure;
     }

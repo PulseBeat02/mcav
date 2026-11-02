@@ -102,6 +102,8 @@ class LinuxLibrariesTest {
 
   private static final Pattern FINGERPRINT = Pattern.compile("[0-9a-f]{12}");
 
+  private static final String DISK_GONE_MESSAGE = "The disk is gone!";
+
   @TempDir
   private Path folder;
 
@@ -245,11 +247,13 @@ class LinuxLibrariesTest {
     assertEquals(debianPackage.length, size, "the pinned size bounds the download");
 
     if (uri.getHost().equals("broken.test")) {
-      throw new IOException("The mirror is down!");
+      final String message = "The mirror is down!";
+      throw new IOException(message);
     }
 
     if (!sha256.equals(this.sha256(debianPackage))) {
-      throw new IOException("The hash does not match!");
+      final String message = "The hash does not match!";
+      throw new IOException(message);
     }
 
     Files.write(destination, debianPackage);
@@ -311,12 +315,12 @@ class LinuxLibrariesTest {
         return new InputStream() {
           @Override
           public int read() throws IOException {
-            throw new IOException("The disk is gone!");
+            throw new IOException(DISK_GONE_MESSAGE);
           }
 
           @Override
           public int read(final byte[] buffer, final int offset, final int length) throws IOException {
-            throw new IOException("The disk is gone!");
+            throw new IOException(DISK_GONE_MESSAGE);
           }
         };
       }
@@ -517,7 +521,8 @@ class LinuxLibrariesTest {
     this.downloads.add(uri);
 
     if (uri.getHost().equals("first.test")) {
-      throw new FileOperationException("The part file could not be moved into place!");
+      final String message = "The part file could not be moved into place!";
+      throw new FileOperationException(message);
     }
 
     Files.write(destination, debianPackage);
@@ -561,7 +566,8 @@ class LinuxLibrariesTest {
   private void writeAndFailDownload(final URI uri, final Path destination) throws IOException {
     this.downloads.add(uri);
     Files.write(destination, new byte[1]);
-    throw new IOException("The mirror %s is down!".formatted(uri.getHost()));
+    final String message = "The mirror %s is down!".formatted(uri.getHost());
+    throw new IOException(message);
   }
 
   @Test

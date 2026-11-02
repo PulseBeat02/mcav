@@ -74,7 +74,8 @@ class SpecialKeysTest {
     final Reader throwing = new FilterReader(new StringReader("[\"A\"]")) {
       @Override
       public void close() throws IOException {
-        throw new IOException("The disk is gone!");
+        final String message = "The disk is gone!";
+        throw new IOException(message);
       }
     };
     final BrowserException failure = assertThrows(BrowserException.class, () -> SpecialKeys.parse(throwing));

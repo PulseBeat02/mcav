@@ -125,7 +125,8 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
    */
   @Override
   public CompletableFuture<BufferedImage> createScreenshot(final boolean nativeResolution) {
-    final UnsupportedOperationException failure = new UnsupportedOperationException("Screenshots are taken from the painted frames!");
+    final String message = "Screenshots are taken from the painted frames!";
+    final UnsupportedOperationException failure = new UnsupportedOperationException(message);
     return CompletableFuture.failedFuture(failure);
   }
 

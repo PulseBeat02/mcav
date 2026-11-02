@@ -312,7 +312,8 @@ class NetworkGuardTest {
   }
 
   private Socket timeOutConnecting() throws SocketTimeoutException {
-    throw new SocketTimeoutException("The connection timed out!");
+    final String message = "The connection timed out!";
+    throw new SocketTimeoutException(message);
   }
 
   @Test
@@ -626,7 +627,8 @@ class NetworkGuardTest {
   }
 
   private NetworkInterface failToListInterfaces() throws SocketException {
-    throw new SocketException("No network interfaces are available!");
+    final String message = "No network interfaces are available!";
+    throw new SocketException(message);
   }
 
   @Test
@@ -782,7 +784,8 @@ class NetworkGuardTest {
 
   private void countAndFailClosing(final AtomicInteger closed) throws IOException {
     closed.incrementAndGet();
-    throw new IOException("The connection is already gone!");
+    final String message = "The connection is already gone!";
+    throw new IOException(message);
   }
 
   private static final class TranslatingResolver implements NetworkGuard.Resolver {
