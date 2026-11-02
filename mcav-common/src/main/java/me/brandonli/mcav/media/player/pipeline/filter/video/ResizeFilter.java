@@ -63,7 +63,7 @@ public class ResizeFilter extends MatVideoFilter {
   }
 
   /**
-   * Checks whether this filter resizes to the specified size.
+   * Returns whether this filter resizes to the specified size.
    *
    * @param width  the width in pixels
    * @param height the height in pixels
