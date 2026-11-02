@@ -58,6 +58,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.MockedStatic;
+import org.mockito.invocation.InvocationOnMock;
 
 final class MinecraftStripOutputTest {
 
@@ -82,11 +83,7 @@ final class MinecraftStripOutputTest {
     when(this.device.getDeviceInfo().limits().maxTextureSize()).thenReturn(16_384);
     when(
       this.device.createTexture(ArgumentMatchers.<Supplier<String>>any(), anyInt(), any(), anyInt(), anyInt(), anyInt(), anyInt())
-    ).thenAnswer(_ -> {
-      final GpuTexture texture = mock(GpuTexture.class);
-      this.textures.add(texture);
-      return texture;
-    });
+    ).thenAnswer(this::createTexture);
     this.system = mockStatic(RenderSystem.class);
     this.system.when(RenderSystem::getDevice).thenReturn(this.device);
     this.main.width = WIDTH;
@@ -97,6 +94,13 @@ final class MinecraftStripOutputTest {
   @AfterEach
   void close() {
     this.system.close();
+  }
+
+  private GpuTexture createTexture(final InvocationOnMock invocation) {
+    final GpuTexture texture = mock(GpuTexture.class);
+    this.textures.add(texture);
+
+    return texture;
   }
 
   // each row of one value, so the order of the rows shows
@@ -228,12 +232,7 @@ final class MinecraftStripOutputTest {
   void shouldRunTheFrameOfThePacksChainAndKeepItsBufferForAStripOfTheSameSize() {
     final PostChain chain = mock(PostChain.class);
     final AtomicInteger passes = new AtomicInteger();
-    doAnswer(invocation -> {
-      final FramePass pass = invocation.<FrameGraphBuilder>getArgument(0).addPass("mcv2 test");
-      pass.disableCulling();
-      pass.executes(passes::incrementAndGet);
-      return null;
-    })
+    doAnswer(invocation -> this.addCountedPass(invocation, passes))
       .when(chain)
       .addToFrame(any(FrameGraphBuilder.class), anyInt(), anyInt(), any());
     final MinecraftStripOutput output = new MinecraftStripOutput(() -> this.main, () -> chain, () -> this.commands);
@@ -254,6 +253,15 @@ final class MinecraftStripOutputTest {
     );
     final ByteBuffer reusedPixels = pixels.getAllValues().get(1);
     assertSame(pixels.getAllValues().get(0), reusedPixels);
+  }
+
+  private Void addCountedPass(final InvocationOnMock invocation, final AtomicInteger passes) {
+    final FrameGraphBuilder frame = invocation.getArgument(0);
+    final FramePass pass = frame.addPass("mcv2 test");
+    pass.disableCulling();
+    pass.executes(passes::incrementAndGet);
+
+    return null;
   }
 
   @Test

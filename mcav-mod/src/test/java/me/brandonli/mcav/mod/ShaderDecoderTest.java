@@ -96,14 +96,17 @@ final class ShaderDecoderTest {
       testedIris,
       this.shaderPack::get,
       this.shadowPass::get,
-      () -> {
-        this.layoutReads.incrementAndGet();
-        return this.packConstants.get();
-      },
+      this::readPackConstants,
       this.clock::get,
       GameMatrices.find().orElseThrow(),
       this.output
     );
+  }
+
+  private Optional<String> readPackConstants() {
+    this.layoutReads.incrementAndGet();
+
+    return this.packConstants.get();
   }
 
   // a JOML matrix, which only reflection names

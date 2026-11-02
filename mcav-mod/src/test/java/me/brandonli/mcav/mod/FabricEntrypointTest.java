@@ -32,12 +32,15 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.event.Event;
 import net.fabricmc.fabric.api.event.EventFactory;
+import net.fabricmc.fabric.api.networking.v1.PacketSender;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.ModContainer;
 import net.fabricmc.loader.api.Version;
 import net.fabricmc.loader.api.metadata.ModMetadata;
 import net.irisshaders.iris.api.v0.IrisApi;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -128,19 +131,36 @@ final class FabricEntrypointTest {
   }
 
   private Event<ClientPlayConnectionEvents.Join> createJoins() {
-    return EventFactory.createArrayBacked(ClientPlayConnectionEvents.Join.class, listeners -> (handler, sender, client) -> {
-      for (final ClientPlayConnectionEvents.Join listener : listeners) {
-        listener.onPlayReady(handler, sender, client);
-      }
-    });
+    return EventFactory.createArrayBacked(ClientPlayConnectionEvents.Join.class, this::combineJoins);
+  }
+
+  private ClientPlayConnectionEvents.Join combineJoins(final ClientPlayConnectionEvents.Join[] listeners) {
+    return (handler, sender, client) -> this.notifyJoins(listeners, handler, sender, client);
+  }
+
+  private void notifyJoins(
+    final ClientPlayConnectionEvents.Join[] listeners,
+    final ClientPacketListener handler,
+    final PacketSender sender,
+    final Minecraft client
+  ) {
+    for (final ClientPlayConnectionEvents.Join listener : listeners) {
+      listener.onPlayReady(handler, sender, client);
+    }
   }
 
   private Event<ClientTickEvents.EndTick> createTicks() {
-    return EventFactory.createArrayBacked(ClientTickEvents.EndTick.class, listeners -> client -> {
-      for (final ClientTickEvents.EndTick listener : listeners) {
-        listener.onEndTick(client);
-      }
-    });
+    return EventFactory.createArrayBacked(ClientTickEvents.EndTick.class, this::combineTicks);
+  }
+
+  private ClientTickEvents.EndTick combineTicks(final ClientTickEvents.EndTick[] listeners) {
+    return client -> this.notifyTicks(listeners, client);
+  }
+
+  private void notifyTicks(final ClientTickEvents.EndTick[] listeners, final Minecraft client) {
+    for (final ClientTickEvents.EndTick listener : listeners) {
+      listener.onEndTick(client);
+    }
   }
 
   @SuppressWarnings("unchecked") // a class literal cannot name PayloadTypeRegistry<RegistryFriendlyByteBuf>
