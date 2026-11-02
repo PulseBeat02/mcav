@@ -217,7 +217,7 @@ final class ShaderDecoderTest {
         decoder.rendered(this.allocator, this.camera);
       }
       final boolean decodesUnderShaders = decoder.decodesUnderShaders();
-      assertFalse(decodesUnderShaders, "hook " + missing + " never ran");
+      assertFalse(decodesUnderShaders, "hook %s never ran".formatted(missing));
     }
     final ShaderDecoder untested = this.decoder(UNTESTED_IRIS, WIDTH, HEIGHT);
     this.frame(untested);

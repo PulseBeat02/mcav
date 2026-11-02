@@ -216,7 +216,7 @@ final class TransportStripTest {
     expected[DOWN_OFFSET + W_COMPONENT] = ANCHOR_INDEX_STRIDE + 2;
     System.arraycopy(PROJECTION, 0, expected, PROJECTION_OFFSET, FLOATS_PER_MATRIX);
     final float[] descriptor = this.descriptor(strip, DESCRIPTORS);
-    assertArrayEquals(expected, descriptor, "facing " + facing);
+    assertArrayEquals(expected, descriptor, "facing %s".formatted(facing));
     this.assertPixel(strip, DESCRIPTORS, 0x4D, 0x43, 0x56, OPAQUE);
     this.assertPixel(strip, DESCRIPTORS + 1, 0xA1, 0, 0, OPAQUE);
     for (int pixel = 58; pixel < TransportStrip.DESCRIPTOR_PIXELS; pixel++) {

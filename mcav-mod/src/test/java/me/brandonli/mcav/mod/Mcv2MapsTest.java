@@ -60,7 +60,7 @@ final class Mcv2MapsTest {
       final byte[] changed = page.clone();
       changed[index] = (byte) (changed[index] == 4 ? 5 : 4);
       final boolean changedReadAsPage = Mcv2Maps.isPage(changed);
-      assertFalse(changedReadAsPage, "symbol " + index + " of the prefix");
+      assertFalse(changedReadAsPage, "symbol %s of the prefix".formatted(index));
     }
     final boolean shorterReadAsPage = Mcv2Maps.isPage(Arrays.copyOf(page, Mcv2Maps.COLORS - 1));
     final boolean longerReadAsPage = Mcv2Maps.isPage(Arrays.copyOf(page, Mcv2Maps.COLORS + 1));
@@ -81,7 +81,7 @@ final class Mcv2MapsTest {
       final byte[] changed = anchor.clone();
       changed[index] = (byte) (changed[index] == 4 ? 5 : 4);
       final boolean changedReadAsAnchor = Mcv2Maps.isAnchor(changed);
-      assertFalse(changedReadAsAnchor, "symbol " + index + " of the signature");
+      assertFalse(changedReadAsAnchor, "symbol %s of the signature".formatted(index));
     }
     final byte[] checksum = anchor.clone();
     checksum[CHECKSUM] = (byte) (((checksum[CHECKSUM] - 4 + 1) & HIGHEST_SYMBOL) + 4);
@@ -106,7 +106,7 @@ final class Mcv2MapsTest {
   void shouldLetAnAnchorFaceOneOfFourDirections() {
     for (int facing = 0; facing <= 3; facing++) {
       final boolean facingReadAsAnchor = Mcv2Maps.isAnchor(MapFixtures.colors(MapFixtures.anchorSymbols(0, 0, 1, 1, facing, 7)));
-      assertTrue(facingReadAsAnchor, "facing " + facing);
+      assertTrue(facingReadAsAnchor, "facing %s".formatted(facing));
     }
     final boolean fifthFacingReadAsAnchor = Mcv2Maps.isAnchor(MapFixtures.colors(MapFixtures.anchorSymbols(0, 0, 1, 1, 4, 7)));
     assertFalse(fifthFacingReadAsAnchor);
