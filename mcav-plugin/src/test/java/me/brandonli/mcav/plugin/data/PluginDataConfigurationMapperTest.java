@@ -107,6 +107,8 @@ final class PluginDataConfigurationMapperTest {
   private static final String NATIVE_MODE_WARNING_PATTERN = "using auto";
   private static final String ENCODER_BUDGET_WARNING_PATTERN = "using half the processors";
 
+  private static final int KEEP_TRAILING_EMPTY_PARTS = -1;
+
   @TempDir
   private Path folder;
 
@@ -244,7 +246,7 @@ final class PluginDataConfigurationMapperTest {
 
     final String text = logged.toString(StandardCharsets.UTF_8);
 
-    final int matches = text.split(ALLOWED_HOSTS_WARNING_PATTERN, -1).length - 1;
+    final int matches = text.split(ALLOWED_HOSTS_WARNING_PATTERN, KEEP_TRAILING_EMPTY_PARTS).length - 1;
     assertEquals(5, matches, text);
 
     final boolean contained = text.contains("hunter2");
@@ -280,7 +282,7 @@ final class PluginDataConfigurationMapperTest {
 
     final String text = logged.toString(StandardCharsets.UTF_8);
 
-    final int matches = text.split(ALLOWED_HOSTS_WARNING_PATTERN, -1).length - 1;
+    final int matches = text.split(ALLOWED_HOSTS_WARNING_PATTERN, KEEP_TRAILING_EMPTY_PARTS).length - 1;
     assertEquals(1, matches, text);
 
     final boolean contained = text.contains("hidden-secret");
@@ -589,7 +591,7 @@ final class PluginDataConfigurationMapperTest {
 
     final String text = logged.toString(StandardCharsets.UTF_8);
 
-    final int matches = text.split(REFUSED_HOSTS_WARNING_PATTERN, -1).length - 1;
+    final int matches = text.split(REFUSED_HOSTS_WARNING_PATTERN, KEEP_TRAILING_EMPTY_PARTS).length - 1;
     assertEquals(3, matches, text);
   }
 
@@ -628,7 +630,7 @@ final class PluginDataConfigurationMapperTest {
     }
     final String text = logged.toString(StandardCharsets.UTF_8);
 
-    final int matches = text.split(NATIVE_MODE_WARNING_PATTERN, -1).length - 1;
+    final int matches = text.split(NATIVE_MODE_WARNING_PATTERN, KEEP_TRAILING_EMPTY_PARTS).length - 1;
     assertEquals(1, matches, text);
   }
 
@@ -649,7 +651,7 @@ final class PluginDataConfigurationMapperTest {
     // the default, 0, is no mistake; -1 is
     final String text = logged.toString(StandardCharsets.UTF_8);
 
-    final int matches = text.split(ENCODER_BUDGET_WARNING_PATTERN, -1).length - 1;
+    final int matches = text.split(ENCODER_BUDGET_WARNING_PATTERN, KEEP_TRAILING_EMPTY_PARTS).length - 1;
     assertEquals(1, matches, text);
   }
 
