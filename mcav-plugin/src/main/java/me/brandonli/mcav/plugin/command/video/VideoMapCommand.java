@@ -77,7 +77,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
    * highest quality way to show a video in the world. With {@code --codec mcv2}, or without the flag when
    * {@code mcv2.default-codec} is {@code mcv2}, the video is encoded as it plays with the default live preset for the
    * players whose client loads the MCV2 resource pack, and dithered for everyone else, like {@code /mcav video mcv2}
-   * with the {@code DEFAULT} profile.
+   * with the {@code DEFAULT} preset.
    *
    * <p>Build the wall first with {@code /mcav screen}, using the same block dimensions and map id. Each map holds
    * 128x128 pixels, and the maps are numbered row by row from the top left one. Frames are scaled to the

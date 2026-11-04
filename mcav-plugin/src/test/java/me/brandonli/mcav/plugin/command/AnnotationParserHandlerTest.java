@@ -104,7 +104,7 @@ final class AnnotationParserHandlerTest {
     "mcav video hologram set location",
     "mcav video hologram disable",
     "mcav video map playerSelector playerType audioType videoResolution blockDimensions mapId ditheringAlgorithm ytdlpOptions mrl flags",
-    "mcav video mcv2 playerSelector playerType audioType videoResolution blockDimensions mapId profile ditheringAlgorithm ytdlpOptions mrl flags",
+    "mcav video mcv2 playerSelector playerType audioType videoResolution blockDimensions mapId preset ditheringAlgorithm ytdlpOptions mrl flags",
     "mcav mcv2 play playerSelector blockDimensions mapId ticks file",
     "mcav mcv2 stream playerSelector blockDimensions mapId framesPerSecond file",
     "mcav mcv2 stop",

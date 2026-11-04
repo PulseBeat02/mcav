@@ -326,7 +326,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
   }
 
   /**
-   * Handles {@code /mcav mcv2 encode <file> <output> <resolution> <profile>}: encodes a video file into an MCV2 stream
+   * Handles {@code /mcav mcv2 encode <file> <output> <resolution> <preset>}: encodes a video file into an MCV2 stream
    * file ahead of time, which {@code /mcav mcv2 play} and {@code stream} play. The frames are encoded one after
    * another on a thread of its own, inside the encoder budget every MCV2 screen of the server shares
    * ({@code mcv2.encoder-threads} in {@code config.yml}), so the server keeps ticking and the screens keep their share;
@@ -338,10 +338,10 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
    * @param file       the path of the video file on the server
    * @param output     the stream file to write, in the plugin's {@code mcv2} folder, replaced when it exists
    * @param resolution the video size as {@code <width>x<height>}
-   * @param profile    the encoder profile, {@code DEFAULT} or {@code FAST}
+   * @param preset     the encoder preset, {@code DEFAULT} or {@code FAST}
    * @since 1.0.0
    */
-  @Command("mcav mcv2 encode <file> <output> <resolution> <profile>")
+  @Command("mcav mcv2 encode <file> <output> <resolution> <preset>")
   @Permission("mcav.command.mcv2.encode")
   @CommandDescription("mcav.command.mcv2.encode.info")
   public void encode(
@@ -349,7 +349,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     @Quoted final String file,
     @Quoted final String output,
     @Argument(suggestions = SuggestionProvider.RESOLUTIONS) @Quoted final String resolution,
-    final Mcv2Profile profile
+    final Mcv2Profile preset
   ) {
     final Pair<Integer, Integer> size = this.parseEncodeSize(sender, resolution);
     if (size == null) {
@@ -362,7 +362,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
       return;
     }
 
-    this.startEncode(sender, source, target, size, profile);
+    this.startEncode(sender, source, target, size, preset);
   }
 
   private @Nullable Pair<Integer, Integer> parseEncodeSize(final CommandSender sender, final String resolution) {
@@ -396,7 +396,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     final Path source,
     final Path target,
     final Pair<Integer, Integer> size,
-    final Mcv2Profile profile
+    final Mcv2Profile preset
   ) {
     final int width = size.getFirst();
     final int height = size.getSecond();
@@ -411,12 +411,12 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
 
       sender.sendMessage(
         Message.MCV2_ENCODE_START.build(
-          "%s into %s at %sx%s with the %s profile, on %s encoder threads".formatted(
+          "%s into %s at %sx%s with the %s preset, on %s encoder threads".formatted(
             source,
             target,
             width,
             height,
-            profile.name().toLowerCase(Locale.ROOT),
+            preset.name().toLowerCase(Locale.ROOT),
             budget.getThreads()
           )
         )
@@ -426,7 +426,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
       final Thread thread = Thread.ofPlatform()
         .daemon()
         .name(FILE_ENCODE_THREAD_NAME)
-        .start(() -> encodeFile(sender, stoppable, source, target, width, height, profile, budget, PROGRESS_INTERVAL_NANOSECONDS));
+        .start(() -> encodeFile(sender, stoppable, source, target, width, height, preset, budget, PROGRESS_INTERVAL_NANOSECONDS));
       this.encoding = new FileEncode(thread, stopped);
     }
   }
@@ -438,7 +438,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     final Path target,
     final int width,
     final int height,
-    final Mcv2Profile profile,
+    final Mcv2Profile preset,
     final Pool budget,
     final long interval
   ) {
@@ -449,7 +449,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     final Mcv2FileEncoder.Result result;
     try {
       try (final OutputStream output = new BufferedOutputStream(Files.newOutputStream(partial))) {
-        result = Mcv2FileEncoder.encode(opener.open(source, width, height), width, height, profile.getSettings(), budget, output, progress);
+        result = Mcv2FileEncoder.encode(opener.open(source, width, height), width, height, preset.getSettings(), budget, output, progress);
       }
       Files.move(partial, target, StandardCopyOption.REPLACE_EXISTING);
     } catch (final IOException | RuntimeException exception) {

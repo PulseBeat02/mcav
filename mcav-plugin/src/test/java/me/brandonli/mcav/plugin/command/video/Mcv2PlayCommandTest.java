@@ -511,9 +511,7 @@ final class Mcv2PlayCommandTest {
     final int threads = Pool.shared().getThreads();
 
     final String expected = this.text(
-      Message.MCV2_ENCODE_START.build(
-        "clip.mp4 into %s at 16x16 with the default profile, on %s encoder threads".formatted(output, threads)
-      )
+      Message.MCV2_ENCODE_START.build("clip.mp4 into %s at 16x16 with the default preset, on %s encoder threads".formatted(output, threads))
     );
     final String toldTold = told.getFirst();
     assertEquals(expected, toldTold);

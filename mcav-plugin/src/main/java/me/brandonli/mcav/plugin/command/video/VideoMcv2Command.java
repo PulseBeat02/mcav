@@ -79,7 +79,7 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
 
   /**
    * Handles {@code /mcav video mcv2 <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions>
-   * <mapId> <profile> <ditheringAlgorithm> <ytdlpOptions> <mrl>}.
+   * <mapId> <preset> <ditheringAlgorithm> <ytdlpOptions> <mrl>}.
    *
    * <p>Build the wall first with {@code /mcav screen}, using the same block dimensions and map id. The screen takes a
    * slot of the one MCV2 resource pack that decodes every MCV2 screen of the server, which the viewers are offered if
@@ -98,17 +98,17 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
    * @param videoResolution    the encoded resolution as {@code <width>x<height>}, such as {@code 640x360}
    * @param blockDimensions    the size of the wall as {@code <width>x<height>} in maps, such as {@code 5x3}
    * @param mapId              the id of the top-left map of the wall, as given to {@code /mcav screen}
-   * @param profile            the encoder profile, see {@link Mcv2Profile}
+   * @param preset             the encoder preset, see {@link Mcv2Profile}
    * @param ditheringAlgorithm how the video is dithered for players without the pack, see {@link DitheringArgument}
    * @param ytdlpOptions       extra options, in quotes; {@code ""} for none
    * @param mrl                the media, in quotes if it contains spaces
    * @param filters            the {@code --filters} option: filters applied to every frame in order, such as
    *                           {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
-   * @throws NullPointerException if {@code playerSelector}, {@code profile} or {@code ditheringAlgorithm} is null
+   * @throws NullPointerException if {@code playerSelector}, {@code preset} or {@code ditheringAlgorithm} is null
    * @since 1.0.0
    */
   @Command(
-    "mcav video mcv2 <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions> <mapId> <profile> <ditheringAlgorithm> <ytdlpOptions> <mrl>"
+    "mcav video mcv2 <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions> <mapId> <preset> <ditheringAlgorithm> <ytdlpOptions> <mrl>"
   )
   @Permission("mcav.command.video.mcv2")
   @CommandDescription("mcav.command.video.mcv2.info")
@@ -120,14 +120,14 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
     @Argument(suggestions = SuggestionProvider.RESOLUTIONS) @Quoted final String videoResolution,
     @Argument(suggestions = SuggestionProvider.DIMENSIONS) @Quoted final String blockDimensions,
     @Argument(suggestions = SuggestionProvider.IDS) @Range(min = "0") final int mapId,
-    final Mcv2Profile profile,
+    final Mcv2Profile preset,
     final DitheringArgument ditheringAlgorithm,
     @Quoted final String ytdlpOptions,
     @Quoted final String mrl,
     @Flag("filters") @Quoted final @Nullable String filters
   ) {
     Preconditions.checkNotNull(playerSelector, "Player selector must not be null!");
-    Preconditions.checkNotNull(profile, "Profile must not be null!");
+    Preconditions.checkNotNull(preset, "Preset must not be null!");
     Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null!");
 
     final Optional<Pair<Integer, Integer>> parsedBlocks = parseScreenDimensions(sender, blockDimensions);
@@ -145,7 +145,7 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
       blocks,
       resolution,
       mapId,
-      profile.getSettings(),
+      preset.getSettings(),
       viewers
     );
     final @Nullable Mcv2Configuration configuration = foundConfiguration.orElse(null);
