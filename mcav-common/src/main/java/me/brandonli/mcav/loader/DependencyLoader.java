@@ -73,13 +73,17 @@ import org.slf4j.LoggerFactory;
 public final class DependencyLoader {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(DependencyLoader.class);
+
   private static final String JNI_AVDEVICE = "jniavdevice";
   private static final String AVDEVICE_CLASS = "org.bytedeco.ffmpeg.global.avdevice";
+
   private static final List<Class<?>> OPENCV_MODULES = List.of(opencv_core.class, opencv_imgproc.class, opencv_imgcodecs.class);
-  private static final String FACE_DETECTION = "Face detection";
+
   private static final String PATHS_FIRST_PROPERTY = "org.bytedeco.javacpp.pathsFirst";
-  static final String OPENCV_THREADS_PROPERTY = "mcav.opencv.threads";
   private static final String PATHS_FIRST_VALUE = "false";
+
+  static final String OPENCV_THREADS_PROPERTY = "mcav.opencv.threads";
+  private static final int DEFAULT_OPENCV_THREADS = 1;
 
   private static final String GTK2_LIBRARY = "libgtk-x11-2.0.so.0";
 
@@ -209,7 +213,7 @@ public final class DependencyLoader {
   // OPENCV_THREADS_PROPERTY sets another number; 0 runs everything sequentially, and below 0 is OpenCV's default.
   @VisibleForTesting
   static void configureOpenCvThreads() {
-    final int threads = Integer.getInteger(OPENCV_THREADS_PROPERTY, 1);
+    final int threads = Integer.getInteger(OPENCV_THREADS_PROPERTY, DEFAULT_OPENCV_THREADS);
     org.bytedeco.opencv.global.opencv_core.setNumThreads(threads); // fqn: a presets class of this name is imported to load the natives
   }
 
@@ -300,7 +304,8 @@ public final class DependencyLoader {
   void loadFaceDetection(final Runnable objectDetectionLoader) {
     // the object detection natives link OpenCV's GUI module, which needs GTK 2 on Linux; where it cannot be provided,
     // only face detection is lost, so everything else keeps working without these natives
-    final boolean available = loadOptionalModule(objectDetectionLoader, FACE_DETECTION);
+    final String feature = Capability.FACE_DETECTION.getDisplayName();
+    final boolean available = loadOptionalModule(objectDetectionLoader, feature);
     if (available) {
       this.capabilities.add(Capability.FACE_DETECTION);
     } else {

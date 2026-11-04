@@ -62,6 +62,9 @@ public final class DelayedAudioOutput implements AutoCloseable {
   private static final String UNSTARTED_THREAD_NAME = "mcav-audio-output-not-started";
 
   private static final int MILLISECONDS_PER_SECOND = 1000;
+  private static final long NANOSECONDS_PER_MILLISECOND = TimeUnit.MILLISECONDS.toNanos(1);
+
+  private static final long MINIMUM_WAIT_NANOSECONDS = 1L;
 
   /**
    * The format of the samples: 16-bit little-endian PCM in the rate and the channels of the audio pipeline.
@@ -312,7 +315,7 @@ public final class DelayedAudioOutput implements AutoCloseable {
       }
       final long nextDue = next == null ? Long.MAX_VALUE : next.due();
       final long wake = this.silenceLeftNanoseconds > 0 ? Math.min(nextDue, this.streamEnd) : nextDue;
-      TimeUnit.NANOSECONDS.timedWait(this, Math.max(1, wake - now));
+      TimeUnit.NANOSECONDS.timedWait(this, Math.max(MINIMUM_WAIT_NANOSECONDS, wake - now));
     }
 
     return null;
@@ -344,7 +347,7 @@ public final class DelayedAudioOutput implements AutoCloseable {
     }
 
     final int bytes =
-      ((int) ((nanoseconds * BYTES_PER_MILLISECOND) / TimeUnit.MILLISECONDS.toNanos(1)) / AudioFilter.FRAME_SIZE) * AudioFilter.FRAME_SIZE;
+      ((int) ((nanoseconds * BYTES_PER_MILLISECOND) / NANOSECONDS_PER_MILLISECOND) / AudioFilter.FRAME_SIZE) * AudioFilter.FRAME_SIZE;
     if (bytes <= 0) {
       if (next == null) {
         this.silenceLeftNanoseconds = 0;
@@ -360,7 +363,7 @@ public final class DelayedAudioOutput implements AutoCloseable {
   }
 
   private static long nanosecondsOf(final int bytes) {
-    return (bytes * TimeUnit.MILLISECONDS.toNanos(1)) / BYTES_PER_MILLISECOND;
+    return (bytes * NANOSECONDS_PER_MILLISECOND) / BYTES_PER_MILLISECOND;
   }
 
   private void deliver() {

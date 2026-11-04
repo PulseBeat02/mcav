@@ -100,6 +100,7 @@ public final class IoUtils {
 
   private static final long MAXIMUM_ZIP_ENTRY_SIZE = 512L * 1024L * 1024L;
   private static final long MAXIMUM_ZIP_TOTAL_SIZE = 2L * 1024L * 1024L * 1024L;
+
   private static final int COPY_BUFFER_SIZE = 64 * 1024;
 
   private static final int FIRST_VNC_PORT = 5900;
@@ -136,6 +137,10 @@ public final class IoUtils {
   private static final String EXECUTION_PROBE_PREFIX = "execution-probe-";
   private static final String EXECUTION_PROBE_SUFFIX = ".tmp";
 
+  private static final char URL_PATH_SEPARATOR = '/';
+
+  private static final Gson GSON = new Gson();
+
   private static final String TRUNCATED_ARCHIVE_MESSAGE = "Zip archive %s is truncated!";
   private static final String PATH_NULL_MESSAGE = "Path must not be null!";
   private static final String SOURCE_NULL_MESSAGE = "Source must not be null!";
@@ -166,7 +171,7 @@ public final class IoUtils {
       return "";
     }
 
-    final int lastSlash = uriPath.lastIndexOf('/');
+    final int lastSlash = uriPath.lastIndexOf(URL_PATH_SEPARATOR);
     return uriPath.substring(lastSlash + 1);
   }
 
@@ -647,11 +652,10 @@ public final class IoUtils {
   }
 
   private static DownloadFields @Nullable [] readDownloadArray(final Reader reader) throws IOException {
-    final Gson gson = new Gson();
     final TypeToken<DownloadFields[]> typeToken = new TypeToken<>() {};
     final Type downloadArrayType = typeToken.getType();
     try {
-      return gson.fromJson(reader, downloadArrayType);
+      return GSON.fromJson(reader, downloadArrayType);
     } catch (final JsonSyntaxException exception) {
       final String message = "Download list is not valid JSON!";
       throw new IOException(message, exception);

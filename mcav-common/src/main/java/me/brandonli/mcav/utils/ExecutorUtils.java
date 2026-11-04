@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 public final class ExecutorUtils {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ExecutorUtils.class);
+
   private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(5);
 
   private ExecutorUtils() {

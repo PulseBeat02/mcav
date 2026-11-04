@@ -47,6 +47,11 @@ public final class SourceUtils {
 
   private static final String GIF_EXTENSION = "gif";
 
+  private static final char UNIX_SEPARATOR = '/';
+  private static final char WINDOWS_SEPARATOR = '\\';
+
+  private static final char EXTENSION_SEPARATOR = '.';
+
   private static final Set<String> MEDIA_EXTENSIONS = Set.of(
     "mp4",
     "m4v",
@@ -233,10 +238,10 @@ public final class SourceUtils {
   }
 
   private static @Nullable String getExtension(final String path) {
-    final int lastSlash = path.lastIndexOf('/');
-    final int lastBackslash = path.lastIndexOf('\\');
+    final int lastSlash = path.lastIndexOf(UNIX_SEPARATOR);
+    final int lastBackslash = path.lastIndexOf(WINDOWS_SEPARATOR);
     final int lastSeparator = Math.max(lastSlash, lastBackslash);
-    final int lastDot = path.lastIndexOf('.');
+    final int lastDot = path.lastIndexOf(EXTENSION_SEPARATOR);
     final int lastIndex = path.length() - 1;
     final boolean hasExtension = lastDot > lastSeparator && lastDot < lastIndex;
     if (!hasExtension) {

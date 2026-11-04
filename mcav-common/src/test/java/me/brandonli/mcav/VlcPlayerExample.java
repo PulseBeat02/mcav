@@ -44,6 +44,9 @@ public final class VlcPlayerExample {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(VlcPlayerExample.class);
 
+  private static final int WIDTH = 960;
+  private static final int HEIGHT = 540;
+
   private VlcPlayerExample() {}
 
   static void main() throws InterruptedException {
@@ -58,7 +61,7 @@ public final class VlcPlayerExample {
         throw new IllegalStateException(message);
       }
 
-      final SwingVideoWindow window = SwingVideoWindow.open("VLC Player", 960, 540);
+      final SwingVideoWindow window = SwingVideoWindow.open("VLC Player", WIDTH, HEIGHT);
       resources.add(window::close);
       final DirectAudioOutput speakers = new DirectAudioOutput();
       resources.add(speakers::release);
@@ -87,7 +90,7 @@ public final class VlcPlayerExample {
       final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
       videoCallback.attach(videoPipeline);
       final DimensionAttachableCallback dimensionCallback = player.getDimensionAttachableCallback();
-      final Dimension dimension = new Dimension(960, 540);
+      final Dimension dimension = new Dimension(WIDTH, HEIGHT);
       dimensionCallback.attach(dimension);
 
       final URI uri = URI.create("https://download.blender.org/peach/bigbuckbunny_movies/big_buck_bunny_1080p_h264.mov");

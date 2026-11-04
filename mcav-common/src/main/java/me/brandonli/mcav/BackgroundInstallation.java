@@ -45,7 +45,9 @@ import org.slf4j.LoggerFactory;
 final class BackgroundInstallation {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(BackgroundInstallation.class);
+
   private static final Duration CANCEL_TIMEOUT = Duration.ofSeconds(10);
+
   private static final String THREAD_NAME_PREFIX = "MCAV Installer ";
 
   private final DependencyLoader dependencyLoader;

@@ -80,6 +80,12 @@ public final class AudioResampler implements AutoCloseable {
 
   private static final int NO_LOG_LEVEL_OFFSET = 0;
 
+  private static final long INTERLEAVED_PLANES = 1L;
+
+  private static final int NO_INPUT_FRAMES = 0;
+
+  private static final long NO_LIMIT = 0L;
+
   private final int inputSampleRate;
   private final int inputChannels;
   private final SampleFormat inputFormat;
@@ -247,7 +253,10 @@ public final class AudioResampler implements AutoCloseable {
 
     final byte[] samples = new byte[frames * this.inputFrameSize];
     source.get(samples);
-    try (final BytePointer inputData = new BytePointer(samples); final PointerPointer<BytePointer> inputPlanes = new PointerPointer<>(1L)) {
+    try (
+      final BytePointer inputData = new BytePointer(samples);
+      final PointerPointer<BytePointer> inputPlanes = new PointerPointer<>(INTERLEAVED_PLANES)
+    ) {
       inputPlanes.put(0, inputData);
       return this.convert(inputPlanes, frames);
     }
@@ -264,7 +273,7 @@ public final class AudioResampler implements AutoCloseable {
   public byte[] flush() {
     this.ensureOpen();
     try (final PointerPointer<BytePointer> noInput = new PointerPointer<>()) {
-      final byte[] remaining = this.convert(noInput, 0);
+      final byte[] remaining = this.convert(noInput, NO_INPUT_FRAMES);
       final int reset = swresample.swr_init(this.context);
       checkResult(reset, "reset the resampler");
 
@@ -280,7 +289,7 @@ public final class AudioResampler implements AutoCloseable {
 
     try (
       final BytePointer outputData = new BytePointer(capacityBytes);
-      final PointerPointer<BytePointer> outputPlanes = new PointerPointer<>(1L)
+      final PointerPointer<BytePointer> outputPlanes = new PointerPointer<>(INTERLEAVED_PLANES)
     ) {
       outputPlanes.put(0, outputData);
       final int converted = swresample.swr_convert(this.context, outputPlanes, capacityFrames, inputPlanes, inputFrames);
@@ -318,7 +327,7 @@ public final class AudioResampler implements AutoCloseable {
     try (final BytePointer description = new BytePointer(avutil.AV_ERROR_MAX_STRING_SIZE)) {
       avutil.av_strerror(code, description, avutil.AV_ERROR_MAX_STRING_SIZE);
       // without a limit JavaCPP reads up to the terminating zero instead of the whole buffer
-      description.limit(0);
+      description.limit(NO_LIMIT);
       final String text = description.getString();
       return "FFmpeg error %s (%s) occurred while trying to %s!".formatted(code, text, action);
     }

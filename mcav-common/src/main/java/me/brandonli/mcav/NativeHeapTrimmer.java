@@ -65,12 +65,17 @@ final class NativeHeapTrimmer implements AutoCloseable {
   static final int TRIM_THRESHOLD_BYTES = 128 * 1024;
 
   private static final Logger LOGGER = LoggerFactory.getLogger(NativeHeapTrimmer.class);
+
   // mallopt's parameter for the trim threshold, from glibc's malloc.h
   private static final int M_TRIM_THRESHOLD = -1;
+  private static final int MALLOPT_SUCCESS = 1;
+
   private static final String GLIBC_SYMBOL = "gnu_get_libc_version";
   private static final String MALLOPT_SYMBOL = "mallopt";
+
   private static final String DIAGNOSTIC_COMMANDS = "com.sun.management:type=DiagnosticCommand";
   private static final String TRIM_OPERATION = "systemTrimNativeHeap";
+
   private static final String JVM_INTERVAL_OPTION = "TrimNativeHeapInterval";
 
   private final Duration interval;
@@ -200,7 +205,7 @@ final class NativeHeapTrimmer implements AutoCloseable {
   @VisibleForTesting
   static boolean setTrimThreshold(final MethodHandle mallopt) {
     try {
-      return (int) mallopt.invokeExact(M_TRIM_THRESHOLD, TRIM_THRESHOLD_BYTES) == 1;
+      return (int) mallopt.invokeExact(M_TRIM_THRESHOLD, TRIM_THRESHOLD_BYTES) == MALLOPT_SUCCESS;
     } catch (final Throwable exception) {
       ThrowableUtils.throwIfFatal(exception);
 

@@ -44,6 +44,9 @@ public final class MultiplexerInputExample {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MultiplexerInputExample.class);
 
+  private static final int WIDTH = 1280;
+  private static final int HEIGHT = 720;
+
   private MultiplexerInputExample() {}
 
   static void main() throws IOException, InterruptedException {
@@ -68,7 +71,7 @@ public final class MultiplexerInputExample {
       final UriSource videoSource = videoFormat.toUriSource();
       final UriSource audioSource = audioFormat.toUriSource();
 
-      final SwingVideoWindow window = SwingVideoWindow.open("YouTube", 1280, 720);
+      final SwingVideoWindow window = SwingVideoWindow.open("YouTube", WIDTH, HEIGHT);
       resources.add(window::close);
       final DirectAudioOutput speakers = new DirectAudioOutput();
       resources.add(speakers::release);
@@ -86,7 +89,7 @@ public final class MultiplexerInputExample {
       final AudioAttachableCallback audioCallback = player.getAudioAttachableCallback();
       audioCallback.attach(audioPipeline);
       final DimensionAttachableCallback dimensionCallback = player.getDimensionAttachableCallback();
-      final Dimension dimension = new Dimension(1280, 720);
+      final Dimension dimension = new Dimension(WIDTH, HEIGHT);
       dimensionCallback.attach(dimension);
 
       final boolean started = player.start(videoSource, audioSource);

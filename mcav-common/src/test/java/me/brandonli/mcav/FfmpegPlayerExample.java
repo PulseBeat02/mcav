@@ -35,6 +35,12 @@ import me.brandonli.mcav.media.source.uri.UriSource;
 
 public final class FfmpegPlayerExample {
 
+  private static final int WIDTH = 1280;
+  private static final int HEIGHT = 720;
+
+  private static final long PLAY_BEFORE_PAUSE_SECONDS = 5L;
+  private static final long PAUSE_SECONDS = 3L;
+
   private FfmpegPlayerExample() {}
 
   static void main() throws InterruptedException {
@@ -43,7 +49,7 @@ public final class FfmpegPlayerExample {
       resources.add(api::release);
       api.install();
 
-      final SwingVideoWindow window = SwingVideoWindow.open("FFmpeg Player", 1280, 720);
+      final SwingVideoWindow window = SwingVideoWindow.open("FFmpeg Player", WIDTH, HEIGHT);
       resources.add(window::close);
       final DirectAudioOutput speakers = new DirectAudioOutput();
       resources.add(speakers::release);
@@ -75,9 +81,9 @@ public final class FfmpegPlayerExample {
         throw new IllegalStateException(message);
       }
 
-      TimeUnit.SECONDS.sleep(5);
+      TimeUnit.SECONDS.sleep(PLAY_BEFORE_PAUSE_SECONDS);
       player.pause();
-      TimeUnit.SECONDS.sleep(3);
+      TimeUnit.SECONDS.sleep(PAUSE_SECONDS);
       player.resume();
 
       window.awaitClosed();
