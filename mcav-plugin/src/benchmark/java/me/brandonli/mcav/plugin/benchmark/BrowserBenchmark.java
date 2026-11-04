@@ -47,15 +47,23 @@ public final class BrowserBenchmark {
 
   private static final long WARM_UP_MILLISECONDS = 3_000L;
   private static final long FRAME_RATE_MILLISECONDS = 10_000L;
+
   private static final int LATENCY_ROUNDS = 20;
+
   private static final long SETTLE_MILLISECONDS = 600L;
   private static final long LATENCY_TIMEOUT_MILLISECONDS = 10_000L;
   private static final long FULL_TIMEOUT_MILLISECONDS = 3_000L;
   private static final long START_TIMEOUT_MILLISECONDS = 120_000L;
+
   private static final int MAP_ID = 0;
+
   private static final List<String> LATENCY_COLORS = List.of("#dc0000", "#7fb238", "#c7c7c7", "#f7e9a3");
 
   private static final int ARGUMENT_COUNT = 2;
+
+  private static final int FRAME_INTERVAL = 1;
+
+  private static final int SUCCESS_EXIT_CODE = 0;
 
   private static final List<WallSize> WALL_SIZES = List.of(
     new WallSize(640, 640, 5, 5),
@@ -63,11 +71,7 @@ public final class BrowserBenchmark {
     new WallSize(1920, 1080, 15, 9)
   );
 
-  private static final String ROW_START = "| ";
-  private static final String CELL_SEPARATOR = " | ";
-  private static final String ROW_END = " |";
   private static final String HEADER_RULE = "|---|---|---|---|";
-  private static final String RESULT_SEPARATOR = " / ";
 
   private static final String JCEF_BACKEND = "jcef";
 
@@ -102,15 +106,15 @@ public final class BrowserBenchmark {
       for (final WallSize size : sizes) {
         final String frameRate = measureFrameRate(factory, server, size);
         final String latency = measureLatency(factory, server, size);
-        final String row = ROW_START + backend + CELL_SEPARATOR + size + CELL_SEPARATOR + frameRate + CELL_SEPARATOR + latency + ROW_END;
+        final String row = "| %s | %s | %s | %s |".formatted(backend, size, frameRate, latency);
         System.out.println(row);
         rows.add(row);
       }
     }
     final String header =
-      "| backend | browser size on wall | frames/s to the map encoder | latency to the first map patch / to 90% of the page on the wall (median, p90; " +
-      LATENCY_ROUNDS +
-      " rounds) |";
+      "| backend | browser size on wall | frames/s to the map encoder | latency to the first map patch / to 90%% of the page on the wall (median, p90; %s rounds) |".formatted(
+        LATENCY_ROUNDS
+      );
     final List<String> lines = new ArrayList<>();
     lines.add(header);
     lines.add(HEADER_RULE);
@@ -118,7 +122,7 @@ public final class BrowserBenchmark {
     Files.write(output, lines, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
     final PrintStream standardOutput = System.out;
     standardOutput.println(String.join(System.lineSeparator(), lines));
-    System.exit(0);
+    System.exit(SUCCESS_EXIT_CODE);
   }
 
   private static Supplier<BrowserPlayer> createPlayerFactory(final String backend) {
@@ -153,7 +157,7 @@ public final class BrowserBenchmark {
   }
 
   private static BrowserSource source(final URI page, final WallSize size) {
-    return BrowserSource.uri(page, size.width(), size.height(), 1);
+    return BrowserSource.uri(page, size.width(), size.height(), FRAME_INTERVAL);
   }
 
   private static MapProbe attach(final BrowserPlayer player, final WallSize size) {
@@ -200,10 +204,10 @@ public final class BrowserBenchmark {
     }
     final int missed = LATENCY_ROUNDS - first.size();
     final int incomplete = first.size() - full.size();
-    final String missedText = missed == 0 ? "" : " (" + missed + " rounds without any packet)";
+    final String missedText = missed == 0 ? "" : " (%s rounds without any packet)".formatted(missed);
     final String incompleteText =
-      incomplete == 0 ? "" : " (wall incomplete after " + FULL_TIMEOUT_MILLISECONDS + " ms in " + incomplete + " rounds)";
-    return describe(first) + RESULT_SEPARATOR + describe(full) + missedText + incompleteText;
+      incomplete == 0 ? "" : " (wall incomplete after %s ms in %s rounds)".formatted(FULL_TIMEOUT_MILLISECONDS, incomplete);
+    return "%s / %s%s%s".formatted(describe(first), describe(full), missedText, incompleteText);
   }
 
   private static void recordLatencies(final MapProbe.Watch watch, final long sent, final List<Double> first, final List<Double> full)
@@ -283,7 +287,7 @@ public final class BrowserBenchmark {
 
     @Override
     public String toString() {
-      return this.width + "x" + this.height + " on " + this.columns + "x" + this.rows;
+      return "%sx%s on %sx%s".formatted(this.width, this.height, this.columns, this.rows);
     }
   }
 }

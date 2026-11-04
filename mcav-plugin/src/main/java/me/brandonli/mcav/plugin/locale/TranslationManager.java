@@ -57,6 +57,7 @@ import org.checkerframework.checker.initialization.qual.UnderInitialization;
 public final class TranslationManager {
 
   private static final java.util.Locale DEFAULT_LOCALE = java.util.Locale.getDefault(); // fqn: Locale is this package's language
+
   private static final Key ADVENTURE_KEY = key(Keys.NAMESPACE, "main");
 
   private static final String LOCALE_FILE_PREFIX = "locale/mcav_";

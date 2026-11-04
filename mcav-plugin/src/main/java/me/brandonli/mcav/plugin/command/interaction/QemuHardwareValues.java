@@ -31,9 +31,13 @@ final class QemuHardwareValues {
   private static final Pattern SIZE = Pattern.compile("\\d{1,9}[KkMmGgTt]?");
   private static final Pattern SWITCH = Pattern.compile("on|off");
   private static final Pattern SWITCH_OR_AUTO = Pattern.compile("on|off|auto");
+  private static final Pattern SWITCH_OR_SPLIT = Pattern.compile("on|off|split");
   private static final Pattern BOOT_DEVICES = Pattern.compile("[a-p]{1,16}");
   private static final Pattern GUEST_NAME = Pattern.compile("[A-Za-z0-9 ._-]{0,64}");
   private static final Pattern ACCELERATOR = Pattern.compile("[a-z]{3,4}");
+  private static final Pattern CPU_FEATURE = Pattern.compile("[+-][A-Za-z0-9._-]{1,64}|[A-Za-z0-9._-]{1,64}=[A-Za-z0-9._-]{1,64}");
+  private static final Pattern KEYBOARD = Pattern.compile("[a-z]{2}(-[a-z]{2,3})?");
+  private static final Pattern VGA = Pattern.compile("[a-z0-9]{2,16}");
 
   private static final Map<String, Pattern> MACHINE_PROPERTIES = Map.ofEntries(
     Map.entry("type", WORD),
@@ -41,7 +45,7 @@ final class QemuHardwareValues {
     Map.entry("usb", SWITCH),
     Map.entry("vmport", SWITCH_OR_AUTO),
     Map.entry("smm", SWITCH_OR_AUTO),
-    Map.entry("kernel-irqchip", Pattern.compile("on|off|split")),
+    Map.entry("kernel-irqchip", SWITCH_OR_SPLIT),
     Map.entry("hpet", SWITCH),
     Map.entry("acpi", SWITCH_OR_AUTO),
     Map.entry("graphics", SWITCH),
@@ -86,7 +90,7 @@ final class QemuHardwareValues {
     "one-insn-per-tb",
     SWITCH,
     "kernel-irqchip",
-    Pattern.compile("on|off|split"),
+    SWITCH_OR_SPLIT,
     "dirty-ring-size",
     NUMBER
   );
@@ -113,18 +117,6 @@ final class QemuHardwareValues {
     "driftfix",
     Pattern.compile("none|slew")
   );
-  private static final Pattern CPU_FEATURE = Pattern.compile("[+-][A-Za-z0-9._-]{1,64}|[A-Za-z0-9._-]{1,64}=[A-Za-z0-9._-]{1,64}");
-  private static final Set<String> FILE_PROPERTIES = Set.of(
-    "dumpdtb",
-    "dtb",
-    "kernel",
-    "initrd",
-    "firmware",
-    "append",
-    "splash",
-    "memory-backend",
-    "pcspk-audiodev"
-  );
   private static final Map<String, Pattern> DRIVE_PROPERTIES = Map.ofEntries(
     Map.entry("format", Pattern.compile("raw|qcow2|vmdk|vdi|vhdx|vpc")),
     Map.entry("if", Pattern.compile("ide|scsi|sd|floppy|pflash|virtio|none")),
@@ -144,10 +136,26 @@ final class QemuHardwareValues {
     Map.entry("werror", Pattern.compile("ignore|stop|report|enospc")),
     Map.entry("rerror", Pattern.compile("ignore|stop|report"))
   );
-  private static final Pattern KEYBOARD = Pattern.compile("[a-z]{2}(-[a-z]{2,3})?");
-  private static final Pattern VGA = Pattern.compile("[a-z0-9]{2,16}");
+
+  private static final Set<String> FILE_PROPERTIES = Set.of(
+    "dumpdtb",
+    "dtb",
+    "kernel",
+    "initrd",
+    "firmware",
+    "append",
+    "splash",
+    "memory-backend",
+    "pcspk-audiodev"
+  );
+
   private static final Splitter PARTS = Splitter.on(',');
-  private static final Splitter PROPERTY = Splitter.on('=').limit(2);
+
+  private static final String PROPERTY_SEPARATOR = "=";
+
+  private static final int NAME_AND_VALUE_PARTS = 2;
+
+  private static final Splitter PROPERTY = Splitter.on(PROPERTY_SEPARATOR).limit(NAME_AND_VALUE_PARTS);
 
   private static final String MACHINE_OPTION = "machine";
   static final String MEMORY_OPTION = "m";
@@ -159,11 +167,22 @@ final class QemuHardwareValues {
   private static final String CPU_OPTION = "cpu";
   private static final String KEYBOARD_OPTION = "k";
   private static final String VGA_OPTION = "vga";
-  private static final String DRIVE_OPTION = "drive";
+  static final String DRIVE_OPTION = "drive";
+
+  static final Set<String> OPTIONS = Set.of(
+    MACHINE_OPTION,
+    MEMORY_OPTION,
+    PROCESSORS_OPTION,
+    ACCELERATOR_OPTION,
+    BOOT_OPTION,
+    NAME_OPTION,
+    CLOCK_OPTION,
+    CPU_OPTION,
+    KEYBOARD_OPTION,
+    VGA_OPTION
+  );
 
   static final String DEFAULT_MEMORY_SIZE = "128";
-
-  private static final String PROPERTY_SEPARATOR = "=";
 
   private static final String SIZE_PROPERTY = "size=";
 
@@ -175,8 +194,6 @@ final class QemuHardwareValues {
   static final int MEBIBYTE_SHIFT = 20;
   private static final int GIBIBYTE_SHIFT = 30;
   private static final int TEBIBYTE_SHIFT = 40;
-
-  private static final int NAME_AND_VALUE_PARTS = 2;
 
   private QemuHardwareValues() {
     final String message = "Utility class cannot be instantiated!";

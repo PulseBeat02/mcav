@@ -89,12 +89,17 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
   private static final long MAXIMUM_STREAM_BYTES = 1L << 30;
 
   private static final double NANOSECONDS_PER_MILLISECOND = 1e6;
-
   private static final double NANOSECONDS_PER_SECOND = 1e9;
 
   private static final int LENGTH_BYTES = Integer.BYTES;
 
   private static final String PARTIAL_SUFFIX = ".part";
+
+  private static final String STREAM_READ_THREAD_NAME = "mcav-mcv2-stream-read";
+  private static final String STREAM_THREAD_NAME = "mcav-mcv2-stream";
+  private static final String FILE_ENCODE_THREAD_NAME = "mcav-mcv2-file-encode";
+
+  private static final boolean INTERRUPT_IF_RUNNING = true;
 
   private final MCAVSandbox plugin;
 
@@ -128,7 +133,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     Preconditions.checkNotNull(plugin, "Plugin must not be null!");
 
     this.plugin = plugin;
-    this.reads = Executors.newSingleThreadExecutor(Thread.ofPlatform().daemon().name("mcav-mcv2-stream-read").factory());
+    this.reads = Executors.newSingleThreadExecutor(Thread.ofPlatform().daemon().name(STREAM_READ_THREAD_NAME).factory());
   }
 
   /**
@@ -220,7 +225,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
 
   private void startStream(final CommandSender sender, final int framesPerSecond, final Mcv2Playback playback) {
     final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(
-      Thread.ofPlatform().daemon().name("mcav-mcv2-stream").factory()
+      Thread.ofPlatform().daemon().name(STREAM_THREAD_NAME).factory()
     );
     this.streaming = executor.scheduleAtFixedRate(playback, 0, TimeUnit.SECONDS.toNanos(1) / framesPerSecond, TimeUnit.NANOSECONDS);
     this.streamer = executor;
@@ -416,7 +421,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
       final Opener stoppable = (video, frameWidth, frameHeight) -> new StoppableFrames(open.open(video, frameWidth, frameHeight), stopped);
       final Thread thread = Thread.ofPlatform()
         .daemon()
-        .name("mcav-mcv2-file-encode")
+        .name(FILE_ENCODE_THREAD_NAME)
         .start(() -> encodeFile(sender, stoppable, source, target, width, height, profile, budget, PROGRESS_INTERVAL_NANOSECONDS));
       this.encoding = new FileEncode(thread, stopped);
     }
@@ -576,7 +581,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     }
     final ScheduledFuture<?> schedule = this.streaming;
     if (schedule != null) {
-      schedule.cancel(true);
+      schedule.cancel(INTERRUPT_IF_RUNNING);
       this.streaming = null;
     }
     final ScheduledExecutorService executor = this.streamer;

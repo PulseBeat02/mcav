@@ -27,7 +27,8 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 final class PaperServerAssertionsTest {
 
-  private static final String IDLE_MEDIA = "{\"duration\":0,\"view_count\":0,\"like_count\":0}";
+  private static final int SUCCESS_EXIT_CODE = 0;
+
   private static final List<String> STARTUP = List.of(
     "MCAV loaded in 1 ms.",
     "JavaCV natives loaded in 1 ms.",
@@ -36,8 +37,8 @@ final class PaperServerAssertionsTest {
 
   @Test
   void shouldAcceptTheCompleteIdleSnapshotInAnyFieldOrder() {
-    PaperServerEndToEndTest.assertRanCleanly(0, IDLE_MEDIA, STARTUP);
-    PaperServerEndToEndTest.assertRanCleanly(0, "{\"like_count\":0,\"duration\":0,\"view_count\":0}", STARTUP);
+    PaperServerEndToEndTest.assertRanCleanly(SUCCESS_EXIT_CODE, "{\"duration\":0,\"view_count\":0,\"like_count\":0}", STARTUP);
+    PaperServerEndToEndTest.assertRanCleanly(SUCCESS_EXIT_CODE, "{\"like_count\":0,\"duration\":0,\"view_count\":0}", STARTUP);
   }
 
   @ParameterizedTest
@@ -51,13 +52,13 @@ final class PaperServerAssertionsTest {
     }
   )
   void shouldRefuseIncompleteOrStaleIdleSnapshots(final String response) {
-    assertThrows(AssertionError.class, () -> PaperServerEndToEndTest.assertRanCleanly(0, response, STARTUP));
+    assertThrows(AssertionError.class, () -> PaperServerEndToEndTest.assertRanCleanly(SUCCESS_EXIT_CODE, response, STARTUP));
   }
 
   @ParameterizedTest
   @ValueSource(strings = { "{", "{duration:0,view_count:0,like_count:0}", "{\"duration\":0,\"view_count\":0,\"like_count\":0} trailing" })
   void shouldRefuseMalformedMediaInformation(final String response) {
-    assertThrows(JsonParseException.class, () -> PaperServerEndToEndTest.assertRanCleanly(0, response, STARTUP));
+    assertThrows(JsonParseException.class, () -> PaperServerEndToEndTest.assertRanCleanly(SUCCESS_EXIT_CODE, response, STARTUP));
   }
 
   @ParameterizedTest

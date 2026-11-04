@@ -37,9 +37,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 final class LocalMavenRepositoryServer implements AutoCloseable {
 
   private static final InetAddress LOOPBACK_ADDRESS = InetAddress.ofLiteral("127.0.0.1");
+
   private static final int HTTP_OK = 200;
   private static final int HTTP_NOT_FOUND = 404;
   private static final int HTTP_METHOD_NOT_ALLOWED = 405;
+
   private static final long NO_BODY = -1;
 
   private static final String ROOT_PATH = "/";

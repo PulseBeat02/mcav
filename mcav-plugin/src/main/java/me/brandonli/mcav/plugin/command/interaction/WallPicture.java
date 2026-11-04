@@ -17,15 +17,14 @@
  */
 package me.brandonli.mcav.plugin.command.interaction;
 
+import me.brandonli.mcav.bukkit.media.map.MapLayout;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 record WallPicture(int wallWidth, int wallHeight, int sourceWidth, int sourceHeight, boolean stretched) {
-  private static final int MAP_PIXELS = 128;
-
   private static final int SIDES = 2;
 
   static WallPicture of(final int columns, final int rows, final int sourceWidth, final int sourceHeight, final boolean stretched) {
-    return new WallPicture(columns * MAP_PIXELS, rows * MAP_PIXELS, sourceWidth, sourceHeight, stretched);
+    return new WallPicture(columns * MapLayout.MAP_SIZE, rows * MapLayout.MAP_SIZE, sourceWidth, sourceHeight, stretched);
   }
 
   int @Nullable [] toSource(final int wallX, final int wallY) {

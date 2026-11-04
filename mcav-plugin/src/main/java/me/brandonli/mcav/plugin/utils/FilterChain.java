@@ -219,19 +219,14 @@ public final class FilterChain {
   );
 
   private static final Pattern HEXADECIMAL = Pattern.compile("[0-9a-fA-F]{6}");
-
   private static final Pattern WHOLE = Pattern.compile("-?\\d{1,4}");
-
   private static final Pattern DECIMAL = Pattern.compile("\\d{1,2}(\\.\\d{1,3})?");
-
-  private static final Pattern TEXT = Pattern.compile("[A-Za-z0-9 .!?'()+-]{1," + MAXIMUM_TEXT_LENGTH + "}");
-
+  private static final Pattern TEXT = Pattern.compile("[A-Za-z0-9 .!?'()+-]{1,%s}".formatted(MAXIMUM_TEXT_LENGTH));
   private static final Pattern OVERLAY_NAME = Pattern.compile("[A-Za-z0-9_-]{1,32}");
 
   private static final String OVERLAY_SUFFIX = ".png";
 
   private static final String NOT_A_WHOLE_NUMBER = "Filter %s takes a whole number from %s to %s, and %s is not one!";
-
   private static final String NO_OVERLAY = "Overlay %s does not exist in the overlays folder!";
 
   private static final int PERCENT = 100;
@@ -241,22 +236,23 @@ public final class FilterChain {
   private static final double BILATERAL_SIGMA = 75;
 
   private static final int TEXT_X = 4;
-
   private static final int TEXT_Y = 16;
-
   private static final double TEXT_SCALE = 0.5;
-
   private static final double[] WHITE = { MAXIMUM_LEVEL, MAXIMUM_LEVEL, MAXIMUM_LEVEL };
+
+  private static final int OVERLAY_LEFT = 0;
+  private static final int OVERLAY_TOP = 0;
+
+  private static final int MINIMUM_REGION_SIDE = 1;
 
   private static final double DEFAULT_TINT = 0.5;
 
   private static final int HEXADECIMAL_RADIX = 16;
-
   private static final int RED_SHIFT = 16;
-
   private static final int GREEN_SHIFT = 8;
-
   private static final int CHANNEL_MASK = 0xff;
+
+  private static final int KEEP_TRAILING_EMPTY_PARTS = -1;
 
   private static final String FILTER_SEPARATOR = ",";
   private static final char ARGUMENT_START = '=';
@@ -314,7 +310,7 @@ public final class FilterChain {
       throw new IllegalArgumentException(message);
     }
 
-    final String[] specifications = text.split(FILTER_SEPARATOR, -1);
+    final String[] specifications = text.split(FILTER_SEPARATOR, KEEP_TRAILING_EMPTY_PARTS);
     if (specifications.length > MAXIMUM_FILTERS) {
       final String message = "A filter chain must have at most %s filters!".formatted(MAXIMUM_FILTERS);
       throw new IllegalArgumentException(message);
@@ -335,7 +331,7 @@ public final class FilterChain {
 
     final String name = specification.substring(0, equals);
     final String argumentText = specification.substring(equals + 1);
-    final String[] argumentValues = argumentText.split(ARGUMENT_SEPARATOR, -1);
+    final String[] argumentValues = argumentText.split(ARGUMENT_SEPARATOR, KEEP_TRAILING_EMPTY_PARTS);
     final List<String> arguments = List.of(argumentValues);
     return createFilter(name, arguments, overlays, kind);
   }
@@ -512,7 +508,8 @@ public final class FilterChain {
       throw new IllegalArgumentException(message);
     }
 
-    final Path file = overlays.resolve(name + OVERLAY_SUFFIX);
+    final String fileName = "%s%s".formatted(name, OVERLAY_SUFFIX);
+    final Path file = overlays.resolve(fileName);
     final BasicFileAttributes attributes;
     try {
       attributes = Files.readAttributes(file, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
@@ -537,7 +534,7 @@ public final class FilterChain {
   // the filter copied the picture, so its native memory is released now, not at garbage collection
   static OverlayImageFilter overlayFilter(final ImageBuffer decoded) {
     try {
-      return new OverlayImageFilter(decoded, 0, 0);
+      return new OverlayImageFilter(decoded, OVERLAY_LEFT, OVERLAY_TOP);
     } finally {
       decoded.release();
     }
@@ -690,8 +687,8 @@ public final class FilterChain {
         final int left = (pictureWidth * this.region.left()) / PERCENT;
         final int top = (pictureHeight * this.region.top()) / PERCENT;
         // parseRegion() caps left + width and top + height at 100 percent
-        final int regionWidth = Math.max(1, (pictureWidth * this.region.width()) / PERCENT);
-        final int regionHeight = Math.max(1, (pictureHeight * this.region.height()) / PERCENT);
+        final int regionWidth = Math.max(MINIMUM_REGION_SIDE, (pictureWidth * this.region.width()) / PERCENT);
+        final int regionHeight = Math.max(MINIMUM_REGION_SIDE, (pictureHeight * this.region.height()) / PERCENT);
         current = this.factory.create(left, top, regionWidth, regionHeight, pictureWidth, pictureHeight);
         this.filter = current;
         this.width = pictureWidth;

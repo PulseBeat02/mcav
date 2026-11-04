@@ -33,7 +33,11 @@ final class Mcv2Image implements DisplayableImage {
 
   static final long PERIOD_TICKS = 10;
 
-  private static final long KEYFRAME_FEEDS = (4 * 20) / PERIOD_TICKS;
+  private static final long TICKS_PER_SECOND = 20;
+
+  private static final long KEYFRAME_INTERVAL_SECONDS = 4;
+
+  private static final long KEYFRAME_FEEDS = (KEYFRAME_INTERVAL_SECONDS * TICKS_PER_SECOND) / PERIOD_TICKS;
 
   private final Plugin plugin;
 

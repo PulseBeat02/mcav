@@ -24,6 +24,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 final class Screen {
 
+  private static final boolean DO_NOT_INTERRUPT = false;
+
   private final FunctionalVideoFilter output;
   private final VideoPipelineStep pipeline;
   private final int firstMapId;
@@ -78,7 +80,7 @@ final class Screen {
       shouldCancel = this.cancelled;
     }
     if (shouldCancel) {
-      future.cancel(false);
+      future.cancel(DO_NOT_INTERRUPT);
     }
   }
 
@@ -92,7 +94,7 @@ final class Screen {
       running = this.starting;
     }
     if (future != null) {
-      future.cancel(false);
+      future.cancel(DO_NOT_INTERRUPT);
     }
     return running;
   }

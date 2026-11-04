@@ -248,7 +248,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     final CommandSender sender,
     final MultiplePlayerSelector playerSelector,
     @Argument(suggestions = SuggestionProvider.RESOLUTIONS) @Quoted final String browserResolution,
-    @Argument(suggestions = "nth") @Range(min = "1", max = "1000") final int nth,
+    @Argument(suggestions = SuggestionProvider.NTH) @Range(min = "1", max = "1000") final int nth,
     @Argument(suggestions = SuggestionProvider.DIMENSIONS) @Quoted final String blockDimensions,
     @Argument(suggestions = SuggestionProvider.IDS) @Range(min = "0") final int mapId,
     final DitheringArgument ditheringAlgorithm,

@@ -60,62 +60,48 @@ public final class PluginDataConfigurationMapper {
   private static final String PLUGIN_LANGUAGE = "language";
 
   private static final String DISCORD_BOT_TOKEN = "discord-bot.token";
-
   private static final String DISCORD_BOT_CHANNEL_ID = "discord-bot.channel-id";
-
   private static final String DISCORD_BOT_GUILD_ID = "discord-bot.guild-id";
-
   private static final String DISCORD_BOT_ENABLED = "discord-bot.enabled";
 
   private static final String HTTP_HOST_NAME = "http-server.host-name";
-
   private static final String HTTP_PORT = "http-server.port";
-
   private static final String HTTP_ENABLED = "http-server.enabled";
 
   private static final String SIMPLE_VOICE_CHAT_ENABLED = "simple-voice-chat.enabled";
 
   private static final String MCV2_ENCODER_THREADS = "mcv2.encoder-threads";
-
   private static final String MCV2_NATIVE = "mcv2.native";
-
   private static final String MCV2_DEFAULT_CODEC = "mcv2.default-codec";
-
   private static final String MCV2_PACK_HOSTING = "mcv2.pack.hosting";
-
   private static final String MCV2_PACK_HTTP_HOST = "mcv2.pack.http-host";
-
   private static final String MCV2_PACK_HTTP_PORT = "mcv2.pack.http-port";
 
-  private static final int DEFAULT_PACK_HTTP_PORT = 25580;
-
   private static final String BROWSER_PRIVATE_NETWORKS = "browser.allow-private-networks";
-
   private static final String BROWSER_JAVASCRIPT_JIT = "browser.javascript-jit";
-
   private static final String BROWSER_AUTOPLAY_SOUND = "browser.autoplay-sound";
-
   private static final String BROWSER_CONFINE_CHROMIUM = "browser.confine-chromium";
-
   private static final String BROWSER_REFUSED_HOSTS = "browser.refused-hosts";
 
   private static final String VM_ALLOW_NETWORK = "vm.allow-network";
 
   private static final String VNC_ALLOWED_HOSTS = "vnc.allowed-hosts";
 
+  private static final String DEFAULT_HOST = "localhost";
+  private static final String DEFAULT_LOCALE = "EN_US";
   private static final int DEFAULT_HTTP_PORT = 3000;
+  private static final int DEFAULT_PACK_HTTP_PORT = 25580;
+  private static final int DEFAULT_ENCODER_THREADS = 0;
 
   private static final int MAXIMUM_PORT = 65535;
 
   private static final String INVALID_SETTING = "Invalid {} {}, using {} instead.";
-
   // names the host and the port of the entry, never its password
   private static final String INVALID_VNC_HOST = "Ignoring the entry {}:{} of {}, which is not a host and a port from 1 to 65535.";
 
-  private static final String DEFAULT_HOST = "localhost";
-  private static final String DEFAULT_LOCALE = "EN_US";
-
   private static final char HOST_SEPARATOR = ',';
+
+  private static final boolean DO_NOT_REPLACE = false;
 
   private final MCAVSandbox plugin;
 
@@ -219,7 +205,7 @@ public final class PluginDataConfigurationMapper {
     final Path file = folder.resolve(CONFIGURATION_FILE);
     final boolean exists = Files.exists(file);
     if (!exists) {
-      this.plugin.saveResource(CONFIGURATION_FILE, false);
+      this.plugin.saveResource(CONFIGURATION_FILE, DO_NOT_REPLACE);
     }
     try (final Reader reader = Files.newBufferedReader(file)) {
       final YamlConfiguration configuration = new YamlConfiguration();
@@ -286,10 +272,10 @@ public final class PluginDataConfigurationMapper {
 
   private int readEncoderThreads(final FileConfiguration configuration) {
     // only a YAML int is taken, as for a port
-    final Object value = configuration.get(MCV2_ENCODER_THREADS, 0);
+    final Object value = configuration.get(MCV2_ENCODER_THREADS, DEFAULT_ENCODER_THREADS);
     if (!(value instanceof final Integer threads) || threads < 0 || threads > Pool.MAXIMUM_THREADS) {
       LOGGER.warn("Invalid {} {}, using half the processors.", MCV2_ENCODER_THREADS, value);
-      return 0;
+      return DEFAULT_ENCODER_THREADS;
     }
 
     return threads;

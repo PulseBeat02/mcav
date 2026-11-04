@@ -60,6 +60,9 @@ final class YtdlpArgumentAssertions {
     "referer"
   );
 
+  private static final String LONG_OPTION_PREFIX = "--";
+  private static final String OPTION_PREFIX = "-";
+
   private YtdlpArgumentAssertions() {
     final String message = "Utility class cannot be instantiated!";
     throw new UnsupportedOperationException(message);
@@ -69,10 +72,10 @@ final class YtdlpArgumentAssertions {
     int index = 0;
     while (index < arguments.length) {
       final String argument = arguments[index];
-      final boolean option = argument.startsWith("--");
+      final boolean option = argument.startsWith(LONG_OPTION_PREFIX);
       assertTrue(option, () -> "'" + argument + "' reaches yt-dlp where an option belongs, from '" + typed + "'");
 
-      final String name = argument.substring(2);
+      final String name = argument.substring(LONG_OPTION_PREFIX.length());
       final boolean accepted = SWITCHES.contains(name) || VALUE_OPTIONS.contains(name);
       assertTrue(accepted, () -> "the option " + name + " is not accepted, from '" + typed + "'");
 
@@ -85,7 +88,7 @@ final class YtdlpArgumentAssertions {
       assertTrue(hasValue, () -> "the option " + name + " lost its value, from '" + typed + "'");
 
       final String value = arguments[index];
-      final boolean readAsOption = value.startsWith("-");
+      final boolean readAsOption = value.startsWith(OPTION_PREFIX);
       assertFalse(readAsOption, () -> "yt-dlp would read the value '" + value + "' as an option, from '" + typed + "'");
 
       index++;

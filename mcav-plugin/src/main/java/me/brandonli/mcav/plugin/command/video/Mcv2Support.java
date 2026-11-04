@@ -82,8 +82,11 @@ public final class Mcv2Support {
   private static final int[][] SMALLER_FRACTIONS = { { 2, 3 }, { 1, 2 } };
 
   private static final int MINIMUM_WIDTH = 128;
-
   private static final int MINIMUM_HEIGHT = 72;
+
+  private static final int EVEN_MASK = ~1;
+
+  private static final int DEFAULT_PAGE_SLOTS = 0;
 
   private final Mcv2PackServer packServer;
 
@@ -173,6 +176,7 @@ public final class Mcv2Support {
       return Optional.empty();
     }
 
+    final int pageSlots = Integer.getInteger(VideoMcv2Command.PAGE_SLOTS_PROPERTY, DEFAULT_PAGE_SLOTS);
     final Mcv2Configuration configuration = Mcv2Configuration.builder()
       .viewers(viewers)
       .origin(frame.getLocation())
@@ -182,7 +186,7 @@ public final class Mcv2Support {
       .rows(blocks.getSecond())
       .video(resolution.getFirst(), resolution.getSecond())
       .settings(settings)
-      .pageSlots(Integer.getInteger(VideoMcv2Command.PAGE_SLOTS_PROPERTY, 0))
+      .pageSlots(pageSlots)
       .backlogLimit(VideoMcv2Command.readBacklogLimit())
       .unsentLimit(VideoMcv2Command.readUnsentLimit())
       .build();
@@ -251,13 +255,17 @@ public final class Mcv2Support {
   static List<int[]> computeSmallerSizes(final int width, final int height) {
     final List<int[]> sizes = new ArrayList<>();
     for (final int[] fraction : SMALLER_FRACTIONS) {
-      final int smallerWidth = ((width * fraction[0]) / fraction[1]) & ~1;
-      final int smallerHeight = ((height * fraction[0]) / fraction[1]) & ~1;
+      final int smallerWidth = scaleToEven(width, fraction);
+      final int smallerHeight = scaleToEven(height, fraction);
       if (smallerWidth >= MINIMUM_WIDTH && smallerHeight >= MINIMUM_HEIGHT) {
         sizes.add(new int[] { smallerWidth, smallerHeight });
       }
     }
     return sizes;
+  }
+
+  private static int scaleToEven(final int side, final int[] fraction) {
+    return ((side * fraction[0]) / fraction[1]) & EVEN_MASK;
   }
 
   /**

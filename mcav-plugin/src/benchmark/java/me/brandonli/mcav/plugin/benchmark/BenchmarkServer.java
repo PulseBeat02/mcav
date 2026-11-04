@@ -56,8 +56,6 @@ final class BenchmarkServer implements AutoCloseable {
   """;
 
   private static final String LOOPBACK_ADDRESS = "127.0.0.1";
-  private static final String URL_PREFIX = "http://127.0.0.1:";
-  private static final String PATH_SEPARATOR = "/";
 
   private static final String FRAME_RATE_PATH = "/frame-rate";
   private static final String LATENCY_PATH = "/latency";
@@ -70,8 +68,14 @@ final class BenchmarkServer implements AutoCloseable {
   private static final String EVENT_STREAM_CONTENT_TYPE = "text/event-stream";
 
   private static final String OPEN_COMMENT = ": open\n\n";
-  private static final String DATA_PREFIX = "data: ";
-  private static final String EVENT_END = "\n\n";
+
+  private static final int EPHEMERAL_PORT = 0;
+
+  private static final int SYSTEM_DEFAULT_BACKLOG = 0;
+
+  private static final int STOP_DELAY_SECONDS = 0;
+
+  private static final long CHUNKED_RESPONSE_LENGTH = 0;
 
   private final HttpServer server;
   private final ExecutorService executor;
@@ -86,8 +90,8 @@ final class BenchmarkServer implements AutoCloseable {
 
   static BenchmarkServer start() throws IOException {
     final InetAddress loopback = InetAddress.ofLiteral(LOOPBACK_ADDRESS);
-    final InetSocketAddress address = new InetSocketAddress(loopback, 0);
-    final HttpServer server = HttpServer.create(address, 0);
+    final InetSocketAddress address = new InetSocketAddress(loopback, EPHEMERAL_PORT);
+    final HttpServer server = HttpServer.create(address, SYSTEM_DEFAULT_BACKLOG);
     final ExecutorService executor = Executors.newCachedThreadPool();
     final BenchmarkServer created = new BenchmarkServer(server, executor);
     server.createContext(FRAME_RATE_PATH, exchange -> respond(exchange, FRAME_RATE_PAGE));
@@ -101,14 +105,14 @@ final class BenchmarkServer implements AutoCloseable {
 
   @Override
   public void close() {
-    this.server.stop(0);
+    this.server.stop(STOP_DELAY_SECONDS);
     this.executor.shutdownNow();
   }
 
   URI page(final String name) {
     final InetSocketAddress address = this.server.getAddress();
     final int port = address.getPort();
-    return URI.create(URL_PREFIX + port + PATH_SEPARATOR + name);
+    return URI.create("http://%s:%s/%s".formatted(LOOPBACK_ADDRESS, port, name));
   }
 
   private static void respond(final HttpExchange exchange, final String page) throws IOException {
@@ -126,7 +130,7 @@ final class BenchmarkServer implements AutoCloseable {
     final Headers headers = exchange.getResponseHeaders();
     headers.set(CONTENT_TYPE_HEADER, EVENT_STREAM_CONTENT_TYPE);
     headers.set(CACHE_CONTROL_HEADER, NO_STORE);
-    exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, 0);
+    exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, CHUNKED_RESPONSE_LENGTH);
     final OutputStream output = exchange.getResponseBody();
     output.write(OPEN_COMMENT.getBytes(StandardCharsets.UTF_8));
     output.flush();
@@ -150,7 +154,7 @@ final class BenchmarkServer implements AutoCloseable {
   }
 
   void send(final String color) {
-    final byte[] event = (DATA_PREFIX + color + EVENT_END).getBytes(StandardCharsets.UTF_8);
+    final byte[] event = "data: %s\n\n".formatted(color).getBytes(StandardCharsets.UTF_8);
     final List<OutputStream> gone = new ArrayList<>();
     for (final OutputStream listener : this.listeners) {
       try {

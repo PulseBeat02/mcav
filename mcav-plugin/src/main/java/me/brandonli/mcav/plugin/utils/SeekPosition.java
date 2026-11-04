@@ -47,13 +47,12 @@ public final class SeekPosition {
   private static final Pattern FORMAT = Pattern.compile("([+-]?)(?:(?:(\\d{1,2}):)?(\\d{1,2}):)?(\\d{1,6})(?:\\.(\\d{1,3}))?");
 
   private static final long MILLISECONDS_PER_SECOND = 1_000L;
-
   private static final int SECONDS_PER_MINUTE = 60;
-
   private static final int MINUTES_PER_HOUR = 60;
 
   private static final int MILLISECONDS_DIGITS = 3;
 
+  private static final int SIGN_GROUP = 1;
   private static final int HOURS_GROUP = 2;
   private static final int MINUTES_GROUP = 3;
   private static final int SECONDS_GROUP = 4;
@@ -99,7 +98,7 @@ public final class SeekPosition {
       return Optional.empty();
     }
 
-    final String sign = Objects.requireNonNull(matcher.group(1));
+    final String sign = Objects.requireNonNull(matcher.group(SIGN_GROUP));
     final String hours = matcher.group(HOURS_GROUP);
     final String minutes = matcher.group(MINUTES_GROUP);
     final String seconds = Objects.requireNonNull(matcher.group(SECONDS_GROUP));

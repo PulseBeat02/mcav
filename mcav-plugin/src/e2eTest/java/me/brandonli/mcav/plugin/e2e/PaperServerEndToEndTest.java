@@ -32,6 +32,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.DatagramSocket;
+import java.net.HttpURLConnection;
 import java.net.ServerSocket;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -53,7 +54,6 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -72,13 +72,15 @@ final class PaperServerEndToEndTest {
   private static final String PAPER_FILE_NAME = Objects.requireNonNull(System.getProperty("mcav.e2e.paperFileName"));
   private static final String VOICE_CHAT_FILE_NAME = Objects.requireNonNull(System.getProperty("mcav.e2e.voiceChatFileName"));
 
+  private static final String PAPER_SHA_256 = "dd64988a011729e6812f2fff1be32ba5c572ecdc8890e6abc7a56aa91b53f77d";
+
+  private static final String SHA_256 = "SHA-256";
+
   private static final RemoteFile PAPER = new RemoteFile(
-    "https://fill-data.papermc.io/v1/objects/dd64988a011729e6812f2fff1be32ba5c572ecdc8890e6abc7a56aa91b53f77d/%s".formatted(
-      PAPER_FILE_NAME
-    ),
+    "https://fill-data.papermc.io/v1/objects/%s/%s".formatted(PAPER_SHA_256, PAPER_FILE_NAME),
     PAPER_FILE_NAME,
-    "SHA-256",
-    "dd64988a011729e6812f2fff1be32ba5c572ecdc8890e6abc7a56aa91b53f77d"
+    SHA_256,
+    PAPER_SHA_256
   );
   private static final RemoteFile VOICE_CHAT = new RemoteFile(
     "https://cdn.modrinth.com/data/9eGKb6K1/versions/EJth3OAr/%s".formatted(VOICE_CHAT_FILE_NAME),
@@ -98,14 +100,32 @@ final class PaperServerEndToEndTest {
   private static final Duration BROWSER_TIMEOUT = Duration.ofMinutes(10);
   private static final Duration SOUND_TIMEOUT = Duration.ofMinutes(1);
   private static final Duration RELEASE_TIMEOUT = Duration.ofSeconds(30);
+  private static final Duration VNC_POLL_PAUSE = Duration.ofMillis(50);
+  private static final Duration PAST_CLIP_END = Duration.ofSeconds(4);
+  private static final Duration RELEASE_POLL_PAUSE = Duration.ofMillis(200);
+
   private static final String TONE_IMAGE = "beep.img";
   private static final String CLIP = "clip.mp4";
   private static final String PICTURE = "picture.png";
+
   private static final Pattern PACK_SERVED = Pattern.compile("Serving the MCV2 pack ([0-9a-f-]{36}) with .* at (http://\\S+)");
-  private static final int HTTP_OK = 200;
+  private static final int PACK_URL_GROUP = 2;
+  private static final int PACK_ID_GROUP = 1;
+
   private static final String FLAT_WORLD_SETTINGS =
-    "{\"layers\":[{\"block\":\"minecraft:bedrock\",\"height\":1},{\"block\":\"minecraft:dirt\",\"height\":2}," +
-    "{\"block\":\"minecraft:grass_block\",\"height\":1}],\"biome\":\"minecraft:plains\"}";
+    "{\"layers\":[{\"block\":\"minecraft:bedrock\",\"height\":1},{\"block\":\"minecraft:dirt\",\"height\":2},{\"block\":\"minecraft:grass_block\",\"height\":1}],\"biome\":\"minecraft:plains\"}";
+
+  private static final int MANIFEST_FIELD_COUNT = 2;
+
+  private static final int MINIMUM_UPDATES = 2;
+
+  private static final String LOOPBACK_ADDRESS = "127.0.0.1";
+
+  private static final int EPHEMERAL_PORT = 0;
+
+  private static final int CHUNK_BYTES = 64 * 1024;
+
+  private static final int MISSING_PORT = 0;
 
   private static final int SOUND_SECONDS = 2;
   private static final int FREQUENCY_TOLERANCE_HERTZ = 20;
@@ -132,6 +152,7 @@ final class PaperServerEndToEndTest {
   private static final String CONFIGURATION_FILE = "config.yml";
   private static final String VOICE_CHAT_PROPERTIES_FILE = "voicechat-server.properties";
   private static final String DEPENDENCIES_ENTRY = "mcav/plugin/dependencies.txt";
+  private static final String PACK_METADATA_ENTRY = "pack.mcmeta";
   private static final String ENTITY_OUTLINE_EFFECT = "assets/minecraft/post_effect/entity_outline.json";
   private static final String MEDIA_RESOURCES = "/media/";
 
@@ -220,8 +241,8 @@ final class PaperServerEndToEndTest {
     final List<String> lines = manifest.lines().toList();
     for (final String line : lines) {
       if (line.startsWith("me.brandonli:mcav-")) {
-        final String[] fields = line.split(FIELD_SEPARATOR, 2);
-        assertEquals(2, fields.length, "module coordinates must have a SHA-256 digest");
+        final String[] fields = line.split(FIELD_SEPARATOR, MANIFEST_FIELD_COUNT);
+        assertEquals(MANIFEST_FIELD_COUNT, fields.length, "module coordinates must have a SHA-256 digest");
 
         expected.add(fields[1]);
       }
@@ -240,7 +261,7 @@ final class PaperServerEndToEndTest {
       final Path fileName = file.getFileName();
       final String name = fileName.toString();
       if (name.endsWith(JAR_SUFFIX)) {
-        actual.add(this.hash(file, "SHA-256"));
+        actual.add(this.hash(file, SHA_256));
       }
     }
     for (final String digest : expected) {
@@ -329,15 +350,15 @@ final class PaperServerEndToEndTest {
     final int firstLine = server.getLineCount();
     this.runCommand(
       server,
-      "mcav vnc create @a 320x240 10 3x2 12 NEAREST_COLOR 127.0.0.1:%s".formatted(vnc.getPort()),
+      "mcav vnc create @a 320x240 10 3x2 12 NEAREST_COLOR %s:%s".formatted(LOOPBACK_ADDRESS, vnc.getPort()),
       "Connected to the VNC desktop!"
     );
     server.awaitLine(firstLine, line -> line.contains("Maps 12 to 17 show their first picture"), COMMAND_TIMEOUT);
     // the client asks for the desktop's next picture at the screen's rate, ten a second here, and a release sent at once
     // after the first picture comes back before that; a desktop that sends only one picture still fails below
     final long deadline = System.nanoTime() + COMMAND_TIMEOUT.toNanos();
-    while (vnc.getUpdates() < 2 && System.nanoTime() < deadline) {
-      TimeUnit.MILLISECONDS.sleep(50);
+    while (vnc.getUpdates() < MINIMUM_UPDATES && System.nanoTime() < deadline) {
+      Thread.sleep(VNC_POLL_PAUSE);
     }
     this.runCommand(server, "mcav vnc release", "VNC desktop released!");
     System.out.printf(Locale.ROOT, "The VNC desktop logged in %d time(s) and sent %d updates%n", vnc.getLogins(), vnc.getUpdates());
@@ -348,7 +369,7 @@ final class PaperServerEndToEndTest {
     final int refused = vnc.getRefused();
     assertEquals(0, refused, "and never with another");
 
-    final boolean updatesArrived = vnc.getUpdates() > 1;
+    final boolean updatesArrived = vnc.getUpdates() >= MINIMUM_UPDATES;
     assertTrue(updatesArrived, "the desktop's pictures reach the maps");
   }
 
@@ -370,7 +391,7 @@ final class PaperServerEndToEndTest {
     final boolean found = matcher.find();
     assertTrue(found, served);
 
-    final URI pack = URI.create(matcher.group(2));
+    final URI pack = URI.create(matcher.group(PACK_URL_GROUP));
 
     final int port = pack.getPort();
     assertEquals(gamePort, port, "the pack is hosted on the game port");
@@ -379,7 +400,7 @@ final class PaperServerEndToEndTest {
     final String sha1 = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-1").digest(zip));
     final UUID id = UUID.nameUUIDFromBytes("mcav-mcv2:%s".formatted(sha1).getBytes(StandardCharsets.UTF_8));
 
-    final String expected = matcher.group(1);
+    final String expected = matcher.group(PACK_ID_GROUP);
     final String text = id.toString();
     assertEquals(expected, text, "the pack's id is derived from its hash");
 
@@ -390,7 +411,7 @@ final class PaperServerEndToEndTest {
       }
     }
 
-    final boolean matches = entries.contains("pack.mcmeta") && entries.contains(ENTITY_OUTLINE_EFFECT);
+    final boolean matches = entries.contains(PACK_METADATA_ENTRY) && entries.contains(ENTITY_OUTLINE_EFFECT);
     assertTrue(matches, String.valueOf(entries));
 
     System.out.println("The MCV2 pack %s of %s bytes is hosted at %s".formatted(id, zip.length, pack));
@@ -412,7 +433,7 @@ final class PaperServerEndToEndTest {
     this.runCommand(server, "mcav video speed 2", "Playing at a speed of 2.0");
     this.runCommand(server, "mcav video volume 50", "Volume in percent: 50");
     // past the end of the clip, which plays again from its start
-    TimeUnit.SECONDS.sleep(4);
+    Thread.sleep(PAST_CLIP_END);
     this.runCommand(server, "mcav video seek -0:01", "Jumped to ");
     this.runCommand(server, "mcav video loop false", "Videos stop at their end.");
     this.runCommand(server, "mcav video release", "Video player released!");
@@ -449,7 +470,7 @@ final class PaperServerEndToEndTest {
     final long deadline = System.nanoTime() + RELEASE_TIMEOUT.toNanos();
     List<String> left = this.findLeft(server, matcher, before);
     while (!left.isEmpty() && System.nanoTime() < deadline) {
-      TimeUnit.MILLISECONDS.sleep(200);
+      Thread.sleep(RELEASE_POLL_PAUSE);
       left = this.findLeft(server, matcher, before);
     }
     assertEquals(List.of(), left, "no process of the %s is left after its release".formatted(what));
@@ -482,7 +503,7 @@ final class PaperServerEndToEndTest {
 
   private String fetchMediaInformation(final ServerProcess server, final int port) throws IOException, InterruptedException {
     server.awaitLine(0, line -> line.contains("Audio web page "), HTTP_TIMEOUT);
-    final URI uri = URI.create("http://127.0.0.1:%s/media".formatted(port));
+    final URI uri = URI.create("http://%s:%s/media".formatted(LOOPBACK_ADDRESS, port));
     final HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(uri);
     requestBuilder.timeout(REQUEST_TIMEOUT);
     final HttpRequest request = requestBuilder.build();
@@ -490,7 +511,7 @@ final class PaperServerEndToEndTest {
     try (final HttpClient client = HttpClient.newHttpClient()) {
       final HttpResponse<String> response = client.send(request, handler);
       final int status = response.statusCode();
-      assertEquals(HTTP_OK, status, "the audio web server answers the media request");
+      assertEquals(HttpURLConnection.HTTP_OK, status, "the audio web server answers the media request");
 
       return response.body();
     }
@@ -502,7 +523,7 @@ final class PaperServerEndToEndTest {
       final HttpResponse<byte[]> response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
 
       final int statusCode = response.statusCode();
-      assertEquals(HTTP_OK, statusCode, "the server hosts %s".formatted(uri));
+      assertEquals(HttpURLConnection.HTTP_OK, statusCode, "the server hosts %s".formatted(uri));
 
       return response.body();
     }
@@ -559,7 +580,8 @@ final class PaperServerEndToEndTest {
   ) throws IOException {
     final int gamePort = this.writeServerProperties(serverDirectory);
     final Path eula = serverDirectory.resolve(EULA_FILE);
-    Files.writeString(eula, "eula=true\n", StandardCharsets.UTF_8);
+    final String eulaContents = "eula=true%s".formatted(LINE_SEPARATOR);
+    Files.writeString(eula, eulaContents, StandardCharsets.UTF_8);
 
     final Path pluginsDirectory = serverDirectory.resolve(PLUGINS_DIRECTORY);
     Files.createDirectories(pluginsDirectory);
@@ -594,7 +616,7 @@ final class PaperServerEndToEndTest {
     final String properties = String.join(
       LINE_SEPARATOR,
       "online-mode=false",
-      "server-ip=127.0.0.1",
+      "server-ip=%s".formatted(LOOPBACK_ADDRESS),
       "server-port=%s".formatted(port),
       "level-type=minecraft\\:flat",
       "generator-settings=%s".formatted(FLAT_WORLD_SETTINGS),
@@ -637,7 +659,7 @@ final class PaperServerEndToEndTest {
       "  autoplay-sound: true",
       "vnc:",
       "  allowed-hosts:",
-      "    - host: 127.0.0.1",
+      "    - host: %s".formatted(LOOPBACK_ADDRESS),
       "      port: %s".formatted(vnc.getPort()),
       "      password: %s".formatted(vnc.getPassword()),
       ""
@@ -656,13 +678,13 @@ final class PaperServerEndToEndTest {
   }
 
   private int findFreePort() throws IOException {
-    try (final ServerSocket socket = new ServerSocket(0)) {
+    try (final ServerSocket socket = new ServerSocket(EPHEMERAL_PORT)) {
       return socket.getLocalPort();
     }
   }
 
   private int findFreeUdpPort() throws IOException {
-    try (final DatagramSocket socket = new DatagramSocket(0)) {
+    try (final DatagramSocket socket = new DatagramSocket(EPHEMERAL_PORT)) {
       return socket.getLocalPort();
     }
   }
@@ -701,14 +723,14 @@ final class PaperServerEndToEndTest {
     try (final HttpClient client = clientBuilder.build()) {
       final HttpResponse<Path> response = client.send(request, handler);
       final int status = response.statusCode();
-      assertEquals(HTTP_OK, status, "the file could not be downloaded from %s".formatted(url));
+      assertEquals(HttpURLConnection.HTTP_OK, status, "the file could not be downloaded from %s".formatted(url));
     }
   }
 
   private String hash(final Path file, final String algorithm) throws IOException {
     final MessageDigest digest = this.createDigest(algorithm);
     try (final InputStream input = Files.newInputStream(file)) {
-      final byte[] chunk = new byte[64 * 1024];
+      final byte[] chunk = new byte[CHUNK_BYTES];
       int readCount = input.read(chunk);
       while (readCount >= 0) {
         digest.update(chunk, 0, readCount);
@@ -737,8 +759,9 @@ final class PaperServerEndToEndTest {
   }
 
   private int requirePort(final String property) {
-    final int port = Integer.getInteger(property, 0);
-    assertTrue(port > 0, PROPERTY_MISSING_MESSAGE.formatted(property));
+    final int port = Integer.getInteger(property, MISSING_PORT);
+    final boolean portPassed = port > 0;
+    assertTrue(portPassed, PROPERTY_MISSING_MESSAGE.formatted(property));
 
     return port;
   }

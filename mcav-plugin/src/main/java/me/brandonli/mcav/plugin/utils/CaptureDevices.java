@@ -136,7 +136,9 @@ public final class CaptureDevices {
     final List<Device> devices = new ArrayList<>();
     for (int index = 0; index < count; index++) {
       if (canOpen.test(index)) {
-        devices.add(Device.of(index, "device " + index));
+        final String name = "device %s".formatted(index);
+        final Device device = Device.of(index, name);
+        devices.add(device);
       }
     }
     return List.copyOf(devices);

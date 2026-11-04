@@ -73,6 +73,7 @@ public final class VideoPlayerManager {
   private static final String STARTUP_CANCELLED_MESSAGE = "The video startup was cancelled!";
 
   private static final Equivalence<Object> IDENTITY = Equivalence.identity();
+
   private static final Logger LOGGER = LoggerFactory.getLogger(VideoPlayerManager.class);
 
   private static final long LOOP_CHECK_TICKS = 10L;

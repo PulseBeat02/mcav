@@ -23,6 +23,7 @@ import static org.mockito.Mockito.withSettings;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 import org.bukkit.command.CommandSender;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.incendo.cloud.Command;
@@ -37,6 +38,8 @@ import org.mockito.MockSettings;
 import org.mockito.stubbing.Answer;
 
 public final class TestCommandManager extends CommandManager<CommandSender> {
+
+  private static final String SYNTAX_SEPARATOR = " ";
 
   // Bukkit parsers read the server when first loaded, so the test server is installed first
   public TestCommandManager() {
@@ -80,14 +83,6 @@ public final class TestCommandManager extends CommandManager<CommandSender> {
 
   private String formatSyntax(final Command<CommandSender> command) {
     final List<CommandComponent<CommandSender>> components = command.components();
-    final StringBuilder syntax = new StringBuilder();
-    for (final CommandComponent<CommandSender> component : components) {
-      if (!syntax.isEmpty()) {
-        syntax.append(' ');
-      }
-      final String name = component.name();
-      syntax.append(name);
-    }
-    return syntax.toString();
+    return components.stream().map(CommandComponent::name).collect(Collectors.joining(SYNTAX_SEPARATOR));
   }
 }

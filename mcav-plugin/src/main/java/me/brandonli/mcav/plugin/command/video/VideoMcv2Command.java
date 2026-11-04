@@ -60,9 +60,10 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
 
   private static final String NO_LIMIT = "none";
 
+  private static final int NO_UNSENT_LIMIT = 0;
+
   // for measurements; unset or 0 keeps mcav's default
   static final String PAGE_SLOTS_PROPERTY = "mcav.sandbox.mcv2.page_slots";
-
   static final String BACKLOG_PROPERTY = "mcav.sandbox.mcv2.backlog_limit";
 
   /**
@@ -165,7 +166,7 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
 
   // none turns backpressure off, for measurements
   static int readUnsentLimit() {
-    return NO_LIMIT.equals(System.getProperty(BACKLOG_PROPERTY)) ? 0 : Mcv2Configuration.DEFAULT_UNSENT_LIMIT;
+    return NO_LIMIT.equals(System.getProperty(BACKLOG_PROPERTY)) ? NO_UNSENT_LIMIT : Mcv2Configuration.DEFAULT_UNSENT_LIMIT;
   }
 
   /**

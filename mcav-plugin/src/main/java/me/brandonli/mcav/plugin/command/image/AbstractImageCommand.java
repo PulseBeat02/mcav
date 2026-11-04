@@ -58,6 +58,7 @@ import org.slf4j.LoggerFactory;
 public abstract class AbstractImageCommand implements AnnotationCommandFeature {
 
   private static final Equivalence<Object> FAILURE_IDENTITY = Equivalence.identity();
+
   private static final Logger LOGGER = LoggerFactory.getLogger(AbstractImageCommand.class);
 
   private static final char QUOTE = '"';

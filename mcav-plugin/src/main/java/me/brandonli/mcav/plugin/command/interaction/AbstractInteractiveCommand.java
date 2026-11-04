@@ -123,8 +123,11 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
   private static final String EVENT_NULL_MESSAGE = "Event must not be null!";
 
   private static final Equivalence<Object> IDENTITY = Equivalence.identity();
+
   private static final Logger LOGGER = LoggerFactory.getLogger(AbstractInteractiveCommand.class);
+
   private static final PlainTextComponentSerializer PLAIN_TEXT = PlainTextComponentSerializer.plainText();
+
   private static final int REACH = 100;
 
   private static final double HALF_BLOCK = 0.5;

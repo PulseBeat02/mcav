@@ -66,6 +66,13 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
    */
   public static final String TARGET_FRAMES_PER_SECOND = "target-frames-per-second";
 
+  /**
+   * The name of the frame interval suggestions.
+   *
+   * @since 1.0.0
+   */
+  public static final String NTH = "nth";
+
   private static final List<String> ID_SUGGESTIONS = List.of("0", "5", "10", "100", "1000", "10000", "100000");
 
   private static final List<String> DIMENSION_SUGGESTIONS = List.of("4x4", "5x5", "16x9", "16x16", "32x18");
@@ -170,7 +177,7 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
    * @return the suggested intervals
    * @since 1.0.0
    */
-  @Suggestions("nth")
+  @Suggestions(NTH)
   public Stream<String> suggestNth() {
     return NTH_SUGGESTIONS.stream();
   }

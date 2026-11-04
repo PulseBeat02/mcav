@@ -25,6 +25,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
+import me.brandonli.mcav.bukkit.media.map.MapLayout;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Rotation;
@@ -45,7 +46,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>The frames of a wall are tagged with {@link Keys#MAP_KEY}, and its top left and bottom right frames are
  * additionally tagged with {@link Keys#FIRST_MAP_KEY} and {@link Keys#LAST_MAP_KEY}.
  * New screens also carry a shared {@link Keys#SCREEN_KEY}; neighboring legacy screens with ambiguous corners are
- * rejected. The pixel coordinates are measured from the top left corner of the wall, with every map being {@value #MAP_PIXELS} pixels wide.
+ * rejected. The pixel coordinates are measured from the top left corner of the wall, with every map being
+ * {@value MapLayout#MAP_SIZE} pixels wide.
  *
  * <p>This class is stateless; call it on the server main thread, since it reads the entities of the world.
  *
@@ -55,8 +57,8 @@ public final class InteractUtils {
 
   private static final String PLAYER_NULL_MESSAGE = "Player must not be null!";
 
-  private static final int MAP_PIXELS = 128;
   private static final int MAXIMUM_TARGET_DISTANCE = 100;
+
   private static final double FRAME_SEARCH_RADIUS = 2.0;
   private static final double BLOCK_CENTER_OFFSET = 0.5;
 
@@ -118,10 +120,10 @@ public final class InteractUtils {
       return Optional.empty();
     }
 
-    final int pixelX = Math.clamp((int) (framePosition[0] * MAP_PIXELS), 0, MAP_PIXELS - 1);
-    final int pixelY = Math.clamp((int) (framePosition[1] * MAP_PIXELS), 0, MAP_PIXELS - 1);
-    final int absoluteX = mapIndex[0] * MAP_PIXELS + pixelX;
-    final int absoluteY = mapIndex[1] * MAP_PIXELS + pixelY;
+    final int pixelX = Math.clamp((int) (framePosition[0] * MapLayout.MAP_SIZE), 0, MapLayout.MAP_SIZE - 1);
+    final int pixelY = Math.clamp((int) (framePosition[1] * MapLayout.MAP_SIZE), 0, MapLayout.MAP_SIZE - 1);
+    final int absoluteX = mapIndex[0] * MapLayout.MAP_SIZE + pixelX;
+    final int absoluteY = mapIndex[1] * MapLayout.MAP_SIZE + pixelY;
     final int[] coordinates = new int[] { absoluteX, absoluteY };
     return Optional.of(coordinates);
   }

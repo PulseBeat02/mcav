@@ -63,16 +63,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public final class MCAVSandbox extends JavaPlugin {
 
-  private static final String UNSUPPORTED_VERSION_REMEDY =
-    "run MCAV on a Minecraft " + ServerEnvironment.SUPPORTED_MINECRAFT_VERSION + " server";
-
-  private static final String MISSING_VOICE_CHAT_REMEDY =
-    "install the Simple Voice Chat plugin or set simple-voice-chat.enabled to false in config.yml";
-
-  private static final String CANNOT_REENABLE = "Paper cannot re-enable this plugin after it has been disabled!";
-
-  private static final String RESTART_REMEDY = "restart the server to enable MCAV";
-
   private static final String NATIVES_FOLDER = "natives";
 
   private @MonotonicNonNull ComponentLogger logger;
@@ -129,7 +119,8 @@ public final class MCAVSandbox extends JavaPlugin {
 
     // Paper closes the plugin loader and its lifecycle registrations when disabling it.
     if (this.disabled) {
-      this.disableBecause(new IllegalStateException(CANNOT_REENABLE), RESTART_REMEDY);
+      final String message = "Paper cannot re-enable this plugin after it has been disabled!";
+      this.disableBecause(new IllegalStateException(message), "restart the server to enable MCAV");
       return;
     }
 
@@ -141,9 +132,10 @@ public final class MCAVSandbox extends JavaPlugin {
       this.loadCommands();
       this.loadListeners();
     } catch (final UnsupportedServerVersionException exception) {
-      this.disableBecause(exception, UNSUPPORTED_VERSION_REMEDY);
+      final String remedy = "run MCAV on a Minecraft %s server".formatted(ServerEnvironment.SUPPORTED_MINECRAFT_VERSION);
+      this.disableBecause(exception, remedy);
     } catch (final MissingVoiceChatException exception) {
-      this.disableBecause(exception, MISSING_VOICE_CHAT_REMEDY);
+      this.disableBecause(exception, "install the Simple Voice Chat plugin or set simple-voice-chat.enabled to false in config.yml");
     }
   }
 

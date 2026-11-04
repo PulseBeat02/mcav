@@ -42,6 +42,8 @@ public final class VncAllowList {
   private static final int MAXIMUM_PORT = 65_535;
   private static final int MAXIMUM_PORT_DIGITS = 5;
 
+  private static final int INVALID_PORT = -1;
+
   /**
    * An empty list, which allows no server.
    *
@@ -88,7 +90,7 @@ public final class VncAllowList {
 
     final String host = parseHost(text.substring(0, separatorIndex));
     final int port = parsePort(text.substring(separatorIndex + 1));
-    if (host == null || port < 1) {
+    if (host == null || port < MINIMUM_PORT) {
       return null;
     }
 
@@ -113,11 +115,11 @@ public final class VncAllowList {
 
   private static int parsePort(final String text) {
     if (text.length() > MAXIMUM_PORT_DIGITS || !text.chars().allMatch(Character::isDigit)) {
-      return -1;
+      return INVALID_PORT;
     }
 
     final int port = Integer.parseInt(text);
-    return port <= MAXIMUM_PORT ? port : -1;
+    return port <= MAXIMUM_PORT ? port : INVALID_PORT;
   }
 
   @Nullable Entry find(final String text) {

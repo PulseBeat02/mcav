@@ -85,31 +85,30 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
 
   private static final String INTERACT_PERMISSION = "mcav.command.vm.interact";
 
-  private static final Set<String> REPEATABLE_OPTIONS = Set.of("drive");
+  private static final Set<String> REPEATABLE_OPTIONS = Set.of(QemuHardwareValues.DRIVE_OPTION);
 
   private static final Set<String> FLAG_OPTIONS = Set.of("snapshot", "no-reboot", "no-hpet", "no-fd-bootchk", "enable-kvm", "usb");
 
-  // their values must match QemuHardwareValues, so they never name a file
-  private static final Set<String> HARDWARE_OPTIONS = Set.of("m", "smp", "cpu", "machine", "accel", "boot", "name", "k", "vga", "rtc");
+  private static final Set<String> HARDWARE_OPTIONS = QemuHardwareValues.OPTIONS;
 
   private static final Set<String> IMAGE_OPTIONS = Set.of("cdrom", "hda", "hdb", "hdc", "hdd", "fda", "fdb");
 
-  private static final String DRIVE_OPTION = "drive";
-
   private static final String FILE_KEY = "file=";
+
   // QEMU's own user-mode network, which vm.allow-network gives a guest
   private static final String QEMU_NETWORK = "user";
+
   // the least memory a machine may always have, whatever the memory of the server
-  private static final long MINIMUM_MACHINE_MEMORY_BYTES = 512L << 20;
+  private static final long MINIMUM_MACHINE_MEMORY_BYTES = 512L << QemuHardwareValues.MEBIBYTE_SHIFT;
   private static final int MACHINE_MEMORY_DIVISOR = 2;
 
-  private static final Splitter DRIVE_SPLITTER = Splitter.on(',');
+  private static final String VALUE_SEPARATOR = ",";
+
+  private static final Splitter DRIVE_SPLITTER = Splitter.on(VALUE_SEPARATOR);
 
   private static final Pattern TRAILING_CODEC = Pattern.compile("(?:^|\\s)--codec\\s+(\\S+)\\s*$");
 
   private static final String OPTION_PREFIX = "-";
-
-  private static final String VALUE_SEPARATOR = ",";
 
   private static final char UNIX_SEPARATOR = '/';
   private static final char WINDOWS_SEPARATOR = '\\';
@@ -504,7 +503,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
       return next;
     }
 
-    final String name = token.substring(1);
+    final String name = token.substring(OPTION_PREFIX.length());
     final int count = tokens.size();
     final boolean hasValue = next < count && isValue(tokens, next);
     if (!hasValue) {
@@ -530,7 +529,8 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
       return;
     }
 
-    final boolean needsValue = HARDWARE_OPTIONS.contains(name) || IMAGE_OPTIONS.contains(name) || name.equals(DRIVE_OPTION);
+    final boolean needsValue =
+      HARDWARE_OPTIONS.contains(name) || IMAGE_OPTIONS.contains(name) || name.equals(QemuHardwareValues.DRIVE_OPTION);
     if (needsValue) {
       final String message = "QEMU option -%s needs a value!".formatted(name);
       throw new IllegalArgumentException(message);
@@ -552,7 +552,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
       return resolved.toString();
     }
 
-    final boolean driveOption = name.equals(DRIVE_OPTION);
+    final boolean driveOption = name.equals(QemuHardwareValues.DRIVE_OPTION);
     if (driveOption) {
       return checkedDrive(value, imageFolder);
     }
@@ -578,7 +578,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
         final Path resolved = DiskImages.require(imageFolder, image);
         checked.add(FILE_KEY + resolved);
       } else {
-        requireNoPath(DRIVE_OPTION, part);
+        requireNoPath(QemuHardwareValues.DRIVE_OPTION, part);
         QemuHardwareValues.checkDriveProperty(part, value);
         checked.add(part);
       }
@@ -624,7 +624,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     for (final String image : IMAGE_OPTIONS) {
       names.add(OPTION_PREFIX + image);
     }
-    names.add(OPTION_PREFIX + DRIVE_OPTION);
+    names.add(OPTION_PREFIX + QemuHardwareValues.DRIVE_OPTION);
     Collections.sort(names);
     return Collections.unmodifiableList(names);
   }

@@ -35,16 +35,16 @@ import javax.crypto.spec.SecretKeySpec;
 final class FakeVncServer implements AutoCloseable {
 
   private static final int WIDTH = 320;
-
   private static final int HEIGHT = 240;
 
   private static final int VNC_AUTHENTICATION = 2;
 
   private static final int CHALLENGE_LENGTH = 16;
 
-  private static final String PASSWORD_PREFIX = "e2e";
   private static final int PASSWORD_RANDOM_BYTES = 4;
   private static final int PASSWORD_RANDOM_DIGITS = 5;
+
+  private static final int EPHEMERAL_PORT = 0;
 
   private static final int BACKLOG = 4;
 
@@ -65,6 +65,17 @@ final class FakeVncServer implements AutoCloseable {
   private static final int POINTER_EVENT = 5;
   private static final int CLIENT_CUT_TEXT = 6;
 
+  private static final int SECURITY_TYPE_COUNT = 1;
+
+  private static final int SECURITY_RESULT_OK = 0;
+  private static final int SECURITY_RESULT_FAILED = 1;
+
+  private static final int FRAMEBUFFER_UPDATE = 0;
+
+  private static final int RECTANGLE_COUNT = 1;
+
+  private static final int RAW_ENCODING = 0;
+
   private static final int PIXEL_FORMAT_PADDING = 3;
   private static final int PIXEL_FORMAT_LENGTH = 16;
   private static final int ENCODING_LENGTH = 4;
@@ -80,6 +91,7 @@ final class FakeVncServer implements AutoCloseable {
   private static final int RED_SHIFT = 16;
   private static final int GREEN_SHIFT = 8;
   private static final int BLUE_SHIFT = 0;
+
   private static final int CHANNELS = 3;
   private static final int CHANNEL_MAXIMUM = 255;
 
@@ -93,6 +105,7 @@ final class FakeVncServer implements AutoCloseable {
   private static final int RED_SHIFT_INDEX = 10;
   private static final int GREEN_SHIFT_INDEX = 11;
   private static final int BLUE_SHIFT_INDEX = 12;
+
   private static final int DEFAULT_BYTES_PER_PIXEL = 4;
 
   private static final long CLOSE_TIMEOUT_MILLISECONDS = 2_000L;
@@ -118,8 +131,10 @@ final class FakeVncServer implements AutoCloseable {
   static FakeVncServer start() throws IOException {
     final byte[] random = new byte[PASSWORD_RANDOM_BYTES];
     new SecureRandom().nextBytes(random);
-    final ServerSocket socket = new ServerSocket(0, BACKLOG, InetAddress.getLoopbackAddress());
-    return new FakeVncServer(socket, PASSWORD_PREFIX + HexFormat.of().formatHex(random).substring(0, PASSWORD_RANDOM_DIGITS));
+    final ServerSocket socket = new ServerSocket(EPHEMERAL_PORT, BACKLOG, InetAddress.getLoopbackAddress());
+    final String digits = HexFormat.of().formatHex(random).substring(0, PASSWORD_RANDOM_DIGITS);
+    final String password = "e2e%s".formatted(digits);
+    return new FakeVncServer(socket, password);
   }
 
   @Override
@@ -159,7 +174,7 @@ final class FakeVncServer implements AutoCloseable {
       output.write(PROTOCOL_VERSION.getBytes(StandardCharsets.US_ASCII));
       output.flush();
       input.readFully(new byte[PROTOCOL_VERSION_LENGTH]);
-      output.write(new byte[] { 1, VNC_AUTHENTICATION });
+      output.write(new byte[] { SECURITY_TYPE_COUNT, VNC_AUTHENTICATION });
       output.flush();
 
       if (input.readUnsignedByte() != VNC_AUTHENTICATION || !this.authenticate(input, output)) {
@@ -183,7 +198,7 @@ final class FakeVncServer implements AutoCloseable {
     final byte[] response = new byte[CHALLENGE_LENGTH];
     input.readFully(response);
     final boolean correct = MessageDigest.isEqual(response, this.encrypt(challenge, this.password));
-    output.writeInt(correct ? 0 : 1);
+    output.writeInt(correct ? SECURITY_RESULT_OK : SECURITY_RESULT_FAILED);
     if (!correct) {
       final byte[] reason = "wrong password".getBytes(StandardCharsets.US_ASCII);
       output.writeInt(reason.length);
@@ -262,14 +277,14 @@ final class FakeVncServer implements AutoCloseable {
     for (int at = 0; at < rectangle.length; at += pixel.length) {
       System.arraycopy(pixel, 0, rectangle, at, pixel.length);
     }
+    output.writeByte(FRAMEBUFFER_UPDATE);
     output.writeByte(0);
-    output.writeByte(0);
-    output.writeShort(1);
+    output.writeShort(RECTANGLE_COUNT);
     output.writeShort(0);
     output.writeShort(0);
     output.writeShort(WIDTH);
     output.writeShort(HEIGHT);
-    output.writeInt(0);
+    output.writeInt(RAW_ENCODING);
     output.write(rectangle);
     output.flush();
   }

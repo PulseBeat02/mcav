@@ -37,13 +37,17 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 final class MapProbe implements DitherResultStep {
 
-  private static final int PARALLELISM_DIVISOR = 2;
+  private static final int PROCESSORS_PER_DITHER_THREAD = 2;
+  private static final int MINIMUM_PARALLELISM = 1;
 
   private static final int HEXADECIMAL_RADIX = 16;
-  private static final int RED_SHIFT = 16;
-  private static final int GREEN_SHIFT = 8;
+
   private static final int CHANNEL_MASK = 0xFF;
   private static final int RGB_MASK = 0xFFFFFF;
+
+  private static final int RED_SHIFT = 16;
+  private static final int GREEN_SHIFT = 8;
+
   private static final int FIRST_OPAQUE_COLOR_INDEX = 4;
 
   private static final long POLL_INTERVAL_MILLISECONDS = 10L;
@@ -63,7 +67,7 @@ final class MapProbe implements DitherResultStep {
     this.lastPatchNanoseconds = new AtomicLong(System.nanoTime());
     final Runtime runtime = Runtime.getRuntime();
     final int processors = runtime.availableProcessors();
-    final int parallelism = Math.max(1, processors / PARALLELISM_DIVISOR - 1);
+    final int parallelism = Math.max(MINIMUM_PARALLELISM, processors / PROCESSORS_PER_DITHER_THREAD - 1);
     this.ditherPool = new ForkJoinPool(parallelism);
   }
 
