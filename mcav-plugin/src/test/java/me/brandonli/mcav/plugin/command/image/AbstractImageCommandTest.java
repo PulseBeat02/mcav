@@ -349,7 +349,7 @@ final class AbstractImageCommandTest {
     this.server.start();
     final InetSocketAddress bound = this.server.getAddress();
     final int port = bound.getPort();
-    return "http://127.0.0.1:" + port + path;
+    return "http://127.0.0.1:%s%s".formatted(port, path);
   }
 
   private void sendImage(final HttpExchange exchange, final byte[] bytes) throws IOException {
@@ -470,7 +470,7 @@ final class AbstractImageCommandTest {
       this.command.displayImage(_ -> CONFIGURATION, this.sender, SCREEN_SIZE, mrl, null);
       output = capture.getOutput();
     }
-    final boolean named = output.contains("Image " + mrl + " could not be loaded.");
+    final boolean named = output.contains("Image %s could not be loaded.".formatted(mrl));
     assertTrue(named, "the log of a failed image names the media it could not load");
   }
 

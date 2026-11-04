@@ -75,7 +75,7 @@ final class LocaleToolsTest {
     final String text = Components.plain(component);
     final List<ClickEvent<?>> events = new ArrayList<>();
     this.collectClickEvents(component, events);
-    assertEquals(LINK_PREFIX + "http://localhost:3000/", text);
+    assertEquals("%shttp://localhost:3000/".formatted(LINK_PREFIX), text);
 
     final int eventCount = events.size();
     assertEquals(1, eventCount);
@@ -103,11 +103,11 @@ final class LocaleToolsTest {
 
   @Test
   void shouldConvertTheArgumentWithTheFunction() {
-    final Function<Integer, String> function = port -> "http://localhost:" + port + "/";
+    final Function<Integer, String> function = port -> "http://localhost:%s/".formatted(port);
     final LocaleTools.UniComponent<Integer> message = LocaleTools.direct(LINK_KEY, function);
     final Component component = message.build(8080);
     final String text = Components.plain(component);
-    assertEquals(LINK_PREFIX + "http://localhost:8080/", text);
+    assertEquals("%shttp://localhost:8080/".formatted(LINK_PREFIX), text);
   }
 
   @Test
@@ -116,9 +116,11 @@ final class LocaleToolsTest {
     final LocaleTools.BiComponent<String, String> message = LocaleTools.direct(LINK_KEY, upper, null);
     final Component component = message.build("http://a/", "ignored");
     final String text = Components.plain(component);
-    assertEquals(LINK_PREFIX + "HTTP://A/", text);
+    assertEquals("%sHTTP://A/".formatted(LINK_PREFIX), text);
 
-    final LocaleTools.BiComponent<String, String> pair = LocaleTools.direct("mcav.test.two", upper, value -> "length=" + value.length());
+    final LocaleTools.BiComponent<String, String> pair = LocaleTools.direct("mcav.test.two", upper, value ->
+      "length=%s".formatted(value.length())
+    );
 
     final String componentsText = Components.plain(assertDoesNotThrow(() -> pair.build(FIRST_ARGUMENT, SECOND_ARGUMENT)));
     assertEquals("FIRST|length=6", componentsText);
@@ -129,13 +131,13 @@ final class LocaleToolsTest {
     final LocaleTools.TriComponent<String, String, String> message = LocaleTools.direct(LINK_KEY, null, null, null);
     final Component component = message.build("http://b/", SECOND_ARGUMENT, "third");
     final String text = Components.plain(component);
-    assertEquals(LINK_PREFIX + "http://b/", text);
+    assertEquals("%shttp://b/".formatted(LINK_PREFIX), text);
 
     final LocaleTools.TriComponent<String, String, Integer> triple = LocaleTools.direct(
       "mcav.test.three",
       value -> value.toUpperCase(Locale.ROOT),
-      value -> "[" + value + "]",
-      value -> "number=" + value
+      value -> "[%s]".formatted(value),
+      value -> "number=%s".formatted(value)
     );
 
     final String componentsText = Components.plain(triple.build(FIRST_ARGUMENT, SECOND_ARGUMENT, 3));

@@ -71,7 +71,7 @@ final class ArgumentUtilsTest {
     final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> ArgumentUtils.parseDimensions(text));
 
     final String message = exception.getMessage();
-    assertEquals("Dimensions " + text + " must be positive integers!", message);
+    assertEquals("Dimensions %s must be positive integers!".formatted(text), message);
   }
 
   @ParameterizedTest
@@ -95,7 +95,7 @@ final class ArgumentUtilsTest {
     final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> ArgumentUtils.parseDimensions(text));
 
     final String message = exception.getMessage();
-    assertEquals("Dimensions " + text + " must be at most 8192 on each side!", message);
+    assertEquals("Dimensions %s must be at most 8192 on each side!".formatted(text), message);
   }
 
   @Test

@@ -189,7 +189,7 @@ final class AnnotationParserHandlerTest {
 
     for (final String syntax : EXPECTED_SYNTAXES) {
       final boolean registered = syntaxes.contains(syntax);
-      assertTrue(registered, syntax + " in " + syntaxes);
+      assertTrue(registered, "%s in %s".formatted(syntax, syntaxes));
     }
 
     final PluginManager pluginManager = TestServer.getPluginManager();

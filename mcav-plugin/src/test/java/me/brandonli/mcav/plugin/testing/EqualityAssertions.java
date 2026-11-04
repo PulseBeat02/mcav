@@ -81,15 +81,15 @@ public final class EqualityAssertions {
     final @Nullable Object[] outsiders = { null, unrelated };
     for (final @Nullable Object outsider : outsiders) {
       final boolean equal = isEqual(value, outsider);
-      assertFalse(equal, () -> "a value must not equal " + outsider);
+      assertFalse(equal, () -> "a value must not equal %s".formatted(outsider));
     }
   }
 
   private static void assertDifferentInBothDirections(final Object value, final Object differentValue) {
     final boolean forward = isEqual(value, differentValue);
     final boolean backward = isEqual(differentValue, value);
-    assertFalse(forward, () -> "the value must differ from " + differentValue);
-    assertFalse(backward, () -> differentValue + " must differ from the value");
+    assertFalse(forward, () -> "the value must differ from %s".formatted(differentValue));
+    assertFalse(backward, () -> "%s must differ from the value".formatted(differentValue));
   }
 
   // not Objects.equals, whose identity shortcut would skip the value's equals

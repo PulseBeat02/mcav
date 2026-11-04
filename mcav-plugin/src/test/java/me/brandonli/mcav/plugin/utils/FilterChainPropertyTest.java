@@ -40,29 +40,29 @@ final class FilterChainPropertyTest {
       Arbitraries.of("grayscale", "invert", "fps"),
       Arbitraries.integers()
         .between(1, FilterChain.MAXIMUM_BLUR_RADIUS)
-        .map(radius -> "blur=" + radius),
+        .map(radius -> "blur=%s".formatted(radius)),
       Arbitraries.integers()
         .between(1, FilterChain.MAXIMUM_BILATERAL_DIAMETER)
-        .map(diameter -> "bilateral=" + diameter),
+        .map(diameter -> "bilateral=%s".formatted(diameter)),
       Arbitraries.integers()
         .between(0, 255)
-        .map(level -> "threshold=" + level),
+        .map(level -> "threshold=%s".formatted(level)),
       Arbitraries.integers()
         .between(-255, 255)
-        .map(brightness -> "luminance=1.25:" + brightness),
-      Arbitraries.of("h", "v", "hv").map(direction -> "flip=" + direction),
-      Arbitraries.of("90", "180", "270").map(angle -> "rotate=" + angle),
+        .map(brightness -> "luminance=1.25:%s".formatted(brightness)),
+      Arbitraries.of("h", "v", "hv").map(direction -> "flip=%s".formatted(direction)),
+      Arbitraries.of("90", "180", "270").map(angle -> "rotate=%s".formatted(angle)),
       Arbitraries.integers()
         .between(0, 99)
         .map(left -> String.format(Locale.ROOT, "crop=%d:0:%d:100", left, 100 - left)),
       Arbitraries.integers()
         .between(1, FilterChain.MAXIMUM_MORPHOLOGY_KERNEL)
-        .map(kernel -> "dilate=" + kernel),
+        .map(kernel -> "dilate=%s".formatted(kernel)),
       Arbitraries.strings()
         .withChars("abcXYZ019 .!?'()+-")
         .ofMinLength(1)
         .ofMaxLength(FilterChain.MAXIMUM_TEXT_LENGTH)
-        .map(text -> "text=" + text)
+        .map(text -> "text=%s".formatted(text))
     );
   }
 

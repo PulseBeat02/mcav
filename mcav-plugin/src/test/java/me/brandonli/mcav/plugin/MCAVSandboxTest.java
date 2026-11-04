@@ -510,7 +510,7 @@ final class MCAVSandboxTest {
 
     // a sum of two timestamps instead of their difference would be billions of milliseconds
     final boolean plausible = milliseconds >= 0 && milliseconds < 600_000;
-    assertTrue(plausible, "the log reports how long loading took, which was " + milliseconds + " ms");
+    assertTrue(plausible, "the log reports how long loading took, which was %s ms".formatted(milliseconds));
 
     this.sandbox.onDisable();
   }

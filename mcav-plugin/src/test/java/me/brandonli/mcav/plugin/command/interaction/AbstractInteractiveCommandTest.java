@@ -1933,17 +1933,17 @@ final class AbstractInteractiveCommandTest {
 
     @Override
     protected void forwardLeftClick(final String current, final int screenX, final int screenY) {
-      this.forwarded.add(current + " left " + screenX + COORDINATE_SEPARATOR + screenY);
+      this.forwarded.add("%s left %s%s%s".formatted(current, screenX, COORDINATE_SEPARATOR, screenY));
     }
 
     @Override
     protected void forwardRightClick(final String current, final int screenX, final int screenY) {
-      this.forwarded.add(current + " right " + screenX + COORDINATE_SEPARATOR + screenY);
+      this.forwarded.add("%s right %s%s%s".formatted(current, screenX, COORDINATE_SEPARATOR, screenY));
     }
 
     @Override
     protected void forwardTextInput(final String current, final String text) {
-      this.forwarded.add(current + " text " + text);
+      this.forwarded.add("%s text %s".formatted(current, text));
     }
 
     @Override
@@ -1953,7 +1953,7 @@ final class AbstractInteractiveCommandTest {
       }
 
       final String reason = error == null ? "refused" : error.getMessage();
-      return Component.text("failed: " + reason);
+      return Component.text("failed: %s".formatted(reason));
     }
 
     @Override

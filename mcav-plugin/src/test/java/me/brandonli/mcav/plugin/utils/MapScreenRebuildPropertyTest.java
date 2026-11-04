@@ -152,20 +152,20 @@ final class MapScreenRebuildPropertyTest {
     for (final ItemFrame frame : lastBuild) {
       final List<Integer> block = blockOf(frame);
       final boolean alone = occupied.add(block);
-      assertTrue(alone, () -> "two frames of the wall hang in the block " + block);
+      assertTrue(alone, () -> "two frames of the wall hang in the block %s".formatted(block));
 
       final boolean removed = this.wasRemoved(frame);
-      assertFalse(removed, () -> "the frame of the last build in " + block + " was removed");
+      assertFalse(removed, () -> "the frame of the last build in %s was removed".formatted(block));
     }
     for (final ItemFrame frame : doomed) {
       final List<Integer> block = blockOf(frame);
 
       final boolean secondRemoved = this.wasRemoved(frame);
-      assertTrue(secondRemoved, () -> "an old frame still hangs in the block " + block + " of the wall");
+      assertTrue(secondRemoved, () -> "an old frame still hangs in the block %s of the wall".formatted(block));
     }
     for (final Entity entity : keep) {
       final boolean thirdRemoved = this.wasRemoved(entity);
-      assertFalse(thirdRemoved, () -> "an entity that is not a frame of the wall was removed: " + entity);
+      assertFalse(thirdRemoved, () -> "an entity that is not a frame of the wall was removed: %s".formatted(entity));
     }
   }
 
@@ -215,7 +215,7 @@ final class MapScreenRebuildPropertyTest {
 
     @Override
     public String toString() {
-      return this.kind + " at cell " + this.cell + " facing " + this.facing;
+      return "%s at cell %s facing %s".formatted(this.kind, this.cell, this.facing);
     }
   }
 
@@ -289,7 +289,7 @@ final class MapScreenRebuildPropertyTest {
 
     @Override
     public String toString() {
-      return this.width + "x" + this.height + " facing " + this.facing + ", built " + this.builds + " times, over " + this.obstacles;
+      return "%sx%s facing %s, built %s times, over %s".formatted(this.width, this.height, this.facing, this.builds, this.obstacles);
     }
   }
 }

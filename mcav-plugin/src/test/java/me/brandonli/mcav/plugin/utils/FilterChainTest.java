@@ -286,7 +286,7 @@ final class FilterChainTest {
     );
 
     this.parse(TEXT_FILTER_PREFIX + FILLER_TEXT.repeat(FilterChain.MAXIMUM_TEXT_LENGTH));
-    assertThrows(IllegalArgumentException.class, () -> this.parse("invert," + "x".repeat(FilterChain.MAXIMUM_LENGTH)));
+    assertThrows(IllegalArgumentException.class, () -> this.parse("invert,%s".formatted("x".repeat(FilterChain.MAXIMUM_LENGTH))));
     assertThrows(
       IllegalArgumentException.class,
       () -> FilterChain.parse("fps", this.overlays, MediaKind.IMAGE),
@@ -304,10 +304,10 @@ final class FilterChainTest {
   @ParameterizedTest
   @ValueSource(strings = { "bilateral", "colormap", "dilate", "erode", "flip", "overlay", "rotate", "text", "threshold" })
   void shouldRefuseASecondArgumentToAFilterThatTakesOne(final String name) {
-    final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () -> this.parse(name + "=1:1"));
+    final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () -> this.parse("%s=1:1".formatted(name)));
 
     final String message = refused.getMessage();
-    assertEquals("Filter " + name + " takes 1 argument!", message);
+    assertEquals("Filter %s takes 1 argument!".formatted(name), message);
   }
 
   @Test
@@ -320,10 +320,11 @@ final class FilterChainTest {
 
   @Test
   void shouldTakeTheLongestChainAndTheLargestOverlayAllowed() throws IOException {
-    final String longest =
-      String.join(FILTER_SEPARATOR, Collections.nCopies(6, TEXT_FILTER_PREFIX + FILLER_TEXT.repeat(FilterChain.MAXIMUM_TEXT_LENGTH))) +
-      ",text=" +
-      FILLER_TEXT.repeat(23);
+    final String filters = String.join(
+      FILTER_SEPARATOR,
+      Collections.nCopies(6, TEXT_FILTER_PREFIX + FILLER_TEXT.repeat(FilterChain.MAXIMUM_TEXT_LENGTH))
+    );
+    final String longest = "%s,text=%s".formatted(filters, FILLER_TEXT.repeat(23));
 
     final int length = longest.length();
     assertEquals(FilterChain.MAXIMUM_LENGTH, length);

@@ -356,7 +356,7 @@ final class MapUtilsTest {
     final List<String> positions = new ArrayList<>();
     for (final ItemFrame frame : frames) {
       final int[] position = this.coordinates(frame);
-      positions.add(position[0] + "," + position[1] + "," + position[2]);
+      positions.add("%s,%s,%s".formatted(position[0], position[1], position[2]));
     }
     return String.join(";", positions);
   }

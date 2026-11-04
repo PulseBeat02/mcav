@@ -161,7 +161,7 @@ final class DumpUtilsTest {
     final String site = this.pasteSite();
     final Path log = this.missingLog();
     final String url = DumpUtils.createAndUploadDump(this.client, site, log);
-    assertEquals(site + "abc123", url);
+    assertEquals("%sabc123".formatted(site), url);
 
     final String path = this.uploadedPath.get();
     final String type = this.contentType.get();
@@ -182,7 +182,7 @@ final class DumpUtilsTest {
   private String pasteSite() {
     final InetSocketAddress address = this.server.getAddress();
     final int port = address.getPort();
-    return "http://127.0.0.1:" + port + ROOT_PATH;
+    return "http://127.0.0.1:%s%s".formatted(port, ROOT_PATH);
   }
 
   private Path missingLog() {
@@ -215,7 +215,7 @@ final class DumpUtilsTest {
     final PluginException exception = assertThrows(PluginException.class, () -> DumpUtils.createAndUploadDump(this.client, site, log));
 
     final String message = exception.getMessage();
-    assertEquals("Paste site answer " + response + " has no document key!", message);
+    assertEquals("Paste site answer %s has no document key!".formatted(response), message);
   }
 
   @Test
@@ -280,9 +280,9 @@ final class DumpUtilsTest {
     final int processors = runtime.availableProcessors();
     final Thread current = Thread.currentThread();
     final String threadName = current.getName();
-    final boolean os = dump.contains("\nOS: " + osName + "\n");
-    final boolean cores = dump.contains("\nProcessors: " + processors + "\n");
-    final boolean thread = dump.contains("\nThread: " + threadName + " (RUNNABLE)\n");
+    final boolean os = dump.contains("\nOS: %s\n".formatted(osName));
+    final boolean cores = dump.contains("\nProcessors: %s\n".formatted(processors));
+    final boolean thread = dump.contains("\nThread: %s (RUNNABLE)\n".formatted(threadName));
     final boolean stack = dump.contains("\tat ");
     assertTrue(os);
     assertTrue(cores);
@@ -298,10 +298,10 @@ final class DumpUtilsTest {
     final String architecture = System.getProperty("os.arch");
     final String javaVersion = System.getProperty("java.version");
     final String javaVendor = System.getProperty("java.vendor");
-    final boolean version = dump.contains("\nOS Version: " + osVersion + "\n");
-    final boolean namesArchitecture = dump.contains("\nArchitecture: " + architecture + "\n");
-    final boolean namesJavaVersion = dump.contains("\nJava Version: " + javaVersion + "\n");
-    final boolean vendor = dump.contains("\nJava Vendor: " + javaVendor + "\n");
+    final boolean version = dump.contains("\nOS Version: %s\n".formatted(osVersion));
+    final boolean namesArchitecture = dump.contains("\nArchitecture: %s\n".formatted(architecture));
+    final boolean namesJavaVersion = dump.contains("\nJava Version: %s\n".formatted(javaVersion));
+    final boolean vendor = dump.contains("\nJava Vendor: %s\n".formatted(javaVendor));
     assertTrue(version, dump);
     assertTrue(namesArchitecture, dump);
     assertTrue(namesJavaVersion, dump);
@@ -323,16 +323,16 @@ final class DumpUtilsTest {
     final long reportedMaximum = this.readNumber(dump, "Max Memory (MB)");
     final long uptime = this.readNumber(dump, "Uptime (ms)");
     assertEquals(expectedMaximum, reportedMaximum);
-    assertTrue(free <= total, "free memory of " + free + " MB above the total of " + total + " MB");
-    assertTrue(total <= expectedMaximum, "total memory of " + total + " MB above the maximum of " + expectedMaximum + " MB");
+    assertTrue(free <= total, "free memory of %s MB above the total of %s MB".formatted(free, total));
+    assertTrue(total <= expectedMaximum, "total memory of %s MB above the maximum of %s MB".formatted(total, expectedMaximum));
     assertTrue(beforeDump > 0, "the fixture has a nonzero uptime");
-    assertTrue(uptime >= beforeDump && uptime <= afterDump, "uptime of " + uptime + " ms outside [" + beforeDump + ", " + afterDump + "]");
+    assertTrue(uptime >= beforeDump && uptime <= afterDump, "uptime of %s ms outside [%s, %s]".formatted(uptime, beforeDump, afterDump));
   }
 
   private long readNumber(final String dump, final String label) {
-    final String marker = "\n" + label + ": ";
+    final String marker = "\n%s: ".formatted(label);
     final int start = dump.indexOf(marker);
-    assertTrue(start >= 0, "the dump has no " + label + " line: " + dump);
+    assertTrue(start >= 0, "the dump has no %s line: %s".formatted(label, dump));
 
     final int valueStart = start + marker.length();
     final int end = dump.indexOf('\n', valueStart);
@@ -374,7 +374,7 @@ final class DumpUtilsTest {
     assertTrue(redactedJoinContained, redactedJoin);
 
     final boolean prefixed = redactedJoin.startsWith("[12:34:56 INFO]: Player");
-    assertTrue(prefixed, "the time of day is not an address: " + redactedJoin);
+    assertTrue(prefixed, "the time of day is not an address: %s".formatted(redactedJoin));
 
     final boolean secondContained = redactedJoin.contains("entity id 42");
     assertTrue(secondContained, redactedJoin);
@@ -484,7 +484,7 @@ final class DumpUtilsTest {
     final Path log = this.folder.resolve(LOG_FILE_NAME);
     final List<String> lines = new ArrayList<>();
     for (int index = 0; index < 2500; index++) {
-      lines.add("line " + index);
+      lines.add("line %s".formatted(index));
     }
     Files.write(log, lines, StandardCharsets.UTF_8);
     final String dump = DumpUtils.createDumpContents(log);
@@ -560,7 +560,7 @@ final class DumpUtilsTest {
     final RuntimeMXBean bean = ManagementFactory.getRuntimeMXBean();
     final List<String> arguments = bean.getInputArguments();
     final List<String> redacted = DumpUtils.redactArguments(arguments);
-    final boolean listed = dump.contains("\nJVM Arguments: " + redacted + "\n");
+    final boolean listed = dump.contains("\nJVM Arguments: %s\n".formatted(redacted));
     assertTrue(listed, dump);
   }
 

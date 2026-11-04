@@ -511,12 +511,14 @@ final class Mcv2PlayCommandTest {
     final int threads = Pool.shared().getThreads();
 
     final String expected = this.text(
-      Message.MCV2_ENCODE_START.build("clip.mp4 into " + output + " at 16x16 with the default profile, on " + threads + " encoder threads")
+      Message.MCV2_ENCODE_START.build(
+        "clip.mp4 into %s at 16x16 with the default profile, on %s encoder threads".formatted(output, threads)
+      )
     );
     final String toldTold = told.getFirst();
     assertEquals(expected, toldTold);
 
-    final boolean prefixed = told.get(1).startsWith("MCV2 encode finished: 3 frames (1 keyframes) into " + output);
+    final boolean prefixed = told.get(1).startsWith("MCV2 encode finished: 3 frames (1 keyframes) into %s".formatted(output));
     assertTrue(prefixed, told.get(1));
     assertTrue(frames.closed);
 
@@ -543,7 +545,7 @@ final class Mcv2PlayCommandTest {
     final List<String> opened,
     final SolidFrames frames
   ) {
-    opened.add(video + " " + width + "x" + height);
+    opened.add("%s %sx%s".formatted(video, width, height));
 
     return frames;
   }
@@ -935,7 +937,7 @@ final class Mcv2PlayCommandTest {
     assertEquals(FRAME_COUNT, frames);
 
     final boolean matches = Integer.parseInt(progress.group(2)) <= took / FRAME_COUNT + 0.5;
-    assertTrue(matches, told.get(2) + " in " + took + " ms");
+    assertTrue(matches, "%s in %s ms".formatted(told.get(2), took));
 
     final boolean secondMatches = Integer.parseInt(progress.group(2)) >= openingMilliseconds / FRAME_COUNT - 0.5;
     assertTrue(secondMatches, "progress includes source opening");
@@ -946,7 +948,7 @@ final class Mcv2PlayCommandTest {
     assertTrue(doneFound, told.getLast());
 
     final boolean thirdMatches = Integer.parseInt(done.group(1)) <= took / 1000 + 0.5;
-    assertTrue(thirdMatches, told.getLast() + " in " + took + " ms");
+    assertTrue(thirdMatches, "%s in %s ms".formatted(told.getLast(), took));
 
     final boolean fourthMatches = Integer.parseInt(done.group(1)) >= openingMilliseconds / 1000 - 0.5;
     assertTrue(fourthMatches, "completion includes source opening");
@@ -1029,7 +1031,7 @@ final class Mcv2PlayCommandTest {
     final int size = told.size();
     assertEquals(3, size);
 
-    final String refusal = "Stream file ../../escape.mcs is not a file in " + folder + ", where stream files are kept!";
+    final String refusal = "Stream file ../../escape.mcs is not a file in %s, where stream files are kept!".formatted(folder);
 
     final String thirdExpected = this.text(Message.MCV2_ENCODE_ERROR.build(refusal));
     final String toldTold = told.get(2);
@@ -1066,7 +1068,7 @@ final class Mcv2PlayCommandTest {
     final String thirdMessage = assertThrows(IOException.class, () -> Mcv2PlayCommand.read(empty)).getMessage();
     assertEquals("Empty stream!", thirdMessage);
 
-    final String secondExpected = "File " + this.folder.getFileName() + " is not a stream file!";
+    final String secondExpected = "File %s is not a stream file!".formatted(this.folder.getFileName());
     final String fourthMessage = assertThrows(IOException.class, () -> Mcv2PlayCommand.read(this.folder)).getMessage();
     assertEquals(secondExpected, fourthMessage);
 
@@ -1106,7 +1108,7 @@ final class Mcv2PlayCommandTest {
     final Path huge = Files.write(this.folder.resolve(STREAM_J_FILE_NAME), this.record(Mcv2Decoder.MAXIMUM_FRAME_BYTES + 1));
 
     final String tenthMessage = assertThrows(IOException.class, () -> Mcv2PlayCommand.read(huge)).getMessage();
-    assertEquals("MCV2 frame length " + (Mcv2Decoder.MAXIMUM_FRAME_BYTES + 1) + " is invalid!", tenthMessage);
+    assertEquals("MCV2 frame length %s is invalid!".formatted(Mcv2Decoder.MAXIMUM_FRAME_BYTES + 1), tenthMessage);
 
     final byte[] longest = this.record(Mcv2Decoder.MAXIMUM_FRAME_BYTES);
 
