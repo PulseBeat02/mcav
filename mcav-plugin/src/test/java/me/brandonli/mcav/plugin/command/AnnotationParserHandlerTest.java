@@ -273,7 +273,8 @@ final class AnnotationParserHandlerTest {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
     final String vnc = VNC_SYNTAX;
-    final StringParser<?> server = assertInstanceOf(StringParser.class, this.parserOf(vnc, "server"));
+    final ArgumentParser<CommandSender, ?> serverParser = this.parserOf(vnc, "server");
+    final StringParser<?> server = assertInstanceOf(StringParser.class, serverParser);
     // a quoted argument ends a host at its colon
 
     final StringParser.StringMode stringMode = server.stringMode();
@@ -286,7 +287,8 @@ final class AnnotationParserHandlerTest {
     handler.registerCommands();
     for (final String syntax : List.of(VIDEO_SYNTAX, IMAGE_SYNTAX, BROWSER_SYNTAX, VNC_SYNTAX)) {
       final Command<CommandSender> command = this.commands.getCommand(syntax);
-      final CommandFlagParser<?> flags = assertInstanceOf(CommandFlagParser.class, command.components().getLast().parser(), syntax);
+      final ArgumentParser<CommandSender, ?> flagsParser = command.components().getLast().parser();
+      final CommandFlagParser<?> flags = assertInstanceOf(CommandFlagParser.class, flagsParser, syntax);
 
       final List<String> names = flags.flags().stream().map(CommandFlag::name).toList();
 
@@ -294,10 +296,12 @@ final class AnnotationParserHandlerTest {
       assertEquals("codec", name, syntax);
 
       final CommandComponent<?> codec = Objects.requireNonNull(flags.flags().iterator().next().commandComponent());
-      final EnumParser<?, ?> values = assertInstanceOf(EnumParser.class, codec.parser(), syntax);
+      final ArgumentParser<?, ?> codecParser = codec.parser();
+      final EnumParser<?, ?> values = assertInstanceOf(EnumParser.class, codecParser, syntax);
 
       final Set<? extends Enum<?>> copy = Set.copyOf(values.acceptedValues());
-      assertEquals(Set.of(MapCodec.DITHER, MapCodec.MCV2), copy, syntax);
+      final Set<MapCodec> expected = Set.of(MapCodec.DITHER, MapCodec.MCV2);
+      assertEquals(expected, copy, syntax);
     }
   }
 
@@ -305,7 +309,8 @@ final class AnnotationParserHandlerTest {
   void shouldTakeASeekPositionWithColonsUnquoted() {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
-    final StringParser<?> position = assertInstanceOf(StringParser.class, this.parserOf("mcav video seek position", "position"));
+    final ArgumentParser<CommandSender, ?> positionParser = this.parserOf("mcav video seek position", "position");
+    final StringParser<?> position = assertInstanceOf(StringParser.class, positionParser);
 
     final StringParser.StringMode stringMode = position.stringMode();
     assertEquals(StringParser.StringMode.GREEDY, stringMode, "a single word cannot hold the colon of 1:30");
@@ -326,7 +331,8 @@ final class AnnotationParserHandlerTest {
 
     for (final String syntax : media) {
       final Command<CommandSender> command = this.commands.getCommand(syntax);
-      final CommandFlagParser<?> flags = assertInstanceOf(CommandFlagParser.class, command.components().getLast().parser(), syntax);
+      final ArgumentParser<CommandSender, ?> flagsParser = command.components().getLast().parser();
+      final CommandFlagParser<?> flags = assertInstanceOf(CommandFlagParser.class, flagsParser, syntax);
 
       final CommandFlag<?> filters = flags
         .flags()
@@ -334,11 +340,8 @@ final class AnnotationParserHandlerTest {
         .filter(flag -> flag.name().equals("filters"))
         .findFirst()
         .orElseThrow();
-      final StringParser<?> parser = assertInstanceOf(
-        StringParser.class,
-        Objects.requireNonNull(filters.commandComponent()).parser(),
-        syntax
-      );
+      final ArgumentParser<?, ?> filterParser = Objects.requireNonNull(filters.commandComponent()).parser();
+      final StringParser<?> parser = assertInstanceOf(StringParser.class, filterParser, syntax);
 
       final StringParser.StringMode stringMode = parser.stringMode();
       assertEquals(StringParser.StringMode.QUOTED, stringMode, syntax);
@@ -396,7 +399,8 @@ final class AnnotationParserHandlerTest {
 
     final List<Component> messages = Components.received(sender);
     final Component paused = Message.PAUSE_PLAYER.build();
-    assertEquals(List.of(paused), messages);
+    final List<Component> expectedMessages = List.of(paused);
+    assertEquals(expectedMessages, messages);
   }
 
   @Test

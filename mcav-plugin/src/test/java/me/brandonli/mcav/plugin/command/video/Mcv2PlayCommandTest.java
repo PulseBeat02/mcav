@@ -268,7 +268,8 @@ final class Mcv2PlayCommandTest {
       assertEquals(32, videoHeight);
 
       final List<UUID> copy = List.copyOf(configurations.getValue().getViewers());
-      assertEquals(List.of(this.viewer), copy);
+      final List<UUID> expectedViewers = List.of(this.viewer);
+      assertEquals(expectedViewers, copy);
 
       final ArgumentCaptor<Runnable> playbacks = ArgumentCaptor.forClass(Runnable.class);
       verify(TestServer.getScheduler()).runTaskTimerAsynchronously(eq(this.plugin), playbacks.capture(), eq(0L), eq(PERIOD_TICKS));
@@ -330,7 +331,8 @@ final class Mcv2PlayCommandTest {
       verify(this.sender, never()).sendMessage(any(Component.class));
 
       this.runHandedOver();
-      assertEquals(List.of(false), fromMainThread, "the file is read on a thread of its own, which hands the screen over");
+      final List<Boolean> expectedThreads = List.of(false);
+      assertEquals(expectedThreads, fromMainThread, "the file is read on a thread of its own, which hands the screen over");
       verify(channels.constructed().getFirst()).open();
       verify(this.packs).open(any());
       verify(TestServer.getScheduler()).runTaskTimerAsynchronously(eq(this.plugin), any(Runnable.class), eq(0L), eq(PERIOD_TICKS));
@@ -503,7 +505,8 @@ final class Mcv2PlayCommandTest {
     this.command.setOpener((video, width, height) -> this.recordOpening(video, width, height, opened, frames));
     this.command.encode(this.sender, VIDEO_FILE_NAME, STREAM_FILE_NAME, ENCODE_DIMENSIONS, Mcv2Profile.DEFAULT);
     final List<String> told = this.finish();
-    assertEquals(List.of("clip.mp4 16x16"), opened);
+    final List<String> expectedOpened = List.of("clip.mp4 16x16");
+    assertEquals(expectedOpened, opened);
 
     final int size = told.size();
     assertEquals(2, size);

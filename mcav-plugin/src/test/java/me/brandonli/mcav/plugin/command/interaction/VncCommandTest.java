@@ -132,7 +132,8 @@ final class VncCommandTest {
     assertEquals(5901, port);
 
     final Optional<String> password = source.getPassword();
-    assertEquals(Optional.of("secret"), password);
+    final Optional<String> expectedPassword = Optional.of("secret");
+    assertEquals(expectedPassword, password);
 
     final int screenWidth = source.getScreenWidth();
     assertEquals(1280, screenWidth);
@@ -164,7 +165,8 @@ final class VncCommandTest {
 
   private void assertReceived(final Component... expected) {
     final List<Component> received = Components.received(this.sender);
-    assertEquals(List.of(expected), received);
+    final List<Component> expectedMessages = List.of(expected);
+    assertEquals(expectedMessages, received);
   }
 
   @Test

@@ -235,10 +235,12 @@ final class AbstractVideoCommandTest {
     final UrlParseDump dump = this.verifyPlayedWithDump(AudioArgument.NONE);
 
     final Optional<String> title = dump.getTitle();
-    assertEquals(Optional.of(VIDEO_FILE_NAME), title);
+    final Optional<String> expectedTitle = Optional.of(VIDEO_FILE_NAME);
+    assertEquals(expectedTitle, title);
 
     final Optional<String> description = dump.getDescription();
-    assertEquals(Optional.of("Video from a file"), description);
+    final Optional<String> expectedDescription = Optional.of("Video from a file");
+    assertEquals(expectedDescription, description);
 
     this.assertOutputsAttached();
     final Source source = this.verifyStartedWithOneSource();
@@ -363,10 +365,12 @@ final class AbstractVideoCommandTest {
     final UrlParseDump dump = this.verifyPlayedWithDump(AudioArgument.NONE);
 
     final Optional<String> title = dump.getTitle();
-    assertEquals(Optional.of("video=Camera"), title);
+    final Optional<String> expectedTitle = Optional.of("video=Camera");
+    assertEquals(expectedTitle, title);
 
     final Optional<String> description = dump.getDescription();
-    assertEquals(Optional.of("FFmpeg input dshow"), description);
+    final Optional<String> expectedDescription = Optional.of("FFmpeg input dshow");
+    assertEquals(expectedDescription, description);
 
     final Source source = this.verifyStartedWithOneSource();
     final FfmpegDirectSource input = assertInstanceOf(FfmpegDirectSource.class, source);
@@ -479,10 +483,12 @@ final class AbstractVideoCommandTest {
     final UrlParseDump dump = this.verifyPlayedWithDump(AudioArgument.NONE);
 
     final Optional<String> title = dump.getTitle();
-    assertEquals(Optional.of("Device 2"), title);
+    final Optional<String> expectedTitle = Optional.of("Device 2");
+    assertEquals(expectedTitle, title);
 
     final Optional<String> description = dump.getDescription();
-    assertEquals(Optional.of("Video from a capture device"), description);
+    final Optional<String> expectedDescription = Optional.of("Video from a capture device");
+    assertEquals(expectedDescription, description);
 
     final Source source = this.verifyStartedWithOneSource();
     final DeviceSource device = assertInstanceOf(DeviceSource.class, source);
@@ -513,10 +519,12 @@ final class AbstractVideoCommandTest {
     final UrlParseDump dump = this.verifyPlayedWithDump(AudioArgument.NONE);
 
     final Optional<String> title = dump.getTitle();
-    assertEquals(Optional.of(WEBM_VIDEO_FILE_NAME), title);
+    final Optional<String> expectedTitle = Optional.of(WEBM_VIDEO_FILE_NAME);
+    assertEquals(expectedTitle, title);
 
     final Optional<String> description = dump.getDescription();
-    assertEquals(Optional.of("Video from a URL"), description);
+    final Optional<String> expectedDescription = Optional.of("Video from a URL");
+    assertEquals(expectedDescription, description);
 
     final Source source = this.verifyStartedWithOneSource();
     final UriSource uri = assertInstanceOf(UriSource.class, source);

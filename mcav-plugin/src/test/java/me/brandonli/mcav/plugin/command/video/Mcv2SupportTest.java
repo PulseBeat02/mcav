@@ -184,7 +184,8 @@ final class Mcv2SupportTest {
     assertEquals(Settings.DEFAULT, settings);
 
     final List<UUID> copy = List.copyOf(configuration.getViewers());
-    assertEquals(List.of(this.viewer), copy);
+    final List<UUID> expectedViewers = List.of(this.viewer);
+    assertEquals(expectedViewers, copy);
 
     final long backlogLimit = configuration.getBacklogLimit();
     assertEquals(Mcv2Configuration.DEFAULT_BACKLOG_LIMIT, backlogLimit);
@@ -344,7 +345,8 @@ final class Mcv2SupportTest {
         .stream()
         .map(size -> size[0] + DIMENSION_SEPARATOR + size[1])
         .toList();
-      assertEquals(List.of("426x256", "320x192"), list);
+      final List<String> expectedSizes = List.of("426x256", "320x192");
+      assertEquals(expectedSizes, list);
     }
   }
 
@@ -374,21 +376,25 @@ final class Mcv2SupportTest {
   @Test
   void shouldStepDownToTwoThirdsAndHalfOfTheVideo() {
     final List<String> described = this.described(this.support.computeSmallerSizes(1920, 1080));
-    assertEquals(List.of("1280x720", "960x540"), described);
+    final List<String> expectedSizes = List.of("1280x720", "960x540");
+    assertEquals(expectedSizes, described);
 
     final List<String> secondDescribed = this.described(this.support.computeSmallerSizes(VIDEO_HEIGHT, 216));
-    assertEquals(List.of("256x144", "192x108"), secondDescribed);
+    final List<String> expectedSecondSizes = List.of("256x144", "192x108");
+    assertEquals(expectedSecondSizes, secondDescribed);
     // a size under 128 by 72 is left out
 
     final List<String> thirdDescribed = this.described(this.support.computeSmallerSizes(240, 120));
-    assertEquals(List.of("160x80"), thirdDescribed);
+    final List<String> expectedThirdSizes = List.of("160x80");
+    assertEquals(expectedThirdSizes, thirdDescribed);
 
     final List<String> fourthDescribed = this.described(this.support.computeSmallerSizes(200, 100));
     assertEquals(List.of(), fourthDescribed);
     // exactly 128 by 72 is kept
 
     final List<String> fifthDescribed = this.described(this.support.computeSmallerSizes(192, 108));
-    assertEquals(List.of("128x72"), fifthDescribed);
+    final List<String> expectedFifthSizes = List.of("128x72");
+    assertEquals(expectedFifthSizes, fifthDescribed);
   }
 
   private List<String> described(final List<int[]> sizes) {
@@ -432,7 +438,9 @@ final class Mcv2SupportTest {
   }
 
   private void assertPackFolder(final MockedConstruction.Context context) {
-    assertEquals(this.folder.resolve(MCV2_FOLDER_NAME).resolve(PACK_FOLDER_NAME), context.arguments().getFirst());
+    final Path expected = this.folder.resolve(MCV2_FOLDER_NAME).resolve(PACK_FOLDER_NAME);
+    final Object packFolder = context.arguments().getFirst();
+    assertEquals(expected, packFolder);
   }
 
   @Test

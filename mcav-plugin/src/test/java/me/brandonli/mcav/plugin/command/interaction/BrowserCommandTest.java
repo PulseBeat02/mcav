@@ -275,7 +275,8 @@ final class BrowserCommandTest {
     assertEquals(expected, received);
 
     final List<String> receivedText = Components.receivedText(this.viewer);
-    assertEquals(List.of("Click on the URL to listen onto the website! http://mc.example.com:3000/"), receivedText);
+    final List<String> expectedText = List.of("Click on the URL to listen onto the website! http://mc.example.com:3000/");
+    assertEquals(expectedText, receivedText);
 
     this.createWithTheWebPage(CompletableFuture.failedFuture(new IllegalStateException("the page broke!")));
     verify(this.provider).constructHttpUrl();
@@ -284,7 +285,8 @@ final class BrowserCommandTest {
     assertEquals(expected, componentsReceived);
 
     final List<String> componentsReceivedText = Components.receivedText(this.viewer);
-    assertEquals(List.of("Click on the URL to listen onto the website! http://mc.example.com:3000/"), componentsReceivedText);
+    final List<String> expectedComponentsText = List.of("Click on the URL to listen onto the website! http://mc.example.com:3000/");
+    assertEquals(expectedComponentsText, componentsReceivedText);
   }
 
   private void createWithTheWebPage(final CompletableFuture<Boolean> start) {
@@ -435,7 +437,8 @@ final class BrowserCommandTest {
     assertTrue(confined);
 
     final List<String> refusedHosts = options.getRefusedHosts();
-    assertEquals(List.of("203.0.113.5"), refusedHosts);
+    final List<String> expectedRefusedHosts = List.of("203.0.113.5");
+    assertEquals(expectedRefusedHosts, refusedHosts);
   }
 
   private void createWithConfiguredOptions() {

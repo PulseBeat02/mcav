@@ -457,7 +457,8 @@ final class MCAVSandboxTest {
       assertSame(first, thrown);
 
       final Throwable[] suppressed = thrown.getSuppressed();
-      assertArrayEquals(new Throwable[] { second }, suppressed);
+      final Throwable[] expected = { second };
+      assertArrayEquals(expected, suppressed);
 
       this.sandbox.onDisable();
       final List<VideoPlayerManager> videoManagers = videos.constructed();

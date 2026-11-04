@@ -1214,7 +1214,8 @@ final class AbstractInteractiveCommandTest {
       assertSame(failure, thrown);
 
       final List<Throwable> list = List.of(thrown.getSuppressed());
-      assertEquals(List.of(cleanup), list);
+      final List<IllegalStateException> expectedFailures = List.of(cleanup);
+      assertEquals(expectedFailures, list);
     }
   }
 

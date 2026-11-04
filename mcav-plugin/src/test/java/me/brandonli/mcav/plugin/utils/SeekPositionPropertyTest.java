@@ -41,13 +41,16 @@ final class SeekPositionPropertyTest {
     final Optional<SeekPosition> back = SeekPosition.parse("-%s".formatted(SeekPosition.format(whole)));
 
     final SeekPosition expected = SeekPosition.of(ABSOLUTE, whole);
-    assertEquals(Optional.of(expected), absolute);
+    final Optional<SeekPosition> expectedAbsolute = Optional.of(expected);
+    assertEquals(expectedAbsolute, absolute);
 
     final SeekPosition secondExpected = SeekPosition.of(RELATIVE, whole);
-    assertEquals(Optional.of(secondExpected), forward);
+    final Optional<SeekPosition> expectedForward = Optional.of(secondExpected);
+    assertEquals(expectedForward, forward);
 
     final SeekPosition thirdExpected = SeekPosition.of(RELATIVE, -whole);
-    assertEquals(Optional.of(thirdExpected), back);
+    final Optional<SeekPosition> expectedBack = Optional.of(thirdExpected);
+    assertEquals(expectedBack, back);
   }
 
   @Property

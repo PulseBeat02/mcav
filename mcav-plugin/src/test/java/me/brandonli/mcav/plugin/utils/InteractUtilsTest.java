@@ -104,7 +104,8 @@ final class InteractUtilsTest {
     final Optional<int[]> foundCoordinates = InteractUtils.findBoardCoordinates(this.player);
     if (identified) {
       final int[] coordinates = foundCoordinates.orElseThrow();
-      assertArrayEquals(new int[] { AIMED_PIXEL_X, AIMED_PIXEL_Y }, coordinates);
+      final int[] expectedCoordinates = { AIMED_PIXEL_X, AIMED_PIXEL_Y };
+      assertArrayEquals(expectedCoordinates, coordinates);
     } else {
       assertEquals(Optional.empty(), foundCoordinates, "legacy walls with several possible corners cannot be resolved safely");
     }
@@ -131,7 +132,8 @@ final class InteractUtilsTest {
   void shouldFindThePixelOnAWallFacingSouth() {
     this.buildSouthWall();
     final int[] coordinates = InteractUtils.findBoardCoordinates(this.player).orElseThrow();
-    assertArrayEquals(new int[] { 3 * MAP_SIZE + AIMED_PIXEL_X, MAP_SIZE + AIMED_PIXEL_Y }, coordinates);
+    final int[] expectedCoordinates = { 3 * MAP_SIZE + AIMED_PIXEL_X, MAP_SIZE + AIMED_PIXEL_Y };
+    assertArrayEquals(expectedCoordinates, coordinates);
   }
 
   // the player looks at the frame in the last column of the lower row
@@ -169,7 +171,8 @@ final class InteractUtilsTest {
     final ItemFrame target = this.buildSouthWall();
     when(this.player.getTargetEntity(anyInt())).thenReturn(null);
     final int[] coordinates = InteractUtils.findBoardCoordinates(this.player, target).orElseThrow();
-    assertArrayEquals(new int[] { 3 * MAP_SIZE + AIMED_PIXEL_X, MAP_SIZE + AIMED_PIXEL_Y }, coordinates);
+    final int[] expectedCoordinates = { 3 * MAP_SIZE + AIMED_PIXEL_X, MAP_SIZE + AIMED_PIXEL_Y };
+    assertArrayEquals(expectedCoordinates, coordinates);
   }
 
   @Test
@@ -250,7 +253,8 @@ final class InteractUtilsTest {
     final ItemFrame target = this.buildSouthWall();
     when(target.getRotation()).thenReturn(rotation);
     final int[] coordinates = InteractUtils.findBoardCoordinates(this.player).orElseThrow();
-    assertArrayEquals(new int[] { 3 * MAP_SIZE + pixelX, MAP_SIZE + pixelY }, coordinates);
+    final int[] expectedCoordinates = { 3 * MAP_SIZE + pixelX, MAP_SIZE + pixelY };
+    assertArrayEquals(expectedCoordinates, coordinates);
   }
 
   @Test
@@ -265,7 +269,8 @@ final class InteractUtilsTest {
     final Location untagged = this.fakeWorld.createLocation(2.5, 66.5, 0.0);
     this.fakeWorld.addFrame(untagged, BlockFace.SOUTH, Keys.FIRST_MAP_KEY);
     final int[] coordinates = InteractUtils.findBoardCoordinates(this.player).orElseThrow();
-    assertArrayEquals(new int[] { 3 * MAP_SIZE + AIMED_PIXEL_X, MAP_SIZE + AIMED_PIXEL_Y }, coordinates);
+    final int[] expectedCoordinates = { 3 * MAP_SIZE + AIMED_PIXEL_X, MAP_SIZE + AIMED_PIXEL_Y };
+    assertArrayEquals(expectedCoordinates, coordinates);
   }
 
   @Test
@@ -278,7 +283,8 @@ final class InteractUtilsTest {
     final Location eye = this.eye(0.3, EYE_Y, -EYE_DISTANCE, LOOK_SOUTH);
     this.aimAt(target, BlockFace.NORTH, wallBlock, eye);
     final int[] coordinates = InteractUtils.findBoardCoordinates(this.player).orElseThrow();
-    assertArrayEquals(new int[] { MAP_SIZE + MIRRORED_PIXEL_X, AIMED_PIXEL_Y }, coordinates);
+    final int[] expectedCoordinates = { MAP_SIZE + MIRRORED_PIXEL_X, AIMED_PIXEL_Y };
+    assertArrayEquals(expectedCoordinates, coordinates);
   }
 
   @Test
@@ -291,7 +297,8 @@ final class InteractUtilsTest {
     final Location eye = this.eye(-EYE_DISTANCE, EYE_Y, 1.3, LOOK_EAST);
     this.aimAt(target, BlockFace.WEST, wallBlock, eye);
     final int[] coordinates = InteractUtils.findBoardCoordinates(this.player).orElseThrow();
-    assertArrayEquals(new int[] { MAP_SIZE + AIMED_PIXEL_X, AIMED_PIXEL_Y }, coordinates);
+    final int[] expectedCoordinates = { MAP_SIZE + AIMED_PIXEL_X, AIMED_PIXEL_Y };
+    assertArrayEquals(expectedCoordinates, coordinates);
   }
 
   @Test
@@ -304,7 +311,8 @@ final class InteractUtilsTest {
     final Location eye = this.eye(EYE_DISTANCE, EYE_Y, 0.3, LOOK_WEST);
     this.aimAt(target, BlockFace.EAST, wallBlock, eye);
     final int[] coordinates = InteractUtils.findBoardCoordinates(this.player).orElseThrow();
-    assertArrayEquals(new int[] { MAP_SIZE + MIRRORED_PIXEL_X, AIMED_PIXEL_Y }, coordinates);
+    final int[] expectedCoordinates = { MAP_SIZE + MIRRORED_PIXEL_X, AIMED_PIXEL_Y };
+    assertArrayEquals(expectedCoordinates, coordinates);
   }
 
   @Test
@@ -381,7 +389,8 @@ final class InteractUtilsTest {
     final Location eye = this.eye(3.5, FRAME_CENTER_Y, 0.0, LOOK_NORTH);
     when(this.player.getEyeLocation()).thenReturn(eye);
     final int[] coordinates = InteractUtils.findBoardCoordinates(this.player).orElseThrow();
-    assertArrayEquals(new int[] { 3 * MAP_SIZE + 64, MAP_SIZE + 64 }, coordinates);
+    final int[] expectedCoordinates = { 3 * MAP_SIZE + 64, MAP_SIZE + 64 };
+    assertArrayEquals(expectedCoordinates, coordinates);
   }
 
   @Test
@@ -413,7 +422,8 @@ final class InteractUtilsTest {
     final Location eye = this.eye(eyeX, eyeY, -EYE_DISTANCE, LOOK_SOUTH);
     when(this.player.getEyeLocation()).thenReturn(eye);
     final int[] coordinates = InteractUtils.findBoardCoordinates(this.player).orElseThrow();
-    assertArrayEquals(new int[] { 3 * MAP_SIZE + pixelX, MAP_SIZE + pixelY }, coordinates);
+    final int[] expectedCoordinates = { 3 * MAP_SIZE + pixelX, MAP_SIZE + pixelY };
+    assertArrayEquals(expectedCoordinates, coordinates);
   }
 
   @Test
@@ -423,7 +433,8 @@ final class InteractUtilsTest {
     final Location eye = this.eye(3.0, 65.0, -EYE_DISTANCE, LOOK_SOUTH);
     when(this.player.getEyeLocation()).thenReturn(eye);
     final int[] coordinates = InteractUtils.findBoardCoordinates(this.player).orElseThrow();
-    assertArrayEquals(new int[] { 3 * MAP_SIZE + 127, MAP_SIZE + 127 }, coordinates);
+    final int[] expectedCoordinates = { 3 * MAP_SIZE + 127, MAP_SIZE + 127 };
+    assertArrayEquals(expectedCoordinates, coordinates);
   }
 
   @Test

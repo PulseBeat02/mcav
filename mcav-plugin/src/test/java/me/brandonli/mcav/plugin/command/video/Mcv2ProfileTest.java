@@ -46,7 +46,8 @@ final class Mcv2ProfileTest {
     assertEquals(Settings.FAST, fastSettings);
 
     final List<Mcv2Profile> list = List.of(Mcv2Profile.values());
-    assertEquals(List.of(Mcv2Profile.DEFAULT, Mcv2Profile.FAST), list);
+    final List<Mcv2Profile> expectedProfiles = List.of(Mcv2Profile.DEFAULT, Mcv2Profile.FAST);
+    assertEquals(expectedProfiles, list);
   }
 
   @Test
@@ -71,10 +72,8 @@ final class Mcv2ProfileTest {
     final CommandContext<Object> context = mock();
     final EnumParser<Object, Mcv2Profile> parser = new EnumParser<>(Mcv2Profile.class);
     for (final String old : List.of(ADAPTIVE_NAME, SHIP_NAME, LIVE_NAME)) {
-      final EnumParseException failure = assertInstanceOf(
-        EnumParseException.class,
-        parser.parse(context, CommandInput.of(old)).failure().orElseThrow()
-      );
+      final Throwable parseFailure = parser.parse(context, CommandInput.of(old)).failure().orElseThrow();
+      final EnumParseException failure = assertInstanceOf(EnumParseException.class, parseFailure);
 
       final CaptionVariable expected = CaptionVariable.of("input", old);
       final CaptionVariable captionVariable = failure.captionVariables()[0];

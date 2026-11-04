@@ -326,7 +326,8 @@ final class AbstractImageCommandTest {
     final Component refused = Message.FILTERS_INVALID.build("Filter fps counts the frames of a video, and an image has one!");
 
     final List<Component> received = Components.received(this.sender);
-    assertEquals(List.of(refused), received);
+    final List<Component> expectedMessages = List.of(refused);
+    assertEquals(expectedMessages, received);
 
     verify(this.manager, never()).beginLoad();
   }
@@ -413,7 +414,8 @@ final class AbstractImageCommandTest {
 
       final List<Component> messages = Components.received(this.sender);
       final Component invalid = Message.UNSUPPORTED_MRL.build();
-      assertEquals(List.of(invalid), messages);
+      final List<Component> expectedMessages = List.of(invalid);
+      assertEquals(expectedMessages, messages);
 
       final List<SourceDetectionHelper> lookups = detection.constructed();
 

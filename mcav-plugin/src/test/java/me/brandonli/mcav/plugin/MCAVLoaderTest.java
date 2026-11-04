@@ -338,6 +338,7 @@ final class MCAVLoaderTest {
     };
 
     final List<String> requiredClasses = MCAVLoader.readRequiredClasses(listed);
-    assertEquals(List.of(MCAV_CLASS_NAME, MCAV_API_CLASS_NAME), requiredClasses);
+    final List<String> expected = List.of(MCAV_CLASS_NAME, MCAV_API_CLASS_NAME);
+    assertEquals(expected, requiredClasses);
   }
 }

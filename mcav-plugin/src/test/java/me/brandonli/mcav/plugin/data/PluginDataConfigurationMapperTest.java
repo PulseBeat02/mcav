@@ -523,7 +523,8 @@ final class PluginDataConfigurationMapperTest {
     assertFalse(browserConfineChromium);
 
     final List<String> browserRefusedHosts = this.mapper.getBrowserRefusedHosts();
-    assertEquals(List.of("203.0.113.5", REFUSED_HOST_NAME), browserRefusedHosts);
+    final List<String> expectedRefusedHosts = List.of("203.0.113.5", REFUSED_HOST_NAME);
+    assertEquals(expectedRefusedHosts, browserRefusedHosts);
 
     final boolean vmAllowNetwork = this.mapper.isVmAllowNetwork();
     assertTrue(vmAllowNetwork);
@@ -587,7 +588,8 @@ final class PluginDataConfigurationMapperTest {
     }
 
     final List<String> browserRefusedHosts = this.mapper.getBrowserRefusedHosts();
-    assertEquals(List.of(REFUSED_HOST_NAME), browserRefusedHosts);
+    final List<String> expectedRefusedHosts = List.of(REFUSED_HOST_NAME);
+    assertEquals(expectedRefusedHosts, browserRefusedHosts);
 
     final String text = logged.toString(StandardCharsets.UTF_8);
 

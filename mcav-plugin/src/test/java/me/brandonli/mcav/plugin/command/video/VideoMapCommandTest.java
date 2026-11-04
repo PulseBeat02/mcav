@@ -351,10 +351,8 @@ final class VideoMapCommandTest {
     );
 
     final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
-    final VideoMcv2Command.Mcv2Settings settings = assertInstanceOf(
-      VideoMcv2Command.Mcv2Settings.class,
-      providers.getValue().buildConfiguration(resolution)
-    );
+    final Object builtConfiguration = providers.getValue().buildConfiguration(resolution);
+    final VideoMcv2Command.Mcv2Settings settings = assertInstanceOf(VideoMcv2Command.Mcv2Settings.class, builtConfiguration);
 
     final Mcv2Configuration configuration = settings.configuration();
     assertSame(wall, configuration);

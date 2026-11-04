@@ -145,19 +145,17 @@ final class FilterChainTest {
     final List<VideoFilter> more = this.parse("tint=0000ff,flip=h,flip=v,flip=hv,rotate=90,rotate=180,rotate=270,dilate=1").createFilters();
 
     final List<Class<?>> moreList = more.stream().map(Object::getClass).toList();
-    assertEquals(
-      List.of(
-        TintFilter.class,
-        FlipFilter.class,
-        FlipFilter.class,
-        FlipFilter.class,
-        RotationFilter.class,
-        RotationFilter.class,
-        RotationFilter.class,
-        DilationFilter.class
-      ),
-      moreList
+    final List<Class<?>> expectedKinds = List.of(
+      TintFilter.class,
+      FlipFilter.class,
+      FlipFilter.class,
+      FlipFilter.class,
+      RotationFilter.class,
+      RotationFilter.class,
+      RotationFilter.class,
+      DilationFilter.class
     );
+    assertEquals(expectedKinds, moreList);
 
     final List<VideoFilter> rest = this.parse(
       "erode=15,text=Live (1)! ok?,fps,overlay=logo,crop=0:0:100:100,rectangle=10:10:20:20:00ff00"

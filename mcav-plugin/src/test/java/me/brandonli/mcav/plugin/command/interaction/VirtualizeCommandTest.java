@@ -289,7 +289,8 @@ final class VirtualizeCommandTest {
 
     final VmConfiguration machine = configurations.getValue();
     final List<String> arguments = machine.getArguments();
-    assertEquals(List.of(CDROM_OPTION, image, "-nic", "user"), arguments);
+    final List<String> expectedArguments = List.of(CDROM_OPTION, image, "-nic", "user");
+    assertEquals(expectedArguments, arguments);
   }
 
   @Test
@@ -314,7 +315,8 @@ final class VirtualizeCommandTest {
     verify(this.machine).startAsync(any(VmSettings.class), eq(VmPlayer.Architecture.X86_64), configurations.capture(), any());
 
     final List<String> arguments = configurations.getValue().getArguments();
-    assertEquals(List.of(MEMORY_OPTION, MEMORY_SIZE), arguments);
+    final List<String> expectedArguments = List.of(MEMORY_OPTION, MEMORY_SIZE);
+    assertEquals(expectedArguments, arguments);
   }
 
   @Test
@@ -747,7 +749,8 @@ final class VirtualizeCommandTest {
     assertEquals(expected, received);
 
     final List<String> receivedText = Components.receivedText(this.viewer);
-    assertEquals(List.of("Click on the URL to listen onto the website! http://mc.example.com:3000/"), receivedText);
+    final List<String> expectedText = List.of("Click on the URL to listen onto the website! http://mc.example.com:3000/");
+    assertEquals(expectedText, receivedText);
   }
 
   private void createWithTheWebPage(final CompletableFuture<Boolean> start) {
@@ -902,7 +905,8 @@ final class VirtualizeCommandTest {
     assertThrows(IllegalArgumentException.class, () -> VirtualizeCommand.parseOptions("-m size=5G,slots=2", this.imageFolder, limit));
 
     final Optional<String> found = VirtualizeCommand.parseOptions("-m 4G", this.imageFolder, limit).build().find("m");
-    assertEquals(Optional.of("4G"), found);
+    final Optional<String> expectedMemory = Optional.of("4G");
+    assertEquals(expectedMemory, found);
 
     final List<String> arguments = VirtualizeCommand.parseOptions("", this.imageFolder, limit).build().getArguments();
     assertEquals(List.of(), arguments, "QEMU's default of 128 MiB");

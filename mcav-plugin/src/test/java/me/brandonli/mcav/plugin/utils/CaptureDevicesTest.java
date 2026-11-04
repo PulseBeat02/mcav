@@ -254,7 +254,8 @@ final class CaptureDevicesTest {
 
     final CaptureDevices.Device expected = devices.get(1);
     final Optional<CaptureDevices.Device> found = CaptureDevices.find(devices, "12");
-    assertEquals(Optional.of(expected), found);
+    final Optional<CaptureDevices.Device> expectedDevice = Optional.of(expected);
+    assertEquals(expectedDevice, found);
 
     final Optional<CaptureDevices.Device> captureDevicesFound = CaptureDevices.find(devices, "012");
     assertEquals(Optional.empty(), captureDevicesFound);

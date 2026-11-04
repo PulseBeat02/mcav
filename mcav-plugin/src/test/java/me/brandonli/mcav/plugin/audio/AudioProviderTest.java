@@ -800,10 +800,12 @@ final class AudioProviderTest {
   ) throws InterruptedException {
     entered.countDown();
     try {
-      assertTrue(finishStartup.await(10, TimeUnit.SECONDS));
+      final boolean startupFinished = finishStartup.await(10, TimeUnit.SECONDS);
+      assertTrue(startupFinished);
     } catch (final InterruptedException exception) {
       interrupted.countDown();
-      assertTrue(finishStartup.await(10, TimeUnit.SECONDS));
+      final boolean startupFinished = finishStartup.await(10, TimeUnit.SECONDS);
+      assertTrue(startupFinished);
     }
     return null;
   }

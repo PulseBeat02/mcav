@@ -49,46 +49,56 @@ final class SeekPositionTest {
   void shouldReadTimesFromTheStart() {
     final SeekPosition expected = SeekPosition.of(ABSOLUTE, MINUTES_POSITION_MILLISECONDS);
     final Optional<SeekPosition> parsed = SeekPosition.parse("90");
-    assertEquals(Optional.of(expected), parsed);
+    final Optional<SeekPosition> expectedParsed = Optional.of(expected);
+    assertEquals(expectedParsed, parsed);
 
     final SeekPosition secondExpected = SeekPosition.of(ABSOLUTE, MINUTES_POSITION_MILLISECONDS);
     final Optional<SeekPosition> seekPositionParsed = SeekPosition.parse(MINUTES_POSITION_TEXT);
-    assertEquals(Optional.of(secondExpected), seekPositionParsed);
+    final Optional<SeekPosition> expectedSeekPosition = Optional.of(secondExpected);
+    assertEquals(expectedSeekPosition, seekPositionParsed);
 
     final SeekPosition thirdExpected = SeekPosition.of(ABSOLUTE, HOURS_POSITION_MILLISECONDS);
     final Optional<SeekPosition> secondParsed = SeekPosition.parse(HOURS_POSITION_TEXT);
-    assertEquals(Optional.of(thirdExpected), secondParsed);
+    final Optional<SeekPosition> expectedSecondParsed = Optional.of(thirdExpected);
+    assertEquals(expectedSecondParsed, secondParsed);
 
     final SeekPosition fourthExpected = SeekPosition.of(ABSOLUTE, 1_500L);
     final Optional<SeekPosition> thirdParsed = SeekPosition.parse("1.5");
-    assertEquals(Optional.of(fourthExpected), thirdParsed);
+    final Optional<SeekPosition> expectedThirdParsed = Optional.of(fourthExpected);
+    assertEquals(expectedThirdParsed, thirdParsed);
 
     final SeekPosition fifthExpected = SeekPosition.of(ABSOLUTE, 61_025L);
     final Optional<SeekPosition> fourthParsed = SeekPosition.parse("1:01.025");
-    assertEquals(Optional.of(fifthExpected), fourthParsed);
+    final Optional<SeekPosition> expectedFourthParsed = Optional.of(fifthExpected);
+    assertEquals(expectedFourthParsed, fourthParsed);
 
     final SeekPosition sixthExpected = SeekPosition.of(ABSOLUTE, 0L);
     final Optional<SeekPosition> fifthParsed = SeekPosition.parse("0");
-    assertEquals(Optional.of(sixthExpected), fifthParsed);
+    final Optional<SeekPosition> expectedFifthParsed = Optional.of(sixthExpected);
+    assertEquals(expectedFifthParsed, fifthParsed);
 
     final SeekPosition seventhExpected = SeekPosition.of(ABSOLUTE, SeekPosition.MAXIMUM_MILLISECONDS);
     final Optional<SeekPosition> sixthParsed = SeekPosition.parse("99:59:59.999");
-    assertEquals(Optional.of(seventhExpected), sixthParsed);
+    final Optional<SeekPosition> expectedSixthParsed = Optional.of(seventhExpected);
+    assertEquals(expectedSixthParsed, sixthParsed);
   }
 
   @Test
   void shouldReadTimesFromTheCurrentPosition() {
     final SeekPosition expected = SeekPosition.of(RELATIVE, RELATIVE_POSITION_MILLISECONDS);
     final Optional<SeekPosition> parsed = SeekPosition.parse("+10");
-    assertEquals(Optional.of(expected), parsed);
+    final Optional<SeekPosition> expectedParsed = Optional.of(expected);
+    assertEquals(expectedParsed, parsed);
 
     final SeekPosition secondExpected = SeekPosition.of(RELATIVE, JUMP_BACK_POSITION_MILLISECONDS);
     final Optional<SeekPosition> seekPositionParsed = SeekPosition.parse("-1:00");
-    assertEquals(Optional.of(secondExpected), seekPositionParsed);
+    final Optional<SeekPosition> expectedSeekPosition = Optional.of(secondExpected);
+    assertEquals(expectedSeekPosition, seekPositionParsed);
 
     final SeekPosition thirdExpected = SeekPosition.of(RELATIVE, -250L);
     final Optional<SeekPosition> secondParsed = SeekPosition.parse("-0.25");
-    assertEquals(Optional.of(thirdExpected), secondParsed);
+    final Optional<SeekPosition> expectedSecondParsed = Optional.of(thirdExpected);
+    assertEquals(expectedSecondParsed, secondParsed);
   }
 
   @ParameterizedTest

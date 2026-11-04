@@ -225,13 +225,12 @@ final class ImageMapCommandTest {
   void shouldShowTheImageWithMcv2WhenTheFlagSaysSo() {
     final AbstractImageCommand.ImageConfigurationProvider provider = this.showWithCodecAndCaptureProvider(MapCodec.MCV2);
     final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
-    final ImageMapCommand.Mcv2ImageSettings settings = assertInstanceOf(
-      ImageMapCommand.Mcv2ImageSettings.class,
-      provider.buildConfiguration(resolution)
-    );
+    final Object builtConfiguration = provider.buildConfiguration(resolution);
+    final ImageMapCommand.Mcv2ImageSettings settings = assertInstanceOf(ImageMapCommand.Mcv2ImageSettings.class, builtConfiguration);
 
     final List<UUID> copy = List.copyOf(settings.viewers());
-    assertEquals(List.of(this.viewer), copy);
+    final List<UUID> expectedViewers = List.of(this.viewer);
+    assertEquals(expectedViewers, copy);
 
     final Mcv2Configuration configuration = mock(Mcv2Configuration.class);
     when(

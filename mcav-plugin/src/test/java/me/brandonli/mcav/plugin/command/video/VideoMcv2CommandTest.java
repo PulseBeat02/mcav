@@ -216,12 +216,19 @@ final class VideoMcv2CommandTest {
 
   private void assertWallConfiguration(final MockedConstruction.Context context) {
     final MapConfiguration wall = (MapConfiguration) context.arguments().getFirst();
-    assertEquals(MAP_ID, wall.getMap());
-    assertEquals(BLOCK_WIDTH, wall.getMapBlockWidth());
-    assertEquals(BLOCK_HEIGHT, wall.getMapBlockHeight());
-    assertEquals(RESOLUTION_WIDTH, wall.getMapWidthResolution());
-    assertEquals(RESOLUTION_HEIGHT, wall.getMapHeightResolution());
-    assertEquals(List.of(this.viewer), List.copyOf(wall.getViewers()));
+    final int mapId = wall.getMap();
+    assertEquals(MAP_ID, mapId);
+    final int mapBlockWidth = wall.getMapBlockWidth();
+    assertEquals(BLOCK_WIDTH, mapBlockWidth);
+    final int mapBlockHeight = wall.getMapBlockHeight();
+    assertEquals(BLOCK_HEIGHT, mapBlockHeight);
+    final int mapWidthResolution = wall.getMapWidthResolution();
+    assertEquals(RESOLUTION_WIDTH, mapWidthResolution);
+    final int mapHeightResolution = wall.getMapHeightResolution();
+    assertEquals(RESOLUTION_HEIGHT, mapHeightResolution);
+    final List<UUID> expectedViewers = List.of(this.viewer);
+    final List<UUID> viewers = List.copyOf(wall.getViewers());
+    assertEquals(expectedViewers, viewers);
   }
 
   @Test

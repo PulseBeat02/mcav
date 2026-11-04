@@ -174,7 +174,8 @@ final class ArgumentUtilsTest {
       when(selector.values()).thenReturn(List.of(player));
 
       final Collection<UUID> viewers = ArgumentUtils.resolveViewers(selector, new OnlinePlayers());
-      assertEquals(List.of(id), viewers, input);
+      final List<UUID> expectedViewers = List.of(id);
+      assertEquals(expectedViewers, viewers, input);
     }
   }
 

@@ -130,7 +130,8 @@ final class MapUtilsTest {
     assertSame(created, item);
 
     final List<?> arguments = this.constructorArguments.getFirst();
-    assertEquals(List.of(Material.FILLED_MAP), arguments);
+    final List<Material> expectedArguments = List.of(Material.FILLED_MAP);
+    assertEquals(expectedArguments, arguments);
 
     final MapMeta metadata = this.mapMetadata.getFirst();
     final MapView existing = this.existingMap(7);
