@@ -76,6 +76,7 @@ abstract class CoverageLintTask : DefaultTask() {
      *
      * @throws GradleException          if a line is not fully covered or an exception is stale
      * @throws IllegalArgumentException if an entry of the exceptions file is malformed
+     * @throws org.xml.sax.SAXException if the JaCoCo report is not well-formed XML
      */
     @TaskAction
     fun lint(): Unit {

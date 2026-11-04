@@ -376,7 +376,7 @@ abstract class BuildMcv2Natives : DefaultTask() {
         }
 
         // hook for the pitest mutant that drops the shutdown: a test checks that the pools it returns are shut down
-        protected open fun newPool(threadCount: Int): ExecutorService {
+        internal open fun newPool(threadCount: Int): ExecutorService {
             return Executors.newFixedThreadPool(threadCount)
         }
 

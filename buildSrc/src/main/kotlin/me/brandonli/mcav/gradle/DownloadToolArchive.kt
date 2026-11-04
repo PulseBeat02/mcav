@@ -147,7 +147,7 @@ abstract class DownloadToolArchive : DefaultTask() {
     }
 
     // hook for the pitest mutants that drop a timeout or the close: tests inspect the connection it returns
-    protected open fun openConnection(uri: URI): URLConnection {
+    internal open fun openConnection(uri: URI): URLConnection {
         return uri.toURL().openConnection()
     }
 
