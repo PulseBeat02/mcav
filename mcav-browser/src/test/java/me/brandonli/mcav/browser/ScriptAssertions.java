@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.browser;
 
+import static java.util.Objects.requireNonNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -26,7 +27,6 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 final class ScriptAssertions {
@@ -48,15 +48,12 @@ final class ScriptAssertions {
 
   static void execute(final String resource, final String script) throws IOException, InterruptedException {
     final String fixture;
-    try (final InputStream input = Objects.requireNonNull(ScriptAssertions.class.getResourceAsStream(SCRIPTS_DIRECTORY + resource))) {
+    try (final InputStream input = requireNonNull(ScriptAssertions.class.getResourceAsStream(SCRIPTS_DIRECTORY + resource))) {
       fixture = new String(input.readAllBytes(), StandardCharsets.UTF_8);
     }
 
     final String program = fixture.replace(SCRIPT_PLACEHOLDER, DevToolsInput.quote(script));
-    final String node = Objects.requireNonNull(
-      System.getProperty(NODE_PROPERTY),
-      "Node must be supplied by the script-testing convention!"
-    );
+    final String node = requireNonNull(System.getProperty(NODE_PROPERTY), "Node must be supplied by the script-testing convention!");
     final Path output = Files.createTempFile(TEMPORARY_SCRIPT_PREFIX, OUTPUT_LOG_SUFFIX);
     final Process process = new ProcessBuilder(node, "--input-type=module", "-")
       .redirectErrorStream(true)

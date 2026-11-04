@@ -82,20 +82,6 @@ public final class Frames {
     }
   }
 
-  // JPEG compression shifts colors a little
-  public static boolean isNear(final int expected, final int actual) {
-    for (int shift = 0; shift <= RED_SHIFT; shift += BITS_PER_CHANNEL) {
-      final int expectedChannel = (expected >> shift) & CHANNEL_MASK;
-      final int actualChannel = (actual >> shift) & CHANNEL_MASK;
-      final int difference = Math.abs(expectedChannel - actualChannel);
-      if (difference > CHANNEL_TOLERANCE) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
   private boolean record(final ImageBuffer image, final OriginalVideoMetadata metadata) {
     final int width = image.getWidth();
     final int height = image.getHeight();
@@ -144,7 +130,21 @@ public final class Frames {
     }
 
     final int center = frame.getCenter();
-    return isNear(rgb, center);
+    return this.isNear(rgb, center);
+  }
+
+  // JPEG compression shifts colors a little
+  private boolean isNear(final int expected, final int actual) {
+    for (int shift = 0; shift <= RED_SHIFT; shift += BITS_PER_CHANNEL) {
+      final int expectedChannel = (expected >> shift) & CHANNEL_MASK;
+      final int actualChannel = (actual >> shift) & CHANNEL_MASK;
+      final int difference = Math.abs(expectedChannel - actualChannel);
+      if (difference > CHANNEL_TOLERANCE) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   public String describeLast() {
@@ -154,24 +154,29 @@ public final class Frames {
     }
 
     final Frame frame = all.getLast();
-    final StringJoiner centers = new StringJoiner(CENTER_SEPARATOR);
-    int run = 0;
-    for (int index = 0; index < all.size(); index++) {
-      run++;
-      final int center = all.get(index).getCenter();
-      if (index == all.size() - 1 || all.get(index + 1).getCenter() != center) {
-        final String color = this.formatColor(center);
-        centers.add("%s x%s".formatted(color, run));
-        run = 0;
-      }
-    }
-
+    final String centers = this.describeCenterRuns(all);
     final int count = all.size();
     final int width = frame.getWidth();
     final int height = frame.getHeight();
     final int center = frame.getCenter();
     final String color = this.formatColor(center);
     return "%s frames, the last %sx%s with center %s; centers in order: %s".formatted(count, width, height, color, centers);
+  }
+
+  private String describeCenterRuns(final List<Frame> frames) {
+    final StringJoiner centers = new StringJoiner(CENTER_SEPARATOR);
+    int run = 0;
+    for (int index = 0; index < frames.size(); index++) {
+      run++;
+      final int center = frames.get(index).getCenter();
+      if (index == frames.size() - 1 || frames.get(index + 1).getCenter() != center) {
+        final String color = this.formatColor(center);
+        centers.add("%s x%s".formatted(color, run));
+        run = 0;
+      }
+    }
+
+    return centers.toString();
   }
 
   private String formatColor(final int color) {

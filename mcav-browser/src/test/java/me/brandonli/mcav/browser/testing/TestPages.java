@@ -350,6 +350,11 @@ public final class TestPages implements AutoCloseable {
     }
   }
 
+  @Override
+  public void close() {
+    this.server.stop(STOP_DELAY_SECONDS);
+  }
+
   private static void serveDialogs(final HttpExchange exchange) throws IOException {
     serveScript(exchange, "alert('hi'); confirm('sure?'); document.body.style.background = '#00ff00';");
   }
@@ -420,6 +425,11 @@ public final class TestPages implements AutoCloseable {
   }
 
   private static void serveToneWave(final HttpExchange exchange) throws IOException {
+    final byte[] body = createToneWave();
+    sendBody(exchange, WAVE_CONTENT_TYPE, body);
+  }
+
+  private static byte[] createToneWave() {
     final ByteBuffer wave = ByteBuffer.allocate(WAVE_HEADER_BYTES + SAMPLE_RATE * BYTES_PER_FRAME).order(ByteOrder.LITTLE_ENDIAN);
     wave
       .put(RIFF_ID.getBytes(StandardCharsets.US_ASCII))
@@ -437,14 +447,18 @@ public final class TestPages implements AutoCloseable {
       .putShort((short) BITS_PER_SAMPLE);
     wave.put(DATA_ID.getBytes(StandardCharsets.US_ASCII)).putInt(SAMPLE_RATE * BYTES_PER_FRAME);
     for (int frame = 0; frame < SAMPLE_RATE; frame++) {
-      final short sample = (short) Math.round(
-        Math.sin((2 * Math.PI * TONE_HERTZ * frame) / SAMPLE_RATE) * TONE_AMPLITUDE * Short.MAX_VALUE
-      );
+      final short sample = toneSample(frame);
       wave.putShort(sample).putShort(sample);
     }
 
-    final byte[] body = wave.array();
-    sendBody(exchange, WAVE_CONTENT_TYPE, body);
+    return wave.array();
+  }
+
+  private static short toneSample(final int frame) {
+    final double angle = (2 * Math.PI * TONE_HERTZ * frame) / SAMPLE_RATE;
+    final double sine = Math.sin(angle);
+    final double scaled = sine * TONE_AMPLITUDE * Short.MAX_VALUE;
+    return (short) Math.round(scaled);
   }
 
   private static void serveHtml(final HttpExchange exchange, final String elements) throws IOException {
@@ -538,11 +552,6 @@ public final class TestPages implements AutoCloseable {
     return parameters;
   }
 
-  @Override
-  public void close() {
-    this.server.stop(STOP_DELAY_SECONDS);
-  }
-
   public void setLoadHook(final Runnable hook) {
     this.loadHook.set(hook);
   }
@@ -555,15 +564,10 @@ public final class TestPages implements AutoCloseable {
 
   public List<PageEvent> getEvents(final String type) {
     final List<PageEvent> all = this.getEvents();
-    final List<PageEvent> matching = new ArrayList<>();
-    for (final PageEvent event : all) {
-      final String eventType = event.getType();
-      if (eventType.equals(type)) {
-        matching.add(event);
-      }
-    }
-
-    return matching;
+    return all
+      .stream()
+      .filter(event -> event.getType().equals(type))
+      .toList();
   }
 
   public static final class PageEvent {

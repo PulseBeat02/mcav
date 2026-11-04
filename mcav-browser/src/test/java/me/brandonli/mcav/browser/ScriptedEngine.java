@@ -69,8 +69,8 @@ final class ScriptedEngine implements HelperEngine {
 
   private final List<String> calls;
 
-  private MCAVOffscreenBrowser.PaintListener painter = new NoPainter();
-  private HelperEvents events = new NoEvents();
+  private MCAVOffscreenBrowser.PaintListener painter;
+  private HelperEvents events;
   private int width;
   private int height;
   private boolean stopped;
@@ -78,6 +78,8 @@ final class ScriptedEngine implements HelperEngine {
 
   ScriptedEngine() {
     this.calls = new ArrayList<>();
+    this.painter = new NoPainter();
+    this.events = new NoEvents();
   }
 
   public static void main(final String[] args) {
@@ -119,7 +121,7 @@ final class ScriptedEngine implements HelperEngine {
       case SOUND_ON_INPUT_PATH -> {
         this.soundOnInput = true;
         this.show(0);
-        events.onAudio(chunk(0));
+        events.onAudio(this.chunk(0));
       }
       case FAIL_PATH -> this.crashRendererLater(events);
       default -> this.show(0);
@@ -138,12 +140,8 @@ final class ScriptedEngine implements HelperEngine {
   private void playSound(final HelperEvents events) {
     this.show(0);
     final PageAudio audio = new PageAudio(events::onAudio, System::nanoTime);
-    for (int chunk = 1; chunk <= SOUND_CHUNKS; chunk++) {
-      final ByteBuffer samples = ByteBuffer.allocate(SOUND_FRAMES * SOUND_FRAME_BYTES).order(ByteOrder.LITTLE_ENDIAN);
-      while (samples.hasRemaining()) {
-        samples.putShort((short) chunk);
-      }
-      final String payload = Base64.getEncoder().encodeToString(samples.array());
+    for (int chunkNumber = 1; chunkNumber <= SOUND_CHUNKS; chunkNumber++) {
+      final String payload = Base64.getEncoder().encodeToString(this.chunk(chunkNumber));
       audio.onEvent(PageAudio.BINDING_EVENT, BINDING_EVENT_TEMPLATE.formatted("other", payload));
       audio.onEvent(PageAudio.BINDING_EVENT, BINDING_EVENT_TEMPLATE.formatted(PageAudio.BINDING, payload));
     }
@@ -205,11 +203,11 @@ final class ScriptedEngine implements HelperEngine {
     this.paint(this.calls.size());
 
     if (this.soundOnInput) {
-      this.events.onAudio(chunk(this.calls.size()));
+      this.events.onAudio(this.chunk(this.calls.size()));
     }
   }
 
-  static byte[] chunk(final int value) {
+  private byte[] chunk(final int value) {
     final ByteBuffer samples = ByteBuffer.allocate(SOUND_FRAMES * SOUND_FRAME_BYTES).order(ByteOrder.LITTLE_ENDIAN);
     while (samples.hasRemaining()) {
       samples.putShort((short) value);

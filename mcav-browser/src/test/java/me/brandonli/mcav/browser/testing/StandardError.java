@@ -24,10 +24,12 @@ import java.nio.charset.StandardCharsets;
 // The tests of a module run one after the other, so no other test writes meanwhile.
 public final class StandardError implements AutoCloseable {
 
-  private final PrintStream original = System.err;
-  private final ByteArrayOutputStream captured = new ByteArrayOutputStream();
+  private final PrintStream original;
+  private final ByteArrayOutputStream captured;
 
   public StandardError() {
+    this.original = System.err;
+    this.captured = new ByteArrayOutputStream();
     System.setErr(new PrintStream(this.captured, true, StandardCharsets.UTF_8));
   }
 

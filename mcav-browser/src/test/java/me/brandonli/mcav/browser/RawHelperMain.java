@@ -90,7 +90,7 @@ public final class RawHelperMain {
     }
 
     if (configuration.getUrl().getPath().equals(SILENT_PATH)) {
-      while (input.read() >= 0) {}
+      awaitTheEnd(input);
       System.exit(0);
     }
 
@@ -116,13 +116,7 @@ public final class RawHelperMain {
       }
       case NO_HELLO_PATH -> HelperProtocol.writeText(output, HelperProtocol.NOTICE, "hi");
       case SERVER_MESSAGE_PATH -> {
-        HelperProtocol.writeHello(output, token);
-        HelperProtocol.writeText(output, HelperProtocol.READY, READY_TEXT);
-        HelperProtocol.writeFrame(
-          output,
-          new FrameRegion(configuration.getWidth(), configuration.getHeight(), 0, 0, 1, 1, new byte[HelperProtocol.PIXEL_BYTES])
-        );
-        HelperProtocol.writeLoading(output, false);
+        writeStartedSession(output, token, configuration);
         output.flush();
         sleep();
         HelperProtocol.writeClose(output);
@@ -137,24 +131,12 @@ public final class RawHelperMain {
         CHATTY_PATH,
         EXIT_LATER_PATH,
         DEAF_PATH -> {
-        HelperProtocol.writeHello(output, token);
-        HelperProtocol.writeText(output, HelperProtocol.READY, READY_TEXT);
-        HelperProtocol.writeFrame(
-          output,
-          new FrameRegion(configuration.getWidth(), configuration.getHeight(), 0, 0, 1, 1, new byte[HelperProtocol.PIXEL_BYTES])
-        );
-        HelperProtocol.writeLoading(output, false);
+        writeStartedSession(output, token, configuration);
         output.flush();
         misbehaveAfterStarting(path, channel, input);
       }
       case NOISY_PATH -> {
-        HelperProtocol.writeHello(output, token);
-        HelperProtocol.writeText(output, HelperProtocol.READY, READY_TEXT);
-        HelperProtocol.writeFrame(
-          output,
-          new FrameRegion(configuration.getWidth(), configuration.getHeight(), 0, 0, 1, 1, new byte[HelperProtocol.PIXEL_BYTES])
-        );
-        HelperProtocol.writeLoading(output, false);
+        writeStartedSession(output, token, configuration);
         writeNoise(output);
         output.flush();
         sleep();
@@ -200,8 +182,19 @@ public final class RawHelperMain {
     }
 
     output.flush();
-    while (input.read() >= 0) {}
+    awaitTheEnd(input);
     channel.close();
+  }
+
+  private static void writeStartedSession(final DataOutputStream output, final byte[] token, final HelperConfiguration configuration)
+    throws IOException {
+    HelperProtocol.writeHello(output, token);
+    HelperProtocol.writeText(output, HelperProtocol.READY, READY_TEXT);
+    HelperProtocol.writeFrame(
+      output,
+      new FrameRegion(configuration.getWidth(), configuration.getHeight(), 0, 0, 1, 1, new byte[HelperProtocol.PIXEL_BYTES])
+    );
+    HelperProtocol.writeLoading(output, false);
   }
 
   private static void misbehaveAfterStarting(final String path, final SocketChannel channel, final BufferedReader input)

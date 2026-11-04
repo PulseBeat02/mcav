@@ -32,7 +32,10 @@ public final class GatedHelperMain {
 
   static final String STARTED_SUFFIX = ".started";
 
-  private GatedHelperMain() {}
+  private GatedHelperMain() {
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
+  }
 
   public static void main(final String[] args) throws IOException, InterruptedException {
     final String gatePath = System.getProperty(GATE_PROPERTY);

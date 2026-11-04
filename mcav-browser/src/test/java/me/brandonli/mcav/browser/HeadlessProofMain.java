@@ -88,7 +88,7 @@ public final class HeadlessProofMain {
 
   static final String PASSED = "HEADLESS PROOF PASSED";
 
-  private static final List<String> GRAALVM_DEFAULTS = List.of(
+  static final List<String> GRAALVM_DEFAULTS = List.of(
     "-XX:ThreadPriorityPolicy=1",
     "-XX:+UnlockExperimentalVMOptions",
     "-XX:+EnableJVMCIProduct",
@@ -272,7 +272,7 @@ public final class HeadlessProofMain {
     }
   }
 
-  private static void check(final boolean holds, final String description) {
+  static void check(final boolean holds, final String description) {
     if (!holds) {
       final String message = "The check that %s failed!".formatted(description);
       throw new AssertionError(message);

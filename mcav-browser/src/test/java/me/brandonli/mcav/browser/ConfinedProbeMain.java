@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.browser;
 
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
@@ -36,9 +37,13 @@ final class ConfinedProbeMain {
   public static void main(final String[] arguments) throws Exception {
     final Path hidden = Path.of(arguments[0]);
     final List<Landlock.Rule> rules = ChromiumConfinement.rules(ROOT, List.of(hidden), List.of(), List.of());
-    Landlock.restrictThread(Landlock.version(), rules);
+    final int version = Landlock.version();
+    Landlock.restrictThread(version, rules);
+
     final Process cat = new ProcessBuilder("cat", arguments[1], STATUS_FILE).redirectErrorStream(true).start();
-    final String output = new String(cat.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+    final InputStream stream = cat.getInputStream();
+    final byte[] bytes = stream.readAllBytes();
+    final String output = new String(bytes, StandardCharsets.UTF_8);
     System.out.println(output);
     final int exitCode = cat.waitFor();
     System.out.println("cat exited %s".formatted(exitCode));

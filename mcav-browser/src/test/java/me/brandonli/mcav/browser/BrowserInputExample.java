@@ -57,7 +57,10 @@ public final class BrowserInputExample {
   private static final int WIDTH = 1280;
   private static final int HEIGHT = 720;
 
-  private BrowserInputExample() {}
+  private BrowserInputExample() {
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
+  }
 
   static void main(final String[] args) {
     final MCAVApi api = MCAV.api();
