@@ -27,8 +27,8 @@
  * the JVM in dependency order.
  * {@link me.brandonli.mcav.capability.installer.debian.DebianProgramInstaller#create(String, String, java.util.List)}
  * installs the programs of a package list instead, to run as processes. Packages are downloaded from
- * {@code snapshot.debian.org}, checked against their pinned SHA-256 and extracted by MCAV itself into the cache
- * folder.
+ * {@code deb.debian.org} while Debian still carries their version, otherwise from {@code snapshot.debian.org}, checked
+ * against their pinned SHA-256 either way and extracted by MCAV itself into the cache folder.
  * {@link me.brandonli.mcav.capability.installer.debian.DebianPackageExtractor#extract(java.nio.file.Path, java.nio.file.Path)}
  * extracts the library trees of one package for modules that place the libraries themselves.
  *
