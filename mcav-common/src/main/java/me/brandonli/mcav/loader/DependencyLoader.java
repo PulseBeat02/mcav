@@ -111,6 +111,7 @@ public final class DependencyLoader {
     this(LOGGER);
   }
 
+  // Takes the logger, so a test sees each log call, which kills the mutants that skip them.
   @VisibleForTesting
   DependencyLoader(final Logger logger) {
     this(logger, OsUtils::isLibraryAvailable, DebianLibraryInstaller::createGtk2Installer);
