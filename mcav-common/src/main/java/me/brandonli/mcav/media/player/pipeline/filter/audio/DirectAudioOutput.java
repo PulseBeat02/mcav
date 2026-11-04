@@ -191,8 +191,8 @@ public final class DirectAudioOutput implements FunctionalAudioFilter {
       failure = this.runCleanupAction(action, failure);
     }
 
-    if (failure instanceof final RuntimeException runtime) {
-      throw runtime;
+    if (failure instanceof final RuntimeException runtimeException) {
+      throw runtimeException;
     }
 
     if (failure instanceof final Error error) {
