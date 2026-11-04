@@ -28,12 +28,16 @@ import me.brandonli.mcav.MCAVException;
  *
  * @since 1.0.0
  */
-public class UnsupportedOperatingSystemException extends MCAVException {
+public final class UnsupportedOperatingSystemException extends MCAVException {
 
   @Serial
   private static final long serialVersionUID = 885934601050385987L;
 
   UnsupportedOperatingSystemException(final String message) {
     super(message);
+  }
+
+  UnsupportedOperatingSystemException(final String message, final Throwable cause) {
+    super(message, cause);
   }
 }

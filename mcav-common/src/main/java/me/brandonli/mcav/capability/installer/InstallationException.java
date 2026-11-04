@@ -26,7 +26,7 @@ import me.brandonli.mcav.MCAVException;
  *
  * @since 1.0.0
  */
-public class InstallationException extends MCAVException {
+public final class InstallationException extends MCAVException {
 
   @Serial
   private static final long serialVersionUID = 9064757914023561374L;
