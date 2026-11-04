@@ -59,14 +59,21 @@ final class VlcPlayback {
 
   private static final String NO_AUDIO_OPTION = ":no-audio";
   private static final String NO_VIDEO_OPTION = ":no-video";
+
   private static final String AUDIO_FORMAT = "S16N";
+
+  private static final boolean LOCK_BUFFERS = true;
+
   private static final long DRIFT_NUDGE_MILLISECONDS = 100L;
   private static final long DRIFT_SEEK_MILLISECONDS = 2_000L;
+
   private static final long SYNCHRONIZATION_INTERVAL_MILLISECONDS = 250L;
   private static final String SYNCHRONIZATION_THREAD_NAME = "mcav-vlc-sync";
+
   private static final float RATE_NORMAL = 1.0f;
   private static final float RATE_SLOWER = 0.97f;
   private static final float RATE_FASTER = 1.03f;
+
   private static final Set<State> SEEKABLE_STATES = EnumSet.of(State.OPENING, State.BUFFERING, State.PLAYING, State.PAUSED);
 
   private final VlcPlayer owner;
@@ -203,7 +210,7 @@ final class VlcPlayback {
   private void installVideoSurface() {
     final FrameFormatCallback formatCallback = new FrameFormatCallback(this.videoRenderer, this.videoPlayer);
     final uk.co.caprica.vlcj.factory.VideoSurfaceApi surfaces = this.factory.videoSurfaces(); // fqn: VideoSurfaceApi is imported as uk.co.caprica.vlcj.player.embedded.VideoSurfaceApi
-    final CallbackVideoSurface surface = surfaces.newVideoSurface(formatCallback, this.videoRenderer, true);
+    final CallbackVideoSurface surface = surfaces.newVideoSurface(formatCallback, this.videoRenderer, LOCK_BUFFERS);
     final VideoSurfaceApi surfaceApi = this.videoPlayer.videoSurface();
     surfaceApi.set(surface);
   }
@@ -423,8 +430,6 @@ final class VlcPlayback {
 
   private static final class StopFailures {
 
-    private static final Equivalence<Object> IDENTITY = Equivalence.identity();
-
     private @Nullable Throwable first;
 
     void run(final Runnable action) {
@@ -435,7 +440,7 @@ final class VlcPlayback {
         final Throwable previous = this.first;
         if (previous == null) {
           this.first = exception;
-        } else if (!IDENTITY.equivalent(previous, exception)) {
+        } else if (!FAILURE_IDENTITY.equivalent(previous, exception)) {
           previous.addSuppressed(exception);
         }
       }
@@ -457,6 +462,8 @@ final class VlcPlayback {
   // it repeats, so stopping cancels the schedule before the thread is shut down.
   private static final class Synchronizer {
 
+    private static final boolean DO_NOT_INTERRUPT = false;
+
     private final ScheduledExecutorService executor;
     private final ScheduledFuture<?> schedule;
 
@@ -466,7 +473,7 @@ final class VlcPlayback {
     }
 
     void stop() {
-      this.schedule.cancel(false);
+      this.schedule.cancel(DO_NOT_INTERRUPT);
       ExecutorUtils.shutdownExecutorGracefully(this.executor);
     }
   }

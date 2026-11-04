@@ -80,13 +80,22 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
   private static final String SOURCE_NULL_MESSAGE = "Source must not be null!";
 
   private static final Equivalence<Object> IDENTITY = Equivalence.identity();
+
   private static final long MICROSECONDS_PER_MILLISECOND = 1_000L;
+
+  private static final long MEDIA_START_MICROSECONDS = 0L;
+
   private static final String NETWORK_TIMEOUT_MICROSECONDS = "15000000";
   private static final String RECONNECT_DELAY_MAXIMUM_SECONDS = "5";
+
   private static final String DIRECT_PROBE_SIZE_BYTES = "32";
   private static final String DIRECT_ANALYZE_DURATION_MICROSECONDS = "0";
+
   private static final String OPTION_ENABLED = "1";
   private static final String OPTION_AUTOMATIC = "auto";
+
+  private static final String LOW_DELAY_FLAGS = "low_delay";
+  private static final String FORMAT_FLAGS = "discardcorrupt+genpts";
 
   private final VideoAttachableCallback videoCallback;
   private final AudioAttachableCallback audioCallback;
@@ -141,7 +150,7 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
   public boolean start(final Source combined) {
     Preconditions.checkNotNull(combined, SOURCE_NULL_MESSAGE);
 
-    return this.startSources(combined, null, 0L, StartState.PLAYING);
+    return this.startSources(combined, null, MEDIA_START_MICROSECONDS, StartState.PLAYING);
   }
 
   /**
@@ -162,10 +171,10 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
 
     final boolean sameSource = video.equals(audio);
     if (sameSource) {
-      return this.startSources(video, null, 0L, StartState.PLAYING);
+      return this.startSources(video, null, MEDIA_START_MICROSECONDS, StartState.PLAYING);
     }
 
-    return this.startSources(video, audio, 0L, StartState.PLAYING);
+    return this.startSources(video, audio, MEDIA_START_MICROSECONDS, StartState.PLAYING);
   }
 
   private PlaybackSession createSession(
@@ -382,12 +391,12 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
 
   private static void configureFfmpeg(final FFmpegFrameGrabber grabber, final Source source) {
     grabber.setVideoOption("threads", OPTION_AUTOMATIC);
-    grabber.setVideoOption("flags", "low_delay");
+    grabber.setVideoOption("flags", LOW_DELAY_FLAGS);
     grabber.setOption("rw_timeout", NETWORK_TIMEOUT_MICROSECONDS);
     grabber.setOption("reconnect", OPTION_ENABLED);
     grabber.setOption("reconnect_streamed", OPTION_ENABLED);
     grabber.setOption("reconnect_delay_max", RECONNECT_DELAY_MAXIMUM_SECONDS);
-    grabber.setOption("fflags", "discardcorrupt+genpts");
+    grabber.setOption("fflags", FORMAT_FLAGS);
     grabber.setOption("hwaccel", OPTION_AUTOMATIC);
 
     if (source instanceof final FfmpegDirectSource direct) {

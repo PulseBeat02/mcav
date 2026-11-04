@@ -48,6 +48,7 @@ final class AudioRenderer extends AudioCallbackAdapter {
 
   private static final int QUEUE_CAPACITY = 64;
   private static final long QUEUE_POLL_MILLISECONDS = 50L;
+
   private static final String PCM_CODEC = "pcm_s16le";
   private static final int PCM_BITRATE = AudioFilter.SAMPLE_RATE * AudioFilter.FRAME_SIZE * Byte.SIZE;
   private static final OriginalAudioMetadata METADATA = OriginalAudioMetadata.of(

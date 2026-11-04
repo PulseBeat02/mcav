@@ -35,7 +35,10 @@ final class VlcTestSupport {
   private static final String UNAVAILABLE = loadVlc();
 
   private static final String VIDEO_EXTENSION = ".mp4";
-  private static final String SIZE_SEPARATOR = "x";
+
+  private static final int FRAME_RATE = 30;
+  private static final int SAMPLE_RATE = 48_000;
+  private static final String DURATION_SECONDS = "3";
 
   private VlcTestSupport() {
     final String message = "Utility class cannot be instantiated!";
@@ -60,7 +63,8 @@ final class VlcTestSupport {
   }
 
   static Path solidVideo(final Path directory, final String color, final int width, final int height) {
-    final Path output = directory.resolve(color + "-" + width + SIZE_SEPARATOR + height + VIDEO_EXTENSION);
+    final String fileName = "%s-%sx%s%s".formatted(color, width, height, VIDEO_EXTENSION);
+    final Path output = directory.resolve(fileName);
     return GeneratedMedia.generate(output, temporary -> solidVideoCommand(color, width, height, temporary));
   }
 
@@ -76,7 +80,8 @@ final class VlcTestSupport {
   }
 
   private static List<String> solidVideoArguments(final String color, final int width, final int height, final String outputPath) {
-    final String colorSource = "color=c=" + color + ":size=" + width + SIZE_SEPARATOR + height + ":rate=30";
+    final String colorSource = "color=c=%s:size=%sx%s:rate=%s".formatted(color, width, height, FRAME_RATE);
+    final String sineSource = "sine=frequency=440:sample_rate=%s".formatted(SAMPLE_RATE);
     return List.of(
       "-hide_banner",
       "-loglevel",
@@ -88,9 +93,9 @@ final class VlcTestSupport {
       "-f",
       "lavfi",
       "-i",
-      "sine=frequency=440:sample_rate=48000",
+      sineSource,
       "-t",
-      "3",
+      DURATION_SECONDS,
       "-c:v",
       "mpeg4",
       "-q:v",

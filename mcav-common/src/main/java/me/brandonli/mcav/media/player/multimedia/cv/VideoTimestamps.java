@@ -30,6 +30,8 @@ final class VideoTimestamps {
   private static final double MICROSECONDS_PER_SECOND = 1_000_000.0;
   private static final long NANOSECONDS_PER_MICROSECOND = 1_000L;
 
+  private static final long NO_FRAME_MICROSECONDS = 0L;
+
   private final long frameMicroseconds;
   private final LongSupplier nanosecondClock;
 
@@ -45,12 +47,12 @@ final class VideoTimestamps {
 
   static VideoTimestamps recorded(final double frameRate, final LongSupplier nanosecondClock) {
     final boolean usableRate = frameRate > 0 && Double.isFinite(frameRate);
-    final long frameMicroseconds = usableRate ? Math.round(MICROSECONDS_PER_SECOND / frameRate) : 0L;
+    final long frameMicroseconds = usableRate ? Math.round(MICROSECONDS_PER_SECOND / frameRate) : NO_FRAME_MICROSECONDS;
     return new VideoTimestamps(frameMicroseconds, nanosecondClock);
   }
 
   static VideoTimestamps live(final LongSupplier nanosecondClock) {
-    return new VideoTimestamps(0L, nanosecondClock);
+    return new VideoTimestamps(NO_FRAME_MICROSECONDS, nanosecondClock);
   }
 
   long next(final long reported) {

@@ -51,6 +51,8 @@ public final class ThreadedImagePlayer implements ImagePlayer {
 
   private static final long STOP_TIMEOUT_MILLISECONDS = 2_000L;
 
+  private static final long NANOSECONDS_PER_SECOND = TimeUnit.SECONDS.toNanos(1);
+
   private final LongSupplier clock;
   private final LongConsumer park;
   private final VideoAttachableCallback callback;
@@ -130,8 +132,7 @@ public final class ThreadedImagePlayer implements ImagePlayer {
     final int width = source.getFrameWidth();
     final int height = source.getFrameHeight();
     final float frameRate = source.getFrameRate();
-    final long secondNanoseconds = TimeUnit.SECONDS.toNanos(1);
-    final long periodNanoseconds = (long) (secondNanoseconds / frameRate);
+    final long periodNanoseconds = (long) (NANOSECONDS_PER_SECOND / frameRate);
     final OriginalVideoMetadata metadata = OriginalVideoMetadata.of(width, height, frameRate);
     final SampleSupplier supplier = source.supplyFrameSamples();
     final FrameLoop loop = new FrameLoop(supplier, width, height, metadata);

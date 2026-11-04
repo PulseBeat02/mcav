@@ -74,7 +74,9 @@ import org.slf4j.LoggerFactory;
 final class PlaybackSession {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(PlaybackSession.class);
+
   private static final Equivalence<Object> FAILURE_IDENTITY = Equivalence.identity();
+
   private static final long END_OFFER_TIMEOUT_MILLISECONDS = 50L;
 
   private static final String VIDEO_DECODER_THREAD_NAME = "mcav-decode-video";
@@ -83,16 +85,21 @@ final class PlaybackSession {
   private static final String AUDIO_RENDERER_THREAD_NAME = "mcav-render-audio";
 
   private static final int VIDEO_QUEUE_CAPACITY = 4;
-  private static final int IMAGE_POOL_CAPACITY = VIDEO_QUEUE_CAPACITY + 2;
+  private static final int IMAGES_OUTSIDE_THE_QUEUE = 2;
+  private static final int IMAGE_POOL_CAPACITY = VIDEO_QUEUE_CAPACITY + IMAGES_OUTSIDE_THE_QUEUE;
   private static final int AUDIO_QUEUE_CAPACITY = 64;
+
   private static final long PAUSE_POLL_MILLISECONDS = 50L;
+
   // How late a frame may be before players drop it instead of showing it, in nanoseconds.
   static final long MAXIMUM_VIDEO_LAG_NANOSECONDS = 100_000_000L;
 
   static final long AUDIO_LEAD_NANOSECONDS = 50_000_000L;
+  private static final long VIDEO_LEAD_NANOSECONDS = 0L;
 
   private static final long MAXIMUM_SLEEP_NANOSECONDS = 500_000_000L;
   private static final long JOIN_TIMEOUT_MILLISECONDS = 5_000L;
+
   private static final OriginalAudioMetadata DEFAULT_AUDIO_METADATA = OriginalAudioMetadata.of(
     "",
     OriginalAudioMetadata.UNKNOWN,
@@ -100,6 +107,7 @@ final class PlaybackSession {
     AudioFilter.CHANNELS,
     OriginalAudioMetadata.UNKNOWN
   );
+
   private static final DecodedVideoFrame END_OF_VIDEO = new DecodedVideoFrame(null, Long.MIN_VALUE);
   private static final ByteBuffer NO_SAMPLES = ByteBuffer.allocate(0);
   private static final DecodedAudioChunk END_OF_AUDIO = new DecodedAudioChunk(NO_SAMPLES, Long.MIN_VALUE);
@@ -574,7 +582,7 @@ final class PlaybackSession {
 
   private void presentVideoFrame(final DecodedVideoFrame frame, final @Nullable MatImageBuffer image) throws InterruptedException {
     final long timestamp = frame.getTimestampMicroseconds();
-    final long lateNanoseconds = this.awaitDue(timestamp, 0L);
+    final long lateNanoseconds = this.awaitDue(timestamp, VIDEO_LEAD_NANOSECONDS);
     final boolean late = lateNanoseconds > this.maximumVideoLagNanoseconds;
     if (late) {
       this.lateFrames.countDropped(timestamp);

@@ -27,13 +27,15 @@ import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 // without a click. Not thread-safe: the audio renderer of one session uses it.
 final class SpeedResampler {
 
+  private static final double FIRST_FRAME_POSITION = 1.0;
+
   private final short[] previous;
 
   private double next;
 
   SpeedResampler() {
     this.previous = new short[AudioFilter.CHANNELS];
-    this.next = 1;
+    this.next = FIRST_FRAME_POSITION;
   }
 
   ByteBuffer resample(final ByteBuffer samples, final double speed) {
@@ -45,7 +47,7 @@ final class SpeedResampler {
 
     if (speed == PlaybackClock.NORMAL_SPEED) {
       this.remember(input, frames);
-      this.next = 1;
+      this.next = FIRST_FRAME_POSITION;
 
       return samples;
     }

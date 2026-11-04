@@ -60,6 +60,9 @@ import uk.co.caprica.vlcj.player.embedded.videosurface.callback.RenderCallback;
 final class MockVlc {
 
   private static final int SECOND_PLAYER_INDEX = 1;
+  private static final int NO_FAILING_PLAYER = -1;
+
+  private static final String NO_SURFACE_MESSAGE = "no video surface was created";
 
   private final MediaPlayerFactory factory;
   private final List<Player> players;
@@ -81,7 +84,7 @@ final class MockVlc {
     this.creations = new AtomicInteger();
     this.formatCallback = new AtomicReference<>();
     this.renderCallback = new AtomicReference<>();
-    this.failingPlayerIndex = -1;
+    this.failingPlayerIndex = NO_FAILING_PLAYER;
     final MediaPlayerApi playerApi = mock(MediaPlayerApi.class);
     final uk.co.caprica.vlcj.factory.VideoSurfaceApi surfaces = mock(uk.co.caprica.vlcj.factory.VideoSurfaceApi.class); // fqn: VideoSurfaceApi is imported as uk.co.caprica.vlcj.player.embedded.VideoSurfaceApi
     when(this.factory.mediaPlayers()).thenReturn(playerApi);
@@ -167,14 +170,14 @@ final class MockVlc {
 
   BufferFormatCallback getFormatCallback() {
     final BufferFormatCallback callback = this.formatCallback.get();
-    assertNotNull(callback, "no video surface was created");
+    assertNotNull(callback, NO_SURFACE_MESSAGE);
 
     return callback;
   }
 
   RenderCallback getRenderCallback() {
     final RenderCallback callback = this.renderCallback.get();
-    assertNotNull(callback, "no video surface was created");
+    assertNotNull(callback, NO_SURFACE_MESSAGE);
 
     return callback;
   }

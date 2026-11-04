@@ -33,6 +33,7 @@ final class PlaybackClock {
   static final double NORMAL_SPEED = 1.0;
 
   private static final long NANOSECONDS_PER_MICROSECOND = 1_000L;
+
   private static final long DISCONTINUITY_THRESHOLD_NANOSECONDS = 2_000_000_000L;
 
   private final Object lock;

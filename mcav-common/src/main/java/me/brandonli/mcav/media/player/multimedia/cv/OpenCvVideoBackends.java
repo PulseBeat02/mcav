@@ -36,10 +36,12 @@ import org.slf4j.LoggerFactory;
 final class OpenCvVideoBackends {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(OpenCvVideoBackends.class);
+
   private static final String VIDEO_SECTION = "Video I/O:";
   private static final String SECTION_END = "\n\n";
   private static final String ENABLED = "YES";
   private static final List<String> FILE_BACKENDS = List.of("FFMPEG:", "Media Foundation:", "AVFoundation:", "GStreamer:");
+
   private static final Supplier<VideoFileReader> FILE_READER = Suppliers.memoize(OpenCvVideoBackends::detectFileReader);
 
   private OpenCvVideoBackends() {

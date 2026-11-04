@@ -37,9 +37,13 @@ final class ScriptedFrameGrabber extends FrameGrabber {
 
   private static final int FRAME_WIDTH = 4;
   private static final int FRAME_HEIGHT = 2;
+  private static final int VIDEO_CHANNELS = 3;
 
   private static final int SAMPLE_RATE = 48_000;
   private static final int AUDIO_CHANNELS = 2;
+  private static final int SAMPLES_PER_FRAME = 960;
+
+  private static final long NO_REQUESTED_TIMESTAMP = -1L;
 
   private final Deque<Object> script;
   private final AtomicBoolean closed;
@@ -55,7 +59,7 @@ final class ScriptedFrameGrabber extends FrameGrabber {
     this.script = new ArrayDeque<>(steps);
     this.closed = new AtomicBoolean();
     this.interruptedWhenReleased = new AtomicBoolean();
-    this.requestedTimestamp = new AtomicLong(-1L);
+    this.requestedTimestamp = new AtomicLong(NO_REQUESTED_TIMESTAMP);
     this.grabbingThread = new AtomicReference<>();
     this.imageWidth = width;
     this.imageHeight = height;
@@ -82,14 +86,14 @@ final class ScriptedFrameGrabber extends FrameGrabber {
   }
 
   static Frame video(final long timestampMicroseconds) {
-    final Frame frame = new Frame(FRAME_WIDTH, FRAME_HEIGHT, Frame.DEPTH_UBYTE, 3);
+    final Frame frame = new Frame(FRAME_WIDTH, FRAME_HEIGHT, Frame.DEPTH_UBYTE, VIDEO_CHANNELS);
     frame.timestamp = timestampMicroseconds;
     return frame;
   }
 
   static Frame audio(final long timestampMicroseconds) {
     final Frame frame = new Frame();
-    frame.samples = new Buffer[] { ShortBuffer.allocate(960) };
+    frame.samples = new Buffer[] { ShortBuffer.allocate(SAMPLES_PER_FRAME) };
     frame.sampleRate = SAMPLE_RATE;
     frame.audioChannels = AUDIO_CHANNELS;
     frame.timestamp = timestampMicroseconds;

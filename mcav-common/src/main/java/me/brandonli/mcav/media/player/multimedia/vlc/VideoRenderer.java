@@ -54,7 +54,10 @@ final class VideoRenderer implements RenderCallback {
   private static final String THREAD_NAME = "mcav-vlc-render-video";
 
   private static final int BYTES_PER_PIXEL = 4;
+
+  private static final int PENDING_FRAME_CAPACITY = 1;
   private static final int SPARE_PIXEL_ARRAYS = 2;
+
   private static final long QUEUE_POLL_MILLISECONDS = 50L;
 
   private final VideoPlayerMultiplexer owner;
@@ -73,9 +76,9 @@ final class VideoRenderer implements RenderCallback {
   // Frames are dropped until start() is called.
   VideoRenderer(final VideoPlayerMultiplexer owner) {
     this.owner = owner;
-    this.pendingFrame = new ArrayBlockingQueue<>(1);
+    this.pendingFrame = new ArrayBlockingQueue<>(PENDING_FRAME_CAPACITY);
     this.sparePixels = new ArrayBlockingQueue<>(SPARE_PIXEL_ARRAYS);
-    this.replacedFrames = new ArrayList<>(1);
+    this.replacedFrames = new ArrayList<>(PENDING_FRAME_CAPACITY);
     this.thread = new RenderThread(THREAD_NAME, failure -> reportFailure(owner, "Video rendering failed.", failure));
     this.metadata = OriginalVideoMetadata.EMPTY;
   }

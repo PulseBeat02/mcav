@@ -65,6 +65,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class VlcPlayer implements VideoPlayerMultiplexer {
 
   private static final long OPEN_TIMEOUT_MILLISECONDS = 5_000L;
+
   private static final Equivalence<Object> IDENTITY = Equivalence.identity();
 
   private static final String PREPARED_CANDIDATE_MESSAGE = "A prepared transition owns a candidate!";

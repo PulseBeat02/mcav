@@ -30,6 +30,7 @@ import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
 final class SharedMediaPlayerFactory {
 
   private static final String[] VLC_ARGUMENTS = { "--quiet", "--no-video-title-show", "--no-snapshot-preview", "--no-osd" };
+
   private static final SharedMediaPlayerFactory INSTANCE = new SharedMediaPlayerFactory(SharedMediaPlayerFactory::createFactory);
 
   private final Supplier<MediaPlayerFactory> creator;
