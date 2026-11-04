@@ -46,7 +46,7 @@ import org.junit.jupiter.api.Test;
  * Proves with real Chromium that the sound of a page reaches the audio pipeline of the player: a Web Audio tone and an
  * audio element, each once the page may play, after the first click on it, and in step with the picture. The A/V
  * measurement times real events, which a busy machine delays, so it runs on request:
- * {@code -Pmcav.syncMeasurement=true}.
+ * {@code -Pmcav.sync_measurement=true}.
  */
 @Tag("cef")
 class BrowserSoundTest {
@@ -267,7 +267,7 @@ class BrowserSoundTest {
 
   @Test
   void theSoundOfAPageKeepsUpWithItsPicture() throws InterruptedException {
-    assumeTrue(Boolean.getBoolean("mcav.syncMeasurement"), "times real events; run with -Pmcav.syncMeasurement=true on a quiet machine");
+    assumeTrue(Boolean.getBoolean("mcav.sync_measurement"), "times real events; run with -Pmcav.sync_measurement=true on a quiet machine");
     final BrowserPlayer player = this.player();
     final List<long[]> sound = new CopyOnWriteArrayList<>();
     final List<long[]> picture = new CopyOnWriteArrayList<>();

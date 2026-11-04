@@ -63,7 +63,7 @@ one of their names.
 - A line that no test can run, such as a constructor only a Minecraft server may call, goes into
   `coverage-exceptions.txt` next to the build file of its module, together with the reason. The lint fails when an
   entry is no longer needed, so the list cannot hide new gaps.
-- Some JDK builds cannot load the bundled OpenCV natives. Pass `-Pmcav.testJavaHome=<path to a Java 25 JDK>` to run
+- Some JDK builds cannot load the bundled OpenCV natives. Pass `-Pmcav.test_java_home=<path to a Java 25 JDK>` to run
   the tests on another JDK.
 - Tests that download from the internet, such as the check of the bundled yt-dlp release against the checksums
   published on GitHub and a real installation of yt-dlp, only run with `-Pmcav.networkTests=true`.
@@ -71,7 +71,7 @@ one of their names.
   as a server does (136–165 MB, into `~/.mcav/cache/jcef`), and on Linux the libraries the machine lacks (about
   13 MB, into `~/.mcav/cache/jcef-libraries`); they need no X server.
 - The measurements of how far the sound of a virtual machine or of a browser page drifts from its picture time real
-  events, which a busy machine delays, so they only run with `-Pmcav.syncMeasurement=true`, on a quiet machine; then
+  events, which a busy machine delays, so they only run with `-Pmcav.sync_measurement=true`, on a quiet machine; then
   each test task runs in one JVM, and no two test tasks run at the same time.
 - `test` spreads the test classes of a module over as many JVMs as half the processors of the machine, at least one;
   each JVM runs its tests one at a time. The JVMs run at the same time, so a test writes outside its temporary folders
@@ -84,7 +84,7 @@ Property tests are [jqwik](https://jqwik.net/) properties in classes named `*Pro
 source set of their module. `./gradlew check`, and so `./gradlew build`, runs both, next to the ordinary tests.
 
 - `./gradlew propertyTest` runs the properties of these twelve modules with 200 tries each (`-Pproperty.tries=<n>`);
-  `test` runs them too, with 10 tries (`-Pproperty.smokeTries=<n>`). Every property pins its seed, so a run is
+  `test` runs them too, with 10 tries (`-Pproperty.smoke_tries=<n>`). Every property pins its seed, so a run is
   reproducible and a failure reports the seed and the shrunk sample. `propertyTest` keeps jqwik's run database in
   `build/jqwik-database-propertyTest` of the module; `test` keeps none, as its JVMs would overwrite one another's.
 - `./gradlew fuzzTest` replays the committed inputs of every fuzz test, the seed corpus and every crash reproducer in
@@ -144,9 +144,9 @@ fails on a variable, parameter or field named by one letter or by a short form a
 `./gradlew :<module>:pitest` runs [PIT](https://pitest.org/) on a module: it changes the compiled code in small ways,
 such as flipping a condition, and reruns the tests to see whether one of them notices. PIT writes the report to
 `build/reports/pitest` of the module. PIT is not part of `check`, because it reruns the tests many times; it uses the
-ordinary `test` task's JVM options and system properties once, including `mcav.networkTests`, `mcav.syncMeasurement`,
+ordinary `test` task's JVM options and system properties once, including `mcav.networkTests`, `mcav.sync_measurement`,
 `jqwik.database`, `jqwik.failures.after.default` and the ordinary smoke tries (`jqwik.tries.default`). It honors
-`-Pmcav.testJavaHome`; the property and fuzz tasks keep their separate roles and budgets.
+`-Pmcav.test_java_home`; the property and fuzz tasks keep their separate roles and budgets.
 
 ## End-to-end test
 
