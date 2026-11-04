@@ -55,7 +55,7 @@ public final class TextFilter extends MatVideoFilter {
    * @param font     the font, one of the {@code FONT_HERSHEY_} constants of {@link opencv_imgproc}
    * @param scale    the size of the text relative to the base size of the font, which must be positive
    * @param color    the blue, green, and red components of the color, normally 0 to 255; the non-null array is copied
-   * @throws IllegalArgumentException if {@code scale} is nonpositive or NaN
+   * @throws IllegalArgumentException if {@code scale} is not positive or is NaN
    * @throws NullPointerException     if {@code text} or {@code color} is null
    * @since 1.0.0
    */

@@ -47,7 +47,7 @@ public final class RegionScalarFilter extends MatVideoFilter {
    * @param width  the width of the rectangle, which must be positive
    * @param height the height of the rectangle, which must be positive
    * @param color  the blue, green, and red components of the color, normally 0 to 255; the non-null array is copied
-   * @throws IllegalArgumentException if the origin is negative or either size is nonpositive
+   * @throws IllegalArgumentException if the origin is negative or either size is not positive
    * @throws NullPointerException     if {@code color} is null
    * @since 1.0.0
    */

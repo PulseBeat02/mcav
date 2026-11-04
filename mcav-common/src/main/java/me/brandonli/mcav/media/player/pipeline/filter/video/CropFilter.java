@@ -49,7 +49,7 @@ public final class CropFilter extends MatVideoFilter {
    * @param top    the y coordinate of the top left corner of the rectangle
    * @param width  the width of the rectangle, which must be positive
    * @param height the height of the rectangle, which must be positive
-   * @throws IllegalArgumentException if the origin is negative or either size is nonpositive
+   * @throws IllegalArgumentException if the origin is negative or either size is not positive
    * @since 1.0.0
    */
   public CropFilter(final int left, final int top, final int width, final int height) {

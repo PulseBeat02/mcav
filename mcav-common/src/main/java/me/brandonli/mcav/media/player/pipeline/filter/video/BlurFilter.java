@@ -50,7 +50,7 @@ public final class BlurFilter extends MatVideoFilter {
    *                   from the kernel size
    * @param sigmaY     the vertical standard deviation, only used by {@link BlurType#GAUSSIAN}; 0 uses the
    *                   horizontal value
-   * @throws IllegalArgumentException if the kernel is nonpositive, even for a non-normal blur,
+   * @throws IllegalArgumentException if the kernel is not positive or is even for a non-normal blur,
    *                                  or a sigma is negative or NaN
    * @throws NullPointerException     if {@code type} is null
    * @since 1.0.0
@@ -77,7 +77,7 @@ public final class BlurFilter extends MatVideoFilter {
    * @param kernelSize the size of the blur kernel, which must be positive, and odd for every type but
    *                   {@link BlurType#NORMAL}
    * @throws NullPointerException     if {@code type} is null
-   * @throws IllegalArgumentException if the kernel is nonpositive or even for a non-normal blur
+   * @throws IllegalArgumentException if the kernel is not positive or is even for a non-normal blur
    * @since 1.0.0
    */
   public BlurFilter(final BlurType type, final int kernelSize) {

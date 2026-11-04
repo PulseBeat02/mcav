@@ -46,7 +46,7 @@ public final class BilateralFilter extends MatVideoFilter {
    * @param diameter   the diameter of the pixel neighborhood used for filtering, which must be positive
    * @param sigmaColor how far apart colors may be to still be mixed; larger values blur more
    * @param sigmaSpace how far apart pixels may be to still influence each other; larger values blur more
-   * @throws IllegalArgumentException if the diameter is nonpositive, or a sigma is nonpositive or NaN
+   * @throws IllegalArgumentException if the diameter is not positive, or a sigma is not positive or is NaN
    * @since 1.0.0
    */
   public BilateralFilter(final int diameter, final double sigmaColor, final double sigmaSpace) {

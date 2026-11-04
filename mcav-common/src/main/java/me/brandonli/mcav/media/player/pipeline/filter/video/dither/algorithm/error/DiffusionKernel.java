@@ -179,9 +179,9 @@ public final class DiffusionKernel {
    * @param name    the name of the algorithm the kernel belongs to
    * @param divisor the strictly positive divisor of each weight
    * @param taps    the nonempty array of non-null {@code {dx, dy, weight}} triples, copied by this constructor
-   * @throws IllegalArgumentException if the divisor is nonpositive, there are no taps, a tap has other than
+   * @throws IllegalArgumentException if the divisor is not positive, there are no taps, a tap has other than
    *                                  three elements, or a tap points to an already processed pixel, reaches farther than
-   *                                  {@link #MAXIMUM_OFFSET} pixels, or has a non-positive weight
+   *                                  {@link #MAXIMUM_OFFSET} pixels, or has a weight that is not positive
    * @throws NullPointerException     if the name, the taps or one of the taps is null
    * @since 1.0.0
    */

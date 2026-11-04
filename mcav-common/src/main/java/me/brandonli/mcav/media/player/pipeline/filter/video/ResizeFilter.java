@@ -53,7 +53,7 @@ public final class ResizeFilter extends MatVideoFilter {
    *
    * @param width  the target width in pixels
    * @param height the target height in pixels
-   * @throws IllegalArgumentException if either target dimension is nonpositive
+   * @throws IllegalArgumentException if either target dimension is not positive
    * @since 1.0.0
    */
   public ResizeFilter(final int width, final int height) {

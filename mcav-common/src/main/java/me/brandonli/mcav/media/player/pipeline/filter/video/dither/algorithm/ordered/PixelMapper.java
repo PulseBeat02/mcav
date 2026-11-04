@@ -75,7 +75,7 @@ public interface PixelMapper {
    * @param strength the finite strength, not negative, see {@link #NORMAL_STRENGTH}
    * @return the mapper
    * @throws NullPointerException     if the matrix or any supplied row is null
-   * @throws IllegalArgumentException if the strength is negative or nonfinite, or {@code maximum} is nonpositive
+   * @throws IllegalArgumentException if the strength is negative or nonfinite, or {@code maximum} is not positive
    * @since 1.0.0
    */
   static PixelMapper ofPixelMapper(final ThresholdMatrix matrix, final int maximum, final float strength) {
@@ -111,7 +111,7 @@ public interface PixelMapper {
    * @param strength the finite strength, not negative, see {@link #NORMAL_STRENGTH}
    * @return the mapper
    * @throws NullPointerException     if the matrix or any supplied row is null
-   * @throws IllegalArgumentException if the strength is negative or nonfinite, or {@code maximum} is nonpositive
+   * @throws IllegalArgumentException if the strength is negative or nonfinite, or {@code maximum} is not positive
    *                                  or the matrix is empty or has unequal or empty rows
    * @since 1.0.0
    */

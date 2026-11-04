@@ -59,7 +59,7 @@ public abstract class AbstractDitherAlgorithm implements DitherAlgorithm {
    *
    * @param buffer the pixels
    * @param width  the width of the image
-   * @throws IllegalArgumentException if width is nonpositive or does not divide the buffer length
+   * @throws IllegalArgumentException if width is not positive or does not divide the buffer length
    * @throws NullPointerException     if {@code buffer} is null
    * @since 1.0.0
    */

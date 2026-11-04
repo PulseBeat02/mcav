@@ -82,7 +82,7 @@ public interface DitherAlgorithm {
    * @param buffer the ARGB pixels laid out row by row, which are replaced with palette colors
    * @param width  the strictly positive width, which must divide the buffer length; an empty buffer is allowed
    * @throws NullPointerException     if {@code buffer} is null
-   * @throws IllegalArgumentException if width is nonpositive or does not divide the buffer length
+   * @throws IllegalArgumentException if width is not positive or does not divide the buffer length
    * @since 1.0.0
    */
   void dither(final int[] buffer, final int width);
