@@ -109,10 +109,10 @@ There are two factories. Both return a new resampler that you must close:
 
 Sample rates are in hertz and must be positive, and channel counts must be between 1 and
 `AudioResampler.MAXIMUM_CHANNELS`, which is 8, the number of channels of a 7.1 layout. Otherwise the factories throw an
-`IllegalArgumentException`; a `null` format throws a `NullPointerException`, and they throw an `IllegalStateException`
-if FFmpeg cannot set up the conversion. Channel counts map to FFmpeg's default layouts (mono, stereo, 2.1, quad, 5.0,
-5.1, 6.1, and 7.1). FFmpeg rematrixes channels according to their speaker positions; surround downmixing uses
-weighted contributions rather than an equal average of every channel.
+`IllegalArgumentException`; a `null` format throws a `NullPointerException`, and they throw an `MCAVException` if FFmpeg
+cannot set up the conversion. Channel counts map to FFmpeg's default layouts (mono, stereo, 2.1, quad, 5.0, 5.1, 6.1,
+and 7.1). FFmpeg rematrixes channels according to their speaker positions; surround downmixing uses weighted
+contributions rather than an equal average of every channel.
 
 The resampler has three methods:
 
@@ -128,10 +128,10 @@ The resampler has three methods:
   keep them. Closing a closed resampler does nothing. `AudioResampler` implements `AutoCloseable`, so you can use it
   in a try-with-resources statement.
 
-After `close()`, `resample` and `flush` throw an `IllegalStateException`, which they also throw if FFmpeg fails to
-convert, drain, or reset. `isClosed()` tells whether the resampler has been closed, and `getInputSampleRate()`,
-`getInputChannels()`, `getInputFormat()`, `getOutputSampleRate()`, `getOutputChannels()`, and `getOutputFormat()`
-return the formats it was created with.
+After `close()`, `resample` and `flush` throw an `IllegalStateException`, and they throw an `MCAVException` if FFmpeg
+fails to convert, drain, or reset. `isClosed()` tells whether the resampler has been closed, and `getInputSampleRate()`,
+`getInputChannels()`, `getInputFormat()`, `getOutputSampleRate()`, `getOutputChannels()`, and `getOutputFormat()` return
+the formats it was created with.
 
 ```{warning}
 A resampler keeps state between calls and is not thread-safe: use it from one thread at a time. A filter of an audio
