@@ -115,6 +115,8 @@ final class AbstractImageCommandTest {
   private static final String DISCARD_FATAL_FILE_NAME = "discard-fatal.png";
   private static final String CONFIGURATION_CLEANUP_FATAL_FILE_NAME = "config-cleanup-fatal.png";
 
+  private static final int EPHEMERAL_PORT = 0;
+
   @TempDir
   private Path folder;
 
@@ -343,7 +345,7 @@ final class AbstractImageCommandTest {
     final String path = PICTURE_PATH;
     final byte[] bytes = this.encode(PNG_FORMAT);
     final InetAddress loopback = InetAddress.getLoopbackAddress();
-    final InetSocketAddress address = new InetSocketAddress(loopback, 0);
+    final InetSocketAddress address = new InetSocketAddress(loopback, EPHEMERAL_PORT);
     this.server = HttpServer.create(address, 0);
     this.server.createContext(path, exchange -> this.sendImage(exchange, bytes));
     this.server.start();

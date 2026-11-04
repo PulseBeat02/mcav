@@ -50,6 +50,8 @@ final class TonePage implements AutoCloseable {
   private static final String LOOPBACK_HOST = "localhost";
   private static final byte[] LOOPBACK_OCTETS = { 127, 0, 0, 1 };
 
+  private static final int EPHEMERAL_PORT = 0;
+
   private static final String TONE_PATH = "/tone";
 
   private final HttpServer server;
@@ -61,7 +63,7 @@ final class TonePage implements AutoCloseable {
   // 127.0.0.1, the address the browser is sent to, even where Java prefers IPv6
   static TonePage start() throws IOException {
     final InetAddress loopback = InetAddress.getByAddress(LOOPBACK_HOST, LOOPBACK_OCTETS);
-    final HttpServer server = HttpServer.create(new InetSocketAddress(loopback, 0), 0);
+    final HttpServer server = HttpServer.create(new InetSocketAddress(loopback, EPHEMERAL_PORT), 0);
     server.createContext(TONE_PATH, TonePage::sendPage);
     server.start();
     return new TonePage(server);

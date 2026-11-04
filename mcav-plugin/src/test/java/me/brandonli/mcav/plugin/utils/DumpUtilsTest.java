@@ -81,6 +81,8 @@ final class DumpUtilsTest {
 
   private static final String COMMAND_PROPERTY = "sun.java.command";
 
+  private static final int EPHEMERAL_PORT = 0;
+
   @TempDir
   private Path folder;
 
@@ -102,7 +104,7 @@ final class DumpUtilsTest {
     this.answer = "{\"key\":\"abc123\"}";
     this.release = new CountDownLatch(0);
     final InetAddress loopback = InetAddress.getLoopbackAddress();
-    final InetSocketAddress address = new InetSocketAddress(loopback, 0);
+    final InetSocketAddress address = new InetSocketAddress(loopback, EPHEMERAL_PORT);
     this.server = HttpServer.create(address, 0);
     this.server.createContext(ROOT_PATH, this::answerUpload);
     this.server.setExecutor(this.handlers);
