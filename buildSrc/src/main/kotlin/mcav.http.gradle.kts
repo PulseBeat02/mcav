@@ -59,12 +59,9 @@ val builtJarPath: String = "libs/mcav-http.jar"
 val node: NodeExtension = rootProject.extensions.getByType<NodeExtension>()
 val nodeSetup: TaskProvider<Task> = rootProject.tasks.named(NodeLayout.SETUP_TASK_NAME)
 val host: HostPlatform = HostPlatform.current()
-val isWindows: Boolean = host.isWindows
 val nodeDirectory: Directory = node.resolvedNodeDir.get()
-val nodeExecutable: File = nodeDirectory.file(if (isWindows) "node.exe" else "bin/node").asFile
-// node-gradle unpacks the bin/corepack symlink as an empty file, so corepack runs through node
-val corepackScript: String = if (isWindows) "node_modules/corepack/dist/corepack.js" else "lib/node_modules/corepack/dist/corepack.js"
-val corepack: File = nodeDirectory.file(corepackScript).asFile
+val nodeExecutable: File = NodeLayout.executable(nodeDirectory, host).asFile
+val corepack: File = NodeLayout.corepackScript(nodeDirectory, host).asFile
 val nodePath: String = "${nodeExecutable.parentFile.absolutePath}${File.pathSeparator}${System.getenv(pathVariable)}"
 
 val pnpmProjectInstall: TaskProvider<Exec> = tasks.register<Exec>("pnpmProjectInstall") {

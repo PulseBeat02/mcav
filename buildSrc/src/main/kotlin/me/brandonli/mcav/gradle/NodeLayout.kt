@@ -22,9 +22,11 @@ import org.gradle.api.file.Directory
 import org.gradle.api.file.RegularFile
 
 /**
- * Names the setup task of the Node Gradle plugin and locates the executable of the Node.js installation it unpacks.
+ * Names the setup task of the Node Gradle plugin and locates the executable and the corepack script of the Node.js
+ * installation it unpacks.
  *
- * Node's archives for Linux and macOS keep the executable in `bin`; the Windows archive keeps it at its top.
+ * Node's archives for Linux and macOS keep the executable in `bin` and corepack in `lib/node_modules`; the Windows
+ * archive keeps the executable and `node_modules` at its top.
  */
 object NodeLayout {
 
@@ -36,6 +38,9 @@ object NodeLayout {
     private const val UNIX_EXECUTABLE: String = "bin/node"
     private const val WINDOWS_EXECUTABLE: String = "node.exe"
 
+    private const val UNIX_COREPACK_SCRIPT: String = "lib/node_modules/corepack/dist/corepack.js"
+    private const val WINDOWS_COREPACK_SCRIPT: String = "node_modules/corepack/dist/corepack.js"
+
     /**
      * Returns the Node executable of an installation.
      *
@@ -45,6 +50,20 @@ object NodeLayout {
      */
     fun executable(installation: Directory, platform: HostPlatform): RegularFile {
         val path: String = if (platform.isWindows) WINDOWS_EXECUTABLE else UNIX_EXECUTABLE
+        return installation.file(path)
+    }
+
+    /**
+     * Returns the corepack script of an installation, to run with the Node executable.
+     *
+     * node-gradle unpacks the `bin/corepack` symlink as an empty file, so corepack cannot run on its own.
+     *
+     * @param installation the directory Node is unpacked into
+     * @param platform     the platform the installation is for
+     * @return the script
+     */
+    fun corepackScript(installation: Directory, platform: HostPlatform): RegularFile {
+        val path: String = if (platform.isWindows) WINDOWS_COREPACK_SCRIPT else UNIX_COREPACK_SCRIPT
         return installation.file(path)
     }
 }

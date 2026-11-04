@@ -104,6 +104,7 @@ val javaProperty: String = "mcav.e2e.java"
 val legacyFormattingWarningProperty: String = "net.kyori.adventure.text.warnWhenLegacyFormattingDetected"
 val voiceChatModrinthProject: String = "simple-voice-chat"
 val sparkJobUrl: String = "https://ci.lucko.me/job/spark"
+val sparkArtifactPath: String = "artifact/spark-bukkit/build/libs"
 
 val minecraftVersion: String = CatalogUtils.versionOf(libs, minecraftAlias)
 private val paperVersion: PaperVersion = PaperVersion.parse(CatalogUtils.versionOf(libs, paperAlias))
@@ -218,7 +219,7 @@ paperPluginYaml {
     prefix = pluginLogPrefix
     loader = pluginLoaderClass
     main = pluginMainClass
-    dependencies.server(voiceChatPlugin, PaperPluginYaml.Load.BEFORE, false)
+    dependencies.server(voiceChatPlugin, PaperPluginYaml.Load.BEFORE, required = false)
     defaultPermission = Permission.Default.OP
     permissions {
         pluginPermissions.forEach { (name, text) -> register(name) { description = text } }
@@ -310,7 +311,8 @@ tasks.runServer {
     this.downloadPlugins {
         this.modrinth(voiceChatModrinthProject, CatalogUtils.versionOf(libs, voiceChatAlias))
 
-        val spark: String = CatalogUtils.versionOf(libs, sparkAlias)
-        this.url("$sparkJobUrl/${CatalogUtils.versionOf(libs, sparkBuildAlias)}/artifact/spark-bukkit/build/libs/spark-$spark-bukkit.jar")
+        val sparkVersion: String = CatalogUtils.versionOf(libs, sparkAlias)
+        val sparkBuild: String = CatalogUtils.versionOf(libs, sparkBuildAlias)
+        this.url("$sparkJobUrl/$sparkBuild/$sparkArtifactPath/spark-$sparkVersion-bukkit.jar")
     }
 }
