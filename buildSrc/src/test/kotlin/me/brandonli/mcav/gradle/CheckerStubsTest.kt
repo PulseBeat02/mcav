@@ -92,7 +92,7 @@ class CheckerStubsTest {
     }
 
     private fun stubNamesOf(project: String): List<String> {
-        val stubs: List<File> = CheckerStubs.forProject(this.directory.toFile(), project)
+        val stubs: List<File> = CheckerStubs.foldersFor(this.directory.toFile(), project)
         return stubs.map { it.name }
     }
 }

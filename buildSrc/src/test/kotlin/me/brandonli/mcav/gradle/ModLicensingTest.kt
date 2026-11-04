@@ -71,7 +71,7 @@ class ModLicensingTest {
         GradleRunner.create()
             .withProjectDir(project)
             .withPluginClasspath()
-            .withArguments("jar", "fabricJar", "neoforgeJar", "--no-parallel", "--max-workers=1")
+            .withArguments("jar", "fabricJar", "neoForgeJar", "--no-parallel", "--max-workers=1")
             .build()
 
         val archives: Map<String, List<Any?>> = listOf("plain", "fabric", "neoforge").associateWith(this::describeArchive)

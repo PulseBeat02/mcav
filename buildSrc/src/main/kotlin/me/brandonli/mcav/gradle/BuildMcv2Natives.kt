@@ -213,8 +213,8 @@ abstract class BuildMcv2Natives : DefaultTask() {
             val targets: List<NativeTarget> = listOf(LINUX, WINDOWS, MACOS).flatMap(this::targetsOf)
             val compiles: List<Runnable> = targets.flatMap(this::planCompiles)
             val links: List<Runnable> = targets.map { this.planLink(natives, it) }
-            this.inParallel(compiles)
-            this.inParallel(links)
+            this.runInParallel(compiles)
+            this.runInParallel(links)
 
             val libraries: List<File> = targets.map { this.libraryOf(natives, it) }
             this.writeManifest(natives.resolve(CHECKSUMS_MANIFEST), natives, libraries)
@@ -354,7 +354,7 @@ abstract class BuildMcv2Natives : DefaultTask() {
             return Files.list(directory.toPath()).use { paths -> paths.map { it.toFile() }.toList() }
         }
 
-        private fun inParallel(steps: List<Runnable>): Unit {
+        private fun runInParallel(steps: List<Runnable>): Unit {
             val processCount: Int = this.parameters.processCount.get()
             val pool: ExecutorService = this.newPool(minOf(processCount, steps.size))
             try {

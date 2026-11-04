@@ -40,7 +40,7 @@ class HostPlatform private constructor(val operatingSystem: String, val architec
     companion object {
 
         private const val WINDOWS: String = "windows"
-        private const val WIN: String = "win"
+        private const val WINDOWS_SHORT_NAME: String = "win"
         private const val MAC: String = "mac"
         private const val DARWIN: String = "darwin"
         private const val LINUX: String = "linux"
@@ -153,7 +153,7 @@ class HostPlatform private constructor(val operatingSystem: String, val architec
         get() {
             return when {
                 this.operatingSystem.contains(MAC) || this.operatingSystem.contains(DARWIN) -> this.macosNatives()
-                this.operatingSystem.contains(WIN) -> this.windowsNatives()
+                this.operatingSystem.contains(WINDOWS_SHORT_NAME) -> this.windowsNatives()
                 this.operatingSystem.contains(FREEBSD) -> this.freebsdNatives()
                 this.operatingSystem.contains(LINUX) -> this.linuxNatives()
                 else -> null

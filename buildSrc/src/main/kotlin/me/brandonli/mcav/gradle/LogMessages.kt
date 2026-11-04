@@ -38,7 +38,7 @@ object LogMessages {
 
     private val CALL: Regex = Regex("""\b([A-Za-z_][A-Za-z0-9_]*)\s*\.\s*(trace|debug|info|warn|error)\s*\(""")
 
-    private val LOGGER: Regex = Regex("""(?:[A-Z][A-Z0-9_]*_)?LOG(?:GER)?|log(?:ger)?|[a-z][A-Za-z0-9]*Logger""")
+    private val LOGGER_NAME: Regex = Regex("""(?:[A-Z][A-Z0-9_]*_)?LOG(?:GER)?|log(?:ger)?|[a-z][A-Za-z0-9]*Logger""")
 
     private val OPENING: Set<Char> = setOf('(', '[', '{')
     private val CLOSING: Set<Char> = setOf(')', ']', '}')
@@ -53,7 +53,7 @@ object LogMessages {
         val code: String = JavaSource.mask(source)
         val text: String = JavaSource.withoutComments(source)
         return CALL.findAll(code)
-            .filter { LOGGER.matches(it.groupValues[RECEIVER_GROUP]) }
+            .filter { LOGGER_NAME.matches(it.groupValues[RECEIVER_GROUP]) }
             .filter { this.isConcatenated(text, code, it) }
             .map { this.messageOf(source, it) }
             .toList()

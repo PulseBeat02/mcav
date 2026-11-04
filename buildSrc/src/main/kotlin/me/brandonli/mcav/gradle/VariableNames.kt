@@ -92,7 +92,7 @@ object VariableNames {
         val compiler: JavaCompiler = ToolProvider.getSystemJavaCompiler()
         val task: JavacTask = compiler.getTask(null, null, { }, listOf("-proc:none"), null, files) as JavacTask
         val positions: SourcePositions = Trees.instance(task).sourcePositions
-        return task.parse().associate { it.sourceFile.toUri() to Scanner(it, positions).names() }
+        return task.parse().associate { it.sourceFile.toUri() to Scanner(it, positions).findNames() }
     }
 
     private fun findInFiles(files: List<File>, manager: StandardJavaFileManager): Map<File, List<UndescriptiveName>> {
@@ -109,7 +109,7 @@ object VariableNames {
 
         private val found: MutableList<UndescriptiveName> = mutableListOf<UndescriptiveName>()
 
-        fun names(): List<UndescriptiveName> {
+        fun findNames(): List<UndescriptiveName> {
             this.scan(this.unit, Unit)
 
             return this.found

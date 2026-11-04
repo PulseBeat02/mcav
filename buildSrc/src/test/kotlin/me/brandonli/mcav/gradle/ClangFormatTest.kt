@@ -51,7 +51,7 @@ class ClangFormatTest {
         val processes: RecordedProcesses = RecordedProcesses(VERSION_OUTPUT)
         val task: RecordingFormat = this.createTask(processes)
         task.rewrite.set(false)
-        task.format()
+        task.runClangFormat()
 
         val commands: List<List<String>> = processes.commands
         assertEquals(
@@ -68,7 +68,7 @@ class ClangFormatTest {
         val processes: RecordedProcesses = RecordedProcesses(VERSION_OUTPUT)
         val task: RecordingFormat = this.createTask(processes)
         task.rewrite.set(true)
-        task.format()
+        task.runClangFormat()
 
         val expected: List<List<String>> =
             listOf(listOf(this.clangFormat(), VERSION_OPTION), listOf(this.clangFormat(), "-i", STYLE_OPTION) + this.sources())
@@ -82,7 +82,7 @@ class ClangFormatTest {
         val task: RecordingFormat = this.createTask(processes)
         task.rewrite.set(true)
 
-        val failure: GradleException = assertThrows(GradleException::class.java) { task.format() }
+        val failure: GradleException = assertThrows(GradleException::class.java) { task.runClangFormat() }
         val message: String? = failure.message
         assertEquals(
             "${this.clangFormat()} reports Ubuntu clang-format version 19.1.1, which is not the clang-format 18.1.8 this build pins!",
