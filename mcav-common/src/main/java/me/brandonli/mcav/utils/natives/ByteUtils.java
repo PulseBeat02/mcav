@@ -58,7 +58,7 @@ public final class ByteUtils {
     return switch (buffer) {
       case final ShortBuffer shorts -> shortsToLittleEndian(shorts);
       case final FloatBuffer floats -> floatsToLittleEndian(floats);
-      case final ByteBuffer bytes -> swapSamples(bytes, ByteOrder.LITTLE_ENDIAN);
+      case final ByteBuffer bytes -> toByteOrder(bytes, ByteOrder.LITTLE_ENDIAN);
       default -> {
         final Class<? extends Buffer> type = buffer.getClass();
         final String message = "Sample buffer type %s is not supported!".formatted(type);
@@ -105,10 +105,10 @@ public final class ByteUtils {
   public static ByteBuffer toBigEndian(final ByteBuffer samples) {
     Preconditions.checkNotNull(samples, "Samples must not be null!");
 
-    return swapSamples(samples, ByteOrder.BIG_ENDIAN);
+    return toByteOrder(samples, ByteOrder.BIG_ENDIAN);
   }
 
-  private static ByteBuffer swapSamples(final ByteBuffer samples, final ByteOrder target) {
+  private static ByteBuffer toByteOrder(final ByteBuffer samples, final ByteOrder target) {
     final ByteBuffer source = samples.duplicate();
     final ByteOrder sourceOrder = samples.order();
     source.order(sourceOrder);

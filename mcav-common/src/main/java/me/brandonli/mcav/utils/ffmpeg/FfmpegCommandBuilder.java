@@ -74,7 +74,7 @@ public interface FfmpegCommandBuilder {
    * @throws NullPointerException if {@code bitrate} is null
    * @since 1.0.0
    */
-  FfmpegCommandBuilder addBitrate(final String bitrate);
+  FfmpegCommandBuilder addVideoBitrate(final String bitrate);
 
   /**
    * Sets the audio bitrate ({@code -b:a}).
@@ -89,12 +89,12 @@ public interface FfmpegCommandBuilder {
   /**
    * Sets the frame rate ({@code -r}).
    *
-   * @param framerate the frame rate in frames per second
+   * @param frameRate the frame rate in frames per second
    * @return this builder
    * @throws IllegalArgumentException if the frame rate is not positive
    * @since 1.0.0
    */
-  FfmpegCommandBuilder addFramerate(final int framerate);
+  FfmpegCommandBuilder addFrameRate(final int frameRate);
 
   /**
    * Sets the frame size ({@code -s}).

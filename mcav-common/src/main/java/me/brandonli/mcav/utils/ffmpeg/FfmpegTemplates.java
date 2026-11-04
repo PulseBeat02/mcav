@@ -121,7 +121,7 @@ public final class FfmpegTemplates {
     final FfmpegCommandBuilder builder = FfmpegCommand.builder();
     builder.addInput(input);
     builder.addVideoCodec(H264_CODEC);
-    builder.addBitrate(videoBitrate);
+    builder.addVideoBitrate(videoBitrate);
     builder.addAudioCodec(AAC_CODEC);
     builder.addAudioBitrate(audioBitrate);
     builder.addOverwrite();

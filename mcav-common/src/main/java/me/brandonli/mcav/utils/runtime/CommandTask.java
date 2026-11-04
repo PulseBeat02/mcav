@@ -303,8 +303,8 @@ public final class CommandTask {
       this.output = awaitOutput(outputFuture, timeout, startNanoseconds);
       this.errorOutput = awaitOutput(errorFuture, timeout, startNanoseconds);
     } catch (final InterruptedException exception) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
       this.destroyProcessTree(started);
       final String message = "Waiting for command %s was interrupted!".formatted(this.command);
       throw new ProcessException(message, exception);

@@ -71,7 +71,7 @@ final class DefaultFfmpegCommandBuilder implements FfmpegCommandBuilder {
   }
 
   @Override
-  public FfmpegCommandBuilder addBitrate(final String bitrate) {
+  public FfmpegCommandBuilder addVideoBitrate(final String bitrate) {
     Preconditions.checkNotNull(bitrate, BITRATE_NULL_MESSAGE);
 
     this.arguments.add("-b:v");
@@ -89,11 +89,11 @@ final class DefaultFfmpegCommandBuilder implements FfmpegCommandBuilder {
   }
 
   @Override
-  public FfmpegCommandBuilder addFramerate(final int framerate) {
-    Preconditions.checkArgument(framerate > 0, "Frame rate %s must be positive!", framerate);
+  public FfmpegCommandBuilder addFrameRate(final int frameRate) {
+    Preconditions.checkArgument(frameRate > 0, "Frame rate %s must be positive!", frameRate);
 
     this.arguments.add("-r");
-    final String value = String.valueOf(framerate);
+    final String value = String.valueOf(frameRate);
     this.arguments.add(value);
     return this;
   }
