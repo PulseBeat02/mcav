@@ -257,13 +257,7 @@ class JcefNativesTest {
 
       final boolean plausibleSize = platform.getSize() > 100_000_000L && platform.getSize() < 200_000_000L;
       assertTrue(plausibleSize, platform.getIdentifier());
-
-      final long platformMegabytes = JcefNatives.NativePlatform.approximateMegabytes(platform.getIdentifier());
-      assertEquals(platform.getSize() / (1024L * 1024L), platformMegabytes);
     }
-
-    final long unknownPlatformMegabytes = JcefNatives.NativePlatform.approximateMegabytes("amiga-m68k");
-    assertEquals(0L, unknownPlatformMegabytes);
   }
 
   @Test
@@ -544,7 +538,7 @@ class JcefNativesTest {
 
   @Test
   @ResourceLock(Resources.SYSTEM_ERR)
-  void shouldLogHowLongTheInstallationTook() throws IOException {
+  void shouldLogTheDownloadSizeAndHowLongTheInstallationTook() throws IOException {
     final JcefNatives natives = this.natives(this.nativesJar(JarContent.WITH_ARCHIVE));
     final PrintStream standardError = System.err;
     final ByteArrayOutputStream captured = new ByteArrayOutputStream();
@@ -563,6 +557,9 @@ class JcefNativesTest {
     final long elapsed = Long.parseLong(installTime.group(1));
     final boolean plausible = elapsed < MAXIMUM_INSTALL_MILLISECONDS;
     assertTrue(plausible, log);
+
+    final boolean sizeLogged = log.contains("(190 MB, once)");
+    assertTrue(sizeLogged, log);
   }
 
   @Test

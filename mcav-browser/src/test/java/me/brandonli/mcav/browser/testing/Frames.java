@@ -17,12 +17,14 @@
  */
 package me.brandonli.mcav.browser.testing;
 
+import com.google.common.base.MoreObjects;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.StringJoiner;
 import java.util.concurrent.CopyOnWriteArrayList;
 import javax.imageio.ImageIO;
@@ -102,7 +104,7 @@ public final class Frames {
     final int center = pixels[centerIndex] & RGB_MASK;
     final int metadataWidth = metadata.getVideoWidth();
     final int metadataHeight = metadata.getVideoHeight();
-    final Frame frame = new Frame(width, height, center, metadataWidth, metadataHeight);
+    final Frame frame = Frame.of(width, height, center, metadataWidth, metadataHeight);
     this.frames.add(frame);
 
     return false;
@@ -110,15 +112,6 @@ public final class Frames {
 
   public int count() {
     return this.frames.size();
-  }
-
-  public @Nullable Frame last() {
-    final List<Frame> copy = this.getFrames();
-    if (copy.isEmpty()) {
-      return null;
-    }
-
-    return copy.getLast();
   }
 
   public Frame requireLast() {
@@ -129,6 +122,19 @@ public final class Frames {
     }
 
     return frame;
+  }
+
+  private @Nullable Frame last() {
+    final List<Frame> copy = this.copyFrames();
+    if (copy.isEmpty()) {
+      return null;
+    }
+
+    return copy.getLast();
+  }
+
+  private List<Frame> copyFrames() {
+    return List.copyOf(this.frames);
   }
 
   public boolean lastShows(final int rgb) {
@@ -142,7 +148,7 @@ public final class Frames {
   }
 
   public String describeLast() {
-    final List<Frame> all = this.getFrames();
+    final List<Frame> all = this.copyFrames();
     if (all.isEmpty()) {
       return "no frame";
     }
@@ -172,10 +178,6 @@ public final class Frames {
     return String.format(Locale.ROOT, "%06x", color);
   }
 
-  public List<Frame> getFrames() {
-    return List.copyOf(this.frames);
-  }
-
   public static final class Frame {
 
     private final int width;
@@ -184,12 +186,16 @@ public final class Frames {
     private final int metadataWidth;
     private final int metadataHeight;
 
-    Frame(final int width, final int height, final int center, final int metadataWidth, final int metadataHeight) {
+    private Frame(final int width, final int height, final int center, final int metadataWidth, final int metadataHeight) {
       this.width = width;
       this.height = height;
       this.center = center;
       this.metadataWidth = metadataWidth;
       this.metadataHeight = metadataHeight;
+    }
+
+    static Frame of(final int width, final int height, final int center, final int metadataWidth, final int metadataHeight) {
+      return new Frame(width, height, center, metadataWidth, metadataHeight);
     }
 
     public int getWidth() {
@@ -211,6 +217,41 @@ public final class Frames {
 
     public int getMetadataHeight() {
       return this.metadataHeight;
+    }
+
+    @Override
+    public boolean equals(final @Nullable Object other) {
+      if (this == other) {
+        return true;
+      }
+
+      if (!(other instanceof final Frame frame)) {
+        return false;
+      }
+
+      return (
+        this.width == frame.width &&
+        this.height == frame.height &&
+        this.center == frame.center &&
+        this.metadataWidth == frame.metadataWidth &&
+        this.metadataHeight == frame.metadataHeight
+      );
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(this.width, this.height, this.center, this.metadataWidth, this.metadataHeight);
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+        .add("width", this.width)
+        .add("height", this.height)
+        .add("center", this.center)
+        .add("metadataWidth", this.metadataWidth)
+        .add("metadataHeight", this.metadataHeight)
+        .toString();
     }
   }
 }

@@ -221,22 +221,7 @@ final class PageCompositor implements MCAVOffscreenBrowser.PaintListener {
     return this.page.length;
   }
 
-  private static final class Popup {
-
-    private final Rectangle bounds;
-    private final byte[] pixels;
-
-    Popup(final Rectangle bounds, final byte[] pixels) {
-      this.bounds = bounds;
-      this.pixels = pixels;
-    }
-
-    Rectangle bounds() {
-      return this.bounds;
-    }
-
-    byte[] pixels() {
-      return this.pixels;
-    }
-  }
+  // a private tuple that is never compared or hashed, so its array component needs no deep equality
+  @SuppressWarnings("ArrayRecordComponent")
+  private record Popup(Rectangle bounds, byte[] pixels) {}
 }

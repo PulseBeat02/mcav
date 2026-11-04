@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.browser.testing;
 
+import com.google.common.base.MoreObjects;
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
@@ -35,8 +36,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 // Web pages on the loopback interface for browser tests: each page has its own color, so the frames show which one
 // is on screen.
@@ -621,23 +624,42 @@ public final class TestPages implements AutoCloseable {
     }
 
     @Override
-    public String toString() {
+    public boolean equals(final @Nullable Object other) {
+      if (this == other) {
+        return true;
+      }
+
+      if (!(other instanceof final PageEvent pageEvent)) {
+        return false;
+      }
+
       return (
-        this.page +
-        " " +
-        this.type +
-        " " +
-        this.pageX +
-        "," +
-        this.pageY +
-        " button " +
-        this.button +
-        " buttons " +
-        this.buttons +
-        " key '" +
-        this.key +
-        "'"
+        this.page.equals(pageEvent.page) &&
+        this.type.equals(pageEvent.type) &&
+        this.pageX == pageEvent.pageX &&
+        this.pageY == pageEvent.pageY &&
+        this.button == pageEvent.button &&
+        this.buttons == pageEvent.buttons &&
+        this.key.equals(pageEvent.key)
       );
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(this.page, this.type, this.pageX, this.pageY, this.button, this.buttons, this.key);
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+        .add("page", this.page)
+        .add("type", this.type)
+        .add("pageX", this.pageX)
+        .add("pageY", this.pageY)
+        .add("button", this.button)
+        .add("buttons", this.buttons)
+        .add("key", this.key)
+        .toString();
     }
   }
 }

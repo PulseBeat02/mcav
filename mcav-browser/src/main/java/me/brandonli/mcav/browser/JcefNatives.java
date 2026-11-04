@@ -207,7 +207,8 @@ final class JcefNatives {
   private void installLocked(final String identifier, final String sha256, final long size, final Path installation) throws IOException {
     final long start = System.currentTimeMillis();
     final URI uri = this.createUri(identifier);
-    LOGGER.info("Downloading the CEF natives for {} ({} MB, once).", identifier, NativePlatform.approximateMegabytes(identifier));
+    final long megabytes = size / BYTES_PER_MEGABYTE;
+    LOGGER.info("Downloading the CEF natives for {} ({} MB, once).", identifier, megabytes);
     final Path suffix = Path.of(UUID.randomUUID().toString());
     final Path download = this.folder.resolve(installation.getFileName() + NAME_SEPARATOR + suffix + JAR_SUFFIX);
     final Path staging = this.folder.resolve(installation.getFileName() + NAME_SEPARATOR + suffix + STAGING_SUFFIX);
@@ -296,16 +297,6 @@ final class JcefNatives {
       this.architecture = architecture;
       this.sha256 = sha256;
       this.size = size;
-    }
-
-    static long approximateMegabytes(final String identifier) {
-      for (final NativePlatform platform : values()) {
-        if (platform.identifier.equals(identifier)) {
-          return platform.size / BYTES_PER_MEGABYTE;
-        }
-      }
-
-      return 0L;
     }
 
     String getIdentifier() {

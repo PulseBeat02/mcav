@@ -46,6 +46,12 @@ final class SeatbeltProbeMain {
 
   private static final String PAGE_URL = "https://example.com/";
 
+  private static final int WIDTH = 640;
+  private static final int HEIGHT = 480;
+
+  private static final int FRAME_INTERVAL = 1;
+  private static final int FRAME_RATE = 30;
+
   private static final String NOT_PERMITTED_REASON = "Operation not permitted";
 
   private static final String SANDBOX_CHECK = "sandbox_check";
@@ -61,20 +67,24 @@ final class SeatbeltProbeMain {
   public static void main(final String[] arguments) throws Throwable {
     final Path server = Path.of(arguments[0]);
     final Path socket = Path.of(arguments[1]);
+    final boolean allowsJavaScriptJit = false;
+    final boolean allowsPrivateNetworks = false;
+    final boolean allowsAutoplay = false;
+    final boolean confined = true;
     final HelperConfiguration configuration = new HelperConfiguration(
       new byte[HelperProtocol.TOKEN_BYTES],
       socket,
       Path.of(arguments[NATIVES_ARGUMENT]),
       socket.resolveSibling(PROFILE_DIRECTORY),
       URI.create(PAGE_URL),
-      640,
-      480,
-      1,
-      30,
-      false,
-      false,
-      false,
-      true,
+      WIDTH,
+      HEIGHT,
+      FRAME_INTERVAL,
+      FRAME_RATE,
+      allowsJavaScriptJit,
+      allowsPrivateNetworks,
+      allowsAutoplay,
+      confined,
       server,
       List.of()
     );

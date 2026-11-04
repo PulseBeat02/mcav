@@ -277,9 +277,9 @@ final class DevToolsInput {
   static List<DevToolsCall> pressKey(final String name) {
     final KeyDefinition definition = KEYS.get(name);
     final String quotedName = quote(name);
-    final String code = definition == null ? "" : ",\"code\":" + quote(definition.getCode());
-    final int keyCode = definition == null ? NO_VIRTUAL_KEY_CODE : definition.getKeyCode();
-    final String text = definition == null ? "" : definition.getText();
+    final String code = definition == null ? "" : ",\"code\":" + quote(definition.code());
+    final int keyCode = definition == null ? NO_VIRTUAL_KEY_CODE : definition.keyCode();
+    final String text = definition == null ? "" : definition.text();
     final String keyFields = KEY_FIELD + quotedName + code + VIRTUAL_KEY_CODE_FIELD + keyCode;
     final List<DevToolsCall> calls = new ArrayList<>();
     if (text.isEmpty()) {
@@ -389,28 +389,5 @@ final class DevToolsInput {
     }
   }
 
-  private static final class KeyDefinition {
-
-    private final String code;
-    private final int keyCode;
-    private final String text;
-
-    KeyDefinition(final String code, final int keyCode, final String text) {
-      this.code = code;
-      this.keyCode = keyCode;
-      this.text = text;
-    }
-
-    private String getCode() {
-      return this.code;
-    }
-
-    private int getKeyCode() {
-      return this.keyCode;
-    }
-
-    private String getText() {
-      return this.text;
-    }
-  }
+  private record KeyDefinition(String code, int keyCode, String text) {}
 }
