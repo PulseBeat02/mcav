@@ -42,7 +42,7 @@ val installerResources: Directory = layout.projectDirectory.dir(installerResourc
 
 tasks.register<JavaExec>("generateDebianPins") {
     this.group = "build setup"
-    this.description = "Pins the Debian packages that mcav fetches QEMU from to the latest Debian archive and security snapshots"
+    this.description = "Pins the Debian packages that MCAV fetches QEMU from to the latest Debian archive and security snapshots"
     // common's own test runtime classpath may only be resolved by common's tasks
     this.classpath = commonTestClasses + testRuntimeClasspath
     this.mainClass.set(pinGeneratorClass)
