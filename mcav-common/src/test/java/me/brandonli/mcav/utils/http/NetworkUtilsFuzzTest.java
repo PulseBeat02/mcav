@@ -57,8 +57,7 @@ final class NetworkUtilsFuzzTest {
 
   @FuzzTest(maxDuration = "30s")
   void shouldTakeOnlyAnAddressThatTheServiceAnsweredWithSuccess(final FuzzedDataProvider data) {
-    // Jazzer forbids every connection once the fuzz target is ready, so the local servers are allowed in the target;
-    // the policy stays until Jazzer resets it for the next fuzz test
+    // Jazzer blocks every connection in the target, so this allows the local servers until the next fuzz test
     final SilentCloseable _ = BugDetectors.allowNetworkConnections(this.server::isServing);
     final int status = data.consumeInt(LOWEST_STATUS, HIGHEST_STATUS);
     final byte[] body = data.consumeRemainingAsBytes();
