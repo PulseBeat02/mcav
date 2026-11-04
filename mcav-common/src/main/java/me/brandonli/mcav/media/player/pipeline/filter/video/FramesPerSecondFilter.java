@@ -40,6 +40,7 @@ public final class FramesPerSecondFilter extends MatVideoFilter {
   private static final double FONT_SCALE = 0.6;
   private static final int OUTLINE_THICKNESS = 3;
   private static final int TEXT_THICKNESS = 1;
+  private static final boolean BOTTOM_LEFT_ORIGIN = false;
   private static final long WINDOW_NANOSECONDS = 1_000_000_000L;
 
   private final LongSupplier clock;
@@ -103,7 +104,7 @@ public final class FramesPerSecondFilter extends MatVideoFilter {
       color,
       thickness,
       opencv_imgproc.LINE_AA,
-      false
+      BOTTOM_LEFT_ORIGIN
     );
   }
 }

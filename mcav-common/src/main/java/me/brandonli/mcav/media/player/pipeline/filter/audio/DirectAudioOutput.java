@@ -48,8 +48,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public final class DirectAudioOutput implements FunctionalAudioFilter {
 
+  private static final boolean SIGNED = true;
+  private static final boolean BIG_ENDIAN = false;
+
   @VisibleForTesting
-  static final AudioFormat FORMAT = new AudioFormat(SAMPLE_RATE, BYTES_PER_SAMPLE * 8, CHANNELS, true, false);
+  static final AudioFormat FORMAT = new AudioFormat(SAMPLE_RATE, BYTES_PER_SAMPLE * 8, CHANNELS, SIGNED, BIG_ENDIAN);
 
   private static final Equivalence<Object> FAILURE_IDENTITY = Equivalence.identity();
   private static final int BUFFER_MILLISECONDS = 200;
