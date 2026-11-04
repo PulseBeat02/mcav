@@ -42,11 +42,7 @@ final class MapProbe implements DitherResultStep {
 
   private static final int HEXADECIMAL_RADIX = 16;
 
-  private static final int CHANNEL_MASK = 0xFF;
   private static final int RGB_MASK = 0xFFFFFF;
-
-  private static final int RED_SHIFT = 16;
-  private static final int GREEN_SHIFT = 8;
 
   private static final int FIRST_OPAQUE_COLOR_INDEX = 4;
 
@@ -58,6 +54,7 @@ final class MapProbe implements DitherResultStep {
   private final AtomicLong frames;
   private final AtomicLong lastPatchNanoseconds;
   private final ForkJoinPool ditherPool;
+
   private @Nullable DeltaMapEncoder encoder;
   private volatile @Nullable Watch watch;
 
@@ -76,17 +73,16 @@ final class MapProbe implements DitherResultStep {
 
   static byte paletteIndex(final String color) {
     final int rgb = Integer.parseInt(color.substring(1), HEXADECIMAL_RADIX);
-    final int red = (rgb >> RED_SHIFT) & CHANNEL_MASK;
-    final int green = (rgb >> GREEN_SHIFT) & CHANNEL_MASK;
-    final int blue = rgb & CHANNEL_MASK;
+    final int target = rgb & RGB_MASK;
     final DitherPalette palette = DitherPalette.DEFAULT_MAP_PALETTE;
     final int[] colors = palette.getPalette();
     for (int index = 0; index < colors.length; index++) {
       final int candidate = colors[index] & RGB_MASK;
-      if (candidate == ((red << RED_SHIFT) | (green << GREEN_SHIFT) | blue) && index >= FIRST_OPAQUE_COLOR_INDEX) {
+      if (candidate == target && index >= FIRST_OPAQUE_COLOR_INDEX) {
         return (byte) index;
       }
     }
+
     final String message = "Color %s is not a map palette color!".formatted(color);
     throw new IllegalArgumentException(message);
   }
@@ -99,23 +95,31 @@ final class MapProbe implements DitherResultStep {
       final ResizeFilter filter = new ResizeFilter(width, height);
       filter.applyFilter(samples);
     }
-    final byte[] dithered =
-      algorithm instanceof final ParallelDitherAlgorithm parallel
-        ? parallel.ditherIntoBytes(samples, this.ditherPool)
-        : algorithm.ditherIntoBytes(samples);
+
+    final byte[] dithered = this.dither(samples, algorithm);
     final int width = samples.getWidth();
     final int height = samples.getHeight();
     final DeltaMapEncoder current = this.getEncoder(width, height);
     final List<MapTilePatch> patches = current.encode(dithered);
     final long now = System.nanoTime();
     this.frames.incrementAndGet();
+
     if (!patches.isEmpty()) {
       this.lastPatchNanoseconds.set(now);
     }
+
     final Watch activeWatch = this.watch;
     if (activeWatch != null) {
       activeWatch.recordPatches(patches, now);
     }
+  }
+
+  private byte[] dither(final ImageBuffer samples, final DitherAlgorithm algorithm) {
+    if (algorithm instanceof final ParallelDitherAlgorithm parallelAlgorithm) {
+      return parallelAlgorithm.ditherIntoBytes(samples, this.ditherPool);
+    }
+
+    return algorithm.ditherIntoBytes(samples);
   }
 
   @Override
@@ -134,6 +138,7 @@ final class MapProbe implements DitherResultStep {
         return current;
       }
     }
+
     final MapLayout layout = new MapLayout(startMapId, columns, rows, width, height);
     final DeltaMapEncoder created = new DeltaMapEncoder(layout, DeltaMapEncoder.DEFAULT_MAXIMUM_BYTES_PER_FRAME);
     this.encoder = created;
@@ -177,6 +182,7 @@ final class MapProbe implements DitherResultStep {
     private final int pagePixels;
     private final CountDownLatch first;
     private final CountDownLatch full;
+
     private volatile long firstNanoseconds;
     private volatile long fullNanoseconds;
 
@@ -193,6 +199,7 @@ final class MapProbe implements DitherResultStep {
       for (final MapTilePatch patch : patches) {
         this.recordShownPixels(patch, now);
       }
+
       if (this.firstNanoseconds != 0L && this.fullNanoseconds == 0L && this.covered.cardinality() >= this.pagePixels * COVERED_FRACTION) {
         this.fullNanoseconds = now;
         this.full.countDown();
@@ -214,6 +221,7 @@ final class MapProbe implements DitherResultStep {
           this.covered.set(mapOffset + row * MapLayout.MAP_SIZE + column);
         }
       }
+
       if (shows && this.firstNanoseconds == 0L) {
         this.firstNanoseconds = now;
         this.first.countDown();

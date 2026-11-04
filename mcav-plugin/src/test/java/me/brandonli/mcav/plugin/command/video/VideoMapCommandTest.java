@@ -115,6 +115,7 @@ final class VideoMapCommandTest {
     when(this.configuration.getMcv2DefaultCodec()).thenReturn(MapCodec.DITHER);
     when(plugin.getConfiguration()).thenReturn(this.configuration);
     this.support = mock(Mcv2Support.class);
+    Mockito.doCallRealMethod().when(this.support).createMcv2Filter(any());
     when(plugin.getMcv2Support()).thenReturn(this.support);
     final VideoMapCommand realCommand = new VideoMapCommand(plugin);
     this.command = spy(realCommand);

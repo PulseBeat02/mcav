@@ -32,6 +32,8 @@ import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.plugin.MCAVSandbox;
 import me.brandonli.mcav.plugin.command.MapDisplaySettings;
 import me.brandonli.mcav.plugin.command.SuggestionProvider;
+import me.brandonli.mcav.plugin.data.PluginDataConfigurationMapper;
+import me.brandonli.mcav.plugin.listener.OnlinePlayers;
 import me.brandonli.mcav.plugin.utils.ArgumentUtils;
 import me.brandonli.mcav.plugin.utils.AudioArgument;
 import me.brandonli.mcav.plugin.utils.DitheringArgument;
@@ -141,8 +143,11 @@ public final class VideoMapCommand extends AbstractVideoCommand {
       return;
     }
 
-    final Collection<UUID> players = ArgumentUtils.resolveViewers(playerSelector, this.plugin.getOnlinePlayers());
-    final MapCodec chosenCodec = codec != null ? codec : this.plugin.getConfiguration().getMcv2DefaultCodec();
+    final OnlinePlayers onlinePlayers = this.plugin.getOnlinePlayers();
+    final Collection<UUID> players = ArgumentUtils.resolveViewers(playerSelector, onlinePlayers);
+    final PluginDataConfigurationMapper pluginConfiguration = this.plugin.getConfiguration();
+    final MapCodec defaultCodec = pluginConfiguration.getMcv2DefaultCodec();
+    final MapCodec chosenCodec = codec != null ? codec : defaultCodec;
     VideoConfigurationProvider configurationProvider = resolution ->
       this.createSettings(blocks, resolution, mapId, players, ditheringAlgorithm);
     if (chosenCodec == MapCodec.MCV2) {
@@ -166,6 +171,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
         configurationProvider = _ -> new VideoMcv2Command.Mcv2Settings(configuration, ditheringAlgorithm, sender);
       }
     }
+
     this.playVideo(configurationProvider, sender, playerSelector, playerType, audioType, videoResolution, mrl, ytdlpOptions, filters);
   }
 
@@ -204,8 +210,10 @@ public final class VideoMapCommand extends AbstractVideoCommand {
 
     final Object built = configurationProvider.buildConfiguration(resolution);
     if (built instanceof final VideoMcv2Command.Mcv2Settings mcv2Settings) {
-      final FunctionalVideoFilter output = VideoMcv2Command.createMcv2Filter(this.plugin.getMcv2Support(), mcv2Settings);
+      final Mcv2Support support = this.plugin.getMcv2Support();
+      final FunctionalVideoFilter output = support.createMcv2Filter(mcv2Settings);
       this.manager.startFilter(output);
+
       return VideoPipelineStep.of(output);
     }
 
@@ -214,7 +222,6 @@ public final class VideoMapCommand extends AbstractVideoCommand {
     final DitherAlgorithm algorithm = settings.createAlgorithm();
     final CompressedMapResult result = new CompressedMapResult(configuration);
     final FunctionalVideoFilter ditherFilter = DitherFilter.dither(algorithm, result);
-
     this.manager.startFilter(ditherFilter);
 
     return VideoPipelineStep.of(ditherFilter);

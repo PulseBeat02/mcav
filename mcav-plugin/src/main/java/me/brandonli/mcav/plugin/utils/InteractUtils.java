@@ -121,8 +121,10 @@ public final class InteractUtils {
       return Optional.empty();
     }
 
-    final int pixelX = Math.clamp((int) (framePosition[0] * MapLayout.MAP_SIZE), 0, MapLayout.MAP_SIZE - 1);
-    final int pixelY = Math.clamp((int) (framePosition[1] * MapLayout.MAP_SIZE), 0, MapLayout.MAP_SIZE - 1);
+    final int scaledX = (int) (framePosition[0] * MapLayout.MAP_SIZE);
+    final int pixelX = Math.clamp(scaledX, 0, MapLayout.MAP_SIZE - 1);
+    final int scaledY = (int) (framePosition[1] * MapLayout.MAP_SIZE);
+    final int pixelY = Math.clamp(scaledY, 0, MapLayout.MAP_SIZE - 1);
     final int absoluteX = mapIndex[0] * MapLayout.MAP_SIZE + pixelX;
     final int absoluteY = mapIndex[1] * MapLayout.MAP_SIZE + pixelY;
     final int[] coordinates = new int[] { absoluteX, absoluteY };
@@ -216,7 +218,8 @@ public final class InteractUtils {
     final int horizontalOrigin = alongX ? frameLocation.getBlockZ() : frameLocation.getBlockX();
     final double horizontal = horizontalCoordinate - horizontalOrigin;
     final double verticalFraction = lookedAt.getY() - frameLocation.getBlockY();
-    if (!(horizontal >= 0 && horizontal <= 1 && verticalFraction >= 0 && verticalFraction <= 1)) {
+    final boolean insideFrame = horizontal >= 0 && horizontal <= 1 && verticalFraction >= 0 && verticalFraction <= 1;
+    if (!insideFrame) {
       return null;
     }
 
@@ -231,6 +234,7 @@ public final class InteractUtils {
     final Location frameLocation = frame.getLocation();
     final Vector direction = eyeLocation.getDirection();
     direction.normalize();
+
     final double distance = axis == Axis.X ? frameLocation.getX() - eyeLocation.getX() : frameLocation.getZ() - eyeLocation.getZ();
     final double directionComponent = axis == Axis.X ? direction.getX() : direction.getZ();
     final double scale = distance / directionComponent;
@@ -239,6 +243,7 @@ public final class InteractUtils {
     }
 
     direction.multiply(scale);
+
     final Vector eyePosition = eyeLocation.toVector();
     return eyePosition.add(direction);
   }
@@ -267,6 +272,7 @@ public final class InteractUtils {
       final Block block = pending.remove();
       addNearbyWallFrames(world, block, hitFace, screen, wallFrames, pending);
     }
+
     return wallFrames;
   }
 
@@ -314,6 +320,7 @@ public final class InteractUtils {
       }
       tagged = frame;
     }
+
     return tagged;
   }
 

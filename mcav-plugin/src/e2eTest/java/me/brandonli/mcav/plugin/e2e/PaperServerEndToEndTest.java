@@ -17,17 +17,12 @@
  */
 package me.brandonli.mcav.plugin.e2e;
 
+import static java.util.Objects.requireNonNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.Strictness;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -46,12 +41,10 @@ import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Predicate;
@@ -69,8 +62,8 @@ final class PaperServerEndToEndTest {
 
   private static final String PROPERTY_MISSING_MESSAGE = "the build passes -D%s to this test";
 
-  private static final String PAPER_FILE_NAME = Objects.requireNonNull(System.getProperty("mcav.e2e.paper_file_name"));
-  private static final String VOICE_CHAT_FILE_NAME = Objects.requireNonNull(System.getProperty("mcav.e2e.voice_chat_file_name"));
+  private static final String PAPER_FILE_NAME = requireNonNull(System.getProperty("mcav.e2e.paper_file_name"));
+  private static final String VOICE_CHAT_FILE_NAME = requireNonNull(System.getProperty("mcav.e2e.voice_chat_file_name"));
 
   private static final String PAPER_SHA_256 = "dd64988a011729e6812f2fff1be32ba5c572ecdc8890e6abc7a56aa91b53f77d";
 
@@ -206,7 +199,7 @@ final class PaperServerEndToEndTest {
       server.command("stop");
       final int exitCode = server.awaitExit(SHUTDOWN_TIMEOUT);
       final List<String> output = server.getLines();
-      assertRanCleanly(exitCode, mediaInformation, output);
+      PaperServerAssertions.assertRanCleanly(exitCode, mediaInformation, output);
 
       final boolean passwordLogged = output.stream().anyMatch(line -> line.contains(vnc.getPassword()));
       assertFalse(passwordLogged, "the VNC password is never logged");
@@ -227,16 +220,32 @@ final class PaperServerEndToEndTest {
 
   // a warm cache skips HTTP when Gremlin's hashes match, so the module bytes are checked here
   private void assertCurrentModuleJars(final Path serverDirectory, final Path pluginJar) throws IOException {
-    final String manifest;
+    final String manifest = this.readDependencyManifest(pluginJar);
+    final Set<String> expected = this.findRequestedDigests(manifest);
+    final boolean modulesRequested = !expected.isEmpty();
+    assertTrue(modulesRequested, "the plugin must request the modules of this build");
+
+    final Path modules = serverDirectory.resolve(MODULE_LIBRARIES_DIRECTORY);
+    final Set<String> actual = this.hashModuleJars(modules);
+    for (final String digest : expected) {
+      final boolean contained = actual.contains(digest);
+      assertTrue(contained, "the running server's module cache must contain build digest %s".formatted(digest));
+    }
+  }
+
+  private String readDependencyManifest(final Path pluginJar) throws IOException {
     try (final ZipFile plugin = new ZipFile(pluginJar.toFile())) {
       final ZipEntry entry = plugin.getEntry(DEPENDENCIES_ENTRY);
       assertNotNull(entry, "the plugin must carry the dependency hashes produced by this build");
 
       try (final InputStream input = plugin.getInputStream(entry)) {
         final byte[] bytes = input.readAllBytes();
-        manifest = new String(bytes, StandardCharsets.UTF_8);
+        return new String(bytes, StandardCharsets.UTF_8);
       }
     }
+  }
+
+  private Set<String> findRequestedDigests(final String manifest) {
     final Set<String> expected = new HashSet<>();
     final List<String> lines = manifest.lines().toList();
     for (final String line : lines) {
@@ -248,10 +257,10 @@ final class PaperServerEndToEndTest {
       }
     }
 
-    final boolean modulesRequested = !expected.isEmpty();
-    assertTrue(modulesRequested, "the plugin must request the modules of this build");
+    return expected;
+  }
 
-    final Path modules = serverDirectory.resolve(MODULE_LIBRARIES_DIRECTORY);
+  private Set<String> hashModuleJars(final Path modules) throws IOException {
     final List<Path> files;
     try (final Stream<Path> walk = Files.walk(modules)) {
       files = walk.filter(Files::isRegularFile).toList();
@@ -264,10 +273,8 @@ final class PaperServerEndToEndTest {
         actual.add(this.hash(file, SHA_256));
       }
     }
-    for (final String digest : expected) {
-      final boolean contained = actual.contains(digest);
-      assertTrue(contained, "the running server's module cache must contain build digest %s".formatted(digest));
-    }
+
+    return actual;
   }
 
   private LibraryCache lendLibraries(final Path cache, final Path serverDirectory) throws IOException {
@@ -281,22 +288,6 @@ final class PaperServerEndToEndTest {
     final Path repositoryDirectory = this.requirePath("mcav.e2e.repository_directory");
     final int repositoryPort = this.requirePort("mcav.e2e.repository_port");
     return LocalMavenRepositoryServer.start(repositoryDirectory, repositoryPort);
-  }
-
-  static void assertRanCleanly(final int exitCode, final String mediaInformation, final List<String> output) {
-    assertEquals(0, exitCode, "the server stops cleanly");
-
-    final Gson gson = new GsonBuilder().setStrictness(Strictness.STRICT).create();
-    final JsonElement actual = gson.fromJson(mediaInformation, JsonElement.class);
-    final JsonObject expected = new JsonObject();
-    expected.addProperty("duration", 0);
-    expected.addProperty("view_count", 0);
-    expected.addProperty("like_count", 0);
-    assertEquals(expected, actual, "the idle media response contains the complete empty snapshot");
-    assertLogged(output, "MCAV loaded in");
-    assertLogged(output, "JavaCV natives loaded in");
-    assertLogged(output, "Simple Voice Chat audio is ready");
-    assertNoErrors(output);
   }
 
   private void streamABrowser(final ServerProcess server, final SoundListener sound, final TonePage page) throws InterruptedException {
@@ -397,19 +388,13 @@ final class PaperServerEndToEndTest {
     assertEquals(gamePort, port, "the pack is hosted on the game port");
 
     final byte[] zip = this.fetchBytes(pack);
-    final String sha1 = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-1").digest(zip));
-    final UUID id = UUID.nameUUIDFromBytes("mcav-mcv2:%s".formatted(sha1).getBytes(StandardCharsets.UTF_8));
+    final UUID id = this.derivePackId(zip);
 
     final String expected = matcher.group(PACK_ID_GROUP);
     final String text = id.toString();
     assertEquals(expected, text, "the pack's id is derived from its hash");
 
-    final Set<String> entries = new HashSet<>();
-    try (final ZipInputStream input = new ZipInputStream(new ByteArrayInputStream(zip))) {
-      for (ZipEntry entry = input.getNextEntry(); entry != null; entry = input.getNextEntry()) {
-        entries.add(entry.getName());
-      }
-    }
+    final Set<String> entries = this.readEntryNames(zip);
 
     final boolean matches = entries.contains(PACK_METADATA_ENTRY) && entries.contains(ENTITY_OUTLINE_EFFECT);
     assertTrue(matches, String.valueOf(entries));
@@ -418,7 +403,28 @@ final class PaperServerEndToEndTest {
     this.runCommand(server, RELEASE_BROWSER_COMMAND, BROWSER_RELEASED, COMMAND_TIMEOUT);
 
     final List<String> lines = server.getLines();
-    assertLogged(lines, "MCV2 kernels: ");
+    PaperServerAssertions.assertLogged(lines, "MCV2 kernels: ");
+  }
+
+  private UUID derivePackId(final byte[] zip) throws NoSuchAlgorithmException {
+    final HexFormat hexadecimalFormat = HexFormat.of();
+    final MessageDigest digest = MessageDigest.getInstance("SHA-1");
+    final byte[] hash = digest.digest(zip);
+    final String sha1 = hexadecimalFormat.formatHex(hash);
+    final String name = "mcav-mcv2:%s".formatted(sha1);
+    final byte[] bytes = name.getBytes(StandardCharsets.UTF_8);
+    return UUID.nameUUIDFromBytes(bytes);
+  }
+
+  private Set<String> readEntryNames(final byte[] zip) throws IOException {
+    final Set<String> entries = new HashSet<>();
+    try (final ZipInputStream input = new ZipInputStream(new ByteArrayInputStream(zip))) {
+      for (ZipEntry entry = input.getNextEntry(); entry != null; entry = input.getNextEntry()) {
+        entries.add(entry.getName());
+      }
+    }
+
+    return entries;
   }
 
   private void controlAVideo(final ServerProcess server, final Path media) throws InterruptedException {
@@ -482,7 +488,7 @@ final class PaperServerEndToEndTest {
     return Stream.concat(before.stream(), server.findDescendants(matcher).stream())
       .filter(ProcessHandle::isAlive)
       .distinct()
-      .map(handle -> "%s%s%s".formatted(handle.pid(), FIELD_SEPARATOR, ServerProcess.programOf(handle)))
+      .map(handle -> "%s%s%s".formatted(handle.pid(), FIELD_SEPARATOR, server.programOf(handle)))
       .toList();
   }
 
@@ -529,42 +535,6 @@ final class PaperServerEndToEndTest {
     }
   }
 
-  private static void assertLogged(final List<String> output, final String text) {
-    for (final String line : output) {
-      if (line.contains(text)) {
-        return;
-      }
-    }
-    final String message = "Line \"%s\" is missing from the server log!".formatted(text);
-    fail(message);
-  }
-
-  static void assertNoErrors(final List<String> output) {
-    final List<String> errors = new ArrayList<>();
-    for (final String line : output) {
-      final boolean playbackFailure =
-        line.contains("Failed to decode media") ||
-        line.contains("Video filter failed") ||
-        line.contains("Audio filter failed") ||
-        line.contains("Failed to render a frame") ||
-        line.contains("Failed to start playback") ||
-        line.contains("Failed to start VLC playback");
-      final boolean error =
-        line.contains(" ERROR]") ||
-        line.contains("/ERROR]") ||
-        line.contains("Error occurred while enabling") ||
-        line.contains("Exception in thread ") ||
-        ((line.contains(" WARN]") || line.contains("/WARN]")) && playbackFailure);
-      if (error) {
-        errors.add(line);
-      }
-    }
-    final String separator = System.lineSeparator();
-    final String report = String.join(separator, errors);
-    final boolean clean = errors.isEmpty();
-    assertTrue(clean, "the server logged errors:%s%s".formatted(separator, report));
-  }
-
   private List<String> createCommand(final Path paperJar) {
     final String java = System.getProperty("mcav.e2e.java", "java");
     final String jar = paperJar.toString();
@@ -606,7 +576,7 @@ final class PaperServerEndToEndTest {
   private void copyResource(final String name, final Path directory) throws IOException {
     try (final InputStream resource = PaperServerEndToEndTest.class.getResourceAsStream("%s%s".formatted(MEDIA_RESOURCES, name))) {
       final String message = "Resource %s does not exist!".formatted(name);
-      Files.copy(Objects.requireNonNull(resource, message), directory.resolve(name));
+      Files.copy(requireNonNull(resource, message), directory.resolve(name));
     }
   }
 
@@ -704,6 +674,7 @@ final class PaperServerEndToEndTest {
     assertEquals(remoteFile.expectedHash(), downloadedHash, "the file downloaded from %s is corrupt".formatted(remoteFile.url()));
 
     Files.move(partial, file, StandardCopyOption.REPLACE_EXISTING);
+
     return file;
   }
 

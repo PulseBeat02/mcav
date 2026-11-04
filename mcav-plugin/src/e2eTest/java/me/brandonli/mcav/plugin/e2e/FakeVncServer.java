@@ -116,15 +116,16 @@ final class FakeVncServer implements AutoCloseable {
 
   private final Thread acceptor;
 
-  private final AtomicInteger logins = new AtomicInteger();
-
-  private final AtomicInteger refused = new AtomicInteger();
-
-  private final AtomicInteger updates = new AtomicInteger();
+  private final AtomicInteger logins;
+  private final AtomicInteger refused;
+  private final AtomicInteger updates;
 
   private FakeVncServer(final ServerSocket socket, final String password) {
     this.socket = socket;
     this.password = password;
+    this.logins = new AtomicInteger();
+    this.refused = new AtomicInteger();
+    this.updates = new AtomicInteger();
     this.acceptor = Thread.ofPlatform().daemon().name("fake-vnc").start(this::accept);
   }
 
@@ -160,6 +161,7 @@ final class FakeVncServer implements AutoCloseable {
           .name("fake-vnc-client")
           .start(() -> this.serve(client));
       } catch (final IOException exception) {
+        // the server socket closed
         return;
       }
     }
@@ -199,6 +201,7 @@ final class FakeVncServer implements AutoCloseable {
     input.readFully(response);
     final boolean correct = MessageDigest.isEqual(response, this.encrypt(challenge, this.password));
     output.writeInt(correct ? SECURITY_RESULT_OK : SECURITY_RESULT_FAILED);
+
     if (!correct) {
       final byte[] reason = "wrong password".getBytes(StandardCharsets.US_ASCII);
       output.writeInt(reason.length);
@@ -207,6 +210,7 @@ final class FakeVncServer implements AutoCloseable {
     } else {
       this.logins.incrementAndGet();
     }
+
     output.flush();
 
     return correct;
@@ -311,13 +315,16 @@ final class FakeVncServer implements AutoCloseable {
 
   private static final class PixelFormat {
 
-    private int bytesPerPixel = DEFAULT_BYTES_PER_PIXEL;
-
+    private int bytesPerPixel;
     private boolean bigEndian;
+    private int[] maximum;
+    private int[] shift;
 
-    private int[] maximum = { CHANNEL_MAXIMUM, CHANNEL_MAXIMUM, CHANNEL_MAXIMUM };
-
-    private int[] shift = { RED_SHIFT, GREEN_SHIFT, BLUE_SHIFT };
+    PixelFormat() {
+      this.bytesPerPixel = DEFAULT_BYTES_PER_PIXEL;
+      this.maximum = new int[] { CHANNEL_MAXIMUM, CHANNEL_MAXIMUM, CHANNEL_MAXIMUM };
+      this.shift = new int[] { RED_SHIFT, GREEN_SHIFT, BLUE_SHIFT };
+    }
 
     void set(final byte[] format) {
       this.bytesPerPixel = (format[0] & BYTE_MASK) / BITS_PER_BYTE;

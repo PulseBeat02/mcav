@@ -327,31 +327,31 @@ final class VirtualizeCommandTest {
   @Test
   void shouldSplitATrailingCodecOffTheOptions() {
     final VirtualizeCommand.CodecSplit expected = new VirtualizeCommand.CodecSplit("-m 2048M", MapCodec.MCV2);
-    final VirtualizeCommand.CodecSplit split = VirtualizeCommand.splitCodec("-m 2048M --codec mcv2");
+    final VirtualizeCommand.CodecSplit split = this.command.splitCodec("-m 2048M --codec mcv2");
     assertEquals(expected, split);
 
     final VirtualizeCommand.CodecSplit secondExpected = new VirtualizeCommand.CodecSplit("-m 2048M", MapCodec.DITHER);
-    final VirtualizeCommand.CodecSplit virtualizeCommandSplit = VirtualizeCommand.splitCodec("-m 2048M  --codec\tDiThEr  ");
+    final VirtualizeCommand.CodecSplit virtualizeCommandSplit = this.command.splitCodec("-m 2048M  --codec\tDiThEr  ");
     assertEquals(secondExpected, virtualizeCommandSplit);
 
     final VirtualizeCommand.CodecSplit thirdExpected = new VirtualizeCommand.CodecSplit("", MapCodec.MCV2);
-    final VirtualizeCommand.CodecSplit secondSplit = VirtualizeCommand.splitCodec("--codec mcv2");
+    final VirtualizeCommand.CodecSplit secondSplit = this.command.splitCodec("--codec mcv2");
     assertEquals(thirdExpected, secondSplit);
 
     final VirtualizeCommand.CodecSplit fourthExpected = new VirtualizeCommand.CodecSplit("-m 2048M", null);
-    final VirtualizeCommand.CodecSplit thirdSplit = VirtualizeCommand.splitCodec("-m 2048M");
+    final VirtualizeCommand.CodecSplit thirdSplit = this.command.splitCodec("-m 2048M");
     assertEquals(fourthExpected, thirdSplit);
     // a codec anywhere but at the end is an option for QEMU, which refuses it
 
     final VirtualizeCommand.CodecSplit fifthExpected = new VirtualizeCommand.CodecSplit("--codec mcv2 -m 2048M", null);
-    final VirtualizeCommand.CodecSplit fourthSplit = VirtualizeCommand.splitCodec("--codec mcv2 -m 2048M");
+    final VirtualizeCommand.CodecSplit fourthSplit = this.command.splitCodec("--codec mcv2 -m 2048M");
     assertEquals(fifthExpected, fourthSplit);
 
     final VirtualizeCommand.CodecSplit sixthExpected = new VirtualizeCommand.CodecSplit("-name x--codec mcv2", null);
-    final VirtualizeCommand.CodecSplit fifthSplit = VirtualizeCommand.splitCodec("-name x--codec mcv2");
+    final VirtualizeCommand.CodecSplit fifthSplit = this.command.splitCodec("-name x--codec mcv2");
     assertEquals(sixthExpected, fifthSplit);
 
-    final VirtualizeCommand.CodecSplit sixthSplit = VirtualizeCommand.splitCodec(VP9_FLAGS);
+    final VirtualizeCommand.CodecSplit sixthSplit = this.command.splitCodec(VP9_FLAGS);
     assertNull(sixthSplit);
   }
 

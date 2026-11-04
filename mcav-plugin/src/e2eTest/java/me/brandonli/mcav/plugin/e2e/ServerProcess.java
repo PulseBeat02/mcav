@@ -173,18 +173,6 @@ final class ServerProcess implements AutoCloseable {
     TimeUnit.NANOSECONDS.timedWait(this.lines, waitNanoseconds);
   }
 
-  int getLineCount() {
-    synchronized (this.lines) {
-      return this.lines.size();
-    }
-  }
-
-  List<String> getLines() {
-    synchronized (this.lines) {
-      return List.copyOf(this.lines);
-    }
-  }
-
   int awaitExit(final Duration timeout) throws InterruptedException {
     final long milliseconds = timeout.toMillis();
     final boolean exited = this.process.waitFor(milliseconds, TimeUnit.MILLISECONDS);
@@ -203,12 +191,26 @@ final class ServerProcess implements AutoCloseable {
     try (final Stream<ProcessHandle> descendants = this.process.descendants()) {
       return descendants
         .filter(ProcessHandle::isAlive)
-        .filter(handle -> matcher.test(programOf(handle)))
+        .filter(handle -> matcher.test(this.programOf(handle)))
         .toList();
     }
   }
 
-  static String programOf(final ProcessHandle handle) {
-    return handle.info().command().orElse("");
+  String programOf(final ProcessHandle handle) {
+    final ProcessHandle.Info info = handle.info();
+    final Optional<String> command = info.command();
+    return command.orElse("");
+  }
+
+  int getLineCount() {
+    synchronized (this.lines) {
+      return this.lines.size();
+    }
+  }
+
+  List<String> getLines() {
+    synchronized (this.lines) {
+      return List.copyOf(this.lines);
+    }
   }
 }

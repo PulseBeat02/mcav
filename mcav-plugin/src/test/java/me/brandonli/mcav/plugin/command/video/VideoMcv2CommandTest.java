@@ -37,6 +37,7 @@ import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2.Settings;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2PackServer;
 import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
@@ -92,6 +93,7 @@ final class VideoMcv2CommandTest {
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
     this.manager = mock(VideoPlayerManager.class);
     this.support = mock(Mcv2Support.class);
+    Mockito.doCallRealMethod().when(this.support).createMcv2Filter(any());
     when(plugin.getVideoPlayerManager()).thenReturn(this.manager);
     when(plugin.getAudioProvider()).thenReturn(mock(AudioProvider.class));
     when(plugin.getMcv2Support()).thenReturn(this.support);
@@ -224,27 +226,28 @@ final class VideoMcv2CommandTest {
 
   @Test
   void shouldTakeTheBacklogLimitOfAMeasurement() {
-    System.setProperty(VideoMcv2Command.BACKLOG_PROPERTY, "65536");
+    final Mcv2Support support = new Mcv2Support(mock(Mcv2PackServer.class));
+    System.setProperty(Mcv2Support.BACKLOG_PROPERTY, "65536");
     try {
-      final long videoMcv2CommandBacklogLimit = VideoMcv2Command.readBacklogLimit();
+      final long videoMcv2CommandBacklogLimit = support.readBacklogLimit();
       assertEquals(65536, videoMcv2CommandBacklogLimit);
 
-      final int unsentLimit = VideoMcv2Command.readUnsentLimit();
+      final int unsentLimit = support.readUnsentLimit();
       assertEquals(Mcv2Configuration.DEFAULT_UNSENT_LIMIT, unsentLimit);
 
-      System.setProperty(VideoMcv2Command.BACKLOG_PROPERTY, "none");
+      System.setProperty(Mcv2Support.BACKLOG_PROPERTY, "none");
 
-      final long secondBacklogLimit = VideoMcv2Command.readBacklogLimit();
+      final long secondBacklogLimit = support.readBacklogLimit();
       assertEquals(Long.MAX_VALUE, secondBacklogLimit);
       // no backpressure at all: no cap on a viewer's unsent bytes either
 
-      final int videoMcv2CommandUnsentLimit = VideoMcv2Command.readUnsentLimit();
+      final int videoMcv2CommandUnsentLimit = support.readUnsentLimit();
       assertEquals(0, videoMcv2CommandUnsentLimit);
     } finally {
-      System.clearProperty(VideoMcv2Command.BACKLOG_PROPERTY);
+      System.clearProperty(Mcv2Support.BACKLOG_PROPERTY);
     }
 
-    final long backlogLimit = VideoMcv2Command.readBacklogLimit();
+    final long backlogLimit = support.readBacklogLimit();
     assertEquals(Mcv2Configuration.DEFAULT_BACKLOG_LIMIT, backlogLimit);
   }
 

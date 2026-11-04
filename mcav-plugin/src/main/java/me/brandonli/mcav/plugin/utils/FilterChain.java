@@ -23,7 +23,7 @@ import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -226,6 +226,7 @@ public final class FilterChain {
 
   private static final String OVERLAY_SUFFIX = ".png";
 
+  private static final String NOT_A_DECIMAL_NUMBER = "Filter %s takes a number from 0 to %s, and %s is not one!";
   private static final String NOT_A_WHOLE_NUMBER = "Filter %s takes a whole number from %s to %s, and %s is not one!";
   private static final String NO_OVERLAY = "Overlay %s does not exist in the overlays folder!";
 
@@ -316,10 +317,9 @@ public final class FilterChain {
       throw new IllegalArgumentException(message);
     }
 
-    final List<Supplier<VideoFilter>> filters = new ArrayList<>();
-    for (final String specification : specifications) {
-      filters.add(parseFilter(specification, overlays, kind));
-    }
+    final List<Supplier<VideoFilter>> filters = Arrays.stream(specifications)
+      .map(specification -> parseFilter(specification, overlays, kind))
+      .toList();
     return new FilterChain(filters);
   }
 
@@ -411,10 +411,12 @@ public final class FilterChain {
 
   private static Supplier<VideoFilter> colorMap(final List<String> arguments) {
     checkArgumentCount(COLOR_MAP_FILTER, arguments, 1);
-    final Integer map = COLOR_MAPS.get(arguments.getFirst().toLowerCase(Locale.ROOT));
+    final String typed = arguments.getFirst();
+    final String name = typed.toLowerCase(Locale.ROOT);
+    final @Nullable Integer map = COLOR_MAPS.get(name);
     if (map == null) {
       final String names = String.join(NAME_SEPARATOR, COLOR_MAPS.keySet().stream().sorted().toList());
-      final String message = "Color map %s does not exist, use one of %s instead!".formatted(arguments.getFirst(), names);
+      final String message = "Color map %s does not exist, use one of %s instead!".formatted(typed, names);
       throw new IllegalArgumentException(message);
     }
 
@@ -428,21 +430,29 @@ public final class FilterChain {
     }
 
     final double[] color = parseColor(TINT_FILTER, arguments.getFirst());
-    final double strength =
-      arguments.size() == TINT_MAXIMUM_ARGUMENTS
-        ? parseWholeNumber(TINT_FILTER, arguments.get(1), 0, PERCENT) / (double) PERCENT
-        : DEFAULT_TINT;
+    final double strength = parseTintStrength(arguments);
     return () -> new TintFilter(color, strength);
+  }
+
+  private static double parseTintStrength(final List<String> arguments) {
+    if (arguments.size() < TINT_MAXIMUM_ARGUMENTS) {
+      return DEFAULT_TINT;
+    }
+
+    final String strength = arguments.get(1);
+    final int percent = parseWholeNumber(TINT_FILTER, strength, 0, PERCENT);
+    return percent / (double) PERCENT;
   }
 
   private static Supplier<VideoFilter> flip(final List<String> arguments) {
     checkArgumentCount(FLIP_FILTER, arguments, 1);
-    final FlipFilter.FlipDirection direction = switch (arguments.getFirst()) {
+    final String typed = arguments.getFirst();
+    final FlipFilter.FlipDirection direction = switch (typed) {
       case HORIZONTAL_FLIP -> FlipFilter.FlipDirection.HORIZONTAL;
       case VERTICAL_FLIP -> FlipFilter.FlipDirection.VERTICAL;
       case BOTH_FLIPS -> FlipFilter.FlipDirection.BOTH;
       default -> {
-        final String message = "Flip direction %s must be h, v or hv!".formatted(arguments.getFirst());
+        final String message = "Flip direction %s must be h, v or hv!".formatted(typed);
         throw new IllegalArgumentException(message);
       }
     };
@@ -451,12 +461,13 @@ public final class FilterChain {
 
   private static Supplier<VideoFilter> rotate(final List<String> arguments) {
     checkArgumentCount(ROTATE_FILTER, arguments, 1);
-    final RotationFilter.Rotation rotation = switch (arguments.getFirst()) {
+    final String typed = arguments.getFirst();
+    final RotationFilter.Rotation rotation = switch (typed) {
       case QUARTER_TURN -> RotationFilter.Rotation.ROTATE_90_CLOCKWISE;
       case HALF_TURN -> RotationFilter.Rotation.ROTATE_180;
       case THREE_QUARTER_TURN -> RotationFilter.Rotation.ROTATE_90_COUNTERCLOCKWISE;
       default -> {
-        final String message = "Rotation %s must be 90, 180 or 270!".formatted(arguments.getFirst());
+        final String message = "Rotation %s must be 90, 180 or 270!".formatted(typed);
         throw new IllegalArgumentException(message);
       }
     };
@@ -517,6 +528,7 @@ public final class FilterChain {
       final String message = NO_OVERLAY.formatted(name);
       throw new IllegalArgumentException(message, exception);
     }
+
     if (!attributes.isRegularFile()) {
       final String message = NO_OVERLAY.formatted(name);
       throw new IllegalArgumentException(message);
@@ -541,19 +553,25 @@ public final class FilterChain {
   }
 
   private static ImageBuffer readOverlay(final Path file) {
-    final ImageBuffer image = ImageBuffer.path(FileSource.path(file));
-    final int side = Math.max(image.getWidth(), image.getHeight());
+    final FileSource source = FileSource.path(file);
+    final ImageBuffer image = ImageBuffer.path(source);
+    final int imageWidth = image.getWidth();
+    final int imageHeight = image.getHeight();
+    final int side = Math.max(imageWidth, imageHeight);
     if (side > MAXIMUM_OVERLAY_SIDE) {
-      final int width = Math.max(1, (image.getWidth() * MAXIMUM_OVERLAY_SIDE) / side);
-      final int height = Math.max(1, (image.getHeight() * MAXIMUM_OVERLAY_SIDE) / side);
-      new ResizeFilter(width, height).applyFilter(image);
+      final int width = Math.max(1, (imageWidth * MAXIMUM_OVERLAY_SIDE) / side);
+      final int height = Math.max(1, (imageHeight * MAXIMUM_OVERLAY_SIDE) / side);
+      final ResizeFilter resize = new ResizeFilter(width, height);
+      resize.applyFilter(image);
     }
+
     return image;
   }
 
   private static void checkArgumentCount(final String name, final List<String> arguments, final int expected) {
     if (arguments.size() != expected) {
-      final String message = "Filter %s takes %s argument%s!".formatted(name, expected, expected == 1 ? "" : "s");
+      final String plural = expected == 1 ? "" : "s";
+      final String message = "Filter %s takes %s argument%s!".formatted(name, expected, plural);
       throw new IllegalArgumentException(message);
     }
   }
@@ -574,12 +592,18 @@ public final class FilterChain {
   }
 
   private static double parseDecimal(final String name, final String text, final double maximum) {
-    if (!DECIMAL.matcher(text).matches() || Double.parseDouble(text) > maximum) {
-      final String message = "Filter %s takes a number from 0 to %s, and %s is not one!".formatted(name, maximum, text);
+    if (!DECIMAL.matcher(text).matches()) {
+      final String message = NOT_A_DECIMAL_NUMBER.formatted(name, maximum, text);
       throw new IllegalArgumentException(message);
     }
 
-    return Double.parseDouble(text);
+    final double value = Double.parseDouble(text);
+    if (value > maximum) {
+      final String message = NOT_A_DECIMAL_NUMBER.formatted(name, maximum, text);
+      throw new IllegalArgumentException(message);
+    }
+
+    return value;
   }
 
   // typed as rrggbb, stored in OpenCV's blue, green, red order
@@ -590,7 +614,10 @@ public final class FilterChain {
     }
 
     final int rgb = Integer.parseInt(text, HEXADECIMAL_RADIX);
-    return new double[] { rgb & CHANNEL_MASK, (rgb >> GREEN_SHIFT) & CHANNEL_MASK, (rgb >> RED_SHIFT) & CHANNEL_MASK };
+    final double blue = rgb & CHANNEL_MASK;
+    final double green = (rgb >> GREEN_SHIFT) & CHANNEL_MASK;
+    final double red = (rgb >> RED_SHIFT) & CHANNEL_MASK;
+    return new double[] { blue, green, red };
   }
 
   private static Region parseRegion(final String name, final List<String> arguments) {
@@ -625,8 +652,10 @@ public final class FilterChain {
     final List<VideoFilter> created = this.createFilters();
     VideoPipelineStep first = output;
     for (int index = created.size() - 1; index >= 0; index--) {
-      first = VideoPipelineStep.of(first, created.get(index));
+      final VideoFilter filter = created.get(index);
+      first = VideoPipelineStep.of(first, filter);
     }
+
     return first;
   }
 
@@ -666,13 +695,10 @@ public final class FilterChain {
   private static final class RegionFilter implements VideoFilter {
 
     private final Region region;
-
     private final RegionFactory factory;
 
     private int width;
-
     private int height;
-
     private @Nullable VideoFilter filter;
 
     private RegionFilter(final Region region, final RegionFactory factory) {
@@ -686,24 +712,28 @@ public final class FilterChain {
       final int pictureHeight = samples.getHeight();
       VideoFilter current = this.filter;
       if (current == null || pictureWidth != this.width || pictureHeight != this.height) {
-        final int left = (pictureWidth * this.region.left()) / PERCENT;
-        final int top = (pictureHeight * this.region.top()) / PERCENT;
-        // parseRegion() caps left + width and top + height at 100 percent
-        final int regionWidth = Math.max(MINIMUM_REGION_SIDE, (pictureWidth * this.region.width()) / PERCENT);
-        final int regionHeight = Math.max(MINIMUM_REGION_SIDE, (pictureHeight * this.region.height()) / PERCENT);
-        current = this.factory.create(left, top, regionWidth, regionHeight, pictureWidth, pictureHeight);
+        current = this.createFilter(pictureWidth, pictureHeight);
         this.filter = current;
         this.width = pictureWidth;
         this.height = pictureHeight;
       }
+
       return current.applyFilter(samples, metadata);
+    }
+
+    private VideoFilter createFilter(final int pictureWidth, final int pictureHeight) {
+      final int left = (pictureWidth * this.region.left()) / PERCENT;
+      final int top = (pictureHeight * this.region.top()) / PERCENT;
+      // parseRegion() caps left + width and top + height at 100 percent
+      final int regionWidth = Math.max(MINIMUM_REGION_SIDE, (pictureWidth * this.region.width()) / PERCENT);
+      final int regionHeight = Math.max(MINIMUM_REGION_SIDE, (pictureHeight * this.region.height()) / PERCENT);
+      return this.factory.create(left, top, regionWidth, regionHeight, pictureWidth, pictureHeight);
     }
   }
 
   private static final class CropZoomFilter implements VideoFilter {
 
     private final CropFilter crop;
-
     private final ResizeFilter resize;
 
     private CropZoomFilter(

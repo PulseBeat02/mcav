@@ -23,7 +23,7 @@ import com.sun.management.OperatingSystemMXBean;
 import java.lang.management.ManagementFactory;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -33,6 +33,8 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
+import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.plugin.MCAVSandbox;
@@ -188,12 +190,9 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     Preconditions.checkNotNull(player, VIRTUAL_MACHINE_NULL_MESSAGE);
 
     // QEMU takes up to ten seconds to stop, and is then killed; no frame or sound of it meanwhile
-    CleanupUtils.runAll(
-      () -> player.getVideoAttachableCallback().detach(),
-      () -> player.getAudioAttachableCallback().detach(),
-      () -> this.releaseSound(player),
-      () -> this.releaseInTheBackground(player::release)
-    );
+    final VideoAttachableCallback video = player.getVideoAttachableCallback();
+    final AudioAttachableCallback audio = player.getAudioAttachableCallback();
+    CleanupUtils.runAll(video::detach, audio::detach, () -> this.releaseSound(player), () -> this.releaseInTheBackground(player::release));
   }
 
   /**
@@ -325,22 +324,27 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
 
     final Optional<Pair<Integer, Integer>> parsedResolution = parseDimensions(sender, vmResolution);
     final @Nullable Pair<Integer, Integer> resolution = parsedResolution.orElse(null);
-    final Optional<Pair<Integer, Integer>> parsedBlocks =
-      resolution == null ? Optional.empty() : parseScreenDimensions(sender, blockDimensions);
-    final @Nullable Pair<Integer, Integer> blocks = parsedBlocks.orElse(null);
-    if (resolution == null || blocks == null) {
+    if (resolution == null) {
       return;
     }
 
-    final CodecSplit split = splitCodec(flags);
+    final Optional<Pair<Integer, Integer>> parsedBlocks = parseScreenDimensions(sender, blockDimensions);
+    final @Nullable Pair<Integer, Integer> blocks = parsedBlocks.orElse(null);
+    if (blocks == null) {
+      return;
+    }
+
+    final @Nullable CodecSplit split = this.splitCodec(flags);
     if (split == null) {
-      sender.sendMessage(Message.UNKNOWN_CODEC.build());
+      final Component message = Message.UNKNOWN_CODEC.build();
+      sender.sendMessage(message);
       return;
     }
 
     final VmConfiguration vmConfiguration;
     try {
-      vmConfiguration = this.buildConfiguration(split.options());
+      final String options = split.options();
+      vmConfiguration = this.buildConfiguration(options);
     } catch (final IllegalArgumentException exception) {
       final String detail = exception.getMessage();
       final String reason = Objects.requireNonNullElse(detail, "The options are not valid");
@@ -356,10 +360,12 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     }
 
     final VmSettings vmSettings = this.createVmSettings(resolution, targetFramesPerSecond);
-    final MapCodec codec = this.chooseCodec(split.codec());
+    final @Nullable MapCodec requestedCodec = split.codec();
+    final MapCodec codec = this.chooseCodec(requestedCodec);
     final ScreenSettings settings = new ScreenSettings(sender, playerSelector, blocks, resolution, mapId, ditheringAlgorithm, codec);
     final Screen screen = this.createScreen(settings);
-    final Player[] viewers = playerSelector.values().toArray(Player[]::new);
+    final Collection<Player> selectedPlayers = playerSelector.values();
+    final Player[] viewers = selectedPlayers.toArray(Player[]::new);
     final ScreenSound sound = new ScreenSound(audioType, viewers);
     this.createResource(() -> this.startMachine(sender, screen, vmSettings, architecture, vmConfiguration, sound));
   }
@@ -391,13 +397,17 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
   ) {
     final VmPlayer machine = VmPlayer.create();
     this.ownCreatedPlayer(machine);
+
     final VideoAttachableCallback callback = machine.getVideoAttachableCallback();
     final VideoPipelineStep pipeline = screen.getPipeline();
     callback.attach(pipeline);
-    this.attachSound(machine, machine.getAudioAttachableCallback(), sound, "Virtual machine");
+
+    final AudioAttachableCallback audio = machine.getAudioAttachableCallback();
+    this.attachSound(machine, audio, sound, "Virtual machine");
 
     final Component loading = Message.VM_LOADING.build();
     sender.sendMessage(loading);
+
     final ExecutorService executor = this.startExecutor(machine, screen);
     final CompletableFuture<Boolean> start = machine.startAsync(settings, architecture, vmConfiguration, executor);
     this.reportStartWhenDone(sender, machine, screen, start, "the virtual machine");
@@ -427,6 +437,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     if (cause instanceof CompletionException) {
       cause = cause.getCause();
     }
+
     if (cause instanceof ExecutableNotInPathException) {
       return Message.VM_PATH.build();
     }
@@ -435,16 +446,21 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
   }
 
   // Cloud flags cannot follow the QEMU options, which start with a dash too
-  static @Nullable CodecSplit splitCodec(final String flags) {
+  @Nullable CodecSplit splitCodec(final String flags) {
     final Matcher matcher = TRAILING_CODEC.matcher(flags);
-    if (!matcher.find()) {
+    final boolean found = matcher.find();
+    if (!found) {
       return new CodecSplit(flags, null);
     }
 
     final String name = matcher.group(1);
     for (final MapCodec codec : MapCodec.values()) {
-      if (codec.name().equalsIgnoreCase(name)) {
-        return new CodecSplit(flags.substring(0, matcher.start()).strip(), codec);
+      final String codecName = codec.name();
+      if (codecName.equalsIgnoreCase(name)) {
+        final int start = matcher.start();
+        final String remainingFlags = flags.substring(0, start);
+        final String options = remainingFlags.strip();
+        return new CodecSplit(options, codec);
       }
     }
     return null;
@@ -453,10 +469,12 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
   private VmConfiguration buildConfiguration(final String flags) {
     final Path dataFolder = this.plugin.getDataPath();
     final Path imageFolder = DiskImages.folderOf(dataFolder);
-    final VmConfigurationBuilder builder = parseOptions(flags, imageFolder, maximumMemoryBytes());
+    final long maximumMemory = maximumMemoryBytes();
+    final VmConfigurationBuilder builder = parseOptions(flags, imageFolder, maximumMemory);
     // without it, the guest gets MCAV's network that reaches nothing, as no option of the command chooses one
     final PluginDataConfigurationMapper settings = this.plugin.getConfiguration();
-    if (settings.isVmAllowNetwork()) {
+    final boolean networkAllowed = settings.isVmAllowNetwork();
+    if (networkAllowed) {
       builder.network(QEMU_NETWORK);
     }
 
@@ -491,7 +509,8 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
   // the JVM reports a container's memory limit here, not the host's
   static long maximumMemoryBytes() {
     final OperatingSystemMXBean system = ManagementFactory.getPlatformMXBean(OperatingSystemMXBean.class);
-    return maximumMemoryBytes(system.getTotalMemorySize());
+    final long totalMemoryBytes = system.getTotalMemorySize();
+    return maximumMemoryBytes(totalMemoryBytes);
   }
 
   static long maximumMemoryBytes(final long totalMemoryBytes) {
@@ -533,6 +552,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     } else {
       builder.option(name, value);
     }
+
     return next + 1;
   }
 
@@ -627,19 +647,11 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    * @since 1.0.0
    */
   public static List<String> supportedOptions() {
-    final List<String> names = new ArrayList<>();
-    for (final String flag : FLAG_OPTIONS) {
-      names.add(OPTION_PREFIX + flag);
-    }
-    for (final String hardware : HARDWARE_OPTIONS) {
-      names.add(OPTION_PREFIX + hardware);
-    }
-    for (final String image : IMAGE_OPTIONS) {
-      names.add(OPTION_PREFIX + image);
-    }
-    names.add(OPTION_PREFIX + QemuHardwareValues.DRIVE_OPTION);
-    Collections.sort(names);
-    return Collections.unmodifiableList(names);
+    return Stream.of(FLAG_OPTIONS, HARDWARE_OPTIONS, IMAGE_OPTIONS, Set.of(QemuHardwareValues.DRIVE_OPTION))
+      .flatMap(Set::stream)
+      .map(OPTION_PREFIX::concat)
+      .sorted()
+      .toList();
   }
 
   private static boolean isValue(final List<String> tokens, final int index) {

@@ -20,6 +20,7 @@ package me.brandonli.mcav.plugin.command.video;
 import com.google.common.base.Preconditions;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 import me.brandonli.mcav.plugin.MCAVSandbox;
 import me.brandonli.mcav.plugin.command.AnnotationCommandFeature;
@@ -52,7 +53,6 @@ public final class VideoDevicesCommand implements AnnotationCommandFeature {
   private static final String NAME_SEPARATOR = ", ";
 
   private final MCAVSandbox plugin;
-
   private final VideoPlayerManager manager;
 
   /**
@@ -85,10 +85,8 @@ public final class VideoDevicesCommand implements AnnotationCommandFeature {
   public void listDevices(final CommandSender sender) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
 
-    final CompletableFuture<List<CaptureDevices.Device>> listing = CompletableFuture.supplyAsync(
-      CaptureDevices::list,
-      this.manager.getService()
-    );
+    final ExecutorService service = this.manager.getService();
+    final CompletableFuture<List<CaptureDevices.Device>> listing = CompletableFuture.supplyAsync(CaptureDevices::list, service);
     TaskUtils.whenComplete(listing, (devices, error) -> this.onDevicesListed(sender, devices, error));
   }
 
@@ -103,6 +101,7 @@ public final class VideoDevicesCommand implements AnnotationCommandFeature {
 
     final List<CaptureDevices.Device> listed = devices == null ? List.of() : devices;
     this.manager.setDevices(listed);
+
     this.tellDevices(sender, listed);
   }
 

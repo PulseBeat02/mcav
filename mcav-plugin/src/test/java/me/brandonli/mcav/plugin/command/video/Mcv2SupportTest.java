@@ -217,8 +217,8 @@ final class Mcv2SupportTest {
 
   @Test
   void shouldTakeThePageSlotsAndTheBacklogLimitOfAMeasurement() {
-    System.setProperty(VideoMcv2Command.PAGE_SLOTS_PROPERTY, "8");
-    System.setProperty(VideoMcv2Command.BACKLOG_PROPERTY, "65536");
+    System.setProperty(Mcv2Support.PAGE_SLOTS_PROPERTY, "8");
+    System.setProperty(Mcv2Support.BACKLOG_PROPERTY, "65536");
     try {
       final Mcv2Configuration limited = this.configure(20).orElseThrow();
 
@@ -231,8 +231,8 @@ final class Mcv2SupportTest {
       final int unsentLimit = limited.getUnsentLimit();
       assertEquals(Mcv2Configuration.DEFAULT_UNSENT_LIMIT, unsentLimit);
     } finally {
-      System.clearProperty(VideoMcv2Command.PAGE_SLOTS_PROPERTY);
-      System.clearProperty(VideoMcv2Command.BACKLOG_PROPERTY);
+      System.clearProperty(Mcv2Support.PAGE_SLOTS_PROPERTY);
+      System.clearProperty(Mcv2Support.BACKLOG_PROPERTY);
     }
   }
 
@@ -373,21 +373,21 @@ final class Mcv2SupportTest {
 
   @Test
   void shouldStepDownToTwoThirdsAndHalfOfTheVideo() {
-    final List<String> described = this.described(Mcv2Support.computeSmallerSizes(1920, 1080));
+    final List<String> described = this.described(this.support.computeSmallerSizes(1920, 1080));
     assertEquals(List.of("1280x720", "960x540"), described);
 
-    final List<String> secondDescribed = this.described(Mcv2Support.computeSmallerSizes(VIDEO_HEIGHT, 216));
+    final List<String> secondDescribed = this.described(this.support.computeSmallerSizes(VIDEO_HEIGHT, 216));
     assertEquals(List.of("256x144", "192x108"), secondDescribed);
     // a size under 128 by 72 is left out
 
-    final List<String> thirdDescribed = this.described(Mcv2Support.computeSmallerSizes(240, 120));
+    final List<String> thirdDescribed = this.described(this.support.computeSmallerSizes(240, 120));
     assertEquals(List.of("160x80"), thirdDescribed);
 
-    final List<String> fourthDescribed = this.described(Mcv2Support.computeSmallerSizes(200, 100));
+    final List<String> fourthDescribed = this.described(this.support.computeSmallerSizes(200, 100));
     assertEquals(List.of(), fourthDescribed);
     // exactly 128 by 72 is kept
 
-    final List<String> fifthDescribed = this.described(Mcv2Support.computeSmallerSizes(192, 108));
+    final List<String> fifthDescribed = this.described(this.support.computeSmallerSizes(192, 108));
     assertEquals(List.of("128x72"), fifthDescribed);
   }
 

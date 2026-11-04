@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.plugin.utils;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -35,12 +37,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
@@ -170,6 +170,7 @@ public final class DumpUtils {
         return key.getAsString();
       }
     }
+
     final String message = "Paste site answer %s has no document key!".formatted(response);
     throw new PluginException(message);
   }
@@ -269,12 +270,7 @@ public final class DumpUtils {
   // everything after the first equals sign is redacted
   @VisibleForTesting
   static List<String> redactArguments(final List<String> arguments) {
-    final List<String> redacted = new ArrayList<>();
-    for (final String argument : arguments) {
-      final String safe = redactArgument(argument);
-      redacted.add(safe);
-    }
-    return redacted;
+    return arguments.stream().map(DumpUtils::redactArgument).toList();
   }
 
   private static String redactArgument(final String argument) {
@@ -306,6 +302,7 @@ public final class DumpUtils {
       final String safe = secret ? REDACTED : redactSecretsInside(value);
       sorted.put(name, safe);
     }
+
     for (final Map.Entry<String, String> entry : sorted.entrySet()) {
       final String name = entry.getKey();
       final String value = entry.getValue();
@@ -320,16 +317,19 @@ public final class DumpUtils {
       final String word = words.group();
       final String redacted = redactArgument(word);
       if (!redacted.equals(word)) {
-        final String prefix = value.substring(0, words.start());
+        final int start = words.start();
+        final String prefix = value.substring(0, start);
         final String safe = "%s%s".formatted(prefix, redacted);
         return safe;
       }
       if (word.startsWith(OPTION_PREFIX) && isSecret(word)) {
-        final String prefix = value.substring(0, words.end());
+        final int end = words.end();
+        final String prefix = value.substring(0, end);
         final String safe = "%s%s%s".formatted(prefix, WORD_SEPARATOR, REDACTED);
         return safe;
       }
     }
+
     return value;
   }
 
@@ -350,9 +350,13 @@ public final class DumpUtils {
       final String queryOrFragment = address.group(QUERY_OR_FRAGMENT_GROUP);
       final String userPart = user == null ? "" : "%s%s".formatted(REDACTED, USER_SEPARATOR);
       final String tail = queryOrFragment == null ? "" : "%s%s".formatted(queryOrFragment.charAt(0), REDACTED);
-      final String replacement = "%s%s%s%s".formatted(address.group(SCHEME_GROUP), userPart, address.group(HOST_GROUP), tail);
-      address.appendReplacement(redacted, Matcher.quoteReplacement(replacement));
+      final String scheme = address.group(SCHEME_GROUP);
+      final String host = address.group(HOST_GROUP);
+      final String replacement = "%s%s%s%s".formatted(scheme, userPart, host, tail);
+      final String quotedReplacement = Matcher.quoteReplacement(replacement);
+      address.appendReplacement(redacted, quotedReplacement);
     }
+
     address.appendTail(redacted);
     return redacted.toString();
   }
@@ -373,13 +377,14 @@ public final class DumpUtils {
 
     final String name = matcher.group(COMMAND_NAME_GROUP);
     final String arguments = matcher.group(COMMAND_ARGUMENTS_GROUP);
-    final String commandName = Objects.requireNonNull(name);
+    final String commandName = requireNonNull(name);
     final boolean own = commandName.equalsIgnoreCase(OWN_COMMAND_NAME);
     if (own || arguments == null || arguments.isBlank()) {
       return line;
     }
 
-    final String prefix = line.substring(0, matcher.start(COMMAND_ARGUMENTS_GROUP));
+    final int argumentsStart = matcher.start(COMMAND_ARGUMENTS_GROUP);
+    final String prefix = line.substring(0, argumentsStart);
     final String redacted = "%s%s%s".formatted(prefix, WORD_SEPARATOR, REDACTED);
     return redacted;
   }
@@ -391,6 +396,7 @@ public final class DumpUtils {
         return true;
       }
     }
+
     return false;
   }
 
@@ -443,6 +449,7 @@ public final class DumpUtils {
         tail.removeFirst();
       }
     }
+
     return tail;
   }
 }

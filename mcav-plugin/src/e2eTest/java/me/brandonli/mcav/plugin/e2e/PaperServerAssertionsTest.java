@@ -37,8 +37,8 @@ final class PaperServerAssertionsTest {
 
   @Test
   void shouldAcceptTheCompleteIdleSnapshotInAnyFieldOrder() {
-    PaperServerEndToEndTest.assertRanCleanly(SUCCESS_EXIT_CODE, "{\"duration\":0,\"view_count\":0,\"like_count\":0}", STARTUP);
-    PaperServerEndToEndTest.assertRanCleanly(SUCCESS_EXIT_CODE, "{\"like_count\":0,\"duration\":0,\"view_count\":0}", STARTUP);
+    PaperServerAssertions.assertRanCleanly(SUCCESS_EXIT_CODE, "{\"duration\":0,\"view_count\":0,\"like_count\":0}", STARTUP);
+    PaperServerAssertions.assertRanCleanly(SUCCESS_EXIT_CODE, "{\"like_count\":0,\"duration\":0,\"view_count\":0}", STARTUP);
   }
 
   @ParameterizedTest
@@ -52,13 +52,13 @@ final class PaperServerAssertionsTest {
     }
   )
   void shouldRefuseIncompleteOrStaleIdleSnapshots(final String response) {
-    assertThrows(AssertionError.class, () -> PaperServerEndToEndTest.assertRanCleanly(SUCCESS_EXIT_CODE, response, STARTUP));
+    assertThrows(AssertionError.class, () -> PaperServerAssertions.assertRanCleanly(SUCCESS_EXIT_CODE, response, STARTUP));
   }
 
   @ParameterizedTest
   @ValueSource(strings = { "{", "{duration:0,view_count:0,like_count:0}", "{\"duration\":0,\"view_count\":0,\"like_count\":0} trailing" })
   void shouldRefuseMalformedMediaInformation(final String response) {
-    assertThrows(JsonParseException.class, () -> PaperServerEndToEndTest.assertRanCleanly(SUCCESS_EXIT_CODE, response, STARTUP));
+    assertThrows(JsonParseException.class, () -> PaperServerAssertions.assertRanCleanly(SUCCESS_EXIT_CODE, response, STARTUP));
   }
 
   @ParameterizedTest
@@ -76,12 +76,12 @@ final class PaperServerAssertionsTest {
     }
   )
   void shouldRefusePlaybackFailuresAndUncaughtExceptions(final String line) {
-    assertThrows(AssertionError.class, () -> PaperServerEndToEndTest.assertNoErrors(List.of(line)));
+    assertThrows(AssertionError.class, () -> PaperServerAssertions.assertNoErrors(List.of(line)));
   }
 
   @Test
   void shouldAcceptUnrelatedServerWarnings() {
-    PaperServerEndToEndTest.assertNoErrors(
+    PaperServerAssertions.assertNoErrors(
       List.of("[Server thread/WARN]: This server is running in offline mode", "[Server thread/WARN]: Can't keep up!")
     );
   }
