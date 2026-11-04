@@ -74,6 +74,8 @@ final class SourceUtilsTest {
   private static final String LIVE_URL = "https://example.com/live";
   private static final String INVALID_URL = "http://[";
 
+  private static final String OFFLINE_MESSAGE = "offline!";
+
   @TempDir
   private Path directory;
 
@@ -223,8 +225,7 @@ final class SourceUtilsTest {
   }
 
   private UrlParseDump failOffline() {
-    final String message = "offline!";
-    throw new InstallationException(message);
+    throw new InstallationException(OFFLINE_MESSAGE);
   }
 
   private UrlParseDump rejectUrl() {
@@ -240,7 +241,7 @@ final class SourceUtilsTest {
   @Test
   void shouldAskTheSharedYtdlpInstallationWithoutTouchingTheNetwork() throws IOException {
     final YtdlpInstaller installer = Mockito.mock(YtdlpInstaller.class);
-    final InstallationException offline = new InstallationException("offline!");
+    final InstallationException offline = new InstallationException(OFFLINE_MESSAGE);
     Mockito.when(installer.download(FileMode.EXECUTABLE)).thenThrow(offline);
     try (final MockedStatic<YtdlpInstaller> installers = Mockito.mockStatic(YtdlpInstaller.class)) {
       installers.when(YtdlpInstaller::shared).thenReturn(installer);

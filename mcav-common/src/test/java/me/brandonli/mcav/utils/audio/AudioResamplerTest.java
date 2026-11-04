@@ -50,6 +50,9 @@ final class AudioResamplerTest {
 
   private static final int SHORT_TONE_FRAMES = 4_800;
 
+  private static final short HALF_SCALE_SAMPLE = 16_384;
+  private static final short QUARTER_SCALE_SAMPLE = 8_192;
+
   private static final String CONVERT_OPERATION = "convert the samples";
   private static final String INITIALIZE_OPERATION = "initialize the resampler";
 
@@ -312,7 +315,14 @@ final class AudioResamplerTest {
 
   @Test
   void shouldConvertSigned16BitSamplesToFloatingPoint() {
-    final ByteBuffer input = samples16((short) 16_384, (short) -16_384, (short) 0, (short) 8_192, Short.MIN_VALUE, Short.MAX_VALUE);
+    final ByteBuffer input = samples16(
+      HALF_SCALE_SAMPLE,
+      (short) -HALF_SCALE_SAMPLE,
+      (short) 0,
+      QUARTER_SCALE_SAMPLE,
+      Short.MIN_VALUE,
+      Short.MAX_VALUE
+    );
     try (final AudioResampler resampler = AudioResampler.fromPipelineFormat(PIPELINE_RATE, STEREO_CHANNELS, SampleFormat.FLOAT_32_BIT)) {
       final byte[] converted = resampler.resample(input);
       final float[] samples = toFloats(converted);
@@ -344,7 +354,7 @@ final class AudioResamplerTest {
     ) {
       final byte[] converted = resampler.resample(input);
       final short[] samples = toShorts(converted);
-      final short[] expected = { 16_384, -8_192, Short.MIN_VALUE, Short.MAX_VALUE };
+      final short[] expected = { HALF_SCALE_SAMPLE, -QUARTER_SCALE_SAMPLE, Short.MIN_VALUE, Short.MAX_VALUE };
       assertArrayEquals(expected, samples);
     }
   }

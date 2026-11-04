@@ -99,6 +99,8 @@ final class IoUtilsTest {
 
   private static final int GENEROUS_LIMIT = 100;
 
+  private static final int HTTP_OK = 200;
+
   private static final String FILLER_CHARACTER = "x";
 
   private static final String FILE_CONTENT = "content";
@@ -205,6 +207,12 @@ final class IoUtilsTest {
   private static final String TRUNCATED_HEADER_PREFIX = "header-";
   private static final String NAME_SEPARATOR = "-";
   private static final String ZIP_EXTENSION = ".zip";
+
+  private static final String TOTAL_LIMIT_MESSAGE = "Total extracted size exceeds the limit!";
+  private static final String TRUNCATED_ARCHIVE_MESSAGE = "Zip archive %s is truncated!";
+
+  private static final String POSIX_PERMISSIONS_MESSAGE = "Directory permissions need a POSIX file system!";
+  private static final String WRITABLE_EVERYWHERE_MESSAGE = "The user can write every directory!";
 
   @TempDir
   private Path directory;
@@ -386,8 +394,8 @@ final class IoUtilsTest {
       final TemporaryUserHome redirected = TemporaryUserHome.redirectTo(this.directory);
       final LocalHttpServer server = LocalHttpServer.start()
     ) {
-      server.respond("/image.png", 200, ABC);
-      server.respond("/image.png", 200, DEF);
+      server.respond("/image.png", HTTP_OK, ABC);
+      server.respond("/image.png", HTTP_OK, DEF);
       final URI imageUri = server.uri("/image.png");
       final URI missingUri = server.uri("/missing.png");
       final URI fileUri = URI.create("file:///image.png");
@@ -421,7 +429,7 @@ final class IoUtilsTest {
   void shouldStopAnImageDownloadLargerThanTheLimit() throws IOException {
     try (final TemporaryUserHome _ = TemporaryUserHome.redirectTo(this.directory); final LocalHttpServer server = LocalHttpServer.start()) {
       final int tooLarge = Math.toIntExact(IoUtils.MAXIMUM_IMAGE_BYTES + 1);
-      server.respond("/large.png", 200, new byte[tooLarge]);
+      server.respond("/large.png", HTTP_OK, new byte[tooLarge]);
       final URI largeUri = server.uri("/large.png");
       final UriSource large = UriSource.uri(largeUri);
 
@@ -468,12 +476,12 @@ final class IoUtilsTest {
     final Path temporary = this.directory.resolve(TEMPORARY_NAME);
     final Os operatingSystem = OsUtils.getOs();
     final boolean posix = operatingSystem != Os.WINDOWS;
-    Assumptions.assumeTrue(posix, "Directory permissions need a POSIX file system!");
+    Assumptions.assumeTrue(posix, POSIX_PERMISSIONS_MESSAGE);
 
     Files.setPosixFilePermissions(homeCache, READ_ONLY_PERMISSIONS);
     try {
       final boolean writable = Files.isWritable(homeCache);
-      Assumptions.assumeFalse(writable, "The user can write every directory!");
+      Assumptions.assumeFalse(writable, WRITABLE_EVERYWHERE_MESSAGE);
 
       final Path cache = this.getCachedFolderIn(home, temporary);
       final Path expected = temporary.resolve(TEMPORARY_CACHE_PATH);
@@ -842,7 +850,7 @@ final class IoUtilsTest {
     final String entryMessage = entryFailure.getMessage();
     final String totalMessage = totalFailure.getMessage();
     assertEquals("Zip entry one.txt exceeds the maximum size!", entryMessage);
-    assertEquals("Total extracted size exceeds the limit!", totalMessage);
+    assertEquals(TOTAL_LIMIT_MESSAGE, totalMessage);
   }
 
   @Test
@@ -866,7 +874,7 @@ final class IoUtilsTest {
 
     final boolean withinTotal = written <= totalLimit;
     assertTrue(withinTotal, "bytes written across entries: " + written);
-    assertEquals("Total extracted size exceeds the limit!", message);
+    assertEquals(TOTAL_LIMIT_MESSAGE, message);
   }
 
   @Test
@@ -954,7 +962,7 @@ final class IoUtilsTest {
         final Throwable cause = failure.getCause();
         assertInstanceOf(ZipException.class, cause);
         final String message = cause.getMessage();
-        final String expected = "Zip archive %s is truncated!".formatted(truncated);
+        final String expected = TRUNCATED_ARCHIVE_MESSAGE.formatted(truncated);
         assertEquals(expected, message);
       }
     }
@@ -977,7 +985,7 @@ final class IoUtilsTest {
     assertInstanceOf(ZipException.class, cause);
 
     final String message = cause.getMessage();
-    final String expected = "Zip archive %s is truncated!".formatted(truncated);
+    final String expected = TRUNCATED_ARCHIVE_MESSAGE.formatted(truncated);
     assertEquals(expected, message);
   }
 
@@ -1160,12 +1168,12 @@ final class IoUtilsTest {
     Files.writeString(source, FILE_CONTENT);
     final Os operatingSystem = OsUtils.getOs();
     final boolean posix = operatingSystem != Os.WINDOWS;
-    Assumptions.assumeTrue(posix, "Directory permissions need a POSIX file system!");
+    Assumptions.assumeTrue(posix, POSIX_PERMISSIONS_MESSAGE);
 
     Files.setPosixFilePermissions(targetDirectory, READ_ONLY_PERMISSIONS);
     try {
       final boolean writable = Files.isWritable(targetDirectory);
-      Assumptions.assumeFalse(writable, "The user can write every directory!");
+      Assumptions.assumeFalse(writable, WRITABLE_EVERYWHERE_MESSAGE);
 
       final long start = System.nanoTime();
       final FileOperationException thrown = assertThrows(FileOperationException.class, () -> IoUtils.moveReplacing(source, target));

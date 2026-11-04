@@ -96,6 +96,7 @@ final class HttpDownloaderTest {
   private static final String BIG_ROUTE = "/big";
   private static final String MISSING_ROUTE = "/missing";
   private static final String MOVED_ROUTE = "/moved";
+  private static final String TEXT_ROUTE = "/text";
 
   private static final String NESTED_DIRECTORY = "nested";
   private static final String NESTED_FILE_PATH = "nested/file.bin";
@@ -892,8 +893,8 @@ final class HttpDownloaderTest {
   @Test
   void shouldFetchTheBodyOrNothingForAnErrorStatus() throws IOException {
     try (final LocalHttpServer server = LocalHttpServer.start()) {
-      server.respond("/text", HTTP_OK, CONTENT);
-      final URI text = server.uri("/text");
+      server.respond(TEXT_ROUTE, HTTP_OK, CONTENT);
+      final URI text = server.uri(TEXT_ROUTE);
       final URI missing = server.uri(MISSING_ROUTE);
       final Optional<String> fetched = HttpDownloader.fetchText(text);
       final Optional<String> notFound = HttpDownloader.fetchText(missing);
@@ -909,8 +910,8 @@ final class HttpDownloaderTest {
   @Test
   void shouldKeepTheInterruptFlagWhenAFetchIsInterrupted() throws IOException {
     try (final LocalHttpServer server = LocalHttpServer.start()) {
-      server.respond("/text", HTTP_OK, CONTENT);
-      final URI text = server.uri("/text");
+      server.respond(TEXT_ROUTE, HTTP_OK, CONTENT);
+      final URI text = server.uri(TEXT_ROUTE);
       final Thread current = Thread.currentThread();
       current.interrupt();
       assertThrows(DownloadException.class, () -> HttpDownloader.fetchText(text));

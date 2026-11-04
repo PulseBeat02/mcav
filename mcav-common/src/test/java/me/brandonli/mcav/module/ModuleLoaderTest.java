@@ -45,6 +45,7 @@ final class ModuleLoaderTest {
 
   private static final String PORT_IN_USE_MESSAGE = "port in use!";
   private static final String MISSING_CONFIGURATION_MESSAGE = "Missing configuration!";
+  private static final String SOCKET_CLOSED_MESSAGE = "socket already closed!";
 
   @Test
   void shouldStartModulesInRequestOrder() {
@@ -261,7 +262,7 @@ final class ModuleLoaderTest {
     final String message = exception.getMessage();
     final Throwable cause = exception.getCause();
     final Collection<MCAVModule> modules = loader.getModules();
-    assertEquals("Missing configuration!", message);
+    assertEquals(MISSING_CONFIGURATION_MESSAGE, message);
     assertNull(cause);
 
     final boolean modulesEmpty = modules.isEmpty();
@@ -405,7 +406,7 @@ final class ModuleLoaderTest {
 
     final Throwable stopFailure = suppressed[0];
     final String stopMessage = stopFailure.getMessage();
-    assertEquals("socket already closed!", stopMessage);
+    assertEquals(SOCKET_CLOSED_MESSAGE, stopMessage);
   }
 
   @Test
@@ -689,8 +690,7 @@ final class ModuleLoaderTest {
 
     @Override
     public void stop() {
-      final String message = "socket already closed!";
-      throw new IllegalStateException(message);
+      throw new IllegalStateException(SOCKET_CLOSED_MESSAGE);
     }
   }
 

@@ -72,6 +72,8 @@ final class MCAVTest {
 
   private static final String TRACKED_MODULE_NAME = "tracked";
 
+  private static final String ALREADY_INSTALLED_MESSAGE = "MCAV has already been installed!";
+
   private final DependencyLoader dependencies = Mockito.mock(DependencyLoader.class);
   private final ModuleLoader modules = createSpiedModuleLoader();
   private final CapabilityGuard guard = new CapabilityGuard();
@@ -336,7 +338,7 @@ final class MCAVTest {
     final String message = exception.getMessage();
     final CountingModule module = this.mcav.getModule(CountingModule.class);
     final int starts = module.starts.get();
-    assertEquals("MCAV has already been installed!", message);
+    assertEquals(ALREADY_INSTALLED_MESSAGE, message);
     assertEquals(1, starts);
 
     this.awaitBackgroundInstallation();
@@ -358,7 +360,7 @@ final class MCAVTest {
     final String message = exception.getMessage();
     final CountingModule module = this.mcav.getModule(CountingModule.class);
     final int starts = module.starts.get();
-    assertEquals("MCAV has already been installed!", message);
+    assertEquals(ALREADY_INSTALLED_MESSAGE, message);
     assertEquals(1, starts);
 
     this.awaitBackgroundInstallation();

@@ -77,6 +77,8 @@ class DelayedAudioOutputTest {
   private static final String FILTER_BROKE_MESSAGE = "filter broke!";
   private static final String FILTER_FAILED_MESSAGE = "filter failed!";
 
+  private static final String FAILURE_RECORD_FORMAT = "%s: %s";
+
   private final List<byte[]> processed = new CopyOnWriteArrayList<>();
   private final List<OriginalAudioMetadata> formats = new CopyOnWriteArrayList<>();
   private final List<String> failures = new CopyOnWriteArrayList<>();
@@ -85,7 +87,7 @@ class DelayedAudioOutputTest {
   private volatile AudioPipelineStep step = AudioPipelineStep.of(this::filter);
   private DelayedAudioOutput output = start(
     () -> this.step,
-    (message, failure) -> this.failures.add(message + ": " + failure.getMessage())
+    (message, failure) -> this.failures.add(FAILURE_RECORD_FORMAT.formatted(message, failure.getMessage()))
   );
 
   private boolean filter(final ByteBuffer samples, final OriginalAudioMetadata metadata) {
@@ -744,7 +746,7 @@ class DelayedAudioOutputTest {
     empty.close();
     final DelayedAudioOutput failing = start(
       () -> AudioPipelineStep.of((samples, metadata) -> this.breakFilter()),
-      (message, failure) -> this.failures.add(message + ": " + failure.getMessage())
+      (message, failure) -> this.failures.add(FAILURE_RECORD_FORMAT.formatted(message, failure.getMessage()))
     );
     failing.accept(new byte[AudioFilter.FRAME_SIZE], AudioFilter.FRAME_SIZE);
     waitUntil(() -> !this.failures.isEmpty());

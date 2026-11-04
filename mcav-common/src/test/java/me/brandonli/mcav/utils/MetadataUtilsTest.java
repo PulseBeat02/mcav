@@ -57,6 +57,8 @@ final class MetadataUtilsTest {
   private static final int SAMPLE_RATE = 48_000;
   private static final int AUDIO_CHANNELS = 2;
 
+  private static final int PROBE_FRAMES = 30;
+
   @TempDir
   private Path directory;
 
@@ -82,20 +84,20 @@ final class MetadataUtilsTest {
         assertEquals(expected, actual);
       }
       final int probedFrames = frames.get();
-      assertEquals(30, probedFrames, "the probe includes its last allowed frame and stops there");
+      assertEquals(PROBE_FRAMES, probedFrames, "the probe includes its last allowed frame and stops there");
       final FFmpegFrameGrabber grabber = grabbers.constructed().getFirst();
-      verify(grabber, times(30)).grabFrame();
+      verify(grabber, times(PROBE_FRAMES)).grabFrame();
       verify(grabber).close();
     }
   }
 
   private void stubMetadataRevealedOnTheLastProbeFrame(final FFmpegFrameGrabber grabber, final AtomicInteger frames, final Frame frame)
     throws FrameGrabber.Exception {
-    when(grabber.getImageWidth()).thenAnswer(_ -> frames.get() >= 30 ? VIDEO_WIDTH : 0);
+    when(grabber.getImageWidth()).thenAnswer(_ -> frames.get() >= PROBE_FRAMES ? VIDEO_WIDTH : 0);
     when(grabber.getImageHeight()).thenReturn(VIDEO_HEIGHT);
-    when(grabber.getFrameRate()).thenAnswer(_ -> frames.get() >= 30 ? FRAME_RATE : 0.0);
+    when(grabber.getFrameRate()).thenAnswer(_ -> frames.get() >= PROBE_FRAMES ? FRAME_RATE : 0.0);
     when(grabber.getVideoBitrate()).thenReturn(VIDEO_BITRATE);
-    when(grabber.getSampleRate()).thenAnswer(_ -> frames.get() >= 30 ? SAMPLE_RATE : 0);
+    when(grabber.getSampleRate()).thenAnswer(_ -> frames.get() >= PROBE_FRAMES ? SAMPLE_RATE : 0);
     when(grabber.getAudioChannels()).thenReturn(AUDIO_CHANNELS);
     when(grabber.getAudioCodecName()).thenReturn(AUDIO_CODEC);
     when(grabber.getAudioBitrate()).thenReturn(AUDIO_BITRATE);

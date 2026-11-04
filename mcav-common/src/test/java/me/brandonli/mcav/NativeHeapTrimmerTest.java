@@ -83,6 +83,8 @@ final class NativeHeapTrimmerTest {
 
   private static final String PROCESS_STATUS_PATH = "/proc/self/status";
 
+  private static final String UNTRIMMED_TEST_JVM_MESSAGE = "the JVM of the tests does not trim itself";
+
   private static Optional<Thread> trimmingThread() {
     return Thread.getAllStackTraces()
       .keySet()
@@ -410,7 +412,7 @@ final class NativeHeapTrimmerTest {
       trimmer.start();
       final boolean trimming = trimmer.isTrimming();
       trimmer.stop();
-      assertEquals(linux, trimming, "the JVM of the tests does not trim itself");
+      assertEquals(linux, trimming, UNTRIMMED_TEST_JVM_MESSAGE);
     } finally {
       if (previous == null) {
         System.clearProperty(NativeHeapTrimmer.INTERVAL_PROPERTY);
@@ -489,7 +491,7 @@ final class NativeHeapTrimmerTest {
   @Test
   void shouldReadTheIntervalOfTheJvmsOwnTrims() {
     final long intervalMilliseconds = NativeHeapTrimmer.readJvmIntervalMilliseconds();
-    assertEquals(0L, intervalMilliseconds, "the JVM of the tests does not trim itself");
+    assertEquals(0L, intervalMilliseconds, UNTRIMMED_TEST_JVM_MESSAGE);
   }
 
   @Test
