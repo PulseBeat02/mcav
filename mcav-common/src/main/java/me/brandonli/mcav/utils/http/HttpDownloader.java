@@ -478,8 +478,8 @@ public final class HttpDownloader {
   }
 
   private static void rethrowUnlessRetryable(final Exception failure) {
-    if (failure instanceof final DownloadException downloadFailure && !isRetryable(downloadFailure)) {
-      throw downloadFailure;
+    if (failure instanceof final DownloadException downloadException && !isRetryable(downloadException)) {
+      throw downloadException;
     }
   }
 
@@ -505,11 +505,11 @@ public final class HttpDownloader {
       return false;
     }
 
-    if (!(exception instanceof final HttpStatusException statusException)) {
+    if (!(exception instanceof final HttpStatusException httpStatusException)) {
       return true;
     }
 
-    final int status = statusException.getStatusCode();
+    final int status = httpStatusException.getStatusCode();
     return status >= HTTP_SERVER_ERROR || status == HTTP_REQUEST_TIMEOUT || status == HTTP_TOO_MANY_REQUESTS;
   }
 

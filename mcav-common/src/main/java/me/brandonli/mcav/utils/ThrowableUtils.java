@@ -49,8 +49,8 @@ public final class ThrowableUtils {
   public static void throwIfFatal(final Throwable failure) {
     Preconditions.checkNotNull(failure, "Failure must not be null!");
 
-    if (failure instanceof final VirtualMachineError fatal) {
-      throw fatal;
+    if (failure instanceof final VirtualMachineError virtualMachineError) {
+      throw virtualMachineError;
     }
   }
 }

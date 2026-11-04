@@ -113,8 +113,8 @@ final class ExampleResources implements AutoCloseable {
       throw error;
     }
 
-    if (first instanceof final RuntimeException exception) {
-      throw exception;
+    if (first instanceof final RuntimeException runtimeException) {
+      throw runtimeException;
     }
   }
 

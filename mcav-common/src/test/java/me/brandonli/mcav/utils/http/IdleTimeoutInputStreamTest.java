@@ -232,8 +232,8 @@ final class IdleTimeoutInputStreamTest {
 
     @Override
     public int read() {
-      if (this.failure instanceof final RuntimeException exception) {
-        throw exception;
+      if (this.failure instanceof final RuntimeException runtimeException) {
+        throw runtimeException;
       }
 
       throw (Error) this.failure;

@@ -97,8 +97,8 @@ final class IdleTimeoutInputStream extends InputStream {
       throw interrupted;
     } catch (final ExecutionException exception) {
       final Throwable cause = exception.getCause();
-      if (cause instanceof final RuntimeException runtime) {
-        throw runtime;
+      if (cause instanceof final RuntimeException runtimeException) {
+        throw runtimeException;
       }
 
       if (cause instanceof final Error error) {
