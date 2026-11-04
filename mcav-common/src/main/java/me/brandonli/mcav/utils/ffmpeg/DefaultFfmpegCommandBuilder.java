@@ -23,6 +23,10 @@ import java.util.List;
 
 final class DefaultFfmpegCommandBuilder implements FfmpegCommandBuilder {
 
+  private static final String CODEC_NULL_MESSAGE = "Codec must not be null!";
+  private static final String BITRATE_NULL_MESSAGE = "Bitrate must not be null!";
+  private static final String ARGUMENT_NULL_MESSAGE = "Argument must not be null!";
+
   private static final String RESOLUTION_SEPARATOR = "x";
 
   private final List<String> arguments;
@@ -50,7 +54,7 @@ final class DefaultFfmpegCommandBuilder implements FfmpegCommandBuilder {
 
   @Override
   public FfmpegCommandBuilder addVideoCodec(final String codec) {
-    Preconditions.checkNotNull(codec, "Codec must not be null!");
+    Preconditions.checkNotNull(codec, CODEC_NULL_MESSAGE);
 
     this.arguments.add("-c:v");
     this.arguments.add(codec);
@@ -59,7 +63,7 @@ final class DefaultFfmpegCommandBuilder implements FfmpegCommandBuilder {
 
   @Override
   public FfmpegCommandBuilder addAudioCodec(final String codec) {
-    Preconditions.checkNotNull(codec, "Codec must not be null!");
+    Preconditions.checkNotNull(codec, CODEC_NULL_MESSAGE);
 
     this.arguments.add("-c:a");
     this.arguments.add(codec);
@@ -68,7 +72,7 @@ final class DefaultFfmpegCommandBuilder implements FfmpegCommandBuilder {
 
   @Override
   public FfmpegCommandBuilder addBitrate(final String bitrate) {
-    Preconditions.checkNotNull(bitrate, "Bitrate must not be null!");
+    Preconditions.checkNotNull(bitrate, BITRATE_NULL_MESSAGE);
 
     this.arguments.add("-b:v");
     this.arguments.add(bitrate);
@@ -77,7 +81,7 @@ final class DefaultFfmpegCommandBuilder implements FfmpegCommandBuilder {
 
   @Override
   public FfmpegCommandBuilder addAudioBitrate(final String bitrate) {
-    Preconditions.checkNotNull(bitrate, "Bitrate must not be null!");
+    Preconditions.checkNotNull(bitrate, BITRATE_NULL_MESSAGE);
 
     this.arguments.add("-b:a");
     this.arguments.add(bitrate);
@@ -121,7 +125,7 @@ final class DefaultFfmpegCommandBuilder implements FfmpegCommandBuilder {
 
   @Override
   public FfmpegCommandBuilder addArgument(final String argument) {
-    Preconditions.checkNotNull(argument, "Argument must not be null!");
+    Preconditions.checkNotNull(argument, ARGUMENT_NULL_MESSAGE);
 
     this.arguments.add(argument);
     return this;
@@ -132,7 +136,7 @@ final class DefaultFfmpegCommandBuilder implements FfmpegCommandBuilder {
     Preconditions.checkNotNull(rawArguments, "Arguments must not be null!");
 
     for (final String argument : rawArguments) {
-      Preconditions.checkNotNull(argument, "Argument must not be null!");
+      Preconditions.checkNotNull(argument, ARGUMENT_NULL_MESSAGE);
       this.arguments.add(argument);
     }
 

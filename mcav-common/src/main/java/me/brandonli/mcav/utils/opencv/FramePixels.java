@@ -43,8 +43,11 @@ public final class FramePixels {
    */
   public static final int BGR_CHANNELS = 3;
 
+  private static final String FRAME_NULL_MESSAGE = "Frame must not be null!";
+
   private FramePixels() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**
@@ -59,7 +62,7 @@ public final class FramePixels {
    * @since 1.0.0
    */
   public static ByteBuffer copyBgr(final Frame frame) {
-    Preconditions.checkNotNull(frame, "Frame must not be null!");
+    Preconditions.checkNotNull(frame, FRAME_NULL_MESSAGE);
 
     final int size = checkedSize(frame);
     final ByteBuffer pixels = ByteBuffer.allocateDirect(size);
@@ -84,7 +87,7 @@ public final class FramePixels {
    * @since 1.0.0
    */
   public static void copyBgr(final Frame frame, final ByteBuffer target) {
-    Preconditions.checkNotNull(frame, "Frame must not be null!");
+    Preconditions.checkNotNull(frame, FRAME_NULL_MESSAGE);
     Preconditions.checkNotNull(target, "Target must not be null!");
 
     final ByteBuffer source = getPlane(frame);

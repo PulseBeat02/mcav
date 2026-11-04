@@ -37,7 +37,8 @@ import me.brandonli.mcav.media.player.PlayerException;
 public final class ByteUtils {
 
   private ByteUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**

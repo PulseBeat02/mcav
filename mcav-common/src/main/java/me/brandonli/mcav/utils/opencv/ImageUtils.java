@@ -38,7 +38,8 @@ public final class ImageUtils {
   private static final int ALPHA_INDEX = 3;
 
   private ImageUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**

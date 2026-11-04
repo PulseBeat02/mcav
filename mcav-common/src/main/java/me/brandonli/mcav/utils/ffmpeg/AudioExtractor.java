@@ -53,7 +53,8 @@ public final class AudioExtractor {
   private static final String OGG_EXTENSION = ".ogg";
 
   private AudioExtractor() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**

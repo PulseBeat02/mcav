@@ -212,7 +212,7 @@ public final class CommandTask {
       readers.shutdownNow();
     }
 
-    LOGGER.debug("Command {} exited with code {}.", this.command, this.exitCode);
+    LOGGER.debug("Command {} exited with code {} after it ran.", this.command, this.exitCode);
     return this.exitCode;
   }
 
@@ -346,7 +346,8 @@ public final class CommandTask {
     final long elapsed = now - startNanoseconds;
     final long remaining = budget - elapsed;
     if (remaining <= 0) {
-      throw new TimeoutException("The command and output deadline expired!");
+      final String message = "The command and output deadline expired!";
+      throw new TimeoutException(message);
     }
 
     return remaining;

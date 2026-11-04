@@ -143,7 +143,8 @@ final class CommandTaskDeadlineTest {
     final long nanoseconds = invocation.getArgument(0);
     budget.set(nanoseconds);
 
-    throw new TimeoutException("still reading error output!");
+    final String message = "The error output is still being read!";
+    throw new TimeoutException(message);
   }
 
   private static String javaExecutable() {

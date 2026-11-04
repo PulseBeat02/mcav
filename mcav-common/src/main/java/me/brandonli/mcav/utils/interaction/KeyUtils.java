@@ -38,7 +38,8 @@ public final class KeyUtils {
   private static final char CLOSE = '}';
 
   private KeyUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**

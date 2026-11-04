@@ -464,14 +464,16 @@ final class CommandTaskTest {
 
   private static final class FailingStream extends InputStream {
 
+    private static final String FAILURE_MESSAGE = "The stream failed!";
+
     @Override
     public int read() throws IOException {
-      throw new IOException("stream failed!");
+      throw new IOException(FAILURE_MESSAGE);
     }
 
     @Override
     public int read(final byte[] buffer, final int offset, final int length) throws IOException {
-      throw new IOException("stream failed!");
+      throw new IOException(FAILURE_MESSAGE);
     }
   }
 }

@@ -129,7 +129,8 @@ final class FfmpegLibraries {
     );
 
     private LibrariesHolder() {
-      throw new UnsupportedOperationException("Holder class cannot be instantiated!");
+      final String message = "Holder class cannot be instantiated!";
+      throw new UnsupportedOperationException(message);
     }
   }
 }
