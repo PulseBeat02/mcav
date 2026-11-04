@@ -320,7 +320,7 @@ final class ResourcePackHttpHandlerTest {
     final LogCapture.RecordedEvent event = events.getFirst();
     final Level level = event.getLevel();
     final String message = event.getMessage();
-    final Throwable thrown = event.getThrown();
+    final Throwable thrown = event.getThrown().orElseThrow();
     assertEquals(ERROR_HEADERS, responseHeaders);
     assertNull(body);
     assertFalse(open);

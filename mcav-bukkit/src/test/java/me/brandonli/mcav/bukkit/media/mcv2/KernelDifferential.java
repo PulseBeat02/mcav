@@ -180,7 +180,8 @@ final class KernelDifferential {
       return "%s distortion".formatted(name);
     }
 
-    return describeMismatch(Arrays.equals(expected, actual), "%s reconstruction".formatted(name));
+    final boolean equal = Arrays.equals(expected, actual);
+    return describeMismatch(equal, "%s reconstruction".formatted(name));
   }
 
   private static double drawLimit(final Values random, final double rate, final int size) {
@@ -227,7 +228,8 @@ final class KernelDifferential {
     final int[] actual = new int[channels];
     java.predict(reference, width, height, blockLeft, blockTop, size, motionX, motionY, expected);
     other.predict(reference, width, height, blockLeft, blockTop, size, motionX, motionY, actual);
-    return describeMismatch(Arrays.equals(expected, actual), "predict");
+    final boolean equal = Arrays.equals(expected, actual);
+    return describeMismatch(equal, "predict");
   }
 
   private static @Nullable String compareFit(final Values random, final Kernels java, final Kernels other, final int size) {
@@ -236,7 +238,8 @@ final class KernelDifferential {
     final float[] actual = expected.clone();
     java.fit(values, size, expected);
     other.fit(values, size, actual);
-    return describeMismatch(isBitwiseEqual(expected, actual), "fit");
+    final boolean equal = isBitwiseEqual(expected, actual);
+    return describeMismatch(equal, "fit");
   }
 
   private static @Nullable String compareCluster(
@@ -252,7 +255,8 @@ final class KernelDifferential {
     final int[] actual = new int[6];
     java.cluster(source, size, expected);
     other.cluster(source, size, actual);
-    return describeMismatch(Arrays.equals(expected, actual), "cluster");
+    final boolean equal = Arrays.equals(expected, actual);
+    return describeMismatch(equal, "cluster");
   }
 
   private static int[] drawClusterSource(final Values random, final int channels, final int low) {
@@ -294,15 +298,14 @@ final class KernelDifferential {
     if (kernel == FINISH_PALETTE_KERNEL) {
       java.finishPalette(source, size * size, endpoints, expectedColors, expected);
       other.finishPalette(source, size * size, endpoints, actualColors, actual);
-      return describeMismatch(Arrays.equals(expectedColors, actualColors) && Arrays.equals(expected, actual), "finishPalette");
+      final boolean equal = Arrays.equals(expectedColors, actualColors) && Arrays.equals(expected, actual);
+      return describeMismatch(equal, "finishPalette");
     }
 
     final boolean heldJava = java.finishPattern(source, size, endpoints, expectedColors, expected);
     final boolean heldOther = other.finishPattern(source, size, endpoints, actualColors, actual);
-    return describeMismatch(
-      heldJava == heldOther && Arrays.equals(expectedColors, actualColors) && Arrays.equals(expected, actual),
-      "finishPattern"
-    );
+    final boolean equal = heldJava == heldOther && Arrays.equals(expectedColors, actualColors) && Arrays.equals(expected, actual);
+    return describeMismatch(equal, "finishPattern");
   }
 
   private static @Nullable String compareSeeded(
@@ -341,7 +344,8 @@ final class KernelDifferential {
     final int range = random.next(0, 24);
     final int expected = java.seeded(reference, width, height, source, blockLeft, blockTop, size, range, seeds);
     final int actual = other.seeded(reference, width, height, source, blockLeft, blockTop, size, range, seeds);
-    return describeMismatch(expected == actual, "seeded");
+    final boolean equal = expected == actual;
+    return describeMismatch(equal, "seeded");
   }
 
   private static @Nullable String compareHelpers(
@@ -365,14 +369,16 @@ final class KernelDifferential {
         final int[] actual = new int[channels];
         java.loadSource(image, width, height, blockLeft, blockTop, size, expected);
         other.loadSource(image, width, height, blockLeft, blockTop, size, actual);
-        yield describeMismatch(Arrays.equals(expected, actual), "loadSource");
+        final boolean equal = Arrays.equals(expected, actual);
+        yield describeMismatch(equal, "loadSource");
       }
       case HALVE_KERNEL -> {
         final int[] expected = new int[channels / 4];
         final int[] actual = new int[channels / 4];
         java.halve(source, size, expected);
         other.halve(source, size, actual);
-        yield describeMismatch(Arrays.equals(expected, actual), "halve");
+        final boolean equal = Arrays.equals(expected, actual);
+        yield describeMismatch(equal, "halve");
       }
       default -> {
         final int pixels = random.next(0, count);
@@ -381,7 +387,8 @@ final class KernelDifferential {
         final float[] actual = expected.clone();
         java.residualTarget(source, prediction, pixels, expected);
         other.residualTarget(source, prediction, pixels, actual);
-        yield describeMismatch(isBitwiseEqual(expected, actual), "residualTarget");
+        final boolean equal = isBitwiseEqual(expected, actual);
+        yield describeMismatch(equal, "residualTarget");
       }
     };
   }

@@ -17,7 +17,9 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2;
 
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
+import java.util.Arrays;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -580,6 +582,56 @@ public final class Mcv2Decoder {
 
     int getLeafCount() {
       return this.leaves.length / LEAF_INTS;
+    }
+
+    /**
+     * Returns whether {@code other} is a frame with the same bytes.
+     *
+     * <p>Every other part of a frame is read from its bytes.
+     *
+     * @param other the object to compare with
+     * @return whether both frames hold the same bytes
+     * @since 1.0.0
+     */
+    @Override
+    public boolean equals(final @Nullable Object other) {
+      if (this == other) {
+        return true;
+      }
+
+      if (!(other instanceof final Frame frame)) {
+        return false;
+      }
+
+      return Arrays.equals(this.data, frame.data);
+    }
+
+    /**
+     * Returns a hash code built from the frame bytes.
+     *
+     * @return the hash code
+     * @since 1.0.0
+     */
+    @Override
+    public int hashCode() {
+      return Arrays.hashCode(this.data);
+    }
+
+    /**
+     * Returns a debugging representation with the size, the ids and whether the frame is a keyframe.
+     *
+     * @return the representation
+     * @since 1.0.0
+     */
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+        .add("width", this.width)
+        .add("height", this.height)
+        .add("frameId", this.frameId)
+        .add("referenceId", this.referenceId)
+        .add("keyframe", this.keyframe)
+        .toString();
     }
   }
 

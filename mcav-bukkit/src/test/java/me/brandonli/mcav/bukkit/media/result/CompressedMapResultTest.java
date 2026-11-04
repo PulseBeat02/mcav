@@ -811,7 +811,7 @@ final class CompressedMapResultTest {
 
     final Level level = event.getLevel();
     final String message = event.getMessage();
-    final Throwable thrown = event.getThrown();
+    final Throwable thrown = event.getThrown().orElseThrow();
     final boolean namesTheThread = message.startsWith("Map dithering thread mcav-map-dither-");
     assertEquals(Level.ERROR, level);
     assertTrue(namesTheThread, message);

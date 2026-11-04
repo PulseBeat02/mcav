@@ -489,7 +489,7 @@ final class FileServerHandlerTest {
     final LogCapture.RecordedEvent event = events.getFirst();
     final Level level = event.getLevel();
     final String message = event.getMessage();
-    final Throwable thrown = event.getThrown();
+    final Throwable thrown = event.getThrown().orElseThrow();
     assertEquals(Level.DEBUG, level);
     assertEquals("Could not close a resource pack download connection after an error.", message);
     assertSame(closeFailure, thrown);

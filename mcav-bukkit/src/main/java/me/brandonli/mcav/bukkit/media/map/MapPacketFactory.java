@@ -175,7 +175,7 @@ public final class MapPacketFactory {
   /**
    * A bundle of map data packets, and their estimated size in bytes before network compression.
    *
-   * <p>The bundle shares the packet rather than copying it, and validates neither part. This class is immutable and
+   * <p>The bundle shares the packet rather than copying it, and does not check the size. This class is immutable and
    * thread-safe.
    *
    * @since 1.0.0
@@ -196,9 +196,12 @@ public final class MapPacketFactory {
      * @param packet the bundle
      * @param bytes  the sum of its patches' {@link MapTilePatch#getEncodedSize()}
      * @return the bundle
+     * @throws NullPointerException if {@code packet} is null
      * @since 1.0.0
      */
     public static Bundle of(final ClientboundBundlePacket packet, final long bytes) {
+      Preconditions.checkNotNull(packet, "Packet must not be null!");
+
       return new Bundle(packet, bytes);
     }
 

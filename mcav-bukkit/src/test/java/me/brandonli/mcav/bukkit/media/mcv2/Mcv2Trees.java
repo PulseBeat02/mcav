@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2;
 
+import com.google.common.base.MoreObjects;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -257,6 +258,17 @@ public final class Mcv2Trees {
     public int hashCode() {
       final List<Node> children = this.getChildren();
       return Objects.hash(this.getMode(), this.getQuantizer(), Arrays.hashCode(this.getRecord()), children);
+    }
+
+    @Override
+    public String toString() {
+      final List<Node> children = this.getChildren();
+      return MoreObjects.toStringHelper(this)
+        .add("mode", this.getMode())
+        .add("quantizer", this.getQuantizer())
+        .add("record", Arrays.toString(this.getRecord()))
+        .add("children", children)
+        .toString();
     }
   }
 }

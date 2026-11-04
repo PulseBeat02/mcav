@@ -429,7 +429,7 @@ final class McPackHostingTest {
     final LogCapture.RecordedEvent event = events.getFirst();
     final Level level = event.getLevel();
     final String message = event.getMessage();
-    final Throwable thrown = event.getThrown();
+    final Throwable thrown = event.getThrown().orElseThrow();
     assertEquals(expectedUrl, url, "the successful upload is used even though it cannot be cached");
     assertEquals(1, uploadCount);
     assertEquals(Level.WARN, level);
