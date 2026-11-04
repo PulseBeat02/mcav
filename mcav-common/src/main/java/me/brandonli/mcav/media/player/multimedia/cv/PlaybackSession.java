@@ -219,16 +219,17 @@ final class PlaybackSession {
       this.videoGrabber = grabber;
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
-      closeAfterFailedOpen(grabber, exception);
+      this.closeAfterFailedOpen(grabber, exception);
       throw exception;
     }
   }
 
-  private static void closeAfterFailedOpen(final FrameGrabber grabber, final Throwable failure) {
+  private void closeAfterFailedOpen(final FrameGrabber grabber, final Throwable failure) {
     try {
       grabber.close();
     } catch (final FrameGrabber.Exception | RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
+
       final boolean sameFailure = FAILURE_IDENTITY.equivalent(failure, exception);
       if (!sameFailure) {
         failure.addSuppressed(exception);
@@ -247,24 +248,24 @@ final class PlaybackSession {
   }
 
   void startThreads() {
-    final FrameGrabber grabber = this.videoGrabber;
+    final @Nullable FrameGrabber grabber = this.videoGrabber;
     if (grabber == null) {
       final String message = "The session must be opened first!";
       throw new IllegalStateException(message);
     }
 
-    final GrabberFactory audioFactory = this.audioGrabberFactory;
+    final @Nullable GrabberFactory audioFactory = this.audioGrabberFactory;
     final boolean hasSeparateAudio = audioFactory != null;
     final DecodedStreams videoStreams = hasSeparateAudio ? DecodedStreams.VIDEO : DecodedStreams.VIDEO_AND_AUDIO;
-    final Thread videoDecoder = createThread(VIDEO_DECODER_THREAD_NAME, () -> this.decode(grabber, videoStreams));
-    final Thread videoRenderer = createThread(VIDEO_RENDERER_THREAD_NAME, this::renderVideo);
-    final Thread audioRenderer = createThread(AUDIO_RENDERER_THREAD_NAME, this::renderAudio);
+    final Thread videoDecoder = this.createThread(VIDEO_DECODER_THREAD_NAME, () -> this.decode(grabber, videoStreams));
+    final Thread videoRenderer = this.createThread(VIDEO_RENDERER_THREAD_NAME, this::renderVideo);
+    final Thread audioRenderer = this.createThread(AUDIO_RENDERER_THREAD_NAME, this::renderAudio);
     // A thread that stops the session while the later threads are not started yet waits until they are, so it can
     // interrupt them and wait for them; a thread that is not started yet would start after the stop returned.
     synchronized (this.threads) {
       this.threads.add(videoDecoder);
       if (audioFactory != null) {
-        final Thread audioDecoder = createThread(AUDIO_DECODER_THREAD_NAME, () -> this.decodeSeparateAudio(audioFactory));
+        final Thread audioDecoder = this.createThread(AUDIO_DECODER_THREAD_NAME, () -> this.decodeSeparateAudio(audioFactory));
         this.threads.add(audioDecoder);
       }
 
@@ -274,7 +275,7 @@ final class PlaybackSession {
     }
   }
 
-  private static Thread createThread(final String name, final Runnable task) {
+  private Thread createThread(final String name, final Runnable task) {
     final Thread thread = new Thread(task, name);
     thread.setDaemon(true);
     return thread;
@@ -316,7 +317,7 @@ final class PlaybackSession {
 
   private void finishDecoding(final FrameGrabber grabber, final DecodedStreams streams) {
     try {
-      closeQuietly(grabber);
+      this.closeQuietly(grabber);
     } finally {
       this.finishDecodedStreams(streams);
     }
@@ -344,22 +345,23 @@ final class PlaybackSession {
   // video reader of OpenCV, stamp every frame with zero.
   private void decodeFrames(final FrameGrabber grabber, final DecodedStreams streams) throws FrameGrabber.Exception, InterruptedException {
     this.seekToStart(grabber);
+
     final boolean wantsVideo = streams.includesVideo();
     final boolean wantsAudio = streams.includesAudio();
-    final OriginalVideoMetadata decodedVideoMetadata = createVideoMetadata(grabber);
+    final OriginalVideoMetadata decodedVideoMetadata = this.createVideoMetadata(grabber);
     final double frameRate = grabber.getFrameRate();
     final long length = grabber.getLengthInTime();
     final VideoTimestamps timestamps = this.createTimestamps(frameRate, length);
-    final OriginalAudioMetadata decodedAudioMetadata = createAudioMetadata(grabber);
-    Frame frame = grab(grabber, streams);
+    final OriginalAudioMetadata decodedAudioMetadata = this.createAudioMetadata(grabber);
+    @Nullable Frame frame = this.grab(grabber, streams);
     while (frame != null && this.running.get()) {
-      if (wantsVideo && hasImage(frame)) {
+      if (wantsVideo && this.hasImage(frame)) {
         this.enqueueVideo(frame, decodedVideoMetadata, timestamps);
       }
-      if (wantsAudio && hasSamples(frame)) {
+      if (wantsAudio && this.hasSamples(frame)) {
         this.enqueueAudio(frame, decodedAudioMetadata);
       }
-      frame = grab(grabber, streams);
+      frame = this.grab(grabber, streams);
     }
   }
 
@@ -386,18 +388,18 @@ final class PlaybackSession {
     return VideoTimestamps.recorded(frameRate, this.nanosecondClock);
   }
 
-  private static boolean hasImage(final Frame frame) {
+  private boolean hasImage(final Frame frame) {
     final Buffer[] image = frame.image;
     return image != null && image.length > 0;
   }
 
-  private static boolean hasSamples(final Frame frame) {
+  private boolean hasSamples(final Frame frame) {
     final Buffer[] samples = frame.samples;
     return samples != null && samples.length > 0;
   }
 
   // Grabs the next frame. FFmpeg grabbers that decode only one stream skip the other stream entirely.
-  private static @Nullable Frame grab(final FrameGrabber grabber, final DecodedStreams streams) throws FrameGrabber.Exception {
+  private @Nullable Frame grab(final FrameGrabber grabber, final DecodedStreams streams) throws FrameGrabber.Exception {
     if (!(grabber instanceof final FFmpegFrameGrabber ffmpeg)) {
       return grabber.grab();
     }
@@ -411,7 +413,7 @@ final class PlaybackSession {
 
   // Describes the video track of a grabber. Sources without a video track, such as audio files, report no picture size
   // and get the empty metadata instead.
-  private static OriginalVideoMetadata createVideoMetadata(final FrameGrabber grabber) {
+  private OriginalVideoMetadata createVideoMetadata(final FrameGrabber grabber) {
     final int width = grabber.getImageWidth();
     final int height = grabber.getImageHeight();
     final int smallerSide = Math.min(width, height);
@@ -426,7 +428,7 @@ final class PlaybackSession {
 
   // Describes the audio track of a grabber. Sources without an audio track get the metadata of the output format every
   // grabber resamples to.
-  private static OriginalAudioMetadata createAudioMetadata(final FrameGrabber grabber) {
+  private OriginalAudioMetadata createAudioMetadata(final FrameGrabber grabber) {
     final int sampleRate = grabber.getSampleRate();
     final int channels = grabber.getAudioChannels();
     final int smaller = Math.min(sampleRate, channels);
@@ -450,13 +452,21 @@ final class PlaybackSession {
       return;
     }
 
-    final VideoPipelineStep step = this.videoCallback.retrieve();
-    final boolean empty = step.isNoOp();
-    final MatImageBuffer image = empty ? null : this.frameCopier.copy(frame);
+    final @Nullable MatImageBuffer image = this.copyPictureIfWanted(frame);
     final long timestamp = timestamps.next(frame.timestamp);
     final DecodedVideoFrame decoded = new DecodedVideoFrame(image, timestamp);
     this.videoMetadata = metadata;
-    queueFrame(this.videoQueue, decoded, this.running::get);
+    this.queueFrame(this.videoQueue, decoded, this.running::get);
+  }
+
+  private @Nullable MatImageBuffer copyPictureIfWanted(final Frame frame) {
+    final VideoPipelineStep step = this.videoCallback.retrieve();
+    final boolean empty = step.isNoOp();
+    if (empty) {
+      return null;
+    }
+
+    return this.frameCopier.copy(frame);
   }
 
   // Queues a frame for the video renderer, which then owns its picture. Stopping drains the queue, which wakes a
@@ -465,18 +475,18 @@ final class PlaybackSession {
   // So a decoder that finds the session stopped once its frame is queued takes the frame back and releases the picture
   // itself, unless the renderer took the frame already.
   @VisibleForTesting
-  static void queueFrame(final BlockingQueue<DecodedVideoFrame> queue, final DecodedVideoFrame frame, final BooleanSupplier running)
+  void queueFrame(final BlockingQueue<DecodedVideoFrame> queue, final DecodedVideoFrame frame, final BooleanSupplier running)
     throws InterruptedException {
     try {
       queue.put(frame);
     } catch (final InterruptedException exception) {
-      releaseImage(frame);
+      this.releaseImage(frame);
       throw exception;
     }
 
     final boolean stopped = !running.getAsBoolean();
     if (stopped && queue.remove(frame)) {
-      releaseImage(frame);
+      this.releaseImage(frame);
     }
   }
 
@@ -486,13 +496,13 @@ final class PlaybackSession {
       return;
     }
 
-    final ByteBuffer bytes = copySamples(shortSamples);
+    final ByteBuffer bytes = this.copySamples(shortSamples);
     final DecodedAudioChunk chunk = new DecodedAudioChunk(bytes, frame.timestamp);
     this.audioMetadata = metadata;
     this.audioQueue.put(chunk);
   }
 
-  private static ByteBuffer copySamples(final ShortBuffer samples) {
+  private ByteBuffer copySamples(final ShortBuffer samples) {
     final ShortBuffer view = samples.duplicate();
     view.rewind();
     final int count = view.remaining();
@@ -564,13 +574,13 @@ final class PlaybackSession {
       // A decoder racing the end may have queued one more frame.
       final List<DecodedVideoFrame> leftovers = new ArrayList<>();
       this.videoQueue.drainTo(leftovers);
-      leftovers.forEach(PlaybackSession::releaseImage);
+      leftovers.forEach(this::releaseImage);
       this.imagePool.close();
     }
   }
 
   private void renderVideoFrame(final DecodedVideoFrame frame) throws InterruptedException {
-    final MatImageBuffer image = frame.getImage();
+    final @Nullable MatImageBuffer image = frame.getImage();
     try {
       this.presentVideoFrame(frame, image);
     } finally {
@@ -591,6 +601,7 @@ final class PlaybackSession {
 
     this.lateFrames.countShown(timestamp);
     this.positionMicroseconds = timestamp;
+
     final VideoPipelineStep step = this.videoCallback.retrieve();
     final boolean empty = step.isNoOp();
     if (image == null || empty) {
@@ -630,8 +641,8 @@ final class PlaybackSession {
     );
   }
 
-  private static void releaseImage(final DecodedVideoFrame frame) {
-    final MatImageBuffer image = frame.getImage();
+  private void releaseImage(final DecodedVideoFrame frame) {
+    final @Nullable MatImageBuffer image = frame.getImage();
     if (image != null) {
       image.release();
     }
@@ -658,6 +669,7 @@ final class PlaybackSession {
   private void renderAudioChunk(final DecodedAudioChunk chunk) throws InterruptedException {
     final long timestamp = chunk.getTimestampMicroseconds();
     this.awaitDue(timestamp, this.audioLeadNanoseconds);
+
     final AudioPipelineStep step = this.audioCallback.retrieve();
     final boolean empty = step.isNoOp();
     if (empty) {
@@ -703,6 +715,7 @@ final class PlaybackSession {
       }
       final long sleep = Math.min(remaining, MAXIMUM_SLEEP_NANOSECONDS);
       LockSupport.parkNanos(sleep);
+
       if (Thread.interrupted()) {
         final String message = "Interrupted while waiting for media to be due!";
         throw new InterruptedException(message);
@@ -740,22 +753,6 @@ final class PlaybackSession {
     }
   }
 
-  // Counts the pictures that wait for the video renderer. Once the session ended there must be none, because nobody
-  // takes them out of the queue to release them anymore.
-  @VisibleForTesting
-  long getQueuedPictureCount() {
-    final Stream<DecodedVideoFrame> frames = this.videoQueue.stream();
-    final Stream<@Nullable MatImageBuffer> pictures = frames.map(DecodedVideoFrame::getImage);
-    final Stream<@Nullable MatImageBuffer> present = pictures.filter(Objects::nonNull);
-    return present.count();
-  }
-
-  // Checks whether the decoder holds a copy of an unscaled picture, which it must release once decoding ended.
-  @VisibleForTesting
-  boolean hasUnscaledCopy() {
-    return this.frameCopier.hasUnscaledCopy();
-  }
-
   // Stops the session and waits for its threads to exit. Calling this method more than once has no effect, and it may
   // be called from a pipeline running on one of the threads of the session. Threads are interrupted, but a decoder
   // stuck in native code only notices at its next frame, so this method blocks for up to five seconds per thread in the
@@ -776,11 +773,11 @@ final class PlaybackSession {
     }
 
     if (threads.isEmpty()) {
-      final FrameGrabber prepared = this.videoGrabber;
+      final @Nullable FrameGrabber prepared = this.videoGrabber;
       this.videoGrabber = null;
 
       if (prepared != null) {
-        closeQuietly(prepared);
+        this.closeQuietly(prepared);
       }
 
       return;
@@ -788,8 +785,8 @@ final class PlaybackSession {
 
     this.interruptThreadsExcept(threads, currentThread);
     // A renderer that stops its own session finishes through this marker instead of an interrupt.
-    replaceWithEndMarker(this.videoQueue, END_OF_VIDEO, PlaybackSession::releaseImage);
-    replaceWithEndMarker(this.audioQueue, END_OF_AUDIO, PlaybackSession::discardChunk);
+    replaceWithEndMarker(this.videoQueue, END_OF_VIDEO, this::releaseImage);
+    replaceWithEndMarker(this.audioQueue, END_OF_AUDIO, this::discardChunk);
     this.joinThreadsExcept(threads, currentThread);
   }
 
@@ -820,7 +817,7 @@ final class PlaybackSession {
     }
   }
 
-  private static void discardChunk(final DecodedAudioChunk chunk) {}
+  private void discardChunk(final DecodedAudioChunk chunk) {}
 
   // Replaces everything in a queue with the end marker. A decoder that is still running may refill the queue between
   // draining and offering, so the queue is drained again until the marker fits. Every removed element is handed to a
@@ -846,7 +843,7 @@ final class PlaybackSession {
     this.exceptionHandler.accept(message, error);
   }
 
-  private static void closeQuietly(final FrameGrabber grabber) {
+  private void closeQuietly(final FrameGrabber grabber) {
     try {
       grabber.close();
     } catch (final FrameGrabber.Exception | RuntimeException | Error exception) {
@@ -870,6 +867,22 @@ final class PlaybackSession {
     return this.positionMicroseconds;
   }
 
+  // Counts the pictures that wait for the video renderer. Once the session ended there must be none, because nobody
+  // takes them out of the queue to release them anymore.
+  @VisibleForTesting
+  long getQueuedPictureCount() {
+    final Stream<DecodedVideoFrame> frames = this.videoQueue.stream();
+    final Stream<@Nullable MatImageBuffer> pictures = frames.map(DecodedVideoFrame::getImage);
+    final Stream<@Nullable MatImageBuffer> present = pictures.filter(Objects::nonNull);
+    return present.count();
+  }
+
+  // Checks whether the decoder holds a copy of an unscaled picture, which it must release once decoding ended.
+  @VisibleForTesting
+  boolean hasUnscaledCopy() {
+    return this.frameCopier.hasUnscaledCopy();
+  }
+
   @FunctionalInterface
   interface GrabberFactory {
     FrameGrabber create() throws FrameGrabber.Exception;
@@ -877,7 +890,7 @@ final class PlaybackSession {
 
   @FunctionalInterface
   interface LagListener {
-    void fellBehind(int droppedFrames, int frames);
+    void fellBehind(final int droppedFrames, final int frames);
   }
 
   private enum DecodedStreams {

@@ -160,7 +160,7 @@ final class VideoRendererTest {
   void shouldReadRv32AsPackedArgb() {
     final ByteBuffer buffer = ByteBuffer.wrap(new byte[] { 0x33, 0x22, 0x11, 0x00, 0x66, 0x55, 0x44, (byte) 0xFF });
     final int[] pixels = new int[ROW_WIDTH];
-    VideoRenderer.readVisibleRows(buffer, ROW_WIDTH, ROW_WIDTH, 1, pixels);
+    this.renderer.readVisibleRows(buffer, ROW_WIDTH, ROW_WIDTH, 1, pixels);
     assertArrayEquals(new int[] { 0x00112233, 0xFF445566 }, pixels);
   }
 
@@ -175,7 +175,7 @@ final class VideoRendererTest {
 
     final ByteBuffer buffer = rv32(padded);
     final int[] pixels = new int[6];
-    VideoRenderer.readVisibleRows(buffer, 4, 3, 2, pixels);
+    this.renderer.readVisibleRows(buffer, 4, 3, 2, pixels);
     assertArrayEquals(new int[] { 0, 1, 2, 16, 17, 18 }, pixels);
   }
 
@@ -184,7 +184,7 @@ final class VideoRendererTest {
     final ByteBuffer buffer = rv32(RED, GREEN);
     buffer.position(4);
     final int[] pixels = new int[ROW_WIDTH];
-    VideoRenderer.readVisibleRows(buffer, ROW_WIDTH, ROW_WIDTH, 1, pixels);
+    this.renderer.readVisibleRows(buffer, ROW_WIDTH, ROW_WIDTH, 1, pixels);
     final int position = buffer.position();
     assertArrayEquals(new int[] { RED, GREEN }, pixels);
     assertEquals(4, position);

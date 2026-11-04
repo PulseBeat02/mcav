@@ -100,7 +100,7 @@ final class AudioRenderer extends AudioCallbackAdapter {
     final int length = sampleCount * AudioFilter.FRAME_SIZE;
     final ByteBuffer nativeBuffer = samples.getByteBuffer(0, length);
     final ByteOrder nativeOrder = ByteOrder.nativeOrder();
-    final ByteBuffer copy = copySamples(nativeBuffer, nativeOrder);
+    final ByteBuffer copy = this.copySamples(nativeBuffer, nativeOrder);
     while (!this.queue.offer(copy)) {
       this.queue.poll();
     }
@@ -119,7 +119,7 @@ final class AudioRenderer extends AudioCallbackAdapter {
   }
 
   @VisibleForTesting
-  static ByteBuffer copySamples(final ByteBuffer nativeSamples, final ByteOrder order) {
+  ByteBuffer copySamples(final ByteBuffer nativeSamples, final ByteOrder order) {
     final ByteBuffer source = nativeSamples.duplicate();
     source.order(order);
     final ShortBuffer sourceSamples = source.asShortBuffer();

@@ -1259,6 +1259,11 @@ final class PlaybackSessionTest {
     assertEquals(expectedDiscarded, discarded, "every removed element is handed on, so it can be released");
   }
 
+  private PlaybackSession unstartedSession() {
+    final ScriptedFrameGrabber grabber = videoAt();
+    return this.session(grabber, 0L, StartState.PLAYING);
+  }
+
   // Creates a decoded frame whose picture is a tiny image, so a test can tell whether the picture was released.
   private static DecodedVideoFrame frameWithPicture() {
     final ImageBuffer picture = ImageBuffer.bytes(new byte[3], 1, 1);
@@ -1267,10 +1272,11 @@ final class PlaybackSessionTest {
 
   @Test
   void shouldLeaveAQueuedFrameToTheRendererWhileTheSessionRuns() throws Exception {
+    final PlaybackSession session = this.unstartedSession();
     final BlockingQueue<DecodedVideoFrame> queue = new ArrayBlockingQueue<>(1);
     final DecodedVideoFrame frame = frameWithPicture();
     final MatImageBuffer picture = frame.getImage();
-    PlaybackSession.queueFrame(queue, frame, () -> true);
+    session.queueFrame(queue, frame, () -> true);
 
     final DecodedVideoFrame queued = queue.poll();
     final int width = picture.getWidth();
@@ -1282,10 +1288,11 @@ final class PlaybackSessionTest {
 
   @Test
   void shouldTakeBackAFrameQueuedAfterTheSessionStoppedAndReleaseItsPicture() throws Exception {
+    final PlaybackSession session = this.unstartedSession();
     final BlockingQueue<DecodedVideoFrame> queue = new ArrayBlockingQueue<>(1);
     final DecodedVideoFrame frame = frameWithPicture();
     final MatImageBuffer picture = frame.getImage();
-    PlaybackSession.queueFrame(queue, frame, () -> false);
+    session.queueFrame(queue, frame, () -> false);
 
     final boolean empty = queue.isEmpty();
     assertTrue(empty, "nobody takes frames out of the queue of a stopped session anymore");
@@ -1294,12 +1301,13 @@ final class PlaybackSessionTest {
 
   @Test
   void shouldLeaveAFrameTheRendererTookBeforeTheDecoderNoticedTheStop() throws Exception {
+    final PlaybackSession session = this.unstartedSession();
     final BlockingQueue<DecodedVideoFrame> queue = new ArrayBlockingQueue<>(1);
     final DecodedVideoFrame frame = frameWithPicture();
     final MatImageBuffer picture = frame.getImage();
     final AtomicReference<DecodedVideoFrame> taken = new AtomicReference<>();
     final BooleanSupplier renderedThenStopped = () -> this.takeQueuedFrame(queue, taken);
-    PlaybackSession.queueFrame(queue, frame, renderedThenStopped);
+    session.queueFrame(queue, frame, renderedThenStopped);
 
     final DecodedVideoFrame rendered = taken.get();
     final int width = picture.getWidth();
@@ -1318,6 +1326,7 @@ final class PlaybackSessionTest {
 
   @Test
   void shouldReleaseThePictureOfAFrameItCouldNotQueueBeforeItWasInterrupted() {
+    final PlaybackSession session = this.unstartedSession();
     final BlockingQueue<DecodedVideoFrame> queue = new ArrayBlockingQueue<>(1);
     final DecodedVideoFrame waiting = new DecodedVideoFrame(null, 0L);
     queue.add(waiting);
@@ -1326,7 +1335,7 @@ final class PlaybackSessionTest {
     final Thread current = Thread.currentThread();
     current.interrupt();
 
-    assertThrows(InterruptedException.class, () -> PlaybackSession.queueFrame(queue, frame, () -> true));
+    assertThrows(InterruptedException.class, () -> session.queueFrame(queue, frame, () -> true));
 
     final boolean interrupted = Thread.interrupted();
     assertFalse(interrupted, "the interrupt was thrown, not kept");

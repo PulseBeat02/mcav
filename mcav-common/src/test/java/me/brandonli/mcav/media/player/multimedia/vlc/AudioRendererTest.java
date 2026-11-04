@@ -400,8 +400,8 @@ final class AudioRendererTest {
   void shouldCopySamplesOfEitherByteOrderIntoLittleEndianOrder() {
     final ByteBuffer bigEndian = ByteBuffer.wrap(new byte[] { 0x01, 0x02, (byte) 0xFF, (byte) 0xFE });
     final ByteBuffer littleEndian = ByteBuffer.wrap(new byte[] { 0x02, 0x01, (byte) 0xFE, (byte) 0xFF });
-    final ByteBuffer fromBigEndian = AudioRenderer.copySamples(bigEndian, ByteOrder.BIG_ENDIAN);
-    final ByteBuffer fromLittleEndian = AudioRenderer.copySamples(littleEndian, ByteOrder.LITTLE_ENDIAN);
+    final ByteBuffer fromBigEndian = this.renderer.copySamples(bigEndian, ByteOrder.BIG_ENDIAN);
+    final ByteBuffer fromLittleEndian = this.renderer.copySamples(littleEndian, ByteOrder.LITTLE_ENDIAN);
     final byte[] swapped = new byte[4];
     fromBigEndian.get(swapped);
     final byte[] kept = new byte[4];

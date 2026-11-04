@@ -180,7 +180,7 @@ final class VideoRenderer implements RenderCallback {
     }
 
     final int[] pixels = this.acquirePixels(visibleWidth * visibleHeight);
-    readVisibleRows(nativeBuffer, bufferWidth, visibleWidth, visibleHeight, pixels);
+    this.readVisibleRows(nativeBuffer, bufferWidth, visibleWidth, visibleHeight, pixels);
     return new DecodedFrame(pixels, visibleWidth, visibleHeight);
   }
 
@@ -188,7 +188,7 @@ final class VideoRenderer implements RenderCallback {
   // byte, which read as little-endian integers is exactly packed ARGB; the padding byte ends up in the alpha channel,
   // which images discard.
   @VisibleForTesting
-  static void readVisibleRows(
+  void readVisibleRows(
     final ByteBuffer nativeBuffer,
     final int bufferWidth,
     final int visibleWidth,

@@ -29,6 +29,7 @@ import static org.mockito.Mockito.when;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -85,6 +86,7 @@ final class MockVlc {
     this.formatCallback = new AtomicReference<>();
     this.renderCallback = new AtomicReference<>();
     this.failingPlayerIndex = NO_FAILING_PLAYER;
+
     final MediaPlayerApi playerApi = mock(MediaPlayerApi.class);
     final uk.co.caprica.vlcj.factory.VideoSurfaceApi surfaces = mock(uk.co.caprica.vlcj.factory.VideoSurfaceApi.class); // fqn: VideoSurfaceApi is imported as uk.co.caprica.vlcj.player.embedded.VideoSurfaceApi
     when(this.factory.mediaPlayers()).thenReturn(playerApi);
@@ -93,11 +95,13 @@ final class MockVlc {
     when(surfaces.newVideoSurface(any(BufferFormatCallback.class), any(RenderCallback.class), anyBoolean())).thenAnswer(
       this::createSurface
     );
+
     this.sharedFactory = new SharedMediaPlayerFactory(this::createFactory);
   }
 
   private MediaPlayerFactory createFactory() {
     this.creations.incrementAndGet();
+
     final Throwable failure = this.factoryFailure;
     if (failure instanceof final RuntimeException runtimeException) {
       throw runtimeException;
@@ -123,11 +127,12 @@ final class MockVlc {
       }
     }
 
-    final Outcome outcome;
+    final @Nullable Outcome queued;
     synchronized (this.outcomes) {
-      outcome = this.outcomes.isEmpty() ? Outcome.PLAYING : this.outcomes.poll();
+      queued = this.outcomes.poll();
     }
 
+    final Outcome outcome = Objects.requireNonNullElse(queued, Outcome.PLAYING);
     final Player created = new Player(outcome);
     this.players.add(created);
 
@@ -244,6 +249,7 @@ final class MockVlc {
       this.resource = new AtomicReference<>();
       this.options = new AtomicReference<>();
       this.audioCallback = new AtomicReference<>();
+
       this.stubApis();
       this.stubBehavior();
     }

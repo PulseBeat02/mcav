@@ -50,6 +50,7 @@ final class ScriptedFrameGrabber extends FrameGrabber {
   private final AtomicBoolean interruptedWhenReleased;
   private final AtomicLong requestedTimestamp;
   private final AtomicReference<Thread> grabbingThread;
+
   private boolean failOnStart;
   private boolean failOnStop;
   private boolean failOnSeek;
@@ -98,20 +99,6 @@ final class ScriptedFrameGrabber extends FrameGrabber {
     frame.audioChannels = AUDIO_CHANNELS;
     frame.timestamp = timestampMicroseconds;
     return frame;
-  }
-
-  int getRemainingSteps() {
-    synchronized (this.script) {
-      return this.script.size();
-    }
-  }
-
-  void failOnSeek() {
-    this.failOnSeek = true;
-  }
-
-  void failOnStop() {
-    this.failOnStop = true;
   }
 
   @Override
@@ -198,6 +185,20 @@ final class ScriptedFrameGrabber extends FrameGrabber {
 
   Thread getGrabbingThread() {
     return this.grabbingThread.get();
+  }
+
+  int getRemainingSteps() {
+    synchronized (this.script) {
+      return this.script.size();
+    }
+  }
+
+  void failOnSeek() {
+    this.failOnSeek = true;
+  }
+
+  void failOnStop() {
+    this.failOnStop = true;
   }
 
   void setLength(final long lengthMicroseconds) {
