@@ -45,6 +45,7 @@ const CHANNEL = "Channel";
 const UPLOADER_ID = "@uploader";
 
 const FAILURE_MESSAGE = "The network is down!";
+const FAILURE_REPORT = "Could not fetch the media information.";
 
 class FakeServer {
     constructor(answer) {
@@ -87,6 +88,11 @@ const loadPage = server => {
 
 const serverSending = body => {
     const response = {ok: true, json: () => Promise.resolve(body)};
+    return new FakeServer(() => Promise.resolve(response));
+};
+
+const serverSendingText = text => {
+    const response = {ok: true, json: () => Promise.resolve(text).then(JSON.parse)};
     return new FakeServer(() => Promise.resolve(response));
 };
 
@@ -175,6 +181,15 @@ test("should report no failure when the server answers with an error", () => {
         .then(errors => assert.deepEqual(errors, []));
 });
 
+test("should fall back to the unknown media information when the server sends a body that is not json", () => {
+    const page = loadPage(serverSendingText("{\"title\":"));
+
+    return page.loadMediaInformation()
+        .then(information => assert.equal(information, page.UNKNOWN_MEDIA_INFORMATION))
+        .then(page.reportedErrors)
+        .then(errors => assert.deepEqual(errors.map(report => report[0]), [FAILURE_REPORT]));
+});
+
 test("should fall back to the unknown media information when the request fails", () => {
     const failure = new Error(FAILURE_MESSAGE);
     const page = loadPage(unreachableServer(failure));
@@ -186,7 +201,7 @@ test("should fall back to the unknown media information when the request fails",
 test("should report a request that fails", () => {
     const failure = new Error(FAILURE_MESSAGE);
     const page = loadPage(unreachableServer(failure));
-    const expected = [["Could not fetch the media information.", failure]];
+    const expected = [[FAILURE_REPORT, failure]];
 
     return page.loadMediaInformation()
         .then(page.reportedErrors)
