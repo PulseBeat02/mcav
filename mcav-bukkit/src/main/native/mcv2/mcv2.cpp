@@ -945,7 +945,7 @@ private:
     const __m512i second_indexes = _mm512_load_si512(GATHER_SECOND[channel]);
     return _mm512_permutex2var_epi32(low, second_indexes, third_vector);
   }
-  static __m512i scatter(const __m512i red, __m512i green, __m512i blue, const int32_t output_index) {
+  static __m512i scatter(const __m512i red, const __m512i green, const __m512i blue, const int32_t output_index) {
     const __m512i first_indexes = _mm512_load_si512(SCATTER_FIRST[output_index]);
     const __m512i red_green = _mm512_permutex2var_epi32(red, first_indexes, green);
     const __m512i second_indexes = _mm512_load_si512(SCATTER_SECOND[output_index]);
@@ -1608,8 +1608,10 @@ int64_t compact(const int32_t* prediction, const int8_t* record, const int32_t q
                 int32_t* output, distortion_measure measure) {
   int32_t nodes[GRID * GRID];
   for (int32_t index = 0; index < GRID * GRID; index++) {
-    const int32_t packed = (uint8_t)record[MOTION_BYTES + index / NIBBLES_PER_BYTE];
-    const int32_t nibble = (packed >> ((index % NIBBLES_PER_BYTE) * NIBBLE_BITS)) & NIBBLE_MASK;
+    const int32_t byte_index = MOTION_BYTES + index / NIBBLES_PER_BYTE;
+    const int32_t packed = (uint8_t)record[byte_index];
+    const int32_t nibble_shift = (index % NIBBLES_PER_BYTE) * NIBBLE_BITS;
+    const int32_t nibble = (packed >> nibble_shift) & NIBBLE_MASK;
     nodes[index] = nibble >= NIBBLE_SIGN ? nibble - NIBBLE_RANGE : nibble;
   }
 
@@ -1666,7 +1668,9 @@ void predict(const uint8_t* reference, const int32_t width, const int32_t height
   const int32_t row_length = size * CHANNELS;
   if (left >= 0 && top >= 0 && left + size <= width && top + size <= height) {
     for (int32_t row_index = 0; row_index < size; row_index++) {
-      const uint8_t* source = reference + ((int64_t)(top + row_index) * width + left) * CHANNELS;
+      const int64_t reference_row = top + row_index;
+      const int64_t source_pixel = reference_row * width + left;
+      const uint8_t* source = reference + source_pixel * CHANNELS;
       int32_t* target = output + row_index * row_length;
       widen_bytes(source, row_length, target);
     }
@@ -1678,7 +1682,8 @@ void predict(const uint8_t* reference, const int32_t width, const int32_t height
     const int32_t source_row = clamp_int(top + row_index, 0, height - 1);
     for (int32_t column = 0; column < size; column++) {
       const int32_t source_column = clamp_int(left + column, 0, width - 1);
-      const uint8_t* source = reference + ((int64_t)source_row * width + source_column) * CHANNELS;
+      const int64_t source_pixel = (int64_t)source_row * width + source_column;
+      const uint8_t* source = reference + source_pixel * CHANNELS;
       int32_t* target = output + (row_index * size + column) * CHANNELS;
       copy_pixel(source, target);
     }
@@ -2486,13 +2491,14 @@ constexpr unsigned long long ZMM_STATE = 0xE6;
 
 constexpr unsigned EXTENDED_CONTROL_REGISTER = 0;
 
-constexpr int HIGH_WORD_SHIFT = 32;
+constexpr int32_t HIGH_WORD_SHIFT = 32;
 
 unsigned long long extended_control_state() {
   unsigned low;
   unsigned high;
   __asm__ volatile("xgetbv" : "=a"(low), "=d"(high) : "c"(EXTENDED_CONTROL_REGISTER));
-  return ((unsigned long long)high << HIGH_WORD_SHIFT) | low;
+  const unsigned long long shifted_high = (unsigned long long)high << HIGH_WORD_SHIFT;
+  return shifted_high | low;
 }
 
 }
