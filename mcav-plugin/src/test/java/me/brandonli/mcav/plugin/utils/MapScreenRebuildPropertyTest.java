@@ -169,7 +169,7 @@ final class MapScreenRebuildPropertyTest {
     }
   }
 
-  // spawned frames sit on the block corner, where the neighbour block's search would find them too
+  // spawned frames sit on the block corner, where the neighbor block's search would find them too
   private void hangInsideItsBlock(final ItemFrame frame) {
     final Location corner = frame.getLocation();
     final Location inside = corner.clone();
@@ -198,7 +198,7 @@ final class MapScreenRebuildPropertyTest {
   enum ObstacleKind {
     OLD_FRAME,
     OTHER_ENTITY,
-    NEIGHBOUR_FRAME,
+    NEIGHBOR_FRAME,
   }
 
   private static final class Obstacle {
@@ -278,7 +278,7 @@ final class MapScreenRebuildPropertyTest {
             world.addEntity(entity);
             keep.add(entity);
           }
-          case NEIGHBOUR_FRAME -> {
+          case NEIGHBOR_FRAME -> {
             final Location above = world.createLocation(blockX + HALF_BLOCK, SCREEN_Y + this.height + HALF_BLOCK, blockZ + HALF_BLOCK);
             final ItemFrame frame = world.addFrame(above, obstacle.facing);
             keep.add(frame);

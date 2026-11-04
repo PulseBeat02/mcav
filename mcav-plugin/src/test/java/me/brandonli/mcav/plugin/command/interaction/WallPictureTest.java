@@ -54,7 +54,7 @@ final class WallPictureTest {
   }
 
   @Test
-  void shouldShiftACentredPictureByItsBorderAndLeaveNoPixelThere() {
+  void shouldShiftACenteredPictureByItsBorderAndLeaveNoPixelThere() {
     final WallPicture picture = WallPicture.of(WALL_COLUMNS, WALL_ROWS, SOURCE_WIDTH, SOURCE_HEIGHT, false);
 
     final int[] source = picture.toSource(WALL_CENTER_X, WALL_CENTER_Y);
@@ -74,7 +74,7 @@ final class WallPictureTest {
   }
 
   @Test
-  void shouldCutOffACentredPictureLargerThanTheWallEquallyOnEachSide() {
+  void shouldCutOffACenteredPictureLargerThanTheWallEquallyOnEachSide() {
     final WallPicture picture = WallPicture.of(WALL_COLUMNS, WALL_ROWS, 1920, 1080, false);
 
     final int[] source = picture.toSource(0, 0);
@@ -85,7 +85,7 @@ final class WallPictureTest {
   }
 
   @Test
-  void shouldLeaveNoPixelOnTheSidesOfACentredPictureNarrowerThanTheWall() {
+  void shouldLeaveNoPixelOnTheSidesOfACenteredPictureNarrowerThanTheWall() {
     final WallPicture picture = WallPicture.of(4, 3, 384, 384, false);
 
     final int[] source = picture.toSource(63, 10);

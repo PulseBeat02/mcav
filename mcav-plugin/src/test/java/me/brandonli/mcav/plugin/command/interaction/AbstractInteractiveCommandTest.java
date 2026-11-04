@@ -1805,7 +1805,7 @@ final class AbstractInteractiveCommandTest {
   }
 
   @Test
-  void shouldForwardTheClickedPixelOfTheSourceCentredOnTheWall() {
+  void shouldForwardTheClickedPixelOfTheSourceCenteredOnTheWall() {
     // a 384x256 source on a wall of 4x3 maps, 512x384 pixels: the dithered maps leave a 64-pixel border around it
     final MultiplePlayerSelector viewers = this.mockViewers(UUID.randomUUID());
     final Pair<Integer, Integer> blocks = Pair.pair(WALL_BLOCK_WIDTH, WALL_BLOCK_HEIGHT);

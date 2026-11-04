@@ -88,7 +88,7 @@ mcv2:
   # Default is auto
   native: auto
 
-  # How a wall of maps shows its picture when the command that starts it has no --codec flag: dither, map colours
+  # How a wall of maps shows its picture when the command that starts it has no --codec flag: dither, map colors
   # every client shows, or mcv2, the MCV2 resource pack's decoder at the resolution the command asks for, which the
   # players are offered and may decline (those who do see the dithered maps). /mcav video map, /mcav image map,
   # /mcav browser create, /mcav vm create and /mcav vnc create take the flag, for example --codec mcv2.
