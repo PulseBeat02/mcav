@@ -85,17 +85,17 @@ public final class GeneratedMedia {
   private static Path generateChecked(final Path output, final Function<Path, List<String>> command, final Duration timeout)
     throws IOException, InterruptedException {
     final Path destination = output.toAbsolutePath();
-    if (COMPLETED.contains(destination) && Files.isRegularFile(destination) && Files.size(destination) > 0) {
+    if (COMPLETED.contains(destination) && isNonemptyFile(destination)) {
       return destination;
     }
 
     COMPLETED.remove(destination);
+
     final Path parent = Objects.requireNonNull(destination.getParent(), "A media file must have a directory!");
     Files.createDirectories(parent);
-    final String name = destination.getFileName().toString();
-    final int dot = name.lastIndexOf(EXTENSION_SEPARATOR);
-    final String extension = dot >= 0 ? name.substring(dot) : DEFAULT_EXTENSION;
-    final Path temporary = Files.createTempFile(parent, TEMPORARY_FILE_PREFIX, extension);
+
+    final Path temporary = createTemporarySibling(destination, parent);
+
     Path log = null;
     Throwable primary = null;
     try {
@@ -103,7 +103,7 @@ public final class GeneratedMedia {
       final List<String> arguments = command.apply(temporary);
       runProcess(arguments, log, timeout);
 
-      if (!Files.isRegularFile(temporary) || Files.size(temporary) == 0) {
+      if (!isNonemptyFile(temporary)) {
         final String message = "Fixture command %s succeeded without producing nonempty media!".formatted(arguments);
         throw new IOException(message);
       }
@@ -117,6 +117,17 @@ public final class GeneratedMedia {
     } finally {
       cleanup(temporary, log, primary);
     }
+  }
+
+  private static boolean isNonemptyFile(final Path path) throws IOException {
+    return Files.isRegularFile(path) && Files.size(path) > 0;
+  }
+
+  private static Path createTemporarySibling(final Path destination, final Path parent) throws IOException {
+    final String name = destination.getFileName().toString();
+    final int dot = name.lastIndexOf(EXTENSION_SEPARATOR);
+    final String extension = dot >= 0 ? name.substring(dot) : DEFAULT_EXTENSION;
+    return Files.createTempFile(parent, TEMPORARY_FILE_PREFIX, extension);
   }
 
   private static void publish(final Path temporary, final Path destination) throws IOException {
@@ -135,8 +146,10 @@ public final class GeneratedMedia {
     environment.putAll(ffmpegEnvironment);
     builder.redirectErrorStream(true);
     builder.redirectOutput(log.toFile());
+
     final long startedAt = System.nanoTime();
     final Process process = builder.start();
+
     final Set<ProcessHandle> descendants = new HashSet<>();
     boolean successful = false;
     try {
@@ -172,9 +185,7 @@ public final class GeneratedMedia {
   ) throws IOException, InterruptedException {
     final long budget = TimeUnit.NANOSECONDS.convert(timeout);
     while (true) {
-      try (final Stream<ProcessHandle> children = process.descendants()) {
-        children.forEach(descendants::add);
-      }
+      collectDescendants(process, descendants);
       final long remaining = budget - (System.nanoTime() - startedAt);
       if (remaining <= 0) {
         final String message = "Fixture command %s exceeded its timeout of %s!".formatted(command, timeout);
@@ -187,6 +198,12 @@ public final class GeneratedMedia {
     }
   }
 
+  private static void collectDescendants(final Process process, final Set<ProcessHandle> descendants) {
+    try (final Stream<ProcessHandle> children = process.descendants()) {
+      children.forEach(descendants::add);
+    }
+  }
+
   private static String readLog(final Path log) throws IOException {
     try (final InputStream input = Files.newInputStream(log)) {
       final byte[] bytes = input.readNBytes(LOG_LIMIT_BYTES);
@@ -195,9 +212,7 @@ public final class GeneratedMedia {
   }
 
   private static void terminate(final Process process, final Set<ProcessHandle> descendants) {
-    try (final Stream<ProcessHandle> children = process.descendants()) {
-      children.forEach(descendants::add);
-    }
+    collectDescendants(process, descendants);
 
     descendants.forEach(ProcessHandle::destroyForcibly);
     process.destroyForcibly();

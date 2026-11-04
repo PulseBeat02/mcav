@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.testing;
 
+import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
@@ -86,6 +87,7 @@ public final class LocalHttpServer implements AutoCloseable {
       final HttpServer httpServer = HttpServer.create(address, DEFAULT_BACKLOG);
       final ExecutorService executor = Executors.newCachedThreadPool();
       httpServer.setExecutor(executor);
+
       final LocalHttpServer localServer = new LocalHttpServer(httpServer, executor);
       httpServer.createContext(ROOT_PATH, localServer::handle);
       httpServer.start();
@@ -162,16 +164,6 @@ public final class LocalHttpServer implements AutoCloseable {
     return sameHost && port == boundPort;
   }
 
-  public int getRequestCount(final String path) {
-    final AtomicInteger count = this.requestCounts.get(path);
-    return count == null ? 0 : count.get();
-  }
-
-  public int getTotalRequestCount() {
-    final Collection<AtomicInteger> counts = this.requestCounts.values();
-    return counts.stream().mapToInt(AtomicInteger::get).sum();
-  }
-
   // Waits until a path has received at least the specified number of requests. Every counted request wakes the waiting
   // threads, so the wait ends as soon as the last request arrives, without polling.
   public boolean awaitRequests(final String path, final int count, final Duration timeout) throws InterruptedException {
@@ -198,18 +190,11 @@ public final class LocalHttpServer implements AutoCloseable {
     return true;
   }
 
-  private void signalRequest() {
-    synchronized (this.requestSignal) {
-      this.requestSignal.notifyAll();
-    }
-  }
-
   private void handle(final HttpExchange exchange) throws IOException {
     final URI requestUri = exchange.getRequestURI();
     final String path = requestUri.getPath();
-    final AtomicInteger count = this.requestCounts.computeIfAbsent(path, _ -> new AtomicInteger());
-    count.incrementAndGet();
-    this.signalRequest();
+    this.countRequest(path);
+
     final Response response = this.nextResponse(path);
     final CountDownLatch gate = response.gate;
     if (gate != null) {
@@ -217,7 +202,8 @@ public final class LocalHttpServer implements AutoCloseable {
     }
 
     if (response.location != null) {
-      exchange.getResponseHeaders().add("Location", response.location);
+      final Headers headers = exchange.getResponseHeaders();
+      headers.add("Location", response.location);
     }
 
     if (response.announcedLength >= 0) {
@@ -230,18 +216,19 @@ public final class LocalHttpServer implements AutoCloseable {
       return;
     }
 
-    final byte[] body = response.body;
-    final String method = exchange.getRequestMethod();
-    final boolean isHeadRequest = method.equals(HEAD_METHOD);
-    exchange.sendResponseHeaders(response.status, isHeadRequest || body.length == 0 ? NO_BODY_LENGTH : body.length);
+    this.sendWholeBody(exchange, response);
+  }
 
-    if (!isHeadRequest && body.length > 0) {
-      try (final OutputStream output = exchange.getResponseBody()) {
-        output.write(body);
-      }
+  private void countRequest(final String path) {
+    final AtomicInteger count = this.requestCounts.computeIfAbsent(path, _ -> new AtomicInteger());
+    count.incrementAndGet();
+    this.signalRequest();
+  }
+
+  private void signalRequest() {
+    synchronized (this.requestSignal) {
+      this.requestSignal.notifyAll();
     }
-
-    exchange.close();
   }
 
   private void stall(final HttpExchange exchange, final Response response) throws IOException {
@@ -276,6 +263,23 @@ public final class LocalHttpServer implements AutoCloseable {
         return;
       }
     }
+  }
+
+  private void sendWholeBody(final HttpExchange exchange, final Response response) throws IOException {
+    final byte[] body = response.body;
+    final String method = exchange.getRequestMethod();
+    final boolean isHeadRequest = method.equals(HEAD_METHOD);
+    final boolean hasBody = !isHeadRequest && body.length > 0;
+    final long responseLength = hasBody ? body.length : NO_BODY_LENGTH;
+    exchange.sendResponseHeaders(response.status, responseLength);
+
+    if (hasBody) {
+      try (final OutputStream output = exchange.getResponseBody()) {
+        output.write(body);
+      }
+    }
+
+    exchange.close();
   }
 
   // Waits until the gate opens, the server closes, or the maximum wait passes. The gate is checked in short steps, so a
@@ -316,7 +320,7 @@ public final class LocalHttpServer implements AutoCloseable {
   private Response nextResponse(final String path) {
     final Deque<Response> queue = this.responses.get(path);
     if (queue == null) {
-      return new Response(NOT_FOUND_STATUS, new byte[0], null, NO_ANNOUNCED_LENGTH);
+      return this.createNotFoundResponse();
     }
 
     synchronized (queue) {
@@ -325,8 +329,12 @@ public final class LocalHttpServer implements AutoCloseable {
       }
 
       final Response last = queue.peekFirst();
-      return last == null ? new Response(NOT_FOUND_STATUS, new byte[0], null, NO_ANNOUNCED_LENGTH) : last;
+      return last == null ? this.createNotFoundResponse() : last;
     }
+  }
+
+  private Response createNotFoundResponse() {
+    return new Response(NOT_FOUND_STATUS, new byte[0], null, NO_ANNOUNCED_LENGTH);
   }
 
   @Override
@@ -334,6 +342,16 @@ public final class LocalHttpServer implements AutoCloseable {
     this.closing.countDown();
     this.server.stop(STOP_DELAY_SECONDS);
     this.executor.shutdownNow();
+  }
+
+  public int getRequestCount(final String path) {
+    final AtomicInteger count = this.requestCounts.get(path);
+    return count == null ? 0 : count.get();
+  }
+
+  public int getTotalRequestCount() {
+    final Collection<AtomicInteger> counts = this.requestCounts.values();
+    return counts.stream().mapToInt(AtomicInteger::get).sum();
   }
 
   private static final class Response {
