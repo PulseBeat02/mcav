@@ -42,9 +42,11 @@ import org.slf4j.LoggerFactory;
  * <p>The packages come from the Debian bookworm archive and its security updates, the newer version of each package
  * winning, in the lists {@code mcav/common/installers/debian-vlc.json}, {@code mcav/common/installers/debian-gtk2.json}
  * and {@code mcav/common/installers/debian-ffmpeg.json}, which list each package after the packages it depends on, with
- * its SHA-256. Every package is downloaded from {@code deb.debian.org} while Debian still carries that version,
- * otherwise from {@code snapshot.debian.org}, checked against its hash, and its {@code usr/lib} and {@code lib} trees
- * are extracted by MCAV itself, without {@code dpkg} and without administrator rights, into one folder of the cache.
+ * its SHA-256. Every package is downloaded from {@code deb.debian.org}, or from {@code snapshot.debian.org} when that
+ * download fails, for example because Debian no longer carries that version or the host cannot be reached; a host that
+ * fails is tried last for the packages that follow. Each package is checked against its hash, and its {@code usr/lib}
+ * and {@code lib} trees are extracted by MCAV itself, without {@code dpkg} and without administrator rights, into one
+ * folder of the cache.
  * The libraries need the glibc 2.36 and GCC 12 runtime of Debian bookworm or newer, which the lists leave out.
  *
  * <p>{@link #loadLibraries()} loads every library of the installation into the JVM, from the library folders and
