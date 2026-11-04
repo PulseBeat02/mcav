@@ -38,9 +38,10 @@ val websiteSourcePath: String = "mcav-website/src"
 val websitePublicPath: String = "mcav-website/public"
 val websiteTestPath: String = "mcav-website/test"
 val websiteOutputPath: String = "mcav-website/out"
+val noticesScriptPath: String = "mcav-website/third-party-notices.mjs"
 val websiteConfigurationFiles: List<String> = listOf(
     "mcav-website/next.config.ts",
-    "mcav-website/third-party-notices.mjs",
+    noticesScriptPath,
     "mcav-website/tsconfig.json",
     "mcav-website/postcss.config.mjs"
 )
@@ -109,6 +110,8 @@ val testWebsite: TaskProvider<Exec> = tasks.register<Exec>("testWebsite") {
     this.inputs.dir(websiteSourcePath)
     this.inputs.dir(websiteTestPath)
     this.inputs.file(packageJsonPath)
+    this.inputs.file(pnpmLockPath)
+    this.inputs.file(noticesScriptPath)
 
     val passed: Provider<RegularFile> = layout.buildDirectory.file(websiteTestsPassedPath)
     this.outputs.file(passed)
