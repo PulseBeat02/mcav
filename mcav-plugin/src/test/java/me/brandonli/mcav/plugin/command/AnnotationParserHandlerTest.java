@@ -130,6 +130,12 @@ final class AnnotationParserHandlerTest {
   private static final String VNC_SYNTAX =
     "mcav vnc create playerSelector vncResolution targetFramesPerSecond blockDimensions mapId ditheringAlgorithm server flags";
 
+  private static final String REGISTRATION_FAILURE_MESSAGE = "registration failed!";
+
+  private static final String BROWSER_CLEANUP_FAILURE_MESSAGE = "browser cleanup failed!";
+
+  private static final String FATAL_FAILURE_MESSAGE = "fatal sentinel!";
+
   private MCAVSandbox plugin;
 
   private VideoPlayerManager videoManager;
@@ -444,8 +450,8 @@ final class AnnotationParserHandlerTest {
   @ParameterizedTest
   @ValueSource(booleans = { false, true })
   void shouldKeepTheRegistrationFailurePrimaryWhenRollbackAlsoFails(final boolean sameFailure) {
-    final IllegalStateException primary = new IllegalStateException("registration failed!");
-    final RuntimeException cleanup = sameFailure ? primary : new IllegalArgumentException("browser cleanup failed!");
+    final IllegalStateException primary = new IllegalStateException(REGISTRATION_FAILURE_MESSAGE);
+    final RuntimeException cleanup = sameFailure ? primary : new IllegalArgumentException(BROWSER_CLEANUP_FAILURE_MESSAGE);
     try (
       final MockedConstruction<BrowserCommand> browsers = Mockito.mockConstruction(BrowserCommand.class, (browser, context) ->
         this.failRegistrationAndShutdown(browser, primary, cleanup)
@@ -477,7 +483,7 @@ final class AnnotationParserHandlerTest {
 
   @Test
   void shouldShutLaterFeaturesDownEvenWhenAnEarlierFeatureFails() {
-    final IllegalStateException failure = new IllegalStateException("browser cleanup failed!");
+    final IllegalStateException failure = new IllegalStateException(BROWSER_CLEANUP_FAILURE_MESSAGE);
     try (
       final MockedConstruction<BrowserCommand> browsers = Mockito.mockConstruction(BrowserCommand.class, (browser, _) ->
         this.failShutdown(browser, failure)
@@ -523,7 +529,7 @@ final class AnnotationParserHandlerTest {
 
   @Test
   void shouldPropagateFatalRegistrationFailureWithoutAttemptingRollback() {
-    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
+    final OutOfMemoryError fatal = new OutOfMemoryError(FATAL_FAILURE_MESSAGE);
     try (
       final MockedConstruction<BrowserCommand> browsers = Mockito.mockConstruction(BrowserCommand.class, (browser, _) ->
         this.failFeatureRegistration(browser, fatal)
@@ -545,8 +551,8 @@ final class AnnotationParserHandlerTest {
 
   @Test
   void shouldPropagateFatalCleanupFailureDuringRollback() {
-    final IllegalStateException primary = new IllegalStateException("registration failed!");
-    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
+    final IllegalStateException primary = new IllegalStateException(REGISTRATION_FAILURE_MESSAGE);
+    final OutOfMemoryError fatal = new OutOfMemoryError(FATAL_FAILURE_MESSAGE);
     try (
       final MockedConstruction<BrowserCommand> browsers = Mockito.mockConstruction(BrowserCommand.class, (browser, _) ->
         this.failRegistrationAndShutdown(browser, primary, fatal)

@@ -168,6 +168,14 @@ final class AbstractInteractiveCommandTest {
   private static final String COORDINATE_SEPARATOR = ",";
   private static final String AIMED_LEFT_CLICK = "browser left 10,20";
 
+  private static final String MISSING_CHROME_MESSAGE = "no chrome!";
+
+  private static final String DITHER_CREATION_FAILURE_MESSAGE = "dither unavailable!";
+
+  private static final String FATAL_FAILURE_MESSAGE = "fatal sentinel!";
+
+  private static final String STARTUP_TASK_FAILURE_MESSAGE = "startup task failed!";
+
   private MCAVSandbox plugin;
   private RecordingCommand command;
   private FakeWorld fakeWorld;
@@ -497,7 +505,7 @@ final class AbstractInteractiveCommandTest {
   void shouldNameWhatFailedToStartInTheLog() {
     final Screen screen = this.createMockedScreen();
     final CommandSender sender = mock(CommandSender.class);
-    final IllegalStateException missingChrome = new IllegalStateException("no chrome!");
+    final IllegalStateException missingChrome = new IllegalStateException(MISSING_CHROME_MESSAGE);
     final CompletableFuture<Boolean> start = CompletableFuture.failedFuture(missingChrome);
     final String output;
     try (final StandardErrorCapture capture = StandardErrorCapture.start()) {
@@ -513,7 +521,7 @@ final class AbstractInteractiveCommandTest {
     final Screen screen = this.createMockedScreen();
     final FunctionalVideoFilter maps = screen.getOutput();
     final CommandSender sender = mock(CommandSender.class);
-    final IllegalStateException missingChrome = new IllegalStateException("no chrome!");
+    final IllegalStateException missingChrome = new IllegalStateException(MISSING_CHROME_MESSAGE);
     final CompletableFuture<Boolean> start = CompletableFuture.failedFuture(missingChrome);
 
     this.command.reportStartWhenDone(sender, BROWSER, screen, start, BROWSER_DESCRIPTION);
@@ -539,7 +547,7 @@ final class AbstractInteractiveCommandTest {
     this.assertReleased(FIRST_BROWSER);
     verify(firstMaps).release();
 
-    final IllegalStateException missingChrome = new IllegalStateException("no chrome!");
+    final IllegalStateException missingChrome = new IllegalStateException(MISSING_CHROME_MESSAGE);
     firstStart.completeExceptionally(missingChrome);
     assertEquals(SECOND_BROWSER, this.command.player);
     assertSame(secondMaps, this.command.output);
@@ -568,7 +576,7 @@ final class AbstractInteractiveCommandTest {
     this.assertReleased(BROWSER);
     verify(maps).release();
 
-    final IllegalStateException missingChrome = new IllegalStateException("no chrome!");
+    final IllegalStateException missingChrome = new IllegalStateException(MISSING_CHROME_MESSAGE);
     start.completeExceptionally(missingChrome);
 
     this.assertReleased(BROWSER);
@@ -1178,7 +1186,7 @@ final class AbstractInteractiveCommandTest {
   @Test
   void shouldCloseOwnedMapsWhenDitherCreationFails() {
     final ScreenSettings settings = this.wallSettings(UUID.randomUUID(), DitheringArgument.NEAREST_COLOR);
-    final IllegalStateException failure = new IllegalStateException("dither unavailable!");
+    final IllegalStateException failure = new IllegalStateException(DITHER_CREATION_FAILURE_MESSAGE);
     try (
       final MockedConstruction<CompressedMapResult> maps = Mockito.mockConstruction(CompressedMapResult.class);
       final MockedStatic<DitherFilter> dithers = Mockito.mockStatic(DitherFilter.class)
@@ -1201,7 +1209,7 @@ final class AbstractInteractiveCommandTest {
   @Test
   void shouldKeepTheDitherFailureWhenTheMapsFailToReleaseToo() {
     final ScreenSettings settings = this.wallSettings(UUID.randomUUID(), DitheringArgument.NEAREST_COLOR);
-    final IllegalStateException failure = new IllegalStateException("dither unavailable!");
+    final IllegalStateException failure = new IllegalStateException(DITHER_CREATION_FAILURE_MESSAGE);
     final IllegalStateException cleanup = new IllegalStateException("maps stuck!");
     try (
       final MockedConstruction<CompressedMapResult> _ = Mockito.mockConstruction(CompressedMapResult.class, (maps, _) ->
@@ -1226,7 +1234,7 @@ final class AbstractInteractiveCommandTest {
   @Test
   void shouldPropagateFatalDitherFailureWithoutReleasingTheMaps() {
     final ScreenSettings settings = this.wallSettings(UUID.randomUUID(), DitheringArgument.NEAREST_COLOR);
-    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
+    final OutOfMemoryError fatal = new OutOfMemoryError(FATAL_FAILURE_MESSAGE);
     try (
       final MockedConstruction<CompressedMapResult> maps = Mockito.mockConstruction(CompressedMapResult.class);
       final MockedStatic<DitherFilter> dithers = Mockito.mockStatic(DitherFilter.class)
@@ -1248,8 +1256,8 @@ final class AbstractInteractiveCommandTest {
   @Test
   void shouldPropagateFatalMapsReleaseFailureAfterADitherFailure() {
     final ScreenSettings settings = this.wallSettings(UUID.randomUUID(), DitheringArgument.NEAREST_COLOR);
-    final IllegalStateException failure = new IllegalStateException("dither unavailable!");
-    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
+    final IllegalStateException failure = new IllegalStateException(DITHER_CREATION_FAILURE_MESSAGE);
+    final OutOfMemoryError fatal = new OutOfMemoryError(FATAL_FAILURE_MESSAGE);
     try (
       final MockedConstruction<CompressedMapResult> _ = Mockito.mockConstruction(CompressedMapResult.class, (maps, _) ->
         this.failMapsRelease(maps, fatal)
@@ -1451,7 +1459,7 @@ final class AbstractInteractiveCommandTest {
     final Screen screen = this.createMockedScreen();
     this.command.ownCreatedPlayer(BROWSER);
     final ExecutorService executor = this.command.startExecutor(BROWSER, screen);
-    final RuntimeException failure = new IllegalStateException("startup task failed!");
+    final RuntimeException failure = new IllegalStateException(STARTUP_TASK_FAILURE_MESSAGE);
     if (cancellation == TaskCancellation.CANCEL_BEFORE_THROWING) {
       executor.execute(() -> this.releaseAndFailStartupTask(cleanup, failure));
     } else {
@@ -1660,7 +1668,7 @@ final class AbstractInteractiveCommandTest {
     final UUID viewer = UUID.randomUUID();
     final ScreenSettings settings = this.wallSettings(viewer, DitheringArgument.NEAREST_COLOR);
     final FunctionalVideoFilter ditherFilter = mock(FunctionalVideoFilter.class);
-    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
+    final OutOfMemoryError fatal = new OutOfMemoryError(FATAL_FAILURE_MESSAGE);
     try (
       final MockedConstruction<CompressedMapResult> results = Mockito.mockConstruction(CompressedMapResult.class);
       final MockedStatic<DitherFilter> dithers = Mockito.mockStatic(DitherFilter.class)
@@ -1685,7 +1693,7 @@ final class AbstractInteractiveCommandTest {
   @Test
   void shouldPropagateFatalResourceCreationFailureWithoutAttemptingCleanup() {
     this.command.ownCreatedPlayer(BROWSER);
-    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
+    final OutOfMemoryError fatal = new OutOfMemoryError(FATAL_FAILURE_MESSAGE);
     final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () -> this.createFatallyFailingResource(fatal));
     assertSame(fatal, thrown);
     this.assertReleased();
@@ -1704,7 +1712,7 @@ final class AbstractInteractiveCommandTest {
   void shouldPropagateFatalBackgroundReleaseFailure() {
     final ExecutorService direct = MoreExecutors.newDirectExecutorService();
     final RecordingCommand command = new RecordingCommand(this.plugin, direct);
-    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
+    final OutOfMemoryError fatal = new OutOfMemoryError(FATAL_FAILURE_MESSAGE);
     final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () -> this.releaseFatallyInTheBackground(command, fatal));
     assertSame(fatal, thrown);
   }
@@ -1716,7 +1724,7 @@ final class AbstractInteractiveCommandTest {
   @Test
   void shouldPropagateFatalCleanupFailureDuringFailureRelease() {
     this.command.ownCreatedPlayer(BROWSER);
-    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
+    final OutOfMemoryError fatal = new OutOfMemoryError(FATAL_FAILURE_MESSAGE);
     this.command.releaseFailure = fatal;
     final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, this::createBrokenResource);
     assertSame(fatal, thrown);
@@ -1738,7 +1746,7 @@ final class AbstractInteractiveCommandTest {
     final Screen screen = this.createMockedScreen();
     this.command.ownCreatedPlayer(BROWSER);
     final ExecutorService executor = this.command.startExecutor(BROWSER, screen);
-    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
+    final OutOfMemoryError fatal = new OutOfMemoryError(FATAL_FAILURE_MESSAGE);
     executor.execute(() -> this.cancelAndFail(screen, fatal));
     final Runnable task = pending.getFirst();
     final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, task::run);
@@ -1757,7 +1765,7 @@ final class AbstractInteractiveCommandTest {
     final Screen screen = this.createMockedScreen();
     this.command.ownCreatedPlayer(BROWSER);
     final ExecutorService executor = this.command.startExecutor(BROWSER, screen);
-    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
+    final OutOfMemoryError fatal = new OutOfMemoryError(FATAL_FAILURE_MESSAGE);
     executor.execute(() -> this.cancelAndFailStartupTask(screen, fatal));
     final Runnable task = pending.getFirst();
     final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, task::run);
@@ -1770,7 +1778,7 @@ final class AbstractInteractiveCommandTest {
   private void cancelAndFailStartupTask(final Screen screen, final OutOfMemoryError fatal) {
     screen.cancel();
     this.command.releaseFailure = fatal;
-    final String message = "startup task failed!";
+    final String message = STARTUP_TASK_FAILURE_MESSAGE;
     throw new IllegalStateException(message);
   }
 
@@ -1917,6 +1925,7 @@ final class AbstractInteractiveCommandTest {
   private static final class RecordingCommand extends AbstractInteractiveCommand<String> {
 
     private final List<String> forwarded;
+
     private final List<String> released;
     private @Nullable Throwable releaseFailure;
 

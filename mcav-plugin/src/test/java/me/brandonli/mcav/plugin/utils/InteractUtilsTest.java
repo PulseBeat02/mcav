@@ -74,6 +74,10 @@ final class InteractUtilsTest {
   private static final int AIMED_PIXEL_Y = 51;
   private static final int MIRRORED_PIXEL_X = 89;
 
+  private static final String COLUMN_DISTANCE_MESSAGE = "the column is the distance to the first corner, not the coordinate";
+
+  private static final String WALL_RAY_DIRECTION_MESSAGE = "the ray is followed to the wall, not to the mirror image of the eye";
+
   private FakeWorld fakeWorld;
   private Player player;
 
@@ -180,7 +184,7 @@ final class InteractUtilsTest {
     this.buildSouthWallAwayFromTheOrigin();
     final int[] coordinates = InteractUtils.findBoardCoordinates(this.player).orElseThrow();
     final int[] expected = { 3 * MAP_SIZE + AIMED_PIXEL_X, MAP_SIZE + AIMED_PIXEL_Y };
-    assertArrayEquals(expected, coordinates, "the column is the distance to the first corner, not the coordinate");
+    assertArrayEquals(expected, coordinates, COLUMN_DISTANCE_MESSAGE);
   }
 
   // offset so a frame's column differs from its own coordinate
@@ -225,7 +229,7 @@ final class InteractUtilsTest {
     this.aimAt(target, BlockFace.WEST, wallBlock, eye);
     final int[] coordinates = InteractUtils.findBoardCoordinates(this.player).orElseThrow();
     final int[] expected = { MAP_SIZE + AIMED_PIXEL_X, AIMED_PIXEL_Y };
-    assertArrayEquals(expected, coordinates, "the column is the distance to the first corner, not the coordinate");
+    assertArrayEquals(expected, coordinates, COLUMN_DISTANCE_MESSAGE);
   }
 
   @Test
@@ -326,7 +330,7 @@ final class InteractUtilsTest {
     this.aimAt(target, BlockFace.SOUTH, wallBlock, eye);
     final int[] coordinates = InteractUtils.findBoardCoordinates(this.player).orElseThrow();
     final int[] expected = { MAP_SIZE + 30, AIMED_PIXEL_Y };
-    assertArrayEquals(expected, coordinates, "the ray is followed to the wall, not to the mirror image of the eye");
+    assertArrayEquals(expected, coordinates, WALL_RAY_DIRECTION_MESSAGE);
   }
 
   @Test
@@ -340,7 +344,7 @@ final class InteractUtilsTest {
     this.aimAt(target, BlockFace.WEST, wallBlock, eye);
     final int[] coordinates = InteractUtils.findBoardCoordinates(this.player).orElseThrow();
     final int[] expected = { MAP_SIZE + 71, AIMED_PIXEL_Y };
-    assertArrayEquals(expected, coordinates, "the ray is followed to the wall, not to the mirror image of the eye");
+    assertArrayEquals(expected, coordinates, WALL_RAY_DIRECTION_MESSAGE);
   }
 
   @Test

@@ -79,6 +79,11 @@ final class FilterChainTest {
 
   private static final int DOT_SIZE = 5;
 
+  private static final int LARGE_PICTURE_SIDE = 40;
+  private static final int SMALL_PICTURE_SIDE = 20;
+
+  private static final int OVERLAY_HEIGHT = 16;
+
   private static final int RGB_MASK = 0xffffff;
   private static final int CHANNEL_MASK = 0xff;
 
@@ -399,17 +404,17 @@ final class FilterChainTest {
   @Test
   void shouldPlaceARegionAtThePercentsTyped() {
     final VideoFilter inside = this.parse("rectangle=25:50:50:25:ffffff").createFilters().getFirst();
-    final ImageBuffer framed = this.picture(40, 40, 0);
+    final ImageBuffer framed = this.picture(LARGE_PICTURE_SIDE, LARGE_PICTURE_SIDE, 0);
 
     final boolean filtered = inside.applyFilter(framed);
     assertTrue(filtered);
 
     for (final int[] white : new int[][] { { 10, 25 }, { 29, 25 }, { 20, 20 }, { 20, 29 } }) {
-      final int matches = framed.getPixels()[white[0] + 40 * white[1]] & RGB_MASK;
+      final int matches = framed.getPixels()[white[0] + LARGE_PICTURE_SIDE * white[1]] & RGB_MASK;
       assertEquals(WHITE, matches, Arrays.toString(white));
     }
     for (final int[] black : new int[][] { { 9, 25 }, { 30, 25 }, { 20, 19 }, { 20, 30 } }) {
-      final int secondMatches = framed.getPixels()[black[0] + 40 * black[1]] & RGB_MASK;
+      final int secondMatches = framed.getPixels()[black[0] + LARGE_PICTURE_SIDE * black[1]] & RGB_MASK;
       assertEquals(0, secondMatches, Arrays.toString(black));
     }
     try (final ImageBuffer cropped = this.quadrantPicture()) {
@@ -489,7 +494,7 @@ final class FilterChainTest {
       final int[] pixels = zoomed.getPixels();
       assertArrayEquals(expected, pixels, "the bottom-right quadrant fills the result");
     }
-    final ImageBuffer framed = this.picture(20, 20, 0x000000);
+    final ImageBuffer framed = this.picture(SMALL_PICTURE_SIDE, SMALL_PICTURE_SIDE, 0x000000);
     this.parse("rectangle=0:0:50:50:00ff00").apply(framed);
 
     final int secondMatches = framed.getPixels()[0] & RGB_MASK;
@@ -524,9 +529,9 @@ final class FilterChainTest {
 
   @Test
   void shouldScaleALargeOverlayDownAndRemakesARegionForEverySize() throws IOException {
-    this.writeOverlay("wide", 2_048, 16);
+    this.writeOverlay("wide", 2_048, OVERLAY_HEIGHT);
     final VideoFilter overlay = this.parse("overlay=wide").createFilters().getFirst();
-    final ImageBuffer large = this.picture(1_100, 16, BLUE);
+    final ImageBuffer large = this.picture(1_100, OVERLAY_HEIGHT, BLUE);
     overlay.applyFilter(large);
 
     final int matches = large.getPixels()[1_023] & RGB_MASK;
@@ -546,31 +551,31 @@ final class FilterChainTest {
     assertEquals(WHITE, fourthMatches);
 
     rectangle.applyFilter(small);
-    final ImageBuffer other = this.picture(20, 20, 0);
+    final ImageBuffer other = this.picture(SMALL_PICTURE_SIDE, SMALL_PICTURE_SIDE, 0);
     rectangle.applyFilter(other);
 
     final int fifthMatches = other.getPixels()[10] & RGB_MASK;
     assertEquals(WHITE, fifthMatches);
 
-    final ImageBuffer taller = this.picture(20, 40, 0);
+    final ImageBuffer taller = this.picture(SMALL_PICTURE_SIDE, LARGE_PICTURE_SIDE, 0);
     rectangle.applyFilter(taller);
 
-    final int sixthMatches = taller.getPixels()[10 + 20 * 15] & RGB_MASK;
+    final int sixthMatches = taller.getPixels()[10 + SMALL_PICTURE_SIDE * 15] & RGB_MASK;
     assertEquals(WHITE, sixthMatches, "the region is remade for the taller picture");
 
-    final int seventhMatches = taller.getPixels()[10 + 20 * 30] & RGB_MASK;
+    final int seventhMatches = taller.getPixels()[10 + SMALL_PICTURE_SIDE * 30] & RGB_MASK;
     assertEquals(0, seventhMatches);
 
-    final ImageBuffer wider = this.picture(40, 40, 0);
+    final ImageBuffer wider = this.picture(LARGE_PICTURE_SIDE, LARGE_PICTURE_SIDE, 0);
     rectangle.applyFilter(wider);
 
-    final int eighthMatches = wider.getPixels()[20 + 40 * 5] & RGB_MASK;
+    final int eighthMatches = wider.getPixels()[20 + LARGE_PICTURE_SIDE * 5] & RGB_MASK;
     assertEquals(WHITE, eighthMatches, "the region is remade for the wider picture");
   }
 
   @Test
   void shouldNotResizeAnOverlayAsWideAsAllowed() throws IOException {
-    this.writeOverlay("widest", FilterChain.MAXIMUM_OVERLAY_SIDE, 16);
+    this.writeOverlay("widest", FilterChain.MAXIMUM_OVERLAY_SIDE, OVERLAY_HEIGHT);
     final FilterChain chain = this.parse("overlay=widest");
     try (final MockedConstruction<ResizeFilter> resizers = Mockito.mockConstruction(ResizeFilter.class)) {
       final List<VideoFilter> filters = chain.createFilters();

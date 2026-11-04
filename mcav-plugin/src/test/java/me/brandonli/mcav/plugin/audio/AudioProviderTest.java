@@ -98,6 +98,8 @@ final class AudioProviderTest {
 
   private static final String MACHINE_TITLE = "The machine";
 
+  private static final String MISSING_VOICE_CONNECT_PERMISSION_MESSAGE = "Missing permission VOICE_CONNECT!";
+
   private final UrlParseDump dump = GsonProvider.getSimple().fromJson("{}", UrlParseDump.class);
   private final Object[] players = { "Steve" };
   private final List<Runnable> deferred = new ArrayList<>();
@@ -607,7 +609,7 @@ final class AudioProviderTest {
     final Object machine = new Object();
     final AudioFilter video = this.provider.constructFilter(AudioArgument.DISCORD_BOT, this.dump, this.players);
     this.provider.constructFilter(AudioArgument.HTTP_SERVER, UrlParseDump.of(MACHINE_TITLE), this.players, machine);
-    doThrow(new IllegalStateException("Missing permission VOICE_CONNECT!")).when(this.audioManager).openAudioConnection(this.channel);
+    doThrow(new IllegalStateException(MISSING_VOICE_CONNECT_PERMISSION_MESSAGE)).when(this.audioManager).openAudioConnection(this.channel);
     this.provider.releaseAudioFilter(machine);
 
     final boolean filtered = video.applyFilter(
@@ -662,7 +664,7 @@ final class AudioProviderTest {
     this.provider.constructFilter(AudioArgument.HTTP_SERVER, this.dump, this.players);
     this.provider.constructFilter(AudioArgument.DISCORD_BOT, this.dump, this.players);
     this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players, machine);
-    doThrow(new IllegalStateException("Missing permission VOICE_CONNECT!")).when(this.audioManager).openAudioConnection(this.channel);
+    doThrow(new IllegalStateException(MISSING_VOICE_CONNECT_PERMISSION_MESSAGE)).when(this.audioManager).openAudioConnection(this.channel);
     this.provider.releaseAudioFilter(machine);
     this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players, browser);
     this.provider.releaseAudioFilter(browser);

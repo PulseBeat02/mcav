@@ -179,6 +179,10 @@ final class Mcv2PlayCommandTest {
   private static final String PROGRESS_PATTERN = "MCV2 encode: (\\d+) frames, (\\d+) ms per frame";
   private static final String DURATION_PATTERN = " in (\\d+) s, ";
 
+  private static final String MISSING_VIDEO_MESSAGE = "no such video!";
+
+  private static final String REJECTED_SOURCE_MESSAGE = "reader rejected the source!";
+
   @TempDir
   private Path folder;
 
@@ -632,7 +636,7 @@ final class Mcv2PlayCommandTest {
     );
     final List<String> failures = this.finish();
 
-    final String expected = this.text(Message.MCV2_ENCODE_ERROR.build("no such video!"));
+    final String expected = this.text(Message.MCV2_ENCODE_ERROR.build(MISSING_VIDEO_MESSAGE));
     final String failure = failures.getFirst();
     assertEquals(expected, failure);
 
@@ -650,7 +654,7 @@ final class Mcv2PlayCommandTest {
   }
 
   private Mcv2FileEncoder.FrameReader throwMissingVideo() throws IOException {
-    final String message = "no such video!";
+    final String message = MISSING_VIDEO_MESSAGE;
     throw new IOException(message);
   }
 
@@ -718,7 +722,7 @@ final class Mcv2PlayCommandTest {
     final byte[] allBytes = Files.readAllBytes(target);
     assertArrayEquals(previous, allBytes);
 
-    verify(this.sender).sendMessage(Message.MCV2_ENCODE_ERROR.build("reader rejected the source!"));
+    verify(this.sender).sendMessage(Message.MCV2_ENCODE_ERROR.build(REJECTED_SOURCE_MESSAGE));
   }
 
   private void encodeRejectedSource(final Path target) {
@@ -736,7 +740,7 @@ final class Mcv2PlayCommandTest {
   }
 
   private Mcv2FileEncoder.FrameReader throwRejectedSource() {
-    final String message = "reader rejected the source!";
+    final String message = REJECTED_SOURCE_MESSAGE;
     throw new IllegalStateException(message);
   }
 

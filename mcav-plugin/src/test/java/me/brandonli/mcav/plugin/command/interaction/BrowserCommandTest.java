@@ -87,6 +87,8 @@ final class BrowserCommandTest {
   private static final String SITE_URL = "https://example.com";
   private static final String AUDIO_HTTP_URL = "http://mc.example.com:3000/";
 
+  private static final String BROWSER_RELEASE_FAILURE_MESSAGE = "release broke!";
+
   private BrowserCommand command;
   private MCAVSandbox plugin;
   private AudioProvider provider;
@@ -247,7 +249,7 @@ final class BrowserCommandTest {
     when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(CompletableFuture.completedFuture(true));
     this.create(RESOLUTION, BLOCK_DIMENSIONS, AudioArgument.SIMPLE_VOICE_CHAT, PAGE_URL);
     when(this.plugin.getAudioProvider()).thenThrow(new IllegalStateException("The audio provider is not available!"));
-    Mockito.doThrow(new IllegalStateException("release broke!")).when(this.browser).release();
+    Mockito.doThrow(new IllegalStateException(BROWSER_RELEASE_FAILURE_MESSAGE)).when(this.browser).release();
     this.command.releaseBrowser(this.sender);
     verify(this.provider).releaseAudioFilter(this.browser);
     verify(this.callback).detach();
@@ -258,11 +260,11 @@ final class BrowserCommandTest {
   void shouldFailTheShutdownWhenABrowserFailsToStopWhileTheCommandShutsDown() {
     when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(CompletableFuture.completedFuture(true));
     this.create(RESOLUTION, BLOCK_DIMENSIONS, PAGE_URL);
-    Mockito.doThrow(new IllegalStateException("release broke!")).when(this.browser).release();
+    Mockito.doThrow(new IllegalStateException(BROWSER_RELEASE_FAILURE_MESSAGE)).when(this.browser).release();
     final IllegalStateException failure = assertThrows(IllegalStateException.class, this.command::shutdown);
 
     final String message = failure.getMessage();
-    assertEquals("release broke!", message);
+    assertEquals(BROWSER_RELEASE_FAILURE_MESSAGE, message);
   }
 
   @Test

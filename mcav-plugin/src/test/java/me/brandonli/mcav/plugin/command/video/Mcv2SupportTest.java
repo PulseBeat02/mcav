@@ -156,7 +156,7 @@ final class Mcv2SupportTest {
 
   @Test
   void shouldConfigureTheScreenOnTheWallThatHoldsTheMap() {
-    final Mcv2Configuration configuration = this.configure(20).orElseThrow();
+    final Mcv2Configuration configuration = this.configure(MAP_ID).orElseThrow();
 
     final Location expected = new Location(this.world, 5, 64, 7);
     final Location origin = configuration.getOrigin();
@@ -221,7 +221,7 @@ final class Mcv2SupportTest {
     System.setProperty(Mcv2Support.PAGE_SLOTS_PROPERTY, "8");
     System.setProperty(Mcv2Support.BACKLOG_PROPERTY, "65536");
     try {
-      final Mcv2Configuration limited = this.configure(20).orElseThrow();
+      final Mcv2Configuration limited = this.configure(MAP_ID).orElseThrow();
 
       final int pageSlots = limited.getPageSlots();
       assertEquals(8, pageSlots);
@@ -273,7 +273,7 @@ final class Mcv2SupportTest {
 
   @Test
   void shouldOpenASlotOrTellTheSenderThatEveryOnePlays() {
-    final Mcv2Configuration configuration = this.configure(20).orElseThrow();
+    final Mcv2Configuration configuration = this.configure(MAP_ID).orElseThrow();
     final Mcv2PackServer.Lease lease = mock(Mcv2PackServer.Lease.class);
     when(this.packs.open(configuration)).thenReturn(lease).thenThrow(new IllegalStateException("full!"));
 
@@ -291,7 +291,7 @@ final class Mcv2SupportTest {
 
   @Test
   void shouldCreateTheOutputOfAScreenInItsSlot() {
-    final Mcv2Configuration configuration = this.configure(20).orElseThrow();
+    final Mcv2Configuration configuration = this.configure(MAP_ID).orElseThrow();
     final Mcv2Configuration slotted = configuration.withSlot(SLOT, Mcv2Configuration.DEFAULT_PAGE_MAP + PAGE_MAP_OFFSET, 1234);
     final Mcv2PackServer.Lease lease = mock(Mcv2PackServer.Lease.class);
     when(lease.getConfiguration()).thenReturn(slotted);
@@ -356,7 +356,7 @@ final class Mcv2SupportTest {
 
   @Test
   void shouldRecordTheFramesOfAScreenForAMeasurement() {
-    final Mcv2Configuration configuration = this.configure(20).orElseThrow();
+    final Mcv2Configuration configuration = this.configure(MAP_ID).orElseThrow();
     final Mcv2PackServer.Lease lease = mock(Mcv2PackServer.Lease.class);
     when(lease.getConfiguration()).thenReturn(configuration.withSlot(SLOT, Mcv2Configuration.DEFAULT_PAGE_MAP + PAGE_MAP_OFFSET, 0));
     when(this.packs.open(configuration)).thenReturn(lease);

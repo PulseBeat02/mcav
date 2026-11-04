@@ -48,11 +48,13 @@ final class PluginDescriptorTest {
 
   private static final String CLASS_FILE_EXTENSION = ".class";
 
+  private static final char PATH_SEPARATOR = '/';
+
   @Test
   void shouldDeclareInTheDescriptorEveryPermissionTheCommandsCheckForOperatorsAndNoOther()
     throws IOException, URISyntaxException, InvalidConfigurationException {
     final YamlConfiguration descriptor = new YamlConfiguration();
-    descriptor.options().pathSeparator('/');
+    descriptor.options().pathSeparator(PATH_SEPARATOR);
     try (final InputStream in = PluginDescriptorTest.class.getResourceAsStream(DESCRIPTOR_RESOURCE_PATH)) {
       assertNotNull(in, "the build writes the descriptor");
 
@@ -87,7 +89,7 @@ final class PluginDescriptorTest {
     final ClassLoader loader = PluginDescriptorTest.class.getClassLoader();
     for (final Path file : files) {
       final String relative = classes.relativize(file).toString().replace(file.getFileSystem().getSeparator(), "/");
-      final String name = relative.substring(0, relative.length() - CLASS_FILE_EXTENSION.length()).replace('/', '.');
+      final String name = relative.substring(0, relative.length() - CLASS_FILE_EXTENSION.length()).replace(PATH_SEPARATOR, '.');
       final Class<?> type;
       try {
         type = Class.forName(name, false, loader);

@@ -133,6 +133,10 @@ final class AbstractVideoCommandTest {
   private static final String MISSING_FILE_NAME = "missing.mp4";
   private static final String WEBM_VIDEO_FILE_NAME = "clip.webm";
 
+  private static final String NATIVE_START_FAILURE_MESSAGE = "native start!";
+
+  private static final String FATAL_FAILURE_MESSAGE = "fatal sentinel!";
+
   @TempDir
   private Path folder;
 
@@ -1018,7 +1022,7 @@ final class AbstractVideoCommandTest {
   void shouldPreserveStartupFailureWhenClearingPartialOutputsAlsoFails() throws IOException {
     final Path file = this.createVideoFile();
     final String mrl = file.toString();
-    final IllegalStateException failure = new IllegalStateException("native start!");
+    final IllegalStateException failure = new IllegalStateException(NATIVE_START_FAILURE_MESSAGE);
     final IllegalArgumentException cleanup = new IllegalArgumentException("clear outputs!");
     when(this.player.start(any())).thenThrow(failure);
     Mockito.doNothing().doThrow(cleanup).when(this.manager).clearCurrentVideo();
@@ -1077,7 +1081,7 @@ final class AbstractVideoCommandTest {
 
   @Test
   void shouldPropagateFatalPlayVideoFailureWithoutResettingStartingStatus() {
-    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
+    final OutOfMemoryError fatal = new OutOfMemoryError(FATAL_FAILURE_MESSAGE);
     when(this.manager.getService()).thenThrow(fatal);
 
     final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () ->
@@ -1091,7 +1095,7 @@ final class AbstractVideoCommandTest {
 
   @Test
   void shouldReportFatalPlayerStartFailureWithoutRecoverableCleanup() throws IOException {
-    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
+    final OutOfMemoryError fatal = new OutOfMemoryError(FATAL_FAILURE_MESSAGE);
     when(this.player.start(any())).thenThrow(fatal);
     final Path file = this.createVideoFile();
     final String mrl = file.toString();
@@ -1103,8 +1107,8 @@ final class AbstractVideoCommandTest {
   void shouldReportFatalCleanupFailureWithoutSuppressingItOntoTheStartFailure() throws IOException {
     final Path file = this.createVideoFile();
     final String mrl = file.toString();
-    final IllegalStateException failure = new IllegalStateException("native start!");
-    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
+    final IllegalStateException failure = new IllegalStateException(NATIVE_START_FAILURE_MESSAGE);
+    final OutOfMemoryError fatal = new OutOfMemoryError(FATAL_FAILURE_MESSAGE);
     when(this.player.start(any())).thenThrow(failure);
     Mockito.doNothing().doThrow(fatal).when(this.manager).clearCurrentVideo();
     this.playAndRequireFatalReport(mrl);
@@ -1118,7 +1122,7 @@ final class AbstractVideoCommandTest {
     final String mrl = file.toString();
     final Location location = mock(Location.class);
     when(this.manager.getHologramLocation()).thenReturn(Optional.of(location));
-    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
+    final OutOfMemoryError fatal = new OutOfMemoryError(FATAL_FAILURE_MESSAGE);
     Mockito.doThrow(fatal).when(this.hologram).start();
     this.playAndRequireFatalReport(mrl);
     verify(this.hologram, never()).kill();
@@ -1246,6 +1250,7 @@ final class AbstractVideoCommandTest {
   private static final class RecordingCommand extends AbstractVideoCommand {
 
     private final VideoPipelineStep pipeline;
+
     private final List<Pair<Integer, Integer>> resolutions;
     private final List<VideoConfigurationProvider> providers;
 
