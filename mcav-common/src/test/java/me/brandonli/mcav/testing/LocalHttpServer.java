@@ -86,7 +86,7 @@ public final class LocalHttpServer implements AutoCloseable {
       httpServer.setExecutor(executor);
 
       final LocalHttpServer localServer = new LocalHttpServer(httpServer, executor);
-      httpServer.createContext(ROOT_PATH, localServer::handle);
+      httpServer.createContext(ROOT_PATH, localServer::serveNextResponse);
       httpServer.start();
       return localServer;
     } catch (final IOException exception) {
@@ -185,7 +185,7 @@ public final class LocalHttpServer implements AutoCloseable {
     return true;
   }
 
-  private void handle(final HttpExchange exchange) throws IOException {
+  private void serveNextResponse(final HttpExchange exchange) throws IOException {
     final URI requestUri = exchange.getRequestURI();
     final String path = requestUri.getPath();
     this.countRequest(path);
