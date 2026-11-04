@@ -128,9 +128,9 @@ final class MapLayoutPropertyTest {
     final int tooLate = (int) overshootingStart;
     final int fits = (int) lastAllowedStart;
 
-    assertThrows(IllegalArgumentException.class, () -> new MapLayout(tooLate, columns, rows, 1, 1));
+    assertThrows(IllegalArgumentException.class, () -> MapLayout.of(tooLate, columns, rows, 1, 1));
 
-    final MapLayout layout = new MapLayout(fits, columns, rows, 1, 1);
+    final MapLayout layout = MapLayout.of(fits, columns, rows, 1, 1);
     final int lastId = layout.getMapId(mapCount - 1);
     assertEquals(Integer.MAX_VALUE, lastId, "the last map may have the largest id");
   }
@@ -152,7 +152,7 @@ final class MapLayoutPropertyTest {
     }
 
     private MapLayout createLayout() {
-      return new MapLayout(this.startMapId, this.columns, this.rows, this.imageWidth, this.imageHeight);
+      return MapLayout.of(this.startMapId, this.columns, this.rows, this.imageWidth, this.imageHeight);
     }
 
     private byte[] createImage() {

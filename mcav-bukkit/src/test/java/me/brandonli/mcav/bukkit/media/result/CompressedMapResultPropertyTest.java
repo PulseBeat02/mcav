@@ -275,7 +275,7 @@ final class CompressedMapResultPropertyTest {
     private MapLayout createLayout(final Step step) {
       final int width = this.widthOf(step);
       final int height = this.heightOf(step);
-      return new MapLayout(START_MAP_ID, this.columns, this.rows, width, height);
+      return MapLayout.of(START_MAP_ID, this.columns, this.rows, width, height);
     }
 
     // never 0, the transparent index, so a cleared pixel stands out

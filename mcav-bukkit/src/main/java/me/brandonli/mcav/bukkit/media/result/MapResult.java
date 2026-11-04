@@ -109,7 +109,7 @@ public final class MapResult implements DitherResultStep {
     final int rows = this.configuration.getMapBlockHeight();
     final int width = samples.getWidth();
     final int height = samples.getHeight();
-    final MapLayout layout = new MapLayout(startMapId, columns, rows, width, height);
+    final MapLayout layout = MapLayout.of(startMapId, columns, rows, width, height);
     final List<MapTilePatch> patches = this.createGridPatches(layout, dithered);
 
     final Collection<UUID> viewers = this.configuration.getViewers();

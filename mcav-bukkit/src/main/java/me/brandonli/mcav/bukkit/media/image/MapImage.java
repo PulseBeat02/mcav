@@ -73,7 +73,7 @@ public final class MapImage implements DisplayableImage {
     final int rows = this.configuration.getMapBlockHeight();
     final int width = image.getWidth();
     final int height = image.getHeight();
-    final MapLayout layout = new MapLayout(startMapId, columns, rows, width, height);
+    final MapLayout layout = MapLayout.of(startMapId, columns, rows, width, height);
     final List<MapTilePatch> patches = layout.extractAll(dithered);
 
     final Collection<UUID> viewers = this.configuration.getViewers();

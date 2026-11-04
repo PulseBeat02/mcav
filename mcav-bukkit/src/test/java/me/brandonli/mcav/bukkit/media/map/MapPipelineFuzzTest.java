@@ -42,7 +42,7 @@ final class MapPipelineFuzzTest {
     final int width = data.consumeInt(1, columns * MAP_SIZE + 64);
     final int height = data.consumeInt(1, rows * MAP_SIZE + 64);
     final int budget = data.consumeInt(1, 1 << 20);
-    final MapLayout layout = new MapLayout(startMapId, columns, rows, width, height);
+    final MapLayout layout = MapLayout.of(startMapId, columns, rows, width, height);
     final DeltaMapEncoder encoder = new DeltaMapEncoder(layout, budget);
 
     final byte[] frame = new byte[width * height];

@@ -201,7 +201,7 @@ final class DeltaMapEncoderPropertyTest {
     }
 
     private MapLayout createLayout() {
-      return new MapLayout(7, this.columns, this.rows, this.imageWidth, this.imageHeight);
+      return MapLayout.of(7, this.columns, this.rows, this.imageWidth, this.imageHeight);
     }
 
     private List<byte[]> createFrames() {

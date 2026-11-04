@@ -389,7 +389,7 @@ public final class CompressedMapResult implements DitherResultStep {
       }
     }
 
-    final MapLayout layout = new MapLayout(startMapId, columns, rows, width, height);
+    final MapLayout layout = MapLayout.of(startMapId, columns, rows, width, height);
     final DeltaMapEncoder createdEncoder = new DeltaMapEncoder(layout, this.maximumBytesPerFrame);
     this.encoder = createdEncoder;
     this.activeViewers.clear();

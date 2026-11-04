@@ -60,7 +60,7 @@ public class EncodeSnapshotRace {
    * Creates an encoder whose clients already display a frame of one color.
    */
   public EncodeSnapshotRace() {
-    final MapLayout layout = new MapLayout(START_MAP_ID, COLUMNS, ROWS, SIDE, SIDE);
+    final MapLayout layout = MapLayout.of(START_MAP_ID, COLUMNS, ROWS, SIDE, SIDE);
     this.encoder = new DeltaMapEncoder(layout, DeltaMapEncoder.DEFAULT_MAXIMUM_BYTES_PER_FRAME);
 
     final byte[] oldFrame = this.createFrame(OLD_COLOR);

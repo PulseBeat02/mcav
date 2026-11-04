@@ -17,10 +17,13 @@
  */
 package me.brandonli.mcav.bukkit.media.map;
 
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Describes how an image is placed onto a grid of maps.
@@ -70,20 +73,7 @@ public final class MapLayout {
   private final int offsetY;
   private final MapRegion[] regions;
 
-  /**
-   * Creates a new layout.
-   *
-   * @param startMapId  the nonnegative id of the top left map
-   * @param columns     the strictly positive number of maps horizontally
-   * @param rows        the strictly positive number of maps vertically
-   * @param imageWidth  the strictly positive width of the image in pixels
-   * @param imageHeight the strictly positive height of the image in pixels
-   * @throws IllegalArgumentException if any argument is out of range, the map count, last map id or the size of the
-   *                                  grid in pixels would exceed {@link Integer#MAX_VALUE}, or the image has more
-   *                                  than {@link Integer#MAX_VALUE} pixels
-   * @since 1.0.0
-   */
-  public MapLayout(final int startMapId, final int columns, final int rows, final int imageWidth, final int imageHeight) {
+  private MapLayout(final int startMapId, final int columns, final int rows, final int imageWidth, final int imageHeight) {
     this.validateDimensions(startMapId, columns, rows, imageWidth, imageHeight);
 
     this.startMapId = startMapId;
@@ -97,6 +87,24 @@ public final class MapLayout {
     this.offsetX = (gridWidth - imageWidth) / CENTERING_DIVISOR;
     this.offsetY = (gridHeight - imageHeight) / CENTERING_DIVISOR;
     this.regions = this.computeRegions();
+  }
+
+  /**
+   * Returns a layout of the given grid and image.
+   *
+   * @param startMapId  the nonnegative id of the top left map
+   * @param columns     the strictly positive number of maps horizontally
+   * @param rows        the strictly positive number of maps vertically
+   * @param imageWidth  the strictly positive width of the image in pixels
+   * @param imageHeight the strictly positive height of the image in pixels
+   * @return the layout
+   * @throws IllegalArgumentException if any argument is out of range, the map count, last map id or the size of the
+   *                                  grid in pixels would exceed {@link Integer#MAX_VALUE}, or the image has more
+   *                                  than {@link Integer#MAX_VALUE} pixels
+   * @since 1.0.0
+   */
+  public static MapLayout of(final int startMapId, final int columns, final int rows, final int imageWidth, final int imageHeight) {
+    return new MapLayout(startMapId, columns, rows, imageWidth, imageHeight);
   }
 
   private void validateDimensions(
@@ -330,5 +338,53 @@ public final class MapLayout {
    */
   public int getImageHeight() {
     return this.imageHeight;
+  }
+
+  /**
+   * Returns whether {@code other} is a layout of the same grid and image.
+   *
+   * @param other the object to compare with
+   * @return whether the start map id, the grid and the image size all match
+   * @since 1.0.0
+   */
+  @Override
+  public boolean equals(final @Nullable Object other) {
+    if (this == other) {
+      return true;
+    }
+
+    if (!(other instanceof final MapLayout layout)) {
+      return false;
+    }
+
+    return this.matches(layout.startMapId, layout.columns, layout.rows, layout.imageWidth, layout.imageHeight);
+  }
+
+  /**
+   * Returns a hash code built from the start map id, the grid and the image size.
+   *
+   * @return the hash code
+   * @since 1.0.0
+   */
+  @Override
+  public int hashCode() {
+    return Objects.hash(this.startMapId, this.columns, this.rows, this.imageWidth, this.imageHeight);
+  }
+
+  /**
+   * Returns a debugging representation with the start map id, the grid and the image size.
+   *
+   * @return the representation
+   * @since 1.0.0
+   */
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(this)
+      .add("startMapId", this.startMapId)
+      .add("columns", this.columns)
+      .add("rows", this.rows)
+      .add("imageWidth", this.imageWidth)
+      .add("imageHeight", this.imageHeight)
+      .toString();
   }
 }

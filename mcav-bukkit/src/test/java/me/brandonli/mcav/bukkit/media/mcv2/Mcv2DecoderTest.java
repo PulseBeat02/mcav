@@ -199,6 +199,16 @@ final class Mcv2DecoderTest {
   }
 
   @Test
+  void shouldHashFramesByTheirBytes() {
+    final byte[] keyframe = keyframe(3, 2, solid(SOLID_RED, SOLID_GREEN, SOLID_BLUE));
+    final Mcv2Decoder.Frame frame = Mcv2Decoder.parse(keyframe);
+
+    final int hash = frame.hashCode();
+    final int expected = Arrays.hashCode(keyframe);
+    assertEquals(expected, hash);
+  }
+
+  @Test
   void shouldDescribeTheSizeAndTheIdsOfAFrame() {
     final Mcv2Decoder.Frame frame = Mcv2Decoder.parse(predicted(2, 1, motion(0, 0)));
     final String description = frame.toString();
