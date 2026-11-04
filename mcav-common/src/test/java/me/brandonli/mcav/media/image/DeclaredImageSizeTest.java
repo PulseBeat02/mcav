@@ -72,7 +72,19 @@ final class DeclaredImageSizeTest {
   private static final String TEXT_FILE_NAME = "text.png";
   private static final String EMPTY_FILE_NAME = "empty.png";
 
+  private static final String BMP_EXTENSION = ".bmp";
+  private static final String JPEG_EXTENSION = ".jpg";
+  private static final String PNG_EXTENSION = ".png";
+  private static final String WEBP_EXTENSION = ".webp";
+  private static final String PPM_EXTENSION = ".ppm";
   private static final String PGM_EXTENSION = ".pgm";
+  private static final String PNM_EXTENSION = ".pnm";
+  private static final String PAM_EXTENSION = ".pam";
+  private static final String PFM_EXTENSION = ".pfm";
+  private static final String SUN_RASTER_EXTENSION = ".sr";
+  private static final String TIFF_EXTENSION = ".tif";
+  private static final String HDR_EXTENSION = ".hdr";
+  private static final String GIF_EXTENSION = ".gif";
 
   private static final String NOT_AN_IMAGE = "not an image";
 
@@ -222,19 +234,19 @@ final class DeclaredImageSizeTest {
 
   static Stream<Arguments> openCvSamples() {
     final List<String> extensions = List.of(
-      ".bmp",
-      ".jpg",
-      ".png",
-      ".webp",
-      ".ppm",
-      ".pgm",
-      ".pnm",
-      ".pam",
-      ".pfm",
-      ".sr",
-      ".tif",
-      ".hdr",
-      ".gif"
+      BMP_EXTENSION,
+      JPEG_EXTENSION,
+      PNG_EXTENSION,
+      WEBP_EXTENSION,
+      PPM_EXTENSION,
+      PGM_EXTENSION,
+      PNM_EXTENSION,
+      PAM_EXTENSION,
+      PFM_EXTENSION,
+      SUN_RASTER_EXTENSION,
+      TIFF_EXTENSION,
+      HDR_EXTENSION,
+      GIF_EXTENSION
     );
     final int[][] sizes = { { 5, 7 }, { 300, 2 }, { 1, 1 } };
     return extensions.stream().flatMap(extension -> openCvSamplesOfExtension(extension, sizes));
@@ -257,7 +269,7 @@ final class DeclaredImageSizeTest {
     final int type
   ) {
     final boolean gray = type == opencv_core.CV_8UC1;
-    final boolean colorOnly = extension.equals(".ppm") || extension.equals(".gif");
+    final boolean colorOnly = extension.equals(PPM_EXTENSION) || extension.equals(GIF_EXTENSION);
     final boolean grayOnly = extension.equals(PGM_EXTENSION);
     if ((gray && colorOnly) || (!gray && grayOnly)) {
       return;
@@ -279,7 +291,7 @@ final class DeclaredImageSizeTest {
   void shouldDeclareTheSizeOpenCvDecodesForLosslessWebpAndTextNetpbm() {
     try (final Mat picture = new Mat(7, 5, opencv_core.CV_8UC1, new Scalar(90)); final BytePointer output = new BytePointer()) {
       try (final IntPointer lossless = new IntPointer(opencv_imgcodecs.IMWRITE_WEBP_QUALITY, 101)) {
-        final boolean encoded = opencv_imgcodecs.imencode(".webp", picture, output, lossless);
+        final boolean encoded = opencv_imgcodecs.imencode(WEBP_EXTENSION, picture, output, lossless);
         assertTrue(encoded);
       }
       final byte[] webp = new byte[(int) output.limit()];
@@ -301,7 +313,7 @@ final class DeclaredImageSizeTest {
       final Mat picture = new Mat(2, 300, opencv_core.CV_8UC3, new Scalar(FILL_BLUE, FILL_GREEN, FILL_RED, 0));
       final BytePointer output = new BytePointer()
     ) {
-      final boolean encoded = opencv_imgcodecs.imencode(".jpg", picture, output);
+      final boolean encoded = opencv_imgcodecs.imencode(JPEG_EXTENSION, picture, output);
       assertTrue(encoded);
       final byte[] jpeg = new byte[(int) output.limit()];
       output.get(jpeg);

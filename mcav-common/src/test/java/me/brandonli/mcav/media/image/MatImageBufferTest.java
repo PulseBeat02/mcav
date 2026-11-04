@@ -81,8 +81,11 @@ final class MatImageBufferTest {
   private static final String SIXTEEN_BIT_FILE_NAME = "sixteen.png";
   private static final String HEADER_ONLY_FILE_NAME = "header-only.ppm";
   private static final String TOO_TALL_FILE_NAME = "too-tall.pbm";
+  private static final String MISSING_FILE_NAME = "missing.png";
 
   private static final String ENCODED_FORMAT = "png";
+
+  private static final String USER_HOME_PROPERTY = "user.home";
 
   private static final int SMALL_IMAGE_SIZE = 2;
 
@@ -220,7 +223,7 @@ final class MatImageBufferTest {
     assertEquals(8, downloadedHeight);
     assertThrowsWhileOpening(IllegalArgumentException.class, () -> ImageBuffer.path(invalid));
 
-    final Path missing = this.directory.resolve("missing.png");
+    final Path missing = this.directory.resolve(MISSING_FILE_NAME);
     final FileSource missingSource = FileSource.path(missing);
     final String expected = "File %s is not a supported image!".formatted(missing);
     final String previous = System.getProperty(DeclaredImageSize.MAXIMUM_PIXELS_PROPERTY);
@@ -372,9 +375,9 @@ final class MatImageBufferTest {
   // Serves an image from a local HTTP server and loads it through its URI, with the download cache in the temporary
   // directory instead of the real home directory.
   private int downloadHeight(final Path png) throws IOException {
-    final String previousHome = System.getProperty("user.home");
+    final String previousHome = System.getProperty(USER_HOME_PROPERTY);
     final String temporaryHome = this.directory.toString();
-    System.setProperty("user.home", temporaryHome);
+    System.setProperty(USER_HOME_PROPERTY, temporaryHome);
     try (final LocalHttpServer server = LocalHttpServer.start()) {
       final byte[] content = Files.readAllBytes(png);
       server.respond("/image.png", 200, content);
@@ -384,21 +387,21 @@ final class MatImageBufferTest {
         return fromUri.getHeight();
       }
     } finally {
-      System.setProperty("user.home", previousHome);
+      System.setProperty(USER_HOME_PROPERTY, previousHome);
     }
   }
 
   private void assertDownloadFailure() {
-    final String previousHome = System.getProperty("user.home");
+    final String previousHome = System.getProperty(USER_HOME_PROPERTY);
     final String temporaryHome = this.directory.toString();
-    System.setProperty("user.home", temporaryHome);
+    System.setProperty(USER_HOME_PROPERTY, temporaryHome);
     try (final LocalHttpServer server = LocalHttpServer.start()) {
       server.respond("/missing.png", 404, new byte[0]);
       final URI uri = server.uri("/missing.png");
       final UriSource source = UriSource.uri(uri);
       assertThrowsWhileOpening(DownloadException.class, () -> ImageBuffer.uri(source));
     } finally {
-      System.setProperty("user.home", previousHome);
+      System.setProperty(USER_HOME_PROPERTY, previousHome);
     }
   }
 
