@@ -560,7 +560,7 @@ SAMPLES_ROW_PADDING: int = 2
 SAMPLES_LEAF_PANELS: int = 4
 SAMPLES_LEAVES_FIGURE_SIZE: tuple[int, float] = (11, 6.2)
 SAMPLES_LIGHT_THRESHOLD: int = 382
-SAMPLES_BITS_COLOUR_LIMIT: float = 1.6
+SAMPLES_BITS_COLOR_LIMIT: float = 1.6
 
 SAMPLES_HEXADECIMAL_DUMP_WIDTH: int = 16
 
@@ -777,7 +777,7 @@ CHARTS_CODECS: list[tuple[str, str, str, str]] = [
     ("av1", "AV1", "#eda100", "D"),
 ]
 CHARTS_SOURCES: list[tuple[str, str]] = [(PROXY_SOURCE, "Minecraft proxy, 1080p30"), (GAMEPLAY_SOURCE, "Minecraft gameplay, 1080p30")]
-CHARTS_SOURCE_COLOURS: dict[str, str] = {PROXY_SOURCE: "#2a78d6", GAMEPLAY_SOURCE: "#eb6834"}
+CHARTS_SOURCE_COLORS: dict[str, str] = {PROXY_SOURCE: "#2a78d6", GAMEPLAY_SOURCE: "#eb6834"}
 
 CHARTS_LEVELS: tuple[int, int, int, int, int] = (70, 75, 80, 85, 90)
 CHARTS_TICKS: tuple[float, float, float, int, int, int, int, int, int] = (0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50)
@@ -2914,10 +2914,10 @@ class StripCheck:
 
         self.captures_with_squares += 1
         top: Any = self.total_slots * rows + self.arguments.screens + self.arguments.debug_top
-        colours: list[tuple[int, ...]] = self.read_squares(name, screen, top)
-        self.check_slot_squares(name, colours, pages)
-        self.check_decision(name, colours)
-        self.check_counter(name, colours)
+        colors: list[tuple[int, ...]] = self.read_squares(name, screen, top)
+        self.check_slot_squares(name, colors, pages)
+        self.check_decision(name, colors)
+        self.check_counter(name, colors)
 
     def read_pages(self, screen: numpy.ndarray, rows: Any) -> dict[int, bool]:
         pages: dict[int, bool] = {}
@@ -2937,42 +2937,42 @@ class StripCheck:
 
     def check_descriptor(self, name: Any, screen: numpy.ndarray, rows: Any) -> None:
         descriptor_row: Any = self.total_slots * rows + self.arguments.screen
-        colours: list[tuple[int, ...]] = [
+        colors: list[tuple[int, ...]] = [
             tuple(int(channel) for channel in screen[descriptor_row, column]) for column in range(len(STRIP_CHECK_DESCRIPTOR))
         ]
-        if colours == STRIP_CHECK_DESCRIPTOR:
+        if colors == STRIP_CHECK_DESCRIPTOR:
             self.descriptors += 1
         else:
             self.failures.append((name, "descriptor"))
 
     def read_squares(self, name: Any, screen: numpy.ndarray, top: Any) -> list[tuple[int, ...]]:
-        colours: list[tuple[int, ...]] = []
+        colors: list[tuple[int, ...]] = []
         for square in range(self.arguments.slots + STRIP_CHECK_EXTRA_SQUARES):
             left: Any = self.arguments.video_width + STRIP_CHECK_MARGIN + square * STRIP_CHECK_STEP
             region: numpy.ndarray = screen[top : top + STRIP_CHECK_SQUARE, left : left + STRIP_CHECK_SQUARE].reshape(-1, CHANNELS)
             if numpy.any(region != region[0]):
-                self.failures.append((name, f"square {square} is not one colour"))
-            colours.append(tuple(int(channel) for channel in region[0]))
+                self.failures.append((name, f"square {square} is not one color"))
+            colors.append(tuple(int(channel) for channel in region[0]))
 
-        return colours
+        return colors
 
-    def check_slot_squares(self, name: Any, colours: list[tuple[int, ...]], pages: dict[int, bool]) -> None:
+    def check_slot_squares(self, name: Any, colors: list[tuple[int, ...]], pages: dict[int, bool]) -> None:
         for slot in range(self.arguments.slots):
-            if colours[slot] != (STRIP_CHECK_GREEN if pages[slot] else STRIP_CHECK_RED):
-                self.failures.append((name, f"slot {slot} square {colours[slot]}, page valid {pages[slot]}"))
+            if colors[slot] != (STRIP_CHECK_GREEN if pages[slot] else STRIP_CHECK_RED):
+                self.failures.append((name, f"slot {slot} square {colors[slot]}, page valid {pages[slot]}"))
 
-    def check_decision(self, name: Any, colours: list[tuple[int, ...]]) -> None:
-        decision: str = STRIP_CHECK_DECISIONS.get(colours[self.arguments.slots], STRIP_CHECK_OTHER_DECISION)
+    def check_decision(self, name: Any, colors: list[tuple[int, ...]]) -> None:
+        decision: str = STRIP_CHECK_DECISIONS.get(colors[self.arguments.slots], STRIP_CHECK_OTHER_DECISION)
         self.decisions[decision] += 1
         if decision in (STRIP_CHECK_CANNOT_DECODE, STRIP_CHECK_OTHER_DECISION):
-            self.failures.append((name, f"decision {colours[self.arguments.slots]}"))
+            self.failures.append((name, f"decision {colors[self.arguments.slots]}"))
 
-    def check_counter(self, name: Any, colours: list[tuple[int, ...]]) -> None:
+    def check_counter(self, name: Any, colors: list[tuple[int, ...]]) -> None:
         count: int = 0
-        for index, colour in enumerate(colours[self.arguments.slots + 1 :]):
-            if len(set(colour)) != 1:
-                self.failures.append((name, f"counter byte {index} not grey: {colour}"))
-            count |= colour[0] << BITS_PER_BYTE * index
+        for index, color in enumerate(colors[self.arguments.slots + 1 :]):
+            if len(set(color)) != 1:
+                self.failures.append((name, f"counter byte {index} not gray: {color}"))
+            count |= color[0] << BITS_PER_BYTE * index
         if self.counts and count < self.counts[-1]:
             self.failures.append((name, f"counter went down from {self.counts[-1]} to {count}"))
         self.counts.append(count)
@@ -3419,14 +3419,14 @@ def charts_draw_codecs(data: Any) -> None:
     axes: Any
     figure, axes = pyplot.subplots(len(CHARTS_SOURCES), 1, figsize=CHARTS_CODECS_FIGURE_SIZE, sharex=True)
     for axis, (source, title) in zip(axes, CHARTS_SOURCES):
-        for codec, name, colour, marker in CHARTS_CODECS:
+        for codec, name, color, marker in CHARTS_CODECS:
             rates: tuple[float, ...]
             scores: tuple[float, ...]
             rates, scores = zip(*charts_curve(data, source, codec))
             axis.plot(
                 rates,
                 scores,
-                color=colour,
+                color=color,
                 marker=marker,
                 markersize=CHARTS_MARKER_SIZE,
                 linewidth=CHARTS_CURVE_LINE_WIDTH,
@@ -3512,7 +3512,7 @@ def charts_draw_features(rows: list[dict[str, Any]]) -> None:
     for index, (source, title) in enumerate(CHARTS_SOURCES):
         positions: list[float] = [row_index + (0.5 - index) * (height + CHARTS_BAR_GAP) for row_index in range(len(rows))]
         shown: list[float] = [min(row[source][0], limit) if limit else row[source][0] for row in rows]
-        axis.barh(positions, shown, height=height, color=CHARTS_SOURCE_COLOURS[source], label=title, zorder=CHARTS_FRONT_LAYER)
+        axis.barh(positions, shown, height=height, color=CHARTS_SOURCE_COLORS[source], label=title, zorder=CHARTS_FRONT_LAYER)
         clipped: list[tuple[float, dict[str, Any], float]] = [
             (position, row, value) for position, row, value in zip(positions, rows, shown) if limit and row[source][0] > limit
         ]
@@ -3693,7 +3693,7 @@ def samples_draw_tree(arguments: argparse.Namespace) -> None:
     width: int
     height: int
     pixel_x, pixel_y, width, height = crop
-    colours: dict[int, str] = {mode: colour for mode, _, colour in SAMPLES_MODES}
+    colors: dict[int, str] = {mode: color for mode, _, color in SAMPLES_MODES}
     figure: Any
     axes: Any
     figure, axes = pyplot.subplots(
@@ -3719,7 +3719,7 @@ def samples_draw_tree(arguments: argparse.Namespace) -> None:
                     corner,
                     leaf.size,
                     leaf.size,
-                    facecolor=colours[leaf.mode],
+                    facecolor=colors[leaf.mode],
                     edgecolor=CHARTS_SURFACE,
                     linewidth=CHARTS_FINE_LINE_WIDTH,
                 )
@@ -3730,8 +3730,8 @@ def samples_draw_tree(arguments: argparse.Namespace) -> None:
         samples_finish(top, f"Frame {number} ({kind}): {frame.frame_bytes:,} bytes, {len(frame.leaves):,} leaves")
         samples_finish(bottom, f"The leaves of frame {number} by mode")
     handles: list[Patch] = [
-        Patch(facecolor=colour, edgecolor=CHARTS_SECONDARY, linewidth=CHARTS_FINE_LINE_WIDTH, label=name)
-        for _, name, colour in SAMPLES_MODES
+        Patch(facecolor=color, edgecolor=CHARTS_SECONDARY, linewidth=CHARTS_FINE_LINE_WIDTH, label=name)
+        for _, name, color in SAMPLES_MODES
     ]
     columns: int = min(len(SAMPLES_MODES), SAMPLES_LEGEND_COLUMNS_PER_FRAME * len(numbers))
     figure.legend(handles=handles, loc="lower center", ncol=columns, frameon=False, fontsize=CHARTS_SMALL_FONT_SIZE)
@@ -3818,25 +3818,25 @@ def samples_draw_leaves(arguments: argparse.Namespace) -> None:
         name: str = "PALETTE" if leaf.mode == mcv2_reference.PALETTE else "PATTERN"
         size: int | Any = leaf.size
         block: numpy.ndarray = source[leaf.pixel_y : leaf.pixel_y + size, leaf.pixel_x : leaf.pixel_x + size]
-        colours: list[tuple[Any, ...]] = [tuple(leaf.record[0:CHANNELS]), tuple(leaf.record[CHANNELS:COLORS_BYTES])]
+        colors: list[tuple[Any, ...]] = [tuple(leaf.record[0:CHANNELS]), tuple(leaf.record[CHANNELS:COLORS_BYTES])]
         bits: Any | numpy.ndarray = samples_bits_of(leaf)
         row[0].imshow(block, interpolation="nearest")
         samples_finish(row[0], f"{name} {size}x{size} at ({leaf.pixel_x}, {leaf.pixel_y}): source")
-        swatch: numpy.ndarray = numpy.array([[colours[0]], [colours[1]]], numpy.uint8)
+        swatch: numpy.ndarray = numpy.array([[colors[0]], [colors[1]]], numpy.uint8)
         row[1].imshow(swatch, interpolation="nearest", aspect="auto")
-        for index, colour in enumerate(colours):
-            light: Any = sum(colour) > SAMPLES_LIGHT_THRESHOLD
+        for index, color in enumerate(colors):
+            light: Any = sum(color) > SAMPLES_LIGHT_THRESHOLD
             row[1].text(
                 0,
                 index,
-                f"colour {index}{LINE_SEPARATOR}{colour[0]}, {colour[1]}, {colour[2]}",
+                f"colour {index}{LINE_SEPARATOR}{color[0]}, {color[1]}, {color[2]}",
                 ha="center",
                 va="center",
                 fontsize=CHARTS_SMALL_FONT_SIZE,
                 color=CHARTS_INK if light else CHARTS_SURFACE,
             )
         samples_finish(row[1], "its two colours")
-        row[2].imshow(bits, cmap="gray_r", vmin=0, vmax=SAMPLES_BITS_COLOUR_LIMIT, interpolation="nearest")
+        row[2].imshow(bits, cmap="gray_r", vmin=0, vmax=SAMPLES_BITS_COLOR_LIMIT, interpolation="nearest")
         for edge in range(size + 1):
             row[2].axhline(edge - SAMPLES_HALF_PIXEL, color=CHARTS_GRID, linewidth=CHARTS_HAIRLINE_WIDTH)
             row[2].axvline(edge - SAMPLES_HALF_PIXEL, color=CHARTS_GRID, linewidth=CHARTS_HAIRLINE_WIDTH)
@@ -3851,7 +3851,7 @@ def samples_draw_leaves(arguments: argparse.Namespace) -> None:
         )
         samples_finish(row[3], f"decoded: {len(leaf.record)} bytes")
         print(
-            f"{name} {size}x{size} at ({leaf.pixel_x}, {leaf.pixel_y}) colours {colours} record {leaf.record.hex()}"
+            f"{name} {size}x{size} at ({leaf.pixel_x}, {leaf.pixel_y}) colors {colors} record {leaf.record.hex()}"
         )
     figure.tight_layout()
     figure.savefig(IMAGES / LEAVES_FIGURE_NAME, dpi=CHARTS_DOTS_PER_INCH, facecolor=CHARTS_SURFACE)

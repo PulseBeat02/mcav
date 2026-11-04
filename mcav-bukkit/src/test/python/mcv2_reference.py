@@ -852,7 +852,7 @@ def _make_page(frame_data: bytes, frame: Frame, stream_id: int, number: int) -> 
     return to_symbols(page)
 
 
-# map colours are these symbols plus four
+# map colors are these symbols plus four
 def to_symbols(data: bytes, symbol_bits: int = SYMBOL_BITS) -> bytes:
     _check_symbol_bits(symbol_bits)
 
