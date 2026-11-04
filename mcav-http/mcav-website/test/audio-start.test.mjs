@@ -66,6 +66,9 @@ const PERMISSION_IGNORED = "ignored";
 
 const CHUNK_BYTES = 4;
 
+const PLAY_FAILURE_REPORT = "Could not play the received sound.";
+const UNPLAYABLE_SOUND = "The sound cannot be decoded!";
+
 const MAXIMUM_TIMER_ROUNDS = 10;
 
 const LINE_SEPARATOR = "\n";
@@ -172,6 +175,7 @@ const loadPage = (permission = PERMISSION_GRANTED) => {
     const sockets = [];
     const processors = [];
     const contexts = [];
+    const errors = [];
     const state = {loading: false, connected: false};
 
     class FakeSocket {
@@ -208,6 +212,7 @@ const loadPage = (permission = PERMISSION_GRANTED) => {
     class FakeProcessor {
         constructor() {
             this.destroyed = false;
+            this.failing = false;
             this.fed = 0;
             processors.push(this);
         }
@@ -217,6 +222,10 @@ const loadPage = (permission = PERMISSION_GRANTED) => {
         }
 
         feed() {
+            if (this.failing) {
+                throw new Error(UNPLAYABLE_SOUND);
+            }
+
             this.fed++;
         }
 
@@ -277,7 +286,7 @@ const loadPage = (permission = PERMISSION_GRANTED) => {
         return identifier;
     };
     const context = vm.createContext({
-        console, ArrayBuffer, Promise, Math,
+        console: {error: (...report) => errors.push(report)}, ArrayBuffer, Promise, Math,
         WebSocket: FakeSocket, PcmProcessor: FakeProcessor, AudioContext: FakeAudioContext,
         window: {location: {protocol: "http:", host: "player.test"}},
         useCallback: callback => callback,
@@ -311,6 +320,7 @@ const loadPage = (permission = PERMISSION_GRANTED) => {
 
     return {
         ...page, sockets, processors, contexts, state,
+        reportedErrors: () => errors,
         activeAnimations: () => animations.size,
         pendingAnimation: () => animations.values().next().value,
         draws: () => draws,
@@ -424,6 +434,24 @@ test("should play no sound that a replaced stream still delivers", () => {
 
     const feeds = page.processors.at(-1).fed;
     assert.equal(feeds, 1, "the new stream's sound plays");
+});
+
+test("should report sound that cannot be played", () => {
+    const page = loadPage();
+    page.startPlayback();
+    page.runTimers();
+    const socket = page.sockets[0];
+    socket.opened();
+    const processor = page.processors.at(-1);
+    processor.failing = true;
+    socket.received(CHUNK_BYTES);
+
+    const reports = page.reportedErrors();
+    const expected = [[PLAY_FAILURE_REPORT, new Error(UNPLAYABLE_SOUND)]];
+    assert.deepEqual(reports, expected);
+
+    const openSockets = page.openSockets();
+    assert.equal(openSockets, 1, "the stream goes on");
 });
 
 test("should let Start be pressed again after a Stop during a reconnect", () => {
