@@ -113,6 +113,7 @@ constexpr int32_t VERTICAL_MOTION_MASK = 0xFFFF;
 constexpr int32_t OUT_OF_RANGE_ODDS = 7;
 
 constexpr int TRIALS = 400;
+
 constexpr int MAXIMUM_REPORTED_FAILURES = 20;
 
 constexpr const char* DIGEST_LINE_FORMAT = "%-16s %016llx\n";
@@ -120,11 +121,13 @@ constexpr const char* DIGEST_LINE_FORMAT = "%-16s %016llx\n";
 constexpr char EXPECT_PREFIX[] = "expect=";
 constexpr size_t EXPECT_PREFIX_LENGTH = sizeof(EXPECT_PREFIX) - 1;
 
+constexpr int SUCCESS_EXIT_CODE = 0;
 constexpr int FAILURE_EXIT_CODE = 1;
 constexpr int SETUP_FAILURE_EXIT_CODE = 2;
 
 #ifndef MCV2_TEST_DIRECT
 constexpr int LIBRARY_ARGUMENT_COUNT = 2;
+
 constexpr size_t SYMBOL_CAPACITY = 64;
 constexpr const char* CPU_LEVELS_SYMBOL = "mcv2_cpu_levels";
 constexpr const char* KERNEL_SYMBOL_FORMAT = "mcv2_%s_%s";
@@ -598,5 +601,5 @@ int main(int argument_count, char** arguments) {
   }
 
   printf("every level agrees\n");
-  return 0;
+  return SUCCESS_EXIT_CODE;
 }

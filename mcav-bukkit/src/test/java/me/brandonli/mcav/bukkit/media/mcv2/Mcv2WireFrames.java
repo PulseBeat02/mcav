@@ -48,11 +48,12 @@ final class Mcv2WireFrames {
 
   static byte[] block(final int size, final int mode, final int quantizer, final byte[] record, final Mcv2FrameKind kind) {
     final byte value = (byte) (mode | (quantizer << Mcv2Decoder.QUANTIZER_SHIFT));
-    final byte[] descriptors = size == 32
-      ? new byte[] { value }
-      : size == 16
-        ? new byte[] { Mcv2Decoder.MODE_SPLIT, value, 0, 0, 0 }
-        : new byte[] { Mcv2Decoder.MODE_SPLIT, Mcv2Decoder.MODE_SPLIT, 0, 0, 0, value, 0, 0, 0 };
+    final byte[] descriptors =
+      size == 32
+        ? new byte[] { value }
+        : size == 16
+          ? new byte[] { Mcv2Decoder.MODE_SPLIT, value, 0, 0, 0 }
+          : new byte[] { Mcv2Decoder.MODE_SPLIT, Mcv2Decoder.MODE_SPLIT, 0, 0, 0, value, 0, 0, 0 };
     return frame(
       size,
       size,
@@ -101,7 +102,12 @@ final class Mcv2WireFrames {
     }
 
     for (int index = 0; index < checkpoints; index++) {
-      put(data, HEADER_BYTES + groups * Integer.BYTES + index * Integer.BYTES, Math.min(levels[0], index * CHECKPOINT_INTERVAL), Integer.BYTES);
+      put(
+        data,
+        HEADER_BYTES + groups * Integer.BYTES + index * Integer.BYTES,
+        Math.min(levels[0], index * CHECKPOINT_INTERVAL),
+        Integer.BYTES
+      );
     }
 
     for (int index = 0; index < LEVEL_COUNT; index++) {
@@ -113,7 +119,12 @@ final class Mcv2WireFrames {
     int splits = 0;
     for (int index = 0; index < descriptors.length; index++) {
       if (index % Mcv2Decoder.WALK_SPAN == 0) {
-        put(data, walksAt + (index / Mcv2Decoder.WALK_SPAN) * Integer.BYTES, cursor | ((long) splits << Mcv2Decoder.CURSOR_BITS), Integer.BYTES);
+        put(
+          data,
+          walksAt + (index / Mcv2Decoder.WALK_SPAN) * Integer.BYTES,
+          cursor | ((long) splits << Mcv2Decoder.CURSOR_BITS),
+          Integer.BYTES
+        );
       }
       System.arraycopy(records[index], 0, data, start + cursor, records[index].length);
       cursor += records[index].length;

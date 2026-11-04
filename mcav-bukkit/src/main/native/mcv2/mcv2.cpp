@@ -111,6 +111,18 @@ constexpr int32_t SAMPLE_GRID = 4;
 constexpr int32_t WORD_BYTES = (int32_t)sizeof(uint32_t);
 constexpr int32_t SAMPLE_ROW_BYTES = SAMPLE_GRID * WORD_BYTES;
 
+constexpr int32_t CHANNELS = 3;
+
+constexpr int32_t TRUE_LANE = -1;
+constexpr int32_t FALSE_LANE = 0;
+
+#if defined(MCV2_SIMD_SSE2) || defined(MCV2_SIMD_SVE256) || defined(MCV2_SIMD_SVE512)
+constexpr int32_t LANE_BITS = 32;
+#endif
+#if defined(MCV2_SIMD_SVE256) || defined(MCV2_SIMD_SVE512)
+constexpr int32_t DOUBLE_LANE_BITS = 64;
+#endif
+
 // SSE load/store shuffles cost more than the arithmetic in the halving kernel.
 #if defined(MCV2_SIMD_SSE2) || defined(MCV2_SIMD_SSE41)
 constexpr bool SHUFFLED_CHANNEL_LOAD = true;
@@ -211,7 +223,7 @@ struct scalar_int_vector {
   }
 
   static scalar_int_vector less(const scalar_int_vector first, const scalar_int_vector second) {
-    return {first.lanes_ < second.lanes_ ? -1 : 0};
+    return {first.lanes_ < second.lanes_ ? TRUE_LANE : FALSE_LANE};
   }
   int32_t sum() const {
     return lanes_;
@@ -230,7 +242,7 @@ struct scalar_int_vector {
   }
 
   static scalar_int_vector bits(const int8_t* buffer, const int32_t index) {
-    return {((buffer[index >> BYTE_INDEX_SHIFT] >> (index & BIT_INDEX_MASK)) & 1) ? -1 : 0};
+    return {((buffer[index >> BYTE_INDEX_SHIFT] >> (index & BIT_INDEX_MASK)) & 1) ? TRUE_LANE : FALSE_LANE};
   }
 
   static scalar_int_vector evens(const scalar_int_vector first, scalar_int_vector) {
@@ -350,12 +362,12 @@ constexpr int32_t SECOND_LANE_BIT = 2;
 constexpr int32_t THIRD_LANE_BIT = 4;
 constexpr int32_t FOURTH_LANE_BIT = 8;
 
-constexpr int32_t LANE_BITS = 32;
 constexpr int32_t SIGN_SHIFT = LANE_BITS - 1;
 
 template <int BLEND_MASK> inline __m128i blend_integer_lanes(const __m128i first, const __m128i second) {
-  const __m128i mask = _mm_setr_epi32((BLEND_MASK & FIRST_LANE_BIT) ? -1 : 0, (BLEND_MASK & SECOND_LANE_BIT) ? -1 : 0,
-                                      (BLEND_MASK & THIRD_LANE_BIT) ? -1 : 0, (BLEND_MASK & FOURTH_LANE_BIT) ? -1 : 0);
+  const __m128i mask = _mm_setr_epi32(
+      (BLEND_MASK & FIRST_LANE_BIT) ? TRUE_LANE : FALSE_LANE, (BLEND_MASK & SECOND_LANE_BIT) ? TRUE_LANE : FALSE_LANE,
+      (BLEND_MASK & THIRD_LANE_BIT) ? TRUE_LANE : FALSE_LANE, (BLEND_MASK & FOURTH_LANE_BIT) ? TRUE_LANE : FALSE_LANE);
   const __m128i selected_second = _mm_and_si128(mask, second);
   const __m128i selected_first = _mm_andnot_si128(mask, first);
   return _mm_or_si128(selected_second, selected_first);
@@ -909,17 +921,19 @@ struct int_vector {
   }
 
 private:
-  alignas(64) static constexpr int32_t GATHER_FIRST[3][16] = {{0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 0, 0, 0, 0, 0},
-                                                              {1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 0, 0, 0, 0, 0},
-                                                              {2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 0, 0, 0, 0, 0, 0}};
-  alignas(64) static constexpr int32_t GATHER_SECOND[3][16] = {{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 17, 20, 23, 26, 29},
-                                                               {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 18, 21, 24, 27, 30},
-                                                               {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 16, 19, 22, 25, 28, 31}};
-  alignas(64) static constexpr int32_t SCATTER_FIRST[3][16] = {
+  alignas(__m512i) static constexpr int32_t GATHER_FIRST[CHANNELS][LANES] = {
+      {0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 0, 0, 0, 0, 0},
+      {1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 0, 0, 0, 0, 0},
+      {2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 0, 0, 0, 0, 0, 0}};
+  alignas(__m512i) static constexpr int32_t GATHER_SECOND[CHANNELS][LANES] = {
+      {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 17, 20, 23, 26, 29},
+      {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 18, 21, 24, 27, 30},
+      {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 16, 19, 22, 25, 28, 31}};
+  alignas(__m512i) static constexpr int32_t SCATTER_FIRST[CHANNELS][LANES] = {
       {0, 16, 0, 1, 17, 1, 2, 18, 2, 3, 19, 3, 4, 20, 4, 5},
       {21, 5, 6, 22, 6, 7, 23, 7, 8, 24, 8, 9, 25, 9, 10, 26},
       {10, 11, 27, 11, 12, 28, 12, 13, 29, 13, 14, 30, 14, 15, 31, 15}};
-  alignas(64) static constexpr int32_t SCATTER_SECOND[3][16] = {
+  alignas(__m512i) static constexpr int32_t SCATTER_SECOND[CHANNELS][LANES] = {
       {0, 1, 16, 3, 4, 17, 6, 7, 18, 9, 10, 19, 12, 13, 20, 15},
       {0, 21, 2, 3, 22, 5, 6, 23, 8, 9, 24, 11, 12, 25, 14, 15},
       {26, 1, 2, 27, 4, 5, 28, 7, 8, 29, 10, 11, 30, 13, 14, 31}};
@@ -1170,7 +1184,7 @@ inline int32_t four_pixel_difference(const uint32_t first_pixel, const uint32_t 
 }
 
 struct int_vector {
-  static constexpr int LANES = MCV2_SVE_BITS / 32;
+  static constexpr int LANES = MCV2_SVE_BITS / LANE_BITS;
   sve_int_lanes lanes_;
   static int_vector load(const int32_t* buffer) {
     const svbool_t all_lanes = svptrue_b32();
@@ -1241,8 +1255,8 @@ struct int_vector {
   static int_vector less(const int_vector first, const int_vector second) {
     const svbool_t all_lanes = svptrue_b32();
     const svbool_t less_lanes = svcmplt_s32(all_lanes, first.lanes_, second.lanes_);
-    const svint32_t true_lanes = svdup_n_s32(-1);
-    const svint32_t false_lanes = svdup_n_s32(0);
+    const svint32_t true_lanes = svdup_n_s32(TRUE_LANE);
+    const svint32_t false_lanes = svdup_n_s32(FALSE_LANE);
     return {svsel_s32(less_lanes, true_lanes, false_lanes)};
   }
 
@@ -1277,8 +1291,8 @@ struct int_vector {
     const svuint32_t shifted = svlsr_u32_x(all_lanes, repeated_word, bit_positions);
     const svuint32_t lane_bit = svand_n_u32_x(all_lanes, shifted, 1);
     const svbool_t set_lanes = svcmpne_n_u32(all_lanes, lane_bit, 0);
-    const svint32_t true_lanes = svdup_n_s32(-1);
-    const svint32_t false_lanes = svdup_n_s32(0);
+    const svint32_t true_lanes = svdup_n_s32(TRUE_LANE);
+    const svint32_t false_lanes = svdup_n_s32(FALSE_LANE);
     return {svsel_s32(set_lanes, true_lanes, false_lanes)};
   }
   static int_vector evens(const int_vector first, const int_vector second) {
@@ -1317,7 +1331,7 @@ struct float_vector {
 };
 
 struct double_vector {
-  static constexpr int LANES = MCV2_SVE_BITS / 64;
+  static constexpr int LANES = MCV2_SVE_BITS / DOUBLE_LANE_BITS;
   sve_double_lanes lanes_;
   static double_vector broadcast(const double value) {
     return {svdup_n_f64(value)};
@@ -1351,7 +1365,6 @@ struct double_vector {
 namespace mcv2 {
 namespace {
 
-constexpr int32_t CHANNELS = 3;
 constexpr int32_t MAXIMUM_CHANNEL = 255;
 
 constexpr int32_t RED_SHIFT = 16;
@@ -1368,7 +1381,11 @@ constexpr int32_t SMALLEST_BLOCK_SIZE = 1 << SMALLEST_BLOCK_SHIFT;
 constexpr int32_t MOTION_BYTES = 2;
 constexpr int32_t SELECTORS_AT = 6;
 
+constexpr int32_t NO_MOTION = 0;
+
 constexpr double DISTORTION_SCALE = 96.0;
+
+constexpr int64_t OVER_LIMIT = -1;
 
 constexpr int32_t NIBBLE_BITS = 4;
 constexpr int32_t NIBBLE_MASK = 15;
@@ -1394,7 +1411,8 @@ constexpr int32_t VERTICAL_MOTION_MASK = 0xFFFF;
 
 constexpr int32_t KEY_HORIZONTAL_SHIFT = 32;
 
-constexpr int32_t LUMA_GREEN_WEIGHT = 2;
+constexpr int32_t LUMA_GREEN_SHIFT = 1;
+constexpr int32_t LUMA_GREEN_WEIGHT = 1 << LUMA_GREEN_SHIFT;
 constexpr float LUMA_NORMALIZATION = 0.25f;
 
 inline int32_t logarithm_base_two(const int32_t value) {
@@ -1476,9 +1494,10 @@ inline void add_row_distortion(distortion_measure& measure, const int32_t* outpu
     const int_vector red_difference = source_red - reconstructed_red;
     const int_vector green_difference = source_green - reconstructed_green;
     const int_vector blue_difference = source_blue - reconstructed_blue;
-    const int_vector luma = red_difference + green_difference.shift_left(1) + blue_difference;
+    const int_vector luma = red_difference + green_difference.shift_left(LUMA_GREEN_SHIFT) + blue_difference;
     const int_vector red_blue_difference = red_difference - blue_difference;
-    const int_vector green_difference_plane = green_difference.shift_left(1) - red_difference - blue_difference;
+    const int_vector green_difference_plane =
+        green_difference.shift_left(LUMA_GREEN_SHIFT) - red_difference - blue_difference;
     sum = sum + (luma * luma + red_blue_difference * red_blue_difference).shift_left(2) +
           green_difference_plane * green_difference_plane;
   }
@@ -1529,7 +1548,7 @@ int64_t predicted(const int32_t* prediction, const int32_t size, int32_t* output
     add_row_distortion(measure, output, source_position, size);
 
     if (!is_within_limit(measure)) {
-      return -1;
+      return OVER_LIMIT;
     }
   }
   return measure.distortion_;
@@ -1548,7 +1567,7 @@ int64_t solid(const int32_t color, const int32_t size, int32_t* output, distorti
     add_row_distortion(measure, output, source_position, size);
 
     if (!is_within_limit(measure)) {
-      return -1;
+      return OVER_LIMIT;
     }
   }
   return measure.distortion_;
@@ -1571,7 +1590,7 @@ int64_t palette(const int8_t* record, const int32_t size, int32_t* output, disto
     add_row_distortion(measure, output, row_index * size * CHANNELS, size);
 
     if (!is_within_limit(measure)) {
-      return -1;
+      return OVER_LIMIT;
     }
   }
   return measure.distortion_;
@@ -1609,7 +1628,7 @@ int64_t compact(const int32_t* prediction, const int8_t* record, const int32_t q
     add_row_distortion(measure, output, source_position, size);
 
     if (!is_within_limit(measure)) {
-      return -1;
+      return OVER_LIMIT;
     }
   }
   return measure.distortion_;
@@ -2157,7 +2176,7 @@ int32_t seeded(const uint8_t* reference, const int32_t width, const int32_t heig
   }
   const uint8_t* packed_samples = fits_bytes ? sample_bytes : nullptr;
   motion_search search(reference, width, height, source_samples, packed_samples, block_left, block_top, samples);
-  search.measure_once(0, 0);
+  search.measure_once(NO_MOTION, NO_MOTION);
   for (int32_t seed_index = 0; seed_index < seed_count; seed_index++) {
     const int32_t unpacked_x = unpack_horizontal_motion(seeds[seed_index]);
     const int32_t seed_x = clamp_int(unpacked_x, -range, range);
@@ -2253,7 +2272,7 @@ void residual_target(const int32_t* source, const int32_t* prediction, const int
   for (; pixel + int_vector::LANES <= count; pixel += int_vector::LANES) {
     int_vector source_red, source_green, source_blue;
     int_vector::load_channels(source + pixel * CHANNELS, source_red, source_green, source_blue);
-    const int_vector weighted_green = source_green.shift_left(1);
+    const int_vector weighted_green = source_green.shift_left(LUMA_GREEN_SHIFT);
     const float_vector luma = float_vector::from_integers(source_red + weighted_green + source_blue) * normalization;
     int_vector predicted_red, predicted_green, predicted_blue;
     int_vector::load_channels(prediction + pixel * CHANNELS, predicted_red, predicted_green, predicted_blue);
@@ -2417,17 +2436,18 @@ constexpr unsigned SSE41_BIT = 1u << 19;
 constexpr unsigned OSXSAVE_BIT = 1u << 27;
 constexpr unsigned AVX_BIT = 1u << 28;
 constexpr unsigned AVX2_BIT = 1u << 5;
+#if !defined(__APPLE__)
+constexpr unsigned AVX512_REGISTER_B_BITS = (1u << 16) | (1u << 17) | (1u << 30) | (1u << 31);
+constexpr unsigned AVX512_REGISTER_C_BITS = (1u << 1) | (1u << 6) | (1u << 11) | (1u << 12);
+#endif
 
 constexpr unsigned long long YMM_STATE = 0x6;
 #if !defined(__APPLE__)
-
-constexpr unsigned AVX512_REGISTER_B_BITS = (1u << 16) | (1u << 17) | (1u << 30) | (1u << 31);
-constexpr unsigned AVX512_REGISTER_C_BITS = (1u << 1) | (1u << 6) | (1u << 11) | (1u << 12);
-
 constexpr unsigned long long ZMM_STATE = 0xE6;
 #endif
 
 constexpr unsigned EXTENDED_CONTROL_REGISTER = 0;
+
 constexpr int HIGH_WORD_SHIFT = 32;
 
 unsigned long long extended_control_state() {

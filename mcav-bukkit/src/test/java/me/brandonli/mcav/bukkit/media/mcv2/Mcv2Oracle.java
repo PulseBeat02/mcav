@@ -86,7 +86,8 @@ final class Mcv2Oracle {
   static void compact(final int[] prediction, final byte[] record, final int quantizer, final int size, final int[] output) {
     final float[] nodes = new float[NODES];
     for (int node = 0; node < NODES; node++) {
-      final int nibble = ((record[NODES_OFFSET + node / NIBBLES_PER_BYTE] & BYTE_MASK) >> (NIBBLE_BITS * (node % NIBBLES_PER_BYTE))) & NIBBLE_MASK;
+      final int nibble =
+        ((record[NODES_OFFSET + node / NIBBLES_PER_BYTE] & BYTE_MASK) >> (NIBBLE_BITS * (node % NIBBLES_PER_BYTE))) & NIBBLE_MASK;
       nodes[node] = nibble >= NIBBLE_SIGN ? nibble - NIBBLE_RANGE : nibble;
     }
 

@@ -283,11 +283,7 @@ public final class Mcv2Pack {
       .stream()
       .map(screen -> screen.getVideoWidth() + SIZE_SEPARATOR + screen.getVideoHeight())
       .collect(Collectors.joining(LIST_SEPARATOR));
-    return "mcav MCV2 decoder, %s %s: %s".formatted(
-      screens.size(),
-      screens.size() == 1 ? "screen" : "screens",
-      sizes
-    );
+    return "mcav MCV2 decoder, %s %s: %s".formatted(screens.size(), screens.size() == 1 ? "screen" : "screens", sizes);
   }
 
   static byte[] resource(final String file) {
