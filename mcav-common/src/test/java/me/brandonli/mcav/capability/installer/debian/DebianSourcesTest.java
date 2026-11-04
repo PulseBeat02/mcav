@@ -193,9 +193,7 @@ final class DebianSourcesTest {
 
   @Test
   void shouldReportEverySourceWhenNoneHasThePackage() {
-    final HttpStatusException exception = assertThrows(HttpStatusException.class, () ->
-      this.download(FIRST_SNAPSHOT_PATH, FIRST_PACKAGE)
-    );
+    final HttpStatusException exception = assertThrows(HttpStatusException.class, () -> this.download(FIRST_SNAPSHOT_PATH, FIRST_PACKAGE));
 
     final Throwable[] suppressed = exception.getSuppressed();
     assertEquals(1, suppressed.length);
