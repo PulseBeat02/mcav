@@ -101,6 +101,7 @@ final class VlcPlayerTest {
   private static final String OPTION = "--opt";
   private static final String VIDEO_RESOURCE = "video.mp4";
   private static final String AUDIO_RESOURCE = "audio.ogg";
+  private static final String CANCELLED_DURING_SETUP_RESOURCE = "cancelled-during-setup.mp4";
 
   private static final long WAIT_SECONDS = 5L;
   private static final long UNBLOCKED_JOIN_MILLISECONDS = 1_000L;
@@ -939,7 +940,7 @@ final class VlcPlayerTest {
     final boolean started = this.player.start(cancelling);
     final MockVlc.Player candidate = this.vlc.player(0);
     final String opened = candidate.getResource();
-    assertEquals("cancelled-during-setup.mp4", opened, "the native mock did open successfully after the callback");
+    assertEquals(CANCELLED_DURING_SETUP_RESOURCE, opened, "the native mock did open successfully after the callback");
     assertFalse(started, "release cancellation must win even when native opening subsequently succeeds");
 
     this.assertEverythingReleased();
@@ -953,7 +954,7 @@ final class VlcPlayerTest {
       assertTrue(released);
     }
 
-    return "cancelled-during-setup.mp4";
+    return CANCELLED_DURING_SETUP_RESOURCE;
   }
 
   @Test
