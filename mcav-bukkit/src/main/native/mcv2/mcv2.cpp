@@ -1457,6 +1457,7 @@ constexpr interpolation_axes make_axes() {
       tables.axes_[size_index].weight_[pixel_index] = position - lower * span;
     }
   }
+
   return tables;
 }
 
@@ -1501,6 +1502,7 @@ inline void add_row_distortion(distortion_measure& measure, const int32_t* outpu
     sum = sum + (luma * luma + red_blue_difference * red_blue_difference).shift_left(2) +
           green_difference_plane * green_difference_plane;
   }
+
   measure.distortion_ += sum.sum();
 }
 
@@ -1545,12 +1547,14 @@ int64_t predicted(const int32_t* prediction, const int32_t size, int32_t* output
       const int_vector prediction_lanes = int_vector::load(prediction + offset);
       prediction_lanes.store(output + offset);
     }
+
     add_row_distortion(measure, output, source_position, size);
 
     if (!is_within_limit(measure)) {
       return OVER_LIMIT;
     }
   }
+
   return measure.distortion_;
 }
 
@@ -1564,12 +1568,14 @@ int64_t solid(const int32_t color, const int32_t size, int32_t* output, distorti
       int_vector::store_channels(output + source_position + horizontal_position * CHANNELS, red_values, green_values,
                                  blue_values);
     }
+
     add_row_distortion(measure, output, source_position, size);
 
     if (!is_within_limit(measure)) {
       return OVER_LIMIT;
     }
   }
+
   return measure.distortion_;
 }
 
@@ -1587,12 +1593,14 @@ int64_t palette(const int8_t* record, const int32_t size, int32_t* output, disto
       int_vector::store_channels(output + pixel * CHANNELS, first_red + (red_delta & bit),
                                  first_green + (green_delta & bit), first_blue + (blue_delta & bit));
     }
+
     add_row_distortion(measure, output, row_index * size * CHANNELS, size);
 
     if (!is_within_limit(measure)) {
       return OVER_LIMIT;
     }
   }
+
   return measure.distortion_;
 }
 
@@ -1602,11 +1610,12 @@ int64_t compact(const int32_t* prediction, const int8_t* record, const int32_t q
   for (int32_t index = 0; index < GRID * GRID; index++) {
     const int32_t packed = (uint8_t)record[MOTION_BYTES + index / NIBBLES_PER_BYTE];
     const int32_t nibble = (packed >> ((index % NIBBLES_PER_BYTE) * NIBBLE_BITS)) & NIBBLE_MASK;
-
     nodes[index] = nibble >= NIBBLE_SIGN ? nibble - NIBBLE_RANGE : nibble;
   }
+
   int32_t rows[GRID * ROOT_SIZE];
   interpolate_horizontally(nodes, size, rows);
+
   const int32_t shift = rounding_shift(size);
   const int_vector scale = int_vector::broadcast(4 * size * size);
   int32_t luma[ROOT_SIZE];
@@ -1625,12 +1634,14 @@ int64_t compact(const int32_t* prediction, const int8_t* record, const int32_t q
       const int_vector blue = round(predicted_blue * scale + residual, shift);
       int_vector::store_channels(output_pixels, red, green, blue);
     }
+
     add_row_distortion(measure, output, source_position, size);
 
     if (!is_within_limit(measure)) {
       return OVER_LIMIT;
     }
   }
+
   return measure.distortion_;
 }
 
@@ -1659,6 +1670,7 @@ void predict(const uint8_t* reference, const int32_t width, const int32_t height
       int32_t* target = output + row_index * row_length;
       widen_bytes(source, row_length, target);
     }
+
     return;
   }
 
@@ -1687,6 +1699,7 @@ inline void sum_four_row_vectors(const float* plane, const float* weights, const
     third_sum = third_sum + double_vector::load_floats(column + 2 * double_vector::LANES) * weight;
     fourth_sum = fourth_sum + double_vector::load_floats(column + 3 * double_vector::LANES) * weight;
   }
+
   first_sum.store(lanes);
   second_sum.store(lanes + double_vector::LANES);
   third_sum.store(lanes + 2 * double_vector::LANES);
@@ -1700,6 +1713,7 @@ inline void sum_row_vector(const float* plane, const float* weights, const int32
     sum = sum + double_vector::load_floats(plane + horizontal_position * size + first_source_row) *
                     double_vector::broadcast((double)weights[horizontal_position]);
   }
+
   sum.store(lanes);
 }
 
@@ -1716,6 +1730,7 @@ inline double sum_weighted_column(const float* weights, const double* scratch, c
   for (int32_t vertical_position = 0; vertical_position < size; vertical_position++) {
     sum += (double)weights[vertical_position] * scratch[vertical_position * GRID + element_index];
   }
+
   return sum;
 }
 
@@ -1727,22 +1742,24 @@ void fit(const float* values, const int32_t size, const float* matrix, float* ou
       plane[horizontal_position * size + vertical_position] = values[vertical_position * size + horizontal_position];
     }
   }
+
   double scratch[ROOT_SIZE * GRID];
   const int32_t unrolled_lanes = UNROLLED_VECTORS * double_vector::LANES;
   double lanes[unrolled_lanes];
   for (int32_t element_index = 0; element_index < GRID; element_index++) {
     const float* weights = matrix + element_index * size;
     int32_t first_source_row = 0;
-
     for (; first_source_row + unrolled_lanes <= size; first_source_row += unrolled_lanes) {
       sum_four_row_vectors(plane, weights, size, first_source_row, lanes);
       store_lanes(lanes, unrolled_lanes, first_source_row, element_index, scratch);
     }
+
     for (; first_source_row < size; first_source_row += double_vector::LANES) {
       sum_row_vector(plane, weights, size, first_source_row, lanes);
       store_lanes(lanes, double_vector::LANES, first_source_row, element_index, scratch);
     }
   }
+
   for (int32_t index = 0; index < GRID; index++) {
     const float* weights = matrix + index * size;
     for (int32_t element_index = 0; element_index < GRID; element_index++) {
@@ -1787,6 +1804,7 @@ void cluster_pixels(const int32_t* source, const int32_t size, const int32_t ste
       sums[ENDPOINT_CHANNELS + endpoint]++;
     }
   }
+
   for (int32_t endpoint = 0; endpoint < ENDPOINTS; endpoint++) {
     const int64_t members = sums[ENDPOINT_CHANNELS + endpoint];
     if (members <= 0) {
@@ -1851,6 +1869,7 @@ template <int STEP> void cluster_lanes(const int32_t* source, const int32_t size
       all_blue = all_blue + blue;
     }
   }
+
   const int64_t counts[ENDPOINTS] = {pixels - near_count.sum(), near_count.sum()};
   const int64_t near[CHANNELS] = {near_red.sum(), near_green.sum(), near_blue.sum()};
   const int64_t all[CHANNELS] = {all_red.sum(), all_green.sum(), all_blue.sum()};
@@ -1888,6 +1907,7 @@ template <int STEP> int32_t cluster_extrema(const int32_t* source, const int32_t
       high_at = high_at + ((array_offset - high_at) & higher);
     }
   }
+
   int32_t lows[int_vector::LANES];
   int32_t lows_at[int_vector::LANES];
   int32_t highs[int_vector::LANES];
@@ -1914,10 +1934,12 @@ template <int STEP> int32_t cluster_extrema(const int32_t* source, const int32_t
     }
     all |= combined_lanes[lane];
   }
+
   for (int32_t channel = 0; channel < CHANNELS; channel++) {
     endpoints[channel] = source[low + channel];
     endpoints[CHANNELS + channel] = source[high + channel];
   }
+
   return all;
 }
 
@@ -1938,6 +1960,7 @@ void cluster(const int32_t* source, const int32_t size, int32_t* endpoints) {
     for (int32_t iteration = 0; iteration < CLUSTER_ITERATIONS; iteration++) {
       cluster_lanes_with_step(source, size, step, endpoints);
     }
+
     return;
   }
 
@@ -1970,6 +1993,7 @@ void assign(const int32_t* source, const int32_t count, const int32_t* colors, i
                                        second_blue_difference * second_blue_difference;
     (int_vector::less(second_distance, first_distance) & int_vector::broadcast(1)).store_bytes(selectors + index);
   }
+
   for (; index < count; index++) {
     const int32_t* samples = source + index * CHANNELS;
     const int32_t first_distance = (samples[0] - colors[0]) * (samples[0] - colors[0]) +
@@ -1993,6 +2017,7 @@ int32_t assign_pattern(const int32_t* source, const int32_t size, const int32_t*
       rows &= selectors[index] == selectors[vertical_position * size];
     }
   }
+
   return columns || rows ? 1 : 0;
 }
 
@@ -2016,6 +2041,7 @@ inline int64_t pixel_cost(const uint8_t* reference_pixel, const int32_t* source_
     const int32_t difference = wrapping_subtraction(reference_pixel[channel], source_pixel[channel]);
     sum += difference < 0 ? wrapping_subtraction(0, difference) : difference;
   }
+
   return sum;
 }
 
@@ -2033,6 +2059,7 @@ int64_t interior_cost(const uint8_t* reference, const int32_t width, const int32
       sum += pixel_cost(reference_pixel, source_pixel);
     }
   }
+
   return sum;
 }
 
@@ -2050,6 +2077,7 @@ int64_t packed_interior_cost(const uint8_t* reference, const int32_t width, cons
     sum += four_pixel_difference(first_pixel, second_pixel, third_pixel, fourth_pixel,
                                  packed_samples + SAMPLE_ROW_BYTES * sample_row);
   }
+
   return sum;
 }
 
@@ -2066,6 +2094,7 @@ int64_t cost(const uint8_t* reference, const int32_t width, const int32_t height
                                       motion_y)
                : interior_cost(reference, width, source_samples, block_left, block_top, samples, motion_x, motion_y);
   }
+
   int64_t sum = 0;
   for (int32_t sample_row = 0; sample_row < SAMPLE_GRID; sample_row++) {
     const int32_t reference_row = clamp_int(block_top + samples[sample_row] + motion_y, 0, height - 1);
@@ -2076,6 +2105,7 @@ int64_t cost(const uint8_t* reference, const int32_t width, const int32_t height
       sum += pixel_cost(reference_pixel, source_pixel);
     }
   }
+
   return sum;
 }
 
@@ -2094,6 +2124,7 @@ struct measured_vectors {
         return true;
       }
     }
+
     return false;
   }
   void add(const int32_t motion_x, const int32_t motion_y) {
@@ -2128,6 +2159,7 @@ struct motion_search {
     }
 
     measured_.add(motion_x, motion_y);
+
     const int64_t motion_cost = cost(reference_, width_, height_, source_samples_, packed_samples_, block_left_,
                                      block_top_, samples_, motion_x, motion_y);
     if (motion_cost < best_cost_) {
@@ -2174,6 +2206,7 @@ int32_t seeded(const uint8_t* reference, const int32_t width, const int32_t heig
       fits_bytes &= is_byte_pixel(source_pixel);
     }
   }
+
   const uint8_t* packed_samples = fits_bytes ? sample_bytes : nullptr;
   motion_search search(reference, width, height, source_samples, packed_samples, block_left, block_top, samples);
   search.measure_once(NO_MOTION, NO_MOTION);
@@ -2184,6 +2217,7 @@ int32_t seeded(const uint8_t* reference, const int32_t width, const int32_t heig
     const int32_t seed_y = clamp_int(unpacked_y, -range, range);
     search.measure_once(seed_x, seed_y);
   }
+
   for (int32_t step = 0; step < 2 * range; step++) {
     const int32_t center_x = search.best_x_;
     const int32_t center_y = search.best_y_;
@@ -2192,10 +2226,12 @@ int32_t seeded(const uint8_t* reference, const int32_t width, const int32_t heig
       const int32_t candidate_y = clamp_int(center_y + DIRECTIONS[direction][1], -range, range);
       search.measure_once(candidate_x, candidate_y);
     }
+
     if (search.best_x_ == center_x && search.best_y_ == center_y) {
       break;
     }
   }
+
   return pack_motion(search.best_x_, search.best_y_);
 }
 
@@ -2281,6 +2317,7 @@ void residual_target(const int32_t* source, const int32_t* prediction, const int
     const float_vector blue = float_vector::from_integers(predicted_blue);
     (luma - ((red + green_weight * green) + blue) * normalization).store(target + pixel);
   }
+
   for (; pixel < count; pixel++) {
     const int32_t array_offset = pixel * CHANNELS;
     const float luma =
@@ -2374,6 +2411,7 @@ void MCV2_PREFIX(fit)(const float* values, const int32_t size, const float* matr
     return MCV2_FIT_TO(fit)(values, size, matrix, output);
   }
 #endif
+
   fit(values, size, matrix, output);
 }
 
@@ -2472,6 +2510,7 @@ extern "C" int32_t mcv2_cpu_levels(int64_t) {
   if (register_c & SSE41_BIT) {
     levels |= MCV2_LEVEL_SSE41;
   }
+
   const unsigned long long state = (register_c & OSXSAVE_BIT) && (register_c & AVX_BIT) ? extended_control_state() : 0;
   if ((state & YMM_STATE) != YMM_STATE || !__get_cpuid_count(EXTENDED_FEATURES_LEAF, EXTENDED_FEATURES_SUBLEAF,
                                                              &register_a, &register_b, &register_c, &register_d)) {
@@ -2481,6 +2520,7 @@ extern "C" int32_t mcv2_cpu_levels(int64_t) {
   if (register_b & AVX2_BIT) {
     levels |= MCV2_LEVEL_AVX2;
   }
+
 #if !defined(__APPLE__)
   // macOS saves ZMM state lazily, so XCR0 cannot authorize AVX-512.
   if ((state & ZMM_STATE) == ZMM_STATE && (register_b & AVX512_REGISTER_B_BITS) == AVX512_REGISTER_B_BITS &&
@@ -2488,6 +2528,7 @@ extern "C" int32_t mcv2_cpu_levels(int64_t) {
     levels |= MCV2_LEVEL_AVX512;
   }
 #endif
+
   return levels;
 }
 
@@ -2517,6 +2558,7 @@ extern "C" int32_t mcv2_cpu_levels(const int64_t hardware_capabilities) {
 #else
   (void)hardware_capabilities; // only Linux reports hardware capabilities
 #endif
+
   return levels;
 }
 

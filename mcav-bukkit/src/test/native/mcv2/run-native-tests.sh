@@ -94,7 +94,8 @@ check_sanitized_x86_64_kernels() {
   assert_overflow_caught "${canary_program}"
   assert_overflow_caught "${INSTRUCTION_EMULATOR}" -icx -- "${canary_program}"
   ASAN_OPTIONS=detect_leaks=1 assert_levels_agree "${REFERENCE_LABEL}" "${sanitized_program}"
-  ASAN_OPTIONS=detect_leaks=0 assert_levels_agree "asan x86-64 (SDE -icx)" "${INSTRUCTION_EMULATOR}" -icx -- "${sanitized_program}" expect=avx512
+  ASAN_OPTIONS=detect_leaks=0 assert_levels_agree "asan x86-64 (SDE -icx)" "${INSTRUCTION_EMULATOR}" -icx -- \
+    "${sanitized_program}" expect=avx512
 }
 
 compile_direct_test() {
@@ -104,28 +105,45 @@ compile_direct_test() {
   local object_files=()
   local unit
   for unit in "${units[@]}" test; do
-    local unit_name="${unit%%:*}" instruction_flags=()
-    [ "${unit}" != "${unit_name}" ] && read -r -a instruction_flags <<< "${unit#*:}"
+    local unit_name instruction_flags=()
+    split_unit "${unit}" unit_name instruction_flags
     local source_file="${NATIVE_SOURCES}/${unit_name}.cpp"
     [ "${unit_name}" = test ] && source_file="${SCRIPT_DIRECTORY}/kernels_test.cpp"
-    "${COMPILER}" "${RESOURCE_OPTIONS[@]}" "${KERNEL_FLAGS[@]}" -DMCV2_TEST_DIRECT "${@}" "${instruction_flags[@]}" -c "${source_file}" -o "${TEST_DIRECTORY}/${name}-${unit_name}.o"
+    "${COMPILER}" "${RESOURCE_OPTIONS[@]}" "${KERNEL_FLAGS[@]}" -DMCV2_TEST_DIRECT "${@}" "${instruction_flags[@]}" \
+      -c "${source_file}" -o "${TEST_DIRECTORY}/${name}-${unit_name}.o"
     object_files+=("${TEST_DIRECTORY}/${name}-${unit_name}.o")
   done
 
   "${COMPILER}" "${RESOURCE_OPTIONS[@]}" "${@}" "${object_files[@]}" -o "${TEST_DIRECTORY}/${name}"
 }
 
+split_unit() {
+  local -r unit_specification="${1}"
+  local -n unit_name_output="${2}"
+  local -n instruction_flags_output="${3}"
+  unit_name_output="${unit_specification%%:*}"
+  if [ "${unit_specification}" != "${unit_name_output}" ]; then
+    read -r -a "${!instruction_flags_output}" <<< "${unit_specification#*:}"
+  fi
+}
+
 compile_canary() {
   local -r name="${1}"
   shift
-  printf '#include <stdlib.h>\nint main(int argument_count, char **arguments) { char *buffer = calloc(16, 1); return buffer[15 + argument_count] + !arguments; }\n' \
-    > "${TEST_DIRECTORY}/canary.c"
+  cat > "${TEST_DIRECTORY}/canary.c" << 'EOF'
+#include <stdlib.h>
+int main(int argument_count, char** arguments) {
+  char* buffer = calloc(16, 1);
+  return buffer[15 + argument_count] + !arguments;
+}
+EOF
   "${COMPILER%++}" "${RESOURCE_OPTIONS[@]}" "${@}" -O1 -fsanitize=address "${TEST_DIRECTORY}/canary.c" -o "${TEST_DIRECTORY}/${name}"
 }
 
 assert_overflow_caught() {
   local -r caught_file="${TEST_DIRECTORY}/${CAUGHT_FILE_NAME}"
-  if ASAN_OPTIONS=detect_leaks=0 "${@}" > /dev/null 2> "${caught_file}" || ! grep -q "${OVERFLOW_REPORT}" "${caught_file}"; then
+  if ASAN_OPTIONS=detect_leaks=0 "${@}" > /dev/null 2> "${caught_file}" || \
+    ! grep -q "${OVERFLOW_REPORT}" "${caught_file}"; then
     echo "The sanitizer under ${*} missed a heap overflow!" >&2
     exit "${FAILURE_EXIT_CODE}"
   fi
@@ -135,8 +153,11 @@ assert_levels_agree() {
   local -r label="${1}"
   shift
   "${@}" > "${TEST_DIRECTORY}/${label}.txt"
-  printf '%-44s %s  %s\n' "${label}" "$(sed -n "s/^${DISPATCHED_KEY}//p" "${TEST_DIRECTORY}/${label}.txt")" \
-    "$(sed -n "s/^${TOTAL_DIGEST_KEY} *//p" "${TEST_DIRECTORY}/${label}.txt")"
+  local dispatched_level
+  dispatched_level="$(sed -n "s/^${DISPATCHED_KEY}//p" "${TEST_DIRECTORY}/${label}.txt")"
+  local total_digest
+  total_digest="$(sed -n "s/^${TOTAL_DIGEST_KEY} *//p" "${TEST_DIRECTORY}/${label}.txt")"
+  printf '%-44s %s  %s\n' "${label}" "${dispatched_level}" "${total_digest}"
 }
 
 check_sanitized_aarch64_kernels() {
@@ -145,8 +166,9 @@ check_sanitized_aarch64_kernels() {
   assert_overflow_caught "${AARCH64_EMULATOR}" -L "${AARCH64_SYSROOT}" "${TEST_DIRECTORY}/canary-aarch64"
   local entry
   for entry in "${AARCH64_CPUS[@]}"; do
-    ASAN_OPTIONS=detect_leaks=0 assert_levels_agree "asan aarch64 (qemu -cpu ${entry%%:*})" \
-      "${AARCH64_EMULATOR}" -L "${AARCH64_SYSROOT}" -cpu "${entry%%:*}" "${TEST_DIRECTORY}/sanitized-aarch64" "expect=${entry#*:}"
+    local cpu="${entry%%:*}" level="${entry#*:}"
+    ASAN_OPTIONS=detect_leaks=0 assert_levels_agree "asan aarch64 (qemu -cpu ${cpu})" \
+      "${AARCH64_EMULATOR}" -L "${AARCH64_SYSROOT}" -cpu "${cpu}" "${TEST_DIRECTORY}/sanitized-aarch64" "expect=${level}"
   done
 }
 
@@ -164,10 +186,12 @@ check_symbols() {
   local -r object_file="${TEST_DIRECTORY}/symbols.o"
   local unit
   for unit in "${units[@]}"; do
-    local unit_name="${unit%%:*}" instruction_flags=()
-    [ "${unit}" != "${unit_name}" ] && read -r -a instruction_flags <<< "${unit#*:}"
-    "${COMPILER}" "${RESOURCE_OPTIONS[@]}" "${KERNEL_FLAGS[@]}" -O0 "${@}" "${instruction_flags[@]}" -c "${NATIVE_SOURCES}/${unit_name}.cpp" -o "${object_file}"
-    if "${LLVM_TOOLS}/llvm-nm" --defined-only --extern-only "${object_file}" | awk '{print $3}' | grep -v "^${KERNEL_SYMBOL_PREFIX}" | grep -q .; then
+    local unit_name instruction_flags=()
+    split_unit "${unit}" unit_name instruction_flags
+    "${COMPILER}" "${RESOURCE_OPTIONS[@]}" "${KERNEL_FLAGS[@]}" -O0 "${@}" "${instruction_flags[@]}" \
+      -c "${NATIVE_SOURCES}/${unit_name}.cpp" -o "${object_file}"
+    if "${LLVM_TOOLS}/llvm-nm" --defined-only --extern-only "${object_file}" | awk '{print $3}' | \
+      grep -v "^${KERNEL_SYMBOL_PREFIX}" | grep -q .; then
       echo "Unit ${unit_name} (${label}) defines shared symbols!" >&2
       "${LLVM_TOOLS}/llvm-nm" --defined-only --extern-only -C "${object_file}" | grep -v " ${KERNEL_SYMBOL_PREFIX}" >&2
       exit "${FAILURE_EXIT_CODE}"
@@ -211,8 +235,8 @@ check_library_imports() {
 
 compile_library_tests() {
   local -r target="${1}"
-  "${ZIG_COMPILER}" c++ -target "${target}-linux-gnu.2.28" -O1 "${KERNEL_FLAGS[@]}" "${SCRIPT_DIRECTORY}/kernels_test.cpp" -o "${TEST_DIRECTORY}/glibc-${target}" \
-    -ldl 2> /dev/null
+  "${ZIG_COMPILER}" c++ -target "${target}-linux-gnu.2.28" -O1 "${KERNEL_FLAGS[@]}" "${SCRIPT_DIRECTORY}/kernels_test.cpp" \
+    -o "${TEST_DIRECTORY}/glibc-${target}" -ldl 2> /dev/null
   "${ZIG_COMPILER}" c++ -target "${target}-linux-musl" -dynamic -O1 "${KERNEL_FLAGS[@]}" "${SCRIPT_DIRECTORY}/kernels_test.cpp" \
     -o "${TEST_DIRECTORY}/musl-${target}" 2> /dev/null
 }
@@ -221,19 +245,22 @@ check_x86_64_library() {
   local -r glibc_program="${TEST_DIRECTORY}/glibc-x86_64"
   assert_levels_agree "linux-x86_64 glibc (this CPU)" "${glibc_program}" "${X86_LIBRARY}"
   assert_levels_agree "linux-x86_64 musl (this CPU)" "${X86_MUSL_LOADER}" "${TEST_DIRECTORY}/musl-x86_64" "${X86_LIBRARY}"
-  assert_levels_agree "linux-x86_64 glibc (qemu -cpu qemu64)" "${X86_EMULATOR}" -cpu qemu64 "${glibc_program}" "${X86_LIBRARY}" expect=sse2
+  assert_levels_agree "linux-x86_64 glibc (qemu -cpu qemu64)" "${X86_EMULATOR}" -cpu qemu64 "${glibc_program}" \
+    "${X86_LIBRARY}" expect=sse2
   local entry
   for entry in "${EMULATED_X86_CPUS[@]}"; do
-    assert_levels_agree "linux-x86_64 glibc (SDE -${entry%%:*})" "${INSTRUCTION_EMULATOR}" "-${entry%%:*}" -- "${glibc_program}" "${X86_LIBRARY}" \
-      "expect=${entry#*:}"
+    local cpu="${entry%%:*}" level="${entry#*:}"
+    assert_levels_agree "linux-x86_64 glibc (SDE -${cpu})" "${INSTRUCTION_EMULATOR}" "-${cpu}" -- "${glibc_program}" \
+      "${X86_LIBRARY}" "expect=${level}"
   done
 }
 
 check_aarch64_library() {
   local entry
   for entry in "${AARCH64_CPUS[@]}"; do
-    assert_levels_agree "linux-aarch64 glibc (qemu -cpu ${entry%%:*})" "${AARCH64_EMULATOR}" -L "${AARCH64_SYSROOT}" -cpu "${entry%%:*}" \
-      "${TEST_DIRECTORY}/glibc-aarch64" "${AARCH64_LIBRARY}" "expect=${entry#*:}"
+    local cpu="${entry%%:*}" level="${entry#*:}"
+    assert_levels_agree "linux-aarch64 glibc (qemu -cpu ${cpu})" "${AARCH64_EMULATOR}" -L "${AARCH64_SYSROOT}" -cpu "${cpu}" \
+      "${TEST_DIRECTORY}/glibc-aarch64" "${AARCH64_LIBRARY}" "expect=${level}"
   done
 
   assert_levels_agree "linux-aarch64 musl (qemu -cpu max,sve 64)" "${AARCH64_EMULATOR}" -cpu "${SVE512_CPU}" \
@@ -246,7 +273,9 @@ check_digests_agree() {
   local run
   for run in "${TEST_DIRECTORY}"/*.txt; do
     [ "$(basename "${run}")" = "${CAUGHT_FILE_NAME}" ] && continue
-    if [ "$(tail -n "+${FIRST_DIGEST_LINE}" "${run}")" != "${reference}" ]; then
+    local digests
+    digests="$(tail -n "+${FIRST_DIGEST_LINE}" "${run}")"
+    if [ "${digests}" != "${reference}" ]; then
       echo "Run $(basename "${run}" .txt) has other digests!" >&2
       exit "${FAILURE_EXIT_CODE}"
     fi

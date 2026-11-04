@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <algorithm>
 #include <vector>
 
 using std::vector;
@@ -153,15 +154,20 @@ int64_t hardware_capabilities() {
 
 struct random_generator {
   uint64_t state_;
+
   uint64_t next() {
-    uint64_t mixed_value = (state_ += GOLDEN_GAMMA);
-    mixed_value = (mixed_value ^ (mixed_value >> FIRST_MIX_SHIFT)) * FIRST_MIX_MULTIPLIER;
-    mixed_value = (mixed_value ^ (mixed_value >> SECOND_MIX_SHIFT)) * SECOND_MIX_MULTIPLIER;
-    return mixed_value ^ (mixed_value >> FINAL_MIX_SHIFT);
+    state_ += GOLDEN_GAMMA;
+    const uint64_t first_mix = (state_ ^ (state_ >> FIRST_MIX_SHIFT)) * FIRST_MIX_MULTIPLIER;
+    const uint64_t second_mix = (first_mix ^ (first_mix >> SECOND_MIX_SHIFT)) * SECOND_MIX_MULTIPLIER;
+    return second_mix ^ (second_mix >> FINAL_MIX_SHIFT);
   }
+
   int32_t range(const int32_t low, const int32_t high) {
-    return low + (int32_t)(next() % (uint64_t)(high - low + 1));
+    const uint64_t span = (uint64_t)(high - low + 1);
+    const int32_t offset = (int32_t)(next() % span);
+    return low + offset;
   }
+
   vector<int32_t> integers(const size_t count, const int32_t low, const int32_t high) {
     vector<int32_t> values(count);
     for (int32_t& value : values) {
@@ -169,6 +175,7 @@ struct random_generator {
     }
     return values;
   }
+
   vector<int8_t> bytes(const size_t count) {
     vector<int8_t> values(count);
     for (int8_t& value : values) {
@@ -176,6 +183,7 @@ struct random_generator {
     }
     return values;
   }
+
   vector<uint8_t> unsigned_bytes(const size_t count) {
     vector<uint8_t> values(count);
     for (uint8_t& value : values) {
@@ -207,15 +215,18 @@ struct random_generator {
 
 struct fnv_digest {
   uint64_t value_ = FNV_OFFSET_BASIS;
+
   void add(const void* data, const size_t length) {
     const uint8_t* bytes = (const uint8_t*)data;
     for (size_t index = 0; index < length; index++) {
       value_ = (value_ ^ bytes[index]) * FNV_PRIME;
     }
   }
+
   template <class ValueType> void add(const vector<ValueType>& values) {
     add(values.data(), values.size() * sizeof(ValueType));
   }
+
   template <class ValueType> void add(const ValueType value) {
     add(&value, sizeof(value));
   }
@@ -263,6 +274,7 @@ struct kernel_trial {
   int kernel_;
   int index_;
   int32_t size_;
+  size_t pixels_;
   size_t channels_;
   vector<int32_t> source_;
   vector<int32_t> prediction_;
@@ -278,19 +290,28 @@ struct kernel_result {
   int64_t measured_ = 0;
 };
 
+double draw_limit(const double rate, const size_t pixels, random_generator& random) {
+  if (random.range(0, 3) == 0) {
+    return INFINITY;
+  }
+
+  return rate + random.range(0, pixels * 3000);
+}
+
 kernel_trial draw_trial(const int kernel, const int index, random_generator& random) {
   const int32_t size = SMALLEST_BLOCK_SIZE << random.range(0, BLOCK_SIZES - 1);
-  const size_t channels = (size_t)size * size * CHANNELS;
+  const size_t pixels = (size_t)size * size;
+  const size_t channels = pixels * CHANNELS;
   const vector<int32_t> source = random.integers(channels, 0, MAXIMUM_CHANNEL);
   const vector<int32_t> prediction = random.integers(channels, 0, MAXIMUM_CHANNEL);
   const double rate = random.range(0, 100000) / 7.0;
-  const double limit = random.range(0, 3) == 0 ? INFINITY : rate + random.range(0, size * size * 3000);
-  return {kernel, index, size, channels, source, prediction, rate, limit};
+  const double limit = draw_limit(rate, pixels, random);
+  return {kernel, index, size, pixels, channels, source, prediction, rate, limit};
 }
 
 void run_palette(const level_kernels& level, const kernel_trial& trial, random_generator& inputs,
                  kernel_result& result) {
-  const vector<int8_t> record = inputs.bytes(ENDPOINT_CHANNELS + trial.size_ * trial.size_ / CHAR_BIT);
+  const vector<int8_t> record = inputs.bytes(ENDPOINT_CHANNELS + trial.pixels_ / CHAR_BIT);
   result.measured_ = level.palette_(record.data(), trial.size_, result.output_.data(), trial.source_.data(),
                                     trial.rate_, trial.limit_);
 }
@@ -317,7 +338,7 @@ void run_predict(const level_kernels& level, const kernel_trial& trial, random_g
 }
 
 void run_fit(const level_kernels& level, const kernel_trial& trial, random_generator& inputs, kernel_result& result) {
-  const vector<float> values = inputs.floats((size_t)trial.size_ * trial.size_);
+  const vector<float> values = inputs.floats(trial.pixels_);
   const vector<float> matrix = inputs.floats((size_t)GRID * trial.size_);
   result.floats_.assign(GRID * GRID, 0);
   level.fit_(values.data(), trial.size_, matrix.data(), result.floats_.data());
@@ -326,14 +347,16 @@ void run_fit(const level_kernels& level, const kernel_trial& trial, random_gener
 void run_cluster(const level_kernels& level, const kernel_trial& trial, random_generator& inputs,
                  kernel_result& result) {
   const int32_t low = inputs.range(0, MAXIMUM_CHANNEL);
-  const int32_t spread = inputs.range(0, 1) ? 8 : MAXIMUM_CHANNEL;
-  vector<int32_t> block =
-      inputs.integers(trial.channels_, low, low + spread > MAXIMUM_CHANNEL ? MAXIMUM_CHANNEL : low + spread);
+  const bool narrow = inputs.range(0, 1) == 1;
+  const int32_t spread = narrow ? 8 : MAXIMUM_CHANNEL;
+  const int32_t high = std::min(low + spread, MAXIMUM_CHANNEL);
+  vector<int32_t> block = inputs.integers(trial.channels_, low, high);
   if (inputs.range(0, OUT_OF_RANGE_ODDS) == 0) {
     for (int32_t& value : block) {
       value = (int32_t)inputs.next();
     }
   }
+
   result.integers_.assign(ENDPOINT_CHANNELS, 0);
   level.cluster_(block.data(), trial.size_, result.integers_.data());
 }
@@ -341,14 +364,14 @@ void run_cluster(const level_kernels& level, const kernel_trial& trial, random_g
 void run_assign(const level_kernels& level, const kernel_trial& trial, random_generator& inputs,
                 kernel_result& result) {
   const vector<int32_t> colors = inputs.integers(ENDPOINT_CHANNELS, 0, MAXIMUM_CHANNEL);
-  result.bytes_.assign((size_t)trial.size_ * trial.size_, 0);
-  level.assign_(trial.source_.data(), trial.size_ * trial.size_, colors.data(), result.bytes_.data());
+  result.bytes_.assign(trial.pixels_, 0);
+  level.assign_(trial.source_.data(), trial.pixels_, colors.data(), result.bytes_.data());
 }
 
 void run_assign_pattern(const level_kernels& level, const kernel_trial& trial, random_generator& inputs,
                         kernel_result& result) {
   const vector<int32_t> colors = inputs.integers(ENDPOINT_CHANNELS, 0, MAXIMUM_CHANNEL);
-  result.bytes_.assign((size_t)trial.size_ * trial.size_, 0);
+  result.bytes_.assign(trial.pixels_, 0);
   result.measured_ = level.assign_pattern_(trial.source_.data(), trial.size_, colors.data(), result.bytes_.data());
 }
 
@@ -370,6 +393,7 @@ void run_seeded(const level_kernels& level, const kernel_trial& trial, random_ge
     const int32_t position = inputs.range(0, (int32_t)block.size() - 1);
     block[position] = value;
   }
+
   const int32_t horizontal_position = inputs.range(0, width - 1);
   const int32_t vertical_position = inputs.range(0, height - 1);
   const int32_t search_range = inputs.range(0, 24);
@@ -390,7 +414,7 @@ void run_load_source(const level_kernels& level, const kernel_trial& trial, rand
 
 void run_residual_target(const level_kernels& level, const kernel_trial& trial, random_generator& inputs,
                          kernel_result& result) {
-  const int32_t count = inputs.range(0, trial.size_ * trial.size_);
+  const int32_t count = inputs.range(0, trial.pixels_);
   result.floats_ = inputs.floats((size_t)count + 2);
   level.residual_target_(trial.source_.data(), trial.prediction_.data(), count, result.floats_.data());
 }
@@ -525,7 +549,8 @@ int main(int argument_count, char** arguments) {
 
   const char* expected = nullptr;
   if (argument_count > 1 && strncmp(arguments[argument_count - 1], EXPECT_PREFIX, EXPECT_PREFIX_LENGTH) == 0) {
-    expected = arguments[--argument_count] + EXPECT_PREFIX_LENGTH;
+    argument_count--;
+    expected = arguments[argument_count] + EXPECT_PREFIX_LENGTH;
   }
 #ifdef MCV2_TEST_DIRECT
   if (argument_count != 1) {
@@ -562,7 +587,14 @@ int main(int argument_count, char** arguments) {
     return SETUP_FAILURE_EXIT_CODE;
   }
 
-  const int32_t available = ((int32_t(*)(int64_t))dlsym(library, CPU_LEVELS_SYMBOL))(hardware_capabilities());
+  using cpu_levels_function = int32_t (*)(int64_t);
+  const cpu_levels_function cpu_levels = (cpu_levels_function)dlsym(library, CPU_LEVELS_SYMBOL);
+  if (cpu_levels == nullptr) {
+    fprintf(stderr, "Symbol %s is missing from the library!\n", CPU_LEVELS_SYMBOL);
+    return SETUP_FAILURE_EXIT_CODE;
+  }
+
+  const int32_t available = cpu_levels(hardware_capabilities());
   for (const known_level& candidate : KNOWN_LEVELS) {
     if (!(available & candidate.bit_)) {
       continue;
@@ -585,11 +617,11 @@ int main(int argument_count, char** arguments) {
   for (const level_kernels& level : levels) {
     printf(" %s", level.name_);
   }
-  printf("\ndispatched: %s\n", best_level_name(available));
+  const char* dispatched_level = best_level_name(available);
+  printf("\ndispatched: %s\n", dispatched_level);
 
-  if (expected != nullptr && strcmp(expected, best_level_name(available)) != 0) {
-    fprintf(stderr, "The dispatcher takes level %s where level %s was expected!\n", best_level_name(available),
-            expected);
+  if (expected != nullptr && strcmp(expected, dispatched_level) != 0) {
+    fprintf(stderr, "The dispatcher takes level %s where level %s was expected!\n", dispatched_level, expected);
     return FAILURE_EXIT_CODE;
   }
 
