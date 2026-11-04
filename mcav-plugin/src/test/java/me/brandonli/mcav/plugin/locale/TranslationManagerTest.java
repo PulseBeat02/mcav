@@ -152,7 +152,7 @@ final class TranslationManagerTest {
     final PluginException exception = assertThrows(PluginException.class, TranslationManager::new);
 
     final String message = exception.getMessage();
-    final boolean mentionsFile = message.equals("Messages could not be loaded from %s!".formatted(file));
+    final boolean mentionsFile = message.equals("Messages from %s could not be loaded!".formatted(file));
     assertTrue(mentionsFile, message);
   }
 

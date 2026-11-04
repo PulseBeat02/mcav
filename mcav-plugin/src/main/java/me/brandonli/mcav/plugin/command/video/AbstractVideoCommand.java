@@ -689,7 +689,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     } catch (final InstallationException | DownloadException | FileOperationException | ProcessException exception) {
       final String reason = exception.getMessage();
       final URI uri = page.getUri();
-      final String message = "Because of \"%s\", yt-dlp could not resolve %s!".formatted(reason, uri);
+      final String message = "Because of \"%s\", page %s could not be resolved by yt-dlp!".formatted(reason, uri);
       throw new PluginException(message, exception);
     }
 
