@@ -256,36 +256,7 @@ public final class BrowserBenchmark {
     return String.format(Locale.ROOT, "%.0f ms, %.0f ms", median, ninetiethPercentile);
   }
 
-  private static final class WallSize {
-
-    private final int width;
-    private final int height;
-    private final int columns;
-    private final int rows;
-
-    WallSize(final int width, final int height, final int columns, final int rows) {
-      this.width = width;
-      this.height = height;
-      this.columns = columns;
-      this.rows = rows;
-    }
-
-    int width() {
-      return this.width;
-    }
-
-    int height() {
-      return this.height;
-    }
-
-    int columns() {
-      return this.columns;
-    }
-
-    int rows() {
-      return this.rows;
-    }
-
+  private record WallSize(int width, int height, int columns, int rows) {
     @Override
     public String toString() {
       return "%sx%s on %sx%s".formatted(this.width, this.height, this.columns, this.rows);

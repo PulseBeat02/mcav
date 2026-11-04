@@ -100,7 +100,7 @@ public final class ImageManager {
 
   // pending images stay the manager's until a main-thread task takes them, so cancelling cannot leak them
   long beginLoad() {
-    final ImageBuffer previous;
+    final @Nullable ImageBuffer previous;
     final long generation;
     synchronized (this.loadingLock) {
       if (this.closed) {
@@ -138,7 +138,7 @@ public final class ImageManager {
         return null;
       }
 
-      final ImageBuffer loaded = this.pendingImage;
+      final @Nullable ImageBuffer loaded = this.pendingImage;
       this.pendingImage = null;
 
       return loaded;
@@ -146,7 +146,7 @@ public final class ImageManager {
   }
 
   void discardLoaded(final long generation) {
-    final ImageBuffer loaded = this.takeLoaded(generation);
+    final @Nullable ImageBuffer loaded = this.takeLoaded(generation);
     if (loaded != null) {
       loaded.release();
     }
@@ -167,7 +167,7 @@ public final class ImageManager {
   }
 
   private void cancelPendingLoads() {
-    final ImageBuffer pending;
+    final @Nullable ImageBuffer pending;
     synchronized (this.loadingLock) {
       this.loadGeneration++;
       pending = this.pendingImage;
@@ -185,9 +185,9 @@ public final class ImageManager {
   }
 
   private void releaseNow() {
-    final DisplayableImage display = this.image;
-    final Image shown = this.currentImage;
-    final ImagePlayer imagePlayer = this.player;
+    final @Nullable DisplayableImage display = this.image;
+    final @Nullable Image shown = this.currentImage;
+    final @Nullable ImagePlayer imagePlayer = this.player;
     this.image = null;
     this.currentImage = null;
     this.player = null;

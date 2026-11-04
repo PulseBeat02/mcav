@@ -17,9 +17,10 @@
  */
 package me.brandonli.mcav.plugin.locale;
 
-import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -29,15 +30,16 @@ final class LocaleTest {
   @ParameterizedTest
   @ValueSource(strings = { "EN_US", "en_us", "En_Us" })
   void shouldFindTheLocaleIgnoringCase(final String name) {
-    final Locale locale = Locale.fromString(name);
-    assertSame(Locale.EN_US, locale);
+    final Optional<Locale> locale = Locale.fromString(name);
+    final Optional<Locale> expected = Optional.of(Locale.EN_US);
+    assertEquals(expected, locale);
   }
 
   @ParameterizedTest
   @ValueSource(strings = { "FR_FR", "", "english" })
-  void shouldFallBackToEnglishForUnknownLanguages(final String name) {
-    final Locale locale = Locale.fromString(name);
-    assertSame(Locale.EN_US, locale);
+  void shouldFindNoLocaleForUnknownLanguages(final String name) {
+    final Optional<Locale> locale = Locale.fromString(name);
+    assertEquals(Optional.empty(), locale);
   }
 
   @Test

@@ -138,10 +138,10 @@ public final class ImageMapCommand extends AbstractImageCommand {
     final PluginDataConfigurationMapper configuration = this.plugin.getConfiguration();
     final MapCodec defaultCodec = configuration.getMcv2DefaultCodec();
     final MapCodec chosen = codec != null ? codec : defaultCodec;
-    final ImageConfigurationProvider configurationProvider =
-      chosen == MapCodec.MCV2
-        ? resolution -> new Mcv2ImageSettings(sender, blocks, resolution, mapId, players, ditheringAlgorithm)
-        : this.createProvider(blocks, mapId, players, ditheringAlgorithm);
+    final ImageConfigurationProvider configurationProvider = switch (chosen) {
+      case MCV2 -> this.createMcv2Provider(sender, blocks, mapId, players, ditheringAlgorithm);
+      case DITHER -> this.createProvider(blocks, mapId, players, ditheringAlgorithm);
+    };
     this.displayImage(configurationProvider, sender, imageResolution, mrl, filters);
   }
 
@@ -152,6 +152,16 @@ public final class ImageMapCommand extends AbstractImageCommand {
     final DitheringArgument dithering
   ) {
     return resolution -> this.createSettings(blocks, resolution, mapId, players, dithering);
+  }
+
+  private ImageConfigurationProvider createMcv2Provider(
+    final CommandSender sender,
+    final Pair<Integer, Integer> blocks,
+    final int mapId,
+    final Collection<UUID> players,
+    final DitheringArgument dithering
+  ) {
+    return resolution -> new Mcv2ImageSettings(sender, blocks, resolution, mapId, players, dithering);
   }
 
   private @Nullable Pair<Integer, Integer> parseBlocks(final String blockDimensions) {
@@ -189,7 +199,7 @@ public final class ImageMapCommand extends AbstractImageCommand {
 
     final Object built = configurationProvider.buildConfiguration(resolution);
     if (built instanceof final Mcv2ImageSettings mcv2Settings) {
-      final DisplayableImage image = this.createMcv2Image(mcv2Settings);
+      final @Nullable DisplayableImage image = this.createMcv2Image(mcv2Settings);
       if (image != null) {
         return image;
       }

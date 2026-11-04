@@ -93,13 +93,18 @@ final class LocalMavenRepositoryServer implements AutoCloseable {
 
       final URI requestUri = exchange.getRequestURI();
       final Optional<Path> file = this.findFile(requestUri);
-      if (file.isEmpty()) {
+      final Path existingFile = file.orElse(null);
+      if (existingFile == null) {
         exchange.sendResponseHeaders(HTTP_NOT_FOUND, NO_BODY);
         return;
       }
 
-      final Path existingFile = file.get();
-      this.sendFile(exchange, existingFile, isHeadRequest);
+      if (isHeadRequest) {
+        this.sendHeaders(exchange, NO_BODY);
+        return;
+      }
+
+      this.sendFile(exchange, existingFile);
     }
   }
 
@@ -127,24 +132,22 @@ final class LocalMavenRepositoryServer implements AutoCloseable {
     return Optional.of(file);
   }
 
-  private void sendFile(final HttpExchange exchange, final Path file, final boolean isHeadRequest) throws IOException {
-    final Headers responseHeaders = exchange.getResponseHeaders();
-    responseHeaders.set("Content-Type", "application/octet-stream");
-
-    if (isHeadRequest) {
-      exchange.sendResponseHeaders(HTTP_OK, NO_BODY);
-      return;
-    }
-
+  private void sendFile(final HttpExchange exchange, final Path file) throws IOException {
     final long size = Files.size(file);
     // a length of 0 would make the server send a chunked body, so an empty file is sent without one
     final long responseLength = size == 0 ? NO_BODY : size;
-    exchange.sendResponseHeaders(HTTP_OK, responseLength);
+    this.sendHeaders(exchange, responseLength);
     try (final OutputStream body = exchange.getResponseBody()) {
       Files.copy(file, body);
     }
 
     this.servedFileCount.incrementAndGet();
+  }
+
+  private void sendHeaders(final HttpExchange exchange, final long responseLength) throws IOException {
+    final Headers responseHeaders = exchange.getResponseHeaders();
+    responseHeaders.set("Content-Type", "application/octet-stream");
+    exchange.sendResponseHeaders(HTTP_OK, responseLength);
   }
 
   int getServedFileCount() {

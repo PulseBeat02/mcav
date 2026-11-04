@@ -90,7 +90,7 @@ final class Mcv2Image implements DisplayableImage {
 
   @Override
   public void release() {
-    final BukkitTask running = this.task;
+    final @Nullable BukkitTask running = this.task;
     if (running != null) {
       running.cancel();
       this.task = null;

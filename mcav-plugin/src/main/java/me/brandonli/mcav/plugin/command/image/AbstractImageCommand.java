@@ -240,7 +240,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     final ImageConfigurationProvider configurationProvider,
     final CommandSender sender
   ) {
-    final ImageBuffer image = this.manager.takeLoaded(generation);
+    final @Nullable ImageBuffer image = this.manager.takeLoaded(generation);
     if (image == null) {
       return;
     }
@@ -281,11 +281,11 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
 
     final SourceDetectionHelper helper = new SourceDetectionHelper();
     final Optional<Source> detected = helper.detectSource(mrl);
-    if (detected.isEmpty()) {
+    final @Nullable Source source = detected.orElse(null);
+    if (source == null) {
       return null;
     }
 
-    final Source source = detected.get();
     final boolean animated = SourceUtils.isImageGif(source);
     if (animated) {
       return null;

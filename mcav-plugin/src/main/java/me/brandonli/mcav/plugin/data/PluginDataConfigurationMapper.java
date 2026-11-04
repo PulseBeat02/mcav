@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.plugin.data;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.io.Reader;
@@ -27,6 +29,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2.Pool;
 import me.brandonli.mcav.plugin.MCAVSandbox;
@@ -170,7 +173,8 @@ public final class PluginDataConfigurationMapper {
   public synchronized void deserialize() {
     final FileConfiguration configuration = this.loadConfiguration();
     final String language = this.getString(configuration, PLUGIN_LANGUAGE, DEFAULT_LOCALE);
-    this.locale = Locale.fromString(language);
+    final Optional<Locale> foundLocale = Locale.fromString(language);
+    this.locale = requireNonNull(foundLocale.orElse(Locale.EN_US)); // checker framework
     this.discordBotEnabled = configuration.getBoolean(DISCORD_BOT_ENABLED, false);
     this.discordBotToken = this.getString(configuration, DISCORD_BOT_TOKEN, "");
     this.discordBotChannelId = this.getString(configuration, DISCORD_BOT_CHANNEL_ID, "");

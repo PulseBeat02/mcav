@@ -141,8 +141,9 @@ final class ServerProcess implements AutoCloseable {
     while (true) {
       final int lineCount = this.lines.size();
       final Optional<String> match = this.findMatch(nextLine, lineCount, matcher);
-      if (match.isPresent()) {
-        return match.get();
+      final String matchedLine = match.orElse(null);
+      if (matchedLine != null) {
+        return matchedLine;
       }
       nextLine = lineCount;
       this.waitForMoreOutput(deadline, timeout);

@@ -636,11 +636,11 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
   private @Nullable SourceSelection selectSources(final String mrl, final String[] ytdlpArguments) {
     final SourceDetectionHelper helper = new SourceDetectionHelper();
     final Optional<Source> detected = helper.detectSource(mrl);
-    if (detected.isEmpty()) {
+    final @Nullable Source source = detected.orElse(null);
+    if (source == null) {
       return null;
     }
 
-    final Source source = detected.get();
     if (source instanceof final UriSource page && !page.isDirect()) {
       return this.resolveWithYtdlp(page, ytdlpArguments);
     }
