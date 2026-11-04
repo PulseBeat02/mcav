@@ -188,6 +188,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
    *                              {@link #playMapVideo(CommandSender, MultiplePlayerSelector, PlayerArgument, AudioArgument, String, String, int, DitheringArgument, String, String, MapCodec, String)},
    *                              which returns {@link MapDisplaySettings}, or {@code Mcv2Settings} for MCV2
    * @return the pipeline step that dithers the frames onto the maps, or that encodes them with MCV2
+   * @throws java.util.concurrent.CancellationException if the video startup was cancelled or the manager is shut down
    * @since 1.0.0
    */
   @Override

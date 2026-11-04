@@ -176,6 +176,7 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
    * @param resolution            the resolution frames are scaled to
    * @param configurationProvider the provider, which returns {@code Mcv2Settings}
    * @return the pipeline step that encodes the frames, or dithers them onto the maps
+   * @throws java.util.concurrent.CancellationException if the video startup was cancelled or the manager is shut down
    * @since 1.0.0
    */
   @Override

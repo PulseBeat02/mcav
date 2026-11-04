@@ -32,6 +32,8 @@ import org.slf4j.LoggerFactory;
  * Hands work from worker threads over to the main thread of the server, and reacts to work that finishes in the
  * background.
  *
+ * <p>This class is stateless and thread-safe.
+ *
  * @since 1.0.0
  */
 public final class TaskUtils {

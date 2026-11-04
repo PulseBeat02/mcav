@@ -31,9 +31,9 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ord
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.random.RandomDither;
 
 /**
- * The {@code <ditheringAlgorithm>} argument of the map commands ({@code /mcav video map}, {@code /mcav image map},
- * {@code /mcav browser create} and {@code /mcav vm create}): how the colors of the media are reduced to the limited
- * palette of Minecraft maps.
+ * The {@code <ditheringAlgorithm>} argument of the map commands ({@code /mcav video map}, {@code /mcav video mcv2},
+ * {@code /mcav image map}, {@code /mcav browser create}, {@code /mcav vm create} and {@code /mcav vnc create}): how the
+ * colors of the media are reduced to the limited palette of Minecraft maps.
  *
  * <p>Maps can only show a fixed palette of colors, so every pixel has to be replaced by a palette color. Dithering
  * mixes neighboring palette colors so that areas look like the colors in between from a distance. The constants

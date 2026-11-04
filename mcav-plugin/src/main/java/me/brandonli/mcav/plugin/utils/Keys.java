@@ -36,28 +36,28 @@ public final class Keys {
   public static final String NAMESPACE = "mcav";
 
   /**
-   * Marks every item frame of a map screen.
+   * The key that marks every item frame of a map screen.
    *
    * @since 1.0.0
    */
   public static final NamespacedKey MAP_KEY = new NamespacedKey(NAMESPACE, "map");
 
   /**
-   * Marks the top left item frame of a map screen.
+   * The key that marks the top left item frame of a map screen.
    *
    * @since 1.0.0
    */
   public static final NamespacedKey FIRST_MAP_KEY = new NamespacedKey(NAMESPACE, "first_map");
 
   /**
-   * Marks the bottom right item frame of a map screen.
+   * The key that marks the bottom right item frame of a map screen.
    *
    * @since 1.0.0
    */
   public static final NamespacedKey LAST_MAP_KEY = new NamespacedKey(NAMESPACE, "second_map");
 
   /**
-   * Identifies the screen a map frame belongs to, so neighboring screens remain independent.
+   * The key that identifies the screen a map frame belongs to, so neighboring screens remain independent.
    *
    * @since 1.0.0
    */

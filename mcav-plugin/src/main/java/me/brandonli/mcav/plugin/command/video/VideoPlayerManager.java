@@ -66,6 +66,8 @@ import org.slf4j.LoggerFactory;
  * cannot start one at the same time. The volume and whether videos loop are settings of the manager, which the
  * videos started later keep.
  *
+ * <p>This class is thread-safe.
+ *
  * @since 1.0.0
  */
 public final class VideoPlayerManager {
@@ -266,13 +268,17 @@ public final class VideoPlayerManager {
   }
 
   /**
-   * Takes ownership before scheduling the display. A released display's accepted task cannot start it later.
-   * The shared startup claim serializes callers with the worker that resolves and configures the video.
+   * Sets {@code output} as the display filter and starts it on the main thread, unless the video is released or
+   * replaced first. The shared startup claim serializes callers with the worker that resolves and configures the video.
    *
    * @param output the new display filter
+   * @throws CancellationException        if the video startup was cancelled or the manager is shut down
+   * @throws IllegalPluginAccessException if the plugin is disabled
    * @since 1.0.0
    */
   public void startFilter(final FunctionalVideoFilter output) {
+    Preconditions.checkNotNull(output, "Output must not be null!");
+
     final long expected;
     synchronized (this.lifecycle) {
       this.filter = output;
@@ -437,9 +443,11 @@ public final class VideoPlayerManager {
   }
 
   /**
-   * Sets the player of the video.
+   * Sets the player of the video. When the video startup was cancelled or the manager is shut down, the player is
+   * released instead.
    *
    * @param player the player, or {@code null} for none
+   * @throws CancellationException if the video startup was cancelled or the manager is shut down
    * @since 1.0.0
    */
   public void setPlayer(final @Nullable VideoPlayerMultiplexer player) {
@@ -622,11 +630,13 @@ public final class VideoPlayerManager {
   /**
    * Remembers the capture devices {@code /mcav video devices} listed last, the only ones the DEVICE player may open.
    *
-   * @param listed the devices
+   * @param devices the devices
    * @since 1.0.0
    */
-  public void setDevices(final List<CaptureDevices.Device> listed) {
-    this.devices = List.copyOf(listed);
+  public void setDevices(final List<CaptureDevices.Device> devices) {
+    Preconditions.checkNotNull(devices, "Devices must not be null!");
+
+    this.devices = List.copyOf(devices);
   }
 
   /**

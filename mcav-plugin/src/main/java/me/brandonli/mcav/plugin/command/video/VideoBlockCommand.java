@@ -125,6 +125,7 @@ public final class VideoBlockCommand extends AbstractVideoCommand {
    *                              {@link #playVideo(CommandSender, MultiplePlayerSelector, PlayerArgument, AudioArgument, String, Location, String, String, String)},
    *                              which returns a {@link BlockConfiguration}
    * @return the pipeline that shows the frames on the wall
+   * @throws java.util.concurrent.CancellationException if the video startup was cancelled or the manager is shut down
    * @since 1.0.0
    */
   @Override

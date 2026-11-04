@@ -137,6 +137,7 @@ public final class VideoScoreboardCommand extends AbstractVideoCommand {
    *                              {@link #playVideo(CommandSender, MultiplePlayerSelector, PlayerArgument, AudioArgument, String, String, String, String, String)},
    *                              which returns a {@link ScoreboardConfiguration}
    * @return the pipeline that shows the frames on the sidebar
+   * @throws java.util.concurrent.CancellationException if the video startup was cancelled or the manager is shut down
    * @since 1.0.0
    */
   @Override

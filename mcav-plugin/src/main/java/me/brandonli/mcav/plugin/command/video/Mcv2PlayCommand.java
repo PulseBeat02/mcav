@@ -77,6 +77,9 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
  * and a name that leads out of it, absolute or climbing with {@code ..}, is refused, so a command can neither read nor
  * replace other files of the server.
  *
+ * <p>This class is not thread-safe: use it on the server main thread; stream files are read on a thread of their own, a
+ * stream plays on its own thread and an encode on another.
+ *
  * @since 1.0.0
  */
 public final class Mcv2PlayCommand implements AnnotationCommandFeature {

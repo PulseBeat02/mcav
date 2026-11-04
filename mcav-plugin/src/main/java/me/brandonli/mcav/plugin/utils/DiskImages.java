@@ -67,7 +67,8 @@ public final class DiskImages {
    * @param image  the image as the sender wrote it, relative to the folder or as an absolute path inside it
    * @return the path of the image
    * @throws NullPointerException     if the folder or the image is {@code null}
-   * @throws IllegalArgumentException if the image is empty, lies outside the folder, or is not a file there
+   * @throws IllegalArgumentException if the image is blank, is not a valid file name, lies outside the folder, or is
+   *                                  not a file there
    * @since 1.0.0
    */
   public static Path require(final Path folder, final String image) {

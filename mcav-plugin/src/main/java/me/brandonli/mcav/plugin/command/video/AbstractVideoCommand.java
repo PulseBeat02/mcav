@@ -88,6 +88,9 @@ import org.slf4j.LoggerFactory;
  * The common flow of the video commands: validate the arguments, resolve the media on the worker thread, start
  * the player with the display type of the subclass, and report the outcome to the sender.
  *
+ * <p>This class is not thread-safe: use it on the server main thread; the media resolves and starts on the video player
+ * manager's worker, which calls {@link #createVideoFilter}.
+ *
  * @since 1.0.0
  */
 public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
@@ -626,6 +629,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    * @param resolution            the parsed resolution
    * @param configurationProvider the provider passed to {@link #playVideo}
    * @return the pipeline
+   * @throws CancellationException if the video startup was cancelled or the manager is shut down
    * @since 1.0.0
    */
   public abstract VideoPipelineStep createVideoFilter(

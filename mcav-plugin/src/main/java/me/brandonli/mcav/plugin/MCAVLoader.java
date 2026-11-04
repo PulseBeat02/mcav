@@ -50,10 +50,10 @@ import xyz.jpenilla.gremlin.runtime.platformsupport.PaperClasspathAppender;
  * listed in the {@code mcav/plugin/dependencies.txt} that Gremlin generates at build time, and are cached in
  * {@code libraries/mcav}.
  *
- * <p>The modules of mcav the server downloads are snapshots, published apart from the plugin: modules older than the
- * plugin's code lack classes it uses. The build lists those classes in {@value #REQUIRED_CLASSES_RESOURCE}, and the loader
- * refuses to start the plugin with a message saying so when a downloaded module lacks one, where the server would
- * otherwise fail on the first missing class.
+ * <p>The MCAV modules the server downloads are snapshots, published apart from the plugin: modules older than the
+ * plugin's code lack classes it uses. The build lists those classes in {@code META-INF/mcav/required-classes.txt}, and
+ * the loader refuses to start the plugin with a message saying so when a downloaded module lacks one, where the server
+ * would otherwise fail on the first missing class.
  *
  * <p>The loader runs before the downloaded modules are on the classpath, so it reports failures with JDK exceptions
  * instead of {@link PluginException}, whose superclass {@code MCAVException} comes from one of those modules.
@@ -88,6 +88,7 @@ public final class MCAVLoader implements PluginLoader {
   /**
    * Creates the loader. Paper creates it for you.
    *
+   * @throws UncheckedIOException if the list of classes the plugin needs cannot be read
    * @since 1.0.0
    */
   public MCAVLoader() {
@@ -128,6 +129,7 @@ public final class MCAVLoader implements PluginLoader {
    * @param classpathBuilder the classpath of the plugin, which receives the library jars
    * @throws NullPointerException  if the classpath builder is {@code null}
    * @throws IllegalStateException if a downloaded module lacks a class the plugin uses
+   * @throws UncheckedIOException  if a downloaded library cannot be read
    * @since 1.0.0
    */
   @Override

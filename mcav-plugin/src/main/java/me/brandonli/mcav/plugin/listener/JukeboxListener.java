@@ -84,6 +84,7 @@ public final class JukeboxListener implements Listener {
    * Creates the listener and the {@code iso} folder.
    *
    * @param plugin the plugin
+   * @throws me.brandonli.mcav.utils.FileOperationException if the {@code iso} folder cannot be created
    * @since 1.0.0
    */
   public JukeboxListener(final MCAVSandbox plugin) {

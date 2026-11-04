@@ -182,9 +182,9 @@ public final class MapUtils {
    * @param height   the height of the screen in blocks, at least 1
    * @param map      the id of the map in the top left corner, zero or more
    * @throws NullPointerException     if the sender, the location or the material is {@code null}
-   * @throws IllegalArgumentException if the width or the height is not positive, the map id is negative, or the
-   *                                  last map id of the screen is more than {@link #MAXIMUM_NEW_MAPS} ids past the next
-   *                                  map id; nothing is built then
+   * @throws IllegalArgumentException if the width or the height is not positive, the map id is negative, the last map
+   *                                  id of the screen is more than {@link Integer#MAX_VALUE}, or it is more than
+   *                                  {@link #MAXIMUM_NEW_MAPS} ids past the next map id; nothing is built then
    * @throws IllegalStateException    if a map id of the screen belonged to a map that no longer exists
    * @since 1.0.0
    */

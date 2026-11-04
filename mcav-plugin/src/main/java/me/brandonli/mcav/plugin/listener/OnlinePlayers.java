@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.plugin.listener;
 
+import com.google.common.base.Preconditions;
 import java.util.Collections;
 import java.util.Set;
 import java.util.UUID;
@@ -40,6 +41,8 @@ import org.bukkit.plugin.PluginManager;
  */
 public final class OnlinePlayers implements Listener {
 
+  private static final String EVENT_NULL_MESSAGE = "Event must not be null!";
+
   private final Set<UUID> online;
 
   private final Set<UUID> view;
@@ -61,6 +64,8 @@ public final class OnlinePlayers implements Listener {
    * @since 1.0.0
    */
   public void start(final Plugin plugin) {
+    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
+
     for (final Player player : Bukkit.getOnlinePlayers()) {
       this.online.add(player.getUniqueId());
     }
@@ -87,6 +92,8 @@ public final class OnlinePlayers implements Listener {
    */
   @EventHandler(priority = EventPriority.LOWEST)
   public void onPlayerJoin(final PlayerJoinEvent event) {
+    Preconditions.checkNotNull(event, EVENT_NULL_MESSAGE);
+
     final Player player = event.getPlayer();
     final UUID playerId = player.getUniqueId();
     this.online.add(playerId);
@@ -100,6 +107,8 @@ public final class OnlinePlayers implements Listener {
    */
   @EventHandler(priority = EventPriority.MONITOR)
   public void onPlayerQuit(final PlayerQuitEvent event) {
+    Preconditions.checkNotNull(event, EVENT_NULL_MESSAGE);
+
     final Player player = event.getPlayer();
     final UUID playerId = player.getUniqueId();
     this.online.remove(playerId);

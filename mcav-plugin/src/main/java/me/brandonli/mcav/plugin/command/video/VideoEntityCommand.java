@@ -130,6 +130,7 @@ public final class VideoEntityCommand extends AbstractVideoCommand {
    *                              {@link #playVideo(CommandSender, MultiplePlayerSelector, PlayerArgument, AudioArgument, String, String, Location, String, String, String)},
    *                              which returns an {@link EntityConfiguration}
    * @return the pipeline that shows the frames in the entity
+   * @throws java.util.concurrent.CancellationException if the video startup was cancelled or the manager is shut down
    * @since 1.0.0
    */
   @Override

@@ -87,7 +87,7 @@ public final class SeekPosition {
    *
    * @param text the position as the player typed it
    * @return the position, or empty if the text is not one
-   * @throws NullPointerException if an argument is null
+   * @throws NullPointerException if {@code text} is null
    * @since 1.0.0
    */
   public static Optional<SeekPosition> parse(final String text) {
@@ -140,6 +140,7 @@ public final class SeekPosition {
    *
    * @param milliseconds the time in milliseconds, at least 0
    * @return the time, without its milliseconds
+   * @throws IllegalArgumentException if {@code milliseconds} is negative
    * @since 1.0.0
    */
   public static String format(final long milliseconds) {

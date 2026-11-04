@@ -53,6 +53,8 @@ import org.slf4j.LoggerFactory;
  * The common flow of the image commands: parse the resolution, load the image on the worker thread, and show it
  * on the main thread with the display type of the subclass.
  *
+ * <p>This class is not thread-safe: use it on the server main thread; images load on the image manager's worker.
+ *
  * @since 1.0.0
  */
 public abstract class AbstractImageCommand implements AnnotationCommandFeature {

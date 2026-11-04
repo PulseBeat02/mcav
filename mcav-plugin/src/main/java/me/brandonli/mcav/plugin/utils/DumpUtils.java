@@ -52,9 +52,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * Collects diagnostic information for bug reports and uploads it to a paste site.
  *
- * <p>The dump is public, so it contains no environment variables, and the values of JVM properties and JVM
- * arguments whose names suggest secrets, such as {@code -Dbot.token=...}, are redacted. Only the end of the server
- * log is included. Redaction is heuristic: unlabelled secrets and application-specific credential formats may
+ * <p>The dump is public, so it contains no environment variables, and the values of JVM properties and JVM arguments
+ * whose names suggest secrets, such as {@code -Dbot.token=...}, are redacted. Only the end of the server log is
+ * included, and its lines lose IP addresses, the arguments of other plugins' commands, and the credentials, queries and
+ * fragments of web addresses. Redaction is heuristic: unlabeled secrets and application-specific credential formats may
  * still appear in diagnostic text.
  *
  * <p>This class is stateless and thread-safe.

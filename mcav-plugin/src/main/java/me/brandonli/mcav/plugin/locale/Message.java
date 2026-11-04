@@ -22,9 +22,9 @@ import static me.brandonli.mcav.plugin.locale.LocaleTools.direct;
 /**
  * Every chat message the commands of the plugin send, each bound to its key in the message file.
  *
- * <p>Server owners change the wording and colors in {@code locale/mcav_<language>.properties} in the data folder of
- * the plugin; the keys listed here must stay. Call {@code build()} on a constant to render its message in the
- * configured language right before sending it.
+ * <p>Server owners change the wording and colors in {@code locale/mcav_<language>.properties} in the data folder of the
+ * plugin; the keys listed here must stay. Call {@code build} on a constant, passing the values its message inserts, to
+ * render it in the configured language right before sending it.
  *
  * <p>This interface only holds constants, which are immutable and thread-safe.
  *
@@ -104,8 +104,8 @@ public interface Message extends LocaleTools {
   NullComponent UNKNOWN_CODEC = direct("mcav.command.codec.error");
 
   /**
-   * Key {@code mcav.command.mcv2.file.error}: the file given to {@code /mcav mcv2 play} is not an MCV2 stream; the
-   * reason is inserted.
+   * Key {@code mcav.command.mcv2.file.error}: the file given to {@code /mcav mcv2 play} or {@code /mcav mcv2 stream} is
+   * not an MCV2 stream; the reason is inserted.
    *
    * @since 1.0.0
    */
@@ -171,7 +171,8 @@ public interface Message extends LocaleTools {
   NullComponent MCV2_ENCODE_NONE = direct("mcav.command.mcv2.encode.none");
 
   /**
-   * Key {@code mcav.command.mcv2.play}: confirms that {@code /mcav mcv2 play} started the stream.
+   * Key {@code mcav.command.mcv2.play}: confirms that {@code /mcav mcv2 play} or {@code /mcav mcv2 stream} started the
+   * stream.
    *
    * @since 1.0.0
    */
@@ -230,16 +231,16 @@ public interface Message extends LocaleTools {
   NullComponent VM_PATH = direct("mcav.command.vm.path.error");
 
   /**
-   * Key {@code mcav.command.interaction.remove}: {@code /mcav browser interact} or {@code /mcav vm interact} switched
-   * chat input off, so the chat messages of the player go to chat again.
+   * Key {@code mcav.command.interaction.remove}: {@code /mcav browser interact}, {@code /mcav vm interact} or
+   * {@code /mcav vnc interact} switched chat input off, so the chat messages of the player go to chat again.
    *
    * @since 1.0.0
    */
   NullComponent INTERACT_DISABLE = direct("mcav.command.interaction.remove");
 
   /**
-   * Key {@code mcav.command.interaction.add}: {@code /mcav browser interact} or {@code /mcav vm interact} switched
-   * chat input on, so the chat messages of the player are typed into the screen.
+   * Key {@code mcav.command.interaction.add}: {@code /mcav browser interact}, {@code /mcav vm interact} or
+   * {@code /mcav vnc interact} switched chat input on, so the chat messages of the player are typed into the screen.
    *
    * @since 1.0.0
    */
@@ -505,8 +506,8 @@ public interface Message extends LocaleTools {
   NullComponent DEVICE_PERMISSION = direct("mcav.command.video.device.permission");
 
   /**
-   * Key {@code mcav.command.video.device.unlisted}: the device number given to the DEVICE player, which is inserted, was
-   * not listed by {@code /mcav video devices}.
+   * Key {@code mcav.command.video.device.unlisted}: the device number given to the {@code DEVICE} player, which is
+   * inserted, was not listed by {@code /mcav video devices}.
    *
    * @since 1.0.0
    */
