@@ -289,7 +289,7 @@ final class MockVlc {
       return this.listeners.add(listener);
     }
 
-    private Object installAudioCallback(final InvocationOnMock invocation) {
+    private @Nullable Object installAudioCallback(final InvocationOnMock invocation) {
       final AudioCallback callback = invocation.getArgument(3);
       this.audioCallback.set(callback);
 

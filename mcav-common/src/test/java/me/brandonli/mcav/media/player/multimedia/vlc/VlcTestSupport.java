@@ -24,6 +24,7 @@ import java.util.Optional;
 import me.brandonli.mcav.MCAVException;
 import me.brandonli.mcav.capability.installer.vlc.DownloadedVlc;
 import me.brandonli.mcav.testing.GeneratedMedia;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Assumptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,7 +33,7 @@ final class VlcTestSupport {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(VlcTestSupport.class);
 
-  private static final String UNAVAILABLE = loadVlc();
+  private static final @Nullable String UNAVAILABLE_REASON = loadVlc();
 
   private static final String VIDEO_EXTENSION = ".mp4";
 
@@ -46,7 +47,7 @@ final class VlcTestSupport {
   }
 
   // the VLC of the installation kit, never this machine's, so every host behaves alike
-  private static String loadVlc() {
+  private static @Nullable String loadVlc() {
     try {
       final Optional<Path> directory = DownloadedVlc.load();
       final Optional<String> location = directory.map(Path::toString);
@@ -59,7 +60,7 @@ final class VlcTestSupport {
   }
 
   static void assumeVlc() {
-    Assumptions.assumeTrue(UNAVAILABLE == null, UNAVAILABLE);
+    Assumptions.assumeTrue(UNAVAILABLE_REASON == null, UNAVAILABLE_REASON);
   }
 
   static Path solidVideo(final Path directory, final String color, final int width, final int height) {
