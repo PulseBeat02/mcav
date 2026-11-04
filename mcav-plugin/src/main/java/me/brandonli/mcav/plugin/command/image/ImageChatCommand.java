@@ -53,6 +53,7 @@ public final class ImageChatCommand extends AbstractImageCommand {
    * Creates the command.
    *
    * @param plugin the plugin
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
   public ImageChatCommand(final MCAVSandbox plugin) {
@@ -83,6 +84,7 @@ public final class ImageChatCommand extends AbstractImageCommand {
    *                        URL; the rest of the command line, so it may contain spaces
    * @param filters         the {@code --filters} option: filters applied to the image in order, such as
    *                        {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
+   * @throws NullPointerException if an argument other than {@code filters} is null
    * @since 1.0.0
    */
   @Command("mcav image chat <playerSelector> <imageResolution> <character> <mrl>")
@@ -114,6 +116,7 @@ public final class ImageChatCommand extends AbstractImageCommand {
    * @param resolution            the parsed resolution, in characters per line and lines
    * @param configurationProvider the provider that builds the chat configuration
    * @return the chat display
+   * @throws NullPointerException if an argument is null
    * @since 1.0.0
    */
   @Override

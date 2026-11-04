@@ -55,6 +55,7 @@ public final class TaskUtils {
    * @param task   the task to run on the main thread
    * @return the task that schedules it; it drops the task when the plugin is disabled, see
    * {@link #runOnMainThread(MCAVSandbox, Runnable)}
+   * @throws NullPointerException if an argument is null
    * @since 1.0.0
    */
   public static Runnable createMainThreadHandover(final MCAVSandbox plugin, final Runnable task) {
@@ -71,6 +72,7 @@ public final class TaskUtils {
    * @param plugin the plugin that owns the task
    * @param task   the task to run on the main thread
    * @return true if the task was scheduled, false if it was dropped because the plugin is disabled
+   * @throws NullPointerException if an argument is null
    * @since 1.0.0
    */
   public static boolean runOnMainThread(final MCAVSandbox plugin, final Runnable task) {
@@ -101,6 +103,7 @@ public final class TaskUtils {
    * @param callback     receives the result, which is null if the future failed, and the failure, which is null if the
    *                     future succeeded
    * @param <ResultType> the type of the result
+   * @throws NullPointerException if {@code future} is null
    * @since 1.0.0
    */
   public static <ResultType> void whenComplete(

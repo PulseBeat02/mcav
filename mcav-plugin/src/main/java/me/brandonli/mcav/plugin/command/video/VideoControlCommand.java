@@ -56,6 +56,7 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
    * Creates the command.
    *
    * @param plugin the plugin, whose video player manager must be available
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
   public VideoControlCommand(final MCAVSandbox plugin) {
@@ -75,6 +76,7 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
    * again.
    *
    * @param sender who ran the command
+   * @throws NullPointerException if {@code sender} is null
    * @since 1.0.0
    */
   @Command("mcav video resume")
@@ -98,6 +100,7 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
    * told that the video paused, also when no video is loaded, in which case nothing happens.
    *
    * @param sender who ran the command
+   * @throws NullPointerException if {@code sender} is null
    * @since 1.0.0
    */
   @Command("mcav video pause")
@@ -125,6 +128,7 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
    * background. When no video is loaded, both messages are still sent.
    *
    * @param sender who ran the command
+   * @throws NullPointerException if {@code sender} is null
    * @since 1.0.0
    */
   @Command("mcav video release")
@@ -164,6 +168,7 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
    *
    * @param sender   who ran the command
    * @param location where the hologram floats, such as {@code ~ ~2 ~}
+   * @throws NullPointerException if an argument is null
    * @since 1.0.0
    */
   @Command("mcav video hologram set <location>")
@@ -187,6 +192,7 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
    * is told that the hologram is disabled.
    *
    * @param sender who ran the command
+   * @throws NullPointerException if {@code sender} is null
    * @since 1.0.0
    */
   @Command("mcav video hologram disable")

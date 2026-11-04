@@ -84,6 +84,7 @@ public final class JukeboxListener implements Listener {
    * Creates the listener and the {@code iso} folder.
    *
    * @param plugin the plugin
+   * @throws NullPointerException                           if {@code plugin} is null
    * @throws me.brandonli.mcav.utils.FileOperationException if the {@code iso} folder cannot be created
    * @since 1.0.0
    */
@@ -122,6 +123,7 @@ public final class JukeboxListener implements Listener {
    * lower priorities, may have denied the player the jukebox; a denied use boots nothing.
    *
    * @param event the interaction
+   * @throws NullPointerException if {@code event} is null
    * @since 1.0.0
    */
   @EventHandler(priority = EventPriority.HIGHEST)

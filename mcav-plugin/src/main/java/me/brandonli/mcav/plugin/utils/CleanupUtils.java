@@ -43,7 +43,8 @@ public final class CleanupUtils {
    * Fatal virtual-machine failures are rethrown immediately without attempting further cleanup.
    *
    * @param actions the independent cleanup actions
-   * @throws RuntimeException if an action fails: the first such failure, with the later ones suppressed
+   * @throws NullPointerException if {@code actions} is null
+   * @throws RuntimeException     if an action fails: the first such failure, with the later ones suppressed
    * @since 1.0.0
    */
   public static void runAll(final Runnable... actions) {

@@ -65,6 +65,7 @@ public final class ImageMapCommand extends AbstractImageCommand {
    * Creates the command.
    *
    * @param plugin the plugin
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
   public ImageMapCommand(final MCAVSandbox plugin) {
@@ -104,6 +105,7 @@ public final class ImageMapCommand extends AbstractImageCommand {
    *                           absent
    * @param filters            the {@code --filters} option: filters applied to the image in order, such as
    *                           {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
+   * @throws NullPointerException if an argument other than {@code codec} and {@code filters} is null
    * @since 1.0.0
    */
   @Command("mcav image map <playerSelector> <imageResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <mrl>")
@@ -190,6 +192,7 @@ public final class ImageMapCommand extends AbstractImageCommand {
    * @param resolution            the parsed resolution, in pixels
    * @param configurationProvider the provider that builds the map display settings
    * @return the map display
+   * @throws NullPointerException if an argument is null
    * @since 1.0.0
    */
   @Override

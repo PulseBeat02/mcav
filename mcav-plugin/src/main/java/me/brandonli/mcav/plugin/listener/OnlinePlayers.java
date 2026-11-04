@@ -61,6 +61,7 @@ public final class OnlinePlayers implements Listener {
    * Starts following the players, from those online now. Call on the main thread.
    *
    * @param plugin the plugin that listens
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
   public void start(final Plugin plugin) {
@@ -88,6 +89,7 @@ public final class OnlinePlayers implements Listener {
    * Counts a player who joins before any other listener hears of it.
    *
    * @param event the join
+   * @throws NullPointerException if {@code event} is null
    * @since 1.0.0
    */
   @EventHandler(priority = EventPriority.LOWEST)
@@ -103,6 +105,7 @@ public final class OnlinePlayers implements Listener {
    * Forgets a player who leaves once every other listener heard of it.
    *
    * @param event the quit
+   * @throws NullPointerException if {@code event} is null
    * @since 1.0.0
    */
   @EventHandler(priority = EventPriority.MONITOR)

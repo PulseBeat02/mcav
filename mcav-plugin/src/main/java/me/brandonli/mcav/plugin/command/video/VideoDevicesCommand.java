@@ -59,6 +59,7 @@ public final class VideoDevicesCommand implements AnnotationCommandFeature {
    * Creates the command.
    *
    * @param plugin the plugin, whose video player manager must be available
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
   public VideoDevicesCommand(final MCAVSandbox plugin) {
@@ -75,6 +76,7 @@ public final class VideoDevicesCommand implements AnnotationCommandFeature {
    * <p>Requires the permission {@code mcav.command.video.device}, which playing a device requires too.
    *
    * @param sender who ran the command
+   * @throws NullPointerException if {@code sender} is null
    * @since 1.0.0
    */
   @Command("mcav video devices")

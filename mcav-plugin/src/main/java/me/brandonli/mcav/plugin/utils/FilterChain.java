@@ -616,6 +616,7 @@ public final class FilterChain {
    *
    * @param output the first step that shows the pictures
    * @return the first step of the filters, or the output if the chain is empty
+   * @throws NullPointerException if {@code output} is null
    * @since 1.0.0
    */
   public VideoPipelineStep prepend(final VideoPipelineStep output) {
@@ -633,6 +634,7 @@ public final class FilterChain {
    * Filters a picture with new filters of the chain.
    *
    * @param picture the picture, changed in place
+   * @throws NullPointerException if {@code picture} is null
    * @since 1.0.0
    */
   public void apply(final ImageBuffer picture) {

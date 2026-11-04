@@ -69,6 +69,7 @@ public final class ArgumentTag implements TagResolver {
    * @param arguments the arguments of the tag; the first one is the zero-based index of the message argument
    * @param context   the parsing context
    * @return a tag that inserts the argument
+   * @throws NullPointerException             if {@code arguments} is null
    * @throws ParsingException                 if the tag has no index
    * @throws java.util.NoSuchElementException if the index is not a whole number
    * @throws IndexOutOfBoundsException        if the message has no argument with the index

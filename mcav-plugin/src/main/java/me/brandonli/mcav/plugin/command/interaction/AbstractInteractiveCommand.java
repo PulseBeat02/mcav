@@ -177,6 +177,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * Creates the command and the thread that starts its players.
    *
    * @param plugin the plugin
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
   protected AbstractInteractiveCommand(final MCAVSandbox plugin) {
@@ -199,6 +200,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * Registers this command as a listener, so clicks on screens and chat messages reach the running player.
    *
    * @param parser the parser the annotations of this command are about to be parsed with
+   * @throws NullPointerException if {@code parser} is null
    * @since 1.0.0
    */
   @Override
@@ -635,6 +637,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * {@link #getInteractionPermission()}. Other block breaks are left alone.
    *
    * @param event the block break
+   * @throws NullPointerException if {@code event} is null
    * @since 1.0.0
    */
   @EventHandler
@@ -742,6 +745,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * player looks at; hits by projectiles are not forwarded.
    *
    * @param event the damage
+   * @throws NullPointerException if {@code event} is null
    * @since 1.0.0
    */
   @EventHandler
@@ -805,6 +809,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * {@link #getInteractionPermission()}. Otherwise the right click behaves as usual.
    *
    * @param event the interaction
+   * @throws NullPointerException if {@code event} is null
    * @since 1.0.0
    */
   @EventHandler
@@ -844,6 +849,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * and its plain text, without colors or formatting, is sent as typed text. Other chat messages are left alone.
    *
    * @param event the chat message
+   * @throws NullPointerException if {@code event} is null
    * @since 1.0.0
    */
   @EventHandler
@@ -877,6 +883,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * {@code /kill}, which removes them without breaking them.
    *
    * @param event the break of a hanging entity
+   * @throws NullPointerException if {@code event} is null
    * @since 1.0.0
    */
   @EventHandler
@@ -896,6 +903,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * @param chatter        the player
    * @param enableMessage  the message shown when interaction is enabled
    * @param disableMessage the message shown when interaction is disabled
+   * @throws NullPointerException if an argument is null
    * @since 1.0.0
    */
   protected void toggleInteraction(final Player chatter, final Component enableMessage, final Component disableMessage) {
@@ -918,6 +926,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    *
    * @param sender  who ran the command
    * @param message the message to send
+   * @throws NullPointerException if an argument is null
    * @since 1.0.0
    */
   protected void releaseResource(final CommandSender sender, final Component message) {

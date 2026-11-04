@@ -72,6 +72,7 @@ public final class ScreenCommand implements AnnotationCommandFeature {
    *                        past the maps the world already has
    * @param material        the block the wall is made of, such as {@code black_concrete}
    * @param location        where the wall is built, such as {@code ~ ~ ~}
+   * @throws NullPointerException if an argument is null
    * @since 1.0.0
    */
   @Command("mcav screen <blockDimensions> <mapId> <material> <location>")

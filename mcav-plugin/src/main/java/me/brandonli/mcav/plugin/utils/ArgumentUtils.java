@@ -153,6 +153,7 @@ public final class ArgumentUtils {
    * @param playerSelector the selector the command received
    * @param online         the players online
    * @return the unique ids of the viewers, a live view for {@code @a}
+   * @throws NullPointerException if an argument is null
    * @since 1.0.0
    */
   public static Collection<UUID> resolveViewers(final MultiplePlayerSelector playerSelector, final OnlinePlayers online) {

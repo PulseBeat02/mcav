@@ -63,6 +63,7 @@ public final class ImageManager {
    * Creates the manager.
    *
    * @param plugin the plugin
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
   public ImageManager(final MCAVSandbox plugin) {

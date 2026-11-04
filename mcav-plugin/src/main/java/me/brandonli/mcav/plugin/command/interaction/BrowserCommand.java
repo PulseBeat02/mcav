@@ -86,6 +86,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    * Creates the command.
    *
    * @param plugin the plugin
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
   public BrowserCommand(final MCAVSandbox plugin) {
@@ -98,6 +99,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    * @param current the running browser
    * @param screenX the x coordinate on the page, in pixels
    * @param screenY the y coordinate on the page, in pixels
+   * @throws NullPointerException if {@code current} is null
    * @since 1.0.0
    */
   @Override
@@ -113,6 +115,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    * @param current the running browser
    * @param screenX the x coordinate on the page, in pixels
    * @param screenY the y coordinate on the page, in pixels
+   * @throws NullPointerException if {@code current} is null
    * @since 1.0.0
    */
   @Override
@@ -127,6 +130,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    *
    * @param current the running browser
    * @param text    the text to type
+   * @throws NullPointerException if an argument is null
    * @since 1.0.0
    */
   @Override
@@ -141,6 +145,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    * Closes a browser.
    *
    * @param player the browser to close, which is no longer the running one
+   * @throws NullPointerException if {@code player} is null
    * @since 1.0.0
    */
   @Override
@@ -165,6 +170,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    * to forward.
    *
    * @param sender the player who switches their chat input
+   * @throws NullPointerException if {@code sender} is null
    * @since 1.0.0
    */
   @Command("mcav browser interact")
@@ -186,6 +192,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    * told "Browser released!", also when no browser was running.
    *
    * @param sender who ran the command
+   * @throws NullPointerException if {@code sender} is null
    * @since 1.0.0
    */
   @Command("mcav browser release")
@@ -236,6 +243,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    *                           the maps cannot show files of the server
    * @param codec              how the picture reaches the players, see {@link MapCodec}; the configured default when
    *                           absent
+   * @throws NullPointerException if an argument other than {@code codec} is null
    * @since 1.0.0
    */
   @Command(
@@ -394,6 +402,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    * @param outcome whether the browser started
    * @param error   why the browser failed to start, if known
    * @return "Browser started!" on success, otherwise the message of the failure
+   * @throws NullPointerException if {@code outcome} is null
    * @since 1.0.0
    */
   @Override

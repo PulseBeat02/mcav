@@ -51,6 +51,7 @@ public final class ImageControlCommand implements AnnotationCommandFeature {
    * Creates the command.
    *
    * @param plugin the plugin
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
   public ImageControlCommand(final MCAVSandbox plugin) {
@@ -70,6 +71,7 @@ public final class ImageControlCommand implements AnnotationCommandFeature {
    * command does nothing but still sends both messages.
    *
    * @param sender who ran the command
+   * @throws NullPointerException if {@code sender} is null
    * @since 1.0.0
    */
   @Command("mcav image release")

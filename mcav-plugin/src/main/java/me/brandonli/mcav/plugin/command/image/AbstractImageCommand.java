@@ -79,6 +79,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
    * Creates the command.
    *
    * @param plugin the plugin
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
   protected AbstractImageCommand(final MCAVSandbox plugin) {
@@ -96,6 +97,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
    * @param imageResolution       the resolution argument, such as {@code 640x640}
    * @param mrl                   the path or URL of the image, optionally enclosed in one pair of double quotes
    * @param filters               the {@code --filters} option, see {@link FilterChain}, or {@code null} for none
+   * @throws NullPointerException if an argument other than {@code filters} is null
    * @since 1.0.0
    */
   public void displayImage(

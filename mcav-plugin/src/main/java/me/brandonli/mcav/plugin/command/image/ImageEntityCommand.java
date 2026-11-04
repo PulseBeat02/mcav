@@ -54,6 +54,7 @@ public final class ImageEntityCommand extends AbstractImageCommand {
    * Creates the command.
    *
    * @param plugin the plugin
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
   public ImageEntityCommand(final MCAVSandbox plugin) {
@@ -85,6 +86,7 @@ public final class ImageEntityCommand extends AbstractImageCommand {
    *                        URL; the rest of the command line, so it may contain spaces
    * @param filters         the {@code --filters} option: filters applied to the image in order, such as
    *                        {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
+   * @throws NullPointerException if an argument other than {@code filters} is null
    * @since 1.0.0
    */
   @Command("mcav image entity <playerSelector> <imageResolution> <character> <location> <mrl>")
@@ -119,6 +121,7 @@ public final class ImageEntityCommand extends AbstractImageCommand {
    * @param resolution            the parsed resolution, in characters per line and lines
    * @param configurationProvider the provider that builds the entity configuration
    * @return the entity display
+   * @throws NullPointerException if an argument is null
    * @since 1.0.0
    */
   @Override

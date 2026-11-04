@@ -64,6 +64,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
    * Creates the command.
    *
    * @param plugin the plugin
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
   public VideoMapCommand(final MCAVSandbox plugin) {
@@ -109,6 +110,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
    *                           absent
    * @param filters            the {@code --filters} option: filters applied to every frame in order, such as
    *                           {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
+   * @throws NullPointerException if {@code playerSelector} or {@code ditheringAlgorithm} is null
    * @since 1.0.0
    */
   @Command(
@@ -188,6 +190,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
    *                              {@link #playMapVideo(CommandSender, MultiplePlayerSelector, PlayerArgument, AudioArgument, String, String, int, DitheringArgument, String, String, MapCodec, String)},
    *                              which returns {@link MapDisplaySettings}, or {@code Mcv2Settings} for MCV2
    * @return the pipeline step that dithers the frames onto the maps, or that encodes them with MCV2
+   * @throws NullPointerException                       if an argument is null
    * @throws java.util.concurrent.CancellationException if the video startup was cancelled or the manager is shut down
    * @since 1.0.0
    */

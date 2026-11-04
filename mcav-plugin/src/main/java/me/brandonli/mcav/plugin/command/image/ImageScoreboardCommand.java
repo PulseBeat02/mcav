@@ -57,6 +57,7 @@ public final class ImageScoreboardCommand extends AbstractImageCommand {
    * Creates the command.
    *
    * @param plugin the plugin
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
   public ImageScoreboardCommand(final MCAVSandbox plugin) {
@@ -88,6 +89,7 @@ public final class ImageScoreboardCommand extends AbstractImageCommand {
    *                        URL; the rest of the command line, so it may contain spaces
    * @param filters         the {@code --filters} option: filters applied to the image in order, such as
    *                        {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
+   * @throws NullPointerException if an argument other than {@code filters} is null
    * @since 1.0.0
    */
   @Command("mcav image scoreboard <playerSelector> <imageResolution> <character> <mrl>")
@@ -126,6 +128,7 @@ public final class ImageScoreboardCommand extends AbstractImageCommand {
    * @param resolution            the parsed resolution, in characters per line and lines
    * @param configurationProvider the provider that builds the scoreboard configuration
    * @return the scoreboard display
+   * @throws NullPointerException if an argument is null
    * @since 1.0.0
    */
   @Override

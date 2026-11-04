@@ -125,6 +125,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    * Creates the command.
    *
    * @param plugin the plugin, whose video player manager and audio provider must be available
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
   protected AbstractVideoCommand(final MCAVSandbox plugin) {
@@ -151,6 +152,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    * @param mrl                   the path, URL, device index, or FFmpeg input
    * @param flags                 the optional flags, may be empty
    * @param filters               the {@code --filters} option, see {@link FilterChain}, or {@code null} for none
+   * @throws NullPointerException if an argument other than {@code filters} is null
    * @since 1.0.0
    */
   public void playVideo(

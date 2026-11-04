@@ -52,6 +52,7 @@ public final class DiskImages {
    *
    * @param dataFolder the data folder of the plugin
    * @return the folder of the disk images
+   * @throws NullPointerException if {@code dataFolder} is null
    * @since 1.0.0
    */
   public static Path folderOf(final Path dataFolder) {

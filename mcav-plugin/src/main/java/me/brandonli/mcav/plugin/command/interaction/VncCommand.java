@@ -74,6 +74,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    * Creates the command.
    *
    * @param plugin the plugin
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
   public VncCommand(final MCAVSandbox plugin) {
@@ -86,6 +87,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    * @param current the connected desktop
    * @param screenX the x coordinate on the desktop, in pixels
    * @param screenY the y coordinate on the desktop, in pixels
+   * @throws NullPointerException if {@code current} is null
    * @since 1.0.0
    */
   @Override
@@ -101,6 +103,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    * @param current the connected desktop
    * @param screenX the x coordinate on the desktop, in pixels
    * @param screenY the y coordinate on the desktop, in pixels
+   * @throws NullPointerException if {@code current} is null
    * @since 1.0.0
    */
   @Override
@@ -115,6 +118,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    *
    * @param current the connected desktop
    * @param text    the text to type
+   * @throws NullPointerException if an argument is null
    * @since 1.0.0
    */
   @Override
@@ -129,6 +133,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    * Disconnects from a desktop.
    *
    * @param player the desktop to disconnect from, which is no longer the running one
+   * @throws NullPointerException if {@code player} is null
    * @since 1.0.0
    */
   @Override
@@ -149,6 +154,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    * <p>Requires the permission {@code mcav.command.vnc.interact}. Only players can run it.
    *
    * @param sender the player who switches their chat input
+   * @throws NullPointerException if {@code sender} is null
    * @since 1.0.0
    */
   @Command("mcav vnc interact")
@@ -169,6 +175,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    * <p>Requires the permission {@code mcav.command.vnc.release}; players and the console can run it.
    *
    * @param sender who ran the command
+   * @throws NullPointerException if {@code sender} is null
    * @since 1.0.0
    */
   @Command("mcav vnc release")
@@ -209,6 +216,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    *                              argument would refuse the colon unquoted
    * @param codec                 how the picture reaches the players, see {@link MapCodec}; the configured default when
    *                              absent
+   * @throws NullPointerException if an argument other than {@code codec} is null
    * @since 1.0.0
    */
   @Command(
@@ -306,6 +314,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    * @param outcome whether the desktop streams
    * @param error   why it could not connect, if known
    * @return the message
+   * @throws NullPointerException if {@code outcome} is null
    * @since 1.0.0
    */
   @Override

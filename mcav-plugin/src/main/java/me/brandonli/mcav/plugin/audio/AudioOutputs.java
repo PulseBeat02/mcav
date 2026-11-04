@@ -92,6 +92,7 @@ public final class AudioOutputs {
    * @param provider  the provider of the audio outputs
    * @param audioType the chosen output
    * @param viewers   the players who see the picture
+   * @throws NullPointerException if an argument is null
    * @since 1.0.0
    */
   public static void sendLink(final AudioProvider provider, final AudioArgument audioType, final Player[] viewers) {

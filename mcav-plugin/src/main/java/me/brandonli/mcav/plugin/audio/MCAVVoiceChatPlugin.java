@@ -47,6 +47,7 @@ public final class MCAVVoiceChatPlugin implements VoicechatPlugin {
    * Creates the voice chat plugin.
    *
    * @param plugin the plugin whose library receives the voice chat server API
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
   public MCAVVoiceChatPlugin(final MCAVSandbox plugin) {
@@ -60,6 +61,7 @@ public final class MCAVVoiceChatPlugin implements VoicechatPlugin {
    * started on the server, where the API it passes is always a {@link VoicechatServerApi}.
    *
    * @param api the voice chat API
+   * @throws NullPointerException if {@code api} is null
    * @since 1.0.0
    */
   @Override

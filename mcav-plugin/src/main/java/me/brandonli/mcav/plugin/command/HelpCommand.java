@@ -68,6 +68,7 @@ public final class HelpCommand implements AnnotationCommandFeature {
    * Creates the command.
    *
    * @param manager the command manager whose commands are listed
+   * @throws NullPointerException if {@code manager} is null
    * @since 1.0.0
    */
   public HelpCommand(final CommandManager<CommandSender> manager) {
@@ -119,6 +120,7 @@ public final class HelpCommand implements AnnotationCommandFeature {
    *
    * @param sender who ran the command
    * @param query  the command to show, or {@code null} to list every command
+   * @throws NullPointerException if {@code sender} is null
    * @since 1.0.0
    */
   @Permission("mcav.command.help")

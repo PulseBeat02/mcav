@@ -65,6 +65,7 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
    * Creates the command.
    *
    * @param plugin the plugin, whose video player manager must be available
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
   public VideoPlaybackCommand(final MCAVSandbox plugin) {
@@ -85,6 +86,7 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
    *
    * @param sender   who ran the command
    * @param position the time
+   * @throws NullPointerException if an argument is null
    * @since 1.0.0
    */
   @Command("mcav video seek <position>")
@@ -139,6 +141,7 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
    *
    * @param sender  who ran the command
    * @param percent the volume, from 0 to 200
+   * @throws NullPointerException if {@code sender} is null
    * @since 1.0.0
    */
   @Command("mcav video volume <percent>")
@@ -160,6 +163,7 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
    *
    * @param sender who ran the command
    * @param factor the factor of the normal speed, from 0.5 to 2
+   * @throws NullPointerException if {@code sender} is null
    * @since 1.0.0
    */
   @Command("mcav video speed <factor>")
@@ -190,6 +194,7 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
    *
    * @param sender  who ran the command
    * @param enabled true to loop
+   * @throws NullPointerException if {@code sender} is null
    * @since 1.0.0
    */
   @Command("mcav video loop <enabled>")

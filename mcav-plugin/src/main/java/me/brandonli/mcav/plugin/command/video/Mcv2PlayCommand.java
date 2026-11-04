@@ -130,6 +130,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
    * Creates the command.
    *
    * @param plugin the plugin
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
   public Mcv2PlayCommand(final MCAVSandbox plugin) {

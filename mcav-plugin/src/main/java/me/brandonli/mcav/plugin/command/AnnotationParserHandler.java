@@ -78,6 +78,7 @@ public final class AnnotationParserHandler {
    * Creates the command manager and the features. The plugin's managers must exist already.
    *
    * @param plugin the plugin
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
   public AnnotationParserHandler(final MCAVSandbox plugin) {

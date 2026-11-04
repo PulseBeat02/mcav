@@ -70,6 +70,7 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
    * Creates the command.
    *
    * @param plugin the plugin
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
   public VideoMcv2Command(final MCAVSandbox plugin) {
@@ -103,6 +104,7 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
    * @param mrl                the media, in quotes if it contains spaces
    * @param filters            the {@code --filters} option: filters applied to every frame in order, such as
    *                           {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
+   * @throws NullPointerException if {@code playerSelector}, {@code profile} or {@code ditheringAlgorithm} is null
    * @since 1.0.0
    */
   @Command(
@@ -176,6 +178,7 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
    * @param resolution            the resolution frames are scaled to
    * @param configurationProvider the provider, which returns {@code Mcv2Settings}
    * @return the pipeline step that encodes the frames, or dithers them onto the maps
+   * @throws NullPointerException                       if an argument is null
    * @throws java.util.concurrent.CancellationException if the video startup was cancelled or the manager is shut down
    * @since 1.0.0
    */

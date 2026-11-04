@@ -106,6 +106,7 @@ public final class VideoPlayerManager {
    * Creates the manager and its worker thread.
    *
    * @param plugin the plugin, whose library and audio provider must be available
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
   public VideoPlayerManager(final MCAVSandbox plugin) {
@@ -151,6 +152,7 @@ public final class VideoPlayerManager {
    *
    * @param capability the capability
    * @return true if the preparation has not finished yet, false if the capability is available or failed
+   * @throws NullPointerException if {@code capability} is null
    * @since 1.0.0
    */
   public boolean isPreparing(final Capability capability) {
@@ -272,6 +274,7 @@ public final class VideoPlayerManager {
    * replaced first. The shared startup claim serializes callers with the worker that resolves and configures the video.
    *
    * @param output the new display filter
+   * @throws NullPointerException         if {@code output} is null
    * @throws CancellationException        if the video startup was cancelled or the manager is shut down
    * @throws IllegalPluginAccessException if the plugin is disabled
    * @since 1.0.0
@@ -631,6 +634,7 @@ public final class VideoPlayerManager {
    * Remembers the capture devices {@code /mcav video devices} listed last, the only ones the DEVICE player may open.
    *
    * @param devices the devices
+   * @throws NullPointerException if {@code devices} is null
    * @since 1.0.0
    */
   public void setDevices(final List<CaptureDevices.Device> devices) {

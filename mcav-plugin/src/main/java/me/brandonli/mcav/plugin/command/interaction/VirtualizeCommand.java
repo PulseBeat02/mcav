@@ -121,6 +121,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    * Creates the command.
    *
    * @param plugin the plugin
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
   public VirtualizeCommand(final MCAVSandbox plugin) {
@@ -133,6 +134,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    * @param current the running virtual machine
    * @param screenX the x coordinate on the display, in pixels
    * @param screenY the y coordinate on the display, in pixels
+   * @throws NullPointerException if {@code current} is null
    * @since 1.0.0
    */
   @Override
@@ -148,6 +150,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    * @param current the running virtual machine
    * @param screenX the x coordinate on the display, in pixels
    * @param screenY the y coordinate on the display, in pixels
+   * @throws NullPointerException if {@code current} is null
    * @since 1.0.0
    */
   @Override
@@ -162,6 +165,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    *
    * @param current the running virtual machine
    * @param text    the text to type
+   * @throws NullPointerException if an argument is null
    * @since 1.0.0
    */
   @Override
@@ -176,6 +180,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    * Stops the QEMU process of a virtual machine.
    *
    * @param player the virtual machine to stop, which is no longer the running one
+   * @throws NullPointerException if {@code player} is null
    * @since 1.0.0
    */
   @Override
@@ -204,6 +209,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    * forward.
    *
    * @param sender the player who switches their chat input
+   * @throws NullPointerException if {@code sender} is null
    * @since 1.0.0
    */
   @Command("mcav vm interact")
@@ -226,6 +232,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    * "Virtual machine released!", also when no virtual machine was running.
    *
    * @param sender who ran the command
+   * @throws NullPointerException if {@code sender} is null
    * @since 1.0.0
    */
   @Command("mcav vm release")
@@ -280,6 +287,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    *                              A trailing {@code --codec dither} or {@code --codec mcv2} is not a QEMU option: it
    *                              chooses how the picture reaches the players, as the flag of the other map commands
    *                              does, and the configured default applies without it
+   * @throws NullPointerException if an argument is null
    * @since 1.0.0
    */
   @Command(
@@ -404,6 +412,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    * @param outcome whether the virtual machine started
    * @param error   why the virtual machine failed to start, if known
    * @return the message
+   * @throws NullPointerException if {@code outcome} is null
    * @since 1.0.0
    */
   @Override

@@ -100,6 +100,7 @@ public final class AudioProvider {
    * Creates the provider.
    *
    * @param plugin the plugin, whose configuration must be loaded
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
   public AudioProvider(final MCAVSandbox plugin) {
@@ -352,6 +353,7 @@ public final class AudioProvider {
    * @param dump     information about the media, shown by outputs that display a title
    * @param players  the players Simple Voice Chat plays from
    * @return the filter to attach to the audio pipeline
+   * @throws NullPointerException  if an argument is null
    * @throws IllegalStateException if the Discord bot or the web page is chosen but not ready
    * @since 1.0.0
    */
@@ -370,6 +372,7 @@ public final class AudioProvider {
    * @param players  the players Simple Voice Chat plays from
    * @param source   what plays, such as a virtual machine
    * @return the filter to attach to the audio pipeline
+   * @throws NullPointerException  if an argument is null
    * @throws IllegalStateException if the Discord bot or the web page is chosen but not ready
    * @since 1.0.0
    */
@@ -475,6 +478,7 @@ public final class AudioProvider {
    * source it took them from, if that one still plays.
    *
    * @param source the source that is done, such as a virtual machine
+   * @throws NullPointerException if {@code source} is null
    * @since 1.0.0
    */
   public void releaseAudioFilter(final Object source) {

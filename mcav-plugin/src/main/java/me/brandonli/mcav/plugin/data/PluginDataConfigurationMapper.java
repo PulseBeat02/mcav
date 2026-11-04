@@ -142,6 +142,7 @@ public final class PluginDataConfigurationMapper {
    * Creates the mapper with default settings. Call {@link #deserialize()} to read the file.
    *
    * @param plugin the plugin
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
   public PluginDataConfigurationMapper(final MCAVSandbox plugin) {
