@@ -227,6 +227,6 @@ public final class DirectAudioOutput implements FunctionalAudioFilter {
 
   @FunctionalInterface
   interface LineOpener {
-    SourceDataLine open(AudioFormat format, int bufferSize) throws LineUnavailableException;
+    SourceDataLine open(final AudioFormat format, final int bufferSize) throws LineUnavailableException;
   }
 }
