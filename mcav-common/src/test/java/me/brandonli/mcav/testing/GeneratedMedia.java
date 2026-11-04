@@ -206,21 +206,21 @@ public final class GeneratedMedia {
   }
 
   private static void cleanup(final Path temporary, final @Nullable Path log, final @Nullable Throwable primary) throws IOException {
-    IOException cleanup = null;
+    IOException cleanupException = null;
     final List<Path> paths = log == null ? List.of(temporary) : List.of(temporary, log);
     for (final Path path : paths) {
       try {
         Files.deleteIfExists(path);
       } catch (final IOException exception) {
-        cleanup = combineFailures(cleanup, exception);
+        cleanupException = combineFailures(cleanupException, exception);
       }
     }
 
-    if (cleanup != null) {
+    if (cleanupException != null) {
       if (primary != null) {
-        primary.addSuppressed(cleanup);
+        primary.addSuppressed(cleanupException);
       } else {
-        throw cleanup;
+        throw cleanupException;
       }
     }
   }

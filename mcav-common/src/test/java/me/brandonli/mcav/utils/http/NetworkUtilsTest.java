@@ -180,8 +180,8 @@ final class NetworkUtilsTest {
     final byte[] address = PUBLIC_ADDRESS.getBytes(StandardCharsets.US_ASCII);
     this.http.respond(ADDRESS_PATH, OK_STATUS, address);
     final URI service = this.http.uri(ADDRESS_PATH);
-    final Thread currentThread = Thread.currentThread();
-    currentThread.interrupt();
+    final Thread current = Thread.currentThread();
+    current.interrupt();
     final Optional<String> result = NetworkUtils.lookUpPublicAddress(service);
     final boolean interrupted = Thread.interrupted();
     final boolean resultEmpty = result.isEmpty();
@@ -265,8 +265,8 @@ final class NetworkUtilsTest {
   void shouldKeepTheInterruptFlagWhenInterruptedDuringTheCheck() {
     this.http.respond(PACK_PATH, OK_STATUS, new byte[] { 1 });
     final URI pack = this.http.uri(PACK_PATH);
-    final Thread currentThread = Thread.currentThread();
-    currentThread.interrupt();
+    final Thread current = Thread.currentThread();
+    current.interrupt();
     final boolean reachable = NetworkUtils.isReachable(pack);
     final boolean interrupted = Thread.interrupted();
     assertFalse(reachable);

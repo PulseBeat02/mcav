@@ -260,9 +260,10 @@ public final class HttpDownloader {
     try {
       return client.send(request, bodyHandler);
     } catch (final InterruptedException exception) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
       client.close();
+
       final String message = "Download of %s was interrupted!".formatted(uri);
       throw new DownloadException(message, exception);
     } catch (final IOException exception) {
@@ -604,8 +605,8 @@ public final class HttpDownloader {
       final Duration delay = retryDelay.multipliedBy(attempt);
       Thread.sleep(delay);
     } catch (final InterruptedException exception) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
 
       final String message = "Interrupted while waiting to retry a download!";
       throw new DownloadException(message, exception);
@@ -632,8 +633,9 @@ public final class HttpDownloader {
       final HttpResponse<String> response = client.send(request, bodyHandler);
       return readSuccessfulBody(response, uri);
     } catch (final InterruptedException exception) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+
       final String message = "Fetch of %s was interrupted!".formatted(uri);
       throw new DownloadException(message, exception);
     } catch (final IOException exception) {

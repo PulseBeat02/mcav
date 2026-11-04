@@ -74,7 +74,7 @@ public final class MetadataUtils {
     throws FrameGrabber.Exception {
     final int declaredWidth = grabber.getImageWidth();
     final double declaredFrameRate = grabber.getFrameRate();
-    final boolean declared = bothPositive(declaredWidth, declaredFrameRate);
+    final boolean declared = areBothPositive(declaredWidth, declaredFrameRate);
     if (!declared) {
       probe(grabber);
     }
@@ -83,7 +83,7 @@ public final class MetadataUtils {
     final int height = grabber.getImageHeight();
     final int bitrate = grabber.getVideoBitrate();
     final double frameRate = grabber.getFrameRate();
-    final boolean hasVideo = bothPositive(width, height);
+    final boolean hasVideo = areBothPositive(width, height);
     if (!hasVideo) {
       final String message = "Source %s has no video track!".formatted(resource);
       throw new InputMetadataException(message);
@@ -119,7 +119,7 @@ public final class MetadataUtils {
     throws FrameGrabber.Exception {
     final int declaredSampleRate = grabber.getSampleRate();
     final int declaredChannels = grabber.getAudioChannels();
-    final boolean declared = bothPositive(declaredSampleRate, declaredChannels);
+    final boolean declared = areBothPositive(declaredSampleRate, declaredChannels);
     if (!declared) {
       probe(grabber);
     }
@@ -129,7 +129,7 @@ public final class MetadataUtils {
     final int sampleRate = grabber.getSampleRate();
     final int channels = grabber.getAudioChannels();
     final int format = grabber.getSampleFormat();
-    final boolean hasAudio = bothPositive(sampleRate, channels);
+    final boolean hasAudio = areBothPositive(sampleRate, channels);
     if (!hasAudio) {
       final String message = "Source %s has no audio track!".formatted(resource);
       throw new InputMetadataException(message);
@@ -139,7 +139,7 @@ public final class MetadataUtils {
     return OriginalAudioMetadata.of(codecName, bitrate, sampleRate, channels, format);
   }
 
-  private static boolean bothPositive(final double first, final double second) {
+  private static boolean areBothPositive(final double first, final double second) {
     final double smaller = Math.min(first, second);
     return smaller > 0;
   }

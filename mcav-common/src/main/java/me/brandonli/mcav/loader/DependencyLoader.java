@@ -377,11 +377,14 @@ public final class DependencyLoader {
       this.logger.info("VLC ready in {} ms.", elapsed);
     } catch (final RuntimeException | LinkageError exception) {
       this.recordPreparation(Capability.VLC, preparation, Availability.UNAVAILABLE);
-      final boolean cancelled = this.logCancellation(Capability.VLC);
-      if (!cancelled) {
-        final String reason = exception.getMessage();
-        this.logger.warn("VLC is not available because of \"{}\", so VLC players cannot be used.", reason);
+      final boolean cancelled = this.isCancelled();
+      if (cancelled) {
+        this.logCancellation(Capability.VLC);
+        return;
       }
+
+      final String reason = exception.getMessage();
+      this.logger.warn("VLC is not available because of \"{}\", so VLC players cannot be used.", reason);
     }
   }
 
@@ -414,18 +417,17 @@ public final class DependencyLoader {
     final Optional<Path> _ = kit.start();
   }
 
-  // Logs that the installation of a program was cancelled, if the current thread was interrupted. The library
+  // The installation of a program counts as cancelled when the current thread was interrupted. The library
   // interrupts its installation threads when it is released, which makes a running download fail; that failure is
   // expected and not worth a warning.
-  private boolean logCancellation(final Capability capability) {
-    final Thread currentThread = Thread.currentThread();
-    final boolean cancelled = currentThread.isInterrupted();
-    if (cancelled) {
-      final String name = capability.getDisplayName();
-      this.logger.info("Preparing {} was cancelled.", name);
-    }
+  private boolean isCancelled() {
+    final Thread current = Thread.currentThread();
+    return current.isInterrupted();
+  }
 
-    return cancelled;
+  private void logCancellation(final Capability capability) {
+    final String name = capability.getDisplayName();
+    this.logger.info("Preparing {} was cancelled.", name);
   }
 
   /**
@@ -460,11 +462,14 @@ public final class DependencyLoader {
       this.logger.info("yt-dlp ready in {} ms.", elapsed);
     } catch (final RuntimeException exception) {
       this.recordPreparation(Capability.YT_DLP, preparation, Availability.UNAVAILABLE);
-      final boolean cancelled = this.logCancellation(Capability.YT_DLP);
-      if (!cancelled) {
-        final String reason = exception.getMessage();
-        this.logger.warn("yt-dlp could not be installed because of \"{}\", so URL parsing cannot be used.", reason);
+      final boolean cancelled = this.isCancelled();
+      if (cancelled) {
+        this.logCancellation(Capability.YT_DLP);
+        return;
       }
+
+      final String reason = exception.getMessage();
+      this.logger.warn("yt-dlp could not be installed because of \"{}\", so URL parsing cannot be used.", reason);
     }
   }
 

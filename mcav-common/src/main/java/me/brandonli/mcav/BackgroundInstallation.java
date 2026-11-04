@@ -234,8 +234,8 @@ final class BackgroundInstallation {
     try {
       return thread.join(timeout);
     } catch (final InterruptedException exception) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
 
       return false;
     }

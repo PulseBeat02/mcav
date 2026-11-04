@@ -213,15 +213,15 @@ public final class SourceUtils {
    * @throws NullPointerException  if {@code url} is null
    * @since 1.0.0
    */
-  public static boolean isDynamicStream(final String url) {
+  public static boolean isLiveStream(final String url) {
     Preconditions.checkNotNull(url, "URL must not be null!");
 
     final YtdlpParser parser = YtdlpParser.simple();
-    return isDynamicStream(url, parser);
+    return isLiveStream(url, parser);
   }
 
   @VisibleForTesting
-  static boolean isDynamicStream(final String url, final YtdlpParser parser) {
+  static boolean isLiveStream(final String url, final YtdlpParser parser) {
     try {
       final URI uri = URI.create(url);
       final UriSource source = UriSource.uri(uri);

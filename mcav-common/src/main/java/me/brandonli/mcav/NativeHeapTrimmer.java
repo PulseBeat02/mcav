@@ -87,15 +87,15 @@ final class NativeHeapTrimmer implements AutoCloseable {
   }
 
   // Creates the trimmer of this JVM, which trims with the JDK's command and fixes glibc's trim threshold.
-  static NativeHeapTrimmer forThisJvm() {
+  static NativeHeapTrimmer create() {
     final Os os = OsUtils.getOs();
     final long jvmIntervalMilliseconds = readJvmIntervalMilliseconds();
     final long seconds = Long.getLong(INTERVAL_PROPERTY, DEFAULT_INTERVAL_SECONDS);
-    return create(os, jvmIntervalMilliseconds, seconds, NativeHeapTrimmer::trimThisJvm, NativeHeapTrimmer::fixGlibcTrimThreshold);
+    return of(os, jvmIntervalMilliseconds, seconds, NativeHeapTrimmer::trimThisJvm, NativeHeapTrimmer::fixGlibcTrimThreshold);
   }
 
   @VisibleForTesting
-  static NativeHeapTrimmer create(
+  static NativeHeapTrimmer of(
     final Os os,
     final long jvmIntervalMilliseconds,
     final long seconds,
@@ -150,8 +150,8 @@ final class NativeHeapTrimmer implements AutoCloseable {
     try {
       running.join();
     } catch (final InterruptedException exception) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
     }
   }
 

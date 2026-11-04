@@ -85,8 +85,8 @@ public final class ExecutorUtils {
 
       return false;
     } catch (final InterruptedException exception) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
       service.shutdownNow();
 
       return false;

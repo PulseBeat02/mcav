@@ -153,20 +153,20 @@ final class NativeHeapTrimmerTest {
   @Test
   void shouldTrimOnlyOnLinuxInAJvmThatDoesNotTrimItselfAtAPositiveInterval() {
     final Runnable nothing = () -> {};
-    final NativeHeapTrimmer trimming = NativeHeapTrimmer.create(Os.LINUX, 0L, TRIM_INTERVAL_SECONDS, nothing, nothing);
+    final NativeHeapTrimmer trimming = NativeHeapTrimmer.of(Os.LINUX, 0L, TRIM_INTERVAL_SECONDS, nothing, nothing);
     trimming.start();
     final boolean trims = trimming.isTrimming();
     trimming.close();
 
     assertTrue(trims);
-    assertNeverTrims(NativeHeapTrimmer.create(Os.WINDOWS, 0L, TRIM_INTERVAL_SECONDS, nothing, nothing), "off Linux");
-    assertNeverTrims(NativeHeapTrimmer.create(Os.LINUX, 1L, TRIM_INTERVAL_SECONDS, nothing, nothing), "in a JVM that trims itself");
+    assertNeverTrims(NativeHeapTrimmer.of(Os.WINDOWS, 0L, TRIM_INTERVAL_SECONDS, nothing, nothing), "off Linux");
+    assertNeverTrims(NativeHeapTrimmer.of(Os.LINUX, 1L, TRIM_INTERVAL_SECONDS, nothing, nothing), "in a JVM that trims itself");
     assertNeverTrims(
-      NativeHeapTrimmer.create(Os.LINUX, NativeHeapTrimmer.NO_JVM_INTERVAL, TRIM_INTERVAL_SECONDS, nothing, nothing),
+      NativeHeapTrimmer.of(Os.LINUX, NativeHeapTrimmer.NO_JVM_INTERVAL, TRIM_INTERVAL_SECONDS, nothing, nothing),
       "in a JVM other than HotSpot"
     );
-    assertNeverTrims(NativeHeapTrimmer.create(Os.LINUX, 0L, 0L, nothing, nothing), "turned off");
-    assertNeverTrims(NativeHeapTrimmer.create(Os.LINUX, 0L, -1L, nothing, nothing), "turned off by a negative interval");
+    assertNeverTrims(NativeHeapTrimmer.of(Os.LINUX, 0L, 0L, nothing, nothing), "turned off");
+    assertNeverTrims(NativeHeapTrimmer.of(Os.LINUX, 0L, -1L, nothing, nothing), "turned off by a negative interval");
   }
 
   @Test
@@ -174,17 +174,17 @@ final class NativeHeapTrimmerTest {
     final Runnable nothing = () -> {};
     final AtomicInteger fixes = new AtomicInteger();
     final Runnable fix = fixes::incrementAndGet;
-    final NativeHeapTrimmer trimming = NativeHeapTrimmer.create(Os.LINUX, 0L, TRIM_INTERVAL_SECONDS, nothing, fix);
+    final NativeHeapTrimmer trimming = NativeHeapTrimmer.of(Os.LINUX, 0L, TRIM_INTERVAL_SECONDS, nothing, fix);
     final int created = fixes.get();
     trimming.start();
     final int started = fixes.get();
     trimming.close();
     for (final NativeHeapTrimmer never : List.of(
-      NativeHeapTrimmer.create(Os.WINDOWS, 0L, TRIM_INTERVAL_SECONDS, nothing, fix),
-      NativeHeapTrimmer.create(Os.LINUX, 1L, TRIM_INTERVAL_SECONDS, nothing, fix),
-      NativeHeapTrimmer.create(Os.LINUX, NativeHeapTrimmer.NO_JVM_INTERVAL, TRIM_INTERVAL_SECONDS, nothing, fix),
-      NativeHeapTrimmer.create(Os.LINUX, 0L, 0L, nothing, fix),
-      NativeHeapTrimmer.create(Os.LINUX, 0L, -1L, nothing, fix)
+      NativeHeapTrimmer.of(Os.WINDOWS, 0L, TRIM_INTERVAL_SECONDS, nothing, fix),
+      NativeHeapTrimmer.of(Os.LINUX, 1L, TRIM_INTERVAL_SECONDS, nothing, fix),
+      NativeHeapTrimmer.of(Os.LINUX, NativeHeapTrimmer.NO_JVM_INTERVAL, TRIM_INTERVAL_SECONDS, nothing, fix),
+      NativeHeapTrimmer.of(Os.LINUX, 0L, 0L, nothing, fix),
+      NativeHeapTrimmer.of(Os.LINUX, 0L, -1L, nothing, fix)
     )) {
       never.start();
       never.close();
@@ -370,8 +370,8 @@ final class NativeHeapTrimmerTest {
       trimmer.start();
       started = trimStarted.await(TIMEOUT_SECONDS, TimeUnit.SECONDS);
       thread = trimmingThread().orElseThrow();
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
       trimmer.close();
       interrupted = Thread.interrupted();
       aliveAfterClose = thread.isAlive();
@@ -400,10 +400,10 @@ final class NativeHeapTrimmerTest {
     final String previous = System.getProperty(NativeHeapTrimmer.INTERVAL_PROPERTY);
     try {
       System.setProperty(NativeHeapTrimmer.INTERVAL_PROPERTY, "0");
-      assertNeverTrims(NativeHeapTrimmer.forThisJvm(), "the property turns trimming off");
+      assertNeverTrims(NativeHeapTrimmer.create(), "the property turns trimming off");
 
       System.clearProperty(NativeHeapTrimmer.INTERVAL_PROPERTY);
-      final NativeHeapTrimmer trimmer = NativeHeapTrimmer.forThisJvm();
+      final NativeHeapTrimmer trimmer = NativeHeapTrimmer.create();
       trimmer.start();
       final boolean trimming = trimmer.isTrimming();
       trimmer.close();
@@ -429,7 +429,7 @@ final class NativeHeapTrimmerTest {
       FunctionDescriptor.of(ValueLayout.ADDRESS, ValueLayout.JAVA_LONG)
     );
     final MethodHandle free = linker.downcallHandle(library.find("free").orElseThrow(), FunctionDescriptor.ofVoid(ValueLayout.ADDRESS));
-    final NativeHeapTrimmer trimmer = NativeHeapTrimmer.forThisJvm();
+    final NativeHeapTrimmer trimmer = NativeHeapTrimmer.create();
     final long before;
     final long after;
     trimmer.start();
@@ -499,7 +499,7 @@ final class NativeHeapTrimmerTest {
     try (final MockedStatic<ManagementFactory> factory = mockStatic(ManagementFactory.class, CALLS_REAL_METHODS)) {
       factory.when(() -> ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean.class)).thenReturn(trimmingItself);
       interval = NativeHeapTrimmer.readJvmIntervalMilliseconds();
-      trimmer = NativeHeapTrimmer.forThisJvm();
+      trimmer = NativeHeapTrimmer.create();
     }
 
     assertEquals(5000L, interval);
@@ -514,13 +514,13 @@ final class NativeHeapTrimmerTest {
     final IllegalArgumentException noBean = new IllegalArgumentException("not a platform management interface!");
     try (final MockedStatic<ManagementFactory> factory = mockStatic(ManagementFactory.class, CALLS_REAL_METHODS)) {
       factory.when(() -> ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean.class)).thenReturn(null);
-      assertNeverTrims(NativeHeapTrimmer.forThisJvm(), "a JVM without HotSpot's diagnostic bean");
+      assertNeverTrims(NativeHeapTrimmer.create(), "a JVM without HotSpot's diagnostic bean");
 
       factory.when(() -> ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean.class)).thenReturn(withoutTheOption);
-      assertNeverTrims(NativeHeapTrimmer.forThisJvm(), "a JVM without the option of HotSpot's own trims");
+      assertNeverTrims(NativeHeapTrimmer.create(), "a JVM without the option of HotSpot's own trims");
 
       factory.when(() -> ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean.class)).thenThrow(noBean);
-      assertNeverTrims(NativeHeapTrimmer.forThisJvm(), "a JVM that does not know HotSpot's diagnostic bean");
+      assertNeverTrims(NativeHeapTrimmer.create(), "a JVM that does not know HotSpot's diagnostic bean");
     }
   }
 

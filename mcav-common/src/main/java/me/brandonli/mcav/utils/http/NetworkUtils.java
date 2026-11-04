@@ -238,7 +238,7 @@ public final class NetworkUtils {
   }
 
   private static void restoreInterruptFlag() {
-    final Thread currentThread = Thread.currentThread();
-    currentThread.interrupt();
+    final Thread current = Thread.currentThread();
+    current.interrupt();
   }
 }

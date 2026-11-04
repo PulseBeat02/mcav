@@ -88,7 +88,7 @@ public final class MCAV implements MCAVApi {
     this.guard = guard;
     this.installing = new AtomicBoolean(false);
     this.lifecycleLock = new Object();
-    this.trimmer = NativeHeapTrimmer.forThisJvm();
+    this.trimmer = NativeHeapTrimmer.create();
   }
 
   /**

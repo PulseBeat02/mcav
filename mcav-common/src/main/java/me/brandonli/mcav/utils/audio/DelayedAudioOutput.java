@@ -302,7 +302,7 @@ public final class DelayedAudioOutput implements AutoCloseable {
       if (next != null && next.due() - now <= 0) {
         return this.takeDue(next, now);
       }
-      final ByteBuffer silence = this.silence(now, next);
+      final ByteBuffer silence = this.takeSilence(now, next);
       if (silence != null) {
         return silence;
       }
@@ -332,7 +332,7 @@ public final class DelayedAudioOutput implements AutoCloseable {
     return samples;
   }
 
-  private @Nullable ByteBuffer silence(final long now, final @Nullable Chunk next) {
+  private @Nullable ByteBuffer takeSilence(final long now, final @Nullable Chunk next) {
     if (this.silenceLeftNanoseconds <= 0 || this.streamEnd - now > 0) {
       return null;
     }
@@ -412,19 +412,19 @@ public final class DelayedAudioOutput implements AutoCloseable {
       this.notifyAll();
     }
 
-    final Thread current = this.thread;
-    final Thread caller = Thread.currentThread();
-    if (current.equals(caller)) {
+    final Thread outputThread = this.thread;
+    final Thread current = Thread.currentThread();
+    if (outputThread.equals(current)) {
       return;
     }
 
     try {
-      current.join(this.joinTimeoutMilliseconds);
+      outputThread.join(this.joinTimeoutMilliseconds);
     } catch (final InterruptedException exception) {
-      caller.interrupt();
+      current.interrupt();
     }
 
-    current.interrupt();
+    outputThread.interrupt();
   }
 
   @VisibleForTesting

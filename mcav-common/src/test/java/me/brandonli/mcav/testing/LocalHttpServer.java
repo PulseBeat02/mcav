@@ -251,8 +251,8 @@ public final class LocalHttpServer implements AutoCloseable {
     try (final OutputStream output = exchange.getResponseBody()) {
       this.trickleBody(output, response);
     } catch (final InterruptedException exception) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
     }
   }
 
@@ -281,8 +281,8 @@ public final class LocalHttpServer implements AutoCloseable {
       try {
         opened = gate.await(10, TimeUnit.MILLISECONDS);
       } catch (final InterruptedException exception) {
-        final Thread currentThread = Thread.currentThread();
-        currentThread.interrupt();
+        final Thread current = Thread.currentThread();
+        current.interrupt();
         return;
       }
     }
@@ -294,8 +294,8 @@ public final class LocalHttpServer implements AutoCloseable {
     try {
       return this.closing.await(MAXIMUM_WAIT_SECONDS, TimeUnit.SECONDS);
     } catch (final InterruptedException exception) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
 
       return true;
     }

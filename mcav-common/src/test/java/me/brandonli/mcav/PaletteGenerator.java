@@ -25,7 +25,7 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.MapPa
 
 public final class PaletteGenerator {
 
-  private static final String OUTPUT = "palette.png";
+  private static final String OUTPUT_FILE_NAME = "palette.png";
 
   private PaletteGenerator() {}
 
@@ -40,7 +40,7 @@ public final class PaletteGenerator {
       image.setRGB(column, row, color);
     }
 
-    final File file = new File(OUTPUT);
+    final File file = new File(OUTPUT_FILE_NAME);
     ImageIO.write(image, "png", file);
   }
 }

@@ -1183,8 +1183,8 @@ final class IoUtilsTest {
     final Path target = this.directory.resolve(TARGET_NAME);
     final AccessDeniedException denied = new AccessDeniedException(TARGET_NAME);
     final AtomicInteger attempts = new AtomicInteger();
-    final Thread currentThread = Thread.currentThread();
-    currentThread.interrupt();
+    final Thread current = Thread.currentThread();
+    current.interrupt();
     final InterruptedIOException thrown = assertThrows(InterruptedIOException.class, () ->
       IoUtils.moveReplacing(source, target, (_, _, _) -> this.countAttemptAndFail(attempts, denied), SHORT_RETRY_DELAY)
     );

@@ -209,8 +209,8 @@ public final class IoUtils {
   public static boolean createDirectoryIfNotExists(final Path path) {
     Preconditions.checkNotNull(path, PATH_NULL_MESSAGE);
 
-    final boolean exists = Files.isDirectory(path);
-    if (exists) {
+    final boolean directoryExists = Files.isDirectory(path);
+    if (directoryExists) {
       return false;
     }
 
@@ -382,8 +382,9 @@ public final class IoUtils {
       final Duration delay = retryDelay.multipliedBy(attempt);
       Thread.sleep(delay);
     } catch (final InterruptedException exception) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+
       final String message = "Interrupted while waiting to retry a denied move!";
       final InterruptedIOException interrupted = new InterruptedIOException(message);
       interrupted.initCause(failure);

@@ -113,8 +113,8 @@ final class IdleTimeoutInputStreamTest {
   void shouldStopWaitingWhenInterrupted() throws IOException {
     final BlockingSource source = new BlockingSource();
     try (final IdleTimeoutInputStream stream = new IdleTimeoutInputStream(source, GENEROUS_TIMEOUT)) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
       final InterruptedIOException thrown = assertThrows(InterruptedIOException.class, stream::read);
       final boolean interrupted = Thread.interrupted();
       assertTrue(interrupted, "the interrupt must be restored");
@@ -197,8 +197,8 @@ final class IdleTimeoutInputStreamTest {
       try {
         closedInTime = this.closed.await(1, TimeUnit.MINUTES);
       } catch (final InterruptedException exception) {
-        final Thread currentThread = Thread.currentThread();
-        currentThread.interrupt();
+        final Thread current = Thread.currentThread();
+        current.interrupt();
 
         final String message = "interrupted!";
         throw new InterruptedIOException(message);
