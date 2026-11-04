@@ -67,6 +67,9 @@ final class NetworkUtilsTest {
   private static final String OLD_PATH = "/old";
   private static final String NEW_PATH = "/new";
 
+  private static final String RELATIVE_ADDRESS_PATH = "relative/ip";
+  private static final String RELATIVE_PACK_PATH = "relative/pack.zip";
+
   private LocalHttpServer http;
 
   @BeforeEach
@@ -167,7 +170,7 @@ final class NetworkUtilsTest {
   @Test
   void shouldRejectAddressServicesThatAreNotHttpUris() {
     final URI ftp = URI.create("ftp://127.0.0.1/ip");
-    final URI relative = URI.create("relative/ip");
+    final URI relative = URI.create(RELATIVE_ADDRESS_PATH);
     final URI withoutHost = URI.create("http:///ip");
     assertThrows(IllegalArgumentException.class, () -> NetworkUtils.lookUpPublicAddress(ftp));
     assertThrows(IllegalArgumentException.class, () -> NetworkUtils.lookUpPublicAddress(relative));
@@ -236,7 +239,7 @@ final class NetworkUtilsTest {
   @Test
   void shouldRejectUrlsThatAreNotReachableHttpResources() throws IOException {
     final URI ftp = URI.create("ftp://127.0.0.1/pack.zip");
-    final URI relative = URI.create("relative/pack.zip");
+    final URI relative = URI.create(RELATIVE_PACK_PATH);
     final URI withoutHost = URI.create("http:///pack.zip");
     final URI closed = closedPortUri();
     final boolean ftpReachable = NetworkUtils.isReachable(ftp);

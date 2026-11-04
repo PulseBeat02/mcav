@@ -137,6 +137,7 @@ final class IoUtilsTest {
   private static final String NAMED_FILE_NAME = "name.txt";
   private static final String NEW_FILE_NAME = "new.txt";
   private static final String REPLACED_FILE_NAME = "target.txt";
+  private static final String URL_FILE_NAME = "clip.mp4";
   private static final String SOURCE_NAME = "source";
   private static final String TARGET_NAME = "target";
   private static final String TREE_DIRECTORY = "tree";
@@ -231,7 +232,7 @@ final class IoUtilsTest {
     final String directoryUrl = IoUtils.getFileNameFromUrl("https://example.com/videos/");
     final String noPath = IoUtils.getFileNameFromUrl("https://example.com");
     final String opaque = IoUtils.getFileNameFromUrl("mailto:someone@example.com");
-    assertEquals("clip.mp4", file);
+    assertEquals(URL_FILE_NAME, file);
     assertEquals("", directoryUrl);
     assertEquals("", noPath);
     assertEquals("", opaque);
