@@ -30,14 +30,18 @@ final class ExampleResources implements AutoCloseable {
 
   private static final Equivalence<Object> IDENTITY = Equivalence.identity();
 
-  private final Deque<Runnable> releases = new ArrayDeque<>();
-  private final Runtime runtime = Runtime.getRuntime();
+  private final Deque<Runnable> releases;
+  private final Runtime runtime;
   private final Thread shutdownHook;
+  private final CompletableFuture<Void> completion;
+
   private boolean closed;
   private @Nullable Thread closingThread;
-  private final CompletableFuture<Void> completion = new CompletableFuture<>();
 
   ExampleResources() {
+    this.releases = new ArrayDeque<>();
+    this.runtime = Runtime.getRuntime();
+    this.completion = new CompletableFuture<>();
     this.shutdownHook = new Thread(this::close, "mcav-example-shutdown");
     this.runtime.addShutdownHook(this.shutdownHook);
   }

@@ -66,29 +66,6 @@ public final class ModuleLoader {
   }
 
   /**
-   * Returns a started module.
-   *
-   * @param moduleClass  the class of the module
-   * @param <ModuleType> the type of the module
-   * @return the module
-   * @throws ModuleException      if no module of that class was started
-   * @throws NullPointerException if {@code moduleClass} is null
-   * @since 1.0.0
-   */
-  public <ModuleType extends MCAVModule> ModuleType getModule(final Class<ModuleType> moduleClass) {
-    Preconditions.checkNotNull(moduleClass, MODULE_CLASS_NULL_MESSAGE);
-
-    final MCAVModule module = this.modules.get(moduleClass);
-    if (module == null) {
-      final String name = moduleClass.getSimpleName();
-      final String message = "Module %s is not installed!".formatted(name);
-      throw new ModuleException(message);
-    }
-
-    return moduleClass.cast(module);
-  }
-
-  /**
    * Creates and starts the specified modules. Every class is checked before the first module is created, so an
    * invalid class never leaves some of the modules started. Classes whose module was started before are skipped.
    *
@@ -199,6 +176,29 @@ public final class ModuleLoader {
 
     this.startOrder.clear();
     this.modules.clear();
+  }
+
+  /**
+   * Returns a started module.
+   *
+   * @param moduleClass  the class of the module
+   * @param <ModuleType> the type of the module
+   * @return the module
+   * @throws ModuleException      if no module of that class was started
+   * @throws NullPointerException if {@code moduleClass} is null
+   * @since 1.0.0
+   */
+  public <ModuleType extends MCAVModule> ModuleType getModule(final Class<ModuleType> moduleClass) {
+    Preconditions.checkNotNull(moduleClass, MODULE_CLASS_NULL_MESSAGE);
+
+    final MCAVModule module = this.modules.get(moduleClass);
+    if (module == null) {
+      final String name = moduleClass.getSimpleName();
+      final String message = "Module %s is not installed!".formatted(name);
+      throw new ModuleException(message);
+    }
+
+    return moduleClass.cast(module);
   }
 
   /**

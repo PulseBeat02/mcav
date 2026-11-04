@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.utils;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.gson.Gson;
@@ -51,7 +53,6 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -122,7 +123,6 @@ public final class IoUtils {
 
   private static final String SHA_256 = "SHA-256";
   private static final String SHA_1 = "SHA-1";
-  private static final int HEXADECIMAL_DIGITS_PER_BYTE = 2;
 
   private static final int UNSIGNED_BYTE_MASK = 0xFF;
   private static final int BITS_PER_BYTE = 8;
@@ -468,17 +468,8 @@ public final class IoUtils {
   public static String bytesToHexadecimal(final byte[] bytes) {
     Preconditions.checkNotNull(bytes, "Bytes must not be null!");
 
-    final StringBuilder hexadecimal = new StringBuilder(bytes.length * HEXADECIMAL_DIGITS_PER_BYTE);
-    for (final byte value : bytes) {
-      final int unsigned = value & UNSIGNED_BYTE_MASK;
-      final String digits = Integer.toHexString(unsigned);
-      if (digits.length() == 1) {
-        hexadecimal.append('0');
-      }
-      hexadecimal.append(digits);
-    }
-
-    return hexadecimal.toString();
+    final HexFormat hexadecimal = HexFormat.of();
+    return hexadecimal.formatHex(bytes);
   }
 
   /**
@@ -529,6 +520,7 @@ public final class IoUtils {
     final Path destination = cache.resolve(fileName);
     final URI uri = URI.create(url);
     HttpDownloader.download(uri, destination, MAXIMUM_IMAGE_BYTES);
+
     return destination;
   }
 
@@ -555,7 +547,7 @@ public final class IoUtils {
   @VisibleForTesting
   static Path getCachedFolder(final Predicate<Path> executable, final AtomicBoolean fallbackReported) {
     final @Nullable String homeOrNull = System.getProperty(USER_HOME_PROPERTY);
-    final String home = Objects.requireNonNull(homeOrNull, "The JVM always sets the user home!");
+    final String home = requireNonNull(homeOrNull, "The JVM always sets the user home!");
     final Path homeCache = Path.of(home, CACHE_ROOT, CACHE_DIRECTORY);
     final boolean usable = createUsableDirectory(homeCache, executable);
     if (usable) {
@@ -563,7 +555,7 @@ public final class IoUtils {
     }
 
     final @Nullable String temporaryOrNull = System.getProperty(TEMPORARY_DIRECTORY_PROPERTY);
-    final String temporary = Objects.requireNonNull(temporaryOrNull, "The JVM always sets the temporary directory!");
+    final String temporary = requireNonNull(temporaryOrNull, "The JVM always sets the temporary directory!");
     final Path temporaryCache = Path.of(temporary, TEMPORARY_CACHE_ROOT, CACHE_DIRECTORY);
     final boolean firstFallback = fallbackReported.compareAndSet(false, true);
     if (firstFallback) {
@@ -571,6 +563,7 @@ public final class IoUtils {
     }
 
     createDirectoryIfNotExists(temporaryCache);
+
     return temporaryCache.toAbsolutePath();
   }
 
@@ -852,11 +845,12 @@ public final class IoUtils {
       }
 
       Files.createDirectories(target);
+
       return 0;
     }
 
     final Path parentOrNull = target.getParent();
-    final Path parent = Objects.requireNonNull(parentOrNull, "An entry inside the destination always has a parent!");
+    final Path parent = requireNonNull(parentOrNull, "An entry inside the destination always has a parent!");
     Files.createDirectories(parent);
     return writeZipEntry(zip, target, name, maximumEntrySize, remainingTotalSize);
   }
@@ -981,7 +975,7 @@ public final class IoUtils {
   @FunctionalInterface
   @VisibleForTesting
   interface FileMover {
-    void move(Path source, Path target, CopyOption... options) throws IOException;
+    void move(final Path source, final Path target, final CopyOption... options) throws IOException;
   }
 
   private record DownloadFields(PlatformFields platform, String url, @Nullable String hash) {}

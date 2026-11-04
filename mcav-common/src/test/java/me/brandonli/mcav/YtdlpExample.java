@@ -30,12 +30,16 @@ import me.brandonli.mcav.media.source.uri.UriSource;
 
 public final class YtdlpExample {
 
-  private YtdlpExample() {}
+  private YtdlpExample() {
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
+  }
 
   static void main() throws IOException {
     final MCAVApi api = MCAV.api();
     try {
       api.install();
+
       final CompletableFuture<Boolean> ready = api.whenCapabilityReady(Capability.YT_DLP);
       final boolean available = ready.join();
       if (!available) {

@@ -186,7 +186,9 @@ final class NativeHeapTrimmer implements AutoCloseable {
 
   @VisibleForTesting
   static boolean fixGlibcTrimThreshold() {
-    return fixGlibcTrimThreshold(Linker.nativeLinker().defaultLookup());
+    final Linker linker = Linker.nativeLinker();
+    final SymbolLookup lookup = linker.defaultLookup();
+    return fixGlibcTrimThreshold(lookup);
   }
 
   @VisibleForTesting
@@ -199,7 +201,9 @@ final class NativeHeapTrimmer implements AutoCloseable {
     }
 
     final FunctionDescriptor descriptor = FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT, ValueLayout.JAVA_INT);
-    return setTrimThreshold(Linker.nativeLinker().downcallHandle(malloptAddress, descriptor));
+    final Linker linker = Linker.nativeLinker();
+    final MethodHandle malloptHandle = linker.downcallHandle(malloptAddress, descriptor);
+    return setTrimThreshold(malloptHandle);
   }
 
   @VisibleForTesting

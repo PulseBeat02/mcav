@@ -96,7 +96,7 @@ public final class DependencyLoader {
   private static final String CACHE_FOLDER = "javacpp";
 
   private final Set<Capability> capabilities;
-  private final Map<Capability, Object> preparations = new EnumMap<>(Capability.class);
+  private final Map<Capability, Object> preparations;
   private final Logger logger;
   private final Predicate<String> systemLibraries;
   private final Supplier<DebianLibraryInstaller> gtk2Installers;
@@ -123,6 +123,7 @@ public final class DependencyLoader {
     final Set<Capability> every = EnumSet.allOf(Capability.class);
     available.addAll(every);
     this.capabilities = available;
+    this.preparations = new EnumMap<>(Capability.class);
     this.logger = logger;
     this.systemLibraries = systemLibraries;
     this.gtk2Installers = gtk2Installers;

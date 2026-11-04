@@ -45,7 +45,7 @@ public final class SwingVideoWindow implements AutoCloseable {
 
   private final JLabel label;
   private final JFrame frame;
-  private final CountDownLatch closed = new CountDownLatch(1);
+  private final CountDownLatch closed;
 
   // Creates an exit-on-close window. Call this constructor on the Swing event dispatch thread; the examples use
   // open(String, int, int) to create a disposable window safely from their main thread.
@@ -54,10 +54,12 @@ public final class SwingVideoWindow implements AutoCloseable {
   }
 
   private SwingVideoWindow(final String title, final int width, final int height, final int closeOperation) {
+    this.closed = new CountDownLatch(1);
     this.frame = new JFrame(title);
     try {
       this.frame.setDefaultCloseOperation(closeOperation);
       this.frame.setSize(width, height);
+
       this.label = new JLabel();
       final Dimension size = new Dimension(width, height);
       this.label.setPreferredSize(size);
@@ -65,14 +67,18 @@ public final class SwingVideoWindow implements AutoCloseable {
       this.label.setVerticalAlignment(JLabel.CENTER);
       this.label.setBackground(Color.BLACK);
       this.label.setOpaque(true);
+
       final BorderLayout layout = new BorderLayout();
       this.frame.setLayout(layout);
       this.frame.add(this.label, BorderLayout.CENTER);
+
       final WindowAdapter listener = new ClosingListener(this.closed);
       this.frame.addWindowListener(listener);
+
       this.frame.setVisible(true);
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
+
       try {
         this.frame.dispose();
       } catch (final RuntimeException | Error cleanupException) {
@@ -99,6 +105,7 @@ public final class SwingVideoWindow implements AutoCloseable {
     } catch (final CompletionException exception) {
       final Throwable cause = result.exceptionNow();
       ThrowableUtils.throwIfFatal(cause);
+
       throw exception;
     }
   }

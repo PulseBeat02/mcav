@@ -95,6 +95,7 @@ public final class Images {
 
     try (final ByteArrayOutputStream output = new ByteArrayOutputStream()) {
       final boolean written = ImageIO.write(image, format, output);
+
       Preconditions.checkArgument(written, "Format %s cannot be written by ImageIO!", format);
 
       return output.toByteArray();

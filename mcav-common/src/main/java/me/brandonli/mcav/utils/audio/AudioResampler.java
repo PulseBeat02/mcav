@@ -97,6 +97,7 @@ public final class AudioResampler implements AutoCloseable {
   private final AVChannelLayout inputLayout;
   private final AVChannelLayout outputLayout;
   private final SwrContext context;
+
   private boolean closed;
 
   // Package-private so a test can pass a sample rate that create refuses, see configure.
@@ -272,6 +273,7 @@ public final class AudioResampler implements AutoCloseable {
    */
   public byte[] flush() {
     this.ensureOpen();
+
     try (final PointerPointer<BytePointer> noInput = new PointerPointer<>()) {
       final byte[] remaining = this.convert(noInput, NO_INPUT_FRAMES);
       final int reset = swresample.swr_init(this.context);

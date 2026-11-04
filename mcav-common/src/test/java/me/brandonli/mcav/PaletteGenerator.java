@@ -32,7 +32,10 @@ public final class PaletteGenerator {
   private static final int GRID_SIDE = 16;
   private static final int COLOR_LIMIT = GRID_SIDE * GRID_SIDE;
 
-  private PaletteGenerator() {}
+  private PaletteGenerator() {
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
+  }
 
   static void main() throws IOException {
     final int[] colors = MapPaletteLoader.getColors();

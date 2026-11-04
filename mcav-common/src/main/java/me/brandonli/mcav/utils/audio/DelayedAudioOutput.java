@@ -207,6 +207,7 @@ public final class DelayedAudioOutput implements AutoCloseable {
       MAXIMUM_QUEUED_MILLISECONDS,
       maximumQueuedMilliseconds
     );
+
     final DelayedAudioOutput output = new DelayedAudioOutput(
       source,
       delayMilliseconds,
@@ -221,6 +222,7 @@ public final class DelayedAudioOutput implements AutoCloseable {
     thread.setDaemon(true);
     output.thread = thread;
     thread.start();
+
     return output;
   }
 

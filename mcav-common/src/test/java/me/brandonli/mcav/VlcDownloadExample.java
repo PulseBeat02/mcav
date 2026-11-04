@@ -26,7 +26,10 @@ public final class VlcDownloadExample {
 
   private static final String VLC_DOWNLOADS_RESOURCE = "mcav/common/installers/vlc.json";
 
-  private VlcDownloadExample() {}
+  private VlcDownloadExample() {
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
+  }
 
   static void main() {
     final Download[] downloads = ReleasePackageManager.readVlcDownloadsFromJsonResource(VLC_DOWNLOADS_RESOURCE);

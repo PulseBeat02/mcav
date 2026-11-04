@@ -41,7 +41,10 @@ public final class FfmpegPlayerExample {
   private static final long PLAY_BEFORE_PAUSE_SECONDS = 5L;
   private static final long PAUSE_SECONDS = 3L;
 
-  private FfmpegPlayerExample() {}
+  private FfmpegPlayerExample() {
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
+  }
 
   static void main() throws InterruptedException {
     try (final ExampleResources resources = new ExampleResources()) {
@@ -51,6 +54,7 @@ public final class FfmpegPlayerExample {
 
       final SwingVideoWindow window = SwingVideoWindow.open("FFmpeg Player", WIDTH, HEIGHT);
       resources.add(window::close);
+
       final DirectAudioOutput speakers = new DirectAudioOutput();
       resources.add(speakers::release);
       speakers.start();
@@ -68,14 +72,17 @@ public final class FfmpegPlayerExample {
 
       final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
       resources.add(player::release);
+
       final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
       videoCallback.attach(videoPipeline);
+
       final AudioAttachableCallback audioCallback = player.getAudioAttachableCallback();
       audioCallback.attach(audioPipeline);
 
       final URI uri = URI.create("https://github.com/mediaelement/mediaelement-files/raw/refs/heads/master/big_buck_bunny.mp4");
       final UriSource source = UriSource.uri(uri);
       final boolean started = player.start(source);
+
       if (!started) {
         final String message = "Playback could not start!";
         throw new IllegalStateException(message);

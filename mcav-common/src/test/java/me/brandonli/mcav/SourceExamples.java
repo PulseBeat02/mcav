@@ -26,7 +26,10 @@ public final class SourceExamples {
 
   private static final String LOCAL_FILE_PATH = "C:\\rickroll.mp4";
 
-  private SourceExamples() {}
+  private SourceExamples() {
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
+  }
 
   static void main() {
     final SourceDetectionHelper helper = new SourceDetectionHelper();

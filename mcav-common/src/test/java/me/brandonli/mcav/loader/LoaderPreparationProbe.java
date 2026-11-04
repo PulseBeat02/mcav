@@ -25,7 +25,10 @@ import org.slf4j.Logger;
 
 public final class LoaderPreparationProbe {
 
-  private LoaderPreparationProbe() {}
+  private LoaderPreparationProbe() {
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
+  }
 
   public static DependencyLoader vlc(final Logger logger, final Runnable prepare) {
     final DependencyLoader loader = Mockito.spy(new DependencyLoader(logger));

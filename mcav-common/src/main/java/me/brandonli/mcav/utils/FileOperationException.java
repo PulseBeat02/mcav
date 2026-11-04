@@ -25,7 +25,7 @@ import me.brandonli.mcav.MCAVException;
  *
  * @since 1.0.0
  */
-public class FileOperationException extends MCAVException {
+public final class FileOperationException extends MCAVException {
 
   @Serial
   private static final long serialVersionUID = -6702157830557423686L;
