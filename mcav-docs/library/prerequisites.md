@@ -53,13 +53,13 @@ listed, because Java 25, which MCAV needs, has no port for it.
 On Windows and macOS the download is VLC 3.0.24 from VideoLAN, checked against the SHA-256 hash MCAV ships. VideoLAN
 publishes no Linux build, so on x86-64 and ARM64 Linux MCAV installs the Debian 12 (bookworm) packages of VLC 3.0.23:
 `libvlc5`, `libvlccore9` and `vlc-plugin-base` with every library they depend on, apart from the C and C++ runtimes of
-the system. Each package comes from the bookworm archive or its security updates on `snapshot.debian.org`, whichever has
-the newer version, and is checked against the SHA-256 hash MCAV ships. MCAV unpacks the packages itself into the cache
-folder, without `dpkg`, a package manager or administrator rights, and loads their libraries in dependency order before
-VLC. The libraries need glibc 2.36 or newer; on an older system, install VLC from your distribution instead
-(`apt install vlc`, `dnf install vlc`): MCAV then uses that VLC and downloads nothing. [Compiling MCAV](compile.md)
-describes how to regenerate the pinned
-packages.
+the system. Each package comes from the bookworm archive or its security updates, whichever has the newer version. MCAV
+downloads it from `deb.debian.org`, or from `snapshot.debian.org` when that download fails, for example because Debian
+no longer carries that version or your machine cannot reach `deb.debian.org`. Either way, MCAV checks it against the
+SHA-256 hash MCAV ships. MCAV unpacks the packages itself into the cache folder, without `dpkg`, a package manager or
+administrator rights, and loads their libraries in dependency order before VLC. The libraries need glibc 2.36 or newer;
+on an older system, install VLC from your distribution instead (`apt install vlc`, `dnf install vlc`): MCAV then uses
+that VLC and downloads nothing. [Compiling MCAV](compile.md) describes how to regenerate the pinned packages.
 
 The library bundles FFmpeg and OpenCV for every platform marked so above. The OpenCV build differs per
 platform: the Windows and macOS builds read video files themselves, the Linux build has no file backend and only
