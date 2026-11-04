@@ -404,6 +404,28 @@ test("should start no second stream next to the new one when a stopped stream cl
     assert.equal(feeds, 1);
 });
 
+test("should play no sound that a replaced stream still delivers", () => {
+    const page = loadPage();
+    page.startPlayback();
+    page.runTimers();
+    const first = page.sockets[0];
+    first.opened();
+    page.stopPlayback();
+    page.startPlayback();
+    page.runTimers();
+    const second = page.sockets[1];
+    second.opened();
+    first.received(CHUNK_BYTES);
+
+    const lateFeeds = page.processors.at(-1).fed;
+    assert.equal(lateFeeds, 0, "the replaced stream's sound plays nowhere");
+
+    second.received(CHUNK_BYTES);
+
+    const feeds = page.processors.at(-1).fed;
+    assert.equal(feeds, 1, "the new stream's sound plays");
+});
+
 test("should let Start be pressed again after a Stop during a reconnect", () => {
     const page = loadPage();
     page.startPlayback();
