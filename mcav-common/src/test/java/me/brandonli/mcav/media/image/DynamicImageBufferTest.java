@@ -209,7 +209,7 @@ final class DynamicImageBufferTest {
     final ScriptedFfmpegGrabber grabber = new ScriptedFfmpegGrabber(first, second, third);
     final List<ImageBuffer> decoded = new ArrayList<>();
     final FfmpegDynamicImageBuffer.Animation animation = FfmpegDynamicImageBuffer.decode(path, grabber, decoded);
-    final float frameRate = animation.getFrameRate();
+    final float frameRate = animation.frameRate();
     assertEquals(1.0f, frameRate, "two frame periods fit between the first frame at one second and the last at three");
 
     decoded.forEach(ImageBuffer::release);

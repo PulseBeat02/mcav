@@ -142,6 +142,36 @@ final class FileSourceTest {
   }
 
   @Test
+  void shouldDescribeTheWritable() {
+    final Path path = Path.of(FIRST_FILE_NAME);
+    final Writable writable = Writable.path(path);
+
+    final String text = writable.toString();
+    final String expected = "DefaultWritable{path=%s}".formatted(path);
+    assertEquals(expected, text);
+  }
+
+  @Test
+  void shouldFollowTheWritableEqualityContract() {
+    final Path path = Path.of(FIRST_FILE_NAME);
+    final Path otherPath = Path.of(OTHER_FILE_NAME);
+    final Writable writable = Writable.path(path);
+    final Writable equalWritable = Writable.path(path);
+    final Writable otherWritable = Writable.path(otherPath);
+    EqualityAssertions.assertEqualityContract(writable, equalWritable, otherWritable);
+  }
+
+  @Test
+  void shouldHashTheWritablePath() {
+    final Path path = this.directory.resolve(OUTPUT_FILE_NAME);
+    final Writable writable = Writable.path(path);
+
+    final int hash = writable.hashCode();
+    final int expected = Objects.hash(path);
+    assertEquals(expected, hash);
+  }
+
+  @Test
   void shouldDetectOnlyExistingPaths() throws IOException {
     final Path existing = this.directory.resolve(EXISTING_FILE_NAME);
     Files.createFile(existing);

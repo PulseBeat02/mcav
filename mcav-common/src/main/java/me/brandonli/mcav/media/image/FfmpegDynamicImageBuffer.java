@@ -47,16 +47,16 @@ final class FfmpegDynamicImageBuffer implements DynamicImageBuffer {
   FfmpegDynamicImageBuffer(final FileSource source) {
     final Path path = source.getPath();
     final Animation animation = decode(path);
-    this.frames = animation.getFrames();
-    this.frameRate = animation.getFrameRate();
+    this.frames = animation.frames();
+    this.frameRate = animation.frameRate();
   }
 
   FfmpegDynamicImageBuffer(final UriSource source) {
     final FileSource downloaded = download(source);
     final Path path = downloaded.getPath();
     final Animation animation = decode(path);
-    this.frames = animation.getFrames();
-    this.frameRate = animation.getFrameRate();
+    this.frames = animation.frames();
+    this.frameRate = animation.frameRate();
   }
 
   private static Animation decode(final Path path) {
@@ -185,24 +185,7 @@ final class FfmpegDynamicImageBuffer implements DynamicImageBuffer {
     return this.frames.size();
   }
 
-  static final class Animation {
-
-    private final List<ImageBuffer> frames;
-    private final float frameRate;
-
-    Animation(final List<ImageBuffer> frames, final float frameRate) {
-      this.frames = frames;
-      this.frameRate = frameRate;
-    }
-
-    List<ImageBuffer> getFrames() {
-      return this.frames;
-    }
-
-    float getFrameRate() {
-      return this.frameRate;
-    }
-  }
+  record Animation(List<ImageBuffer> frames, float frameRate) {}
 
   private static final class TimestampRange {
 
