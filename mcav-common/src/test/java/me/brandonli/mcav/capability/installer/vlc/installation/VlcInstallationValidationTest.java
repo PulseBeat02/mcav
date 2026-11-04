@@ -115,7 +115,7 @@ final class VlcInstallationValidationTest {
       breakPair(directory, platform, defect);
       final Optional<Path> found = strategy.getInstalledPath();
       final boolean absent = found.isEmpty();
-      assertTrue(absent, platform + " " + defect + " cannot be accepted as an installation");
+      assertTrue(absent, "%s %s cannot be accepted as an installation".formatted(platform, defect));
     }
   }
 
@@ -151,7 +151,7 @@ final class VlcInstallationValidationTest {
       } else {
         Files.writeString(archive, "simulated archive, never executed");
       }
-      assertThrows(InstallationException.class, () -> strategy.execute(archive), platform + " " + defect);
+      assertThrows(InstallationException.class, () -> strategy.execute(archive), "%s %s".formatted(platform, defect));
       final Optional<Path> cached = strategy.getInstalledPath();
       final boolean accepted = cached.isPresent();
       assertFalse(accepted, "a failed extraction must not become an accepted cached installation");

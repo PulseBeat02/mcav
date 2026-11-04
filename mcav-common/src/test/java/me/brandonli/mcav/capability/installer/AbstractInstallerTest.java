@@ -87,6 +87,7 @@ final class AbstractInstallerTest {
 
   private static final String NAME = "tool";
   private static final String TOOL_PATH = "/tool";
+  private static final String TOOL_URL = "https://example.com/tool";
   private static final byte[] PROGRAM = "#!/bin/sh\necho tool\n".getBytes(StandardCharsets.US_ASCII);
   private static final String PROGRAM_HASH = sha256(PROGRAM);
   private static final Platform CURRENT_PLATFORM = Platform.getCurrentPlatform();
@@ -130,6 +131,10 @@ final class AbstractInstallerTest {
   private static final String TEMPORARY_CACHE_ROOT_NAME = "mcav";
 
   private static final String TEMPORARY_DIRECTORY_PROPERTY = "java.io.tmpdir";
+
+  private static final String RETAINED_CONTENT = "retained";
+
+  private static final String NOT_REMEMBERED_MESSAGE = "a failed installation is not remembered";
 
   @TempDir
   private Path folder;
@@ -202,7 +207,7 @@ final class AbstractInstallerTest {
   @Test
   void shouldResolveTheDownloadsLazilyAndOnlyOnce() {
     final AtomicInteger calls = new AtomicInteger();
-    final Download current = new Download(CURRENT_PLATFORM, "https://example.com/tool", "ab12cd");
+    final Download current = new Download(CURRENT_PLATFORM, TOOL_URL, "ab12cd");
     final TestInstaller installer = new TestInstaller(this.folder, NAME, () -> this.countAndListDownload(calls, current));
     final int callsAfterConstruction = calls.get();
     final boolean supported = installer.isSupported();
@@ -212,7 +217,7 @@ final class AbstractInstallerTest {
     final Optional<String> expected = Optional.of("ab12cd");
     assertEquals(0, callsAfterConstruction);
     assertTrue(supported);
-    assertEquals("https://example.com/tool", url);
+    assertEquals(TOOL_URL, url);
     assertEquals(expected, hash);
     assertEquals(1, callsAfterUse);
   }
@@ -511,7 +516,7 @@ final class AbstractInstallerTest {
       final boolean nothingRemembered = configuration.isEmpty();
       assertSame(chmodFailure, cause);
       assertTrue(namesTheProblem, message);
-      assertTrue(nothingRemembered, "a failed installation is not remembered");
+      assertTrue(nothingRemembered, NOT_REMEMBERED_MESSAGE);
     }
   }
 
@@ -544,9 +549,9 @@ final class AbstractInstallerTest {
       assertEquals(expectedSuppressedFile, suppressedFile);
       final Properties configuration = this.readConfiguration();
       final Properties expectedConfiguration = new Properties();
-      assertEquals(expectedConfiguration, configuration, "a failed installation is not remembered");
+      assertEquals(expectedConfiguration, configuration, NOT_REMEMBERED_MESSAGE);
       final String retained = Files.readString(destination.resolve(BUSY_FILE_NAME));
-      assertEquals("retained", retained);
+      assertEquals(RETAINED_CONTENT, retained);
     }
   }
 
@@ -555,7 +560,7 @@ final class AbstractInstallerTest {
     // A nonempty replacement makes cleanup fail on every platform without relying on OS permissions.
     Files.delete(destination);
     Files.createDirectory(destination);
-    Files.writeString(destination.resolve(BUSY_FILE_NAME), "retained");
+    Files.writeString(destination.resolve(BUSY_FILE_NAME), RETAINED_CONTENT);
     throw permissionFailure;
   }
 
@@ -626,7 +631,7 @@ final class AbstractInstallerTest {
   void shouldReportAFolderThatCannotBeCreated() throws IOException {
     final Path blocker = this.createFileInFolder(BLOCKER_FILE_NAME);
     final Path tools = blocker.resolve(TOOLS_FOLDER_NAME);
-    final Download download = new Download(CURRENT_PLATFORM, "https://example.com/tool", PROGRAM_HASH);
+    final Download download = new Download(CURRENT_PLATFORM, TOOL_URL, PROGRAM_HASH);
     final TestInstaller installer = new TestInstaller(tools, NAME, new Download[] { download });
     final InstallationException downloading = assertThrows(InstallationException.class, () -> installer.download(FileMode.EXECUTABLE));
     final InstallationException remembering = assertThrows(InstallationException.class, () -> installer.writePathToConfiguration(tools));

@@ -618,7 +618,7 @@ final class DirectoryProviderDiscoveryStrategyTest {
   }
 
   private static boolean recordVariable(final List<String> published, final SetterOutcome outcome, final String name, final String value) {
-    published.add(name + "=" + value);
+    published.add("%s=%s".formatted(name, value));
     return outcome == SetterOutcome.SUCCEEDS;
   }
 

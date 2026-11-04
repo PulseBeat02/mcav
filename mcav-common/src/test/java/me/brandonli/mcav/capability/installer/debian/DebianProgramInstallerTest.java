@@ -72,7 +72,20 @@ final class DebianProgramInstallerTest {
   private static final String LIBRARY = "usr/lib/x86_64-linux-gnu/liba.so.1";
   private static final String LIBRARY_FOLDER = "usr/lib/x86_64-linux-gnu";
   private static final String LEGACY_LIBRARY_FOLDER = "lib/x86_64-linux-gnu";
+  private static final String PROGRAM_FOLDER = "usr/bin";
+  private static final String PROGRAM_LINK = "usr/bin/tool-link";
+  private static final String FIRMWARE = "usr/share/tool/firmware.bin";
+  private static final String DOCUMENTATION_FOLDER = "usr/share/doc";
   private static final String POSIX_VIEW = "posix";
+
+  private static final String PROGRAM_ENTRY = "./usr/bin/tool";
+  private static final String PROGRAM_LINK_ENTRY = "./usr/bin/tool-link";
+  private static final String PROGRAM_LINK_TARGET = "tool";
+  private static final String LIBRARY_ENTRY = "./usr/lib/x86_64-linux-gnu/liba.so.1";
+  private static final String FIRMWARE_ENTRY = "./usr/share/tool/firmware.bin";
+  private static final String COPYRIGHT_ENTRY = "./usr/share/doc/tool/copyright";
+  private static final String SECOND_LIBRARY_ENTRY = "./usr/lib/x86_64-linux-gnu/libb.so.2";
+  private static final String LEGACY_LIBRARY_ENTRY = "./lib/x86_64-linux-gnu/libold.so.3";
 
   private static final byte[] CONTENT = "program".getBytes(StandardCharsets.US_ASCII);
 
@@ -89,16 +102,13 @@ final class DebianProgramInstallerTest {
     this.server = LocalHttpServer.start();
     this.folder = this.temporary.resolve(NAME);
     this.firstPackage = new DebianPackageBuilder()
-      .executableFile("./usr/bin/tool", CONTENT)
-      .symbolicLink("./usr/bin/tool-link", "tool")
-      .file("./usr/lib/x86_64-linux-gnu/liba.so.1", CONTENT)
-      .file("./usr/share/tool/firmware.bin", CONTENT)
-      .file("./usr/share/doc/tool/copyright", CONTENT)
+      .executableFile(PROGRAM_ENTRY, CONTENT)
+      .symbolicLink(PROGRAM_LINK_ENTRY, PROGRAM_LINK_TARGET)
+      .file(LIBRARY_ENTRY, CONTENT)
+      .file(FIRMWARE_ENTRY, CONTENT)
+      .file(COPYRIGHT_ENTRY, CONTENT)
       .build();
-    this.secondPackage = new DebianPackageBuilder()
-      .file("./usr/lib/x86_64-linux-gnu/libb.so.2", CONTENT)
-      .file("./lib/x86_64-linux-gnu/libold.so.3", CONTENT)
-      .build();
+    this.secondPackage = new DebianPackageBuilder().file(SECOND_LIBRARY_ENTRY, CONTENT).file(LEGACY_LIBRARY_ENTRY, CONTENT).build();
   }
 
   @AfterEach
@@ -115,13 +125,13 @@ final class DebianProgramInstallerTest {
     assertEquals(this.folder, root);
 
     final byte[] program = Files.readAllBytes(root.resolve(PROGRAM));
-    final byte[] linked = Files.readAllBytes(root.resolve("usr/bin/tool-link"));
-    final byte[] firmware = Files.readAllBytes(root.resolve("usr/share/tool/firmware.bin"));
+    final byte[] linked = Files.readAllBytes(root.resolve(PROGRAM_LINK));
+    final byte[] firmware = Files.readAllBytes(root.resolve(FIRMWARE));
     assertArrayEquals(CONTENT, program);
     assertArrayEquals(CONTENT, linked);
     assertArrayEquals(CONTENT, firmware);
 
-    final boolean documentation = Files.exists(root.resolve("usr/share/doc"));
+    final boolean documentation = Files.exists(root.resolve(DOCUMENTATION_FOLDER));
     assertFalse(documentation);
   }
 
@@ -223,7 +233,7 @@ final class DebianProgramInstallerTest {
   @ParameterizedTest
   @ValueSource(strings = { "", "/usr/bin", "usr/../etc", "./usr", "usr//bin", "usr/bin/", "usr\\bin" })
   void shouldRefuseATreeThatIsNotARelativePathOfFolderNames(final String tree) {
-    final List<String> trees = List.of("usr/bin", tree);
+    final List<String> trees = List.of(PROGRAM_FOLDER, tree);
     final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () ->
       DebianProgramInstaller.create(RESOURCE, NAME, trees)
     );
@@ -235,7 +245,7 @@ final class DebianProgramInstallerTest {
 
   @Test
   void shouldRefuseNullArguments() {
-    final List<String> nullTree = Arrays.asList("usr/bin", null);
+    final List<String> nullTree = Arrays.asList(PROGRAM_FOLDER, null);
     final DebianProgramInstaller installer = this.createInstaller(X86_64);
 
     final NullPointerException resource = assertThrows(NullPointerException.class, () -> DebianProgramInstaller.create(null, NAME, TREES));

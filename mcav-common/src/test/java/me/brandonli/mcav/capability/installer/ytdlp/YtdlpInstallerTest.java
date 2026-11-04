@@ -149,7 +149,7 @@ final class YtdlpInstallerTest {
     for (final Download download : downloads) {
       final Platform platform = download.getPlatform();
       final boolean added = platforms.add(platform);
-      assertTrue(added, "Only one download may be bundled for " + platform);
+      assertTrue(added, "Only one download may be bundled for %s".formatted(platform));
     }
   }
 

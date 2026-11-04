@@ -76,7 +76,8 @@ final class LinuxInstallationStrategyTest {
     final Path relativeLibraryDirectory = Path.of(PROGRAMS_DIRECTORY, LIBRARY_DIRECTORY);
     final Path expected = installDirectory.resolve(relativeLibraryDirectory);
     final Path absoluteArchive = archive.toAbsolutePath();
-    final List<String> expectedCommands = List.of(absoluteArchive + " --appimage-extract");
+    final String expectedCommand = "%s --appimage-extract".formatted(absoluteArchive);
+    final List<String> expectedCommands = List.of(expectedCommand);
     final List<Path> expectedWorkingDirectories = List.of(this.temporaryDirectory);
     assertEquals(expected, libraryDirectory);
     assertEquals(expectedCommands, commands);

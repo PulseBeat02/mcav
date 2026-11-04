@@ -47,6 +47,8 @@ final class YtdlpReleaseProcessTest {
   private static final String WAIT_MODE = "wait";
   private static final String VERSION = "2026.08.19";
 
+  private static final String DEADLINE_FAILURE_PREFIX = "yt-dlp --version did not finish";
+
   private static final String JAVA_BINARY_DIRECTORY = "bin";
   private static final String JAVA_NAME = "java";
 
@@ -59,7 +61,7 @@ final class YtdlpReleaseProcessTest {
     final AssertionFailedError failure = assertThrows(AssertionFailedError.class, () ->
       YtdlpReleaseTest.runVersion(process, VERSION_DEADLINE)
     );
-    final boolean didNotFinish = failure.getMessage().startsWith("yt-dlp --version did not finish");
+    final boolean didNotFinish = failure.getMessage().startsWith(DEADLINE_FAILURE_PREFIX);
     assertTrue(didNotFinish, failure.getMessage());
   }
 
@@ -79,7 +81,7 @@ final class YtdlpReleaseProcessTest {
     final AssertionFailedError failure = assertThrows(AssertionFailedError.class, () ->
       YtdlpReleaseTest.runVersion(process, VERSION_DEADLINE)
     );
-    final boolean didNotFinish = failure.getMessage().startsWith("yt-dlp --version did not finish");
+    final boolean didNotFinish = failure.getMessage().startsWith(DEADLINE_FAILURE_PREFIX);
     assertTrue(didNotFinish);
 
     final boolean alive = process.isAlive();
@@ -111,7 +113,7 @@ final class YtdlpReleaseProcessTest {
     final AssertionFailedError failure = assertThrows(AssertionFailedError.class, () ->
       YtdlpReleaseTest.runVersion(process, VERSION_DEADLINE)
     );
-    final boolean didNotFinish = failure.getMessage().startsWith("yt-dlp --version did not finish");
+    final boolean didNotFinish = failure.getMessage().startsWith(DEADLINE_FAILURE_PREFIX);
     assertTrue(didNotFinish);
   }
 

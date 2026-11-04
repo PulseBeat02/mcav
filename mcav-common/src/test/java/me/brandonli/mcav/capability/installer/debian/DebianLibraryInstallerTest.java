@@ -70,6 +70,7 @@ final class DebianLibraryInstallerTest {
   private static final String X86_PACKAGE = "/x86.deb";
 
   private static final String LIBRARY_FOLDER = "usr/lib/aarch64-linux-gnu";
+  private static final String X86_LIBRARY_FOLDER = "usr/lib/x86_64-linux-gnu";
   private static final String HELPER_FOLDER = "usr/lib/aarch64-linux-gnu/pulseaudio";
   private static final String LEGACY_FOLDER = "lib/aarch64-linux-gnu";
   private static final String FIRST_LIBRARY = "usr/lib/aarch64-linux-gnu/liba.so.1.0";
@@ -78,6 +79,27 @@ final class DebianLibraryInstallerTest {
   private static final String LEGACY_LIBRARY = "lib/aarch64-linux-gnu/libold.so.3";
   private static final List<String> LOAD_ORDER = List.of(FIRST_LIBRARY, HELPER_LIBRARY, SECOND_LIBRARY, LEGACY_LIBRARY);
   private static final String LOAD_ORDER_FILE = "load-order.txt";
+
+  private static final String FIRST_LIBRARY_ENTRY = "./usr/lib/aarch64-linux-gnu/liba.so.1.0";
+  private static final String FIRST_LIBRARY_LINK_ENTRY = "./usr/lib/aarch64-linux-gnu/liba.so.1";
+  private static final String FIRST_LIBRARY_LINK_TARGET = "liba.so.1.0";
+  private static final String HELPER_LIBRARY_ENTRY = "./usr/lib/aarch64-linux-gnu/pulseaudio/libhelper.so.4";
+  private static final String HELPER_FOLDER_LINK_ENTRY = "./usr/lib/aarch64-linux-gnu/linked";
+  private static final String HELPER_FOLDER_LINK_TARGET = "pulseaudio";
+  private static final String PLUGIN_ENTRY = "./usr/lib/aarch64-linux-gnu/vlc/plugins/libplugin.so";
+  private static final String README_ENTRY = "./usr/lib/aarch64-linux-gnu/README";
+  private static final String STATIC_LIBRARY_ENTRY = "./usr/lib/aarch64-linux-gnu/liba.a";
+  private static final String SECOND_LIBRARY_ENTRY = "./usr/lib/aarch64-linux-gnu/libb.so.2";
+  private static final String LEGACY_LIBRARY_ENTRY = "./lib/aarch64-linux-gnu/libold.so.3";
+  private static final String ESCAPING_LINK_ENTRY = "./usr/lib/aarch64-linux-gnu/escape";
+  private static final String ESCAPING_LINK_TARGET = "../../../..";
+
+  private static final String JUNK_FILE_NAME = "junk";
+  private static final String BLOCKER_FILE_NAME = "blocker";
+
+  private static final String VLC_RESOURCE = "mcav/common/installers/debian-vlc.json";
+  private static final String GTK2_RESOURCE = "mcav/common/installers/debian-gtk2.json";
+  private static final String FFMPEG_RESOURCE = "mcav/common/installers/debian-ffmpeg.json";
 
   private static final byte[] CONTENT = "library".getBytes(StandardCharsets.US_ASCII);
 
@@ -98,18 +120,18 @@ final class DebianLibraryInstallerTest {
     this.folder = this.temporary.resolve(NAME);
     this.loaded = new ArrayList<>();
     this.firstPackage = new DebianPackageBuilder()
-      .file("./usr/lib/aarch64-linux-gnu/liba.so.1.0", CONTENT)
-      .symbolicLink("./usr/lib/aarch64-linux-gnu/liba.so.1", "liba.so.1.0")
-      .file("./usr/lib/aarch64-linux-gnu/pulseaudio/libhelper.so.4", CONTENT)
-      .symbolicLink("./usr/lib/aarch64-linux-gnu/linked", "pulseaudio")
-      .file("./usr/lib/aarch64-linux-gnu/vlc/plugins/libplugin.so", CONTENT)
-      .file("./usr/lib/aarch64-linux-gnu/README", CONTENT)
-      .file("./usr/lib/aarch64-linux-gnu/liba.a", CONTENT)
+      .file(FIRST_LIBRARY_ENTRY, CONTENT)
+      .symbolicLink(FIRST_LIBRARY_LINK_ENTRY, FIRST_LIBRARY_LINK_TARGET)
+      .file(HELPER_LIBRARY_ENTRY, CONTENT)
+      .symbolicLink(HELPER_FOLDER_LINK_ENTRY, HELPER_FOLDER_LINK_TARGET)
+      .file(PLUGIN_ENTRY, CONTENT)
+      .file(README_ENTRY, CONTENT)
+      .file(STATIC_LIBRARY_ENTRY, CONTENT)
       .build();
     this.secondPackage = new DebianPackageBuilder()
-      .file("./usr/lib/aarch64-linux-gnu/liba.so.1.0", CONTENT)
-      .file("./usr/lib/aarch64-linux-gnu/libb.so.2", CONTENT)
-      .file("./lib/aarch64-linux-gnu/libold.so.3", CONTENT)
+      .file(FIRST_LIBRARY_ENTRY, CONTENT)
+      .file(SECOND_LIBRARY_ENTRY, CONTENT)
+      .file(LEGACY_LIBRARY_ENTRY, CONTENT)
       .build();
   }
 
@@ -124,7 +146,7 @@ final class DebianLibraryInstallerTest {
     this.serveBothPackages();
     final Path libraryDirectory = installer.download(FileMode.EXECUTABLE);
 
-    final Path expectedDirectory = this.folder.resolve("usr/lib/aarch64-linux-gnu");
+    final Path expectedDirectory = this.folder.resolve(LIBRARY_FOLDER);
     assertEquals(expectedDirectory, libraryDirectory);
 
     final List<String> loadOrder = Files.readAllLines(this.folder.resolve(LOAD_ORDER_FILE));
@@ -144,7 +166,7 @@ final class DebianLibraryInstallerTest {
     final Optional<Path> found = again.findInstallation();
     final Path reused = again.download(FileMode.EXECUTABLE);
 
-    final Path expectedDirectory = this.folder.resolve("usr/lib/aarch64-linux-gnu");
+    final Path expectedDirectory = this.folder.resolve(LIBRARY_FOLDER);
     final Optional<Path> expectedFound = Optional.of(expectedDirectory);
     assertEquals(expectedFound, found);
     assertEquals(expectedDirectory, reused);
@@ -284,7 +306,7 @@ final class DebianLibraryInstallerTest {
     final DebianLibraryInstaller installer = this.createInstaller(X86_64, this::record);
 
     final Path path = installer.getPath();
-    final Path expected = this.folder.resolve("usr/lib/x86_64-linux-gnu");
+    final Path expected = this.folder.resolve(X86_LIBRARY_FOLDER);
     assertEquals(expected, path);
   }
 
@@ -315,8 +337,8 @@ final class DebianLibraryInstallerTest {
   @Test
   void shouldLeaveNothingBehindWhenAPackageCannotBeExtracted() throws IOException {
     final byte[] escapingPackage = new DebianPackageBuilder()
-      .file("./usr/lib/aarch64-linux-gnu/liba.so.1.0", CONTENT)
-      .symbolicLink("./usr/lib/aarch64-linux-gnu/escape", "../../../..")
+      .file(FIRST_LIBRARY_ENTRY, CONTENT)
+      .symbolicLink(ESCAPING_LINK_ENTRY, ESCAPING_LINK_TARGET)
       .build();
     final Download[] downloads = { this.createDownload(ARM64, FIRST_PACKAGE, escapingPackage) };
     final DebianLibraryInstaller installer = new DebianLibraryInstaller(this.folder, NAME, downloads, ARM64, this::record);
@@ -331,7 +353,7 @@ final class DebianLibraryInstallerTest {
   @Test
   void shouldReplaceABrokenInstallation() throws IOException {
     final DebianLibraryInstaller installer = this.createInstaller(ARM64, this::record);
-    final Path junk = this.folder.resolve("junk");
+    final Path junk = this.folder.resolve(JUNK_FILE_NAME);
     Files.createDirectories(this.folder);
     Files.write(junk, CONTENT);
     this.serveBothPackages();
@@ -345,7 +367,7 @@ final class DebianLibraryInstallerTest {
 
   @Test
   void shouldReportAnInstallationFolderThatCannotBeCreated() throws IOException {
-    final Path blocker = this.temporary.resolve("blocker");
+    final Path blocker = this.temporary.resolve(BLOCKER_FILE_NAME);
     Files.write(blocker, CONTENT);
     final Path blockedFolder = blocker.resolve(NAME);
     final Download[] downloads = this.createDownloads();
@@ -361,9 +383,9 @@ final class DebianLibraryInstallerTest {
 
   @Test
   void shouldPinEveryBundledPackageWithAHash() {
-    final Download[] vlc = IoUtils.readDownloadsFromJsonResource("mcav/common/installers/debian-vlc.json");
-    final Download[] gtk2 = IoUtils.readDownloadsFromJsonResource("mcav/common/installers/debian-gtk2.json");
-    final Download[] ffmpeg = IoUtils.readDownloadsFromJsonResource("mcav/common/installers/debian-ffmpeg.json");
+    final Download[] vlc = IoUtils.readDownloadsFromJsonResource(VLC_RESOURCE);
+    final Download[] gtk2 = IoUtils.readDownloadsFromJsonResource(GTK2_RESOURCE);
+    final Download[] ffmpeg = IoUtils.readDownloadsFromJsonResource(FFMPEG_RESOURCE);
 
     final List<Platform> vlcPlatforms = Arrays.stream(vlc).map(Download::getPlatform).distinct().toList();
     final List<Platform> gtk2Platforms = Arrays.stream(gtk2).map(Download::getPlatform).distinct().toList();

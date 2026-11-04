@@ -153,7 +153,8 @@ final class VlcReleaseTest {
     final boolean supported = installer.isSupported();
     Assumptions.assumeTrue(supported, "VLC has no build for this platform!");
     final Path libraries = installer.download(FileMode.EXECUTABLE);
-    System.out.println("VLC installed from " + installer.getUrl() + " into " + libraries);
+    final String url = installer.getUrl();
+    System.out.println("VLC installed from %s into %s".formatted(url, libraries));
     final String output = runProbe(folder, TestMedia.video());
     System.out.println(output);
     final boolean passed = output.contains(VlcPlaybackProbe.PASSED);
@@ -188,7 +189,7 @@ final class VlcReleaseTest {
 
     drain.join(TimeUnit.SECONDS.toMillis(10));
     final String text = output.toString(StandardCharsets.UTF_8);
-    assertTrue(exited, "the playback JVM finished in time: " + text);
+    assertTrue(exited, "the playback JVM finished in time: %s".formatted(text));
 
     final int exitValue = process.exitValue();
     assertEquals(0, exitValue, text);

@@ -68,7 +68,9 @@ import org.mockito.stubbing.Stubber;
 final class VlcInstallerTest {
 
   private static final String ZIP_NAME = "vlc-3.0.24-win64.zip";
-  private static final String ZIP_PATH = "/" + ZIP_NAME;
+  private static final String ZIP_PATH = "/%s".formatted(ZIP_NAME);
+  private static final String ZIP_EXTENSION = ".zip";
+  private static final String DISK_IMAGE_EXTENSION = ".dmg";
   private static final String[] ZIP_ENTRIES = { "vlc-3.0.24/libvlc.dll", "vlc-3.0.24/libvlccore.dll", "vlc-3.0.24/plugins/x.dll" };
 
   private static final String VLC_DIRECTORY = "vlc";
@@ -461,7 +463,7 @@ final class VlcInstallerTest {
       final String url = installer.getUrl();
       final Optional<String> hash = installer.getHash();
       final Os operatingSystem = platform.getOs();
-      final String extension = operatingSystem == Os.WINDOWS ? ".zip" : ".dmg";
+      final String extension = operatingSystem == Os.WINDOWS ? ZIP_EXTENSION : DISK_IMAGE_EXTENSION;
       final boolean expectedExtension = url.endsWith(extension);
       assertTrue(supported);
       assertTrue(expectedExtension, url);
@@ -482,7 +484,7 @@ final class VlcInstallerTest {
   @Test
   void shouldBundleVerifiedDownloadsOfTheAdvertisedVersion() {
     final Download[] downloads = IoUtils.readDownloadsFromJsonResource(VLC_DOWNLOADS_RESOURCE);
-    final String versionDirectory = "/" + VlcInstaller.VERSION + "/";
+    final String versionDirectory = "/%s/".formatted(VlcInstaller.VERSION);
     final boolean anyDownloads = downloads.length > 0;
     assertTrue(anyDownloads);
 
@@ -507,7 +509,7 @@ final class VlcInstallerTest {
     assertEquals(64, length, url);
 
     final boolean hexadecimal = SHA256_PATTERN.matcher(hash).matches();
-    assertTrue(hexadecimal, "a SHA-256 digest must be hexadecimal: " + url);
+    assertTrue(hexadecimal, "a SHA-256 digest must be hexadecimal: %s".formatted(url));
   }
 
   private VlcInstaller installerDownloadingFrom(final LocalHttpServer server) {
