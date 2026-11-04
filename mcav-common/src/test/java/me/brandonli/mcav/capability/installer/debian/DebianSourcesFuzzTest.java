@@ -45,14 +45,18 @@ final class DebianSourcesFuzzTest {
   }
 
   private void assertPoolUrl(final String pinnedUrl, final String liveUrl) {
-    assertTrue(liveUrl.startsWith(LIVE_ARCHIVE), "the live url starts with the live archive");
+    final boolean inLiveArchive = liveUrl.startsWith(LIVE_ARCHIVE);
+    assertTrue(inLiveArchive, "the live url starts with the live archive");
 
     final String livePath = liveUrl.substring(LIVE_ARCHIVE.length());
     final int archiveEnd = livePath.indexOf(PATH_SEPARATOR);
     final String archive = livePath.substring(0, archiveEnd + 1);
     final String pool = livePath.substring(archiveEnd + 1);
-    assertTrue(pool.startsWith(POOL_FOLDER), "the live url ends with a pool path");
-    assertTrue(pinnedUrl.startsWith(SNAPSHOT_ARCHIVE + archive), "the live url keeps the archive of the pin");
-    assertTrue(pinnedUrl.endsWith(PATH_SEPARATOR + pool), "the live url ends with the pool path of the pin");
+    final boolean inPoolFolder = pool.startsWith(POOL_FOLDER);
+    final boolean archiveKept = pinnedUrl.startsWith(SNAPSHOT_ARCHIVE + archive);
+    final boolean poolPathKept = pinnedUrl.endsWith(PATH_SEPARATOR + pool);
+    assertTrue(inPoolFolder, "the live url ends with a pool path");
+    assertTrue(archiveKept, "the live url keeps the archive of the pin");
+    assertTrue(poolPathKept, "the live url ends with the pool path of the pin");
   }
 }
