@@ -47,6 +47,7 @@ import static java.util.Objects.requireNonNull;
 import static net.kyori.adventure.text.Component.text;
 
 import com.google.common.base.Preconditions;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
@@ -55,6 +56,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -225,28 +227,32 @@ public final class MapUtils {
   private static void fillWall(final Wall wall, final int width, final int height, final int firstMap) {
     final UUID identifier = UUID.randomUUID();
     final String screen = identifier.toString();
+    final List<ItemFrame> frames = new ArrayList<>();
     int mapId = firstMap;
     for (int row = height - 1; row >= 0; row--) {
       for (int column = 0; column < width; column++) {
         final ItemFrame frame = wall.place(column, row, width, mapId);
-        final boolean first = row == height - 1 && column == 0;
-        final boolean last = row == 0 && column == width - 1;
-        tagFrame(frame, first, last, screen);
+        tagFrame(frame, screen);
+        frames.add(frame);
         mapId++;
       }
     }
+
+    final ItemFrame topLeft = frames.getFirst();
+    final ItemFrame bottomRight = frames.getLast();
+    tagCorner(topLeft, Keys.FIRST_MAP_KEY);
+    tagCorner(bottomRight, Keys.LAST_MAP_KEY);
   }
 
-  private static void tagFrame(final ItemFrame frame, final boolean first, final boolean last, final String screen) {
+  private static void tagFrame(final ItemFrame frame, final String screen) {
     final PersistentDataContainer container = frame.getPersistentDataContainer();
-    if (first) {
-      container.set(Keys.FIRST_MAP_KEY, PersistentDataType.BOOLEAN, true);
-    }
-    if (last) {
-      container.set(Keys.LAST_MAP_KEY, PersistentDataType.BOOLEAN, true);
-    }
     container.set(Keys.MAP_KEY, PersistentDataType.BOOLEAN, true);
     container.set(Keys.SCREEN_KEY, PersistentDataType.STRING, screen);
+  }
+
+  private static void tagCorner(final ItemFrame frame, final NamespacedKey key) {
+    final PersistentDataContainer container = frame.getPersistentDataContainer();
+    container.set(key, PersistentDataType.BOOLEAN, true);
   }
 
   private static final class Wall {

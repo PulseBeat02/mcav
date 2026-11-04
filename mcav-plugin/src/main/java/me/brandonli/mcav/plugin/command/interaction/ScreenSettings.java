@@ -17,10 +17,13 @@
  */
 package me.brandonli.mcav.plugin.command.interaction;
 
+import com.google.common.base.MoreObjects;
+import java.util.Objects;
 import me.brandonli.mcav.plugin.utils.DitheringArgument;
 import me.brandonli.mcav.plugin.utils.MapCodec;
 import me.brandonli.mcav.utils.immutable.Pair;
 import org.bukkit.command.CommandSender;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 
 final class ScreenSettings {
@@ -77,5 +80,44 @@ final class ScreenSettings {
 
   MapCodec getCodec() {
     return this.codec;
+  }
+
+  @Override
+  public boolean equals(final @Nullable Object other) {
+    if (this == other) {
+      return true;
+    }
+
+    if (!(other instanceof final ScreenSettings settings)) {
+      return false;
+    }
+
+    return (
+      this.sender.equals(settings.sender) &&
+      this.viewers.equals(settings.viewers) &&
+      this.blocks.equals(settings.blocks) &&
+      this.resolution.equals(settings.resolution) &&
+      this.mapId == settings.mapId &&
+      this.dithering == settings.dithering &&
+      this.codec == settings.codec
+    );
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(this.sender, this.viewers, this.blocks, this.resolution, this.mapId, this.dithering, this.codec);
+  }
+
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(this)
+      .add("sender", this.sender)
+      .add("viewers", this.viewers)
+      .add("blocks", this.blocks)
+      .add("resolution", this.resolution)
+      .add("mapId", this.mapId)
+      .add("dithering", this.dithering)
+      .add("codec", this.codec)
+      .toString();
   }
 }

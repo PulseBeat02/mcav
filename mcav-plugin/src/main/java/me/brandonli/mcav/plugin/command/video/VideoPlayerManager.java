@@ -313,7 +313,13 @@ public final class VideoPlayerManager {
     final VideoPlayerMultiplexer candidate;
     synchronized (this.lifecycle) {
       this.checkStartLocked();
-      candidate = Preconditions.checkNotNull(this.player, "No video player was configured!");
+      final @Nullable VideoPlayerMultiplexer configured = this.player;
+      if (configured == null) {
+        final String message = "No video player was configured!";
+        throw new IllegalStateException(message);
+      }
+
+      candidate = configured;
       this.startingPlayer = candidate;
     }
 

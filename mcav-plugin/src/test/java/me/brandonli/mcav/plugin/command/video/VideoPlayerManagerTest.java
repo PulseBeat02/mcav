@@ -875,6 +875,18 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
+  void shouldRejectStartNativeWithoutAPlayer() {
+    this.manager.beginStart();
+    final BooleanSupplier start = mock(BooleanSupplier.class);
+    final IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> this.manager.startNative(start));
+
+    final String message = thrown.getMessage();
+    assertEquals("No video player was configured!", message);
+
+    verify(start, never()).getAsBoolean();
+  }
+
+  @Test
   void shouldRejectFilterStartAfterCancelledStartupWithoutNewBeginStart() {
     this.manager.beginStart();
     this.manager.cancelStart();

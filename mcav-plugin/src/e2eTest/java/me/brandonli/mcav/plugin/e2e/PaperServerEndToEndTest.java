@@ -587,7 +587,7 @@ final class PaperServerEndToEndTest {
     Files.createDirectories(pluginsDirectory);
     final Path installedPlugin = pluginsDirectory.resolve(PLUGIN_JAR);
     Files.copy(pluginJar, installedPlugin);
-    final Path installedVoiceChat = pluginsDirectory.resolve(VOICE_CHAT.fileName);
+    final Path installedVoiceChat = pluginsDirectory.resolve(VOICE_CHAT.fileName());
     Files.copy(voiceChatJar, installedVoiceChat);
 
     this.writePluginConfiguration(pluginsDirectory, httpPort, vnc);
@@ -691,17 +691,17 @@ final class PaperServerEndToEndTest {
 
   private Path download(final Path cache, final RemoteFile remoteFile) throws IOException, InterruptedException {
     Files.createDirectories(cache);
-    final Path file = cache.resolve(remoteFile.fileName);
+    final Path file = cache.resolve(remoteFile.fileName());
     if (Files.isRegularFile(file)) {
-      final String cachedHash = this.hash(file, remoteFile.algorithm);
-      if (cachedHash.equals(remoteFile.expectedHash)) {
+      final String cachedHash = this.hash(file, remoteFile.algorithm());
+      if (cachedHash.equals(remoteFile.expectedHash())) {
         return file;
       }
     }
-    final Path partial = cache.resolve("%s%s".formatted(remoteFile.fileName, PARTIAL_SUFFIX));
-    this.fetch(remoteFile.url, partial);
-    final String downloadedHash = this.hash(partial, remoteFile.algorithm);
-    assertEquals(remoteFile.expectedHash, downloadedHash, "the file downloaded from %s is corrupt".formatted(remoteFile.url));
+    final Path partial = cache.resolve("%s%s".formatted(remoteFile.fileName(), PARTIAL_SUFFIX));
+    this.fetch(remoteFile.url(), partial);
+    final String downloadedHash = this.hash(partial, remoteFile.algorithm());
+    assertEquals(remoteFile.expectedHash(), downloadedHash, "the file downloaded from %s is corrupt".formatted(remoteFile.url()));
 
     Files.move(partial, file, StandardCopyOption.REPLACE_EXISTING);
     return file;
@@ -746,8 +746,7 @@ final class PaperServerEndToEndTest {
     try {
       return MessageDigest.getInstance(algorithm);
     } catch (final NoSuchAlgorithmException exception) {
-      final String message = "Algorithm %s is not supported by the Java runtime!".formatted(algorithm);
-      throw new IllegalStateException(message, exception);
+      throw new AssertionError(exception);
     }
   }
 
@@ -766,18 +765,5 @@ final class PaperServerEndToEndTest {
     return port;
   }
 
-  private static final class RemoteFile {
-
-    private final String url;
-    private final String fileName;
-    private final String algorithm;
-    private final String expectedHash;
-
-    private RemoteFile(final String url, final String fileName, final String algorithm, final String expectedHash) {
-      this.url = url;
-      this.fileName = fileName;
-      this.algorithm = algorithm;
-      this.expectedHash = expectedHash;
-    }
-  }
+  private record RemoteFile(String url, String fileName, String algorithm, String expectedHash) {}
 }

@@ -578,23 +578,23 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
   }
 
   private void onStartCompleted(final StartAttempt<PlayerType> attempt, final @Nullable Boolean started, final @Nullable Throwable error) {
-    final Screen screen = attempt.getScreen();
+    final Screen screen = attempt.screen();
     if (screen.isCancelled()) {
       return;
     }
 
     final boolean succeeded = error == null && Boolean.TRUE.equals(started);
     if (!succeeded) {
-      final String description = attempt.getDescription();
+      final String description = attempt.description();
       LOGGER.error("Starting {} failed.", description, error);
-      final PlayerType failed = attempt.getPlayer();
-      final FunctionalVideoFilter output = attempt.getOutput();
+      final PlayerType failed = attempt.player();
+      final FunctionalVideoFilter output = attempt.output();
       this.releaseIfCurrent(failed, output);
     }
 
     final StartOutcome outcome = succeeded ? StartOutcome.STARTED : StartOutcome.FAILED;
     final Component message = this.createStartMessage(outcome, error);
-    final CommandSender sender = attempt.getSender();
+    final CommandSender sender = attempt.sender();
     TaskUtils.runOnMainThread(this.plugin, () -> this.sendUnlessCancelled(screen, sender, message));
   }
 
@@ -989,46 +989,11 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    */
   protected abstract void releasePlayer(final PlayerType player);
 
-  private static final class StartAttempt<PlayerType> {
-
-    private final CommandSender sender;
-    private final PlayerType player;
-    private final FunctionalVideoFilter output;
-    private final Screen screen;
-    private final String description;
-
-    StartAttempt(
-      final CommandSender sender,
-      final PlayerType player,
-      final FunctionalVideoFilter output,
-      final Screen screen,
-      final String description
-    ) {
-      this.sender = sender;
-      this.player = player;
-      this.output = output;
-      this.screen = screen;
-      this.description = description;
-    }
-
-    private CommandSender getSender() {
-      return this.sender;
-    }
-
-    private PlayerType getPlayer() {
-      return this.player;
-    }
-
-    private FunctionalVideoFilter getOutput() {
-      return this.output;
-    }
-
-    private Screen getScreen() {
-      return this.screen;
-    }
-
-    private String getDescription() {
-      return this.description;
-    }
-  }
+  private record StartAttempt<PlayerType>(
+    CommandSender sender,
+    PlayerType player,
+    FunctionalVideoFilter output,
+    Screen screen,
+    String description
+  ) {}
 }

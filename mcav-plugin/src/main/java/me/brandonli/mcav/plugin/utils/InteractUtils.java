@@ -26,6 +26,7 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 import me.brandonli.mcav.bukkit.media.map.MapLayout;
+import org.bukkit.Axis;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Rotation;
@@ -204,7 +205,8 @@ public final class InteractUtils {
       return null;
     }
 
-    final Vector lookedAt = findLookedAtPoint(player, frame, alongX);
+    final Axis axis = alongX ? Axis.X : Axis.Z;
+    final Vector lookedAt = findLookedAtPoint(player, frame, axis);
     if (lookedAt == null) {
       return null;
     }
@@ -224,13 +226,13 @@ public final class InteractUtils {
     return new double[] { fromLeft, fromTop };
   }
 
-  private static @Nullable Vector findLookedAtPoint(final Player player, final ItemFrame frame, final boolean alongX) {
+  private static @Nullable Vector findLookedAtPoint(final Player player, final ItemFrame frame, final Axis axis) {
     final Location eyeLocation = player.getEyeLocation();
     final Location frameLocation = frame.getLocation();
     final Vector direction = eyeLocation.getDirection();
     direction.normalize();
-    final double distance = alongX ? frameLocation.getX() - eyeLocation.getX() : frameLocation.getZ() - eyeLocation.getZ();
-    final double directionComponent = alongX ? direction.getX() : direction.getZ();
+    final double distance = axis == Axis.X ? frameLocation.getX() - eyeLocation.getX() : frameLocation.getZ() - eyeLocation.getZ();
+    final double directionComponent = axis == Axis.X ? direction.getX() : direction.getZ();
     final double scale = distance / directionComponent;
     if (!Double.isFinite(scale) || scale < 0) {
       return null;
