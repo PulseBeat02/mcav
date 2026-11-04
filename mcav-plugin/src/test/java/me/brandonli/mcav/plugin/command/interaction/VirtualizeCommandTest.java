@@ -382,7 +382,7 @@ final class VirtualizeCommandTest {
   @Test
   void shouldNeedTheInteractPermissionForInput() {
     final String permission = this.command.getInteractionPermission();
-    assertEquals("mcav.vm.interact", permission, "clicks and chat are the input of the interact subcommand");
+    assertEquals("mcav.command.vm.interact", permission, "clicks and chat are the input of the interact subcommand");
   }
 
   @Test

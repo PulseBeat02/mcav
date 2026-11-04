@@ -76,7 +76,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
   private static final String BROWSER_NULL_MESSAGE = "Browser must not be null!";
   private static final String SENDER_NULL_MESSAGE = "Sender must not be null!";
 
-  private static final String INTERACT_PERMISSION = "mcav.browser.interact";
+  private static final String INTERACT_PERMISSION = "mcav.command.browser.interact";
 
   private static final Set<String> WEB_SCHEMES = Set.of("http", "https");
 
@@ -162,7 +162,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    * this mode: left and right clicks on the screen reach the browser for every player with this permission. Running
    * the command again switches it off, and the player is told which state is now active.
    *
-   * <p>Requires the permission {@code mcav.browser.interact}. Only players can run it, since the console has no chat
+   * <p>Requires the permission {@code mcav.command.browser.interact}. Only players can run it, since the console has no chat
    * to forward.
    *
    * @param sender the player who switches their chat input
@@ -183,14 +183,14 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    * Handles {@code /mcav browser release}: closes the running browser, stops streaming to its maps, and clears the
    * maps for every viewer. The wall of item frames stays in place for the next browser, video, or image.
    *
-   * <p>Requires the permission {@code mcav.browser.release}; players and the console can run it. The sender is
+   * <p>Requires the permission {@code mcav.command.browser.release}; players and the console can run it. The sender is
    * told "Browser released!", also when no browser was running.
    *
    * @param sender who ran the command
    * @since 1.0.0
    */
   @Command("mcav browser release")
-  @Permission("mcav.browser.release")
+  @Permission("mcav.command.browser.release")
   @CommandDescription("mcav.command.browser.release.info")
   public void releaseBrowser(final CommandSender sender) {
     Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);

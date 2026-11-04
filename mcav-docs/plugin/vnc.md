@@ -38,16 +38,17 @@ disconnects and clears the wall. A VNC desktop has no sound.
 
 ## Clicking and typing
 
-Players with `mcav.vnc.interact` click the desktop by clicking the wall: left and right clicks. `/mcav vnc interact`
-types their chat into it, and a key name such as `Return`, `Escape` or `Left` (an X11 key name) presses that key.
+Players with `mcav.command.vnc.interact` click the desktop by clicking the wall: left and right clicks.
+`/mcav vnc interact` types their chat into it, and a key name such as `Return`, `Escape` or `Left` (an X11 key name)
+presses that key.
 
 ## Permissions
 
 | Permission | Allows |
 |---|---|
 | `mcav.command.vnc.create` | `/mcav vnc create` |
-| `mcav.vnc.interact` | `/mcav vnc interact`, and clicking the desktop's wall |
-| `mcav.vnc.release` | `/mcav vnc release` |
+| `mcav.command.vnc.interact` | `/mcav vnc interact`, and clicking the desktop's wall |
+| `mcav.command.vnc.release` | `/mcav vnc release` |
 
 All three are for operators until granted.
 

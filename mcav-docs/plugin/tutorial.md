@@ -110,8 +110,8 @@ static image can also produce no map updates, so packet silence alone does not i
 2) If you want to interact with the browser, you can use the `/mcav browser interact` command, which takes all your
    chat input and send it to the browser as if you were typing in a real web browser. For special keys like enter, type
    the key in "Enter" to simulate pressing the enter key. A left or right click on the browser simulates a mouse
-   click, for every player with the permission `mcav.browser.interact`. For more information on possible keys, see the
-   `KeyboardEvent.key` column
+   click, for every player with the permission `mcav.command.browser.interact`. For more information on possible keys,
+   see the `KeyboardEvent.key` column
    [here](https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values).
 3) Once you're done with the browser, you can close it by running the `/mcav browser release` command.
 

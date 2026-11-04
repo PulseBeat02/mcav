@@ -83,7 +83,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
   private static final String VIRTUAL_MACHINE_NULL_MESSAGE = "Virtual machine must not be null!";
   private static final String SENDER_NULL_MESSAGE = "Sender must not be null!";
 
-  private static final String INTERACT_PERMISSION = "mcav.vm.interact";
+  private static final String INTERACT_PERMISSION = "mcav.command.vm.interact";
 
   private static final Set<String> REPEATABLE_OPTIONS = Set.of("drive");
 
@@ -201,7 +201,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    * the screen reach the virtual machine as mouse clicks for every player with this permission. Running the command
    * again switches it off, and the player is told which state is now active.
    *
-   * <p>Requires the permission {@code mcav.vm.interact}. Only players can run it, since the console has no chat to
+   * <p>Requires the permission {@code mcav.command.vm.interact}. Only players can run it, since the console has no chat to
    * forward.
    *
    * @param sender the player who switches their chat input
@@ -223,14 +223,14 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    * exit within a few seconds, stops streaming to its maps, and clears the maps for every viewer. The guest is not
    * asked to shut down first, so unsaved work inside it is lost.
    *
-   * <p>Requires the permission {@code mcav.vm.release}; players and the console can run it. The sender is told
+   * <p>Requires the permission {@code mcav.command.vm.release}; players and the console can run it. The sender is told
    * "Virtual machine released!", also when no virtual machine was running.
    *
    * @param sender who ran the command
    * @since 1.0.0
    */
   @Command("mcav vm release")
-  @Permission("mcav.vm.release")
+  @Permission("mcav.command.vm.release")
   @CommandDescription("mcav.command.vm.release.info")
   public void releaseVm(final CommandSender sender) {
     Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);

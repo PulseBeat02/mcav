@@ -48,9 +48,9 @@ sound and the display.
 
 ## Clicking and typing
 
-Players with `mcav.vm.interact` click the machine by clicking the wall; `/mcav vm interact` types their chat into it,
-and a key name such as `Return` or `Escape` presses that key. The permission is what allows the clicks, not only the
-chat mode.
+Players with `mcav.command.vm.interact` click the machine by clicking the wall; `/mcav vm interact` types their chat
+into it, and a key name such as `Return` or `Escape` presses that key. The permission is what allows the clicks, not
+only the chat mode.
 
 ## Known limits
 

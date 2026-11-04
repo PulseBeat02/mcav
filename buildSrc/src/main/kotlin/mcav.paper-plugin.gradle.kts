@@ -193,14 +193,14 @@ val pluginPermissions: Map<String, String> = mapOf(
     "mcav.command.mcv2.play" to "Plays, streams and stops pre-encoded MCV2 streams from the plugin's mcv2 folder",
     "mcav.command.mcv2.encode" to "Pre-encodes a video file into an MCV2 stream in the plugin's mcv2 folder, and cancels that encode",
     "mcav.command.browser.create" to "Opens a web page on a wall of maps, with its sound in an audio output",
-    "mcav.browser.release" to "Closes the browser",
-    "mcav.browser.interact" to "Clicks and types into the browser: clicks on its screen, and chat with /mcav browser interact",
+    "mcav.command.browser.release" to "Closes the browser",
+    "mcav.command.browser.interact" to "Clicks and types into the browser: clicks on its screen, and chat with /mcav browser interact",
     "mcav.command.vm.create" to "Boots a QEMU virtual machine on a wall of maps, with its sound in an audio output",
-    "mcav.vm.release" to "Powers off the virtual machine",
-    "mcav.vm.interact" to "Clicks and types into the virtual machine: clicks on its screen, and chat with /mcav vm interact",
+    "mcav.command.vm.release" to "Powers off the virtual machine",
+    "mcav.command.vm.interact" to "Clicks and types into the virtual machine: clicks on its screen, and chat with /mcav vm interact",
     "mcav.command.vnc.create" to "Shows the desktop of a VNC server listed in vnc.allowed-hosts on a wall of maps",
-    "mcav.vnc.release" to "Disconnects from the VNC desktop",
-    "mcav.vnc.interact" to "Clicks and types on the VNC desktop: clicks on its screen, and chat with /mcav vnc interact",
+    "mcav.command.vnc.release" to "Disconnects from the VNC desktop",
+    "mcav.command.vnc.interact" to "Clicks and types on the VNC desktop: clicks on its screen, and chat with /mcav vnc interact",
 )
 
 paperPluginYaml {

@@ -36,14 +36,14 @@ console then says to install the full package (`openjdk-25-jre`).
 
 ## Clicking and typing
 
-Players with the permission `mcav.browser.interact` click the page by clicking the wall: a left click clicks, a right
-click right-clicks. `/mcav browser interact` switches their chat to the browser: what they write is typed into the page
-instead of sent to chat, and a key name such as `Enter`, `Backspace` or `ArrowLeft` presses that key. Chromium ignores
-clicks and keys for a moment right after a page appears, as every Chromium does.
+Players with the permission `mcav.command.browser.interact` click the page by clicking the wall: a left click clicks, a
+right click right-clicks. `/mcav browser interact` switches their chat to the browser: what they write is typed into the
+page instead of sent to chat, and a key name such as `Enter`, `Backspace` or `ArrowLeft` presses that key. Chromium
+ignores clicks and keys for a moment right after a page appears, as every Chromium does.
 
 ```{important}
-`mcav.browser.interact` is what lets a player click the page by clicking its wall, not only the chat mode. The wall
-stands in the world where anyone can reach it; without the permission a click does nothing.
+`mcav.command.browser.interact` is what lets a player click the page by clicking its wall, not only the chat mode. The
+wall stands in the world where anyone can reach it; without the permission a click does nothing.
 ```
 
 ## Sound

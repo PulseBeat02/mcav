@@ -67,7 +67,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
   private static final String DESKTOP_NULL_MESSAGE = "Desktop must not be null!";
   private static final String SENDER_NULL_MESSAGE = "Sender must not be null!";
 
-  static final String INTERACT_PERMISSION = "mcav.vnc.interact";
+  static final String INTERACT_PERMISSION = "mcav.command.vnc.interact";
 
   /**
    * Creates the command.
@@ -144,7 +144,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    * <p>While it is on, the chat messages of the player are not sent to chat but typed on the desktop. Clicking the
    * screen does not need this mode: left and right clicks reach the desktop for every player with this permission.
    *
-   * <p>Requires the permission {@code mcav.vnc.interact}. Only players can run it.
+   * <p>Requires the permission {@code mcav.command.vnc.interact}. Only players can run it.
    *
    * @param sender the player who switches their chat input
    * @since 1.0.0
@@ -164,13 +164,13 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    * Handles {@code /mcav vnc release}: disconnects from the desktop, stops streaming to its maps, and clears the maps
    * for every viewer. The wall stays in place.
    *
-   * <p>Requires the permission {@code mcav.vnc.release}; players and the console can run it.
+   * <p>Requires the permission {@code mcav.command.vnc.release}; players and the console can run it.
    *
    * @param sender who ran the command
    * @since 1.0.0
    */
   @Command("mcav vnc release")
-  @Permission("mcav.vnc.release")
+  @Permission("mcav.command.vnc.release")
   @CommandDescription("mcav.command.vnc.release.info")
   public void releaseVnc(final CommandSender sender) {
     Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
