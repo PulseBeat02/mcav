@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -85,6 +86,8 @@ public final class Mcv2Channel {
   private static final long RANGE_TICKS = 20L;
 
   private static final int MAP_ORIGIN = 0;
+
+  static final int NOT_SENT = -1;
 
   private final Mcv2Configuration configuration;
   private final Mcv2Viewers viewers;
@@ -403,13 +406,14 @@ public final class Mcv2Channel {
    * frame when its link admits it: the viewer can decode it and its connection is not over the backlog limit.
    *
    * @param frame the frame
-   * @return the number of page-map color bytes per potential recipient, excluding anchors and packet overhead, or -1 if the frame has more pages than the screen has page slots, in which
-   *         case nothing is sent and the next frame is asked to be a keyframe
+   * @return the number of page-map color bytes per potential recipient, excluding anchors and packet overhead, or empty
+   *         if the frame has more pages than the screen has page slots, in which case nothing is sent and the next frame
+   *         is asked to be a keyframe
    * @throws IllegalArgumentException if the bytes are not a valid MCV2 frame
    * @throws NullPointerException     if {@code frame} is null
    * @since 1.0.0
    */
-  public int send(final byte[] frame) {
+  public OptionalInt send(final byte[] frame) {
     Preconditions.checkNotNull(frame, "Frame must not be null!");
 
     final Frame header;
@@ -430,10 +434,10 @@ public final class Mcv2Channel {
 
     if (pages.size() > this.configuration.getPageSlots()) {
       this.keyframeRequest.request();
-      event.colors = -1;
+      event.colors = NOT_SENT;
       event.commit();
 
-      return -1;
+      return OptionalInt.empty();
     }
 
     final Mcv2FrameKind kind = header.isKeyframe() ? Mcv2FrameKind.KEYFRAME : Mcv2FrameKind.PREDICTED;
@@ -446,7 +450,7 @@ public final class Mcv2Channel {
     event.sent = System.currentTimeMillis();
     event.commit();
 
-    return colors;
+    return OptionalInt.of(colors);
   }
 
   private List<MapTilePatch> createPatches(final List<byte[]> pages, final Mcv2FrameKind kind, final Mcv2SendEvent event) {

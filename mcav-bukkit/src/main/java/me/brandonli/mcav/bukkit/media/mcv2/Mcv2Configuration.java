@@ -324,7 +324,26 @@ public final class Mcv2Configuration {
       case SOUTH -> BlockFace.EAST;
       case WEST -> BlockFace.SOUTH;
       case NORTH -> BlockFace.WEST;
-      default -> BlockFace.NORTH;
+      case EAST -> BlockFace.NORTH;
+      case
+        UP,
+        DOWN,
+        NORTH_EAST,
+        NORTH_WEST,
+        SOUTH_EAST,
+        SOUTH_WEST,
+        WEST_NORTH_WEST,
+        NORTH_NORTH_WEST,
+        NORTH_NORTH_EAST,
+        EAST_NORTH_EAST,
+        EAST_SOUTH_EAST,
+        SOUTH_SOUTH_EAST,
+        SOUTH_SOUTH_WEST,
+        WEST_SOUTH_WEST,
+        SELF -> {
+        final String message = "Facing %s is not a wall direction!".formatted(this.facing);
+        throw new IllegalStateException(message);
+      }
     };
   }
 
@@ -335,11 +354,31 @@ public final class Mcv2Configuration {
    * @since 1.0.0
    */
   public int getFacingCode() {
-    return switch (this.getRight()) {
+    final BlockFace right = this.getRight();
+    return switch (right) {
       case EAST -> FACING_EAST;
       case SOUTH -> FACING_SOUTH;
       case WEST -> FACING_WEST;
-      default -> FACING_NORTH;
+      case NORTH -> FACING_NORTH;
+      case
+        UP,
+        DOWN,
+        NORTH_EAST,
+        NORTH_WEST,
+        SOUTH_EAST,
+        SOUTH_WEST,
+        WEST_NORTH_WEST,
+        NORTH_NORTH_WEST,
+        NORTH_NORTH_EAST,
+        EAST_NORTH_EAST,
+        EAST_SOUTH_EAST,
+        SOUTH_SOUTH_EAST,
+        SOUTH_SOUTH_WEST,
+        WEST_SOUTH_WEST,
+        SELF -> {
+        final String message = "Right edge %s is not a wall direction!".formatted(right);
+        throw new IllegalStateException(message);
+      }
     };
   }
 

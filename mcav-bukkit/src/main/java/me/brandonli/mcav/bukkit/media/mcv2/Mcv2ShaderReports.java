@@ -136,7 +136,9 @@ final class Mcv2ShaderReports implements PluginMessageListener {
       return null;
     }
 
-    return new Report(message[IRIS_PRESENT_INDEX] == 1, message[SHADER_PACK_INDEX], message[DECODES_UNDER_SHADERS_INDEX] == 1);
+    final boolean irisPresent = message[IRIS_PRESENT_INDEX] == 1;
+    final boolean decodesUnderShaders = message[DECODES_UNDER_SHADERS_INDEX] == 1;
+    return new Report(irisPresent, message[SHADER_PACK_INDEX], decodesUnderShaders);
   }
 
   private boolean isFlag(final byte value) {

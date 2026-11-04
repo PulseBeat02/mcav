@@ -408,7 +408,7 @@ final class Mcv2ChannelTest {
     channel.update();
     this.server.runTasks();
     channel.update();
-    final int colors = channel.send(keyframe());
+    final int colors = channel.send(keyframe()).orElseThrow();
     final boolean positiveWholeRows = colors > 0 && colors % MAP_SIZE == 0;
     assertTrue(positiveWholeRows);
 
@@ -599,7 +599,7 @@ final class Mcv2ChannelTest {
     channel.update();
     this.server.runTasks();
     channel.update();
-    final boolean sentColors = channel.send(large()) > 0;
+    final boolean sentColors = channel.send(large()).orElseThrow() > 0;
     assertTrue(sentColors);
 
     // the two pages on maps 500 and 501, then the keyframe's anchor
@@ -625,8 +625,8 @@ final class Mcv2ChannelTest {
       .pageSlots(1)
       .build();
     final Mcv2Channel channel = new Mcv2Channel(narrow, this.viewers, this.screen);
-    final int colors = channel.send(large());
-    assertEquals(-1, colors);
+    final boolean notSent = channel.send(large()).isEmpty();
+    assertTrue(notSent);
 
     final boolean keyframeRequested = channel.takeKeyframeRequest();
     assertTrue(keyframeRequested);
@@ -758,7 +758,7 @@ final class Mcv2ChannelTest {
     assertEquals(Set.of(), dithered, "too far for the dithered maps as well");
 
     channel.takeKeyframeRequest();
-    final boolean sentColors = channel.send(keyframe()) > 0;
+    final boolean sentColors = channel.send(keyframe()).orElseThrow() > 0;
     assertTrue(sentColors);
 
     final List<Packet<?>> sentWhileAway = this.server.getSentPackets(LOADED);

@@ -79,7 +79,7 @@ public final class FakeScoreboards {
 
   private Score findScore(final InvocationOnMock invocation) {
     final String entry = invocation.getArgument(0);
-    return this.scores.computeIfAbsent(entry, name -> mock(Score.class, "score %s".formatted(name)));
+    return this.getScore(entry);
   }
 
   private Team registerTeam(final InvocationOnMock invocation) {
@@ -106,7 +106,7 @@ public final class FakeScoreboards {
   }
 
   public Score getScore(final String entry) {
-    return this.scores.get(entry);
+    return this.scores.computeIfAbsent(entry, name -> mock(Score.class, "score %s".formatted(name)));
   }
 
   public Scoreboard getNewScoreboard() {

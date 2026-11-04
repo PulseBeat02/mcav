@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2;
 
+import java.util.OptionalLong;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.Frame;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -89,10 +90,14 @@ public final class Mcv2Receiver {
   /**
    * Returns the id of the last committed frame.
    *
-   * @return the frame id, or -1 before the first frame
+   * @return the frame id, or empty before the first frame
    * @since 1.0.0
    */
-  public long getFrameId() {
-    return this.frameId;
+  public OptionalLong getFrameId() {
+    if (this.frameId == NO_FRAME_ID) {
+      return OptionalLong.empty();
+    }
+
+    return OptionalLong.of(this.frameId);
   }
 }

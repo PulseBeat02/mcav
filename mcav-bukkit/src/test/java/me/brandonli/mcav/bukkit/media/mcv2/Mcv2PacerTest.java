@@ -89,7 +89,7 @@ final class Mcv2PacerTest {
     final Mcv2Pacer.Rung rung = pacer.getRung();
     assertEquals(expectedRung, rung);
 
-    final boolean frameRateUnknown = Double.isNaN(pacer.getVideoFramesPerSecond());
+    final boolean frameRateUnknown = pacer.getVideoFramesPerSecond().isEmpty();
     assertTrue(frameRateUnknown);
     assertThrows(IllegalArgumentException.class, () -> new Mcv2Pacer(List.of()));
     assertThrows(IllegalArgumentException.class, () -> new Mcv2Pacer(List.of(new int[] { 1 })));
@@ -202,7 +202,7 @@ final class Mcv2PacerTest {
     final Mcv2Pacer.@Nullable Change change = driver.play(3, 5);
     assertNull(change);
 
-    final double videoFramesPerSecond = pacer.getVideoFramesPerSecond();
+    final double videoFramesPerSecond = pacer.getVideoFramesPerSecond().orElseThrow();
     assertEquals(60, videoFramesPerSecond, 0.1);
 
     final Mcv2Pacer.Rung expectedRung = pacer.getLadder().getFirst();
@@ -211,7 +211,7 @@ final class Mcv2PacerTest {
 
     // two frames at the same time do not change the measured rate
     pacer.arrive(driver.now);
-    final double frameRateAfterSameTime = pacer.getVideoFramesPerSecond();
+    final double frameRateAfterSameTime = pacer.getVideoFramesPerSecond().orElseThrow();
     assertEquals(60, frameRateAfterSameTime, 0.1);
 
     final Optional<Mcv2Pacer.Change> instantChange = pacer.reportEncodedFrame(0, Mcv2FrameKind.PREDICTED, 0);
@@ -608,7 +608,7 @@ final class Mcv2PacerTest {
     // the dithering slows the video down to a frame a second; the pacer keeps the video's own rate
     final Driver slow = new Driver(pacer, 1, driver.now);
     slow.play(10, 2000);
-    final double videoFramesPerSecond = pacer.getVideoFramesPerSecond();
+    final double videoFramesPerSecond = pacer.getVideoFramesPerSecond().orElseThrow();
     assertEquals(60, videoFramesPerSecond, 0.5);
   }
 
@@ -641,13 +641,13 @@ final class Mcv2PacerTest {
     final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL));
     pacer.arrive(0);
     pacer.arrive(10_000_000);
-    final double firstFrameRate = pacer.getVideoFramesPerSecond();
+    final double firstFrameRate = pacer.getVideoFramesPerSecond().orElseThrow();
     assertEquals(100, firstFrameRate, 1e-9);
 
     // a 20 ms interval moves the measure a fifth of the way from 10 ms: to 12 ms
     pacer.arrive(30_000_000);
     final double expectedFrameRate = NANOSECONDS_PER_SECOND / 12e6;
-    final double smoothedFrameRate = pacer.getVideoFramesPerSecond();
+    final double smoothedFrameRate = pacer.getVideoFramesPerSecond().orElseThrow();
     assertEquals(expectedFrameRate, smoothedFrameRate, 1e-9);
   }
 
@@ -682,7 +682,7 @@ final class Mcv2PacerTest {
       pacer.arrive(now);
     }
 
-    final double videoFramesPerSecond = pacer.getVideoFramesPerSecond();
+    final double videoFramesPerSecond = pacer.getVideoFramesPerSecond().orElseThrow();
     assertEquals(19, videoFramesPerSecond);
 
     final Mcv2Pacer.Change change = pacer.reportEncodedFrame(60, Mcv2FrameKind.PREDICTED, now).orElseThrow();

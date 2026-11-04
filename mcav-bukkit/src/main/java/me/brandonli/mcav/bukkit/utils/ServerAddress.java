@@ -75,11 +75,11 @@ public final class ServerAddress {
     }
 
     final Optional<String> lookedUpAddress = NetworkUtils.lookUpPublicAddress(addressService);
-    if (lookedUpAddress.isEmpty()) {
+    final @Nullable String address = lookedUpAddress.orElse(null);
+    if (address == null) {
       return FALLBACK_ADDRESS;
     }
 
-    final String address = lookedUpAddress.get();
     publicAddress = address;
 
     return address;

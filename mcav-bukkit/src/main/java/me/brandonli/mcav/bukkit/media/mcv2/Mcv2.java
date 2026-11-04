@@ -2443,11 +2443,15 @@ public final class Mcv2 {
     }
 
     static Resolution java(final String reason) {
-      return new Resolution(null, 0, JAVA_DESCRIPTION_FORMAT.formatted(reason), false);
+      final String description = JAVA_DESCRIPTION_FORMAT.formatted(reason);
+      final boolean failed = false;
+      return new Resolution(null, 0, description, failed);
     }
 
     static Resolution failure(final String reason) {
-      return new Resolution(null, 0, JAVA_DESCRIPTION_FORMAT.formatted(reason), true);
+      final String description = JAVA_DESCRIPTION_FORMAT.formatted(reason);
+      final boolean failed = true;
+      return new Resolution(null, 0, description, failed);
     }
   }
 
@@ -2746,7 +2750,10 @@ public final class Mcv2 {
         final MethodHandle cpuLevels = MethodHandles.insertArguments(levelsQuery, FEATURES_ARGUMENT, hardwareCapabilities);
         final int levels = (int) cpuLevels.invokeExact();
         final Level level = selectLevel(levels, highest);
-        return new Resolution(Binding.of(library, level), levels, "native %s (%s)".formatted(level.getSymbol(), platform), false);
+        final Binding binding = Binding.of(library, level);
+        final String description = "native %s (%s)".formatted(level.getSymbol(), platform);
+        final boolean failed = false;
+        return new Resolution(binding, levels, description, failed);
       } catch (final Throwable exception) {
         return Resolution.failure("the library could not be bound: %s".formatted(exception));
       }

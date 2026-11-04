@@ -221,7 +221,7 @@ public final class Mcv2Viewers {
       case SUCCESSFULLY_LOADED -> this.recordLoad(viewerId);
       case ACCEPTED, DOWNLOADED -> this.states.put(viewerId, PackState.REQUESTED);
       case DECLINED -> this.recordRefusal(player, PackState.DECLINED);
-      default -> this.recordRefusal(player, PackState.REFUSED);
+      case FAILED_DOWNLOAD, INVALID_URL, FAILED_RELOAD, DISCARDED -> this.recordRefusal(player, PackState.REFUSED);
     }
   }
 

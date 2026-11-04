@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalDouble;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -177,6 +178,8 @@ public final class Mcv2Pacer {
    * @since 1.0.0
    */
   public Mcv2Pacer(final List<int[]> sizes, final List<Preset> presets, final Floor floor) {
+    Preconditions.checkNotNull(sizes, "Sizes must not be null!");
+    Preconditions.checkNotNull(presets, "Presets must not be null!");
     Preconditions.checkNotNull(floor, "Floor must not be null!");
     Preconditions.checkArgument(!sizes.isEmpty(), "At least one size is needed!");
     Preconditions.checkArgument(!presets.isEmpty(), "At least one preset is needed!");
@@ -215,6 +218,7 @@ public final class Mcv2Pacer {
     final List<Rung> rungs = new ArrayList<>();
     final List<Preset> slowerPresets = presets.subList(0, presets.size() - 1);
     for (final int[] size : sizes) {
+      Preconditions.checkNotNull(size, "Size must not be null!");
       Preconditions.checkArgument(size.length == SIZE_COMPONENTS && size[0] > 0 && size[1] > 0, "Sizes must be positive width and height!");
       for (final Preset preset : slowerPresets) {
         rungs.add(Rung.of(size[0], size[1], FULL_RATE_DIVISOR, preset));
@@ -417,13 +421,14 @@ public final class Mcv2Pacer {
   }
 
   private Change move(final int next, final Direction direction, final double encodeMilliseconds, final double frameMilliseconds) {
+    final boolean down = direction == Direction.DOWN;
     final Change change = Change.of(
       this.getRung(),
       this.ladder.get(next),
-      direction == Direction.DOWN,
+      down,
       encodeMilliseconds,
       frameMilliseconds,
-      this.getVideoFramesPerSecond()
+      this.videoFramesPerSecond()
     );
     this.current = next;
     this.smoothed = Double.NaN;
@@ -434,6 +439,10 @@ public final class Mcv2Pacer {
     this.samples = 0;
 
     return change;
+  }
+
+  private double videoFramesPerSecond() {
+    return NANOSECONDS_PER_SECOND / this.videoInterval;
   }
 
   private double frameMilliseconds(final Rung rung) {
@@ -451,7 +460,7 @@ public final class Mcv2Pacer {
   private boolean isAllowed(final Rung rung) {
     return (
       rung.getDivisor() == FULL_RATE_DIVISOR ||
-      rung.framesPerSecond(this.getVideoFramesPerSecond()) >= MINIMUM_FRAMES_PER_SECOND * MINIMUM_FRAMES_PER_SECOND_TOLERANCE
+      rung.framesPerSecond(this.videoFramesPerSecond()) >= MINIMUM_FRAMES_PER_SECOND * MINIMUM_FRAMES_PER_SECOND_TOLERANCE
     );
   }
 
@@ -506,11 +515,16 @@ public final class Mcv2Pacer {
   /**
    * Returns the video's frames per second, as measured from the frames it hands over.
    *
-   * @return the frame rate, or NaN before two frames arrived
+   * @return the frame rate, or empty before two frames arrived
    * @since 1.0.0
    */
-  public double getVideoFramesPerSecond() {
-    return NANOSECONDS_PER_SECOND / this.videoInterval;
+  public OptionalDouble getVideoFramesPerSecond() {
+    final double framesPerSecond = this.videoFramesPerSecond();
+    if (Double.isNaN(framesPerSecond)) {
+      return OptionalDouble.empty();
+    }
+
+    return OptionalDouble.of(framesPerSecond);
   }
 
   /**
@@ -626,8 +640,8 @@ public final class Mcv2Pacer {
   /**
    * A rung of the ladder.
    *
-   * <p>Construction does not validate the parts. Use positive pixel dimensions, a positive frame divisor and a
-   * non-null preset for encoded rungs; {@link #DITHERED} is the canonical zero-divisor sentinel.
+   * <p>Construction checks only that the preset is not null. Use positive pixel dimensions and a positive frame divisor
+   * for encoded rungs; {@link #DITHERED} is the canonical zero-divisor sentinel.
    *
    * <p>This class is immutable and thread-safe.
    *
@@ -662,9 +676,12 @@ public final class Mcv2Pacer {
      * @param divisor every how many frames of the video one is encoded, or 0 for the dithered maps
      * @param preset  how hard the encoder searches; {@link Preset#ONLY} on the dithered maps
      * @return the rung
+     * @throws NullPointerException if {@code preset} is null
      * @since 1.0.0
      */
     public static Rung of(final int width, final int height, final int divisor, final Preset preset) {
+      Preconditions.checkNotNull(preset, "Preset must not be null!");
+
       return new Rung(width, height, divisor, preset);
     }
 
@@ -847,13 +864,14 @@ public final class Mcv2Pacer {
     /**
      * Returns a step between two rungs.
      *
-     * @param from               the rung before
-     * @param to                 the rung now
-     * @param down               whether the step went down the ladder
-     * @param encodeMilliseconds the smoothed encode time per frame that decided the step, 0 for a try from the dithered maps
-     * @param frameMilliseconds  the time a frame had on the rung before, 0 on the dithered maps
-     * @param videoFramesPerSecond     the video's frames per second as measured
+     * @param from                 the rung before
+     * @param to                   the rung now
+     * @param down                 whether the step went down the ladder
+     * @param encodeMilliseconds   the smoothed encode time per frame that decided the step, 0 for a try from the dithered maps
+     * @param frameMilliseconds    the time a frame had on the rung before, 0 on the dithered maps
+     * @param videoFramesPerSecond the video's frames per second as measured
      * @return the change
+     * @throws NullPointerException if {@code from} or {@code to} is null
      * @since 1.0.0
      */
     public static Change of(
@@ -864,6 +882,9 @@ public final class Mcv2Pacer {
       final double frameMilliseconds,
       final double videoFramesPerSecond
     ) {
+      Preconditions.checkNotNull(from, "From rung must not be null!");
+      Preconditions.checkNotNull(to, "To rung must not be null!");
+
       return new Change(from, to, down, encodeMilliseconds, frameMilliseconds, videoFramesPerSecond);
     }
 

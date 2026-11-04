@@ -26,6 +26,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
@@ -391,7 +392,8 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     final double lambda = Double.isFinite(product)
       ? product / Settings.DEFAULT.getLambda()
       : settings.getLambda() * (Settings.FAST.getLambda() / Settings.DEFAULT.getLambda());
-    return List.of(settings, Settings.of(lambda, true));
+    final boolean fast = true;
+    return List.of(settings, Settings.of(lambda, fast));
   }
 
   private List<Mcv2Pacer.Preset> presets(@UnderInitialization Mcv2Result this, final List<Settings> ladder) {
@@ -789,16 +791,17 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     final boolean recorded = event.isEnabled();
     final long[] before = recorded ? this.linkCounts() : new long[LINK_COUNTS];
     final Screen current = this.screen;
-    final int colors = current.channel().send(frame);
-    if (colors >= 0) {
+    final OptionalInt sent = current.channel().send(frame);
+    if (sent.isPresent()) {
       this.frameListener.accept(frame);
     }
 
+    final int colors = sent.orElse(Mcv2Channel.NOT_SENT);
     if (recorded) {
       this.record(event, delivery, colors, before);
     }
 
-    if (colors < 0) {
+    if (sent.isEmpty()) {
       LOGGER.warn(
         "MCV2 frame {} of {} bytes needs more than {} pages; it is not sent.",
         frameId,
