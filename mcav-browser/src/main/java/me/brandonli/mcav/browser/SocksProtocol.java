@@ -143,7 +143,8 @@ final class SocksProtocol {
     input.readFully(bytes);
     for (final byte value : bytes) {
       if (!isHostNameCharacter(value) && value != IPV6_SEPARATOR && value != OPENING_BRACKET && value != CLOSING_BRACKET) {
-        final String message = "Byte %s is not allowed in the host name of the request!".formatted(value & UNSIGNED_BYTE_MASK);
+        final int unsignedValue = value & UNSIGNED_BYTE_MASK;
+        final String message = "Byte %s is not allowed in the host name of the request!".formatted(unsignedValue);
         throw new ProtocolException(message);
       }
     }

@@ -80,6 +80,7 @@ final class ContentPolicy
     final boolean allowed = NavigationPolicy.allowsNavigation(targetUrl, FrameKind.MAIN);
     if (allowed) {
       browser.loadURL(targetUrl);
+
       final String address = AddressText.describe(targetUrl);
       this.events.onNotice("Opened the new window %s in place.".formatted(address));
     } else {
@@ -201,6 +202,7 @@ final class ContentPolicy
   ) {
     final boolean isAlert = dialogType == CefJSDialogHandler.JSDialogType.JSDIALOGTYPE_ALERT;
     callback.Continue(isAlert, "");
+
     final String address = AddressText.describe(originUrl);
     this.events.onNotice("A JavaScript dialog of %s was dismissed.".formatted(address));
 
@@ -233,6 +235,7 @@ final class ContentPolicy
     final CefBeforeDownloadCallback callback
   ) {
     this.events.onNotice("The download of %s was refused.".formatted(suggestedName));
+
     // on macOS a page that starts a download while it loads stays white after the refusal until it changes
     if (browser instanceof final MCAVOffscreenBrowser offscreen) {
       offscreen.repaint();
@@ -351,6 +354,7 @@ final class ContentPolicy
       final BoolRef allowOsExecution
     ) {
       allowOsExecution.set(false);
+
       final String url = request.getURL();
       final String address = AddressText.describe(url);
       this.events.onNotice("Opening %s with another program was refused.".formatted(address));

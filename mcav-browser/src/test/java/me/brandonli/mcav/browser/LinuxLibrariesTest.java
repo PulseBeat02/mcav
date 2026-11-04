@@ -882,14 +882,15 @@ class LinuxLibrariesTest {
       List.of(this.pin(debianPackage).replace(PLATFORM, platform))
     );
     final HelperLauncher linux = HelperSessionTest.launcher(ScriptedEngine.class.getName(), START_TIMEOUT_MILLISECONDS, Os.LINUX);
-    final HelperLauncher withLibraries = CefBrowserPlayer.HelperSessionFactory.withLibraries(linux, libraries);
+    final CefBrowserPlayer.HelperSessionFactory factory = new CefBrowserPlayer.HelperSessionFactory(new JcefNatives(), List.of());
+    final HelperLauncher withLibraries = factory.withLibraries(linux, libraries);
     final Path session = Files.createDirectory(this.folder.resolve(SESSION_FOLDER));
     final Path linked = withLibraries.linkLibraries(session);
     final boolean libraryLinked = Files.isSymbolicLink(linked.resolve(LIBRARY_NAME));
     assertTrue(libraryLinked, "this machine lacks the test library");
 
     final HelperLauncher windows = HelperSessionTest.launcher(ScriptedEngine.class.getName(), START_TIMEOUT_MILLISECONDS, Os.WINDOWS);
-    final HelperLauncher launcherWithLibraries = CefBrowserPlayer.HelperSessionFactory.withLibraries(windows, libraries);
+    final HelperLauncher launcherWithLibraries = factory.withLibraries(windows, libraries);
     assertSame(windows, launcherWithLibraries);
   }
 
@@ -910,7 +911,8 @@ class LinuxLibrariesTest {
       this.elf(ELF_64_BIT, LITTLE_ENDIAN, platform.endsWith(ARM64_PLATFORM_SUFFIX) ? ARM64_MACHINE : AMD64_MACHINE)
     );
     final HelperLauncher linux = HelperSessionTest.launcher(ScriptedEngine.class.getName(), START_TIMEOUT_MILLISECONDS, Os.LINUX);
-    final HelperLauncher launcherWithLibraries = CefBrowserPlayer.HelperSessionFactory.withLibraries(linux, libraries, root);
+    final CefBrowserPlayer.HelperSessionFactory factory = new CefBrowserPlayer.HelperSessionFactory(new JcefNatives(), List.of());
+    final HelperLauncher launcherWithLibraries = factory.withLibraries(linux, libraries, root);
     assertSame(linux, launcherWithLibraries);
     assertEquals(List.of(), this.downloads, "a server behind a firewall that has every library needs no mirror");
   }
@@ -939,7 +941,8 @@ class LinuxLibrariesTest {
       START_TIMEOUT_MILLISECONDS
     );
     final Path server = Files.createDirectories(this.folder.resolve(SERVER_FOLDER));
-    final Executable linking = () -> CefBrowserPlayer.HelperSessionFactory.withLibraries(headless, libraries, server);
+    final CefBrowserPlayer.HelperSessionFactory factory = new CefBrowserPlayer.HelperSessionFactory(new JcefNatives(), List.of());
+    final Executable linking = () -> factory.withLibraries(headless, libraries, server);
     final BrowserException refused = assertThrows(BrowserUnavailableException.class, linking);
     final String message = refused.getMessage();
     assertEquals(
@@ -957,7 +960,7 @@ class LinuxLibrariesTest {
       loader.resolve(LIBRARY_NAME),
       this.elf(ELF_64_BIT, LITTLE_ENDIAN, platform.endsWith(ARM64_PLATFORM_SUFFIX) ? ARM64_MACHINE : AMD64_MACHINE)
     );
-    final HelperLauncher launcherWithLibraries = CefBrowserPlayer.HelperSessionFactory.withLibraries(headless, libraries, server);
+    final HelperLauncher launcherWithLibraries = factory.withLibraries(headless, libraries, server);
     assertSame(headless, launcherWithLibraries, "a full runtime is used");
   }
 
@@ -973,7 +976,8 @@ class LinuxLibrariesTest {
     );
     final HelperLauncher linux = HelperSessionTest.launcher(ScriptedEngine.class.getName(), START_TIMEOUT_MILLISECONDS, Os.LINUX);
     final Path server = Files.createDirectories(this.folder.resolve(SERVER_FOLDER));
-    final Executable linking = () -> CefBrowserPlayer.HelperSessionFactory.withLibraries(linux, libraries, server);
+    final CefBrowserPlayer.HelperSessionFactory factory = new CefBrowserPlayer.HelperSessionFactory(new JcefNatives(), List.of());
+    final Executable linking = () -> factory.withLibraries(linux, libraries, server);
     final BrowserException refused = assertThrows(BrowserUnavailableException.class, linking);
     final String message = refused.getMessage();
     assertEquals("The browser needs libz.so.1, which this server lacks and MCAV does not bring!", message);

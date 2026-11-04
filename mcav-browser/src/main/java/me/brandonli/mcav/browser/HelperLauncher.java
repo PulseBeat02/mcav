@@ -156,10 +156,7 @@ final class HelperLauncher {
     command.add(TEMPORARY_FOLDER_SWITCH + folder);
     command.addAll(this.extraJvmOptions);
     command.add(CLASS_PATH_SWITCH);
-    final List<String> entries = new ArrayList<>();
-    for (final Path entry : this.classPath) {
-      entries.add(entry.toString());
-    }
+    final List<String> entries = this.classPath.stream().map(Path::toString).toList();
 
     command.add(String.join(File.pathSeparator, entries));
     command.add(this.mainClass);
@@ -210,7 +207,11 @@ final class HelperLauncher {
 
   @Nullable Path linkLibraries(final Path folder) throws IOException {
     final LibraryLinker linker = this.libraryLinker;
-    return linker == null ? null : linker.link(folder);
+    if (linker == null) {
+      return null;
+    }
+
+    return linker.link(folder);
   }
 
   Path getJava() {

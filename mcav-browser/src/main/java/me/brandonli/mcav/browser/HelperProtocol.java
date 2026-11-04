@@ -241,6 +241,7 @@ final class HelperProtocol {
 
   private static HelperMessage readHello(final DataInput input, final int length) throws IOException {
     expectLength(HELLO, length, TOKEN_BYTES + VERSION_BYTES);
+
     final byte[] token = new byte[TOKEN_BYTES];
     input.readFully(token);
     final int version = input.readUnsignedShort();
@@ -254,6 +255,7 @@ final class HelperProtocol {
 
   private static HelperMessage readLoading(final DataInput input, final int length) throws IOException {
     expectLength(LOADING, length, LOADING_BYTES);
+
     final int value = input.readUnsignedByte();
     if (value > LOADING_STARTED) {
       final String message = "Loading state %s must be 0 or 1!".formatted(value);
@@ -270,6 +272,7 @@ final class HelperProtocol {
       ERROR_CODE_BYTES + STRING_LENGTH_BYTES + STRING_LENGTH_BYTES,
       ERROR_CODE_BYTES + STRING_LENGTH_BYTES + MAXIMUM_TEXT_BYTES + STRING_LENGTH_BYTES + MAXIMUM_TEXT_BYTES
     );
+
     final int code = input.readInt();
     final byte[] textBytes = readStringBytes(input);
     final byte[] urlBytes = readStringBytes(input);
@@ -288,6 +291,7 @@ final class HelperProtocol {
     throws IOException {
     final long maximum = FRAME_HEADER_BYTES + (long) MAXIMUM_SIDE * MAXIMUM_SIDE * PIXEL_BYTES;
     checkLength(FRAME, length, FRAME_HEADER_BYTES, maximum);
+
     final int pageWidth = input.readUnsignedShort();
     final int pageHeight = input.readUnsignedShort();
     final int left = input.readUnsignedShort();
@@ -338,6 +342,7 @@ final class HelperProtocol {
 
   private static HelperMessage readMouse(final DataInput input, final int length) throws IOException {
     expectLength(MOUSE, length, MOUSE_BYTES);
+
     final int action = input.readUnsignedByte();
     final int pageX = input.readUnsignedShort();
     final int pageY = input.readUnsignedShort();
@@ -366,6 +371,7 @@ final class HelperProtocol {
 
   private static HelperMessage readKey(final DataInput input, final int length) throws IOException {
     checkLength(KEY, length, ACTION_BYTES + STRING_LENGTH_BYTES, ACTION_BYTES + STRING_LENGTH_BYTES + MAXIMUM_TEXT_BYTES);
+
     final int action = input.readUnsignedByte();
     if (action > KEY_TYPE) {
       final String message = "Key action %s is unknown!".formatted(action);
@@ -391,6 +397,7 @@ final class HelperProtocol {
 
   private static String readSingleString(final DataInput input, final int type, final int length) throws IOException {
     checkLength(type, length, STRING_LENGTH_BYTES, STRING_LENGTH_BYTES + MAXIMUM_TEXT_BYTES);
+
     final byte[] bytes = readStringBytes(input);
     if (STRING_LENGTH_BYTES + bytes.length != length) {
       final String message = "A message of %s bytes holds a string of %s bytes!".formatted(length, bytes.length);

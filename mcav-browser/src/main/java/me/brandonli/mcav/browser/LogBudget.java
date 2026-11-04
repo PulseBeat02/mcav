@@ -42,9 +42,7 @@ final class LogBudget {
   }
 
   synchronized void log(final Runnable line, final LongConsumer skipped) {
-    final long refills = Math.max(0L, this.clock.getAsLong() - this.refilled) / REFILL_NANOSECONDS;
-    this.available = Math.min(BURST, this.available + refills);
-    this.refilled += refills * REFILL_NANOSECONDS;
+    this.refill();
 
     if (this.available == 0) {
       this.skipped++;
@@ -52,11 +50,20 @@ final class LogBudget {
     }
 
     this.available--;
+
     if (this.skipped > 0) {
       skipped.accept(this.skipped);
       this.skipped = 0;
     }
 
     line.run();
+  }
+
+  private void refill() {
+    final long now = this.clock.getAsLong();
+    final long elapsed = Math.max(0L, now - this.refilled);
+    final long refills = elapsed / REFILL_NANOSECONDS;
+    this.available = Math.min(BURST, this.available + refills);
+    this.refilled += refills * REFILL_NANOSECONDS;
   }
 }

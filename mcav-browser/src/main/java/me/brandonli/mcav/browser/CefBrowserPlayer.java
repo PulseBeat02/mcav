@@ -118,6 +118,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
   @Override
   public boolean start(final BrowserSource source) {
     Preconditions.checkNotNull(source, "Source must not be null!");
+
     this.lock.lock();
     try {
       return this.startReleasably(source);
@@ -151,6 +152,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
         interrupted = this.startInterrupted;
         this.startInterrupted = false;
       }
+
       if (interrupted && !callerInterrupted) {
         Thread.interrupted();
       }
@@ -160,6 +162,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
   private boolean startSession(final BrowserSource source) {
     this.closeSession();
     this.source = source;
+
     final int width = source.getWidth();
     final int height = source.getHeight();
     final OriginalVideoMetadata metadata = OriginalVideoMetadata.of(width, height);
@@ -176,6 +179,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
     this.state.set(State.PLAYING);
     // a helper exit before the session was owned must fail the start too
     listener.setSession(started);
+
     final boolean playing = this.state.get() == State.PLAYING;
     if (playing) {
       // the frames of the start arrived before the session was the player's; a page that stays still needs them again
@@ -240,7 +244,9 @@ final class CefBrowserPlayer implements BrowserPlayer {
   @Override
   public void sendMouseEvent(final MouseClick type, final int pageX, final int pageY) {
     Preconditions.checkNotNull(type, "Mouse click type must not be null!");
+
     this.moveMouse(pageX, pageY);
+
     final Runnable input = switch (type) {
       case LEFT -> () -> this.click(HelperProtocol.BUTTON_LEFT, pageX, pageY, SINGLE_CLICK);
       case RIGHT -> () -> this.click(HelperProtocol.BUTTON_RIGHT, pageX, pageY, SINGLE_CLICK);
@@ -303,6 +309,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
   @Override
   public void sendKeyEvent(final String text) {
     Preconditions.checkNotNull(text, "Text must not be null!");
+
     final BrowserSession current = this.getInputSession();
     if (current == null) {
       return;
@@ -398,6 +405,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
   @Override
   public void setExceptionHandler(final BiConsumer<String, Throwable> exceptionHandler) {
     Preconditions.checkNotNull(exceptionHandler, "Exception handler must not be null!");
+
     this.exceptionHandler.setExceptionHandler(exceptionHandler);
   }
 
@@ -454,12 +462,13 @@ final class CefBrowserPlayer implements BrowserPlayer {
     @Override
     public BrowserSession open(final BrowserSource source, final BrowserOptions options, final BrowserSession.Listener listener) {
       HelperProcesses.requireOpen();
+
       final Path installation;
       final HelperLauncher current;
       try {
         installation = this.natives.install();
         final HelperLauncher base = this.getLauncher();
-        current = withLibraries(base, this.libraries);
+        current = this.withLibraries(base, this.libraries);
       } catch (final IOException | DownloadException | FileOperationException exception) {
         final String message = "The browser cannot be installed!";
         throw new BrowserUnavailableException(message, exception);
@@ -469,18 +478,19 @@ final class CefBrowserPlayer implements BrowserPlayer {
     }
 
     @VisibleForTesting
-    static HelperLauncher withLibraries(final HelperLauncher base, final LinuxLibraries libraries) throws IOException {
+    HelperLauncher withLibraries(final HelperLauncher base, final LinuxLibraries libraries) throws IOException {
       if (base.getOs() != Os.LINUX) {
         return base;
       }
 
-      return withLibraries(base, libraries, ROOT);
+      return this.withLibraries(base, libraries, ROOT);
     }
 
     @VisibleForTesting
-    static HelperLauncher withLibraries(final HelperLauncher base, final LinuxLibraries libraries, final Path root) throws IOException {
+    HelperLauncher withLibraries(final HelperLauncher base, final LinuxLibraries libraries, final Path root) throws IOException {
       final Path java = base.getJava();
       LinuxLibraries.requireJawt(java);
+
       final JcefNatives.NativePlatform platform = JcefNatives.detectCurrent();
       final String identifier = platform.getIdentifier();
       final List<Path> folders = LinuxLibraries.hostFolders(root, identifier);

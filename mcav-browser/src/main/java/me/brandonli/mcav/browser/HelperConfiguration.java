@@ -111,6 +111,7 @@ final class HelperConfiguration {
     this.requireRange(height, 1, HelperProtocol.MAXIMUM_SIDE, "height");
     this.requireRange(frameInterval, 1, MAXIMUM_FRAME_INTERVAL, "frame interval");
     this.requireRange(frameRate, 1, MAXIMUM_FRAME_RATE, "frame rate");
+
     this.token = token.clone();
     this.socket = socket;
     this.natives = natives;
@@ -160,8 +161,10 @@ final class HelperConfiguration {
 
   static HelperConfiguration fromLine(final String line) {
     requireThat(line.length() <= MAXIMUM_LINE_CHARACTERS, "The configuration line is too long!");
+
     final String[] parts = line.split(SEPARATOR, KEEP_TRAILING_EMPTY_PARTS);
     requireThat(parts.length == FIELDS, "The configuration has %s values instead of %s values!".formatted(parts.length, FIELDS));
+
     final Base64.Decoder decoder = Base64.getDecoder();
     final String[] values = new String[parts.length];
     for (int index = 0; index < parts.length; index++) {

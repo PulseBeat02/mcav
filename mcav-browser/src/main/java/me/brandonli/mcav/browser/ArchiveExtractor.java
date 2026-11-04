@@ -195,6 +195,7 @@ final class ArchiveExtractor {
     throws IOException {
     final Path parent = Objects.requireNonNull(destination.getParent(), "An entry lies below the folder!");
     createFolders(parent, permissions);
+
     final byte[] buffer = new byte[BUFFER_BYTES];
     final FileAttribute<?>[] attributes = initialAttributes(permissions, REGULAR);
     try (

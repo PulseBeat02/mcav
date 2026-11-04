@@ -88,6 +88,7 @@ public final class MCAVOffscreenBrowser extends CefBrowser_N implements CefRende
     super(client, url, null, null, null, settings);
     this.viewBounds = new Rectangle(0, 0, width, height);
     this.listener = listener;
+    this.focused = false;
   }
 
   /**

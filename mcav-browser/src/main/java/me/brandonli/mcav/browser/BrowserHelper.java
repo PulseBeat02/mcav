@@ -123,6 +123,7 @@ public final class BrowserHelper {
   public static void main(final String[] args) {
     final PrintStream errors = System.err;
     System.setOut(errors);
+
     final InputStream standardInput = System.in;
     final Reader reader = new InputStreamReader(standardInput, StandardCharsets.UTF_8);
     final BufferedReader input = new BufferedReader(reader);
@@ -130,6 +131,7 @@ public final class BrowserHelper {
     final int status = runFromInput(input, new CefEngine(), runtime::halt);
     // the JVM must end even while threads of CEF or AWT still run
     System.exit(status);
+
     final String message = "System.exit returned!";
     throw new AssertionError(message);
   }
@@ -140,6 +142,7 @@ public final class BrowserHelper {
       final String line = input.readLine();
       if (line == null) {
         System.err.println("The browser helper got no configuration.");
+
         return EXIT_BAD_CONFIGURATION;
       }
 
@@ -173,6 +176,7 @@ public final class BrowserHelper {
         HelperProtocol.writeHello(output, token);
         output.flush();
       }
+
       final Reporter reporter = new Reporter(output);
       this.startDaemon(INPUT_THREAD_NAME, () -> this.watchInput(standardInput));
       this.startDaemon(COMMAND_THREAD_NAME, () -> this.readCommands(input));

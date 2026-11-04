@@ -95,12 +95,7 @@ final class AddressPolicy {
   }
 
   static boolean isPublic(final InetAddress address) {
-    final byte[] bytes = address.getAddress();
-    if (address instanceof Inet4Address) {
-      return isPublicIpv4(toInt(bytes, 0));
-    }
-
-    return isPublicIpv6(bytes);
+    return isPublic(address, List.of());
   }
 
   static boolean isPublic(final InetAddress address, final List<TranslationPrefix> prefixes) {

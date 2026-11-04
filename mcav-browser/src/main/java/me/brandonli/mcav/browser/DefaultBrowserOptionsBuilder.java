@@ -34,6 +34,9 @@ final class DefaultBrowserOptionsBuilder implements BrowserOptionsBuilder {
 
   DefaultBrowserOptionsBuilder() {
     this.frameRate = BrowserOptions.MAXIMUM_FRAME_RATE;
+    this.allowsJavaScriptJit = false;
+    this.allowsPrivateNetworks = false;
+    this.allowsAutoplay = false;
     this.confined = true;
     this.refusedHosts = List.of();
   }
