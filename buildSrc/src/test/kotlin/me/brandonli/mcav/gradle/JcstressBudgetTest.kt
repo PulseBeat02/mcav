@@ -34,6 +34,8 @@ class JcstressBudgetTest {
 
         const val QUICK_PRESET: String = "quick"
 
+        const val BUDGET_MINUTES: Int = 10
+
         const val SECOND_TEST_SELECTION: String = """^a\.b\.Second$"""
 
         const val TESTS_JAR: String = "tests.jar"
@@ -48,7 +50,7 @@ class JcstressBudgetTest {
 
     @Test
     fun shouldSplitHalfOfTheBudgetOverTheIterationsOfEveryRun(): Unit {
-        val iterationMilliseconds: Long = JcstressBudget.iterationMilliseconds(QUICK_PRESET, 10, 9, 4)
+        val iterationMilliseconds: Long = JcstressBudget.iterationMilliseconds(QUICK_PRESET, BUDGET_MINUTES, 9, 4)
         assertEquals(76L, iterationMilliseconds)
     }
 
@@ -63,13 +65,13 @@ class JcstressBudgetTest {
 
     @Test
     fun shouldRunOneRunAtATimeOnASingleCpu(): Unit {
-        val iterationMilliseconds: Long = JcstressBudget.iterationMilliseconds("default", 10, 1, 1)
+        val iterationMilliseconds: Long = JcstressBudget.iterationMilliseconds("default", BUDGET_MINUTES, 1, 1)
         assertEquals(314L, iterationMilliseconds)
     }
 
     @Test
     fun shouldRefuseAnUnknownMode(): Unit {
-        assertThrows(IllegalArgumentException::class.java) { JcstressBudget.iterationMilliseconds("forever", 10, 1, 4) }
+        assertThrows(IllegalArgumentException::class.java) { JcstressBudget.iterationMilliseconds("forever", BUDGET_MINUTES, 1, 4) }
     }
 
     @Test

@@ -23,6 +23,15 @@ import org.junit.jupiter.api.Test
 
 class JavaSourceTest {
 
+    private companion object {
+
+        const val LINE_SEPARATOR: String = "\n"
+
+        const val SPACE: String = " "
+
+        const val SOURCE_ENDING_IN_AN_ESCAPE: String = "\"a\\"
+    }
+
     @Test
     fun shouldMaskCommentsAndLiteralsAndKeepEveryOffset(): Unit {
         val quotes: String = "\"\"\""
@@ -33,15 +42,15 @@ class JavaSourceTest {
             "String b = $quotes",
             "  line \\$quotes",
             "  $quotes;",
-        ).joinToString("\n")
+        ).joinToString(LINE_SEPARATOR)
         val expected: String = listOf(
-            "int a = 1;${" ".repeat(8)}",
-            " ".repeat(8),
-            "${" ".repeat(9)} call(${" ".repeat(9)}, ${" ".repeat(3)});",
-            "String b = ${" ".repeat(3)}",
-            " ".repeat(11),
-            "${" ".repeat(5)};",
-        ).joinToString("\n")
+            "int a = 1;${SPACE.repeat(8)}",
+            SPACE.repeat(8),
+            "${SPACE.repeat(9)} call(${SPACE.repeat(9)}, ${SPACE.repeat(3)});",
+            "String b = ${SPACE.repeat(3)}",
+            SPACE.repeat(11),
+            "${SPACE.repeat(5)};",
+        ).joinToString(LINE_SEPARATOR)
         val masked: String = JavaSource.mask(source)
         assertEquals(expected, masked)
     }
@@ -54,21 +63,21 @@ class JavaSourceTest {
 
     @Test
     fun shouldBlankAnEscapeThatEndsTheSource(): Unit {
-        val masked: String = JavaSource.mask("\"a\\")
+        val masked: String = JavaSource.mask(SOURCE_ENDING_IN_AN_ESCAPE)
         assertEquals("   ", masked)
     }
 
     @Test
     fun shouldBlankCommentsAndKeepLiteralsWhenRemovingComments(): Unit {
         val source: String = "call(\"a // b\"); // note\n/* c */ 'd';"
-        val expected: String = "call(\"a // b\");${" ".repeat(8)}\n${" ".repeat(8)}'d';"
+        val expected: String = "call(\"a // b\");${SPACE.repeat(8)}\n${SPACE.repeat(8)}'d';"
         val withoutComments: String = JavaSource.withoutComments(source)
         assertEquals(expected, withoutComments)
     }
 
     @Test
     fun shouldKeepAnEscapeThatEndsTheSourceWhenRemovingComments(): Unit {
-        val withoutComments: String = JavaSource.withoutComments("\"a\\")
-        assertEquals("\"a\\", withoutComments)
+        val withoutComments: String = JavaSource.withoutComments(SOURCE_ENDING_IN_AN_ESCAPE)
+        assertEquals(SOURCE_ENDING_IN_AN_ESCAPE, withoutComments)
     }
 }

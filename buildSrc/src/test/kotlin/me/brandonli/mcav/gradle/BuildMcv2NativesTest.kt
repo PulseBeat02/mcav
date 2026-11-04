@@ -59,6 +59,8 @@ class BuildMcv2NativesTest {
         const val COMPILE_COMMAND: String = "c++"
         const val LINK_COMMAND: String = "cc"
 
+        const val COMPILE_COUNT: Int = 22
+
         const val MACOS: String = "macos"
 
         const val X86_64: String = "x86_64"
@@ -110,7 +112,7 @@ class BuildMcv2NativesTest {
         this.submitted.single().execute()
 
         val compileCount: Int = this.commands.count { it.first() == COMPILE_COMMAND }
-        assertEquals(22, compileCount)
+        assertEquals(COMPILE_COUNT, compileCount)
 
         val linkCount: Int = this.commands.count { it.first() == LINK_COMMAND }
         assertEquals(6, linkCount)
@@ -143,7 +145,7 @@ class BuildMcv2NativesTest {
 
         val compiles: List<List<String>> = this.commands.filter { it.first() == COMPILE_COMMAND }
         val compileCount: Int = compiles.size
-        assertEquals(22, compileCount)
+        assertEquals(COMPILE_COUNT, compileCount)
 
         for (command in compiles) {
             this.assertCompileFlags(command)
@@ -202,7 +204,7 @@ class BuildMcv2NativesTest {
         assertEquals(2, mostCompilesAtOnce)
 
         val compileCount: Int = this.commands.count { it.first() == COMPILE_COMMAND }
-        assertEquals(22, compileCount)
+        assertEquals(COMPILE_COUNT, compileCount)
     }
 
     @Test

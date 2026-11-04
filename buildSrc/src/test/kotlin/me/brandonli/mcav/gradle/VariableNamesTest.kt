@@ -70,7 +70,7 @@ class VariableNamesTest {
               }
             }
         """.trimIndent()
-        val kinds: List<String> = VariableNames.find(source).map { "${it.name}: ${it.kind}" }
+        val kinds: List<String> = VariableNames.find(source).map(this::nameAndKindOf)
         assertEquals(
             listOf(
                 "w: field",
@@ -134,7 +134,7 @@ class VariableNamesTest {
             }
         """.trimIndent()
 
-        val kinds: List<String> = VariableNames.find(source).map { "${it.name}: ${it.kind}" }
+        val kinds: List<String> = VariableNames.find(source).map(this::nameAndKindOf)
         assertEquals(listOf("x: field"), kinds)
     }
 
@@ -161,5 +161,9 @@ class VariableNamesTest {
         val found: Map<File, List<UndescriptiveName>> = VariableNames.findInFiles(listOf(detour))
         val files: Set<File> = found.keys
         assertEquals(setOf(file), files)
+    }
+
+    private fun nameAndKindOf(variable: UndescriptiveName): String {
+        return "${variable.name}: ${variable.kind}"
     }
 }
