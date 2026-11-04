@@ -288,8 +288,8 @@ final class ImageMapCommandTest {
     final DitherAlgorithm expected = DitheringArgument.NEAREST_COLOR.createAlgorithm();
     assertSame(expected, first);
 
-    final DitherAlgorithm NEAREST_COLORExpected = DitheringArgument.NEAREST_COLOR.createAlgorithm();
-    assertSame(NEAREST_COLORExpected, second);
+    final DitherAlgorithm expectedSecond = DitheringArgument.NEAREST_COLOR.createAlgorithm();
+    assertSame(expectedSecond, second);
 
     verify(this.support).output(this.sender, configuration, DitheringArgument.NEAREST_COLOR);
   }

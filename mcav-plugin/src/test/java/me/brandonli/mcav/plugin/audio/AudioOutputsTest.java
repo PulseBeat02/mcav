@@ -43,9 +43,9 @@ final class AudioOutputsTest {
 
     when(this.provider.isHttpEnabled()).thenReturn(true);
 
-    final Component AUDIO_NOT_READYExpected = Message.AUDIO_NOT_READY.build();
+    final Component expectedNotReady = Message.AUDIO_NOT_READY.build();
     final Optional<Component> audioOutputsProblem = AudioOutputs.findProblem(this.provider, AudioArgument.HTTP_SERVER);
-    assertEquals(Optional.of(AUDIO_NOT_READYExpected), audioOutputsProblem);
+    assertEquals(Optional.of(expectedNotReady), audioOutputsProblem);
 
     when(this.provider.isHttpReady()).thenReturn(true);
 

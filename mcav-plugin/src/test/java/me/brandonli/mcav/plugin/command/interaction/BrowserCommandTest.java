@@ -319,11 +319,11 @@ final class BrowserCommandTest {
     final Component expected = Message.BROWSER_UNAVAILABLE.build();
     assertEquals(expected, direct);
 
-    final Component BROWSER_UNAVAILABLEExpected = Message.BROWSER_UNAVAILABLE.build();
-    assertEquals(BROWSER_UNAVAILABLEExpected, wrapped);
+    final Component expectedUnavailable = Message.BROWSER_UNAVAILABLE.build();
+    assertEquals(expectedUnavailable, wrapped);
 
-    final Component BROWSER_ERRORExpected = Message.BROWSER_ERROR.build();
-    assertEquals(BROWSER_ERRORExpected, other);
+    final Component expectedError = Message.BROWSER_ERROR.build();
+    assertEquals(expectedError, other);
   }
 
   @Test

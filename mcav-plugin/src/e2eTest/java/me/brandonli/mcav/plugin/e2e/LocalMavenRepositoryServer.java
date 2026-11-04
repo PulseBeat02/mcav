@@ -60,7 +60,7 @@ final class LocalMavenRepositoryServer implements AutoCloseable {
     this.server = server;
     this.executor = Executors.newVirtualThreadPerTaskExecutor();
     this.servedFileCount = new AtomicInteger();
-    server.createContext(ROOT_PATH, this::handle);
+    server.createContext(ROOT_PATH, this::serveFile);
     server.setExecutor(this.executor);
   }
 
@@ -81,7 +81,7 @@ final class LocalMavenRepositoryServer implements AutoCloseable {
     this.executor.close();
   }
 
-  private void handle(final HttpExchange exchange) throws IOException {
+  private void serveFile(final HttpExchange exchange) throws IOException {
     try (exchange) {
       final String method = exchange.getRequestMethod();
       final boolean isHeadRequest = method.equals(HEAD_METHOD);

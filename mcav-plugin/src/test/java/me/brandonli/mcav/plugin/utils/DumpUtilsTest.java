@@ -101,7 +101,7 @@ final class DumpUtilsTest {
     final InetAddress loopback = InetAddress.getLoopbackAddress();
     final InetSocketAddress address = new InetSocketAddress(loopback, 0);
     this.server = HttpServer.create(address, 0);
-    this.server.createContext(ROOT_PATH, this::handle);
+    this.server.createContext(ROOT_PATH, this::answerUpload);
     this.server.setExecutor(this.handlers);
     this.server.start();
   }
@@ -120,7 +120,7 @@ final class DumpUtilsTest {
     assertEquals(null, handlerFailure, "HTTP handler assertions reach JUnit");
   }
 
-  private void handle(final HttpExchange exchange) throws IOException {
+  private void answerUpload(final HttpExchange exchange) throws IOException {
     try (final InputStream input = exchange.getRequestBody()) {
       final byte[] bytes = input.readAllBytes();
       final String body = new String(bytes, StandardCharsets.UTF_8);
