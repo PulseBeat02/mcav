@@ -65,7 +65,7 @@ public interface ImagePlayer extends ReleasablePlayer, ExceptionHandler {
    * @param source the source of frames
    * @return true if playback started, false if the player is already playing or released
    * @throws NullPointerException     if {@code source} is null
-   * @throws IllegalArgumentException if the source frame rate is nonpositive or nonfinite
+   * @throws IllegalArgumentException if the source frame rate is not positive or not finite
    * @since 1.0.0
    */
   boolean start(final FrameSource source);

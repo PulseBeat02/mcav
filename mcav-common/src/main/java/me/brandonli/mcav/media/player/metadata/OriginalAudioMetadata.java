@@ -45,7 +45,7 @@ public interface OriginalAudioMetadata extends OriginalMetadata {
    * @param audioChannels   the strictly positive number of channels
    * @param samplingFormat  the FFmpeg sample format identifier, or {@link #UNKNOWN}
    * @return the metadata
-   * @throws IllegalArgumentException if the sample rate or channel count is nonpositive
+   * @throws IllegalArgumentException if the sample rate or channel count is not positive
    * @throws NullPointerException     if {@code codec} is null
    * @since 1.0.0
    */
