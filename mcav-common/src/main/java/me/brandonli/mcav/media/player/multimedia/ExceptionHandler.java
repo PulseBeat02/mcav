@@ -35,6 +35,17 @@ import java.util.function.BiConsumer;
  */
 public interface ExceptionHandler {
   /**
+   * Creates a standalone handler holder that logs failures with SLF4J until another handler is set. Players use
+   * it to implement this interface by delegation.
+   *
+   * @return a new handler holder
+   * @since 1.0.0
+   */
+  static ExceptionHandler createDefault() {
+    return new DefaultExceptionHandler();
+  }
+
+  /**
    * Returns the handler that receives failures.
    *
    * @return the handler
@@ -51,15 +62,4 @@ public interface ExceptionHandler {
    * @since 1.0.0
    */
   void setExceptionHandler(final BiConsumer<String, Throwable> exceptionHandler);
-
-  /**
-   * Creates a standalone handler holder that logs failures with SLF4J until another handler is set. Players use
-   * it to implement this interface by delegation.
-   *
-   * @return a new handler holder
-   * @since 1.0.0
-   */
-  static ExceptionHandler createDefault() {
-    return new DefaultExceptionHandler();
-  }
 }

@@ -50,9 +50,7 @@ final class RenderThread {
     Preconditions.checkState(this.thread == null, "Render thread %s was already started!", this.name);
 
     this.running.set(true);
-    final AtomicBoolean flag = this.running;
-    final Consumer<RuntimeException> failures = this.failureHandler;
-    final Thread created = new Thread(() -> loop(flag, step, failures, cleanup), this.name);
+    final Thread created = new Thread(() -> this.loop(step, cleanup), this.name);
     created.setDaemon(true);
     this.thread = created;
     created.start();
@@ -69,10 +67,10 @@ final class RenderThread {
     }
 
     current.interrupt();
-    joinUnlessSelf(current);
+    this.joinUnlessSelf(current);
   }
 
-  private static void joinUnlessSelf(final Thread target) {
+  private void joinUnlessSelf(final Thread target) {
     final Thread current = Thread.currentThread();
     final boolean isTargetThread = current.equals(target);
     if (isTargetThread) {
@@ -86,30 +84,25 @@ final class RenderThread {
     }
   }
 
-  private static void loop(
-    final AtomicBoolean running,
-    final Step step,
-    final Consumer<RuntimeException> failures,
-    final Runnable cleanup
-  ) {
+  private void loop(final Step step, final Runnable cleanup) {
     try {
-      while (running.get()) {
-        runStep(step, failures);
+      while (this.running.get()) {
+        this.runStep(step);
       }
     } catch (final InterruptedException exception) {
       final Thread current = Thread.currentThread();
       current.interrupt();
     } finally {
-      running.set(false);
+      this.running.set(false);
       cleanup.run();
     }
   }
 
-  private static void runStep(final Step step, final Consumer<RuntimeException> failures) throws InterruptedException {
+  private void runStep(final Step step) throws InterruptedException {
     try {
       step.render();
     } catch (final RuntimeException exception) {
-      failures.accept(exception);
+      this.failureHandler.accept(exception);
     }
   }
 

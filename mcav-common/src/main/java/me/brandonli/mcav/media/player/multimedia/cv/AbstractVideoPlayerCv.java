@@ -17,10 +17,11 @@
  */
 package me.brandonli.mcav.media.player.multimedia.cv;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Equivalence;
 import com.google.common.base.Preconditions;
-import java.util.Objects;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
@@ -177,39 +178,6 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
     return this.startSources(video, audio, MEDIA_START_MICROSECONDS, StartState.PLAYING);
   }
 
-  private PlaybackSession createSession(
-    final Source video,
-    final @Nullable Source audio,
-    final long positionMicroseconds,
-    final StartState startState
-  ) {
-    final PlaybackSession.GrabberFactory videoFactory = () -> this.createStartedGrabber(video);
-    final PlaybackSession.GrabberFactory audioFactory = audio == null ? null : () -> this.createStartedGrabber(audio);
-    return new PlaybackSession(
-      videoFactory,
-      audioFactory,
-      this.videoCallback,
-      this.audioCallback,
-      this.dimensionCallback,
-      this.exceptionHandler,
-      positionMicroseconds,
-      startState,
-      PlaybackSession.AUDIO_LEAD_NANOSECONDS,
-      this.maximumVideoLagNanoseconds,
-      System::nanoTime
-    );
-  }
-
-  // Makes the sessions started afterward show every frame however late it is, for tests whose frame counts must not
-  // depend on the load of the machine. Players drop frames more than PlaybackSession.MAXIMUM_VIDEO_LAG_NANOSECONDS late
-  // otherwise.
-  @VisibleForTesting
-  void neverDropLateFrames() {
-    this.maximumVideoLagNanoseconds = Long.MAX_VALUE;
-  }
-
-  // Opens the sources in a new session and only then replaces the current session with it, so a source that cannot be
-  // opened leaves the current playback alone.
   private boolean startSources(
     final Source video,
     final @Nullable Source audio,
@@ -219,6 +187,8 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
     return this.startSources(video, audio, positionMicroseconds, startState, null);
   }
 
+  // Opens the sources in a new session and only then replaces the current session with it, so a source that cannot be
+  // opened leaves the current playback alone.
   private boolean startSources(
     final Source video,
     final @Nullable Source audio,
@@ -260,6 +230,29 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
         this.discardStart(created);
       }
     }
+  }
+
+  private PlaybackSession createSession(
+    final Source video,
+    final @Nullable Source audio,
+    final long positionMicroseconds,
+    final StartState startState
+  ) {
+    final PlaybackSession.GrabberFactory videoFactory = () -> this.createStartedGrabber(video);
+    final PlaybackSession.GrabberFactory audioFactory = audio == null ? null : () -> this.createStartedGrabber(audio);
+    return new PlaybackSession(
+      videoFactory,
+      audioFactory,
+      this.videoCallback,
+      this.audioCallback,
+      this.dimensionCallback,
+      this.exceptionHandler,
+      positionMicroseconds,
+      startState,
+      PlaybackSession.AUDIO_LEAD_NANOSECONDS,
+      this.maximumVideoLagNanoseconds,
+      System::nanoTime
+    );
   }
 
   private void discardStart(final PlaybackSession created) {
@@ -341,12 +334,12 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
       return grabber;
     } catch (final FrameGrabber.Exception | RuntimeException | LinkageError exception) {
       // a grabber that failed to start may already hold native resources, such as an open file
-      closeQuietly(grabber);
+      this.closeQuietly(grabber);
       throw exception;
     }
   }
 
-  private static void closeQuietly(final FrameGrabber grabber) {
+  private void closeQuietly(final FrameGrabber grabber) {
     try {
       grabber.close();
     } catch (final FrameGrabber.Exception | RuntimeException exception) {
@@ -373,6 +366,7 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
     grabber.setSampleRate(AudioFilter.SAMPLE_RATE);
     grabber.setAudioChannels(AudioFilter.CHANNELS);
     grabber.setImageScalingFlags(swscale.SWS_AREA);
+
     // the size is read once: asking whether the callback is attached and then asking it for the size lets a detach
     // in between answer with the empty fallback, and a grabber told to scale to 0x0 cannot decode anything
     final Dimension dimension = this.dimensionCallback.retrieve();
@@ -385,11 +379,11 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
     }
 
     if (grabber instanceof final FFmpegFrameGrabber ffmpeg) {
-      configureFfmpeg(ffmpeg, source);
+      this.configureFfmpeg(ffmpeg, source);
     }
   }
 
-  private static void configureFfmpeg(final FFmpegFrameGrabber grabber, final Source source) {
+  private void configureFfmpeg(final FFmpegFrameGrabber grabber, final Source source) {
     grabber.setVideoOption("threads", OPTION_AUTOMATIC);
     grabber.setVideoOption("flags", LOW_DELAY_FLAGS);
     grabber.setOption("rw_timeout", NETWORK_TIMEOUT_MICROSECONDS);
@@ -471,7 +465,7 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
 
     final PlaybackSession current;
     final Source video;
-    @Nullable Source audio;
+    final @Nullable Source audio;
     final StartState startState;
     this.lock.lock();
     try {
@@ -480,7 +474,7 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
         return false;
       }
 
-      video = Objects.requireNonNull(this.videoSource, "A session always has a video source!");
+      video = requireNonNull(this.videoSource, "A session always has a video source!");
       audio = this.audioSource;
       startState = current.isPaused() ? StartState.PAUSED : StartState.PLAYING;
     } finally {
@@ -509,6 +503,7 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
       MINIMUM_SPEED,
       MAXIMUM_SPEED
     );
+
     this.lock.lock();
     try {
       final PlaybackSession current = this.session;
@@ -523,33 +518,6 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
     } finally {
       this.lock.unlock();
     }
-  }
-
-  /**
-   * Returns the playback position, which is the timestamp of the last rendered frame.
-   *
-   * @return the position in milliseconds, or 0 if nothing has been played
-   * @since 1.0.0
-   */
-  public long getPositionMilliseconds() {
-    final PlaybackSession current = this.session;
-    if (current == null) {
-      return 0L;
-    }
-
-    final long microseconds = current.getPositionMicroseconds();
-    return microseconds / MICROSECONDS_PER_MILLISECOND;
-  }
-
-  /**
-   * Returns whether media is being played or paused, as opposed to stopped or finished.
-   *
-   * @return true if a playback session is active
-   * @since 1.0.0
-   */
-  public boolean isPlaying() {
-    final PlaybackSession current = this.session;
-    return current != null && current.isActive();
   }
 
   /**
@@ -585,6 +553,41 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
     }
 
     return true;
+  }
+
+  /**
+   * Returns the playback position, which is the timestamp of the last rendered frame.
+   *
+   * @return the position in milliseconds, or 0 if nothing has been played
+   * @since 1.0.0
+   */
+  public long getPositionMilliseconds() {
+    final PlaybackSession current = this.session;
+    if (current == null) {
+      return 0L;
+    }
+
+    final long microseconds = current.getPositionMicroseconds();
+    return microseconds / MICROSECONDS_PER_MILLISECOND;
+  }
+
+  /**
+   * Returns whether media is being played or paused, as opposed to stopped or finished.
+   *
+   * @return true if a playback session is active
+   * @since 1.0.0
+   */
+  public boolean isPlaying() {
+    final PlaybackSession current = this.session;
+    return current != null && current.isActive();
+  }
+
+  // Makes the sessions started afterward show every frame however late it is, for tests whose frame counts must not
+  // depend on the load of the machine. Players drop frames more than PlaybackSession.MAXIMUM_VIDEO_LAG_NANOSECONDS late
+  // otherwise.
+  @VisibleForTesting
+  void neverDropLateFrames() {
+    this.maximumVideoLagNanoseconds = Long.MAX_VALUE;
   }
 
   /**

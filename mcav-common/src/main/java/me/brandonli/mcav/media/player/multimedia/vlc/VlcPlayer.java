@@ -17,12 +17,13 @@
  */
 package me.brandonli.mcav.media.player.multimedia.vlc;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Equivalence;
 import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -101,6 +102,7 @@ public final class VlcPlayer implements VideoPlayerMultiplexer {
   public VlcPlayer(final String... mediaOptions) {
     final CapabilityGuard guard = CapabilityGuard.shared();
     guard.checkUsable(Capability.VLC);
+
     final SharedMediaPlayerFactory sharedFactory = SharedMediaPlayerFactory.getInstance();
     this(sharedFactory, OPEN_TIMEOUT_MILLISECONDS, mediaOptions);
   }
@@ -290,7 +292,7 @@ public final class VlcPlayer implements VideoPlayerMultiplexer {
         return OpenResult.FAILED;
       }
 
-      final VlcPlayback created = Objects.requireNonNull(transition.created, PREPARED_CANDIDATE_MESSAGE);
+      final VlcPlayback created = requireNonNull(transition.created, PREPARED_CANDIDATE_MESSAGE);
       final boolean started = created.start();
       if (started && !this.released.get()) {
         this.playback = created;
@@ -307,7 +309,7 @@ public final class VlcPlayer implements VideoPlayerMultiplexer {
 
   private void cleanCandidate(final StartTransition transition) {
     try {
-      final VlcPlayback created = Objects.requireNonNull(transition.created, PREPARED_CANDIDATE_MESSAGE);
+      final VlcPlayback created = requireNonNull(transition.created, PREPARED_CANDIDATE_MESSAGE);
       created.stop();
     } finally {
       this.clearReservation();
@@ -439,7 +441,7 @@ public final class VlcPlayer implements VideoPlayerMultiplexer {
       } else if (transition.claimed) {
         current = null;
       } else {
-        current = Objects.requireNonNull(transition.created, "An unclaimed transition owns a prepared candidate!");
+        current = requireNonNull(transition.created, "An unclaimed transition owns a prepared candidate!");
         this.pending = null;
       }
 
@@ -455,6 +457,17 @@ public final class VlcPlayer implements VideoPlayerMultiplexer {
     return true;
   }
 
+  String[] createMediaOptions(final @Nullable String extra) {
+    if (extra == null) {
+      return this.mediaOptions.clone();
+    }
+
+    final List<String> configured = List.of(this.mediaOptions);
+    final List<String> options = new ArrayList<>(configured);
+    options.add(extra);
+    return options.toArray(new String[0]);
+  }
+
   /**
    * Sets the handler that receives failures. It is called on VLC's threads and on the render threads, so it must be
    * thread safe and should return quickly.
@@ -468,17 +481,6 @@ public final class VlcPlayer implements VideoPlayerMultiplexer {
     Preconditions.checkNotNull(exceptionHandler, "Exception handler must not be null!");
 
     this.exceptionHandler = exceptionHandler;
-  }
-
-  String[] createMediaOptions(final @Nullable String extra) {
-    if (extra == null) {
-      return this.mediaOptions.clone();
-    }
-
-    final List<String> configured = List.of(this.mediaOptions);
-    final List<String> options = new ArrayList<>(configured);
-    options.add(extra);
-    return options.toArray(new String[0]);
   }
 
   /**

@@ -79,28 +79,6 @@ final class PlaybackClock {
     this.anchorWallNanoseconds = wallNanoseconds;
   }
 
-  // Sets how fast media passes: at 2, a second of media is due every half second of wall time. The media due now stays
-  // due now, so the change applies to what follows; while paused, to what follows the pause.
-  void setSpeed(final double newSpeed) {
-    Preconditions.checkArgument(newSpeed > 0 && Double.isFinite(newSpeed), "Speed %s must be positive and finite!", newSpeed);
-
-    synchronized (this.lock) {
-      if (this.anchored) {
-        final long now = this.paused ? this.pausedAtNanoseconds : this.nanosecondClock.getAsLong();
-        this.anchorMediaMicroseconds += Math.round(((now - this.anchorWallNanoseconds) * this.speed) / NANOSECONDS_PER_MICROSECOND);
-        this.anchorWallNanoseconds = now;
-      }
-
-      this.speed = newSpeed;
-    }
-  }
-
-  double getSpeed() {
-    synchronized (this.lock) {
-      return this.speed;
-    }
-  }
-
   // Freezes the clock. Media scheduled while the clock is paused keeps its relative timing once the clock resumes.
   void pause() {
     synchronized (this.lock) {
@@ -150,16 +128,38 @@ final class PlaybackClock {
     }
   }
 
-  boolean isPaused() {
-    synchronized (this.lock) {
-      return this.paused;
-    }
-  }
-
   // Forgets the anchor, so the next scheduled timestamp becomes "now".
   void reset() {
     synchronized (this.lock) {
       this.anchored = false;
+    }
+  }
+
+  // Sets how fast media passes: at 2, a second of media is due every half second of wall time. The media due now stays
+  // due now, so the change applies to what follows; while paused, to what follows the pause.
+  void setSpeed(final double newSpeed) {
+    Preconditions.checkArgument(newSpeed > 0 && Double.isFinite(newSpeed), "Speed %s must be positive and finite!", newSpeed);
+
+    synchronized (this.lock) {
+      if (this.anchored) {
+        final long now = this.paused ? this.pausedAtNanoseconds : this.nanosecondClock.getAsLong();
+        this.anchorMediaMicroseconds += Math.round(((now - this.anchorWallNanoseconds) * this.speed) / NANOSECONDS_PER_MICROSECOND);
+        this.anchorWallNanoseconds = now;
+      }
+
+      this.speed = newSpeed;
+    }
+  }
+
+  double getSpeed() {
+    synchronized (this.lock) {
+      return this.speed;
+    }
+  }
+
+  boolean isPaused() {
+    synchronized (this.lock) {
+      return this.paused;
     }
   }
 }

@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.media.player.multimedia.vlc;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Equivalence;
 import java.util.EnumSet;
@@ -34,6 +36,7 @@ import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 import me.brandonli.mcav.media.source.Source;
 import me.brandonli.mcav.utils.ExecutorUtils;
 import me.brandonli.mcav.utils.ThrowableUtils;
+import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import uk.co.caprica.vlcj.factory.MediaPlayerApi;
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
@@ -103,8 +106,8 @@ final class VlcPlayback {
     final MediaPlayerApi playerApi = factory.mediaPlayers();
     final EmbeddedMediaPlayer createdVideoPlayer = playerApi.newEmbeddedMediaPlayer();
     this.videoPlayer = createdVideoPlayer;
-    this.audioPlayer = createAudioPlayer(playerApi, createdVideoPlayer, audio);
-    this.players = listPlayers(createdVideoPlayer, this.audioPlayer);
+    this.audioPlayer = this.createAudioPlayer(playerApi, createdVideoPlayer, audio);
+    this.players = this.listPlayers(createdVideoPlayer, this.audioPlayer);
   }
 
   // Creates a playback: acquires the shared VLC instance and creates the media players. Nothing is played until start()
@@ -121,7 +124,8 @@ final class VlcPlayback {
     }
   }
 
-  private static @Nullable EmbeddedMediaPlayer createAudioPlayer(
+  private @Nullable EmbeddedMediaPlayer createAudioPlayer(
+    @UnderInitialization VlcPlayback this,
     final MediaPlayerApi playerApi,
     final EmbeddedMediaPlayer videoPlayer,
     final @Nullable Source audio
@@ -157,7 +161,8 @@ final class VlcPlayback {
     }
   }
 
-  private static List<EmbeddedMediaPlayer> listPlayers(
+  private List<EmbeddedMediaPlayer> listPlayers(
+    @UnderInitialization VlcPlayback this,
     final EmbeddedMediaPlayer videoPlayer,
     final @Nullable EmbeddedMediaPlayer audioPlayer
   ) {
@@ -187,11 +192,11 @@ final class VlcPlayback {
     final long deadlineNanoseconds = this.createOpenDeadline();
     final PlaybackEventListener listener = this.listen(this.videoPlayer, this.video);
     final boolean playing = this.play(this.videoPlayer, this.video, null);
-    return playing && awaitOpened(listener, deadlineNanoseconds);
+    return playing && this.awaitOpened(listener, deadlineNanoseconds);
   }
 
   private boolean startSeparate(final EmbeddedMediaPlayer separateAudio) {
-    final Source audioSource = Objects.requireNonNull(this.audio, "A separate audio player always has an audio source!");
+    final Source audioSource = requireNonNull(this.audio, "A separate audio player always has an audio source!");
     final long deadlineNanoseconds = this.createOpenDeadline();
     final PlaybackEventListener videoListener = this.listen(this.videoPlayer, this.video);
     final PlaybackEventListener audioListener = this.listen(separateAudio, audioSource);
@@ -199,7 +204,7 @@ final class VlcPlayback {
     final boolean audioPlaying = this.play(separateAudio, audioSource, NO_VIDEO_OPTION);
     final boolean bothPlaying = videoPlaying && audioPlaying;
     final boolean opened =
-      bothPlaying && awaitOpened(videoListener, deadlineNanoseconds) && awaitOpened(audioListener, deadlineNanoseconds);
+      bothPlaying && this.awaitOpened(videoListener, deadlineNanoseconds) && this.awaitOpened(audioListener, deadlineNanoseconds);
     if (opened) {
       this.startSynchronizer(separateAudio);
     }
@@ -252,7 +257,7 @@ final class VlcPlayback {
     return now + timeoutNanoseconds;
   }
 
-  private static boolean awaitOpened(final PlaybackEventListener listener, final long deadlineNanoseconds) {
+  private boolean awaitOpened(final PlaybackEventListener listener, final long deadlineNanoseconds) {
     final long now = System.nanoTime();
     final long remainingNanoseconds = deadlineNanoseconds - now;
     final long remainingMilliseconds = TimeUnit.NANOSECONDS.toMillis(remainingNanoseconds);
@@ -267,7 +272,7 @@ final class VlcPlayback {
   }
 
   private void startSynchronizer(final EmbeddedMediaPlayer audioMaster) {
-    final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(VlcPlayback::createSynchronizationThread);
+    final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(this::createSynchronizationThread);
     final Runnable task = () -> this.synchronizeVideoToAudio(audioMaster);
     final ScheduledFuture<?> schedule = executor.scheduleAtFixedRate(
       task,
@@ -278,7 +283,7 @@ final class VlcPlayback {
     this.synchronizer = new Synchronizer(executor, schedule);
   }
 
-  private static Thread createSynchronizationThread(final Runnable task) {
+  private Thread createSynchronizationThread(final Runnable task) {
     final Thread thread = new Thread(task, SYNCHRONIZATION_THREAD_NAME);
     thread.setDaemon(true);
     return thread;
@@ -303,7 +308,7 @@ final class VlcPlayback {
       final long videoTime = videoStatus.time();
       final long drift = videoTime - audioTime;
       final ControlsApi videoControls = this.videoPlayer.controls();
-      correctDrift(videoControls, drift, audioTime);
+      this.correctDrift(videoControls, drift, audioTime);
     } catch (final RuntimeException exception) {
       final BiConsumer<String, Throwable> handler = this.owner.getExceptionHandler();
       handler.accept("Failed to synchronize VLC players.", exception);
@@ -311,7 +316,7 @@ final class VlcPlayback {
   }
 
   @VisibleForTesting
-  static void correctDrift(final ControlsApi videoControls, final long drift, final long audioTime) {
+  void correctDrift(final ControlsApi videoControls, final long drift, final long audioTime) {
     final long absoluteDrift = Math.abs(drift);
     if (absoluteDrift > DRIFT_SEEK_MILLISECONDS) {
       videoControls.setTime(audioTime);
@@ -319,14 +324,14 @@ final class VlcPlayback {
       return;
     }
 
-    final float rate = chooseRate(drift);
+    final float rate = this.chooseRate(drift);
     videoControls.setRate(rate);
   }
 
   // Chooses the playback rate of the video for a small drift: 3% slower when the video is more than 100 ms ahead, 3%
   // faster when it is more than 100 ms behind, and normal speed otherwise.
   @VisibleForTesting
-  static float chooseRate(final long drift) {
+  float chooseRate(final long drift) {
     if (drift > DRIFT_NUDGE_MILLISECONDS) {
       return RATE_SLOWER;
     }
@@ -375,7 +380,7 @@ final class VlcPlayback {
 
   boolean seek(final long timeMilliseconds) {
     for (final EmbeddedMediaPlayer player : this.players) {
-      final boolean seekable = isSeekable(player);
+      final boolean seekable = this.isSeekable(player);
       if (!seekable) {
         return false;
       }
@@ -389,7 +394,7 @@ final class VlcPlayback {
     return true;
   }
 
-  private static boolean isSeekable(final EmbeddedMediaPlayer player) {
+  private boolean isSeekable(final EmbeddedMediaPlayer player) {
     final StatusApi status = player.status();
     final State state = status.state();
     return SEEKABLE_STATES.contains(state) && status.isSeekable();

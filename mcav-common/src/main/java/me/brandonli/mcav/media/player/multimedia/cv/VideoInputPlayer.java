@@ -21,6 +21,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 import org.bytedeco.javacv.FrameGrabber;
 import org.bytedeco.javacv.OpenCVFrameGrabber;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A player that captures video from a camera or capture card by device index, such as {@code 0} for the default
@@ -32,7 +33,7 @@ import org.bytedeco.javacv.OpenCVFrameGrabber;
  *
  * @since 1.0.0
  */
-public class VideoInputPlayer extends AbstractVideoPlayerCv {
+public final class VideoInputPlayer extends AbstractVideoPlayerCv {
 
   /**
    * Constructs a new capture device player.
@@ -54,7 +55,7 @@ public class VideoInputPlayer extends AbstractVideoPlayerCv {
   protected FrameGrabber createFrameGrabber(final String resource) {
     Preconditions.checkNotNull(resource, "Resource must not be null!");
 
-    final Integer parsedIndex = Ints.tryParse(resource);
+    final @Nullable Integer parsedIndex = Ints.tryParse(resource);
     if (parsedIndex == null || parsedIndex < 0) {
       final String message = "Device index %s must be a number and must not be negative!".formatted(resource);
       throw new IllegalArgumentException(message);

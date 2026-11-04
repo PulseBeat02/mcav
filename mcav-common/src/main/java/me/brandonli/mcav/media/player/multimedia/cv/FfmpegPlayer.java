@@ -31,7 +31,7 @@ import org.bytedeco.javacv.FrameGrabber;
  *
  * @since 1.0.0
  */
-public class FfmpegPlayer extends AbstractVideoPlayerCv {
+public final class FfmpegPlayer extends AbstractVideoPlayerCv {
 
   /**
    * Constructs a new FFmpeg player.

@@ -77,16 +77,16 @@ final class SpeedResampler {
       return this.previous[channel];
     }
 
-    return input.getShort(offset(input, frame - 1, channel));
+    return input.getShort(this.offset(input, frame - 1, channel));
   }
 
   private void remember(final ByteBuffer input, final int frames) {
     for (int channel = 0; channel < AudioFilter.CHANNELS; channel++) {
-      this.previous[channel] = input.getShort(offset(input, frames - 1, channel));
+      this.previous[channel] = input.getShort(this.offset(input, frames - 1, channel));
     }
   }
 
-  private static int offset(final ByteBuffer input, final int frame, final int channel) {
+  private int offset(final ByteBuffer input, final int frame, final int channel) {
     return input.position() + (frame * AudioFilter.CHANNELS + channel) * AudioFilter.BYTES_PER_SAMPLE;
   }
 }

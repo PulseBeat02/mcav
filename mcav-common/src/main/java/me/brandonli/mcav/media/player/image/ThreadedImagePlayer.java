@@ -175,14 +175,14 @@ public final class ThreadedImagePlayer implements ImagePlayer {
       final boolean isWorkerThread = caller.equals(worker);
       if (!isWorkerThread) {
         worker.interrupt();
-        join(worker);
+        this.join(worker);
       }
     }
 
     return true;
   }
 
-  private static void join(final Thread worker) {
+  private void join(final Thread worker) {
     try {
       worker.join(STOP_TIMEOUT_MILLISECONDS);
     } catch (final InterruptedException exception) {
@@ -263,7 +263,8 @@ public final class ThreadedImagePlayer implements ImagePlayer {
     }
 
     private long waitForDeadline(final long deadline) {
-      final long remaining = deadline - ThreadedImagePlayer.this.clock.getAsLong();
+      final long now = ThreadedImagePlayer.this.clock.getAsLong();
+      final long remaining = deadline - now;
       if (remaining > 0) {
         ThreadedImagePlayer.this.park.accept(remaining);
         return deadline;

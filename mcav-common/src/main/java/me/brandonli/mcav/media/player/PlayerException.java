@@ -31,7 +31,7 @@ import me.brandonli.mcav.MCAVException;
  *
  * @since 1.0.0
  */
-public class PlayerException extends MCAVException {
+public final class PlayerException extends MCAVException {
 
   @Serial
   private static final long serialVersionUID = 5422221049222805060L;
