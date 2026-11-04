@@ -18,7 +18,7 @@
 /**
  * Holds lightweight dimensions, points and pairs used in API arguments and results.
  *
- * <p>{@link me.brandonli.mcav.utils.immutable.Dimension} validates nonnegative pixel dimensions and treats
+ * <p>{@link me.brandonli.mcav.utils.immutable.Dimension} rejects negative pixel dimensions and treats
  * either zero side as empty. {@link me.brandonli.mcav.utils.immutable.Point} stores any double coordinates without
  * validation; the consuming API defines their units and valid range. Both are immutable and can be shared.
  *

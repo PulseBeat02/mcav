@@ -91,7 +91,7 @@ public interface FfmpegCommandBuilder {
    *
    * @param framerate the frame rate in frames per second
    * @return this builder
-   * @throws IllegalArgumentException if the frame rate is nonpositive
+   * @throws IllegalArgumentException if the frame rate is not positive
    * @since 1.0.0
    */
   FfmpegCommandBuilder addFramerate(final int framerate);
@@ -102,7 +102,7 @@ public interface FfmpegCommandBuilder {
    * @param width  the width in pixels
    * @param height the height in pixels
    * @return this builder
-   * @throws IllegalArgumentException if either dimension is nonpositive
+   * @throws IllegalArgumentException if either dimension is not positive
    * @since 1.0.0
    */
   FfmpegCommandBuilder addResolution(final int width, final int height);
@@ -110,6 +110,7 @@ public interface FfmpegCommandBuilder {
   /**
    * Allows FFmpeg to overwrite an existing output file ({@code -y}). Without it FFmpeg waits for confirmation
    * on the console and the task hangs.
+   *
    * @return this builder
    * @since 1.0.0
    */

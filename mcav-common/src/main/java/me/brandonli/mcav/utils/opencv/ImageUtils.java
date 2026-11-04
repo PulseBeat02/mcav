@@ -69,7 +69,7 @@ public final class ImageUtils {
    * @param newWidth       the width of the resized image
    * @param newHeight      the height of the resized image
    * @return the pixels of the resized image, laid out row by row
-   * @throws IllegalArgumentException if a dimension is nonpositive, the input pixel count differs from
+   * @throws IllegalArgumentException if a dimension is not positive, the input pixel count differs from
    *                                  its dimensions, or the original packed BGR size exceeds {@link Integer#MAX_VALUE}
    * @throws NullPointerException     if {@code pixels} is null
    * @since 1.0.0

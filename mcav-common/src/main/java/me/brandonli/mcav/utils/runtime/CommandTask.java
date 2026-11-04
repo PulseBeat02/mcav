@@ -158,7 +158,7 @@ public final class CommandTask {
    * that may hang, such as programs that talk to a network.
    *
    * @return the exit code of the program
-   * @throws ProcessException     if the program cannot be started or its output cannot be read
+   * @throws ProcessException      if the program cannot be started or its output cannot be read
    * @throws IllegalStateException if the task was already run
    * @since 1.0.0
    */
@@ -219,7 +219,7 @@ public final class CommandTask {
   /**
    * Runs the program, waits until it exits, and fails if the exit code is not zero.
    *
-   * @throws ProcessException     if the program cannot be started, its output cannot be read, or it exits with a
+   * @throws ProcessException      if the program cannot be started, its output cannot be read, or it exits with a
    *                               non-zero exit code
    * @throws IllegalStateException if a process was already launched by this task
    * @since 1.0.0

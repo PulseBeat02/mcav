@@ -36,7 +36,7 @@ public class NativeLoadingException extends MCAVException {
   private static final long serialVersionUID = -1718334825313639127L;
 
   /**
-   * Constructs a new exception with a detail message and no cause.
+   * Creates an exception with a detail message and no cause.
    *
    * @param message the detail message naming the library that could not be loaded
    * @since 1.0.0
@@ -46,7 +46,7 @@ public class NativeLoadingException extends MCAVException {
   }
 
   /**
-   * Constructs a new exception with a detail message and the failure that caused it.
+   * Creates an exception with a detail message and the failure that caused it.
    *
    * @param message the detail message naming the library that could not be loaded
    * @param cause   the underlying failure, usually a {@link LinkageError}

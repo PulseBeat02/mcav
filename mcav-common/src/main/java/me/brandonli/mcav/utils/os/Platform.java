@@ -110,10 +110,10 @@ public final class Platform {
   }
 
   /**
-   * Checks whether both the operating system and the CPU architecture belong to a family the installers know.
+   * Returns whether both the operating system and the CPU architecture belong to a family the installers know.
    * Programs are never downloaded for an unknown platform, because no known build runs there.
    *
-   * @return false if the operating system or the architecture is {@code OTHER}
+   * @return whether neither the operating system nor the architecture is {@code OTHER}
    * @since 1.0.0
    */
   public boolean isKnown() {
