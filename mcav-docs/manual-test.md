@@ -48,14 +48,14 @@ modules, the JavaCV natives, VLC and yt-dlp. Wait for `Done (…)! For help, typ
 > server, then serve the repository with a separately installed Python 3 (`python3` on `PATH`):
 >
 > ```sh
-> ./gradlew :mcav-plugin:shadowJar -Pmcav.e2e=true -Pmcav.e2e.repositoryPort=8765
+> ./gradlew :mcav-plugin:shadowJar -Pmcav.e2e=true -Pmcav.e2e.repository_port=8765
 > python3 -m http.server 8765 --bind 127.0.0.1 --directory build/e2e-repository
 > ```
 >
 > In a second shell at the repository root:
 >
 > ```sh
-> ./gradlew :mcav-plugin:runServer -Pmcav.e2e=true -Pmcav.e2e.repositoryPort=8765
+> ./gradlew :mcav-plugin:runServer -Pmcav.e2e=true -Pmcav.e2e.repository_port=8765
 > ```
 >
 > The build bakes the port into the plugin's `mcav/plugin/dependencies.txt` as the first repository, so the server asks

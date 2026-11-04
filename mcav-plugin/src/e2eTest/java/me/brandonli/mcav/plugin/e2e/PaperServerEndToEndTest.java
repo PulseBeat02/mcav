@@ -69,8 +69,8 @@ final class PaperServerEndToEndTest {
 
   private static final String PROPERTY_MISSING_MESSAGE = "the build passes -D%s to this test";
 
-  private static final String PAPER_FILE_NAME = Objects.requireNonNull(System.getProperty("mcav.e2e.paperFileName"));
-  private static final String VOICE_CHAT_FILE_NAME = Objects.requireNonNull(System.getProperty("mcav.e2e.voiceChatFileName"));
+  private static final String PAPER_FILE_NAME = Objects.requireNonNull(System.getProperty("mcav.e2e.paper_file_name"));
+  private static final String VOICE_CHAT_FILE_NAME = Objects.requireNonNull(System.getProperty("mcav.e2e.voice_chat_file_name"));
 
   private static final String PAPER_SHA_256 = "dd64988a011729e6812f2fff1be32ba5c572ecdc8890e6abc7a56aa91b53f77d";
 
@@ -163,16 +163,16 @@ final class PaperServerEndToEndTest {
 
   @Test
   void shouldEnableThePluginWithItsAudioOutputsOnAHeadlessServer(@TempDir final Path serverDirectory) throws Exception {
-    final boolean eulaAccepted = Boolean.getBoolean("mcav.e2e.acceptEula");
+    final boolean eulaAccepted = Boolean.getBoolean("mcav.e2e.accept_eula");
     Assumptions.assumeTrue(
       eulaAccepted,
       "Running a Minecraft server needs the Minecraft EULA; pass -Pmcav.acceptMinecraftEula=true to accept it!"
     );
 
-    final Path cache = this.requirePath("mcav.e2e.cacheDirectory");
+    final Path cache = this.requirePath("mcav.e2e.cache_directory");
     final Path paperJar = this.download(cache, PAPER);
     final Path voiceChatJar = this.download(cache, VOICE_CHAT);
-    final Path pluginJar = this.requirePath("mcav.e2e.pluginJar");
+    final Path pluginJar = this.requirePath("mcav.e2e.plugin_jar");
     final int httpPort = this.findFreePort();
     final FakeVncServer vnc = FakeVncServer.start();
     final int gamePort = this.prepareServer(serverDirectory, pluginJar, voiceChatJar, httpPort, vnc);
@@ -278,8 +278,8 @@ final class PaperServerEndToEndTest {
 
   // the build wrote this port into mcav/plugin/dependencies.txt, so the server downloads this build's modules
   private LocalMavenRepositoryServer startRepository() throws IOException {
-    final Path repositoryDirectory = this.requirePath("mcav.e2e.repositoryDirectory");
-    final int repositoryPort = this.requirePort("mcav.e2e.repositoryPort");
+    final Path repositoryDirectory = this.requirePath("mcav.e2e.repository_directory");
+    final int repositoryPort = this.requirePort("mcav.e2e.repository_port");
     return LocalMavenRepositoryServer.start(repositoryDirectory, repositoryPort);
   }
 
