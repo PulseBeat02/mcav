@@ -614,7 +614,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     }
   }
 
-  // a player or output no longer running were replaced and released by a newer command
+  // a player or output no longer running was replaced and released by a newer command
   private void releaseIfCurrent(final PlayerType failed, final FunctionalVideoFilter output) {
     final boolean playerCurrent;
     final boolean outputCurrent;

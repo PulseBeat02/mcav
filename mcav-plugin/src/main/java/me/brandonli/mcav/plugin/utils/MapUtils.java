@@ -292,9 +292,9 @@ public final class MapUtils {
 
     // a block holds one frame per side, so an old frame would push the new one behind the map
     private void clearFrames(final Block frameBlock) {
-      final Location centre = frameBlock.getLocation();
-      centre.add(HALF_BLOCK, HALF_BLOCK, HALF_BLOCK);
-      final Collection<Entity> occupants = this.world.getNearbyEntities(centre, HALF_BLOCK, HALF_BLOCK, HALF_BLOCK);
+      final Location blockLocation = frameBlock.getLocation();
+      final Location center = blockLocation.add(HALF_BLOCK, HALF_BLOCK, HALF_BLOCK);
+      final Collection<Entity> occupants = this.world.getNearbyEntities(center, HALF_BLOCK, HALF_BLOCK, HALF_BLOCK);
       for (final Entity occupant : occupants) {
         if (occupant instanceof ItemFrame) {
           occupant.remove();

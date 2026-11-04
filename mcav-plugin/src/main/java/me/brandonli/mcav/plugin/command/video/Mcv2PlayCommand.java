@@ -524,12 +524,6 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     }
   }
 
-  // still set while a cancelled encode cleans up
-  synchronized @Nullable Thread getEncodingThread() {
-    final FileEncode current = this.encoding;
-    return current == null ? null : current.thread();
-  }
-
   /**
    * Handles {@code /mcav mcv2 cancel}: stops the file encode that is running.
    *
@@ -652,6 +646,12 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     }
 
     return frames;
+  }
+
+  // still set while a cancelled encode cleans up
+  synchronized @Nullable Thread getEncodingThread() {
+    final FileEncode current = this.encoding;
+    return current == null ? null : current.thread();
   }
 
   void setOpener(final Opener replacement) {

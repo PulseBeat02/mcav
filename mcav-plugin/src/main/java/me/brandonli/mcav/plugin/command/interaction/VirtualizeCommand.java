@@ -329,8 +329,14 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
       return;
     }
 
-    final VmConfiguration vmConfiguration = this.parseOptions(sender, split.options());
-    if (vmConfiguration == null) {
+    final VmConfiguration vmConfiguration;
+    try {
+      vmConfiguration = this.buildConfiguration(split.options());
+    } catch (final IllegalArgumentException exception) {
+      final String detail = exception.getMessage();
+      final String reason = Objects.requireNonNullElse(detail, "The options are not valid");
+      final Component message = Message.UNSUPPORTED_VM_FLAGS.build(reason);
+      sender.sendMessage(message);
       return;
     }
 
@@ -432,24 +438,17 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     return null;
   }
 
-  private @Nullable VmConfiguration parseOptions(final CommandSender sender, final String flags) {
+  private VmConfiguration buildConfiguration(final String flags) {
     final Path dataFolder = this.plugin.getDataPath();
     final Path imageFolder = DiskImages.folderOf(dataFolder);
-    try {
-      final VmConfigurationBuilder builder = parseOptions(flags, imageFolder, maximumMemoryBytes());
-      // without it, the guest gets mcav's network that reaches nothing, as no option of the command chooses one
-      final PluginDataConfigurationMapper settings = this.plugin.getConfiguration();
-      if (settings.isVmAllowNetwork()) {
-        builder.network(QEMU_NETWORK);
-      }
-      return builder.build();
-    } catch (final IllegalArgumentException exception) {
-      final String detail = exception.getMessage();
-      final String reason = Objects.requireNonNullElse(detail, "The options are not valid");
-      final Component message = Message.UNSUPPORTED_VM_FLAGS.build(reason);
-      sender.sendMessage(message);
-      return null;
+    final VmConfigurationBuilder builder = parseOptions(flags, imageFolder, maximumMemoryBytes());
+    // without it, the guest gets mcav's network that reaches nothing, as no option of the command chooses one
+    final PluginDataConfigurationMapper settings = this.plugin.getConfiguration();
+    if (settings.isVmAllowNetwork()) {
+      builder.network(QEMU_NETWORK);
     }
+
+    return builder.build();
   }
 
   // quoted values may hold spaces; options QEMU repeats, such as -drive, are kept

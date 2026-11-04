@@ -143,8 +143,8 @@ final class VideoPlayerManagerTest {
     final Optional<FunctionalVideoFilter> currentFilter = this.manager.getFilter();
     final Optional<Hologram> currentHologram = this.manager.getHologram();
     final Optional<Location> location = this.manager.getHologramLocation();
-    final AtomicBoolean status = this.manager.getStarting();
-    final boolean starting = status.get();
+    final AtomicBoolean startingFlag = this.manager.getStarting();
+    final boolean starting = startingFlag.get();
 
     assertEquals(Optional.empty(), currentPlayer);
     assertEquals(Optional.empty(), currentFilter);
@@ -483,8 +483,8 @@ final class VideoPlayerManagerTest {
   @Test
   void shouldDisposeAPlayerWhoseConstructionCompletedAfterCancellation() {
     this.manager.beginStart();
-    final AtomicBoolean status = this.manager.getStarting();
-    status.set(true);
+    final AtomicBoolean starting = this.manager.getStarting();
+    starting.set(true);
     this.manager.cancelStart();
     assertThrows(CancellationException.class, () -> this.manager.setPlayer(this.player));
     verify(this.player, times(1)).release();
@@ -623,8 +623,8 @@ final class VideoPlayerManagerTest {
   @Test
   void shouldRetainANativePlayerAfterCompletedStartupUntilExplicitRelease() {
     this.manager.beginStart();
-    final AtomicBoolean status = this.manager.getStarting();
-    status.set(true);
+    final AtomicBoolean starting = this.manager.getStarting();
+    starting.set(true);
     this.manager.setPlayer(this.player);
     final boolean accepted = this.manager.startNative(() -> true);
     final boolean refused = this.manager.startNative(() -> false);
@@ -638,7 +638,7 @@ final class VideoPlayerManagerTest {
     this.manager.releaseVideoPlayer();
     verify(this.player).release();
 
-    status.set(false);
+    starting.set(false);
   }
 
   @Test

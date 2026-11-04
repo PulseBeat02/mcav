@@ -87,15 +87,24 @@ public final class VideoDevicesCommand implements AnnotationCommandFeature {
       CaptureDevices::list,
       this.manager.getService()
     );
-    TaskUtils.whenComplete(listing, (devices, error) -> this.report(sender, devices, error));
+    TaskUtils.whenComplete(listing, (devices, error) -> this.onDevicesListed(sender, devices, error));
   }
 
-  private void report(final CommandSender sender, final @Nullable List<CaptureDevices.Device> devices, final @Nullable Throwable error) {
+  private void onDevicesListed(
+    final CommandSender sender,
+    final @Nullable List<CaptureDevices.Device> devices,
+    final @Nullable Throwable error
+  ) {
     if (error != null) {
       LOGGER.error("Failed to list the capture devices.", error);
     }
+
     final List<CaptureDevices.Device> listed = devices == null ? List.of() : devices;
     this.manager.setDevices(listed);
+    this.tellDevices(sender, listed);
+  }
+
+  private void tellDevices(final CommandSender sender, final List<CaptureDevices.Device> listed) {
     final String names = listed.stream().map(this::describeDevice).collect(Collectors.joining(NAME_SEPARATOR));
     final Component message = listed.isEmpty() ? Message.DEVICE_NONE.build() : Message.DEVICE_LIST.build(names);
     TaskUtils.runOnMainThread(this.plugin, () -> sender.sendMessage(message));

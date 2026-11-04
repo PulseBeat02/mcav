@@ -128,7 +128,11 @@ final class FakeVncServer implements AutoCloseable {
     try {
       this.acceptor.join(CLOSE_TIMEOUT_MILLISECONDS);
     } catch (final InterruptedException exception) {
-      Thread.currentThread().interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+
+      final String message = "Closing the fake VNC server was interrupted!";
+      throw new IOException(message, exception);
     }
   }
 
