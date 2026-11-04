@@ -482,7 +482,7 @@ class BrowserHelperTest {
 
   @Test
   void shouldFailWhenTheEngineCannotStart() throws Exception {
-    final BrowserHelper helper = new BrowserHelper(this.configuration("/throw"), new ScriptedEngine());
+    final BrowserHelper helper = new BrowserHelper(this.configuration(ScriptedEngine.THROW_PATH), new ScriptedEngine());
     final CompletableFuture<Integer> result = this.run(helper);
     try (final Peer peer = new Peer(this.server.accept())) {
       final HelperMessage failure = peer.readUntil(HelperProtocol.FAILURE);
@@ -496,7 +496,7 @@ class BrowserHelperTest {
 
   @Test
   void shouldFailWhenTheNativesOfTheEngineCannotLoad() throws Exception {
-    final BrowserHelper helper = new BrowserHelper(this.configuration("/unlinked"), new ScriptedEngine());
+    final BrowserHelper helper = new BrowserHelper(this.configuration(ScriptedEngine.UNLINKED_PATH), new ScriptedEngine());
     final CompletableFuture<Integer> result = this.run(helper);
     try (final Peer peer = new Peer(this.server.accept())) {
       final HelperMessage failure = peer.readUntil(HelperProtocol.FAILURE);
@@ -513,7 +513,7 @@ class BrowserHelperTest {
 
   @Test
   void shouldFailWhenTheBrowserFailsLater() throws Exception {
-    final BrowserHelper helper = new BrowserHelper(this.configuration("/fail"), new ScriptedEngine());
+    final BrowserHelper helper = new BrowserHelper(this.configuration(ScriptedEngine.FAIL_PATH), new ScriptedEngine());
     final CompletableFuture<Integer> result = this.run(helper);
     try (final Peer peer = new Peer(this.server.accept())) {
       final String failureText = peer.readUntil(HelperProtocol.FAILURE).getText();
@@ -804,7 +804,7 @@ class BrowserHelperTest {
 
   @Test
   void shouldReportAPageThatFailsToLoadToTheServer() throws Exception {
-    final BrowserHelper helper = new BrowserHelper(this.configuration("/load-error"), new ScriptedEngine());
+    final BrowserHelper helper = new BrowserHelper(this.configuration(ScriptedEngine.LOAD_ERROR_PATH), new ScriptedEngine());
     final CompletableFuture<Integer> result = this.run(helper);
     try (final Peer peer = new Peer(this.server.accept())) {
       final HelperMessage error = peer.readUntil(HelperProtocol.LOAD_ERROR);

@@ -29,6 +29,7 @@ import java.util.stream.Stream;
 public final class OpenFiles {
 
   private static final int ATTEMPTS = 100;
+  private static final int MAXIMUM_LEFT_OPEN = ATTEMPTS / 2;
 
   private static final Path DESCRIPTORS = Path.of("/proc/self/fd");
 
@@ -46,8 +47,8 @@ public final class OpenFiles {
     }
 
     final long left = count(descriptors) - before;
-    final boolean fewLeftOpen = left < ATTEMPTS / 2;
-    assertTrue(fewLeftOpen, description + " left " + left + " files open in " + ATTEMPTS + " attempts");
+    final boolean fewLeftOpen = left < MAXIMUM_LEFT_OPEN;
+    assertTrue(fewLeftOpen, "%s left %s files open in %s attempts".formatted(description, left, ATTEMPTS));
   }
 
   private static long count(final Path descriptors) {

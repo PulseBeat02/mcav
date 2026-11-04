@@ -42,112 +42,165 @@ import java.util.regex.Pattern;
 // is on screen.
 public final class TestPages implements AutoCloseable {
 
+  public static final String MAIN_PATH = "/main";
+  public static final String POPUP_PATH = "/popup";
+  public static final String SECOND_PATH = "/second";
+  public static final String TONE_PATH = "/tone";
+  public static final String TONE_ELEMENT_PATH = "/tone-element";
+  public static final String TONE_WRAPPED_PATH = "/tone-wrapped";
+  public static final String AV_SYNC_PATH = "/av-sync";
+  public static final String TONE_WAVE_PATH = "/tone.wav";
+  public static final String HOOKED_PATH = "/hooked";
+  public static final String EVENT_PATH = "/event";
+  public static final String DIALOG_PATH = "/dialog";
+  public static final String TO_FILE_PATH = "/to-file";
+  public static final String TO_DOWNLOAD_PATH = "/to-download";
+  public static final String TO_POPUP_PATH = "/to-popup";
+  public static final String TO_POPUP_LINK_PATH = "/to-popup-link";
+  public static final String TO_POPUP_SYNTHETIC_PATH = "/to-popup-synthetic";
+  public static final String NAMED_FRAME_PATH = "/named-frame";
+  public static final String FORM_TARGET_PATH = "/form-target";
+  public static final String DOWNLOAD_PATH = "/download";
+
   public static final int MAIN_COLOR = 0xFF0000;
-
   public static final int POPUP_COLOR = 0x0000FF;
-
   public static final int SECOND_COLOR = 0x00FF00;
+  public static final int AV_SYNC_COLOR = 0x000000;
 
   public static final int FRAME_WIDTH = 100;
 
   public static final int TONE_HERTZ = 1000;
-
   public static final double TONE_AMPLITUDE = 0.5;
 
   // how long /av-sync keeps its picture and sound on, then off
   public static final int TOGGLE_MILLISECONDS = 400;
 
   private static final Pattern PAIR_SEPARATOR = Pattern.compile("&");
+  private static final char NAME_VALUE_SEPARATOR = '=';
+  private static final int KEEP_TRAILING_EMPTY_PARTS = -1;
 
-  private static final String TONE_SCRIPT = String.format(
-    Locale.ROOT,
-    """
-    <script>
-      const context = new AudioContext();
-      context.addEventListener('statechange', () => {
-        report('state', { key: context.state });
-        // whether the clock of the context runs: without an audio device that renders, it stands still
-        let times = 0;
-        const clock = setInterval(() => {
-          report('time', { key: context.currentTime.toFixed(2) });
-          if (++times === 10) {
-            clearInterval(clock);
-          }
-        }, 1000);
-      });
-      const oscillator = context.createOscillator();
-      oscillator.frequency.value = %d;
-      const gain = context.createGain();
-      gain.gain.value = %s;
-      oscillator.connect(gain);
-      gain.connect(context.destination);
-      oscillator.start();
-      addEventListener('pointerdown', () => context.resume().catch((error) => report('state', { key: 'resume failed: ' + error.name })));
-    </script>
-    """,
-    TONE_HERTZ,
-    TONE_AMPLITUDE
-  );
+  private static final String LOOPBACK_ADDRESS = "127.0.0.1";
 
-  private static final String WRAPPED_TONE_SCRIPT = String.format(
-    Locale.ROOT,
-    """
-    <script>
-      const taps = new Set();
-      const keep = (node) => {
-        if (node instanceof ScriptProcessorNode) {
-          taps.add(node);
+  private static final int EPHEMERAL_PORT = 0;
+  private static final int DEFAULT_BACKLOG = 0;
+  private static final int STOP_DELAY_SECONDS = 0;
+
+  private static final String MAIN_PAGE_NAME = "main";
+
+  private static final String CONTENT_TYPE_HEADER = "Content-Type";
+
+  private static final String HTML_CONTENT_TYPE = "text/html; charset=utf-8";
+  private static final String WAVE_CONTENT_TYPE = "audio/wav";
+  private static final String DOWNLOAD_CONTENT_TYPE = "application/octet-stream";
+
+  private static final int HTTP_OK = 200;
+  private static final int HTTP_NO_CONTENT = 204;
+  private static final int NO_RESPONSE_BODY = -1;
+
+  private static final int SAMPLE_RATE = 48_000;
+  private static final int CHANNELS = 2;
+  private static final int BITS_PER_SAMPLE = 16;
+  private static final int BYTES_PER_FRAME = 4;
+  private static final int PCM_FORMAT = 1;
+  private static final int FORMAT_CHUNK_BYTES = 16;
+  private static final int WAVE_HEADER_BYTES = 44;
+  private static final int RIFF_HEADER_BYTES = 8;
+
+  private static final String RIFF_ID = "RIFF";
+  private static final String WAVE_ID = "WAVE";
+  private static final String FORMAT_ID = "fmt ";
+  private static final String DATA_ID = "data";
+
+  private static final int SCRIPT_DELAY_MILLISECONDS = 200;
+
+  private static final String TONE_SCRIPT = """
+  <script>
+    const CLOCK_REPORTS = 10;
+    const CLOCK_INTERVAL_MILLISECONDS = 1000;
+
+    const context = new AudioContext();
+    context.addEventListener('statechange', () => {
+      report('state', { key: context.state });
+      // whether the clock of the context runs: without an audio device that renders, it stands still
+      let times = 0;
+      const clock = setInterval(() => {
+        report('time', { key: context.currentTime.toFixed(2) });
+        if (++times === CLOCK_REPORTS) {
+          clearInterval(clock);
         }
-        return node;
-      };
-      for (const prototype of [BaseAudioContext.prototype, AudioContext.prototype]) {
-        for (const name of ['createScriptProcessor', 'createGain', 'createMediaElementSource']) {
-          const original = prototype[name];
-          if (typeof original === 'function') {
-            prototype[name] = function (...args) {
-              return keep(original.apply(this, args));
-            };
-          }
+      }, CLOCK_INTERVAL_MILLISECONDS);
+    });
+    const oscillator = context.createOscillator();
+    oscillator.frequency.value = %s;
+    const gain = context.createGain();
+    gain.gain.value = %s;
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start();
+    addEventListener('pointerdown', () => context.resume().catch((error) => report('state', { key: 'resume failed: ' + error.name })));
+  </script>
+  """.formatted(TONE_HERTZ, TONE_AMPLITUDE);
+
+  private static final String WRAPPED_TONE_SCRIPT = """
+  <script>
+    const FORGED_FRAMES = 2048;
+    const FORGED_LEVEL = 0.5;
+    const TAP_INTERVAL_MILLISECONDS = 50;
+    const CHANNELS = %s;
+    const SAMPLE_RATE = %s;
+
+    const taps = new Set();
+    const keep = (node) => {
+      if (node instanceof ScriptProcessorNode) {
+        taps.add(node);
+      }
+      return node;
+    };
+    for (const prototype of [BaseAudioContext.prototype, AudioContext.prototype]) {
+      for (const name of ['createScriptProcessor', 'createGain', 'createMediaElementSource']) {
+        const original = prototype[name];
+        if (typeof original === 'function') {
+          prototype[name] = function (...args) {
+            return keep(original.apply(this, args));
+          };
         }
       }
-      const connect = AudioNode.prototype.connect;
-      AudioNode.prototype.connect = function (target, ...rest) {
-        keep(this);
-        keep(target);
-        return connect.call(this, target, ...rest);
-      };
-      const listen = EventTarget.prototype.addEventListener;
-      EventTarget.prototype.addEventListener = function (type, listener, ...rest) {
-        keep(this);
-        return listen.call(this, type, listener, ...rest);
-      };
-      const context = new AudioContext();
-      const oscillator = context.createOscillator();
-      oscillator.frequency.value = %d;
-      const gain = context.createGain();
-      gain.gain.value = %s;
-      oscillator.connect(gain);
-      gain.connect(context.destination);
-      oscillator.start();
-      const forged = new AudioBuffer({ length: 2048, numberOfChannels: 2, sampleRate: 48000 });
-      forged.getChannelData(0).fill(0.5);
-      forged.getChannelData(1).fill(0.5);
-      setInterval(() => {
-        for (const tap of taps) {
-          const event = new AudioProcessingEvent('audioprocess', { playbackTime: 0, inputBuffer: forged, outputBuffer: forged });
-          if (typeof tap.onaudioprocess === 'function') {
-            tap.onaudioprocess(event);
-          }
-          tap.dispatchEvent(event);
+    }
+    const connect = AudioNode.prototype.connect;
+    AudioNode.prototype.connect = function (target, ...rest) {
+      keep(this);
+      keep(target);
+      return connect.call(this, target, ...rest);
+    };
+    const listen = EventTarget.prototype.addEventListener;
+    EventTarget.prototype.addEventListener = function (type, listener, ...rest) {
+      keep(this);
+      return listen.call(this, type, listener, ...rest);
+    };
+    const context = new AudioContext();
+    const oscillator = context.createOscillator();
+    oscillator.frequency.value = %s;
+    const gain = context.createGain();
+    gain.gain.value = %s;
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start();
+    const forged = new AudioBuffer({ length: FORGED_FRAMES, numberOfChannels: CHANNELS, sampleRate: SAMPLE_RATE });
+    forged.getChannelData(0).fill(FORGED_LEVEL);
+    forged.getChannelData(1).fill(FORGED_LEVEL);
+    setInterval(() => {
+      for (const tap of taps) {
+        const event = new AudioProcessingEvent('audioprocess', { playbackTime: 0, inputBuffer: forged, outputBuffer: forged });
+        if (typeof tap.onaudioprocess === 'function') {
+          tap.onaudioprocess(event);
         }
-      }, 50);
-      report('taps', { clientX: taps.size });
-      addEventListener('pointerdown', () => context.resume());
-    </script>
-    """,
-    TONE_HERTZ,
-    TONE_AMPLITUDE
-  );
+        tap.dispatchEvent(event);
+      }
+    }, TAP_INTERVAL_MILLISECONDS);
+    report('taps', { clientX: taps.size });
+    addEventListener('pointerdown', () => context.resume());
+  </script>
+  """.formatted(CHANNELS, SAMPLE_RATE, TONE_HERTZ, TONE_AMPLITUDE);
 
   private static final String ELEMENT_SCRIPT = """
   <audio id="tone" src="/tone.wav" loop></audio>
@@ -162,43 +215,43 @@ public final class TestPages implements AutoCloseable {
   </script>
   """;
 
-  private static final String TOGGLE_SCRIPT = String.format(
-    Locale.ROOT,
-    """
-    <script>
-      const context = new AudioContext();
-      const oscillator = context.createOscillator();
-      oscillator.frequency.value = %d;
-      const gain = context.createGain();
-      gain.gain.value = 0;
-      oscillator.connect(gain);
-      gain.connect(context.destination);
-      oscillator.start();
-      let on = false;
-      let started = false;
-      addEventListener('pointerdown', () => {
-        context.resume();
+  private static final String TOGGLE_SCRIPT = """
+  <script>
+    const LIGHT_COLOR = '#ffffff';
+    const DARK_COLOR = '#000000';
 
-        if (started) {
-          return;
-        }
+    const context = new AudioContext();
+    const oscillator = context.createOscillator();
+    oscillator.frequency.value = %s;
+    const gain = context.createGain();
+    gain.gain.value = 0;
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start();
+    let on = false;
+    let started = false;
+    addEventListener('pointerdown', () => {
+      context.resume();
 
-        started = true;
-        setInterval(() => {
-          on = !on;
-          document.body.style.background = on ? '#ffffff' : '#000000';
-          gain.gain.setValueAtTime(on ? %s : 0, context.currentTime);
-        }, %d);
-      });
-    </script>
-    """,
-    TONE_HERTZ,
-    TONE_AMPLITUDE,
-    TOGGLE_MILLISECONDS
-  );
+      if (started) {
+        return;
+      }
+
+      started = true;
+      setInterval(() => {
+        on = !on;
+        document.body.style.background = on ? LIGHT_COLOR : DARK_COLOR;
+        gain.gain.setValueAtTime(on ? %s : 0, context.currentTime);
+      }, %s);
+    });
+  </script>
+  """.formatted(TONE_HERTZ, TONE_AMPLITUDE, TOGGLE_MILLISECONDS);
 
   private static final String SCRIPT = """
   <script>
+    const POPUP_CLOSE_DELAY_MILLISECONDS = 1000;
+    const SECOND_CLOSE_DELAY_MILLISECONDS = 300;
+
     const page = document.body.dataset.page;
     // one report at a time: independent fetches can arrive out of order
     let reports = Promise.resolve();
@@ -239,10 +292,10 @@ public final class TestPages implements AutoCloseable {
       }
       if (page === 'popup' && event.key === 'n') {
         window.open('/second', '_blank');
-        closeLater(1000);
+        closeLater(POPUP_CLOSE_DELAY_MILLISECONDS);
       }
       if (page === 'second' && event.key === 'w') {
-        closeLater(300);
+        closeLater(SECOND_CLOSE_DELAY_MILLISECONDS);
       }
       if (page === 'popup' && event.key === 'x') {
         reported.then(() => window.close());
@@ -264,29 +317,29 @@ public final class TestPages implements AutoCloseable {
 
   public static TestPages start() {
     try {
-      final InetAddress loopback = InetAddress.ofLiteral("127.0.0.1");
-      final InetSocketAddress address = new InetSocketAddress(loopback, 0);
-      final HttpServer httpServer = HttpServer.create(address, 0);
+      final InetAddress loopback = InetAddress.ofLiteral(LOOPBACK_ADDRESS);
+      final InetSocketAddress address = new InetSocketAddress(loopback, EPHEMERAL_PORT);
+      final HttpServer httpServer = HttpServer.create(address, DEFAULT_BACKLOG);
       final TestPages pages = new TestPages(httpServer);
-      httpServer.createContext("/main", exchange -> servePage(exchange, "main", MAIN_COLOR));
-      httpServer.createContext("/popup", exchange -> servePage(exchange, "popup", POPUP_COLOR));
-      httpServer.createContext("/second", exchange -> servePage(exchange, "second", SECOND_COLOR));
-      httpServer.createContext("/tone", exchange -> servePage(exchange, "tone", MAIN_COLOR, TONE_SCRIPT));
-      httpServer.createContext("/tone-element", exchange -> servePage(exchange, "tone-element", MAIN_COLOR, ELEMENT_SCRIPT));
-      httpServer.createContext("/tone-wrapped", exchange -> servePage(exchange, "tone-wrapped", MAIN_COLOR, WRAPPED_TONE_SCRIPT));
-      httpServer.createContext("/av-sync", exchange -> servePage(exchange, "av-sync", 0x000000, TOGGLE_SCRIPT));
-      httpServer.createContext("/tone.wav", TestPages::serveToneWave);
-      httpServer.createContext("/hooked", pages::serveMainPageAfterTheLoadHook);
-      httpServer.createContext("/event", pages::recordEvent);
-      httpServer.createContext("/dialog", TestPages::serveDialogs);
-      httpServer.createContext("/to-file", exchange -> serveScript(exchange, "location.href = 'file:///etc/passwd';"));
-      httpServer.createContext("/to-download", exchange -> serveScript(exchange, "location.href = '/download';"));
-      httpServer.createContext("/to-popup", exchange -> serveScript(exchange, "window.open('/popup', '_blank');"));
-      httpServer.createContext("/to-popup-link", TestPages::serveLinkToAPopup);
-      httpServer.createContext("/to-popup-synthetic", TestPages::serveLinkToAPopupThatAScriptClicks);
-      httpServer.createContext("/named-frame", TestPages::serveLinkIntoANamedFrame);
-      httpServer.createContext("/form-target", TestPages::serveFormThatTargetsANewWindow);
-      httpServer.createContext("/download", TestPages::serveDownload);
+      httpServer.createContext(MAIN_PATH, exchange -> servePage(exchange, MAIN_PAGE_NAME, MAIN_COLOR));
+      httpServer.createContext(POPUP_PATH, exchange -> servePage(exchange, "popup", POPUP_COLOR));
+      httpServer.createContext(SECOND_PATH, exchange -> servePage(exchange, "second", SECOND_COLOR));
+      httpServer.createContext(TONE_PATH, exchange -> servePage(exchange, "tone", MAIN_COLOR, TONE_SCRIPT));
+      httpServer.createContext(TONE_ELEMENT_PATH, exchange -> servePage(exchange, "tone-element", MAIN_COLOR, ELEMENT_SCRIPT));
+      httpServer.createContext(TONE_WRAPPED_PATH, exchange -> servePage(exchange, "tone-wrapped", MAIN_COLOR, WRAPPED_TONE_SCRIPT));
+      httpServer.createContext(AV_SYNC_PATH, exchange -> servePage(exchange, "av-sync", AV_SYNC_COLOR, TOGGLE_SCRIPT));
+      httpServer.createContext(TONE_WAVE_PATH, TestPages::serveToneWave);
+      httpServer.createContext(HOOKED_PATH, pages::serveMainPageAfterTheLoadHook);
+      httpServer.createContext(EVENT_PATH, pages::recordEvent);
+      httpServer.createContext(DIALOG_PATH, TestPages::serveDialogs);
+      httpServer.createContext(TO_FILE_PATH, exchange -> serveScript(exchange, "location.href = 'file:///etc/passwd';"));
+      httpServer.createContext(TO_DOWNLOAD_PATH, exchange -> serveScript(exchange, "location.href = '/download';"));
+      httpServer.createContext(TO_POPUP_PATH, exchange -> serveScript(exchange, "window.open('/popup', '_blank');"));
+      httpServer.createContext(TO_POPUP_LINK_PATH, TestPages::serveLinkToAPopup);
+      httpServer.createContext(TO_POPUP_SYNTHETIC_PATH, TestPages::serveLinkToAPopupThatAScriptClicks);
+      httpServer.createContext(NAMED_FRAME_PATH, TestPages::serveLinkIntoANamedFrame);
+      httpServer.createContext(FORM_TARGET_PATH, TestPages::serveFormThatTargetsANewWindow);
+      httpServer.createContext(DOWNLOAD_PATH, TestPages::serveDownload);
       httpServer.start();
       return pages;
     } catch (final IOException exception) {
@@ -308,33 +361,30 @@ public final class TestPages implements AutoCloseable {
   private static void serveLinkToAPopupThatAScriptClicks(final HttpExchange exchange) throws IOException {
     serveScript(
       exchange,
-      "document.body.insertAdjacentHTML('beforeend', '<a id=\"link\" href=\"/popup\" target=\"_blank\">popup</a>');" +
-        " document.getElementById('link').click();"
+      "document.body.insertAdjacentHTML('beforeend', '<a id=\"link\" href=\"/popup\" target=\"_blank\">popup</a>'); document.getElementById('link').click();"
     );
   }
 
   private static void serveLinkIntoANamedFrame(final HttpExchange exchange) throws IOException {
     serveHtml(
       exchange,
-      "<iframe name=\"inner\" src=\"about:blank\" style=\"position:fixed;right:0;bottom:0;width:" +
-        FRAME_WIDTH +
-        "px;height:60px;border:0\"></iframe>" +
-        "<a href=\"/second\" target=\"inner\" style=\"position:fixed;left:0;top:0;width:50%;height:50%\"></a>"
+      "<iframe name=\"inner\" src=\"about:blank\" style=\"position:fixed;right:0;bottom:0;width:%spx;height:60px;border:0\"></iframe><a href=\"/second\" target=\"inner\" style=\"position:fixed;left:0;top:0;width:50%%;height:50%%\"></a>".formatted(
+        FRAME_WIDTH
+      )
     );
   }
 
   private static void serveFormThatTargetsANewWindow(final HttpExchange exchange) throws IOException {
     serveHtml(
       exchange,
-      "<form action=\"/second\" method=\"get\"><button type=\"submit\" formtarget=\"_blank\"" +
-        " style=\"position:fixed;inset:0;opacity:0\">send</button></form>"
+      "<form action=\"/second\" method=\"get\"><button type=\"submit\" formtarget=\"_blank\" style=\"position:fixed;inset:0;opacity:0\">send</button></form>"
     );
   }
 
   public URI uri(final String path) {
     final InetSocketAddress address = this.server.getAddress();
     final int port = address.getPort();
-    return URI.create("http://127.0.0.1:" + port + path);
+    return URI.create("http://%s:%s%s".formatted(LOOPBACK_ADDRESS, port, path));
   }
 
   public void clearEvents() {
@@ -355,91 +405,75 @@ public final class TestPages implements AutoCloseable {
   private static void servePage(final HttpExchange exchange, final String name, final int color, final String extra) throws IOException {
     final String hexadecimal = String.format(Locale.ROOT, "#%06x", color);
     final String html =
-      "<!doctype html><html><head><title>" +
-      name +
-      "</title><style>html,body{margin:0;width:100%;height:100%;background:" +
-      hexadecimal +
-      ";}</style></head><body data-page=\"" +
-      name +
-      "\">" +
-      SCRIPT +
-      extra +
-      "</body></html>";
+      "<!doctype html><html><head><title>%s</title><style>html,body{margin:0;width:100%%;height:100%%;background:%s;}</style></head><body data-page=\"%s\">%s%s</body></html>".formatted(
+        name,
+        hexadecimal,
+        name,
+        SCRIPT,
+        extra
+      );
     final byte[] body = html.getBytes(StandardCharsets.UTF_8);
-    final Headers headers = exchange.getResponseHeaders();
-    headers.add("Content-Type", "text/html; charset=utf-8");
-    exchange.sendResponseHeaders(200, body.length);
-    try (final OutputStream output = exchange.getResponseBody()) {
-      output.write(body);
-    }
+    sendBody(exchange, HTML_CONTENT_TYPE, body);
   }
 
   private static void serveToneWave(final HttpExchange exchange) throws IOException {
-    final int rate = 48_000;
-    final ByteBuffer wave = ByteBuffer.allocate(44 + rate * 4).order(ByteOrder.LITTLE_ENDIAN);
+    final ByteBuffer wave = ByteBuffer.allocate(WAVE_HEADER_BYTES + SAMPLE_RATE * BYTES_PER_FRAME).order(ByteOrder.LITTLE_ENDIAN);
     wave
-      .put("RIFF".getBytes(StandardCharsets.US_ASCII))
-      .putInt(36 + rate * 4)
-      .put("WAVE".getBytes(StandardCharsets.US_ASCII));
+      .put(RIFF_ID.getBytes(StandardCharsets.US_ASCII))
+      .putInt(WAVE_HEADER_BYTES - RIFF_HEADER_BYTES + SAMPLE_RATE * BYTES_PER_FRAME)
+      .put(WAVE_ID.getBytes(StandardCharsets.US_ASCII));
     wave
-      .put("fmt ".getBytes(StandardCharsets.US_ASCII))
-      .putInt(16)
-      .putShort((short) 1)
-      .putShort((short) 2);
+      .put(FORMAT_ID.getBytes(StandardCharsets.US_ASCII))
+      .putInt(FORMAT_CHUNK_BYTES)
+      .putShort((short) PCM_FORMAT)
+      .putShort((short) CHANNELS);
     wave
-      .putInt(rate)
-      .putInt(rate * 4)
-      .putShort((short) 4)
-      .putShort((short) 16);
-    wave.put("data".getBytes(StandardCharsets.US_ASCII)).putInt(rate * 4);
-    for (int frame = 0; frame < rate; frame++) {
-      final short sample = (short) Math.round(Math.sin((2 * Math.PI * TONE_HERTZ * frame) / rate) * TONE_AMPLITUDE * 32767);
+      .putInt(SAMPLE_RATE)
+      .putInt(SAMPLE_RATE * BYTES_PER_FRAME)
+      .putShort((short) BYTES_PER_FRAME)
+      .putShort((short) BITS_PER_SAMPLE);
+    wave.put(DATA_ID.getBytes(StandardCharsets.US_ASCII)).putInt(SAMPLE_RATE * BYTES_PER_FRAME);
+    for (int frame = 0; frame < SAMPLE_RATE; frame++) {
+      final short sample = (short) Math.round(
+        Math.sin((2 * Math.PI * TONE_HERTZ * frame) / SAMPLE_RATE) * TONE_AMPLITUDE * Short.MAX_VALUE
+      );
       wave.putShort(sample).putShort(sample);
     }
 
     final byte[] body = wave.array();
-    exchange.getResponseHeaders().add("Content-Type", "audio/wav");
-    exchange.sendResponseHeaders(200, body.length);
-    try (final OutputStream output = exchange.getResponseBody()) {
-      output.write(body);
-    }
+    sendBody(exchange, WAVE_CONTENT_TYPE, body);
   }
 
   private static void serveHtml(final HttpExchange exchange, final String elements) throws IOException {
     final String html =
-      "<!doctype html><html><head><style>html,body{margin:0;width:100%;height:100%;background:#ff0000;}</style></head><body>" +
-      elements +
-      "</body></html>";
+      "<!doctype html><html><head><style>html,body{margin:0;width:100%%;height:100%%;background:#ff0000;}</style></head><body>%s</body></html>".formatted(
+        elements
+      );
     final byte[] body = html.getBytes(StandardCharsets.UTF_8);
-    final Headers headers = exchange.getResponseHeaders();
-    headers.add("Content-Type", "text/html; charset=utf-8");
-    exchange.sendResponseHeaders(200, body.length);
-    try (final OutputStream output = exchange.getResponseBody()) {
-      output.write(body);
-    }
+    sendBody(exchange, HTML_CONTENT_TYPE, body);
   }
 
   private static void serveScript(final HttpExchange exchange, final String script) throws IOException {
     final String html =
-      "<!doctype html><html><head><style>html,body{margin:0;width:100%;height:100%;background:#ff0000;}</style></head>" +
-      "<body><script>window.addEventListener('load', () => setTimeout(() => { " +
-      script +
-      " }, 200));</script></body></html>";
+      "<!doctype html><html><head><style>html,body{margin:0;width:100%%;height:100%%;background:#ff0000;}</style></head><body><script>window.addEventListener('load', () => setTimeout(() => { %s }, %s));</script></body></html>".formatted(
+        script,
+        SCRIPT_DELAY_MILLISECONDS
+      );
     final byte[] body = html.getBytes(StandardCharsets.UTF_8);
-    final Headers headers = exchange.getResponseHeaders();
-    headers.add("Content-Type", "text/html; charset=utf-8");
-    exchange.sendResponseHeaders(200, body.length);
-    try (final OutputStream output = exchange.getResponseBody()) {
-      output.write(body);
-    }
+    sendBody(exchange, HTML_CONTENT_TYPE, body);
   }
 
   private static void serveDownload(final HttpExchange exchange) throws IOException {
     final byte[] body = "not for the server".getBytes(StandardCharsets.UTF_8);
     final Headers headers = exchange.getResponseHeaders();
-    headers.add("Content-Type", "application/octet-stream");
     headers.add("Content-Disposition", "attachment; filename=\"evil.exe\"");
-    exchange.sendResponseHeaders(200, body.length);
+    sendBody(exchange, DOWNLOAD_CONTENT_TYPE, body);
+  }
+
+  private static void sendBody(final HttpExchange exchange, final String contentType, final byte[] body) throws IOException {
+    final Headers headers = exchange.getResponseHeaders();
+    headers.add(CONTENT_TYPE_HEADER, contentType);
+    exchange.sendResponseHeaders(HTTP_OK, body.length);
     try (final OutputStream output = exchange.getResponseBody()) {
       output.write(body);
     }
@@ -448,7 +482,7 @@ public final class TestPages implements AutoCloseable {
   private void serveMainPageAfterTheLoadHook(final HttpExchange exchange) throws IOException {
     final Runnable hook = this.loadHook.get();
     hook.run();
-    servePage(exchange, "main", MAIN_COLOR);
+    servePage(exchange, MAIN_PAGE_NAME, MAIN_COLOR);
   }
 
   private void recordEvent(final HttpExchange exchange) throws IOException {
@@ -460,7 +494,7 @@ public final class TestPages implements AutoCloseable {
       this.events.add(pageEvent);
     }
 
-    exchange.sendResponseHeaders(204, -1);
+    exchange.sendResponseHeaders(HTTP_NO_CONTENT, NO_RESPONSE_BODY);
     exchange.close();
   }
 
@@ -485,9 +519,9 @@ public final class TestPages implements AutoCloseable {
       return parameters;
     }
 
-    final String[] pairs = PAIR_SEPARATOR.split(query, -1);
+    final String[] pairs = PAIR_SEPARATOR.split(query, KEEP_TRAILING_EMPTY_PARTS);
     for (final String pair : pairs) {
-      final int separator = pair.indexOf('=');
+      final int separator = pair.indexOf(NAME_VALUE_SEPARATOR);
       if (separator < 0) {
         continue;
       }
@@ -503,7 +537,7 @@ public final class TestPages implements AutoCloseable {
 
   @Override
   public void close() {
-    this.server.stop(0);
+    this.server.stop(STOP_DELAY_SECONDS);
   }
 
   public void setLoadHook(final Runnable hook) {

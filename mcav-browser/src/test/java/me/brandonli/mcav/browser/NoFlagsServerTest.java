@@ -43,6 +43,10 @@ import org.junit.jupiter.api.io.TempDir;
 @Tag("cef")
 class NoFlagsServerTest {
 
+  private static final String JAVA_HOME_PROPERTY = "java.home";
+  private static final String OS_NAME_PROPERTY = "os.name";
+  private static final String CLASS_PATH_PROPERTY = "java.class.path";
+
   private static final long TIMEOUT_MINUTES = 15L;
 
   private static final List<String> X_SERVERS = List.of("Xvfb", "Xorg", "X", "Xwayland");
@@ -50,13 +54,13 @@ class NoFlagsServerTest {
   @Test
   void shouldStreamAPageOnAHeadlessServerWithoutJvmOptionsAndSurviveADisableAndEnable() throws Exception {
     try (final TestPages pages = TestPages.start()) {
-      final String executable = System.getProperty("os.name").startsWith("Windows") ? "java.exe" : "java";
-      final Path java = Path.of(System.getProperty("java.home"), "bin", executable);
+      final String executable = System.getProperty(OS_NAME_PROPERTY).startsWith("Windows") ? "java.exe" : "java";
+      final Path java = Path.of(System.getProperty(JAVA_HOME_PROPERTY), "bin", executable);
       final List<String> command = List.of(
         java.toString(),
-        "-Djava.awt.headless=true",
+        NoFlagsServerMain.HEADLESS_OPTION,
         NoFlagsServerMain.class.getName(),
-        pages.uri("/main").toString()
+        pages.uri(TestPages.MAIN_PATH).toString()
       );
       final ProcessBuilder builder = new ProcessBuilder(command);
       final Map<String, String> environment = builder.environment();
@@ -64,7 +68,7 @@ class NoFlagsServerTest {
       environment.remove("WAYLAND_DISPLAY");
       environment.remove("JAVA_TOOL_OPTIONS");
       environment.remove("JDK_JAVA_OPTIONS");
-      environment.put("CLASSPATH", System.getProperty("java.class.path"));
+      environment.put("CLASSPATH", System.getProperty(CLASS_PATH_PROPERTY));
       final String path = this.withoutXServers(environment.getOrDefault("PATH", ""));
       environment.put("PATH", path);
       System.out.println("PATH of the server: " + path);

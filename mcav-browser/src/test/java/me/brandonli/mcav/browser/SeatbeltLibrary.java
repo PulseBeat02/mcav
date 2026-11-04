@@ -36,6 +36,8 @@ import java.util.Optional;
 @SuppressWarnings("restricted")
 final class SeatbeltLibrary implements AutoCloseable {
 
+  private static final String CALL_METHOD = "call";
+
   static final String SANDBOX_INIT = "sandbox_init";
   static final String FREE_ERROR = "sandbox_free_error";
 
@@ -63,7 +65,7 @@ final class SeatbeltLibrary implements AutoCloseable {
       final FunctionDescriptor descriptor = isSandboxInit ? SANDBOX_INIT_DESCRIPTOR : FREE_ERROR_DESCRIPTOR;
       final Object function = isSandboxInit ? (SandboxInitFunction) this::initializeSandbox : (FreeErrorFunction) this::freeError;
       final Class<?> type = isSandboxInit ? SandboxInitFunction.class : FreeErrorFunction.class;
-      final MethodHandle target = lookup.findVirtual(type, "call", descriptor.toMethodType()).bindTo(function);
+      final MethodHandle target = lookup.findVirtual(type, CALL_METHOD, descriptor.toMethodType()).bindTo(function);
       this.functions.put(name, Linker.nativeLinker().upcallStub(target, descriptor, this.arena));
     }
   }

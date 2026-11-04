@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.Locale;
+import java.util.StringJoiner;
 import java.util.concurrent.CopyOnWriteArrayList;
 import javax.imageio.ImageIO;
 import me.brandonli.mcav.media.image.ImageBuffer;
@@ -35,6 +36,16 @@ import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public final class Frames {
+
+  private static final int RED_SHIFT = 16;
+  private static final int BITS_PER_CHANNEL = 8;
+
+  private static final int CHANNEL_MASK = 0xFF;
+  private static final int RGB_MASK = 0xFFFFFF;
+
+  private static final int CHANNEL_TOLERANCE = 40;
+
+  private static final String CENTER_SEPARATOR = ", ";
 
   private final List<Frame> frames;
 
@@ -71,11 +82,11 @@ public final class Frames {
 
   // JPEG compression shifts colors a little
   public static boolean isNear(final int expected, final int actual) {
-    for (int shift = 0; shift <= 16; shift += 8) {
-      final int expectedChannel = (expected >> shift) & 0xFF;
-      final int actualChannel = (actual >> shift) & 0xFF;
+    for (int shift = 0; shift <= RED_SHIFT; shift += BITS_PER_CHANNEL) {
+      final int expectedChannel = (expected >> shift) & CHANNEL_MASK;
+      final int actualChannel = (actual >> shift) & CHANNEL_MASK;
       final int difference = Math.abs(expectedChannel - actualChannel);
-      if (difference > 40) {
+      if (difference > CHANNEL_TOLERANCE) {
         return false;
       }
     }
@@ -88,7 +99,7 @@ public final class Frames {
     final int height = image.getHeight();
     final int[] pixels = image.getPixels();
     final int centerIndex = (height / 2) * width + width / 2;
-    final int center = pixels[centerIndex] & 0xFFFFFF;
+    final int center = pixels[centerIndex] & RGB_MASK;
     final int metadataWidth = metadata.getVideoWidth();
     final int metadataHeight = metadata.getVideoHeight();
     final Frame frame = new Frame(width, height, center, metadataWidth, metadataHeight);
@@ -137,32 +148,28 @@ public final class Frames {
     }
 
     final Frame frame = all.getLast();
-    final StringBuilder centers = new StringBuilder();
+    final StringJoiner centers = new StringJoiner(CENTER_SEPARATOR);
     int run = 0;
     for (int index = 0; index < all.size(); index++) {
       run++;
       final int center = all.get(index).getCenter();
       if (index == all.size() - 1 || all.get(index + 1).getCenter() != center) {
-        centers
-          .append(centers.isEmpty() ? "" : ", ")
-          .append(String.format(Locale.ROOT, "%06x", center))
-          .append(" x")
-          .append(run);
+        final String color = this.formatColor(center);
+        centers.add("%s x%s".formatted(color, run));
         run = 0;
       }
     }
 
-    return (
-      all.size() +
-      " frames, the last " +
-      frame.getWidth() +
-      "x" +
-      frame.getHeight() +
-      " with center " +
-      String.format(Locale.ROOT, "%06x", frame.getCenter()) +
-      "; centers in order: " +
-      centers
-    );
+    final int count = all.size();
+    final int width = frame.getWidth();
+    final int height = frame.getHeight();
+    final int center = frame.getCenter();
+    final String color = this.formatColor(center);
+    return "%s frames, the last %sx%s with center %s; centers in order: %s".formatted(count, width, height, color, centers);
+  }
+
+  private String formatColor(final int color) {
+    return String.format(Locale.ROOT, "%06x", color);
   }
 
   public List<Frame> getFrames() {

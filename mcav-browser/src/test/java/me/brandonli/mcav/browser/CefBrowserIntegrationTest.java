@@ -56,8 +56,6 @@ class CefBrowserIntegrationTest {
 
   private static final BrowserOptions LOCAL = BrowserOptions.builder().privateNetworks(true).build();
 
-  private static final String MAIN_PAGE = "/main";
-
   private static final long REFUSAL_WAIT_MILLISECONDS = 1_500L;
 
   private final TestPages pages = TestPages.start();
@@ -144,7 +142,7 @@ class CefBrowserIntegrationTest {
   @Test
   void shouldStreamAPageWithItsColors() {
     final BrowserPlayer player = this.player(LOCAL);
-    final Frames frames = this.start(player, MAIN_PAGE);
+    final Frames frames = this.start(player, TestPages.MAIN_PATH);
     final boolean playing = player.isPlaying();
     assertTrue(playing);
 
@@ -164,7 +162,7 @@ class CefBrowserIntegrationTest {
   @Test
   void shouldPassClicksKeysAndTheWheelToThePageWhereTheyLand() {
     final BrowserPlayer player = this.player(LOCAL);
-    this.start(player, MAIN_PAGE);
+    this.start(player, TestPages.MAIN_PATH);
     this.awaitInput(player);
     player.sendMouseEvent(MouseClick.LEFT, 100, 50);
     Await.until("a click", () -> this.hasEventAtX("click", 100));
@@ -225,7 +223,7 @@ class CefBrowserIntegrationTest {
   @Test
   void shouldOpenAPopupOpenedByThePlayerInPlace() {
     final BrowserPlayer player = this.player(LOCAL);
-    final Frames frames = this.start(player, MAIN_PAGE);
+    final Frames frames = this.start(player, TestPages.MAIN_PATH);
     this.awaitInput(player);
     player.sendKeyEvent("o");
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
@@ -252,7 +250,7 @@ class CefBrowserIntegrationTest {
   @Test
   void shouldOpenALinkToANewWindowInPlace() {
     final BrowserPlayer player = this.player(LOCAL);
-    final Frames frames = this.start(player, "/to-popup-link");
+    final Frames frames = this.start(player, TestPages.TO_POPUP_LINK_PATH);
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
     // clicks are ignored for a moment after the page appears, so the link is clicked until it opens
     while (!frames.lastShows(TestPages.POPUP_COLOR)) {
@@ -288,7 +286,7 @@ class CefBrowserIntegrationTest {
   @Test
   void shouldOpenALinkIntoAFrameOfThePageInThatFrame() throws InterruptedException {
     final BrowserPlayer player = this.player(LOCAL);
-    final Frames frames = this.start(player, "/named-frame");
+    final Frames frames = this.start(player, TestPages.NAMED_FRAME_PATH);
     this.clickUntil(player, "the second page in the frame", () -> this.hasEventOnPage("size", "second"));
     final TestPages.PageEvent size = this.pages
       .getEvents("size")
@@ -314,7 +312,7 @@ class CefBrowserIntegrationTest {
   @Test
   void shouldSendAFormInPlaceWhenItsButtonTargetsANewWindow() {
     final BrowserPlayer player = this.player(LOCAL);
-    final Frames frames = this.start(player, "/form-target");
+    final Frames frames = this.start(player, TestPages.FORM_TARGET_PATH);
     this.clickUntil(player, "the form sent", () -> frames.lastShows(TestPages.SECOND_COLOR));
     final boolean playing = player.isPlaying();
     assertTrue(playing);
@@ -323,7 +321,7 @@ class CefBrowserIntegrationTest {
   @Test
   void shouldBlockALinkToANewWindowThatAScriptClicks() throws InterruptedException {
     final BrowserPlayer player = this.player(LOCAL);
-    final Frames frames = this.start(player, "/to-popup-synthetic");
+    final Frames frames = this.start(player, TestPages.TO_POPUP_SYNTHETIC_PATH);
     Thread.sleep(REFUSAL_WAIT_MILLISECONDS);
     final boolean showsMainPage = frames.lastShows(TestPages.MAIN_COLOR);
     assertTrue(showsMainPage, "still the page, not the popup");
@@ -332,7 +330,7 @@ class CefBrowserIntegrationTest {
   @Test
   void shouldBlockAPopupThePageOpensByItself() throws InterruptedException {
     final BrowserPlayer player = this.player(LOCAL);
-    final Frames frames = this.start(player, "/to-popup");
+    final Frames frames = this.start(player, TestPages.TO_POPUP_PATH);
     Thread.sleep(REFUSAL_WAIT_MILLISECONDS);
     final boolean showsMainPage = frames.lastShows(TestPages.MAIN_COLOR);
     assertTrue(showsMainPage, "still the page, not the popup");
@@ -341,7 +339,7 @@ class CefBrowserIntegrationTest {
   @Test
   void shouldDismissJavaScriptDialogsAndLetThePageGoOn() {
     final BrowserPlayer player = this.player(BrowserOptions.builder().privateNetworks(true).javaScriptJit(true).frameRate(30).build());
-    final Frames frames = this.start(player, "/dialog");
+    final Frames frames = this.start(player, TestPages.DIALOG_PATH);
     Await.until("the page past its dialogs", () -> frames.lastShows(TestPages.SECOND_COLOR));
   }
 
@@ -349,9 +347,9 @@ class CefBrowserIntegrationTest {
   void shouldNotLetAPageNavigateToAFileOrDownloadOne() throws InterruptedException {
     try (final StandardError reports = new StandardError()) {
       final BrowserPlayer toFile = this.player(LOCAL);
-      final Frames fileFrames = this.start(toFile, "/to-file");
+      final Frames fileFrames = this.start(toFile, TestPages.TO_FILE_PATH);
       final BrowserPlayer toDownload = this.player(LOCAL);
-      final Frames downloadFrames = this.start(toDownload, "/to-download");
+      final Frames downloadFrames = this.start(toDownload, TestPages.TO_DOWNLOAD_PATH);
       Thread.sleep(REFUSAL_WAIT_MILLISECONDS);
       final boolean fileShowsMainPage = fileFrames.lastShows(TestPages.MAIN_COLOR);
       assertTrue(fileShowsMainPage, () -> "still the page, not the file: " + fileFrames.describeLast());
@@ -395,7 +393,7 @@ class CefBrowserIntegrationTest {
   @Test
   void shouldRefuseAPageOnThisMachineUnlessPrivateNetworksAreAllowed() {
     final BrowserPlayer player = this.player(BrowserOptions.DEFAULT);
-    final BrowserSource local = BrowserSource.uri(this.pages.uri(MAIN_PAGE), WIDTH, HEIGHT, 1);
+    final BrowserSource local = BrowserSource.uri(this.pages.uri(TestPages.MAIN_PATH), WIDTH, HEIGHT, 1);
     final BrowserException failure = assertThrows(BrowserException.class, () -> player.start(local));
     final String message = failure.getMessage();
     final boolean namesTheProxyRefusal = message.contains("SOCKS") || message.contains("PROXY") || message.contains("TUNNEL");
@@ -424,21 +422,21 @@ class CefBrowserIntegrationTest {
   void shouldLeaveNoProcessAfterAReleaseAndStartANewBrowserFresh() {
     final CefBrowserPlayer.HelperSessionFactory shared = this.sessions();
     final BrowserPlayer first = this.player(LOCAL, shared);
-    this.start(first, MAIN_PAGE);
+    this.start(first, TestPages.MAIN_PATH);
     final boolean browserRunning = countBrowserProcesses() > 0;
     assertTrue(browserRunning);
 
     first.release();
     Await.until("the processes of the first browser ended", () -> countBrowserProcesses() == 0);
     final BrowserPlayer second = this.player(LOCAL, shared);
-    final Frames frames = this.start(second, "/second");
+    final Frames frames = this.start(second, TestPages.SECOND_PATH);
     Await.until("the second browser shows its page", () -> frames.lastShows(TestPages.SECOND_COLOR));
   }
 
   @Test
   void shouldEndEveryBrowserWhenTheModuleStops() {
     final BrowserPlayer player = this.player(LOCAL);
-    this.start(player, MAIN_PAGE);
+    this.start(player, TestPages.MAIN_PATH);
     final int processCountWhilePlaying = HelperProcesses.count();
     assertEquals(1, processCountWhilePlaying);
 
@@ -460,7 +458,7 @@ class CefBrowserIntegrationTest {
       module.start();
     }
 
-    final Frames frames = this.start(player, "/second");
+    final Frames frames = this.start(player, TestPages.SECOND_PATH);
     Await.until("the browser shows its page again", () -> frames.lastShows(TestPages.SECOND_COLOR));
   }
 
@@ -468,7 +466,7 @@ class CefBrowserIntegrationTest {
   @EnabledOnOs(OS.MAC)
   void shouldRunEveryProcessOfChromiumInASandboxOnMacOs() throws Throwable {
     final BrowserPlayer player = this.player(LOCAL);
-    final Frames frames = this.start(player, MAIN_PAGE);
+    final Frames frames = this.start(player, TestPages.MAIN_PATH);
     Await.until("a red frame", () -> frames.lastShows(TestPages.MAIN_COLOR));
     final List<ProcessHandle> chromium;
     try (final Stream<ProcessHandle> descendants = ProcessHandle.current().descendants()) {

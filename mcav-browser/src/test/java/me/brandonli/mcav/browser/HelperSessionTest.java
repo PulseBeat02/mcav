@@ -86,7 +86,15 @@ import org.junit.jupiter.api.parallel.Resources;
 
 class HelperSessionTest {
 
-  private static final Path NATIVES = Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath();
+  private static final int KEEP_TRAILING_EMPTY_PARTS = -1;
+
+  private static final String JAVA_HOME_PROPERTY = "java.home";
+  private static final String TEMPORARY_DIRECTORY_PROPERTY = "java.io.tmpdir";
+  private static final String CLASS_PATH_PROPERTY = "java.class.path";
+
+  private static final Path NATIVES = Path.of(System.getProperty(TEMPORARY_DIRECTORY_PROPERTY)).toAbsolutePath();
+
+  private static final String PAGE_URL_TEMPLATE = "https://example.com%s";
 
   private static final String PAGE = "/page";
 
@@ -115,10 +123,10 @@ class HelperSessionTest {
   }
 
   static HelperLauncher launcher(final String mainClass, final long startTimeoutMilliseconds, final Os os, final List<String> jvmOptions) {
-    final String javaHome = System.getProperty("java.home");
+    final String javaHome = System.getProperty(JAVA_HOME_PROPERTY);
     final Path java = Path.of(javaHome, "bin", File.separatorChar == '\\' ? "java.exe" : "java");
     final List<Path> classPath = new ArrayList<>();
-    for (final String entry : System.getProperty("java.class.path").split(Pattern.quote(File.pathSeparator), -1)) {
+    for (final String entry : System.getProperty(CLASS_PATH_PROPERTY).split(Pattern.quote(File.pathSeparator), KEEP_TRAILING_EMPTY_PARTS)) {
       classPath.add(Path.of(entry));
     }
 
@@ -130,7 +138,7 @@ class HelperSessionTest {
   }
 
   private HelperSession open(final String mainClass, final String path, final BrowserOptions options) {
-    final BrowserSource source = BrowserSource.uri(URI.create("https://example.com" + path), 4, 3, 1);
+    final BrowserSource source = BrowserSource.uri(URI.create(PAGE_URL_TEMPLATE.formatted(path)), 4, 3, 1);
     final HelperSession session = HelperSession.open(
       launcher(mainClass, START_TIMEOUT_MILLISECONDS),
       NATIVES,
@@ -144,7 +152,7 @@ class HelperSessionTest {
   }
 
   private BrowserException openFails(final String mainClass, final String path, final long timeoutMilliseconds) {
-    final BrowserSource source = BrowserSource.uri(URI.create("https://example.com" + path), 4, 3, 1);
+    final BrowserSource source = BrowserSource.uri(URI.create(PAGE_URL_TEMPLATE.formatted(path)), 4, 3, 1);
     final int before = HelperProcesses.count();
     final HelperLauncher launcher = launcher(mainClass, timeoutMilliseconds);
     final BrowserException failure = assertThrows(BrowserException.class, () -> this.openSession(launcher, source));
@@ -217,7 +225,7 @@ class HelperSessionTest {
   void shouldLogAHelperThatReportsInALoopOnlyWithinItsBudget() {
     final String log;
     try (final StandardError errors = new StandardError()) {
-      this.open(RawHelperMain.class.getName(), "/noisy");
+      this.open(RawHelperMain.class.getName(), RawHelperMain.NOISY_PATH);
       Await.until("the sound after the reports", () -> !this.listener.sound.isEmpty());
       log = errors.text();
     }
@@ -291,7 +299,7 @@ class HelperSessionTest {
   @Test
   void shouldCarryTheSoundOfThePageAcrossTheProtocolInOrderAndOnlyThroughItsBinding() throws Exception {
     final BrowserOptions autoplay = BrowserOptions.builder().autoplay(true).build();
-    final HelperSession session = this.open(ScriptedEngine.class.getName(), "/sound", autoplay);
+    final HelperSession session = this.open(ScriptedEngine.class.getName(), ScriptedEngine.SOUND_PATH, autoplay);
     Await.until("the sound", () -> this.listener.sound.size() == ScriptedEngine.SOUND_CHUNKS);
     for (int chunk = 1; chunk <= ScriptedEngine.SOUND_CHUNKS; chunk++) {
       final byte[] samples = this.listener.sound.get(chunk - 1);
@@ -316,7 +324,7 @@ class HelperSessionTest {
 
   @Test
   void shouldPassTheSoundOfAPageToTheServerOnlyOnceAPlayerPressedAButtonOrAKey() throws Exception {
-    final HelperSession session = this.open(ScriptedEngine.class.getName(), "/sound-on-input");
+    final HelperSession session = this.open(ScriptedEngine.class.getName(), ScriptedEngine.SOUND_ON_INPUT_PATH);
     Await.until("the first frame", () -> !this.listener.frames.isEmpty());
     final boolean moveAccepted = session.sendMouse(new MouseInput(HelperProtocol.MOUSE_MOVE, 1, 1, 0, 0, 0, 0));
     assertTrue(moveAccepted);
@@ -377,7 +385,7 @@ class HelperSessionTest {
       @Override
       public void onEnded(final String reason, final Throwable cause) {}
     };
-    final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/page"), 4, 3, 1);
+    final BrowserSource source = BrowserSource.uri(URI.create(PAGE_URL_TEMPLATE.formatted(PAGE)), 4, 3, 1);
     final HelperSession session = HelperSession.open(
       launcher(ScriptedEngine.class.getName(), START_TIMEOUT_MILLISECONDS),
       NATIVES,
@@ -411,7 +419,7 @@ class HelperSessionTest {
   void shouldWaitOnCloseForTheSoundThatIsStillHandedOver() throws InterruptedException {
     final SoundHoldingListener holder = new SoundHoldingListener();
     final BrowserOptions autoplay = BrowserOptions.builder().autoplay(true).build();
-    final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/sound"), 4, 3, 1);
+    final BrowserSource source = BrowserSource.uri(URI.create(PAGE_URL_TEMPLATE.formatted(ScriptedEngine.SOUND_PATH)), 4, 3, 1);
     final HelperSession session = HelperSession.open(
       launcher(ScriptedEngine.class.getName(), START_TIMEOUT_MILLISECONDS),
       NATIVES,
@@ -431,7 +439,7 @@ class HelperSessionTest {
 
   @Test
   void shouldWaitOnCloseUntilTheOutputOfTheHelperAndItsProcessesEnded() {
-    final HelperSession session = this.open(RawHelperMain.class.getName(), "/output-child");
+    final HelperSession session = this.open(RawHelperMain.class.getName(), RawHelperMain.OUTPUT_CHILD_PATH);
     final Set<ProcessHandle> started = ConcurrentHashMap.newKeySet();
     Await.until("the process the helper starts", () -> this.recordDescendantsAndReportAny(session, started));
     final Thread drain = session.getThreads().get(2);
@@ -448,7 +456,7 @@ class HelperSessionTest {
     System.setErr(new PrintStream(captured, true, StandardCharsets.UTF_8));
     final BrowserException failure;
     try {
-      failure = this.openFails(ScriptedEngine.class.getName(), "/throw-after-output", START_TIMEOUT_MILLISECONDS);
+      failure = this.openFails(ScriptedEngine.class.getName(), ScriptedEngine.THROW_AFTER_OUTPUT_PATH, START_TIMEOUT_MILLISECONDS);
     } finally {
       System.setErr(standardError);
     }
@@ -568,7 +576,7 @@ class HelperSessionTest {
 
   @Test
   void shouldReadTheOutputOfARunningHelperWhateverItsSize() {
-    final HelperSession session = this.open(RawHelperMain.class.getName(), "/chatty");
+    final HelperSession session = this.open(RawHelperMain.class.getName(), RawHelperMain.CHATTY_PATH);
     Await.until("the last line of the helper", () -> session.getOutputTail().contains(RawHelperMain.CHATTY_END));
     final boolean alive = session.isAlive();
     assertTrue(alive);
@@ -576,7 +584,7 @@ class HelperSessionTest {
 
   @Test
   void shouldAcceptARegionAsLargeAsThePage() {
-    this.open(RawHelperMain.class.getName(), "/full-page");
+    this.open(RawHelperMain.class.getName(), RawHelperMain.FULL_PAGE_PATH);
     Await.until("the first frame", () -> !this.listener.frames.isEmpty());
     final int firstFrameBlue = blue(this.listener.frames.get(0));
     assertEquals(7, firstFrameBlue);
@@ -585,7 +593,7 @@ class HelperSessionTest {
 
   @Test
   void shouldEndTheSessionWithTheExitCodeOfAHelperThatExitsWhileItRuns() {
-    this.open(RawHelperMain.class.getName(), "/exit-later");
+    this.open(RawHelperMain.class.getName(), RawHelperMain.EXIT_LATER_PATH);
     Await.until("the end of the session", () -> !this.listener.ended.isEmpty());
     assertEquals(List.of("The browser helper exited with code 5 before it was asked to stop!"), this.listener.ended);
   }
@@ -605,7 +613,7 @@ class HelperSessionTest {
   @Test
   @EnabledOnOs(OS.LINUX)
   void shouldEndTheSessionWhenInputCannotBeWritten() {
-    final HelperSession session = this.open(RawHelperMain.class.getName(), "/deaf");
+    final HelperSession session = this.open(RawHelperMain.class.getName(), RawHelperMain.DEAF_PATH);
     Await.until("the end of the session", () -> this.sendAKeyAndReportTheEnd(session));
     final String reason = this.listener.ended.get(0);
     final boolean reportsTheInputFailure = reason.startsWith("Input could not be sent to the browser helper!");
@@ -624,7 +632,7 @@ class HelperSessionTest {
 
   @Test
   void shouldKillAProcessTheHelperStartedWhenTheSessionCloses() {
-    final HelperSession session = this.open(RawHelperMain.class.getName(), "/child");
+    final HelperSession session = this.open(RawHelperMain.class.getName(), RawHelperMain.CHILD_PATH);
     final Set<ProcessHandle> started = ConcurrentHashMap.newKeySet();
     Await.until("the process the helper starts", () -> this.recordDescendantsAndReportAny(session, started));
     session.close();
@@ -642,7 +650,7 @@ class HelperSessionTest {
   @Test
   void shouldLeaveNothingBehindWhenTheStartFailsBeforeTheHelperConnects() throws IOException {
     final Set<ProcessHandle> before = this.liveDescendants();
-    final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/silent-stubborn"), 4, 3, 1);
+    final BrowserSource source = BrowserSource.uri(URI.create(PAGE_URL_TEMPLATE.formatted(RawHelperMain.SILENT_STUBBORN_PATH)), 4, 3, 1);
     final HelperLauncher launcher = launcher(RawHelperMain.class.getName(), 1_000L);
     final Path parent = this.shortDirectory();
     final BrowserException failure = assertThrows(BrowserException.class, () -> this.openSessionIn(launcher, source, parent));
@@ -673,14 +681,18 @@ class HelperSessionTest {
 
   @Test
   void shouldFailTheStartWhenThePageFailsToLoad() {
-    final BrowserException failure = this.openFails(ScriptedEngine.class.getName(), "/load-error", START_TIMEOUT_MILLISECONDS);
+    final BrowserException failure = this.openFails(
+      ScriptedEngine.class.getName(),
+      ScriptedEngine.LOAD_ERROR_PATH,
+      START_TIMEOUT_MILLISECONDS
+    );
     final boolean reportsTheLoadError = failure.getMessage().contains("ERR_NAME_NOT_RESOLVED (code -105)");
     assertTrue(reportsTheLoadError, failure.getMessage());
   }
 
   @Test
   void shouldFailTheStartWhenTheHelperExitsDuringIt() {
-    final BrowserException failure = this.openFails(ScriptedEngine.class.getName(), "/exit", START_TIMEOUT_MILLISECONDS);
+    final BrowserException failure = this.openFails(ScriptedEngine.class.getName(), ScriptedEngine.EXIT_PATH, START_TIMEOUT_MILLISECONDS);
     final boolean reportsTheExit =
       failure.getMessage().contains("exited with code 3") || failure.getMessage().contains("closed the connection");
     assertTrue(reportsTheExit, failure.getMessage());
@@ -688,7 +700,7 @@ class HelperSessionTest {
 
   @Test
   void shouldFailTheStartWhenTheBrowserCannotStart() {
-    final BrowserException failure = this.openFails(ScriptedEngine.class.getName(), "/throw", START_TIMEOUT_MILLISECONDS);
+    final BrowserException failure = this.openFails(ScriptedEngine.class.getName(), ScriptedEngine.THROW_PATH, START_TIMEOUT_MILLISECONDS);
     final boolean reportsTheStartFailure = failure.getMessage().contains("The scripted start failed!");
     assertTrue(reportsTheStartFailure, failure.getMessage());
   }
@@ -696,7 +708,7 @@ class HelperSessionTest {
   @Test
   void shouldTimeOutWhenTheHelperNeverShowsThePage() {
     // the helper must connect before this deadline, and a loaded host takes seconds to start it
-    final BrowserException failure = this.openFails(ScriptedEngine.class.getName(), "/never", 15_000L);
+    final BrowserException failure = this.openFails(ScriptedEngine.class.getName(), ScriptedEngine.NEVER_PATH, 15_000L);
     final boolean reportsTheTimeout = failure.getMessage().contains("did not show https://example.com/never in time");
     assertTrue(reportsTheTimeout, failure.getMessage());
   }
@@ -710,7 +722,7 @@ class HelperSessionTest {
 
   @Test
   void shouldFailTheStartWhenTheProgramIsNotJava() throws IOException {
-    final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/page"), 4, 3, 1);
+    final BrowserSource source = BrowserSource.uri(URI.create(PAGE_URL_TEMPLATE.formatted(PAGE)), 4, 3, 1);
     final HelperLauncher broken = new HelperLauncher(
       NATIVES.resolve("no-such-java"),
       ScriptedEngine.class.getName(),
@@ -737,21 +749,29 @@ class HelperSessionTest {
 
   @Test
   void shouldEndTheSessionWhenTheBrowserFailsLater() {
-    this.open(ScriptedEngine.class.getName(), "/fail");
+    this.open(ScriptedEngine.class.getName(), ScriptedEngine.FAIL_PATH);
     Await.until("the end of the session", () -> !this.listener.ended.isEmpty());
     assertEquals(List.of("Because of \"scripted renderer crash\", the browser failed!"), this.listener.ended);
   }
 
   @Test
   void shouldRefuseAHelperWithAnotherToken() {
-    final BrowserException failure = this.openFails(RawHelperMain.class.getName(), "/wrong-token", START_TIMEOUT_MILLISECONDS);
+    final BrowserException failure = this.openFails(
+      RawHelperMain.class.getName(),
+      RawHelperMain.WRONG_TOKEN_PATH,
+      START_TIMEOUT_MILLISECONDS
+    );
     final boolean reportsTheWrongToken = failure.getMessage().contains("presented a wrong session token");
     assertTrue(reportsTheWrongToken, failure.getMessage());
   }
 
   @Test
   void shouldRefuseAHelperOfAnotherProtocolVersion() {
-    final BrowserException failure = this.openFails(RawHelperMain.class.getName(), "/wrong-version", START_TIMEOUT_MILLISECONDS);
+    final BrowserException failure = this.openFails(
+      RawHelperMain.class.getName(),
+      RawHelperMain.WRONG_VERSION_PATH,
+      START_TIMEOUT_MILLISECONDS
+    );
     final boolean reportsTheProtocolMismatch = failure
       .getMessage()
       .contains("Protocol version 2 of the browser helper differs from version 1 of the server!");
@@ -760,21 +780,25 @@ class HelperSessionTest {
 
   @Test
   void shouldRefuseAHelperThatDoesNotIntroduceItself() {
-    final BrowserException failure = this.openFails(RawHelperMain.class.getName(), "/no-hello", START_TIMEOUT_MILLISECONDS);
+    final BrowserException failure = this.openFails(RawHelperMain.class.getName(), RawHelperMain.NO_HELLO_PATH, START_TIMEOUT_MILLISECONDS);
     final boolean reportsTheMissingIntroduction = failure.getMessage().contains("did not introduce itself");
     assertTrue(reportsTheMissingIntroduction, failure.getMessage());
   }
 
   @Test
   void shouldRefuseAFrameOfAnotherPage() {
-    final BrowserException failure = this.openFails(RawHelperMain.class.getName(), "/wrong-page", START_TIMEOUT_MILLISECONDS);
+    final BrowserException failure = this.openFails(
+      RawHelperMain.class.getName(),
+      RawHelperMain.WRONG_PAGE_PATH,
+      START_TIMEOUT_MILLISECONDS
+    );
     final boolean reportsTheFrameMismatch = failure.getMessage().contains("A frame of a 5x3 page arrived for a 4x3 page");
     assertTrue(reportsTheFrameMismatch, failure.getMessage());
   }
 
   @Test
   void shouldEndTheSessionOnAMessageOnlyTheServerSends() {
-    this.open(RawHelperMain.class.getName(), "/server-message");
+    this.open(RawHelperMain.class.getName(), RawHelperMain.SERVER_MESSAGE_PATH);
     Await.until("the end of the session", () -> !this.listener.ended.isEmpty());
     final boolean reportsTheServerOnlyMessage = this.listener.ended
       .getFirst()
@@ -784,7 +808,7 @@ class HelperSessionTest {
 
   @Test
   void shouldDropInputForAHelperThatStopsReadingOnceTheQueueIsFull() {
-    final HelperSession session = this.open(RawHelperMain.class.getName(), "/stall");
+    final HelperSession session = this.open(RawHelperMain.class.getName(), RawHelperMain.STALL_PATH);
     final String text = "x".repeat(HelperProtocol.MAXIMUM_TEXT_BYTES);
     boolean dropped = false;
     for (int count = 0; count < 10_000 && !dropped; count++) {
@@ -799,7 +823,7 @@ class HelperSessionTest {
 
   @Test
   void shouldKillAHelperThatIgnoresTheEndOfItsInput() {
-    final HelperSession session = this.open(RawHelperMain.class.getName(), "/stubborn");
+    final HelperSession session = this.open(RawHelperMain.class.getName(), RawHelperMain.STUBBORN_PATH);
     final Process process = session.getProcess();
     session.close();
     final boolean alive = process.isAlive();
@@ -808,14 +832,18 @@ class HelperSessionTest {
 
   @Test
   void shouldFailTheStartWhenTheHelperExitsBeforeItConnects() {
-    final BrowserException failure = this.openFails(RawHelperMain.class.getName(), "/exit", START_TIMEOUT_MILLISECONDS);
+    final BrowserException failure = this.openFails(RawHelperMain.class.getName(), RawHelperMain.EXIT_PATH, START_TIMEOUT_MILLISECONDS);
     final String message = failure.getMessage();
     assertEquals("The browser helper exited with code 4 before it connected!", message);
   }
 
   @Test
   void shouldRefuseAHelperThatSendsAFrameBeforeItsHello() {
-    final BrowserException failure = this.openFails(RawHelperMain.class.getName(), "/frame-first", START_TIMEOUT_MILLISECONDS);
+    final BrowserException failure = this.openFails(
+      RawHelperMain.class.getName(),
+      RawHelperMain.FRAME_FIRST_PATH,
+      START_TIMEOUT_MILLISECONDS
+    );
     final boolean reportsTheEarlyFrame = failure.getMessage().contains("arrived where no frame of that size is expected");
     assertTrue(reportsTheEarlyFrame, failure.getMessage());
   }
@@ -825,7 +853,7 @@ class HelperSessionTest {
     final List<Path> linked = new CopyOnWriteArrayList<>();
     final HelperLauncher base = launcher(ScriptedEngine.class.getName(), START_TIMEOUT_MILLISECONDS);
     final HelperLauncher launcher = base.withLibraries(session -> this.createLibraries(session, linked));
-    final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/page"), 4, 3, 1);
+    final BrowserSource source = BrowserSource.uri(URI.create(PAGE_URL_TEMPLATE.formatted(PAGE)), 4, 3, 1);
     final HelperSession session = HelperSession.open(launcher, NATIVES, source, BrowserOptions.DEFAULT, this.listener);
     this.sessions.add(session);
     Await.until("the first frame", () -> !this.listener.frames.isEmpty());
@@ -850,7 +878,7 @@ class HelperSessionTest {
   void shouldFailTheStartAndLeaveNothingBehindWhenLibrariesCannotBeLinked() throws IOException {
     final HelperLauncher base = launcher(ScriptedEngine.class.getName(), START_TIMEOUT_MILLISECONDS);
     final HelperLauncher launcher = base.withLibraries(_ -> this.failToLinkLibraries());
-    final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/page"), 4, 3, 1);
+    final BrowserSource source = BrowserSource.uri(URI.create(PAGE_URL_TEMPLATE.formatted(PAGE)), 4, 3, 1);
     final Path parent = this.shortDirectory();
     final BrowserException failure = assertThrows(BrowserException.class, () -> this.openSessionIn(launcher, source, parent));
     final String message = failure.getMessage();
@@ -869,7 +897,11 @@ class HelperSessionTest {
 
   @Test
   void shouldRefuseARegionLargerThanThePageBeforeItsPixelsAreRead() {
-    final BrowserException failure = this.openFails(RawHelperMain.class.getName(), "/oversized", START_TIMEOUT_MILLISECONDS);
+    final BrowserException failure = this.openFails(
+      RawHelperMain.class.getName(),
+      RawHelperMain.OVERSIZED_PATH,
+      START_TIMEOUT_MILLISECONDS
+    );
     final boolean reportsTheOversizedFrame = failure
       .getMessage()
       .contains("A frame of 60 bytes arrived where no frame of that size is expected");
@@ -891,7 +923,7 @@ class HelperSessionTest {
   @Test
   void shouldStopAHelperThatNeverConnectsAtOnceWhenItsStartTimesOut() {
     final long start = System.nanoTime();
-    final BrowserException failure = this.openFails(RawHelperMain.class.getName(), "/silent", 1_000L);
+    final BrowserException failure = this.openFails(RawHelperMain.class.getName(), RawHelperMain.SILENT_PATH, 1_000L);
     final boolean reportsTheTimeout = failure.getMessage().contains("The browser helper did not connect in time!");
     assertTrue(reportsTheTimeout, failure.getMessage());
 
@@ -902,7 +934,7 @@ class HelperSessionTest {
 
   @Test
   void shouldKillAProcessTheHelperStartsWhileItDoesNotStopTogetherWithIt() throws InterruptedException {
-    final HelperSession session = this.open(RawHelperMain.class.getName(), "/stubborn-child");
+    final HelperSession session = this.open(RawHelperMain.class.getName(), RawHelperMain.STUBBORN_CHILD_PATH);
     final Process process = session.getProcess();
     // watched while the session closes: once the helper is gone, its processes are no descendants of it
     final Set<ProcessHandle> started = ConcurrentHashMap.newKeySet();
@@ -951,7 +983,7 @@ class HelperSessionTest {
 
   @Test
   void shouldEndEveryHelperWhenTheModuleStopsEvenWhenTheirListenersFail() {
-    final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/page"), 4, 3, 1);
+    final BrowserSource source = BrowserSource.uri(URI.create(PAGE_URL_TEMPLATE.formatted(PAGE)), 4, 3, 1);
     final BrowserSession.Listener failing = new BrowserSession.Listener() {
       @Override
       public void onFrame(final ImageBuffer frame) {
@@ -1003,9 +1035,11 @@ class HelperSessionTest {
       OsUtils.getOs(),
       List.of("-D" + GatedHelperMain.GATE_PROPERTY + "=" + gate)
     );
-    final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/page"), 4, 3, 1);
+    final BrowserSource source = BrowserSource.uri(URI.create(PAGE_URL_TEMPLATE.formatted(PAGE)), 4, 3, 1);
     final CompletableFuture<HelperSession> opening = CompletableFuture.supplyAsync(() -> this.openSession(gated, source));
-    final Path started = gate.resolveSibling(gate.getFileName() + GatedHelperMain.STARTED_SUFFIX);
+    final Path fileName = gate.getFileName();
+    final String startedName = "%s%s".formatted(fileName, GatedHelperMain.STARTED_SUFFIX);
+    final Path started = gate.resolveSibling(startedName);
     try {
       Await.until("the helper runs", () -> Files.exists(started));
       HelperProcesses.closeAll();
@@ -1042,9 +1076,11 @@ class HelperSessionTest {
       OsUtils.getOs(),
       List.of("-D" + GatedHelperMain.GATE_PROPERTY + "=" + gate)
     );
-    final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/page"), 4, 3, 1);
+    final BrowserSource source = BrowserSource.uri(URI.create(PAGE_URL_TEMPLATE.formatted(PAGE)), 4, 3, 1);
     final CompletableFuture<HelperSession> opening = CompletableFuture.supplyAsync(() -> this.openSession(gated, source));
-    final Path started = gate.resolveSibling(gate.getFileName() + GatedHelperMain.STARTED_SUFFIX);
+    final Path fileName = gate.getFileName();
+    final String startedName = "%s%s".formatted(fileName, GatedHelperMain.STARTED_SUFFIX);
+    final Path started = gate.resolveSibling(startedName);
     Await.until("the helper runs", () -> Files.exists(started));
     HelperProcesses.closeAll();
     HelperProcesses.open();
@@ -1061,7 +1097,7 @@ class HelperSessionTest {
 
   @Test
   void shouldFailAnInterruptedStartAndLeaveNothingBehind() throws InterruptedException {
-    final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/never"), 4, 3, 1);
+    final BrowserSource source = BrowserSource.uri(URI.create(PAGE_URL_TEMPLATE.formatted(ScriptedEngine.NEVER_PATH)), 4, 3, 1);
     final HelperLauncher launcher = launcher(ScriptedEngine.class.getName(), START_TIMEOUT_MILLISECONDS);
     final AtomicReference<Throwable> thrown = new AtomicReference<>();
     final AtomicBoolean stillInterrupted = new AtomicBoolean();
@@ -1096,7 +1132,7 @@ class HelperSessionTest {
 
   @Test
   void shouldEndTheSessionOnceOnInputForAHelperThatHungUp() {
-    final HelperSession session = this.open(RawHelperMain.class.getName(), "/hang-up");
+    final HelperSession session = this.open(RawHelperMain.class.getName(), RawHelperMain.HANG_UP_PATH);
     Await.until("the end of the connection", () -> !this.listener.ended.isEmpty());
     final boolean keyAccepted = session.sendKey(HelperProtocol.KEY_TYPE, "late");
     assertTrue(keyAccepted);
@@ -1107,7 +1143,7 @@ class HelperSessionTest {
 
   @Test
   void shouldNotReportASecondEnd() {
-    final HelperSession session = this.open(ScriptedEngine.class.getName(), "/fail");
+    final HelperSession session = this.open(ScriptedEngine.class.getName(), ScriptedEngine.FAIL_PATH);
     Await.until("the end of the session", () -> !this.listener.ended.isEmpty());
     Await.until("the helper exited", () -> !session.isAlive());
     assertEquals(List.of("Because of \"scripted renderer crash\", the browser failed!"), this.listener.ended);
@@ -1132,7 +1168,7 @@ class HelperSessionTest {
         closed.countDown();
       }
     };
-    final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/fail"), 4, 3, 1);
+    final BrowserSource source = BrowserSource.uri(URI.create(PAGE_URL_TEMPLATE.formatted(ScriptedEngine.FAIL_PATH)), 4, 3, 1);
     final HelperSession session = HelperSession.open(
       launcher(ScriptedEngine.class.getName(), START_TIMEOUT_MILLISECONDS),
       NATIVES,
@@ -1303,7 +1339,7 @@ class HelperSessionTest {
   @EnabledOnOs(OS.LINUX)
   void shouldNotStartAHelperInATemporaryFolderTooLongForChromiumAndRemoveItsFolder() throws IOException {
     final Path temporary = Files.createDirectories(this.directory.resolve("t".repeat(70 - this.directory.toString().length())));
-    final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/page"), 4, 3, 1);
+    final BrowserSource source = BrowserSource.uri(URI.create(PAGE_URL_TEMPLATE.formatted(PAGE)), 4, 3, 1);
     final HelperLauncher launcher = launcher(ScriptedEngine.class.getName(), START_TIMEOUT_MILLISECONDS, Os.LINUX);
     final BrowserException refused = assertThrows(BrowserException.class, () -> this.openSessionIn(launcher, source, temporary));
     final boolean reportsTheLongFolder = refused.getMessage().startsWith("The temporary folder " + temporary + " is too long");

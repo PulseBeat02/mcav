@@ -49,6 +49,9 @@ import org.junit.jupiter.api.Test;
 @Tag("cef")
 class BrowserSoundTest {
 
+  private static final String HALF_VOLUME_TONE_PATH = TestPages.TONE_ELEMENT_PATH + "?volume=0.5";
+  private static final String MUTED_TONE_PATH = TestPages.TONE_ELEMENT_PATH + "?muted=1";
+
   private static final int WIDTH = 320;
   private static final int HEIGHT = 240;
 
@@ -141,7 +144,7 @@ class BrowserSoundTest {
   void shouldPassTheToneOfAPageToTheAudioPipelineOnceAPlayerClickedIt() throws InterruptedException {
     final BrowserPlayer player = this.player();
     final Recording recording = Recording.attach(player);
-    final boolean started = player.start(BrowserSource.uri(this.pages.uri("/tone"), WIDTH, HEIGHT, 1));
+    final boolean started = player.start(BrowserSource.uri(this.pages.uri(TestPages.TONE_PATH), WIDTH, HEIGHT, 1));
     assertTrue(started);
 
     Await.until("the page reported its size", () -> this.pages.count("size") > 0);
@@ -195,7 +198,7 @@ class BrowserSoundTest {
   void shouldKeepAPageThatWrapsWebAudioBeforeItsFirstContextFromTheCaptureAndPlayItOnlyAfterAClick() throws InterruptedException {
     final BrowserPlayer player = this.player();
     final Recording recording = Recording.attach(player);
-    final boolean started = player.start(BrowserSource.uri(this.pages.uri("/tone-wrapped"), WIDTH, HEIGHT, 1));
+    final boolean started = player.start(BrowserSource.uri(this.pages.uri(TestPages.TONE_WRAPPED_PATH), WIDTH, HEIGHT, 1));
     assertTrue(started);
 
     Await.until("the page reported what its wrappers saw", () -> this.pages.count("taps") > 0);
@@ -218,7 +221,7 @@ class BrowserSoundTest {
   void shouldLetAPagePlayRightAwayWhenTheOptionsAllowIt() throws InterruptedException {
     final BrowserPlayer player = this.player(BrowserOptions.builder().privateNetworks(true).autoplay(true).build());
     final Recording recording = Recording.attach(player);
-    final boolean started = player.start(BrowserSource.uri(this.pages.uri("/tone"), WIDTH, HEIGHT, 1));
+    final boolean started = player.start(BrowserSource.uri(this.pages.uri(TestPages.TONE_PATH), WIDTH, HEIGHT, 1));
     assertTrue(started);
 
     this.awaitSound(recording, AudioFilter.SAMPLE_RATE * AudioFilter.FRAME_SIZE, "a second of sound nobody clicked for");
@@ -230,7 +233,7 @@ class BrowserSoundTest {
   void shouldPlayAnAudioElementAtItsVolumeAndKeepAMutedOneSilent() throws InterruptedException {
     final BrowserPlayer half = this.player();
     final Recording halfRecording = Recording.attach(half);
-    this.startAndClick(half, "/tone-element?volume=0.5");
+    this.startAndClick(half, HALF_VOLUME_TONE_PATH);
     this.awaitSound(halfRecording, AudioFilter.SAMPLE_RATE * AudioFilter.FRAME_SIZE, "a second of the element's sound");
     Thread.sleep(1_000L);
     final short[] left = halfRecording.left();
@@ -245,7 +248,7 @@ class BrowserSoundTest {
     this.pages.clearEvents();
     final BrowserPlayer muted = this.player();
     final Recording mutedRecording = Recording.attach(muted);
-    this.startAndClick(muted, "/tone-element?muted=1");
+    this.startAndClick(muted, MUTED_TONE_PATH);
     Thread.sleep(3_000L);
     final int mutedByteCount = mutedRecording.size();
     assertEquals(0, mutedByteCount, "a muted element plays nothing");
@@ -262,7 +265,7 @@ class BrowserSoundTest {
     final List<long[]> picture = new CopyOnWriteArrayList<>();
     player.getAudioAttachableCallback().attach(AudioPipelineStep.of((samples, _) -> this.recordToneWindows(sound, samples)));
     player.getVideoAttachableCallback().attach(VideoPipelineStep.of((image, _) -> this.recordCenterBrightness(picture, image)));
-    this.startAndClick(player, "/av-sync");
+    this.startAndClick(player, TestPages.AV_SYNC_PATH);
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(90);
     while (this.onsets(picture).size() < 50) {
       final boolean beforeDeadline = System.nanoTime() < deadline;

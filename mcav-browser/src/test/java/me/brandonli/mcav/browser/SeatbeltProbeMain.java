@@ -35,6 +35,24 @@ import java.util.List;
 // sandbox.
 final class SeatbeltProbeMain {
 
+  private static final int NATIVES_ARGUMENT = 2;
+  private static final int SERVER_FOLDER_ARGUMENT = 3;
+  private static final int OTHER_SESSION_ARGUMENT = 4;
+  private static final int OUTSIDE_FILE_ARGUMENT = 5;
+
+  private static final String PROFILE_DIRECTORY = "profile";
+  private static final String PROFILE_FILE = "profile.txt";
+  private static final String CAT_PROGRAM = "/bin/cat";
+
+  private static final String PAGE_URL = "https://example.com/";
+
+  private static final String NOT_PERMITTED_REASON = "Operation not permitted";
+
+  private static final String SANDBOX_CHECK = "sandbox_check";
+  private static final int NO_FILTER = 0;
+
+  private static final String READ = "read";
+
   private SeatbeltProbeMain() {
     final String message = "Utility class cannot be instantiated!";
     throw new UnsupportedOperationException(message);
@@ -46,9 +64,9 @@ final class SeatbeltProbeMain {
     final HelperConfiguration configuration = new HelperConfiguration(
       new byte[HelperProtocol.TOKEN_BYTES],
       socket,
-      Path.of(arguments[2]),
-      socket.resolveSibling("profile"),
-      URI.create("https://example.com/"),
+      Path.of(arguments[NATIVES_ARGUMENT]),
+      socket.resolveSibling(PROFILE_DIRECTORY),
+      URI.create(PAGE_URL),
       640,
       480,
       1,
@@ -60,23 +78,24 @@ final class SeatbeltProbeMain {
       server,
       List.of()
     );
-    System.out.println("said " + ChromiumConfinement.confine(configuration, OperatingSystem.MAC));
-    System.out.println("server folder: " + read(Path.of(arguments[3])));
-    System.out.println("other session: " + read(Path.of(arguments[4])));
-    Files.writeString(socket.resolveSibling("profile.txt"), "profile", StandardCharsets.UTF_8);
+    final String confinement = ChromiumConfinement.confine(configuration, OperatingSystem.MAC);
+    System.out.println("said %s".formatted(confinement));
+    System.out.println("server folder: %s".formatted(read(Path.of(arguments[SERVER_FOLDER_ARGUMENT]))));
+    System.out.println("other session: %s".formatted(read(Path.of(arguments[OTHER_SESSION_ARGUMENT]))));
+    Files.writeString(socket.resolveSibling(PROFILE_FILE), "profile", StandardCharsets.UTF_8);
     System.out.println("session: written");
-    System.out.println("outside: " + write(Path.of(arguments[5])));
-    final Process cat = new ProcessBuilder("/bin/cat", arguments[3]).redirectErrorStream(true).start();
+    System.out.println("outside: %s".formatted(write(Path.of(arguments[OUTSIDE_FILE_ARGUMENT]))));
+    final Process cat = new ProcessBuilder(CAT_PROGRAM, arguments[SERVER_FOLDER_ARGUMENT]).redirectErrorStream(true).start();
     cat.getInputStream().readAllBytes();
-    System.out.println("started cat: " + (cat.waitFor() == 0 ? "read" : "refused"));
-    System.out.println("sandboxed: " + (sandboxCheck() != 0));
+    System.out.println("started cat: %s".formatted(cat.waitFor() == 0 ? READ : "refused"));
+    System.out.println("sandboxed: %s".formatted(sandboxCheck() != 0));
   }
 
   private static String read(final Path file) {
     try {
       Files.readString(file, StandardCharsets.UTF_8);
 
-      return "read";
+      return READ;
     } catch (final IOException exception) {
       return describe(exception);
     }
@@ -96,19 +115,19 @@ final class SeatbeltProbeMain {
   private static String describe(final IOException failure) {
     final boolean refused =
       failure instanceof AccessDeniedException ||
-      (failure instanceof final FileSystemException system && "Operation not permitted".equals(system.getReason()));
-    return refused ? "denied" : "failed: " + failure;
+      (failure instanceof final FileSystemException system && NOT_PERMITTED_REASON.equals(system.getReason()));
+    return refused ? "denied" : "failed: %s".formatted(failure);
   }
 
   // sandbox_check is called through the restricted native linker; the probe runs with native access enabled
   @SuppressWarnings("restricted")
   private static int sandboxCheck() throws Throwable {
     final Linker linker = Linker.nativeLinker();
-    final MemorySegment function = linker.defaultLookup().findOrThrow("sandbox_check");
+    final MemorySegment function = linker.defaultLookup().findOrThrow(SANDBOX_CHECK);
     final MethodHandle check = linker.downcallHandle(
       function,
       FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT)
     );
-    return (int) check.invokeExact((int) ProcessHandle.current().pid(), MemorySegment.NULL, 0);
+    return (int) check.invokeExact((int) ProcessHandle.current().pid(), MemorySegment.NULL, NO_FILTER);
   }
 }
