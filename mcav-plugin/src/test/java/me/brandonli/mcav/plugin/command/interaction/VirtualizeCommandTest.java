@@ -109,6 +109,9 @@ final class VirtualizeCommandTest {
   private static final String MEMORY_SIZE = "2048M";
   private static final String FILE_PROPERTY_PREFIX = "file=";
 
+  private static final String ABSOLUTE_DRIVE_PATH = "/tmp";
+  private static final String NETWORK_DRIVE_PATH = "\\\\server";
+
   private static final String ALPINE_LINUX_FILE_NAME = "alpine linux.iso";
   private static final String ALPINE_FILE_NAME = "alpine.iso";
   private static final String PRESENT_FILE_NAME = "present.iso";
@@ -859,7 +862,7 @@ final class VirtualizeCommandTest {
 
   @Test
   void shouldRefuseADrivePropertyThatStartsWithAPathSeparator() {
-    for (final String part : new String[] { "/tmp", "\\\\server" }) {
+    for (final String part : new String[] { ABSOLUTE_DRIVE_PATH, NETWORK_DRIVE_PATH }) {
       final IllegalArgumentException failure = this.assertRefusedOptions("-drive " + part + ",file=disk.img");
 
       final String message = failure.getMessage();

@@ -46,6 +46,8 @@ final class PluginDescriptorTest {
 
   private static final String DESCRIPTOR_RESOURCE_PATH = "/paper-plugin.yml";
 
+  private static final String CLASS_FILE_EXTENSION = ".class";
+
   @Test
   void shouldDeclareInTheDescriptorEveryPermissionTheCommandsCheckForOperatorsAndNoOther()
     throws IOException, URISyntaxException, InvalidConfigurationException {
@@ -80,12 +82,12 @@ final class PluginDescriptorTest {
     final Set<String> checked = new TreeSet<>();
     final List<Path> files;
     try (final Stream<Path> walk = Files.walk(classes.resolve(COMMANDS))) {
-      files = walk.filter(file -> file.toString().endsWith(".class")).toList();
+      files = walk.filter(file -> file.toString().endsWith(CLASS_FILE_EXTENSION)).toList();
     }
     final ClassLoader loader = PluginDescriptorTest.class.getClassLoader();
     for (final Path file : files) {
       final String relative = classes.relativize(file).toString().replace(file.getFileSystem().getSeparator(), "/");
-      final String name = relative.substring(0, relative.length() - ".class".length()).replace('/', '.');
+      final String name = relative.substring(0, relative.length() - CLASS_FILE_EXTENSION.length()).replace('/', '.');
       final Class<?> type;
       try {
         type = Class.forName(name, false, loader);

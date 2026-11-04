@@ -117,6 +117,12 @@ public final class DumpUtils {
 
   private static final String STACK_FRAME_PREFIX = "\tat ";
 
+  private static final String OS_NAME_PROPERTY = "os.name";
+  private static final String OS_VERSION_PROPERTY = "os.version";
+  private static final String OS_ARCHITECTURE_PROPERTY = "os.arch";
+  private static final String JAVA_VERSION_PROPERTY = "java.version";
+  private static final String JAVA_VENDOR_PROPERTY = "java.vendor";
+
   private DumpUtils() {
     final String message = "Utility class cannot be instantiated!";
     throw new UnsupportedOperationException(message);
@@ -220,11 +226,11 @@ public final class DumpUtils {
   }
 
   private static void appendOperatingSystem(final StringBuilder dump) {
-    final String osName = System.getProperty("os.name");
-    final String osVersion = System.getProperty("os.version");
-    final String architecture = System.getProperty("os.arch");
-    final String javaVersion = System.getProperty("java.version");
-    final String javaVendor = System.getProperty("java.vendor");
+    final String osName = System.getProperty(OS_NAME_PROPERTY);
+    final String osVersion = System.getProperty(OS_VERSION_PROPERTY);
+    final String architecture = System.getProperty(OS_ARCHITECTURE_PROPERTY);
+    final String javaVersion = System.getProperty(JAVA_VERSION_PROPERTY);
+    final String javaVendor = System.getProperty(JAVA_VENDOR_PROPERTY);
     appendLine(dump, "OS", osName);
     appendLine(dump, "OS Version", osVersion);
     appendLine(dump, "Architecture", architecture);

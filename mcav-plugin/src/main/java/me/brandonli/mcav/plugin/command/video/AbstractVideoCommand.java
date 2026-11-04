@@ -245,7 +245,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final @Nullable String filters,
     final MediaKind kind
   ) {
-    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
     Preconditions.checkNotNull(plugin, "Plugin must not be null!");
     Preconditions.checkNotNull(kind, "Media kind must not be null!");
 

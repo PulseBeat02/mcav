@@ -72,6 +72,14 @@ final class MCAVLoaderTest {
 
   private static final String MCAV_CLASS_NAME = "me/brandonli/mcav/MCAV";
   private static final String MCV2_RESULT_CLASS_NAME = "me/brandonli/mcav/bukkit/media/mcv2/Mcv2Result";
+  private static final String MCAV_API_CLASS_NAME = "me/brandonli/mcav/MCAVApi";
+  private static final String BUKKIT_MODULE_CLASS_NAME = "me/brandonli/mcav/bukkit/BukkitModule";
+  private static final String MCV2_PACK_SERVER_CLASS_NAME = "me/brandonli/mcav/bukkit/media/mcv2/Mcv2PackServer";
+
+  private static final String PLUGIN_PACKAGE_PATH = "me/brandonli/mcav/plugin/";
+  private static final String VOICECHAT_PACKAGE_PATH = "me/brandonli/mcav/voicechat/";
+
+  private static final String CLASS_FILE_EXTENSION = ".class";
 
   private static final String CACHE_FOLDER_PATH = "libraries/mcav";
 
@@ -206,8 +214,8 @@ final class MCAVLoaderTest {
 
   @Test
   void shouldRefuseModulesOlderThanThePlugin() throws IOException {
-    final Path old = this.jarOf(OLD_BUKKIT_JAR_FILE_NAME, "me/brandonli/mcav/bukkit/BukkitModule");
-    final List<String> required = List.of("me/brandonli/mcav/bukkit/BukkitModule", MCV2_RESULT_CLASS_NAME);
+    final Path old = this.jarOf(OLD_BUKKIT_JAR_FILE_NAME, BUKKIT_MODULE_CLASS_NAME);
+    final List<String> required = List.of(BUKKIT_MODULE_CLASS_NAME, MCV2_RESULT_CLASS_NAME);
     final MCAVLoader loader = new MCAVLoader(this.cache, required);
     final IllegalStateException refused = assertThrows(IllegalStateException.class, () -> loader.checkModules(List.of(old)));
 
@@ -221,7 +229,7 @@ final class MCAVLoaderTest {
     final Path jar = this.cache.resolve(name);
     try (final OutputStream file = Files.newOutputStream(jar); final JarOutputStream entries = new JarOutputStream(file)) {
       for (final String internalName : classes) {
-        entries.putNextEntry(new ZipEntry(internalName + ".class"));
+        entries.putNextEntry(new ZipEntry(internalName + CLASS_FILE_EXTENSION));
         entries.closeEntry();
       }
     }
@@ -274,16 +282,16 @@ final class MCAVLoaderTest {
   void shouldReadTheModuleClassesTheBuildListed() {
     final List<String> required = MCAVLoader.readRequiredClasses(MCAVLoaderTest.class.getClassLoader());
 
-    final boolean contained = required.contains("me/brandonli/mcav/bukkit/media/mcv2/Mcv2PackServer");
+    final boolean contained = required.contains(MCV2_PACK_SERVER_CLASS_NAME);
     assertTrue(contained, "the plugin starts MCV2 screens");
 
     final boolean requiredContained = required.contains(MCAV_CLASS_NAME);
     assertTrue(requiredContained);
 
-    final boolean matched = required.stream().anyMatch(name -> name.startsWith("me/brandonli/mcav/plugin/"));
+    final boolean matched = required.stream().anyMatch(name -> name.startsWith(PLUGIN_PACKAGE_PATH));
     assertFalse(matched, "the plugin's own classes");
 
-    final boolean requiredMatched = required.stream().anyMatch(name -> name.startsWith("me/brandonli/mcav/voicechat/"));
+    final boolean requiredMatched = required.stream().anyMatch(name -> name.startsWith(VOICECHAT_PACKAGE_PATH));
     assertFalse(requiredMatched, "a module shaded into the plugin");
   }
 
@@ -322,6 +330,6 @@ final class MCAVLoaderTest {
     };
 
     final List<String> requiredClasses = MCAVLoader.readRequiredClasses(listed);
-    assertEquals(List.of(MCAV_CLASS_NAME, "me/brandonli/mcav/MCAVApi"), requiredClasses);
+    assertEquals(List.of(MCAV_CLASS_NAME, MCAV_API_CLASS_NAME), requiredClasses);
   }
 }

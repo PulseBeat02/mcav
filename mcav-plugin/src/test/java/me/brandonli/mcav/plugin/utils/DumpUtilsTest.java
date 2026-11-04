@@ -66,6 +66,7 @@ final class DumpUtilsTest {
   private static final int AWAIT_TIMEOUT_SECONDS = 10;
 
   private static final String ROOT_PATH = "/";
+  private static final String DOCUMENTS_PATH = "/documents/";
 
   private static final String PUBLIC_ADDRESS = "203.0.113.7";
   private static final String REDACTED_ADDRESS = "<redacted-address>";
@@ -75,6 +76,8 @@ final class DumpUtilsTest {
   private static final String LOG_FILE_NAME = "latest.log";
   private static final String SERVER_JAR_FILE_NAME = "paper.jar";
   private static final String LOGS_FOLDER_NAME = "logs";
+
+  private static final String LINE_BREAK = "\n";
 
   private static final String COMMAND_PROPERTY = "sun.java.command";
 
@@ -163,7 +166,7 @@ final class DumpUtilsTest {
     final String path = this.uploadedPath.get();
     final String type = this.contentType.get();
     final String body = this.uploadedBody.get();
-    assertEquals("/documents/", path);
+    assertEquals(DOCUMENTS_PATH, path);
     assertEquals("text/plain", type);
 
     final boolean system = body.contains("\n=== System ===\n");
@@ -487,7 +490,7 @@ final class DumpUtilsTest {
     final String dump = DumpUtils.createDumpContents(log);
     final int start = dump.indexOf("=== Latest Log ===\n");
     final String section = dump.substring(start);
-    final String[] sectionLines = section.split("\n");
+    final String[] sectionLines = section.split(LINE_BREAK);
     final List<String> logLines = Arrays.asList(sectionLines);
     final int lineCount = logLines.size();
     final List<String> tail = logLines.subList(1, lineCount);

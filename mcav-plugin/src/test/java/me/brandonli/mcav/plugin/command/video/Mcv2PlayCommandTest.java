@@ -172,6 +172,7 @@ final class Mcv2PlayCommandTest {
   private static final String SUBFOLDER_STREAM_PATH = "sub/clip.mcs";
   private static final String PARENT_STREAM_PATH = "../clip.mcs";
   private static final String ESCAPING_STREAM_PATH = "sub/../../clip.mcs";
+  private static final String ABSOLUTE_STREAM_PATH = "/etc/passwd";
   private static final String PARENT_PLAY_PATH = "../stream.mcs";
   private static final String ESCAPING_ENCODE_PATH = "../../escape.mcs";
 
@@ -1000,14 +1001,14 @@ final class Mcv2PlayCommandTest {
     for (final String name : List.of(
       PARENT_STREAM_PATH,
       ESCAPING_STREAM_PATH,
-      "/etc/passwd",
+      ABSOLUTE_STREAM_PATH,
       this.folder.resolve(STREAM_FILE_NAME).toString(),
       "",
       "."
     )) {
       assertThrows(IOException.class, () -> this.command.prepareStreamFile(name), name);
     }
-    this.command.play(this.sender, this.selector, SCREEN_SIZE, MAP_ID, TICKS, "/etc/passwd");
+    this.command.play(this.sender, this.selector, SCREEN_SIZE, MAP_ID, TICKS, ABSOLUTE_STREAM_PATH);
     this.runHandedOver();
     this.command.stream(this.sender, this.selector, SCREEN_SIZE, MAP_ID, FRAMES_PER_SECOND, PARENT_PLAY_PATH);
     this.runHandedOver();
