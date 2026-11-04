@@ -48,7 +48,8 @@ final class LateFrameCounterTest {
     this.counter.countShown(0L);
     this.everySecond(1, 10, this.counter::countDropped);
 
-    assertEquals(List.of("10 of 11"), this.reports, "ten seconds of video end with the frame at ten seconds");
+    final List<String> expected = List.of("10 of 11");
+    assertEquals(expected, this.reports, "ten seconds of video end with the frame at ten seconds");
   }
 
   @Test
@@ -59,7 +60,8 @@ final class LateFrameCounterTest {
     this.counter.countDropped(STRETCH_MICROSECONDS);
 
     assertEquals(List.of(), beforeTheEnd);
-    assertEquals(List.of("12 of 12"), this.reports);
+    final List<String> expected = List.of("12 of 12");
+    assertEquals(expected, this.reports);
   }
 
   @Test
@@ -86,7 +88,8 @@ final class LateFrameCounterTest {
     this.everySecond(0, 10, this.counter::countShown);
     this.everySecond(11, 20, this.counter::countDropped);
 
-    assertEquals(List.of("10 of 10"), this.reports);
+    final List<String> expected = List.of("10 of 10");
+    assertEquals(expected, this.reports);
   }
 
   @Test
@@ -102,8 +105,10 @@ final class LateFrameCounterTest {
     final List<String> withinTheMinute = List.copyOf(this.reports);
     this.counter.countDropped(70 * SECOND_MICROSECONDS);
 
-    assertEquals(List.of("11 of 11"), withinTheMinute, "the stretches up to seventy seconds come within a minute of the first report");
-    assertEquals(List.of("11 of 11", "10 of 10"), this.reports, "a minute after the first report, the next stretch is reported");
+    final List<String> expectedWithinTheMinute = List.of("11 of 11");
+    assertEquals(expectedWithinTheMinute, withinTheMinute, "the stretches up to seventy seconds come within a minute of the first report");
+    final List<String> expectedAfterAMinute = List.of("11 of 11", "10 of 10");
+    assertEquals(expectedAfterAMinute, this.reports, "a minute after the first report, the next stretch is reported");
   }
 
   @Test
@@ -111,7 +116,8 @@ final class LateFrameCounterTest {
     this.everySecond(0, 10, this.counter::countDropped);
     this.everySecond(0, 10, this.counter::countDropped);
 
-    assertEquals(List.of("11 of 11", "11 of 11"), this.reports);
+    final List<String> expected = List.of("11 of 11", "11 of 11");
+    assertEquals(expected, this.reports);
   }
 
   @Test
@@ -122,7 +128,8 @@ final class LateFrameCounterTest {
 
     this.counter.countDropped(STRETCH_MICROSECONDS);
 
-    assertEquals(List.of("12 of 12"), this.reports);
+    final List<String> expected = List.of("12 of 12");
+    assertEquals(expected, this.reports);
   }
 
   @Test

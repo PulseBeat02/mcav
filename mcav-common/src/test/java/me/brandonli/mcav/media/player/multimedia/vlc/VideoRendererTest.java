@@ -161,7 +161,8 @@ final class VideoRendererTest {
     final ByteBuffer buffer = ByteBuffer.wrap(new byte[] { 0x33, 0x22, 0x11, 0x00, 0x66, 0x55, 0x44, (byte) 0xFF });
     final int[] pixels = new int[ROW_WIDTH];
     this.renderer.readVisibleRows(buffer, ROW_WIDTH, ROW_WIDTH, 1, pixels);
-    assertArrayEquals(new int[] { 0x00112233, 0xFF445566 }, pixels);
+    final int[] expected = new int[] { 0x00112233, 0xFF445566 };
+    assertArrayEquals(expected, pixels);
   }
 
   @Test
@@ -176,7 +177,8 @@ final class VideoRendererTest {
     final ByteBuffer buffer = rv32(padded);
     final int[] pixels = new int[6];
     this.renderer.readVisibleRows(buffer, 4, 3, 2, pixels);
-    assertArrayEquals(new int[] { 0, 1, 2, 16, 17, 18 }, pixels);
+    final int[] expected = new int[] { 0, 1, 2, 16, 17, 18 };
+    assertArrayEquals(expected, pixels);
   }
 
   @Test
@@ -186,7 +188,8 @@ final class VideoRendererTest {
     final int[] pixels = new int[ROW_WIDTH];
     this.renderer.readVisibleRows(buffer, ROW_WIDTH, ROW_WIDTH, 1, pixels);
     final int position = buffer.position();
-    assertArrayEquals(new int[] { RED, GREEN }, pixels);
+    final int[] expected = new int[] { RED, GREEN };
+    assertArrayEquals(expected, pixels);
     assertEquals(4, position);
   }
 
@@ -204,7 +207,8 @@ final class VideoRendererTest {
     final boolean noErrors = this.errors.isEmpty();
     assertEquals(3, width);
     assertEquals(2, height);
-    assertArrayEquals(new int[] { RED, GREEN, BLUE, WHITE, RED, GREEN }, rgb);
+    final int[] expected = new int[] { RED, GREEN, BLUE, WHITE, RED, GREEN };
+    assertArrayEquals(expected, rgb);
     assertEquals(3, metadataWidth);
     assertEquals(2, metadataHeight);
     assertTrue(noErrors, "errors: " + this.errors);
@@ -221,7 +225,8 @@ final class VideoRendererTest {
     final ImageBuffer secondImage = second.getImage();
     final int[] rgb = second.getRgb();
     assertSame(firstImage, secondImage);
-    assertArrayEquals(new int[] { BLUE, WHITE }, rgb);
+    final int[] expected = new int[] { BLUE, WHITE };
+    assertArrayEquals(expected, rgb);
   }
 
   @Test
@@ -270,7 +275,8 @@ final class VideoRendererTest {
       this.displayPixel(detached, GREEN);
       final RecordedFrame frame = take(this.frames);
       final int[] rgb = frame.getRgb();
-      assertArrayEquals(new int[] { GREEN }, rgb);
+      final int[] expected = new int[] { GREEN };
+      assertArrayEquals(expected, rgb);
     } finally {
       detached.stop();
     }
@@ -306,7 +312,8 @@ final class VideoRendererTest {
     this.display(1, 1, GREEN);
     final RecordedFrame frame = take(this.frames);
     final int[] rgb = frame.getRgb();
-    assertArrayEquals(new int[] { GREEN }, rgb);
+    final int[] expected = new int[] { GREEN };
+    assertArrayEquals(expected, rgb);
   }
 
   @Test
@@ -473,7 +480,8 @@ final class VideoRendererTest {
     assertEquals(2, againWidth);
     assertEquals(1, quarterWidth);
     assertEquals(1, quarterHeight);
-    assertArrayEquals(new int[] { RED }, quarterRgb);
+    final int[] expected = new int[] { RED };
+    assertArrayEquals(expected, quarterRgb);
     assertEquals(4, metadataWidth, "the metadata describes the original frame");
   }
 
@@ -600,7 +608,8 @@ final class VideoRendererTest {
     final int metadataHeight = metadata.getVideoHeight();
     assertEquals(2, formatWidth, "VLC scales while it converts the picture, which is far cheaper than resizing later");
     assertEquals(1, formatHeight);
-    assertArrayEquals(new int[] { RED, GREEN }, rgb, "the whole scaled buffer is the picture");
+    final int[] expected = new int[] { RED, GREEN };
+    assertArrayEquals(expected, rgb, "the whole scaled buffer is the picture");
     assertEquals(1920, metadataWidth, "the metadata describes the original video");
     assertEquals(1080, metadataHeight);
   }
@@ -672,7 +681,8 @@ final class VideoRendererTest {
       final int[] rgb = frame.getRgb();
       final List<String> expectedReports = List.of("Video rendering failed.: native failure!");
       assertEquals(expectedReports, reported);
-      assertArrayEquals(new int[] { GREEN }, rgb, "the render thread survived the failure");
+      final int[] expected = new int[] { GREEN };
+      assertArrayEquals(expected, rgb, "the render thread survived the failure");
     } finally {
       failing.stop();
     }

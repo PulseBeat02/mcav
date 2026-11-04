@@ -49,7 +49,7 @@ final class AsyncPlayerDefaultsTest {
 
   private static void assertResult(final boolean expected, final CompletableFuture<Boolean> future) throws Exception {
     final Boolean actual = future.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
-    assertEquals(Boolean.valueOf(expected), actual);
+    assertEquals(expected, actual);
   }
 
   private static void assertFailure(final RuntimeException expected, final CompletableFuture<Boolean> future) {

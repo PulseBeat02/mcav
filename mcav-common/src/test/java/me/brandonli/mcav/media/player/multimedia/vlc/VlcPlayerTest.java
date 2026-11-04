@@ -206,7 +206,8 @@ final class VlcPlayerTest {
     assertTrue(started);
     assertEquals(1, playerCount);
     assertEquals(VIDEO_RESOURCE, resource);
-    assertArrayEquals(new String[] { OPTION }, options);
+    final String[] expected = new String[] { OPTION };
+    assertArrayEquals(expected, options);
     verify(audioApi).callback(eq("S16N"), eq(48_000), eq(2), any(AudioCallback.class));
     verify(surface).set(any());
     assertEquals(1, references);
@@ -225,8 +226,10 @@ final class VlcPlayerTest {
     final boolean audioCallbackOnAudioPlayer = audioPlayer.hasAudioCallback();
     final int references = this.references();
     assertTrue(started);
-    assertArrayEquals(new String[] { OPTION, ":no-audio" }, videoOptions);
-    assertArrayEquals(new String[] { OPTION, ":no-video" }, audioOptions);
+    final String[] expectedVideoOptions = new String[] { OPTION, ":no-audio" };
+    assertArrayEquals(expectedVideoOptions, videoOptions);
+    final String[] expectedAudioOptions = new String[] { OPTION, ":no-video" };
+    assertArrayEquals(expectedAudioOptions, audioOptions);
     assertEquals(AUDIO_RESOURCE, audioResource);
     assertTrue(audioCallbackOnAudioPlayer);
     verify(videoAudioApi, never()).callback(anyString(), anyInt(), anyInt(), any(AudioCallback.class));
@@ -247,7 +250,8 @@ final class VlcPlayerTest {
     final int playerCount = players.size();
     assertTrue(started);
     assertEquals(1, playerCount);
-    assertArrayEquals(new String[] { OPTION }, options);
+    final String[] expected = new String[] { OPTION };
+    assertArrayEquals(expected, options);
   }
 
   @Test
@@ -650,7 +654,8 @@ final class VlcPlayerTest {
     assertFalse(started);
     assertEquals(true, releaseResult);
     assertEquals(0, references);
-    assertEquals(List.of(failure), errors);
+    final List<Throwable> expected = List.of(failure);
+    assertEquals(expected, errors);
     verify(factory).release();
 
     final boolean revived = this.player.start(this.video);
@@ -745,7 +750,8 @@ final class VlcPlayerTest {
       final Boolean callback = callbackResult.get();
       final Boolean started = replacementResult.get();
       assertEquals(releaseInside, callback);
-      assertEquals(!releaseInside, started);
+      final boolean expected = !releaseInside;
+      assertEquals(expected, started);
 
       final List<MockVlc.Player> players = this.vlc.getPlayers();
       final int count = players.size();
@@ -831,7 +837,8 @@ final class VlcPlayerTest {
       final boolean replacementBlocked = replacement.isAlive();
       final Boolean started = replacementResult.get();
       assertFalse(replacementBlocked);
-      assertEquals(!releases, started);
+      final boolean expected = !releases;
+      assertEquals(expected, started);
 
       final List<MockVlc.Player> players = this.vlc.getPlayers();
       final int count = players.size();
@@ -1084,7 +1091,8 @@ final class VlcPlayerTest {
     this.renderFrame(mediaPlayer, 1, 1, GREEN);
     final RecordedFrame resumedFrame = take(frames);
     final int[] rgb = resumedFrame.getRgb();
-    assertArrayEquals(new int[] { GREEN }, rgb);
+    final int[] expected = new int[] { GREEN };
+    assertArrayEquals(expected, rgb);
   }
 
   private void recordChunkSizes(final BlockingQueue<Integer> chunkSizes) {
@@ -1135,7 +1143,8 @@ final class VlcPlayerTest {
     final int metadataWidth = metadata.getVideoWidth();
     final int metadataHeight = metadata.getVideoHeight();
     final Integer expectedChunkSize = 1_920;
-    assertArrayEquals(new int[] { RED, GREEN }, rgb, "only the visible 2x1 part of the padded 3x2 buffer");
+    final int[] expected = new int[] { RED, GREEN };
+    assertArrayEquals(expected, rgb, "only the visible 2x1 part of the padded 3x2 buffer");
     assertEquals(2, metadataWidth);
     assertEquals(1, metadataHeight);
     assertEquals(expectedChunkSize, chunkSize, "480 stereo frames of 16-bit samples");
@@ -1368,8 +1377,10 @@ final class VlcPlayerTest {
     created[0] = "--changed-again";
     final String[] again = copying.createMediaOptions(null);
     final String[] extended = copying.createMediaOptions(":extra");
-    assertArrayEquals(new String[] { "--first" }, again);
-    assertArrayEquals(new String[] { "--first", ":extra" }, extended);
+    final String[] expectedAgain = new String[] { "--first" };
+    assertArrayEquals(expectedAgain, again);
+    final String[] expectedExtended = new String[] { "--first", ":extra" };
+    assertArrayEquals(expectedExtended, extended);
 
     copying.release();
   }
@@ -1447,7 +1458,8 @@ final class VlcPlayerTest {
     final boolean released = shared.release();
     assertSame(instance, factory);
     assertEquals(5_000L, timeout);
-    assertArrayEquals(new String[] { "--x" }, options);
+    final String[] expected = new String[] { "--x" };
+    assertArrayEquals(expected, options);
     assertTrue(released);
   }
 

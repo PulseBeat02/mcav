@@ -51,7 +51,8 @@ final class PlaybackClockTest {
 
     final boolean dueNow = first <= after;
     assertTrue(dueNow, "the first timestamp is due now");
-    assertEquals(first + 500_000_000L, second, "later media is due correspondingly later");
+    final long expected = first + 500_000_000L;
+    assertEquals(expected, second, "later media is due correspondingly later");
   }
 
   @Test

@@ -470,7 +470,8 @@ final class ScriptedPlayerTest {
     player.release();
     assertEquals(160, width);
     assertEquals(90, height);
-    assertEquals(List.of(size), delivered, "the pipeline must receive a scaled frame, not just decoder configuration");
+    final List<Dimension> expected = List.of(size);
+    assertEquals(expected, delivered, "the pipeline must receive a scaled frame, not just decoder configuration");
   }
 
   private boolean recordSize(final ImageBuffer samples, final List<Dimension> delivered) {
@@ -504,10 +505,12 @@ final class ScriptedPlayerTest {
     final ScriptedFrameGrabber grabber = ScriptedFrameGrabber.of();
 
     final NullPointerException nullGrabber = assertThrows(NullPointerException.class, () -> player.configureGrabber(null, VIDEO));
-    assertEquals("Grabber must not be null!", nullGrabber.getMessage());
+    final String grabberMessage = nullGrabber.getMessage();
+    assertEquals("Grabber must not be null!", grabberMessage);
 
     final NullPointerException nullSource = assertThrows(NullPointerException.class, () -> player.configureGrabber(grabber, null));
-    assertEquals("Source must not be null!", nullSource.getMessage());
+    final String sourceMessage = nullSource.getMessage();
+    assertEquals("Source must not be null!", sourceMessage);
   }
 
   private static boolean controlOnTheExecutor(final ScriptedPlayer player, final ExecutorService executor) throws Exception {

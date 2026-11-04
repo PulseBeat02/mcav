@@ -268,7 +268,8 @@ final class ImagePlayerTest {
 
       final boolean rendered = finished.await(RENDER_TIMEOUT_SECONDS, TimeUnit.SECONDS);
       assertTrue(rendered, "three controlled frames are rendered");
-      assertEquals(List.of(0L, 60_000_000L, 70_000_000L), starts);
+      final List<Long> expected = List.of(0L, 60_000_000L, 70_000_000L);
+      assertEquals(expected, starts);
     } finally {
       player.release();
     }

@@ -352,7 +352,8 @@ final class PlaybackSessionTest {
     final List<String> expectedSizes = List.of("4x2", "4x2", "4x2");
     assertEquals(3, frameCount);
     assertEquals(2, chunkCount);
-    assertEquals(2 * FRAME_MICROSECONDS, position);
+    final long expected = 2 * FRAME_MICROSECONDS;
+    assertEquals(expected, position);
     assertMetadataOfTheGrabber(videoMetadata, audioMetadata);
     assertEquals(expectedSizes, sizes, "every frame keeps its width and height, the first one included");
     assertPlayedFromTheBeginningAndClosed(grabber, session);
@@ -1179,7 +1180,8 @@ final class PlaybackSessionTest {
     awaitEnd(session);
 
     final byte[] bytes = received.get();
-    assertArrayEquals(new byte[] { 0x02, 0x01, (byte) 0xFE, (byte) 0xFF }, bytes, "the pipeline carries little-endian samples");
+    final byte[] expected = new byte[] { 0x02, 0x01, (byte) 0xFE, (byte) 0xFF };
+    assertArrayEquals(expected, bytes, "the pipeline carries little-endian samples");
   }
 
   private boolean recordBytes(final AtomicReference<byte[]> received, final ByteBuffer samples) {
@@ -1368,7 +1370,8 @@ final class PlaybackSessionTest {
     awaitEnd(session);
 
     final boolean copyKept = session.hasUnscaledCopy();
-    assertEquals(List.of(SCALED_SIZE), sizes);
+    final List<String> expected = List.of(SCALED_SIZE);
+    assertEquals(expected, sizes);
     assertFalse(copyKept, "the decoder releases its copy of the unscaled picture once it is done");
   }
 
@@ -1517,7 +1520,8 @@ final class PlaybackSessionTest {
 
     final int shownCount = shown.get();
     assertEquals(0, shownCount);
-    assertEquals(List.of("302 of 302"), reports, "the frames of the first ten seconds, all dropped");
+    final List<String> expected = List.of("302 of 302");
+    assertEquals(expected, reports, "the frames of the first ten seconds, all dropped");
   }
 
   // The first frame takes 450 ms, so the ten frames due in the next 350 ms come too late, and the frames after them are

@@ -175,7 +175,8 @@ final class AudioRendererTest {
     final int samplingFormat = metadata.getSamplingFormat();
     assertEquals(48_000, sampleRate);
     assertEquals(2, channels);
-    assertEquals(48_000 * 2 * 16, bitrate, "the bitrate of 16-bit stereo PCM at 48 kHz");
+    final int expectedBitrate = 48_000 * 2 * 16;
+    assertEquals(expectedBitrate, bitrate, "the bitrate of 16-bit stereo PCM at 48 kHz");
     assertEquals("pcm_s16le", codec);
     assertEquals(avutil.AV_SAMPLE_FMT_S16, samplingFormat);
   }
@@ -203,7 +204,8 @@ final class AudioRendererTest {
     final short[] copied = new short[sampleCount];
     shorts.get(copied);
     final OriginalAudioMetadata metadata = receivedMetadata.get();
-    assertEquals(3 * AudioFilter.FRAME_SIZE, remaining, "three stereo frames of 16-bit samples");
+    final int expected = 3 * AudioFilter.FRAME_SIZE;
+    assertEquals(expected, remaining, "three stereo frames of 16-bit samples");
     assertEquals(ByteOrder.LITTLE_ENDIAN, order);
     assertArrayEquals(interleaved, copied, "the samples are copied before VLC reuses its memory");
     assertPcmMetadata(metadata);
@@ -408,8 +410,9 @@ final class AudioRendererTest {
     fromLittleEndian.get(kept);
     final ByteOrder order = fromBigEndian.order();
     final int bigEndianPosition = bigEndian.position();
-    assertArrayEquals(new byte[] { 0x02, 0x01, (byte) 0xFE, (byte) 0xFF }, swapped, "big-endian machines swap every sample");
-    assertArrayEquals(new byte[] { 0x02, 0x01, (byte) 0xFE, (byte) 0xFF }, kept, "little-endian machines copy the samples");
+    final byte[] expected = new byte[] { 0x02, 0x01, (byte) 0xFE, (byte) 0xFF };
+    assertArrayEquals(expected, swapped, "big-endian machines swap every sample");
+    assertArrayEquals(expected, kept, "little-endian machines copy the samples");
     assertEquals(ByteOrder.LITTLE_ENDIAN, order);
     assertEquals(0, bigEndianPosition, "the native samples are not consumed");
   }
