@@ -301,14 +301,19 @@ final class Mcv2PlayCommandTest {
   }
 
   private Path archive(final List<byte[]> frames) throws IOException {
-    final ByteArrayOutputStream out = new ByteArrayOutputStream();
+    final ByteArrayOutputStream output = new ByteArrayOutputStream();
     for (final byte[] frame : frames) {
-      out.write(new byte[] { (byte) frame.length, (byte) (frame.length >> 8), (byte) (frame.length >> 16), (byte) (frame.length >> 24) });
-      out.write(frame);
+      output.write(new byte[] {
+        (byte) frame.length,
+        (byte) (frame.length >> 8),
+        (byte) (frame.length >> 16),
+        (byte) (frame.length >> 24),
+      });
+      output.write(frame);
     }
     Files.createDirectories(this.streams);
     final Path file = Files.createTempFile(this.streams, STREAM_PREFIX, STREAM_SUFFIX);
-    Files.write(file, out.toByteArray());
+    Files.write(file, output.toByteArray());
     return file;
   }
 
