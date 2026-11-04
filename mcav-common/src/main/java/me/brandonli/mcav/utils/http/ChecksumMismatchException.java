@@ -31,7 +31,7 @@ public final class ChecksumMismatchException extends DownloadException {
   private static final long serialVersionUID = -6_142_310_774_902_315_786L;
 
   /**
-   * Constructs a new exception.
+   * Creates an exception with a message.
    *
    * @param message the detail message, naming the file and both hashes
    * @since 1.0.0

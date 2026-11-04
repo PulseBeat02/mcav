@@ -56,7 +56,7 @@ public final class ModuleLoader {
   private final List<MCAVModule> startOrder;
 
   /**
-   * Constructs a new loader without any modules. {@link me.brandonli.mcav.MCAV} creates one for you.
+   * Creates a loader without any modules. {@link me.brandonli.mcav.MCAV} creates one for you.
    *
    * @since 1.0.0
    */
@@ -124,14 +124,13 @@ public final class ModuleLoader {
     }
   }
 
-  // Stops a module whose start failed, so whatever it acquired before failing is released. A failure to stop is logged
-  // and attached to the start failure instead of replacing it.
   private void stopAfterFailedStart(final MCAVModule module, final String moduleName, final ModuleException startFailure) {
     try {
       module.stop();
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
       LOGGER.error("Module {} failed to stop after it failed to start.", moduleName, exception);
+      // addSuppressed rejects self-suppression.
       final Equivalence<Object> identity = Equivalence.identity();
       if (!identity.equivalent(exception, startFailure)) {
         startFailure.addSuppressed(exception);

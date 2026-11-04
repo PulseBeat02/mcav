@@ -58,7 +58,7 @@ import me.brandonli.mcav.module.MCAVModule;
  */
 public interface MCAVApi {
   /**
-   * Checks whether an optional capability is available right now, which depends on the platform and on whether the
+   * Returns whether an optional capability is available right now, which depends on the platform and on whether the
    * program behind it could be installed. A capability that is still being prepared in the background is not
    * available yet; wait for it with {@link #whenCapabilityReady(Capability)}.
    *

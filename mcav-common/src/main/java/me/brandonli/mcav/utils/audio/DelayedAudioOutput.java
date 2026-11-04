@@ -47,7 +47,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>A source that goes quiet sends nothing, so its sound would reach the players with every pause cut out. After
  * {@link #quiet()} the output hands over silence in real time instead: every gap from the end of the sound handed over
- * to the next samples due is filled in chunks of {@value #SILENCE_CHUNK_MILLISECONDS} ms, until samples that arrived after the
+ * to the next samples due is filled in chunks of 20 ms, until samples that arrived after the
  * call are due, for {@value #SILENCE_MILLISECONDS} ms at most; a longer pause is not filled, and nothing is filled while the
  * output is paused.
  *
@@ -404,7 +404,7 @@ public final class DelayedAudioOutput implements AutoCloseable {
 
   /**
    * Stops the thread, dropping the queued samples, and waits for it; a pipeline that holds the thread is waited for
-   * {@value #JOIN_TIMEOUT_MILLISECONDS} ms at most and then interrupted, so it can end on its own. Called from the pipeline
+   * 5000 ms at most and then interrupted, so it can end on its own. Called from the pipeline
    * itself, it does not wait.
    *
    * @since 1.0.0

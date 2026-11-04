@@ -62,8 +62,7 @@ public final class GeneratedMedia {
     return FfmpegExecutableProvider.getFfmpegPath();
   }
 
-  // Generates a file into a temporary sibling with the same extension and publishes it only after a successful nonempty
-  // result. A fixture process has a 120 second deadline. Successful paths are reused within this JVM.
+  // publishes only a nonempty result; successful paths are reused within this JVM
   public static synchronized Path generate(final Path output, final Function<Path, List<String>> command) {
     return generate(output, command, PROCESS_TIMEOUT);
   }

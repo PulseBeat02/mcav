@@ -567,8 +567,7 @@ public final class IoUtils {
     return temporaryCache.toAbsolutePath();
   }
 
-  // Creates a directory if it is missing and returns whether a file written into it can be run. A directory that
-  // cannot be created or written cannot hold the cache either, so that failure is the answer and not reported.
+  // A directory that cannot be created or written cannot hold the cache, so that failure answers false.
   private static boolean createUsableDirectory(final Path directory, final Predicate<Path> executable) {
     try {
       createDirectoryIfNotExists(directory);
@@ -627,8 +626,7 @@ public final class IoUtils {
     }
   }
 
-  // Parses a download list. Malformed JSON is reported as an IOException, because a resource that cannot be parsed is
-  // an I/O failure of that resource.
+  // Malformed JSON is an I/O failure of the resource.
   @VisibleForTesting
   static Download[] parseDownloads(final Reader reader) throws IOException {
     final DownloadFields @Nullable [] parsed = readDownloadArray(reader);

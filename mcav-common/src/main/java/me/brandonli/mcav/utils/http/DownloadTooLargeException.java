@@ -32,7 +32,7 @@ public final class DownloadTooLargeException extends DownloadException {
   private static final long serialVersionUID = 4_268_314_709_812_553_311L;
 
   /**
-   * Constructs the exception.
+   * Creates an exception with a message.
    *
    * @param message the detail message, which names the limit
    * @since 1.0.0

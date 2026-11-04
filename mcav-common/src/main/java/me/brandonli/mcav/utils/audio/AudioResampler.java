@@ -33,26 +33,42 @@ import org.bytedeco.javacpp.PointerPointer;
 
 /**
  * Converts interleaved PCM audio between sample rates, channel counts and sample formats with FFmpeg's
- * libswresample. Every mcav player hands audio pipelines signed 16-bit stereo samples at 48 kHz (see
+ * libswresample. Every MCAV player hands audio pipelines signed 16-bit stereo samples at 48 kHz (see
  * {@link AudioFilter}); outputs that expect something else, such as a speech recognizer at 16 kHz mono, a telephony
  * bridge at 8 kHz or an engine that mixes floating point samples, use a resampler to convert them.
  *
  * {@snippet :
- * final int sampleRate = 16_000;
- * final int channels = 1;
- * this.resampler = AudioResampler.fromPipelineFormat(sampleRate, channels, SampleFormat.SIGNED_16_BIT);
- * final AudioPipelineStep pipeline = AudioPipelineStep.of(this::forwardSpeech);
+ * final class SpeechForwarder {
  *
- * // once playback has ended
- * final byte[] remaining = this.resampler.flush();
- * this.recognizer.accept(remaining);
- * this.resampler.close();
+ *   private static final int SAMPLE_RATE = 16_000;
+ *   private static final int CHANNELS = 1;
  *
- * private boolean forwardSpeech(final ByteBuffer samples, final OriginalAudioMetadata metadata) {
- *   final byte[] speech = this.resampler.resample(samples);
- *   this.recognizer.accept(speech);
- *   // the samples were only read, so the filter reports that it left them untouched
- *   return false;
+ *   private final AudioResampler resampler;
+ *   private final Consumer<byte[]> recognizer;
+ *
+ *   SpeechForwarder(final Consumer<byte[]> recognizer) {
+ *     this.resampler = AudioResampler.fromPipelineFormat(SAMPLE_RATE, CHANNELS, SampleFormat.SIGNED_16_BIT);
+ *     this.recognizer = recognizer;
+ *   }
+ *
+ *   AudioPipelineStep createPipeline() {
+ *     return AudioPipelineStep.of(this::forwardSpeech);
+ *   }
+ *
+ *   private boolean forwardSpeech(final ByteBuffer samples, final OriginalAudioMetadata metadata) {
+ *     final byte[] speech = this.resampler.resample(samples);
+ *     this.recognizer.accept(speech);
+ *
+ *     // the samples were only read, so the filter reports that it left them untouched
+ *     return false;
+ *   }
+ *
+ *   // call once playback has ended
+ *   void drainAndClose() {
+ *     final byte[] remaining = this.resampler.flush();
+ *     this.recognizer.accept(remaining);
+ *     this.resampler.close();
+ *   }
  * }
  * }
  *
@@ -172,7 +188,7 @@ public final class AudioResampler implements AutoCloseable {
   }
 
   /**
-   * Creates a resampler whose input is the audio every mcav player hands to audio pipelines: signed 16-bit stereo
+   * Creates a resampler whose input is the audio every MCAV player hands to audio pipelines: signed 16-bit stereo
    * samples at {@value AudioFilter#SAMPLE_RATE} Hz.
    *
    * @param outputSampleRate the sample rate of the returned samples, in hertz

@@ -102,7 +102,7 @@ public final class MCAV implements MCAVApi {
   }
 
   /**
-   * Checks whether an optional capability is available right now in this installation, which depends on the platform and on whether the
+   * Returns whether an optional capability is available right now in this installation, which depends on the platform and on whether the
    * program behind it could be installed. A capability that is still being prepared in the background is not available yet; wait for it
    * with {@link #whenCapabilityReady(Capability)}.
    *
@@ -156,7 +156,7 @@ public final class MCAV implements MCAVApi {
   }
 
   /**
-   * Installs the library and starts the specified modules on this instance, which can be installed only once. This method returns once the
+   * Installs the library and starts the specified modules on this instance. This method returns once the
    * JavaCV natives are loaded, the modules are started, and the lookup tables are built; VLC and yt-dlp are prepared in the background
    * afterward, see {@link #whenCapabilityReady(Capability)}.
    *

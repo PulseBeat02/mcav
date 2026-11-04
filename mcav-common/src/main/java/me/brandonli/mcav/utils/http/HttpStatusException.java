@@ -38,7 +38,7 @@ public final class HttpStatusException extends DownloadException {
   private final int statusCode;
 
   /**
-   * Constructs a new exception.
+   * Creates an exception for a request to {@code uri} that the server answered with {@code statusCode}.
    *
    * @param statusCode the status code the server answered with
    * @param uri        the URI that was requested

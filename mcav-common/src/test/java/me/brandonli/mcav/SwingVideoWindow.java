@@ -37,8 +37,6 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.utils.ThrowableUtils;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 
-// A window that shows frames, shared by the examples. The asFilter() method turns it into a video filter that can be
-// attached at the end of a pipeline.
 public final class SwingVideoWindow implements AutoCloseable {
 
   private static final Equivalence<Object> IDENTITY = Equivalence.identity();
@@ -47,8 +45,7 @@ public final class SwingVideoWindow implements AutoCloseable {
   private final JFrame frame;
   private final CountDownLatch closed;
 
-  // Creates an exit-on-close window. Call this constructor on the Swing event dispatch thread; the examples use
-  // open(String, int, int) to create a disposable window safely from their main thread.
+  // Swing event dispatch thread only; open(...) works from any thread.
   public SwingVideoWindow(final String title, final int width, final int height) {
     this(title, width, height, WindowConstants.EXIT_ON_CLOSE);
   }

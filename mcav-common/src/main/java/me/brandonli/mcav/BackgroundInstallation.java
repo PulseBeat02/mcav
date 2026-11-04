@@ -36,13 +36,8 @@ import org.checkerframework.checker.nullness.qual.KeyFor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// Prepares the external programs of the library, VLC and yt-dlp, in the background after MCAV.install(Class[])
-// returned, each on a daemon thread of its own, so a slow download never delays the start of the application. Each
-// program has a future that completes once its preparation finished: with true if its capability is available, with
-// false if it is not supported, failed, or was cancelled. The futures are completed directly, but callers only ever see
-// asynchronous stages of them, so their callbacks never run on the installation threads and can safely call back into
-// the library, even MCAV.release(), which waits for those threads. cancel() interrupts both threads, which makes a
-// running download fail at once and delete its temporary file, and waits a bounded time for the threads to end.
+// Prepares VLC and yt-dlp on daemon threads after MCAV.install(Class[]). Callers only see asynchronous stages of the
+// futures, so their callbacks may call MCAV.release(), which waits for these threads.
 final class BackgroundInstallation {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(BackgroundInstallation.class);
@@ -165,8 +160,6 @@ final class BackgroundInstallation {
     }
   }
 
-  // Checks whether a capability is available right now. The programs prepared in the background are unavailable until
-  // their preparation finished successfully; every other capability is answered by the loader.
   boolean isAvailable(final Capability capability) {
     final CompletableFuture<Boolean> preparation = this.preparations.get(capability);
     if (preparation == null) {
@@ -176,8 +169,6 @@ final class BackgroundInstallation {
     return preparation.getNow(false);
   }
 
-  // Returns a future that completes once a capability is ready. A capability that is not prepared in the background, or
-  // whose preparation already finished, gets a future that is complete already.
   CompletableFuture<Boolean> whenReady(final Capability capability) {
     final CompletableFuture<Boolean> preparation = this.preparations.get(capability);
     if (preparation == null) {

@@ -109,7 +109,7 @@ public final class SourceUtils {
   }
 
   /**
-   * Checks whether a source points at a GIF, judging by the file extension of its path or URL.
+   * Returns whether a source points at a GIF, judging by the file extension of its path or URL.
    *
    * @param source the source
    * @return true if the path or URL ends with {@code .gif}
@@ -139,7 +139,7 @@ public final class SourceUtils {
   }
 
   /**
-   * Checks whether a string is a URL with both a scheme and a host, such as {@code https://example.com/a.mp4}.
+   * Returns whether a string is a URL with both a scheme and a host, such as {@code https://example.com/a.mp4}.
    *
    * @param raw the string
    * @return true if the string is such a URL
@@ -160,7 +160,7 @@ public final class SourceUtils {
   }
 
   /**
-   * Checks whether a URL points directly at a media file, judging by a well-known media extension at the end of
+   * Returns whether a URL points directly at a media file, judging by a well-known media extension at the end of
    * its path. URLs of web pages such as YouTube videos are not direct and have to be resolved with yt-dlp.
    *
    * <p>Unlike the other methods of this class, this one accepts null, because it is typically asked about an optional
@@ -190,7 +190,7 @@ public final class SourceUtils {
   }
 
   /**
-   * Checks whether a string is the path of an existing file or directory.
+   * Returns whether a string is the path of an existing file or directory.
    *
    * @param raw the string
    * @return true if the path exists

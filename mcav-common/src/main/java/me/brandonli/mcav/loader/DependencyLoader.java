@@ -102,7 +102,7 @@ public final class DependencyLoader {
   private final Supplier<DebianLibraryInstaller> gtk2Installers;
 
   /**
-   * Constructs a new loader. {@link me.brandonli.mcav.MCAV} creates one for you; only create your own if you embed
+   * Creates a loader. {@link me.brandonli.mcav.MCAV} creates one for you; only create your own if you embed
    * the installation steps into a custom bootstrap.
    *
    * @since 1.0.0
@@ -130,7 +130,7 @@ public final class DependencyLoader {
   }
 
   /**
-   * Checks whether preparation has recorded a failure for a capability. A new loader optimistically contains
+   * Returns whether no preparation has recorded a failure for {@code capability}. A new loader optimistically contains
    * every capability, so this method alone is not a readiness test. Normal callers should use
    * {@link me.brandonli.mcav.MCAVApi#hasCapability(Capability)}, which also tracks background completion.
    *
@@ -333,7 +333,7 @@ public final class DependencyLoader {
   // Loads FFmpeg with the specified loader and then runs the setup that needs FFmpeg. A missing device library only
   // disables capture devices, so that failure is logged instead of thrown, and the setup still runs. That holds for
   // every load in a JVM: after the first, the JVM reports the device library's class as failed, naming the first
-  // failure as the cause while it keeps that, as when a plugin that installs mcav is disabled and enabled again.
+  // failure as the cause while it keeps that, as when a plugin that installs MCAV is disabled and enabled again.
   @VisibleForTesting
   void loadFfmpeg(final Runnable ffmpegLoader, final Runnable setup) {
     try {

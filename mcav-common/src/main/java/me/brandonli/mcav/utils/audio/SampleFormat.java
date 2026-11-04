@@ -41,7 +41,7 @@ public enum SampleFormat {
   UNSIGNED_8_BIT(avutil.AV_SAMPLE_FMT_U8, 1),
 
   /**
-   * Signed 16-bit integer samples, the format every mcav player hands to audio pipelines.
+   * Signed 16-bit integer samples, the format every MCAV player hands to audio pipelines.
    *
    * @since 1.0.0
    */

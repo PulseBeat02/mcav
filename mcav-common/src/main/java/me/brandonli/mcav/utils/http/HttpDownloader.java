@@ -146,7 +146,7 @@ public final class HttpDownloader {
   }
 
   /**
-   * Creates a GET request with a 30-minute request timeout and mcav's user-agent header.
+   * Creates a GET request with a 30-minute request timeout and MCAV's user-agent header.
    *
    * @param uri the URI to request
    * @return the request
@@ -338,7 +338,7 @@ public final class HttpDownloader {
    *                                   moved into place
    * @throws NullPointerException      if {@code uri}, {@code destination} is null
    * @throws IllegalArgumentException  if the URI is not an absolute HTTP or HTTPS URI with a valid host,
-   *                                   the destination has no file name, or {@code maximumBytes} is nonpositive
+   *                                   the destination has no file name, or {@code maximumBytes} is not positive
    * @since 1.0.0
    */
   public static void download(final URI uri, final Path destination, final long maximumBytes) {
@@ -364,7 +364,7 @@ public final class HttpDownloader {
    *                                   moved into place
    * @throws NullPointerException      if {@code uri}, {@code destination}, {@code expectedSha256} is null
    * @throws IllegalArgumentException  if the URI is not an absolute HTTP or HTTPS URI with a valid host,
-   *                                   the destination has no file name, or {@code maximumBytes} is nonpositive
+   *                                   the destination has no file name, or {@code maximumBytes} is not positive
    * @since 1.0.0
    */
   public static void download(final URI uri, final Path destination, final String expectedSha256, final long maximumBytes) {

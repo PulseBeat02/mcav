@@ -40,10 +40,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// An HTTP server on the loopback interface for tests that download files. Every path answers with a queue of prepared
-// responses. Once only one response is left, it is repeated for every further request, so a path can fail a few times
-// before it succeeds, or fail forever. Paths without responses answer 404. Requests are handled on their own threads,
-// so a response that waits or stalls never holds up other requests.
+// Loopback HTTP server for download tests: a path replays its queued responses, repeating the last; others answer 404.
 public final class LocalHttpServer implements AutoCloseable {
 
   private static final long MAXIMUM_WAIT_SECONDS = 60;
@@ -102,7 +99,7 @@ public final class LocalHttpServer implements AutoCloseable {
     this.addResponse(path, response);
   }
 
-  // Adds a response that is only sent once a gate opens. The request waits for the gate, or for the server to close.
+  // the request also ends when the server closes
   public void respondWhenOpened(final String path, final int status, final byte[] body, final CountDownLatch gate) {
     final Response response = new Response(status, body, gate, NO_ANNOUNCED_LENGTH);
     this.addResponse(path, response);
@@ -164,8 +161,6 @@ public final class LocalHttpServer implements AutoCloseable {
     return sameHost && port == boundPort;
   }
 
-  // Waits until a path has received at least the specified number of requests. Every counted request wakes the waiting
-  // threads, so the wait ends as soon as the last request arrives, without polling.
   public boolean awaitRequests(final String path, final int count, final Duration timeout) throws InterruptedException {
     final long start = System.nanoTime();
     final long timeoutNanoseconds = timeout.toNanos();
@@ -282,8 +277,7 @@ public final class LocalHttpServer implements AutoCloseable {
     exchange.close();
   }
 
-  // Waits until the gate opens, the server closes, or the maximum wait passes. The gate is checked in short steps, so a
-  // server that closes releases the waiting request right away.
+  // polls the gate in short steps, so a closing server releases the request at once
   private void awaitGateOrClose(final CountDownLatch gate) {
     final long start = System.nanoTime();
     final long maximumWait = TimeUnit.SECONDS.toNanos(MAXIMUM_WAIT_SECONDS);
@@ -304,8 +298,7 @@ public final class LocalHttpServer implements AutoCloseable {
     }
   }
 
-  // Waits until the server closes. Closing interrupts the handler threads, so an interrupt also means the server
-  // closed.
+  // closing interrupts the handler threads, so an interrupt also means closed
   private boolean awaitClose() {
     try {
       return this.closing.await(MAXIMUM_WAIT_SECONDS, TimeUnit.SECONDS);

@@ -165,7 +165,7 @@ public final class NetworkUtils {
   }
 
   /**
-   * Checks whether the URI points to a reachable HTTP resource by sending a {@code HEAD} request. Redirects are
+   * Returns whether the URI points to a reachable HTTP resource by sending a {@code HEAD} request. Redirects are
    * followed, and the scheme may be written in any case. The request blocks for at most a few seconds.
    *
    * <p>This is useful to check whether a download URL is still valid before handing it to someone else, for

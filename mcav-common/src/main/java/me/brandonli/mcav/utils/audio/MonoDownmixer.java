@@ -28,11 +28,14 @@ import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
  * speech recognizer, use it to turn the samples of the pipeline into the format they expect.
  *
  * {@snippet :
- * final AudioPipelineStep pipeline = AudioPipelineStep.of(this::playMono);
+ * AudioPipelineStep createPipeline(final Consumer<short[]> speaker) {
+ *   return AudioPipelineStep.of((samples, metadata) -> this.playMono(samples, speaker));
+ * }
  *
- * private boolean playMono(final ByteBuffer samples, final OriginalAudioMetadata metadata) {
+ * private boolean playMono(final ByteBuffer samples, final Consumer<short[]> speaker) {
  *   final short[] mono = MonoDownmixer.downmix(samples);
- *   this.speaker.play(mono);
+ *   speaker.accept(mono);
+ *
  *   // the samples were only read, so the filter reports that it left them untouched
  *   return false;
  * }

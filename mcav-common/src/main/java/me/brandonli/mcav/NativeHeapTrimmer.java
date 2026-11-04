@@ -39,19 +39,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// Hands the memory that the C library holds free for later allocations back to the system once a minute, on Linux.
-// FFmpeg, OpenCV and the encoders allocate and free large buffers on many threads. glibc keeps what is freed in its
-// arenas for later allocations, and in a server that plays for days the arenas keep growing although little of them is
-// in use: after 31 hours of a soak test, the arenas of the server held 2.1 GB of free memory beside 0.3 GB in use, and
-// its resident memory grew by about 20 MB an hour. The JDK's System.trim_native_heap command returns the free pages
-// inside every arena to the system, but not the free memory at the top of an arena of a thread, which glibc keeps until
-// it exceeds its trim threshold; glibc raises that threshold to twice the largest block it has freed, up to 64 MiB, so
-// the arena of every thread that frees frames keeps up to that much. When it starts, the trimmer therefore fixes the
-// threshold at TRIM_THRESHOLD_BYTES bytes, glibc's default, for the life of the JVM: glibc then returns the top of an
-// arena as soon as a large block is freed. A JVM started with -XX:TrimNativeHeapInterval trims on its own and is left
-// to it, and so is a JVM other than HotSpot, or a runtime without the jdk.management module, which have neither that
-// option nor the command. The interval is the system property INTERVAL_PROPERTY, in seconds, DEFAULT_INTERVAL_SECONDS
-// by default; zero or less turns trimming off.
+// Returns the free memory glibc keeps in its arenas to the system once a minute on Linux (a 31-hour soak held 2.1 GB
+// free beside 0.3 GB in use). The trim threshold is fixed at glibc's default so the top of each thread's arena is
+// returned too. JVMs with -XX:TrimNativeHeapInterval or without the trim command are left alone.
 final class NativeHeapTrimmer {
 
   static final String INTERVAL_PROPERTY = "mcav.nativeTrimSeconds";
@@ -91,7 +81,6 @@ final class NativeHeapTrimmer {
     this.fixThreshold = fixThreshold;
   }
 
-  // Creates the trimmer of this JVM, which trims with the JDK's command and fixes glibc's trim threshold.
   static NativeHeapTrimmer create() {
     final Os os = OsUtils.getOs();
     final long jvmIntervalMilliseconds = readJvmIntervalMilliseconds();
@@ -112,7 +101,6 @@ final class NativeHeapTrimmer {
     return new NativeHeapTrimmer(interval, trim, fixThreshold);
   }
 
-  // Fixes the trim threshold and starts trimming on a daemon thread of its own, unless the trimmer trims never.
   void start() {
     if (!this.interval.isPositive()) {
       return;
