@@ -237,6 +237,7 @@ abstract class BuildMcv2Natives : DefaultTask() {
             val units: MutableMap<String, List<String>> = linkedMapOf("scalar" to emptyList<String>())
             if (target.architecture == X86_64) {
                 this.addX86Units(units, target.system)
+                this.alignX86Branches(units, target.system)
             } else {
                 this.addArmUnits(units, target.system)
             }
@@ -257,6 +258,13 @@ abstract class BuildMcv2Natives : DefaultTask() {
                 "-mavx512f", "-mavx512dq", "-mavx512bw", "-mavx512vl",
                 "-mavx512vbmi", "-mavx512vbmi2", "-mavx512vnni", "-mavx512bitalg"
             )
+        }
+
+        private fun alignX86Branches(units: MutableMap<String, List<String>>, system: String): Unit {
+            if (system == MACOS) {
+                return
+            }
+
             units.replaceAll { _, flags -> flags + "-mbranches-within-32B-boundaries" }
         }
 
@@ -385,14 +393,18 @@ abstract class BuildMcv2Natives : DefaultTask() {
         }
 
         private fun writeManifest(manifest: File, root: File, files: List<File>): Unit {
-            val sorted: List<File> = files.sortedBy { it.relativeTo(root).invariantSeparatorsPath }
+            val sorted: List<File> = files.sortedBy { this.relativePathOf(root, it) }
             val lines: String = sorted.joinToString("") { this.manifestLine(root, it) }
             manifest.writeText(lines)
         }
 
+        private fun relativePathOf(root: File, file: File): String {
+            return file.relativeTo(root).invariantSeparatorsPath
+        }
+
         private fun manifestLine(root: File, file: File): String {
             val digest: String = ToolDigests.sha256(file)
-            val path: String = file.relativeTo(root).invariantSeparatorsPath
+            val path: String = this.relativePathOf(root, file)
             return "$digest$MANIFEST_SEPARATOR$path$LINE_SEPARATOR"
         }
 

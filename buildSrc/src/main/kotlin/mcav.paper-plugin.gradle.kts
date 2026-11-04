@@ -107,6 +107,7 @@ val sparkJobUrl: String = "https://ci.lucko.me/job/spark"
 val sparkArtifactPath: String = "artifact/spark-bukkit/build/libs"
 
 val minecraftVersion: String = CatalogUtils.versionOf(libs, minecraftAlias)
+val voiceChatVersion: String = CatalogUtils.versionOf(libs, voiceChatAlias)
 private val paperVersion: PaperVersion = PaperVersion.parse(CatalogUtils.versionOf(libs, paperAlias))
 version = "${rootProject.version.toString().removeSuffix(snapshotSuffix)}$minecraftVersionPrefix$minecraftVersion"
 
@@ -229,6 +230,14 @@ paperPluginYaml {
 tasks.runServer {
     this.minecraftVersion(minecraftVersion)
     this.build(paperVersion.build)
+    this.systemProperty(legacyFormattingWarningProperty, false)
+    this.downloadPlugins {
+        this.modrinth(voiceChatModrinthProject, voiceChatVersion)
+
+        val sparkVersion: String = CatalogUtils.versionOf(libs, sparkAlias)
+        val sparkBuild: String = CatalogUtils.versionOf(libs, sparkBuildAlias)
+        this.url("$sparkJobUrl/$sparkBuild/$sparkArtifactPath/spark-$sparkVersion-bukkit.jar")
+    }
 }
 
 tasks.withType<AbstractRun>().configureEach {
@@ -287,7 +296,7 @@ tasks.register<Test>(endToEndTestName) {
     this.inputs.file(pluginJar)
     this.outputs.upToDateWhen { false }
     this.systemProperty(paperFileNameProperty, paperVersion.fileName)
-    this.systemProperty(voiceChatFileNameProperty, "$voiceChatPlugin-${CatalogUtils.versionOf(libs, voiceChatAlias)}.jar")
+    this.systemProperty(voiceChatFileNameProperty, "$voiceChatPlugin-$voiceChatVersion.jar")
     this.systemProperty(cacheDirectoryProperty, layout.buildDirectory.dir(endToEndCachePath).get().asFile.absolutePath)
     this.systemProperty(acceptEulaTestProperty, providers.gradleProperty(acceptEulaProperty).getOrElse(disabledValue))
     this.systemProperty(repositoryDirectoryProperty, endToEndRepository.absolutePath)
@@ -303,16 +312,5 @@ tasks.register<Test>(endToEndTestName) {
 
         this@register.systemProperty(pluginJarProperty, pluginJar.get().asFile.absolutePath)
         this@register.systemProperty(javaProperty, launcher.get().executablePath.asFile.absolutePath)
-    }
-}
-
-tasks.runServer {
-    this.systemProperty(legacyFormattingWarningProperty, false)
-    this.downloadPlugins {
-        this.modrinth(voiceChatModrinthProject, CatalogUtils.versionOf(libs, voiceChatAlias))
-
-        val sparkVersion: String = CatalogUtils.versionOf(libs, sparkAlias)
-        val sparkBuild: String = CatalogUtils.versionOf(libs, sparkBuildAlias)
-        this.url("$sparkJobUrl/$sparkBuild/$sparkArtifactPath/spark-$sparkVersion-bukkit.jar")
     }
 }

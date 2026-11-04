@@ -97,6 +97,9 @@ val propertyTries: String = providers.gradleProperty(propertyTriesProperty).getO
 val propertySmokeTries: String = providers.gradleProperty(propertySmokeTriesProperty).getOrElse(defaultPropertySmokeTries)
 val fuzzSeconds: Int = providers.gradleProperty(fuzzSecondsProperty).map { it.toInt() }.getOrElse(0)
 val testSourceSet: SourceSet = sourceSets.test.get()
+val host: HostPlatform = HostPlatform.current()
+val processorCount: Int = Runtime.getRuntime().availableProcessors()
+val parallelForks: Int = (processorCount / processorsPerFork).coerceAtLeast(1)
 val quietMachine: Provider<ExclusiveResource> = gradle.sharedServices.registerIfAbsent(quietMachineService, ExclusiveResource::class) {
     maxParallelUsages = 1
 }
@@ -122,7 +125,7 @@ tasks.withType<Test>().configureEach {
     this.systemProperty(syncMeasurementProperty, syncMeasurement)
 
     if (testJavaHome.isPresent) {
-        this.executable = HostPlatform.current().javaExecutable(testJavaHome.get())
+        this.executable = host.javaExecutable(testJavaHome.get())
     }
 
     this.systemProperty(jqwikDatabaseProperty, "$jqwikDatabasePath-${this.name}")
@@ -138,7 +141,7 @@ tasks.test {
         this.excludeTags(fuzzTag)
     }
     this.systemProperty(jqwikTriesProperty, propertySmokeTries)
-    this.maxParallelForks = if (measuresSync) 1 else (Runtime.getRuntime().availableProcessors() / processorsPerFork).coerceAtLeast(1)
+    this.maxParallelForks = if (measuresSync) 1 else parallelForks
     this.systemProperty(jqwikDatabaseProperty, noDatabase)
 }
 

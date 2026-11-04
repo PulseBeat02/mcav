@@ -82,7 +82,12 @@ object CoverageReport {
 
     private fun describeMissingReport(sourceDirectory: File): List<String> {
         val hasSources: Boolean = sourceDirectory.isDirectory && sourceDirectory.walk().any { it.extension == JAVA_EXTENSION }
-        return if (hasSources) listOf("$sourceDirectory: error: no test ran, so none of this code is covered.") else emptyList()
+        if (!hasSources) {
+            return emptyList()
+        }
+
+        val gap: String = "$sourceDirectory: error: no test ran, so none of this code is covered."
+        return listOf(gap)
     }
 
     private fun findGapsInFile(sourceFile: Element, sourceDirectory: File, exceptions: List<CoverageException>): List<String> {
@@ -119,11 +124,12 @@ object CoverageReport {
         val coveredInstructions: Int = line.getAttribute(COVERED_INSTRUCTIONS_ATTRIBUTE).toInt()
         val missedBranches: Int = line.getAttribute(MISSED_BRANCHES_ATTRIBUTE).toInt()
         val coveredBranches: Int = line.getAttribute(COVERED_BRANCHES_ATTRIBUTE).toInt()
+        val totalBranches: Int = missedBranches + coveredBranches
+        val totalInstructions: Int = missedInstructions + coveredInstructions
         return when {
             coveredInstructions == 0 && missedInstructions > 0 -> "line is not covered by any test"
-            missedBranches > 0 -> "$missedBranches of ${missedBranches + coveredBranches} branches are not covered by any test"
-            missedInstructions > 0 ->
-                "$missedInstructions of ${missedInstructions + coveredInstructions} instructions on this line are not covered by any test"
+            missedBranches > 0 -> "$missedBranches of $totalBranches branches are not covered by any test"
+            missedInstructions > 0 -> "$missedInstructions of $totalInstructions instructions on this line are not covered by any test"
             else -> null
         }
     }

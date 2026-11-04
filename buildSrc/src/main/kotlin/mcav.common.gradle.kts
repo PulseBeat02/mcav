@@ -41,14 +41,14 @@ val unusedJavacvPresets: List<String> = listOf(
 )
 
 configurations.api {
-    dependencies.withType<ModuleDependency>().configureEach {
-        if (this.group == bytedecoGroup && this.name == javacvPlatformModule) {
+    dependencies.withType<ModuleDependency>()
+        .matching { it.group == bytedecoGroup && it.name == javacvPlatformModule }
+        .configureEach {
             for (preset in unusedJavacvPresets) {
                 this.exclude(group = bytedecoGroup, module = preset)
                 this.exclude(group = bytedecoGroup, module = "$preset$platformSuffix")
             }
         }
-    }
 }
 
 val pinGeneratorClass: String = "me.brandonli.mcav.capability.installer.debian.DebianPinGenerator"
