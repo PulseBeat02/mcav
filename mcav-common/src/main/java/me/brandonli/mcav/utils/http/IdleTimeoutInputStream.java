@@ -109,7 +109,7 @@ final class IdleTimeoutInputStream extends InputStream {
       }
 
       final String reason = exception.getMessage();
-      final String message = "Reading the response failed because of \"%s\"!".formatted(reason);
+      final String message = "Because of \"%s\", reading the response failed!".formatted(reason);
       throw new IOException(message, cause);
     }
   }

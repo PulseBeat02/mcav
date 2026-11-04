@@ -735,7 +735,7 @@ final class IoUtilsTest {
     try {
       Files.createSymbolicLink(link, target);
     } catch (final IOException | UnsupportedOperationException exception) {
-      final String message = "Symbolic links cannot be created here because of \"%s\"!".formatted(exception);
+      final String message = "Because of \"%s\", symbolic links cannot be created here!".formatted(exception);
       Assumptions.abort(message);
     }
   }
