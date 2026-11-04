@@ -225,12 +225,12 @@ final class MatImageBufferTest {
     try (final ImageBuffer fromFile = ImageBuffer.path(file)) {
       final int width = fromFile.getWidth();
       final int white = argbAt(fromFile, 0, 0);
-      assertEquals(16, width);
+      assertEquals(TestMedia.IMAGE_WIDTH, width);
       assertEquals(WHITE, white);
     }
 
     final int downloadedHeight = this.downloadHeight(png);
-    assertEquals(8, downloadedHeight);
+    assertEquals(TestMedia.IMAGE_HEIGHT, downloadedHeight);
     assertThrowsWhileOpening(IllegalArgumentException.class, () -> ImageBuffer.path(invalid));
 
     final Path missing = this.directory.resolve(MISSING_FILE_NAME);
