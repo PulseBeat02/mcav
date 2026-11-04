@@ -21,6 +21,7 @@ import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
 import vm from "node:vm";
+import { createRandom, randomInteger } from "./fuzz-random.mjs";
 
 const PAGE = new URL("../src/app/page.tsx", import.meta.url);
 const ENCODING = "utf8";
@@ -42,6 +43,7 @@ const CHANNELS = 2;
 const BYTES_PER_SAMPLE = 2;
 const BYTES_PER_FRAME = CHANNELS * BYTES_PER_SAMPLE;
 const LITTLE_ENDIAN = true;
+const FULL_SCALE = 1;
 
 const WAVE_PERIOD_FRAMES = 8;
 const WAVE_AMPLITUDE = 1000;
@@ -54,6 +56,12 @@ const CHUNKS_PER_SECOND = Math.round(1 / CHUNK_SECONDS);
 const SETTLING_SECONDS = 2;
 
 const DECIMAL_PLACES = 3;
+
+const BYTE_VALUES = 256;
+
+const FUZZ_RUN_COUNT = 200;
+const MAXIMUM_FUZZ_MESSAGES = 40;
+const MAXIMUM_FUZZ_MESSAGE_BYTES = 2 * CHUNK_FRAMES * BYTES_PER_FRAME + 3;
 
 const buildProcessorScript = () => {
     const source = readFileSync(PAGE, ENCODING);
@@ -159,6 +167,34 @@ const feedAtOnce = (processor, chunks) => {
     }
 };
 
+const randomMessage = random => {
+    const length = randomInteger(random, MAXIMUM_FUZZ_MESSAGE_BYTES + 1);
+    const bytes = Uint8Array.from({length}, () => randomInteger(random, BYTE_VALUES));
+    return bytes.buffer;
+};
+
+const isFullScale = sample => {
+    return Number.isFinite(sample) && Math.abs(sample) <= FULL_SCALE;
+};
+
+const holdsOnlyFullScaleSound = buffer => {
+    const channels = Array.from({length: CHANNELS}, (_, channel) => buffer.getChannelData(channel));
+    return channels.every(data => data.every(isFullScale));
+};
+
+const feedRandomMessages = (random, origin) => {
+    const {processor, context} = createProcessor(RUNNING);
+    const messages = randomInteger(random, MAXIMUM_FUZZ_MESSAGES) + 1;
+    for (let index = 0; index < messages; index++) {
+        const message = randomMessage(random);
+        context.currentTime += CHUNK_SECONDS;
+        assert.doesNotThrow(() => processor.feed(message), `${origin} plays message ${index} of ${message.byteLength} bytes`);
+    }
+
+    const buffers = context.started.map(entry => entry.source.buffer);
+    assert.ok(buffers.every(holdsOnlyFullScaleSound), `${origin} schedules only finite samples from -1 to 1`);
+};
+
 test("should not let sound that arrives before the context plays delay the sound after it", () => {
     for (const starting of [SUSPENDED, RUNNING]) {
         for (let chunks = CHUNKS_PER_SECOND; chunks <= Math.round(1.6 / CHUNK_SECONDS); chunks += 3) {
@@ -204,4 +240,12 @@ test("should keep a short cushion of steady sound and drop none of it", () => {
 
     const scheduled = context.started.reduce((total, entry) => total + entry.duration, 0);
     assert.ok(Math.abs(scheduled + 0.1 - 5) < 0.15, `all of the sound is scheduled: ${scheduled.toFixed(DECIMAL_PLACES)} s of 5 s`);
+});
+
+test("should schedule only full-scale sound for any bytes a stream delivers", () => {
+    const seed = Date.now();
+    const random = createRandom(seed);
+    for (let run = 0; run < FUZZ_RUN_COUNT; run++) {
+        feedRandomMessages(random, `run ${run} of seed ${seed}`);
+    }
 });
