@@ -26,7 +26,7 @@ discord-bot:
   # Whether or not the bot is enabled
   enabled: false
 
-  # The token of the discord bot
+  # The token of the Discord bot
   # Default is none
   token: none
 
@@ -42,17 +42,17 @@ discord-bot:
 # HTTP WEBSITE CONFIGURATION
 # ======================================================================
 
-# This is the HTTP server that plays audio into onto a website using the following options.
+# This is the HTTP server that plays audio on the audio web page using the following options.
 http-server:
 
   # Whether or not the HTTP server is enabled
   enabled: false
 
-  # The host name of the daemon (for example, google.com)
+  # The host name in the link players are sent (for example, play.example.com)
   # Default is localhost
   host-name: localhost
 
-  # The port of the daemon (for example, 3000)
+  # The port of the HTTP server (for example, 3000)
   # Default is 3000
   port: 3000
 
@@ -133,7 +133,7 @@ mcv2:
 #       password: secret
 vnc:
 
-  # Default is none
+  # Default is []
   allowed-hosts: []
 
 # ======================================================================
@@ -156,9 +156,9 @@ browser:
   # Default is false
   javascript-jit: false
 
-  # Whether pages play sound right away. Off, a page plays sound only once a player clicked its screen or typed into
-  # it, as in a desktop browser, so a page cannot play sound before anyone looked at it. Turn it on for a screen that
-  # should play a video with sound as soon as it opens.
+  # Whether pages play sound right away. Off, a page plays sound only once a player has clicked its screen or typed into
+  # it, as in a desktop browser, so a page cannot play sound before anyone has looked at it. Turn it on for a screen
+  # that should play a video with sound as soon as it opens.
   # Default is false
   autoplay-sound: false
 
@@ -231,7 +231,7 @@ addresses, public ones included. Turn on
 every page they open and every player who may click on it reach services that only the server can reach, such as a
 router, a database console or the metadata service of a cloud server. `browser.javascript-jit` makes pages with heavy
 scripts faster, at the cost of the protection described in the [browser module](../library/browser.md#security).
-`browser.autoplay-sound` lets pages play sound before a player clicked their screen.
+`browser.autoplay-sound` lets pages play sound before a player clicks their screen.
 
 The browser keeps what it downloads in the MCAV cache folder of the user running the server, like VLC and yt-dlp:
 Chromium in `~/.mcav/cache/jcef` (about 136 to 163 MiB) and, on Linux, the libraries it needs that the server lacks in

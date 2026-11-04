@@ -20,7 +20,7 @@ discord-bot:
   # Whether or not the bot is enabled
   enabled: false
 
-  # The token of the discord bot
+  # The token of the Discord bot
   # Default is none
   token: none
 
@@ -36,17 +36,17 @@ discord-bot:
 # HTTP WEBSITE CONFIGURATION
 # ======================================================================
 
-# This is the HTTP server that plays audio into onto a website using the following options.
+# This is the HTTP server that plays audio on the audio web page using the following options.
 http-server:
 
   # Whether or not the HTTP server is enabled
   enabled: false
 
-  # The host name of the daemon (for example, google.com)
+  # The host name in the link players are sent (for example, play.example.com)
   # Default is localhost
   host-name: localhost
 
-  # The port of the daemon (for example, 3000)
+  # The port of the HTTP server (for example, 3000)
   # Default is 3000
   port: 3000
 
@@ -127,7 +127,7 @@ mcv2:
 #       password: secret
 vnc:
 
-  # Default is none
+  # Default is []
   allowed-hosts: []
 
 # ======================================================================
@@ -150,9 +150,9 @@ browser:
   # Default is false
   javascript-jit: false
 
-  # Whether pages play sound right away. Off, a page plays sound only once a player clicked its screen or typed into
-  # it, as in a desktop browser, so a page cannot play sound before anyone looked at it. Turn it on for a screen that
-  # should play a video with sound as soon as it opens.
+  # Whether pages play sound right away. Off, a page plays sound only once a player has clicked its screen or typed into
+  # it, as in a desktop browser, so a page cannot play sound before anyone has looked at it. Turn it on for a screen
+  # that should play a video with sound as soon as it opens.
   # Default is false
   autoplay-sound: false
 
