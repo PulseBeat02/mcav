@@ -123,7 +123,7 @@ final class MCAVLoaderTest {
   }
 
   @Test
-  void shouldPutTheResolvedLibrariesOnTheClasspath() throws IOException, NoSuchAlgorithmException {
+  void shouldPutTheResolvedLibrariesOnTheClasspath() throws IOException {
     final Path jar = this.cache.resolve(LIBRARY_JAR_PATH);
     final Path parent = jar.getParent();
     Files.createDirectories(parent);
@@ -148,11 +148,19 @@ final class MCAVLoaderTest {
     verify(store).addLibrary(jar);
   }
 
-  private String sha256(final byte[] bytes) throws NoSuchAlgorithmException {
-    final MessageDigest digest = MessageDigest.getInstance("SHA-256");
+  private String sha256(final byte[] bytes) {
+    final MessageDigest digest = this.createDigest();
     final byte[] hash = digest.digest(bytes);
     final HexFormat format = HexFormat.of();
     return format.formatHex(hash);
+  }
+
+  private MessageDigest createDigest() {
+    try {
+      return MessageDigest.getInstance("SHA-256");
+    } catch (final NoSuchAlgorithmException exception) {
+      throw new AssertionError(exception);
+    }
   }
 
   private DependencySet dependencies(final List<Dependency> dependencies) {
@@ -162,7 +170,7 @@ final class MCAVLoaderTest {
   }
 
   @Test
-  void shouldRemoveCachedLibrariesThatAreNoLongerListed() throws IOException, NoSuchAlgorithmException {
+  void shouldRemoveCachedLibrariesThatAreNoLongerListed() throws IOException {
     final Path jar = this.cache.resolve(LIBRARY_JAR_PATH);
     final Path parent = jar.getParent();
     Files.createDirectories(parent);
@@ -263,7 +271,7 @@ final class MCAVLoaderTest {
   }
 
   @Test
-  void shouldCheckTheModulesBeforeTheyAreAddedToTheClasspath() throws IOException, NoSuchAlgorithmException {
+  void shouldCheckTheModulesBeforeTheyAreAddedToTheClasspath() throws IOException {
     final Path jar = this.cache.resolve(LIBRARY_JAR_PATH);
     Files.createDirectories(jar.getParent());
     Files.write(jar, EMPTY_ZIP_ARCHIVE);
