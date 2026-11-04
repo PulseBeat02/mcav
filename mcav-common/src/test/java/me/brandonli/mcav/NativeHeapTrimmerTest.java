@@ -434,7 +434,7 @@ final class NativeHeapTrimmerTest {
     final long after;
     trimmer.start();
     try {
-      before = residentKib();
+      before = residentKibibytes();
       final List<Thread> threads = new ArrayList<>();
       for (int index = 0; index < ARENA_THREADS; index++) {
         threads.add(Thread.ofPlatform().start(() -> freeFramesIntoTheArenaTop(malloc, free)));
@@ -445,7 +445,7 @@ final class NativeHeapTrimmerTest {
       }
 
       NativeHeapTrimmer.trimThisJvm();
-      after = residentKib();
+      after = residentKibibytes();
     } finally {
       trimmer.stop();
     }
@@ -472,7 +472,7 @@ final class NativeHeapTrimmerTest {
     }
   }
 
-  private static long residentKib() throws IOException {
+  private static long residentKibibytes() throws IOException {
     for (final String line : Files.readAllLines(Path.of(PROCESS_STATUS_PATH))) {
       if (line.startsWith(RESIDENT_PREFIX)) {
         return Long.parseLong(line.substring(RESIDENT_PREFIX.length()).replace("kB", "").strip());

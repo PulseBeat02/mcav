@@ -243,13 +243,13 @@ final class HttpDownloaderTest {
 
       final boolean thirdAttempt = server.awaitRequests(BROKEN_ROUTE, MAXIMUM_ATTEMPTS, Duration.ofSeconds(WAIT_TIMEOUT_SECONDS));
       final long thirdAttemptAt = System.nanoTime();
-      final long failedAtNanos = failedAt.get();
-      final Duration afterLastAttempt = Duration.ofNanos(failedAtNanos - thirdAttemptAt);
+      final long failedAtNanoseconds = failedAt.get();
+      final Duration afterLastAttempt = Duration.ofNanos(failedAtNanoseconds - thirdAttemptAt);
       final boolean failedPromptly = afterLastAttempt.compareTo(retryDelay) < 0;
       assertTrue(thirdAttempt);
       assertTrue(failedPromptly, "no wait after the last attempt, but " + afterLastAttempt);
 
-      final Duration untilFailure = Duration.ofNanos(failedAtNanos - startedAt);
+      final Duration untilFailure = Duration.ofNanos(failedAtNanoseconds - startedAt);
       final Duration growingWaits = retryDelay.multipliedBy(3);
       final boolean waitedLonger = untilFailure.compareTo(growingWaits) >= 0;
       assertTrue(waitedLonger, "the second wait is twice the first, but the attempts took " + untilFailure);
@@ -591,7 +591,7 @@ final class HttpDownloaderTest {
   }
 
   @Test
-  void shouldGiveAPinnedDownloadAMinuteAndASecondForEvery64KibOfItsSize() {
+  void shouldGiveAPinnedDownloadAMinuteAndASecondForEvery64KibibytesOfItsSize() {
     final Duration smallestDeadline = HttpDownloader.pinnedDeadline(1);
     assertEquals(Duration.ofMinutes(1), smallestDeadline);
 
