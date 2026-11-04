@@ -101,6 +101,7 @@ java {
 tasks.withType<JavaCompile>().configureEach {
     this.options.release = javaRelease
     this.options.encoding = sourceEncoding
+    // the processing lint is off: the Checker Framework claims none of the annotations it reads
     this.options.compilerArgs.addAll(listOf("-parameters", "-Xlint:all", "-Xlint:-processing", JavaToolchains.WARNINGS_AS_ERRORS))
     this.options.isFork = true
     this.options.forkOptions.memoryMaximumSize = compilerHeapSize
@@ -108,6 +109,7 @@ tasks.withType<JavaCompile>().configureEach {
         listOf("--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED")
     })
     this.options.errorprone {
+        // generated sources are not ours to fix
         this.disableWarningsInGeneratedCode = true
         this.error(*enforcedChecks.toTypedArray())
         // the style guide keeps stateless private helpers as instance methods called with this.
@@ -118,6 +120,7 @@ tasks.withType<JavaCompile>().configureEach {
 checkerFramework {
     version = CatalogUtils.versionOf(libs, checkerFrameworkAlias)
     checkers = listOf(nullnessChecker)
+    // tests pass nulls on purpose to check the preconditions
     excludeTests = true
     extraJavacArgs = CheckerStubs.argumentsFor(checkerStubs, project.name) + "-AslowTypecheckingSeconds=$slowTypecheckingSeconds"
 }

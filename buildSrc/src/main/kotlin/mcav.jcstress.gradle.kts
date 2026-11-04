@@ -55,12 +55,15 @@ dependencies {
 }
 
 checkerFramework {
+    // the harness jcstress generates assigns null to fields the checker considers non-null
     skipCheckerFramework = true
 }
 
 tasks.named<JavaCompile>("compileJava") {
+    // the generated harness does not keep every lint of -Xlint:all
     this.options.compilerArgs.remove(JavaToolchains.WARNINGS_AS_ERRORS)
     this.options.errorprone {
+        // the generated harness is not ours to fix
         this.excludedPaths = generatedSourcePattern
     }
 }

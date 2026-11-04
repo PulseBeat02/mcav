@@ -108,6 +108,7 @@ tasks.withType<Test>().configureEach {
     this.useJUnitPlatform()
     this.failOnNoDiscoveredTests = false
     this.maxHeapSize = testHeapSize
+    // keep the JDK quiet about native access, agents attached at run time, the appended boot class path and sun.misc.Unsafe
     this.jvmArgs(
         "--enable-native-access=ALL-UNNAMED",
         "-XX:+EnableDynamicAgentLoading",
