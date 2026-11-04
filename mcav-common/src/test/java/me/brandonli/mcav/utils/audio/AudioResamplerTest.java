@@ -595,19 +595,28 @@ final class AudioResamplerTest {
 
   @Test
   void shouldPassSuccessfulResultsThroughCheckResult() {
-    final int zero = AudioResampler.checkResult(0, "do nothing");
-    final int positive = AudioResampler.checkResult(1_234, CONVERT_OPERATION);
-    assertEquals(0, zero);
-    assertEquals(1_234, positive);
+    try (final AudioResampler resampler = this.createSpeechResampler()) {
+      final int zero = resampler.checkResult(0, "do nothing");
+      final int positive = resampler.checkResult(1_234, CONVERT_OPERATION);
+      assertEquals(0, zero);
+      assertEquals(1_234, positive);
+    }
   }
 
   @Test
   void shouldDescribeFfmpegErrorsInCheckResult() {
-    final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
-      AudioResampler.checkResult(EINVAL, CONVERT_OPERATION)
-    );
-    final String message = exception.getMessage();
-    assertEquals("FFmpeg error -22 (Invalid argument) occurred while trying to convert the samples!", message);
+    try (final AudioResampler resampler = this.createSpeechResampler()) {
+      final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
+        resampler.checkResult(EINVAL, CONVERT_OPERATION)
+      );
+      final String message = exception.getMessage();
+      assertEquals("FFmpeg error -22 (Invalid argument) occurred while trying to convert the samples!", message);
+    }
+  }
+
+  private AudioResampler createSpeechResampler() {
+    final SampleFormat format = SampleFormat.SIGNED_16_BIT;
+    return AudioResampler.create(SPEECH_RATE, 1, format, SPEECH_RATE, 1, format);
   }
 
   @Test

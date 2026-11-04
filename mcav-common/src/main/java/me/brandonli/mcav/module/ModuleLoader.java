@@ -122,34 +122,34 @@ public final class ModuleLoader {
       if (alreadyLoaded) {
         continue;
       }
-      final MCAVModule module = createModule(moduleClass, lookup, constructorType);
-      startModule(module);
+      final MCAVModule module = this.createModule(moduleClass, lookup, constructorType);
+      this.startModule(module);
       this.modules.put(moduleClass, module);
       this.startOrder.add(module);
     }
   }
 
-  private static void startModule(final MCAVModule module) {
+  private void startModule(final MCAVModule module) {
     final String moduleName = module.getModuleName();
     LOGGER.info("Module {} is starting.", moduleName);
     try {
       module.start();
     } catch (final ModuleException exception) {
-      stopAfterFailedStart(module, moduleName, exception);
+      this.stopAfterFailedStart(module, moduleName, exception);
       throw exception;
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
       final String reason = exception.getMessage();
       final String message = "Module %s failed with \"%s\" while starting!".formatted(moduleName, reason);
       final ModuleException failure = new ModuleException(message, exception);
-      stopAfterFailedStart(module, moduleName, failure);
+      this.stopAfterFailedStart(module, moduleName, failure);
       throw failure;
     }
   }
 
   // Stops a module whose start failed, so whatever it acquired before failing is released. A failure to stop is logged
   // and attached to the start failure instead of replacing it.
-  private static void stopAfterFailedStart(final MCAVModule module, final String moduleName, final ModuleException startFailure) {
+  private void stopAfterFailedStart(final MCAVModule module, final String moduleName, final ModuleException startFailure) {
     try {
       module.stop();
     } catch (final RuntimeException | Error exception) {
@@ -162,7 +162,7 @@ public final class ModuleLoader {
     }
   }
 
-  private static MCAVModule createModule(final Class<?> moduleClass, final MethodHandles.Lookup lookup, final MethodType constructorType) {
+  private MCAVModule createModule(final Class<?> moduleClass, final MethodHandles.Lookup lookup, final MethodType constructorType) {
     try {
       final MethodHandles.Lookup privateLookup = MethodHandles.privateLookupIn(moduleClass, lookup);
       final MethodHandle constructor = privateLookup.findConstructor(moduleClass, constructorType);

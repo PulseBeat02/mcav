@@ -85,7 +85,7 @@ final class ExampleResources implements AutoCloseable {
     }
 
     try {
-      releaseAll(pending);
+      this.releaseAll(pending);
     } finally {
       try {
         this.runtime.removeShutdownHook(this.shutdownHook);
@@ -97,7 +97,7 @@ final class ExampleResources implements AutoCloseable {
     }
   }
 
-  private static void releaseAll(final List<Runnable> releases) {
+  private void releaseAll(final List<Runnable> releases) {
     Throwable first = null;
     for (final Runnable release : releases) {
       try {
@@ -105,7 +105,7 @@ final class ExampleResources implements AutoCloseable {
       } catch (final RuntimeException | Error exception) {
         ThrowableUtils.throwIfFatal(exception);
 
-        first = keepFirstFailure(first, exception);
+        first = this.keepFirstFailure(first, exception);
       }
     }
 
@@ -118,7 +118,7 @@ final class ExampleResources implements AutoCloseable {
     }
   }
 
-  private static Throwable keepFirstFailure(final @Nullable Throwable first, final Throwable failure) {
+  private Throwable keepFirstFailure(final @Nullable Throwable first, final Throwable failure) {
     if (first == null) {
       return failure;
     }

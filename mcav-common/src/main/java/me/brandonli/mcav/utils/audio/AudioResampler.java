@@ -275,7 +275,7 @@ public final class AudioResampler implements AutoCloseable {
     try (final PointerPointer<BytePointer> noInput = new PointerPointer<>()) {
       final byte[] remaining = this.convert(noInput, NO_INPUT_FRAMES);
       final int reset = swresample.swr_init(this.context);
-      checkResult(reset, "reset the resampler");
+      this.checkResult(reset, "reset the resampler");
 
       return remaining;
     }
@@ -283,7 +283,7 @@ public final class AudioResampler implements AutoCloseable {
 
   private byte[] convert(final PointerPointer<BytePointer> inputPlanes, final int inputFrames) {
     final int upperBound = swresample.swr_get_out_samples(this.context, inputFrames);
-    final int boundFrames = checkResult(upperBound, "compute the output size");
+    final int boundFrames = this.checkResult(upperBound, "compute the output size");
     final int capacityFrames = Math.max(boundFrames, 1);
     final long capacityBytes = (long) capacityFrames * this.outputFrameSize;
 
@@ -293,7 +293,7 @@ public final class AudioResampler implements AutoCloseable {
     ) {
       outputPlanes.put(0, outputData);
       final int converted = swresample.swr_convert(this.context, outputPlanes, capacityFrames, inputPlanes, inputFrames);
-      final int convertedFrames = checkResult(converted, "convert the samples");
+      final int convertedFrames = this.checkResult(converted, "convert the samples");
       final int convertedBytes = Math.multiplyExact(convertedFrames, this.outputFrameSize);
       final byte[] output = new byte[convertedBytes];
       outputData.get(output);
@@ -311,19 +311,19 @@ public final class AudioResampler implements AutoCloseable {
       this.close();
     }
 
-    checkResult(result, action);
+    this.checkResult(result, action);
   }
 
-  static int checkResult(final int result, final String action) {
+  int checkResult(final int result, final String action) {
     if (result < 0) {
-      final String message = describeError(result, action);
+      final String message = this.describeError(result, action);
       throw new IllegalStateException(message);
     }
 
     return result;
   }
 
-  private static String describeError(final int code, final String action) {
+  private String describeError(final int code, final String action) {
     try (final BytePointer description = new BytePointer(avutil.AV_ERROR_MAX_STRING_SIZE)) {
       avutil.av_strerror(code, description, avutil.AV_ERROR_MAX_STRING_SIZE);
       // without a limit JavaCPP reads up to the terminating zero instead of the whole buffer

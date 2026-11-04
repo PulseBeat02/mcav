@@ -31,6 +31,7 @@ import me.brandonli.mcav.capability.Availability;
 import me.brandonli.mcav.capability.Capability;
 import me.brandonli.mcav.capability.CapabilityGuard;
 import me.brandonli.mcav.loader.DependencyLoader;
+import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.nullness.qual.KeyFor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -77,13 +78,13 @@ final class BackgroundInstallation {
     this.guard = guard;
     this.logger = logger;
     this.cancelTimeout = cancelTimeout;
-    this.steps = createSteps(dependencyLoader);
+    this.steps = this.createSteps(dependencyLoader);
     this.preparations = new EnumMap<>(Capability.class);
     this.threads = new ArrayList<>();
     this.lock = new Object();
   }
 
-  private static Map<Capability, Runnable> createSteps(final DependencyLoader dependencyLoader) {
+  private Map<Capability, Runnable> createSteps(@UnderInitialization BackgroundInstallation this, final DependencyLoader dependencyLoader) {
     final Map<Capability, Runnable> steps = new EnumMap<>(Capability.class);
     steps.put(Capability.VLC, dependencyLoader::installVlc);
     steps.put(Capability.YT_DLP, dependencyLoader::installYtdlp);
@@ -223,7 +224,7 @@ final class BackgroundInstallation {
       final long now = System.nanoTime();
       final long remainingNanoseconds = Math.max(0L, deadline - now);
       final Duration remaining = Duration.ofNanos(remainingNanoseconds);
-      final boolean ended = join(thread, remaining);
+      final boolean ended = this.join(thread, remaining);
       if (!ended) {
         final String threadName = thread.getName();
         final long timeoutMilliseconds = this.cancelTimeout.toMillis();
@@ -232,7 +233,7 @@ final class BackgroundInstallation {
     }
   }
 
-  private static boolean join(final Thread thread, final Duration timeout) {
+  private boolean join(final Thread thread, final Duration timeout) {
     try {
       return thread.join(timeout);
     } catch (final InterruptedException exception) {

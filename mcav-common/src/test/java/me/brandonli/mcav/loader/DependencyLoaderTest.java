@@ -84,6 +84,7 @@ import org.bytedeco.javacpp.Loader;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.presets.opencv_objdetect;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.parallel.ResourceLock;
@@ -130,6 +131,13 @@ final class DependencyLoaderTest {
   private static final String PREPARED_FILE_NAME = "prepared";
 
   private static final String INTERRUPTED_DOWNLOAD_MESSAGE = "Interrupted while downloading!";
+
+  private DependencyLoader dependencyLoader;
+
+  @BeforeEach
+  void setUp() {
+    this.dependencyLoader = new DependencyLoader();
+  }
 
   @Test
   void shouldStartWithEveryCapability() {
@@ -199,7 +207,10 @@ final class DependencyLoaderTest {
   @Test
   void shouldLoadFaceDetectionAgainWhenTheNativesAreLoaded() {
     final DependencyLoader loader = new DependencyLoader();
-    final boolean objectDetectionLinks = DependencyLoader.loadOptionalModule(() -> Loader.load(opencv_objdetect.class), "face detection");
+    final boolean objectDetectionLinks = this.dependencyLoader.loadOptionalModule(
+      () -> Loader.load(opencv_objdetect.class),
+      "face detection"
+    );
     assumeTrue(objectDetectionLinks, "The object detection natives must link on this system!");
 
     loader.loadFaceDetection(() -> this.throwError(new UnsatisfiedLinkError("no GTK!")));
@@ -231,7 +242,7 @@ final class DependencyLoaderTest {
     final String previous = System.getProperty(DependencyLoader.OPENCV_THREADS_PROPERTY);
     try {
       System.setProperty(DependencyLoader.OPENCV_THREADS_PROPERTY, "3");
-      DependencyLoader.configureOpenCvThreads();
+      this.dependencyLoader.configureOpenCvThreads();
       final int configuredThreads = opencv_core.getNumThreads();
       assertEquals(3, configuredThreads);
     } finally {
@@ -241,7 +252,7 @@ final class DependencyLoaderTest {
         System.setProperty(DependencyLoader.OPENCV_THREADS_PROPERTY, previous);
       }
 
-      DependencyLoader.configureOpenCvThreads();
+      this.dependencyLoader.configureOpenCvThreads();
     }
   }
 
@@ -250,10 +261,10 @@ final class DependencyLoaderTest {
     final String previousPathsFirst = System.getProperty(PATHS_FIRST);
     try {
       System.clearProperty(PATHS_FIRST);
-      DependencyLoader.configureJavaCpp();
+      this.dependencyLoader.configureJavaCpp();
       final String defaultPathsFirst = System.getProperty(PATHS_FIRST);
       System.setProperty(PATHS_FIRST, "true");
-      DependencyLoader.configureJavaCpp();
+      this.dependencyLoader.configureJavaCpp();
       final String customPathsFirst = System.getProperty(PATHS_FIRST);
       assertEquals(DEFAULT_PATHS_FIRST, defaultPathsFirst);
       assertEquals("true", customPathsFirst, "a value set by the application is kept");
@@ -324,7 +335,7 @@ final class DependencyLoaderTest {
     final String rawTemporary = temporary.toString();
     System.setProperty(TEMPORARY_DIRECTORY, rawTemporary);
     try (final TemporaryUserHome _ = TemporaryUserHome.redirectTo(home)) {
-      DependencyLoader.configureJavaCpp();
+      this.dependencyLoader.configureJavaCpp();
       return System.getProperty(CACHE);
     } finally {
       resetProperty(CACHE, previousCache);
@@ -338,11 +349,11 @@ final class DependencyLoaderTest {
   void shouldReportNativesThatCannotBeLinked() {
     final UnsatisfiedLinkError linkError = new UnsatisfiedLinkError("no jniopencv_core!");
     final NativeLoadingException linkFailure = assertThrows(NativeLoadingException.class, () ->
-      DependencyLoader.loadModules(LINUX_X86_64, () -> this.throwError(linkError))
+      this.dependencyLoader.loadModules(LINUX_X86_64, () -> this.throwError(linkError))
     );
     final NoClassDefFoundError missingClass = new NoClassDefFoundError("org/bytedeco/opencv/global/opencv_core");
     final NativeLoadingException classFailure = assertThrows(NativeLoadingException.class, () ->
-      DependencyLoader.loadModules(LINUX_X86_64, () -> this.throwError(missingClass))
+      this.dependencyLoader.loadModules(LINUX_X86_64, () -> this.throwError(missingClass))
     );
     final Throwable linkCause = linkFailure.getCause();
     final Throwable classCause = classFailure.getCause();
@@ -358,7 +369,7 @@ final class DependencyLoaderTest {
   void shouldFailNamingThePlatformWhereJavaCvHasNoNatives(final Platform platform) {
     final AtomicBoolean loaded = new AtomicBoolean();
     final NativeLoadingException failure = assertThrows(NativeLoadingException.class, () ->
-      DependencyLoader.loadModules(platform, () -> loaded.set(true))
+      this.dependencyLoader.loadModules(platform, () -> loaded.set(true))
     );
     final String message = failure.getMessage();
     final String expected = "Platform %s has no FFmpeg and OpenCV natives!".formatted(platform);
@@ -380,7 +391,7 @@ final class DependencyLoaderTest {
   @MethodSource("platformsWithNatives")
   void shouldLoadTheNativesOnEveryPlatformJavaCvSupports(final Platform platform) {
     final AtomicBoolean loaded = new AtomicBoolean();
-    DependencyLoader.loadModules(platform, () -> loaded.set(true));
+    this.dependencyLoader.loadModules(platform, () -> loaded.set(true));
 
     final boolean attempted = loaded.get();
     assertTrue(attempted);
@@ -403,7 +414,7 @@ final class DependencyLoaderTest {
     final ByteArrayOutputStream captured = new ByteArrayOutputStream();
     System.setErr(new PrintStream(captured, true, StandardCharsets.UTF_8));
     try {
-      DependencyLoader.loadModules(LINUX_X86_64, () -> {});
+      this.dependencyLoader.loadModules(LINUX_X86_64, () -> {});
     } finally {
       System.setErr(standardError);
     }
@@ -423,7 +434,7 @@ final class DependencyLoaderTest {
   void shouldTolerateAMissingFfmpegDeviceLibraryAndStillConfigureFfmpeg() {
     final UnsatisfiedLinkError deviceError = new UnsatisfiedLinkError("no jniavdevice in java.library.path!");
     final AtomicBoolean configured = new AtomicBoolean();
-    assertDoesNotThrow(() -> DependencyLoader.loadFfmpeg(() -> this.throwError(deviceError), () -> configured.set(true)));
+    assertDoesNotThrow(() -> this.dependencyLoader.loadFfmpeg(() -> this.throwError(deviceError), () -> configured.set(true)));
 
     final boolean setupRan = configured.get();
     assertTrue(setupRan, "the log callback is set up even without the device library");
@@ -433,10 +444,10 @@ final class DependencyLoaderTest {
   void shouldTolerateTheMissingDeviceLibraryAgainWhenFfmpegIsLoadedASecondTime() {
     final AtomicInteger configured = new AtomicInteger();
     final Runnable loader = FailingDeviceLibrary::touch;
-    assertDoesNotThrow(() -> DependencyLoader.loadFfmpeg(loader, configured::incrementAndGet));
+    assertDoesNotThrow(() -> this.dependencyLoader.loadFfmpeg(loader, configured::incrementAndGet));
 
     final NoClassDefFoundError again = assertThrows(NoClassDefFoundError.class, loader::run);
-    assertDoesNotThrow(() -> DependencyLoader.loadFfmpeg(loader, configured::incrementAndGet));
+    assertDoesNotThrow(() -> this.dependencyLoader.loadFfmpeg(loader, configured::incrementAndGet));
 
     final int configuredCount = configured.get();
     assertEquals(2, configuredCount);
@@ -450,7 +461,7 @@ final class DependencyLoaderTest {
   void shouldTolerateTheDeviceClassThatFailedBeforeWithoutItsCause() {
     final NoClassDefFoundError deviceClass = new NoClassDefFoundError("Could not initialize class org.bytedeco.ffmpeg.global.avdevice");
     final AtomicBoolean configured = new AtomicBoolean();
-    assertDoesNotThrow(() -> DependencyLoader.loadFfmpeg(() -> this.throwError(deviceClass), () -> configured.set(true)));
+    assertDoesNotThrow(() -> this.dependencyLoader.loadFfmpeg(() -> this.throwError(deviceClass), () -> configured.set(true)));
 
     final boolean configuredWithoutDevice = configured.get();
     assertTrue(configuredWithoutDevice, "FFmpeg is configured without the device library");
@@ -476,7 +487,7 @@ final class DependencyLoaderTest {
   @Test
   void shouldConfigureFfmpegAfterLoadingIt() {
     final List<String> steps = new ArrayList<>();
-    DependencyLoader.loadFfmpeg(() -> steps.add("load"), () -> steps.add("setup"));
+    this.dependencyLoader.loadFfmpeg(() -> steps.add("load"), () -> steps.add("setup"));
     final List<String> expected = List.of("load", "setup");
     assertEquals(expected, steps);
   }
@@ -829,7 +840,10 @@ final class DependencyLoaderTest {
   @Test
   void shouldReportOptionalModulesThatLoad() {
     final List<String> loaded = new ArrayList<>();
-    final boolean available = DependencyLoader.loadOptionalModule(() -> loaded.add(OBJECT_DETECTION_MODULE), FACE_DETECTION_MODULE_NAME);
+    final boolean available = this.dependencyLoader.loadOptionalModule(
+      () -> loaded.add(OBJECT_DETECTION_MODULE),
+      FACE_DETECTION_MODULE_NAME
+    );
     assertTrue(available);
     assertEquals(OBJECT_DETECTION_LOADED, loaded);
   }
@@ -838,8 +852,11 @@ final class DependencyLoaderTest {
   void shouldKeepWorkingWhenAnOptionalModuleCannotBeLinked() {
     final UnsatisfiedLinkError missingGtk = new UnsatisfiedLinkError("libgtk-x11-2.0.so.0: cannot open shared object file!");
     final NoClassDefFoundError failedInitializer = new NoClassDefFoundError("Could not initialize class opencv_highgui");
-    final boolean withoutGtk = DependencyLoader.loadOptionalModule(() -> this.throwError(missingGtk), FACE_DETECTION_MODULE_NAME);
-    final boolean withoutClass = DependencyLoader.loadOptionalModule(() -> this.throwError(failedInitializer), FACE_DETECTION_MODULE_NAME);
+    final boolean withoutGtk = this.dependencyLoader.loadOptionalModule(() -> this.throwError(missingGtk), FACE_DETECTION_MODULE_NAME);
+    final boolean withoutClass = this.dependencyLoader.loadOptionalModule(
+      () -> this.throwError(failedInitializer),
+      FACE_DETECTION_MODULE_NAME
+    );
     assertFalse(withoutGtk);
     assertFalse(withoutClass);
   }
@@ -855,7 +872,7 @@ final class DependencyLoaderTest {
     final List<String> loaded = new ArrayList<>();
     final DebianLibraryInstaller installer = DebianLibraryInstallers.create(folder, new Download[0], platform, loaded::add);
 
-    DependencyLoader.provideGtk2(platform, libraryName -> false, () -> installer);
+    this.dependencyLoader.provideGtk2(platform, libraryName -> false, () -> installer);
 
     final List<String> expected = List.of(library.toString());
     assertEquals(expected, loaded);
@@ -874,7 +891,7 @@ final class DependencyLoaderTest {
     final ByteArrayOutputStream captured = new ByteArrayOutputStream();
     System.setErr(new PrintStream(captured, true, StandardCharsets.UTF_8));
     try {
-      DependencyLoader.provideGtk2(LINUX_ARM_64, libraryName -> false, () -> installer);
+      this.dependencyLoader.provideGtk2(LINUX_ARM_64, libraryName -> false, () -> installer);
     } finally {
       System.setErr(standardError);
     }
@@ -888,13 +905,13 @@ final class DependencyLoaderTest {
 
   @Test
   void shouldUseTheGtk2OfTheSystem() {
-    assertDoesNotThrow(() -> DependencyLoader.provideGtk2(LINUX_X86_64, libraryName -> true, this::refuseToInstall));
+    assertDoesNotThrow(() -> this.dependencyLoader.provideGtk2(LINUX_X86_64, libraryName -> true, this::refuseToInstall));
   }
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("platformsWithoutDebianGtk2")
   void shouldNotLookForGtk2OffDebianPlatforms(final Platform platform) {
-    assertDoesNotThrow(() -> DependencyLoader.provideGtk2(platform, this::refuseToLookUp, this::refuseToInstall));
+    assertDoesNotThrow(() -> this.dependencyLoader.provideGtk2(platform, this::refuseToLookUp, this::refuseToInstall));
   }
 
   private static Stream<Platform> platformsWithoutDebianGtk2() {
@@ -1037,7 +1054,7 @@ final class DependencyLoaderTest {
   private NativeLoadingException loadFfmpegFailingWith(final LinkageError error, final AtomicBoolean configured) {
     final Runnable failingLoader = () -> this.throwError(error);
     final Runnable setup = () -> configured.set(true);
-    return assertThrows(NativeLoadingException.class, () -> DependencyLoader.loadFfmpeg(failingLoader, setup));
+    return assertThrows(NativeLoadingException.class, () -> this.dependencyLoader.loadFfmpeg(failingLoader, setup));
   }
 
   private static void resetProperty(final String key, final @Nullable String value) {

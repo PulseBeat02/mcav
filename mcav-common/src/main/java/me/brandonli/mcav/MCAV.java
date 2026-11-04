@@ -210,11 +210,11 @@ public final class MCAV implements MCAVApi {
 
   private void loadNatives() {
     this.dependencyLoader.loadModules();
-    loadPalette();
+    this.loadPalette();
     ImageIO.setUseCache(false);
   }
 
-  private static void loadPalette() {
+  private void loadPalette() {
     LOGGER.info("Building the map color lookup table.");
     final long start = System.currentTimeMillis();
     DitherPalette.init();

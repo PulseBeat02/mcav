@@ -330,7 +330,7 @@ public final class DelayedAudioOutput implements AutoCloseable {
       this.silenceLeftNanoseconds = 0;
     }
 
-    this.streamEnd = Math.max(this.streamEnd, now) + nanosecondsOf(samples.remaining());
+    this.streamEnd = Math.max(this.streamEnd, now) + this.nanosecondsOf(samples.remaining());
 
     return samples;
   }
@@ -356,13 +356,13 @@ public final class DelayedAudioOutput implements AutoCloseable {
       return null;
     }
 
-    this.silenceLeftNanoseconds -= nanosecondsOf(bytes);
-    this.streamEnd = start + nanosecondsOf(bytes);
+    this.silenceLeftNanoseconds -= this.nanosecondsOf(bytes);
+    this.streamEnd = start + this.nanosecondsOf(bytes);
 
     return ByteBuffer.allocate(bytes).order(ByteOrder.LITTLE_ENDIAN);
   }
 
-  private static long nanosecondsOf(final int bytes) {
+  private long nanosecondsOf(final int bytes) {
     return (bytes * NANOSECONDS_PER_MILLISECOND) / BYTES_PER_MILLISECOND;
   }
 
