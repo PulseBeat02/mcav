@@ -77,6 +77,7 @@ MCV2_EXPORT int32_t mcv2_abi(void);
 
 #if !defined(MCV2_DECLARATIONS_ONLY)
 
+#include <algorithm>
 #include <limits.h>
 #include <stdint.h>
 #include <string.h>
@@ -712,6 +713,7 @@ struct int_vector {
 
     const __m256i partial_blue = _mm256_blend_epi32(first_vector, second_vector, EVERY_THIRD_LANE_FROM_ZERO);
     const __m256i shuffled_blue = _mm256_blend_epi32(partial_blue, third_vector, EVERY_THIRD_LANE_FROM_ONE);
+
     const __m256i red_order = _mm256_setr_epi32(0, 3, 6, 1, 4, 7, 2, 5);
     const __m256i green_order = _mm256_setr_epi32(1, 4, 7, 2, 5, 0, 3, 6);
     const __m256i blue_order = _mm256_setr_epi32(2, 5, 0, 3, 6, 1, 4, 7);
@@ -727,6 +729,7 @@ struct int_vector {
     const __m256i shuffled_red = _mm256_permutevar8x32_epi32(red_channels.lanes_, red_order);
     const __m256i shuffled_green = _mm256_permutevar8x32_epi32(green_channels.lanes_, green_order);
     const __m256i shuffled_blue = _mm256_permutevar8x32_epi32(blue_channels.lanes_, blue_order);
+
     const __m256i first_red_green = _mm256_blend_epi32(shuffled_red, shuffled_green, EVERY_THIRD_LANE_FROM_ONE);
     const __m256i first_vector = _mm256_blend_epi32(first_red_green, shuffled_blue, EVERY_THIRD_LANE_FROM_TWO);
     _mm256_storeu_si256((__m256i*)buffer, first_vector);
@@ -1447,14 +1450,16 @@ constexpr interpolation_axes make_axes() {
   for (int32_t size_index = 0; size_index < BLOCK_SIZES; size_index++) {
     const int32_t size = SMALLEST_BLOCK_SIZE << size_index;
     const int32_t span = 2 * size;
+    interpolation_axis& axis = tables.axes_[size_index];
     for (int32_t pixel_index = 0; pixel_index < size; pixel_index++) {
-      int32_t position = (2 * pixel_index + 1) * GRID - size;
-      position = position < 0 ? 0 : position;
-      position = position > (GRID - 1) * span ? (GRID - 1) * span : position;
+      const int32_t unclamped_position = (2 * pixel_index + 1) * GRID - size;
+      const int32_t maximum_position = (GRID - 1) * span;
+      const int32_t position = std::clamp(unclamped_position, 0, maximum_position);
       const int32_t lower = position / span;
-      tables.axes_[size_index].lower_[pixel_index] = lower;
-      tables.axes_[size_index].upper_[pixel_index] = lower + 1 < GRID - 1 ? lower + 1 : GRID - 1;
-      tables.axes_[size_index].weight_[pixel_index] = position - lower * span;
+      axis.lower_[pixel_index] = lower;
+      const int32_t upper = std::min(lower + 1, GRID - 1);
+      axis.upper_[pixel_index] = upper;
+      axis.weight_[pixel_index] = position - lower * span;
     }
   }
 
@@ -2301,9 +2306,10 @@ template <class VectorType> void halve_lanes(const int32_t* block, const int32_t
 void halve(const int32_t* block, const int32_t size, int32_t* output) {
   if (SHUFFLED_CHANNEL_LOAD || size < 2 * int_vector::LANES) {
     halve_lanes<scalar_int_vector>(block, size, output);
-  } else {
-    halve_lanes<int_vector>(block, size, output);
+    return;
   }
+
+  halve_lanes<int_vector>(block, size, output);
 }
 
 void residual_target(const int32_t* source, const int32_t* prediction, const int32_t count, float* target) {
@@ -2546,6 +2552,20 @@ namespace {
 constexpr unsigned long long SVE256_VECTOR_BYTES = 32;
 constexpr unsigned long long SVE512_VECTOR_BYTES = 64;
 
+inline int32_t sve_level() {
+  unsigned long long vector_bytes;
+  __asm__ volatile(".arch_extension sve\n\trdvl %0, #1" : "=r"(vector_bytes));
+  if (vector_bytes == SVE256_VECTOR_BYTES) {
+    return MCV2_LEVEL_SVE256;
+  }
+
+  if (vector_bytes == SVE512_VECTOR_BYTES) {
+    return MCV2_LEVEL_SVE512;
+  }
+
+  return 0;
+}
+
 }
 #endif
 
@@ -2553,13 +2573,7 @@ extern "C" int32_t mcv2_cpu_levels(const int64_t hardware_capabilities) {
   int32_t levels = MCV2_LEVEL_SCALAR | MCV2_LEVEL_NEON;
 #if defined(__linux__)
   if (hardware_capabilities & MCV2_HARDWARE_CAPABILITY_SVE) {
-    unsigned long long vector_bytes;
-    __asm__ volatile(".arch_extension sve\n\trdvl %0, #1" : "=r"(vector_bytes));
-    if (vector_bytes == SVE256_VECTOR_BYTES) {
-      levels |= MCV2_LEVEL_SVE256;
-    } else if (vector_bytes == SVE512_VECTOR_BYTES) {
-      levels |= MCV2_LEVEL_SVE512;
-    }
+    levels |= sve_level();
   }
 #else
   (void)hardware_capabilities; // only Linux reports hardware capabilities
