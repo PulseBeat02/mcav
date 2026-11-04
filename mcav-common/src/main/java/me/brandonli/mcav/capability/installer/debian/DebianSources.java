@@ -115,6 +115,7 @@ final class DebianSources {
     final MCAVException first = failures.getFirst();
     final List<MCAVException> others = failures.subList(1, failures.size());
     others.forEach(first::addSuppressed);
+
     return first;
   }
 
