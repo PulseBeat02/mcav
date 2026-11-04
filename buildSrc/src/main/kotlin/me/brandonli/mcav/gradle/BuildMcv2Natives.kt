@@ -274,14 +274,12 @@ abstract class BuildMcv2Natives : DefaultTask() {
 
         private fun planCompile(target: NativeTarget, level: String, flags: List<String>): Runnable {
             val objectFile: File = this.objectFileOf(target, level)
-            objectFile.parentFile.mkdirs()
-
             val triple: String = this.tripleOf(target)
             val compilerFlags: List<String> = this.parameters.compilerFlags.get()
             val source: String = "$LEVEL_PREFIX$level$SOURCE_SUFFIX"
             val arguments: List<String> = listOf("c++", TARGET_OPTION, triple, "-mcpu=baseline") + compilerFlags + flags +
                 listOf("-c", source, OUTPUT_OPTION, objectFile.absolutePath)
-            return Runnable { this.runZig(arguments) }
+            return Runnable { this.compile(arguments, objectFile) }
         }
 
         private fun objectFileOf(target: NativeTarget, level: String): File {
@@ -298,6 +296,11 @@ abstract class BuildMcv2Natives : DefaultTask() {
             return target.architecture + suffix
         }
 
+        private fun compile(arguments: List<String>, objectFile: File): Unit {
+            objectFile.parentFile.mkdirs()
+            this.runZig(arguments)
+        }
+
         private fun runZig(arguments: List<String>): Unit {
             val sources: File = this.parameters.sourcesDirectory.get().asFile
             val zig: String = this.parameters.zigExecutable.get().asFile.absolutePath
@@ -312,8 +315,6 @@ abstract class BuildMcv2Natives : DefaultTask() {
 
         private fun planLink(natives: File, target: NativeTarget): Runnable {
             val library: File = this.libraryOf(natives, target)
-            library.parentFile.mkdirs()
-
             val triple: String = this.tripleOf(target)
             val linkFlags: List<String> = this.linkFlagsOf(target)
             val levels: Set<String> = this.unitsOf(target).keys
@@ -341,6 +342,7 @@ abstract class BuildMcv2Natives : DefaultTask() {
         }
 
         private fun link(arguments: List<String>, library: File): Unit {
+            library.parentFile.mkdirs()
             this.runZig(arguments)
 
             val siblings: List<File> = this.listDirectory(library.parentFile)
