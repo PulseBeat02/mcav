@@ -18,7 +18,7 @@
 package me.brandonli.mcav.media.source;
 
 /**
- * Something a player can play: a file, a URL, a capture device, a raw FFmpeg input, or frames supplied by code.
+ * Something a player can play: a file, a URI, a capture device, a raw FFmpeg input, or frames supplied by code.
  *
  * <p>Sources describe inputs without opening decoder resources. File, URI, device and direct FFmpeg sources are
  * immutable; frame sources can retain stateful suppliers. Resource-based players open the
@@ -33,7 +33,7 @@ package me.brandonli.mcav.media.source;
  */
 public interface Source {
   /**
-   * Returns the resource description, such as a file path, a URL, or a device index. Generated and specialized
+   * Returns the resource description, such as a file path, a URI, or a device index. Generated and specialized
    * sources may return a diagnostic string that cannot be opened by an arbitrary backend.
    *
    * @return the resource string

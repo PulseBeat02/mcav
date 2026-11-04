@@ -138,8 +138,7 @@ public interface FrameSource extends DynamicSource {
   }
 
   /**
-   * Returns a diagnostic string of the form {@code widthxheight@rate}, which no backend can open. Generated and specialized sources may
-   * return a diagnostic string that cannot be opened by an arbitrary backend.
+   * Returns a diagnostic string of the form {@code widthxheight@rate}, which no backend can open.
    *
    * @return the resource string
    * @since 1.0.0

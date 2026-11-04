@@ -52,8 +52,7 @@ public interface DeviceSource extends DynamicSource {
   int getDeviceId();
 
   /**
-   * Returns the camera index of this device source as a string. Generated and specialized sources may return a diagnostic string that
-   * cannot be opened by an arbitrary backend.
+   * Returns the camera index of this device source as a string.
    *
    * @return the resource string
    * @since 1.0.0

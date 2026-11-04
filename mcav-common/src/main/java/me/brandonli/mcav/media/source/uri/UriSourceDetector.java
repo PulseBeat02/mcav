@@ -23,7 +23,7 @@ import me.brandonli.mcav.media.source.SourceDetector;
 import me.brandonli.mcav.utils.SourceUtils;
 
 /**
- * Detects URLs with a scheme and a host.
+ * Detects URIs with a scheme and a host.
  *
  * <p>This class is stateless and thread-safe.
  *

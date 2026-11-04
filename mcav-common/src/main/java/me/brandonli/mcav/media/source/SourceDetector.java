@@ -18,7 +18,7 @@
 package me.brandonli.mcav.media.source;
 
 /**
- * Recognizes one kind of source in a user-supplied string, such as a file path or a URL, and creates it. Detectors
+ * Recognizes one kind of source in a user-supplied string, such as a file path or a URI, and creates it. Detectors
  * are consulted by {@link SourceDetectionHelper}; when several detectors accept a string, the one with the highest
  * priority wins.
  *
@@ -54,6 +54,7 @@ public interface SourceDetector<SourceType extends Source> {
    *
    * @param resource the string entered by a user
    * @return true if {@link #createSource(String)} can create a source from it
+   * @throws NullPointerException if {@code resource} is null
    * @since 1.0.0
    */
   boolean isDetectedSource(final String resource);
@@ -63,6 +64,7 @@ public interface SourceDetector<SourceType extends Source> {
    *
    * @param resource the string entered by a user
    * @return the source
+   * @throws NullPointerException if {@code resource} is null
    * @since 1.0.0
    */
   SourceType createSource(final String resource);

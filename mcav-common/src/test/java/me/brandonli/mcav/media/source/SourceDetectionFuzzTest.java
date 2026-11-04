@@ -35,7 +35,7 @@ import org.junit.jupiter.api.Tag;
 
 // Fuzzes how the media a player names in a command becomes a source: whatever the text, detection never throws, and a
 // detected source is what its detector promises, a device of a non-negative index, a raw FFmpeg input with a format, a
-// file that exists, or a URL with a scheme and a host. The seeds are the media strings of the tests and the
+// file that exists, or a URI with a scheme and a host. The seeds are the media strings of the tests and the
 // documentation.
 @Tag("fuzz")
 final class SourceDetectionFuzzTest {

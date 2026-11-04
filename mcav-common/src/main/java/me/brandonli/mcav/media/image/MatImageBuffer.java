@@ -414,8 +414,8 @@ public final class MatImageBuffer implements ImageBuffer {
    * the operation fails, the image keeps its matrix and drops the spare.
    *
    * @param operation reads the first matrix, which it must leave untouched, and writes its result into the second, for
-   *                  example with {@code (source, target) -> opencv_core.transpose(source, target)}; the result must
-   *                  not be empty, must have 1, 3 or 4 channels, and is converted to continuous 8-bit BGR if necessary
+   *                  example with {@code opencv_core::transpose}; the result must not be empty, must have 1, 3 or 4
+   *                  channels, and is converted to continuous 8-bit BGR if necessary
    * @throws NullPointerException     if the operation is null
    * @throws IllegalArgumentException if the operation left the target empty or it has an unsupported number of
    *                                  channels
@@ -916,8 +916,7 @@ public final class MatImageBuffer implements ImageBuffer {
     return pixels;
   }
 
-  // Identifies the pixel memory of a matrix. The address of the pixel data is used rather than the address of the
-  // matrix header, because OpenCV functions reallocate the pixels of a matrix while its header stays in place.
+  // The pixel address, not the header's: OpenCV reallocates pixels under a fixed header.
   private PixelCacheKey createCacheKey(final Mat mat) {
     final BytePointer data = mat.data();
     final long address = data.address();

@@ -147,9 +147,9 @@ public interface ImageBuffer extends Image {
   }
 
   /**
-   * Downloads and decodes an image from a URL.
+   * Downloads and decodes an image from a URI.
    *
-   * @param source the URL of the image
+   * @param source the URI of the image
    * @return the image buffer
    * @throws DownloadException        if the image cannot be downloaded, including when it is larger than
    *                                  {@link me.brandonli.mcav.utils.IoUtils#MAXIMUM_IMAGE_BYTES}

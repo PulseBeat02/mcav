@@ -29,7 +29,7 @@ import me.brandonli.mcav.media.source.uri.UriSourceDetector;
 /**
  * Turns strings entered by users into sources by asking a set of {@link SourceDetector}s.
  *
- * <p>The default detectors recognize existing file or directory paths, URLs with a scheme and host, plain numbers as capture
+ * <p>The default detectors recognize existing file or directory paths, URIs with a scheme and host, plain numbers as capture
  * device indices, and {@code format||input} pairs as raw FFmpeg inputs.
  *
  * {@snippet :

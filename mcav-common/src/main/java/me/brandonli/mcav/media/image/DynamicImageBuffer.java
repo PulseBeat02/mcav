@@ -33,6 +33,16 @@ import me.brandonli.mcav.utils.http.DownloadException;
  *
  * <p>Implementations are not thread-safe.
  *
+ * {@snippet :
+ * final String fileName = "animation.gif";
+ * final Path file = Path.of(fileName);
+ * final FileSource source = FileSource.path(file);
+ * try (final DynamicImageBuffer animation = DynamicImageBuffer.path(source)) {
+ *   final float frameRate = animation.getFrameRate();
+ *   final List<ImageBuffer> frames = animation.getFrames();
+ * }
+ * }
+ *
  * @since 1.0.0
  */
 public interface DynamicImageBuffer extends Image {
@@ -55,7 +65,7 @@ public interface DynamicImageBuffer extends Image {
   /**
    * Downloads and decodes an animated image.
    *
-   * @param source the URL of the image
+   * @param source the URI of the image
    * @return the decoded animation
    * @throws ImageDecodingException   if the downloaded file cannot be decoded
    * @throws DownloadException        if the image cannot be downloaded, including when it is larger than
