@@ -349,7 +349,7 @@ public final class IoUtils {
     try {
       moveReplacing(source, target, Files::move, MOVE_RETRY_DELAY);
     } catch (final IOException exception) {
-      final String message = "File %s could not be moved to %s!".formatted(source, target);
+      final String message = "Moving file %s to %s failed!".formatted(source, target);
       throw new FileOperationException(message, exception);
     }
   }

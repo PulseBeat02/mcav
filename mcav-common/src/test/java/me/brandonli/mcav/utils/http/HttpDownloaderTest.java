@@ -312,7 +312,7 @@ final class HttpDownloaderTest {
     }
 
     final String log = captured.toString(StandardCharsets.UTF_8);
-    final boolean reported = log.contains("on attempt 3 of 3.");
+    final boolean reported = log.contains("attempt 3 of 3 to download");
     assertTrue(reported, log);
   }
 

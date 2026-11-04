@@ -187,7 +187,7 @@ public final class GeneratedMedia {
       collectDescendants(process, descendants);
       final long remaining = budget - (System.nanoTime() - startedAt);
       if (remaining <= 0) {
-        final String message = "Fixture command %s exceeded its timeout of %s!".formatted(command, timeout);
+        final String message = "Fixture command %s exceeded its %s timeout!".formatted(command, timeout);
         throw new IOException(message);
       }
       final long poll = Math.min(remaining, POLL_INTERVAL.toNanos());

@@ -475,7 +475,7 @@ public final class HttpDownloader {
 
   private static void logFailedAttempt(final URI uri, final Exception failure, final int attempt) {
     final String reason = failure.getMessage();
-    LOGGER.warn("Download of {} failed with \"{}\" on attempt {} of {}.", uri, reason, attempt, MAXIMUM_ATTEMPTS);
+    LOGGER.warn("Because of \"{}\", attempt {} of {} to download {} failed.", reason, attempt, MAXIMUM_ATTEMPTS, uri);
   }
 
   private static void rethrowUnlessRetryable(final Exception failure) {
