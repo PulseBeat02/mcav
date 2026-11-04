@@ -26,7 +26,7 @@ import me.brandonli.mcav.MCAVException;
  *
  * @since 1.0.0
  */
-public class ImageDecodingException extends MCAVException {
+public final class ImageDecodingException extends MCAVException {
 
   @Serial
   private static final long serialVersionUID = 7693521155387399968L;
