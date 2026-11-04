@@ -61,7 +61,7 @@ import org.bukkit.plugin.Plugin;
  * {@code (row * columns + column) % pageSlots}, cycling over the complete wall in row order. The frames
  * are real entities that nobody sees until {@link #show(Player)} shows them to a player with the pack; they glow,
  * because the client only runs the pack's post chain while a glowing entity is drawn, and the player is sent a team
- * that gives them the configured outline colour, which the pack filters out. The frames are not saved with the world,
+ * that gives them the configured outline color, which the pack filters out. The frames are not saved with the world,
  * so the screen keeps their chunks loaded until it is removed: a chunk that unloads, because every player left, would
  * take the frames with it, and a player who comes back would find nothing to show.
  *
@@ -71,8 +71,9 @@ import org.bukkit.plugin.Plugin;
  * sent again with every keyframe.
  *
  * <p>The visible wall and its map items remain caller-owned. This object owns only its hidden page entities
- * and chunk holds. Use build/show/hide/remove on the main thread; do not manipulate or remove entities obtained
- * from {@link #getFrames()} independently. Removal releases chunk holds but does not restore wall map pixels.
+ * and chunk holds. Use {@link #build()}, {@link #show(Player)}, {@link #hide(Player)} and {@link #remove()} on the
+ * main thread; do not manipulate or remove entities obtained from {@link #getFrames()} independently. Removal releases
+ * chunk holds but does not restore wall map pixels.
  *
  * @since 1.0.0
  */
@@ -119,7 +120,7 @@ public final class Mcv2Screen {
   private final Set<HeldChunk> chunks;
 
   /**
-   * Creates a new screen.
+   * Creates a screen.
    *
    * @param configuration the screen
    * @throws NullPointerException if {@code configuration} is null

@@ -63,7 +63,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * </ul>
  *
  * <p>The original blocks are captured when the renderer is shown and sent again when it is hidden, which makes the
- * wall disappear for the viewers. The block state of this renderer is only accessed on the main thread.
+ * wall disappear for the viewers.
+ *
+ * <p>Every public method may be called from any thread; the block state is only accessed on the main thread.
  *
  * <p>Call {@link #show()} before submitting frames and {@link #hide()} when finished. Conversion reads and
  * may resize the caller-owned image synchronously; the scheduled task retains only converted frame data. At most

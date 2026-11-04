@@ -19,6 +19,7 @@ package me.brandonli.mcav.bukkit.resourcepack.provider;
 
 import com.google.common.base.Preconditions;
 import java.nio.file.Path;
+import me.brandonli.mcav.bukkit.BukkitException;
 import me.brandonli.mcav.bukkit.resourcepack.provider.http.HttpHosting;
 import me.brandonli.mcav.bukkit.resourcepack.provider.http.ServerPackHosting;
 import me.brandonli.mcav.bukkit.resourcepack.provider.netty.InjectorHosting;
@@ -50,7 +51,9 @@ import me.brandonli.mcav.bukkit.resourcepack.provider.netty.NettyHosting;
  * {@snippet :
  * final PackHosting hosting = PackHosting.injector(zip);
  * hosting.start();
+ *
  * final String url = hosting.getRawUrl();
+ *
  * // offer the url to the players; when the pack is no longer needed
  * hosting.shutdown();
  * }
@@ -108,6 +111,7 @@ public interface PackHosting {
    * Starts hosting the resource pack. Depending on the strategy, this may block while a server binds or the pack
    * is uploaded, so avoid calling it on the main thread.
    *
+   * @throws BukkitException if the pack cannot be served or uploaded
    * @since 1.0.0
    */
   void start();

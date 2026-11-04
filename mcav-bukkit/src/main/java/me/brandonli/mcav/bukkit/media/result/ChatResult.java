@@ -67,7 +67,8 @@ public class ChatResult implements FunctionalVideoFilter {
    * @param data     the frame to display, which is resized to the configured chat size
    * @param metadata the metadata of the original video
    * @return always true, because the frame is resized
-   * @throws NullPointerException if {@code data} or {@code metadata} is null
+   * @throws NullPointerException  if {@code data} or {@code metadata} is null
+   * @throws IllegalStateException if {@code data} has been released
    * @since 1.0.0
    */
   @Override

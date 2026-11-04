@@ -104,7 +104,7 @@ public final class Mcv2Channel {
   private @Nullable BukkitTask ranging;
 
   /**
-   * Creates a new channel.
+   * Creates a channel.
    *
    * @param configuration the screen
    * @param viewers       who has the pack loaded

@@ -52,11 +52,14 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * every screen, passes that read its part of the strip, check every page's CRC, decode the v3 frame into one persistent
  * picture, and draw the picture onto the screen's wall. The pass sources are fixed; what depends on the screens is
  * generated: each screen's copy of its passes, with its video size, page slots and place in the strip, the table of the
- * screens' streams, the outline colour of the page frames, and the map colours of the transport alphabet (from this
- * server's map palette, which is the client's). All decoding logic is in one shader include; pass files only select its stage.
+ * screens' streams, the outline color of the page frames, and the map colors of the transport alphabet (from this
+ * server's map palette, which is the client's). All decoding logic is in one shader include; pass files only select
+ * its stage.
  *
  * <p>Writing performs synchronous resource reads and archive creation. Run it off the main thread with stable
  * configuration inputs, and keep the resulting file available for the chosen hosting strategy.
+ *
+ * <p>This class is thread-safe; it holds no mutable state.
  *
  * @since 1.0.0
  */
@@ -157,12 +160,12 @@ public final class Mcv2Pack {
 
   private static final int CELL_PIXELS = Mcv2Decoder.SMALLEST_BLOCK;
 
-  // Four times the alphabet, so a multiplier that gives its colours distinct entries is quick to find.
+  // Four times the alphabet, so a multiplier that gives its colors distinct entries is quick to find.
   private static final int SYMBOL_ENTRIES = 256;
 
   private static final int SYMBOL_SHIFT = Integer.SIZE - Integer.numberOfTrailingZeros(SYMBOL_ENTRIES);
 
-  // A colour shifted past its symbol bits never matches it.
+  // A color shifted past its symbol bits never matches it.
   private static final int NO_SYMBOL = -1;
 
   // The map palette needs a multiplier of about 83,000.
@@ -205,9 +208,11 @@ public final class Mcv2Pack {
    * @param configuration the screen
    * @param debugView     whether the pack also draws the decoded picture one to one below the strip, for testing
    * @param archivePath   where the pack is written, atomically
-   * @throws BukkitException      if the pack cannot be written
-   * @throws Mcv2Exception        if a pack resource cannot be read
-   * @throws NullPointerException if {@code configuration}, {@code debugView} or {@code archivePath} is null
+   * @throws BukkitException       if the pack cannot be written
+   * @throws IllegalStateException if a bundled pack resource is missing or broken, or the map palette has no distinct
+   *                               symbol table
+   * @throws Mcv2Exception         if a pack resource cannot be read
+   * @throws NullPointerException  if {@code configuration}, {@code debugView} or {@code archivePath} is null
    * @since 1.0.0
    */
   public static void write(final Mcv2Configuration configuration, final DebugView debugView, final Path archivePath) {
@@ -220,12 +225,14 @@ public final class Mcv2Pack {
    * Writes the pack of every screen of the server.
    *
    * @param screens     the screens, in the order of their place in the strip; their stream ids must differ, and they
-   *                    share the outline colour of the first
+   *                    share the outline color of the first
    * @param debugView   whether the pack also draws every screen's decoded picture one to one below the strip, for
    *                    testing
    * @param archivePath where the pack is written, atomically
    * @throws IllegalArgumentException if there are no screens or more than {@link #MAXIMUM_SCREENS}, two share a stream
-   *                                  id, or their outline colours differ
+   *                                  id, or their outline colors differ
+   * @throws IllegalStateException    if a bundled pack resource is missing or broken, or the map palette has no
+   *                                  distinct symbol table
    * @throws BukkitException          if the pack cannot be written
    * @throws Mcv2Exception            if a pack resource cannot be read
    * @throws NullPointerException     if {@code screens}, {@code debugView} or {@code archivePath} is null
@@ -441,7 +448,7 @@ public final class Mcv2Pack {
     return alphabet(colors, MAXIMUM_SYMBOL_HASH);
   }
 
-  // A table read per symbol, not a search of the 64 colours: the text shaders read up to 55 symbols for each vertex of a
+  // A table read per symbol, not a search of the 64 colors: the text shaders read up to 55 symbols for each vertex of a
   // map and 4 for each pixel of the strip, and the search made a wall of page frames cost an integrated GPU 50 ms a frame.
   static String alphabet(final int[] colors, final int maximumMultiplier) {
     final Set<Integer> seen = new HashSet<>();
@@ -482,7 +489,7 @@ public final class Mcv2Pack {
     );
   }
 
-  // The entry the shader reads: the top bits of the colour's 32-bit product with the multiplier.
+  // The entry the shader reads: the top bits of the color's 32-bit product with the multiplier.
   private static int symbolEntry(final int color, final int multiplier) {
     return (color * multiplier) >>> SYMBOL_SHIFT;
   }

@@ -25,8 +25,7 @@
  * arrays are shared read-only by contract, while layout extraction copies pixels out of the caller's image.
  * Budgets are estimates and clearing is not paced by the delta budget.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

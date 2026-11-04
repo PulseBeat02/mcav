@@ -344,7 +344,7 @@ final class Mcv2FrameTest {
   void shouldEndAFrameSoonAfterItsBudgetWithTheCheapestChoices() {
     final Mcv2 hurried = new Mcv2(Settings.DEFAULT, POOL, 2, Mcv2.Verification.VERIFIED);
     assertThrows(IllegalArgumentException.class, () -> hurried.setFrameBudget(-1));
-    // a budget every superblock starts past: a keyframe of one solid colour per superblock, SKIP where the colour is
+    // a budget every superblock starts past: a keyframe of one solid color per superblock, SKIP where the color is
     // the frame's commonest, and a P frame of SKIP everywhere, each decoding to the encoder's own picture
     hurried.setFrameBudget(1);
     final Client client = new Client();

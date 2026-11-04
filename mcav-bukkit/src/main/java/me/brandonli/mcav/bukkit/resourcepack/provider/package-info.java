@@ -22,8 +22,7 @@
  * strategy away from the server main thread when it may bind or upload, then send its URL to players. The caller
  * owns the source zip and hosting lifecycle. Shutdown releases local resources but cannot remove website uploads.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

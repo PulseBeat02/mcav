@@ -617,7 +617,7 @@ final class Mcv2PackServerTest {
     assertEquals(1, streamId, "the gold screen has the first slot of a new pack");
 
     final int hostingCount = this.hostings.size();
-    assertEquals(2, hostingCount, "the pack changed for the new colour");
+    assertEquals(2, hostingCount, "the pack changed for the new color");
 
     final Mcv2Configuration aqua = this.screen(SCREEN_WIDTH, Set.of());
     assertThrows(IllegalArgumentException.class, () -> this.packs.open(aqua), "while the gold screen plays");

@@ -96,8 +96,8 @@ import org.slf4j.LoggerFactory;
  * submitting frames before release, and create a new result for another lifecycle. Repeated start is not guarded,
  * and the fallback executor is shut down permanently by release. The result owns its worker threads, encoders,
  * channel screen and fallback result. The pack tracker, fallback algorithm and encoder pool remain caller-owned.
- * Serialize applyFilter calls; copied RGB/pixel data is handed to workers, so callers may reuse or close an input
- * buffer after the call returns. Do not mutate it during conversion.
+ * Serialize {@link #applyFilter} calls; copied RGB/pixel data is handed to workers, so callers may reuse or close an
+ * input buffer after the call returns. Do not mutate it during conversion.
  *
  * {@snippet :
  * final Mcv2PackServer.Lease lease = packs.open(requested);
@@ -106,9 +106,11 @@ import org.slf4j.LoggerFactory;
  * final DitherAlgorithm fallback = DitherAlgorithm.filterLite();
  * final Mcv2Result result = new Mcv2Result(configuration, viewers, fallback);
  * result.start();
+ *
  * final VideoPipelineStep pipeline = VideoPipelineStep.of(result);
  * final VideoAttachableCallback video = player.getVideoAttachableCallback();
  * video.attach(pipeline);
+ *
  * // when the video is over
  * result.release();
  * lease.close();
@@ -191,7 +193,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   private @Nullable Resizer resizer;
 
   /**
-   * Creates a new result.
+   * Creates a result.
    *
    * @param configuration     the screen
    * @param viewers           who has the pack loaded

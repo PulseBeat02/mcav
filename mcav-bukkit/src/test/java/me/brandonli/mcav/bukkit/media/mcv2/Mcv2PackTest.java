@@ -331,7 +331,7 @@ final class Mcv2PackTest {
     final long streamId = described.get("stream_id").getAsLong();
     assertEquals(STREAM_ID, streamId);
 
-    // every channel of the outline colour, the red one too
+    // every channel of the outline color, the red one too
     final Mcv2Configuration purple = Mcv2ConfigurationTest.complete().outlineColor(NamedTextColor.DARK_PURPLE).build();
     final boolean declaresThePurpleOutline = Mcv2Pack.packConstants(List.of(purple), Mcv2Pack.DebugView.HIDDEN).contains(
       "const ivec3 MCV2_OUTLINE_COLOR = ivec3(170, 0, 170);"
@@ -491,7 +491,7 @@ final class Mcv2PackTest {
     final int entryCount = entries.length;
     assertEquals(256, entryCount);
 
-    // every colour a map pixel can have, read as mcv2.glsl's mcv2Symbol reads it
+    // every color a map pixel can have, read as mcv2.glsl's mcv2Symbol reads it
     int misread = 0;
     for (int color = 0; color < 1 << 24; color++) {
       final int entry = entries[(color * multiplier) >>> shift];
@@ -524,7 +524,7 @@ final class Mcv2PackTest {
     final String twoColorAlphabet = Mcv2Pack.alphabet(two);
     assertEquals(expectedAlphabet, twoColorAlphabet);
 
-    // 65 is the first odd multiplier that tells these two colours apart
+    // 65 is the first odd multiplier that tells these two colors apart
     final String expectedTwoColorAlphabet = Mcv2Pack.alphabet(two);
     final String alphabetUpToSixtyFive = Mcv2Pack.alphabet(two, 65);
     assertEquals(expectedTwoColorAlphabet, alphabetUpToSixtyFive);

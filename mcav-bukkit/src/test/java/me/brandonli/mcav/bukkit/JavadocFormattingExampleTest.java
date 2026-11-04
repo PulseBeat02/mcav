@@ -26,10 +26,12 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 import javax.imageio.ImageIO;
 import me.brandonli.mcav.bukkit.media.image.DisplayableImage;
+import me.brandonli.mcav.bukkit.media.result.Characters;
 import me.brandonli.mcav.bukkit.testing.FakeScoreboards;
 import me.brandonli.mcav.bukkit.testing.FakeServer;
 import net.kyori.adventure.text.Component;
@@ -80,7 +82,8 @@ final class JavadocFormattingExampleTest {
       final Scoreboard previous = mock(CraftScoreboard.class);
       FakeScoreboards.trackScoreboard(viewer, previous);
 
-      final DisplayableImage display = JavadocFormattingExample.showScoreboardImage(VIEWER, file);
+      final Collection<UUID> viewers = List.of(VIEWER);
+      final DisplayableImage display = JavadocFormattingExample.showImageOnScoreboard(viewers, file);
       try {
         server.runTasks();
 
@@ -104,7 +107,7 @@ final class JavadocFormattingExampleTest {
   private void verifyStripes(final List<Team> teams) {
     for (int row = 0; row < PICTURE_HEIGHT; row++) {
       final int color = row % 2 == 0 ? EVEN_ROW_COLOR : ODD_ROW_COLOR;
-      verify(teams.get(row)).suffix(Component.text("█".repeat(PICTURE_WIDTH), TextColor.color(color)));
+      verify(teams.get(row)).suffix(Component.text(Characters.BLACK_SQUARE.repeat(PICTURE_WIDTH), TextColor.color(color)));
     }
   }
 }

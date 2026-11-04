@@ -23,8 +23,7 @@
  * them in place; scheduled renderers retain converted data. Release displays when finished and use the server
  * main thread for shutdown cleanup. Maps/chat are cleared rather than restored to their earlier contents.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

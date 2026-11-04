@@ -21,8 +21,8 @@ import com.google.common.base.Preconditions;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Exception;
 
 /**
- * The six-bit alphabet that carries transport symbols as Minecraft map colours: symbol {@code s} is sent as map colour
- * byte {@code s + 4}, the packed colour ids 4 to 67, which are the four brightnesses of the base colours 1 to 16. Their
+ * The six-bit alphabet that carries transport symbols as Minecraft map colors: symbol {@code s} is sent as map color
+ * byte {@code s + 4}, the packed color ids 4 to 67, which are the four brightnesses of the base colors 1 to 16. Their
  * 64 RGB values are distinct on the supported Minecraft 26.3 palette, so the resource pack's
  * shader recovers every symbol exactly from the texel the client uploads.
  *
@@ -40,7 +40,7 @@ public final class MapAlphabet {
   public static final int SYMBOL_BITS = 6;
 
   /**
-   * The map colour byte of symbol 0.
+   * The map color byte of symbol 0.
    *
    * @since 1.0.0
    */
@@ -58,7 +58,7 @@ public final class MapAlphabet {
   }
 
   /**
-   * Converts symbols into map colour bytes, padding with symbol 0 up to a whole number of 128-colour rows.
+   * Converts symbols into map color bytes, padding with symbol 0 up to a whole number of 128-color rows.
    *
    * @param symbols the symbols, at most 16,384
    * @return a new map-color array, a multiple of 128 bytes; empty input produces an empty array
@@ -86,11 +86,11 @@ public final class MapAlphabet {
   }
 
   /**
-   * Converts map colour bytes back into symbols.
+   * Converts map color bytes back into symbols.
    *
-   * @param colors the map colours
+   * @param colors the map colors
    * @return a new symbol array of the same length; any row padding remains present
-   * @throws Mcv2Exception        if a colour is outside the alphabet
+   * @throws Mcv2Exception        if a color is outside the alphabet
    * @throws NullPointerException if {@code colors} is null
    * @since 1.0.0
    */

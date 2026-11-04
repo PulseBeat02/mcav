@@ -34,23 +34,27 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>The screen's ladder has, from the top: the video size it was asked for at every frame of the video with each of
  * its {@linkplain Preset presets}, from the one it was asked for down to the fastest, then with the fastest at every
- * second, third, fourth and sixth frame while at least {@link #MINIMUM_FRAMES_PER_SECOND} frames a second remain; then the same for each
- * smaller size the screen can switch to; and last the dithered maps, which need no encoder. The screen reports how long
- * every encoded P frame held its pipeline - the frame's search, and the wait for the frame before it to be verified
- * and sent, which is what bounds the frames it keeps up with; keyframes, which come every few seconds and cost more,
- * are left out. When the smoothed
- * time has been over the time a frame has, {@link #HIGH} of it, for {@link #DOWN_SECONDS}, the pacer steps down to the
- * first rung below that the measured time predicts to fit in {@link #FIT} of its frame time - the encode time grows
- * with the pixels and with the preset's cost, the frame time with the frames skipped - else to the first that keeps up
- * at all, and to the dithered maps when none does; a faster preset at the same size and frame rate, which keeps every
- * frame the viewers see, only has to keep up. It judges a rung only after {@link #MINIMUM_SAMPLES} P frames on it, and does
- * not step down in the first {@link #STARTUP_SECONDS} of the video, while a new encoder warms up. It steps back up
- * when a rung above has been predicted to fit in {@link #ROOM} of its frame time for {@link #UP_SECONDS}, to the
- * highest such rung, and keeps off a rung it had to leave for {@link #BLOCK_SECONDS}, longer each time.
- * From the dithered maps it tries the lowest encoded rung again after {@link #RETRY_SECONDS}, and twice as long after
- * every try that failed, up to {@link #MAXIMUM_RETRY_SECONDS}; on the dithered maps it does not measure the video's rate,
- * since the frames then come as fast as the dithering allows. The thresholds guide adaptation after startup and sample-count gates; they are predictions, not a hard
- * latency guarantee. Changing content or external load can invalidate an earlier timing estimate.
+ * second, third, fourth and sixth frame while at least {@link #MINIMUM_FRAMES_PER_SECOND} frames a second remain;
+ * then the same for each smaller size the screen can switch to; and last the dithered maps, which need no encoder.
+ *
+ * <p>The screen reports how long every encoded P frame held its pipeline - the frame's search, and the wait for the
+ * frame before it to be verified and sent, which is what bounds the frames it keeps up with; keyframes, which come
+ * every few seconds and cost more, are left out. When the smoothed time has been over all of the time a frame has for
+ * 1 second, the pacer steps down to the first rung below that the measured time predicts to fit in 85 % of its frame
+ * time - the encode time grows with the pixels and with the preset's cost, the frame time with the frames skipped -
+ * else to the first that keeps up at all, and to the dithered maps when none does; a faster preset at the same size
+ * and frame rate, which keeps every frame the viewers see, only has to keep up. It judges a rung only after
+ * 10 P frames on it, and does not step down in the first 5 seconds of the video, while a new encoder warms up.
+ *
+ * <p>It steps back up when a rung above has been predicted to fit in 70 % of its frame time for 5 seconds, to the
+ * highest such rung, and keeps off a rung it had to leave for 10 seconds, longer each time.
+ *
+ * <p>From the dithered maps it tries the lowest encoded rung again after 30 seconds, and twice as long after every try
+ * that failed, up to 600 seconds; on the dithered maps it does not measure the video's rate, since the frames then
+ * come as fast as the dithering allows.
+ *
+ * <p>The thresholds guide adaptation after startup and sample-count gates; they are predictions, not a hard latency
+ * guarantee. Changing content or external load can invalidate an earlier timing estimate.
  *
  * <p>Times are {@link System#nanoTime()} values passed in by the caller. Not thread-safe: the screen calls it from
  * one thread at a time.

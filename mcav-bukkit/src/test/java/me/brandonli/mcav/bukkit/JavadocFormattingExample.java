@@ -19,7 +19,6 @@ package me.brandonli.mcav.bukkit;
 
 import java.nio.file.Path;
 import java.util.Collection;
-import java.util.List;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.ScoreboardConfiguration;
 import me.brandonli.mcav.bukkit.media.config.ScoreboardConfigurationBuilder;
@@ -35,18 +34,18 @@ public final class JavadocFormattingExample {
     throw new UnsupportedOperationException("Example class cannot be instantiated!");
   }
 
-  public static DisplayableImage showScoreboardImage(final UUID viewer, final Path file) {
-    final Collection<UUID> viewers = List.of(viewer);
+  public static DisplayableImage showImageOnScoreboard(final Collection<UUID> viewers, final Path imageFile) {
+    final int width = 16;
     final ScoreboardConfigurationBuilder builder = ScoreboardConfiguration.builder();
-    builder.character(Characters.FULL_CHARACTER);
-    builder.lines(15);
-    builder.width(16);
+    builder.character(Characters.BLACK_SQUARE);
+    builder.lines(ScoreboardConfiguration.MAXIMUM_LINES);
+    builder.width(width);
     builder.viewers(viewers);
     final ScoreboardConfiguration configuration = builder.build();
 
     final DisplayableImage display = DisplayableImage.scoreboard(configuration);
-    final FileSource source = FileSource.path(file);
-    try (final ImageBuffer image = ImageBuffer.path(source)) {
+    final FileSource file = FileSource.path(imageFile);
+    try (final ImageBuffer image = ImageBuffer.path(file)) {
       display.displayImage(image);
     }
 

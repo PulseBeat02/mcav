@@ -19,10 +19,12 @@ package me.brandonli.mcav.bukkit.media.config;
 
 import java.util.Collection;
 import java.util.UUID;
+import me.brandonli.mcav.bukkit.media.image.ChatImage;
 import me.brandonli.mcav.bukkit.media.result.Characters;
+import me.brandonli.mcav.bukkit.media.result.ChatResult;
 
 /**
- * Describes an image drawn into the chat, for use with the chat image and chat result.
+ * Describes an image drawn into the chat, for use with {@link ChatImage} and {@link ChatResult}.
  *
  * <p>Every pixel is drawn as the configured character in the color of the pixel, and every row of pixels becomes
  * one line of chat. The default chat window shows about 20 lines of 50 full block characters, so larger images

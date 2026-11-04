@@ -19,12 +19,14 @@ package me.brandonli.mcav.bukkit.media.config;
 
 import java.util.Collection;
 import java.util.UUID;
+import me.brandonli.mcav.bukkit.media.image.EntityImage;
 import me.brandonli.mcav.bukkit.media.result.Characters;
+import me.brandonli.mcav.bukkit.media.result.EntityResult;
 import org.bukkit.Location;
 
 /**
- * Describes an image drawn as colored text inside a text display entity, for use with the entity image and entity
- * result.
+ * Describes an image drawn as colored text inside a text display entity, for use with {@link EntityImage} and
+ * {@link EntityResult}.
  *
  * <p>Every pixel is drawn as the configured character in the color of the pixel, and every row of pixels becomes
  * one line of text. The entity always faces the viewer horizontally. Visibility is checked every server tick,

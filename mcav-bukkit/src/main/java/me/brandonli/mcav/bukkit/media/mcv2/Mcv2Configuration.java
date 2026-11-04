@@ -40,13 +40,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * far above ordinary world allocations to avoid server map updates; callers must still ensure that those ids
  * are not allocated to other maps or streams.
  *
- * <p>The viewers collection is not copied. It is read for every frame, so a concurrent collection can be passed to
- * add or remove viewers while media is playing.
- *
- * <p>Configurations copy their origin and retain their viewer collection, encoder settings and optional pool.
- * Use a concurrent viewer collection when membership changes on another thread. The caller owns any explicitly
- * supplied encoder pool; neither the configuration nor a screen closes it. Creating a configuration does not
- * reserve map ids or build the visible wall.
+ * <p>This class is immutable and thread-safe, except for the viewer collection, which it shares with the caller instead
+ * of copying. The collection is read for every frame, so pass a concurrent collection to add or remove viewers while
+ * media is playing or from another thread. Configurations copy their origin and retain their encoder settings and
+ * optional pool. The caller owns any explicitly supplied encoder pool; neither the configuration nor a screen closes
+ * it. Creating a configuration does not reserve map ids or build the visible wall.
  *
  * {@snippet :
  * final int firstMapId = 0;
@@ -474,12 +472,12 @@ public final class Mcv2Configuration {
   }
 
   /**
-   * Returns the team colour of the hidden page frames. They glow, which is what makes the client run the pack's post
-   * chain, and the pack removes outlines of exactly this colour, so glowing entities of other teams with this colour
+   * Returns the team color of the hidden page frames. They glow, which is what makes the client run the pack's post
+   * chain, and the pack removes outlines of exactly this color, so glowing entities of other teams with this color
    * lose their outline too; the default, dark purple, is rarely used for glowing. It is never black, whose RGB value
    * of zero means "no outline" to the client.
    *
-   * @return the colour
+   * @return the color
    * @since 1.0.0
    */
   public NamedTextColor getOutlineColor() {

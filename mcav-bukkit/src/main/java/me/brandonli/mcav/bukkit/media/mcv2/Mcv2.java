@@ -118,8 +118,17 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The version 3 live encoder. Each instance encodes one stream on a caller-owned pool.
- * Calls to begin and calls to finish must each be serial; one begin may overlap the preceding finish.
- * Settings changes and keyframe requests may come from another thread.
+ *
+ * <p>{@link #encode(byte[], int, int, long)} searches, writes and finishes one frame synchronously. To pipeline
+ * frames, call {@link #begin(byte[], int, int, long)}, then {@link #finish(Pending)} for each frame: one begin may
+ * overlap the preceding finish, and at most two frames may be unfinished at a time.
+ *
+ * <p>Pictures have sides of 1 to {@link Mcv2Decoder#MAXIMUM_DIMENSION} pixels, and an encoded frame takes at most
+ * {@link Mcv2Decoder#MAXIMUM_FRAME_BYTES} bytes. A frame that fails its verification stops the encoder for good:
+ * later calls to begin, encode or finish throw an {@link IllegalStateException}.
+ *
+ * <p>Calls to begin and calls to finish must each be serial. Settings changes and keyframe requests may come from
+ * another thread.
  *
  * @since 1.0.0
  */
@@ -246,14 +255,14 @@ public final class Mcv2 {
   public static final String NATIVE_PROPERTY = "mcv2.native";
 
   /**
-   * Uses the native kernels where a library loads: the default.
+   * The mode that uses the native kernels where a library loads, the default.
    *
    * @since 1.0.0
    */
   public static final String NATIVE_AUTO = "auto";
 
   /**
-   * Always runs the Java kernels.
+   * The mode that always runs the Java kernels.
    *
    * @since 1.0.0
    */
@@ -1259,11 +1268,11 @@ public final class Mcv2 {
 
   /**
    * Sets the desired byte limit used for lambda retries and trivial-frame fallback.
-   * The trivial keyframe may exceed a limit smaller than its required mean-colour roots;
+   * The trivial keyframe may exceed a limit smaller than its required mean-color roots;
    * every result remains within the format's 131,071-byte bound.
    *
    * @param bytes nonnegative desired limit, or zero for the format maximum
-   * @throws IllegalArgumentException if bytes is negative
+   * @throws IllegalArgumentException if {@code bytes} is negative
    * @since 1.0.0
    */
   public void setFrameLimit(final int bytes) {
@@ -1302,14 +1311,14 @@ public final class Mcv2 {
    */
   public enum Verification {
     /**
-     * Finish decodes each frame with Mcv2Decoder and checks every reconstructed pixel.
+     * {@link Mcv2#finish(Pending)} decodes each frame with {@link Mcv2Decoder} and checks every reconstructed pixel.
      *
      * @since 1.0.0
      */
     VERIFIED,
 
     /**
-     * Finish trusts the reconstruction without decoding the frame again.
+     * {@link Mcv2#finish(Pending)} trusts the reconstruction without decoding the frame again.
      *
      * @since 1.0.0
      */
@@ -1373,7 +1382,7 @@ public final class Mcv2 {
      *
      * @param value finite, nonnegative lambda
      * @return the copied settings
-     * @throws IllegalArgumentException if value is negative or nonfinite
+     * @throws IllegalArgumentException if {@code value} is negative or not finite
      * @since 1.0.0
      */
     public Settings withLambda(final double value) {
@@ -4053,6 +4062,12 @@ public final class Mcv2 {
 
   /**
    * A shared, bounded CPU budget for encoders and synchronous encoding jobs.
+   *
+   * <p>{@link #shared()} returns one application-wide pool, sized by {@link #setSharedThreads(int)} or by default one
+   * worker per two processors, at most {@link #MAXIMUM_THREADS}; {@link #Pool(int)} creates a separate budget.
+   * {@link #encoder(Settings, Verification)} creates encoders on a pool and {@link #run(Callable)} runs one job on it.
+   * Workers are low-priority daemon threads that exit after 30 seconds idle; closing a pool stops them, so do not
+   * close the pool that {@link #shared()} returns.
    *
    * <p>This class is thread-safe: encoders on any thread may share one pool.
    *

@@ -23,8 +23,7 @@
  * Each assembler belongs to one stream and must be used serially. It holds at most four incomplete frames and
  * does not advance decoder references. CRCs detect corruption and do not authenticate a sender.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -63,7 +64,7 @@ public final class DeltaMapEncoder {
    *
    * <p>Earlier versions used a default of 2 MiB per frame. The lower default keeps the connections of the viewers
    * responsive, but a scene cut on a large wall now takes a few more frames to appear completely. Pass a larger
-   * budget to the constructor of {@code CompressedMapResult} to get the old behavior back.
+   * budget to the {@link CompressedMapResult} constructor to get the old behavior back.
    *
    * @since 1.0.0
    */
@@ -91,7 +92,7 @@ public final class DeltaMapEncoder {
   private final int[] changedPixelsPerTile;
 
   /**
-   * Creates a new encoder for the specified layout.
+   * Creates an encoder for the given layout.
    *
    * @param layout               the layout of the image on the maps
    * @param maximumBytesPerFrame the maximum number of bytes to send per frame; the most urgent map is always sent,

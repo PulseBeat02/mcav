@@ -23,8 +23,7 @@
  * owns its current entity and scheduled task. All access, including getters and cleanup, belongs on the server
  * main thread. Its timer does not observe player pause, seek or playback-speed changes.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

@@ -83,9 +83,11 @@ import org.slf4j.LoggerFactory;
  * final DitherAlgorithm algorithm = DitherAlgorithm.temporalFloydSteinberg();
  * final FunctionalVideoFilter filter = DitherFilter.dither(algorithm, result);
  * filter.start();
+ *
  * final VideoPipelineStep pipeline = VideoPipelineStep.of(filter);
  * final VideoAttachableCallback video = player.getVideoAttachableCallback();
  * video.attach(pipeline);
+ *
  * // when playback ends
  * filter.release();
  * }

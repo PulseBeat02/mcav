@@ -23,8 +23,7 @@
  * are retained and read while zipping. The caller owns the resulting archive and can expose it through the
  * hosting providers. Archive replacement uses a temporary file and an atomic move where supported.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

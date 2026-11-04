@@ -41,8 +41,8 @@ import org.slf4j.LoggerFactory;
  *
  * <p>A small handler is added to the front of every new connection using Paper's channel initializer API. The
  * handler looks at the first bytes a client sends: HTTP {@code GET} and {@code HEAD} requests are answered with the
- * resource pack, for this instance's URL, and other requests pass to the next handler. Minecraft connections pass through untouched. See {@link ResourcePackHttpHandler}
- * for details.
+ * resource pack, for this instance's URL, and other requests pass to the next handler. Minecraft connections pass
+ * through untouched.
  *
  * <p>Connections that arrive through a proxy using the PROXY protocol, or that are terminated by a proxy such as
  * Velocity, never reach this server as HTTP and cannot be served. Use a separate web server in that case.
@@ -159,10 +159,10 @@ public final class NettyHosting implements InjectorHosting {
   /**
    * Returns the URL players download the resource pack from.
    *
-   * <p>The URL consists of the public address of the server and the port of the Minecraft server, and a unique path for this hosting instance. IPv6 addresses
-   * are enclosed in brackets. The public address is looked up the first time this method is called, and the URL is
-   * cached once the address is known. While the address cannot be determined, a URL with {@code localhost} is
-   * returned and the lookup is tried again on the next call.
+   * <p>The URL consists of the public address of the server and the port of the Minecraft server, and a unique path
+   * for this hosting instance. IPv6 addresses are enclosed in brackets. The public address is looked up the first
+   * time this method is called, and the URL is cached once the address is known. While the address cannot be
+   * determined, a URL with {@code localhost} is returned and the lookup is tried again on the next call.
    *
    * <p>The first address lookup may block. Obtaining a URL does not start hosting or verify external reachability.
    *

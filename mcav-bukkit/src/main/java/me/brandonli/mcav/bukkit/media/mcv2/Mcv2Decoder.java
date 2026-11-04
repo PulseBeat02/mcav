@@ -27,6 +27,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>This class is stateless and thread-safe.
  *
+ * {@snippet :
+ * final Mcv2Decoder.Frame frame = Mcv2Decoder.parse(bytes);
+ * final byte[] picture = Mcv2Decoder.decode(frame, previousPicture, previousFrameId);
+ * }
+ *
  * @since 1.0.0
  */
 public final class Mcv2Decoder {
@@ -49,6 +54,8 @@ public final class Mcv2Decoder {
    * @since 1.0.0
    */
   public static final int MAXIMUM_DIMENSION = 4096;
+
+  private static final String DATA_NULL_MESSAGE = "Data must not be null!";
 
   static final int MAGIC = 0x3256434D;
   static final int VERSION = 3;
@@ -381,10 +388,13 @@ public final class Mcv2Decoder {
    * @param data        source bytes
    * @param arrayOffset first byte offset
    * @return unsigned value
+   * @throws NullPointerException      if {@code data} is null
    * @throws IndexOutOfBoundsException if either byte lies outside data
    * @since 1.0.0
    */
   public static int readUnsignedShort(final byte[] data, final int arrayOffset) {
+    Preconditions.checkNotNull(data, DATA_NULL_MESSAGE);
+
     return (data[arrayOffset] & BYTE_MASK) | ((data[arrayOffset + SECOND_BYTE_OFFSET] & BYTE_MASK) << SECOND_BYTE_SHIFT);
   }
 
@@ -394,10 +404,13 @@ public final class Mcv2Decoder {
    * @param data        source bytes
    * @param arrayOffset first byte offset
    * @return unsigned value
+   * @throws NullPointerException      if {@code data} is null
    * @throws IndexOutOfBoundsException if any byte lies outside data
    * @since 1.0.0
    */
   public static long readUnsignedInt(final byte[] data, final int arrayOffset) {
+    Preconditions.checkNotNull(data, DATA_NULL_MESSAGE);
+
     return (
       (data[arrayOffset] & LONG_BYTE_MASK) |
       ((data[arrayOffset + SECOND_BYTE_OFFSET] & LONG_BYTE_MASK) << SECOND_BYTE_SHIFT) |
@@ -412,10 +425,13 @@ public final class Mcv2Decoder {
    * @param data        destination bytes
    * @param arrayOffset first byte offset
    * @param value       value to write
+   * @throws NullPointerException      if {@code data} is null
    * @throws IndexOutOfBoundsException if either byte lies outside data
    * @since 1.0.0
    */
   public static void putUnsignedShort(final byte[] data, final int arrayOffset, final int value) {
+    Preconditions.checkNotNull(data, DATA_NULL_MESSAGE);
+
     data[arrayOffset] = (byte) value;
     data[arrayOffset + SECOND_BYTE_OFFSET] = (byte) (value >>> SECOND_BYTE_SHIFT);
   }
@@ -426,10 +442,13 @@ public final class Mcv2Decoder {
    * @param data        destination bytes
    * @param arrayOffset first byte offset
    * @param value       value to write
+   * @throws NullPointerException      if {@code data} is null
    * @throws IndexOutOfBoundsException if any byte lies outside data
    * @since 1.0.0
    */
   public static void putUnsignedInt(final byte[] data, final int arrayOffset, final long value) {
+    Preconditions.checkNotNull(data, DATA_NULL_MESSAGE);
+
     for (int index = 0; index < Integer.BYTES; index++) {
       data[arrayOffset + index] = (byte) (value >>> (index * Byte.SIZE));
     }

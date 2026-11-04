@@ -30,8 +30,7 @@
  * successful video decoding. A server too small to encode a video while it plays encodes it ahead with
  * {@link Mcv2FileEncoder}.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

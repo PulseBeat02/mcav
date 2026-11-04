@@ -49,10 +49,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>The stream is every frame's MCV2 bytes, each preceded by their length as a little-endian 32-bit number, the form
  * a stream is read back in to be played.
  *
- * <p>Call from an application worker thread: the method performs reading, writing and progress callbacks
- * synchronously, and waits for encoding tasks in the supplied budget. It does not dispatch the entire operation
- * off the calling thread. The caller owns the output stream and pool; the frame reader is closed after validated
- * arguments enter the encode operation, including on encoding or I/O failure.
+ * <p>This class is stateless and thread-safe. Call from an application worker thread: the method performs reading,
+ * writing and progress callbacks synchronously, and waits for encoding tasks in the supplied budget. It does not
+ * dispatch the entire operation off the calling thread. The caller owns the output stream and pool; the frame reader
+ * is closed after validated arguments enter the encode operation, including on encoding or I/O failure.
  *
  * {@snippet :
  * final int width = 1920;

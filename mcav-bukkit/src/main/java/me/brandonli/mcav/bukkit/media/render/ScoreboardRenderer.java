@@ -284,7 +284,7 @@ public final class ScoreboardRenderer extends MainThreadRenderer<Component[]> {
   private void restoreViewers(final Scoreboard board) {
     final ScoreboardManager manager = Bukkit.getScoreboardManager();
     final Scoreboard mainScoreboard = manager.getMainScoreboard();
-    // Include owners removed after the last tick, before hide had a chance to restore them.
+    // Include viewers removed after the last tick, before hide had a chance to restore them.
     final Collection<UUID> configured = this.configuration.getViewers();
     final Set<UUID> viewers = new HashSet<>(configured);
     final Set<UUID> remembered = this.previousScoreboards.keySet();
