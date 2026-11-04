@@ -47,6 +47,7 @@ import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileAttribute;
+import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
@@ -56,7 +57,6 @@ import java.util.Deque;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -112,6 +112,8 @@ final class HelperSession implements BrowserSession {
   private static final long EXIT_POLL_NANOSECONDS = TimeUnit.MILLISECONDS.toNanos(10L);
 
   private static final byte[] NO_PIXELS = new byte[0];
+
+  private static final FileAttribute<?>[] NO_ATTRIBUTES = new FileAttribute<?>[0];
 
   private static final String SOCKET_NAME = "s";
 
@@ -223,21 +225,25 @@ final class HelperSession implements BrowserSession {
     try (final ServerSocketChannel server = bind(socket)) {
       final Os os = launcher.getOs();
       requireShortEnough(os, folder);
+
       final Path libraryFolder = launcher.linkLibraries(folder);
       final URI uri = source.getUri();
       final HelperConfiguration configuration = configure(token, socket, natives, folder.resolve(PROFILE_FOLDER), uri, source, options);
       process = startProcess(launcher, folder, libraryFolder);
       final Writer standardInput = sendConfiguration(process, configuration);
+
       final long timeoutMilliseconds = launcher.getStartTimeoutMilliseconds();
       final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMilliseconds);
       final SocketChannel channel = accept(server, process, deadline);
       pendingChannel = channel;
       Files.deleteIfExists(socket);
+
       final int width = source.getWidth();
       final int height = source.getHeight();
       final FrameCanvas canvas = new FrameCanvas(width, height);
       session = new HelperSession(folder, process, standardInput, channel, canvas, listener);
       pendingChannel = null;
+
       if (!HelperProcesses.register(session, generation)) {
         final String message = "The browser module was stopped while the browser started!";
         throw new BrowserException(message);
@@ -245,9 +251,11 @@ final class HelperSession implements BrowserSession {
 
       session.startThreads(token);
       session.awaitStart(deadline, uri);
+
       return session;
     } catch (final IOException exception) {
       closeAfterFailure(session, process, pendingChannel, folder);
+
       final @Nullable String reason = exception.getMessage();
       final String message = "Because of \"%s\", the browser helper could not be started!".formatted(reason);
       throw new BrowserException(message, exception);
@@ -354,11 +362,7 @@ final class HelperSession implements BrowserSession {
   @VisibleForTesting
   static Path createFolder(final Path temporaryFolder, final Supplier<String> names) {
     final FileSystem fileSystem = temporaryFolder.getFileSystem();
-    final Set<String> views = fileSystem.supportedFileAttributeViews();
-    final boolean supportsPosix = views.contains(POSIX_ATTRIBUTE_VIEW);
-    final FileAttribute<?>[] attributes = supportsPosix
-      ? new FileAttribute<?>[] { PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString(OWNER_ONLY_PERMISSIONS)) }
-      : new FileAttribute<?>[0];
+    final FileAttribute<?>[] attributes = createFolderAttributes(fileSystem);
     try {
       return createFolderUnderDrawnName(temporaryFolder, names, attributes);
     } catch (final IOException exception) {
@@ -366,6 +370,18 @@ final class HelperSession implements BrowserSession {
       final String message = "Because of \"%s\", the folder of the browser session cannot be created!".formatted(reason);
       throw new BrowserException(message, exception);
     }
+  }
+
+  private static FileAttribute<?>[] createFolderAttributes(final FileSystem fileSystem) {
+    final Set<String> views = fileSystem.supportedFileAttributeViews();
+    final boolean supportsPosix = views.contains(POSIX_ATTRIBUTE_VIEW);
+    if (!supportsPosix) {
+      return NO_ATTRIBUTES;
+    }
+
+    final Set<PosixFilePermission> permissions = PosixFilePermissions.fromString(OWNER_ONLY_PERMISSIONS);
+    final FileAttribute<Set<PosixFilePermission>> ownerOnly = PosixFilePermissions.asFileAttribute(permissions);
+    return new FileAttribute<?>[] { ownerOnly };
   }
 
   private static Path createFolderUnderDrawnName(
@@ -404,6 +420,7 @@ final class HelperSession implements BrowserSession {
       final UnixDomainSocketAddress address = UnixDomainSocketAddress.of(socket);
       server.bind(address, CONNECTION_BACKLOG);
       server.configureBlocking(false);
+
       return server;
     } catch (final IOException exception) {
       server.close();
@@ -507,11 +524,12 @@ final class HelperSession implements BrowserSession {
       final String message = "Interrupted while starting the browser!";
       throw new BrowserException(message, exception);
     } catch (final ExecutionException exception) {
-      final Throwable cause = Objects.requireNonNull(exception.getCause(), "A failed start has a cause!");
+      final Throwable cause = requireNonNull(exception.getCause(), "A failed start has a cause!");
       final String tail = this.getOutputTail();
       if (!tail.isEmpty()) {
         LOGGER.warn("The browser helper wrote these lines before its start failed.{}{}", System.lineSeparator(), tail);
       }
+
       final String address = AddressText.describe(uri.toString());
       final @Nullable String reason = cause.getMessage();
       final String message = "Because of \"%s\", page %s could not be opened!".formatted(reason, address);
@@ -601,51 +619,36 @@ final class HelperSession implements BrowserSession {
   private void handle(final HelperMessage message) throws ProtocolException {
     final int type = message.getType();
     switch (type) {
-      case HelperProtocol.FRAME -> {
-        final FrameRegion region = message.getRegion();
-        this.canvas.apply(region);
-        this.onFrame();
-      }
-      case HelperProtocol.AUDIO -> {
-        final byte[] samples = message.getSamples();
-        this.listener.onAudio(samples);
-      }
-      case HelperProtocol.READY -> {
-        final String version = message.getText();
-        LOGGER.debug("CEF {} runs in the browser helper.", version);
-        this.onStartEvent(StartEvent.READY);
-      }
+      case HelperProtocol.FRAME -> this.onFrame(message);
+      case HelperProtocol.AUDIO -> this.onAudio(message);
+      case HelperProtocol.READY -> this.onReady(message);
       case HelperProtocol.LOADING -> this.onLoading(message);
-      case HelperProtocol.LOAD_ERROR -> {
-        final String text = message.getText();
-        final String url = message.getUrl();
-        // the helper is untrusted, so the address is checked again
-        final String address = AddressText.describe(url);
-        final int code = message.getNumber();
-        this.logBudget.log(
-          () -> LOGGER.warn("Page {} failed to load with error {} (code {}) in the browser.", address, text, code),
-          this::logSkipped
-        );
-        final String reason = "The page failed to load with error %s (code %s) in the browser!".formatted(text, code);
-        final BrowserException failure = new BrowserException(reason);
-        this.started.completeExceptionally(failure);
-      }
-      case HelperProtocol.NOTICE -> {
-        final String text = message.getText();
-        this.logBudget.log(() -> LOGGER.debug("The browser sent the notice \"{}\" about the page.", text), this::logSkipped);
-      }
-      case HelperProtocol.FAILURE -> {
-        final String text = message.getText();
-        final String reason = "Because of \"%s\", the browser failed!".formatted(text);
-        final BrowserException failure = new BrowserException(reason);
-        this.started.completeExceptionally(failure);
-        this.end(reason, failure);
-      }
+      case HelperProtocol.LOAD_ERROR -> this.onLoadError(message);
+      case HelperProtocol.NOTICE -> this.onNotice(message);
+      case HelperProtocol.FAILURE -> this.onFailure(message);
       default -> {
         final String reason = "The browser helper sent message type %s, which only the server sends!".formatted(type);
         throw new ProtocolException(reason);
       }
     }
+  }
+
+  private void onFrame(final HelperMessage message) throws ProtocolException {
+    final FrameRegion region = message.getRegion();
+    this.canvas.apply(region);
+    this.requestFrame();
+    this.onStartEvent(StartEvent.FRAME);
+  }
+
+  private void onAudio(final HelperMessage message) {
+    final byte[] samples = message.getSamples();
+    this.listener.onAudio(samples);
+  }
+
+  private void onReady(final HelperMessage message) {
+    final String version = message.getText();
+    LOGGER.debug("CEF {} runs in the browser helper.", version);
+    this.onStartEvent(StartEvent.READY);
   }
 
   private void onLoading(final HelperMessage message) {
@@ -655,13 +658,37 @@ final class HelperSession implements BrowserSession {
     }
   }
 
-  private void logSkipped(final long lines) {
-    LOGGER.debug("Browser: {} more notices of the page were not logged.", lines);
+  private void onLoadError(final HelperMessage message) {
+    final String text = message.getText();
+    final String url = message.getUrl();
+    // the helper is untrusted, so the address is checked again
+    final String address = AddressText.describe(url);
+    final int code = message.getNumber();
+    this.logBudget.log(
+      () -> LOGGER.warn("Page {} failed to load with error {} (code {}) in the browser.", address, text, code),
+      this::logSkipped
+    );
+
+    final String reason = "The page failed to load with error %s (code %s) in the browser!".formatted(text, code);
+    final BrowserException failure = new BrowserException(reason);
+    this.started.completeExceptionally(failure);
   }
 
-  private void onFrame() {
-    this.requestFrame();
-    this.onStartEvent(StartEvent.FRAME);
+  private void onNotice(final HelperMessage message) {
+    final String text = message.getText();
+    this.logBudget.log(() -> LOGGER.debug("The browser sent the notice \"{}\" about the page.", text), this::logSkipped);
+  }
+
+  private void onFailure(final HelperMessage message) {
+    final String text = message.getText();
+    final String reason = "Because of \"%s\", the browser failed!".formatted(text);
+    final BrowserException failure = new BrowserException(reason);
+    this.started.completeExceptionally(failure);
+    this.end(reason, failure);
+  }
+
+  private void logSkipped(final long lines) {
+    LOGGER.debug("Browser: {} more notices of the page were not logged.", lines);
   }
 
   @Override
@@ -715,6 +742,7 @@ final class HelperSession implements BrowserSession {
 
       final boolean fresh = this.frameWaiting;
       this.frameWaiting = false;
+
       return fresh;
     }
   }
