@@ -85,30 +85,14 @@ final class PlatformTest {
   }
 
   @Test
-  void shouldDescribeTheRunningSystemLikeJna() {
+  void shouldMatchTheSystemArchitectureAndBitsThatOsUtilsDetects() {
+    final Os os = OsUtils.getOs();
+    final Arch architecture = OsUtils.getArch();
+    final Bits bits = OsUtils.getBits();
+    final Platform expected = Platform.ofPlatform(os, architecture, bits);
+
     final Platform current = Platform.getCurrentPlatform();
-    final Os os = current.getOs();
-    final Arch architecture = current.getArch();
-    final Bits bits = current.getBits();
-    final boolean isWindows = com.sun.jna.Platform.isWindows(); // fqn: Platform is also a class of this package
-    final boolean isMac = com.sun.jna.Platform.isMac(); // fqn: Platform is also a class of this package
-    final boolean isIntel = com.sun.jna.Platform.isIntel(); // fqn: Platform is also a class of this package
-    final boolean isArm = com.sun.jna.Platform.isARM(); // fqn: Platform is also a class of this package
-    final boolean isSixtyFourBit = com.sun.jna.Platform.is64Bit(); // fqn: Platform is also a class of this package
-    final boolean windows = os == Os.WINDOWS;
-    assertEquals(isWindows, windows);
-
-    final boolean mac = os == Os.MAC;
-    assertEquals(isMac, mac);
-
-    final boolean intel = architecture == Arch.X86;
-    assertEquals(isIntel, intel);
-
-    final boolean arm = architecture == Arch.ARM;
-    assertEquals(isArm, arm);
-
-    final boolean sixtyFourBit = bits == Bits.BITS_64;
-    assertEquals(isSixtyFourBit, sixtyFourBit);
+    assertEquals(expected, current);
   }
 
   @Test

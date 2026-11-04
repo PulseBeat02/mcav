@@ -42,13 +42,15 @@ final class DefaultVncSourceBuilder implements VncSourceBuilder {
   public VncSourceBuilder host(final String host) {
     Preconditions.checkNotNull(host, "Host must not be null!");
     Preconditions.checkArgument(!host.isBlank(), "Host must not be blank!");
+
     this.host = host;
     return this;
   }
 
   @Override
   public VncSourceBuilder port(final int port) {
-    Preconditions.checkArgument(port >= MINIMUM_PORT && port <= MAXIMUM_PORT, "Port %s must be between 1 and 65535!", port);
+    Preconditions.checkArgument(port >= MINIMUM_PORT && port <= MAXIMUM_PORT, "Port %s must be between 1 and 65535 inclusive!", port);
+
     this.port = port;
     return this;
   }
@@ -56,6 +58,7 @@ final class DefaultVncSourceBuilder implements VncSourceBuilder {
   @Override
   public VncSourceBuilder username(final String username) {
     Preconditions.checkNotNull(username, "Username must not be null!");
+
     this.username = username;
     return this;
   }
@@ -63,6 +66,7 @@ final class DefaultVncSourceBuilder implements VncSourceBuilder {
   @Override
   public VncSourceBuilder password(final String password) {
     Preconditions.checkNotNull(password, "Password must not be null!");
+
     this.password = password;
     return this;
   }
@@ -70,6 +74,7 @@ final class DefaultVncSourceBuilder implements VncSourceBuilder {
   @Override
   public VncSourceBuilder screenWidth(final int width) {
     Preconditions.checkArgument(width >= 0, "Width %s must not be negative!", width);
+
     this.width = width;
     return this;
   }
@@ -77,6 +82,7 @@ final class DefaultVncSourceBuilder implements VncSourceBuilder {
   @Override
   public VncSourceBuilder screenHeight(final int height) {
     Preconditions.checkArgument(height >= 0, "Height %s must not be negative!", height);
+
     this.height = height;
     return this;
   }
@@ -84,6 +90,7 @@ final class DefaultVncSourceBuilder implements VncSourceBuilder {
   @Override
   public VncSourceBuilder targetFrameRate(final int targetFrameRate) {
     Preconditions.checkArgument(targetFrameRate > 0, "Frame rate %s must be positive!", targetFrameRate);
+
     this.targetFrameRate = targetFrameRate;
     return this;
   }
@@ -92,7 +99,8 @@ final class DefaultVncSourceBuilder implements VncSourceBuilder {
   public VncSource build() {
     final String configuredHost = this.host;
     if (configuredHost == null) {
-      throw new IllegalStateException("Host must be set before the source is built!");
+      final String message = "Host must be set before the source is built!";
+      throw new IllegalStateException(message);
     }
 
     return new DefaultVncSource(configuredHost, this.port, this.username, this.password, this.width, this.height, this.targetFrameRate);

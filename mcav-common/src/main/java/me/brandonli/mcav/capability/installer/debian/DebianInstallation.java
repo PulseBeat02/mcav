@@ -36,7 +36,6 @@ import java.util.stream.Stream;
 import me.brandonli.mcav.capability.installer.Download;
 import me.brandonli.mcav.capability.installer.InstallationException;
 import me.brandonli.mcav.utils.IoUtils;
-import me.brandonli.mcav.utils.http.HttpDownloader;
 import me.brandonli.mcav.utils.os.Arch;
 import me.brandonli.mcav.utils.os.Platform;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -62,6 +61,7 @@ final class DebianInstallation {
   private final Download[] downloads;
   private final Platform platform;
   private final List<String> trees;
+  private final DebianSources sources;
 
   DebianInstallation(
     final Path folder,
@@ -77,6 +77,7 @@ final class DebianInstallation {
     this.downloads = downloads.clone();
     this.platform = platform;
     this.trees = Stream.concat(libraryTrees, otherTrees).toList();
+    this.sources = DebianSources.ofDebian();
   }
 
   void install() {
@@ -156,7 +157,7 @@ final class DebianInstallation {
 
     final URI uri = URI.create(url);
     final Path archive = staging.resolve(PACKAGE_FILE);
-    HttpDownloader.download(uri, archive, sha256, MAXIMUM_PACKAGE_SIZE);
+    this.sources.download(uri, archive, sha256, MAXIMUM_PACKAGE_SIZE);
     DebianPackageExtractor.extract(archive, extracted, this.trees);
 
     final Set<String> libraries = this.listLibraries(extracted);

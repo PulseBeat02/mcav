@@ -234,7 +234,8 @@ final class PcmDiscordPlayerFuzzTest {
     final boolean splitsCharacter = Character.isSurrogatePair(last, next);
     final int shortestCut = MAXIMUM_NAME_LENGTH - ELLIPSIS.length() - 1;
     final boolean keepsEnough = cut >= shortestCut;
-    assertEquals(kept + ELLIPSIS, name);
+    final String expected = kept + ELLIPSIS;
+    assertEquals(expected, name);
     assertFalse(splitsCharacter);
     assertTrue(keepsEnough);
   }

@@ -34,18 +34,22 @@ public final class VncPasswords {
   private static final int CHOSEN_TYPE_BYTES = 1;
   private static final int RESULT_BYTES = 4;
 
+  private static final int PROTOCOL_MAJOR_VERSION = 3;
+  private static final int PROTOCOL_MINOR_VERSION = 8;
+
   private VncPasswords() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
-  public static byte[] response(final byte[] challenge, final String password) throws IOException {
+  public static byte[] computeResponse(final byte[] challenge, final String password) throws IOException {
     final VernacularConfig configuration = new VernacularConfig();
     configuration.setPasswordSupplier(() -> password);
     final byte[] received = Arrays.copyOf(challenge, challenge.length + RESULT_BYTES);
     final ByteArrayInputStream input = new ByteArrayInputStream(received);
     final ByteArrayOutputStream sent = new ByteArrayOutputStream();
     final VncSession session = new VncSession(configuration, input, sent);
-    session.setProtocolVersion(new ProtocolVersion(3, 8));
+    session.setProtocolVersion(new ProtocolVersion(PROTOCOL_MAJOR_VERSION, PROTOCOL_MINOR_VERSION));
     final VncAuthenticationHandler handler = new VncAuthenticationHandler();
     try {
       handler.authenticate(session);

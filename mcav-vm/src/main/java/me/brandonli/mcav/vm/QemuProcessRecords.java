@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.vm;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -27,7 +29,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -37,20 +38,19 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// A killed JVM cannot stop its QEMU processes, which keep their memory and VNC port, so each one is recorded with its
-// start instant and that of its JVM. reap() stops those whose JVM is gone; a matching start instant keeps a reused id safe.
+// records each QEMU process with its JVM, so reap() can stop those a killed JVM left running
 final class QemuProcessRecords {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(QemuProcessRecords.class);
 
   private static final String NOT_RECORDED = "QEMU process {} could not be recorded, so it keeps running if this server is killed.";
 
-  private static final String HOME_PROPERTY = "user.home";
+  private static final String USER_HOME_PROPERTY = "user.home";
   private static final String MCAV_FOLDER = ".mcav";
   private static final String RECORDS_FOLDER = "vm";
 
   private static final String SUFFIX = ".qemu";
-  private static final String RECORD_GLOB = "*" + SUFFIX;
+  private static final String RECORD_GLOB = "*%s".formatted(SUFFIX);
 
   private static final int STARTED_LINE = 0;
   private static final int OWNER_PROCESS_ID_LINE = 1;
@@ -77,8 +77,8 @@ final class QemuProcessRecords {
   }
 
   static QemuProcessRecords ofUser() {
-    final @Nullable String homeOrNull = System.getProperty(HOME_PROPERTY);
-    final String home = Objects.requireNonNull(homeOrNull, "The JVM always sets the user home!");
+    final @Nullable String homeOrNull = System.getProperty(USER_HOME_PROPERTY);
+    final String home = requireNonNull(homeOrNull, "The JVM always sets the user home!");
     final Path folder = Path.of(home, MCAV_FOLDER, RECORDS_FOLDER);
     final ProcessHandle owner = ProcessHandle.current();
     return new QemuProcessRecords(folder, owner, ProcessHandle::of, STOP_TIMEOUT);
@@ -136,7 +136,7 @@ final class QemuProcessRecords {
     try {
       return this.reapOne(record);
     } catch (final IOException exception) {
-      LOGGER.warn("The record {} of a QEMU process could not be read.", record, exception);
+      LOGGER.warn("The record {} of a QEMU process could not be read or deleted.", record, exception);
       return 0;
     }
   }
@@ -221,7 +221,8 @@ final class QemuProcessRecords {
   }
 
   private Path fileOf(final long processId) {
-    return this.folder.resolve(processId + SUFFIX);
+    final String fileName = "%s%s".formatted(processId, SUFFIX);
+    return this.folder.resolve(fileName);
   }
 
   private record ProcessRecord(long processId, Instant started, long ownerProcessId, Instant ownerStarted) {}

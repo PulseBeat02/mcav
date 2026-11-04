@@ -53,7 +53,8 @@ public final class FramePixels {
    * @param frame the frame, decoded to BGR24 with eight bits per channel
    * @return the pixels, three bytes per pixel in blue, green, red order, ready to be read from position zero
    * @throws IllegalArgumentException if the frame holds no 8-bit image, its dimensions are negative, its rows are
-   *                                  shorter than its width, or its compact pixels cannot fit in one buffer
+   *                                  shorter than its width, its compact pixels cannot fit in one buffer, or the
+   *                                  source plane cannot hold the declared rows
    * @throws NullPointerException     if {@code frame} is null
    * @since 1.0.0
    */

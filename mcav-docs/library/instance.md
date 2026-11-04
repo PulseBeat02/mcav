@@ -124,8 +124,10 @@ of the library, even `release`. A thread that may block, such as a worker thread
 never the main thread of a server:
 
 ```java
-  final CompletableFuture<Boolean> ytdlpReady = api.whenCapabilityReady(Capability.YT_DLP);
-  final boolean ytdlpAvailable = ytdlpReady.join();
+  public boolean waitForYtdlp(final MCAVApi api) {
+    final CompletableFuture<Boolean> ytdlpReady = api.whenCapabilityReady(Capability.YT_DLP);
+    return ytdlpReady.join();
+  }
 ```
 
 ## Modules
@@ -136,6 +138,7 @@ example, a Minecraft plugin installs the Bukkit module and hands it the plugin i
 ```java
   final MCAVApi api = MCAV.api();
   api.install(BukkitModule.class);
-  final BukkitModule bukkit = api.getModule(BukkitModule.class);
-  bukkit.inject(plugin);
+
+  final BukkitModule bukkitModule = api.getModule(BukkitModule.class);
+  bukkitModule.inject(this);
 ```

@@ -37,14 +37,16 @@ import net.dv8tion.jda.api.audio.AudioSendHandler;
  * resources to close, and stopping {@link JdaModule} does not close the bot.
  *
  * {@snippet :
- * final DiscordPlayer player = DiscordPlayer.voice(jda);
- * final AudioManager audioManager = guild.getAudioManager();
- * audioManager.setSendingHandler(player);
- * audioManager.openAudioConnection(channel);
+ * void sendToVoice(final JDA jda, final Guild guild, final VoiceChannel channel, final VideoPlayer videoPlayer) {
+ *   final DiscordPlayer player = DiscordPlayer.voice(jda);
+ *   final AudioManager audioManager = guild.getAudioManager();
+ *   audioManager.setSendingHandler(player);
+ *   audioManager.openAudioConnection(channel);
  *
- * final AudioPipelineStep step = AudioPipelineStep.of(player);
- * final AudioAttachableCallback audio = videoPlayer.getAudioAttachableCallback();
- * audio.attach(step);
+ *   final AudioPipelineStep step = AudioPipelineStep.of(player);
+ *   final AudioAttachableCallback audio = videoPlayer.getAudioAttachableCallback();
+ *   audio.attach(step);
+ * }
  * }
  *
  * <p>Implementations in this library are thread-safe: pipeline producers and JDA's sending thread may call a player

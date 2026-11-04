@@ -42,14 +42,16 @@ import me.brandonli.mcav.utils.interaction.MouseClick;
  * promptly without throwing.
  *
  * {@snippet :
- * final VncPlayer player = VncPlayer.create();
- * final VideoAttachableCallback video = player.getVideoAttachableCallback();
- * video.attach(videoPipeline);
- * player.start(source);
- * final String enterKey = "Return";
- * player.sendKeyEvent(enterKey);
- * // when done
- * player.release();
+ * void showScreen(final VideoPipelineStep videoPipeline, final VncSource source) {
+ *   final VncPlayer player = VncPlayer.create();
+ *   final VideoAttachableCallback video = player.getVideoAttachableCallback();
+ *   video.attach(videoPipeline);
+ *   player.start(source);
+ *   final String enterKey = "Return";
+ *   player.sendKeyEvent(enterKey);
+ *   // when done
+ *   player.release();
+ * }
  * }
  *
  * <p>Implementations in this library are thread-safe.
@@ -89,7 +91,6 @@ public interface VncPlayer extends ControllablePlayer, ReleasablePlayer, Excepti
    * @since 1.0.0
    */
   default CompletableFuture<Boolean> startAsync(final VncSource source) {
-    Preconditions.checkNotNull(source, "Source must not be null!");
     final ForkJoinPool pool = ForkJoinPool.commonPool();
     return this.startAsync(source, pool);
   }
@@ -108,6 +109,7 @@ public interface VncPlayer extends ControllablePlayer, ReleasablePlayer, Excepti
   default CompletableFuture<Boolean> startAsync(final VncSource source, final ExecutorService executor) {
     Preconditions.checkNotNull(source, "Source must not be null!");
     Preconditions.checkNotNull(executor, "Executor must not be null!");
+
     return CompletableFuture.supplyAsync(() -> this.start(source), executor);
   }
 

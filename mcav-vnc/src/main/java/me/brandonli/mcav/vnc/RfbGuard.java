@@ -62,13 +62,10 @@ final class RfbGuard {
   private static final int UNKNOWN = -1;
 
   private static final int NONE = 1;
-
   private static final int VNC = 2;
-
   private static final int MS_LOGON = 113;
 
   private static final int MINIMUM_MINOR_WITH_TYPE_LIST = 7;
-
   private static final int MINIMUM_MINOR_WITH_REASONS = 8;
 
   private final Object lock;
@@ -236,8 +233,8 @@ final class RfbGuard {
     TILE(1),
     SUBRECTANGLES(1),
     ZLIB_LENGTH(Integer.BYTES),
-    // padding, the first colour and the number of colours
-    COLOURS(5),
+    // padding, the first color and the number of colors
+    COLORS(5),
     // padding and the length of the text
     TEXT(7);
 
@@ -262,9 +259,10 @@ final class RfbGuard {
 
   private final class ServerParser {
 
-    private static final int COLOUR_ENTRY = 6;
+    private static final int COLOR_ENTRY = 6;
     private static final int SUBRECTANGLE_GEOMETRY = 8;
     private static final int HEXTILE_GEOMETRY = 2;
+    private static final int COPY_RECTANGLE_SOURCE = 4;
 
     private static final int TILE_SIDE = 16;
 
@@ -280,10 +278,10 @@ final class RfbGuard {
     private static final int TILE_BACKGROUND = 2;
     private static final int TILE_FOREGROUND = 4;
     private static final int TILE_SUBRECTANGLES = 8;
-    private static final int TILE_COLOURED = 16;
+    private static final int TILE_COLORED = 16;
 
     private static final int FRAMEBUFFER_UPDATE = 0;
-    private static final int SET_COLOUR_MAP_ENTRIES = 1;
+    private static final int SET_COLOR_MAP_ENTRIES = 1;
     private static final int BELL = 2;
     private static final int SERVER_CUT_TEXT = 3;
 
@@ -303,7 +301,7 @@ final class RfbGuard {
     private static final int RECTANGLE_HEIGHT_OFFSET = 6;
     private static final int RECTANGLE_ENCODING_OFFSET = 8;
 
-    private static final int COLOUR_COUNT_OFFSET = 3;
+    private static final int COLOR_COUNT_OFFSET = 3;
     private static final int TEXT_LENGTH_OFFSET = 3;
 
     private static final int INITIAL_BYTES_PER_PIXEL = 4;
@@ -345,8 +343,8 @@ final class RfbGuard {
         at = switch (this.mode) {
           case FIELD -> this.collect(buffer, at);
           case SKIP -> this.skipFrom(at, end);
-          case AWAIT_VERSION -> this.afterVersion(at);
-          case AWAIT_CHOICE -> this.afterChoice(at);
+          case AWAIT_VERSION -> this.continueAfterVersion(at);
+          case AWAIT_CHOICE -> this.continueAfterChoice(at);
           case CLOSED -> throw RfbGuard.this.violation("bytes after the connection ended");
         };
       }
@@ -391,6 +389,7 @@ final class RfbGuard {
     private void skip(final long bytes, final Then after, final Server next) {
       this.then = after;
       this.skipTo = next;
+
       if (bytes == 0) {
         this.continueAfterSkip();
         return;
@@ -429,7 +428,7 @@ final class RfbGuard {
         case TILE -> this::tile;
         case SUBRECTANGLES -> this::subrectangles;
         case ZLIB_LENGTH -> this::zlib;
-        case COLOURS -> this::colours;
+        case COLORS -> this::colors;
         case TEXT -> this::text;
       };
       step.run();
@@ -453,10 +452,10 @@ final class RfbGuard {
       }
 
       RfbGuard.this.securityType = (int) Math.min(type, Integer.MAX_VALUE);
-      this.afterSecurity(RfbGuard.this.securityType);
+      this.continueAfterSecurity(RfbGuard.this.securityType);
     }
 
-    private void afterSecurity(final int type) throws IOException {
+    private void continueAfterSecurity(final int type) throws IOException {
       if (type < 0) {
         throw RfbGuard.this.violation("data before the client chose a security type");
       }
@@ -526,7 +525,7 @@ final class RfbGuard {
       final long nameLength = this.unsigned32(NAME_LENGTH_OFFSET);
       this.resize(framebufferWidth, framebufferHeight);
       this.serverBytesPerPixel = RfbGuard.this.pixelBytes(bitsPerPixel);
-      this.bounded(nameLength, MAXIMUM_NAME, "desktop name", Server.MESSAGE);
+      this.skipBounded(nameLength, MAXIMUM_NAME, "desktop name", Server.MESSAGE);
     }
 
     private void resize(final int newWidth, final int newHeight) throws IOException {
@@ -538,7 +537,7 @@ final class RfbGuard {
       this.height = newHeight;
     }
 
-    private void bounded(final long length, final int limit, final String what, final Server next) throws IOException {
+    private void skipBounded(final long length, final int limit, final String what, final Server next) throws IOException {
       if (length > limit) {
         throw RfbGuard.this.violation("a %s of %s bytes".formatted(what, length));
       }
@@ -550,7 +549,7 @@ final class RfbGuard {
       final int type = this.unsigned8(0);
       switch (type) {
         case FRAMEBUFFER_UPDATE -> this.expect(Server.UPDATE);
-        case SET_COLOUR_MAP_ENTRIES -> this.expect(Server.COLOURS);
+        case SET_COLOR_MAP_ENTRIES -> this.expect(Server.COLORS);
         case BELL -> this.expect(Server.MESSAGE);
         case SERVER_CUT_TEXT -> this.expect(Server.TEXT);
         default -> throw RfbGuard.this.violation("message type %s".formatted(type));
@@ -603,17 +602,17 @@ final class RfbGuard {
         throw RfbGuard.this.violation("a cursor of %sx%s pixels".formatted(width, height));
       }
 
-      final int pixel = RfbGuard.this.bytesPerPixel();
+      final int pixelBytes = RfbGuard.this.bytesPerPixel();
       final int maskRow = (width + Byte.SIZE - 1) / Byte.SIZE;
       final long mask = (long) maskRow * height;
-      final long image = (long) width * height * pixel;
+      final long image = (long) width * height * pixelBytes;
       this.skip(image + mask, Then.RECTANGLE, Server.MESSAGE);
     }
 
     private void encodedRectangle(final int encoding) throws IOException {
       switch (encoding) {
         case RAW -> this.raw();
-        case COPY_RECTANGLE -> this.skip(Integer.BYTES, Then.RECTANGLE, Server.MESSAGE);
+        case COPY_RECTANGLE -> this.skip(COPY_RECTANGLE_SOURCE, Then.RECTANGLE, Server.MESSAGE);
         case RRE_ENCODING -> this.expect(Server.RRE);
         case HEXTILE -> this.firstTile();
         case ZLIB -> this.expect(Server.ZLIB_LENGTH);
@@ -622,8 +621,8 @@ final class RfbGuard {
     }
 
     private void raw() {
-      final int pixel = RfbGuard.this.bytesPerPixel();
-      final long bytes = (long) this.rectangleWidth * this.rectangleHeight * pixel;
+      final int pixelBytes = RfbGuard.this.bytesPerPixel();
+      final long bytes = (long) this.rectangleWidth * this.rectangleHeight * pixelBytes;
       this.skip(bytes, Then.RECTANGLE, Server.MESSAGE);
     }
 
@@ -664,33 +663,34 @@ final class RfbGuard {
 
     private void tile() {
       final int flags = this.unsigned8(0);
-      final int pixel = RfbGuard.this.bytesPerPixel();
+      final int pixelBytes = RfbGuard.this.bytesPerPixel();
       final int across = this.tilesAcross();
       final int tileWidth = Math.min(TILE_SIDE, this.rectangleWidth - (this.tile % across) * TILE_SIDE);
       final int tileHeight = Math.min(TILE_SIDE, this.rectangleHeight - (this.tile / across) * TILE_SIDE);
       this.tile++;
 
       if ((flags & TILE_RAW) != 0) {
-        this.skip((long) tileWidth * tileHeight * pixel, Then.TILE, Server.MESSAGE);
+        this.skip((long) tileWidth * tileHeight * pixelBytes, Then.TILE, Server.MESSAGE);
         return;
       }
 
       this.tileFlags = flags;
-      final int background = (flags & TILE_BACKGROUND) != 0 ? pixel : 0;
-      final int foreground = (flags & TILE_FOREGROUND) != 0 ? pixel : 0;
-      final int colours = background + foreground;
+
+      final int background = (flags & TILE_BACKGROUND) != 0 ? pixelBytes : 0;
+      final int foreground = (flags & TILE_FOREGROUND) != 0 ? pixelBytes : 0;
+      final int colors = background + foreground;
       if ((flags & TILE_SUBRECTANGLES) != 0) {
-        this.skip(colours, Then.STATE, Server.SUBRECTANGLES);
+        this.skip(colors, Then.STATE, Server.SUBRECTANGLES);
         return;
       }
 
-      this.skip(colours, Then.TILE, Server.MESSAGE);
+      this.skip(colors, Then.TILE, Server.MESSAGE);
     }
 
     private void subrectangles() {
       final int count = this.unsigned8(0);
-      final int colour = (this.tileFlags & TILE_COLOURED) != 0 ? RfbGuard.this.bytesPerPixel() : 0;
-      final int each = colour + HEXTILE_GEOMETRY;
+      final int color = (this.tileFlags & TILE_COLORED) != 0 ? RfbGuard.this.bytesPerPixel() : 0;
+      final int each = color + HEXTILE_GEOMETRY;
       this.skip((long) count * each, Then.TILE, Server.MESSAGE);
     }
 
@@ -707,18 +707,18 @@ final class RfbGuard {
       this.skip(length, Then.RECTANGLE, Server.MESSAGE);
     }
 
-    private void colours() {
-      final int count = this.unsigned16(COLOUR_COUNT_OFFSET);
-      final long bytes = (long) COLOUR_ENTRY * count;
+    private void colors() {
+      final int count = this.unsigned16(COLOR_COUNT_OFFSET);
+      final long bytes = (long) COLOR_ENTRY * count;
       this.skip(bytes, Then.STATE, Server.MESSAGE);
     }
 
     private void text() throws IOException {
       final long length = this.unsigned32(TEXT_LENGTH_OFFSET);
-      this.bounded(length, MAXIMUM_TEXT, "clipboard text", Server.MESSAGE);
+      this.skipBounded(length, MAXIMUM_TEXT, "clipboard text", Server.MESSAGE);
     }
 
-    private int afterVersion(final int at) throws IOException {
+    private int continueAfterVersion(final int at) throws IOException {
       final int minor = RfbGuard.this.minorVersion;
       if (minor < 0) {
         throw RfbGuard.this.violation("security data before the client chose a version");
@@ -727,12 +727,14 @@ final class RfbGuard {
       final Server next = minor >= MINIMUM_MINOR_WITH_TYPE_LIST ? Server.SECURITY_COUNT : Server.SECURITY_TYPE;
       this.mode = Mode.FIELD;
       this.expect(next);
+
       return at;
     }
 
-    private int afterChoice(final int at) throws IOException {
+    private int continueAfterChoice(final int at) throws IOException {
       this.mode = Mode.FIELD;
-      this.afterSecurity(RfbGuard.this.securityType);
+      this.continueAfterSecurity(RfbGuard.this.securityType);
+
       return at;
     }
 
@@ -787,6 +789,7 @@ final class RfbGuard {
 
     private static final int MESSAGE_TYPE_BYTES = 1;
     private static final int CHOICE_BYTES = 1;
+
     private static final int PENDING_LENGTH = 0;
     private static final int UNTRACKED_BODY = -1;
 
@@ -871,6 +874,7 @@ final class RfbGuard {
       }
 
       RfbGuard.this.minorVersion = minor;
+
       if (minor >= MINIMUM_MINOR_WITH_TYPE_LIST) {
         this.expect(Client.CHOICE, CHOICE_BYTES);
         return;
@@ -899,6 +903,7 @@ final class RfbGuard {
 
     private void message() {
       this.type = this.unsigned8(0);
+
       final int body = switch (this.type) {
         case SET_PIXEL_FORMAT -> PIXEL_FORMAT_BODY;
         case SET_ENCODINGS -> ENCODINGS_BODY;
@@ -927,9 +932,9 @@ final class RfbGuard {
 
     private void pixelFormat() {
       // three bytes of padding, then the pixel format, whose first byte is its bits per pixel
-      final int bits = this.unsigned8(PIXEL_FORMAT_BITS_OFFSET);
-      if (SUPPORTED_BITS_PER_PIXEL.contains(bits)) {
-        RfbGuard.this.clientBytesPerPixel = bits / Byte.SIZE;
+      final int bitsPerPixel = this.unsigned8(PIXEL_FORMAT_BITS_OFFSET);
+      if (SUPPORTED_BITS_PER_PIXEL.contains(bitsPerPixel)) {
+        RfbGuard.this.clientBytesPerPixel = bitsPerPixel / Byte.SIZE;
       }
 
       this.expectMessage();

@@ -29,8 +29,7 @@
  * does not track or release players. Connection failures are reported as {@link me.brandonli.mcav.vnc.VncException}.
  * Sources and players are thread-safe; source builders are not.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

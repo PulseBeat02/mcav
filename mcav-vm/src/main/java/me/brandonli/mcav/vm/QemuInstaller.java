@@ -68,7 +68,8 @@ final class QemuInstaller {
 
     final Path root = packages.download();
     final List<Path> libraryFolders = packages.listLibraryFolders();
-    final Path executable = root.resolve(PROGRAM_FOLDER).resolve(command);
+    final Path programFolder = root.resolve(PROGRAM_FOLDER);
+    final Path executable = programFolder.resolve(command);
     final List<String> arguments = this.listDataArguments(root);
     final Map<String, String> environment = this.createEnvironment(root, libraryFolders);
     return QemuProgram.of(executable, arguments, environment);
@@ -89,7 +90,9 @@ final class QemuInstaller {
     final List<String> folders = libraryFolders.stream().map(Path::toString).toList();
     final String libraryPath = String.join(File.pathSeparator, folders);
     final String triplet = this.platform.getArch() == Arch.ARM ? ARM_TRIPLET : X86_TRIPLET;
-    final Path modules = root.resolve(LIBRARY_FOLDER).resolve(triplet).resolve(MODULE_FOLDER);
+    final Path libraryFolder = root.resolve(LIBRARY_FOLDER);
+    final Path tripletFolder = libraryFolder.resolve(triplet);
+    final Path modules = tripletFolder.resolve(MODULE_FOLDER);
     return Map.of(LIBRARY_PATH_VARIABLE, libraryPath, MODULE_FOLDER_VARIABLE, modules.toString());
   }
 }

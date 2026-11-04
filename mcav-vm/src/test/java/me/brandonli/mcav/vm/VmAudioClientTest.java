@@ -72,7 +72,12 @@ final class VmAudioClientTest {
   private static final byte[] AUDIO_END = { (byte) 255, 1, 0, 0 };
   private static final byte[] SAMPLES = { 1, 2, 3, 4 };
 
-  private static final String CONNECTION_ENDED = "The audio connection of the virtual machine ended";
+  private static final String CONNECTION_ENDED = "The audio connection of the virtual machine ended.";
+
+  private static final String VNC_AUTHENTICATION_MESSAGE = "VNC authentication";
+
+  private static final int EPHEMERAL_PORT = 0;
+  private static final int BACKLOG = 1;
 
   private static final long TIMEOUT_SECONDS = 10L;
 
@@ -85,7 +90,7 @@ final class VmAudioClientTest {
 
   @BeforeEach
   void listen() throws IOException {
-    this.server = new ServerSocket(0, 1, InetAddress.getLoopbackAddress());
+    this.server = new ServerSocket(EPHEMERAL_PORT, BACKLOG, InetAddress.getLoopbackAddress());
   }
 
   @AfterEach
@@ -126,13 +131,13 @@ final class VmAudioClientTest {
     } else {
       output.write(new byte[] { 1, VNC_AUTHENTICATION });
       final int securityType = input.readUnsignedByte();
-      assertEquals(VNC_AUTHENTICATION, securityType, "VNC authentication");
+      assertEquals(VNC_AUTHENTICATION, securityType, VNC_AUTHENTICATION_MESSAGE);
       final byte[] challenge = new byte[CHALLENGE_BYTES];
       RANDOM.nextBytes(challenge);
       output.write(challenge);
       final byte[] response = new byte[CHALLENGE_BYTES];
       input.readFully(response);
-      final byte[] expectedResponse = VncPasswords.response(challenge, password);
+      final byte[] expectedResponse = VncPasswords.computeResponse(challenge, password);
       assertArrayEquals(expectedResponse, response, "the answer of the password");
     }
 
@@ -147,26 +152,20 @@ final class VmAudioClientTest {
     output.write("QEMU".getBytes(StandardCharsets.US_ASCII));
     final byte[] requests = new byte[8 + 14];
     input.readFully(requests);
-    final byte[] expected = QemuAudioProtocolTest.bytes(expectedOutput -> {
-      QemuAudioProtocol.writeSetEncodings(expectedOutput);
-      QemuAudioProtocol.writeEnableAudio(expectedOutput, AudioFilter.CHANNELS, AudioFilter.SAMPLE_RATE);
-    });
+    final byte[] expected = QemuAudioProtocolTest.bytes(this::writeAudioRequests);
     assertArrayEquals(expected, requests);
 
     return new Streams(input, output);
   }
 
+  private void writeAudioRequests(final DataOutputStream expectedOutput) throws IOException {
+    QemuAudioProtocol.writeSetEncodings(expectedOutput);
+    QemuAudioProtocol.writeEnableAudio(expectedOutput, AudioFilter.CHANNELS, AudioFilter.SAMPLE_RATE);
+  }
+
   @Test
   void shouldJoinADisplayWithoutAPasswordWithoutAuthentication() throws Exception {
-    final CompletableFuture<Void> served = CompletableFuture.runAsync(() -> {
-      try (final Socket socket = this.server.accept()) {
-        this.handshake(socket, "");
-        final InputStream input = socket.getInputStream();
-        input.read();
-      } catch (final IOException exception) {
-        throw new UncheckedIOException(exception);
-      }
-    });
+    final CompletableFuture<Void> served = CompletableFuture.runAsync(this::serveDisplayWithoutPassword);
     final VmAudioClient client = VmAudioClient.connect(this.address(), "", (samples, length) -> {}, (message, failure) -> {});
     final boolean alive = client.isAlive();
     assertTrue(alive);
@@ -175,52 +174,50 @@ final class VmAudioClientTest {
     served.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
   }
 
+  private void serveDisplayWithoutPassword() {
+    try (final Socket socket = this.server.accept()) {
+      this.handshake(socket, "");
+      final InputStream input = socket.getInputStream();
+      input.read();
+    } catch (final IOException exception) {
+      throw new UncheckedIOException(exception);
+    }
+  }
+
   @Test
   void shouldEndTheHandshakeOfAWrongPasswordWithTheReasonOfTheServer() throws Exception {
-    final CompletableFuture<Void> served = CompletableFuture.runAsync(() -> {
-      try (final Socket socket = this.server.accept()) {
-        final DataInputStream input = new DataInputStream(socket.getInputStream());
-        final DataOutputStream output = new DataOutputStream(socket.getOutputStream());
-        output.write(VERSION.getBytes(StandardCharsets.US_ASCII));
-        input.readFully(new byte[VERSION_BYTES]);
-        output.write(new byte[] { 1, VNC_AUTHENTICATION });
-        final int securityType = input.readUnsignedByte();
-        assertEquals(VNC_AUTHENTICATION, securityType, "VNC authentication");
-        output.write(new byte[CHALLENGE_BYTES]);
-        input.readFully(new byte[CHALLENGE_BYTES]);
-        output.writeInt(1);
-        final byte[] reason = "Authentication failed".getBytes(StandardCharsets.US_ASCII);
-        output.writeInt(reason.length);
-        output.write(reason);
-        output.flush();
-      } catch (final IOException exception) {
-        throw new UncheckedIOException(exception);
-      }
-    });
+    final CompletableFuture<Void> served = CompletableFuture.runAsync(this::refuseWrongPassword);
     final ProtocolException refused = assertThrows(ProtocolException.class, this::connect);
     final String message = refused.getMessage();
-    assertEquals("VNC server refused the connection because of \"Authentication failed\"!", message);
+    assertEquals("Because of \"Authentication failed\", VNC server refused the connection!", message);
 
     served.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
   }
 
+  private void refuseWrongPassword() {
+    try (final Socket socket = this.server.accept()) {
+      final DataInputStream input = new DataInputStream(socket.getInputStream());
+      final DataOutputStream output = new DataOutputStream(socket.getOutputStream());
+      output.write(VERSION.getBytes(StandardCharsets.US_ASCII));
+      input.readFully(new byte[VERSION_BYTES]);
+      output.write(new byte[] { 1, VNC_AUTHENTICATION });
+      final int securityType = input.readUnsignedByte();
+      assertEquals(VNC_AUTHENTICATION, securityType, VNC_AUTHENTICATION_MESSAGE);
+      output.write(new byte[CHALLENGE_BYTES]);
+      input.readFully(new byte[CHALLENGE_BYTES]);
+      output.writeInt(1);
+      final byte[] reason = "Authentication failed".getBytes(StandardCharsets.US_ASCII);
+      output.writeInt(reason.length);
+      output.write(reason);
+      output.flush();
+    } catch (final IOException exception) {
+      throw new UncheckedIOException(exception);
+    }
+  }
+
   @Test
   void shouldHandTheSoundOfTheGuestToTheSinkAndReportTheEnd() throws Exception {
-    final CompletableFuture<Void> served = CompletableFuture.runAsync(() -> {
-      try (final Socket socket = this.server.accept()) {
-        final Streams streams = this.handshake(socket);
-        final DataOutputStream output = streams.output();
-        QemuAudioProtocolTest.writeAcknowledgement(output);
-        output.write(AUDIO_BEGIN);
-        QemuAudioProtocolTest.writeData(output, new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 });
-        QemuAudioProtocolTest.writeData(output, new byte[] { 9, 9, 9, 9 });
-        output.write(AUDIO_END);
-        output.flush();
-        this.waitUntil(() -> this.chunks.size() == 2);
-      } catch (final IOException exception) {
-        throw new UncheckedIOException(exception);
-      }
-    });
+    final CompletableFuture<Void> served = CompletableFuture.runAsync(this::sendGuestSoundAndAwaitDelivery);
     try (final VmAudioClient client = this.connect()) {
       served.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
       final byte[] expectedFirstChunk = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 };
@@ -233,6 +230,22 @@ final class VmAudioClientTest {
       this.waitUntil(() -> !client.isAlive());
       final List<String> expected = List.of(CONNECTION_ENDED);
       assertEquals(expected, this.failures);
+    }
+  }
+
+  private void sendGuestSoundAndAwaitDelivery() {
+    try (final Socket socket = this.server.accept()) {
+      final Streams streams = this.handshake(socket);
+      final DataOutputStream output = streams.output();
+      QemuAudioProtocolTest.writeAcknowledgement(output);
+      output.write(AUDIO_BEGIN);
+      QemuAudioProtocolTest.writeData(output, new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 });
+      QemuAudioProtocolTest.writeData(output, new byte[] { 9, 9, 9, 9 });
+      output.write(AUDIO_END);
+      output.flush();
+      this.waitUntil(() -> this.chunks.size() == 2);
+    } catch (final IOException exception) {
+      throw new UncheckedIOException(exception);
     }
   }
 
@@ -251,20 +264,7 @@ final class VmAudioClientTest {
         heard.add("quiet");
       }
     };
-    final CompletableFuture<Void> served = CompletableFuture.runAsync(() -> {
-      try (final Socket socket = this.server.accept()) {
-        final Streams streams = this.handshake(socket);
-        final DataOutputStream output = streams.output();
-        QemuAudioProtocolTest.writeAcknowledgement(output);
-        output.write(AUDIO_BEGIN);
-        QemuAudioProtocolTest.writeData(output, SAMPLES);
-        output.write(AUDIO_END);
-        output.flush();
-        this.waitUntil(() -> heard.size() == 2);
-      } catch (final IOException exception) {
-        throw new UncheckedIOException(exception);
-      }
-    });
+    final CompletableFuture<Void> served = CompletableFuture.runAsync(() -> this.sendGuestSoundAndAwaitQuiet(heard));
     try (final VmAudioClient _ = VmAudioClient.connect(this.address(), PASSWORD, sink, (message, failure) -> {})) {
       served.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
       final List<String> expected = List.of("sound 4", "quiet");
@@ -272,26 +272,25 @@ final class VmAudioClientTest {
     }
   }
 
+  private void sendGuestSoundAndAwaitQuiet(final List<String> heard) {
+    try (final Socket socket = this.server.accept()) {
+      final Streams streams = this.handshake(socket);
+      final DataOutputStream output = streams.output();
+      QemuAudioProtocolTest.writeAcknowledgement(output);
+      output.write(AUDIO_BEGIN);
+      QemuAudioProtocolTest.writeData(output, SAMPLES);
+      output.write(AUDIO_END);
+      output.flush();
+      this.waitUntil(() -> heard.size() == 2);
+    } catch (final IOException exception) {
+      throw new UncheckedIOException(exception);
+    }
+  }
+
   @Test
   void shouldEndTheConnectionAndReportASinkThatFails() throws Exception {
-    final CompletableFuture<Void> served = CompletableFuture.runAsync(() -> {
-      try (final Socket socket = this.server.accept()) {
-        final Streams streams = this.handshake(socket);
-        final DataOutputStream output = streams.output();
-        QemuAudioProtocolTest.writeAcknowledgement(output);
-        output.write(AUDIO_BEGIN);
-        QemuAudioProtocolTest.writeData(output, SAMPLES);
-        output.flush();
-        final DataInputStream input = streams.input();
-        final int next = input.read();
-        assertEquals(-1, next);
-      } catch (final IOException exception) {
-        throw new UncheckedIOException(exception);
-      }
-    });
-    final VmAudioClient.Sink failing = (samples, length) -> {
-      throw new IllegalStateException("sink broke!");
-    };
+    final CompletableFuture<Void> served = CompletableFuture.runAsync(this::sendGuestSoundAndAwaitDisconnection);
+    final VmAudioClient.Sink failing = this::failSoundSink;
     try (
       final VmAudioClient client = VmAudioClient.connect(this.address(), PASSWORD, failing, (message, failure) ->
         this.failures.add(message)
@@ -302,6 +301,27 @@ final class VmAudioClientTest {
       final List<String> expected = List.of(CONNECTION_ENDED);
       assertEquals(expected, this.failures);
     }
+  }
+
+  private void sendGuestSoundAndAwaitDisconnection() {
+    try (final Socket socket = this.server.accept()) {
+      final Streams streams = this.handshake(socket);
+      final DataOutputStream output = streams.output();
+      QemuAudioProtocolTest.writeAcknowledgement(output);
+      output.write(AUDIO_BEGIN);
+      QemuAudioProtocolTest.writeData(output, SAMPLES);
+      output.flush();
+      final DataInputStream input = streams.input();
+      final int next = input.read();
+      assertEquals(-1, next);
+    } catch (final IOException exception) {
+      throw new UncheckedIOException(exception);
+    }
+  }
+
+  private void failSoundSink(final byte[] samples, final int length) {
+    final String message = "sink broke!";
+    throw new IllegalStateException(message);
   }
 
   @Test
@@ -390,27 +410,14 @@ final class VmAudioClientTest {
 
   @Test
   void shouldNotWaitForItselfWhenAFailureCallbackClosesTheClient() throws Exception {
-    final CompletableFuture<Void> served = CompletableFuture.runAsync(() -> {
-      try (final Socket socket = this.server.accept()) {
-        final Streams streams = this.handshake(socket);
-        QemuAudioProtocolTest.writeAcknowledgement(streams.output());
-      } catch (final IOException exception) {
-        throw new UncheckedIOException(exception);
-      }
-    });
+    final CompletableFuture<Void> served = CompletableFuture.runAsync(this::acknowledgeAudioConnection);
     final AtomicReference<VmAudioClient> self = new AtomicReference<>();
     final AtomicLong closeNanoseconds = new AtomicLong(-1);
     final VmAudioClient client = VmAudioClient.connect(
       this.address(),
       PASSWORD,
       (samples, length) -> {},
-      (message, failure) -> {
-        final long begin = System.nanoTime();
-        this.waitUntil(() -> self.get() != null);
-        final VmAudioClient ownClient = self.get();
-        ownClient.close();
-        closeNanoseconds.set(System.nanoTime() - begin);
-      }
+      (_, _) -> this.closeFromFailureCallback(self, closeNanoseconds)
     );
     self.set(client);
     served.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
@@ -421,25 +428,29 @@ final class VmAudioClientTest {
     client.close();
   }
 
+  private void acknowledgeAudioConnection() {
+    try (final Socket socket = this.server.accept()) {
+      final Streams streams = this.handshake(socket);
+      QemuAudioProtocolTest.writeAcknowledgement(streams.output());
+    } catch (final IOException exception) {
+      throw new UncheckedIOException(exception);
+    }
+  }
+
+  private void closeFromFailureCallback(final AtomicReference<VmAudioClient> self, final AtomicLong closeNanoseconds) {
+    final long begin = System.nanoTime();
+    this.waitUntil(() -> self.get() != null);
+    final VmAudioClient ownClient = self.get();
+    ownClient.close();
+    closeNanoseconds.set(System.nanoTime() - begin);
+  }
+
   @Test
   void shouldRunTheReaderAsADaemonAndWaitForItWhenClosing() throws Exception {
     final CountDownLatch delivering = new CountDownLatch(1);
     final CountDownLatch checked = new CountDownLatch(1);
     final VmAudioClient.Sink slow = (samples, length) -> this.holdTheReader(delivering, checked);
-    final CompletableFuture<Void> served = CompletableFuture.runAsync(() -> {
-      try (final Socket socket = this.server.accept()) {
-        final Streams streams = this.handshake(socket);
-        final DataOutputStream output = streams.output();
-        QemuAudioProtocolTest.writeAcknowledgement(output);
-        output.write(AUDIO_BEGIN);
-        QemuAudioProtocolTest.writeData(output, SAMPLES);
-        output.flush();
-        final DataInputStream input = streams.input();
-        input.read();
-      } catch (final IOException exception) {
-        throw new UncheckedIOException(exception);
-      }
-    });
+    final CompletableFuture<Void> served = CompletableFuture.runAsync(this::sendGuestSoundAndAwaitClientClose);
     final VmAudioClient client = VmAudioClient.connect(this.address(), PASSWORD, slow, (message, failure) -> {});
     final Thread reader = client.getReader();
     final boolean daemon = reader.isDaemon();
@@ -466,17 +477,24 @@ final class VmAudioClientTest {
     }
   }
 
+  private void sendGuestSoundAndAwaitClientClose() {
+    try (final Socket socket = this.server.accept()) {
+      final Streams streams = this.handshake(socket);
+      final DataOutputStream output = streams.output();
+      QemuAudioProtocolTest.writeAcknowledgement(output);
+      output.write(AUDIO_BEGIN);
+      QemuAudioProtocolTest.writeData(output, SAMPLES);
+      output.flush();
+      final DataInputStream input = streams.input();
+      input.read();
+    } catch (final IOException exception) {
+      throw new UncheckedIOException(exception);
+    }
+  }
+
   @Test
   void shouldEndQuietlyWhenClosed() throws Exception {
-    final CompletableFuture<Void> served = CompletableFuture.runAsync(() -> {
-      try (final Socket socket = this.server.accept()) {
-        this.handshake(socket);
-        final InputStream input = socket.getInputStream();
-        input.read();
-      } catch (final IOException exception) {
-        throw new UncheckedIOException(exception);
-      }
-    });
+    final CompletableFuture<Void> served = CompletableFuture.runAsync(this::serveDisplayUntilClosed);
     final VmAudioClient client = this.connect();
     final boolean aliveBeforeClose = client.isAlive();
     assertTrue(aliveBeforeClose);
@@ -500,20 +518,19 @@ final class VmAudioClientTest {
     assertEquals(List.of(), this.failures);
   }
 
+  private void serveDisplayUntilClosed() {
+    try (final Socket socket = this.server.accept()) {
+      this.handshake(socket);
+      final InputStream input = socket.getInputStream();
+      input.read();
+    } catch (final IOException exception) {
+      throw new UncheckedIOException(exception);
+    }
+  }
+
   @Test
   void shouldFailAConnectionWithoutAPasswordToAServerThatWantsOne() {
-    final CompletableFuture<Void> served = CompletableFuture.runAsync(() -> {
-      try (final Socket socket = this.server.accept()) {
-        final DataOutputStream output = new DataOutputStream(socket.getOutputStream());
-        output.write(VERSION.getBytes(StandardCharsets.US_ASCII));
-        output.write(new byte[] { 1, VNC_AUTHENTICATION });
-        final InputStream input = socket.getInputStream();
-        input.readNBytes(VERSION_BYTES);
-        input.read();
-      } catch (final IOException exception) {
-        throw new UncheckedIOException(exception);
-      }
-    });
+    final CompletableFuture<Void> served = CompletableFuture.runAsync(this::requestPasswordAuthentication);
     final ProtocolException failure = assertThrows(ProtocolException.class, () ->
       VmAudioClient.connect(this.address(), "", (samples, length) -> {}, (message, cause) -> {})
     );
@@ -523,22 +540,40 @@ final class VmAudioClientTest {
     served.join();
   }
 
+  private void requestPasswordAuthentication() {
+    try (final Socket socket = this.server.accept()) {
+      final DataOutputStream output = new DataOutputStream(socket.getOutputStream());
+      output.write(VERSION.getBytes(StandardCharsets.US_ASCII));
+      output.write(new byte[] { 1, VNC_AUTHENTICATION });
+      final InputStream input = socket.getInputStream();
+      input.readNBytes(VERSION_BYTES);
+      input.read();
+    } catch (final IOException exception) {
+      throw new UncheckedIOException(exception);
+    }
+  }
+
   @Test
   void shouldChangeNothingWhenCloseFails() {
     final AtomicInteger closed = new AtomicInteger();
-    VmAudioClient.closeQuietly(() -> {
-      closed.incrementAndGet();
-      throw new IOException("gone!");
-    });
+    VmAudioClient.closeQuietly(() -> this.failResourceClose(closed));
     final int closeCalls = closed.get();
     assertEquals(1, closeCalls);
+  }
+
+  private void failResourceClose(final AtomicInteger closed) throws IOException {
+    closed.incrementAndGet();
+
+    final String message = "gone!";
+    throw new IOException(message);
   }
 
   private void waitUntil(final BooleanSupplier condition) {
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(TIMEOUT_SECONDS);
     while (!condition.getAsBoolean()) {
       if (System.nanoTime() > deadline) {
-        throw new AssertionError("Condition did not hold in time!");
+        final String message = "Condition did not hold in time!";
+        throw new AssertionError(message);
       }
       Thread.onSpinWait();
     }

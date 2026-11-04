@@ -32,8 +32,7 @@
  * player to terminate its owned resources; module shutdown does not release players, and attached filters retain
  * their separate lifetimes.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

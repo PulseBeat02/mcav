@@ -76,7 +76,8 @@ final class QemuInstallerReleaseTest {
   @Test
   void shouldStartTheInstalledQemu() throws IOException, InterruptedException {
     final Platform current = Platform.getCurrentPlatform();
-    Assumptions.assumeTrue(current.equals(X86_64), "Only a 64-bit x86 Linux machine runs the x86-64 packages!");
+    final boolean onX86Linux = current.equals(X86_64);
+    Assumptions.assumeTrue(onX86Linux, "Only a 64-bit x86 Linux machine runs the x86-64 packages!");
 
     final QemuInstaller installer = new QemuInstaller(this::createPackagesInTemporaryCache, current);
     final QemuProgram program = installer.install(VmPlayer.Architecture.X86_64);

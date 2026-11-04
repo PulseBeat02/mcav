@@ -24,12 +24,12 @@ import me.brandonli.mcav.MCAVException;
  * Thrown when a VNC operation fails for a reason outside the caller's control, such as a server that cannot be
  * reached, refuses the handshake or rejects the credentials, or a key table that cannot be read.
  *
- * <p>Every failure of {@code mcav-vnc} that comes from the network or the machine is this type or a subtype; catch
- * it to handle them all.
+ * <p>Every failure of {@code mcav-vnc} that comes from the network or the machine is this type; catch it to handle
+ * them all.
  *
  * @since 1.0.0
  */
-public class VncException extends MCAVException {
+public final class VncException extends MCAVException {
 
   @Serial
   private static final long serialVersionUID = 3581100892521623976L;

@@ -53,6 +53,7 @@ final class CommandTaskTest {
   private static final String SLEEPER_SOURCE_FILE = "Sleeper.java";
   private static final String SPAWNER_SOURCE_FILE = "Spawner.java";
   private static final String ENVIRONMENT_SOURCE_FILE = "Environment.java";
+  private static final String MISSING_PROGRAM_FILE = "mcav-missing-program";
 
   private static final String VERSION_OPTION = "-version";
   private static final String UNKNOWN_OPTION = "-XX:+NoSuchOptionForMcav";
@@ -134,6 +135,21 @@ final class CommandTaskTest {
   }
 
   @Test
+  void shouldReportAProgramThatCannotBeStartedAndAllowAnotherLaunch() {
+    final Path missing = this.directory.resolve(MISSING_PROGRAM_FILE);
+    final String program = missing.toString();
+    final CommandTask task = new CommandTask(program);
+    final ProcessException exception = assertThrows(ProcessException.class, task::run);
+    final Throwable cause = exception.getCause();
+    final Optional<Process> process = task.getProcess();
+    assertInstanceOf(IOException.class, cause);
+    assertTrue(process.isEmpty());
+    assertThrows(IllegalStateException.class, task::getExitCode);
+
+    assertThrows(ProcessException.class, task::run);
+  }
+
+  @Test
   void shouldRunInTheWorkingDirectory() throws IOException {
     final String java = javaExecutable();
     final CommandTask task = new CommandTask(this.directory, java, "-XshowSettings:properties", VERSION_OPTION);
@@ -172,6 +188,26 @@ final class CommandTaskTest {
   }
 
   @Test
+  void shouldStartNothingBeforeItIsRun() {
+    final String java = javaExecutable();
+    final Map<String, String> environment = Map.of(VARIABLE, "mcav");
+    final List<CommandTask> tasks = List.of(
+      new CommandTask(java, VERSION_OPTION),
+      new CommandTask(this.directory, java, VERSION_OPTION),
+      new CommandTask(environment, java, VERSION_OPTION)
+    );
+    for (final CommandTask task : tasks) {
+      final Optional<Process> process = task.getProcess();
+      final String output = task.getOutput();
+      final String errorOutput = task.getErrorOutput();
+      assertTrue(process.isEmpty());
+      assertEquals("", output);
+      assertEquals("", errorOutput);
+      assertThrows(IllegalStateException.class, task::getExitCode);
+    }
+  }
+
+  @Test
   void shouldRunOnlyOnce() throws IOException {
     final String java = javaExecutable();
     final CommandTask task = new CommandTask(java, VERSION_OPTION);
@@ -196,6 +232,19 @@ final class CommandTaskTest {
     final Throwable cause = exception.getCause();
     assertTrue(interrupted, "the interrupt must be restored");
     assertInstanceOf(InterruptedException.class, cause);
+  }
+
+  @Test
+  void shouldNotRunAgainAfterAWaitFailure() {
+    final String java = javaExecutable();
+    final CommandTask task = new CommandTask(java, VERSION_OPTION);
+    final Thread current = Thread.currentThread();
+    current.interrupt();
+    assertThrows(ProcessException.class, task::run);
+
+    final boolean interrupted = Thread.interrupted();
+    assertTrue(interrupted);
+    assertThrows(IllegalStateException.class, task::run);
   }
 
   @Test
@@ -264,7 +313,9 @@ final class CommandTaskTest {
   @Test
   void shouldWrapStreamFailuresWhileReading() throws IOException {
     try (final InputStream broken = new FailingStream()) {
-      assertThrows(ProcessException.class, () -> CommandTask.readFully(broken));
+      final ProcessException exception = assertThrows(ProcessException.class, () -> CommandTask.readFully(broken));
+      final Throwable cause = exception.getCause();
+      assertInstanceOf(IOException.class, cause);
     }
   }
 

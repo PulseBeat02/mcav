@@ -56,7 +56,8 @@ final class DefaultVmConfigurationBuilder implements VmConfigurationBuilder {
   public VmConfigurationBuilder memory(final int memoryMegabytes) {
     Preconditions.checkArgument(memoryMegabytes > 0, MEMORY_NOT_POSITIVE_MESSAGE, memoryMegabytes);
 
-    return this.option(MEMORY_OPTION, memoryMegabytes + MEGABYTES_SUFFIX);
+    final String memory = "%s%s".formatted(memoryMegabytes, MEGABYTES_SUFFIX);
+    return this.option(MEMORY_OPTION, memory);
   }
 
   @Override
@@ -64,7 +65,8 @@ final class DefaultVmConfigurationBuilder implements VmConfigurationBuilder {
     Preconditions.checkArgument(amount > 0, MEMORY_NOT_POSITIVE_MESSAGE, amount);
     Preconditions.checkNotNull(unit, "Unit must not be null!");
 
-    return this.option(MEMORY_OPTION, amount + unit);
+    final String memory = "%s%s".formatted(amount, unit);
+    return this.option(MEMORY_OPTION, memory);
   }
 
   @Override
@@ -83,17 +85,17 @@ final class DefaultVmConfigurationBuilder implements VmConfigurationBuilder {
   }
 
   @Override
-  public VmConfigurationBuilder hda(final String hdaPath) {
-    Preconditions.checkNotNull(hdaPath, DISK_PATH_NULL_MESSAGE);
+  public VmConfigurationBuilder firstHardDisk(final String imagePath) {
+    Preconditions.checkNotNull(imagePath, DISK_PATH_NULL_MESSAGE);
 
-    return this.option("hda", hdaPath);
+    return this.option("hda", imagePath);
   }
 
   @Override
-  public VmConfigurationBuilder hdb(final String hdbPath) {
-    Preconditions.checkNotNull(hdbPath, DISK_PATH_NULL_MESSAGE);
+  public VmConfigurationBuilder secondHardDisk(final String imagePath) {
+    Preconditions.checkNotNull(imagePath, DISK_PATH_NULL_MESSAGE);
 
-    return this.option("hdb", hdbPath);
+    return this.option("hdb", imagePath);
   }
 
   @Override
@@ -168,7 +170,8 @@ final class DefaultVmConfigurationBuilder implements VmConfigurationBuilder {
     Preconditions.checkNotNull(value, VALUE_NULL_MESSAGE);
     Preconditions.checkArgument(!key.isBlank(), KEY_BLANK_MESSAGE);
 
-    this.repeatable.add(OPTION_PREFIX + key);
+    final String argument = "%s%s".formatted(OPTION_PREFIX, key);
+    this.repeatable.add(argument);
     this.repeatable.add(value);
     return this;
   }
@@ -189,7 +192,7 @@ final class DefaultVmConfigurationBuilder implements VmConfigurationBuilder {
     this.options.remove(key);
     this.flags.remove(key);
 
-    final String argument = OPTION_PREFIX + key;
+    final String argument = "%s%s".formatted(OPTION_PREFIX, key);
     final List<String> kept = new ArrayList<>();
     for (int index = 0; index < this.repeatable.size(); index += REPEATABLE_ENTRY_SIZE) {
       final String name = this.repeatable.get(index);

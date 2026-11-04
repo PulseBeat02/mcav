@@ -40,7 +40,7 @@ public final class JdaModule implements MCAVModule {
   private static final String MODULE_NAME = "jda";
 
   /**
-   * Constructs the module. The module loader creates it for you.
+   * Creates the module. The module loader calls this for you.
    *
    * @since 1.0.0
    */

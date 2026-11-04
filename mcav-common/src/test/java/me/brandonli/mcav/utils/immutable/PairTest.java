@@ -18,8 +18,11 @@
 package me.brandonli.mcav.utils.immutable;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import me.brandonli.mcav.testing.EqualityAssertions;
 import org.junit.jupiter.api.Test;
@@ -35,6 +38,17 @@ final class PairTest {
     final Integer second = pair.getSecond();
     assertEquals("width", first);
     assertEquals(42, second);
+  }
+
+  @Test
+  void shouldKeepItsValuesByReference() {
+    final List<String> first = new ArrayList<>();
+    final StringBuilder second = new StringBuilder();
+    final Pair<List<String>, StringBuilder> pair = Pair.pair(first, second);
+    final List<String> keptFirst = pair.getFirst();
+    final StringBuilder keptSecond = pair.getSecond();
+    assertSame(first, keptFirst);
+    assertSame(second, keptSecond);
   }
 
   @Test

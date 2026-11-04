@@ -150,7 +150,7 @@ public final class VmConfiguration {
   public List<String> getAll(final String key) {
     Preconditions.checkNotNull(key, KEY_NULL_MESSAGE);
 
-    final String argument = OPTION_PREFIX + key;
+    final String argument = "%s%s".formatted(OPTION_PREFIX, key);
     final List<String> values = new ArrayList<>();
     for (int index = 0; index < this.repeatable.size(); index += REPEATABLE_ENTRY_SIZE) {
       final String name = this.repeatable.get(index);
@@ -189,14 +189,16 @@ public final class VmConfiguration {
     for (final Map.Entry<String, String> entry : this.options.entrySet()) {
       final String key = entry.getKey();
       final String value = entry.getValue();
-      arguments.add(OPTION_PREFIX + key);
+      final String argument = "%s%s".formatted(OPTION_PREFIX, key);
+      arguments.add(argument);
       arguments.add(value);
     }
 
     arguments.addAll(this.repeatable);
 
     for (final String flag : this.flags) {
-      arguments.add(OPTION_PREFIX + flag);
+      final String argument = "%s%s".formatted(OPTION_PREFIX, flag);
+      arguments.add(argument);
     }
 
     return List.copyOf(arguments);

@@ -21,13 +21,36 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 final class KeyCodeTest {
 
   private static final char PRIVATE_USE_START = (char) 0xE000;
   private static final char PRIVATE_USE_END = (char) 0xF8FF;
+
+  private static final Map<KeyCode, KeyCode> ALIASES = Map.of(
+    KeyCode.LEFT_SHIFT,
+    KeyCode.SHIFT,
+    KeyCode.LEFT_CONTROL,
+    KeyCode.CONTROL,
+    KeyCode.LEFT_ALT,
+    KeyCode.ALT,
+    KeyCode.ARROW_LEFT,
+    KeyCode.LEFT,
+    KeyCode.ARROW_UP,
+    KeyCode.UP,
+    KeyCode.ARROW_RIGHT,
+    KeyCode.RIGHT,
+    KeyCode.ARROW_DOWN,
+    KeyCode.DOWN,
+    KeyCode.COMMAND,
+    KeyCode.META
+  );
 
   @Test
   void shouldFindKeysByNameIgnoringCase() {
@@ -59,12 +82,27 @@ final class KeyCodeTest {
 
   @Test
   void shouldGiveAliasesTheCharacterOfTheirKey() {
-    final char shift = KeyCode.SHIFT.getKeyChar();
-    final char leftShift = KeyCode.LEFT_SHIFT.getKeyChar();
-    final char meta = KeyCode.META.getKeyChar();
-    final char command = KeyCode.COMMAND.getKeyChar();
-    assertEquals(shift, leftShift);
-    assertEquals(meta, command);
+    for (final Map.Entry<KeyCode, KeyCode> alias : ALIASES.entrySet()) {
+      final KeyCode aliasKey = alias.getKey();
+      final KeyCode key = alias.getValue();
+      final char aliasCharacter = aliasKey.getKeyChar();
+      final char keyCharacter = key.getKeyChar();
+      final String aliasName = aliasKey.name();
+      assertEquals(keyCharacter, aliasCharacter, aliasName);
+    }
+  }
+
+  @Test
+  void shouldGiveEveryKeyThatIsNoAliasItsOwnCharacter() {
+    final Set<KeyCode> aliases = ALIASES.keySet();
+    final List<Character> characters = Arrays.stream(KeyCode.values())
+      .filter(key -> !aliases.contains(key))
+      .map(KeyCode::getKeyChar)
+      .toList();
+    final Set<Character> distinctCharacters = Set.copyOf(characters);
+    final int keyCount = characters.size();
+    final int distinctCount = distinctCharacters.size();
+    assertEquals(keyCount, distinctCount);
   }
 
   @Test

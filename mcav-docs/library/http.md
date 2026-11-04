@@ -40,28 +40,34 @@ The ports must be between 1 and 65535 and the host name must not be blank; other
 another thread instead.
 
 ```java
-  final String domain = "play.example.com";
-  final int port = 8080;
-  final HttpResult http = HttpResult.http(domain, port);
-  http.start();
-  final MediaInformation information = MediaInformation.titled("My Video");
-  http.setCurrentMedia(information);
+  private static final Logger LOGGER = LoggerFactory.getLogger(MyPlugin.class);
 
-  final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(http);
-  final VideoPlayerMultiplexer multiplexer = VideoPlayer.ffmpeg();
-  final AudioAttachableCallback audioCallback = multiplexer.getAudioAttachableCallback();
-  audioCallback.attach(audioPipelineStep);
-  final String fileName = "video.mp4";
-  final Path path = Path.of(fileName);
-  final FileSource source = FileSource.path(path);
-  multiplexer.start(source);
+  public void playAudioOnWebPage() {
+    final String domain = "play.example.com";
+    final int port = 8080;
+    final HttpResult http = HttpResult.http(domain, port);
+    http.start();
 
-  final String url = http.getFullUrl();
-  LOGGER.info("The audio plays at {}.", url);
-  // ... play some media
+    final MediaInformation information = MediaInformation.titled("My Video");
+    http.setCurrentMedia(information);
 
-  multiplexer.release();
-  http.stop();
+    final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(http);
+    final VideoPlayerMultiplexer multiplexer = VideoPlayer.ffmpeg();
+    final AudioAttachableCallback audioCallback = multiplexer.getAudioAttachableCallback();
+    audioCallback.attach(audioPipelineStep);
+
+    final String fileName = "video.mp4";
+    final Path path = Path.of(fileName);
+    final FileSource source = FileSource.path(path);
+    multiplexer.start(source);
+
+    final String url = http.getFullUrl();
+    LOGGER.info("The audio plays at {}.", url);
+    // ... play some media
+
+    multiplexer.release();
+    http.stop();
+  }
 ```
 
 `setCurrentMedia(UrlParseDump)` shows the title, uploader, thumbnail, duration, and statistics yt-dlp reported, while

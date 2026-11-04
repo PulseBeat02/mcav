@@ -15,8 +15,10 @@ otherwise the memory is only freed when the garbage collector finds the object.
       final int thumbnailSize = 200;
       final ResizeFilter resize = new ResizeFilter(thumbnailSize, thumbnailSize);
       resize.applyFilter(image);
+
       final InvertFilter invert = new InvertFilter();
       invert.applyFilter(image);
+
       final BufferedImage thumbnail = image.toBufferedImage();
       return thumbnail;
     }
@@ -49,6 +51,8 @@ caller sees, including every later loop of a `RepeatingFrameSource`. To change p
 with `updateArgb(int[], width, height)`:
 
 ```java
+  private static final Logger LOGGER = LoggerFactory.getLogger(MyPlugin.class);
+
   public void paintFirstPixelRed(final Path imageFile) {
     final FileSource file = FileSource.path(imageFile);
     try (final ImageBuffer image = ImageBuffer.path(file)) {
@@ -60,6 +64,7 @@ with `updateArgb(int[], width, height)`:
       final int[] editable = image.copyPixels();
       final int opaqueRed = 0xFFFF0000;
       editable[0] = opaqueRed;
+
       final int width = image.getWidth();
       final int height = image.getHeight();
       image.updateArgb(editable, width, height);
@@ -78,6 +83,8 @@ with `updateArgb(int[], width, height)`:
 with the [image player](player.md#image-players).
 
 ```java
+  private static final Logger LOGGER = LoggerFactory.getLogger(MyPlugin.class);
+
   public void describeGif() {
     final String address = "https://example.com/image.gif";
     final URI sourceUri = URI.create(address);

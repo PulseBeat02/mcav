@@ -58,6 +58,8 @@ final class VmModuleTest {
 
   private static final Platform LINUX_X86_64 = Platform.ofPlatform(Os.LINUX, Arch.X86, Bits.BITS_64);
 
+  private static final boolean AUTO_FLUSH = true;
+
   @TempDir
   private Path directory;
 
@@ -116,7 +118,8 @@ final class VmModuleTest {
       final Optional<Instant> start = information.startInstant();
       final Instant started = start.orElseThrow();
       final Path folder = this.directory.resolve(RECORDS_FOLDER);
-      final Path record = folder.resolve(qemu.pid() + RECORD_SUFFIX);
+      final String recordName = "%s%s".formatted(qemu.pid(), RECORD_SUFFIX);
+      final Path record = folder.resolve(recordName);
       Files.createDirectories(record.getParent());
       Files.writeString(record, "%s\n%s\n%s\n".formatted(started, Long.MAX_VALUE, started));
       final Path empty = this.directory.resolve(EMPTY_FOLDER);
@@ -225,7 +228,7 @@ final class VmModuleTest {
   private String captureStandardError(final Runnable action) {
     final PrintStream original = System.err;
     final ByteArrayOutputStream captured = new ByteArrayOutputStream();
-    final PrintStream capture = new PrintStream(captured, true, StandardCharsets.UTF_8);
+    final PrintStream capture = new PrintStream(captured, AUTO_FLUSH, StandardCharsets.UTF_8);
     System.setErr(capture);
     try {
       action.run();
