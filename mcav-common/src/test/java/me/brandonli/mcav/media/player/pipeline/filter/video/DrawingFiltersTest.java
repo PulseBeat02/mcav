@@ -53,6 +53,10 @@ final class DrawingFiltersTest {
   private static final int OVERLAY_SIZE = 2;
   private static final int OVERLAY_FRAME_SIZE = 4;
 
+  private static final String CHANGE_REPORTED_MESSAGE = "the filter reports the change, which decides whether the result is written back";
+
+  private static final String OUTLINE_ONLY_MESSAGE = "only the outline is drawn";
+
   private static int pixelAt(final ImageBuffer image, final int column, final int row) {
     final int[] pixels = image.getPixels();
     final int width = image.getWidth();
@@ -85,7 +89,7 @@ final class DrawingFiltersTest {
       assertEquals(WHITE_ARGB, right);
       assertEquals(WHITE_ARGB, left);
       assertEquals(WHITE_ARGB, top);
-      assertEquals(BLACK_ARGB, center, "only the outline is drawn");
+      assertEquals(BLACK_ARGB, center, OUTLINE_ONLY_MESSAGE);
       assertEquals(BLACK_ARGB, farAway);
     }
 
@@ -135,7 +139,7 @@ final class DrawingFiltersTest {
       final int start = pixelAt(image, 0, 1);
       final int end = pixelAt(image, 4, 1);
       final int above = pixelAt(image, 2, 0);
-      assertTrue(modified, "the filter reports the change, which decides whether the result is written back");
+      assertTrue(modified, CHANGE_REPORTED_MESSAGE);
       assertEquals(WHITE_ARGB, start);
       assertEquals(WHITE_ARGB, end);
       assertEquals(BLACK_ARGB, above);
@@ -147,7 +151,7 @@ final class DrawingFiltersTest {
     try (final ImageBuffer image = Images.solid(6, 6, BLACK_ARGB)) {
       final RectangleFilter filter = new RectangleFilter(1, 1, 3, 3, WHITE);
       final boolean modified = filter.applyFilter(image);
-      assertTrue(modified, "the filter reports the change, which decides whether the result is written back");
+      assertTrue(modified, CHANGE_REPORTED_MESSAGE);
 
       final int corner = pixelAt(image, 1, 1);
       final int oppositeCorner = pixelAt(image, 3, 3);
@@ -157,7 +161,7 @@ final class DrawingFiltersTest {
       final int belowRectangle = pixelAt(image, 1, 4);
       assertEquals(WHITE_ARGB, corner);
       assertEquals(WHITE_ARGB, oppositeCorner, "a rectangle at 1 with a width of 3 ends at 3");
-      assertEquals(BLACK_ARGB, center, "only the outline is drawn");
+      assertEquals(BLACK_ARGB, center, OUTLINE_ONLY_MESSAGE);
       assertEquals(BLACK_ARGB, outside);
       assertEquals(BLACK_ARGB, rightOfRectangle, "a width of 3 covers three columns");
       assertEquals(BLACK_ARGB, belowRectangle, "a height of 3 covers three rows");
@@ -200,7 +204,7 @@ final class DrawingFiltersTest {
       final boolean firstModified = filter.applyFilter(first);
       clock.set(1_000_000_000L);
       final boolean secondModified = filter.applyFilter(second);
-      assertTrue(firstModified, "the filter reports the change, which decides whether the result is written back");
+      assertTrue(firstModified, CHANGE_REPORTED_MESSAGE);
       assertTrue(secondModified);
       final int firstDrawn = countNonBlack(first);
       final int secondDrawn = countNonBlack(second);
@@ -338,7 +342,7 @@ final class DrawingFiltersTest {
       final ZeroFilter filter = new ZeroFilter();
       final boolean modified = filter.applyFilter(image);
       final int remaining = countNonBlack(image);
-      assertTrue(modified, "the filter reports the change, which decides whether the result is written back");
+      assertTrue(modified, CHANGE_REPORTED_MESSAGE);
       assertEquals(0, remaining);
     }
   }

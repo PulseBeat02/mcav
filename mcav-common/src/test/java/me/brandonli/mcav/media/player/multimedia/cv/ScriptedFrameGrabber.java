@@ -37,15 +37,20 @@ final class ScriptedFrameGrabber extends FrameGrabber {
 
   private static final int FRAME_WIDTH = 4;
   private static final int FRAME_HEIGHT = 2;
+  private static final int VIDEO_CHANNELS = 3;
 
   private static final int SAMPLE_RATE = 48_000;
   private static final int AUDIO_CHANNELS = 2;
+  private static final int SAMPLES_PER_FRAME = 960;
+
+  private static final long NO_REQUESTED_TIMESTAMP = -1L;
 
   private final Deque<Object> script;
   private final AtomicBoolean closed;
   private final AtomicBoolean interruptedWhenReleased;
   private final AtomicLong requestedTimestamp;
   private final AtomicReference<Thread> grabbingThread;
+
   private boolean failOnStart;
   private boolean failOnStop;
   private boolean failOnSeek;
@@ -55,7 +60,7 @@ final class ScriptedFrameGrabber extends FrameGrabber {
     this.script = new ArrayDeque<>(steps);
     this.closed = new AtomicBoolean();
     this.interruptedWhenReleased = new AtomicBoolean();
-    this.requestedTimestamp = new AtomicLong(-1L);
+    this.requestedTimestamp = new AtomicLong(NO_REQUESTED_TIMESTAMP);
     this.grabbingThread = new AtomicReference<>();
     this.imageWidth = width;
     this.imageHeight = height;
@@ -82,45 +87,33 @@ final class ScriptedFrameGrabber extends FrameGrabber {
   }
 
   static Frame video(final long timestampMicroseconds) {
-    final Frame frame = new Frame(FRAME_WIDTH, FRAME_HEIGHT, Frame.DEPTH_UBYTE, 3);
+    final Frame frame = new Frame(FRAME_WIDTH, FRAME_HEIGHT, Frame.DEPTH_UBYTE, VIDEO_CHANNELS);
     frame.timestamp = timestampMicroseconds;
     return frame;
   }
 
   static Frame audio(final long timestampMicroseconds) {
     final Frame frame = new Frame();
-    frame.samples = new Buffer[] { ShortBuffer.allocate(960) };
+    frame.samples = new Buffer[] { ShortBuffer.allocate(SAMPLES_PER_FRAME) };
     frame.sampleRate = SAMPLE_RATE;
     frame.audioChannels = AUDIO_CHANNELS;
     frame.timestamp = timestampMicroseconds;
     return frame;
   }
 
-  int getRemainingSteps() {
-    synchronized (this.script) {
-      return this.script.size();
-    }
-  }
-
-  void failOnSeek() {
-    this.failOnSeek = true;
-  }
-
-  void failOnStop() {
-    this.failOnStop = true;
-  }
-
   @Override
   public void start() throws FrameGrabber.Exception {
     if (this.failOnStart) {
-      throw new FrameGrabber.Exception("start failed on purpose");
+      final String message = "Start failed on purpose!";
+      throw new FrameGrabber.Exception(message);
     }
   }
 
   @Override
   public void stop() throws FrameGrabber.Exception {
     if (this.failOnStop) {
-      throw new FrameGrabber.Exception("stop failed on purpose");
+      final String message = "Stop failed on purpose!";
+      throw new FrameGrabber.Exception(message);
     }
   }
 
@@ -151,8 +144,8 @@ final class ScriptedFrameGrabber extends FrameGrabber {
     return switch (next) {
       case null -> null;
       case final Frame frame -> frame;
-      case final FrameGrabber.Exception exception -> throw exception;
-      case final RuntimeException exception -> throw exception;
+      case final FrameGrabber.Exception frameGrabberException -> throw frameGrabberException;
+      case final RuntimeException runtimeException -> throw runtimeException;
       default -> {
         final String message = "Script step %s is unknown!".formatted(next);
         throw new IllegalStateException(message);
@@ -173,7 +166,8 @@ final class ScriptedFrameGrabber extends FrameGrabber {
     this.requestedTimestamp.set(timestamp);
 
     if (this.failOnSeek) {
-      throw new FrameGrabber.Exception("seek failed on purpose");
+      final String message = "Seek failed on purpose!";
+      throw new FrameGrabber.Exception(message);
     }
   }
 
@@ -191,6 +185,20 @@ final class ScriptedFrameGrabber extends FrameGrabber {
 
   Thread getGrabbingThread() {
     return this.grabbingThread.get();
+  }
+
+  int getRemainingSteps() {
+    synchronized (this.script) {
+      return this.script.size();
+    }
+  }
+
+  void failOnSeek() {
+    this.failOnSeek = true;
+  }
+
+  void failOnStop() {
+    this.failOnStop = true;
   }
 
   void setLength(final long lengthMicroseconds) {
@@ -226,8 +234,8 @@ final class ScriptedFrameGrabber extends FrameGrabber {
       }
 
       if (interrupted) {
-        final Thread currentThread = Thread.currentThread();
-        currentThread.interrupt();
+        final Thread current = Thread.currentThread();
+        current.interrupt();
       }
     }
   }

@@ -31,16 +31,18 @@ import me.brandonli.mcav.media.player.pipeline.filter.Filter;
  * later picture or releases it, so filters that keep a frame must {@link ImageBuffer#copy() copy} it.
  *
  * {@snippet :
- * final String text = "MCAV";
- * final int left = 10;
- * final int baseline = 20;
- * final double scale = 0.5;
- * final double[] white = { 255, 255, 255 };
- * final VideoFilter watermark = new TextFilter(text, left, baseline, TextFilter.DEFAULT_FONT, scale, white);
- * final VideoPipelineStepBuilder builder = PipelineBuilder.video();
- * builder.then(watermark);
- * builder.then(display);
- * final VideoPipelineStep pipeline = builder.build();
+ * VideoPipelineStep createPipeline(final VideoFilter display) {
+ *   final String text = "MCAV";
+ *   final int left = 10;
+ *   final int baseline = 20;
+ *   final double scale = 0.5;
+ *   final double[] white = { 255, 255, 255 };
+ *   final VideoFilter watermark = new TextFilter(text, left, baseline, TextFilter.DEFAULT_FONT, scale, white);
+ *   final VideoPipelineStepBuilder builder = PipelineBuilder.video();
+ *   builder.then(watermark);
+ *   builder.then(display);
+ *   return builder.build();
+ * }
  * }
  *
  * <p>Filters run on one render thread of their player, so an implementation needs to be thread-safe only when one

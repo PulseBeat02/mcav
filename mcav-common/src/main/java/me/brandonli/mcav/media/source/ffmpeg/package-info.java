@@ -18,7 +18,8 @@
 /**
  * Selects a raw FFmpeg input and its demuxer or capture format.
  *
- * <p>For example, {@code FfmpegDirectSource.mrl("desktop", "gdigrab")} describes Windows desktop capture.
+ * <p>Create a source with {@link me.brandonli.mcav.media.source.ffmpeg.FfmpegDirectSource#mrl(String, String)}; for
+ * example, {@code FfmpegDirectSource.mrl("desktop", "gdigrab")} describes Windows desktop capture.
  * The detector recognizes {@code format||input}, requiring both sides to be nonblank. The direct factory only
  * requires a nonblank format: validity of the locator and backend availability are checked when FFmpeg opens it.
  * Use {@link me.brandonli.mcav.media.player.multimedia.VideoPlayer#ffmpeg()} and release the player afterward.

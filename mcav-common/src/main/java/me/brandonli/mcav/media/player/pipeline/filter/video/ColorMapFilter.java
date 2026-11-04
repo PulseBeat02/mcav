@@ -29,7 +29,7 @@ import org.bytedeco.opencv.opencv_core.Mat;
  *
  * @since 1.0.0
  */
-public class ColorMapFilter extends MatVideoFilter {
+public final class ColorMapFilter extends MatVideoFilter {
 
   private final int colorMap;
 
@@ -46,13 +46,13 @@ public class ColorMapFilter extends MatVideoFilter {
   /**
    * Replaces the colors of the frame with the color map in place.
    *
-   * @param mat the 8-bit BGR matrix of the frame
+   * @param matrix the 8-bit BGR matrix of the frame
    * @return true, because every frame is recolored
    * @since 1.0.0
    */
   @Override
-  protected boolean modifyMat(final Mat mat) {
-    opencv_imgproc.applyColorMap(mat, mat, this.colorMap);
+  protected boolean modifyMat(final Mat matrix) {
+    opencv_imgproc.applyColorMap(matrix, matrix, this.colorMap);
 
     return true;
   }

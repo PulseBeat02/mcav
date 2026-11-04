@@ -30,7 +30,7 @@ import org.bytedeco.opencv.opencv_core.Mat;
  *
  * @since 1.0.0
  */
-public class ThresholdFilter extends MatVideoFilter {
+public final class ThresholdFilter extends MatVideoFilter {
 
   private static final double CHANNEL_MAXIMUM = 255.0;
 
@@ -49,8 +49,8 @@ public class ThresholdFilter extends MatVideoFilter {
    * @since 1.0.0
    */
   public ThresholdFilter(final double threshold, final double maximumValue, final int type) {
-    Preconditions.checkArgument(threshold >= 0 && threshold <= CHANNEL_MAXIMUM, "Threshold must be between 0 and 255!");
-    Preconditions.checkArgument(maximumValue >= 0 && maximumValue <= CHANNEL_MAXIMUM, "Max value must be between 0 and 255!");
+    Preconditions.checkArgument(threshold >= 0 && threshold <= CHANNEL_MAXIMUM, "Threshold must be between 0 and 255 inclusive!");
+    Preconditions.checkArgument(maximumValue >= 0 && maximumValue <= CHANNEL_MAXIMUM, "Max value must be between 0 and 255 inclusive!");
 
     this.threshold = threshold;
     this.maximumValue = maximumValue;
@@ -60,13 +60,13 @@ public class ThresholdFilter extends MatVideoFilter {
   /**
    * Applies the threshold to every channel of the frame in place.
    *
-   * @param mat the 8-bit BGR matrix of the frame
+   * @param matrix the 8-bit BGR matrix of the frame
    * @return true, because the frame may have changed
    * @since 1.0.0
    */
   @Override
-  protected boolean modifyMat(final Mat mat) {
-    opencv_imgproc.threshold(mat, mat, this.threshold, this.maximumValue, this.type);
+  protected boolean modifyMat(final Mat matrix) {
+    opencv_imgproc.threshold(matrix, matrix, this.threshold, this.maximumValue, this.type);
 
     return true;
   }

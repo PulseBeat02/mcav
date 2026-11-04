@@ -47,6 +47,8 @@ final class GeometryFiltersTest {
 
   private static final int BLACK = 0xFF000000;
 
+  private static final String CHANGE_REPORTED_MESSAGE = "the filter reports the change, which decides whether the result is written back";
+
   private static int[] indices(final ImageBuffer image) {
     final int[] pixels = image.getPixels();
     final int[] indices = new int[pixels.length];
@@ -84,9 +86,10 @@ final class GeometryFiltersTest {
       final boolean modified = filter.applyFilter(image);
       final int width = image.getWidth();
       final int[] indices = indices(image);
+      final int[] expected = new int[] { 5, 6, 9, 10 };
       assertTrue(modified);
       assertEquals(2, width);
-      assertArrayEquals(new int[] { 5, 6, 9, 10 }, indices);
+      assertArrayEquals(expected, indices);
     }
   }
 
@@ -96,7 +99,8 @@ final class GeometryFiltersTest {
       final CropFilter filter = new CropFilter(2, 2, 10, 10);
       filter.applyFilter(image);
       final int[] indices = indices(image);
-      assertArrayEquals(new int[] { 10, 11, 14, 15 }, indices);
+      final int[] expected = new int[] { 10, 11, 14, 15 };
+      assertArrayEquals(expected, indices);
     }
   }
 
@@ -128,8 +132,8 @@ final class GeometryFiltersTest {
     assertThrows(IllegalArgumentException.class, () -> new CropFilter(0, 0, 0, 1));
     assertThrows(IllegalArgumentException.class, () -> new CropFilter(0, 0, 1, 0));
 
-    try (final Mat mat = new Mat(1, 1, opencv_core.CV_8UC3)) {
-      assertThrows(UnsupportedOperationException.class, () -> filter.modifyMat(mat));
+    try (final Mat matrix = new Mat(1, 1, opencv_core.CV_8UC3)) {
+      assertThrows(UnsupportedOperationException.class, () -> filter.modifyMat(matrix));
     }
   }
 
@@ -172,8 +176,9 @@ final class GeometryFiltersTest {
         final ResizeFilter filter = new ResizeFilter(1, 1);
         final boolean modified = filter.applyFilter(image);
         final int[] actual = image.getPixels();
+        final int[] expected = new int[] { 0xFF1E1E1E };
         assertTrue(modified);
-        assertArrayEquals(new int[] { 0xFF1E1E1E }, actual);
+        assertArrayEquals(expected, actual);
       }
     }
   }
@@ -188,8 +193,9 @@ final class GeometryFiltersTest {
         final ResizeFilter filter = new ResizeFilter(horizontal ? 4 : 1, horizontal ? 1 : 4);
         final boolean modified = filter.applyFilter(image);
         final int[] actual = image.getPixels();
+        final int[] expected = new int[] { 0xFF000000, 0xFF141414, 0xFF3C3C3C, 0xFF505050 };
         assertTrue(modified);
-        assertArrayEquals(new int[] { 0xFF000000, 0xFF141414, 0xFF3C3C3C, 0xFF505050 }, actual);
+        assertArrayEquals(expected, actual);
       }
     }
   }
@@ -204,8 +210,8 @@ final class GeometryFiltersTest {
     assertFalse(otherHeight);
     assertFalse(otherWidth);
 
-    try (final Mat mat = new Mat(1, 1, opencv_core.CV_8UC3)) {
-      assertThrows(UnsupportedOperationException.class, () -> filter.modifyMat(mat));
+    try (final Mat matrix = new Mat(1, 1, opencv_core.CV_8UC3)) {
+      assertThrows(UnsupportedOperationException.class, () -> filter.modifyMat(matrix));
     }
 
     assertThrows(IllegalArgumentException.class, () -> new ResizeFilter(0, 1));
@@ -225,17 +231,20 @@ final class GeometryFiltersTest {
       final boolean clockwiseModified = clockwiseFilter.applyFilter(clockwise);
       final boolean halfTurnModified = halfTurnFilter.applyFilter(halfTurn);
       final boolean counterClockwiseModified = counterClockwiseFilter.applyFilter(counterClockwise);
-      assertTrue(clockwiseModified, "the filter reports the change, which decides whether the result is written back");
+      assertTrue(clockwiseModified, CHANGE_REPORTED_MESSAGE);
       assertTrue(halfTurnModified);
       assertTrue(counterClockwiseModified);
       final int clockwiseWidth = clockwise.getWidth();
       final int[] clockwiseIndices = indices(clockwise);
       final int[] halfTurnIndices = indices(halfTurn);
       final int[] counterClockwiseIndices = indices(counterClockwise);
+      final int[] expectedClockwiseIndices = new int[] { 3, 0, 4, 1, 5, 2 };
+      final int[] expectedHalfTurnIndices = new int[] { 5, 4, 3, 2, 1, 0 };
+      final int[] expectedCounterClockwiseIndices = new int[] { 2, 5, 1, 4, 0, 3 };
       assertEquals(2, clockwiseWidth);
-      assertArrayEquals(new int[] { 3, 0, 4, 1, 5, 2 }, clockwiseIndices);
-      assertArrayEquals(new int[] { 5, 4, 3, 2, 1, 0 }, halfTurnIndices);
-      assertArrayEquals(new int[] { 2, 5, 1, 4, 0, 3 }, counterClockwiseIndices);
+      assertArrayEquals(expectedClockwiseIndices, clockwiseIndices);
+      assertArrayEquals(expectedHalfTurnIndices, halfTurnIndices);
+      assertArrayEquals(expectedCounterClockwiseIndices, counterClockwiseIndices);
     }
   }
 
@@ -249,8 +258,8 @@ final class GeometryFiltersTest {
     assertEquals(opencv_core.ROTATE_180, halfTurn);
     assertEquals(opencv_core.ROTATE_90_COUNTERCLOCKWISE, counterClockwise);
 
-    try (final Mat mat = new Mat(1, 1, opencv_core.CV_8UC3)) {
-      assertThrows(UnsupportedOperationException.class, () -> filter.modifyMat(mat));
+    try (final Mat matrix = new Mat(1, 1, opencv_core.CV_8UC3)) {
+      assertThrows(UnsupportedOperationException.class, () -> filter.modifyMat(matrix));
     }
 
     assertThrows(NullPointerException.class, () -> new RotationFilter(null));
@@ -263,14 +272,15 @@ final class GeometryFiltersTest {
       final boolean modified = filter.applyFilter(image);
       final int width = image.getWidth();
       final int[] indices = indices(image);
+      final int[] expected = new int[] { 0, 3, 1, 4, 2, 5 };
       assertTrue(modified);
       assertEquals(2, width);
-      assertArrayEquals(new int[] { 0, 3, 1, 4, 2, 5 }, indices);
+      assertArrayEquals(expected, indices);
     }
 
-    try (final Mat mat = new Mat(1, 1, opencv_core.CV_8UC3)) {
+    try (final Mat matrix = new Mat(1, 1, opencv_core.CV_8UC3)) {
       final TransposeFilter filter = new TransposeFilter();
-      assertThrows(UnsupportedOperationException.class, () -> filter.modifyMat(mat));
+      assertThrows(UnsupportedOperationException.class, () -> filter.modifyMat(matrix));
     }
   }
 
@@ -287,7 +297,7 @@ final class GeometryFiltersTest {
       final boolean horizontalModified = horizontalFilter.applyFilter(horizontal);
       final boolean verticalModified = verticalFilter.applyFilter(vertical);
       final boolean bothModified = bothFilter.applyFilter(both);
-      assertTrue(horizontalModified, "the filter reports the change, which decides whether the result is written back");
+      assertTrue(horizontalModified, CHANGE_REPORTED_MESSAGE);
       assertTrue(verticalModified);
       assertTrue(bothModified);
       final int[] horizontalIndices = indices(horizontal);
@@ -296,9 +306,12 @@ final class GeometryFiltersTest {
       final int horizontalCode = FlipFilter.FlipDirection.HORIZONTAL.getCode();
       final int verticalCode = FlipFilter.FlipDirection.VERTICAL.getCode();
       final int bothCode = FlipFilter.FlipDirection.BOTH.getCode();
-      assertArrayEquals(new int[] { 1, 0, 3, 2 }, horizontalIndices);
-      assertArrayEquals(new int[] { 2, 3, 0, 1 }, verticalIndices);
-      assertArrayEquals(new int[] { 3, 2, 1, 0 }, bothIndices);
+      final int[] expectedHorizontalIndices = new int[] { 1, 0, 3, 2 };
+      final int[] expectedVerticalIndices = new int[] { 2, 3, 0, 1 };
+      final int[] expectedBothIndices = new int[] { 3, 2, 1, 0 };
+      assertArrayEquals(expectedHorizontalIndices, horizontalIndices);
+      assertArrayEquals(expectedVerticalIndices, verticalIndices);
+      assertArrayEquals(expectedBothIndices, bothIndices);
       assertEquals(1, horizontalCode);
       assertEquals(0, verticalCode);
       assertEquals(-1, bothCode);
@@ -339,8 +352,9 @@ final class GeometryFiltersTest {
       filter.applyFilter(image);
       final Mat afterTwoTurns = buffer.getMat();
       final int[] indices = indices(image);
+      final int[] expected = new int[] { 0, 1, 2, 3 };
       assertSame(original, afterTwoTurns, "two half turns end up in the original matrix without allocating");
-      assertArrayEquals(new int[] { 0, 1, 2, 3 }, indices);
+      assertArrayEquals(expected, indices);
     }
   }
 

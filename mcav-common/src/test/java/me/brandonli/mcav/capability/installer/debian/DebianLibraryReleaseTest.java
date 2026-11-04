@@ -58,8 +58,12 @@ final class DebianLibraryReleaseTest {
   private static final String SOUND_LIBRARY = "libasound.so.2";
   private static final String VLC_CORE_LIBRARY = "/libvlccore.so.9";
   private static final String VLC_LIBRARY = "/libvlc.so.5";
+  private static final String VLC_LIBRARY_NAME = "libvlc.so.5";
+  private static final String PLUGIN_FOLDER = "vlc/plugins";
   private static final String TRIPLET_SUFFIX = "-linux-gnu";
   private static final char PATH_SEPARATOR = '/';
+
+  private static final String INSTALLATION_FOLDER_NAME = "installation";
 
   @TempDir
   private Path temporary;
@@ -77,8 +81,8 @@ final class DebianLibraryReleaseTest {
     final DebianLibraryInstaller installer = this.createInstaller(VLC_RESOURCE, platform, this::refuse);
     final Path libraryDirectory = installer.download(FileMode.EXECUTABLE);
 
-    final boolean libvlc = Files.exists(libraryDirectory.resolve("libvlc.so.5"));
-    final boolean plugins = Files.isDirectory(libraryDirectory.resolve("vlc/plugins"));
+    final boolean libvlc = Files.exists(libraryDirectory.resolve(VLC_LIBRARY_NAME));
+    final boolean plugins = Files.isDirectory(libraryDirectory.resolve(PLUGIN_FOLDER));
     assertTrue(libvlc);
     assertTrue(plugins);
 
@@ -128,7 +132,9 @@ final class DebianLibraryReleaseTest {
     installer.loadLibraries();
 
     final List<String> loadOrder = this.readLoadOrder();
-    assertEquals(loadOrder.size(), loaded.size(), "Every library must load!");
+    final int expected = loadOrder.size();
+    final int loadedCount = loaded.size();
+    assertEquals(expected, loadedCount, "Every library must load!");
 
     final int index = this.indexOf(loaded, library);
     assertTrue(index >= 0, library);
@@ -136,7 +142,8 @@ final class DebianLibraryReleaseTest {
 
   private void assumeX86Machine() {
     final Platform current = Platform.getCurrentPlatform();
-    Assumptions.assumeTrue(current.equals(X86_64), "Only a 64-bit x86 Linux machine loads the x86-64 libraries!");
+    final boolean x86Machine = current.equals(X86_64);
+    Assumptions.assumeTrue(x86Machine, "Only a 64-bit x86 Linux machine loads the x86-64 libraries!");
   }
 
   private DebianLibraryInstaller createInstaller(final String resource, final Platform platform, final Consumer<String> loader) {
@@ -144,12 +151,12 @@ final class DebianLibraryReleaseTest {
     final Download[] platformDownloads = Arrays.stream(downloads)
       .filter(download -> download.getPlatform().equals(platform))
       .toArray(Download[]::new);
-    final Path folder = this.temporary.resolve("installation");
+    final Path folder = this.temporary.resolve(INSTALLATION_FOLDER_NAME);
     return new DebianLibraryInstaller(folder, "debian-release", platformDownloads, platform, loader);
   }
 
   private List<String> readLoadOrder() throws IOException {
-    final Path folder = this.temporary.resolve("installation");
+    final Path folder = this.temporary.resolve(INSTALLATION_FOLDER_NAME);
     return Files.readAllLines(folder.resolve(LOAD_ORDER_FILE));
   }
 
@@ -170,7 +177,8 @@ final class DebianLibraryReleaseTest {
   }
 
   private void refuse(final String library) {
-    throw new UnsatisfiedLinkError("Libraries of another architecture are not loaded!");
+    final String message = "Libraries of another architecture are not loaded!";
+    throw new UnsatisfiedLinkError(message);
   }
 
   // the libraries of this machine's architecture really load, which proves that the dependency order holds

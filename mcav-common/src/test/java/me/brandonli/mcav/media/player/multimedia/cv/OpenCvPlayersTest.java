@@ -53,6 +53,8 @@ final class OpenCvPlayersTest {
 
   private static final String UNOPENED_FILE_NAME = "unopened-file.mp4";
 
+  private static final String DECODED_FRAMES_MESSAGE = "frames %s";
+
   // Loads the natives of OpenCV ahead of the timed tests, because loading them on the decoding thread takes seconds on
   // a busy machine.
   @BeforeAll
@@ -169,7 +171,7 @@ final class OpenCvPlayersTest {
     final int frames = result[0];
     final int width = result[1];
     final boolean decoded = frames > DECODED_FRAMES_THRESHOLD;
-    assertTrue(decoded, "frames " + frames);
+    assertTrue(decoded, DECODED_FRAMES_MESSAGE.formatted(frames));
     assertEquals(TestMedia.VIDEO_WIDTH, width);
 
     final OpenCvPlayer openCv = new OpenCvPlayer();
@@ -183,7 +185,7 @@ final class OpenCvPlayersTest {
     final int frames = result[0];
     final int width = result[1];
     final boolean decoded = frames > DECODED_FRAMES_THRESHOLD;
-    assertTrue(decoded, "frames " + frames);
+    assertTrue(decoded, DECODED_FRAMES_MESSAGE.formatted(frames));
     assertEquals(160, width, "the frames arrive at the attached size, whether the reader scales them or the pipeline does");
   }
 

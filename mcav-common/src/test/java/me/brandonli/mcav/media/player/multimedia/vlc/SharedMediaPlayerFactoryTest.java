@@ -119,7 +119,9 @@ final class SharedMediaPlayerFactoryTest {
 
   private MediaPlayerFactory countAttemptAndFail(final AtomicInteger attempts) {
     attempts.incrementAndGet();
-    throw new IllegalStateException("libvlc not found!");
+
+    final String message = "libvlc not found!";
+    throw new IllegalStateException(message);
   }
 
   private static void startAcquiring(

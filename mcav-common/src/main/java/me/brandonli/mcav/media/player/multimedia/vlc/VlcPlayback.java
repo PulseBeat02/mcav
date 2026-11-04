@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.media.player.multimedia.vlc;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Equivalence;
 import java.util.EnumSet;
@@ -34,6 +36,7 @@ import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 import me.brandonli.mcav.media.source.Source;
 import me.brandonli.mcav.utils.ExecutorUtils;
 import me.brandonli.mcav.utils.ThrowableUtils;
+import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import uk.co.caprica.vlcj.factory.MediaPlayerApi;
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
@@ -59,14 +62,21 @@ final class VlcPlayback {
 
   private static final String NO_AUDIO_OPTION = ":no-audio";
   private static final String NO_VIDEO_OPTION = ":no-video";
+
   private static final String AUDIO_FORMAT = "S16N";
+
+  private static final boolean LOCK_BUFFERS = true;
+
   private static final long DRIFT_NUDGE_MILLISECONDS = 100L;
   private static final long DRIFT_SEEK_MILLISECONDS = 2_000L;
-  private static final long SYNC_INTERVAL_MILLISECONDS = 250L;
-  private static final String SYNC_THREAD_NAME = "mcav-vlc-sync";
+
+  private static final long SYNCHRONIZATION_INTERVAL_MILLISECONDS = 250L;
+  private static final String SYNCHRONIZATION_THREAD_NAME = "mcav-vlc-sync";
+
   private static final float RATE_NORMAL = 1.0f;
   private static final float RATE_SLOWER = 0.97f;
   private static final float RATE_FASTER = 1.03f;
+
   private static final Set<State> SEEKABLE_STATES = EnumSet.of(State.OPENING, State.BUFFERING, State.PLAYING, State.PAUSED);
 
   private final VlcPlayer owner;
@@ -96,8 +106,8 @@ final class VlcPlayback {
     final MediaPlayerApi playerApi = factory.mediaPlayers();
     final EmbeddedMediaPlayer createdVideoPlayer = playerApi.newEmbeddedMediaPlayer();
     this.videoPlayer = createdVideoPlayer;
-    this.audioPlayer = createAudioPlayer(playerApi, createdVideoPlayer, audio);
-    this.players = listPlayers(createdVideoPlayer, this.audioPlayer);
+    this.audioPlayer = this.createAudioPlayer(playerApi, createdVideoPlayer, audio);
+    this.players = this.listPlayers(createdVideoPlayer, this.audioPlayer);
   }
 
   // Creates a playback: acquires the shared VLC instance and creates the media players. Nothing is played until start()
@@ -109,12 +119,13 @@ final class VlcPlayback {
       return new VlcPlayback(owner, factory, video, audio);
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
-      attemptAfterFailure(exception, sharedFactory::release);
+      runAddingFailureTo(exception, sharedFactory::release);
       throw exception;
     }
   }
 
-  private static @Nullable EmbeddedMediaPlayer createAudioPlayer(
+  private @Nullable EmbeddedMediaPlayer createAudioPlayer(
+    @UnderInitialization VlcPlayback this,
     final MediaPlayerApi playerApi,
     final EmbeddedMediaPlayer videoPlayer,
     final @Nullable Source audio
@@ -127,13 +138,14 @@ final class VlcPlayback {
       return playerApi.newEmbeddedMediaPlayer();
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
-      attemptAfterFailure(exception, videoPlayer::release);
+      runAddingFailureTo(exception, videoPlayer::release);
       throw exception;
     }
   }
 
-  // Attempts cleanup or reporting without losing the failure that required it. Fatal VM errors still propagate.
-  static boolean attemptAfterFailure(final Throwable primary, final Runnable action) {
+  // Runs cleanup or reporting after the primary failure and adds the action's own failure, unless it is the same one,
+  // to the primary failure as suppressed, so neither is lost. Fatal VM errors still propagate.
+  static boolean runAddingFailureTo(final Throwable primary, final Runnable action) {
     try {
       action.run();
 
@@ -149,7 +161,8 @@ final class VlcPlayback {
     }
   }
 
-  private static List<EmbeddedMediaPlayer> listPlayers(
+  private List<EmbeddedMediaPlayer> listPlayers(
+    @UnderInitialization VlcPlayback this,
     final EmbeddedMediaPlayer videoPlayer,
     final @Nullable EmbeddedMediaPlayer audioPlayer
   ) {
@@ -179,11 +192,11 @@ final class VlcPlayback {
     final long deadlineNanoseconds = this.createOpenDeadline();
     final PlaybackEventListener listener = this.listen(this.videoPlayer, this.video);
     final boolean playing = this.play(this.videoPlayer, this.video, null);
-    return playing && awaitOpened(listener, deadlineNanoseconds);
+    return playing && this.awaitOpened(listener, deadlineNanoseconds);
   }
 
   private boolean startSeparate(final EmbeddedMediaPlayer separateAudio) {
-    final Source audioSource = Objects.requireNonNull(this.audio, "A separate audio player always has an audio source!");
+    final Source audioSource = requireNonNull(this.audio, "A separate audio player always has an audio source!");
     final long deadlineNanoseconds = this.createOpenDeadline();
     final PlaybackEventListener videoListener = this.listen(this.videoPlayer, this.video);
     final PlaybackEventListener audioListener = this.listen(separateAudio, audioSource);
@@ -191,7 +204,7 @@ final class VlcPlayback {
     final boolean audioPlaying = this.play(separateAudio, audioSource, NO_VIDEO_OPTION);
     final boolean bothPlaying = videoPlaying && audioPlaying;
     final boolean opened =
-      bothPlaying && awaitOpened(videoListener, deadlineNanoseconds) && awaitOpened(audioListener, deadlineNanoseconds);
+      bothPlaying && this.awaitOpened(videoListener, deadlineNanoseconds) && this.awaitOpened(audioListener, deadlineNanoseconds);
     if (opened) {
       this.startSynchronizer(separateAudio);
     }
@@ -202,7 +215,7 @@ final class VlcPlayback {
   private void installVideoSurface() {
     final FrameFormatCallback formatCallback = new FrameFormatCallback(this.videoRenderer, this.videoPlayer);
     final uk.co.caprica.vlcj.factory.VideoSurfaceApi surfaces = this.factory.videoSurfaces(); // fqn: VideoSurfaceApi is imported as uk.co.caprica.vlcj.player.embedded.VideoSurfaceApi
-    final CallbackVideoSurface surface = surfaces.newVideoSurface(formatCallback, this.videoRenderer, true);
+    final CallbackVideoSurface surface = surfaces.newVideoSurface(formatCallback, this.videoRenderer, LOCK_BUFFERS);
     final VideoSurfaceApi surfaceApi = this.videoPlayer.videoSurface();
     surfaceApi.set(surface);
   }
@@ -230,7 +243,8 @@ final class VlcPlayback {
       final BiConsumer<String, Throwable> handler = this.owner.getExceptionHandler();
       final String message = "Media %s could not be opened by VLC!".formatted(resource);
       final PlayerException exception = new PlayerException(message);
-      handler.accept("Failed to start VLC playback of " + resource, exception);
+      final String handlerMessage = "VLC playback of %s could not be started.".formatted(resource);
+      handler.accept(handlerMessage, exception);
     }
 
     return playing;
@@ -243,34 +257,34 @@ final class VlcPlayback {
     return now + timeoutNanoseconds;
   }
 
-  private static boolean awaitOpened(final PlaybackEventListener listener, final long deadlineNanoseconds) {
+  private boolean awaitOpened(final PlaybackEventListener listener, final long deadlineNanoseconds) {
     final long now = System.nanoTime();
     final long remainingNanoseconds = deadlineNanoseconds - now;
     final long remainingMilliseconds = TimeUnit.NANOSECONDS.toMillis(remainingNanoseconds);
     try {
       return listener.awaitOpened(remainingMilliseconds);
     } catch (final InterruptedException exception) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
 
       return false;
     }
   }
 
   private void startSynchronizer(final EmbeddedMediaPlayer audioMaster) {
-    final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(VlcPlayback::createSyncThread);
+    final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(this::createSynchronizationThread);
     final Runnable task = () -> this.synchronizeVideoToAudio(audioMaster);
     final ScheduledFuture<?> schedule = executor.scheduleAtFixedRate(
       task,
-      SYNC_INTERVAL_MILLISECONDS,
-      SYNC_INTERVAL_MILLISECONDS,
+      SYNCHRONIZATION_INTERVAL_MILLISECONDS,
+      SYNCHRONIZATION_INTERVAL_MILLISECONDS,
       TimeUnit.MILLISECONDS
     );
     this.synchronizer = new Synchronizer(executor, schedule);
   }
 
-  private static Thread createSyncThread(final Runnable task) {
-    final Thread thread = new Thread(task, SYNC_THREAD_NAME);
+  private Thread createSynchronizationThread(final Runnable task) {
+    final Thread thread = new Thread(task, SYNCHRONIZATION_THREAD_NAME);
     thread.setDaemon(true);
     return thread;
   }
@@ -294,15 +308,15 @@ final class VlcPlayback {
       final long videoTime = videoStatus.time();
       final long drift = videoTime - audioTime;
       final ControlsApi videoControls = this.videoPlayer.controls();
-      correctDrift(videoControls, drift, audioTime);
+      this.correctDrift(videoControls, drift, audioTime);
     } catch (final RuntimeException exception) {
       final BiConsumer<String, Throwable> handler = this.owner.getExceptionHandler();
-      handler.accept("Failed to synchronize VLC players", exception);
+      handler.accept("Failed to synchronize VLC players.", exception);
     }
   }
 
   @VisibleForTesting
-  static void correctDrift(final ControlsApi videoControls, final long drift, final long audioTime) {
+  void correctDrift(final ControlsApi videoControls, final long drift, final long audioTime) {
     final long absoluteDrift = Math.abs(drift);
     if (absoluteDrift > DRIFT_SEEK_MILLISECONDS) {
       videoControls.setTime(audioTime);
@@ -310,14 +324,14 @@ final class VlcPlayback {
       return;
     }
 
-    final float rate = chooseRate(drift);
+    final float rate = this.chooseRate(drift);
     videoControls.setRate(rate);
   }
 
   // Chooses the playback rate of the video for a small drift: 3% slower when the video is more than 100 ms ahead, 3%
   // faster when it is more than 100 ms behind, and normal speed otherwise.
   @VisibleForTesting
-  static float chooseRate(final long drift) {
+  float chooseRate(final long drift) {
     if (drift > DRIFT_NUDGE_MILLISECONDS) {
       return RATE_SLOWER;
     }
@@ -366,7 +380,7 @@ final class VlcPlayback {
 
   boolean seek(final long timeMilliseconds) {
     for (final EmbeddedMediaPlayer player : this.players) {
-      final boolean seekable = isSeekable(player);
+      final boolean seekable = this.isSeekable(player);
       if (!seekable) {
         return false;
       }
@@ -380,7 +394,7 @@ final class VlcPlayback {
     return true;
   }
 
-  private static boolean isSeekable(final EmbeddedMediaPlayer player) {
+  private boolean isSeekable(final EmbeddedMediaPlayer player) {
     final StatusApi status = player.status();
     final State state = status.state();
     return SEEKABLE_STATES.contains(state) && status.isSeekable();
@@ -421,8 +435,6 @@ final class VlcPlayback {
 
   private static final class StopFailures {
 
-    private static final Equivalence<Object> IDENTITY = Equivalence.identity();
-
     private @Nullable Throwable first;
 
     void run(final Runnable action) {
@@ -433,7 +445,7 @@ final class VlcPlayback {
         final Throwable previous = this.first;
         if (previous == null) {
           this.first = exception;
-        } else if (!IDENTITY.equivalent(previous, exception)) {
+        } else if (!FAILURE_IDENTITY.equivalent(previous, exception)) {
           previous.addSuppressed(exception);
         }
       }
@@ -441,8 +453,8 @@ final class VlcPlayback {
 
     private void rethrow() {
       final Throwable failure = this.first;
-      if (failure instanceof final RuntimeException exception) {
-        throw exception;
+      if (failure instanceof final RuntimeException runtimeException) {
+        throw runtimeException;
       }
 
       if (failure instanceof final Error error) {
@@ -455,6 +467,8 @@ final class VlcPlayback {
   // it repeats, so stopping cancels the schedule before the thread is shut down.
   private static final class Synchronizer {
 
+    private static final boolean DO_NOT_INTERRUPT = false;
+
     private final ScheduledExecutorService executor;
     private final ScheduledFuture<?> schedule;
 
@@ -464,7 +478,7 @@ final class VlcPlayback {
     }
 
     void stop() {
-      this.schedule.cancel(false);
+      this.schedule.cancel(DO_NOT_INTERRUPT);
       ExecutorUtils.shutdownExecutorGracefully(this.executor);
     }
   }

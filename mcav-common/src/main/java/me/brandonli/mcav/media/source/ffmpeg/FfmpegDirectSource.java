@@ -79,8 +79,7 @@ public interface FfmpegDirectSource extends DynamicSource {
   }
 
   /**
-   * Returns the input this source passes to FFmpeg, see {@link #getMrl()}. Generated and specialized sources may return a diagnostic string
-   * that cannot be opened by an arbitrary backend.
+   * Returns the input this source passes to FFmpeg, see {@link #getMrl()}.
    *
    * @return the resource string
    * @since 1.0.0

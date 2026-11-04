@@ -23,6 +23,8 @@ import com.google.gson.Gson;
  * Shares one thread-safe {@link Gson} instance across the library so that every module parses and writes JSON
  * the same way.
  *
+ * <p>This class is stateless and thread-safe.
+ *
  * @since 1.0.0
  */
 public final class GsonProvider {
@@ -30,7 +32,8 @@ public final class GsonProvider {
   private static final Gson GSON = new Gson();
 
   private GsonProvider() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**

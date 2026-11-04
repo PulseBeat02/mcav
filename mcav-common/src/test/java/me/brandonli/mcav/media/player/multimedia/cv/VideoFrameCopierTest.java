@@ -189,7 +189,8 @@ final class VideoFrameCopierTest {
       this.attachSize(1, 1);
       try (final MatImageBuffer image = this.copier.copy(frame)) {
         final int[] actual = image.getPixels();
-        assertArrayEquals(new int[] { 0xFF00001E }, actual);
+        final int[] expected = new int[] { 0xFF00001E };
+        assertArrayEquals(expected, actual);
       }
     }
   }
@@ -216,14 +217,16 @@ final class VideoFrameCopierTest {
       this.attachSize(horizontal ? 4 : 1, horizontal ? 1 : 4);
       final MatImageBuffer first = this.copier.copy(frame);
       final int[] actual = first.getPixels();
-      assertArrayEquals(new int[] { 0xFF000000, 0xFF000014, 0xFF00003C, 0xFF000050 }, actual);
+      final int[] expected = new int[] { 0xFF000000, 0xFF000014, 0xFF00003C, 0xFF000050 };
+      assertArrayEquals(expected, actual);
 
       this.pool.recycle(first);
       data.put(secondPixel, (byte) 0);
       try (final MatImageBuffer second = this.copier.copy(frame)) {
         final int[] refreshed = second.getPixels();
         assertSame(first, second);
-        assertArrayEquals(new int[] { 0xFF000000, 0xFF000000, 0xFF000000, 0xFF000000 }, refreshed);
+        final int[] expectedRefreshed = new int[] { 0xFF000000, 0xFF000000, 0xFF000000, 0xFF000000 };
+        assertArrayEquals(expectedRefreshed, refreshed);
       }
     }
   }
@@ -240,7 +243,8 @@ final class VideoFrameCopierTest {
 
     assertEquals(SHRUNK_WIDTH, width);
     assertEquals(1, height);
-    assertArrayEquals(new int[] { SOLID_ARGB, SOLID_ARGB }, pixels, "area averaging keeps a solid color");
+    final int[] expected = new int[] { SOLID_ARGB, SOLID_ARGB };
+    assertArrayEquals(expected, pixels, "area averaging keeps a solid color");
     assertFalse(copied, "frames in native memory are scaled straight from the memory of the decoder");
 
     this.pool.recycle(image);
@@ -358,7 +362,8 @@ final class VideoFrameCopierTest {
       try (final MatImageBuffer image = this.copier.copy(frame)) {
         final int[] actual = image.getPixels();
         final boolean extraCopy = this.copier.hasUnscaledCopy();
-        assertArrayEquals(new int[] { 0xFF202020 }, actual);
+        final int[] expected = new int[] { 0xFF202020 };
+        assertArrayEquals(expected, actual);
         assertFalse(extraCopy, "a valid native plane with exact row and capacity bounds scales directly");
       }
     }
@@ -372,7 +377,8 @@ final class VideoFrameCopierTest {
     final int[] pixels = image.getPixels();
     final boolean copied = this.copier.hasUnscaledCopy();
 
-    assertArrayEquals(new int[] { SOLID_ARGB, SOLID_ARGB }, pixels);
+    final int[] expected = new int[] { SOLID_ARGB, SOLID_ARGB };
+    assertArrayEquals(expected, pixels);
     assertTrue(copied, "OpenCV cannot read the heap, so the frame is copied into native memory first");
 
     image.release();

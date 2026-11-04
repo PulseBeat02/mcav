@@ -115,12 +115,13 @@ final class ImageBufferPropertyTest {
       for (int pixel = 0; pixel < argb.length; pixel++) {
         final int expected = argb[pixel] | OPAQUE_ALPHA;
         final int opaquePixel = pixels[pixel];
-        assertEquals(expected, opaquePixel, "pixel " + pixel + " is its color, opaque");
+        assertEquals(expected, opaquePixel, "pixel %s is its color, opaque".formatted(pixel));
         final int blue = bgr[pixel * CHANNELS] & CHANNEL_MASK;
         final int green = bgr[pixel * CHANNELS + 1] & CHANNEL_MASK;
         final int red = bgr[pixel * CHANNELS + 2] & CHANNEL_MASK;
         final int storedColor = (red << RED_SHIFT) | (green << GREEN_SHIFT) | blue;
-        assertEquals(expected & 0xFFFFFF, storedColor, "pixel " + pixel + " as blue, green, red");
+        final int expectedStoredColor = expected & 0xFFFFFF;
+        assertEquals(expectedStoredColor, storedColor, "pixel %s as blue, green, red".formatted(pixel));
       }
     } finally {
       buffer.release();
@@ -187,7 +188,7 @@ final class ImageBufferPropertyTest {
         final int red = written[pixel * CHANNELS + 2] & CHANNEL_MASK;
         final int expected = OPAQUE_ALPHA | (red << RED_SHIFT) | (green << GREEN_SHIFT) | blue;
         final int shownPixel = pixels[pixel];
-        assertEquals(expected, shownPixel, "pixel " + pixel + " shows what was written through the view");
+        assertEquals(expected, shownPixel, "pixel %s shows what was written through the view".formatted(pixel));
       }
     } finally {
       buffer.release();
@@ -276,7 +277,7 @@ final class ImageBufferPropertyTest {
     @Override
     public String toString() {
       final String kind = this.kind == BufferKind.DIRECT ? "direct" : "heap";
-      return this.width + "x" + this.height + ", " + kind + " " + this.order + ", " + this.before + " before, " + this.after + " after";
+      return "%sx%s, %s %s, %s before, %s after".formatted(this.width, this.height, kind, this.order, this.before, this.after);
     }
   }
 

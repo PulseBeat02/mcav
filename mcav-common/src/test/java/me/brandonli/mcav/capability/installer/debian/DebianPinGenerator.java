@@ -49,6 +49,9 @@ import java.util.Optional;
 import java.util.Set;
 import me.brandonli.mcav.utils.IoUtils;
 import me.brandonli.mcav.utils.http.HttpDownloader;
+import me.brandonli.mcav.utils.os.Arch;
+import me.brandonli.mcav.utils.os.Bits;
+import me.brandonli.mcav.utils.os.Os;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.tukaani.xz.XZInputStream;
 
@@ -68,7 +71,6 @@ final class DebianPinGenerator {
   private static final int FOUND_STATUS = 302;
 
   private static final String INDEX_FILE_NAME = "Packages.xz";
-  private static final String PATH_SEPARATOR = "/";
   private static final String TEMPORARY_DIRECTORY_PREFIX = "mcav-debian-pins";
   private static final long MAXIMUM_INDEX_SIZE = 64L * 1024L * 1024L;
 
@@ -101,6 +103,8 @@ final class DebianPinGenerator {
   private static final Splitter ROOTS = Splitter.on(',');
 
   private static final Comparator<String> VERSIONS = new DebianVersionComparator();
+
+  private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
 
   private final IndependentPackages independentPackages;
 
@@ -160,7 +164,9 @@ final class DebianPinGenerator {
   private URI findSnapshot(final Archive archive) throws IOException, InterruptedException {
     final Instant now = Instant.now();
     final String day = SNAPSHOT_DAY.format(now);
-    final URI request = URI.create(archive.getUrl() + day);
+    final String url = archive.getUrl();
+    final String requestUrl = "%s%s".formatted(url, day);
+    final URI request = URI.create(requestUrl);
     final HttpRequest httpRequest = HttpRequest.newBuilder(request).build();
     final HttpResponse.BodyHandler<Void> discarding = HttpResponse.BodyHandlers.discarding();
     try (final HttpClient client = HttpClient.newHttpClient()) {
@@ -194,7 +200,9 @@ final class DebianPinGenerator {
   private String downloadIndex(final URI snapshot, final Archive archive, final Architecture architecture, final Path temporary)
     throws IOException {
     final String debianName = architecture.getDebianName();
-    final URI index = snapshot.resolve(archive.getIndexDirectoryPrefix() + debianName + PATH_SEPARATOR + INDEX_FILE_NAME);
+    final String prefix = archive.getIndexDirectoryPrefix();
+    final String indexPath = "%s%s/%s".formatted(prefix, debianName, INDEX_FILE_NAME);
+    final URI index = snapshot.resolve(indexPath);
     final Path directory = Files.createDirectories(temporary.resolve(archive.name()).resolve(debianName));
     final Path file = directory.resolve(INDEX_FILE_NAME);
     HttpDownloader.download(index, file, MAXIMUM_INDEX_SIZE);
@@ -219,17 +227,21 @@ final class DebianPinGenerator {
       }
     }
 
-    final Gson gson = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
-    final String json = gson.toJson(downloads) + LINE_END;
+    final String downloadsJson = GSON.toJson(downloads);
+    final String json = "%s%s".formatted(downloadsJson, LINE_END);
     final Path file = outputDirectory.resolve(bundle.fileName());
     Files.writeString(file, json, StandardCharsets.UTF_8);
   }
 
   private JsonObject toDownload(final Architecture architecture, final IndexEntry entry) {
+    final String os = Os.LINUX.name();
+    final Arch platformArchitecture = architecture.getPlatformArchitecture();
+    final String architectureName = platformArchitecture.name();
+    final String bits = Bits.BITS_64.name();
     final JsonObject platform = new JsonObject();
-    platform.addProperty("os", "LINUX");
-    platform.addProperty("arch", architecture.getArchitecture());
-    platform.addProperty("bits", "BITS_64");
+    platform.addProperty("os", os);
+    platform.addProperty("arch", architectureName);
+    platform.addProperty("bits", bits);
     final URI snapshot = entry.snapshot();
     final URI url = snapshot.resolve(entry.filename());
     final JsonObject download = new JsonObject();
@@ -396,23 +408,23 @@ final class DebianPinGenerator {
   }
 
   private enum Architecture {
-    AMD64("amd64", "X86"),
-    ARM64("arm64", "ARM");
+    AMD64("amd64", Arch.X86),
+    ARM64("arm64", Arch.ARM);
 
     private final String debianName;
-    private final String architecture;
+    private final Arch platformArchitecture;
 
-    Architecture(final String debianName, final String architecture) {
+    Architecture(final String debianName, final Arch platformArchitecture) {
       this.debianName = debianName;
-      this.architecture = architecture;
+      this.platformArchitecture = platformArchitecture;
     }
 
     String getDebianName() {
       return this.debianName;
     }
 
-    String getArchitecture() {
-      return this.architecture;
+    Arch getPlatformArchitecture() {
+      return this.platformArchitecture;
     }
   }
 

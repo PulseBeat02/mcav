@@ -19,7 +19,7 @@
  * Resolves web-page media through the installed yt-dlp program.
  *
  * <p>Call {@link me.brandonli.mcav.json.ytdlp.YtdlpParser#simple()} and parse an absolute HTTP or HTTPS
- * {@link me.brandonli.mcav.media.source.uri.UriSource}. Parsing blocks on a child process and returns mutable
+ * {@link me.brandonli.mcav.media.source.uri.UriSource}. Parsing blocks on a child process and returns immutable
  * {@link me.brandonli.mcav.json.ytdlp.format.UrlParseDump} metadata; use a
  * {@link me.brandonli.mcav.json.ytdlp.strategy.FormatStrategy} to choose streams. The parser interface contains
  * an example. The default parser waits at most two minutes for each command and reports nonzero exits or
@@ -27,10 +27,9 @@
  *
  * <p>The shared parser may run concurrent calls. During normal bootstrap it refuses to run while the library
  * is preparing yt-dlp; use capability readiness notification instead of blocking a server's main thread.
- * Each caller owns its mutable result, while the executable remains in the shared installation cache.
+ * Each call returns its own result, while the executable remains in the shared installation cache.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

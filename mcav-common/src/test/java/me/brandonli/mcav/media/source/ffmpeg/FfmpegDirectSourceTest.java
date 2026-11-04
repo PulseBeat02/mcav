@@ -94,9 +94,9 @@ final class FfmpegDirectSourceTest {
 
   @ParameterizedTest
   @ValueSource(strings = { "plain", "format||", "||input", " ||input", "a||b||c" })
-  void shouldIgnoreTextThatIsNotAPair(final String raw) {
+  void shouldIgnoreTextThatIsNotAPair(final String resource) {
     final FfmpegDirectSourceDetector detector = new FfmpegDirectSourceDetector();
-    final boolean detected = detector.isDetectedSource(raw);
+    final boolean detected = detector.isDetectedSource(resource);
     assertFalse(detected);
   }
 

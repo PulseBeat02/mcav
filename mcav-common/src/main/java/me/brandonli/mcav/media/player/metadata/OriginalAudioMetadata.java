@@ -18,11 +18,11 @@
 package me.brandonli.mcav.media.player.metadata;
 
 import com.google.common.base.Preconditions;
+import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 
 /**
- * Properties of an audio stream as decoded. Note that the audio pipeline always receives samples converted to
- * the format described by {@link me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter}; this metadata
- * describes the source.
+ * Properties of an audio stream as decoded. Note that the audio pipeline always receives samples converted to the
+ * format described by {@link AudioFilter}; this metadata describes the source.
  *
  * <p>Implementations in this library are immutable and thread-safe.
  *
@@ -45,7 +45,7 @@ public interface OriginalAudioMetadata extends OriginalMetadata {
    * @param audioChannels   the strictly positive number of channels
    * @param samplingFormat  the FFmpeg sample format identifier, or {@link #UNKNOWN}
    * @return the metadata
-   * @throws IllegalArgumentException if the sample rate or channel count is nonpositive
+   * @throws IllegalArgumentException if the sample rate or channel count is not positive
    * @throws NullPointerException     if {@code codec} is null
    * @since 1.0.0
    */

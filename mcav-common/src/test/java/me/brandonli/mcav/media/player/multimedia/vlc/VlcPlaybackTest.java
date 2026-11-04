@@ -120,26 +120,35 @@ final class VlcPlaybackTest {
   @ParameterizedTest
   @CsvSource({ "0, 1.0", "100, 1.0", "-100, 1.0", "101, 0.97", "1999, 0.97", "-101, 1.03", "-1999, 1.03" })
   void shouldChooseTheRateThatClosesSmallDrifts(final long drift, final float expected) {
-    final float rate = VlcPlayback.chooseRate(drift);
+    final VlcPlayback playback = VlcPlayback.create(this.owner, this.video, this.audio);
+    final float rate = playback.chooseRate(drift);
     assertEquals(expected, rate);
+
+    playback.stop();
   }
 
   @ParameterizedTest
   @CsvSource({ "2000, 0.97", "-2000, 1.03", "500, 0.97", "0, 1.0" })
   void shouldCorrectSmallDriftsWithTheRate(final long drift, final float expected) {
+    final VlcPlayback playback = VlcPlayback.create(this.owner, this.video, this.audio);
     final ControlsApi controls = mock(ControlsApi.class);
-    VlcPlayback.correctDrift(controls, drift, REFERENCE_AUDIO_TIME_MILLISECONDS);
+    playback.correctDrift(controls, drift, REFERENCE_AUDIO_TIME_MILLISECONDS);
     verify(controls).setRate(expected);
     verify(controls, never()).setTime(anyLong());
+
+    playback.stop();
   }
 
   @ParameterizedTest
   @CsvSource({ "2001", "-2001", "60000" })
   void shouldCorrectLargeDriftsBySeekingTheVideoToTheAudio(final long drift) {
+    final VlcPlayback playback = VlcPlayback.create(this.owner, this.video, this.audio);
     final ControlsApi controls = mock(ControlsApi.class);
-    VlcPlayback.correctDrift(controls, drift, REFERENCE_AUDIO_TIME_MILLISECONDS);
+    playback.correctDrift(controls, drift, REFERENCE_AUDIO_TIME_MILLISECONDS);
     verify(controls).setTime(REFERENCE_AUDIO_TIME_MILLISECONDS);
     verify(controls).setRate(NORMAL_RATE);
+
+    playback.stop();
   }
 
   @Test
@@ -147,7 +156,7 @@ final class VlcPlaybackTest {
     final IllegalStateException primary = new IllegalStateException("recoverable failure!");
     final OutOfMemoryError fatal = new OutOfMemoryError("cleanup exhausted memory!");
     final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () ->
-      VlcPlayback.attemptAfterFailure(primary, () -> this.rethrow(fatal))
+      VlcPlayback.runAddingFailureTo(primary, () -> this.rethrow(fatal))
     );
     final Throwable[] suppressed = primary.getSuppressed();
     assertSame(fatal, thrown);
@@ -204,7 +213,7 @@ final class VlcPlaybackTest {
     final IllegalStateException failure = new IllegalStateException("native crash!");
     when(status.isPlaying()).thenThrow(failure);
     this.synchronize(playback);
-    final List<String> expectedMessages = List.of("Failed to synchronize VLC players");
+    final List<String> expectedMessages = List.of("Failed to synchronize VLC players.");
     final List<Throwable> expectedErrors = List.of(failure);
     assertEquals(expectedMessages, this.messages);
     assertEquals(expectedErrors, this.errors);
@@ -425,6 +434,6 @@ final class VlcPlaybackTest {
   static void awaitNoPlaybackThreads() throws InterruptedException {
     final boolean exited = Polling.pollUntil(THREAD_EXIT_TIMEOUT, VlcPlaybackTest::noPlaybackThreadIsAlive);
     final List<String> alive = findAlivePlaybackThreads();
-    assertTrue(exited, alive + " still running after the playback stopped");
+    assertTrue(exited, "%s still running after the playback stopped".formatted(alive));
   }
 }

@@ -25,6 +25,11 @@ import me.brandonli.mcav.json.ytdlp.format.UrlParseDump;
  * Pairs an audio strategy with a video strategy, so both streams of a video can be selected together.
  *
  * {@snippet :
+ * final String address = "https://youtu.be/...";
+ * final URI page = URI.create(address);
+ * final UriSource source = UriSource.uri(page);
+ * final YtdlpParser parser = YtdlpParser.simple();
+ * final UrlParseDump dump = parser.parse(source);
  * final StrategySelector selector = StrategySelector.of(FormatStrategy.BEST_QUALITY_AUDIO, FormatStrategy.BEST_QUALITY_VIDEO);
  * final Format audio = selector.getAudioSource(dump);
  * final Format video = selector.getVideoSource(dump);
@@ -36,20 +41,20 @@ import me.brandonli.mcav.json.ytdlp.format.UrlParseDump;
  */
 public interface StrategySelector {
   /**
-   * Returns the strategy used for audio.
+   * Creates a selector.
    *
-   * @return the audio strategy
+   * @param audio the strategy for audio
+   * @param video the strategy for video
+   * @return the selector
+   * @throws NullPointerException if {@code audio} or {@code video} is null
    * @since 1.0.0
    */
-  FormatStrategy getAudioStrategy();
+  static StrategySelector of(final FormatStrategy audio, final FormatStrategy video) {
+    Preconditions.checkNotNull(audio, "Audio strategy must not be null!");
+    Preconditions.checkNotNull(video, "Video strategy must not be null!");
 
-  /**
-   * Returns the strategy used for video.
-   *
-   * @return the video strategy
-   * @since 1.0.0
-   */
-  FormatStrategy getVideoStrategy();
+    return new DefaultStrategySelector(audio, video);
+  }
 
   /**
    * Selects the audio stream.
@@ -74,18 +79,18 @@ public interface StrategySelector {
   Format getVideoSource(final UrlParseDump dump);
 
   /**
-   * Creates a selector.
+   * Returns the strategy used for audio.
    *
-   * @param audio the strategy for audio
-   * @param video the strategy for video
-   * @return the selector
-   * @throws NullPointerException if {@code audio} or {@code video} is null
+   * @return the audio strategy
    * @since 1.0.0
    */
-  static StrategySelector of(final FormatStrategy audio, final FormatStrategy video) {
-    Preconditions.checkNotNull(audio, "Audio strategy must not be null!");
-    Preconditions.checkNotNull(video, "Video strategy must not be null!");
+  FormatStrategy getAudioStrategy();
 
-    return new DefaultStrategySelector(audio, video);
-  }
+  /**
+   * Returns the strategy used for video.
+   *
+   * @return the video strategy
+   * @since 1.0.0
+   */
+  FormatStrategy getVideoStrategy();
 }

@@ -27,7 +27,7 @@ import org.bytedeco.opencv.opencv_core.Scalar;
  *
  * @since 1.0.0
  */
-public class ZeroFilter extends MatVideoFilter {
+public final class ZeroFilter extends MatVideoFilter {
 
   private static final Scalar BLACK = new Scalar(0, 0, 0, 0);
 
@@ -41,13 +41,13 @@ public class ZeroFilter extends MatVideoFilter {
   /**
    * Sets every pixel of the frame to black in place.
    *
-   * @param mat the 8-bit BGR matrix of the frame
+   * @param matrix the 8-bit BGR matrix of the frame
    * @return true, because the frame may have had other colors before
    * @since 1.0.0
    */
   @Override
-  protected boolean modifyMat(final Mat mat) {
-    mat.put(BLACK);
+  protected boolean modifyMat(final Mat matrix) {
+    matrix.put(BLACK);
 
     return true;
   }

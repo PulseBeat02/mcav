@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.capability.installer.debian;
 
+import static java.util.Objects.requireNonNull;
+
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -25,9 +27,9 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -45,10 +47,9 @@ final class DebianInstallation {
 
   private static final long MAXIMUM_PACKAGE_SIZE = 64L * 1024L * 1024L;
 
-  private static final String LIBRARY_TREE = "usr/lib";
-  private static final String LEGACY_LIBRARY_TREE = "lib";
   private static final String X86_64_TRIPLET = "x86_64-linux-gnu";
   private static final String AARCH64_TRIPLET = "aarch64-linux-gnu";
+
   private static final String LIBRARY_PREFIX = "lib";
   private static final String LIBRARY_SUFFIX = ".so";
 
@@ -69,7 +70,7 @@ final class DebianInstallation {
     final Platform platform,
     final List<String> extraTrees
   ) {
-    final Stream<String> libraryTrees = Stream.of(LIBRARY_TREE, LEGACY_LIBRARY_TREE);
+    final Stream<String> libraryTrees = Stream.of(DebianPackageExtractor.LIBRARY_TREE, DebianPackageExtractor.LEGACY_LIBRARY_TREE);
     final Stream<String> otherTrees = extraTrees.stream();
     this.folder = folder;
     this.name = name;
@@ -94,7 +95,7 @@ final class DebianInstallation {
     try {
       this.installPackages(packages);
     } catch (final IOException exception) {
-      final String message = "Debian packages of %s could not be installed to %s!".formatted(this.name, this.folder);
+      final String message = "Installing the Debian packages of %s to %s failed!".formatted(this.name, this.folder);
       throw new InstallationException(message, exception);
     }
   }
@@ -105,15 +106,9 @@ final class DebianInstallation {
   }
 
   private List<Download> findPackages() {
-    final List<Download> packages = new ArrayList<>();
-    for (final Download download : this.downloads) {
-      final Platform downloadPlatform = download.getPlatform();
-      if (downloadPlatform.equals(this.platform)) {
-        packages.add(download);
-      }
-    }
-
-    return packages;
+    return Arrays.stream(this.downloads)
+      .filter(download -> this.platform.equals(download.getPlatform()))
+      .toList();
   }
 
   // an installation folder without a load order was left by an older or interrupted installation
@@ -141,6 +136,12 @@ final class DebianInstallation {
     } finally {
       IoUtils.deleteRecursively(staging);
     }
+  }
+
+  private Path getParent() {
+    final Path absolute = this.folder.toAbsolutePath();
+    final @Nullable Path parent = absolute.getParent();
+    return requireNonNull(parent, "An installation folder inside the cache always has a parent!");
   }
 
   private void installPackage(final Download download, final Path staging, final Path extracted, final List<String> loadOrder)
@@ -177,9 +178,18 @@ final class DebianInstallation {
 
   private List<Path> getTripletFolders(final Path root) {
     final String triplet = this.getTriplet();
-    final Path libraryDirectory = root.resolve(LIBRARY_TREE).resolve(triplet);
-    final Path legacyDirectory = root.resolve(LEGACY_LIBRARY_TREE).resolve(triplet);
+    final Path libraryDirectory = root.resolve(DebianPackageExtractor.LIBRARY_TREE).resolve(triplet);
+    final Path legacyDirectory = root.resolve(DebianPackageExtractor.LEGACY_LIBRARY_TREE).resolve(triplet);
     return List.of(libraryDirectory, legacyDirectory);
+  }
+
+  private String getTriplet() {
+    final Arch architecture = this.platform.getArch();
+    if (architecture == Arch.ARM) {
+      return AARCH64_TRIPLET;
+    }
+
+    return X86_64_TRIPLET;
   }
 
   private List<Path> listLibraryFiles(final Path directory) throws IOException {
@@ -194,8 +204,8 @@ final class DebianInstallation {
   }
 
   private List<Path> listDirectory(final Path directory) throws IOException {
-    final boolean exists = Files.isDirectory(directory, LinkOption.NOFOLLOW_LINKS);
-    if (!exists) {
+    final boolean realDirectory = Files.isDirectory(directory, LinkOption.NOFOLLOW_LINKS);
+    if (!realDirectory) {
       return List.of();
     }
 
@@ -250,7 +260,7 @@ final class DebianInstallation {
 
   private Path getContainingFolder(final Path library) {
     final @Nullable Path parent = library.getParent();
-    return Objects.requireNonNull(parent, "A library inside the installation always has a parent!");
+    return requireNonNull(parent, "A library inside the installation always has a parent!");
   }
 
   boolean isInSubfolder(final Path library) {
@@ -266,20 +276,5 @@ final class DebianInstallation {
 
   Path getFolder() {
     return this.folder;
-  }
-
-  private String getTriplet() {
-    final Arch architecture = this.platform.getArch();
-    if (architecture == Arch.ARM) {
-      return AARCH64_TRIPLET;
-    }
-
-    return X86_64_TRIPLET;
-  }
-
-  private Path getParent() {
-    final Path absolute = this.folder.toAbsolutePath();
-    final @Nullable Path parent = absolute.getParent();
-    return Objects.requireNonNull(parent, "An installation folder inside the cache always has a parent!");
   }
 }

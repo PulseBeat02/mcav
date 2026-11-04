@@ -75,7 +75,8 @@ final class PaletteTest {
     final int[] pixels = { 0xFF6A6A6A, 0xFF6A6A6A, 0xFF6A6A6A, 0xFF6A6A6A };
     try (final ImageBuffer image = ImageBuffer.buffer(pixels, 2, 2)) {
       final byte[] actual = dither.ditherIntoBytes(image);
-      assertArrayEquals(new byte[] { 2, 3, 3, 2 }, actual);
+      final byte[] expected = new byte[] { 2, 3, 3, 2 };
+      assertArrayEquals(expected, actual);
     }
   }
 
@@ -87,14 +88,16 @@ final class PaletteTest {
     final int reserved = palette.getReservedIndices();
     final byte[] colorMap = palette.getColorMap();
     final int[] fullColorMap = palette.getFullColorMap();
-    assertArrayEquals(new int[] { 0xFFFF0000, 0xFF0000FF }, colors);
+    final int[] expectedColors = new int[] { 0xFFFF0000, 0xFF0000FF };
+    assertArrayEquals(expectedColors, colors);
     assertEquals(2, size);
     assertEquals(0, reserved);
 
     for (int index = 0; index < colorMap.length; index += 997) {
       final int entry = colorMap[index];
       final int fullColor = fullColorMap[index];
-      assertEquals(colors[entry], fullColor);
+      final int expectedFullColor = colors[entry];
+      assertEquals(expectedFullColor, fullColor);
     }
 
     final int reddish = (100 << 14) | (5 << 7) | 5;
@@ -247,7 +250,8 @@ final class PaletteTest {
     assertEquals(count, second.length);
 
     final int thirdColor = third[SAMPLE_INDEX];
-    assertEquals(second[SAMPLE_INDEX], thirdColor, "changing a copy must not change the palette");
+    final int expected = second[SAMPLE_INDEX];
+    assertEquals(expected, thirdColor, "changing a copy must not change the palette");
   }
 
   @Test
@@ -266,7 +270,8 @@ final class PaletteTest {
     final int alpha = color.getAlpha();
     final int count = MapPaletteLoader.getColorCount();
     final byte missing = (byte) count;
-    assertEquals(colors[SAMPLE_INDEX], argb);
+    final int expected = colors[SAMPLE_INDEX];
+    assertEquals(expected, argb);
     assertEquals(255, alpha);
     assertThrows(IllegalArgumentException.class, () -> MapPaletteLoader.getColor(missing));
   }
@@ -274,7 +279,8 @@ final class PaletteTest {
   @Test
   void shouldParseColorsFromJson() {
     final int[] colors = parse("[[1, 2, 3], [255, 128, 0]]");
-    assertArrayEquals(new int[] { 0xFF010203, 0xFFFF8000 }, colors);
+    final int[] expected = new int[] { 0xFF010203, 0xFFFF8000 };
+    assertArrayEquals(expected, colors);
   }
 
   @Test

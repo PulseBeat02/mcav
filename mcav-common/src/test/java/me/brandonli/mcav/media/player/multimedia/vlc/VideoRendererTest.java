@@ -74,6 +74,8 @@ final class VideoRendererTest {
 
   private static final int ROW_WIDTH = 2;
 
+  private static final String PENDING_FRAME_FIELD = "pendingFrame";
+
   private final MockVlc vlc = new MockVlc();
   private final VlcPlayer owner = this.vlc.newPlayer(1_000L);
   private final VideoRenderer renderer = new VideoRenderer(this.owner);
@@ -153,15 +155,16 @@ final class VideoRendererTest {
 
   private static void reportFailure(final List<String> reported, final String message, final Throwable error) {
     final String reason = error.getMessage();
-    reported.add(message + ": " + reason);
+    reported.add("%s: %s".formatted(message, reason));
   }
 
   @Test
   void shouldReadRv32AsPackedArgb() {
     final ByteBuffer buffer = ByteBuffer.wrap(new byte[] { 0x33, 0x22, 0x11, 0x00, 0x66, 0x55, 0x44, (byte) 0xFF });
     final int[] pixels = new int[ROW_WIDTH];
-    VideoRenderer.readVisibleRows(buffer, ROW_WIDTH, ROW_WIDTH, 1, pixels);
-    assertArrayEquals(new int[] { 0x00112233, 0xFF445566 }, pixels);
+    this.renderer.readVisibleRows(buffer, ROW_WIDTH, ROW_WIDTH, 1, pixels);
+    final int[] expected = new int[] { 0x00112233, 0xFF445566 };
+    assertArrayEquals(expected, pixels);
   }
 
   @Test
@@ -175,8 +178,9 @@ final class VideoRendererTest {
 
     final ByteBuffer buffer = rv32(padded);
     final int[] pixels = new int[6];
-    VideoRenderer.readVisibleRows(buffer, 4, 3, 2, pixels);
-    assertArrayEquals(new int[] { 0, 1, 2, 16, 17, 18 }, pixels);
+    this.renderer.readVisibleRows(buffer, 4, 3, 2, pixels);
+    final int[] expected = new int[] { 0, 1, 2, 16, 17, 18 };
+    assertArrayEquals(expected, pixels);
   }
 
   @Test
@@ -184,9 +188,10 @@ final class VideoRendererTest {
     final ByteBuffer buffer = rv32(RED, GREEN);
     buffer.position(4);
     final int[] pixels = new int[ROW_WIDTH];
-    VideoRenderer.readVisibleRows(buffer, ROW_WIDTH, ROW_WIDTH, 1, pixels);
+    this.renderer.readVisibleRows(buffer, ROW_WIDTH, ROW_WIDTH, 1, pixels);
     final int position = buffer.position();
-    assertArrayEquals(new int[] { RED, GREEN }, pixels);
+    final int[] expected = new int[] { RED, GREEN };
+    assertArrayEquals(expected, pixels);
     assertEquals(4, position);
   }
 
@@ -204,10 +209,11 @@ final class VideoRendererTest {
     final boolean noErrors = this.errors.isEmpty();
     assertEquals(3, width);
     assertEquals(2, height);
-    assertArrayEquals(new int[] { RED, GREEN, BLUE, WHITE, RED, GREEN }, rgb);
+    final int[] expected = new int[] { RED, GREEN, BLUE, WHITE, RED, GREEN };
+    assertArrayEquals(expected, rgb);
     assertEquals(3, metadataWidth);
     assertEquals(2, metadataHeight);
-    assertTrue(noErrors, "errors: " + this.errors);
+    assertTrue(noErrors, "errors: %s".formatted(this.errors));
   }
 
   @Test
@@ -221,7 +227,8 @@ final class VideoRendererTest {
     final ImageBuffer secondImage = second.getImage();
     final int[] rgb = second.getRgb();
     assertSame(firstImage, secondImage);
-    assertArrayEquals(new int[] { BLUE, WHITE }, rgb);
+    final int[] expected = new int[] { BLUE, WHITE };
+    assertArrayEquals(expected, rgb);
   }
 
   @Test
@@ -270,7 +277,8 @@ final class VideoRendererTest {
       this.displayPixel(detached, GREEN);
       final RecordedFrame frame = take(this.frames);
       final int[] rgb = frame.getRgb();
-      assertArrayEquals(new int[] { GREEN }, rgb);
+      final int[] expected = new int[] { GREEN };
+      assertArrayEquals(expected, rgb);
     } finally {
       detached.stop();
     }
@@ -306,7 +314,8 @@ final class VideoRendererTest {
     this.display(1, 1, GREEN);
     final RecordedFrame frame = take(this.frames);
     final int[] rgb = frame.getRgb();
-    assertArrayEquals(new int[] { GREEN }, rgb);
+    final int[] expected = new int[] { GREEN };
+    assertArrayEquals(expected, rgb);
   }
 
   @Test
@@ -323,7 +332,7 @@ final class VideoRendererTest {
 
     this.display(1, 1, GREEN);
     this.renderer.setPaused(true);
-    final Field pendingField = VideoRenderer.class.getDeclaredField("pendingFrame");
+    final Field pendingField = VideoRenderer.class.getDeclaredField(PENDING_FRAME_FIELD);
     pendingField.setAccessible(true);
     final BlockingQueue<?> pending = (BlockingQueue<?>) pendingField.get(this.renderer);
     try {
@@ -356,7 +365,7 @@ final class VideoRendererTest {
     this.display(1, 1, GREEN);
     this.renderer.stop();
 
-    final Field pendingField = VideoRenderer.class.getDeclaredField("pendingFrame");
+    final Field pendingField = VideoRenderer.class.getDeclaredField(PENDING_FRAME_FIELD);
     pendingField.setAccessible(true);
     final BlockingQueue<?> pending = (BlockingQueue<?>) pendingField.get(this.renderer);
     final boolean discarded = pending.isEmpty();
@@ -473,7 +482,8 @@ final class VideoRendererTest {
     assertEquals(2, againWidth);
     assertEquals(1, quarterWidth);
     assertEquals(1, quarterHeight);
-    assertArrayEquals(new int[] { RED }, quarterRgb);
+    final int[] expected = new int[] { RED };
+    assertArrayEquals(expected, quarterRgb);
     assertEquals(4, metadataWidth, "the metadata describes the original frame");
   }
 
@@ -555,7 +565,7 @@ final class VideoRendererTest {
     this.display(1, 1, BLUE);
 
     final boolean keptRendering = third.await(TIMEOUT.toSeconds(), TimeUnit.SECONDS);
-    final List<String> expectedMessages = List.of("Video filter failed", "Video filter failed");
+    final List<String> expectedMessages = List.of("Video filter failed.", "Video filter failed.");
     final List<Throwable> expectedErrors = List.of(runtimeFailure, errorFailure);
     assertTrue(keptRendering, "rendering goes on after failures");
     assertEquals(expectedMessages, this.messages);
@@ -600,7 +610,8 @@ final class VideoRendererTest {
     final int metadataHeight = metadata.getVideoHeight();
     assertEquals(2, formatWidth, "VLC scales while it converts the picture, which is far cheaper than resizing later");
     assertEquals(1, formatHeight);
-    assertArrayEquals(new int[] { RED, GREEN }, rgb, "the whole scaled buffer is the picture");
+    final int[] expected = new int[] { RED, GREEN };
+    assertArrayEquals(expected, rgb, "the whole scaled buffer is the picture");
     assertEquals(1920, metadataWidth, "the metadata describes the original video");
     assertEquals(1080, metadataHeight);
   }
@@ -670,9 +681,10 @@ final class VideoRendererTest {
       this.displayPixel(failing, GREEN);
       final RecordedFrame frame = take(recorded);
       final int[] rgb = frame.getRgb();
-      final List<String> expectedReports = List.of("Video rendering failed: native failure!");
+      final List<String> expectedReports = List.of("Video rendering failed.: native failure!");
       assertEquals(expectedReports, reported);
-      assertArrayEquals(new int[] { GREEN }, rgb, "the render thread survived the failure");
+      final int[] expected = new int[] { GREEN };
+      assertArrayEquals(expected, rgb, "the render thread survived the failure");
     } finally {
       failing.stop();
     }
@@ -681,13 +693,13 @@ final class VideoRendererTest {
   private static void awaitSize(final List<Integer> list, final int expected) throws InterruptedException {
     final boolean reached = Polling.pollUntil(TIMEOUT, () -> list.size() >= expected);
     final int size = list.size();
-    assertTrue(reached, "expected " + expected + " frames but got " + size);
+    assertTrue(reached, "expected %s frames but got %s".formatted(expected, size));
   }
 
   private static void awaitCount(final AtomicInteger counter, final int expected) throws InterruptedException {
     final boolean reached = Polling.pollUntil(TIMEOUT, () -> counter.get() >= expected);
     final int count = counter.get();
-    assertTrue(reached, "expected " + expected + " calls but got " + count);
+    assertTrue(reached, "expected %s calls but got %s".formatted(expected, count));
   }
 
   // Blocks a filter until the test lets it proceed. A filter that is never released fails, which the render thread
@@ -697,8 +709,8 @@ final class VideoRendererTest {
       final boolean released = proceed.await(TIMEOUT.toSeconds(), TimeUnit.SECONDS);
       assertTrue(released, "the test released the blocked filter");
     } catch (final InterruptedException exception) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
     }
   }
 }

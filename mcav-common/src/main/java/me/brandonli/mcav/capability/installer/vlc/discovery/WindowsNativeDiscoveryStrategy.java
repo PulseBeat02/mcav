@@ -50,7 +50,7 @@ import me.brandonli.mcav.utils.os.OsUtils;
  *
  * @since 1.0.0
  */
-public class WindowsNativeDiscoveryStrategy extends DirectoryProviderDiscoveryStrategy {
+public final class WindowsNativeDiscoveryStrategy extends DirectoryProviderDiscoveryStrategy {
 
   private static final String[] FILENAME_PATTERNS = new String[] { "libvlc\\.dll", "libvlccore\\.dll" };
   private static final List<Path> PLUGIN_DIRECTORIES = List.of(Path.of("plugins"), Path.of("vlc", "plugins"));
@@ -58,12 +58,12 @@ public class WindowsNativeDiscoveryStrategy extends DirectoryProviderDiscoverySt
   private final Os operatingSystem;
 
   /**
-   * Constructs a strategy that searches vlcj's directories and publishes the plugin path with {@code _putenv}.
+   * Creates a strategy that searches vlcj's directories and publishes the plugin path with {@code _putenv}.
    *
    * @since 1.0.0
    */
   public WindowsNativeDiscoveryStrategy() {
-    final EnvironmentSetter windowsSetter = nativeSetter();
+    final EnvironmentSetter windowsSetter = createNativeSetter();
     super(FILENAME_PATTERNS, PLUGIN_DIRECTORIES, windowsSetter);
     this.operatingSystem = OsUtils.getOs();
   }
@@ -77,8 +77,8 @@ public class WindowsNativeDiscoveryStrategy extends DirectoryProviderDiscoverySt
     this.operatingSystem = operatingSystem;
   }
 
-  static EnvironmentSetter nativeSetter() {
-    final EnvironmentVariables variables = EnvironmentVariables.nativeVariables();
+  static EnvironmentSetter createNativeSetter() {
+    final EnvironmentVariables variables = EnvironmentVariables.create();
     return variables::setWindowsVariable;
   }
 

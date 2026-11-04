@@ -102,12 +102,12 @@ public final class DebianProgramInstaller implements Installer {
     Preconditions.checkNotNull(resource, "Resource must not be null!");
     Preconditions.checkNotNull(name, "Name must not be null!");
     Preconditions.checkNotNull(trees, "Trees must not be null!");
-    final boolean folderName = FOLDER_NAME.matcher(name).matches();
-    Preconditions.checkArgument(folderName, "Name %s must be a folder name!", name);
+    final boolean validName = FOLDER_NAME.matcher(name).matches();
+    Preconditions.checkArgument(validName, "Name %s must be a folder name!", name);
     for (final String tree : trees) {
       Preconditions.checkNotNull(tree, "Tree must not be null!");
-      final boolean relativeTree = TREE.matcher(tree).matches();
-      Preconditions.checkArgument(relativeTree, "Tree %s must be a relative path of folder names!", tree);
+      final boolean validTree = TREE.matcher(tree).matches();
+      Preconditions.checkArgument(validTree, "Tree %s must be a relative path of folder names!", tree);
     }
 
     final Download[] downloads = IoUtils.readDownloadsFromJsonResource(resource);

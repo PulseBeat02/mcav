@@ -72,10 +72,10 @@ public interface PixelMapper {
    * @param matrix   the threshold matrix, whose entries rank the pixels of the pattern
    * @param maximum  the number of levels of the matrix, such as {@link BayerDither#NORMAL_2X2_MAXIMUM}; kept for
    *                 compatibility, the levels are derived from the matrix itself
-   * @param strength the finite, nonnegative strength, see {@link #NORMAL_STRENGTH}
+   * @param strength the finite strength, not negative, see {@link #NORMAL_STRENGTH}
    * @return the mapper
    * @throws NullPointerException     if the matrix or any supplied row is null
-   * @throws IllegalArgumentException if the strength is negative or nonfinite, or {@code maximum} is nonpositive
+   * @throws IllegalArgumentException if the strength is negative or nonfinite, or {@code maximum} is not positive
    * @since 1.0.0
    */
   static PixelMapper ofPixelMapper(final ThresholdMatrix matrix, final int maximum, final float strength) {
@@ -89,7 +89,7 @@ public interface PixelMapper {
    * Creates a mapper from a threshold matrix, such as the matrices of {@link BayerDither}.
    *
    * @param matrix   the threshold matrix, whose entries rank the pixels of the pattern
-   * @param strength the finite, nonnegative strength, see {@link #NORMAL_STRENGTH}
+   * @param strength the finite strength, not negative, see {@link #NORMAL_STRENGTH}
    * @return the mapper
    * @throws NullPointerException     if the matrix or any supplied row is null
    * @throws IllegalArgumentException if the strength is negative or nonfinite
@@ -108,10 +108,10 @@ public interface PixelMapper {
    * @param matrix   the threshold matrix, whose entries rank the pixels of the pattern
    * @param maximum  the number of levels of the matrix; kept for compatibility, the levels are derived from the
    *                 matrix itself
-   * @param strength the finite, nonnegative strength, see {@link #NORMAL_STRENGTH}
+   * @param strength the finite strength, not negative, see {@link #NORMAL_STRENGTH}
    * @return the mapper
    * @throws NullPointerException     if the matrix or any supplied row is null
-   * @throws IllegalArgumentException if the strength is negative or nonfinite, or {@code maximum} is nonpositive
+   * @throws IllegalArgumentException if the strength is negative or nonfinite, or {@code maximum} is not positive
    *                                  or the matrix is empty or has unequal or empty rows
    * @since 1.0.0
    */
@@ -126,7 +126,7 @@ public interface PixelMapper {
    * Creates a mapper from an integer threshold matrix.
    *
    * @param matrix   the threshold matrix, whose entries rank the pixels of the pattern
-   * @param strength the finite, nonnegative strength, see {@link #NORMAL_STRENGTH}
+   * @param strength the finite strength, not negative, see {@link #NORMAL_STRENGTH}
    * @return the mapper
    * @throws NullPointerException     if the matrix or any supplied row is null
    * @throws IllegalArgumentException if the strength is negative or nonfinite

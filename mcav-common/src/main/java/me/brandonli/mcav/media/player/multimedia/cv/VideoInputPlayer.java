@@ -19,23 +19,25 @@ package me.brandonli.mcav.media.player.multimedia.cv;
 
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
+import me.brandonli.mcav.media.player.multimedia.VideoPlayer;
+import me.brandonli.mcav.media.source.device.DeviceSource;
 import org.bytedeco.javacv.FrameGrabber;
 import org.bytedeco.javacv.OpenCVFrameGrabber;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * A player that captures video from a camera or capture card by device index, such as {@code 0} for the default
- * webcam. Devices are opened through OpenCV, which uses the native capture API of every operating system. Create
- * instances with {@link me.brandonli.mcav.media.player.multimedia.VideoPlayer#device()} and start them with a
- * {@link me.brandonli.mcav.media.source.device.DeviceSource}.
+ * A player that captures video from a camera or capture card by device index, such as {@code 0} for the default webcam.
+ * Devices are opened through OpenCV, which uses the native capture API of every operating system. Create instances with
+ * {@link VideoPlayer#device()} and start them with a {@link DeviceSource}.
  *
  * <p>This class is thread-safe.
  *
  * @since 1.0.0
  */
-public class VideoInputPlayer extends AbstractVideoPlayerCv {
+public final class VideoInputPlayer extends AbstractVideoPlayerCv {
 
   /**
-   * Constructs a new capture device player.
+   * Creates a capture device player.
    *
    * @since 1.0.0
    */
@@ -47,16 +49,16 @@ public class VideoInputPlayer extends AbstractVideoPlayerCv {
    * @param resource the index of the device as text, such as {@code "0"} for the default webcam
    * @return a new, unstarted OpenCV grabber of the device
    * @throws NullPointerException     if the resource is null
-   * @throws IllegalArgumentException if the resource is not a non-negative number
+   * @throws IllegalArgumentException if the resource is not a number or is negative
    * @since 1.0.0
    */
   @Override
   protected FrameGrabber createFrameGrabber(final String resource) {
     Preconditions.checkNotNull(resource, "Resource must not be null!");
 
-    final Integer parsedIndex = Ints.tryParse(resource);
+    final @Nullable Integer parsedIndex = Ints.tryParse(resource);
     if (parsedIndex == null || parsedIndex < 0) {
-      final String message = "Device index %s must be a non-negative number!".formatted(resource);
+      final String message = "Device index %s must be a number and must not be negative!".formatted(resource);
       throw new IllegalArgumentException(message);
     }
 

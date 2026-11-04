@@ -31,7 +31,7 @@ import org.bytedeco.opencv.opencv_core.Scalar;
  *
  * @since 1.0.0
  */
-public class RectangleFilter extends MatVideoFilter {
+public final class RectangleFilter extends MatVideoFilter {
 
   private final Point topLeft;
   private final Point bottomRight;
@@ -45,7 +45,7 @@ public class RectangleFilter extends MatVideoFilter {
    * @param width  the width of the rectangle, which must be positive
    * @param height the height of the rectangle, which must be positive
    * @param color  the blue, green, and red components of the color, normally 0 to 255; the non-null array is copied
-   * @throws IllegalArgumentException if either size is nonpositive
+   * @throws IllegalArgumentException if either size is not positive
    * @throws NullPointerException     if {@code color} is null
    * @since 1.0.0
    */
@@ -61,13 +61,13 @@ public class RectangleFilter extends MatVideoFilter {
   /**
    * Draws the rectangle outline onto the frame in place. Parts of the rectangle outside of the frame are cut off.
    *
-   * @param mat the 8-bit BGR matrix of the frame
+   * @param matrix the 8-bit BGR matrix of the frame
    * @return true, because the frame may have changed
    * @since 1.0.0
    */
   @Override
-  protected boolean modifyMat(final Mat mat) {
-    opencv_imgproc.rectangle(mat, this.topLeft, this.bottomRight, this.color);
+  protected boolean modifyMat(final Mat matrix) {
+    opencv_imgproc.rectangle(matrix, this.topLeft, this.bottomRight, this.color);
 
     return true;
   }

@@ -86,7 +86,10 @@ final class DefaultErrorDiffusionDitherBuilder implements ErrorDiffusionDitherBu
 
   @Override
   public ErrorDiffusionDitherBuilder withTemporalThreshold(final int threshold) {
-    Preconditions.checkArgument(threshold >= 0 && threshold <= MAXIMUM_TEMPORAL_THRESHOLD, "Temporal threshold must be between 0 and 255!");
+    Preconditions.checkArgument(
+      threshold >= 0 && threshold <= MAXIMUM_TEMPORAL_THRESHOLD,
+      "Temporal threshold must be between 0 and 255 inclusive!"
+    );
 
     this.temporalThreshold = threshold;
     return this;
@@ -102,7 +105,7 @@ final class DefaultErrorDiffusionDitherBuilder implements ErrorDiffusionDitherBu
 
   @Override
   public ErrorDiffusionDitherBuilder withErrorStrength(final float strength) {
-    Preconditions.checkArgument(strength >= 0 && strength <= 1, "Error strength must be between 0 and 1!");
+    Preconditions.checkArgument(strength >= 0 && strength <= 1, "Error strength must be between 0 and 1 inclusive!");
 
     this.errorStrength = strength;
     return this;

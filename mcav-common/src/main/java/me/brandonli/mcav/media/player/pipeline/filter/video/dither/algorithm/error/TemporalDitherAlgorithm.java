@@ -122,10 +122,10 @@ public abstract class TemporalDitherAlgorithm extends ErrorDiffusionDither imple
     super(palette, kernel);
     Preconditions.checkArgument(
       temporalThreshold >= 0 && temporalThreshold <= MAXIMUM_TEMPORAL_THRESHOLD,
-      "Temporal threshold must be between 0 and 255!"
+      "Temporal threshold must be between 0 and 255 inclusive!"
     );
     Preconditions.checkArgument(errorThreshold >= 0, "Error threshold must not be negative!");
-    Preconditions.checkArgument(errorStrength >= 0 && errorStrength <= 1, "Error strength must be between 0 and 1!");
+    Preconditions.checkArgument(errorStrength >= 0 && errorStrength <= 1, "Error strength must be between 0 and 1 inclusive!");
 
     this.temporalThreshold = temporalThreshold;
     this.errorThreshold = errorThreshold;

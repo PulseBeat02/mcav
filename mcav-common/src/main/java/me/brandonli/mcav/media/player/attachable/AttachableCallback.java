@@ -45,7 +45,7 @@ public interface AttachableCallback<ValueType> {
   void detach();
 
   /**
-   * Checks whether a value was explicitly attached, even if it is the fallback value.
+   * Returns whether a value was explicitly attached, even if it is the fallback value.
    *
    * @return a snapshot of the attached state, which can change immediately after this call
    * @since 1.0.0

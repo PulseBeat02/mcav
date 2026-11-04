@@ -160,6 +160,11 @@ public final class DiffusionKernel {
     { 3, 3, 5 },
   });
 
+  private static final int TAP_LENGTH = 3;
+  private static final int OFFSET_X_INDEX = 0;
+  private static final int OFFSET_Y_INDEX = 1;
+  private static final int WEIGHT_INDEX = 2;
+
   private final String name;
   private final int divisor;
   private final int[] offsetsX;
@@ -174,9 +179,9 @@ public final class DiffusionKernel {
    * @param name    the name of the algorithm the kernel belongs to
    * @param divisor the strictly positive divisor of each weight
    * @param taps    the nonempty array of non-null {@code {dx, dy, weight}} triples, copied by this constructor
-   * @throws IllegalArgumentException if the divisor is nonpositive, there are no taps, a tap has other than
+   * @throws IllegalArgumentException if the divisor is not positive, there are no taps, a tap has other than
    *                                  three elements, or a tap points to an already processed pixel, reaches farther than
-   *                                  {@link #MAXIMUM_OFFSET} pixels, or has a non-positive weight
+   *                                  {@link #MAXIMUM_OFFSET} pixels, or has a weight that is not positive
    * @throws NullPointerException     if the name, the taps or one of the taps is null
    * @since 1.0.0
    */
@@ -194,9 +199,9 @@ public final class DiffusionKernel {
     for (int tapIndex = 0; tapIndex < taps.length; tapIndex++) {
       final int[] tap = taps[tapIndex];
       checkTap(tap, tapIndex);
-      this.offsetsX[tapIndex] = tap[0];
-      this.offsetsY[tapIndex] = tap[1];
-      this.weights[tapIndex] = tap[2];
+      this.offsetsX[tapIndex] = tap[OFFSET_X_INDEX];
+      this.offsetsY[tapIndex] = tap[OFFSET_Y_INDEX];
+      this.weights[tapIndex] = tap[WEIGHT_INDEX];
     }
 
     this.maximumOffsetX = getLargestMagnitude(this.offsetsX);
@@ -205,11 +210,11 @@ public final class DiffusionKernel {
 
   private static void checkTap(final int[] tap, final int tapIndex) {
     Preconditions.checkNotNull(tap, "Tap %s must not be null!", tapIndex);
-    Preconditions.checkArgument(tap.length == 3, "Tap %s must have three values!", tapIndex);
+    Preconditions.checkArgument(tap.length == TAP_LENGTH, "Tap %s must have three values!", tapIndex);
 
-    final int offsetX = tap[0];
-    final int offsetY = tap[1];
-    final int weight = tap[2];
+    final int offsetX = tap[OFFSET_X_INDEX];
+    final int offsetY = tap[OFFSET_Y_INDEX];
+    final int weight = tap[WEIGHT_INDEX];
     Preconditions.checkArgument(offsetY >= 0, "Tap %s points to a previous row!", tapIndex);
     Preconditions.checkArgument(offsetY > 0 || offsetX > 0, "Tap %s points to an already processed pixel!", tapIndex);
 

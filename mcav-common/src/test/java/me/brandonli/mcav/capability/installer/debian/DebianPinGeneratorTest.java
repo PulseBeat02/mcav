@@ -109,6 +109,20 @@ final class DebianPinGeneratorTest {
     new DebianPinGenerator.Index(SECURITY_SNAPSHOT, SECURITY_INDEX)
   );
 
+  private static final String ROOT_PACKAGE = "libroot1";
+  private static final String ROOT_DATA_PACKAGE = "libroot-data";
+  private static final String MIDDLE_PACKAGE = "libmiddle2";
+  private static final String ALTERNATIVE_PACKAGE = "libalternative1";
+  private static final String PROVIDER_PACKAGE = "libprovider3";
+  private static final String LEAF_PACKAGE = "libleaf0";
+  private static final String UNUSED_PACKAGE = "libunused1";
+
+  private static final String LEAF_FILENAME = "pool/main/l/leaf/libleaf0_0.1_arm64.deb";
+  private static final String SECURITY_LEAF_FILENAME = "pool/updates/main/l/leaf/libleaf0_0.1-1+deb12u1_arm64.deb";
+  private static final String ALTERNATIVE_FILENAME = "pool/main/a/alternative/libalternative1_1_arm64.deb";
+
+  private static final String QEMU_BUNDLE_FILE = "debian-qemu-x86.json";
+
   private DebianPinGenerator generator;
 
   @BeforeEach
@@ -118,38 +132,40 @@ final class DebianPinGeneratorTest {
 
   @Test
   void shouldListEveryPackageAfterItsDependencies() {
-    final List<DebianPinGenerator.IndexEntry> closure = this.generator.resolveClosure(MAIN, List.of("libroot1"));
+    final List<DebianPinGenerator.IndexEntry> closure = this.generator.resolveClosure(MAIN, List.of(ROOT_PACKAGE));
 
     final List<String> names = closure.stream().map(DebianPinGenerator.IndexEntry::name).toList();
-    final List<String> expected = List.of("libleaf0", "libmiddle2", "libalternative1", "libprovider3", "libroot1");
+    final List<String> expected = List.of(LEAF_PACKAGE, MIDDLE_PACKAGE, ALTERNATIVE_PACKAGE, PROVIDER_PACKAGE, ROOT_PACKAGE);
     assertEquals(expected, names);
   }
 
   @Test
   void shouldIncludeIndependentPackagesWithTheirDependencies() {
     final DebianPinGenerator including = new DebianPinGenerator(DebianPinGenerator.IndependentPackages.INCLUDED);
-    final List<DebianPinGenerator.IndexEntry> closure = including.resolveClosure(MAIN, List.of("libroot1"));
+    final List<DebianPinGenerator.IndexEntry> closure = including.resolveClosure(MAIN, List.of(ROOT_PACKAGE));
 
     final List<String> names = closure.stream().map(DebianPinGenerator.IndexEntry::name).toList();
     final List<String> expected = List.of(
-      "libleaf0",
-      "libmiddle2",
-      "libalternative1",
-      "libprovider3",
-      "libunused1",
-      "libroot-data",
-      "libroot1"
+      LEAF_PACKAGE,
+      MIDDLE_PACKAGE,
+      ALTERNATIVE_PACKAGE,
+      PROVIDER_PACKAGE,
+      UNUSED_PACKAGE,
+      ROOT_DATA_PACKAGE,
+      ROOT_PACKAGE
     );
     assertEquals(expected, names);
   }
 
   @Test
   void shouldKeepTheFileAndHashOfEachPackage() {
-    final List<DebianPinGenerator.IndexEntry> closure = this.generator.resolveClosure(MAIN, List.of("libleaf0"));
+    final List<DebianPinGenerator.IndexEntry> closure = this.generator.resolveClosure(MAIN, List.of(LEAF_PACKAGE));
 
     final DebianPinGenerator.IndexEntry leaf = closure.getFirst();
-    assertEquals("pool/main/l/leaf/libleaf0_0.1_arm64.deb", leaf.filename());
-    assertEquals("3333", leaf.sha256());
+    final String leafFilename = leaf.filename();
+    final String leafHash = leaf.sha256();
+    assertEquals(LEAF_FILENAME, leafFilename);
+    assertEquals("3333", leafHash);
   }
 
   @Test
@@ -163,44 +179,50 @@ final class DebianPinGeneratorTest {
 
   @Test
   void shouldTakeANewerVersionFromTheSecurityArchive() {
-    final List<DebianPinGenerator.IndexEntry> closure = this.generator.resolveClosure(BOTH, List.of("libleaf0"));
+    final List<DebianPinGenerator.IndexEntry> closure = this.generator.resolveClosure(BOTH, List.of(LEAF_PACKAGE));
 
     final DebianPinGenerator.IndexEntry leaf = closure.getFirst();
-    assertEquals("pool/updates/main/l/leaf/libleaf0_0.1-1+deb12u1_arm64.deb", leaf.filename());
-    assertEquals("9999", leaf.sha256());
-    assertEquals(SECURITY_SNAPSHOT, leaf.snapshot());
+    final String leafFilename = leaf.filename();
+    final String leafHash = leaf.sha256();
+    final URI leafSnapshot = leaf.snapshot();
+    assertEquals(SECURITY_LEAF_FILENAME, leafFilename);
+    assertEquals("9999", leafHash);
+    assertEquals(SECURITY_SNAPSHOT, leafSnapshot);
   }
 
   @Test
   void shouldKeepANewerVersionFromTheMainArchive() {
-    final List<DebianPinGenerator.IndexEntry> closure = this.generator.resolveClosure(BOTH, List.of("libalternative1"));
+    final List<DebianPinGenerator.IndexEntry> closure = this.generator.resolveClosure(BOTH, List.of(ALTERNATIVE_PACKAGE));
 
     final DebianPinGenerator.IndexEntry alternative = closure.getFirst();
-    assertEquals("pool/main/a/alternative/libalternative1_1_arm64.deb", alternative.filename());
-    assertEquals(MAIN_SNAPSHOT, alternative.snapshot());
+    final String alternativeFilename = alternative.filename();
+    final URI alternativeSnapshot = alternative.snapshot();
+    assertEquals(ALTERNATIVE_FILENAME, alternativeFilename);
+    assertEquals(MAIN_SNAPSHOT, alternativeSnapshot);
   }
 
   @Test
   void shouldKeepTheMainArchiveForTheSameVersion() {
-    final List<DebianPinGenerator.IndexEntry> closure = this.generator.resolveClosure(BOTH, List.of("libunused1"));
+    final List<DebianPinGenerator.IndexEntry> closure = this.generator.resolveClosure(BOTH, List.of(UNUSED_PACKAGE));
 
     final DebianPinGenerator.IndexEntry unused = closure.getFirst();
-    assertEquals(MAIN_SNAPSHOT, unused.snapshot());
+    final URI unusedSnapshot = unused.snapshot();
+    assertEquals(MAIN_SNAPSHOT, unusedSnapshot);
   }
 
   @Test
   void shouldReadABundleFromItsArgument() {
     final DebianPinGenerator.Bundle bundle = this.generator.parseBundle("debian-qemu-x86.json=qemu-system-x86,seabios");
 
-    final DebianPinGenerator.Bundle expected = new DebianPinGenerator.Bundle("debian-qemu-x86.json", List.of("qemu-system-x86", "seabios"));
+    final DebianPinGenerator.Bundle expected = new DebianPinGenerator.Bundle(QEMU_BUNDLE_FILE, List.of("qemu-system-x86", "seabios"));
     assertEquals(expected, bundle);
   }
 
   @Test
   void shouldRefuseABundleWithoutAnEqualsSign() {
-    final String argument = "debian-qemu-x86.json";
-
-    final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () -> this.generator.parseBundle(argument));
+    final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () ->
+      this.generator.parseBundle(QEMU_BUNDLE_FILE)
+    );
     final String message = failure.getMessage();
     assertEquals("Bundle debian-qemu-x86.json must be a file name, an equals sign and its root packages!", message);
   }

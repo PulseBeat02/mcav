@@ -46,7 +46,7 @@ public interface FrameSource extends DynamicSource {
    * @param width  the strictly positive width of the frames in pixels
    * @param height the strictly positive height of the frames in pixels
    * @return the source, played at {@link #DEFAULT_FRAME_RATE}
-   * @throws IllegalArgumentException if a dimension is nonpositive
+   * @throws IllegalArgumentException if a dimension is not positive
    * @throws NullPointerException     if {@code images} is null
    * @since 1.0.0
    */
@@ -64,7 +64,7 @@ public interface FrameSource extends DynamicSource {
    * @param width    the strictly positive width of the frames in pixels
    * @param height   the strictly positive height of the frames in pixels
    * @return the source, played at {@link #DEFAULT_FRAME_RATE}
-   * @throws IllegalArgumentException if a dimension is nonpositive
+   * @throws IllegalArgumentException if a dimension is not positive
    * @throws NullPointerException     if {@code supplier} is null
    * @since 1.0.0
    */
@@ -80,14 +80,14 @@ public interface FrameSource extends DynamicSource {
    * @param height    the strictly positive height of the frames in pixels
    * @param frameRate the finite, strictly positive frame rate in frames per second
    * @return the source
-   * @throws IllegalArgumentException if a dimension is nonpositive or the frame rate is nonpositive or nonfinite
+   * @throws IllegalArgumentException if a dimension is not positive or the frame rate is not positive or not finite
    * @throws NullPointerException     if {@code supplier} is null
    * @since 1.0.0
    */
   static FrameSource supplier(final SampleSupplier supplier, final int width, final int height, final float frameRate) {
     Preconditions.checkNotNull(supplier, "Sample supplier must not be null!");
-    Preconditions.checkArgument(width > 0 && height > 0, "Frame size must be positive!");
-    Preconditions.checkArgument(frameRate > 0 && Float.isFinite(frameRate), "Frame rate must be positive!");
+    Preconditions.checkArgument(width > 0 && height > 0, "Frame size %sx%s must be positive!", width, height);
+    Preconditions.checkArgument(frameRate > 0 && Float.isFinite(frameRate), "Frame rate %s must be positive and finite!", frameRate);
 
     return new SupplierFrameSource(supplier, width, height, frameRate);
   }
@@ -138,8 +138,7 @@ public interface FrameSource extends DynamicSource {
   }
 
   /**
-   * Returns a diagnostic string of the form {@code widthxheight@rate}, which no backend can open. Generated and specialized sources may
-   * return a diagnostic string that cannot be opened by an arbitrary backend.
+   * Returns a diagnostic string of the form {@code widthxheight@rate}, which no backend can open.
    *
    * @return the resource string
    * @since 1.0.0
@@ -149,6 +148,6 @@ public interface FrameSource extends DynamicSource {
     final int width = this.getFrameWidth();
     final int height = this.getFrameHeight();
     final float frameRate = this.getFrameRate();
-    return width + "x" + height + "@" + frameRate;
+    return "%sx%s@%s".formatted(width, height, frameRate);
   }
 }

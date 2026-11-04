@@ -46,10 +46,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * @since 1.0.0
  */
-public class DirectAudioOutput implements FunctionalAudioFilter {
+public final class DirectAudioOutput implements FunctionalAudioFilter {
+
+  private static final boolean SIGNED = true;
+  private static final boolean BIG_ENDIAN = false;
 
   @VisibleForTesting
-  static final AudioFormat FORMAT = new AudioFormat(SAMPLE_RATE, BYTES_PER_SAMPLE * 8, CHANNELS, true, false);
+  static final AudioFormat FORMAT = new AudioFormat(SAMPLE_RATE, BYTES_PER_SAMPLE * 8, CHANNELS, SIGNED, BIG_ENDIAN);
 
   private static final Equivalence<Object> FAILURE_IDENTITY = Equivalence.identity();
   private static final int BUFFER_MILLISECONDS = 200;
@@ -188,8 +191,8 @@ public class DirectAudioOutput implements FunctionalAudioFilter {
       failure = this.runCleanupAction(action, failure);
     }
 
-    if (failure instanceof final RuntimeException runtime) {
-      throw runtime;
+    if (failure instanceof final RuntimeException runtimeException) {
+      throw runtimeException;
     }
 
     if (failure instanceof final Error error) {
@@ -224,6 +227,6 @@ public class DirectAudioOutput implements FunctionalAudioFilter {
 
   @FunctionalInterface
   interface LineOpener {
-    SourceDataLine open(AudioFormat format, int bufferSize) throws LineUnavailableException;
+    SourceDataLine open(final AudioFormat format, final int bufferSize) throws LineUnavailableException;
   }
 }

@@ -28,7 +28,7 @@ import org.bytedeco.opencv.opencv_core.Mat;
  *
  * @since 1.0.0
  */
-public class FlipFilter extends MatVideoFilter {
+public final class FlipFilter extends MatVideoFilter {
 
   private final int flipCode;
 
@@ -48,13 +48,13 @@ public class FlipFilter extends MatVideoFilter {
   /**
    * Mirrors the frame in place in the direction of this filter.
    *
-   * @param mat the 8-bit BGR matrix of the frame
+   * @param matrix the 8-bit BGR matrix of the frame
    * @return true, because the frame may have changed
    * @since 1.0.0
    */
   @Override
-  protected boolean modifyMat(final Mat mat) {
-    opencv_core.flip(mat, mat, this.flipCode);
+  protected boolean modifyMat(final Mat matrix) {
+    opencv_core.flip(matrix, matrix, this.flipCode);
 
     return true;
   }

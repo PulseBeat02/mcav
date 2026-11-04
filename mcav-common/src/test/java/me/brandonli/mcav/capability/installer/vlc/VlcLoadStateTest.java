@@ -190,9 +190,11 @@ final class VlcLoadStateTest {
       final boolean released = latch.await(5, TimeUnit.SECONDS);
       assertTrue(released);
     } catch (final InterruptedException exception) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
-      throw new InstallationException("Waiting was interrupted!", exception);
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+
+      final String message = "Waiting was interrupted!";
+      throw new InstallationException(message, exception);
     }
   }
 }

@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.media.player.multimedia.vlc;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import java.util.function.Supplier;
@@ -30,6 +32,7 @@ import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
 final class SharedMediaPlayerFactory {
 
   private static final String[] VLC_ARGUMENTS = { "--quiet", "--no-video-title-show", "--no-snapshot-preview", "--no-osd" };
+
   private static final SharedMediaPlayerFactory INSTANCE = new SharedMediaPlayerFactory(SharedMediaPlayerFactory::createFactory);
 
   private final Supplier<MediaPlayerFactory> creator;
@@ -85,7 +88,7 @@ final class SharedMediaPlayerFactory {
         return;
       }
 
-      final MediaPlayerFactory current = Preconditions.checkNotNull(this.factory, "A referenced instance always exists!");
+      final MediaPlayerFactory current = requireNonNull(this.factory, "A referenced instance always exists!");
       this.factory = null;
       current.release();
     }

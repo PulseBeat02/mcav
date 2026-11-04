@@ -132,7 +132,7 @@ final class DitherPropertyTest {
     final boolean atkinson = kernel == DiffusionKernel.ATKINSON;
     final long expected = atkinson ? (divisor * 3L) / 4 : divisor;
 
-    assertEquals(expected, weights, () -> kernel + ": weights against divisor " + divisor);
+    assertEquals(expected, weights, () -> "%s: weights against divisor %s".formatted(kernel, divisor));
   }
 
   @Provide
@@ -192,10 +192,10 @@ final class DitherPropertyTest {
       final int index = indices[pixel] & 0xFF;
       final int position = pixel;
       final boolean usable = index >= reserved && index < size;
-      assertTrue(usable, () -> "pixel " + position + " got index " + index + ", outside of " + reserved + ".." + (size - 1));
+      assertTrue(usable, () -> "pixel %s got index %s, outside of %s..%s".formatted(position, index, reserved, size - 1));
       final int color = colors[pixel];
       final int named = paletteColors[index];
-      assertEquals(named, color, () -> "pixel " + position + ": the index names another color than dither wrote");
+      assertEquals(named, color, () -> "pixel %s: the index names another color than dither wrote".formatted(position));
     }
   }
 
@@ -279,7 +279,7 @@ final class DitherPropertyTest {
     @Override
     public String toString() {
       final int paletteSize = this.palette.getSize();
-      return this.algorithm + " on " + this.width + "x" + this.height + " with a palette of " + paletteSize + " colors";
+      return "%s on %sx%s with a palette of %s colors".formatted(this.algorithm, this.width, this.height, paletteSize);
     }
   }
 }

@@ -88,7 +88,8 @@ final class RepeatingFrameSourceTest {
       colors[index] = nextColor(supplier);
     }
 
-    assertArrayEquals(new int[] { 1, 2, 1, 2, 2, 2, 2 }, colors);
+    final int[] expected = new int[] { 1, 2, 1, 2, 2, 2, 2 };
+    assertArrayEquals(expected, colors);
   }
 
   @Test
@@ -105,8 +106,9 @@ final class RepeatingFrameSourceTest {
       colors[index] = nextColor(supplier);
     }
 
+    final int[] expected = new int[] { 1, 2, 1, 2, 1, 2 };
     assertEquals(Integer.MAX_VALUE, repeatCount);
-    assertArrayEquals(new int[] { 1, 2, 1, 2, 1, 2 }, colors);
+    assertArrayEquals(expected, colors);
   }
 
   @Test

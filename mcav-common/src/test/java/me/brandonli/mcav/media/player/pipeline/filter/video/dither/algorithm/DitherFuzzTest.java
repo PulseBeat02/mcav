@@ -83,7 +83,8 @@ final class DitherFuzzTest {
       final boolean usable = index >= reserved && index < size;
       assertTrue(usable, "an index outside of the palette");
       final int writtenColor = colors[pixel];
-      assertEquals(palette[index], writtenColor, "the index names the color written in place");
+      final int expected = palette[index];
+      assertEquals(expected, writtenColor, "the index names the color written in place");
     }
   }
 

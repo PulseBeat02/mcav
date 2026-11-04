@@ -302,7 +302,7 @@ final class PlatformDiscoveryStrategiesTest {
     final List<String> expectedDirectories = List.of(rawDirectory);
     for (final NativeDiscoveryStrategy strategy : strategies) {
       final DirectoryProviderDiscoveryStrategy directoryStrategy = assertInstanceOf(DirectoryProviderDiscoveryStrategy.class, strategy);
-      final List<String> searched = directoryStrategy.discoveryDirectories();
+      final List<String> searched = directoryStrategy.getDiscoveryDirectories();
       final String found = directoryStrategy.discover();
       assertEquals(expectedDirectories, searched);
       assertEquals(rawDirectory, found);
@@ -372,8 +372,8 @@ final class PlatformDiscoveryStrategiesTest {
     final Os operatingSystem = OsUtils.getOs();
     final boolean isWindows = operatingSystem == Os.WINDOWS;
     final EnvironmentSetter setter = isWindows
-      ? WindowsNativeDiscoveryStrategy.nativeSetter()
-      : LinuxNativeDiscoveryStrategy.nativeSetter();
+      ? WindowsNativeDiscoveryStrategy.createNativeSetter()
+      : LinuxNativeDiscoveryStrategy.createNativeSetter();
     final String libraryName = isWindows ? "msvcrt" : "c";
     final EnvironmentReader reader = Native.load(libraryName, EnvironmentReader.class);
     final boolean set = setter.set(TEST_VARIABLE, VARIABLE_VALUE);

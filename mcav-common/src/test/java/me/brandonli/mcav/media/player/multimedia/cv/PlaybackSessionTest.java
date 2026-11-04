@@ -101,7 +101,14 @@ final class PlaybackSessionTest {
 
   private static final String LATE_FRAME = "late frame";
 
+  private static final String LATE_REPORT_FORMAT = "%s of %s";
+
   private static final int SOUND_COUNT = 100;
+
+  private static final int FRAMES_PAST_THE_FIRST_STRETCH = 320;
+
+  private static final String PICTURE_RELEASED_MESSAGE = "the picture was released";
+  private static final String SESSION_STOPPED_MESSAGE = "the session stopped and closed its decoder";
 
   private final VideoAttachableCallback videoCallback = VideoAttachableCallback.create();
   private final AudioAttachableCallback audioCallback = AudioAttachableCallback.create();
@@ -316,7 +323,7 @@ final class PlaybackSessionTest {
 
       for (final Thread thread : threads) {
         final boolean daemon = thread.isDaemon();
-        assertTrue(daemon, thread.getName() + " would keep the JVM alive");
+        assertTrue(daemon, "%s would keep the JVM alive".formatted(thread.getName()));
       }
     } finally {
       session.stop();
@@ -352,7 +359,8 @@ final class PlaybackSessionTest {
     final List<String> expectedSizes = List.of("4x2", "4x2", "4x2");
     assertEquals(3, frameCount);
     assertEquals(2, chunkCount);
-    assertEquals(2 * FRAME_MICROSECONDS, position);
+    final long expected = 2 * FRAME_MICROSECONDS;
+    assertEquals(expected, position);
     assertMetadataOfTheGrabber(videoMetadata, audioMetadata);
     assertEquals(expectedSizes, sizes, "every frame keeps its width and height, the first one included");
     assertPlayedFromTheBeginningAndClosed(grabber, session);
@@ -392,7 +400,7 @@ final class PlaybackSessionTest {
     assertEquals(1, frameCount, "the video grabber only delivers pictures");
     assertEquals(1, chunkCount, "the audio grabber only delivers sound");
     assertTrue(audioClosed);
-    assertTrue(noReports, "an audio-only grabber has no picture size, which must not fail: " + this.reports);
+    assertTrue(noReports, "an audio-only grabber has no picture size, which must not fail: %s".formatted(this.reports));
     assertTrue(videoClosed);
   }
 
@@ -427,18 +435,19 @@ final class PlaybackSessionTest {
     awaitEnd(session);
 
     final int frameCount = frames.get();
-    final List<String> expected = List.of("Failed to start the audio source");
+    final List<String> expected = List.of("Failed to start the audio source.");
     assertEquals(1, frameCount);
     assertEquals(expected, this.reports);
   }
 
   private FrameGrabber failToOpenAudio() throws FrameGrabber.Exception {
-    throw new FrameGrabber.Exception("no audio");
+    final String message = "No audio!";
+    throw new FrameGrabber.Exception(message);
   }
 
   @Test
   void shouldReportDecodingFailures() throws Exception {
-    final FrameGrabber.Exception corrupt = new FrameGrabber.Exception("corrupt");
+    final FrameGrabber.Exception corrupt = new FrameGrabber.Exception("Corrupt!");
     final ScriptedFrameGrabber failing = ScriptedFrameGrabber.of(corrupt);
     final PlaybackSession first = this.session(failing, 0L, StartState.PLAYING);
     first.start();
@@ -451,7 +460,7 @@ final class PlaybackSessionTest {
     second.start();
     awaitEnd(second);
 
-    final List<String> expected = List.of("Failed to decode media", "Unexpected error while decoding media");
+    final List<String> expected = List.of("Failed to decode media.", "Unexpected error while decoding media.");
     assertEquals(expected, this.reports);
   }
 
@@ -510,7 +519,7 @@ final class PlaybackSessionTest {
 
     final long position = session.getPositionMicroseconds();
     final int frameCount = frames.get();
-    final List<String> expected = List.of("Failed to seek, playing from the current position instead");
+    final List<String> expected = List.of("Failed to seek, playing from the current position instead.");
     assertEquals(expected, this.reports);
     assertEquals(2, frameCount, "the media still plays");
     assertEquals(FRAME_MICROSECONDS, position);
@@ -559,8 +568,8 @@ final class PlaybackSessionTest {
     awaitEnd(session);
 
     final int frameCount = frames.get();
-    final boolean videoReported = this.reports.contains("Video filter failed");
-    final boolean audioReported = this.reports.contains("Audio filter failed");
+    final boolean videoReported = this.reports.contains("Video filter failed.");
+    final boolean audioReported = this.reports.contains("Audio filter failed.");
     assertEquals(2, frameCount);
     assertTrue(videoReported);
     assertTrue(audioReported);
@@ -568,11 +577,14 @@ final class PlaybackSessionTest {
 
   private boolean failAfterCountingFrame(final AtomicInteger frames) {
     frames.incrementAndGet();
-    throw new IllegalStateException("video filter bug!");
+
+    final String message = "video filter bug!";
+    throw new IllegalStateException(message);
   }
 
   private boolean failAudioFilter() {
-    throw new AssertionError("audio filter bug!");
+    final String message = "audio filter bug!";
+    throw new AssertionError(message);
   }
 
   @Test
@@ -603,11 +615,11 @@ final class PlaybackSessionTest {
     final long elapsedNanoseconds = end - start;
     final long position = session.getPositionMicroseconds();
     final boolean noReports = this.reports.isEmpty();
-    assertTrue(noReports, "the picture was never copied: " + this.reports);
+    assertTrue(noReports, "the picture was never copied: %s".formatted(this.reports));
     assertEquals(LAST_FRAME_POSITION, position, "the frames still move the position");
 
     final boolean keptTime = elapsedNanoseconds >= PACED_NANOSECONDS;
-    assertTrue(keptTime, "the frames still keep time, took " + elapsedNanoseconds);
+    assertTrue(keptTime, "the frames still keep time, took %s".formatted(elapsedNanoseconds));
   }
 
   @Test
@@ -620,7 +632,7 @@ final class PlaybackSessionTest {
     session.start();
     awaitEnd(session);
 
-    final List<String> expected = List.of("Unexpected error while decoding media");
+    final List<String> expected = List.of("Unexpected error while decoding media.");
     assertEquals(expected, this.reports);
   }
 
@@ -641,7 +653,7 @@ final class PlaybackSessionTest {
     assertEquals(24, frameCount);
 
     final boolean fewImages = images <= 6;
-    assertTrue(fewImages, "at most as many images as frames can be in flight are allocated, got " + images);
+    assertTrue(fewImages, "at most as many images as frames can be in flight are allocated, got %s".formatted(images));
   }
 
   private boolean recordImage(final Map<ImageBuffer, Boolean> seen, final AtomicInteger frames, final ImageBuffer image) {
@@ -691,7 +703,7 @@ final class PlaybackSessionTest {
     assertEquals(LAST_FRAME_POSITION, position, "every frame is one period of 10 frames per second after the previous one");
 
     final boolean paced = elapsedNanoseconds >= PACED_NANOSECONDS;
-    assertTrue(paced, "the frames are paced instead of racing by, took " + elapsedNanoseconds);
+    assertTrue(paced, "the frames are paced instead of racing by, took %s".formatted(elapsedNanoseconds));
   }
 
   @Test
@@ -716,7 +728,7 @@ final class PlaybackSessionTest {
     assertEquals(5, frameCount, "every frame that arrives in real time is shown");
 
     final boolean followedArrival = position >= 160_000L;
-    assertTrue(followedArrival, "the position follows the time the frames arrived at, got " + position);
+    assertTrue(followedArrival, "the position follows the time the frames arrived at, got %s".formatted(position));
   }
 
   // Creates a session that plays one grabber from the beginning and takes its video pipeline from the given callback
@@ -932,8 +944,8 @@ final class PlaybackSessionTest {
     try {
       never.await();
     } catch (final InterruptedException exception) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
     }
 
     return true;
@@ -962,7 +974,7 @@ final class PlaybackSessionTest {
     assertFalse(active);
 
     final boolean stoppedPromptly = stopTime < PROMPT_STOP_NANOSECONDS;
-    assertTrue(stoppedPromptly, "the blocked decoder is interrupted, took " + stopTime);
+    assertTrue(stoppedPromptly, "the blocked decoder is interrupted, took %s".formatted(stopTime));
   }
 
   private static VideoFilter stoppingItsOwnSession(
@@ -1009,7 +1021,7 @@ final class PlaybackSessionTest {
     assertTrue(closed, "the decoder finished");
 
     final boolean stoppedPromptly = stopTime < PROMPT_STOP_NANOSECONDS;
-    assertTrue(stoppedPromptly, "stopping from a filter does not wait for its own thread, took " + stopTime);
+    assertTrue(stoppedPromptly, "stopping from a filter does not wait for its own thread, took %s".formatted(stopTime));
     assertEquals(1, frameCount, "frames queued before the stop are discarded");
   }
 
@@ -1049,8 +1061,8 @@ final class PlaybackSessionTest {
     final PlaybackSession session = this.session(grabber, 0L, StartState.PLAYING);
     session.start();
 
-    final Thread currentThread = Thread.currentThread();
-    currentThread.interrupt();
+    final Thread current = Thread.currentThread();
+    current.interrupt();
     session.stop();
     final boolean interrupted = Thread.interrupted();
     assertTrue(interrupted, "the interrupt must be restored");
@@ -1062,7 +1074,7 @@ final class PlaybackSessionTest {
   void shouldReportNothingAfterItWasStopped() throws Exception {
     final CountDownLatch entered = new CountDownLatch(1);
     final CountDownLatch releaseFailure = new CountDownLatch(1);
-    final FrameGrabber.Exception lateFailure = new FrameGrabber.Exception("late failure");
+    final FrameGrabber.Exception lateFailure = new FrameGrabber.Exception("Late failure!");
     final AtomicReference<Throwable> thrown = new AtomicReference<>();
     final AtomicReference<Throwable> stopFailure = new AtomicReference<>();
     final ScriptedFrameGrabber grabber = spy(ScriptedFrameGrabber.of(lateFailure));
@@ -1157,7 +1169,8 @@ final class PlaybackSessionTest {
   }
 
   private FrameGrabber failToCreateVideoGrabber() throws FrameGrabber.Exception {
-    throw new FrameGrabber.Exception("missing");
+    final String message = "Missing!";
+    throw new FrameGrabber.Exception(message);
   }
 
   @Test
@@ -1174,7 +1187,8 @@ final class PlaybackSessionTest {
     awaitEnd(session);
 
     final byte[] bytes = received.get();
-    assertArrayEquals(new byte[] { 0x02, 0x01, (byte) 0xFE, (byte) 0xFF }, bytes, "the pipeline carries little-endian samples");
+    final byte[] expected = new byte[] { 0x02, 0x01, (byte) 0xFE, (byte) 0xFF };
+    assertArrayEquals(expected, bytes, "the pipeline carries little-endian samples");
   }
 
   private boolean recordBytes(final AtomicReference<byte[]> received, final ByteBuffer samples) {
@@ -1209,7 +1223,7 @@ final class PlaybackSessionTest {
     final long second = deliveries.get(1);
     final long gap = second - first;
     final boolean handedOnEarly = gap < 450_000_000L;
-    assertTrue(handedOnEarly, "the chunk is handed on ahead of its timestamp, gap " + gap);
+    assertTrue(handedOnEarly, "the chunk is handed on ahead of its timestamp, gap %s".formatted(gap));
   }
 
   private boolean recordDeliveryTime(final List<Long> deliveries) {
@@ -1254,6 +1268,11 @@ final class PlaybackSessionTest {
     assertEquals(expectedDiscarded, discarded, "every removed element is handed on, so it can be released");
   }
 
+  private PlaybackSession unstartedSession() {
+    final ScriptedFrameGrabber grabber = videoAt();
+    return this.session(grabber, 0L, StartState.PLAYING);
+  }
+
   // Creates a decoded frame whose picture is a tiny image, so a test can tell whether the picture was released.
   private static DecodedVideoFrame frameWithPicture() {
     final ImageBuffer picture = ImageBuffer.bytes(new byte[3], 1, 1);
@@ -1262,10 +1281,11 @@ final class PlaybackSessionTest {
 
   @Test
   void shouldLeaveAQueuedFrameToTheRendererWhileTheSessionRuns() throws Exception {
+    final PlaybackSession session = this.unstartedSession();
     final BlockingQueue<DecodedVideoFrame> queue = new ArrayBlockingQueue<>(1);
     final DecodedVideoFrame frame = frameWithPicture();
     final MatImageBuffer picture = frame.getImage();
-    PlaybackSession.queueFrame(queue, frame, () -> true);
+    session.queueFrame(queue, frame, () -> true);
 
     final DecodedVideoFrame queued = queue.poll();
     final int width = picture.getWidth();
@@ -1277,24 +1297,26 @@ final class PlaybackSessionTest {
 
   @Test
   void shouldTakeBackAFrameQueuedAfterTheSessionStoppedAndReleaseItsPicture() throws Exception {
+    final PlaybackSession session = this.unstartedSession();
     final BlockingQueue<DecodedVideoFrame> queue = new ArrayBlockingQueue<>(1);
     final DecodedVideoFrame frame = frameWithPicture();
     final MatImageBuffer picture = frame.getImage();
-    PlaybackSession.queueFrame(queue, frame, () -> false);
+    session.queueFrame(queue, frame, () -> false);
 
     final boolean empty = queue.isEmpty();
     assertTrue(empty, "nobody takes frames out of the queue of a stopped session anymore");
-    assertThrows(IllegalStateException.class, picture::getWidth, "the picture was released");
+    assertThrows(IllegalStateException.class, picture::getWidth, PICTURE_RELEASED_MESSAGE);
   }
 
   @Test
   void shouldLeaveAFrameTheRendererTookBeforeTheDecoderNoticedTheStop() throws Exception {
+    final PlaybackSession session = this.unstartedSession();
     final BlockingQueue<DecodedVideoFrame> queue = new ArrayBlockingQueue<>(1);
     final DecodedVideoFrame frame = frameWithPicture();
     final MatImageBuffer picture = frame.getImage();
     final AtomicReference<DecodedVideoFrame> taken = new AtomicReference<>();
     final BooleanSupplier renderedThenStopped = () -> this.takeQueuedFrame(queue, taken);
-    PlaybackSession.queueFrame(queue, frame, renderedThenStopped);
+    session.queueFrame(queue, frame, renderedThenStopped);
 
     final DecodedVideoFrame rendered = taken.get();
     final int width = picture.getWidth();
@@ -1313,19 +1335,20 @@ final class PlaybackSessionTest {
 
   @Test
   void shouldReleaseThePictureOfAFrameItCouldNotQueueBeforeItWasInterrupted() {
+    final PlaybackSession session = this.unstartedSession();
     final BlockingQueue<DecodedVideoFrame> queue = new ArrayBlockingQueue<>(1);
     final DecodedVideoFrame waiting = new DecodedVideoFrame(null, 0L);
     queue.add(waiting);
     final DecodedVideoFrame frame = frameWithPicture();
     final MatImageBuffer picture = frame.getImage();
-    final Thread currentThread = Thread.currentThread();
-    currentThread.interrupt();
+    final Thread current = Thread.currentThread();
+    current.interrupt();
 
-    assertThrows(InterruptedException.class, () -> PlaybackSession.queueFrame(queue, frame, () -> true));
+    assertThrows(InterruptedException.class, () -> session.queueFrame(queue, frame, () -> true));
 
     final boolean interrupted = Thread.interrupted();
     assertFalse(interrupted, "the interrupt was thrown, not kept");
-    assertThrows(IllegalStateException.class, picture::getWidth, "the picture was released");
+    assertThrows(IllegalStateException.class, picture::getWidth, PICTURE_RELEASED_MESSAGE);
   }
 
   // Creates a picture whose pixels are on the Java heap, where OpenCV cannot read them, so the decoder copies it into
@@ -1354,7 +1377,8 @@ final class PlaybackSessionTest {
     awaitEnd(session);
 
     final boolean copyKept = session.hasUnscaledCopy();
-    assertEquals(List.of(SCALED_SIZE), sizes);
+    final List<String> expected = List.of(SCALED_SIZE);
+    assertEquals(expected, sizes);
     assertFalse(copyKept, "the decoder releases its copy of the unscaled picture once it is done");
   }
 
@@ -1402,7 +1426,7 @@ final class PlaybackSessionTest {
     final PlaybackSession session = this.session(grabber, 0L, StartState.PLAYING);
     session.start();
 
-    awaitCondition("the session stopped and closed its decoder", () -> !session.isActive() && grabber.isClosed());
+    awaitCondition(SESSION_STOPPED_MESSAGE, () -> !session.isActive() && grabber.isClosed());
     assertEndedInterrupted(rendererHolder.get());
   }
 
@@ -1436,7 +1460,7 @@ final class PlaybackSessionTest {
     final PlaybackSession session = this.session(grabber, 0L, StartState.PLAYING);
     session.start();
 
-    awaitCondition("the session stopped and closed its decoder", () -> !session.isActive() && grabber.isClosed());
+    awaitCondition(SESSION_STOPPED_MESSAGE, () -> !session.isActive() && grabber.isClosed());
     assertEndedInterrupted(rendererHolder.get());
   }
 
@@ -1481,7 +1505,7 @@ final class PlaybackSessionTest {
     final AtomicInteger shown = new AtomicInteger();
     this.onVideo((_, _) -> shown.incrementAndGet() > 0);
     final List<String> reports = Collections.synchronizedList(new ArrayList<>());
-    final List<Object> script = frames(320, FRAME_MICROSECONDS);
+    final List<Object> script = frames(FRAMES_PAST_THE_FIRST_STRETCH, FRAME_MICROSECONDS);
     final ScriptedFrameGrabber grabber = new ScriptedFrameGrabber(FRAME_WIDTH, FRAME_HEIGHT, script);
     final PlaybackSession session = new PlaybackSession(
       factoryOf(grabber),
@@ -1495,7 +1519,7 @@ final class PlaybackSessionTest {
       PlaybackSession.AUDIO_LEAD_NANOSECONDS,
       -1L,
       System::nanoTime,
-      (dropped, frames) -> reports.add(dropped + " of " + frames)
+      (dropped, frames) -> reports.add(LATE_REPORT_FORMAT.formatted(dropped, frames))
     );
     session.setSpeed(1_000.0);
     session.start();
@@ -1503,7 +1527,8 @@ final class PlaybackSessionTest {
 
     final int shownCount = shown.get();
     assertEquals(0, shownCount);
-    assertEquals(List.of("302 of 302"), reports, "the frames of the first ten seconds, all dropped");
+    final List<String> expected = List.of("302 of 302");
+    assertEquals(expected, reports, "the frames of the first ten seconds, all dropped");
   }
 
   // The first frame takes 450 ms, so the ten frames due in the next 350 ms come too late, and the frames after them are
@@ -1515,7 +1540,7 @@ final class PlaybackSessionTest {
     final AtomicInteger shown = new AtomicInteger();
     this.onVideo((_, _) -> this.advanceClockByOneFrameOrASlowFrame(shown, now));
     final List<String> reports = Collections.synchronizedList(new ArrayList<>());
-    final List<Object> script = frames(320, FRAME_MICROSECONDS);
+    final List<Object> script = frames(FRAMES_PAST_THE_FIRST_STRETCH, FRAME_MICROSECONDS);
     final ScriptedFrameGrabber grabber = new ScriptedFrameGrabber(FRAME_WIDTH, FRAME_HEIGHT, script);
     final PlaybackSession session = new PlaybackSession(
       factoryOf(grabber),
@@ -1529,7 +1554,7 @@ final class PlaybackSessionTest {
       PlaybackSession.AUDIO_LEAD_NANOSECONDS,
       PlaybackSession.MAXIMUM_VIDEO_LAG_NANOSECONDS,
       now::get,
-      (dropped, frames) -> reports.add(dropped + " of " + frames)
+      (dropped, frames) -> reports.add(LATE_REPORT_FORMAT.formatted(dropped, frames))
     );
     session.start();
     awaitEnd(session);

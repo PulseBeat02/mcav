@@ -32,10 +32,10 @@ import me.brandonli.mcav.capability.installer.FileMode;
 import me.brandonli.mcav.capability.installer.InstallationException;
 import me.brandonli.mcav.capability.installer.vlc.installation.InstallationStrategy;
 import me.brandonli.mcav.capability.installer.vlc.installation.LinuxInstallationStrategy;
-import me.brandonli.mcav.capability.installer.vlc.installation.ManualInstallationStrategy;
 import me.brandonli.mcav.capability.installer.vlc.installation.OsxInstallationStrategy;
 import me.brandonli.mcav.capability.installer.vlc.installation.WindowsInstallationStrategy;
 import me.brandonli.mcav.utils.FileOperationException;
+import me.brandonli.mcav.utils.IoUtils;
 import me.brandonli.mcav.utils.os.Os;
 import me.brandonli.mcav.utils.os.OsUtils;
 import org.slf4j.Logger;
@@ -119,18 +119,7 @@ public final class VlcInstaller extends AbstractInstaller {
   }
 
   /**
-   * Returns the directory the VLC installation is extracted into.
-   *
-   * @return the installation directory
-   * @since 1.0.0
-   */
-  public Path getInstallDirectory() {
-    final Path folder = this.getFolder();
-    return folder.resolve(NAME);
-  }
-
-  /**
-   * Checks whether VLC can be used from this installer: either an earlier installation exists, or the bundled
+   * Returns whether VLC can be used from this installer: either an earlier installation exists, or the bundled
    * downloads list one for the current platform. Neither check asks the network.
    *
    * @return true if VLC is installed already or can be installed on this platform
@@ -175,12 +164,13 @@ public final class VlcInstaller extends AbstractInstaller {
   @VisibleForTesting
   Optional<Path> findExistingInstallation(final Os operatingSystem) {
     this.removeLegacyInstallationsOnce();
-    final boolean installable = hasStrategy(operatingSystem);
+
+    final boolean installable = this.hasStrategy(operatingSystem);
     if (!installable) {
       return Optional.empty();
     }
 
-    final InstallationStrategy strategy = createStrategy(this, operatingSystem);
+    final InstallationStrategy strategy = this.createStrategy(operatingSystem);
     return strategy.getInstalledPath();
   }
 
@@ -191,27 +181,24 @@ public final class VlcInstaller extends AbstractInstaller {
     }
 
     final Path folder = this.getFolder();
-    removeLegacyInstallations(folder);
+    this.removeLegacyInstallations(folder);
   }
 
-  // Deletes the installations earlier versions of the library left in the installer folder: vlc-junest on Linux and
-  // VLC.app on macOS. Only these exact directories are deleted. A symbolic link or a regular file with one of these
-  // names is left alone, and links inside the directories are deleted without following them. A directory that cannot
-  // be deleted is logged and left behind.
+  // only real directories; deleteRecursively does not follow links inside them
   @VisibleForTesting
-  static void removeLegacyInstallations(final Path folder) {
+  void removeLegacyInstallations(final Path folder) {
     for (final String name : LEGACY_DIRECTORIES) {
       final Path legacy = folder.resolve(name);
       final boolean directory = Files.isDirectory(legacy, LinkOption.NOFOLLOW_LINKS);
       if (directory) {
-        deleteLegacyInstallation(legacy);
+        this.deleteLegacyInstallation(legacy);
       }
     }
   }
 
-  private static void deleteLegacyInstallation(final Path legacy) {
+  private void deleteLegacyInstallation(final Path legacy) {
     try {
-      ManualInstallationStrategy.deleteRecursively(legacy);
+      IoUtils.deleteRecursively(legacy);
       LOGGER.info("The old VLC installation at {} was deleted.", legacy);
     } catch (final FileOperationException exception) {
       final String reason = exception.getMessage();
@@ -220,7 +207,7 @@ public final class VlcInstaller extends AbstractInstaller {
   }
 
   @VisibleForTesting
-  static boolean hasStrategy(final Os operatingSystem) {
+  boolean hasStrategy(final Os operatingSystem) {
     return switch (operatingSystem) {
       case MAC, WINDOWS, LINUX -> true;
       case FREEBSD, OTHER -> false;
@@ -243,16 +230,16 @@ public final class VlcInstaller extends AbstractInstaller {
   @Override
   protected Path install(final Path downloaded) {
     final Os operatingSystem = OsUtils.getOs();
-    final InstallationStrategy strategy = createStrategy(this, operatingSystem);
+    final InstallationStrategy strategy = this.createStrategy(operatingSystem);
     return strategy.execute(downloaded);
   }
 
   @VisibleForTesting
-  static InstallationStrategy createStrategy(final VlcInstaller installer, final Os operatingSystem) {
+  InstallationStrategy createStrategy(final Os operatingSystem) {
     return switch (operatingSystem) {
-      case MAC -> new OsxInstallationStrategy(installer);
-      case WINDOWS -> new WindowsInstallationStrategy(installer);
-      case LINUX -> new LinuxInstallationStrategy(installer);
+      case MAC -> new OsxInstallationStrategy(this);
+      case WINDOWS -> new WindowsInstallationStrategy(this);
+      case LINUX -> new LinuxInstallationStrategy(this);
       case FREEBSD, OTHER -> {
         final String message = "Operating system %s does not support installing VLC automatically!".formatted(operatingSystem);
         throw new UnsupportedOperatingSystemException(message);
@@ -261,7 +248,7 @@ public final class VlcInstaller extends AbstractInstaller {
   }
 
   /**
-   * Checks whether the download is an archive, which is always the case for VLC.
+   * Returns whether the download is an archive, which is always the case for VLC.
    *
    * @return true
    * @since 1.0.0
@@ -281,5 +268,16 @@ public final class VlcInstaller extends AbstractInstaller {
   @Override
   protected Path getDefaultPath() {
     return this.getInstallDirectory();
+  }
+
+  /**
+   * Returns the directory the VLC installation is extracted into.
+   *
+   * @return the installation directory
+   * @since 1.0.0
+   */
+  public Path getInstallDirectory() {
+    final Path folder = this.getFolder();
+    return folder.resolve(NAME);
   }
 }

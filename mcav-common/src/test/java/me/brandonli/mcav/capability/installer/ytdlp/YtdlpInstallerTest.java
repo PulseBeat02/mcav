@@ -132,7 +132,8 @@ final class YtdlpInstallerTest {
       final String url = download.getUrl();
       final boolean pinned = url.startsWith(RELEASE_URL);
       final Optional<String> optionalHash = download.getHash();
-      assertTrue(optionalHash.isPresent(), url);
+      final boolean hashFound = optionalHash.isPresent();
+      assertTrue(hashFound, url);
       final String hash = optionalHash.orElseThrow();
       final Matcher hashMatcher = SHA_256.matcher(hash);
       final boolean isSha256 = hashMatcher.matches();
@@ -148,7 +149,7 @@ final class YtdlpInstallerTest {
     for (final Download download : downloads) {
       final Platform platform = download.getPlatform();
       final boolean added = platforms.add(platform);
-      assertTrue(added, "Only one download may be bundled for " + platform);
+      assertTrue(added, "Only one download may be bundled for %s".formatted(platform));
     }
   }
 
@@ -477,7 +478,7 @@ final class YtdlpInstallerTest {
     try {
       return MessageDigest.getInstance(DIGEST_ALGORITHM);
     } catch (final NoSuchAlgorithmException exception) {
-      throw new IllegalStateException("Every Java runtime supports SHA-256!", exception);
+      throw new AssertionError(exception);
     }
   }
 
@@ -557,7 +558,8 @@ final class YtdlpInstallerTest {
       platforms.when(Platform::getCurrentPlatform).thenReturn(platform);
       final YtdlpInstaller installer = YtdlpInstaller.create(this.folder);
       final boolean supported = installer.isSupported();
-      final String url = installer.getUrl();
+      final Optional<String> optionalUrl = installer.getUrl();
+      final String url = optionalUrl.orElseThrow();
       final boolean secure = url.startsWith("https://");
       final boolean namesYtDlp = url.contains(PROGRAM_NAME);
       assertTrue(supported);

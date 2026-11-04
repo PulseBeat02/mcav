@@ -29,44 +29,46 @@ import me.brandonli.mcav.utils.SourceUtils;
  *
  * @since 1.0.0
  */
-public class FileSourceDetector implements SourceDetector<FileSource> {
+public final class FileSourceDetector implements SourceDetector<FileSource> {
+
+  private static final String RESOURCE_NULL_MESSAGE = "Resource must not be null!";
 
   /**
-   * Constructs a new detector.
+   * Creates a detector.
    *
    * @since 1.0.0
    */
   public FileSourceDetector() {}
 
   /**
-   * Checks whether the string is a path that exists on disk.
+   * Returns whether the string is a path that exists on disk.
    *
-   * @param raw the string entered by a user
+   * @param resource the string entered by a user
    * @return true if {@link #createSource(String)} can create a source from it
-   * @throws NullPointerException if {@code raw} is null
+   * @throws NullPointerException if {@code resource} is null
    * @since 1.0.0
    */
   @Override
-  public boolean isDetectedSource(final String raw) {
-    Preconditions.checkNotNull(raw, "Raw must not be null!");
+  public boolean isDetectedSource(final String resource) {
+    Preconditions.checkNotNull(resource, RESOURCE_NULL_MESSAGE);
 
-    return SourceUtils.isPath(raw);
+    return SourceUtils.isPath(resource);
   }
 
   /**
    * Creates a file source for the path the string holds.
    *
-   * @param raw the string entered by a user
+   * @param resource the string entered by a user
    * @return the source
    * @throws java.nio.file.InvalidPathException if the string is not a valid path on this file system
-   * @throws NullPointerException               if {@code raw} is null
+   * @throws NullPointerException               if {@code resource} is null
    * @since 1.0.0
    */
   @Override
-  public FileSource createSource(final String raw) {
-    Preconditions.checkNotNull(raw, "Raw must not be null!");
+  public FileSource createSource(final String resource) {
+    Preconditions.checkNotNull(resource, RESOURCE_NULL_MESSAGE);
 
-    final Path path = Path.of(raw);
+    final Path path = Path.of(resource);
     return FileSource.path(path);
   }
 

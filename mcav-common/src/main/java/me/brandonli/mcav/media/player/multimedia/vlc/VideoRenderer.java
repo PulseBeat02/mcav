@@ -54,7 +54,10 @@ final class VideoRenderer implements RenderCallback {
   private static final String THREAD_NAME = "mcav-vlc-render-video";
 
   private static final int BYTES_PER_PIXEL = 4;
+
+  private static final int PENDING_FRAME_CAPACITY = 1;
   private static final int SPARE_PIXEL_ARRAYS = 2;
+
   private static final long QUEUE_POLL_MILLISECONDS = 50L;
 
   private final VideoPlayerMultiplexer owner;
@@ -73,10 +76,10 @@ final class VideoRenderer implements RenderCallback {
   // Frames are dropped until start() is called.
   VideoRenderer(final VideoPlayerMultiplexer owner) {
     this.owner = owner;
-    this.pendingFrame = new ArrayBlockingQueue<>(1);
+    this.pendingFrame = new ArrayBlockingQueue<>(PENDING_FRAME_CAPACITY);
     this.sparePixels = new ArrayBlockingQueue<>(SPARE_PIXEL_ARRAYS);
-    this.replacedFrames = new ArrayList<>(1);
-    this.thread = new RenderThread(THREAD_NAME, failure -> reportFailure(owner, "Video rendering failed", failure));
+    this.replacedFrames = new ArrayList<>(PENDING_FRAME_CAPACITY);
+    this.thread = new RenderThread(THREAD_NAME, failure -> reportFailure(owner, "Video rendering failed.", failure));
     this.metadata = OriginalVideoMetadata.EMPTY;
   }
 
@@ -177,7 +180,7 @@ final class VideoRenderer implements RenderCallback {
     }
 
     final int[] pixels = this.acquirePixels(visibleWidth * visibleHeight);
-    readVisibleRows(nativeBuffer, bufferWidth, visibleWidth, visibleHeight, pixels);
+    this.readVisibleRows(nativeBuffer, bufferWidth, visibleWidth, visibleHeight, pixels);
     return new DecodedFrame(pixels, visibleWidth, visibleHeight);
   }
 
@@ -185,7 +188,7 @@ final class VideoRenderer implements RenderCallback {
   // byte, which read as little-endian integers is exactly packed ARGB; the padding byte ends up in the alpha channel,
   // which images discard.
   @VisibleForTesting
-  static void readVisibleRows(
+  void readVisibleRows(
     final ByteBuffer nativeBuffer,
     final int bufferWidth,
     final int visibleWidth,
@@ -195,15 +198,15 @@ final class VideoRenderer implements RenderCallback {
     final ByteBuffer view = nativeBuffer.duplicate();
     view.order(ByteOrder.LITTLE_ENDIAN);
     view.rewind();
-    final IntBuffer ints = view.asIntBuffer();
+    final IntBuffer packedPixels = view.asIntBuffer();
     if (bufferWidth == visibleWidth) {
-      ints.get(pixels, 0, visibleWidth * visibleHeight);
+      packedPixels.get(pixels, 0, visibleWidth * visibleHeight);
       return;
     }
 
     for (int row = 0; row < visibleHeight; row++) {
-      ints.position(row * bufferWidth);
-      ints.get(pixels, row * visibleWidth, visibleWidth);
+      packedPixels.position(row * bufferWidth);
+      packedPixels.get(pixels, row * visibleWidth, visibleWidth);
     }
   }
 
@@ -310,7 +313,7 @@ final class VideoRenderer implements RenderCallback {
       // filters are user code, and native filters can throw a LinkageError, so any failure is reported and the render
       // thread keeps rendering; only a virtual machine error ends the thread, because reporting it would hide it
       ThrowableUtils.throwIfFatal(exception);
-      reportFailure(this.owner, "Video filter failed", exception);
+      reportFailure(this.owner, "Video filter failed.", exception);
     }
   }
 

@@ -30,7 +30,7 @@ import org.bytedeco.opencv.opencv_core.Scalar;
  *
  * @since 1.0.0
  */
-public class LineFilter extends MatVideoFilter {
+public final class LineFilter extends MatVideoFilter {
 
   private final Point start;
   private final Point end;
@@ -56,13 +56,13 @@ public class LineFilter extends MatVideoFilter {
   /**
    * Draws the line onto the frame in place. Parts of the line outside of the frame are cut off.
    *
-   * @param mat the 8-bit BGR matrix of the frame
+   * @param matrix the 8-bit BGR matrix of the frame
    * @return true, because the frame may have changed
    * @since 1.0.0
    */
   @Override
-  protected boolean modifyMat(final Mat mat) {
-    opencv_imgproc.line(mat, this.start, this.end, this.color);
+  protected boolean modifyMat(final Mat matrix) {
+    opencv_imgproc.line(matrix, this.start, this.end, this.color);
 
     return true;
   }

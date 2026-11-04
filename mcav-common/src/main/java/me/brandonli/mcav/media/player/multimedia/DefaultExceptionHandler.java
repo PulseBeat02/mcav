@@ -19,6 +19,7 @@ package me.brandonli.mcav.media.player.multimedia;
 
 import com.google.common.base.Preconditions;
 import java.util.function.BiConsumer;
+import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,10 +38,10 @@ public final class DefaultExceptionHandler implements ExceptionHandler {
   private volatile BiConsumer<String, Throwable> handler;
 
   DefaultExceptionHandler() {
-    this.handler = DefaultExceptionHandler::log;
+    this.handler = this::log;
   }
 
-  private static void log(final String message, final Throwable error) {
+  private void log(@UnderInitialization DefaultExceptionHandler this, final String message, final Throwable error) {
     LOGGER.error("{}", message, error);
   }
 

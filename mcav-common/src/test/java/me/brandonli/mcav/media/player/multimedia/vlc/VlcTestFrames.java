@@ -35,19 +35,27 @@ final class VlcTestFrames {
 
   private static final long FRAME_TIMEOUT_SECONDS = 5L;
   private static final long NO_FRAME_MILLISECONDS = 200L;
+
   private static final int RGB_MASK = 0xFFFFFF;
 
+  private static final int BYTES_PER_PIXEL = 4;
+
+  private static final int GREEN_SHIFT = 8;
+  private static final int RED_SHIFT = 16;
+  private static final int ALPHA_SHIFT = 24;
+
   private VlcTestFrames() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   static ByteBuffer rv32(final int... argbPixels) {
-    final ByteBuffer buffer = ByteBuffer.allocateDirect(argbPixels.length * 4);
+    final ByteBuffer buffer = ByteBuffer.allocateDirect(argbPixels.length * BYTES_PER_PIXEL);
     for (final int pixel : argbPixels) {
       buffer.put((byte) pixel);
-      buffer.put((byte) (pixel >>> 8));
-      buffer.put((byte) (pixel >>> 16));
-      buffer.put((byte) (pixel >>> 24));
+      buffer.put((byte) (pixel >>> GREEN_SHIFT));
+      buffer.put((byte) (pixel >>> RED_SHIFT));
+      buffer.put((byte) (pixel >>> ALPHA_SHIFT));
     }
 
     buffer.flip();

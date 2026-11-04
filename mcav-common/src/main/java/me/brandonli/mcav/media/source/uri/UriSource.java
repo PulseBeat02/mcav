@@ -22,7 +22,7 @@ import java.net.URI;
 import me.brandonli.mcav.media.source.DynamicSource;
 
 /**
- * Media behind a URL, such as an HTTP stream, an RTSP camera, or a web page that has to be resolved with yt-dlp
+ * Media behind a URI, such as an HTTP stream, an RTSP camera, or a web page that has to be resolved with yt-dlp
  * first.
  *
  * <p>Implementations in this library are immutable and thread-safe.
@@ -31,9 +31,9 @@ import me.brandonli.mcav.media.source.DynamicSource;
  */
 public interface UriSource extends DynamicSource {
   /**
-   * Creates a source for a URL.
+   * Creates a source for a URI.
    *
-   * @param uri the URL
+   * @param uri the URI
    * @return the source
    * @throws NullPointerException if {@code uri} is null
    * @since 1.0.0
@@ -45,18 +45,18 @@ public interface UriSource extends DynamicSource {
   }
 
   /**
-   * Returns the URL.
+   * Returns the URI.
    *
-   * @return the URL
+   * @return the URI
    * @since 1.0.0
    */
   URI getUri();
 
   /**
-   * Checks whether the URL points directly at a media file, judging by its file extension, rather than at a web
+   * Returns whether the URI points directly at a media file, judging by its file extension, rather than at a web
    * page that has to be resolved first.
    *
-   * @return true if the URL looks like a direct media link
+   * @return true if the URI looks like a direct media link
    * @since 1.0.0
    */
   boolean isDirect();
@@ -73,8 +73,7 @@ public interface UriSource extends DynamicSource {
   }
 
   /**
-   * Returns the URI of this source as a string. Generated and specialized sources may return a diagnostic string that cannot be opened by
-   * an arbitrary backend.
+   * Returns the URI of this source as a string.
    *
    * @return the resource string
    * @since 1.0.0

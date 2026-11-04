@@ -93,7 +93,7 @@ final class ImagePlayerTest {
     Polling.pollUntil(FRAME_TIMEOUT, () -> counter.get() >= expected);
     final int count = counter.get();
     final boolean reached = count >= expected;
-    assertTrue(reached, "expected " + expected + " frames but got " + count);
+    assertTrue(reached, "expected %s frames but got %s".formatted(expected, count));
   }
 
   private static double rate(final List<Long> times) {
@@ -122,8 +122,8 @@ final class ImagePlayerTest {
     try {
       Thread.sleep(60);
     } catch (final InterruptedException exception) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
     }
   }
 
@@ -146,7 +146,8 @@ final class ImagePlayerTest {
     times.add(now);
     final int count = consumed.incrementAndGet();
     if (count == 5) {
-      throw new IllegalStateException("a failing filter is reported, not fatal!");
+      final String message = "a failing filter is reported, not fatal!";
+      throw new IllegalStateException(message);
     }
 
     return true;
@@ -213,7 +214,7 @@ final class ImagePlayerTest {
 
     final int total = consumed.get();
     final double rate = rate(times);
-    final List<String> expectedFailures = List.of("Failed to render a frame");
+    final List<String> expectedFailures = List.of("Failed to render a frame.");
     assertTrue(started);
     assertFalse(startedTwice);
     assertTrue(released);
@@ -221,10 +222,10 @@ final class ImagePlayerTest {
     assertFalse(startedAfterRelease);
 
     final boolean consumedEnough = total >= 30;
-    assertTrue(consumedEnough, "consumed " + total);
+    assertTrue(consumedEnough, "consumed %s".formatted(total));
 
     final boolean rateNearFifty = rate > 35.0 && rate < 65.0;
-    assertTrue(rateNearFifty, "frames are delivered at about 50 per second, got " + rate);
+    assertTrue(rateNearFifty, "frames are delivered at about 50 per second, got %s".formatted(rate));
     assertEquals(expectedFailures, failures);
   }
 
@@ -242,7 +243,7 @@ final class ImagePlayerTest {
 
     final long shortestGap = shortestGap(times);
     final boolean limited = shortestGap >= 50_000_000L;
-    assertTrue(limited, "a slow filter limits the frame rate instead of catching up in bursts, gap " + shortestGap);
+    assertTrue(limited, "a slow filter limits the frame rate instead of catching up in bursts, gap %s".formatted(shortestGap));
   }
 
   private boolean recordSlowFrame(final List<Long> times, final AtomicInteger consumed) {
@@ -267,7 +268,8 @@ final class ImagePlayerTest {
 
       final boolean rendered = finished.await(RENDER_TIMEOUT_SECONDS, TimeUnit.SECONDS);
       assertTrue(rendered, "three controlled frames are rendered");
-      assertEquals(List.of(0L, 60_000_000L, 70_000_000L), starts);
+      final List<Long> expected = List.of(0L, 60_000_000L, 70_000_000L);
+      assertEquals(expected, starts);
     } finally {
       player.release();
     }
@@ -311,7 +313,7 @@ final class ImagePlayerTest {
       player.release();
 
       final boolean parkedForNothing = parks.contains(0L);
-      assertFalse(parkedForNothing, "a frame that used its whole period is followed without parking, parks " + parks);
+      assertFalse(parkedForNothing, "a frame that used its whole period is followed without parking, parks %s".formatted(parks));
     } finally {
       player.release();
     }
@@ -341,8 +343,8 @@ final class ImagePlayerTest {
     player.start(source);
     Thread.sleep(50);
 
-    final Thread currentThread = Thread.currentThread();
-    currentThread.interrupt();
+    final Thread current = Thread.currentThread();
+    current.interrupt();
     final boolean released = player.release();
     final boolean interrupted = Thread.interrupted();
     assertTrue(released);
@@ -437,7 +439,7 @@ final class ImagePlayerTest {
     for (final float frameRate : new float[] { 0.0f, -1.0f, Float.NaN, Float.POSITIVE_INFINITY }) {
       final FrameSource source = mock(FrameSource.class);
       when(source.getFrameRate()).thenReturn(frameRate);
-      assertThrows(IllegalArgumentException.class, () -> player.start(source), "frame rate " + frameRate);
+      assertThrows(IllegalArgumentException.class, () -> player.start(source), "frame rate %s".formatted(frameRate));
     }
 
     final boolean released = player.release();
@@ -464,7 +466,7 @@ final class ImagePlayerTest {
       final boolean restarted = Polling.pollUntil(RESTART_TIMEOUT, () -> player.start(source));
       awaitCount(delivered, 1);
 
-      final List<String> expectedFailures = List.of("Failed to play the frame source");
+      final List<String> expectedFailures = List.of("Failed to play the frame source.");
       assertTrue(started);
       assertTrue(restarted, "the player stops when its source fails to start, so it can be started again");
       assertEquals(expectedFailures, failures);

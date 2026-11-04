@@ -30,7 +30,7 @@ import me.brandonli.mcav.utils.runtime.ProcessException;
  * <p>yt-dlp is run as an external process, so parsing blocks for a few seconds and must not be called on a
  * server main thread. The result lists every available stream; pick one with a
  * {@link me.brandonli.mcav.json.ytdlp.strategy.StrategySelector}. The shared default parser can serve concurrent
- * calls, each with its own command process and result. Returned metadata is mutable and belongs to the caller;
+ * calls, each with its own command process and result. Returned metadata is immutable and thread-safe;
  * do not mutate source settings or the argument array while a parse uses them.
  *
  * {@snippet :

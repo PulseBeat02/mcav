@@ -47,7 +47,8 @@ import org.slf4j.LoggerFactory;
  *   pinned Debian packages of {@link DebianLibraryInstaller#createVlcInstaller()}, which bring every library that VLC
  *   needs besides glibc.
  * </ol>
- * The libraries of a private copy are loaded straight from its installation directory, and the kit never touches
+ *
+ * <p>The libraries of a private copy are loaded straight from its installation directory, and the kit never touches
  * vlcj's own configuration files. Either way, vlcj is ready to create media players once {@link #start()} returns.
  * Factory-created kits share synchronized load state, so concurrent starts use the first successful native
  * load. The kit does not own media players and has no close operation; callers release their players separately.
@@ -64,6 +65,7 @@ import org.slf4j.LoggerFactory;
 public final class VlcInstallationKit {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(VlcInstallationKit.class);
+
   private static final VlcLoadState SHARED_LOAD_STATE = new VlcLoadState();
 
   private static final Platform LINUX_X86_64 = Platform.ofPlatform(Os.LINUX, Arch.X86, Bits.BITS_64);
@@ -135,7 +137,7 @@ public final class VlcInstallationKit {
    *
    * @return the directory the native libraries were loaded from, or empty if vlcj had already loaded them without
    * reporting a location
-   * @throws InstallationException              if installation discovery or extraction fails
+   * @throws InstallationException               if installation discovery or extraction fails
    * @throws DownloadException                   if the download of VLC fails or does not match its hash
    * @throws FileOperationException              if a downloaded or extracted file cannot be moved or deleted
    * @throws UnsupportedOperatingSystemException if VLC cannot be found or installed on this system, or
@@ -150,7 +152,7 @@ public final class VlcInstallationKit {
     final boolean found = this.discovery.discoverSystemInstallation();
     if (found) {
       final Path systemPath = this.discovery.getDiscoveredPath();
-      logSystemInstallation(systemPath);
+      this.logSystemInstallation(systemPath);
       return Optional.ofNullable(systemPath);
     }
 
@@ -184,7 +186,7 @@ public final class VlcInstallationKit {
     return Optional.of(libraryDirectory);
   }
 
-  private static void logSystemInstallation(final @Nullable Path systemPath) {
+  private void logSystemInstallation(final @Nullable Path systemPath) {
     if (systemPath == null) {
       LOGGER.info("Using the VLC libraries vlcj loaded earlier in this JVM.");
       return;

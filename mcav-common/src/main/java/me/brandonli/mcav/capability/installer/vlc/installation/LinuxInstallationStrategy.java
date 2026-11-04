@@ -17,10 +17,11 @@
  */
 package me.brandonli.mcav.capability.installer.vlc.installation;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.base.Preconditions;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Pattern;
 import me.brandonli.mcav.capability.installer.InstallationException;
@@ -44,11 +45,12 @@ public final class LinuxInstallationStrategy extends ManualInstallationStrategy 
 
   private static final Pattern CORE_LIBRARY = Pattern.compile("libvlccore\\.so(?:\\.\\d+)*");
   private static final Pattern LIBRARY = Pattern.compile("libvlc\\.so(?:\\.\\d+)*");
+
   private static final String EXTRACTED_DIRECTORY = "squashfs-root";
   private static final String EXTRACT_OPTION = "--appimage-extract";
 
   /**
-   * Constructs a new strategy for the installer.
+   * Creates a new strategy for the installer.
    *
    * @param installer the installer whose installation directory is used
    * @throws NullPointerException if {@code installer} is null
@@ -72,7 +74,7 @@ public final class LinuxInstallationStrategy extends ManualInstallationStrategy 
   @Override
   public Optional<Path> getInstalledPath() {
     final Path installDirectory = this.getInstallDirectory();
-    return findLibraryDirectory(installDirectory, LIBRARY, CORE_LIBRARY);
+    return this.findLibraryDirectory(installDirectory, LIBRARY, CORE_LIBRARY);
   }
 
   /**
@@ -92,20 +94,20 @@ public final class LinuxInstallationStrategy extends ManualInstallationStrategy 
 
     final Path absoluteArchive = archive.toAbsolutePath();
     final Path parentOrNull = absoluteArchive.getParent();
-    final Path workingDirectory = Objects.requireNonNull(parentOrNull, "A downloaded file lies in a directory!");
+    final Path workingDirectory = requireNonNull(parentOrNull, "A downloaded file lies in a directory!");
     final Path extracted = workingDirectory.resolve(EXTRACTED_DIRECTORY);
     final Path installDirectory = this.getInstallDirectory();
-    deleteRecursively(extracted);
-    deleteRecursively(installDirectory);
+    IoUtils.deleteRecursively(extracted);
+    IoUtils.deleteRecursively(installDirectory);
     this.extractAppImage(absoluteArchive, workingDirectory, extracted);
     IoUtils.moveReplacing(extracted, installDirectory);
     this.deleteFile(absoluteArchive);
-    final Optional<Path> libraryDirectory = findLibraryDirectory(installDirectory, LIBRARY, CORE_LIBRARY);
+
+    final Optional<Path> libraryDirectory = this.findLibraryDirectory(installDirectory, LIBRARY, CORE_LIBRARY);
     final @Nullable Path directory = libraryDirectory.orElse(null);
     if (directory == null) {
-      throw new InstallationException(
-        "The extracted VLC AppImage does not contain nonempty libvlc.so and libvlccore.so in the same directory!"
-      );
+      final String message = "The extracted VLC AppImage does not contain nonempty libvlc.so and libvlccore.so in the same directory!";
+      throw new InstallationException(message);
     }
 
     return directory;
@@ -115,6 +117,7 @@ public final class LinuxInstallationStrategy extends ManualInstallationStrategy 
     IoUtils.markExecutable(archive);
     final String rawArchive = archive.toString();
     this.runProcess(workingDirectory, rawArchive, EXTRACT_OPTION);
+
     final boolean extractedExists = Files.isDirectory(extracted);
     if (!extractedExists) {
       final String message = "Directory %s was not produced by extracting the VLC AppImage!".formatted(extracted);

@@ -596,7 +596,7 @@ who may create or use a machine may use them.
 ## Image commands
 
 An image that declares more than 8192 by 8192 pixels is refused before it is decoded, since decoding it could take
-gigabytes of memory. Start the server with `-Dmcav.image.maxPixels=<pixels>` for another limit.
+gigabytes of memory. Start the server with `-Dmcav.image.maximum_pixels=<pixels>` for another limit.
 
 | Command         | `/mcav image release`                                     |
 |-----------------|-----------------------------------------------------------|

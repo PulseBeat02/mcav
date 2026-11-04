@@ -29,6 +29,8 @@ import org.junit.jupiter.api.Test;
 
 final class FrameSourceTest {
 
+  private static final String TYPE_MESSAGE = "type %s";
+
   @Test
   void shouldDescribeTheFrames() {
     final SampleSupplier supplier = () -> new int[16 * 8];
@@ -103,7 +105,7 @@ final class FrameSourceTest {
       image.setRGB(2, 1, 0xFFABCDEF);
       final int[] expected = readWithGetRgb(image);
       final int[] pixels = supply(image);
-      assertArrayEquals(expected, pixels, "type " + type);
+      assertArrayEquals(expected, pixels, TYPE_MESSAGE.formatted(type));
     }
   }
 
@@ -114,7 +116,8 @@ final class FrameSourceTest {
     raster.setDataElements(0, 0, new int[] { 0x12345678 });
     final int[] pixels = supply(image);
     final int[] expected = readWithGetRgb(image);
-    assertArrayEquals(new int[] { 0xFF345678 }, pixels);
+    final int[] expectedPixels = new int[] { 0xFF345678 };
+    assertArrayEquals(expectedPixels, pixels);
     assertArrayEquals(expected, pixels);
   }
 
@@ -129,7 +132,7 @@ final class FrameSourceTest {
       final BufferedImage child = parent.getSubimage(1, 1, 2, 2);
       final int[] expected = readWithGetRgb(child);
       final int[] pixels = supply(child);
-      assertArrayEquals(expected, pixels, "type " + type);
+      assertArrayEquals(expected, pixels, TYPE_MESSAGE.formatted(type));
     }
   }
 

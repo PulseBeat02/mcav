@@ -74,8 +74,7 @@ public interface FileSource extends StaticSource {
   }
 
   /**
-   * Returns the path of this file source as a string. Generated and specialized sources may return a diagnostic string that cannot be
-   * opened by an arbitrary backend.
+   * Returns the path of this file source as a string.
    *
    * @return the resource string
    * @since 1.0.0

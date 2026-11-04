@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.capability.installer.ytdlp;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -24,6 +26,7 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import me.brandonli.mcav.capability.installer.AbstractInstaller;
 import me.brandonli.mcav.capability.installer.Download;
 import me.brandonli.mcav.capability.installer.InstallationException;
@@ -61,6 +64,7 @@ public final class YtdlpInstaller extends AbstractInstaller {
   private static final String NAME = "yt-dlp";
   private static final String DOWNLOADS_RESOURCE = "mcav/common/installers/yt-dlp.json";
   private static final Download[] DOWNLOADS = IoUtils.readDownloadsFromJsonResource(DOWNLOADS_RESOURCE);
+
   private static final String ZIP_SUFFIX = ".zip";
   private static final String UNPACKED_FOLDER = "yt-dlp-unpacked";
   private static final String UNPACKING_FOLDER = "yt-dlp-unpacking";
@@ -116,7 +120,7 @@ public final class YtdlpInstaller extends AbstractInstaller {
   }
 
   /**
-   * Checks whether the download of the current platform is a zip archive that has to be unpacked, rather than a
+   * Returns whether the download of the current platform is a zip archive that has to be unpacked, rather than a
    * standalone executable.
    *
    * @return true if the file name of the download of the current platform ends in {@code .zip}, false for a
@@ -125,8 +129,9 @@ public final class YtdlpInstaller extends AbstractInstaller {
    */
   @Override
   public boolean isArchive() {
-    final String url = this.getUrl();
-    final String fileName = IoUtils.getFileNameFromUrl(url);
+    final Optional<String> url = this.getUrl();
+    final Optional<String> urlFileName = url.map(IoUtils::getFileNameFromUrl);
+    final String fileName = requireNonNull(urlFileName.orElse("")); // checker framework
     final String lowerCaseFileName = fileName.toLowerCase(Locale.ROOT);
     return lowerCaseFileName.endsWith(ZIP_SUFFIX);
   }
@@ -184,11 +189,12 @@ public final class YtdlpInstaller extends AbstractInstaller {
       IoUtils.deleteRecursively(unpacking);
     }
 
-    deleteDownload(downloaded);
+    this.deleteDownload(downloaded);
+
     return this.getDefaultPath();
   }
 
-  private static void deleteDownload(final Path downloaded) {
+  private void deleteDownload(final Path downloaded) {
     try {
       Files.deleteIfExists(downloaded);
     } catch (final IOException exception) {
@@ -198,7 +204,8 @@ public final class YtdlpInstaller extends AbstractInstaller {
   }
 
   private void unpack(final Path archive, final Path destination) {
-    extract(archive, destination);
+    this.extract(archive, destination);
+
     final String executableName = this.getArchiveExecutableName();
     final Path executable = destination.resolve(executableName);
     final boolean present = Files.isRegularFile(executable, LinkOption.NOFOLLOW_LINKS);
@@ -210,10 +217,8 @@ public final class YtdlpInstaller extends AbstractInstaller {
     markExecutable(executable);
   }
 
-  // Extracts the zip. IoUtils.unzip(Path, Path) reports failures unchecked, as a FileOperationException for an archive
-  // that cannot be read and as a ZipEntryIntegrityException for an archive that is unsafe, but an installation must
-  // fail with an InstallationException like every other installation failure.
-  private static void extract(final Path archive, final Path destination) {
+  // every installation failure is an InstallationException
+  private void extract(final Path archive, final Path destination) {
     try {
       IoUtils.unzip(archive, destination);
     } catch (final FileOperationException | ZipEntryIntegrityException exception) {
@@ -229,8 +234,9 @@ public final class YtdlpInstaller extends AbstractInstaller {
   }
 
   private String getArchiveExecutableName() {
-    final String url = this.getUrl();
-    final String fileName = IoUtils.getFileNameFromUrl(url);
+    final Optional<String> url = this.getUrl();
+    final Optional<String> urlFileName = url.map(IoUtils::getFileNameFromUrl);
+    final String fileName = requireNonNull(urlFileName.orElse("")); // checker framework
     final int suffixStart = fileName.length() - ZIP_SUFFIX.length();
     final String executableName = fileName.substring(0, suffixStart);
     final boolean nameless = executableName.isEmpty();

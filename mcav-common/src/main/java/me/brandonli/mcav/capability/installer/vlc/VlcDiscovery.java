@@ -25,5 +25,5 @@ interface VlcDiscovery {
 
   @Nullable Path getDiscoveredPath();
 
-  boolean loadInstalledLibraries(Path libraryDirectory);
+  boolean loadInstalledLibraries(final Path libraryDirectory);
 }

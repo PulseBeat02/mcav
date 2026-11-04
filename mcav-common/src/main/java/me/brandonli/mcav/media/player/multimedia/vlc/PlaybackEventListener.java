@@ -78,7 +78,8 @@ final class PlaybackEventListener extends MediaPlayerEventAdapter {
     final BiConsumer<String, Throwable> handler = this.owner.getExceptionHandler();
     final String message = "Media %s could not be played by VLC!".formatted(this.resource);
     final PlayerException exception = new PlayerException(message);
-    handler.accept("VLC playback of " + this.resource + " failed", exception);
+    final String handlerMessage = "VLC playback of %s failed.".formatted(this.resource);
+    handler.accept(handlerMessage, exception);
   }
 
   boolean awaitOpened(final long timeoutMilliseconds) throws InterruptedException {

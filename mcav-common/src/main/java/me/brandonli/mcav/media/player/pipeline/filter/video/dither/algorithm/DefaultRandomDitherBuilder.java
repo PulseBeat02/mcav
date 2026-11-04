@@ -50,7 +50,7 @@ final class DefaultRandomDitherBuilder implements RandomDitherBuilder {
 
   @Override
   public RandomDitherBuilder withWeight(final int weight) {
-    Preconditions.checkArgument(weight >= 0 && weight <= MAXIMUM_WEIGHT, "Weight must be between 0 and 255!");
+    Preconditions.checkArgument(weight >= 0 && weight <= MAXIMUM_WEIGHT, "Weight must be between 0 and 255 inclusive!");
 
     this.weight = weight;
     return this;
