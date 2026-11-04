@@ -237,7 +237,7 @@ final class NativeHeapTrimmerTest {
   }
 
   @Test
-  void shouldKeepTheThresholdOfACLibraryOtherThanGlibc() {
+  void shouldKeepTheThresholdOfAnyCLibraryOtherThanGlibc() {
     final SymbolLookup musl = name -> name.equals(MALLOPT_SYMBOL) ? Optional.of(MemorySegment.NULL) : Optional.empty();
     final boolean fixedForMusl = NativeHeapTrimmer.fixGlibcTrimThreshold(musl);
     assertFalse(fixedForMusl, "musl has a mallopt that ignores every parameter");
