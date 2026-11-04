@@ -73,7 +73,7 @@ final class DitherFilterTest {
   private static final class DefaultPaletteAlgorithm extends AbstractDitherAlgorithm {
 
     @Override
-    public byte[] ditherIntoBytes(final ImageBuffer buffer) {
+    public byte[] ditherIntoBytes(final ImageBuffer image) {
       return new byte[0];
     }
 

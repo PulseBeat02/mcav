@@ -68,13 +68,13 @@ public interface DitherAlgorithm {
   /**
    * Dithers an image into palette indices, one byte per pixel laid out row by row. The image is not modified.
    *
-   * @param buffer the image to dither
+   * @param image the image to dither
    * @return a new caller-owned array containing the palette index of every pixel; alpha is ignored
-   * @throws NullPointerException  if {@code buffer} is null
+   * @throws NullPointerException  if {@code image} is null
    * @throws IllegalStateException if the image has been released
    * @since 1.0.0
    */
-  byte[] ditherIntoBytes(final ImageBuffer buffer);
+  byte[] ditherIntoBytes(final ImageBuffer image);
 
   /**
    * Dithers pixels in place, replacing every pixel with the ARGB value of a palette color.
