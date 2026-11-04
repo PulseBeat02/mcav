@@ -27,7 +27,7 @@ import org.bytedeco.opencv.opencv_core.Scalar;
  *
  * @since 1.0.0
  */
-public class ZeroFilter extends MatVideoFilter {
+public final class ZeroFilter extends MatVideoFilter {
 
   private static final Scalar BLACK = new Scalar(0, 0, 0, 0);
 

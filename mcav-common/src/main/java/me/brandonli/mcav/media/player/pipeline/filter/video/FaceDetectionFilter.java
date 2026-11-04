@@ -48,7 +48,7 @@ import org.bytedeco.opencv.opencv_objdetect.CascadeClassifier;
  *
  * @since 1.0.0
  */
-public class FaceDetectionFilter extends MatVideoFilter {
+public final class FaceDetectionFilter extends MatVideoFilter {
 
   private static final String CASCADE_FILE_NULL_MESSAGE = "Cascade file must not be null!";
   private static final String UNLOADABLE_CASCADE_MESSAGE = "Cascade file %s could not be loaded!";

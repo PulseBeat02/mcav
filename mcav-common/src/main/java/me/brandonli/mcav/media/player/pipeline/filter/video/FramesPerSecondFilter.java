@@ -32,7 +32,7 @@ import org.bytedeco.opencv.opencv_core.Scalar;
  *
  * @since 1.0.0
  */
-public class FramesPerSecondFilter extends MatVideoFilter {
+public final class FramesPerSecondFilter extends MatVideoFilter {
 
   private static final Scalar WHITE = new Scalar(255, 255, 255, 0);
   private static final Scalar BLACK = new Scalar(0, 0, 0, 0);

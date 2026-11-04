@@ -34,7 +34,7 @@ import org.bytedeco.opencv.opencv_core.Scalar;
  *
  * @since 1.0.0
  */
-public class TintFilter extends MatVideoFilter {
+public final class TintFilter extends MatVideoFilter {
 
   private final Scalar color;
   private final double strength;

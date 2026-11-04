@@ -34,7 +34,7 @@ import org.bytedeco.opencv.opencv_core.Mat;
  *
  * @since 1.0.0
  */
-public class BilateralFilter extends MatVideoFilter {
+public final class BilateralFilter extends MatVideoFilter {
 
   private final int diameter;
   private final double sigmaColor;
@@ -74,7 +74,7 @@ public class BilateralFilter extends MatVideoFilter {
   }
 
   /**
-   * Smooths a matrix in place through a temporary matrix, for subclasses and callers that only have a matrix; frames
+   * Smooths a matrix in place through a temporary matrix, for callers that only have a matrix; frames
    * go through {@link #modifyImage(MatImageBuffer)} instead, which needs no temporary matrix.
    *
    * @param matrix the 8-bit BGR matrix of the frame

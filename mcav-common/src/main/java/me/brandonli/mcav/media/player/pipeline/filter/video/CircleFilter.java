@@ -31,7 +31,7 @@ import org.bytedeco.opencv.opencv_core.Scalar;
  *
  * @since 1.0.0
  */
-public class CircleFilter extends MatVideoFilter {
+public final class CircleFilter extends MatVideoFilter {
 
   private final Point center;
   private final int radius;

@@ -35,7 +35,7 @@ import org.bytedeco.opencv.opencv_core.Rect;
  *
  * @since 1.0.0
  */
-public class CropFilter extends MatVideoFilter {
+public final class CropFilter extends MatVideoFilter {
 
   private final int left;
   private final int top;

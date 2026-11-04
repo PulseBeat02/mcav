@@ -30,7 +30,7 @@ import org.bytedeco.opencv.opencv_core.Size;
  *
  * @since 1.0.0
  */
-public class ErosionFilter extends MatVideoFilter {
+public final class ErosionFilter extends MatVideoFilter {
 
   private final Mat kernel;
 

@@ -30,7 +30,7 @@ import org.bytedeco.opencv.opencv_core.Size;
  *
  * @since 1.0.0
  */
-public class DilationFilter extends MatVideoFilter {
+public final class DilationFilter extends MatVideoFilter {
 
   private final Mat kernel;
 

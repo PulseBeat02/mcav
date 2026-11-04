@@ -30,7 +30,7 @@ import org.bytedeco.opencv.opencv_core.Rect;
  *
  * @since 1.0.0
  */
-public class OverlayImageFilter extends MatVideoFilter {
+public final class OverlayImageFilter extends MatVideoFilter {
 
   private final Mat overlay;
   private final int left;

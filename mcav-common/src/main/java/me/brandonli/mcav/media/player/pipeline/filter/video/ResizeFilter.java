@@ -40,7 +40,7 @@ import org.bytedeco.opencv.opencv_core.Size;
  *
  * @since 1.0.0
  */
-public class ResizeFilter extends MatVideoFilter {
+public final class ResizeFilter extends MatVideoFilter {
 
   private static final double SCALE_FROM_SIZE = 0;
 

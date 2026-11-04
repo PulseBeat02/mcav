@@ -30,7 +30,7 @@ import org.bytedeco.opencv.opencv_core.Mat;
  *
  * @since 1.0.0
  */
-public class BlendFilter extends MatVideoFilter {
+public final class BlendFilter extends MatVideoFilter {
 
   private final double alpha;
   private final Mat other;

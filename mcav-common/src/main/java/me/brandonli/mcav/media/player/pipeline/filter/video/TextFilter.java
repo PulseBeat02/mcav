@@ -31,7 +31,7 @@ import org.bytedeco.opencv.opencv_core.Scalar;
  *
  * @since 1.0.0
  */
-public class TextFilter extends MatVideoFilter {
+public final class TextFilter extends MatVideoFilter {
 
   /**
    * The default font, a plain sans-serif font.

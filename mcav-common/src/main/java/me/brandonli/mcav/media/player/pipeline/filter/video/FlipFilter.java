@@ -28,7 +28,7 @@ import org.bytedeco.opencv.opencv_core.Mat;
  *
  * @since 1.0.0
  */
-public class FlipFilter extends MatVideoFilter {
+public final class FlipFilter extends MatVideoFilter {
 
   private final int flipCode;
 

@@ -30,7 +30,7 @@ import org.bytedeco.opencv.opencv_core.Scalar;
  *
  * @since 1.0.0
  */
-public class LineFilter extends MatVideoFilter {
+public final class LineFilter extends MatVideoFilter {
 
   private final Point start;
   private final Point end;

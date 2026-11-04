@@ -31,7 +31,7 @@ import org.bytedeco.opencv.opencv_core.Mat;
  *
  * @since 1.0.0
  */
-public class GrayscaleFilter extends MatVideoFilter {
+public final class GrayscaleFilter extends MatVideoFilter {
 
   private final ReusableMat gray;
 

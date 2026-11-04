@@ -30,7 +30,7 @@ import org.bytedeco.opencv.opencv_core.Mat;
  *
  * @since 1.0.0
  */
-public class ThresholdFilter extends MatVideoFilter {
+public final class ThresholdFilter extends MatVideoFilter {
 
   private static final double CHANNEL_MAXIMUM = 255.0;
 

@@ -32,7 +32,7 @@ import org.bytedeco.opencv.opencv_core.Size;
  *
  * @since 1.0.0
  */
-public class BlurFilter extends MatVideoFilter {
+public final class BlurFilter extends MatVideoFilter {
 
   private final BlurType type;
   private final Size size;

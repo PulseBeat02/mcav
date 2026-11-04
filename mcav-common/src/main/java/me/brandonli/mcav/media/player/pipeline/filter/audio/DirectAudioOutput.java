@@ -46,7 +46,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * @since 1.0.0
  */
-public class DirectAudioOutput implements FunctionalAudioFilter {
+public final class DirectAudioOutput implements FunctionalAudioFilter {
 
   @VisibleForTesting
   static final AudioFormat FORMAT = new AudioFormat(SAMPLE_RATE, BYTES_PER_SAMPLE * 8, CHANNELS, true, false);

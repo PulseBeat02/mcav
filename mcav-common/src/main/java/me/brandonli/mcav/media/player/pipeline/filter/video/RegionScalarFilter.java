@@ -31,7 +31,7 @@ import org.bytedeco.opencv.opencv_core.Scalar;
  *
  * @since 1.0.0
  */
-public class RegionScalarFilter extends MatVideoFilter {
+public final class RegionScalarFilter extends MatVideoFilter {
 
   private final int left;
   private final int top;

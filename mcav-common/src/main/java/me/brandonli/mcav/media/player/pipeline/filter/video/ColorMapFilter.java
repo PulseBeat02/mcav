@@ -29,7 +29,7 @@ import org.bytedeco.opencv.opencv_core.Mat;
  *
  * @since 1.0.0
  */
-public class ColorMapFilter extends MatVideoFilter {
+public final class ColorMapFilter extends MatVideoFilter {
 
   private final int colorMap;
 

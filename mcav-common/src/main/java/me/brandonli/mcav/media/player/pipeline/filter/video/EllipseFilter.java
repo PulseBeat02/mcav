@@ -32,7 +32,7 @@ import org.bytedeco.opencv.opencv_core.Size;
  *
  * @since 1.0.0
  */
-public class EllipseFilter extends MatVideoFilter {
+public final class EllipseFilter extends MatVideoFilter {
 
   private final Point center;
   private final Size axes;

@@ -34,7 +34,7 @@ import org.bytedeco.opencv.opencv_core.Mat;
  *
  * @since 1.0.0
  */
-public class RotationFilter extends MatVideoFilter {
+public final class RotationFilter extends MatVideoFilter {
 
   private final int rotateCode;
 

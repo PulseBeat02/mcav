@@ -31,7 +31,7 @@ import org.bytedeco.opencv.opencv_core.Scalar;
  *
  * @since 1.0.0
  */
-public class RectangleFilter extends MatVideoFilter {
+public final class RectangleFilter extends MatVideoFilter {
 
   private final Point topLeft;
   private final Point bottomRight;

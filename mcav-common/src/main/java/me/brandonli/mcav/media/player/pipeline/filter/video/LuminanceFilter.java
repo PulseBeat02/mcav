@@ -28,7 +28,7 @@ import org.bytedeco.opencv.opencv_core.Mat;
  *
  * @since 1.0.0
  */
-public class LuminanceFilter extends MatVideoFilter {
+public final class LuminanceFilter extends MatVideoFilter {
 
   private static final double MAXIMUM_BRIGHTNESS = 255.0;
 
