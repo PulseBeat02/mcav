@@ -20,6 +20,7 @@ package me.brandonli.mcav.browser;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.io.Serial;
 import java.net.InetAddress;
 import java.net.ProtocolException;
 import java.nio.charset.StandardCharsets;
@@ -241,7 +242,8 @@ final class SocksProtocol {
 
   static final class Refusal extends ProtocolException {
 
-    private static final long serialVersionUID = 1L;
+    @Serial
+    private static final long serialVersionUID = -7788257831258608999L;
 
     private final int reply;
 

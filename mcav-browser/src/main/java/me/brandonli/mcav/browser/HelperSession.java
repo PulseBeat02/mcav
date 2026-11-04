@@ -688,6 +688,9 @@ final class HelperSession implements BrowserSession {
         final FrameWait wait = repeatsLeft > 0 ? FrameWait.UNTIL_REPEAT_DELAY : FrameWait.UNTIL_FRAME;
         fresh = this.awaitFrame(wait);
       } catch (final InterruptedException exception) {
+        final Thread current = Thread.currentThread();
+        current.interrupt();
+
         return;
       }
       if (this.closing.get()) {
