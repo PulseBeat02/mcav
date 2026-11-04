@@ -41,17 +41,19 @@ import me.brandonli.mcav.media.source.device.DeviceSource;
  * a target size, then start the player:
  *
  * {@snippet :
- * final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
- * final VideoAttachableCallback video = player.getVideoAttachableCallback();
- * video.attach(videoPipeline);
+ * void playMovie(final VideoPipelineStep videoPipeline, final AudioPipelineStep audioPipeline) {
+ *   final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
+ *   final VideoAttachableCallback video = player.getVideoAttachableCallback();
+ *   video.attach(videoPipeline);
  *
- * final AudioAttachableCallback audio = player.getAudioAttachableCallback();
- * audio.attach(audioPipeline);
+ *   final AudioAttachableCallback audio = player.getAudioAttachableCallback();
+ *   audio.attach(audioPipeline);
  *
- * final String fileName = "movie.mp4";
- * final Path movie = Path.of(fileName);
- * final FileSource source = FileSource.path(movie);
- * player.start(source);
+ *   final String fileName = "movie.mp4";
+ *   final Path movie = Path.of(fileName);
+ *   final FileSource source = FileSource.path(movie);
+ *   player.start(source);
+ * }
  * }
  *
  * <p>Frames are delivered on the player's own threads; the pipelines must not block for long.

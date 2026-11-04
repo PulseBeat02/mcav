@@ -32,12 +32,14 @@ import me.brandonli.mcav.media.source.frame.FrameSource;
  * through a video pipeline at the frame rate of the source.
  *
  * {@snippet :
- * final ImagePlayer player = ImagePlayer.player();
- * final VideoAttachableCallback video = player.getVideoAttachableCallback();
- * video.attach(pipeline);
+ * void playAnimation(final VideoPipelineStep pipeline, final DynamicImageBuffer animation) {
+ *   final ImagePlayer player = ImagePlayer.player();
+ *   final VideoAttachableCallback video = player.getVideoAttachableCallback();
+ *   video.attach(pipeline);
  *
- * final RepeatingFrameSource source = RepeatingFrameSource.repeating(animation);
- * player.start(source);
+ *   final RepeatingFrameSource source = RepeatingFrameSource.repeating(animation);
+ *   player.start(source);
+ * }
  * }
  *
  * <p>Implementations in this library are thread-safe.
