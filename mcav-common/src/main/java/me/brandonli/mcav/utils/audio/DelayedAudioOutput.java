@@ -443,28 +443,5 @@ public final class DelayedAudioOutput implements AutoCloseable {
     return this.thread;
   }
 
-  private static final class Chunk {
-
-    private final ByteBuffer samples;
-    private final long due;
-    private final boolean endsQuiet;
-
-    Chunk(final ByteBuffer samples, final long due, final boolean endsQuiet) {
-      this.samples = samples;
-      this.due = due;
-      this.endsQuiet = endsQuiet;
-    }
-
-    ByteBuffer samples() {
-      return this.samples;
-    }
-
-    long due() {
-      return this.due;
-    }
-
-    boolean endsQuiet() {
-      return this.endsQuiet;
-    }
-  }
+  private record Chunk(ByteBuffer samples, long due, boolean endsQuiet) {}
 }

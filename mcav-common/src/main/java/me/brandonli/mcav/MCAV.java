@@ -247,7 +247,7 @@ public final class MCAV implements MCAVApi {
       // the installation threads never take the lifecycle lock, so waiting for them here cannot deadlock
       installation.cancel();
       this.moduleLoader.shutdownModules();
-      this.trimmer.close();
+      this.trimmer.stop();
       this.installing.set(false);
     }
   }

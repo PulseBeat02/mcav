@@ -43,13 +43,7 @@ public final class SourceExamples {
     );
     for (final String input : inputs) {
       final Optional<Source> detected = helper.detectSource(input);
-      final String name;
-      if (detected.isPresent()) {
-        final Source source = detected.get();
-        name = source.getName();
-      } else {
-        name = "unknown";
-      }
+      final String name = detected.map(Source::getName).orElse("unknown");
       System.out.println("%s -> %s".formatted(input, name));
     }
   }

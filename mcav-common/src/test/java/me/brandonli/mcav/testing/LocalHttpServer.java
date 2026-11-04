@@ -196,7 +196,7 @@ public final class LocalHttpServer implements AutoCloseable {
     this.countRequest(path);
 
     final Response response = this.nextResponse(path);
-    final CountDownLatch gate = response.gate;
+    final @Nullable CountDownLatch gate = response.gate;
     if (gate != null) {
       this.awaitGateOrClose(gate);
     }
@@ -358,19 +358,19 @@ public final class LocalHttpServer implements AutoCloseable {
 
     private final int status;
     private final byte[] body;
-    private final CountDownLatch gate;
+    private final @Nullable CountDownLatch gate;
     private final long announcedLength;
     private final @Nullable String location;
     private final long trickleMilliseconds;
 
-    Response(final int status, final byte[] body, final CountDownLatch gate, final long announcedLength) {
+    Response(final int status, final byte[] body, final @Nullable CountDownLatch gate, final long announcedLength) {
       this(status, body, gate, announcedLength, null, NO_TRICKLE_MILLISECONDS);
     }
 
     Response(
       final int status,
       final byte[] body,
-      final CountDownLatch gate,
+      final @Nullable CountDownLatch gate,
       final long announcedLength,
       final @Nullable String location,
       final long trickleMilliseconds

@@ -92,7 +92,7 @@ final class NativeHeapTrimmerTest {
   }
 
   @Test
-  void shouldTrimAtEveryIntervalOnADaemonUntilClosed() throws InterruptedException {
+  void shouldTrimAtEveryIntervalOnADaemonUntilStopped() throws InterruptedException {
     final CountDownLatch trims = new CountDownLatch(3);
     final NativeHeapTrimmer trimmer = new NativeHeapTrimmer(SHORT, trims::countDown, () -> {});
     trimmer.start();
@@ -100,14 +100,14 @@ final class NativeHeapTrimmerTest {
     final boolean trimming = trimmer.isTrimming();
     final Thread thread = trimmingThread().orElseThrow();
     final boolean daemon = thread.isDaemon();
-    trimmer.close();
+    trimmer.stop();
 
     assertTrue(trimmed);
     assertTrue(trimming);
     assertTrue(daemon, "the trims never keep the JVM alive");
 
-    final boolean trimmingAfterClose = trimmer.isTrimming();
-    assertFalse(trimmingAfterClose);
+    final boolean trimmingAfterStop = trimmer.isTrimming();
+    assertFalse(trimmingAfterStop);
 
     final boolean alive = thread.isAlive();
     assertFalse(alive, "closing waits for the thread to end");
@@ -125,7 +125,7 @@ final class NativeHeapTrimmerTest {
     try {
       trimmer.start();
       trimmed = trims.await(TIMEOUT_SECONDS, TimeUnit.SECONDS);
-      trimmer.close();
+      trimmer.stop();
     } finally {
       System.setErr(standardError);
     }
@@ -156,7 +156,7 @@ final class NativeHeapTrimmerTest {
     final NativeHeapTrimmer trimming = NativeHeapTrimmer.of(Os.LINUX, 0L, TRIM_INTERVAL_SECONDS, nothing, nothing);
     trimming.start();
     final boolean trims = trimming.isTrimming();
-    trimming.close();
+    trimming.stop();
 
     assertTrue(trims);
     assertNeverTrims(NativeHeapTrimmer.of(Os.WINDOWS, 0L, TRIM_INTERVAL_SECONDS, nothing, nothing), "off Linux");
@@ -178,7 +178,7 @@ final class NativeHeapTrimmerTest {
     final int created = fixes.get();
     trimming.start();
     final int started = fixes.get();
-    trimming.close();
+    trimming.stop();
     for (final NativeHeapTrimmer never : List.of(
       NativeHeapTrimmer.of(Os.WINDOWS, 0L, TRIM_INTERVAL_SECONDS, nothing, fix),
       NativeHeapTrimmer.of(Os.LINUX, 1L, TRIM_INTERVAL_SECONDS, nothing, fix),
@@ -187,7 +187,7 @@ final class NativeHeapTrimmerTest {
       NativeHeapTrimmer.of(Os.LINUX, 0L, -1L, nothing, fix)
     )) {
       never.start();
-      never.close();
+      never.stop();
     }
 
     assertEquals(0, created, "creating the trimmer leaves the threshold alone");
@@ -207,7 +207,7 @@ final class NativeHeapTrimmerTest {
     try {
       trimmer.start();
       trimming = trimmer.isTrimming();
-      trimmer.close();
+      trimmer.stop();
     } finally {
       System.setErr(standardError);
     }
@@ -345,36 +345,36 @@ final class NativeHeapTrimmerTest {
   private static void assertNeverTrims(final NativeHeapTrimmer trimmer, final String reason) {
     trimmer.start();
     final boolean trimming = trimmer.isTrimming();
-    trimmer.close();
+    trimmer.stop();
     assertFalse(trimming, reason);
   }
 
   @Test
-  void shouldCloseWithoutTrimmingHarmlessly() {
+  void shouldStopWithoutTrimmingHarmlessly() {
     final NativeHeapTrimmer trimmer = new NativeHeapTrimmer(SHORT, () -> {}, () -> {});
-    trimmer.close();
+    trimmer.stop();
     final boolean trimming = trimmer.isTrimming();
     assertFalse(trimming);
   }
 
   @Test
-  void shouldKeepTheInterruptOfTheCallerOfAnInterruptedClose() throws InterruptedException {
+  void shouldKeepTheInterruptOfTheCallerOfAnInterruptedStop() throws InterruptedException {
     final CountDownLatch trimStarted = new CountDownLatch(1);
     final Semaphore trimRelease = new Semaphore(0);
     final NativeHeapTrimmer trimmer = new NativeHeapTrimmer(SHORT, () -> this.signalAndAwaitRelease(trimStarted, trimRelease), () -> {});
     final boolean started;
     final Thread thread;
     final boolean interrupted;
-    final boolean aliveAfterClose;
+    final boolean aliveAfterStop;
     try {
       trimmer.start();
       started = trimStarted.await(TIMEOUT_SECONDS, TimeUnit.SECONDS);
       thread = trimmingThread().orElseThrow();
       final Thread current = Thread.currentThread();
       current.interrupt();
-      trimmer.close();
+      trimmer.stop();
       interrupted = Thread.interrupted();
-      aliveAfterClose = thread.isAlive();
+      aliveAfterStop = thread.isAlive();
     } finally {
       trimRelease.release();
     }
@@ -383,7 +383,7 @@ final class NativeHeapTrimmerTest {
 
     assertTrue(started);
     assertTrue(interrupted);
-    assertTrue(aliveAfterClose, "an interrupted close stops waiting for the trimming thread");
+    assertTrue(aliveAfterStop, "an interrupted stop no longer waits for the trimming thread");
 
     final boolean alive = thread.isAlive();
     assertFalse(alive, "the trimming thread ends on its interrupt");
@@ -406,7 +406,7 @@ final class NativeHeapTrimmerTest {
       final NativeHeapTrimmer trimmer = NativeHeapTrimmer.create();
       trimmer.start();
       final boolean trimming = trimmer.isTrimming();
-      trimmer.close();
+      trimmer.stop();
       assertEquals(linux, trimming, "the JVM of the tests does not trim itself");
     } finally {
       if (previous == null) {
@@ -447,7 +447,7 @@ final class NativeHeapTrimmerTest {
       NativeHeapTrimmer.trimThisJvm();
       after = residentKib();
     } finally {
-      trimmer.close();
+      trimmer.stop();
     }
 
     final long freed = (ARENA_THREADS * FRAME_BYTES) / 1024;

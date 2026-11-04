@@ -52,7 +52,7 @@ import org.slf4j.LoggerFactory;
 // to it, and so is a JVM other than HotSpot, or a runtime without the jdk.management module, which have neither that
 // option nor the command. The interval is the system property INTERVAL_PROPERTY, in seconds, DEFAULT_INTERVAL_SECONDS
 // by default; zero or less turns trimming off.
-final class NativeHeapTrimmer implements AutoCloseable {
+final class NativeHeapTrimmer {
 
   static final String INTERVAL_PROPERTY = "mcav.nativeTrimSeconds";
 
@@ -142,8 +142,7 @@ final class NativeHeapTrimmer implements AutoCloseable {
     }
   }
 
-  @Override
-  public void close() {
+  void stop() {
     final Thread running = this.thread;
     this.thread = null;
 
