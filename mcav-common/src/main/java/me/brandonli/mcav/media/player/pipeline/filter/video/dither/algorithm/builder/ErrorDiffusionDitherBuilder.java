@@ -74,7 +74,7 @@ public interface ErrorDiffusionDitherBuilder extends DitherAlgorithmBuilder {
   /**
    * Sets the total error below which nothing is diffused. Only used by {@link Algorithm#TEMPORAL_FLOYD_STEINBERG}.
    *
-   * @param threshold the nonnegative sum of absolute channel errors at or below which diffusion is skipped
+   * @param threshold the sum of absolute channel errors, not negative, at or below which diffusion is skipped
    * @return this builder
    * @throws IllegalArgumentException if the threshold is negative
    * @since 1.0.0

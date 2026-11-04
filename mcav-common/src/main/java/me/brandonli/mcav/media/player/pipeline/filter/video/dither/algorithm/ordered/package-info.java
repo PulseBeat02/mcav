@@ -20,7 +20,7 @@
  *
  * <p>{@link me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ordered.ThresholdMatrix}
  * is an immutable copied matrix. {@link me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ordered.PixelMapper}
- * normalizes entries around zero and scales them by a finite nonnegative strength. Its returned normalized array
+ * normalizes entries around zero and scales them by a finite strength that must not be negative. Its returned normalized array
  * is shared and must be treated as read-only. The legacy maximum-level argument is checked for positivity but
  * does not determine normalization; the actual integer minimum and maximum do.
  *
