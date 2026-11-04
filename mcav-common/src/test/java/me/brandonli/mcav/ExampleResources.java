@@ -64,7 +64,7 @@ final class ExampleResources implements AutoCloseable {
   @Override
   public void close() {
     final Thread current = Thread.currentThread();
-    @Nullable final List<Runnable> pending;
+    final @Nullable List<Runnable> pending;
     final boolean wait;
     synchronized (this) {
       if (this.closed) {
