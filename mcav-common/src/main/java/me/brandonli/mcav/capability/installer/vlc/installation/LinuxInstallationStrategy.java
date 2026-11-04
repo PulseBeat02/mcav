@@ -17,10 +17,11 @@
  */
 package me.brandonli.mcav.capability.installer.vlc.installation;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.base.Preconditions;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Pattern;
 import me.brandonli.mcav.capability.installer.InstallationException;
@@ -93,7 +94,7 @@ public final class LinuxInstallationStrategy extends ManualInstallationStrategy 
 
     final Path absoluteArchive = archive.toAbsolutePath();
     final Path parentOrNull = absoluteArchive.getParent();
-    final Path workingDirectory = Objects.requireNonNull(parentOrNull, "A downloaded file lies in a directory!");
+    final Path workingDirectory = requireNonNull(parentOrNull, "A downloaded file lies in a directory!");
     final Path extracted = workingDirectory.resolve(EXTRACTED_DIRECTORY);
     final Path installDirectory = this.getInstallDirectory();
     IoUtils.deleteRecursively(extracted);

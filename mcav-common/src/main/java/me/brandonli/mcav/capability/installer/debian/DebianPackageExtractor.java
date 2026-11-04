@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.capability.installer.debian;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.io.ByteStreams;
@@ -37,7 +39,6 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
@@ -613,6 +614,6 @@ public final class DebianPackageExtractor {
 
   private Path getParent(final Path target) {
     final @Nullable Path parent = target.getParent();
-    return Objects.requireNonNull(parent, "An entry in an extracted tree always has a parent!");
+    return requireNonNull(parent, "An entry in an extracted tree always has a parent!");
   }
 }

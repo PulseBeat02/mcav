@@ -17,9 +17,10 @@
  */
 package me.brandonli.mcav.capability.installer.vlc.installation;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.base.Preconditions;
 import java.nio.file.Path;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Pattern;
 import me.brandonli.mcav.capability.installer.InstallationException;
@@ -89,7 +90,7 @@ public final class WindowsInstallationStrategy extends ManualInstallationStrateg
 
     final Path installDirectory = this.getInstallDirectory();
     final Path parentOrNull = installDirectory.getParent();
-    final Path parent = Objects.requireNonNull(parentOrNull, "The installation directory lies in the installer folder!");
+    final Path parent = requireNonNull(parentOrNull, "The installation directory lies in the installer folder!");
     final Path temporary = parent.resolve(TEMPORARY_DIRECTORY);
     IoUtils.deleteRecursively(temporary);
     IoUtils.deleteRecursively(installDirectory);

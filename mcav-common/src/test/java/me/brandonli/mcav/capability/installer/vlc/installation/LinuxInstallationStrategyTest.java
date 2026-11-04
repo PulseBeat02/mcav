@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.capability.installer.vlc.installation;
 
+import static java.util.Objects.requireNonNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -28,7 +29,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import me.brandonli.mcav.capability.installer.InstallationException;
 import me.brandonli.mcav.capability.installer.vlc.VlcInstaller;
@@ -131,7 +131,7 @@ final class LinuxInstallationStrategyTest {
   }
 
   private void extractWithoutCoreLibrary(final @Nullable Path workingDirectory) throws IOException {
-    final Path directory = Objects.requireNonNull(workingDirectory, WORKING_DIRECTORY_REQUIRED);
+    final Path directory = requireNonNull(workingDirectory, WORKING_DIRECTORY_REQUIRED);
     final Path extracted = directory.resolve(EXTRACTED_DIRECTORY);
     Files.createDirectories(extracted);
     createFile(extracted, APP_RUN_FILE_NAME);
@@ -178,7 +178,7 @@ final class LinuxInstallationStrategyTest {
     final @Nullable Path workingDirectory,
     final String[] arguments
   ) throws IOException {
-    final Path directory = Objects.requireNonNull(workingDirectory, WORKING_DIRECTORY_REQUIRED);
+    final Path directory = requireNonNull(workingDirectory, WORKING_DIRECTORY_REQUIRED);
     workingDirectories.add(directory);
     final String commandLine = String.join(" ", arguments);
     commands.add(commandLine);
@@ -199,7 +199,7 @@ final class LinuxInstallationStrategyTest {
     final boolean leftoverStillThere = Files.exists(staleFile);
     assertFalse(leftoverStillThere);
 
-    final Path directory = Objects.requireNonNull(workingDirectory, WORKING_DIRECTORY_REQUIRED);
+    final Path directory = requireNonNull(workingDirectory, WORKING_DIRECTORY_REQUIRED);
     final Path extracted = directory.resolve(EXTRACTED_DIRECTORY);
     final Path libraryDirectory = extracted.resolve(LIBRARY_DIRECTORY);
     Files.createDirectories(libraryDirectory);

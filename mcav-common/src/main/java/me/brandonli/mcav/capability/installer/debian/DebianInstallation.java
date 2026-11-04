@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.capability.installer.debian;
 
+import static java.util.Objects.requireNonNull;
+
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -28,7 +30,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -140,7 +141,7 @@ final class DebianInstallation {
   private Path getParent() {
     final Path absolute = this.folder.toAbsolutePath();
     final @Nullable Path parent = absolute.getParent();
-    return Objects.requireNonNull(parent, "An installation folder inside the cache always has a parent!");
+    return requireNonNull(parent, "An installation folder inside the cache always has a parent!");
   }
 
   private void installPackage(final Download download, final Path staging, final Path extracted, final List<String> loadOrder)
@@ -259,7 +260,7 @@ final class DebianInstallation {
 
   private Path getContainingFolder(final Path library) {
     final @Nullable Path parent = library.getParent();
-    return Objects.requireNonNull(parent, "A library inside the installation always has a parent!");
+    return requireNonNull(parent, "A library inside the installation always has a parent!");
   }
 
   boolean isInSubfolder(final Path library) {

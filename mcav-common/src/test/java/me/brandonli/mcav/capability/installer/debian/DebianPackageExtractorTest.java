@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.capability.installer.debian;
 
+import static java.util.Objects.requireNonNull;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -38,7 +39,6 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import me.brandonli.mcav.capability.installer.InstallationException;
 import org.junit.jupiter.api.AfterEach;
@@ -620,8 +620,8 @@ final class DebianPackageExtractorTest {
   }
 
   private String findReason(final InstallationException failure) {
-    final Throwable cause = Objects.requireNonNull(failure.getCause(), "The failure must have a cause!");
-    return Objects.requireNonNull(cause.getMessage(), "The cause must have a message!");
+    final Throwable cause = requireNonNull(failure.getCause(), "The failure must have a cause!");
+    return requireNonNull(cause.getMessage(), "The cause must have a message!");
   }
 
   private InstallationException extractFailure(final byte[] debianPackage) {

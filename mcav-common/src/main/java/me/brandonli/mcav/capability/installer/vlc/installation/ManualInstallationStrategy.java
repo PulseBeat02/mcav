@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.capability.installer.vlc.installation;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -135,7 +137,7 @@ public abstract class ManualInstallationStrategy implements InstallationStrategy
     while (candidates.hasNext()) {
       final Path library = candidates.next();
       final Path parentOrNull = library.getParent();
-      final Path parent = Objects.requireNonNull(parentOrNull, "A file found below a directory has a parent!");
+      final Path parent = requireNonNull(parentOrNull, "A file found below a directory has a parent!");
       if (Files.size(library) > 0 && this.containsCompanions(parent, companions)) {
         return Optional.of(parent);
       }
