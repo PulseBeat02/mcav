@@ -259,7 +259,7 @@ final class MatImageBufferTest {
     final Path file = this.directory.resolve(SIXTEEN_BIT_FILE_NAME);
     Files.write(file, png);
     final FileSource path = FileSource.path(file);
-    final String expected = "Image size 16x16 exceeds the limit of 255 pixels that the system property mcav.image.maxPixels sets!";
+    final String expected = "Image size 16x16 exceeds the limit of 255 pixels that the system property mcav.image.maximum_pixels sets!";
     final String previous = System.getProperty(DeclaredImageSize.MAXIMUM_PIXELS_PROPERTY);
     System.setProperty(DeclaredImageSize.MAXIMUM_PIXELS_PROPERTY, "255");
     try {
@@ -322,7 +322,7 @@ final class MatImageBufferTest {
       final IllegalArgumentException refused = assertThrowsWhileOpening(IllegalArgumentException.class, () -> ImageBuffer.bytes(header));
       final String message = refused.getMessage();
       assertEquals(
-        "Image size 65535x65535 exceeds the limit of 67108864 pixels that the system property mcav.image.maxPixels sets!",
+        "Image size 65535x65535 exceeds the limit of 67108864 pixels that the system property mcav.image.maximum_pixels sets!",
         message
       );
     } finally {

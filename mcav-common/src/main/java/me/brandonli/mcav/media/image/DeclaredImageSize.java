@@ -41,7 +41,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 // the check off and leaves every image to OpenCV, as before the check.
 final class DeclaredImageSize {
 
-  static final String MAXIMUM_PIXELS_PROPERTY = "mcav.image.maxPixels";
+  static final String MAXIMUM_PIXELS_PROPERTY = "mcav.image.maximum_pixels";
 
   private static final long DEFAULT_MAXIMUM_PIXELS = 1L << 26;
 

@@ -119,7 +119,7 @@ public interface ImageBuffer extends Image {
    * @param bytes the encoded image
    * @return the image buffer
    * @throws IllegalArgumentException if the bytes are not a supported image format, or their header declares more pixels
-   *                                  than the system property {@code mcav.image.maxPixels} allows (8192 by 8192 if it
+   *                                  than the system property {@code mcav.image.maximum_pixels} allows (8192 by 8192 if it
    *                                  is not set)
    * @throws NullPointerException     if {@code bytes} is null
    * @since 1.0.0
@@ -155,7 +155,7 @@ public interface ImageBuffer extends Image {
    *                                  {@link me.brandonli.mcav.utils.IoUtils#MAXIMUM_IMAGE_BYTES}
    * @throws FileOperationException   if the downloaded image cannot be moved into the cache folder
    * @throws IllegalArgumentException if the file is not a supported image format, or its header declares more
-   *                                  pixels than the system property {@code mcav.image.maxPixels} allows
+   *                                  pixels than the system property {@code mcav.image.maximum_pixels} allows
    * @throws NullPointerException     if {@code source} is null
    * @since 1.0.0
    */
@@ -171,7 +171,7 @@ public interface ImageBuffer extends Image {
    * @param source the image file
    * @return the image buffer
    * @throws IllegalArgumentException if the file does not exist or is not a supported image format, or its header
-   *                                  declares more pixels than the system property {@code mcav.image.maxPixels} allows
+   *                                  declares more pixels than the system property {@code mcav.image.maximum_pixels} allows
    * @throws NullPointerException     if {@code source} is null
    * @since 1.0.0
    */

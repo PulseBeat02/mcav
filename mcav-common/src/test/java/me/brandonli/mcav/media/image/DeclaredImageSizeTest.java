@@ -868,7 +868,7 @@ final class DeclaredImageSizeTest {
     );
     final String message = refused.getMessage();
     assertEquals(
-      "Image size 30000x20000 exceeds the limit of 599999999 pixels that the system property mcav.image.maxPixels sets!",
+      "Image size 30000x20000 exceeds the limit of 599999999 pixels that the system property mcav.image.maximum_pixels sets!",
       message
     );
     assertDoesNotThrow(() -> DeclaredImageSize.checkBytes(header, 600_000_000));
