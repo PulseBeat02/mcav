@@ -99,10 +99,6 @@ public final class FakeWorld {
     return frame;
   }
 
-  public World getWorld() {
-    return this.world;
-  }
-
   public Location createLocation(final double positionX, final double positionY, final double positionZ) {
     return new Location(this.world, positionX, positionY, positionZ);
   }
@@ -163,10 +159,6 @@ public final class FakeWorld {
     return this.materials.getOrDefault(block, Material.AIR);
   }
 
-  public int getChangedBlockCount() {
-    return this.materials.size();
-  }
-
   public ItemFrame createFrame(final Location location, final BlockFace facing) {
     final ItemFrame frame = mock(ItemFrame.class);
     final Map<NamespacedKey, Object> data = new HashMap<>();
@@ -221,25 +213,16 @@ public final class FakeWorld {
     this.entities.add(entity);
   }
 
-  public List<ItemFrame> getSpawnedFrames() {
-    return this.spawnedFrames;
-  }
-
-  public static boolean hasTag(final ItemFrame frame, final NamespacedKey key) {
+  public boolean hasTag(final ItemFrame frame, final NamespacedKey key) {
     final PersistentDataContainer container = frame.getPersistentDataContainer();
     return container.has(key, PersistentDataType.BOOLEAN);
   }
 
   private Collection<Entity> findNearbyEntities(final Location center, final double radiusX, final double radiusY, final double radiusZ) {
-    final List<Entity> nearby = new ArrayList<>();
-    for (final Entity entity : this.entities) {
-      final Location location = entity.getLocation();
-      final boolean near = this.isWithin(location, center, radiusX, radiusY, radiusZ);
-      if (near) {
-        nearby.add(entity);
-      }
-    }
-    return nearby;
+    return this.entities
+      .stream()
+      .filter(entity -> this.isWithin(entity.getLocation(), center, radiusX, radiusY, radiusZ))
+      .toList();
   }
 
   private boolean isWithin(
@@ -256,5 +239,17 @@ public final class FakeWorld {
     final double distanceY = Math.abs(offsetY);
     final double distanceZ = Math.abs(offsetZ);
     return distanceX <= radiusX && distanceY <= radiusY && distanceZ <= radiusZ;
+  }
+
+  public World getWorld() {
+    return this.world;
+  }
+
+  public int getChangedBlockCount() {
+    return this.materials.size();
+  }
+
+  public List<ItemFrame> getSpawnedFrames() {
+    return this.spawnedFrames;
   }
 }

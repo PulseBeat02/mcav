@@ -218,6 +218,7 @@ public final class BrowserBenchmark {
     }
 
     first.add((watch.getFirstNanoseconds() - sent) / NANOSECONDS_PER_MILLISECOND);
+
     final boolean complete = watch.awaitFull(FULL_TIMEOUT_MILLISECONDS);
     if (complete) {
       full.add((watch.getFullNanoseconds() - sent) / NANOSECONDS_PER_MILLISECOND);

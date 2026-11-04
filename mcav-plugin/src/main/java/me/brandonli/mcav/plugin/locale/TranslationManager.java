@@ -91,6 +91,7 @@ public final class TranslationManager {
       if (missing) {
         this.copyBundledFile(propertiesPath, file);
       }
+
       final ResourceBundle bundled = this.readBundledFile(propertiesPath);
       try (final Reader reader = Files.newBufferedReader(file)) {
         return LayeredBundle.of(reader, bundled);

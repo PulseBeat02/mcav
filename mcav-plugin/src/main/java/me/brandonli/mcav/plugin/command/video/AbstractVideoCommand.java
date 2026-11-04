@@ -19,9 +19,11 @@ package me.brandonli.mcav.plugin.command.video;
 
 import com.google.common.base.Equivalence;
 import com.google.common.base.Preconditions;
+import java.io.File;
 import java.net.URI;
 import java.nio.file.Path;
 import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CancellationException;
@@ -107,12 +109,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    */
   protected final MCAVSandbox plugin;
 
-  /**
-   * The provider of audio outputs.
-   *
-   * @since 1.0.0
-   */
-  protected final AudioProvider provider;
+  private final AudioProvider provider;
 
   /**
    * The manager of the running video player.
@@ -179,7 +176,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
       return;
     }
 
-    final String[] ytdlpArguments = this.parseFlags(sender, flags);
+    final String @Nullable [] ytdlpArguments = this.parseFlags(sender, flags);
     if (ytdlpArguments == null) {
       return;
     }
@@ -234,6 +231,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    * @param filters the option as typed, or {@code null} for none
    * @param kind    what the pictures come from
    * @return the chain, or empty if the option is not valid
+   * @throws NullPointerException if an argument other than {@code filters} is null
    * @since 1.0.0
    */
   public static Optional<FilterChain> parseFilters(
@@ -242,16 +240,25 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final @Nullable String filters,
     final MediaKind kind
   ) {
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
+    Preconditions.checkNotNull(kind, "Media kind must not be null!");
+
     if (filters == null || filters.isEmpty()) {
       return Optional.of(FilterChain.NONE);
     }
 
-    final Path overlays = plugin.getDataFolder().toPath().resolve(FilterChain.OVERLAY_FOLDER);
+    final File dataFolder = plugin.getDataFolder();
+    final Path dataPath = dataFolder.toPath();
+    final Path overlays = dataPath.resolve(FilterChain.OVERLAY_FOLDER);
     try {
       final FilterChain chain = FilterChain.parse(filters, overlays, kind);
       return Optional.of(chain);
     } catch (final IllegalArgumentException exception) {
-      sender.sendMessage(Message.FILTERS_INVALID.build(Objects.requireNonNullElse(exception.getMessage(), "")));
+      final String cause = exception.getMessage();
+      final String reason = Objects.requireNonNullElse(cause, "");
+      final Component message = Message.FILTERS_INVALID.build(reason);
+      sender.sendMessage(message);
       return Optional.empty();
     }
   }
@@ -410,7 +417,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final AudioArgument audioType,
     final String mrl
   ) {
-    final Component deviceProblem = this.findDeviceProblem(sender, playerType, mrl);
+    final @Nullable Component deviceProblem = this.findDeviceProblem(sender, playerType, mrl);
     return deviceProblem != null ? deviceProblem : this.findProblem(playerType, audioType, mrl);
   }
 
@@ -425,7 +432,14 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
       return Message.DEVICE_PERMISSION.build();
     }
 
-    return isDevice && CaptureDevices.find(this.manager.getDevices(), mrl).isEmpty() ? Message.DEVICE_UNLISTED.build(mrl) : null;
+    if (!isDevice) {
+      return null;
+    }
+
+    final List<CaptureDevices.Device> devices = this.manager.getDevices();
+    final Optional<CaptureDevices.Device> device = CaptureDevices.find(devices, mrl);
+    final boolean unlisted = device.isEmpty();
+    return unlisted ? Message.DEVICE_UNLISTED.build(mrl) : null;
   }
 
   private @Nullable Component findProblem(final PlayerArgument playerType, final AudioArgument audioType, final String mrl) {
@@ -435,7 +449,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
       return audioProblem;
     }
 
-    final Component playerProblem = this.findPlayerProblem(playerType);
+    final @Nullable Component playerProblem = this.findPlayerProblem(playerType);
     if (playerProblem != null) {
       return playerProblem;
     }
@@ -478,7 +492,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     this.manager.checkStart();
     final String mrl = request.getMrl();
     final String[] ytdlpArguments = request.getYtdlpArguments();
-    final SourceSelection selection = this.selectSources(mrl, ytdlpArguments);
+    final @Nullable SourceSelection selection = this.selectSources(mrl, ytdlpArguments);
     this.manager.checkStart();
 
     if (selection == null) {
@@ -515,7 +529,9 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
   private VideoPlayerMultiplexer createPlayer(final PlaybackRequest request, final UrlParseDump dump) {
     final Pair<Integer, Integer> resolution = request.getResolution();
     final VideoConfigurationProvider configurationProvider = request.getConfigurationProvider();
-    final VideoPipelineStep videoPipeline = request.getFilters().prepend(this.createVideoFilter(resolution, configurationProvider));
+    final FilterChain filters = request.getFilters();
+    final VideoPipelineStep display = this.createVideoFilter(resolution, configurationProvider);
+    final VideoPipelineStep videoPipeline = filters.prepend(display);
 
     final AudioArgument audioType = request.getAudioType();
     final Player[] viewers = request.getViewers();
@@ -552,8 +568,16 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
 
   private boolean startPlayback(final VideoPlayerMultiplexer player, final SourceSelection selection) {
     final Source video = selection.getVideo();
-    final Source audio = selection.getAudio();
-    return this.manager.startNative(() -> audio == null ? player.start(video) : player.start(video, audio));
+    final @Nullable Source audio = selection.getAudio();
+    return this.manager.startNative(() -> this.startSources(player, video, audio));
+  }
+
+  private boolean startSources(final VideoPlayerMultiplexer player, final Source video, final @Nullable Source audio) {
+    if (audio == null) {
+      return player.start(video);
+    }
+
+    return player.start(video, audio);
   }
 
   private void cleanupAfterFailure(final Throwable failure, final Runnable cleanup) {

@@ -80,6 +80,7 @@ final class BenchmarkServer implements AutoCloseable {
   private final HttpServer server;
   private final ExecutorService executor;
   private final List<OutputStream> listeners;
+
   private int subscriptions;
 
   private BenchmarkServer(final HttpServer server, final ExecutorService executor) {

@@ -107,6 +107,7 @@ public final class ScreenCommand implements AnnotationCommandFeature {
       sender.sendMessage(error);
       return;
     }
+
     final Component built = Message.SCREEN_BUILD.build();
     sender.sendMessage(built);
   }

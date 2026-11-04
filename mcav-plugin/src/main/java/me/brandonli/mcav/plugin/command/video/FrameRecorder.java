@@ -25,6 +25,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.function.Consumer;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,7 +44,7 @@ final class FrameRecorder implements Consumer<byte[]> {
     Preconditions.checkNotNull(file, "File must not be null!");
 
     final Path absolute = file.toAbsolutePath();
-    final Path parent = absolute.getParent();
+    final @Nullable Path parent = absolute.getParent();
     if (parent == null) {
       final String message = "Stream file %s must not be the root of the file system!".formatted(file);
       throw new IllegalArgumentException(message);

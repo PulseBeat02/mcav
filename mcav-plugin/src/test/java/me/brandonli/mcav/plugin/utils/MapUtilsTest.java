@@ -335,9 +335,9 @@ final class MapUtilsTest {
       final MapView shown = this.existingMap(10 + index);
       verify(metadata).setMapView(shown);
 
-      final boolean hasMapTag = FakeWorld.hasTag(frame, Keys.MAP_KEY);
-      final boolean first = FakeWorld.hasTag(frame, Keys.FIRST_MAP_KEY);
-      final boolean last = FakeWorld.hasTag(frame, Keys.LAST_MAP_KEY);
+      final boolean hasMapTag = this.fakeWorld.hasTag(frame, Keys.MAP_KEY);
+      final boolean first = this.fakeWorld.hasTag(frame, Keys.FIRST_MAP_KEY);
+      final boolean last = this.fakeWorld.hasTag(frame, Keys.LAST_MAP_KEY);
       assertTrue(hasMapTag);
       assertEquals(index == 0, first);
       assertEquals(index == 3, last);
@@ -444,9 +444,9 @@ final class MapUtilsTest {
     assertEquals(1, frameCount);
 
     final ItemFrame frame = frames.getFirst();
-    final boolean hasMapTag = FakeWorld.hasTag(frame, Keys.MAP_KEY);
-    final boolean first = FakeWorld.hasTag(frame, Keys.FIRST_MAP_KEY);
-    final boolean last = FakeWorld.hasTag(frame, Keys.LAST_MAP_KEY);
+    final boolean hasMapTag = this.fakeWorld.hasTag(frame, Keys.MAP_KEY);
+    final boolean first = this.fakeWorld.hasTag(frame, Keys.FIRST_MAP_KEY);
+    final boolean last = this.fakeWorld.hasTag(frame, Keys.LAST_MAP_KEY);
     assertTrue(hasMapTag);
     assertTrue(first);
     assertTrue(last);
@@ -485,7 +485,7 @@ final class MapUtilsTest {
     assertEquals("10,71,-4;10,70,-4", positions);
 
     final ItemFrame lower = frames.get(1);
-    final boolean lowerIsFirst = FakeWorld.hasTag(lower, Keys.FIRST_MAP_KEY);
+    final boolean lowerIsFirst = this.fakeWorld.hasTag(lower, Keys.FIRST_MAP_KEY);
     assertFalse(lowerIsFirst);
   }
 

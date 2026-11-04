@@ -20,11 +20,14 @@ package me.brandonli.mcav.plugin.command.image;
 import com.google.common.base.Preconditions;
 import java.util.concurrent.atomic.AtomicLong;
 import me.brandonli.mcav.bukkit.media.image.DisplayableImage;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Channel;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Result;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.plugin.command.video.Mcv2Output;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.scheduler.BukkitScheduler;
 import org.bukkit.scheduler.BukkitTask;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -44,7 +47,7 @@ final class Mcv2Image implements DisplayableImage {
   private final Mcv2Output output;
 
   // the timer's runs may overlap: an asynchronous run starts on time even when the one before has not ended
-  private final AtomicLong feeds = new AtomicLong();
+  private final AtomicLong feeds;
 
   private @Nullable BukkitTask task;
 
@@ -54,6 +57,7 @@ final class Mcv2Image implements DisplayableImage {
 
     this.plugin = plugin;
     this.output = output;
+    this.feeds = new AtomicLong();
   }
 
   // main thread only; the caller keeps ownership of the image
@@ -65,14 +69,20 @@ final class Mcv2Image implements DisplayableImage {
     final int height = image.getHeight();
     final int[] pixels = image.copyPixels();
     this.output.start();
-    this.task = Bukkit.getScheduler().runTaskTimerAsynchronously(this.plugin, () -> this.feed(pixels, width, height), 0, PERIOD_TICKS);
+    final BukkitScheduler scheduler = Bukkit.getScheduler();
+    this.task = scheduler.runTaskTimerAsynchronously(this.plugin, () -> this.feed(pixels, width, height), 0, PERIOD_TICKS);
   }
 
   // a copy each time, since the encoder may resize the frame in place
   private void feed(final int[] pixels, final int width, final int height) {
-    if (this.feeds.incrementAndGet() % KEYFRAME_FEEDS == 0) {
-      this.output.getResult().getChannel().requestKeyframe();
+    final long feed = this.feeds.incrementAndGet();
+    final boolean keyframeDue = feed % KEYFRAME_FEEDS == 0;
+    if (keyframeDue) {
+      final Mcv2Result result = this.output.getResult();
+      final Mcv2Channel channel = result.getChannel();
+      channel.requestKeyframe();
     }
+
     try (final ImageBuffer frame = ImageBuffer.buffer(pixels.clone(), width, height)) {
       this.output.applyFilter(frame, OriginalVideoMetadata.of(width, height));
     }
@@ -85,6 +95,7 @@ final class Mcv2Image implements DisplayableImage {
       running.cancel();
       this.task = null;
     }
+
     this.output.release();
   }
 }

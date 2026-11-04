@@ -78,25 +78,26 @@ public final class VideoPlayerManager {
 
   private static final long LOOP_CHECK_TICKS = 10L;
 
+  private final MCAVSandbox plugin;
+  private final MCAVApi api;
+  private final AudioProvider provider;
+  private final ExecutorService service;
+  private final AtomicBoolean starting;
+  private final VolumeFilter volume;
+  private final Object lifecycle;
+  private final Set<WorldCleanup> pendingWorldCleanups;
+
   private volatile @Nullable VideoPlayerMultiplexer player;
   private volatile @Nullable FunctionalVideoFilter filter;
   private volatile @Nullable Hologram hologram;
   private volatile @Nullable Location hologramLocation;
   private volatile boolean looping;
-  private volatile List<CaptureDevices.Device> devices = List.of();
+  private volatile List<CaptureDevices.Device> devices;
 
-  private final MCAVSandbox plugin;
-  private final MCAVApi api;
-  private final AtomicBoolean starting;
-  private final ExecutorService service;
-  private final AudioProvider provider;
-  private final Object lifecycle = new Object();
   private long generation;
   private long startGeneration;
   private boolean closed;
   private @Nullable VideoPlayerMultiplexer startingPlayer;
-  private final Set<WorldCleanup> pendingWorldCleanups = new HashSet<>();
-  private final VolumeFilter volume = new VolumeFilter();
   private @Nullable BukkitTask loopWatcher;
 
   /**
@@ -113,6 +114,10 @@ public final class VideoPlayerManager {
     this.provider = plugin.getAudioProvider();
     this.api = plugin.getMCAV();
     this.plugin = plugin;
+    this.devices = List.of();
+    this.lifecycle = new Object();
+    this.pendingWorldCleanups = new HashSet<>();
+    this.volume = new VolumeFilter();
   }
 
   /**
@@ -128,6 +133,7 @@ public final class VideoPlayerManager {
 
       this.closed = true;
     }
+
     CleanupUtils.runAll(
       () -> this.setLooping(false),
       this::releaseVideoPlayer,
@@ -135,18 +141,6 @@ public final class VideoPlayerManager {
       () -> ExecutorUtils.shutdownExecutorGracefully(this.service),
       this::drainWorldCleanup
     );
-  }
-
-  /**
-   * Sets the hologram that shows the title of the video.
-   *
-   * @param hologram the hologram, or {@code null} for none
-   * @since 1.0.0
-   */
-  public void setHologram(final @Nullable Hologram hologram) {
-    synchronized (this.lifecycle) {
-      this.hologram = hologram;
-    }
   }
 
   /**
@@ -245,6 +239,7 @@ public final class VideoPlayerManager {
       );
       this.pendingWorldCleanups.add(worldTask);
     }
+
     CleanupUtils.runAll(
       this.provider::releaseAudioFilter,
       () -> this.releaseOldPlayer(oldPlayer),
@@ -284,6 +279,7 @@ public final class VideoPlayerManager {
       this.checkStartLocked();
       expected = this.startGeneration;
     }
+
     final BukkitScheduler scheduler = Bukkit.getScheduler();
     try {
       scheduler.runTask(this.plugin, () -> this.startIfCurrent(expected, output));
@@ -320,6 +316,7 @@ public final class VideoPlayerManager {
       candidate = Preconditions.checkNotNull(this.player, "No video player was configured!");
       this.startingPlayer = candidate;
     }
+
     final boolean started;
     try {
       started = start.getAsBoolean();
@@ -328,6 +325,7 @@ public final class VideoPlayerManager {
       this.cleanupAfterFailure(exception, () -> this.finishNative(candidate));
       throw exception;
     }
+
     this.finishNative(candidate);
     this.checkStart();
 
@@ -371,6 +369,7 @@ public final class VideoPlayerManager {
         return;
       }
     }
+
     this.awaitMainThread(completion);
   }
 
@@ -389,11 +388,13 @@ public final class VideoPlayerManager {
     synchronized (this.lifecycle) {
       pending = new ArrayList<>(this.pendingWorldCleanups);
     }
+
     final Runnable[] actions = new Runnable[pending.size()];
     for (int index = 0; index < actions.length; index++) {
       final WorldCleanup cleanup = pending.get(index);
       actions[index] = () -> this.executeWorldCleanup(cleanup);
     }
+
     CleanupUtils.runAll(actions);
   }
 
@@ -448,6 +449,7 @@ public final class VideoPlayerManager {
         return;
       }
     }
+
     final CancellationException failure = new CancellationException(STARTUP_CANCELLED_MESSAGE);
     this.cleanupAfterFailure(failure, player::release);
     throw failure;
@@ -475,6 +477,7 @@ public final class VideoPlayerManager {
    */
   public synchronized void setLooping(final boolean looping) {
     this.looping = looping;
+
     final BukkitTask watcher = this.loopWatcher;
     if (looping && watcher == null) {
       this.loopWatcher = Bukkit.getScheduler().runTaskTimerAsynchronously(
@@ -505,6 +508,18 @@ public final class VideoPlayerManager {
    */
   public Optional<Hologram> getHologram() {
     return Optional.ofNullable(this.hologram);
+  }
+
+  /**
+   * Sets the hologram that shows the title of the video.
+   *
+   * @param hologram the hologram, or {@code null} for none
+   * @since 1.0.0
+   */
+  public void setHologram(final @Nullable Hologram hologram) {
+    synchronized (this.lifecycle) {
+      this.hologram = hologram;
+    }
   }
 
   /**
@@ -621,11 +636,13 @@ public final class VideoPlayerManager {
   private static final class WorldCleanup implements Runnable {
 
     private final Runnable task;
-    private final AtomicBoolean claimed = new AtomicBoolean();
-    private final CompletableFuture<@Nullable Void> completion = new CompletableFuture<>();
+    private final AtomicBoolean claimed;
+    private final CompletableFuture<@Nullable Void> completion;
 
     private WorldCleanup(final Runnable task) {
       this.task = task;
+      this.claimed = new AtomicBoolean();
+      this.completion = new CompletableFuture<>();
     }
 
     @Override

@@ -57,6 +57,7 @@ public final class CleanupUtils {
         failure = combine(failure, exception);
       }
     }
+
     if (failure instanceof final RuntimeException runtimeException) {
       throw runtimeException;
     }
@@ -75,6 +76,7 @@ public final class CleanupUtils {
     if (!sameFailure) {
       first.addSuppressed(next);
     }
+
     return first;
   }
 }

@@ -216,7 +216,7 @@ final class VncCommandTest {
   @Test
   void shouldGiveNoPasswordToAServerWithoutOne() {
     final VncAllowList.Entry open = VncAllowList.Entry.of(LOOPBACK_HOST, 5902, null);
-    final VncSource source = VncCommand.createSource(open, Pair.pair(640, 480), 10);
+    final VncSource source = this.command.createSource(open, Pair.pair(640, 480), 10);
 
     final Optional<String> password = source.getPassword();
     assertEquals(Optional.empty(), password);

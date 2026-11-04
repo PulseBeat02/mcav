@@ -104,6 +104,8 @@ public final class VideoFlagsParser {
 
   private static final String NAME_SEPARATOR = ", ";
 
+  private static final List<String> SUPPORTED_OPTIONS = createSupportedOptions();
+
   /**
    * Creates the parser, which keeps no state and can be shared.
    *
@@ -120,7 +122,7 @@ public final class VideoFlagsParser {
    * @since 1.0.0
    */
   public String[] parseYtdlpFlags(final @Nullable String flags) {
-    final String content = extractOptions(flags);
+    final @Nullable String content = this.extractOptions(flags);
     if (content == null) {
       return new String[0];
     }
@@ -130,12 +132,13 @@ public final class VideoFlagsParser {
     for (final String option : options) {
       this.appendOption(option, arguments);
     }
+
     return arguments.toArray(new String[0]);
   }
 
   // a backslash escapes the next character, so an escaped brace does not end the options
   @VisibleForTesting
-  static @Nullable String extractOptions(final @Nullable String flags) {
+  @Nullable String extractOptions(final @Nullable String flags) {
     if (flags == null || flags.isBlank()) {
       return null;
     }
@@ -143,18 +146,19 @@ public final class VideoFlagsParser {
     int opening = flags.indexOf(YT_DLP_OPENING);
     while (opening >= 0) {
       final int start = opening + YT_DLP_OPENING.length();
-      final int end = findClosingBrace(flags, start);
+      final int end = this.findClosingBrace(flags, start);
       if (end >= 0) {
         final String content = flags.substring(start, end);
         return content.isBlank() ? null : content;
       }
       opening = flags.indexOf(YT_DLP_OPENING, opening + 1);
     }
+
     return null;
   }
 
   // -1 also when a trailing backslash has nothing to escape
-  private static int findClosingBrace(final String text, final int from) {
+  private int findClosingBrace(final String text, final int from) {
     final int length = text.length();
     int index = from;
     while (index < length) {
@@ -167,16 +171,21 @@ public final class VideoFlagsParser {
         continue;
       }
       final int escaped = index + 1;
-      final boolean escapes = escaped < length && !isLineTerminator(text.charAt(escaped));
-      if (!escapes) {
+      if (escaped >= length) {
+        return -1;
+      }
+
+      final char next = text.charAt(escaped);
+      if (this.isLineTerminator(next)) {
         return -1;
       }
       index = escaped + 1;
     }
+
     return -1;
   }
 
-  private static boolean isLineTerminator(final char character) {
+  private boolean isLineTerminator(final char character) {
     return (
       character == LINE_FEED ||
       character == CARRIAGE_RETURN ||
@@ -255,7 +264,8 @@ public final class VideoFlagsParser {
   }
 
   private IllegalArgumentException createUnsupportedOptionException(final String name) {
-    final String supported = String.join(NAME_SEPARATOR, supportedOptions());
+    final List<String> names = supportedOptions();
+    final String supported = String.join(NAME_SEPARATOR, names);
     final String message = "yt-dlp option %s is not supported, use one of %s instead!".formatted(name, supported);
     return new IllegalArgumentException(message);
   }
@@ -268,6 +278,10 @@ public final class VideoFlagsParser {
    * @since 1.0.0
    */
   public static List<String> supportedOptions() {
+    return SUPPORTED_OPTIONS;
+  }
+
+  private static List<String> createSupportedOptions() {
     final List<String> names = new ArrayList<>(FLAG_OPTIONS);
     names.addAll(VALUE_OPTIONS);
     Collections.sort(names);

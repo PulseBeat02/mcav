@@ -490,11 +490,6 @@ final class AbstractImageCommandTest {
   }
 
   @Test
-  void shouldUseTheImageManagerOfThePlugin() {
-    assertSame(this.manager, this.command.manager);
-  }
-
-  @Test
   void shouldReleaseTheLoadedImageWhenThePluginWasDisabledMeanwhile() throws IOException {
     final BukkitScheduler scheduler = TestServer.getScheduler();
     final IllegalPluginAccessException disabled = new IllegalPluginAccessException("disabled!");

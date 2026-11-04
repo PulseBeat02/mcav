@@ -50,11 +50,6 @@ public final class Components {
 
   public static List<String> receivedText(final Audience audience) {
     final List<Component> messages = received(audience);
-    final List<String> texts = new ArrayList<>();
-    for (final Component message : messages) {
-      final String text = plain(message);
-      texts.add(text);
-    }
-    return texts;
+    return messages.stream().map(Components::plain).toList();
   }
 }

@@ -84,14 +84,14 @@ public final class AudioProvider {
   private final MCAVSandbox plugin;
   private final ExecutorService startup;
   private final Object lock;
+  private final Object outputLock;
+  private final Deque<Claim> claims;
 
   private volatile @Nullable JDA jda;
   private volatile @Nullable DiscordConnection discord;
   private volatile @Nullable HttpResult httpServer;
   private volatile @Nullable SvcFilter voiceChatFilter;
   private boolean stopped;
-  private final Object outputLock;
-  private final Deque<Claim> claims;
   private volatile @Nullable Claim owner;
 
   /**
@@ -116,6 +116,12 @@ public final class AudioProvider {
     this.lock = new Object();
     this.outputLock = new Object();
     this.claims = new ArrayDeque<>();
+    this.jda = null;
+    this.discord = null;
+    this.httpServer = null;
+    this.voiceChatFilter = null;
+    this.stopped = false;
+    this.owner = null;
   }
 
   /**
@@ -130,11 +136,13 @@ public final class AudioProvider {
     synchronized (this.lock) {
       this.stopped = true;
     }
+
     synchronized (this.outputLock) {
       this.owner = null;
       this.claims.clear();
       this.releaseOutputs();
     }
+
     final HttpResult server;
     final JDA bot;
     synchronized (this.lock) {
@@ -144,12 +152,15 @@ public final class AudioProvider {
       this.jda = null;
       this.discord = null;
     }
+
     if (server != null) {
       server.stop();
     }
+
     if (bot != null) {
       bot.shutdown();
     }
+
     this.stopStartup();
   }
 
@@ -165,10 +176,12 @@ public final class AudioProvider {
     if (discordEnabled) {
       this.startDiscord();
     }
+
     final boolean httpEnabled = this.configuration.isHttpEnabled();
     if (httpEnabled) {
       this.startHttp();
     }
+
     final boolean voiceChatEnabled = this.configuration.isSimpleVoiceChatEnabled();
     if (voiceChatEnabled) {
       this.registerVoiceChat();
@@ -210,6 +223,7 @@ public final class AudioProvider {
         this.httpServer = server;
       }
     }
+
     if (!accepted) {
       server.stop();
       return;
@@ -227,6 +241,7 @@ public final class AudioProvider {
     synchronized (this.lock) {
       this.jda = bot;
     }
+
     final CompletableFuture<DiscordConnection> login = CompletableFuture.supplyAsync(
       () -> this.connectDiscord(bot, guildId, channelId),
       this.startup
@@ -250,6 +265,7 @@ public final class AudioProvider {
       final String message = "Interrupted while logging the Discord bot in!";
       throw new PluginException(message, exception);
     }
+
     final Guild guild = bot.getGuildById(guildId);
     if (guild == null) {
       final String message = "Guild %s has not added the Discord bot!".formatted(guildId);
@@ -282,6 +298,7 @@ public final class AudioProvider {
 
   private void onDiscordFailed(final JDA bot, final Throwable error) {
     LOGGER.error("The Discord bot could not connect, so its audio is not available.", error);
+
     final boolean current;
     synchronized (this.lock) {
       // JDA does not override equals, so this asks whether the failed bot is still the very instance in use
@@ -290,6 +307,7 @@ public final class AudioProvider {
         this.jda = null;
       }
     }
+
     if (current) {
       bot.shutdownNow();
     }
@@ -371,9 +389,11 @@ public final class AudioProvider {
       this.claims.removeIf(held -> IDENTITY.equivalent(held.source, source));
       this.claims.push(claim);
       this.owner = claim;
+
       if (previousSpeakers != null) {
         this.retireSpeakers(previousSpeakers);
       }
+
       return (samples, metadata) -> this.owner == claim && claim.output.applyFilter(samples, metadata);
     }
   }
@@ -383,6 +403,7 @@ public final class AudioProvider {
     if (this.voiceChatFilter == speakers) {
       this.voiceChatFilter = null;
     }
+
     speakers.release();
   }
 
@@ -414,6 +435,7 @@ public final class AudioProvider {
     }
 
     server.setCurrentMedia(dump);
+
     return server;
   }
 
@@ -431,6 +453,7 @@ public final class AudioProvider {
     manager.setSendingHandler(player);
     manager.openAudioConnection(voiceChannel);
     player.setCurrentMedia(dump);
+
     return player;
   }
 
@@ -456,6 +479,7 @@ public final class AudioProvider {
 
     synchronized (this.outputLock) {
       this.claims.removeIf(held -> IDENTITY.equivalent(held.source, source));
+
       final Claim current = this.owner;
       if (current != null && !IDENTITY.equivalent(current.source, source)) {
         return;
@@ -463,6 +487,7 @@ public final class AudioProvider {
 
       this.owner = null;
       this.releaseOutputs();
+
       final Claim previous = this.claims.peek();
       if (previous == null) {
         return;
@@ -487,10 +512,12 @@ public final class AudioProvider {
       final DiscordPlayer player = connection.getPlayer();
       player.flush();
     }
+
     final HttpResult server = this.httpServer;
     if (server != null) {
       server.setCurrentMedia(MediaInformation.EMPTY);
     }
+
     this.releaseSpeakers();
   }
 
@@ -566,6 +593,7 @@ public final class AudioProvider {
     private final AudioArgument argument;
     private final UrlParseDump dump;
     private final Object[] players;
+
     private volatile AudioFilter output;
 
     private Claim(final Object source, final AudioArgument argument, final UrlParseDump dump, final Object[] players) {

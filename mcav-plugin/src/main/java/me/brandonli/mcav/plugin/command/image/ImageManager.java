@@ -47,13 +47,14 @@ public final class ImageManager {
 
   private static final String PLUGIN_NULL_MESSAGE = "Plugin must not be null!";
 
+  private final MCAVSandbox plugin;
+  private final ExecutorService service;
+  private final Object loadingLock;
+
   private @Nullable ImagePlayer player;
   private @Nullable DisplayableImage image;
   private @Nullable Image currentImage;
 
-  private final MCAVSandbox plugin;
-  private final ExecutorService service;
-  private final Object loadingLock;
   private long loadGeneration;
   private boolean closed;
   private @Nullable ImageBuffer pendingImage;
@@ -90,6 +91,7 @@ public final class ImageManager {
     synchronized (this.loadingLock) {
       this.closed = true;
     }
+
     CleanupUtils.runAll(
       () -> this.releaseImage(ReleaseThread.CALLING_THREAD),
       () -> ExecutorUtils.shutdownExecutorGracefully(this.service)
@@ -110,9 +112,11 @@ public final class ImageManager {
       previous = this.pendingImage;
       this.pendingImage = null;
     }
+
     if (previous != null) {
       previous.release();
     }
+
     return generation;
   }
 
@@ -169,6 +173,7 @@ public final class ImageManager {
       pending = this.pendingImage;
       this.pendingImage = null;
     }
+
     if (pending != null) {
       pending.release();
     }

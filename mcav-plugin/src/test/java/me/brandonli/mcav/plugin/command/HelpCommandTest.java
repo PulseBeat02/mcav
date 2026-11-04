@@ -34,6 +34,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -72,7 +73,8 @@ final class HelpCommandTest {
   void registerCommands() {
     final TestCommandManager manager = new TestCommandManager();
     final AnnotationParser<CommandSender> parser = new AnnotationParser<>(manager, CommandSender.class);
-    parser.descriptionMapper(AnnotationParserHandler::describe);
+    final AnnotationParserHandler handler = mock(AnnotationParserHandler.class, CALLS_REAL_METHODS);
+    parser.descriptionMapper(handler::describe);
     this.help = new HelpCommand(manager);
     parser.parse(this.help);
     final DumpCommand dump = new DumpCommand(() -> "unused");
@@ -144,7 +146,7 @@ final class HelpCommandTest {
 
   @Test
   void shouldTranslateEveryTextOfTheHelp() {
-    final Map<String, String> messages = HelpCommand.createMessages();
+    final Map<String, String> messages = this.help.createMessages();
     final Map<String, String> expected = new HashMap<>();
     this.putListingMessages(expected);
     this.putNavigationMessages(expected);

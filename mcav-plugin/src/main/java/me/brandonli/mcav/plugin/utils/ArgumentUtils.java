@@ -159,6 +159,11 @@ public final class ArgumentUtils {
     Preconditions.checkNotNull(playerSelector, PLAYER_SELECTOR_NULL_MESSAGE);
     Preconditions.checkNotNull(online, "Online players must not be null!");
 
-    return EVERYONE.equals(playerSelector.inputString()) ? online.getPlayers() : resolvePlayerIds(playerSelector);
+    final String input = playerSelector.inputString();
+    if (EVERYONE.equals(input)) {
+      return online.getPlayers();
+    }
+
+    return resolvePlayerIds(playerSelector);
   }
 }

@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.plugin.e2e;
 
+import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
@@ -50,7 +51,6 @@ final class TonePage implements AutoCloseable {
   private static final byte[] LOOPBACK_OCTETS = { 127, 0, 0, 1 };
 
   private static final String TONE_PATH = "/tone";
-  private static final String URL_PREFIX = "http://127.0.0.1:";
 
   private final HttpServer server;
 
@@ -69,7 +69,8 @@ final class TonePage implements AutoCloseable {
 
   private static void sendPage(final HttpExchange exchange) throws IOException {
     final byte[] body = PAGE.getBytes(StandardCharsets.UTF_8);
-    exchange.getResponseHeaders().add("Content-Type", "text/html; charset=utf-8");
+    final Headers headers = exchange.getResponseHeaders();
+    headers.add("Content-Type", "text/html; charset=utf-8");
     exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, body.length);
     try (final OutputStream output = exchange.getResponseBody()) {
       output.write(body);
@@ -82,6 +83,9 @@ final class TonePage implements AutoCloseable {
   }
 
   URI getUri() {
-    return URI.create(URL_PREFIX + this.server.getAddress().getPort() + TONE_PATH);
+    final InetSocketAddress address = this.server.getAddress();
+    final int port = address.getPort();
+    final String url = "http://127.0.0.1:%s%s".formatted(port, TONE_PATH);
+    return URI.create(url);
   }
 }

@@ -82,7 +82,7 @@ public enum DitheringArgument {
    *
    * @since 1.0.0
    */
-  FLOYD_STEINBERG_TEMPORAL(() -> errorDiffusion(ErrorDiffusionDitherBuilder.Algorithm.TEMPORAL_FLOYD_STEINBERG), true),
+  FLOYD_STEINBERG_TEMPORAL(() -> errorDiffusion(ErrorDiffusionDitherBuilder.Algorithm.TEMPORAL_FLOYD_STEINBERG), Lifetime.PER_STREAM),
 
   /**
    * Filter Lite (also known as Sierra Lite) error diffusion. It spreads the error over only three neighbors, which
@@ -695,15 +695,15 @@ public enum DitheringArgument {
   );
 
   private final AlgorithmFactory algorithmFactory;
-  private final boolean stateful;
+  private final Lifetime lifetime;
 
   DitheringArgument(final AlgorithmFactory algorithmFactory) {
-    this(algorithmFactory, false);
+    this(algorithmFactory, Lifetime.SHARED);
   }
 
-  DitheringArgument(final AlgorithmFactory algorithmFactory, final boolean stateful) {
+  DitheringArgument(final AlgorithmFactory algorithmFactory, final Lifetime lifetime) {
     this.algorithmFactory = algorithmFactory;
-    this.stateful = stateful;
+    this.lifetime = lifetime;
   }
 
   private static DitherAlgorithm ordered(final ThresholdMatrix matrix, final int maximum, final float strength) {
@@ -743,11 +743,10 @@ public enum DitheringArgument {
    * @since 1.0.0
    */
   public DitherAlgorithm createAlgorithm() {
-    if (this.stateful) {
-      return this.algorithmFactory.create();
-    }
-
-    return this.getSharedAlgorithm();
+    return switch (this.lifetime) {
+      case SHARED -> this.getSharedAlgorithm();
+      case PER_STREAM -> this.algorithmFactory.create();
+    };
   }
 
   // Lock the enum constant so tests can force concurrent lazy initialization by holding it.
@@ -768,6 +767,11 @@ public enum DitheringArgument {
 
       return created;
     }
+  }
+
+  private enum Lifetime {
+    SHARED,
+    PER_STREAM,
   }
 
   @Immutable

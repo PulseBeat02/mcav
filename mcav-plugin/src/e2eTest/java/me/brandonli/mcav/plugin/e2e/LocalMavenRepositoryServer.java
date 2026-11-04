@@ -82,7 +82,7 @@ final class LocalMavenRepositoryServer implements AutoCloseable {
   }
 
   private void handle(final HttpExchange exchange) throws IOException {
-    try {
+    try (exchange) {
       final String method = exchange.getRequestMethod();
       final boolean isHeadRequest = method.equals(HEAD_METHOD);
       final boolean isGetRequest = method.equals(GET_METHOD);
@@ -100,12 +100,10 @@ final class LocalMavenRepositoryServer implements AutoCloseable {
 
       final Path existingFile = file.get();
       this.sendFile(exchange, existingFile, isHeadRequest);
-    } finally {
-      exchange.close();
     }
   }
 
-  // paths leaving the repository folder count as missing
+  // invalid paths and paths leaving the repository directory count as missing
   private Optional<Path> findFile(final URI requestUri) {
     final String requestPath = requestUri.getPath();
     if (requestPath == null) {
@@ -119,6 +117,7 @@ final class LocalMavenRepositoryServer implements AutoCloseable {
     } catch (final InvalidPathException exception) {
       return Optional.empty();
     }
+
     final Path file = candidate.normalize();
     final boolean inside = file.startsWith(this.root);
     if (!inside || !Files.isRegularFile(file)) {
@@ -144,6 +143,7 @@ final class LocalMavenRepositoryServer implements AutoCloseable {
     try (final OutputStream body = exchange.getResponseBody()) {
       Files.copy(file, body);
     }
+
     this.servedFileCount.incrementAndGet();
   }
 

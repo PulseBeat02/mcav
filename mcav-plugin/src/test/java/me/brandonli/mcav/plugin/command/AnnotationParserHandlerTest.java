@@ -500,15 +500,16 @@ final class AnnotationParserHandlerTest {
 
   @Test
   void shouldRenderDescriptionsWithTheMessagesOfThePlugin() {
-    final RichDescription description = AnnotationParserHandler.describe("mcav.command.video.pause.info");
+    final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
+    final RichDescription description = handler.describe("mcav.command.video.pause.info");
     final Component contents = description.contents();
     final String text = Components.plain(contents);
     assertEquals("Pauses the current video player", text);
 
-    final RichDescription none = AnnotationParserHandler.describe("");
+    final RichDescription none = handler.describe("");
     final boolean empty = none.isEmpty();
     assertTrue(empty);
-    assertThrows(MissingResourceException.class, () -> AnnotationParserHandler.describe("mcav.unknown"));
+    assertThrows(MissingResourceException.class, () -> handler.describe("mcav.unknown"));
   }
 
   @Test

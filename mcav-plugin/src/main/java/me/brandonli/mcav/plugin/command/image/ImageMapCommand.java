@@ -31,6 +31,7 @@ import me.brandonli.mcav.plugin.command.MapDisplaySettings;
 import me.brandonli.mcav.plugin.command.SuggestionProvider;
 import me.brandonli.mcav.plugin.command.video.Mcv2Output;
 import me.brandonli.mcav.plugin.command.video.Mcv2Support;
+import me.brandonli.mcav.plugin.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.plugin.locale.Message;
 import me.brandonli.mcav.plugin.utils.ArgumentUtils;
 import me.brandonli.mcav.plugin.utils.DitheringArgument;
@@ -134,7 +135,9 @@ public final class ImageMapCommand extends AbstractImageCommand {
     }
 
     final Collection<UUID> players = ArgumentUtils.resolveViewers(playerSelector, this.plugin.getOnlinePlayers());
-    final MapCodec chosen = codec != null ? codec : this.plugin.getConfiguration().getMcv2DefaultCodec();
+    final PluginDataConfigurationMapper configuration = this.plugin.getConfiguration();
+    final MapCodec defaultCodec = configuration.getMcv2DefaultCodec();
+    final MapCodec chosen = codec != null ? codec : defaultCodec;
     final ImageConfigurationProvider configurationProvider =
       chosen == MapCodec.MCV2
         ? resolution -> new Mcv2ImageSettings(sender, blocks, resolution, mapId, players, ditheringAlgorithm)
@@ -197,7 +200,9 @@ public final class ImageMapCommand extends AbstractImageCommand {
         mcv2Settings.mapId(),
         mcv2Settings.viewers()
       );
-      return DisplayableImage.map(fallback, mcv2Settings.dithering().createAlgorithm());
+      final DitheringArgument dithering = mcv2Settings.dithering();
+      final DitherAlgorithm algorithm = dithering.createAlgorithm();
+      return DisplayableImage.map(fallback, algorithm);
     }
 
     final MapDisplaySettings settings = (MapDisplaySettings) built;

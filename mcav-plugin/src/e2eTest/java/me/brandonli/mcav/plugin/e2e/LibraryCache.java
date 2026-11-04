@@ -40,6 +40,7 @@ final class LibraryCache implements AutoCloseable {
     if (Files.isDirectory(cacheDirectory)) {
       transfer(cacheDirectory, serverLibraries);
     }
+
     return new LibraryCache(cacheDirectory, serverLibraries);
   }
 

@@ -124,6 +124,7 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
     if (error != null) {
       LOGGER.error("Failed to seek the video.", error);
     }
+
     final Component message = Boolean.TRUE.equals(seeked)
       ? Message.SEEK_PLAYER.build(SeekPosition.format(target))
       : Message.SEEK_FAILED.build();
@@ -199,6 +200,7 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
 
     this.manager.setLooping(enabled);
     sender.sendMessage(enabled ? Message.LOOP_ON.build() : Message.LOOP_OFF.build());
+
     final Optional<VideoPlayerMultiplexer> foundPlayer = this.manager.getPlayer();
     final @Nullable VideoPlayerMultiplexer player = foundPlayer.orElse(null);
     if (enabled && player != null && !(player instanceof AbstractVideoPlayerCv)) {

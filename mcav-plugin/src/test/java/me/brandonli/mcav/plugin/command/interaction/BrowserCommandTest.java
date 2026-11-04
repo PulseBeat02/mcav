@@ -619,7 +619,7 @@ final class BrowserCommandTest {
   @ParameterizedTest
   @ValueSource(strings = { "http://example.com", "https://example.com/page?q=1#top", "HTTPS://Example.com/" })
   void shouldAcceptWebPageAddresses(final String url) {
-    final URI uri = BrowserCommand.parseWebAddress(url);
+    final URI uri = this.command.parseWebAddress(url);
 
     final URI expected = URI.create(url);
     assertEquals(expected, uri);

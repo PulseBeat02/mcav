@@ -111,6 +111,7 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
     if (player != null) {
       player.pause();
     }
+
     final Component message = Message.PAUSE_PLAYER.build();
     sender.sendMessage(message);
   }
@@ -133,6 +134,7 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
     Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
 
     this.manager.cancelStart();
+
     final Component starting = Message.RELEASE_PLAYER_START.build();
     sender.sendMessage(starting);
 
@@ -172,6 +174,7 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
     Preconditions.checkNotNull(location, "Location must not be null!");
 
     this.manager.setHologramLocation(location);
+
     final Component message = Message.HOLOGRAM_LOCATION_SET.build();
     sender.sendMessage(message);
   }
@@ -193,6 +196,7 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
     Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
 
     this.manager.setHologramLocation(null);
+
     final Component message = Message.HOLOGRAM_DISABLED.build();
     sender.sendMessage(message);
   }

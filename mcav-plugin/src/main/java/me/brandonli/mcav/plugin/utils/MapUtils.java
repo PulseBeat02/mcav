@@ -45,13 +45,13 @@ SOFTWARE.
 
 import static java.util.Objects.requireNonNull;
 import static net.kyori.adventure.text.Component.text;
-import static net.kyori.adventure.text.format.NamedTextColor.RED;
 
 import com.google.common.base.Preconditions;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -112,10 +112,10 @@ public final class MapUtils {
 
     final ItemStack map = createMapItemStack(id);
     final ItemMeta nullableMetadata = map.getItemMeta();
-    final ItemMeta itemMetadata = requireNonNull(nullableMetadata);
+    final ItemMeta itemMetadata = requireNonNull(nullableMetadata); // checker framework
 
     final String name = "Map ID [%s]".formatted(id);
-    final Component lore = text(name, RED);
+    final Component lore = text(name, NamedTextColor.RED);
     final List<Component> lines = List.of(lore);
     itemMetadata.lore(lines);
     map.setItemMeta(itemMetadata);
@@ -126,7 +126,7 @@ public final class MapUtils {
     final MapView view = findOrCreateMap(id);
     final ItemStack map = new ItemStack(Material.FILLED_MAP);
     final MapMeta nullableMetadata = (MapMeta) map.getItemMeta();
-    final MapMeta mapMetadata = requireNonNull(nullableMetadata);
+    final MapMeta mapMetadata = requireNonNull(nullableMetadata); // checker framework
     mapMetadata.setMapView(view);
     map.setItemMeta(mapMetadata);
     return map;
@@ -147,6 +147,7 @@ public final class MapUtils {
     final World world = worlds.getFirst();
     MapView created = Bukkit.createMap(world);
     int currentId = created.getId();
+
     final long missing = (long) id - currentId;
     Preconditions.checkArgument(
       missing <= MAXIMUM_NEW_MAPS,
@@ -160,6 +161,7 @@ public final class MapUtils {
       created = Bukkit.createMap(world);
       currentId = created.getId();
     }
+
     Preconditions.checkState(currentId == id, "Map id %s is unavailable, because the server allocated %s instead!", id, currentId);
 
     return created;

@@ -208,7 +208,8 @@ final class MCAVLoaderTest {
   void shouldRefuseModulesOlderThanThePlugin() throws IOException {
     final Path old = this.jarOf(OLD_BUKKIT_JAR_FILE_NAME, "me/brandonli/mcav/bukkit/BukkitModule");
     final List<String> required = List.of("me/brandonli/mcav/bukkit/BukkitModule", MCV2_RESULT_CLASS_NAME);
-    final IllegalStateException refused = assertThrows(IllegalStateException.class, () -> MCAVLoader.checkModules(required, List.of(old)));
+    final MCAVLoader loader = new MCAVLoader(this.cache, required);
+    final IllegalStateException refused = assertThrows(IllegalStateException.class, () -> loader.checkModules(List.of(old)));
 
     final String message = refused.getMessage();
     final String expected =
@@ -231,8 +232,11 @@ final class MCAVLoaderTest {
   void shouldAcceptModulesThatHaveEveryClassThePluginUses() throws IOException {
     final Path bukkit = this.jarOf(BUKKIT_JAR_FILE_NAME, MCV2_RESULT_CLASS_NAME);
     final Path common = this.jarOf(COMMON_JAR_FILE_NAME, MCAV_CLASS_NAME);
-    MCAVLoader.checkModules(List.of(MCAV_CLASS_NAME, MCV2_RESULT_CLASS_NAME), List.of(bukkit, common));
-    assertThrows(UncheckedIOException.class, () -> MCAVLoader.checkModules(List.of(), List.of(this.cache.resolve(MISSING_JAR_FILE_NAME))));
+    final MCAVLoader loader = new MCAVLoader(this.cache, List.of(MCAV_CLASS_NAME, MCV2_RESULT_CLASS_NAME));
+    loader.checkModules(List.of(bukkit, common));
+
+    final MCAVLoader emptyLoader = new MCAVLoader(this.cache, List.of());
+    assertThrows(UncheckedIOException.class, () -> emptyLoader.checkModules(List.of(this.cache.resolve(MISSING_JAR_FILE_NAME))));
   }
 
   @Test
@@ -246,7 +250,8 @@ final class MCAVLoaderTest {
   }
 
   private void checkModulesAgainst(final List<String> required, final Path empty) {
-    MCAVLoader.checkModules(required, List.of(empty));
+    final MCAVLoader loader = new MCAVLoader(this.cache, required);
+    loader.checkModules(List.of(empty));
   }
 
   @Test

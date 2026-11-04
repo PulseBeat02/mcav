@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.plugin.utils;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import java.io.IOException;
@@ -82,11 +84,16 @@ public final class CaptureDevices {
    * @since 1.0.0
    */
   public static List<Device> list() {
-    return list(OsUtils.getOs(), SYSFS, CaptureDevices::canOpen);
+    final Os os = OsUtils.getOs();
+    return list(os, SYSFS, CaptureDevices::canOpen);
   }
 
   static List<Device> list(final Os os, final Path sysfs, final IntPredicate canOpen) {
-    return os == Os.LINUX ? listSysfs(sysfs) : probe(PROBED_DEVICE_COUNT, canOpen);
+    if (os == Os.LINUX) {
+      return listSysfs(sysfs);
+    }
+
+    return probe(PROBED_DEVICE_COUNT, canOpen);
   }
 
   static List<Device> listSysfs(final Path folder) {
@@ -100,9 +107,12 @@ public final class CaptureDevices {
         addDeviceAt(devices, node);
       }
     } catch (final IOException exception) {
+      // unreadable sysfs lists no devices
       return List.of();
     }
+
     devices.sort(Comparator.comparingInt(Device::getIndex));
+
     return List.copyOf(devices);
   }
 
@@ -114,20 +124,31 @@ public final class CaptureDevices {
   }
 
   private static @Nullable Device readNode(final Path node) {
-    final Matcher matcher = NODE.matcher(String.valueOf(node.getFileName()));
+    final @Nullable Path fileName = node.getFileName();
+    final String nodeName = String.valueOf(fileName);
+    final Matcher matcher = NODE.matcher(nodeName);
     if (!matcher.matches()) {
       return null;
     }
 
-    final int index = Integer.parseInt(Objects.requireNonNull(matcher.group(1)));
-    String name;
-    try {
-      name = Files.readString(node.resolve(NAME_FILE), StandardCharsets.UTF_8).strip();
-    } catch (final IOException exception) {
-      name = "";
-    }
-    final String shown = name.isEmpty() ? matcher.group() : name.substring(0, Math.min(name.length(), MAXIMUM_NAME_LENGTH));
+    final String number = requireNonNull(matcher.group(1));
+    final int index = Integer.parseInt(number);
+    final String name = readName(node);
+    final int shownLength = Math.min(name.length(), MAXIMUM_NAME_LENGTH);
+    final String truncated = name.substring(0, shownLength);
+    final String shown = name.isEmpty() ? nodeName : truncated;
     return Device.of(index, shown);
+  }
+
+  private static String readName(final Path node) {
+    final Path nameFile = node.resolve(NAME_FILE);
+    try {
+      final String text = Files.readString(nameFile, StandardCharsets.UTF_8);
+      return text.strip();
+    } catch (final IOException exception) {
+      // an unreadable name shows the node name
+      return "";
+    }
   }
 
   static List<Device> probe(final int count, final IntPredicate canOpen) {
@@ -141,6 +162,7 @@ public final class CaptureDevices {
         devices.add(device);
       }
     }
+
     return List.copyOf(devices);
   }
 
@@ -172,10 +194,13 @@ public final class CaptureDevices {
     Preconditions.checkNotNull(typed, "Typed number must not be null!");
 
     for (final Device device : devices) {
-      if (Integer.toString(device.getIndex()).equals(typed)) {
+      final int index = device.getIndex();
+      final String number = Integer.toString(index);
+      if (number.equals(typed)) {
         return Optional.of(device);
       }
     }
+
     return Optional.empty();
   }
 

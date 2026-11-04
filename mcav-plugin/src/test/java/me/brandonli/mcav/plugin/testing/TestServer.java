@@ -70,7 +70,7 @@ public final class TestServer {
     Mockito.reset(SERVER);
     PENDING_TASKS.clear();
     final Thread mainThread = Thread.currentThread();
-    when(SERVER.isPrimaryThread()).thenAnswer(_ -> TestServer.isMainThread(mainThread));
+    when(SERVER.isPrimaryThread()).thenAnswer(_ -> isMainThread(mainThread));
     final Logger logger = Logger.getLogger(LOGGER_NAME);
     when(SERVER.getLogger()).thenReturn(logger);
     final PluginManager pluginManager = mock(PluginManager.class);
@@ -100,6 +100,7 @@ public final class TestServer {
     final Callable<?> call = invocation.getArgument(1);
     final FutureTask<?> task = new FutureTask<>(call);
     task.run();
+
     return task;
   }
 
@@ -134,9 +135,11 @@ public final class TestServer {
       tasks = new ArrayList<>(PENDING_TASKS);
       PENDING_TASKS.clear();
     }
+
     for (final Runnable task : tasks) {
       task.run();
     }
+
     return tasks.size();
   }
 

@@ -17,13 +17,17 @@
  */
 package me.brandonli.mcav.plugin;
 
+import java.io.File;
+import java.nio.file.Path;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import me.brandonli.mcav.MCAV;
 import me.brandonli.mcav.MCAVApi;
 import me.brandonli.mcav.browser.BrowserModule;
 import me.brandonli.mcav.bukkit.BukkitModule;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2.Pool;
+import me.brandonli.mcav.bukkit.resourcepack.provider.PackHosting;
 import me.brandonli.mcav.bukkit.utils.versioning.ServerEnvironment;
 import me.brandonli.mcav.bukkit.utils.versioning.UnsupportedServerVersionException;
 import me.brandonli.mcav.plugin.audio.AudioProvider;
@@ -68,21 +72,13 @@ public final class MCAVSandbox extends JavaPlugin {
   private @MonotonicNonNull ComponentLogger logger;
 
   private @Nullable MCAVApi mcav;
-
   private @MonotonicNonNull PluginDataConfigurationMapper configurationMapper;
-
   private @Nullable AudioProvider audioProvider;
-
   private @Nullable ImageManager imageManager;
-
   private @Nullable VideoPlayerManager videoPlayerManager;
-
   private @Nullable Mcv2Support mcv2Support;
-
   private @Nullable OnlinePlayers onlinePlayers;
-
   private @Nullable AnnotationParserHandler annotationParserHandler;
-
   private @Nullable JukeboxListener listener;
 
   private boolean qemuAvailable;
@@ -148,6 +144,7 @@ public final class MCAVSandbox extends JavaPlugin {
   @Override
   public void onDisable() {
     this.disabled = true;
+
     final VideoPlayerManager videos = this.videoPlayerManager;
     final ImageManager images = this.imageManager;
     final JukeboxListener jukebox = this.listener;
@@ -156,6 +153,7 @@ public final class MCAVSandbox extends JavaPlugin {
     final Mcv2Support mcv2 = this.mcv2Support;
     final OnlinePlayers online = this.onlinePlayers;
     final MCAVApi library = this.mcav;
+
     this.mcv2Support = null;
     this.onlinePlayers = null;
     this.videoPlayerManager = null;
@@ -164,6 +162,7 @@ public final class MCAVSandbox extends JavaPlugin {
     this.annotationParserHandler = null;
     this.audioProvider = null;
     this.mcav = null;
+
     CleanupUtils.runAll(
       this.whenPresent(videos, VideoPlayerManager::shutdown),
       this.whenPresent(images, ImageManager::shutdown),
@@ -190,6 +189,7 @@ public final class MCAVSandbox extends JavaPlugin {
   private void loadMCAV() {
     final ComponentLogger pluginLogger = this.requireLogger();
     pluginLogger.info("Loading MCAV.");
+
     final long start = System.currentTimeMillis();
     final MCAVApi api = MCAV.api();
     // kept before installing, so onDisable releases whatever the modules created even when installing fails
@@ -198,11 +198,13 @@ public final class MCAVSandbox extends JavaPlugin {
 
     final BukkitModule bukkitModule = api.getModule(BukkitModule.class);
     bukkitModule.inject(this);
+
     final VmModule vmModule = api.getModule(VmModule.class);
     this.qemuAvailable = vmModule.isQemuAvailable();
     if (!this.qemuAvailable) {
       pluginLogger.warn("QEMU is not installed and MCAV cannot install it on this server, so virtual machines will not be available.");
     }
+
     final BrowserModule browserModule = api.getModule(BrowserModule.class);
     this.browserSupported = browserModule.isSupported();
     if (!this.browserSupported) {
@@ -222,29 +224,47 @@ public final class MCAVSandbox extends JavaPlugin {
 
   private void loadMcv2Encoders() {
     final PluginDataConfigurationMapper mapper = this.getConfiguration();
-    Pool.setSharedThreads(mapper.getMcv2EncoderThreads());
-    final int processors = Runtime.getRuntime().availableProcessors();
-    this.requireLogger().info("MCV2 encoders share {} of {} processors.", Pool.shared().getThreads(), processors);
+    final int encoderThreads = mapper.getMcv2EncoderThreads();
+    Pool.setSharedThreads(encoderThreads);
+
+    final Runtime runtime = Runtime.getRuntime();
+    final int processors = runtime.availableProcessors();
+    final ComponentLogger pluginLogger = this.requireLogger();
+    final Pool sharedPool = Pool.shared();
+    final int sharedThreads = sharedPool.getThreads();
+    pluginLogger.info("MCV2 encoders share {} of {} processors.", sharedThreads, processors);
+
     // the native kernels extract into the data folder, never /tmp; installing them decides which kernels run and logs it
-    Mcv2.installNatives(this.getDataFolder().toPath().resolve(NATIVES_FOLDER), mapper.getMcv2Native());
-    this.requireLogger().info("MCV2 kernels: {}.", Mcv2.describeNatives());
+    final File dataFolder = this.getDataFolder();
+    final Path dataPath = dataFolder.toPath();
+    final Path nativesPath = dataPath.resolve(NATIVES_FOLDER);
+    final String nativeLibrary = mapper.getMcv2Native();
+    Mcv2.installNatives(nativesPath, nativeLibrary);
+
+    final String kernels = Mcv2.describeNatives();
+    pluginLogger.info("MCV2 kernels: {}.", kernels);
   }
 
   private void loadManagers() {
     final AudioProvider provider = new AudioProvider(this);
     this.audioProvider = provider;
     provider.initialize();
+
     this.videoPlayerManager = new VideoPlayerManager(this);
     this.imageManager = new ImageManager(this);
+
     final OnlinePlayers online = new OnlinePlayers();
     this.onlinePlayers = online;
     online.start(this);
+
     final PluginDataConfigurationMapper mapper = this.getConfiguration();
     final Mcv2Hosting hosting = mapper.getMcv2PackHosting();
-    final Mcv2Support support = new Mcv2Support(
-      this.getDataFolder().toPath(),
-      hosting.hosting(mapper.getMcv2PackHttpHost(), mapper.getMcv2PackHttpPort())
-    );
+    final File dataFolder = this.getDataFolder();
+    final Path dataPath = dataFolder.toPath();
+    final String host = mapper.getMcv2PackHttpHost();
+    final int port = mapper.getMcv2PackHttpPort();
+    final Function<Path, PackHosting> packHosting = hosting.hosting(host, port);
+    final Mcv2Support support = new Mcv2Support(dataPath, packHosting);
     this.mcv2Support = support;
     support.start();
   }

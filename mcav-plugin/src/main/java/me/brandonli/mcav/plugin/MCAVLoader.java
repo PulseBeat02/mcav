@@ -28,7 +28,6 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -92,7 +91,7 @@ public final class MCAVLoader implements PluginLoader {
    * @since 1.0.0
    */
   public MCAVLoader() {
-    this(Path.of(LIBRARIES_DIRECTORY), readRequiredClasses(requireNonNull(MCAVLoader.class.getClassLoader())));
+    this(Path.of(LIBRARIES_DIRECTORY), readRequiredClasses(requireNonNull(MCAVLoader.class.getClassLoader()))); // checker framework
   }
 
   @VisibleForTesting
@@ -109,7 +108,9 @@ public final class MCAVLoader implements PluginLoader {
     }
 
     try (input) {
-      return new String(input.readAllBytes(), StandardCharsets.UTF_8)
+      final byte[] bytes = input.readAllBytes();
+      final String text = new String(bytes, StandardCharsets.UTF_8);
+      return text
         .lines()
         .filter(line -> !line.isBlank())
         .toList();
@@ -117,46 +118,6 @@ public final class MCAVLoader implements PluginLoader {
       final String message = "Cannot read the classes the plugin needs from its modules!";
       throw new UncheckedIOException(message, exception);
     }
-  }
-
-  @VisibleForTesting
-  static void checkModules(final Collection<String> requiredClasses, final Collection<Path> jars) {
-    final Set<String> entries = listEntries(jars);
-    final List<String> missing = findMissing(requiredClasses, entries);
-    if (!missing.isEmpty()) {
-      final int count = missing.size();
-      final List<String> named = missing.subList(0, Math.min(MAXIMUM_NAMED_CLASSES, count));
-      final String names = String.join(NAME_SEPARATOR, named);
-      final String message =
-        "The MCAV modules the server downloaded are older than this plugin, which uses classes they lack (%s), such as %s. Publish the modules of the plugin's own version, or set -Pmcav.e2e=true when you build the plugin!".formatted(
-          count,
-          names
-        );
-      throw new IllegalStateException(message);
-    }
-  }
-
-  private static Set<String> listEntries(final Collection<Path> jars) {
-    final Set<String> entries = new HashSet<>();
-    for (final Path jar : jars) {
-      try (final ZipFile file = new ZipFile(jar.toFile())) {
-        file.stream().map(ZipEntry::getName).forEach(entries::add);
-      } catch (final IOException exception) {
-        final String message = "Downloaded library %s could not be read!".formatted(jar);
-        throw new UncheckedIOException(message, exception);
-      }
-    }
-    return entries;
-  }
-
-  private static List<String> findMissing(final Collection<String> requiredClasses, final Set<String> entries) {
-    final List<String> missing = new ArrayList<>();
-    for (final String required : requiredClasses) {
-      if (!entries.contains(required + CLASS_SUFFIX)) {
-        missing.add(required.replace(PATH_SEPARATOR, PACKAGE_SEPARATOR));
-      }
-    }
-    return missing;
   }
 
   /**
@@ -175,7 +136,7 @@ public final class MCAVLoader implements PluginLoader {
 
     final Class<?> loaderClass = this.getClass();
     final ClassLoader nullableClassLoader = loaderClass.getClassLoader();
-    final ClassLoader classLoader = requireNonNull(nullableClassLoader);
+    final ClassLoader classLoader = requireNonNull(nullableClassLoader); // checker framework
     final DependencySet dependencies = DependencySet.readFromClasspathResource(classLoader, DEPENDENCIES_RESOURCE);
     final DependencyCache cache = new DependencyCache(this.libraries);
 
@@ -183,11 +144,52 @@ public final class MCAVLoader implements PluginLoader {
     try (final DependencyResolver downloader = new DependencyResolver(gremlinLogger)) {
       final ResolvedDependencySet resolvedDependencies = downloader.resolve(dependencies, cache);
       final Set<Path> jars = resolvedDependencies.jarFiles();
-      checkModules(this.requiredClasses, jars);
+      this.checkModules(jars);
       final PaperClasspathAppender appender = new PaperClasspathAppender(classpathBuilder);
       appender.append(jars);
     }
     cache.cleanup();
+  }
+
+  @VisibleForTesting
+  void checkModules(final Collection<Path> jars) {
+    final Set<String> entries = this.listEntries(jars);
+    final List<String> missing = this.findMissing(entries);
+    if (missing.isEmpty()) {
+      return;
+    }
+
+    final int count = missing.size();
+    final List<String> named = missing.subList(0, Math.min(MAXIMUM_NAMED_CLASSES, count));
+    final String names = String.join(NAME_SEPARATOR, named);
+    final String message =
+      "The MCAV modules the server downloaded are older than this plugin, which uses classes they lack (%s), such as %s. Publish the modules of the plugin's own version, or set -Pmcav.e2e=true when you build the plugin!".formatted(
+        count,
+        names
+      );
+    throw new IllegalStateException(message);
+  }
+
+  private Set<String> listEntries(final Collection<Path> jars) {
+    final Set<String> entries = new HashSet<>();
+    for (final Path jar : jars) {
+      try (final ZipFile file = new ZipFile(jar.toFile())) {
+        final List<String> names = file.stream().map(ZipEntry::getName).toList();
+        entries.addAll(names);
+      } catch (final IOException exception) {
+        final String message = "Downloaded library %s could not be read!".formatted(jar);
+        throw new UncheckedIOException(message, exception);
+      }
+    }
+    return entries;
+  }
+
+  private List<String> findMissing(final Set<String> entries) {
+    return this.requiredClasses
+      .stream()
+      .filter(required -> !entries.contains("%s%s".formatted(required, CLASS_SUFFIX)))
+      .map(required -> required.replace(PATH_SEPARATOR, PACKAGE_SEPARATOR))
+      .toList();
   }
 
   @VisibleForTesting

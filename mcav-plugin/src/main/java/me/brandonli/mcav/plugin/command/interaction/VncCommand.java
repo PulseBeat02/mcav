@@ -26,6 +26,7 @@ import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.plugin.MCAVSandbox;
 import me.brandonli.mcav.plugin.command.SuggestionProvider;
 import me.brandonli.mcav.plugin.data.PluginDataConfigurationMapper;
+import me.brandonli.mcav.plugin.locale.LocaleTools.NullComponent;
 import me.brandonli.mcav.plugin.locale.Message;
 import me.brandonli.mcav.plugin.utils.CleanupUtils;
 import me.brandonli.mcav.plugin.utils.DitheringArgument;
@@ -135,7 +136,8 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
     Preconditions.checkNotNull(player, DESKTOP_NULL_MESSAGE);
 
     // closing the connection waits for the client's threads, which a stalled server can hold up
-    CleanupUtils.runAll(() -> player.getVideoAttachableCallback().detach(), () -> this.releaseInTheBackground(player::release));
+    final VideoAttachableCallback video = player.getVideoAttachableCallback();
+    CleanupUtils.runAll(video::detach, () -> this.releaseInTheBackground(player::release));
   }
 
   /**
@@ -231,22 +233,26 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
 
     final PluginDataConfigurationMapper configuration = this.plugin.getConfiguration();
     final VncAllowList allowList = configuration.getVncAllowList();
-    final VncAllowList.Entry entry = allowList.find(server);
+    final VncAllowList.@Nullable Entry entry = allowList.find(server);
     if (entry == null) {
-      sender.sendMessage(Message.VNC_NOT_ALLOWED.build(server));
+      final Component message = Message.VNC_NOT_ALLOWED.build(server);
+      sender.sendMessage(message);
       return;
     }
 
     final Optional<Pair<Integer, Integer>> parsedResolution = parseDimensions(sender, vncResolution);
     final @Nullable Pair<Integer, Integer> resolution = parsedResolution.orElse(null);
-    final Optional<Pair<Integer, Integer>> parsedBlocks =
-      resolution == null ? Optional.empty() : parseScreenDimensions(sender, blockDimensions);
-    final @Nullable Pair<Integer, Integer> blocks = parsedBlocks.orElse(null);
-    if (resolution == null || blocks == null) {
+    if (resolution == null) {
       return;
     }
 
-    final VncSource source = createSource(entry, resolution, targetFramesPerSecond);
+    final Optional<Pair<Integer, Integer>> parsedBlocks = parseScreenDimensions(sender, blockDimensions);
+    final @Nullable Pair<Integer, Integer> blocks = parsedBlocks.orElse(null);
+    if (blocks == null) {
+      return;
+    }
+
+    final VncSource source = this.createSource(entry, resolution, targetFramesPerSecond);
     final MapCodec chosen = this.chooseCodec(codec);
     final ScreenSettings settings = new ScreenSettings(sender, playerSelector, blocks, resolution, mapId, ditheringAlgorithm, chosen);
     final Screen screen = this.createScreen(settings);
@@ -254,14 +260,18 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
   }
 
   // only the source keeps the entry's password
-  static VncSource createSource(final VncAllowList.Entry entry, final Pair<Integer, Integer> resolution, final int targetFramesPerSecond) {
+  VncSource createSource(final VncAllowList.Entry entry, final Pair<Integer, Integer> resolution, final int targetFramesPerSecond) {
     final VncSourceBuilder builder = VncSource.builder();
-    builder.host(entry.getHost());
-    builder.port(entry.getPort());
+    final String host = entry.getHost();
+    builder.host(host);
+    final int port = entry.getPort();
+    builder.port(port);
     final Optional<String> password = entry.getPassword();
     password.ifPresent(builder::password);
-    builder.screenWidth(resolution.getFirst());
-    builder.screenHeight(resolution.getSecond());
+    final int width = resolution.getFirst();
+    builder.screenWidth(width);
+    final int height = resolution.getSecond();
+    builder.screenHeight(height);
     builder.targetFrameRate(targetFramesPerSecond);
     return builder.build();
   }
@@ -269,14 +279,19 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
   private void connect(final CommandSender sender, final Screen screen, final VncSource source, final VncAllowList.Entry entry) {
     final VncPlayer desktop = VncPlayer.create();
     this.ownCreatedPlayer(desktop);
+
     final VideoAttachableCallback callback = desktop.getVideoAttachableCallback();
     final VideoPipelineStep pipeline = screen.getPipeline();
     callback.attach(pipeline);
 
-    sender.sendMessage(Message.VNC_LOADING.build());
+    final Component loading = Message.VNC_LOADING.build();
+    sender.sendMessage(loading);
+
     final ExecutorService executor = this.startExecutor(desktop, screen);
     final CompletableFuture<Boolean> start = desktop.startAsync(source, executor);
-    final String server = VncAllowList.format(entry.getHost(), entry.getPort());
+    final String host = entry.getHost();
+    final int port = entry.getPort();
+    final String server = VncAllowList.format(host, port);
     final String description = "the VNC desktop of %s".formatted(server);
     this.reportStartWhenDone(sender, desktop, screen, start, description);
   }
@@ -292,7 +307,8 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    */
   @Override
   protected Component createStartMessage(final StartOutcome outcome, final @Nullable Throwable error) {
-    return outcome == StartOutcome.STARTED ? Message.VNC_CREATE.build() : Message.VNC_ERROR.build();
+    final NullComponent message = outcome == StartOutcome.STARTED ? Message.VNC_CREATE : Message.VNC_ERROR;
+    return message.build();
   }
 
   /**

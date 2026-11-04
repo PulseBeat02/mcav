@@ -19,6 +19,7 @@ package me.brandonli.mcav.plugin.command.interaction;
 
 import com.google.common.base.Preconditions;
 import java.net.URI;
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -30,6 +31,7 @@ import me.brandonli.mcav.browser.BrowserOptions;
 import me.brandonli.mcav.browser.BrowserPlayer;
 import me.brandonli.mcav.browser.BrowserSource;
 import me.brandonli.mcav.browser.BrowserUnavailableException;
+import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.plugin.MCAVSandbox;
@@ -146,12 +148,9 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     Preconditions.checkNotNull(player, BROWSER_NULL_MESSAGE);
 
     // the browser helper takes seconds to stop and its session folder to be deleted; no frame or sound of it meanwhile
-    CleanupUtils.runAll(
-      () -> player.getVideoAttachableCallback().detach(),
-      () -> player.getAudioAttachableCallback().detach(),
-      () -> this.releaseSound(player),
-      () -> this.releaseInTheBackground(player::release)
-    );
+    final VideoAttachableCallback video = player.getVideoAttachableCallback();
+    final AudioAttachableCallback audio = player.getAudioAttachableCallback();
+    CleanupUtils.runAll(video::detach, audio::detach, () -> this.releaseSound(player), () -> this.releaseInTheBackground(player::release));
   }
 
   /**
@@ -261,7 +260,8 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     Preconditions.checkNotNull(audioType, "Audio type must not be null!");
     Preconditions.checkNotNull(url, "URL must not be null!");
 
-    if (!this.plugin.isBrowserSupported()) {
+    final boolean supported = this.plugin.isBrowserSupported();
+    if (!supported) {
       final Component message = Message.BROWSER_UNSUPPORTED.build();
       sender.sendMessage(message);
       return;
@@ -278,7 +278,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
       return;
     }
 
-    final URI uri = parseWebAddress(url);
+    final URI uri = this.parseWebAddress(url);
     if (uri == null) {
       final Component message = Message.UNSUPPORTED_URL.build();
       sender.sendMessage(message);
@@ -297,7 +297,8 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     final MapCodec chosen = this.chooseCodec(codec);
     final ScreenSettings settings = new ScreenSettings(sender, playerSelector, blocks, resolution, mapId, ditheringAlgorithm, chosen);
     final Screen screen = this.createScreen(settings);
-    final Player[] viewers = playerSelector.values().toArray(Player[]::new);
+    final Collection<Player> players = playerSelector.values();
+    final Player[] viewers = players.toArray(Player[]::new);
     final ScreenSound sound = new ScreenSound(audioType, viewers);
     this.createResource(() -> this.startBrowser(sender, screen, source, sound));
   }
@@ -310,7 +311,9 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     }
 
     // the browser paints at most this many pixels per side, fewer than a wall of maps can show
-    if (resolution.getFirst() > BrowserSource.MAXIMUM_SIDE || resolution.getSecond() > BrowserSource.MAXIMUM_SIDE) {
+    final int width = resolution.getFirst();
+    final int height = resolution.getSecond();
+    if (width > BrowserSource.MAXIMUM_SIDE || height > BrowserSource.MAXIMUM_SIDE) {
       final Component message = Message.UNSUPPORTED_DIMENSION.build();
       sender.sendMessage(message);
       return null;
@@ -348,7 +351,8 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     final VideoAttachableCallback callback = browser.getVideoAttachableCallback();
     final VideoPipelineStep pipeline = screen.getPipeline();
     callback.attach(pipeline);
-    this.attachSound(browser, browser.getAudioAttachableCallback(), sound, "Browser");
+    final AudioAttachableCallback audio = browser.getAudioAttachableCallback();
+    this.attachSound(browser, audio, sound, "Browser");
 
     final Component loading = Message.BROWSER_LOADING.build();
     sender.sendMessage(loading);
@@ -360,7 +364,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     this.sendSoundLinkWhenStarted(start, screen, sound);
   }
 
-  static @Nullable URI parseWebAddress(final String url) {
+  @Nullable URI parseWebAddress(final String url) {
     final URI uri;
     try {
       uri = URI.create(url);

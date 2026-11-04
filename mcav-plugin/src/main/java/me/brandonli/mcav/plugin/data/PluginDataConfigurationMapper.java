@@ -108,46 +108,32 @@ public final class PluginDataConfigurationMapper {
   private Locale locale;
 
   private boolean discordBotEnabled;
-
   private String discordBotToken;
-
   private String discordBotChannelId;
-
   private String discordBotGuildId;
 
   private boolean httpEnabled;
-
   private String httpHostName;
-
   private int httpPort;
 
   private boolean simpleVoiceChatEnabled;
 
   private boolean browserPrivateNetworks;
-
   private boolean browserJavaScriptJit;
-
   private boolean browserAutoplaySound;
-
-  private boolean browserConfineChromium = true;
-
-  private List<String> browserRefusedHosts = List.of();
+  private boolean browserConfineChromium;
+  private List<String> browserRefusedHosts;
 
   private boolean vmAllowNetwork;
 
   private int mcv2EncoderThreads;
+  private String mcv2Native;
+  private MapCodec mcv2DefaultCodec;
+  private Mcv2Hosting mcv2PackHosting;
+  private String mcv2PackHttpHost;
+  private int mcv2PackHttpPort;
 
-  private String mcv2Native = Mcv2.NATIVE_AUTO;
-
-  private MapCodec mcv2DefaultCodec = MapCodec.DITHER;
-
-  private Mcv2Hosting mcv2PackHosting = Mcv2Hosting.INJECTOR;
-
-  private String mcv2PackHttpHost = "";
-
-  private int mcv2PackHttpPort = DEFAULT_PACK_HTTP_PORT;
-
-  private VncAllowList vncAllowList = VncAllowList.NONE;
+  private VncAllowList vncAllowList;
 
   /**
    * Creates the mapper with default settings. Call {@link #deserialize()} to read the file.
@@ -165,6 +151,14 @@ public final class PluginDataConfigurationMapper {
     this.discordBotGuildId = "";
     this.httpHostName = DEFAULT_HOST;
     this.httpPort = DEFAULT_HTTP_PORT;
+    this.browserConfineChromium = true;
+    this.browserRefusedHosts = List.of();
+    this.mcv2Native = Mcv2.NATIVE_AUTO;
+    this.mcv2DefaultCodec = MapCodec.DITHER;
+    this.mcv2PackHosting = Mcv2Hosting.INJECTOR;
+    this.mcv2PackHttpHost = "";
+    this.mcv2PackHttpPort = DEFAULT_PACK_HTTP_PORT;
+    this.vncAllowList = VncAllowList.NONE;
   }
 
   /**
@@ -207,6 +201,7 @@ public final class PluginDataConfigurationMapper {
     if (!exists) {
       this.plugin.saveResource(CONFIGURATION_FILE, DO_NOT_REPLACE);
     }
+
     try (final Reader reader = Files.newBufferedReader(file)) {
       final YamlConfiguration configuration = new YamlConfiguration();
       configuration.load(reader);
@@ -252,6 +247,7 @@ public final class PluginDataConfigurationMapper {
         return constant;
       }
     }
+
     LOGGER.warn(INVALID_SETTING, key, value, fallback);
 
     return fallback;
@@ -267,6 +263,7 @@ public final class PluginDataConfigurationMapper {
         hosts.add(host);
       }
     }
+
     return List.copyOf(hosts);
   }
 
@@ -304,6 +301,7 @@ public final class PluginDataConfigurationMapper {
         entries.add(entry);
       }
     }
+
     return VncAllowList.of(entries);
   }
 

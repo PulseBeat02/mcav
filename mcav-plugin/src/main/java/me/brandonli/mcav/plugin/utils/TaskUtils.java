@@ -82,6 +82,7 @@ public final class TaskUtils {
       return true;
     } catch (final IllegalPluginAccessException exception) {
       LOGGER.warn("Dropped a task for the main thread because the plugin is disabled.", exception);
+
       return false;
     }
   }

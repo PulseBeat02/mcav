@@ -55,6 +55,7 @@ public final class ScoreboardArguments {
     } catch (final IllegalArgumentException exception) {
       return false;
     }
+
     final int lines = dimensions.getSecond();
     return lines > ScoreboardConfiguration.MAXIMUM_LINES;
   }

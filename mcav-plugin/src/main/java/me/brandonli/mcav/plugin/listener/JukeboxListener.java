@@ -142,6 +142,7 @@ public final class JukeboxListener implements Listener {
     }
 
     event.setCancelled(true);
+
     final Player player = event.getPlayer();
     final String playerName = player.getName();
     final Path absolute = image.toAbsolutePath();

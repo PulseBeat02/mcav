@@ -57,11 +57,13 @@ final class UrlPlaceholder implements ComponentRenderer<String> {
     if (click != null && ClickEvent.Action.OPEN_URL.equals(click.action())) {
       rendered = this.renderClick(rendered, click, url);
     }
+
     final HoverEvent<?> hover = component.hoverEvent();
     if (hover != null) {
       final HoverEvent<?> replacement = hover.withRenderedValue(this, url);
       rendered = rendered.hoverEvent(replacement);
     }
+
     return rendered;
   }
 
@@ -72,6 +74,7 @@ final class UrlPlaceholder implements ComponentRenderer<String> {
       final Component replacement = this.render(child, url);
       children.add(replacement);
     }
+
     return children;
   }
 
@@ -89,19 +92,20 @@ final class UrlPlaceholder implements ComponentRenderer<String> {
   }
 
   private Component replaceContent(final Component component, final String url) {
-    if (component instanceof TextComponent text) {
+    if (component instanceof final TextComponent text) {
       final String original = text.content();
       final String content = original.replace(this.marker, url);
       return text.content(content);
     }
 
-    if (component instanceof TranslatableComponent translatable) {
+    if (component instanceof final TranslatableComponent translatable) {
       final List<TranslationArgument> originalArguments = translatable.arguments();
       final List<TranslationArgument> arguments = new ArrayList<>(originalArguments.size());
       for (final TranslationArgument argument : originalArguments) {
         final TranslationArgument rendered = this.renderArgument(argument, url);
         arguments.add(rendered);
       }
+
       return translatable.arguments(arguments);
     }
 
@@ -110,7 +114,7 @@ final class UrlPlaceholder implements ComponentRenderer<String> {
 
   private TranslationArgument renderArgument(final TranslationArgument argument, final String url) {
     final Object value = argument.value();
-    if (value instanceof Component nested) {
+    if (value instanceof final Component nested) {
       final Component replacement = this.render(nested, url);
       return TranslationArgument.component(replacement);
     }

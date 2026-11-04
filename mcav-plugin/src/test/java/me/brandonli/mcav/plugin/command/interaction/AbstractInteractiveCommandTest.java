@@ -1776,7 +1776,7 @@ final class AbstractInteractiveCommandTest {
   @Test
   void shouldTellTheLogOnceThatTheMapsOfAScreenShowAPicture() {
     final List<String> messages = new ArrayList<>();
-    final VideoFilter announcement = AbstractInteractiveCommand.announceFirstPicture(4, 6, messages::add);
+    final VideoFilter announcement = this.command.announceFirstPicture(4, 6, messages::add);
     final byte[] pixels = { 3, 5, 7, 11, 13, 17 };
     try (final ImageBuffer frame = ImageBuffer.bytes(pixels.clone(), 2, 1)) {
       final boolean filtered = announcement.applyFilter(frame, OriginalVideoMetadata.EMPTY);

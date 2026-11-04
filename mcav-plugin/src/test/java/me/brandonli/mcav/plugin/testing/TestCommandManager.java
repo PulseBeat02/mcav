@@ -62,12 +62,7 @@ public final class TestCommandManager extends CommandManager<CommandSender> {
   }
 
   public Set<String> getSyntaxes() {
-    final Set<String> syntaxes = new TreeSet<>();
-    for (final Command<CommandSender> command : this.commands()) {
-      final String syntax = this.formatSyntax(command);
-      syntaxes.add(syntax);
-    }
-    return syntaxes;
+    return this.commands().stream().map(this::formatSyntax).collect(Collectors.toCollection(TreeSet::new));
   }
 
   public Command<CommandSender> getCommand(final String syntax) {

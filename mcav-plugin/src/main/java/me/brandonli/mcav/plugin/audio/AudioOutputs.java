@@ -58,8 +58,16 @@ public final class AudioOutputs {
     Preconditions.checkNotNull(audioType, AUDIO_TYPE_NULL_MESSAGE);
 
     return switch (audioType) {
-      case DISCORD_BOT -> describe(provider.isDiscordBotEnabled(), provider.isDiscordBotReady());
-      case HTTP_SERVER -> describe(provider.isHttpEnabled(), provider.isHttpReady());
+      case DISCORD_BOT -> {
+        final boolean enabled = provider.isDiscordBotEnabled();
+        final boolean ready = provider.isDiscordBotReady();
+        yield describe(enabled, ready);
+      }
+      case HTTP_SERVER -> {
+        final boolean enabled = provider.isHttpEnabled();
+        final boolean ready = provider.isHttpReady();
+        yield describe(enabled, ready);
+      }
       case NONE, SIMPLE_VOICE_CHAT -> Optional.empty();
     };
   }
@@ -114,8 +122,16 @@ public final class AudioOutputs {
     Preconditions.checkNotNull(audioType, AUDIO_TYPE_NULL_MESSAGE);
 
     return switch (audioType) {
-      case DISCORD_BOT -> Optional.of(Message.AUDIO_DISCORD.build(provider.constructVoiceChannelUrl()));
-      case HTTP_SERVER -> Optional.of(Message.AUDIO_HTTP.build(provider.constructHttpUrl()));
+      case DISCORD_BOT -> {
+        final String url = provider.constructVoiceChannelUrl();
+        final Component link = Message.AUDIO_DISCORD.build(url);
+        yield Optional.of(link);
+      }
+      case HTTP_SERVER -> {
+        final String url = provider.constructHttpUrl();
+        final Component link = Message.AUDIO_HTTP.build(url);
+        yield Optional.of(link);
+      }
       case NONE, SIMPLE_VOICE_CHAT -> Optional.empty();
     };
   }

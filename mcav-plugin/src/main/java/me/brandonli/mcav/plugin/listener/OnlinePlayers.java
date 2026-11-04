@@ -30,6 +30,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.plugin.PluginManager;
 
 /**
  * The players online, kept as they join and leave. A screen shown to {@code @a} watches through this set, so a player
@@ -63,7 +64,9 @@ public final class OnlinePlayers implements Listener {
     for (final Player player : Bukkit.getOnlinePlayers()) {
       this.online.add(player.getUniqueId());
     }
-    Bukkit.getPluginManager().registerEvents(this, plugin);
+
+    final PluginManager pluginManager = Bukkit.getPluginManager();
+    pluginManager.registerEvents(this, plugin);
   }
 
   /**
@@ -84,7 +87,9 @@ public final class OnlinePlayers implements Listener {
    */
   @EventHandler(priority = EventPriority.LOWEST)
   public void onPlayerJoin(final PlayerJoinEvent event) {
-    this.online.add(event.getPlayer().getUniqueId());
+    final Player player = event.getPlayer();
+    final UUID playerId = player.getUniqueId();
+    this.online.add(playerId);
   }
 
   /**
@@ -95,7 +100,9 @@ public final class OnlinePlayers implements Listener {
    */
   @EventHandler(priority = EventPriority.MONITOR)
   public void onPlayerQuit(final PlayerQuitEvent event) {
-    this.online.remove(event.getPlayer().getUniqueId());
+    final Player player = event.getPlayer();
+    final UUID playerId = player.getUniqueId();
+    this.online.remove(playerId);
   }
 
   /**

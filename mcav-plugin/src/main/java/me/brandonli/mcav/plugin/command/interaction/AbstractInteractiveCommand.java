@@ -53,6 +53,8 @@ import me.brandonli.mcav.plugin.command.AnnotationCommandFeature;
 import me.brandonli.mcav.plugin.command.MapDisplaySettings;
 import me.brandonli.mcav.plugin.command.video.Mcv2Output;
 import me.brandonli.mcav.plugin.command.video.Mcv2Support;
+import me.brandonli.mcav.plugin.data.PluginDataConfigurationMapper;
+import me.brandonli.mcav.plugin.listener.OnlinePlayers;
 import me.brandonli.mcav.plugin.locale.Message;
 import me.brandonli.mcav.plugin.utils.ArgumentUtils;
 import me.brandonli.mcav.plugin.utils.AudioArgument;
@@ -95,6 +97,7 @@ import org.bukkit.projectiles.ProjectileSource;
 import org.bukkit.util.RayTraceResult;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.incendo.cloud.annotations.AnnotationParser;
+import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -117,7 +120,6 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class AbstractInteractiveCommand<PlayerType> implements AnnotationCommandFeature, Listener {
 
-  private static final String PLUGIN_NULL_MESSAGE = "Plugin must not be null!";
   private static final String SENDER_NULL_MESSAGE = "Sender must not be null!";
   private static final String TEXT_NULL_MESSAGE = "Text must not be null!";
   private static final String EVENT_NULL_MESSAGE = "Event must not be null!";
@@ -148,6 +150,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
 
   private final Set<Player> activePlayers;
   private final Object lock;
+
   private volatile @Nullable Screen screen;
   private boolean closed;
 
@@ -177,18 +180,11 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * @since 1.0.0
    */
   protected AbstractInteractiveCommand(final MCAVSandbox plugin) {
-    Preconditions.checkNotNull(plugin, PLUGIN_NULL_MESSAGE);
-
-    this.plugin = plugin;
-    this.service = Executors.newSingleThreadExecutor();
-    final WeakHashMap<Player, Boolean> backing = new WeakHashMap<>();
-    final Set<Player> players = Collections.newSetFromMap(backing);
-    this.activePlayers = Collections.synchronizedSet(players);
-    this.lock = new Object();
+    this(plugin, Executors.newSingleThreadExecutor());
   }
 
   AbstractInteractiveCommand(final MCAVSandbox plugin, final ExecutorService service) {
-    Preconditions.checkNotNull(plugin, PLUGIN_NULL_MESSAGE);
+    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
     Preconditions.checkNotNull(service, "Executor must not be null!");
 
     this.plugin = plugin;
@@ -305,7 +301,8 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     final AudioProvider provider = this.plugin.getAudioProvider();
     this.soundProvider = provider;
     final UrlParseDump dump = UrlParseDump.of(title);
-    final AudioFilter filter = provider.constructFilter(type, dump, sound.getViewers(), owner);
+    final Player[] viewers = sound.getViewers();
+    final AudioFilter filter = provider.constructFilter(type, dump, viewers, owner);
     audio.attach(AudioPipelineStep.of(filter));
   }
 
@@ -329,7 +326,9 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
 
   private void sendSoundLinkUnlessCancelled(final AudioProvider provider, final Screen screen, final ScreenSound sound) {
     if (!screen.isCancelled()) {
-      AudioOutputs.sendLink(provider, sound.getType(), sound.getViewers());
+      final AudioArgument type = sound.getType();
+      final Player[] viewers = sound.getViewers();
+      AudioOutputs.sendLink(provider, type, viewers);
     }
   }
 
@@ -393,7 +392,9 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
       Preconditions.checkState(!this.closed, "The interactive command is shut down!");
     }
     this.releaseCurrent();
-    final Collection<UUID> players = ArgumentUtils.resolveViewers(settings.getViewers(), this.plugin.getOnlinePlayers());
+    final MultiplePlayerSelector viewers = settings.getViewers();
+    final OnlinePlayers onlinePlayers = this.plugin.getOnlinePlayers();
+    final Collection<UUID> players = ArgumentUtils.resolveViewers(viewers, onlinePlayers);
     final FunctionalVideoFilter output = this.createOutput(settings, players);
     synchronized (this.lock) {
       this.output = output;
@@ -402,7 +403,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
       return this.startScreen(settings, output);
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
-      this.releaseAfterFailure(exception);
+      this.cleanupAfterFailure(exception, this::releaseCurrent);
       throw exception;
     }
   }
@@ -414,11 +415,13 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     final int columns = blocks.getFirst();
     final int rows = blocks.getSecond();
     final long mapCount = (long) columns * rows;
-    final VideoPipelineStep announcement = VideoPipelineStep.of(announceFirstPicture(mapId, mapCount, LOGGER::info));
+    final VideoPipelineStep announcement = VideoPipelineStep.of(this.announceFirstPicture(mapId, mapCount, LOGGER::info));
     final VideoPipelineStep pipeline = VideoPipelineStep.of(announcement, output);
     final Pair<Integer, Integer> resolution = settings.getResolution();
     final boolean stretched = output instanceof Mcv2Output;
-    final WallPicture picture = WallPicture.of(columns, rows, resolution.getFirst(), resolution.getSecond(), stretched);
+    final int width = resolution.getFirst();
+    final int height = resolution.getSecond();
+    final WallPicture picture = WallPicture.of(columns, rows, width, height, stretched);
     final Screen created = new Screen(output, pipeline, mapId, mapCount, picture);
     synchronized (this.lock) {
       this.output = output;
@@ -428,12 +431,15 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
   }
 
   final MapCodec chooseCodec(final @Nullable MapCodec flag) {
-    return flag != null ? flag : this.plugin.getConfiguration().getMcv2DefaultCodec();
+    final PluginDataConfigurationMapper configuration = this.plugin.getConfiguration();
+    final MapCodec defaultCodec = configuration.getMcv2DefaultCodec();
+    return flag != null ? flag : defaultCodec;
   }
 
   // releasing the output releases the maps
   private FunctionalVideoFilter createOutput(final ScreenSettings settings, final Collection<UUID> players) {
-    if (settings.getCodec() == MapCodec.MCV2) {
+    final MapCodec codec = settings.getCodec();
+    if (codec == MapCodec.MCV2) {
       final Mcv2Output output = this.createMcv2Output(settings, players);
       if (output != null) {
         return output;
@@ -450,10 +456,8 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     final Mcv2Support support = this.plugin.getMcv2Support();
     final CommandSender sender = settings.getSender();
     final Optional<Mcv2Configuration> foundConfiguration = support.configure(sender, blocks, resolution, mapId, Settings.DEFAULT, players);
-    final @Nullable Mcv2Configuration configuration = foundConfiguration.orElse(null);
-    final Optional<Mcv2Output> foundOutput = configuration == null ? Optional.empty() : support.output(sender, configuration, dithering);
-    final @Nullable Mcv2Output output = foundOutput.orElse(null);
-    return output;
+    final Optional<Mcv2Output> output = foundConfiguration.flatMap(configuration -> support.output(sender, configuration, dithering));
+    return output.orElse(null);
   }
 
   private FunctionalVideoFilter createDitheredOutput(final ScreenSettings settings, final Collection<UUID> players) {
@@ -468,24 +472,19 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
       return DitherFilter.dither(algorithm, maps);
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
-      try {
-        maps.release();
-      } catch (final RuntimeException | Error cleanupException) {
-        ThrowableUtils.throwIfFatal(cleanupException);
-        exception.addSuppressed(cleanupException);
-      }
+      this.cleanupAfterFailure(exception, maps::release);
       throw exception;
     }
   }
 
-  static VideoFilter announceFirstPicture(final int mapId, final long mapCount, final Consumer<String> log) {
+  VideoFilter announceFirstPicture(final int mapId, final long mapCount, final Consumer<String> log) {
     final AtomicBoolean announced = new AtomicBoolean();
     final long lastMapId = mapId + mapCount - 1;
     final String message = "Maps %s to %s show their first picture.".formatted(mapId, lastMapId);
-    return (image, metadata) -> announceOnce(announced, message, log);
+    return (image, metadata) -> this.announceOnce(announced, message, log);
   }
 
-  private static boolean announceOnce(final AtomicBoolean announced, final String message, final Consumer<String> log) {
+  private boolean announceOnce(final AtomicBoolean announced, final String message, final Consumer<String> log) {
     if (announced.compareAndSet(false, true)) {
       log.accept(message);
     }
@@ -504,20 +503,8 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
       create.run();
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
-      this.releaseAfterFailure(exception);
+      this.cleanupAfterFailure(exception, this::releaseCurrent);
       throw exception;
-    }
-  }
-
-  private void releaseAfterFailure(final Throwable exception) {
-    try {
-      this.releaseCurrent();
-    } catch (final RuntimeException | Error cleanupException) {
-      ThrowableUtils.throwIfFatal(cleanupException);
-      final boolean same = IDENTITY.equivalent(exception, cleanupException);
-      if (!same) {
-        exception.addSuppressed(cleanupException);
-      }
     }
   }
 

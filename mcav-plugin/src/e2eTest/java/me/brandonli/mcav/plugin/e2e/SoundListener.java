@@ -81,6 +81,11 @@ final class SoundListener implements WebSocket.Listener, AutoCloseable {
   double awaitFrequency(final int seconds, final Duration timeout) throws InterruptedException {
     final long deadline = System.nanoTime() + timeout.toNanos();
     final int wanted = seconds * SAMPLE_RATE * FRAME_BYTES;
+    final byte[] heard = this.awaitSound(wanted, deadline, timeout);
+    return this.measureFrequency(heard);
+  }
+
+  private byte[] awaitSound(final int wanted, final long deadline, final Duration timeout) throws InterruptedException {
     byte[] heard = this.copyHeardBytes();
     while (heard.length < wanted) {
       if (System.nanoTime() > deadline) {
@@ -90,6 +95,11 @@ final class SoundListener implements WebSocket.Listener, AutoCloseable {
       TimeUnit.MILLISECONDS.sleep(POLL_INTERVAL_MILLISECONDS);
       heard = this.copyHeardBytes();
     }
+
+    return heard;
+  }
+
+  private double measureFrequency(final byte[] heard) {
     final ByteBuffer samples = ByteBuffer.wrap(heard).order(ByteOrder.LITTLE_ENDIAN);
     final int frames = heard.length / FRAME_BYTES;
     int crossings = 0;

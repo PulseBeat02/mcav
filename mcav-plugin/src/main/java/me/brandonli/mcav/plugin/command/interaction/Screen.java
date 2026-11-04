@@ -31,6 +31,7 @@ final class Screen {
   private final int firstMapId;
   private final long mapCount;
   private final WallPicture picture;
+
   private boolean cancelled;
   private boolean starting;
   private @Nullable CompletableFuture<Boolean> start;
@@ -79,6 +80,7 @@ final class Screen {
       this.start = future;
       shouldCancel = this.cancelled;
     }
+
     if (shouldCancel) {
       future.cancel(DO_NOT_INTERRUPT);
     }
@@ -93,9 +95,11 @@ final class Screen {
       future = this.start;
       running = this.starting;
     }
+
     if (future != null) {
       future.cancel(DO_NOT_INTERRUPT);
     }
+
     return running;
   }
 

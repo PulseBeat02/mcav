@@ -71,12 +71,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
    */
   protected final MCAVSandbox plugin;
 
-  /**
-   * The manager of the displayed image.
-   *
-   * @since 1.0.0
-   */
-  protected final ImageManager manager;
+  private final ImageManager manager;
 
   /**
    * Creates the command.
@@ -135,13 +130,18 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     }
 
     final ImageRequest request = new ImageRequest(sender, sourceMrl, resolution, configurationProvider);
-    this.startLoading(chain.isEmpty() ? loader : () -> this.filter(loader.get(), resolution, chain), request);
+    final Supplier<ImageBuffer> filteredLoader = () -> this.filter(loader.get(), resolution, chain);
+    final Supplier<ImageBuffer> chosenLoader = chain.isEmpty() ? loader : filteredLoader;
+    this.startLoading(chosenLoader, request);
   }
 
   // resized first, which bounds the filters' work
   private ImageBuffer filter(final ImageBuffer image, final Pair<Integer, Integer> resolution, final FilterChain chain) {
     try {
-      new ResizeFilter(resolution.getFirst(), resolution.getSecond()).applyFilter(image);
+      final int width = resolution.getFirst();
+      final int height = resolution.getSecond();
+      final ResizeFilter resize = new ResizeFilter(width, height);
+      resize.applyFilter(image);
       chain.apply(image);
 
       return image;
@@ -190,6 +190,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
       sender.sendMessage(message);
       return;
     }
+
     TaskUtils.whenComplete(loading, (image, error) -> this.onImageLoaded(request, generation, image, error));
   }
 

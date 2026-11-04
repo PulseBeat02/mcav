@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 // every comma-separated part of a value must match a form listed for its option
 final class QemuHardwareValues {
@@ -205,16 +206,22 @@ final class QemuHardwareValues {
     final String first = parts.getFirst();
     final List<String> rest = parts.subList(1, parts.size());
     switch (name) {
-      case MACHINE_OPTION -> checkFirstAndProperties(name, value, first, WORD, rest, MACHINE_PROPERTIES);
-      case MEMORY_OPTION -> checkFirstAndProperties(name, value, first, SIZE, rest, MEMORY_PROPERTIES);
-      case PROCESSORS_OPTION -> checkFirstAndProperties(name, value, first, NUMBER, rest, PROCESSORS_PROPERTIES);
-      case ACCELERATOR_OPTION -> checkFirstAndProperties(name, value, first, ACCELERATOR, rest, ACCELERATOR_PROPERTIES);
-      case BOOT_OPTION -> checkFirstAndProperties(name, value, first, BOOT_DEVICES, rest, BOOT_PROPERTIES);
-      case NAME_OPTION -> checkFirstAndProperties(name, value, first, GUEST_NAME, rest, NAME_PROPERTIES);
+      case MACHINE_OPTION -> checkFirstAndProperties(name, value, parts, WORD, MACHINE_PROPERTIES);
+      case MEMORY_OPTION -> checkFirstAndProperties(name, value, parts, SIZE, MEMORY_PROPERTIES);
+      case PROCESSORS_OPTION -> checkFirstAndProperties(name, value, parts, NUMBER, PROCESSORS_PROPERTIES);
+      case ACCELERATOR_OPTION -> checkFirstAndProperties(name, value, parts, ACCELERATOR, ACCELERATOR_PROPERTIES);
+      case BOOT_OPTION -> checkFirstAndProperties(name, value, parts, BOOT_DEVICES, BOOT_PROPERTIES);
+      case NAME_OPTION -> checkFirstAndProperties(name, value, parts, GUEST_NAME, NAME_PROPERTIES);
       case CLOCK_OPTION -> checkProperties(name, value, parts, CLOCK_PROPERTIES);
       case CPU_OPTION -> checkCpu(value, first, rest);
-      case KEYBOARD_OPTION -> require(name, value, parts.size() == 1 && KEYBOARD.matcher(value).matches());
-      case VGA_OPTION -> require(name, value, parts.size() == 1 && VGA.matcher(value).matches());
+      case KEYBOARD_OPTION -> {
+        final boolean allowed = parts.size() == 1 && KEYBOARD.matcher(value).matches();
+        require(name, value, allowed);
+      }
+      case VGA_OPTION -> {
+        final boolean allowed = parts.size() == 1 && VGA.matcher(value).matches();
+        require(name, value, allowed);
+      }
       default -> {
         final String message = "QEMU option -%s is not a hardware option!".formatted(name);
         throw new IllegalArgumentException(message);
@@ -234,14 +241,22 @@ final class QemuHardwareValues {
     }
     final char last = size.charAt(size.length() - 1);
     final boolean suffixed = Character.isLetter(last);
-    final long number = Long.parseLong(suffixed ? size.substring(0, size.length() - 1) : size);
-    final int shift = switch (Character.toUpperCase(last)) {
+    final int digitCount = suffixed ? size.length() - 1 : size.length();
+    final String digits = size.substring(0, digitCount);
+    final long number = Long.parseLong(digits);
+    final char unit = Character.toUpperCase(last);
+    final int shift = switch (unit) {
       case KIBIBYTE_SUFFIX -> KIBIBYTE_SHIFT;
       case GIBIBYTE_SUFFIX -> GIBIBYTE_SHIFT;
       case TEBIBYTE_SUFFIX -> TEBIBYTE_SHIFT;
       default -> MEBIBYTE_SHIFT;
     };
-    return number > Long.MAX_VALUE >> shift ? Long.MAX_VALUE : number << shift;
+    final long largestShiftable = Long.MAX_VALUE >> shift;
+    if (number > largestShiftable) {
+      return Long.MAX_VALUE;
+    }
+
+    return number << shift;
   }
 
   static void checkDriveProperty(final String part, final String value) {
@@ -251,18 +266,20 @@ final class QemuHardwareValues {
   private static void checkFirstAndProperties(
     final String name,
     final String value,
-    final String first,
+    final List<String> parts,
     final Pattern plain,
-    final List<String> rest,
     final Map<String, Pattern> properties
   ) {
+    final String first = parts.getFirst();
+    final List<String> rest = parts.subList(1, parts.size());
     if (!first.contains(PROPERTY_SEPARATOR)) {
-      require(name, value, plain.matcher(first).matches());
+      final boolean allowed = plain.matcher(first).matches();
+      require(name, value, allowed);
       checkProperties(name, value, rest, properties);
       return;
     }
 
-    checkProperties(name, value, PARTS.splitToList(value), properties);
+    checkProperties(name, value, parts, properties);
   }
 
   private static void checkProperties(
@@ -273,22 +290,29 @@ final class QemuHardwareValues {
   ) {
     for (final String part : parts) {
       final List<String> nameAndValue = PROPERTY.splitToList(part);
-      final Pattern form = nameAndValue.size() == NAME_AND_VALUE_PARTS ? properties.get(nameAndValue.getFirst()) : null;
-      if (form == null) {
+      final boolean assigned = nameAndValue.size() == NAME_AND_VALUE_PARTS;
+      final String propertyName = nameAndValue.getFirst();
+      final @Nullable Pattern form = properties.get(propertyName);
+      if (!assigned || form == null) {
         final String message = "Value %s of the QEMU option -%s contains %s, which is not allowed!".formatted(value, name, part);
         throw new IllegalArgumentException(message);
       }
-      require(name, value, form.matcher(nameAndValue.getLast()).matches());
+      final boolean allowed = form.matcher(nameAndValue.getLast()).matches();
+      require(name, value, allowed);
     }
   }
 
   private static void checkCpu(final String value, final String model, final List<String> features) {
-    require(CPU_OPTION, value, WORD.matcher(model).matches());
+    final boolean modelAllowed = WORD.matcher(model).matches();
+    require(CPU_OPTION, value, modelAllowed);
     for (final String feature : features) {
-      require(CPU_OPTION, value, CPU_FEATURE.matcher(feature).matches());
+      final boolean featureAllowed = CPU_FEATURE.matcher(feature).matches();
+      require(CPU_OPTION, value, featureAllowed);
       if (feature.contains(PROPERTY_SEPARATOR)) {
-        final String property = PROPERTY.splitToList(feature).getFirst();
-        require(CPU_OPTION, value, !FILE_PROPERTIES.contains(property));
+        final List<String> nameAndValue = PROPERTY.splitToList(feature);
+        final String property = nameAndValue.getFirst();
+        final boolean allowed = !FILE_PROPERTIES.contains(property);
+        require(CPU_OPTION, value, allowed);
       }
     }
   }

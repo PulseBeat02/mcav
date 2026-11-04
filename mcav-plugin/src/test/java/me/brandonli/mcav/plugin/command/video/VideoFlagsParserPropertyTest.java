@@ -129,7 +129,7 @@ final class VideoFlagsParserPropertyTest {
     final String group = found ? matcher.group(1) : null;
     final String expected = group == null || group.isBlank() ? null : group;
 
-    final String options = VideoFlagsParser.extractOptions(flags);
+    final String options = this.parser.extractOptions(flags);
 
     assertEquals(expected, options, () -> "options of '" + flags + "'");
   }
