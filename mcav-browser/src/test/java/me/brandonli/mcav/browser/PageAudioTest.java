@@ -19,6 +19,7 @@ package me.brandonli.mcav.browser;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -29,6 +30,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import me.brandonli.mcav.browser.testing.EqualityAssertions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Test;
 
@@ -45,6 +47,7 @@ class PageAudioTest {
   private static final long FRAME_BUDGET_NANOSECONDS = 10_417L;
 
   private static final byte[] FRAMES = { 1, 0, 2, 0, 3, 0, 4, 0 };
+  private static final byte[] OTHER_FRAMES = { 5, 0, 6, 0 };
 
   private static final int SECOND_BYTES = 48_000 * 4;
 
@@ -66,7 +69,7 @@ class PageAudioTest {
   private byte[] samplesOf(final PageAudio.Chunk chunk) {
     assertNotNull(chunk);
 
-    return chunk.samples();
+    return chunk.getSamples();
   }
 
   @Test
@@ -74,13 +77,13 @@ class PageAudioTest {
     final PageAudio.Chunk chunk = PageAudio.parse(PageAudio.BINDING_EVENT, this.call(FRAMES));
     assertNotNull(chunk);
 
-    final long chunkContext = chunk.context();
+    final long chunkContext = chunk.getContextId();
     assertEquals(7, chunkContext);
 
     final long negativeContext = PageAudio.parse(
       PageAudio.BINDING_EVENT,
       this.call(PageAudio.BINDING, "AAAAAA==", NEGATIVE_CONTEXT_ID)
-    ).context();
+    ).getContextId();
     assertEquals(-12, negativeContext);
   }
 
@@ -472,5 +475,32 @@ class PageAudioTest {
 
     final boolean guardsAgainstPlacingTwice = script.contains("if (Object.prototype.hasOwnProperty.call(globalThis, PLACED)) {");
     assertTrue(guardsAgainstPlacingTwice, "placed twice, it runs once");
+  }
+
+  @Test
+  void shouldTreatChunksOfTheSameContextAndSoundAsEqual() {
+    final String encoded = Base64.getEncoder().encodeToString(FRAMES);
+    EqualityAssertions.assertEqualityContract(
+      PageAudio.parse(PageAudio.BINDING_EVENT, this.call(FRAMES)),
+      PageAudio.parse(PageAudio.BINDING_EVENT, this.call(FRAMES)),
+      PageAudio.parse(PageAudio.BINDING_EVENT, this.call(PageAudio.BINDING, encoded, SECOND_CONTEXT_ID)),
+      PageAudio.parse(PageAudio.BINDING_EVENT, this.call(OTHER_FRAMES))
+    );
+  }
+
+  @Test
+  void shouldHashChunksOfOtherSoundDifferently() {
+    final PageAudio.Chunk chunk = PageAudio.parse(PageAudio.BINDING_EVENT, this.call(FRAMES));
+    final PageAudio.Chunk otherChunk = PageAudio.parse(PageAudio.BINDING_EVENT, this.call(OTHER_FRAMES));
+    final int hashCode = chunk.hashCode();
+    final int otherHashCode = otherChunk.hashCode();
+    assertNotEquals(hashCode, otherHashCode);
+  }
+
+  @Test
+  void shouldDescribeAChunkByItsContextAndSize() {
+    final PageAudio.Chunk chunk = PageAudio.parse(PageAudio.BINDING_EVENT, this.call(FRAMES));
+    final String description = chunk.toString();
+    assertEquals("Chunk{contextId=7, sampleBytes=8}", description);
   }
 }

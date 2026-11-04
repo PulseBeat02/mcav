@@ -44,7 +44,7 @@ final class PageAudioFuzzTest {
     final String parameters = new String(input, 1, input.length - 1, StandardCharsets.UTF_8);
     final PageAudio.Chunk chunk = PageAudio.parse(method, parameters);
     if (chunk != null) {
-      this.check(chunk.samples());
+      this.check(chunk.getSamples());
       final boolean fromABinding = PageAudio.BINDING_EVENT.equals(method);
       assertTrue(fromABinding, "only a call of a binding is sound");
 
@@ -55,7 +55,7 @@ final class PageAudioFuzzTest {
       final boolean base64Only = payload.chars().allMatch(this::isBase64);
       assertTrue(base64Only, BASE64_ONLY_MESSAGE);
 
-      final boolean longEnough = PageAudio.leastBytes(parameters) <= chunk.samples().length;
+      final boolean longEnough = PageAudio.leastBytes(parameters) <= chunk.getSamples().length;
       assertTrue(longEnough, LENGTH_ACCEPTED_MESSAGE);
     }
   }
@@ -66,18 +66,18 @@ final class PageAudioFuzzTest {
     final String parameters = PREFIX + payload + "\",\"executionContextId\":1}";
     final PageAudio.Chunk chunk = PageAudio.parse(PageAudio.BINDING_EVENT, parameters);
     if (chunk != null) {
-      final boolean longEnough = PageAudio.leastBytes(parameters) <= chunk.samples().length;
+      final boolean longEnough = PageAudio.leastBytes(parameters) <= chunk.getSamples().length;
       assertTrue(longEnough, LENGTH_ACCEPTED_MESSAGE);
 
-      this.check(chunk.samples());
-      final boolean contextMatches = chunk.context() == 1;
+      this.check(chunk.getSamples());
+      final boolean contextMatches = chunk.getContextId() == 1;
       assertTrue(contextMatches, "the context is the one of the call");
 
       final boolean base64Only = payload.chars().allMatch(this::isBase64);
       assertTrue(base64Only, BASE64_ONLY_MESSAGE);
 
       final byte[] decoded = Base64.getDecoder().decode(payload);
-      final boolean samplesArePayload = Arrays.equals(chunk.samples(), decoded);
+      final boolean samplesArePayload = Arrays.equals(chunk.getSamples(), decoded);
       assertTrue(samplesArePayload, "the samples are the payload");
     }
   }

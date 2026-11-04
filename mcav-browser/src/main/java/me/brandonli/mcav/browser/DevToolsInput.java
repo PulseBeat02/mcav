@@ -22,6 +22,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 // Input as DevTools calls, which act alike on every system, unlike JCEF's key events, which are translated per platform
 // and lose keys such as Page Down.
@@ -386,6 +388,30 @@ final class DevToolsInput {
 
     String getParameters() {
       return this.parameters;
+    }
+
+    @Override
+    public boolean equals(final @Nullable Object other) {
+      if (this == other) {
+        return true;
+      }
+
+      if (!(other instanceof final DevToolsCall call)) {
+        return false;
+      }
+
+      return this.method.equals(call.method) && this.parameters.equals(call.parameters);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(this.method, this.parameters);
+    }
+
+    @Override
+    public String toString() {
+      // the helper process has no Guava on its class path
+      return "DevToolsCall{method=%s, parameters=%s}".formatted(this.method, this.parameters);
     }
   }
 

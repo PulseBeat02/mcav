@@ -20,11 +20,14 @@ package me.brandonli.mcav.browser;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Objects;
 import java.util.StringJoiner;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 // Handed to the helper as one line on its standard input, so none of it shows up in the process list.
 final class HelperConfiguration {
@@ -294,5 +297,78 @@ final class HelperConfiguration {
 
   List<String> getRefusedHosts() {
     return this.refusedHosts;
+  }
+
+  @Override
+  public boolean equals(final @Nullable Object other) {
+    if (this == other) {
+      return true;
+    }
+
+    if (!(other instanceof final HelperConfiguration configuration)) {
+      return false;
+    }
+
+    return (
+      Arrays.equals(this.token, configuration.token) &&
+      this.socket.equals(configuration.socket) &&
+      this.natives.equals(configuration.natives) &&
+      this.profile.equals(configuration.profile) &&
+      this.url.equals(configuration.url) &&
+      this.width == configuration.width &&
+      this.height == configuration.height &&
+      this.frameInterval == configuration.frameInterval &&
+      this.frameRate == configuration.frameRate &&
+      this.allowsJavaScriptJit == configuration.allowsJavaScriptJit &&
+      this.allowsPrivateNetworks == configuration.allowsPrivateNetworks &&
+      this.allowsAutoplay == configuration.allowsAutoplay &&
+      this.confined == configuration.confined &&
+      this.serverFolder.equals(configuration.serverFolder) &&
+      this.refusedHosts.equals(configuration.refusedHosts)
+    );
+  }
+
+  @Override
+  public int hashCode() {
+    final int tokenHashCode = Arrays.hashCode(this.token);
+    return Objects.hash(
+      tokenHashCode,
+      this.socket,
+      this.natives,
+      this.profile,
+      this.url,
+      this.width,
+      this.height,
+      this.frameInterval,
+      this.frameRate,
+      this.allowsJavaScriptJit,
+      this.allowsPrivateNetworks,
+      this.allowsAutoplay,
+      this.confined,
+      this.serverFolder,
+      this.refusedHosts
+    );
+  }
+
+  @Override
+  public String toString() {
+    // the helper process has no Guava on its class path
+    // the token is a secret, so it stays out
+    return "HelperConfiguration{socket=%s, natives=%s, profile=%s, url=%s, width=%s, height=%s, frameInterval=%s, frameRate=%s, javaScriptJit=%s, privateNetworks=%s, autoplay=%s, confined=%s, serverFolder=%s, refusedHosts=%s}".formatted(
+      this.socket,
+      this.natives,
+      this.profile,
+      this.url,
+      this.width,
+      this.height,
+      this.frameInterval,
+      this.frameRate,
+      this.allowsJavaScriptJit,
+      this.allowsPrivateNetworks,
+      this.allowsAutoplay,
+      this.confined,
+      this.serverFolder,
+      this.refusedHosts
+    );
   }
 }

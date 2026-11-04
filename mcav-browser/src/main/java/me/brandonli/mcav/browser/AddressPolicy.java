@@ -23,6 +23,8 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 // Public unicast addresses only, as a page could otherwise reach private networks or a cloud metadata service. IPv4
 // inside IPv6 (mapped, or translated by NAT64 with the well-known or a network's own prefix) is judged as IPv4. A network
@@ -147,7 +149,7 @@ final class AddressPolicy {
         continue;
       }
       final TranslationPrefix prefix = new TranslationPrefix(bytes, length);
-      if (prefixes.stream().noneMatch(prefix::isSameAs)) {
+      if (!prefixes.contains(prefix)) {
         prefixes.add(prefix);
       }
     }
@@ -223,12 +225,34 @@ final class AddressPolicy {
       return Arrays.equals(this.bytes, 0, this.bytes.length, address, 0, this.bytes.length);
     }
 
-    private boolean isSameAs(final TranslationPrefix other) {
-      return this.length == other.length && Arrays.equals(this.bytes, other.bytes);
-    }
-
     int getLength() {
       return this.length;
+    }
+
+    @Override
+    public boolean equals(final @Nullable Object other) {
+      if (this == other) {
+        return true;
+      }
+
+      if (!(other instanceof final TranslationPrefix prefix)) {
+        return false;
+      }
+
+      return this.length == prefix.length && Arrays.equals(this.bytes, prefix.bytes);
+    }
+
+    @Override
+    public int hashCode() {
+      final int bytesHashCode = Arrays.hashCode(this.bytes);
+      return Objects.hash(this.length, bytesHashCode);
+    }
+
+    @Override
+    public String toString() {
+      // the helper process has no Guava on its class path
+      final String bytesText = Arrays.toString(this.bytes);
+      return "TranslationPrefix{length=%s, bytes=%s}".formatted(this.length, bytesText);
     }
   }
 }

@@ -19,6 +19,7 @@ package me.brandonli.mcav.browser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.gson.JsonObject;
@@ -27,12 +28,17 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import me.brandonli.mcav.browser.testing.EqualityAssertions;
 import me.brandonli.mcav.browser.testing.UtilityClassAssertions;
 import org.junit.jupiter.api.Test;
 
 class DevToolsInputTest {
 
   private static final int WHEEL_DISTANCE = 120;
+
+  private static final String INSERT_TEXT_METHOD = "Input.insertText";
+  private static final String KEY_EVENT_METHOD = "Input.dispatchKeyEvent";
+  private static final String TEXT_PARAMETERS = "{\"text\":\"a\"}";
 
   private static final String OPEN_WINDOWS_SCRIPT_FILE = "open-windows.mjs";
 
@@ -330,5 +336,31 @@ class DevToolsInputTest {
   @Test
   void shouldNotInstantiateTheInput() {
     UtilityClassAssertions.assertNotInstantiable(DevToolsInput.class);
+  }
+
+  @Test
+  void shouldTreatCallsOfTheSameMethodAndParametersAsEqual() {
+    EqualityAssertions.assertEqualityContract(
+      new DevToolsInput.DevToolsCall(INSERT_TEXT_METHOD, TEXT_PARAMETERS),
+      new DevToolsInput.DevToolsCall(INSERT_TEXT_METHOD, TEXT_PARAMETERS),
+      new DevToolsInput.DevToolsCall(KEY_EVENT_METHOD, TEXT_PARAMETERS),
+      new DevToolsInput.DevToolsCall(INSERT_TEXT_METHOD, "{\"text\":\"b\"}")
+    );
+  }
+
+  @Test
+  void shouldHashCallsOfAnotherMethodDifferently() {
+    final DevToolsInput.DevToolsCall call = new DevToolsInput.DevToolsCall(INSERT_TEXT_METHOD, TEXT_PARAMETERS);
+    final DevToolsInput.DevToolsCall otherCall = new DevToolsInput.DevToolsCall(KEY_EVENT_METHOD, TEXT_PARAMETERS);
+    final int hashCode = call.hashCode();
+    final int otherHashCode = otherCall.hashCode();
+    assertNotEquals(hashCode, otherHashCode);
+  }
+
+  @Test
+  void shouldDescribeACallByItsMethodAndParameters() {
+    final DevToolsInput.DevToolsCall call = new DevToolsInput.DevToolsCall(INSERT_TEXT_METHOD, TEXT_PARAMETERS);
+    final String description = call.toString();
+    assertEquals("DevToolsCall{method=Input.insertText, parameters={\"text\":\"a\"}}", description);
   }
 }

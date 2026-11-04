@@ -20,6 +20,7 @@ package me.brandonli.mcav.browser;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -30,6 +31,7 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import java.util.regex.Pattern;
+import me.brandonli.mcav.browser.testing.EqualityAssertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 
@@ -62,6 +64,7 @@ class HelperConfigurationTest {
   private static final Path NATIVES = ROOT.resolve("natives");
   private static final Path PROFILE = ROOT.resolve("profile");
   private static final Path SERVER = ROOT.resolve("server");
+  private static final Path OTHER_PATH = ROOT.resolve("other");
 
   private static final Path RELATIVE_PATH = Path.of("relative");
   private static final Path RELATIVE_SERVER = Path.of("server");
@@ -407,5 +410,57 @@ class HelperConfigurationTest {
     final IllegalArgumentException tooLong = assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(longerLine));
     final String message = tooLong.getMessage();
     assertEquals(LINE_TOO_LONG_MESSAGE, message);
+  }
+
+  @Test
+  void shouldTreatConfigurationsWithTheSameValuesAsEqual() {
+    final String otherPath = OTHER_PATH.toString();
+    EqualityAssertions.assertEqualityContract(
+      this.configuration(),
+      this.configuration(),
+      this.configurationWithValue(0, "ff".repeat(HelperProtocol.TOKEN_BYTES)),
+      this.configurationWithValue(1, otherPath),
+      this.configurationWithValue(2, otherPath),
+      this.configurationWithValue(3, otherPath),
+      this.configurationWithValue(4, PAGE_URL),
+      this.configurationWithValue(5, "641"),
+      this.configurationWithValue(6, "481"),
+      this.configurationWithValue(7, "3"),
+      this.configurationWithValue(8, "31"),
+      this.configurationWithValue(9, "true"),
+      this.configurationWithValue(10, "true"),
+      this.configurationWithValue(11, "true"),
+      this.configurationWithValue(12, "true"),
+      this.configurationWithValue(13, otherPath),
+      this.configurationWithValue(14, "mc.example.com")
+    );
+  }
+
+  @Test
+  void shouldHashConfigurationsOfAnotherTokenDifferently() {
+    final HelperConfiguration configuration = this.configuration();
+    final HelperConfiguration otherConfiguration = this.configurationWithValue(0, "ff".repeat(HelperProtocol.TOKEN_BYTES));
+    final int hashCode = configuration.hashCode();
+    final int otherHashCode = otherConfiguration.hashCode();
+    assertNotEquals(hashCode, otherHashCode);
+  }
+
+  @Test
+  void shouldDescribeAConfigurationWithoutItsToken() {
+    final HelperConfiguration configuration = this.configuration();
+    final String description = configuration.toString();
+    final String expected =
+      "HelperConfiguration{socket=%s, natives=%s, profile=%s, url=https://example.com/page, width=640, height=480, frameInterval=2, frameRate=30, javaScriptJit=false, privateNetworks=false, autoplay=false, confined=false, serverFolder=%s, refusedHosts=[]}".formatted(
+        SOCKET,
+        NATIVES,
+        PROFILE,
+        SERVER
+      );
+    assertEquals(expected, description);
+  }
+
+  private HelperConfiguration configurationWithValue(final int index, final String value) {
+    final String line = this.withValue(index, value);
+    return HelperConfiguration.fromLine(line);
   }
 }

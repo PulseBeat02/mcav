@@ -18,8 +18,10 @@
 package me.brandonli.mcav.browser;
 
 import com.google.common.annotations.VisibleForTesting;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.LongSupplier;
@@ -341,7 +343,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
 
     final Chunk chunk = parse(method, parameters);
     if (chunk != null && this.take(chunk)) {
-      this.sink.accept(chunk.samples());
+      this.sink.accept(chunk.getSamples());
     }
   }
 
@@ -364,17 +366,17 @@ final class PageAudio implements CefDevToolsClient.EventListener {
   private synchronized boolean take(final Chunk chunk) {
     final long now = this.clock.getAsLong();
     final boolean quiet = now - this.lastSound >= QUIET_NANOSECONDS;
-    if (chunk.context() != this.speakingContext && !quiet) {
+    if (chunk.getContextId() != this.speakingContext && !quiet) {
       return false;
     }
 
-    if (!this.spend(chunk.samples().length, now)) {
+    if (!this.spend(chunk.getSamples().length, now)) {
       return false;
     }
 
-    this.speakingContext = chunk.context();
+    this.speakingContext = chunk.getContextId();
 
-    if (!this.isSilent(chunk.samples())) {
+    if (!this.isSilent(chunk.getSamples())) {
       this.lastSound = now;
     }
 
@@ -444,21 +446,46 @@ final class PageAudio implements CefDevToolsClient.EventListener {
 
   static final class Chunk {
 
-    private final long context;
+    private final long contextId;
     private final byte[] samples;
 
-    private Chunk(final long context, final byte[] samples) {
-      this.context = context;
+    private Chunk(final long contextId, final byte[] samples) {
+      this.contextId = contextId;
       this.samples = samples;
     }
 
-    long context() {
-      return this.context;
+    long getContextId() {
+      return this.contextId;
     }
 
     // not copied: the receiver owns them
-    byte[] samples() {
+    byte[] getSamples() {
       return this.samples;
+    }
+
+    @Override
+    public boolean equals(final @Nullable Object other) {
+      if (this == other) {
+        return true;
+      }
+
+      if (!(other instanceof final Chunk chunk)) {
+        return false;
+      }
+
+      return this.contextId == chunk.contextId && Arrays.equals(this.samples, chunk.samples);
+    }
+
+    @Override
+    public int hashCode() {
+      final int samplesHashCode = Arrays.hashCode(this.samples);
+      return Objects.hash(this.contextId, samplesHashCode);
+    }
+
+    @Override
+    public String toString() {
+      // the helper process has no Guava on its class path
+      return "Chunk{contextId=%s, sampleBytes=%s}".formatted(this.contextId, this.samples.length);
     }
   }
 }

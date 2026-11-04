@@ -19,11 +19,13 @@ package me.brandonli.mcav.browser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.List;
+import me.brandonli.mcav.browser.testing.EqualityAssertions;
 import me.brandonli.mcav.browser.testing.UtilityClassAssertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -34,6 +36,10 @@ class AddressPolicyTest {
 
   private static final String FIRST_DISCOVERY_ADDRESS = "192.0.0.170";
   private static final String SECOND_DISCOVERY_ADDRESS = "192.0.0.171";
+
+  private static final String LONG_PREFIX_ADDRESS = "2a01:4f8:1:2:3:4:c000:aa";
+  private static final String OTHER_LONG_PREFIX_ADDRESS = "2a01:4f9:1:2:3:4:c000:aa";
+  private static final String SHORT_PREFIX_ADDRESS = "2a01:4f8:c000:aa::";
 
   @ParameterizedTest
   @ValueSource(
@@ -263,7 +269,7 @@ class AddressPolicyTest {
   @Test
   void shouldRequireAnAddressInsideSeveralPrefixesToEmbedAPublicAddressInEach() throws UnknownHostException {
     final List<AddressPolicy.TranslationPrefix> nested = AddressPolicy.findTranslationPrefixes(
-      this.addresses("2a01:4f8:c000:aa::", "2a01:4f8:1:2:3:4:c000:aa")
+      this.addresses(SHORT_PREFIX_ADDRESS, LONG_PREFIX_ADDRESS)
     );
     final int nestedPrefixCount = nested.size();
     assertEquals(2, nestedPrefixCount);
@@ -272,7 +278,7 @@ class AddressPolicyTest {
     assertFalse(nestedJudgedPublic);
 
     final List<AddressPolicy.TranslationPrefix> separate = AddressPolicy.findTranslationPrefixes(
-      this.addresses("2a01:4f8:1:2:3:4:c000:aa", "2a01:4f9:1:2:3:4:c000:aa")
+      this.addresses(LONG_PREFIX_ADDRESS, OTHER_LONG_PREFIX_ADDRESS)
     );
     final int separatePrefixCount = separate.size();
     assertEquals(2, separatePrefixCount);
@@ -305,5 +311,37 @@ class AddressPolicyTest {
 
     final boolean loopbackJudgedPublic = AddressPolicy.isPublicIpv4(0x7F000001);
     assertFalse(loopbackJudgedPublic);
+  }
+
+  @Test
+  void shouldTreatPrefixesOfTheSameLengthAndBytesAsEqual() throws UnknownHostException {
+    EqualityAssertions.assertEqualityContract(
+      this.prefixOf(LONG_PREFIX_ADDRESS),
+      this.prefixOf(LONG_PREFIX_ADDRESS),
+      this.prefixOf(SHORT_PREFIX_ADDRESS),
+      this.prefixOf(OTHER_LONG_PREFIX_ADDRESS)
+    );
+  }
+
+  @Test
+  void shouldHashPrefixesOfOtherBytesDifferently() throws UnknownHostException {
+    final AddressPolicy.TranslationPrefix prefix = this.prefixOf(LONG_PREFIX_ADDRESS);
+    final AddressPolicy.TranslationPrefix otherPrefix = this.prefixOf(OTHER_LONG_PREFIX_ADDRESS);
+    final int hashCode = prefix.hashCode();
+    final int otherHashCode = otherPrefix.hashCode();
+    assertNotEquals(hashCode, otherHashCode);
+  }
+
+  @Test
+  void shouldDescribeAPrefixByItsLengthAndBytes() throws UnknownHostException {
+    final AddressPolicy.TranslationPrefix prefix = this.prefixOf(SHORT_PREFIX_ADDRESS);
+    final String description = prefix.toString();
+    assertEquals("TranslationPrefix{length=32, bytes=[42, 1, 4, -8]}", description);
+  }
+
+  private AddressPolicy.TranslationPrefix prefixOf(final String address) throws UnknownHostException {
+    final InetAddress[] answer = this.addresses(address);
+    final List<AddressPolicy.TranslationPrefix> prefixes = AddressPolicy.findTranslationPrefixes(answer);
+    return prefixes.getFirst();
   }
 }

@@ -23,6 +23,8 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ProtocolException;
 import java.nio.charset.StandardCharsets;
+import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 // The part of SOCKS 5 (RFC 1928) that Chromium speaks: "no authentication", then one CONNECT per connection. The reader
 // never reads more than a request can hold.
@@ -210,6 +212,30 @@ final class SocksProtocol {
 
     int getPort() {
       return this.port;
+    }
+
+    @Override
+    public boolean equals(final @Nullable Object other) {
+      if (this == other) {
+        return true;
+      }
+
+      if (!(other instanceof final Request request)) {
+        return false;
+      }
+
+      return this.host.equals(request.host) && this.port == request.port;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(this.host, this.port);
+    }
+
+    @Override
+    public String toString() {
+      // the helper process has no Guava on its class path
+      return "Request{host=%s, port=%s}".formatted(this.host, this.port);
     }
   }
 

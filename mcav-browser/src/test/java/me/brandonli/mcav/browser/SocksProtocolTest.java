@@ -20,6 +20,7 @@ package me.brandonli.mcav.browser;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -31,6 +32,7 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.net.ProtocolException;
 import java.nio.charset.StandardCharsets;
+import me.brandonli.mcav.browser.testing.EqualityAssertions;
 import me.brandonli.mcav.browser.testing.UtilityClassAssertions;
 import org.junit.jupiter.api.Test;
 
@@ -43,6 +45,8 @@ class SocksProtocolTest {
   private static final int HTTP_PORT = 80;
 
   private static final String EXPANDED_IPV6_HOST = "2606:4700:4700:0:0:0:0:1111";
+
+  private static final String HOST = "example.com";
 
   private DataInputStream input(final int... bytes) {
     final byte[] data = new byte[bytes.length];
@@ -229,5 +233,31 @@ class SocksProtocolTest {
       final String message = failure.getMessage();
       assertEquals("Host name %s of the request holds a bracket!".formatted(host), message);
     }
+  }
+
+  @Test
+  void shouldTreatRequestsForTheSameHostAndPortAsEqual() {
+    EqualityAssertions.assertEqualityContract(
+      new SocksProtocol.Request(HOST, HTTPS_PORT),
+      new SocksProtocol.Request(HOST, HTTPS_PORT),
+      new SocksProtocol.Request("example.org", HTTPS_PORT),
+      new SocksProtocol.Request(HOST, HTTP_PORT)
+    );
+  }
+
+  @Test
+  void shouldHashRequestsForAnotherPortDifferently() {
+    final SocksProtocol.Request request = new SocksProtocol.Request(HOST, HTTPS_PORT);
+    final SocksProtocol.Request otherRequest = new SocksProtocol.Request(HOST, HTTP_PORT);
+    final int hashCode = request.hashCode();
+    final int otherHashCode = otherRequest.hashCode();
+    assertNotEquals(hashCode, otherHashCode);
+  }
+
+  @Test
+  void shouldDescribeARequestByItsHostAndPort() {
+    final SocksProtocol.Request request = new SocksProtocol.Request(HOST, HTTPS_PORT);
+    final String description = request.toString();
+    assertEquals("Request{host=example.com, port=443}", description);
   }
 }
