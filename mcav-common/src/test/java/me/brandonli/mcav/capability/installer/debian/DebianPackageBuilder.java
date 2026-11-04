@@ -21,7 +21,6 @@ import com.google.common.base.Strings;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -201,7 +200,7 @@ final class DebianPackageBuilder {
     try (final OutputStream output = this.openCompressor(compressed)) {
       output.write(tar);
     } catch (final IOException exception) {
-      throw new UncheckedIOException(exception);
+      throw new AssertionError(exception);
     }
 
     return compressed.toByteArray();

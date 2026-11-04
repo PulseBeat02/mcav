@@ -478,8 +478,7 @@ final class YtdlpInstallerTest {
     try {
       return MessageDigest.getInstance(DIGEST_ALGORITHM);
     } catch (final NoSuchAlgorithmException exception) {
-      final String message = "Every Java runtime supports SHA-256!";
-      throw new IllegalStateException(message, exception);
+      throw new AssertionError(exception);
     }
   }
 

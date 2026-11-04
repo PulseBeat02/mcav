@@ -164,7 +164,7 @@ final class VlcInstallerTest {
     final String expectedPrefix = switch (operatingSystem) {
       case WINDOWS, MAC -> "https://download.videolan.org/pub/videolan/vlc/";
       case LINUX -> "https://github.com/ivan-hc/VLC-appimage/";
-      default -> "";
+      case FREEBSD, OTHER -> "";
     };
     if (expectedPrefix.isEmpty()) {
       assertEquals(Optional.empty(), optionalUrl);
