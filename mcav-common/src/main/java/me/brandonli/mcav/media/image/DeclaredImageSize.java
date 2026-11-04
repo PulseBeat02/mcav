@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.media.image;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
@@ -290,10 +291,9 @@ final class DeclaredImageSize {
     }
 
     if (header.startsWith(0, SUN_RASTER_SIGNATURE)) {
-      return createPositiveSize(
-        header.readSignedBigEndian32(SUN_RASTER_WIDTH_OFFSET),
-        header.readSignedBigEndian32(SUN_RASTER_HEIGHT_OFFSET)
-      );
+      final long width = header.readSignedBigEndian32(SUN_RASTER_WIDTH_OFFSET);
+      final long height = header.readSignedBigEndian32(SUN_RASTER_HEIGHT_OFFSET);
+      return createPositiveSize(width, height);
     }
 
     final int kind = header.readUnsigned8(NETPBM_KIND_OFFSET);
@@ -315,10 +315,9 @@ final class DeclaredImageSize {
     }
 
     if (header.startsWith(0, PNG_SIGNATURE) && header.startsWith(PNG_HEADER_CHUNK_OFFSET, PNG_HEADER_CHUNK)) {
-      return createPositiveSize(
-        header.readBigEndian(PNG_WIDTH_OFFSET, THIRTY_TWO_BIT_BYTES),
-        header.readBigEndian(PNG_HEIGHT_OFFSET, THIRTY_TWO_BIT_BYTES)
-      );
+      final long width = header.readBigEndian(PNG_WIDTH_OFFSET, THIRTY_TWO_BIT_BYTES);
+      final long height = header.readBigEndian(PNG_HEIGHT_OFFSET, THIRTY_TWO_BIT_BYTES);
+      return createPositiveSize(width, height);
     }
 
     return null;
@@ -327,17 +326,16 @@ final class DeclaredImageSize {
   private static @Nullable Size readBmpSize(final Header header) {
     final long informationSize = header.readSignedLittleEndian32(BMP_INFORMATION_SIZE_OFFSET);
     if (informationSize >= BMP_MINIMUM_INFORMATION_SIZE) {
-      return createPositiveSize(
-        header.readSignedLittleEndian32(BMP_WIDTH_OFFSET),
-        Math.abs(header.readSignedLittleEndian32(BMP_HEIGHT_OFFSET))
-      );
+      final long width = header.readSignedLittleEndian32(BMP_WIDTH_OFFSET);
+      final long signedHeight = header.readSignedLittleEndian32(BMP_HEIGHT_OFFSET);
+      final long height = Math.abs(signedHeight);
+      return createPositiveSize(width, height);
     }
 
     if (informationSize == OS2_INFORMATION_SIZE) {
-      return createPositiveSize(
-        header.readLittleEndian(OS2_WIDTH_OFFSET, SIXTEEN_BIT_BYTES),
-        header.readLittleEndian(OS2_HEIGHT_OFFSET, SIXTEEN_BIT_BYTES)
-      );
+      final long width = header.readLittleEndian(OS2_WIDTH_OFFSET, SIXTEEN_BIT_BYTES);
+      final long height = header.readLittleEndian(OS2_HEIGHT_OFFSET, SIXTEEN_BIT_BYTES);
+      return createPositiveSize(width, height);
     }
 
     return null;
@@ -348,10 +346,9 @@ final class DeclaredImageSize {
       return null;
     }
 
-    return createPositiveSize(
-      header.readLittleEndian(GIF_WIDTH_OFFSET, SIXTEEN_BIT_BYTES),
-      header.readLittleEndian(GIF_HEIGHT_OFFSET, SIXTEEN_BIT_BYTES)
-    );
+    final long width = header.readLittleEndian(GIF_WIDTH_OFFSET, SIXTEEN_BIT_BYTES);
+    final long height = header.readLittleEndian(GIF_HEIGHT_OFFSET, SIXTEEN_BIT_BYTES);
+    return createPositiveSize(width, height);
   }
 
   // A Radiance HDR: header lines up to an empty one, then the resolution line -Y <height> +X <width>. OpenCV reads the
@@ -367,6 +364,7 @@ final class DeclaredImageSize {
         return null;
       }
     } while (piece.charAt(0) != LINE_FEED);
+
     final String resolution = header.readPiece(position, MAXIMUM_HDR_PIECE_LENGTH);
     if (resolution == null) {
       return null;
@@ -581,9 +579,11 @@ final class DeclaredImageSize {
     }
 
     final long[] position = { PFM_HEADER_OFFSET };
-    final String width = header.readWord(position, MAXIMUM_PFM_NUMBER_LENGTH);
-    final String height = header.readWord(position, MAXIMUM_PFM_NUMBER_LENGTH);
-    return createPositiveSize(parseLeadingInteger(width), parseLeadingInteger(height));
+    final String widthWord = header.readWord(position, MAXIMUM_PFM_NUMBER_LENGTH);
+    final String heightWord = header.readWord(position, MAXIMUM_PFM_NUMBER_LENGTH);
+    final long width = parseLeadingInteger(widthWord);
+    final long height = parseLeadingInteger(heightWord);
+    return createPositiveSize(width, height);
   }
 
   private static @Nullable Size readTiffSize(final Header header) {
@@ -594,10 +594,9 @@ final class DeclaredImageSize {
       return null;
     }
 
-    final long directory =
-      layout == TiffLayout.BIG
-        ? header.readNumber(BIG_TIFF_DIRECTORY_OFFSET, SIXTY_FOUR_BIT_BYTES, order)
-        : header.readNumber(TIFF_DIRECTORY_OFFSET, THIRTY_TWO_BIT_BYTES, order);
+    final int directoryOffset = layout == TiffLayout.BIG ? BIG_TIFF_DIRECTORY_OFFSET : TIFF_DIRECTORY_OFFSET;
+    final int directoryBytes = layout == TiffLayout.BIG ? SIXTY_FOUR_BIT_BYTES : THIRTY_TWO_BIT_BYTES;
+    final long directory = header.readNumber(directoryOffset, directoryBytes, order);
     final int countSize = layout == TiffLayout.BIG ? SIXTY_FOUR_BIT_BYTES : SIXTEEN_BIT_BYTES;
     final int entrySize = layout == TiffLayout.BIG ? BIG_TIFF_ENTRY_SIZE : TIFF_ENTRY_SIZE;
     final long count = header.readNumber(directory, countSize, order);
@@ -673,6 +672,7 @@ final class DeclaredImageSize {
   }
 
   // C's isspace in the C locale
+  @VisibleForTesting
   static boolean isSpace(final int code) {
     return code == SPACE || (code >= HORIZONTAL_TAB && code <= CARRIAGE_RETURN);
   }
@@ -687,13 +687,16 @@ final class DeclaredImageSize {
   private static final class ResolutionScanner {
 
     private final String text;
+
     private int position;
-    private long first = MISSING;
-    private long second = MISSING;
+    private long first;
+    private long second;
 
     ResolutionScanner(final String text) {
       final int end = text.indexOf(STRING_TERMINATOR);
       this.text = end < 0 ? text : text.substring(0, end);
+      this.first = MISSING;
+      this.second = MISSING;
     }
 
     boolean readLiteral(final String expected) {
@@ -755,7 +758,12 @@ final class DeclaredImageSize {
 
     int readUnsigned8(final long position) {
       final boolean inside = position >= 0 && position < this.segment.byteSize();
-      return inside ? Byte.toUnsignedInt(this.segment.get(ValueLayout.JAVA_BYTE, position)) : END_OF_DATA;
+      if (!inside) {
+        return END_OF_DATA;
+      }
+
+      final byte value = this.segment.get(ValueLayout.JAVA_BYTE, position);
+      return Byte.toUnsignedInt(value);
     }
 
     boolean startsWith(final long position, final String text) {
@@ -780,7 +788,8 @@ final class DeclaredImageSize {
       final boolean littleEndian = order == ByteOrder.LITTLE_ENDIAN;
       long value = 0;
       for (int index = 0; index < bytes; index++) {
-        final int code = this.readUnsigned8(littleEndian ? position + bytes - 1 - index : position + index);
+        final long offset = littleEndian ? position + bytes - 1 - index : position + index;
+        final int code = this.readUnsigned8(offset);
         if (code < 0) {
           return MISSING;
         }
@@ -819,7 +828,9 @@ final class DeclaredImageSize {
     // longer line can only be a comment, as OpenCV refuses a longer name or value.
     @Nullable String readLine(final long[] position, final int limit) {
       final StringBuilder line = new StringBuilder();
-      int code = this.readUnsigned8(position[0]++);
+      int code = this.readUnsigned8(position[0]);
+      position[0]++;
+
       if (code < 0) {
         return null;
       }
@@ -831,7 +842,8 @@ final class DeclaredImageSize {
         } else {
           longer = true;
         }
-        code = this.readUnsigned8(position[0]++);
+        code = this.readUnsigned8(position[0]);
+        position[0]++;
       }
 
       final String text = line.toString();
@@ -842,7 +854,8 @@ final class DeclaredImageSize {
     @Nullable String readWord(final long[] position, final int limit) {
       final StringBuilder word = new StringBuilder();
       while (word.length() < limit) {
-        final int code = this.readUnsigned8(position[0]++);
+        final int code = this.readUnsigned8(position[0]);
+        position[0]++;
         if (code < 0) {
           return null;
         }

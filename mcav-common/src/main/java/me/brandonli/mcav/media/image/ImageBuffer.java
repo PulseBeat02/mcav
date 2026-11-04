@@ -228,63 +228,6 @@ public interface ImageBuffer extends Image {
   BufferedImage toBufferedImage();
 
   /**
-   * Replaces the content of this buffer with a Java image, resizing the buffer if necessary.
-   *
-   * @param image the image to copy
-   * @throws NullPointerException  if {@code image} is null
-   * @throws IllegalStateException if the image was released
-   * @since 1.0.0
-   */
-  void setAsBufferedImage(final BufferedImage image);
-
-  /**
-   * Sets the color of one pixel.
-   *
-   * @param column the zero-based column, less than {@link #getWidth()}
-   * @param row    the zero-based row, less than {@link #getHeight()}
-   * @param value  the non-null blue, green and red components in that order; the first three supplied
-   *               values are rounded and clamped to 0 through 255, missing components are unchanged,
-   *               and additional components are ignored
-   * @throws IllegalArgumentException if the row or column is outside the image
-   * @throws NullPointerException     if {@code value} is null
-   * @throws IllegalStateException    if the image was released
-   * @since 1.0.0
-   */
-  void setPixel(final int column, final int row, final double[] value);
-
-  /**
-   * Returns the color of one pixel.
-   *
-   * @param column the zero-based column, less than {@link #getWidth()}
-   * @param row    the zero-based row, less than {@link #getHeight()}
-   * @return a new three-element array containing blue, green and red, each from 0 to 255
-   * @throws IllegalArgumentException if the row or column is outside the image
-   * @throws IllegalStateException    if the image was released
-   * @since 1.0.0
-   */
-  double[] getPixel(final int column, final int row);
-
-  /**
-   * Returns every pixel as packed ARGB integers, laid out row by row, without copying them.
-   *
-   * <p><strong>The array is shared and must be treated as read-only.</strong> It is computed once and cached, and
-   * every caller receives the same instance until the image changes. Writing into it does not change the image
-   * itself, but it silently changes what every later caller of this method sees, and frame sources that replay the
-   * same image, such as {@link me.brandonli.mcav.media.source.frame.RepeatingFrameSource}, then show the damage on
-   * every later frame. The array is also replaced, not updated, when the image changes, so a caller that keeps it
-   * holds the old pixels.
-   *
-   * <p>This method is meant for the per-frame path, where copying every frame would be too slow. Call
-   * {@link #copyPixels()} for an array you may modify or keep, and {@link #getReadOnlyPixels()} for a view that
-   * rejects writes without copying.
-   *
-   * @return the shared pixels of the image, which must not be modified
-   * @throws IllegalStateException if the image was released
-   * @since 1.0.0
-   */
-  int[] getPixels();
-
-  /**
    * Copies every pixel into a new array of packed ARGB integers, laid out row by row. Unlike {@link #getPixels()},
    * the returned array belongs to the caller: it may be modified and kept, and it never changes when the image
    * changes. Every call allocates and fills a new array, so prefer {@link #getPixels()} in code that only reads
@@ -298,62 +241,6 @@ public interface ImageBuffer extends Image {
     final int[] shared = this.getPixels();
     return shared.clone();
   }
-
-  /**
-   * Returns a read-only view of the shared pixels of {@link #getPixels()}, as packed ARGB integers laid out row by row.
-   * The view does not copy the pixels, so it costs almost nothing, and every attempt to write through it throws a
-   * {@link java.nio.ReadOnlyBufferException}. Hand it to code that must not be able to corrupt the shared array.
-   *
-   * <p>The view starts at position zero with a limit of {@link #getPixelCount()}. Like the array it wraps, it keeps
-   * showing the old pixels after the image changes, so call this method again for the new pixels.
-   *
-   * @return a read-only view of the pixels of the image
-   * @throws IllegalStateException if the image was released
-   * @since 1.0.0
-   */
-  default IntBuffer getReadOnlyPixels() {
-    final int[] shared = this.getPixels();
-    final IntBuffer wrapped = IntBuffer.wrap(shared);
-    return wrapped.asReadOnlyBuffer();
-  }
-
-  /**
-   * Returns the width of the image.
-   *
-   * @return the width in pixels
-   * @throws IllegalStateException if the image was released
-   * @since 1.0.0
-   */
-  int getWidth();
-
-  /**
-   * Returns the height of the image.
-   *
-   * @return the height in pixels
-   * @throws IllegalStateException if the image was released
-   * @since 1.0.0
-   */
-  int getHeight();
-
-  /**
-   * Returns the number of pixels of the image.
-   *
-   * @return the width multiplied by the height
-   * @throws IllegalStateException if the image was released
-   * @since 1.0.0
-   */
-  int getPixelCount();
-
-  /**
-   * Returns a view of the raw 8-bit BGR pixels of the image, without padding. The pixels are the bytes between the
-   * position and the limit of the returned buffer. The buffer shares memory with the image: changes to it change the
-   * image, and it becomes invalid when the image is resized, transformed or released.
-   *
-   * @return a direct buffer over the pixels
-   * @throws IllegalStateException if the image was released
-   * @since 1.0.0
-   */
-  ByteBuffer getData();
 
   /**
    * Replaces the pixels of the image with raw 8-bit BGR pixels, reusing the native memory when the dimensions did
@@ -423,4 +310,117 @@ public interface ImageBuffer extends Image {
   default void close() {
     this.release();
   }
+
+  /**
+   * Replaces the content of this buffer with a Java image, resizing the buffer if necessary.
+   *
+   * @param image the image to copy
+   * @throws NullPointerException  if {@code image} is null
+   * @throws IllegalStateException if the image was released
+   * @since 1.0.0
+   */
+  void setAsBufferedImage(final BufferedImage image);
+
+  /**
+   * Sets the color of one pixel.
+   *
+   * @param column the zero-based column, less than {@link #getWidth()}
+   * @param row    the zero-based row, less than {@link #getHeight()}
+   * @param value  the non-null blue, green and red components in that order; the first three supplied
+   *               values are rounded and clamped to 0 through 255, missing components are unchanged,
+   *               and additional components are ignored
+   * @throws IllegalArgumentException if the row or column is outside the image
+   * @throws NullPointerException     if {@code value} is null
+   * @throws IllegalStateException    if the image was released
+   * @since 1.0.0
+   */
+  void setPixel(final int column, final int row, final double[] value);
+
+  /**
+   * Returns the color of one pixel.
+   *
+   * @param column the zero-based column, less than {@link #getWidth()}
+   * @param row    the zero-based row, less than {@link #getHeight()}
+   * @return a new three-element array containing blue, green and red, each from 0 to 255
+   * @throws IllegalArgumentException if the row or column is outside the image
+   * @throws IllegalStateException    if the image was released
+   * @since 1.0.0
+   */
+  double[] getPixel(final int column, final int row);
+
+  /**
+   * Returns every pixel as packed ARGB integers, laid out row by row, without copying them.
+   *
+   * <p><strong>The array is shared and must be treated as read-only.</strong> It is computed once and cached, and
+   * every caller receives the same instance until the image changes. Writing into it does not change the image
+   * itself, but it silently changes what every later caller of this method sees, and frame sources that replay the
+   * same image, such as {@link me.brandonli.mcav.media.source.frame.RepeatingFrameSource}, then show the damage on
+   * every later frame. The array is also replaced, not updated, when the image changes, so a caller that keeps it
+   * holds the old pixels.
+   *
+   * <p>This method is meant for the per-frame path, where copying every frame would be too slow. Call
+   * {@link #copyPixels()} for an array you may modify or keep, and {@link #getReadOnlyPixels()} for a view that
+   * rejects writes without copying.
+   *
+   * @return the shared pixels of the image, which must not be modified
+   * @throws IllegalStateException if the image was released
+   * @since 1.0.0
+   */
+  int[] getPixels();
+
+  /**
+   * Returns a read-only view of the shared pixels of {@link #getPixels()}, as packed ARGB integers laid out row by row.
+   * The view does not copy the pixels, so it costs almost nothing, and every attempt to write through it throws a
+   * {@link java.nio.ReadOnlyBufferException}. Hand it to code that must not be able to corrupt the shared array.
+   *
+   * <p>The view starts at position zero with a limit of {@link #getPixelCount()}. Like the array it wraps, it keeps
+   * showing the old pixels after the image changes, so call this method again for the new pixels.
+   *
+   * @return a read-only view of the pixels of the image
+   * @throws IllegalStateException if the image was released
+   * @since 1.0.0
+   */
+  default IntBuffer getReadOnlyPixels() {
+    final int[] shared = this.getPixels();
+    final IntBuffer wrapped = IntBuffer.wrap(shared);
+    return wrapped.asReadOnlyBuffer();
+  }
+
+  /**
+   * Returns the width of the image.
+   *
+   * @return the width in pixels
+   * @throws IllegalStateException if the image was released
+   * @since 1.0.0
+   */
+  int getWidth();
+
+  /**
+   * Returns the height of the image.
+   *
+   * @return the height in pixels
+   * @throws IllegalStateException if the image was released
+   * @since 1.0.0
+   */
+  int getHeight();
+
+  /**
+   * Returns the number of pixels of the image.
+   *
+   * @return the width multiplied by the height
+   * @throws IllegalStateException if the image was released
+   * @since 1.0.0
+   */
+  int getPixelCount();
+
+  /**
+   * Returns a view of the raw 8-bit BGR pixels of the image, without padding. The pixels are the bytes between the
+   * position and the limit of the returned buffer. The buffer shares memory with the image: changes to it change the
+   * image, and it becomes invalid when the image is resized, transformed or released.
+   *
+   * @return a direct buffer over the pixels
+   * @throws IllegalStateException if the image was released
+   * @since 1.0.0
+   */
+  ByteBuffer getData();
 }

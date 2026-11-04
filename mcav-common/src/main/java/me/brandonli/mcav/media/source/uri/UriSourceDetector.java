@@ -29,7 +29,7 @@ import me.brandonli.mcav.utils.SourceUtils;
  *
  * @since 1.0.0
  */
-public class UriSourceDetector implements SourceDetector<UriSource> {
+public final class UriSourceDetector implements SourceDetector<UriSource> {
 
   private static final String RESOURCE_NULL_MESSAGE = "Resource must not be null!";
 

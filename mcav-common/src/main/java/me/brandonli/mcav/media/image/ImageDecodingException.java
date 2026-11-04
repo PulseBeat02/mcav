@@ -31,6 +31,10 @@ public class ImageDecodingException extends MCAVException {
   @Serial
   private static final long serialVersionUID = 7693521155387399968L;
 
+  ImageDecodingException(final String message) {
+    super(message);
+  }
+
   ImageDecodingException(final String message, final Throwable cause) {
     super(message, cause);
   }

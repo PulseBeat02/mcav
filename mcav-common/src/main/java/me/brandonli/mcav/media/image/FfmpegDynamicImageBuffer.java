@@ -89,6 +89,7 @@ final class FfmpegDynamicImageBuffer implements DynamicImageBuffer {
     try (grabber) {
       grabber.start();
       final TimestampRange timestamps = decodeFrames(grabber, decoded);
+
       final double reportedFrameRate = grabber.getFrameRate();
       final int frameCount = decoded.size();
       final long first = timestamps.getFirst();
@@ -125,6 +126,7 @@ final class FfmpegDynamicImageBuffer implements DynamicImageBuffer {
     final Mat mat = new Mat(height, width, opencv_core.CV_8UC3);
     final ImageBuffer image = ImageBuffer.mat(mat);
     decoded.add(image);
+
     final ByteBuffer data = image.getData();
     FramePixels.copyBgr(frame, data);
   }
@@ -156,14 +158,6 @@ final class FfmpegDynamicImageBuffer implements DynamicImageBuffer {
   }
 
   @Override
-  public ImageBuffer getFrame(final int index) {
-    final int count = this.frames.size();
-    Preconditions.checkElementIndex(index, count, "Frame index");
-
-    return this.frames.get(index);
-  }
-
-  @Override
   public void close() {
     releaseAll(this.frames);
   }
@@ -176,6 +170,14 @@ final class FfmpegDynamicImageBuffer implements DynamicImageBuffer {
   @Override
   public float getFrameRate() {
     return this.frameRate;
+  }
+
+  @Override
+  public ImageBuffer getFrame(final int index) {
+    final int count = this.frames.size();
+    Preconditions.checkElementIndex(index, count, "Frame index");
+
+    return this.frames.get(index);
   }
 
   @Override

@@ -28,7 +28,7 @@ import me.brandonli.mcav.media.source.SourceDetector;
  *
  * @since 1.0.0
  */
-public class FfmpegDirectSourceDetector implements SourceDetector<FfmpegDirectSource> {
+public final class FfmpegDirectSourceDetector implements SourceDetector<FfmpegDirectSource> {
 
   private static final String RESOURCE_NULL_MESSAGE = "Resource must not be null!";
 

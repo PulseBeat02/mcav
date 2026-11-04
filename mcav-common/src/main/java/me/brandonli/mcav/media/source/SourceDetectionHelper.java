@@ -42,7 +42,7 @@ import me.brandonli.mcav.media.source.uri.UriSourceDetector;
  *
  * @since 1.0.0
  */
-public class SourceDetectionHelper {
+public final class SourceDetectionHelper {
 
   private static final Collection<SourceDetector<? extends Source>> DEFAULT_DETECTORS = List.of(
     new DeviceSourceDetector(),

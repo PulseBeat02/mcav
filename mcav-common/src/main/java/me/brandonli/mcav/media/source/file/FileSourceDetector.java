@@ -29,7 +29,7 @@ import me.brandonli.mcav.utils.SourceUtils;
  *
  * @since 1.0.0
  */
-public class FileSourceDetector implements SourceDetector<FileSource> {
+public final class FileSourceDetector implements SourceDetector<FileSource> {
 
   private static final String RESOURCE_NULL_MESSAGE = "Resource must not be null!";
 

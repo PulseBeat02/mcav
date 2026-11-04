@@ -141,10 +141,12 @@ public final class MatImageBuffer implements ImageBuffer {
     // OpenCV allocates the whole picture once it has read the header, so a small file declaring a huge size is
     // refused before it gets there
     DeclaredImageSize.checkBytes(encoded);
+
     try (final BytePointer pointer = new BytePointer(encoded); final Mat wrapper = new Mat(pointer)) {
       final Mat decoded = decodeBytes(wrapper);
       final boolean empty = decoded.empty();
       Preconditions.checkArgument(!empty, UNSUPPORTED_BYTES_MESSAGE);
+
       this.mat = toContinuousBgr(decoded);
     }
   }
@@ -194,6 +196,7 @@ public final class MatImageBuffer implements ImageBuffer {
 
   private static Mat readFile(final Path path) {
     DeclaredImageSize.checkFile(path);
+
     final Mat decoded = decodeFile(path);
     final boolean empty = decoded.empty();
     Preconditions.checkArgument(!empty, UNSUPPORTED_FILE_MESSAGE, path);
@@ -250,6 +253,7 @@ public final class MatImageBuffer implements ImageBuffer {
 
     final Mat converted = copyToBgr(source);
     source.release();
+
     return converted;
   }
 
@@ -297,6 +301,7 @@ public final class MatImageBuffer implements ImageBuffer {
     final double shift = signed ? SIGNED_SHIFT : 0.0;
     final Mat converted = new Mat();
     source.convertTo(converted, opencv_core.CV_8U, scale, shift);
+
     return converted;
   }
 
@@ -397,6 +402,209 @@ public final class MatImageBuffer implements ImageBuffer {
     return colorSpace.isCS_sRGB();
   }
 
+  /**
+   * Replaces the matrix of this image with the result of an operation that cannot work in place, such as resizing,
+   * rotating, or bilateral filtering, without allocating a new matrix for every call.
+   *
+   * <p>The operation reads the current matrix and writes its result into the spare matrix of this image. The two are
+   * exchanged afterward: the result becomes the matrix of the image, and the previous matrix becomes the spare, which
+   * the next operation writes into, and which {@link #setSize(int, int)} and the update methods reuse when they resize
+   * the image back to its size. OpenCV only allocates when the result has another size or type than the spare, so a
+   * filter that runs every frame allocates nothing once the sizes are settled. The cached pixels are invalidated. If
+   * the operation fails, the image keeps its matrix and drops the spare.
+   *
+   * @param operation reads the first matrix, which it must leave untouched, and writes its result into the second, for
+   *                  example with {@code (source, target) -> opencv_core.transpose(source, target)}; the result must
+   *                  not be empty, must have 1, 3 or 4 channels, and is converted to continuous 8-bit BGR if necessary
+   * @throws NullPointerException     if the operation is null
+   * @throws IllegalArgumentException if the operation left the target empty or it has an unsupported number of
+   *                                  channels
+   * @throws IllegalStateException    if the image was released
+   * @since 1.0.0
+   */
+  public void transformMat(final BiConsumer<Mat, Mat> operation) {
+    Preconditions.checkNotNull(operation, "Operation must not be null!");
+
+    this.checkNotReleased();
+
+    final Mat target = this.takeSpare();
+    final Mat result;
+    try {
+      operation.accept(this.mat, target);
+
+      final boolean empty = target.empty();
+      Preconditions.checkArgument(!empty, "The operation must write its result into the target matrix!");
+
+      result = toContinuousBgr(target);
+    } catch (final RuntimeException exception) {
+      target.close();
+      throw exception;
+    }
+
+    this.exchange(result);
+  }
+
+  // Takes the spare matrix out of this image, or creates an empty one if there is none, so a failing operation never
+  // leaves a half-written spare behind.
+  private Mat takeSpare() {
+    final Mat existing = this.spare;
+    this.spare = null;
+
+    if (existing != null) {
+      return existing;
+    }
+
+    return new Mat();
+  }
+
+  // Makes a result the matrix of this image and keeps the previous matrix as the spare, unless the result shares its
+  // pixel memory, in which case writing into the spare would overwrite the image. Sharing is recognised by datastart(),
+  // the address of the allocation the pixels belong to: an operation that returns its source, a matrix wrapping the
+  // same data, and an OpenCV region of interest of the previous matrix, whose first pixel lies elsewhere in that
+  // allocation, all compare equal on it. A matrix wrapped around a pointer into the middle of the pixels has an
+  // allocation of its own and is not recognised, so transformMat(BiConsumer) still requires an operation that writes a
+  // matrix of its own or returns the source unchanged.
+  private void exchange(final Mat result) {
+    final Mat previous = this.mat;
+    final BytePointer resultStart = result.datastart();
+    final BytePointer previousStart = previous.datastart();
+    final boolean shared = resultStart.address() == previousStart.address();
+    this.mat = result;
+
+    if (shared) {
+      previous.release();
+    } else {
+      this.spare = previous;
+    }
+
+    this.invalidateCache();
+  }
+
+  /**
+   * Copies the backing OpenCV matrix into a new Java image of type {@link BufferedImage#TYPE_3BYTE_BGR}.
+   *
+   * @return a new Java image
+   * @throws IllegalStateException if the image was released
+   * @since 1.0.0
+   */
+  @Override
+  public BufferedImage toBufferedImage() {
+    this.checkNotReleased();
+
+    final int width = this.mat.cols();
+    final int height = this.mat.rows();
+    final BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_3BYTE_BGR);
+    final WritableRaster raster = image.getRaster();
+    final DataBufferByte dataBuffer = (DataBufferByte) raster.getDataBuffer();
+    final byte[] pixels = dataBuffer.getData();
+    final ByteBuffer bytes = this.mat.createBuffer();
+    bytes.get(pixels);
+
+    return image;
+  }
+
+  /**
+   * Replaces the pixels of the backing OpenCV matrix with raw 8-bit BGR pixels, reusing its native memory when the dimensions did not
+   * change. The bytes are copied from the current position of the buffer to its limit. Dimensions must be positive and their packed BGR
+   * representation must fit within {@link Integer#MAX_VALUE} bytes. The source position and limit are unchanged.
+   *
+   * @param data   the pixels, exactly {@code width * height * 3} bytes remaining
+   * @param width  the new width in pixels
+   * @param height the new height in pixels
+   * @throws IllegalArgumentException if a dimension is not positive, the packed BGR size exceeds
+   *                                  {@link Integer#MAX_VALUE}, or the input count differs from the dimensions
+   * @throws IllegalStateException    if the image was released
+   * @throws NullPointerException     if {@code data} is null
+   * @since 1.0.0
+   */
+  @Override
+  public void updateData(final ByteBuffer data, final int width, final int height) {
+    Preconditions.checkNotNull(data, "Data must not be null!");
+
+    checkDimensions(width, height);
+    this.checkNotReleased();
+
+    final int expected = width * height * BGR_CHANNELS;
+    final int remaining = data.remaining();
+    Preconditions.checkArgument(remaining == expected, BYTE_COUNT_MESSAGE, remaining, expected);
+
+    this.ensureSize(width, height);
+
+    final ByteBuffer source = data.duplicate();
+    final ByteBuffer target = this.mat.createBuffer();
+    target.put(source);
+    this.invalidateCache();
+  }
+
+  // Makes the matrix the given size, keeping it if it already has that size. Otherwise the spare matrix takes its place
+  // if it has the size, and a new matrix if not. An image with a spare went through transformMat(BiConsumer), which
+  // will most likely produce the size of the previous matrix again, so the previous matrix becomes the new spare;
+  // images without a spare release it.
+  private boolean ensureSize(final int width, final int height) {
+    final Mat previous = this.mat;
+    if (hasSize(previous, width, height)) {
+      return false;
+    }
+
+    final Mat reusable = this.spare;
+    if (reusable == null) {
+      this.mat = new Mat(height, width, opencv_core.CV_8UC3);
+      previous.release();
+
+      return true;
+    }
+
+    if (hasSize(reusable, width, height)) {
+      this.mat = reusable;
+    } else {
+      this.mat = new Mat(height, width, opencv_core.CV_8UC3);
+      reusable.release();
+    }
+
+    this.spare = previous;
+
+    return true;
+  }
+
+  // Checks the size of a matrix of this image. Both the matrix and the spare are always continuous 8-bit BGR, because
+  // the spare is always a former matrix of the image, so the size is all that can differ.
+  private static boolean hasSize(final Mat candidate, final int width, final int height) {
+    final int candidateWidth = candidate.cols();
+    final int candidateHeight = candidate.rows();
+    return candidateWidth == width && candidateHeight == height;
+  }
+
+  /**
+   * Replaces the pixels of the backing OpenCV matrix with packed ARGB pixels, reusing its native memory when the dimensions did not change.
+   * The alpha channel is discarded. Dimensions must be positive and the resulting packed BGR representation must fit within {@link
+   * Integer#MAX_VALUE} bytes.
+   *
+   * @param pixels the pixels, exactly {@code width * height} integers laid out row by row
+   * @param width  the new width in pixels
+   * @param height the new height in pixels
+   * @throws IllegalArgumentException if a dimension is not positive, the packed BGR size exceeds
+   *                                  {@link Integer#MAX_VALUE}, or the input count differs from the dimensions
+   * @throws IllegalStateException    if the image was released
+   * @throws NullPointerException     if {@code pixels} is null
+   * @since 1.0.0
+   */
+  @Override
+  public void updateArgb(final int[] pixels, final int width, final int height) {
+    Preconditions.checkNotNull(pixels, "Pixels must not be null!");
+
+    checkDimensions(width, height);
+    this.checkNotReleased();
+
+    final int expected = width * height;
+    Preconditions.checkArgument(pixels.length == expected, PIXEL_COUNT_MESSAGE, pixels.length, expected);
+
+    this.ensureSize(width, height);
+
+    final byte[] bytes = this.ensureScratch(expected * BGR_CHANNELS);
+    writeArgb(this.mat, pixels, bytes);
+    this.invalidateCache();
+  }
+
   // Returns the byte array this image converts pixels with, growing it when it is too small, so repeated conversions of
   // frames of the same size reuse one array.
   @VisibleForTesting
@@ -410,6 +618,62 @@ public final class MatImageBuffer implements ImageBuffer {
     this.scratch = created;
 
     return created;
+  }
+
+  /**
+   * Discards the ARGB pixel array cached from the backing OpenCV matrix, so the next call to {@link #getPixels()} converts the image again.
+   * Video filters call this after modifying the image through {@link #getData()} or through OpenCV directly.
+   *
+   * @since 1.0.0
+   */
+  @Override
+  public void invalidateCache() {
+    this.cachedPixels = null;
+  }
+
+  /**
+   * Creates a deep copy of this image by cloning its OpenCV matrix, so the copy shares no native memory with it.
+   *
+   * @return a new image buffer with the same pixels
+   * @throws IllegalStateException if the image was released
+   * @since 1.0.0
+   */
+  @Override
+  public ImageBuffer copy() {
+    this.checkNotReleased();
+
+    final Mat clone = this.mat.clone();
+    return new MatImageBuffer(clone);
+  }
+
+  /**
+   * Releases the backing OpenCV matrix and its spare buffer. Calling this method more than once has no effect, and every other operation
+   * accessing native pixels or dimensions throws {@link IllegalStateException} afterward. {@link #invalidateCache()} remains harmless.
+   * Previously returned native views must no longer be used.
+   *
+   * @since 1.0.0
+   */
+  @Override
+  public void release() {
+    if (this.released) {
+      return;
+    }
+
+    this.released = true;
+    this.cachedPixels = null;
+    this.scratch = null;
+    this.mat.release();
+
+    final Mat unused = this.spare;
+    this.spare = null;
+
+    if (unused != null) {
+      unused.release();
+    }
+  }
+
+  private void checkNotReleased() {
+    Preconditions.checkState(!this.released, "Image buffer has been released!");
   }
 
   /**
@@ -460,83 +724,6 @@ public final class MatImageBuffer implements ImageBuffer {
   }
 
   /**
-   * Replaces the matrix of this image with the result of an operation that cannot work in place, such as resizing,
-   * rotating, or bilateral filtering, without allocating a new matrix for every call.
-   *
-   * <p>The operation reads the current matrix and writes its result into the spare matrix of this image. The two are
-   * exchanged afterward: the result becomes the matrix of the image, and the previous matrix becomes the spare, which
-   * the next operation writes into, and which {@link #setSize(int, int)} and the update methods reuse when they resize
-   * the image back to its size. OpenCV only allocates when the result has another size or type than the spare, so a
-   * filter that runs every frame allocates nothing once the sizes are settled. The cached pixels are invalidated. If
-   * the operation fails, the image keeps its matrix and drops the spare.
-   *
-   * @param operation reads the first matrix, which it must leave untouched, and writes its result into the second, for
-   *                  example with {@code (source, target) -> opencv_core.transpose(source, target)}; the result must
-   *                  not be empty, must have 1, 3 or 4 channels, and is converted to continuous 8-bit BGR if necessary
-   * @throws NullPointerException     if the operation is null
-   * @throws IllegalArgumentException if the operation left the target empty or it has an unsupported number of
-   *                                  channels
-   * @throws IllegalStateException    if the image was released
-   * @since 1.0.0
-   */
-  public void transformMat(final BiConsumer<Mat, Mat> operation) {
-    Preconditions.checkNotNull(operation, "Operation must not be null!");
-
-    this.checkNotReleased();
-
-    final Mat target = this.takeSpare();
-    final Mat result;
-    try {
-      operation.accept(this.mat, target);
-      final boolean empty = target.empty();
-      Preconditions.checkArgument(!empty, "The operation must write its result into the target matrix!");
-
-      result = toContinuousBgr(target);
-    } catch (final RuntimeException exception) {
-      target.close();
-      throw exception;
-    }
-
-    this.exchange(result);
-  }
-
-  // Takes the spare matrix out of this image, or creates an empty one if there is none, so a failing operation never
-  // leaves a half-written spare behind.
-  private Mat takeSpare() {
-    final Mat existing = this.spare;
-    this.spare = null;
-
-    if (existing != null) {
-      return existing;
-    }
-
-    return new Mat();
-  }
-
-  // Makes a result the matrix of this image and keeps the previous matrix as the spare, unless the result shares its
-  // pixel memory, in which case writing into the spare would overwrite the image. Sharing is recognised by datastart(),
-  // the address of the allocation the pixels belong to: an operation that returns its source, a matrix wrapping the
-  // same data, and an OpenCV region of interest of the previous matrix, whose first pixel lies elsewhere in that
-  // allocation, all compare equal on it. A matrix wrapped around a pointer into the middle of the pixels has an
-  // allocation of its own and is not recognised, so transformMat(BiConsumer) still requires an operation that writes a
-  // matrix of its own or returns the source unchanged.
-  private void exchange(final Mat result) {
-    final Mat previous = this.mat;
-    final BytePointer resultStart = result.datastart();
-    final BytePointer previousStart = previous.datastart();
-    final boolean shared = resultStart.address() == previousStart.address();
-    this.mat = result;
-
-    if (shared) {
-      previous.release();
-    } else {
-      this.spare = previous;
-    }
-
-    this.invalidateCache();
-  }
-
-  /**
    * Changes the size of this image without keeping its pixels, for code that fills the image itself through
    * {@link #getData()}, such as a decoder. An image that already has the size is left untouched. Otherwise the spare
    * matrix takes the place of the current one if it has the size, see {@link #transformMat(BiConsumer)}, and a new
@@ -554,31 +741,10 @@ public final class MatImageBuffer implements ImageBuffer {
     this.checkNotReleased();
 
     final boolean resized = this.ensureSize(width, height);
+
     if (resized) {
       this.invalidateCache();
     }
-  }
-
-  /**
-   * Copies the backing OpenCV matrix into a new Java image of type {@link BufferedImage#TYPE_3BYTE_BGR}.
-   *
-   * @return a new Java image
-   * @throws IllegalStateException if the image was released
-   * @since 1.0.0
-   */
-  @Override
-  public BufferedImage toBufferedImage() {
-    this.checkNotReleased();
-
-    final int width = this.mat.cols();
-    final int height = this.mat.rows();
-    final BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_3BYTE_BGR);
-    final WritableRaster raster = image.getRaster();
-    final DataBufferByte dataBuffer = (DataBufferByte) raster.getDataBuffer();
-    final byte[] pixels = dataBuffer.getData();
-    final ByteBuffer bytes = this.mat.createBuffer();
-    bytes.get(pixels);
-    return image;
   }
 
   /**
@@ -600,44 +766,6 @@ public final class MatImageBuffer implements ImageBuffer {
     this.ensureSize(width, height);
     writeBufferedImage(this.mat, image, this::ensureScratch);
     this.invalidateCache();
-  }
-
-  // Makes the matrix the given size, keeping it if it already has that size. Otherwise the spare matrix takes its place
-  // if it has the size, and a new matrix if not. An image with a spare went through transformMat(BiConsumer), which
-  // will most likely produce the size of the previous matrix again, so the previous matrix becomes the new spare;
-  // images without a spare release it.
-  private boolean ensureSize(final int width, final int height) {
-    final Mat previous = this.mat;
-    if (hasSize(previous, width, height)) {
-      return false;
-    }
-
-    final Mat reusable = this.spare;
-    if (reusable == null) {
-      this.mat = new Mat(height, width, opencv_core.CV_8UC3);
-      previous.release();
-
-      return true;
-    }
-
-    if (hasSize(reusable, width, height)) {
-      this.mat = reusable;
-    } else {
-      this.mat = new Mat(height, width, opencv_core.CV_8UC3);
-      reusable.release();
-    }
-
-    this.spare = previous;
-
-    return true;
-  }
-
-  // Checks the size of a matrix of this image. Both the matrix and the spare are always continuous 8-bit BGR, because
-  // the spare is always a former matrix of the image, so the size is all that can differ.
-  private static boolean hasSize(final Mat candidate, final int width, final int height) {
-    final int candidateWidth = candidate.cols();
-    final int candidateHeight = candidate.rows();
-    return candidateWidth == width && candidateHeight == height;
   }
 
   /**
@@ -773,7 +901,7 @@ public final class MatImageBuffer implements ImageBuffer {
   public int[] getPixels() {
     this.checkNotReleased();
 
-    final PixelCacheKey key = createCacheKey(this.mat);
+    final PixelCacheKey key = this.createCacheKey(this.mat);
     final int[] cached = this.cachedPixels;
     if (cached != null && key.equals(this.cachedKey)) {
       return cached;
@@ -790,7 +918,7 @@ public final class MatImageBuffer implements ImageBuffer {
 
   // Identifies the pixel memory of a matrix. The address of the pixel data is used rather than the address of the
   // matrix header, because OpenCV functions reallocate the pixels of a matrix while its header stays in place.
-  private static PixelCacheKey createCacheKey(final Mat mat) {
+  private PixelCacheKey createCacheKey(final Mat mat) {
     final BytePointer data = mat.data();
     final long address = data.address();
     final int width = mat.cols();
@@ -801,10 +929,11 @@ public final class MatImageBuffer implements ImageBuffer {
   private int[] readArgb(final int width, final int height) {
     final int count = width * height;
     final int length = count * BGR_CHANNELS;
-    final int[] pixels = new int[count];
     final byte[] raw = this.ensureScratch(length);
     final ByteBuffer bytes = this.mat.createBuffer();
     bytes.get(raw, 0, length);
+
+    final int[] pixels = new int[count];
     int byteIndex = 0;
     for (int pixelIndex = 0; pixelIndex < count; pixelIndex++) {
       final int blue = raw[byteIndex] & CHANNEL_MASK;
@@ -831,122 +960,5 @@ public final class MatImageBuffer implements ImageBuffer {
     this.checkNotReleased();
 
     return this.mat.createBuffer();
-  }
-
-  /**
-   * Replaces the pixels of the backing OpenCV matrix with raw 8-bit BGR pixels, reusing its native memory when the dimensions did not
-   * change. The bytes are copied from the current position of the buffer to its limit. Dimensions must be positive and their packed BGR
-   * representation must fit within {@link Integer#MAX_VALUE} bytes. The source position and limit are unchanged.
-   *
-   * @param data   the pixels, exactly {@code width * height * 3} bytes remaining
-   * @param width  the new width in pixels
-   * @param height the new height in pixels
-   * @throws IllegalArgumentException if a dimension is not positive, the packed BGR size exceeds
-   *                                  {@link Integer#MAX_VALUE}, or the input count differs from the dimensions
-   * @throws IllegalStateException    if the image was released
-   * @throws NullPointerException     if {@code data} is null
-   * @since 1.0.0
-   */
-  @Override
-  public void updateData(final ByteBuffer data, final int width, final int height) {
-    Preconditions.checkNotNull(data, "Data must not be null!");
-
-    checkDimensions(width, height);
-    this.checkNotReleased();
-
-    final int expected = width * height * BGR_CHANNELS;
-    final int remaining = data.remaining();
-    Preconditions.checkArgument(remaining == expected, BYTE_COUNT_MESSAGE, remaining, expected);
-
-    this.ensureSize(width, height);
-    final ByteBuffer source = data.duplicate();
-    final ByteBuffer target = this.mat.createBuffer();
-    target.put(source);
-    this.invalidateCache();
-  }
-
-  /**
-   * Replaces the pixels of the backing OpenCV matrix with packed ARGB pixels, reusing its native memory when the dimensions did not change.
-   * The alpha channel is discarded. Dimensions must be positive and the resulting packed BGR representation must fit within {@link
-   * Integer#MAX_VALUE} bytes.
-   *
-   * @param pixels the pixels, exactly {@code width * height} integers laid out row by row
-   * @param width  the new width in pixels
-   * @param height the new height in pixels
-   * @throws IllegalArgumentException if a dimension is not positive, the packed BGR size exceeds
-   *                                  {@link Integer#MAX_VALUE}, or the input count differs from the dimensions
-   * @throws IllegalStateException    if the image was released
-   * @throws NullPointerException     if {@code pixels} is null
-   * @since 1.0.0
-   */
-  @Override
-  public void updateArgb(final int[] pixels, final int width, final int height) {
-    Preconditions.checkNotNull(pixels, "Pixels must not be null!");
-
-    checkDimensions(width, height);
-    this.checkNotReleased();
-
-    final int expected = width * height;
-    Preconditions.checkArgument(pixels.length == expected, PIXEL_COUNT_MESSAGE, pixels.length, expected);
-
-    this.ensureSize(width, height);
-    final byte[] bytes = this.ensureScratch(expected * BGR_CHANNELS);
-    writeArgb(this.mat, pixels, bytes);
-    this.invalidateCache();
-  }
-
-  /**
-   * Discards the ARGB pixel array cached from the backing OpenCV matrix, so the next call to {@link #getPixels()} converts the image again.
-   * Video filters call this after modifying the image through {@link #getData()} or through OpenCV directly.
-   *
-   * @since 1.0.0
-   */
-  @Override
-  public void invalidateCache() {
-    this.cachedPixels = null;
-  }
-
-  /**
-   * Creates a deep copy of this image by cloning its OpenCV matrix, so the copy shares no native memory with it.
-   *
-   * @return a new image buffer with the same pixels
-   * @throws IllegalStateException if the image was released
-   * @since 1.0.0
-   */
-  @Override
-  public ImageBuffer copy() {
-    this.checkNotReleased();
-
-    final Mat clone = this.mat.clone();
-    return new MatImageBuffer(clone);
-  }
-
-  /**
-   * Releases the backing OpenCV matrix and its spare buffer. Calling this method more than once has no effect, and every other operation
-   * accessing native pixels or dimensions throws {@link IllegalStateException} afterward. {@link #invalidateCache()} remains harmless.
-   * Previously returned native views must no longer be used.
-   *
-   * @since 1.0.0
-   */
-  @Override
-  public void release() {
-    if (this.released) {
-      return;
-    }
-
-    this.released = true;
-    this.cachedPixels = null;
-    this.scratch = null;
-    this.mat.release();
-    final Mat unused = this.spare;
-    this.spare = null;
-
-    if (unused != null) {
-      unused.release();
-    }
-  }
-
-  private void checkNotReleased() {
-    Preconditions.checkState(!this.released, "Image buffer has been released!");
   }
 }
