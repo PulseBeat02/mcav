@@ -28,12 +28,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
+import me.brandonli.mcav.MCAVApi;
 import me.brandonli.mcav.capability.Capability;
 import me.brandonli.mcav.capability.CapabilityGuard;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.DimensionAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.multimedia.ExceptionHandler;
+import me.brandonli.mcav.media.player.multimedia.VideoPlayer;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.source.Source;
 import me.brandonli.mcav.utils.ThrowableUtils;
@@ -57,7 +59,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * the playback rate of the video, or seeking when they drift far apart. All VLC instances share one native
  * VLC engine, see {@link SharedMediaPlayerFactory}.
  *
- * <p>Requires VLC to be available, see {@link me.brandonli.mcav.capability.Capability#VLC}.
+ * <p>Requires VLC to be available, see {@link Capability#VLC}.
  *
  * <p>This class is thread-safe.
  *
@@ -85,12 +87,11 @@ public final class VlcPlayer implements VideoPlayerMultiplexer {
   private @Nullable StartTransition pending;
 
   /**
-   * Constructs a new VLC player. Create instances with
-   * {@link me.brandonli.mcav.media.player.multimedia.VideoPlayer#vlc(String...)}.
+   * Creates a VLC player. Create instances with {@link VideoPlayer#vlc(String...)}.
    *
    * <p>The player is refused while the library still prepares VLC in the background, and when that preparation found
-   * that VLC is not available on this system; wait for
-   * {@link me.brandonli.mcav.MCAVApi#whenCapabilityReady(Capability)} with {@link Capability#VLC} first.
+   * that VLC is not available on this system; wait for {@link MCAVApi#whenCapabilityReady(Capability)} with
+   * {@link Capability#VLC} first.
    *
    * @param mediaOptions the non-null array of non-null VLC media options, copied for use with every source,
    *                     such as {@code :network-caching=1000}

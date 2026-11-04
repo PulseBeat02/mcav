@@ -18,11 +18,11 @@
 package me.brandonli.mcav.media.player.metadata;
 
 import com.google.common.base.Preconditions;
+import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 
 /**
- * Properties of an audio stream as decoded. Note that the audio pipeline always receives samples converted to
- * the format described by {@link me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter}; this metadata
- * describes the source.
+ * Properties of an audio stream as decoded. Note that the audio pipeline always receives samples converted to the
+ * format described by {@link AudioFilter}; this metadata describes the source.
  *
  * <p>Implementations in this library are immutable and thread-safe.
  *

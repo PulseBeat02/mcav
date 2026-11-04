@@ -19,12 +19,9 @@ package me.brandonli.mcav.media.player.multimedia.cv;
 
 import java.util.function.LongSupplier;
 
-// Gives every decoded video frame a timestamp the playback clock can schedule. FFmpeg stamps every frame, but the video
-// reader of OpenCV stamps every frame with zero. Without real timestamps every frame would be due at once, so the
-// frames of a file would race by or be dropped as late. Whenever a frame does not come after the previous one, its
-// timestamp is derived instead: media of a known length advances by one frame period of the reported frame rate, and
-// live sources, such as cameras, use the time that passed since their first frame, because they deliver frames in real
-// time anyway. Instances belong to one decoding thread.
+// OpenCV's video reader stamps every frame with zero, which would make every frame due at once. A frame that does not
+// come after the previous one gets a derived timestamp instead: one frame period on when the frame rate is known, else
+// the time since the first frame. Not thread-safe: one decoding thread owns it.
 final class VideoTimestamps {
 
   private static final double MICROSECONDS_PER_SECOND = 1_000_000.0;

@@ -19,15 +19,16 @@ package me.brandonli.mcav.media.player.multimedia.cv;
 
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
+import me.brandonli.mcav.media.player.multimedia.VideoPlayer;
+import me.brandonli.mcav.media.source.device.DeviceSource;
 import org.bytedeco.javacv.FrameGrabber;
 import org.bytedeco.javacv.OpenCVFrameGrabber;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * A player that captures video from a camera or capture card by device index, such as {@code 0} for the default
- * webcam. Devices are opened through OpenCV, which uses the native capture API of every operating system. Create
- * instances with {@link me.brandonli.mcav.media.player.multimedia.VideoPlayer#device()} and start them with a
- * {@link me.brandonli.mcav.media.source.device.DeviceSource}.
+ * A player that captures video from a camera or capture card by device index, such as {@code 0} for the default webcam.
+ * Devices are opened through OpenCV, which uses the native capture API of every operating system. Create instances with
+ * {@link VideoPlayer#device()} and start them with a {@link DeviceSource}.
  *
  * <p>This class is thread-safe.
  *
@@ -36,7 +37,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class VideoInputPlayer extends AbstractVideoPlayerCv {
 
   /**
-   * Constructs a new capture device player.
+   * Creates a capture device player.
    *
    * @since 1.0.0
    */

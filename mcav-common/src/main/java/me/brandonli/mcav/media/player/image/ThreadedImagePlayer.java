@@ -280,7 +280,7 @@ public final class ThreadedImagePlayer implements ImagePlayer {
       }
     }
 
-    // Renders one frame. Failures of the source and the filters are reported and skip only this frame.
+    // Failures of the source and the filters are reported and skip only this frame.
     private void renderFrame() {
       try {
         final int[] pixels = this.supplier.getFrameSamples();

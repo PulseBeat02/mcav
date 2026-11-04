@@ -39,7 +39,7 @@ import org.bytedeco.javacv.OpenCVFrameGrabber;
 public final class OpenCvPlayer extends AbstractVideoPlayerCv {
 
   /**
-   * Constructs a new OpenCV player.
+   * Creates an OpenCV player.
    *
    * @since 1.0.0
    */

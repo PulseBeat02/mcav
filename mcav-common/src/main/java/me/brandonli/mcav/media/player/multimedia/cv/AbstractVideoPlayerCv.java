@@ -113,7 +113,7 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
   private boolean starting;
 
   /**
-   * Constructs a new player with detached pipelines and the default exception handler, which logs errors.
+   * Creates a player with detached pipelines and the default exception handler, which logs errors.
    *
    * @since 1.0.0
    */
@@ -142,8 +142,8 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
    * cannot be opened.
    *
    * @param combined the source
-   * @return true if playback started, false if the player is released, another start is in progress, or the source cannot be opened, which is
-   * reported to the exception handler
+   * @return true if playback started, false if the player is released, another start is in progress, or the source
+   * cannot be opened, which is reported to the exception handler
    * @throws NullPointerException if {@code combined} is null
    * @since 1.0.0
    */
@@ -160,8 +160,8 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
    *
    * @param video the video source
    * @param audio the audio source
-   * @return true if playback started, false if the player is released, another start is in progress, or the video source cannot be opened, which
-   * is reported to the exception handler
+   * @return true if playback started, false if the player is released, another start is in progress, or the video
+   * source cannot be opened, which is reported to the exception handler
    * @throws NullPointerException if {@code video} or {@code audio} is null
    * @since 1.0.0
    */

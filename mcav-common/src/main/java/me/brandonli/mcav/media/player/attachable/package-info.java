@@ -18,10 +18,12 @@
 /**
  * Provides replaceable pipeline and dimension slots on players.
  *
- * <p>Default slots publish values through an atomic reference. Attach, detach and retrieve are individually
- * thread-safe, but a sequence such as {@code isAttached()} followed by {@code retrieve()} is not atomic.
- * Retrieve once when a consistent value is needed. A detached audio or video slot supplies an empty pipeline;
- * a detached dimension slot supplies {@link me.brandonli.mcav.utils.immutable.Dimension#NONE}.
+ * <p>{@link AudioAttachableCallback}, {@link VideoAttachableCallback} and {@link DimensionAttachableCallback}, all
+ * {@link AttachableCallback}s, are the slots; their default implementations publish values through an atomic reference.
+ * Attach, detach and retrieve are individually thread-safe, but a sequence such as {@code isAttached()} followed by
+ * {@code retrieve()} is not atomic. Retrieve once when a consistent value is needed. A detached audio or video slot
+ * supplies an empty pipeline; a detached dimension slot supplies
+ * {@link me.brandonli.mcav.utils.immutable.Dimension#NONE}.
  *
  * <p>Slots retain references without copying, starting or releasing values. Replacing a pipeline does not stop
  * an invocation already using the old reference. The caller remains responsible for filter thread safety and

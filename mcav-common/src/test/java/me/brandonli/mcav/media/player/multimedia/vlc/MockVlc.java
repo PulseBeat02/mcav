@@ -77,7 +77,7 @@ final class MockVlc {
   private volatile int failingPlayerIndex;
   private volatile Throwable playerFailure;
 
-  // Constructs a new engine whose players all play successfully unless configured otherwise.
+  // Creates an engine whose players all play successfully unless configured otherwise.
   MockVlc() {
     this.factory = mock(MediaPlayerFactory.class);
     this.players = new CopyOnWriteArrayList<>();

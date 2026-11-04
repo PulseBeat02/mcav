@@ -54,23 +54,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// One playback of one media source, or of one video source with a separate audio source. A session owns up to four
-// threads. One decoding thread per grabber pulls frames out of FFmpeg or OpenCV as fast as the bounded queues allow, so
-// decoding never blocks on the pipelines. A video rendering thread waits until each frame is due according to the
-// PlaybackClock, then runs the video pipeline; frames that are more than 100 ms late are dropped, so a slow pipeline
-// lowers the frame rate instead of drifting out of sync; when most frames of ten seconds of video are dropped, the
-// session says so, see LateFrameCounter. An audio rendering thread hands each chunk to the audio pipeline slightly
-// before it is due, which keeps downstream buffers full without running ahead of the video. Played faster or slower,
-// the clock runs at that speed and the audio is resampled to match, see SpeedResampler. Pictures are copied out of the
-// decoder into a small ImagePool: the rendering thread hands every image back once the pipeline ran, so no memory is
-// allocated per frame. Frames that have another size than the attached dimension are scaled on the decoding thread, see
-// VideoFrameCopier. While no video pipeline is attached, frames are queued without their picture, which keeps the
-// clock, the position, and the end of the media right without copying anything. When a decoding thread reaches the end
-// of its media, it puts an end marker into the queues it fills, and each rendering thread finishes once it takes its
-// marker. There is no polling and no race between the end of decoding and the last queued frames. Stopping a session
-// interrupts the threads, replaces the queued media with end markers, and waits for the threads to exit. A pipeline may
-// even stop the session from its own rendering thread. Sessions cannot be restarted; seeking or resuming after a stop
-// creates a new session.
+// One playback of a media source, or of a video source with a separate audio source. One decoding thread per grabber
+// fills bounded queues; a video and an audio rendering thread hand each frame on once the PlaybackClock says it is due,
+// dropping video that is too late. End markers in the queues finish the rendering threads. Sessions cannot be
+// restarted: seeking or resuming after a stop creates a new session.
 final class PlaybackSession {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(PlaybackSession.class);
@@ -91,7 +78,7 @@ final class PlaybackSession {
 
   private static final long PAUSE_POLL_MILLISECONDS = 50L;
 
-  // How late a frame may be before players drop it instead of showing it, in nanoseconds.
+  // How late a frame may be before players drop it instead of showing it.
   static final long MAXIMUM_VIDEO_LAG_NANOSECONDS = 100_000_000L;
 
   static final long AUDIO_LEAD_NANOSECONDS = 50_000_000L;
@@ -753,12 +740,9 @@ final class PlaybackSession {
     }
   }
 
-  // Stops the session and waits for its threads to exit. Calling this method more than once has no effect, and it may
-  // be called from a pipeline running on one of the threads of the session. Threads are interrupted, but a decoder
-  // stuck in native code only notices at its next frame, so this method blocks for up to five seconds per thread in the
-  // worst case. A call from outside the session that comes while the session is already stopping, for instance because
-  // one of its renderers stopped it after a failure, waits for the threads just the same. A thread of the session
-  // returns at once instead, because the thread that is stopping the session may be waiting for it.
+  // May run on a thread of the session. A repeated call still waits for the threads, unless it comes from one of them,
+  // which the first stopping thread may be joining. A decoder in native code sees the interrupt only at its next frame,
+  // so every join is bounded.
   void stop() {
     final boolean wasRunning = this.running.getAndSet(false);
     final Thread currentThread = Thread.currentThread();
@@ -799,8 +783,7 @@ final class PlaybackSession {
     }
   }
 
-  // Waits for every thread of the session but the excluded one to exit. Waiting ends early when the waiting thread is
-  // interrupted, which keeps its interrupt.
+  // An interrupt ends the wait early and stays set.
   private void joinThreadsExcept(final List<Thread> threads, final Thread excluded) {
     for (final Thread thread : threads) {
       final boolean isExcluded = thread.equals(excluded);
@@ -819,9 +802,7 @@ final class PlaybackSession {
 
   private void discardChunk(final DecodedAudioChunk chunk) {}
 
-  // Replaces everything in a queue with the end marker. A decoder that is still running may refill the queue between
-  // draining and offering, so the queue is drained again until the marker fits. Every removed element is handed to a
-  // consumer, so it can release its resources.
+  // A running decoder may refill the queue between draining and offering, so draining repeats until the marker fits.
   @VisibleForTesting
   static <ElementType extends @NonNull Object> void replaceWithEndMarker(
     final BlockingQueue<ElementType> queue,
@@ -867,8 +848,7 @@ final class PlaybackSession {
     return this.positionMicroseconds;
   }
 
-  // Counts the pictures that wait for the video renderer. Once the session ended there must be none, because nobody
-  // takes them out of the queue to release them anymore.
+  // None may remain once the session ended: nobody would release them.
   @VisibleForTesting
   long getQueuedPictureCount() {
     final Stream<DecodedVideoFrame> frames = this.videoQueue.stream();
@@ -877,7 +857,7 @@ final class PlaybackSession {
     return present.count();
   }
 
-  // Checks whether the decoder holds a copy of an unscaled picture, which it must release once decoding ended.
+  // The decoder must release this copy once decoding ended.
   @VisibleForTesting
   boolean hasUnscaledCopy() {
     return this.frameCopier.hasUnscaledCopy();

@@ -22,12 +22,9 @@ import com.google.common.base.Preconditions;
 import java.util.concurrent.TimeUnit;
 import java.util.function.LongSupplier;
 
-// Maps media timestamps onto the wall clock, so video and audio can be delivered at the right moment. The clock is
-// anchored the first time a timestamp is scheduled: that timestamp is considered "now". Later timestamps are due when
-// the same amount of media time has passed on the wall clock. The clock can be paused, which freezes it, and resumed,
-// which shifts the anchor by the paused duration so playback continues where it stopped. A large jump of the media
-// timestamps, such as after a stream discontinuity, re-anchors the clock. The clock can run faster or slower than the
-// wall clock, which makes later media due correspondingly sooner or later. All methods are thread-safe.
+// Maps media timestamps onto the wall clock. The first scheduled timestamp is "now"; a later one is due once as much
+// media time, scaled by the speed, has passed. A large timestamp jump re-anchors the clock. All methods are
+// thread-safe.
 final class PlaybackClock {
 
   static final double NORMAL_SPEED = 1.0;

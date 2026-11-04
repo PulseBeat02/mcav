@@ -33,14 +33,9 @@ import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Size;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// Copies decoded frames into images of an ImagePool, scaling them to the attached size when the decoder did not. FFmpeg
-// scales while it converts the pixel format, which is the cheapest place to do it. Other decoders, such as the file
-// reader of OpenCV, ignore the requested size, so their frames are scaled here, straight from the memory of the decoder
-// into the pooled image, with area averaging when shrinking and bilinear interpolation when enlarging. Frames whose
-// pixels do not live in native memory cannot be read by OpenCV directly; they are copied into an image of their own
-// size first, which is kept for the next frame. Pooled images of another size are resized in place, which reuses their
-// spare matrix, see MatImageBuffer.setSize(int, int). Once the sizes are settled, no memory is allocated per frame.
-// Instances belong to the decoding thread of one session and are not thread-safe.
+// Copies decoded frames into pooled images, scaling them to the attached size when the decoder did not: FFmpeg scales
+// while converting the pixel format, other decoders such as OpenCV's file reader ignore the requested size. Once the
+// sizes are settled, no memory is allocated per frame. Not thread-safe: the decoding thread of one session owns it.
 final class VideoFrameCopier {
 
   private final ImagePool pool;
@@ -58,10 +53,8 @@ final class VideoFrameCopier {
     final int height = frame.imageHeight;
     final @Nullable MatImageBuffer pooled = this.pool.acquire();
 
-    // the size is read once. Asking whether the callback is attached and then asking it for the size lets a detach
-    // in between answer with the empty fallback, and scaling a frame to 0x0 throws out of the decoding loop, which
-    // ends playback; an empty size therefore means the frame is copied at its own size, exactly as a detached
-    // callback does
+    // read the size once: a detach between two calls answers with an empty size, and scaling to 0x0 would end playback,
+    // so an empty size copies the frame at its own size like a detached callback
     final Dimension target = this.dimensionCallback.retrieve();
     final int targetWidth = target.getWidth();
     final int targetHeight = target.getHeight();
@@ -83,7 +76,7 @@ final class VideoFrameCopier {
     }
   }
 
-  // Releases the image unscaled frames were copied into. The copier can still be used afterward.
+  // The copier stays usable afterward.
   void release() {
     final @Nullable MatImageBuffer image = this.unscaled;
     this.unscaled = null;
@@ -101,8 +94,6 @@ final class VideoFrameCopier {
     return target;
   }
 
-  // Scales a frame into an image of the target size, reading the pixels of the decoder in place when they live in
-  // native memory, and through a copy of the frame otherwise.
   private MatImageBuffer scale(final Frame frame, final @Nullable MatImageBuffer pooled, final int width, final int height) {
     final @Nullable ByteBuffer plane = this.getNativePlane(frame);
     if (plane != null && this.fitsPlane(frame, plane)) {
@@ -141,8 +132,7 @@ final class VideoFrameCopier {
     return null;
   }
 
-  // Checks that a frame has a positive size and that its plane holds every row it claims, so OpenCV never reads past
-  // the end of the memory of the decoder.
+  // Keeps OpenCV from reading past the end of the decoder's memory.
   private boolean fitsPlane(final Frame frame, final ByteBuffer plane) {
     final int width = frame.imageWidth;
     final int height = frame.imageHeight;

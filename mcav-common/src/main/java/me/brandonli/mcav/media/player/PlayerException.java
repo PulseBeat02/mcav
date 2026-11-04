@@ -37,7 +37,7 @@ public final class PlayerException extends MCAVException {
   private static final long serialVersionUID = 5422221049222805060L;
 
   /**
-   * Constructs a new exception with a detail message and no cause.
+   * Creates an exception with a detail message and no cause.
    *
    * @param message the detail message describing what the player could not do
    * @since 1.0.0
@@ -47,7 +47,7 @@ public final class PlayerException extends MCAVException {
   }
 
   /**
-   * Constructs a new exception with a detail message and the failure that caused it.
+   * Creates an exception with a detail message and the failure that caused it.
    *
    * @param message the detail message describing what the player could not do
    * @param cause   the underlying failure

@@ -33,7 +33,7 @@ public abstract class AbstractAttachableCallback<ValueType> implements Attachabl
   private final AtomicReference<@Nullable ValueType> attached;
 
   /**
-   * Constructs a slot.
+   * Creates a slot.
    *
    * @param fallback the value returned while nothing is attached
    * @throws NullPointerException if {@code fallback} is null

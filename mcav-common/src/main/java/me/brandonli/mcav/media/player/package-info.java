@@ -23,6 +23,8 @@
  * how long they wait for workers and whether callbacks may outlive that wait. Sources, attached pipelines and
  * external output devices generally remain caller-owned.
  *
+ * <p>Backends report playback failures as {@link me.brandonli.mcav.media.player.PlayerException}.
+ *
  * <p>Asynchronous helpers submit the same synchronous operation and preserve its result or failure in a future.
  * An explicitly supplied executor stays caller-owned. Cancelling that future does not release the player and
  * does not guarantee interruption of native work. Use the player's release operation to request shutdown.

@@ -21,6 +21,9 @@ import com.google.common.base.Preconditions;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
+import me.brandonli.mcav.MCAVApi;
+import me.brandonli.mcav.capability.Capability;
+import me.brandonli.mcav.capability.installer.vlc.VlcInstallationKit;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.DimensionAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
@@ -29,6 +32,7 @@ import me.brandonli.mcav.media.player.multimedia.cv.OpenCvPlayer;
 import me.brandonli.mcav.media.player.multimedia.cv.VideoInputPlayer;
 import me.brandonli.mcav.media.player.multimedia.vlc.VlcPlayer;
 import me.brandonli.mcav.media.source.Source;
+import me.brandonli.mcav.media.source.device.DeviceSource;
 
 /**
  * Plays video and audio from a {@link Source} through the attached pipelines.
@@ -40,8 +44,10 @@ import me.brandonli.mcav.media.source.Source;
  * final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
  * final VideoAttachableCallback video = player.getVideoAttachableCallback();
  * video.attach(videoPipeline);
+ *
  * final AudioAttachableCallback audio = player.getAudioAttachableCallback();
  * audio.attach(audioPipeline);
+ *
  * final String fileName = "movie.mp4";
  * final Path movie = Path.of(fileName);
  * final FileSource source = FileSource.path(movie);
@@ -56,15 +62,12 @@ import me.brandonli.mcav.media.source.Source;
  */
 public interface VideoPlayer extends ExceptionHandler {
   /**
-   * Creates a player backed by VLC. VLC must be installed or installable; see
-   * {@link me.brandonli.mcav.capability.installer.vlc.VlcInstallationKit}. VLC handles the widest range of
-   * formats and streams.
+   * Creates a player backed by VLC. VLC must be installed or installable; see {@link VlcInstallationKit}. VLC handles
+   * the widest range of formats and streams.
    *
-   * <p>{@link me.brandonli.mcav.MCAVApi#install(Class[])} prepares VLC in the background, which can take several
-   * minutes when VLC has to be downloaded first. Wait for
-   * {@link me.brandonli.mcav.MCAVApi#whenCapabilityReady(me.brandonli.mcav.capability.Capability)} with
-   * {@link me.brandonli.mcav.capability.Capability#VLC} before creating the player, or use {@link #ffmpeg()}, which
-   * needs no installation.
+   * <p>{@link MCAVApi#install(Class[])} prepares VLC in the background, which can take several minutes when VLC has to
+   * be downloaded first. Wait for {@link MCAVApi#whenCapabilityReady(Capability)} with {@link Capability#VLC} before
+   * creating the player, or use {@link #ffmpeg()}, which needs no installation.
    *
    * @param mediaOptions the VLC media options applied to every source, such as {@code :network-caching=1000}
    * @return the player
@@ -107,8 +110,7 @@ public interface VideoPlayer extends ExceptionHandler {
   }
 
   /**
-   * Creates a player for cameras and capture cards. Start it with a
-   * {@link me.brandonli.mcav.media.source.device.DeviceSource}.
+   * Creates a player for cameras and capture cards. Start it with a {@link DeviceSource}.
    *
    * @return the player
    * @since 1.0.0
