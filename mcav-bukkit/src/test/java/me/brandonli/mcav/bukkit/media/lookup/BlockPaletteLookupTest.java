@@ -28,12 +28,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
-import java.io.UncheckedIOException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import me.brandonli.mcav.bukkit.BukkitException;
 import me.brandonli.mcav.bukkit.testing.UtilityClassAssertions;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.FilterLiteDither;
 import me.brandonli.mcav.utils.IoUtils;
@@ -152,8 +152,8 @@ final class BlockPaletteLookupTest {
     final StringReader empty = new StringReader("{}");
     final StringReader nothing = new StringReader("null");
 
-    assertThrows(UncheckedIOException.class, () -> BlockPaletteLookup.parsePalette(empty));
-    assertThrows(UncheckedIOException.class, () -> BlockPaletteLookup.parsePalette(nothing));
+    assertThrows(BukkitException.class, () -> BlockPaletteLookup.parsePalette(empty));
+    assertThrows(BukkitException.class, () -> BlockPaletteLookup.parsePalette(nothing));
   }
 
   @Test
@@ -161,7 +161,7 @@ final class BlockPaletteLookupTest {
     try (final TrackingReader reader = new TrackingReader("{\"STONE\": [1, 2, 3]}")) {
       reader.failOnFirstClose = true;
 
-      final UncheckedIOException exception = assertThrows(UncheckedIOException.class, () -> BlockPaletteLookup.parsePalette(reader));
+      final BukkitException exception = assertThrows(BukkitException.class, () -> BlockPaletteLookup.parsePalette(reader));
 
       final Throwable cause = exception.getCause();
       final String message = exception.getMessage();

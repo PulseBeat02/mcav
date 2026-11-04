@@ -73,7 +73,7 @@ final class NativeKernelsTest {
   }
 
   private void failed(final Executable call) {
-    final IllegalStateException exception = assertThrows(IllegalStateException.class, call);
+    final Mcv2Exception exception = assertThrows(Mcv2Exception.class, call);
     final String message = exception.getMessage();
     assertEquals("MCV2 native kernel failed!", message);
   }

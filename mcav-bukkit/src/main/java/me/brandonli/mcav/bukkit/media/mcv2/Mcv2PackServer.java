@@ -20,7 +20,6 @@ package me.brandonli.mcav.bukkit.media.mcv2;
 import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UncheckedIOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
@@ -736,7 +735,8 @@ public final class Mcv2PackServer {
     try {
       this.writer.awaitTermination(SHUTDOWN_SECONDS, TimeUnit.SECONDS);
     } catch (final InterruptedException exception) {
-      Thread.currentThread().interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
     }
   }
 
@@ -765,10 +765,10 @@ public final class Mcv2PackServer {
 
       return HexFormat.of().formatHex(digest.digest());
     } catch (final IOException exception) {
-      throw new UncheckedIOException("Cannot hash the MCV2 pack!", exception);
+      final String message = "MCV2 pack %s cannot be hashed!".formatted(file);
+      throw new Mcv2Exception(message, exception);
     } catch (final NoSuchAlgorithmException exception) {
-      final String message = "Hash algorithm %s is not available!".formatted(algorithm);
-      throw new IllegalStateException(message, exception);
+      throw new AssertionError(exception);
     }
   }
 
@@ -776,7 +776,7 @@ public final class Mcv2PackServer {
     try {
       Files.deleteIfExists(file);
     } catch (final IOException exception) {
-      // Startup clears this folder if deletion fails.
+      LOGGER.debug("Could not delete {}, startup clears it.", file, exception);
     }
   }
 

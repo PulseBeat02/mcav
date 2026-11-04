@@ -2972,7 +2972,7 @@ public final class Mcv2 {
           )
         );
       } catch (final Throwable exception) {
-        throw new IllegalStateException(KERNEL_FAILED_MESSAGE, exception);
+        throw new Mcv2Exception(KERNEL_FAILED_MESSAGE, exception);
       }
     }
 
@@ -3059,7 +3059,7 @@ public final class Mcv2 {
           (long) this.binding.solid.invokeExact(color, size, this.segmentOf(output), this.segmentOf(this.source), this.rate, this.limit)
         );
       } catch (final Throwable exception) {
-        throw new IllegalStateException(KERNEL_FAILED_MESSAGE, exception);
+        throw new Mcv2Exception(KERNEL_FAILED_MESSAGE, exception);
       }
     }
 
@@ -3080,7 +3080,7 @@ public final class Mcv2 {
           )
         );
       } catch (final Throwable exception) {
-        throw new IllegalStateException(KERNEL_FAILED_MESSAGE, exception);
+        throw new Mcv2Exception(KERNEL_FAILED_MESSAGE, exception);
       }
     }
 
@@ -3105,7 +3105,7 @@ public final class Mcv2 {
           )
         );
       } catch (final Throwable exception) {
-        throw new IllegalStateException(KERNEL_FAILED_MESSAGE, exception);
+        throw new Mcv2Exception(KERNEL_FAILED_MESSAGE, exception);
       }
     }
 
@@ -3142,7 +3142,7 @@ public final class Mcv2 {
           this.segmentOf(output)
         );
       } catch (final Throwable exception) {
-        throw new IllegalStateException(KERNEL_FAILED_MESSAGE, exception);
+        throw new Mcv2Exception(KERNEL_FAILED_MESSAGE, exception);
       }
     }
 
@@ -3172,7 +3172,7 @@ public final class Mcv2 {
           this.segmentOf(output)
         );
       } catch (final Throwable exception) {
-        throw new IllegalStateException(KERNEL_FAILED_MESSAGE, exception);
+        throw new Mcv2Exception(KERNEL_FAILED_MESSAGE, exception);
       }
     }
 
@@ -3185,7 +3185,7 @@ public final class Mcv2 {
       try {
         this.binding.cluster.invokeExact(this.segmentOf(source), size, this.segmentOf(endpoints));
       } catch (final Throwable exception) {
-        throw new IllegalStateException(KERNEL_FAILED_MESSAGE, exception);
+        throw new Mcv2Exception(KERNEL_FAILED_MESSAGE, exception);
       }
     }
 
@@ -3200,7 +3200,7 @@ public final class Mcv2 {
       try {
         this.binding.assign.invokeExact(this.segmentOf(source), count, this.segmentOf(colors), this.segmentOf(selectors));
       } catch (final Throwable exception) {
-        throw new IllegalStateException(KERNEL_FAILED_MESSAGE, exception);
+        throw new Mcv2Exception(KERNEL_FAILED_MESSAGE, exception);
       }
     }
 
@@ -3217,7 +3217,7 @@ public final class Mcv2 {
           (int) this.binding.assignPattern.invokeExact(this.segmentOf(source), size, this.segmentOf(colors), this.segmentOf(selectors)) != 0
         );
       } catch (final Throwable exception) {
-        throw new IllegalStateException(KERNEL_FAILED_MESSAGE, exception);
+        throw new Mcv2Exception(KERNEL_FAILED_MESSAGE, exception);
       }
     }
 
@@ -3254,7 +3254,7 @@ public final class Mcv2 {
           seeds.length
         );
       } catch (final Throwable exception) {
-        throw new IllegalStateException(KERNEL_FAILED_MESSAGE, exception);
+        throw new Mcv2Exception(KERNEL_FAILED_MESSAGE, exception);
       }
     }
 
@@ -3276,7 +3276,7 @@ public final class Mcv2 {
       try {
         this.binding.loadSource.invokeExact(this.segmentOf(image), width, height, left, top, size, this.segmentOf(source));
       } catch (final Throwable exception) {
-        throw new IllegalStateException(KERNEL_FAILED_MESSAGE, exception);
+        throw new Mcv2Exception(KERNEL_FAILED_MESSAGE, exception);
       }
     }
 
@@ -3290,7 +3290,7 @@ public final class Mcv2 {
       try {
         this.binding.halve.invokeExact(this.segmentOf(block), size, this.segmentOf(output));
       } catch (final Throwable exception) {
-        throw new IllegalStateException(KERNEL_FAILED_MESSAGE, exception);
+        throw new Mcv2Exception(KERNEL_FAILED_MESSAGE, exception);
       }
     }
 
@@ -3304,7 +3304,7 @@ public final class Mcv2 {
       try {
         this.binding.residualTarget.invokeExact(this.segmentOf(source), this.segmentOf(prediction), count, this.segmentOf(target));
       } catch (final Throwable exception) {
-        throw new IllegalStateException(KERNEL_FAILED_MESSAGE, exception);
+        throw new Mcv2Exception(KERNEL_FAILED_MESSAGE, exception);
       }
     }
 

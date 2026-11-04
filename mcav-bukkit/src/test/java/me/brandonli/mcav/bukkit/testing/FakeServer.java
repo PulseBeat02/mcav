@@ -130,7 +130,7 @@ public final class FakeServer implements AutoCloseable {
       field.setAccessible(true);
       field.set(null, null);
     } catch (final ReflectiveOperationException exception) {
-      throw new IllegalStateException(exception);
+      throw new LinkageError(exception.getMessage(), exception);
     }
   }
 
@@ -300,7 +300,7 @@ public final class FakeServer implements AutoCloseable {
       field.setAccessible(true);
       field.set(listener, connection);
     } catch (final ReflectiveOperationException exception) {
-      throw new IllegalStateException(exception);
+      throw new LinkageError(exception.getMessage(), exception);
     }
   }
 

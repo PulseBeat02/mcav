@@ -36,7 +36,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -1169,8 +1168,8 @@ final class Mcv2PackServerTest {
     final String digest = Mcv2PackServer.hash(file, HASH_ALGORITHM);
     assertEquals("a9993e364706816aba3e25717850c26c9cd0d89d", digest);
 
-    assertThrows(UncheckedIOException.class, () -> Mcv2PackServer.hash(this.folder.resolve(MISSING_PACK_FILE_NAME), HASH_ALGORITHM));
-    assertThrows(IllegalStateException.class, () -> Mcv2PackServer.hash(file, "NO-SUCH-DIGEST"));
+    assertThrows(Mcv2Exception.class, () -> Mcv2PackServer.hash(this.folder.resolve(MISSING_PACK_FILE_NAME), HASH_ALGORITHM));
+    assertThrows(AssertionError.class, () -> Mcv2PackServer.hash(file, "NO-SUCH-DIGEST"));
   }
 
   @Test

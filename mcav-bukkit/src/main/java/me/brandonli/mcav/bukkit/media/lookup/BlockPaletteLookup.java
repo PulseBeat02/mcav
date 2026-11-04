@@ -22,12 +22,12 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import java.io.IOException;
 import java.io.Reader;
-import java.io.UncheckedIOException;
 import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import me.brandonli.mcav.bukkit.BukkitException;
 import me.brandonli.mcav.json.GsonProvider;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.FilterLiteDither;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
@@ -135,14 +135,13 @@ public final class BlockPaletteLookup {
       final Map<String, int @Nullable []> palette = gson.fromJson(reader, type);
       if (palette == null || palette.isEmpty()) {
         final String message = "Block palette resource is empty!";
-        final IOException emptyPalette = new IOException(message);
-        throw new UncheckedIOException(message, emptyPalette);
+        throw new BukkitException(message);
       }
 
       return palette;
     } catch (final IOException exception) {
       final String message = "Block palette resource %s could not be read!".formatted(PALETTE_RESOURCE);
-      throw new UncheckedIOException(message, exception);
+      throw new BukkitException(message, exception);
     }
   }
 

@@ -29,7 +29,6 @@ import com.google.gson.JsonParser;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -552,7 +551,7 @@ final class Mcv2PackTest {
         throw new IOException("broken!");
       }
     };
-    assertThrows(UncheckedIOException.class, () -> Mcv2Pack.read(broken, "broken"));
+    assertThrows(Mcv2Exception.class, () -> Mcv2Pack.read(broken, "broken"));
 
     final byte[] expectedBytes = new byte[] { 1 };
     final byte[] readBytes = Mcv2Pack.read(new ByteArrayInputStream(new byte[] { 1 }), "one");

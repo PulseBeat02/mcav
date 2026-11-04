@@ -55,7 +55,7 @@ public final class Mcv2Resources {
     try {
       return HexFormat.of().formatHex(MessageDigest.getInstance(algorithm).digest(bytes));
     } catch (final NoSuchAlgorithmException exception) {
-      throw new IllegalStateException(exception);
+      throw new AssertionError(exception);
     }
   }
 }

@@ -26,7 +26,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -207,7 +206,7 @@ public final class Mcv2Pack {
    * @param debugView     whether the pack also draws the decoded picture one to one below the strip, for testing
    * @param archivePath   where the pack is written, atomically
    * @throws BukkitException      if the pack cannot be written
-   * @throws UncheckedIOException if a pack resource cannot be read
+   * @throws Mcv2Exception        if a pack resource cannot be read
    * @throws NullPointerException if {@code configuration}, {@code debugView} or {@code archivePath} is null
    * @since 1.0.0
    */
@@ -228,7 +227,7 @@ public final class Mcv2Pack {
    * @throws IllegalArgumentException if there are no screens or more than {@link #MAXIMUM_SCREENS}, two share a stream
    *                                  id, or their outline colours differ
    * @throws BukkitException          if the pack cannot be written
-   * @throws UncheckedIOException     if a pack resource cannot be read
+   * @throws Mcv2Exception            if a pack resource cannot be read
    * @throws NullPointerException     if {@code screens}, {@code debugView} or {@code archivePath} is null
    * @since 1.0.0
    */
@@ -300,7 +299,7 @@ public final class Mcv2Pack {
       return stream.readAllBytes();
     } catch (final IOException exception) {
       final String message = "MCV2 pack resource %s cannot be read!".formatted(file);
-      throw new UncheckedIOException(message, exception);
+      throw new Mcv2Exception(message, exception);
     }
   }
 

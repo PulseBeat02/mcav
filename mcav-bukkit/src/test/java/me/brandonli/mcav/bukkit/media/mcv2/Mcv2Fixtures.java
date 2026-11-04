@@ -115,7 +115,7 @@ public final class Mcv2Fixtures {
       final HexFormat hexadecimalFormat = HexFormat.of();
       return hexadecimalFormat.formatHex(hash);
     } catch (final NoSuchAlgorithmException exception) {
-      throw new IllegalStateException(exception);
+      throw new AssertionError(exception);
     }
   }
 }
