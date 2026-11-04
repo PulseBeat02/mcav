@@ -17,6 +17,9 @@
  */
 package me.brandonli.mcav.browser;
 
+import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 final class MouseInput {
 
   private final int action;
@@ -72,5 +75,45 @@ final class MouseInput {
 
   int getDeltaY() {
     return this.deltaY;
+  }
+
+  @Override
+  public boolean equals(final @Nullable Object other) {
+    if (this == other) {
+      return true;
+    }
+
+    if (!(other instanceof final MouseInput input)) {
+      return false;
+    }
+
+    return (
+      this.action == input.action &&
+      this.pageX == input.pageX &&
+      this.pageY == input.pageY &&
+      this.button == input.button &&
+      this.clickCount == input.clickCount &&
+      this.deltaX == input.deltaX &&
+      this.deltaY == input.deltaY
+    );
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(this.action, this.pageX, this.pageY, this.button, this.clickCount, this.deltaX, this.deltaY);
+  }
+
+  @Override
+  public String toString() {
+    // the helper process has no Guava on its class path
+    return "MouseInput{action=%s, x=%s, y=%s, button=%s, clickCount=%s, deltaX=%s, deltaY=%s}".formatted(
+      this.action,
+      this.pageX,
+      this.pageY,
+      this.button,
+      this.clickCount,
+      this.deltaX,
+      this.deltaY
+    );
   }
 }
