@@ -17,7 +17,9 @@
  */
 package me.brandonli.mcav.capability.installer;
 
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
+import java.util.Objects;
 import java.util.Optional;
 import me.brandonli.mcav.utils.os.Arch;
 import me.brandonli.mcav.utils.os.Bits;
@@ -136,5 +138,47 @@ public final class Download {
    */
   public Optional<String> getHash() {
     return Optional.ofNullable(this.hash);
+  }
+
+  /**
+   * Returns whether {@code other} is a download of the same URL for the same platform with the same hash.
+   *
+   * @param other the object to compare with
+   * @return whether the platform, the URL and the hash match
+   * @since 1.0.0
+   */
+  @Override
+  public boolean equals(final @Nullable Object other) {
+    if (this == other) {
+      return true;
+    }
+
+    if (!(other instanceof final Download download)) {
+      return false;
+    }
+
+    return this.platform.equals(download.platform) && this.url.equals(download.url) && Objects.equals(this.hash, download.hash);
+  }
+
+  /**
+   * Returns a hash code built from the platform, the URL and the hash.
+   *
+   * @return the hash code
+   * @since 1.0.0
+   */
+  @Override
+  public int hashCode() {
+    return Objects.hash(this.platform, this.url, this.hash);
+  }
+
+  /**
+   * Returns a debugging representation with the platform, the URL and the hash.
+   *
+   * @return the representation
+   * @since 1.0.0
+   */
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(this).add("platform", this.platform).add("url", this.url).add("hash", this.hash).toString();
   }
 }

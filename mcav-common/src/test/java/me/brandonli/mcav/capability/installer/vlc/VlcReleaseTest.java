@@ -153,7 +153,8 @@ final class VlcReleaseTest {
     final boolean supported = installer.isSupported();
     Assumptions.assumeTrue(supported, "VLC has no build for this platform!");
     final Path libraries = installer.download(FileMode.EXECUTABLE);
-    final String url = installer.getUrl();
+    final Optional<String> optionalUrl = installer.getUrl();
+    final String url = optionalUrl.orElseThrow();
     System.out.println("VLC installed from %s into %s".formatted(url, libraries));
     final String output = runProbe(folder, TestMedia.video());
     System.out.println(output);

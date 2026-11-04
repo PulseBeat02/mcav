@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.capability.installer;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import java.io.IOException;
@@ -348,17 +350,12 @@ public abstract class AbstractInstaller implements Installer {
   /**
    * Returns the URL of the download for the current platform.
    *
-   * @return the download URL, or an empty string if the platform is not supported
+   * @return the download URL, or empty if the platform is not supported
    * @since 1.0.0
    */
-  public String getUrl() {
+  public Optional<String> getUrl() {
     final Optional<Download> download = this.resolveDownload();
-    final @Nullable Download resolved = download.orElse(null);
-    if (resolved == null) {
-      return "";
-    }
-
-    return resolved.getUrl();
+    return download.map(Download::getUrl);
   }
 
   /**
@@ -387,11 +384,12 @@ public abstract class AbstractInstaller implements Installer {
       return getExecutableFileName(this.name, operatingSystem);
     }
 
-    final String url = this.getUrl();
-    final String urlFileName = IoUtils.getFileNameFromUrl(url);
-    final boolean usable = this.isPlainFileName(urlFileName);
+    final Optional<String> url = this.getUrl();
+    final Optional<String> urlFileName = url.map(IoUtils::getFileNameFromUrl);
+    final String fileName = requireNonNull(urlFileName.orElse("")); // checker framework
+    final boolean usable = this.isPlainFileName(fileName);
     if (usable) {
-      return urlFileName;
+      return fileName;
     }
 
     return this.name + ARCHIVE_SUFFIX;

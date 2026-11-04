@@ -211,14 +211,15 @@ final class AbstractInstallerTest {
     final TestInstaller installer = new TestInstaller(this.folder, NAME, () -> this.countAndListDownload(calls, current));
     final int callsAfterConstruction = calls.get();
     final boolean supported = installer.isSupported();
-    final String url = installer.getUrl();
+    final Optional<String> url = installer.getUrl();
     final Optional<String> hash = installer.getHash();
     final int callsAfterUse = calls.get();
-    final Optional<String> expected = Optional.of("ab12cd");
+    final Optional<String> expectedUrl = Optional.of(TOOL_URL);
+    final Optional<String> expectedHash = Optional.of("ab12cd");
     assertEquals(0, callsAfterConstruction);
     assertTrue(supported);
-    assertEquals(TOOL_URL, url);
-    assertEquals(expected, hash);
+    assertEquals(expectedUrl, url);
+    assertEquals(expectedHash, hash);
     assertEquals(1, callsAfterUse);
   }
 
@@ -280,11 +281,11 @@ final class AbstractInstallerTest {
     final Download elsewhere = new Download(OTHER_PLATFORM, "https://example.com/elsewhere", "00");
     final TestInstaller installer = new TestInstaller(this.folder, NAME, new Download[] { elsewhere });
     final boolean supported = installer.isSupported();
-    final String url = installer.getUrl();
+    final Optional<String> url = installer.getUrl();
     final Optional<String> hash = installer.getHash();
     final boolean hashMissing = hash.isEmpty();
     assertFalse(supported);
-    assertEquals("", url);
+    assertEquals(Optional.empty(), url);
     assertTrue(hashMissing);
 
     final InstallationException thrown = assertThrows(InstallationException.class, () -> installer.download(FileMode.EXECUTABLE));
@@ -477,7 +478,7 @@ final class AbstractInstallerTest {
     try (final LocalHttpServer server = LocalHttpServer.start()) {
       server.respondWhenOpened(TOOL_PATH, OK_STATUS, PROGRAM, releaseResponse);
       final TestInstaller installer = this.installerDownloadingFrom(server, TOOL_PATH, null);
-      final String url = installer.getUrl();
+      final Optional<String> url = installer.getUrl();
       final Path defaultPath = installer.getDefaultPath();
       final Duration limit = Duration.ofSeconds(5);
       try (final ExecutorService executor = Executors.newSingleThreadExecutor()) {
@@ -485,7 +486,7 @@ final class AbstractInstallerTest {
         awaitToolRequest(server);
         final Path pathDuringDownload = assertTimeoutPreemptively(limit, installer::getPath);
         final boolean supportedDuringDownload = assertTimeoutPreemptively(limit, installer::isSupported);
-        final String urlDuringDownload = assertTimeoutPreemptively(limit, installer::getUrl);
+        final Optional<String> urlDuringDownload = assertTimeoutPreemptively(limit, installer::getUrl);
         releaseResponse.countDown();
         final Path installed = running.get(DOWNLOAD_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         assertEquals(defaultPath, pathDuringDownload);

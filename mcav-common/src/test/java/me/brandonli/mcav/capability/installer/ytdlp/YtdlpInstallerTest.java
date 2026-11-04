@@ -559,7 +559,8 @@ final class YtdlpInstallerTest {
       platforms.when(Platform::getCurrentPlatform).thenReturn(platform);
       final YtdlpInstaller installer = YtdlpInstaller.create(this.folder);
       final boolean supported = installer.isSupported();
-      final String url = installer.getUrl();
+      final Optional<String> optionalUrl = installer.getUrl();
+      final String url = optionalUrl.orElseThrow();
       final boolean secure = url.startsWith("https://");
       final boolean namesYtDlp = url.contains(PROGRAM_NAME);
       assertTrue(supported);

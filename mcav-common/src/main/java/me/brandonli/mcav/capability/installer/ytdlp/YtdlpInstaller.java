@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.capability.installer.ytdlp;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -24,6 +26,7 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import me.brandonli.mcav.capability.installer.AbstractInstaller;
 import me.brandonli.mcav.capability.installer.Download;
 import me.brandonli.mcav.capability.installer.InstallationException;
@@ -126,8 +129,9 @@ public final class YtdlpInstaller extends AbstractInstaller {
    */
   @Override
   public boolean isArchive() {
-    final String url = this.getUrl();
-    final String fileName = IoUtils.getFileNameFromUrl(url);
+    final Optional<String> url = this.getUrl();
+    final Optional<String> urlFileName = url.map(IoUtils::getFileNameFromUrl);
+    final String fileName = requireNonNull(urlFileName.orElse("")); // checker framework
     final String lowerCaseFileName = fileName.toLowerCase(Locale.ROOT);
     return lowerCaseFileName.endsWith(ZIP_SUFFIX);
   }
@@ -232,8 +236,9 @@ public final class YtdlpInstaller extends AbstractInstaller {
   }
 
   private String getArchiveExecutableName() {
-    final String url = this.getUrl();
-    final String fileName = IoUtils.getFileNameFromUrl(url);
+    final Optional<String> url = this.getUrl();
+    final Optional<String> urlFileName = url.map(IoUtils::getFileNameFromUrl);
+    final String fileName = requireNonNull(urlFileName.orElse("")); // checker framework
     final int suffixStart = fileName.length() - ZIP_SUFFIX.length();
     final String executableName = fileName.substring(0, suffixStart);
     final boolean nameless = executableName.isEmpty();

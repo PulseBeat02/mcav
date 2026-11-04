@@ -159,7 +159,7 @@ final class VlcInstallerTest {
     final VlcInstaller installer = VlcInstaller.create(this.folder);
     final Platform platform = Platform.getCurrentPlatform();
     final Os operatingSystem = platform.getOs();
-    final String url = installer.getUrl();
+    final Optional<String> optionalUrl = installer.getUrl();
 
     final String expectedPrefix = switch (operatingSystem) {
       case WINDOWS, MAC -> "https://download.videolan.org/pub/videolan/vlc/";
@@ -167,8 +167,9 @@ final class VlcInstallerTest {
       default -> "";
     };
     if (expectedPrefix.isEmpty()) {
-      assertEquals("", url);
+      assertEquals(Optional.empty(), optionalUrl);
     } else {
+      final String url = optionalUrl.orElseThrow();
       final boolean expectedHost = url.startsWith(expectedPrefix);
       assertTrue(expectedHost, url);
     }
@@ -178,8 +179,8 @@ final class VlcInstallerTest {
       try (final MockedStatic<Platform> platforms = Mockito.mockStatic(Platform.class, Mockito.CALLS_REAL_METHODS)) {
         platforms.when(Platform::getCurrentPlatform).thenReturn(unavailable);
         final VlcInstaller missing = VlcInstaller.create(this.folder);
-        final String missingUrl = missing.getUrl();
-        assertEquals("", missingUrl, "an unsupported platform has no download URL");
+        final Optional<String> missingUrl = missing.getUrl();
+        assertEquals(Optional.empty(), missingUrl, "an unsupported platform has no download URL");
 
         final boolean supported = missing.isSupported();
         assertFalse(supported);
@@ -466,7 +467,8 @@ final class VlcInstallerTest {
       platforms.when(Platform::getCurrentPlatform).thenReturn(platform);
       final VlcInstaller installer = VlcInstaller.create(this.folder);
       final boolean supported = installer.isSupported();
-      final String url = installer.getUrl();
+      final Optional<String> optionalUrl = installer.getUrl();
+      final String url = optionalUrl.orElseThrow();
       final Optional<String> hash = installer.getHash();
       final Os operatingSystem = platform.getOs();
       final String extension = operatingSystem == Os.WINDOWS ? ZIP_EXTENSION : DISK_IMAGE_EXTENSION;

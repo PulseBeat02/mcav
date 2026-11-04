@@ -21,7 +21,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Objects;
 import java.util.Optional;
+import me.brandonli.mcav.testing.EqualityAssertions;
 import me.brandonli.mcav.utils.os.Arch;
 import me.brandonli.mcav.utils.os.Bits;
 import me.brandonli.mcav.utils.os.Os;
@@ -63,6 +65,36 @@ final class DownloadTest {
     assertEquals(LINUX, partsPlatform);
     assertEquals(expected, partsHash);
     assertTrue(partsHashMissing);
+  }
+
+  @Test
+  void shouldFollowTheEqualityContract() {
+    final Platform windows = Platform.ofPlatform(Os.WINDOWS, Arch.X86, Bits.BITS_64);
+    final Download download = new Download(LINUX, TOOL_URL, HASH);
+    final Download equalDownload = new Download(LINUX, TOOL_URL, HASH);
+    final Download otherPlatform = new Download(windows, TOOL_URL, HASH);
+    final Download otherUrl = new Download(LINUX, "https://example.com/other", HASH);
+    final Download otherHash = new Download(LINUX, TOOL_URL, "def");
+    final Download withoutHash = new Download(LINUX, TOOL_URL);
+    EqualityAssertions.assertEqualityContract(download, equalDownload, otherPlatform, otherUrl, otherHash, withoutHash);
+  }
+
+  @Test
+  void shouldHashThePlatformTheUrlAndTheHash() {
+    final Download download = new Download(LINUX, TOOL_URL, HASH);
+
+    final int hashCode = download.hashCode();
+    final int expected = Objects.hash(LINUX, TOOL_URL, HASH);
+    assertEquals(expected, hashCode);
+  }
+
+  @Test
+  void shouldPrintThePlatformTheUrlAndTheHash() {
+    final Download download = new Download(LINUX, TOOL_URL, HASH);
+
+    final String text = download.toString();
+    final String expected = "Download{platform=%s, url=%s, hash=%s}".formatted(LINUX, TOOL_URL, HASH);
+    assertEquals(expected, text);
   }
 
   @Test
