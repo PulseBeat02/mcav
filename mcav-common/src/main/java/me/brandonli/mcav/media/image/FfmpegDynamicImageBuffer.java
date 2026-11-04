@@ -38,6 +38,7 @@ import org.bytedeco.opencv.opencv_core.Mat;
 final class FfmpegDynamicImageBuffer implements DynamicImageBuffer {
 
   private static final float DEFAULT_FRAME_RATE = 10.0f;
+
   private static final double MICROSECONDS_PER_SECOND = 1_000_000.0;
 
   private final List<ImageBuffer> frames;

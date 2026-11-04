@@ -62,12 +62,26 @@ final class DeclaredImageSize {
 
   private static final int DECIMAL_BASE = 10;
   private static final int MAXIMUM_DECIMAL_DIGITS = 10;
+  private static final char FIRST_DIGIT = '0';
+  private static final char LAST_DIGIT = '9';
   private static final String PLUS_SIGN = "+";
   private static final String MINUS_SIGN = "-";
-  private static final String COMMENT_START = "#";
 
-  // a size that is given twice or in a form the decoder refuses; -1 is a size that is missing
+  private static final char SPACE = ' ';
+  private static final char HORIZONTAL_TAB = '\t';
+  private static final char LINE_FEED = '\n';
+  private static final char CARRIAGE_RETURN = '\r';
+
+  private static final char STRING_TERMINATOR = '\0';
+
+  private static final String COMMENT_START = "#";
+  private static final char COMMENT_START_CODE = '#';
+
+  private static final long MISSING = -1;
+  // a size that is given twice or in a form the decoder refuses
   private static final long REFUSED = -2;
+
+  private static final int END_OF_DATA = -1;
 
   private static final String BMP_SIGNATURE = "BM";
   private static final int BMP_INFORMATION_SIZE_OFFSET = 14;
@@ -111,8 +125,14 @@ final class DeclaredImageSize {
   private static final int SUN_RASTER_WIDTH_OFFSET = 4;
   private static final int SUN_RASTER_HEIGHT_OFFSET = 8;
 
+  private static final char NETPBM_SIGNATURE = 'P';
   private static final int NETPBM_KIND_OFFSET = 1;
   private static final int NETPBM_SEPARATOR_OFFSET = 2;
+  private static final char PNM_FIRST_KIND = '1';
+  private static final char PNM_LAST_KIND = '6';
+  private static final char PAM_KIND = '7';
+  private static final char PFM_GRAY_KIND = 'f';
+  private static final char PFM_COLOR_KIND = 'F';
   private static final int PNM_HEADER_OFFSET = 2;
   private static final int PAM_HEADER_OFFSET = 3;
   private static final int PFM_HEADER_OFFSET = 3;
@@ -277,16 +297,16 @@ final class DeclaredImageSize {
     }
 
     final int kind = header.readUnsigned8(NETPBM_KIND_OFFSET);
-    final boolean netpbm = header.readUnsigned8(0) == 'P' && isSpace(header.readUnsigned8(NETPBM_SEPARATOR_OFFSET));
-    if (netpbm && kind >= '1' && kind <= '6') {
+    final boolean netpbm = header.readUnsigned8(0) == NETPBM_SIGNATURE && isSpace(header.readUnsigned8(NETPBM_SEPARATOR_OFFSET));
+    if (netpbm && kind >= PNM_FIRST_KIND && kind <= PNM_LAST_KIND) {
       return readPnmSize(header);
     }
 
-    if (netpbm && kind == '7') {
+    if (netpbm && kind == PAM_KIND) {
       return readPamSize(header);
     }
 
-    if (netpbm && (kind == 'f' || kind == 'F')) {
+    if (netpbm && (kind == PFM_GRAY_KIND || kind == PFM_COLOR_KIND)) {
       return readPfmSize(header);
     }
 
@@ -346,7 +366,7 @@ final class DeclaredImageSize {
       if (piece == null) {
         return null;
       }
-    } while (piece.charAt(0) != '\n');
+    } while (piece.charAt(0) != LINE_FEED);
     final String resolution = header.readPiece(position, MAXIMUM_HDR_PIECE_LENGTH);
     if (resolution == null) {
       return null;
@@ -468,7 +488,7 @@ final class DeclaredImageSize {
   private static long readPnmNumber(final Header header, final long[] position) {
     final int first = skipPnmSeparators(header, position);
     if (!isDigit(first)) {
-      return -1;
+      return MISSING;
     }
 
     return readPnmDecimal(header, position, first);
@@ -476,7 +496,7 @@ final class DeclaredImageSize {
 
   private static int skipPnmSeparators(final Header header, final long[] position) {
     int code = header.readUnsigned8(position[0]++);
-    while (code == '#' || isSpace(code)) {
+    while (code == COMMENT_START_CODE || isSpace(code)) {
       code = skipPnmSeparator(header, position, code);
     }
 
@@ -484,7 +504,7 @@ final class DeclaredImageSize {
   }
 
   private static int skipPnmSeparator(final Header header, final long[] position, final int first) {
-    if (first == '#') {
+    if (first == COMMENT_START_CODE) {
       return skipPnmComment(header, position);
     }
 
@@ -495,7 +515,7 @@ final class DeclaredImageSize {
     int code;
     do {
       code = header.readUnsigned8(position[0]++);
-    } while (code >= 0 && code != '\n' && code != '\r');
+    } while (code >= 0 && code != LINE_FEED && code != CARRIAGE_RETURN);
 
     return header.readUnsigned8(position[0]++);
   }
@@ -513,17 +533,17 @@ final class DeclaredImageSize {
     int code = first;
     long value = 0;
     while (isDigit(code) && value <= Integer.MAX_VALUE) {
-      value = value * DECIMAL_BASE + (code - '0');
+      value = value * DECIMAL_BASE + (code - FIRST_DIGIT);
       code = header.readUnsigned8(position[0]++);
     }
 
-    return value <= Integer.MAX_VALUE ? value : -1;
+    return value <= Integer.MAX_VALUE ? value : MISSING;
   }
 
   // A PAM: lines of a name and a value after P7, up to ENDHDR; WIDTH and HEIGHT give the size. Comments start with #.
   private static @Nullable Size readPamSize(final Header header) {
-    long width = -1;
-    long height = -1;
+    long width = MISSING;
+    long height = MISSING;
     final long[] position = { PAM_HEADER_OFFSET };
     while (true) {
       final String line = header.readLine(position, MAXIMUM_PAM_LINE_LENGTH);
@@ -556,7 +576,7 @@ final class DeclaredImageSize {
   }
 
   private static @Nullable Size readPfmSize(final Header header) {
-    if (header.readUnsigned8(NETPBM_SEPARATOR_OFFSET) != '\n') {
+    if (header.readUnsigned8(NETPBM_SEPARATOR_OFFSET) != LINE_FEED) {
       return null;
     }
 
@@ -567,7 +587,7 @@ final class DeclaredImageSize {
   }
 
   private static @Nullable Size readTiffSize(final Header header) {
-    final ByteOrder order = header.readUnsigned8(0) == 'I' ? ByteOrder.LITTLE_ENDIAN : ByteOrder.BIG_ENDIAN;
+    final ByteOrder order = header.startsWith(0, TIFF_LITTLE_ENDIAN_SIGNATURE) ? ByteOrder.LITTLE_ENDIAN : ByteOrder.BIG_ENDIAN;
     final long magic = header.readNumber(TIFF_MAGIC_OFFSET, SIXTEEN_BIT_BYTES, order);
     final TiffLayout layout = magic == BIG_TIFF_MAGIC ? TiffLayout.BIG : TiffLayout.CLASSIC;
     if (magic != TIFF_MAGIC && layout == TiffLayout.CLASSIC) {
@@ -585,17 +605,17 @@ final class DeclaredImageSize {
       return null;
     }
 
-    long width = -1;
-    long length = -1;
+    long width = MISSING;
+    long length = MISSING;
     final long entries = Math.min(count, header.size() / entrySize);
     for (long index = 0; index < entries; index++) {
       final long entry = directory + countSize + index * entrySize;
       final long tag = header.readNumber(entry, SIXTEEN_BIT_BYTES, order);
       // a tag given twice is refused, as which of the two libtiff keeps is not something to rely on
       if (tag == TIFF_IMAGE_WIDTH_TAG) {
-        width = width == -1 ? readTiffValue(header, entry, layout, order) : REFUSED;
+        width = width == MISSING ? readTiffValue(header, entry, layout, order) : REFUSED;
       } else if (tag == TIFF_IMAGE_LENGTH_TAG) {
-        length = length == -1 ? readTiffValue(header, entry, layout, order) : REFUSED;
+        length = length == MISSING ? readTiffValue(header, entry, layout, order) : REFUSED;
       }
     }
 
@@ -629,7 +649,7 @@ final class DeclaredImageSize {
 
   private static long parseLeadingInteger(final @Nullable String word) {
     if (word == null) {
-      return -1;
+      return MISSING;
     }
 
     final int start = word.startsWith(PLUS_SIGN) || word.startsWith(MINUS_SIGN) ? 1 : 0;
@@ -639,7 +659,7 @@ final class DeclaredImageSize {
     }
 
     final String digits = word.substring(start, end);
-    final long magnitude = digits.isEmpty() || digits.length() > MAXIMUM_DECIMAL_DIGITS ? -1 : Long.parseLong(digits);
+    final long magnitude = digits.isEmpty() || digits.length() > MAXIMUM_DECIMAL_DIGITS ? MISSING : Long.parseLong(digits);
     return word.startsWith(MINUS_SIGN) ? -magnitude : magnitude;
   }
 
@@ -649,12 +669,12 @@ final class DeclaredImageSize {
   }
 
   private static boolean isDigit(final int code) {
-    return code >= '0' && code <= '9';
+    return code >= FIRST_DIGIT && code <= LAST_DIGIT;
   }
 
   // C's isspace in the C locale
   static boolean isSpace(final int code) {
-    return code == ' ' || (code >= '\t' && code <= '\r');
+    return code == SPACE || (code >= HORIZONTAL_TAB && code <= CARRIAGE_RETURN);
   }
 
   record Size(long width, long height) {}
@@ -668,11 +688,11 @@ final class DeclaredImageSize {
 
     private final String text;
     private int position;
-    private long first = -1;
-    private long second = -1;
+    private long first = MISSING;
+    private long second = MISSING;
 
     ResolutionScanner(final String text) {
-      final int end = text.indexOf('\0');
+      final int end = text.indexOf(STRING_TERMINATOR);
       this.text = end < 0 ? text : text.substring(0, end);
     }
 
@@ -695,7 +715,7 @@ final class DeclaredImageSize {
       long value = 0;
       int digits = 0;
       while (this.position < this.text.length() && isDigit(this.text.charAt(this.position)) && value <= Integer.MAX_VALUE) {
-        value = value * DECIMAL_BASE + (this.text.charAt(this.position) - '0');
+        value = value * DECIMAL_BASE + (this.text.charAt(this.position) - FIRST_DIGIT);
         this.position++;
         digits++;
       }
@@ -705,7 +725,7 @@ final class DeclaredImageSize {
       }
 
       final long signed = negative ? -value : value;
-      if (this.first == -1) {
+      if (this.first == MISSING) {
         this.first = signed;
       } else {
         this.second = signed;
@@ -735,7 +755,7 @@ final class DeclaredImageSize {
 
     int readUnsigned8(final long position) {
       final boolean inside = position >= 0 && position < this.segment.byteSize();
-      return inside ? Byte.toUnsignedInt(this.segment.get(ValueLayout.JAVA_BYTE, position)) : -1;
+      return inside ? Byte.toUnsignedInt(this.segment.get(ValueLayout.JAVA_BYTE, position)) : END_OF_DATA;
     }
 
     boolean startsWith(final long position, final String text) {
@@ -762,7 +782,7 @@ final class DeclaredImageSize {
       for (int index = 0; index < bytes; index++) {
         final int code = this.readUnsigned8(littleEndian ? position + bytes - 1 - index : position + index);
         if (code < 0) {
-          return -1;
+          return MISSING;
         }
         value = (value << BITS_PER_BYTE) | code;
       }
@@ -783,7 +803,7 @@ final class DeclaredImageSize {
     @Nullable String readPiece(final long[] position, final int limit) {
       final StringBuilder piece = new StringBuilder();
       int code = 0;
-      while (piece.length() < limit && code != '\n') {
+      while (piece.length() < limit && code != LINE_FEED) {
         code = this.readUnsigned8(position[0]);
         if (code < 0) {
           break;
@@ -805,7 +825,7 @@ final class DeclaredImageSize {
       }
 
       boolean longer = false;
-      while (code >= 0 && code != '\n' && code != '\r') {
+      while (code >= 0 && code != LINE_FEED && code != CARRIAGE_RETURN) {
         if (line.length() < limit) {
           line.append((char) code);
         } else {

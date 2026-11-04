@@ -149,6 +149,6 @@ public interface FrameSource extends DynamicSource {
     final int width = this.getFrameWidth();
     final int height = this.getFrameHeight();
     final float frameRate = this.getFrameRate();
-    return width + "x" + height + "@" + frameRate;
+    return "%sx%s@%s".formatted(width, height, frameRate);
   }
 }

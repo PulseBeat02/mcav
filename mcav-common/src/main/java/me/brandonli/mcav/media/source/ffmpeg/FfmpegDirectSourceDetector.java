@@ -34,6 +34,7 @@ public class FfmpegDirectSourceDetector implements SourceDetector<FfmpegDirectSo
 
   private static final Pattern SEPARATOR = Pattern.compile(Pattern.quote("||"));
   private static final int PARTS = 2;
+  private static final int KEEP_TRAILING_EMPTY_PARTS = -1;
 
   /**
    * Creates a detector.
@@ -54,7 +55,7 @@ public class FfmpegDirectSourceDetector implements SourceDetector<FfmpegDirectSo
   public boolean isDetectedSource(final String resource) {
     Preconditions.checkNotNull(resource, RESOURCE_NULL_MESSAGE);
 
-    final String[] parts = SEPARATOR.split(resource, -1);
+    final String[] parts = SEPARATOR.split(resource, KEEP_TRAILING_EMPTY_PARTS);
     if (parts.length != PARTS) {
       return false;
     }
@@ -79,7 +80,7 @@ public class FfmpegDirectSourceDetector implements SourceDetector<FfmpegDirectSo
   public FfmpegDirectSource createSource(final String resource) {
     Preconditions.checkNotNull(resource, RESOURCE_NULL_MESSAGE);
 
-    final String[] parts = SEPARATOR.split(resource, -1);
+    final String[] parts = SEPARATOR.split(resource, KEEP_TRAILING_EMPTY_PARTS);
     Preconditions.checkArgument(parts.length == PARTS, "Raw source %s must have the form format||input!", resource);
 
     final String format = parts[0];

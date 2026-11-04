@@ -72,15 +72,20 @@ public final class MatImageBuffer implements ImageBuffer {
   private static final int BGR_CHANNELS = 3;
   private static final int GRAY_CHANNELS = 1;
   private static final int BGRA_CHANNELS = 4;
+
   private static final int GREEN_OFFSET = 1;
   private static final int RED_OFFSET = 2;
 
   private static final int ALPHA_OPAQUE = 0xFF << 24;
   private static final int CHANNEL_MASK = 0xFF;
+
+  private static final int CHANNEL_MINIMUM = 0;
   private static final int CHANNEL_MAXIMUM = 255;
+
   private static final int RED_SHIFT = 16;
   private static final int GREEN_SHIFT = 8;
 
+  private static final double EIGHT_BIT_SCALE = 1.0;
   private static final double SIXTEEN_BIT_SCALE = 1.0 / 257.0;
   private static final double THIRTY_TWO_BIT_SCALE = 1.0 / 16_843_009.0;
   private static final double FLOATING_POINT_SCALE = 255.0;
@@ -297,7 +302,7 @@ public final class MatImageBuffer implements ImageBuffer {
 
   private static double getEightBitScale(final int depth) {
     return switch (depth) {
-      case opencv_core.CV_8S -> 1.0;
+      case opencv_core.CV_8S -> EIGHT_BIT_SCALE;
       case opencv_core.CV_16U, opencv_core.CV_16S -> SIXTEEN_BIT_SCALE;
       case opencv_core.CV_32S -> THIRTY_TWO_BIT_SCALE;
       default -> FLOATING_POINT_SCALE;
@@ -661,7 +666,7 @@ public final class MatImageBuffer implements ImageBuffer {
     final int count = Math.min(value.length, BGR_CHANNELS);
     for (int channel = 0; channel < count; channel++) {
       final long rounded = Math.round(value[channel]);
-      final int clamped = Math.clamp(rounded, 0, CHANNEL_MAXIMUM);
+      final int clamped = Math.clamp(rounded, CHANNEL_MINIMUM, CHANNEL_MAXIMUM);
       bytes.put(base + channel, (byte) clamped);
     }
 
