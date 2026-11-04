@@ -31,7 +31,7 @@ import me.brandonli.mcav.utils.SourceUtils;
  */
 public class UriSourceDetector implements SourceDetector<UriSource> {
 
-  private static final String RAW_NULL_MESSAGE = "Raw must not be null!";
+  private static final String RESOURCE_NULL_MESSAGE = "Resource must not be null!";
 
   /**
    * Creates a detector.
@@ -43,32 +43,32 @@ public class UriSourceDetector implements SourceDetector<UriSource> {
   /**
    * Returns whether the string parses as a URI with a scheme and a host.
    *
-   * @param raw the string entered by a user
+   * @param resource the string entered by a user
    * @return true if {@link #createSource(String)} can create a source from it
-   * @throws NullPointerException if {@code raw} is null
+   * @throws NullPointerException if {@code resource} is null
    * @since 1.0.0
    */
   @Override
-  public boolean isDetectedSource(final String raw) {
-    Preconditions.checkNotNull(raw, RAW_NULL_MESSAGE);
+  public boolean isDetectedSource(final String resource) {
+    Preconditions.checkNotNull(resource, RESOURCE_NULL_MESSAGE);
 
-    return SourceUtils.isUri(raw);
+    return SourceUtils.isUri(resource);
   }
 
   /**
    * Creates a URI source for the URI the string holds.
    *
-   * @param raw the string entered by a user
+   * @param resource the string entered by a user
    * @return the source
    * @throws IllegalArgumentException if the string is not syntactically a URI
-   * @throws NullPointerException     if {@code raw} is null
+   * @throws NullPointerException     if {@code resource} is null
    * @since 1.0.0
    */
   @Override
-  public UriSource createSource(final String raw) {
-    Preconditions.checkNotNull(raw, RAW_NULL_MESSAGE);
+  public UriSource createSource(final String resource) {
+    Preconditions.checkNotNull(resource, RESOURCE_NULL_MESSAGE);
 
-    final URI uri = URI.create(raw);
+    final URI uri = URI.create(resource);
     return UriSource.uri(uri);
   }
 

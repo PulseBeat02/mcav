@@ -30,7 +30,7 @@ import me.brandonli.mcav.media.source.SourceDetector;
  */
 public class FfmpegDirectSourceDetector implements SourceDetector<FfmpegDirectSource> {
 
-  private static final String RAW_NULL_MESSAGE = "Raw must not be null!";
+  private static final String RESOURCE_NULL_MESSAGE = "Resource must not be null!";
 
   private static final Pattern SEPARATOR = Pattern.compile(Pattern.quote("||"));
   private static final int PARTS = 2;
@@ -45,16 +45,16 @@ public class FfmpegDirectSourceDetector implements SourceDetector<FfmpegDirectSo
   /**
    * Returns whether the string has the form {@code format||input} with both parts non-blank.
    *
-   * @param raw the string entered by a user
+   * @param resource the string entered by a user
    * @return true if {@link #createSource(String)} can create a source from it
-   * @throws NullPointerException if {@code raw} is null
+   * @throws NullPointerException if {@code resource} is null
    * @since 1.0.0
    */
   @Override
-  public boolean isDetectedSource(final String raw) {
-    Preconditions.checkNotNull(raw, RAW_NULL_MESSAGE);
+  public boolean isDetectedSource(final String resource) {
+    Preconditions.checkNotNull(resource, RESOURCE_NULL_MESSAGE);
 
-    final String[] parts = SEPARATOR.split(raw, -1);
+    final String[] parts = SEPARATOR.split(resource, -1);
     if (parts.length != PARTS) {
       return false;
     }
@@ -69,18 +69,18 @@ public class FfmpegDirectSourceDetector implements SourceDetector<FfmpegDirectSo
   /**
    * Creates an FFmpeg source from the format and the input on either side of {@code ||}.
    *
-   * @param raw the string entered by a user
+   * @param resource the string entered by a user
    * @return the source
    * @throws IllegalArgumentException if there is not exactly one {@code ||} separator or the format is blank
-   * @throws NullPointerException     if {@code raw} is null
+   * @throws NullPointerException     if {@code resource} is null
    * @since 1.0.0
    */
   @Override
-  public FfmpegDirectSource createSource(final String raw) {
-    Preconditions.checkNotNull(raw, RAW_NULL_MESSAGE);
+  public FfmpegDirectSource createSource(final String resource) {
+    Preconditions.checkNotNull(resource, RESOURCE_NULL_MESSAGE);
 
-    final String[] parts = SEPARATOR.split(raw, -1);
-    Preconditions.checkArgument(parts.length == PARTS, "Raw source %s must have the form format||input!", raw);
+    final String[] parts = SEPARATOR.split(resource, -1);
+    Preconditions.checkArgument(parts.length == PARTS, "Raw source %s must have the form format||input!", resource);
 
     final String format = parts[0];
     final String mrl = parts[1];

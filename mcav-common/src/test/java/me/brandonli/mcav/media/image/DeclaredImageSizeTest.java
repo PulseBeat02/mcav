@@ -120,7 +120,7 @@ final class DeclaredImageSizeTest {
   }
 
   private static @Nullable Size read(final byte[] encoded) {
-    return DeclaredImageSize.read(MemorySegment.ofArray(encoded));
+    return DeclaredImageSize.readDeclaredSize(MemorySegment.ofArray(encoded));
   }
 
   private static String sizeOf(final @Nullable Size size) {
@@ -918,15 +918,15 @@ final class DeclaredImageSizeTest {
     final String previous = System.getProperty(DeclaredImageSize.MAXIMUM_PIXELS_PROPERTY);
     try {
       System.clearProperty(DeclaredImageSize.MAXIMUM_PIXELS_PROPERTY);
-      final long defaultLimit = DeclaredImageSize.limit();
+      final long defaultLimit = DeclaredImageSize.readLimit();
       assertEquals(67_108_864L, defaultLimit);
 
       System.setProperty(DeclaredImageSize.MAXIMUM_PIXELS_PROPERTY, "123");
-      final long raisedLimit = DeclaredImageSize.limit();
+      final long raisedLimit = DeclaredImageSize.readLimit();
       assertEquals(123L, raisedLimit);
 
       System.setProperty(DeclaredImageSize.MAXIMUM_PIXELS_PROPERTY, "a lot");
-      final long fallbackLimit = DeclaredImageSize.limit();
+      final long fallbackLimit = DeclaredImageSize.readLimit();
       assertEquals(67_108_864L, fallbackLimit);
 
       final byte[] unknown = bytes(NOT_AN_IMAGE);

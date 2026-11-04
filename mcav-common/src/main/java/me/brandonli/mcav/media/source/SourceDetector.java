@@ -52,20 +52,20 @@ public interface SourceDetector<SourceType extends Source> {
   /**
    * Returns whether the string describes a source of this kind.
    *
-   * @param raw the string entered by a user
+   * @param resource the string entered by a user
    * @return true if {@link #createSource(String)} can create a source from it
    * @since 1.0.0
    */
-  boolean isDetectedSource(final String raw);
+  boolean isDetectedSource(final String resource);
 
   /**
    * Creates the source described by the string, which was accepted by {@link #isDetectedSource(String)}.
    *
-   * @param raw the string entered by a user
+   * @param resource the string entered by a user
    * @return the source
    * @since 1.0.0
    */
-  SourceType createSource(final String raw);
+  SourceType createSource(final String resource);
 
   /**
    * Returns the priority of this detector.

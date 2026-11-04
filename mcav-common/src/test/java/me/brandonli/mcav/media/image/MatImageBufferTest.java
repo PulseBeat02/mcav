@@ -553,14 +553,14 @@ final class MatImageBufferTest {
   void shouldReuseItsConversionArray() {
     try (final ImageBuffer image = Images.solid(SMALL_IMAGE_SIZE, SMALL_IMAGE_SIZE, BLACK)) {
       final MatImageBuffer buffer = (MatImageBuffer) image;
-      final byte[] first = buffer.getScratch(12);
-      final byte[] smaller = buffer.getScratch(6);
+      final byte[] first = buffer.ensureScratch(12);
+      final byte[] smaller = buffer.ensureScratch(6);
       image.invalidateCache();
       image.getPixels();
       final int[] pixels = { 1, 2, 3, 4 };
       image.updateArgb(pixels, 2, 2);
-      final byte[] afterUse = buffer.getScratch(12);
-      final byte[] larger = buffer.getScratch(24);
+      final byte[] afterUse = buffer.ensureScratch(12);
+      final byte[] larger = buffer.ensureScratch(24);
       assertSame(first, smaller, "a large enough array is reused");
       assertSame(first, afterUse, "reading and writing pixels reuse the array instead of allocating one per frame");
       assertEquals(24, larger.length, "the array grows when it is too small");

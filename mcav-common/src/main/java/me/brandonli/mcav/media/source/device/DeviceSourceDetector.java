@@ -30,7 +30,7 @@ import me.brandonli.mcav.media.source.SourceDetector;
  */
 public class DeviceSourceDetector implements SourceDetector<DeviceSource> {
 
-  private static final String RAW_NULL_MESSAGE = "Raw must not be null!";
+  private static final String RESOURCE_NULL_MESSAGE = "Resource must not be null!";
 
   /**
    * Creates a detector.
@@ -42,34 +42,34 @@ public class DeviceSourceDetector implements SourceDetector<DeviceSource> {
   /**
    * Returns whether the string is a non-negative integer, which names a camera index.
    *
-   * @param raw the string entered by a user
+   * @param resource the string entered by a user
    * @return true if {@link #createSource(String)} can create a source from it
-   * @throws NullPointerException if {@code raw} is null
+   * @throws NullPointerException if {@code resource} is null
    * @since 1.0.0
    */
   @Override
-  public boolean isDetectedSource(final String raw) {
-    Preconditions.checkNotNull(raw, RAW_NULL_MESSAGE);
+  public boolean isDetectedSource(final String resource) {
+    Preconditions.checkNotNull(resource, RESOURCE_NULL_MESSAGE);
 
-    final Integer parsed = Ints.tryParse(raw);
+    final Integer parsed = Ints.tryParse(resource);
     return parsed != null && parsed >= 0;
   }
 
   /**
    * Creates a device source for the camera index the string holds.
    *
-   * @param raw the string entered by a user
+   * @param resource the string entered by a user
    * @return the source
    * @throws NumberFormatException    if the string is not a decimal {@code int}
    * @throws IllegalArgumentException if the parsed index is negative
-   * @throws NullPointerException     if {@code raw} is null
+   * @throws NullPointerException     if {@code resource} is null
    * @since 1.0.0
    */
   @Override
-  public DeviceSource createSource(final String raw) {
-    Preconditions.checkNotNull(raw, RAW_NULL_MESSAGE);
+  public DeviceSource createSource(final String resource) {
+    Preconditions.checkNotNull(resource, RESOURCE_NULL_MESSAGE);
 
-    final int deviceId = Integer.parseInt(raw);
+    final int deviceId = Integer.parseInt(resource);
     return DeviceSource.device(deviceId);
   }
 

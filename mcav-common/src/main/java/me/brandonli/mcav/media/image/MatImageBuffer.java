@@ -69,7 +69,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public final class MatImageBuffer implements ImageBuffer {
 
-  private static final int CHANNELS = 3;
+  private static final int BGR_CHANNELS = 3;
   private static final int GRAY_CHANNELS = 1;
   private static final int BGRA_CHANNELS = 4;
   private static final int GREEN_OFFSET = 1;
@@ -109,7 +109,7 @@ public final class MatImageBuffer implements ImageBuffer {
   MatImageBuffer(final byte[] bytes, final int width, final int height) {
     checkDimensions(width, height);
 
-    final int expected = width * height * CHANNELS;
+    final int expected = width * height * BGR_CHANNELS;
     Preconditions.checkArgument(bytes.length == expected, BYTE_COUNT_MESSAGE, bytes.length, expected);
 
     this.mat = new Mat(height, width, opencv_core.CV_8UC3);
@@ -120,7 +120,7 @@ public final class MatImageBuffer implements ImageBuffer {
   MatImageBuffer(final ByteBuffer bytes, final int width, final int height) {
     checkDimensions(width, height);
 
-    final int expected = width * height * CHANNELS;
+    final int expected = width * height * BGR_CHANNELS;
     final int remaining = bytes.remaining();
     Preconditions.checkArgument(remaining == expected, BYTE_COUNT_MESSAGE, remaining, expected);
 
@@ -172,7 +172,7 @@ public final class MatImageBuffer implements ImageBuffer {
     final int expected = width * height;
     Preconditions.checkArgument(argb.length == expected, PIXEL_COUNT_MESSAGE, argb.length, expected);
 
-    final byte[] bytes = new byte[expected * CHANNELS];
+    final byte[] bytes = new byte[expected * BGR_CHANNELS];
     this.mat = new Mat(height, width, opencv_core.CV_8UC3);
     this.scratch = bytes;
     writeArgb(this.mat, argb, bytes);
@@ -228,7 +228,7 @@ public final class MatImageBuffer implements ImageBuffer {
     // channels, as multiplying two int dimensions and the channel count can overflow even a long
     final long pixels = (long) width * height;
     Preconditions.checkArgument(
-      pixels <= Integer.MAX_VALUE / CHANNELS,
+      pixels <= Integer.MAX_VALUE / BGR_CHANNELS,
       "Image dimensions %sx%s exceed the maximum BGR buffer size!",
       width,
       height
@@ -239,7 +239,7 @@ public final class MatImageBuffer implements ImageBuffer {
     final int channels = source.channels();
     final int depth = source.depth();
     final boolean continuous = source.isContinuous();
-    if (channels == CHANNELS && depth == opencv_core.CV_8U && continuous) {
+    if (channels == BGR_CHANNELS && depth == opencv_core.CV_8U && continuous) {
       return source;
     }
 
@@ -259,14 +259,14 @@ public final class MatImageBuffer implements ImageBuffer {
     final Mat eightBit = toEightBit(source);
     // matrices compare by the address of their native header, so only a newly converted matrix differs
     final boolean converted = !eightBit.equals(source);
-    if (channels == CHANNELS && converted) {
+    if (channels == BGR_CHANNELS && converted) {
       return eightBit;
     }
 
     final Mat bgr = new Mat();
     switch (channels) {
       case GRAY_CHANNELS -> opencv_imgproc.cvtColor(eightBit, bgr, opencv_imgproc.COLOR_GRAY2BGR);
-      case CHANNELS -> eightBit.copyTo(bgr);
+      case BGR_CHANNELS -> eightBit.copyTo(bgr);
       case BGRA_CHANNELS -> opencv_imgproc.cvtColor(eightBit, bgr, opencv_imgproc.COLOR_BGRA2BGR);
       default -> {
         final String message = "Channel count %s is not supported!".formatted(channels);
@@ -310,7 +310,7 @@ public final class MatImageBuffer implements ImageBuffer {
       bytes[index] = (byte) pixel;
       bytes[index + GREEN_OFFSET] = (byte) (pixel >> GREEN_SHIFT);
       bytes[index + RED_OFFSET] = (byte) (pixel >> RED_SHIFT);
-      index += CHANNELS;
+      index += BGR_CHANNELS;
     }
 
     final ByteBuffer buffer = target.createBuffer();
@@ -334,7 +334,7 @@ public final class MatImageBuffer implements ImageBuffer {
     if (copyable && intType) {
       final DataBufferInt intBuffer = (DataBufferInt) dataBuffer;
       final int[] pixels = intBuffer.getData();
-      final byte[] bytes = scratchFactory.apply(pixels.length * CHANNELS);
+      final byte[] bytes = scratchFactory.apply(pixels.length * BGR_CHANNELS);
       writeArgb(target, pixels, bytes);
       return;
     }
@@ -345,7 +345,7 @@ public final class MatImageBuffer implements ImageBuffer {
     final int height = image.getHeight();
     final int[] pixels = new int[width * height];
     image.getRGB(0, 0, width, height, pixels, 0, width);
-    final byte[] bytes = scratchFactory.apply(pixels.length * CHANNELS);
+    final byte[] bytes = scratchFactory.apply(pixels.length * BGR_CHANNELS);
     writeArgb(target, pixels, bytes);
   }
 
@@ -373,7 +373,7 @@ public final class MatImageBuffer implements ImageBuffer {
       final byte[] backing = bytes.getData();
       final int pixelStride = interleaved.getPixelStride();
       final int rowStride = interleaved.getScanlineStride();
-      return backing.length == expectedElements && pixelStride == CHANNELS && rowStride == (long) width * CHANNELS;
+      return backing.length == expectedElements && pixelStride == BGR_CHANNELS && rowStride == (long) width * BGR_CHANNELS;
     }
 
     if (dataBuffer instanceof final DataBufferInt integers && sampleModel instanceof final SinglePixelPackedSampleModel packed) {
@@ -395,7 +395,7 @@ public final class MatImageBuffer implements ImageBuffer {
   // Returns the byte array this image converts pixels with, growing it when it is too small, so repeated conversions of
   // frames of the same size reuse one array.
   @VisibleForTesting
-  byte[] getScratch(final int length) {
+  byte[] ensureScratch(final int length) {
     final byte[] current = this.scratch;
     if (current != null && current.length >= length) {
       return current;
@@ -593,7 +593,7 @@ public final class MatImageBuffer implements ImageBuffer {
     final int width = image.getWidth();
     final int height = image.getHeight();
     this.ensureSize(width, height);
-    writeBufferedImage(this.mat, image, this::getScratch);
+    writeBufferedImage(this.mat, image, this::ensureScratch);
     this.invalidateCache();
   }
 
@@ -657,8 +657,8 @@ public final class MatImageBuffer implements ImageBuffer {
 
     final ByteBuffer bytes = this.mat.createBuffer();
     final int width = this.mat.cols();
-    final int base = (row * width + column) * CHANNELS;
-    final int count = Math.min(value.length, CHANNELS);
+    final int base = (row * width + column) * BGR_CHANNELS;
+    final int count = Math.min(value.length, BGR_CHANNELS);
     for (int channel = 0; channel < count; channel++) {
       final long rounded = Math.round(value[channel]);
       final int clamped = Math.clamp(rounded, 0, CHANNEL_MAXIMUM);
@@ -685,9 +685,9 @@ public final class MatImageBuffer implements ImageBuffer {
 
     final ByteBuffer bytes = this.mat.createBuffer();
     final int width = this.mat.cols();
-    final int base = (row * width + column) * CHANNELS;
-    final double[] values = new double[CHANNELS];
-    for (int channel = 0; channel < CHANNELS; channel++) {
+    final int base = (row * width + column) * BGR_CHANNELS;
+    final double[] values = new double[BGR_CHANNELS];
+    for (int channel = 0; channel < BGR_CHANNELS; channel++) {
       values[channel] = bytes.get(base + channel) & CHANNEL_MASK;
     }
 
@@ -795,9 +795,9 @@ public final class MatImageBuffer implements ImageBuffer {
 
   private int[] readArgb(final int width, final int height) {
     final int count = width * height;
-    final int length = count * CHANNELS;
+    final int length = count * BGR_CHANNELS;
     final int[] pixels = new int[count];
-    final byte[] raw = this.getScratch(length);
+    final byte[] raw = this.ensureScratch(length);
     final ByteBuffer bytes = this.mat.createBuffer();
     bytes.get(raw, 0, length);
     int byteIndex = 0;
@@ -806,7 +806,7 @@ public final class MatImageBuffer implements ImageBuffer {
       final int green = raw[byteIndex + GREEN_OFFSET] & CHANNEL_MASK;
       final int red = raw[byteIndex + RED_OFFSET] & CHANNEL_MASK;
       pixels[pixelIndex] = ALPHA_OPAQUE | (red << RED_SHIFT) | (green << GREEN_SHIFT) | blue;
-      byteIndex += CHANNELS;
+      byteIndex += BGR_CHANNELS;
     }
 
     return pixels;
@@ -849,7 +849,7 @@ public final class MatImageBuffer implements ImageBuffer {
     checkDimensions(width, height);
     this.checkNotReleased();
 
-    final int expected = width * height * CHANNELS;
+    final int expected = width * height * BGR_CHANNELS;
     final int remaining = data.remaining();
     Preconditions.checkArgument(remaining == expected, BYTE_COUNT_MESSAGE, remaining, expected);
 
@@ -885,7 +885,7 @@ public final class MatImageBuffer implements ImageBuffer {
     Preconditions.checkArgument(pixels.length == expected, PIXEL_COUNT_MESSAGE, pixels.length, expected);
 
     this.ensureSize(width, height);
-    final byte[] bytes = this.getScratch(expected * CHANNELS);
+    final byte[] bytes = this.ensureScratch(expected * BGR_CHANNELS);
     writeArgb(this.mat, pixels, bytes);
     this.invalidateCache();
   }

@@ -47,12 +47,12 @@ final class DeclaredImageSize {
   private static final String UNSUPPORTED_FILE = "File %s is not a supported image!";
 
   // OpenCV reads its header lines in pieces of at most 127 characters, the way fgets does with a 128-byte buffer
-  private static final int HDR_PIECE = 127;
+  private static final int MAXIMUM_HDR_PIECE_LENGTH = 127;
   // OpenCV's PFM reader reads a number of at most 2048 characters
-  private static final int PFM_NUMBER = 2048;
+  private static final int MAXIMUM_PFM_NUMBER_LENGTH = 2048;
   // OpenCV's PAM reader takes a name of at most 8 characters and a value of at most 255
-  private static final int PAM_LINE = 512;
-  private static final int WEBP_SIGNATURE = 32;
+  private static final int MAXIMUM_PAM_LINE_LENGTH = 512;
+  private static final int MINIMUM_WEBP_HEADER_LENGTH = 32;
 
   private static final int SIXTEEN_BIT_BYTES = 2;
   private static final int TWENTY_FOUR_BIT_BYTES = 3;
@@ -180,7 +180,7 @@ final class DeclaredImageSize {
   }
 
   static void checkBytes(final byte[] encoded) {
-    checkBytes(encoded, limit());
+    checkBytes(encoded, readLimit());
   }
 
   static void checkBytes(final byte[] encoded, final long limit) {
@@ -189,7 +189,7 @@ final class DeclaredImageSize {
     }
 
     final MemorySegment segment = MemorySegment.ofArray(encoded);
-    final Size size = read(segment);
+    final Size size = readDeclaredSize(segment);
     if (size == null) {
       final String message = "Bytes are not a supported image format!";
       throw new IllegalArgumentException(message);
@@ -200,7 +200,7 @@ final class DeclaredImageSize {
 
   // Checks the header of an image file, mapping the file instead of reading it whole.
   static void checkFile(final Path path) {
-    checkFile(path, limit());
+    checkFile(path, readLimit());
   }
 
   static void checkFile(final Path path, final long limit) {
@@ -212,7 +212,7 @@ final class DeclaredImageSize {
     try (final FileChannel channel = FileChannel.open(path, StandardOpenOption.READ); final Arena arena = Arena.ofConfined()) {
       final long length = channel.size();
       final MemorySegment segment = channel.map(FileChannel.MapMode.READ_ONLY, 0, length, arena);
-      size = read(segment);
+      size = readDeclaredSize(segment);
     } catch (final IOException exception) {
       final String message = UNSUPPORTED_FILE.formatted(path);
       throw new IllegalArgumentException(message, exception);
@@ -226,7 +226,7 @@ final class DeclaredImageSize {
     checkLimit(size, limit);
   }
 
-  static long limit() {
+  static long readLimit() {
     return Long.getLong(MAXIMUM_PIXELS_PROPERTY, DEFAULT_MAXIMUM_PIXELS);
   }
 
@@ -246,122 +246,138 @@ final class DeclaredImageSize {
     }
   }
 
-  static @Nullable Size read(final MemorySegment segment) {
+  static @Nullable Size readDeclaredSize(final MemorySegment segment) {
     final Header header = new Header(segment);
     if (header.startsWith(0, BMP_SIGNATURE)) {
-      return bmp(header);
+      return readBmpSize(header);
     }
 
     if (header.startsWith(0, GIF_SIGNATURE)) {
-      return gif(header);
+      return readGifSize(header);
     }
 
     if (header.startsWith(0, HDR_RGBE_SIGNATURE) || header.startsWith(0, HDR_RADIANCE_SIGNATURE)) {
-      return hdr(header);
+      return readHdrSize(header);
     }
 
     if (header.startsWith(0, JPEG_SIGNATURE)) {
-      return jpeg(header);
+      return readJpegSize(header);
     }
 
-    final Size webp = webp(header);
+    final Size webp = readWebpSize(header);
     if (webp != null) {
       return webp;
     }
 
     if (header.startsWith(0, SUN_RASTER_SIGNATURE)) {
-      return of(header.signedBigEndian32(SUN_RASTER_WIDTH_OFFSET), header.signedBigEndian32(SUN_RASTER_HEIGHT_OFFSET));
+      return createPositiveSize(
+        header.readSignedBigEndian32(SUN_RASTER_WIDTH_OFFSET),
+        header.readSignedBigEndian32(SUN_RASTER_HEIGHT_OFFSET)
+      );
     }
 
-    final int kind = header.unsigned8(NETPBM_KIND_OFFSET);
-    final boolean netpbm = header.unsigned8(0) == 'P' && isSpace(header.unsigned8(NETPBM_SEPARATOR_OFFSET));
+    final int kind = header.readUnsigned8(NETPBM_KIND_OFFSET);
+    final boolean netpbm = header.readUnsigned8(0) == 'P' && isSpace(header.readUnsigned8(NETPBM_SEPARATOR_OFFSET));
     if (netpbm && kind >= '1' && kind <= '6') {
-      return pnm(header);
+      return readPnmSize(header);
     }
 
     if (netpbm && kind == '7') {
-      return pam(header);
+      return readPamSize(header);
     }
 
     if (netpbm && (kind == 'f' || kind == 'F')) {
-      return pfm(header);
+      return readPfmSize(header);
     }
 
     if (header.startsWith(0, TIFF_LITTLE_ENDIAN_SIGNATURE) || header.startsWith(0, TIFF_BIG_ENDIAN_SIGNATURE)) {
-      return tiff(header);
+      return readTiffSize(header);
     }
 
     if (header.startsWith(0, PNG_SIGNATURE) && header.startsWith(PNG_HEADER_CHUNK_OFFSET, PNG_HEADER_CHUNK)) {
-      return of(header.bigEndian(PNG_WIDTH_OFFSET, THIRTY_TWO_BIT_BYTES), header.bigEndian(PNG_HEIGHT_OFFSET, THIRTY_TWO_BIT_BYTES));
+      return createPositiveSize(
+        header.readBigEndian(PNG_WIDTH_OFFSET, THIRTY_TWO_BIT_BYTES),
+        header.readBigEndian(PNG_HEIGHT_OFFSET, THIRTY_TWO_BIT_BYTES)
+      );
     }
 
     return null;
   }
 
-  private static @Nullable Size bmp(final Header header) {
-    final long informationSize = header.signedLittleEndian32(BMP_INFORMATION_SIZE_OFFSET);
+  private static @Nullable Size readBmpSize(final Header header) {
+    final long informationSize = header.readSignedLittleEndian32(BMP_INFORMATION_SIZE_OFFSET);
     if (informationSize >= BMP_MINIMUM_INFORMATION_SIZE) {
-      return of(header.signedLittleEndian32(BMP_WIDTH_OFFSET), Math.abs(header.signedLittleEndian32(BMP_HEIGHT_OFFSET)));
+      return createPositiveSize(
+        header.readSignedLittleEndian32(BMP_WIDTH_OFFSET),
+        Math.abs(header.readSignedLittleEndian32(BMP_HEIGHT_OFFSET))
+      );
     }
 
     if (informationSize == OS2_INFORMATION_SIZE) {
-      return of(header.littleEndian(OS2_WIDTH_OFFSET, SIXTEEN_BIT_BYTES), header.littleEndian(OS2_HEIGHT_OFFSET, SIXTEEN_BIT_BYTES));
+      return createPositiveSize(
+        header.readLittleEndian(OS2_WIDTH_OFFSET, SIXTEEN_BIT_BYTES),
+        header.readLittleEndian(OS2_HEIGHT_OFFSET, SIXTEEN_BIT_BYTES)
+      );
     }
 
     return null;
   }
 
-  private static @Nullable Size gif(final Header header) {
+  private static @Nullable Size readGifSize(final Header header) {
     if (!header.startsWith(0, GIF87_SIGNATURE) && !header.startsWith(0, GIF89_SIGNATURE)) {
       return null;
     }
 
-    return of(header.littleEndian(GIF_WIDTH_OFFSET, SIXTEEN_BIT_BYTES), header.littleEndian(GIF_HEIGHT_OFFSET, SIXTEEN_BIT_BYTES));
+    return createPositiveSize(
+      header.readLittleEndian(GIF_WIDTH_OFFSET, SIXTEEN_BIT_BYTES),
+      header.readLittleEndian(GIF_HEIGHT_OFFSET, SIXTEEN_BIT_BYTES)
+    );
   }
 
   // A Radiance HDR: header lines up to an empty one, then the resolution line -Y <height> +X <width>. OpenCV reads the
   // lines in pieces of at most 127 characters, so a piece is what decides here too.
-  private static @Nullable Size hdr(final Header header) {
+  private static @Nullable Size readHdrSize(final Header header) {
     final long[] position = { 0 };
     // the first line is the magic, which OpenCV reads and does not look at
-    header.piece(position, HDR_PIECE);
+    header.readPiece(position, MAXIMUM_HDR_PIECE_LENGTH);
     String piece;
     do {
-      piece = header.piece(position, HDR_PIECE);
+      piece = header.readPiece(position, MAXIMUM_HDR_PIECE_LENGTH);
       if (piece == null) {
         return null;
       }
     } while (piece.charAt(0) != '\n');
-    final String resolution = header.piece(position, HDR_PIECE);
+    final String resolution = header.readPiece(position, MAXIMUM_HDR_PIECE_LENGTH);
     if (resolution == null) {
       return null;
     }
 
-    final Scanner scanner = new Scanner(resolution);
-    final boolean matched = scanner.literal(HDR_HEIGHT_AXIS) && scanner.number() && scanner.literal(HDR_WIDTH_AXIS) && scanner.number();
-    return matched ? of(scanner.second, scanner.first) : null;
+    final ResolutionScanner scanner = new ResolutionScanner(resolution);
+    final boolean matched =
+      scanner.readLiteral(HDR_HEIGHT_AXIS) && scanner.readNumber() && scanner.readLiteral(HDR_WIDTH_AXIS) && scanner.readNumber();
+    return matched ? createPositiveSize(scanner.second, scanner.first) : null;
   }
 
-  private static @Nullable Size jpeg(final Header header) {
+  private static @Nullable Size readJpegSize(final Header header) {
     long position = JPEG_FIRST_MARKER_OFFSET;
     while (true) {
-      int code = header.unsigned8(position);
+      int code = header.readUnsigned8(position);
       // libjpeg skips whatever is not a marker, then the fill bytes of the marker
       while (code >= 0 && code != JPEG_MARKER_PREFIX) {
         position++;
-        code = header.unsigned8(position);
+        code = header.readUnsigned8(position);
       }
       while (code == JPEG_MARKER_PREFIX) {
         position++;
-        code = header.unsigned8(position);
+        code = header.readUnsigned8(position);
       }
       position++;
       final boolean frameRange = code >= JPEG_FIRST_FRAME && code <= JPEG_LAST_FRAME;
       final boolean frame = frameRange && code != JPEG_HUFFMAN_TABLE && code != JPEG_EXTENSION && code != JPEG_ARITHMETIC_CODING;
       if (frame) {
-        final long width = header.bigEndian(position + JPEG_FRAME_WIDTH_OFFSET, SIXTEEN_BIT_BYTES);
-        final long height = header.bigEndian(position + JPEG_FRAME_HEIGHT_OFFSET, SIXTEEN_BIT_BYTES);
-        return of(width, height);
+        final long width = header.readBigEndian(position + JPEG_FRAME_WIDTH_OFFSET, SIXTEEN_BIT_BYTES);
+        final long height = header.readBigEndian(position + JPEG_FRAME_HEIGHT_OFFSET, SIXTEEN_BIT_BYTES);
+        return createPositiveSize(width, height);
       }
       // FF 00 is a stuffed zero, no marker: libjpeg's next_marker drops it and looks on, as after a marker that stands
       // alone; read as a marker with a length, it would lead the search away from the frame libjpeg reads
@@ -372,7 +388,7 @@ final class DeclaredImageSize {
       }
       // a second start of the image, the end of the image, the start of a scan before a frame or the end of the bytes
       final boolean noFrame = code < 0 || code == JPEG_START_OF_IMAGE || code == JPEG_END_OF_IMAGE || code == JPEG_START_OF_SCAN;
-      final long length = header.bigEndian(position, SIXTEEN_BIT_BYTES);
+      final long length = header.readBigEndian(position, SIXTEEN_BIT_BYTES);
       // the length counts its own two bytes
       if (noFrame || length < SIXTEEN_BIT_BYTES) {
         return null;
@@ -384,13 +400,13 @@ final class DeclaredImageSize {
   // A WebP, which OpenCV recognizes by libwebp reading the features of its first 32 bytes: the canvas of an extended
   // file, or the frame of a lossy or lossless one. A lossless bitstream without its RIFF container is read too; a lossy
   // one never passes OpenCV's signature check, as its first partition is longer than those 32 bytes.
-  private static @Nullable Size webp(final Header header) {
-    if (header.size() < WEBP_SIGNATURE) {
+  private static @Nullable Size readWebpSize(final Header header) {
+    if (header.size() < MINIMUM_WEBP_HEADER_LENGTH) {
       return null;
     }
 
     if (!header.startsWith(0, RIFF_SIGNATURE)) {
-      return lossless(header, 0);
+      return readLosslessWebpSize(header, 0);
     }
 
     if (!header.startsWith(WEBP_FORMAT_OFFSET, WEBP_FORMAT)) {
@@ -398,40 +414,40 @@ final class DeclaredImageSize {
     }
 
     if (header.startsWith(WEBP_CHUNK_OFFSET, VP8X_CHUNK)) {
-      return extended(header);
+      return readExtendedWebpSize(header);
     }
 
     if (header.startsWith(WEBP_CHUNK_OFFSET, VP8L_CHUNK)) {
-      return lossless(header, VP8L_BITSTREAM_OFFSET);
+      return readLosslessWebpSize(header, VP8L_BITSTREAM_OFFSET);
     }
 
-    final boolean keyFrame = (header.unsigned8(VP8_FRAME_TAG_OFFSET) & VP8_KEY_FRAME_BIT) == 0;
+    final boolean keyFrame = (header.readUnsigned8(VP8_FRAME_TAG_OFFSET) & VP8_KEY_FRAME_BIT) == 0;
     final boolean startCode = header.startsWith(VP8_START_CODE_OFFSET, VP8_START_CODE);
     final boolean lossy = header.startsWith(WEBP_CHUNK_OFFSET, VP8_CHUNK) && keyFrame && startCode;
     if (!lossy) {
       return null;
     }
 
-    final long width = header.littleEndian(VP8_WIDTH_OFFSET, SIXTEEN_BIT_BYTES) & VP8_DIMENSION_MASK;
-    final long height = header.littleEndian(VP8_HEIGHT_OFFSET, SIXTEEN_BIT_BYTES) & VP8_DIMENSION_MASK;
-    return of(width, height);
+    final long width = header.readLittleEndian(VP8_WIDTH_OFFSET, SIXTEEN_BIT_BYTES) & VP8_DIMENSION_MASK;
+    final long height = header.readLittleEndian(VP8_HEIGHT_OFFSET, SIXTEEN_BIT_BYTES) & VP8_DIMENSION_MASK;
+    return createPositiveSize(width, height);
   }
 
-  private static @Nullable Size extended(final Header header) {
-    final boolean chunk = header.littleEndian(VP8X_CHUNK_SIZE_OFFSET, THIRTY_TWO_BIT_BYTES) == VP8X_CHUNK_SIZE;
+  private static @Nullable Size readExtendedWebpSize(final Header header) {
+    final boolean chunk = header.readLittleEndian(VP8X_CHUNK_SIZE_OFFSET, THIRTY_TWO_BIT_BYTES) == VP8X_CHUNK_SIZE;
     if (!chunk) {
       return null;
     }
 
     // the canvas size is stored minus one
-    final long width = header.littleEndian(VP8X_WIDTH_OFFSET, TWENTY_FOUR_BIT_BYTES) + 1;
-    final long height = header.littleEndian(VP8X_HEIGHT_OFFSET, TWENTY_FOUR_BIT_BYTES) + 1;
-    return of(width, height);
+    final long width = header.readLittleEndian(VP8X_WIDTH_OFFSET, TWENTY_FOUR_BIT_BYTES) + 1;
+    final long height = header.readLittleEndian(VP8X_HEIGHT_OFFSET, TWENTY_FOUR_BIT_BYTES) + 1;
+    return createPositiveSize(width, height);
   }
 
-  private static @Nullable Size lossless(final Header header, final long start) {
-    final long bits = header.littleEndian(start + 1, THIRTY_TWO_BIT_BYTES);
-    final boolean signature = header.unsigned8(start) == VP8L_SIGNATURE && bits >>> VP8L_VERSION_SHIFT == 0;
+  private static @Nullable Size readLosslessWebpSize(final Header header, final long start) {
+    final long bits = header.readLittleEndian(start + 1, THIRTY_TWO_BIT_BYTES);
+    final boolean signature = header.readUnsigned8(start) == VP8L_SIGNATURE && bits >>> VP8L_VERSION_SHIFT == 0;
     if (!signature) {
       return null;
     }
@@ -439,17 +455,17 @@ final class DeclaredImageSize {
     // the size is stored minus one
     final long width = (bits & VP8_DIMENSION_MASK) + 1;
     final long height = ((bits >>> VP8L_HEIGHT_SHIFT) & VP8_DIMENSION_MASK) + 1;
-    return of(width, height);
+    return createPositiveSize(width, height);
   }
 
-  private static @Nullable Size pnm(final Header header) {
+  private static @Nullable Size readPnmSize(final Header header) {
     final long[] position = { PNM_HEADER_OFFSET };
-    final long width = pnmNumber(header, position);
-    final long height = pnmNumber(header, position);
-    return of(width, height);
+    final long width = readPnmNumber(header, position);
+    final long height = readPnmNumber(header, position);
+    return createPositiveSize(width, height);
   }
 
-  private static long pnmNumber(final Header header, final long[] position) {
+  private static long readPnmNumber(final Header header, final long[] position) {
     final int first = skipPnmSeparators(header, position);
     if (!isDigit(first)) {
       return -1;
@@ -459,7 +475,7 @@ final class DeclaredImageSize {
   }
 
   private static int skipPnmSeparators(final Header header, final long[] position) {
-    int code = header.unsigned8(position[0]++);
+    int code = header.readUnsigned8(position[0]++);
     while (code == '#' || isSpace(code)) {
       code = skipPnmSeparator(header, position, code);
     }
@@ -478,16 +494,16 @@ final class DeclaredImageSize {
   private static int skipPnmComment(final Header header, final long[] position) {
     int code;
     do {
-      code = header.unsigned8(position[0]++);
+      code = header.readUnsigned8(position[0]++);
     } while (code >= 0 && code != '\n' && code != '\r');
 
-    return header.unsigned8(position[0]++);
+    return header.readUnsigned8(position[0]++);
   }
 
   private static int skipPnmSpaces(final Header header, final long[] position, final int first) {
     int code = first;
     while (isSpace(code)) {
-      code = header.unsigned8(position[0]++);
+      code = header.readUnsigned8(position[0]++);
     }
 
     return code;
@@ -498,19 +514,19 @@ final class DeclaredImageSize {
     long value = 0;
     while (isDigit(code) && value <= Integer.MAX_VALUE) {
       value = value * DECIMAL_BASE + (code - '0');
-      code = header.unsigned8(position[0]++);
+      code = header.readUnsigned8(position[0]++);
     }
 
     return value <= Integer.MAX_VALUE ? value : -1;
   }
 
   // A PAM: lines of a name and a value after P7, up to ENDHDR; WIDTH and HEIGHT give the size. Comments start with #.
-  private static @Nullable Size pam(final Header header) {
+  private static @Nullable Size readPamSize(final Header header) {
     long width = -1;
     long height = -1;
     final long[] position = { PAM_HEADER_OFFSET };
     while (true) {
-      final String line = header.line(position, PAM_LINE);
+      final String line = header.readLine(position, MAXIMUM_PAM_LINE_LENGTH);
       if (line == null) {
         return null;
       }
@@ -522,7 +538,7 @@ final class DeclaredImageSize {
       final String name = parts[0];
       final String value = parts.length > 1 ? parts[1] : "";
       if (PAM_END.equals(name)) {
-        return of(width, height);
+        return createPositiveSize(width, height);
       }
 
       if (!PAM_FIELDS.contains(name)) {
@@ -530,29 +546,29 @@ final class DeclaredImageSize {
       }
 
       if (PAM_WIDTH.equals(name)) {
-        width = width < 0 ? decimal(value) : REFUSED;
+        width = width < 0 ? parseDecimal(value) : REFUSED;
       }
 
       if (PAM_HEIGHT.equals(name)) {
-        height = height < 0 ? decimal(value) : REFUSED;
+        height = height < 0 ? parseDecimal(value) : REFUSED;
       }
     }
   }
 
-  private static @Nullable Size pfm(final Header header) {
-    if (header.unsigned8(NETPBM_SEPARATOR_OFFSET) != '\n') {
+  private static @Nullable Size readPfmSize(final Header header) {
+    if (header.readUnsigned8(NETPBM_SEPARATOR_OFFSET) != '\n') {
       return null;
     }
 
     final long[] position = { PFM_HEADER_OFFSET };
-    final String width = header.word(position, PFM_NUMBER);
-    final String height = header.word(position, PFM_NUMBER);
-    return of(leadingInteger(width), leadingInteger(height));
+    final String width = header.readWord(position, MAXIMUM_PFM_NUMBER_LENGTH);
+    final String height = header.readWord(position, MAXIMUM_PFM_NUMBER_LENGTH);
+    return createPositiveSize(parseLeadingInteger(width), parseLeadingInteger(height));
   }
 
-  private static @Nullable Size tiff(final Header header) {
-    final ByteOrder order = header.unsigned8(0) == 'I' ? ByteOrder.LITTLE_ENDIAN : ByteOrder.BIG_ENDIAN;
-    final long magic = header.number(TIFF_MAGIC_OFFSET, SIXTEEN_BIT_BYTES, order);
+  private static @Nullable Size readTiffSize(final Header header) {
+    final ByteOrder order = header.readUnsigned8(0) == 'I' ? ByteOrder.LITTLE_ENDIAN : ByteOrder.BIG_ENDIAN;
+    final long magic = header.readNumber(TIFF_MAGIC_OFFSET, SIXTEEN_BIT_BYTES, order);
     final TiffLayout layout = magic == BIG_TIFF_MAGIC ? TiffLayout.BIG : TiffLayout.CLASSIC;
     if (magic != TIFF_MAGIC && layout == TiffLayout.CLASSIC) {
       return null;
@@ -560,11 +576,11 @@ final class DeclaredImageSize {
 
     final long directory =
       layout == TiffLayout.BIG
-        ? header.number(BIG_TIFF_DIRECTORY_OFFSET, SIXTY_FOUR_BIT_BYTES, order)
-        : header.number(TIFF_DIRECTORY_OFFSET, THIRTY_TWO_BIT_BYTES, order);
+        ? header.readNumber(BIG_TIFF_DIRECTORY_OFFSET, SIXTY_FOUR_BIT_BYTES, order)
+        : header.readNumber(TIFF_DIRECTORY_OFFSET, THIRTY_TWO_BIT_BYTES, order);
     final int countSize = layout == TiffLayout.BIG ? SIXTY_FOUR_BIT_BYTES : SIXTEEN_BIT_BYTES;
     final int entrySize = layout == TiffLayout.BIG ? BIG_TIFF_ENTRY_SIZE : TIFF_ENTRY_SIZE;
-    final long count = header.number(directory, countSize, order);
+    final long count = header.readNumber(directory, countSize, order);
     if (count < 0) {
       return null;
     }
@@ -574,22 +590,22 @@ final class DeclaredImageSize {
     final long entries = Math.min(count, header.size() / entrySize);
     for (long index = 0; index < entries; index++) {
       final long entry = directory + countSize + index * entrySize;
-      final long tag = header.number(entry, SIXTEEN_BIT_BYTES, order);
+      final long tag = header.readNumber(entry, SIXTEEN_BIT_BYTES, order);
       // a tag given twice is refused, as which of the two libtiff keeps is not something to rely on
       if (tag == TIFF_IMAGE_WIDTH_TAG) {
-        width = width == -1 ? tiffValue(header, entry, layout, order) : REFUSED;
+        width = width == -1 ? readTiffValue(header, entry, layout, order) : REFUSED;
       } else if (tag == TIFF_IMAGE_LENGTH_TAG) {
-        length = length == -1 ? tiffValue(header, entry, layout, order) : REFUSED;
+        length = length == -1 ? readTiffValue(header, entry, layout, order) : REFUSED;
       }
     }
 
-    return of(width, length);
+    return createPositiveSize(width, length);
   }
 
-  private static long tiffValue(final Header header, final long entry, final TiffLayout layout, final ByteOrder order) {
-    final long type = header.number(entry + TIFF_TYPE_OFFSET, SIXTEEN_BIT_BYTES, order);
+  private static long readTiffValue(final Header header, final long entry, final TiffLayout layout, final ByteOrder order) {
+    final long type = header.readNumber(entry + TIFF_TYPE_OFFSET, SIXTEEN_BIT_BYTES, order);
     final int countBytes = layout == TiffLayout.BIG ? SIXTY_FOUR_BIT_BYTES : THIRTY_TWO_BIT_BYTES;
-    final long count = header.number(entry + TIFF_COUNT_OFFSET, countBytes, order);
+    final long count = header.readNumber(entry + TIFF_COUNT_OFFSET, countBytes, order);
     final long field = entry + (layout == TiffLayout.BIG ? BIG_TIFF_VALUE_OFFSET : TIFF_VALUE_OFFSET);
     final int bytes;
     if (type == TIFF_SHORT_TYPE) {
@@ -602,16 +618,16 @@ final class DeclaredImageSize {
       return REFUSED;
     }
 
-    return count == 1 ? header.number(field, bytes, order) : REFUSED;
+    return count == 1 ? header.readNumber(field, bytes, order) : REFUSED;
   }
 
-  private static long decimal(final String value) {
+  private static long parseDecimal(final String value) {
     final boolean digits =
       !value.isEmpty() && value.length() <= MAXIMUM_DECIMAL_DIGITS && value.chars().allMatch(DeclaredImageSize::isDigit);
     return digits ? Long.parseLong(value) : REFUSED;
   }
 
-  private static long leadingInteger(final @Nullable String word) {
+  private static long parseLeadingInteger(final @Nullable String word) {
     if (word == null) {
       return -1;
     }
@@ -627,7 +643,7 @@ final class DeclaredImageSize {
     return word.startsWith(MINUS_SIGN) ? -magnitude : magnitude;
   }
 
-  private static @Nullable Size of(final long width, final long height) {
+  private static @Nullable Size createPositiveSize(final long width, final long height) {
     final boolean positive = width > 0 && height > 0;
     return positive ? new Size(width, height) : null;
   }
@@ -648,19 +664,19 @@ final class DeclaredImageSize {
     BIG,
   }
 
-  private static final class Scanner {
+  private static final class ResolutionScanner {
 
     private final String text;
     private int position;
     private long first = -1;
     private long second = -1;
 
-    Scanner(final String text) {
+    ResolutionScanner(final String text) {
       final int end = text.indexOf('\0');
       this.text = end < 0 ? text : text.substring(0, end);
     }
 
-    boolean literal(final String expected) {
+    boolean readLiteral(final String expected) {
       this.skipSpace();
       final boolean matches = this.text.startsWith(expected, this.position);
       this.position += expected.length();
@@ -668,7 +684,7 @@ final class DeclaredImageSize {
       return matches;
     }
 
-    boolean number() {
+    boolean readNumber() {
       this.skipSpace();
       final int start = this.position;
       final boolean negative = this.text.startsWith(MINUS_SIGN, start);
@@ -717,14 +733,14 @@ final class DeclaredImageSize {
       return this.segment.byteSize();
     }
 
-    int unsigned8(final long position) {
+    int readUnsigned8(final long position) {
       final boolean inside = position >= 0 && position < this.segment.byteSize();
       return inside ? Byte.toUnsignedInt(this.segment.get(ValueLayout.JAVA_BYTE, position)) : -1;
     }
 
     boolean startsWith(final long position, final String text) {
       for (int index = 0; index < text.length(); index++) {
-        if (this.unsigned8(position + index) != text.charAt(index)) {
+        if (this.readUnsigned8(position + index) != text.charAt(index)) {
           return false;
         }
       }
@@ -732,19 +748,19 @@ final class DeclaredImageSize {
       return true;
     }
 
-    long littleEndian(final long position, final int bytes) {
-      return this.number(position, bytes, ByteOrder.LITTLE_ENDIAN);
+    long readLittleEndian(final long position, final int bytes) {
+      return this.readNumber(position, bytes, ByteOrder.LITTLE_ENDIAN);
     }
 
-    long bigEndian(final long position, final int bytes) {
-      return this.number(position, bytes, ByteOrder.BIG_ENDIAN);
+    long readBigEndian(final long position, final int bytes) {
+      return this.readNumber(position, bytes, ByteOrder.BIG_ENDIAN);
     }
 
-    long number(final long position, final int bytes, final ByteOrder order) {
-      final boolean little = order == ByteOrder.LITTLE_ENDIAN;
+    long readNumber(final long position, final int bytes, final ByteOrder order) {
+      final boolean littleEndian = order == ByteOrder.LITTLE_ENDIAN;
       long value = 0;
       for (int index = 0; index < bytes; index++) {
-        final int code = this.unsigned8(little ? position + bytes - 1 - index : position + index);
+        final int code = this.readUnsigned8(littleEndian ? position + bytes - 1 - index : position + index);
         if (code < 0) {
           return -1;
         }
@@ -754,21 +770,21 @@ final class DeclaredImageSize {
       return value;
     }
 
-    long signedLittleEndian32(final long position) {
-      final long value = this.littleEndian(position, THIRTY_TWO_BIT_BYTES);
+    long readSignedLittleEndian32(final long position) {
+      final long value = this.readLittleEndian(position, THIRTY_TWO_BIT_BYTES);
       return value < 0 ? Long.MIN_VALUE : (int) value;
     }
 
-    long signedBigEndian32(final long position) {
-      final long value = this.bigEndian(position, THIRTY_TWO_BIT_BYTES);
+    long readSignedBigEndian32(final long position) {
+      final long value = this.readBigEndian(position, THIRTY_TWO_BIT_BYTES);
       return value < 0 ? Long.MIN_VALUE : (int) value;
     }
 
-    @Nullable String piece(final long[] position, final int limit) {
+    @Nullable String readPiece(final long[] position, final int limit) {
       final StringBuilder piece = new StringBuilder();
       int code = 0;
       while (piece.length() < limit && code != '\n') {
-        code = this.unsigned8(position[0]);
+        code = this.readUnsigned8(position[0]);
         if (code < 0) {
           break;
         }
@@ -781,9 +797,9 @@ final class DeclaredImageSize {
 
     // A line ended by a line feed or a carriage return, without the end. Only the first limit characters are kept: a
     // longer line can only be a comment, as OpenCV refuses a longer name or value.
-    @Nullable String line(final long[] position, final int limit) {
+    @Nullable String readLine(final long[] position, final int limit) {
       final StringBuilder line = new StringBuilder();
-      int code = this.unsigned8(position[0]++);
+      int code = this.readUnsigned8(position[0]++);
       if (code < 0) {
         return null;
       }
@@ -795,7 +811,7 @@ final class DeclaredImageSize {
         } else {
           longer = true;
         }
-        code = this.unsigned8(position[0]++);
+        code = this.readUnsigned8(position[0]++);
       }
 
       final String text = line.toString();
@@ -803,10 +819,10 @@ final class DeclaredImageSize {
       return longer && !comment ? null : text;
     }
 
-    @Nullable String word(final long[] position, final int limit) {
+    @Nullable String readWord(final long[] position, final int limit) {
       final StringBuilder word = new StringBuilder();
       while (word.length() < limit) {
-        final int code = this.unsigned8(position[0]++);
+        final int code = this.readUnsigned8(position[0]++);
         if (code < 0) {
           return null;
         }
