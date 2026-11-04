@@ -85,6 +85,10 @@ public final class SimpleResourcePack {
   private static final Gson GSON = createGson();
 
   private static final String PACK_METADATA_ENTRY = "pack.mcmeta";
+  private static final String ASSETS_DIRECTORY = "assets";
+  private static final String SOUNDS_DIRECTORY = "sounds";
+  private static final String SOUNDS_ENTRY = "sounds.json";
+  private static final String SOUND_FILE_EXTENSION = ".ogg";
 
   private static final String TEMPORARY_FILE_PREFIX = "mcav-pack";
   private static final String TEMPORARY_FILE_SUFFIX = ".zip.part";
@@ -361,11 +365,12 @@ public final class SimpleResourcePack {
         final Path file = soundEntry.getValue();
         final JsonObject event = this.createSoundEvent(namespace, value);
         events.add(value, event);
-        final String entryName = "assets/%s/sounds/%s.ogg".formatted(namespace, value);
+        final String fileName = value + SOUND_FILE_EXTENSION;
+        final String entryName = String.join(PATH_SEPARATOR, ASSETS_DIRECTORY, namespace, SOUNDS_DIRECTORY, fileName);
         this.writeFile(zip, entryName, file);
       }
       final String soundsJson = GSON.toJson(events);
-      final String soundsEntryName = "assets/%s/sounds.json".formatted(namespace);
+      final String soundsEntryName = String.join(PATH_SEPARATOR, ASSETS_DIRECTORY, namespace, SOUNDS_ENTRY);
       this.writeEntry(zip, soundsEntryName, soundsJson);
     }
   }

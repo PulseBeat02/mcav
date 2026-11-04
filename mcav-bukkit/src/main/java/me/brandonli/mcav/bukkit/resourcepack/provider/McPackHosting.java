@@ -87,6 +87,13 @@ public final class McPackHosting implements WebsiteHosting {
 
   private static final String USER_AGENT = "mcav";
 
+  private static final String CONTENT_TYPE_HEADER = "Content-Type";
+  private static final String ACCEPT_HEADER = "Accept";
+  private static final String USER_AGENT_HEADER = "User-Agent";
+
+  private static final String MULTIPART_CONTENT_TYPE_PREFIX = "multipart/form-data; boundary=";
+  private static final String ANY_MEDIA_TYPE = "*/*";
+
   private static final String BOUNDARY_PREFIX = "----mcav-";
 
   private static final Pattern UNSAFE_FILE_NAME_CHARACTERS = Pattern.compile("[\\p{Cntrl}\"\\\\]");
@@ -218,9 +225,10 @@ public final class McPackHosting implements WebsiteHosting {
     final HttpRequest.BodyPublisher publisher = HttpRequest.BodyPublishers.ofByteArray(body);
     final HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(this.uploadUri);
     requestBuilder.timeout(TIMEOUT);
-    requestBuilder.header("Content-Type", "multipart/form-data; boundary=%s".formatted(boundary));
-    requestBuilder.header("Accept", "*/*");
-    requestBuilder.header("User-Agent", USER_AGENT);
+    final String contentType = MULTIPART_CONTENT_TYPE_PREFIX + boundary;
+    requestBuilder.header(CONTENT_TYPE_HEADER, contentType);
+    requestBuilder.header(ACCEPT_HEADER, ANY_MEDIA_TYPE);
+    requestBuilder.header(USER_AGENT_HEADER, USER_AGENT);
     requestBuilder.POST(publisher);
     return requestBuilder.build();
   }

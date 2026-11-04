@@ -2514,6 +2514,8 @@ public final class Mcv2 {
     private static final String X86_64_SUFFIX = "-x86_64";
     private static final String AARCH64_SUFFIX = "-aarch64";
 
+    private static final String PLATFORM_FORMAT = "%s%s";
+
     private static final String WINDOWS_LIBRARY = "mcv2kernels.dll";
     private static final String MACOS_LIBRARY = "libmcv2kernels.dylib";
     private static final String LINUX_LIBRARY = "libmcv2kernels.so";
@@ -2595,8 +2597,8 @@ public final class Mcv2 {
       }
 
       return switch (processorArchitecture.toLowerCase(Locale.ROOT)) {
-        case AMD64, X86_64 -> "%s%s".formatted(operatingSystem, X86_64_SUFFIX);
-        case AARCH64, ARM64 -> "%s%s".formatted(operatingSystem, AARCH64_SUFFIX);
+        case AMD64, X86_64 -> PLATFORM_FORMAT.formatted(operatingSystem, X86_64_SUFFIX);
+        case AARCH64, ARM64 -> PLATFORM_FORMAT.formatted(operatingSystem, AARCH64_SUFFIX);
         default -> null;
       };
     }

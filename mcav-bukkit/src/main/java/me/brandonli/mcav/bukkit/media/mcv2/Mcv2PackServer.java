@@ -153,6 +153,8 @@ public final class Mcv2PackServer {
 
   private static final String LIST_SEPARATOR = ", ";
 
+  private static final String THREAD_NAME = "mcav-mcv2-pack";
+
   private static final int HASH_BUFFER = 8192;
 
   private static final long SHUTDOWN_SECONDS = 10;
@@ -233,7 +235,7 @@ public final class Mcv2PackServer {
       debugView,
       onOffered,
       onRefused,
-      Executors.newSingleThreadExecutor(Thread.ofPlatform().daemon().name("mcav-mcv2-pack").factory()),
+      Executors.newSingleThreadExecutor(Thread.ofPlatform().daemon().name(THREAD_NAME).factory()),
       System::currentTimeMillis
     );
   }

@@ -56,6 +56,7 @@ public final class Mcv2Decoder {
   public static final int MAXIMUM_DIMENSION = 4096;
 
   private static final String DATA_NULL_MESSAGE = "Data must not be null!";
+  private static final String FRAME_NULL_MESSAGE = "Frame must not be null!";
 
   static final int MAGIC = 0x3256434D;
   static final int VERSION = 3;
@@ -293,7 +294,7 @@ public final class Mcv2Decoder {
    * @since 1.0.0
    */
   public static byte[] decode(final Frame frame, final byte @Nullable [] reference, final long referenceId) {
-    Preconditions.checkNotNull(frame, "Frame must not be null!");
+    Preconditions.checkNotNull(frame, FRAME_NULL_MESSAGE);
 
     final byte[] output = new byte[frame.width * frame.height * CHANNELS];
     decode(frame, reference, referenceId, output);
@@ -313,7 +314,7 @@ public final class Mcv2Decoder {
    * @since 1.0.0
    */
   public static void decode(final Frame frame, final byte @Nullable [] reference, final long referenceId, final byte[] output) {
-    Preconditions.checkNotNull(frame, "Frame must not be null!");
+    Preconditions.checkNotNull(frame, FRAME_NULL_MESSAGE);
     Preconditions.checkNotNull(output, "Output must not be null!");
 
     final byte[] prediction = requireMatchingReference(frame, reference, referenceId);
