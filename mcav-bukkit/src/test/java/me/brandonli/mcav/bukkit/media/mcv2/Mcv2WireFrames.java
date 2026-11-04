@@ -38,6 +38,8 @@ final class Mcv2WireFrames {
 
   private static final int LEVEL_COUNT = 3;
 
+  private static final int HALF_ROOT_SIZE = Mcv2Decoder.ROOT_SIZE / 2;
+
   private static final int CHECKPOINT_INTERVAL = Mcv2Decoder.CHECKPOINT_GROUPS * Mcv2Decoder.GROUP_ROOTS;
 
   private static final int MODE_MASK = 31;
@@ -48,20 +50,22 @@ final class Mcv2WireFrames {
 
   static byte[] block(final int size, final int mode, final int quantizer, final byte[] record, final Mcv2FrameKind kind) {
     final byte value = (byte) (mode | (quantizer << Mcv2Decoder.QUANTIZER_SHIFT));
-    final byte[] descriptors =
-      size == 32
-        ? new byte[] { value }
-        : size == 16
-          ? new byte[] { Mcv2Decoder.MODE_SPLIT, value, 0, 0, 0 }
-          : new byte[] { Mcv2Decoder.MODE_SPLIT, Mcv2Decoder.MODE_SPLIT, 0, 0, 0, value, 0, 0, 0 };
-    return frame(
-      size,
-      size,
-      kind,
-      descriptors,
-      records(descriptors.length, size == 32 ? 0 : size == 16 ? 1 : 5, record),
-      size == 32 ? new int[] { 1, 0, 0 } : size == 16 ? new int[] { 1, 4, 0 } : new int[] { 1, 4, 4 }
-    );
+    final byte[] descriptors = switch (size) {
+      case Mcv2Decoder.ROOT_SIZE -> new byte[] { value };
+      case HALF_ROOT_SIZE -> new byte[] { Mcv2Decoder.MODE_SPLIT, value, 0, 0, 0 };
+      default -> new byte[] { Mcv2Decoder.MODE_SPLIT, Mcv2Decoder.MODE_SPLIT, 0, 0, 0, value, 0, 0, 0 };
+    };
+    final int recordIndex = switch (size) {
+      case Mcv2Decoder.ROOT_SIZE -> 0;
+      case HALF_ROOT_SIZE -> 1;
+      default -> 5;
+    };
+    final int[] levels = switch (size) {
+      case Mcv2Decoder.ROOT_SIZE -> new int[] { 1, 0, 0 };
+      case HALF_ROOT_SIZE -> new int[] { 1, 4, 0 };
+      default -> new int[] { 1, 4, 4 };
+    };
+    return frame(size, size, kind, descriptors, records(descriptors.length, recordIndex, record), levels);
   }
 
   private static byte[][] records(final int count, final int index, final byte[] value) {
@@ -91,29 +95,45 @@ final class Mcv2WireFrames {
     }
 
     final byte[] data = new byte[length];
+    writeHeader(data, width, height, kind);
+    for (int index = 0; index < levels[0]; index++) {
+      data[HEADER_BYTES + index / Byte.SIZE] |= (byte) (1 << (index % Byte.SIZE));
+    }
+
+    writeCheckpoints(data, groups, checkpoints, levels[0]);
+
+    for (int index = 0; index < LEVEL_COUNT; index++) {
+      put(data, countsAt + Integer.BYTES * index, levels[index], Integer.BYTES);
+    }
+
+    writeRecords(data, descriptors, records, descriptorsAt, walksAt, start);
+
+    return data;
+  }
+
+  private static void writeHeader(final byte[] data, final int width, final int height, final Mcv2FrameKind kind) {
     put(data, MAGIC_OFFSET, MAGIC, Integer.BYTES);
     data[VERSION_OFFSET] = VERSION;
     put(data, WIDTH_OFFSET, width, Short.BYTES);
     put(data, HEIGHT_OFFSET, height, Short.BYTES);
     put(data, FRAME_ID_OFFSET, FRAME_ID, Integer.BYTES);
     put(data, REFERENCE_ID_OFFSET, kind == Mcv2FrameKind.KEYFRAME ? FRAME_ID : PREVIOUS_FRAME_ID, Integer.BYTES);
-    for (int index = 0; index < levels[0]; index++) {
-      data[HEADER_BYTES + index / Byte.SIZE] |= (byte) (1 << (index % Byte.SIZE));
-    }
+  }
 
+  private static void writeCheckpoints(final byte[] data, final int groups, final int checkpoints, final int roots) {
     for (int index = 0; index < checkpoints; index++) {
-      put(
-        data,
-        HEADER_BYTES + groups * Integer.BYTES + index * Integer.BYTES,
-        Math.min(levels[0], index * CHECKPOINT_INTERVAL),
-        Integer.BYTES
-      );
+      put(data, HEADER_BYTES + groups * Integer.BYTES + index * Integer.BYTES, Math.min(roots, index * CHECKPOINT_INTERVAL), Integer.BYTES);
     }
+  }
 
-    for (int index = 0; index < LEVEL_COUNT; index++) {
-      put(data, countsAt + Integer.BYTES * index, levels[index], Integer.BYTES);
-    }
-
+  private static void writeRecords(
+    final byte[] data,
+    final byte[] descriptors,
+    final byte[][] records,
+    final int descriptorsAt,
+    final int walksAt,
+    final int start
+  ) {
     System.arraycopy(descriptors, 0, data, descriptorsAt, descriptors.length);
     int cursor = 0;
     int splits = 0;
@@ -132,8 +152,6 @@ final class Mcv2WireFrames {
         splits++;
       }
     }
-
-    return data;
   }
 
   static void put(final byte[] data, final int offset, final long value, final int bytes) {

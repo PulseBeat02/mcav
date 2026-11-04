@@ -98,5 +98,5 @@ public interface Hologram {
    * @param display the display entity, or null to detach the hologram from its entity
    * @since 1.0.0
    */
-  void setDisplay(@Nullable TextDisplay display);
+  void setDisplay(final @Nullable TextDisplay display);
 }

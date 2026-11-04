@@ -33,6 +33,7 @@ import io.papermc.paper.connection.PlayerGameConnection;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -58,9 +59,10 @@ import org.bukkit.plugin.messaging.StandardMessenger;
 import org.bukkit.scheduler.BukkitScheduler;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.scoreboard.ScoreboardManager;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
-import org.mockito.stubbing.Answer;
+import org.mockito.invocation.InvocationOnMock;
 
 public final class FakeServer implements AutoCloseable {
 
@@ -71,35 +73,26 @@ public final class FakeServer implements AutoCloseable {
   private static final String INJECTED_PLUGIN_FIELD = "injectedPlugin";
 
   private final MockedStatic<Bukkit> bukkit;
-
   private final Plugin plugin;
-
   private final PluginManager pluginManager;
-
   private final BukkitScheduler scheduler;
-
   private final ScoreboardManager scoreboardManager;
-
   private final Messenger messenger;
 
   private final List<Player> onlinePlayers;
-
   private final Map<UUID, List<Packet<?>>> sentPackets;
-
   private final Map<UUID, List<ChannelFutureListener>> pendingWrites;
-
-  private final List<ScheduledTask> tasks;
-
   private final Map<UUID, Set<Entity>> visibility;
 
+  private final List<ScheduledTask> tasks;
   private final List<ScheduledTask> laterTasks;
 
   private volatile boolean primaryThread;
 
   private FakeServer() {
     MinecraftTestBootstrap.bootstrap();
+
     this.plugin = mock(Plugin.class);
-    when(this.plugin.isEnabled()).thenReturn(true);
     this.pluginManager = mock(PluginManager.class);
     this.scheduler = mock(BukkitScheduler.class);
     this.scoreboardManager = mock(ScoreboardManager.class);
@@ -112,6 +105,7 @@ public final class FakeServer implements AutoCloseable {
     this.laterTasks = new CopyOnWriteArrayList<>();
     this.primaryThread = true;
 
+    when(this.plugin.isEnabled()).thenReturn(true);
     this.stubScheduler();
     this.bukkit = this.mockBukkit();
   }
@@ -120,36 +114,45 @@ public final class FakeServer implements AutoCloseable {
     return new FakeServer();
   }
 
-  private void stubScheduler() {
-    final Answer<BukkitTask> repeatingTask = invocation -> {
-      final Runnable runnable = invocation.getArgument(1);
-      return this.schedule(runnable, Repetition.REPEATING);
-    };
-    final Answer<BukkitTask> singleTask = invocation -> {
-      final Runnable runnable = invocation.getArgument(1);
-      return this.schedule(runnable, Repetition.ONCE);
-    };
-    when(this.scheduler.runTaskTimer(any(Plugin.class), any(Runnable.class), anyLong(), anyLong())).thenAnswer(repeatingTask);
-    when(this.scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenAnswer(singleTask);
-    when(this.scheduler.runTaskLater(any(Plugin.class), any(Runnable.class), anyLong())).thenAnswer(invocation -> {
-      final Runnable runnable = invocation.getArgument(1);
-      return this.scheduleLater(runnable);
-    });
+  @Override
+  public void close() {
+    try {
+      PacketUtils.shutdown();
+      clearInjectedPlugin();
+    } finally {
+      this.bukkit.close();
+    }
   }
 
-  private BukkitTask scheduleLater(final Runnable runnable) {
-    final BukkitTask task = mock(BukkitTask.class);
-    final ScheduledTask scheduled = new ScheduledTask(runnable, Repetition.ONCE, task);
-    doAnswer(_ -> {
-      this.laterTasks.remove(scheduled);
+  public static void clearInjectedPlugin() {
+    try {
+      final Field field = BukkitModule.class.getDeclaredField(INJECTED_PLUGIN_FIELD);
+      field.setAccessible(true);
+      field.set(null, null);
+    } catch (final ReflectiveOperationException exception) {
+      throw new IllegalStateException(exception);
+    }
+  }
 
-      return null;
-    })
-      .when(task)
-      .cancel();
-    this.laterTasks.add(scheduled);
+  private void stubScheduler() {
+    when(this.scheduler.runTaskTimer(any(Plugin.class), any(Runnable.class), anyLong(), anyLong())).thenAnswer(this::scheduleRepeating);
+    when(this.scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenAnswer(this::scheduleOnce);
+    when(this.scheduler.runTaskLater(any(Plugin.class), any(Runnable.class), anyLong())).thenAnswer(this::scheduleLater);
+  }
 
-    return task;
+  private BukkitTask scheduleRepeating(final InvocationOnMock invocation) {
+    final Runnable runnable = invocation.getArgument(1);
+    return this.schedule(runnable, Repetition.REPEATING, this.tasks);
+  }
+
+  private BukkitTask scheduleOnce(final InvocationOnMock invocation) {
+    final Runnable runnable = invocation.getArgument(1);
+    return this.schedule(runnable, Repetition.ONCE, this.tasks);
+  }
+
+  private BukkitTask scheduleLater(final InvocationOnMock invocation) {
+    final Runnable runnable = invocation.getArgument(1);
+    return this.schedule(runnable, Repetition.ONCE, this.laterTasks);
   }
 
   private MockedStatic<Bukkit> mockBukkit() {
@@ -163,22 +166,25 @@ public final class FakeServer implements AutoCloseable {
     staticBukkit.when(Bukkit::isPrimaryThread).thenAnswer(_ -> this.primaryThread);
     staticBukkit.when(Bukkit::getIp).thenReturn(SERVER_ADDRESS);
     staticBukkit.when(Bukkit::getPort).thenReturn(SERVER_PORT);
+
     return staticBukkit;
   }
 
-  private BukkitTask schedule(final Runnable runnable, final Repetition repetition) {
+  private BukkitTask schedule(final Runnable runnable, final Repetition repetition, final List<ScheduledTask> queue) {
     final BukkitTask task = mock(BukkitTask.class);
     final ScheduledTask scheduled = new ScheduledTask(runnable, repetition, task);
-    doAnswer(_ -> {
-      this.tasks.remove(scheduled);
-
-      return null;
-    })
+    doAnswer(_ -> this.cancel(queue, scheduled))
       .when(task)
       .cancel();
-    this.tasks.add(scheduled);
+    queue.add(scheduled);
 
     return task;
+  }
+
+  private @Nullable Object cancel(final List<ScheduledTask> queue, final ScheduledTask scheduled) {
+    queue.remove(scheduled);
+
+    return null;
   }
 
   public void receivePluginMessage(final Player player, final String channel, final byte[] message) {
@@ -190,8 +196,10 @@ public final class FakeServer implements AutoCloseable {
   public BukkitModule injectModule() throws ReflectiveOperationException {
     final Constructor<BukkitModule> constructor = BukkitModule.class.getDeclaredConstructor();
     constructor.setAccessible(true);
+
     final BukkitModule module = constructor.newInstance();
     module.inject(this.plugin);
+
     return module;
   }
 
@@ -199,59 +207,81 @@ public final class FakeServer implements AutoCloseable {
   public CraftPlayer addPlayer(final UUID uuid) {
     final CraftPlayer player = mock(CraftPlayer.class);
     final ServerPlayer handle = mock(ServerPlayer.class);
-    final ServerGamePacketListenerImpl packetListener = mock(ServerGamePacketListenerImpl.class);
     final List<Packet<?>> packets = new CopyOnWriteArrayList<>();
     final List<ChannelFutureListener> pending = new CopyOnWriteArrayList<>();
-    doAnswer(invocation -> {
-      final Packet<?> packet = invocation.getArgument(0);
-      packets.add(packet);
-      return null;
-    })
-      .when(packetListener)
-      .send(any(Packet.class));
-    final Connection connection = mockConnection();
-    connection.channel = mockRecordingChannel(packets, pending);
-    connect(packetListener, connection);
+    final ServerGamePacketListenerImpl packetListener = this.mockPacketListener(packets, pending);
     handle.connection = packetListener;
-    // visibility as Paper keeps it: a grant inverts an entity's visibility by default, per session
-    final Set<Entity> inverted = ConcurrentHashMap.newKeySet();
-    doAnswer(invocation -> {
-      final Entity entity = invocation.getArgument(1);
-      if (entity.isVisibleByDefault()) {
-        inverted.remove(entity);
-      } else {
-        inverted.add(entity);
-      }
-
-      return null;
-    })
-      .when(player)
-      .showEntity(any(Plugin.class), any(Entity.class));
-    doAnswer(invocation -> {
-      final Entity entity = invocation.getArgument(1);
-      if (entity.isVisibleByDefault()) {
-        inverted.add(entity);
-      } else {
-        inverted.remove(entity);
-      }
-
-      return null;
-    })
-      .when(player)
-      .hideEntity(any(Plugin.class), any(Entity.class));
-    when(player.canSee(any(Entity.class))).thenAnswer(invocation -> {
-      final Entity entity = invocation.getArgument(0);
-      return entity.isVisibleByDefault() != inverted.contains(entity);
-    });
-    this.visibility.put(uuid, inverted);
+    final Set<Entity> inverted = this.stubVisibility(player);
     when(player.getHandle()).thenReturn(handle);
     when(player.getUniqueId()).thenReturn(uuid);
     this.bukkit.when(() -> Bukkit.getPlayer(uuid)).thenReturn(player);
+
+    this.visibility.put(uuid, inverted);
     this.onlinePlayers.add(player);
     this.sentPackets.put(uuid, packets);
     this.pendingWrites.put(uuid, pending);
 
     return player;
+  }
+
+  private ServerGamePacketListenerImpl mockPacketListener(final List<Packet<?>> packets, final List<ChannelFutureListener> pending) {
+    final ServerGamePacketListenerImpl packetListener = mock(ServerGamePacketListenerImpl.class);
+    doAnswer(invocation -> this.recordPacket(packets, invocation))
+      .when(packetListener)
+      .send(any(Packet.class));
+    final Connection connection = mockConnection();
+    connection.channel = this.mockRecordingChannel(packets, pending);
+    connect(packetListener, connection);
+
+    return packetListener;
+  }
+
+  private @Nullable Object recordPacket(final List<Packet<?>> packets, final InvocationOnMock invocation) {
+    final Packet<?> packet = invocation.getArgument(0);
+    packets.add(packet);
+
+    return null;
+  }
+
+  private Set<Entity> stubVisibility(final CraftPlayer player) {
+    // visibility as Paper keeps it: a grant inverts an entity's visibility by default, per session
+    final Set<Entity> inverted = ConcurrentHashMap.newKeySet();
+    doAnswer(invocation -> this.showEntity(inverted, invocation))
+      .when(player)
+      .showEntity(any(Plugin.class), any(Entity.class));
+    doAnswer(invocation -> this.hideEntity(inverted, invocation))
+      .when(player)
+      .hideEntity(any(Plugin.class), any(Entity.class));
+    when(player.canSee(any(Entity.class))).thenAnswer(invocation -> this.canSee(inverted, invocation));
+
+    return inverted;
+  }
+
+  private @Nullable Object showEntity(final Set<Entity> inverted, final InvocationOnMock invocation) {
+    final Entity entity = invocation.getArgument(1);
+    if (entity.isVisibleByDefault()) {
+      inverted.remove(entity);
+    } else {
+      inverted.add(entity);
+    }
+
+    return null;
+  }
+
+  private @Nullable Object hideEntity(final Set<Entity> inverted, final InvocationOnMock invocation) {
+    final Entity entity = invocation.getArgument(1);
+    if (entity.isVisibleByDefault()) {
+      inverted.add(entity);
+    } else {
+      inverted.remove(entity);
+    }
+
+    return null;
+  }
+
+  private boolean canSee(final Set<Entity> inverted, final InvocationOnMock invocation) {
+    final Entity entity = invocation.getArgument(0);
+    return entity.isVisibleByDefault() != inverted.contains(entity);
   }
 
   // the connection class reads Paper's global configuration when it loads, so that is stubbed meanwhile
@@ -274,31 +304,47 @@ public final class FakeServer implements AutoCloseable {
     }
   }
 
-  private static Channel mockRecordingChannel(final List<Packet<?>> packets, final List<ChannelFutureListener> pending) {
+  private Channel mockRecordingChannel(final List<Packet<?>> packets, final List<ChannelFutureListener> pending) {
     final Channel channel = mock(Channel.class);
     final ChannelFuture write = mock(ChannelFuture.class);
-    when(write.addListener(any())).thenAnswer(invocation -> {
-      pending.add(invocation.getArgument(0));
-      return write;
-    });
-    when(channel.writeAndFlush(any())).thenAnswer(invocation -> {
-      final Packet<?> packet = invocation.getArgument(0);
-      packets.add(packet);
-      return write;
-    });
+    when(write.addListener(any())).thenAnswer(invocation -> this.addListener(pending, write, invocation));
+    when(channel.writeAndFlush(any())).thenAnswer(invocation -> this.writeAndFlush(packets, write, invocation));
     when(channel.config()).thenReturn(mock(ChannelConfig.class));
+
     return channel;
+  }
+
+  private ChannelFuture addListener(
+    final List<ChannelFutureListener> pending,
+    final ChannelFuture write,
+    final InvocationOnMock invocation
+  ) {
+    final ChannelFutureListener listener = invocation.getArgument(0);
+    pending.add(listener);
+
+    return write;
+  }
+
+  private ChannelFuture writeAndFlush(final List<Packet<?>> packets, final ChannelFuture write, final InvocationOnMock invocation) {
+    final Packet<?> packet = invocation.getArgument(0);
+    packets.add(packet);
+
+    return write;
   }
 
   // as CraftPlayer.onEntityRemove does when Paper stops tracking the entity
   public void endTracking(final Entity entity) {
-    this.visibility.values().forEach(inverted -> inverted.remove(entity));
+    final Collection<Set<Entity>> sessions = this.visibility.values();
+    for (final Set<Entity> inverted : sessions) {
+      inverted.remove(entity);
+    }
   }
 
   public int completeWrites(final UUID uuid) throws Exception {
     final List<ChannelFutureListener> pending = this.pendingWrites.getOrDefault(uuid, new CopyOnWriteArrayList<>());
     final List<ChannelFutureListener> writes = List.copyOf(pending);
     pending.clear();
+
     for (final ChannelFutureListener listener : writes) {
       listener.operationComplete(mock(ChannelFuture.class));
     }
@@ -307,11 +353,13 @@ public final class FakeServer implements AutoCloseable {
   }
 
   public void removePlayer(final UUID uuid) {
-    this.onlinePlayers.removeIf(player -> {
-      final UUID playerUuid = player.getUniqueId();
-      return uuid.equals(playerUuid);
-    });
+    this.onlinePlayers.removeIf(player -> this.hasUuid(uuid, player));
     this.bukkit.when(() -> Bukkit.getPlayer(uuid)).thenReturn(null);
+  }
+
+  private boolean hasUuid(final UUID uuid, final Player player) {
+    final UUID playerUuid = player.getUniqueId();
+    return uuid.equals(playerUuid);
   }
 
   public List<Packet<?>> getSentPackets(final UUID uuid) {
@@ -341,26 +389,6 @@ public final class FakeServer implements AutoCloseable {
     }
 
     return snapshot.size();
-  }
-
-  @Override
-  public void close() {
-    try {
-      PacketUtils.shutdown();
-      clearInjectedPlugin();
-    } finally {
-      this.bukkit.close();
-    }
-  }
-
-  public static void clearInjectedPlugin() {
-    try {
-      final Field field = BukkitModule.class.getDeclaredField(INJECTED_PLUGIN_FIELD);
-      field.setAccessible(true);
-      field.set(null, null);
-    } catch (final ReflectiveOperationException exception) {
-      throw new IllegalStateException(exception);
-    }
   }
 
   public MockedStatic<Bukkit> getBukkit() {
@@ -398,9 +426,7 @@ public final class FakeServer implements AutoCloseable {
   private static final class ScheduledTask {
 
     private final Runnable runnable;
-
     private final Repetition repetition;
-
     private final BukkitTask task;
 
     ScheduledTask(final Runnable runnable, final Repetition repetition, final BukkitTask task) {

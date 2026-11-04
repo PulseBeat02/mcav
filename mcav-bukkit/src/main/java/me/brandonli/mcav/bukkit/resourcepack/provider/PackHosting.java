@@ -59,40 +59,6 @@ import me.brandonli.mcav.bukkit.resourcepack.provider.netty.NettyHosting;
  */
 public interface PackHosting {
   /**
-   * Returns the URL players download the resource pack from.
-   *
-   * @return the URL of the resource pack
-   * @throws IllegalStateException if the URL is only known after {@link #start()} and the hosting was not started
-   * @since 1.0.0
-   */
-  String getRawUrl();
-
-  /**
-   * Starts hosting the resource pack. Depending on the strategy, this may block while a server binds or the pack
-   * is uploaded, so avoid calling it on the main thread.
-   *
-   * @since 1.0.0
-   */
-  void start();
-
-  /**
-   * Releases this strategy's local hosting resources. Dedicated HTTP hosting stops its server; injected hosting
-   * stops accepting new HTTP connections; website hosting leaves the uploaded pack available. Source zip files
-   * remain caller-owned and are not deleted. See the strategy's shutdown method for in-flight download behavior.
-   *
-   * @since 1.0.0
-   */
-  void shutdown();
-
-  /**
-   * Returns the resource pack zip that is hosted.
-   *
-   * @return the path to the resource pack zip
-   * @since 1.0.0
-   */
-  Path getZip();
-
-  /**
    * Creates a hosting strategy that serves the resource pack from a dedicated HTTP server on its own port.
    *
    * @param path     the path to the resource pack zip
@@ -137,4 +103,38 @@ public interface PackHosting {
 
     return new NettyHosting(path);
   }
+
+  /**
+   * Starts hosting the resource pack. Depending on the strategy, this may block while a server binds or the pack
+   * is uploaded, so avoid calling it on the main thread.
+   *
+   * @since 1.0.0
+   */
+  void start();
+
+  /**
+   * Releases this strategy's local hosting resources. Dedicated HTTP hosting stops its server; injected hosting
+   * stops accepting new HTTP connections; website hosting leaves the uploaded pack available. Source zip files
+   * remain caller-owned and are not deleted. See the strategy's shutdown method for in-flight download behavior.
+   *
+   * @since 1.0.0
+   */
+  void shutdown();
+
+  /**
+   * Returns the URL players download the resource pack from.
+   *
+   * @return the URL of the resource pack
+   * @throws IllegalStateException if the URL is only known after {@link #start()} and the hosting was not started
+   * @since 1.0.0
+   */
+  String getRawUrl();
+
+  /**
+   * Returns the resource pack zip that is hosted.
+   *
+   * @return the path to the resource pack zip
+   * @since 1.0.0
+   */
+  Path getZip();
 }

@@ -43,7 +43,7 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.Dit
  *
  * @since 1.0.0
  */
-public class MapImage implements DisplayableImage {
+public final class MapImage implements DisplayableImage {
 
   private final MapConfiguration configuration;
   private final DitherAlgorithm algorithm;

@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.bukkit.media.render;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.base.Preconditions;
 import io.papermc.paper.math.Position;
 import java.util.ArrayList;
@@ -25,7 +27,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.BlockConfiguration;
@@ -185,7 +186,9 @@ public final class BlockRenderer extends MainThreadRenderer<BlockData[]> {
   }
 
   private boolean isInWallWorld(final Player player) {
-    return player.getWorld().getUID().equals(this.worldId);
+    final World world = player.getWorld();
+    final UUID playerWorldId = world.getUID();
+    return playerWorldId.equals(this.worldId);
   }
 
   private int getBlockCount() {
@@ -286,14 +289,20 @@ public final class BlockRenderer extends MainThreadRenderer<BlockData[]> {
     final WallRecipients recipients = this.getWallRecipients();
     final Set<UUID> watchingViewers = new HashSet<>();
     final List<Player> playersWithoutWall = this.updateActiveViewers(watchingViewers, recipients);
-    if (!playersWithoutWall.isEmpty()) {
-      final Map<Position, BlockData> wall = this.createBlockMap(currentPositions, blocks);
-      for (final Player player : playersWithoutWall) {
-        player.sendMultiBlockChange(wall);
-      }
-    }
+    this.sendWall(playersWithoutWall, currentPositions, blocks);
 
     this.restoreRemovedViewers(currentPositions, watchingViewers);
+  }
+
+  private void sendWall(final List<Player> players, final Position[] currentPositions, final BlockData[] blocks) {
+    if (players.isEmpty()) {
+      return;
+    }
+
+    final Map<Position, BlockData> wall = this.createBlockMap(currentPositions, blocks);
+    for (final Player player : players) {
+      player.sendMultiBlockChange(wall);
+    }
   }
 
   private void advanceResendCounter() {
@@ -360,7 +369,7 @@ public final class BlockRenderer extends MainThreadRenderer<BlockData[]> {
   }
 
   private Map<Position, BlockData> createOriginalBlockMap(final Position[] currentPositions) {
-    final BlockData[] original = Objects.requireNonNull(this.originalBlocks, "Original blocks were not captured!");
+    final BlockData[] original = requireNonNull(this.originalBlocks, "Original blocks were not captured!");
     return this.createBlockMap(currentPositions, original);
   }
 

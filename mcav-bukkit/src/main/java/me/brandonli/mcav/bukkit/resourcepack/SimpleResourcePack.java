@@ -103,13 +103,10 @@ public final class SimpleResourcePack {
   private static final LocalDateTime ENTRY_TIME = LocalDateTime.of(1980, 2, 1, 0, 0);
 
   private final Map<String, Map<String, Path>> sounds;
-
   private final Map<String, Path> files;
-
   private final Map<String, byte[]> contents;
 
   private int format;
-
   private @Nullable String description;
 
   SimpleResourcePack() {
@@ -333,8 +330,11 @@ public final class SimpleResourcePack {
         this.writeFile(zip, name, file);
       }
       for (final Map.Entry<String, byte[]> entry : this.contents.entrySet()) {
-        zip.putNextEntry(entry(entry.getKey()));
-        zip.write(entry.getValue());
+        final String name = entry.getKey();
+        final byte[] content = entry.getValue();
+        final ZipEntry zipEntry = createEntry(name);
+        zip.putNextEntry(zipEntry);
+        zip.write(content);
         zip.closeEntry();
       }
     }
@@ -385,7 +385,7 @@ public final class SimpleResourcePack {
   }
 
   @VisibleForTesting
-  static ZipEntry entry(final String name) {
+  static ZipEntry createEntry(final String name) {
     final ZipEntry entry = new ZipEntry(name);
     entry.setTimeLocal(ENTRY_TIME);
     return entry;
@@ -393,13 +393,15 @@ public final class SimpleResourcePack {
 
   private void writeEntry(final ZipOutputStream zip, final String name, final String content) throws IOException {
     final byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
-    zip.putNextEntry(entry(name));
+    final ZipEntry zipEntry = createEntry(name);
+    zip.putNextEntry(zipEntry);
     zip.write(bytes);
     zip.closeEntry();
   }
 
   private void writeFile(final ZipOutputStream zip, final String name, final Path file) throws IOException {
-    zip.putNextEntry(entry(name));
+    final ZipEntry zipEntry = createEntry(name);
+    zip.putNextEntry(zipEntry);
     Files.copy(file, zip);
     zip.closeEntry();
   }

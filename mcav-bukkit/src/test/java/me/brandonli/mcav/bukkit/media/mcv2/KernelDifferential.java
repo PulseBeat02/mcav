@@ -40,6 +40,7 @@ final class KernelDifferential {
   private static final int HALVE_KERNEL = 11;
 
   private static final int MAXIMUM_CHANNEL = 255;
+  private static final int NARROW_SPREAD = 8;
 
   private static final int MAXIMUM_MOTION = 40;
 
@@ -109,15 +110,18 @@ final class KernelDifferential {
   }
 
   static @Nullable String compare(final Values random, final Kernels java, final Kernels other) {
-    return compare(random, java, other, random.next(0, KERNELS - 1));
+    final int kernel = random.next(0, KERNELS - 1);
+    return compare(random, java, other, kernel);
   }
 
   static @Nullable String compare(final Values random, final Kernels java, final Kernels other, final int kernel) {
     final int size = drawBlockSize(random);
     final int channels = size * size * 3;
-    return kernel < SCORED_KERNELS
-      ? compareScored(random, java, other, kernel, size, channels)
-      : compareUnscored(random, java, other, kernel, size, channels);
+    if (kernel < SCORED_KERNELS) {
+      return compareScored(random, java, other, kernel, size, channels);
+    }
+
+    return compareUnscored(random, java, other, kernel, size, channels);
   }
 
   private static @Nullable String compareScored(
@@ -132,7 +136,7 @@ final class KernelDifferential {
     final int[] prediction = drawIntegers(random, channels, 0, MAXIMUM_CHANNEL);
     final double rate = random.next(0, 100_000) / 7.0;
     // an infinite limit, or one some candidates cross part way through the block
-    final double limit = random.next(0, 3) == 0 ? Double.POSITIVE_INFINITY : rate + random.next(0, size * size * 3000);
+    final double limit = drawLimit(random, rate, size);
     final int[] expected = new int[channels];
     final int[] actual = new int[channels];
     java.start(source, rate, limit);
@@ -154,7 +158,8 @@ final class KernelDifferential {
       }
       case PALETTE_KERNEL -> {
         name = "palette";
-        final byte[] record = random.bytes(6 + (size * size) / 8 + random.next(0, 2));
+        final int recordLength = 6 + (size * size) / 8 + random.next(0, 2);
+        final byte[] record = random.bytes(recordLength);
         finishedJava = java.palette(record, size, expected);
         finishedOther = other.palette(record, size, actual);
       }
@@ -176,6 +181,14 @@ final class KernelDifferential {
     }
 
     return describeMismatch(Arrays.equals(expected, actual), "%s reconstruction".formatted(name));
+  }
+
+  private static double drawLimit(final Values random, final double rate, final int size) {
+    if (random.next(0, 3) == 0) {
+      return Double.POSITIVE_INFINITY;
+    }
+
+    return rate + random.next(0, size * size * 3000);
   }
 
   private static @Nullable String compareUnscored(
@@ -234,15 +247,23 @@ final class KernelDifferential {
     final int channels
   ) {
     final int low = random.next(0, MAXIMUM_CHANNEL);
-    final int[] source =
-      random.next(0, 7) == 0
-        ? drawIntegers(random, channels, EXTREME_LOW, EXTREME_HIGH)
-        : drawIntegers(random, channels, low, Math.min(MAXIMUM_CHANNEL, low + (random.next(0, 1) == 0 ? 8 : MAXIMUM_CHANNEL)));
+    final int[] source = drawClusterSource(random, channels, low);
     final int[] expected = new int[6];
     final int[] actual = new int[6];
     java.cluster(source, size, expected);
     other.cluster(source, size, actual);
     return describeMismatch(Arrays.equals(expected, actual), "cluster");
+  }
+
+  private static int[] drawClusterSource(final Values random, final int channels, final int low) {
+    if (random.next(0, 7) == 0) {
+      return drawIntegers(random, channels, EXTREME_LOW, EXTREME_HIGH);
+    }
+
+    final boolean narrow = random.next(0, 1) == 0;
+    final int spread = narrow ? NARROW_SPREAD : MAXIMUM_CHANNEL;
+    final int high = Math.min(MAXIMUM_CHANNEL, low + spread);
+    return drawIntegers(random, channels, low, high);
   }
 
   private static @Nullable String comparePalettes(
@@ -304,12 +325,17 @@ final class KernelDifferential {
 
     if (random.next(0, 7) == 0) {
       // a channel that is no byte, which the search must cost as an int
-      source[random.next(0, channels - 1)] = random.next(EXTREME_LOW, EXTREME_HIGH);
+      final int channel = random.next(0, channels - 1);
+      final int value = random.next(EXTREME_LOW, EXTREME_HIGH);
+      source[channel] = value;
     }
 
-    final int[] seeds = new int[random.next(0, 6)];
+    final int seedCount = random.next(0, 6);
+    final int[] seeds = new int[seedCount];
     for (int seedIndex = 0; seedIndex < seeds.length; seedIndex++) {
-      seeds[seedIndex] = (random.next(-MAXIMUM_MOTION, MAXIMUM_MOTION) << 16) | (random.next(-MAXIMUM_MOTION, MAXIMUM_MOTION) & 0xFFFF);
+      final int motionX = random.next(-MAXIMUM_MOTION, MAXIMUM_MOTION);
+      final int motionY = random.next(-MAXIMUM_MOTION, MAXIMUM_MOTION);
+      seeds[seedIndex] = (motionX << 16) | (motionY & 0xFFFF);
     }
 
     final int range = random.next(0, 24);

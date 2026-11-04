@@ -105,10 +105,6 @@ public final class TransportPages {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
-  private static long symbolCount(final long bytes) {
-    return (bytes * Byte.SIZE + SYMBOL_BITS - 1) / SYMBOL_BITS;
-  }
-
   /**
    * Returns the payload capacity of one page, after its header.
    *
@@ -162,6 +158,10 @@ public final class TransportPages {
     }
 
     return symbols;
+  }
+
+  private static long symbolCount(final long bytes) {
+    return (bytes * Byte.SIZE + SYMBOL_BITS - 1) / SYMBOL_BITS;
   }
 
   /**
@@ -242,31 +242,46 @@ public final class TransportPages {
     Preconditions.checkArgument(streamId >= 0 && streamId <= Mcv2Decoder.MAXIMUM_UNSIGNED_INT, STREAM_ID_RANGE_MESSAGE);
 
     final byte[] frame = parsed.getData();
-    final int capacity = capacity();
     final int count = pageCount(frame.length);
     final List<byte[]> pages = new ArrayList<>(count);
     for (int number = 0; number < count; number++) {
-      final int from = number * capacity;
-      final int length = Math.min(capacity, frame.length - from);
-      final byte[] page = new byte[HEADER_BYTES + length];
-      Mcv2Decoder.putUnsignedInt(page, MAGIC_OFFSET, MAGIC);
-      page[VERSION_OFFSET] = VERSION;
-      page[SYMBOL_BITS_OFFSET] = (byte) SYMBOL_BITS;
-      Mcv2Decoder.putUnsignedShort(page, TYPE_OFFSET, parsed.isKeyframe() ? KEYFRAME_FLAGS : PREDICTED_FRAME_FLAGS);
-      Mcv2Decoder.putUnsignedInt(page, STREAM_OFFSET, streamId);
-      Mcv2Decoder.putUnsignedInt(page, FRAME_OFFSET, parsed.getFrameId());
-      Mcv2Decoder.putUnsignedShort(page, NUMBER_OFFSET, number);
-      Mcv2Decoder.putUnsignedShort(page, COUNT_OFFSET, count);
-      Mcv2Decoder.putUnsignedInt(page, REFERENCE_OFFSET, parsed.getReferenceId());
-      Mcv2Decoder.putUnsignedInt(page, LENGTH_OFFSET, frame.length);
-      System.arraycopy(frame, from, page, HEADER_BYTES, length);
-      final CRC32 checksum = new CRC32();
-      checksum.update(page);
-      Mcv2Decoder.putUnsignedInt(page, CRC_OFFSET, checksum.getValue());
+      final byte[] page = buildPage(parsed, frame, streamId, number, count);
       pages.add(toSymbols(page));
     }
 
     return pages;
+  }
+
+  private static byte[] buildPage(final Frame parsed, final byte[] frame, final long streamId, final int number, final int count) {
+    final int capacity = capacity();
+
+    final int from = number * capacity;
+    final int length = Math.min(capacity, frame.length - from);
+    final byte[] page = new byte[HEADER_BYTES + length];
+
+    Mcv2Decoder.putUnsignedInt(page, MAGIC_OFFSET, MAGIC);
+    page[VERSION_OFFSET] = VERSION;
+    page[SYMBOL_BITS_OFFSET] = (byte) SYMBOL_BITS;
+    Mcv2Decoder.putUnsignedShort(page, TYPE_OFFSET, parsed.isKeyframe() ? KEYFRAME_FLAGS : PREDICTED_FRAME_FLAGS);
+    Mcv2Decoder.putUnsignedInt(page, STREAM_OFFSET, streamId);
+    Mcv2Decoder.putUnsignedInt(page, FRAME_OFFSET, parsed.getFrameId());
+    Mcv2Decoder.putUnsignedShort(page, NUMBER_OFFSET, number);
+    Mcv2Decoder.putUnsignedShort(page, COUNT_OFFSET, count);
+    Mcv2Decoder.putUnsignedInt(page, REFERENCE_OFFSET, parsed.getReferenceId());
+    Mcv2Decoder.putUnsignedInt(page, LENGTH_OFFSET, frame.length);
+
+    System.arraycopy(frame, from, page, HEADER_BYTES, length);
+
+    final long checksum = checksumOf(page);
+    Mcv2Decoder.putUnsignedInt(page, CRC_OFFSET, checksum);
+
+    return page;
+  }
+
+  private static long checksumOf(final byte[] bytes) {
+    final CRC32 checksum = new CRC32();
+    checksum.update(bytes);
+    return checksum.getValue();
   }
 
   /**
@@ -280,14 +295,14 @@ public final class TransportPages {
    * @since 1.0.0
    */
   public static int usefulSymbols(final byte[] symbols) {
+    Preconditions.checkNotNull(symbols, SYMBOLS_NULL_MESSAGE);
+
     final byte[] header = readHeader(symbols);
     final int size = parsePayloadSize(header);
     return (int) symbolCount(HEADER_BYTES + size);
   }
 
   private static byte[] readHeader(final byte[] symbols) {
-    Preconditions.checkNotNull(symbols, SYMBOLS_NULL_MESSAGE);
-
     if (symbols.length > PAGE_SYMBOLS) {
       final String message = "Oversize map page!";
       throw new Mcv2Exception(message);
@@ -355,15 +370,16 @@ public final class TransportPages {
    * @since 1.0.0
    */
   public static TransportPage readPage(final byte[] symbols) {
+    Preconditions.checkNotNull(symbols, SYMBOLS_NULL_MESSAGE);
+
     final byte[] header = readHeader(symbols);
     final int size = parsePayloadSize(header);
     final byte[] pageBytes = fromSymbols(symbols, HEADER_BYTES + size);
     final long stored = Mcv2Decoder.readUnsignedInt(pageBytes, CRC_OFFSET);
     Mcv2Decoder.putUnsignedInt(pageBytes, CRC_OFFSET, 0);
-    final CRC32 checksum = new CRC32();
-    checksum.update(pageBytes);
+    final long checksum = checksumOf(pageBytes);
 
-    if (checksum.getValue() != stored) {
+    if (checksum != stored) {
       final String message = "Page CRC mismatch!";
       throw new Mcv2Exception(message);
     }

@@ -337,7 +337,7 @@ final class SimpleResourcePackTest {
       assertEquals(5, entries);
     }
 
-    final LocalDateTime newEntryTime = SimpleResourcePack.entry("a.txt").getTimeLocal();
+    final LocalDateTime newEntryTime = SimpleResourcePack.createEntry("a.txt").getTimeLocal();
     assertEquals(fixed, newEntryTime);
   }
 

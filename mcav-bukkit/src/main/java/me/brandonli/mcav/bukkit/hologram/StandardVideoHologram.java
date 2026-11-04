@@ -50,7 +50,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * @since 1.0.0
  */
-public class StandardVideoHologram extends VideoHologram {
+public final class StandardVideoHologram extends VideoHologram {
 
   private static final DateTimeFormatter MONTH_DAY_FORMATTER = DateTimeFormatter.ofPattern(
     "MMMM d",
@@ -116,6 +116,7 @@ public class StandardVideoHologram extends VideoHologram {
     Preconditions.checkArgument(world != null, "Location must have a world!");
 
     this.kill();
+
     final Component metadata = this.createMetadataText(dump);
     final TextDisplay entity = world.spawn(location, TextDisplay.class, display -> this.configureDisplay(display, metadata));
     this.setDisplay(entity);

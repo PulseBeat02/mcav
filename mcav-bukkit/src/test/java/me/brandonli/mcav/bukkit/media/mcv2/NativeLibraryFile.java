@@ -26,12 +26,6 @@ import java.util.Set;
 import java.util.TreeSet;
 
 record NativeLibraryFile(NativeLibraryFile.Format format, int machine, Set<String> exports, List<String> needed, Set<String> undefined) {
-  enum Format {
-    ELF,
-    PE,
-    MACH_O,
-  }
-
   private static final int ELF_MAGIC = 0x464c457f;
   private static final int ELF_CLASS_OFFSET = 4;
   private static final int ELF_CLASS_64 = 2;
@@ -257,5 +251,11 @@ record NativeLibraryFile(NativeLibraryFile.Format format, int machine, Set<Strin
     final byte[] name = new byte[end - offset];
     file.get(offset, name);
     return new String(name, StandardCharsets.US_ASCII);
+  }
+
+  enum Format {
+    ELF,
+    PE,
+    MACH_O,
   }
 }

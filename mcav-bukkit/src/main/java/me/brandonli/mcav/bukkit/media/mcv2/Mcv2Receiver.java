@@ -37,7 +37,9 @@ public final class Mcv2Receiver {
 
   private byte @Nullable [] reference;
 
-  private long frameId = -1;
+  private static final long NO_FRAME_ID = -1;
+
+  private long frameId;
 
   private int width;
 
@@ -48,7 +50,9 @@ public final class Mcv2Receiver {
    *
    * @since 1.0.0
    */
-  public Mcv2Receiver() {}
+  public Mcv2Receiver() {
+    this.frameId = NO_FRAME_ID;
+  }
 
   /**
    * Validates, decodes and commits a frame.

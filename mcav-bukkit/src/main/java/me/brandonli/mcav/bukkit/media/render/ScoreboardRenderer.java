@@ -183,7 +183,8 @@ public final class ScoreboardRenderer extends MainThreadRenderer<Component[]> {
   }
 
   private void showToViewers(final Scoreboard board) {
-    final Set<UUID> viewers = new HashSet<>(this.configuration.getViewers());
+    final Collection<UUID> configured = this.configuration.getViewers();
+    final Set<UUID> viewers = new HashSet<>(configured);
     for (final UUID viewer : viewers) {
       final Player player = Bukkit.getPlayer(viewer);
       if (player == null) {
@@ -228,6 +229,10 @@ public final class ScoreboardRenderer extends MainThreadRenderer<Component[]> {
       }
     }
 
+    this.restoreRemovedViewers(board, watching);
+  }
+
+  private void restoreRemovedViewers(final Scoreboard board, final Set<UUID> watching) {
     final Set<UUID> remembered = this.previousScoreboards.keySet();
     final Set<UUID> removed = new HashSet<>(remembered);
     removed.removeAll(watching);

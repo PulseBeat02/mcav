@@ -84,7 +84,7 @@ public final class MapLayout {
    * @since 1.0.0
    */
   public MapLayout(final int startMapId, final int columns, final int rows, final int imageWidth, final int imageHeight) {
-    validateDimensions(startMapId, columns, rows, imageWidth, imageHeight);
+    this.validateDimensions(startMapId, columns, rows, imageWidth, imageHeight);
 
     this.startMapId = startMapId;
     this.columns = columns;
@@ -99,7 +99,8 @@ public final class MapLayout {
     this.regions = this.computeRegions();
   }
 
-  private static void validateDimensions(
+  private void validateDimensions(
+    @UnderInitialization MapLayout this,
     final int startMapId,
     final int columns,
     final int rows,

@@ -147,39 +147,28 @@ public final class Mcv2Configuration {
   private static final int FACING_NORTH = 3;
 
   private final Collection<UUID> viewers;
-
   private final Location origin;
-
   private final BlockFace facing;
 
   private final int map;
-
   private final int columns;
-
   private final int rows;
 
   private final int videoWidth;
-
   private final int videoHeight;
 
   private final int pageMap;
-
   private final int pageSlots;
 
   private final long streamId;
-
   private final long firstFrameId;
-
   private final double maximumFrameRate;
 
   private final Settings settings;
-
   private final NamedTextColor outlineColor;
 
   private final long backlogLimit;
-
   private final @Nullable Pool encoderPool;
-
   private final int unsentLimit;
 
   Mcv2Configuration(
@@ -221,36 +210,6 @@ public final class Mcv2Configuration {
 
   static int videoSize(final int size, final int maps) {
     return size > 0 ? size : MapLayout.MAP_SIZE * maps;
-  }
-
-  /**
-   * Returns the direction the maps' right edge points to, as seen by a viewer in front of the wall.
-   *
-   * @return the direction columns count along
-   * @since 1.0.0
-   */
-  public BlockFace getRight() {
-    return switch (this.facing) {
-      case SOUTH -> BlockFace.EAST;
-      case WEST -> BlockFace.SOUTH;
-      case NORTH -> BlockFace.WEST;
-      default -> BlockFace.NORTH;
-    };
-  }
-
-  /**
-   * Returns the anchor's facing code: 0 when the maps' right edge points east, 1 south, 2 west and 3 north.
-   *
-   * @return the code the shader reads
-   * @since 1.0.0
-   */
-  public int getFacingCode() {
-    return switch (this.getRight()) {
-      case EAST -> FACING_EAST;
-      case SOUTH -> FACING_SOUTH;
-      case WEST -> FACING_WEST;
-      default -> FACING_NORTH;
-    };
   }
 
   static int defaultPageSlots(final int maps) {
@@ -352,6 +311,36 @@ public final class Mcv2Configuration {
    */
   public BlockFace getFacing() {
     return this.facing;
+  }
+
+  /**
+   * Returns the direction the maps' right edge points to, as seen by a viewer in front of the wall.
+   *
+   * @return the direction columns count along
+   * @since 1.0.0
+   */
+  public BlockFace getRight() {
+    return switch (this.facing) {
+      case SOUTH -> BlockFace.EAST;
+      case WEST -> BlockFace.SOUTH;
+      case NORTH -> BlockFace.WEST;
+      default -> BlockFace.NORTH;
+    };
+  }
+
+  /**
+   * Returns the anchor's facing code: 0 when the maps' right edge points east, 1 south, 2 west and 3 north.
+   *
+   * @return the code the shader reads
+   * @since 1.0.0
+   */
+  public int getFacingCode() {
+    return switch (this.getRight()) {
+      case EAST -> FACING_EAST;
+      case SOUTH -> FACING_SOUTH;
+      case WEST -> FACING_WEST;
+      default -> FACING_NORTH;
+    };
   }
 
   /**

@@ -32,9 +32,9 @@ final class Mcv2BlockState {
   static final int NO_VECTOR = (int) Mcv2Internals.field(Mcv2.class, null, "NO_VECTOR");
 
   private static final String HALF_MEMBER = "half";
-  private final Object buffers;
 
-  private final Map<Block, Object> coders = new HashMap<>();
+  private final Object buffers;
+  private final Map<Block, Object> coders;
   private final Object frame;
 
   Mcv2BlockState(
@@ -47,6 +47,7 @@ final class Mcv2BlockState {
     final double lambda,
     final int @Nullable [] previous
   ) {
+    this.coders = new HashMap<>();
     this.buffers = Mcv2Internals.construct(BUFFERS, new Class<?>[] { int.class, int.class }, width, height);
 
     if (kind == Mcv2FrameKind.PREDICTED) {
@@ -100,6 +101,7 @@ final class Mcv2BlockState {
       Mcv2Internals.field(Workers.class, Workers.SEQUENTIAL, "value"),
       output
     );
+
     return output;
   }
 
@@ -114,6 +116,7 @@ final class Mcv2BlockState {
     );
     Mcv2Internals.call(CODER, coder, "code", new Class<?>[] { int.class, int.class, int.class }, left, top, parent);
     this.coders.put(new Block(level, block), coder);
+
     return coder;
   }
 
@@ -121,16 +124,18 @@ final class Mcv2BlockState {
     return (int) Mcv2Internals.callForResult(FRAME, this.frame, "previousMotion", new Class<?>[] { int.class, int.class }, left, top);
   }
 
+  int mode(final int level, final int block) {
+    final Object coder = this.coder(level, block);
+    return (int) Mcv2Internals.field(CODER, coder, "mode");
+  }
+
   private Object coder(final int level, final int block) {
     return this.coders.get(new Block(level, block));
   }
 
-  int mode(final int level, final int block) {
-    return (int) Mcv2Internals.field(CODER, this.coder(level, block), "mode");
-  }
-
   int quantizer(final int level, final int block) {
-    return (int) Mcv2Internals.field(CODER, this.coder(level, block), "quantizer");
+    final Object coder = this.coder(level, block);
+    return (int) Mcv2Internals.field(CODER, coder, "quantizer");
   }
 
   long distortion(final int level, final int block) {
@@ -148,12 +153,15 @@ final class Mcv2BlockState {
   }
 
   double cost(final int level, final int block) {
-    return (double) Mcv2Internals.field(CODER, this.coder(level, block), "bestCost");
+    final Object coder = this.coder(level, block);
+    return (double) Mcv2Internals.field(CODER, coder, "bestCost");
   }
 
   byte[] record(final int level, final int block) {
     final Object coder = this.coder(level, block);
-    return Arrays.copyOf((byte[]) Mcv2Internals.field(CODER, coder, "bestRecord"), (int) Mcv2Internals.field(CODER, coder, "length"));
+    final byte[] bestRecord = (byte[]) Mcv2Internals.field(CODER, coder, "bestRecord");
+    final int length = (int) Mcv2Internals.field(CODER, coder, "length");
+    return Arrays.copyOf(bestRecord, length);
   }
 
   static int localVector(final Object coder) {

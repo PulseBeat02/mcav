@@ -17,13 +17,14 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2;
 
+import static java.util.Objects.requireNonNull;
+
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.Arrays;
-import java.util.Objects;
 import java.util.concurrent.ForkJoinPool;
 import java.util.function.ObjIntConsumer;
 import java.util.function.Supplier;
@@ -83,14 +84,16 @@ final class Mcv2Internals {
     final Class<?>[] parameters,
     final @Nullable Object... arguments
   ) {
-    return Objects.requireNonNull(call(type, target, name, parameters, arguments));
+    final @Nullable Object result = call(type, target, name, parameters, arguments);
+    return requireNonNull(result);
   }
 
   static Object field(final Class<?> type, final @Nullable Object target, final String name) {
     try {
       final Field field = type.getDeclaredField(name);
       field.setAccessible(true);
-      return Objects.requireNonNull(field.get(target));
+      final @Nullable Object result = field.get(target);
+      return requireNonNull(result);
     } catch (final ReflectiveOperationException exception) {
       throw new LinkageError(exception.getMessage(), exception);
     }
@@ -111,7 +114,8 @@ final class Mcv2Internals {
 
   static Kernels javaKernels() {
     final Object target = construct(JAVA_KERNELS_TYPE, new Class<?>[0]);
-    return (Kernels) Proxy.newProxyInstance(Kernels.class.getClassLoader(), new Class<?>[] { Kernels.class }, (_, method, arguments) ->
+    final ClassLoader loader = Kernels.class.getClassLoader();
+    return (Kernels) Proxy.newProxyInstance(loader, new Class<?>[] { Kernels.class }, (_, method, arguments) ->
       call(KERNELS_TYPE, target, method.getName(), method.getParameterTypes(), arguments == null ? new Object[0] : arguments)
     );
   }
@@ -141,11 +145,17 @@ final class Mcv2Internals {
   static final class MotionLambda {
 
     private static final Class<?> TYPE = nested("MotionLambda");
+
     static final double KNEE = (double) field(TYPE, null, "KNEE");
     static final double EXPONENT = (double) field(TYPE, null, "EXPONENT");
     static final double MAXIMUM_RAISE = (double) field(TYPE, null, "MAXIMUM_RAISE");
     static final double SMOOTHING = (double) field(TYPE, null, "SMOOTHING");
-    private final Object value = construct(TYPE, new Class<?>[0]);
+
+    private final Object value;
+
+    MotionLambda() {
+      this.value = construct(TYPE, new Class<?>[0]);
+    }
 
     double lambda(final double base) {
       return (double) callForResult(TYPE, this.value, "lambda", new Class<?>[] { double.class }, base);
@@ -213,19 +223,33 @@ final class Mcv2Internals {
 
   interface Kernels {
     void start(int[] source, double rate, double limit);
+
     long getDistortion();
+
     boolean predicted(int[] prediction, int size, int[] output);
+
     boolean solid(int color, int size, int[] output);
+
     boolean palette(byte[] record, int size, int[] output);
+
     boolean compact(int[] prediction, byte[] record, int quantizer, int size, int[] output);
+
     void predict(byte[] reference, int width, int height, int left, int top, int size, int motionX, int motionY, int[] output);
+
     void fit(float[] values, int size, float[] output);
+
     void cluster(int[] source, int size, int[] endpoints);
+
     void finishPalette(int[] source, int count, int[] endpoints, int[] colors, byte[] selectors);
+
     boolean finishPattern(int[] source, int size, int[] endpoints, int[] colors, byte[] selectors);
+
     int seeded(byte[] reference, int width, int height, int[] source, int left, int top, int size, int range, int[] seeds);
+
     void loadSource(byte[] image, int width, int height, int left, int top, int size, int[] source);
+
     void halve(int[] block, int size, int[] output);
+
     void residualTarget(int[] source, int[] prediction, int count, float[] target);
 
     default void forgetArrays() {}

@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.bukkit.testing;
 
+import static java.util.Objects.requireNonNull;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -28,7 +30,6 @@ import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -87,7 +88,7 @@ public final class GeneratedMedia {
     }
 
     COMPLETED.remove(destination);
-    final Path parent = Objects.requireNonNull(destination.getParent(), "A media file must have a directory!");
+    final Path parent = requireNonNull(destination.getParent(), "A media file must have a directory!");
     Files.createDirectories(parent);
     final String name = destination.getFileName().toString();
     final int dot = name.lastIndexOf(EXTENSION_SEPARATOR);

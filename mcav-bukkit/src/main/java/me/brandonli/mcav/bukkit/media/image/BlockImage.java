@@ -31,7 +31,7 @@ import me.brandonli.mcav.media.image.ImageBuffer;
  *
  * @since 1.0.0
  */
-public class BlockImage implements DisplayableImage {
+public final class BlockImage implements DisplayableImage {
 
   private final BlockRenderer renderer;
 

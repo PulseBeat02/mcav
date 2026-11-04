@@ -25,7 +25,9 @@ final class Mcv2Pictures {
 
   private static final int MAXIMUM_CHANNEL = 255;
 
-  private Mcv2Pictures() {}
+  private Mcv2Pictures() {
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+  }
 
   static byte[] scene(final int width, final int height, final int frame, final int panPerFrame) {
     final Random random = new Random(frame * SEED_MULTIPLIER);

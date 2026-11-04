@@ -92,7 +92,7 @@ import org.slf4j.LoggerFactory;
  *
  * @since 1.0.0
  */
-public class CompressedMapResult implements DitherResultStep {
+public final class CompressedMapResult implements DitherResultStep {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(CompressedMapResult.class);
 
@@ -146,6 +146,64 @@ public class CompressedMapResult implements DitherResultStep {
     this.activeViewers = new HashMap<>();
     this.sentPixels = new TreeMap<>();
     this.lock = new ReentrantLock();
+  }
+
+  /**
+   * Accepts frames again. The encoder itself is created lazily when the first frame arrives, because the frame size
+   * is unknown until then; this only undoes a previous {@link #release()}, so the same result can show a second
+   * video, the way every other result of this module can.
+   *
+   * @since 1.0.0
+   */
+  @Override
+  public void start() {
+    this.lock.lock();
+    try {
+      this.released = false;
+    } finally {
+      this.lock.unlock();
+    }
+  }
+
+  /**
+   * Stops processing frames, shuts down the dithering threads, and clears the maps of every viewer. Frames that
+   * arrive after this method was called are ignored.
+   *
+   * @since 1.0.0
+   */
+  @Override
+  public void release() {
+    this.lock.lock();
+    try {
+      if (this.released) {
+        return;
+      }
+
+      this.released = true;
+      this.encoder = null;
+      this.activeViewers.clear();
+      this.sentPixels.clear();
+
+      final ForkJoinPool pool = this.ditherPool;
+      if (pool != null) {
+        pool.shutdownNow();
+        this.ditherPool = null;
+      }
+
+      // Clearing is part of the same transition: a restarted frame must be sent after this clear.
+      this.clearMaps();
+    } finally {
+      this.lock.unlock();
+    }
+  }
+
+  private void clearMaps() {
+    final Collection<UUID> viewers = this.configuration.getViewers();
+    final int startMapId = this.configuration.getMap();
+    final int columns = this.configuration.getMapBlockWidth();
+    final int rows = this.configuration.getMapBlockHeight();
+    final int mapCount = columns * rows;
+    MapPacketFactory.clear(viewers, startMapId, mapCount);
   }
 
   /**
@@ -314,7 +372,8 @@ public class CompressedMapResult implements DitherResultStep {
       group.add(viewer);
     }
 
-    this.activeViewers.keySet().retainAll(connectedViewers);
+    final Set<UUID> activeViewerIds = this.activeViewers.keySet();
+    activeViewerIds.retainAll(connectedViewers);
   }
 
   private DeltaMapEncoder createEncoderIfLayoutChanged(final int width, final int height) {
@@ -390,64 +449,6 @@ public class CompressedMapResult implements DitherResultStep {
     } finally {
       this.lock.unlock();
     }
-  }
-
-  /**
-   * Accepts frames again. The encoder itself is created lazily when the first frame arrives, because the frame size
-   * is unknown until then; this only undoes a previous {@link #release()}, so the same result can show a second
-   * video, the way every other result of this module can.
-   *
-   * @since 1.0.0
-   */
-  @Override
-  public void start() {
-    this.lock.lock();
-    try {
-      this.released = false;
-    } finally {
-      this.lock.unlock();
-    }
-  }
-
-  /**
-   * Stops processing frames, shuts down the dithering threads, and clears the maps of every viewer. Frames that
-   * arrive after this method was called are ignored.
-   *
-   * @since 1.0.0
-   */
-  @Override
-  public void release() {
-    this.lock.lock();
-    try {
-      if (this.released) {
-        return;
-      }
-
-      this.released = true;
-      this.encoder = null;
-      this.activeViewers.clear();
-      this.sentPixels.clear();
-
-      final ForkJoinPool pool = this.ditherPool;
-      if (pool != null) {
-        pool.shutdownNow();
-        this.ditherPool = null;
-      }
-
-      // Clearing is part of the same transition: a restarted frame must be sent after this clear.
-      this.clearMaps();
-    } finally {
-      this.lock.unlock();
-    }
-  }
-
-  private void clearMaps() {
-    final Collection<UUID> viewers = this.configuration.getViewers();
-    final int startMapId = this.configuration.getMap();
-    final int columns = this.configuration.getMapBlockWidth();
-    final int rows = this.configuration.getMapBlockHeight();
-    final int mapCount = columns * rows;
-    MapPacketFactory.clear(viewers, startMapId, mapCount);
   }
 
   private enum Coverage {

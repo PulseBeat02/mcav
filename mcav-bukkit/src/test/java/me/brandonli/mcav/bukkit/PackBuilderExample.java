@@ -17,7 +17,6 @@
  */
 package me.brandonli.mcav.bukkit;
 
-import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
 import me.brandonli.mcav.bukkit.resourcepack.SimpleResourcePack;
@@ -36,7 +35,7 @@ public final class PackBuilderExample {
     throw new UnsupportedOperationException("Example class cannot be instantiated!");
   }
 
-  static void main(final String[] args) throws IOException {
+  static void main(final String[] args) {
     if (args.length != 1) {
       final String message = "Usage: PackBuilderExample <resource-pack-format>";
       throw new IllegalArgumentException(message);
@@ -45,9 +44,11 @@ public final class PackBuilderExample {
     final int format = Integer.parseInt(args[0]);
     final SimpleResourcePack pack = SimpleResourcePack.pack();
     pack.metadata(format, "MCAV example audio");
+
     final UriSource video = UriSource.uri(VIDEO);
     final Path sound = AudioExtractor.extractOggVorbis(video);
     pack.sound(SOUND_KEY, sound);
+
     final Path destination = Path.of(PACK_FILE_NAME);
     pack.zip(destination);
   }

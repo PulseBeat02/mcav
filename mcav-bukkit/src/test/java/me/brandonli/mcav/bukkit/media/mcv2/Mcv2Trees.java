@@ -17,8 +17,6 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -55,33 +53,6 @@ public final class Mcv2Trees {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
-  private static Object invoke(
-    final Class<?> owner,
-    final @Nullable Object target,
-    final String name,
-    final Class<?>[] parameters,
-    final Object... arguments
-  ) {
-    try {
-      final Method method = owner.getDeclaredMethod(name, parameters);
-      method.setAccessible(true);
-      return Objects.requireNonNull(method.invoke(target, arguments));
-    } catch (final InvocationTargetException exception) {
-      final Throwable cause = exception.getCause();
-      if (cause instanceof final RuntimeException runtimeException) {
-        throw runtimeException;
-      }
-
-      if (cause instanceof final Error error) {
-        throw error;
-      }
-
-      throw new AssertionError(cause);
-    } catch (final ReflectiveOperationException exception) {
-      throw new LinkageError(exception.getMessage(), exception);
-    }
-  }
-
   public static byte[] write(
     final int width,
     final int height,
@@ -90,7 +61,7 @@ public final class Mcv2Trees {
     final Mcv2FrameKind kind,
     final List<Node> roots
   ) {
-    return (byte[]) invoke(
+    return (byte[]) Mcv2Internals.callForResult(
       Mcv2.class,
       null,
       "write",
@@ -163,9 +134,9 @@ public final class Mcv2Trees {
       final Mcv2Decoder.Leaf leaf = frame.getLeaf(index);
       final int mode = leaf.mode();
       final int offset = leaf.offset();
-      final Node node;
       final int length = Mcv2Decoder.recordSize(mode, leaf.size());
-      node = Node.leaf(mode, leaf.quantizer(), length == 0 ? new byte[0] : Arrays.copyOfRange(data, offset, offset + length));
+      final byte[] record = length == 0 ? new byte[0] : Arrays.copyOfRange(data, offset, offset + length);
+      final Node node = Node.leaf(mode, leaf.quantizer(), record);
       leaves.put(position(leaf.left(), leaf.top(), leaf.size()), node);
     }
 
@@ -201,16 +172,18 @@ public final class Mcv2Trees {
 
   public record Node(Object value) {
     static Node leaf(final int mode, final int quantizer, final byte[] record) {
-      return new Node(invoke(TREE, null, "leaf", new Class<?>[] { int.class, int.class, byte[].class }, mode, quantizer, record));
+      return new Node(
+        Mcv2Internals.callForResult(TREE, null, "leaf", new Class<?>[] { int.class, int.class, byte[].class }, mode, quantizer, record)
+      );
     }
 
     static Node skip() {
-      return new Node(invoke(TREE, null, "skip", new Class<?>[0]));
+      return new Node(Mcv2Internals.callForResult(TREE, null, "skip", new Class<?>[0]));
     }
 
     static Node split(final Node topLeft, final Node topRight, final Node bottomLeft, final Node bottomRight) {
       return new Node(
-        invoke(
+        Mcv2Internals.callForResult(
           TREE,
           null,
           "split",
@@ -221,6 +194,39 @@ public final class Mcv2Trees {
           bottomRight.value
         )
       );
+    }
+
+    private List<Node> getChildren() {
+      if (!this.isSplit()) {
+        return List.of();
+      }
+
+      final List<Node> children = new ArrayList<>();
+      for (int child = 0; child < CHILD_COUNT; child++) {
+        children.add(this.getChild(child));
+      }
+
+      return children;
+    }
+
+    int getMode() {
+      return (int) Mcv2Internals.field(TREE, this.value, "mode");
+    }
+
+    int getQuantizer() {
+      return (int) Mcv2Internals.field(TREE, this.value, "quantizer");
+    }
+
+    byte[] getRecord() {
+      return ((byte[]) Mcv2Internals.field(TREE, this.value, "record")).clone();
+    }
+
+    boolean isSplit() {
+      return (boolean) Mcv2Internals.callForResult(TREE, this.value, "isSplit", new Class<?>[0]);
+    }
+
+    Node getChild(final int index) {
+      return new Node(Mcv2Internals.callForResult(TREE, this.value, "getChild", new Class<?>[] { int.class }, index));
     }
 
     @Override
@@ -251,39 +257,6 @@ public final class Mcv2Trees {
     public int hashCode() {
       final List<Node> children = this.getChildren();
       return Objects.hash(this.getMode(), this.getQuantizer(), Arrays.hashCode(this.getRecord()), children);
-    }
-
-    private List<Node> getChildren() {
-      if (!this.isSplit()) {
-        return List.of();
-      }
-
-      final List<Node> children = new ArrayList<>();
-      for (int child = 0; child < CHILD_COUNT; child++) {
-        children.add(this.getChild(child));
-      }
-
-      return children;
-    }
-
-    int getMode() {
-      return (int) Mcv2Internals.field(TREE, this.value, "mode");
-    }
-
-    int getQuantizer() {
-      return (int) Mcv2Internals.field(TREE, this.value, "quantizer");
-    }
-
-    byte[] getRecord() {
-      return ((byte[]) Mcv2Internals.field(TREE, this.value, "record")).clone();
-    }
-
-    boolean isSplit() {
-      return (boolean) invoke(TREE, this.value, "isSplit", new Class<?>[0]);
-    }
-
-    Node getChild(final int index) {
-      return new Node(invoke(TREE, this.value, "getChild", new Class<?>[] { int.class }, index));
     }
   }
 }

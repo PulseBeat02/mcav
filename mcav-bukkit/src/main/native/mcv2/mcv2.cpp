@@ -2515,7 +2515,7 @@ extern "C" int32_t mcv2_cpu_levels(const int64_t hardware_capabilities) {
     }
   }
 #else
-  (void)hardware_capabilities;
+  (void)hardware_capabilities; // only Linux reports hardware capabilities
 #endif
   return levels;
 }

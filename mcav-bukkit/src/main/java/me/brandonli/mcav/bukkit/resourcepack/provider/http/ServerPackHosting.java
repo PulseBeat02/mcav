@@ -36,7 +36,7 @@ import java.nio.file.Path;
  *
  * @since 1.0.0
  */
-public class ServerPackHosting implements HttpHosting {
+public final class ServerPackHosting implements HttpHosting {
 
   private static final int MAXIMUM_PORT = 65535;
 

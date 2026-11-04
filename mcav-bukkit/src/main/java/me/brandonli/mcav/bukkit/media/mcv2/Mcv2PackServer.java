@@ -193,9 +193,9 @@ public final class Mcv2PackServer {
 
   private final List<PackHosting> running;
 
-  private @Nullable Published current;
-
   private final AtomicInteger generation;
+
+  private @Nullable Published current;
 
   private boolean flushing;
 
@@ -351,7 +351,7 @@ public final class Mcv2PackServer {
     }
   }
 
-  private static int pageMapOf(final Mcv2Configuration configuration, final Slot slot) {
+  private int pageMapOf(final Mcv2Configuration configuration, final Slot slot) {
     return configuration.getPageMap() + (int) (slot.streamId - 1) * Mcv2Configuration.MAXIMUM_PAGE_SLOTS;
   }
 
@@ -858,7 +858,7 @@ public final class Mcv2PackServer {
     private Lease(final Mcv2Configuration requested, final long firstFrameId, final Slot slot) {
       this.requested = requested;
       this.firstFrameId = firstFrameId;
-      this.configuration = requested.withSlot(slot.streamId, pageMapOf(requested, slot), firstFrameId);
+      this.configuration = requested.withSlot(slot.streamId, Mcv2PackServer.this.pageMapOf(requested, slot), firstFrameId);
       this.playing = slot;
     }
 
@@ -902,7 +902,7 @@ public final class Mcv2PackServer {
       }
 
       return new Mcv2Channel(
-        resized.withSlot(this.playing.streamId, pageMapOf(this.requested, this.playing), this.firstFrameId),
+        resized.withSlot(this.playing.streamId, Mcv2PackServer.this.pageMapOf(this.requested, this.playing), this.firstFrameId),
         Mcv2PackServer.this.viewers
       );
     }

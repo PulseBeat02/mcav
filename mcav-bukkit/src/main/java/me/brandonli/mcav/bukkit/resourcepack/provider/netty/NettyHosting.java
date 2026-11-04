@@ -75,6 +75,7 @@ public final class NettyHosting implements InjectorHosting {
   private final String handlerName;
   private final String requestPath;
   private final ResourcePackFile packFile;
+
   private boolean running;
 
   private volatile @Nullable String url;
@@ -99,6 +100,60 @@ public final class NettyHosting implements InjectorHosting {
     // so the name carries the instance number exactly as the listener key does
     this.handlerName = ResourcePackHttpHandler.NAME + HANDLER_NUMBER_SEPARATOR + instanceNumber;
     this.packFile = new ResourcePackFile(zip);
+  }
+
+  /**
+   * Starts answering HTTP requests on the Minecraft port. Calling this method again while running has no effect.
+   *
+   * <p>The initial pack read is attempted on the calling thread. A read failure is logged and hosting still
+   * starts; a later download attempts to read it again and reports a failure to that HTTP client if necessary.
+   *
+   * @throws InjectorException if the path is not a regular file, including on a repeated start
+   * @since 1.0.0
+   */
+  @Override
+  public synchronized void start() {
+    final boolean regularFile = Files.isRegularFile(this.zip);
+    if (!regularFile) {
+      final String message = "Resource pack %s is not a regular file!".formatted(this.zip);
+      throw new InjectorException(message);
+    }
+
+    if (this.running) {
+      return;
+    }
+
+    this.readPackAhead();
+    ChannelInitializeListenerHolder.addListener(this.listenerKey, this::installHandler);
+    this.running = true;
+  }
+
+  /**
+   * Stops answering HTTP requests for new connections. Connections that are already open are not affected.
+   *
+   * @since 1.0.0
+   */
+  @Override
+  public synchronized void shutdown() {
+    if (this.running) {
+      ChannelInitializeListenerHolder.removeListener(this.listenerKey);
+      this.running = false;
+    }
+  }
+
+  // keeps the first read off the Netty thread that carries every player's packets
+  private void readPackAhead() {
+    try {
+      this.packFile.read();
+    } catch (final IOException exception) {
+      LOGGER.warn("Could not read the resource pack {} ahead of the first download.", this.zip, exception);
+    }
+  }
+
+  private void installHandler(final Channel channel) {
+    final ChannelPipeline pipeline = channel.pipeline();
+    final ResourcePackHttpHandler handler = new ResourcePackHttpHandler(this.packFile, this.requestPath);
+    pipeline.addFirst(this.handlerName, handler);
   }
 
   /**
@@ -137,60 +192,6 @@ public final class NettyHosting implements InjectorHosting {
   @VisibleForTesting
   static String formatHost(final String address) {
     return NetworkUtils.formatHostForUrl(address);
-  }
-
-  /**
-   * Starts answering HTTP requests on the Minecraft port. Calling this method again while running has no effect.
-   *
-   * <p>The initial pack read is attempted on the calling thread. A read failure is logged and hosting still
-   * starts; a later download attempts to read it again and reports a failure to that HTTP client if necessary.
-   *
-   * @throws InjectorException if the path is not a regular file, including on a repeated start
-   * @since 1.0.0
-   */
-  @Override
-  public synchronized void start() {
-    final boolean regularFile = Files.isRegularFile(this.zip);
-    if (!regularFile) {
-      final String message = "Resource pack %s is not a regular file!".formatted(this.zip);
-      throw new InjectorException(message);
-    }
-
-    if (this.running) {
-      return;
-    }
-
-    this.readPackAhead();
-    ChannelInitializeListenerHolder.addListener(this.listenerKey, this::installHandler);
-    this.running = true;
-  }
-
-  // keeps the first read off the Netty thread that carries every player's packets
-  private void readPackAhead() {
-    try {
-      this.packFile.read();
-    } catch (final IOException exception) {
-      LOGGER.warn("Could not read the resource pack {} ahead of the first download.", this.zip, exception);
-    }
-  }
-
-  private void installHandler(final Channel channel) {
-    final ChannelPipeline pipeline = channel.pipeline();
-    final ResourcePackHttpHandler handler = new ResourcePackHttpHandler(this.packFile, this.requestPath);
-    pipeline.addFirst(this.handlerName, handler);
-  }
-
-  /**
-   * Stops answering HTTP requests for new connections. Connections that are already open are not affected.
-   *
-   * @since 1.0.0
-   */
-  @Override
-  public synchronized void shutdown() {
-    if (this.running) {
-      ChannelInitializeListenerHolder.removeListener(this.listenerKey);
-      this.running = false;
-    }
   }
 
   @VisibleForTesting

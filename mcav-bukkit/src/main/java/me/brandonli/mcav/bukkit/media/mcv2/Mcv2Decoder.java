@@ -284,6 +284,8 @@ public final class Mcv2Decoder {
    * @since 1.0.0
    */
   public static byte[] decode(final Frame frame, final byte @Nullable [] reference, final long referenceId) {
+    Preconditions.checkNotNull(frame, "Frame must not be null!");
+
     final byte[] output = new byte[frame.width * frame.height * CHANNELS];
     decode(frame, reference, referenceId, output);
     return output;
@@ -302,6 +304,9 @@ public final class Mcv2Decoder {
    * @since 1.0.0
    */
   public static void decode(final Frame frame, final byte @Nullable [] reference, final long referenceId, final byte[] output) {
+    Preconditions.checkNotNull(frame, "Frame must not be null!");
+    Preconditions.checkNotNull(output, "Output must not be null!");
+
     final byte[] prediction = requireMatchingReference(frame, reference, referenceId);
     decodeRows(frame, samePicture(prediction, output) ? prediction.clone() : prediction, referenceId, output, 0, frame.height);
   }
@@ -584,9 +589,10 @@ public final class Mcv2Decoder {
     private final int width;
     private final int height;
     private final boolean keyframe;
-    private int start;
     private final int columns;
     private final int roots;
+
+    private int start;
 
     private Parser(final byte[] data, final int width, final int height, final boolean keyframe) {
       this.data = data;
@@ -598,6 +604,17 @@ public final class Mcv2Decoder {
     }
 
     private Frame parse() {
+      final IndexLayout layout = this.readIndexLength();
+      final int[] present = this.readDirectory(layout.groups, layout.firstChildren);
+      final int splits = this.countSplits(layout);
+      final int[] positions = this.placeChildren(layout, present);
+      final int[] leaves = this.readLeaves(layout, positions, splits);
+      this.addSkippedRoots(layout, present, splits, leaves);
+
+      return new Frame(this, leaves);
+    }
+
+    private IndexLayout readIndexLength() {
       final int groups = (this.roots + GROUP_ROOTS - 1) / GROUP_ROOTS;
       final int checkpoints = (groups + CHECKPOINT_GROUPS - 1) / CHECKPOINT_GROUPS;
       final int countsAt = HEADER_BYTES + (groups + checkpoints) * Integer.BYTES;
@@ -623,31 +640,38 @@ public final class Mcv2Decoder {
       final int firstChildren = (int) levelZero;
       final int lastLevel = (int) (levelZero + levelOne);
       final int walksAt = descriptorsAt + descriptors;
-      final int[] present = this.readDirectory(groups, firstChildren);
+      return new IndexLayout(groups, descriptorsAt, descriptors, firstChildren, lastLevel, walksAt, levelOne, levelTwo);
+    }
+
+    private int countSplits(final IndexLayout layout) {
       int splits = 0;
       int firstSplits = 0;
-      for (int index = 0; index < descriptors; index++) {
-        final int mode = this.readDescriptorMode(descriptorsAt + index);
+      for (int index = 0; index < layout.descriptors; index++) {
+        final int mode = this.readDescriptorMode(layout.descriptorsAt + index);
         if (mode != MODE_SPLIT) {
           continue;
         }
-        if (index >= lastLevel) {
+        if (index >= layout.lastLevel) {
           final String message = "Split below the bounded depth!";
           throw new Mcv2Exception(message);
         }
         splits++;
-        if (index < firstChildren) {
+        if (index < layout.firstChildren) {
           firstSplits++;
         }
       }
 
-      if ((long) QUARTERS * firstSplits != levelOne || (long) QUARTERS * (splits - firstSplits) != levelTwo) {
+      if ((long) QUARTERS * firstSplits != layout.levelOne || (long) QUARTERS * (splits - firstSplits) != layout.levelTwo) {
         final String message = "Level counts disagree with splits!";
         throw new Mcv2Exception(message);
       }
 
-      final int[] positions = new int[descriptors * POSITION_INTS];
-      for (int index = 0; index < firstChildren; index++) {
+      return splits;
+    }
+
+    private int[] placeChildren(final IndexLayout layout, final int[] present) {
+      final int[] positions = new int[layout.descriptors * POSITION_INTS];
+      for (int index = 0; index < layout.firstChildren; index++) {
         writePosition(
           positions,
           index,
@@ -657,9 +681,9 @@ public final class Mcv2Decoder {
         );
       }
 
-      int child = firstChildren;
-      for (int index = 0; index < lastLevel; index++) {
-        if ((this.data[descriptorsAt + index] & MODE_MASK) != MODE_SPLIT) {
+      int child = layout.firstChildren;
+      for (int index = 0; index < layout.lastLevel; index++) {
+        if ((this.data[layout.descriptorsAt + index] & MODE_MASK) != MODE_SPLIT) {
           continue;
         }
         final int arrayOffset = index * POSITION_INTS;
@@ -675,20 +699,24 @@ public final class Mcv2Decoder {
         }
       }
 
-      final int[] leaves = new int[(this.roots + descriptors - firstChildren - splits) * LEAF_INTS];
+      return positions;
+    }
+
+    private int[] readLeaves(final IndexLayout layout, final int[] positions, final int totalSplits) {
+      final int[] leaves = new int[(this.roots + layout.descriptors - layout.firstChildren - totalSplits) * LEAF_INTS];
       int leaf = 0;
       int cursor = 0;
-      splits = 0;
+      int splits = 0;
       final int payloadEnd = this.data.length;
-      for (int index = 0; index < descriptors; index++) {
+      for (int index = 0; index < layout.descriptors; index++) {
         if (
           index % WALK_SPAN == 0 &&
-          readUnsignedInt(this.data, walksAt + (index / WALK_SPAN) * Integer.BYTES) != (cursor | ((long) splits << CURSOR_BITS))
+          readUnsignedInt(this.data, layout.walksAt + (index / WALK_SPAN) * Integer.BYTES) != (cursor | ((long) splits << CURSOR_BITS))
         ) {
           final String message = "Invalid walk checkpoint!";
           throw new Mcv2Exception(message);
         }
-        final int descriptor = this.data[descriptorsAt + index] & BYTE_MASK;
+        final int descriptor = this.data[layout.descriptorsAt + index] & BYTE_MASK;
         final int mode = descriptor & MODE_MASK;
         if (mode == MODE_SPLIT) {
           splits++;
@@ -715,6 +743,11 @@ public final class Mcv2Decoder {
         throw new Mcv2Exception(message);
       }
 
+      return leaves;
+    }
+
+    private void addSkippedRoots(final IndexLayout layout, final int[] present, final int splits, final int[] leaves) {
+      int leaf = layout.descriptors - splits;
       int listed = 0;
       for (int root = 0; root < this.roots; root++) {
         if (listed < present.length && present[listed] == root) {
@@ -732,8 +765,6 @@ public final class Mcv2Decoder {
           );
         }
       }
-
-      return new Frame(this, leaves);
     }
 
     private int[] readDirectory(final int groups, final int count) {
@@ -806,6 +837,17 @@ public final class Mcv2Decoder {
 
       return length;
     }
+
+    private record IndexLayout(
+      int groups,
+      int descriptorsAt,
+      int descriptors,
+      int firstChildren,
+      int lastLevel,
+      int walksAt,
+      long levelOne,
+      long levelTwo
+    ) {}
   }
 
   private static final class Context {

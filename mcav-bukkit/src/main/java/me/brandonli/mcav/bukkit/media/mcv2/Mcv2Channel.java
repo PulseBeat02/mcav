@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -25,7 +27,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -42,6 +43,8 @@ import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
+import org.bukkit.scheduler.BukkitScheduler;
 import org.bukkit.scheduler.BukkitTask;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -84,25 +87,17 @@ public final class Mcv2Channel {
   private static final int MAP_ORIGIN = 0;
 
   private final Mcv2Configuration configuration;
-
   private final Mcv2Viewers viewers;
-
   private final Mcv2Screen screen;
+  private final Mcv2KeyframeRequest keyframeRequest;
 
   private final Set<UUID> scheduled;
-
   private final Map<UUID, Mcv2Link> links;
-
   private final Set<UUID> away;
-
   private final Map<UUID, Long> sessions;
 
   private volatile Map<UUID, Mcv2Link> recipients;
-
-  private final Mcv2KeyframeRequest keyframeRequest;
-
   private volatile Set<UUID> farAway;
-
   private @Nullable BukkitTask ranging;
 
   /**
@@ -147,7 +142,9 @@ public final class Mcv2Channel {
 
     if (this.ranging == null) {
       this.measureRange();
-      this.ranging = Bukkit.getScheduler().runTaskTimer(BukkitModule.getPlugin(), this::measureRange, RANGE_TICKS, RANGE_TICKS);
+      final BukkitScheduler scheduler = Bukkit.getScheduler();
+      final Plugin plugin = BukkitModule.getPlugin();
+      this.ranging = scheduler.runTaskTimer(plugin, this::measureRange, RANGE_TICKS, RANGE_TICKS);
     }
   }
 
@@ -201,8 +198,12 @@ public final class Mcv2Channel {
     }
 
     // Bukkit throws if the location's world has unloaded.
-    final World wall = Objects.requireNonNull(this.configuration.getOrigin().getWorld(), "A screen's origin is in a world!");
-    if (!wall.getUID().equals(player.getWorld().getUID())) {
+    final Location origin = this.configuration.getOrigin();
+    final World wall = requireNonNull(origin.getWorld(), "A screen's origin is in a world!");
+    final World world = player.getWorld();
+    final UUID wallId = wall.getUID();
+    final UUID worldId = world.getUID();
+    if (!wallId.equals(worldId)) {
       return true;
     }
 
@@ -218,13 +219,15 @@ public final class Mcv2Channel {
     final int lastX = firstX + right.getModX() * span;
     final int firstZ = origin.getBlockZ();
     final int lastZ = firstZ + right.getModZ() * span;
-    final double outsideX = this.distanceOutside(location.getX(), Math.min(firstX, lastX), Math.max(firstX, lastX) + 1);
-    final double outsideY = this.distanceOutside(
-      location.getY(),
-      origin.getBlockY() - (this.configuration.getRows() - 1),
-      origin.getBlockY() + 1
-    );
-    final double outsideZ = this.distanceOutside(location.getZ(), Math.min(firstZ, lastZ), Math.max(firstZ, lastZ) + 1);
+    final double lowX = Math.min(firstX, lastX);
+    final double highX = Math.max(firstX, lastX) + 1;
+    final double bottomY = origin.getBlockY() - (this.configuration.getRows() - 1);
+    final double topY = origin.getBlockY() + 1;
+    final double lowZ = Math.min(firstZ, lastZ);
+    final double highZ = Math.max(firstZ, lastZ) + 1;
+    final double outsideX = this.distanceOutside(location.getX(), lowX, highX);
+    final double outsideY = this.distanceOutside(location.getY(), bottomY, topY);
+    final double outsideZ = this.distanceOutside(location.getZ(), lowZ, highZ);
     return Math.sqrt(outsideX * outsideX + outsideY * outsideY + outsideZ * outsideZ);
   }
 
@@ -245,6 +248,7 @@ public final class Mcv2Channel {
     final Set<UUID> selected = new HashSet<>(this.configuration.getViewers());
     this.retireRemoved(selected);
     this.forgetEarlierSessions(selected);
+
     final Map<UUID, Mcv2Link> receiving = new HashMap<>();
     final Set<UUID> others = ConcurrentHashMap.newKeySet();
     final Set<UUID> far = this.farAway;
@@ -271,7 +275,9 @@ public final class Mcv2Channel {
       this.scheduled.remove(viewer);
 
       if (this.links.remove(viewer) != null) {
-        Bukkit.getScheduler().runTask(BukkitModule.getPlugin(), () -> this.hide(viewer));
+        final BukkitScheduler scheduler = Bukkit.getScheduler();
+        final Plugin plugin = BukkitModule.getPlugin();
+        scheduler.runTask(plugin, () -> this.hide(viewer));
       }
     } else if (link != null) {
       receiving.put(viewer, link);
@@ -279,26 +285,33 @@ public final class Mcv2Channel {
       others.add(viewer);
 
       if (this.scheduled.add(viewer)) {
-        Bukkit.getScheduler().runTask(BukkitModule.getPlugin(), () -> this.show(viewer));
+        final BukkitScheduler scheduler = Bukkit.getScheduler();
+        final Plugin plugin = BukkitModule.getPlugin();
+        scheduler.runTask(plugin, () -> this.show(viewer));
       }
     }
   }
 
   private void retireRemoved(final Set<UUID> selected) {
     this.scheduled.removeIf(viewer -> !selected.contains(viewer));
+
     final Set<UUID> shown = new HashSet<>(this.links.keySet());
     shown.addAll(this.away);
     for (final UUID viewer : shown) {
       if (!selected.contains(viewer)) {
         this.links.remove(viewer);
         this.away.remove(viewer);
-        Bukkit.getScheduler().runTask(BukkitModule.getPlugin(), () -> this.hide(viewer));
+        final BukkitScheduler scheduler = Bukkit.getScheduler();
+        final Plugin plugin = BukkitModule.getPlugin();
+        scheduler.runTask(plugin, () -> this.hide(viewer));
       }
     }
   }
 
   private void forgetEarlierSessions(final Set<UUID> selected) {
-    this.sessions.keySet().removeIf(viewer -> !selected.contains(viewer) || !this.links.containsKey(viewer));
+    final Set<UUID> sessionViewers = this.sessions.keySet();
+    sessionViewers.removeIf(viewer -> !selected.contains(viewer) || !this.links.containsKey(viewer));
+
     final Set<UUID> linked = new HashSet<>(this.links.keySet());
     for (final UUID viewer : linked) {
       final long current = this.viewers.getSession(viewer);
@@ -324,7 +337,6 @@ public final class Mcv2Channel {
 
   void show(final UUID viewer) {
     final Player player = Bukkit.getPlayer(viewer);
-
     if (player == null || !this.canShow(viewer)) {
       this.scheduled.remove(viewer);
       return;
@@ -344,6 +356,7 @@ public final class Mcv2Channel {
 
     final Mcv2Link link = new Mcv2Link(this.configuration.getBacklogLimit());
     this.links.put(viewer, link);
+
     // Publish before rechecking so an overlapping retirement can own the cleanup.
     if (!this.canShow(viewer)) {
       this.scheduled.remove(viewer);
@@ -359,11 +372,9 @@ public final class Mcv2Channel {
   }
 
   private boolean canShow(final UUID viewer) {
+    final Collection<UUID> configured = this.configuration.getViewers();
     return (
-      this.scheduled.contains(viewer) &&
-      this.configuration.getViewers().contains(viewer) &&
-      this.viewers.isLoaded(viewer) &&
-      !this.farAway.contains(viewer)
+      this.scheduled.contains(viewer) && configured.contains(viewer) && this.viewers.isLoaded(viewer) && !this.farAway.contains(viewer)
     );
   }
 
@@ -421,30 +432,56 @@ public final class Mcv2Channel {
       this.keyframeRequest.request();
       event.colors = -1;
       event.commit();
+
       return -1;
     }
 
+    final Mcv2FrameKind kind = header.isKeyframe() ? Mcv2FrameKind.KEYFRAME : Mcv2FrameKind.PREDICTED;
+    final List<MapTilePatch> patches = this.createPatches(pages, kind, event);
+    final List<MapPacketFactory.Bundle> bundles = MapPacketFactory.createBundles(patches);
+    final long bytes = this.countBytes(bundles);
+    this.offerFrame(header, kind, bytes, bundles, event);
+
+    final int colors = event.colors;
+    event.sent = System.currentTimeMillis();
+    event.commit();
+
+    return colors;
+  }
+
+  private List<MapTilePatch> createPatches(final List<byte[]> pages, final Mcv2FrameKind kind, final Mcv2SendEvent event) {
     final List<MapTilePatch> patches = new ArrayList<>();
-    int colors = 0;
     for (int page = 0; page < pages.size(); page++) {
       final byte[] mapColors = MapAlphabet.toMapColors(pages.get(page));
-      colors += mapColors.length;
+      event.colors += mapColors.length;
       final int rows = mapColors.length / MapLayout.MAP_SIZE;
       final int mapId = this.configuration.getPageMap() + page;
       patches.add(MapTilePatch.of(mapId, MAP_ORIGIN, MAP_ORIGIN, MapLayout.MAP_SIZE, rows, mapColors));
     }
 
-    final Mcv2FrameKind kind = header.isKeyframe() ? Mcv2FrameKind.KEYFRAME : Mcv2FrameKind.PREDICTED;
     if (kind == Mcv2FrameKind.KEYFRAME) {
       patches.addAll(this.screen.getAnchors());
     }
 
-    final List<MapPacketFactory.Bundle> bundles = MapPacketFactory.createBundles(patches);
+    return patches;
+  }
+
+  private long countBytes(final List<MapPacketFactory.Bundle> bundles) {
     long bytes = 0;
     for (final MapPacketFactory.Bundle bundle : bundles) {
       bytes += bundle.getBytes();
     }
 
+    return bytes;
+  }
+
+  private void offerFrame(
+    final Frame header,
+    final Mcv2FrameKind kind,
+    final long bytes,
+    final List<MapPacketFactory.Bundle> bundles,
+    final Mcv2SendEvent event
+  ) {
     for (final Map.Entry<UUID, Mcv2Link> recipient : this.recipients.entrySet()) {
       final UUID viewer = recipient.getKey();
       final Mcv2Link link = recipient.getValue();
@@ -459,11 +496,6 @@ public final class Mcv2Channel {
       }
       event.backlog = Math.max(event.backlog, link.getBacklog());
     }
-
-    event.colors = colors;
-    event.sent = System.currentTimeMillis();
-    event.commit();
-    return colors;
   }
 
   private void sendBundles(final UUID viewer, final Mcv2Link link, final List<MapPacketFactory.Bundle> bundles) {

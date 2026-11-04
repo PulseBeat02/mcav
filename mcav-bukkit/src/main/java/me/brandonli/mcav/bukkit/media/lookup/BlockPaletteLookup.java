@@ -208,13 +208,7 @@ public final class BlockPaletteLookup {
 
     private static FilterLiteDither createDithering(final Map<Integer, Material> materials) {
       final Set<Integer> colorSet = materials.keySet();
-      final int colorCount = colorSet.size();
-      final int[] colors = new int[colorCount];
-      int index = 0;
-      for (final Integer color : colorSet) {
-        colors[index] = color;
-        index++;
-      }
+      final int[] colors = colorSet.stream().mapToInt(Integer::intValue).toArray();
 
       final DitherPalette ditherPalette = DitherPalette.colors(colors);
       return new FilterLiteDither(ditherPalette);

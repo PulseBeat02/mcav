@@ -39,6 +39,8 @@ import org.bukkit.scoreboard.Score;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.ScoreboardManager;
 import org.bukkit.scoreboard.Team;
+import org.mockito.AdditionalAnswers;
+import org.mockito.invocation.InvocationOnMock;
 
 // CraftScoreboard mocks with Guava immutable sets, because CraftBukkit casts to both
 public final class FakeScoreboards {
@@ -59,21 +61,10 @@ public final class FakeScoreboards {
     when(manager.getNewScoreboard()).thenReturn(this.newScoreboard);
     when(manager.getMainScoreboard()).thenReturn(this.mainScoreboard);
     when(this.newScoreboard.registerNewObjective(anyString(), any(Criteria.class), any(Component.class))).thenReturn(this.objective);
-    when(this.objective.getScore(anyString())).thenAnswer(invocation -> {
-      final String entry = invocation.getArgument(0);
-      return this.scores.computeIfAbsent(entry, name -> mock(Score.class, "score %s".formatted(name)));
-    });
-    when(this.newScoreboard.registerNewTeam(anyString())).thenAnswer(invocation -> {
-      final String name = invocation.getArgument(0);
-      final Team team = mock(Team.class, name);
-      this.teams.put(name, team);
-      return team;
-    });
+    when(this.objective.getScore(anyString())).thenAnswer(this::findScore);
+    when(this.newScoreboard.registerNewTeam(anyString())).thenAnswer(this::registerTeam);
     when(this.newScoreboard.getObjectives()).thenAnswer(_ -> ImmutableSet.of(this.objective));
-    when(this.newScoreboard.getTeams()).thenAnswer(_ -> {
-      final Collection<Team> registeredTeams = this.teams.values();
-      return ImmutableSet.copyOf(registeredTeams);
-    });
+    when(this.newScoreboard.getTeams()).thenAnswer(_ -> this.copyRegisteredTeams());
   }
 
   public static FakeScoreboards install(final ScoreboardManager manager) {
@@ -83,13 +74,25 @@ public final class FakeScoreboards {
   public static void trackScoreboard(final Player player, final Scoreboard initial) {
     final AtomicReference<Scoreboard> current = new AtomicReference<>(initial);
     when(player.getScoreboard()).thenAnswer(_ -> current.get());
-    doAnswer(invocation -> {
-      final Scoreboard scoreboard = invocation.getArgument(0);
-      current.set(scoreboard);
-      return null;
-    })
-      .when(player)
-      .setScoreboard(any(Scoreboard.class));
+    doAnswer(AdditionalAnswers.answerVoid(current::set)).when(player).setScoreboard(any(Scoreboard.class));
+  }
+
+  private Score findScore(final InvocationOnMock invocation) {
+    final String entry = invocation.getArgument(0);
+    return this.scores.computeIfAbsent(entry, name -> mock(Score.class, "score %s".formatted(name)));
+  }
+
+  private Team registerTeam(final InvocationOnMock invocation) {
+    final String name = invocation.getArgument(0);
+    final Team team = mock(Team.class, name);
+    this.teams.put(name, team);
+
+    return team;
+  }
+
+  private ImmutableSet<Team> copyRegisteredTeams() {
+    final Collection<Team> registeredTeams = this.teams.values();
+    return ImmutableSet.copyOf(registeredTeams);
   }
 
   public List<Team> getTeams() {

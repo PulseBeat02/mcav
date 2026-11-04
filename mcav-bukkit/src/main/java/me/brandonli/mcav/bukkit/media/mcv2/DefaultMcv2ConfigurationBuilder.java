@@ -33,39 +33,27 @@ final class DefaultMcv2ConfigurationBuilder implements Mcv2ConfigurationBuilder 
   private static final int UNSET_MAP = -1;
 
   private @MonotonicNonNull Collection<UUID> viewers;
-
   private @MonotonicNonNull Location origin;
-
   private @MonotonicNonNull BlockFace facing;
 
   private int map;
-
   private int columns;
-
   private int rows;
 
   private int videoWidth;
-
   private int videoHeight;
 
   private int pageMap;
-
   private int pageSlots;
 
   private long streamId;
-
   private long firstFrameId;
-
   private double maximumFrameRate;
-
   private long backlogLimit;
-
   private @Nullable Pool encoderPool;
-
   private int unsentLimit;
 
   private Settings settings;
-
   private NamedTextColor outlineColor;
 
   DefaultMcv2ConfigurationBuilder() {
@@ -104,6 +92,7 @@ final class DefaultMcv2ConfigurationBuilder implements Mcv2ConfigurationBuilder 
       "Facing %s is not horizontal, but frames must face a horizontal direction!",
       facing
     );
+
     this.facing = facing;
     return this;
   }
@@ -267,6 +256,7 @@ final class DefaultMcv2ConfigurationBuilder implements Mcv2ConfigurationBuilder 
       maps,
       slots
     );
+
     final long lastMap = (long) this.map + (long) this.columns * this.rows - 1;
     final long lastPage = (long) this.pageMap + slots - 1;
     Preconditions.checkArgument(this.pageMap >= 0 && lastPage <= Integer.MAX_VALUE, "Page map ids must be non-negative ints!");

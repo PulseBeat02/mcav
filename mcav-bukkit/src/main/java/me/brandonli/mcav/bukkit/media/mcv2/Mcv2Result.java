@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.base.Preconditions;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -51,6 +53,7 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilte
 import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
 import org.bukkit.Bukkit;
+import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -148,63 +151,42 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   private final Mcv2Configuration requested;
 
   private final @Nullable Fallback fallback;
-
   private final Set<UUID> fallbackViewers;
-
   private final Executor dithering;
-
   private final @Nullable ExecutorService ditheringThread;
-
-  private final AtomicBoolean ditheringBusy = new AtomicBoolean();
+  private final AtomicBoolean ditheringBusy;
 
   private final Object lock;
-
   private final Statistics statistics;
-
   private final LongSupplier clock;
-
   private final double framesPerNanosecond;
 
-  private double frameCredit = FRAME_CREDIT_CAP;
-
-  private long lastFrame = Long.MIN_VALUE;
-
-  private long lastFallbackRefresh;
-
   private final List<Settings> ladder;
-
   private final List<Mcv2Pacer.Preset> presets;
-
   private final Function<Settings, Mcv2> encoders;
-
   private final Mcv2LatestFrame<Arrival> pending;
 
+  private double frameCredit;
+  private long lastFrame;
+  private long lastFallbackRefresh;
+
   private boolean running;
-
   private @Nullable Thread worker;
-
   private @Nullable Thread sender;
-
   private @Nullable Pipeline pipeline;
-
   private long handed;
-
   private long delivered;
 
   private @Nullable Mcv2Pacer pacer;
-
   private boolean ditheredForAll;
 
-  private Consumer<Mcv2Pacer.Change> pacingListener = _ -> {};
-
-  private volatile Consumer<byte[]> frameListener = _ -> {};
+  private Consumer<Mcv2Pacer.Change> pacingListener;
+  private volatile Consumer<byte[]> frameListener;
 
   private volatile Screen screen;
+  private boolean opened;
 
-  private boolean opened = true;
-
-  private List<int[]> smaller = List.of();
-
+  private List<int[]> smaller;
   private @Nullable Resizer resizer;
 
   /**
@@ -247,13 +229,17 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     Preconditions.checkNotNull(configuration, "Configuration must not be null!");
     Preconditions.checkNotNull(channel, "Channel must not be null!");
 
+    this.ditheringBusy = new AtomicBoolean();
+    this.frameCredit = FRAME_CREDIT_CAP;
+    this.lastFrame = Long.MIN_VALUE;
+    this.pacingListener = _ -> {};
+    this.frameListener = _ -> {};
+    this.opened = true;
+    this.smaller = List.of();
     this.requested = configuration;
     this.screen = new Screen(configuration, channel);
     this.fallbackViewers = ConcurrentHashMap.newKeySet();
-    this.fallback =
-      fallbackAlgorithm == null
-        ? null
-        : new Fallback(new CompressedMapResult(fallbackConfiguration(configuration, this.fallbackViewers)), fallbackAlgorithm);
+    this.fallback = this.createFallback(configuration, this.fallbackViewers, fallbackAlgorithm);
     if (dithering == null) {
       final ExecutorService thread = Executors.newSingleThreadExecutor(Thread.ofPlatform().daemon().name(DITHER_THREAD_NAME).factory());
       this.ditheringThread = thread;
@@ -270,86 +256,8 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     this.lastFallbackRefresh = clock.getAsLong();
     this.framesPerNanosecond = configuration.getMaximumFrameRate() / NANOSECONDS_PER_SECOND;
     this.ladder = ladder(configuration.getSettings());
-    this.presets = presets(this.ladder);
+    this.presets = this.presets(this.ladder);
     this.encoders = encoders;
-  }
-
-  private static List<Settings> ladder(final Settings settings) {
-    if (settings.isFast()) {
-      return List.of(settings);
-    }
-
-    // Every finite product is divided as before, so 72 still gives exactly 55; one that overflows is scaled instead.
-    final double product = settings.getLambda() * Settings.FAST.getLambda();
-    final double lambda = Double.isFinite(product)
-      ? product / Settings.DEFAULT.getLambda()
-      : settings.getLambda() * (Settings.FAST.getLambda() / Settings.DEFAULT.getLambda());
-    return List.of(settings, Settings.of(lambda, true));
-  }
-
-  private static List<Mcv2Pacer.Preset> presets(final List<Settings> ladder) {
-    if (ladder.size() == 1) {
-      return List.of(Mcv2Pacer.Preset.ONLY);
-    }
-
-    final List<Mcv2Pacer.Preset> presets = new ArrayList<>();
-    for (final Settings settings : ladder) {
-      presets.add(preset(settings));
-    }
-
-    return List.copyOf(presets);
-  }
-
-  private static Mcv2Pacer.Preset preset(final Settings settings) {
-    if (settings.isFast()) {
-      return Mcv2Pacer.Preset.of("FAST", FAST_COST);
-    }
-
-    return Mcv2Pacer.Preset.of("DEFAULT", DEFAULT_COST);
-  }
-
-  private static MapConfiguration fallbackConfiguration(final Mcv2Configuration configuration, final Set<UUID> viewers) {
-    return MapConfiguration.builder()
-      .map(configuration.getMap())
-      .mapBlockWidth(configuration.getColumns())
-      .mapBlockHeight(configuration.getRows())
-      // Dithered maps need wall scaling to avoid cropping or centering a smaller video.
-      .resize(true)
-      .viewers(viewers)
-      .build();
-  }
-
-  /**
-   * Lets the screen step down to smaller video sizes when its encoder budget cannot sustain the size it was asked for,
-   * before it falls back to the dithered maps. Call before {@link #start()}.
-   *
-   * <p>The list is copied, but its arrays are retained. Supply non-null arrays of exactly two positive pixel
-   * dimensions, each within the codec limit, and do not mutate them afterward. Validation is deferred to pacer/configuration use.
-   *
-   * @param sizes   the smaller sizes, largest first, each a width and a height
-   * @param resizer offers a size's pack and creates its channel
-   * @throws NullPointerException if {@code sizes} or {@code resizer} is null
-   * @since 1.0.0
-   */
-  public void setSmallerSizes(final List<int[]> sizes, final Resizer resizer) {
-    Preconditions.checkNotNull(sizes, "Sizes must not be null!");
-    Preconditions.checkNotNull(resizer, "Resizer must not be null!");
-
-    this.smaller = List.copyOf(sizes);
-    this.resizer = resizer;
-  }
-
-  /**
-   * Returns the rung of the ladder the screen is on.
-   *
-   * @return the rung, or empty before the result is started
-   * @since 1.0.0
-   */
-  public Optional<Mcv2Pacer.Rung> getRung() {
-    synchronized (this.lock) {
-      final @Nullable Mcv2Pacer screenPacer = this.pacer;
-      return Optional.ofNullable(screenPacer).map(Mcv2Pacer::getRung);
-    }
   }
 
   /**
@@ -361,6 +269,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   public void start() {
     this.screen.channel().open();
     this.opened = true;
+
     final Fallback dithered = this.fallback;
     if (dithered != null) {
       dithered.result().start();
@@ -380,6 +289,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
       .daemon()
       .name(SENDER_THREAD_NAME)
       .unstarted(() -> this.deliverLoop(started, worker));
+
     this.resetPacer();
     synchronized (this.lock) {
       this.pipeline = started;
@@ -393,6 +303,131 @@ public final class Mcv2Result implements FunctionalVideoFilter {
 
     sender.start();
     worker.start();
+  }
+
+  /**
+   * Stops the encoder, removes the page frames and clears the wall's maps for every viewer, those dithered for and those
+   * decoding MCV2. Call on the main thread.
+   *
+   * <p>Worker joins are bounded; a worker that does not respond to interruption may outlive this call.
+   * Fallback executor shutdown does not await termination. Release does not close the shared encoder pool or pack tracker.
+   *
+   * @since 1.0.0
+   */
+  @Override
+  public void release() {
+    final Thread worker;
+    final Thread sender;
+    synchronized (this.lock) {
+      this.running = false;
+      this.pending.close();
+      this.lock.notifyAll();
+      worker = this.worker;
+      sender = this.sender;
+      this.worker = null;
+      this.sender = null;
+      this.pipeline = null;
+      this.pacer = null;
+    }
+
+    this.stop(worker);
+    this.stop(sender);
+    this.screen.channel().close();
+    this.opened = false;
+
+    // Encoded viewers retain anchor maps, which keep their last decoded picture visible.
+    final Set<UUID> decoding = new HashSet<>(this.requested.getViewers());
+    decoding.removeAll(this.fallbackViewers);
+    final int maps = this.requested.getColumns() * this.requested.getRows();
+    MapPacketFactory.clear(decoding, this.requested.getMap(), maps);
+
+    final ExecutorService ditheringOwn = this.ditheringThread;
+    if (ditheringOwn != null) {
+      ditheringOwn.shutdown();
+    }
+
+    final Fallback dithered = this.fallback;
+    if (dithered != null) {
+      dithered.result().release();
+    }
+  }
+
+  private void stop(final @Nullable Thread thread) {
+    if (thread == null) {
+      return;
+    }
+
+    thread.interrupt();
+    try {
+      thread.join(TimeUnit.SECONDS.toMillis(JOIN_SECONDS));
+    } catch (final InterruptedException exception) {
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+    }
+  }
+
+  private @Nullable Fallback createFallback(
+    @UnderInitialization Mcv2Result this,
+    final Mcv2Configuration configuration,
+    final Set<UUID> viewers,
+    final @Nullable DitherAlgorithm fallbackAlgorithm
+  ) {
+    if (fallbackAlgorithm == null) {
+      return null;
+    }
+
+    final MapConfiguration mapConfiguration = this.fallbackConfiguration(configuration, viewers);
+    final CompressedMapResult result = new CompressedMapResult(mapConfiguration);
+    return new Fallback(result, fallbackAlgorithm);
+  }
+
+  private static List<Settings> ladder(final Settings settings) {
+    if (settings.isFast()) {
+      return List.of(settings);
+    }
+
+    // Every finite product is divided as before, so 72 still gives exactly 55; one that overflows is scaled instead.
+    final double product = settings.getLambda() * Settings.FAST.getLambda();
+    final double lambda = Double.isFinite(product)
+      ? product / Settings.DEFAULT.getLambda()
+      : settings.getLambda() * (Settings.FAST.getLambda() / Settings.DEFAULT.getLambda());
+    return List.of(settings, Settings.of(lambda, true));
+  }
+
+  private List<Mcv2Pacer.Preset> presets(@UnderInitialization Mcv2Result this, final List<Settings> ladder) {
+    if (ladder.size() == 1) {
+      return List.of(Mcv2Pacer.Preset.ONLY);
+    }
+
+    final List<Mcv2Pacer.Preset> presets = new ArrayList<>();
+    for (final Settings settings : ladder) {
+      presets.add(this.preset(settings));
+    }
+
+    return List.copyOf(presets);
+  }
+
+  private Mcv2Pacer.Preset preset(@UnderInitialization Mcv2Result this, final Settings settings) {
+    if (settings.isFast()) {
+      return Mcv2Pacer.Preset.of("FAST", FAST_COST);
+    }
+
+    return Mcv2Pacer.Preset.of("DEFAULT", DEFAULT_COST);
+  }
+
+  private MapConfiguration fallbackConfiguration(
+    @UnderInitialization Mcv2Result this,
+    final Mcv2Configuration configuration,
+    final Set<UUID> viewers
+  ) {
+    return MapConfiguration.builder()
+      .map(configuration.getMap())
+      .mapBlockWidth(configuration.getColumns())
+      .mapBlockHeight(configuration.getRows())
+      // Dithered maps need wall scaling to avoid cropping or centering a smaller video.
+      .resize(true)
+      .viewers(viewers)
+      .build();
   }
 
   /**
@@ -435,21 +470,50 @@ public final class Mcv2Result implements FunctionalVideoFilter {
 
     final Screen current = this.screen;
 
-    final Set<UUID> others = everyoneDithered ? current.channel().near(this.requested.getViewers()) : current.channel().update();
-    this.fallbackViewers.retainAll(others);
-    this.fallbackViewers.addAll(others);
+    final Set<UUID> others = this.selectFallbackViewers(current, everyoneDithered);
     final int width = current.configuration().getVideoWidth();
     final int height = current.configuration().getVideoHeight();
+    this.resizeFrame(data, width, height);
+    this.offerFrame(data, current, encode, preset, width, height);
+    this.offerDithering(data, others, width, height);
+
+    return true;
+  }
+
+  private Set<UUID> selectFallbackViewers(final Screen current, final boolean everyoneDithered) {
+    final Set<UUID> others;
+    if (everyoneDithered) {
+      others = current.channel().near(this.requested.getViewers());
+    } else {
+      others = current.channel().update();
+    }
+    this.fallbackViewers.retainAll(others);
+    this.fallbackViewers.addAll(others);
+    return others;
+  }
+
+  private void resizeFrame(final ImageBuffer data, final int width, final int height) {
     if (data.getWidth() != width || data.getHeight() != height) {
       new ResizeFilter(width, height).applyFilter(data);
     }
+  }
 
+  private void offerFrame(
+    final ImageBuffer data,
+    final Screen current,
+    final boolean encode,
+    final Mcv2Pacer.Preset preset,
+    final int width,
+    final int height
+  ) {
     if (encode && !current.channel().getRecipients().isEmpty()) {
       // A full-frame ARGB copy at 1080p adds an 8 MB G1 humongous allocation per frame.
       final Arrival arrival = new Arrival(rgbFromBgr(data.getData(), width * height), width, height, System.currentTimeMillis(), preset);
       this.pending.offer(arrival);
     }
+  }
 
+  private void offerDithering(final ImageBuffer data, final Set<UUID> others, final int width, final int height) {
     final Fallback dithered = this.fallback;
     if (dithered != null && !others.isEmpty() && this.ditheringBusy.compareAndSet(false, true)) {
       // ImageBuffer replaces its pixel array, allowing asynchronous reads without a copy.
@@ -460,8 +524,6 @@ public final class Mcv2Result implements FunctionalVideoFilter {
         this.ditheringBusy.set(false);
       }
     }
-
-    return true;
   }
 
   // A client decodes at most one frame per frame it draws, and a frame it misses breaks the P frames after it.
@@ -512,53 +574,6 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     }
 
     return pictureBytes;
-  }
-
-  private long[] linkCounts() {
-    final long[] counts = new long[LINK_COUNTS];
-    for (final Mcv2Link link : this.screen.channel().getLinks().values()) {
-      counts[SENT] += link.getSent();
-      counts[BEHIND] += link.getBehind();
-      counts[UNDECODABLE] += link.getUndecodable();
-    }
-
-    return counts;
-  }
-
-  private void record(final Mcv2FrameEvent event, final Delivery delivery, final int colors, final long[] before) {
-    final long[] after = this.linkCounts();
-    long backlog = 0;
-    for (final Mcv2Link link : this.screen.channel().getLinks().values()) {
-      backlog = Math.max(backlog, link.getBacklog());
-    }
-
-    event.frameId = delivery.frameId;
-    event.keyframe = delivery.statistics.isKeyframe();
-    event.bytes = delivery.frame.length;
-    event.colors = colors;
-    event.arrived = delivery.source.arrived;
-    event.sent = System.currentTimeMillis();
-    event.encodeTime = delivery.statistics.getNanoseconds();
-    event.sentTo = (int) (after[SENT] - before[SENT]);
-    event.behind = (int) (after[BEHIND] - before[BEHIND]);
-    event.waiting = (int) (after[UNDECODABLE] - before[UNDECODABLE]);
-    event.backlog = backlog;
-    event.fingerprint = Mcv2FrameEvent.fingerprint(delivery.source.pictureBytes, delivery.source.width, delivery.source.height);
-    event.commit();
-  }
-
-  private void stop(final @Nullable Thread thread) {
-    if (thread == null) {
-      return;
-    }
-
-    thread.interrupt();
-    try {
-      thread.join(TimeUnit.SECONDS.toMillis(JOIN_SECONDS));
-    } catch (final InterruptedException exception) {
-      final Thread current = Thread.currentThread();
-      current.interrupt();
-    }
   }
 
   private Optional<Mcv2Pacer.Change> followArrival(final Mcv2Pacer screenPacer) {
@@ -636,8 +651,6 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     }
 
     encoder.setFrameLimit(current.configuration().getPageSlots() * TransportPages.capacity());
-    final int width = arrival.width;
-    final int height = arrival.height;
     final Pipeline running;
     synchronized (this.lock) {
       running = this.pipeline;
@@ -647,36 +660,56 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     final boolean isKeyframe;
     Delivery delivery = null;
     if (running == null) {
-      final byte[] frame = encoder.encode(arrival.pictureBytes, width, height, frameId);
-      final Mcv2.Statistics statistics = encoder.getStatistics().orElseThrow();
-      isKeyframe = statistics.isKeyframe();
-      delivery = new Delivery(frame, statistics, frameId, arrival);
+      delivery = this.encodeSynchronously(encoder, arrival, frameId);
+      isKeyframe = delivery.statistics.isKeyframe();
     } else {
-      final Mcv2.Pending pending = running.budget().runInterruptibly(() -> encoder.begin(arrival.pictureBytes, width, height, frameId));
-      isKeyframe = pending.isKeyframe();
-      // Count before handoff so drain cannot overlook a frame the sender already owns.
-      synchronized (this.lock) {
-        this.handed++;
-      }
-
-      running.queue().put(new Handoff(encoder, pending, frameId, arrival));
+      isKeyframe = this.handoff(running, encoder, arrival, frameId);
     }
 
+    this.followEncodeTime(started, isKeyframe);
+
+    if (delivery != null) {
+      this.deliver(delivery);
+    }
+  }
+
+  private Delivery encodeSynchronously(final Mcv2 encoder, final Arrival arrival, final long frameId) {
+    final int width = arrival.width;
+    final int height = arrival.height;
+    final byte[] frame = encoder.encode(arrival.pictureBytes, width, height, frameId);
+    final Mcv2.Statistics statistics = encoder.getStatistics().orElseThrow();
+    return new Delivery(frame, statistics, frameId, arrival);
+  }
+
+  private boolean handoff(final Pipeline running, final Mcv2 encoder, final Arrival arrival, final long frameId)
+    throws InterruptedException {
+    final int width = arrival.width;
+    final int height = arrival.height;
+    final Mcv2.Pending pending = running.budget().runInterruptibly(() -> encoder.begin(arrival.pictureBytes, width, height, frameId));
+    final boolean isKeyframe = pending.isKeyframe();
+    // Count before handoff so drain cannot overlook a frame the sender already owns.
+    synchronized (this.lock) {
+      this.handed++;
+    }
+
+    running.queue().put(new Handoff(encoder, pending, frameId, arrival));
+
+    return isKeyframe;
+  }
+
+  private void followEncodeTime(final long started, final boolean isKeyframe) {
     final long finished = this.clock.getAsLong();
+    final double encodeMilliseconds = (finished - started) / NANOSECONDS_PER_MILLISECOND;
     final Mcv2FrameKind kind = isKeyframe ? Mcv2FrameKind.KEYFRAME : Mcv2FrameKind.PREDICTED;
     Optional<Mcv2Pacer.Change> change = Optional.empty();
     synchronized (this.lock) {
       final Mcv2Pacer screenPacer = this.pacer;
       if (screenPacer != null) {
-        change = this.followEncoding(screenPacer, (finished - started) / NANOSECONDS_PER_MILLISECOND, kind, finished);
+        change = this.followEncoding(screenPacer, encodeMilliseconds, kind, finished);
       }
     }
 
     change.ifPresent(this::announce);
-
-    if (delivery != null) {
-      this.deliver(delivery);
-    }
   }
 
   private Optional<Mcv2Pacer.Change> followEncoding(
@@ -704,7 +737,6 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     final Thread sender;
     synchronized (this.lock) {
       final Pipeline current = this.pipeline;
-
       if (stopped == null || !Objects.equals(stopped, current)) {
         return;
       }
@@ -713,8 +745,8 @@ public final class Mcv2Result implements FunctionalVideoFilter {
       this.pending.close();
       this.lock.notifyAll();
 
-      worker = Objects.requireNonNull(this.worker, "A running pipeline has its screen's thread!");
-      sender = Objects.requireNonNull(this.sender, "A running pipeline has its sender!");
+      worker = requireNonNull(this.worker, "A running pipeline has its screen's thread!");
+      sender = requireNonNull(this.sender, "A running pipeline has its sender!");
     }
 
     worker.interrupt();
@@ -742,6 +774,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     final Handoff handoff = running.queue().take();
     final Mcv2.Encoded encoded = running.budget().runInterruptibly(() -> handoff.encoder().finish(handoff.pending()));
     this.deliver(new Delivery(encoded.getData(), encoded.getStatistics(), handoff.frameId(), handoff.source()));
+
     synchronized (this.lock) {
       this.delivered++;
       this.lock.notifyAll();
@@ -777,6 +810,39 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     }
 
     this.statistics.add(statistics, colors);
+  }
+
+  private long[] linkCounts() {
+    final long[] counts = new long[LINK_COUNTS];
+    for (final Mcv2Link link : this.screen.channel().getLinks().values()) {
+      counts[SENT] += link.getSent();
+      counts[BEHIND] += link.getBehind();
+      counts[UNDECODABLE] += link.getUndecodable();
+    }
+
+    return counts;
+  }
+
+  private void record(final Mcv2FrameEvent event, final Delivery delivery, final int colors, final long[] before) {
+    final long[] after = this.linkCounts();
+    long backlog = 0;
+    for (final Mcv2Link link : this.screen.channel().getLinks().values()) {
+      backlog = Math.max(backlog, link.getBacklog());
+    }
+
+    event.frameId = delivery.frameId;
+    event.keyframe = delivery.statistics.isKeyframe();
+    event.bytes = delivery.frame.length;
+    event.colors = colors;
+    event.arrived = delivery.source.arrived;
+    event.sent = System.currentTimeMillis();
+    event.encodeTime = delivery.statistics.getNanoseconds();
+    event.sentTo = (int) (after[SENT] - before[SENT]);
+    event.behind = (int) (after[BEHIND] - before[BEHIND]);
+    event.waiting = (int) (after[UNDECODABLE] - before[UNDECODABLE]);
+    event.backlog = backlog;
+    event.fingerprint = Mcv2FrameEvent.fingerprint(delivery.source.pictureBytes, delivery.source.width, delivery.source.height);
+    event.commit();
   }
 
   private void follow(final Mcv2Pacer.Change change) {
@@ -817,7 +883,8 @@ public final class Mcv2Result implements FunctionalVideoFilter {
       current.channel().close();
       this.opened = false;
       final Mcv2Configuration resized = this.requested.withVideo(rung.getWidth(), rung.getHeight());
-      target = new Screen(resized, Preconditions.checkNotNull(this.resizer).resize(resized));
+      final Resizer resizer = requireNonNull(this.resizer);
+      target = new Screen(resized, resizer.resize(resized));
       this.screen = target;
     }
 
@@ -838,47 +905,35 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   }
 
   /**
-   * Stops the encoder, removes the page frames and clears the wall's maps for every viewer, those dithered for and those
-   * decoding MCV2. Call on the main thread.
+   * Lets the screen step down to smaller video sizes when its encoder budget cannot sustain the size it was asked for,
+   * before it falls back to the dithered maps. Call before {@link #start()}.
    *
-   * <p>Worker joins are bounded; a worker that does not respond to interruption may outlive this call.
-   * Fallback executor shutdown does not await termination. Release does not close the shared encoder pool or pack tracker.
+   * <p>The list is copied, but its arrays are retained. Supply non-null arrays of exactly two positive pixel
+   * dimensions, each within the codec limit, and do not mutate them afterward. Validation is deferred to pacer/configuration use.
    *
+   * @param sizes   the smaller sizes, largest first, each a width and a height
+   * @param resizer offers a size's pack and creates its channel
+   * @throws NullPointerException if {@code sizes} or {@code resizer} is null
    * @since 1.0.0
    */
-  @Override
-  public void release() {
-    final Thread worker;
-    final Thread sender;
+  public void setSmallerSizes(final List<int[]> sizes, final Resizer resizer) {
+    Preconditions.checkNotNull(sizes, "Sizes must not be null!");
+    Preconditions.checkNotNull(resizer, "Resizer must not be null!");
+
+    this.smaller = List.copyOf(sizes);
+    this.resizer = resizer;
+  }
+
+  /**
+   * Returns the rung of the ladder the screen is on.
+   *
+   * @return the rung, or empty before the result is started
+   * @since 1.0.0
+   */
+  public Optional<Mcv2Pacer.Rung> getRung() {
     synchronized (this.lock) {
-      this.running = false;
-      this.pending.close();
-      this.lock.notifyAll();
-      worker = this.worker;
-      sender = this.sender;
-      this.worker = null;
-      this.sender = null;
-      this.pipeline = null;
-      this.pacer = null;
-    }
-
-    this.stop(worker);
-    this.stop(sender);
-    this.screen.channel().close();
-    this.opened = false;
-    // Encoded viewers retain anchor maps, which keep their last decoded picture visible.
-    final Set<UUID> decoding = new HashSet<>(this.requested.getViewers());
-    decoding.removeAll(this.fallbackViewers);
-    final int maps = this.requested.getColumns() * this.requested.getRows();
-    MapPacketFactory.clear(decoding, this.requested.getMap(), maps);
-    final ExecutorService ditheringOwn = this.ditheringThread;
-    if (ditheringOwn != null) {
-      ditheringOwn.shutdown();
-    }
-
-    final Fallback dithered = this.fallback;
-    if (dithered != null) {
-      dithered.result().release();
+      final @Nullable Mcv2Pacer screenPacer = this.pacer;
+      return Optional.ofNullable(screenPacer).map(Mcv2Pacer::getRung);
     }
   }
 
@@ -976,13 +1031,9 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   static final class Arrival {
 
     private final byte[] pictureBytes;
-
     private final int width;
-
     private final int height;
-
     private final long arrived;
-
     private final Mcv2Pacer.Preset preset;
 
     Arrival(final byte[] pictureBytes, final int width, final int height, final long arrived, final Mcv2Pacer.Preset preset) {
@@ -1001,11 +1052,8 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   private static final class Delivery {
 
     private final byte[] frame;
-
     private final Mcv2.Statistics statistics;
-
     private final long frameId;
-
     private final Arrival source;
 
     private Delivery(final byte[] frame, final Mcv2.Statistics statistics, final long frameId, final Arrival source) {
@@ -1027,15 +1075,10 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   public static final class Statistics {
 
     private long frames;
-
     private long keyframes;
-
     private long dropped;
-
     private long bytes;
-
     private long mapBytes;
-
     private long nanoseconds;
 
     Statistics() {}

@@ -61,8 +61,6 @@ public final class Mcv2Viewers {
 
   private static final long NO_SESSION = 0L;
 
-  private volatile UUID packId;
-
   private final Consumer<Player> onRefused;
 
   private final Map<UUID, PackState> states;
@@ -72,6 +70,7 @@ public final class Mcv2Viewers {
 
   private final Mcv2ShaderReports shaderReports;
 
+  private volatile UUID packId;
   private @Nullable Listener listener;
 
   /**
@@ -105,6 +104,7 @@ public final class Mcv2Viewers {
    */
   public synchronized void register() {
     this.unregister();
+
     final Listener events = new Listener() {};
     final PluginManager manager = Bukkit.getPluginManager();
     final EventExecutor status = (_, event) -> this.onResourcePackStatus((PlayerResourcePackStatusEvent) event);
@@ -227,6 +227,7 @@ public final class Mcv2Viewers {
 
   private void recordLoad(final UUID player) {
     final PackState before = this.states.put(player, PackState.LOADED);
+
     if (before != PackState.LOADED) {
       this.sessions.put(player, this.nextSession.incrementAndGet());
     }
@@ -235,6 +236,7 @@ public final class Mcv2Viewers {
   private void recordRefusal(final Player player, final PackState state) {
     this.sessions.remove(player.getUniqueId());
     final PackState before = this.states.put(player.getUniqueId(), state);
+
     if (before != PackState.REFUSED && before != PackState.DECLINED) {
       this.onRefused.accept(player);
     }

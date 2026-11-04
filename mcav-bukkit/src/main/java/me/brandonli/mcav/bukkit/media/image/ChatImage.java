@@ -34,7 +34,7 @@ import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
  *
  * @since 1.0.0
  */
-public class ChatImage implements DisplayableImage {
+public final class ChatImage implements DisplayableImage {
 
   private static final boolean OVERLAY = false;
 

@@ -89,7 +89,7 @@ final class Mcv2ShaderReports implements PluginMessageListener {
 
     this.spendAllowance(viewerId, now);
 
-    final Report report = parse(message, name);
+    final Report report = this.parse(message, name);
     if (report == null) {
       return;
     }
@@ -120,7 +120,7 @@ final class Mcv2ShaderReports implements PluginMessageListener {
     return room == null || room - now < 0 ? now : room;
   }
 
-  private static @Nullable Report parse(final byte[] message, final String name) {
+  private @Nullable Report parse(final byte[] message, final String name) {
     if (message.length > 0 && message[VERSION_INDEX] != VERSION) {
       LOGGER.debug("An MCV2 client report of version {} from {} is being ignored.", message[VERSION_INDEX], name);
       return null;
@@ -128,9 +128,9 @@ final class Mcv2ShaderReports implements PluginMessageListener {
 
     if (
       message.length != REPORT_BYTES ||
-      !isFlag(message[IRIS_PRESENT_INDEX]) ||
-      !isFlag(message[DECODES_UNDER_SHADERS_INDEX]) ||
-      !hasValidShaderPack(message)
+      !this.isFlag(message[IRIS_PRESENT_INDEX]) ||
+      !this.isFlag(message[DECODES_UNDER_SHADERS_INDEX]) ||
+      !this.hasValidShaderPack(message)
     ) {
       LOGGER.debug("A malformed MCV2 client report from {} is being ignored.", name);
       return null;
@@ -139,11 +139,11 @@ final class Mcv2ShaderReports implements PluginMessageListener {
     return new Report(message[IRIS_PRESENT_INDEX] == 1, message[SHADER_PACK_INDEX], message[DECODES_UNDER_SHADERS_INDEX] == 1);
   }
 
-  private static boolean isFlag(final byte value) {
+  private boolean isFlag(final byte value) {
     return value == 0 || value == 1;
   }
 
-  private static boolean hasValidShaderPack(final byte[] message) {
+  private boolean hasValidShaderPack(final byte[] message) {
     final byte value = message[SHADER_PACK_INDEX];
     final boolean irisPresent = message[IRIS_PRESENT_INDEX] == 1;
     return value == NO_SHADER_PACK || (irisPresent && (value == SHADER_PACK_IN_USE || value == SHADER_PACK_UNKNOWN));

@@ -17,15 +17,16 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2;
 
+import static java.util.Objects.requireNonNull;
+
 import java.lang.foreign.Arena;
 import java.lang.foreign.SymbolLookup;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.nio.file.Path;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.ForkJoinPool;
 import java.util.function.Supplier;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2.Binding;
@@ -60,10 +61,14 @@ final class NativeTesting {
   }
 
   static boolean areNativesExpected() {
-    final String platform = Natives.platform(System.getProperty(OS_NAME_PROPERTY, ""), System.getProperty(OS_ARCHITECTURE_PROPERTY, ""));
+    final @Nullable String platform = findPlatform();
     return (
       !JAVA_EXPECTATION.equals(System.getProperty(EXPECTATION_PROPERTY)) && platform != null && Mcv2.NATIVE_DIGESTS.containsKey(platform)
     );
+  }
+
+  private static @Nullable String findPlatform() {
+    return Natives.platform(System.getProperty(OS_NAME_PROPERTY, ""), System.getProperty(OS_ARCHITECTURE_PROPERTY, ""));
   }
 
   static synchronized Resolution resolution() {
@@ -72,7 +77,7 @@ final class NativeTesting {
       return previous;
     }
 
-    final String platform = Natives.platform(System.getProperty(OS_NAME_PROPERTY, ""), System.getProperty(OS_ARCHITECTURE_PROPERTY, ""));
+    final @Nullable String platform = findPlatform();
     final Resolution current = Natives.resolve(Mcv2.NATIVE_AUTO, platform, NATIVES_FOLDER, NativeTesting::readLibrary, null);
     if (areNativesExpected() && current.binding() == null) {
       final String message = "The MCV2 native kernels did not load (%s) but must load on this platform!".formatted(current.description());
@@ -92,14 +97,14 @@ final class NativeTesting {
 
   static List<Level> levels() {
     final Resolution resolution = resolution();
-    final List<Level> levels = new ArrayList<>();
-    for (final Level level : Level.values()) {
-      if (resolution.binding() != null && level.isIn(resolution.levels())) {
-        levels.add(level);
-      }
+    if (resolution.binding() == null) {
+      return List.of();
     }
 
-    return levels;
+    final int levels = resolution.levels();
+    return Arrays.stream(Level.values())
+      .filter(level -> level.isIn(levels))
+      .toList();
   }
 
   @SuppressWarnings("restricted") // a library lookup is a restricted method of the foreign function API
@@ -109,9 +114,7 @@ final class NativeTesting {
       throw new IllegalStateException(message);
     }
 
-    final String platform = Objects.requireNonNull(
-      Natives.platform(System.getProperty(OS_NAME_PROPERTY, ""), System.getProperty(OS_ARCHITECTURE_PROPERTY, ""))
-    );
+    final String platform = requireNonNull(findPlatform());
     final String digest = Mcv2.NATIVE_DIGESTS.get(platform);
     final String libraryName = Natives.libraryName(platform);
     final String fileName = "mcv2kernels-%s-%s".formatted(digest, libraryName);
@@ -164,7 +167,8 @@ final class NativeTesting {
     }
 
     if (method.getName().equals("keeps")) {
-      final Object array = Objects.requireNonNull(arguments)[0];
+      final @Nullable Object[] values = requireNonNull(arguments);
+      final @Nullable Object array = values[0];
       final int slot = (int) Mcv2Internals.callForResult(type, null, "slot", new Class<?>[] { Object.class }, array);
       return Mcv2Internals.callForResult(type, kernels, "remembers", new Class<?>[] { int.class, Object.class }, slot, array);
     }
@@ -187,6 +191,7 @@ final class NativeTesting {
 
   interface NativeKernels extends Kernels {
     Level getLevel();
+
     boolean keeps(Object array);
   }
 }

@@ -80,20 +80,32 @@ public final class Mcv2Fixtures {
   }
 
   static Map<String, List<String>> readDigests(final String folder) {
-    final String text = new String(read("%s%s".formatted(folder, DIGESTS_FILE)), StandardCharsets.UTF_8);
-    final JsonObject root = JsonParser.parseString(text).getAsJsonObject();
+    final byte[] bytes = read("%s%s".formatted(folder, DIGESTS_FILE));
+    final String text = new String(bytes, StandardCharsets.UTF_8);
+    final JsonElement parsed = JsonParser.parseString(text);
+    final JsonObject root = parsed.getAsJsonObject();
     final Map<String, List<String>> digests = new TreeMap<>();
     for (final Map.Entry<String, JsonElement> entry : root.entrySet()) {
       final JsonElement value = entry.getValue();
-      final JsonElement list = value.isJsonObject() ? value.getAsJsonObject().get(FRAME_DIGESTS_KEY) : value;
+      final JsonElement list = findFrameDigests(value);
       final List<String> frames = new ArrayList<>();
       for (final JsonElement digest : list.getAsJsonArray()) {
         frames.add(digest.getAsString());
       }
+
       digests.put(entry.getKey(), frames);
     }
 
     return digests;
+  }
+
+  private static JsonElement findFrameDigests(final JsonElement value) {
+    if (!value.isJsonObject()) {
+      return value;
+    }
+
+    final JsonObject object = value.getAsJsonObject();
+    return object.get(FRAME_DIGESTS_KEY);
   }
 
   public static String sha256(final byte[] bytes) {

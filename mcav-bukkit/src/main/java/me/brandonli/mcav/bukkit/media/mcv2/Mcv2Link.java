@@ -47,15 +47,12 @@ public final class Mcv2Link {
   private static final String KIND_NULL_MESSAGE = "Kind must not be null!";
 
   private final long limit;
+  private final AtomicLong backlog;
 
-  private final AtomicLong backlog = new AtomicLong();
-
-  private long lastFrame = NONE;
+  private long lastFrame;
 
   private long sent;
-
   private long behind;
-
   private long undecodable;
 
   /**
@@ -70,6 +67,8 @@ public final class Mcv2Link {
     Preconditions.checkArgument(limit >= 0, "Backlog limit must not be negative!");
 
     this.limit = limit;
+    this.backlog = new AtomicLong();
+    this.lastFrame = NONE;
   }
 
   /**
@@ -108,7 +107,9 @@ public final class Mcv2Link {
     Preconditions.checkArgument(frameId >= 0 && frameId <= Mcv2Decoder.MAXIMUM_UNSIGNED_INT, "Frame id must be an unsigned 32-bit value!");
     Preconditions.checkArgument(bytes >= 0, "Bytes must not be negative!");
 
-    if (this.backlog.get() > (kind == Mcv2FrameKind.KEYFRAME ? allowance(this.limit) : this.limit)) {
+    final long pendingBytes = this.backlog.get();
+    final long threshold = kind == Mcv2FrameKind.KEYFRAME ? allowance(this.limit) : this.limit;
+    if (pendingBytes > threshold) {
       this.behind++;
 
       return false;

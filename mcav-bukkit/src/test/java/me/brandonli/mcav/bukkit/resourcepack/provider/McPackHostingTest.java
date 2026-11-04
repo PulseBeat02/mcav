@@ -478,7 +478,7 @@ final class McPackHostingTest {
     final byte[] abc = "abc".getBytes(StandardCharsets.US_ASCII);
 
     final String hash = McPackHosting.hash(abc, HASH_ALGORITHM);
-    final IllegalStateException exception = assertThrows(IllegalStateException.class, () -> McPackHosting.hash(abc, "NO-SUCH-HASH"));
+    final AssertionError exception = assertThrows(AssertionError.class, () -> McPackHosting.hash(abc, "NO-SUCH-HASH"));
 
     final Throwable cause = exception.getCause();
     assertEquals("a9993e364706816aba3e25717850c26c9cd0d89d", hash);

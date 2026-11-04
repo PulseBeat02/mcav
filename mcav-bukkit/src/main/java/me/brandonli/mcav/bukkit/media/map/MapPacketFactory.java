@@ -78,8 +78,10 @@ public final class MapPacketFactory {
       return;
     }
 
-    for (final Bundle bundle : createBundles(patches)) {
-      PacketUtils.sendPackets(viewers, bundle.getPacket());
+    final List<Bundle> bundles = createBundles(patches);
+    for (final Bundle bundle : bundles) {
+      final ClientboundBundlePacket packet = bundle.getPacket();
+      PacketUtils.sendPackets(viewers, packet);
     }
   }
 
@@ -98,16 +100,25 @@ public final class MapPacketFactory {
     final List<Bundle> bundles = new ArrayList<>();
     for (int from = 0; from < patches.size(); from += MAXIMUM_PACKETS_PER_BUNDLE) {
       final int to = Math.min(from + MAXIMUM_PACKETS_PER_BUNDLE, patches.size());
-      final List<Packet<? super ClientGamePacketListener>> packets = new ArrayList<>(to - from);
-      long bytes = 0;
-      for (final MapTilePatch patch : patches.subList(from, to)) {
-        packets.add(createPacket(patch));
-        bytes += patch.getEncodedSize();
-      }
-      bundles.add(Bundle.of(new ClientboundBundlePacket(packets), bytes));
+      final List<MapTilePatch> bundlePatches = patches.subList(from, to);
+      final Bundle bundle = createBundle(bundlePatches);
+      bundles.add(bundle);
     }
 
     return bundles;
+  }
+
+  private static Bundle createBundle(final List<MapTilePatch> bundlePatches) {
+    final List<Packet<? super ClientGamePacketListener>> packets = new ArrayList<>(bundlePatches.size());
+    long bytes = 0;
+    for (final MapTilePatch patch : bundlePatches) {
+      final ClientboundMapItemDataPacket packet = createPacket(patch);
+      packets.add(packet);
+      bytes += patch.getEncodedSize();
+    }
+
+    final ClientboundBundlePacket bundlePacket = new ClientboundBundlePacket(packets);
+    return Bundle.of(bundlePacket, bytes);
   }
 
   /**
@@ -206,7 +217,8 @@ public final class MapPacketFactory {
     public void send(final UUID viewer, final Runnable callback) {
       Preconditions.checkNotNull(callback, "Callback must not be null!");
 
-      if (!PacketUtils.sendPacket(viewer, this.packet, _ -> callback.run())) {
+      final boolean sent = PacketUtils.sendPacket(viewer, this.packet, _ -> callback.run());
+      if (!sent) {
         callback.run();
       }
     }

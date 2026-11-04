@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.bukkit.resourcepack.provider;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.gson.Gson;
@@ -38,7 +40,6 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -67,7 +68,7 @@ import org.slf4j.LoggerFactory;
  *
  * @since 1.0.0
  */
-public class McPackHosting implements WebsiteHosting {
+public final class McPackHosting implements WebsiteHosting {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(McPackHosting.class);
 
@@ -119,29 +120,6 @@ public class McPackHosting implements WebsiteHosting {
     this.downloadUrlFormat = downloadUrlFormat;
   }
 
-  private static Type createCacheType() {
-    final TypeToken<Map<String, String>> cacheToken = new TypeToken<>() {};
-    return cacheToken.getType();
-  }
-
-  /**
-   * Returns the download URL of the uploaded pack.
-   *
-   * @return the URL of the resource pack
-   * @throws IllegalStateException if the pack has not been uploaded yet
-   * @since 1.0.0
-   */
-  @Override
-  public String getRawUrl() {
-    final String currentUrl = this.url;
-    if (currentUrl == null) {
-      final String message = "The resource pack has not been uploaded yet, call start() first!";
-      throw new IllegalStateException(message);
-    }
-
-    return currentUrl;
-  }
-
   /**
    * Uploads the resource pack unless an identical pack was uploaded before and is still available. Calling this
    * method again after a successful upload has no effect. If the upload cache cannot be read or written, a warning is
@@ -167,6 +145,21 @@ public class McPackHosting implements WebsiteHosting {
     }
   }
 
+  /**
+   * Does nothing, because the pack stays available on mc-packs.net after it was uploaded.
+   *
+   * @since 1.0.0
+   */
+  @Override
+  public void shutdown() {
+    // the upload cannot be undone and stays available for other servers
+  }
+
+  private static Type createCacheType() {
+    final TypeToken<Map<String, String>> cacheToken = new TypeToken<>() {};
+    return cacheToken.getType();
+  }
+
   @VisibleForTesting
   static String hash(final byte[] bytes, final String algorithm) {
     try {
@@ -174,8 +167,7 @@ public class McPackHosting implements WebsiteHosting {
       final byte[] hash = digest.digest(bytes);
       return IoUtils.bytesToHexadecimal(hash);
     } catch (final NoSuchAlgorithmException exception) {
-      final String message = "Hash algorithm %s is not available!".formatted(algorithm);
-      throw new IllegalStateException(message, exception);
+      throw new AssertionError(exception);
     }
   }
 
@@ -190,9 +182,11 @@ public class McPackHosting implements WebsiteHosting {
     }
 
     this.upload(pack);
+
     final String uploadedUrl = this.downloadUrlFormat.formatted(hash);
     cache.put(hash, uploadedUrl);
     this.writeCache(cache);
+
     return uploadedUrl;
   }
 
@@ -205,16 +199,6 @@ public class McPackHosting implements WebsiteHosting {
     }
 
     return NetworkUtils.isReachable(uri);
-  }
-
-  /**
-   * Does nothing, because the pack stays available on mc-packs.net after it was uploaded.
-   *
-   * @since 1.0.0
-   */
-  @Override
-  public void shutdown() {
-    // the upload cannot be undone and stays available for other servers
   }
 
   private void upload(final byte[] pack) {
@@ -245,6 +229,7 @@ public class McPackHosting implements WebsiteHosting {
     final HttpResponse.BodyHandler<String> bodyHandler = HttpResponse.BodyHandlers.ofString();
     try {
       final HttpResponse<String> response = client.send(request, bodyHandler);
+
       final int status = response.statusCode();
       if (status != HTTP_OK) {
         final String message = "mc-packs.net answered status %s and rejected the upload!".formatted(status);
@@ -282,7 +267,7 @@ public class McPackHosting implements WebsiteHosting {
   @VisibleForTesting
   String createMultipartHead(final String boundary) {
     final Path zipFileName = this.zip.getFileName();
-    final Path fileNamePath = Objects.requireNonNull(zipFileName, "The resource pack has no file name!");
+    final Path fileNamePath = requireNonNull(zipFileName, "The resource pack has no file name!");
     final String fileName = fileNamePath.toString();
     final String safeFileName = UNSAFE_FILE_NAME_CHARACTERS.matcher(fileName).replaceAll("");
     return "--%s\r\nContent-Disposition: form-data; name=\"file\"; filename=\"%s\"\r\nContent-Type: application/zip\r\n\r\n".formatted(
@@ -345,6 +330,24 @@ public class McPackHosting implements WebsiteHosting {
     } catch (final IOException exception) {
       LOGGER.warn("Could not write the upload cache {}, the pack will be uploaded again next time.", cacheFile, exception);
     }
+  }
+
+  /**
+   * Returns the download URL of the uploaded pack.
+   *
+   * @return the URL of the resource pack
+   * @throws IllegalStateException if the pack has not been uploaded yet
+   * @since 1.0.0
+   */
+  @Override
+  public String getRawUrl() {
+    final String currentUrl = this.url;
+    if (currentUrl == null) {
+      final String message = "The resource pack has not been uploaded yet, call start() first!";
+      throw new IllegalStateException(message);
+    }
+
+    return currentUrl;
   }
 
   /**

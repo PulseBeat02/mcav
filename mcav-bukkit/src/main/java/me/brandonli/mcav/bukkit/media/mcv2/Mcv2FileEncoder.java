@@ -191,7 +191,8 @@ public final class Mcv2FileEncoder {
     try {
       grabber.start();
     } catch (final FFmpegFrameGrabber.Exception exception) {
-      closeQuietly(grabber);
+      closeAfterFailedOpen(grabber, exception);
+
       final String message = "Video %s could not be opened!".formatted(name);
       throw new Mcv2Exception(message, exception);
     }
@@ -199,11 +200,11 @@ public final class Mcv2FileEncoder {
     return new GrabberReader(grabber, width, height);
   }
 
-  private static void closeQuietly(final FFmpegFrameGrabber grabber) {
+  private static void closeAfterFailedOpen(final FFmpegFrameGrabber grabber, final FFmpegFrameGrabber.Exception openException) {
     try {
       grabber.close();
     } catch (final FrameGrabber.Exception exception) {
-      // A close failure must not hide the error that prevented opening the input.
+      openException.addSuppressed(exception);
     }
   }
 
@@ -234,7 +235,7 @@ public final class Mcv2FileEncoder {
      * @throws Mcv2Exception if the video cannot be read
      * @since 1.0.0
      */
-    boolean read(byte[] pictureBytes);
+    boolean read(final byte[] pictureBytes);
 
     /**
      * Releases the video.
@@ -389,7 +390,6 @@ public final class Mcv2FileEncoder {
     private final FFmpegFrameGrabber grabber;
 
     private final int width;
-
     private final int height;
 
     GrabberReader(final FFmpegFrameGrabber grabber, final int width, final int height) {

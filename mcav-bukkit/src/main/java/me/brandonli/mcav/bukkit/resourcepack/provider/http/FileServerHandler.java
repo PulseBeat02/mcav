@@ -143,6 +143,7 @@ final class FileServerHandler extends ChannelInboundHandlerAdapter {
     final int available = buffer.maxWritableBytes();
     final int taken = Math.min(incoming, available);
     buffer.writeBytes(data, taken);
+
     final int headerEnd = this.indexOfHeaderEnd(buffer);
     if (headerEnd < 0) {
       if (data.isReadable()) {
@@ -306,6 +307,6 @@ final class FileServerHandler extends ChannelInboundHandlerAdapter {
 
   @FunctionalInterface
   interface FileOpener {
-    FileChannel open(Path path) throws IOException;
+    FileChannel open(final Path path) throws IOException;
   }
 }

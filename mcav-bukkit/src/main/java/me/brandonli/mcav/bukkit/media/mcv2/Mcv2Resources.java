@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2;
 
+import com.google.common.base.Preconditions;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
@@ -45,6 +46,8 @@ public final class Mcv2Resources {
    * @since 1.0.0
    */
   public static String sha256(final byte[] bytes) {
+    Preconditions.checkNotNull(bytes, "Bytes must not be null!");
+
     return digest(bytes, SHA_256_ALGORITHM);
   }
 

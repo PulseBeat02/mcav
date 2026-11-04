@@ -63,8 +63,6 @@ public final class ServerAddress {
 
   @VisibleForTesting
   static String getPublicAddress(final URI addressService) {
-    Preconditions.checkNotNull(addressService, "Address service must not be null!");
-
     final String configuredAddress = Bukkit.getIp();
     final boolean hasConfiguredAddress = isConfiguredAddress(configuredAddress);
     if (hasConfiguredAddress) {
@@ -83,6 +81,7 @@ public final class ServerAddress {
 
     final String address = lookedUpAddress.get();
     publicAddress = address;
+
     return address;
   }
 

@@ -37,6 +37,7 @@ import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.util.ReferenceCountUtil;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -84,8 +85,10 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
 
   ResourcePackHttpHandler(final ResourcePackFile packFile, final String requestPath) {
     this.packFile = packFile;
-    this.getPrefix = (GET_REQUEST_PREFIX + requestPath + REQUEST_PATH_TERMINATOR).getBytes(StandardCharsets.US_ASCII);
-    this.headPrefix = (HEAD_REQUEST_PREFIX + requestPath + REQUEST_PATH_TERMINATOR).getBytes(StandardCharsets.US_ASCII);
+    final String getRequestLine = GET_REQUEST_PREFIX + requestPath + REQUEST_PATH_TERMINATOR;
+    this.getPrefix = getRequestLine.getBytes(StandardCharsets.US_ASCII);
+    final String headRequestLine = HEAD_REQUEST_PREFIX + requestPath + REQUEST_PATH_TERMINATOR;
+    this.headPrefix = headRequestLine.getBytes(StandardCharsets.US_ASCII);
   }
 
   @Override
@@ -153,9 +156,10 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
   // the game's 30-second read timeout would cut a download, which sends nothing after its request
   private void replaceReadTimeout(final ChannelHandlerContext context) {
     final ChannelPipeline pipeline = context.pipeline();
-    for (final Map.Entry<String, ChannelHandler> handler : pipeline.toMap().entrySet()) {
-      if (handler.getValue() instanceof ReadTimeoutHandler) {
-        pipeline.remove(handler.getKey());
+    final Map<String, ChannelHandler> handlers = pipeline.toMap();
+    for (final Map.Entry<String, ChannelHandler> entry : handlers.entrySet()) {
+      if (entry.getValue() instanceof ReadTimeoutHandler) {
+        pipeline.remove(entry.getKey());
       }
     }
 
@@ -188,6 +192,7 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
     final CompositeByteBuf existing = this.cumulation;
     if (existing != null) {
       existing.addComponent(true, buffer);
+
       return existing;
     }
 
@@ -216,7 +221,8 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
       return;
     }
 
-    final ChunkedStream content = new ChunkedStream(new ByteArrayInputStream(body), CHUNK_BYTES);
+    final InputStream stream = new ByteArrayInputStream(body);
+    final ChunkedStream content = new ChunkedStream(stream, CHUNK_BYTES);
     final ChannelFuture headersFuture = context.write(headers);
     headersFuture.addListener(ChannelFutureListener.CLOSE_ON_FAILURE);
     final ChannelFuture contentFuture = context.writeAndFlush(content);
@@ -244,7 +250,6 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
     final int start = buffer.readerIndex();
     final boolean couldBeGet = matchesPrefix(buffer, start, readable, GET_REQUEST_PREFIX_BYTES);
     final boolean couldBeHead = matchesPrefix(buffer, start, readable, HEAD_REQUEST_PREFIX_BYTES);
-
     if (couldBeGet && readable >= GET_REQUEST_PREFIX_BYTES.length) {
       return RequestType.GET;
     }

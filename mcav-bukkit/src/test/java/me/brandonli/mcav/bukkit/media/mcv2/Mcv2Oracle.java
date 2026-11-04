@@ -47,7 +47,8 @@ final class Mcv2Oracle {
   }
 
   private static int roundedChannel(final double value) {
-    return (int) Math.min(MAXIMUM_CHANNEL, Math.max(0, Math.floor(value + ROUNDING_OFFSET)));
+    final double rounded = Math.floor(value + ROUNDING_OFFSET);
+    return (int) Math.clamp(rounded, 0, MAXIMUM_CHANNEL);
   }
 
   static double interpolate(
@@ -59,22 +60,23 @@ final class Mcv2Oracle {
     final int column,
     final int row
   ) {
-    final double positionX = Math.min(grid - 1, Math.max(0, ((column + PIXEL_CENTER) * grid) / size - PIXEL_CENTER));
-    final double positionY = Math.min(grid - 1, Math.max(0, ((row + PIXEL_CENTER) * grid) / size - PIXEL_CENTER));
+    final double centerX = ((column + PIXEL_CENTER) * grid) / size - PIXEL_CENTER;
+    final double positionX = Math.clamp(centerX, 0, grid - 1);
+    final double centerY = ((row + PIXEL_CENTER) * grid) / size - PIXEL_CENTER;
+    final double positionY = Math.clamp(centerY, 0, grid - 1);
     final int lowerX = (int) positionX;
     final int lowerY = (int) positionY;
     final int upperX = Math.min(lowerX + 1, grid - 1);
     final int upperY = Math.min(lowerY + 1, grid - 1);
     final double fractionX = positionX - lowerX;
     final double fractionY = positionY - lowerY;
-    return (
-      (1 - fractionY) *
-        ((1 - fractionX) * nodes[offset + (lowerY * grid + lowerX) * stride] +
-          fractionX * nodes[offset + (lowerY * grid + upperX) * stride]) +
-      fractionY *
-        ((1 - fractionX) * nodes[offset + (upperY * grid + lowerX) * stride] +
-          fractionX * nodes[offset + (upperY * grid + upperX) * stride])
-    );
+    final double topLeft = nodes[offset + (lowerY * grid + lowerX) * stride];
+    final double topRight = nodes[offset + (lowerY * grid + upperX) * stride];
+    final double bottomLeft = nodes[offset + (upperY * grid + lowerX) * stride];
+    final double bottomRight = nodes[offset + (upperY * grid + upperX) * stride];
+    final double top = (1 - fractionX) * topLeft + fractionX * topRight;
+    final double bottom = (1 - fractionX) * bottomLeft + fractionX * bottomRight;
+    return (1 - fractionY) * top + fractionY * bottom;
   }
 
   static void predicted(final int[] prediction, final int size, final int[] output) {

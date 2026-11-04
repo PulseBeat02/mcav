@@ -38,6 +38,7 @@ import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
@@ -45,6 +46,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ForkJoinPool;
+import java.util.stream.Stream;
 import java.util.zip.Deflater;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2.Pool;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2.Settings;
@@ -198,23 +200,28 @@ final class Mcv2Tools {
     "2"
   );
 
-  private static final Map<String, Map<String, String>> TEXT_VARIANTS = new LinkedHashMap<>();
+  private static final Map<String, Map<String, String>> TEXT_VARIANTS = createTextVariants();
 
-  static {
-    TEXT_VARIANTS.put("text", Map.of());
-    TEXT_VARIANTS.put("text_grayscale", Map.of(GRAYSCALE_MACRO, MACRO_ENABLED));
-    TEXT_VARIANTS.put("text_see_through", Map.of(SEE_THROUGH_MACRO, MACRO_ENABLED));
-    TEXT_VARIANTS.put("text_grayscale_see_through", Map.of(GRAYSCALE_MACRO, MACRO_ENABLED, SEE_THROUGH_MACRO, MACRO_ENABLED));
-    TEXT_VARIANTS.put("gui_text", Map.of("IS_GUI", MACRO_ENABLED));
-    TEXT_VARIANTS.put("oit_text_depth_bounds", withFlags(OIT, ALPHA_ONLY_MACRO, DEPTH_BOUNDS_MACRO));
-    TEXT_VARIANTS.put("oit_text_transmittance", withFlags(OIT, ALPHA_ONLY_MACRO, TRANSMITTANCE_MACRO));
-    TEXT_VARIANTS.put("oit_text_accumulate", withFlags(OIT, ACCUMULATE_MACRO));
-    TEXT_VARIANTS.put("oit_text_depth_bounds_invariant", withFlags(OIT, ALPHA_ONLY_MACRO, DEPTH_BOUNDS_MACRO, EXPLICIT_DEPTH_INVARIANCE));
-    TEXT_VARIANTS.put("oit_text_transmittance_invariant", withFlags(OIT, ALPHA_ONLY_MACRO, TRANSMITTANCE_MACRO, EXPLICIT_DEPTH_INVARIANCE));
-    TEXT_VARIANTS.put("oit_text_accumulate_invariant", withFlags(OIT, ACCUMULATE_MACRO, EXPLICIT_DEPTH_INVARIANCE));
+  private Mcv2Tools() {
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
-  private Mcv2Tools() {}
+  private static Map<String, Map<String, String>> createTextVariants() {
+    final Map<String, Map<String, String>> variants = new LinkedHashMap<>();
+    variants.put("text", Map.of());
+    variants.put("text_grayscale", Map.of(GRAYSCALE_MACRO, MACRO_ENABLED));
+    variants.put("text_see_through", Map.of(SEE_THROUGH_MACRO, MACRO_ENABLED));
+    variants.put("text_grayscale_see_through", Map.of(GRAYSCALE_MACRO, MACRO_ENABLED, SEE_THROUGH_MACRO, MACRO_ENABLED));
+    variants.put("gui_text", Map.of("IS_GUI", MACRO_ENABLED));
+    variants.put("oit_text_depth_bounds", withFlags(OIT, ALPHA_ONLY_MACRO, DEPTH_BOUNDS_MACRO));
+    variants.put("oit_text_transmittance", withFlags(OIT, ALPHA_ONLY_MACRO, TRANSMITTANCE_MACRO));
+    variants.put("oit_text_accumulate", withFlags(OIT, ACCUMULATE_MACRO));
+    variants.put("oit_text_depth_bounds_invariant", withFlags(OIT, ALPHA_ONLY_MACRO, DEPTH_BOUNDS_MACRO, EXPLICIT_DEPTH_INVARIANCE));
+    variants.put("oit_text_transmittance_invariant", withFlags(OIT, ALPHA_ONLY_MACRO, TRANSMITTANCE_MACRO, EXPLICIT_DEPTH_INVARIANCE));
+    variants.put("oit_text_accumulate_invariant", withFlags(OIT, ACCUMULATE_MACRO, EXPLICIT_DEPTH_INVARIANCE));
+
+    return Collections.unmodifiableMap(variants);
+  }
 
   static void main(final String[] arguments) throws Exception {
     if (arguments.length == 0) {
@@ -270,7 +277,7 @@ final class Mcv2Tools {
       pool.close();
       report(measured, frames, warmUpFrames, frameRate, threads, (heapAfter - heapBefore) / BYTES_PER_MEGABYTE);
     } finally {
-      try (final var paths = Files.walk(nativeFolder)) {
+      try (final Stream<Path> paths = Files.walk(nativeFolder)) {
         paths.forEach(path -> path.toFile().deleteOnExit());
       }
     }
@@ -284,6 +291,7 @@ final class Mcv2Tools {
 
     final Path folder = Files.createTempDirectory(NATIVES_FOLDER_PREFIX);
     Mcv2.installNatives(folder, mode);
+
     return folder;
   }
 
@@ -298,7 +306,10 @@ final class Mcv2Tools {
   }
 
   private static long usedHeap() {
-    return Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+    final Runtime runtime = Runtime.getRuntime();
+    final long total = runtime.totalMemory();
+    final long free = runtime.freeMemory();
+    return total - free;
   }
 
   private static Settings parseSettings(final Map<String, String> options) {
@@ -311,6 +322,7 @@ final class Mcv2Tools {
         throw new IllegalArgumentException(message);
       }
     };
+
     if (options.containsKey(LAMBDA_OPTION)) {
       settings = settings.withLambda(Double.parseDouble(options.get(LAMBDA_OPTION)));
     }
@@ -332,13 +344,9 @@ final class Mcv2Tools {
     final String loop = options.getOrDefault("loop", "none");
     final FrameMeter meter = new FrameMeter(options, encoder, pool, width, height, frames);
     try (
-      RandomAccessFile input = new RandomAccessFile(source.toFile(), READ_MODE);
-      DataOutputStream output = options.containsKey(OUTPUT_OPTION)
-        ? new DataOutputStream(new BufferedOutputStream(Files.newOutputStream(Path.of(options.get(OUTPUT_OPTION)))))
-        : null;
-      OutputStream decoded = options.containsKey(DECODED_OPTION)
-        ? new BufferedOutputStream(Files.newOutputStream(Path.of(options.get(DECODED_OPTION))))
-        : null
+      final RandomAccessFile input = new RandomAccessFile(source.toFile(), READ_MODE);
+      final @Nullable DataOutputStream output = openFrameOutput(options);
+      final @Nullable OutputStream decoded = openDecodedOutput(options)
     ) {
       final byte[] rgb = new byte[(int) frameBytes];
       for (int frameIndex = 0; frameIndex < frames; frameIndex++) {
@@ -351,6 +359,27 @@ final class Mcv2Tools {
     }
 
     return meter.getMeasurement();
+  }
+
+  private static @Nullable DataOutputStream openFrameOutput(final Map<String, String> options) throws IOException {
+    if (!options.containsKey(OUTPUT_OPTION)) {
+      return null;
+    }
+
+    final Path path = Path.of(options.get(OUTPUT_OPTION));
+    final OutputStream file = Files.newOutputStream(path);
+    final OutputStream buffered = new BufferedOutputStream(file);
+    return new DataOutputStream(buffered);
+  }
+
+  private static @Nullable OutputStream openDecodedOutput(final Map<String, String> options) throws IOException {
+    if (!options.containsKey(DECODED_OPTION)) {
+      return null;
+    }
+
+    final Path path = Path.of(options.get(DECODED_OPTION));
+    final OutputStream file = Files.newOutputStream(path);
+    return new BufferedOutputStream(file);
   }
 
   private static void writeFrame(final @Nullable DataOutputStream output, final byte[] data) throws IOException {
@@ -376,12 +405,25 @@ final class Mcv2Tools {
   }
 
   private static int sourceIndex(final int frame, final String loop, final int sourceFrames) {
-    final int period = 2 * (sourceFrames - 1);
     return switch (loop) {
-      case "pingpong" -> period == 0 ? 0 : frame % period < sourceFrames ? frame % period : period - (frame % period);
+      case "pingpong" -> findPingPongIndex(frame, sourceFrames);
       case "wrap" -> frame % sourceFrames;
       default -> frame;
     };
+  }
+
+  private static int findPingPongIndex(final int frame, final int sourceFrames) {
+    final int period = 2 * (sourceFrames - 1);
+    if (period == 0) {
+      return 0;
+    }
+
+    final int phase = frame % period;
+    if (phase < sourceFrames) {
+      return phase;
+    }
+
+    return period - phase;
   }
 
   private static long zlibBytes(final List<byte[]> pages, final Deflater deflater, final byte[] buffer) {
@@ -394,6 +436,7 @@ final class Mcv2Tools {
       while (!deflater.finished()) {
         compressed += deflater.deflate(buffer);
       }
+
       bytes += compressed + TransportPages.PACKET_OVERHEAD;
     }
 
@@ -403,7 +446,7 @@ final class Mcv2Tools {
   private static long squaredError(final byte[] rgb, final byte[] picture) {
     long sum = 0;
     for (int index = 0; index < rgb.length; index++) {
-      final int difference = (rgb[index] & 0xFF) - (picture[index] & 0xFF);
+      final int difference = Byte.toUnsignedInt(rgb[index]) - Byte.toUnsignedInt(picture[index]);
       sum += (long) difference * difference;
     }
 
@@ -422,6 +465,7 @@ final class Mcv2Tools {
     final int threads,
     final double encoderHeapMegabytes
   ) {
+    final Runtime runtime = Runtime.getRuntime();
     final int from = Math.min(warmUpFrames, frames - 1);
     final long[] warmTimes = Arrays.copyOfRange(measured.times, from, frames);
     final long[] sorted = warmTimes.clone();
@@ -452,7 +496,7 @@ final class Mcv2Tools {
       psnr(measured.mseSum / frames),
       frameRate,
       threads,
-      Runtime.getRuntime().availableProcessors(),
+      runtime.availableProcessors(),
       encoderHeapMegabytes,
       JSON.toJson(Mcv2.describeNatives())
     );
@@ -466,13 +510,21 @@ final class Mcv2Tools {
     final MessageDigest sha256 = MessageDigest.getInstance(DIGEST_ALGORITHM);
     final boolean rgb = arguments.length >= 2 && arguments[0].equals("--rgb");
     final List<String> archives = Arrays.asList(arguments).subList(rgb ? 2 : 0, arguments.length);
-    try (
-      OutputStream pictures = rgb ? new BufferedOutputStream(Files.newOutputStream(Path.of(arguments[1]))) : OutputStream.nullOutputStream()
-    ) {
+    try (final OutputStream pictures = openPicturesOutput(arguments, rgb)) {
       for (final String argument : archives) {
         System.out.println("%s%s".formatted(argument, digestArchive(Files.readAllBytes(Path.of(argument)), sha256, pictures)));
       }
     }
+  }
+
+  private static OutputStream openPicturesOutput(final String[] arguments, final boolean rgb) throws IOException {
+    if (!rgb) {
+      return OutputStream.nullOutputStream();
+    }
+
+    final Path path = Path.of(arguments[1]);
+    final OutputStream file = Files.newOutputStream(path);
+    return new BufferedOutputStream(file);
   }
 
   private static String digestArchive(final byte[] archive, final MessageDigest sha256, final OutputStream pictures) throws IOException {
@@ -678,7 +730,7 @@ final class Mcv2Tools {
     final Path output = Files.createDirectories(Path.of(arguments[2]));
     final List<String> options = List.of(arguments).subList(3, arguments.length);
     final int vanillaOption = options.indexOf("--vanilla");
-    final Path vanilla = vanillaOption < 0 ? null : Path.of(options.get(vanillaOption + 1));
+    final @Nullable Path vanilla = vanillaOption < 0 ? null : Path.of(options.get(vanillaOption + 1));
     final boolean postOnly = options.contains("--post-only");
     int failures = 0;
     for (final Map.Entry<String, Map<String, String>> variant : postOnly
@@ -699,7 +751,7 @@ final class Mcv2Tools {
     }
 
     final Path post = pack.resolve(POST_SHADER_FOLDER);
-    try (final var files = Files.walk(post)) {
+    try (final Stream<Path> files = Files.walk(post)) {
       for (final Path source : files.filter(Files::isRegularFile).sorted().toList()) {
         final String name = post.relativize(source).toString().replace(post.getFileSystem().getSeparator(), "_");
         final String stage = name.substring(name.lastIndexOf('.') + 1);
@@ -714,7 +766,7 @@ final class Mcv2Tools {
   private static int compile(
     final Path pack,
     final Path generated,
-    final Path vanilla,
+    final @Nullable Path vanilla,
     final Path source,
     final String stage,
     final Map<String, String> defines,
@@ -746,6 +798,7 @@ final class Mcv2Tools {
         ShadercIncludeResultRelease.create((user, result) -> {}),
         NO_USER_DATA
       );
+
       final ShaderStage shaderStage = stage.equals(VERTEX_STAGE) ? ShaderStage.VERTEX : ShaderStage.FRAGMENT;
       final int kind = shaderStage == ShaderStage.VERTEX ? Shaderc.shaderc_vertex_shader : Shaderc.shaderc_fragment_shader;
       final long result = Shaderc.shaderc_compile_into_spv(compiler, text, kind, source.getFileName().toString(), ENTRY_POINT, options);
@@ -770,7 +823,7 @@ final class Mcv2Tools {
   private static long include(
     final Path pack,
     final Path generated,
-    final Path vanilla,
+    final @Nullable Path vanilla,
     final String requested,
     final List<ByteBuffer> includeBuffers
   ) {
@@ -805,7 +858,7 @@ final class Mcv2Tools {
   }
 
   private static String crossCompile(final ByteBuffer spirv, final ShaderStage shaderStage) {
-    try (MemoryStack stack = stackPush()) {
+    try (final MemoryStack stack = stackPush()) {
       final PointerBuffer pointer = stack.callocPointer(1);
       check(Spvc.spvc_context_create(pointer), "context");
       final long context = pointer.get(0);
@@ -825,22 +878,10 @@ final class Mcv2Tools {
         final long compiler = pointer.get(0);
         Spvc.spvc_compiler_create_compiler_options(compiler, pointer);
         final long options = pointer.get(0);
-        Spvc.spvc_compiler_options_set_uint(options, Spvc.SPVC_COMPILER_OPTION_GLSL_VERSION, GLSL_VERSION);
-        Spvc.spvc_compiler_options_set_bool(options, Spvc.SPVC_COMPILER_OPTION_GLSL_ENABLE_420PACK_EXTENSION, false);
-        Spvc.spvc_compiler_options_set_bool(options, Spvc.SPVC_COMPILER_OPTION_GLSL_EMIT_PUSH_CONSTANT_AS_UNIFORM_BUFFER, true);
-        // the game sets this to whether the device has shader draw parameters; no shader here reads gl_InstanceIndex
-        Spvc.spvc_compiler_options_set_bool(options, Spvc.SPVC_COMPILER_OPTION_GLSL_SUPPORT_NONZERO_BASE_INSTANCE, false);
-        Spvc.spvc_compiler_options_set_bool(options, Spvc.SPVC_COMPILER_OPTION_FORCE_ZERO_INITIALIZED_VARIABLES, true);
-        Spvc.spvc_compiler_options_set_bool(options, Spvc.SPVC_COMPILER_OPTION_FLATTEN_MULTIDIMENSIONAL_ARRAYS, true);
+        setGlslOptions(options);
         check(Spvc.spvc_compiler_create_shader_resources(compiler, pointer), "resources");
         final long resources = pointer.get(0);
-        // without separate shader objects the stages link by name, so the game names every stage input and output
-        // after its location
-        final boolean vertex = shaderStage == ShaderStage.VERTEX;
-        final int attributes = vertex ? Spvc.SPVC_RESOURCE_TYPE_STAGE_INPUT : Spvc.SPVC_RESOURCE_TYPE_STAGE_OUTPUT;
-        final int varyings = vertex ? Spvc.SPVC_RESOURCE_TYPE_STAGE_OUTPUT : Spvc.SPVC_RESOURCE_TYPE_STAGE_INPUT;
-        renameByLocation(compiler, resources, attributes, vertex ? VERTEX_INPUT_NAME_FORMAT : FRAGMENT_OUTPUT_NAME_FORMAT);
-        renameByLocation(compiler, resources, varyings, INTERFACE_VARIABLE_NAME_FORMAT);
+        renameStageVariables(compiler, resources, shaderStage);
         Spvc.spvc_compiler_install_compiler_options(compiler, options);
         final PointerBuffer source = stack.callocPointer(1);
         check(Spvc.spvc_compiler_compile(compiler, source), "compile");
@@ -851,8 +892,28 @@ final class Mcv2Tools {
     }
   }
 
+  private static void setGlslOptions(final long options) {
+    Spvc.spvc_compiler_options_set_uint(options, Spvc.SPVC_COMPILER_OPTION_GLSL_VERSION, GLSL_VERSION);
+    Spvc.spvc_compiler_options_set_bool(options, Spvc.SPVC_COMPILER_OPTION_GLSL_ENABLE_420PACK_EXTENSION, false);
+    Spvc.spvc_compiler_options_set_bool(options, Spvc.SPVC_COMPILER_OPTION_GLSL_EMIT_PUSH_CONSTANT_AS_UNIFORM_BUFFER, true);
+    // the game sets this to whether the device has shader draw parameters; no shader here reads gl_InstanceIndex
+    Spvc.spvc_compiler_options_set_bool(options, Spvc.SPVC_COMPILER_OPTION_GLSL_SUPPORT_NONZERO_BASE_INSTANCE, false);
+    Spvc.spvc_compiler_options_set_bool(options, Spvc.SPVC_COMPILER_OPTION_FORCE_ZERO_INITIALIZED_VARIABLES, true);
+    Spvc.spvc_compiler_options_set_bool(options, Spvc.SPVC_COMPILER_OPTION_FLATTEN_MULTIDIMENSIONAL_ARRAYS, true);
+  }
+
+  private static void renameStageVariables(final long compiler, final long resources, final ShaderStage shaderStage) {
+    // without separate shader objects the stages link by name, so the game names every stage input and output
+    // after its location
+    final boolean vertex = shaderStage == ShaderStage.VERTEX;
+    final int attributes = vertex ? Spvc.SPVC_RESOURCE_TYPE_STAGE_INPUT : Spvc.SPVC_RESOURCE_TYPE_STAGE_OUTPUT;
+    final int varyings = vertex ? Spvc.SPVC_RESOURCE_TYPE_STAGE_OUTPUT : Spvc.SPVC_RESOURCE_TYPE_STAGE_INPUT;
+    renameByLocation(compiler, resources, attributes, vertex ? VERTEX_INPUT_NAME_FORMAT : FRAGMENT_OUTPUT_NAME_FORMAT);
+    renameByLocation(compiler, resources, varyings, INTERFACE_VARIABLE_NAME_FORMAT);
+  }
+
   private static void renameByLocation(final long compiler, final long resources, final int type, final String format) {
-    try (MemoryStack stack = stackPush()) {
+    try (final MemoryStack stack = stackPush()) {
       final PointerBuffer list = stack.callocPointer(1);
       final PointerBuffer count = stack.callocPointer(1);
       check(Spvc.spvc_resources_get_resource_list_for_type(resources, type, list, count), "interface");
@@ -878,21 +939,15 @@ final class Mcv2Tools {
   private static final class Measurement {
 
     private final long[] times;
-
     private final long[] cpu;
-
     private final long[] allocated;
 
     private long logical;
-
     private long wire;
-
     private long zlib;
-
     private long keyframes;
 
     private double psnrSum;
-
     private double mseSum;
 
     private Measurement(final int frames) {
@@ -969,6 +1024,7 @@ final class Mcv2Tools {
       this.measurement.times[frameIndex] = System.nanoTime() - startNanoseconds;
       this.measurement.cpu[frameIndex] = this.system.getProcessCpuTime() - cpuBefore;
       this.measurement.allocated[frameIndex] = this.threadBean.getTotalThreadAllocatedBytes() - allocatedBefore;
+
       if (this.encoder.getStatistics().orElseThrow().isKeyframe()) {
         this.measurement.keyframes++;
       }
@@ -981,6 +1037,7 @@ final class Mcv2Tools {
       final double mse = squaredError(rgb, picture) / (double) rgb.length;
       this.measurement.psnrSum += mse == 0 ? EXACT_PSNR : psnr(mse);
       this.measurement.mseSum += mse;
+
       return new EncodedFrame(data, picture);
     }
 
@@ -1041,6 +1098,7 @@ final class Mcv2Tools {
       }
 
       appendFrame(this.archive, data);
+
       final byte[] picture = this.receiver.accept(data);
       if (!Arrays.equals(picture, this.encoder.getReference().orElseThrow())) {
         final String message = "Reference for %s frame %s differs!".formatted(this.name, id);
@@ -1048,20 +1106,18 @@ final class Mcv2Tools {
       }
 
       this.hashes.add(Mcv2Resources.sha256(picture));
+
       if (this.name.equals(PROXY_DEFAULT_STREAM) && id < PAGE_VECTOR_FRAMES) {
         final String vectorName = "%s%s#%s@%s".formatted(CONFORMANCE_FOLDER, this.name, id, CONFORMANCE_SYMBOL_BITS);
-        this.pages.put(vectorName, pageExpectations(data));
+        this.pages.put(vectorName, this.pageExpectations(data));
       }
 
       return true;
     }
 
-    private static Map<String, Object> pageExpectations(final byte[] data) {
+    private Map<String, Object> pageExpectations(final byte[] data) {
       final List<byte[]> transportPages = TransportPages.makePages(data, CONFORMANCE_STREAM_ID);
-      final List<String> pageHashes = new ArrayList<>();
-      for (final byte[] page : transportPages) {
-        pageHashes.add(Mcv2Resources.sha256(page));
-      }
+      final List<String> pageHashes = transportPages.stream().map(Mcv2Resources::sha256).toList();
 
       final Map<String, Object> expected = new LinkedHashMap<>();
       expected.put("pages", pageHashes);

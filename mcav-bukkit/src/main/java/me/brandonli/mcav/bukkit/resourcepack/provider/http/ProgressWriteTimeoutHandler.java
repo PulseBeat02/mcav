@@ -17,14 +17,17 @@
  */
 package me.brandonli.mcav.bukkit.resourcepack.provider.http;
 
+import static java.util.Objects.requireNonNull;
+
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelProgressiveFuture;
 import io.netty.channel.ChannelProgressiveFutureListener;
 import io.netty.channel.ChannelProgressivePromise;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.timeout.WriteTimeoutHandler;
+import io.netty.util.concurrent.EventExecutor;
 import java.util.HashSet;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -34,20 +37,23 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 final class ProgressWriteTimeoutHandler extends WriteTimeoutHandler {
 
   private final int timeoutSeconds;
-  private final Set<PendingWrite> writes = new HashSet<>();
+  private final Set<PendingWrite> writes;
 
   ProgressWriteTimeoutHandler(final int timeoutSeconds) {
     super(timeoutSeconds);
     this.timeoutSeconds = timeoutSeconds;
+    this.writes = new HashSet<>();
   }
 
   @Override
   public void write(final ChannelHandlerContext context, final Object message, final ChannelPromise promise) {
     final ChannelProgressivePromise progress = context.newProgressivePromise();
-    final PendingWrite pending = new PendingWrite(context, promise.unvoid());
+    final ChannelPromise completion = promise.unvoid();
+    final PendingWrite pending = new PendingWrite(context, completion);
     this.writes.add(pending);
     pending.renew();
-    context.write(message, progress).addListener(pending);
+    final ChannelFuture written = context.write(message, progress);
+    written.addListener(pending);
   }
 
   @Override
@@ -64,6 +70,7 @@ final class ProgressWriteTimeoutHandler extends WriteTimeoutHandler {
 
     private final ChannelHandlerContext context;
     private final ChannelPromise completion;
+
     private @Nullable ScheduledFuture<?> timeout;
     private long transferred;
 
@@ -74,7 +81,8 @@ final class ProgressWriteTimeoutHandler extends WriteTimeoutHandler {
 
     private void renew() {
       this.cancel();
-      this.timeout = this.context.executor().schedule(this::expire, ProgressWriteTimeoutHandler.this.timeoutSeconds, TimeUnit.SECONDS);
+      final EventExecutor executor = this.context.executor();
+      this.timeout = executor.schedule(this::expire, ProgressWriteTimeoutHandler.this.timeoutSeconds, TimeUnit.SECONDS);
     }
 
     private void cancel() {
@@ -109,7 +117,8 @@ final class ProgressWriteTimeoutHandler extends WriteTimeoutHandler {
       if (future.isSuccess()) {
         this.completion.trySuccess();
       } else {
-        this.completion.tryFailure(Objects.requireNonNull(future.cause()));
+        final Throwable cause = requireNonNull(future.cause()); // checker framework
+        this.completion.tryFailure(cause);
       }
     }
   }

@@ -32,7 +32,7 @@ import org.bukkit.entity.TextDisplay;
  *
  * @since 1.0.0
  */
-public class EntityImage implements DisplayableImage {
+public final class EntityImage implements DisplayableImage {
 
   private final EntityRenderer renderer;
 

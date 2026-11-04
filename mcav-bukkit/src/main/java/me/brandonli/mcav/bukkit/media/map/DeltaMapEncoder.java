@@ -272,7 +272,7 @@ public final class DeltaMapEncoder {
     final int changedPixels = this.countChangedPixels(tilesToSend);
     final List<PatchRectangle> rectangles = this.chooseRectangles(tilesToSend, region);
     final List<MapTilePatch> patches = this.extractPatches(image, map, rectangles);
-    final int size = getEncodedSize(rectangles);
+    final int size = this.getEncodedSize(rectangles);
 
     final long waitingBonus = this.waitingFrames[map] * WAITING_PRIORITY;
     final long priority = waitingBonus + changedPixels;
@@ -322,7 +322,7 @@ public final class DeltaMapEncoder {
     final List<PatchRectangle> rectangles = this.mergeTiles(tiles, region);
     final PatchRectangle bounds = PatchRectangle.boundingBox(rectangles);
     final int boundsSize = bounds.getEncodedSize();
-    final int rectanglesSize = getEncodedSize(rectangles);
+    final int rectanglesSize = this.getEncodedSize(rectangles);
     if (boundsSize <= rectanglesSize) {
       return List.of(bounds);
     }
@@ -330,7 +330,7 @@ public final class DeltaMapEncoder {
     return rectangles;
   }
 
-  private static int getEncodedSize(final List<PatchRectangle> rectangles) {
+  private int getEncodedSize(final List<PatchRectangle> rectangles) {
     int size = 0;
     for (final PatchRectangle rectangle : rectangles) {
       size += rectangle.getEncodedSize();

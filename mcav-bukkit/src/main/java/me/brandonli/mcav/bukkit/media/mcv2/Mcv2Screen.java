@@ -87,10 +87,6 @@ public final class Mcv2Screen {
 
   private static final String PLAYER_NULL_MESSAGE = "Player must not be null!";
 
-  private static final AtomicInteger NEXT_TEAM_ID = new AtomicInteger();
-
-  private final String teamName;
-
   private static final int[] SIGNATURE = { 21, 3, 58, 44, 9, 37, 60, 17 };
 
   private static final int CHUNK_SHIFT = 4;
@@ -111,6 +107,10 @@ public final class Mcv2Screen {
 
   // Bukkit holds one plugin ticket per chunk, so overlapping screens must share ownership.
   private static final Map<HeldChunk, Integer> HELD_CHUNKS = new HashMap<>();
+
+  private static final AtomicInteger NEXT_TEAM_ID = new AtomicInteger();
+
+  private final String teamName;
 
   private final Mcv2Configuration configuration;
 

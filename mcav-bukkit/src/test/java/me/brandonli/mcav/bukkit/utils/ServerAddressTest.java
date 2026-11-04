@@ -137,12 +137,6 @@ final class ServerAddressTest {
   }
 
   @Test
-  void shouldRequireAnAddressService() {
-    this.configureServerAddress(CONFIGURED_ADDRESS);
-    assertThrows(NullPointerException.class, () -> ServerAddress.getPublicAddress(null));
-  }
-
-  @Test
   void shouldRecognizeOnlyTheFallbackAddress() {
     final boolean localhost = ServerAddress.isFallbackAddress(LOCALHOST);
     final boolean publicAddress = ServerAddress.isFallbackAddress(PUBLIC_ADDRESS);

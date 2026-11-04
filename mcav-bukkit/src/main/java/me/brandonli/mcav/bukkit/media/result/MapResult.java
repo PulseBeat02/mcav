@@ -47,7 +47,7 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.Dit
  *
  * @since 1.0.0
  */
-public class MapResult implements DitherResultStep {
+public final class MapResult implements DitherResultStep {
 
   private final MapConfiguration configuration;
 
@@ -62,6 +62,29 @@ public class MapResult implements DitherResultStep {
     Preconditions.checkNotNull(configuration, "Map configuration must not be null!");
 
     this.configuration = configuration;
+  }
+
+  /**
+   * Does nothing, because every frame is sent completely and nothing needs to be prepared.
+   *
+   * @since 1.0.0
+   */
+  @Override
+  public void start() {}
+
+  /**
+   * Clears the maps of every viewer.
+   *
+   * @since 1.0.0
+   */
+  @Override
+  public void release() {
+    final Collection<UUID> viewers = this.configuration.getViewers();
+    final int startMapId = this.configuration.getMap();
+    final int columns = this.configuration.getMapBlockWidth();
+    final int rows = this.configuration.getMapBlockHeight();
+    final int mapCount = columns * rows;
+    MapPacketFactory.clear(viewers, startMapId, mapCount);
   }
 
   /**
@@ -104,24 +127,33 @@ public class MapResult implements DitherResultStep {
       expectedLength
     );
 
-    final List<MapTilePatch> patches = new ArrayList<>(layout.getMapCount());
-    for (int index = 0; index < layout.getMapCount(); index++) {
+    final int mapCount = layout.getMapCount();
+    final List<MapTilePatch> patches = new ArrayList<>(mapCount);
+    for (int index = 0; index < mapCount; index++) {
       final MapRegion region = layout.getRegion(index);
       final byte[] colors = new byte[MapLayout.MAP_SIZE * MapLayout.MAP_SIZE];
       if (!region.isEmpty()) {
         this.copyRegion(image, width, region, colors);
       }
-      patches.add(MapTilePatch.of(layout.getMapId(index), 0, 0, MapLayout.MAP_SIZE, MapLayout.MAP_SIZE, colors));
+      final int mapId = layout.getMapId(index);
+      final MapTilePatch patch = MapTilePatch.of(mapId, 0, 0, MapLayout.MAP_SIZE, MapLayout.MAP_SIZE, colors);
+      patches.add(patch);
     }
 
     return patches;
   }
 
   private void copyRegion(final byte[] image, final int width, final MapRegion region, final byte[] colors) {
-    for (int row = 0; row < region.getHeight(); row++) {
-      final int source = (region.getSourceY() + row) * width + region.getSourceX();
-      final int target = (region.getLocalY() + row) * MapLayout.MAP_SIZE + region.getLocalX();
-      System.arraycopy(image, source, colors, target, region.getWidth());
+    final int height = region.getHeight();
+    final int sourceY = region.getSourceY();
+    final int sourceX = region.getSourceX();
+    final int localY = region.getLocalY();
+    final int localX = region.getLocalX();
+    final int regionWidth = region.getWidth();
+    for (int row = 0; row < height; row++) {
+      final int source = (sourceY + row) * width + sourceX;
+      final int target = (localY + row) * MapLayout.MAP_SIZE + localX;
+      System.arraycopy(image, source, colors, target, regionWidth);
     }
   }
 
@@ -135,28 +167,5 @@ public class MapResult implements DitherResultStep {
     final int targetHeight = this.configuration.getMapHeightResolution();
     final ResizeFilter filter = new ResizeFilter(targetWidth, targetHeight);
     filter.applyFilter(samples);
-  }
-
-  /**
-   * Does nothing, because every frame is sent completely and nothing needs to be prepared.
-   *
-   * @since 1.0.0
-   */
-  @Override
-  public void start() {}
-
-  /**
-   * Clears the maps of every viewer.
-   *
-   * @since 1.0.0
-   */
-  @Override
-  public void release() {
-    final Collection<UUID> viewers = this.configuration.getViewers();
-    final int startMapId = this.configuration.getMap();
-    final int columns = this.configuration.getMapBlockWidth();
-    final int rows = this.configuration.getMapBlockHeight();
-    final int mapCount = columns * rows;
-    MapPacketFactory.clear(viewers, startMapId, mapCount);
   }
 }

@@ -17,9 +17,10 @@
  */
 package me.brandonli.mcav.bukkit.utils;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.base.Preconditions;
 import java.util.Collection;
-import java.util.Objects;
 import java.util.UUID;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
@@ -150,7 +151,7 @@ public final class ChatUtils {
 
     final String text = builder.toString();
     final Component component = CraftChatMessage.fromStringOrNull(text, true);
-    return Objects.requireNonNull(component, "Text with color codes always converts to a component!");
+    return requireNonNull(component, "Text with color codes always converts to a component!");
   }
 
   private static void appendRow(final StringBuilder builder, final int[] data, final String character, final int width, final int row) {

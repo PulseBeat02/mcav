@@ -101,6 +101,21 @@ public abstract class MainThreadRenderer<FrameType> {
   }
 
   /**
+   * Stops applying frames and discards the pending frame, if any. May be called from any thread.
+   *
+   * @since 1.0.0
+   */
+  protected synchronized void stopRendering() {
+    final BukkitTask currentTask = this.task;
+    if (currentTask != null) {
+      currentTask.cancel();
+      this.task = null;
+    }
+
+    this.pendingFrame.set(null);
+  }
+
+  /**
    * Initializes a display and starts rendering together on the main thread. A later show or hide request
    * invalidates this request before its queued callback can change the world.
    *
@@ -125,6 +140,7 @@ public abstract class MainThreadRenderer<FrameType> {
     }
 
     initialize.run();
+
     // An initialization callback may synchronously request hide on this same main thread.
     if (generation == this.visibilityGeneration) {
       this.startRendering();
@@ -181,21 +197,6 @@ public abstract class MainThreadRenderer<FrameType> {
     }
 
     this.onTick();
-  }
-
-  /**
-   * Stops applying frames and discards the pending frame, if any. May be called from any thread.
-   *
-   * @since 1.0.0
-   */
-  protected synchronized void stopRendering() {
-    final BukkitTask currentTask = this.task;
-    if (currentTask != null) {
-      currentTask.cancel();
-      this.task = null;
-    }
-
-    this.pendingFrame.set(null);
   }
 
   /**

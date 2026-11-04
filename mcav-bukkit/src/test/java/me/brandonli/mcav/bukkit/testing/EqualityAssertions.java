@@ -79,8 +79,8 @@ public final class EqualityAssertions {
 
   private static void assertNotEqualToNullOrUnrelated(final Object value) {
     final Object unrelated = new Object();
-    @Nullable final Object[] outsiders = { null, unrelated };
-    for (@Nullable final Object outsider : outsiders) {
+    final @Nullable Object[] outsiders = { null, unrelated };
+    for (final @Nullable Object outsider : outsiders) {
       final boolean equal = isEqual(value, outsider);
       assertFalse(equal, () -> "a value must not equal %s".formatted(outsider));
     }

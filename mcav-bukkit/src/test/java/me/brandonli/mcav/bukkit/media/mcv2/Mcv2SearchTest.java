@@ -475,19 +475,25 @@ final class Mcv2SearchTest {
       );
     }
 
+    final Class<?> descentType = Mcv2Internals.nested("Descent");
+    final Object context = Mcv2Internals.construct(
+      descentType,
+      new Class<?>[] { frameType, coders.getClass(), double.class },
+      frame,
+      coders,
+      0.0
+    );
     return Mcv2Internals.callForResult(
       Mcv2.class,
       null,
       "descend",
-      new Class<?>[] { frameType, coders.getClass(), int.class, int.class, int.class, int.class, double.class, double.class },
-      frame,
-      coders,
+      new Class<?>[] { descentType, int.class, int.class, int.class, int.class, double.class },
+      context,
       level,
       left,
       top,
       Mcv2BlockState.NO_VECTOR,
-      threshold,
-      0.0
+      threshold
     );
   }
 
