@@ -43,7 +43,7 @@ final class TonePage implements AutoCloseable {
     oscillator.connect(gain);
     gain.connect(context.destination);
     oscillator.start();
-    addEventListener('pointerdown', () => context.resume());
+    addEventListener("pointerdown", () => context.resume());
   </script></body></html>
   """.formatted(TONE_HERTZ);
 
