@@ -660,7 +660,7 @@ public final class FilterChain {
 
   @FunctionalInterface
   private interface RegionFactory {
-    VideoFilter create(int left, int top, int width, int height, int pictureWidth, int pictureHeight);
+    VideoFilter create(final int left, final int top, final int width, final int height, final int pictureWidth, final int pictureHeight);
   }
 
   private static final class RegionFilter implements VideoFilter {

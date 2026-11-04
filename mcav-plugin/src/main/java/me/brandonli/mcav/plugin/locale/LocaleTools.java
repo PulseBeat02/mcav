@@ -234,7 +234,7 @@ public interface LocaleTools {
      * @throws java.util.MissingResourceException if the message file has no message with the key
      * @since 1.0.0
      */
-    Component build(ArgumentType argument);
+    Component build(final ArgumentType argument);
   }
 
   /**
@@ -257,7 +257,7 @@ public interface LocaleTools {
      * @throws java.util.MissingResourceException if the message file has no message with the key
      * @since 1.0.0
      */
-    Component build(FirstType firstArgument, SecondType secondArgument);
+    Component build(final FirstType firstArgument, final SecondType secondArgument);
   }
 
   /**
@@ -282,6 +282,6 @@ public interface LocaleTools {
      * @throws java.util.MissingResourceException if the message file has no message with the key
      * @since 1.0.0
      */
-    Component build(FirstType firstArgument, SecondType secondArgument, ThirdType thirdArgument);
+    Component build(final FirstType firstArgument, final SecondType secondArgument, final ThirdType thirdArgument);
   }
 }

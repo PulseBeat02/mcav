@@ -669,7 +669,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
 
   @FunctionalInterface
   interface Opener {
-    Mcv2FileEncoder.FrameReader open(Path video, int width, int height) throws IOException;
+    Mcv2FileEncoder.FrameReader open(final Path video, final int width, final int height) throws IOException;
   }
 
   private record FileEncode(Thread thread, AtomicBoolean stopped) {
