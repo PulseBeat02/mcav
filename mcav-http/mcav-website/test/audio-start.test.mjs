@@ -69,6 +69,9 @@ const CHUNK_BYTES = 4;
 const PLAY_FAILURE_REPORT = "Could not play the received sound.";
 const UNPLAYABLE_SOUND = "The sound cannot be decoded!";
 
+const MAXIMUM_RECONNECT_ATTEMPTS = 5;
+const GIVE_UP_STATUS = "Maximum reconnection attempts reached";
+
 const MAXIMUM_TIMER_ROUNDS = 10;
 
 const LINE_SEPARATOR = "\n";
@@ -176,7 +179,7 @@ const loadPage = (permission = PERMISSION_GRANTED) => {
     const processors = [];
     const contexts = [];
     const errors = [];
-    const state = {loading: false, connected: false};
+    const state = {loading: false, connected: false, status: ""};
 
     class FakeSocket {
         static OPEN = 1;
@@ -312,8 +315,11 @@ const loadPage = (permission = PERMISSION_GRANTED) => {
         setIsConnected: connected => {
             state.connected = connected;
         },
-        updateStatus: doNothing, startMetadataRefresh: doNothing, stopMetadataRefresh: doNothing, startHeartbeat: doNothing,
-        stopHeartbeat: doNothing, reportCloseFailure: doNothing,
+        updateStatus: status => {
+            state.status = status;
+        },
+        startMetadataRefresh: doNothing, stopMetadataRefresh: doNothing, startHeartbeat: doNothing, stopHeartbeat: doNothing,
+        reportCloseFailure: doNothing,
     });
     const page = vm.runInContext(buildCallbackScript(), context, {filename: PAGE.pathname});
     context.connectRef.current = page.connectWebSocket;
@@ -478,6 +484,29 @@ test("should let Start be pressed again after a Stop during a reconnect", () => 
 
     const openSockets = page.openSockets();
     assert.equal(openSockets, 1);
+});
+
+test("should stop reconnecting after the last attempt", () => {
+    const page = loadPage();
+    page.startPlayback();
+    page.runTimers();
+    const first = page.sockets[0];
+    first.opened();
+    for (let attempt = 0; attempt <= MAXIMUM_RECONNECT_ATTEMPTS; attempt++) {
+        const socket = page.sockets.at(-1);
+        socket.closed();
+        page.runTimers();
+    }
+
+    const socketCount = page.sockets.length;
+    assert.equal(socketCount, MAXIMUM_RECONNECT_ATTEMPTS + 1, "the first socket and one for each attempt, no more");
+
+    const status = page.state.status;
+    assert.equal(status, GIVE_UP_STATUS);
+    const loading = page.state.loading;
+    assert.equal(loading, false);
+    const connected = page.state.connected;
+    assert.equal(connected, false);
 });
 
 for (const permission of [PERMISSION_REFUSED, PERMISSION_IGNORED]) {
