@@ -836,7 +836,7 @@ public final class MatImageBuffer implements ImageBuffer {
    * @param data   the pixels, exactly {@code width * height * 3} bytes remaining
    * @param width  the new width in pixels
    * @param height the new height in pixels
-   * @throws IllegalArgumentException if dimensions are nonpositive, the packed BGR size exceeds
+   * @throws IllegalArgumentException if a dimension is not positive, the packed BGR size exceeds
    *                                  {@link Integer#MAX_VALUE}, or the input count differs from the dimensions
    * @throws IllegalStateException    if the image was released
    * @throws NullPointerException     if {@code data} is null
@@ -868,7 +868,7 @@ public final class MatImageBuffer implements ImageBuffer {
    * @param pixels the pixels, exactly {@code width * height} integers laid out row by row
    * @param width  the new width in pixels
    * @param height the new height in pixels
-   * @throws IllegalArgumentException if dimensions are nonpositive, the packed BGR size exceeds
+   * @throws IllegalArgumentException if a dimension is not positive, the packed BGR size exceeds
    *                                  {@link Integer#MAX_VALUE}, or the input count differs from the dimensions
    * @throws IllegalStateException    if the image was released
    * @throws NullPointerException     if {@code pixels} is null

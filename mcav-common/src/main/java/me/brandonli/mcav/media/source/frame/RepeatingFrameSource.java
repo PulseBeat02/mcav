@@ -40,7 +40,7 @@ public interface RepeatingFrameSource extends FrameSource {
    * @param animation   the decoded animation, which must stay open while the source is played
    * @param repeatCount how often the animation is played, at least 1; {@link Integer#MAX_VALUE} means forever
    * @return the source
-   * @throws IllegalArgumentException if {@code repeatCount} is nonpositive or the animation has no frames
+   * @throws IllegalArgumentException if {@code repeatCount} is not positive or the animation has no frames
    * @throws IllegalStateException    if the first animation frame has been released
    * @throws NullPointerException     if {@code animation} is null
    * @since 1.0.0

@@ -54,7 +54,7 @@ public class SourceDetectionHelper {
   private final Collection<SourceDetector<? extends Source>> detectors;
 
   /**
-   * Constructs a helper with custom detectors.
+   * Creates a helper with custom detectors.
    *
    * @param detectors the non-null detectors to consult in iteration order; the collection is copied and
    *                  must contain no null elements. Detectors themselves are shared, not copied
@@ -68,7 +68,7 @@ public class SourceDetectionHelper {
   }
 
   /**
-   * Constructs a helper with the default detectors.
+   * Creates a helper with the default detectors.
    *
    * @since 1.0.0
    */

@@ -33,14 +33,14 @@ public class DeviceSourceDetector implements SourceDetector<DeviceSource> {
   private static final String RAW_NULL_MESSAGE = "Raw must not be null!";
 
   /**
-   * Constructs a new detector.
+   * Creates a detector.
    *
    * @since 1.0.0
    */
   public DeviceSourceDetector() {}
 
   /**
-   * Checks whether the string is a non-negative integer, which names a camera index.
+   * Returns whether the string is a non-negative integer, which names a camera index.
    *
    * @param raw the string entered by a user
    * @return true if {@link #createSource(String)} can create a source from it

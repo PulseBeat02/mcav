@@ -76,7 +76,7 @@ public interface DynamicImageBuffer extends Image {
    *
    * @param source the image file
    * @return the decoded animation
-   * @throws ImageDecodingException  if the file cannot be decoded
+   * @throws ImageDecodingException   if the file cannot be decoded
    * @throws IllegalArgumentException if decoding succeeds but yields no image frames
    * @throws NullPointerException     if {@code source} is null
    * @since 1.0.0
@@ -92,8 +92,8 @@ public interface DynamicImageBuffer extends Image {
    *
    * @param source the URL of the image
    * @return the decoded animation
-   * @throws ImageDecodingException  if the downloaded file cannot be decoded
-   * @throws DownloadException       if the image cannot be downloaded, including when it is larger than
+   * @throws ImageDecodingException   if the downloaded file cannot be decoded
+   * @throws DownloadException        if the image cannot be downloaded, including when it is larger than
    *                                  {@link me.brandonli.mcav.utils.IoUtils#MAXIMUM_IMAGE_BYTES}
    * @throws FileOperationException   if the downloaded image cannot be moved into the cache folder
    * @throws IllegalArgumentException if decoding succeeds but yields no image frames

@@ -50,7 +50,7 @@ public interface SourceDetector<SourceType extends Source> {
   int LOW_PRIORITY = -100;
 
   /**
-   * Checks whether the string describes a source of this kind.
+   * Returns whether the string describes a source of this kind.
    *
    * @param raw the string entered by a user
    * @return true if {@link #createSource(String)} can create a source from it

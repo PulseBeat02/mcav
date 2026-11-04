@@ -34,14 +34,14 @@ public class FileSourceDetector implements SourceDetector<FileSource> {
   private static final String RAW_NULL_MESSAGE = "Raw must not be null!";
 
   /**
-   * Constructs a new detector.
+   * Creates a detector.
    *
    * @since 1.0.0
    */
   public FileSourceDetector() {}
 
   /**
-   * Checks whether the string is a path that exists on disk.
+   * Returns whether the string is a path that exists on disk.
    *
    * @param raw the string entered by a user
    * @return true if {@link #createSource(String)} can create a source from it

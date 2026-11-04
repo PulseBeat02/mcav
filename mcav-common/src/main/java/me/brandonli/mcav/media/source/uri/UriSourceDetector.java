@@ -34,14 +34,14 @@ public class UriSourceDetector implements SourceDetector<UriSource> {
   private static final String RAW_NULL_MESSAGE = "Raw must not be null!";
 
   /**
-   * Constructs a new detector.
+   * Creates a detector.
    *
    * @since 1.0.0
    */
   public UriSourceDetector() {}
 
   /**
-   * Checks whether the string parses as a URI with a scheme and a host.
+   * Returns whether the string parses as a URI with a scheme and a host.
    *
    * @param raw the string entered by a user
    * @return true if {@link #createSource(String)} can create a source from it

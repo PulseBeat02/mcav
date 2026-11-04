@@ -50,7 +50,7 @@ public interface Source {
   String getName();
 
   /**
-   * Checks whether the source is classified as static, as opposed to a URI, device or generated frames.
+   * Returns whether the source is classified as static, as opposed to a URI, device or generated frames.
    * This does not probe its actual duration or whether the selected decoder supports seeking.
    *
    * @return true for files and similar finite media
@@ -59,7 +59,7 @@ public interface Source {
   boolean isStatic();
 
   /**
-   * Checks whether the source is a live or endless stream, the opposite of {@link #isStatic()}.
+   * Returns whether the source is a live or endless stream, the opposite of {@link #isStatic()}.
    *
    * @return true for streams, devices, and generated frames
    * @since 1.0.0

@@ -82,7 +82,7 @@ public interface ImageBuffer extends Image {
    * @param width  the width in pixels
    * @param height the height in pixels
    * @return the image buffer
-   * @throws IllegalArgumentException if dimensions are nonpositive, the packed BGR size exceeds
+   * @throws IllegalArgumentException if a dimension is not positive, the packed BGR size exceeds
    *                                  {@link Integer#MAX_VALUE}, or the byte count differs from that size
    * @throws NullPointerException     if {@code data} is null
    * @since 1.0.0
@@ -102,7 +102,7 @@ public interface ImageBuffer extends Image {
    * @param width  the width in pixels
    * @param height the height in pixels
    * @return the image buffer
-   * @throws IllegalArgumentException if dimensions are nonpositive, the packed BGR size exceeds
+   * @throws IllegalArgumentException if a dimension is not positive, the packed BGR size exceeds
    *                                  {@link Integer#MAX_VALUE}, or the byte count differs from that size
    * @throws NullPointerException     if {@code data} is null
    * @since 1.0.0
@@ -151,7 +151,7 @@ public interface ImageBuffer extends Image {
    *
    * @param source the URL of the image
    * @return the image buffer
-   * @throws DownloadException       if the image cannot be downloaded, including when it is larger than
+   * @throws DownloadException        if the image cannot be downloaded, including when it is larger than
    *                                  {@link me.brandonli.mcav.utils.IoUtils#MAXIMUM_IMAGE_BYTES}
    * @throws FileOperationException   if the downloaded image cannot be moved into the cache folder
    * @throws IllegalArgumentException if the file is not a supported image format, or its header declares more
@@ -190,7 +190,7 @@ public interface ImageBuffer extends Image {
    * @param width  the width in pixels
    * @param height the height in pixels
    * @return the image buffer
-   * @throws IllegalArgumentException if dimensions are nonpositive, the packed BGR size exceeds
+   * @throws IllegalArgumentException if a dimension is not positive, the packed BGR size exceeds
    *                                  {@link Integer#MAX_VALUE}, or the pixel count differs from the dimensions
    * @throws NullPointerException     if {@code data} is null
    * @since 1.0.0
@@ -365,7 +365,7 @@ public interface ImageBuffer extends Image {
    * @param width  the new width in pixels
    * @param height the new height in pixels
    * @throws NullPointerException     if {@code data} is null
-   * @throws IllegalArgumentException if dimensions are nonpositive, the packed BGR size exceeds
+   * @throws IllegalArgumentException if a dimension is not positive, the packed BGR size exceeds
    *                                  {@link Integer#MAX_VALUE}, or the input count differs from the dimensions
    * @throws IllegalStateException    if the image was released
    * @since 1.0.0
@@ -381,7 +381,7 @@ public interface ImageBuffer extends Image {
    * @param width  the new width in pixels
    * @param height the new height in pixels
    * @throws NullPointerException     if {@code pixels} is null
-   * @throws IllegalArgumentException if dimensions are nonpositive, the packed BGR size exceeds
+   * @throws IllegalArgumentException if a dimension is not positive, the packed BGR size exceeds
    *                                  {@link Integer#MAX_VALUE}, or the input count differs from the dimensions
    * @throws IllegalStateException    if the image was released
    * @since 1.0.0

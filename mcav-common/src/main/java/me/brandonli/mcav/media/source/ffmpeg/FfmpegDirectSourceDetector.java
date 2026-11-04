@@ -36,14 +36,14 @@ public class FfmpegDirectSourceDetector implements SourceDetector<FfmpegDirectSo
   private static final int PARTS = 2;
 
   /**
-   * Constructs a new detector.
+   * Creates a detector.
    *
    * @since 1.0.0
    */
   public FfmpegDirectSourceDetector() {}
 
   /**
-   * Checks whether the string has the form {@code format||input} with both parts non-blank.
+   * Returns whether the string has the form {@code format||input} with both parts non-blank.
    *
    * @param raw the string entered by a user
    * @return true if {@link #createSource(String)} can create a source from it

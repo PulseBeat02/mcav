@@ -53,8 +53,8 @@ public final class DefaultUriSource implements UriSource {
   }
 
   /**
-   * Checks whether the URL points directly at a media file, judged by its file extension when this source was created, rather than at a web
-   * page that has to be resolved first.
+   * Returns whether the URL points directly at a media file, judged by its file extension when this source was created, rather than at
+   * a web page that has to be resolved first.
    *
    * @return true if the URL looks like a direct media link
    * @since 1.0.0
