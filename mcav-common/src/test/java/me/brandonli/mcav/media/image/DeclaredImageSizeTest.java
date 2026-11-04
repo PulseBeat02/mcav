@@ -88,7 +88,9 @@ final class DeclaredImageSizeTest {
 
   private static final String NOT_AN_IMAGE = "not an image";
 
-  private static final String SIZE_SEPARATOR = "x";
+  private static final String UNSUPPORTED_FILE_MESSAGE = "File %s is not a supported image!";
+
+  private static final String SIZE_TEMPLATE = "%sx%s";
   private static final String DECLARED_LARGE_SIZE = "30000x20000";
 
   private static final int FILL_BLUE = 10;
@@ -136,7 +138,7 @@ final class DeclaredImageSizeTest {
   }
 
   private static String sizeOf(final @Nullable Size size) {
-    return size == null ? "none" : size.width() + SIZE_SEPARATOR + size.height();
+    return size == null ? "none" : SIZE_TEMPLATE.formatted(size.width(), size.height());
   }
 
   private static byte[] tiff(final ByteOrder order, final TiffLayout layout) {
@@ -283,7 +285,7 @@ final class DeclaredImageSizeTest {
       assertTrue(written, extension);
       final byte[] encoded = new byte[(int) output.limit()];
       output.get(encoded);
-      assertDeclaresWhatOpenCvDecodes(extension + " " + width + SIZE_SEPARATOR + height, encoded);
+      assertDeclaresWhatOpenCvDecodes("%s %sx%s".formatted(extension, width, height), encoded);
     }
   }
 
@@ -651,7 +653,7 @@ final class DeclaredImageSizeTest {
   void shouldReadTheSizeTheHeaderDeclares(final String name, final byte[] encoded, final long width, final long height) {
     final Size size = read(encoded);
     final String declaredSize = sizeOf(size);
-    final String expected = width + SIZE_SEPARATOR + height;
+    final String expected = SIZE_TEMPLATE.formatted(width, height);
     assertEquals(expected, declaredSize, name);
   }
 
@@ -902,7 +904,7 @@ final class DeclaredImageSizeTest {
     Files.writeString(text, NOT_AN_IMAGE);
     final IllegalArgumentException unsupported = assertThrows(IllegalArgumentException.class, () -> DeclaredImageSize.checkFile(text, 256));
     final String unsupportedMessage = unsupported.getMessage();
-    final String expectedUnsupportedMessage = "File " + text + " is not a supported image!";
+    final String expectedUnsupportedMessage = UNSUPPORTED_FILE_MESSAGE.formatted(text);
     assertEquals(expectedUnsupportedMessage, unsupportedMessage);
 
     final Path empty = this.directory.resolve(EMPTY_FILE_NAME);
@@ -912,7 +914,7 @@ final class DeclaredImageSizeTest {
     final Path missing = this.directory.resolve(MISSING_FILE_NAME);
     final IllegalArgumentException absent = assertThrows(IllegalArgumentException.class, () -> DeclaredImageSize.checkFile(missing, 256));
     final String absentMessage = absent.getMessage();
-    final String expectedAbsentMessage = "File " + missing + " is not a supported image!";
+    final String expectedAbsentMessage = UNSUPPORTED_FILE_MESSAGE.formatted(missing);
     assertEquals(expectedAbsentMessage, absentMessage);
 
     final Throwable absentCause = absent.getCause();

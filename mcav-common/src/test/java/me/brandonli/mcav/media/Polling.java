@@ -55,6 +55,6 @@ public final class Polling {
   public static void awaitCondition(final String description, final Duration timeout, final BooleanSupplier condition)
     throws InterruptedException {
     final boolean held = pollUntil(timeout, condition);
-    assertTrue(held, "timed out waiting until " + description);
+    assertTrue(held, "timed out waiting until %s".formatted(description));
   }
 }

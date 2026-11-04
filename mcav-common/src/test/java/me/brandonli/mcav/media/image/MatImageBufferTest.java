@@ -87,6 +87,10 @@ final class MatImageBufferTest {
 
   private static final String USER_HOME_PROPERTY = "user.home";
 
+  private static final String UNSUPPORTED_FILE_MESSAGE = "File %s is not a supported image!";
+
+  private static final String TYPE_MESSAGE = "type %s";
+
   private static final int SMALL_IMAGE_SIZE = 2;
 
   private static final int BLACK = 0xFF000000;
@@ -344,7 +348,7 @@ final class MatImageBufferTest {
     final FileSource path = FileSource.path(file);
     final IllegalArgumentException fromFile = assertThrowsWhileOpening(IllegalArgumentException.class, () -> ImageBuffer.path(path));
     final String fileMessage = fromFile.getMessage();
-    final String expected = "File " + file + " is not a supported image!";
+    final String expected = UNSUPPORTED_FILE_MESSAGE.formatted(file);
     assertEquals(expected, fileMessage);
   }
 
@@ -360,7 +364,7 @@ final class MatImageBufferTest {
     final FileSource path = FileSource.path(file);
     final IllegalArgumentException fromFile = assertThrowsWhileOpening(IllegalArgumentException.class, () -> ImageBuffer.path(path));
     final String fileMessage = fromFile.getMessage();
-    final String expected = "File " + file + " is not a supported image!";
+    final String expected = UNSUPPORTED_FILE_MESSAGE.formatted(file);
     assertEquals(expected, fileMessage);
   }
 
@@ -629,8 +633,8 @@ final class MatImageBufferTest {
       try (final ImageBuffer image = ImageBuffer.image(source)) {
         final int white = argbAt(image, 2, 1);
         final int black = argbAt(image, 0, 0);
-        assertEquals(WHITE, white, "type " + type);
-        assertEquals(BLACK, black, "type " + type);
+        assertEquals(WHITE, white, TYPE_MESSAGE.formatted(type));
+        assertEquals(BLACK, black, TYPE_MESSAGE.formatted(type));
       }
     }
 
@@ -815,9 +819,9 @@ final class MatImageBufferTest {
         final int shiftedXPixel = argbAt(fromShiftedX, 0, 1);
         final int shiftedYPixel = argbAt(fromShiftedY, 1, 0);
         final int narrowerPixel = argbAt(fromNarrower, 1, 0);
-        assertEquals(RED, shiftedXPixel, "type " + type);
-        assertEquals(RED, shiftedYPixel, "type " + type);
-        assertEquals(BLUE, narrowerPixel, "type " + type);
+        assertEquals(RED, shiftedXPixel, TYPE_MESSAGE.formatted(type));
+        assertEquals(RED, shiftedYPixel, TYPE_MESSAGE.formatted(type));
+        assertEquals(BLUE, narrowerPixel, TYPE_MESSAGE.formatted(type));
       }
     }
   }
