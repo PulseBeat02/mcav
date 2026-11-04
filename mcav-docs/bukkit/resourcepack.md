@@ -41,12 +41,15 @@ Players download resource packs from a URL. `PackHosting` offers three ways to p
 | `PackHosting.injector(zip)`                | Served on the port of the Minecraft server itself, so no extra port is needed.                              |
 
 ```java
+  private static final Logger LOGGER = LoggerFactory.getLogger(MyPlugin.class);
+
   public PackHosting hostAudioPack(final Path zip) {
     final PackHosting hosting = PackHosting.website(zip);
     hosting.start();
 
     final String url = hosting.getRawUrl();
     LOGGER.info("The resource pack is hosted at {}.", url);
+
     return hosting;
   }
 ```

@@ -66,7 +66,6 @@ environment variables, so that no secret ends up in the source:
   multiplexer.release();
   audioManager.closeAudioConnection();
   jda.shutdown();
-  api.release();
 ```
 
 ## Activity

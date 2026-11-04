@@ -8,21 +8,21 @@ every command is on the [commands](commands.md) page.
 | Display | Command | What the players see | MCV2 |
 |---|---|---|---|
 | A wall of maps | `/mcav video map`, `/mcav image map` | The picture on item frames of maps, built with `/mcav screen` | yes, with `--codec mcv2` |
-| Blocks | `video block`, `image block` | Coloured blocks in the world | no |
-| Text display entities | `video entity`, `image entity` | Coloured characters on an entity | no |
-| The scoreboard | `video scoreboard`, `image scoreboard` | Coloured characters in the sidebar | no |
-| Chat | `video chat`, `image chat` | Coloured characters in chat | no |
+| Blocks | `video block`, `image block` | Colored blocks in the world | no |
+| Text display entities | `video entity`, `image entity` | Colored characters on an entity | no |
+| The scoreboard | `video scoreboard`, `image scoreboard` | Colored characters in the sidebar | no |
+| Chat | `video chat`, `image chat` | Colored characters in chat | no |
 
 `/mcav video hologram set <location>` adds a floating hologram with the title, uploader and a progress bar of every
 video started afterwards; `/mcav video hologram disable` turns it off again.
 
 A wall of maps shows 128x128 pixels per map, dithered to the map palette, or, with MCV2, a video of the resolution
-you choose decoded by a resource pack ([MCV2 on Maps](../bukkit/mcv2.md)). The other displays are not dithered; the
+you choose decoded by a resource pack ([MCV2 on Maps](../bukkit/mcv2.md)). MCAV does not dither the other displays; the
 block, entity and scoreboard displays update at most 20 times a second, once per server tick, and the chat display
 sends every frame as a new message as it arrives.
 
 Dithering. `FILTER_LITE` is the recommended default, `NEAREST_COLOR` keeps text and desktops sharp, and
-`FLOYD_STEINBERG_TEMPORAL` keeps unchanged areas identical from frame to frame, so less of the wall has to be sent. A
+`FLOYD_STEINBERG_TEMPORAL` keeps unchanged areas identical from frame to frame, so the wall sends less. A
 wall of maps sends only the parts of each map that changed, at most 128 KiB per frame and viewer; a big picture that
 changes everywhere, such as 1080p video, needs far more than that, so the wall shows each change a few frames late
 ([why MCV2 exists](../mcv2.md#part-4-why-minecraft-maps-need-their-own-codec)).
@@ -36,14 +36,15 @@ changes everywhere, such as 1080p video, needs far more than that, so the wall s
 | `DEVICE` | A camera or capture card of the server, by the number `/mcav video devices` lists | no | no |
 
 The `mrl` is an absolute file path, a URL, a device number for `DEVICE`, or a raw FFmpeg input written as
-`format||input`, such as `dshow||video=OBS Virtual Camera` on Windows. A web page, such as a YouTube video, is resolved
-with yt-dlp first; the `ytdlpOptions` argument passes the options that choose which stream of a page is played, and
+`format||input`, such as `dshow||video=OBS Virtual Camera` on Windows. MCAV resolves a web page, such as a YouTube
+video,
+with yt-dlp first; the `ytdlpOptions` argument passes the options that choose which stream of a page plays, and
 `""` passes none ([accepted options](commands.md#yt-dlp-options)). Put a path with spaces in double quotes.
 
 ```{warning}
 A camera, a capture card or a raw FFmpeg input reaches the server's own devices: its cameras, its microphones and its
 screen. The `DEVICE` player and raw inputs need the permission `mcav.command.video.device`, which only operators have
-until it is granted.
+until you grant it.
 ```
 
 ## Sound
@@ -56,7 +57,7 @@ until it is granted.
 | `SIMPLE_VOICE_CHAT` | Voice chat, played from the position of each viewer and heard within 32 blocks of them | `simple-voice-chat`, and the Simple Voice Chat plugin |
 
 One source plays through the audio outputs at a time: a video, a browser or a virtual machine that starts takes them
-over from the one that played before, and gives them back to it when it is released, if that one still plays.
+over from the one that played before, and gives them back to it when you release it, if that one still plays.
 
 ## Controlling a video
 
@@ -71,8 +72,8 @@ over from the one that played before, and gives them back to it when it is relea
 ## Filters
 
 Every video and image command takes `--filters "<chain>"`: filters applied to every frame, in the order written, before
-the picture is dithered or encoded, such as `--filters "grayscale,blur=3,text=Live"`. A chain has at most 8 filters and
-256 characters, and every argument is bounded, so a filter's work is bounded by the command's resolution. The
+MCAV dithers or encodes the picture, such as `--filters "grayscale,blur=3,text=Live"`. A chain has at most 8 filters and
+256 characters, and the plugin bounds every argument, so the command's resolution bounds a filter's work. The
 [filter table](commands.md#filters) lists all 17 and their arguments. An `overlay=<name>` draws a PNG of the plugin's
 `plugins/MCAV/overlays` folder, which only the server owner fills; a player names it, never a path or a URL.
 
