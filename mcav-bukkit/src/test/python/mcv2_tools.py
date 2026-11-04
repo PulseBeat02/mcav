@@ -213,7 +213,7 @@ WIDTH_OPTION: str = "--width"
 HEIGHT_OPTION: str = "--height"
 FRAMES_OPTION: str = "--frames"
 FRAMES_PER_SECOND_OPTION: str = "--fps"
-OUT_OPTION: str = "--out"
+OUTPUT_OPTION: str = "--out"
 SLOTS_OPTION: str = "--slots"
 BACKEND_OPTION: str = "--backend"
 PACK_OPTION: str = "--pack"
@@ -902,7 +902,7 @@ def codec_curves_main() -> None:
         "--codecs", nargs="+", choices=sorted(CODEC_CURVES_CODECS), default=sorted(CODEC_CURVES_CODECS)
     )
     parser.add_argument("--qualities", nargs="+", type=int, required=True, help="the CRF values to encode at")
-    parser.add_argument(OUT_OPTION, required=True)
+    parser.add_argument(OUTPUT_OPTION, required=True)
     arguments: argparse.Namespace = parser.parse_args()
     identity: dict[str, Any] = {
         "width": arguments.width,
@@ -940,14 +940,14 @@ def codec_curves_sha256(path: Any) -> str:
     return digest.hexdigest()
 
 
-def codec_curves_resume(out: str, name: str, identity: dict[str, Any] | dict[Any, Any]) -> Any | dict[Any, Any]:
+def codec_curves_resume(output: str, name: str, identity: dict[str, Any] | dict[Any, Any]) -> Any | dict[Any, Any]:
     measured: Any | dict[Any, Any] = {SOURCES_KEY: {}, CODECS_KEY: []}
-    if os.path.exists(out):
-        measured = json.loads(Path(out).read_text())
+    if os.path.exists(output):
+        measured = json.loads(Path(output).read_text())
 
     if LEGACY_CODECS_KEY in measured:
         if CODECS_KEY in measured:
-            message: str = f"Dataset {out} holds both points and codecs; resolve the two datasets first!"
+            message: str = f"Dataset {output} holds both points and codecs; resolve the two datasets first!"
             raise ValueError(message)
         measured[CODECS_KEY] = measured.pop(LEGACY_CODECS_KEY)
     previous: Any = measured[SOURCES_KEY].get(name)
@@ -1137,9 +1137,9 @@ def codec_curves_placeholders(command: list[Any], replacements: dict[Any, str]) 
 
 def codec_curves_save(path: Any, measured: Any) -> None:
     temporary: Any = f"{path}{PARTIAL_SUFFIX}"
-    with open(temporary, "w") as out:
-        json.dump(measured, out, indent=JSON_INDENT)
-        out.write(LINE_SEPARATOR)
+    with open(temporary, "w") as output_file:
+        json.dump(measured, output_file, indent=JSON_INDENT)
+        output_file.write(LINE_SEPARATOR)
 
     os.replace(temporary, path)
 
@@ -1891,7 +1891,7 @@ def differential_main() -> None:
     parser.add_argument("--corpus", type=Path, default=DIFFERENTIAL_DEFAULT_CORPUS)
     parser.add_argument("--mutants", type=int, default=DIFFERENTIAL_DEFAULT_MUTANTS, help="mutated copies of every archive")
     parser.add_argument("--seed", type=int, default=DIFFERENTIAL_DEFAULT_SEED)
-    parser.add_argument(OUT_OPTION, type=Path, default=Path(DIFFERENTIAL_OUTPUT_PATH))
+    parser.add_argument(OUTPUT_OPTION, type=Path, default=Path(DIFFERENTIAL_OUTPUT_PATH))
     parser.add_argument(JAVA_OPTION, default=JAVA_COMMAND)
     arguments: argparse.Namespace = parser.parse_args()
     if (
@@ -2057,7 +2057,7 @@ def rate_quality_main() -> None:
     parser.add_argument("--lambdas", required=True)
     parser.add_argument(FFMPEG_OPTION, required=True)
     parser.add_argument(JAVA_OPTION, default=JAVA_COMMAND)
-    parser.add_argument(OUT_OPTION, required=True)
+    parser.add_argument(OUTPUT_OPTION, required=True)
     parser.add_argument("encoder", nargs="*")
     arguments: argparse.Namespace = parser.parse_args()
     points: list[Any] = []
@@ -2096,9 +2096,9 @@ def rate_quality_main() -> None:
             )
             points.append(point)
             print(json.dumps(point), file=sys.stderr)
-    with open(arguments.out, "w") as out:
-        json.dump(points, out, indent=JSON_INDENT)
-        out.write(LINE_SEPARATOR)
+    with open(arguments.out, "w") as output_file:
+        json.dump(points, output_file, indent=JSON_INDENT)
+        output_file.write(LINE_SEPARATOR)
 
 
 def rate_quality_vmaf(ffmpeg: Any, source: Any, decoded: str, width: Any, height: Any, frames: Any, frame_rate: Any) -> tuple[Any, Any]:
@@ -2820,12 +2820,12 @@ class ShaderTimingRounds:
 
 
 def shader_timing_summarize(samples: list[dict[str, float]], names: tuple[str, ...]) -> dict[str, dict[str, float | int]]:
-    out: dict[str, dict[str, float]] = {}
+    summary: dict[str, dict[str, float]] = {}
     for name in names + (TOTAL_TIMING_NAME,):
         values: numpy.ndarray = numpy.array([sample[name] for sample in samples]) if samples else numpy.zeros(1)
-        out[name] = dict(mean=float(values.mean()), p95=float(numpy.percentile(values, TAIL_PERCENTILE)), count=len(samples))
+        summary[name] = dict(mean=float(values.mean()), p95=float(numpy.percentile(values, TAIL_PERCENTILE)), count=len(samples))
 
-    return out
+    return summary
 
 
 def shader_timing_print(
@@ -3660,7 +3660,7 @@ def samples_main() -> None:
     tree.add_argument(ARCHIVE_ARGUMENT)
     tree.add_argument(FRAMES_OPTION, required=True)
     tree.add_argument(CROP_OPTION, required=True)
-    tree.add_argument(OUT_OPTION, default=TREE_FIGURE_NAME)
+    tree.add_argument(OUTPUT_OPTION, default=TREE_FIGURE_NAME)
     leaves: argparse.ArgumentParser = commands.add_parser(LEAVES_COMMAND)
     leaves.add_argument(ARCHIVE_ARGUMENT)
     leaves.add_argument("source")
