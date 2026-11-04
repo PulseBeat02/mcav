@@ -140,7 +140,7 @@ final class PlaybackSessionStopStressTest {
       session.stop();
       final long queuedPictures = session.getQueuedPictureCount();
       final int number = stop;
-      assertEquals(0L, queuedPictures, () -> "stop " + number + " left a picture in the queue, where nobody releases it");
+      assertEquals(0L, queuedPictures, () -> "stop %s left a picture in the queue, where nobody releases it".formatted(number));
     }
   }
 
@@ -316,7 +316,7 @@ final class PlaybackSessionStopStressTest {
         }
         case AS_THE_MEDIA_ENDS -> {
           Polling.awaitCondition(
-            this.description + ", the decoder read the whole script",
+            "%s, the decoder read the whole script".formatted(this.description),
             TIMEOUT,
             () -> this.videoGrabber.getRemainingSteps() == 0
           );
@@ -341,7 +341,7 @@ final class PlaybackSessionStopStressTest {
     // frames were due before the pipeline could show them all.
     private void awaitFramesOrEnd() throws InterruptedException {
       Polling.awaitCondition(
-        this.description + ", the frames were shown or the media ended",
+        "%s, the frames were shown or the media ended".formatted(this.description),
         TIMEOUT,
         () -> this.frames.get() >= this.stopAfterFrames || !this.session.isActive()
       );
@@ -358,8 +358,8 @@ final class PlaybackSessionStopStressTest {
       final List<Throwable> failures = Collections.synchronizedList(new ArrayList<>());
       final List<Thread> stoppers = new ArrayList<>();
       for (int index = 0; index < 2; index++) {
-        final String caller = this.description + ", stopping thread " + index;
-        final Thread stopper = new Thread(() -> this.stopAfter(gate, caller, failures), "stress-stop-" + index);
+        final String caller = "%s, stopping thread %s".formatted(this.description, index);
+        final Thread stopper = new Thread(() -> this.stopAfter(gate, caller, failures), "stress-stop-%s".formatted(index));
         stoppers.add(stopper);
         stopper.start();
       }
@@ -368,7 +368,7 @@ final class PlaybackSessionStopStressTest {
       for (final Thread stopper : stoppers) {
         stopper.join(TIMEOUT_MILLISECONDS);
         final boolean alive = stopper.isAlive();
-        assertFalse(alive, () -> this.description + ", a stopping thread hangs");
+        assertFalse(alive, () -> "%s, a stopping thread hangs".formatted(this.description));
       }
 
       assertEquals(List.of(), failures, this.description);
@@ -389,7 +389,7 @@ final class PlaybackSessionStopStressTest {
       while (this.session.isActive()) {
         final long now = System.nanoTime();
         final boolean beforeDeadline = now - deadline < 0;
-        assertTrue(beforeDeadline, () -> this.description + ", the session never stopped itself or ended");
+        assertTrue(beforeDeadline, () -> "%s, the session never stopped itself or ended".formatted(this.description));
         Thread.onSpinWait();
       }
 
@@ -399,7 +399,7 @@ final class PlaybackSessionStopStressTest {
 
     private void awaitOwnStop() throws InterruptedException {
       final boolean returned = this.ownStopReturned.await(TIMEOUT_MILLISECONDS, TimeUnit.MILLISECONDS);
-      assertTrue(returned, () -> this.description + ", the filter did not return from stopping its own session");
+      assertTrue(returned, () -> "%s, the filter did not return from stopping its own session".formatted(this.description));
 
       final Thread renderer = this.videoRenderer.get();
       if (renderer != null) {
@@ -415,9 +415,9 @@ final class PlaybackSessionStopStressTest {
       final boolean videoClosed = this.videoGrabber.isClosed();
       final ScriptedFrameGrabber audio = this.audioGrabber;
       final boolean audioClosed = audio == null || !this.audioOpened.get() || audio.isClosed();
-      assertEquals(Set.of(), alive, () -> caller + ": threads of the session still run after the stop returned");
-      assertTrue(videoClosed, () -> caller + ": the video grabber is still open after the stop returned");
-      assertTrue(audioClosed, () -> caller + ": the audio grabber is still open after the stop returned");
+      assertEquals(Set.of(), alive, () -> "%s: threads of the session still run after the stop returned".formatted(caller));
+      assertTrue(videoClosed, () -> "%s: the video grabber is still open after the stop returned".formatted(caller));
+      assertTrue(audioClosed, () -> "%s: the audio grabber is still open after the stop returned".formatted(caller));
     }
 
     private void assertEnded() {
@@ -427,12 +427,12 @@ final class PlaybackSessionStopStressTest {
       }
 
       for (final ImageBuffer picture : seen) {
-        assertThrows(IllegalStateException.class, picture::getWidth, () -> this.description + ": a picture was not released");
+        assertThrows(IllegalStateException.class, picture::getWidth, () -> "%s: a picture was not released".formatted(this.description));
       }
 
       final long queuedPictures = this.session.getQueuedPictureCount();
       final boolean active = this.session.isActive();
-      assertEquals(0L, queuedPictures, () -> this.description + ": pictures were left in the queue, where nobody releases them");
+      assertEquals(0L, queuedPictures, () -> "%s: pictures were left in the queue, where nobody releases them".formatted(this.description));
       assertFalse(active, this.description);
       assertEquals(List.of(), this.reports, this.description);
     }

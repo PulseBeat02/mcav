@@ -155,7 +155,7 @@ final class VideoRendererTest {
 
   private static void reportFailure(final List<String> reported, final String message, final Throwable error) {
     final String reason = error.getMessage();
-    reported.add(message + ": " + reason);
+    reported.add("%s: %s".formatted(message, reason));
   }
 
   @Test
@@ -213,7 +213,7 @@ final class VideoRendererTest {
     assertArrayEquals(expected, rgb);
     assertEquals(3, metadataWidth);
     assertEquals(2, metadataHeight);
-    assertTrue(noErrors, "errors: " + this.errors);
+    assertTrue(noErrors, "errors: %s".formatted(this.errors));
   }
 
   @Test
@@ -693,13 +693,13 @@ final class VideoRendererTest {
   private static void awaitSize(final List<Integer> list, final int expected) throws InterruptedException {
     final boolean reached = Polling.pollUntil(TIMEOUT, () -> list.size() >= expected);
     final int size = list.size();
-    assertTrue(reached, "expected " + expected + " frames but got " + size);
+    assertTrue(reached, "expected %s frames but got %s".formatted(expected, size));
   }
 
   private static void awaitCount(final AtomicInteger counter, final int expected) throws InterruptedException {
     final boolean reached = Polling.pollUntil(TIMEOUT, () -> counter.get() >= expected);
     final int count = counter.get();
-    assertTrue(reached, "expected " + expected + " calls but got " + count);
+    assertTrue(reached, "expected %s calls but got %s".formatted(expected, count));
   }
 
   // Blocks a filter until the test lets it proceed. A filter that is never released fails, which the render thread

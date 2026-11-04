@@ -153,7 +153,7 @@ final class AudioRendererTest {
 
   private static void reportFailure(final List<String> reported, final String message, final Throwable error) {
     final String reason = error.getMessage();
-    reported.add(message + ": " + reason);
+    reported.add("%s: %s".formatted(message, reason));
   }
 
   private static Memory samples(final short... values) {
@@ -460,7 +460,7 @@ final class AudioRendererTest {
   private static void awaitSize(final List<?> list, final int size) throws InterruptedException {
     final boolean reached = Polling.pollUntil(TIMEOUT, () -> list.size() >= size);
     final int actual = list.size();
-    assertTrue(reached, "expected " + size + " chunks but got " + actual);
+    assertTrue(reached, "expected %s chunks but got %s".formatted(size, actual));
   }
 
   // Blocks a filter until the test lets it proceed. A filter that is never released fails, which the render thread

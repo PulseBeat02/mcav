@@ -35,7 +35,9 @@ final class LateFrameCounterTest {
   private static final long STRETCH_MICROSECONDS = 10 * SECOND_MICROSECONDS;
 
   private final List<String> reports = new ArrayList<>();
-  private final LateFrameCounter counter = new LateFrameCounter((dropped, frames) -> this.reports.add(dropped + " of " + frames));
+  private final LateFrameCounter counter = new LateFrameCounter((dropped, frames) ->
+    this.reports.add("%s of %s".formatted(dropped, frames))
+  );
 
   private void everySecond(final int firstSecond, final int lastSecond, final LongConsumer count) {
     for (int second = firstSecond; second <= lastSecond; second++) {

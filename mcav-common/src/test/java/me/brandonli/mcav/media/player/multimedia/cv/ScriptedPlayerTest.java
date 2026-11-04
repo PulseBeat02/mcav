@@ -418,7 +418,7 @@ final class ScriptedPlayerTest {
       assertTrue(faster);
       assertTrue(seeked);
       assertEquals(2, afterSeek, "a seek keeps the speed");
-      assertTrue(allFaster, "and the new session plays at it: " + chunks);
+      assertTrue(allFaster, "and the new session plays at it: %s".formatted(chunks));
       assertEquals(1, newMedia, "new media plays at normal speed");
       assertThrows(IllegalArgumentException.class, () -> player.setSpeed(AbstractVideoPlayerCv.MINIMUM_SPEED - 0.01));
       assertThrows(IllegalArgumentException.class, () -> player.setSpeed(AbstractVideoPlayerCv.MAXIMUM_SPEED + 0.01));
@@ -556,7 +556,7 @@ final class ScriptedPlayerTest {
       assertTrue(anyRecorded);
 
       for (final String thread : executorThreads) {
-        assertEquals(EXECUTOR_THREAD, thread, "every call ran on the given executor: " + executorThreads);
+        assertEquals(EXECUTOR_THREAD, thread, "every call ran on the given executor: %s".formatted(executorThreads));
       }
 
       assertTrue(released);
@@ -597,7 +597,7 @@ final class ScriptedPlayerTest {
 
       for (final String thread : commonPoolThreads) {
         final boolean onCommonPool = thread.startsWith("ForkJoinPool.commonPool");
-        assertTrue(onCommonPool, "the calls without an executor ran on the common pool: " + thread);
+        assertTrue(onCommonPool, "the calls without an executor ran on the common pool: %s".formatted(thread));
       }
     } finally {
       player.release();
@@ -689,10 +689,10 @@ final class ScriptedPlayerTest {
     assertFalse(paused);
 
     final boolean releaseWaited = releaseNanoseconds > 1_000_000_000L;
-    assertTrue(releaseWaited, "release waits for the stuck decoder, took " + releaseNanoseconds);
+    assertTrue(releaseWaited, "release waits for the stuck decoder, took %s".formatted(releaseNanoseconds));
 
     final boolean pauseWasQuick = pauseNanoseconds < 500_000_000L;
-    assertTrue(pauseWasQuick, "other calls do not wait for the release, pause took " + pauseNanoseconds);
+    assertTrue(pauseWasQuick, "other calls do not wait for the release, pause took %s".formatted(pauseNanoseconds));
 
     final boolean pausedDuringRelease = pauseEnd < releasedAt;
     assertTrue(pausedDuringRelease, "the pause ran while the release was still waiting");

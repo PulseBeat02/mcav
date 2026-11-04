@@ -101,6 +101,8 @@ final class PlaybackSessionTest {
 
   private static final String LATE_FRAME = "late frame";
 
+  private static final String LATE_REPORT_FORMAT = "%s of %s";
+
   private static final int SOUND_COUNT = 100;
 
   private static final int FRAMES_PAST_THE_FIRST_STRETCH = 320;
@@ -321,7 +323,7 @@ final class PlaybackSessionTest {
 
       for (final Thread thread : threads) {
         final boolean daemon = thread.isDaemon();
-        assertTrue(daemon, thread.getName() + " would keep the JVM alive");
+        assertTrue(daemon, "%s would keep the JVM alive".formatted(thread.getName()));
       }
     } finally {
       session.stop();
@@ -398,7 +400,7 @@ final class PlaybackSessionTest {
     assertEquals(1, frameCount, "the video grabber only delivers pictures");
     assertEquals(1, chunkCount, "the audio grabber only delivers sound");
     assertTrue(audioClosed);
-    assertTrue(noReports, "an audio-only grabber has no picture size, which must not fail: " + this.reports);
+    assertTrue(noReports, "an audio-only grabber has no picture size, which must not fail: %s".formatted(this.reports));
     assertTrue(videoClosed);
   }
 
@@ -613,11 +615,11 @@ final class PlaybackSessionTest {
     final long elapsedNanoseconds = end - start;
     final long position = session.getPositionMicroseconds();
     final boolean noReports = this.reports.isEmpty();
-    assertTrue(noReports, "the picture was never copied: " + this.reports);
+    assertTrue(noReports, "the picture was never copied: %s".formatted(this.reports));
     assertEquals(LAST_FRAME_POSITION, position, "the frames still move the position");
 
     final boolean keptTime = elapsedNanoseconds >= PACED_NANOSECONDS;
-    assertTrue(keptTime, "the frames still keep time, took " + elapsedNanoseconds);
+    assertTrue(keptTime, "the frames still keep time, took %s".formatted(elapsedNanoseconds));
   }
 
   @Test
@@ -651,7 +653,7 @@ final class PlaybackSessionTest {
     assertEquals(24, frameCount);
 
     final boolean fewImages = images <= 6;
-    assertTrue(fewImages, "at most as many images as frames can be in flight are allocated, got " + images);
+    assertTrue(fewImages, "at most as many images as frames can be in flight are allocated, got %s".formatted(images));
   }
 
   private boolean recordImage(final Map<ImageBuffer, Boolean> seen, final AtomicInteger frames, final ImageBuffer image) {
@@ -701,7 +703,7 @@ final class PlaybackSessionTest {
     assertEquals(LAST_FRAME_POSITION, position, "every frame is one period of 10 frames per second after the previous one");
 
     final boolean paced = elapsedNanoseconds >= PACED_NANOSECONDS;
-    assertTrue(paced, "the frames are paced instead of racing by, took " + elapsedNanoseconds);
+    assertTrue(paced, "the frames are paced instead of racing by, took %s".formatted(elapsedNanoseconds));
   }
 
   @Test
@@ -726,7 +728,7 @@ final class PlaybackSessionTest {
     assertEquals(5, frameCount, "every frame that arrives in real time is shown");
 
     final boolean followedArrival = position >= 160_000L;
-    assertTrue(followedArrival, "the position follows the time the frames arrived at, got " + position);
+    assertTrue(followedArrival, "the position follows the time the frames arrived at, got %s".formatted(position));
   }
 
   // Creates a session that plays one grabber from the beginning and takes its video pipeline from the given callback
@@ -972,7 +974,7 @@ final class PlaybackSessionTest {
     assertFalse(active);
 
     final boolean stoppedPromptly = stopTime < PROMPT_STOP_NANOSECONDS;
-    assertTrue(stoppedPromptly, "the blocked decoder is interrupted, took " + stopTime);
+    assertTrue(stoppedPromptly, "the blocked decoder is interrupted, took %s".formatted(stopTime));
   }
 
   private static VideoFilter stoppingItsOwnSession(
@@ -1019,7 +1021,7 @@ final class PlaybackSessionTest {
     assertTrue(closed, "the decoder finished");
 
     final boolean stoppedPromptly = stopTime < PROMPT_STOP_NANOSECONDS;
-    assertTrue(stoppedPromptly, "stopping from a filter does not wait for its own thread, took " + stopTime);
+    assertTrue(stoppedPromptly, "stopping from a filter does not wait for its own thread, took %s".formatted(stopTime));
     assertEquals(1, frameCount, "frames queued before the stop are discarded");
   }
 
@@ -1221,7 +1223,7 @@ final class PlaybackSessionTest {
     final long second = deliveries.get(1);
     final long gap = second - first;
     final boolean handedOnEarly = gap < 450_000_000L;
-    assertTrue(handedOnEarly, "the chunk is handed on ahead of its timestamp, gap " + gap);
+    assertTrue(handedOnEarly, "the chunk is handed on ahead of its timestamp, gap %s".formatted(gap));
   }
 
   private boolean recordDeliveryTime(final List<Long> deliveries) {
@@ -1517,7 +1519,7 @@ final class PlaybackSessionTest {
       PlaybackSession.AUDIO_LEAD_NANOSECONDS,
       -1L,
       System::nanoTime,
-      (dropped, frames) -> reports.add(dropped + " of " + frames)
+      (dropped, frames) -> reports.add(LATE_REPORT_FORMAT.formatted(dropped, frames))
     );
     session.setSpeed(1_000.0);
     session.start();
@@ -1552,7 +1554,7 @@ final class PlaybackSessionTest {
       PlaybackSession.AUDIO_LEAD_NANOSECONDS,
       PlaybackSession.MAXIMUM_VIDEO_LAG_NANOSECONDS,
       now::get,
-      (dropped, frames) -> reports.add(dropped + " of " + frames)
+      (dropped, frames) -> reports.add(LATE_REPORT_FORMAT.formatted(dropped, frames))
     );
     session.start();
     awaitEnd(session);

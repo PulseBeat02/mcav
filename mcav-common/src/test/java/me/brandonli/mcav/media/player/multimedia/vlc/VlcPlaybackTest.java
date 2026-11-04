@@ -434,6 +434,6 @@ final class VlcPlaybackTest {
   static void awaitNoPlaybackThreads() throws InterruptedException {
     final boolean exited = Polling.pollUntil(THREAD_EXIT_TIMEOUT, VlcPlaybackTest::noPlaybackThreadIsAlive);
     final List<String> alive = findAlivePlaybackThreads();
-    assertTrue(exited, alive + " still running after the playback stopped");
+    assertTrue(exited, "%s still running after the playback stopped".formatted(alive));
   }
 }

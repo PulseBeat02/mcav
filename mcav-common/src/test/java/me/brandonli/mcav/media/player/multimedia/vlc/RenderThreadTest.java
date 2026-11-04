@@ -254,7 +254,7 @@ final class RenderThreadTest {
     assertTrue(callerInterrupted, "the interrupt of the caller is kept");
 
     final boolean returnedQuickly = elapsedMilliseconds < 1_000L;
-    assertTrue(returnedQuickly, "an interrupted caller does not wait, took " + elapsedMilliseconds);
+    assertTrue(returnedQuickly, "an interrupted caller does not wait, took %s".formatted(elapsedMilliseconds));
     assertTrue(cleaned);
   }
 

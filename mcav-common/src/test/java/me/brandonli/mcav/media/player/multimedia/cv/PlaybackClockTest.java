@@ -105,10 +105,10 @@ final class PlaybackClockTest {
     assertTrue(resumed);
 
     final boolean wholePauseAdded = shift >= 65_000_000L;
-    assertTrue(wholePauseAdded, "the whole pause of 70 ms is added to the schedule, shift " + shift);
+    assertTrue(wholePauseAdded, "the whole pause of 70 ms is added to the schedule, shift %s".formatted(shift));
 
     final boolean onlyPauseAdded = shift <= afterResume - beforePause;
-    assertTrue(onlyPauseAdded, "only the paused time is added, shift " + shift);
+    assertTrue(onlyPauseAdded, "only the paused time is added, shift %s".formatted(shift));
   }
 
   @Test
@@ -219,10 +219,10 @@ final class PlaybackClockTest {
 
     final boolean stillPaused = clock.isPaused();
     final boolean waitedTheTimeout = paused >= 25_000_000L;
-    assertTrue(waitedTheTimeout, "a paused clock waits the timeout, waited " + paused);
+    assertTrue(waitedTheTimeout, "a paused clock waits the timeout, waited %s".formatted(paused));
 
     final boolean waitedNotMuchLonger = paused < 2_000_000_000L;
-    assertTrue(waitedNotMuchLonger, "but not much longer, waited " + paused);
+    assertTrue(waitedNotMuchLonger, "but not much longer, waited %s".formatted(paused));
     assertTrue(stillPaused);
   }
 

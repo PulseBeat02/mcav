@@ -118,6 +118,8 @@ final class VlcPlayerTest {
 
   private static final String START_RESERVED_MESSAGE = "the start stays reserved, so nothing more runs on a broken virtual machine";
 
+  private static final String OPEN_TIMEOUT_WAIT_MESSAGE = "start waits for the open timeout, took %s";
+
   private final MockVlc vlc = new MockVlc();
   private final VlcPlayer player = this.vlc.newPlayer(OPEN_TIMEOUT_MILLISECONDS, OPTION);
   private final List<String> messages = Collections.synchronizedList(new ArrayList<>());
@@ -221,7 +223,7 @@ final class VlcPlayerTest {
     verify(audioApi).callback(eq("S16N"), eq(48_000), eq(2), any(AudioCallback.class));
     verify(surface).set(any());
     assertEquals(1, references);
-    assertTrue(noErrors, "errors: " + this.errors);
+    assertTrue(noErrors, "errors: %s".formatted(this.errors));
   }
 
   @Test
@@ -303,7 +305,7 @@ final class VlcPlayerTest {
     final MockVlc.Player audioPlayer = this.vlc.player(1);
     final int reported = this.errors.size();
     assertFalse(started);
-    assertEquals(1, reported, "the failure is reported once: " + this.messages);
+    assertEquals(1, reported, "the failure is reported once: %s".formatted(this.messages));
     assertReleased(videoPlayer);
     assertReleased(audioPlayer);
 
@@ -327,7 +329,7 @@ final class VlcPlayerTest {
       assertTrue(started, "a stream that is still opening counts as started");
 
       final boolean waitedForTimeout = elapsedMilliseconds >= 90L;
-      assertTrue(waitedForTimeout, "start waits for the open timeout, took " + elapsedMilliseconds);
+      assertTrue(waitedForTimeout, OPEN_TIMEOUT_WAIT_MESSAGE.formatted(elapsedMilliseconds));
       assertTrue(noErrorsYet);
 
       only.fireError();
@@ -354,10 +356,10 @@ final class VlcPlayerTest {
       assertTrue(started, "sources that are still opening count as started");
 
       final boolean waitedForTimeout = elapsedMilliseconds >= 350L;
-      assertTrue(waitedForTimeout, "start waits for the open timeout, took " + elapsedMilliseconds);
+      assertTrue(waitedForTimeout, OPEN_TIMEOUT_WAIT_MESSAGE.formatted(elapsedMilliseconds));
 
       final boolean waitedOnce = elapsedMilliseconds < 700L;
-      assertTrue(waitedOnce, "both sources open at the same time, so start waits the timeout once, took " + elapsedMilliseconds);
+      assertTrue(waitedOnce, "both sources open at the same time, so start waits the timeout once, took %s".formatted(elapsedMilliseconds));
     } finally {
       slow.release();
     }
@@ -377,7 +379,7 @@ final class VlcPlayerTest {
     assertTrue(stillInterrupted, "the interrupt is kept");
 
     final boolean gaveUpPromptly = elapsedMilliseconds < 5_000L;
-    assertTrue(gaveUpPromptly, "took " + elapsedMilliseconds);
+    assertTrue(gaveUpPromptly, "took %s".formatted(elapsedMilliseconds));
 
     final MockVlc.Player only = this.vlc.player(0);
     final EmbeddedMediaPlayer mediaPlayer = only.getPlayer();
