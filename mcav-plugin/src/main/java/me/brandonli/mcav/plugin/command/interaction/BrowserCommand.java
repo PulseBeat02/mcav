@@ -200,7 +200,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
 
   /**
    * Handles {@code /mcav browser create <playerSelector> <browserResolution> <nth> <blockDimensions> <mapId>
-   * <ditheringAlgorithm> <audioType> <url> [--codec dither|mcv2]}: opens a web page in mcav's embedded Chromium, which
+   * <ditheringAlgorithm> <audioType> <url> [--codec dither|mcv2]}: opens a web page in MCAV's embedded Chromium, which
    * runs in a process of its own, streams it onto a wall of maps, dithered or with MCV2, and its sound into the chosen
    * audio output. The first browser on a server downloads Chromium once, about 165 MB, and on Linux about 13 MB of the
    * libraries it needs that the server lacks.
@@ -255,7 +255,10 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     @Greedy @FlagYielding final String url,
     @Flag("codec") final @Nullable MapCodec codec
   ) {
+    Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
     Preconditions.checkNotNull(playerSelector, "Player selector must not be null!");
+    Preconditions.checkNotNull(browserResolution, "Browser resolution must not be null!");
+    Preconditions.checkNotNull(blockDimensions, "Block dimensions must not be null!");
     Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null!");
     Preconditions.checkNotNull(audioType, "Audio type must not be null!");
     Preconditions.checkNotNull(url, "URL must not be null!");
@@ -395,6 +398,8 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    */
   @Override
   protected Component createStartMessage(final StartOutcome outcome, final @Nullable Throwable error) {
+    Preconditions.checkNotNull(outcome, "Outcome must not be null!");
+
     if (outcome == StartOutcome.STARTED) {
       return Message.START_BROWSER.build();
     }
@@ -413,7 +418,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
   /**
    * Returns the permission a player needs to send input to the running browser.
    *
-   * @return {@value #INTERACT_PERMISSION}
+   * @return {@code mcav.command.browser.interact}
    * @since 1.0.0
    */
   @Override

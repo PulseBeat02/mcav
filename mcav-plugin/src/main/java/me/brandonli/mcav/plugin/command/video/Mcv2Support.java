@@ -94,7 +94,7 @@ public final class Mcv2Support {
    * Creates the support, which serves nothing until {@link #start()}.
    *
    * @param dataFolder the plugin's data folder; the pack is written in {@code mcv2/pack} inside it
-   * @param hosting    hosts a written pack
+   * @param hosting    the function that hosts a written pack
    * @since 1.0.0
    */
   public Mcv2Support(final Path dataFolder, final Function<Path, PackHosting> hosting) {
@@ -150,7 +150,7 @@ public final class Mcv2Support {
    * @param blocks     the size of the wall in maps
    * @param resolution the encoded resolution
    * @param mapId      the id of the top-left map
-   * @param settings   the encoder profile
+   * @param settings   the encoder settings
    * @param viewers    the players who watch
    * @return the configuration, or empty if the screen is too large for MCV2 or no frame holds the map
    * @since 1.0.0

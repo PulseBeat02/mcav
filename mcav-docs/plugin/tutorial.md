@@ -53,9 +53,9 @@ it's the correct version for your Minecraft server; version 2.6.24 supports Mine
 2) Open the `config.yml` file, and set the `enabled` option under the `simple-voice-chat` section to `true`.
 3) (User Side) Install the [Simple Voice Chat](https://modrinth.com/plugin/simple-voice-chat) mod on your client.
 4) Restart your server to apply the changes.
-5) Once Simple Voice Chat has started, the console prints `Simple Voice Chat audio is ready.` If Simple Voice Chat
-audio is enabled but the plugin is missing, MCAV logs one error instead, `MCAV cannot be enabled: Simple Voice Chat
-audio is enabled, but the voicechat plugin is not installed! To fix it, install the Simple Voice Chat plugin or set
+5) Once Simple Voice Chat has started, the console prints `Simple Voice Chat audio is ready.` If Simple Voice Chat audio
+is enabled but the plugin is missing, MCAV logs one error instead, `MCAV cannot be enabled: Simple Voice Chat audio is
+enabled, but the Simple Voice Chat plugin is not installed! To fix it, install the Simple Voice Chat plugin or set
 simple-voice-chat.enabled to false in config.yml.`, and disables itself. Fix either and restart the server.
 
 ---

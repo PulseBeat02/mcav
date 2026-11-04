@@ -220,7 +220,7 @@ Simple Voice Chat audio is checked when the plugin starts: if `simple-voice-chat
 Voice Chat plugin (`voicechat`) is not installed, MCAV logs one error line and disables itself:
 
 ```text
-MCAV cannot be enabled: Simple Voice Chat audio is enabled, but the voicechat plugin is not installed! To fix it, install the Simple Voice Chat plugin or set simple-voice-chat.enabled to false in config.yml.
+MCAV cannot be enabled: Simple Voice Chat audio is enabled, but the Simple Voice Chat plugin is not installed! To fix it, install the Simple Voice Chat plugin or set simple-voice-chat.enabled to false in config.yml.
 ```
 
 Install the plugin or set the option to `false`, then restart the server.

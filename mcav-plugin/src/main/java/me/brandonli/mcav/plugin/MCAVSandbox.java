@@ -87,7 +87,7 @@ public final class MCAVSandbox extends JavaPlugin {
   private boolean disabled;
 
   /**
-   * Creates the plugin. Paper creates it for you; everything else is created in {@link #onEnable()}.
+   * Creates the plugin. Paper calls it for you; everything else is created in {@link #onEnable()}.
    *
    * @since 1.0.0
    */
@@ -101,8 +101,8 @@ public final class MCAVSandbox extends JavaPlugin {
    * registrations are closed. A later enable attempt logs one error with an instruction to restart the server.
    *
    * <p>Two failures are setup problems of the server rather than bugs: a server that runs a Minecraft version the
-   * library does not support, and Simple Voice Chat audio that is enabled in {@code config.yml} while the voicechat
-   * plugin is missing. For either, the plugin logs one error that names the problem and how to fix it, and then
+   * library does not support, and Simple Voice Chat audio that is enabled in {@code config.yml} while the Simple Voice
+   * Chat plugin is missing. For either, the plugin logs one error that names the problem and how to fix it, and then
    * disables itself through the plugin manager, which calls {@link #onDisable()} to release what was created.
    *
    * @throws RuntimeException if anything else fails; Paper then reports the failure and disables the plugin, and
@@ -113,7 +113,6 @@ public final class MCAVSandbox extends JavaPlugin {
   public void onEnable() {
     this.logger = this.getComponentLogger();
 
-    // Paper closes the plugin loader and its lifecycle registrations when disabling it.
     if (this.disabled) {
       final String message = "Paper cannot re-enable this plugin after it has been disabled!";
       this.disableBecause(new IllegalStateException(message), "restart the server to enable MCAV");
@@ -136,9 +135,11 @@ public final class MCAVSandbox extends JavaPlugin {
   }
 
   /**
-   * Disables the plugin: stops the video and the images, the jukebox listener, the commands and the audio outputs,
-   * and releases the library. Parts that were never created, because the plugin failed to enable, are skipped.
+   * Disables the plugin: stops the video and the images, the jukebox listener, the commands, the audio outputs, the
+   * MCV2 support and the online player tracking, and releases the library. Parts that were never created, because the
+   * plugin failed to enable, are skipped.
    *
+   * @throws RuntimeException if a part fails to stop, after every other part was stopped
    * @since 1.0.0
    */
   @Override
@@ -175,7 +176,6 @@ public final class MCAVSandbox extends JavaPlugin {
     );
   }
 
-  // disabling runs onDisable(), which releases what was created before the failure
   private void disableBecause(final RuntimeException failure, final String remedy) {
     final ComponentLogger pluginLogger = this.requireLogger();
     final String reason = failure.getMessage();
@@ -308,6 +308,7 @@ public final class MCAVSandbox extends JavaPlugin {
    * Returns the library instance.
    *
    * @return the library
+   * @throws IllegalStateException if the plugin is not enabled
    * @since 1.0.0
    */
   public MCAVApi getMCAV() {
@@ -318,6 +319,7 @@ public final class MCAVSandbox extends JavaPlugin {
    * Returns the configuration.
    *
    * @return the configuration
+   * @throws IllegalStateException if the plugin was never enabled
    * @since 1.0.0
    */
   public PluginDataConfigurationMapper getConfiguration() {
@@ -328,6 +330,7 @@ public final class MCAVSandbox extends JavaPlugin {
    * Returns the manager of the video player.
    *
    * @return the video player manager
+   * @throws IllegalStateException if the plugin is not enabled
    * @since 1.0.0
    */
   public VideoPlayerManager getVideoPlayerManager() {
@@ -338,6 +341,7 @@ public final class MCAVSandbox extends JavaPlugin {
    * Returns the provider of audio outputs.
    *
    * @return the audio provider
+   * @throws IllegalStateException if the plugin is not enabled
    * @since 1.0.0
    */
   public AudioProvider getAudioProvider() {
@@ -348,6 +352,7 @@ public final class MCAVSandbox extends JavaPlugin {
    * Returns the manager of displayed images.
    *
    * @return the image manager
+   * @throws IllegalStateException if the plugin is not enabled
    * @since 1.0.0
    */
   public ImageManager getImageManager() {
@@ -358,6 +363,7 @@ public final class MCAVSandbox extends JavaPlugin {
    * Returns what the MCV2 screens share: the one pack that decodes them all, and who loaded it.
    *
    * @return the MCV2 support
+   * @throws IllegalStateException if the plugin is not enabled
    * @since 1.0.0
    */
   public Mcv2Support getMcv2Support() {
@@ -368,6 +374,7 @@ public final class MCAVSandbox extends JavaPlugin {
    * Returns the players online, which a wall shown to {@code @a} keeps following.
    *
    * @return the online players
+   * @throws IllegalStateException if the plugin is not enabled
    * @since 1.0.0
    */
   public OnlinePlayers getOnlinePlayers() {

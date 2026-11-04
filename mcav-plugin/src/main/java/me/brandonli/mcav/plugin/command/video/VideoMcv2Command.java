@@ -62,7 +62,7 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
 
   private static final int NO_UNSENT_LIMIT = 0;
 
-  // for measurements; unset or 0 keeps mcav's default
+  // for measurements; unset or 0 keeps MCAV's default
   static final String PAGE_SLOTS_PROPERTY = "mcav.sandbox.mcv2.page_slots";
   static final String BACKLOG_PROPERTY = "mcav.sandbox.mcv2.backlog_limit";
 
@@ -171,11 +171,11 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
 
   /**
    * Creates the output that encodes the frames in a slot of the MCV2 pack, and starts it on the main thread. Called on
-   * the worker thread.
+   * the worker thread. When every pack slot plays a screen, the frames are dithered onto the maps instead.
    *
    * @param resolution            the resolution frames are scaled to
-   * @param configurationProvider the provider, which returns {@link Mcv2Settings}
-   * @return the pipeline
+   * @param configurationProvider the provider, which returns {@code Mcv2Settings}
+   * @return the pipeline step that encodes the frames, or dithers them onto the maps
    * @since 1.0.0
    */
   @Override

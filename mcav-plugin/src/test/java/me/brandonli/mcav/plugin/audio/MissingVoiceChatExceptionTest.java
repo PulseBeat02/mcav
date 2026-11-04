@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Test;
 
 final class MissingVoiceChatExceptionTest {
 
-  private static final String MESSAGE = "Simple Voice Chat audio is enabled, but the voicechat plugin is not installed!";
+  private static final String MESSAGE = "Simple Voice Chat audio is enabled, but the Simple Voice Chat plugin is not installed!";
 
   @Test
   void shouldKeepTheMessageAndTheCause() {

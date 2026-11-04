@@ -227,7 +227,10 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
     @Greedy @FlagYielding final String server,
     @Flag("codec") final @Nullable MapCodec codec
   ) {
+    Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
     Preconditions.checkNotNull(playerSelector, "Player selector must not be null!");
+    Preconditions.checkNotNull(vncResolution, "VNC resolution must not be null!");
+    Preconditions.checkNotNull(blockDimensions, "Block dimensions must not be null!");
     Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null!");
     Preconditions.checkNotNull(server, "Server must not be null!");
 
@@ -307,6 +310,8 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    */
   @Override
   protected Component createStartMessage(final StartOutcome outcome, final @Nullable Throwable error) {
+    Preconditions.checkNotNull(outcome, "Outcome must not be null!");
+
     final NullComponent message = outcome == StartOutcome.STARTED ? Message.VNC_CREATE : Message.VNC_ERROR;
     return message.build();
   }
@@ -314,7 +319,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
   /**
    * Returns the permission a player needs to send input to the desktop.
    *
-   * @return {@value #INTERACT_PERMISSION}
+   * @return {@code mcav.command.vnc.interact}
    * @since 1.0.0
    */
   @Override

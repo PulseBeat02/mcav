@@ -63,7 +63,7 @@ public final class DumpCommand implements AnnotationCommandFeature {
   }
 
   /**
-   * Uploads a dump in the background and sends its link to the sender. Failures are only logged.
+   * Uploads a dump in the background and sends its link to the sender. A failure is logged and reported to the sender.
    *
    * @param sender who ran the command
    * @since 1.0.0

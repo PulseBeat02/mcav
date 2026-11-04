@@ -118,7 +118,8 @@ public final class VideoFlagsParser {
    *
    * @param flags the flags argument of the command, may be empty or {@code null}
    * @return the arguments to pass to yt-dlp, empty if there are none
-   * @throws IllegalArgumentException if an option with a value has an empty name
+   * @throws IllegalArgumentException if an option is not supported, a switch is given a value, an option that needs a
+   *                                  value has none, an option name is empty, or a value starts with a dash
    * @since 1.0.0
    */
   public String[] parseYtdlpFlags(final @Nullable String flags) {

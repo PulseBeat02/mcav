@@ -73,8 +73,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
   /**
    * Handles {@code /mcav video map <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions>
    * <mapId> <ditheringAlgorithm> <ytdlpOptions> <mrl> [--codec dither|mcv2]}: shows a video on a wall of maps, the
-   * highest quality way to show a video in the world. The yt-dlp options are named so, not {@code flags} as in the
-   * other video commands, because Cloud names the component of the command's flags so. With {@code --codec mcv2}, or without the flag when
+   * highest quality way to show a video in the world. With {@code --codec mcv2}, or without the flag when
    * {@code mcv2.default-codec} is {@code mcv2}, the video is encoded as it plays with the default live preset for the
    * players whose client loads the MCV2 resource pack, and dithered for everyone else, like {@code /mcav video mcv2}
    * with the {@code DEFAULT} profile.
@@ -187,9 +186,8 @@ public final class VideoMapCommand extends AbstractVideoCommand {
    * @param resolution            the resolution frames are scaled to
    * @param configurationProvider the provider created by
    *                              {@link #playMapVideo(CommandSender, MultiplePlayerSelector, PlayerArgument, AudioArgument, String, String, int, DitheringArgument, String, String, MapCodec, String)},
-   *                              which returns {@link MapDisplaySettings}, or {@link VideoMcv2Command.Mcv2Settings}
-   *                              for MCV2
-   * @return the pipeline that dithers the frames onto the maps
+   *                              which returns {@link MapDisplaySettings}, or {@code Mcv2Settings} for MCV2
+   * @return the pipeline step that dithers the frames onto the maps, or that encodes them with MCV2
    * @since 1.0.0
    */
   @Override

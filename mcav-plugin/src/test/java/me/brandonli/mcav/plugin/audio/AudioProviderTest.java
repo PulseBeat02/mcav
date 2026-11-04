@@ -441,7 +441,7 @@ final class AudioProviderTest {
     final MissingVoiceChatException exception = assertThrows(MissingVoiceChatException.class, this.provider::initialize);
 
     final String message = exception.getMessage();
-    assertEquals("Simple Voice Chat audio is enabled, but the voicechat plugin is not installed!", message);
+    assertEquals("Simple Voice Chat audio is enabled, but the Simple Voice Chat plugin is not installed!", message);
 
     final PluginManager pluginManager = TestServer.getPluginManager();
     verify(pluginManager, never()).registerEvents(any(), any());

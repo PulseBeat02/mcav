@@ -59,6 +59,8 @@ import org.slf4j.LoggerFactory;
  * server does not wait for them. An output can be used once it is ready, see {@link #isDiscordBotReady()} and
  * {@link #isHttpReady()}; one that fails to start is logged and stays unavailable.
  *
+ * <p>This class is thread-safe.
+ *
  * @since 1.0.0
  */
 public final class AudioProvider {
@@ -168,7 +170,8 @@ public final class AudioProvider {
    * Starts the outputs enabled in the configuration. The Discord bot and the web server start on another thread,
    * so this returns at once; Simple Voice Chat is registered before it returns.
    *
-   * @throws MissingVoiceChatException if Simple Voice Chat audio is enabled but the voicechat plugin is not installed
+   * @throws MissingVoiceChatException if Simple Voice Chat audio is enabled but the Simple Voice Chat plugin is not
+   *                                   installed
    * @since 1.0.0
    */
   public void initialize() {
@@ -194,7 +197,7 @@ public final class AudioProvider {
     final PluginManager pluginManager = server.getPluginManager();
     final boolean installed = pluginManager.isPluginEnabled(VOICE_CHAT_PLUGIN);
     if (!installed) {
-      final String message = "Simple Voice Chat audio is enabled, but the voicechat plugin is not installed!";
+      final String message = "Simple Voice Chat audio is enabled, but the Simple Voice Chat plugin is not installed!";
       throw new MissingVoiceChatException(message);
     }
 

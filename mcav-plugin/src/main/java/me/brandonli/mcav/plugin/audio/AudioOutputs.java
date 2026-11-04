@@ -44,8 +44,8 @@ public final class AudioOutputs {
   }
 
   /**
-   * Checks whether an audio output can play now. The Discord bot and the web page start in the background when the
-   * plugin is enabled, so they are only usable once they are ready.
+   * Returns the message that explains why an audio output cannot play now, or empty if it can. The Discord bot and the
+   * web page start in the background when the plugin is enabled, so they are only usable once they are ready.
    *
    * @param provider  the provider of the audio outputs
    * @param audioType the chosen output

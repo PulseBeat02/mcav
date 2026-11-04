@@ -577,7 +577,7 @@ final class MCAVSandboxTest {
 
     this.sandbox.onEnable();
 
-    final String reason = "Simple Voice Chat audio is enabled, but the voicechat plugin is not installed!";
+    final String reason = "Simple Voice Chat audio is enabled, but the Simple Voice Chat plugin is not installed!";
     final String remedy = "install the Simple Voice Chat plugin or set simple-voice-chat.enabled to false in config.yml";
     this.assertDisabledItselfWithOneError(reason, remedy);
 

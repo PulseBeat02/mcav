@@ -241,8 +241,8 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
   /**
    * Handles {@code /mcav vm create <playerSelector> <vmResolution> <targetFramesPerSecond> <blockDimensions> <mapId>
    * <ditheringAlgorithm> <architecture> <audioType> <flags> [--codec dither|mcv2]}: boots a QEMU virtual machine and
-   * streams its display onto a wall of maps, dithered or with MCV2, and its sound into the chosen audio output. Only x86-64 PC and Q35 machines have sound; mcav
-   * adds their sound card itself, and the flags cannot change it.
+   * streams its display onto a wall of maps, dithered or with MCV2, and its sound into the chosen audio output. Only
+   * x86-64 PC and Q35 machines have sound; MCAV adds their sound card itself, and the flags cannot change it.
    *
    * <p>QEMU must be installed on the server, with the program for the chosen architecture on the {@code PATH}, except on
    * x86-64 and ARM64 Linux, where MCAV installs it when it is missing. Build the wall first with {@code /mcav screen},
@@ -252,9 +252,9 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    *
    * <p>Requires the permission {@code mcav.command.vm.create}; players and the console can run it. When QEMU is not
    * installed and MCAV cannot install it, the dimensions are invalid, or an option is not supported, the sender gets an
-   * error message and nothing starts. Otherwise the
-   * sender is told "Loading virtual machine...", and later that it was created, that the QEMU program for the
-   * architecture is not on the {@code PATH}, or that it failed to start, with the details in the console.
+   * error message and nothing starts. Otherwise the sender is told "Loading virtual machine...", and later that it was
+   * created, that the QEMU program for the architecture is not on the {@code PATH}, or that it failed to start, with
+   * the details in the console.
    *
    * @param sender                who ran the command
    * @param playerSelector        the players who see the virtual machine on the maps, such as a player name or
@@ -301,6 +301,8 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
   ) {
     Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
     Preconditions.checkNotNull(playerSelector, "Player selector must not be null!");
+    Preconditions.checkNotNull(vmResolution, "Virtual machine resolution must not be null!");
+    Preconditions.checkNotNull(blockDimensions, "Block dimensions must not be null!");
     Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null!");
     Preconditions.checkNotNull(architecture, "Architecture must not be null!");
     Preconditions.checkNotNull(audioType, "Audio type must not be null!");
@@ -406,6 +408,8 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    */
   @Override
   protected Component createStartMessage(final StartOutcome outcome, final @Nullable Throwable error) {
+    Preconditions.checkNotNull(outcome, "Outcome must not be null!");
+
     if (outcome == StartOutcome.STARTED) {
       return Message.VM_CREATE.build();
     }
@@ -441,7 +445,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     final Path dataFolder = this.plugin.getDataPath();
     final Path imageFolder = DiskImages.folderOf(dataFolder);
     final VmConfigurationBuilder builder = parseOptions(flags, imageFolder, maximumMemoryBytes());
-    // without it, the guest gets mcav's network that reaches nothing, as no option of the command chooses one
+    // without it, the guest gets MCAV's network that reaches nothing, as no option of the command chooses one
     final PluginDataConfigurationMapper settings = this.plugin.getConfiguration();
     if (settings.isVmAllowNetwork()) {
       builder.network(QEMU_NETWORK);
@@ -670,7 +674,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
   /**
    * Returns the permission a player needs to send input to the running virtual machine.
    *
-   * @return {@value #INTERACT_PERMISSION}
+   * @return {@code mcav.command.vm.interact}
    * @since 1.0.0
    */
   @Override
