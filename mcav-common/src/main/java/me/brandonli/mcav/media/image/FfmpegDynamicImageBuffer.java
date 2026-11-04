@@ -123,8 +123,8 @@ final class FfmpegDynamicImageBuffer implements DynamicImageBuffer {
   private static void copyFrame(final Frame frame, final List<ImageBuffer> decoded) {
     final int width = frame.imageWidth;
     final int height = frame.imageHeight;
-    final Mat mat = new Mat(height, width, opencv_core.CV_8UC3);
-    final ImageBuffer image = ImageBuffer.mat(mat);
+    final Mat matrix = new Mat(height, width, opencv_core.CV_8UC3);
+    final ImageBuffer image = ImageBuffer.mat(matrix);
     decoded.add(image);
 
     final ByteBuffer data = image.getData();

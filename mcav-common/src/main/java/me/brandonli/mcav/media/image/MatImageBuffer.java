@@ -97,18 +97,18 @@ public final class MatImageBuffer implements ImageBuffer {
   private static final String UNSUPPORTED_BYTES_MESSAGE = "Bytes are not a supported image format!";
   private static final String UNSUPPORTED_FILE_MESSAGE = "File %s is not a supported image!";
 
-  private Mat mat;
+  private Mat matrix;
   private @Nullable Mat spare;
   private int @Nullable [] cachedPixels;
   private @Nullable PixelCacheKey cachedKey;
   private byte @Nullable [] scratch;
   private boolean released;
 
-  MatImageBuffer(final Mat mat) {
-    final boolean empty = mat.empty();
+  MatImageBuffer(final Mat matrix) {
+    final boolean empty = matrix.empty();
     Preconditions.checkArgument(!empty, EMPTY_MAT_MESSAGE);
 
-    this.mat = toContinuousBgr(mat);
+    this.matrix = toContinuousBgr(matrix);
   }
 
   MatImageBuffer(final byte[] bytes, final int width, final int height) {
@@ -117,8 +117,8 @@ public final class MatImageBuffer implements ImageBuffer {
     final int expected = width * height * BGR_CHANNELS;
     Preconditions.checkArgument(bytes.length == expected, BYTE_COUNT_MESSAGE, bytes.length, expected);
 
-    this.mat = new Mat(height, width, opencv_core.CV_8UC3);
-    final ByteBuffer target = this.mat.createBuffer();
+    this.matrix = new Mat(height, width, opencv_core.CV_8UC3);
+    final ByteBuffer target = this.matrix.createBuffer();
     target.put(bytes);
   }
 
@@ -129,9 +129,9 @@ public final class MatImageBuffer implements ImageBuffer {
     final int remaining = bytes.remaining();
     Preconditions.checkArgument(remaining == expected, BYTE_COUNT_MESSAGE, remaining, expected);
 
-    this.mat = new Mat(height, width, opencv_core.CV_8UC3);
+    this.matrix = new Mat(height, width, opencv_core.CV_8UC3);
     final ByteBuffer source = bytes.duplicate();
-    final ByteBuffer target = this.mat.createBuffer();
+    final ByteBuffer target = this.matrix.createBuffer();
     target.put(source);
   }
 
@@ -147,7 +147,7 @@ public final class MatImageBuffer implements ImageBuffer {
       final boolean empty = decoded.empty();
       Preconditions.checkArgument(!empty, UNSUPPORTED_BYTES_MESSAGE);
 
-      this.mat = toContinuousBgr(decoded);
+      this.matrix = toContinuousBgr(decoded);
     }
   }
 
@@ -158,19 +158,19 @@ public final class MatImageBuffer implements ImageBuffer {
       final Mat converted = converter.convert(frame);
       Preconditions.checkArgument(converted != null, "Frame does not contain an image!");
 
-      this.mat = copyToBgr(converted);
+      this.matrix = copyToBgr(converted);
     }
   }
 
   MatImageBuffer(final UriSource source) {
     final FileSource downloaded = downloadFile(source);
     final Path path = downloaded.getPath();
-    this.mat = readFile(path);
+    this.matrix = readFile(path);
   }
 
   MatImageBuffer(final FileSource source) {
     final Path path = source.getPath();
-    this.mat = readFile(path);
+    this.matrix = readFile(path);
   }
 
   MatImageBuffer(final int[] argb, final int width, final int height) {
@@ -180,9 +180,9 @@ public final class MatImageBuffer implements ImageBuffer {
     Preconditions.checkArgument(argb.length == expected, PIXEL_COUNT_MESSAGE, argb.length, expected);
 
     final byte[] bytes = new byte[expected * BGR_CHANNELS];
-    this.mat = new Mat(height, width, opencv_core.CV_8UC3);
+    this.matrix = new Mat(height, width, opencv_core.CV_8UC3);
     this.scratch = bytes;
-    writeArgb(this.mat, argb, bytes);
+    writeArgb(this.matrix, argb, bytes);
   }
 
   MatImageBuffer(final BufferedImage image) {
@@ -190,8 +190,8 @@ public final class MatImageBuffer implements ImageBuffer {
     final int height = image.getHeight();
     checkDimensions(width, height);
 
-    this.mat = new Mat(height, width, opencv_core.CV_8UC3);
-    writeBufferedImage(this.mat, image, byte[]::new);
+    this.matrix = new Mat(height, width, opencv_core.CV_8UC3);
+    writeBufferedImage(this.matrix, image, byte[]::new);
   }
 
   private static Mat readFile(final Path path) {
@@ -430,7 +430,7 @@ public final class MatImageBuffer implements ImageBuffer {
     final Mat target = this.takeSpare();
     final Mat result;
     try {
-      operation.accept(this.mat, target);
+      operation.accept(this.matrix, target);
 
       final boolean empty = target.empty();
       Preconditions.checkArgument(!empty, "The operation must write its result into the target matrix!");
@@ -465,11 +465,11 @@ public final class MatImageBuffer implements ImageBuffer {
   // allocation of its own and is not recognised, so transformMat(BiConsumer) still requires an operation that writes a
   // matrix of its own or returns the source unchanged.
   private void exchange(final Mat result) {
-    final Mat previous = this.mat;
+    final Mat previous = this.matrix;
     final BytePointer resultStart = result.datastart();
     final BytePointer previousStart = previous.datastart();
     final boolean shared = resultStart.address() == previousStart.address();
-    this.mat = result;
+    this.matrix = result;
 
     if (shared) {
       previous.release();
@@ -491,13 +491,13 @@ public final class MatImageBuffer implements ImageBuffer {
   public BufferedImage toBufferedImage() {
     this.checkNotReleased();
 
-    final int width = this.mat.cols();
-    final int height = this.mat.rows();
+    final int width = this.matrix.cols();
+    final int height = this.matrix.rows();
     final BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_3BYTE_BGR);
     final WritableRaster raster = image.getRaster();
     final DataBufferByte dataBuffer = (DataBufferByte) raster.getDataBuffer();
     final byte[] pixels = dataBuffer.getData();
-    final ByteBuffer bytes = this.mat.createBuffer();
+    final ByteBuffer bytes = this.matrix.createBuffer();
     bytes.get(pixels);
 
     return image;
@@ -531,7 +531,7 @@ public final class MatImageBuffer implements ImageBuffer {
     this.ensureSize(width, height);
 
     final ByteBuffer source = data.duplicate();
-    final ByteBuffer target = this.mat.createBuffer();
+    final ByteBuffer target = this.matrix.createBuffer();
     target.put(source);
     this.invalidateCache();
   }
@@ -541,23 +541,23 @@ public final class MatImageBuffer implements ImageBuffer {
   // will most likely produce the size of the previous matrix again, so the previous matrix becomes the new spare;
   // images without a spare release it.
   private boolean ensureSize(final int width, final int height) {
-    final Mat previous = this.mat;
+    final Mat previous = this.matrix;
     if (hasSize(previous, width, height)) {
       return false;
     }
 
     final Mat reusable = this.spare;
     if (reusable == null) {
-      this.mat = new Mat(height, width, opencv_core.CV_8UC3);
+      this.matrix = new Mat(height, width, opencv_core.CV_8UC3);
       previous.release();
 
       return true;
     }
 
     if (hasSize(reusable, width, height)) {
-      this.mat = reusable;
+      this.matrix = reusable;
     } else {
-      this.mat = new Mat(height, width, opencv_core.CV_8UC3);
+      this.matrix = new Mat(height, width, opencv_core.CV_8UC3);
       reusable.release();
     }
 
@@ -601,7 +601,7 @@ public final class MatImageBuffer implements ImageBuffer {
     this.ensureSize(width, height);
 
     final byte[] bytes = this.ensureScratch(expected * BGR_CHANNELS);
-    writeArgb(this.mat, pixels, bytes);
+    writeArgb(this.matrix, pixels, bytes);
     this.invalidateCache();
   }
 
@@ -642,7 +642,7 @@ public final class MatImageBuffer implements ImageBuffer {
   public ImageBuffer copy() {
     this.checkNotReleased();
 
-    final Mat clone = this.mat.clone();
+    final Mat clone = this.matrix.clone();
     return new MatImageBuffer(clone);
   }
 
@@ -662,7 +662,7 @@ public final class MatImageBuffer implements ImageBuffer {
     this.released = true;
     this.cachedPixels = null;
     this.scratch = null;
-    this.mat.release();
+    this.matrix.release();
 
     final Mat unused = this.spare;
     this.spare = null;
@@ -687,7 +687,7 @@ public final class MatImageBuffer implements ImageBuffer {
   public Mat getMat() {
     this.checkNotReleased();
 
-    return this.mat;
+    return this.matrix;
   }
 
   /**
@@ -711,14 +711,14 @@ public final class MatImageBuffer implements ImageBuffer {
 
     // matrices compare by the address of their native header, so a second wrapper of the current matrix is never
     // mistaken for a new one and released along with the current matrix
-    final boolean current = replacement.equals(this.mat);
+    final boolean current = replacement.equals(this.matrix);
     if (current) {
       this.invalidateCache();
       return;
     }
 
-    final Mat previous = this.mat;
-    this.mat = toContinuousBgr(replacement);
+    final Mat previous = this.matrix;
+    this.matrix = toContinuousBgr(replacement);
     previous.release();
     this.invalidateCache();
   }
@@ -764,7 +764,7 @@ public final class MatImageBuffer implements ImageBuffer {
     final int width = image.getWidth();
     final int height = image.getHeight();
     this.ensureSize(width, height);
-    writeBufferedImage(this.mat, image, this::ensureScratch);
+    writeBufferedImage(this.matrix, image, this::ensureScratch);
     this.invalidateCache();
   }
 
@@ -788,8 +788,8 @@ public final class MatImageBuffer implements ImageBuffer {
     this.checkNotReleased();
     this.checkCoordinates(column, row);
 
-    final ByteBuffer bytes = this.mat.createBuffer();
-    final int width = this.mat.cols();
+    final ByteBuffer bytes = this.matrix.createBuffer();
+    final int width = this.matrix.cols();
     final int base = (row * width + column) * BGR_CHANNELS;
     final int count = Math.min(value.length, BGR_CHANNELS);
     for (int channel = 0; channel < count; channel++) {
@@ -816,8 +816,8 @@ public final class MatImageBuffer implements ImageBuffer {
     this.checkNotReleased();
     this.checkCoordinates(column, row);
 
-    final ByteBuffer bytes = this.mat.createBuffer();
-    final int width = this.mat.cols();
+    final ByteBuffer bytes = this.matrix.createBuffer();
+    final int width = this.matrix.cols();
     final int base = (row * width + column) * BGR_CHANNELS;
     final double[] values = new double[BGR_CHANNELS];
     for (int channel = 0; channel < BGR_CHANNELS; channel++) {
@@ -828,8 +828,8 @@ public final class MatImageBuffer implements ImageBuffer {
   }
 
   private void checkCoordinates(final int column, final int row) {
-    final int width = this.mat.cols();
-    final int height = this.mat.rows();
+    final int width = this.matrix.cols();
+    final int height = this.matrix.rows();
     Preconditions.checkArgument(column >= 0 && column < width, "Column %s must be between 0 and %s inclusive!", column, width - 1);
     Preconditions.checkArgument(row >= 0 && row < height, "Row %s must be between 0 and %s inclusive!", row, height - 1);
   }
@@ -845,7 +845,7 @@ public final class MatImageBuffer implements ImageBuffer {
   public int getWidth() {
     this.checkNotReleased();
 
-    return this.mat.cols();
+    return this.matrix.cols();
   }
 
   /**
@@ -859,7 +859,7 @@ public final class MatImageBuffer implements ImageBuffer {
   public int getHeight() {
     this.checkNotReleased();
 
-    return this.mat.rows();
+    return this.matrix.rows();
   }
 
   /**
@@ -873,8 +873,8 @@ public final class MatImageBuffer implements ImageBuffer {
   public int getPixelCount() {
     this.checkNotReleased();
 
-    final int width = this.mat.cols();
-    final int height = this.mat.rows();
+    final int width = this.matrix.cols();
+    final int height = this.matrix.rows();
     return width * height;
   }
 
@@ -901,7 +901,7 @@ public final class MatImageBuffer implements ImageBuffer {
   public int[] getPixels() {
     this.checkNotReleased();
 
-    final PixelCacheKey key = this.createCacheKey(this.mat);
+    final PixelCacheKey key = this.createCacheKey(this.matrix);
     final int[] cached = this.cachedPixels;
     if (cached != null && key.equals(this.cachedKey)) {
       return cached;
@@ -917,11 +917,11 @@ public final class MatImageBuffer implements ImageBuffer {
   }
 
   // The pixel address, not the header's: OpenCV reallocates pixels under a fixed header.
-  private PixelCacheKey createCacheKey(final Mat mat) {
-    final BytePointer data = mat.data();
+  private PixelCacheKey createCacheKey(final Mat matrix) {
+    final BytePointer data = matrix.data();
     final long address = data.address();
-    final int width = mat.cols();
-    final int height = mat.rows();
+    final int width = matrix.cols();
+    final int height = matrix.rows();
     return new PixelCacheKey(address, width, height);
   }
 
@@ -929,7 +929,7 @@ public final class MatImageBuffer implements ImageBuffer {
     final int count = width * height;
     final int length = count * BGR_CHANNELS;
     final byte[] raw = this.ensureScratch(length);
-    final ByteBuffer bytes = this.mat.createBuffer();
+    final ByteBuffer bytes = this.matrix.createBuffer();
     bytes.get(raw, 0, length);
 
     final int[] pixels = new int[count];
@@ -958,6 +958,6 @@ public final class MatImageBuffer implements ImageBuffer {
   public ByteBuffer getData() {
     this.checkNotReleased();
 
-    return this.mat.createBuffer();
+    return this.matrix.createBuffer();
   }
 }

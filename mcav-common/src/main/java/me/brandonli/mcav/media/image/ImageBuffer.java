@@ -62,16 +62,16 @@ public interface ImageBuffer extends Image {
    * Wraps an OpenCV matrix. The matrix is converted to 8-bit BGR if it uses another layout, and the buffer takes
    * ownership of it.
    *
-   * @param mat the non-null, nonempty matrix with 1, 3 or 4 channels; ownership transfers on success
+   * @param matrix the non-null, nonempty matrix with 1, 3 or 4 channels; ownership transfers on success
    * @return the image buffer
    * @throws IllegalArgumentException if the matrix is empty or has a channel count other than 1, 3 or 4
-   * @throws NullPointerException     if {@code mat} is null
+   * @throws NullPointerException     if {@code matrix} is null
    * @since 1.0.0
    */
-  static ImageBuffer mat(final Mat mat) {
-    Preconditions.checkNotNull(mat, "Mat must not be null!");
+  static ImageBuffer mat(final Mat matrix) {
+    Preconditions.checkNotNull(matrix, "Mat must not be null!");
 
-    return new MatImageBuffer(mat);
+    return new MatImageBuffer(matrix);
   }
 
   /**

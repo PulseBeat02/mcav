@@ -409,10 +409,10 @@ final class MatImageBufferTest {
     final Rect region = new Rect(1, 1, 2, 2);
     final Mat nonContinuous = new Mat(wide, region);
     try (final ImageBuffer kept = ImageBuffer.mat(bgr); final ImageBuffer fromRegion = ImageBuffer.mat(nonContinuous)) {
-      final Mat keptMat = ((MatImageBuffer) kept).getMat();
+      final Mat keptMatrix = ((MatImageBuffer) kept).getMat();
       final int regionPixel = argbAt(fromRegion, 1, 1);
       final int regionWidth = fromRegion.getWidth();
-      assertSame(bgr, keptMat);
+      assertSame(bgr, keptMatrix);
       assertEquals(0xFF070809, regionPixel);
       assertEquals(2, regionWidth);
     }
@@ -475,8 +475,8 @@ final class MatImageBufferTest {
 
   private static int convertedPixel(final int type, final double value) {
     final Scalar scalar = new Scalar(value, value, value, 0.0);
-    final Mat mat = new Mat(1, 1, type, scalar);
-    try (final ImageBuffer image = ImageBuffer.mat(mat)) {
+    final Mat matrix = new Mat(1, 1, type, scalar);
+    try (final ImageBuffer image = ImageBuffer.mat(matrix)) {
       return argbAt(image, 0, 0);
     }
   }
@@ -940,9 +940,9 @@ final class MatImageBufferTest {
       final MatImageBuffer buffer = (MatImageBuffer) image;
       final int[] cached = image.getPixels();
       final int[] cachedAgain = image.getPixels();
-      final Mat mat = buffer.getMat();
+      final Mat matrix = buffer.getMat();
       final Size size = new Size(2, 1);
-      opencv_imgproc.resize(mat, mat, size);
+      opencv_imgproc.resize(matrix, matrix, size);
       final int[] afterResize = image.getPixels();
       assertSame(cached, cachedAgain, "unchanged images reuse the cache");
       assertEquals(2, afterResize.length);
@@ -951,15 +951,15 @@ final class MatImageBufferTest {
     try (final ImageBuffer image = Images.indexed(4, 2)) {
       final MatImageBuffer buffer = (MatImageBuffer) image;
       image.getPixels();
-      final Mat mat = buffer.getMat();
-      final Mat reshaped = mat.reshape(3, 4);
-      mat.put(reshaped);
+      final Mat matrix = buffer.getMat();
+      final Mat reshaped = matrix.reshape(3, 4);
+      matrix.put(reshaped);
       final int[] afterReshape = image.getPixels();
       final int width = image.getWidth();
       assertEquals(2, width, "same memory, different shape");
       assertEquals(8, afterReshape.length);
 
-      mat.pop_back(1);
+      matrix.pop_back(1);
       final int[] afterPop = image.getPixels();
       assertEquals(6, afterPop.length, "same memory and width, fewer rows");
     }
@@ -970,8 +970,8 @@ final class MatImageBufferTest {
     try (final ImageBuffer image = Images.solid(1, 1, BLACK)) {
       final MatImageBuffer buffer = (MatImageBuffer) image;
       image.getPixels();
-      final Mat mat = buffer.getMat();
-      opencv_core.bitwise_not(mat, mat);
+      final Mat matrix = buffer.getMat();
+      opencv_core.bitwise_not(matrix, matrix);
       image.invalidateCache();
       final int inverted = argbAt(image, 0, 0);
       assertEquals(WHITE, inverted);
@@ -992,7 +992,7 @@ final class MatImageBufferTest {
       final int width = image.getWidth();
       final int grayPixel = argbAt(image, 0, 0);
       final boolean previousReleased = own.empty();
-      assertEquals(WHITE, invertedInPlace, "setting the own mat invalidates the cache");
+      assertEquals(WHITE, invertedInPlace, "setting the own matrix invalidates the cache");
       assertEquals(3, width);
       assertEquals(0xFF0A0A0A, grayPixel);
       assertTrue(previousReleased, "the matrix that was replaced is released");
@@ -1030,8 +1030,8 @@ final class MatImageBufferTest {
     assertEquals("Image dimensions 0x1 must be positive!", message);
   }
 
-  private static long pixelAddress(final Mat mat) {
-    final BytePointer data = mat.data();
+  private static long pixelAddress(final Mat matrix) {
+    final BytePointer data = matrix.data();
     return data.address();
   }
 
@@ -1218,8 +1218,8 @@ final class MatImageBufferTest {
     image.release();
     image.release();
     image.close();
-    final boolean matReleased = own.empty();
-    assertTrue(matReleased, "releasing the image releases its matrix");
+    final boolean matrixReleased = own.empty();
+    assertTrue(matrixReleased, "releasing the image releases its matrix");
     assertThrows(IllegalStateException.class, image::getWidth);
     assertThrows(IllegalStateException.class, image::getHeight);
     assertThrows(IllegalStateException.class, image::getPixelCount);
