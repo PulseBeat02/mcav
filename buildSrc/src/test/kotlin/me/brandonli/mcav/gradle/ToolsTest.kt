@@ -19,6 +19,10 @@
 package me.brandonli.mcav.gradle
 
 import java.io.File
+import java.net.URL
+import java.net.URLClassLoader
+import java.security.CodeSource
+import java.security.ProtectionDomain
 import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.file.RegularFile
@@ -37,6 +41,9 @@ class ToolsTest {
         const val CLANG_ARCHIVE: String = "clang.zip"
         const val FIXTURE_TOOL_PATH: String = "tools/fixture-tool/1.0/fixture-tool"
         const val PATH_TOOL_PATH: String = "tools/path/1.0/path"
+
+        const val CHECKSUMS_RESOURCE: String = "tool-checksums.properties"
+        const val BUILD_PACKAGE_PREFIX: String = "me.brandonli.mcav.gradle."
     }
 
     @Test
@@ -75,5 +82,41 @@ class ToolsTest {
 
         val selected: File = Tools.selectTool(project, "path", installed).get().asFile
         assertEquals(variable, selected)
+    }
+
+    @Test
+    fun shouldFailToLoadWithoutThePinnedChecksums(): Unit {
+        val toolsClass: Class<Tools> = Tools::class.java
+        val domain: ProtectionDomain = toolsClass.protectionDomain
+        val codeSource: CodeSource = domain.codeSource
+        val loader: URLClassLoader = ChecksumHidingClassLoader(codeSource.location, toolsClass.classLoader)
+        val failure: ExceptionInInitializerError =
+            assertThrows(ExceptionInInitializerError::class.java) { Class.forName(toolsClass.name, true, loader) }
+        loader.close()
+
+        val cause: Throwable? = failure.cause
+        val message: String? = cause?.message
+        assertEquals("Resource /tool-checksums.properties is missing from buildSrc!", message)
+    }
+
+    // loads the build classes again, child first, so that their own resource lookup misses the checksums
+    private class ChecksumHidingClassLoader(classes: URL, parent: ClassLoader) : URLClassLoader(arrayOf(classes), parent) {
+
+        override fun loadClass(name: String, resolve: Boolean): Class<*> {
+            if (!name.startsWith(BUILD_PACKAGE_PREFIX)) {
+                return super.loadClass(name, resolve)
+            }
+
+            val loaded: Class<*>? = this.findLoadedClass(name)
+            return loaded ?: this.findClass(name)
+        }
+
+        override fun getResource(name: String): URL? {
+            if (name == CHECKSUMS_RESOURCE) {
+                return null
+            }
+
+            return super.getResource(name)
+        }
     }
 }
