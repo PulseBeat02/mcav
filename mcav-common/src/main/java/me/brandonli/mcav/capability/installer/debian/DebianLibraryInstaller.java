@@ -177,7 +177,7 @@ public final class DebianLibraryInstaller implements Installer {
     int remaining = -1;
     while (pending.size() != remaining) {
       remaining = pending.size();
-      pending = this.loadEach(pending);
+      pending = this.loadAndListFailed(pending);
     }
 
     for (final Path library : pending) {
@@ -185,8 +185,7 @@ public final class DebianLibraryInstaller implements Installer {
     }
   }
 
-  // Loads every library it can and returns the others.
-  private List<Path> loadEach(final List<Path> libraries) {
+  private List<Path> loadAndListFailed(final List<Path> libraries) {
     final List<Path> failed = new ArrayList<>();
     for (final Path library : libraries) {
       final boolean loaded = this.load(library);

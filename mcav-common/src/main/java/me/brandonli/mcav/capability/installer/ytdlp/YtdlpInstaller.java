@@ -217,9 +217,7 @@ public final class YtdlpInstaller extends AbstractInstaller {
     markExecutable(executable);
   }
 
-  // Extracts the zip. IoUtils.unzip(Path, Path) reports failures unchecked, as a FileOperationException for an archive
-  // that cannot be read and as a ZipEntryIntegrityException for an archive that is unsafe, but an installation must
-  // fail with an InstallationException like every other installation failure.
+  // every installation failure is an InstallationException
   private void extract(final Path archive, final Path destination) {
     try {
       IoUtils.unzip(archive, destination);

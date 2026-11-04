@@ -184,10 +184,7 @@ public final class VlcInstaller extends AbstractInstaller {
     this.removeLegacyInstallations(folder);
   }
 
-  // Deletes the installations earlier versions of the library left in the installer folder: vlc-junest on Linux and
-  // VLC.app on macOS. Only these exact directories are deleted. A symbolic link or a regular file with one of these
-  // names is left alone, and links inside the directories are deleted without following them. A directory that cannot
-  // be deleted is logged and left behind.
+  // only real directories; deleteRecursively does not follow links inside them
   @VisibleForTesting
   void removeLegacyInstallations(final Path folder) {
     for (final String name : LEGACY_DIRECTORIES) {

@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.capability.installer.vlc.discovery;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import java.io.File;
 import java.io.IOException;
@@ -339,7 +340,7 @@ public abstract class DirectoryProviderDiscoveryStrategy implements NativeDiscov
   }
 
   /**
-   * Called with the directory the libraries were found in, before vlcj adds it to the JNA search path.
+   * Returns {@code true}, so vlcj adds the directory the libraries were found in to the JNA search path.
    *
    * @param path the directory that contains the libraries
    * @return {@code true} to let vlcj add the directory to the JNA search path
@@ -380,8 +381,8 @@ public abstract class DirectoryProviderDiscoveryStrategy implements NativeDiscov
     return false;
   }
 
-  // Returns the providers this strategy searches, in the order they were created, before any of them is filtered out
-  // for being unsupported on this machine. Visible for testing.
+  // unfiltered, in creation order
+  @VisibleForTesting
   List<SearchProvider> getSearchProviders() {
     return this.searchProviders;
   }

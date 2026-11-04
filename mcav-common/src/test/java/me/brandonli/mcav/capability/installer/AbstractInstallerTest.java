@@ -163,6 +163,16 @@ final class AbstractInstallerTest {
   }
 
   @Test
+  void shouldRejectANullMode() {
+    final Download[] downloads = new Download[0];
+    final TestInstaller installer = new TestInstaller(this.folder, NAME, downloads);
+
+    final NullPointerException failure = assertThrows(NullPointerException.class, () -> installer.download(null));
+    final String message = failure.getMessage();
+    assertEquals("Mode must not be null!", message);
+  }
+
+  @Test
   void shouldInstallIntoTheCacheFolderByDefault(@TempDir final Path home) {
     try (final TemporaryUserHome redirected = TemporaryUserHome.redirectTo(home)) {
       final Download[] downloads = new Download[0];

@@ -81,8 +81,7 @@ public final class DebianPackageExtractor {
   private static final String GZIP_SUFFIX = ".gz";
   private static final String ZSTD_SUFFIX = ".zst";
 
-  // a mebibyte is 1024 kibibytes; Debian compresses with xz -6, whose dictionary needs 9 MiB to decompress, and
-  // dpkg-deb's strongest level, xz -9, needs a little more than its 64 MiB dictionary
+  // xz -9, dpkg-deb's strongest level, needs a little more than its 64 MiB dictionary to decompress
   private static final int XZ_MEMORY_LIMIT_KIBIBYTES = 128 * 1024;
 
   private static final int TAR_BLOCK_SIZE = 512;
@@ -403,8 +402,8 @@ public final class DebianPackageExtractor {
     return metadata;
   }
 
-  // Reads the path and link path of a pax extended header, a list of records "<length> <key>=<value>\n" whose length
-  // counts the bytes of the whole record. Decoding as ISO-8859-1 keeps one character per byte, so lengths stay offsets.
+  // records are "<length> <key>=<value>\n", the length counting the bytes of the whole record; decoding as
+  // ISO-8859-1 keeps one character per byte, so lengths stay offsets
   private void readPaxHeader(final InputStream data, final long size) throws IOException {
     final byte[] metadata = this.readMetadata(data, size);
     final String records = new String(metadata, StandardCharsets.ISO_8859_1);
@@ -507,7 +506,7 @@ public final class DebianPackageExtractor {
     return this.readString(header, TAR_LINK_NAME_OFFSET, TAR_LINK_NAME_LENGTH);
   }
 
-  // Resolves an entry name against the destination. Names that escape it end up outside every extracted tree.
+  // a name that escapes the destination ends up outside every extracted tree
   private Path resolve(final String name) throws IOException {
     final Path entry = this.toPath(name);
     final Path resolved = this.destination.resolve(entry);

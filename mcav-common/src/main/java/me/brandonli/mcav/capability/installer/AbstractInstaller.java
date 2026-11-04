@@ -182,10 +182,13 @@ public abstract class AbstractInstaller implements Installer {
    * @throws DownloadException        if the download fails or its hash does not match
    * @throws FileOperationException   if the downloaded file cannot be moved into place
    * @throws IllegalArgumentException if a configured download URL is not a valid URI
+   * @throws NullPointerException     if {@code mode} is null
    * @since 1.0.0
    */
   @Override
   public Path download(final FileMode mode) {
+    Preconditions.checkNotNull(mode, "Mode must not be null!");
+
     synchronized (this.installLock) {
       final Optional<Path> existing = this.findExistingInstallation();
       final @Nullable Path existingPath = existing.orElse(null);

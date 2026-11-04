@@ -83,6 +83,7 @@ final class DebianPackageBuilder {
   private static final String CHECKSUM_TERMINATOR = "\0 ";
   private static final char OCTAL_PADDING = '0';
 
+  // two literals: "\000" would read as one octal escape
   private static final byte[] USTAR_MAGIC = ("ustar\0" + "00").getBytes(StandardCharsets.US_ASCII);
   private static final byte[] GNU_MAGIC = "ustar  \0".getBytes(StandardCharsets.US_ASCII);
 

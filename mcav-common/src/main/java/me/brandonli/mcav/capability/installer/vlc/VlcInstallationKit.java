@@ -47,7 +47,8 @@ import org.slf4j.LoggerFactory;
  *   pinned Debian packages of {@link DebianLibraryInstaller#createVlcInstaller()}, which bring every library that VLC
  *   needs besides glibc.
  * </ol>
- * The libraries of a private copy are loaded straight from its installation directory, and the kit never touches
+ *
+ * <p>The libraries of a private copy are loaded straight from its installation directory, and the kit never touches
  * vlcj's own configuration files. Either way, vlcj is ready to create media players once {@link #start()} returns.
  * Factory-created kits share synchronized load state, so concurrent starts use the first successful native
  * load. The kit does not own media players and has no close operation; callers release their players separately.

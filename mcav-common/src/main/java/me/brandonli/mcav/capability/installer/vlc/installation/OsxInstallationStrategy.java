@@ -133,8 +133,6 @@ public final class OsxInstallationStrategy extends ManualInstallationStrategy {
     }
   }
 
-  // Mounts the disk image read-only, copies VLC.app out of it, and unmounts it again. When the copy fails, the image is
-  // still detached, and a failure to detach is attached to the copy failure instead of hiding it.
   private void copyFromDiskImage(final Path archive, final Path mountPoint, final Path installDirectory) {
     final String rawArchive = archive.toString();
     final String rawMountPoint = mountPoint.toString();
@@ -169,9 +167,7 @@ public final class OsxInstallationStrategy extends ManualInstallationStrategy {
     }
   }
 
-  // Detaches the disk image, forcing it when a regular detach fails, for example because a process still has a file of
-  // the image open. The mount point is only deleted once the image is detached, because deleting it while mounted would
-  // reach into the image.
+  // delete the mount point only once detached: while mounted it reaches into the image
   private void detach(final Path mountPoint) {
     final String rawMountPoint = mountPoint.toString();
     try {
