@@ -541,7 +541,7 @@ final class VirtualizeCommandTest {
     this.assertArguments(
       "-drive file=a.img,media=disk -drive file=b.img",
       DRIVE_OPTION,
-      FILE_PROPERTY_PREFIX + first + ",media=disk",
+      "%s%s,media=disk".formatted(FILE_PROPERTY_PREFIX, first),
       DRIVE_OPTION,
       FILE_PROPERTY_PREFIX + second
     );
@@ -617,7 +617,7 @@ final class VirtualizeCommandTest {
 
       final String message = failure.getMessage();
       final boolean explained = message.contains(" is not supported, use one of ");
-      assertTrue(explained, options + " -> " + message);
+      assertTrue(explained, "%s -> %s".formatted(options, message));
     }
   }
 
@@ -863,10 +863,10 @@ final class VirtualizeCommandTest {
   @Test
   void shouldRefuseADrivePropertyThatStartsWithAPathSeparator() {
     for (final String part : new String[] { ABSOLUTE_DRIVE_PATH, NETWORK_DRIVE_PATH }) {
-      final IllegalArgumentException failure = this.assertRefusedOptions("-drive " + part + ",file=disk.img");
+      final IllegalArgumentException failure = this.assertRefusedOptions("-drive %s,file=disk.img".formatted(part));
 
       final String message = failure.getMessage();
-      assertEquals("QEMU option -drive must not name a file, but " + part + " does!", message);
+      assertEquals("QEMU option -drive must not name a file, but %s does!".formatted(part), message);
     }
   }
 
@@ -876,7 +876,7 @@ final class VirtualizeCommandTest {
     this.assertArguments(
       "-drive file=disk.img,format=raw,if=virtio,media=disk,cache=none,readonly=on,id=boot",
       DRIVE_OPTION,
-      FILE_PROPERTY_PREFIX + image + ",format=raw,if=virtio,media=disk,cache=none,readonly=on,id=boot"
+      "%s%s,format=raw,if=virtio,media=disk,cache=none,readonly=on,id=boot".formatted(FILE_PROPERTY_PREFIX, image)
     );
   }
 
@@ -884,10 +884,10 @@ final class VirtualizeCommandTest {
   @ValueSource(strings = { "driver=file", "node-name=disk", "backing=none", "file.locking=off", "throttling.iops-total=100" })
   void shouldRefuseADrivePropertyOutsideTheList(final String part) throws IOException {
     this.image(DISK_FILE_NAME);
-    final IllegalArgumentException failure = this.assertRefusedOptions("-drive file=disk.img," + part);
+    final IllegalArgumentException failure = this.assertRefusedOptions("-drive file=disk.img,%s".formatted(part));
 
     final String message = failure.getMessage();
-    assertEquals("Value file=disk.img," + part + " of the QEMU option -drive contains " + part + ", which is not allowed!", message);
+    assertEquals("Value file=disk.img,%s of the QEMU option -drive contains %s, which is not allowed!".formatted(part, part), message);
   }
 
   @Test
@@ -917,7 +917,7 @@ final class VirtualizeCommandTest {
     assertEquals(512L << 20, virtualizeCommandMaximumMemoryBytes);
 
     final long limit = VirtualizeCommand.maximumMemoryBytes();
-    assertTrue(limit >= 512L << 20, "at least 512 MiB: " + limit);
+    assertTrue(limit >= 512L << 20, "at least 512 MiB: %s".formatted(limit));
   }
 
   @Test
@@ -942,7 +942,7 @@ final class VirtualizeCommandTest {
     final IllegalArgumentException failure = this.assertRefusedOptions(options);
 
     final String message = failure.getMessage();
-    final String expected = "QEMU option " + options + " needs a value!";
+    final String expected = "QEMU option %s needs a value!".formatted(options);
     assertEquals(expected, message);
   }
 
@@ -957,7 +957,7 @@ final class VirtualizeCommandTest {
     final String accepted = String.join(", ", VirtualizeCommand.supportedOptions());
 
     final String text = Components.plain(messages.getFirst());
-    assertEquals("Invalid QEMU flags! QEMU option -plugin is not supported, use one of " + accepted + " instead!", text);
+    assertEquals("Invalid QEMU flags! QEMU option -plugin is not supported, use one of %s instead!".formatted(accepted), text);
 
     this.machines.verifyNoInteractions();
     assertNull(this.command.player);

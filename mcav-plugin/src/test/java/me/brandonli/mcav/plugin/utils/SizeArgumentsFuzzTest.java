@@ -45,6 +45,6 @@ final class SizeArgumentsFuzzTest {
     final int width = size.getFirst();
     final int height = size.getSecond();
     final boolean bounded = width >= 1 && width <= maximum && height >= 1 && height <= maximum;
-    assertTrue(bounded, () -> "'" + typed + "' became " + width + "x" + height);
+    assertTrue(bounded, () -> "'%s' became %sx%s".formatted(typed, width, height));
   }
 }

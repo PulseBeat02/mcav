@@ -51,7 +51,7 @@ final class VideoFlagsParserPropertyTest {
   private static final String ESCAPED_CLOSING = "\\}";
 
   // the parser's old regex, which overflowed the stack on long options; kept as the oracle for short inputs
-  private static final Pattern ORIGINAL_OPTIONS = Pattern.compile(Pattern.quote("--yt-dlp") + "\\{((?:[^\\\\}]|\\\\.)*)}");
+  private static final Pattern ORIGINAL_OPTIONS = Pattern.compile("%s\\{((?:[^\\\\}]|\\\\.)*)}".formatted(Pattern.quote("--yt-dlp")));
 
   private final VideoFlagsParser parser = new VideoFlagsParser();
 
@@ -82,7 +82,7 @@ final class VideoFlagsParserPropertyTest {
     final ListArbitrary<String> fewOptions = options.ofMaxSize(MAXIMUM_OPTIONS);
     final Arbitrary<String> joined = fewOptions.map(list -> String.join(OPTION_SEPARATOR, list));
     final Arbitrary<String> wrapped = joined.map(content -> FLAG_OPENING + content + FLAG_CLOSING);
-    final Arbitrary<String> dashed = pieces.map(piece -> "-" + piece);
+    final Arbitrary<String> dashed = pieces.map(piece -> "-%s".formatted(piece));
     final Arbitrary<String> values = Arbitraries.oneOf(pieces, dashed);
     final Combinators.Combinator2<String, String> acceptedParts = Combinators.combine(names, values);
     final Arbitrary<String> acceptedOption = acceptedParts.as(this::toOption);
@@ -131,7 +131,7 @@ final class VideoFlagsParserPropertyTest {
 
     final String options = this.parser.extractOptions(flags);
 
-    assertEquals(expected, options, () -> "options of '" + flags + "'");
+    assertEquals(expected, options, () -> "options of '%s'".formatted(flags));
   }
 
   @Provide
@@ -166,7 +166,7 @@ final class VideoFlagsParserPropertyTest {
     final List<String> expected = new ArrayList<>();
     for (final String[] option : options) {
       final String name = option[0];
-      expected.add("--" + name);
+      expected.add("--%s".formatted(name));
 
       if (option.length == 1) {
         typedOptions.add(name);
@@ -184,6 +184,6 @@ final class VideoFlagsParserPropertyTest {
 
     final String[] arguments = this.parser.parseYtdlpFlags(typed);
 
-    assertArrayEquals(expectedArguments, arguments, () -> "typed " + typed);
+    assertArrayEquals(expectedArguments, arguments, () -> "typed %s".formatted(typed));
   }
 }

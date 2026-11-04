@@ -37,8 +37,8 @@ final class SeekPositionPropertyTest {
   void shouldReadBackEveryFormattedTime(@ForAll @LongRange(min = 0, max = SeekPosition.MAXIMUM_MILLISECONDS) final long milliseconds) {
     final long whole = milliseconds - (milliseconds % MILLISECONDS_PER_SECOND);
     final Optional<SeekPosition> absolute = SeekPosition.parse(SeekPosition.format(whole));
-    final Optional<SeekPosition> forward = SeekPosition.parse("+" + SeekPosition.format(whole));
-    final Optional<SeekPosition> back = SeekPosition.parse("-" + SeekPosition.format(whole));
+    final Optional<SeekPosition> forward = SeekPosition.parse("+%s".formatted(SeekPosition.format(whole)));
+    final Optional<SeekPosition> back = SeekPosition.parse("-%s".formatted(SeekPosition.format(whole)));
 
     final SeekPosition expected = SeekPosition.of(ABSOLUTE, whole);
     assertEquals(Optional.of(expected), absolute);

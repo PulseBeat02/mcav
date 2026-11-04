@@ -53,9 +53,9 @@ final class ScoreboardArgumentsTest {
   @Test
   void shouldUseTheLineLimitOfTheLibrary() {
     final int limit = ScoreboardConfiguration.MAXIMUM_LINES;
-    final boolean atLimit = ScoreboardArguments.isTooTall("24x" + limit);
+    final boolean atLimit = ScoreboardArguments.isTooTall("24x%s".formatted(limit));
     final int above = limit + 1;
-    final boolean aboveLimit = ScoreboardArguments.isTooTall("24x" + above);
+    final boolean aboveLimit = ScoreboardArguments.isTooTall("24x%s".formatted(above));
     assertFalse(atLimit);
     assertTrue(aboveLimit);
   }

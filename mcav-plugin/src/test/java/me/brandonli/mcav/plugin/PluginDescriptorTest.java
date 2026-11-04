@@ -69,11 +69,11 @@ final class PluginDescriptorTest {
 
     final String pluginDefault = descriptor.getString("default-permission");
     for (final String name : declared) {
-      final String string = permissions.getString(name + "/default", pluginDefault);
-      assertEquals("op", string, name + " is for operators until granted");
+      final String string = permissions.getString("%s/default".formatted(name), pluginDefault);
+      assertEquals("op", string, "%s is for operators until granted".formatted(name));
 
-      final boolean blank = permissions.getString(name + "/description", "").isBlank();
-      assertFalse(blank, name + " says what it allows");
+      final boolean blank = permissions.getString("%s/description".formatted(name), "").isBlank();
+      assertFalse(blank, "%s says what it allows".formatted(name));
     }
   }
 

@@ -556,7 +556,7 @@ final class PluginDataConfigurationMapperTest {
     "8080.9, 3000",
   })
   void shouldAcceptOnlyValidPorts(final String configured, final int expected) throws IOException {
-    this.writeConfiguration("http-server:\n  port: " + configured + "\n");
+    this.writeConfiguration("http-server:\n  port: %s\n".formatted(configured));
     this.mapper.deserialize();
     final int port = this.mapper.getHttpPort();
     assertEquals(expected, port);
@@ -565,7 +565,7 @@ final class PluginDataConfigurationMapperTest {
   @ParameterizedTest
   @CsvSource({ "0, 0", "1, 1", "256, 256", "-1, 0", "257, 0", "4294967297, 0", "2.5, 0" })
   void shouldAcceptOnlyValidEncoderThreads(final String configured, final int expected) throws IOException {
-    this.writeConfiguration("mcv2:\n  encoder-threads: " + configured + "\n");
+    this.writeConfiguration("mcv2:\n  encoder-threads: %s\n".formatted(configured));
     this.mapper.deserialize();
 
     final int mcv2EncoderThreads = this.mapper.getMcv2EncoderThreads();
@@ -596,7 +596,7 @@ final class PluginDataConfigurationMapperTest {
   @ParameterizedTest
   @CsvSource({ "auto, auto", "off, off", "on, auto", "OFF, auto" })
   void shouldAcceptOnlyTheNativeModes(final String configured, final String expected) throws IOException {
-    this.writeConfiguration("mcv2:\n  native: \"" + configured + "\"\n");
+    this.writeConfiguration("mcv2:\n  native: \"%s\"\n".formatted(configured));
     this.mapper.deserialize();
 
     final String mcv2Native = this.mapper.getMcv2Native();
@@ -606,7 +606,7 @@ final class PluginDataConfigurationMapperTest {
   @ParameterizedTest
   @CsvSource({ "off, off", "false, off", "on, auto", "true, auto" })
   void shouldReadTheNativeModeWrittenWithoutQuotes(final String configured, final String expected) throws IOException {
-    this.writeConfiguration("mcv2:\n  native: " + configured + "\n");
+    this.writeConfiguration("mcv2:\n  native: %s\n".formatted(configured));
     this.mapper.deserialize();
 
     final String mcv2Native = this.mapper.getMcv2Native();

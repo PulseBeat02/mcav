@@ -100,7 +100,7 @@ final class QemuHardwareValuesTest {
   void shouldRefuseEveryOtherValue(final String name, final String value) {
     final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () -> QemuHardwareValues.check(name, value));
 
-    final boolean prefixed = refused.getMessage().startsWith("Value " + value + " of the QEMU option -" + name + " ");
+    final boolean prefixed = refused.getMessage().startsWith("Value %s of the QEMU option -%s ".formatted(value, name));
     assertEquals(true, prefixed, refused.getMessage());
   }
 
@@ -166,7 +166,7 @@ final class QemuHardwareValuesTest {
       QemuHardwareValues.checkDriveProperty(part, value)
     );
 
-    final boolean prefixed = refused.getMessage().startsWith("Value " + value + " of the QEMU option -drive ");
+    final boolean prefixed = refused.getMessage().startsWith("Value %s of the QEMU option -drive ".formatted(value));
     assertEquals(true, prefixed, refused.getMessage());
   }
 

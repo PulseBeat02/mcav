@@ -58,7 +58,7 @@ final class QemuHardwareValuesFuzzTest {
     }
 
     final boolean matches = value.indexOf('/') >= 0 || value.indexOf('\\') >= 0;
-    assertFalse(matches, () -> "-" + option + " accepted a path: " + value);
+    assertFalse(matches, () -> "-%s accepted a path: %s".formatted(option, value));
 
     for (final String part : value.split(PROPERTY_SEPARATOR, -1)) {
       final int equals = part.indexOf('=');
@@ -66,7 +66,7 @@ final class QemuHardwareValuesFuzzTest {
         final String property = part.substring(0, equals);
 
         final boolean contained = FILE_PROPERTIES.contains(property);
-        assertFalse(contained, () -> "-" + option + " accepted the property " + property + " in " + value);
+        assertFalse(contained, () -> "-%s accepted the property %s in %s".formatted(option, property, value));
       }
     }
   }
