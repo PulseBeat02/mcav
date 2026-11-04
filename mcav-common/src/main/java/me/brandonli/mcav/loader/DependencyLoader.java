@@ -383,6 +383,7 @@ public final class DependencyLoader {
       this.logger.info("VLC ready in {} ms.", elapsed);
     } catch (final RuntimeException | LinkageError exception) {
       this.recordPreparation(Capability.VLC, preparation, Availability.UNAVAILABLE);
+
       final boolean cancelled = this.isCancelled();
       if (cancelled) {
         this.logCancellation(Capability.VLC);
@@ -468,6 +469,7 @@ public final class DependencyLoader {
       this.logger.info("yt-dlp ready in {} ms.", elapsed);
     } catch (final RuntimeException exception) {
       this.recordPreparation(Capability.YT_DLP, preparation, Availability.UNAVAILABLE);
+
       final boolean cancelled = this.isCancelled();
       if (cancelled) {
         this.logCancellation(Capability.YT_DLP);

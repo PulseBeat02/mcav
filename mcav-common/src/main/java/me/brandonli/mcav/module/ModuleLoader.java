@@ -130,6 +130,7 @@ public final class ModuleLoader {
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
       LOGGER.error("Module {} failed to stop after it failed to start.", moduleName, exception);
+
       // addSuppressed rejects self-suppression.
       final Equivalence<Object> identity = Equivalence.identity();
       if (!identity.equivalent(exception, startFailure)) {
