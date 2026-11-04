@@ -56,6 +56,7 @@ import org.cef.browser.CefBrowser;
 import org.cef.browser.CefDevToolsClient;
 import org.cef.browser.MCAVOffscreenBrowser;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InOrder;
@@ -92,6 +93,13 @@ class CefEngineTest {
 
   private static final Pattern FEATURE_SEPARATOR = Pattern.compile(",");
 
+  private CefEngine engine;
+
+  @BeforeEach
+  void setUp() {
+    this.engine = new CefEngine();
+  }
+
   private HelperConfiguration configuration(final AllowedFeature feature) {
     final boolean allowsJit = feature == AllowedFeature.JAVASCRIPT_JIT;
     final boolean allowsAutoplay = feature == AllowedFeature.AUTOPLAY;
@@ -117,7 +125,7 @@ class CefEngineTest {
   @Test
   void shouldStartChromiumOnAThreadOfItsOwnWhoseFailureReachesTheCaller() throws Exception {
     final List<String> names = new ArrayList<>();
-    CefEngine.runOnOwnThread("mcav-browser-chromium", () -> names.add(Thread.currentThread().getName()));
+    this.engine.runOnOwnThread("mcav-browser-chromium", () -> names.add(Thread.currentThread().getName()));
     assertEquals(List.of("mcav-browser-chromium"), names);
 
     final IOException refused = new IOException("Landlock could not restrict the thread because of error 1 from the kernel!");
@@ -130,11 +138,11 @@ class CefEngineTest {
   }
 
   private void runFailingOnOwnThread(final Exception exception) throws Exception {
-    CefEngine.runOnOwnThread("failing", () -> this.throwException(exception));
+    this.engine.runOnOwnThread("failing", () -> this.throwException(exception));
   }
 
   private void runUnlinkedOnOwnThread(final Error error) throws Exception {
-    CefEngine.runOnOwnThread("unlinked", () -> this.throwError(error));
+    this.engine.runOnOwnThread("unlinked", () -> this.throwError(error));
   }
 
   private Object throwException(final Exception exception) throws Exception {
@@ -147,7 +155,7 @@ class CefEngineTest {
 
   @Test
   void shouldRunChromiumWithoutGpuSoundExtensionsOrPermissionPrompts() {
-    final List<String> switches = CefEngine.createSwitches(this.configuration(AllowedFeature.NONE), OperatingSystem.OTHER, 0, null);
+    final List<String> switches = this.engine.createSwitches(this.configuration(AllowedFeature.NONE), OperatingSystem.OTHER, 0, null);
     final boolean disablesGpuSoundExtensionsAndPrompts = switches.containsAll(
       List.of("--disable-gpu", "--mute-audio", "--disable-extensions", "--deny-permission-prompts", "--site-per-process")
     );
@@ -159,7 +167,7 @@ class CefEngineTest {
     final boolean requiresActivationForAutoplay = switches.contains("--autoplay-policy=document-user-activation-required");
     assertTrue(requiresActivationForAutoplay);
 
-    final List<String> autoplaySwitches = CefEngine.createSwitches(
+    final List<String> autoplaySwitches = this.engine.createSwitches(
       this.configuration(AllowedFeature.AUTOPLAY),
       OperatingSystem.OTHER,
       0,
@@ -188,7 +196,7 @@ class CefEngineTest {
 
   @Test
   void shouldSendEveryConnectionThroughAGuardAndNothingAroundIt() {
-    final List<String> guarded = CefEngine.createSwitches(this.configuration(AllowedFeature.NONE), OperatingSystem.OTHER, 41234, null);
+    final List<String> guarded = this.engine.createSwitches(this.configuration(AllowedFeature.NONE), OperatingSystem.OTHER, 41234, null);
     final boolean routesThroughTheGuard = guarded.containsAll(
       List.of(
         "--proxy-server=socks5://127.0.0.1:41234",
@@ -199,7 +207,7 @@ class CefEngineTest {
     );
     assertTrue(routesThroughTheGuard);
 
-    final List<String> open = CefEngine.createSwitches(this.configuration(AllowedFeature.NONE), OperatingSystem.OTHER, 0, null);
+    final List<String> open = this.engine.createSwitches(this.configuration(AllowedFeature.NONE), OperatingSystem.OTHER, 0, null);
     for (final String value : open) {
       final boolean namesAProxy = value.startsWith("--proxy");
       assertFalse(namesAProxy, value);
@@ -210,7 +218,7 @@ class CefEngineTest {
   // and the preconnect to the search engine
   @Test
   void shouldNeverLetTheOwnServicesOfChromiumContactGoogle() {
-    final List<String> switches = CefEngine.createSwitches(this.configuration(AllowedFeature.NONE), OperatingSystem.OTHER, 0, null);
+    final List<String> switches = this.engine.createSwitches(this.configuration(AllowedFeature.NONE), OperatingSystem.OTHER, 0, null);
     final List<String> disabled = switches
       .stream()
       .filter(value -> value.startsWith("--disable-features="))
@@ -244,18 +252,15 @@ class CefEngineTest {
 
   @Test
   void shouldKeepTheJitOnlyWhenTheConfigurationAllowsIt() {
-    final boolean jitless = CefEngine.createSwitches(
-      this.configuration(AllowedFeature.JAVASCRIPT_JIT),
-      OperatingSystem.OTHER,
-      0,
-      null
-    ).contains(JITLESS_SWITCH);
+    final boolean jitless = this.engine
+      .createSwitches(this.configuration(AllowedFeature.JAVASCRIPT_JIT), OperatingSystem.OTHER, 0, null)
+      .contains(JITLESS_SWITCH);
     assertFalse(jitless);
   }
 
   @Test
   void shouldUseTheHeadlessPlatformAndTheNullDisplayOnLinuxAndAMockKeychainOnMacos() {
-    final List<String> linux = CefEngine.createSwitches(
+    final List<String> linux = this.engine.createSwitches(
       this.configuration(AllowedFeature.NONE),
       OperatingSystem.LINUX,
       0,
@@ -273,11 +278,11 @@ class CefEngineTest {
     final boolean usesNullDisplay = linux.contains("--display=127.0.0.1:26768");
     assertTrue(usesNullDisplay);
 
-    final List<String> noDisplay = CefEngine.createSwitches(this.configuration(AllowedFeature.NONE), OperatingSystem.LINUX, 0, null);
+    final List<String> noDisplay = this.engine.createSwitches(this.configuration(AllowedFeature.NONE), OperatingSystem.LINUX, 0, null);
     final boolean namesNoDisplay = noDisplay.stream().noneMatch(entry -> entry.startsWith("--display"));
     assertTrue(namesNoDisplay, noDisplay.toString());
 
-    final List<String> mac = CefEngine.createSwitches(this.configuration(AllowedFeature.NONE), OperatingSystem.MAC, 0, null);
+    final List<String> mac = this.engine.createSwitches(this.configuration(AllowedFeature.NONE), OperatingSystem.MAC, 0, null);
     final boolean macMockKeychain = mac.contains(MOCK_KEYCHAIN_SWITCH);
     assertTrue(macMockKeychain);
 
@@ -293,7 +298,7 @@ class CefEngineTest {
     final CefSettings settings = new CefSettings();
     settings.remote_debugging_port = 9222;
     settings.persist_session_cookies = true;
-    CefEngine.configureSettings(settings, this.configuration(AllowedFeature.NONE));
+    this.engine.configureSettings(settings, this.configuration(AllowedFeature.NONE));
     final String profile = ROOT.resolve(SESSION_FOLDER).resolve(PROFILE_FOLDER).toString();
     assertTrue(settings.windowless_rendering_enabled);
     assertEquals(profile, settings.root_cache_path);
@@ -330,7 +335,7 @@ class CefEngineTest {
     final PageAudio audio = new PageAudio(samples -> {}, System::nanoTime);
     final List<String> notices = new CopyOnWriteArrayList<>();
     final CefBrowser closed = mock(CefBrowser.class);
-    CefEngine.openPage(closed, PAGE_URL, SCRIPT_TIMEOUT_MILLISECONDS, audio, notices::add);
+    this.engine.openPage(closed, PAGE_URL, SCRIPT_TIMEOUT_MILLISECONDS, audio, notices::add);
     verify(closed).loadURL(PAGE_URL);
     final CefBrowser browser = mock(CefBrowser.class);
 
@@ -338,7 +343,7 @@ class CefEngineTest {
     when(browser.getDevToolsClient()).thenReturn(devTools);
     final CompletableFuture<String> failed = CompletableFuture.failedFuture(new IllegalStateException("The browser is closed!"));
     when(devTools.executeDevToolsMethod(anyString(), anyString())).thenReturn(failed);
-    CefEngine.openPage(browser, PAGE_URL, SCRIPT_TIMEOUT_MILLISECONDS, audio, notices::add);
+    this.engine.openPage(browser, PAGE_URL, SCRIPT_TIMEOUT_MILLISECONDS, audio, notices::add);
     EventQueue.invokeAndWait(() -> {});
     EventQueue.invokeAndWait(() -> {});
     final List<DevToolsInput.DevToolsCall> calls = DevToolsInput.openWindowsInPlace();
@@ -365,7 +370,7 @@ class CefEngineTest {
     when(working.executeDevToolsMethod(anyString(), anyString())).thenReturn(CompletableFuture.completedFuture(EMPTY_PARAMETERS));
     final PageAudio audio = new PageAudio(samples -> {}, System::nanoTime);
     final List<String> notices = new CopyOnWriteArrayList<>();
-    CefEngine.openPage(browser, "https://example.com/again", 300L, audio, notices::add);
+    this.engine.openPage(browser, "https://example.com/again", 300L, audio, notices::add);
     Await.until("the page loaded", () -> this.hasLoadedAPage(browser));
     verify(lost).close();
     verify(working).addEventListener(audio);
@@ -395,7 +400,7 @@ class CefEngineTest {
     final CompletableFuture<String> slow = new CompletableFuture<>();
     when(devTools.executeDevToolsMethod(anyString(), anyString())).thenReturn(slow);
     final List<String> notices = new CopyOnWriteArrayList<>();
-    CefEngine.openPage(browser, "https://example.com/slow", 60_000L, new PageAudio(samples -> {}, System::nanoTime), notices::add);
+    this.engine.openPage(browser, "https://example.com/slow", 60_000L, new PageAudio(samples -> {}, System::nanoTime), notices::add);
     Thread.sleep(1_500L);
     EventQueue.invokeAndWait(() -> {});
     verify(browser, never()).loadURL(anyString());
@@ -414,7 +419,7 @@ class CefEngineTest {
     final CompletableFuture<String> lost = new CompletableFuture<>();
     when(devTools.executeDevToolsMethod(anyString(), anyString())).thenReturn(lost);
     final List<String> notices = new CopyOnWriteArrayList<>();
-    CefEngine.openPage(
+    this.engine.openPage(
       browser,
       "https://example.com/lost",
       SCRIPT_TIMEOUT_MILLISECONDS,
@@ -437,7 +442,7 @@ class CefEngineTest {
     final CompletableFuture<String> late = new CompletableFuture<>();
     when(devTools.executeDevToolsMethod(anyString(), anyString())).thenReturn(late);
     final List<String> notices = new CopyOnWriteArrayList<>();
-    CefEngine.openPage(browser, "https://example.com/late", 100L, new PageAudio(samples -> {}, System::nanoTime), notices::add);
+    this.engine.openPage(browser, "https://example.com/late", 100L, new PageAudio(samples -> {}, System::nanoTime), notices::add);
     Await.until(PAGE_LOADED_AFTER_TIMEOUT_MESSAGE, () -> this.hasLoadedAPage(browser));
     verify(browser, never()).reload();
 
@@ -451,35 +456,35 @@ class CefEngineTest {
 
   @Test
   void shouldDescribeTheVersionWhenJcefReportsOne() {
-    final String unknownDescription = CefEngine.describe(null);
+    final String unknownDescription = this.engine.describe(null);
     assertEquals("unknown", unknownDescription);
 
     final CefApp.CefVersion version = mock(CefApp.CefVersion.class);
     when(version.getCefVersion()).thenReturn("146.0.10");
     when(version.getChromeVersion()).thenReturn("146.0.7680.179");
-    final String versionDescription = CefEngine.describe(version);
+    final String versionDescription = this.engine.describe(version);
     assertEquals("146.0.10 (Chromium 146.0.7680.179)", versionDescription);
   }
 
   @Test
   void shouldOnlySendInputWhileTheBrowserHasADevToolsClient() {
-    CefEngine.execute(null, DevToolsInput.pressKey(ENTER_KEY));
+    this.engine.execute(null, DevToolsInput.pressKey(ENTER_KEY));
     final CefDevToolsClient devTools = mock(CefDevToolsClient.class);
     when(devTools.executeDevToolsMethod(anyString(), anyString())).thenReturn(CompletableFuture.completedFuture(EMPTY_PARAMETERS));
-    CefEngine.execute(devTools, DevToolsInput.pressKey(ENTER_KEY));
+    this.engine.execute(devTools, DevToolsInput.pressKey(ENTER_KEY));
     verify(devTools, times(2)).executeDevToolsMethod(eq(DevToolsInput.KEY_METHOD), anyString());
   }
 
   @Test
   void shouldDisposeOfWhatWasCreatedOnClose() {
     final CefApp application = mock(CefApp.class);
-    CefEngine.close(null, null, application);
+    this.engine.close(null, null, application);
     verify(application).dispose();
 
     final MCAVOffscreenBrowser browser = mock(MCAVOffscreenBrowser.class);
     final CefClient client = mock(CefClient.class);
     final CefApp second = mock(CefApp.class);
-    CefEngine.close(browser, client, second);
+    this.engine.close(browser, client, second);
     final InOrder order = inOrder(browser, client, second);
     order.verify(browser).setCloseAllowed();
     order.verify(browser).close(true);
@@ -490,12 +495,12 @@ class CefEngineTest {
   @Test
   void shouldWaitForCefAndSurviveFailuresAndInterruptsOnShutdown() {
     final CountDownLatch terminated = new CountDownLatch(1);
-    CefEngine.shutDown(terminated::countDown, terminated, SHUTDOWN_TIMEOUT_MILLISECONDS);
+    this.engine.shutDown(terminated::countDown, terminated, SHUTDOWN_TIMEOUT_MILLISECONDS);
     final long remainingCount = terminated.getCount();
     assertEquals(0, remainingCount);
 
     try (final StandardError errors = new StandardError()) {
-      CefEngine.shutDown(this::failToDispose, new CountDownLatch(1), SHUTDOWN_TIMEOUT_MILLISECONDS);
+      this.engine.shutDown(this::failToDispose, new CountDownLatch(1), SHUTDOWN_TIMEOUT_MILLISECONDS);
       final boolean reportsTheDisposeFailure = errors
         .text()
         .contains("Because of \"java.lang.IllegalStateException: The disposal failed!\", CEF could not be shut down.");
@@ -505,7 +510,7 @@ class CefEngineTest {
     final Thread current = Thread.currentThread();
     current.interrupt();
     try {
-      CefEngine.shutDown(() -> {}, new CountDownLatch(1), 60_000L);
+      this.engine.shutDown(() -> {}, new CountDownLatch(1), 60_000L);
       final boolean interruptKept = current.isInterrupted();
       assertTrue(interruptKept, "the interrupt is kept");
     } finally {
@@ -546,7 +551,7 @@ class CefEngineTest {
   @Test
   void shouldLogAFailedDevToolsCall() {
     try (final StandardError errors = new StandardError()) {
-      final String fallback = CefEngine.logFailedCall(new IllegalStateException("The browser is gone!"));
+      final String fallback = this.engine.logFailedCall(new IllegalStateException("The browser is gone!"));
       assertEquals("", fallback);
 
       final boolean reportsTheFailedCall = errors
@@ -559,13 +564,13 @@ class CefEngineTest {
   @Test
   void shouldOnlyGiveLinuxANullDisplay(@TempDir final Path directory) throws IOException {
     final Path authority = directory.resolve(NullDisplay.AUTHORITY_FILE);
-    final @Nullable NullDisplay nonLinuxDisplay = CefEngine.startDisplay(OperatingSystem.OTHER, authority);
+    final @Nullable NullDisplay nonLinuxDisplay = this.engine.startDisplay(OperatingSystem.OTHER, authority);
     assertNull(nonLinuxDisplay);
 
     final boolean authorityFileWritten = Files.exists(authority);
     assertFalse(authorityFileWritten, "no display, no authority file");
 
-    try (final NullDisplay display = Objects.requireNonNull(CefEngine.startDisplay(OperatingSystem.LINUX, authority))) {
+    try (final NullDisplay display = Objects.requireNonNull(this.engine.startDisplay(OperatingSystem.LINUX, authority))) {
       final boolean loopbackDisplay = display.getDisplay().startsWith("127.0.0.1:");
       assertTrue(loopbackDisplay);
 

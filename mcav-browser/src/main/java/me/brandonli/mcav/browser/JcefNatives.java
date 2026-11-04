@@ -96,17 +96,6 @@ final class JcefNatives {
     return cache.resolve(CACHE_FOLDER);
   }
 
-  static Optional<NativePlatform> detect(final Os os, final Arch architecture, final Bits bits) {
-    for (final NativePlatform platform : NativePlatform.values()) {
-      final boolean matches = platform.getOs() == os && platform.getArchitecture() == architecture && bits == Bits.BITS_64;
-      if (matches) {
-        return Optional.of(platform);
-      }
-    }
-
-    return Optional.empty();
-  }
-
   Path install() throws IOException {
     return this.install(detectCurrent());
   }
@@ -164,13 +153,8 @@ final class JcefNatives {
   }
 
   static boolean isSupported(final Os os, final Arch architecture, final Bits bits) {
-    try {
-      detectOrFail(os, architecture, bits);
-
-      return true;
-    } catch (final IOException exception) {
-      return false;
-    }
+    final Optional<NativePlatform> platform = detect(os, architecture, bits);
+    return platform.isPresent();
   }
 
   static NativePlatform detectCurrent() throws IOException {
@@ -192,6 +176,17 @@ final class JcefNatives {
     }
 
     return platform;
+  }
+
+  static Optional<NativePlatform> detect(final Os os, final Arch architecture, final Bits bits) {
+    for (final NativePlatform platform : NativePlatform.values()) {
+      final boolean matches = platform.getOs() == os && platform.getArchitecture() == architecture && bits == Bits.BITS_64;
+      if (matches) {
+        return Optional.of(platform);
+      }
+    }
+
+    return Optional.empty();
   }
 
   @VisibleForTesting
@@ -250,19 +245,16 @@ final class JcefNatives {
   }
 
   private boolean extractFirstArchive(final ZipInputStream zip, final Path staging) throws IOException {
-    boolean extracted = false;
-    ZipEntry entry = zip.getNextEntry();
-    while (entry != null && !extracted) {
+    for (ZipEntry entry = zip.getNextEntry(); entry != null; entry = zip.getNextEntry()) {
       final String entryName = entry.getName();
       if (entryName.endsWith(ARCHIVE_SUFFIX)) {
         this.extractor.extract(zip, staging);
-        extracted = true;
-      } else {
-        entry = zip.getNextEntry();
+
+        return true;
       }
     }
 
-    return extracted;
+    return false;
   }
 
   @VisibleForTesting

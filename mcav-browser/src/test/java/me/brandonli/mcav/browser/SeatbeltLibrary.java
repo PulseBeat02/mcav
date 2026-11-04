@@ -49,16 +49,23 @@ final class SeatbeltLibrary implements AutoCloseable {
   );
   private static final FunctionDescriptor FREE_ERROR_DESCRIPTOR = FunctionDescriptor.ofVoid(ValueLayout.ADDRESS);
 
-  private final Arena arena = Arena.ofConfined();
-  private final Map<String, MemorySegment> functions = new HashMap<>();
-  private final List<String> profiles = new ArrayList<>();
-  private final List<Long> flags = new ArrayList<>();
-  private final List<Long> freed = new ArrayList<>();
+  private final Arena arena;
+  private final Map<String, MemorySegment> functions;
+  private final List<String> profiles;
+  private final List<Long> flags;
+  private final List<Long> freed;
 
   private int answer;
-  private MemorySegment reason = MemorySegment.NULL;
+  private MemorySegment reason;
 
   SeatbeltLibrary(final String... names) throws ReflectiveOperationException {
+    this.arena = Arena.ofConfined();
+    this.functions = new HashMap<>();
+    this.profiles = new ArrayList<>();
+    this.flags = new ArrayList<>();
+    this.freed = new ArrayList<>();
+    this.reason = MemorySegment.NULL;
+
     final MethodHandles.Lookup lookup = MethodHandles.lookup();
     for (final String name : names) {
       final boolean isSandboxInit = name.equals(SANDBOX_INIT);

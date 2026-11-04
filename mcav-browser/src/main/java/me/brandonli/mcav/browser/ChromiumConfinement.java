@@ -85,39 +85,69 @@ final class ChromiumConfinement {
     final Path home = Path.of(requireNonNull(System.getProperty(USER_HOME_PROPERTY))); // checker framework
     final Path serverFolder = configuration.getServerFolder();
     final List<Path> hidden = List.of(serverFolder, home, parentOf(session));
-    final List<Path> readable = new ArrayList<>();
-    readable.add(Path.of(requireNonNull(System.getProperty(JAVA_HOME_PROPERTY)))); // checker framework
-    final Path natives = configuration.getNatives();
-    readable.add(natives);
-    readable.addAll(pathsOf(System.getProperty(CLASS_PATH_PROPERTY)));
-    final RuntimeMXBean runtime = ManagementFactory.getRuntimeMXBean();
-    final List<String> inputArguments = runtime.getInputArguments();
-    readable.addAll(agentsOf(inputArguments));
+    final List<Path> readable = readablePaths(configuration);
 
     if (system == OperatingSystem.MAC) {
-      if (!seatbelt.isAvailable()) {
-        return UNAVAILABLE.formatted(Seatbelt.MISSING);
-      }
-
-      // Seatbelt matches the paths files really have, such as /private/var for /var
-      seatbelt.restrictProcess(Seatbelt.profile(realPaths(hidden), realPaths(readable), realPaths(List.of(session, DEVICES))));
-
-      return CONFINED;
+      return confineOnMac(seatbelt, hidden, readable, session);
     }
 
     if (system != OperatingSystem.LINUX) {
       return NOT_SUPPORTED;
     }
 
+    return confineOnLinux(version, hidden, readable, session);
+  }
+
+  private static List<Path> readablePaths(final HelperConfiguration configuration) {
+    final List<Path> readable = new ArrayList<>();
+    final String javaHome = requireNonNull(System.getProperty(JAVA_HOME_PROPERTY)); // checker framework
+    final Path java = Path.of(javaHome);
+    readable.add(java);
+    final Path natives = configuration.getNatives();
+    readable.add(natives);
+    final String classPath = System.getProperty(CLASS_PATH_PROPERTY);
+    final List<Path> classes = pathsOf(classPath);
+    readable.addAll(classes);
+    final RuntimeMXBean runtime = ManagementFactory.getRuntimeMXBean();
+    final List<String> inputArguments = runtime.getInputArguments();
+    final List<Path> agents = agentsOf(inputArguments);
+    readable.addAll(agents);
+
+    return readable;
+  }
+
+  private static String confineOnMac(final Seatbelt seatbelt, final List<Path> hidden, final List<Path> readable, final Path session)
+    throws IOException {
+    if (!seatbelt.isAvailable()) {
+      return UNAVAILABLE.formatted(Seatbelt.MISSING);
+    }
+
+    // Seatbelt matches the paths files really have, such as /private/var for /var
+    final List<Path> realHidden = realPaths(hidden);
+    final List<Path> realReadable = realPaths(readable);
+    final List<Path> writable = List.of(session, DEVICES);
+    final List<Path> realWritable = realPaths(writable);
+    final String profile = Seatbelt.profile(realHidden, realReadable, realWritable);
+    seatbelt.restrictProcess(profile);
+
+    return CONFINED;
+  }
+
+  private static String confineOnLinux(final IntSupplier version, final List<Path> hidden, final List<Path> readable, final Path session)
+    throws IOException {
     final int available = version.getAsInt();
     if (available < 1) {
       final String missing = Landlock.describeMissing(available);
       return UNAVAILABLE.formatted(missing);
     }
 
-    readable.addAll(linkedFiles(pathsOf(System.getenv(LIBRARY_PATH_VARIABLE))));
+    final String libraryPath = System.getenv(LIBRARY_PATH_VARIABLE);
+    final List<Path> libraryFolders = pathsOf(libraryPath);
+    final List<Path> libraries = linkedFiles(libraryFolders);
+    readable.addAll(libraries);
     final List<Path> writable = List.of(session, DEVICES, PROCESSES);
-    Landlock.restrictThread(available, rules(ROOT, hidden, readable, writable));
+    final List<Landlock.Rule> restrictions = rules(ROOT, hidden, readable, writable);
+    Landlock.restrictThread(available, restrictions);
 
     return CONFINED;
   }

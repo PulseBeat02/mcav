@@ -288,9 +288,7 @@ final class DevToolsInput {
       calls.add(new DevToolsCall(KEY_METHOD, RAW_KEY_DOWN_START + keyFields + OBJECT_END));
     } else {
       final String quotedText = quote(text);
-      calls.add(
-        new DevToolsCall(KEY_METHOD, KEY_DOWN_START + keyFields + TEXT_FIELD + quotedText + UNMODIFIED_TEXT_FIELD + quotedText + OBJECT_END)
-      );
+      calls.add(keyDownWithText(keyFields, quotedText));
     }
 
     calls.add(new DevToolsCall(KEY_METHOD, KEY_UP_START + keyFields + OBJECT_END));
@@ -314,17 +312,29 @@ final class DevToolsInput {
         calls.addAll(enter);
         continue;
       }
-      final String character = Character.toString(codePoint);
-      final String quoted = quote(character);
-      final int keyCode = virtualKeyCode(codePoint);
-      final String keyFields = KEY_FIELD + quoted + VIRTUAL_KEY_CODE_FIELD + keyCode;
-      calls.add(
-        new DevToolsCall(KEY_METHOD, KEY_DOWN_START + keyFields + TEXT_FIELD + quoted + UNMODIFIED_TEXT_FIELD + quoted + OBJECT_END)
-      );
-      calls.add(new DevToolsCall(KEY_METHOD, KEY_UP_START + keyFields + OBJECT_END));
+      calls.addAll(typeCharacter(codePoint));
     }
 
     return calls;
+  }
+
+  private static List<DevToolsCall> typeCharacter(final int codePoint) {
+    final List<DevToolsCall> calls = new ArrayList<>();
+    final String character = Character.toString(codePoint);
+    final String quoted = quote(character);
+    final int keyCode = virtualKeyCode(codePoint);
+    final String keyFields = KEY_FIELD + quoted + VIRTUAL_KEY_CODE_FIELD + keyCode;
+    calls.add(keyDownWithText(keyFields, quoted));
+    calls.add(new DevToolsCall(KEY_METHOD, KEY_UP_START + keyFields + OBJECT_END));
+
+    return calls;
+  }
+
+  private static DevToolsCall keyDownWithText(final String keyFields, final String quotedText) {
+    return new DevToolsCall(
+      KEY_METHOD,
+      KEY_DOWN_START + keyFields + TEXT_FIELD + quotedText + UNMODIFIED_TEXT_FIELD + quotedText + OBJECT_END
+    );
   }
 
   static int virtualKeyCode(final int codePoint) {

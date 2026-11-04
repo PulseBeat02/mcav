@@ -58,7 +58,9 @@ final class Seatbelt {
   }
 
   static Seatbelt ofSystem() {
-    return new Seatbelt(Linker.nativeLinker().defaultLookup());
+    final Linker linker = Linker.nativeLinker();
+    final SymbolLookup lookup = linker.defaultLookup();
+    return new Seatbelt(lookup);
   }
 
   // sandbox_init is a restricted native call; the helper starts with native access enabled
@@ -72,14 +74,19 @@ final class Seatbelt {
     }
 
     final Linker linker = Linker.nativeLinker();
-    final MethodHandle initializeCall = linker.downcallHandle(
-      initialize,
-      FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_LONG, ValueLayout.ADDRESS)
+    final FunctionDescriptor initializeDescriptor = FunctionDescriptor.of(
+      ValueLayout.JAVA_INT,
+      ValueLayout.ADDRESS,
+      ValueLayout.JAVA_LONG,
+      ValueLayout.ADDRESS
     );
-    final MethodHandle freeCall = linker.downcallHandle(freeError, FunctionDescriptor.ofVoid(ValueLayout.ADDRESS));
+    final MethodHandle initializeCall = linker.downcallHandle(initialize, initializeDescriptor);
+    final FunctionDescriptor freeErrorDescriptor = FunctionDescriptor.ofVoid(ValueLayout.ADDRESS);
+    final MethodHandle freeCall = linker.downcallHandle(freeError, freeErrorDescriptor);
     try (final Arena arena = Arena.ofConfined()) {
       final MemorySegment error = arena.allocate(ValueLayout.ADDRESS);
-      final Object result = call(initializeCall, arena.allocateFrom(profile), PROFILE_TEXT, error);
+      final MemorySegment profileText = arena.allocateFrom(profile);
+      final Object result = call(initializeCall, profileText, PROFILE_TEXT, error);
       if (SUCCESS.equals(result)) {
         return;
       }
@@ -94,6 +101,7 @@ final class Seatbelt {
       final MemorySegment reasonText = nativeReason.reinterpret(Long.MAX_VALUE);
       final String reason = reasonText.getString(0);
       call(freeCall, nativeReason);
+
       final String message = "Seatbelt refused the profile, reporting %s as the reason!".formatted(reason);
       throw new IOException(message);
     }
