@@ -138,13 +138,13 @@ final class ErrorDiffusionDitherTest {
       assertEquals(pixels.length, indices.length);
 
       final boolean balanced = ratio > 0.45 && ratio < 0.55;
-      assertTrue(balanced, algorithm + " ratio " + ratio);
+      assertTrue(balanced, "%s ratio %s".formatted(algorithm, ratio));
 
       final boolean leftMostlyBlack = leftWhite < HEIGHT / 4;
-      assertTrue(leftMostlyBlack, algorithm + " left edge");
+      assertTrue(leftMostlyBlack, "%s left edge".formatted(algorithm));
 
       final boolean rightMostlyWhite = rightWhite > (HEIGHT * 3) / 4;
-      assertTrue(rightMostlyWhite, algorithm + " right edge");
+      assertTrue(rightMostlyWhite, "%s right edge".formatted(algorithm));
     }
   }
 

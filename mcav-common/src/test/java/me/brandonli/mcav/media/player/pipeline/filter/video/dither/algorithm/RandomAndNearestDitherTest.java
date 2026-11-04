@@ -111,7 +111,7 @@ final class RandomAndNearestDitherTest {
     assertArrayEquals(firstIndices, secondIndices);
 
     final boolean halfWhite = ratio > 0.4 && ratio < 0.6;
-    assertTrue(halfWhite, "ratio " + ratio);
+    assertTrue(halfWhite, "ratio %s".formatted(ratio));
   }
 
   @Test

@@ -176,22 +176,22 @@ final class ColorFiltersTest {
 
     final int afterGray = tintedBlue(filter, 2, 2);
     final boolean firstHalf = isHalf(first);
-    assertTrue(firstHalf, "first " + first);
+    assertTrue(firstHalf, "first %s".formatted(first));
 
     final boolean sameSizeHalf = isHalf(sameSize);
-    assertTrue(sameSizeHalf, "the kept color is reused " + sameSize);
+    assertTrue(sameSizeHalf, "the kept color is reused %s".formatted(sameSize));
 
     final boolean otherWidthHalf = isHalf(otherWidth);
-    assertTrue(otherWidthHalf, "another width " + otherWidth);
+    assertTrue(otherWidthHalf, "another width %s".formatted(otherWidth));
 
     final boolean otherHeightHalf = isHalf(otherHeight);
-    assertTrue(otherHeightHalf, "another height " + otherHeight);
+    assertTrue(otherHeightHalf, "another height %s".formatted(otherHeight));
 
     final boolean grayHalf = isHalf(grayLevel);
-    assertTrue(grayHalf, "a single channel is tinted with the first component " + grayLevel);
+    assertTrue(grayHalf, "a single channel is tinted with the first component %s".formatted(grayLevel));
 
     final boolean afterGrayHalf = isHalf(afterGray);
-    assertTrue(afterGrayHalf, "and the next color frame gets three channels again " + afterGray);
+    assertTrue(afterGrayHalf, "and the next color frame gets three channels again %s".formatted(afterGray));
   }
 
   @Test
@@ -383,10 +383,10 @@ final class ColorFiltersTest {
         final int neighborBlue = neighbor & CHANNEL_MASK;
         final String name = type.name();
         assertTrue(modified, name);
-        assertNotEquals(WHITE, center, name + " darkens the bright pixel");
+        assertNotEquals(WHITE, center, "%s darkens the bright pixel".formatted(name));
 
         final boolean brightened = neighborBlue > 0;
-        assertTrue(brightened, name + " brightens its neighbors");
+        assertTrue(brightened, "%s brightens its neighbors".formatted(name));
       }
     }
   }

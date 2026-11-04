@@ -58,12 +58,12 @@ final class OrderedDitherTest {
     final int levels
   ) {
     final int[][] matrix = thresholds.toArray();
-    assertEquals(rows, matrix.length, name + " rows");
+    assertEquals(rows, matrix.length, "%s rows".formatted(name));
 
     int minimum = Integer.MAX_VALUE;
     final Map<Integer, Integer> counts = new HashMap<>();
     for (final int[] row : matrix) {
-      assertEquals(columns, row.length, name + " columns");
+      assertEquals(columns, row.length, "%s columns".formatted(name));
       for (final int value : row) {
         minimum = Math.min(minimum, value);
         counts.merge(value, 1, Integer::sum);
@@ -72,12 +72,12 @@ final class OrderedDitherTest {
 
     final int repetitions = (rows * columns) / levels;
     final int distinct = counts.size();
-    assertEquals(levels, distinct, name + " levels");
+    assertEquals(levels, distinct, "%s levels".formatted(name));
 
     for (int level = 0; level < levels; level++) {
       final int value = minimum + level;
       final int count = counts.getOrDefault(value, 0);
-      assertEquals(repetitions, count, name + " occurrences of " + value);
+      assertEquals(repetitions, count, "%s occurrences of %s".formatted(name, value));
     }
   }
 

@@ -72,7 +72,7 @@ public class FramesPerSecondFilter extends MatVideoFilter {
   @Override
   protected boolean modifyMat(final Mat matrix) {
     this.countFrame();
-    final String text = this.displayedFrameRate + " fps";
+    final String text = "%s fps".formatted(this.displayedFrameRate);
     drawText(matrix, text, BLACK, OUTLINE_THICKNESS);
     drawText(matrix, text, WHITE, TEXT_THICKNESS);
 
