@@ -142,7 +142,8 @@ final class DebianLibraryReleaseTest {
 
   private void assumeX86Machine() {
     final Platform current = Platform.getCurrentPlatform();
-    Assumptions.assumeTrue(current.equals(X86_64), "Only a 64-bit x86 Linux machine loads the x86-64 libraries!");
+    final boolean x86Machine = current.equals(X86_64);
+    Assumptions.assumeTrue(x86Machine, "Only a 64-bit x86 Linux machine loads the x86-64 libraries!");
   }
 
   private DebianLibraryInstaller createInstaller(final String resource, final Platform platform, final Consumer<String> loader) {

@@ -60,7 +60,8 @@ final class PromotingLibraryLoaderTest {
 
   @Test
   void shouldPutTheSymbolsOfLibtheoradecInTheGlobalScope(@TempDir final Path folder) throws IOException {
-    assumeTrue(OsUtils.getOs() == Os.LINUX, LINUX_ONLY_MESSAGE);
+    final Os operatingSystem = OsUtils.getOs();
+    assumeTrue(operatingSystem == Os.LINUX, LINUX_ONLY_MESSAGE);
 
     final Path copy = folder.resolve(THEORA_DECODER_FILE);
     this.copyJdkLibrary(JIMAGE_LIBRARY, copy);
@@ -72,7 +73,8 @@ final class PromotingLibraryLoaderTest {
 
   @Test
   void shouldKeepTheSymbolsOfOtherLibrariesLocal(@TempDir final Path folder) throws IOException {
-    assumeTrue(OsUtils.getOs() == Os.LINUX, LINUX_ONLY_MESSAGE);
+    final Os operatingSystem = OsUtils.getOs();
+    assumeTrue(operatingSystem == Os.LINUX, LINUX_ONLY_MESSAGE);
 
     final String fileName = System.mapLibraryName(VERIFY_LIBRARY);
     final Path copy = folder.resolve(fileName);
@@ -85,7 +87,8 @@ final class PromotingLibraryLoaderTest {
 
   @Test
   void shouldPromoteOnlyLibtheoradec(@TempDir final Path folder) throws IOException {
-    assumeTrue(OsUtils.getOs() == Os.LINUX, LINUX_ONLY_MESSAGE);
+    final Os operatingSystem = OsUtils.getOs();
+    assumeTrue(operatingSystem == Os.LINUX, LINUX_ONLY_MESSAGE);
 
     final String verifyFileName = System.mapLibraryName(VERIFY_LIBRARY);
     final Path verifyCopy = folder.resolve(verifyFileName);
