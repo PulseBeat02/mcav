@@ -26,7 +26,7 @@ import java.net.URI;
  *
  * @since 1.0.0
  */
-public class HttpStatusException extends DownloadException {
+public final class HttpStatusException extends DownloadException {
 
   @Serial
   private static final long serialVersionUID = 4_319_027_551_202_837_465L;

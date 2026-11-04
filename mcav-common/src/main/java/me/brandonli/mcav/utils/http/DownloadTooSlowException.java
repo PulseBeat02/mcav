@@ -29,4 +29,8 @@ final class DownloadTooSlowException extends DownloadException {
   DownloadTooSlowException(final String message) {
     super(message);
   }
+
+  DownloadTooSlowException(final String message, final Throwable cause) {
+    super(message, cause);
+  }
 }

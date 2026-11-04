@@ -21,6 +21,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import java.nio.ByteBuffer;
 import java.util.List;
+import me.brandonli.mcav.MCAVException;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 import org.bytedeco.ffmpeg.avutil.AVChannelLayout;
 import org.bytedeco.ffmpeg.global.avutil;
@@ -138,7 +139,7 @@ public final class AudioResampler implements AutoCloseable {
    * @param outputFormat     the encoding of the returned samples
    * @return a new resampler, which must be closed by the caller
    * @throws IllegalArgumentException if a sample rate is not positive or a channel count is out of range
-   * @throws IllegalStateException    if FFmpeg cannot set up the conversion
+   * @throws MCAVException            if FFmpeg cannot set up the conversion
    * @throws NullPointerException     if {@code inputFormat} or {@code outputFormat} is null
    * @since 1.0.0
    */
@@ -179,7 +180,7 @@ public final class AudioResampler implements AutoCloseable {
    * @param outputFormat     the encoding of the returned samples
    * @return a new resampler, which must be closed by the caller
    * @throws IllegalArgumentException if the sample rate is not positive or the channel count is out of range
-   * @throws IllegalStateException    if FFmpeg cannot set up the conversion
+   * @throws MCAVException            if FFmpeg cannot set up the conversion
    * @throws NullPointerException     if {@code outputFormat} is null
    * @since 1.0.0
    */
@@ -237,7 +238,8 @@ public final class AudioResampler implements AutoCloseable {
    * @param input interleaved samples in the input format, in native byte order
    * @return a new caller-owned array of interleaved samples in the output format and native byte order,
    *         possibly empty; the byte-order property of the input buffer is not consulted
-   * @throws IllegalStateException if the resampler is closed or FFmpeg fails to convert the samples
+   * @throws IllegalStateException if the resampler is closed
+   * @throws MCAVException         if FFmpeg fails to convert the samples
    * @throws NullPointerException  if {@code input} is null
    * @since 1.0.0
    */
@@ -268,7 +270,8 @@ public final class AudioResampler implements AutoCloseable {
    * resets the resampler, so it can be reused for a new stream that does not continue the previous one.
    *
    * @return the remaining converted interleaved samples, empty when nothing was held back
-   * @throws IllegalStateException if the resampler is closed or FFmpeg fails to drain or reset it
+   * @throws IllegalStateException if the resampler is closed
+   * @throws MCAVException         if FFmpeg fails to drain or reset it
    * @since 1.0.0
    */
   public byte[] flush() {
@@ -319,7 +322,7 @@ public final class AudioResampler implements AutoCloseable {
   int checkResult(final int result, final String action) {
     if (result < 0) {
       final String message = this.describeError(result, action);
-      throw new IllegalStateException(message);
+      throw new MCAVException(message);
     }
 
     return result;

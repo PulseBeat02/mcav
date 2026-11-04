@@ -19,7 +19,9 @@ package me.brandonli.mcav.utils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
+import java.nio.file.InvalidPathException;
 import me.brandonli.mcav.MCAVException;
 import org.junit.jupiter.api.Test;
 
@@ -32,6 +34,16 @@ final class ZipEntryIntegrityExceptionTest {
     final Throwable cause = exception.getCause();
     assertEquals("Total extracted size exceeds the limit!", message);
     assertNull(cause);
+  }
+
+  @Test
+  void shouldKeepTheMessageAndTheCause() {
+    final InvalidPathException invalidName = new InvalidPathException("entry", "Nul character not allowed");
+    final ZipEntryIntegrityException exception = new ZipEntryIntegrityException("Entry is not a path of this system!", invalidName);
+    final String message = exception.getMessage();
+    final Throwable cause = exception.getCause();
+    assertEquals("Entry is not a path of this system!", message);
+    assertSame(invalidName, cause);
   }
 
   @Test

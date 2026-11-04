@@ -861,9 +861,7 @@ public final class IoUtils {
       resolved = destination.resolve(name);
     } catch (final InvalidPathException exception) {
       final String message = "Zip entry name %s is not a path of this system!".formatted(name);
-      final ZipEntryIntegrityException refused = new ZipEntryIntegrityException(message);
-      refused.initCause(exception);
-      throw refused;
+      throw new ZipEntryIntegrityException(message, exception);
     }
 
     final Path target = resolved.normalize();

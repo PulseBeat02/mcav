@@ -31,12 +31,16 @@ import me.brandonli.mcav.MCAVException;
  *
  * @since 1.0.0
  */
-public class ZipEntryIntegrityException extends MCAVException {
+public final class ZipEntryIntegrityException extends MCAVException {
 
   @Serial
   private static final long serialVersionUID = -949105092892572153L;
 
   ZipEntryIntegrityException(final String message) {
     super(message);
+  }
+
+  ZipEntryIntegrityException(final String message, final Throwable cause) {
+    super(message, cause);
   }
 }

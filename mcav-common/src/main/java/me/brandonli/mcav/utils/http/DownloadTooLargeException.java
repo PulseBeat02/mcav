@@ -26,7 +26,7 @@ import java.io.Serial;
  *
  * @since 1.0.0
  */
-public class DownloadTooLargeException extends DownloadException {
+public final class DownloadTooLargeException extends DownloadException {
 
   @Serial
   private static final long serialVersionUID = 4_268_314_709_812_553_311L;
@@ -39,5 +39,16 @@ public class DownloadTooLargeException extends DownloadException {
    */
   public DownloadTooLargeException(final String message) {
     super(message);
+  }
+
+  /**
+   * Creates an exception with a message and the exception that caused it.
+   *
+   * @param message the detail message, which names the limit
+   * @param cause   the cause
+   * @since 1.0.0
+   */
+  public DownloadTooLargeException(final String message, final Throwable cause) {
+    super(message, cause);
   }
 }
