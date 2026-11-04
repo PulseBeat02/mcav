@@ -829,6 +829,7 @@ final class PlaybackSession {
       grabber.close();
     } catch (final FrameGrabber.Exception | RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
+      // the session is done with the grabber, so a failed close changes nothing
     }
   }
 
