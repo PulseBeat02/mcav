@@ -169,15 +169,6 @@ public abstract class AbstractInstaller implements Installer {
     return IoUtils.getCachedFolder();
   }
 
-  @VisibleForTesting
-  static String getExecutableFileName(final String name, final Os operatingSystem) {
-    if (operatingSystem == Os.WINDOWS) {
-      return name + WINDOWS_EXECUTABLE_SUFFIX;
-    }
-
-    return name;
-  }
-
   /**
    * Installs the program, or returns the existing installation if it was installed before. Concurrent calls on the
    * same installer are serialized, so the program is downloaded at most once.
@@ -226,6 +217,7 @@ public abstract class AbstractInstaller implements Installer {
 
     final Path installed = this.install(destination);
     this.writePathToConfiguration(installed);
+
     return installed;
   }
 
@@ -344,6 +336,15 @@ public abstract class AbstractInstaller implements Installer {
     return this.folder.resolve(executableName);
   }
 
+  @VisibleForTesting
+  static String getExecutableFileName(final String name, final Os operatingSystem) {
+    if (operatingSystem == Os.WINDOWS) {
+      return name + WINDOWS_EXECUTABLE_SUFFIX;
+    }
+
+    return name;
+  }
+
   /**
    * Returns the URL of the download for the current platform.
    *
@@ -388,7 +389,7 @@ public abstract class AbstractInstaller implements Installer {
 
     final String url = this.getUrl();
     final String urlFileName = IoUtils.getFileNameFromUrl(url);
-    final boolean usable = isPlainFileName(urlFileName);
+    final boolean usable = this.isPlainFileName(urlFileName);
     if (usable) {
       return urlFileName;
     }
@@ -396,7 +397,7 @@ public abstract class AbstractInstaller implements Installer {
     return this.name + ARCHIVE_SUFFIX;
   }
 
-  private static boolean isPlainFileName(final String fileName) {
+  private boolean isPlainFileName(final String fileName) {
     final boolean empty = fileName.isEmpty();
     final boolean relativeDirectory = fileName.equals(CURRENT_DIRECTORY) || fileName.equals(PARENT_DIRECTORY);
     return !empty && !relativeDirectory;
@@ -444,14 +445,14 @@ public abstract class AbstractInstaller implements Installer {
     }
 
     final Download[] downloads = this.downloadSupplier.get();
-    final Optional<Download> exact = findDownload(downloads, platform);
+    final Optional<Download> exact = this.findDownload(downloads, platform);
     if (exact.isPresent()) {
       return exact;
     }
 
     final List<Platform> fallbacks = this.getFallbackPlatforms(platform);
     for (final Platform fallback : fallbacks) {
-      final Optional<Download> compatible = findDownload(downloads, fallback);
+      final Optional<Download> compatible = this.findDownload(downloads, fallback);
       if (compatible.isPresent()) {
         return compatible;
       }
@@ -460,7 +461,7 @@ public abstract class AbstractInstaller implements Installer {
     return Optional.empty();
   }
 
-  private static Optional<Download> findDownload(final Download[] downloads, final Platform platform) {
+  private Optional<Download> findDownload(final Download[] downloads, final Platform platform) {
     for (final Download download : downloads) {
       final Platform downloadPlatform = download.getPlatform();
       final boolean matches = downloadPlatform.equals(platform);

@@ -59,7 +59,7 @@ import uk.co.caprica.vlcj.binding.support.runtime.RuntimeUtil;
  *
  * @since 1.0.0
  */
-public class OsxNativeDiscoveryStrategy extends DirectoryProviderDiscoveryStrategy {
+public final class OsxNativeDiscoveryStrategy extends DirectoryProviderDiscoveryStrategy {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(OsxNativeDiscoveryStrategy.class);
 

@@ -62,6 +62,8 @@ class PromotingLibraryLoader implements Consumer<String> {
   void promote(final String path) {
     final NativeLibrary process = NativeLibrary.getProcess();
     final Function open = process.getFunction(OPEN_FUNCTION);
-    open.invokePointer(new Object[] { path, RTLD_LAZY | RTLD_NOLOAD | RTLD_GLOBAL });
+    final int mode = RTLD_LAZY | RTLD_NOLOAD | RTLD_GLOBAL;
+    final Object[] arguments = new Object[] { path, mode };
+    open.invokePointer(arguments);
   }
 }

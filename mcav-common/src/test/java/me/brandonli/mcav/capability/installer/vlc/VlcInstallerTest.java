@@ -195,23 +195,24 @@ final class VlcInstallerTest {
   @Test
   void shouldUseTheInstallationStrategyOfEachOperatingSystem() {
     final VlcInstaller installer = VlcInstaller.create(this.folder);
-    final InstallationStrategy windowsStrategy = VlcInstaller.createStrategy(installer, Os.WINDOWS);
-    final InstallationStrategy macStrategy = VlcInstaller.createStrategy(installer, Os.MAC);
-    final InstallationStrategy linuxStrategy = VlcInstaller.createStrategy(installer, Os.LINUX);
+    final InstallationStrategy windowsStrategy = installer.createStrategy(Os.WINDOWS);
+    final InstallationStrategy macStrategy = installer.createStrategy(Os.MAC);
+    final InstallationStrategy linuxStrategy = installer.createStrategy(Os.LINUX);
     assertInstanceOf(WindowsInstallationStrategy.class, windowsStrategy);
     assertInstanceOf(OsxInstallationStrategy.class, macStrategy);
     assertInstanceOf(LinuxInstallationStrategy.class, linuxStrategy);
-    assertThrows(UnsupportedOperatingSystemException.class, () -> VlcInstaller.createStrategy(installer, Os.FREEBSD));
-    assertThrows(UnsupportedOperatingSystemException.class, () -> VlcInstaller.createStrategy(installer, Os.OTHER));
+    assertThrows(UnsupportedOperatingSystemException.class, () -> installer.createStrategy(Os.FREEBSD));
+    assertThrows(UnsupportedOperatingSystemException.class, () -> installer.createStrategy(Os.OTHER));
   }
 
   @Test
   void shouldKnowWhichOperatingSystemsItCanInstallOn() {
-    final boolean installsOnMac = VlcInstaller.hasStrategy(Os.MAC);
-    final boolean installsOnWindows = VlcInstaller.hasStrategy(Os.WINDOWS);
-    final boolean installsOnLinux = VlcInstaller.hasStrategy(Os.LINUX);
-    final boolean freeBsd = VlcInstaller.hasStrategy(Os.FREEBSD);
-    final boolean installsOnOther = VlcInstaller.hasStrategy(Os.OTHER);
+    final VlcInstaller installer = VlcInstaller.create(this.folder);
+    final boolean installsOnMac = installer.hasStrategy(Os.MAC);
+    final boolean installsOnWindows = installer.hasStrategy(Os.WINDOWS);
+    final boolean installsOnLinux = installer.hasStrategy(Os.LINUX);
+    final boolean freeBsd = installer.hasStrategy(Os.FREEBSD);
+    final boolean installsOnOther = installer.hasStrategy(Os.OTHER);
     assertTrue(installsOnMac);
     assertTrue(installsOnWindows);
     assertTrue(installsOnLinux);
@@ -292,7 +293,8 @@ final class VlcInstallerTest {
   void shouldLeaveFilesNamedLikeOldInstallationsAlone() throws IOException {
     final Path file = this.folder.resolve(JUNEST_DIRECTORY);
     Files.writeString(file, "not a directory");
-    VlcInstaller.removeLegacyInstallations(this.folder);
+    final VlcInstaller installer = VlcInstaller.create(this.folder);
+    installer.removeLegacyInstallations(this.folder);
     final String content = Files.readString(file);
     assertEquals("not a directory", content);
   }
@@ -308,7 +310,8 @@ final class VlcInstallerTest {
     final boolean linksCreated = createSymbolicLink(appLink, outside) && createSymbolicLink(innerLink, outside);
     Assumptions.assumeTrue(linksCreated, "Symbolic links cannot be created here!");
 
-    VlcInstaller.removeLegacyInstallations(this.folder);
+    final VlcInstaller installer = VlcInstaller.create(this.folder);
+    installer.removeLegacyInstallations(this.folder);
     final boolean keptExists = Files.exists(kept);
     final boolean appLinkExists = Files.exists(appLink, LinkOption.NOFOLLOW_LINKS);
     final boolean junestExists = Files.exists(junest, LinkOption.NOFOLLOW_LINKS);
@@ -324,8 +327,9 @@ final class VlcInstallerTest {
     final Path app = createTree(this.folder, APP_DIRECTORY);
     final Path locked = app.resolve(TREE_FILE);
     final File lockedFile = locked.toFile();
+    final VlcInstaller installer = VlcInstaller.create(this.folder);
     try (final RandomAccessFile open = new RandomAccessFile(lockedFile, "r")) {
-      VlcInstaller.removeLegacyInstallations(this.folder);
+      installer.removeLegacyInstallations(this.folder);
       final long length = open.length();
       final boolean lockedExists = Files.exists(locked);
       final boolean hasContent = length > 0;
@@ -339,10 +343,11 @@ final class VlcInstallerTest {
     final Path junest = createTree(this.folder, JUNEST_DIRECTORY);
     final Path app = createTree(this.folder, APP_DIRECTORY);
     final FileOperationException refused = new FileOperationException("The old installation is in use!");
+    final VlcInstaller installer = VlcInstaller.create(this.folder);
     try (final MockedStatic<IoUtils> ioUtils = Mockito.mockStatic(IoUtils.class)) {
       ioUtils.when(() -> IoUtils.deleteRecursively(junest)).thenThrow(refused);
       ioUtils.when(() -> IoUtils.deleteRecursively(app)).thenCallRealMethod();
-      VlcInstaller.removeLegacyInstallations(this.folder);
+      installer.removeLegacyInstallations(this.folder);
     }
 
     final boolean junestExists = Files.isDirectory(junest);
@@ -441,11 +446,12 @@ final class VlcInstallerTest {
     final Path legacy = createTree(this.folder, APP_DIRECTORY);
     final Set<PosixFilePermission> original = Files.getPosixFilePermissions(legacy);
     final Set<PosixFilePermission> readOnly = Set.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_EXECUTE);
+    final VlcInstaller installer = VlcInstaller.create(this.folder);
     try {
       Files.setPosixFilePermissions(legacy, readOnly);
       final boolean writable = Files.isWritable(legacy);
       Assumptions.assumeFalse(writable, "A privileged process can bypass the fixture's directory permissions!");
-      VlcInstaller.removeLegacyInstallations(this.folder);
+      installer.removeLegacyInstallations(this.folder);
       final boolean legacyRemains = Files.isDirectory(legacy);
       assertTrue(legacyRemains, "failed cleanup is reported and leaves the undeletable directory in place");
     } finally {
@@ -554,7 +560,8 @@ final class VlcInstallerTest {
 
   private Path createInstalledLibrary() throws IOException {
     final Os operatingSystem = OsUtils.getOs();
-    final boolean installable = VlcInstaller.hasStrategy(operatingSystem);
+    final VlcInstaller installer = VlcInstaller.create(this.folder);
+    final boolean installable = installer.hasStrategy(operatingSystem);
     final String message = "Operating system %s does not support installing VLC automatically!".formatted(operatingSystem);
     Assumptions.assumeTrue(installable, message);
     final Path installDirectory = this.folder.resolve(VLC_DIRECTORY);

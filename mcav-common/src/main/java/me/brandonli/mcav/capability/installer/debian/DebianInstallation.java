@@ -25,6 +25,7 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
@@ -104,15 +105,9 @@ final class DebianInstallation {
   }
 
   private List<Download> findPackages() {
-    final List<Download> packages = new ArrayList<>();
-    for (final Download download : this.downloads) {
-      final Platform downloadPlatform = download.getPlatform();
-      if (downloadPlatform.equals(this.platform)) {
-        packages.add(download);
-      }
-    }
-
-    return packages;
+    return Arrays.stream(this.downloads)
+      .filter(download -> this.platform.equals(download.getPlatform()))
+      .toList();
   }
 
   // an installation folder without a load order was left by an older or interrupted installation
@@ -140,6 +135,12 @@ final class DebianInstallation {
     } finally {
       IoUtils.deleteRecursively(staging);
     }
+  }
+
+  private Path getParent() {
+    final Path absolute = this.folder.toAbsolutePath();
+    final @Nullable Path parent = absolute.getParent();
+    return Objects.requireNonNull(parent, "An installation folder inside the cache always has a parent!");
   }
 
   private void installPackage(final Download download, final Path staging, final Path extracted, final List<String> loadOrder)
@@ -179,6 +180,15 @@ final class DebianInstallation {
     final Path libraryDirectory = root.resolve(DebianPackageExtractor.LIBRARY_TREE).resolve(triplet);
     final Path legacyDirectory = root.resolve(DebianPackageExtractor.LEGACY_LIBRARY_TREE).resolve(triplet);
     return List.of(libraryDirectory, legacyDirectory);
+  }
+
+  private String getTriplet() {
+    final Arch architecture = this.platform.getArch();
+    if (architecture == Arch.ARM) {
+      return AARCH64_TRIPLET;
+    }
+
+    return X86_64_TRIPLET;
   }
 
   private List<Path> listLibraryFiles(final Path directory) throws IOException {
@@ -265,20 +275,5 @@ final class DebianInstallation {
 
   Path getFolder() {
     return this.folder;
-  }
-
-  private String getTriplet() {
-    final Arch architecture = this.platform.getArch();
-    if (architecture == Arch.ARM) {
-      return AARCH64_TRIPLET;
-    }
-
-    return X86_64_TRIPLET;
-  }
-
-  private Path getParent() {
-    final Path absolute = this.folder.toAbsolutePath();
-    final @Nullable Path parent = absolute.getParent();
-    return Objects.requireNonNull(parent, "An installation folder inside the cache always has a parent!");
   }
 }

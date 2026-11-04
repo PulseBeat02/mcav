@@ -27,6 +27,7 @@ import java.util.regex.Pattern;
 import me.brandonli.mcav.capability.installer.InstallationException;
 import me.brandonli.mcav.capability.installer.vlc.VlcInstaller;
 import me.brandonli.mcav.utils.FileOperationException;
+import me.brandonli.mcav.utils.IoUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -85,7 +86,7 @@ public final class OsxInstallationStrategy extends ManualInstallationStrategy {
   @Override
   public Optional<Path> getInstalledPath() {
     final Path installDirectory = this.getInstallDirectory();
-    return findLibraryDirectory(installDirectory, LIBRARY, CORE_LIBRARY);
+    return this.findLibraryDirectory(installDirectory, LIBRARY, CORE_LIBRARY);
   }
 
   /**
@@ -107,11 +108,12 @@ public final class OsxInstallationStrategy extends ManualInstallationStrategy {
     final Path parentOrNull = installDirectory.getParent();
     final Path parent = Objects.requireNonNull(parentOrNull, "The installation directory lies in the installer folder!");
     final Path mountPoint = parent.resolve(MOUNT_DIRECTORY);
-    deleteRecursively(installDirectory);
-    createDirectories(installDirectory, mountPoint);
+    IoUtils.deleteRecursively(installDirectory);
+    this.createDirectories(installDirectory, mountPoint);
     this.copyFromDiskImage(archive, mountPoint, installDirectory);
     this.deleteFile(archive);
-    final Optional<Path> libraryDirectory = findLibraryDirectory(installDirectory, LIBRARY, CORE_LIBRARY);
+
+    final Optional<Path> libraryDirectory = this.findLibraryDirectory(installDirectory, LIBRARY, CORE_LIBRARY);
     final @Nullable Path directory = libraryDirectory.orElse(null);
     if (directory == null) {
       final String message = "The VLC disk image does not contain nonempty libvlc.dylib and libvlccore.dylib in the same directory!";
@@ -121,7 +123,7 @@ public final class OsxInstallationStrategy extends ManualInstallationStrategy {
     return directory;
   }
 
-  private static void createDirectories(final Path installDirectory, final Path mountPoint) {
+  private void createDirectories(final Path installDirectory, final Path mountPoint) {
     try {
       Files.createDirectories(installDirectory);
       Files.createDirectories(mountPoint);
@@ -178,7 +180,7 @@ public final class OsxInstallationStrategy extends ManualInstallationStrategy {
       this.forceDetach(rawMountPoint, exception);
     }
 
-    deleteRecursively(mountPoint);
+    IoUtils.deleteRecursively(mountPoint);
   }
 
   private void forceDetach(final String rawMountPoint, final InstallationException detachFailure) {

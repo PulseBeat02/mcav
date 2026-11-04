@@ -70,6 +70,7 @@ final class VlcPlaybackProbe {
     final String version = LibVlc.libvlc_get_version();
     final Path loadedFrom = loaded.orElseThrow();
     System.out.println("libvlc %s loaded from %s".formatted(version, loadedFrom));
+
     final AtomicInteger frames = new AtomicInteger();
     final AtomicLong audioBytes = new AtomicLong();
     System.out.println("step: creating the player");
@@ -81,12 +82,14 @@ final class VlcPlaybackProbe {
     player
       .getAudioAttachableCallback()
       .attach(AudioPipelineStep.of((final ByteBuffer samples, final OriginalAudioMetadata metadata) -> countSamples(audioBytes, samples)));
+
     final Source source = FileSource.path(video);
     System.out.println("step: starting the video");
     final boolean started = player.start(source);
     System.out.println("step: started %s".formatted(started));
     final boolean played =
       started && Polling.pollUntil(TIMEOUT, () -> frames.get() >= MINIMUM_FRAMES && audioBytes.get() >= MINIMUM_AUDIO_BYTES);
+
     final int framesBeforeRelease = frames.get();
     final long audioBytesBeforeRelease = audioBytes.get();
     System.out.println("step: releasing, frames %s, audio bytes %s".formatted(framesBeforeRelease, audioBytesBeforeRelease));
@@ -112,6 +115,9 @@ final class VlcPlaybackProbe {
     try {
       Thread.sleep(STUCK_TIMEOUT.toMillis());
     } catch (final InterruptedException exception) {
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+
       return;
     }
 

@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import uk.co.caprica.vlcj.factory.discovery.provider.AppDirDirectoryProvider;
 import uk.co.caprica.vlcj.factory.discovery.provider.ConfigDirConfigFileDiscoveryDirectoryProvider;
@@ -128,13 +129,13 @@ public abstract class DirectoryProviderDiscoveryStrategy implements NativeDiscov
     Preconditions.checkNotNull(environmentSetter, "Environment setter must not be null!");
     Preconditions.checkArgument(filenamePatterns.length > 0, "At least one filename pattern is required!");
 
-    this.filenamePatterns = compilePatterns(filenamePatterns);
+    this.filenamePatterns = this.compilePatterns(filenamePatterns);
     this.pluginDirectories = List.copyOf(pluginDirectories);
     this.searchProviders = List.copyOf(searchProviders);
     this.environmentSetter = environmentSetter;
   }
 
-  private static Pattern[] compilePatterns(final String[] expressions) {
+  private Pattern[] compilePatterns(@UnderInitialization DirectoryProviderDiscoveryStrategy this, final String[] expressions) {
     final Pattern[] patterns = new Pattern[expressions.length];
     for (int patternIndex = 0; patternIndex < expressions.length; patternIndex++) {
       final String expression = expressions[patternIndex];
@@ -241,7 +242,7 @@ public abstract class DirectoryProviderDiscoveryStrategy implements NativeDiscov
       final File directory = entry.getDirectory();
       final int depth = entry.getDepth();
       final int remainingDepth = maximumDepth - depth;
-      final File[] children = listUnsearched(directory, remainingDepth, searchedDepths);
+      final File[] children = this.listUnsearched(directory, remainingDepth, searchedDepths);
       if (children == null) {
         continue;
       }
@@ -249,15 +250,15 @@ public abstract class DirectoryProviderDiscoveryStrategy implements NativeDiscov
         return directory;
       }
       if (remainingDepth > 0) {
-        enqueueSubdirectories(children, depth + 1, pending);
+        this.enqueueSubdirectories(children, depth + 1, pending);
       }
     }
 
     return null;
   }
 
-  private static File @Nullable [] listUnsearched(final File directory, final int remainingDepth, final Map<Path, Integer> searchedDepths) {
-    final Path realPath = toRealDirectory(directory);
+  private File @Nullable [] listUnsearched(final File directory, final int remainingDepth, final Map<Path, Integer> searchedDepths) {
+    final Path realPath = this.toRealDirectory(directory);
     if (realPath == null) {
       return null;
     }
@@ -271,7 +272,7 @@ public abstract class DirectoryProviderDiscoveryStrategy implements NativeDiscov
     return directory.listFiles();
   }
 
-  private static @Nullable Path toRealDirectory(final File directory) {
+  private @Nullable Path toRealDirectory(final File directory) {
     try {
       final Path directoryPath = directory.toPath();
       final Path realPath = directoryPath.toRealPath();
@@ -282,7 +283,7 @@ public abstract class DirectoryProviderDiscoveryStrategy implements NativeDiscov
     }
   }
 
-  private static void enqueueSubdirectories(final File[] children, final int depth, final Deque<SearchEntry> pending) {
+  private void enqueueSubdirectories(final File[] children, final int depth, final Deque<SearchEntry> pending) {
     for (final File child : children) {
       final boolean isDirectory = child.isDirectory();
       if (isDirectory) {
@@ -402,7 +403,7 @@ public abstract class DirectoryProviderDiscoveryStrategy implements NativeDiscov
      * @return true if the variable was set
      * @since 1.0.0
      */
-    boolean set(String name, String value);
+    boolean set(final String name, final String value);
   }
 
   static final class SearchProvider {

@@ -480,6 +480,7 @@ public final class DebianPackageExtractor {
   private String takeName(final byte[] header) {
     final @Nullable String pending = this.pendingName;
     this.pendingName = null;
+
     if (pending != null) {
       return pending;
     }
@@ -498,6 +499,7 @@ public final class DebianPackageExtractor {
   private String takeLinkName(final byte[] header) {
     final @Nullable String pending = this.pendingLinkName;
     this.pendingLinkName = null;
+
     if (pending != null) {
       return pending;
     }

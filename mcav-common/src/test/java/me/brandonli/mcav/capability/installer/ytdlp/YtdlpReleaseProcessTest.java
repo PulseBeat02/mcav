@@ -61,8 +61,9 @@ final class YtdlpReleaseProcessTest {
     final AssertionFailedError failure = assertThrows(AssertionFailedError.class, () ->
       YtdlpReleaseTest.runVersion(process, VERSION_DEADLINE)
     );
-    final boolean didNotFinish = failure.getMessage().startsWith(DEADLINE_FAILURE_PREFIX);
-    assertTrue(didNotFinish, failure.getMessage());
+    final String message = failure.getMessage();
+    final boolean didNotFinish = message.startsWith(DEADLINE_FAILURE_PREFIX);
+    assertTrue(didNotFinish, message);
   }
 
   @Test
@@ -81,7 +82,8 @@ final class YtdlpReleaseProcessTest {
     final AssertionFailedError failure = assertThrows(AssertionFailedError.class, () ->
       YtdlpReleaseTest.runVersion(process, VERSION_DEADLINE)
     );
-    final boolean didNotFinish = failure.getMessage().startsWith(DEADLINE_FAILURE_PREFIX);
+    final String message = failure.getMessage();
+    final boolean didNotFinish = message.startsWith(DEADLINE_FAILURE_PREFIX);
     assertTrue(didNotFinish);
 
     final boolean alive = process.isAlive();
@@ -113,7 +115,8 @@ final class YtdlpReleaseProcessTest {
     final AssertionFailedError failure = assertThrows(AssertionFailedError.class, () ->
       YtdlpReleaseTest.runVersion(process, VERSION_DEADLINE)
     );
-    final boolean didNotFinish = failure.getMessage().startsWith(DEADLINE_FAILURE_PREFIX);
+    final String message = failure.getMessage();
+    final boolean didNotFinish = message.startsWith(DEADLINE_FAILURE_PREFIX);
     assertTrue(didNotFinish);
   }
 

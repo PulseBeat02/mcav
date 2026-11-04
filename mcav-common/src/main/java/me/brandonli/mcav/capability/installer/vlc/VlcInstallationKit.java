@@ -151,7 +151,7 @@ public final class VlcInstallationKit {
     final boolean found = this.discovery.discoverSystemInstallation();
     if (found) {
       final Path systemPath = this.discovery.getDiscoveredPath();
-      logSystemInstallation(systemPath);
+      this.logSystemInstallation(systemPath);
       return Optional.ofNullable(systemPath);
     }
 
@@ -185,7 +185,7 @@ public final class VlcInstallationKit {
     return Optional.of(libraryDirectory);
   }
 
-  private static void logSystemInstallation(final @Nullable Path systemPath) {
+  private void logSystemInstallation(final @Nullable Path systemPath) {
     if (systemPath == null) {
       LOGGER.info("Using the VLC libraries vlcj loaded earlier in this JVM.");
       return;

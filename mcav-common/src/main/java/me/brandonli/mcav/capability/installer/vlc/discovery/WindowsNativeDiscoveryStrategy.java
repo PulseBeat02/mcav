@@ -50,7 +50,7 @@ import me.brandonli.mcav.utils.os.OsUtils;
  *
  * @since 1.0.0
  */
-public class WindowsNativeDiscoveryStrategy extends DirectoryProviderDiscoveryStrategy {
+public final class WindowsNativeDiscoveryStrategy extends DirectoryProviderDiscoveryStrategy {
 
   private static final String[] FILENAME_PATTERNS = new String[] { "libvlc\\.dll", "libvlccore\\.dll" };
   private static final List<Path> PLUGIN_DIRECTORIES = List.of(Path.of("plugins"), Path.of("vlc", "plugins"));

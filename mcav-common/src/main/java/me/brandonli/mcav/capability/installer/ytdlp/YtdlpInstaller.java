@@ -185,11 +185,12 @@ public final class YtdlpInstaller extends AbstractInstaller {
       IoUtils.deleteRecursively(unpacking);
     }
 
-    deleteDownload(downloaded);
+    this.deleteDownload(downloaded);
+
     return this.getDefaultPath();
   }
 
-  private static void deleteDownload(final Path downloaded) {
+  private void deleteDownload(final Path downloaded) {
     try {
       Files.deleteIfExists(downloaded);
     } catch (final IOException exception) {
@@ -199,7 +200,8 @@ public final class YtdlpInstaller extends AbstractInstaller {
   }
 
   private void unpack(final Path archive, final Path destination) {
-    extract(archive, destination);
+    this.extract(archive, destination);
+
     final String executableName = this.getArchiveExecutableName();
     final Path executable = destination.resolve(executableName);
     final boolean present = Files.isRegularFile(executable, LinkOption.NOFOLLOW_LINKS);
@@ -214,7 +216,7 @@ public final class YtdlpInstaller extends AbstractInstaller {
   // Extracts the zip. IoUtils.unzip(Path, Path) reports failures unchecked, as a FileOperationException for an archive
   // that cannot be read and as a ZipEntryIntegrityException for an archive that is unsafe, but an installation must
   // fail with an InstallationException like every other installation failure.
-  private static void extract(final Path archive, final Path destination) {
+  private void extract(final Path archive, final Path destination) {
     try {
       IoUtils.unzip(archive, destination);
     } catch (final FileOperationException | ZipEntryIntegrityException exception) {

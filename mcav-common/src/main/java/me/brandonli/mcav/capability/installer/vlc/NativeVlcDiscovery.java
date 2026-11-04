@@ -49,16 +49,6 @@ final class NativeVlcDiscovery implements VlcDiscovery {
   }
 
   @Override
-  public @Nullable Path getDiscoveredPath() {
-    final String raw = this.discoveredPath;
-    if (raw == null) {
-      return null;
-    }
-
-    return Path.of(raw);
-  }
-
-  @Override
   public boolean loadInstalledLibraries(final Path libraryDirectory) {
     final NativeDiscoveryStrategy[] strategies = VlcDiscoveryStrategies.createDirectoryStrategies(libraryDirectory);
     return this.discover(strategies);
@@ -70,5 +60,15 @@ final class NativeVlcDiscovery implements VlcDiscovery {
     this.discoveredPath = discovery.discoveredPath();
 
     return found;
+  }
+
+  @Override
+  public @Nullable Path getDiscoveredPath() {
+    final String raw = this.discoveredPath;
+    if (raw == null) {
+      return null;
+    }
+
+    return Path.of(raw);
   }
 }

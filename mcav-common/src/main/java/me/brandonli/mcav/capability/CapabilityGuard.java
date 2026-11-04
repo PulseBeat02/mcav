@@ -142,7 +142,7 @@ public final class CapabilityGuard {
 
     final boolean preparing = this.isPreparing(capability);
     if (preparing) {
-      final String message = describePreparing(capability);
+      final String message = this.describePreparing(capability);
       throw new IllegalStateException(message);
     }
   }
@@ -161,7 +161,7 @@ public final class CapabilityGuard {
 
     final State state = this.states.get(capability);
     if (state == State.PREPARING) {
-      final String message = describePreparing(capability);
+      final String message = this.describePreparing(capability);
       throw new IllegalStateException(message);
     }
 
@@ -172,7 +172,7 @@ public final class CapabilityGuard {
     }
   }
 
-  private static String describePreparing(final Capability capability) {
+  private String describePreparing(final Capability capability) {
     final String name = capability.getDisplayName();
     final String constant = capability.name();
     return "%s is still being prepared in the background; wait for MCAVApi.whenCapabilityReady(Capability.%s) or try again shortly!".formatted(

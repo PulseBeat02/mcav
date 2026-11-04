@@ -190,6 +190,7 @@ final class DebianPackageBuilder {
     final byte[] headerBytes = header.getBytes(StandardCharsets.US_ASCII);
     archive.writeBytes(headerBytes);
     archive.writeBytes(data);
+
     if (data.length % AR_ALIGNMENT != 0) {
       archive.write(AR_PADDING);
     }
@@ -271,6 +272,7 @@ final class DebianPackageBuilder {
   private void writePaxNames(final ByteArrayOutputStream tar, final Entry entry, final boolean longName, final boolean longLinkTarget) {
     final StringBuilder records = new StringBuilder();
     records.append(this.paxRecord(PAX_IGNORED_RECORD));
+
     if (longName) {
       records.append(this.paxRecord(PAX_PATH_KEY + entry.name()));
     }
@@ -288,13 +290,19 @@ final class DebianPackageBuilder {
   // A pax record starts with its own length in bytes, digits included, so the length is found by trying each width.
   String paxRecord(final String keyValue) {
     final String record = " %s\n".formatted(keyValue);
-    final int recordLength = record.getBytes(StandardCharsets.UTF_8).length;
+    final byte[] recordBytes = record.getBytes(StandardCharsets.UTF_8);
+    final int recordLength = recordBytes.length;
     int length = recordLength + 1;
-    while (Integer.toString(length).length() + recordLength != length) {
+    while (this.countDigits(length) + recordLength != length) {
       length++;
     }
 
     return "%s%s".formatted(length, record);
+  }
+
+  private int countDigits(final int number) {
+    final String digits = Integer.toString(number);
+    return digits.length();
   }
 
   private void writeTruncated(final ByteArrayOutputStream tar, final Entry entry) {
@@ -324,9 +332,11 @@ final class DebianPackageBuilder {
 
   private void writeHeaderAndData(final ByteArrayOutputStream tar, final String name, final String prefix, final Entry entry) {
     final byte[] header = this.createHeader(name, prefix, entry);
+    final byte[] data = entry.data();
     tar.writeBytes(header);
-    tar.writeBytes(entry.data());
-    final int padding = (BLOCK_SIZE - (entry.data().length % BLOCK_SIZE)) % BLOCK_SIZE;
+    tar.writeBytes(data);
+
+    final int padding = (BLOCK_SIZE - (data.length % BLOCK_SIZE)) % BLOCK_SIZE;
     tar.writeBytes(new byte[padding]);
   }
 
@@ -334,24 +344,29 @@ final class DebianPackageBuilder {
     final byte[] header = new byte[BLOCK_SIZE];
     this.put(header, NAME_OFFSET, name);
     this.put(header, MODE_OFFSET, entry.mode());
-    final byte[] data = entry.data();
     this.put(header, OWNER_OFFSET, this.toOctal(ROOT_ID, NUMBER_DIGITS));
     this.put(header, GROUP_OFFSET, this.toOctal(ROOT_ID, NUMBER_DIGITS));
+
+    final byte[] data = entry.data();
     this.put(header, SIZE_OFFSET, this.toOctal(data.length, SIZE_DIGITS));
     this.put(header, MODIFIED_OFFSET, this.toOctal(MODIFIED_TIME, SIZE_DIGITS));
     header[TYPE_OFFSET] = entry.type();
     this.put(header, LINK_NAME_OFFSET, entry.linkTarget());
+
     final boolean prefixed = !prefix.isEmpty();
     final byte[] magic = prefixed ? USTAR_MAGIC : GNU_MAGIC;
     System.arraycopy(magic, 0, header, MAGIC_OFFSET, magic.length);
+
     final byte[] prefixBytes = prefix.getBytes(StandardCharsets.UTF_8);
     System.arraycopy(prefixBytes, 0, header, PREFIX_OFFSET, Math.min(prefixBytes.length, PREFIX_LENGTH));
+
     this.putChecksum(header);
     return header;
   }
 
   private void putChecksum(final byte[] header) {
     Arrays.fill(header, CHECKSUM_OFFSET, CHECKSUM_OFFSET + CHECKSUM_LENGTH, CHECKSUM_PLACEHOLDER);
+
     int checksum = 0;
     for (final byte value : header) {
       checksum += value & UNSIGNED_BYTE_MASK;
