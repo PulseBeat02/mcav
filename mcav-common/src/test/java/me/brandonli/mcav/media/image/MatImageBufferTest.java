@@ -92,6 +92,7 @@ final class MatImageBufferTest {
   private static final String TYPE_MESSAGE = "type %s";
 
   private static final int SMALL_IMAGE_SIZE = 2;
+  private static final int SMALL_IMAGE_SAMPLE_COUNT = 12;
 
   private static final int BLACK = 0xFF000000;
   private static final int WHITE = 0xFFFFFFFF;
@@ -103,8 +104,13 @@ final class MatImageBufferTest {
   private static final int SECOND_COLOR = 0xFFABCDEF;
   private static final int THIRD_COLOR = 0xFF789ABC;
   private static final int FOURTH_COLOR = 0xFF654321;
+  private static final int FIRST_COLOR_RGB = 0x123456;
 
   private static final double CHANNEL_MAXIMUM = 255.0;
+
+  private static final int RED_MASK = 0xFF0000;
+  private static final int GREEN_MASK = 0xFF00;
+  private static final int BLUE_MASK = 0xFF;
 
   @TempDir
   private Path directory;
@@ -669,7 +675,7 @@ final class MatImageBufferTest {
   @Test
   void shouldConvertThePixelsOfALinearIntegerImageToSrgb() {
     final ColorSpace linear = ColorSpace.getInstance(ColorSpace.CS_LINEAR_RGB);
-    final DirectColorModel colorModel = new DirectColorModel(linear, 24, 0xFF0000, 0xFF00, 0xFF, 0, false, DataBuffer.TYPE_INT);
+    final DirectColorModel colorModel = new DirectColorModel(linear, 24, RED_MASK, GREEN_MASK, BLUE_MASK, 0, false, DataBuffer.TYPE_INT);
     final WritableRaster raster = colorModel.createCompatibleWritableRaster(1, 1);
     raster.setPixel(0, 0, new int[] { 8, 8, 8 });
     final BufferedImage source = new BufferedImage(colorModel, raster, false, null);
@@ -686,7 +692,7 @@ final class MatImageBufferTest {
     final BufferedImage prototype = new BufferedImage(SMALL_IMAGE_SIZE, SMALL_IMAGE_SIZE, type);
     final SampleModel model = prototype.getSampleModel();
     final ColorModel colors = prototype.getColorModel();
-    final int elements = type == BufferedImage.TYPE_INT_RGB ? 4 : 12;
+    final int elements = type == BufferedImage.TYPE_INT_RGB ? 4 : SMALL_IMAGE_SAMPLE_COUNT;
     final int length = elements + offset + 2;
     final DataBuffer data;
     if (type == BufferedImage.TYPE_INT_RGB) {
@@ -737,9 +743,9 @@ final class MatImageBufferTest {
   void shouldCopyIntegerRowsUsingTheirScanlineStride() {
     final BufferedImage prototype = new BufferedImage(SMALL_IMAGE_SIZE, SMALL_IMAGE_SIZE, BufferedImage.TYPE_INT_RGB);
     final ColorModel colors = prototype.getColorModel();
-    final int[] masks = { 0xFF0000, 0xFF00, 0xFF };
+    final int[] masks = { RED_MASK, GREEN_MASK, BLUE_MASK };
     final SampleModel model = new SinglePixelPackedSampleModel(DataBuffer.TYPE_INT, 2, 2, 1, masks);
-    final int[] pixels = { 0x123456, 0xABCDEF, 0x789ABC, 0x654321 };
+    final int[] pixels = { FIRST_COLOR_RGB, 0xABCDEF, 0x789ABC, 0x654321 };
     final DataBuffer data = new DataBufferInt(pixels, pixels.length);
     final Point origin = new Point();
     final WritableRaster raster = Raster.createWritableRaster(model, data, origin);
@@ -781,7 +787,8 @@ final class MatImageBufferTest {
     for (final int type : transferTypes) {
       final ColorModel colors = new ComponentColorModel(space, new int[] { 8, 8, 8 }, false, false, Transparency.OPAQUE, type);
       final SampleModel model = new ComponentSampleModel(type, 2, 2, 1, 2, new int[] { 0, 4, 8 });
-      final DataBuffer data = type == DataBuffer.TYPE_BYTE ? new DataBufferByte(12) : new DataBufferInt(12);
+      final DataBuffer data =
+        type == DataBuffer.TYPE_BYTE ? new DataBufferByte(SMALL_IMAGE_SAMPLE_COUNT) : new DataBufferInt(SMALL_IMAGE_SAMPLE_COUNT);
       final WritableRaster raster = Raster.createWritableRaster(model, data, new Point());
       final BufferedImage source = new BufferedImage(colors, raster, false, null);
       source.setRGB(0, 0, FIRST_COLOR);
@@ -1329,8 +1336,8 @@ final class MatImageBufferTest {
 
   @Test
   void shouldDiscardTheAlphaChannelOfPackedPixels() {
-    final int[] translucent = { 0x00123456, 0x80ABCDEF };
-    final int[] expected = { 0xFF123456, 0xFFABCDEF };
+    final int[] translucent = { FIRST_COLOR_RGB, 0x80ABCDEF };
+    final int[] expected = { FIRST_COLOR, SECOND_COLOR };
     try (final ImageBuffer image = ImageBuffer.buffer(translucent, 2, 1)) {
       final int[] cached = image.getPixels();
       final int[] cachedCopy = cached.clone();
@@ -1344,7 +1351,7 @@ final class MatImageBufferTest {
     }
 
     final int firstInput = translucent[0];
-    assertEquals(0x00123456, firstInput, "the input is not modified");
+    assertEquals(FIRST_COLOR_RGB, firstInput, "the input is not modified");
   }
 
   private static final class ReportedSizeImage extends BufferedImage {
