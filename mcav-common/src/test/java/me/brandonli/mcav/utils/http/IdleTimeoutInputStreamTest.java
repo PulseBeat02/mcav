@@ -56,11 +56,12 @@ final class IdleTimeoutInputStreamTest {
       final int endOfBlocks = stream.read(rest, 0, rest.length);
       final int endOfBytes = stream.read();
       final byte[] restContent = Arrays.copyOf(rest, count);
+      final byte[] expected = new byte[] { 4 };
       assertEquals(1, first);
       assertEquals(2, second);
       assertEquals(200, unsigned, "bytes are returned as unsigned values");
       assertEquals(1, count);
-      assertArrayEquals(new byte[] { 4 }, restContent);
+      assertArrayEquals(expected, restContent);
       assertEquals(-1, endOfBlocks);
       assertEquals(-1, endOfBytes);
     }

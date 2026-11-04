@@ -953,7 +953,8 @@ final class IoUtilsTest {
         final Throwable cause = failure.getCause();
         assertInstanceOf(ZipException.class, cause);
         final String message = cause.getMessage();
-        assertEquals("Zip archive %s is truncated!".formatted(truncated), message);
+        final String expected = "Zip archive %s is truncated!".formatted(truncated);
+        assertEquals(expected, message);
       }
     }
   }
@@ -975,7 +976,8 @@ final class IoUtilsTest {
     assertInstanceOf(ZipException.class, cause);
 
     final String message = cause.getMessage();
-    assertEquals("Zip archive %s is truncated!".formatted(truncated), message);
+    final String expected = "Zip archive %s is truncated!".formatted(truncated);
+    assertEquals(expected, message);
   }
 
   @Test

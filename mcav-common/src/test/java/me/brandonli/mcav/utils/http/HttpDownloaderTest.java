@@ -195,7 +195,8 @@ final class HttpDownloaderTest {
       final int requestsAfterMismatch = server.getRequestCount(FILE_ROUTE);
       final boolean mismatchExists = Files.exists(mismatch);
       final List<Path> partFiles = partFiles(this.directory);
-      assertEquals(requestsBeforeMismatch + 1, requestsAfterMismatch, "a checksum mismatch is not retried");
+      final int expectedRequestsAfterMismatch = requestsBeforeMismatch + 1;
+      assertEquals(expectedRequestsAfterMismatch, requestsAfterMismatch, "a checksum mismatch is not retried");
       assertFalse(mismatchExists);
 
       final boolean partFilesEmpty = partFiles.isEmpty();
@@ -593,13 +594,16 @@ final class HttpDownloaderTest {
   @Test
   void shouldGiveAPinnedDownloadAMinuteAndASecondForEvery64KibibytesOfItsSize() {
     final Duration smallestDeadline = HttpDownloader.pinnedDeadline(1);
-    assertEquals(Duration.ofMinutes(1), smallestDeadline);
+    final Duration expectedSmallestDeadline = Duration.ofMinutes(1);
+    assertEquals(expectedSmallestDeadline, smallestDeadline);
 
     final Duration twoBlockDeadline = HttpDownloader.pinnedDeadline(2 * 64 * 1024);
-    assertEquals(Duration.ofSeconds(62), twoBlockDeadline);
+    final Duration expectedTwoBlockDeadline = Duration.ofSeconds(62);
+    assertEquals(expectedTwoBlockDeadline, twoBlockDeadline);
 
     final Duration largeDeadline = HttpDownloader.pinnedDeadline(200_000_000L);
-    assertEquals(Duration.ofSeconds(60 + 3051), largeDeadline);
+    final Duration expectedLargeDeadline = Duration.ofSeconds(60 + 3051);
+    assertEquals(expectedLargeDeadline, largeDeadline);
   }
 
   @Test
@@ -649,7 +653,8 @@ final class HttpDownloaderTest {
         final int first = stream.read();
         final byte[] rest = new byte[CONTENT.length - 1];
         final int read = stream.readNBytes(rest, 0, rest.length);
-        assertEquals(CONTENT[0], first);
+        final byte expected = CONTENT[0];
+        assertEquals(expected, first);
         assertEquals(rest.length, read);
       }
 
@@ -926,12 +931,14 @@ final class HttpDownloaderTest {
     try (final HttpClient client = HttpDownloader.createClient()) {
       final HttpClient.Redirect redirect = client.followRedirects();
       final Optional<Duration> connectTimeout = client.connectTimeout();
+      final Optional<Duration> expectedConnectTimeout = Optional.of(Duration.ofSeconds(20));
       assertEquals(HttpClient.Redirect.NORMAL, redirect);
-      assertEquals(Optional.of(Duration.ofSeconds(20)), connectTimeout);
+      assertEquals(expectedConnectTimeout, connectTimeout);
     }
 
+    final Optional<Duration> expectedRequestTimeout = Optional.of(Duration.ofMinutes(30));
     assertEquals("GET", method);
-    assertEquals(Optional.of(Duration.ofMinutes(30)), requestTimeout);
+    assertEquals(expectedRequestTimeout, requestTimeout);
 
     final String agent = userAgent.orElse("");
     final boolean namesMcav = agent.startsWith("mcav ");

@@ -109,8 +109,9 @@ final class GeneratedMediaTest {
     final AtomicReference<Path> temporary = new AtomicReference<>();
     final Path generated = GeneratedMedia.generate(output, path -> this.recordSuccessfulCommand(path, invocations, temporary));
     final String content = Files.readString(generated);
+    final Path expected = output.toAbsolutePath();
     assertEquals(COMPLETED_CONTENT, content);
-    assertEquals(output.toAbsolutePath(), generated);
+    assertEquals(expected, generated);
 
     final Path staged = temporary.get();
     assertNotNull(staged);

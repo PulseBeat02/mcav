@@ -117,8 +117,9 @@ final class ExecutorUtilsTest {
     final boolean terminated = ExecutorUtils.shutdownExecutorGracefully(executor);
     final List<Long> waits = executor.getWaits();
     final int interruptions = executor.getInterruptions();
+    final List<Long> expected = List.of(DEFAULT_WAIT_MILLISECONDS);
     assertFalse(terminated);
-    assertEquals(List.of(DEFAULT_WAIT_MILLISECONDS), waits);
+    assertEquals(expected, waits);
     assertEquals(1, interruptions);
   }
 
@@ -129,7 +130,8 @@ final class ExecutorUtilsTest {
     ExecutorUtils.shutdownExecutorGracefully(executor, Duration.ZERO);
     ExecutorUtils.shutdownExecutorGracefully(executor, Duration.ofMillis(-1));
     final List<Long> waits = executor.getWaits();
-    assertEquals(List.of(1L, 0L, -1L), waits);
+    final List<Long> expected = List.of(1L, 0L, -1L);
+    assertEquals(expected, waits);
   }
 
   @Test

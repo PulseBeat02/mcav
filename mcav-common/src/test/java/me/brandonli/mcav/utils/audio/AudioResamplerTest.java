@@ -301,7 +301,8 @@ final class AudioResamplerTest {
         final byte[] converted = resampler.resample(stereo);
         final short[] samples = toShorts(converted);
         final int loudest = peak(samples, 0, samples.length);
-        assertEquals(2 * channels, samples.length, "channels: " + channels);
+        final int expected = 2 * channels;
+        assertEquals(expected, samples.length, "channels: " + channels);
 
         final boolean quiet = loudest <= 8_000;
         assertTrue(quiet, "channels: " + channels + ", peak: " + loudest);
@@ -369,7 +370,8 @@ final class AudioResamplerTest {
         final byte[] restored = back.resample(convertedBuffer);
         final int bytesPerSample = format.getBytesPerSample();
         final String formatName = format.name();
-        assertEquals(6 * bytesPerSample, converted.length, formatName);
+        final int expected = 6 * bytesPerSample;
+        assertEquals(expected, converted.length, formatName);
         assertArrayEquals(original, restored, formatName);
       }
     }
@@ -530,7 +532,8 @@ final class AudioResamplerTest {
     resampler.close();
     final List<String> afterClose = allocated(objects);
 
-    assertEquals(List.of("SwrContext", "AVChannelLayout", "AVChannelLayout"), beforeClose);
+    final List<String> expected = List.of("SwrContext", "AVChannelLayout", "AVChannelLayout");
+    assertEquals(expected, beforeClose);
     assertEquals(List.of(), afterClose, "closing frees them rather than leaving them to the garbage collector");
   }
 

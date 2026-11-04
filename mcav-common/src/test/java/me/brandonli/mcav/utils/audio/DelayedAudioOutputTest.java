@@ -143,7 +143,8 @@ class DelayedAudioOutputTest {
     assertEquals("pcm_s16le", codec);
 
     final int bitrate = metadata.getAudioBitrate();
-    assertEquals(48_000 * 4 * 8, bitrate);
+    final int expected = 48_000 * 4 * 8;
+    assertEquals(expected, bitrate);
   }
 
   @Test
@@ -239,7 +240,8 @@ class DelayedAudioOutputTest {
       assertNull(escapedFailure, "a recoverable reporting error must stay inside the delivery boundary");
 
       final byte[] heardSamples = heard.get();
-      assertArrayEquals(new byte[] { 2, 3, 4, 5 }, heardSamples);
+      final byte[] expected = new byte[] { 2, 3, 4, 5 };
+      assertArrayEquals(expected, heardSamples);
 
       final boolean alive = failing.getThread().isAlive();
       assertTrue(alive);
@@ -509,7 +511,8 @@ class DelayedAudioOutputTest {
     assertEquals(2, lastSample);
 
     final int silentBytes = this.silentBytes();
-    assertEquals(3 * 3840, silentBytes, "60 ms of silence at most, then the stream waits for the sound");
+    final int expected = 3 * 3840;
+    assertEquals(expected, silentBytes, "60 ms of silence at most, then the stream waits for the sound");
   }
 
   @Test
@@ -559,11 +562,8 @@ class DelayedAudioOutputTest {
     now.set(TimeUnit.MILLISECONDS.toNanos(LATER_MILLISECONDS));
     waitUntil(() -> quiet.getThread().getState() == Thread.State.WAITING);
     final int silentBytes = this.silentBytes();
-    assertEquals(
-      SILENCE_CHUNK_MILLISECONDS * BYTES_PER_MILLISECOND,
-      silentBytes,
-      "only the first chunk of silence, before the sound, which ends the quiet"
-    );
+    final int expected = SILENCE_CHUNK_MILLISECONDS * BYTES_PER_MILLISECOND;
+    assertEquals(expected, silentBytes, "only the first chunk of silence, before the sound, which ends the quiet");
   }
 
   @Test
@@ -583,13 +583,14 @@ class DelayedAudioOutputTest {
     assertEquals(9, lastSample, "the sound, right after the silence");
 
     final int silentBytes = this.silentBytes();
-    assertEquals(100 * BYTES_PER_MILLISECOND, silentBytes, "silence up to the sound, and no more");
+    final int expected = 100 * BYTES_PER_MILLISECOND;
+    assertEquals(expected, silentBytes, "silence up to the sound, and no more");
 
     now.set(TimeUnit.MILLISECONDS.toNanos(LATER_MILLISECONDS));
     quiet.accept(new byte[] { 1, 0, 1, 0 }, AudioFilter.FRAME_SIZE);
     this.at(now, LATER_DUE_MILLISECONDS, 7);
     final int silentBytesLater = this.silentBytes();
-    assertEquals(100 * BYTES_PER_MILLISECOND, silentBytesLater);
+    assertEquals(expected, silentBytesLater);
   }
 
   @Test
@@ -603,7 +604,8 @@ class DelayedAudioOutputTest {
     quiet.quiet();
     waitUntil(() -> this.processed.size() == 1);
     final byte[] firstChunk = this.processed.getFirst();
-    assertArrayEquals(new byte[AudioFilter.FRAME_SIZE], firstChunk);
+    final byte[] expected = new byte[AudioFilter.FRAME_SIZE];
+    assertArrayEquals(expected, firstChunk);
 
     now.set(due);
     waitUntil(() -> this.processed.size() == 2);
@@ -625,7 +627,8 @@ class DelayedAudioOutputTest {
     assertEquals(5, processedCount);
 
     final int silentBytes = this.silentBytes();
-    assertEquals(SILENCE_LIMIT_MILLISECONDS * BYTES_PER_MILLISECOND, silentBytes);
+    final int expectedSilentBytes = SILENCE_LIMIT_MILLISECONDS * BYTES_PER_MILLISECOND;
+    assertEquals(expectedSilentBytes, silentBytes);
   }
 
   @Test
@@ -655,7 +658,8 @@ class DelayedAudioOutputTest {
     now.addAndGet(TimeUnit.MILLISECONDS.toNanos(SILENCE_CHUNK_MILLISECONDS));
     waitUntil(() -> this.processed.size() == 4);
     final int silentBytes = this.silentBytes();
-    assertEquals(SILENCE_LIMIT_MILLISECONDS * BYTES_PER_MILLISECOND, silentBytes);
+    final int expected = SILENCE_LIMIT_MILLISECONDS * BYTES_PER_MILLISECOND;
+    assertEquals(expected, silentBytes);
   }
 
   @Test
@@ -745,7 +749,8 @@ class DelayedAudioOutputTest {
     failing.accept(new byte[AudioFilter.FRAME_SIZE], AudioFilter.FRAME_SIZE);
     waitUntil(() -> !this.failures.isEmpty());
     failing.close();
-    assertEquals(List.of("The audio of the virtual machine could not be processed.: filter broke!"), this.failures);
+    final List<String> expected = List.of("The audio of the virtual machine could not be processed.: filter broke!");
+    assertEquals(expected, this.failures);
 
     final DelayedAudioOutput fatal = start(
       () -> AudioPipelineStep.of((samples, metadata) -> this.failFatally()),

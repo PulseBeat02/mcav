@@ -264,10 +264,11 @@ final class NativeHeapTrimmerTest {
     }
 
     final List<Integer> threshold = List.of(-1, NativeHeapTrimmer.TRIM_THRESHOLD_BYTES);
+    final List<List<Integer>> expected = List.of(threshold, threshold);
 
     assertTrue(taken);
     assertFalse(refused, "a threshold that glibc refuses is reported");
-    assertEquals(List.of(threshold, threshold), calls, "mallopt takes M_TRIM_THRESHOLD and the threshold");
+    assertEquals(expected, calls, "mallopt takes M_TRIM_THRESHOLD and the threshold");
   }
 
   @Test
@@ -290,7 +291,8 @@ final class NativeHeapTrimmerTest {
 
     final SymbolLookup askedLibrary = asked.getFirst();
     final Optional<MemorySegment> askedMalloc = askedLibrary.find(MALLOC_SYMBOL);
-    assertEquals(ownLibrary.find(MALLOC_SYMBOL), askedMalloc, "the C library of this JVM is asked");
+    final Optional<MemorySegment> expected = ownLibrary.find(MALLOC_SYMBOL);
+    assertEquals(expected, askedMalloc, "the C library of this JVM is asked");
   }
 
   private boolean recordTheAskedLibrary(final List<SymbolLookup> asked, final InvocationOnMock invocation) {
@@ -334,7 +336,8 @@ final class NativeHeapTrimmerTest {
   void shouldPropagateAVirtualMachineErrorOfMalloptAsItIs() {
     final OutOfMemoryError exhausted = new OutOfMemoryError("no memory for the call!");
     final MethodHandle mallopt = malloptThatThrows(exhausted);
-    assertSame(exhausted, assertThrows(OutOfMemoryError.class, () -> NativeHeapTrimmer.setTrimThreshold(mallopt)));
+    final OutOfMemoryError failure = assertThrows(OutOfMemoryError.class, () -> NativeHeapTrimmer.setTrimThreshold(mallopt));
+    assertSame(exhausted, failure);
   }
 
   private static MethodHandle malloptThatThrows(final Throwable failure) {

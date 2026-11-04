@@ -74,10 +74,12 @@ final class MetadataUtilsTest {
     ) {
       if (audio) {
         final OriginalAudioMetadata actual = MetadataUtils.parseAudioMetadata(source);
-        assertEquals(OriginalAudioMetadata.of(AUDIO_CODEC, AUDIO_BITRATE, SAMPLE_RATE, AUDIO_CHANNELS, 1), actual);
+        final OriginalAudioMetadata expected = OriginalAudioMetadata.of(AUDIO_CODEC, AUDIO_BITRATE, SAMPLE_RATE, AUDIO_CHANNELS, 1);
+        assertEquals(expected, actual);
       } else {
         final OriginalVideoMetadata actual = MetadataUtils.parseVideoMetadata(source);
-        assertEquals(OriginalVideoMetadata.of(VIDEO_WIDTH, VIDEO_HEIGHT, VIDEO_BITRATE, (float) FRAME_RATE), actual);
+        final OriginalVideoMetadata expected = OriginalVideoMetadata.of(VIDEO_WIDTH, VIDEO_HEIGHT, VIDEO_BITRATE, (float) FRAME_RATE);
+        assertEquals(expected, actual);
       }
       final int probedFrames = frames.get();
       assertEquals(30, probedFrames, "the probe includes its last allowed frame and stops there");
@@ -119,10 +121,12 @@ final class MetadataUtilsTest {
     ) {
       if (audio) {
         final OriginalAudioMetadata actual = MetadataUtils.parseAudioMetadata(source);
-        assertEquals(OriginalAudioMetadata.of(AUDIO_CODEC, AUDIO_BITRATE, SAMPLE_RATE, AUDIO_CHANNELS, 1), actual);
+        final OriginalAudioMetadata expected = OriginalAudioMetadata.of(AUDIO_CODEC, AUDIO_BITRATE, SAMPLE_RATE, AUDIO_CHANNELS, 1);
+        assertEquals(expected, actual);
       } else {
         final OriginalVideoMetadata actual = MetadataUtils.parseVideoMetadata(source);
-        assertEquals(OriginalVideoMetadata.of(VIDEO_WIDTH, VIDEO_HEIGHT, VIDEO_BITRATE, (float) FRAME_RATE), actual);
+        final OriginalVideoMetadata expected = OriginalVideoMetadata.of(VIDEO_WIDTH, VIDEO_HEIGHT, VIDEO_BITRATE, (float) FRAME_RATE);
+        assertEquals(expected, actual);
       }
 
       final FFmpegFrameGrabber grabber = grabbers.constructed().getFirst();
@@ -151,7 +155,8 @@ final class MetadataUtilsTest {
       )
     ) {
       final OriginalAudioMetadata actual = MetadataUtils.parseAudioMetadata(FileSource.path(Path.of(FIXTURE_FILE_NAME)));
-      assertEquals(OriginalAudioMetadata.of("unknown", AUDIO_BITRATE, SAMPLE_RATE, AUDIO_CHANNELS, 1), actual);
+      final OriginalAudioMetadata expected = OriginalAudioMetadata.of("unknown", AUDIO_BITRATE, SAMPLE_RATE, AUDIO_CHANNELS, 1);
+      assertEquals(expected, actual);
     }
   }
 
@@ -168,7 +173,8 @@ final class MetadataUtilsTest {
     try (final MockedConstruction<FFmpegFrameGrabber> grabbers = Mockito.mockConstruction(FFmpegFrameGrabber.class)) {
       final InputMetadataException failure = assertThrows(InputMetadataException.class, () -> this.parseTrackMetadata(source, track));
       final String message = failure.getMessage();
-      assertEquals("Source " + source.getResource() + " has no " + (audio ? "audio" : "video") + " track!", message);
+      final String expected = "Source " + source.getResource() + " has no " + (audio ? "audio" : "video") + " track!";
+      assertEquals(expected, message);
 
       final FFmpegFrameGrabber grabber = grabbers.constructed().getFirst();
       verify(grabber).grabFrame();
@@ -233,14 +239,16 @@ final class MetadataUtilsTest {
     final FileSource source = FileSource.path(missing);
     final String resource = source.getResource();
     final InputMetadataException videoFailure = assertThrows(InputMetadataException.class, () -> MetadataUtils.parseVideoMetadata(source));
-    final FrameGrabber.Exception videoCause = assertInstanceOf(FrameGrabber.Exception.class, videoFailure.getCause());
+    final Throwable videoFailureCause = videoFailure.getCause();
+    final FrameGrabber.Exception videoCause = assertInstanceOf(FrameGrabber.Exception.class, videoFailureCause);
     final String videoReason = videoCause.getMessage();
     final String expectedVideoMessage = "Because of \"%s\", the video metadata of %s could not be read!".formatted(videoReason, resource);
     final String videoMessage = videoFailure.getMessage();
     assertEquals(expectedVideoMessage, videoMessage);
 
     final InputMetadataException audioFailure = assertThrows(InputMetadataException.class, () -> MetadataUtils.parseAudioMetadata(source));
-    final FrameGrabber.Exception audioCause = assertInstanceOf(FrameGrabber.Exception.class, audioFailure.getCause());
+    final Throwable audioFailureCause = audioFailure.getCause();
+    final FrameGrabber.Exception audioCause = assertInstanceOf(FrameGrabber.Exception.class, audioFailureCause);
     final String audioReason = audioCause.getMessage();
     final String expectedAudioMessage = "Because of \"%s\", the audio metadata of %s could not be read!".formatted(audioReason, resource);
     final String audioMessage = audioFailure.getMessage();
