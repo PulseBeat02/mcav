@@ -19,6 +19,7 @@
 package me.brandonli.mcav.gradle
 
 import java.util.Locale
+import java.util.Objects
 import org.gradle.api.artifacts.MinimalExternalModuleDependency
 import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.gradle.api.provider.Provider
@@ -229,5 +230,41 @@ class HostPlatform private constructor(val operatingSystem: String, val architec
             this.architecture == RISCV64 -> LINUX_RISCV64_NATIVES
             else -> null
         }
+    }
+
+    /**
+     * Returns whether [other] is a host platform of the same operating system and architecture.
+     *
+     * @param other the object to compare with
+     * @return whether both names match
+     */
+    override fun equals(other: Any?): Boolean {
+        if (this === other) {
+            return true
+        }
+
+        if (other !is HostPlatform) {
+            return false
+        }
+
+        return this.operatingSystem == other.operatingSystem && this.architecture == other.architecture
+    }
+
+    /**
+     * Returns a hash code built from both names.
+     *
+     * @return the hash code
+     */
+    override fun hashCode(): Int {
+        return Objects.hash(this.operatingSystem, this.architecture)
+    }
+
+    /**
+     * Returns a debugging representation with both names.
+     *
+     * @return the representation
+     */
+    override fun toString(): String {
+        return "HostPlatform(operatingSystem=${this.operatingSystem}, architecture=${this.architecture})"
     }
 }

@@ -29,6 +29,7 @@ import org.gradle.api.internal.artifacts.dependencies.DefaultMutableVersionConst
 import org.gradle.api.provider.Provider
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -194,6 +195,35 @@ class HostPlatformTest {
 
         val classifiers: List<String?> = this.testRuntimeClassifiers(project)
         assertEquals(emptyList<String?>(), classifiers)
+    }
+
+    @Test
+    fun shouldEqualOnlyAPlatformOfTheSameOperatingSystemAndArchitecture(): Unit {
+        val platform: HostPlatform = HostPlatform.normalize(LINUX_NAME, AMD64)
+        val same: HostPlatform = HostPlatform.normalize(LINUX_NAME, AMD64)
+        val otherArchitecture: HostPlatform = HostPlatform.normalize(LINUX_NAME, ARM64)
+        val otherSystem: HostPlatform = HostPlatform.normalize(WINDOWS_NAME, AMD64)
+
+        assertEquals(platform, platform)
+        assertEquals(same, platform)
+
+        val sameHash: Int = same.hashCode()
+        val platformHash: Int = platform.hashCode()
+        assertEquals(sameHash, platformHash)
+
+        val otherHash: Int = otherArchitecture.hashCode()
+        assertNotEquals(otherHash, platformHash)
+
+        assertNotEquals(otherArchitecture, platform)
+        assertNotEquals(otherSystem, platform)
+        assertNotEquals(platform, LINUX_NAME)
+    }
+
+    @Test
+    fun shouldShowTheOperatingSystemAndTheArchitecture(): Unit {
+        val platform: HostPlatform = HostPlatform.normalize(LINUX_NAME, AMD64)
+        val text: String = platform.toString()
+        assertEquals("HostPlatform(operatingSystem=linux, architecture=x86_64)", text)
     }
 
     private fun mappingOf(row: List<String>): List<String?> {
