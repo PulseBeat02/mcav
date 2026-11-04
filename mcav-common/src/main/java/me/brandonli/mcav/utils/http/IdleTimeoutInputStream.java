@@ -41,6 +41,8 @@ final class IdleTimeoutInputStream extends InputStream {
 
   private static final int UNSIGNED_BYTE_MASK = 0xFF;
 
+  private static final boolean INTERRUPT_IF_RUNNING = true;
+
   private final InputStream delegate;
   private final Duration idleTimeout;
   private final ExecutorService reader;
@@ -80,7 +82,7 @@ final class IdleTimeoutInputStream extends InputStream {
     try {
       return pending.get(timeoutNanoseconds, TimeUnit.NANOSECONDS);
     } catch (final TimeoutException exception) {
-      pending.cancel(true);
+      pending.cancel(INTERRUPT_IF_RUNNING);
       this.delegate.close();
       final long timeoutMilliseconds = this.idleTimeout.toMillis();
       final String message = "No data was received for %s ms!".formatted(timeoutMilliseconds);
@@ -90,7 +92,7 @@ final class IdleTimeoutInputStream extends InputStream {
     } catch (final InterruptedException exception) {
       final Thread current = Thread.currentThread();
       current.interrupt();
-      pending.cancel(true);
+      pending.cancel(INTERRUPT_IF_RUNNING);
 
       final String message = "Interrupted while waiting for data!";
       final InterruptedIOException interrupted = new InterruptedIOException(message);

@@ -75,6 +75,8 @@ public final class NetworkUtils {
   private static final String IPV6_HOST_START = "[";
   private static final String IPV6_HOST_END = "]";
 
+  private static final boolean INTERRUPT_IF_RUNNING = true;
+
   private NetworkUtils() {
     final String message = "Utility class cannot be instantiated!";
     throw new UnsupportedOperationException(message);
@@ -152,7 +154,7 @@ public final class NetworkUtils {
       try {
         return readAddress(pending.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS));
       } finally {
-        pending.cancel(true);
+        pending.cancel(INTERRUPT_IF_RUNNING);
         // closing the client waits for the requests it still runs, so the one cut short is ended first
         client.shutdownNow();
       }
