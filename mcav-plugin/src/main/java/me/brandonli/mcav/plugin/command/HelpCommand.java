@@ -17,18 +17,6 @@
  */
 package me.brandonli.mcav.plugin.command;
 
-import static org.incendo.cloud.minecraft.extras.MinecraftHelp.MESSAGE_ARGUMENTS;
-import static org.incendo.cloud.minecraft.extras.MinecraftHelp.MESSAGE_AVAILABLE_COMMANDS;
-import static org.incendo.cloud.minecraft.extras.MinecraftHelp.MESSAGE_CLICK_FOR_NEXT_PAGE;
-import static org.incendo.cloud.minecraft.extras.MinecraftHelp.MESSAGE_CLICK_FOR_PREVIOUS_PAGE;
-import static org.incendo.cloud.minecraft.extras.MinecraftHelp.MESSAGE_CLICK_TO_SHOW_HELP;
-import static org.incendo.cloud.minecraft.extras.MinecraftHelp.MESSAGE_DESCRIPTION;
-import static org.incendo.cloud.minecraft.extras.MinecraftHelp.MESSAGE_HELP_TITLE;
-import static org.incendo.cloud.minecraft.extras.MinecraftHelp.MESSAGE_NO_RESULTS_FOR_QUERY;
-import static org.incendo.cloud.minecraft.extras.MinecraftHelp.MESSAGE_OPTIONAL;
-import static org.incendo.cloud.minecraft.extras.MinecraftHelp.MESSAGE_PAGE_OUT_OF_RANGE;
-import static org.incendo.cloud.minecraft.extras.MinecraftHelp.MESSAGE_SHOWING_RESULTS_FOR_QUERY;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import java.util.HashMap;
@@ -88,17 +76,17 @@ public final class HelpCommand implements AnnotationCommandFeature {
   @VisibleForTesting
   Map<String, String> createMessages(@UnderInitialization HelpCommand this) {
     final Map<String, String> messages = new HashMap<>();
-    this.putTranslation(messages, MESSAGE_HELP_TITLE, "mcav.command.help.command");
-    this.putTranslation(messages, MESSAGE_DESCRIPTION, "mcav.command.help.description");
-    this.putTranslation(messages, MESSAGE_ARGUMENTS, "mcav.command.help.arguments");
-    this.putTranslation(messages, MESSAGE_OPTIONAL, "mcav.command.help.optional");
-    this.putTranslation(messages, MESSAGE_SHOWING_RESULTS_FOR_QUERY, "mcav.command.help.search_query");
-    this.putTranslation(messages, MESSAGE_NO_RESULTS_FOR_QUERY, "mcav.command.help.none_query");
-    this.putTranslation(messages, MESSAGE_AVAILABLE_COMMANDS, "mcav.command.help.available_commands");
-    this.putTranslation(messages, MESSAGE_CLICK_TO_SHOW_HELP, "mcav.command.help.show_help");
-    this.putTranslation(messages, MESSAGE_PAGE_OUT_OF_RANGE, "mcav.command.help.page_invalid");
-    this.putTranslation(messages, MESSAGE_CLICK_FOR_NEXT_PAGE, "mcav.command.help.next_page");
-    this.putTranslation(messages, MESSAGE_CLICK_FOR_PREVIOUS_PAGE, "mcav.command.help.previous_page");
+    this.putTranslation(messages, MinecraftHelp.MESSAGE_HELP_TITLE, "mcav.command.help.command");
+    this.putTranslation(messages, MinecraftHelp.MESSAGE_DESCRIPTION, "mcav.command.help.description");
+    this.putTranslation(messages, MinecraftHelp.MESSAGE_ARGUMENTS, "mcav.command.help.arguments");
+    this.putTranslation(messages, MinecraftHelp.MESSAGE_OPTIONAL, "mcav.command.help.optional");
+    this.putTranslation(messages, MinecraftHelp.MESSAGE_SHOWING_RESULTS_FOR_QUERY, "mcav.command.help.search_query");
+    this.putTranslation(messages, MinecraftHelp.MESSAGE_NO_RESULTS_FOR_QUERY, "mcav.command.help.none_query");
+    this.putTranslation(messages, MinecraftHelp.MESSAGE_AVAILABLE_COMMANDS, "mcav.command.help.available_commands");
+    this.putTranslation(messages, MinecraftHelp.MESSAGE_CLICK_TO_SHOW_HELP, "mcav.command.help.show_help");
+    this.putTranslation(messages, MinecraftHelp.MESSAGE_PAGE_OUT_OF_RANGE, "mcav.command.help.page_invalid");
+    this.putTranslation(messages, MinecraftHelp.MESSAGE_CLICK_FOR_NEXT_PAGE, "mcav.command.help.next_page");
+    this.putTranslation(messages, MinecraftHelp.MESSAGE_CLICK_FOR_PREVIOUS_PAGE, "mcav.command.help.previous_page");
     return messages;
   }
 
