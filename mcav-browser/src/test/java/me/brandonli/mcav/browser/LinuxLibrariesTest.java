@@ -74,6 +74,132 @@ import org.junit.jupiter.api.parallel.Resources;
 
 class LinuxLibrariesTest {
 
+  private static final String HOST_DIRECTIVE = "host";
+  private static final String HASH_FILLER = "0";
+  private static final String LIBRARY_TEXT = "the library";
+
+  private static final String OTHER_LIBRARY_FILE = "libmcavother.so.1";
+  private static final String OTHER_CACHE_FOLDER = "other-cache";
+  private static final String UNPACKED_LINK_PACKAGE_FILE = "link.deb.unpacked";
+  private static final String PRESENT_LIBRARY_FILE = "libpresent.so.1";
+  private static final String COMPRESSION_LIBRARY_FILE = "libz.so.1";
+  private static final String MISSING_SONAME_FILE = "libmissing.so.1";
+  private static final String BARE_HOST_FOLDER = "bare-host";
+  private static final String EMPTY_ROOT_FOLDER = "empty-root";
+  private static final String JAVA_RUNTIME_FOLDER = "java-25-openjdk";
+  private static final String LIBRARY_CACHE_FOLDER = "jcef-libraries";
+  private static final String LEFTOVER_FILE = "left-over";
+  private static final String DEEP_ROOT_FOLDER = "deep-root";
+  private static final String LOADER_CONFIGURATION_FILE = "ld.so.conf";
+  private static final String DEPTH_INCLUDE_PREFIX = "\ninclude /etc/";
+  private static final String SORTED_ROOT_FOLDER = "sorted-root";
+  private static final String RELATIVE_ROOT_FOLDER = "relative-root";
+  private static final String SECURITY_CACHE_FOLDER = "security-cache";
+  private static final String COPYRIGHT_FILE = "usr/share/doc/libmcavtest1/copyright";
+  private static final String LIBRARY_LINK_FILE = "usr/lib/x86_64-linux-gnu/libmcavtest.so.1";
+  private static final String CACHE_FOLDER = "cache";
+  private static final String MAIN_POOL_PREFIX = "pool/main/";
+  private static final String UPDATES_POOL_PREFIX = "pool/updates/main/";
+  private static final String NSS_LIBRARY_FILE = "libnss3.so";
+  private static final String SOFTWARE_TOKEN_LIBRARY_FILE = "libsoftokn3.so";
+  private static final String INSTALLATION_LOCK_FILE = "install.lock";
+  private static final String LOCK_FILE_SUFFIX = ".lock";
+  private static final String NO_DATA_PACKAGE_FILE = "no-data.deb";
+  private static final String LINK_PACKAGE_FILE = "link.deb";
+  private static final String ELSEWHERE_LIBRARY_FILE = "elsewhere.so";
+  private static final String HARD_LINK_PACKAGE_FILE = "hard.deb";
+  private static final String GREEDY_PACKAGE_FILE = "greedy.deb";
+  private static final String GREEDY_FOLDER = "greedy";
+  private static final String STRONGEST_PACKAGE_FILE = "strongest.deb";
+  private static final String STRONGEST_FOLDER = "strongest";
+  private static final String PACKAGE_FILE = "package.deb";
+  private static final String PLAIN_ARCHIVE_FILE = "plain.zip";
+  private static final String HOST_FOLDER = "host";
+  private static final String INSTALLATION_FOLDER = "installation";
+  private static final String MISSING_MODULE_FILE = "libmissingmodule.so";
+  private static final String ROOT_FOLDER = "root";
+  private static final String FIRST_CONFIGURATION_FILE = "a.conf";
+  private static final String SECOND_CONFIGURATION_FILE = "b.conf";
+  private static final String EXCLUDED_CONFIGURATION_FILE = "c.txt";
+  private static final String LOCAL_LIBRARY_FOLDER = "usr/local/lib";
+  private static final String DEEP_LIBRARY_FOLDER = "opt/deep";
+  private static final String GAME_LIBRARY_FOLDER = "opt/game/lib";
+  private static final String ARCHITECTURE_LIBRARY_FOLDER = "lib/x86_64-linux-gnu";
+  private static final String ARCHITECTURE_USER_LIBRARY_FOLDER = "usr/lib/x86_64-linux-gnu";
+  private static final String USER_64_BIT_LIBRARY_FOLDER = "usr/lib64";
+  private static final String USER_LIBRARY_FOLDER = "usr/lib";
+  private static final String FIRST_ARM_LIBRARY_FOLDER = "empty-root/lib/aarch64-linux-gnu";
+  private static final String ABSENT_LIBRARY_FILE = "libmcav-nothing.so";
+  private static final String PROVISIONED_FOLDER = "provisioned";
+  private static final String LIBRARY_FOLDER = "lib";
+  private static final String HEADLESS_AWT_LIBRARY_FILE = "libawt_headless.so";
+  private static final String JAVA_BIN_FOLDER = "bin";
+  private static final String JAVA_EXECUTABLE = "java";
+  private static final String SERVER_FOLDER = "server";
+  private static final String JAWT_LIBRARY_FILE = "libjawt.so";
+  private static final String PLAIN_PACKAGE_FILE = "plain.deb";
+  private static final String USER_FOLDER_ENTRY = "usr/";
+  private static final String PLAIN_FOLDER = "plain";
+  private static final String INSTALLATION_PREFIX = "debian-11-linux-amd64-";
+  private static final String FIRST_OPTIONAL_LIBRARY_PATH = "/opt/a";
+  private static final String SECOND_OPTIONAL_LIBRARY_PATH = "/opt/b";
+  private static final String EXCLUDED_TEXT_FILE = "b.txt";
+  private static final String TOP_LIBRARY_PATH = "/opt/top";
+  private static final String TOP_CONFIGURATION_FILE = "top.conf";
+  private static final String MULTIARCH_FOLDER = "multiarch";
+  private static final String AMD64_LIBRARY_FILE = "amd64.so";
+  private static final String ARM64_LIBRARY_FILE = "arm64.so";
+  private static final String I386_LIBRARY_FILE = "i386.so";
+  private static final String BIG_ENDIAN_LIBRARY_FILE = "big.so";
+  private static final String OTHER_MACHINE_LIBRARY_FILE = "other.so";
+  private static final String TEXT_LIBRARY_FILE = "text.so";
+  private static final String SHORT_LIBRARY_FILE = "short.so";
+  private static final String MISSING_LIBRARY_FILE = "missing.so";
+  private static final String I386_FOLDER = "i386";
+  private static final String X11_LIBRARY_FILE = "libX11.so.6";
+  private static final String ETC_FOLDER = "etc";
+  private static final String DEPTH_LIBRARY_PREFIX = "/opt/depth";
+  private static final String EIGHTH_DEPTH_LIBRARY_FOLDER = "opt/depth8";
+  private static final String NINTH_DEPTH_LIBRARY_FOLDER = "opt/depth9";
+  private static final String ABSOLUTE_OPTIONAL_LIBRARY_PREFIX = "/opt/";
+  private static final String OPTIONAL_LIBRARY_PREFIX = "opt/";
+  private static final String GAME_CONFIGURATION_FILE = "game.conf";
+  private static final String RELATIVE_LIBRARY_FOLDER = "opt/relative";
+  private static final String UPDATED_PACKAGE_PATH = "pool/updates/main/m/mcavtest/libmcavtest1_1.2.3-1+deb11u1_amd64.deb";
+  private static final String DATA_ARCHIVE_FILE = "data.tar.xz";
+  private static final String LIBRARY_PIN_PREFIX = "linux-amd64 libx 1 ";
+
+  private static final String SECOND_LOADER_CONFIGURATION = "include /etc/ld.so.conf.d/b.conf\n/opt/deep\n";
+  private static final String FIRST_INCLUDE_CONFIGURATION = "include /etc/1.conf\n";
+  private static final String SORTED_INCLUDE_CONFIGURATION = "include /etc/ld.so.conf.d/*.conf\n";
+  private static final String RELATIVE_INCLUDE_CONFIGURATION = "include ld.so.conf.d/*.conf\n";
+  private static final String LOCAL_LIBRARY_CONFIGURATION = "/usr/local/lib\n";
+  private static final String EXCLUDED_FILE_CONFIGURATION = "/not/included\n";
+  private static final String LOADER_CONFIGURATION_PATTERN = "etc/ld.so.conf.d/*.conf";
+  private static final String CONFIGURATION_SUFFIX = ".conf";
+  private static final String CONFIGURATION_LINE_SUFFIX = ".conf\n";
+  private static final String RELATIVE_LIBRARY_CONFIGURATION = "/opt/relative\n";
+
+  private static final int SHA256_CHARACTERS = 64;
+
+  private static final String LIBRARY_LINK_TARGET = "libmcavtest.so.1.2.3";
+
+  private static final String ETC_FOLDER_PATTERN = "etc/";
+
+  private static final String PIN_SEPARATOR = " ";
+
+  private static final String MIRROR_URL = "https://mirror.test/debian/";
+  private static final String FIRST_MIRROR_URL = "https://first.test/debian/";
+  private static final String SECOND_MIRROR_URL = "https://second.test/debian/";
+
+  private static final String POSIX_ATTRIBUTE_VIEW = "posix";
+
+  private static final String EXECUTABLE_PERMISSIONS = "rwxr-xr-x";
+
+  private static final String ARM64_PLATFORM_SUFFIX = "arm64";
+
+  private static final String SESSION_FOLDER = "session";
+
   private static final String LIBRARY = "usr/lib/x86_64-linux-gnu/libmcavtest.so.1.2.3";
   private static final String POOL = "pool/main/m/mcavtest/libmcavtest1_1.2.3-1_amd64.deb";
 
@@ -162,9 +288,9 @@ class LinuxLibrariesTest {
 
   private byte[] testPackage() throws IOException {
     return this.debianPackage(
-      Map.of(LIBRARY, "the library".getBytes(StandardCharsets.US_ASCII), "usr/share/doc/libmcavtest1/copyright", new byte[3]),
-      Map.of("usr/lib/x86_64-linux-gnu/libmcavtest.so.1", "libmcavtest.so.1.2.3"),
-      "data.tar.xz"
+      Map.of(LIBRARY, LIBRARY_TEXT.getBytes(StandardCharsets.US_ASCII), COPYRIGHT_FILE, new byte[3]),
+      Map.of(LIBRARY_LINK_FILE, LIBRARY_LINK_TARGET),
+      DATA_ARCHIVE_FILE
     );
   }
 
@@ -222,9 +348,9 @@ class LinuxLibrariesTest {
     return (
       "linux-amd64 libmcavtest1 1.2.3-1 " +
       this.sha256(debianPackage) +
-      " " +
+      PIN_SEPARATOR +
       debianPackage.length +
-      " " +
+      PIN_SEPARATOR +
       POOL +
       " libmcavtest.so.1=" +
       LIBRARY
@@ -234,7 +360,7 @@ class LinuxLibrariesTest {
   // downloads come from memory; a mirror named "broken" fails
   private LinuxLibraries installer(final byte[] debianPackage, final List<String> mirrors, final List<String> pins) {
     return new LinuxLibraries(
-      this.folder.resolve("cache"),
+      this.folder.resolve(CACHE_FOLDER),
       (uri, destination, sha256, size) -> this.downloadPackage(debianPackage, uri, destination, sha256, size),
       mirrors,
       pins
@@ -277,7 +403,7 @@ class LinuxLibrariesTest {
       assertTrue(pinsLibX11Xcb, platform);
 
       for (final LinuxLibraries.Pin pin : pins) {
-        final boolean fromTheMainPool = pin.pool().startsWith("pool/main/") || pin.pool().startsWith("pool/updates/main/");
+        final boolean fromTheMainPool = pin.pool().startsWith(MAIN_POOL_PREFIX) || pin.pool().startsWith(UPDATES_POOL_PREFIX);
         assertTrue(fromTheMainPool, pin.pool());
 
         final boolean noFiles = pin.files().isEmpty();
@@ -289,9 +415,9 @@ class LinuxLibrariesTest {
         .findFirst()
         .orElseThrow();
       final String mainLibrary = nss.sonames().getFirst();
-      assertEquals("libnss3.so", mainLibrary, "NSS is linked as a whole, decided by its main library");
+      assertEquals(NSS_LIBRARY_FILE, mainLibrary, "NSS is linked as a whole, decided by its main library");
 
-      final boolean holdsTheSoftwareToken = nss.sonames().contains("libsoftokn3.so");
+      final boolean holdsTheSoftwareToken = nss.sonames().contains(SOFTWARE_TOKEN_LIBRARY_FILE);
       assertTrue(holdsTheSoftwareToken);
 
       final boolean twelveHexadecimalDigits = FINGERPRINT.matcher(LinuxLibraries.fingerprint(pins)).matches();
@@ -332,17 +458,17 @@ class LinuxLibrariesTest {
 
   @Test
   void shouldRefuseInvalidPins() {
-    final String hash = "0".repeat(64);
+    final String hash = HASH_FILLER.repeat(SHA256_CHARACTERS);
     for (final String line : List.of(
-      "linux-amd64 libx 1 " + hash + " 1 pool/main/x/x/x.deb",
+      LIBRARY_PIN_PREFIX + hash + " 1 pool/main/x/x/x.deb",
       "Linux_amd64 libx 1 " + hash + " 1 pool/main/x/x/x.deb libx.so.1=usr/lib/x/libx.so.1",
-      "linux-amd64 libx 1 " + hash.substring(1) + " 1 pool/main/x/x/x.deb libx.so.1=usr/lib/x/libx.so.1",
-      "linux-amd64 libx 1 " + hash + " 1 ../x.deb libx.so.1=usr/lib/x/libx.so.1",
-      "linux-amd64 libx 1 " + hash + " 1 pool/main/x/x/x.deb x=usr/lib/x/libx.so.1",
-      "linux-amd64 libx 1 " + hash + " 1 pool/main/x/x/x.deb libx.so.1=etc/passwd",
-      "linux-amd64 libx 1 " + hash + " 1 pool/main/x/x/x.deb usr/lib/x/libx.so.1",
-      "linux-amd64 libx 1 " + hash + " many pool/main/x/x/x.deb libx.so.1=usr/lib/x/libx.so.1",
-      "host",
+      LIBRARY_PIN_PREFIX + hash.substring(1) + " 1 pool/main/x/x/x.deb libx.so.1=usr/lib/x/libx.so.1",
+      LIBRARY_PIN_PREFIX + hash + " 1 ../x.deb libx.so.1=usr/lib/x/libx.so.1",
+      LIBRARY_PIN_PREFIX + hash + " 1 pool/main/x/x/x.deb x=usr/lib/x/libx.so.1",
+      LIBRARY_PIN_PREFIX + hash + " 1 pool/main/x/x/x.deb libx.so.1=etc/passwd",
+      LIBRARY_PIN_PREFIX + hash + " 1 pool/main/x/x/x.deb usr/lib/x/libx.so.1",
+      LIBRARY_PIN_PREFIX + hash + " many pool/main/x/x/x.deb libx.so.1=usr/lib/x/libx.so.1",
+      HOST_DIRECTIVE,
       "host linux-amd64 libc"
     )) {
       assertThrows(
@@ -355,7 +481,7 @@ class LinuxLibrariesTest {
 
   @Test
   void shouldNameTheWholeEntryOfALibraryWhoseSonameIsEmpty() {
-    final String line = "linux-amd64 libx 1 " + "0".repeat(64) + " 1 pool/main/x/x/x.deb =usr/lib/x/libx.so.1";
+    final String line = LIBRARY_PIN_PREFIX + HASH_FILLER.repeat(SHA256_CHARACTERS) + " 1 pool/main/x/x/x.deb =usr/lib/x/libx.so.1";
     final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () ->
       new LinuxLibraries(this.folder, (uri, destination, sha256, size) -> {}, List.of(), List.of(line))
     );
@@ -369,11 +495,11 @@ class LinuxLibrariesTest {
   @ResourceLock(Resources.SYSTEM_ERR)
   void shouldLogTheSizeOfTheDownloadInMegabytes() throws IOException {
     final byte[] debianPackage = this.testPackage();
-    final String pin = this.pin(debianPackage).replace(" " + debianPackage.length + " ", " 3000000 ");
+    final String pin = this.pin(debianPackage).replace(PIN_SEPARATOR + debianPackage.length + PIN_SEPARATOR, " 3000000 ");
     final LinuxLibraries libraries = new LinuxLibraries(
-      this.folder.resolve("cache"),
+      this.folder.resolve(CACHE_FOLDER),
       (uri, destination, sha256, size) -> Files.write(destination, debianPackage),
-      List.of("https://mirror.test/debian/"),
+      List.of(MIRROR_URL),
       List.of(pin)
     );
     final PrintStream standardError = System.err;
@@ -395,33 +521,33 @@ class LinuxLibrariesTest {
     final byte[] debianPackage = this.testPackage();
     final LinuxLibraries libraries = this.installer(
       debianPackage,
-      List.of("https://mirror.test/debian/"),
+      List.of(MIRROR_URL),
       List.of("# a comment", "", this.pin(debianPackage))
     );
     final Path installation = libraries.install(PLATFORM);
-    assertEquals(List.of(URI.create("https://mirror.test/debian/" + POOL)), this.downloads);
+    assertEquals(List.of(URI.create(MIRROR_URL + POOL)), this.downloads);
     try (final Stream<Path> files = Files.list(installation)) {
       final List<String> fileNames = files
         .map(file -> file.getFileName().toString())
         .sorted()
         .toList();
-      assertEquals(List.of("install.lock", LIBRARY_NAME), fileNames, "neither the link nor the documentation of the package");
+      assertEquals(List.of(INSTALLATION_LOCK_FILE, LIBRARY_NAME), fileNames, "neither the link nor the documentation of the package");
     }
 
     final Path library = installation.resolve(LIBRARY_NAME);
 
     final byte[] libraryBytes = Files.readAllBytes(library);
-    assertArrayEquals("the library".getBytes(StandardCharsets.US_ASCII), libraryBytes);
+    assertArrayEquals(LIBRARY_TEXT.getBytes(StandardCharsets.US_ASCII), libraryBytes);
 
-    if (library.getFileSystem().supportedFileAttributeViews().contains("posix")) {
+    if (library.getFileSystem().supportedFileAttributeViews().contains(POSIX_ATTRIBUTE_VIEW)) {
       final Set<PosixFilePermission> libraryPermissions = Files.getPosixFilePermissions(library);
-      assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), libraryPermissions);
+      assertEquals(PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS), libraryPermissions);
 
       final Set<PosixFilePermission> installationPermissions = Files.getPosixFilePermissions(installation);
-      assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), installationPermissions);
+      assertEquals(PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS), installationPermissions);
 
-      final Set<PosixFilePermission> cachePermissions = Files.getPosixFilePermissions(this.folder.resolve("cache"));
-      assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), cachePermissions);
+      final Set<PosixFilePermission> cachePermissions = Files.getPosixFilePermissions(this.folder.resolve(CACHE_FOLDER));
+      assertEquals(PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS), cachePermissions);
     }
 
     final Path secondInstallation = libraries.install(PLATFORM);
@@ -430,7 +556,7 @@ class LinuxLibrariesTest {
     final int downloadCount = this.downloads.size();
     assertEquals(1, downloadCount);
 
-    try (final Stream<Path> left = Files.list(this.folder.resolve("cache"))) {
+    try (final Stream<Path> left = Files.list(this.folder.resolve(CACHE_FOLDER))) {
       final long cacheEntryCount = left.count();
       assertEquals(2, cacheEntryCount, "the installation and its lock file, nothing staged");
     }
@@ -448,13 +574,13 @@ class LinuxLibrariesTest {
     );
     final List<Boolean> leftOver = new ArrayList<>();
     final LinuxLibraries libraries = new LinuxLibraries(
-      this.folder.resolve("cache"),
+      this.folder.resolve(CACHE_FOLDER),
       (_, destination, _, _) -> this.downloadAndRecordLeftOver(debianPackage, destination, leftOver),
-      List.of("https://mirror.test/debian/"),
+      List.of(MIRROR_URL),
       List.of(this.pin(debianPackage), otherPin)
     );
     final Path installation = libraries.install(PLATFORM);
-    final boolean otherLibraryInstalled = Files.isRegularFile(installation.resolve("libmcavother.so.1"));
+    final boolean otherLibraryInstalled = Files.isRegularFile(installation.resolve(OTHER_LIBRARY_FILE));
     assertTrue(otherLibraryInstalled);
 
     assertEquals(List.of(false, false), leftOver, "each package downloads into a free spot");
@@ -469,15 +595,14 @@ class LinuxLibrariesTest {
 
   @Test
   void shouldTakeTheGroupWritePermissionFromLibrariesAnEarlierVersionInstalled() throws IOException {
-    assumeTrue(this.folder.getFileSystem().supportedFileAttributeViews().contains("posix"), "This file system has no POSIX permissions!");
-    final byte[] debianPackage = this.testPackage();
-    final LinuxLibraries libraries = this.installer(
-      debianPackage,
-      List.of("https://mirror.test/debian/"),
-      List.of(this.pin(debianPackage))
+    assumeTrue(
+      this.folder.getFileSystem().supportedFileAttributeViews().contains(POSIX_ATTRIBUTE_VIEW),
+      "This file system has no POSIX permissions!"
     );
+    final byte[] debianPackage = this.testPackage();
+    final LinuxLibraries libraries = this.installer(debianPackage, List.of(MIRROR_URL), List.of(this.pin(debianPackage)));
     final Path installation = libraries.install(PLATFORM);
-    final Path cache = this.folder.resolve("cache");
+    final Path cache = this.folder.resolve(CACHE_FOLDER);
     final Path library = installation.resolve(LIBRARY_NAME);
     Files.setPosixFilePermissions(cache, PosixFilePermissions.fromString("rwxrwxr-x"));
     Files.setPosixFilePermissions(installation, PosixFilePermissions.fromString("rwxrwxr-x"));
@@ -489,27 +614,27 @@ class LinuxLibrariesTest {
     assertEquals(1, downloadCount, "nothing is installed again");
 
     final Set<PosixFilePermission> cachePermissions = Files.getPosixFilePermissions(cache);
-    assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), cachePermissions);
+    assertEquals(PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS), cachePermissions);
 
     final Set<PosixFilePermission> installationPermissions = Files.getPosixFilePermissions(installation);
-    assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), installationPermissions);
+    assertEquals(PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS), installationPermissions);
 
     final Set<PosixFilePermission> libraryPermissions = Files.getPosixFilePermissions(library);
-    assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), libraryPermissions);
+    assertEquals(PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS), libraryPermissions);
   }
 
   @Test
   void shouldTryTheNextMirrorWhenTheDownloadOfTheFirstCannotBeMovedIntoPlace() throws IOException {
     final byte[] debianPackage = this.testPackage();
     final LinuxLibraries libraries = new LinuxLibraries(
-      this.folder.resolve("cache"),
+      this.folder.resolve(CACHE_FOLDER),
       (uri, destination, _, _) -> this.downloadFailingToMoveFromTheFirstMirror(debianPackage, uri, destination),
-      List.of("https://first.test/debian/", "https://second.test/debian/"),
+      List.of(FIRST_MIRROR_URL, SECOND_MIRROR_URL),
       List.of(this.pin(debianPackage))
     );
 
     final Path installation = libraries.install(PLATFORM);
-    final List<URI> expected = List.of(URI.create("https://first.test/debian/" + POOL), URI.create("https://second.test/debian/" + POOL));
+    final List<URI> expected = List.of(URI.create(FIRST_MIRROR_URL + POOL), URI.create(SECOND_MIRROR_URL + POOL));
     assertEquals(expected, this.downloads);
 
     final boolean installed = Files.isRegularFile(installation.resolve(LIBRARY_NAME));
@@ -533,7 +658,7 @@ class LinuxLibrariesTest {
     final byte[] debianPackage = this.testPackage();
     final LinuxLibraries fallback = this.installer(
       debianPackage,
-      List.of("https://broken.test/debian/", "https://mirror.test/debian/"),
+      List.of("https://broken.test/debian/", MIRROR_URL),
       List.of(this.pin(debianPackage))
     );
     fallback.install(PLATFORM);
@@ -542,9 +667,9 @@ class LinuxLibrariesTest {
 
     this.downloads.clear();
     final LinuxLibraries none = new LinuxLibraries(
-      this.folder.resolve("other-cache"),
+      this.folder.resolve(OTHER_CACHE_FOLDER),
       (uri, destination, _, _) -> this.writeAndFailDownload(uri, destination),
-      List.of("https://first.test/debian/", "https://second.test/debian/"),
+      List.of(FIRST_MIRROR_URL, SECOND_MIRROR_URL),
       List.of(this.pin(debianPackage))
     );
     final IOException failure = assertThrows(IOException.class, () -> none.install(PLATFORM));
@@ -557,9 +682,9 @@ class LinuxLibrariesTest {
     final String secondMirrorMessage = failure.getCause().getSuppressed()[0].getMessage();
     assertEquals("The mirror second.test is down!", secondMirrorMessage);
 
-    try (final Stream<Path> left = Files.list(this.folder.resolve("other-cache"))) {
+    try (final Stream<Path> left = Files.list(this.folder.resolve(OTHER_CACHE_FOLDER))) {
       final List<String> leftFileNames = left.map(file -> file.getFileName().toString()).toList();
-      assertEquals(List.of("debian-11-linux-amd64-" + LinuxLibraries.fingerprint(none.getPins(PLATFORM)) + ".lock"), leftFileNames);
+      assertEquals(List.of(INSTALLATION_PREFIX + LinuxLibraries.fingerprint(none.getPins(PLATFORM)) + LOCK_FILE_SUFFIX), leftFileNames);
     }
   }
 
@@ -582,7 +707,7 @@ class LinuxLibrariesTest {
   void shouldRequireAPackageToHoldItsDataAndEveryPinnedLibraryAsARegularFile() throws IOException {
     final Map<String, String> wanted = Map.of(LIBRARY, LIBRARY_NAME);
     final Path noData = Files.write(
-      this.folder.resolve("no-data.deb"),
+      this.folder.resolve(NO_DATA_PACKAGE_FILE),
       this.debianPackage(Map.of(LIBRARY, new byte[1]), Map.of(), "data.tar.zst")
     );
     final IOException member = assertThrows(IOException.class, () -> this.extractIntoNewFolder(noData, wanted, "a"));
@@ -590,19 +715,19 @@ class LinuxLibrariesTest {
     assertInstanceOf(InstallationException.class, noDataCause);
 
     final Path linkOnly = Files.write(
-      this.folder.resolve("link.deb"),
-      this.debianPackage(Map.of(), Map.of(LIBRARY, "elsewhere.so"), "data.tar.xz")
+      this.folder.resolve(LINK_PACKAGE_FILE),
+      this.debianPackage(Map.of(), Map.of(LIBRARY, ELSEWHERE_LIBRARY_FILE), DATA_ARCHIVE_FILE)
     );
     final IOException link = assertThrows(IOException.class, () -> this.extractIntoNewFolder(linkOnly, wanted, "b"));
     final String linkMessage = link.getMessage();
     assertEquals("The package link.deb lacks the files [%s] that its pin lists!".formatted(LIBRARY), linkMessage);
 
-    final boolean unpackedKept = Files.exists(this.folder.resolve("link.deb.unpacked"));
+    final boolean unpackedKept = Files.exists(this.folder.resolve(UNPACKED_LINK_PACKAGE_FILE));
     assertFalse(unpackedKept, "the unpacked package is removed");
 
     final Path hardLink = Files.write(
-      this.folder.resolve("hard.deb"),
-      this.debianPackage(Map.of(), Map.of(LIBRARY, "=elsewhere.so"), "data.tar.xz")
+      this.folder.resolve(HARD_LINK_PACKAGE_FILE),
+      this.debianPackage(Map.of(), Map.of(LIBRARY, "=elsewhere.so"), DATA_ARCHIVE_FILE)
     );
     final IOException hard = assertThrows(IOException.class, () -> this.extractIntoNewFolder(hardLink, wanted, "hard"));
     final Throwable hardLinkCause = hard.getCause();
@@ -618,8 +743,8 @@ class LinuxLibrariesTest {
   void shouldNotLetAPackageAskForMoreMemoryThanTheStrongestCompressionOfDpkg() throws IOException {
     final Map<String, String> wanted = Map.of(LIBRARY, LIBRARY_NAME);
     final byte[] greedy = this.withDictionary(this.testPackage(), DICTIONARY_192_MEBIBYTES);
-    final Path debianPackage = Files.write(this.folder.resolve("greedy.deb"), greedy);
-    final Path target = Files.createDirectory(this.folder.resolve("greedy"));
+    final Path debianPackage = Files.write(this.folder.resolve(GREEDY_PACKAGE_FILE), greedy);
+    final Path target = Files.createDirectory(this.folder.resolve(GREEDY_FOLDER));
 
     assertThrows(IOException.class, () -> LinuxLibraries.extract(debianPackage, wanted, target));
 
@@ -632,32 +757,32 @@ class LinuxLibrariesTest {
   @Test
   void shouldReadAPackageCompressedWithTheStrongestCompressionOfDpkg() throws IOException {
     final byte[] strongest = this.withDictionary(this.testPackage(), DICTIONARY_64_MEBIBYTES);
-    final Path debianPackage = Files.write(this.folder.resolve("strongest.deb"), strongest);
-    final Path target = Files.createDirectory(this.folder.resolve("strongest"));
+    final Path debianPackage = Files.write(this.folder.resolve(STRONGEST_PACKAGE_FILE), strongest);
+    final Path target = Files.createDirectory(this.folder.resolve(STRONGEST_FOLDER));
 
     LinuxLibraries.extract(debianPackage, Map.of(LIBRARY, LIBRARY_NAME), target);
 
     final byte[] libraryBytes = Files.readAllBytes(target.resolve(LIBRARY_NAME));
-    assertArrayEquals("the library".getBytes(StandardCharsets.US_ASCII), libraryBytes);
+    assertArrayEquals(LIBRARY_TEXT.getBytes(StandardCharsets.US_ASCII), libraryBytes);
   }
 
   @Test
   void shouldWriteLibrariesOnFileSystemsWithoutPosixPermissions() throws IOException {
-    final Path debianPackage = Files.write(this.folder.resolve("package.deb"), this.testPackage());
-    try (final FileSystem zip = FileSystems.newFileSystem(this.folder.resolve("plain.zip"), Map.of("create", "true"))) {
+    final Path debianPackage = Files.write(this.folder.resolve(PACKAGE_FILE), this.testPackage());
+    try (final FileSystem zip = FileSystems.newFileSystem(this.folder.resolve(PLAIN_ARCHIVE_FILE), Map.of("create", "true"))) {
       final Path target = zip.getPath(ROOT);
       LinuxLibraries.extract(debianPackage, Map.of(LIBRARY, LIBRARY_NAME), target);
       final byte[] libraryBytes = Files.readAllBytes(target.resolve(LIBRARY_NAME));
-      assertArrayEquals("the library".getBytes(StandardCharsets.US_ASCII), libraryBytes);
+      assertArrayEquals(LIBRARY_TEXT.getBytes(StandardCharsets.US_ASCII), libraryBytes);
     }
   }
 
   @Test
   void shouldOnlyLinkThePackagesTheServerLacksIntoTheSession() throws IOException {
-    final Path host = Files.createDirectories(this.folder.resolve("host"));
-    Files.write(host.resolve("libpresent.so.1"), this.elf(ELF_64_BIT, LITTLE_ENDIAN, AMD64_MACHINE));
-    Files.write(host.resolve("libz.so.1"), this.elf(ELF_64_BIT, LITTLE_ENDIAN, AMD64_MACHINE));
-    final String hash = "0".repeat(64);
+    final Path host = Files.createDirectories(this.folder.resolve(HOST_FOLDER));
+    Files.write(host.resolve(PRESENT_LIBRARY_FILE), this.elf(ELF_64_BIT, LITTLE_ENDIAN, AMD64_MACHINE));
+    Files.write(host.resolve(COMPRESSION_LIBRARY_FILE), this.elf(ELF_64_BIT, LITTLE_ENDIAN, AMD64_MACHINE));
+    final String hash = HASH_FILLER.repeat(SHA256_CHARACTERS);
     final LinuxLibraries libraries = new LinuxLibraries(
       this.folder,
       (uri, destination, sha256, size) -> {},
@@ -671,8 +796,8 @@ class LinuxLibrariesTest {
           "libmissingmodule.so=usr/lib/x86_64-linux-gnu/nss/libmissingmodule.so"
       )
     );
-    final Path installation = this.folder.resolve("installation");
-    final Path session = Files.createDirectory(this.folder.resolve("session"));
+    final Path installation = this.folder.resolve(INSTALLATION_FOLDER);
+    final Path session = Files.createDirectory(this.folder.resolve(SESSION_FOLDER));
     final Path linked = LinuxLibraries.link(installation, session, libraries.findMissing(PLATFORM, List.of(host)));
     assertEquals(session.resolve(LinuxLibraries.SESSION_FOLDER), linked);
 
@@ -681,13 +806,13 @@ class LinuxLibrariesTest {
         .map(link -> link.getFileName().toString())
         .sorted()
         .toList();
-      assertEquals(List.of("libmissing.so.1", "libmissingmodule.so"), linkNames);
+      assertEquals(List.of(MISSING_SONAME_FILE, MISSING_MODULE_FILE), linkNames);
     }
 
-    final Path linkTarget = Files.readSymbolicLink(linked.resolve("libmissing.so.1"));
-    assertEquals(installation.resolve("libmissing.so.1"), linkTarget);
+    final Path linkTarget = Files.readSymbolicLink(linked.resolve(MISSING_SONAME_FILE));
+    assertEquals(installation.resolve(MISSING_SONAME_FILE), linkTarget);
 
-    final Path bare = Files.createDirectory(this.folder.resolve("bare-host"));
+    final Path bare = Files.createDirectory(this.folder.resolve(BARE_HOST_FOLDER));
     final BrowserException lacking = assertThrows(BrowserUnavailableException.class, () ->
       libraries.requireHostLibraries(PLATFORM, List.of(bare))
     );
@@ -697,36 +822,36 @@ class LinuxLibrariesTest {
 
   @Test
   void shouldTakeTheFoldersOfTheLoaderFromItsConfigurationAndTheDefaults() throws IOException {
-    final Path root = this.folder.resolve("root");
+    final Path root = this.folder.resolve(ROOT_FOLDER);
     final Path configuration = Files.createDirectories(root.resolve(LOADER_INCLUDES));
     Files.writeString(
       root.resolve(LOADER_CONFIGURATION),
       "# the loader\ninclude /etc/ld.so.conf.d/*.conf\n/opt/game/lib # after\nhwcap 0 nosegneg\n\ninclude /missing/*.conf\n"
     );
-    Files.writeString(configuration.resolve("a.conf"), "/usr/local/lib\n");
-    Files.writeString(configuration.resolve("b.conf"), "include /etc/ld.so.conf.d/b.conf\n/opt/deep\n");
-    Files.writeString(configuration.resolve("c.txt"), "/not/included\n");
+    Files.writeString(configuration.resolve(FIRST_CONFIGURATION_FILE), LOCAL_LIBRARY_CONFIGURATION);
+    Files.writeString(configuration.resolve(SECOND_CONFIGURATION_FILE), SECOND_LOADER_CONFIGURATION);
+    Files.writeString(configuration.resolve(EXCLUDED_CONFIGURATION_FILE), EXCLUDED_FILE_CONFIGURATION);
     final List<Path> folders = LinuxLibraries.hostFolders(root, PLATFORM);
     final List<Path> expected = new ArrayList<>();
     for (final String path : List.of(
-      "usr/local/lib",
-      "opt/deep",
-      "opt/game/lib",
-      "lib/x86_64-linux-gnu",
-      "usr/lib/x86_64-linux-gnu",
+      LOCAL_LIBRARY_FOLDER,
+      DEEP_LIBRARY_FOLDER,
+      GAME_LIBRARY_FOLDER,
+      ARCHITECTURE_LIBRARY_FOLDER,
+      ARCHITECTURE_USER_LIBRARY_FOLDER,
       "lib64",
-      "usr/lib64",
-      "lib",
-      "usr/lib"
+      USER_64_BIT_LIBRARY_FOLDER,
+      LIBRARY_FOLDER,
+      USER_LIBRARY_FOLDER
     )) {
       expected.add(root.resolve(path));
     }
 
     assertEquals(expected, folders);
 
-    final List<Path> arm = LinuxLibraries.hostFolders(this.folder.resolve("empty-root"), ARM_PLATFORM);
+    final List<Path> arm = LinuxLibraries.hostFolders(this.folder.resolve(EMPTY_ROOT_FOLDER), ARM_PLATFORM);
     final Path firstFolder = arm.getFirst();
-    assertEquals(this.folder.resolve("empty-root/lib/aarch64-linux-gnu"), firstFolder);
+    assertEquals(this.folder.resolve(FIRST_ARM_LIBRARY_FOLDER), firstFolder);
 
     final int folderCount = arm.size();
     assertEquals(6, folderCount, "a system without a configuration has the default folders only");
@@ -734,7 +859,7 @@ class LinuxLibrariesTest {
     final List<Path> rootMatches = LinuxLibraries.glob(Path.of(ROOT), ROOT);
     assertEquals(List.of(), rootMatches, "the root names no files");
 
-    final boolean present = LinuxLibraries.isPresent("libmcav-nothing.so", List.of(), PLATFORM);
+    final boolean present = LinuxLibraries.isPresent(ABSENT_LIBRARY_FILE, List.of(), PLATFORM);
     assertFalse(present);
   }
 
@@ -753,12 +878,12 @@ class LinuxLibrariesTest {
     final String platform = JcefNatives.detectCurrent().getIdentifier();
     final LinuxLibraries libraries = this.installer(
       debianPackage,
-      List.of("https://mirror.test/debian/"),
+      List.of(MIRROR_URL),
       List.of(this.pin(debianPackage).replace(PLATFORM, platform))
     );
     final HelperLauncher linux = HelperSessionTest.launcher(ScriptedEngine.class.getName(), START_TIMEOUT_MILLISECONDS, Os.LINUX);
     final HelperLauncher withLibraries = CefBrowserPlayer.HelperSessionFactory.withLibraries(linux, libraries);
-    final Path session = Files.createDirectory(this.folder.resolve("session"));
+    final Path session = Files.createDirectory(this.folder.resolve(SESSION_FOLDER));
     final Path linked = withLibraries.linkLibraries(session);
     final boolean libraryLinked = Files.isSymbolicLink(linked.resolve(LIBRARY_NAME));
     assertTrue(libraryLinked, "this machine lacks the test library");
@@ -775,14 +900,14 @@ class LinuxLibrariesTest {
     final String platform = JcefNatives.detectCurrent().getIdentifier();
     final LinuxLibraries libraries = this.installer(
       debianPackage,
-      List.of("https://mirror.test/debian/"),
+      List.of(MIRROR_URL),
       List.of(this.pin(debianPackage).replace(PLATFORM, platform))
     );
-    final Path root = Files.createDirectories(this.folder.resolve("provisioned"));
+    final Path root = Files.createDirectories(this.folder.resolve(PROVISIONED_FOLDER));
     final Path loader = Files.createDirectories(LinuxLibraries.hostFolders(root, platform).getFirst());
     Files.write(
       loader.resolve(LIBRARY_NAME),
-      this.elf(ELF_64_BIT, LITTLE_ENDIAN, platform.endsWith("arm64") ? ARM64_MACHINE : AMD64_MACHINE)
+      this.elf(ELF_64_BIT, LITTLE_ENDIAN, platform.endsWith(ARM64_PLATFORM_SUFFIX) ? ARM64_MACHINE : AMD64_MACHINE)
     );
     final HelperLauncher linux = HelperSessionTest.launcher(ScriptedEngine.class.getName(), START_TIMEOUT_MILLISECONDS, Os.LINUX);
     final HelperLauncher launcherWithLibraries = CefBrowserPlayer.HelperSessionFactory.withLibraries(linux, libraries, root);
@@ -797,15 +922,15 @@ class LinuxLibrariesTest {
     final String platform = JcefNatives.detectCurrent().getIdentifier();
     final LinuxLibraries libraries = this.installer(
       debianPackage,
-      List.of("https://mirror.test/debian/"),
+      List.of(MIRROR_URL),
       List.of(this.pin(debianPackage).replace(PLATFORM, platform))
     );
     // as Ubuntu's openjdk-25-jre-headless: no libjawt.so, which libjcef.so links against
-    final Path runtime = Files.createDirectories(this.folder.resolve("java-25-openjdk"));
-    final Path library = Files.createDirectories(runtime.resolve("lib"));
-    Files.write(library.resolve("libawt_headless.so"), this.elf(ELF_64_BIT, LITTLE_ENDIAN, AMD64_MACHINE));
+    final Path runtime = Files.createDirectories(this.folder.resolve(JAVA_RUNTIME_FOLDER));
+    final Path library = Files.createDirectories(runtime.resolve(LIBRARY_FOLDER));
+    Files.write(library.resolve(HEADLESS_AWT_LIBRARY_FILE), this.elf(ELF_64_BIT, LITTLE_ENDIAN, AMD64_MACHINE));
     final HelperLauncher headless = new HelperLauncher(
-      runtime.resolve("bin").resolve("java"),
+      runtime.resolve(JAVA_BIN_FOLDER).resolve(JAVA_EXECUTABLE),
       ScriptedEngine.class.getName(),
       List.of(),
       List.of(),
@@ -813,7 +938,7 @@ class LinuxLibrariesTest {
       Map.of(),
       START_TIMEOUT_MILLISECONDS
     );
-    final Path server = Files.createDirectories(this.folder.resolve("server"));
+    final Path server = Files.createDirectories(this.folder.resolve(SERVER_FOLDER));
     final Executable linking = () -> CefBrowserPlayer.HelperSessionFactory.withLibraries(headless, libraries, server);
     final BrowserException refused = assertThrows(BrowserUnavailableException.class, linking);
     final String message = refused.getMessage();
@@ -826,11 +951,11 @@ class LinuxLibrariesTest {
     );
     assertEquals(List.of(), this.downloads, "no library is downloaded for a runtime the browser cannot use");
 
-    Files.write(library.resolve("libjawt.so"), this.elf(ELF_64_BIT, LITTLE_ENDIAN, AMD64_MACHINE));
+    Files.write(library.resolve(JAWT_LIBRARY_FILE), this.elf(ELF_64_BIT, LITTLE_ENDIAN, AMD64_MACHINE));
     final Path loader = Files.createDirectories(LinuxLibraries.hostFolders(server, platform).getFirst());
     Files.write(
       loader.resolve(LIBRARY_NAME),
-      this.elf(ELF_64_BIT, LITTLE_ENDIAN, platform.endsWith("arm64") ? ARM64_MACHINE : AMD64_MACHINE)
+      this.elf(ELF_64_BIT, LITTLE_ENDIAN, platform.endsWith(ARM64_PLATFORM_SUFFIX) ? ARM64_MACHINE : AMD64_MACHINE)
     );
     final HelperLauncher launcherWithLibraries = CefBrowserPlayer.HelperSessionFactory.withLibraries(headless, libraries, server);
     assertSame(headless, launcherWithLibraries, "a full runtime is used");
@@ -847,7 +972,7 @@ class LinuxLibrariesTest {
       List.of("host %s libz.so.1".formatted(platform))
     );
     final HelperLauncher linux = HelperSessionTest.launcher(ScriptedEngine.class.getName(), START_TIMEOUT_MILLISECONDS, Os.LINUX);
-    final Path server = Files.createDirectories(this.folder.resolve("server"));
+    final Path server = Files.createDirectories(this.folder.resolve(SERVER_FOLDER));
     final Executable linking = () -> CefBrowserPlayer.HelperSessionFactory.withLibraries(linux, libraries, server);
     final BrowserException refused = assertThrows(BrowserUnavailableException.class, linking);
     final String message = refused.getMessage();
@@ -857,10 +982,10 @@ class LinuxLibrariesTest {
   @Test
   void shouldReadAPackageWhoseNamesHaveNoPrefixAndThatHoldsFolders() throws IOException {
     final Path plain = Files.write(
-      this.folder.resolve("plain.deb"),
-      this.debianPackage(Map.of(LIBRARY, new byte[] { 7 }), Map.of(), "data.tar.xz", "", List.of("usr/"))
+      this.folder.resolve(PLAIN_PACKAGE_FILE),
+      this.debianPackage(Map.of(LIBRARY, new byte[] { 7 }), Map.of(), DATA_ARCHIVE_FILE, "", List.of(USER_FOLDER_ENTRY))
     );
-    final Path target = Files.createDirectories(this.folder.resolve("plain"));
+    final Path target = Files.createDirectories(this.folder.resolve(PLAIN_FOLDER));
     LinuxLibraries.extract(plain, Map.of(LIBRARY, LIBRARY_NAME), target);
     final byte[] libraryBytes = Files.readAllBytes(target.resolve(LIBRARY_NAME));
     assertArrayEquals(new byte[] { 7 }, libraryBytes);
@@ -871,8 +996,8 @@ class LinuxLibrariesTest {
     final byte[] debianPackage = this.testPackage();
     final LinuxLibraries libraries = this.installer(debianPackage, List.of("https://deb.test/debian/"), List.of(this.pin(debianPackage)));
     final Path installation = this.folder
-      .resolve("cache")
-      .resolve("debian-11-linux-amd64-" + LinuxLibraries.fingerprint(libraries.getPins(PLATFORM)));
+      .resolve(CACHE_FOLDER)
+      .resolve(INSTALLATION_PREFIX + LinuxLibraries.fingerprint(libraries.getPins(PLATFORM)));
     final AtomicReference<Thread> installer = new AtomicReference<>();
     final CompletableFuture<Path> installed;
     synchronized (LinuxLibraries.INSTALL_LOCK) {
@@ -899,27 +1024,27 @@ class LinuxLibrariesTest {
   @Test
   void shouldReadAPatternWithoutARootBelowTheRoot() throws IOException {
     final Path configurationDirectory = Files.createDirectories(this.folder.resolve(LOADER_INCLUDES));
-    Files.writeString(configurationDirectory.resolve("a.conf"), "/opt/a");
-    Files.writeString(configurationDirectory.resolve("b.txt"), "/opt/b");
-    final List<Path> configurationMatches = LinuxLibraries.glob(this.folder, "etc/ld.so.conf.d/*.conf");
-    assertEquals(List.of(configurationDirectory.resolve("a.conf")), configurationMatches);
+    Files.writeString(configurationDirectory.resolve(FIRST_CONFIGURATION_FILE), FIRST_OPTIONAL_LIBRARY_PATH);
+    Files.writeString(configurationDirectory.resolve(EXCLUDED_TEXT_FILE), SECOND_OPTIONAL_LIBRARY_PATH);
+    final List<Path> configurationMatches = LinuxLibraries.glob(this.folder, LOADER_CONFIGURATION_PATTERN);
+    assertEquals(List.of(configurationDirectory.resolve(FIRST_CONFIGURATION_FILE)), configurationMatches);
 
-    Files.writeString(this.folder.resolve("top.conf"), "/opt/top");
+    Files.writeString(this.folder.resolve(TOP_CONFIGURATION_FILE), TOP_LIBRARY_PATH);
     final List<Path> topMatches = LinuxLibraries.glob(this.folder, "*.conf");
-    assertEquals(List.of(this.folder.resolve("top.conf")), topMatches);
+    assertEquals(List.of(this.folder.resolve(TOP_CONFIGURATION_FILE)), topMatches);
 
     final List<Path> rootMatches = LinuxLibraries.glob(this.folder, ROOT);
     assertEquals(List.of(), rootMatches);
 
-    final List<Path> trailingSlashMatches = LinuxLibraries.glob(this.folder, "etc/");
+    final List<Path> trailingSlashMatches = LinuxLibraries.glob(this.folder, ETC_FOLDER_PATTERN);
     assertEquals(List.of(), trailingSlashMatches);
   }
 
   @Test
   void shouldCountALibraryOfTheServerOnlyWhenItIsBuiltForThePlatform() throws IOException {
-    final Path folder = Files.createDirectories(this.folder.resolve("multiarch"));
-    final Path amd64 = Files.write(folder.resolve("amd64.so"), this.elf(ELF_64_BIT, LITTLE_ENDIAN, AMD64_MACHINE));
-    final Path arm64 = Files.write(folder.resolve("arm64.so"), this.elf(ELF_64_BIT, LITTLE_ENDIAN, ARM64_MACHINE));
+    final Path folder = Files.createDirectories(this.folder.resolve(MULTIARCH_FOLDER));
+    final Path amd64 = Files.write(folder.resolve(AMD64_LIBRARY_FILE), this.elf(ELF_64_BIT, LITTLE_ENDIAN, AMD64_MACHINE));
+    final Path arm64 = Files.write(folder.resolve(ARM64_LIBRARY_FILE), this.elf(ELF_64_BIT, LITTLE_ENDIAN, ARM64_MACHINE));
     final boolean amd64LibraryFits = LinuxLibraries.isBuiltFor(amd64, PLATFORM);
     assertTrue(amd64LibraryFits);
 
@@ -930,34 +1055,37 @@ class LinuxLibrariesTest {
     assertTrue(arm64LibraryFits);
 
     final boolean thirtyTwoBitLibraryFits = LinuxLibraries.isBuiltFor(
-      Files.write(folder.resolve("i386.so"), this.elf(ELF_32_BIT, LITTLE_ENDIAN, I386_MACHINE)),
+      Files.write(folder.resolve(I386_LIBRARY_FILE), this.elf(ELF_32_BIT, LITTLE_ENDIAN, I386_MACHINE)),
       PLATFORM
     );
     assertFalse(thirtyTwoBitLibraryFits, "32 bits");
 
-    final boolean bigEndianLibraryFits = LinuxLibraries.isBuiltFor(Files.write(folder.resolve("big.so"), this.elf(2, 2, 62)), PLATFORM);
+    final boolean bigEndianLibraryFits = LinuxLibraries.isBuiltFor(
+      Files.write(folder.resolve(BIG_ENDIAN_LIBRARY_FILE), this.elf(2, 2, 62)),
+      PLATFORM
+    );
     assertFalse(bigEndianLibraryFits, "big-endian");
 
     final boolean otherMachineFits = LinuxLibraries.isBuiltFor(
-      Files.write(folder.resolve("other.so"), this.elf(ELF_64_BIT, LITTLE_ENDIAN, AMD64_MACHINE + 0x100)),
+      Files.write(folder.resolve(OTHER_MACHINE_LIBRARY_FILE), this.elf(ELF_64_BIT, LITTLE_ENDIAN, AMD64_MACHINE + 0x100)),
       PLATFORM
     );
     assertFalse(otherMachineFits, "a machine that matches x86-64 only in its low byte");
 
     final byte[] notElf = this.elf(ELF_64_BIT, LITTLE_ENDIAN, AMD64_MACHINE);
     notElf[1] = 'X';
-    final boolean textFileFits = LinuxLibraries.isBuiltFor(Files.write(folder.resolve("text.so"), notElf), PLATFORM);
+    final boolean textFileFits = LinuxLibraries.isBuiltFor(Files.write(folder.resolve(TEXT_LIBRARY_FILE), notElf), PLATFORM);
     assertFalse(textFileFits, "no ELF file");
 
-    final boolean shortFileFits = LinuxLibraries.isBuiltFor(Files.write(folder.resolve("short.so"), new byte[19]), PLATFORM);
+    final boolean shortFileFits = LinuxLibraries.isBuiltFor(Files.write(folder.resolve(SHORT_LIBRARY_FILE), new byte[19]), PLATFORM);
     assertFalse(shortFileFits, "too short");
 
-    final boolean missingFileFits = LinuxLibraries.isBuiltFor(folder.resolve("missing.so"), PLATFORM);
+    final boolean missingFileFits = LinuxLibraries.isBuiltFor(folder.resolve(MISSING_LIBRARY_FILE), PLATFORM);
     assertFalse(missingFileFits, "no file");
 
-    final Path i386 = Files.createDirectories(this.folder.resolve("i386"));
-    Files.write(i386.resolve("libX11.so.6"), this.elf(ELF_32_BIT, LITTLE_ENDIAN, I386_MACHINE));
-    final boolean present = LinuxLibraries.isPresent("libX11.so.6", List.of(i386), PLATFORM);
+    final Path i386 = Files.createDirectories(this.folder.resolve(I386_FOLDER));
+    Files.write(i386.resolve(X11_LIBRARY_FILE), this.elf(ELF_32_BIT, LITTLE_ENDIAN, I386_MACHINE));
+    final boolean present = LinuxLibraries.isPresent(X11_LIBRARY_FILE, List.of(i386), PLATFORM);
     assertFalse(present);
   }
 
@@ -973,62 +1101,61 @@ class LinuxLibrariesTest {
     assertEquals(List.of(), pins);
 
     final Path librariesFolder = new LinuxLibraries().getFolder();
-    assertEquals(IoUtils.getCachedFolder().resolve("jcef-libraries"), librariesFolder);
+    assertEquals(IoUtils.getCachedFolder().resolve(LIBRARY_CACHE_FOLDER), librariesFolder);
   }
 
   @Test
   void shouldReplaceAnInstallationThatWasNeverFinished() throws IOException {
     final byte[] debianPackage = this.testPackage();
-    final LinuxLibraries libraries = this.installer(
-      debianPackage,
-      List.of("https://mirror.test/debian/"),
-      List.of(this.pin(debianPackage))
-    );
-    final String name = "debian-11-linux-amd64-" + LinuxLibraries.fingerprint(libraries.getPins(PLATFORM));
-    final Path unfinished = Files.createDirectories(this.folder.resolve("cache").resolve(name));
-    Files.writeString(unfinished.resolve("left-over"), "partial");
+    final LinuxLibraries libraries = this.installer(debianPackage, List.of(MIRROR_URL), List.of(this.pin(debianPackage)));
+    final String name = INSTALLATION_PREFIX + LinuxLibraries.fingerprint(libraries.getPins(PLATFORM));
+    final Path unfinished = Files.createDirectories(this.folder.resolve(CACHE_FOLDER).resolve(name));
+    Files.writeString(unfinished.resolve(LEFTOVER_FILE), "partial");
     final Path installation = libraries.install(PLATFORM);
     assertEquals(unfinished, installation);
 
     final boolean libraryInstalled = Files.isRegularFile(installation.resolve(LIBRARY_NAME));
     assertTrue(libraryInstalled);
 
-    final boolean leftOverKept = Files.exists(installation.resolve("left-over"));
+    final boolean leftOverKept = Files.exists(installation.resolve(LEFTOVER_FILE));
     assertFalse(leftOverKept, "nothing of the unfinished installation is kept");
   }
 
   @Test
   void shouldFollowIncludesEightDeep() throws IOException {
-    final Path root = this.folder.resolve("deep-root");
-    final Path etc = Files.createDirectories(root.resolve("etc"));
-    Files.writeString(etc.resolve("ld.so.conf"), "include /etc/1.conf\n");
+    final Path root = this.folder.resolve(DEEP_ROOT_FOLDER);
+    final Path etc = Files.createDirectories(root.resolve(ETC_FOLDER));
+    Files.writeString(etc.resolve(LOADER_CONFIGURATION_FILE), FIRST_INCLUDE_CONFIGURATION);
     for (int depth = 1; depth <= 9; depth++) {
-      Files.writeString(etc.resolve(depth + ".conf"), "/opt/depth" + depth + "\ninclude /etc/" + (depth + 1) + ".conf\n");
+      Files.writeString(
+        etc.resolve(depth + CONFIGURATION_SUFFIX),
+        DEPTH_LIBRARY_PREFIX + depth + DEPTH_INCLUDE_PREFIX + (depth + 1) + CONFIGURATION_LINE_SUFFIX
+      );
     }
 
     final List<Path> folders = LinuxLibraries.hostFolders(root, PLATFORM);
-    final boolean followsEightDeep = folders.contains(root.resolve("opt/depth8"));
+    final boolean followsEightDeep = folders.contains(root.resolve(EIGHTH_DEPTH_LIBRARY_FOLDER));
     assertTrue(followsEightDeep, folders::toString);
 
-    final boolean followsNineDeep = folders.contains(root.resolve("opt/depth9"));
+    final boolean followsNineDeep = folders.contains(root.resolve(NINTH_DEPTH_LIBRARY_FOLDER));
     assertFalse(followsNineDeep, "an include nine deep is beyond the limit");
   }
 
   @Test
   void shouldReadIncludedFilesInTheOrderOfTheirNames() throws IOException {
-    final Path root = this.folder.resolve("sorted-root");
+    final Path root = this.folder.resolve(SORTED_ROOT_FOLDER);
     final Path configuration = Files.createDirectories(root.resolve(LOADER_INCLUDES));
-    Files.writeString(root.resolve(LOADER_CONFIGURATION), "include /etc/ld.so.conf.d/*.conf\n");
+    Files.writeString(root.resolve(LOADER_CONFIGURATION), SORTED_INCLUDE_CONFIGURATION);
     final List<String> names = List.of("zeta", "alpha", "mike", "delta", "kilo", "bravo", "yankee", "echo");
     for (final String name : names) {
-      Files.writeString(configuration.resolve(name + ".conf"), "/opt/" + name + "\n");
+      Files.writeString(configuration.resolve(name + CONFIGURATION_SUFFIX), ABSOLUTE_OPTIONAL_LIBRARY_PREFIX + name + "\n");
     }
 
     final List<Path> folders = LinuxLibraries.hostFolders(root, PLATFORM);
     final List<Path> expected = names
       .stream()
       .sorted()
-      .map(name -> root.resolve("opt/" + name))
+      .map(name -> root.resolve(OPTIONAL_LIBRARY_PREFIX + name))
       .toList();
     final List<Path> includedFolders = folders.subList(0, names.size());
     assertEquals(expected, includedFolders);
@@ -1036,12 +1163,12 @@ class LinuxLibrariesTest {
 
   @Test
   void shouldResolveARelativeIncludeOfTheLoaderBesideItsFile() throws IOException {
-    final Path root = this.folder.resolve("relative-root");
+    final Path root = this.folder.resolve(RELATIVE_ROOT_FOLDER);
     final Path etc = Files.createDirectories(root.resolve(LOADER_INCLUDES));
-    Files.writeString(root.resolve(LOADER_CONFIGURATION), "include ld.so.conf.d/*.conf\n");
-    Files.writeString(etc.resolve("game.conf"), "/opt/relative\n");
+    Files.writeString(root.resolve(LOADER_CONFIGURATION), RELATIVE_INCLUDE_CONFIGURATION);
+    Files.writeString(etc.resolve(GAME_CONFIGURATION_FILE), RELATIVE_LIBRARY_CONFIGURATION);
     final Path firstFolder = LinuxLibraries.hostFolders(root, PLATFORM).getFirst();
-    assertEquals(root.resolve("opt/relative"), firstFolder);
+    assertEquals(root.resolve(RELATIVE_LIBRARY_FOLDER), firstFolder);
   }
 
   @Test
@@ -1049,11 +1176,11 @@ class LinuxLibrariesTest {
     final byte[] debianPackage = this.testPackage();
     final List<URI> asked = new ArrayList<>();
     final LinuxLibraries libraries = new LinuxLibraries(
-      this.folder.resolve("security-cache"),
+      this.folder.resolve(SECURITY_CACHE_FOLDER),
       (uri, destination, _, _) -> this.recordAndWritePackage(asked, debianPackage, uri, destination),
       List.of("https://main.test/debian/"),
       List.of("https://security.test/debian-security/"),
-      List.of(this.pin(debianPackage).replace(POOL, "pool/updates/main/m/mcavtest/libmcavtest1_1.2.3-1+deb11u1_amd64.deb"))
+      List.of(this.pin(debianPackage).replace(POOL, UPDATED_PACKAGE_PATH))
     );
     libraries.install(PLATFORM);
     assertEquals(

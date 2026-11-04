@@ -31,6 +31,10 @@ import java.util.concurrent.TimeUnit;
 
 final class ScriptAssertions {
 
+  private static final String TEMPORARY_SCRIPT_PREFIX = "mcav-script-";
+
+  private static final String OUTPUT_LOG_SUFFIX = ".log";
+
   private static final String SCRIPTS_DIRECTORY = "/scripts/";
 
   private static final String SCRIPT_PLACEHOLDER = "SCRIPT_UNDER_TEST";
@@ -53,7 +57,7 @@ final class ScriptAssertions {
       System.getProperty(NODE_PROPERTY),
       "Node must be supplied by the script-testing convention!"
     );
-    final Path output = Files.createTempFile("mcav-script-", ".log");
+    final Path output = Files.createTempFile(TEMPORARY_SCRIPT_PREFIX, OUTPUT_LOG_SUFFIX);
     final Process process = new ProcessBuilder(node, "--input-type=module", "-")
       .redirectErrorStream(true)
       .redirectOutput(output.toFile())

@@ -34,6 +34,16 @@ import org.junit.jupiter.api.Test;
 
 class PageAudioTest {
 
+  private static final String FIRST_CONTEXT_ID = "1";
+  private static final String NEGATIVE_CONTEXT_ID = "-12";
+  private static final String SECOND_CONTEXT_ID = "2";
+  private static final String LONG_CONTEXT_ID = "1234567890";
+  private static final String LONG_NEGATIVE_CONTEXT_ID = "-1234567890";
+
+  private static final String PAGE_AUDIO_SCRIPT_FILE = "page-audio.mjs";
+
+  private static final long FRAME_BUDGET_NANOSECONDS = 10_417L;
+
   private static final byte[] FRAMES = { 1, 0, 2, 0, 3, 0, 4, 0 };
 
   private static final int SECOND_BYTES = 48_000 * 4;
@@ -67,7 +77,10 @@ class PageAudioTest {
     final long chunkContext = chunk.context();
     assertEquals(7, chunkContext);
 
-    final long negativeContext = PageAudio.parse(PageAudio.BINDING_EVENT, this.call(PageAudio.BINDING, "AAAAAA==", "-12")).context();
+    final long negativeContext = PageAudio.parse(
+      PageAudio.BINDING_EVENT,
+      this.call(PageAudio.BINDING, "AAAAAA==", NEGATIVE_CONTEXT_ID)
+    ).context();
     assertEquals(-12, negativeContext);
   }
 
@@ -76,8 +89,8 @@ class PageAudioTest {
     final AtomicLong now = new AtomicLong();
     final List<Byte> passed = new ArrayList<>();
     final PageAudio audio = new PageAudio(samples -> passed.add(samples[0]), now::get);
-    final String first = this.call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[] { 1, 0, 0, 0 }), "1");
-    final String second = this.call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[] { 2, 0, 0, 0 }), "2");
+    final String first = this.call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[] { 1, 0, 0, 0 }), FIRST_CONTEXT_ID);
+    final String second = this.call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[] { 2, 0, 0, 0 }), SECOND_CONTEXT_ID);
     audio.onEvent(PageAudio.BINDING_EVENT, second);
     audio.onEvent(PageAudio.BINDING_EVENT, first);
     now.addAndGet(TimeUnit.MILLISECONDS.toNanos(PageAudio.QUIET_MILLISECONDS - 1));
@@ -96,9 +109,9 @@ class PageAudioTest {
     final AtomicLong now = new AtomicLong();
     final List<Byte> passed = new ArrayList<>();
     final PageAudio audio = new PageAudio(samples -> passed.add(samples[0]), now::get);
-    final String sound = this.call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[] { 1, 0, 0, 0 }), "1");
-    final String silence = this.call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[4]), "1");
-    final String other = this.call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[] { 2, 0, 0, 0 }), "2");
+    final String sound = this.call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[] { 1, 0, 0, 0 }), FIRST_CONTEXT_ID);
+    final String silence = this.call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[4]), FIRST_CONTEXT_ID);
+    final String other = this.call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[] { 2, 0, 0, 0 }), SECOND_CONTEXT_ID);
     audio.onEvent(PageAudio.BINDING_EVENT, sound);
     now.addAndGet(TimeUnit.MILLISECONDS.toNanos(PageAudio.QUIET_MILLISECONDS - 1));
     audio.onEvent(PageAudio.BINDING_EVENT, silence);
@@ -120,12 +133,12 @@ class PageAudioTest {
 
     final String encoded = Base64.getEncoder().encodeToString(FRAMES);
     final byte[] negativeContextSamples = this.samplesOf(
-      PageAudio.parse(PageAudio.BINDING_EVENT, this.call(PageAudio.BINDING, encoded, "-12"))
+      PageAudio.parse(PageAudio.BINDING_EVENT, this.call(PageAudio.BINDING, encoded, NEGATIVE_CONTEXT_ID))
     );
     assertArrayEquals(FRAMES, negativeContextSamples);
 
     final byte[] longContextSamples = this.samplesOf(
-      PageAudio.parse(PageAudio.BINDING_EVENT, this.call(PageAudio.BINDING, encoded, "1234567890"))
+      PageAudio.parse(PageAudio.BINDING_EVENT, this.call(PageAudio.BINDING, encoded, LONG_CONTEXT_ID))
     );
     assertArrayEquals(FRAMES, longContextSamples);
   }
@@ -265,11 +278,11 @@ class PageAudioTest {
   void shouldTellFromTheLengthOfACallHowMuchSoundItHoldsAtLeast() {
     for (int length = 0; length <= 300; length++) {
       final String payload = Base64.getEncoder().encodeToString(new byte[length]);
-      final long nearest = PageAudio.leastBytes(this.call(PageAudio.BINDING, payload, "-1234567890"));
+      final long nearest = PageAudio.leastBytes(this.call(PageAudio.BINDING, payload, LONG_NEGATIVE_CONTEXT_ID));
       final boolean nearestIsClose = nearest <= length && length - nearest <= 2;
       assertTrue(nearestIsClose, length + " bytes, " + nearest + " at least");
 
-      for (final String context : List.of("0", CONTEXT_ID, "1234567890")) {
+      for (final String context : List.of("0", CONTEXT_ID, LONG_CONTEXT_ID)) {
         final long least = PageAudio.leastBytes(this.call(PageAudio.BINDING, payload, context));
         final boolean leastFits = least <= length;
         assertTrue(leastFits, length + " bytes, not " + least);
@@ -354,7 +367,7 @@ class PageAudioTest {
     final AtomicLong now = new AtomicLong();
     final List<Integer> passed = new ArrayList<>();
     final PageAudio audio = new PageAudio(samples -> passed.add(samples.length), now::get);
-    final String context = "-1234567890";
+    final String context = LONG_NEGATIVE_CONTEXT_ID;
     final String largest = this.call(
       PageAudio.BINDING,
       Base64.getEncoder().encodeToString(new byte[HelperProtocol.MAXIMUM_AUDIO_BYTES]),
@@ -368,7 +381,7 @@ class PageAudioTest {
       PageAudio.BINDING_EVENT,
       this.call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[PARTIAL_CHUNK_BYTES]), context)
     );
-    now.addAndGet(10_417L);
+    now.addAndGet(FRAME_BUDGET_NANOSECONDS);
     final String frame = this.call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[4]), context);
     final long frameLeastBytes = PageAudio.leastBytes(frame);
     assertEquals(4, frameLeastBytes);
@@ -402,7 +415,7 @@ class PageAudioTest {
     }
 
     audio.onEvent(PageAudio.BINDING_EVENT, this.call(new byte[PARTIAL_CHUNK_BYTES]));
-    step.set(10_417L);
+    step.set(FRAME_BUDGET_NANOSECONDS);
     audio.onEvent(PageAudio.BINDING_EVENT, this.call(new byte[8]));
     assertEquals(
       List.of(
@@ -447,7 +460,7 @@ class PageAudioTest {
   @Test
   void shouldTakeTheBindingAwayInTheScriptAndSendWhatThePagePlays() throws Exception {
     final String script = PageAudio.SCRIPT;
-    ScriptAssertions.execute("page-audio.mjs", script);
+    ScriptAssertions.execute(PAGE_AUDIO_SCRIPT_FILE, script);
     final boolean usesTheBindingName = script.contains("const BINDING = '" + PageAudio.BINDING + "';");
     assertTrue(usesTheBindingName, "the script uses the binding's name");
 

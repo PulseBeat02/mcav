@@ -24,6 +24,9 @@ const BASE_URL = "https://example.test/base/";
 const NEXT_URL = "https://example.test/next";
 const CLICKED_URL = "https://example.test/clicked";
 
+const NEXT_PATH = "../next";
+const BLOCKED_PATH = "/blocked";
+
 const NEW_WINDOW_TARGET = "_blank";
 const SAME_WINDOW_TARGET = "_self";
 
@@ -83,13 +86,13 @@ const page = vm.createContext({
 });
 const script = SCRIPT_UNDER_TEST;
 vm.runInContext(script, page);
-const opened = window.open("../next");
+const opened = window.open(NEXT_PATH);
 assert.equal(opened, null);
 const openedAddress = location.href;
 assert.equal(openedAddress, NEXT_URL);
 
 page.navigator.userActivation.isActive = false;
-window.open("/blocked");
+window.open(BLOCKED_PATH);
 const blockedAddress = location.href;
 assert.equal(blockedAddress, NEXT_URL);
 

@@ -67,6 +67,26 @@ import org.junit.jupiter.api.io.TempDir;
 
 class BrowserHelperTest {
 
+  private static final int HALT_TIMEOUT_SECONDS = 30;
+
+  private static final String NATIVES_FOLDER = "natives";
+  private static final String PROFILE_FOLDER = "profile";
+  private static final String MISSING_FILE = "missing";
+
+  private static final String ENTER_KEY = "Enter";
+
+  private static final String SERVER_CLOSED_REASON = "the server closed the connection";
+  private static final String CONFUSED_SERVER_NOTICE = "confused server";
+  private static final String INTERRUPT_KEPT_MESSAGE = "the interrupt is kept";
+
+  private static final String INVALID_CONFIGURATION_LINE = "garbage\n";
+
+  private static final String LINE_SEPARATOR = "\n";
+
+  private static final int FRAME_RATE = 30;
+
+  private static final int CHANNEL_MASK = 0xFF;
+
   private static final IntFunction<byte[]> NEW_BUFFER = byte[]::new;
 
   private static final String PAGE = "/page";
@@ -100,13 +120,13 @@ class BrowserHelperTest {
     return new HelperConfiguration(
       this.token(),
       this.folder.resolve(SOCKET_NAME),
-      this.folder.resolve("natives"),
-      this.folder.resolve("profile"),
+      this.folder.resolve(NATIVES_FOLDER),
+      this.folder.resolve(PROFILE_FOLDER),
       URI.create("https://example.com" + path),
       4,
       3,
       1,
-      30,
+      FRAME_RATE,
       false,
       false,
       allowsAutoplay,
@@ -161,7 +181,7 @@ class BrowserHelperTest {
     final int soundBytesOnTheNewPage = sent.size();
     assertEquals(message, soundBytesOnTheNewPage, "the new page plays nothing before a press on it");
 
-    helper.executeCommand(HelperMessage.key(HelperProtocol.KEY_PRESS, "Enter"));
+    helper.executeCommand(HelperMessage.key(HelperProtocol.KEY_PRESS, ENTER_KEY));
     reporter.onAudio(chunk);
     final int soundBytesAfterAPressOnTheNewPage = sent.size();
     assertEquals(2 * message, soundBytesAfterAPressOnTheNewPage);
@@ -214,17 +234,17 @@ class BrowserHelperTest {
       final int height = region.getHeight();
       assertEquals(3, height);
 
-      final int greenChannel = region.getPixels()[1] & 0xFF;
+      final int greenChannel = region.getPixels()[1] & CHANNEL_MASK;
       assertEquals(ScriptedEngine.GREEN, greenChannel);
 
-      final int redChannel = region.getPixels()[2] & 0xFF;
+      final int redChannel = region.getPixels()[2] & CHANNEL_MASK;
       assertEquals(ScriptedEngine.RED, redChannel);
 
       peer.send(output -> HelperProtocol.writeKey(output, HelperProtocol.KEY_TYPE, "ab"));
       peer.readFrameWithBlue(4);
       peer.send(this::writeLeftPress);
       peer.readFrameWithBlue(5);
-      peer.send(output -> HelperProtocol.writeKey(output, HelperProtocol.KEY_PRESS, "Enter"));
+      peer.send(output -> HelperProtocol.writeKey(output, HelperProtocol.KEY_PRESS, ENTER_KEY));
       peer.readFrameWithBlue(7);
       final boolean firstCallPressesA = engine
         .getCalls()
@@ -291,7 +311,7 @@ class BrowserHelperTest {
 
     final String reason = helper.getStopReason();
     final boolean knownReason =
-      reason.equals("the server closed the connection") || reason.startsWith("the connection failed") || reason.startsWith("a ");
+      reason.equals(SERVER_CLOSED_REASON) || reason.startsWith("the connection failed") || reason.startsWith("a ");
     assertTrue(knownReason, reason);
   }
 
@@ -301,7 +321,7 @@ class BrowserHelperTest {
     final CompletableFuture<Integer> result = this.run(helper);
     try (final Peer peer = new Peer(this.server.accept())) {
       peer.readUntil(HelperProtocol.READY);
-      peer.send(output -> HelperProtocol.writeText(output, HelperProtocol.NOTICE, "confused server"));
+      peer.send(output -> HelperProtocol.writeText(output, HelperProtocol.NOTICE, CONFUSED_SERVER_NOTICE));
       final Integer exitStatus = result.get(RESULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
       assertEquals(0, exitStatus);
     }
@@ -428,7 +448,7 @@ class BrowserHelperTest {
     assertEquals(0, exitStatus);
 
     final boolean interruptKept = interrupted.get();
-    assertTrue(interruptKept, "the interrupt is kept");
+    assertTrue(interruptKept, INTERRUPT_KEPT_MESSAGE);
   }
 
   private void runAndRecordTheInterrupt(
@@ -551,13 +571,13 @@ class BrowserHelperTest {
     assertEquals(2, statusWithoutInput);
 
     final int statusForGarbage = BrowserHelper.runFromInput(
-      new BufferedReader(new StringReader("garbage\n")),
+      new BufferedReader(new StringReader(INVALID_CONFIGURATION_LINE)),
       new ScriptedEngine(),
       this::neverHalts
     );
     assertEquals(2, statusForGarbage);
 
-    final String line = this.configuration(PAGE).toLine() + "\n";
+    final String line = this.configuration(PAGE).toLine() + LINE_SEPARATOR;
     final int statusForAConfiguration = BrowserHelper.runFromInput(
       new BufferedReader(new StringReader(line)),
       new ScriptedEngine(),
@@ -599,7 +619,7 @@ class BrowserHelperTest {
     try {
       helper.watchInput(new StringReader(""));
       final boolean interruptKept = current.isInterrupted();
-      assertTrue(interruptKept, "the interrupt is kept");
+      assertTrue(interruptKept, INTERRUPT_KEPT_MESSAGE);
     } finally {
       Thread.interrupted();
     }
@@ -632,22 +652,22 @@ class BrowserHelperTest {
     try (final Peer peer = new Peer(this.server.accept())) {
       peer.readUntil(HelperProtocol.HELLO);
       this.standardInput.close();
-      final boolean haltedInTime = halted.await(30, TimeUnit.SECONDS);
+      final boolean haltedInTime = halted.await(HALT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
       assertTrue(haltedInTime, "the helper halts although its browser never started");
     } finally {
       release.countDown();
     }
 
-    final Integer exitStatus = result.get(30, TimeUnit.SECONDS);
+    final Integer exitStatus = result.get(HALT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
     assertEquals(0, exitStatus);
   }
 
   @Test
   void shouldLogWhyTheHelperCannotRun() {
-    final String unreachable = this.configuration(PAGE).toLine() + "\n";
+    final String unreachable = this.configuration(PAGE).toLine() + LINE_SEPARATOR;
     try (final StandardError errors = new StandardError()) {
       BrowserHelper.runFromInput(new BufferedReader(new StringReader("")), new ScriptedEngine(), this::neverHalts);
-      BrowserHelper.runFromInput(new BufferedReader(new StringReader("garbage\n")), new ScriptedEngine(), this::neverHalts);
+      BrowserHelper.runFromInput(new BufferedReader(new StringReader(INVALID_CONFIGURATION_LINE)), new ScriptedEngine(), this::neverHalts);
       BrowserHelper.runFromInput(new BufferedReader(new StringReader(unreachable)), new ScriptedEngine(), this::neverHalts);
       final String log = errors.text();
       final boolean reportsTheMissingConfiguration = log.contains("The browser helper got no configuration");
@@ -694,7 +714,7 @@ class BrowserHelperTest {
 
   @Test
   void shouldLeaveNoFileOpenWhenTheConnectionFails() {
-    final Path missing = this.folder.resolve("missing");
+    final Path missing = this.folder.resolve(MISSING_FILE);
     OpenFiles.assertLeavesNoneOpen("a failed connection", () -> assertThrows(IOException.class, () -> BrowserHelper.connect(missing)));
   }
 
@@ -741,7 +761,7 @@ class BrowserHelperTest {
     final BrowserHelper helper = new BrowserHelper(this.configuration(PAGE), new ScriptedEngine());
     helper.readCommands(new DataInputStream(new ByteArrayInputStream(new byte[0])));
     final @Nullable String stopReason = helper.getStopReason();
-    assertEquals("the server closed the connection", stopReason);
+    assertEquals(SERVER_CLOSED_REASON, stopReason);
   }
 
   @Test
@@ -752,7 +772,7 @@ class BrowserHelperTest {
     final boolean readsOnAfterTheClose = helper.isInput(close);
     assertFalse(readsOnAfterTheClose);
 
-    final HelperMessage helperMessage = HelperMessage.text(HelperProtocol.NOTICE, "confused server");
+    final HelperMessage helperMessage = HelperMessage.text(HelperProtocol.NOTICE, CONFUSED_SERVER_NOTICE);
     helper.executeCommand(helperMessage);
     final boolean readsOnAfterTheHelperMessage = helper.isInput(helperMessage);
     assertFalse(readsOnAfterTheHelperMessage);
@@ -881,7 +901,7 @@ class BrowserHelperTest {
       while (true) {
         final HelperMessage message = this.readUntil(HelperProtocol.FRAME);
         final byte[] pixels = message.getRegion().getPixels();
-        if ((pixels[0] & 0xFF) == blue) {
+        if ((pixels[0] & CHANNEL_MASK) == blue) {
           return message;
         }
       }

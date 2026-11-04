@@ -36,6 +36,8 @@ import org.junit.jupiter.api.io.TempDir;
 
 class BrowserModuleTest {
 
+  private static final String STALE_FOLDER_SUFFIX = "stale";
+
   private static final String TEMPORARY_DIRECTORY_PROPERTY = "java.io.tmpdir";
 
   private static final Path NATIVES = Path.of(System.getProperty(TEMPORARY_DIRECTORY_PROPERTY)).toAbsolutePath();
@@ -65,7 +67,7 @@ class BrowserModuleTest {
 
   @Test
   void shouldRemoveTheFolderOfASessionWhoseServerWasKilledOnStart(@TempDir final Path temporary) throws IOException {
-    final Path stale = Files.createDirectory(temporary.resolve(SessionFolders.PREFIX + "stale"));
+    final Path stale = Files.createDirectory(temporary.resolve(SessionFolders.PREFIX + STALE_FOLDER_SUFFIX));
     Files.writeString(stale.resolve(SessionFolders.OWNER_FILE), Long.MAX_VALUE + "\n2026-10-05T00:00:00Z\n", StandardCharsets.US_ASCII);
     final Path live = HelperSession.createFolder(temporary);
     final boolean hasOwnerFile = Files.isRegularFile(live.resolve(SessionFolders.OWNER_FILE));

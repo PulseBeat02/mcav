@@ -36,6 +36,14 @@ import org.junit.jupiter.api.Test;
 
 class SocksProtocolTest {
 
+  private static final int CHANNEL_MASK = 0xFF;
+
+  private static final int HTTPS_PORT = 443;
+
+  private static final int HTTP_PORT = 80;
+
+  private static final String EXPANDED_IPV6_HOST = "2606:4700:4700:0:0:0:0:1111";
+
   private DataInputStream input(final int... bytes) {
     final byte[] data = new byte[bytes.length];
     for (int index = 0; index < bytes.length; index++) {
@@ -55,7 +63,7 @@ class SocksProtocolTest {
     bytes.write(name.length);
     bytes.writeBytes(name);
     bytes.write(port >> 8);
-    bytes.write(port & 0xFF);
+    bytes.write(port & CHANNEL_MASK);
 
     return bytes.toByteArray();
   }
@@ -95,25 +103,25 @@ class SocksProtocolTest {
 
   @Test
   void shouldReadAHostNameOrAnAddressFromAConnectionRequest() throws IOException {
-    final SocksProtocol.Request named = this.request(domainRequest(SocksProtocol.CONNECT, "Example-1.test_x", 443));
+    final SocksProtocol.Request named = this.request(domainRequest(SocksProtocol.CONNECT, "Example-1.test_x", HTTPS_PORT));
     final String namedHost = named.getHost();
     assertEquals("Example-1.test_x", namedHost);
 
     final int namedPort = named.getPort();
-    assertEquals(443, namedPort);
+    assertEquals(HTTPS_PORT, namedPort);
 
-    final SocksProtocol.Request ipv4 = SocksProtocol.readRequest(this.input(5, 1, 0, 1, 93, 184, 216, 34, 0, 80));
+    final SocksProtocol.Request ipv4 = SocksProtocol.readRequest(this.input(5, 1, 0, 1, 93, 184, 216, 34, 0, HTTP_PORT));
     final String ipv4Host = ipv4.getHost();
     assertEquals("93.184.216.34", ipv4Host);
 
     final int ipv4Port = ipv4.getPort();
-    assertEquals(80, ipv4Port);
+    assertEquals(HTTP_PORT, ipv4Port);
 
     final SocksProtocol.Request ipv6 = SocksProtocol.readRequest(
-      this.input(5, 1, 0, 4, 0x26, 0x06, 0x47, 0, 0x47, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x11, 0x11, 0xFF, 0xFF)
+      this.input(5, 1, 0, 4, 0x26, 0x06, 0x47, 0, 0x47, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x11, 0x11, CHANNEL_MASK, CHANNEL_MASK)
     );
     final String ipv6Host = ipv6.getHost();
-    assertEquals("2606:4700:4700:0:0:0:0:1111", ipv6Host);
+    assertEquals(EXPANDED_IPV6_HOST, ipv6Host);
 
     final int ipv6Port = ipv6.getPort();
     assertEquals(65_535, ipv6Port);
@@ -121,7 +129,7 @@ class SocksProtocolTest {
 
   @Test
   void shouldRefuseRequestsTheGuardDoesNotServeWithTheirReplyCode() {
-    final SocksProtocol.Refusal bind = assertThrows(SocksProtocol.Refusal.class, () -> this.request(domainRequest(2, "a.test", 80)));
+    final SocksProtocol.Refusal bind = assertThrows(SocksProtocol.Refusal.class, () -> this.request(domainRequest(2, "a.test", HTTP_PORT)));
     final int bindReply = bind.getReply();
     assertEquals(SocksProtocol.COMMAND_NOT_SUPPORTED, bindReply);
 
@@ -158,7 +166,7 @@ class SocksProtocolTest {
     final String emptyMessage = empty.getMessage();
     assertEquals("The request names an empty host!", emptyMessage);
 
-    final ProtocolException character = assertThrows(ProtocolException.class, () -> this.requestAConnection("a b", 80));
+    final ProtocolException character = assertThrows(ProtocolException.class, () -> this.requestAConnection("a b", HTTP_PORT));
     final String characterMessage = character.getMessage();
     assertEquals("Byte 32 is not allowed in the host name of the request!", characterMessage);
     assertThrows(EOFException.class, () -> SocksProtocol.readRequest(this.input(5, 1, 0, 3, 5, 'a')));
@@ -187,20 +195,20 @@ class SocksProtocolTest {
 
   @Test
   void shouldReadAnIpv6AddressNamedAsAHostAsTheAddress() throws IOException {
-    final String compressedIpv6Host = this.request(domainRequest(1, "2606:4700:4700::1111", 80)).getHost();
-    assertEquals("2606:4700:4700:0:0:0:0:1111", compressedIpv6Host);
+    final String compressedIpv6Host = this.request(domainRequest(1, "2606:4700:4700::1111", HTTP_PORT)).getHost();
+    assertEquals(EXPANDED_IPV6_HOST, compressedIpv6Host);
 
-    final String bracketedIpv6Host = this.request(domainRequest(1, "[2606:4700:4700::1111]", 80)).getHost();
-    assertEquals("2606:4700:4700:0:0:0:0:1111", bracketedIpv6Host);
+    final String bracketedIpv6Host = this.request(domainRequest(1, "[2606:4700:4700::1111]", HTTP_PORT)).getHost();
+    assertEquals(EXPANDED_IPV6_HOST, bracketedIpv6Host);
 
-    final String loopbackHost = this.request(domainRequest(1, "::1", 80)).getHost();
+    final String loopbackHost = this.request(domainRequest(1, "::1", HTTP_PORT)).getHost();
     assertEquals("0:0:0:0:0:0:0:1", loopbackHost);
 
-    final String mappedIpv4Host = this.request(domainRequest(1, "::ffff:10.0.0.1", 80)).getHost();
+    final String mappedIpv4Host = this.request(domainRequest(1, "::ffff:10.0.0.1", HTTP_PORT)).getHost();
     assertEquals("10.0.0.1", mappedIpv4Host);
 
     for (final String bad : new String[] { "2606::zz::1", "1.2.3.4:80", "[::1", "exa[mple]", "exam]ple", "fe80::1%eth0" }) {
-      assertThrows(ProtocolException.class, () -> this.request(domainRequest(1, bad, 80)), bad);
+      assertThrows(ProtocolException.class, () -> this.request(domainRequest(1, bad, HTTP_PORT)), bad);
     }
   }
 
@@ -211,13 +219,13 @@ class SocksProtocolTest {
     SocksProtocol.writeMethod(output, SocksProtocol.NO_ACCEPTABLE_METHOD);
     SocksProtocol.writeReply(output, SocksProtocol.NOT_ALLOWED);
     final byte[] writtenAnswers = bytes.toByteArray();
-    assertArrayEquals(new byte[] { 5, (byte) 0xFF, 5, 2, 0, 1, 0, 0, 0, 0, 0, 0 }, writtenAnswers);
+    assertArrayEquals(new byte[] { 5, (byte) CHANNEL_MASK, 5, 2, 0, 1, 0, 0, 0, 0, 0, 0 }, writtenAnswers);
   }
 
   @Test
   void shouldRefuseAHostNameThatStartsWithABracket() {
     for (final String host : new String[] { "[example.com", "]example.com", "example.com]" }) {
-      final ProtocolException failure = assertThrows(ProtocolException.class, () -> this.requestAConnection(host, 443));
+      final ProtocolException failure = assertThrows(ProtocolException.class, () -> this.requestAConnection(host, HTTPS_PORT));
       final String message = failure.getMessage();
       assertEquals("Host name %s of the request holds a bracket!".formatted(host), message);
     }

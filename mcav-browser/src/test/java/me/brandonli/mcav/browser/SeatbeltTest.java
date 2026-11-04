@@ -44,6 +44,14 @@ import org.junit.jupiter.api.io.TempDir;
 // A real sandbox cannot be lifted: on macOS, ChromiumConfinementTest puts a process of its own in one.
 class SeatbeltTest {
 
+  private static final String PATHS_ARCHIVE_FILE = "paths.zip";
+  private static final String SERVER_PATH = "/server";
+  private static final String OWNER_HOME_PATH = "/Users/owner";
+  private static final String NATIVES_PATH = "/Users/owner/.mcav/natives";
+  private static final String HELPER_JAR_PATH = "/Users/owner/helper.jar";
+  private static final String SESSION_PATH = "/private/var/folders/session";
+  private static final String DEVICES_PATH = "/dev";
+
   private static final String PROFILE = "(version 1)\n(allow default)\n";
 
   private static final String DENY_WRITING = "(deny file-write*)\n";
@@ -56,11 +64,11 @@ class SeatbeltTest {
   @Test
   void shouldHideTheFoldersAndLetOnlyTheWritablePathsChangeInAProfile(@TempDir final Path folder) throws IOException {
     final String profile;
-    try (final FileSystem mac = FileSystems.newFileSystem(folder.resolve("paths.zip"), Map.of("create", "true"))) {
+    try (final FileSystem mac = FileSystems.newFileSystem(folder.resolve(PATHS_ARCHIVE_FILE), Map.of("create", "true"))) {
       profile = Seatbelt.profile(
-        List.of(mac.getPath("/server"), mac.getPath("/Users/owner")),
-        List.of(mac.getPath("/Users/owner/.mcav/natives"), mac.getPath("/Users/owner/helper.jar")),
-        List.of(mac.getPath("/private/var/folders/session"), mac.getPath("/dev"))
+        List.of(mac.getPath(SERVER_PATH), mac.getPath(OWNER_HOME_PATH)),
+        List.of(mac.getPath(NATIVES_PATH), mac.getPath(HELPER_JAR_PATH)),
+        List.of(mac.getPath(SESSION_PATH), mac.getPath(DEVICES_PATH))
       );
     }
 

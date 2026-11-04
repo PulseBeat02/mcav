@@ -47,12 +47,15 @@ import org.junit.jupiter.api.Test;
 // Without the natives, JCEF reports and ignores every native call, so the Java side of each method runs here.
 class MCAVOffscreenBrowserTest {
 
+  private static final int VIEW_WIDTH = 640;
+  private static final int VIEW_HEIGHT = 480;
+
   private final RecordingPainter painter = new RecordingPainter();
   private final MCAVOffscreenBrowser browser = new MCAVOffscreenBrowser(
     mock(CefClient.class),
     "https://example.com/",
-    640,
-    480,
+    VIEW_WIDTH,
+    VIEW_HEIGHT,
     this.painter,
     new CefBrowserSettings()
   );
@@ -60,11 +63,11 @@ class MCAVOffscreenBrowserTest {
   @Test
   void shouldPlaceTheViewAtTheOriginOfThePage() {
     final Rectangle view = this.browser.getViewRect(this.browser);
-    assertEquals(new Rectangle(0, 0, 640, 480), view);
+    assertEquals(new Rectangle(0, 0, VIEW_WIDTH, VIEW_HEIGHT), view);
 
     view.width = 1;
     final Rectangle freshView = this.browser.getViewRect(this.browser);
-    assertEquals(640, freshView.width, "a copy is handed out");
+    assertEquals(VIEW_WIDTH, freshView.width, "a copy is handed out");
   }
 
   @Test

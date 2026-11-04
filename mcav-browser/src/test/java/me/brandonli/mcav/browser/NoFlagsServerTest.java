@@ -43,6 +43,13 @@ import org.junit.jupiter.api.io.TempDir;
 @Tag("cef")
 class NoFlagsServerTest {
 
+  private static final String WITH_X_FOLDER = "with-x";
+  private static final String WINDOWS_JAVA_EXECUTABLE = "java.exe";
+  private static final String JAVA_EXECUTABLE = "java";
+  private static final String JAVA_BIN_FOLDER = "bin";
+  private static final String PLAIN_FOLDER = "plain";
+  private static final String X_SERVER_EXECUTABLE = "Xvfb";
+
   private static final String JAVA_HOME_PROPERTY = "java.home";
   private static final String OS_NAME_PROPERTY = "os.name";
   private static final String CLASS_PATH_PROPERTY = "java.class.path";
@@ -54,8 +61,8 @@ class NoFlagsServerTest {
   @Test
   void shouldStreamAPageOnAHeadlessServerWithoutJvmOptionsAndSurviveADisableAndEnable() throws Exception {
     try (final TestPages pages = TestPages.start()) {
-      final String executable = System.getProperty(OS_NAME_PROPERTY).startsWith("Windows") ? "java.exe" : "java";
-      final Path java = Path.of(System.getProperty(JAVA_HOME_PROPERTY), "bin", executable);
+      final String executable = System.getProperty(OS_NAME_PROPERTY).startsWith("Windows") ? WINDOWS_JAVA_EXECUTABLE : JAVA_EXECUTABLE;
+      final Path java = Path.of(System.getProperty(JAVA_HOME_PROPERTY), JAVA_BIN_FOLDER, executable);
       final List<String> command = List.of(
         java.toString(),
         NoFlagsServerMain.HEADLESS_OPTION,
@@ -99,9 +106,9 @@ class NoFlagsServerTest {
 
   @Test
   void shouldLeaveEveryFolderWithAnXServerOutOfThePathOfTheServer(@TempDir final Path folder) throws IOException {
-    final Path withX = Files.createDirectories(folder.resolve("with-x"));
-    final Path plain = Files.createDirectories(folder.resolve("plain"));
-    final Path server = Files.createFile(withX.resolve("Xvfb"));
+    final Path withX = Files.createDirectories(folder.resolve(WITH_X_FOLDER));
+    final Path plain = Files.createDirectories(folder.resolve(PLAIN_FOLDER));
+    final Path server = Files.createFile(withX.resolve(X_SERVER_EXECUTABLE));
     final boolean madeExecutable = server.toFile().setExecutable(true);
     assertTrue(madeExecutable, "the fake X server is executable");
 

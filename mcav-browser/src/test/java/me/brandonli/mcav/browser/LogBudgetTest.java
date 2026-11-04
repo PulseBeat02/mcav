@@ -26,6 +26,8 @@ import org.junit.jupiter.api.Test;
 
 final class LogBudgetTest {
 
+  private static final String LINE_PREFIX = "line ";
+
   private final AtomicLong now = new AtomicLong(1_000L);
   private final List<String> log = new ArrayList<>();
   private final LogBudget budget = new LogBudget(this.now::get);
@@ -36,7 +38,7 @@ final class LogBudgetTest {
 
   private void lines(final int count) {
     for (int index = 0; index < count; index++) {
-      this.line("line " + index);
+      this.line(LINE_PREFIX + index);
     }
   }
 
@@ -47,7 +49,7 @@ final class LogBudgetTest {
     assertEquals(LogBudget.BURST, lineCount);
 
     final String lastLine = this.log.getLast();
-    assertEquals("line " + (LogBudget.BURST - 1), lastLine);
+    assertEquals(LINE_PREFIX + (LogBudget.BURST - 1), lastLine);
   }
 
   @Test

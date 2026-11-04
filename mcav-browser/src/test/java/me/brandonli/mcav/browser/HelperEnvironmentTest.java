@@ -25,26 +25,31 @@ import org.junit.jupiter.api.Test;
 
 class HelperEnvironmentTest {
 
+  private static final String SYSTEM_PROGRAMS_FOLDER = "/usr/bin";
+  private static final String SERVER_HOME_FOLDER = "/home/server";
+  private static final String WINDOWS_SYSTEM_FOLDER = "C:\\Windows";
+  private static final String PRELOADED_LIBRARY_FILE = "/tmp/evil.so";
+
   @Test
   void shouldOnlyKeepTheVariablesAProgramNeeds() {
     final Map<String, String> parent = Map.of(
       "PATH",
-      "/usr/bin",
+      SYSTEM_PROGRAMS_FOLDER,
       "HOME",
-      "/home/server",
+      SERVER_HOME_FOLDER,
       "SystemRoot",
-      "C:\\Windows",
+      WINDOWS_SYSTEM_FOLDER,
       "DISCORD_TOKEN",
       "secret",
       "AWS_SECRET_ACCESS_KEY",
       "secret",
       "LD_PRELOAD",
-      "/tmp/evil.so",
+      PRELOADED_LIBRARY_FILE,
       "DISPLAY",
       ":0"
     );
     final Map<String, String> kept = HelperEnvironment.filter(parent);
-    assertEquals(Map.of("PATH", "/usr/bin", "HOME", "/home/server", "SystemRoot", "C:\\Windows"), kept);
+    assertEquals(Map.of("PATH", SYSTEM_PROGRAMS_FOLDER, "HOME", SERVER_HOME_FOLDER, "SystemRoot", WINDOWS_SYSTEM_FOLDER), kept);
   }
 
   @Test

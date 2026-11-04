@@ -47,14 +47,17 @@ import org.mockito.invocation.InvocationOnMock;
 
 final class HelperSessionCleanupTest {
 
+  private static final String SESSION_FOLDER = "session";
+  private static final String SOCKET_FILE = "s";
+
   @TempDir
   private Path directory;
 
   @ParameterizedTest
   @EnumSource(FailureKind.class)
   void shouldCloseTheAcceptedChannelWhenTheSocketUnlinkFails(final FailureKind kind) throws Exception {
-    final Path folder = Files.createDirectory(this.directory.resolve("session"));
-    final Path socket = folder.resolve("s");
+    final Path folder = Files.createDirectory(this.directory.resolve(SESSION_FOLDER));
+    final Path socket = folder.resolve(SOCKET_FILE);
     final HelperLauncher launcher = mock(HelperLauncher.class);
     final BrowserSession.Listener listener = mock(BrowserSession.Listener.class);
     final Process process = mock(Process.class);

@@ -32,6 +32,10 @@ import org.junit.jupiter.api.Test;
 
 class DevToolsInputTest {
 
+  private static final int WHEEL_DISTANCE = 120;
+
+  private static final String OPEN_WINDOWS_SCRIPT_FILE = "open-windows.mjs";
+
   private static final Pattern KEY_FIELD = Pattern.compile("\"key\":(\"[^\"]*\")");
 
   private List<String> parameters(final List<DevToolsInput.DevToolsCall> calls) {
@@ -71,7 +75,9 @@ class DevToolsInputTest {
     final boolean holdsTheMiddleButton = middle.getFirst().contains("\"buttons\":4,\"button\":\"middle\"");
     assertTrue(holdsTheMiddleButton);
 
-    final List<String> wheel = this.parameters(DevToolsInput.mouse(new MouseInput(HelperProtocol.MOUSE_WHEEL, 5, 6, 0, 0, -10, 120), 0));
+    final List<String> wheel = this.parameters(
+      DevToolsInput.mouse(new MouseInput(HelperProtocol.MOUSE_WHEEL, 5, 6, 0, 0, -10, WHEEL_DISTANCE), 0)
+    );
     assertEquals(List.of("{\"type\":\"mouseWheel\",\"x\":5,\"y\":6,\"buttons\":0,\"deltaX\":-10,\"deltaY\":120}"), wheel);
   }
 
@@ -81,7 +87,7 @@ class DevToolsInputTest {
     final MouseInput pressRight = new MouseInput(HelperProtocol.MOUSE_PRESS, 5, 5, HelperProtocol.BUTTON_RIGHT, 1, 0, 0);
     final MouseInput move = new MouseInput(HelperProtocol.MOUSE_MOVE, 6, 6, HelperProtocol.BUTTON_LEFT, 0, 0, 0);
     final MouseInput releaseLeft = new MouseInput(HelperProtocol.MOUSE_RELEASE, 6, 6, HelperProtocol.BUTTON_LEFT, 1, 0, 0);
-    final MouseInput wheel = new MouseInput(HelperProtocol.MOUSE_WHEEL, 6, 6, HelperProtocol.BUTTON_LEFT, 0, 0, 120);
+    final MouseInput wheel = new MouseInput(HelperProtocol.MOUSE_WHEEL, 6, 6, HelperProtocol.BUTTON_LEFT, 0, 0, WHEEL_DISTANCE);
     int held = DevToolsInput.heldAfter(pressLeft, 0);
     assertEquals(1, held);
 
@@ -292,7 +298,7 @@ class DevToolsInputTest {
 
   @Test
   void shouldSendTheScriptThatOpensWindowsInPlaceAsOneJsonString() throws Exception {
-    ScriptAssertions.execute("open-windows.mjs", DevToolsInput.OPEN_IN_PLACE_SCRIPT);
+    ScriptAssertions.execute(OPEN_WINDOWS_SCRIPT_FILE, DevToolsInput.OPEN_IN_PLACE_SCRIPT);
     final List<DevToolsInput.DevToolsCall> calls = DevToolsInput.openWindowsInPlace();
     final int callCount = calls.size();
     assertEquals(2, callCount);

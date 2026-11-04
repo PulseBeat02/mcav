@@ -46,6 +46,54 @@ import org.junit.jupiter.api.io.TempDir;
 
 class ChromiumConfinementTest {
 
+  private static final String NO_SEATBELT_REASON = "Because this system has no Seatbelt (sandbox_init), Chromium runs without confinement.";
+  private static final String MISSING_LANDLOCK_MESSAGE = "%s, so this kernel cannot restrict!";
+
+  private static final String CONFINED_THREAD_FAILURE_PREFIX = "the confined thread failed: ";
+  private static final String SESSION_FOLDER = "session";
+  private static final String TEMPORARY_FOLDER = "tmp";
+  private static final String SOCKET_FILE = "socket";
+  private static final String NATIVES_FOLDER = "natives";
+  private static final String PROFILE_FOLDER = "profile";
+  private static final String SYSTEM_FOLDER = "system";
+  private static final String HOMES_FOLDER = "home";
+  private static final String USER_FOLDER = "user";
+  private static final String OTHER_HOME_FOLDER = "other";
+  private static final String PLAIN_FILE = "file.txt";
+  private static final String LINK_NAME = "link";
+  private static final String REAL_FOLDER = "real";
+  private static final String KEPT_FOLDER = "kept";
+  private static final String ALIAS_LINK = "alias";
+  private static final String CLOSED_FOLDER = "closed";
+  private static final String HIDDEN_FOLDER = "hidden";
+  private static final String BESIDE_FOLDER = "beside";
+  private static final String FIRST_PATH = "first";
+  private static final String SECOND_PATH = "second";
+  private static final String COVERAGE_AGENT_FILE = "/agents/coverage.jar";
+  private static final String PLAIN_AGENT_FILE = "/agents/plain.jar";
+  private static final String INSTALLATION_FOLDER = "installation";
+  private static final String NSS_LIBRARY_FILE = "libnss3.so";
+  private static final String LIBRARIES_FOLDER = "libraries";
+  private static final String RELATIVE_LIBRARY_FILE = "relative.so";
+  private static final String PLAIN_LIBRARY_FILE = "plain.so";
+  private static final String PARENT_FOLDER = "..";
+  private static final String GONE_FOLDER = "gone";
+  private static final String SERVER_CONFIGURATION_FILE = "config.yml";
+  private static final String COOKIES_FILE = "Cookies";
+  private static final String PROFILE_TEXT_FILE = "profile.txt";
+  private static final String OUTSIDE_FILE = "outside.txt";
+  private static final String JAVA_BIN_FOLDER = "bin";
+  private static final String JAVA_EXECUTABLE = "java";
+  private static final String OTHER_SESSION_FOLDER = "other-session";
+  private static final String CONFINEMENT_THREAD_NAME = "confinement-test";
+
+  private static final int MISSING_SYSTEM_CALL_ERROR = -38;
+
+  private static final String SERVER_CONFIGURATION_TEXT = "token: secret";
+  private static final String COOKIE_TEXT = "cookie";
+
+  private static final int JOIN_TIMEOUT_SECONDS = 60;
+
   private static final String JAVA_HOME_PROPERTY = "java.home";
   private static final String USER_HOME_PROPERTY = "user.home";
   private static final String CLASS_PATH_PROPERTY = "java.class.path";
@@ -53,7 +101,7 @@ class ChromiumConfinementTest {
   private static final String SERVER_FOLDER = "server";
   private static final String MISSING_NAME = "missing";
 
-  private static final Path RELATIVE_LIBRARY = Path.of("..", "installation", "libnss3.so");
+  private static final Path RELATIVE_LIBRARY = Path.of(PARENT_FOLDER, INSTALLATION_FOLDER, NSS_LIBRARY_FILE);
   private static final Path DEVICES = Path.of("/dev");
 
   @TempDir
@@ -61,12 +109,12 @@ class ChromiumConfinementTest {
 
   private HelperConfiguration configuration(final Confinement confinement, final Path serverFolder) {
     final boolean confined = confinement == Confinement.ASKED;
-    final Path session = this.folder.resolve("tmp").resolve("session");
+    final Path session = this.folder.resolve(TEMPORARY_FOLDER).resolve(SESSION_FOLDER);
     return new HelperConfiguration(
       new byte[HelperProtocol.TOKEN_BYTES],
-      session.resolve("socket"),
-      this.folder.resolve("natives"),
-      session.resolve("profile"),
+      session.resolve(SOCKET_FILE),
+      this.folder.resolve(NATIVES_FOLDER),
+      session.resolve(PROFILE_FOLDER),
       URI.create("https://example.com/"),
       640,
       480,
@@ -93,14 +141,14 @@ class ChromiumConfinementTest {
   @Test
   void shouldLetEverythingButTheHiddenFoldersBeReadAndOnlyTheWritableOnesChanged() throws IOException {
     final Path root = this.folder.toRealPath();
-    final Path system = Files.createDirectories(root.resolve("system"));
-    final Path homes = Files.createDirectories(root.resolve("home"));
-    final Path home = Files.createDirectories(homes.resolve("user"));
-    final Path otherHome = Files.createDirectories(homes.resolve("other"));
-    final Path file = Files.writeString(root.resolve("file.txt"), "file");
-    Files.createSymbolicLink(root.resolve("link"), home);
-    final Path natives = home.resolve("natives");
-    final Path session = root.resolve("session");
+    final Path system = Files.createDirectories(root.resolve(SYSTEM_FOLDER));
+    final Path homes = Files.createDirectories(root.resolve(HOMES_FOLDER));
+    final Path home = Files.createDirectories(homes.resolve(USER_FOLDER));
+    final Path otherHome = Files.createDirectories(homes.resolve(OTHER_HOME_FOLDER));
+    final Path file = Files.writeString(root.resolve(PLAIN_FILE), "file");
+    Files.createSymbolicLink(root.resolve(LINK_NAME), home);
+    final Path natives = home.resolve(NATIVES_FOLDER);
+    final Path session = root.resolve(SESSION_FOLDER);
     final List<Path> hidden = List.of(home, root, root.resolve(MISSING_NAME));
     final List<Landlock.Rule> rules = ChromiumConfinement.rules(root, hidden, List.of(natives), List.of(session));
     final List<Landlock.Rule> walkedRules = this.walkSorted(rules, 2);
@@ -119,9 +167,9 @@ class ChromiumConfinementTest {
   @Test
   void shouldFindAHiddenFolderByItsRealPath() throws IOException {
     final Path root = this.folder.toRealPath();
-    final Path real = Files.createDirectories(root.resolve("real"));
-    final Path kept = Files.createDirectories(root.resolve("kept"));
-    final Path alias = Files.createSymbolicLink(root.resolve("alias"), real);
+    final Path real = Files.createDirectories(root.resolve(REAL_FOLDER));
+    final Path kept = Files.createDirectories(root.resolve(KEPT_FOLDER));
+    final Path alias = Files.createSymbolicLink(root.resolve(ALIAS_LINK), real);
     final List<Landlock.Rule> rules = ChromiumConfinement.rules(root, List.of(alias), List.of(), List.of());
     assertEquals(List.of(new Landlock.Rule(kept, Landlock.Access.READ_ONLY)), rules);
   }
@@ -130,9 +178,9 @@ class ChromiumConfinementTest {
   @EnabledOnOs({ OS.LINUX, OS.MAC })
   void shouldGiveNothingBeneathAFolderThatCannotBeListed() throws IOException {
     final Path root = this.folder.toRealPath();
-    final Path closed = Files.createDirectories(root.resolve("closed"));
-    final Path hidden = Files.createDirectories(closed.resolve("hidden"));
-    Files.createDirectories(closed.resolve("beside"));
+    final Path closed = Files.createDirectories(root.resolve(CLOSED_FOLDER));
+    final Path hidden = Files.createDirectories(closed.resolve(HIDDEN_FOLDER));
+    Files.createDirectories(closed.resolve(BESIDE_FOLDER));
     Files.setPosixFilePermissions(closed, PosixFilePermissions.fromString("-wx------"));
     try {
       assumeTrue(!Files.isReadable(closed), "The user may read every folder, so none can be closed to it!");
@@ -149,8 +197,8 @@ class ChromiumConfinementTest {
     assertEquals(List.of(), pathsOfNothing);
 
     final String separator = File.pathSeparator;
-    final List<Path> paths = ChromiumConfinement.pathsOf("first" + separator + separator + "second");
-    assertEquals(List.of(Path.of("first"), Path.of("second")), paths);
+    final List<Path> paths = ChromiumConfinement.pathsOf(FIRST_PATH + separator + separator + SECOND_PATH);
+    assertEquals(List.of(Path.of(FIRST_PATH), Path.of(SECOND_PATH)), paths);
   }
 
   @Test
@@ -161,17 +209,17 @@ class ChromiumConfinementTest {
       "-javaagent:/agents/plain.jar"
     );
     final List<Path> agents = ChromiumConfinement.agentsOf(arguments);
-    assertEquals(List.of(Path.of("/agents/coverage.jar"), Path.of("/agents/plain.jar")), agents);
+    assertEquals(List.of(Path.of(COVERAGE_AGENT_FILE), Path.of(PLAIN_AGENT_FILE)), agents);
   }
 
   @Test
   void shouldFindTheFilesTheLibrariesOfTheSessionLinkTo() throws IOException {
-    final Path installation = Files.createDirectories(this.folder.resolve("installation"));
-    final Path library = Files.writeString(installation.resolve("libnss3.so"), "library");
-    final Path linked = Files.createDirectories(this.folder.resolve("libraries"));
-    Files.createSymbolicLink(linked.resolve("libnss3.so"), library);
-    Files.createSymbolicLink(linked.resolve("relative.so"), RELATIVE_LIBRARY);
-    Files.writeString(linked.resolve("plain.so"), "not a link");
+    final Path installation = Files.createDirectories(this.folder.resolve(INSTALLATION_FOLDER));
+    final Path library = Files.writeString(installation.resolve(NSS_LIBRARY_FILE), "library");
+    final Path linked = Files.createDirectories(this.folder.resolve(LIBRARIES_FOLDER));
+    Files.createSymbolicLink(linked.resolve(NSS_LIBRARY_FILE), library);
+    Files.createSymbolicLink(linked.resolve(RELATIVE_LIBRARY_FILE), RELATIVE_LIBRARY);
+    Files.writeString(linked.resolve(PLAIN_LIBRARY_FILE), "not a link");
     final List<Path> targets = ChromiumConfinement.linkedFiles(List.of(linked, this.folder.resolve(MISSING_NAME), library));
     final List<Path> sortedTargets = targets.stream().sorted().toList();
     assertEquals(List.of(library, linked.resolve(RELATIVE_LIBRARY)), sortedTargets);
@@ -209,7 +257,7 @@ class ChromiumConfinementTest {
       final String noLandlockReason = ChromiumConfinement.confine(
         this.configuration(Confinement.ASKED, server),
         OperatingSystem.LINUX,
-        () -> -38,
+        () -> MISSING_SYSTEM_CALL_ERROR,
         seatbelt
       );
       assertEquals("Because this kernel has no Landlock, which Linux has since 5.13, Chromium runs without confinement.", noLandlockReason);
@@ -224,7 +272,7 @@ class ChromiumConfinementTest {
       () -> 4,
       new Seatbelt(name -> Optional.empty())
     );
-    assertEquals("Because this system has no Seatbelt (sandbox_init), Chromium runs without confinement.", noSeatbeltReason);
+    assertEquals(NO_SEATBELT_REASON, noSeatbeltReason);
   }
 
   @Test
@@ -232,7 +280,7 @@ class ChromiumConfinementTest {
   void shouldLeaveTheHelperAsItIsAndSayWhyOnASystemWithoutSeatbelt() throws IOException {
     final HelperConfiguration configuration = this.configuration(Confinement.ASKED, this.folder.resolve(SERVER_FOLDER));
     final String noSeatbeltReason = ChromiumConfinement.confine(configuration, OperatingSystem.MAC);
-    assertEquals("Because this system has no Seatbelt (sandbox_init), Chromium runs without confinement.", noSeatbeltReason);
+    assertEquals(NO_SEATBELT_REASON, noSeatbeltReason);
   }
 
   @Test
@@ -243,7 +291,7 @@ class ChromiumConfinementTest {
     final String said;
     final List<String> profiles;
     try (final SeatbeltLibrary library = SeatbeltLibrary.complete()) {
-      said = ChromiumConfinement.confine(configuration, OperatingSystem.MAC, () -> -38, library.seatbelt());
+      said = ChromiumConfinement.confine(configuration, OperatingSystem.MAC, () -> MISSING_SYSTEM_CALL_ERROR, library.seatbelt());
       profiles = List.copyOf(library.getProfiles());
     }
 
@@ -265,7 +313,7 @@ class ChromiumConfinementTest {
         "))\n(allow file-read-data (subpath " +
         Seatbelt.quote(Path.of(System.getProperty(JAVA_HOME_PROPERTY)).toRealPath().toString()) +
         ") (subpath " +
-        Seatbelt.quote(this.folder.resolve("natives").toAbsolutePath().normalize().toString()) +
+        Seatbelt.quote(this.folder.resolve(NATIVES_FOLDER).toAbsolutePath().normalize().toString()) +
         ")"
     );
     assertTrue(deniesThenAllowsReading, profile);
@@ -287,43 +335,43 @@ class ChromiumConfinementTest {
 
   @Test
   void shouldResolveLinksAndKeepMissingPathsAbsoluteInRealPaths() throws IOException {
-    final Path real = Files.createDirectories(this.folder.resolve("real"));
-    final Path link = Files.createSymbolicLink(this.folder.resolve("link"), real);
-    final Path missing = this.folder.resolve(MISSING_NAME).resolve("..").resolve("gone");
+    final Path real = Files.createDirectories(this.folder.resolve(REAL_FOLDER));
+    final Path link = Files.createSymbolicLink(this.folder.resolve(LINK_NAME), real);
+    final Path missing = this.folder.resolve(MISSING_NAME).resolve(PARENT_FOLDER).resolve(GONE_FOLDER);
     final List<Path> resolved = ChromiumConfinement.realPaths(List.of(link, missing));
-    assertEquals(List.of(real.toRealPath(), this.folder.resolve("gone").toAbsolutePath()), resolved);
+    assertEquals(List.of(real.toRealPath(), this.folder.resolve(GONE_FOLDER).toAbsolutePath()), resolved);
   }
 
   @Test
   @EnabledOnOs(OS.LINUX)
   void shouldNotLetAConfinedHelperReadTheFolderOfTheServerOrTheTemporaryFolder() throws Exception {
     final int version = Landlock.version();
-    assumeTrue(version >= 1, () -> "%s, so this kernel cannot restrict!".formatted(Landlock.describeMissing(version)));
+    assumeTrue(version >= 1, () -> MISSING_LANDLOCK_MESSAGE.formatted(Landlock.describeMissing(version)));
     final Path server = Files.createDirectories(this.folder.resolve(SERVER_FOLDER));
-    final Path serverConfiguration = Files.writeString(server.resolve("config.yml"), "token: secret");
-    final Path otherSession = Files.createDirectories(this.folder.resolve("tmp").resolve("other-session"));
-    final Path cookies = Files.writeString(otherSession.resolve("Cookies"), "cookie");
+    final Path serverConfiguration = Files.writeString(server.resolve(SERVER_CONFIGURATION_FILE), SERVER_CONFIGURATION_TEXT);
+    final Path otherSession = Files.createDirectories(this.folder.resolve(TEMPORARY_FOLDER).resolve(OTHER_SESSION_FOLDER));
+    final Path cookies = Files.writeString(otherSession.resolve(COOKIES_FILE), COOKIE_TEXT);
     final HelperConfiguration configuration = this.configuration(Confinement.ASKED, server);
     final Path session = Files.createDirectories(configuration.getSocket().getParent());
     final AtomicReference<String> said = new AtomicReference<>();
     final AtomicReference<Throwable> failure = new AtomicReference<>();
     final Thread thread = new Thread(
       () -> this.confineAndCheckAccess(configuration, serverConfiguration, cookies, session, said, failure),
-      "confinement-test"
+      CONFINEMENT_THREAD_NAME
     );
     thread.start();
-    thread.join(TimeUnit.SECONDS.toMillis(60));
+    thread.join(TimeUnit.SECONDS.toMillis(JOIN_TIMEOUT_SECONDS));
     final boolean alive = thread.isAlive();
     assertFalse(alive);
 
     final Throwable confinedFailure = failure.get();
-    assertNull(confinedFailure, () -> "the confined thread failed: " + failure.get());
+    assertNull(confinedFailure, () -> CONFINED_THREAD_FAILURE_PREFIX + failure.get());
 
     final String saidConfinement = said.get();
     assertEquals(ChromiumConfinement.CONFINED, saidConfinement);
 
-    final String profileText = Files.readString(session.resolve("profile.txt"), StandardCharsets.UTF_8);
-    assertEquals("profile", profileText);
+    final String profileText = Files.readString(session.resolve(PROFILE_TEXT_FILE), StandardCharsets.UTF_8);
+    assertEquals(PROFILE_FOLDER, profileText);
 
     final boolean readable = Files.isReadable(serverConfiguration);
     assertTrue(readable, "the other threads are free");
@@ -342,8 +390,8 @@ class ChromiumConfinementTest {
       assertThrows(AccessDeniedException.class, () -> Files.readString(serverConfiguration, StandardCharsets.UTF_8));
       assertThrows(AccessDeniedException.class, () -> Files.readString(cookies, StandardCharsets.UTF_8));
 
-      Files.writeString(session.resolve("profile.txt"), "profile");
-      assertThrows(AccessDeniedException.class, () -> Files.writeString(this.folder.resolve("outside.txt"), "outside"));
+      Files.writeString(session.resolve(PROFILE_TEXT_FILE), PROFILE_FOLDER);
+      assertThrows(AccessDeniedException.class, () -> Files.writeString(this.folder.resolve(OUTSIDE_FILE), "outside"));
     } catch (final Throwable exception) {
       failure.set(exception);
     }
@@ -353,20 +401,20 @@ class ChromiumConfinementTest {
   @EnabledOnOs(OS.LINUX)
   void shouldConfineWithTheFirstVersionOfLandlock() throws Exception {
     final int version = Landlock.version();
-    assumeTrue(version >= 1, () -> "%s, so this kernel cannot restrict!".formatted(Landlock.describeMissing(version)));
+    assumeTrue(version >= 1, () -> MISSING_LANDLOCK_MESSAGE.formatted(Landlock.describeMissing(version)));
     final Path server = Files.createDirectories(this.folder.resolve(SERVER_FOLDER));
     final HelperConfiguration configuration = this.configuration(Confinement.ASKED, server);
     Files.createDirectories(configuration.getSocket().getParent());
     final AtomicReference<String> said = new AtomicReference<>();
     final AtomicReference<Throwable> failure = new AtomicReference<>();
-    final Thread thread = new Thread(() -> this.confineWithTheFirstVersion(configuration, said, failure), "confinement-test");
+    final Thread thread = new Thread(() -> this.confineWithTheFirstVersion(configuration, said, failure), CONFINEMENT_THREAD_NAME);
     thread.start();
-    thread.join(TimeUnit.SECONDS.toMillis(60));
+    thread.join(TimeUnit.SECONDS.toMillis(JOIN_TIMEOUT_SECONDS));
     final boolean alive = thread.isAlive();
     assertFalse(alive);
 
     final Throwable confinedFailure = failure.get();
-    assertNull(confinedFailure, () -> "the confined thread failed: " + failure.get());
+    assertNull(confinedFailure, () -> CONFINED_THREAD_FAILURE_PREFIX + failure.get());
 
     final String saidConfinement = said.get();
     assertEquals(ChromiumConfinement.CONFINED, saidConfinement);
@@ -388,9 +436,9 @@ class ChromiumConfinementTest {
   @EnabledOnOs(OS.LINUX)
   void shouldGiveNothingBeneathAFolderThatCannotBeListedEvenByRoot() throws Exception {
     final int version = Landlock.version();
-    assumeTrue(version >= 1, () -> "%s, so this kernel cannot restrict!".formatted(Landlock.describeMissing(version)));
+    assumeTrue(version >= 1, () -> MISSING_LANDLOCK_MESSAGE.formatted(Landlock.describeMissing(version)));
     final Path root = this.folder.toRealPath();
-    final Path beside = Files.createDirectories(root.resolve("beside"));
+    final Path beside = Files.createDirectories(root.resolve(BESIDE_FOLDER));
     final List<Landlock.Rule> openRules = ChromiumConfinement.rules(root, List.of(), List.of(), List.of());
     assertEquals(List.of(new Landlock.Rule(beside, Landlock.Access.READ_ONLY)), openRules);
 
@@ -398,7 +446,7 @@ class ChromiumConfinementTest {
     final AtomicReference<Throwable> failure = new AtomicReference<>();
     final Thread thread = new Thread(() -> this.closeEverythingAndWalk(version, root, closedRules, failure), "closed-walk-test");
     thread.start();
-    thread.join(TimeUnit.SECONDS.toMillis(60));
+    thread.join(TimeUnit.SECONDS.toMillis(JOIN_TIMEOUT_SECONDS));
     final boolean alive = thread.isAlive();
     assertFalse(alive);
 
@@ -428,15 +476,15 @@ class ChromiumConfinementTest {
   @EnabledOnOs(OS.MAC)
   void shouldNotLetAConfinedHelperOrWhatItStartsReadTheFolderOfTheServerOrTheTemporaryFolderOnMacOs() throws Exception {
     final Path server = Files.createDirectories(this.folder.resolve(SERVER_FOLDER));
-    final Path serverConfiguration = Files.writeString(server.resolve("config.yml"), "token: secret");
-    final Path otherSession = Files.createDirectories(this.folder.resolve("tmp").resolve("other-session"));
-    final Path cookies = Files.writeString(otherSession.resolve("Cookies"), "cookie");
+    final Path serverConfiguration = Files.writeString(server.resolve(SERVER_CONFIGURATION_FILE), SERVER_CONFIGURATION_TEXT);
+    final Path otherSession = Files.createDirectories(this.folder.resolve(TEMPORARY_FOLDER).resolve(OTHER_SESSION_FOLDER));
+    final Path cookies = Files.writeString(otherSession.resolve(COOKIES_FILE), COOKIE_TEXT);
     final HelperConfiguration configuration = this.configuration(Confinement.ASKED, server);
     final Path session = Files.createDirectories(configuration.getSocket().getParent());
-    final Path outside = this.folder.resolve("outside.txt");
+    final Path outside = this.folder.resolve(OUTSIDE_FILE);
     // Seatbelt holds for a whole process and cannot be lifted, so a JVM of its own confines itself
     final Process probe = new ProcessBuilder(
-      Path.of(System.getProperty(JAVA_HOME_PROPERTY), "bin", "java").toString(),
+      Path.of(System.getProperty(JAVA_HOME_PROPERTY), JAVA_BIN_FOLDER, JAVA_EXECUTABLE).toString(),
       "--enable-native-access=ALL-UNNAMED",
       "-cp",
       System.getProperty(CLASS_PATH_PROPERTY),
@@ -451,7 +499,7 @@ class ChromiumConfinementTest {
       .redirectErrorStream(true)
       .start();
     final String output = new String(probe.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-    final boolean exited = probe.waitFor(60, TimeUnit.SECONDS);
+    final boolean exited = probe.waitFor(JOIN_TIMEOUT_SECONDS, TimeUnit.SECONDS);
     assertTrue(exited, output);
 
     final int exitCode = probe.exitValue();
@@ -475,8 +523,8 @@ class ChromiumConfinementTest {
       output
     );
 
-    final String profileText = Files.readString(session.resolve("profile.txt"), StandardCharsets.UTF_8);
-    assertEquals("profile", profileText);
+    final String profileText = Files.readString(session.resolve(PROFILE_TEXT_FILE), StandardCharsets.UTF_8);
+    assertEquals(PROFILE_FOLDER, profileText);
 
     final boolean outsideWritten = Files.exists(outside);
     assertFalse(outsideWritten);

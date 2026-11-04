@@ -57,6 +57,7 @@ public final class HeadlessProofMain {
   private static final String ARCHITECTURE_PROPERTY = "os.arch";
 
   private static final String HOME_DIRECTORY = "home";
+  private static final String PAGE_PATH = "/";
 
   private static final String LOOPBACK_HOST = "127.0.0.1";
 
@@ -148,7 +149,7 @@ public final class HeadlessProofMain {
     check(xServers.isEmpty() || local, "no X server runs");
     final HttpServer server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
     final byte[] page = PAGE.getBytes(StandardCharsets.UTF_8);
-    server.createContext("/", exchange -> servePage(exchange, page));
+    server.createContext(PAGE_PATH, exchange -> servePage(exchange, page));
     server.start();
     try {
       final int port = server.getAddress().getPort();

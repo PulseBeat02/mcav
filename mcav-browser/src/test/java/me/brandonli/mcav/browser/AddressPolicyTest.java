@@ -32,6 +32,9 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 class AddressPolicyTest {
 
+  private static final String FIRST_DISCOVERY_ADDRESS = "192.0.0.170";
+  private static final String SECOND_DISCOVERY_ADDRESS = "192.0.0.171";
+
   @ParameterizedTest
   @ValueSource(
     strings = {
@@ -187,7 +190,7 @@ class AddressPolicyTest {
     final String publicAddress
   ) throws UnknownHostException {
     final List<AddressPolicy.TranslationPrefix> prefixes = AddressPolicy.findTranslationPrefixes(
-      this.addresses("192.0.0.170", first, "192.0.0.171", second)
+      this.addresses(FIRST_DISCOVERY_ADDRESS, first, SECOND_DISCOVERY_ADDRESS, second)
     );
     final int prefixCount = prefixes.size();
     assertEquals(1, prefixCount, "both well-known addresses give the same prefix");
@@ -219,7 +222,9 @@ class AddressPolicyTest {
 
   @Test
   void shouldFindNoPrefixInANetworkWithoutTranslation() throws UnknownHostException {
-    final int ipv4PrefixCount = AddressPolicy.findTranslationPrefixes(this.addresses("192.0.0.170", "192.0.0.171")).size();
+    final int ipv4PrefixCount = AddressPolicy.findTranslationPrefixes(
+      this.addresses(FIRST_DISCOVERY_ADDRESS, SECOND_DISCOVERY_ADDRESS)
+    ).size();
     assertEquals(0, ipv4PrefixCount);
 
     final int unrelatedPrefixCount = AddressPolicy.findTranslationPrefixes(

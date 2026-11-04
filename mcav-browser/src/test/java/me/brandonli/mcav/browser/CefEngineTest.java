@@ -62,6 +62,30 @@ import org.mockito.InOrder;
 
 class CefEngineTest {
 
+  private static final long SCRIPT_TIMEOUT_MILLISECONDS = 1_000L;
+  private static final long SHUTDOWN_TIMEOUT_MILLISECONDS = 1_000L;
+
+  private static final String SOCKET_FILE = "s";
+  private static final String NATIVES_FOLDER = "natives";
+  private static final String PROFILE_FOLDER = "profile";
+  private static final String SESSION_FOLDER = "session";
+  private static final String SERVER_FOLDER = "server";
+
+  private static final String PAGE_URL = "https://example.com/";
+
+  private static final String JITLESS_SWITCH = "--js-flags=--jitless";
+
+  private static final String HEADLESS_SWITCH = "--ozone-platform=headless";
+
+  private static final String MOCK_KEYCHAIN_SWITCH = "--use-mock-keychain";
+
+  private static final String EMPTY_PARAMETERS = "{}";
+
+  private static final String UNCONFIRMED_SCRIPTS_NOTICE = "The scripts of the page were not confirmed in 2 attempts; it loads anyway.";
+  private static final String PAGE_LOADED_AFTER_TIMEOUT_MESSAGE = "the page loaded after the timeout";
+
+  private static final String ENTER_KEY = "Enter";
+
   private static final int KEEP_TRAILING_EMPTY_PARTS = -1;
 
   private static final Path ROOT = Path.of("").toAbsolutePath().getRoot();
@@ -73,10 +97,10 @@ class CefEngineTest {
     final boolean allowsAutoplay = feature == AllowedFeature.AUTOPLAY;
     return new HelperConfiguration(
       new byte[HelperProtocol.TOKEN_BYTES],
-      ROOT.resolve("s"),
-      ROOT.resolve("natives"),
-      ROOT.resolve("session").resolve("profile"),
-      URI.create("https://example.com/"),
+      ROOT.resolve(SOCKET_FILE),
+      ROOT.resolve(NATIVES_FOLDER),
+      ROOT.resolve(SESSION_FOLDER).resolve(PROFILE_FOLDER),
+      URI.create(PAGE_URL),
       640,
       480,
       1,
@@ -85,7 +109,7 @@ class CefEngineTest {
       false,
       allowsAutoplay,
       true,
-      ROOT.resolve("server"),
+      ROOT.resolve(SERVER_FOLDER),
       List.of()
     );
   }
@@ -147,13 +171,13 @@ class CefEngineTest {
     final boolean autoplayRequiresActivation = autoplaySwitches.contains("--autoplay-policy=document-user-activation-required");
     assertFalse(autoplayRequiresActivation);
 
-    final boolean jitless = switches.contains("--js-flags=--jitless");
+    final boolean jitless = switches.contains(JITLESS_SWITCH);
     assertTrue(jitless);
 
-    final boolean headless = switches.contains("--ozone-platform=headless");
+    final boolean headless = switches.contains(HEADLESS_SWITCH);
     assertFalse(headless);
 
-    final boolean usesMockKeychain = switches.contains("--use-mock-keychain");
+    final boolean usesMockKeychain = switches.contains(MOCK_KEYCHAIN_SWITCH);
     assertFalse(usesMockKeychain);
 
     for (final String value : switches) {
@@ -225,7 +249,7 @@ class CefEngineTest {
       OperatingSystem.OTHER,
       0,
       null
-    ).contains("--js-flags=--jitless");
+    ).contains(JITLESS_SWITCH);
     assertFalse(jitless);
   }
 
@@ -237,7 +261,7 @@ class CefEngineTest {
       0,
       "127.0.0.1:26768"
     );
-    final boolean linuxHeadless = linux.contains("--ozone-platform=headless");
+    final boolean linuxHeadless = linux.contains(HEADLESS_SWITCH);
     assertTrue(linuxHeadless);
 
     final boolean basicPasswordStore = linux.contains("--password-store=basic");
@@ -254,10 +278,10 @@ class CefEngineTest {
     assertTrue(namesNoDisplay, noDisplay.toString());
 
     final List<String> mac = CefEngine.createSwitches(this.configuration(AllowedFeature.NONE), OperatingSystem.MAC, 0, null);
-    final boolean macMockKeychain = mac.contains("--use-mock-keychain");
+    final boolean macMockKeychain = mac.contains(MOCK_KEYCHAIN_SWITCH);
     assertTrue(macMockKeychain);
 
-    final boolean macHeadless = mac.contains("--ozone-platform=headless");
+    final boolean macHeadless = mac.contains(HEADLESS_SWITCH);
     assertFalse(macHeadless);
 
     final boolean macNamesNoDisplay = mac.stream().noneMatch(entry -> entry.startsWith("--display"));
@@ -270,7 +294,7 @@ class CefEngineTest {
     settings.remote_debugging_port = 9222;
     settings.persist_session_cookies = true;
     CefEngine.configureSettings(settings, this.configuration(AllowedFeature.NONE));
-    final String profile = ROOT.resolve("session").resolve("profile").toString();
+    final String profile = ROOT.resolve(SESSION_FOLDER).resolve(PROFILE_FOLDER).toString();
     assertTrue(settings.windowless_rendering_enabled);
     assertEquals(profile, settings.root_cache_path);
     assertEquals(profile, settings.cache_path);
@@ -306,29 +330,29 @@ class CefEngineTest {
     final PageAudio audio = new PageAudio(samples -> {}, System::nanoTime);
     final List<String> notices = new CopyOnWriteArrayList<>();
     final CefBrowser closed = mock(CefBrowser.class);
-    CefEngine.openPage(closed, "https://example.com/", 1_000L, audio, notices::add);
-    verify(closed).loadURL("https://example.com/");
+    CefEngine.openPage(closed, PAGE_URL, SCRIPT_TIMEOUT_MILLISECONDS, audio, notices::add);
+    verify(closed).loadURL(PAGE_URL);
     final CefBrowser browser = mock(CefBrowser.class);
 
     final CefDevToolsClient devTools = mock(CefDevToolsClient.class);
     when(browser.getDevToolsClient()).thenReturn(devTools);
     final CompletableFuture<String> failed = CompletableFuture.failedFuture(new IllegalStateException("The browser is closed!"));
     when(devTools.executeDevToolsMethod(anyString(), anyString())).thenReturn(failed);
-    CefEngine.openPage(browser, "https://example.com/", 1_000L, audio, notices::add);
+    CefEngine.openPage(browser, PAGE_URL, SCRIPT_TIMEOUT_MILLISECONDS, audio, notices::add);
     EventQueue.invokeAndWait(() -> {});
     EventQueue.invokeAndWait(() -> {});
     final List<DevToolsInput.DevToolsCall> calls = DevToolsInput.openWindowsInPlace();
     final InOrder order = inOrder(devTools, browser);
     order.verify(devTools).addEventListener(audio);
-    order.verify(devTools).executeDevToolsMethod(DevToolsInput.ENABLE_PAGE_METHOD, "{}");
+    order.verify(devTools).executeDevToolsMethod(DevToolsInput.ENABLE_PAGE_METHOD, EMPTY_PARAMETERS);
     order.verify(devTools).executeDevToolsMethod(DevToolsInput.ADD_SCRIPT_METHOD, calls.get(1).getParameters());
-    order.verify(devTools).executeDevToolsMethod("Runtime.enable", "{}");
+    order.verify(devTools).executeDevToolsMethod("Runtime.enable", EMPTY_PARAMETERS);
     order.verify(devTools).executeDevToolsMethod("Runtime.addBinding", "{\"name\":\"__mcavAudio\"}");
     order.verify(devTools).executeDevToolsMethod(DevToolsInput.ADD_SCRIPT_METHOD, PageAudio.install().get(2).getParameters());
-    order.verify(browser).loadURL("https://example.com/");
+    order.verify(browser).loadURL(PAGE_URL);
     verify(devTools).close();
     verify(devTools, times(10)).executeDevToolsMethod(anyString(), anyString());
-    assertEquals(List.of("The scripts of the page were not confirmed in 2 attempts; it loads anyway."), notices);
+    assertEquals(List.of(UNCONFIRMED_SCRIPTS_NOTICE), notices);
   }
 
   @Test
@@ -338,7 +362,7 @@ class CefEngineTest {
     final CefDevToolsClient working = mock(CefDevToolsClient.class);
     when(browser.getDevToolsClient()).thenReturn(lost, working);
     when(lost.executeDevToolsMethod(anyString(), anyString())).thenReturn(new CompletableFuture<>());
-    when(working.executeDevToolsMethod(anyString(), anyString())).thenReturn(CompletableFuture.completedFuture("{}"));
+    when(working.executeDevToolsMethod(anyString(), anyString())).thenReturn(CompletableFuture.completedFuture(EMPTY_PARAMETERS));
     final PageAudio audio = new PageAudio(samples -> {}, System::nanoTime);
     final List<String> notices = new CopyOnWriteArrayList<>();
     CefEngine.openPage(browser, "https://example.com/again", 300L, audio, notices::add);
@@ -376,7 +400,7 @@ class CefEngineTest {
     EventQueue.invokeAndWait(() -> {});
     verify(browser, never()).loadURL(anyString());
 
-    slow.complete("{}");
+    slow.complete(EMPTY_PARAMETERS);
     EventQueue.invokeAndWait(() -> {});
     verify(browser).loadURL("https://example.com/slow");
     assertEquals(List.of(), notices);
@@ -390,13 +414,19 @@ class CefEngineTest {
     final CompletableFuture<String> lost = new CompletableFuture<>();
     when(devTools.executeDevToolsMethod(anyString(), anyString())).thenReturn(lost);
     final List<String> notices = new CopyOnWriteArrayList<>();
-    CefEngine.openPage(browser, "https://example.com/lost", 1_000L, new PageAudio(samples -> {}, System::nanoTime), notices::add);
+    CefEngine.openPage(
+      browser,
+      "https://example.com/lost",
+      SCRIPT_TIMEOUT_MILLISECONDS,
+      new PageAudio(samples -> {}, System::nanoTime),
+      notices::add
+    );
     verify(browser, never()).loadURL(anyString());
 
-    Await.until("the page loaded after the timeout", () -> this.hasLoadedAPage(browser));
+    Await.until(PAGE_LOADED_AFTER_TIMEOUT_MESSAGE, () -> this.hasLoadedAPage(browser));
     verify(browser).loadURL("https://example.com/lost");
     verify(devTools).close();
-    assertEquals(List.of("The scripts of the page were not confirmed in 2 attempts; it loads anyway."), notices);
+    assertEquals(List.of(UNCONFIRMED_SCRIPTS_NOTICE), notices);
   }
 
   @Test
@@ -408,21 +438,15 @@ class CefEngineTest {
     when(devTools.executeDevToolsMethod(anyString(), anyString())).thenReturn(late);
     final List<String> notices = new CopyOnWriteArrayList<>();
     CefEngine.openPage(browser, "https://example.com/late", 100L, new PageAudio(samples -> {}, System::nanoTime), notices::add);
-    Await.until("the page loaded after the timeout", () -> this.hasLoadedAPage(browser));
+    Await.until(PAGE_LOADED_AFTER_TIMEOUT_MESSAGE, () -> this.hasLoadedAPage(browser));
     verify(browser, never()).reload();
 
-    late.complete("{}");
+    late.complete(EMPTY_PARAMETERS);
     EventQueue.invokeAndWait(() -> {});
     final InOrder order = inOrder(browser);
     order.verify(browser).loadURL("https://example.com/late");
     order.verify(browser).reload();
-    assertEquals(
-      List.of(
-        "The scripts of the page were not confirmed in 2 attempts; it loads anyway.",
-        "The scripts of the page were confirmed late; it loads again."
-      ),
-      notices
-    );
+    assertEquals(List.of(UNCONFIRMED_SCRIPTS_NOTICE, "The scripts of the page were confirmed late; it loads again."), notices);
   }
 
   @Test
@@ -439,10 +463,10 @@ class CefEngineTest {
 
   @Test
   void shouldOnlySendInputWhileTheBrowserHasADevToolsClient() {
-    CefEngine.execute(null, DevToolsInput.pressKey("Enter"));
+    CefEngine.execute(null, DevToolsInput.pressKey(ENTER_KEY));
     final CefDevToolsClient devTools = mock(CefDevToolsClient.class);
-    when(devTools.executeDevToolsMethod(anyString(), anyString())).thenReturn(CompletableFuture.completedFuture("{}"));
-    CefEngine.execute(devTools, DevToolsInput.pressKey("Enter"));
+    when(devTools.executeDevToolsMethod(anyString(), anyString())).thenReturn(CompletableFuture.completedFuture(EMPTY_PARAMETERS));
+    CefEngine.execute(devTools, DevToolsInput.pressKey(ENTER_KEY));
     verify(devTools, times(2)).executeDevToolsMethod(eq(DevToolsInput.KEY_METHOD), anyString());
   }
 
@@ -466,12 +490,12 @@ class CefEngineTest {
   @Test
   void shouldWaitForCefAndSurviveFailuresAndInterruptsOnShutdown() {
     final CountDownLatch terminated = new CountDownLatch(1);
-    CefEngine.shutDown(terminated::countDown, terminated, 1_000L);
+    CefEngine.shutDown(terminated::countDown, terminated, SHUTDOWN_TIMEOUT_MILLISECONDS);
     final long remainingCount = terminated.getCount();
     assertEquals(0, remainingCount);
 
     try (final StandardError errors = new StandardError()) {
-      CefEngine.shutDown(this::failToDispose, new CountDownLatch(1), 1_000L);
+      CefEngine.shutDown(this::failToDispose, new CountDownLatch(1), SHUTDOWN_TIMEOUT_MILLISECONDS);
       final boolean reportsTheDisposeFailure = errors
         .text()
         .contains("Because of \"java.lang.IllegalStateException: The disposal failed!\", CEF could not be shut down.");
@@ -501,7 +525,7 @@ class CefEngineTest {
     Thread.setDefaultUncaughtExceptionHandler((thread, failure) -> this.recordEventQueueFailure(failures, thread, failure));
     try (final StandardError errors = new StandardError()) {
       final CefEngine engine = new CefEngine();
-      engine.dispatch(DevToolsInput.pressKey("Enter"));
+      engine.dispatch(DevToolsInput.pressKey(ENTER_KEY));
       engine.stop();
       EventQueue.invokeAndWait(() -> {});
       final boolean reportsAShutdownFailure = errors.text().contains("CEF could not be shut down");

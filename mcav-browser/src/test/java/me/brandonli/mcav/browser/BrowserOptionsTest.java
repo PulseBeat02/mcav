@@ -29,6 +29,8 @@ import org.junit.jupiter.api.Test;
 
 class BrowserOptionsTest {
 
+  private static final String REFUSED_HOST = "mc.example.com";
+
   private static final int MAXIMUM_FRAME_RATE = 60;
 
   @Test
@@ -61,7 +63,7 @@ class BrowserOptionsTest {
       .privateNetworks(true)
       .autoplay(true)
       .confinement(false)
-      .refusedHosts(List.of("mc.example.com", "203.0.113.5"))
+      .refusedHosts(List.of(REFUSED_HOST, "203.0.113.5"))
       .build();
     final int minimumFrameRate = options.getFrameRate();
     assertEquals(1, minimumFrameRate);
@@ -79,7 +81,7 @@ class BrowserOptionsTest {
     assertFalse(confined);
 
     final List<String> refusedHosts = options.getRefusedHosts();
-    assertEquals(List.of("mc.example.com", "203.0.113.5"), refusedHosts);
+    assertEquals(List.of(REFUSED_HOST, "203.0.113.5"), refusedHosts);
 
     final BrowserOptionsBuilder builder = BrowserOptions.builder().refusedHosts(List.of("a b"));
     final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, builder::build);
@@ -111,7 +113,7 @@ class BrowserOptionsTest {
       BrowserOptions.builder().privateNetworks(true).build(),
       BrowserOptions.builder().autoplay(true).build(),
       BrowserOptions.builder().confinement(false).build(),
-      BrowserOptions.builder().refusedHosts(List.of("mc.example.com")).build()
+      BrowserOptions.builder().refusedHosts(List.of(REFUSED_HOST)).build()
     );
   }
 

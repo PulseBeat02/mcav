@@ -28,6 +28,8 @@ import org.junit.jupiter.api.Test;
 
 class BrowserSourceTest {
 
+  private static final int MAXIMUM_PAGE_DIMENSION = 4096;
+
   private static final URI PAGE = URI.create("https://example.com/");
 
   private static final int WIDTH = 640;
@@ -60,9 +62,9 @@ class BrowserSourceTest {
 
   @Test
   void shouldKeepEverySetting() {
-    final BrowserSource source = BrowserSource.uri(PAGE, 4096, 1, 1000);
+    final BrowserSource source = BrowserSource.uri(PAGE, MAXIMUM_PAGE_DIMENSION, 1, 1000);
     final int width = source.getWidth();
-    assertEquals(4096, width);
+    assertEquals(MAXIMUM_PAGE_DIMENSION, width);
 
     final int height = source.getHeight();
     assertEquals(1, height);
@@ -94,8 +96,8 @@ class BrowserSourceTest {
     assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 4097, 1, 1));
     assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 1, 4097, 1));
 
-    final int height = BrowserSource.uri(PAGE, 4096, 4096, 1).getHeight();
-    assertEquals(4096, height, "4096 per side is the largest frame, and allowed");
+    final int height = BrowserSource.uri(PAGE, MAXIMUM_PAGE_DIMENSION, MAXIMUM_PAGE_DIMENSION, 1).getHeight();
+    assertEquals(MAXIMUM_PAGE_DIMENSION, height, "4096 per side is the largest frame, and allowed");
     assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 1, 1, 0));
     assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 1, 1, 1001));
 

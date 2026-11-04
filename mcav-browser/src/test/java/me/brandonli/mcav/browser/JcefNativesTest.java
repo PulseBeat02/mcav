@@ -76,6 +76,26 @@ import org.mockito.MockedStatic;
 
 class JcefNativesTest {
 
+  private static final String EXTERNAL_LOCK_FILE = "install.lock.file";
+  private static final String NATIVE_BUNDLE_CLASS_FILE = "me/friwi/jcefmaven/CefNativeBundle.class";
+  private static final String NATIVES_ARCHIVE_SUFFIX = ".tar.gz";
+  private static final String BUILD_METADATA_FILE = "build_meta.json";
+  private static final String CACHED_NATIVES_FOLDER = "home/.mcav/cache/jcef";
+  private static final String PARTIAL_LIBRARY_FILE = "half-written.so";
+  private static final String LOCK_FILE_SUFFIX = ".lock";
+  private static final String JCEF_CACHE_FOLDER = "jcef";
+  private static final String JAR_FILE_SUFFIX = ".jar";
+  private static final String PINNED_NATIVE_DOWNLOAD_PATH =
+    "jcef-natives-linux-amd64/jcef-17e805a%2Bcef-152.0.6%2Bg708dc14%2Bchromium-152.0.7977.83/jcef-natives-linux-amd64-jcef-17e805a%2Bcef-152.0.6%2Bg708dc14%2Bchromium-152.0.7977.83.jar";
+
+  private static final String CHECKSUM_MISMATCH_MESSAGE = "The checksum does not match!";
+
+  private static final String HASH_SEPARATOR = " ";
+
+  private static final String MAC_PLATFORM_SUFFIX = "-macosx-arm64";
+
+  private static final String NATIVE_LIBRARY_TEXT = "native";
+
   private static final int KEEP_TRAILING_EMPTY_PARTS = -1;
 
   private static final String CLASS_PATH_PROPERTY = "java.class.path";
@@ -109,14 +129,14 @@ class JcefNativesTest {
   private byte[] nativesJar(final JarContent content) throws IOException {
     final ByteArrayOutputStream bytes = new ByteArrayOutputStream();
     try (final ZipOutputStream zip = new ZipOutputStream(bytes)) {
-      zip.putNextEntry(new ZipEntry("me/friwi/jcefmaven/CefNativeBundle.class"));
+      zip.putNextEntry(new ZipEntry(NATIVE_BUNDLE_CLASS_FILE));
       zip.write(new byte[] { 1, 2, 3 });
       zip.closeEntry();
       if (content == JarContent.WITH_ARCHIVE) {
-        zip.putNextEntry(new ZipEntry("jcef-natives-linux-amd64-" + JcefNatives.RELEASE_TAG + ".tar.gz"));
+        zip.putNextEntry(new ZipEntry("jcef-natives-linux-amd64-" + JcefNatives.RELEASE_TAG + NATIVES_ARCHIVE_SUFFIX));
         final InputStream archive = new ArchiveExtractorTest.Archive()
-          .file("build_meta.json", 0644, "{}")
-          .file(LIBRARY_FILE, 0755, "native")
+          .file(BUILD_METADATA_FILE, 0644, "{}")
+          .file(LIBRARY_FILE, 0755, NATIVE_LIBRARY_TEXT)
           .finish();
         archive.transferTo(zip);
         zip.closeEntry();
@@ -146,7 +166,7 @@ class JcefNativesTest {
     }
 
     if (!sha256.equals(PINNED_HASH)) {
-      final String message = "The checksum does not match!";
+      final String message = CHECKSUM_MISMATCH_MESSAGE;
       throw new IOException(message);
     }
 
@@ -159,7 +179,7 @@ class JcefNativesTest {
     try (final Stream<Path> files = Files.list(this.folder)) {
       return files
         .map(path -> path.getFileName().toString())
-        .filter(name -> !name.endsWith(".lock"))
+        .filter(name -> !name.endsWith(LOCK_FILE_SUFFIX))
         .sorted()
         .toList();
     }
@@ -248,7 +268,7 @@ class JcefNativesTest {
 
   @Test
   void shouldCreateTheCacheFolderWritableByItsOwnerOnly() throws IOException {
-    final Path cache = this.folder.resolve("home/.mcav/cache/jcef");
+    final Path cache = this.folder.resolve(CACHED_NATIVES_FOLDER);
     final Path installation = this.natives(this.nativesJar(JarContent.WITH_ARCHIVE), cache).install(PLATFORM, PINNED_HASH, PINNED_SIZE);
     assertEquals(cache.resolve(INSTALLATION_PREFIX + JcefNatives.JCEFMAVEN_VERSION + PLATFORM_SUFFIX), installation);
 
@@ -268,7 +288,7 @@ class JcefNativesTest {
     assertEquals(this.folder.resolve(INSTALLATION_PREFIX + JcefNatives.JCEFMAVEN_VERSION + PLATFORM_SUFFIX), installation);
 
     final String libraryContent = Files.readString(installation.resolve(LIBRARY_FILE));
-    assertEquals("native", libraryContent);
+    assertEquals(NATIVE_LIBRARY_TEXT, libraryContent);
 
     final boolean markerPresent = Files.isRegularFile(installation.resolve(JcefNatives.INSTALL_MARKER));
     assertTrue(markerPresent);
@@ -279,13 +299,7 @@ class JcefNativesTest {
     }
 
     final URI firstRequest = this.requested.getFirst();
-    assertEquals(
-      URI.create(
-        REPOSITORY +
-          "jcef-natives-linux-amd64/jcef-17e805a%2Bcef-152.0.6%2Bg708dc14%2Bchromium-152.0.7977.83/jcef-natives-linux-amd64-jcef-17e805a%2Bcef-152.0.6%2Bg708dc14%2Bchromium-152.0.7977.83.jar"
-      ),
-      firstRequest
-    );
+    assertEquals(URI.create(REPOSITORY + PINNED_NATIVE_DOWNLOAD_PATH), firstRequest);
 
     final List<String> leftoverNames = this.leftovers();
     assertEquals(List.of(installation.getFileName().toString()), leftoverNames, "the jar and the staging folder are gone");
@@ -341,17 +355,17 @@ class JcefNativesTest {
     );
     natives.install(JcefNatives.NativePlatform.MACOS_ARM64);
     final JcefNatives.NativePlatform mac = JcefNatives.NativePlatform.MACOS_ARM64;
-    assertEquals(List.of(mac.getSha256() + " " + mac.getSize()), hashes);
+    assertEquals(List.of(mac.getSha256() + HASH_SEPARATOR + mac.getSize()), hashes);
 
     final boolean macArm64Installed = Files.isDirectory(
-      this.folder.resolve(INSTALLATION_PREFIX + JcefNatives.JCEFMAVEN_VERSION + "-macosx-arm64")
+      this.folder.resolve(INSTALLATION_PREFIX + JcefNatives.JCEFMAVEN_VERSION + MAC_PLATFORM_SUFFIX)
     );
     assertTrue(macArm64Installed);
   }
 
   private void recordHashAndWriteNatives(final List<String> hashes, final Path destination, final String sha256, final long size)
     throws IOException {
-    hashes.add(sha256 + " " + size);
+    hashes.add(sha256 + HASH_SEPARATOR + size);
     Files.write(destination, this.nativesJar(JarContent.WITH_ARCHIVE));
   }
 
@@ -379,9 +393,9 @@ class JcefNativesTest {
   void shouldReplaceAPartialInstallationWithoutItsMarker() throws IOException {
     final Path partial = this.folder.resolve(INSTALLATION_PREFIX + JcefNatives.JCEFMAVEN_VERSION + PLATFORM_SUFFIX);
     Files.createDirectories(partial);
-    Files.writeString(partial.resolve("half-written.so"), "?");
+    Files.writeString(partial.resolve(PARTIAL_LIBRARY_FILE), "?");
     final Path installation = this.natives(this.nativesJar(JarContent.WITH_ARCHIVE)).install(PLATFORM, PINNED_HASH, PINNED_SIZE);
-    final boolean halfWrittenLeft = Files.exists(installation.resolve("half-written.so"));
+    final boolean halfWrittenLeft = Files.exists(installation.resolve(PARTIAL_LIBRARY_FILE));
     assertFalse(halfWrittenLeft);
 
     final boolean libraryPresent = Files.exists(installation.resolve(LIBRARY_FILE));
@@ -393,7 +407,7 @@ class JcefNativesTest {
     final JcefNatives natives = this.natives(this.nativesJar(JarContent.WITH_ARCHIVE));
     final IOException failure = assertThrows(IOException.class, () -> natives.install(PLATFORM, "tampered", PINNED_SIZE));
     final String message = failure.getMessage();
-    assertEquals("The checksum does not match!", message);
+    assertEquals(CHECKSUM_MISMATCH_MESSAGE, message);
 
     final List<String> leftoverNames = this.leftovers();
     assertEquals(List.of(), leftoverNames);
@@ -554,7 +568,7 @@ class JcefNativesTest {
   @Test
   void shouldFailTheInstallationClearlyWhenAnotherCopyOfMcavInThisJvmHoldsTheLock() throws IOException {
     final JcefNatives natives = this.natives(this.nativesJar(JarContent.WITH_ARCHIVE));
-    final Path lockFile = this.folder.resolve(INSTALLATION_PREFIX + JcefNatives.JCEFMAVEN_VERSION + PLATFORM_SUFFIX + ".lock");
+    final Path lockFile = this.folder.resolve(INSTALLATION_PREFIX + JcefNatives.JCEFMAVEN_VERSION + PLATFORM_SUFFIX + LOCK_FILE_SUFFIX);
     try (
       final FileChannel channel = FileChannel.open(lockFile, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
       final FileLock held = channel.lock()
@@ -586,12 +600,12 @@ class JcefNativesTest {
   @Test
   void shouldKeepTheNativesInTheCacheOfMcavByDefault() {
     final Path defaultFolder = new JcefNatives().getFolder();
-    assertEquals(IoUtils.getCachedFolder().resolve("jcef"), defaultFolder);
+    assertEquals(IoUtils.getCachedFolder().resolve(JCEF_CACHE_FOLDER), defaultFolder);
   }
 
   @Test
   void shouldHoldTheLockOfAnInstallationUntilItIsReleased() throws IOException {
-    final Path file = this.folder.resolve("install.lock.file");
+    final Path file = this.folder.resolve(EXTERNAL_LOCK_FILE);
     try (
       final FileChannel channel = FileChannel.open(file, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
       final FileLock lock = JcefNatives.lock(channel)
@@ -608,10 +622,10 @@ class JcefNativesTest {
   void shouldPinTheNativesOfTheJcefOnTheClassPath() {
     // the natives and the Java side of JCEF must be of one release: bump the catalog and the pins together
     final String classPath = System.getProperty(CLASS_PATH_PROPERTY);
-    final boolean namesTheJcefApiJar = classPath.contains("jcef-api-" + JcefNatives.RELEASE_TAG + ".jar");
+    final boolean namesTheJcefApiJar = classPath.contains("jcef-api-" + JcefNatives.RELEASE_TAG + JAR_FILE_SUFFIX);
     assertTrue(namesTheJcefApiJar, classPath);
 
-    final boolean namesTheJcefmavenJar = classPath.contains("jcefmaven-" + JcefNatives.JCEFMAVEN_VERSION + ".jar");
+    final boolean namesTheJcefmavenJar = classPath.contains("jcefmaven-" + JcefNatives.JCEFMAVEN_VERSION + JAR_FILE_SUFFIX);
     assertTrue(namesTheJcefmavenJar, classPath);
   }
 

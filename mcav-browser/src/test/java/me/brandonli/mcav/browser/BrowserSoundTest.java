@@ -49,6 +49,22 @@ import org.junit.jupiter.api.Test;
 @Tag("cef")
 class BrowserSoundTest {
 
+  private static final int TARGET_MINIMUM_SOUND_DELAY_MILLISECONDS = -40;
+  private static final int ACCEPTABLE_MINIMUM_SOUND_DELAY_MILLISECONDS = -90;
+  private static final long POLL_PAUSE_MILLISECONDS = 50L;
+  private static final long SOUND_OBSERVATION_MILLISECONDS = 2_000L;
+  private static final int TARGET_MAXIMUM_SOUND_DELAY_MILLISECONDS = 80;
+  private static final int ACCEPTABLE_MAXIMUM_SOUND_DELAY_MILLISECONDS = 185;
+
+  private static final String PROCESS_SEPARATOR = " ";
+
+  private static final String MOUSE_DOWN_EVENT = "mousedown";
+  private static final String SIZE_EVENT = "size";
+  private static final String FREQUENCY_UNIT = " Hz";
+
+  private static final String PAGE_SIZE_MESSAGE = "the page reported its size";
+  private static final String TWO_SECONDS_OF_SOUND_MESSAGE = "two seconds of sound";
+
   private static final String HALF_VOLUME_TONE_PATH = TestPages.TONE_ELEMENT_PATH + "?volume=0.5";
   private static final String MUTED_TONE_PATH = TestPages.TONE_ELEMENT_PATH + "?muted=1";
 
@@ -96,7 +112,7 @@ class BrowserSoundTest {
     try (final Stream<ProcessHandle> all = ProcessHandle.allProcesses()) {
       final List<String> stray = all
         .filter(handle -> handle.info().command().orElse("").contains("jcef"))
-        .map(handle -> handle.pid() + " " + handle.info().command().orElse(""))
+        .map(handle -> handle.pid() + PROCESS_SEPARATOR + handle.info().command().orElse(""))
         .toList();
       if (!stray.isEmpty()) {
         System.out.println("CEF processes on this machine after the test: " + stray);
@@ -116,7 +132,7 @@ class BrowserSoundTest {
         () -> what + " arrived, only " + recording.size() + " bytes did; the page reported " + this.soundReports()
       );
 
-      Thread.sleep(50L);
+      Thread.sleep(POLL_PAUSE_MILLISECONDS);
     }
   }
 
@@ -124,8 +140,8 @@ class BrowserSoundTest {
     final List<String> reports = new ArrayList<>();
     for (final TestPages.PageEvent event : this.pages.getEvents()) {
       final String type = event.getType();
-      if (type.equals("state") || type.equals("time") || type.equals("play") || type.equals("mousedown")) {
-        reports.add(type + " " + event.getKey());
+      if (type.equals("state") || type.equals("time") || type.equals("play") || type.equals(MOUSE_DOWN_EVENT)) {
+        reports.add(type + PROCESS_SEPARATOR + event.getKey());
       }
     }
 
@@ -136,7 +152,7 @@ class BrowserSoundTest {
     final boolean started = player.start(BrowserSource.uri(this.pages.uri(path), WIDTH, HEIGHT, 1));
     assertTrue(started);
 
-    Await.until("the page reported its size", () -> this.pages.count("size") > 0);
+    Await.until(PAGE_SIZE_MESSAGE, () -> this.pages.count(SIZE_EVENT) > 0);
     this.startClicking(player);
   }
 
@@ -147,13 +163,13 @@ class BrowserSoundTest {
     final boolean started = player.start(BrowserSource.uri(this.pages.uri(TestPages.TONE_PATH), WIDTH, HEIGHT, 1));
     assertTrue(started);
 
-    Await.until("the page reported its size", () -> this.pages.count("size") > 0);
-    Thread.sleep(2_000L);
+    Await.until(PAGE_SIZE_MESSAGE, () -> this.pages.count(SIZE_EVENT) > 0);
+    Thread.sleep(SOUND_OBSERVATION_MILLISECONDS);
     final int recordedByteCount = recording.size();
     assertEquals(0, recordedByteCount, "no sound before the first click");
 
     this.startClicking(player);
-    this.awaitSound(recording, 2 * AudioFilter.SAMPLE_RATE * AudioFilter.FRAME_SIZE, "two seconds of sound");
+    this.awaitSound(recording, 2 * AudioFilter.SAMPLE_RATE * AudioFilter.FRAME_SIZE, TWO_SECONDS_OF_SOUND_MESSAGE);
     final short[] left = recording.left();
     final int start = left.length - AudioFilter.SAMPLE_RATE;
     final double frequency = this.zeroCrossings(left, start) / 2.0;
@@ -169,7 +185,7 @@ class BrowserSoundTest {
       AudioFilter.SAMPLE_RATE / WINDOW_FRAMES
     );
     final boolean atTheToneFrequency = Math.abs(frequency - TestPages.TONE_HERTZ) < FREQUENCY_TOLERANCE_HERTZ;
-    assertTrue(atTheToneFrequency, "the tone has " + frequency + " Hz");
+    assertTrue(atTheToneFrequency, "the tone has " + frequency + FREQUENCY_UNIT);
 
     final boolean toneHolds = held > ((AudioFilter.SAMPLE_RATE / WINDOW_FRAMES) * 9) / 10;
     assertTrue(toneHolds, "the tone holds in " + held + " windows");
@@ -181,14 +197,14 @@ class BrowserSoundTest {
 
   // Chromium ignores clicks for a moment after a page appears
   private void startClicking(final BrowserPlayer player) {
-    final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(20);
-    while (this.pages.count("mousedown") == 0) {
+    final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(FREQUENCY_TOLERANCE_HERTZ);
+    while (this.pages.count(MOUSE_DOWN_EVENT) == 0) {
       final boolean beforeDeadline = System.nanoTime() < deadline;
       assertTrue(beforeDeadline, "the page never took a click");
 
       player.sendMouseEvent(MouseClick.LEFT, 10, 10);
       final long probeEnd = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(250);
-      while (this.pages.count("mousedown") == 0 && System.nanoTime() < probeEnd) {
+      while (this.pages.count(MOUSE_DOWN_EVENT) == 0 && System.nanoTime() < probeEnd) {
         Thread.onSpinWait();
       }
     }
@@ -205,16 +221,16 @@ class BrowserSoundTest {
     final int wrappedNodeCount = this.pages.getEvents("taps").getFirst().getX();
     assertEquals(0, wrappedNodeCount, "no node of the capture passed the page's wrappers");
 
-    Thread.sleep(2_000L);
+    Thread.sleep(SOUND_OBSERVATION_MILLISECONDS);
     final int recordedByteCount = recording.size();
     assertEquals(0, recordedByteCount, "no sound before the first click, neither played nor forged");
 
     this.startClicking(player);
-    this.awaitSound(recording, 2 * AudioFilter.SAMPLE_RATE * AudioFilter.FRAME_SIZE, "two seconds of sound");
+    this.awaitSound(recording, 2 * AudioFilter.SAMPLE_RATE * AudioFilter.FRAME_SIZE, TWO_SECONDS_OF_SOUND_MESSAGE);
     final short[] left = recording.left();
     final double frequency = this.zeroCrossings(left, left.length - AudioFilter.SAMPLE_RATE) / 2.0;
     final boolean atTheToneFrequency = Math.abs(frequency - TestPages.TONE_HERTZ) < FREQUENCY_TOLERANCE_HERTZ;
-    assertTrue(atTheToneFrequency, "after the click the page's own tone plays: " + frequency + " Hz");
+    assertTrue(atTheToneFrequency, "after the click the page's own tone plays: " + frequency + FREQUENCY_UNIT);
   }
 
   @Test
@@ -225,7 +241,7 @@ class BrowserSoundTest {
     assertTrue(started);
 
     this.awaitSound(recording, AudioFilter.SAMPLE_RATE * AudioFilter.FRAME_SIZE, "a second of sound nobody clicked for");
-    final int clickCount = this.pages.count("mousedown");
+    final int clickCount = this.pages.count(MOUSE_DOWN_EVENT);
     assertEquals(0, clickCount, "nobody clicked the page");
   }
 
@@ -284,7 +300,7 @@ class BrowserSoundTest {
     final int halfCount = offsets.size() / 2;
     final double firstHalf = this.median(offsets.subList(0, halfCount));
     final double secondHalf = this.median(offsets.subList(halfCount, offsets.size()));
-    final long within = judgement.within(-40, 80);
+    final long within = judgement.within(TARGET_MINIMUM_SOUND_DELAY_MILLISECONDS, TARGET_MAXIMUM_SOUND_DELAY_MILLISECONDS);
     System.out.printf(
       Locale.ROOT,
       "A/V sync: %d changes matched of %d, sound minus picture: median %.1f ms, p5 %.1f ms, p95 %.1f ms, %d within [-40, +80] ms; first half %.1f ms, second half %.1f ms%n",
@@ -298,13 +314,14 @@ class BrowserSoundTest {
       secondHalf
     );
     // ITU-R BT.1359: sound may lead the picture by 90 ms and lag it by 185 ms
-    final long acceptable = judgement.within(-90, 185);
+    final long acceptable = judgement.within(ACCEPTABLE_MINIMUM_SOUND_DELAY_MILLISECONDS, ACCEPTABLE_MAXIMUM_SOUND_DELAY_MILLISECONDS);
     System.out.printf(Locale.ROOT, "A/V sync: %d of %d within ITU-R BT.1359 acceptability [-90, +185] ms%n", acceptable, changes);
     final boolean mostChangesMatched = offsets.size() >= Math.ceil(changes * 0.9);
     assertTrue(mostChangesMatched, "matched " + offsets.size() + " of " + changes + " changes of the picture");
 
     final double middle = this.median(sorted);
-    final boolean togetherInTheMiddle = middle >= -40 && middle <= 80;
+    final boolean togetherInTheMiddle =
+      middle >= TARGET_MINIMUM_SOUND_DELAY_MILLISECONDS && middle <= TARGET_MAXIMUM_SOUND_DELAY_MILLISECONDS;
     assertTrue(togetherInTheMiddle, "the sound and the picture arrive together in the middle: " + middle);
 
     final boolean mostChangesWithinTarget = within >= Math.ceil(changes * 0.95);
@@ -348,22 +365,24 @@ class BrowserSoundTest {
     for (int change = 0; change < 50; change++) {
       final long shown = TimeUnit.MILLISECONDS.toNanos(800L * change);
       picture.add(shown);
-      sound.add(shown + TimeUnit.MILLISECONDS.toNanos(change < 10 ? 20 : 300));
+      sound.add(shown + TimeUnit.MILLISECONDS.toNanos(change < 10 ? FREQUENCY_TOLERANCE_HERTZ : 300));
     }
 
     final SyncJudgement late = SyncJudgement.of(picture, sound, TimeUnit.MILLISECONDS.toNanos(400));
     final int lateChanges = late.changes();
     assertEquals(50, lateChanges);
 
-    final boolean lateOutOfSync = late.within(-90, 185) < Math.ceil(late.changes() * 0.9);
+    final boolean lateOutOfSync =
+      late.within(ACCEPTABLE_MINIMUM_SOUND_DELAY_MILLISECONDS, ACCEPTABLE_MAXIMUM_SOUND_DELAY_MILLISECONDS) <
+      Math.ceil(late.changes() * 0.9);
     assertTrue(lateOutOfSync, "40 of 50 changes 300 ms late are not in sync");
 
     final List<Long> onTime = picture
       .stream()
-      .map(shown -> shown + TimeUnit.MILLISECONDS.toNanos(20))
+      .map(shown -> shown + TimeUnit.MILLISECONDS.toNanos(FREQUENCY_TOLERANCE_HERTZ))
       .toList();
     final SyncJudgement inSync = SyncJudgement.of(picture, onTime, TimeUnit.MILLISECONDS.toNanos(400));
-    final long changesWithinTarget = inSync.within(-40, 80);
+    final long changesWithinTarget = inSync.within(TARGET_MINIMUM_SOUND_DELAY_MILLISECONDS, TARGET_MAXIMUM_SOUND_DELAY_MILLISECONDS);
     assertEquals(50, changesWithinTarget);
   }
 

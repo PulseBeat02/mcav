@@ -28,6 +28,9 @@ import org.junit.jupiter.api.Tag;
 @Tag("fuzz")
 final class PageAudioFuzzTest {
 
+  private static final String BASE64_ONLY_MESSAGE = "the payload is Base64 and nothing else";
+  private static final String LENGTH_ACCEPTED_MESSAGE = "sound is never refused for its length";
+
   private static final String PREFIX = "{\"name\":\"%s\",\"payload\":\"".formatted(PageAudio.BINDING);
 
   // the first byte picks the event, odd for a call of a binding; the rest is its parameters
@@ -50,10 +53,10 @@ final class PageAudioFuzzTest {
 
       final String payload = parameters.substring(PREFIX.length(), parameters.indexOf('"', PREFIX.length()));
       final boolean base64Only = payload.chars().allMatch(this::isBase64);
-      assertTrue(base64Only, "the payload is Base64 and nothing else");
+      assertTrue(base64Only, BASE64_ONLY_MESSAGE);
 
       final boolean longEnough = PageAudio.leastBytes(parameters) <= chunk.samples().length;
-      assertTrue(longEnough, "sound is never refused for its length");
+      assertTrue(longEnough, LENGTH_ACCEPTED_MESSAGE);
     }
   }
 
@@ -64,14 +67,14 @@ final class PageAudioFuzzTest {
     final PageAudio.Chunk chunk = PageAudio.parse(PageAudio.BINDING_EVENT, parameters);
     if (chunk != null) {
       final boolean longEnough = PageAudio.leastBytes(parameters) <= chunk.samples().length;
-      assertTrue(longEnough, "sound is never refused for its length");
+      assertTrue(longEnough, LENGTH_ACCEPTED_MESSAGE);
 
       this.check(chunk.samples());
       final boolean contextMatches = chunk.context() == 1;
       assertTrue(contextMatches, "the context is the one of the call");
 
       final boolean base64Only = payload.chars().allMatch(this::isBase64);
-      assertTrue(base64Only, "the payload is Base64 and nothing else");
+      assertTrue(base64Only, BASE64_ONLY_MESSAGE);
 
       final byte[] decoded = Base64.getDecoder().decode(payload);
       final boolean samplesArePayload = Arrays.equals(chunk.samples(), decoded);

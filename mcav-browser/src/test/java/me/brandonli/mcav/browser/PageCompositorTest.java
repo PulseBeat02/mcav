@@ -33,6 +33,13 @@ import org.junit.jupiter.api.Test;
 
 class PageCompositorTest {
 
+  private static final int CHANNEL_MASK = 0xFF;
+  private static final int FULL_CHANNEL = 255;
+  private static final int POPUP_BLUE = 200;
+
+  private static final long DAMAGE_TIMEOUT_MILLISECONDS = 10_000L;
+  private static final long CLOSE_WAIT_TIMEOUT_MILLISECONDS = 60_000L;
+
   private static final int WIDTH = 8;
   private static final int HEIGHT = 6;
 
@@ -57,7 +64,7 @@ class PageCompositorTest {
         buffer.put((byte) value);
         buffer.put((byte) column);
         buffer.put((byte) row);
-        buffer.put((byte) 255);
+        buffer.put((byte) FULL_CHANNEL);
       }
     }
 
@@ -68,7 +75,7 @@ class PageCompositorTest {
 
   private int pixel(final FrameRegion region, final int column, final int row, final int channel) {
     final int offset = ((row - region.getY()) * region.getWidth() + (column - region.getX())) * 4 + channel;
-    return region.getPixels()[offset] & 0xFF;
+    return region.getPixels()[offset] & CHANNEL_MASK;
   }
 
   private FrameRegion takeNow(final PageCompositor compositor) {
@@ -127,7 +134,7 @@ class PageCompositorTest {
     assertEquals(4, row);
 
     final int untouchedValue = this.pixel(region, 3, 2, 0);
-    assertEquals(255, untouchedValue);
+    assertEquals(FULL_CHANNEL, untouchedValue);
 
     final @Nullable FrameRegion nextDamage = compositor.takeDamage(new byte[compositor.getPageBytes()], 0L);
     assertNull(nextDamage);
@@ -178,7 +185,9 @@ class PageCompositorTest {
   void shouldWakeAWaitingTakerWhenDamageBecomesDue() throws Exception {
     final PageCompositor compositor = new PageCompositor(WIDTH, HEIGHT, 1, SETTLE_MILLISECONDS, System::nanoTime);
     final byte[] target = new byte[compositor.getPageBytes()];
-    final CompletableFuture<FrameRegion> taken = CompletableFuture.supplyAsync(() -> this.awaitDamage(compositor, target, 10_000L));
+    final CompletableFuture<FrameRegion> taken = CompletableFuture.supplyAsync(() ->
+      this.awaitDamage(compositor, target, DAMAGE_TIMEOUT_MILLISECONDS)
+    );
     Thread.sleep(TAKER_START_MILLISECONDS);
     compositor.onPaint(false, new Rectangle[] { new Rectangle(0, 0, 1, 1) }, this.buffer(WIDTH, HEIGHT, 5), WIDTH, HEIGHT);
     final FrameRegion region = taken.get(10, TimeUnit.SECONDS);
@@ -202,7 +211,7 @@ class PageCompositorTest {
     final PageCompositor compositor = new PageCompositor(WIDTH, HEIGHT, 5, 60L, System::nanoTime);
     compositor.onPaint(false, new Rectangle[] { new Rectangle(0, 0, 1, 1) }, this.buffer(WIDTH, HEIGHT, 6), WIDTH, HEIGHT);
     final long start = System.nanoTime();
-    final FrameRegion region = compositor.takeDamage(new byte[compositor.getPageBytes()], 10_000L);
+    final FrameRegion region = compositor.takeDamage(new byte[compositor.getPageBytes()], DAMAGE_TIMEOUT_MILLISECONDS);
     final long waited = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
     assertNotNull(region);
 
@@ -215,7 +224,7 @@ class PageCompositorTest {
     final AtomicLong reads = new AtomicLong();
     final PageCompositor compositor = new PageCompositor(WIDTH, HEIGHT, 5, 300L, () -> this.readNanoseconds(reads));
     compositor.onPaint(false, new Rectangle[] { new Rectangle(0, 0, 1, 1) }, this.buffer(WIDTH, HEIGHT, 6), WIDTH, HEIGHT);
-    final FrameRegion region = compositor.takeDamage(new byte[compositor.getPageBytes()], 10_000L);
+    final FrameRegion region = compositor.takeDamage(new byte[compositor.getPageBytes()], DAMAGE_TIMEOUT_MILLISECONDS);
     assertNotNull(region);
 
     // a spinning taker waits a millisecond per pass, about 300 passes
@@ -241,7 +250,9 @@ class PageCompositorTest {
   void shouldWakeAWaitingTakerWithNothingOnClose() throws Exception {
     final PageCompositor compositor = new PageCompositor(WIDTH, HEIGHT, 1, SETTLE_MILLISECONDS, System::nanoTime);
     final byte[] target = new byte[compositor.getPageBytes()];
-    final CompletableFuture<FrameRegion> taken = CompletableFuture.supplyAsync(() -> this.awaitDamage(compositor, target, 60_000L));
+    final CompletableFuture<FrameRegion> taken = CompletableFuture.supplyAsync(() ->
+      this.awaitDamage(compositor, target, CLOSE_WAIT_TIMEOUT_MILLISECONDS)
+    );
     Thread.sleep(TAKER_START_MILLISECONDS);
     compositor.close();
     final FrameRegion wokenDamage = taken.get(10, TimeUnit.SECONDS);
@@ -259,13 +270,13 @@ class PageCompositorTest {
     this.take(compositor);
     compositor.onPopupShow(true);
     compositor.onPopupSize(new Rectangle(2, 2, 3, 2));
-    compositor.onPaint(true, new Rectangle[] { new Rectangle(0, 0, 3, 2) }, this.buffer(3, 2, 200), 3, 2);
+    compositor.onPaint(true, new Rectangle[] { new Rectangle(0, 0, 3, 2) }, this.buffer(3, 2, POPUP_BLUE), 3, 2);
     final FrameRegion region = this.take(compositor);
     final Rectangle bounds = new Rectangle(region.getX(), region.getY(), region.getWidth(), region.getHeight());
     assertEquals(new Rectangle(2, 2, 3, 2), bounds);
 
     final int popupValue = this.pixel(region, 3, 3, 0);
-    assertEquals(200, popupValue);
+    assertEquals(POPUP_BLUE, popupValue);
 
     final int popupColumn = this.pixel(region, 3, 3, 1);
     assertEquals(1, popupColumn);
@@ -276,7 +287,7 @@ class PageCompositorTest {
     compositor.onPaint(false, new Rectangle[] { new Rectangle(0, 0, WIDTH, HEIGHT) }, this.buffer(WIDTH, HEIGHT, 9), WIDTH, HEIGHT);
     final FrameRegion whole = this.take(compositor);
     final int popupOverPage = this.pixel(whole, 2, 2, 0);
-    assertEquals(200, popupOverPage);
+    assertEquals(POPUP_BLUE, popupOverPage);
 
     final int pageValue = this.pixel(whole, 0, 0, 0);
     assertEquals(9, pageValue);
@@ -286,7 +297,7 @@ class PageCompositorTest {
   void shouldShowThePageAloneForDamageBesideAnOpenPopup() throws InterruptedException {
     final PageCompositor compositor = this.compositor(1);
     compositor.onPopupSize(new Rectangle(2, 2, 3, 2));
-    compositor.onPaint(true, new Rectangle[] { new Rectangle(0, 0, 3, 2) }, this.buffer(3, 2, 200), 3, 2);
+    compositor.onPaint(true, new Rectangle[] { new Rectangle(0, 0, 3, 2) }, this.buffer(3, 2, POPUP_BLUE), 3, 2);
     this.take(compositor);
     compositor.onPaint(false, new Rectangle[] { new Rectangle(0, 0, 1, 1) }, this.buffer(WIDTH, HEIGHT, 7), WIDTH, HEIGHT);
     final FrameRegion region = this.take(compositor);
@@ -375,7 +386,7 @@ class PageCompositorTest {
 
   private FrameRegion waitForDamage(final PageCompositor compositor, final byte[] target) {
     try {
-      return compositor.takeDamage(target, 60_000L);
+      return compositor.takeDamage(target, CLOSE_WAIT_TIMEOUT_MILLISECONDS);
     } catch (final InterruptedException exception) {
       throw new IllegalStateException(exception);
     }

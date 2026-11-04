@@ -35,6 +35,26 @@ import org.junit.jupiter.api.function.Executable;
 
 class HelperConfigurationTest {
 
+  private static final String LONG_PATH_FIRST_COMPONENT = "p";
+
+  private static final String LONG_PATH_SECOND_COMPONENT = "q";
+
+  private static final String PAGE_URL = "https://example.com/";
+  private static final String LOCAL_FILE_URL = "file:///etc/passwd";
+
+  private static final String VALUE_SEPARATOR = ":";
+
+  private static final String EXTRA_VALUE = "x";
+
+  private static final String LINE_TOO_LONG_MESSAGE = "The configuration line is too long!";
+
+  private static final int PAGE_WIDTH = 640;
+  private static final int PAGE_HEIGHT = 480;
+
+  private static final int FRAME_RATE = 45;
+
+  private static final int KIBIBYTE_BYTES = 1024;
+
   private static final int KEEP_TRAILING_EMPTY_PARTS = -1;
 
   private static final Path ROOT = Path.of("").toAbsolutePath().getRoot();
@@ -64,8 +84,8 @@ class HelperConfigurationTest {
       NATIVES,
       PROFILE,
       URI.create("https://example.com/page"),
-      640,
-      480,
+      PAGE_WIDTH,
+      PAGE_HEIGHT,
       2,
       30,
       false,
@@ -79,19 +99,19 @@ class HelperConfigurationTest {
 
   @Test
   void shouldKeepTheLongestAddressInCharactersOfThreeBytesThroughTheLine() {
-    final String start = "https://example.com/";
+    final String start = PAGE_URL;
     final URI longest = URI.create(start + "\u20ac".repeat(BrowserSource.MAXIMUM_ADDRESS_LENGTH - start.length()));
-    final Path path = NATIVES.resolve("p".repeat(255)).resolve("q".repeat(255));
+    final Path path = NATIVES.resolve(LONG_PATH_FIRST_COMPONENT.repeat(255)).resolve(LONG_PATH_SECOND_COMPONENT.repeat(255));
     final HelperConfiguration original = new HelperConfiguration(
       this.token(),
       path,
       path,
       path,
       longest,
-      640,
-      480,
+      PAGE_WIDTH,
+      PAGE_HEIGHT,
       3,
-      45,
+      FRAME_RATE,
       true,
       true,
       false,
@@ -112,10 +132,10 @@ class HelperConfigurationTest {
       NATIVES,
       PROFILE,
       URI.create("https://example.com/a?b=%20c"),
-      640,
-      480,
+      PAGE_WIDTH,
+      PAGE_HEIGHT,
       3,
-      45,
+      FRAME_RATE,
       true,
       true,
       true,
@@ -143,16 +163,16 @@ class HelperConfigurationTest {
     final URI url = read.getUrl();
     assertEquals(URI.create("https://example.com/a?b=%20c"), url);
     final int width = read.getWidth();
-    assertEquals(640, width);
+    assertEquals(PAGE_WIDTH, width);
 
     final int height = read.getHeight();
-    assertEquals(480, height);
+    assertEquals(PAGE_HEIGHT, height);
 
     final int frameInterval = read.getFrameInterval();
     assertEquals(3, frameInterval);
 
     final int frameRate = read.getFrameRate();
-    assertEquals(45, frameRate);
+    assertEquals(FRAME_RATE, frameRate);
 
     final boolean keptJavaScriptJit = read.isJavaScriptJit();
     assertTrue(keptJavaScriptJit);
@@ -220,13 +240,13 @@ class HelperConfigurationTest {
 
   @Test
   void shouldCheckEveryValue() {
-    final URI page = URI.create("https://example.com/");
+    final URI page = URI.create(PAGE_URL);
     assertThrows(IllegalArgumentException.class, () -> this.configurationWithToken(new byte[1], page));
     assertThrows(IllegalArgumentException.class, () -> this.configurationWithPaths(RELATIVE_PATH, NATIVES, PROFILE, page));
     assertThrows(IllegalArgumentException.class, () -> this.configurationWithPaths(SOCKET, RELATIVE_PATH, PROFILE, page));
     assertThrows(IllegalArgumentException.class, () -> this.configurationWithPaths(SOCKET, NATIVES, RELATIVE_PATH, page));
 
-    final URI file = URI.create("file:///etc/passwd");
+    final URI file = URI.create(LOCAL_FILE_URL);
     assertThrows(IllegalArgumentException.class, () -> this.configurationOf(file, 1, 1, 1, 1));
     assertThrows(IllegalArgumentException.class, () -> this.configurationOf(page, 0, 1, 1, 1));
     assertThrows(IllegalArgumentException.class, () -> this.configurationOf(page, 4097, 1, 1, 1));
@@ -337,18 +357,18 @@ class HelperConfigurationTest {
     final String[] parts = this.parts(this.configuration());
     parts[index] = this.encode(value);
 
-    return String.join(":", parts);
+    return String.join(VALUE_SEPARATOR, parts);
   }
 
   @Test
   void shouldRefuseALineWithTooFewOrTooManyValues() {
     final String[] parts = this.parts(this.configuration());
-    final String missing = String.join(":", Arrays.copyOf(parts, parts.length - 1));
+    final String missing = String.join(VALUE_SEPARATOR, Arrays.copyOf(parts, parts.length - 1));
     final IllegalArgumentException tooFew = assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(missing));
     final String message = tooFew.getMessage();
     assertEquals("The configuration has 14 values instead of 15 values!", message);
 
-    final String extra = this.configuration().toLine() + ":" + this.encode("x");
+    final String extra = this.configuration().toLine() + VALUE_SEPARATOR + this.encode(EXTRA_VALUE);
     assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(extra));
   }
 
@@ -361,31 +381,31 @@ class HelperConfigurationTest {
     assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(this.withValue(14, "mc.example.com,,10.0.0.1")));
     assertThrows(NumberFormatException.class, () -> HelperConfiguration.fromLine(this.withValue(5, "wide")));
     assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(this.withValue(0, "zz")));
-    assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(this.withValue(4, "file:///etc/passwd")));
+    assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(this.withValue(4, LOCAL_FILE_URL)));
     final String[] invalidEncoding = this.parts(this.configuration());
 
     invalidEncoding[3] = "!" + invalidEncoding[3];
-    final String line = String.join(":", invalidEncoding);
+    final String line = String.join(VALUE_SEPARATOR, invalidEncoding);
     final IllegalArgumentException malformed = assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(line));
     final String malformedMessage = malformed.getMessage();
     assertEquals("Illegal base64 character 21", malformedMessage);
 
-    final String tooLong = "A".repeat(1024 * 1024 + 1);
+    final String tooLong = "A".repeat(KIBIBYTE_BYTES * KIBIBYTE_BYTES + 1);
     final IllegalArgumentException longLine = assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(tooLong));
     final String longLineMessage = longLine.getMessage();
-    assertEquals("The configuration line is too long!", longLineMessage);
+    assertEquals(LINE_TOO_LONG_MESSAGE, longLineMessage);
   }
 
   @Test
   void shouldReadALineOfTheLongestLengthAndThenJudgeItByItsValues() {
-    final String longest = "x".repeat(1024 * 1024);
+    final String longest = EXTRA_VALUE.repeat(KIBIBYTE_BYTES * KIBIBYTE_BYTES);
     final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(longest));
     final boolean countsTheValues = failure.getMessage().startsWith("The configuration has 1 values instead of ");
     assertTrue(countsTheValues, failure.getMessage());
 
-    final String longerLine = longest + "x";
+    final String longerLine = longest + EXTRA_VALUE;
     final IllegalArgumentException tooLong = assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(longerLine));
     final String message = tooLong.getMessage();
-    assertEquals("The configuration line is too long!", message);
+    assertEquals(LINE_TOO_LONG_MESSAGE, message);
   }
 }

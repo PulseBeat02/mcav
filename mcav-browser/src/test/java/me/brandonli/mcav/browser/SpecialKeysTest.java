@@ -33,6 +33,8 @@ import org.junit.jupiter.api.Test;
 
 class SpecialKeysTest {
 
+  private static final String EMPTY_LIST_MESSAGE = "The key list resource mcav/browser/keybinds.json is empty!";
+
   @Test
   void shouldPressTheW3cKeyNames() {
     for (final String key : new String[] { "Enter", "Backspace", "ArrowLeft", "PageDown", " ", "F12", "MediaPlayPause" }) {
@@ -59,14 +61,14 @@ class SpecialKeysTest {
   void shouldRefuseAnEmptyList() {
     final BrowserException failure = assertThrows(BrowserException.class, () -> SpecialKeys.parse(new StringReader("")));
     final String message = failure.getMessage();
-    assertEquals("The key list resource mcav/browser/keybinds.json is empty!", message);
+    assertEquals(EMPTY_LIST_MESSAGE, message);
   }
 
   @Test
   void shouldRefuseAnEmptyJsonList() {
     final BrowserException failure = assertThrows(BrowserException.class, () -> SpecialKeys.parse(new StringReader("[]")));
     final String message = failure.getMessage();
-    assertEquals("The key list resource mcav/browser/keybinds.json is empty!", message);
+    assertEquals(EMPTY_LIST_MESSAGE, message);
   }
 
   @Test

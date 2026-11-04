@@ -53,6 +53,19 @@ import org.mockito.ArgumentMatchers;
 
 class ContentPolicyTest {
 
+  private static final String DOWNLOAD_FILE = "evil.exe";
+
+  private static final String LOCAL_FILE_URL = "file:///etc/passwd";
+  private static final String TAB_URL = "http://example.com/tab";
+  private static final String PAGE_URL = "https://example.com/";
+  private static final String BLANK_PAGE_URL = "about:blank";
+  private static final String RESOURCE_URL = "https://a/";
+
+  private static final String ABORTED_REASON = "aborted";
+
+  private static final String NOT_LOADING_EVENT = "loading: false";
+  private static final String PAGE_START_EVENT = "page start";
+
   private final RecordingEvents events = new RecordingEvents();
   private final List<CefBrowser> prepared = new ArrayList<>();
   private final ContentPolicy policy = new ContentPolicy(this.events, "146.0.10 (Chromium 146)", this.prepared::add);
@@ -83,7 +96,7 @@ class ContentPolicyTest {
 
   @Test
   void shouldRefuseAPopupToAnotherScheme() {
-    final boolean popupCancelled = this.policy.onBeforePopup(this.browser, this.frame(FrameKind.MAIN), "file:///etc/passwd", "");
+    final boolean popupCancelled = this.policy.onBeforePopup(this.browser, this.frame(FrameKind.MAIN), LOCAL_FILE_URL, "");
     assertTrue(popupCancelled);
     verify(this.browser, never()).loadURL(ArgumentMatchers.anyString());
     assertEquals(List.of("notice: The new window file:///etc/passwd was refused."), this.events.log);
@@ -91,14 +104,14 @@ class ContentPolicyTest {
 
   @Test
   void shouldOpenALinkForANewTabInPlaceToo() {
-    final boolean tabCancelled = this.policy.onOpenURLFromTab(this.browser, this.frame(FrameKind.MAIN), "http://example.com/tab", true);
+    final boolean tabCancelled = this.policy.onOpenURLFromTab(this.browser, this.frame(FrameKind.MAIN), TAB_URL, true);
     assertTrue(tabCancelled);
-    verify(this.browser).loadURL("http://example.com/tab");
+    verify(this.browser).loadURL(TAB_URL);
   }
 
   @Test
   void shouldCancelANewTabWithoutAClickOrAKey() {
-    final boolean tabCancelled = this.policy.onOpenURLFromTab(this.browser, this.frame(FrameKind.MAIN), "http://example.com/tab", false);
+    final boolean tabCancelled = this.policy.onOpenURLFromTab(this.browser, this.frame(FrameKind.MAIN), TAB_URL, false);
     assertTrue(tabCancelled);
     verify(this.browser, never()).loadURL(ArgumentMatchers.anyString());
   }
@@ -128,7 +141,7 @@ class ContentPolicyTest {
     final boolean httpsCancelled = this.policy.onBeforeBrowse(
       this.browser,
       this.frame(FrameKind.MAIN),
-      this.request("https://example.com/"),
+      this.request(PAGE_URL),
       true,
       false
     );
@@ -137,7 +150,7 @@ class ContentPolicyTest {
     final boolean fileCancelled = this.policy.onBeforeBrowse(
       this.browser,
       this.frame(FrameKind.MAIN),
-      this.request("file:///etc/passwd"),
+      this.request(LOCAL_FILE_URL),
       false,
       true
     );
@@ -146,7 +159,7 @@ class ContentPolicyTest {
     final boolean blankSubframeCancelled = this.policy.onBeforeBrowse(
       this.browser,
       this.frame(FrameKind.CHILD),
-      this.request("about:blank"),
+      this.request(BLANK_PAGE_URL),
       false,
       false
     );
@@ -180,7 +193,7 @@ class ContentPolicyTest {
     final CefResourceRequestHandler resources = this.policy.getResourceRequestHandler(
       this.browser,
       this.frame(FrameKind.MAIN),
-      this.request("https://a/"),
+      this.request(RESOURCE_URL),
       true,
       false,
       "",
@@ -224,7 +237,7 @@ class ContentPolicyTest {
     final CefResourceRequestHandler first = this.policy.getResourceRequestHandler(
       this.browser,
       this.frame(FrameKind.MAIN),
-      this.request("https://a/"),
+      this.request(RESOURCE_URL),
       true,
       false,
       "",
@@ -282,7 +295,7 @@ class ContentPolicyTest {
 
     final boolean credentialsGiven = this.policy.getAuthCredentials(
       this.browser,
-      "https://a/",
+      RESOURCE_URL,
       false,
       "a",
       443,
@@ -319,7 +332,7 @@ class ContentPolicyTest {
     final CefJSDialogCallback alert = mock(CefJSDialogCallback.class);
     final boolean alertHandled = this.policy.onJSDialog(
       this.browser,
-      "https://a/",
+      RESOURCE_URL,
       CefJSDialogHandler.JSDialogType.JSDIALOGTYPE_ALERT,
       "hi",
       "",
@@ -332,7 +345,7 @@ class ContentPolicyTest {
     final CefJSDialogCallback confirm = mock(CefJSDialogCallback.class);
     final boolean confirmHandled = this.policy.onJSDialog(
       this.browser,
-      "https://a/",
+      RESOURCE_URL,
       CefJSDialogHandler.JSDialogType.JSDIALOGTYPE_CONFIRM,
       "ok?",
       "",
@@ -345,7 +358,7 @@ class ContentPolicyTest {
     final CefJSDialogCallback prompt = mock(CefJSDialogCallback.class);
     final boolean promptHandled = this.policy.onJSDialog(
       this.browser,
-      "https://a/",
+      RESOURCE_URL,
       CefJSDialogHandler.JSDialogType.JSDIALOGTYPE_PROMPT,
       "name?",
       "x",
@@ -369,7 +382,7 @@ class ContentPolicyTest {
   @Test
   void shouldRefuseAndCancelDownloads() {
     final CefBeforeDownloadCallback before = mock(CefBeforeDownloadCallback.class);
-    final boolean downloadHandled = this.policy.onBeforeDownload(this.browser, mock(CefDownloadItem.class), "evil.exe", before);
+    final boolean downloadHandled = this.policy.onBeforeDownload(this.browser, mock(CefDownloadItem.class), DOWNLOAD_FILE, before);
     assertFalse(downloadHandled);
     verifyNoInteractions(before);
 
@@ -386,7 +399,7 @@ class ContentPolicyTest {
     final boolean handled = this.policy.onBeforeDownload(
       offscreen,
       mock(CefDownloadItem.class),
-      "evil.exe",
+      DOWNLOAD_FILE,
       mock(CefBeforeDownloadCallback.class)
     );
     assertFalse(handled);
@@ -436,13 +449,13 @@ class ContentPolicyTest {
     this.policy.onLoadingStateChange(blank, true, false, false);
     when(blank.getURL()).thenReturn(null);
     this.policy.onLoadingStateChange(blank, false, false, false);
-    when(blank.getURL()).thenReturn("about:blank");
+    when(blank.getURL()).thenReturn(BLANK_PAGE_URL);
     this.policy.onLoadingStateChange(blank, true, false, false);
     this.policy.onLoadingStateChange(blank, false, false, false);
-    this.policy.onLoadError(blank, this.frame(FrameKind.MAIN), CefLoadHandler.ErrorCode.ERR_ABORTED, "aborted", "https://replaced/");
-    when(blank.getURL()).thenReturn("https://example.com/");
+    this.policy.onLoadError(blank, this.frame(FrameKind.MAIN), CefLoadHandler.ErrorCode.ERR_ABORTED, ABORTED_REASON, "https://replaced/");
+    when(blank.getURL()).thenReturn(PAGE_URL);
     this.policy.onLoadingStateChange(blank, false, false, false);
-    assertEquals(List.of("loading: false"), this.events.log);
+    assertEquals(List.of(NOT_LOADING_EVENT), this.events.log);
   }
 
   @Test
@@ -451,7 +464,13 @@ class ContentPolicyTest {
     this.policy.onLoadingStateChange(this.browser, true, false, false);
     this.policy.onLoadStart(this.browser, this.frame(FrameKind.MAIN), CefRequest.TransitionType.TT_EXPLICIT);
     this.policy.onLoadEnd(this.browser, this.frame(FrameKind.MAIN), 200);
-    this.policy.onLoadError(this.browser, this.frame(FrameKind.CHILD), CefLoadHandler.ErrorCode.ERR_ABORTED, "aborted", "https://frame/");
+    this.policy.onLoadError(
+      this.browser,
+      this.frame(FrameKind.CHILD),
+      CefLoadHandler.ErrorCode.ERR_ABORTED,
+      ABORTED_REASON,
+      "https://frame/"
+    );
     this.policy.onLoadError(
       this.browser,
       this.frame(FrameKind.MAIN),
@@ -461,7 +480,7 @@ class ContentPolicyTest {
     );
     this.policy.onLoadingStateChange(this.browser, false, true, false);
     assertEquals(
-      List.of("loading: true", "page start", "load error: -105 no such host https://x.invalid/", "loading: false"),
+      List.of("loading: true", PAGE_START_EVENT, "load error: -105 no such host https://x.invalid/", NOT_LOADING_EVENT),
       this.events.log
     );
   }
@@ -472,7 +491,7 @@ class ContentPolicyTest {
     assertEquals(List.of(), this.events.log, "a frame inside the page is part of it");
 
     this.policy.onLoadStart(this.browser, this.frame(FrameKind.MAIN), CefRequest.TransitionType.TT_LINK);
-    assertEquals(List.of("page start"), this.events.log);
+    assertEquals(List.of(PAGE_START_EVENT), this.events.log);
   }
 
   static final class RecordingEvents implements HelperEvents {
@@ -486,7 +505,7 @@ class ContentPolicyTest {
 
     @Override
     public void onPageStart() {
-      this.log.add("page start");
+      this.log.add(PAGE_START_EVENT);
     }
 
     @Override
