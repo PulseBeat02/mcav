@@ -63,6 +63,9 @@ final class PlaybackSessionFailureTest {
   private static final int FRAME_HEIGHT = 2;
   private static final long FRAME_INTERVAL_MICROSECONDS = 33_333L;
 
+  private static final String HANDLER_FAILURE_MESSAGE = "handler failed!";
+  private static final String METADATA_FAILURE_MESSAGE = "metadata failed!";
+
   @BeforeAll
   static void loadTheNativeLibrariesAheadOfTheTimedTests() {
     OpenCvNatives.load();
@@ -162,7 +165,7 @@ final class PlaybackSessionFailureTest {
   @Test
   void shouldSignalEndFromFailedAudioFactoriesEvenWhenTheirHandlerInterruptsAndThrows() throws Exception {
     final IllegalStateException opening = new IllegalStateException("audio open failed!");
-    final AssertionError reporting = new AssertionError("handler failed!");
+    final AssertionError reporting = new AssertionError(HANDLER_FAILURE_MESSAGE);
     final AtomicReference<Throwable> uncaught = new AtomicReference<>();
     final AtomicReference<Throwable> reported = new AtomicReference<>();
     final AtomicBoolean keptInterrupt = new AtomicBoolean();
@@ -218,7 +221,7 @@ final class PlaybackSessionFailureTest {
   void shouldSignalBothEndsFromFailedDecodersEvenWhenTheirHandlerInterruptsAndThrows(final Throwable failure) throws Exception {
     final ScriptedFrameGrabber real = ScriptedFrameGrabber.of();
     final ScriptedFrameGrabber video = spy(real);
-    final AssertionError reporting = new AssertionError("handler failed!");
+    final AssertionError reporting = new AssertionError(HANDLER_FAILURE_MESSAGE);
     final AtomicReference<Throwable> uncaught = new AtomicReference<>();
     final AtomicReference<Throwable> reported = new AtomicReference<>();
     doAnswer(_ -> this.captureUncaughtAndFail(uncaught, failure))
@@ -303,7 +306,7 @@ final class PlaybackSessionFailureTest {
   void shouldCloseTheAcquiredGrabberWhenTheLengthLookupFailsAndCleanupSucceeds() throws Exception {
     final ScriptedFrameGrabber real = ScriptedFrameGrabber.of();
     final ScriptedFrameGrabber video = spy(real);
-    final IllegalStateException failure = new IllegalStateException("metadata failed!");
+    final IllegalStateException failure = new IllegalStateException(METADATA_FAILURE_MESSAGE);
     when(video.getLengthInTime()).thenThrow(failure);
     final PlaybackSession playback = session(() -> video, null, (_, _) -> {});
     final IllegalStateException thrown = assertThrows(IllegalStateException.class, playback::open);
@@ -334,7 +337,7 @@ final class PlaybackSessionFailureTest {
   void shouldSupersedeARecoverableOpenFailureWithAFatalCleanup() throws Exception {
     final ScriptedFrameGrabber real = ScriptedFrameGrabber.of();
     final ScriptedFrameGrabber video = spy(real);
-    final IllegalStateException opening = new IllegalStateException("metadata failed!");
+    final IllegalStateException opening = new IllegalStateException(METADATA_FAILURE_MESSAGE);
     final OutOfMemoryError cleanup = new OutOfMemoryError("close exhausted memory!");
     when(video.getLengthInTime()).thenThrow(opening);
     doAnswer(invocation -> this.callRealMethodAndThrow(invocation, cleanup))
@@ -503,7 +506,7 @@ final class PlaybackSessionFailureTest {
     final AudioAttachableCallback sound = AudioAttachableCallback.create();
     final DimensionAttachableCallback dimensions = DimensionAttachableCallback.create();
     final IllegalStateException filterFailure = new IllegalStateException("filter failed!");
-    final AssertionError handlerFailure = new AssertionError("handler failed!");
+    final AssertionError handlerFailure = new AssertionError(HANDLER_FAILURE_MESSAGE);
     final AtomicReference<Throwable> uncaught = new AtomicReference<>();
     final AtomicReference<Throwable> reported = new AtomicReference<>();
     if (audioFailure) {

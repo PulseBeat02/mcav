@@ -74,6 +74,8 @@ final class VideoRendererTest {
 
   private static final int ROW_WIDTH = 2;
 
+  private static final String PENDING_FRAME_FIELD = "pendingFrame";
+
   private final MockVlc vlc = new MockVlc();
   private final VlcPlayer owner = this.vlc.newPlayer(1_000L);
   private final VideoRenderer renderer = new VideoRenderer(this.owner);
@@ -330,7 +332,7 @@ final class VideoRendererTest {
 
     this.display(1, 1, GREEN);
     this.renderer.setPaused(true);
-    final Field pendingField = VideoRenderer.class.getDeclaredField("pendingFrame");
+    final Field pendingField = VideoRenderer.class.getDeclaredField(PENDING_FRAME_FIELD);
     pendingField.setAccessible(true);
     final BlockingQueue<?> pending = (BlockingQueue<?>) pendingField.get(this.renderer);
     try {
@@ -363,7 +365,7 @@ final class VideoRendererTest {
     this.display(1, 1, GREEN);
     this.renderer.stop();
 
-    final Field pendingField = VideoRenderer.class.getDeclaredField("pendingFrame");
+    final Field pendingField = VideoRenderer.class.getDeclaredField(PENDING_FRAME_FIELD);
     pendingField.setAccessible(true);
     final BlockingQueue<?> pending = (BlockingQueue<?>) pendingField.get(this.renderer);
     final boolean discarded = pending.isEmpty();

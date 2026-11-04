@@ -103,6 +103,11 @@ final class PlaybackSessionTest {
 
   private static final int SOUND_COUNT = 100;
 
+  private static final int FRAMES_PAST_THE_FIRST_STRETCH = 320;
+
+  private static final String PICTURE_RELEASED_MESSAGE = "the picture was released";
+  private static final String SESSION_STOPPED_MESSAGE = "the session stopped and closed its decoder";
+
   private final VideoAttachableCallback videoCallback = VideoAttachableCallback.create();
   private final AudioAttachableCallback audioCallback = AudioAttachableCallback.create();
   private final DimensionAttachableCallback dimensionCallback = DimensionAttachableCallback.create();
@@ -1298,7 +1303,7 @@ final class PlaybackSessionTest {
 
     final boolean empty = queue.isEmpty();
     assertTrue(empty, "nobody takes frames out of the queue of a stopped session anymore");
-    assertThrows(IllegalStateException.class, picture::getWidth, "the picture was released");
+    assertThrows(IllegalStateException.class, picture::getWidth, PICTURE_RELEASED_MESSAGE);
   }
 
   @Test
@@ -1341,7 +1346,7 @@ final class PlaybackSessionTest {
 
     final boolean interrupted = Thread.interrupted();
     assertFalse(interrupted, "the interrupt was thrown, not kept");
-    assertThrows(IllegalStateException.class, picture::getWidth, "the picture was released");
+    assertThrows(IllegalStateException.class, picture::getWidth, PICTURE_RELEASED_MESSAGE);
   }
 
   // Creates a picture whose pixels are on the Java heap, where OpenCV cannot read them, so the decoder copies it into
@@ -1419,7 +1424,7 @@ final class PlaybackSessionTest {
     final PlaybackSession session = this.session(grabber, 0L, StartState.PLAYING);
     session.start();
 
-    awaitCondition("the session stopped and closed its decoder", () -> !session.isActive() && grabber.isClosed());
+    awaitCondition(SESSION_STOPPED_MESSAGE, () -> !session.isActive() && grabber.isClosed());
     assertEndedInterrupted(rendererHolder.get());
   }
 
@@ -1453,7 +1458,7 @@ final class PlaybackSessionTest {
     final PlaybackSession session = this.session(grabber, 0L, StartState.PLAYING);
     session.start();
 
-    awaitCondition("the session stopped and closed its decoder", () -> !session.isActive() && grabber.isClosed());
+    awaitCondition(SESSION_STOPPED_MESSAGE, () -> !session.isActive() && grabber.isClosed());
     assertEndedInterrupted(rendererHolder.get());
   }
 
@@ -1498,7 +1503,7 @@ final class PlaybackSessionTest {
     final AtomicInteger shown = new AtomicInteger();
     this.onVideo((_, _) -> shown.incrementAndGet() > 0);
     final List<String> reports = Collections.synchronizedList(new ArrayList<>());
-    final List<Object> script = frames(320, FRAME_MICROSECONDS);
+    final List<Object> script = frames(FRAMES_PAST_THE_FIRST_STRETCH, FRAME_MICROSECONDS);
     final ScriptedFrameGrabber grabber = new ScriptedFrameGrabber(FRAME_WIDTH, FRAME_HEIGHT, script);
     final PlaybackSession session = new PlaybackSession(
       factoryOf(grabber),
@@ -1533,7 +1538,7 @@ final class PlaybackSessionTest {
     final AtomicInteger shown = new AtomicInteger();
     this.onVideo((_, _) -> this.advanceClockByOneFrameOrASlowFrame(shown, now));
     final List<String> reports = Collections.synchronizedList(new ArrayList<>());
-    final List<Object> script = frames(320, FRAME_MICROSECONDS);
+    final List<Object> script = frames(FRAMES_PAST_THE_FIRST_STRETCH, FRAME_MICROSECONDS);
     final ScriptedFrameGrabber grabber = new ScriptedFrameGrabber(FRAME_WIDTH, FRAME_HEIGHT, script);
     final PlaybackSession session = new PlaybackSession(
       factoryOf(grabber),

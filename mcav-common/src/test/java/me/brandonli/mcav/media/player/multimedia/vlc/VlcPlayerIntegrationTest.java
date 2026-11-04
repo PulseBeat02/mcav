@@ -70,6 +70,11 @@ final class VlcPlayerIntegrationTest {
 
   private static final String MISSING_FILE_NAME = "missing.mp4";
 
+  private static final int CHANNEL_MASK = 0xFF;
+
+  private static final int RED_SHIFT = 16;
+  private static final int GREEN_SHIFT = 8;
+
   @TempDir
   private static Path directory;
 
@@ -227,9 +232,9 @@ final class VlcPlayerIntegrationTest {
 
     final int[] pixels = this.lastFrame.get();
     final int center = pixels[30 * 100 + 50];
-    final int redChannel = (center >> 16) & 0xFF;
-    final int greenChannel = (center >> 8) & 0xFF;
-    final int blueChannel = center & 0xFF;
+    final int redChannel = (center >> RED_SHIFT) & CHANNEL_MASK;
+    final int greenChannel = (center >> GREEN_SHIFT) & CHANNEL_MASK;
+    final int blueChannel = center & CHANNEL_MASK;
     final String centerHexadecimal = Integer.toHexString(center);
     final int width = this.frameWidth.get();
     final int height = this.frameHeight.get();
@@ -305,9 +310,9 @@ final class VlcPlayerIntegrationTest {
 
     final int[] finalPixels = this.lastFrame.get();
     for (final int pixel : finalPixels) {
-      final int red = (pixel >>> 16) & 0xFF;
-      final int green = (pixel >>> 8) & 0xFF;
-      final int blue = pixel & 0xFF;
+      final int red = (pixel >>> RED_SHIFT) & CHANNEL_MASK;
+      final int green = (pixel >>> GREEN_SHIFT) & CHANNEL_MASK;
+      final int blue = pixel & CHANNEL_MASK;
       final boolean pixelBlue = red <= 5 && green <= 5 && blue >= 250;
       assertTrue(pixelBlue, "the frame near four seconds is blue: " + Integer.toHexString(pixel));
     }

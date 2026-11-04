@@ -107,10 +107,19 @@ final class VlcPlayerTest {
   private static final long UNBLOCKED_JOIN_MILLISECONDS = 1_000L;
   private static final long CLEANUP_JOIN_MILLISECONDS = 7_000L;
 
+  private static final long OPEN_TIMEOUT_MILLISECONDS = 1_000L;
+
   private static final int PLAYERS_WITH_REPLACEMENT = 2;
 
+  private static final String VIDEO_START_FAILURE_MESSAGE = "VLC playback of video.mp4 could not be started.";
+
+  private static final String PLAYER_API_MISSING_MESSAGE = "player API missing!";
+  private static final String OLD_STOP_FAILURE_MESSAGE = "old stop failed!";
+
+  private static final String START_RESERVED_MESSAGE = "the start stays reserved, so nothing more runs on a broken virtual machine";
+
   private final MockVlc vlc = new MockVlc();
-  private final VlcPlayer player = this.vlc.newPlayer(1_000L, OPTION);
+  private final VlcPlayer player = this.vlc.newPlayer(OPEN_TIMEOUT_MILLISECONDS, OPTION);
   private final List<String> messages = Collections.synchronizedList(new ArrayList<>());
   private final List<Throwable> errors = Collections.synchronizedList(new ArrayList<>());
   private final Source video = source(VIDEO_RESOURCE);
@@ -274,7 +283,7 @@ final class VlcPlayerTest {
   void shouldFailToStartWhenVlcRejectsTheMedia() throws InterruptedException {
     this.vlc.queueOutcomes(MockVlc.Outcome.REJECTED);
     final boolean started = this.player.start(this.video);
-    final List<String> expectedMessages = List.of("VLC playback of video.mp4 could not be started.");
+    final List<String> expectedMessages = List.of(VIDEO_START_FAILURE_MESSAGE);
     final Throwable error = this.errors.getFirst();
     final PlayerException exception = assertInstanceOf(PlayerException.class, error);
     final String reason = exception.getMessage();
@@ -384,7 +393,7 @@ final class VlcPlayerTest {
     final IllegalStateException failure = new IllegalStateException("libvlc version mismatch!");
     this.vlc.failFactoryCreation(failure);
     final boolean started = this.player.start(this.video);
-    final List<String> expectedMessages = List.of("VLC playback of video.mp4 could not be started.");
+    final List<String> expectedMessages = List.of(VIDEO_START_FAILURE_MESSAGE);
     final List<Throwable> expectedErrors = List.of(failure);
     final int references = this.references();
     assertFalse(started);
@@ -424,7 +433,7 @@ final class VlcPlayerTest {
   void shouldCleanUpOnStartWhenVlcThrowsWhilePlaying() throws InterruptedException {
     this.vlc.queueOutcomes(MockVlc.Outcome.THROWS);
     final boolean started = this.player.start(this.video);
-    final List<String> expectedMessages = List.of("VLC playback of video.mp4 could not be started.");
+    final List<String> expectedMessages = List.of(VIDEO_START_FAILURE_MESSAGE);
     final Throwable error = this.errors.getFirst();
     assertFalse(started);
     assertEquals(expectedMessages, this.messages);
@@ -436,7 +445,7 @@ final class VlcPlayerTest {
   @Test
   void shouldReleaseTheFactoryWhenNativePlayerSetupFailsAfterAcquisition() throws InterruptedException {
     final MediaPlayerFactory factory = this.vlc.getFactory();
-    final UnsatisfiedLinkError failure = new UnsatisfiedLinkError("player API missing!");
+    final UnsatisfiedLinkError failure = new UnsatisfiedLinkError(PLAYER_API_MISSING_MESSAGE);
     when(factory.mediaPlayers()).thenThrow(failure);
     final boolean started = this.player.start(this.video);
     final List<Throwable> expected = List.of(failure);
@@ -462,7 +471,7 @@ final class VlcPlayerTest {
   @Test
   void shouldPreserveCreationFailureWhenReleasingTheFactoryFails() throws InterruptedException {
     final MediaPlayerFactory factory = this.vlc.getFactory();
-    final UnsatisfiedLinkError failure = new UnsatisfiedLinkError("player API missing!");
+    final UnsatisfiedLinkError failure = new UnsatisfiedLinkError(PLAYER_API_MISSING_MESSAGE);
     final AssertionError cleanup = new AssertionError("factory release failed!");
     when(factory.mediaPlayers()).thenThrow(failure);
     doThrow(cleanup).when(factory).release();
@@ -545,7 +554,7 @@ final class VlcPlayerTest {
     this.startVideo();
     final MockVlc.Player old = this.vlc.player(0);
     final ControlsApi controls = old.getControls();
-    final UnsatisfiedLinkError failure = new UnsatisfiedLinkError("old stop failed!");
+    final UnsatisfiedLinkError failure = new UnsatisfiedLinkError(OLD_STOP_FAILURE_MESSAGE);
     doThrow(failure).when(controls).stop();
     final UnsatisfiedLinkError thrown = assertThrows(UnsatisfiedLinkError.class, () -> this.player.start(this.audio));
     final List<MockVlc.Player> players = this.vlc.getPlayers();
@@ -563,7 +572,7 @@ final class VlcPlayerTest {
     final MockVlc.Player old = this.vlc.player(0);
     final ControlsApi controls = old.getControls();
     final MediaPlayerFactory factory = this.vlc.getFactory();
-    final IllegalStateException failure = new IllegalStateException("old stop failed!");
+    final IllegalStateException failure = new IllegalStateException(OLD_STOP_FAILURE_MESSAGE);
     final LinkageError cleanup = new LinkageError("factory cleanup failed!");
     doThrow(failure).when(controls).stop();
     doThrow(cleanup).when(factory).release();
@@ -602,7 +611,7 @@ final class VlcPlayerTest {
     assertSame(failure, thrown);
     verify(mediaPlayer, never()).release();
     verify(factory, never()).release();
-    assertFalse(restarted, "the start stays reserved, so nothing more runs on a broken virtual machine");
+    assertFalse(restarted, START_RESERVED_MESSAGE);
   }
 
   @Test
@@ -619,7 +628,7 @@ final class VlcPlayerTest {
     verify(replacementPlayer, never()).release();
 
     final boolean restarted = this.player.start(this.video);
-    assertFalse(restarted, "the start stays reserved, so nothing more runs on a broken virtual machine");
+    assertFalse(restarted, START_RESERVED_MESSAGE);
   }
 
   @Test
@@ -636,7 +645,7 @@ final class VlcPlayerTest {
     verify(factory, never()).release();
 
     final boolean restarted = this.player.start(this.video);
-    assertFalse(restarted, "the start stays reserved, so nothing more runs on a broken virtual machine");
+    assertFalse(restarted, START_RESERVED_MESSAGE);
   }
 
   @Test
@@ -1372,7 +1381,7 @@ final class VlcPlayerTest {
   @Test
   void shouldCopyTheMediaOptions() {
     final String[] options = { "--first" };
-    final VlcPlayer copying = this.vlc.newPlayer(1_000L, options);
+    final VlcPlayer copying = this.vlc.newPlayer(OPEN_TIMEOUT_MILLISECONDS, options);
     options[0] = "--changed";
     final String[] created = copying.createMediaOptions(null);
     created[0] = "--changed-again";
@@ -1407,7 +1416,7 @@ final class VlcPlayerTest {
     this.startVideo();
     final MockVlc.Player old = this.vlc.player(0);
     final ControlsApi controls = old.getControls();
-    final IllegalStateException failure = new IllegalStateException("old stop failed!");
+    final IllegalStateException failure = new IllegalStateException(OLD_STOP_FAILURE_MESSAGE);
     doThrow(failure).when(controls).stop();
     final IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> this.player.start(this.audio));
     assertSame(failure, thrown);
@@ -1420,7 +1429,7 @@ final class VlcPlayerTest {
   @Test
   void shouldAllowReleaseFromAnotherThreadAfterAFailedAcquisition() throws Exception {
     final MediaPlayerFactory factory = this.vlc.getFactory();
-    final UnsatisfiedLinkError failure = new UnsatisfiedLinkError("player API missing!");
+    final UnsatisfiedLinkError failure = new UnsatisfiedLinkError(PLAYER_API_MISSING_MESSAGE);
     when(factory.mediaPlayers()).thenThrow(failure);
     final boolean started = this.player.start(this.video);
     assertFalse(started);

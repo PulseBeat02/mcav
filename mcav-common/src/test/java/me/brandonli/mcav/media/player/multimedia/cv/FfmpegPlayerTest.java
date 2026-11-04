@@ -64,6 +64,8 @@ final class FfmpegPlayerTest {
 
   private static final String MISSING_NAME = "missing.mp4";
 
+  private static final String FRAMES_ARRIVED_MESSAGE = "frames arrived";
+
   @TempDir
   private Path directory;
 
@@ -189,7 +191,7 @@ final class FfmpegPlayerTest {
       final boolean started = player.start(source);
       assertTrue(started);
 
-      await("frames arrived", () -> frames.get() > 10);
+      await(FRAMES_ARRIVED_MESSAGE, () -> frames.get() > 10);
       assertPausingHoldsTheFrames(player, frames);
       assertResumingAndSeekingPlayOn(player, frames);
 
@@ -259,7 +261,7 @@ final class FfmpegPlayerTest {
       final boolean started = player.start(video, audio);
       assertTrue(started);
 
-      await("frames arrived", () -> frames.get() > 20);
+      await(FRAMES_ARRIVED_MESSAGE, () -> frames.get() > 20);
       await("audio of the separate source arrived", () -> audioBytes.get() > 150_000);
     } finally {
       player.release();
