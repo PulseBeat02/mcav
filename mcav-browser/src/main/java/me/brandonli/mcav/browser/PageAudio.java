@@ -121,6 +121,18 @@ final class PageAudio implements CefDevToolsClient.EventListener {
         return;
       }
 
+      const { bytes, loud } = encodeFrames(buffer);
+      if (isQuietTooLong(loud)) {
+        return;
+      }
+
+      quietChunks = loud ? 0 : quietChunks + 1;
+
+      const text = toBinaryText(bytes);
+      deliverTo(toBase64(text));
+    };
+
+    const encodeFrames = (buffer) => {
       const left = nativeGetChannelData.call(buffer, 0);
       const right = channelsOf.call(buffer) > 1 ? nativeGetChannelData.call(buffer, 1) : left;
       const bytes = new Uint8Array(left.length * FRAME_BYTES);
@@ -133,18 +145,21 @@ final class PageAudio implements CefDevToolsClient.EventListener {
         view.setInt16(frame * FRAME_BYTES + SAMPLE_BYTES, second, LITTLE_ENDIAN);
         loud = loud || first !== 0 || second !== 0;
       }
-      if (loud) {
-        quietChunks = 0;
-      } else if (quietChunks >= QUIET_CHUNKS) {
-        return;
-      } else {
-        quietChunks++;
-      }
+
+      return { bytes, loud };
+    };
+
+    const isQuietTooLong = (loud) => {
+      return !loud && quietChunks >= QUIET_CHUNKS;
+    };
+
+    const toBinaryText = (bytes) => {
       let text = '';
       for (let start = 0; start < bytes.length; start += TEXT_SLICE_BYTES) {
         text += fromCharCode.apply(null, bytes.subarray(start, start + TEXT_SLICE_BYTES));
       }
-      deliverTo(toBase64(text));
+
+      return text;
     };
 
     // the one context of the document, made again should the page close it
@@ -314,6 +329,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
     this.clock = clock;
     this.availableBytes = BUDGET_BYTES;
     this.lastRefill = clock.getAsLong();
+    this.speakingContext = 0;
     this.lastSound = this.lastRefill - QUIET_NANOSECONDS;
   }
 
@@ -337,23 +353,25 @@ final class PageAudio implements CefDevToolsClient.EventListener {
 
   @Override
   public void onEvent(final String method, final String parameters) {
-    if (!this.mayTake(leastBytes(parameters))) {
+    final long leastBytes = leastBytes(parameters);
+    if (!this.mayTake(leastBytes)) {
       return;
     }
 
     final Chunk chunk = parse(method, parameters);
     if (chunk != null && this.take(chunk)) {
-      this.sink.accept(chunk.getSamples());
+      final byte[] samples = chunk.getSamples();
+      this.sink.accept(samples);
     }
   }
 
   // from the length alone, so an event over the budget is refused before it is decoded
   @VisibleForTesting
   static long leastBytes(final String parameters) {
-    return (
-      (((long) parameters.length() - PREFIX.length() - MAXIMUM_TAIL) / BASE64_GROUP_CHARACTERS) * BASE64_GROUP_BYTES -
-      MAXIMUM_BASE64_PADDING
-    );
+    final long payloadCharacters = (long) parameters.length() - PREFIX.length() - MAXIMUM_TAIL;
+    final long groups = payloadCharacters / BASE64_GROUP_CHARACTERS;
+    final long payloadBytes = groups * BASE64_GROUP_BYTES;
+    return payloadBytes - MAXIMUM_BASE64_PADDING;
   }
 
   private synchronized boolean mayTake(final long bytes) {
@@ -366,17 +384,19 @@ final class PageAudio implements CefDevToolsClient.EventListener {
   private synchronized boolean take(final Chunk chunk) {
     final long now = this.clock.getAsLong();
     final boolean quiet = now - this.lastSound >= QUIET_NANOSECONDS;
-    if (chunk.getContextId() != this.speakingContext && !quiet) {
+    final long contextId = chunk.getContextId();
+    if (contextId != this.speakingContext && !quiet) {
       return false;
     }
 
-    if (!this.spend(chunk.getSamples().length, now)) {
+    final byte[] samples = chunk.getSamples();
+    if (!this.spend(samples.length, now)) {
       return false;
     }
 
-    this.speakingContext = chunk.getContextId();
+    this.speakingContext = contextId;
 
-    if (!this.isSilent(chunk.getSamples())) {
+    if (!this.isSilent(samples)) {
       this.lastSound = now;
     }
 
@@ -394,9 +414,10 @@ final class PageAudio implements CefDevToolsClient.EventListener {
   }
 
   private void refill(final long now) {
-    final long elapsed = Math.min(Math.max(now - this.lastRefill, 0L), NANOSECONDS_PER_SECOND);
+    final long elapsed = Math.clamp(now - this.lastRefill, 0L, NANOSECONDS_PER_SECOND);
     this.lastRefill = now;
-    this.availableBytes = Math.min(BUDGET_BYTES, this.availableBytes + (elapsed * BUDGET_BYTES) / NANOSECONDS_PER_SECOND);
+    final long refilled = (elapsed * BUDGET_BYTES) / NANOSECONDS_PER_SECOND;
+    this.availableBytes = Math.min(BUDGET_BYTES, this.availableBytes + refilled);
   }
 
   private boolean spend(final int bytes, final long now) {
@@ -430,7 +451,8 @@ final class PageAudio implements CefDevToolsClient.EventListener {
     final Base64.Decoder decoder = Base64.getDecoder();
     final byte[] samples;
     try {
-      samples = decoder.decode(parameters.substring(start, end));
+      final String payload = parameters.substring(start, end);
+      samples = decoder.decode(payload);
     } catch (final IllegalArgumentException exception) {
       return null;
     }
@@ -440,7 +462,9 @@ final class PageAudio implements CefDevToolsClient.EventListener {
       return null;
     }
 
-    final long context = Long.parseLong(parameters.substring(end + CONTEXT_FIELD.length(), parameters.length() - 1));
+    final int contextStart = end + CONTEXT_FIELD.length();
+    final String contextText = parameters.substring(contextStart, parameters.length() - 1);
+    final long context = Long.parseLong(contextText);
     return new Chunk(context, samples);
   }
 

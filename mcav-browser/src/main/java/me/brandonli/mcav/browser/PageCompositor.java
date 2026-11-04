@@ -55,6 +55,18 @@ final class PageCompositor implements MCAVOffscreenBrowser.PaintListener {
     this.clock = clock;
     this.page = new byte[width * height * HelperProtocol.PIXEL_BYTES];
     Arrays.fill(this.page, FULL_CHANNEL);
+
+    this.damage = null;
+    this.damageSince = 0L;
+    this.paintsSinceSent = 0;
+    this.closed = false;
+    this.popupBounds = null;
+    this.shownPopup = null;
+  }
+
+  synchronized void close() {
+    this.closed = true;
+    this.notifyAll();
   }
 
   @Override
@@ -84,8 +96,7 @@ final class PageCompositor implements MCAVOffscreenBrowser.PaintListener {
       this.addDamage(clipped);
     }
 
-    this.paintsSinceSent++;
-    this.notifyAll();
+    this.signalPaint();
   }
 
   private void paintPopup(final ByteBuffer buffer, final int bufferWidth, final int bufferHeight) {
@@ -100,20 +111,11 @@ final class PageCompositor implements MCAVOffscreenBrowser.PaintListener {
     final ByteBuffer source = buffer.duplicate();
     source.position(0);
     source.get(pixels, 0, bytes);
-    this.shownPopup = new Popup(new Rectangle(bounds), pixels);
-    this.addPopupDamage(bounds);
-    this.paintsSinceSent++;
-    this.notifyAll();
-  }
 
-  private void hidePopup() {
-    final Popup shown = this.shownPopup;
-    if (shown != null) {
-      this.shownPopup = null;
-      this.addPopupDamage(shown.bounds());
-      this.paintsSinceSent++;
-      this.notifyAll();
-    }
+    final Rectangle shownBounds = new Rectangle(bounds);
+    this.shownPopup = new Popup(shownBounds, pixels);
+    this.addPopupDamage(bounds);
+    this.signalPaint();
   }
 
   @Override
@@ -127,6 +129,16 @@ final class PageCompositor implements MCAVOffscreenBrowser.PaintListener {
   public synchronized void onPopupSize(final Rectangle bounds) {
     this.hidePopup();
     this.popupBounds = new Rectangle(bounds);
+  }
+
+  private void hidePopup() {
+    final Popup shown = this.shownPopup;
+    if (shown != null) {
+      this.shownPopup = null;
+      final Rectangle bounds = shown.bounds();
+      this.addPopupDamage(bounds);
+      this.signalPaint();
+    }
   }
 
   private void addPopupDamage(final Rectangle bounds) {
@@ -147,8 +159,15 @@ final class PageCompositor implements MCAVOffscreenBrowser.PaintListener {
     }
   }
 
+  private void signalPaint() {
+    this.paintsSinceSent++;
+    this.notifyAll();
+  }
+
   synchronized @Nullable FrameRegion takeDamage(final byte[] target, final long timeoutMilliseconds) throws InterruptedException {
-    final long deadline = this.clock.getAsLong() + TimeUnit.MILLISECONDS.toNanos(timeoutMilliseconds);
+    final long timeoutNanoseconds = TimeUnit.MILLISECONDS.toNanos(timeoutMilliseconds);
+    final long start = this.clock.getAsLong();
+    final long deadline = start + timeoutNanoseconds;
     while (!this.closed) {
       final Rectangle current = this.damage;
       final long now = this.clock.getAsLong();
@@ -159,8 +178,7 @@ final class PageCompositor implements MCAVOffscreenBrowser.PaintListener {
       if (remaining <= 0) {
         return null;
       }
-      final long settleLeft = current == null ? remaining : this.damageSince + this.settleNanoseconds - now;
-      final long waitNanoseconds = Math.max(MINIMUM_WAIT_NANOSECONDS, Math.min(remaining, settleLeft));
+      final long waitNanoseconds = this.computeWaitNanoseconds(now, remaining);
       TimeUnit.NANOSECONDS.timedWait(this, waitNanoseconds);
     }
 
@@ -176,21 +194,50 @@ final class PageCompositor implements MCAVOffscreenBrowser.PaintListener {
   private FrameRegion drainDamage(final Rectangle area, final byte[] target) {
     final ByteBuffer pageBuffer = ByteBuffer.wrap(this.page);
     this.copyRows(pageBuffer, this.width, area, target, area.width, 0, 0);
-    final Popup shown = this.shownPopup;
-    if (shown != null) {
-      final Rectangle bounds = shown.bounds();
-      final Rectangle overlap = area.intersection(bounds);
-      if (!overlap.isEmpty()) {
-        final Rectangle inPopup = new Rectangle(overlap.x - bounds.x, overlap.y - bounds.y, overlap.width, overlap.height);
-        final ByteBuffer popupBuffer = ByteBuffer.wrap(shown.pixels());
-        this.copyRows(popupBuffer, bounds.width, inPopup, target, area.width, overlap.x - area.x, overlap.y - area.y);
-      }
-    }
+
+    this.overlayPopup(area, target);
 
     this.damage = null;
     this.paintsSinceSent = 0;
 
     return new FrameRegion(this.width, this.height, area.x, area.y, area.width, area.height, target);
+  }
+
+  private long computeWaitNanoseconds(final long now, final long remaining) {
+    final long settleLeft = this.computeSettleLeft(now, remaining);
+    final long untilDue = Math.min(remaining, settleLeft);
+    return Math.max(MINIMUM_WAIT_NANOSECONDS, untilDue);
+  }
+
+  private long computeSettleLeft(final long now, final long remaining) {
+    if (this.damage == null) {
+      return remaining;
+    }
+
+    final long settleDeadline = this.damageSince + this.settleNanoseconds;
+    return settleDeadline - now;
+  }
+
+  private void overlayPopup(final Rectangle area, final byte[] target) {
+    final Popup shown = this.shownPopup;
+    if (shown == null) {
+      return;
+    }
+
+    final Rectangle bounds = shown.bounds();
+    final Rectangle overlap = area.intersection(bounds);
+    if (overlap.isEmpty()) {
+      return;
+    }
+
+    final int popupX = overlap.x - bounds.x;
+    final int popupY = overlap.y - bounds.y;
+    final Rectangle inPopup = new Rectangle(popupX, popupY, overlap.width, overlap.height);
+    final byte[] popupPixels = shown.pixels();
+    final ByteBuffer popupBuffer = ByteBuffer.wrap(popupPixels);
+    final int regionX = overlap.x - area.x;
+    final int regionY = overlap.y - area.y;
+    this.copyRows(popupBuffer, bounds.width, inPopup, target, area.width, regionX, regionY);
   }
 
   private void copyRows(
@@ -210,11 +257,6 @@ final class PageCompositor implements MCAVOffscreenBrowser.PaintListener {
       view.position(sourceOffset);
       view.get(target, targetOffset, rowBytes);
     }
-  }
-
-  synchronized void close() {
-    this.closed = true;
-    this.notifyAll();
   }
 
   int getPageBytes() {
