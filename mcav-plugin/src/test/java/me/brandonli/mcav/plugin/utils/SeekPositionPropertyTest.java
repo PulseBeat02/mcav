@@ -30,6 +30,9 @@ final class SeekPositionPropertyTest {
 
   private static final long MILLISECONDS_PER_SECOND = 1_000L;
 
+  private static final boolean RELATIVE = true;
+  private static final boolean ABSOLUTE = false;
+
   @Property
   void shouldReadBackEveryFormattedTime(@ForAll @LongRange(min = 0, max = SeekPosition.MAXIMUM_MILLISECONDS) final long milliseconds) {
     final long whole = milliseconds - (milliseconds % MILLISECONDS_PER_SECOND);
@@ -37,13 +40,13 @@ final class SeekPositionPropertyTest {
     final Optional<SeekPosition> forward = SeekPosition.parse("+" + SeekPosition.format(whole));
     final Optional<SeekPosition> back = SeekPosition.parse("-" + SeekPosition.format(whole));
 
-    final SeekPosition expected = SeekPosition.of(false, whole);
+    final SeekPosition expected = SeekPosition.of(ABSOLUTE, whole);
     assertEquals(Optional.of(expected), absolute);
 
-    final SeekPosition secondExpected = SeekPosition.of(true, whole);
+    final SeekPosition secondExpected = SeekPosition.of(RELATIVE, whole);
     assertEquals(Optional.of(secondExpected), forward);
 
-    final SeekPosition thirdExpected = SeekPosition.of(true, -whole);
+    final SeekPosition thirdExpected = SeekPosition.of(RELATIVE, -whole);
     assertEquals(Optional.of(thirdExpected), back);
   }
 
@@ -67,7 +70,7 @@ final class SeekPositionPropertyTest {
     @ForAll @LongRange(min = -SeekPosition.MAXIMUM_MILLISECONDS, max = SeekPosition.MAXIMUM_MILLISECONDS) final long milliseconds,
     @ForAll @LongRange(min = 0, max = SeekPosition.MAXIMUM_MILLISECONDS) final long current
   ) {
-    final long target = SeekPosition.of(true, milliseconds).resolve(current);
+    final long target = SeekPosition.of(RELATIVE, milliseconds).resolve(current);
     assertTrue(target >= 0);
 
     final long expected = Math.max(0, current + milliseconds);
