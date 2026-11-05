@@ -28,8 +28,8 @@
  * {@link me.brandonli.mcav.capability.installer.debian.DebianProgramInstaller#create(String, String, java.util.List)}
  * installs the programs of a package list instead, to run as processes. Packages are downloaded from
  * {@code deb.debian.org}, or from {@code snapshot.debian.org} when that download fails, for example because Debian no
- * longer carries their version or the host cannot be reached. Either way they are checked against their pinned SHA-256
- * and extracted by MCAV itself into the cache folder.
+ * longer carries their version or the host cannot be reached: first from the file farm of the snapshot, then from its
+ * archive. Either way they are checked against their pinned SHA-256 and extracted by MCAV itself into the cache folder.
  * {@link me.brandonli.mcav.capability.installer.debian.DebianPackageExtractor#extract(java.nio.file.Path, java.nio.file.Path)}
  * extracts the library trees of one package for modules that place the libraries themselves.
  *

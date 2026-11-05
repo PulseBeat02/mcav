@@ -20,8 +20,9 @@
  *
  * <p>{@link me.brandonli.mcav.capability.installer.Installer} separates discovery of an existing installation
  * from downloading. {@link me.brandonli.mcav.capability.installer.Download} describes a platform-specific URL
- * and optional SHA-256 digest. {@link me.brandonli.mcav.capability.installer.AbstractInstaller} supplies lazy
- * platform selection, per-instance download serialization and persistent installation-path configuration.
+ * with an optional SHA-256 digest and an optional mirror, a second URL of the same file.
+ * {@link me.brandonli.mcav.capability.installer.AbstractInstaller} supplies lazy platform selection, per-instance
+ * download serialization and persistent installation-path configuration.
  *
  * <p>Discovery and download perform file or network I/O and can block. Existing installations are reused;
  * callers should coordinate separate installer instances that target the same files. An installer does not

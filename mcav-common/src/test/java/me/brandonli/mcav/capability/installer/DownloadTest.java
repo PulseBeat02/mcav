@@ -36,6 +36,7 @@ final class DownloadTest {
 
   private static final String TOOL_URL = "https://example.com/tool";
   private static final String HASH = "abc";
+  private static final String MIRROR = "https://example.com/mirror/tool";
 
   @Test
   void shouldStorePlatformUrlAndHash() {
@@ -68,6 +69,23 @@ final class DownloadTest {
   }
 
   @Test
+  void shouldReturnTheMirror() {
+    final Download download = Download.of(LINUX, TOOL_URL, HASH, MIRROR);
+
+    final Optional<String> mirror = download.getMirror();
+    final Optional<String> expected = Optional.of(MIRROR);
+    assertEquals(expected, mirror);
+  }
+
+  @Test
+  void shouldReturnNoMirrorByDefault() {
+    final Download download = Download.of(LINUX, TOOL_URL, HASH);
+
+    final Optional<String> mirror = download.getMirror();
+    assertEquals(Optional.empty(), mirror);
+  }
+
+  @Test
   void shouldFollowTheEqualityContract() {
     final Platform windows = Platform.ofPlatform(Os.WINDOWS, Arch.X86, Bits.BITS_64);
     final Download download = Download.of(LINUX, TOOL_URL, HASH);
@@ -80,20 +98,29 @@ final class DownloadTest {
   }
 
   @Test
-  void shouldHashThePlatformTheUrlAndTheHash() {
-    final Download download = Download.of(LINUX, TOOL_URL, HASH);
+  void shouldNotEqualADownloadWithAnotherMirror() {
+    final Download download = Download.of(LINUX, TOOL_URL, HASH, MIRROR);
+    final Download equalDownload = Download.of(LINUX, TOOL_URL, HASH, MIRROR);
+    final Download otherMirror = Download.of(LINUX, TOOL_URL, HASH, "https://example.com/other-mirror/tool");
+    final Download withoutMirror = Download.of(LINUX, TOOL_URL, HASH);
+    EqualityAssertions.assertEqualityContract(download, equalDownload, otherMirror, withoutMirror);
+  }
+
+  @Test
+  void shouldHashThePlatformTheUrlTheHashAndTheMirror() {
+    final Download download = Download.of(LINUX, TOOL_URL, HASH, MIRROR);
 
     final int hashCode = download.hashCode();
-    final int expected = Objects.hash(LINUX, TOOL_URL, HASH);
+    final int expected = Objects.hash(LINUX, TOOL_URL, HASH, MIRROR);
     assertEquals(expected, hashCode);
   }
 
   @Test
-  void shouldPrintThePlatformTheUrlAndTheHash() {
-    final Download download = Download.of(LINUX, TOOL_URL, HASH);
+  void shouldPrintThePlatformTheUrlTheHashAndTheMirror() {
+    final Download download = Download.of(LINUX, TOOL_URL, HASH, MIRROR);
 
     final String text = download.toString();
-    final String expected = "Download{platform=%s, url=%s, hash=%s}".formatted(LINUX, TOOL_URL, HASH);
+    final String expected = "Download{platform=%s, url=%s, hash=%s, mirror=%s}".formatted(LINUX, TOOL_URL, HASH, MIRROR);
     assertEquals(expected, text);
   }
 
@@ -107,5 +134,13 @@ final class DownloadTest {
     assertThrows(NullPointerException.class, () -> Download.of(Os.LINUX, Arch.X86, null, TOOL_URL));
     assertThrows(NullPointerException.class, () -> Download.of(Os.LINUX, Arch.X86, Bits.BITS_64, null));
     assertThrows(IllegalArgumentException.class, () -> Download.of(Os.LINUX, Arch.X86, Bits.BITS_64, " "));
+  }
+
+  @Test
+  void shouldRejectABlankMirror() {
+    final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () -> Download.of(LINUX, TOOL_URL, HASH, " "));
+
+    final String message = failure.getMessage();
+    assertEquals("Mirror must not be blank!", message);
   }
 }

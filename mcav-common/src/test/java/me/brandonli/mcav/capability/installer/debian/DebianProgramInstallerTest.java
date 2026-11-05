@@ -67,6 +67,7 @@ final class DebianProgramInstallerTest {
   private static final String FIRST_PACKAGE = "/first.deb";
   private static final String SECOND_PACKAGE = "/second.deb";
   private static final String ARM_PACKAGE = "/arm.deb";
+  private static final String MIRROR_PACKAGE = "/mirror/first.deb";
 
   private static final String PROGRAM = "usr/bin/tool";
   private static final String LIBRARY = "usr/lib/x86_64-linux-gnu/liba.so.1";
@@ -133,6 +134,20 @@ final class DebianProgramInstallerTest {
 
     final boolean documentation = Files.exists(root.resolve(DOCUMENTATION_FOLDER));
     assertFalse(documentation);
+  }
+
+  @Test
+  void shouldInstallAPackageFromItsMirrorWhenItsUrlLacksIt() throws IOException {
+    final String url = this.server.uri(FIRST_PACKAGE).toString();
+    final String mirror = this.server.uri(MIRROR_PACKAGE).toString();
+    final String sha256 = Hashing.sha256().hashBytes(this.firstPackage).toString();
+    final Download[] downloads = { Download.of(X86_64, url, sha256, mirror) };
+    final DebianProgramInstaller installer = new DebianProgramInstaller(this.folder, NAME, downloads, X86_64, TREES);
+    this.server.respond(MIRROR_PACKAGE, OK, this.firstPackage);
+    final Path root = installer.download(FileMode.UNCHANGED);
+
+    final byte[] program = Files.readAllBytes(root.resolve(PROGRAM));
+    assertArrayEquals(CONTENT, program);
   }
 
   @Test
