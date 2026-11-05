@@ -184,7 +184,7 @@ public enum DitheringArgument {
    *
    * @since 1.0.0
    */
-  BAYER_2X2_LIGHT(() -> ordered(BayerDither.NORMAL_2X2, BayerDither.NORMAL_2X2_MAXIMUM, PixelMapper.MINIMUM_STRENGTH)),
+  BAYER_2X2_LIGHT(() -> ordered(BayerDither.NORMAL_2X2, BayerDither.NORMAL_2X2_MAXIMUM, PixelMapper.LIGHT_STRENGTH)),
 
   /**
    * Bayer ordered dithering with the 2x2 matrix at normal strength: a fine, hardly visible checkerboard with only 5
@@ -200,7 +200,7 @@ public enum DitheringArgument {
    *
    * @since 1.0.0
    */
-  BAYER_2X2_HEAVY(() -> ordered(BayerDither.NORMAL_2X2, BayerDither.NORMAL_2X2_MAXIMUM, PixelMapper.MAXIMUM_STRENGTH)),
+  BAYER_2X2_HEAVY(() -> ordered(BayerDither.NORMAL_2X2, BayerDither.NORMAL_2X2_MAXIMUM, PixelMapper.HEAVY_STRENGTH)),
 
   /**
    * Bayer ordered dithering with the 4x4 matrix at light strength. The 4x4 matrix represents 17 shades between two
@@ -208,7 +208,7 @@ public enum DitheringArgument {
    *
    * @since 1.0.0
    */
-  BAYER_4X4_LIGHT(() -> ordered(BayerDither.NORMAL_4X4, BayerDither.NORMAL_4X4_MAXIMUM, PixelMapper.MINIMUM_STRENGTH)),
+  BAYER_4X4_LIGHT(() -> ordered(BayerDither.NORMAL_4X4, BayerDither.NORMAL_4X4_MAXIMUM, PixelMapper.LIGHT_STRENGTH)),
 
   /**
    * Bayer ordered dithering with the 4x4 matrix at normal strength. This is the classic, balanced ordered dither:
@@ -224,7 +224,7 @@ public enum DitheringArgument {
    *
    * @since 1.0.0
    */
-  BAYER_4X4_HEAVY(() -> ordered(BayerDither.NORMAL_4X4, BayerDither.NORMAL_4X4_MAXIMUM, PixelMapper.MAXIMUM_STRENGTH)),
+  BAYER_4X4_HEAVY(() -> ordered(BayerDither.NORMAL_4X4, BayerDither.NORMAL_4X4_MAXIMUM, PixelMapper.HEAVY_STRENGTH)),
 
   /**
    * Bayer ordered dithering with the 8x8 matrix at light strength. The 8x8 matrix represents 65 shades between two
@@ -232,7 +232,7 @@ public enum DitheringArgument {
    *
    * @since 1.0.0
    */
-  BAYER_8X8_LIGHT(() -> ordered(BayerDither.NORMAL_8X8, BayerDither.NORMAL_8X8_MAXIMUM, PixelMapper.MINIMUM_STRENGTH)),
+  BAYER_8X8_LIGHT(() -> ordered(BayerDither.NORMAL_8X8, BayerDither.NORMAL_8X8_MAXIMUM, PixelMapper.LIGHT_STRENGTH)),
 
   /**
    * Bayer ordered dithering with the 8x8 matrix at normal strength: the smoothest Bayer gradients, 65 shades between
@@ -248,7 +248,7 @@ public enum DitheringArgument {
    *
    * @since 1.0.0
    */
-  BAYER_8X8_HEAVY(() -> ordered(BayerDither.NORMAL_8X8, BayerDither.NORMAL_8X8_MAXIMUM, PixelMapper.MAXIMUM_STRENGTH)),
+  BAYER_8X8_HEAVY(() -> ordered(BayerDither.NORMAL_8X8, BayerDither.NORMAL_8X8_MAXIMUM, PixelMapper.HEAVY_STRENGTH)),
 
   /**
    * Clustered-dot ordered dithering with the 6x6 matrix from Ulichney's Digital Halftoning at light strength. The
@@ -257,9 +257,7 @@ public enum DitheringArgument {
    *
    * @since 1.0.0
    */
-  CLUSTERED_DOT_6X6_LIGHT(() ->
-    ordered(BayerDither.CLUSTERED_DOT_6X6, BayerDither.CLUSTERED_DOT_6X6_MAXIMUM, PixelMapper.MINIMUM_STRENGTH)
-  ),
+  CLUSTERED_DOT_6X6_LIGHT(() -> ordered(BayerDither.CLUSTERED_DOT_6X6, BayerDither.CLUSTERED_DOT_6X6_MAXIMUM, PixelMapper.LIGHT_STRENGTH)),
 
   /**
    * Clustered-dot ordered dithering with the 6x6 matrix from Ulichney's Digital Halftoning at normal strength: a
@@ -277,9 +275,7 @@ public enum DitheringArgument {
    *
    * @since 1.0.0
    */
-  CLUSTERED_DOT_6X6_HEAVY(() ->
-    ordered(BayerDither.CLUSTERED_DOT_6X6, BayerDither.CLUSTERED_DOT_6X6_MAXIMUM, PixelMapper.MAXIMUM_STRENGTH)
-  ),
+  CLUSTERED_DOT_6X6_HEAVY(() -> ordered(BayerDither.CLUSTERED_DOT_6X6, BayerDither.CLUSTERED_DOT_6X6_MAXIMUM, PixelMapper.HEAVY_STRENGTH)),
 
   /**
    * Clustered-dot ordered dithering with the non-diagonal 8x8 matrix from Lau and Arce's Modern Digital Halftoning at
@@ -288,9 +284,7 @@ public enum DitheringArgument {
    *
    * @since 1.0.0
    */
-  CLUSTERED_DOT_8X8_LIGHT(() ->
-    ordered(BayerDither.CLUSTERED_DOT_8X8, BayerDither.CLUSTERED_DOT_8X8_MAXIMUM, PixelMapper.MINIMUM_STRENGTH)
-  ),
+  CLUSTERED_DOT_8X8_LIGHT(() -> ordered(BayerDither.CLUSTERED_DOT_8X8, BayerDither.CLUSTERED_DOT_8X8_MAXIMUM, PixelMapper.LIGHT_STRENGTH)),
 
   /**
    * Clustered-dot ordered dithering with the non-diagonal 8x8 matrix from Lau and Arce's Modern Digital Halftoning at
@@ -309,9 +303,7 @@ public enum DitheringArgument {
    *
    * @since 1.0.0
    */
-  CLUSTERED_DOT_8X8_HEAVY(() ->
-    ordered(BayerDither.CLUSTERED_DOT_8X8, BayerDither.CLUSTERED_DOT_8X8_MAXIMUM, PixelMapper.MAXIMUM_STRENGTH)
-  ),
+  CLUSTERED_DOT_8X8_HEAVY(() -> ordered(BayerDither.CLUSTERED_DOT_8X8, BayerDither.CLUSTERED_DOT_8X8_MAXIMUM, PixelMapper.HEAVY_STRENGTH)),
 
   /**
    * Clustered-dot ordered dithering with the 6x6 "central white point" matrix at light strength. It looks nearly
@@ -320,7 +312,7 @@ public enum DitheringArgument {
    * @since 1.0.0
    */
   CLUSTERED_DOT_6X6_2_LIGHT(() ->
-    ordered(BayerDither.CLUSTERED_DOT_6X6_2, BayerDither.CLUSTERED_DOT_6X6_2_MAXIMUM, PixelMapper.MINIMUM_STRENGTH)
+    ordered(BayerDither.CLUSTERED_DOT_6X6_2, BayerDither.CLUSTERED_DOT_6X6_2_MAXIMUM, PixelMapper.LIGHT_STRENGTH)
   ),
 
   /**
@@ -340,7 +332,7 @@ public enum DitheringArgument {
    * @since 1.0.0
    */
   CLUSTERED_DOT_6X6_2_HEAVY(() ->
-    ordered(BayerDither.CLUSTERED_DOT_6X6_2, BayerDither.CLUSTERED_DOT_6X6_2_MAXIMUM, PixelMapper.MAXIMUM_STRENGTH)
+    ordered(BayerDither.CLUSTERED_DOT_6X6_2, BayerDither.CLUSTERED_DOT_6X6_2_MAXIMUM, PixelMapper.HEAVY_STRENGTH)
   ),
 
   /**
@@ -350,7 +342,7 @@ public enum DitheringArgument {
    * @since 1.0.0
    */
   CLUSTERED_DOT_6X6_3_LIGHT(() ->
-    ordered(BayerDither.CLUSTERED_DOT_6X6_3, BayerDither.CLUSTERED_DOT_6X6_3_MAXIMUM, PixelMapper.MINIMUM_STRENGTH)
+    ordered(BayerDither.CLUSTERED_DOT_6X6_3, BayerDither.CLUSTERED_DOT_6X6_3_MAXIMUM, PixelMapper.LIGHT_STRENGTH)
   ),
 
   /**
@@ -370,7 +362,7 @@ public enum DitheringArgument {
    * @since 1.0.0
    */
   CLUSTERED_DOT_6X6_3_HEAVY(() ->
-    ordered(BayerDither.CLUSTERED_DOT_6X6_3, BayerDither.CLUSTERED_DOT_6X6_3_MAXIMUM, PixelMapper.MAXIMUM_STRENGTH)
+    ordered(BayerDither.CLUSTERED_DOT_6X6_3, BayerDither.CLUSTERED_DOT_6X6_3_MAXIMUM, PixelMapper.HEAVY_STRENGTH)
   ),
 
   /**
@@ -381,7 +373,7 @@ public enum DitheringArgument {
    * @since 1.0.0
    */
   CLUSTERED_DOT_DIAGONAL_8X8_3_LIGHT(() ->
-    ordered(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_3, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_3_MAXIMUM, PixelMapper.MINIMUM_STRENGTH)
+    ordered(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_3, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_3_MAXIMUM, PixelMapper.LIGHT_STRENGTH)
   ),
 
   /**
@@ -402,7 +394,7 @@ public enum DitheringArgument {
    * @since 1.0.0
    */
   CLUSTERED_DOT_DIAGONAL_8X8_3_HEAVY(() ->
-    ordered(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_3, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_3_MAXIMUM, PixelMapper.MAXIMUM_STRENGTH)
+    ordered(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_3, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_3_MAXIMUM, PixelMapper.HEAVY_STRENGTH)
   ),
 
   /**
@@ -411,9 +403,7 @@ public enum DitheringArgument {
    *
    * @since 1.0.0
    */
-  CLUSTERED_DOT_4X4_LIGHT(() ->
-    ordered(BayerDither.CLUSTERED_DOT_4X4, BayerDither.CLUSTERED_DOT_4X4_MAXIMUM, PixelMapper.MINIMUM_STRENGTH)
-  ),
+  CLUSTERED_DOT_4X4_LIGHT(() -> ordered(BayerDither.CLUSTERED_DOT_4X4, BayerDither.CLUSTERED_DOT_4X4_MAXIMUM, PixelMapper.LIGHT_STRENGTH)),
 
   /**
    * Clustered-dot ordered dithering with the 4x4 matrix at normal strength: a compact halftone with 17 shades whose
@@ -431,9 +421,7 @@ public enum DitheringArgument {
    *
    * @since 1.0.0
    */
-  CLUSTERED_DOT_4X4_HEAVY(() ->
-    ordered(BayerDither.CLUSTERED_DOT_4X4, BayerDither.CLUSTERED_DOT_4X4_MAXIMUM, PixelMapper.MAXIMUM_STRENGTH)
-  ),
+  CLUSTERED_DOT_4X4_HEAVY(() -> ordered(BayerDither.CLUSTERED_DOT_4X4, BayerDither.CLUSTERED_DOT_4X4_MAXIMUM, PixelMapper.HEAVY_STRENGTH)),
 
   /**
    * Ordered dithering with the 5x3 vertical line matrix at light strength. An artistic pattern of faint vertical
@@ -441,7 +429,7 @@ public enum DitheringArgument {
    *
    * @since 1.0.0
    */
-  VERTICAL_5X3_LIGHT(() -> ordered(BayerDither.VERTICAL_5X3, BayerDither.VERTICAL_5X3_MAXIMUM, PixelMapper.MINIMUM_STRENGTH)),
+  VERTICAL_5X3_LIGHT(() -> ordered(BayerDither.VERTICAL_5X3, BayerDither.VERTICAL_5X3_MAXIMUM, PixelMapper.LIGHT_STRENGTH)),
 
   /**
    * Ordered dithering with the 5x3 vertical line matrix at normal strength: shades are drawn as vertical line
@@ -456,7 +444,7 @@ public enum DitheringArgument {
    *
    * @since 1.0.0
    */
-  VERTICAL_5X3_HEAVY(() -> ordered(BayerDither.VERTICAL_5X3, BayerDither.VERTICAL_5X3_MAXIMUM, PixelMapper.MAXIMUM_STRENGTH)),
+  VERTICAL_5X3_HEAVY(() -> ordered(BayerDither.VERTICAL_5X3, BayerDither.VERTICAL_5X3_MAXIMUM, PixelMapper.HEAVY_STRENGTH)),
 
   /**
    * Ordered dithering with the 3x5 horizontal line matrix, the rotated {@link #VERTICAL_5X3_LIGHT}, at light
@@ -464,7 +452,7 @@ public enum DitheringArgument {
    *
    * @since 1.0.0
    */
-  HORIZONTAL_3X5_LIGHT(() -> ordered(BayerDither.HORIZONTAL_3X5, BayerDither.HORIZONTAL_3X5_MAXIMUM, PixelMapper.MINIMUM_STRENGTH)),
+  HORIZONTAL_3X5_LIGHT(() -> ordered(BayerDither.HORIZONTAL_3X5, BayerDither.HORIZONTAL_3X5_MAXIMUM, PixelMapper.LIGHT_STRENGTH)),
 
   /**
    * Ordered dithering with the 3x5 horizontal line matrix at normal strength: shades are drawn as horizontal line
@@ -480,7 +468,7 @@ public enum DitheringArgument {
    *
    * @since 1.0.0
    */
-  HORIZONTAL_3X5_HEAVY(() -> ordered(BayerDither.HORIZONTAL_3X5, BayerDither.HORIZONTAL_3X5_MAXIMUM, PixelMapper.MAXIMUM_STRENGTH)),
+  HORIZONTAL_3X5_HEAVY(() -> ordered(BayerDither.HORIZONTAL_3X5, BayerDither.HORIZONTAL_3X5_MAXIMUM, PixelMapper.HEAVY_STRENGTH)),
 
   /**
    * Clustered-dot ordered dithering with Ulichney's diagonal 6x6 matrix at light strength. Its dots run at 45
@@ -490,7 +478,7 @@ public enum DitheringArgument {
    * @since 1.0.0
    */
   CLUSTERED_DOT_DIAGONAL_6X6_LIGHT(() ->
-    ordered(BayerDither.CLUSTERED_DOT_DIAGONAL_6X6, BayerDither.CLUSTERED_DOT_DIAGONAL_6X6_MAXIMUM, PixelMapper.MINIMUM_STRENGTH)
+    ordered(BayerDither.CLUSTERED_DOT_DIAGONAL_6X6, BayerDither.CLUSTERED_DOT_DIAGONAL_6X6_MAXIMUM, PixelMapper.LIGHT_STRENGTH)
   ),
 
   /**
@@ -510,7 +498,7 @@ public enum DitheringArgument {
    * @since 1.0.0
    */
   CLUSTERED_DOT_DIAGONAL_6X6_HEAVY(() ->
-    ordered(BayerDither.CLUSTERED_DOT_DIAGONAL_6X6, BayerDither.CLUSTERED_DOT_DIAGONAL_6X6_MAXIMUM, PixelMapper.MAXIMUM_STRENGTH)
+    ordered(BayerDither.CLUSTERED_DOT_DIAGONAL_6X6, BayerDither.CLUSTERED_DOT_DIAGONAL_6X6_MAXIMUM, PixelMapper.HEAVY_STRENGTH)
   ),
 
   /**
@@ -520,7 +508,7 @@ public enum DitheringArgument {
    * @since 1.0.0
    */
   CLUSTERED_DOT_DIAGONAL_8X8_2_LIGHT(() ->
-    ordered(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_2, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_2_MAXIMUM, PixelMapper.MINIMUM_STRENGTH)
+    ordered(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_2, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_2_MAXIMUM, PixelMapper.LIGHT_STRENGTH)
   ),
 
   /**
@@ -540,7 +528,7 @@ public enum DitheringArgument {
    * @since 1.0.0
    */
   CLUSTERED_DOT_DIAGONAL_8X8_2_HEAVY(() ->
-    ordered(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_2, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_2_MAXIMUM, PixelMapper.MAXIMUM_STRENGTH)
+    ordered(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_2, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_2_MAXIMUM, PixelMapper.HEAVY_STRENGTH)
   ),
 
   /**
@@ -550,7 +538,7 @@ public enum DitheringArgument {
    * @since 1.0.0
    */
   CLUSTERED_DOT_DIAGONAL_16X16_LIGHT(() ->
-    ordered(BayerDither.CLUSTERED_DOT_DIAGONAL_16X16, BayerDither.CLUSTERED_DOT_DIAGONAL_16X16_MAXIMUM, PixelMapper.MINIMUM_STRENGTH)
+    ordered(BayerDither.CLUSTERED_DOT_DIAGONAL_16X16, BayerDither.CLUSTERED_DOT_DIAGONAL_16X16_MAXIMUM, PixelMapper.LIGHT_STRENGTH)
   ),
 
   /**
@@ -571,7 +559,7 @@ public enum DitheringArgument {
    * @since 1.0.0
    */
   CLUSTERED_DOT_DIAGONAL_16X16_HEAVY(() ->
-    ordered(BayerDither.CLUSTERED_DOT_DIAGONAL_16X16, BayerDither.CLUSTERED_DOT_DIAGONAL_16X16_MAXIMUM, PixelMapper.MAXIMUM_STRENGTH)
+    ordered(BayerDither.CLUSTERED_DOT_DIAGONAL_16X16, BayerDither.CLUSTERED_DOT_DIAGONAL_16X16_MAXIMUM, PixelMapper.HEAVY_STRENGTH)
   ),
 
   /**
@@ -581,7 +569,7 @@ public enum DitheringArgument {
    * @since 1.0.0
    */
   CLUSTERED_DOT_SPIRAL_5X5_LIGHT(() ->
-    ordered(BayerDither.CLUSTERED_DOT_SPIRAL_5X5, BayerDither.CLUSTERED_DOT_SPIRAL_5X5_MAXIMUM, PixelMapper.MINIMUM_STRENGTH)
+    ordered(BayerDither.CLUSTERED_DOT_SPIRAL_5X5, BayerDither.CLUSTERED_DOT_SPIRAL_5X5_MAXIMUM, PixelMapper.LIGHT_STRENGTH)
   ),
 
   /**
@@ -601,7 +589,7 @@ public enum DitheringArgument {
    * @since 1.0.0
    */
   CLUSTERED_DOT_SPIRAL_5X5_HEAVY(() ->
-    ordered(BayerDither.CLUSTERED_DOT_SPIRAL_5X5, BayerDither.CLUSTERED_DOT_SPIRAL_5X5_MAXIMUM, PixelMapper.MAXIMUM_STRENGTH)
+    ordered(BayerDither.CLUSTERED_DOT_SPIRAL_5X5, BayerDither.CLUSTERED_DOT_SPIRAL_5X5_MAXIMUM, PixelMapper.HEAVY_STRENGTH)
   ),
 
   /**
@@ -611,7 +599,7 @@ public enum DitheringArgument {
    * @since 1.0.0
    */
   CLUSTERED_DOT_HORIZONTAL_LINE_LIGHT(() ->
-    ordered(BayerDither.CLUSTERED_DOT_HORIZONTAL_LINE, BayerDither.CLUSTERED_DOT_HORIZONTAL_LINE_MAXIMUM, PixelMapper.MINIMUM_STRENGTH)
+    ordered(BayerDither.CLUSTERED_DOT_HORIZONTAL_LINE, BayerDither.CLUSTERED_DOT_HORIZONTAL_LINE_MAXIMUM, PixelMapper.LIGHT_STRENGTH)
   ),
 
   /**
@@ -631,7 +619,7 @@ public enum DitheringArgument {
    * @since 1.0.0
    */
   CLUSTERED_DOT_HORIZONTAL_LINE_HEAVY(() ->
-    ordered(BayerDither.CLUSTERED_DOT_HORIZONTAL_LINE, BayerDither.CLUSTERED_DOT_HORIZONTAL_LINE_MAXIMUM, PixelMapper.MAXIMUM_STRENGTH)
+    ordered(BayerDither.CLUSTERED_DOT_HORIZONTAL_LINE, BayerDither.CLUSTERED_DOT_HORIZONTAL_LINE_MAXIMUM, PixelMapper.HEAVY_STRENGTH)
   ),
 
   /**
@@ -641,7 +629,7 @@ public enum DitheringArgument {
    * @since 1.0.0
    */
   CLUSTERED_DOT_VERTICAL_LINE_LIGHT(() ->
-    ordered(BayerDither.CLUSTERED_DOT_VERTICAL_LINE, BayerDither.CLUSTERED_DOT_VERTICAL_LINE_MAXIMUM, PixelMapper.MINIMUM_STRENGTH)
+    ordered(BayerDither.CLUSTERED_DOT_VERTICAL_LINE, BayerDither.CLUSTERED_DOT_VERTICAL_LINE_MAXIMUM, PixelMapper.LIGHT_STRENGTH)
   ),
 
   /**
@@ -661,7 +649,7 @@ public enum DitheringArgument {
    * @since 1.0.0
    */
   CLUSTERED_DOT_VERTICAL_LINE_HEAVY(() ->
-    ordered(BayerDither.CLUSTERED_DOT_VERTICAL_LINE, BayerDither.CLUSTERED_DOT_VERTICAL_LINE_MAXIMUM, PixelMapper.MAXIMUM_STRENGTH)
+    ordered(BayerDither.CLUSTERED_DOT_VERTICAL_LINE, BayerDither.CLUSTERED_DOT_VERTICAL_LINE_MAXIMUM, PixelMapper.HEAVY_STRENGTH)
   ),
 
   /**
@@ -671,7 +659,7 @@ public enum DitheringArgument {
    * @since 1.0.0
    */
   CLUSTERED_DOT_DIAGONAL_8X8_LIGHT(() ->
-    ordered(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_MAXIMUM, PixelMapper.MINIMUM_STRENGTH)
+    ordered(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_MAXIMUM, PixelMapper.LIGHT_STRENGTH)
   ),
 
   /**
@@ -691,7 +679,7 @@ public enum DitheringArgument {
    * @since 1.0.0
    */
   CLUSTERED_DOT_DIAGONAL_8X8_HEAVY(() ->
-    ordered(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_MAXIMUM, PixelMapper.MAXIMUM_STRENGTH)
+    ordered(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_MAXIMUM, PixelMapper.HEAVY_STRENGTH)
   );
 
   private final AlgorithmFactory algorithmFactory;

@@ -237,7 +237,7 @@ final class OrderedDitherTest {
   @Test
   void shouldReturnTheBuilderFromBuilderMethodsForChaining() {
     final OrderedDitherBuilder builder = DitherAlgorithm.ordered();
-    final PixelMapper mapper = PixelMapper.ofPixelMapper(BayerDither.NORMAL_8X8, PixelMapper.MINIMUM_STRENGTH);
+    final PixelMapper mapper = PixelMapper.ofPixelMapper(BayerDither.NORMAL_8X8, PixelMapper.LIGHT_STRENGTH);
     final OrderedDitherBuilder returnedByPalette = builder.palette(DitherTestImages.BLACK_WHITE);
     final OrderedDitherBuilder returnedByDitherMatrix = builder.ditherMatrix(mapper);
     assertSame(builder, returnedByPalette);

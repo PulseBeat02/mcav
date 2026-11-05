@@ -34,7 +34,7 @@ public interface PixelMapper {
    *
    * @since 1.0.0
    */
-  float MINIMUM_STRENGTH = 0.5f;
+  float LIGHT_STRENGTH = 0.5f;
 
   /**
    * The normal strength, which spans the distance between neighboring palette colors.
@@ -48,7 +48,7 @@ public interface PixelMapper {
    *
    * @since 1.0.0
    */
-  float MAXIMUM_STRENGTH = 2.0f;
+  float HEAVY_STRENGTH = 2.0f;
 
   /**
    * Returns the normalized threshold pattern, indexed by row and then column.
