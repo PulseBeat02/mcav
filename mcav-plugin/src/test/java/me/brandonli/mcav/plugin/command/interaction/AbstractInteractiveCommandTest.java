@@ -1956,12 +1956,12 @@ final class AbstractInteractiveCommandTest {
     }
 
     @Override
-    protected Component createStartMessage(final StartOutcome outcome, final @Nullable Throwable error) {
+    protected Component createStartMessage(final StartOutcome outcome, final @Nullable Throwable failure) {
       if (outcome == StartOutcome.STARTED) {
         return Component.text(STARTED_TEXT);
       }
 
-      final String reason = error == null ? "refused" : error.getMessage();
+      final String reason = failure == null ? "refused" : failure.getMessage();
       return Component.text("failed: %s".formatted(reason));
     }
 

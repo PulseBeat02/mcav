@@ -211,12 +211,12 @@ public final class AudioProvider {
     final int port = this.configuration.getHttpPort();
     final HttpResult server = HttpResult.http(host, port);
     final CompletableFuture<Void> start = CompletableFuture.runAsync(server::start, this.startup);
-    TaskUtils.whenComplete(start, (_, error) -> this.onHttpStarted(server, error));
+    TaskUtils.whenComplete(start, (_, failure) -> this.onHttpStarted(server, failure));
   }
 
-  private void onHttpStarted(final HttpResult server, final @Nullable Throwable error) {
-    if (error != null) {
-      LOGGER.error("The audio web page could not be started, so its audio is not available.", error);
+  private void onHttpStarted(final HttpResult server, final @Nullable Throwable failure) {
+    if (failure != null) {
+      LOGGER.error("The audio web page could not be started, so its audio is not available.", failure);
       return;
     }
 
@@ -250,7 +250,7 @@ public final class AudioProvider {
       () -> this.connectDiscord(bot, guildId, channelId),
       this.startup
     );
-    TaskUtils.whenComplete(login, (connection, error) -> this.onDiscordConnected(bot, connection, error));
+    TaskUtils.whenComplete(login, (connection, failure) -> this.onDiscordConnected(bot, connection, failure));
   }
 
   private JDA createJda(final String token) {
@@ -287,9 +287,9 @@ public final class AudioProvider {
     return new DiscordConnection(voiceChannel, audioManager, player);
   }
 
-  private void onDiscordConnected(final JDA bot, final @Nullable DiscordConnection connection, final @Nullable Throwable error) {
-    if (error != null) {
-      this.onDiscordFailed(bot, error);
+  private void onDiscordConnected(final JDA bot, final @Nullable DiscordConnection connection, final @Nullable Throwable failure) {
+    if (failure != null) {
+      this.onDiscordFailed(bot, failure);
       return;
     }
 
@@ -300,8 +300,8 @@ public final class AudioProvider {
     }
   }
 
-  private void onDiscordFailed(final JDA bot, final Throwable error) {
-    LOGGER.error("The Discord bot could not connect, so its audio is not available.", error);
+  private void onDiscordFailed(final JDA bot, final Throwable failure) {
+    LOGGER.error("The Discord bot could not connect, so its audio is not available.", failure);
 
     final boolean current;
     synchronized (this.lock) {

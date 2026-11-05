@@ -400,20 +400,20 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    * of a failure is logged, not shown, since it may contain details of the server.
    *
    * @param outcome whether the browser started
-   * @param error   why the browser failed to start, if known
+   * @param failure why the browser failed to start, if known
    * @return "Browser started!" on success, otherwise the message of the failure
    * @throws NullPointerException if {@code outcome} is null
    * @since 1.0.0
    */
   @Override
-  protected Component createStartMessage(final StartOutcome outcome, final @Nullable Throwable error) {
+  protected Component createStartMessage(final StartOutcome outcome, final @Nullable Throwable failure) {
     Preconditions.checkNotNull(outcome, "Outcome must not be null!");
 
     if (outcome == StartOutcome.STARTED) {
       return Message.START_BROWSER.build();
     }
 
-    Throwable cause = error;
+    Throwable cause = failure;
     if (cause instanceof CompletionException) {
       cause = cause.getCause();
     }

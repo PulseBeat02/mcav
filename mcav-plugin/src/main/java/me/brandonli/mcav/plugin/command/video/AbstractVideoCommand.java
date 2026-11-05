@@ -361,7 +361,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
       return;
     }
 
-    TaskUtils.whenComplete(start, (started, error) -> this.finishLaunch(sender, request, generation, started, error));
+    TaskUtils.whenComplete(start, (started, failure) -> this.finishLaunch(sender, request, generation, started, failure));
   }
 
   private void finishLaunch(
@@ -369,11 +369,11 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final PlaybackRequest request,
     final long generation,
     final @Nullable Boolean started,
-    final @Nullable Throwable error
+    final @Nullable Throwable failure
   ) {
     final AtomicBoolean starting = this.manager.getStarting();
     starting.set(false);
-    TaskUtils.runOnMainThread(this.plugin, () -> this.reportIfCurrent(sender, request, generation, started, error));
+    TaskUtils.runOnMainThread(this.plugin, () -> this.reportIfCurrent(sender, request, generation, started, failure));
   }
 
   private void reportIfCurrent(
@@ -381,12 +381,12 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final PlaybackRequest request,
     final long generation,
     final @Nullable Boolean started,
-    final @Nullable Throwable error
+    final @Nullable Throwable failure
   ) {
     if (this.manager.isCurrent(generation)) {
       final AudioArgument audioType = request.getAudioType();
       final Player[] viewers = request.getViewers();
-      this.report(sender, audioType, viewers, started, error);
+      this.report(sender, audioType, viewers, started, failure);
     }
   }
 
@@ -395,10 +395,10 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final AudioArgument audioType,
     final Player[] viewers,
     final @Nullable Boolean started,
-    final @Nullable Throwable error
+    final @Nullable Throwable failure
   ) {
-    if (error != null) {
-      LOGGER.error("Failed to play a video.", error);
+    if (failure != null) {
+      LOGGER.error("Failed to play a video.", failure);
       final Component message = Message.VIDEO_START_ERROR.build();
       sender.sendMessage(message);
       return;

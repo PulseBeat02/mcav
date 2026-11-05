@@ -87,16 +87,16 @@ public final class VideoDevicesCommand implements AnnotationCommandFeature {
 
     final ExecutorService service = this.manager.getService();
     final CompletableFuture<List<CaptureDevices.Device>> listing = CompletableFuture.supplyAsync(CaptureDevices::list, service);
-    TaskUtils.whenComplete(listing, (devices, error) -> this.onDevicesListed(sender, devices, error));
+    TaskUtils.whenComplete(listing, (devices, failure) -> this.onDevicesListed(sender, devices, failure));
   }
 
   private void onDevicesListed(
     final CommandSender sender,
     final @Nullable List<CaptureDevices.Device> devices,
-    final @Nullable Throwable error
+    final @Nullable Throwable failure
   ) {
-    if (error != null) {
-      LOGGER.error("Failed to list the capture devices.", error);
+    if (failure != null) {
+      LOGGER.error("Failed to list the capture devices.", failure);
     }
 
     final List<CaptureDevices.Device> listed = devices == null ? List.of() : devices;

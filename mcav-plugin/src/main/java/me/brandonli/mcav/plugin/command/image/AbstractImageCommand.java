@@ -195,7 +195,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
       return;
     }
 
-    TaskUtils.whenComplete(loading, (image, error) -> this.onImageLoaded(request, generation, image, error));
+    TaskUtils.whenComplete(loading, (image, failure) -> this.onImageLoaded(request, generation, image, failure));
   }
 
   // a disabled plugin's main thread takes no tasks, so the image is released at once
@@ -203,12 +203,12 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     final ImageRequest request,
     final long generation,
     final @Nullable ImageBuffer image,
-    final @Nullable Throwable error
+    final @Nullable Throwable failure
   ) {
     final CommandSender sender = request.getSender();
-    if (error != null) {
+    if (failure != null) {
       final String mrl = request.getMrl();
-      LOGGER.error("Image {} could not be loaded.", mrl, error);
+      LOGGER.error("Image {} could not be loaded.", mrl, failure);
       final Component message = Message.UNSUPPORTED_MRL.build();
       TaskUtils.runOnMainThread(this.plugin, () -> sender.sendMessage(message));
       return;
