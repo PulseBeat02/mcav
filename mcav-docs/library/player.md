@@ -139,7 +139,7 @@ it.
 ```
 
 The player reports failures on its threads, such as a broken network stream, to the exception handler, which logs
-them by default. Set your own with `player.setExceptionHandler((message, error) -> ...)`.
+them by default. Set your own with `player.setExceptionHandler((message, failure) -> ...)`.
 
 ## Image players
 

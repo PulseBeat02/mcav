@@ -181,7 +181,7 @@ final class ScriptedPlayerTest {
   void shouldReportTheStartFailureEvenWhenTheGrabberCannotBeClosed() {
     final ScriptedPlayer player = new ScriptedPlayer(ScriptedFrameGrabber::failingToStartAndStop);
     final List<Throwable> errors = Collections.synchronizedList(new ArrayList<>());
-    player.setExceptionHandler((_, error) -> errors.add(error));
+    player.setExceptionHandler((_, failure) -> errors.add(failure));
 
     final boolean started = player.start(VIDEO);
     final boolean playing = player.isPlaying();
@@ -198,7 +198,7 @@ final class ScriptedPlayerTest {
   void shouldCloseGrabbersThatCannotBeConfigured() {
     final ScriptedPlayer player = new ScriptedPlayer(ScriptedPlayerTest::endlessVideo);
     final List<Throwable> errors = Collections.synchronizedList(new ArrayList<>());
-    player.setExceptionHandler((_, error) -> errors.add(error));
+    player.setExceptionHandler((_, failure) -> errors.add(failure));
     player.failConfiguration();
 
     final boolean started = player.start(VIDEO);

@@ -115,7 +115,7 @@ final class PlaybackSessionTest {
   private final DimensionAttachableCallback dimensionCallback = DimensionAttachableCallback.create();
   private final List<String> reports = Collections.synchronizedList(new ArrayList<>());
 
-  private void report(final String message, final Throwable cause) {
+  private void report(final String message, final Throwable failure) {
     this.reports.add(message);
   }
 

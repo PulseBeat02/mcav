@@ -64,9 +64,9 @@ final class PlaybackEventListenerTest {
     this.owner.setExceptionHandler(this::recordFailure);
   }
 
-  private void recordFailure(final String message, final Throwable error) {
+  private void recordFailure(final String message, final Throwable failure) {
     this.messages.add(message);
-    this.errors.add(error);
+    this.errors.add(failure);
   }
 
   private long awaitMilliseconds(final long timeoutMilliseconds) throws InterruptedException {

@@ -139,9 +139,9 @@ final class BackgroundInstallation {
     }
   }
 
-  private void reportUncaughtError(final Thread thread, final Throwable error) {
+  private void reportUncaughtError(final Thread thread, final Throwable failure) {
     final String threadName = thread.getName();
-    this.logger.error("{} ended with an error.", threadName, error);
+    this.logger.error("{} ended with an error.", threadName, failure);
   }
 
   // Records the outcome of a preparation. A preparation that ends after cancel() reports its program as unavailable and

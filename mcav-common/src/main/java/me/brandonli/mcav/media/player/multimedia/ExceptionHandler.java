@@ -27,7 +27,7 @@ import java.util.function.BiConsumer;
  * VideoPlayerMultiplexer createPlayer(final Plugin plugin) {
  *   final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
  *   final Logger logger = plugin.getLogger();
- *   player.setExceptionHandler((message, error) -> logger.log(Level.SEVERE, message, error));
+ *   player.setExceptionHandler((message, failure) -> logger.log(Level.SEVERE, message, failure));
  *
  *   return player;
  * }

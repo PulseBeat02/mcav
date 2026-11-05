@@ -41,8 +41,8 @@ public final class DefaultExceptionHandler implements ExceptionHandler {
     this.handler = this::log;
   }
 
-  private void log(@UnderInitialization DefaultExceptionHandler this, final String message, final Throwable error) {
-    LOGGER.error("{}", message, error);
+  private void log(@UnderInitialization DefaultExceptionHandler this, final String message, final Throwable failure) {
+    LOGGER.error("{}", message, failure);
   }
 
   /**

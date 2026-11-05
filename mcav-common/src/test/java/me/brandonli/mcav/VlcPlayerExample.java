@@ -89,7 +89,7 @@ public final class VlcPlayerExample {
 
       final VideoPlayerMultiplexer player = VideoPlayer.vlc();
       resources.add(player::release);
-      player.setExceptionHandler((context, throwable) -> LOGGER.error("Playback in {} failed.", context, throwable));
+      player.setExceptionHandler((context, failure) -> LOGGER.error("Playback in {} failed.", context, failure));
 
       final AudioAttachableCallback audioCallback = player.getAudioAttachableCallback();
       audioCallback.attach(audioPipeline);

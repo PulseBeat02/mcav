@@ -88,9 +88,9 @@ final class VideoRendererTest {
     this.owner.setExceptionHandler(this::recordFailure);
   }
 
-  private void recordFailure(final String message, final Throwable error) {
+  private void recordFailure(final String message, final Throwable failure) {
     this.messages.add(message);
-    this.errors.add(error);
+    this.errors.add(failure);
   }
 
   @BeforeAll
@@ -150,11 +150,11 @@ final class VideoRendererTest {
   }
 
   private static BiConsumer<String, Throwable> reportingHandler(final List<String> reported) {
-    return (message, error) -> reportFailure(reported, message, error);
+    return (message, failure) -> reportFailure(reported, message, failure);
   }
 
-  private static void reportFailure(final List<String> reported, final String message, final Throwable error) {
-    final String reason = error.getMessage();
+  private static void reportFailure(final List<String> reported, final String message, final Throwable failure) {
+    final String reason = failure.getMessage();
     reported.add("%s: %s".formatted(message, reason));
   }
 
