@@ -267,7 +267,6 @@ final class VideoFlagsParserTest {
     assertArrayEquals(expected, arguments);
   }
 
-  // found by the fuzzer: the old regex recursed once per character and overflowed a 1 MB stack at about 1600 characters
   @Test
   void shouldFindOptionsOfAnyLengthWithoutOverflowingTheStack() {
     final String value = "b".repeat(100_000);

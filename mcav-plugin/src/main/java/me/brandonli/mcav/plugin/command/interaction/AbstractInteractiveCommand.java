@@ -169,8 +169,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    */
   protected volatile @Nullable PlayerType player;
 
-  // the provider a player's sound was attached to, which a release lets go of even while the plugin disables and no
-  // longer hands its provider out
+  // the provider the sound was attached to, so a release still reaches it once the disabling plugin no longer hands it out
   private volatile @Nullable AudioProvider soundProvider;
 
   /**
@@ -318,8 +317,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     final Screen screen,
     final ScreenSound sound
   ) {
-    // releasing the player while it starts cancels the start, and a release before the main thread sends the links
-    // cancels the screen, which the main thread sees, as releases happen there too
+    // a release cancels the start, or later the screen; releases run on the main thread, which checks before sending the links
     if (error == null && Boolean.TRUE.equals(started)) {
       final AudioProvider provider = this.plugin.getAudioProvider();
       TaskUtils.runOnMainThread(this.plugin, () -> this.sendSoundLinkUnlessCancelled(provider, screen, sound));

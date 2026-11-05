@@ -405,8 +405,7 @@ final class AbstractImageCommandTest {
   void shouldRejectEmptyQuotedMrlEvenWhenRawQuotesResolveToAnImage() throws IOException {
     final Path imagePath = this.writeImage(LITERAL_QUOTES_FILE_NAME, PNG_FORMAT);
     final FileSource imageSource = FileSource.path(imagePath);
-    // A Unix file can literally be named two quote characters. Model that lookup without creating a shared
-    // working-directory file, since PIT minions run concurrently. Delimiters still represent an empty MRL.
+    // A file named two quote characters is mocked, not created, because concurrent PIT minions share the working directory.
     try (
       final MockedConstruction<SourceDetectionHelper> detection = Mockito.mockConstruction(SourceDetectionHelper.class, (helper, _) ->
         this.detectQuotesAsImage(helper, imageSource)
