@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.utils.http;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.Striped;
@@ -33,7 +35,6 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.HexFormat;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.locks.Lock;
@@ -241,8 +242,8 @@ public final class HttpDownloader {
 
   @VisibleForTesting
   static boolean isSameOrigin(final URI first, final URI second) {
-    final String scheme = Objects.requireNonNull(first.getScheme());
-    final String host = Objects.requireNonNull(first.getHost());
+    final String scheme = requireNonNull(first.getScheme());
+    final String host = requireNonNull(first.getHost());
     return scheme.equalsIgnoreCase(second.getScheme()) && host.equalsIgnoreCase(second.getHost()) && portOf(first) == portOf(second);
   }
 
@@ -409,7 +410,7 @@ public final class HttpDownloader {
     Preconditions.checkArgument(fileName != null, "Destination %s must name a file!", destination);
 
     final Path parentOrNull = target.getParent();
-    final Path parent = Objects.requireNonNull(parentOrNull, "A file always has a parent directory!");
+    final Path parent = requireNonNull(parentOrNull, "A file always has a parent directory!");
     final String partPrefix = fileName + PART_PREFIX_SEPARATOR;
     try {
       Files.createDirectories(parent);
@@ -469,7 +470,7 @@ public final class HttpDownloader {
     }
 
     final String message = "Download of %s failed after %s attempts!".formatted(uri, MAXIMUM_ATTEMPTS);
-    final Exception cause = Objects.requireNonNull(lastFailure, "Every attempt failed before the loop ended!");
+    final Exception cause = requireNonNull(lastFailure, "Every attempt failed before the loop ended!");
     throw new DownloadException(message, cause);
   }
 

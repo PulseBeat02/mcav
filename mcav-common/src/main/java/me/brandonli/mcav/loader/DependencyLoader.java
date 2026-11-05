@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.loader;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
@@ -25,7 +27,6 @@ import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -244,7 +245,7 @@ public final class DependencyLoader {
     }
 
     final @Nullable String homeOrNull = System.getProperty(USER_HOME_PROPERTY);
-    final String home = Objects.requireNonNull(homeOrNull, "The JVM always sets the user home!");
+    final String home = requireNonNull(homeOrNull, "The JVM always sets the user home!");
     final Path homeCache = Path.of(home, HOME_CACHE_ROOT, HOME_CACHE_DIRECTORY);
     final boolean runnable = IoUtils.createRunnableFolder(homeCache);
     if (runnable) {
