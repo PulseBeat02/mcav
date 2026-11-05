@@ -461,12 +461,12 @@ public enum KeyCode {
    * @return the key character
    * @since 1.0.0
    */
-  public char getKeyChar() {
+  public char getKeyCharacter() {
     return this.keyCharacter;
   }
 
   /**
-   * Returns the code point of {@link #getKeyChar()}.
+   * Returns the code point of {@link #getKeyCharacter()}.
    *
    * @return the code point
    * @since 1.0.0

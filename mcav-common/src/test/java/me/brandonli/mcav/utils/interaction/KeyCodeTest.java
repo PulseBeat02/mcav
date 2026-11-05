@@ -85,8 +85,8 @@ final class KeyCodeTest {
     for (final Map.Entry<KeyCode, KeyCode> alias : ALIASES.entrySet()) {
       final KeyCode aliasKey = alias.getKey();
       final KeyCode key = alias.getValue();
-      final char aliasCharacter = aliasKey.getKeyChar();
-      final char keyCharacter = key.getKeyChar();
+      final char aliasCharacter = aliasKey.getKeyCharacter();
+      final char keyCharacter = key.getKeyCharacter();
       final String aliasName = aliasKey.name();
       assertEquals(keyCharacter, aliasCharacter, aliasName);
     }
@@ -97,7 +97,7 @@ final class KeyCodeTest {
     final Set<KeyCode> aliases = ALIASES.keySet();
     final List<Character> characters = Arrays.stream(KeyCode.values())
       .filter(key -> !aliases.contains(key))
-      .map(KeyCode::getKeyChar)
+      .map(KeyCode::getKeyCharacter)
       .toList();
     final Set<Character> distinctCharacters = Set.copyOf(characters);
     final int keyCount = characters.size();
@@ -108,7 +108,7 @@ final class KeyCodeTest {
   @Test
   void shouldUseThePrivateUseAreaForEveryKey() {
     for (final KeyCode key : KeyCode.values()) {
-      final char character = key.getKeyChar();
+      final char character = key.getKeyCharacter();
       final boolean isPrivateUse = character >= PRIVATE_USE_START && character <= PRIVATE_USE_END;
       final String keyName = key.name();
       assertTrue(isPrivateUse, keyName);
@@ -117,7 +117,7 @@ final class KeyCodeTest {
 
   @Test
   void shouldExposeTheCharacterInEveryForm() {
-    final char character = KeyCode.ENTER.getKeyChar();
+    final char character = KeyCode.ENTER.getKeyCharacter();
     final int codePoint = KeyCode.ENTER.getCodePoint();
     final String text = KeyCode.ENTER.asString();
     final String expectedText = String.valueOf(character);

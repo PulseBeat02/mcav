@@ -365,7 +365,7 @@ Other utility callers need these updates:
 | `CommandTask.getCommand()` returning `String[]` | Consume the returned `List<String>` |
 | Checked-exception catches around `getOutput()` / `getErrorOutput()` | Handle execution failures at the run operation; the getters no longer declare that exception |
 | `IOUtils.getSHA256Hash(String)` | `IoUtils.getSha256Hash(Path)` |
-| `KeyCode.charAt(int)` | Use `getKeyChar`, `getCodePoint` or `asString` for the needed representation |
+| `KeyCode.charAt(int)` | Use `getKeyCharacter`, `getCodePoint` or `asString` for the needed representation |
 | Removed `SourceUtils.getSource` | Use the current source APIs; do not depend on their former implementation helpers |
 | `ByteUtils.convertAudioSamplesToLittleEndian` / `clampNormalBufferToBigEndian` | `ByteUtils.toLittleEndian(Buffer)` / `toBigEndian(ByteBuffer)`; `clampNativeBufferToLittleEndian` has no replacement |
 | `ByteUtils.isLittleEndian()` / `isBigEndian()` | Compare `ByteOrder.nativeOrder()` with `ByteOrder.LITTLE_ENDIAN` or `ByteOrder.BIG_ENDIAN` |
