@@ -22,9 +22,14 @@ import nextTypeScript from "eslint-config-next/typescript";
 
 const IGNORED_PATHS = [".next/**", "out/**", "build/**", "next-env.d.ts"];
 
+const COMMENT_FORM_RULES = {
+  "multiline-comment-style": ["error", "starred-block"],
+};
+
 const eslintConfiguration = defineConfig([
   ...nextVitals,
   ...nextTypeScript,
+  { rules: COMMENT_FORM_RULES },
   globalIgnores(IGNORED_PATHS),
 ]);
 
