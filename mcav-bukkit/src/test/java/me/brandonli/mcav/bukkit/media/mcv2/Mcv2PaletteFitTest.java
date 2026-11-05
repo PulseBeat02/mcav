@@ -84,8 +84,10 @@ final class Mcv2PaletteFitTest {
 
   @Test
   void shouldKeepTheSeedOfAnEmptyCluster() {
-    // equal luma everywhere: both endpoints start at the first pixel, so the first iteration puts every pixel in
-    // cluster 0 and endpoint 1 keeps its seed; from the second iteration on, the first pixel has a cluster of its own
+    /*
+     * equal luma everywhere: both endpoints start at the first pixel, so the first iteration puts every pixel in
+     * cluster 0 and endpoint 1 keeps its seed; from the second iteration on, the first pixel has a cluster of its own
+     */
     final int[] source = this.block(new int[] { 100, 50, 0 }, new int[] { 0, 50, 100 }, new int[] { 50, 50, 50 }, new int[] { 50, 50, 50 });
     final int[] colors = new int[ENDPOINTS_LENGTH];
     final byte[] selectors = new byte[4];

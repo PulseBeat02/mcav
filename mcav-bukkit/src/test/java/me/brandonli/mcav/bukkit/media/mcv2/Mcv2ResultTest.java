@@ -576,8 +576,7 @@ final class Mcv2ResultTest {
     when(encoder.encode(any(), anyInt(), anyInt(), anyLong())).thenAnswer(_ -> this.advanceEncodeClock(clock, encodeNanoseconds));
     when(encoder.getStatistics()).thenReturn(Optional.of(Mcv2.Statistics.of(1, false, 1, 1, LAMBDA)));
     final ImageBuffer frame = Images.solid(64, 32, FRAME_COLOR);
-    // the viewer with the pack is shown the screen, dithered for until then, then every frame is encoded while 5 ms
-    // fit a frame's 16.7 ms
+    // the viewer with the pack, dithered for until then, is shown the screen; every frame is encoded while 5 ms fit a frame's 16.7 ms
     result.applyFilter(frame, this.metadata);
     this.server.runTasks();
     // five seconds while a new encoder warms up: the pacer judges nothing yet
@@ -1150,8 +1149,7 @@ final class Mcv2ResultTest {
 
   @Test
   void shouldClearTheWallOfTheViewersWithThePackWhenReleased() throws InterruptedException {
-    // a client with the pack keeps drawing its last decoded picture over a wall whose maps still carry the screen's
-    // anchors, so a release clears their maps too, not only the dithered ones
+    // a client with the pack keeps drawing its last picture on maps with the screen's anchors, so a release clears those maps too
     final Mcv2Result result = new Mcv2Result(
       this.configuration,
       new Mcv2Channel(this.configuration, this.viewers, this.screen),
@@ -1452,8 +1450,7 @@ final class Mcv2ResultTest {
 
   @Test
   void shouldRecordWhatTheViewersLinksDidWithEachFrame(@TempDir final Path directory) throws Exception {
-    // two viewers with the pack; the first one's connection writes nothing, so it falls behind, then misses the frame
-    // the next one predicts from and waits for a keyframe
+    // two viewers with the pack; the first's connection writes nothing, so it falls behind, misses a reference and waits for a keyframe
     final UUID second = UUID.fromString(OTHER_VIEWER_ID);
     this.server.addPlayer(second);
     PacketUtils.initialize();
@@ -1793,9 +1790,7 @@ final class Mcv2ResultTest {
     result.applyFilter(frame, this.metadata);
     this.awaitEncoders(made, 1);
     verify(made.getFirst(), timeout(TimeUnit.SECONDS.toMillis(10))).finish(any());
-    // the screen searches the next frame while the sender verifies the last, so frames are handed over only once the
-    // failed verification has stopped the screen, which also ends a drain: right after finish was called, a frame could
-    // still be searched on a loaded machine
+    // the screen searches a frame while the sender verifies the last, so frames are drained only after the failed verification stops it
     final Thread drainer = new Thread(() -> this.drainResult(result));
     drainer.start();
     drainer.join(TimeUnit.SECONDS.toMillis(10));
@@ -2375,8 +2370,7 @@ final class Mcv2ResultTest {
     final CountDownLatch secondFrameMayGoOn
   ) {
     if (frames.getAndIncrement() == 1) {
-      // the second frame's work on the screen's own thread does not answer the interrupt that stops the screen, as
-      // native code does not
+      // the second frame's work ignores the interrupt that stops the screen, as native code does
       inSecondFrame.countDown();
       this.awaitUninterruptibly(secondFrameMayGoOn);
     }

@@ -163,8 +163,7 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
       }
     }
 
-    // the stall handler counts a write once it is complete, and raises its first idle event however far a write still
-    // in progress got, so the pack goes out a chunk at a time, each chunk a write of its own that passes through it
+    // the stall handler counts only completed writes, so the pack goes out a chunk at a time, each chunk a write of its own
     pipeline.addBefore(context.name(), CHUNKS_NAME, new ChunkedWriteHandler());
     final IdleStateHandler stallHandler = new IdleStateHandler(
       OBSERVE_OUTPUT,

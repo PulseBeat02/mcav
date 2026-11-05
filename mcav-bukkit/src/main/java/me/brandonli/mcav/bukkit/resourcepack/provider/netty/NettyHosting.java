@@ -96,8 +96,7 @@ public final class NettyHosting implements InjectorHosting {
     this.requestPath = REQUEST_DIRECTORY + keyValue + PACK_EXTENSION;
     this.zip = zip;
     this.listenerKey = Key.key(KEY_NAMESPACE, keyValue);
-    // a Netty pipeline rejects two handlers of the same name, and this class supports several running instances,
-    // so the name carries the instance number exactly as the listener key does
+    // several instances may run and a pipeline rejects duplicate handler names, so the name carries the instance number, as the key does
     this.handlerName = ResourcePackHttpHandler.NAME + HANDLER_NUMBER_SEPARATOR + instanceNumber;
     this.packFile = new ResourcePackFile(zip);
   }

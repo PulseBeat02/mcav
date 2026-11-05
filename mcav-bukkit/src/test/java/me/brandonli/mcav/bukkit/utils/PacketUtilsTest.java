@@ -288,8 +288,7 @@ final class PacketUtilsTest {
     final List<ChannelFuture> writes = new ArrayList<>();
     final boolean sent = PacketUtils.sendPacket(FIRST, bundle, writes::add);
     assertTrue(sent);
-    // Paper holds a map packet that a plugin sends from another thread until the server's next tick, which put two
-    // frames of a 30 fps MCV2 video into one tick about every other tick
+    // Paper holds a map packet that a plugin sends from another thread until the server's next tick
     final @Nullable Object written = channel.readOutbound();
     assertSame(bundle, written, "the packet is written to the connection and flushed at once");
 

@@ -48,8 +48,10 @@ final class Mcv2MotionLambdaTest {
 
   @Test
   void shouldBlurTheLumaOfEveryFourthPixelOverThreeByThreeSamples() {
-    // luma r + 2 g + b of the samples: 40, 80 on the first row, 120, 160 on the second; each blurred sample sums its
-    // 3x3 neighborhood, the edge samples repeated, so the top left one is 4 * 40 + 2 * 80 + 2 * 120 + 160
+    /*
+     * luma r + 2 g + b of the samples: 40, 80 on the first row, 120, 160 on the second; each blurred sample sums its
+     * 3x3 neighborhood, the edge samples repeated, so the top left one is 4 * 40 + 2 * 80 + 2 * 120 + 160
+     */
     final int[] expectedBlur = new int[] { 720, 840, 960, 1080 };
     final int[] blurred = MotionLambda.blurredLuma(this.corners(10, 20, 30, 40), 5, 5, Workers.SEQUENTIAL, new int[4], new int[4]);
     assertArrayEquals(expectedBlur, blurred);
