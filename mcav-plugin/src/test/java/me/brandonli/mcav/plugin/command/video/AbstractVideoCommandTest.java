@@ -909,7 +909,7 @@ final class AbstractVideoCommandTest {
   void shouldRefuseTheDiscordBotWhenItIsDisabled() {
     this.play(PlayerArgument.FFMPEG, AudioArgument.DISCORD_BOT, MRL, "");
 
-    final Component error = Message.UNSUPPORTED_AUDIO.build();
+    final Component error = Message.DISCORD_BOT_OFF.build();
     this.assertSenderReceived(error);
     verify(this.manager, never()).getService();
     this.assertNotStarting();
@@ -919,7 +919,7 @@ final class AbstractVideoCommandTest {
   void shouldRefuseTheWebPageWhenItIsDisabled() {
     this.play(PlayerArgument.FFMPEG, AudioArgument.HTTP_SERVER, MRL, "");
 
-    final Component error = Message.UNSUPPORTED_AUDIO.build();
+    final Component error = Message.HTTP_SERVER_OFF.build();
     this.assertSenderReceived(error);
     verify(this.manager, never()).getService();
   }

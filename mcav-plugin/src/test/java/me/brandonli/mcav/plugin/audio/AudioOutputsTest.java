@@ -37,10 +37,15 @@ final class AudioOutputsTest {
 
   @Test
   void shouldNotPlayAnOutputThatIsOffOrStillStarting() {
-    final Component expected = Message.UNSUPPORTED_AUDIO.build();
+    final Component expected = Message.DISCORD_BOT_OFF.build();
     final Optional<Component> problem = AudioOutputs.findProblem(this.provider, AudioArgument.DISCORD_BOT);
     final Optional<Component> expectedProblem = Optional.of(expected);
     assertEquals(expectedProblem, problem);
+
+    final Component httpServerOff = Message.HTTP_SERVER_OFF.build();
+    final Optional<Component> httpProblem = AudioOutputs.findProblem(this.provider, AudioArgument.HTTP_SERVER);
+    final Optional<Component> expectedHttpProblem = Optional.of(httpServerOff);
+    assertEquals(expectedHttpProblem, httpProblem);
 
     when(this.provider.isHttpEnabled()).thenReturn(true);
 

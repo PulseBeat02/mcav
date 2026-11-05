@@ -353,14 +353,6 @@ public interface Message extends LocaleTools {
   NullComponent RESUME_PLAYER_FAILED = LocaleTools.direct("mcav.command.video.resume.failed");
 
   /**
-   * Key {@code mcav.command.audio.unsupported}: a video command chose the Discord bot or the HTTP server as the audio
-   * output, but that output is not enabled in {@code config.yml}.
-   *
-   * @since 1.0.0
-   */
-  NullComponent UNSUPPORTED_AUDIO = LocaleTools.direct("mcav.command.audio.unsupported");
-
-  /**
    * Key {@code mcav.command.player.unsupported}: a video command chose the {@code VLC} player, but VLC is not
    * installed on the server.
    *
@@ -703,6 +695,22 @@ public interface Message extends LocaleTools {
    * @since 1.0.0
    */
   NullComponent SIMPLE_VOICE_CHAT_OFF = LocaleTools.direct("mcav.command.audio.simple_voice_chat.off");
+
+  /**
+   * Key {@code mcav.command.audio.discord_bot.off}: a command chose the Discord bot as the audio output while
+   * {@code discord-bot.enabled} is {@code false} in {@code config.yml}.
+   *
+   * @since 1.0.0
+   */
+  NullComponent DISCORD_BOT_OFF = LocaleTools.direct("mcav.command.audio.discord_bot.off");
+
+  /**
+   * Key {@code mcav.command.audio.http_server.off}: a command chose the audio web page as the audio output while
+   * {@code http-server.enabled} is {@code false} in {@code config.yml}.
+   *
+   * @since 1.0.0
+   */
+  NullComponent HTTP_SERVER_OFF = LocaleTools.direct("mcav.command.audio.http_server.off");
 
   /**
    * Key {@code mcav.command.scoreboard.lines.error}: a scoreboard video or image asked for more lines than the

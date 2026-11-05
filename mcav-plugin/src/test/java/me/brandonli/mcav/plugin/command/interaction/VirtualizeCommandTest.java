@@ -866,7 +866,7 @@ final class VirtualizeCommandTest {
       AudioArgument.DISCORD_BOT,
       SMALL_MEMORY_FLAGS
     );
-    this.assertReceived(Message.UNSUPPORTED_AUDIO.build());
+    this.assertReceived(Message.DISCORD_BOT_OFF.build());
     this.machines.verifyNoInteractions();
   }
 

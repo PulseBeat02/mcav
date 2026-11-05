@@ -312,7 +312,7 @@ final class BrowserCommandTest {
   void shouldStartNoBrowserForAnAudioOutputThatCannotPlay() {
     this.create(RESOLUTION, BLOCK_DIMENSIONS, AudioArgument.DISCORD_BOT, PAGE_URL);
 
-    this.assertReceived(Message.UNSUPPORTED_AUDIO.build());
+    this.assertReceived(Message.DISCORD_BOT_OFF.build());
     this.browsers.verify(() -> BrowserPlayer.create(any(BrowserOptions.class)), never());
   }
 

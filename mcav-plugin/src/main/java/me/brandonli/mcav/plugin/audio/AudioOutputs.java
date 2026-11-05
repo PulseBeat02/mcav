@@ -64,12 +64,12 @@ public final class AudioOutputs {
       case DISCORD_BOT -> {
         final boolean enabled = provider.isDiscordBotEnabled();
         final boolean ready = provider.isDiscordBotReady();
-        yield describe(enabled, ready, Message.UNSUPPORTED_AUDIO);
+        yield describe(enabled, ready, Message.DISCORD_BOT_OFF);
       }
       case HTTP_SERVER -> {
         final boolean enabled = provider.isHttpEnabled();
         final boolean ready = provider.isHttpReady();
-        yield describe(enabled, ready, Message.UNSUPPORTED_AUDIO);
+        yield describe(enabled, ready, Message.HTTP_SERVER_OFF);
       }
       case SIMPLE_VOICE_CHAT -> {
         final boolean enabled = provider.isSimpleVoiceChatEnabled();

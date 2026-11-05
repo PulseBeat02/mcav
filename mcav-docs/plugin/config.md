@@ -225,8 +225,9 @@ MCAV cannot be enabled: Simple Voice Chat audio is enabled, but the Simple Voice
 
 Install the plugin or set the option to `false`, then restart the server.
 
-A video, browser or machine command that chooses Simple Voice Chat audio while `simple-voice-chat.enabled` is `false`
-refuses with a chat line naming the plugin and the setting, and starts nothing.
+A video, browser or machine command that chooses an audio output that is off refuses with a chat line naming the setting
+to turn on (`discord-bot.enabled`, `http-server.enabled`, or `simple-voice-chat.enabled` with the Simple Voice Chat
+plugin), and starts nothing.
 
 The browser of `/mcav browser create` reaches public addresses of the internet only, and none of the server's own
 addresses, public ones included. Turn on
