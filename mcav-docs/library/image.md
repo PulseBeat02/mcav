@@ -25,7 +25,7 @@ otherwise the memory is only freed when the garbage collector finds the object.
   }
 ```
 
-Images can also be loaded from files and URLs with `ImageBuffer.path(FileSource)` and `ImageBuffer.uri(UriSource)`,
+Images can also be loaded from files and URIs with `ImageBuffer.path(FileSource)` and `ImageBuffer.uri(UriSource)`,
 or created from raw pixels with `ImageBuffer.buffer(int[], width, height)`.
 
 OpenCV allocates the whole picture as soon as it has read a file's header, so a small file can make it take gigabytes.
@@ -79,7 +79,7 @@ with `updateArgb(int[], width, height)`:
 
 ## Loading GIFs
 
-`DynamicImageBuffer` decodes every frame of an animated GIF from a file or URL and reports its frame rate. Play it
+`DynamicImageBuffer` decodes every frame of an animated GIF from a file or URI and reports its frame rate. Play it
 with the [image player](player.md#image-players).
 
 ```java
