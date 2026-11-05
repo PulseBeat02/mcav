@@ -64,7 +64,7 @@ const HUE_REDRAW_DEGREES: number = 5;
 const MIDDLE_HUE_OFFSET_DEGREES: number = 60;
 const END_HUE_OFFSET_DEGREES: number = 120;
 
-const CANVAS_CONTEXT_TYPE: "2d" = "2d";
+const CANVAS_CONTEXT_TYPE: CanvasContextType = "2d";
 
 const BACKGROUND_COLOR: string = "#000";
 const COLOR_SATURATION: string = "100%";
@@ -134,6 +134,8 @@ const UNKNOWN_MEDIA_INFORMATION: MediaInformation = {
     like_count: 0,
     upload_date: undefined
 };
+
+type CanvasContextType = "2d";
 
 type MediaInformation = {
     title?: string;
