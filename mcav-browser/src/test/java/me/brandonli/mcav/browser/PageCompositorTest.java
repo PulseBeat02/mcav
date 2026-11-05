@@ -48,6 +48,8 @@ class PageCompositorTest {
   private static final long SETTLE_MILLISECONDS = 100L;
   private static final long TAKER_START_MILLISECONDS = 50L;
 
+  private static final long SPINNING_CLOCK_READS = 20L;
+
   private static final int POPUP_SHADE = 150;
 
   private final AtomicLong clock = new AtomicLong(NOW);
@@ -232,7 +234,7 @@ class PageCompositorTest {
 
     // a spinning taker waits a millisecond per pass, about 300 passes
     final long clockReads = reads.get();
-    final boolean slept = clockReads < 20L;
+    final boolean slept = clockReads < SPINNING_CLOCK_READS;
     assertTrue(slept, "the taker read the clock " + clockReads + " times while it waited");
   }
 
@@ -243,10 +245,15 @@ class PageCompositorTest {
   }
 
   @Test
-  void shouldTimeOutTakingWithoutDamage() throws InterruptedException {
-    final PageCompositor compositor = new PageCompositor(WIDTH, HEIGHT, 1, SETTLE_MILLISECONDS, System::nanoTime);
-    final @Nullable FrameRegion damage = compositor.takeDamage(new byte[compositor.getPageBytes()], 20L);
+  void shouldTimeOutTakingWithoutDamageWithoutSpinning() throws InterruptedException {
+    final AtomicLong reads = new AtomicLong();
+    final PageCompositor compositor = new PageCompositor(WIDTH, HEIGHT, 1, SETTLE_MILLISECONDS, () -> this.readNanoseconds(reads));
+    final @Nullable FrameRegion damage = compositor.takeDamage(new byte[compositor.getPageBytes()], 300L);
     assertNull(damage);
+
+    final long clockReads = reads.get();
+    final boolean slept = clockReads < SPINNING_CLOCK_READS;
+    assertTrue(slept, "the taker read the clock " + clockReads + " times while it waited");
   }
 
   @Test
