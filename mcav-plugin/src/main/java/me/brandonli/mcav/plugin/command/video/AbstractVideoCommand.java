@@ -704,7 +704,8 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
 
     final FormatStrategy audioStrategy = selector.getAudioStrategy();
     final Optional<Format> separateAudio = audioStrategy.select(dump);
-    final Format audioFormat = separateAudio.orElse(videoFormat);
+    final @Nullable Format separateFormat = separateAudio.orElse(null);
+    final Format audioFormat = separateFormat == null ? videoFormat : separateFormat;
     final UriSource audio = audioFormat.toUriSource();
     this.checkWebStream(page, audio);
     return new SourceSelection(video, audio, dump);
