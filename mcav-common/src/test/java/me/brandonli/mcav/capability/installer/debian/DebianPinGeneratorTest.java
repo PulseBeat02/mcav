@@ -20,8 +20,12 @@ package me.brandonli.mcav.capability.installer.debian;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.io.IOException;
 import java.net.URI;
+import java.net.http.HttpClient;
 import java.util.List;
+import me.brandonli.mcav.testing.LocalHttpServer;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -123,11 +127,36 @@ final class DebianPinGeneratorTest {
 
   private static final String QEMU_BUNDLE_FILE = "debian-qemu-x86.json";
 
+  private static final String ARCHIVE_PATH = "/archive/debian/20261104T203743Z/pool/main/l/leaf/libleaf0_0.1_arm64.deb";
+  private static final String OTHER_ARCHIVE_PATH = "/archive/debian/20261104T000000Z/pool/main/l/leaf/libleaf0_0.1_arm64.deb";
+  private static final String FILE_FARM_PATH = "/file/5c772838b9fabdbf5f503bd83ce9bb7fe1b4f2da/libleaf0_0.1_arm64.deb";
+  private static final String OTHER_HOST_FILE_FARM_URL =
+    "https://snapshot.example.org/file/5c772838b9fabdbf5f503bd83ce9bb7fe1b4f2da/libleaf0_0.1_arm64.deb";
+
+  private static final int OK_STATUS = 200;
+  private static final int FOUND_STATUS = 302;
+  private static final int UNAVAILABLE_STATUS = 503;
+  private static final byte[] NO_BODY = new byte[0];
+
+  private static final int LOOKUP_ATTEMPTS = 3;
+
+  private static final String NO_REDIRECT_MESSAGE = "Snapshot answered %s for %s without a file farm redirect!";
+
   private DebianPinGenerator generator;
+  private LocalHttpServer server;
+  private HttpClient client;
 
   @BeforeEach
   void setUp() {
     this.generator = new DebianPinGenerator(DebianPinGenerator.IndependentPackages.LEFT_OUT);
+    this.server = LocalHttpServer.start();
+    this.client = HttpClient.newHttpClient();
+  }
+
+  @AfterEach
+  void tearDown() {
+    this.client.close();
+    this.server.close();
   }
 
   @Test
@@ -225,5 +254,71 @@ final class DebianPinGeneratorTest {
     );
     final String message = failure.getMessage();
     assertEquals("Bundle debian-qemu-x86.json must be a file name, an equals sign and its root packages!", message);
+  }
+
+  @Test
+  void shouldFindTheFileFarmUrlThatTheArchiveRedirectsTo() throws IOException, InterruptedException {
+    this.server.respondRedirect(ARCHIVE_PATH, FOUND_STATUS, FILE_FARM_PATH);
+    final URI url = this.server.uri(ARCHIVE_PATH);
+
+    final String mirror = this.generator.findMirror(this.client, url);
+    final URI expected = this.server.uri(FILE_FARM_PATH);
+    assertEquals(expected.toString(), mirror);
+  }
+
+  @Test
+  void shouldRetryALookupThatFailed() throws IOException, InterruptedException {
+    this.server.respond(ARCHIVE_PATH, UNAVAILABLE_STATUS, NO_BODY);
+    this.server.respondRedirect(ARCHIVE_PATH, FOUND_STATUS, FILE_FARM_PATH);
+    final URI url = this.server.uri(ARCHIVE_PATH);
+
+    final String mirror = this.generator.findMirror(this.client, url);
+    final URI expected = this.server.uri(FILE_FARM_PATH);
+    assertEquals(expected.toString(), mirror);
+
+    final int requests = this.server.getRequestCount(ARCHIVE_PATH);
+    assertEquals(2, requests);
+  }
+
+  @Test
+  void shouldFailWhenTheArchiveDoesNotRedirectToTheFileFarm() {
+    this.server.respond(ARCHIVE_PATH, OK_STATUS, NO_BODY);
+    this.server.respondRedirect(OTHER_ARCHIVE_PATH, FOUND_STATUS, ARCHIVE_PATH);
+    final URI url = this.server.uri(ARCHIVE_PATH);
+    final URI otherUrl = this.server.uri(OTHER_ARCHIVE_PATH);
+
+    final IOException answered = assertThrows(IOException.class, () -> this.generator.findMirror(this.client, url));
+    final IOException redirected = assertThrows(IOException.class, () -> this.generator.findMirror(this.client, otherUrl));
+    final String answeredMessage = answered.getMessage();
+    final String redirectedMessage = redirected.getMessage();
+    final String expectedAnswered = NO_REDIRECT_MESSAGE.formatted(OK_STATUS, url);
+    final String expectedRedirected = NO_REDIRECT_MESSAGE.formatted(FOUND_STATUS, otherUrl);
+    assertEquals(expectedAnswered, answeredMessage);
+    assertEquals(expectedRedirected, redirectedMessage);
+  }
+
+  @Test
+  void shouldFailAfterTheLastAttempt() {
+    this.server.respond(ARCHIVE_PATH, UNAVAILABLE_STATUS, NO_BODY);
+    final URI url = this.server.uri(ARCHIVE_PATH);
+
+    final IOException failure = assertThrows(IOException.class, () -> this.generator.findMirror(this.client, url));
+    final String message = failure.getMessage();
+    final String expected = NO_REDIRECT_MESSAGE.formatted(UNAVAILABLE_STATUS, url);
+    assertEquals(expected, message);
+
+    final int requests = this.server.getRequestCount(ARCHIVE_PATH);
+    assertEquals(LOOKUP_ATTEMPTS, requests);
+  }
+
+  @Test
+  void shouldFailWhenTheRedirectLeavesTheHost() {
+    this.server.respondRedirect(ARCHIVE_PATH, FOUND_STATUS, OTHER_HOST_FILE_FARM_URL);
+    final URI url = this.server.uri(ARCHIVE_PATH);
+
+    final IOException failure = assertThrows(IOException.class, () -> this.generator.findMirror(this.client, url));
+    final String message = failure.getMessage();
+    final String expected = NO_REDIRECT_MESSAGE.formatted(FOUND_STATUS, url);
+    assertEquals(expected, message);
   }
 }
