@@ -39,7 +39,8 @@ final class KeySymbols {
   private static final Map<String, Integer> SYMBOLS = load();
 
   private KeySymbols() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   private static Map<String, Integer> load() {
@@ -62,7 +63,7 @@ final class KeySymbols {
       return toCodes(table);
     } catch (final IOException | JsonParseException exception) {
       final String reason = exception.getMessage();
-      final String message = "Keysym resource %s could not be read because of \"%s\"!".formatted(RESOURCE, reason);
+      final String message = "Because of \"%s\", keysym resource %s could not be read!".formatted(reason, RESOURCE);
       throw new VncException(message, exception);
     }
   }

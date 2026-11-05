@@ -23,35 +23,40 @@ import java.util.List;
 import java.util.Map;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// the game extracts every map's colours before it renders the level, and poses the maps, which gives an anchor's
+// the game extracts every map's colors before it renders the level, and poses the maps, which gives an anchor's
 // corner, while it renders
 final class ShaderFrame {
 
-  private final List<byte[]> pages = new ArrayList<>();
-
-  private final Map<Object, byte[]> anchorColours = new HashMap<>();
-
-  private final List<StripAnchor> anchors = new ArrayList<>();
+  private final List<byte[]> pages;
+  private final Map<Object, byte[]> anchorColors;
+  private final List<StripAnchor> anchors;
 
   private float @Nullable [] projection;
 
-  // the render thread never changes the colours before the frame ends
-  void extracted(final Object texture, final byte[] colours) {
-    if (Mcv2Maps.isPage(colours)) {
-      this.pages.add(colours);
-      this.anchorColours.remove(texture);
-    } else if (Mcv2Maps.isAnchor(colours)) {
-      this.anchorColours.put(texture, colours);
+  ShaderFrame() {
+    this.pages = new ArrayList<>();
+    this.anchorColors = new HashMap<>();
+    this.anchors = new ArrayList<>();
+  }
+
+  // the render thread never changes the colors before the frame ends
+  void extracted(final Object texture, final byte[] colors) {
+    if (Mcv2Maps.isPage(colors)) {
+      this.pages.add(colors);
+      this.anchorColors.remove(texture);
+    } else if (Mcv2Maps.isAnchor(colors)) {
+      this.anchorColors.put(texture, colors);
     } else {
-      this.anchorColours.remove(texture);
+      this.anchorColors.remove(texture);
     }
   }
 
   // the corner is relative to the camera
   void posed(final Object texture, final float cornerX, final float cornerY, final float cornerZ) {
-    final byte[] colours = this.anchorColours.get(texture);
-    if (colours != null) {
-      this.anchors.add(StripAnchor.of(colours, cornerX, cornerY, cornerZ));
+    final byte @Nullable [] colors = this.anchorColors.get(texture);
+    if (colors != null) {
+      final StripAnchor anchor = StripAnchor.from(colors, cornerX, cornerY, cornerZ);
+      this.anchors.add(anchor);
     }
   }
 
@@ -60,15 +65,15 @@ final class ShaderFrame {
     this.projection = projection;
   }
 
-  float @Nullable [] projection() {
+  float @Nullable [] getProjection() {
     return this.projection;
   }
 
-  List<byte[]> pages() {
+  List<byte[]> getPages() {
     return this.pages;
   }
 
-  List<StripAnchor> anchors() {
+  List<StripAnchor> getAnchors() {
     return this.anchors;
   }
 

@@ -25,24 +25,16 @@ import java.util.function.LongSupplier;
 import org.cef.browser.McavOffscreenBrowser;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * Keeps the picture of a page in the helper process and hands out what changed.
- *
- * <p>CEF paints the page and, separately, popup widgets such as the list of an open drop-down box. The compositor
- * copies each painted rectangle out of CEF's buffer, which is only valid during the paint, into its own copy of the
- * page, and remembers the popup with its position. Changed areas add up to one damaged rectangle, which
- * {@link #takeDamage} copies out, with the popup drawn over the page where it is open. Damage is never dropped, only
- * merged, so the receiver's picture always ends up equal to the page.
- *
- * <p>Damage becomes due to be sent after every n-th paint of the page, or once it waited for the settle delay, so the
- * last change of a page that stops changing is not held back by the frame interval.
- */
+// The paint buffer of CEF is valid only during the paint, so the page is copied; damage is merged, never dropped, so the
+// receiver ends up with the page. A settle delay sends the last change of a page that stops changing.
 final class PageCompositor implements McavOffscreenBrowser.PaintListener {
+
+  private static final byte FULL_CHANNEL = (byte) 0xFF;
 
   private final int width;
   private final int height;
   private final int frameInterval;
-  private final long settleNanos;
+  private final long settleNanoseconds;
   private final LongSupplier clock;
   private final byte[] page;
 
@@ -53,47 +45,20 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
   private @Nullable Rectangle popupBounds;
   private @Nullable Popup shownPopup;
 
-  /**
-   * Constructs a compositor with a white page.
-   *
-   * @param width         the width of the page in pixels
-   * @param height        the height of the page in pixels
-   * @param frameInterval damage is due after this many paints of the page
-   * @param settleMillis  damage is due once it waited this long
-   * @param clock         a monotonic clock in nanoseconds
-   */
-  PageCompositor(final int width, final int height, final int frameInterval, final long settleMillis, final LongSupplier clock) {
+  PageCompositor(final int width, final int height, final int frameInterval, final long settleMilliseconds, final LongSupplier clock) {
     this.width = width;
     this.height = height;
     this.frameInterval = frameInterval;
-    this.settleNanos = TimeUnit.MILLISECONDS.toNanos(settleMillis);
+    this.settleNanoseconds = TimeUnit.MILLISECONDS.toNanos(settleMilliseconds);
     this.clock = clock;
     this.page = new byte[width * height * HelperProtocol.PIXEL_BYTES];
-    Arrays.fill(this.page, (byte) 0xFF);
+    Arrays.fill(this.page, FULL_CHANNEL);
   }
 
-  /**
-   * Gets the most bytes one region can have.
-   *
-   * @return the size of the whole page in bytes
-   */
-  int getPageBytes() {
-    return this.page.length;
-  }
-
-  /**
-   * Copies the painted rectangles of the page or of a popup.
-   *
-   * @param isPopup      true if the buffer holds a popup widget
-   * @param dirtyRects the rectangles that changed, relative to the buffer
-   * @param buffer     the pixels, BGRA, row by row
-   * @param bufferWidth  the width of the buffer
-   * @param bufferHeight the height of the buffer
-   */
   @Override
   public synchronized void onPaint(
     final boolean isPopup,
-    final Rectangle[] dirtyRects,
+    final Rectangle[] dirtyRectangles,
     final ByteBuffer buffer,
     final int bufferWidth,
     final int bufferHeight
@@ -102,18 +67,21 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
       this.paintPopup(buffer, bufferWidth, bufferHeight);
       return;
     }
+
     if (bufferWidth != this.width || bufferHeight != this.height) {
       return;
     }
+
     final Rectangle pageBounds = new Rectangle(0, 0, this.width, this.height);
-    for (final Rectangle dirty : dirtyRects) {
+    for (final Rectangle dirty : dirtyRectangles) {
       final Rectangle clipped = dirty.intersection(pageBounds);
       if (clipped.isEmpty()) {
         continue;
       }
-      copyRows(buffer, this.width, clipped, this.page, this.width, clipped.x, clipped.y);
+      this.copyRows(buffer, this.width, clipped, this.page, this.width, clipped.x, clipped.y);
       this.addDamage(clipped);
     }
+
     this.paintsSinceSent++;
     this.notifyAll();
   }
@@ -124,6 +92,7 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
     if (bounds == null || bounds.width != bufferWidth || bounds.height != bufferHeight) {
       return;
     }
+
     final int bytes = bufferWidth * bufferHeight * HelperProtocol.PIXEL_BYTES;
     final byte[] pixels = new byte[bytes];
     final ByteBuffer source = buffer.duplicate();
@@ -135,9 +104,6 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
     this.notifyAll();
   }
 
-  /**
-   * Hides the popup that is shown, sending the page under it again as soon as the next paint would be.
-   */
   private void hidePopup() {
     final Popup shown = this.shownPopup;
     if (shown != null) {
@@ -148,11 +114,6 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
     }
   }
 
-  /**
-   * Shows or hides the popup widget.
-   *
-   * @param isShown true if the popup is shown
-   */
   @Override
   public synchronized void onPopupShow(final boolean isShown) {
     if (!isShown) {
@@ -160,11 +121,6 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
     }
   }
 
-  /**
-   * Remembers where the popup widget is drawn.
-   *
-   * @param bounds the bounds of the popup on the page
-   */
   @Override
   public synchronized void onPopupSize(final Rectangle bounds) {
     this.hidePopup();
@@ -189,16 +145,8 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
     }
   }
 
-  /**
-   * Waits until damage is due, then copies the damaged region, with the popup drawn over it, into the buffer.
-   *
-   * @param target        the buffer, at least {@link #getPageBytes()} bytes
-   * @param timeoutMillis how long to wait at most
-   * @return the region, or null if nothing was due in time or the compositor was closed
-   * @throws InterruptedException if the waiting thread is interrupted
-   */
-  synchronized @Nullable FrameRegion takeDamage(final byte[] target, final long timeoutMillis) throws InterruptedException {
-    final long deadline = this.clock.getAsLong() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
+  synchronized @Nullable FrameRegion takeDamage(final byte[] target, final long timeoutMilliseconds) throws InterruptedException {
+    final long deadline = this.clock.getAsLong() + TimeUnit.MILLISECONDS.toNanos(timeoutMilliseconds);
     while (!this.closed) {
       final Rectangle current = this.damage;
       final long now = this.clock.getAsLong();
@@ -209,22 +157,23 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
       if (remaining <= 0) {
         return null;
       }
-      final long settleLeft = current == null ? remaining : this.damageSince + this.settleNanos - now;
-      final long waitNanos = Math.max(1L, Math.min(remaining, settleLeft));
-      TimeUnit.NANOSECONDS.timedWait(this, waitNanos);
+      final long settleLeft = current == null ? remaining : this.damageSince + this.settleNanoseconds - now;
+      final long waitNanoseconds = Math.max(1L, Math.min(remaining, settleLeft));
+      TimeUnit.NANOSECONDS.timedWait(this, waitNanoseconds);
     }
+
     return null;
   }
 
   private boolean isDue(final long now) {
     final boolean enoughPaints = this.paintsSinceSent >= this.frameInterval;
-    final boolean settled = now - this.damageSince >= this.settleNanos;
+    final boolean settled = now - this.damageSince >= this.settleNanoseconds;
     return enoughPaints || settled;
   }
 
   private FrameRegion copyDamage(final Rectangle area, final byte[] target) {
     final ByteBuffer pageBuffer = ByteBuffer.wrap(this.page);
-    copyRows(pageBuffer, this.width, area, target, area.width, 0, 0);
+    this.copyRows(pageBuffer, this.width, area, target, area.width, 0, 0);
     final Popup shown = this.shownPopup;
     if (shown != null) {
       final Rectangle bounds = shown.bounds();
@@ -232,26 +181,17 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
       if (!overlap.isEmpty()) {
         final Rectangle inPopup = new Rectangle(overlap.x - bounds.x, overlap.y - bounds.y, overlap.width, overlap.height);
         final ByteBuffer popupBuffer = ByteBuffer.wrap(shown.pixels());
-        copyRows(popupBuffer, bounds.width, inPopup, target, area.width, overlap.x - area.x, overlap.y - area.y);
+        this.copyRows(popupBuffer, bounds.width, inPopup, target, area.width, overlap.x - area.x, overlap.y - area.y);
       }
     }
+
     this.damage = null;
     this.paintsSinceSent = 0;
+
     return new FrameRegion(this.width, this.height, area.x, area.y, area.width, area.height, target);
   }
 
-  /**
-   * Copies a rectangle of a BGRA buffer into a BGRA array.
-   *
-   * @param source       the source pixels
-   * @param sourceWidth  the width of the source in pixels
-   * @param area         the rectangle, relative to the source
-   * @param target       the target pixels
-   * @param targetWidth  the width of the target in pixels
-   * @param targetX      where the rectangle starts in the target
-   * @param targetY      where the rectangle starts in the target
-   */
-  private static void copyRows(
+  private void copyRows(
     final ByteBuffer source,
     final int sourceWidth,
     final Rectangle area,
@@ -270,17 +210,15 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
     }
   }
 
-  /**
-   * Wakes a thread waiting in {@link #takeDamage} and makes it return null from now on.
-   */
   synchronized void close() {
     this.closed = true;
     this.notifyAll();
   }
 
-  /**
-   * A popup widget that is shown: where it is drawn on the page, and its pixels.
-   */
+  int getPageBytes() {
+    return this.page.length;
+  }
+
   private static final class Popup {
 
     private final Rectangle bounds;

@@ -42,6 +42,9 @@ public final class LocalMavenRepository {
 
   private static final String COORDINATE_SEPARATOR = ":";
 
+  private static final char GROUP_SEPARATOR = '.';
+  private static final char DIRECTORY_SEPARATOR = '/';
+
   private static final String CHECKSUM_ALGORITHM = "SHA-1";
 
   private final Path root;
@@ -50,17 +53,11 @@ public final class LocalMavenRepository {
     this.root = root;
   }
 
-  public String getUrl() {
-    final Path absolute = this.root.toAbsolutePath();
-    final URI uri = absolute.toUri();
-    return uri.toString();
-  }
-
-  public static String resourceName(final String artifactId) {
+  public static String resourceNameOf(final String artifactId) {
     return RESOURCE_FOLDER + artifactId + RESOURCE_EXTENSION;
   }
 
-  public static String dependency(
+  public static String dependencyOf(
     final String groupId,
     final String artifactId,
     final String version,
@@ -68,37 +65,31 @@ public final class LocalMavenRepository {
     final Optionality optionality
   ) {
     final boolean optional = optionality == Optionality.OPTIONAL;
-    return (
-      "<dependency><groupId>" +
-      groupId +
-      "</groupId><artifactId>" +
-      artifactId +
-      "</artifactId><version>" +
-      version +
-      "</version><scope>" +
-      scope +
-      "</scope><optional>" +
-      optional +
-      "</optional></dependency>"
+    return "<dependency><groupId>%s</groupId><artifactId>%s</artifactId><version>%s</version><scope>%s</scope><optional>%s</optional></dependency>".formatted(
+      groupId,
+      artifactId,
+      version,
+      scope,
+      optional
     );
   }
 
-  public static String classifiedDependency(final String groupId, final String artifactId, final String version, final String classifier) {
-    return (
-      "<dependency><groupId>" +
-      groupId +
-      "</groupId><artifactId>" +
-      artifactId +
-      "</artifactId><version>" +
-      version +
-      "</version><classifier>" +
-      classifier +
-      "</classifier></dependency>"
+  public static String classifiedDependencyOf(
+    final String groupId,
+    final String artifactId,
+    final String version,
+    final String classifier
+  ) {
+    return "<dependency><groupId>%s</groupId><artifactId>%s</artifactId><version>%s</version><classifier>%s</classifier></dependency>".formatted(
+      groupId,
+      artifactId,
+      version,
+      classifier
     );
   }
 
   public Path directoryOf(final String groupId, final String artifactId, final String version) {
-    final String groupPath = groupId.replace('.', '/');
+    final String groupPath = groupId.replace(GROUP_SEPARATOR, DIRECTORY_SEPARATOR);
     final Path groupDirectory = this.root.resolve(groupPath);
     final Path artifactDirectory = groupDirectory.resolve(artifactId);
     return artifactDirectory.resolve(version);
@@ -108,6 +99,7 @@ public final class LocalMavenRepository {
     throws IOException {
     final Path directory = this.directoryOf(groupId, artifactId, version);
     Files.createDirectories(directory);
+
     final String baseName = artifactId + VERSION_SEPARATOR + version;
     final Path pom = directory.resolve(baseName + POM_EXTENSION);
     final String content = this.pomOf(groupId, artifactId, version, dependencies);
@@ -116,43 +108,36 @@ public final class LocalMavenRepository {
 
     final Path jar = directory.resolve(baseName + JAR_EXTENSION);
     final String coordinates = groupId + COORDINATE_SEPARATOR + artifactId + COORDINATE_SEPARATOR + version;
-    final String resource = resourceName(artifactId);
-    writeJar(jar, resource, coordinates);
-    writeChecksum(jar);
+    this.writeArtifactJar(jar, artifactId, coordinates);
 
     return jar;
   }
 
   private String pomOf(final String groupId, final String artifactId, final String version, final List<String> dependencies) {
     final String joined = String.join("", dependencies);
-    return (
-      "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
-      "<project xmlns=\"http://maven.apache.org/POM/4.0.0\">" +
-      "<modelVersion>4.0.0</modelVersion>" +
-      "<groupId>" +
-      groupId +
-      "</groupId><artifactId>" +
-      artifactId +
-      "</artifactId><version>" +
-      version +
-      "</version><dependencies>" +
-      joined +
-      "</dependencies></project>\n"
-    );
+    return """
+    <?xml version="1.0" encoding="UTF-8"?>
+    <project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion><groupId>%s</groupId><artifactId>%s</artifactId><version>%s</version><dependencies>%s</dependencies></project>
+    """.formatted(groupId, artifactId, version, joined);
   }
 
   public Path publishClassified(final String groupId, final String artifactId, final String version, final String classifier)
     throws IOException {
     final Path directory = this.directoryOf(groupId, artifactId, version);
     Files.createDirectories(directory);
+
     final Path jar = directory.resolve(artifactId + VERSION_SEPARATOR + version + VERSION_SEPARATOR + classifier + JAR_EXTENSION);
     final String coordinates =
       groupId + COORDINATE_SEPARATOR + artifactId + COORDINATE_SEPARATOR + version + COORDINATE_SEPARATOR + classifier;
-    final String resource = resourceName(artifactId);
-    writeJar(jar, resource, coordinates);
-    writeChecksum(jar);
+    this.writeArtifactJar(jar, artifactId, coordinates);
 
     return jar;
+  }
+
+  private void writeArtifactJar(final Path jar, final String artifactId, final String coordinates) throws IOException {
+    final String resource = resourceNameOf(artifactId);
+    writeJar(jar, resource, coordinates);
+    writeChecksum(jar);
   }
 
   public static Path checksumFileOf(final Path file) {
@@ -166,7 +151,7 @@ public final class LocalMavenRepository {
     try {
       digest = MessageDigest.getInstance(CHECKSUM_ALGORITHM);
     } catch (final NoSuchAlgorithmException exception) {
-      throw new IOException(exception);
+      throw new AssertionError(exception);
     }
 
     final byte[] hash = digest.digest(content);
@@ -184,5 +169,11 @@ public final class LocalMavenRepository {
       jarOutput.write(bytes);
       jarOutput.closeEntry();
     }
+  }
+
+  public String getUrl() {
+    final Path absolute = this.root.toAbsolutePath();
+    final URI uri = absolute.toUri();
+    return uri.toString();
   }
 }

@@ -76,10 +76,26 @@ final class TransportStripTest {
 
   private static final int DESCRIPTOR_FLOATS = 28;
 
+  private static final int RIGHT_OFFSET = 4;
+  private static final int DOWN_OFFSET = 8;
+  private static final int PROJECTION_OFFSET = 12;
+
+  private static final int W_COMPONENT = 3;
+
+  private static final int FLOATS_PER_MATRIX = 16;
+
+  private static final int ANCHOR_INDEX_STRIDE = 64;
+
+  private static final int AXES = 3;
+
+  private static final int SECOND_COLUMN = 4;
+  private static final int THIRD_COLUMN = 8;
+  private static final int FOURTH_COLUMN = 12;
+
   @Test
   void shouldFillTheSlotOfAPageWithFourSymbolsAPixel() {
     final int[] symbols = MapFixtures.pageSymbols(9, 1);
-    final byte[] strip = TransportStrip.build(LAYOUT, WIDTH, List.of(MapFixtures.colours(symbols)), List.of(), IDENTITY, PROJECTION);
+    final byte[] strip = TransportStrip.build(LAYOUT, WIDTH, List.of(MapFixtures.colors(symbols)), List.of(), IDENTITY, PROJECTION);
     final byte[] expected = new byte[ROWS * WIDTH * CHANNELS];
     final int first = 4 * 5 * WIDTH;
     for (int pixel = 0; pixel < PackLayout.PAGE_PIXELS; pixel++) {
@@ -97,37 +113,40 @@ final class TransportStripTest {
   void shouldFindTheScreenOfAPageByAllThirtyTwoBitsOfItsStream() {
     final PackLayout layout = PackLayout.parse(PackLayoutTest.packConstants("4294901767u", "1", "0", 1)).orElseThrow();
     final int[] symbols = MapFixtures.pageSymbols(0xFFFF_0007L, 0);
-    final byte[] strip = TransportStrip.build(layout, WIDTH, List.of(MapFixtures.colours(symbols)), List.of(), IDENTITY, PROJECTION);
+    final byte[] strip = TransportStrip.build(layout, WIDTH, List.of(MapFixtures.colors(symbols)), List.of(), IDENTITY, PROJECTION);
     final int word =
       symbols[0] | (symbols[1] << SECOND_SYMBOL_SHIFT) | (symbols[2] << THIRD_SYMBOL_SHIFT) | (symbols[3] << FOURTH_SYMBOL_SHIFT);
     this.assertPixel(strip, 0, word & BYTE_MASK, (word >> SECOND_BYTE_SHIFT) & BYTE_MASK, word >> THIRD_BYTE_SHIFT, OPAQUE);
   }
 
   @Test
-  void shouldReadAColourOutsideTheAlphabetAsSymbolZero() {
+  void shouldReadAColorOutsideTheAlphabetAsSymbolZero() {
     final int[] symbols = MapFixtures.pageSymbols(7, 0);
-    final byte[] colours = MapFixtures.colours(symbols);
-    colours[41] = 3;
-    final byte[] strip = TransportStrip.build(LAYOUT, WIDTH, List.of(colours), List.of(), IDENTITY, PROJECTION);
+    final byte[] colors = MapFixtures.colors(symbols);
+    colors[41] = 3;
+    final byte[] strip = TransportStrip.build(LAYOUT, WIDTH, List.of(colors), List.of(), IDENTITY, PROJECTION);
     final int word = symbols[40] | (symbols[42] << THIRD_SYMBOL_SHIFT) | (symbols[43] << FOURTH_SYMBOL_SHIFT);
     final int red = strip[40] & BYTE_MASK;
     final int green = strip[41] & BYTE_MASK;
     final int blue = strip[42] & BYTE_MASK;
-    assertEquals(word & BYTE_MASK, red);
-    assertEquals((word >> SECOND_BYTE_SHIFT) & BYTE_MASK, green);
-    assertEquals(word >> THIRD_BYTE_SHIFT, blue);
-    final byte[] bits = MapFixtures.colours(new int[] { 63, 63 });
+    final int expectedRed = word & BYTE_MASK;
+    final int expectedGreen = (word >> SECOND_BYTE_SHIFT) & BYTE_MASK;
+    final int expectedBlue = word >> THIRD_BYTE_SHIFT;
+    assertEquals(expectedRed, red);
+    assertEquals(expectedGreen, green);
+    assertEquals(expectedBlue, blue);
+    final byte[] bits = MapFixtures.colors(new int[] { 63, 63 });
     bits[0] = 3;
-    final int firstTwelveBits = TransportStrip.bits(bits, 0, 12);
+    final int firstTwelveBits = TransportStrip.readBits(bits, 0, 12);
     assertEquals(0b111111_000000, firstTwelveBits);
   }
 
   @Test
   void shouldReadTheStreamAndNumberOfAPage() {
-    final byte[] page = MapFixtures.colours(MapFixtures.pageSymbols(0xCAFE_BABEL, 0x1234));
-    final int lowStreamHalf = TransportStrip.bits(page, 64, 16);
-    final int highStreamHalf = TransportStrip.bits(page, 80, 16);
-    final int pageNumber = TransportStrip.bits(page, 128, 16);
+    final byte[] page = MapFixtures.colors(MapFixtures.pageSymbols(0xCAFE_BABEL, 0x1234));
+    final int lowStreamHalf = TransportStrip.readBits(page, 64, 16);
+    final int highStreamHalf = TransportStrip.readBits(page, 80, 16);
+    final int pageNumber = TransportStrip.readBits(page, 128, 16);
     assertEquals(0xBABE, lowStreamHalf);
     assertEquals(0xCAFE, highStreamHalf);
     assertEquals(0x1234, pageNumber);
@@ -137,7 +156,7 @@ final class TransportStripTest {
   void shouldLeaveOutAPageOfAnotherStreamOrBeyondItsScreensSlots() {
     final byte[] empty = new byte[ROWS * WIDTH * CHANNELS];
     for (final int[] symbols : List.of(MapFixtures.pageSymbols(8, 0), MapFixtures.pageSymbols(9, 2), MapFixtures.pageSymbols(7, 3))) {
-      final byte[] built = TransportStrip.build(LAYOUT, WIDTH, List.of(MapFixtures.colours(symbols)), List.of(), IDENTITY, PROJECTION);
+      final byte[] built = TransportStrip.build(LAYOUT, WIDTH, List.of(MapFixtures.colors(symbols)), List.of(), IDENTITY, PROJECTION);
       assertArrayEquals(empty, built);
     }
   }
@@ -147,33 +166,7 @@ final class TransportStripTest {
     final float[][] rights = { { 1, 0, 0 }, { 0, 0, 1 }, { -1, 0, 0 }, { 0, 0, -1 } };
     for (final float[] rotation : List.of(IDENTITY, QUARTER_TURN)) {
       for (int facing = 0; facing < 4; facing++) {
-        final StripAnchor anchor = StripAnchor.of(1, 2, 4, 3, facing, 7, 10.1F, 64.3F, -3.7F);
-        final byte[] strip = TransportStrip.build(LAYOUT, WIDTH, List.of(), List.of(anchor), rotation, PROJECTION);
-        final float[] corner = this.times(rotation, 10.1F, 64.3F, -3.7F, 1);
-        final float[] right = this.times(rotation, rights[facing][0], rights[facing][1], rights[facing][2], 0);
-        final float[] down = this.times(rotation, 0, -1, 0, 0);
-        final float[] expected = new float[DESCRIPTOR_FLOATS];
-        for (int axis = 0; axis < 3; axis++) {
-          expected[axis] = corner[axis] - right[axis] - 2 * down[axis];
-          expected[4 + axis] = right[axis];
-          expected[8 + axis] = down[axis];
-        }
-        expected[3] = 4;
-        expected[7] = 3;
-        expected[11] = 64 + 2;
-        System.arraycopy(PROJECTION, 0, expected, 12, 16);
-        final float[] descriptor = this.descriptor(strip, DESCRIPTORS);
-        assertArrayEquals(expected, descriptor, "facing " + facing);
-        this.assertPixel(strip, DESCRIPTORS, 0x4D, 0x43, 0x56, OPAQUE);
-        this.assertPixel(strip, DESCRIPTORS + 1, 0xA1, 0, 0, OPAQUE);
-        for (int pixel = 58; pixel < TransportStrip.DESCRIPTOR_PIXELS; pixel++) {
-          this.assertPixel(strip, DESCRIPTORS + pixel, 0, 0, 0, OPAQUE);
-        }
-        this.assertPixel(strip, DESCRIPTORS + TransportStrip.DESCRIPTOR_PIXELS, 0, 0, 0, 0);
-        final byte[] rest = Arrays.copyOfRange(strip, (DESCRIPTORS + WIDTH) * CHANNELS, strip.length);
-        final byte[] leadingPixels = Arrays.copyOf(strip, DESCRIPTORS * CHANNELS);
-        assertArrayEquals(new byte[rest.length], rest, "screen 1 has no anchor");
-        assertArrayEquals(new byte[DESCRIPTORS * CHANNELS], leadingPixels, "no page");
+        this.assertDescriptorRow(rotation, facing, rights[facing]);
       }
     }
   }
@@ -185,17 +178,20 @@ final class TransportStripTest {
     final StripAnchor other = StripAnchor.of(0, 0, 2, 2, 0, 8, 4, 5, 6);
     final byte[] strip = TransportStrip.build(LAYOUT, WIDTH, List.of(), List.of(other, first, second), IDENTITY, PROJECTION);
     final float[] floats = this.descriptor(strip, DESCRIPTORS + WIDTH);
-    final float[] corner = Arrays.copyOf(floats, 3);
+    final float[] corner = Arrays.copyOf(floats, AXES);
     final byte[] firstScreenRow = Arrays.copyOfRange(strip, DESCRIPTORS * CHANNELS, (DESCRIPTORS + WIDTH) * CHANNELS);
-    assertArrayEquals(new float[] { 1, 2, 3 }, corner);
-    assertArrayEquals(new byte[WIDTH * CHANNELS], firstScreenRow, "screen 0 has none");
+    final float[] expectedCorner = { 1, 2, 3 };
+    final byte[] expectedFirstScreenRow = new byte[WIDTH * CHANNELS];
+    assertArrayEquals(expectedCorner, corner);
+    assertArrayEquals(expectedFirstScreenRow, firstScreenRow, "screen 0 has none");
   }
 
   @Test
   void shouldMultiplyAMatrixByAVectorAsItsWeightedColumns() {
     final float[] matrix = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
     final float[] transformed = TransportStrip.transform(matrix, 1, 2, 3, 4);
-    assertArrayEquals(new float[] { 1 + 10 + 27 + 52, 2 + 12 + 30 + 56, 3 + 14 + 33 + 60 }, transformed);
+    final float[] expected = { 1 + 10 + 27 + 52, 2 + 12 + 30 + 56, 3 + 14 + 33 + 60 };
+    assertArrayEquals(expected, transformed);
   }
 
   @Test
@@ -203,11 +199,48 @@ final class TransportStripTest {
     UtilityClassAssertions.assertNotInstantiable(TransportStrip.class);
   }
 
-  private float[] times(final float[] matrix, final float vectorX, final float vectorY, final float vectorZ, final float vectorW) {
-    final float[] transformed = new float[3];
-    for (int row = 0; row < 3; row++) {
-      transformed[row] = matrix[row] * vectorX + matrix[4 + row] * vectorY + matrix[8 + row] * vectorZ + matrix[12 + row] * vectorW;
+  private void assertDescriptorRow(final float[] rotation, final int facing, final float[] rightDirection) {
+    final StripAnchor anchor = StripAnchor.of(1, 2, 4, 3, facing, 7, 10.1F, 64.3F, -3.7F);
+    final byte[] strip = TransportStrip.build(LAYOUT, WIDTH, List.of(), List.of(anchor), rotation, PROJECTION);
+    final float[] corner = this.times(rotation, 10.1F, 64.3F, -3.7F, 1);
+    final float[] right = this.times(rotation, rightDirection[0], rightDirection[1], rightDirection[2], 0);
+    final float[] down = this.times(rotation, 0, -1, 0, 0);
+    final float[] expected = new float[DESCRIPTOR_FLOATS];
+    for (int axis = 0; axis < AXES; axis++) {
+      expected[axis] = corner[axis] - right[axis] - 2 * down[axis];
+      expected[RIGHT_OFFSET + axis] = right[axis];
+      expected[DOWN_OFFSET + axis] = down[axis];
     }
+    expected[W_COMPONENT] = 4;
+    expected[RIGHT_OFFSET + W_COMPONENT] = 3;
+    expected[DOWN_OFFSET + W_COMPONENT] = ANCHOR_INDEX_STRIDE + 2;
+    System.arraycopy(PROJECTION, 0, expected, PROJECTION_OFFSET, FLOATS_PER_MATRIX);
+    final float[] descriptor = this.descriptor(strip, DESCRIPTORS);
+    assertArrayEquals(expected, descriptor, "facing %s".formatted(facing));
+    this.assertPixel(strip, DESCRIPTORS, 0x4D, 0x43, 0x56, OPAQUE);
+    this.assertPixel(strip, DESCRIPTORS + 1, 0xA1, 0, 0, OPAQUE);
+    for (int pixel = 58; pixel < TransportStrip.DESCRIPTOR_PIXELS; pixel++) {
+      this.assertPixel(strip, DESCRIPTORS + pixel, 0, 0, 0, OPAQUE);
+    }
+    this.assertPixel(strip, DESCRIPTORS + TransportStrip.DESCRIPTOR_PIXELS, 0, 0, 0, 0);
+    final byte[] rest = Arrays.copyOfRange(strip, (DESCRIPTORS + WIDTH) * CHANNELS, strip.length);
+    final byte[] leadingPixels = Arrays.copyOf(strip, DESCRIPTORS * CHANNELS);
+    final byte[] expectedRest = new byte[rest.length];
+    final byte[] expectedLeadingPixels = new byte[DESCRIPTORS * CHANNELS];
+    assertArrayEquals(expectedRest, rest, "screen 1 has no anchor");
+    assertArrayEquals(expectedLeadingPixels, leadingPixels, "no page");
+  }
+
+  private float[] times(final float[] matrix, final float vectorX, final float vectorY, final float vectorZ, final float vectorW) {
+    final float[] transformed = new float[AXES];
+    for (int row = 0; row < AXES; row++) {
+      transformed[row] =
+        matrix[row] * vectorX +
+        matrix[SECOND_COLUMN + row] * vectorY +
+        matrix[THIRD_COLUMN + row] * vectorZ +
+        matrix[FOURTH_COLUMN + row] * vectorW;
+    }
+
     return transformed;
   }
 
@@ -230,12 +263,14 @@ final class TransportStripTest {
       assertEquals(OPAQUE, highAlpha);
       floats[index] = Float.intBitsToFloat(bits);
     }
+
     return floats;
   }
 
   private void assertPixel(final byte[] strip, final int pixel, final int red, final int green, final int blue, final int alpha) {
     final byte[] pixelBytes = Arrays.copyOfRange(strip, pixel * CHANNELS, pixel * CHANNELS + CHANNELS);
-    assertArrayEquals(new byte[] { (byte) red, (byte) green, (byte) blue, (byte) alpha }, pixelBytes);
+    final byte[] expected = { (byte) red, (byte) green, (byte) blue, (byte) alpha };
+    assertArrayEquals(expected, pixelBytes);
   }
 
   private void put(final byte[] strip, final int pixel, final int red, final int green, final int blue) {

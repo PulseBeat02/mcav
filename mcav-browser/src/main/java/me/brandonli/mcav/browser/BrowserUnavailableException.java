@@ -17,32 +17,37 @@
  */
 package me.brandonli.mcav.browser;
 
-import me.brandonli.mcav.media.player.PlayerException;
+import java.io.Serial;
 
 /**
  * Thrown by the start of a browser when the browser cannot run on this machine: there is no CEF build for its operating
  * system and processor, the download or the verification of the CEF build or of the libraries it needs failed, or the
- * server lacks a library that the browser needs and mcav does not bring. The message tells which; see also
+ * server lacks a library that the browser needs and MCAV does not bring. The message tells which; see also
  * {@link BrowserPlayer#isSupported()}.
+ *
+ * @since 1.0.0
  */
-public final class BrowserUnavailableException extends PlayerException {
+public final class BrowserUnavailableException extends BrowserException {
 
-  private static final long serialVersionUID = 1L;
+  @Serial
+  private static final long serialVersionUID = 5362540682227068077L;
 
   /**
-   * Constructs the exception.
+   * Creates an exception with a message.
    *
    * @param message why the browser cannot run
+   * @since 1.0.0
    */
   public BrowserUnavailableException(final String message) {
     super(message);
   }
 
   /**
-   * Constructs the exception.
+   * Creates an exception with a message and the exception that caused it.
    *
    * @param message why the browser cannot run
    * @param cause   the underlying failure
+   * @since 1.0.0
    */
   public BrowserUnavailableException(final String message, final Throwable cause) {
     super(message, cause);

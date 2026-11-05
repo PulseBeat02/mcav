@@ -77,8 +77,9 @@ class AddressPolicyTest {
       "ff02::1",
     }
   )
-  void specialAddressesAreNotPublic(final String text) throws UnknownHostException {
-    assertFalse(AddressPolicy.isPublic(InetAddress.getByName(text)), text);
+  void shouldNotTreatSpecialAddressesAsPublic(final String text) throws UnknownHostException {
+    final boolean judgedPublic = AddressPolicy.isPublic(InetAddress.getByName(text));
+    assertFalse(judgedPublic, text);
   }
 
   @ParameterizedTest
@@ -102,26 +103,67 @@ class AddressPolicyTest {
       "64:ff9b::808:808",
     }
   )
-  void publicAddressesArePublic(final String text) throws UnknownHostException {
-    assertTrue(AddressPolicy.isPublic(InetAddress.getByName(text)), text);
+  void shouldTreatPublicAddressesAsPublic(final String text) throws UnknownHostException {
+    final boolean judgedPublic = AddressPolicy.isPublic(InetAddress.getByName(text));
+    assertTrue(judgedPublic, text);
   }
 
   @Test
-  void onlyTheExactPrefixesCarryAnIpv4Address() {
-    assertFalse(AddressPolicy.isPublicIpv6(new byte[] { 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 8, 8, 8, 8 }));
-    assertFalse(AddressPolicy.isPublicIpv6(new byte[] { 0, 0x64, (byte) 0xFF, (byte) 0x9B, 0, 0, 0, 1, 0, 0, 0, 0, 8, 8, 8, 8 }));
-    assertFalse(AddressPolicy.isPublicIpv6(new byte[] { 0, 0x64, (byte) 0xFF, (byte) 0x9B, 0, 0, 0, 0, 0, 0, 0, 1, 8, 8, 8, 8 }));
+  void shouldOnlyFindAnIpv4AddressInTheExactPrefixes() {
+    final boolean nearlyMappedJudgedPublic = AddressPolicy.isPublicIpv6(new byte[] { 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 8, 8, 8, 8 });
+    assertFalse(nearlyMappedJudgedPublic);
+
+    final boolean strayPrefixBitJudgedPublic = AddressPolicy.isPublicIpv6(new byte[] {
+      0,
+      0x64,
+      (byte) 0xFF,
+      (byte) 0x9B,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      8,
+      8,
+      8,
+      8,
+    });
+    assertFalse(strayPrefixBitJudgedPublic);
+
+    final boolean straySuffixBitJudgedPublic = AddressPolicy.isPublicIpv6(new byte[] {
+      0,
+      0x64,
+      (byte) 0xFF,
+      (byte) 0x9B,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      8,
+      8,
+      8,
+      8,
+    });
+    assertFalse(straySuffixBitJudgedPublic);
   }
 
-  private static InetAddress[] addresses(final String... texts) throws UnknownHostException {
+  private InetAddress[] addresses(final String... texts) throws UnknownHostException {
     final InetAddress[] addresses = new InetAddress[texts.length];
     for (int index = 0; index < texts.length; index++) {
       addresses[index] = InetAddress.getByName(texts[index]);
     }
+
     return addresses;
   }
 
-  private static boolean isPublic(final String text, final List<AddressPolicy.TranslationPrefix> prefixes) throws UnknownHostException {
+  private boolean isPublic(final String text, final List<AddressPolicy.TranslationPrefix> prefixes) throws UnknownHostException {
     return AddressPolicy.isPublic(InetAddress.getByName(text), prefixes);
   }
 
@@ -136,7 +178,7 @@ class AddressPolicyTest {
     "64, 2a01:4f8:1:2:c0:0:aa00:0, 2a01:4f8:1:2:c0:0:ab00:0, 2a01:4f8:1:2:a:0:100:0, 2a01:4f8:1:2:a9:fea9:fe00:0, 2a01:4f8:1:2:8:808:800:0",
     "96, 2a01:4f8:1:2:3:4:c000:aa, 2a01:4f8:1:2:3:4:c000:ab, 2a01:4f8:1:2:3:4:a00:1, 2a01:4f8:1:2:3:4:a9fe:a9fe, 2a01:4f8:1:2:3:4:808:808",
   })
-  void theNat64PrefixOfTheNetworkIsFoundAndItsPrivateAddressesAreRefused(
+  void shouldFindTheNat64PrefixOfTheNetworkAndRefuseItsPrivateAddresses(
     final int length,
     final String first,
     final String second,
@@ -145,66 +187,118 @@ class AddressPolicyTest {
     final String publicAddress
   ) throws UnknownHostException {
     final List<AddressPolicy.TranslationPrefix> prefixes = AddressPolicy.findTranslationPrefixes(
-      addresses("192.0.0.170", first, "192.0.0.171", second)
+      this.addresses("192.0.0.170", first, "192.0.0.171", second)
     );
-    assertEquals(1, prefixes.size(), "both well-known addresses give the same prefix");
-    assertEquals(length, prefixes.getFirst().getLength());
-    assertTrue(AddressPolicy.isPublic(InetAddress.getByName(privateAddress)), "without the prefix it looks like any address");
-    assertFalse(isPublic(privateAddress, prefixes), privateAddress);
-    assertFalse(isPublic(metadataService, prefixes), metadataService);
-    assertTrue(isPublic(publicAddress, prefixes), publicAddress);
-    assertTrue(isPublic("2606:4700:4700::1111", prefixes), "an address outside the prefix is judged as before");
-    assertFalse(isPublic("10.0.0.1", prefixes));
-    assertTrue(isPublic("8.8.8.8", prefixes));
+    final int prefixCount = prefixes.size();
+    assertEquals(1, prefixCount, "both well-known addresses give the same prefix");
+
+    final int prefixLength = prefixes.getFirst().getLength();
+    assertEquals(length, prefixLength);
+
+    final boolean privateJudgedPublicWithoutPrefix = AddressPolicy.isPublic(InetAddress.getByName(privateAddress));
+    assertTrue(privateJudgedPublicWithoutPrefix, "without the prefix it looks like any address");
+
+    final boolean privateJudgedPublic = this.isPublic(privateAddress, prefixes);
+    assertFalse(privateJudgedPublic, privateAddress);
+
+    final boolean metadataServiceJudgedPublic = this.isPublic(metadataService, prefixes);
+    assertFalse(metadataServiceJudgedPublic, metadataService);
+
+    final boolean publicAddressJudgedPublic = this.isPublic(publicAddress, prefixes);
+    assertTrue(publicAddressJudgedPublic, publicAddress);
+
+    final boolean outsidePrefixJudgedPublic = this.isPublic("2606:4700:4700::1111", prefixes);
+    assertTrue(outsidePrefixJudgedPublic, "an address outside the prefix is judged as before");
+
+    final boolean untranslatedPrivateJudgedPublic = this.isPublic("10.0.0.1", prefixes);
+    assertFalse(untranslatedPrivateJudgedPublic);
+
+    final boolean untranslatedPublicJudgedPublic = this.isPublic("8.8.8.8", prefixes);
+    assertTrue(untranslatedPublicJudgedPublic);
   }
 
   @Test
-  void aNetworkWithoutTranslationHasNoPrefix() throws UnknownHostException {
-    assertEquals(0, AddressPolicy.findTranslationPrefixes(addresses("192.0.0.170", "192.0.0.171")).size());
-    assertEquals(0, AddressPolicy.findTranslationPrefixes(addresses("2a01:4f8:1:2:3:4:5:6", "2a01:4f8:1:2:3:4:c000:ac")).size());
-    assertEquals(0, AddressPolicy.findTranslationPrefixes(addresses("2a01:4f8:1:2:1c0:0:aa00:0")).size());
+  void shouldFindNoPrefixInANetworkWithoutTranslation() throws UnknownHostException {
+    final int ipv4PrefixCount = AddressPolicy.findTranslationPrefixes(this.addresses("192.0.0.170", "192.0.0.171")).size();
+    assertEquals(0, ipv4PrefixCount);
+
+    final int unrelatedPrefixCount = AddressPolicy.findTranslationPrefixes(
+      this.addresses("2a01:4f8:1:2:3:4:5:6", "2a01:4f8:1:2:3:4:c000:ac")
+    ).size();
+    assertEquals(0, unrelatedPrefixCount);
+
+    final int singleAnswerPrefixCount = AddressPolicy.findTranslationPrefixes(this.addresses("2a01:4f8:1:2:1c0:0:aa00:0")).size();
+    assertEquals(0, singleAnswerPrefixCount);
   }
 
   @Test
-  void onlyAPrefixInGlobalUnicastOrWellKnownNat64SpaceTranslates() throws UnknownHostException {
+  void shouldOnlyTranslateAPrefixInGlobalUnicastOrWellKnownNat64Space() throws UnknownHostException {
     for (final String forged : new String[] { "fe80::c000:aa", "fd00::c000:aa", "ff02::c000:aa", "2001:db8::c000:aa", "2002::c000:aa" }) {
-      assertEquals(List.of(), AddressPolicy.findTranslationPrefixes(addresses(forged)), forged);
+      final List<AddressPolicy.TranslationPrefix> translationPrefixes = AddressPolicy.findTranslationPrefixes(this.addresses(forged));
+      assertEquals(List.of(), translationPrefixes, forged);
     }
-    assertFalse(isPublic("fe80::808:808", AddressPolicy.findTranslationPrefixes(addresses("fe80::c000:aa"))));
-    final List<AddressPolicy.TranslationPrefix> local = AddressPolicy.findTranslationPrefixes(addresses("64:ff9b:1::c000:aa"));
-    assertEquals(1, local.size());
-    assertTrue(isPublic("64:ff9b:1::808:808", local));
-    assertFalse(isPublic("64:ff9b:1::a00:1", local));
+
+    final boolean linkLocalJudgedPublic = this.isPublic(
+      "fe80::808:808",
+      AddressPolicy.findTranslationPrefixes(this.addresses("fe80::c000:aa"))
+    );
+    assertFalse(linkLocalJudgedPublic);
+
+    final List<AddressPolicy.TranslationPrefix> local = AddressPolicy.findTranslationPrefixes(this.addresses("64:ff9b:1::c000:aa"));
+    final int localPrefixCount = local.size();
+    assertEquals(1, localPrefixCount);
+
+    final boolean embeddedPublicJudgedPublic = this.isPublic("64:ff9b:1::808:808", local);
+    assertTrue(embeddedPublicJudgedPublic);
+
+    final boolean embeddedPrivateJudgedPublic = this.isPublic("64:ff9b:1::a00:1", local);
+    assertFalse(embeddedPrivateJudgedPublic);
   }
 
   @Test
-  void anAddressInsideSeveralPrefixesMustEmbedAPublicAddressInEach() throws UnknownHostException {
+  void shouldRequireAnAddressInsideSeveralPrefixesToEmbedAPublicAddressInEach() throws UnknownHostException {
     final List<AddressPolicy.TranslationPrefix> nested = AddressPolicy.findTranslationPrefixes(
-      addresses("2a01:4f8:c000:aa::", "2a01:4f8:1:2:3:4:c000:aa")
+      this.addresses("2a01:4f8:c000:aa::", "2a01:4f8:1:2:3:4:c000:aa")
     );
-    assertEquals(2, nested.size());
-    assertFalse(isPublic("2a01:4f8:1:2:3:4:808:808", nested));
+    final int nestedPrefixCount = nested.size();
+    assertEquals(2, nestedPrefixCount);
+
+    final boolean nestedJudgedPublic = this.isPublic("2a01:4f8:1:2:3:4:808:808", nested);
+    assertFalse(nestedJudgedPublic);
+
     final List<AddressPolicy.TranslationPrefix> separate = AddressPolicy.findTranslationPrefixes(
-      addresses("2a01:4f8:1:2:3:4:c000:aa", "2a01:4f9:1:2:3:4:c000:aa")
+      this.addresses("2a01:4f8:1:2:3:4:c000:aa", "2a01:4f9:1:2:3:4:c000:aa")
     );
-    assertEquals(2, separate.size());
-    assertTrue(isPublic("2a01:4f9:1:2:3:4:808:808", separate));
-    assertFalse(isPublic("2a01:4f9:1:2:3:4:a00:1", separate));
+    final int separatePrefixCount = separate.size();
+    assertEquals(2, separatePrefixCount);
+
+    final boolean embeddedPublicJudgedPublic = this.isPublic("2a01:4f9:1:2:3:4:808:808", separate);
+    assertTrue(embeddedPublicJudgedPublic);
+
+    final boolean embeddedPrivateJudgedPublic = this.isPublic("2a01:4f9:1:2:3:4:a00:1", separate);
+    assertFalse(embeddedPrivateJudgedPublic);
   }
 
   @Test
-  void thePolicyIsNotInstantiable() {
+  void shouldNotInstantiateThePolicy() {
     UtilityClassAssertions.assertNotInstantiable(AddressPolicy.class);
   }
 
   @Test
-  void anIpv4AddressMappedIntoIpv6IsJudgedAsItself() {
+  void shouldJudgeAnIpv4AddressMappedIntoIpv6AsItself() {
     final byte[] mappedPublic = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, (byte) 0xFF, (byte) 0xFF, 8, 8, 8, 8 };
     final byte[] mappedLoopback = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, (byte) 0xFF, (byte) 0xFF, 127, 0, 0, 1 };
-    assertTrue(AddressPolicy.isPublicIpv6(mappedPublic));
-    assertFalse(AddressPolicy.isPublicIpv6(mappedLoopback));
+    final boolean mappedPublicJudgedPublic = AddressPolicy.isPublicIpv6(mappedPublic);
+    assertTrue(mappedPublicJudgedPublic);
+
+    final boolean mappedLoopbackJudgedPublic = AddressPolicy.isPublicIpv6(mappedLoopback);
+    assertFalse(mappedLoopbackJudgedPublic);
+
     final byte[] almostMapped = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, (byte) 0xFF, (byte) 0xFF, 8, 8, 8, 8 };
-    assertFalse(AddressPolicy.isPublicIpv6(almostMapped));
-    assertFalse(AddressPolicy.isPublicIpv4(0x7F000001));
+    final boolean almostMappedJudgedPublic = AddressPolicy.isPublicIpv6(almostMapped);
+    assertFalse(almostMappedJudgedPublic);
+
+    final boolean loopbackJudgedPublic = AddressPolicy.isPublicIpv4(0x7F000001);
+    assertFalse(loopbackJudgedPublic);
   }
 }

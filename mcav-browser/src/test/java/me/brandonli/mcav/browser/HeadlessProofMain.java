@@ -17,8 +17,10 @@
  */
 package me.brandonli.mcav.browser;
 
+import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import java.awt.GraphicsEnvironment;
+import java.io.IOException;
 import java.io.OutputStream;
 import java.lang.management.ManagementFactory;
 import java.net.InetAddress;
@@ -34,25 +36,15 @@ import java.util.function.BooleanSupplier;
 import java.util.stream.Stream;
 import me.brandonli.mcav.MCAV;
 import me.brandonli.mcav.MCAVApi;
+import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
 import me.brandonli.mcav.media.player.pipeline.builder.VideoPipelineStepBuilder;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 
-/**
- * The proof that the browser runs on a stock headless Linux server: no X server, no Xvfb, nothing installed, and no
- * option of the JVM. The proof bundle runs it with {@code java -jar} in stock server images as a user without
- * privileges; it does what {@link NoFlagsServerMain} does, with a page it serves itself: install MCAV with the browser
- * module, stream a red page with black text at 320x240, check the center pixel, release MCAV, check that no browser
- * process is left, and all of it twice. It prints {@value #PASSED} last, or why it failed.
- *
- * <p>{@code MCAV_PROOF_CACHE} names a writable folder kept between runs, which becomes the home folder of mcav's
- * cache, as the user of a proof run may have none.
- */
+// The proof that the browser runs on a stock headless Linux server, run with java -jar by the proof bundle. It prints
+// PASSED last, or why it failed. MCAV_PROOF_CACHE names a writable folder for the cache, as the user may have no home.
 public final class HeadlessProofMain {
 
-  /**
-   * The line printed when every check passed.
-   */
   static final String PASSED = "HEADLESS PROOF PASSED";
 
   private static final List<String> GRAALVM_DEFAULTS = List.of(
@@ -62,31 +54,29 @@ public final class HeadlessProofMain {
     "-XX:+EnableJVMCI",
     "-XX:-UnlockExperimentalVMOptions"
   );
-  private static final long START_TIMEOUT_MILLIS = TimeUnit.MINUTES.toMillis(10);
-  private static final long STOP_TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(30);
+
+  private static final long START_TIMEOUT_MILLISECONDS = TimeUnit.MINUTES.toMillis(10);
+  private static final long STOP_TIMEOUT_MILLISECONDS = TimeUnit.SECONDS.toMillis(30);
+
   private static final String PAGE =
     "<!doctype html><html><body style=\"margin:0;background:#ff0000\">" +
     "<p style=\"margin:8px;font:bold 40px sans-serif;color:#000000\">mcav headless</p></body></html>";
 
   private HeadlessProofMain() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
-  /**
-   * Runs the proof and exits with 0 if it passed, 1 otherwise.
-   *
-   * @param args ignored
-   */
   public static void main(final String[] args) {
     int status = 1;
     try {
       run();
       System.out.println(PASSED);
       status = 0;
-    } catch (final Exception | Error failure) {
-      failure.printStackTrace(System.out);
-      System.out.println("HEADLESS PROOF FAILED: " + failure);
+    } catch (final Exception | Error exception) {
+      exception.printStackTrace(System.out);
+      System.out.println("HEADLESS PROOF FAILED: " + exception);
     }
+
     System.out.flush();
     System.exit(status);
   }
@@ -94,9 +84,11 @@ public final class HeadlessProofMain {
   private static void run() throws Exception {
     final String cache = System.getenv("MCAV_PROOF_CACHE");
     System.out.println("user.home=" + System.getProperty("user.home") + " MCAV_PROOF_CACHE=" + cache);
+
     if (cache != null) {
       System.setProperty("user.home", Path.of(cache, "home").toString());
     }
+
     final List<String> arguments = ManagementFactory.getRuntimeMXBean().getInputArguments();
     System.out.println("JVM arguments: " + arguments + ", Java " + Runtime.version() + ", " + System.getProperty("os.arch"));
     final List<String> options = arguments
@@ -112,13 +104,7 @@ public final class HeadlessProofMain {
     check(xServers.isEmpty() || local, "no X server runs");
     final HttpServer server = HttpServer.create(new InetSocketAddress(InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 }), 0), 0);
     final byte[] page = PAGE.getBytes(StandardCharsets.UTF_8);
-    server.createContext("/", exchange -> {
-      exchange.getResponseHeaders().add("Content-Type", "text/html; charset=utf-8");
-      exchange.sendResponseHeaders(200, page.length);
-      try (final OutputStream body = exchange.getResponseBody()) {
-        body.write(page);
-      }
-    });
+    server.createContext("/", exchange -> servePage(exchange, page));
     server.start();
     try {
       final URI address = URI.create("http://127.0.0.1:" + server.getAddress().getPort() + "/");
@@ -130,6 +116,14 @@ public final class HeadlessProofMain {
     }
   }
 
+  private static void servePage(final HttpExchange exchange, final byte[] page) throws IOException {
+    exchange.getResponseHeaders().add("Content-Type", "text/html; charset=utf-8");
+    exchange.sendResponseHeaders(200, page.length);
+    try (final OutputStream body = exchange.getResponseBody()) {
+      body.write(page);
+    }
+  }
+
   private static void runRound(final int round, final URI address) throws InterruptedException {
     final long start = System.nanoTime();
     final MCAVApi api = MCAV.api();
@@ -137,25 +131,11 @@ public final class HeadlessProofMain {
     final BrowserPlayer player = BrowserPlayer.create(BrowserOptions.builder().privateNetworks(true).build());
     final AtomicReference<int[]> last = new AtomicReference<>();
     final VideoPipelineStepBuilder builder = PipelineBuilder.video();
-    builder.then((image, metadata) -> {
-      final int width = image.getWidth();
-      final int height = image.getHeight();
-      final int[] pixels = image.getPixels();
-      int dark = 0;
-      for (final int pixel : pixels) {
-        final boolean black = ((pixel >> 16) & 0xFF) < 80 && ((pixel >> 8) & 0xFF) < 80 && (pixel & 0xFF) < 80;
-        dark += black ? 1 : 0;
-      }
-      last.set(new int[] { width, height, pixels[(height / 2) * width + width / 2] & 0xFFFFFF, dark });
-      return false;
-    });
+    builder.then((image, _) -> recordFrame(last, image));
     final VideoPipelineStep pipeline = builder.build();
     player.getVideoAttachableCallback().attach(pipeline);
     check(player.start(BrowserSource.uri(address, 320, 240, 1)), "the browser starts");
-    await("a red frame", START_TIMEOUT_MILLIS, () -> {
-      final int[] frame = last.get();
-      return frame != null && isRed(frame[2]);
-    });
+    await("a red frame", START_TIMEOUT_MILLISECONDS, () -> showsRed(last));
     final int[] frame = last.get();
     final long seconds = TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - start);
     System.out.printf(
@@ -170,13 +150,35 @@ public final class HeadlessProofMain {
     );
     check(frame[0] == 320 && frame[1] == 240, "the frame is 320x240");
     check(countBrowserProcesses() > 0, "the browser runs in processes of its own");
+
     if (round == 1) {
       player.release();
     }
+
     api.release();
     check(HelperProcesses.count() == 0, "no browser session is left");
-    await("every browser process to end", STOP_TIMEOUT_MILLIS, () -> countBrowserProcesses() == 0);
+    await("every browser process to end", STOP_TIMEOUT_MILLISECONDS, () -> countBrowserProcesses() == 0);
     System.out.printf(Locale.ROOT, "round %d: disabled, no browser process left%n", round);
+  }
+
+  private static boolean recordFrame(final AtomicReference<int[]> last, final ImageBuffer image) {
+    final int width = image.getWidth();
+    final int height = image.getHeight();
+    final int[] pixels = image.getPixels();
+    int dark = 0;
+    for (final int pixel : pixels) {
+      final boolean black = ((pixel >> 16) & 0xFF) < 80 && ((pixel >> 8) & 0xFF) < 80 && (pixel & 0xFF) < 80;
+      dark += black ? 1 : 0;
+    }
+
+    last.set(new int[] { width, height, pixels[(height / 2) * width + width / 2] & 0xFFFFFF, dark });
+
+    return false;
+  }
+
+  private static boolean showsRed(final AtomicReference<int[]> last) {
+    final int[] frame = last.get();
+    return frame != null && isRed(frame[2]);
   }
 
   private static boolean isRed(final int rgb) {
@@ -187,13 +189,15 @@ public final class HeadlessProofMain {
     try (final Stream<ProcessHandle> all = ProcessHandle.allProcesses()) {
       return all
         .map(process -> process.info().command().orElse(""))
-        .filter(command -> {
-          final Path name = Path.of(command).getFileName();
-          final String program = name == null ? "" : name.toString();
-          return program.equals("Xvfb") || program.equals("Xorg") || program.equals("Xwayland") || program.equals("X");
-        })
+        .filter(HeadlessProofMain::isXServer)
         .toList();
     }
+  }
+
+  private static boolean isXServer(final String command) {
+    final Path name = Path.of(command).getFileName();
+    final String program = name == null ? "" : name.toString();
+    return program.equals("Xvfb") || program.equals("Xorg") || program.equals("Xwayland") || program.equals("X");
   }
 
   private static long countBrowserProcesses() {
@@ -202,12 +206,13 @@ public final class HeadlessProofMain {
     }
   }
 
-  private static void await(final String description, final long timeoutMillis, final BooleanSupplier condition)
+  private static void await(final String description, final long timeoutMilliseconds, final BooleanSupplier condition)
     throws InterruptedException {
-    final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
+    final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMilliseconds);
     while (!condition.getAsBoolean()) {
       if (System.nanoTime() - deadline > 0) {
-        throw new AssertionError("Timed out waiting for " + description);
+        final String message = "Waiting for %s timed out!".formatted(description);
+        throw new AssertionError(message);
       }
       Thread.sleep(50L);
     }
@@ -215,7 +220,8 @@ public final class HeadlessProofMain {
 
   private static void check(final boolean holds, final String description) {
     if (!holds) {
-      throw new AssertionError("Failed: " + description);
+      final String message = "The check that %s failed!".formatted(description);
+      throw new AssertionError(message);
     }
   }
 }

@@ -58,6 +58,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.MockedStatic;
+import org.mockito.invocation.InvocationOnMock;
 
 final class MinecraftStripOutputTest {
 
@@ -67,13 +68,9 @@ final class MinecraftStripOutputTest {
   private static final int ROWS = 3;
 
   private final GpuDevice device = mock(GpuDevice.class, RETURNS_DEEP_STUBS);
-
   private final RenderTarget main = mock(RenderTarget.class);
-
-  private final GpuTexture mainColour = mock(GpuTexture.class);
-
+  private final GpuTexture mainColor = mock(GpuTexture.class);
   private final CommandEncoder commands = mock(CommandEncoder.class);
-
   private final GraphicsResourceAllocator allocator = mock(GraphicsResourceAllocator.class);
 
   // in the order the device made them
@@ -86,21 +83,24 @@ final class MinecraftStripOutputTest {
     when(this.device.getDeviceInfo().limits().maxTextureSize()).thenReturn(16_384);
     when(
       this.device.createTexture(ArgumentMatchers.<Supplier<String>>any(), anyInt(), any(), anyInt(), anyInt(), anyInt(), anyInt())
-    ).thenAnswer(_ -> {
-      final GpuTexture texture = mock(GpuTexture.class);
-      this.textures.add(texture);
-      return texture;
-    });
+    ).thenAnswer(this::createTexture);
     this.system = mockStatic(RenderSystem.class);
     this.system.when(RenderSystem::getDevice).thenReturn(this.device);
     this.main.width = WIDTH;
     this.main.height = HEIGHT;
-    when(this.main.getColorTexture()).thenReturn(this.mainColour);
+    when(this.main.getColorTexture()).thenReturn(this.mainColor);
   }
 
   @AfterEach
   void close() {
     this.system.close();
+  }
+
+  private GpuTexture createTexture(final InvocationOnMock invocation) {
+    final GpuTexture texture = mock(GpuTexture.class);
+    this.textures.add(texture);
+
+    return texture;
   }
 
   // each row of one value, so the order of the rows shows
@@ -111,6 +111,7 @@ final class MinecraftStripOutputTest {
         strip[at] = (byte) (row + 1);
       }
     }
+
     return strip;
   }
 
@@ -118,15 +119,15 @@ final class MinecraftStripOutputTest {
   void shouldWriteTheStripOverTheTopRowsAndRunThePacksChainOnAnEmptyOutline() {
     final PostChain chain = mock(PostChain.class);
     final MinecraftStripOutput output = new MinecraftStripOutput(() -> this.main, () -> chain, () -> this.commands);
-    final int width = output.width();
-    final int height = output.height();
+    final int width = output.getWidth();
+    final int height = output.getHeight();
     assertEquals(WIDTH, width);
     assertEquals(HEIGHT, height);
     final ArgumentCaptor<ByteBuffer> pixels = ArgumentCaptor.forClass(ByteBuffer.class);
     final boolean decoded = output.decode(this.strip(WIDTH), ROWS, this.allocator);
     assertTrue(decoded);
     verify(this.commands).writeToTexture(
-      same(this.mainColour),
+      same(this.mainColor),
       pixels.capture(),
       eq(0),
       eq(0),
@@ -141,7 +142,8 @@ final class MinecraftStripOutputTest {
     final byte lastByteOfTheFirstRow = written.get(WIDTH * TransportStrip.CHANNELS - 1);
     final byte firstByteOfTheSecondRow = written.get(WIDTH * TransportStrip.CHANNELS);
     final byte lastByte = written.get(ROWS * WIDTH * TransportStrip.CHANNELS - 1);
-    assertEquals(ROWS * WIDTH * TransportStrip.CHANNELS, remaining);
+    final int expectedRemaining = ROWS * WIDTH * TransportStrip.CHANNELS;
+    assertEquals(expectedRemaining, remaining);
     assertEquals(3, firstByte);
     assertEquals(3, lastByteOfTheFirstRow);
     assertEquals(2, firstByteOfTheSecondRow);
@@ -158,7 +160,8 @@ final class MinecraftStripOutputTest {
     final ArgumentCaptor<ByteBuffer> zeros = ArgumentCaptor.forClass(ByteBuffer.class);
     verify(this.commands).writeToTexture(any(GpuTexture.class), zeros.capture(), eq(0), eq(0), eq(0), eq(0), eq(WIDTH), eq(HEIGHT));
     final int zerosRemaining = zeros.getValue().remaining();
-    assertEquals(WIDTH * HEIGHT * TransportStrip.CHANNELS, zerosRemaining);
+    final int expectedZerosRemaining = WIDTH * HEIGHT * TransportStrip.CHANNELS;
+    assertEquals(expectedZerosRemaining, zerosRemaining);
     for (int at = 0; at < zeros.getValue().limit(); at++) {
       final byte zero = zeros.getValue().get(at);
       assertEquals(0, zero);
@@ -196,7 +199,7 @@ final class MinecraftStripOutputTest {
     final TextureTarget first = (TextureTarget) targets.getAllValues().get(0).entityOutline.get();
     final RenderTarget second = targets.getAllValues().get(1).entityOutline.get();
     assertSame(first, second);
-    final GpuTexture firstColour = first.getColorTexture();
+    final GpuTexture firstColor = first.getColorTexture();
     this.main.height = 720;
     output.decode(this.strip(WIDTH), ROWS, this.allocator);
     this.main.width = 1280;
@@ -218,25 +221,20 @@ final class MinecraftStripOutputTest {
     assertNotSame(first, resized);
     assertEquals(1280, resizedWidth);
     assertEquals(720, resizedHeight);
-    verify(firstColour).close();
+    verify(firstColor).close();
     for (int index = 0; index < 4; index++) {
       verify(this.textures.get(index)).close();
     }
     verify(this.textures.get(4), never()).close();
     verify(this.textures.get(5), never()).close();
-    verify(this.mainColour, never()).close();
+    verify(this.mainColor, never()).close();
   }
 
   @Test
   void shouldRunTheFrameOfThePacksChainAndKeepItsBufferForAStripOfTheSameSize() {
     final PostChain chain = mock(PostChain.class);
     final AtomicInteger passes = new AtomicInteger();
-    doAnswer(invocation -> {
-      final FramePass pass = invocation.<FrameGraphBuilder>getArgument(0).addPass("mcv2 test");
-      pass.disableCulling();
-      pass.executes(passes::incrementAndGet);
-      return null;
-    })
+    doAnswer(invocation -> this.addCountedPass(invocation, passes))
       .when(chain)
       .addToFrame(any(FrameGraphBuilder.class), anyInt(), anyInt(), any());
     final MinecraftStripOutput output = new MinecraftStripOutput(() -> this.main, () -> chain, () -> this.commands);
@@ -246,7 +244,7 @@ final class MinecraftStripOutputTest {
     assertEquals(2, passCount, "the chain's passes run every frame");
     final ArgumentCaptor<ByteBuffer> pixels = ArgumentCaptor.forClass(ByteBuffer.class);
     verify(this.commands, times(2)).writeToTexture(
-      same(this.mainColour),
+      same(this.mainColor),
       pixels.capture(),
       eq(0),
       eq(0),
@@ -256,7 +254,17 @@ final class MinecraftStripOutputTest {
       eq(ROWS)
     );
     final ByteBuffer reusedPixels = pixels.getAllValues().get(1);
-    assertSame(pixels.getAllValues().get(0), reusedPixels);
+    final ByteBuffer expectedReusedPixels = pixels.getAllValues().get(0);
+    assertSame(expectedReusedPixels, reusedPixels);
+  }
+
+  private Void addCountedPass(final InvocationOnMock invocation, final AtomicInteger passes) {
+    final FrameGraphBuilder frame = invocation.getArgument(0);
+    final FramePass pass = frame.addPass("mcv2 test");
+    pass.disableCulling();
+    pass.executes(passes::incrementAndGet);
+
+    return null;
   }
 
   @Test
@@ -268,14 +276,15 @@ final class MinecraftStripOutputTest {
     tall[0] = 9;
     final ArgumentCaptor<ByteBuffer> pixels = ArgumentCaptor.forClass(ByteBuffer.class);
     output.decode(tall, 10, this.allocator);
-    verify(this.commands).writeToTexture(same(this.mainColour), pixels.capture(), eq(0), eq(0), eq(0), eq(470), eq(WIDTH), eq(10));
+    verify(this.commands).writeToTexture(same(this.mainColor), pixels.capture(), eq(0), eq(0), eq(0), eq(470), eq(WIDTH), eq(10));
     final int tallRemaining = pixels.getValue().remaining();
     final byte flippedFirstByte = pixels.getValue().get(9 * WIDTH * TransportStrip.CHANNELS);
-    assertEquals(10 * WIDTH * TransportStrip.CHANNELS, tallRemaining);
+    final int expectedTallRemaining = 10 * WIDTH * TransportStrip.CHANNELS;
+    assertEquals(expectedTallRemaining, tallRemaining);
     assertEquals(9, flippedFirstByte);
     output.decode(this.strip(WIDTH), ROWS, this.allocator);
     verify(this.commands, times(2)).writeToTexture(
-      same(this.mainColour),
+      same(this.mainColor),
       pixels.capture(),
       eq(0),
       eq(0),
@@ -285,7 +294,8 @@ final class MinecraftStripOutputTest {
       eq(ROWS)
     );
     final int shortRemaining = pixels.getValue().remaining();
-    assertEquals(ROWS * WIDTH * TransportStrip.CHANNELS, shortRemaining);
+    final int expectedShortRemaining = ROWS * WIDTH * TransportStrip.CHANNELS;
+    assertEquals(expectedShortRemaining, shortRemaining);
   }
 
   @Test

@@ -32,12 +32,15 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.event.Event;
 import net.fabricmc.fabric.api.event.EventFactory;
+import net.fabricmc.fabric.api.networking.v1.PacketSender;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.ModContainer;
 import net.fabricmc.loader.api.Version;
 import net.fabricmc.loader.api.metadata.ModMetadata;
 import net.irisshaders.iris.api.v0.IrisApi;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -64,8 +67,9 @@ final class FabricEntrypointTest {
       ticks.invoker().onEndTick(null);
       final ArgumentCaptor<Mcv2Payload> sent = ArgumentCaptor.forClass(Mcv2Payload.class);
       networking.verify(() -> ClientPlayNetworking.send(sent.capture()));
-      final byte[] report = sent.getValue().report();
-      assertArrayEquals(new byte[] { 1, 0, 0, 0 }, report, "no Iris, no shader pack");
+      final byte[] report = sent.getValue().getReport();
+      final byte[] expected = { 1, 0, 0, 0 };
+      assertArrayEquals(expected, report, "no Iris, no shader pack");
 
       joins.invoker().onPlayReady(null, null, null);
       ticks.invoker().onEndTick(null);
@@ -95,8 +99,9 @@ final class FabricEntrypointTest {
 
       final ArgumentCaptor<Mcv2Payload> sent = ArgumentCaptor.forClass(Mcv2Payload.class);
       networking.verify(() -> ClientPlayNetworking.send(sent.capture()));
-      final byte[] report = sent.getValue().report();
-      assertArrayEquals(new byte[] { 1, 1, 0, 0 }, report, "Iris, no shader pack");
+      final byte[] report = sent.getValue().getReport();
+      final byte[] expected = { 1, 1, 0, 0 };
+      assertArrayEquals(expected, report, "Iris, no shader pack");
     }
   }
 
@@ -115,10 +120,11 @@ final class FabricEntrypointTest {
       new FabricEntrypoint();
       verify(loader).getModContainer("iris");
     }
-    final Optional<String> irisVersion = FabricEntrypoint.irisVersion(loader);
-    assertEquals(Optional.of(IRIS_VERSION), irisVersion);
+    final Optional<String> irisVersion = FabricEntrypoint.findIrisVersion(loader);
+    final Optional<String> expectedIrisVersion = Optional.of(IRIS_VERSION);
+    assertEquals(expectedIrisVersion, irisVersion);
     when(loader.getModContainer(IrisShaders.MOD_ID)).thenReturn(Optional.empty());
-    final Optional<String> missingVersion = FabricEntrypoint.irisVersion(loader);
+    final Optional<String> missingVersion = FabricEntrypoint.findIrisVersion(loader);
     assertEquals(Optional.empty(), missingVersion);
   }
 
@@ -128,19 +134,36 @@ final class FabricEntrypointTest {
   }
 
   private Event<ClientPlayConnectionEvents.Join> createJoins() {
-    return EventFactory.createArrayBacked(ClientPlayConnectionEvents.Join.class, listeners -> (handler, sender, client) -> {
-      for (final ClientPlayConnectionEvents.Join listener : listeners) {
-        listener.onPlayReady(handler, sender, client);
-      }
-    });
+    return EventFactory.createArrayBacked(ClientPlayConnectionEvents.Join.class, this::combineJoins);
+  }
+
+  private ClientPlayConnectionEvents.Join combineJoins(final ClientPlayConnectionEvents.Join[] listeners) {
+    return (handler, sender, client) -> this.notifyJoins(listeners, handler, sender, client);
+  }
+
+  private void notifyJoins(
+    final ClientPlayConnectionEvents.Join[] listeners,
+    final ClientPacketListener handler,
+    final PacketSender sender,
+    final Minecraft client
+  ) {
+    for (final ClientPlayConnectionEvents.Join listener : listeners) {
+      listener.onPlayReady(handler, sender, client);
+    }
   }
 
   private Event<ClientTickEvents.EndTick> createTicks() {
-    return EventFactory.createArrayBacked(ClientTickEvents.EndTick.class, listeners -> client -> {
-      for (final ClientTickEvents.EndTick listener : listeners) {
-        listener.onEndTick(client);
-      }
-    });
+    return EventFactory.createArrayBacked(ClientTickEvents.EndTick.class, this::combineTicks);
+  }
+
+  private ClientTickEvents.EndTick combineTicks(final ClientTickEvents.EndTick[] listeners) {
+    return client -> this.notifyTicks(listeners, client);
+  }
+
+  private void notifyTicks(final ClientTickEvents.EndTick[] listeners, final Minecraft client) {
+    for (final ClientTickEvents.EndTick listener : listeners) {
+      listener.onEndTick(client);
+    }
   }
 
   @SuppressWarnings("unchecked") // a class literal cannot name PayloadTypeRegistry<RegistryFriendlyByteBuf>

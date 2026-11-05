@@ -36,58 +36,28 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Pattern;
 
-/**
- * Web pages on the loopback interface for browser tests.
- *
- * <p>{@code /main} is red, {@code /popup} is blue and {@code /second} is green, so the streamed frames show which
- * page is on screen. Each page reports its mouse and keyboard events serially, preserving DOM event order in the
- * server's arrival log. Different pages remain independent. A popup waits for its final report before closing.
- * Pressing {@code o} on the main page opens the popup, and pressing {@code x} on the popup closes it. Pressing
- * {@code n} on the popup opens the second page and closes the popup a second later; pressing {@code w} on the
- * second page closes it 300 milliseconds later.
- * {@code /hooked} is the main page, but the server runs a hook before answering, so tests can act while the browser
- * is still loading. The red pages {@code /to-popup-synthetic} (a script clicks a link to the popup without a click of
- * the user), {@code /named-frame} (a link in the upper left quarter opens the second page in a frame named
- * {@code inner}) and {@code /form-target} (a button over the whole page sends a form to the second page, targeting a
- * new window) test how windows open in place.
- */
+// Web pages on the loopback interface for browser tests: each page has its own color, so the frames show which one
+// is on screen.
 public final class TestPages implements AutoCloseable {
 
-  /**
-   * The background color of the main page as packed RGB.
-   */
   public static final int MAIN_COLOR = 0xFF0000;
 
-  /**
-   * The background color of the popup as packed RGB.
-   */
   public static final int POPUP_COLOR = 0x0000FF;
 
-  /**
-   * The background color of the second popup as packed RGB.
-   */
   public static final int SECOND_COLOR = 0x00FF00;
 
-  /**
-   * The width of the frame of {@code /named-frame}, in CSS pixels.
-   */
   public static final int FRAME_WIDTH = 100;
 
-  /**
-   * The frequency of the tone of the sound pages, in hertz.
-   */
   public static final int TONE_HERTZ = 1000;
 
-  /**
-   * The amplitude of the tone of the sound pages, a share of full scale.
-   */
   public static final double TONE_AMPLITUDE = 0.5;
 
-  /**
-   * How long the picture and the sound of {@code /av-sync} stay on and off, in milliseconds.
-   */
-  public static final int TOGGLE_MILLIS = 400;
+  // how long /av-sync keeps its picture and sound on, then off
+  public static final int TOGGLE_MILLISECONDS = 400;
+
+  private static final Pattern PAIR_SEPARATOR = Pattern.compile("&");
 
   private static final String TONE_SCRIPT = String.format(
     Locale.ROOT,
@@ -208,9 +178,11 @@ public final class TestPages implements AutoCloseable {
       let started = false;
       addEventListener('pointerdown', () => {
         context.resume();
+
         if (started) {
           return;
         }
+
         started = true;
         setInterval(() => {
           on = !on;
@@ -222,13 +194,13 @@ public final class TestPages implements AutoCloseable {
     """,
     TONE_HERTZ,
     TONE_AMPLITUDE,
-    TOGGLE_MILLIS
+    TOGGLE_MILLISECONDS
   );
 
   private static final String SCRIPT = """
   <script>
     const page = document.body.dataset.page;
-    // Serialize transport as well as DOM observation: independent fetches can arrive out of order.
+    // one report at a time: independent fetches can arrive out of order
     let reports = Promise.resolve();
     const report = (type, event) => {
       const parameters = new URLSearchParams({
@@ -290,11 +262,6 @@ public final class TestPages implements AutoCloseable {
     this.loadHook = new AtomicReference<>(() -> {});
   }
 
-  /**
-   * Starts the server on a free port of the loopback interface.
-   *
-   * @return the running server
-   */
   public static TestPages start() {
     try {
       final InetAddress loopback = InetAddress.ofLiteral("127.0.0.1");
@@ -311,41 +278,14 @@ public final class TestPages implements AutoCloseable {
       httpServer.createContext("/tone.wav", TestPages::toneWave);
       httpServer.createContext("/hooked", pages::hooked);
       httpServer.createContext("/event", pages::event);
-      httpServer.createContext("/dialog", exchange ->
-        script(exchange, "alert('hi'); confirm('sure?'); document.body.style.background = '#00ff00';")
-      );
+      httpServer.createContext("/dialog", TestPages::serveDialogs);
       httpServer.createContext("/to-file", exchange -> script(exchange, "location.href = 'file:///etc/passwd';"));
       httpServer.createContext("/to-download", exchange -> script(exchange, "location.href = '/download';"));
       httpServer.createContext("/to-popup", exchange -> script(exchange, "window.open('/popup', '_blank');"));
-      httpServer.createContext("/to-popup-link", exchange ->
-        script(
-          exchange,
-          "document.body.insertAdjacentHTML('beforeend', '<a href=\"/popup\" target=\"_blank\" style=\"position:fixed;inset:0\"></a>');"
-        )
-      );
-      httpServer.createContext("/to-popup-synthetic", exchange ->
-        script(
-          exchange,
-          "document.body.insertAdjacentHTML('beforeend', '<a id=\"link\" href=\"/popup\" target=\"_blank\">popup</a>');" +
-            " document.getElementById('link').click();"
-        )
-      );
-      httpServer.createContext("/named-frame", exchange ->
-        html(
-          exchange,
-          "<iframe name=\"inner\" src=\"about:blank\" style=\"position:fixed;right:0;bottom:0;width:" +
-            FRAME_WIDTH +
-            "px;height:60px;border:0\"></iframe>" +
-            "<a href=\"/second\" target=\"inner\" style=\"position:fixed;left:0;top:0;width:50%;height:50%\"></a>"
-        )
-      );
-      httpServer.createContext("/form-target", exchange ->
-        html(
-          exchange,
-          "<form action=\"/second\" method=\"get\"><button type=\"submit\" formtarget=\"_blank\"" +
-            " style=\"position:fixed;inset:0;opacity:0\">send</button></form>"
-        )
-      );
+      httpServer.createContext("/to-popup-link", TestPages::serveLinkToAPopup);
+      httpServer.createContext("/to-popup-synthetic", TestPages::serveLinkToAPopupThatAScriptClicks);
+      httpServer.createContext("/named-frame", TestPages::serveLinkIntoANamedFrame);
+      httpServer.createContext("/form-target", TestPages::serveFormThatTargetsANewWindow);
       httpServer.createContext("/download", TestPages::download);
       httpServer.start();
       return pages;
@@ -354,88 +294,55 @@ public final class TestPages implements AutoCloseable {
     }
   }
 
-  /**
-   * Gets the address of a page.
-   *
-   * @param path the path, such as {@code /main}
-   * @return the address
-   */
+  private static void serveDialogs(final HttpExchange exchange) throws IOException {
+    script(exchange, "alert('hi'); confirm('sure?'); document.body.style.background = '#00ff00';");
+  }
+
+  private static void serveLinkToAPopup(final HttpExchange exchange) throws IOException {
+    script(
+      exchange,
+      "document.body.insertAdjacentHTML('beforeend', '<a href=\"/popup\" target=\"_blank\" style=\"position:fixed;inset:0\"></a>');"
+    );
+  }
+
+  private static void serveLinkToAPopupThatAScriptClicks(final HttpExchange exchange) throws IOException {
+    script(
+      exchange,
+      "document.body.insertAdjacentHTML('beforeend', '<a id=\"link\" href=\"/popup\" target=\"_blank\">popup</a>');" +
+        " document.getElementById('link').click();"
+    );
+  }
+
+  private static void serveLinkIntoANamedFrame(final HttpExchange exchange) throws IOException {
+    html(
+      exchange,
+      "<iframe name=\"inner\" src=\"about:blank\" style=\"position:fixed;right:0;bottom:0;width:" +
+        FRAME_WIDTH +
+        "px;height:60px;border:0\"></iframe>" +
+        "<a href=\"/second\" target=\"inner\" style=\"position:fixed;left:0;top:0;width:50%;height:50%\"></a>"
+    );
+  }
+
+  private static void serveFormThatTargetsANewWindow(final HttpExchange exchange) throws IOException {
+    html(
+      exchange,
+      "<form action=\"/second\" method=\"get\"><button type=\"submit\" formtarget=\"_blank\"" +
+        " style=\"position:fixed;inset:0;opacity:0\">send</button></form>"
+    );
+  }
+
   public URI uri(final String path) {
     final InetSocketAddress address = this.server.getAddress();
     final int port = address.getPort();
     return URI.create("http://127.0.0.1:" + port + path);
   }
 
-  /**
-   * Sets the hook that runs before {@code /hooked} is answered.
-   *
-   * @param hook the hook
-   */
-  public void setLoadHook(final Runnable hook) {
-    this.loadHook.set(hook);
-  }
-
-  /**
-   * Gets the events the pages reported so far.
-   *
-   * @return a copy of the events in the order they arrived
-   */
-  public List<PageEvent> getEvents() {
-    synchronized (this.events) {
-      return List.copyOf(this.events);
-    }
-  }
-
-  /**
-   * Gets the events of one type the pages reported so far.
-   *
-   * @param type the event type, such as {@code click}
-   * @return a copy of the matching events in the order they arrived
-   */
-  public List<PageEvent> getEvents(final String type) {
-    final List<PageEvent> all = this.getEvents();
-    final List<PageEvent> matching = new ArrayList<>();
-    for (final PageEvent event : all) {
-      final String eventType = event.getType();
-      if (eventType.equals(type)) {
-        matching.add(event);
-      }
-    }
-    return matching;
-  }
-
-  /**
-   * Forgets the events the pages reported so far.
-   */
   public void clearEvents() {
     synchronized (this.events) {
       this.events.clear();
     }
   }
 
-  /**
-   * Maps a coordinate of a frame onto the page the way the players do, using the size the page reported when it
-   * loaded.
-   *
-   * @param value     the coordinate in the frame
-   * @param frameSize the width or height of the frames
-   * @param width     true to map a horizontal coordinate, false for a vertical one
-   * @return the coordinate on the page
-   */
-  public int toPage(final int value, final int frameSize, final boolean width) {
-    final List<PageEvent> sizes = this.getEvents("size");
-    final PageEvent size = sizes.getFirst();
-    final int pageSize = width ? size.getX() : size.getY();
-    final long scaled = Math.round(value * ((double) pageSize / frameSize));
-    return Math.clamp(scaled, 0, pageSize - 1);
-  }
-
-  /**
-   * Counts the events of one type the pages reported so far.
-   *
-   * @param type the event type
-   * @return the number of matching events
-   */
   public int count(final String type) {
     final List<PageEvent> matching = this.getEvents(type);
     return matching.size();
@@ -446,12 +353,12 @@ public final class TestPages implements AutoCloseable {
   }
 
   private static void page(final HttpExchange exchange, final String name, final int color, final String extra) throws IOException {
-    final String hex = String.format(Locale.ROOT, "#%06x", color);
+    final String hexadecimal = String.format(Locale.ROOT, "#%06x", color);
     final String html =
       "<!doctype html><html><head><title>" +
       name +
       "</title><style>html,body{margin:0;width:100%;height:100%;background:" +
-      hex +
+      hexadecimal +
       ";}</style></head><body data-page=\"" +
       name +
       "\">" +
@@ -467,12 +374,6 @@ public final class TestPages implements AutoCloseable {
     }
   }
 
-  /**
-   * Serves one second of the tone as a WAV file: 16-bit stereo at 48 kHz.
-   *
-   * @param exchange the request
-   * @throws IOException if the answer cannot be sent
-   */
   private static void toneWave(final HttpExchange exchange) throws IOException {
     final int rate = 48_000;
     final ByteBuffer wave = ByteBuffer.allocate(44 + rate * 4).order(ByteOrder.LITTLE_ENDIAN);
@@ -495,6 +396,7 @@ public final class TestPages implements AutoCloseable {
       final short sample = (short) Math.round(Math.sin((2 * Math.PI * TONE_HERTZ * frame) / rate) * TONE_AMPLITUDE * 32767);
       wave.putShort(sample).putShort(sample);
     }
+
     final byte[] body = wave.array();
     exchange.getResponseHeaders().add("Content-Type", "audio/wav");
     exchange.sendResponseHeaders(200, body.length);
@@ -503,13 +405,6 @@ public final class TestPages implements AutoCloseable {
     }
   }
 
-  /**
-   * Serves a red page with more elements.
-   *
-   * @param exchange the request
-   * @param elements the HTML of the elements
-   * @throws IOException if the answer cannot be sent
-   */
   private static void html(final HttpExchange exchange, final String elements) throws IOException {
     final String html =
       "<!doctype html><html><head><style>html,body{margin:0;width:100%;height:100%;background:#ff0000;}</style></head><body>" +
@@ -524,13 +419,6 @@ public final class TestPages implements AutoCloseable {
     }
   }
 
-  /**
-   * Serves the red main page with a script that runs when the page has loaded.
-   *
-   * @param exchange the request
-   * @param script   the script
-   * @throws IOException if the response fails
-   */
   private static void script(final HttpExchange exchange, final String script) throws IOException {
     final String html =
       "<!doctype html><html><head><style>html,body{margin:0;width:100%;height:100%;background:#ff0000;}</style></head>" +
@@ -566,16 +454,17 @@ public final class TestPages implements AutoCloseable {
   private void event(final HttpExchange exchange) throws IOException {
     final URI requestUri = exchange.getRequestURI();
     final String query = requestUri.getRawQuery();
-    final Map<String, String> parameters = parse(query);
-    final PageEvent pageEvent = toEvent(parameters);
+    final Map<String, String> parameters = this.parse(query);
+    final PageEvent pageEvent = this.toEvent(parameters);
     synchronized (this.events) {
       this.events.add(pageEvent);
     }
+
     exchange.sendResponseHeaders(204, -1);
     exchange.close();
   }
 
-  private static PageEvent toEvent(final Map<String, String> parameters) {
+  private PageEvent toEvent(final Map<String, String> parameters) {
     final String page = parameters.getOrDefault("page", "");
     final String type = parameters.getOrDefault("type", "");
     final String rawX = parameters.getOrDefault("x", "0");
@@ -590,12 +479,13 @@ public final class TestPages implements AutoCloseable {
     return new PageEvent(page, type, pageX, pageY, button, buttons, key);
   }
 
-  private static Map<String, String> parse(final String query) {
+  private Map<String, String> parse(final String query) {
     final Map<String, String> parameters = new HashMap<>();
     if (query == null) {
       return parameters;
     }
-    final String[] pairs = query.split("&", -1);
+
+    final String[] pairs = PAIR_SEPARATOR.split(query, -1);
     for (final String pair : pairs) {
       final int separator = pair.indexOf('=');
       if (separator < 0) {
@@ -607,6 +497,7 @@ public final class TestPages implements AutoCloseable {
       final String value = URLDecoder.decode(encodedValue, StandardCharsets.UTF_8);
       parameters.put(name, value);
     }
+
     return parameters;
   }
 
@@ -615,9 +506,29 @@ public final class TestPages implements AutoCloseable {
     this.server.stop(0);
   }
 
-  /**
-   * An event a page reported.
-   */
+  public void setLoadHook(final Runnable hook) {
+    this.loadHook.set(hook);
+  }
+
+  public List<PageEvent> getEvents() {
+    synchronized (this.events) {
+      return List.copyOf(this.events);
+    }
+  }
+
+  public List<PageEvent> getEvents(final String type) {
+    final List<PageEvent> all = this.getEvents();
+    final List<PageEvent> matching = new ArrayList<>();
+    for (final PageEvent event : all) {
+      final String eventType = event.getType();
+      if (eventType.equals(type)) {
+        matching.add(event);
+      }
+    }
+
+    return matching;
+  }
+
   public static final class PageEvent {
 
     private final String page;
@@ -646,65 +557,31 @@ public final class TestPages implements AutoCloseable {
       this.key = key;
     }
 
-    /**
-     * Gets the page that reported the event.
-     *
-     * @return {@code main} or {@code popup}
-     */
     public String getPage() {
       return this.page;
     }
 
-    /**
-     * Gets the DOM event type.
-     *
-     * @return the type, such as {@code click}
-     */
     public String getType() {
       return this.type;
     }
 
-    /**
-     * Gets the x coordinate in CSS pixels.
-     *
-     * @return the x coordinate
-     */
     public int getX() {
       return this.pageX;
     }
 
-    /**
-     * Gets the y coordinate in CSS pixels.
-     *
-     * @return the y coordinate
-     */
     public int getY() {
       return this.pageY;
     }
 
-    /**
-     * Gets the mouse button, 0 for the left and 2 for the right button.
-     *
-     * @return the button
-     */
     public int getButton() {
       return this.button;
     }
 
-    /**
-     * Gets the buttons held during a mouse event, 1 for the left and 2 for the right button.
-     *
-     * @return the buttons
-     */
+    // MouseEvent.buttons: 1 for the left, 2 for the right button
     public int getButtons() {
       return this.buttons;
     }
 
-    /**
-     * Gets the key of a keyboard event.
-     *
-     * @return the key, or an empty string for mouse events
-     */
     public String getKey() {
       return this.key;
     }

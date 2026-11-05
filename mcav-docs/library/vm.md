@@ -18,12 +18,19 @@ dependencies {
 ```
 
 ```java
-  final MCAVApi api = MCAV.api();
-  api.install(VncModule.class, VmModule.class);
-  final VmModule vmModule = api.getModule(VmModule.class);
-  final boolean qemuAvailable = vmModule.isQemuAvailable();
-  if (!qemuAvailable) {
-    LOGGER.warn("QEMU is missing and MCAV cannot install it on this platform, so virtual machines cannot start.");
+  private static final Logger LOGGER = LoggerFactory.getLogger(MyPlugin.class);
+
+  public MCAVApi createVirtualMachineApi() {
+    final MCAVApi api = MCAV.api();
+    api.install(VncModule.class, VmModule.class);
+
+    final VmModule vmModule = api.getModule(VmModule.class);
+    final boolean qemuAvailable = vmModule.isQemuAvailable();
+    if (!qemuAvailable) {
+      LOGGER.warn("QEMU is missing and MCAV cannot install it on this platform, so virtual machines cannot start.");
+    }
+
+    return api;
   }
 ```
 
@@ -60,6 +67,7 @@ QEMU whose JVM is gone and logs it; a QEMU of another JVM that still runs is lef
     videoCallback.attach(pipeline);
 
     player.start(settings, VmPlayer.Architecture.X86_64, configuration);
+
     final int clickX = 512;
     final int clickY = 384;
     final String returnKey = "Return";
@@ -76,7 +84,7 @@ add. QEMU's own default network, which `network("user")` gives back, reaches the
 10.0.2.2 is the machine QEMU runs on: the guest reaches every service there that listens only on the loopback address.
 `network("none")` gives the guest no network card at all.
 
-Options that QEMU accepts more than once, such as `-drive` or `-device`, are added to the builder with `drive(...)`,
+Add options that QEMU accepts more than once, such as `-drive` or `-device`, with `drive(...)`,
 `device(...)`, or `repeatable(key, value)`; every other option replaces its earlier value. `start` throws an
 `ExecutableNotInPathException` when the QEMU program of the architecture is missing and MCAV cannot install it on the
 platform, and a `VmException` with the output of QEMU when the machine fails to start. When the installation of QEMU
@@ -91,12 +99,15 @@ try to fix them.
 ## Sound
 
 The player hands the sound of the guest to its audio pipeline, in the format every audio filter of MCAV takes: 16-bit
-little-endian stereo PCM at 48 kHz. Attach a pipeline like the video one:
+little-endian stereo PCM at 48 kHz. Attach a pipeline like the video one; the `speakers` filter is yours and plays
+the sound, for example a started `DirectAudioOutput`:
 
 ```java
+  public void attachSpeakers(final VmPlayer player, final AudioFilter speakers) {
     final AudioPipelineStep audioPipeline = AudioPipelineStep.of(speakers);
     final AudioAttachableCallback audioCallback = player.getAudioAttachableCallback();
     audioCallback.attach(audioPipeline);
+  }
 ```
 
 Only x86-64 machines of the PC and Q35 families (the default machine, `pc`, `q35` and their versions) have sound.
@@ -111,5 +122,5 @@ earliest, and later when the screen was idle, so the player holds the sound for 
 most 130 ms of sound wait for the pipeline, the hold included; a slow pipeline loses the oldest sound, so the sound
 never falls further behind. QEMU sends nothing while the guest plays no sound, so when the guest stops playing the
 player hands silence to the pipeline instead, for two seconds at most: a pause between two sounds keeps its length.
-While the player is paused, the sound of the guest is dropped. A sound connection that cannot be made is reported to
+While the player is paused, it drops the sound of the guest. The player reports a sound connection it cannot make to
 the exception handler, and the machine runs without sound.

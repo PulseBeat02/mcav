@@ -60,11 +60,12 @@ public final class AudioExtractor {
    * Extracts the audio of the source and transcodes it to stereo Ogg Vorbis. Mono and surround audio is mixed to
    * two channels, and any video is dropped.
    *
-   * <p>Every call writes a new file with a random name into the MCAV cache folder, {@code ~/.mcav/cache}, so
-   * extracting the same source twice yields two files. The caller owns the file and may move or delete it. This
-   * method blocks until FFmpeg finishes, which can take a while for long media or slow network sources, so avoid
-   * calling it on threads that must stay responsive. A failed extraction removes its partial output; a failure to
-   * remove it is retained as a suppressed exception on the extraction failure.
+   * <p>Every call writes a new file with a random name into the MCAV cache folder, {@code ~/.mcav/cache}, or
+   * {@code mcav/cache} in the temporary directory of the JVM when that folder cannot be written or cannot run programs
+   * (see {@link IoUtils#getCachedFolder()}), so extracting the same source twice yields two files. The caller owns the
+   * file and may move or delete it. This method blocks until FFmpeg finishes, which can take a while for long media or
+   * slow network sources, so avoid calling it on threads that must stay responsive. A failed extraction removes its
+   * partial output; a failure to remove it is retained as a suppressed exception on the extraction failure.
    *
    * @param source the media to extract the audio from, such as a file or a URL
    * @return the absolute path of the new Ogg Vorbis file
@@ -72,7 +73,8 @@ public final class AudioExtractor {
    * @throws ProcessException       if FFmpeg cannot be started, its output cannot be read, the thread is interrupted
    *                                while waiting for FFmpeg, or FFmpeg exits with a non-zero exit code, for example
    *                                because the source does not exist, cannot be decoded, or has no audio track
-   * @throws FileOperationException if the cache folder cannot be created
+   * @throws FileOperationException if neither the cache folder nor its fallback in the temporary directory can be
+   *                                created
    * @throws UnsatisfiedLinkError   if the bundled FFmpeg is not available for this platform
    * @since 1.0.0
    */

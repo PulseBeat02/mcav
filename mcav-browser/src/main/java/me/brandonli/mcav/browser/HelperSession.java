@@ -68,7 +68,6 @@ import java.util.concurrent.locks.LockSupport;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import me.brandonli.mcav.media.image.ImageBuffer;
-import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.utils.FileOperationException;
 import me.brandonli.mcav.utils.IoUtils;
 import me.brandonli.mcav.utils.os.Os;
@@ -76,67 +75,48 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * One browser helper process, from its start to its end: the private folder of the session, the helper and the
- * processes it starts, the authenticated connection, the page the helper streams, and the input sent to it.
- *
- * <p>{@link #open} creates a folder only the server's user can read, binds a Unix-domain socket in it, starts the
- * helper with its configuration on its standard input, and accepts exactly one connection, which must present the
- * random session token first; the socket is then deleted. {@link #open} returns once the page has loaded and its first
- * frame arrived, and fails with a {@link PlayerException} if the helper fails, exits, or takes longer than the start
- * timeout, leaving nothing behind.
- *
- * <p>A reader thread writes every frame region into the {@link FrameCanvas}, and a delivery thread hands the newest
- * picture to the listener; pictures the listener was too slow for are skipped, never queued. Once the page stops
- * changing, the delivery thread hands the same picture over again, every {@value #REPEAT_DELAY_MILLIS} ms and at most
- * {@value #SETTLED_REPEATS} times: a video pipeline that spreads a big change over several frames, as the map encoder
- * does with its byte budget per frame, needs further frames to finish the change, and a page that stands still sends
- * none. Input goes through a bounded queue to a writer thread, so a caller such as the server's main thread never
- * waits for the helper. What the helper reports for the log, its notices and failed loads, which the page it shows
- * can cause as often as it likes, reaches the log of the server within a {@link LogBudget}.
- *
- * <p>{@link #close} ends the helper by closing its standard input and the connection, waits a bounded time, then kills
- * it and every process it started, and removes the folder. A helper that ends by itself is reported to the listener.
- * The server's end is never a helper that outlives it: a helper exits when its standard input ends, which the
- * operating system does when the server process dies.
- */
+// One browser helper process: its private folder, the token-authenticated connection, the frames it streams and the
+// input sent to it. A slow listener skips pictures instead of queuing them; a settled page repeats its last picture, so
+// an encoder that spreads a change over frames can finish it. A helper exits when its standard input ends, so it never
+// outlives the server.
 final class HelperSession implements BrowserSession {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(HelperSession.class);
-  private static final String HELPER_OUTPUT_BEFORE_FAILURE = "The browser helper wrote before its start failed:{}{}";
-  private static final String HELPER_CEF_VERSION = "The browser helper runs CEF {}";
-  private static final String PAGE_LOAD_FAILED = "The browser could not load {}: {} ({})";
-  private static final String PAGE_NOTICE = "Browser: {}";
-  private static final String NOTICES_SKIPPED = "Browser: {} more notices of the page were not logged";
-  private static final String HELPER_OUTPUT = "browser helper: {}";
-  private static final String HELPER_KILLED = "The browser helper did not stop within {} ms and is killed";
-  private static final String CLOSE_FAILED = "Failed to close {}";
-  private static final String FOLDER_NOT_REMOVED = "The folder of the browser session {} could not be removed: {}";
-  private static final String FOLDER_NAME_TAKEN = "The name {} of a browser session's folder is taken, another is drawn";
-  private static final int MAX_QUEUED_INPUT = 128;
+
+  private static final int MAXIMUM_QUEUED_INPUT = 128;
+
   private static final int OUTPUT_TAIL_LINES = 40;
   private static final int OUTPUT_LINE_CHARACTERS = 1024;
-  private static final long STOP_TIMEOUT_MILLIS = 10_000L;
-  private static final long KILL_TIMEOUT_MILLIS = 5_000L;
-  private static final long EXIT_GRACE_MILLIS = 1_000L;
+
+  private static final long STOP_TIMEOUT_MILLISECONDS = 10_000L;
+  private static final long KILL_TIMEOUT_MILLISECONDS = 5_000L;
+  private static final long EXIT_GRACE_MILLISECONDS = 1_000L;
+  private static final long EXIT_POLL_NANOSECONDS = TimeUnit.MILLISECONDS.toNanos(10L);
+
   private static final byte[] NO_PIXELS = new byte[0];
-  private static final long EXIT_POLL_NANOS = TimeUnit.MILLISECONDS.toNanos(10L);
+
   private static final String SOCKET_NAME = "s";
-  // a socket's path has at most 107 characters, and on Linux Chromium binds one 45 characters below the folder of the
-  // session, which is its temporary folder: <folder>/org.chromium.Chromium.XXXXXX/SingletonSocket
-  private static final int MAX_SOCKET_PATH = 107;
+
+  // a socket path has at most 107 characters, and on Linux Chromium binds one 45 characters below the session folder
+  private static final int MAXIMUM_SOCKET_PATH = 107;
   private static final int CHROMIUM_SOCKET_TAIL = 45;
-  private static final int MAX_FOLDER_ATTEMPTS = 100;
+
+  private static final int MAXIMUM_FOLDER_ATTEMPTS = 100;
+
   private static final Thread NOT_STARTED = new Thread("mcav-browser-not-started");
 
-  /**
-   * How long the delivery thread waits for a new picture before it hands over the last one again.
-   */
-  static final long REPEAT_DELAY_MILLIS = 50L;
+  private static final String PROFILE_FOLDER = "profile";
 
-  /**
-   * How often the delivery thread hands over the last picture again once the page stopped changing.
-   */
+  private static final String POSIX_ATTRIBUTE_VIEW = "posix";
+  private static final String OWNER_ONLY_PERMISSIONS = "rwx------";
+
+  private static final long CONNECT_POLL_MILLISECONDS = 250L;
+
+  private static final int INPUT_BUFFER_BYTES = 1 << 16;
+  private static final int OUTPUT_READ_CHARACTERS = 4096;
+
+  static final long REPEAT_DELAY_MILLISECONDS = 50L;
+
   static final int SETTLED_REPEATS = 40;
 
   private final Path folder;
@@ -154,9 +134,10 @@ final class HelperSession implements BrowserSession {
   private final Object deliveryLock;
   private final Set<StartEvent> startEvents;
   private final LogBudget logBudget;
-  private volatile Thread reader = NOT_STARTED;
-  private volatile Thread delivery = NOT_STARTED;
-  private volatile Thread drain = NOT_STARTED;
+
+  private volatile Thread reader;
+  private volatile Thread delivery;
+  private volatile Thread drain;
   private boolean frameWaiting;
 
   private HelperSession(
@@ -180,7 +161,7 @@ final class HelperSession implements BrowserSession {
       1,
       0L,
       TimeUnit.MILLISECONDS,
-      new ArrayBlockingQueue<>(MAX_QUEUED_INPUT),
+      new ArrayBlockingQueue<>(MAXIMUM_QUEUED_INPUT),
       HelperSession::createInputThread
     );
     this.outputTail = new ArrayDeque<>();
@@ -190,20 +171,11 @@ final class HelperSession implements BrowserSession {
     this.deliveryLock = new Object();
     this.startEvents = EnumSet.noneOf(StartEvent.class);
     this.logBudget = new LogBudget(System::nanoTime);
+    this.reader = NOT_STARTED;
+    this.delivery = NOT_STARTED;
+    this.drain = NOT_STARTED;
   }
 
-  /**
-   * Starts a helper and waits until it shows the page.
-   *
-   * @param launcher the launcher
-   * @param natives  the installed CEF natives
-   * @param source   the page and its size
-   * @param options  the security profile and frame rate
-   * @param listener receives the frames and an unexpected end
-   * @return the running session
-   * @throws PlayerException if the browser module is stopped or stops meanwhile, or the helper cannot be started, fails,
-   *                         or does not show the page in time
-   */
   static HelperSession open(
     final HelperLauncher launcher,
     final Path natives,
@@ -215,18 +187,6 @@ final class HelperSession implements BrowserSession {
     return open(launcher, natives, source, options, listener, temporary);
   }
 
-  /**
-   * Starts a helper whose session folder lies in the given folder, so tests can see what a start leaves behind.
-   *
-   * @param launcher  the launcher
-   * @param natives   the installed CEF natives
-   * @param source    the page and its size
-   * @param options   the security profile and frame rate
-   * @param listener  receives the frames and an unexpected end
-   * @param temporary the folder the session folder is created in
-   * @return the running session
-   * @throws PlayerException as {@link #open(HelperLauncher, Path, BrowserSource, BrowserOptions, Listener)}
-   */
   @VisibleForTesting
   static HelperSession open(
     final HelperLauncher launcher,
@@ -244,55 +204,56 @@ final class HelperSession implements BrowserSession {
     HelperSession session = null;
     SocketChannel pendingChannel = null;
     try (final ServerSocketChannel server = bind(socket)) {
-      requireShortEnough(launcher.getOs(), folder);
+      final Os os = launcher.getOs();
+      requireShortEnough(os, folder);
       final Path libraries = launcher.linkLibraries(folder);
       final URI uri = source.getUri();
-      final HelperConfiguration configuration = configure(token, socket, natives, folder.resolve("profile"), uri, source, options);
+      final HelperConfiguration configuration = configure(token, socket, natives, folder.resolve(PROFILE_FOLDER), uri, source, options);
       process = startProcess(launcher, folder, libraries);
       final Writer standardInput = sendConfiguration(process, configuration);
-      final long timeoutMillis = launcher.getStartTimeoutMillis();
-      final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
+      final long timeoutMilliseconds = launcher.getStartTimeoutMilliseconds();
+      final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMilliseconds);
       final SocketChannel channel = accept(server, process, deadline);
       pendingChannel = channel;
       Files.deleteIfExists(socket);
-      final FrameCanvas canvas = new FrameCanvas(source.getWidth(), source.getHeight());
+      final int width = source.getWidth();
+      final int height = source.getHeight();
+      final FrameCanvas canvas = new FrameCanvas(width, height);
       session = new HelperSession(folder, process, standardInput, channel, canvas, listener);
       pendingChannel = null;
       if (!HelperProcesses.register(session, generation)) {
-        throw new PlayerException("The browser module was stopped while the browser started");
+        final String message = "The browser module was stopped while the browser started!";
+        throw new BrowserException(message);
       }
+
       session.startThreads(token);
       session.awaitStart(deadline, uri);
       return session;
     } catch (final IOException exception) {
       closeAfterFailure(session, process, pendingChannel, folder);
-      throw new PlayerException("The browser helper could not be started: " + exception.getMessage(), exception);
-    } catch (final RuntimeException | Error failure) {
+      final @Nullable String reason = exception.getMessage();
+      final String message = "The browser helper could not be started (%s)!".formatted(reason);
+      throw new BrowserException(message, exception);
+    } catch (final RuntimeException | Error exception) {
       closeAfterFailure(session, process, pendingChannel, folder);
-      throw failure;
+      throw exception;
     }
   }
 
-  /**
-   * Refuses a folder of a session whose path is too long for the socket Chromium binds in it on Linux, with a reason
-   * the operator can act on instead of Chromium's abort.
-   *
-   * @param os     the operating system of the helper
-   * @param folder the folder of the session
-   * @throws PlayerException if the path is too long
-   */
+  // an operator can act on this reason, unlike on Chromium's abort
   @VisibleForTesting
   static void requireShortEnough(final Os os, final Path folder) {
     final String path = folder.toString();
-    if (os == Os.LINUX && path.length() + CHROMIUM_SOCKET_TAIL > MAX_SOCKET_PATH) {
-      final int longest = MAX_SOCKET_PATH - CHROMIUM_SOCKET_TAIL - 1 - SessionFolders.PREFIX.length() - SessionFolders.RANDOM_CHARACTERS;
-      throw new PlayerException(
-        "The temporary folder " +
-          folder.getParent() +
-          " is too long for the browser: on Linux it may have at most " +
-          longest +
-          " characters, so start the server with a shorter java.io.tmpdir, such as /tmp"
-      );
+    if (os == Os.LINUX && path.length() + CHROMIUM_SOCKET_TAIL > MAXIMUM_SOCKET_PATH) {
+      final int longest =
+        MAXIMUM_SOCKET_PATH - CHROMIUM_SOCKET_TAIL - 1 - SessionFolders.PREFIX.length() - SessionFolders.RANDOM_CHARACTERS;
+      final @Nullable Path temporaryFolder = folder.getParent();
+      final String message =
+        "The temporary folder %s is too long for the browser: on Linux it may have at most %s characters, so start the server with a shorter java.io.tmpdir (such as /tmp)!".formatted(
+          temporaryFolder,
+          longest
+        );
+      throw new BrowserException(message);
     }
   }
 
@@ -305,22 +266,32 @@ final class HelperSession implements BrowserSession {
     final BrowserSource source,
     final BrowserOptions options
   ) {
+    final int width = source.getWidth();
+    final int height = source.getHeight();
+    final int frameInterval = source.getFrameInterval();
+    final int frameRate = options.getFrameRate();
+    final boolean allowsJavaScriptJit = options.isJavaScriptJit();
+    final boolean allowsPrivateNetworks = options.isPrivateNetworks();
+    final boolean allowsAutoplay = options.isAutoplay();
+    final boolean confined = options.isConfined();
+    final Path serverFolder = Path.of(System.getProperty("user.dir")).toAbsolutePath();
+    final List<String> refusedHosts = options.getRefusedHosts();
     return new HelperConfiguration(
       token,
       socket,
       natives,
       profile,
       uri,
-      source.getWidth(),
-      source.getHeight(),
-      source.getFrameInterval(),
-      options.getFrameRate(),
-      options.isJavaScriptJit(),
-      options.isPrivateNetworks(),
-      options.isAutoplay(),
-      options.isConfined(),
-      Path.of(System.getProperty("user.dir")).toAbsolutePath(),
-      options.getRefusedHosts()
+      width,
+      height,
+      frameInterval,
+      frameRate,
+      allowsJavaScriptJit,
+      allowsPrivateNetworks,
+      allowsAutoplay,
+      confined,
+      serverFolder,
+      refusedHosts
     );
   }
 
@@ -330,6 +301,7 @@ final class HelperSession implements BrowserSession {
     standardInput.write(configuration.toLine());
     standardInput.write('\n');
     standardInput.flush();
+
     return standardInput;
   }
 
@@ -342,83 +314,69 @@ final class HelperSession implements BrowserSession {
     if (pendingChannel != null) {
       closeQuietly(pendingChannel);
     }
+
     if (session != null) {
       session.close();
       return;
     }
+
     if (process != null) {
-      closeQuietly(process.getOutputStream());
+      final OutputStream processInput = process.getOutputStream();
+      closeQuietly(processInput);
       stopProcess(process);
     }
+
     deleteFolder(folder);
   }
 
-  /**
-   * Creates the folder of a session, readable by the owner only where the file system has POSIX permissions, and names
-   * this server in it, see {@link SessionFolders}.
-   *
-   * @param temporary the folder the session folder is created in
-   * @return the new folder
-   * @throws PlayerException if the folder cannot be created
-   */
   @VisibleForTesting
   static Path createFolder(final Path temporary) {
     return createFolder(temporary, SessionFolders::newName);
   }
 
-  /**
-   * Creates the folder of a session as {@link #createFolder(Path)} does, with names drawn from a supplier: a name that
-   * is taken is drawn again, {@value #MAX_FOLDER_ATTEMPTS} times at most.
-   *
-   * @param temporary the folder the session folder is created in
-   * @param names     draws the name of a folder
-   * @return the new folder
-   * @throws PlayerException if the folder cannot be created
-   */
   @VisibleForTesting
   static Path createFolder(final Path temporary, final Supplier<String> names) {
     final FileSystem fileSystem = temporary.getFileSystem();
-    final boolean supportsPosix = fileSystem.supportedFileAttributeViews().contains("posix");
+    final Set<String> views = fileSystem.supportedFileAttributeViews();
+    final boolean supportsPosix = views.contains(POSIX_ATTRIBUTE_VIEW);
     final FileAttribute<?>[] attributes = supportsPosix
-      ? new FileAttribute<?>[] { PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")) }
+      ? new FileAttribute<?>[] { PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString(OWNER_ONLY_PERMISSIONS)) }
       : new FileAttribute<?>[0];
     try {
-      for (int attempt = 1; attempt <= MAX_FOLDER_ATTEMPTS; attempt++) {
-        final Path candidate = temporary.resolve(names.get());
-        try {
-          final Path folder = Files.createDirectory(candidate, attributes);
-          SessionFolders.ofThisServer().record(folder);
-          return folder;
-        } catch (final FileAlreadyExistsException taken) {
-          LOGGER.debug(FOLDER_NAME_TAKEN, candidate);
-        }
-      }
-      throw new IOException("every name drawn was taken");
+      return createFolderUnderDrawnName(temporary, names, attributes);
     } catch (final IOException exception) {
-      throw new PlayerException("The folder of the browser session cannot be created: " + exception.getMessage(), exception);
+      final @Nullable String reason = exception.getMessage();
+      final String message = "The folder of the browser session cannot be created (%s)!".formatted(reason);
+      throw new BrowserException(message, exception);
     }
   }
 
-  /**
-   * Creates the secret a helper must present when it connects.
-   *
-   * @return {@link HelperProtocol#TOKEN_BYTES} random bytes
-   */
+  private static Path createFolderUnderDrawnName(final Path temporary, final Supplier<String> names, final FileAttribute<?>[] attributes)
+    throws IOException {
+    for (int attempt = 1; attempt <= MAXIMUM_FOLDER_ATTEMPTS; attempt++) {
+      final Path candidate = temporary.resolve(names.get());
+      try {
+        final Path folder = Files.createDirectory(candidate, attributes);
+        SessionFolders.ofThisServer().record(folder);
+        return folder;
+      } catch (final FileAlreadyExistsException exception) {
+        LOGGER.debug("The name {} of a browser session's folder is taken, another is drawn.", candidate);
+      }
+    }
+
+    final String message = "Every name drawn was taken!";
+    throw new IOException(message);
+  }
+
   @VisibleForTesting
   static byte[] createToken() {
     final SecureRandom random = new SecureRandom();
     final byte[] token = new byte[HelperProtocol.TOKEN_BYTES];
     random.nextBytes(token);
+
     return token;
   }
 
-  /**
-   * Binds the Unix-domain socket the helper connects to.
-   *
-   * @param socket the path of the socket
-   * @return the listening socket
-   * @throws IOException if the socket cannot be bound, as when the path exists
-   */
   @VisibleForTesting
   static ServerSocketChannel bind(final Path socket) throws IOException {
     final ServerSocketChannel server = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
@@ -438,15 +396,6 @@ final class HelperSession implements BrowserSession {
     return builder.start();
   }
 
-  /**
-   * Prepares the process of a helper: its command, no environment but what the launcher keeps, the session folder as
-   * its working folder, and one stream for its output and its errors.
-   *
-   * @param launcher  the launcher
-   * @param folder    the folder of the session
-   * @param libraries the folder of the libraries the server lacks, or null
-   * @return the process builder
-   */
   @VisibleForTesting
   static ProcessBuilder createProcessBuilder(final HelperLauncher launcher, final Path folder, final @Nullable Path libraries) {
     final List<String> command = launcher.createCommand(folder);
@@ -457,6 +406,7 @@ final class HelperSession implements BrowserSession {
     environment.putAll(kept);
     builder.directory(folder.toFile());
     builder.redirectErrorStream(true);
+
     return builder;
   }
 
@@ -464,107 +414,65 @@ final class HelperSession implements BrowserSession {
   static SocketChannel accept(final ServerSocketChannel server, final Process process, final long deadline) throws IOException {
     try (final Selector selector = Selector.open()) {
       server.register(selector, SelectionKey.OP_ACCEPT);
-      while (true) {
-        // an interrupted select returns at once without a word, so an interrupt, such as a release's, is checked here
-        if (Thread.currentThread().isInterrupted()) {
-          throw new PlayerException("Interrupted while the browser helper connected");
-        }
-        final long remaining = TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime());
-        if (remaining <= 0) {
-          throw new PlayerException("The browser helper did not connect in time");
-        }
-        final boolean alive = process.isAlive();
-        if (!alive) {
-          throw new PlayerException("The browser helper exited with code " + process.exitValue() + " before it connected");
-        }
-        selector.select(Math.min(remaining, 250L));
-        final SocketChannel channel = server.accept();
-        if (channel != null) {
-          channel.configureBlocking(true);
-          return channel;
-        }
+      return awaitConnection(server, selector, process, deadline);
+    }
+  }
+
+  private static SocketChannel awaitConnection(
+    final ServerSocketChannel server,
+    final Selector selector,
+    final Process process,
+    final long deadline
+  ) throws IOException {
+    while (true) {
+      // an interrupted select returns silently, so the interrupt of a release is checked here
+      final Thread current = Thread.currentThread();
+      if (current.isInterrupted()) {
+        final String message = "Interrupted while the browser helper connected!";
+        throw new BrowserException(message);
+      }
+      final long remaining = TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime());
+      if (remaining <= 0) {
+        final String message = "The browser helper did not connect in time!";
+        throw new BrowserException(message);
+      }
+      final boolean alive = process.isAlive();
+      if (!alive) {
+        final String message = "The browser helper exited with code %s before it connected!".formatted(process.exitValue());
+        throw new BrowserException(message);
+      }
+      selector.select(Math.min(remaining, CONNECT_POLL_MILLISECONDS));
+      final SocketChannel channel = server.accept();
+      if (channel != null) {
+        channel.configureBlocking(true);
+        return channel;
       }
     }
   }
 
   private void startThreads(final byte[] token) {
     final InputStream processOutput = this.process.getInputStream();
-    this.drain = startDaemon("mcav-browser-helper-log", () -> this.drainOutput(processOutput));
+    this.drain = this.startDaemon("mcav-browser-helper-log", () -> this.drainOutput(processOutput));
     final InputStream rawInput = Channels.newInputStream(this.channel);
-    final DataInputStream in = new DataInputStream(new BufferedInputStream(rawInput, 1 << 16));
-    this.reader = startDaemon("mcav-browser-reader", () -> this.read(in, token));
-    this.delivery = startDaemon("mcav-browser-frames", this::deliverFrames);
+    final DataInputStream input = new DataInputStream(new BufferedInputStream(rawInput, INPUT_BUFFER_BYTES));
+    this.reader = this.startDaemon("mcav-browser-reader", () -> this.read(input, token));
+    this.delivery = this.startDaemon("mcav-browser-frames", this::deliverFrames);
   }
 
-  private static Thread startDaemon(final String name, final Runnable task) {
+  private Thread startDaemon(final String name, final Runnable task) {
     final Thread thread = new Thread(task, name);
     thread.setDaemon(true);
     thread.start();
+
     return thread;
   }
 
-  /**
-   * Creates the thread that writes the input to the helper, which must not keep the JVM alive.
-   *
-   * @param task what the thread runs
-   * @return the unstarted thread
-   */
   @VisibleForTesting
   static Thread createInputThread(final Runnable task) {
     final Thread thread = new Thread(task, "mcav-browser-input");
     thread.setDaemon(true);
+
     return thread;
-  }
-
-  /**
-   * Gets the threads that read the helper's connection, hand over the pictures and keep the helper's output, so tests
-   * can check how they run and that they end.
-   *
-   * @return the reader, delivery and output threads
-   */
-  @VisibleForTesting
-  List<Thread> getThreads() {
-    return List.of(this.reader, this.delivery, this.drain);
-  }
-
-  /**
-   * Gets the private folder of the session, so tests can check that it goes.
-   *
-   * @return the folder
-   */
-  @VisibleForTesting
-  Path getFolder() {
-    return this.folder;
-  }
-
-  /**
-   * Checks whether the connection to the helper is still open.
-   *
-   * @return true while it is open
-   */
-  @VisibleForTesting
-  boolean isConnected() {
-    return this.channel.isOpen();
-  }
-
-  /**
-   * Gets the thread that hands the pictures to the listener, so tests can interrupt it.
-   *
-   * @return the delivery thread
-   */
-  @VisibleForTesting
-  Thread getDeliveryThread() {
-    return this.delivery;
-  }
-
-  /**
-   * Gets the picture of the page, so tests can close it early.
-   *
-   * @return the canvas
-   */
-  @VisibleForTesting
-  FrameCanvas getCanvas() {
-    return this.canvas;
   }
 
   private void awaitStart(final long deadline, final URI uri) {
@@ -574,102 +482,100 @@ final class HelperSession implements BrowserSession {
     } catch (final InterruptedException exception) {
       final Thread thread = Thread.currentThread();
       thread.interrupt();
-      throw new PlayerException("Interrupted while starting the browser", exception);
+      final String message = "Interrupted while starting the browser!";
+      throw new BrowserException(message, exception);
     } catch (final ExecutionException exception) {
-      final Throwable cause = Objects.requireNonNull(exception.getCause(), "A failed start has a cause");
+      final Throwable cause = Objects.requireNonNull(exception.getCause(), "A failed start has a cause!");
       final String tail = this.getOutputTail();
       if (!tail.isEmpty()) {
-        LOGGER.warn(HELPER_OUTPUT_BEFORE_FAILURE, System.lineSeparator(), tail);
+        LOGGER.warn("The browser helper wrote these lines before its start failed.{}{}", System.lineSeparator(), tail);
       }
-      throw new PlayerException("The browser could not open " + AddressText.describe(uri.toString()) + ": " + cause.getMessage(), cause);
+      final String address = AddressText.describe(uri.toString());
+      final @Nullable String reason = cause.getMessage();
+      final String message = "The browser could not open %s (%s)!".formatted(address, reason);
+      throw new BrowserException(message, cause);
     } catch (final TimeoutException exception) {
       final String tail = this.getOutputTail();
-      throw new PlayerException("The browser did not show " + AddressText.describe(uri.toString()) + " in time: " + tail, exception);
+      final String address = AddressText.describe(uri.toString());
+      final String message = "The browser did not show %s in time!%n%s".formatted(address, tail);
+      throw new BrowserException(message, exception);
     }
   }
 
-  /**
-   * Reads the messages of the helper until the connection ends.
-   *
-   * @param in    the stream from the helper
-   * @param token the session token the helper must present first
-   */
   @VisibleForTesting
-  void read(final DataInputStream in, final byte[] token) {
+  void read(final DataInputStream input, final byte[] token) {
     final byte[][] buffer = { new byte[0] };
     final int pageBytes = this.canvas.getWidth() * this.canvas.getHeight() * HelperProtocol.PIXEL_BYTES;
     try {
-      final HelperMessage hello = HelperProtocol.read(in, size -> NO_PIXELS);
+      final HelperMessage hello = HelperProtocol.read(input, size -> NO_PIXELS);
       checkHello(hello, token);
       while (true) {
-        final HelperMessage message = HelperProtocol.read(in, size -> {
-          if (size > pageBytes) {
-            return NO_PIXELS;
-          }
-          if (buffer[0].length < size) {
-            buffer[0] = new byte[size];
-          }
-          return buffer[0];
-        });
+        final HelperMessage message = HelperProtocol.read(input, size -> this.choosePixelBuffer(buffer, pageBytes, size));
         this.handle(message);
       }
     } catch (final EOFException exception) {
-      this.end(this.describeEnd("The browser helper closed the connection"), null);
+      this.end(this.describeEnd("The browser helper closed the connection!"), null);
     } catch (final IOException exception) {
-      this.end(this.describeEnd("The connection to the browser helper failed: " + exception.getMessage()), exception);
+      final @Nullable String reason = exception.getMessage();
+      final String message = "The connection to the browser helper failed (%s)!".formatted(reason);
+      this.end(this.describeEnd(message), exception);
     }
   }
 
-  /**
-   * Describes the end of the connection by the exit of the helper if it exits right after: a helper that exits ends
-   * its connection, which Windows reports as a reset rather than an end.
-   *
-   * @param connectionEnd how the connection ended, if the helper keeps running
-   * @return the description
-   */
+  private byte[] choosePixelBuffer(final byte[][] buffer, final int pageBytes, final int size) {
+    if (size > pageBytes) {
+      return NO_PIXELS;
+    }
+
+    if (buffer[0].length < size) {
+      buffer[0] = new byte[size];
+    }
+
+    return buffer[0];
+  }
+
+  // Windows reports the end of an exiting helper's connection as a reset, so its exit describes the end
   private String describeEnd(final String connectionEnd) {
     if (this.closing.get()) {
       return connectionEnd;
     }
-    final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(EXIT_GRACE_MILLIS);
+
+    final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(EXIT_GRACE_MILLISECONDS);
     while (this.process.isAlive() && System.nanoTime() < deadline) {
-      LockSupport.parkNanos(EXIT_POLL_NANOS);
+      LockSupport.parkNanos(EXIT_POLL_NANOSECONDS);
     }
+
     if (this.process.isAlive()) {
       return connectionEnd;
     }
-    return "The browser helper exited with code " + this.process.exitValue();
+
+    return "The browser helper exited with code %s before it was asked to stop!".formatted(this.process.exitValue());
   }
 
-  /**
-   * Checks the first message of a helper: a hello of this protocol version with the session token.
-   *
-   * @param hello the first message
-   * @param token the session token
-   * @throws ProtocolException if the message is anything else
-   */
   @VisibleForTesting
   static void checkHello(final HelperMessage hello, final byte[] token) throws ProtocolException {
     final int type = hello.getType();
     if (type != HelperProtocol.HELLO) {
-      throw new ProtocolException("The browser helper did not introduce itself");
+      final String message = "The browser helper did not introduce itself!";
+      throw new ProtocolException(message);
     }
+
     final byte[] presented = hello.getToken();
     if (!MessageDigest.isEqual(presented, token)) {
-      throw new ProtocolException("The browser helper presented a wrong session token");
+      final String message = "The browser helper presented a wrong session token!";
+      throw new ProtocolException(message);
     }
+
     final int version = hello.getNumber();
     if (version != HelperProtocol.VERSION) {
-      throw new ProtocolException("The browser helper speaks protocol " + version + " instead of " + HelperProtocol.VERSION);
+      final String message = "Protocol version %s of the browser helper differs from version %s of the server!".formatted(
+        version,
+        HelperProtocol.VERSION
+      );
+      throw new ProtocolException(message);
     }
   }
 
-  /**
-   * Handles one message of the helper after its hello.
-   *
-   * @param message the message
-   * @throws ProtocolException if the message is not one a helper sends
-   */
   private void handle(final HelperMessage message) throws ProtocolException {
     final int type = message.getType();
     switch (type) {
@@ -678,47 +584,54 @@ final class HelperSession implements BrowserSession {
         this.canvas.apply(region);
         this.onFrame();
       }
-      case HelperProtocol.AUDIO -> this.listener.onAudio(message.getSamples());
+      case HelperProtocol.AUDIO -> {
+        final byte[] samples = message.getSamples();
+        this.listener.onAudio(samples);
+      }
       case HelperProtocol.READY -> {
-        LOGGER.debug(HELPER_CEF_VERSION, message.getText());
+        final String version = message.getText();
+        LOGGER.debug("CEF {} runs in the browser helper.", version);
         this.onStartEvent(StartEvent.READY);
       }
-      case HelperProtocol.LOADING -> {
-        final boolean loading = message.getNumber() == 1;
-        if (!loading) {
-          this.onStartEvent(StartEvent.LOADED);
-        }
-      }
+      case HelperProtocol.LOADING -> this.onLoading(message);
       case HelperProtocol.LOAD_ERROR -> {
         final String text = message.getText();
-        // The helper is untrusted, so the server must check the address again.
-        final String url = AddressText.describe(message.getUrl());
+        final String url = message.getUrl();
+        // the helper is untrusted, so the address is checked again
+        final String address = AddressText.describe(url);
         final int code = message.getNumber();
-        this.logBudget.log(() -> LOGGER.warn(PAGE_LOAD_FAILED, url, text, code), HelperSession::logSkipped);
-        final PlayerException failure = new PlayerException(text + " (" + code + ")");
+        this.logBudget.log(() -> LOGGER.warn("Page {} failed to load with error {} ({}).", address, text, code), this::logSkipped);
+        final String reason = "The page failed to load with error %s (%s)!".formatted(text, code);
+        final BrowserException failure = new BrowserException(reason);
         this.started.completeExceptionally(failure);
       }
       case HelperProtocol.NOTICE -> {
         final String text = message.getText();
-        this.logBudget.log(() -> LOGGER.info(PAGE_NOTICE, text), HelperSession::logSkipped);
+        this.logBudget.log(() -> LOGGER.debug("Browser: {}", text), this::logSkipped);
       }
       case HelperProtocol.FAILURE -> {
         final String text = message.getText();
-        final PlayerException failure = new PlayerException(text);
+        final String reason = "The browser failed (%s)!".formatted(text);
+        final BrowserException failure = new BrowserException(reason);
         this.started.completeExceptionally(failure);
-        this.end("The browser failed: " + text, failure);
+        this.end(reason, failure);
       }
-      default -> throw new ProtocolException("The browser helper sent message type " + type + ", which only the server sends");
+      default -> {
+        final String reason = "The browser helper sent message type %s, which only the server sends!".formatted(type);
+        throw new ProtocolException(reason);
+      }
     }
   }
 
-  /**
-   * Logs how many lines of the helper were over the budget of the log.
-   *
-   * @param lines the number of lines that were not logged
-   */
-  private static void logSkipped(final long lines) {
-    LOGGER.info(NOTICES_SKIPPED, lines);
+  private void onLoading(final HelperMessage message) {
+    final boolean loading = message.getNumber() == 1;
+    if (!loading) {
+      this.onStartEvent(StartEvent.LOADED);
+    }
+  }
+
+  private void logSkipped(final long lines) {
+    LOGGER.debug("Browser: {} more notices of the page were not logged.", lines);
   }
 
   private void onFrame() {
@@ -726,9 +639,6 @@ final class HelperSession implements BrowserSession {
     this.onStartEvent(StartEvent.FRAME);
   }
 
-  /**
-   * Hands the current picture of the page to the listener again, as soon as the delivery thread is free.
-   */
   @Override
   public void requestFrame() {
     synchronized (this.deliveryLock) {
@@ -739,6 +649,7 @@ final class HelperSession implements BrowserSession {
 
   private synchronized void onStartEvent(final StartEvent event) {
     this.startEvents.add(event);
+
     if (this.startEvents.size() == StartEvent.values().length) {
       this.started.complete(null);
     }
@@ -749,7 +660,8 @@ final class HelperSession implements BrowserSession {
     while (true) {
       final boolean fresh;
       try {
-        fresh = this.awaitFrame(repeatsLeft > 0);
+        final FrameWait wait = repeatsLeft > 0 ? FrameWait.UNTIL_REPEAT_DELAY : FrameWait.UNTIL_FRAME;
+        fresh = this.awaitFrame(wait);
       } catch (final InterruptedException exception) {
         return;
       }
@@ -765,66 +677,70 @@ final class HelperSession implements BrowserSession {
     }
   }
 
-  /**
-   * Waits for a new picture, or, while the last picture is still repeated, at most the repeat delay.
-   *
-   * @param repeating true if the last picture is still repeated
-   * @return true if a new picture arrived, false if the repeat delay passed or the session is closing
-   * @throws InterruptedException if the delivery thread is interrupted
-   */
-  private boolean awaitFrame(final boolean repeating) throws InterruptedException {
+  private boolean awaitFrame(final FrameWait wait) throws InterruptedException {
     synchronized (this.deliveryLock) {
-      final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(REPEAT_DELAY_MILLIS);
-      while (!this.frameWaiting && !this.closing.get()) {
-        final long remaining = deadline - System.nanoTime();
-        if (!repeating) {
-          this.deliveryLock.wait();
-        } else if (remaining > 0) {
-          TimeUnit.NANOSECONDS.timedWait(this.deliveryLock, remaining);
-        } else {
-          return false;
-        }
+      final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(REPEAT_DELAY_MILLISECONDS);
+      final boolean signalled = this.waitForFrameOrClose(wait, deadline);
+      if (!signalled) {
+        return false;
       }
+
       final boolean fresh = this.frameWaiting;
       this.frameWaiting = false;
       return fresh;
     }
   }
 
-  /**
-   * Keeps the output of the helper, line by line, until it ends.
-   *
-   * @param stream the output of the helper
-   */
+  private boolean waitForFrameOrClose(final FrameWait wait, final long deadline) throws InterruptedException {
+    while (!this.frameWaiting && !this.closing.get()) {
+      final long remaining = deadline - System.nanoTime();
+      if (wait == FrameWait.UNTIL_FRAME) {
+        this.deliveryLock.wait();
+      } else if (remaining > 0) {
+        TimeUnit.NANOSECONDS.timedWait(this.deliveryLock, remaining);
+      } else {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   @VisibleForTesting
   void drainOutput(final InputStream stream) {
     final StringBuilder line = new StringBuilder();
     try (final Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
-      final char[] characters = new char[4096];
+      final char[] characters = new char[OUTPUT_READ_CHARACTERS];
       int count = reader.read(characters);
       while (count >= 0) {
-        for (int index = 0; index < count; index++) {
-          final char character = characters[index];
-          if (character == '\n') {
-            this.remember(line.toString());
-            line.setLength(0);
-          } else if (character != '\r' && line.length() < OUTPUT_LINE_CHARACTERS) {
-            line.append(character);
-          }
-        }
+        this.rememberCompleteLines(characters, count, line);
         count = reader.read(characters);
       }
     } catch (final IOException exception) {
       // the helper is gone
     }
+
     this.remember(line.toString());
+  }
+
+  private void rememberCompleteLines(final char[] characters, final int count, final StringBuilder line) {
+    for (int index = 0; index < count; index++) {
+      final char character = characters[index];
+      if (character == '\n') {
+        this.remember(line.toString());
+        line.setLength(0);
+      } else if (character != '\r' && line.length() < OUTPUT_LINE_CHARACTERS) {
+        line.append(character);
+      }
+    }
   }
 
   private void remember(final String line) {
     if (line.isBlank()) {
       return;
     }
-    LOGGER.debug(HELPER_OUTPUT, line);
+
+    LOGGER.debug("browser helper: {}", line);
     synchronized (this.outputTail) {
       this.outputTail.addLast(line);
       while (this.outputTail.size() > OUTPUT_TAIL_LINES) {
@@ -833,23 +749,7 @@ final class HelperSession implements BrowserSession {
     }
   }
 
-  /**
-   * Gets the last lines the helper wrote, for error messages.
-   *
-   * @return the lines
-   */
-  String getOutputTail() {
-    synchronized (this.outputTail) {
-      return String.join(System.lineSeparator(), this.outputTail);
-    }
-  }
-
-  /**
-   * Ends the session although its player did not ask for it, so the player hears of it as of a failure, and closes
-   * it; this happens when the browser module stops.
-   *
-   * @param reason why the session ends
-   */
+  // the player hears of it as a failure; the browser module does this when it stops
   void endAndClose(final String reason) {
     try {
       this.end(reason, null);
@@ -858,63 +758,46 @@ final class HelperSession implements BrowserSession {
     }
   }
 
-  /**
-   * Reports an end of the helper that nobody asked for, once.
-   *
-   * @param reason why the helper ended
-   * @param cause  the failure, if one
-   */
   private void end(final String reason, final @Nullable Throwable cause) {
-    final PlayerException failure = this.createEndFailure(reason, cause);
+    final BrowserException failure = this.createEndFailure(reason, cause);
     this.started.completeExceptionally(failure);
+
     if (this.closing.get() || !this.ended.compareAndSet(false, true)) {
       return;
     }
+
     this.listener.onEnded(reason, failure);
   }
 
-  private PlayerException createEndFailure(final String reason, final @Nullable Throwable cause) {
+  private BrowserException createEndFailure(final String reason, final @Nullable Throwable cause) {
     if (cause == null) {
-      return new PlayerException(reason);
+      return new BrowserException(reason);
     }
 
-    return new PlayerException(reason, cause);
+    return new BrowserException(reason, cause);
   }
 
-  /**
-   * Queues mouse input for the helper.
-   *
-   * @param mouse the input
-   * @return false if the queue was full and the input was dropped
-   */
   @Override
   public boolean sendMouse(final MouseInput mouse) {
-    return this.send(out -> HelperProtocol.writeMouse(out, mouse));
+    return this.send(output -> HelperProtocol.writeMouse(output, mouse));
   }
 
-  /**
-   * Queues keyboard input for the helper.
-   *
-   * @param action {@link HelperProtocol#KEY_PRESS} or {@link HelperProtocol#KEY_TYPE}
-   * @param value  the key name or the text
-   * @return false if the queue was full and the input was dropped
-   */
   @Override
   public boolean sendKey(final int action, final String value) {
     final List<String> parts = HelperProtocol.split(value);
-    return this.send(out -> {
-      for (final String part : parts) {
-        HelperProtocol.writeKey(out, action, part);
-      }
-    });
+    return this.send(output -> this.writeKeys(output, action, parts));
+  }
+
+  private void writeKeys(final DataOutputStream output, final int action, final List<String> parts) throws IOException {
+    for (final String part : parts) {
+      HelperProtocol.writeKey(output, action, part);
+    }
   }
 
   private boolean send(final MessageWriter writer) {
-    if (this.closing.get()) {
-      return true;
-    }
     try {
       this.input.execute(() -> this.write(writer));
+
       return true;
     } catch (final RejectedExecutionException exception) {
       return this.closing.get();
@@ -928,87 +811,51 @@ final class HelperSession implements BrowserSession {
         this.output.flush();
       }
     } catch (final IOException exception) {
-      this.end("Input could not be sent to the browser helper: " + exception.getMessage(), exception);
+      final @Nullable String reason = exception.getMessage();
+      final String message = "Input could not be sent to the browser helper (%s)!".formatted(reason);
+      this.end(message, exception);
     }
   }
 
-  /**
-   * Gets how many input messages the writer thread has handled, sent or failed, so tests can wait for them.
-   *
-   * @return the number of handled messages
-   */
-  @VisibleForTesting
-  long getHandledInput() {
-    return this.input.getCompletedTaskCount();
-  }
-
-  /**
-   * Checks whether the helper process still runs.
-   *
-   * @return true while it runs
-   */
-  boolean isAlive() {
-    return this.process.isAlive();
-  }
-
-  /**
-   * Gets the helper process, for tests that check its processes end.
-   *
-   * @return the process
-   */
-  @VisibleForTesting
-  Process getProcess() {
-    return this.process;
-  }
-
-  /**
-   * Ends the helper and everything it started, and removes the folder of the session. Safe to call more than once.
-   */
   @Override
   public void close() {
     if (!this.closing.compareAndSet(false, true)) {
       return;
     }
+
     HelperProcesses.deregister(this);
     this.input.shutdownNow();
     synchronized (this.deliveryLock) {
       this.deliveryLock.notifyAll();
     }
+
     closeQuietly(this.standardInput);
     closeQuietly(this.channel);
     stopProcess(this.process);
-    join(this.reader);
-    join(this.delivery);
-    join(this.drain);
+    this.join(this.reader);
+    this.join(this.delivery);
+    this.join(this.drain);
     this.canvas.close();
     deleteFolder(this.folder);
   }
 
-  /**
-   * Waits for a helper to exit after its input and connection closed, then kills it and every process it started.
-   *
-   * @param process the helper
-   */
   private static void stopProcess(final Process process) {
     final List<ProcessHandle> descendants = new ArrayList<>();
     try (final Stream<ProcessHandle> started = process.descendants()) {
       started.forEach(descendants::add);
     }
+
     try {
-      final boolean exited = process.waitFor(STOP_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+      final boolean exited = process.waitFor(STOP_TIMEOUT_MILLISECONDS, TimeUnit.MILLISECONDS);
       if (!exited) {
-        LOGGER.warn(HELPER_KILLED, STOP_TIMEOUT_MILLIS);
-        try (final Stream<ProcessHandle> later = process.descendants()) {
-          later.forEach(descendants::add);
-        }
-        process.destroyForcibly();
-        process.waitFor(KILL_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+        killAfterTimeout(process, descendants);
       }
     } catch (final InterruptedException exception) {
       process.destroyForcibly();
       final Thread thread = Thread.currentThread();
       thread.interrupt();
     }
+
     for (final ProcessHandle descendant : descendants) {
       if (descendant.isAlive()) {
         descendant.destroyForcibly();
@@ -1016,61 +863,107 @@ final class HelperSession implements BrowserSession {
     }
   }
 
-  private static void join(final Thread thread) {
+  private static void killAfterTimeout(final Process process, final List<ProcessHandle> descendants) throws InterruptedException {
+    LOGGER.warn("The browser helper did not stop within {} ms and is killed.", STOP_TIMEOUT_MILLISECONDS);
+    try (final Stream<ProcessHandle> later = process.descendants()) {
+      later.forEach(descendants::add);
+    }
+
+    process.destroyForcibly();
+    process.waitFor(KILL_TIMEOUT_MILLISECONDS, TimeUnit.MILLISECONDS);
+  }
+
+  private void join(final Thread thread) {
     final Thread caller = Thread.currentThread();
     if (thread.equals(caller)) {
       return;
     }
+
     try {
-      thread.join(STOP_TIMEOUT_MILLIS);
+      thread.join(STOP_TIMEOUT_MILLISECONDS);
     } catch (final InterruptedException exception) {
       final Thread current = Thread.currentThread();
       current.interrupt();
     }
   }
 
-  /**
-   * Closes something whose failure to close changes nothing, logging the failure.
-   *
-   * @param closeable the stream or channel
-   */
   @VisibleForTesting
   static void closeQuietly(final AutoCloseable closeable) {
     try {
       closeable.close();
     } catch (final Exception exception) {
-      LOGGER.debug(CLOSE_FAILED, closeable, exception);
+      LOGGER.debug("Failed to close {}.", closeable, exception);
     }
   }
 
-  /**
-   * Removes the folder of a session, logging a failure.
-   *
-   * @param folder the folder
-   */
   @VisibleForTesting
   static void deleteFolder(final Path folder) {
     try {
       IoUtils.deleteRecursively(folder);
     } catch (final FileOperationException exception) {
-      LOGGER.warn(FOLDER_NOT_REMOVED, folder, exception.getMessage());
+      final @Nullable String reason = exception.getMessage();
+      LOGGER.warn("The folder of the browser session {} could not be removed ({}).", folder, reason);
     }
   }
 
-  /**
-   * What happened during the start.
-   */
+  @VisibleForTesting
+  List<Thread> getThreads() {
+    return List.of(this.reader, this.delivery, this.drain);
+  }
+
+  @VisibleForTesting
+  boolean isConnected() {
+    return this.channel.isOpen();
+  }
+
+  String getOutputTail() {
+    synchronized (this.outputTail) {
+      return String.join(System.lineSeparator(), this.outputTail);
+    }
+  }
+
+  @VisibleForTesting
+  long getHandledInput() {
+    return this.input.getCompletedTaskCount();
+  }
+
+  boolean isAlive() {
+    return this.process.isAlive();
+  }
+
+  @VisibleForTesting
+  Path getFolder() {
+    return this.folder;
+  }
+
+  @VisibleForTesting
+  Thread getDeliveryThread() {
+    return this.delivery;
+  }
+
+  @VisibleForTesting
+  FrameCanvas getCanvas() {
+    return this.canvas;
+  }
+
+  @VisibleForTesting
+  Process getProcess() {
+    return this.process;
+  }
+
+  private enum FrameWait {
+    UNTIL_FRAME,
+    UNTIL_REPEAT_DELAY,
+  }
+
   private enum StartEvent {
     READY,
     LOADED,
     FRAME,
   }
 
-  /**
-   * Writes one message to the helper.
-   */
   @FunctionalInterface
   private interface MessageWriter {
-    void write(DataOutputStream output) throws IOException;
+    void write(final DataOutputStream output) throws IOException;
   }
 }

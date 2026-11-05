@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
+import java.nio.ReadOnlyBufferException;
 import java.nio.ShortBuffer;
 import me.brandonli.mcav.testing.UtilityClassAssertions;
 import org.bytedeco.javacv.Frame;
@@ -110,10 +111,7 @@ final class FramePixelsTest {
     final ByteBuffer small = ByteBuffer.allocate(5);
     try (final Frame compact = frame(2, 1, 6, new byte[6])) {
       assertThrows(IllegalArgumentException.class, () -> FramePixels.copyBgr(compact, small));
-      assertThrows(NullPointerException.class, () -> FramePixels.copyBgr(compact, null));
     }
-
-    assertThrows(NullPointerException.class, () -> FramePixels.copyBgr(null, small));
   }
 
   @Test
@@ -132,8 +130,36 @@ final class FramePixelsTest {
       assertThrows(IllegalArgumentException.class, () -> FramePixels.copyBgr(shortSamples));
       assertThrows(IllegalArgumentException.class, () -> FramePixels.copyBgr(shortRows));
     }
+  }
 
+  @Test
+  void shouldRejectNullArguments() {
+    final ByteBuffer target = ByteBuffer.allocate(6);
+    try (final Frame compact = frame(2, 1, 6, new byte[6])) {
+      assertThrows(NullPointerException.class, () -> FramePixels.copyBgr(compact, null));
+    }
+
+    assertThrows(NullPointerException.class, () -> FramePixels.copyBgr(null, target));
     assertThrows(NullPointerException.class, () -> FramePixels.copyBgr(null));
+  }
+
+  @Test
+  void shouldRejectAPlaneThatCannotHoldTheDeclaredRows() {
+    final ByteBuffer target = ByteBuffer.allocate(6);
+    try (final Frame compact = frame(1, 2, 3, new byte[3]); final Frame padded = frame(1, 2, 8, new byte[10])) {
+      assertThrows(IllegalArgumentException.class, () -> FramePixels.copyBgr(compact, target));
+      assertThrows(IllegalArgumentException.class, () -> FramePixels.copyBgr(padded, target));
+      assertThrows(IllegalArgumentException.class, () -> FramePixels.copyBgr(compact));
+    }
+  }
+
+  @Test
+  void shouldRejectAReadOnlyTarget() {
+    final ByteBuffer writable = ByteBuffer.allocate(6);
+    final ByteBuffer readOnly = writable.asReadOnlyBuffer();
+    try (final Frame compact = frame(2, 1, 6, new byte[6])) {
+      assertThrows(ReadOnlyBufferException.class, () -> FramePixels.copyBgr(compact, readOnly));
+    }
   }
 
   @Test

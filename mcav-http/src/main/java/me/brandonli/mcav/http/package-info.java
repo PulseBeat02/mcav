@@ -28,8 +28,7 @@
  * before unloading its class loader. {@link me.brandonli.mcav.http.HttpModule} does not stop server instances.
  * Builders are mutable and not thread-safe; {@link me.brandonli.mcav.http.MediaInformation} snapshots are immutable.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

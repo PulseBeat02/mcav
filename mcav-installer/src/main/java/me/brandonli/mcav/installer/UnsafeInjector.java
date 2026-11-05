@@ -80,7 +80,7 @@ final class UnsafeInjector extends UrlClassLoaderInjector {
 
   // public, because MethodHandleProxies only implements public interfaces
   public interface UrlSink {
-    boolean add(URL url);
+    boolean add(final URL url);
   }
 
   static final class UnsafeAccess {
@@ -106,6 +106,7 @@ final class UnsafeInjector extends UrlClassLoaderInjector {
         final Class<?> unsafeType = Class.forName(className);
         final Field instanceField = unsafeType.getDeclaredField(INSTANCE_FIELD);
         instanceField.setAccessible(true);
+
         final Object instance = instanceField.get(null);
         if (instance == null) {
           return null;

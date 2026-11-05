@@ -31,7 +31,7 @@ Their compilations run [Error Prone](https://errorprone.info/) and, for producti
 and must stay free of warnings. The coverage, property, fuzz and PIT rows below apply to these twelve modules;
 `<module>` means one of their names.
 
-`mcav-docs` builds the book. buildSrc has separate bootstrap tests (`./gradlew :buildSrc:test`).
+`mcav-docs` builds the book. `buildSrc` has separate bootstrap tests (`./gradlew :buildSrc:test`).
 `mcav-jcstress` uses the Java-library, formatting and lint conventions through
 `buildSrc/src/main/kotlin/mcav.jcstress.gradle.kts`; it skips Checker Framework and removes `-Werror` from
 `compileJava`, with no module coverage, property, fuzz or PIT tasks.

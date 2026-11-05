@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.channels.Channels;
+import java.nio.channels.SeekableByteChannel;
 import java.nio.file.FileSystem;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
@@ -45,280 +46,224 @@ import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Extracts the gzip-compressed tar archive of the CEF natives, refusing anything that could write outside the target
- * folder.
- *
- * <p>The archive is verified against its pinned SHA-256 hash before it gets here, so this is defense in depth: only
- * plain files and folders are extracted, every name is resolved inside the target and checked after normalization,
- * links and special files are refused, and the number of entries and the bytes written are bounded. The permissions
- * of the archive are not copied, because the macOS archive marks everything as writable by every user; files are
- * readable by everyone and writable by the owner only, and executable where the archive marks them so, and so are the
- * folders, whatever the umask of the server: a folder its group may write lets the group replace the native code.
- *
- * <p>The bounds count the entries the archive library hands over. The library reads the metadata of an entry, such as
- * a GNU long name or a PAX header, whole and without a bound before that, so a crafted archive could exhaust the heap
- * there. That is acceptable only because of the pinned hash: an archive that passes it is the published build of CEF,
- * whose native code runs anyway.
- */
+// Extracts the pinned, hash-checked CEF archive, refusing anything that could write outside the target: links, special
+// files, names that leave it, and too many entries or bytes. Archive permissions are not copied, as the macOS archive
+// makes everything world-writable. The library reads metadata such as a PAX header without a bound, which only the
+// pinned hash makes acceptable.
 final class ArchiveExtractor {
 
-  /**
-   * The most entries an archive may have.
-   */
-  private static final int MAX_ENTRIES = 10_000;
+  private static final int MAXIMUM_ENTRIES = 10_000;
 
-  /**
-   * The most bytes an archive may extract to.
-   */
-  private static final long MAX_TOTAL_BYTES = 2L * 1024 * 1024 * 1024;
+  private static final long MAXIMUM_TOTAL_BYTES = 2L * 1024 * 1024 * 1024;
 
   private static final Set<PosixFilePermission> EXECUTABLE = PosixFilePermissions.fromString("rwxr-xr-x");
   private static final Set<PosixFilePermission> REGULAR = PosixFilePermissions.fromString("rw-r--r--");
   private static final Set<PosixFilePermission> FOLDER = PosixFilePermissions.fromString("rwxr-xr-x");
+
   private static final Logger LOGGER = LoggerFactory.getLogger(ArchiveExtractor.class);
-  private static final String NOT_TIGHTENED = "The group may still write {} of the browser's installation: {}";
+
+  private static final String NAME_NOT_ALLOWED = "Archive entry name %s is not allowed!";
+
   private static final int EXECUTE_BITS = 0111;
+
   private static final int BUFFER_BYTES = 64 * 1024;
 
-  private final int maxEntries;
-  private final long maxTotalBytes;
+  private static final String POSIX_ATTRIBUTE_VIEW = "posix";
 
-  /**
-   * Constructs an extractor with the default limits.
-   */
+  private static final String PARENT_FOLDER = "..";
+
+  // CREATE_NEW refuses an existing link; zipfs rejects NOFOLLOW_LINKS here
+  private static final Set<StandardOpenOption> NEW_FILE = Set.of(StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
+
+  private final int maximumEntries;
+  private final long maximumTotalBytes;
+
   ArchiveExtractor() {
-    this(MAX_ENTRIES, MAX_TOTAL_BYTES);
+    this(MAXIMUM_ENTRIES, MAXIMUM_TOTAL_BYTES);
   }
 
-  /**
-   * Constructs an extractor with other limits, so tests can reach them with small archives.
-   *
-   * @param maxEntries    the most entries an archive may have
-   * @param maxTotalBytes the most bytes an archive may extract to
-   */
   @VisibleForTesting
-  ArchiveExtractor(final int maxEntries, final long maxTotalBytes) {
-    this.maxEntries = maxEntries;
-    this.maxTotalBytes = maxTotalBytes;
+  ArchiveExtractor(final int maximumEntries, final long maximumTotalBytes) {
+    this.maximumEntries = maximumEntries;
+    this.maximumTotalBytes = maximumTotalBytes;
   }
 
-  /**
-   * Extracts an archive into an empty folder.
-   *
-   * @param archive the gzip-compressed tar archive; it is not closed
-   * @param target  the folder, which must exist
-   * @throws IOException if the archive is malformed, breaks a rule, or cannot be written
-   */
   void extract(final InputStream archive, final Path target) throws IOException {
-    final FileSystem fileSystem = target.getFileSystem();
-    final boolean supportsPosix = fileSystem.supportedFileAttributeViews().contains("posix");
-    this.extract(archive, target, supportsPosix);
+    final PosixPermissions permissions = permissionsOf(target);
+    this.extract(archive, target, permissions);
   }
 
-  /**
-   * Extracts an archive into an empty folder, setting the permissions of the files where the file system has POSIX
-   * permissions.
-   *
-   * @param archive       the gzip-compressed tar archive; it is not closed
-   * @param target        the folder, which must exist
-   * @param supportsPosix whether the permissions of the files are set
-   * @throws IOException if the archive is malformed, breaks a rule, or cannot be written
-   */
   @VisibleForTesting
-  void extract(final InputStream archive, final Path target, final boolean supportsPosix) throws IOException {
+  void extract(final InputStream archive, final Path target, final PosixPermissions permissions) throws IOException {
     final Path root = target.toRealPath();
     final GzipCompressorInputStream gzip = new GzipCompressorInputStream(new NonClosingInputStream(archive));
     try (final TarArchiveInputStream tar = new TarArchiveInputStream(gzip)) {
-      int entries = 0;
-      long written = 0L;
-      TarArchiveEntry entry = tar.getNextEntry();
-      while (entry != null) {
-        entries++;
-        if (entries > this.maxEntries) {
-          throw new IOException("The archive has more than " + this.maxEntries + " entries");
-        }
-        // the archive library counts links and special files as files, so they are refused by their type first
-        if (isLinkOrSpecial(entry)) {
-          throw new IOException("The archive entry " + entry.getName() + " is not a plain file or folder");
-        }
-        final Path destination = resolve(root, entry.getName());
-        if (entry.isDirectory()) {
-          createFolders(destination, supportsPosix);
-        } else {
-          final long remaining = this.maxTotalBytes - written;
-          written += writeFile(tar, destination, remaining, supportsPosix);
-          final boolean executable = (entry.getMode() & EXECUTE_BITS) != 0;
-          if (supportsPosix) {
-            Files.setPosixFilePermissions(destination, executable ? EXECUTABLE : REGULAR);
-          }
-        }
-        entry = tar.getNextEntry();
-      }
+      this.extractEntries(tar, root, permissions);
     }
   }
 
-  /**
-   * Checks whether an entry is a link or a special file rather than a plain file or folder.
-   *
-   * @param entry the entry
-   * @return true for symbolic and hard links, devices and named pipes
-   */
-  private static boolean isLinkOrSpecial(final TarArchiveEntry entry) {
+  private static PosixPermissions permissionsOf(final Path path) {
+    final FileSystem fileSystem = path.getFileSystem();
+    final Set<String> views = fileSystem.supportedFileAttributeViews();
+    final boolean supportsPosix = views.contains(POSIX_ATTRIBUTE_VIEW);
+    return supportsPosix ? PosixPermissions.SET : PosixPermissions.SKIPPED;
+  }
+
+  private void extractEntries(final TarArchiveInputStream tar, final Path root, final PosixPermissions permissions) throws IOException {
+    int entries = 0;
+    long written = 0L;
+    TarArchiveEntry entry = tar.getNextEntry();
+    while (entry != null) {
+      entries++;
+      if (entries > this.maximumEntries) {
+        final String message = "The archive has more than %s entries!".formatted(this.maximumEntries);
+        throw new IOException(message);
+      }
+      final String name = entry.getName();
+      // the library counts links and special files as files, so their type is checked first
+      if (this.isLinkOrSpecial(entry)) {
+        final String message = "Archive entry %s is not a plain file or folder!".formatted(name);
+        throw new IOException(message);
+      }
+      final Path destination = resolve(root, name);
+      if (entry.isDirectory()) {
+        createFolders(destination, permissions);
+      } else {
+        final long remaining = this.maximumTotalBytes - written;
+        written += this.writeFile(tar, destination, remaining, permissions);
+        this.setFileMode(destination, entry, permissions);
+      }
+      entry = tar.getNextEntry();
+    }
+  }
+
+  private void setFileMode(final Path destination, final TarArchiveEntry entry, final PosixPermissions permissions) throws IOException {
+    final boolean executable = (entry.getMode() & EXECUTE_BITS) != 0;
+    if (permissions == PosixPermissions.SET) {
+      Files.setPosixFilePermissions(destination, executable ? EXECUTABLE : REGULAR);
+    }
+  }
+
+  private boolean isLinkOrSpecial(final TarArchiveEntry entry) {
     final boolean isLink = entry.isSymbolicLink() || entry.isLink();
     final boolean isDevice = entry.isCharacterDevice() || entry.isBlockDevice();
     return isLink || isDevice || entry.isFIFO();
   }
 
-  /**
-   * Resolves the name of an entry inside the root, refusing names that are absolute, empty, climb out of the root, or
-   * cannot be represented by the file system. A folder entry such as {@code ./} resolves to the root itself.
-   *
-   * @param root the real path of the target folder
-   * @param name the name of the entry
-   * @return the path inside the root
-   * @throws IOException if the name is not allowed
-   */
+  // a folder entry such as ./ resolves to the root itself
   @VisibleForTesting
   static Path resolve(final Path root, final String name) throws IOException {
     if (name.isEmpty() || name.indexOf('\\') >= 0) {
-      throw new IOException("The archive entry name is not allowed: " + name);
+      final String message = NAME_NOT_ALLOWED.formatted(name);
+      throw new IOException(message);
     }
+
+    final FileSystem fileSystem = root.getFileSystem();
     final Path relative;
     try {
-      relative = root.getFileSystem().getPath(name);
+      relative = fileSystem.getPath(name);
     } catch (final InvalidPathException exception) {
-      throw new IOException("The archive entry name is not allowed: " + name, exception);
+      final String message = NAME_NOT_ALLOWED.formatted(name);
+      throw new IOException(message, exception);
     }
-    // Windows drive-relative names have a root without being absolute.
+    // a Windows drive-relative name has a root without being absolute
     if (relative.getRoot() != null) {
-      throw new IOException("The archive entry name is absolute: " + name);
+      final String message = "Archive entry name %s is absolute!".formatted(name);
+      throw new IOException(message);
     }
+
     Path current = root;
     for (final Path element : relative) {
-      if (element.toString().equals("..")) {
-        throw new IOException("The archive entry name leaves the folder: " + name);
+      final String elementName = element.toString();
+      if (elementName.equals(PARENT_FOLDER)) {
+        final String message = "Archive entry name %s leaves the folder!".formatted(name);
+        throw new IOException(message);
       }
       if (Files.isSymbolicLink(current)) {
-        throw new IOException("The archive entry name passes a link: " + name);
+        final String message = "Archive entry name %s passes a link!".formatted(name);
+        throw new IOException(message);
       }
       current = current.resolve(element);
     }
+
     return current.normalize();
   }
 
-  private static long writeFile(final InputStream tar, final Path destination, final long remaining, final boolean supportsPosix)
+  private long writeFile(final InputStream tar, final Path destination, final long remaining, final PosixPermissions permissions)
     throws IOException {
-    final Path parent = Objects.requireNonNull(destination.getParent(), "An entry lies below the folder");
-    createFolders(parent, supportsPosix);
-    long written = 0L;
+    final Path parent = Objects.requireNonNull(destination.getParent(), "An entry lies below the folder!");
+    createFolders(parent, permissions);
     final byte[] buffer = new byte[BUFFER_BYTES];
-    // CREATE_NEW refuses an existing link, and zipfs rejects NOFOLLOW_LINKS
-    final Set<StandardOpenOption> options = Set.of(StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
-    final FileAttribute<?>[] permissions = initialPermissions(REGULAR, supportsPosix);
-    try (final OutputStream out = Channels.newOutputStream(Files.newByteChannel(destination, options, permissions))) {
-      int count = tar.read(buffer);
-      while (count >= 0) {
-        written += count;
-        if (written > remaining) {
-          throw new IOException("The archive extracts to more than the allowed size");
-        }
-        out.write(buffer, 0, count);
-        count = tar.read(buffer);
-      }
+    final FileAttribute<?>[] attributes = initialAttributes(permissions, REGULAR);
+    try (
+      final SeekableByteChannel channel = Files.newByteChannel(destination, NEW_FILE, attributes);
+      final OutputStream output = Channels.newOutputStream(channel)
+    ) {
+      return this.copyAtMost(tar, output, buffer, remaining);
     }
+  }
+
+  private long copyAtMost(final InputStream tar, final OutputStream output, final byte[] buffer, final long remaining) throws IOException {
+    long written = 0L;
+    int count = tar.read(buffer);
+    while (count >= 0) {
+      written += count;
+      if (written > remaining) {
+        final String message = "The archive extracts to more than the allowed size!";
+        throw new IOException(message);
+      }
+      output.write(buffer, 0, count);
+      count = tar.read(buffer);
+    }
+
     return written;
   }
 
-  /**
-   * Creates a folder and the missing folders above it, each readable by everyone and writable by its owner only where
-   * the file system has POSIX permissions, whatever the umask of the server.
-   *
-   * @param folder the folder
-   * @throws IOException if a folder cannot be created or its permissions cannot be set
-   */
   static void createFolders(final Path folder) throws IOException {
-    final FileSystem fileSystem = folder.getFileSystem();
-    createFolders(folder, fileSystem.supportedFileAttributeViews().contains("posix"));
+    final PosixPermissions permissions = permissionsOf(folder);
+    createFolders(folder, permissions);
   }
 
-  /**
-   * Creates a folder and the missing folders above it, setting the permissions of each new one if asked to.
-   *
-   * @param folder        the folder
-   * @param supportsPosix whether the permissions of the new folders are set
-   * @throws IOException if a folder cannot be created or its permissions cannot be set
-   */
   @VisibleForTesting
-  static void createFolders(final Path folder, final boolean supportsPosix) throws IOException {
+  static void createFolders(final Path folder, final PosixPermissions permissions) throws IOException {
     final List<Path> missing = new ArrayList<>();
     Path current = folder.toAbsolutePath();
     while (Files.notExists(current, LinkOption.NOFOLLOW_LINKS)) {
       missing.add(current);
-      current = Objects.requireNonNull(current.getParent(), "The root of a file system exists");
+      current = Objects.requireNonNull(current.getParent(), "The root of a file system exists!");
     }
-    final FileAttribute<?>[] permissions = initialPermissions(FOLDER, supportsPosix);
-    Files.createDirectories(folder, permissions);
-    if (supportsPosix) {
+
+    final FileAttribute<?>[] attributes = initialAttributes(permissions, FOLDER);
+    Files.createDirectories(folder, attributes);
+
+    if (permissions == PosixPermissions.SET) {
       for (final Path created : missing) {
         Files.setPosixFilePermissions(created, FOLDER);
       }
     }
   }
 
-  // a failed extraction never leaves a file or folder wider than its final permissions
-  private static FileAttribute<?>[] initialPermissions(final Set<PosixFilePermission> permissions, final boolean supportsPosix) {
-    if (!supportsPosix) {
+  // a failed extraction leaves nothing wider than its final permissions
+  private static FileAttribute<?>[] initialAttributes(final PosixPermissions permissions, final Set<PosixFilePermission> mode) {
+    if (permissions == PosixPermissions.SKIPPED) {
       return new FileAttribute<?>[0];
     }
-    return new FileAttribute<?>[] { PosixFilePermissions.asFileAttribute(permissions) };
+
+    final FileAttribute<Set<PosixFilePermission>> attribute = PosixFilePermissions.asFileAttribute(mode);
+    return new FileAttribute<?>[] { attribute };
   }
 
-  /**
-   * Takes the write permission of the group and of everyone else away from a folder and everything in it, where the
-   * file system has POSIX permissions: an installation made before MCAV set the permissions itself has the ones the
-   * umask of its server left, such as {@code rwxrwxr-x}, which let the group replace the native code. A path whose
-   * permissions cannot be changed is logged and left as it is.
-   *
-   * @param folder the folder
-   * @throws IOException if the folder cannot be walked
-   */
+  // an installation made before MCAV set permissions itself may let its group replace the native code (rwxrwxr-x)
   static void tighten(final Path folder) throws IOException {
-    final FileSystem fileSystem = folder.getFileSystem();
-    if (!fileSystem.supportedFileAttributeViews().contains("posix") || !Files.isDirectory(folder)) {
+    final PosixPermissions permissions = permissionsOf(folder);
+    if (permissions == PosixPermissions.SKIPPED || !Files.isDirectory(folder)) {
       return;
     }
-    Files.walkFileTree(
-      folder,
-      new SimpleFileVisitor<>() {
-        @Override
-        public FileVisitResult preVisitDirectory(final Path directory, final BasicFileAttributes attributes) {
-          takeWriteAway(directory);
-          return FileVisitResult.CONTINUE;
-        }
 
-        @Override
-        public FileVisitResult visitFile(final Path file, final BasicFileAttributes attributes) {
-          // A link has no permissions of its own; changing them would modify its target.
-          if (!attributes.isSymbolicLink()) {
-            takeWriteAway(file);
-          }
-          return FileVisitResult.CONTINUE;
-        }
-
-        @Override
-        public FileVisitResult visitFileFailed(final Path file, final IOException exception) {
-          return FileVisitResult.CONTINUE;
-        }
-      }
-    );
+    final TighteningVisitor visitor = new TighteningVisitor();
+    Files.walkFileTree(folder, visitor);
   }
 
-  /**
-   * Takes the write permission of the group and of everyone else away from one file or folder.
-   *
-   * @param path the file or folder
-   */
   @VisibleForTesting
   static void takeWriteAway(final Path path) {
     try {
@@ -329,17 +274,41 @@ final class ArchiveExtractor {
         Files.setPosixFilePermissions(path, permissions);
       }
     } catch (final IOException exception) {
-      LOGGER.warn(NOT_TIGHTENED, path, exception.toString());
+      LOGGER.warn("The group may still write {} of the browser's installation ({}).", path, exception.toString());
     }
   }
 
-  /**
-   * Keeps the archive stream of the caller open when the tar stream is closed.
-   */
+  // visible because a walk run as root never reaches visitFileFailed
+  @VisibleForTesting
+  static final class TighteningVisitor extends SimpleFileVisitor<Path> {
+
+    @Override
+    public FileVisitResult preVisitDirectory(final Path directory, final BasicFileAttributes attributes) {
+      takeWriteAway(directory);
+
+      return FileVisitResult.CONTINUE;
+    }
+
+    @Override
+    public FileVisitResult visitFile(final Path file, final BasicFileAttributes attributes) {
+      // a link has no permissions of its own; changing them would change its target
+      if (!attributes.isSymbolicLink()) {
+        takeWriteAway(file);
+      }
+
+      return FileVisitResult.CONTINUE;
+    }
+
+    @Override
+    public FileVisitResult visitFileFailed(final Path file, final IOException exception) {
+      return FileVisitResult.CONTINUE;
+    }
+  }
+
   private static final class NonClosingInputStream extends FilterInputStream {
 
-    NonClosingInputStream(final InputStream in) {
-      super(in);
+    NonClosingInputStream(final InputStream input) {
+      super(input);
     }
 
     @Override

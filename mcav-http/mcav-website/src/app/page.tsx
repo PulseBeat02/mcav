@@ -64,11 +64,15 @@ const HUE_REDRAW_DEGREES: number = 5;
 const MIDDLE_HUE_OFFSET_DEGREES: number = 60;
 const END_HUE_OFFSET_DEGREES: number = 120;
 
+const CANVAS_CONTEXT_TYPE: "2d" = "2d";
+
 const BACKGROUND_COLOR: string = "#000";
 const COLOR_SATURATION: string = "100%";
 const COLOR_LIGHTNESS: string = "50%";
 const FILL_OPACITY: number = 0.2;
+const START_COLOR_STOP: number = 0;
 const MIDDLE_COLOR_STOP: number = 0.5;
+const END_COLOR_STOP: number = 1;
 const LINE_WIDTH: number = 2;
 
 const VERTICAL_CENTER: number = 0.5;
@@ -76,6 +80,9 @@ const AMPLITUDE_HEIGHT_FRACTION: number = 0.4;
 
 const DEFAULT_PIXEL_RATIO: number = 1;
 const MINIMUM_CANVAS_PIXELS: number = 1;
+
+const VISIBLE_DISPLAY: string = "block";
+const HIDDEN_DISPLAY: string = "none";
 
 const METADATA_REFRESH_MILLISECONDS: number = 5000;
 const HEARTBEAT_MILLISECONDS: number = 30000;
@@ -87,6 +94,7 @@ const RECONNECT_BASE_DELAY_MILLISECONDS: number = 1000;
 const RECONNECT_BACKOFF_FACTOR: number = 2;
 const MAXIMUM_RECONNECT_DELAY_MILLISECONDS: number = 30000;
 
+const MINIMUM_VOLUME: number = 0;
 const MAXIMUM_VOLUME: number = 100;
 const DECIMAL_RADIX: number = 10;
 
@@ -115,6 +123,17 @@ const UNKNOWN_TITLE: string = "Unknown Title";
 const UNKNOWN_ARTIST: string = "Unknown Artist";
 const UNKNOWN_DATE: string = "Unknown date";
 const NO_DESCRIPTION: string = "No description available";
+
+const UNKNOWN_MEDIA_INFORMATION: MediaInformation = {
+    title: UNKNOWN_TITLE,
+    uploader: UNKNOWN_ARTIST,
+    description: NO_DESCRIPTION,
+    thumbnail: undefined,
+    duration: 0,
+    view_count: 0,
+    like_count: 0,
+    upload_date: undefined
+};
 
 type MediaInformation = {
     title?: string;
@@ -146,18 +165,28 @@ type WebkitWindow = typeof window & {
     webkitAudioContext: typeof AudioContext;
 };
 
+const createAudioContext = (): AudioContext => {
+    if ("webkitAudioContext" in window) {
+        const webkitWindow: WebkitWindow = window as WebkitWindow;
+        return new webkitWindow.webkitAudioContext();
+    }
+
+    return new AudioContext();
+};
+
 class PcmProcessor {
     private options: Required<PcmProcessorOptions>;
-    private samples: Float32Array;
     private audioContext: AudioContext;
+    private gainNode: GainNode;
+    private activeSources: Set<AudioBufferSourceNode>;
+
+    private samples: Float32Array;
     private waveformData: Float32Array;
     private smoothedData: Float32Array;
-    public isDestroyed: boolean = false;
-    private activeSources: Set<AudioBufferSourceNode> = new Set();
-    private hue: number = 0;
-    public gainNode: GainNode;
+    private destroyed: boolean;
+    private hue: number;
     private startTime: number;
-    private scheduledAt: number = -1;
+    private scheduledAt: number;
     private processingTimestamp: number;
 
     constructor(options: PcmProcessorOptions) {
@@ -166,16 +195,16 @@ class PcmProcessor {
             channels: options.channels || STREAM_CHANNELS,
             sampleRate: options.sampleRate || STREAM_SAMPLE_RATE,
             flushingTime: options.flushingTime || FLUSHING_TIME_MILLISECONDS,
-            audioContext: options.audioContext || (
-                "webkitAudioContext" in window
-                    ? new (window as WebkitWindow).webkitAudioContext()
-                    : new AudioContext()
-            )
+            audioContext: options.audioContext || createAudioContext()
         };
         this.samples = new Float32Array();
+        this.destroyed = false;
         this.audioContext = this.options.audioContext;
         this.waveformData = new Float32Array(WAVEFORM_POINTS);
         this.smoothedData = new Float32Array(WAVEFORM_POINTS);
+        this.activeSources = new Set();
+        this.hue = 0;
+        this.scheduledAt = -1;
 
         this.gainNode = this.audioContext.createGain();
         this.gainNode.connect(this.audioContext.destination);
@@ -184,7 +213,7 @@ class PcmProcessor {
     }
 
     feed(data: ArrayBuffer): void {
-        if (this.isDestroyed) {
+        if (this.destroyed) {
             return;
         }
 
@@ -225,7 +254,7 @@ class PcmProcessor {
     }
 
     private updateVisualizer(data: Float32Array): void {
-        if (this.isDestroyed) {
+        if (this.destroyed) {
             return;
         }
 
@@ -275,13 +304,12 @@ class PcmProcessor {
         return Math.floor(this.options.sampleRate * CUSHION_SECONDS);
     }
 
-    getVisualizerData(): VisualizerData {
+    advanceHue(): void {
         this.hue = (this.hue + HUE_STEP_DEGREES) % FULL_CIRCLE_DEGREES;
-        return {smoothedData: this.smoothedData, hue: this.hue};
     }
 
     private play(): void {
-        if (this.samples.length === 0 || this.isDestroyed) {
+        if (this.samples.length === 0 || this.destroyed) {
             return;
         }
 
@@ -304,6 +332,7 @@ class PcmProcessor {
         }
 
         this.fillChannels(audioBuffer, length);
+
         if (underrun) {
             this.fadeInChannels(audioBuffer, length);
         }
@@ -371,7 +400,7 @@ class PcmProcessor {
     }
 
     destroy(): void {
-        this.isDestroyed = true;
+        this.destroyed = true;
         for (const source of this.activeSources) {
             this.releaseSource(source);
         }
@@ -411,10 +440,23 @@ class PcmProcessor {
         this.startTime = this.audioContext.currentTime;
         this.clearWaveform();
     }
+
+    setVolume(volume: number): void {
+        this.gainNode.gain.value = volume / MAXIMUM_VOLUME;
+    }
+
+    isDestroyed(): boolean {
+        return this.destroyed;
+    }
+
+    getVisualizerData(): VisualizerData {
+        return {smoothedData: this.smoothedData, hue: this.hue};
+    }
 }
 
 const padTimeField = (value: number): string => {
-    return value.toString().padStart(TIME_FIELD_LENGTH, TIME_FIELD_PADDING);
+    const text: string = value.toString();
+    return text.padStart(TIME_FIELD_LENGTH, TIME_FIELD_PADDING);
 };
 
 const formatDuration = (seconds?: number): string => {
@@ -425,11 +467,17 @@ const formatDuration = (seconds?: number): string => {
     const hours: number = Math.floor(seconds / SECONDS_PER_HOUR);
     const minutes: number = Math.floor((seconds % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE);
     const remainingSeconds: number = Math.floor(seconds % SECONDS_PER_MINUTE);
+    const paddedMinutes: string = padTimeField(minutes);
+    const paddedSeconds: string = padTimeField(remainingSeconds);
     if (hours > 0) {
-        return `${hours}:${padTimeField(minutes)}:${padTimeField(remainingSeconds)}`;
+        return `${hours}:${paddedMinutes}:${paddedSeconds}`;
     }
 
-    return `${minutes}:${padTimeField(remainingSeconds)}`;
+    return `${minutes}:${paddedSeconds}`;
+};
+
+const isTitleLoaded = (title?: string): boolean => {
+    return Boolean(title) && title !== WAITING_TITLE;
 };
 
 const formatNumber = (value?: number): string => {
@@ -464,17 +512,6 @@ const formatDate = (dateString?: string): string => {
     }
 };
 
-const unknownMediaInformation: MediaInformation = {
-    title: UNKNOWN_TITLE,
-    uploader: UNKNOWN_ARTIST,
-    description: NO_DESCRIPTION,
-    thumbnail: undefined,
-    duration: 0,
-    view_count: 0,
-    like_count: 0,
-    upload_date: undefined
-};
-
 const toMediaInformation = (data: unknown): MediaInformation => {
     const received: MediaInformation = typeof data === "object" && data !== null ? data : {};
     return {
@@ -491,7 +528,7 @@ const toMediaInformation = (data: unknown): MediaInformation => {
 
 const readMediaInformation = (response: Response): Promise<MediaInformation> => {
     if (!response.ok) {
-        return Promise.resolve(unknownMediaInformation);
+        return Promise.resolve(UNKNOWN_MEDIA_INFORMATION);
     }
 
     return response.json().then(toMediaInformation);
@@ -499,7 +536,7 @@ const readMediaInformation = (response: Response): Promise<MediaInformation> => 
 
 const reportMediaInformationFailure = (error: unknown): MediaInformation => {
     console.error("Could not fetch the media information.", error);
-    return unknownMediaInformation;
+    return UNKNOWN_MEDIA_INFORMATION;
 };
 
 const loadMediaInformation = (): Promise<MediaInformation> => {
@@ -529,9 +566,9 @@ const toHslColor = (hue: number): string => {
 
 const createGradient = (context: CanvasRenderingContext2D, width: number, hue: number): CanvasGradient => {
     const gradient: CanvasGradient = context.createLinearGradient(0, 0, width, 0);
-    gradient.addColorStop(0, toHslColor(hue));
+    gradient.addColorStop(START_COLOR_STOP, toHslColor(hue));
     gradient.addColorStop(MIDDLE_COLOR_STOP, toHslColor(hue + MIDDLE_HUE_OFFSET_DEGREES));
-    gradient.addColorStop(1, toHslColor(hue + END_HUE_OFFSET_DEGREES));
+    gradient.addColorStop(END_COLOR_STOP, toHslColor(hue + END_HUE_OFFSET_DEGREES));
     return gradient;
 };
 
@@ -556,7 +593,12 @@ const traceWaveform = (context: CanvasRenderingContext2D, smoothedData: Float32A
     context.closePath();
 };
 
-const drawWaveform = (canvas: HTMLCanvasElement, context: CanvasRenderingContext2D, gradient: CanvasGradient, data: VisualizerData): void => {
+const drawWaveform = (
+    canvas: HTMLCanvasElement,
+    context: CanvasRenderingContext2D,
+    gradient: CanvasGradient,
+    data: VisualizerData
+): void => {
     context.fillStyle = BACKGROUND_COLOR;
     context.fillRect(0, 0, canvas.width, canvas.height);
     context.shadowBlur = 0;
@@ -577,7 +619,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
     const [statusText, setStatusText] = useState<string>(DISCONNECTED_STATUS);
     const [statusConnected, setStatusConnected] = useState<boolean>(false);
     const updateStatus = useCallback(
-        (text: string, connected: boolean = false): void => {
+        (text: string, connected: boolean): void => {
             setStatusText(text);
             setStatusConnected(connected);
         },
@@ -615,14 +657,17 @@ const AudioStreamPlayer = (): React.JSX.Element => {
     const [failedThumbnail, setFailedThumbnail] = useState<string | undefined>(undefined);
     const mediaInformationRequestRef: React.RefObject<Promise<MediaInformation> | undefined> = useRef(undefined);
 
+    const forgetMediaInformationRequest = useCallback((): void => {
+        mediaInformationRequestRef.current = undefined;
+    }, []);
+
     const requestMediaInformation = useCallback((): Promise<MediaInformation> => {
         if (!mediaInformationRequestRef.current) {
-            mediaInformationRequestRef.current = loadMediaInformation().finally(() => {
-                mediaInformationRequestRef.current = undefined;
-            });
+            mediaInformationRequestRef.current = loadMediaInformation().finally(forgetMediaInformationRequest);
         }
+
         return mediaInformationRequestRef.current;
-    }, []);
+    }, [forgetMediaInformationRequest]);
 
     const showMediaInformation = useCallback((information: MediaInformation): void => {
         setMediaInformation((previous: MediaInformation) => isSameMediaInformation(previous, information) ? previous : information);
@@ -636,6 +681,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
         if (metadataIntervalRef.current) {
             clearInterval(metadataIntervalRef.current);
         }
+
         fetchMediaInformation();
         metadataIntervalRef.current = setInterval(fetchMediaInformation, METADATA_REFRESH_MILLISECONDS);
     }, [fetchMediaInformation]);
@@ -656,13 +702,14 @@ const AudioStreamPlayer = (): React.JSX.Element => {
 
     const animateVisualizer = useCallback((): void => {
         const canvas: HTMLCanvasElement | null = canvasRef.current;
-        const context: CanvasRenderingContext2D | null | undefined = canvas?.getContext("2d");
+        const context: CanvasRenderingContext2D | null | undefined = canvas?.getContext(CANVAS_CONTEXT_TYPE);
         const processor: PcmProcessor | undefined = pcmProcessorRef.current;
         if (!canvas || !context || !processor) {
             return;
         }
 
         cancelAnimation();
+
         let gradient: CanvasGradient | undefined;
         let lastHue: number = -1;
         let lastWidth: number = -1;
@@ -672,10 +719,12 @@ const AudioStreamPlayer = (): React.JSX.Element => {
                 return;
             }
 
-            if (!canvasRef.current || processor.isDestroyed) {
+            if (!canvasRef.current || processor.isDestroyed()) {
                 animationIdRef.current = undefined;
                 return;
             }
+
+            processor.advanceHue();
 
             const data: VisualizerData = processor.getVisualizerData();
             if (!gradient || Math.abs(data.hue - lastHue) > HUE_REDRAW_DEGREES || canvas.width !== lastWidth) {
@@ -720,12 +769,13 @@ const AudioStreamPlayer = (): React.JSX.Element => {
 
     const reconnect = useCallback((): void => {
         reconnectTimeoutRef.current = undefined;
+
         if (shouldReconnectRef.current && audioContextRef.current?.state === "running") {
             connectRef.current();
         }
     }, []);
 
-    const attemptReconnect = useCallback((): void => {
+    const scheduleReconnectOrGiveUp = useCallback((): void => {
         if (reconnectTimeoutRef.current) {
             return;
         }
@@ -733,7 +783,8 @@ const AudioStreamPlayer = (): React.JSX.Element => {
         reconnectAttemptsRef.current++;
 
         if (reconnectAttemptsRef.current > MAXIMUM_RECONNECT_ATTEMPTS) {
-            updateStatus("Maximum reconnection attempts reached");
+            const connected: boolean = false;
+            updateStatus("Maximum reconnection attempts reached", connected);
             shouldReconnectRef.current = false;
             setIsConnected(false);
             return;
@@ -774,7 +825,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
 
     const clearVisualizer = useCallback((): void => {
         const canvas: HTMLCanvasElement | null = canvasRef.current;
-        const context: CanvasRenderingContext2D | null | undefined = canvas?.getContext("2d");
+        const context: CanvasRenderingContext2D | null | undefined = canvas?.getContext(CANVAS_CONTEXT_TYPE);
         if (canvas && context) {
             context.clearRect(0, 0, canvas.width, canvas.height);
         }
@@ -782,11 +833,11 @@ const AudioStreamPlayer = (): React.JSX.Element => {
 
     const hideVisualizer = useCallback((): void => {
         if (placeholderRef.current) {
-            placeholderRef.current.style.display = "block";
+            placeholderRef.current.style.display = VISIBLE_DISPLAY;
         }
 
         if (canvasRef.current) {
-            canvasRef.current.style.display = "none";
+            canvasRef.current.style.display = HIDDEN_DISPLAY;
         }
     }, []);
 
@@ -803,7 +854,8 @@ const AudioStreamPlayer = (): React.JSX.Element => {
 
         setIsConnected(false);
         setIsLoading(false);
-        updateStatus(DISCONNECTED_STATUS);
+        const connected: boolean = false;
+        updateStatus(DISCONNECTED_STATUS, connected);
         clearVisualizer();
         hideVisualizer();
     }, [
@@ -813,11 +865,11 @@ const AudioStreamPlayer = (): React.JSX.Element => {
 
     const showVisualizer = useCallback((): void => {
         if (placeholderRef.current) {
-            placeholderRef.current.style.display = "none";
+            placeholderRef.current.style.display = HIDDEN_DISPLAY;
         }
 
         if (canvasRef.current) {
-            canvasRef.current.style.display = "block";
+            canvasRef.current.style.display = VISIBLE_DISPLAY;
         }
     }, []);
 
@@ -826,7 +878,8 @@ const AudioStreamPlayer = (): React.JSX.Element => {
             return;
         }
 
-        updateStatus("Connected", true);
+        const connected: boolean = true;
+        updateStatus("Connected", connected);
         streamingRef.current = false;
         setIsConnected(true);
         shouldReconnectRef.current = true;
@@ -841,13 +894,14 @@ const AudioStreamPlayer = (): React.JSX.Element => {
     const feedProcessor = useCallback((data: ArrayBuffer): void => {
         const processor: PcmProcessor | undefined = pcmProcessorRef.current;
         const hasSound: boolean = data.byteLength > 0;
-        if (!hasSound || !processor || processor.isDestroyed) {
+        if (!hasSound || !processor || processor.isDestroyed()) {
             return;
         }
 
         if (!streamingRef.current) {
             streamingRef.current = true;
-            updateStatus("Streaming audio", true);
+            const connected: boolean = true;
+            updateStatus("Streaming audio", connected);
         }
 
         processor.feed(data);
@@ -873,15 +927,17 @@ const AudioStreamPlayer = (): React.JSX.Element => {
 
         console.error("The audio connection failed.", event);
         setIsLoading(false);
+
+        const connected: boolean = false;
         if (shouldReconnectRef.current) {
-            updateStatus("Connection error - reconnecting...");
-            attemptReconnect();
+            updateStatus("Connection error - reconnecting...", connected);
+            scheduleReconnectOrGiveUp();
             return;
         }
 
-        updateStatus("Connection error");
+        updateStatus("Connection error", connected);
         stopStream();
-    }, [attemptReconnect, stopStream, updateStatus]);
+    }, [scheduleReconnectOrGiveUp, stopStream, updateStatus]);
 
     const reconnectOrStopAfterClose = useCallback((socket: WebSocket): void => {
         if (socketRef.current !== socket) {
@@ -891,15 +947,17 @@ const AudioStreamPlayer = (): React.JSX.Element => {
         streamingRef.current = false;
         stopHeartbeat();
         setIsLoading(false);
+
+        const connected: boolean = false;
         if (shouldReconnectRef.current) {
-            updateStatus("Disconnected - reconnecting...");
-            attemptReconnect();
+            updateStatus("Disconnected - reconnecting...", connected);
+            scheduleReconnectOrGiveUp();
             return;
         }
 
-        updateStatus(DISCONNECTED_STATUS);
+        updateStatus(DISCONNECTED_STATUS, connected);
         stopStream();
-    }, [attemptReconnect, stopHeartbeat, stopStream, updateStatus]);
+    }, [scheduleReconnectOrGiveUp, stopHeartbeat, stopStream, updateStatus]);
 
     const openSocket = useCallback((): void => {
         const scheme: string = window.location.protocol === SECURE_PROTOCOL ? SECURE_SOCKET_SCHEME : SOCKET_SCHEME;
@@ -918,7 +976,8 @@ const AudioStreamPlayer = (): React.JSX.Element => {
         connectTimeoutRef.current = undefined;
         try {
             setIsLoading(true);
-            updateStatus("Connecting...");
+            const connected: boolean = false;
+            updateStatus("Connecting...", connected);
             pcmProcessorRef.current = new PcmProcessor({
                 encoding: STREAM_ENCODING,
                 channels: STREAM_CHANNELS,
@@ -926,17 +985,19 @@ const AudioStreamPlayer = (): React.JSX.Element => {
                 flushingTime: FLUSHING_TIME_MILLISECONDS,
                 audioContext: audioContextRef.current!
             });
-            pcmProcessorRef.current.gainNode.gain.value = volumeRef.current / MAXIMUM_VOLUME;
+            pcmProcessorRef.current.setVolume(volumeRef.current);
             openSocket();
         } catch (exception: unknown) {
             console.error("Could not start the stream.", exception);
-            updateStatus(`Error: ${(exception as Error).message}`);
+            const connected: boolean = false;
+            updateStatus(`Error: ${(exception as Error).message}`, connected);
             setIsLoading(false);
+
             if (shouldReconnectRef.current) {
-                attemptReconnect();
+                scheduleReconnectOrGiveUp();
             }
         }
-    }, [attemptReconnect, openSocket, updateStatus]);
+    }, [openSocket, scheduleReconnectOrGiveUp, updateStatus]);
 
     const connectWebSocket = useCallback((): void => {
         cancelAnimation();
@@ -951,7 +1012,9 @@ const AudioStreamPlayer = (): React.JSX.Element => {
     }, [connectWebSocket]);
 
     const connectAfterResume = useCallback((): void => {
-        updateStatus("Audio permission granted!");
+        const connected: boolean = false;
+        updateStatus("Audio permission granted!", connected);
+
         if (audioContextRef.current?.state === "running") {
             connectWebSocket();
             return;
@@ -964,7 +1027,8 @@ const AudioStreamPlayer = (): React.JSX.Element => {
     const reportPermissionFailure = useCallback((error: unknown): void => {
         shouldReconnectRef.current = false;
         setIsLoading(false);
-        updateStatus(`Failed to get audio permission: ${error}`);
+        const connected: boolean = false;
+        updateStatus(`Failed to get audio permission: ${error}`, connected);
     }, [updateStatus]);
 
     const startPlayback = useCallback((): void => {
@@ -976,16 +1040,17 @@ const AudioStreamPlayer = (): React.JSX.Element => {
         reconnectAttemptsRef.current = 0;
         setIsLoading(true);
         destroyProcessor();
+
         if (audioContextRef.current) {
             audioContextRef.current.close().catch(reportCloseFailure);
             audioContextRef.current = undefined;
         }
 
-        const audioContext: AudioContext = "webkitAudioContext" in window
-            ? new (window as WebkitWindow).webkitAudioContext()
-            : new AudioContext();
+        const audioContext: AudioContext = createAudioContext();
         audioContextRef.current = audioContext;
-        updateStatus(`Audio permission: ${audioContext.state}`);
+        const connected: boolean = false;
+        updateStatus(`Audio permission: ${audioContext.state}`, connected);
+
         if (audioContext.state === "running") {
             connectWebSocket();
             return;
@@ -1005,9 +1070,8 @@ const AudioStreamPlayer = (): React.JSX.Element => {
         const newVolume: number = parseInt(event.target.value, DECIMAL_RADIX);
         volumeRef.current = newVolume;
         setVolume(newVolume);
-        if (pcmProcessorRef.current?.gainNode) {
-            pcmProcessorRef.current.gainNode.gain.value = newVolume / MAXIMUM_VOLUME;
-        }
+
+        pcmProcessorRef.current?.setVolume(newVolume);
     }, []);
 
     const updateTitleScrolling = useCallback((): void => {
@@ -1037,27 +1101,17 @@ const AudioStreamPlayer = (): React.JSX.Element => {
     }, []);
 
     const clearPendingTimers = useCallback((): void => {
-        if (metadataIntervalRef.current) {
-            clearInterval(metadataIntervalRef.current);
-        }
-
-        if (heartbeatIntervalRef.current) {
-            clearInterval(heartbeatIntervalRef.current);
-        }
-
-        if (reconnectTimeoutRef.current) {
-            clearTimeout(reconnectTimeoutRef.current);
-        }
-
-        if (connectTimeoutRef.current) {
-            clearTimeout(connectTimeoutRef.current);
-        }
-    }, []);
+        stopMetadataRefresh();
+        stopHeartbeat();
+        cancelReconnect();
+        cancelConnect();
+    }, [cancelConnect, cancelReconnect, stopHeartbeat, stopMetadataRefresh]);
 
     const releasePlayer = useCallback((): void => {
         shouldReconnectRef.current = false;
         cancelAnimation();
         clearPendingTimers();
+
         if (socketRef.current?.readyState === WebSocket.OPEN) {
             socketRef.current.close();
         }
@@ -1075,6 +1129,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
         };
 
         requestMediaInformation().then(showWhileMounted);
+
         const resizeObserver: ResizeObserver = new ResizeObserver(resizeCanvas);
         const canvasContainer: HTMLElement | null | undefined = canvasRef.current?.parentElement;
         if (canvasContainer) {
@@ -1082,6 +1137,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
         }
 
         resizeCanvas();
+
         const release = (): void => {
             unmounted = true;
             resizeObserver.disconnect();
@@ -1091,11 +1147,13 @@ const AudioStreamPlayer = (): React.JSX.Element => {
     }, [releasePlayer, requestMediaInformation, resizeCanvas]);
 
     useEffect(() => {
-        if (mediaInformation.title && mediaInformation.title !== WAITING_TITLE) {
+        if (isTitleLoaded(mediaInformation.title)) {
             setTimeout(updateTitleScrolling, TITLE_MEASURE_DELAY_MILLISECONDS);
         }
     }, [mediaInformation.title, updateTitleScrolling]);
 
+    const loadedClassName: string = isTitleLoaded(mediaInformation.title) ? styles.loaded : "";
+    const mediaInformationClassName: string = `${styles.mediaInformation} ${loadedClassName}`;
     return (
         <div className={styles.container}>
             <div className={styles.playerContainer}>
@@ -1104,7 +1162,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
                 </div>
 
                 <div
-                    className={`${styles.mediaInformation} ${mediaInformation.title && mediaInformation.title !== WAITING_TITLE ? styles.loaded : ""}`}>
+                    className={mediaInformationClassName}>
                     <div className={styles.mediaThumbnail}>
                         {mediaInformation.thumbnail && mediaInformation.thumbnail !== failedThumbnail ? (
                             <Image
@@ -1127,7 +1185,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
                             </h2>
                         </div>
                         <p className={styles.mediaUploader}>
-                            {mediaInformation.uploader || mediaInformation.channel || mediaInformation.uploader_id || UNKNOWN_ARTIST}
+                            {mediaInformation.uploader || UNKNOWN_ARTIST}
                         </p>
                         <div className={styles.mediaMetadata}>
                             <div className={styles.metadataItem}>
@@ -1160,7 +1218,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
                     <canvas
                         ref={canvasRef}
                         className={styles.visualizerCanvas}
-                        style={{ display: "none" }}
+                        style={{ display: HIDDEN_DISPLAY }}
                     />
                 </div>
 
@@ -1168,7 +1226,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
                     <div className={styles.volumeIcon}>🔊</div>
                     <input
                         type="range"
-                        min="0"
+                        min={MINIMUM_VOLUME}
                         max={MAXIMUM_VOLUME}
                         value={volume}
                         onChange={changeVolume}

@@ -65,11 +65,7 @@ final class QemuAudioProtocolPropertyTest {
     @ForAll @Size(max = 20) final List<@From("messages") Sent> messages,
     @ForAll final long cuts
   ) throws IOException {
-    final byte[] stream = QemuAudioProtocolTest.bytes(output -> {
-      for (final Sent message : messages) {
-        this.write(output, message);
-      }
-    });
+    final byte[] stream = QemuAudioProtocolTest.bytes(output -> this.writeMessages(output, messages));
     final DataInputStream input = new DataInputStream(new Trickle(stream, new Random(cuts)));
     for (final Sent expected : messages) {
       final QemuAudioProtocol.Message read = QemuAudioProtocol.readMessage(input, FRAME, byte[]::new);
@@ -97,6 +93,12 @@ final class QemuAudioProtocolPropertyTest {
         output.writeInt(3);
         output.write(new byte[] { 'a', 'b', 'c' });
       }
+    }
+  }
+
+  private void writeMessages(final DataOutputStream output, final List<Sent> messages) throws IOException {
+    for (final Sent message : messages) {
+      this.write(output, message);
     }
   }
 

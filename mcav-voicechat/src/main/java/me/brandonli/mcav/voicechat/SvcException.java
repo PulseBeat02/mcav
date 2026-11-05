@@ -24,12 +24,12 @@ import me.brandonli.mcav.MCAVException;
  * Thrown when Simple Voice Chat fails for a reason outside the caller's control, such as an entity it refuses an
  * audio channel.
  *
- * <p>Every failure of {@code mcav-voicechat} that comes from Simple Voice Chat itself is this type or a subtype;
- * catch it to handle them all. Errors and runtime exceptions that Simple Voice Chat throws are passed on unchanged.
+ * <p>Every failure of {@code mcav-voicechat} that comes from Simple Voice Chat itself is this type; catch it to
+ * handle them all. Errors and runtime exceptions that Simple Voice Chat throws are passed on unchanged.
  *
  * @since 1.0.0
  */
-public class SvcException extends MCAVException {
+public final class SvcException extends MCAVException {
 
   @Serial
   private static final long serialVersionUID = 7827813584530439056L;

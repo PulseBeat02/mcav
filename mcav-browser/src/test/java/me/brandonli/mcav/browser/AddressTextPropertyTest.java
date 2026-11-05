@@ -27,11 +27,6 @@ import net.jqwik.api.ForAll;
 import net.jqwik.api.Property;
 import net.jqwik.api.Provide;
 
-/**
- * Properties of {@link AddressText}: whatever the parts of a web address are, the user name and password, the query and
- * the fragment never reach the log, while the scheme, the host and the path do; and any text at all is described
- * without a failure and without growing by more than the markers.
- */
 final class AddressTextPropertyTest {
 
   private static final String SEED = "20260925";
@@ -60,7 +55,7 @@ final class AddressTextPropertyTest {
   }
 
   @Property(seed = SEED, tries = 2000)
-  void theUserTheQueryAndTheFragmentNeverReachTheLog(
+  void shouldNeverLogTheUserTheQueryOrTheFragment(
     @ForAll("schemes") final String scheme,
     @ForAll("secrets") final String user,
     @ForAll("hosts") final String host,
@@ -71,25 +66,32 @@ final class AddressTextPropertyTest {
     final String address = scheme + "://" + user + "@" + host + path + "?" + query + "#" + fragment;
     final String described = AddressText.describe(address);
     assertEquals(scheme + "://" + AddressText.HIDDEN + "@" + host + path + "?" + AddressText.HIDDEN, described);
-    assertFalse(described.contains(user), described);
-    assertFalse(described.contains(query), described);
-    assertFalse(described.contains(fragment), described);
+    final boolean showsTheUser = described.contains(user);
+    assertFalse(showsTheUser, described);
+
+    final boolean showsTheQuery = described.contains(query);
+    assertFalse(showsTheQuery, described);
+
+    final boolean showsTheFragment = described.contains(fragment);
+    assertFalse(showsTheFragment, described);
   }
 
   @Property(seed = SEED, tries = 2000)
-  void anAddressWithoutSecretsIsKeptAsItIs(
+  void shouldKeepAnAddressWithoutSecretsAsItIs(
     @ForAll("schemes") final String scheme,
     @ForAll("hosts") final String host,
     @ForAll("paths") final String path
   ) {
     final String address = scheme + "://" + host + path;
-    assertEquals(address, AddressText.describe(address));
+    final String described = AddressText.describe(address);
+    assertEquals(address, described);
   }
 
   @Property(seed = SEED, tries = 2000)
-  void anyTextIsDescribedWithoutFailingOrGrowingBeyondTheMarkers(@ForAll final String text) {
+  void shouldDescribeAnyTextWithoutFailingOrGrowingBeyondTheMarkers(@ForAll final String text) {
     final String described = AddressText.describe(text);
     final int markers = 2 * AddressText.HIDDEN.length() + 2;
-    assertTrue(described.length() <= text.length() + markers, described);
+    final boolean withinTheMarkers = described.length() <= text.length() + markers;
+    assertTrue(withinTheMarkers, described);
   }
 }

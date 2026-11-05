@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test;
 class HelperEnvironmentTest {
 
   @Test
-  void onlyTheVariablesAProgramNeedsAreKept() {
+  void shouldOnlyKeepTheVariablesAProgramNeeds() {
     final Map<String, String> parent = Map.of(
       "PATH",
       "/usr/bin",
@@ -48,7 +48,7 @@ class HelperEnvironmentTest {
   }
 
   @Test
-  void theEnvironmentIsNotInstantiable() {
+  void shouldNotInstantiateTheEnvironment() {
     UtilityClassAssertions.assertNotInstantiable(HelperEnvironment.class);
   }
 }

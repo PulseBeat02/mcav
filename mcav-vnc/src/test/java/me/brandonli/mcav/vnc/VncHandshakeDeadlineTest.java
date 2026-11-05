@@ -50,12 +50,18 @@ final class VncHandshakeDeadlineTest {
   private static final String JAVA_AGENT_OPTION = "-javaagent:";
   private static final String BYTE_BUDDY_AGENT = "byte-buddy-agent";
 
+  private static final String BINARY_FOLDER = "bin";
+  private static final String JAVA_EXECUTABLE = "java";
+  private static final String WINDOWS_JAVA_EXECUTABLE = "java.exe";
+
+  private static final String OUTPUT_FILE = "deadline.log";
+
   @Test
   void shouldGiveConcurrentAsyncStartsIndependentHandshakeDeadlines(@TempDir final Path folder) throws Exception {
-    final Path javaFolder = Path.of(System.getProperty("java.home"), "bin");
-    final Path windowsJava = javaFolder.resolve("java.exe");
-    final Path executable = Files.isRegularFile(windowsJava) ? windowsJava : javaFolder.resolve("java");
-    final Path output = folder.resolve("deadline.log");
+    final Path javaFolder = Path.of(System.getProperty("java.home"), BINARY_FOLDER);
+    final Path windowsJava = javaFolder.resolve(WINDOWS_JAVA_EXECUTABLE);
+    final Path executable = Files.isRegularFile(windowsJava) ? windowsJava : javaFolder.resolve(JAVA_EXECUTABLE);
+    final Path output = folder.resolve(OUTPUT_FILE);
     final List<String> command = new ArrayList<>();
     command.add(executable.toString());
     command.addAll(this.findByteBuddyAgents());
@@ -102,6 +108,7 @@ final class VncHandshakeDeadlineTest {
     private DeadlineProbe() {}
 
     public static void main(final String[] arguments) throws Exception {
+      final DeadlineProbe probe = new DeadlineProbe();
       final ForkJoinPool pool = ForkJoinPool.commonPool();
       final int parallelism = pool.getParallelism();
       assertEquals(2, parallelism);
@@ -116,20 +123,10 @@ final class VncHandshakeDeadlineTest {
         final VernacularClient client = mock(VernacularClient.class);
         when(socket.getInputStream()).thenReturn(InputStream.nullInputStream());
         when(socket.getOutputStream()).thenReturn(OutputStream.nullOutputStream());
-        doAnswer(_ -> {
-          stopped.countDown();
-          return null;
-        })
+        doAnswer(_ -> probe.recordSocketClosure(stopped))
           .when(socket)
           .close();
-        doAnswer(_ -> {
-          entered.countDown();
-          final boolean bothEntered = entered.await(TIMEOUT_SECONDS, TimeUnit.SECONDS);
-          final boolean closedByDeadline = stopped.await(TIMEOUT_SECONDS, TimeUnit.SECONDS);
-          assertTrue(bothEntered);
-          assertTrue(closedByDeadline, "the handshake is closed");
-          throw new IllegalStateException("socket closed!");
-        })
+        doAnswer(_ -> probe.failClosedHandshake(entered, stopped))
           .when(client)
           .start(any(Socket.class));
         closed.add(stopped);
@@ -147,7 +144,10 @@ final class VncHandshakeDeadlineTest {
           LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(1));
         }
         final boolean allFailed = starts.stream().allMatch(CompletableFuture::isCompletedExceptionally);
-        assertTrue(allFailed, "deadline actions must not queue behind the two handshakes: queued=" + pool.getQueuedSubmissionCount());
+        assertTrue(
+          allFailed,
+          "deadline actions must not queue behind the two handshakes: queued=%s".formatted(pool.getQueuedSubmissionCount())
+        );
 
         for (final CountDownLatch stopped : closed) {
           final long remaining = stopped.getCount();
@@ -160,6 +160,23 @@ final class VncHandshakeDeadlineTest {
         }
         players.forEach(VernacularVncPlayer::release);
       }
+    }
+
+    private Void recordSocketClosure(final CountDownLatch stopped) {
+      stopped.countDown();
+
+      return null;
+    }
+
+    private Void failClosedHandshake(final CountDownLatch entered, final CountDownLatch stopped) throws InterruptedException {
+      entered.countDown();
+      final boolean bothEntered = entered.await(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+      final boolean closedByDeadline = stopped.await(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+      assertTrue(bothEntered);
+      assertTrue(closedByDeadline, "the handshake is closed");
+
+      final String message = "socket closed!";
+      throw new IllegalStateException(message);
     }
   }
 }

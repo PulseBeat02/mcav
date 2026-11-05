@@ -21,5 +21,5 @@ interface ReportChannel {
   // a server gets reports only once it registered the channel, which an MCAV server does as the player joins
   boolean isOpen();
 
-  void send(byte[] report);
+  void send(final byte[] report);
 }

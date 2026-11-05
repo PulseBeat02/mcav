@@ -42,41 +42,38 @@ import java.util.zip.GZIPOutputStream;
 import me.brandonli.mcav.utils.IoUtils;
 import org.junit.jupiter.api.Tag;
 
-/**
- * Fuzzes the extraction of the CEF archive with arbitrary tar streams, compressed by the fuzz target itself so the
- * fuzzer works on the tar format rather than on gzip. The natives jar is pinned by its hash, so this is a second line
- * of defense: whatever the archive, extraction either fails with an {@link IOException} or leaves only plain files and
- * folders inside the target folder, none of them writable by others, and never more bytes than its limit.
- */
+// The fuzz target compresses the tar streams, so the fuzzer works on the tar format, not on gzip. The natives jar is
+// pinned by its hash, so this fuzzes a second line of defense.
 @Tag("fuzz")
 final class ArchiveExtractorFuzzTest {
 
-  private static final int MAX_ENTRIES = 64;
-  private static final long MAX_BYTES = 1 << 20;
+  private static final int MAXIMUM_ENTRIES = 64;
+  private static final long MAXIMUM_BYTES = 1 << 20;
 
   @FuzzTest(maxDuration = "30s")
-  void extractsOnlyPlainFilesInsideTheTarget(final FuzzedDataProvider data) throws IOException {
+  void shouldExtractOnlyPlainFilesInsideTheTarget(final FuzzedDataProvider data) throws IOException {
     final byte[] tar = data.consumeRemainingAsBytes();
     final ByteArrayOutputStream compressed = new ByteArrayOutputStream();
     try (final GZIPOutputStream gzip = new GZIPOutputStream(compressed)) {
       gzip.write(tar);
     }
+
     final Path root = Files.createTempDirectory("mcav-extract-fuzz");
     try {
       final Path target = Files.createDirectory(root.resolve("target"));
       try {
-        new ArchiveExtractor(MAX_ENTRIES, MAX_BYTES).extract(new ByteArrayInputStream(compressed.toByteArray()), target);
-      } catch (final IOException refused) {
+        new ArchiveExtractor(MAXIMUM_ENTRIES, MAXIMUM_BYTES).extract(new ByteArrayInputStream(compressed.toByteArray()), target);
+      } catch (final IOException exception) {
         // malformed or breaking a rule; what was written so far is checked all the same
       }
-      check(root, target);
-      checkWholeFileSystem(root.resolve("observed.zip"), compressed.toByteArray());
+      this.check(root, target);
+      this.checkWholeFileSystem(root.resolve("observed.zip"), compressed.toByteArray());
     } finally {
       IoUtils.deleteRecursively(root);
     }
   }
 
-  private static void checkWholeFileSystem(final Path backing, final byte[] archive) throws IOException {
+  private void checkWholeFileSystem(final Path backing, final byte[] archive) throws IOException {
     try (final FileSystem fileSystem = FileSystems.newFileSystem(backing, Map.of("create", "true", "enablePosixFileAttributes", "true"))) {
       final Path scope = fileSystem.getPath("/");
       final Path root = Files.createDirectories(scope.resolve("nested/root"));
@@ -88,39 +85,53 @@ final class ArchiveExtractorFuzzTest {
         before = paths.toList();
       }
       try {
-        new ArchiveExtractor(MAX_ENTRIES, MAX_BYTES).extract(new ByteArrayInputStream(archive), target);
-      } catch (final IOException refused) {
-        // A refused archive must preserve the surrounding file system too.
+        new ArchiveExtractor(MAXIMUM_ENTRIES, MAXIMUM_BYTES).extract(new ByteArrayInputStream(archive), target);
+      } catch (final IOException exception) {
+        // a refused archive must leave the file system around the target alone too
       }
-      check(root, target);
+      this.check(root, target);
       try (final Stream<Path> paths = Files.walk(scope)) {
         final List<Path> outside = paths.filter(path -> !before.contains(path) && !path.startsWith(target)).toList();
         assertEquals(List.of(), outside, "writes above the extraction root remain visible");
       }
-      assertArrayEquals(untouched, Files.readAllBytes(sentinel));
+      final byte[] sentinelBytes = Files.readAllBytes(sentinel);
+      assertArrayEquals(untouched, sentinelBytes);
     }
   }
 
-  private static void check(final Path root, final Path target) throws IOException {
+  private void check(final Path root, final Path target) throws IOException {
     final boolean supportsPosix = root.getFileSystem().supportedFileAttributeViews().contains("posix");
-    try (final Stream<Path> paths = Files.walk(root)) {
-      final List<Path> all = paths.toList();
-      long bytes = 0L;
-      for (final Path path : all) {
-        assertFalse(Files.isSymbolicLink(path), () -> "a link: " + path);
-        assertTrue(path.equals(root) || path.startsWith(target), () -> "outside the target: " + path);
-        final boolean regular = Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS);
-        assertTrue(regular || Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS), () -> "neither file nor folder: " + path);
-        if (regular) {
-          bytes += Files.size(path);
-          if (supportsPosix) {
-            final Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(path);
-            assertFalse(permissions.contains(PosixFilePermission.OTHERS_WRITE), () -> "writable by others: " + path);
-          }
-        }
+    final List<Path> all = this.listAllPaths(root);
+    long bytes = 0L;
+    for (final Path path : all) {
+      final boolean symbolicLink = Files.isSymbolicLink(path);
+      assertFalse(symbolicLink, () -> "a link: " + path);
+
+      final boolean insideTarget = path.equals(root) || path.startsWith(target);
+      assertTrue(insideTarget, () -> "outside the target: " + path);
+
+      final boolean regular = Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS);
+      final boolean fileOrFolder = regular || Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS);
+      assertTrue(fileOrFolder, () -> "neither file nor folder: " + path);
+
+      if (regular) {
+        bytes += Files.size(path);
       }
-      final long total = bytes;
-      assertTrue(total <= MAX_BYTES, () -> total + " bytes");
+      if (regular && supportsPosix) {
+        final Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(path);
+        final boolean writableByOthers = permissions.contains(PosixFilePermission.OTHERS_WRITE);
+        assertFalse(writableByOthers, () -> "writable by others: " + path);
+      }
+    }
+
+    final long total = bytes;
+    final boolean withinLimit = total <= MAXIMUM_BYTES;
+    assertTrue(withinLimit, () -> total + " bytes");
+  }
+
+  private List<Path> listAllPaths(final Path root) throws IOException {
+    try (final Stream<Path> paths = Files.walk(root)) {
+      return paths.toList();
     } catch (final UncheckedIOException exception) {
       throw exception.getCause();
     }

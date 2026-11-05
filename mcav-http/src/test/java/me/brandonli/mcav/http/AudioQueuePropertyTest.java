@@ -57,9 +57,9 @@ import org.springframework.web.socket.WebSocketSession;
 final class AudioQueuePropertyTest {
 
   private static final String SEED = "20260925";
-  private static final long WAIT_SECONDS = 10;
-  private static final long SILENCE_MILLISECONDS = 50;
-  private static final long SEND_TIME_LIMIT_MILLISECONDS = 5_000;
+  private static final long WAIT_SECONDS = 10L;
+  private static final long SILENCE_MILLISECONDS = 50L;
+  private static final long SEND_TIME_LIMIT_MILLISECONDS = 5_000L;
 
   private static final int MAXIMUM_CHUNK_BYTES = 3000;
   private static final int MAXIMUM_CHUNK_COUNT = 40;

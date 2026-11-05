@@ -30,6 +30,7 @@ The method below attaches a chat display to a player before it starts; call it o
 
     final FunctionalVideoFilter chatResult = new ChatResult(configuration);
     chatResult.start();
+
     final VideoPipelineStep pipeline = VideoPipelineStep.of(chatResult);
     final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
     videoCallback.attach(pipeline);

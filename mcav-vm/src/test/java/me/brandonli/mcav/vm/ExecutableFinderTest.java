@@ -599,6 +599,6 @@ final class ExecutableFinderTest {
 
     final IllegalArgumentException blank = assertThrows(IllegalArgumentException.class, () -> finder.find(" "));
     final String message = blank.getMessage();
-    assertEquals("Name must not be blank", message);
+    assertEquals("Name must not be blank!", message);
   }
 }

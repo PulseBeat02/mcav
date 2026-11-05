@@ -29,33 +29,21 @@ import java.util.Base64;
 import java.util.List;
 import org.cef.browser.McavOffscreenBrowser;
 
-/**
- * A browser engine without CEF for tests of the helper and its session. What it does depends on the path of the page:
- *
- * <ul>
- *   <li>{@code /page}: reports ready, loads, and paints the whole page in one color; every input it receives paints the
- *   page again with the blue channel counting the DevTools calls so far, so a test can see input arrive;</li>
- *   <li>{@code /load-error}: fails to load the page;</li>
- *   <li>{@code /fail}: shows the page, then, a second later, fails as a crashed renderer would;</li>
- *   <li>{@code /sound}: shows the page, then hands {@link #SOUND_CHUNKS} chunks of {@link #SOUND_FRAMES} frames to a
- *   {@link PageAudio} as calls of its binding, whose samples all hold the number of the chunk, with a call that is not
- *   sound before each;</li>
- *   <li>{@code /sound-on-input}: shows the page and hands over a chunk of sound whose samples hold 0 at once, and one
- *   whose samples hold the number of DevTools calls so far after every input;</li>
- *   <li>{@code /exit}: ends the helper process during the start;</li>
- *   <li>{@code /throw}: fails to start;</li>
- *   <li>{@code /unlinked}: fails to start as a native library that cannot be loaded does;</li>
- *   <li>{@code /never}: never reports anything.</li>
- * </ul>
- */
+// A browser engine without CEF for the helper and session tests: the path of the page picks what it does.
 final class ScriptedEngine implements HelperEngine {
 
   static final int RED = 0x20;
   static final int GREEN = 0x40;
+
   static final int SOUND_CHUNKS = 3;
   static final int SOUND_FRAMES = 1024;
 
+  static final String OUTPUT_BEFORE_FAILURE = "the scripted helper is about to fail";
+
+  private static final long OUTPUT_READ_MILLISECONDS = 500L;
+
   private final List<String> calls;
+
   private McavOffscreenBrowser.PaintListener painter = new NoPainter();
   private HelperEvents events = new NoEvents();
   private int width;
@@ -67,11 +55,6 @@ final class ScriptedEngine implements HelperEngine {
     this.calls = new ArrayList<>();
   }
 
-  /**
-   * Starts the helper with this engine, as the real helper starts with CEF.
-   *
-   * @param args ignored
-   */
   public static void main(final String[] args) {
     final BufferedReader input = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
     final Runtime runtime = Runtime.getRuntime();
@@ -90,6 +73,7 @@ final class ScriptedEngine implements HelperEngine {
     final String path = url.getPath();
     switch (path) {
       case "/throw" -> throw new IllegalStateException("scripted start failure");
+      case "/throw-after-output" -> this.failAfterOutput();
       case "/unlinked" -> throw new UnsatisfiedLinkError("scripted missing native library");
       case "/exit" -> System.exit(3);
       case "/never" -> {
@@ -100,42 +84,56 @@ final class ScriptedEngine implements HelperEngine {
         events.onLoadError(-105, "ERR_NAME_NOT_RESOLVED", url.toString());
         events.onLoading(false);
       }
-      case "/sound" -> {
-        this.show(0);
-        final PageAudio audio = new PageAudio(events::onAudio, System::nanoTime);
-        for (int chunk = 1; chunk <= SOUND_CHUNKS; chunk++) {
-          final ByteBuffer samples = ByteBuffer.allocate(SOUND_FRAMES * 4).order(ByteOrder.LITTLE_ENDIAN);
-          while (samples.hasRemaining()) {
-            samples.putShort((short) chunk);
-          }
-          final String payload = Base64.getEncoder().encodeToString(samples.array());
-          audio.onEvent(PageAudio.BINDING_EVENT, "{\"name\":\"other\",\"payload\":\"" + payload + "\",\"executionContextId\":1}");
-          audio.onEvent(
-            PageAudio.BINDING_EVENT,
-            "{\"name\":\"" + PageAudio.BINDING + "\",\"payload\":\"" + payload + "\",\"executionContextId\":1}"
-          );
-        }
-      }
+      case "/sound" -> this.playSound(events);
       case "/sound-on-input" -> {
         this.soundOnInput = true;
         this.show(0);
         events.onAudio(chunk(0));
       }
-      case "/fail" -> {
-        this.show(0);
-        final Thread later = new Thread(() -> {
-          pause(1_000L);
-          events.onFailure("scripted renderer crash");
-        });
-        later.start();
-      }
+      case "/fail" -> this.crashRendererLater(events);
       default -> this.show(0);
     }
   }
 
-  private static void pause(final long millis) {
+  // the pause gives the server time to read the line
+  private void failAfterOutput() throws InterruptedException {
+    System.out.println(OUTPUT_BEFORE_FAILURE);
+    System.out.flush();
+    Thread.sleep(OUTPUT_READ_MILLISECONDS);
+    throw new IllegalStateException("scripted start failure after output");
+  }
+
+  private void playSound(final HelperEvents events) {
+    this.show(0);
+    final PageAudio audio = new PageAudio(events::onAudio, System::nanoTime);
+    for (int chunk = 1; chunk <= SOUND_CHUNKS; chunk++) {
+      final ByteBuffer samples = ByteBuffer.allocate(SOUND_FRAMES * 4).order(ByteOrder.LITTLE_ENDIAN);
+      while (samples.hasRemaining()) {
+        samples.putShort((short) chunk);
+      }
+      final String payload = Base64.getEncoder().encodeToString(samples.array());
+      audio.onEvent(PageAudio.BINDING_EVENT, "{\"name\":\"other\",\"payload\":\"" + payload + "\",\"executionContextId\":1}");
+      audio.onEvent(
+        PageAudio.BINDING_EVENT,
+        "{\"name\":\"" + PageAudio.BINDING + "\",\"payload\":\"" + payload + "\",\"executionContextId\":1}"
+      );
+    }
+  }
+
+  private void crashRendererLater(final HelperEvents events) {
+    this.show(0);
+    final Thread later = new Thread(() -> this.pauseAndCrashRenderer(events));
+    later.start();
+  }
+
+  private void pauseAndCrashRenderer(final HelperEvents events) {
+    this.pause(1_000L);
+    events.onFailure("scripted renderer crash");
+  }
+
+  private void pause(final long milliseconds) {
     try {
-      Thread.sleep(millis);
+      Thread.sleep(milliseconds);
     } catch (final InterruptedException exception) {
       Thread.currentThread().interrupt();
     }
@@ -157,6 +155,7 @@ final class ScriptedEngine implements HelperEngine {
       buffer.put((byte) RED);
       buffer.put((byte) 255);
     }
+
     buffer.flip();
     final Rectangle[] all = { new Rectangle(0, 0, this.width, this.height) };
     this.painter.onPaint(false, all, buffer, this.width, this.height);
@@ -167,23 +166,20 @@ final class ScriptedEngine implements HelperEngine {
     for (final DevToolsInput.DevToolsCall call : dispatched) {
       this.calls.add(call.getMethod() + " " + call.getParameters());
     }
+
     this.paint(this.calls.size());
+
     if (this.soundOnInput) {
       this.events.onAudio(chunk(this.calls.size()));
     }
   }
 
-  /**
-   * Creates a chunk of sound whose samples all hold a number.
-   *
-   * @param value the number
-   * @return the chunk, 16-bit little-endian stereo
-   */
   static byte[] chunk(final int value) {
     final ByteBuffer samples = ByteBuffer.allocate(SOUND_FRAMES * 4).order(ByteOrder.LITTLE_ENDIAN);
     while (samples.hasRemaining()) {
       samples.putShort((short) value);
     }
+
     return samples.array();
   }
 
@@ -203,7 +199,13 @@ final class ScriptedEngine implements HelperEngine {
   private static final class NoPainter implements McavOffscreenBrowser.PaintListener {
 
     @Override
-    public void onPaint(final boolean isPopup, final Rectangle[] dirtyRects, final ByteBuffer buffer, final int width, final int height) {}
+    public void onPaint(
+      final boolean isPopup,
+      final Rectangle[] dirtyRectangles,
+      final ByteBuffer buffer,
+      final int width,
+      final int height
+    ) {}
 
     @Override
     public void onPopupShow(final boolean isShown) {}

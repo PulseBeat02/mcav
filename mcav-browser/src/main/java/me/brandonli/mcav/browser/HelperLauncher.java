@@ -31,30 +31,36 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.utils.os.Os;
 import me.brandonli.mcav.utils.os.OsUtils;
 import me.friwi.jcefmaven.CefAppBuilder;
 import org.cef.CefApp;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * Knows how to start a browser helper process: the Java program of the server, the class path of the helper, the
- * options of its JVM, and the environment it keeps, which on Linux also names the authority file of its null display
- * and the folder of the libraries the server lacks.
- *
- * <p>The class path is taken from where the classes of mcav's browser module, JCEF and jcefmaven were loaded from,
- * which works whether they are separate jars, as Paper's library loader gives them, or shaded into one plugin jar.
- * Relocating the {@code org.cef} or {@code me.friwi} packages breaks JCEF's native methods and is not supported. The
- * helper JVM gets the options CEF needs, which the server itself never does: it is headless, may load native code,
- * uses a small heap, and keeps its temporary files in the private folder of its session.
- */
+// The class path comes from where MCAV's browser module, JCEF and jcefmaven were loaded, so separate and shaded jars both
+// work; relocating org.cef or me.friwi breaks the native methods of JCEF.
 final class HelperLauncher {
 
-  /**
-   * The main class of the helper.
-   */
   static final String MAIN_CLASS = "me.brandonli.mcav.browser.BrowserHelper";
+
+  private static final String BIN_FOLDER = "bin";
+  private static final String WINDOWS_JAVA_EXECUTABLE = "java.exe";
+  private static final String JAVA_EXECUTABLE = "java";
+
+  private static final String HEADLESS_SWITCH = "-Djava.awt.headless=true";
+  private static final String NATIVE_ACCESS_SWITCH = "--enable-native-access=ALL-UNNAMED";
+  private static final String MAXIMUM_HEAP_SWITCH = "-Xmx512m";
+  private static final String SERIAL_COLLECTOR_SWITCH = "-XX:+UseSerialGC";
+  private static final String NO_ATTACH_SWITCH = "-XX:+DisableAttachMechanism";
+  private static final String ENCODING_SWITCH = "-Dfile.encoding=UTF-8";
+  private static final String TEMPORARY_FOLDER_SWITCH = "-Djava.io.tmpdir=";
+  private static final String CLASS_PATH_SWITCH = "-cp";
+
+  private static final String AUTHORITY_VARIABLE = "XAUTHORITY";
+  private static final String TEMPORARY_FOLDER_VARIABLE = "TMPDIR";
+  private static final String DATA_HOME_VARIABLE = "XDG_DATA_HOME";
+  private static final String MAC_TEMPORARY_FOLDER_VARIABLE = "MAC_CHROMIUM_TMPDIR";
+  private static final String LIBRARY_PATH_VARIABLE = "LD_LIBRARY_PATH";
 
   private final Path java;
   private final String mainClass;
@@ -62,20 +68,9 @@ final class HelperLauncher {
   private final List<String> extraJvmOptions;
   private final Os os;
   private final Map<String, String> environment;
-  private final long startTimeoutMillis;
+  private final long startTimeoutMilliseconds;
   private final @Nullable LibraryLinker libraries;
 
-  /**
-   * Constructs a launcher.
-   *
-   * @param java               the Java program
-   * @param mainClass          the main class of the helper
-   * @param classPath          the class path of the helper
-   * @param extraJvmOptions    options added to the JVM of the helper, such as a coverage agent in tests
-   * @param os                 the operating system
-   * @param environment        the environment of the server
-   * @param startTimeoutMillis how long a helper may take until the page shows
-   */
   @VisibleForTesting
   HelperLauncher(
     final Path java,
@@ -84,9 +79,9 @@ final class HelperLauncher {
     final List<String> extraJvmOptions,
     final Os os,
     final Map<String, String> environment,
-    final long startTimeoutMillis
+    final long startTimeoutMilliseconds
   ) {
-    this(java, mainClass, classPath, extraJvmOptions, os, environment, startTimeoutMillis, null);
+    this(java, mainClass, classPath, extraJvmOptions, os, environment, startTimeoutMilliseconds, null);
   }
 
   private HelperLauncher(
@@ -96,7 +91,7 @@ final class HelperLauncher {
     final List<String> extraJvmOptions,
     final Os os,
     final Map<String, String> environment,
-    final long startTimeoutMillis,
+    final long startTimeoutMilliseconds,
     final @Nullable LibraryLinker libraries
   ) {
     this.libraries = libraries;
@@ -106,137 +101,96 @@ final class HelperLauncher {
     this.extraJvmOptions = List.copyOf(extraJvmOptions);
     this.os = os;
     this.environment = Map.copyOf(environment);
-    this.startTimeoutMillis = startTimeoutMillis;
+    this.startTimeoutMilliseconds = startTimeoutMilliseconds;
   }
 
-  /**
-   * Gets the name of the program of a JVM on an operating system.
-   *
-   * @param os the operating system
-   * @return {@code java.exe} on Windows, {@code java} elsewhere
-   */
-  static String javaExecutable(final Os os) {
-    return os == Os.WINDOWS ? "java.exe" : "java";
-  }
-
-  /**
-   * Creates the launcher of this JVM: its Java program, the class path the browser module was loaded from, and the
-   * environment of the server.
-   *
-   * @param startTimeoutMillis how long a helper may take until the page shows
-   * @param extraJvmOptions    options added to the JVM of the helper
-   * @return the launcher
-   * @throws PlayerException if a class the helper needs was not loaded from a file
-   */
-  static HelperLauncher createDefault(final long startTimeoutMillis, final List<String> extraJvmOptions) {
+  static HelperLauncher createDefault(final long startTimeoutMilliseconds, final List<String> extraJvmOptions) {
     final String javaHome = System.getProperty("java.home");
     final Os os = OsUtils.getOs();
-    final Path java = Path.of(javaHome, "bin", javaExecutable(os));
+    final Path java = Path.of(javaHome, BIN_FOLDER, javaExecutable(os));
     final Set<Path> entries = new LinkedHashSet<>();
     entries.add(locate(BrowserHelper.class));
     entries.add(locate(CefApp.class));
     entries.add(locate(CefAppBuilder.class));
     final List<Path> classPath = new ArrayList<>(entries);
     final Map<String, String> environment = System.getenv();
-    return new HelperLauncher(java, MAIN_CLASS, classPath, extraJvmOptions, os, environment, startTimeoutMillis);
+    return new HelperLauncher(java, MAIN_CLASS, classPath, extraJvmOptions, os, environment, startTimeoutMilliseconds);
   }
 
-  /**
-   * Finds the jar or folder a class was loaded from.
-   *
-   * @param type the class
-   * @return the jar or folder
-   * @throws PlayerException if the class was not loaded from a file
-   */
+  static String javaExecutable(final Os os) {
+    return os == Os.WINDOWS ? WINDOWS_JAVA_EXECUTABLE : JAVA_EXECUTABLE;
+  }
+
   @VisibleForTesting
   static Path locate(final Class<?> type) {
     final ProtectionDomain domain = type.getProtectionDomain();
     final CodeSource source = domain.getCodeSource();
     final URL location = source == null ? null : source.getLocation();
     if (location == null) {
-      throw new PlayerException("The browser helper cannot find where " + type.getName() + " was loaded from");
+      final String className = type.getName();
+      final String message = "The browser helper cannot find where %s was loaded from!".formatted(className);
+      throw new BrowserException(message);
     }
+
     try {
       return Path.of(location.toURI());
     } catch (final URISyntaxException | IllegalArgumentException | FileSystemNotFoundException exception) {
-      throw new PlayerException("The browser helper cannot use " + location + " as its class path", exception);
+      final String message = "The browser helper cannot use %s as its class path!".formatted(location);
+      throw new BrowserException(message, exception);
     }
   }
 
-  /**
-   * Builds the command line of a helper.
-   *
-   * @param folder the private folder of the session, where the helper keeps its temporary files
-   * @return the command line
-   */
   List<String> createCommand(final Path folder) {
     final List<String> command = new ArrayList<>();
     command.add(this.java.toString());
-    command.add("-Djava.awt.headless=true");
-    command.add("--enable-native-access=ALL-UNNAMED");
-    command.add("-Xmx512m");
-    command.add("-XX:+UseSerialGC");
-    command.add("-XX:+DisableAttachMechanism");
-    command.add("-Dfile.encoding=UTF-8");
-    command.add("-Djava.io.tmpdir=" + folder);
+    command.add(HEADLESS_SWITCH);
+    command.add(NATIVE_ACCESS_SWITCH);
+    command.add(MAXIMUM_HEAP_SWITCH);
+    command.add(SERIAL_COLLECTOR_SWITCH);
+    command.add(NO_ATTACH_SWITCH);
+    command.add(ENCODING_SWITCH);
+    command.add(TEMPORARY_FOLDER_SWITCH + folder);
     command.addAll(this.extraJvmOptions);
-    command.add("-cp");
+    command.add(CLASS_PATH_SWITCH);
     final List<String> entries = new ArrayList<>();
     for (final Path entry : this.classPath) {
       entries.add(entry.toString());
     }
+
     command.add(String.join(File.pathSeparator, entries));
     command.add(this.mainClass);
+
     return command;
   }
 
-  /**
-   * Builds the environment of a helper: the kept variables of the server, on Linux the authority file of the helper's
-   * null display, which X clients read, the folder of the session as the temporary folder and the folder of user data,
-   * and the libraries the server lacks, and on macOS the folder of the session as the temporary folder. No display of
-   * the server is passed on.
-   *
-   * @param folder    the private folder of the session
-   * @param libraries the folder of the libraries the server lacks on Linux, or null
-   * @return the environment
-   */
+  // no display of the server is passed on
   Map<String, String> createEnvironment(final Path folder, final @Nullable Path libraries) {
     final Map<String, String> kept = HelperEnvironment.filter(this.environment);
     if (this.os == Os.LINUX) {
-      final Path authority = authorityOf(folder);
-      kept.put("XAUTHORITY", authority.toString());
-      // TMPDIR and XDG_DATA_HOME must keep Chromium temporary files and certificates inside its writable sandbox.
-      kept.put("TMPDIR", folder.toString());
-      kept.put("XDG_DATA_HOME", folder.toString());
+      final Path authority = this.authorityOf(folder);
+      kept.put(AUTHORITY_VARIABLE, authority.toString());
+      // keeps the temporary files and certificates of Chromium inside its writable sandbox
+      kept.put(TEMPORARY_FOLDER_VARIABLE, folder.toString());
+      kept.put(DATA_HOME_VARIABLE, folder.toString());
     }
+
     if (this.os == Os.MAC) {
-      // Chromium writes temporary files as it starts, where a confined Chromium may write: MAC_CHROMIUM_TMPDIR is the
-      // temporary folder Chromium asks for first on macOS
-      kept.put("TMPDIR", folder.toString());
-      kept.put("MAC_CHROMIUM_TMPDIR", folder.toString());
+      // MAC_CHROMIUM_TMPDIR is where Chromium writes first on macOS, inside the confinement
+      kept.put(TEMPORARY_FOLDER_VARIABLE, folder.toString());
+      kept.put(MAC_TEMPORARY_FOLDER_VARIABLE, folder.toString());
     }
+
     if (libraries != null) {
-      kept.put("LD_LIBRARY_PATH", libraries.toString());
+      kept.put(LIBRARY_PATH_VARIABLE, libraries.toString());
     }
+
     return kept;
   }
 
-  /**
-   * Gets the X authority file of a session, which the helper writes and its X clients read.
-   *
-   * @param folder the folder of the session
-   * @return the file
-   */
-  private static Path authorityOf(final Path folder) {
+  private Path authorityOf(final Path folder) {
     return folder.resolve(NullDisplay.AUTHORITY_FILE);
   }
 
-  /**
-   * Creates a launcher like this one whose helpers also get the libraries the server lacks.
-   *
-   * @param linker links the libraries into the folder of a session
-   * @return the launcher
-   */
   HelperLauncher withLibraries(final LibraryLinker linker) {
     return new HelperLauncher(
       this.java,
@@ -245,18 +199,11 @@ final class HelperLauncher {
       this.extraJvmOptions,
       this.os,
       this.environment,
-      this.startTimeoutMillis,
+      this.startTimeoutMilliseconds,
       linker
     );
   }
 
-  /**
-   * Links the libraries the server lacks into the folder of a session, if this launcher brings any.
-   *
-   * @param folder the folder of the session
-   * @return the folder of the libraries, or null if this launcher brings none
-   * @throws IOException if they cannot be linked
-   */
   @Nullable Path linkLibraries(final Path folder) throws IOException {
     final LibraryLinker linker = this.libraries;
     return linker == null ? null : linker.link(folder);
@@ -266,26 +213,16 @@ final class HelperLauncher {
     return this.java;
   }
 
-  long getStartTimeoutMillis() {
-    return this.startTimeoutMillis;
+  long getStartTimeoutMilliseconds() {
+    return this.startTimeoutMilliseconds;
   }
 
   Os getOs() {
     return this.os;
   }
 
-  /**
-   * Links the libraries a server lacks into a folder of a session.
-   */
   @FunctionalInterface
   interface LibraryLinker {
-    /**
-     * Links the libraries.
-     *
-     * @param session the folder of the session
-     * @return the folder of the links, which becomes the helper's library path
-     * @throws IOException if a link cannot be created
-     */
-    Path link(Path session) throws IOException;
+    Path link(final Path session) throws IOException;
   }
 }

@@ -22,16 +22,21 @@ import { test } from "node:test";
 import vm from "node:vm";
 
 const PAGE = new URL("../src/app/page.tsx", import.meta.url);
-const CONSTANT_DECLARATION = /^const [A-Z][A-Z0-9_]*: .+;$/gm;
 const ENCODING = "utf8";
+
+const CONSTANT_DECLARATION = /^const [A-Z][A-Z0-9_]*: .+;$/gm;
 const DECLARATION_END = "\n};";
+
 const DECLARATIONS = [
-    "unknownMediaInformation",
+    "UNKNOWN_MEDIA_INFORMATION",
     "toMediaInformation",
     "readMediaInformation",
     "reportMediaInformationFailure",
     "loadMediaInformation"
 ];
+
+const LINE_SEPARATOR = "\n";
+const NAME_SEPARATOR = ", ";
 
 const MEDIA_PATH = "/media";
 
@@ -49,6 +54,7 @@ class FakeServer {
 
     fetch(path) {
         this.requestedPaths.push(path);
+
         return this.answer();
     }
 }
@@ -61,11 +67,12 @@ const sliceDeclaration = (source, name) => {
     return source.slice(start, end);
 };
 
-const pageMediaInformation = () => {
+const buildMediaInformationScript = () => {
     const source = readFileSync(PAGE, ENCODING);
-    const constants = source.match(CONSTANT_DECLARATION).join("\n");
-    const declarations = DECLARATIONS.map(name => sliceDeclaration(source, name)).join("\n");
-    return stripTypeScriptTypes(`${constants}\n${declarations}\n({${DECLARATIONS.join(", ")}});`);
+    const constants = source.match(CONSTANT_DECLARATION).join(LINE_SEPARATOR);
+    const declarations = DECLARATIONS.map(name => sliceDeclaration(source, name)).join(LINE_SEPARATOR);
+    const pageExports = `({${DECLARATIONS.join(NAME_SEPARATOR)}});`;
+    return stripTypeScriptTypes([constants, declarations, pageExports].join(LINE_SEPARATOR));
 };
 
 const loadPage = server => {
@@ -74,7 +81,7 @@ const loadPage = server => {
         fetch: path => server.fetch(path),
         console: {error: (...report) => errors.push(report)},
     });
-    const page = vm.runInContext(pageMediaInformation(), context, {filename: PAGE.pathname});
+    const page = vm.runInContext(buildMediaInformationScript(), context, {filename: PAGE.pathname});
     return {...page, reportedErrors: () => errors};
 };
 
@@ -150,14 +157,14 @@ test("should fall back to the unknown media information when the server sends no
     const page = loadPage(serverSending(null));
 
     return page.loadMediaInformation()
-        .then(information => assert.deepEqual(information, page.unknownMediaInformation));
+        .then(information => assert.deepEqual(information, page.UNKNOWN_MEDIA_INFORMATION));
 });
 
 test("should fall back to the unknown media information when the server answers with an error", () => {
     const page = loadPage(serverAnsweringWithAnError());
 
     return page.loadMediaInformation()
-        .then(information => assert.equal(information, page.unknownMediaInformation));
+        .then(information => assert.equal(information, page.UNKNOWN_MEDIA_INFORMATION));
 });
 
 test("should report no failure when the server answers with an error", () => {
@@ -173,7 +180,7 @@ test("should fall back to the unknown media information when the request fails",
     const page = loadPage(unreachableServer(failure));
 
     return page.loadMediaInformation()
-        .then(information => assert.equal(information, page.unknownMediaInformation));
+        .then(information => assert.equal(information, page.UNKNOWN_MEDIA_INFORMATION));
 });
 
 test("should report a request that fails", () => {

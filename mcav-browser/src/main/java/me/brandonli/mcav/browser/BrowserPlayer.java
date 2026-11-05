@@ -31,10 +31,10 @@ import me.brandonli.mcav.utils.interaction.MouseClick;
  * Streams a web page as video and forwards mouse and keyboard input to it.
  *
  * <p>The page is rendered by Chromium through JCEF, the Java binding of the Chromium Embedded Framework, in a helper
- * process that mcav starts for every started player, so the server's JVM needs no options at all and a crash of the
+ * process that MCAV starts for every started player, so the server's JVM needs no options at all and a crash of the
  * browser never takes the server with it. Chromium hands every painted frame over as plain pixels, so frames arrive
  * only when the page changes and need no image decoding. The first start on a machine downloads the CEF build for it
- * (about 150 MB, from Maven Central, verified against a pinned hash) into mcav's cache folder. On Linux the browser
+ * (about 150 MB, from Maven Central, verified against a pinned hash) into MCAV's cache folder. On Linux the browser
  * needs no X server and nothing installed but a full Java runtime: it draws on Chromium's headless platform, and the
  * first start also downloads the shared libraries CEF needs that the server lacks (about 13 MB of Debian 11 packages,
  * each verified against a pinned hash), which only the browser's own process uses.
@@ -43,15 +43,23 @@ import me.brandonli.mcav.utils.interaction.MouseClick;
  * {@link #getAudioAttachableCallback()}); sound of frames of another site, which Chromium runs in another process, of
  * media from another site that does not allow it (CORS), and of protected media, stays silent.
  *
- * <pre>{@code
- *   final BrowserPlayer browser = BrowserPlayer.create();
- *   final VideoAttachableCallback video = browser.getVideoAttachableCallback();
- *   video.attach(pipeline);
- *   final URI page = URI.create("https://example.com");
- *   final BrowserSource source = BrowserSource.uri(page, 1280, 720, 1);
- *   browser.start(source);
- *   browser.sendMouseEvent(MouseClick.LEFT, 640, 360);
- * }</pre>
+ * {@snippet :
+ * final int width = 1280;
+ * final int height = 720;
+ * final int frameInterval = 1;
+ * final URI page = URI.create("https://example.com");
+ * final BrowserSource source = BrowserSource.uri(page, width, height, frameInterval);
+ * final BrowserPlayer browser = BrowserPlayer.create();
+ * final VideoAttachableCallback video = browser.getVideoAttachableCallback();
+ * video.attach(pipeline);
+ * browser.start(source);
+ *
+ * final int clickX = 640;
+ * final int clickY = 360;
+ * browser.sendMouseEvent(MouseClick.LEFT, clickX, clickY);
+ * // when finished
+ * browser.release();
+ * }
  *
  * <p>The page is untrusted content running without the Chromium sandbox, which JCEF cannot use, so the browser only
  * shows {@code http} and {@code https} pages, opens popups in place, refuses downloads, file choosers and external
@@ -68,23 +76,18 @@ import me.brandonli.mcav.utils.interaction.MouseClick;
  * also closes registered helpers and blocks new ones until module startup. Attached filters remain caller-owned.
  * Video and audio callbacks run on background threads; images are closed after the video callback, so copy
  * anything retained beyond the callback. Exception handlers must be fast and must not throw.
+ *
+ * <p>Players are thread-safe: {@link #start(BrowserSource)}, {@link #release()} and the input methods may be called
+ * from any thread.
+ *
+ * @since 1.0.0
  */
 public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {
-  /**
-   * Checks whether the browser can run on the operating system and processor of this machine: there are CEF builds for
-   * 64-bit Windows, Linux and macOS, on x86-64 and ARM processors. A start on such a machine can still fail with a
-   * {@link BrowserUnavailableException}, for example when the download fails.
-   *
-   * @return true if there is a CEF build for this machine
-   */
-  static boolean isSupported() {
-    return JcefNatives.isSupported();
-  }
-
   /**
    * Creates a player with the {@link BrowserOptions#DEFAULT default options}.
    *
    * @return the player
+   * @since 1.0.0
    */
   static BrowserPlayer create() {
     return create(BrowserOptions.DEFAULT);
@@ -96,10 +99,24 @@ public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {
    * @param options the non-null immutable policy and frame-rate options
    * @return a new idle player; native installation and helper startup are deferred to {@link #start(BrowserSource)}
    * @throws NullPointerException if {@code options} is null
+   * @since 1.0.0
    */
   static BrowserPlayer create(final BrowserOptions options) {
-    Preconditions.checkNotNull(options, "Options must not be null");
+    Preconditions.checkNotNull(options, "Options must not be null!");
+
     return new CefBrowserPlayer(options);
+  }
+
+  /**
+   * Returns whether the browser can run on the operating system and processor of this machine: there are CEF builds for
+   * 64-bit Windows, Linux and macOS, on x86-64 and ARM processors. A start on such a machine can still fail with a
+   * {@link BrowserUnavailableException}, for example when the download fails.
+   *
+   * @return true if there is a CEF build for this machine
+   * @since 1.0.0
+   */
+  static boolean isSupported() {
+    return JcefNatives.isSupported();
   }
 
   /**
@@ -110,9 +127,10 @@ public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {
    * @param source the non-null page address, output dimensions and painted-frame interval
    * @return true if streaming started; false if already playing or released, or if the helper ended
    *         while startup was being handed over to the player (also reported to the exception handler)
-   * @throws me.brandonli.mcav.media.player.PlayerException if the browser cannot be installed or started, or the page
-   *                                                        cannot be loaded, or the browser module is stopped
+   * @throws BrowserException     if the browser cannot be installed or started, or the page cannot be loaded, or the
+   *                              browser module is stopped
    * @throws NullPointerException if {@code source} is null
+   * @since 1.0.0
    */
   boolean start(final BrowserSource source);
 
@@ -124,11 +142,12 @@ public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {
    * @return a future that completes with the startup result, or exceptionally if startup throws; cancelling
    *         the future does not release the player or stop its helper
    * @throws java.util.concurrent.RejectedExecutionException if the executor refuses the startup task
-   * @throws NullPointerException if {@code source} or {@code executor} is null
+   * @throws NullPointerException                            if {@code source} or {@code executor} is null
+   * @since 1.0.0
    */
   default CompletableFuture<Boolean> startAsync(final BrowserSource source, final ExecutorService executor) {
-    Preconditions.checkNotNull(source, "Source must not be null");
-    Preconditions.checkNotNull(executor, "Executor must not be null");
+    Preconditions.checkNotNull(source, "Source must not be null!");
+    Preconditions.checkNotNull(executor, "Executor must not be null!");
     return CompletableFuture.supplyAsync(() -> this.start(source), executor);
   }
 
@@ -139,9 +158,10 @@ public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {
    * @return a future that completes with the startup result, or exceptionally if startup throws; cancelling
    *         the future does not release the player or stop its helper
    * @throws NullPointerException if {@code source} is null
+   * @since 1.0.0
    */
   default CompletableFuture<Boolean> startAsync(final BrowserSource source) {
-    Preconditions.checkNotNull(source, "Source must not be null");
+    Preconditions.checkNotNull(source, "Source must not be null!");
     final ForkJoinPool pool = ForkJoinPool.commonPool();
     return this.startAsync(source, pool);
   }
@@ -151,6 +171,7 @@ public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {
    *
    * @param pageX the horizontal pixel coordinate from the left edge, clamped to the page
    * @param pageY the vertical pixel coordinate from the top edge, clamped to the page
+   * @since 1.0.0
    */
   void moveMouse(final int pageX, final int pageY);
 
@@ -161,6 +182,7 @@ public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {
    * @param pageX the horizontal pixel coordinate from the left edge, clamped to the page
    * @param pageY the vertical pixel coordinate from the top edge, clamped to the page
    * @throws NullPointerException if {@code type} is null, even while not playing
+   * @since 1.0.0
    */
   void sendMouseEvent(final MouseClick type, final int pageX, final int pageY);
 
@@ -171,6 +193,7 @@ public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {
    * @param pageY  the vertical pixel coordinate from the top edge, clamped to the page
    * @param deltaX how far to scroll right in pixels, negative to scroll left; clamped to -32768 through 32767
    * @param deltaY how far to scroll down in pixels, negative to scroll up; clamped to -32768 through 32767
+   * @since 1.0.0
    */
   void scroll(final int pageX, final int pageY, final int deltaX, final int deltaY);
 
@@ -180,31 +203,35 @@ public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {
    *
    * @param text the non-null text or key name; long text is split into protocol messages in order
    * @throws NullPointerException if {@code text} is null, even while not playing
+   * @since 1.0.0
    */
   void sendKeyEvent(final String text);
 
   /**
-   * Checks whether a page is being streamed.
+   * Returns whether a page is being streamed.
    *
    * @return true between a successful {@link #start(BrowserSource)} and {@link #release()} or the loss of the browser
+   * @since 1.0.0
    */
   boolean isPlaying();
 
   /**
-   * Gets the slot that holds the video pipeline the frames are sent through.
+   * Returns the slot that holds the video pipeline the frames are sent through.
    *
    * @return the video pipeline slot
+   * @since 1.0.0
    */
   VideoAttachableCallback getVideoAttachableCallback();
 
   /**
-   * Gets the slot that holds the audio pipeline the sound of the page is sent through, as 16-bit little-endian stereo
-   * samples at 48 kHz like the sound of every mcav player. As in a desktop browser, a page may play sound only once
+   * Returns the slot that holds the audio pipeline the sound of the page is sent through, as 16-bit little-endian stereo
+   * samples at 48 kHz like the sound of every MCAV player. As in a desktop browser, a page may play sound only once
    * someone clicked or typed into it, such as a player who clicks the screen, unless {@link BrowserOptions#isAutoplay()};
-   * mcav holds the sound of every page back until a press on that page as well, so a page written to get around the
+   * MCAV holds the sound of every page back until a press on that page as well, so a page written to get around the
    * browser's rule plays nothing earlier. Nothing plays on the server's speakers.
    *
    * @return the audio pipeline slot
+   * @since 1.0.0
    */
   AudioAttachableCallback getAudioAttachableCallback();
 }

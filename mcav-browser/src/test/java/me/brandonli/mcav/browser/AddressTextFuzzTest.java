@@ -24,39 +24,40 @@ import com.code_intelligence.jazzer.api.FuzzedDataProvider;
 import com.code_intelligence.jazzer.junit.FuzzTest;
 import org.junit.jupiter.api.Tag;
 
-/**
- * Fuzzes the description of the addresses a page can make the browser report. It never throws; whatever follows a
- * query or fragment mark in the description is the marker and nothing else, a user name is never shown, and an address
- * without a host is shown by its scheme only.
- */
 @Tag("fuzz")
 final class AddressTextFuzzTest {
 
   @FuzzTest(maxDuration = "30s")
-  void neverShowsTheUserTheQueryOrTheFragment(final FuzzedDataProvider data) {
+  void shouldNeverShowTheUserTheQueryOrTheFragment(final FuzzedDataProvider data) {
     final String address = data.consumeRemainingAsString();
     final String described = AddressText.describe(address);
-    final int mark = indexOfAny(described, "?#");
+    final int mark = this.indexOfAny(described, "?#");
     if (mark >= 0) {
-      assertEquals(AddressText.HIDDEN, described.substring(mark + 1), described);
+      final String textAfterMark = described.substring(mark + 1);
+      assertEquals(AddressText.HIDDEN, textAfterMark, described);
     }
+
     final int user = described.indexOf('@');
     final int separator = described.indexOf("://");
-    final int authorityEnd = separator < 0 ? -1 : indexOfAny(described.substring(separator + 3), "/?#");
+    final int authorityEnd = separator < 0 ? -1 : this.indexOfAny(described.substring(separator + 3), "/?#");
     if (user >= 0 && separator >= 0 && (authorityEnd < 0 || user < separator + 3 + authorityEnd) && user > separator) {
-      assertTrue(described.startsWith(AddressText.HIDDEN + "@", separator + 3), described);
+      final boolean hidesTheUserInformation = described.startsWith(AddressText.HIDDEN + "@", separator + 3);
+      assertTrue(hidesTheUserInformation, described);
     }
+
     if (separator < 0) {
-      assertTrue(described.endsWith(AddressText.HIDDEN), described);
+      final boolean endsHidden = described.endsWith(AddressText.HIDDEN);
+      assertTrue(endsHidden, described);
     }
   }
 
-  private static int indexOfAny(final String text, final String characters) {
+  private int indexOfAny(final String text, final String characters) {
     for (int index = 0; index < text.length(); index++) {
       if (characters.indexOf(text.charAt(index)) >= 0) {
         return index;
       }
     }
+
     return -1;
   }
 }

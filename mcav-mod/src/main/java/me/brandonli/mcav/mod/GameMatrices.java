@@ -32,8 +32,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 // found by name, once, and read through JOML's Externalizable form, sixteen floats column by column
 final class GameMatrices {
 
-  // a 4x4 matrix
-  private static final int FLOATS = 16;
+  static final int FLOATS_PER_MATRIX = 16;
 
   private static final String POSE_METHOD = "pose";
 
@@ -44,7 +43,6 @@ final class GameMatrices {
   private static final String NOT_A_MATRIX = "Matrix %s is not a JOML 4x4 float matrix!";
 
   private final Method pose;
-
   private final Field viewRotation;
 
   GameMatrices(final Method pose, final Field viewRotation) {
@@ -59,11 +57,16 @@ final class GameMatrices {
   // tried once, so a game whose matrices cannot be read gets no reader instead of failing while it renders
   static Optional<GameMatrices> find(final Class<?> poses, final String poseMethod, final Class<?> cameras, final String rotationField) {
     try {
-      final GameMatrices matrices = new GameMatrices(poses.getMethod(poseMethod), cameras.getField(rotationField));
+      final Method pose = poses.getMethod(poseMethod);
+      final Field viewRotation = cameras.getField(rotationField);
+      final GameMatrices matrices = new GameMatrices(pose, viewRotation);
       final PoseStack stack = new PoseStack();
-      final PoseStack.Pose pose = stack.last();
-      matrices.pose(pose);
-      matrices.viewRotation(new CameraRenderState());
+      final PoseStack.Pose lastPose = stack.last();
+      matrices.readPose(lastPose);
+
+      final CameraRenderState camera = new CameraRenderState();
+      matrices.readViewRotation(camera);
+
       return Optional.of(matrices);
     } catch (final NoSuchMethodException | NoSuchFieldException | IllegalStateException exception) {
       return Optional.empty();
@@ -71,33 +74,35 @@ final class GameMatrices {
   }
 
   // column-major
-  float[] pose(final PoseStack.Pose pose) {
+  float[] readPose(final PoseStack.Pose pose) {
     try {
-      return floats(this.pose.invoke(pose));
+      final @Nullable Object matrix = this.pose.invoke(pose);
+      return readFloats(matrix);
     } catch (final IllegalAccessException | InvocationTargetException | IllegalArgumentException exception) {
       throw new IllegalStateException(UNREADABLE, exception);
     }
   }
 
   // column-major
-  float[] viewRotation(final CameraRenderState camera) {
+  float[] readViewRotation(final CameraRenderState camera) {
     try {
-      return floats(this.viewRotation.get(camera));
+      final @Nullable Object matrix = this.viewRotation.get(camera);
+      return readFloats(matrix);
     } catch (final IllegalAccessException | IllegalArgumentException exception) {
       throw new IllegalStateException(UNREADABLE, exception);
     }
   }
 
   // the floats of a JOML 4x4 float matrix, column-major
-  static float[] floats(final @Nullable Object matrix) {
-    if (!(matrix instanceof final Externalizable serialisable)) {
+  static float[] readFloats(final @Nullable Object matrix) {
+    if (!(matrix instanceof final Externalizable serializable)) {
       final String message = NOT_A_MATRIX.formatted(matrix);
       throw new IllegalStateException(message);
     }
 
     try {
       final MatrixFloats floats = new MatrixFloats();
-      serialisable.writeExternal(floats);
+      serializable.writeExternal(floats);
       return floats.values();
     } catch (final IOException exception) {
       final String message = NOT_A_MATRIX.formatted(matrix);
@@ -110,26 +115,29 @@ final class GameMatrices {
 
     private static final String NOT_FLOATS = "A 4x4 float matrix must write 16 floats and nothing else!";
 
-    private final float[] values = new float[FLOATS];
+    private final float[] values;
 
     private int written;
 
     private MatrixFloats() throws IOException {
       super();
+      this.values = new float[FLOATS_PER_MATRIX];
     }
 
     @Override
     public void writeFloat(final float value) throws IOException {
-      if (this.written == FLOATS) {
+      if (this.written == FLOATS_PER_MATRIX) {
         throw new IOException(NOT_FLOATS);
       }
+
       this.values[this.written++] = value;
     }
 
     private float[] values() throws IOException {
-      if (this.written != FLOATS) {
+      if (this.written != FLOATS_PER_MATRIX) {
         throw new IOException(NOT_FLOATS);
       }
+
       return this.values;
     }
   }

@@ -24,9 +24,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
-/**
- * Tests {@link AddressText}.
- */
 final class AddressTextTest {
 
   @ParameterizedTest
@@ -77,17 +74,19 @@ final class AddressTextTest {
       "Az://host|Az://host",
     }
   )
-  void describesAnAddressWithoutThePartsThatMayHoldSecrets(final String address, final String described) {
-    assertEquals(described, AddressText.describe(address));
+  void shouldDescribeAnAddressWithoutThePartsThatMayHoldSecrets(final String address, final String described) {
+    final String description = AddressText.describe(address);
+    assertEquals(described, description);
   }
 
   @Test
-  void anEmptyTextIsHidden() {
-    assertEquals(AddressText.HIDDEN, AddressText.describe(""));
+  void shouldHideAnEmptyText() {
+    final String description = AddressText.describe("");
+    assertEquals(AddressText.HIDDEN, description);
   }
 
   @Test
-  void theTextIsNotInstantiable() {
+  void shouldNotInstantiateTheText() {
     UtilityClassAssertions.assertNotInstantiable(AddressText.class);
   }
 }

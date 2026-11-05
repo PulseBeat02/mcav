@@ -31,15 +31,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
-/**
- * Confines its process as a helper on macOS does, for the server folder, socket and natives of its first three
- * arguments, and then reads the files of the next two, writes into the folder of the session and the file of the last
- * argument, starts {@code cat} on the first file, and asks the system whether the process is in a sandbox.
- */
+// Confines its process as a macOS helper does, tries reads, writes and a child process, and asks whether it is in a
+// sandbox.
 final class SeatbeltProbeMain {
 
   private SeatbeltProbeMain() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   public static void main(final String[] arguments) throws Throwable {
@@ -62,7 +59,7 @@ final class SeatbeltProbeMain {
       server,
       List.of()
     );
-    System.out.println("said " + ChromiumConfinement.confine(configuration, false, true));
+    System.out.println("said " + ChromiumConfinement.confine(configuration, OperatingSystem.MAC));
     System.out.println("server folder: " + read(Path.of(arguments[3])));
     System.out.println("other session: " + read(Path.of(arguments[4])));
     Files.writeString(socket.resolveSibling("profile.txt"), "profile", StandardCharsets.UTF_8);
@@ -77,18 +74,20 @@ final class SeatbeltProbeMain {
   private static String read(final Path file) {
     try {
       Files.readString(file, StandardCharsets.UTF_8);
+
       return "read";
-    } catch (final IOException failure) {
-      return describe(failure);
+    } catch (final IOException exception) {
+      return describe(exception);
     }
   }
 
   private static String write(final Path file) {
     try {
       Files.writeString(file, "outside", StandardCharsets.UTF_8);
+
       return "written";
-    } catch (final IOException failure) {
-      return describe(failure);
+    } catch (final IOException exception) {
+      return describe(exception);
     }
   }
 
@@ -100,6 +99,7 @@ final class SeatbeltProbeMain {
     return refused ? "denied" : "failed: " + failure;
   }
 
+  // sandbox_check is called through the restricted native linker; the probe runs with native access enabled
   @SuppressWarnings("restricted")
   private static int sandboxCheck() throws Throwable {
     final Linker linker = Linker.nativeLinker();

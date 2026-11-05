@@ -99,7 +99,7 @@ public final class JulServiceProvider implements SLF4JServiceProvider {
   /**
    * Returns the version of the SLF4J API this provider is written against.
    *
-   * @return {@value #API_VERSION}
+   * @return the API version {@code 2.0.99}
    * @since 1.0.0
    */
   @Override

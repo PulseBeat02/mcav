@@ -82,10 +82,12 @@ final class JulServiceProviderTest {
     logger.error(ERROR, 5, failure);
 
     final List<Level> levels = this.records.stream().map(LogRecord::getLevel).toList();
-    assertEquals(List.of(Level.FINEST, Level.FINE, Level.INFO, Level.WARNING, Level.SEVERE), levels);
+    final List<Level> expectedLevels = List.of(Level.FINEST, Level.FINE, Level.INFO, Level.WARNING, Level.SEVERE);
+    assertEquals(expectedLevels, levels);
 
     final List<String> messages = this.records.stream().map(LogRecord::getMessage).toList();
-    assertEquals(List.of("trace 1", "debug 2", "info 3 4", "warn", "error 5"), messages);
+    final List<String> expectedMessages = List.of("trace 1", "debug 2", "info 3 4", "warn", "error 5");
+    assertEquals(expectedMessages, messages);
 
     final LogRecord last = this.records.getLast();
     final Throwable thrown = last.getThrown();
@@ -160,6 +162,7 @@ final class JulServiceProviderTest {
     }
 
     final List<String> messages = this.records.stream().map(LogRecord::getMessage).toList();
-    assertEquals(List.of("from the jar 6"), messages);
+    final List<String> expectedMessages = List.of("from the jar 6");
+    assertEquals(expectedMessages, messages);
   }
 }

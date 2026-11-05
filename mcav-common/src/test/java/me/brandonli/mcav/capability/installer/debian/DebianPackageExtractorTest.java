@@ -250,6 +250,24 @@ final class DebianPackageExtractorTest {
   }
 
   @Test
+  void shouldRefuseANullArchive() {
+    final NullPointerException failure = assertThrows(NullPointerException.class, () ->
+      DebianPackageExtractor.extract(null, this.destination)
+    );
+
+    final String message = failure.getMessage();
+    assertEquals("Archive must not be null!", message);
+  }
+
+  @Test
+  void shouldRefuseANullDestination() {
+    final NullPointerException failure = assertThrows(NullPointerException.class, () -> DebianPackageExtractor.extract(this.archive, null));
+
+    final String message = failure.getMessage();
+    assertEquals("Destination must not be null!", message);
+  }
+
+  @Test
   void shouldRefuseAFileThatIsNotAnArArchive() {
     final byte[] notAPackage = "not a package".getBytes(StandardCharsets.US_ASCII);
 
@@ -542,7 +560,8 @@ final class DebianPackageExtractorTest {
   }
 
   private void extract(final byte[] debianPackage) {
-    this.extract(debianPackage, TREES);
+    this.writeArchive(debianPackage);
+    DebianPackageExtractor.extract(this.archive, this.destination);
   }
 
   private void extract(final byte[] debianPackage, final List<String> trees) {

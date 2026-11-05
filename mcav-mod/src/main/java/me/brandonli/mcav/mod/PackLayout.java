@@ -19,8 +19,11 @@ package me.brandonli.mcav.mod;
 
 import static java.util.Objects.requireNonNull;
 
+import com.google.common.base.MoreObjects;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -60,9 +63,7 @@ final class PackLayout {
   private static final String ELEMENTS_END = "\\);";
 
   private final long[] streams;
-
   private final int[] slots;
-
   private final int[] firstSlots;
 
   private PackLayout(final long[] streams, final int[] slots, final int[] firstSlots) {
@@ -84,30 +85,31 @@ final class PackLayout {
       return Optional.empty();
     }
 
-    final long @Nullable [] streams = numbers(packConstants, STREAMS, count, UNSIGNED, MAXIMUM_STREAM);
-    final long @Nullable [] slots = numbers(packConstants, SLOTS, count, SIGNED, MAXIMUM_SLOTS);
-    final long @Nullable [] firstSlots = numbers(packConstants, FIRST_SLOTS, count, SIGNED, MAXIMUM_SCREENS * MAXIMUM_SLOTS);
+    final long @Nullable [] streams = parseNumbers(packConstants, STREAMS, count, UNSIGNED, MAXIMUM_STREAM);
+    final long @Nullable [] slots = parseNumbers(packConstants, SLOTS, count, SIGNED, MAXIMUM_SLOTS);
+    final long @Nullable [] firstSlots = parseNumbers(packConstants, FIRST_SLOTS, count, SIGNED, MAXIMUM_SCREENS * MAXIMUM_SLOTS);
     if (streams == null || slots == null || firstSlots == null) {
       return Optional.empty();
     }
 
     final int[] slotCounts = toIntegers(slots);
-    final int[] firsts = toIntegers(firstSlots);
-    if (!areSlotsBackToBack(slotCounts, firsts)) {
+    final int[] firstSlotIndexes = toIntegers(firstSlots);
+    if (!areSlotsBackToBack(slotCounts, firstSlotIndexes)) {
       return Optional.empty();
     }
 
-    return Optional.of(new PackLayout(streams, slotCounts, firsts));
+    final PackLayout layout = new PackLayout(streams, slotCounts, firstSlotIndexes);
+    return Optional.of(layout);
   }
 
-  private static long @Nullable [] numbers(
+  private static long @Nullable [] parseNumbers(
     final String packConstants,
     final String declaration,
     final int count,
     final String element,
     final long maximum
   ) {
-    final Pattern list = listPattern(declaration, count, element);
+    final Pattern list = compileListPattern(declaration, count, element);
     final Matcher matcher = list.matcher(packConstants);
     if (!matcher.find()) {
       return null;
@@ -121,13 +123,15 @@ final class PackLayout {
         return null;
       }
     }
+
     return values;
   }
 
-  private static Pattern listPattern(final String declaration, final int count, final String element) {
+  private static Pattern compileListPattern(final String declaration, final int count, final String element) {
     final String quoted = Pattern.quote(declaration);
     final String length = LENGTH_START + count + LENGTH_END;
-    final String elements = String.join(SEPARATOR, Collections.nCopies(count, element));
+    final List<String> elementPatterns = Collections.nCopies(count, element);
+    final String elements = String.join(SEPARATOR, elementPatterns);
     final String expression = DECLARATION_START + quoted + length + CONSTRUCTOR + length + ELEMENTS_START + elements + ELEMENTS_END;
     return Pattern.compile(expression);
   }
@@ -144,39 +148,75 @@ final class PackLayout {
       }
       total += slotCounts[screen];
     }
+
     return true;
   }
 
-  int stripRows(final int width) {
-    return this.totalSlots() * rowsPerPage(width) + this.screens();
+  int getStripRows(final int width) {
+    return this.getTotalSlots() * getRowsPerPage(width) + this.getScreenCount();
   }
 
-  static int rowsPerPage(final int width) {
+  static int getRowsPerPage(final int width) {
     return (PAGE_PIXELS + width - 1) / width;
   }
 
-  int screenOf(final long stream) {
+  int findScreen(final long stream) {
     for (int screen = 0; screen < this.streams.length; screen++) {
       if (this.streams[screen] == stream) {
         return screen;
       }
     }
+
     return NO_SCREEN;
   }
 
-  int slots(final int screen) {
+  int getSlotCount(final int screen) {
     return this.slots[screen];
   }
 
-  int firstSlot(final int screen) {
+  int getFirstSlot(final int screen) {
     return this.firstSlots[screen];
   }
 
-  int screens() {
+  int getScreenCount() {
     return this.streams.length;
   }
 
-  int totalSlots() {
+  int getTotalSlots() {
     return Arrays.stream(this.slots).sum();
+  }
+
+  @Override
+  public boolean equals(final @Nullable Object other) {
+    if (this == other) {
+      return true;
+    }
+
+    if (!(other instanceof final PackLayout layout)) {
+      return false;
+    }
+
+    return (
+      Arrays.equals(this.streams, layout.streams) &&
+      Arrays.equals(this.firstSlots, layout.firstSlots) &&
+      Arrays.equals(this.slots, layout.slots)
+    );
+  }
+
+  @Override
+  public int hashCode() {
+    final int streamsHash = Arrays.hashCode(this.streams);
+    final int slotsHash = Arrays.hashCode(this.slots);
+    final int firstSlotsHash = Arrays.hashCode(this.firstSlots);
+    return Objects.hash(streamsHash, slotsHash, firstSlotsHash);
+  }
+
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(this)
+      .add("streams", Arrays.toString(this.streams))
+      .add("slots", Arrays.toString(this.slots))
+      .add("firstSlots", Arrays.toString(this.firstSlots))
+      .toString();
   }
 }

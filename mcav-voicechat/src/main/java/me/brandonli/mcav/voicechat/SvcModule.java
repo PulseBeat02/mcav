@@ -26,16 +26,18 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * Connects MCAV to Simple Voice Chat.
  *
- * <p>Install it with {@code MCAV.api().install(SvcModule.class)}, then hand it the server API from your voice chat
- * plugin once the voice chat server started. Create {@link SvcFilter}s only after that, because they need the API.
+ * <p>Install it with {@code MCAV.api().install(SvcModule.class)}, then hand it the server API from the
+ * {@code initialize} method of your voice chat plugin. Create {@link SvcFilter}s only after that, because they need
+ * the API.
  *
  * <p>The injected API is shared by every instance of the module and stays until {@link #stop()}. This class is
  * thread-safe.
  *
  * {@snippet :
  * public void initialize(final VoicechatApi api) {
- *   final SvcModule module = mcav.getModule(SvcModule.class);
- *   module.inject((VoicechatServerApi) api);
+ *   final VoicechatServerApi serverApi = (VoicechatServerApi) api;
+ *   final SvcModule module = this.mcav.getModule(SvcModule.class);
+ *   module.inject(serverApi);
  * }
  * }
  *

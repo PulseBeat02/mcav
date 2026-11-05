@@ -53,7 +53,7 @@ final class ThirdPartyNoticesTest {
       final String notice = this.read(jar, NOTICE_FILE);
       for (final String component : List.of("Apache HttpCore", "Apache Commons Codec", "Maven Artifact Resolver API", "Maven Model")) {
         final boolean kept = notice.contains(component);
-        assertTrue(kept, component + " in " + notice);
+        assertTrue(kept, "%s in %s".formatted(component, notice));
       }
     }
   }
@@ -67,7 +67,7 @@ final class ThirdPartyNoticesTest {
 
   private String read(final ZipFile jar, final String name) throws IOException {
     final ZipEntry entry = jar.getEntry(name);
-    assertNotNull(entry, name + " is in the jar");
+    assertNotNull(entry, "%s is in the jar".formatted(name));
 
     try (final InputStream input = jar.getInputStream(entry)) {
       return new String(input.readAllBytes(), StandardCharsets.UTF_8);
@@ -84,7 +84,8 @@ final class ThirdPartyNoticesTest {
         .filter(name -> name.endsWith(POM_PROPERTIES_SUFFIX))
         .toList();
       final int bundledCount = bundled.size();
-      assertTrue(bundledCount > 20, "the jar bundles the resolver: " + bundled);
+      final boolean bundlesTheResolver = bundledCount > 20;
+      assertTrue(bundlesTheResolver, "the jar bundles the resolver: %s".formatted(bundled));
 
       final List<String> unnamed = this.findUnnamedComponents(jar, bundled, notices);
       assertEquals(List.of(), unnamed, "bundled, but not in THIRD-PARTY-NOTICES.md");
@@ -95,7 +96,7 @@ final class ThirdPartyNoticesTest {
     final List<String> unnamed = new ArrayList<>();
     for (final String name : bundled) {
       final String coordinates = this.coordinatesOf(jar, name);
-      final String row = "| " + coordinates + " |";
+      final String row = "| %s |".formatted(coordinates);
       if (!notices.contains(row)) {
         unnamed.add(coordinates);
       }
@@ -113,7 +114,7 @@ final class ThirdPartyNoticesTest {
 
     final String groupId = component.getProperty("groupId");
     final String artifactId = component.getProperty("artifactId");
-    return groupId + ":" + artifactId;
+    return "%s:%s".formatted(groupId, artifactId);
   }
 
   @Test
@@ -128,7 +129,7 @@ final class ThirdPartyNoticesTest {
 
       for (final String name : classes) {
         final ZipEntry privateCopy = jar.getEntry(RELOCATED_PREFIX + name);
-        assertNotNull(privateCopy, "the private copy is still bundled: " + name);
+        assertNotNull(privateCopy, "the private copy is still bundled: %s".formatted(name));
       }
     }
   }

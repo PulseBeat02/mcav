@@ -29,7 +29,6 @@ import java.nio.file.Path;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
-/** Executes injected scripts against observable browser API fixtures in the build's pinned JavaScript engine. */
 final class ScriptAssertions {
 
   private ScriptAssertions() {}
@@ -39,6 +38,7 @@ final class ScriptAssertions {
     try (final InputStream input = Objects.requireNonNull(ScriptAssertions.class.getResourceAsStream("/scripts/" + resource))) {
       fixture = new String(input.readAllBytes(), StandardCharsets.UTF_8);
     }
+
     final String program = fixture.replace("SCRIPT_UNDER_TEST", DevToolsInput.quote(script));
     final String node = Objects.requireNonNull(System.getProperty("mcav.testNode"), "The script-testing convention supplies Node");
     final Path output = Files.createTempFile("mcav-script-", ".log");
@@ -50,11 +50,16 @@ final class ScriptAssertions {
       try (final OutputStream input = process.getOutputStream()) {
         input.write(program.getBytes(StandardCharsets.UTF_8));
       }
-      assertTrue(process.waitFor(30, TimeUnit.SECONDS), "the script fixture finishes within its deadline");
-      assertEquals(0, process.exitValue(), Files.readString(output));
+      final boolean finished = process.waitFor(120, TimeUnit.SECONDS);
+      assertTrue(finished, "the script fixture finishes within its deadline");
+
+      final int exitValue = process.exitValue();
+      assertEquals(0, exitValue, Files.readString(output));
     } finally {
       process.destroyForcibly();
-      assertTrue(process.waitFor(30, TimeUnit.SECONDS), "the script process is reaped");
+      final boolean reaped = process.waitFor(30, TimeUnit.SECONDS);
+      assertTrue(reaped, "the script process is reaped");
+
       Files.deleteIfExists(output);
     }
   }

@@ -95,7 +95,7 @@ public class GlTextureFilter implements FunctionalVideoFilter {
   private boolean dirty;
 
   /**
-   * Constructs a filter that creates its own texture in {@link #start()}.
+   * Creates a filter that generates its own texture in {@link #start()}.
    *
    * @since 1.0.0
    */
@@ -108,7 +108,7 @@ public class GlTextureFilter implements FunctionalVideoFilter {
   }
 
   /**
-   * Constructs a filter that streams into an existing texture, which the caller keeps owning.
+   * Creates a filter that streams into an existing texture, which the caller keeps owning.
    *
    * @param textureId the positive name of a texture in the caller's context, created with {@code glGenTextures}
    * @throws IllegalArgumentException if {@code textureId} is zero or negative
@@ -206,7 +206,7 @@ public class GlTextureFilter implements FunctionalVideoFilter {
    */
   @Override
   public boolean applyFilter(final ImageBuffer samples, final OriginalVideoMetadata metadata) {
-    Preconditions.checkNotNull(samples, "Frame must not be null!");
+    Preconditions.checkNotNull(samples, "Samples must not be null!");
     Preconditions.checkNotNull(metadata, "Metadata must not be null!");
 
     final int width = samples.getWidth();

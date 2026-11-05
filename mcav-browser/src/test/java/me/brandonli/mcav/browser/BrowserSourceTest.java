@@ -30,78 +30,113 @@ class BrowserSourceTest {
 
   private static final URI PAGE = URI.create("https://example.com/");
 
+  private static final int WIDTH = 640;
+  private static final int HEIGHT = 480;
+
   @Test
-  void theDefaultSourceIs720pEveryFrame() {
+  void shouldDefaultTo720pEveryFrame() {
     final BrowserSource source = BrowserSource.uri(PAGE);
-    assertEquals(PAGE, source.getUri());
-    assertEquals(BrowserSource.DEFAULT_WIDTH, source.getWidth());
-    assertEquals(BrowserSource.DEFAULT_HEIGHT, source.getHeight());
-    assertEquals(1, source.getFrameInterval());
-    assertEquals("browser", source.getName());
-    assertFalse(source.isDirect());
-    assertEquals(PAGE.toString(), source.getResource());
+    final URI uri = source.getUri();
+    assertEquals(PAGE, uri);
+
+    final int width = source.getWidth();
+    assertEquals(BrowserSource.DEFAULT_WIDTH, width);
+
+    final int height = source.getHeight();
+    assertEquals(BrowserSource.DEFAULT_HEIGHT, height);
+
+    final int frameInterval = source.getFrameInterval();
+    assertEquals(1, frameInterval);
+
+    final String name = source.getName();
+    assertEquals("browser", name);
+
+    final boolean direct = source.isDirect();
+    assertFalse(direct);
+
+    final String resource = source.getResource();
+    assertEquals(PAGE.toString(), resource);
   }
 
   @Test
-  void everySettingIsKept() {
+  void shouldKeepEverySetting() {
     final BrowserSource source = BrowserSource.uri(PAGE, 4096, 1, 1000);
-    assertEquals(4096, source.getWidth());
-    assertEquals(1, source.getHeight());
-    assertEquals(1000, source.getFrameInterval());
-    assertEquals("BrowserSource[https://example.com/, 4096x1, every 1000]", source.toString());
+    final int width = source.getWidth();
+    assertEquals(4096, width);
+
+    final int height = source.getHeight();
+    assertEquals(1, height);
+
+    final int frameInterval = source.getFrameInterval();
+    assertEquals(1000, frameInterval);
+
+    final String description = source.toString();
+    assertEquals("DefaultBrowserSource{uri=https://example.com/, width=4096, height=1, frameInterval=1000}", description);
   }
 
   @Test
-  void onlyWebAddressesAndSizesWithinTheLimitsAreAccepted() {
+  void shouldOnlyAcceptWebAddressesAndSizesWithinTheLimits() {
     assertThrows(NullPointerException.class, () -> BrowserSource.uri(null));
-    final IllegalArgumentException file = assertThrows(IllegalArgumentException.class, () ->
-      BrowserSource.uri(URI.create("file:///etc/passwd"))
-    );
-    assertEquals("The browser shows http and https addresses only but got file:///etc/passwd", file.getMessage());
-    final IllegalArgumentException underscore = assertThrows(IllegalArgumentException.class, () ->
-      BrowserSource.uri(URI.create("https://my_site.example.com/"))
-    );
+
+    final IllegalArgumentException file = assertThrows(IllegalArgumentException.class, () -> this.sourceOf("file:///etc/passwd"));
+    final String fileMessage = file.getMessage();
+    assertEquals("Address file:///etc/passwd must be an http or https address for the browser!", fileMessage);
+    final String underscoreAddress = "https://my_site.example.com/";
+    final IllegalArgumentException underscore = assertThrows(IllegalArgumentException.class, () -> this.sourceOf(underscoreAddress));
+
+    final String underscoreMessage = underscore.getMessage();
     assertEquals(
-      "The address has no host name the browser can check, such as a name with an underscore: https://my_site.example.com/",
-      underscore.getMessage()
+      "Address https://my_site.example.com/ has no host name the browser can check, such as a name with an underscore!",
+      underscoreMessage
     );
     assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 0, 1, 1));
     assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 1, 0, 1));
     assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 4097, 1, 1));
     assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 1, 4097, 1));
-    assertEquals(4096, BrowserSource.uri(PAGE, 4096, 4096, 1).getHeight(), "4096 per side is the largest frame, and allowed");
+
+    final int height = BrowserSource.uri(PAGE, 4096, 4096, 1).getHeight();
+    assertEquals(4096, height, "4096 per side is the largest frame, and allowed");
     assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 1, 1, 0));
     assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 1, 1, 1001));
+
     final String start = "https://example.com/";
-    final URI longest = URI.create(start + "a".repeat(BrowserSource.MAX_ADDRESS_LENGTH - start.length()));
-    assertEquals(longest, BrowserSource.uri(longest).getUri());
+    final URI longest = URI.create(start + "a".repeat(BrowserSource.MAXIMUM_ADDRESS_LENGTH - start.length()));
+    final URI longestUri = BrowserSource.uri(longest).getUri();
+    assertEquals(longest, longestUri);
+
     final URI tooLong = URI.create(longest + "a");
     final IllegalArgumentException length = assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(tooLong));
-    assertEquals("An address has at most 65536 characters but had 65537", length.getMessage());
+    final String message = length.getMessage();
+    assertEquals("Address length 65537 must be at most 65536 characters!", message);
+  }
+
+  private BrowserSource sourceOf(final String address) {
+    return BrowserSource.uri(URI.create(address));
   }
 
   @Test
-  void sourcesWithTheSameSettingsAreEqual() {
+  void shouldTreatSourcesWithTheSameSettingsAsEqual() {
     EqualityAssertions.assertEqualityContract(
-      BrowserSource.uri(PAGE, 640, 480, 2),
-      BrowserSource.uri(PAGE, 640, 480, 2),
-      BrowserSource.uri(URI.create("https://example.org/"), 640, 480, 2),
-      BrowserSource.uri(PAGE, 641, 480, 2),
-      BrowserSource.uri(PAGE, 640, 481, 2),
-      BrowserSource.uri(PAGE, 640, 480, 3)
+      BrowserSource.uri(PAGE, WIDTH, HEIGHT, 2),
+      BrowserSource.uri(PAGE, WIDTH, HEIGHT, 2),
+      BrowserSource.uri(URI.create("https://example.org/"), WIDTH, HEIGHT, 2),
+      BrowserSource.uri(PAGE, WIDTH + 1, HEIGHT, 2),
+      BrowserSource.uri(PAGE, WIDTH, HEIGHT + 1, 2),
+      BrowserSource.uri(PAGE, WIDTH, HEIGHT, 3)
     );
   }
 
   @Test
-  void sourcesThatDifferInASettingHashDifferently() {
-    final BrowserSource first = BrowserSource.uri(PAGE, 640, 480, 1);
-    final BrowserSource wider = BrowserSource.uri(PAGE, 641, 480, 1);
-    assertNotEquals(first.hashCode(), wider.hashCode());
+  void shouldHashSourcesThatDifferInASettingDifferently() {
+    final BrowserSource first = BrowserSource.uri(PAGE, WIDTH, HEIGHT, 1);
+    final BrowserSource wider = BrowserSource.uri(PAGE, WIDTH + 1, HEIGHT, 1);
+    final int widerHashCode = wider.hashCode();
+    assertNotEquals(first.hashCode(), widerHashCode);
   }
 
   @Test
-  void aSideOfZeroIsRefusedForEitherSide() {
-    assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 0, 480, 1));
-    assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 640, 0, 1));
+  void shouldRefuseASideOfZeroForEitherSide() {
+    assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 0, HEIGHT, 1));
+    assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, WIDTH, 0, 1));
   }
 }

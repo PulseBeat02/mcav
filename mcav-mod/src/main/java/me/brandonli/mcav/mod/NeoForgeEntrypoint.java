@@ -52,18 +52,17 @@ public final class NeoForgeEntrypoint {
   static final String PROTOCOL = "1";
 
   private final NeoForgeChannel channel;
-
   private final Mcv2Reporter reporter;
 
   /**
-   * Constructs the entry point NeoForge calls.
+   * Creates the entry point NeoForge calls.
    *
    * @param modBus the mod's event bus
    * @since 1.0.0
    */
   public NeoForgeEntrypoint(final IEventBus modBus) {
     final ModList mods = ModList.get();
-    final Optional<String> version = irisVersion(mods);
+    final Optional<String> version = findIrisVersion(mods);
     final @Nullable String irisVersion = version.orElse(null);
     this(modBus, NeoForge.EVENT_BUS, irisVersion, System::nanoTime);
   }
@@ -81,7 +80,7 @@ public final class NeoForgeEntrypoint {
     gameBus.addListener(ClientTickEvent.Post.class, _ -> this.reporter.tick());
   }
 
-  static Optional<String> irisVersion(final ModList mods) {
+  static Optional<String> findIrisVersion(final ModList mods) {
     final Optional<? extends ModContainer> iris = mods.getModContainerById(IrisShaders.MOD_ID);
     return iris.map(NeoForgeEntrypoint::versionOf);
   }

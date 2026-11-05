@@ -21,7 +21,7 @@ code generates. Sources are small immutable descriptions; the player opens them 
   }
 ```
 
-A `UriSource` that points at a web page rather than a media file, such as a YouTube video, has to be resolved with
+Resolve a `UriSource` that points at a web page rather than a media file, such as a YouTube video, with
 [yt-dlp](yt-dlp.md) first. `isDirect()` tells the two apart by the file extension of the URL.
 
 ## Detecting sources

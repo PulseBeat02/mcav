@@ -22,6 +22,7 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.event.MouseWheelEvent;
 import java.awt.image.BufferedImage;
 import java.net.URI;
 import javax.swing.ImageIcon;
@@ -39,9 +40,7 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.FramesPerSecondFilte
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 
-/**
- * Streams a web page into a window and forwards clicks, the mouse wheel and typed characters to it.
- */
+// Streams a web page into a window and forwards clicks, the mouse wheel and typed characters to it.
 public final class BrowserInputExample {
 
   private static final int WIDTH = 1280;
@@ -77,6 +76,7 @@ public final class BrowserInputExample {
     frame.setLayout(layout);
     frame.add(label, BorderLayout.CENTER);
     frame.setVisible(true);
+
     return label;
   }
 
@@ -84,11 +84,15 @@ public final class BrowserInputExample {
     final VideoPipelineStepBuilder builder = PipelineBuilder.video();
     final FramesPerSecondFilter framesPerSecondFilter = new FramesPerSecondFilter();
     builder.then(framesPerSecondFilter);
-    builder.then((samples, _) -> {
-      show(label, samples);
-      return false;
-    });
+    builder.then((samples, _) -> showUnchanged(label, samples));
+
     return builder.build();
+  }
+
+  private static boolean showUnchanged(final JLabel label, final ImageBuffer samples) {
+    show(label, samples);
+
+    return false;
   }
 
   private static void forwardClicks(final JLabel label, final BrowserPlayer browser) {
@@ -103,12 +107,14 @@ public final class BrowserInputExample {
         }
       }
     );
-    label.addMouseWheelListener(event -> {
-      final int pageX = event.getX();
-      final int pageY = event.getY();
-      final int rotation = event.getWheelRotation();
-      browser.scroll(pageX, pageY, 0, rotation * 100);
-    });
+    label.addMouseWheelListener(event -> forwardWheel(browser, event));
+  }
+
+  private static void forwardWheel(final BrowserPlayer browser, final MouseWheelEvent event) {
+    final int pageX = event.getX();
+    final int pageY = event.getY();
+    final int rotation = event.getWheelRotation();
+    browser.scroll(pageX, pageY, 0, rotation * 100);
   }
 
   private static void forwardKeys(final JLabel label, final BrowserPlayer browser) {
@@ -125,12 +131,14 @@ public final class BrowserInputExample {
   }
 
   private static void releaseOnShutdown(final BrowserPlayer browser, final MCAVApi api) {
-    final Thread hook = new Thread(() -> {
-      browser.release();
-      api.release();
-    });
+    final Thread hook = new Thread(() -> releaseBrowserAndApi(browser, api));
     final Runtime runtime = Runtime.getRuntime();
     runtime.addShutdownHook(hook);
+  }
+
+  private static void releaseBrowserAndApi(final BrowserPlayer browser, final MCAVApi api) {
+    browser.release();
+    api.release();
   }
 
   private static void show(final JLabel label, final ImageBuffer samples) {

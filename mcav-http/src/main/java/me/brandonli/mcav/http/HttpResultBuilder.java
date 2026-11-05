@@ -88,13 +88,13 @@ public interface HttpResultBuilder {
    * loopback address when a reverse proxy on the same machine forwards the players, or the address of one
    * network card to keep the server off the others.
    *
-   * @param address a non-null local address of this machine, such as {@link InetAddress#getLoopbackAddress()};
-   *                binding is attempted when the built server starts
+   * @param bindAddress a non-null local address of this machine, such as {@link InetAddress#getLoopbackAddress()};
+   *                    binding is attempted when the built server starts
    * @return this builder
-   * @throws NullPointerException if {@code address} is null
+   * @throws NullPointerException if {@code bindAddress} is null
    * @since 1.0.0
    */
-  HttpResultBuilder bindAddress(final InetAddress address);
+  HttpResultBuilder bindAddress(final InetAddress bindAddress);
 
   /**
    * Creates a server with the current settings.

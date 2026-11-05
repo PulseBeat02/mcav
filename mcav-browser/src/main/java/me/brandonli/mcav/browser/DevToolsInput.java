@@ -23,53 +23,28 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-/**
- * Turns input for the browser into DevTools protocol calls ({@code Input.dispatchMouseEvent} and
- * {@code Input.dispatchKeyEvent}), which CEF executes inside the browser without any debugging port.
- *
- * <p>The DevTools input methods behave the same on every operating system, unlike the key events of JCEF, which are
- * translated per platform and lose keys such as Page Down. Named keys follow the W3C {@code KeyboardEvent.key} values
- * and carry the Windows virtual key code and physical key code of a US keyboard where one exists; text is typed one
- * character at a time as a key press that inserts the character, which is what typing it on a keyboard does.
- */
+// Input as DevTools calls, which act alike on every system, unlike JCEF's key events, which are translated per platform
+// and lose keys such as Page Down.
 final class DevToolsInput {
 
-  /**
-   * The DevTools method of mouse events.
-   */
   static final String MOUSE_METHOD = "Input.dispatchMouseEvent";
 
-  /**
-   * The DevTools method of key events.
-   */
   static final String KEY_METHOD = "Input.dispatchKeyEvent";
 
-  /**
-   * The DevTools method that runs a script in every new document of the page.
-   */
   static final String ADD_SCRIPT_METHOD = "Page.addScriptToEvaluateOnNewDocument";
 
-  /**
-   * The DevTools method that enables the page domain.
-   */
   static final String ENABLE_PAGE_METHOD = "Page.enable";
 
-  /**
-   * Opens new windows in place. An off-screen JCEF browser cancels every popup before the helper hears of it, so
-   * {@code window.open} and links and forms that target another window would do nothing. This script, which runs in
-   * every frame before the page's own scripts, sends them to the page itself instead, but only during a click or a
-   * key, as Chromium's popup blocker allows a popup: {@code window.open} and a click on such a link navigate the top
-   * frame, for {@code http} and {@code https} addresses only, and such a form, or a form sent by a button that targets
-   * another window, is submitted into its own frame. A link or form that targets a frame of the page by its name is left
-   * to the page. Every navigation still goes through the navigation policy of the helper.
-   */
+  // An off-screen JCEF browser cancels every popup, so this script sends window.open and other-window links and forms to
+  // the page itself during a click or key, as Chromium's popup blocker would allow; navigations still meet the policy.
   static final String OPEN_IN_PLACE_SCRIPT = """
   (() => {
-    // the helper places the script again when it could not tell whether the first time worked; once is enough
+    // the helper may place the script twice; once is enough
     const PLACED = Symbol.for('mcav.open-in-place');
     if (Object.prototype.hasOwnProperty.call(globalThis, PLACED)) {
       return;
     }
+
     Object.defineProperty(globalThis, PLACED, { value: true });
     // like Chromium's popup blocker, only a click or a key lets a page open a window
     const isActive = () => navigator.userActivation === undefined || navigator.userActivation.isActive;
@@ -92,10 +67,11 @@ final class DevToolsInput {
       } catch (error) {
         found = undefined;
       }
-      // the window of a frame is its own window property, which an element of the page named so is not
+      // the window of a frame is its own window property, unlike a page element of that name
       if (found !== undefined && found !== null && found !== view && found.window === found) {
         return true;
       }
+
       let count = 0;
       try {
         count = view.frames.length;
@@ -115,6 +91,7 @@ final class DevToolsInput {
       if (lower === '' || lower === '_self' || lower === '_top' || lower === '_parent') {
         return false;
       }
+
       return lower === '_blank' || !namesAFrame(window.top, text);
     };
     Object.defineProperty(window, 'open', {
@@ -139,6 +116,7 @@ final class DevToolsInput {
       if (!(form instanceof HTMLFormElement) || !isActive()) {
         return;
       }
+
       // the target of the button that sends the form wins over the target of the form
       const button = event.submitter;
       if (button instanceof HTMLElement && button.hasAttribute('formtarget')) {
@@ -153,18 +131,39 @@ final class DevToolsInput {
   """;
 
   private static final String[] BUTTON_NAMES = { "left", "middle", "right" };
+  private static final String NO_BUTTON = "none";
 
-  // the bits of the buttons in the DevTools "buttons" field, in the order of the button numbers: left, middle, right
+  // the bits of the DevTools "buttons" field by button number: left, middle, right
   private static final int[] BUTTON_BITS = { 1, 4, 2 };
+
+  private static final String ENTER_KEY = "Enter";
+
+  private static final String FUNCTION_KEY_PREFIX = "F";
+  private static final int FUNCTION_KEY_COUNT = 24;
+  // F1 has the Windows virtual key code 112, and every next function key the next code
+  private static final int FUNCTION_KEY_CODE_OFFSET = 111;
+
+  private static final String KEY_DOWN_START = "{\"type\":\"keyDown\"";
+  private static final String KEY_UP_START = "{\"type\":\"keyUp\"";
+  private static final String KEY_FIELD = ",\"key\":";
+  private static final String VIRTUAL_KEY_CODE_FIELD = ",\"windowsVirtualKeyCode\":";
+  private static final String TEXT_FIELD = ",\"text\":";
+  private static final String UNMODIFIED_TEXT_FIELD = ",\"unmodifiedText\":";
+
+  private static final int QUOTE_CHARACTERS = 2;
+  private static final char FIRST_UNESCAPED_CHARACTER = 0x20;
+  private static final char LINE_SEPARATOR = 0x2028;
+  private static final char PARAGRAPH_SEPARATOR = 0x2029;
+
   private static final Map<String, KeyDefinition> KEYS = createKeys();
 
   private DevToolsInput() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   private static Map<String, KeyDefinition> createKeys() {
     final Map<String, KeyDefinition> keys = new HashMap<>();
-    keys.put("Enter", new KeyDefinition("Enter", 13, "\r"));
+    keys.put(ENTER_KEY, new KeyDefinition(ENTER_KEY, 13, "\r"));
     keys.put("Tab", new KeyDefinition("Tab", 9, ""));
     keys.put(" ", new KeyDefinition("Space", 32, " "));
     keys.put("Backspace", new KeyDefinition("Backspace", 8, ""));
@@ -191,21 +190,15 @@ final class DevToolsInput {
     keys.put("PrintScreen", new KeyDefinition("PrintScreen", 44, ""));
     keys.put("Help", new KeyDefinition("Help", 47, ""));
     keys.put("Clear", new KeyDefinition("NumpadEqual", 12, ""));
-    for (int number = 1; number <= 24; number++) {
-      final String name = "F" + number;
-      keys.put(name, new KeyDefinition(name, 111 + number, ""));
+    for (int number = 1; number <= FUNCTION_KEY_COUNT; number++) {
+      final String name = FUNCTION_KEY_PREFIX + number;
+      keys.put(name, new KeyDefinition(name, FUNCTION_KEY_CODE_OFFSET + number, ""));
     }
+
     return Map.copyOf(keys);
   }
 
-  /**
-   * Builds the DevTools calls of one mouse event. Every event carries the buttons that are held while it happens, so a
-   * page sees a move with a held button as a drag.
-   *
-   * @param input the event
-   * @param held  the buttons held before the event, as the bits of the DevTools {@code buttons} field
-   * @return the calls, in order
-   */
+  // every event carries the held buttons, so a page sees a move with a held button as a drag
   static List<DevToolsCall> mouse(final MouseInput input, final int held) {
     final int pageX = input.getX();
     final int pageY = input.getY();
@@ -229,13 +222,6 @@ final class DevToolsInput {
     return List.of(call);
   }
 
-  /**
-   * Gets the buttons held after a mouse event: a press adds its button, a release takes it away.
-   *
-   * @param input the event
-   * @param held  the buttons held before, as the bits of the DevTools {@code buttons} field
-   * @return the buttons held after
-   */
   static int heldAfter(final MouseInput input, final int held) {
     final int bit = BUTTON_BITS[input.getButton()];
     return switch (input.getAction()) {
@@ -251,7 +237,8 @@ final class DevToolsInput {
         return BUTTON_NAMES[button];
       }
     }
-    return "none";
+
+    return NO_BUTTON;
   }
 
   private static String mouseParameters(final String type, final int pageX, final int pageY, final int held) {
@@ -262,53 +249,33 @@ final class DevToolsInput {
     return ",\"button\":\"" + button + "\",\"clickCount\":" + clickCount;
   }
 
-  /**
-   * Checks whether a text names a key that can be pressed.
-   *
-   * @param name the text
-   * @return true if the key has a definition
-   */
   static boolean isKnownKey(final String name) {
     return KEYS.containsKey(name);
   }
 
-  /**
-   * Builds the DevTools calls that press and release a named key.
-   *
-   * @param name the W3C name of the key, such as {@code Enter}; a name without a definition is pressed with only its
-   *             name
-   * @return the calls, in order
-   */
   static List<DevToolsCall> pressKey(final String name) {
     final KeyDefinition definition = KEYS.get(name);
     final String quotedName = quote(name);
     final String code = definition == null ? "" : ",\"code\":" + quote(definition.getCode());
     final int keyCode = definition == null ? 0 : definition.getKeyCode();
     final String text = definition == null ? "" : definition.getText();
-    final String keyFields = ",\"key\":" + quotedName + code + ",\"windowsVirtualKeyCode\":" + keyCode;
+    final String keyFields = KEY_FIELD + quotedName + code + VIRTUAL_KEY_CODE_FIELD + keyCode;
     final List<DevToolsCall> calls = new ArrayList<>();
     if (text.isEmpty()) {
       calls.add(new DevToolsCall(KEY_METHOD, "{\"type\":\"rawKeyDown\"" + keyFields + "}"));
     } else {
       final String quotedText = quote(text);
       calls.add(
-        new DevToolsCall(
-          KEY_METHOD,
-          "{\"type\":\"keyDown\"" + keyFields + ",\"text\":" + quotedText + ",\"unmodifiedText\":" + quotedText + "}"
-        )
+        new DevToolsCall(KEY_METHOD, KEY_DOWN_START + keyFields + TEXT_FIELD + quotedText + UNMODIFIED_TEXT_FIELD + quotedText + "}")
       );
     }
-    calls.add(new DevToolsCall(KEY_METHOD, "{\"type\":\"keyUp\"" + keyFields + "}"));
+
+    calls.add(new DevToolsCall(KEY_METHOD, KEY_UP_START + keyFields + "}"));
+
     return calls;
   }
 
-  /**
-   * Builds the DevTools calls that type a text, one key press per character. A line break presses Enter, once for
-   * {@code \r\n}.
-   *
-   * @param text the text
-   * @return the calls, in order
-   */
+  // a line break presses Enter, once for \r\n
   static List<DevToolsCall> typeText(final String text) {
     final List<DevToolsCall> calls = new ArrayList<>();
     final int[] codePoints = text.codePoints().toArray();
@@ -320,46 +287,33 @@ final class DevToolsInput {
         continue;
       }
       if (codePoint == '\n' || codePoint == '\r') {
-        final List<DevToolsCall> enter = pressKey("Enter");
+        final List<DevToolsCall> enter = pressKey(ENTER_KEY);
         calls.addAll(enter);
         continue;
       }
       final String character = Character.toString(codePoint);
       final String quoted = quote(character);
       final int keyCode = virtualKeyCode(codePoint);
-      final String keyFields = ",\"key\":" + quoted + ",\"windowsVirtualKeyCode\":" + keyCode;
-      calls.add(
-        new DevToolsCall(KEY_METHOD, "{\"type\":\"keyDown\"" + keyFields + ",\"text\":" + quoted + ",\"unmodifiedText\":" + quoted + "}")
-      );
-      calls.add(new DevToolsCall(KEY_METHOD, "{\"type\":\"keyUp\"" + keyFields + "}"));
+      final String keyFields = KEY_FIELD + quoted + VIRTUAL_KEY_CODE_FIELD + keyCode;
+      calls.add(new DevToolsCall(KEY_METHOD, KEY_DOWN_START + keyFields + TEXT_FIELD + quoted + UNMODIFIED_TEXT_FIELD + quoted + "}"));
+      calls.add(new DevToolsCall(KEY_METHOD, KEY_UP_START + keyFields + "}"));
     }
+
     return calls;
   }
 
-  /**
-   * Gets the Windows virtual key code of a character on a US keyboard: letters and digits have one, other characters
-   * are typed without.
-   *
-   * @param codePoint the character
-   * @return the key code, or 0
-   */
   static int virtualKeyCode(final int codePoint) {
     if (codePoint >= 'a' && codePoint <= 'z') {
       return codePoint - 'a' + 'A';
     }
+
     final boolean upperCase = codePoint >= 'A' && codePoint <= 'Z';
     final boolean isDigit = codePoint >= '0' && codePoint <= '9';
     return upperCase || isDigit ? codePoint : 0;
   }
 
-  /**
-   * Writes a string as a JSON string literal.
-   *
-   * @param value the string
-   * @return the literal with its quotes
-   */
   static String quote(final String value) {
-    final StringBuilder builder = new StringBuilder(value.length() + 2);
+    final StringBuilder builder = new StringBuilder(value.length() + QUOTE_CHARACTERS);
     builder.append('"');
     for (int index = 0; index < value.length(); index++) {
       final char character = value.charAt(index);
@@ -369,34 +323,30 @@ final class DevToolsInput {
         case '\n' -> builder.append("\\n");
         case '\r' -> builder.append("\\r");
         case '\t' -> builder.append("\\t");
-        default -> {
-          if (character < 0x20 || character == 0x2028 || character == 0x2029) {
-            builder.append(String.format(Locale.ROOT, "\\u%04x", (int) character));
-          } else {
-            builder.append(character);
-          }
-        }
+        default -> appendPlainOrUnicodeEscaped(builder, character);
       }
     }
+
     builder.append('"');
+
     return builder.toString();
   }
 
-  /**
-   * Builds the DevTools calls that run {@link #OPEN_IN_PLACE_SCRIPT} in every new document, before the scripts of the
-   * page: the page domain, without which the script is never run, and the script.
-   *
-   * @return the calls, in order
-   */
+  private static void appendPlainOrUnicodeEscaped(final StringBuilder builder, final char character) {
+    if (character < FIRST_UNESCAPED_CHARACTER || character == LINE_SEPARATOR || character == PARAGRAPH_SEPARATOR) {
+      builder.append(String.format(Locale.ROOT, "\\u%04x", (int) character));
+    } else {
+      builder.append(character);
+    }
+  }
+
+  // the page domain must be enabled, or the script never runs
   static List<DevToolsCall> openWindowsInPlace() {
     final DevToolsCall enable = new DevToolsCall(ENABLE_PAGE_METHOD, "{}");
     final DevToolsCall script = new DevToolsCall(ADD_SCRIPT_METHOD, "{\"source\":" + quote(OPEN_IN_PLACE_SCRIPT) + "}");
     return List.of(enable, script);
   }
 
-  /**
-   * A DevTools method and its parameters as a JSON object.
-   */
   static final class DevToolsCall {
 
     private final String method;
@@ -416,9 +366,6 @@ final class DevToolsInput {
     }
   }
 
-  /**
-   * The physical key and Windows virtual key code of a named key, and the text it types.
-   */
   private static final class KeyDefinition {
 
     private final String code;
