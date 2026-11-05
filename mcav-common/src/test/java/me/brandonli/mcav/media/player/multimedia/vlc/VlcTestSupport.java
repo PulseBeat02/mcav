@@ -70,7 +70,7 @@ final class VlcTestSupport {
   }
 
   private static List<String> solidVideoCommand(final String color, final int width, final int height, final Path output) {
-    final Path executable = GeneratedMedia.ffmpegPath();
+    final Path executable = GeneratedMedia.getFfmpegPath();
     final String executablePath = executable.toString();
     final String outputPath = output.toString();
     final List<String> arguments = solidVideoArguments(color, width, height, outputPath);

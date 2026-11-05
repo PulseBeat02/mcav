@@ -58,7 +58,7 @@ public final class GeneratedMedia {
     throw new UnsupportedOperationException(message);
   }
 
-  public static Path ffmpegPath() {
+  public static Path getFfmpegPath() {
     return FfmpegExecutableProvider.getFfmpegPath();
   }
 
