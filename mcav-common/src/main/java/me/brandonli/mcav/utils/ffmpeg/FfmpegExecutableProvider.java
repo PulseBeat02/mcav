@@ -38,7 +38,8 @@ import org.bytedeco.javacpp.Loader;
 public final class FfmpegExecutableProvider {
 
   private FfmpegExecutableProvider() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**
@@ -57,7 +58,8 @@ public final class FfmpegExecutableProvider {
     private static final Path EXECUTABLE = extract();
 
     private ExecutableHolder() {
-      throw new UnsupportedOperationException("Holder class cannot be instantiated!");
+      final String message = "Holder class cannot be instantiated!";
+      throw new UnsupportedOperationException(message);
     }
 
     private static Path extract() {

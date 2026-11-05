@@ -129,13 +129,13 @@ final class OsUtilsTest {
   void shouldReadPropertiesInLowerCaseAndMissingOnesAsEmpty() {
     System.setProperty("mcav.test.property", "MiXeD");
     try {
-      final String value = OsUtils.getProperty("mcav.test.property");
+      final String value = OsUtils.readLowerCaseProperty("mcav.test.property");
       assertEquals("mixed", value);
     } finally {
       System.clearProperty("mcav.test.property");
     }
 
-    final String missing = OsUtils.getProperty("mcav.test.missing");
+    final String missing = OsUtils.readLowerCaseProperty("mcav.test.missing");
     assertEquals("", missing);
   }
 

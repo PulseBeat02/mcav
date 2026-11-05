@@ -17,12 +17,13 @@
  */
 package me.brandonli.mcav.utils.ffmpeg;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -117,7 +118,7 @@ final class FfmpegLibraries {
 
   private Path getParent(final Path executable) {
     final @Nullable Path parent = executable.getParent();
-    return Objects.requireNonNull(parent, "An extracted executable always has a parent!");
+    return requireNonNull(parent, "An extracted executable always has a parent!");
   }
 
   private static final class LibrariesHolder {
@@ -129,7 +130,8 @@ final class FfmpegLibraries {
     );
 
     private LibrariesHolder() {
-      throw new UnsupportedOperationException("Holder class cannot be instantiated!");
+      final String message = "Holder class cannot be instantiated!";
+      throw new UnsupportedOperationException(message);
     }
   }
 }

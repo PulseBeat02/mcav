@@ -26,8 +26,7 @@
  * A known OS and architecture family does not guarantee an installer has a matching download or that the host
  * can load a binary. All returned values are safe to share and have no cleanup requirement.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

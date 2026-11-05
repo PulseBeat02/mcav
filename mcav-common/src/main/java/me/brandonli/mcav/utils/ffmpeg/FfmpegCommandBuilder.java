@@ -74,7 +74,7 @@ public interface FfmpegCommandBuilder {
    * @throws NullPointerException if {@code bitrate} is null
    * @since 1.0.0
    */
-  FfmpegCommandBuilder addBitrate(final String bitrate);
+  FfmpegCommandBuilder addVideoBitrate(final String bitrate);
 
   /**
    * Sets the audio bitrate ({@code -b:a}).
@@ -89,12 +89,12 @@ public interface FfmpegCommandBuilder {
   /**
    * Sets the frame rate ({@code -r}).
    *
-   * @param framerate the frame rate in frames per second
+   * @param frameRate the frame rate in frames per second
    * @return this builder
-   * @throws IllegalArgumentException if the frame rate is nonpositive
+   * @throws IllegalArgumentException if the frame rate is not positive
    * @since 1.0.0
    */
-  FfmpegCommandBuilder addFramerate(final int framerate);
+  FfmpegCommandBuilder addFrameRate(final int frameRate);
 
   /**
    * Sets the frame size ({@code -s}).
@@ -102,7 +102,7 @@ public interface FfmpegCommandBuilder {
    * @param width  the width in pixels
    * @param height the height in pixels
    * @return this builder
-   * @throws IllegalArgumentException if either dimension is nonpositive
+   * @throws IllegalArgumentException if either dimension is not positive
    * @since 1.0.0
    */
   FfmpegCommandBuilder addResolution(final int width, final int height);
@@ -110,6 +110,7 @@ public interface FfmpegCommandBuilder {
   /**
    * Allows FFmpeg to overwrite an existing output file ({@code -y}). Without it FFmpeg waits for confirmation
    * on the console and the task hangs.
+   *
    * @return this builder
    * @since 1.0.0
    */
@@ -138,8 +139,8 @@ public interface FfmpegCommandBuilder {
   /**
    * Adds raw arguments.
    *
-   * @param rawArguments the non-null arguments in order, with no null elements; entries before a null
-   *                     elements have already been appended when validation fails
+   * @param rawArguments the arguments in order, none of them null; the ones before a null element are already added
+   *                     when the check fails
    * @return this builder
    * @throws NullPointerException if the array or any argument is null
    * @since 1.0.0

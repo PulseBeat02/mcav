@@ -80,6 +80,17 @@ public final class Platform {
   }
 
   /**
+   * Returns whether both the operating system and the CPU architecture belong to a family the installers know.
+   * Programs are never downloaded for an unknown platform, because no known build runs there.
+   *
+   * @return whether neither the operating system nor the architecture is {@code OTHER}
+   * @since 1.0.0
+   */
+  public boolean isKnown() {
+    return this.os != Os.OTHER && this.architecture != Arch.OTHER;
+  }
+
+  /**
    * Returns the operating system.
    *
    * @return the operating system
@@ -107,17 +118,6 @@ public final class Platform {
    */
   public Bits getBits() {
     return this.bits;
-  }
-
-  /**
-   * Checks whether both the operating system and the CPU architecture belong to a family the installers know.
-   * Programs are never downloaded for an unknown platform, because no known build runs there.
-   *
-   * @return false if the operating system or the architecture is {@code OTHER}
-   * @since 1.0.0
-   */
-  public boolean isKnown() {
-    return this.os != Os.OTHER && this.architecture != Arch.OTHER;
   }
 
   /**
