@@ -83,6 +83,7 @@ final class AbstractImageCommandTest {
   private static final int SCREEN_WIDTH = 4;
   private static final int SCREEN_HEIGHT = 2;
   private static final String LARGE_SCREEN_SIZE = "8x8";
+  private static final int LARGE_SCREEN_WIDTH = 8;
 
   private static final int IMAGE_WIDTH = 6;
   private static final int IMAGE_HEIGHT = 4;
@@ -159,8 +160,8 @@ final class AbstractImageCommandTest {
     try (final ImageBuffer image = this.verifyShown()) {
       final int width = image.getWidth();
       final int height = image.getHeight();
-      assertEquals(IMAGE_WIDTH, width);
-      assertEquals(IMAGE_HEIGHT, height);
+      assertEquals(SCREEN_WIDTH, width);
+      assertEquals(SCREEN_HEIGHT, height);
     }
 
     final Pair<Integer, Integer> resolution = this.command.resolutions.getFirst();
@@ -341,7 +342,7 @@ final class AbstractImageCommandTest {
     this.command.displayImage(_ -> CONFIGURATION, this.sender, LARGE_SCREEN_SIZE, url, null);
     try (final ImageBuffer image = this.verifyShown()) {
       final int width = image.getWidth();
-      assertEquals(IMAGE_WIDTH, width);
+      assertEquals(LARGE_SCREEN_WIDTH, width);
     }
   }
 

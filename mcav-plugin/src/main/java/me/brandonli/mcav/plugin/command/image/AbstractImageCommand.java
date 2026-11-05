@@ -90,11 +90,11 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
   }
 
   /**
-   * Loads and shows an image, replacing the image shown before.
+   * Loads an image, scales it to the resolution, and shows it, replacing the image shown before.
    *
    * @param configurationProvider creates the display configuration for the parsed resolution
    * @param sender                who ran the command
-   * @param imageResolution       the resolution argument, such as {@code 640x640}
+   * @param imageResolution       the resolution the image is scaled to, such as {@code 640x640}
    * @param mrl                   the path or URL of the image, optionally enclosed in one pair of double quotes
    * @param filters               the {@code --filters} option, see {@link FilterChain}, or {@code null} for none
    * @throws NullPointerException if an argument other than {@code filters} is null
@@ -134,13 +134,12 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     }
 
     final ImageRequest request = new ImageRequest(sender, sourceMrl, resolution, configurationProvider);
-    final Supplier<ImageBuffer> filteredLoader = () -> this.filter(loader.get(), resolution, chain);
-    final Supplier<ImageBuffer> chosenLoader = chain.isEmpty() ? loader : filteredLoader;
-    this.startLoading(chosenLoader, request);
+    final Supplier<ImageBuffer> scaledLoader = () -> this.scaleAndFilter(loader.get(), resolution, chain);
+    this.startLoading(scaledLoader, request);
   }
 
   // resized first, which bounds the filters' work
-  private ImageBuffer filter(final ImageBuffer image, final Pair<Integer, Integer> resolution, final FilterChain chain) {
+  private ImageBuffer scaleAndFilter(final ImageBuffer image, final Pair<Integer, Integer> resolution, final FilterChain chain) {
     try {
       final int width = resolution.getFirst();
       final int height = resolution.getSecond();
