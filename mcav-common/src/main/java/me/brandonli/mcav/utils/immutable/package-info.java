@@ -26,8 +26,7 @@
  * but the referenced objects are not copied and can themselves be mutable. Equality and hashing delegate to them,
  * so mutating pair elements can change the pair's equality or hash value. These values own no closeable resources.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

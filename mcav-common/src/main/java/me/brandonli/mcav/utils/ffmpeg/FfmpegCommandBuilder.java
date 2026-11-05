@@ -139,8 +139,8 @@ public interface FfmpegCommandBuilder {
   /**
    * Adds raw arguments.
    *
-   * @param rawArguments the non-null arguments in order, with no null elements; entries before a null
-   *                     elements have already been appended when validation fails
+   * @param rawArguments the arguments in order, none of them null; the ones before a null element are already added
+   *                     when the check fails
    * @return this builder
    * @throws NullPointerException if the array or any argument is null
    * @since 1.0.0

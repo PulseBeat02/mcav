@@ -18,17 +18,17 @@
 /**
  * Builds and executes command-line FFmpeg jobs using the bundled platform executable.
  *
- * <p>{@link me.brandonli.mcav.utils.ffmpeg.FfmpegCommand} stores an immutable argument snapshot. Its builder is
- * mutable and not thread-safe; input and output option order matters. Arguments are separate process tokens,
- * not shell expressions, so paths with spaces need no added quotes. Templates build commands without running them.
- * Resolving an executable or creating a task can extract native resources on first use.
+ * <p>{@link me.brandonli.mcav.utils.ffmpeg.FfmpegCommand} stores an immutable argument snapshot. Its
+ * {@link me.brandonli.mcav.utils.ffmpeg.FfmpegCommandBuilder} is mutable and not thread-safe; input and output option
+ * order matters. Arguments are separate process tokens, not shell expressions, so paths with spaces need no added
+ * quotes. {@link me.brandonli.mcav.utils.ffmpeg.FfmpegTemplates} builds commands without running them. Resolving an
+ * executable or creating a task can extract native resources on first use.
  *
  * <p>{@link me.brandonli.mcav.utils.ffmpeg.AudioExtractor} executes synchronously and returns a new cache file
  * owned by the caller. A failure may leave a partial output. Templates allow output replacement, so callers choose
  * destinations and coordinate concurrent writers. Use a task with an explicit timeout when execution must be bounded.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */
