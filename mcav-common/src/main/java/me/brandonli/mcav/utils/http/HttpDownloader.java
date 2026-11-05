@@ -196,8 +196,7 @@ public final class HttpDownloader {
     return bodyOf(response, client, uri);
   }
 
-  // Opens the body of a pinned download: a redirect is followed only to the host, port and scheme of the URI, and at
-  // most MAXIMUM_REDIRECTS times, so a mirror cannot make the server request what it chooses.
+  // Redirects are followed only to the URI's host, port and scheme, up to MAXIMUM_REDIRECTS times, so a mirror cannot steer requests.
   @VisibleForTesting
   static InputStream openPinnedStream(final URI uri) throws IOException {
     URI current = uri;
@@ -431,10 +430,7 @@ public final class HttpDownloader {
     return PINNED_GRACE.plusSeconds(maximumBytes / PINNED_MINIMUM_BYTES_PER_SECOND);
   }
 
-  // Moves a finished and verified download into place. Downloads of the same file in this JVM take turns here, because
-  // Windows refuses to replace a file while another thread is replacing it, so two concurrent downloads of one file
-  // would otherwise fail at random. Equal paths always share a lock stripe; on Windows, paths are equal regardless of
-  // the case of their letters.
+  // Downloads of one file take turns, as Windows refuses to replace a file another thread is replacing; equal paths share a stripe.
   private static void moveIntoPlace(final Path partFile, final Path target) {
     final Path normalizedTarget = target.normalize();
     final Lock lock = TARGET_LOCKS.get(normalizedTarget);
@@ -490,8 +486,7 @@ public final class HttpDownloader {
     }
   }
 
-  // Decides whether a failed download is worth another attempt. Network failures, stalled bodies, and server errors may
-  // be temporary, but a client error such as 404 Not Found or a hash mismatch will not go away on its own.
+  // Network failures, stalled bodies and server errors may pass; client errors such as 404 Not Found and hash mismatches will not.
   @VisibleForTesting
   static boolean isRetryable(final Exception exception) {
     if (exception instanceof ChecksumMismatchException) {
@@ -535,9 +530,7 @@ public final class HttpDownloader {
     verifyChecksum(uri, digest, expectedSha256);
   }
 
-  // Copies the body into the part file and feeds every chunk into the digest on the way, so the file is hashed without
-  // reading it a second time. A body that passes the limit stops the download at once, before the bytes beyond it are
-  // written, and so does one that takes longer than its deadline.
+  // Hashes while copying, so the file is not read twice; a body past the limit or its deadline stops before more is written.
   private static void copy(
     final InputStream body,
     final OutputStream partOutput,
@@ -656,8 +649,7 @@ public final class HttpDownloader {
     return Optional.of(body);
   }
 
-  // A response stream that shuts down its HTTP client together with the stream. The client is shut down without waiting
-  // for its exchanges, so closing a stream whose server stopped sending never blocks.
+  // Shuts its HTTP client down with the stream, without waiting for exchanges, so closing a stalled server's stream never blocks.
   @VisibleForTesting
   static final class ClientClosingStream extends InputStream {
 

@@ -24,8 +24,7 @@ import java.nio.file.Path;
 import java.util.function.Consumer;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// libtheoraenc uses symbols of libtheoradec without linking it, so libtheoradec alone joins the global scope; promoting
-// every library would let variants such as libexpatw shadow the symbols of libexpat.
+// libtheoraenc uses libtheoradec's symbols unlinked, so only libtheoradec is promoted; promoting all lets libexpatw shadow libexpat.
 class PromotingLibraryLoader implements Consumer<String> {
 
   private static final String UNLINKED_LIBRARY = "libtheoradec.so.1";
@@ -56,8 +55,7 @@ class PromotingLibraryLoader implements Consumer<String> {
     return name.startsWith(UNLINKED_LIBRARY);
   }
 
-  // Package-private so a test can see the promotion, which kills the mutant that skips it. A symbol lookup cannot,
-  // because a library that an earlier test promoted stays global for the whole JVM.
+  // Package-private so a test kills the mutant that skips the promotion; symbol lookups cannot, as promotions stay global for the JVM.
   @VisibleForTesting
   void promote(final String path) {
     final NativeLibrary process = NativeLibrary.getProcess();

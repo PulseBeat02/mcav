@@ -156,8 +156,7 @@ public final class VlcInstallationKit {
       return Optional.ofNullable(systemPath);
     }
 
-    // an earlier private installation is used before anything asks the network whether VLC can be downloaded, so a
-    // machine keeps working offline
+    // an earlier private installation is used before the network is asked, so a machine keeps working offline
     final Optional<Path> existing = this.installer.findInstallation();
     final @Nullable Path existingDirectory = existing.orElse(null);
     if (existingDirectory != null) {

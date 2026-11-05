@@ -542,8 +542,7 @@ public final class IoUtils {
     return getCachedFolder(Files::isExecutable, CACHE_FALLBACK_REPORTED);
   }
 
-  // test seam for the mutants of the fallback from a home cache on a noexec mount, which only a mount option reaches,
-  // and of the warning logged once, whose flag for the whole JVM another test may have set already
+  // test seam for the mutants of the noexec fallback, reached only by a mount option, and of the once-per-JVM warning flag
   @VisibleForTesting
   static Path getCachedFolder(final Predicate<Path> executable, final AtomicBoolean fallbackReported) {
     final @Nullable String homeOrNull = System.getProperty(USER_HOME_PROPERTY);
@@ -578,8 +577,7 @@ public final class IoUtils {
     }
   }
 
-  // Linux refuses the execute access check on every regular file of a noexec mount, even one marked executable, so a
-  // probe marked executable answers for the whole file system.
+  // Linux refuses execute access to every file of a noexec mount, even an executable one, so one probe answers for the file system.
   private static boolean probeExecution(final Path probe, final Predicate<Path> executable) throws IOException {
     try {
       markExecutable(probe);
@@ -653,8 +651,7 @@ public final class IoUtils {
     }
   }
 
-  // Gson passes null for a null entry, a missing value or an unknown enum constant, so they only surface when the
-  // constructors of Platform and Download check the values.
+  // Gson passes null for null entries, missing values and unknown enum constants; the Platform and Download constructors catch them.
   private static Download buildDownload(final DownloadFields fields) throws IOException {
     try {
       final PlatformFields platformFields = fields.platform();

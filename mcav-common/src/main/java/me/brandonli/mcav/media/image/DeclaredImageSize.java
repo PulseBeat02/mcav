@@ -30,15 +30,11 @@ import java.util.Set;
 import java.util.regex.Pattern;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// Refuses an encoded image whose header declares more pixels than the limit, before OpenCV decodes it. OpenCV allocates
-// the whole picture as soon as it has read the header, so a small file that declares a huge size (a decompression bomb)
-// would take gigabytes of native memory before anything could look at the result. The header is therefore read here
-// first, the way OpenCV's own decoder for the format reads it: BMP, GIF, Radiance HDR, JPEG, WebP, Sun raster, the
-// Netpbm formats (PBM, PGM, PPM, PAM, PFM), TIFF and PNG, which are the formats the bundled OpenCV decodes. Bytes in
-// any other format are refused as unsupported, as OpenCV refuses them too: JPEG 2000 and OpenEXR, which OpenCV disables
-// unless an environment variable turns them on, are refused as well. The limit is the system property
-// MAXIMUM_PIXELS_PROPERTY, DEFAULT_MAXIMUM_PIXELS pixels (8192 by 8192) if it is not set. A value of 0 or less turns
-// the check off and leaves every image to OpenCV, as before the check.
+/*
+ * Refuses an encoded image whose header declares more pixels than the limit, before OpenCV allocates the whole picture
+ * from it (a decompression bomb). Headers are read the way the bundled OpenCV reads each format; any other format is
+ * refused, JPEG 2000 and OpenEXR even when an environment variable enables them in OpenCV.
+ */
 final class DeclaredImageSize {
 
   static final String MAXIMUM_PIXELS_PROPERTY = "mcav.image.maximum_pixels";
@@ -351,8 +347,7 @@ final class DeclaredImageSize {
     return createPositiveSize(width, height);
   }
 
-  // A Radiance HDR: header lines up to an empty one, then the resolution line -Y <height> +X <width>. OpenCV reads the
-  // lines in pieces of at most 127 characters, so a piece is what decides here too.
+  // A Radiance HDR: header lines up to an empty one, then -Y <height> +X <width>, read in pieces as OpenCV reads them.
   private static @Nullable Size readHdrSize(final Header header) {
     final long[] position = { 0 };
     // the first line is the magic, which OpenCV reads and does not look at
@@ -397,8 +392,7 @@ final class DeclaredImageSize {
         final long height = header.readBigEndian(position + JPEG_FRAME_HEIGHT_OFFSET, SIXTEEN_BIT_BYTES);
         return createPositiveSize(width, height);
       }
-      // FF 00 is a stuffed zero, no marker: libjpeg's next_marker drops it and looks on, as after a marker that stands
-      // alone; read as a marker with a length, it would lead the search away from the frame libjpeg reads
+      // FF 00 is a stuffed zero that libjpeg skips like a standalone marker; reading a length there would lead away from libjpeg's frame
       final boolean restart = code >= JPEG_FIRST_RESTART && code <= JPEG_LAST_RESTART;
       final boolean standalone = code == JPEG_STUFFED_ZERO || code == JPEG_TEMPORARY || restart;
       if (standalone) {
@@ -415,9 +409,10 @@ final class DeclaredImageSize {
     }
   }
 
-  // A WebP, which OpenCV recognizes by libwebp reading the features of its first 32 bytes: the canvas of an extended
-  // file, or the frame of a lossy or lossless one. A lossless bitstream without its RIFF container is read too; a lossy
-  // one never passes OpenCV's signature check, as its first partition is longer than those 32 bytes.
+  /*
+   * A WebP's size as libwebp reads its first 32 bytes for OpenCV: the canvas of an extended file, else the frame. A
+   * lossless bitstream without its RIFF container is read too; a lossy one fails OpenCV's signature check.
+   */
   private static @Nullable Size readWebpSize(final Header header) {
     if (header.size() < MINIMUM_WEBP_HEADER_LENGTH) {
       return null;
@@ -824,8 +819,7 @@ final class DeclaredImageSize {
       return piece.isEmpty() ? null : piece.toString();
     }
 
-    // A line ended by a line feed or a carriage return, without the end. Only the first limit characters are kept: a
-    // longer line can only be a comment, as OpenCV refuses a longer name or value.
+    // Keeps the first limit characters of a line: a longer one can only be a comment, as OpenCV refuses a longer name or value.
     @Nullable String readLine(final long[] position, final int limit) {
       final StringBuilder line = new StringBuilder();
       int code = this.readUnsigned8(position[0]);
