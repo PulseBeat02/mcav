@@ -25,11 +25,7 @@ import com.code_intelligence.jazzer.junit.FuzzTest;
 import java.util.Optional;
 import org.junit.jupiter.api.Tag;
 
-// Fuzzes the connection settings of a VNC source, which the sandbox builds from what an operator types: every setting
-// is either refused as VncSourceBuilder documents or ends up in the source exactly as given, two sources of the same
-// settings are equal with the same hash, and the source names its host and port. This is not RFB coverage: the protocol
-// is read by com.shinyhut:vernacular behind MCAV's RfbGuard, which RfbGuardFuzzTest fuzzes, and the frames a server
-// sends are converted by the code BufferedImageConversionFuzzTest in mcav-common fuzzes.
+// Any setting is refused as VncSourceBuilder documents or kept as given; RfbGuardFuzzTest covers the protocol itself.
 @Tag("fuzz")
 final class VncSourceFuzzTest {
 

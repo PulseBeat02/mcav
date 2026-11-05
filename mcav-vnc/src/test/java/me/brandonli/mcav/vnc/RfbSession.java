@@ -22,8 +22,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 
-// Drives an RfbGuard through a VNC conversation in protocol order, the way a client and a server take turns: each
-// side's bytes are built with the helpers here, which write RFB's big-endian fields.
+// Drives an RfbGuard through a VNC conversation in protocol order, with helpers that write RFB's big-endian fields.
 final class RfbSession {
 
   static final int NONE = 1;

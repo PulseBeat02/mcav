@@ -43,10 +43,10 @@ import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// A minimal RFB 3.8 (VNC) server on the loopback interface for tests. The server serves one client at a time. It
-// answers every framebuffer update request with the whole screen as one raw-encoded rectangle filled with the current
-// color, and records the key and pointer events it receives. Answers can be held back with #setAnswering(boolean), so a
-// client can be observed before it has seen the size of the screen.
+/*
+ * A minimal RFB 3.8 server on loopback for tests, one client at a time: it answers each update request with the whole
+ * screen as one raw rectangle of the current color and records key and pointer events.
+ */
 public final class RfbTestServer implements AutoCloseable {
 
   private static final byte[] VERSION = "RFB 003.008\n".getBytes(StandardCharsets.US_ASCII);
@@ -518,8 +518,7 @@ public final class RfbTestServer implements AutoCloseable {
     this.color = rgb & RGB_MASK;
   }
 
-  // Sets whether update requests are answered. Requests received while not answering are answered once answering is
-  // enabled again.
+  // Requests received while not answering are answered once answering is enabled again.
   public void setAnswering(final boolean answering) {
     this.answering.set(answering);
     if (answering) {

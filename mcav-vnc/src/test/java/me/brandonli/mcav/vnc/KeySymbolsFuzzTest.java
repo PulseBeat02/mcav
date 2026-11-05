@@ -27,8 +27,7 @@ import java.io.StringReader;
 import java.util.Map;
 import org.junit.jupiter.api.Tag;
 
-// Fuzzes the keysym table reader with arbitrary text: a table is either read the same way every time or refused with
-// a VncException of MCAV's own, never with a Gson or number parsing exception.
+// Any text is read the same way every time or refused with a VncException, never a Gson or number parsing exception.
 @Tag("fuzz")
 final class KeySymbolsFuzzTest {
 

@@ -35,8 +35,7 @@ public final class UtilityClassAssertions {
     throw new UnsupportedOperationException(message);
   }
 
-  // Asserts that a class is final, has exactly one constructor, that the constructor is private, and that calling it
-  // anyway through reflection throws an UnsupportedOperationException.
+  // Final, with one private constructor that throws UnsupportedOperationException when called through reflection.
   public static void assertNotInstantiable(final Class<?> utilityClass) {
     Preconditions.checkNotNull(utilityClass, "Utility class must not be null!");
 

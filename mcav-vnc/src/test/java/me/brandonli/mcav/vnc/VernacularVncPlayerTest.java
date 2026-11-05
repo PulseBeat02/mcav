@@ -91,9 +91,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 
-// Tests VernacularVncPlayer and the default methods of VncPlayer. Most tests talk to a RfbTestServer on the loopback
-// interface, so the whole path from the socket to the pipeline is exercised. Tests of failures the real client cannot
-// produce on demand use a mocked VernacularClient whose listeners are driven by the test.
+// Most tests talk to an RfbTestServer on loopback; failures the real client cannot produce use a mocked VernacularClient.
 final class VernacularVncPlayerTest {
 
   private static final int RED = 0xFF0000;
@@ -148,17 +146,14 @@ final class VernacularVncPlayerTest {
 
   @AfterEach
   void closeResources() throws Exception {
-    // newest first, so a player is released before the server it is connected to; a server closed first would
-    // wait for the still connected client until its join timeout runs out
+    // newest first, so a player closes before its server, which would otherwise wait out its join timeout
     final List<AutoCloseable> newestFirst = this.resources.reversed();
     for (final AutoCloseable resource : newestFirst) {
       resource.close();
     }
   }
 
-  // Loads the OpenCV libraries that every frame goes through before any test runs. JavaCV loads them on first use,
-  // which takes seconds on a busy machine, and that one-time cost would otherwise count against the timeout of
-  // whichever test receives the first frame.
+  // Loads OpenCV once up front, so its first-use cost does not count against the timeout of the first frame's test.
   @BeforeAll
   static void loadImageLibraries() {
     final BufferedImage frame = new BufferedImage(2, 2, BufferedImage.TYPE_INT_RGB);
@@ -1628,9 +1623,7 @@ final class VernacularVncPlayerTest {
     return threads.getFirst();
   }
 
-  // Checks whether a render thread parked because it found no update, which the render loop does with a timed park. A
-  // render thread that is held inside a filter waits with a timeout as well, so this only tells the two apart once the
-  // threads of earlier sessions have stopped.
+  // A thread held in a filter is TIMED_WAITING too, so this is only reliable once earlier sessions' threads stopped.
   private boolean anyRenderThreadWaitsForAnUpdate() {
     final List<Thread> threads = this.renderThreads();
     for (final Thread thread : threads) {
@@ -2150,8 +2143,7 @@ final class VernacularVncPlayerTest {
     this.assertDoesNotBlock("another thread releases after a release", () -> player.release());
   }
 
-  // Asserts that an action which takes the lock of the player finishes on another thread, which it only does while no
-  // lock is left held.
+  // An action that takes the player's lock finishes on another thread only while no lock is left held.
   private void assertDoesNotBlock(final String description, final Runnable action) {
     final CountDownLatch finished = new CountDownLatch(1);
     final Runnable probe = () -> this.runActionAndRecordCompletion(action, finished);
