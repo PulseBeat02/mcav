@@ -52,7 +52,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * server's Unix-domain socket, proves who it is with the session token, starts CEF and streams the page as
  * {@link HelperProtocol} frames while it forwards the server's input to the page. It exits when the server asks it
  * to, when the connection ends, or when its standard input ends, which happens when the server process dies. Once its
- * standard input ended, it halts if it has not stopped within {@value #STOP_DEADLINE_MILLISECONDS} ms, so a browser that hangs
+ * standard input ended, it halts if it has not stopped within 20 seconds, so a browser that hangs
  * never outlives the server. It is not meant to be started by hand.
  *
  * <p>This class is not thread-safe; the JVM calls {@link #main(String[])} once per helper process.
