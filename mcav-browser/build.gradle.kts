@@ -1,3 +1,5 @@
+import me.brandonli.mcav.gradle.ModuleCoordinates
+
 plugins {
     id("mcav.browser")
 }
@@ -5,8 +7,8 @@ plugins {
 dependencies {
     // Exclude JOGL/GlueGen: JCEF's OpenGL canvas needs them, but mcav's off-screen renderer does not.
     implementation(libs.jcefmaven) {
-        exclude(group = "me.friwi", module = "jogl-all")
-        exclude(group = "me.friwi", module = "gluegen-rt")
+        exclude(group = ModuleCoordinates.JCEF_MAVEN_GROUP, module = ModuleCoordinates.JOGL_MODULE)
+        exclude(group = ModuleCoordinates.JCEF_MAVEN_GROUP, module = ModuleCoordinates.GLUEGEN_RUNTIME_MODULE)
     }
 
     compileOnlyApi(project(":mcav-common"))

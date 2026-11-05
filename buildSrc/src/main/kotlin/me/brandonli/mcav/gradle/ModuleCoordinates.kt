@@ -28,6 +28,41 @@ import org.gradle.api.artifacts.Configuration
 object ModuleCoordinates {
 
     /**
+     * The Maven group of Bytedeco's JavaCV and JavaCPP presets.
+     */
+    const val BYTEDECO_GROUP: String = "org.bytedeco"
+
+    /**
+     * The Maven group of jcefmaven and of the JOGL and GlueGen builds that it depends on.
+     */
+    const val JCEF_MAVEN_GROUP: String = "me.friwi"
+
+    /**
+     * The name of jcefmaven's JOGL module.
+     */
+    const val JOGL_MODULE: String = "jogl-all"
+
+    /**
+     * The name of jcefmaven's GlueGen runtime module.
+     */
+    const val GLUEGEN_RUNTIME_MODULE: String = "gluegen-rt"
+
+    /**
+     * The Maven group of JNA.
+     */
+    const val JNA_GROUP: String = "net.java.dev.jna"
+
+    /**
+     * The name of JNA's JPMS module.
+     */
+    const val JNA_JPMS_MODULE: String = "jna-jpms"
+
+    /**
+     * The name of JNA Platform's JPMS module.
+     */
+    const val JNA_PLATFORM_JPMS_MODULE: String = "jna-platform-jpms"
+
+    /**
      * The Maven group of Spring Boot.
      */
     const val SPRING_BOOT_GROUP: String = "org.springframework.boot"
