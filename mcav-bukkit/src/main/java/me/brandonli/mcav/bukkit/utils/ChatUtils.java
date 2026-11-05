@@ -101,7 +101,7 @@ public final class ChatUtils {
    * @param width     the width of the image in pixels
    * @param row       the row to convert
    * @return the row as text with legacy section sign color codes
-   * @throws IllegalArgumentException if width is nonpositive or the requested zero-based row is outside the data
+   * @throws IllegalArgumentException if width is not positive or the requested zero-based row is outside the data
    * @throws NullPointerException     if {@code data} or {@code character} is null
    * @since 1.0.0
    */
@@ -129,7 +129,7 @@ public final class ChatUtils {
    * @param width     the width of the image in pixels
    * @param height    the height of the image in pixels
    * @return a chat component showing the image
-   * @throws IllegalArgumentException if either dimension is nonpositive or the image requires more pixels than supplied
+   * @throws IllegalArgumentException if either dimension is not positive or the image requires more pixels than supplied
    * @throws NullPointerException     if {@code data} or {@code character} is null
    * @since 1.0.0
    */

@@ -227,7 +227,7 @@ public final class PacketUtils {
    * @param bytes  the most unsent bytes the system may hold, positive
    * @return true if the cap was set; false for a player who is not online, a connection not open yet, or a transport
    *         without the option
-   * @throws IllegalArgumentException if the byte limit is nonpositive
+   * @throws IllegalArgumentException if the byte limit is not positive
    * @throws NullPointerException     if {@code player} is null
    * @since 1.0.0
    */

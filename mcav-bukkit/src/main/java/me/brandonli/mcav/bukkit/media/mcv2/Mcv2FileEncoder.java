@@ -96,7 +96,7 @@ public final class Mcv2FileEncoder {
    * @return what the encode did
    * @throws Mcv2Exception              if the reader cannot read or close, the output cannot be written, or the calling
    *                                    thread is interrupted, which stops the encode and leaves the thread interrupted
-   * @throws IllegalArgumentException   if a dimension is nonpositive, or an encoded frame exceeds the codec
+   * @throws IllegalArgumentException   if a dimension is not positive, or an encoded frame exceeds the codec
    *                                    dimension/id range
    * @throws ArithmeticException        if the RGB allocation size overflows an int
    * @throws RejectedExecutionException if the budget rejects the encoding task
@@ -171,7 +171,7 @@ public final class Mcv2FileEncoder {
    * @param height the height of the frames
    * @return the frames
    * @throws Mcv2Exception            if the file cannot be opened
-   * @throws IllegalArgumentException if either dimension is nonpositive
+   * @throws IllegalArgumentException if either dimension is not positive
    * @throws NullPointerException     if {@code video} is null
    * @since 1.0.0
    */

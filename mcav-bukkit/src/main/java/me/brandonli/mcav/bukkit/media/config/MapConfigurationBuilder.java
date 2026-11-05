@@ -104,7 +104,7 @@ public interface MapConfigurationBuilder {
    * Builds the map configuration. The builder is not changed, so it can be reused to build more configurations.
    *
    * @return the map configuration
-   * @throws IllegalArgumentException if the first map id is negative, a grid dimension is nonpositive,
+   * @throws IllegalArgumentException if the first map id is negative, a grid dimension is not positive,
    *                                  a requested resolution is negative, or a default resolution would overflow an integer
    * @throws IllegalStateException    if the viewers were never set
    * @since 1.0.0
