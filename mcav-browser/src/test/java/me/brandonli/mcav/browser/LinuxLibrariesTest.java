@@ -340,7 +340,7 @@ class LinuxLibrariesTest {
     try {
       return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
     } catch (final NoSuchAlgorithmException exception) {
-      throw new IllegalStateException(exception);
+      throw new AssertionError(exception);
     }
   }
 
