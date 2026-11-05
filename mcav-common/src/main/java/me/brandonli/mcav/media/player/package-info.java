@@ -29,8 +29,7 @@
  * An explicitly supplied executor stays caller-owned. Cancelling that future does not release the player and
  * does not guarantee interruption of native work. Use the player's release operation to request shutdown.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

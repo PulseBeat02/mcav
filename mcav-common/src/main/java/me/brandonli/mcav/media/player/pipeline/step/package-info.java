@@ -27,8 +27,7 @@
  * and does not restore the final position after the last filter. Default step links are immutable, but their
  * filters may be stateful. Callers own filter startup, synchronization and cleanup; steps never close filters.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

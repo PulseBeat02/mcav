@@ -28,8 +28,7 @@
  * release is terminal. It releases the player's native references and requests renderer shutdown, waiting up to
  * five seconds per render thread without joining the caller itself. The caller owns and releases attached filters.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

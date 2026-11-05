@@ -28,8 +28,7 @@
  * information. {@link me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata#EMPTY} has unknown dimensions
  * as well. Default instances are immutable, shareable across threads and require no cleanup.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

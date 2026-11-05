@@ -28,8 +28,7 @@
  * serial diffusion near strip boundaries. Parallelizing one call does not make simultaneous calls on the same
  * temporal instance safe. The caller owns any supplied pool and keeps the image stable until the call returns.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

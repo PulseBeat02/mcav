@@ -27,8 +27,7 @@
  * installation directories. Callers must supply trusted, verified archives and serialize strategies that share
  * a destination. The strategy borrows its installer; it does not own media players or a native VLC instance.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

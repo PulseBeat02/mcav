@@ -28,8 +28,7 @@
  * avoid modifying its images during playback. Creating another supplier view does not reset that cursor.
  * The application releases the player before closing the animation; a source does not close either resource.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

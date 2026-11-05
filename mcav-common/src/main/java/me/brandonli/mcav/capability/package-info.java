@@ -27,8 +27,7 @@
  * prepared programs. An unknown capability is permitted by the guard, which does not itself install or verify
  * anything. Independent guards are intended for custom bootstraps; normal callers use the API's readiness checks.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

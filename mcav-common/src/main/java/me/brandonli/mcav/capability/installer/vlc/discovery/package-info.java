@@ -28,8 +28,7 @@
  * independent configurations. Custom directory formats and environment callbacks must remain valid for the
  * strategy's lifetime.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

@@ -27,8 +27,7 @@
  * Thread safety and native-resource ownership depend on the concrete filter. Resource-owning audio and video
  * filters expose explicit lifecycle methods that the caller invokes outside the pipeline.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

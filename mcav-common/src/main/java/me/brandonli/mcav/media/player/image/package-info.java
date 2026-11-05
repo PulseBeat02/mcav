@@ -28,8 +28,7 @@
  * two seconds when called externally. It does not close a supplied animation or release attached filters. Keep
  * those resources available until any callback that outlived the bounded wait has actually returned.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

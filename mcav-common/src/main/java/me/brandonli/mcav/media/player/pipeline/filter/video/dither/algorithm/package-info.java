@@ -30,8 +30,7 @@
  * stream and need serialized calls and explicit reset after a seek or source change. A supplied fork/join pool
  * remains caller-owned; parallel calls wait for submitted work and never shut down the pool.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

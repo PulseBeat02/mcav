@@ -25,8 +25,7 @@
  * usual NIO create/truncate behavior applies. The immutable default handles have nothing to close; opened
  * streams and players have their own lifetimes and synchronization requirements.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

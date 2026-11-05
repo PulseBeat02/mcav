@@ -24,8 +24,7 @@
  * {@code int}. Use {@link me.brandonli.mcav.media.player.multimedia.VideoPlayer#device()} to open the source
  * and release that player when finished. Sources and the default stateless detector can be shared across threads.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

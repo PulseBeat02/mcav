@@ -35,8 +35,7 @@
  *
  * <p>Downloading, extraction and loading block the caller. Installed libraries are kept for reuse.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

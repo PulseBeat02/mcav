@@ -27,8 +27,7 @@
  * generated sources may retain stateful suppliers or animation frames. Players and their callers own the resources
  * needed for playback. Custom detectors and suppliers define their own thread-safety requirements.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

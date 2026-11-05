@@ -28,8 +28,7 @@
  * These generators are intended for visual noise, not security-sensitive random values. Returned index arrays
  * belong to callers, while in-place dithering modifies their supplied pixel arrays.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

@@ -29,8 +29,7 @@
  * an invocation already using the old reference. The caller remains responsible for filter thread safety and
  * cleanup after all in-flight invocations finish. Dimension attachment requires a nonempty size.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */
