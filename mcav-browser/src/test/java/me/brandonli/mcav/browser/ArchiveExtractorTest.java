@@ -380,7 +380,8 @@ class ArchiveExtractorTest {
 
   @Test
   void shouldTakeTheWriteOfTheGroupAndOfOthersAwayAndLeaveLinksAndTheRestAloneWhenTightening() throws IOException {
-    assumeTrue(this.target.getFileSystem().supportedFileAttributeViews().contains(POSIX_ATTRIBUTE_VIEW), POSIX_MISSING_MESSAGE);
+    final boolean supportsPosix = this.target.getFileSystem().supportedFileAttributeViews().contains(POSIX_ATTRIBUTE_VIEW);
+    assumeTrue(supportsPosix, POSIX_MISSING_MESSAGE);
     final Path installation = Files.createDirectories(this.target.resolve(INSTALLATION_FOLDER));
     final Path inner = Files.createDirectories(installation.resolve(LOCALES_FOLDER));
     final Path groupWritable = Files.writeString(inner.resolve(GROUP_WRITABLE_FILE), "group");
@@ -427,12 +428,14 @@ class ArchiveExtractorTest {
     final Path file = Files.writeString(this.target.resolve(PLAIN_FILE), "file");
     ArchiveExtractor.tighten(file);
     ArchiveExtractor.tighten(this.target.resolve(MISSING_FILE));
-    assumeTrue(this.target.getFileSystem().supportedFileAttributeViews().contains(POSIX_ATTRIBUTE_VIEW), POSIX_MISSING_MESSAGE);
+    final boolean supportsPosix = this.target.getFileSystem().supportedFileAttributeViews().contains(POSIX_ATTRIBUTE_VIEW);
+    assumeTrue(supportsPosix, POSIX_MISSING_MESSAGE);
     ArchiveExtractor.takeWriteAway(this.target.resolve(GONE_FILE));
     final Path closed = Files.createDirectories(this.target.resolve(CLOSED_FOLDER));
     Files.setPosixFilePermissions(closed, PosixFilePermissions.fromString("-wx------"));
     try {
-      assumeTrue(!Files.isReadable(closed), "The user may read every folder, so none can be closed to it!");
+      final boolean readable = Files.isReadable(closed);
+      assumeTrue(!readable, "The user may read every folder, so none can be closed to it!");
       ArchiveExtractor.tighten(this.target);
       final Set<PosixFilePermission> closedPermissions = Files.getPosixFilePermissions(closed);
       final Set<PosixFilePermission> expectedClosedPermissions = PosixFilePermissions.fromString("-wx------");

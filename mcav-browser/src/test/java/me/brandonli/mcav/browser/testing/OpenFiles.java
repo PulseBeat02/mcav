@@ -40,7 +40,8 @@ public final class OpenFiles {
 
   public static void assertLeavesNoneOpen(final String description, final Runnable attempt) {
     final Path descriptors = DESCRIPTORS;
-    assumeTrue(Files.isDirectory(descriptors), "This system does not list the open files of a process!");
+    final boolean listsOpenFiles = Files.isDirectory(descriptors);
+    assumeTrue(listsOpenFiles, "This system does not list the open files of a process!");
 
     final long before = count(descriptors);
     for (int count = 0; count < ATTEMPTS; count++) {

@@ -182,7 +182,8 @@ class ChromiumConfinementTest {
     Files.createDirectories(closed.resolve(BESIDE_FOLDER));
     Files.setPosixFilePermissions(closed, PosixFilePermissions.fromString("-wx------"));
     try {
-      assumeTrue(!Files.isReadable(closed), "The user may read every folder, so none can be closed to it!");
+      final boolean readable = Files.isReadable(closed);
+      assumeTrue(!readable, "The user may read every folder, so none can be closed to it!");
       final List<Landlock.Rule> rules = ChromiumConfinement.rules(root, List.of(hidden), List.of(), List.of());
       assertEquals(List.of(), rules);
     } finally {
