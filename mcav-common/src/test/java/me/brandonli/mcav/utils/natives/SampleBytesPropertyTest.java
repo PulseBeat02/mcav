@@ -249,9 +249,9 @@ final class SampleBytesPropertyTest {
       whole.position(this.before);
       whole.limit(this.before + this.content.length);
       final ByteBuffer buffer = switch (this.layout) {
+        case HEAP, DIRECT -> whole;
         case SLICED_HEAP, SLICED_DIRECT -> whole.slice();
         case READ_ONLY -> whole.asReadOnlyBuffer();
-        default -> whole;
       };
       buffer.order(this.order);
       return buffer;
