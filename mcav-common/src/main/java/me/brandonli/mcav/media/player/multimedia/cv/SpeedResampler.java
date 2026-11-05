@@ -45,7 +45,6 @@ final class SpeedResampler {
     }
 
     if (speed == PlaybackClock.NORMAL_SPEED) {
-      this.remember(input, frames);
       this.next = FIRST_FRAME_POSITION;
 
       return samples;
