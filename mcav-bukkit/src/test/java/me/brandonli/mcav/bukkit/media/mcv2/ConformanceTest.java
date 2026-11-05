@@ -64,7 +64,7 @@ final class ConformanceTest {
       final byte[] picture = receiver.accept(data);
       final String expectedDigest = digests.get(frameIndex);
       final String digest = Mcv2Fixtures.sha256(picture);
-      assertEquals(expectedDigest, digest, "frame " + frameIndex);
+      assertEquals(expectedDigest, digest, "frame %s".formatted(frameIndex));
     }
   }
 

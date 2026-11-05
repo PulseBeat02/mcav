@@ -70,7 +70,7 @@ final class TransportPagesTest {
 
     for (final JsonElement entry : root.getAsJsonArray("frames")) {
       final JsonObject expected = entry.getAsJsonObject();
-      final String name = expected.get("stream").getAsString() + "#" + expected.get("frame").getAsInt() + "@6";
+      final String name = "%s#%s@6".formatted(expected.get("stream").getAsString(), expected.get("frame").getAsInt());
       arguments.add(Arguments.of(name, expected));
     }
 

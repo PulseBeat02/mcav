@@ -211,7 +211,7 @@ final class StandardVideoHologramTest {
     final String date = this.expectedDate(1, FIRST_ORDINAL_SUFFIX);
     assertSame(display, current);
 
-    final String expected = "Some Video\nSome Channel (" + date + ")";
+    final String expected = "Some Video\nSome Channel (%s)".formatted(date);
     assertEquals(expected, plain);
     verify(display).setPersistent(false);
     verify(display).setAlignment(TextDisplay.TextAlignment.CENTER);
@@ -234,7 +234,7 @@ final class StandardVideoHologramTest {
       final Component text = this.lastText(display);
       final String plain = PLAIN.serialize(text);
       final String date = this.expectedDate(days[index], suffixes[index]);
-      final String expected = "t\nu (" + date + ")";
+      final String expected = "t\nu (%s)".formatted(date);
       assertEquals(expected, plain);
     }
   }
@@ -340,7 +340,7 @@ final class StandardVideoHologramTest {
     assertEquals(0, startFilled);
     assertEquals(BAR_LENGTH, startEmpty);
 
-    final String expectedOneSecond = "t\nu (Unknown date)\n00:01 " + bar + DURATION_TEXT;
+    final String expectedOneSecond = "t\nu (Unknown date)\n00:01 %s%s".formatted(bar, DURATION_TEXT);
     assertEquals(expectedOneSecond, oneSecondPlain);
     assertEquals(2, oneSecondFilled);
   }
@@ -361,7 +361,7 @@ final class StandardVideoHologramTest {
     final int tasksAfterFinish = this.server.getScheduledTaskCount();
 
     final String bar = PROGRESS.repeat(BAR_LENGTH);
-    final String expectedEnd = "t\nu (Unknown date)\n00:10 " + bar + DURATION_TEXT;
+    final String expectedEnd = "t\nu (Unknown date)\n00:10 %s%s".formatted(bar, DURATION_TEXT);
     assertEquals(expectedEnd, endPlain);
     assertEquals(BAR_LENGTH, endFilled);
     assertEquals(1, tasksBeforeFinish);

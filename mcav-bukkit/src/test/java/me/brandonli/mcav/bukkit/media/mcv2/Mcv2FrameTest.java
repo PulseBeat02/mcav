@@ -378,7 +378,7 @@ final class Mcv2FrameTest {
       final int size = leaf.size();
       assertEquals(32, size);
       final boolean cheapest = leaf.mode() == MODE_SOLID || leaf.mode() == MODE_SKIP;
-      assertTrue(cheapest, "mode " + leaf.mode());
+      assertTrue(cheapest, "mode %s".formatted(leaf.mode()));
     }
 
     final byte[] expectedKeyframe = hurried.getReference().orElseThrow();
@@ -435,10 +435,11 @@ final class Mcv2FrameTest {
       );
       final boolean expectedKeyframe = frameNumber == 0;
       final boolean keyframe = encoder.getStatistics().orElseThrow().isKeyframe();
-      assertEquals(expectedKeyframe, keyframe, "frame " + frameNumber);
+      assertEquals(expectedKeyframe, keyframe, "frame %s".formatted(frameNumber));
+
       final byte[] expected = client.decode(data);
       final byte[] reference = encoder.getReference().orElseThrow();
-      assertArrayEquals(expected, reference, "frame " + frameNumber);
+      assertArrayEquals(expected, reference, "frame %s".formatted(frameNumber));
     }
 
     assertThrows(NullPointerException.class, () -> encoder.setSettings(null));
@@ -467,13 +468,14 @@ final class Mcv2FrameTest {
       final byte[] actual = bounded.encode(picture, WIDE_FRAME_WIDTH, FRAME_SIDE, 0);
       if (keyframes[expected].length <= bound) {
         final byte[] expectedKeyframe = keyframes[expected];
-        assertArrayEquals(expectedKeyframe, actual, "bound " + bound);
+        assertArrayEquals(expectedKeyframe, actual, "bound %s".formatted(bound));
       } else {
         final Mcv2 trivial = new Mcv2(Settings.DEFAULT, POOL, 2, Mcv2.Verification.VERIFIED);
         trivial.setFrameBudget(1);
         final byte[] expectedTrivial = trivial.encode(picture, WIDE_FRAME_WIDTH, FRAME_SIDE, 0);
-        assertArrayEquals(expectedTrivial, actual, "bound " + bound);
+        assertArrayEquals(expectedTrivial, actual, "bound %s".formatted(bound));
       }
+
       final int expectedLambda = DEFAULT_LAMBDA << expected;
       final double lambda = bounded.getStatistics().orElseThrow().getLambda();
       assertEquals(expectedLambda, lambda);
@@ -483,7 +485,7 @@ final class Mcv2FrameTest {
       final byte[] next = bounded.encode(this.noise(WIDE_FRAME_WIDTH, FRAME_SIDE, 6), WIDE_FRAME_WIDTH, FRAME_SIDE, 1);
       final byte[] expectedNext = client.decode(next);
       final byte[] reference = bounded.getReference().orElseThrow();
-      assertArrayEquals(expectedNext, reference, "bound " + bound);
+      assertArrayEquals(expectedNext, reference, "bound %s".formatted(bound));
     }
 
     final Mcv2 unbounded = new Mcv2(Settings.DEFAULT, POOL, 2, Mcv2.Verification.UNVERIFIED);

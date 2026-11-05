@@ -64,10 +64,10 @@ final class FrameMutationTest {
     }
 
     final boolean rejectedAny = acceptances.contains(false);
-    assertTrue(rejectedAny, stream + " rejected nothing");
+    assertTrue(rejectedAny, "%s rejected nothing".formatted(stream));
 
     final boolean acceptedAny = acceptances.contains(true);
-    assertTrue(acceptedAny, stream + " accepted nothing");
+    assertTrue(acceptedAny, "%s accepted nothing".formatted(stream));
   }
 
   private void corruptEveryOffset(final byte[] frame, final byte[] picture, final long frameId, final List<Boolean> acceptances) {

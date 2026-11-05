@@ -71,7 +71,7 @@ final class Mcv2PackLocaleTest {
       for (final Map.Entry<String, String> shader : expected.entrySet()) {
         final String expectedShader = shader.getValue();
         final @Nullable String actualShader = actual.get(shader.getKey());
-        assertEquals(expectedShader, actualShader, shader.getKey() + " must keep locale-independent GLSL numbers");
+        assertEquals(expectedShader, actualShader, "%s must keep locale-independent GLSL numbers".formatted(shader.getKey()));
       }
     } finally {
       Locale.setDefault(Locale.Category.FORMAT, previous);

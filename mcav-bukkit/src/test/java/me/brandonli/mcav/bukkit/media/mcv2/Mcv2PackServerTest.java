@@ -180,7 +180,7 @@ final class Mcv2PackServerTest {
   private PackHosting hosting(final Path zip) {
     final PackHosting hosting = mock(PackHosting.class);
     when(hosting.getZip()).thenReturn(zip);
-    when(hosting.getRawUrl()).thenReturn("http://127.0.0.1:25565/mcav/" + zip.getFileName());
+    when(hosting.getRawUrl()).thenReturn("http://127.0.0.1:25565/mcav/%s".formatted(zip.getFileName()));
     this.hostings.add(hosting);
     return hosting;
   }
@@ -232,13 +232,13 @@ final class Mcv2PackServerTest {
       final List<String> slots = new ArrayList<>();
       for (final JsonElement screen : parsed.getAsJsonArray("screens")) {
         final JsonObject slot = screen.getAsJsonObject();
-        slots.add(
-          slot.get("stream_id").getAsLong() +
-            ": " +
-            slot.get("video_width").getAsInt() +
-            SIZE_SEPARATOR +
-            slot.get("video_height").getAsInt()
+        final String slotDescription = "%s: %s%s%s".formatted(
+          slot.get("stream_id").getAsLong(),
+          slot.get("video_width").getAsInt(),
+          SIZE_SEPARATOR,
+          slot.get("video_height").getAsInt()
         );
+        slots.add(slotDescription);
       }
       return slots;
     }
@@ -268,7 +268,7 @@ final class Mcv2PackServerTest {
     final String packHash = pack.hash();
     assertEquals(sha1, packHash);
 
-    final UUID expectedId = UUID.nameUUIDFromBytes(("mcav-mcv2:" + sha1).getBytes(StandardCharsets.UTF_8));
+    final UUID expectedId = UUID.nameUUIDFromBytes("mcav-mcv2:%s".formatted(sha1).getBytes(StandardCharsets.UTF_8));
     final UUID id = pack.id();
     assertEquals(expectedId, id);
 
@@ -864,18 +864,16 @@ final class Mcv2PackServerTest {
       assertEquals(-1, repeatedLoadTime);
       verify(alice).sendMessage(
         Component.text(
-          "MCV2: your modded client may replace the video shaders. If video is blank or frozen, install the MCAV MCV2 " +
-            "Client mod, which shows you the dithered maps while Iris shaders are on, or turn off Iris shaders. Without " +
-            "the mod, MCAV cannot detect active shader settings.",
+          "MCV2: your modded client may replace the video shaders. If video is blank or frozen, install the MCAV MCV2 Client mod, which shows you the dithered maps while Iris shaders are on, or turn off Iris shaders. Without the mod, MCAV cannot detect active shader settings.",
           NamedTextColor.YELLOW
         )
       );
-      final List<String> expectedWarnings = List.of(
-        "MCV2 pack loaded by Alice (client brand " +
-          brand +
-          ") without the MCAV MCV2 Client mod, so active shaders cannot be verified. " +
-          "Iris shader packs can prevent decoding: with the mod, such a player sees the dithered maps."
-      );
+
+      final String expectedWarning =
+        "MCV2 pack loaded by Alice (client brand %s) without the MCAV MCV2 Client mod, so active shaders cannot be verified. Iris shader packs can prevent decoding: with the mod, such a player sees the dithered maps.".formatted(
+          brand
+        );
+      final List<String> expectedWarnings = List.of(expectedWarning);
       final List<String> warnings = logs
         .getEvents()
         .stream()

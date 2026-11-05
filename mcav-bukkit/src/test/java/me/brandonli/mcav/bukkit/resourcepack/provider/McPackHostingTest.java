@@ -176,8 +176,10 @@ final class McPackHostingTest {
 
   private byte[] expectedMultipartBody(final String boundary) {
     final String head =
-      "--" + boundary + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\"pack.zip\"\r\nContent-Type: application/zip\r\n\r\n";
-    final String tail = "\r\n--" + boundary + "--\r\n";
+      "--%s\r\nContent-Disposition: form-data; name=\"file\"; filename=\"pack.zip\"\r\nContent-Type: application/zip\r\n\r\n".formatted(
+        boundary
+      );
+    final String tail = "\r\n--%s--\r\n".formatted(boundary);
     final byte[] headBytes = head.getBytes(StandardCharsets.UTF_8);
     final byte[] tailBytes = tail.getBytes(StandardCharsets.UTF_8);
 
@@ -284,7 +286,7 @@ final class McPackHostingTest {
   void shouldUploadThePackAgainWhenTheCachedUrlIsInvalid() throws Exception {
     final String hash = this.sha1(PACK);
     final Path cacheFile = this.getCacheFile();
-    Files.writeString(cacheFile, "{\"" + hash + "\": \"not a url\"}");
+    Files.writeString(cacheFile, "{\"%s\": \"not a url\"}".formatted(hash));
     final McPackHosting hosting = this.createHosting(this.zip);
 
     hosting.start();
@@ -444,7 +446,7 @@ final class McPackHostingTest {
     assertEquals(1, uploadCount);
     assertEquals(Level.WARN, level);
 
-    final String expectedMessage = "Could not write the upload cache " + cacheFile + ", the pack will be uploaded again next time.";
+    final String expectedMessage = "Could not write the upload cache %s, the pack will be uploaded again next time.".formatted(cacheFile);
     assertEquals(expectedMessage, message);
     assertInstanceOf(IOException.class, thrown);
   }

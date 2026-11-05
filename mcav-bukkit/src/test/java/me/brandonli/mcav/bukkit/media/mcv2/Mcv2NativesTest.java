@@ -231,7 +231,7 @@ final class Mcv2NativesTest {
   @Test
   void shouldReadGeneratedDigestsAndRefuseMalformedManifests() {
     final String digest = "a".repeat(DIGEST_LENGTH);
-    final String entry = digest + "  linux-x86_64/libmcv2kernels.so\n";
+    final String entry = "%s  linux-x86_64/libmcv2kernels.so\n".formatted(digest);
     final Map<String, String> expected = Map.of(LINUX_PLATFORM, digest);
     final Map<String, String> digests = Natives.digests(new ByteArrayInputStream(entry.getBytes(StandardCharsets.US_ASCII)));
     assertEquals(expected, digests);
@@ -247,9 +247,9 @@ final class Mcv2NativesTest {
       "garbage",
       "a  linux-x86_64/libmcv2kernels.so",
       entry + entry,
-      entry + "garbage",
-      digest + "  linux-x86_64/wrong.so",
-      digest + "  linux-ppc64/libmcv2kernels.so"
+      "%sgarbage".formatted(entry),
+      "%s  linux-x86_64/wrong.so".formatted(digest),
+      "%s  linux-ppc64/libmcv2kernels.so".formatted(digest)
     )) {
       final Map<String, String> invalidDigests = Natives.digests(new ByteArrayInputStream(invalid.getBytes(StandardCharsets.US_ASCII)));
       assertEquals(Map.of(), invalidDigests);

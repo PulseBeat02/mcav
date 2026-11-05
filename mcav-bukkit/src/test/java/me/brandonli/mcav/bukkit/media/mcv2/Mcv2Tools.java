@@ -475,9 +475,7 @@ final class Mcv2Tools {
     final double seconds = frames / frameRate;
     System.out.printf(
       Locale.ROOT,
-      "{\"frames\":%d,\"warm\":%d,\"keyframes\":%d,\"mean_ms\":%.3f,\"p50_ms\":%.3f,\"p95_ms\":%.3f,\"max_ms\":%.3f,\"cpu_ms\":%.3f," +
-        "\"alloc_mb_per_frame\":%.2f,\"logical_mbps\":%.6f,\"map_mbps\":%.6f,\"zlib_mbps\":%.6f,\"psnr_mean\":%.4f,\"psnr_global\":%.4f," +
-        "\"fps\":%.1f,\"threads\":%d,\"processors\":%d,\"encoder_heap_mb\":%.1f,\"natives\":%s}%n",
+      "{\"frames\":%d,\"warm\":%d,\"keyframes\":%d,\"mean_ms\":%.3f,\"p50_ms\":%.3f,\"p95_ms\":%.3f,\"max_ms\":%.3f,\"cpu_ms\":%.3f,\"alloc_mb_per_frame\":%.2f,\"logical_mbps\":%.6f,\"map_mbps\":%.6f,\"zlib_mbps\":%.6f,\"psnr_mean\":%.4f,\"psnr_global\":%.4f,\"fps\":%.1f,\"threads\":%d,\"processors\":%d,\"encoder_heap_mb\":%.1f,\"natives\":%s}%n",
       frames,
       warmTimes.length,
       measured.keyframes,

@@ -122,7 +122,7 @@ final class Mcv2PoolTest {
       assertEquals(expectedTotal, actualTotal);
 
       final boolean withinSize = seen.size() <= 2;
-      assertTrue(withinSize, "threads used: " + seen.size());
+      assertTrue(withinSize, "threads used: %s".formatted(seen.size()));
 
       for (final Thread thread : seen) {
         final boolean named = thread.getName().startsWith(ENCODER_THREAD_PREFIX);

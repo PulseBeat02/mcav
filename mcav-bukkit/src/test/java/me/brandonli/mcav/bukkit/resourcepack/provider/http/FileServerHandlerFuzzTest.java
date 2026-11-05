@@ -237,13 +237,13 @@ final class FileServerHandlerFuzzTest {
 
     final String headers = text(answered.getFirst());
     final boolean served = headers.startsWith("HTTP/1.1 200 OK\r\n");
-    assertTrue(served, () -> "the file is served: " + headers);
+    assertTrue(served, () -> "the file is served: %s".formatted(headers));
 
-    final boolean statesTheLength = headers.contains("\r\nContent-Length: " + content.length + "\r\n");
-    assertTrue(statesTheLength, () -> "the length is the file's: " + headers);
+    final boolean statesTheLength = headers.contains("\r\nContent-Length: %s\r\n".formatted(content.length));
+    assertTrue(statesTheLength, () -> "the length is the file's: %s".formatted(headers));
 
     final boolean headersEnd = headers.endsWith("\r\n\r\n");
-    assertTrue(headersEnd, () -> "the headers end: " + headers);
+    assertTrue(headersEnd, () -> "the headers end: %s".formatted(headers));
 
     if (isGet) {
       final Object bodyMessage = answered.get(1);
@@ -299,7 +299,7 @@ final class FileServerHandlerFuzzTest {
   }
 
   private String status(final String status) {
-    return "HTTP/1.1 " + status + "\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+    return "HTTP/1.1 %s\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".formatted(status);
   }
 
   private int indexOf(final byte[] stream, final byte[] part) {

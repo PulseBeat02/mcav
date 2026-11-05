@@ -155,7 +155,7 @@ final class Mcv2DecoderTest {
         reused = new byte[fresh.length];
       }
       Mcv2Decoder.decode(frame, reused, frame.getReferenceId(), reused);
-      assertArrayEquals(fresh, reused, "frame " + index + " of " + stream);
+      assertArrayEquals(fresh, reused, "frame %s of %s".formatted(index, stream));
       reference = fresh;
     }
   }

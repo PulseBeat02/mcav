@@ -125,13 +125,10 @@ public final class Mcv2PackServer {
   private static final String PACK_LOADED = "{} loaded the MCV2 pack {} {} ms after it was offered.";
 
   private static final String MODDED_CLIENT_LOADED =
-    "MCV2 pack loaded by {} (client brand {}) without the MCAV MCV2 Client mod, so active shaders cannot be verified. " +
-    "Iris shader packs can prevent decoding: with the mod, such a player sees the dithered maps.";
+    "MCV2 pack loaded by {} (client brand {}) without the MCAV MCV2 Client mod, so active shaders cannot be verified. Iris shader packs can prevent decoding: with the mod, such a player sees the dithered maps.";
 
   private static final String MODDED_CLIENT_ADVISORY =
-    "MCV2: your modded client may replace the video shaders. If video is blank or frozen, install the MCAV MCV2 Client " +
-    "mod, which shows you the dithered maps while Iris shaders are on, or turn off Iris shaders. Without the mod, MCAV " +
-    "cannot detect active shader settings.";
+    "MCV2: your modded client may replace the video shaders. If video is blank or frozen, install the MCAV MCV2 Client mod, which shows you the dithered maps while Iris shaders are on, or turn off Iris shaders. Without the mod, MCAV cannot detect active shader settings.";
 
   private static final String NO_SLOT = "No MCV2 slot is free for a {}x{} video: the screen is dithered at that size.";
 

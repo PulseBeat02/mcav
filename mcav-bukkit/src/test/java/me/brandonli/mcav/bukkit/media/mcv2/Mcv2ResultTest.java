@@ -910,7 +910,7 @@ final class Mcv2ResultTest {
     }
 
     final boolean aboutThirtyTaken = taken >= 30 && taken <= 32;
-    assertTrue(aboutThirtyTaken, "frames taken: " + taken);
+    assertTrue(aboutThirtyTaken, "frames taken: %s".formatted(taken));
 
     // a 30 fps source with jitter keeps every frame
     long now = 5000 * millisecond;
@@ -918,7 +918,7 @@ final class Mcv2ResultTest {
     for (int frame = 0; frame < 60; frame++) {
       now += (frame % 2 == 0 ? 30 : 36) * millisecond + millisecond / 2;
       final boolean frameTaken = result.takeFrame(now);
-      assertTrue(frameTaken, "frame " + frame);
+      assertTrue(frameTaken, "frame %s".formatted(frame));
     }
 
     // frames saved up during a pause do not come out as a burst
@@ -1933,8 +1933,7 @@ final class Mcv2ResultTest {
     assertEquals(1, changeCount);
 
     final String expectedDescription =
-      "MCV2 screen steps down to 64x32 at 60 fps with the FAST search: encoding 64x32 with the DEFAULT search takes 18.0 ms" +
-      " per frame, more than the 16.7 ms a frame has at 60 fps with the encoder threads it has";
+      "MCV2 screen steps down to 64x32 at 60 fps with the FAST search: encoding 64x32 with the DEFAULT search takes 18.0 ms per frame, more than the 16.7 ms a frame has at 60 fps with the encoder threads it has";
     final String description = changes.getFirst().describe();
     assertEquals(expectedDescription, description);
 
@@ -2085,7 +2084,7 @@ final class Mcv2ResultTest {
 
   private byte[] recordDitheredDimensions(final InvocationOnMock invocation, final List<String> dithered) {
     final ImageBuffer image = invocation.getArgument(0);
-    dithered.add(image.getWidth() + "x" + image.getHeight());
+    dithered.add("%sx%s".formatted(image.getWidth(), image.getHeight()));
 
     return new byte[image.getWidth() * image.getHeight()];
   }

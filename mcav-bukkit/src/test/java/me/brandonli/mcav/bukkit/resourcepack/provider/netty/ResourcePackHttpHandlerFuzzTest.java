@@ -109,7 +109,7 @@ final class ResourcePackHttpHandlerFuzzTest {
 
       final String response = new String(answered, StandardCharsets.US_ASCII);
       final boolean answeredWithSuccess = response.startsWith("HTTP/1.1 200 OK\r\n");
-      assertTrue(answeredWithSuccess, () -> "a pack request is answered: " + response);
+      assertTrue(answeredWithSuccess, () -> "a pack request is answered: %s".formatted(response));
 
       final byte[] tail = Arrays.copyOfRange(answered, Math.max(0, answered.length - PACK.length), answered.length);
       if (isGetRequest) {
@@ -126,7 +126,7 @@ final class ResourcePackHttpHandlerFuzzTest {
         final String headers = response.substring(0, headerEnd);
         final long contentLengthCount = headers
           .lines()
-          .filter(line -> line.equals("Content-Length: " + PACK.length))
+          .filter(line -> line.equals("Content-Length: %s".formatted(PACK.length)))
           .count();
         assertEquals(1L, contentLengthCount, headers);
       }

@@ -129,7 +129,7 @@ final class ScoreboardRendererTest {
     final String name = objectiveName.getValue();
     final boolean validName = name.matches(OBJECTIVE_NAME_PATTERN);
     final List<String> teamNames = this.scoreboards.getTeamNames();
-    final List<String> expectedTeamNames = List.of(name + "_0", name + "_1", name + "_2");
+    final List<String> expectedTeamNames = List.of("%s_0".formatted(name), "%s_1".formatted(name), "%s_2".formatted(name));
     final Scoreboard current = this.viewer.getScoreboard();
     final NumberFormat hiddenNumbers = NumberFormat.blank();
     assertTrue(validName, name);

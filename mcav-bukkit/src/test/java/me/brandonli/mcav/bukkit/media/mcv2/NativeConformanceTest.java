@@ -89,7 +89,7 @@ final class NativeConformanceTest {
       final boolean noneMade = made.isEmpty();
       assertFalse(noneMade);
       final boolean keepsNoFrame = made.stream().noneMatch(kernels -> kernels.keeps(rgb));
-      assertTrue(keepsNoFrame, "frame " + frameIndex);
+      assertTrue(keepsNoFrame, "frame %s".formatted(frameIndex));
     }
   }
 
@@ -122,7 +122,7 @@ final class NativeConformanceTest {
     final Mcv2 other = NativeTesting.encoder(settings, threads, Mcv2.Verification.VERIFIED, NativeTesting.factory(level));
     for (int frameIndex = 0; frameIndex < 4; frameIndex++) {
       final byte[] rgb = Arrays.copyOfRange(source, frameIndex * frameBytes, (frameIndex + 1) * frameBytes);
-      final String context = settings + " frame " + frameIndex + " threads " + threads + " level " + level;
+      final String context = "%s frame %s threads %s level %s".formatted(settings, frameIndex, threads, level);
       final byte[] expectedEncoded = java.encode(rgb, WIDTH, HEIGHT, frameIndex);
       final byte[] encoded = other.encode(rgb, WIDTH, HEIGHT, frameIndex);
       assertArrayEquals(expectedEncoded, encoded, context);
@@ -163,7 +163,7 @@ final class NativeConformanceTest {
     final Mcv2 other = NativeTesting.encoder(settings, threads, Mcv2.Verification.VERIFIED, NativeTesting.factory(level));
     for (int frameIndex = 0; frameIndex < expected.size(); frameIndex++) {
       final byte[] rgb = Arrays.copyOfRange(source, frameIndex * frameBytes, (frameIndex + 1) * frameBytes);
-      final String context = stream + " frame " + frameIndex + " threads " + threads + " level " + level;
+      final String context = "%s frame %s threads %s level %s".formatted(stream, frameIndex, threads, level);
       final byte[] expectedFrame = expected.get(frameIndex);
       final byte[] javaEncoded = java.encode(rgb, WIDTH, HEIGHT, frameIndex);
       assertArrayEquals(expectedFrame, javaEncoded, context);
@@ -201,7 +201,7 @@ final class NativeConformanceTest {
         final byte[] picture = receiver.accept(frames.get(frameIndex));
         final int width = frame.getWidth();
         final int height = frame.getHeight();
-        final String context = stream + " frame " + frameIndex + " settings " + settings;
+        final String context = "%s frame %s settings %s".formatted(stream, frameIndex, settings);
         final byte[] expectedEncoded = java.encode(picture, width, height, frameIndex);
         final byte[] encoded = other.encode(picture, width, height, frameIndex);
         assertArrayEquals(expectedEncoded, encoded, context);

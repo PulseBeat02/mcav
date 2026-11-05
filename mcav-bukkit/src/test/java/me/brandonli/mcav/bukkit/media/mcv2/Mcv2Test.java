@@ -49,14 +49,12 @@ final class Mcv2Test {
       final Mcv2 encoder = new Mcv2(Mcv2.Settings.DEFAULT, pool, 1, Mcv2.Verification.VERIFIED);
       final byte[] picture = { 10, 20, 30 };
       final byte[] expected = HexFormat.of().parseHex(
-        "4d43563203000000010001000100000001000000" + "0100000000000000010000000000000000000000" + "02000000000a141e"
+        "4d43563203000000010001000100000001000000010000000000000001000000000000000000000002000000000a141e"
       );
       final byte[] encodedKeyframe = encoder.encode(picture, 1, 1, 1);
       assertArrayEquals(expected, encodedKeyframe);
 
-      final byte[] predicted = HexFormat.of().parseHex(
-        "4d43563203000000010001000200000001000000" + "0000000000000000000000000000000000000000"
-      );
+      final byte[] predicted = HexFormat.of().parseHex("4d435632030000000100010002000000010000000000000000000000000000000000000000000000");
       final byte[] encodedPredicted = encoder.encode(picture, 1, 1, 2);
       assertArrayEquals(predicted, encodedPredicted);
 

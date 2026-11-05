@@ -226,7 +226,7 @@ final class Mcv2PipelineTest {
     for (int frameIndex = 0; frameIndex < one.size(); frameIndex++) {
       final byte[] expected = one.get(frameIndex);
       final byte[] pipelinedFrame = two.get(frameIndex);
-      assertArrayEquals(expected, pipelinedFrame, settings + " frame " + frameIndex);
+      assertArrayEquals(expected, pipelinedFrame, "%s frame %s".formatted(settings, frameIndex));
 
       client.accept(two.get(frameIndex));
     }

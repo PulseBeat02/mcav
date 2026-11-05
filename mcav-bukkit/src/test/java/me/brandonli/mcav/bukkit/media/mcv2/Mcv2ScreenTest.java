@@ -471,7 +471,7 @@ final class Mcv2ScreenTest {
       new Mcv2Screen(configuration).build();
       final Set<Integer> absent = this.findAbsentPageSlots(configuration);
       if (!absent.isEmpty()) {
-        missing.put(wall[0] + "x" + wall[1] + " with " + configuration.getPageSlots() + " slots", absent);
+        missing.put("%sx%s with %s slots".formatted(wall[0], wall[1], configuration.getPageSlots()), absent);
       }
     }
 

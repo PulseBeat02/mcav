@@ -115,7 +115,8 @@ final class MapPacketFactoryPropertyTest {
       final List<ClientboundMapItemDataPacket> mapPackets = unbundle(bundle);
       final int size = mapPackets.size();
       final boolean withinLimit = size > 0 && size <= BUNDLE_LIMIT;
-      assertTrue(withinLimit, () -> "a bundle of " + size + " packets");
+      assertTrue(withinLimit, () -> "a bundle of %s packets".formatted(size));
+
       for (final ClientboundMapItemDataPacket mapPacket : mapPackets) {
         final MapTilePatch expected = patches.get(next);
         assertMapPacket(mapPacket, expected);

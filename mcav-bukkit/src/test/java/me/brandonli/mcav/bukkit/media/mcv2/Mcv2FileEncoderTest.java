@@ -136,7 +136,8 @@ final class Mcv2FileEncoderTest {
         assertTrue(readPicture);
         final byte[] expectedFrame = alone.encode(rgb, WIDTH, HEIGHT, frameNumber);
         final byte[] writtenFrame = frames.get(frameNumber);
-        assertArrayEquals(expectedFrame, writtenFrame, "frame " + frameNumber);
+        assertArrayEquals(expectedFrame, writtenFrame, "frame %s".formatted(frameNumber));
+
         final long frameId = Mcv2Decoder.parse(frames.get(frameNumber)).getFrameId();
         assertEquals(frameNumber, frameId);
       }
@@ -167,7 +168,7 @@ final class Mcv2FileEncoderTest {
 
     for (final byte[] frame : frames) {
       final boolean withinLimit = frame.length <= limit;
-      assertTrue(withinLimit, "a frame of " + frame.length + " bytes");
+      assertTrue(withinLimit, "a frame of %s bytes".formatted(frame.length));
     }
 
     final int expectedLength = checkerboard.length;
@@ -251,7 +252,7 @@ final class Mcv2FileEncoderTest {
 
     final long elapsed = System.nanoTime() - started;
     final boolean withinTheCall = result.getNanoseconds() >= 0 && result.getNanoseconds() <= elapsed;
-    assertTrue(withinTheCall, result.getNanoseconds() + " ns in a call of " + elapsed + " ns");
+    assertTrue(withinTheCall, "%s ns in a call of %s ns".formatted(result.getNanoseconds(), elapsed));
   }
 
   @Test

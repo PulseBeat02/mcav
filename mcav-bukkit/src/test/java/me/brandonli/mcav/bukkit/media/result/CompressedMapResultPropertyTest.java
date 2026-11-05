@@ -233,7 +233,7 @@ final class CompressedMapResultPropertyTest {
       return switch (this.kind) {
         case JOIN -> "join";
         case LEAVE -> "leave";
-        default -> "frame " + this.widthShare + "x" + this.heightShare + " color " + this.color;
+        default -> "frame %sx%s color %s".formatted(this.widthShare, this.heightShare, this.color);
       };
     }
   }
@@ -306,7 +306,7 @@ final class CompressedMapResultPropertyTest {
 
     @Override
     public String toString() {
-      return "maps " + this.columns + "x" + this.rows + ", budget " + this.budget + ", steps " + this.steps;
+      return "maps %sx%s, budget %s, steps %s".formatted(this.columns, this.rows, this.budget, this.steps);
     }
   }
 
@@ -365,15 +365,16 @@ final class CompressedMapResultPropertyTest {
         final int regionX = column - region.getLocalX();
         final int regionY = row - region.getLocalY();
         final boolean covered = regionX >= 0 && regionY >= 0 && regionX < region.getWidth() && regionY < region.getHeight();
-        final String where = "viewer " + viewer.uuid + ", map " + index + " at " + column + "," + row;
+        final String where = "viewer %s, map %s at %s,%s".formatted(viewer.uuid, index, column, row);
         if (covered) {
           final short expected = picture[(region.getSourceY() + regionY) * imageWidth + region.getSourceX() + regionX];
-          assertEquals(expected, shown, () -> where + " shows the current frame");
+          assertEquals(expected, shown, () -> "%s shows the current frame".formatted(where));
+
           continue;
         }
 
         final boolean clean = shown == 0 || shown == NEVER_SENT;
-        assertTrue(clean, () -> where + " keeps color " + shown + " of an earlier frame");
+        assertTrue(clean, () -> "%s keeps color %s of an earlier frame".formatted(where, shown));
       }
     }
 
@@ -389,8 +390,8 @@ final class CompressedMapResultPropertyTest {
       final short[] map = viewer.maps[index];
       for (int pixel = 0; pixel < map.length; pixel++) {
         final short shown = map[pixel];
-        final String where = "viewer " + viewer.uuid + ", map " + index + " pixel " + pixel;
-        assertEquals(0, shown, () -> where + " is transparent after the release");
+        final String where = "viewer %s, map %s pixel %s".formatted(viewer.uuid, index, pixel);
+        assertEquals(0, shown, () -> "%s is transparent after the release".formatted(where));
       }
     }
   }
@@ -415,7 +416,8 @@ final class CompressedMapResultPropertyTest {
         final MapId id = mapPacket.mapId();
         final int index = id.id() - START_MAP_ID;
         final boolean inGrid = index >= 0 && index < this.maps.length;
-        assertTrue(inGrid, () -> "a packet for map " + id.id() + ", outside of the grid");
+        assertTrue(inGrid, () -> "a packet for map %s, outside of the grid".formatted(id.id()));
+
         final Optional<MapItemSavedData.MapPatch> colorPatch = mapPacket.colorPatch();
         final MapItemSavedData.MapPatch patch = colorPatch.orElseThrow();
         this.paint(this.maps[index], patch);

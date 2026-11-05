@@ -274,8 +274,7 @@ final class Mcv2PacerTest {
 
     final String description = change.describe();
     assertEquals(
-      "MCV2 screen steps down to 1920x1080 at 30 fps: encoding 1920x1080 takes 25.0 ms per frame, more than the 16.7 ms" +
-        " a frame has at 60 fps with the encoder threads it has",
+      "MCV2 screen steps down to 1920x1080 at 30 fps: encoding 1920x1080 takes 25.0 ms per frame, more than the 16.7 ms a frame has at 60 fps with the encoder threads it has",
       description
     );
 
@@ -308,8 +307,7 @@ final class Mcv2PacerTest {
 
     final String description = change.describe();
     assertEquals(
-      "MCV2 screen steps down to 1920x1080 at 50 fps with the live-fast search: encoding 1920x1080 with the live search" +
-        " takes 22.0 ms per frame, more than the 20.0 ms a frame has at 50 fps with the encoder threads it has",
+      "MCV2 screen steps down to 1920x1080 at 50 fps with the live-fast search: encoding 1920x1080 with the live search takes 22.0 ms per frame, more than the 20.0 ms a frame has at 50 fps with the encoder threads it has",
       description
     );
 
@@ -328,8 +326,7 @@ final class Mcv2PacerTest {
 
     final String climbDescription = climbed.describe();
     assertEquals(
-      "MCV2 screen steps back up to 1920x1080 at 50 fps with the live search: encoding 1920x1080 with the live-fast search" +
-        " takes 2.5 ms per frame, well within the 20.0 ms a frame has at 50 fps",
+      "MCV2 screen steps back up to 1920x1080 at 50 fps with the live search: encoding 1920x1080 with the live-fast search takes 2.5 ms per frame, well within the 20.0 ms a frame has at 50 fps",
       climbDescription
     );
     final Mcv2Pacer.Rung expectedTop = pacer.getLadder().getFirst();
@@ -521,8 +518,7 @@ final class Mcv2PacerTest {
 
     final String description = first.describe();
     assertEquals(
-      "MCV2 screen steps back up to 1920x1080 at 30 fps: encoding 1280x720 takes 4.0 ms per frame, well within the 66.7 ms" +
-        " a frame has at 15 fps",
+      "MCV2 screen steps back up to 1920x1080 at 30 fps: encoding 1280x720 takes 4.0 ms per frame, well within the 66.7 ms a frame has at 15 fps",
       description
     );
     final Mcv2Pacer.Rung expectedSecondTo = Mcv2Pacer.Rung.of(FULL_WIDTH, FULL_HEIGHT, 1);

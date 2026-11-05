@@ -82,7 +82,7 @@ final class Mcv2WorkersTest {
       workers.forEach(counts.length(), scratches::incrementAndGet, (_, index) -> this.recordIndexOnPool(index, counts, threads, pool));
       for (int position = 0; position < counts.length(); position++) {
         final int count = counts.get(position);
-        assertEquals(1, count, "index " + position);
+        assertEquals(1, count, "index %s".formatted(position));
       }
 
       final int scratchCount = scratches.get();

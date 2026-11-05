@@ -41,7 +41,7 @@ final class NativeHalveDomainTest {
         assertThrows(
           IllegalArgumentException.class,
           () -> kernels.halve(new int[refused * refused * 3], refused, new int[(refused / 2) * (refused / 2) * 3]),
-          () -> "size " + refused
+          () -> "size %s".formatted(refused)
         );
       }
     }

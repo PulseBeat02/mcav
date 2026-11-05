@@ -329,7 +329,7 @@ final class NativeKernelsTest {
     for (int seed = 0; seed < 12; seed++) {
       final KernelDifferential.Values values = KernelDifferential.of(new Random(seed * 31L + kernel));
       final @Nullable String difference = KernelDifferential.compare(values, Mcv2Internals.javaKernels(), kernels, kernel);
-      assertNull(difference, level + " kernel " + kernel + " seed " + seed);
+      assertNull(difference, "%s kernel %s seed %s".formatted(level, kernel, seed));
     }
   }
 
@@ -373,7 +373,7 @@ final class NativeKernelsTest {
         kernels.start(source, 0, Double.POSITIVE_INFINITY);
         final boolean finished = kernels.compact(prediction, record, quantizer, 8, actual);
         assertTrue(finished);
-        assertArrayEquals(expected, actual, level + " q=" + quantizer);
+        assertArrayEquals(expected, actual, "%s q=%s".formatted(level, quantizer));
       }
     }
   }

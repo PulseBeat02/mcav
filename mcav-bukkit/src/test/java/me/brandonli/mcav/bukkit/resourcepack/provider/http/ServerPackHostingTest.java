@@ -79,7 +79,7 @@ final class ServerPackHostingTest {
   }
 
   private HttpResponse<byte[]> request(final int port, final String method) throws IOException, InterruptedException {
-    final URI uri = URI.create("http://127.0.0.1:" + port + "/pack.zip");
+    final URI uri = URI.create("http://127.0.0.1:%s/pack.zip".formatted(port));
     final HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(uri);
     final HttpRequest.BodyPublisher noBody = HttpRequest.BodyPublishers.noBody();
     requestBuilder.method(method, noBody);

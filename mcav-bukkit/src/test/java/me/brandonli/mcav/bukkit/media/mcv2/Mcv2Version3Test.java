@@ -85,7 +85,7 @@ final class Mcv2Version3Test {
     for (final int offset : new int[] { 0, 1, 2, 3, 4, 5, 6, 7 }) {
       final byte[] bad = valid.clone();
       bad[offset] ^= 2;
-      assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(bad), "offset " + offset);
+      assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(bad), "offset %s".formatted(offset));
     }
 
     for (final int offset : new int[] { 8, 10 }) {
@@ -126,7 +126,7 @@ final class Mcv2Version3Test {
     for (final int offset : new int[] { 20, 24, 28, 32, 36 }) {
       final byte[] bad = valid.clone();
       bad[offset]++;
-      assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(bad), "offset " + offset);
+      assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(bad), "offset %s".formatted(offset));
     }
 
     for (final int offset : new int[] { 28, 32, 36 }) {

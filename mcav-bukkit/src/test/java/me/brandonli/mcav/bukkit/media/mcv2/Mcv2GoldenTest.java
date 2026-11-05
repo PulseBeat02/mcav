@@ -95,7 +95,7 @@ final class Mcv2GoldenTest {
         final byte[] rgb = Arrays.copyOfRange(source, frameIndex * frameBytes, (frameIndex + 1) * frameBytes);
         final byte[] expectedFrame = expected.get(frameIndex);
         final byte[] frame = encoder.encode(rgb, WIDTH, HEIGHT, frameIndex);
-        assertArrayEquals(expectedFrame, frame, stream + " frame " + frameIndex);
+        assertArrayEquals(expectedFrame, frame, "%s frame %s".formatted(stream, frameIndex));
       }
     } finally {
       pool.shutdown();

@@ -132,7 +132,8 @@ final class DeltaMapEncoderPropertyTest {
     int extraFrames = 0;
     while (quietFrames < MAXIMUM_QUIET_FRAMES) {
       final boolean withinLimit = extraFrames < frameLimit;
-      assertTrue(withinLimit, () -> "the clients did not catch up within " + frameLimit + " frames");
+      assertTrue(withinLimit, () -> "the clients did not catch up within %s frames".formatted(frameLimit));
+
       final List<MapTilePatch> patches = encoder.encode(lastFrame);
       clients.applyAll(patches);
       quietFrames = patches.isEmpty() ? quietFrames + 1 : 0;
@@ -171,7 +172,7 @@ final class DeltaMapEncoderPropertyTest {
     final long sent = bytes;
     final int mapCount = maps.size();
     final boolean withinBudget = sent <= budget || mapCount == 1;
-    assertTrue(withinBudget, () -> sent + " bytes over " + mapCount + " maps in one frame, budget " + budget);
+    assertTrue(withinBudget, () -> "%s bytes over %s maps in one frame, budget %s".formatted(sent, mapCount, budget));
   }
 
   // a pure function of the scenario, so shrinking the scenario shrinks the frames
@@ -230,18 +231,12 @@ final class DeltaMapEncoderPropertyTest {
 
     @Override
     public String toString() {
-      return (
-        "maps " +
-        this.columns +
-        "x" +
-        this.rows +
-        ", image " +
-        this.imageWidth +
-        "x" +
-        this.imageHeight +
-        ", budget " +
-        this.budget +
-        ", frames " +
+      return "maps %sx%s, image %sx%s, budget %s, frames %s".formatted(
+        this.columns,
+        this.rows,
+        this.imageWidth,
+        this.imageHeight,
+        this.budget,
         this.frameEdits
       );
     }
@@ -282,7 +277,7 @@ final class DeltaMapEncoderPropertyTest {
 
     @Override
     public String toString() {
-      return "(" + this.left + "," + this.top + " " + this.width + "x" + this.height + " color " + this.color + ")";
+      return "(%s,%s %sx%s color %s)".formatted(this.left, this.top, this.width, this.height, this.color);
     }
   }
 
@@ -327,7 +322,7 @@ final class DeltaMapEncoderPropertyTest {
       final int index = mapId - firstId;
       final int mapCount = this.layout.getMapCount();
       final boolean inLayout = index >= 0 && index < mapCount;
-      assertTrue(inLayout, () -> "patch for map " + mapId + ", which is not part of the layout");
+      assertTrue(inLayout, () -> "patch for map %s, which is not part of the layout".formatted(mapId));
 
       return index;
     }
@@ -364,7 +359,7 @@ final class DeltaMapEncoderPropertyTest {
       for (int index = 0; index < this.maps.length; index++) {
         final short[] expectedMap = this.maps[index];
         final short[] restoredMap = restored.maps[index];
-        assertArrayEquals(expectedMap, restoredMap, "the snapshot reconstructs every sent pixel of map " + index);
+        assertArrayEquals(expectedMap, restoredMap, "the snapshot reconstructs every sent pixel of map %s".formatted(index));
       }
 
       final Set<Integer> snapshotMaps = new HashSet<>();
@@ -435,9 +430,9 @@ final class DeltaMapEncoderPropertyTest {
         if (covered) {
           final int sourceIndex = (region.getSourceY() + regionY) * imageWidth + region.getSourceX() + regionX;
           final short expected = frame[sourceIndex];
-          assertEquals(expected, shown, "map " + index + " shows the last frame at " + column + "," + row);
+          assertEquals(expected, shown, "map %s shows the last frame at %s,%s".formatted(index, column, row));
         } else {
-          assertEquals(NEVER_SENT, shown, "map " + index + " was sent nothing outside the image at " + column + "," + row);
+          assertEquals(NEVER_SENT, shown, "map %s was sent nothing outside the image at %s,%s".formatted(index, column, row));
         }
       }
     }

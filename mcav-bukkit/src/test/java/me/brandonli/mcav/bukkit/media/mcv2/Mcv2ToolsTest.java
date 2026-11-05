@@ -81,7 +81,7 @@ final class Mcv2ToolsTest {
       final Path archive = folder.resolve(mode + ARCHIVE_EXTENSION);
       final String output = this.run(
         BENCH_COMMAND,
-        "source=" + source,
+        "source=%s".formatted(source),
         "width=320",
         "height=180",
         "frames=4",
@@ -89,7 +89,7 @@ final class Mcv2ToolsTest {
         "threads=1",
         "verify=true",
         mode.equals("off") ? "natives=off" : "profile=DEFAULT",
-        "out=" + archive
+        "out=%s".formatted(archive)
       );
       final byte[] expectedArchive = Mcv2Fixtures.read(CROP_DEFAULT_PATH);
       final byte[] archiveBytes = Files.readAllBytes(archive);
@@ -148,7 +148,7 @@ final class Mcv2ToolsTest {
     final Path pictures = folder.resolve("pictures.rgb");
     Files.write(archive, Mcv2Fixtures.read(PROXY_DEFAULT_PATH));
     final List<String> expected = Mcv2Fixtures.readDigests("conformance").get(PROXY_DEFAULT_STREAM);
-    final String expectedOutput = archive + " " + String.join(" ", expected);
+    final String expectedOutput = "%s %s".formatted(archive, String.join(" ", expected));
     final String output = this.run(DIGESTS_COMMAND, "--rgb", pictures.toString(), archive.toString()).strip();
     assertEquals(expectedOutput, output);
 
@@ -179,13 +179,13 @@ final class Mcv2ToolsTest {
     System.arraycopy(frame, 0, stream, Integer.BYTES, frame.length);
     stream[Integer.BYTES] = 0;
     Files.write(archive, stream);
-    final String expectedRejection = archive + " reject";
+    final String expectedRejection = "%s reject".formatted(archive);
     final String rejection = this.run(DIGESTS_COMMAND, archive.toString()).strip();
     assertEquals(expectedRejection, rejection);
 
     for (final byte[] truncated : List.of(new byte[] { 1 }, Arrays.copyOf(stream, stream.length - 1))) {
       Files.write(archive, truncated);
-      final String expectedTruncation = archive + " truncated";
+      final String expectedTruncation = "%s truncated".formatted(archive);
       final String truncation = this.run(DIGESTS_COMMAND, archive.toString()).strip();
       assertEquals(expectedTruncation, truncation);
     }
@@ -245,7 +245,7 @@ final class Mcv2ToolsTest {
 
     System.out.print(output);
     final int failures = process.waitFor();
-    final String summary = failures == 0 ? "every stage compiled" : failures + " stages failed";
+    final String summary = failures == 0 ? "every stage compiled" : "%s stages failed".formatted(failures);
     final boolean summarized = output.lines().anyMatch(summary::equals);
     assertTrue(summarized, output);
 

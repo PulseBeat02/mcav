@@ -286,7 +286,7 @@ final class Mcv2PackTest {
       if (name.startsWith(POST_SHADER_FOLDER)) {
         final String stub = entries.get(name);
         final boolean startsWithTheHeader = stub.startsWith(
-          licenseHeader + "\n#version 330\n#extension GL_ARB_separate_shader_objects : require\n#define MCV2_PASS_"
+          "%s\n#version 330\n#extension GL_ARB_separate_shader_objects : require\n#define MCV2_PASS_".formatted(licenseHeader)
         );
         assertTrue(startsWithTheHeader, name);
 
@@ -510,17 +510,14 @@ final class Mcv2PackTest {
 
     final int[] two = { 0x010203, 0x040506 };
     final String empty = " 4294967295u,";
+    final String emptyRow = "   %s%s\n".formatted(empty, empty.repeat(7));
     final String expectedAlphabet =
-      "#ifndef MCAV_MCV2_ALPHABET_GLSL\n#define MCAV_MCV2_ALPHABET_GLSL\n\n" +
-      "const uint MCV2_SYMBOL_HASH = 65u;\nconst uint MCV2_SYMBOL_SHIFT = 24u;\nconst uint MCV2_SYMBOLS[256] = uint[256](\n" +
-      "    4227264u, 16859521u," +
-      empty.repeat(6) +
-      "\n" +
-      ("   " + empty + empty.repeat(7) + "\n").repeat(30) +
-      "   " +
-      empty +
-      empty.repeat(6) +
-      " 4294967295u\n);\n\n#endif\n";
+      "#ifndef MCAV_MCV2_ALPHABET_GLSL\n#define MCAV_MCV2_ALPHABET_GLSL\n\nconst uint MCV2_SYMBOL_HASH = 65u;\nconst uint MCV2_SYMBOL_SHIFT = 24u;\nconst uint MCV2_SYMBOLS[256] = uint[256](\n    4227264u, 16859521u,%s\n%s   %s%s 4294967295u\n);\n\n#endif\n".formatted(
+        empty.repeat(6),
+        emptyRow.repeat(30),
+        empty,
+        empty.repeat(6)
+      );
     final String twoColorAlphabet = Mcv2Pack.alphabet(two);
     assertEquals(expectedAlphabet, twoColorAlphabet);
 
