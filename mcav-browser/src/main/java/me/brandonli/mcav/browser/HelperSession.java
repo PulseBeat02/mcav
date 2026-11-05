@@ -551,7 +551,7 @@ final class HelperSession implements BrowserSession {
       checkHello(hello, token);
       while (true) {
         final HelperMessage message = HelperProtocol.read(input, size -> this.choosePixelBuffer(buffer, pageBytes, size));
-        this.handle(message);
+        this.onMessage(message);
       }
     } catch (final EOFException exception) {
       this.end(this.describeEnd("The browser helper closed the connection!"), null);
@@ -616,7 +616,7 @@ final class HelperSession implements BrowserSession {
     }
   }
 
-  private void handle(final HelperMessage message) throws ProtocolException {
+  private void onMessage(final HelperMessage message) throws ProtocolException {
     final int type = message.getType();
     switch (type) {
       case HelperProtocol.FRAME -> this.onFrame(message);
