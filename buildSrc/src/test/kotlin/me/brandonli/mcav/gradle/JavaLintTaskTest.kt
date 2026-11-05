@@ -36,6 +36,7 @@ class JavaLintTaskTest {
         const val LOGS_TASK: String = "logs"
         const val QUALIFIED_TASK: String = "qualified"
         const val VARIABLES_TASK: String = "variables"
+        const val COMMENTS_TASK: String = "comments"
 
         const val SOURCE_FILE: String = "Example.java"
         const val REPORT_EXTENSION: String = ".txt"
@@ -54,7 +55,8 @@ class JavaLintTaskTest {
         val tasks: List<Pair<JavaLintTask, String>> = listOf(
             project.tasks.register(LOGS_TASK, LogMessagesTask::class.java).get() to "no log call with a concatenated message in 1 files\n",
             project.tasks.register(QUALIFIED_TASK, QualifiedNamesTask::class.java).get() to "no fully qualified type names in 1 files\n",
-            project.tasks.register(VARIABLES_TASK, VariableNamesTask::class.java).get() to "no undescriptive variable name in 1 files\n"
+            project.tasks.register(VARIABLES_TASK, VariableNamesTask::class.java).get() to "no undescriptive variable name in 1 files\n",
+            project.tasks.register(COMMENTS_TASK, CommentFormTask::class.java).get() to "no run of // comment lines in 1 files\n"
         )
         val reports: List<String> = tasks.map { (task, _) -> this.checkAndReadReport(task, source) }
         assertEquals(tasks.map { it.second }, reports)
@@ -78,6 +80,11 @@ class JavaLintTaskTest {
                 project.tasks.register(VARIABLES_TASK, VariableNamesTask::class.java).get(),
                 "final class Example { int x; int y; }",
                 "Found 2 undescriptive variable names!"
+            ),
+            Triple(
+                project.tasks.register(COMMENTS_TASK, CommentFormTask::class.java).get(),
+                "final class Example {\n  // first\n  // second\n  int value;\n  // third\n  // fourth\n}\n",
+                "Found 2 comments written as runs of // lines!"
             )
         )
         val outcomes: List<Pair<String?, Boolean>> = tasks.map { (task, input, _) -> this.checkFailing(task, input) }
@@ -137,6 +144,19 @@ class JavaLintTaskTest {
         assertEquals(listOf("error: $source:2: error: the field x says nothing; name what it holds."), messages)
     }
 
+    @Test
+    fun shouldLogTheFileTheFirstLineAndTheLastLineOfARunOfLineComments(): Unit {
+        val project: Project = ProjectBuilder.builder().withProjectDir(this.directory.toFile()).build()
+        val task: RecordedCommentFormTask = project.tasks.register(COMMENTS_TASK, RecordedCommentFormTask::class.java).get()
+        this.checkFailing(task, "final class Example {\n    // first\n    // second\n    // third\n    int value;\n}\n")
+
+        val source: File = task.sources.singleFile
+        val messages: List<String> = task.recorder.messages
+        val expected: String =
+            "error: $source:2: error: the // lines up to line 4 make one comment; write it as one /* */ block, or cut it to one // line."
+        assertEquals(listOf(expected), messages)
+    }
+
     private fun checkAndReadReport(task: JavaLintTask, source: File): String {
         this.configureLint(task, source)
         task.check()
@@ -183,6 +203,15 @@ class JavaLintTaskTest {
     }
 
     abstract class RecordedVariableNamesTask : VariableNamesTask() {
+
+        val recorder: RecordingLogger = RecordingLogger()
+
+        override fun getLogger(): Logger {
+            return this.recorder.logger
+        }
+    }
+
+    abstract class RecordedCommentFormTask : CommentFormTask() {
 
         val recorder: RecordingLogger = RecordingLogger()
 

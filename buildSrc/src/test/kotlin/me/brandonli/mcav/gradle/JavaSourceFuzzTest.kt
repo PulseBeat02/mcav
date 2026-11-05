@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Tag
 
-// The lint tasks search masked sources, so any text must keep its length and line breaks, each character kept or blanked.
+// The lints search masked sources and line comments: any text keeps its length and line breaks, and every comment found is blanked.
 @Tag("fuzz")
 class JavaSourceFuzzTest {
 
@@ -32,10 +32,12 @@ class JavaSourceFuzzTest {
 
         const val LINE_BREAK: Char = '\n'
         const val BLANK: Char = ' '
+
+        const val LINE_COMMENT_START: String = "//"
     }
 
     @FuzzTest
-    fun shouldKeepTheLengthAndTheLineBreaksOfAnySource(data: FuzzedDataProvider): Unit {
+    fun shouldKeepTheShapeOfAnySourceAndBlankEveryLineCommentItFinds(data: FuzzedDataProvider): Unit {
         val source: String = data.consumeRemainingAsString()
         val masked: String = JavaSource.mask(source)
         val withoutComments: String = JavaSource.withoutComments(source)
@@ -52,6 +54,10 @@ class JavaSourceFuzzTest {
 
         val keptWithoutComments: Boolean = this.isKeptOrBlanked(source, withoutComments)
         assertTrue(keptWithoutComments, "Removing comments must keep or blank every character!")
+
+        val offsets: List<Int> = JavaSource.findLineCommentOffsets(source)
+        val commentsBlanked: Boolean = offsets.all { this.isBlankedLineComment(source, masked, it) }
+        assertTrue(commentsBlanked, "Every line comment found must start with // and be blanked to the end of its line!")
     }
 
     private fun findLineBreaks(text: String): List<Int> {
@@ -64,5 +70,12 @@ class JavaSourceFuzzTest {
         }
 
         return source.indices.all { result[it] == source[it] || result[it] == BLANK }
+    }
+
+    private fun isBlankedLineComment(source: String, masked: String, offset: Int): Boolean {
+        val lineBreak: Int = source.indexOf(LINE_BREAK, offset)
+        val lineEnd: Int = if (lineBreak < 0) source.length else lineBreak
+        val comment: String = masked.substring(offset, lineEnd)
+        return source.startsWith(LINE_COMMENT_START, offset) && comment.all { it == BLANK }
     }
 }

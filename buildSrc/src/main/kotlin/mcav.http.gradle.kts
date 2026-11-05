@@ -48,7 +48,9 @@ val websiteConfigurationFiles: List<String> = listOf(
     "mcav-website/tsconfig.json",
     "mcav-website/postcss.config.mjs"
 )
+val eslintConfigurationPath: String = "mcav-website/eslint.config.mjs"
 val websiteTestsPassedPath: String = "website-tests/passed"
+val websiteLintPassedPath: String = "website-lint/passed"
 val passedMarker: String = "passed\n"
 
 val bundledWebsitePath: String = "mcav/http/website"
@@ -120,8 +122,29 @@ val testWebsite: TaskProvider<Exec> = tasks.register<Exec>("testWebsite") {
     }
 }
 
+val lintWebsite: TaskProvider<Exec> = tasks.register<Exec>("lintWebsite") {
+    this.group = "verification"
+    this.description = "Runs ESLint on the sources of the website"
+    this.dependsOn(pnpmProjectInstall)
+    this.workingDir = file(websitePath)
+    this.executable = nodeExecutable.absolutePath
+    this.environment(pathVariable, nodePath)
+    this.environment(corepackPromptVariable, disabledPrompt)
+    this.args(corepack.absolutePath, pnpmCommand, "run", "lint")
+    this.inputs.dir(websiteSourcePath)
+    this.inputs.file(eslintConfigurationPath)
+    this.inputs.file(packageJsonPath)
+    this.inputs.file(pnpmLockPath)
+
+    val passed: Provider<RegularFile> = layout.buildDirectory.file(websiteLintPassedPath)
+    this.outputs.file(passed)
+    this.doLast {
+        passed.get().asFile.writeText(passedMarker)
+    }
+}
+
 tasks.check {
-    this.dependsOn(testWebsite)
+    this.dependsOn(testWebsite, lintWebsite)
 }
 
 tasks.jar {

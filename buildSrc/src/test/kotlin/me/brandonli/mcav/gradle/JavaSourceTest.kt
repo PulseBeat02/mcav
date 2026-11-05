@@ -80,4 +80,11 @@ class JavaSourceTest {
         val withoutComments: String = JavaSource.withoutComments(SOURCE_ENDING_IN_AN_ESCAPE)
         assertEquals(SOURCE_ENDING_IN_AN_ESCAPE, withoutComments)
     }
+
+    @Test
+    fun shouldFindEveryLineCommentOutsideBlockCommentsAndLiterals(): Unit {
+        val source: String = "// a // b\nint c; // d\n/* // e */ \"// f\" '/' // g"
+        val offsets: List<Int> = JavaSource.findLineCommentOffsets(source)
+        assertEquals(listOf(0, 17, 44), offsets)
+    }
 }
