@@ -55,6 +55,8 @@ final class FfmpegCommandTest {
 
   private static final String VERSION_ARGUMENT = "-version";
 
+  private static final String LIBRARY_FOLDER = "libraries";
+
   @Test
   void shouldEmitTheExecutableFromAnEmptyBuilder() {
     final FfmpegCommandBuilder builder = FfmpegCommand.builder();
@@ -161,7 +163,7 @@ final class FfmpegCommandTest {
 
   @Test
   void shouldRunTheTaskWithTheEnvironmentOfTheInstalledLibraries() {
-    final Path folder = Path.of("libraries");
+    final Path folder = Path.of(LIBRARY_FOLDER);
     final List<Path> folders = List.of(folder);
     final FfmpegLibraries libraries = new FfmpegLibraries(Os.LINUX, folders);
     final List<String> arguments = List.of(VERSION_ARGUMENT);

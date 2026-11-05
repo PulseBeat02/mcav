@@ -61,6 +61,13 @@ final class FfmpegLibrariesTest {
   private static final String EXECUTABLE_FOLDER = "natives";
   private static final Path EXECUTABLE = Path.of(EXECUTABLE_FOLDER, "ffmpeg");
 
+  private static final String SOUND_LIBRARY_PATH = "usr/lib/x86_64-linux-gnu/libasound.so.2.0.0";
+  private static final String PULSE_LIBRARY_PATH = "usr/lib/x86_64-linux-gnu/pulseaudio/libpulsecommon-16.1.so";
+
+  private static final String FIRST_FOLDER = "first";
+  private static final String SECOND_FOLDER = "second";
+  private static final String LIBRARY_FOLDER = "libraries";
+
   @Test
   void shouldInstallNothingWhereThePlatformHasNoPackages(@TempDir final Path folder) {
     final DebianLibraryInstaller installer = DebianLibraryInstallers.create(folder, new Download[0], LINUX_X86_64, this::refuseToLoad);
@@ -84,11 +91,9 @@ final class FfmpegLibrariesTest {
 
   @Test
   void shouldInstallAndLoadTheLibrariesTheSystemLacks(@TempDir final Path folder) throws IOException {
-    final String soundLibraryPath = "usr/lib/x86_64-linux-gnu/libasound.so.2.0.0";
-    final String pulseLibraryPath = "usr/lib/x86_64-linux-gnu/pulseaudio/libpulsecommon-16.1.so";
-    final Path soundLibrary = this.createLibrary(folder, soundLibraryPath);
-    final Path pulseLibrary = this.createLibrary(folder, pulseLibraryPath);
-    final List<String> loadOrder = List.of(soundLibraryPath, pulseLibraryPath);
+    final Path soundLibrary = this.createLibrary(folder, SOUND_LIBRARY_PATH);
+    final Path pulseLibrary = this.createLibrary(folder, PULSE_LIBRARY_PATH);
+    final List<String> loadOrder = List.of(SOUND_LIBRARY_PATH, PULSE_LIBRARY_PATH);
     Files.write(folder.resolve(LOAD_ORDER_FILE), loadOrder, StandardCharsets.UTF_8);
     final Download[] downloads = { new Download(LINUX_X86_64, PACKAGE_URL) };
     final List<String> loaded = new ArrayList<>();
@@ -144,14 +149,14 @@ final class FfmpegLibrariesTest {
 
   @Test
   void shouldPutTheFoldersBeforeTheInheritedLibraryPath() {
-    final Path first = Path.of("first");
-    final Path second = Path.of("second");
+    final Path first = Path.of(FIRST_FOLDER);
+    final Path second = Path.of(SECOND_FOLDER);
     final List<Path> folders = List.of(first, second);
     final FfmpegLibraries libraries = new FfmpegLibraries(Os.LINUX, folders);
     final Map<String, String> inherited = libraries.createEnvironment(EXECUTABLE, INHERITED_LIBRARY_PATH);
     final Map<String, String> empty = libraries.createEnvironment(EXECUTABLE, "");
     final Map<String, String> unset = libraries.createEnvironment(EXECUTABLE, null);
-    final String folderPath = String.join(File.pathSeparator, EXECUTABLE_FOLDER, first.toString(), second.toString());
+    final String folderPath = String.join(File.pathSeparator, EXECUTABLE_FOLDER, FIRST_FOLDER, SECOND_FOLDER);
     final Map<String, String> expectedInherited = Map.of(LIBRARY_PATH_VARIABLE, folderPath + File.pathSeparator + INHERITED_LIBRARY_PATH);
     final Map<String, String> expectedAlone = Map.of(LIBRARY_PATH_VARIABLE, folderPath);
     assertEquals(expectedInherited, inherited);
@@ -161,7 +166,7 @@ final class FfmpegLibrariesTest {
 
   @Test
   void shouldSetNoEnvironmentOutsideLinux() {
-    final Path folder = Path.of("libraries");
+    final Path folder = Path.of(LIBRARY_FOLDER);
     final List<Path> folders = List.of(folder);
     final FfmpegLibraries libraries = new FfmpegLibraries(Os.WINDOWS, folders);
     final Map<String, String> environment = libraries.createEnvironment(EXECUTABLE, INHERITED_LIBRARY_PATH);
@@ -170,7 +175,7 @@ final class FfmpegLibrariesTest {
 
   @Test
   void shouldReadTheInheritedLibraryPathOfTheJvm() {
-    final Path folder = Path.of("libraries");
+    final Path folder = Path.of(LIBRARY_FOLDER);
     final List<Path> folders = List.of(folder);
     final FfmpegLibraries libraries = new FfmpegLibraries(Os.LINUX, folders);
     final Map<String, String> environment = libraries.getEnvironment(EXECUTABLE);
