@@ -24,9 +24,9 @@ PulseBeat02
 ---
 
 MCAV (pronounced EM CAV) is a multimedia library and plugin for Java and the successor of EzMediaCore2. MCAV uses
-several low-level libraries, such as [FFmpeg](https://ffmpeg.org/), [OpenCV](https://opencv.org/) and LibVLC (from
-[VLC media player](https://www.videolan.org/vlc/)), to play media for developers and users. MCAV also renders web pages
-with an embedded Chromium through [JCEF](https://github.com/chromiumembedded/java-cef), and virtual machines through
+several low-level libraries, such as [FFmpeg](https://ffmpeg.org/), [OpenCV](https://opencv.org/) and LibVLC (from [VLC
+media player](https://www.videolan.org/vlc/)), to play media for developers and users. MCAV also renders web pages with
+an embedded Chromium through [JCEF](https://github.com/chromiumembedded/java-cef), and virtual machines through
 [QEMU](https://www.qemu.org/), each with their sound. The library and the plugin both support all of this. For
 Minecraft, MCAV comes with its own video codec, [MCV2](#mcv2), which shows sharp, full-color video on a wall of maps to
 players with an unmodified client.
@@ -34,8 +34,8 @@ players with an unmodified client.
 The plugin shows what the library can do. For media playback, it supports several thousand websites, listed
 [here](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md), among them YouTube, Twitch, SoundCloud and CNN.
 You can also play local files, stream from IP cameras and capture cards, screen-share through an OBS virtual camera, and
-show web pages, virtual machines and VNC desktops. The audio plays through a web page that streams it, through
-[Simple Voice Chat](https://modrinth.com/plugin/simple-voice-chat), or through a Discord bot in voice channels. Read the
+show web pages, virtual machines and VNC desktops. The audio plays through a web page that streams it, through [Simple
+Voice Chat](https://modrinth.com/plugin/simple-voice-chat), or through a Discord bot in voice channels. Read the
 [documentation](https://mcav.readthedocs.io/en/latest/intro.html) for more information.
 
 [![Watch the video](https://img.youtube.com/vi/ifs0GiAtqIs/maxresdefault.jpg)](https://youtu.be/ifs0GiAtqIs)
@@ -82,17 +82,17 @@ decodes it on the player's GPU, in full color, at the resolution you choose. The
 
 The first two rows measure a procedural Minecraft test clip, which flatters MCV2; the last measures real gameplay.
 
-MCV2 uses one encoder class, `Mcv2.java`, and one decoder shader, `mcv2.glsl`. The presets are `DEFAULT` and `FAST`.
-Its benchmark, fixture, digest and shader tools live in `mcav-bukkit`'s test sources: `Mcv2Tools.java`,
-`mcv2_tools.py` and the independent reference decoder, `mcv2_reference.py`.
+MCV2 uses one encoder class, `Mcv2.java`, and one decoder shader, `mcv2.glsl`. The presets are `DEFAULT` and `FAST`. Its
+benchmark, fixture, digest and shader tools live in `mcav-bukkit`'s test sources: `Mcv2Tools.java`, `mcv2_tools.py` and
+the independent reference decoder, `mcv2_reference.py`.
 
 Live sources (browsers, virtual machines, VNC desktops, streams, cameras, and video files by default) share a
 configurable CPU budget. Throughput depends on the source, encoder preset and available CPU; 1080p30 is a measured
 workload, not a guarantee for every six-core server. A screen that cannot keep up steps down on its own, or you can
 pre-encode a file. Live playback keeps the dithered maps for players without the pack. Pre-encoded streams need the
-pack. Turn it on with `--codec mcv2` on any command that draws on a wall of maps, or with `mcv2.default-codec: mcv2`
-in `config.yml`. The [MCV2 article](https://mcav.readthedocs.io/en/latest/mcv2.html) explains how it works, its
-measured rates, quality and speed, and how it compares with H.264, VP9 and AV1.
+pack. Turn it on with `--codec mcv2` on any command that draws on a wall of maps, or with `mcv2.default-codec: mcv2` in
+`config.yml`. The [MCV2 article](https://mcav.readthedocs.io/en/latest/mcv2.html) explains how it works, its measured
+rates, quality and speed, and how it compares with H.264, VP9 and AV1.
 
 ---
 
@@ -141,21 +141,21 @@ tests and clang-format; `UV` can name an installed uv 0.12.23. These tools need 
 the documentation to `mcav-docs/build/html`; `:mcav-docs:build` builds only the documentation. Open `index.html` to read
 it.
 
-`build` also runs the Python codec tests of `mcav-bukkit/src/test/python` with pytest, in parallel processes, and
-checks with clang-format 18.1.8, from the same lock, that the MCV2 native sources are formatted. To format them, run:
+`build` also runs the Python codec tests of `mcav-bukkit/src/test/python` with pytest, in parallel processes, and checks
+with clang-format 18.1.8, from the same lock, that the MCV2 native sources are formatted. To format them, run:
 
 ```bash
 ./gradlew :mcav-bukkit:formatMcv2Natives
 ```
 
 `CLANG_FORMAT` can name an installed clang-format 18.1.8; Windows on ARM64 needs it, as no clang-format 18.1.8 package
-exists for it. Both tasks check the reported version first. The
-[MCV2 tools](https://mcav.readthedocs.io/en/latest/mcv2.html#reproducing-the-measurements-and-figures) describe the
-other codec checks.
+exists for it. Both tasks check the reported version first. The [MCV2
+tools](https://mcav.readthedocs.io/en/latest/mcv2.html#reproducing-the-measurements-and-figures) describe the other
+codec checks.
 
-The project builds on Windows, macOS or Linux. Tests that need another operating system, or a program the machine
-lacks (VLC, QEMU, a display), skip themselves. `build` also enforces the coverage lint, where those skipped tests
-leave gaps. On such a machine, use:
+The project builds on Windows, macOS or Linux. Tests that need another operating system, or a program the machine lacks
+(VLC, QEMU, a display), skip themselves. `build` also enforces the coverage lint, where those skipped tests leave gaps.
+On such a machine, use:
 
 ```bash
 ./gradlew build -Pmcav.coverage=false
@@ -168,8 +168,8 @@ Check the task plans for publishing the library modules and for the plugin's end
 ./gradlew :mcav-plugin:e2eTest -Pmcav.e2e=true -Pmcav.acceptMinecraftEula=true --dry-run
 ```
 
-Remove `--dry-run` to run either task. Publishing needs repository credentials. The end-to-end test downloads and
-starts Paper and Simple Voice Chat; its EULA flag accepts the [Minecraft EULA](https://aka.ms/MinecraftEULA).
+Remove `--dry-run` to run either task. Publishing needs repository credentials. The end-to-end test downloads and starts
+Paper and Simple Voice Chat; its EULA flag accepts the [Minecraft EULA](https://aka.ms/MinecraftEULA).
 [`CONTRIBUTING.md`](CONTRIBUTING.md) describes the tests, the coverage lint, the property, fuzz and concurrency tests,
 mutation testing, the end-to-end test of the plugin and publishing.
 
@@ -207,8 +207,8 @@ table lists the libraries MCAV uses and their licenses.
 | [jcefmaven/jcefmaven](https://github.com/jcefmaven/jcefmaven) | [Apache 2](https://opensource.org/license/apache-2-0)       |
 | [Bukkit/Bukkit](https://github.com/Bukkit/Bukkit)      | [GPLv3](https://www.gnu.org/licenses/gpl-3.0.html)            |
 
-As a result, MCAV licenses the library under the GPLv3 license shown [here](LICENSE). The
-[Apache 2](https://opensource.org/license/apache-2-0) License is compatible with the
+As a result, MCAV licenses the library under the GPLv3 license shown [here](LICENSE). The [Apache
+2](https://opensource.org/license/apache-2-0) License is compatible with the
 [GPLv3](https://www.gnu.org/licenses/gpl-3.0.html) license, but not the
 [GPLv2](https://www.gnu.org/licenses/old-licenses/gpl-2.0.html) license. You should license your project under the
 [GPLv3](https://www.gnu.org/licenses/gpl-3.0.html) license or any other license that is compatible with the
