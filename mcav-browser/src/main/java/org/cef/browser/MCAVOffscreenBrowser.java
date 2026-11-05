@@ -107,6 +107,12 @@ public final class MCAVOffscreenBrowser extends CefBrowser_N implements CefRende
   /**
    * Refuses to open developer tools, which would need a window.
    *
+   * @param client    ignored
+   * @param url       ignored
+   * @param context   ignored
+   * @param parent    ignored
+   * @param inspectAt ignored
+   * @return never, as it always throws
    * @throws UnsupportedOperationException always
    * @since 1.0.0
    */
