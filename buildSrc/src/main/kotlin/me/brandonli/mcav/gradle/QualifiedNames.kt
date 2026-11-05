@@ -31,6 +31,7 @@ object QualifiedNames {
     private const val FIRST_LINE_NUMBER: Int = 1
 
     private const val ROOT_SEPARATOR: String = "|"
+
     private const val NAME_GROUP: Int = 1
 
     private val ROOTS: List<String> = listOf(
@@ -60,7 +61,7 @@ object QualifiedNames {
                 continue
             }
             val number: Int = index + FIRST_LINE_NUMBER
-            NAME.findAll(line).forEach { match -> found += QualifiedName(number, match.groupValues[NAME_GROUP]) }
+            NAME.findAll(line).forEach { found += QualifiedName(number, it.groupValues[NAME_GROUP]) }
         }
 
         return found

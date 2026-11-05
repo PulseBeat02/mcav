@@ -17,6 +17,7 @@
  */
 
 import me.brandonli.mcav.gradle.CatalogUtils
+import me.brandonli.mcav.gradle.JavaToolchains
 import me.brandonli.mcav.gradle.JcstressBudget
 import me.brandonli.mcav.gradle.JcstressConsole
 import me.brandonli.mcav.gradle.libs
@@ -29,7 +30,9 @@ plugins {
 }
 
 val jcstressAlias: String = "jcstress-core"
+
 val generatedSourcePattern: String = ".*/build/generated/.*"
+
 val jcstressClassifier: String = "jcstress"
 val jcstressMainClass: String = "org.openjdk.jcstress.Main"
 val signatureFiles: List<String> = listOf("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
@@ -47,16 +50,20 @@ val consolePath: String = "console.txt"
 
 dependencies {
     implementation(CatalogUtils.libraryOf(libs, jcstressAlias))
+
     annotationProcessor(CatalogUtils.libraryOf(libs, jcstressAlias))
 }
 
 checkerFramework {
+    // the harness jcstress generates assigns null to fields the checker considers non-null
     skipCheckerFramework = true
 }
 
 tasks.named<JavaCompile>("compileJava") {
-    this.options.compilerArgs.remove("-Werror")
+    // the generated harness does not keep every lint of -Xlint:all
+    this.options.compilerArgs.remove(JavaToolchains.WARNINGS_AS_ERRORS)
     this.options.errorprone {
+        // the generated harness is not ours to fix
         this.excludedPaths = generatedSourcePattern
     }
 }
@@ -78,7 +85,6 @@ val jcstressJar: TaskProvider<Jar> = tasks.register<Jar>("jcstressJar") {
     this.duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
-val ITERATION_TIME: String = "Running {} jcstress tests in {} mode within {} minutes, at {} ms per iteration."
 val mode: String = providers.gradleProperty(modeProperty).getOrElse(defaultMode)
 val budgetMinutes: Provider<Int> = providers.gradleProperty(budgetProperty).map { it.toInt() }
 val selection: Provider<String> = providers.gradleProperty(selectionProperty)
@@ -108,7 +114,6 @@ tasks.register<JavaExec>("jcstressTest") {
     val tests: String? = selection.orNull
     val cpuCount: Int = cpus.toInt()
     val stressMode: String = mode
-    val iterationTime: String = ITERATION_TIME
     val console: Provider<RegularFile> = workingDirectory.map { it.file(consolePath) }
     this.doFirst {
         workingDirectory.get().asFile.mkdirs()
@@ -117,7 +122,13 @@ tasks.register<JavaExec>("jcstressTest") {
         if (budget != null) {
             val testCount: Int = JcstressBudget.countTests(jar.get().asFile, tests)
             val iterationMilliseconds: Long = JcstressBudget.iterationMilliseconds(stressMode, budget, testCount, cpuCount)
-            this.logger.lifecycle(iterationTime, testCount, stressMode, budget, iterationMilliseconds)
+            this.logger.lifecycle(
+                "Running {} jcstress tests in {} mode within {} minutes, at {} ms per iteration.",
+                testCount,
+                stressMode,
+                budget,
+                iterationMilliseconds
+            )
             this@register.args("-time", iterationMilliseconds.toString())
         }
     }

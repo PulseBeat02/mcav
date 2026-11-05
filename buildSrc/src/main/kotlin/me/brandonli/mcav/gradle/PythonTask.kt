@@ -43,12 +43,12 @@ abstract class PythonTask : DefaultTask() {
         const val NO_USER_SITE_VARIABLE: String = "PYTHONNOUSERSITE"
         const val NO_BYTECODE_VARIABLE: String = "PYTHONDONTWRITEBYTECODE"
         const val HASH_SEED_VARIABLE: String = "PYTHONHASHSEED"
-        const val MATPLOTLIB_CONFIG_VARIABLE: String = "MPLCONFIGDIR"
+        const val MATPLOTLIB_CONFIGURATION_VARIABLE: String = "MPLCONFIGDIR"
 
         const val ENABLED: String = "1"
         const val FIXED_HASH_SEED: String = "0"
 
-        const val MATPLOTLIB_CONFIG_DIRECTORY: String = "matplotlib"
+        const val MATPLOTLIB_CONFIGURATION_DIRECTORY: String = "matplotlib"
     }
 
     /**

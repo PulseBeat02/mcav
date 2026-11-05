@@ -43,10 +43,10 @@ object RequirementsLock {
      */
     fun missingPins(lock: String, versions: Map<String, String>): List<String> {
         val lines: List<String> = lock.lines()
-        val locked: Set<String> = lines.map { line -> line.substringBefore(PIN_END) }
+        val locked: Set<String> = lines.map { it.substringBefore(PIN_END) }
             .toSet()
         return versions.map { (name, version) -> "$name$PIN_SEPARATOR$version" }
-            .filterNot { pin -> pin in locked }
+            .filterNot { it in locked }
     }
 
     /**

@@ -31,7 +31,7 @@ internal object ToolDigests {
 
     fun sha256(file: File): String {
         val digest: MessageDigest = MessageDigest.getInstance(ALGORITHM)
-        file.inputStream().use { input -> this.updateDigest(digest, input) }
+        file.inputStream().use { this.updateDigest(digest, it) }
 
         val hash: ByteArray = digest.digest()
         return HexFormat.of().formatHex(hash)

@@ -148,7 +148,7 @@ class DownloadToolArchiveTest {
         val task: DownloadToolArchive = this.zippedTool()
         task.sha256.set("missing")
 
-        val failure: GradleException = assertThrows(GradleException::class.java) { task.install() }
+        val failure: IllegalArgumentException = assertThrows(IllegalArgumentException::class.java) { task.install() }
         val message: String? = failure.message
         assertEquals("Pinned SHA-256 of ${task.archiveUrl.get()} must be 64 lowercase hexadecimal digits!", message)
 
@@ -186,7 +186,7 @@ class DownloadToolArchiveTest {
         this.directory.resolve(ARCHIVE_FILE).toFile().copyTo(archive)
         task.archiveUrl.set(archive.toURI().toString())
 
-        val failure: GradleException = assertThrows(GradleException::class.java) { task.install() }
+        val failure: IllegalArgumentException = assertThrows(IllegalArgumentException::class.java) { task.install() }
         val message: String? = failure.message
         assertEquals("Tool archive ${task.archiveUrl.get()} must be a .zip, .tar.gz or .tar.xz file!", message)
 

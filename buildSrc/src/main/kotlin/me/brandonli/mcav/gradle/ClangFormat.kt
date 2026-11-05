@@ -87,7 +87,7 @@ abstract class ClangFormat : DefaultTask() {
      * @throws GradleException if clang-format cannot run, reports another version or finds an unformatted source in a check
      */
     @TaskAction
-    fun format(): Unit {
+    fun runClangFormat(): Unit {
         val executable: File = this.clangFormat.get().asFile
         ToolVersions.verify(this.processes, executable, TOOL, this.clangFormatVersion.get(), VERSION_PREFIX)
 

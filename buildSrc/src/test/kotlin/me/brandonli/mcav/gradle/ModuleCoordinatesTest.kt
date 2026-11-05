@@ -27,14 +27,20 @@ import org.junit.jupiter.api.Test
 
 class ModuleCoordinatesTest {
 
+    private companion object {
+
+        const val ROOT_NAME: String = "mcav"
+        const val BUKKIT_NAME: String = "mcav-bukkit"
+    }
+
     @Test
     fun shouldFollowTheRootGroupAndVersionInDependencyCoordinatesWithoutVersioningLibraryArchives(): Unit {
-        val root: Project = ProjectBuilder.builder().withName("mcav").build()
+        val root: Project = ProjectBuilder.builder().withName(ROOT_NAME).build()
         root.group = "fixture.changed"
         root.version = "2.3.4-SNAPSHOT"
 
         val plugin: Project = ProjectBuilder.builder().withName("mcav-plugin").withParent(root).build()
-        val coordinate: String = ModuleCoordinates.coordinateOf(plugin, "mcav-bukkit")
+        val coordinate: String = ModuleCoordinates.coordinateOf(plugin, BUKKIT_NAME)
         assertEquals("fixture.changed:mcav-bukkit:2.3.4-SNAPSHOT", coordinate)
 
         val pluginVersion: String = plugin.version.toString()
@@ -49,10 +55,10 @@ class ModuleCoordinatesTest {
 
     @Test
     fun shouldListTheProjectPathsOfTheDependenciesThatAreModulesOfThisBuild(): Unit {
-        val root: Project = ProjectBuilder.builder().withName("mcav").build()
+        val root: Project = ProjectBuilder.builder().withName(ROOT_NAME).build()
         root.group = "fixture.group"
         ProjectBuilder.builder().withName("mcav-common").withParent(root).build()
-        ProjectBuilder.builder().withName("mcav-bukkit").withParent(root).build()
+        ProjectBuilder.builder().withName(BUKKIT_NAME).withParent(root).build()
 
         val configuration: Configuration = root.configurations.create("runtimeDownload")
         val notations: List<String> =

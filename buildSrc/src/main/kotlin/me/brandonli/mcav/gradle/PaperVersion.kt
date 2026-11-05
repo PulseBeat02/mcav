@@ -19,7 +19,6 @@
 package me.brandonli.mcav.gradle
 
 import java.util.Objects
-import org.gradle.api.GradleException
 
 internal class PaperVersion(val minecraft: String, val build: Int) {
 
@@ -36,8 +35,8 @@ internal class PaperVersion(val minecraft: String, val build: Int) {
 
         fun parse(version: String): PaperVersion {
             val message: String = "Paper version $version must name a build!"
-            val match: MatchResult = VERSION.matchEntire(version) ?: throw GradleException(message)
-            val build: Int = match.groupValues[BUILD_GROUP].toIntOrNull() ?: throw GradleException(message)
+            val match: MatchResult = VERSION.matchEntire(version) ?: throw IllegalArgumentException(message)
+            val build: Int = match.groupValues[BUILD_GROUP].toIntOrNull() ?: throw IllegalArgumentException(message)
             val minecraft: String = match.groupValues[MINECRAFT_GROUP]
             return PaperVersion(minecraft, build)
         }

@@ -25,6 +25,7 @@ plugins {
 }
 
 val extensionName: String = "mcavPublishing"
+
 val javadocEncoding: String = "UTF-8"
 
 val endToEndRepositoryName: String = "endToEnd"
@@ -33,6 +34,7 @@ val snapshotRepositoryName: String = "brandonli"
 val snapshotRepositoryUrl: String = "https://repo.brandonli.me/snapshots"
 
 val publicationName: String = "maven"
+
 val projectUrl: String = "https://github.com/PulseBeat02/mcav"
 val licenseName: String = "GNU General Public License, version 3 or later"
 val licenseUrl: String = "https://www.gnu.org/licenses/gpl-3.0.html"
@@ -112,11 +114,13 @@ afterEvaluate {
     }
 
     val generatedPom: TaskProvider<GenerateMavenPom> = tasks.named<GenerateMavenPom>("generatePomFileForMavenPublication")
-    val publishedPom: String = "-D$publishedPomProperty=" + generatedPom.get().destination.absolutePath
+    val publishedPomFile: String = generatedPom.get().destination.absolutePath
+    val publishedPom: String = "-D$publishedPomProperty=$publishedPomFile"
     tasks.named<Test>("test") {
         this.dependsOn(generatedPom)
         this.jvmArgs(publishedPom)
     }
+
     pluginManager.withPlugin("info.solidsoft.pitest") {
         tasks.named("pitest") {
             this.dependsOn(generatedPom)

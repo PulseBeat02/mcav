@@ -59,6 +59,7 @@ public class EndMarkerRace {
 
   private final BlockingQueue<String> queue;
   private final List<String> discarded;
+
   private volatile boolean keptByDecoder;
 
   /**
@@ -72,7 +73,7 @@ public class EndMarkerRace {
   }
 
   /**
-   * The decoder queuing the frame it just decoded. The decoder blocks in {@code put} until there is room or it is
+   * Queues the frame the decoder just decoded. The decoder blocks in {@code put} until there is room or it is
    * interrupted by {@code stop()}; one attempt that does not block covers the interleavings that matter here without a
    * thread that could wait forever.
    */
@@ -83,7 +84,7 @@ public class EndMarkerRace {
   }
 
   /**
-   * {@code stop()} replacing the queued frames with the end marker.
+   * Replaces the queued frames with the end marker, as {@code stop()} does.
    */
   @Actor
   public void stop() {
@@ -96,7 +97,7 @@ public class EndMarkerRace {
    * @param outcome whether the marker is queued, and how often each frame is found
    */
   @Arbiter
-  public void account(final III_Result outcome) {
+  public void observe(final III_Result outcome) {
     final List<String> remaining = new ArrayList<>(this.queue);
     final List<String> everything = new ArrayList<>(remaining);
     everything.addAll(this.discarded);

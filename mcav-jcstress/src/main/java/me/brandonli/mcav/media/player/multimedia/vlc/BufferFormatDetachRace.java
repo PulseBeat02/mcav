@@ -82,7 +82,7 @@ public class BufferFormatDetachRace {
   }
 
   /**
-   * The VLC callback that chooses the buffer.
+   * Chooses the buffer, as the VLC callback does.
    *
    * @param outcome the width and the height of the buffer
    */
@@ -99,7 +99,7 @@ public class BufferFormatDetachRace {
   }
 
   /**
-   * The application detaching the size, as a player does when its output goes away.
+   * Detaches the size, as a player does when its output goes away.
    */
   @Actor
   public void detach() {

@@ -41,7 +41,7 @@ class TaskDescriptionsTest {
 
     @Test
     fun shouldStartEveryRegisteredTaskWithItsGroupAndAOneLineDescriptionInTheThirdPerson(): Unit {
-        val conventions: List<File> = File(CONVENTIONS_DIRECTORY).listFiles { file -> file.name.endsWith(SCRIPT_EXTENSION) }!!.toList()
+        val conventions: List<File> = File(CONVENTIONS_DIRECTORY).listFiles { it.name.endsWith(SCRIPT_EXTENSION) }!!.toList()
         val scripts: List<File> = conventions + File(BUILD_SCRIPT)
         val undescribed: List<String> = scripts.sorted()
             .filter(this::hasUndescribedTask)

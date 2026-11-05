@@ -46,6 +46,7 @@ public class StartCancelRace {
 
   private static final int COLUMNS = 1;
   private static final int ROWS = 1;
+
   private static final int SOURCE_WIDTH = 128;
   private static final int SOURCE_HEIGHT = 128;
 
@@ -56,13 +57,14 @@ public class StartCancelRace {
    * Creates a screen of one map whose player was not released yet.
    */
   public StartCancelRace() {
-    final WallPicture picture = WallPicture.of(COLUMNS, ROWS, SOURCE_WIDTH, SOURCE_HEIGHT, false);
+    final boolean stretched = false;
+    final WallPicture picture = WallPicture.of(COLUMNS, ROWS, SOURCE_WIDTH, SOURCE_HEIGHT, stretched);
     this.screen = new Screen(null, null, FIRST_MAP_ID, MAP_COUNT, picture);
     this.releases = new AtomicInteger();
   }
 
   /**
-   * The worker running the start, as {@code runStartTask} and {@code finishStartTask} do: a start that begins releases
+   * Runs the start as the worker does in {@code runStartTask} and {@code finishStartTask}: a start that begins releases
    * its player itself when the screen was cancelled while it ran.
    */
   @Actor
@@ -79,7 +81,7 @@ public class StartCancelRace {
   }
 
   /**
-   * A second {@code create} replacing the screen, as {@code releaseCurrent} does: it releases the player unless the
+   * Replaces the screen as a second {@code create} does in {@code releaseCurrent}: it releases the player unless the
    * worker owns the cleanup because the start is running.
    */
   @Actor
@@ -96,7 +98,7 @@ public class StartCancelRace {
    * @param outcome how often the player was released
    */
   @Arbiter
-  public void count(final I_Result outcome) {
+  public void observe(final I_Result outcome) {
     outcome.r1 = this.releases.get();
   }
 }

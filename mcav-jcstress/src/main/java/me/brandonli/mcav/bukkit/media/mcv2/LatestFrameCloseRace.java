@@ -53,8 +53,8 @@ public class LatestFrameCloseRace {
     try {
       this.slot.take();
     } catch (final InterruptedException exception) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
     }
   }
 

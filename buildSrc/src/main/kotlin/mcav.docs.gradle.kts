@@ -27,7 +27,7 @@ val excludedDocsSources: List<String> =
     listOf("build/**", "_build/**", ".jupyter_cache/**", "**/__pycache__/**", "build.gradle.kts", "requirements*", "conf.py")
 val docsOutputPath: String = "html"
 
-val pythonEnvironment: TaskProvider<PythonEnvironment> = rootProject.tasks.named<PythonEnvironment>("installPythonEnvironment")
+val pythonEnvironment: TaskProvider<PythonEnvironment> = rootProject.tasks.named<PythonEnvironment>(PythonEnvironment.TASK_NAME)
 val buildDocs: TaskProvider<JupyterBook> = tasks.register<JupyterBook>("buildDocs") {
     this.group = "documentation"
     this.description = "Builds the documentation HTML; a Sphinx warning fails it"
@@ -37,6 +37,7 @@ val buildDocs: TaskProvider<JupyterBook> = tasks.register<JupyterBook>("buildDoc
     })
     this.outputDirectory = layout.buildDirectory.dir(docsOutputPath)
 }
+
 tasks.named("assemble") {
     this.dependsOn(buildDocs)
 }

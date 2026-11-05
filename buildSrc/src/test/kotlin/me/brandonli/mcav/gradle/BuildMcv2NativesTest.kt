@@ -24,6 +24,8 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import me.brandonli.mcav.gradle.BuildMcv2Natives.Work.NativeSystem
+import me.brandonli.mcav.gradle.BuildMcv2Natives.Work.NativeTarget
 import me.brandonli.mcav.gradle.BuildMcv2Natives.Work.Parameters
 import org.gradle.api.Action
 import org.gradle.api.GradleException
@@ -34,6 +36,7 @@ import org.gradle.workers.WorkQueue
 import org.gradle.workers.WorkerExecutor
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -56,7 +59,11 @@ class BuildMcv2NativesTest {
         const val COMPILE_COMMAND: String = "c++"
         const val LINK_COMMAND: String = "cc"
 
+        const val COMPILE_COUNT: Int = 22
+
         const val MACOS: String = "macos"
+
+        const val X86_64: String = "x86_64"
 
         const val MAIN_SOURCE: String = "mcv2.cpp"
         const val AVX2_SOURCE: String = "level_avx2.cpp"
@@ -105,7 +112,7 @@ class BuildMcv2NativesTest {
         this.submitted.single().execute()
 
         val compileCount: Int = this.commands.count { it.first() == COMPILE_COMMAND }
-        assertEquals(22, compileCount)
+        assertEquals(COMPILE_COUNT, compileCount)
 
         val linkCount: Int = this.commands.count { it.first() == LINK_COMMAND }
         assertEquals(6, linkCount)
@@ -138,7 +145,7 @@ class BuildMcv2NativesTest {
 
         val compiles: List<List<String>> = this.commands.filter { it.first() == COMPILE_COMMAND }
         val compileCount: Int = compiles.size
-        assertEquals(22, compileCount)
+        assertEquals(COMPILE_COUNT, compileCount)
 
         for (command in compiles) {
             this.assertCompileFlags(command)
@@ -197,13 +204,13 @@ class BuildMcv2NativesTest {
         assertEquals(2, mostCompilesAtOnce)
 
         val compileCount: Int = this.commands.count { it.first() == COMPILE_COMMAND }
-        assertEquals(22, compileCount)
+        assertEquals(COMPILE_COUNT, compileCount)
     }
 
     @Test
     fun shouldFailTheBuildOnAFailingCompileBeforeAnyLink(): Unit {
         val failure: IllegalStateException = IllegalStateException("zig: error: unable to compile")
-        val task: RecordingBuild = this.compiler(TEST_VERSION) { arguments -> this.failOnAvx2(arguments, failure) }
+        val task: RecordingBuild = this.compiler(TEST_VERSION) { this.failOnAvx2(it, failure) }
         val thrown: GradleException = assertThrows(GradleException::class.java) { this.buildWithWorkers(task) }
         val message: String? = thrown.message
         assertEquals("Zig could not build MCV2's natives!", message)
@@ -236,6 +243,35 @@ class BuildMcv2NativesTest {
         assertTrue(nothingSubmitted)
     }
 
+    @Test
+    fun shouldEqualOnlyATargetOfTheSameSystemAndArchitecture(): Unit {
+        val target: NativeTarget = NativeTarget(NativeSystem.LINUX, X86_64)
+        val same: NativeTarget = NativeTarget(NativeSystem.LINUX, X86_64)
+        val otherArchitecture: NativeTarget = NativeTarget(NativeSystem.LINUX, "aarch64")
+        val otherSystem: NativeTarget = NativeTarget(NativeSystem.WINDOWS, X86_64)
+
+        assertEquals(target, target)
+        assertEquals(same, target)
+
+        val sameHash: Int = same.hashCode()
+        val targetHash: Int = target.hashCode()
+        assertEquals(sameHash, targetHash)
+
+        val otherHash: Int = otherArchitecture.hashCode()
+        assertNotEquals(otherHash, targetHash)
+
+        assertNotEquals(otherArchitecture, target)
+        assertNotEquals(otherSystem, target)
+        assertNotEquals(target, X86_64)
+    }
+
+    @Test
+    fun shouldShowTheSystemAndTheArchitectureOfATarget(): Unit {
+        val target: NativeTarget = NativeTarget(NativeSystem.MACOS, X86_64)
+        val text: String = target.toString()
+        assertEquals("NativeTarget(system=MACOS, architecture=x86_64)", text)
+    }
+
     private fun compiler(version: String, processCount: Int = 4, onCompile: (List<String>) -> Unit = {}): RecordingBuild {
         val project: Project = ProjectBuilder.builder().withProjectDir(this.directory.toFile()).build()
         val task: RecordingBuild = project.tasks.register("natives", RecordingBuild::class.java).get()
@@ -243,7 +279,7 @@ class BuildMcv2NativesTest {
         task.zigVersion.set(TEST_VERSION)
         task.processCount.set(processCount)
 
-        this.processes = RecordedProcesses("$version\n") { command -> this.runZig(command, onCompile) }
+        this.processes = RecordedProcesses("$version\n") { this.runZig(it, onCompile) }
         task.recordedProcesses = this.processes.operations
         task.recordedWorkers = this.recordingWorkers(project)
 
@@ -280,7 +316,7 @@ class BuildMcv2NativesTest {
 
     private fun recordingWorkers(project: Project): WorkerExecutor {
         val queue: WorkQueue = mock(WorkQueue::class.java)
-        doAnswer { invocation -> this.submit(project, invocation) }
+        doAnswer { this.submit(project, it) }
             .`when`(queue)
             .submit(any<Class<BuildMcv2Natives.Work>>(), any<Action<Parameters>>())
 
@@ -325,7 +361,7 @@ class BuildMcv2NativesTest {
         assertEquals(source.startsWith(SVE_SOURCE_PREFIX), sve)
 
         val branchesAligned: Boolean = "-mbranches-within-32B-boundaries" in command
-        assertEquals(command[2].startsWith("x86_64") && MACOS !in command[2], branchesAligned)
+        assertEquals(command[2].startsWith(X86_64) && MACOS !in command[2], branchesAligned)
     }
 
     private fun compileAlongside(running: AtomicInteger, mostAtOnce: AtomicInteger, bothStarted: CountDownLatch): Unit {

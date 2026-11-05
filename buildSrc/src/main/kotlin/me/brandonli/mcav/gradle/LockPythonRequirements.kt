@@ -50,6 +50,7 @@ abstract class LockPythonRequirements : DefaultTask() {
     companion object {
 
         private const val REQUIREMENTS_INPUT: String = "requirements.in"
+
         private const val LINE_SEPARATOR: String = "\n"
         private const val MARKER_SEPARATOR: String = " ; "
         private const val VERSION_SEPARATOR: Char = '.'

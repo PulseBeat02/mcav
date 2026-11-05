@@ -81,7 +81,7 @@ public class ListenerStopRace {
    * @param outcome the listener count and whether the handshake was refused
    */
   @Arbiter
-  public void inspect(final II_Result outcome) {
+  public void observe(final II_Result outcome) {
     outcome.r1 = this.result.getListenerCount();
     final boolean refused = this.session.isClosedSynchronously();
     outcome.r2 = refused ? REFUSED : ACCEPTED;

@@ -79,7 +79,7 @@ public class LatestFrameRace {
    * @param outcome the frame left
    */
   @Arbiter
-  public void after(final III_Result outcome) {
+  public void observe(final III_Result outcome) {
     final Integer left = this.slot.poll();
     outcome.r3 = this.number(left);
   }

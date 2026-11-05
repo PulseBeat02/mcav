@@ -37,11 +37,13 @@ val javaAgent: NamedDomainObjectProvider<Configuration> = configurations.registe
 dependencies {
     implementation(libs.xz)
     buildPluginMarkers.forEach { implementation(it) }
+
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.mockito.core)
     testImplementation(libs.jazzer.junit)
     testImplementation(gradleTestKit())
+
     testRuntimeOnly(libs.junit.platform.launcher)
 
     javaAgent(libs.byte.buddy.agent)
@@ -54,9 +56,11 @@ val lineSeparator: String = "\n"
 
 val buildPackageClasses: String = "me/brandonli/mcav/gradle/**"
 val generatedClasses: String = "me/brandonli/mcav/gradle/CatalogVersions*"
+
 val mutatedClasses: String = "me.brandonli.mcav.gradle.*"
 val generatedClass: String = "me.brandonli.mcav.gradle.CatalogVersions"
 val mutationThreads: Int = 4
+
 val fullCoverage: String = "1.0"
 
 val fuzzTag: String = "fuzz"
@@ -85,15 +89,16 @@ val generateCatalogVersions: TaskProvider<Task> = tasks.register("generateCatalo
     this.doLast {
         val file: File = catalogVersions.get().file(catalogVersionsFile).asFile
         file.parentFile.mkdirs()
-        file.writeText(
-            repositoryHeader.asFile.readText() + lineSeparator + """
+
+        val header: String = repositoryHeader.asFile.readText()
+        val source: String = """
             |package me.brandonli.mcav.gradle
             |
             |object CatalogVersions {
             |    const val JACOCO: String = "${jacocoVersion.get()}"
             |}
             |""".trimMargin()
-        )
+        file.writeText("$header$lineSeparator$source")
     }
 }
 

@@ -75,26 +75,26 @@ object JavaSource {
 
     private class Masker(private val source: String, private val literals: Literals) {
 
-        private val out: StringBuilder = StringBuilder(this.source.length)
+        private val output: StringBuilder = StringBuilder(this.source.length)
         private var state: State = State.CODE
         private var index: Int = 0
 
         fun mask(): String {
             while (this.index < this.source.length) {
                 when (this.state) {
-                    State.CODE -> this.code()
-                    State.LINE_COMMENT -> this.lineComment()
-                    State.BLOCK_COMMENT -> this.blockComment()
-                    State.TEXT_BLOCK -> this.textBlock()
-                    State.STRING -> this.literal(STRING_QUOTE)
-                    State.CHARACTER -> this.literal(CHARACTER_QUOTE)
+                    State.CODE -> this.scanCode()
+                    State.LINE_COMMENT -> this.scanLineComment()
+                    State.BLOCK_COMMENT -> this.scanBlockComment()
+                    State.TEXT_BLOCK -> this.scanTextBlock()
+                    State.STRING -> this.scanLiteral(STRING_QUOTE)
+                    State.CHARACTER -> this.scanLiteral(CHARACTER_QUOTE)
                 }
             }
 
-            return this.out.toString()
+            return this.output.toString()
         }
 
-        private fun code(): Unit {
+        private fun scanCode(): Unit {
             when {
                 this.source.startsWith(LINE_COMMENT_START, this.index) -> this.enter(State.LINE_COMMENT, LINE_COMMENT_START.length)
                 this.source.startsWith(BLOCK_COMMENT_START, this.index) -> this.enter(State.BLOCK_COMMENT, BLOCK_COMMENT_START.length)
@@ -105,7 +105,7 @@ object JavaSource {
             }
         }
 
-        private fun lineComment(): Unit {
+        private fun scanLineComment(): Unit {
             if (this.source[this.index] == NEW_LINE) {
                 this.state = State.CODE
             }
@@ -113,7 +113,7 @@ object JavaSource {
             this.blank(1)
         }
 
-        private fun blockComment(): Unit {
+        private fun scanBlockComment(): Unit {
             if (this.source.startsWith(BLOCK_COMMENT_END, this.index)) {
                 this.enter(State.CODE, BLOCK_COMMENT_END.length)
             } else {
@@ -121,19 +121,19 @@ object JavaSource {
             }
         }
 
-        private fun textBlock(): Unit {
+        private fun scanTextBlock(): Unit {
             when {
-                this.source[this.index] == ESCAPE -> this.literalCharacters(ESCAPE_SEQUENCE_LENGTH)
+                this.source[this.index] == ESCAPE -> this.emitLiteralCharacters(ESCAPE_SEQUENCE_LENGTH)
                 this.source.startsWith(TEXT_BLOCK_QUOTES, this.index) -> this.enter(State.CODE, TEXT_BLOCK_QUOTES.length)
-                else -> this.literalCharacters(1)
+                else -> this.emitLiteralCharacters(1)
             }
         }
 
-        private fun literal(quote: Char): Unit {
+        private fun scanLiteral(quote: Char): Unit {
             when (this.source[this.index]) {
-                ESCAPE -> this.literalCharacters(ESCAPE_SEQUENCE_LENGTH)
+                ESCAPE -> this.emitLiteralCharacters(ESCAPE_SEQUENCE_LENGTH)
                 quote, NEW_LINE -> this.enter(State.CODE, 1)
-                else -> this.literalCharacters(1)
+                else -> this.emitLiteralCharacters(1)
             }
         }
 
@@ -145,11 +145,11 @@ object JavaSource {
             if (comment) {
                 this.blank(length)
             } else {
-                this.literalCharacters(length)
+                this.emitLiteralCharacters(length)
             }
         }
 
-        private fun literalCharacters(length: Int): Unit {
+        private fun emitLiteralCharacters(length: Int): Unit {
             if (this.literals == Literals.MASKED) {
                 this.blank(length)
             } else {
@@ -160,13 +160,13 @@ object JavaSource {
         private fun blank(length: Int): Unit {
             val end: Int = minOf(this.index + length, this.source.length)
             while (this.index < end) {
-                this.out.append(if (this.source[this.index] == NEW_LINE) NEW_LINE else BLANK)
+                this.output.append(if (this.source[this.index] == NEW_LINE) NEW_LINE else BLANK)
                 this.index++
             }
         }
 
         private fun keep(): Unit {
-            this.out.append(this.source[this.index])
+            this.output.append(this.source[this.index])
             this.index++
         }
     }

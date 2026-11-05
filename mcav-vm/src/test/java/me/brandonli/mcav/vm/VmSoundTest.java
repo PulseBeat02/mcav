@@ -228,10 +228,9 @@ final class VmSoundTest {
 
   @Test
   void shouldKeepTheSoundOfTheGuestWithItsPicture() throws IOException {
-    assumeTrue(
-      Boolean.getBoolean("mcav.syncMeasurement"),
-      "Test times real events, so run it with -Pmcav.syncMeasurement=true on a quiet machine!"
-    );
+    final boolean syncMeasurement = Boolean.getBoolean("mcav.sync_measurement");
+    assumeTrue(syncMeasurement, "Test times real events, so run it with -Pmcav.sync_measurement=true on a quiet machine!");
+
     this.assumeQemuInstalled();
 
     final List<long[]> sound = new CopyOnWriteArrayList<>();

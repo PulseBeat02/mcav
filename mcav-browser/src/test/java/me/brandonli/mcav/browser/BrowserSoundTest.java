@@ -44,7 +44,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
-// Plays page sound through real Chromium. The A/V sync measurement runs only with -Pmcav.syncMeasurement=true: a busy
+// Plays page sound through real Chromium. The A/V sync measurement runs only with -Pmcav.sync_measurement=true: a busy
 // machine delays the real events it times.
 @Tag("cef")
 class BrowserSoundTest {
@@ -254,8 +254,8 @@ class BrowserSoundTest {
   @Test
   void shouldKeepTheSoundOfAPageUpWithItsPicture() throws InterruptedException {
     assumeTrue(
-      Boolean.getBoolean("mcav.syncMeasurement"),
-      "This test times real events; run it with -Pmcav.syncMeasurement=true on a quiet machine!"
+      Boolean.getBoolean("mcav.sync_measurement"),
+      "This test times real events; run it with -Pmcav.sync_measurement=true on a quiet machine!"
     );
     final BrowserPlayer player = this.player();
     final List<long[]> sound = new CopyOnWriteArrayList<>();

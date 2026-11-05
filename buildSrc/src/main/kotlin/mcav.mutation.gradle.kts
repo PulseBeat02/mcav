@@ -29,7 +29,7 @@ plugins {
 val pitestAlias: String = "pitest"
 val pitestJunit5PluginAlias: String = "pitest-junit5-plugin"
 val mutatedClasses: String = "me.brandonli.mcav.*"
-val testJavaHomeProperty: String = "mcav.testJavaHome"
+val testJavaHomeProperty: String = "mcav.test_java_home"
 val javaAgentConfiguration: String = "javaAgent"
 val javaAgentOption: String = "-javaagent:"
 

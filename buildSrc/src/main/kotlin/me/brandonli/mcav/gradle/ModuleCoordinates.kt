@@ -22,9 +22,30 @@ import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
 
 /**
- * Names the modules of this build: their Maven coordinates and their project paths.
+ * Names Maven modules: the coordinates and project paths of the modules of this build, and the groups and names of the
+ * external modules that module scripts exclude.
  */
 object ModuleCoordinates {
+
+    /**
+     * The Maven group of Spring Boot.
+     */
+    const val SPRING_BOOT_GROUP: String = "org.springframework.boot"
+
+    /**
+     * The name of Spring Boot's logging starter.
+     */
+    const val SPRING_BOOT_LOGGING_MODULE: String = "spring-boot-starter-logging"
+
+    /**
+     * The Maven group of Apache Tomcat.
+     */
+    const val TOMCAT_GROUP: String = "org.apache.tomcat"
+
+    /**
+     * The name of Tomcat's annotations API module.
+     */
+    const val TOMCAT_ANNOTATIONS_MODULE: String = "tomcat-annotations-api"
 
     private const val PROJECT_PATH_PREFIX: String = ":"
 

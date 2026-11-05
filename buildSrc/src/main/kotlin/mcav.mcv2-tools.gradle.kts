@@ -27,6 +27,7 @@ plugins {
 }
 
 val lwjglAliases: List<String> = listOf("lwjgl", "lwjgl-shaderc", "lwjgl-spvc")
+
 val toolsClasspathPath: String = "mcv2-tools-classpath.txt"
 
 val pythonSourcePath: String = "src/test/python"
@@ -60,13 +61,14 @@ val writeToolsClasspath: TaskProvider<Task> = tasks.register("writeMcv2ToolsClas
 tasks.test {
     this.inputs.files(writeToolsClasspath)
 }
+
 pluginManager.withPlugin("info.solidsoft.pitest") {
     tasks.named("pitest") {
         this.inputs.files(writeToolsClasspath)
     }
 }
 
-val pythonEnvironment: TaskProvider<PythonEnvironment> = rootProject.tasks.named<PythonEnvironment>("installPythonEnvironment")
+val pythonEnvironment: TaskProvider<PythonEnvironment> = rootProject.tasks.named<PythonEnvironment>(PythonEnvironment.TASK_NAME)
 val pythonSources: Directory = layout.projectDirectory.dir(pythonSourcePath)
 val pythonTest: TaskProvider<PythonTests> = tasks.register<PythonTests>("pythonTest") {
     this.group = "verification"
@@ -78,7 +80,7 @@ val pythonTest: TaskProvider<PythonTests> = tasks.register<PythonTests>("pythonT
     })
     this.serialTests.from(pythonSources.file(timingTestFile))
     this.sources.from(
-        fileTree(pythonSources) { exclude(pythonTestPattern, pythonCachePattern) },
+        fileTree(pythonSources) { this.exclude(pythonTestPattern, pythonCachePattern) },
         layout.projectDirectory.dir(testResourcePath),
         layout.projectDirectory.dir(packResourcePath),
         layout.settingsDirectory.dir(docsImagePath)
@@ -87,6 +89,7 @@ val pythonTest: TaskProvider<PythonTests> = tasks.register<PythonTests>("pythonT
     this.processCount = gradle.startParameter.maxWorkerCount
     this.reportDirectory = layout.buildDirectory.dir(pythonReportPath)
 }
+
 tasks.named("check") {
     this.dependsOn(pythonTest)
 }

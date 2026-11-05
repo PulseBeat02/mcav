@@ -114,7 +114,7 @@ val fabricJar: TaskProvider<Jar> = tasks.register<Jar>("fabricJar") {
     this.exclude(neoForgeClasses, neoForgeMetadata)
 }
 
-val neoforgeJar: TaskProvider<Jar> = tasks.register<Jar>("neoforgeJar") {
+val neoForgeJar: TaskProvider<Jar> = tasks.register<Jar>("neoForgeJar") {
     this.group = "build"
     this.description = "Assembles the mod for NeoForge"
     this.archiveClassifier = neoForgeClassifier
@@ -123,5 +123,5 @@ val neoforgeJar: TaskProvider<Jar> = tasks.register<Jar>("neoforgeJar") {
 }
 
 tasks.assemble {
-    this.dependsOn(fabricJar, neoforgeJar)
+    this.dependsOn(fabricJar, neoForgeJar)
 }

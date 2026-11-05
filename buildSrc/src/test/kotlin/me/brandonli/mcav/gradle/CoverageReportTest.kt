@@ -36,6 +36,8 @@ class CoverageReportTest {
         const val OTHER_SOURCE_PATH: String = "other/Example.java"
         const val MISSING_SOURCE_PATH: String = "sample/Missing.java"
 
+        const val GENERATED_SOURCE_REASON: String = "generated source"
+
         const val REPORT_FILE: String = "report.xml"
         const val MISSING_REPORT_FILE: String = "missing.xml"
         const val EXCEPTIONS_FILE: String = "exceptions.txt"
@@ -64,9 +66,9 @@ class CoverageReportTest {
 
         val gaps: List<String> = CoverageReport.findGaps(report, this.directory.toFile(), emptyList())
         assertEquals(listOf(
-            "$source:1: warning: line is not covered by any test.",
-            "$source:2: warning: 1 of 2 branches are not covered by any test.",
-            "$source:3: warning: 2 of 6 instructions on this line are not covered by any test."
+            "$source:1: error: line is not covered by any test.",
+            "$source:2: error: 1 of 2 branches are not covered by any test.",
+            "$source:3: error: 2 of 6 instructions on this line are not covered by any test."
         ), gaps)
     }
 
@@ -90,7 +92,7 @@ class CoverageReportTest {
         val wrongPath: CoverageException = CoverageException(OTHER_SOURCE_PATH, "serverOnly();", "different source")
 
         val gaps: List<String> = CoverageReport.findGaps(report, this.directory.toFile(), listOf(matching, stale, wrongPath))
-        assertEquals(listOf("$source:2: warning: line is not covered by any test."), gaps)
+        assertEquals(listOf("$source:2: error: line is not covered by any test."), gaps)
 
         val matchingUsed: Boolean = matching.used
         assertTrue(matchingUsed)
@@ -131,7 +133,7 @@ class CoverageReportTest {
         sources.resolve(SOURCE_FILE).writeText("class Example {}\n")
 
         val withSources: List<String> = CoverageReport.findGaps(report, sources, emptyList())
-        assertEquals(listOf("$sources: warning: no test ran, so none of this code is covered."), withSources)
+        assertEquals(listOf("$sources: error: no test ran, so none of this code is covered."), withSources)
     }
 
     @Test
@@ -168,7 +170,7 @@ class CoverageReportTest {
 
         val entries: List<CoverageException> = CoverageExceptions.read(file)
         val fields: List<Triple<String, String, String>> = entries.map { Triple(it.path, it.sourceLine, it.reason) }
-        assertEquals(listOf(Triple(MISSING_SOURCE_PATH, "", "generated source")), fields)
+        assertEquals(listOf(Triple(MISSING_SOURCE_PATH, "", GENERATED_SOURCE_REASON)), fields)
     }
 
     @Test
@@ -181,7 +183,7 @@ class CoverageReportTest {
             </sourcefile></package></report>
         """.trimIndent())
 
-        val blankLine: CoverageException = CoverageException(MISSING_SOURCE_PATH, "", "generated source")
+        val blankLine: CoverageException = CoverageException(MISSING_SOURCE_PATH, "", GENERATED_SOURCE_REASON)
 
         val gaps: List<String> = CoverageReport.findGaps(report, this.directory.toFile(), listOf(blankLine))
         assertEquals(emptyList<String>(), gaps)

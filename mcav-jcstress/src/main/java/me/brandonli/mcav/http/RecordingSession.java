@@ -26,6 +26,7 @@ import org.springframework.web.socket.WebSocketSession;
 final class RecordingSession implements InvocationHandler {
 
   private static final String ID = "jcstress";
+
   private static final String CLOSING_THREAD_PREFIX = "mcav-http-close-";
 
   private final AtomicBoolean closedSynchronously;

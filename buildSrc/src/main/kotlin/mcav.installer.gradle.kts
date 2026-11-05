@@ -28,11 +28,14 @@ plugins {
 }
 
 val mavenResolverSupplierAlias: String = "maven-resolver-supplier"
+
 val plainClassifier: String = "plain"
+
 val noticeFiles: List<String> = listOf("META-INF/NOTICE", "META-INF/NOTICE.txt", "META-INF/NOTICE.md")
 val relocatedPackages: List<String> =
     listOf("com.ctc", "com.google", "jakarta.inject", "org.apache", "org.codehaus", "org.eclipse", "org.objectweb", "org.slf4j")
 val relocationRoot: String = "me.brandonli.mcav.libs"
+
 val builtJarProperty: String = "mcav.installer.jar"
 val builtJarPath: String = "libs/mcav-installer.jar"
 
@@ -56,19 +59,21 @@ tasks.shadowJar {
     }
     this.transform(ApacheNoticeResourceTransformer::class.java)
     this.inputs.property("noticeDuplicates", DuplicatesStrategy.INCLUDE.name)
-    relocatedPackages.forEach { prefix -> this.relocate(prefix, "$relocationRoot.$prefix") }
+    relocatedPackages.forEach { this.relocate(it, "$relocationRoot.$it") }
 }
 
 tasks.assemble {
     this.dependsOn(tasks.shadowJar)
 }
 
-val builtJar: String = "-D$builtJarProperty=" + layout.buildDirectory.file(builtJarPath).get().asFile.absolutePath
+val builtJarFile: String = layout.buildDirectory.file(builtJarPath).get().asFile.absolutePath
+val builtJar: String = "-D$builtJarProperty=$builtJarFile"
 tasks.test {
     this.jvmArgs("--add-opens", "java.base/java.net=ALL-UNNAMED")
     this.dependsOn(tasks.shadowJar)
     this.jvmArgs(builtJar)
 }
+
 tasks.named("pitest") {
     this.dependsOn(tasks.shadowJar)
 }

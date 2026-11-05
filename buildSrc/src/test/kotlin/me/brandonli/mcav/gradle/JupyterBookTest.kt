@@ -76,7 +76,7 @@ class JupyterBookTest {
 
         val commands: MutableList<List<String>> = mutableListOf<List<String>>()
         val processes: ExecOperations = mock(ExecOperations::class.java)
-        doAnswer { invocation -> this.runJupyterBook(invocation, commands) }.`when`(processes).exec(any())
+        doAnswer { this.runJupyterBook(it, commands) }.`when`(processes).exec(any())
         task.recordedProcesses = processes
         task.build()
 

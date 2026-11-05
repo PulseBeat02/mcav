@@ -33,6 +33,7 @@ object CoverageReport {
     private const val LOAD_EXTERNAL_DTD: String = "http://apache.org/xml/features/nonvalidating/load-external-dtd"
 
     private const val JAVA_EXTENSION: String = "java"
+
     private const val PATH_SEPARATOR: String = "/"
 
     private const val SOURCE_FILE_TAG: String = "sourcefile"
@@ -48,15 +49,15 @@ object CoverageReport {
     private const val FIRST_LINE_NUMBER: Int = 1
 
     /**
-     * Returns a warning for every line in [report] that the tests do not fully cover and no exception excuses.
+     * Returns an error for every line in [report] that the tests do not fully cover and no exception excuses.
      *
      * An exception excuses one uncovered line of its source file with the same trimmed text, and is marked as used. Without
-     * a report, the result is one warning that no test ran, or nothing when [sourceDirectory] holds no Java source.
+     * a report, the result is one error that no test ran, or nothing when [sourceDirectory] holds no Java source.
      *
      * @param report          the JaCoCo XML report
      * @param sourceDirectory the directory of the main sources
      * @param exceptions      the coverage exceptions of the module
-     * @return the warnings, one for each gap, in report order
+     * @return the errors, one for each gap, in report order
      * @throws org.xml.sax.SAXException if the report is not well-formed XML
      */
     fun findGaps(report: File, sourceDirectory: File, exceptions: List<CoverageException>): List<String> {
@@ -81,7 +82,12 @@ object CoverageReport {
 
     private fun describeMissingReport(sourceDirectory: File): List<String> {
         val hasSources: Boolean = sourceDirectory.isDirectory && sourceDirectory.walk().any { it.extension == JAVA_EXTENSION }
-        return if (hasSources) listOf("$sourceDirectory: warning: no test ran, so none of this code is covered.") else emptyList()
+        if (!hasSources) {
+            return emptyList()
+        }
+
+        val gap: String = "$sourceDirectory: error: no test ran, so none of this code is covered."
+        return listOf(gap)
     }
 
     private fun findGapsInFile(sourceFile: Element, sourceDirectory: File, exceptions: List<CoverageException>): List<String> {
@@ -97,7 +103,7 @@ object CoverageReport {
             val text: String = sourceLines.getOrNull(number - FIRST_LINE_NUMBER)?.trim() ?: ""
             val exception: CoverageException? = exceptions.firstOrNull { !it.used && it.path == relativePath && it.sourceLine == text }
             if (exception == null) {
-                gaps += "$file:$number: warning: $gap."
+                gaps += "$file:$number: error: $gap."
             } else {
                 exception.used = true
             }
@@ -118,11 +124,12 @@ object CoverageReport {
         val coveredInstructions: Int = line.getAttribute(COVERED_INSTRUCTIONS_ATTRIBUTE).toInt()
         val missedBranches: Int = line.getAttribute(MISSED_BRANCHES_ATTRIBUTE).toInt()
         val coveredBranches: Int = line.getAttribute(COVERED_BRANCHES_ATTRIBUTE).toInt()
+        val totalBranches: Int = missedBranches + coveredBranches
+        val totalInstructions: Int = missedInstructions + coveredInstructions
         return when {
             coveredInstructions == 0 && missedInstructions > 0 -> "line is not covered by any test"
-            missedBranches > 0 -> "$missedBranches of ${missedBranches + coveredBranches} branches are not covered by any test"
-            missedInstructions > 0 ->
-                "$missedInstructions of ${missedInstructions + coveredInstructions} instructions on this line are not covered by any test"
+            missedBranches > 0 -> "$missedBranches of $totalBranches branches are not covered by any test"
+            missedInstructions > 0 -> "$missedInstructions of $totalInstructions instructions on this line are not covered by any test"
             else -> null
         }
     }

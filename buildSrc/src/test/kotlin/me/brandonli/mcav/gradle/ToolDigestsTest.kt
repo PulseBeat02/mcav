@@ -32,6 +32,8 @@ class ToolDigestsTest {
     private companion object {
 
         const val CONTENTS_FILE: String = "contents"
+
+        const val SHORT_CONTENTS: String = "abc"
     }
 
     @TempDir
@@ -45,12 +47,12 @@ class ToolDigestsTest {
         val emptyDigest: String = ToolDigests.sha256(file)
         assertEquals("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", emptyDigest)
 
-        file.writeText("abc")
+        file.writeText(SHORT_CONTENTS)
 
         val shortDigest: String = ToolDigests.sha256(file)
         assertEquals("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", shortDigest)
 
-        val contents: ByteArray = ByteArray(196_625) { index -> (index % 251).toByte() }
+        val contents: ByteArray = ByteArray(196_625) { (it % 251).toByte() }
         file.writeBytes(contents)
 
         val expected: String = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(contents))
@@ -63,7 +65,7 @@ class ToolDigestsTest {
         OpenFiles.assumeListable()
 
         val file: File = this.directory.resolve(CONTENTS_FILE).toFile()
-        file.writeText("abc")
+        file.writeText(SHORT_CONTENTS)
         ToolDigests.sha256(file)
 
         val open: Boolean = OpenFiles.isOpen(file)

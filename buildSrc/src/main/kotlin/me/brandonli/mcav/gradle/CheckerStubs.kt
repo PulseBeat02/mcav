@@ -29,7 +29,7 @@ internal object CheckerStubs {
     private val GUAVA_PROJECTS: Set<String> = setOf("mcav-common", "mcav-bukkit")
     private val PAPER_PROJECTS: Set<String> = setOf("mcav-bukkit", "mcav-plugin")
 
-    fun forProject(directory: File, projectName: String): List<File> {
+    fun foldersFor(directory: File, projectName: String): List<File> {
         val folders: MutableList<File> = mutableListOf(directory.resolve(projectName), directory.resolve(SHARED_STUBS))
         if (projectName in GUAVA_PROJECTS) {
             folders += directory.resolve(GUAVA_STUBS)
@@ -43,7 +43,7 @@ internal object CheckerStubs {
     }
 
     fun argumentsFor(directory: File, projectName: String): List<String> {
-        val folders: List<File> = this.forProject(directory, projectName)
+        val folders: List<File> = this.foldersFor(directory, projectName)
         if (folders.isEmpty()) {
             return emptyList()
         }
