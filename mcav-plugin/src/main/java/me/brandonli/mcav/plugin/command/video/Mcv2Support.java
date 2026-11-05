@@ -251,10 +251,10 @@ public final class Mcv2Support {
     final World world = frame.getWorld();
     final String worldName = world.getName();
     final Location location = frame.getLocation();
-    final int x = location.getBlockX();
-    final int y = location.getBlockY();
-    final int z = location.getBlockZ();
-    return "%s %s %s %s".formatted(worldName, x, y, z);
+    final int frameX = location.getBlockX();
+    final int frameY = location.getBlockY();
+    final int frameZ = location.getBlockZ();
+    return "%s %s %s %s".formatted(worldName, frameX, frameY, frameZ);
   }
 
   long readBacklogLimit() {
