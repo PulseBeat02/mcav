@@ -146,8 +146,7 @@ final class FfmpegPlayerTest {
     return audioBytes.addAndGet(remaining) > 0;
   }
 
-  // Creates a player that never drops a frame as late, so how many frames a test sees does not depend on the load of
-  // the machine.
+  // Never drops late frames, so how many frames a test sees does not depend on the machine's load.
   private static FfmpegPlayer neverDroppingPlayer() {
     final FfmpegPlayer player = new FfmpegPlayer();
     player.neverDropLateFrames();

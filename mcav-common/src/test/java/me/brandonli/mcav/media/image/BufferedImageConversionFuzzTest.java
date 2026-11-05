@@ -24,11 +24,7 @@ import com.code_intelligence.jazzer.junit.FuzzTest;
 import java.awt.image.BufferedImage;
 import org.junit.jupiter.api.Tag;
 
-// Fuzzes the conversion of Java images into image buffers, the path every frame of a VNC server takes: the server
-// decides the size of its screen and the image type the client decodes it into, and a frame may be a view into a larger
-// image. Whatever the type, size and view, every pixel of the buffer is the color the image itself reports, made
-// opaque, both for a new buffer and for one that is reused. The images are built from the fuzzer's data; there is no
-// artefact of a VNC screen in the repository to seed them with.
+// Fuzzes converting Java images, the path of every VNC frame: every pixel of a new or reused buffer is the image's color made opaque.
 @Tag("fuzz")
 final class BufferedImageConversionFuzzTest {
 

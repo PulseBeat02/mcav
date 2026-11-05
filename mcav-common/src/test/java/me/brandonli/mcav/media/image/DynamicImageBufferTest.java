@@ -239,8 +239,7 @@ final class DynamicImageBufferTest {
     return frame;
   }
 
-  // Plays a script of frames and failures instead of decoding a file, and reports no frame rate, which FFmpeg reports
-  // for every test file.
+  // Plays a script of frames and failures instead of a file, and reports no frame rate, which FFmpeg reports for every test file.
   private static final class ScriptedFfmpegGrabber extends FFmpegFrameGrabber {
 
     private final Deque<Object> steps;

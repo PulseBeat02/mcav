@@ -68,8 +68,7 @@ final class ImageBufferPropertyTest {
     return images.as(ImageCase::new);
   }
 
-  // Creates integers in a range from a fresh arbitrary: jqwik 1.10 shares the range between an arbitrary and the ones
-  // configured from it, so one base configured twice would hand every user the last range.
+  // A fresh arbitrary per range, because jqwik 1.10 shares the range between an arbitrary and those configured from it.
   private static Arbitrary<Integer> between(final int minimum, final int maximum) {
     final IntegerArbitrary integers = Arbitraries.integers();
     return integers.between(minimum, maximum);

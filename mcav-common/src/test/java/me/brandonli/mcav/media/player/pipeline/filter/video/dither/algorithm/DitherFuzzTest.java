@@ -37,10 +37,7 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ran
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
 import org.junit.jupiter.api.Tag;
 
-// Fuzzes the dithering algorithms through the ways the library lets a developer shape one: an error diffusion kernel of
-// their own, a threshold matrix of their own with any level count and strength, a random weight and seed, and the
-// thresholds of temporal dithering. A constructor may refuse what it documents with an IllegalArgumentException; an
-// algorithm it accepted must dither any image into the palette, with every index naming the color written in place.
+// Fuzzes developer-shaped dithers: a constructor may refuse with its documented exception; an accepted algorithm dithers any image.
 @Tag("fuzz")
 final class DitherFuzzTest {
 

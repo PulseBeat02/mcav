@@ -99,8 +99,7 @@ final class AudioRendererTest {
     return false;
   }
 
-  // Attaches a filter that records the first sample of every chunk, then blocks the render thread until the test lets
-  // it proceed, so later chunks queue up.
+  // Blocking the render thread until the test proceeds lets later chunks queue up.
   private void attachBlockingRecorder(final List<Short> received, final CountDownLatch blocked, final CountDownLatch proceed) {
     this.attach((samples, _) -> this.recordFirstSampleAndBlock(samples, received, blocked, proceed));
   }
@@ -463,8 +462,7 @@ final class AudioRendererTest {
     assertTrue(reached, "expected %s chunks but got %s".formatted(size, actual));
   }
 
-  // Blocks a filter until the test lets it proceed. A filter that is never released fails, which the render thread
-  // reports to the exception handler.
+  // A filter never released fails, which the render thread reports to the exception handler.
   private static void awaitRelease(final CountDownLatch proceed) {
     try {
       final boolean released = proceed.await(TIMEOUT.toSeconds(), TimeUnit.SECONDS);

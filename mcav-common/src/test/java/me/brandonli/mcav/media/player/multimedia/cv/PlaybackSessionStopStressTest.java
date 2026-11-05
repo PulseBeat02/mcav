@@ -51,17 +51,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-// Stops playback sessions at many points of their life. This is the stress half of the race tests of PlaybackSession:
-// jcstress runs its actors millions of times and needs them to finish in microseconds, which a session that starts up
-// to four threads and paces its frames by the clock does not, so EndMarkerRace in mcav-jcstress covers only the one
-// step of stopping that fits, the end marker replacing a queue a decoder refills. Every round plays a scripted source,
-// sometimes with a separate audio source and sometimes with a decoder that gets stuck for a moment, and stops it at a
-// point drawn from a fixed seed: before the threads start, right after the start, while paused, after some frames, as
-// the media ends, from its own filter, from two threads at once, and from its filter and from outside at once. The seed
-// fixes the rounds, not the interleavings, which is the point of running many. Wherever the stop lands, once
-// PlaybackSession.stop() returns to a caller outside the session, every thread of the session has ended and every
-// grabber it opened is closed; once the session ended, every picture its pipeline saw is released; and nothing is ever
-// reported, because nothing in the scripts fails.
+// The stress half of PlaybackSession's race tests; jcstress needs faster actors, so its EndMarkerRace covers only the end marker.
 final class PlaybackSessionStopStressTest {
 
   private static final long SEED = 20_260_925L;
@@ -79,8 +69,7 @@ final class PlaybackSessionStopStressTest {
   private static final int FRAME_WIDTH = 4;
   private static final int FRAME_HEIGHT = 2;
 
-  // Loads the OpenCV natives before the first round, because the first image buffer of the JVM loads them on the
-  // decoding thread, where the loading takes seconds.
+  // The first image buffer of the JVM would otherwise load the natives on the decoding thread, where loading is slow.
   @BeforeAll
   static void loadTheNativeLibrariesAheadOfTheRounds() {
     try (final ImageBuffer warmUp = ImageBuffer.bytes(new byte[3], 1, 1)) {
@@ -100,11 +89,11 @@ final class PlaybackSessionStopStressTest {
     }
   }
 
-  // Stopping drains the video queue, which wakes a decoder that waits for room in it. When the wake-up comes before the
-  // decoder notices its interrupt, the put completes after all, and it could complete after the renderer drained the
-  // queue for the last time, so nobody released the picture of that frame. Found by the rounds above; which comes first
-  // is up to the scheduler, about one stop in twenty-five on the machine it was found on, so the stop is repeated until
-  // missing the case every time would take a miracle.
+  /*
+   * Stopping drains the video queue, which wakes a decoder waiting for room; if that comes before it notices its
+   * interrupt, its put can land after the renderer's last drain, leaving the picture unreleased. The scheduler decides
+   * the order, so the stop is repeated.
+   */
   @Test
   void shouldNotLeaveThePictureOfADecoderWaitingForRoomBehindOnAnyStop() throws Exception {
     for (int stop = 0; stop < WAITING_DECODER_STOPS; stop++) {
@@ -144,8 +133,7 @@ final class PlaybackSessionStopStressTest {
     }
   }
 
-  // A video filter that blocks until its thread is interrupted, keeping the interrupt, so the renderer holds one frame
-  // while the decoder fills the queue.
+  // A filter that blocks until interrupted, keeping the interrupt, so the renderer holds one frame while the decoder fills the queue.
   private static boolean blockUntilInterrupted(final ImageBuffer picture, final OriginalVideoMetadata metadata) {
     final CountDownLatch never = new CountDownLatch(1);
     try {
@@ -337,8 +325,7 @@ final class PlaybackSessionStopStressTest {
       this.assertEnded();
     }
 
-    // Waits until the pipeline saw the frames after which the round stops, or the media ended before that because
-    // frames were due before the pipeline could show them all.
+    // The media can end first when frames were due before the pipeline could show them all.
     private void awaitFramesOrEnd() throws InterruptedException {
       Polling.awaitCondition(
         "%s, the frames were shown or the media ended".formatted(this.description),

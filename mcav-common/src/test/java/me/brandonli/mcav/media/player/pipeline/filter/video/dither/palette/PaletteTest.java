@@ -296,8 +296,7 @@ final class PaletteTest {
     assertThrows(PaletteLoadingException.class, () -> MapPaletteLoader.loadColors(MISSING_PALETTE_RESOURCE));
   }
 
-  // Found by MapPaletteLoaderFuzzTest: Gson reads the empty element of [[0,,1]] as a null, which it cannot store in an
-  // int[], and reported that with an IllegalArgumentException instead of a syntax error.
+  // Gson reads the empty element as a null, which an int[] cannot hold, and throws an IllegalArgumentException, not a syntax error.
   @Test
   void shouldRejectAColorWithAnEmptyComponent() {
     assertThrows(PaletteLoadingException.class, () -> parse("[[0,,1]]"));

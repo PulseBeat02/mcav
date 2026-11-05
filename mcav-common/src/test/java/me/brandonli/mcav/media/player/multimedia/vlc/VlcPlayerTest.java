@@ -91,8 +91,7 @@ import uk.co.caprica.vlcj.player.embedded.videosurface.callback.BufferFormat;
 import uk.co.caprica.vlcj.player.embedded.videosurface.callback.BufferFormatCallback;
 import uk.co.caprica.vlcj.player.embedded.videosurface.callback.RenderCallback;
 
-// Tests VlcPlayer and VlcPlayback against a mocked VLC engine, so every failure and every race of VLC can be simulated
-// deterministically. VlcPlayerIntegrationTest plays real media through VLC.
+// Mocks VLC, so every failure and race of VLC is deterministic; VlcPlayerIntegrationTest plays real media.
 final class VlcPlayerTest {
 
   private static final int RED = 0xFF0000;

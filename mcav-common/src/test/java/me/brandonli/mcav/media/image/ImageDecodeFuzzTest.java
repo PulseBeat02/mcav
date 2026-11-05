@@ -23,10 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.code_intelligence.jazzer.junit.FuzzTest;
 import org.junit.jupiter.api.Tag;
 
-// Fuzzes the decoding of encoded images, which /mcav image feeds with whatever a URI or a file holds: the bytes either
-// become an image of a positive size with one pixel per pixel, or are refused with the IllegalArgumentException
-// ImageBuffer.bytes(byte[]) documents. The seeds are the textures of the test resources of mcav-bukkit and the same
-// textures converted to the other formats OpenCV reads.
+// Fuzzes image decoding: any bytes become an image of a positive size or are refused with the documented IllegalArgumentException.
 @Tag("fuzz")
 final class ImageDecodeFuzzTest {
 
