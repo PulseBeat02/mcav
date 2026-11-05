@@ -20,7 +20,6 @@ package me.brandonli.mcav.bukkit.media.map;
 import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
 import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -39,13 +38,15 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *   <li>merges the changed tiles of each map into as few rectangles as possible,</li>
  *   <li>chooses whichever is smaller: sending the rectangles separately, or sending one bounding rectangle that
  *       contains all of them, and</li>
- *   <li>sends the maps with the most urgent changes first until the byte budget of the frame is used up.</li>
+ *   <li>sends the changes of all maps together when the byte credit covers them, and none of them otherwise.</li>
  * </ol>
  *
- * <p>Maps that did not change cost nothing. Maps that do not fit into the budget are simply not sent. Their
- * remembered state is left untouched, so the next frame is compared against what the clients really display,
- * and maps that have been waiting are sent before all others. This spreads a scene cut over a few frames
- * instead of flooding the connection, and it never leaves a map permanently out of date.
+ * <p>Maps that did not change cost nothing. The byte budget is an average per frame: every frame adds it to a credit
+ * that holds at most enough for a frame that replaces every map, and every sent frame spends its size. A frame is
+ * sent whole or not at all, so the clients never show parts of two frames. A frame the credit does not cover is
+ * skipped and leaves the remembered state untouched, so the next frame is compared against what the clients really
+ * display. A large change on a large wall therefore waits until the credit covers it: a busy wall shows fewer frames
+ * per second instead of mixing frames, and no map is left permanently out of date.
  *
  * <p>Tiles where only a handful of pixels changed are usually caused by dithering noise rather than real
  * motion. Those tiles are held back for a few frames, because the noise often disappears on its own, and are
@@ -58,13 +59,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class DeltaMapEncoder {
 
   /**
-   * The default ordinary-update budget, 128 KiB per frame including estimated patch overhead.
-   * The first urgent map may exceed the budget. At 30 frames per second the budget is about
-   * 3.8 MB/s per viewer, while a full 5x5 map wall would need about 12 MB/s without delta encoding.
+   * The default ordinary-update budget, 128 KiB per frame on average including estimated patch overhead. At 30 frames
+   * per second the budget is about 3.8 MB/s per viewer, while a full 5x5 map wall would need about 12 MB/s without
+   * delta encoding.
    *
    * <p>Earlier versions used a default of 2 MiB per frame. The lower default keeps the connections of the viewers
-   * responsive, but a scene cut on a large wall now takes a few more frames to appear completely. Pass a larger
-   * budget to the {@link CompressedMapResult} constructor to get the old behavior back.
+   * responsive, but a large wall that changes completely shows fewer frames per second: a 5x3 wall shows every
+   * second frame. Pass a larger budget to the {@link CompressedMapResult} constructor to get the old behavior back.
    *
    * @since 1.0.0
    */
@@ -72,6 +73,7 @@ public final class DeltaMapEncoder {
 
   private static final int MAP_SIZE = MapLayout.MAP_SIZE;
   private static final int MAP_PIXELS = MAP_SIZE * MAP_SIZE;
+  private static final int WHOLE_MAP_BYTES = MAP_PIXELS + MapLayout.PATCH_OVERHEAD;
 
   private static final int TILE_SIZE = 16;
   private static final int TILES_PER_ROW = MAP_SIZE / TILE_SIZE;
@@ -80,23 +82,22 @@ public final class DeltaMapEncoder {
   private static final int NOISE_THRESHOLD = 4;
   private static final int MAXIMUM_NOISE_DEFERRAL = 6;
 
-  private static final long WAITING_PRIORITY = 1L << 32;
-  private static final long INITIAL_PRIORITY = Long.MAX_VALUE;
-
   private final MapLayout layout;
   private final int maximumBytesPerFrame;
+  private final long creditLimit;
   private final byte[][] clientState;
   private final boolean[] synced;
-  private final long[] waitingFrames;
   private final byte[][] deferredNoiseFrames;
   private final int[] changedPixelsPerTile;
+
+  private long credit;
 
   /**
    * Creates an encoder for the given layout.
    *
    * @param layout               the layout of the image on the maps
-   * @param maximumBytesPerFrame the maximum number of bytes to send per frame; the most urgent map is always sent,
-   *                             even if it alone exceeds the budget
+   * @param maximumBytesPerFrame the number of bytes to send per frame on average; a larger frame is sent whole once
+   *                             the credit saved by the frames before it covers it
    * @throws IllegalArgumentException if the budget is not positive
    * @throws NullPointerException     if {@code layout} is null
    * @since 1.0.0
@@ -108,11 +109,12 @@ public final class DeltaMapEncoder {
     final int mapCount = layout.getMapCount();
     this.layout = layout;
     this.maximumBytesPerFrame = maximumBytesPerFrame;
+    this.creditLimit = (long) mapCount * WHOLE_MAP_BYTES;
     this.clientState = new byte[mapCount][MAP_PIXELS];
     this.synced = new boolean[mapCount];
-    this.waitingFrames = new long[mapCount];
     this.deferredNoiseFrames = new byte[mapCount][TILE_COUNT];
     this.changedPixelsPerTile = new int[TILE_COUNT];
+    this.credit = this.creditLimit;
   }
 
   /**
@@ -120,7 +122,7 @@ public final class DeltaMapEncoder {
    * considered delivered, so every client must receive all of them for the following frames to be correct.
    *
    * @param image the frame as map palette indices, laid out row by row, matching the image size of the layout
-   * @return the patches to send, or an empty list if nothing visible changed
+   * @return the patches to send, or an empty list if nothing visible changed or the credit does not cover the change
    * @throws IllegalArgumentException if the image size does not match the layout
    * @throws NullPointerException     if {@code image} is null
    * @since 1.0.0
@@ -139,14 +141,15 @@ public final class DeltaMapEncoder {
     );
 
     final List<MapCandidate> candidates = this.collectCandidates(image);
-    if (candidates.isEmpty()) {
+    final long frameBytes = candidates.stream().mapToLong(MapCandidate::size).sum();
+    this.credit = Math.min(this.credit + this.maximumBytesPerFrame, this.creditLimit);
+
+    if (frameBytes > this.credit) {
       return List.of();
     }
 
-    final Comparator<MapCandidate> byPriority = Comparator.comparingLong(MapCandidate::priority);
-    final Comparator<MapCandidate> mostUrgentFirst = byPriority.reversed();
-    candidates.sort(mostUrgentFirst);
-    return this.acceptWithinBudget(candidates);
+    this.credit -= frameBytes;
+    return this.accept(candidates);
   }
 
   private List<MapCandidate> collectCandidates(final byte[] image) {
@@ -172,27 +175,16 @@ public final class DeltaMapEncoder {
     return candidates;
   }
 
-  private List<MapTilePatch> acceptWithinBudget(final List<MapCandidate> candidates) {
+  private List<MapTilePatch> accept(final List<MapCandidate> candidates) {
     final List<MapTilePatch> accepted = new ArrayList<>();
-    int usedBytes = 0;
     for (final MapCandidate candidate : candidates) {
       final int map = candidate.map();
-      final int candidateSize = candidate.size();
-      final boolean fitsBudget = usedBytes + candidateSize <= this.maximumBytesPerFrame;
-      final boolean isFirst = accepted.isEmpty();
-      if (!fitsBudget && !isFirst) {
-        this.waitingFrames[map]++;
-        continue;
-      }
-
-      usedBytes += candidateSize;
       final List<MapTilePatch> patches = candidate.patches();
       for (final MapTilePatch patch : patches) {
         this.applyToClientState(map, patch);
         accepted.add(patch);
       }
       this.synced[map] = true;
-      this.waitingFrames[map] = 0;
     }
 
     return accepted;
@@ -238,15 +230,15 @@ public final class DeltaMapEncoder {
   }
 
   /**
-   * Forgets previously returned patches and all waiting/noise counters. Subsequent frames rebuild the complete
-   * visible picture within the ordinary-update budget, which may require more than one frame. No packets are sent
-   * by this method. {@link #snapshot()} is empty until another frame is encoded.
+   * Forgets previously returned patches and the noise counters, and fills the byte credit again, so the next frame
+   * rebuilds the complete visible picture at once. No packets are sent by this method. {@link #snapshot()} is empty
+   * until another frame is encoded.
    *
    * @since 1.0.0
    */
   public void reset() {
     Arrays.fill(this.synced, false);
-    Arrays.fill(this.waitingFrames, 0);
+    this.credit = this.creditLimit;
     for (final byte[] frames : this.deferredNoiseFrames) {
       Arrays.fill(frames, (byte) 0);
     }
@@ -260,7 +252,7 @@ public final class DeltaMapEncoder {
     final MapTilePatch patch = this.layout.extractPatch(image, map, localX, localY, width, height);
     final List<MapTilePatch> patches = List.of(patch);
     final int size = patch.getEncodedSize();
-    return new MapCandidate(map, patches, size, INITIAL_PRIORITY);
+    return new MapCandidate(map, patches, size);
   }
 
   private @Nullable MapCandidate createDeltaCandidate(final byte[] image, final int map, final MapRegion region) {
@@ -270,14 +262,10 @@ public final class DeltaMapEncoder {
       return null;
     }
 
-    final int changedPixels = this.countChangedPixels(tilesToSend);
     final List<PatchRectangle> rectangles = this.chooseRectangles(tilesToSend, region);
     final List<MapTilePatch> patches = this.extractPatches(image, map, rectangles);
     final int size = this.getEncodedSize(rectangles);
-
-    final long waitingBonus = this.waitingFrames[map] * WAITING_PRIORITY;
-    final long priority = waitingBonus + changedPixels;
-    return new MapCandidate(map, patches, size, priority);
+    return new MapCandidate(map, patches, size);
   }
 
   private long holdBackNoise(final int map, final long dirtyTiles) {
@@ -305,18 +293,6 @@ public final class DeltaMapEncoder {
     final boolean looksLikeNoise = tileChanges < NOISE_THRESHOLD;
     final boolean mayDeferLonger = noiseFrames[tile] < MAXIMUM_NOISE_DEFERRAL;
     return looksLikeNoise && mayDeferLonger;
-  }
-
-  private int countChangedPixels(final long tiles) {
-    int changedPixels = 0;
-    for (int tile = 0; tile < TILE_COUNT; tile++) {
-      final long tileBit = 1L << tile;
-      if ((tiles & tileBit) != 0) {
-        changedPixels += this.changedPixelsPerTile[tile];
-      }
-    }
-
-    return changedPixels;
   }
 
   private List<PatchRectangle> chooseRectangles(final long tiles, final MapRegion region) {
@@ -589,5 +565,5 @@ public final class DeltaMapEncoder {
     }
   }
 
-  private record MapCandidate(int map, List<MapTilePatch> patches, int size, long priority) {}
+  private record MapCandidate(int map, List<MapTilePatch> patches, int size) {}
 }

@@ -96,10 +96,13 @@ before it starts; call it on the main thread, and call `release()` on the return
 Configured viewers who connect while the video is running receive a full snapshot before incremental updates.
 Include each intended viewer's UUID in the configuration; connecting alone does not add a player to that collection.
 
-The default 128 KiB budget limits incremental updates. Full snapshots for joining viewers and clearing on release
-are not paced by that budget. Clearing sends every map filled with the transparent color: 16,384 bytes per map per
-viewer before network compression. With compression on, the server default, a cleared map takes about 40 bytes, so a
-32×18 wall costs each viewer about 22 KB; a server with compression off (`network-compression-threshold=-1`, for
-example behind a proxy) sends the full 9.4 MB. The packets are compressed on the players' connection threads, not on
-the thread that calls `release()`. Calls use bundles of up to 4,096 patches; larger calls are split, so the entire
-call is not guaranteed to appear atomically. Choose screen sizes with that release cost in mind.
+The default budget of 128 KiB per frame limits incremental updates on average. Each frame is sent whole or not at all: a
+frame larger than the budget waits until the frames before it saved enough credit, so a large wall that changes
+completely shows fewer frames per second instead of parts of two frames; a 5×3 wall shows every second frame. Full
+snapshots for joining viewers and clearing on release are not paced by that budget. Clearing sends every map filled with
+the transparent color: 16,384 bytes per map per viewer before network compression. With compression on, the server
+default, a cleared map takes about 40 bytes, so a 32×18 wall costs each viewer about 22 KB; a server with compression
+off (`network-compression-threshold=-1`, for example behind a proxy) sends the full 9.4 MB. The packets are compressed
+on the players' connection threads, not on the thread that calls `release()`. Calls use bundles of up to 4,096 patches;
+larger calls are split, so the entire call is not guaranteed to appear atomically. Choose screen sizes with that release
+cost in mind.

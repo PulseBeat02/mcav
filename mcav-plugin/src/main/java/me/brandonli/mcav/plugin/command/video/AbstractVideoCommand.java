@@ -143,6 +143,10 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    * sender and nothing starts. Only one video can start at a time. The viewers are then told that the video is
    * loading, and the media is resolved and started on the worker thread of the video player manager.
    *
+   * <p>A web page whose stream yt-dlp reports with a scheme other than {@code http} or {@code https} is refused, and
+   * the sender is told the page and the scheme; nothing is logged. Any other failure while starting is logged with its
+   * stack trace, and the sender is told that the console has the details.
+   *
    * @param configurationProvider creates the display configuration for the parsed resolution
    * @param sender                who ran the command
    * @param selector              the players who watch
@@ -398,9 +402,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final @Nullable Throwable error
   ) {
     if (error != null) {
-      LOGGER.error("Failed to play a video.", error);
-      final Component message = Message.VIDEO_START_ERROR.build();
-      sender.sendMessage(message);
+      this.reportFailure(sender, error);
       return;
     }
 
@@ -413,6 +415,26 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
 
     AudioOutputs.sendLink(this.provider, audioType, viewers);
     final Component message = Message.START_VIDEO.build();
+    sender.sendMessage(message);
+  }
+
+  private void reportFailure(final CommandSender sender, final Throwable failure) {
+    // supplyAsync wraps what the worker throws in a CompletionException
+    final @Nullable Throwable cause = failure.getCause();
+    if (cause instanceof final StreamRefusedException refusal) {
+      this.reportRefusal(sender, refusal);
+      return;
+    }
+
+    LOGGER.error("Failed to play a video.", failure);
+    final Component message = Message.VIDEO_START_ERROR.build();
+    sender.sendMessage(message);
+  }
+
+  private void reportRefusal(final CommandSender sender, final StreamRefusedException refusal) {
+    final @Nullable String detail = refusal.getMessage();
+    final String reason = String.valueOf(detail);
+    final Component message = Message.VIDEO_STREAM_REFUSED.build(reason);
     sender.sendMessage(message);
   }
 
@@ -719,7 +741,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     if (!web) {
       final URI pageUri = page.getUri();
       final String message = "yt-dlp reported a stream of %s whose scheme %s is not http or https!".formatted(pageUri, scheme);
-      throw new PluginException(message);
+      throw new StreamRefusedException(message);
     }
   }
 

@@ -51,6 +51,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.config.MapConfigurationBuilder;
+import me.brandonli.mcav.bukkit.media.map.MapLayout;
 import me.brandonli.mcav.bukkit.media.map.MapPacketFactory;
 import me.brandonli.mcav.bukkit.testing.FakeServer;
 import me.brandonli.mcav.bukkit.testing.Images;
@@ -565,19 +566,17 @@ final class CompressedMapResultTest {
       result.process(image, this.algorithm);
     }
 
-    final byte[] smallFrame = MapPackets.pattern(MAP_SIZE * 64, 9);
+    final byte[] smallFrame = MapPackets.pattern(MAP_SIZE * MAP_SIZE, 9);
     this.nextFrame = smallFrame;
-    try (final ImageBuffer image = Images.solid(MAP_SIZE, 64, BLACK)) {
+    try (final ImageBuffer image = Images.solid(MAP_SIZE, MAP_SIZE, BLACK)) {
       result.process(image, this.algorithm);
+      this.nextFrame = MapPackets.pattern(MAP_SIZE * MAP_SIZE, 10);
       result.process(image, this.algorithm);
       result.process(image, this.algorithm);
     }
 
-    final List<ClientboundMapItemDataPacket> next = this.packetsOf(FIRST, 3);
-    final int nextCount = next.size();
     final int totalCount = this.firstViewerPacketCount();
-    assertEquals(1, nextCount, "ordinary frames retain the encoder's one-urgent-map exception");
-    assertEquals(4, totalCount, "an unchanged completed frame sends nothing");
+    assertEquals(2, totalCount, "the credit left after the cleanup frame holds the changed frame back");
 
     final byte[] canvas = new byte[256 * MAP_SIZE];
     for (int index = 0; index < totalCount; index++) {
@@ -586,7 +585,7 @@ final class CompressedMapResultTest {
     }
 
     final byte[] expected = new byte[256 * MAP_SIZE];
-    this.placeRectangle(expected, 256, 64, 32, MAP_SIZE, 64, smallFrame);
+    this.placeRectangle(expected, 256, 64, 0, MAP_SIZE, MAP_SIZE, smallFrame);
     assertArrayEquals(expected, canvas);
   }
 
@@ -717,41 +716,52 @@ final class CompressedMapResultTest {
   }
 
   @Test
-  void shouldSendAtMostTheDefaultBudgetPerFrame() {
+  void shouldSendAtMostTheDefaultBudgetPerFrameOnAverage() {
     final MapConfiguration configuration = this.createConfiguration(3, 3, Sizing.ORIGINAL);
     final CompressedMapResult result = new CompressedMapResult(configuration);
-    this.nextFrame = MapPackets.pattern(THREE_MAP_SIZE * THREE_MAP_SIZE, 4);
     final ImageBuffer image = Images.solid(THREE_MAP_SIZE, THREE_MAP_SIZE, BLACK);
 
+    this.nextFrame = MapPackets.pattern(THREE_MAP_SIZE * THREE_MAP_SIZE, 4);
     result.process(image, this.algorithm);
-
-    final List<ClientboundMapItemDataPacket> packets = this.packetsOf(FIRST, 0);
-    final int mapCount = packets.size();
-    assertEquals(7, mapCount, "seven complete maps fit into 128 KiB, the eighth does not");
-  }
-
-  @Test
-  void shouldSpreadLargeUpdatesOverSeveralFramesWithASmallBudget() {
-    final MapConfiguration configuration = this.createConfiguration(2, 1, Sizing.ORIGINAL);
-    final CompressedMapResult result = new CompressedMapResult(configuration, 1);
-    this.nextFrame = MapPackets.pattern(256 * MAP_SIZE, 4);
-    final ImageBuffer image = Images.solid(256, MAP_SIZE, BLACK);
-
+    this.nextFrame = MapPackets.pattern(THREE_MAP_SIZE * THREE_MAP_SIZE, 5);
     result.process(image, this.algorithm);
+    this.nextFrame = MapPackets.pattern(THREE_MAP_SIZE * THREE_MAP_SIZE, 6);
     result.process(image, this.algorithm);
 
     final List<ClientboundMapItemDataPacket> first = this.packetsOf(FIRST, 0);
-    final List<ClientboundMapItemDataPacket> second = this.packetsOf(FIRST, 1);
+    final List<ClientboundMapItemDataPacket> third = this.packetsOf(FIRST, 1);
     final int firstCount = first.size();
-    final int secondCount = second.size();
-    final ClientboundMapItemDataPacket firstPacket = first.getFirst();
-    final ClientboundMapItemDataPacket secondPacket = second.getFirst();
+    final int thirdCount = third.size();
+    final int totalCount = this.firstViewerPacketCount();
+    assertEquals(9, firstCount, "the first frame spends the full credit");
+    assertEquals(2, totalCount, "128 KiB per frame does not cover nine complete maps in the second frame");
+    assertEquals(9, thirdCount, "the third frame arrives whole");
+  }
+
+  @Test
+  void shouldHoldALargeUpdateBackUntilASmallBudgetCoversIt() {
+    final MapConfiguration configuration = this.createConfiguration(2, 1, Sizing.ORIGINAL);
+    final int oneMap = MAP_SIZE * MAP_SIZE + MapLayout.PATCH_OVERHEAD;
+    final CompressedMapResult result = new CompressedMapResult(configuration, oneMap);
+    final ImageBuffer image = Images.solid(256, MAP_SIZE, BLACK);
+
+    this.nextFrame = MapPackets.pattern(256 * MAP_SIZE, 4);
+    result.process(image, this.algorithm);
+    this.nextFrame = MapPackets.pattern(256 * MAP_SIZE, 5);
+    result.process(image, this.algorithm);
+    final int heldBackCount = this.firstViewerPacketCount();
+    result.process(image, this.algorithm);
+
+    final List<ClientboundMapItemDataPacket> update = this.packetsOf(FIRST, 1);
+    final int updateCount = update.size();
+    final ClientboundMapItemDataPacket firstPacket = update.getFirst();
+    final ClientboundMapItemDataPacket secondPacket = update.getLast();
     final MapId firstMapId = firstPacket.mapId();
     final MapId secondMapId = secondPacket.mapId();
     final int firstId = firstMapId.id();
     final int secondId = secondMapId.id();
-    assertEquals(1, firstCount);
-    assertEquals(1, secondCount);
+    assertEquals(1, heldBackCount, "half of the update's bytes do not cover it");
+    assertEquals(2, updateCount, "the update arrives whole");
     assertEquals(3, firstId);
     assertEquals(4, secondId);
   }

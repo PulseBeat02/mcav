@@ -263,8 +263,10 @@ tool dispatcher has no dither-benchmark replacement. The clips are described in 
 | Minecraft gameplay | 10.9 Mbit/s, VMAF 10.9 | 178.3 Mbit/s, VMAF 99.5 |
 
 Showing every frame takes over a hundred megabits a second for each player, which no server can give. With a budget,
-the wall falls behind: some maps show the current frame and some a frame from seconds ago, and on gameplay the wall
-becomes a mosaic of different moments (that's why its VMAF is 10.9). And the picture is stuck at 128 pixels per map,
+the wall drops frames: each frame adds the budget to a byte credit, and a frame is sent whole only when the credit
+covers all of its changed maps, so on gameplay, where nearly every map changes in every frame, the wall shows only a
+frame or two a second. The VMAF figures above come from the encoder before that change, which sent the most urgent
+maps of each frame, so the wall became a mosaic of different moments. And the picture is stuck at 128 pixels per map,
 whatever the video's real resolution.
 
 ### What a vanilla client gives us

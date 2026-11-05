@@ -22,9 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.code_intelligence.jazzer.api.FuzzedDataProvider;
 import com.code_intelligence.jazzer.junit.FuzzTest;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import org.junit.jupiter.api.Tag;
 
 @Tag("fuzz")
@@ -47,11 +45,21 @@ final class MapPipelineFuzzTest {
 
     final byte[] frame = new byte[width * height];
     final int frames = data.consumeInt(1, 6);
+    final long creditLimit = (long) mapCount * (MAP_SIZE * MAP_SIZE + MapLayout.PATCH_OVERHEAD);
+    long sentBytes = 0;
     for (int index = 0; index < frames; index++) {
       this.paint(data, frame, width, height);
       final List<MapTilePatch> patches = encoder.encode(frame);
-      this.assertPatches(layout, frame, patches, budget);
+      this.assertPatches(layout, frame, patches);
+      sentBytes += this.countBytes(patches);
+      final long allowedBytes = creditLimit + (long) index * budget;
+      this.assertWithinCredit(sentBytes, allowedBytes);
     }
+  }
+
+  private void assertWithinCredit(final long sentBytes, final long allowedBytes) {
+    final boolean withinCredit = sentBytes <= allowedBytes;
+    assertTrue(withinCredit, () -> "%s bytes sent where the credit allows %s".formatted(sentBytes, allowedBytes));
   }
 
   private void paint(final FuzzedDataProvider data, final byte[] frame, final int width, final int height) {
@@ -74,12 +82,14 @@ final class MapPipelineFuzzTest {
     }
   }
 
-  private void assertPatches(final MapLayout layout, final byte[] frame, final List<MapTilePatch> patches, final int budget) {
+  private long countBytes(final List<MapTilePatch> patches) {
+    return patches.stream().mapToLong(MapTilePatch::getEncodedSize).sum();
+  }
+
+  private void assertPatches(final MapLayout layout, final byte[] frame, final List<MapTilePatch> patches) {
     final int firstId = layout.getMapId(0);
     final int mapCount = layout.getMapCount();
     final int imageWidth = layout.getImageWidth();
-    long bytes = 0;
-    final Set<Integer> maps = new HashSet<>();
     for (final MapTilePatch patch : patches) {
       final int mapId = patch.getMapId();
       final long index = (long) mapId - firstId;
@@ -102,13 +112,7 @@ final class MapPipelineFuzzTest {
       final int sourceX = region.getSourceX() + left - regionX;
       final int sourceY = region.getSourceY() + top - regionY;
       this.assertPatchPixels(frame, imageWidth, patch, sourceX, sourceY);
-      bytes += patch.getEncodedSize();
-      maps.add(mapId);
     }
-
-    final long sent = bytes;
-    final boolean withinBudget = sent <= budget || maps.size() == 1;
-    assertTrue(withinBudget, () -> "%s bytes over %s maps, budget %s".formatted(sent, maps.size(), budget));
   }
 
   private void assertPatchPixels(final byte[] frame, final int imageWidth, final MapTilePatch patch, final int sourceX, final int sourceY) {
