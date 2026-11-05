@@ -26,13 +26,16 @@ final class NavigationPolicy {
 
   static final String BLANK = "about:blank";
 
+  private static final char SCHEME_SEPARATOR = ':';
+
   private static final Set<String> WEB_SCHEMES = Set.of("http", "https");
   private static final Set<String> FRAME_SCHEMES = Set.of("http", "https", "data", "blob");
   private static final Set<String> FRAME_ABOUT_PAGES = Set.of(BLANK, "about:srcdoc");
   private static final Set<String> REQUEST_SCHEMES = Set.of("http", "https", "ws", "wss", "data", "blob");
 
   private NavigationPolicy() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   static boolean isWebAddress(final URI address) {
@@ -52,8 +55,8 @@ final class NavigationPolicy {
       return BLANK.equals(address) || hasScheme(address, WEB_SCHEMES);
     }
 
-    final boolean isAboutPage = FRAME_ABOUT_PAGES.contains(address);
-    return isAboutPage || hasScheme(address, FRAME_SCHEMES);
+    final boolean aboutPage = FRAME_ABOUT_PAGES.contains(address);
+    return aboutPage || hasScheme(address, FRAME_SCHEMES);
   }
 
   static boolean allowsRequest(final String address) {
@@ -61,7 +64,7 @@ final class NavigationPolicy {
   }
 
   private static boolean hasScheme(final String address, final Set<String> schemes) {
-    final int colon = address.indexOf(':');
+    final int colon = address.indexOf(SCHEME_SEPARATOR);
     if (colon <= 0) {
       return false;
     }

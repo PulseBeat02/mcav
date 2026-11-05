@@ -36,7 +36,11 @@ import org.junit.jupiter.api.io.TempDir;
 
 class BrowserModuleTest {
 
-  private static final Path NATIVES = Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath();
+  private static final String STALE_FOLDER_SUFFIX = "stale";
+
+  private static final String TEMPORARY_DIRECTORY_PROPERTY = "java.io.tmpdir";
+
+  private static final Path NATIVES = Path.of(System.getProperty(TEMPORARY_DIRECTORY_PROPERTY)).toAbsolutePath();
 
   private final List<String> ends = new CopyOnWriteArrayList<>();
 
@@ -63,7 +67,7 @@ class BrowserModuleTest {
 
   @Test
   void shouldRemoveTheFolderOfASessionWhoseServerWasKilledOnStart(@TempDir final Path temporary) throws IOException {
-    final Path stale = Files.createDirectory(temporary.resolve(SessionFolders.PREFIX + "stale"));
+    final Path stale = Files.createDirectory(temporary.resolve(SessionFolders.PREFIX + STALE_FOLDER_SUFFIX));
     Files.writeString(stale.resolve(SessionFolders.OWNER_FILE), Long.MAX_VALUE + "\n2026-10-05T00:00:00Z\n", StandardCharsets.US_ASCII);
     final Path live = HelperSession.createFolder(temporary);
     final boolean hasOwnerFile = Files.isRegularFile(live.resolve(SessionFolders.OWNER_FILE));
@@ -102,7 +106,8 @@ class BrowserModuleTest {
       module.stop();
       final int helperCount = HelperProcesses.count();
       assertEquals(0, helperCount);
-      assertEquals(List.of("The browser module was stopped!"), this.ends, "the player hears of it");
+      final List<String> expectedEnds = List.of("The browser module was stopped!");
+      assertEquals(expectedEnds, this.ends, "the player hears of it");
 
       Await.until("the helper ended", () -> !process.isAlive());
       final BrowserException refused = assertThrows(BrowserException.class, this::open);

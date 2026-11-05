@@ -96,17 +96,6 @@ final class JcefNatives {
     return cache.resolve(CACHE_FOLDER);
   }
 
-  static Optional<NativePlatform> detect(final Os os, final Arch architecture, final Bits bits) {
-    for (final NativePlatform platform : NativePlatform.values()) {
-      final boolean matches = platform.getOs() == os && platform.getArchitecture() == architecture && bits == Bits.BITS_64;
-      if (matches) {
-        return Optional.of(platform);
-      }
-    }
-
-    return Optional.empty();
-  }
-
   Path install() throws IOException {
     return this.install(detectCurrent());
   }
@@ -137,7 +126,7 @@ final class JcefNatives {
         final FileLock lock = lock(channel)
       ) {
         this.installUnlessMarked(marker, identifier, sha256, size, installation);
-        LOGGER.debug("Installation lock {} of {} was released.", lock, name);
+        LOGGER.debug("The installation of {} is done, so its lock {} is released next.", name, lock);
       }
     }
 
@@ -164,13 +153,8 @@ final class JcefNatives {
   }
 
   static boolean isSupported(final Os os, final Arch architecture, final Bits bits) {
-    try {
-      detectOrFail(os, architecture, bits);
-
-      return true;
-    } catch (final IOException exception) {
-      return false;
-    }
+    final Optional<NativePlatform> platform = detect(os, architecture, bits);
+    return platform.isPresent();
   }
 
   static NativePlatform detectCurrent() throws IOException {
@@ -194,12 +178,23 @@ final class JcefNatives {
     return platform;
   }
 
+  static Optional<NativePlatform> detect(final Os os, final Arch architecture, final Bits bits) {
+    for (final NativePlatform platform : NativePlatform.values()) {
+      final boolean matches = platform.getOs() == os && platform.getArchitecture() == architecture && bits == Bits.BITS_64;
+      if (matches) {
+        return Optional.of(platform);
+      }
+    }
+
+    return Optional.empty();
+  }
+
   @VisibleForTesting
   static FileLock lock(final FileChannel channel) throws IOException {
     try {
       return channel.lock();
     } catch (final OverlappingFileLockException exception) {
-      final String message = "Another copy of mcav in this server is installing the CEF natives; try again once it is done!";
+      final String message = "Another copy of MCAV in this server is installing the CEF natives; try again once it is done!";
       throw new IOException(message, exception);
     }
   }
@@ -207,7 +202,8 @@ final class JcefNatives {
   private void installLocked(final String identifier, final String sha256, final long size, final Path installation) throws IOException {
     final long start = System.currentTimeMillis();
     final URI uri = this.createUri(identifier);
-    LOGGER.info("Downloading the CEF natives for {} ({} MB, once).", identifier, NativePlatform.approximateMegabytes(identifier));
+    final long megabytes = size / BYTES_PER_MEGABYTE;
+    LOGGER.info("Downloading the CEF natives for {} ({} MB, once).", identifier, megabytes);
     final Path suffix = Path.of(UUID.randomUUID().toString());
     final Path download = this.folder.resolve(installation.getFileName() + NAME_SEPARATOR + suffix + JAR_SUFFIX);
     final Path staging = this.folder.resolve(installation.getFileName() + NAME_SEPARATOR + suffix + STAGING_SUFFIX);
@@ -249,19 +245,16 @@ final class JcefNatives {
   }
 
   private boolean extractFirstArchive(final ZipInputStream zip, final Path staging) throws IOException {
-    boolean extracted = false;
-    ZipEntry entry = zip.getNextEntry();
-    while (entry != null && !extracted) {
+    for (ZipEntry entry = zip.getNextEntry(); entry != null; entry = zip.getNextEntry()) {
       final String entryName = entry.getName();
       if (entryName.endsWith(ARCHIVE_SUFFIX)) {
         this.extractor.extract(zip, staging);
-        extracted = true;
-      } else {
-        entry = zip.getNextEntry();
+
+        return true;
       }
     }
 
-    return extracted;
+    return false;
   }
 
   @VisibleForTesting
@@ -296,16 +289,6 @@ final class JcefNatives {
       this.architecture = architecture;
       this.sha256 = sha256;
       this.size = size;
-    }
-
-    static long approximateMegabytes(final String identifier) {
-      for (final NativePlatform platform : values()) {
-        if (platform.identifier.equals(identifier)) {
-          return platform.size / BYTES_PER_MEGABYTE;
-        }
-      }
-
-      return 0L;
     }
 
     String getIdentifier() {

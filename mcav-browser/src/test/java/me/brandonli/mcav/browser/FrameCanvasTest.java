@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.browser;
 
+import static java.util.Objects.requireNonNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -25,12 +26,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.ProtocolException;
 import java.nio.ByteBuffer;
-import java.util.Objects;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Test;
 
 class FrameCanvasTest {
+
+  private static final int CHANNEL_MASK = 0xFF;
+  private static final int FULL_CHANNEL = 255;
+  private static final int REGION_GREEN = 20;
+  private static final int REGION_RED = 30;
 
   private byte[] bgra(final int width, final int height, final int blue, final int green, final int red) {
     final byte[] pixels = new byte[width * height * 4];
@@ -38,7 +43,7 @@ class FrameCanvasTest {
       pixels[index] = (byte) blue;
       pixels[index + 1] = (byte) green;
       pixels[index + 2] = (byte) red;
-      pixels[index + 3] = (byte) 255;
+      pixels[index + 3] = (byte) FULL_CHANNEL;
     }
 
     return pixels;
@@ -47,11 +52,11 @@ class FrameCanvasTest {
   private int[] bgr(final ImageBuffer image, final int column, final int row) {
     final ByteBuffer pixels = image.getData();
     final int offset = (row * image.getWidth() + column) * 3;
-    return new int[] { pixels.get(offset) & 0xFF, pixels.get(offset + 1) & 0xFF, pixels.get(offset + 2) & 0xFF };
+    return new int[] { pixels.get(offset) & CHANNEL_MASK, pixels.get(offset + 1) & CHANNEL_MASK, pixels.get(offset + 2) & CHANNEL_MASK };
   }
 
   private ImageBuffer snapshot(final FrameCanvas canvas) {
-    return Objects.requireNonNull(canvas.snapshot(), "an open canvas has a picture");
+    return requireNonNull(canvas.snapshot(), "An open canvas must have a picture!");
   }
 
   @Test
@@ -70,33 +75,33 @@ class FrameCanvasTest {
       assertEquals(3, imageHeight);
 
       final int cornerBlue = this.bgr(image, 3, 2)[0];
-      assertEquals(255, cornerBlue);
+      assertEquals(FULL_CHANNEL, cornerBlue);
 
       final int cornerRed = this.bgr(image, 3, 2)[2];
-      assertEquals(255, cornerRed);
+      assertEquals(FULL_CHANNEL, cornerRed);
     }
   }
 
   @Test
   void shouldReplaceOnlyThePixelsOfARegion() throws ProtocolException {
     try (final FrameCanvas canvas = new FrameCanvas(4, 3)) {
-      canvas.apply(new FrameRegion(4, 3, 1, 1, 2, 2, this.bgra(2, 2, 10, 20, 30)));
+      canvas.apply(new FrameRegion(4, 3, 1, 1, 2, 2, this.bgra(2, 2, 10, REGION_GREEN, REGION_RED)));
       try (final ImageBuffer image = this.snapshot(canvas)) {
         final int[] inside = this.bgr(image, 2, 2);
         final int insideBlue = inside[0];
         assertEquals(10, insideBlue);
 
         final int insideGreen = inside[1];
-        assertEquals(20, insideGreen);
+        assertEquals(REGION_GREEN, insideGreen);
 
         final int insideRed = inside[2];
-        assertEquals(30, insideRed);
+        assertEquals(REGION_RED, insideRed);
 
         final int outsideBlue = this.bgr(image, 0, 0)[0];
-        assertEquals(255, outsideBlue);
+        assertEquals(FULL_CHANNEL, outsideBlue);
 
         final int outsideGreen = this.bgr(image, 3, 1)[1];
-        assertEquals(255, outsideGreen);
+        assertEquals(FULL_CHANNEL, outsideGreen);
       }
     }
   }
@@ -148,7 +153,7 @@ class FrameCanvasTest {
   void shouldPlaceEveryRowOfARegionOnItsOwnRow() throws ProtocolException {
     try (final FrameCanvas canvas = new FrameCanvas(4, 3)) {
       final byte[] pixels = new byte[2 * 2 * 4];
-      System.arraycopy(this.bgra(2, 1, 10, 20, 30), 0, pixels, 0, 8);
+      System.arraycopy(this.bgra(2, 1, 10, REGION_GREEN, REGION_RED), 0, pixels, 0, 8);
       System.arraycopy(this.bgra(2, 1, 40, 50, 60), 0, pixels, 8, 8);
       canvas.apply(new FrameRegion(4, 3, 1, 1, 2, 2, pixels));
       try (final ImageBuffer image = this.snapshot(canvas)) {

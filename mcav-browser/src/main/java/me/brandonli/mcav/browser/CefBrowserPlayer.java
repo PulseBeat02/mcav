@@ -49,6 +49,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 // never reaches the pipeline.
 final class CefBrowserPlayer implements BrowserPlayer {
 
+  private static final int NO_SCROLL = 0;
+
+  private static final int UNSTARTED_PAGE_SIDE = 1;
+
+  private static final String INPUT_QUEUE_FULL_MESSAGE = "Browser input queue is full.";
+
   // the first start after a download can be slow, for example while a virus scanner checks the new files
   private static final long START_TIMEOUT_MILLISECONDS = 180_000L;
 
@@ -58,10 +64,11 @@ final class CefBrowserPlayer implements BrowserPlayer {
 
   static final int MAXIMUM_QUEUED_AUDIO_MILLISECONDS = AUDIO_DELAY_MILLISECONDS + 120;
 
-  private static final SessionFactory DEFAULT_SESSIONS = new DefaultSessionFactory();
+  private static final SessionFactory DEFAULT_SESSIONS = new HelperSessionFactory();
 
   private static final Equivalence<Object> SESSION_IDENTITY = Equivalence.identity();
 
+  private static final int NO_CLICK = 0;
   private static final int SINGLE_CLICK = 1;
   private static final int DOUBLE_CLICK = 2;
 
@@ -111,6 +118,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
   @Override
   public boolean start(final BrowserSource source) {
     Preconditions.checkNotNull(source, "Source must not be null!");
+
     this.lock.lock();
     try {
       return this.startReleasably(source);
@@ -144,6 +152,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
         interrupted = this.startInterrupted;
         this.startInterrupted = false;
       }
+
       if (interrupted && !callerInterrupted) {
         Thread.interrupted();
       }
@@ -153,6 +162,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
   private boolean startSession(final BrowserSource source) {
     this.closeSession();
     this.source = source;
+
     final int width = source.getWidth();
     final int height = source.getHeight();
     final OriginalVideoMetadata metadata = OriginalVideoMetadata.of(width, height);
@@ -169,6 +179,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
     this.state.set(State.PLAYING);
     // a helper exit before the session was owned must fail the start too
     listener.setSession(started);
+
     final boolean playing = this.state.get() == State.PLAYING;
     if (playing) {
       // the frames of the start arrived before the session was the player's; a page that stays still needs them again
@@ -227,13 +238,15 @@ final class CefBrowserPlayer implements BrowserPlayer {
 
   @Override
   public void moveMouse(final int pageX, final int pageY) {
-    this.sendMouse(HelperProtocol.MOUSE_MOVE, pageX, pageY, HelperProtocol.BUTTON_LEFT, 0);
+    this.sendMouse(HelperProtocol.MOUSE_MOVE, pageX, pageY, HelperProtocol.BUTTON_LEFT, NO_CLICK);
   }
 
   @Override
   public void sendMouseEvent(final MouseClick type, final int pageX, final int pageY) {
     Preconditions.checkNotNull(type, "Mouse click type must not be null!");
+
     this.moveMouse(pageX, pageY);
+
     final Runnable input = switch (type) {
       case LEFT -> () -> this.click(HelperProtocol.BUTTON_LEFT, pageX, pageY, SINGLE_CLICK);
       case RIGHT -> () -> this.click(HelperProtocol.BUTTON_RIGHT, pageX, pageY, SINGLE_CLICK);
@@ -269,7 +282,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
       position[0],
       position[1],
       HelperProtocol.BUTTON_LEFT,
-      0,
+      NO_CLICK,
       clampedX,
       clampedY
     );
@@ -286,7 +299,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
     }
 
     final int[] position = this.clamp(pageX, pageY);
-    final MouseInput input = new MouseInput(action, position[0], position[1], button, clickCount, 0, 0);
+    final MouseInput input = new MouseInput(action, position[0], position[1], button, clickCount, NO_SCROLL, NO_SCROLL);
     final boolean queued = current.sendMouse(input);
     if (!queued) {
       this.reportDropped();
@@ -296,6 +309,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
   @Override
   public void sendKeyEvent(final String text) {
     Preconditions.checkNotNull(text, "Text must not be null!");
+
     final BrowserSession current = this.getInputSession();
     if (current == null) {
       return;
@@ -311,13 +325,15 @@ final class CefBrowserPlayer implements BrowserPlayer {
 
   private void reportDropped() {
     this.dropReports.log(
-      () -> this.report("Browser input queue is full", new RejectedExecutionException("The browser input backlog is full!")),
+      () -> this.report(INPUT_QUEUE_FULL_MESSAGE, new RejectedExecutionException("The browser input backlog is full!")),
       this::reportDroppedInputs
     );
   }
 
   private void reportDroppedInputs(final long dropped) {
-    this.report("Browser input queue is full", new RejectedExecutionException("%s more inputs were dropped!".formatted(dropped)));
+    final String message = "The browser dropped %s more inputs!".formatted(dropped);
+    final RejectedExecutionException exception = new RejectedExecutionException(message);
+    this.report(INPUT_QUEUE_FULL_MESSAGE, exception);
   }
 
   private @Nullable BrowserSession getInputSession() {
@@ -328,8 +344,8 @@ final class CefBrowserPlayer implements BrowserPlayer {
   @VisibleForTesting
   int[] clamp(final int pageX, final int pageY) {
     final BrowserSource current = this.source;
-    final int width = current == null ? 1 : current.getWidth();
-    final int height = current == null ? 1 : current.getHeight();
+    final int width = current == null ? UNSTARTED_PAGE_SIDE : current.getWidth();
+    final int height = current == null ? UNSTARTED_PAGE_SIDE : current.getHeight();
     final int clampedX = Math.clamp(pageX, 0, width - 1);
     final int clampedY = Math.clamp(pageY, 0, height - 1);
     return new int[] { clampedX, clampedY };
@@ -347,7 +363,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
     } catch (final RuntimeException | Error exception) {
       // user filters and native OpenCV code can fail with any Error; only errors of the virtual machine are thrown
       ThrowableUtils.throwIfFatal(exception);
-      this.report("Failed to process a browser frame", exception);
+      this.report("Failed to process a browser frame.", exception);
     } finally {
       frame.close();
     }
@@ -369,7 +385,9 @@ final class CefBrowserPlayer implements BrowserPlayer {
     final boolean failed = this.state.compareAndSet(State.PLAYING, State.FAILED);
     if (failed) {
       this.closeAudio();
-      this.report(reason, cause);
+
+      final String message = "Because of \"%s\", the browser session ended.".formatted(reason);
+      this.report(message, cause);
     }
   }
 
@@ -387,6 +405,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
   @Override
   public void setExceptionHandler(final BiConsumer<String, Throwable> exceptionHandler) {
     Preconditions.checkNotNull(exceptionHandler, "Exception handler must not be null!");
+
     this.exceptionHandler.setExceptionHandler(exceptionHandler);
   }
 
@@ -415,7 +434,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
     BrowserSession open(final BrowserSource source, final BrowserOptions options, final BrowserSession.Listener listener);
   }
 
-  static final class DefaultSessionFactory implements SessionFactory {
+  static final class HelperSessionFactory implements SessionFactory {
 
     private static final Path ROOT = Path.of("/");
 
@@ -425,16 +444,16 @@ final class CefBrowserPlayer implements BrowserPlayer {
 
     private @Nullable HelperLauncher launcher;
 
-    private DefaultSessionFactory() {
+    private HelperSessionFactory() {
       this(new JcefNatives(), List.of());
     }
 
     @VisibleForTesting
-    DefaultSessionFactory(final JcefNatives natives, final List<String> extraJvmOptions) {
+    HelperSessionFactory(final JcefNatives natives, final List<String> extraJvmOptions) {
       this(natives, new LinuxLibraries(), extraJvmOptions);
     }
 
-    private DefaultSessionFactory(final JcefNatives natives, final LinuxLibraries libraries, final List<String> extraJvmOptions) {
+    private HelperSessionFactory(final JcefNatives natives, final LinuxLibraries libraries, final List<String> extraJvmOptions) {
       this.natives = natives;
       this.libraries = libraries;
       this.extraJvmOptions = List.copyOf(extraJvmOptions);
@@ -443,15 +462,15 @@ final class CefBrowserPlayer implements BrowserPlayer {
     @Override
     public BrowserSession open(final BrowserSource source, final BrowserOptions options, final BrowserSession.Listener listener) {
       HelperProcesses.requireOpen();
+
       final Path installation;
       final HelperLauncher current;
       try {
         installation = this.natives.install();
         final HelperLauncher base = this.getLauncher();
-        current = withLibraries(base, this.libraries);
+        current = this.withLibraries(base, this.libraries);
       } catch (final IOException | DownloadException | FileOperationException exception) {
-        final @Nullable String reason = exception.getMessage();
-        final String message = "The browser cannot be installed (%s)!".formatted(reason);
+        final String message = "The browser cannot be installed!";
         throw new BrowserUnavailableException(message, exception);
       }
 
@@ -459,21 +478,24 @@ final class CefBrowserPlayer implements BrowserPlayer {
     }
 
     @VisibleForTesting
-    static HelperLauncher withLibraries(final HelperLauncher base, final LinuxLibraries libraries) throws IOException {
+    HelperLauncher withLibraries(final HelperLauncher base, final LinuxLibraries libraries) throws IOException {
       if (base.getOs() != Os.LINUX) {
         return base;
       }
 
-      return withLibraries(base, libraries, ROOT);
+      return this.withLibraries(base, libraries, ROOT);
     }
 
     @VisibleForTesting
-    static HelperLauncher withLibraries(final HelperLauncher base, final LinuxLibraries libraries, final Path root) throws IOException {
+    HelperLauncher withLibraries(final HelperLauncher base, final LinuxLibraries libraries, final Path root) throws IOException {
       final Path java = base.getJava();
       LinuxLibraries.requireJawt(java);
+
       final JcefNatives.NativePlatform platform = JcefNatives.detectCurrent();
       final String identifier = platform.getIdentifier();
       final List<Path> folders = LinuxLibraries.hostFolders(root, identifier);
+      libraries.requireHostLibraries(identifier, folders);
+
       final List<LinuxLibraries.Pin> missing = libraries.findMissing(identifier, folders);
       if (missing.isEmpty()) {
         return base;

@@ -35,7 +35,7 @@ final class SocksProtocolFuzzTest {
     final byte[] bytes = data.consumeRemainingAsBytes();
     final DataInputStream input = new DataInputStream(new ByteArrayInputStream(bytes));
     try {
-      SocksProtocol.readGreeting(input);
+      SocksProtocol.readOffersNoAuthentication(input);
       final SocksProtocol.Request request = SocksProtocol.readRequest(input);
       final String host = request.getHost();
       final int port = request.getPort();

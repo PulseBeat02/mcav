@@ -29,6 +29,10 @@ import net.jqwik.api.Provide;
 
 final class AddressTextPropertyTest {
 
+  private static final int MAXIMUM_COMPONENT_LENGTH = 60;
+
+  private static final String SCHEME_SEPARATOR = "://";
+
   private static final String SEED = "20260925";
 
   @Provide
@@ -45,13 +49,13 @@ final class AddressTextPropertyTest {
   Arbitrary<String> paths() {
     return Arbitraries.strings()
       .withChars("abcdefghijklmnopqrstuvwxyz0123456789/._~-")
-      .ofMaxLength(60)
+      .ofMaxLength(MAXIMUM_COMPONENT_LENGTH)
       .map(path -> "/" + path);
   }
 
   @Provide
   Arbitrary<String> secrets() {
-    return Arbitraries.strings().withChars("ABCDEFGHIJKLMNOPQRSTUVWXYZ=&%+").ofMinLength(1).ofMaxLength(60);
+    return Arbitraries.strings().withChars("ABCDEFGHIJKLMNOPQRSTUVWXYZ=&%+").ofMinLength(1).ofMaxLength(MAXIMUM_COMPONENT_LENGTH);
   }
 
   @Property(seed = SEED, tries = 2000)
@@ -63,9 +67,10 @@ final class AddressTextPropertyTest {
     @ForAll("secrets") final String query,
     @ForAll("secrets") final String fragment
   ) {
-    final String address = scheme + "://" + user + "@" + host + path + "?" + query + "#" + fragment;
+    final String address = scheme + SCHEME_SEPARATOR + user + "@" + host + path + "?" + query + "#" + fragment;
     final String described = AddressText.describe(address);
-    assertEquals(scheme + "://" + AddressText.HIDDEN + "@" + host + path + "?" + AddressText.HIDDEN, described);
+    final String expectedDescription = scheme + SCHEME_SEPARATOR + AddressText.HIDDEN + "@" + host + path + "?" + AddressText.HIDDEN;
+    assertEquals(expectedDescription, described);
     final boolean showsTheUser = described.contains(user);
     assertFalse(showsTheUser, described);
 
@@ -82,7 +87,7 @@ final class AddressTextPropertyTest {
     @ForAll("hosts") final String host,
     @ForAll("paths") final String path
   ) {
-    final String address = scheme + "://" + host + path;
+    final String address = scheme + SCHEME_SEPARATOR + host + path;
     final String described = AddressText.describe(address);
     assertEquals(address, described);
   }

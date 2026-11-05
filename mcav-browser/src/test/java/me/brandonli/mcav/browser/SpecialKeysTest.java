@@ -33,6 +33,8 @@ import org.junit.jupiter.api.Test;
 
 class SpecialKeysTest {
 
+  private static final String EMPTY_LIST_MESSAGE = "The key list resource mcav/browser/keybinds.json is empty!";
+
   @Test
   void shouldPressTheW3cKeyNames() {
     for (final String key : new String[] { "Enter", "Backspace", "ArrowLeft", "PageDown", " ", "F12", "MediaPlayPause" }) {
@@ -51,7 +53,8 @@ class SpecialKeysTest {
   @Test
   void shouldReadTheListFromJsonIntoAnUnmodifiableSet() {
     final Set<String> keys = SpecialKeys.parse(new StringReader("[\"A\", \"B\", \"A\"]"));
-    assertEquals(Set.of("A", "B"), keys);
+    final Set<String> expectedKeys = Set.of("A", "B");
+    assertEquals(expectedKeys, keys);
     assertThrows(UnsupportedOperationException.class, keys::clear);
   }
 
@@ -59,14 +62,14 @@ class SpecialKeysTest {
   void shouldRefuseAnEmptyList() {
     final BrowserException failure = assertThrows(BrowserException.class, () -> SpecialKeys.parse(new StringReader("")));
     final String message = failure.getMessage();
-    assertEquals("The key list resource mcav/browser/keybinds.json is empty!", message);
+    assertEquals(EMPTY_LIST_MESSAGE, message);
   }
 
   @Test
   void shouldRefuseAnEmptyJsonList() {
     final BrowserException failure = assertThrows(BrowserException.class, () -> SpecialKeys.parse(new StringReader("[]")));
     final String message = failure.getMessage();
-    assertEquals("The key list resource mcav/browser/keybinds.json is empty!", message);
+    assertEquals(EMPTY_LIST_MESSAGE, message);
   }
 
   @Test
@@ -74,15 +77,18 @@ class SpecialKeysTest {
     final Reader throwing = new FilterReader(new StringReader("[\"A\"]")) {
       @Override
       public void close() throws IOException {
-        throw new IOException("disk gone");
+        final String message = "The disk is gone!";
+        throw new IOException(message);
       }
     };
     final BrowserException failure = assertThrows(BrowserException.class, () -> SpecialKeys.parse(throwing));
     final String message = failure.getMessage();
-    assertEquals("The key list resource could not be read (disk gone)!", message);
+    assertEquals("The key list resource mcav/browser/keybinds.json could not be read!", message);
 
     final Throwable cause = failure.getCause();
-    assertInstanceOf(IOException.class, cause);
+    final IOException diskFailure = assertInstanceOf(IOException.class, cause);
+    final String reason = diskFailure.getMessage();
+    assertEquals("The disk is gone!", reason);
   }
 
   @Test

@@ -29,7 +29,8 @@ public final class Await {
   private static final long POLL_NANOSECONDS = TimeUnit.MILLISECONDS.toNanos(5);
 
   private Await() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   public static void until(final String description, final BooleanSupplier condition) {

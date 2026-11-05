@@ -52,7 +52,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * server's Unix-domain socket, proves who it is with the session token, starts CEF and streams the page as
  * {@link HelperProtocol} frames while it forwards the server's input to the page. It exits when the server asks it
  * to, when the connection ends, or when its standard input ends, which happens when the server process dies. Once its
- * standard input ended, it halts if it has not stopped within {@value #STOP_DEADLINE_MILLISECONDS} ms, so a browser that hangs
+ * standard input ended, it halts if it has not stopped within 20 seconds, so a browser that hangs
  * never outlives the server. It is not meant to be started by hand.
  *
  * <p>This class is not thread-safe; the JVM calls {@link #main(String[])} once per helper process.
@@ -61,10 +61,15 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public final class BrowserHelper {
 
+  private static final String INPUT_THREAD_NAME = "mcav-browser-helper-stdin";
+  private static final String COMMAND_THREAD_NAME = "mcav-browser-helper-commands";
+  private static final String FRAMES_THREAD_NAME = "mcav-browser-helper-frames";
+
   private static final long SETTLE_MILLISECONDS = 100L;
 
   private static final long TAKE_TIMEOUT_MILLISECONDS = 250L;
 
+  private static final int EXIT_SUCCESS = 0;
   private static final int EXIT_FAILURE = 1;
   private static final int EXIT_BAD_CONFIGURATION = 2;
 
@@ -118,6 +123,7 @@ public final class BrowserHelper {
   public static void main(final String[] args) {
     final PrintStream errors = System.err;
     System.setOut(errors);
+
     final InputStream standardInput = System.in;
     final Reader reader = new InputStreamReader(standardInput, StandardCharsets.UTF_8);
     final BufferedReader input = new BufferedReader(reader);
@@ -125,6 +131,7 @@ public final class BrowserHelper {
     final int status = runFromInput(input, new CefEngine(), runtime::halt);
     // the JVM must end even while threads of CEF or AWT still run
     System.exit(status);
+
     final String message = "System.exit returned!";
     throw new AssertionError(message);
   }
@@ -135,13 +142,14 @@ public final class BrowserHelper {
       final String line = input.readLine();
       if (line == null) {
         System.err.println("The browser helper got no configuration.");
+
         return EXIT_BAD_CONFIGURATION;
       }
 
       configuration = HelperConfiguration.fromLine(line);
     } catch (final IOException | IllegalArgumentException exception) {
       final @Nullable String reason = exception.getMessage();
-      System.err.println("The browser helper got an invalid configuration (%s).".formatted(reason));
+      System.err.println("Because of \"%s\", the browser helper rejected its configuration.".formatted(reason));
 
       return EXIT_BAD_CONFIGURATION;
     }
@@ -168,14 +176,15 @@ public final class BrowserHelper {
         HelperProtocol.writeHello(output, token);
         output.flush();
       }
+
       final Reporter reporter = new Reporter(output);
-      this.startDaemon("mcav-browser-helper-stdin", () -> this.watchInput(standardInput));
-      this.startDaemon("mcav-browser-helper-commands", () -> this.readCommands(input));
-      this.startDaemon("mcav-browser-helper-frames", () -> this.sendFrames(output));
+      this.startDaemon(INPUT_THREAD_NAME, () -> this.watchInput(standardInput));
+      this.startDaemon(COMMAND_THREAD_NAME, () -> this.readCommands(input));
+      this.startDaemon(FRAMES_THREAD_NAME, () -> this.sendFrames(output));
       return this.serve(reporter);
     } catch (final IOException exception) {
       final @Nullable String reason = exception.getMessage();
-      System.err.println("The browser helper cannot reach the server (%s).".formatted(reason));
+      System.err.println("Because of \"%s\", the browser helper cannot reach the server.".formatted(reason));
 
       return EXIT_FAILURE;
     }
@@ -200,9 +209,9 @@ public final class BrowserHelper {
     this.compositor.close();
     this.engine.stop();
     final String reason = this.stopReason.get();
-    System.err.println("The browser helper stops (%s).".formatted(reason));
+    System.err.println("Because %s, the browser helper stops.".formatted(reason));
 
-    return reporter.hasFailed() ? EXIT_FAILURE : 0;
+    return reporter.hasFailed() ? EXIT_FAILURE : EXIT_SUCCESS;
   }
 
   private void startDaemon(final String name, final Runnable task) {
@@ -354,7 +363,7 @@ public final class BrowserHelper {
 
     @Override
     public void onReady(final String engineVersion) {
-      this.send(out -> HelperProtocol.writeText(out, HelperProtocol.READY, engineVersion));
+      this.send(output -> HelperProtocol.writeText(output, HelperProtocol.READY, engineVersion));
     }
 
     @Override
@@ -364,17 +373,17 @@ public final class BrowserHelper {
 
     @Override
     public void onLoading(final boolean loading) {
-      this.send(out -> HelperProtocol.writeLoading(out, loading));
+      this.send(output -> HelperProtocol.writeLoading(output, loading));
     }
 
     @Override
     public void onLoadError(final int code, final String text, final String url) {
-      this.send(out -> HelperProtocol.writeLoadError(out, code, text, url));
+      this.send(output -> HelperProtocol.writeLoadError(output, code, text, url));
     }
 
     @Override
     public void onNotice(final String text) {
-      this.send(out -> HelperProtocol.writeText(out, HelperProtocol.NOTICE, text));
+      this.send(output -> HelperProtocol.writeText(output, HelperProtocol.NOTICE, text));
     }
 
     // sound passes only after a press on this page, unless the options allow it, so a page that gets around Chromium's own
@@ -382,14 +391,14 @@ public final class BrowserHelper {
     @Override
     public void onAudio(final byte[] samples) {
       if (BrowserHelper.this.configuration.isAutoplay() || BrowserHelper.this.activated) {
-        this.send(out -> HelperProtocol.writeAudio(out, samples, samples.length));
+        this.send(output -> HelperProtocol.writeAudio(output, samples, samples.length));
       }
     }
 
     @Override
     public void onFailure(final String text) {
       this.failed = true;
-      this.send(out -> HelperProtocol.writeText(out, HelperProtocol.FAILURE, text));
+      this.send(output -> HelperProtocol.writeText(output, HelperProtocol.FAILURE, text));
       BrowserHelper.this.stop(text);
     }
 

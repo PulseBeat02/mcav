@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.browser;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import java.nio.file.Path;
 import me.brandonli.mcav.module.MCAVModule;
@@ -42,10 +44,12 @@ import me.brandonli.mcav.module.MCAVModule;
  */
 public final class BrowserModule implements MCAVModule {
 
+  private static final String TEMPORARY_DIRECTORY_PROPERTY = "java.io.tmpdir";
+
   private static final String MODULE_NAME = "browser";
 
   /**
-   * Constructs the module. The module loader creates it for you.
+   * Creates the module. The module loader creates it for you.
    *
    * @since 1.0.0
    */
@@ -59,7 +63,7 @@ public final class BrowserModule implements MCAVModule {
    */
   @Override
   public void start() {
-    final Path temporary = Path.of(System.getProperty("java.io.tmpdir"));
+    final Path temporary = Path.of(requireNonNull(System.getProperty(TEMPORARY_DIRECTORY_PROPERTY))); // checker framework
     this.start(temporary);
   }
 

@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.browser;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import java.io.File;
 import java.io.IOException;
@@ -42,6 +44,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 final class HelperLauncher {
 
   static final String MAIN_CLASS = "me.brandonli.mcav.browser.BrowserHelper";
+
+  private static final String JAVA_HOME_PROPERTY = "java.home";
 
   private static final String BIN_FOLDER = "bin";
   private static final String WINDOWS_JAVA_EXECUTABLE = "java.exe";
@@ -69,7 +73,7 @@ final class HelperLauncher {
   private final Os os;
   private final Map<String, String> environment;
   private final long startTimeoutMilliseconds;
-  private final @Nullable LibraryLinker libraries;
+  private final @Nullable LibraryLinker libraryLinker;
 
   @VisibleForTesting
   HelperLauncher(
@@ -92,9 +96,9 @@ final class HelperLauncher {
     final Os os,
     final Map<String, String> environment,
     final long startTimeoutMilliseconds,
-    final @Nullable LibraryLinker libraries
+    final @Nullable LibraryLinker libraryLinker
   ) {
-    this.libraries = libraries;
+    this.libraryLinker = libraryLinker;
     this.java = java;
     this.mainClass = mainClass;
     this.classPath = List.copyOf(classPath);
@@ -105,7 +109,7 @@ final class HelperLauncher {
   }
 
   static HelperLauncher createDefault(final long startTimeoutMilliseconds, final List<String> extraJvmOptions) {
-    final String javaHome = System.getProperty("java.home");
+    final String javaHome = requireNonNull(System.getProperty(JAVA_HOME_PROPERTY)); // checker framework
     final Os os = OsUtils.getOs();
     final Path java = Path.of(javaHome, BIN_FOLDER, javaExecutable(os));
     final Set<Path> entries = new LinkedHashSet<>();
@@ -152,10 +156,7 @@ final class HelperLauncher {
     command.add(TEMPORARY_FOLDER_SWITCH + folder);
     command.addAll(this.extraJvmOptions);
     command.add(CLASS_PATH_SWITCH);
-    final List<String> entries = new ArrayList<>();
-    for (final Path entry : this.classPath) {
-      entries.add(entry.toString());
-    }
+    final List<String> entries = this.classPath.stream().map(Path::toString).toList();
 
     command.add(String.join(File.pathSeparator, entries));
     command.add(this.mainClass);
@@ -164,7 +165,7 @@ final class HelperLauncher {
   }
 
   // no display of the server is passed on
-  Map<String, String> createEnvironment(final Path folder, final @Nullable Path libraries) {
+  Map<String, String> createEnvironment(final Path folder, final @Nullable Path libraryFolder) {
     final Map<String, String> kept = HelperEnvironment.filter(this.environment);
     if (this.os == Os.LINUX) {
       final Path authority = this.authorityOf(folder);
@@ -180,8 +181,8 @@ final class HelperLauncher {
       kept.put(MAC_TEMPORARY_FOLDER_VARIABLE, folder.toString());
     }
 
-    if (libraries != null) {
-      kept.put(LIBRARY_PATH_VARIABLE, libraries.toString());
+    if (libraryFolder != null) {
+      kept.put(LIBRARY_PATH_VARIABLE, libraryFolder.toString());
     }
 
     return kept;
@@ -205,8 +206,12 @@ final class HelperLauncher {
   }
 
   @Nullable Path linkLibraries(final Path folder) throws IOException {
-    final LibraryLinker linker = this.libraries;
-    return linker == null ? null : linker.link(folder);
+    final LibraryLinker linker = this.libraryLinker;
+    if (linker == null) {
+      return null;
+    }
+
+    return linker.link(folder);
   }
 
   Path getJava() {

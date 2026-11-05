@@ -47,6 +47,14 @@ import org.junit.jupiter.api.Tag;
 @Tag("fuzz")
 final class ArchiveExtractorFuzzTest {
 
+  private static final String FILE_SYSTEM_ROOT = "/";
+
+  private static final String TEMPORARY_FOLDER_PREFIX = "mcav-extract-fuzz";
+  private static final String TARGET_FOLDER = "target";
+  private static final String OBSERVED_ARCHIVE_FILE = "observed.zip";
+  private static final String NESTED_ROOT_FOLDER = "nested/root";
+  private static final String SENTINEL_FILE = "existing";
+
   private static final int MAXIMUM_ENTRIES = 64;
   private static final long MAXIMUM_BYTES = 1 << 20;
 
@@ -58,16 +66,16 @@ final class ArchiveExtractorFuzzTest {
       gzip.write(tar);
     }
 
-    final Path root = Files.createTempDirectory("mcav-extract-fuzz");
+    final Path root = Files.createTempDirectory(TEMPORARY_FOLDER_PREFIX);
     try {
-      final Path target = Files.createDirectory(root.resolve("target"));
+      final Path target = Files.createDirectory(root.resolve(TARGET_FOLDER));
       try {
         new ArchiveExtractor(MAXIMUM_ENTRIES, MAXIMUM_BYTES).extract(new ByteArrayInputStream(compressed.toByteArray()), target);
       } catch (final IOException exception) {
         // malformed or breaking a rule; what was written so far is checked all the same
       }
       this.check(root, target);
-      this.checkWholeFileSystem(root.resolve("observed.zip"), compressed.toByteArray());
+      this.checkWholeFileSystem(root.resolve(OBSERVED_ARCHIVE_FILE), compressed.toByteArray());
     } finally {
       IoUtils.deleteRecursively(root);
     }
@@ -75,11 +83,11 @@ final class ArchiveExtractorFuzzTest {
 
   private void checkWholeFileSystem(final Path backing, final byte[] archive) throws IOException {
     try (final FileSystem fileSystem = FileSystems.newFileSystem(backing, Map.of("create", "true", "enablePosixFileAttributes", "true"))) {
-      final Path scope = fileSystem.getPath("/");
-      final Path root = Files.createDirectories(scope.resolve("nested/root"));
-      final Path target = Files.createDirectory(root.resolve("target"));
+      final Path scope = fileSystem.getPath(FILE_SYSTEM_ROOT);
+      final Path root = Files.createDirectories(scope.resolve(NESTED_ROOT_FOLDER));
+      final Path target = Files.createDirectory(root.resolve(TARGET_FOLDER));
       final byte[] untouched = { 3, 5, 7 };
-      final Path sentinel = Files.write(scope.resolve("existing"), untouched);
+      final Path sentinel = Files.write(scope.resolve(SENTINEL_FILE), untouched);
       final List<Path> before;
       try (final Stream<Path> paths = Files.walk(scope)) {
         before = paths.toList();

@@ -46,6 +46,9 @@ final class Landlock {
   private static final long RULE_PATH_BENEATH = 1;
 
   private static final int SET_NO_NEW_PRIVILEGES = 38;
+  private static final long ENABLE = 1L;
+
+  private static final long NO_ARGUMENT = 0L;
 
   private static final int OPEN_PATH = 0x20_0000;
   private static final int OPEN_CLOSE_ON_EXEC = 0x8_0000;
@@ -68,7 +71,7 @@ final class Landlock {
   private static final long TRUNCATE = 1L << 14;
   private static final long DEVICE_CONTROL = 1L << 15;
 
-  private static final long FIRST_VERSION_RIGHTS = (1L << 13) - 1;
+  private static final long FIRST_VERSION_RIGHTS = REFER - 1;
   private static final long FILE_RIGHTS = EXECUTE | WRITE_FILE | READ_FILE | TRUNCATE | DEVICE_CONTROL;
   private static final long READ_RIGHTS = EXECUTE | READ_FILE | READ_DIRECTORY;
   private static final long WRITE_RIGHTS =
@@ -89,13 +92,14 @@ final class Landlock {
   private static final int DEVICE_CONTROL_VERSION = 5;
 
   private Landlock() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   static int version() {
     try (final Arena arena = Arena.ofConfined()) {
       final MemorySegment state = arena.allocate(Calls.STATE);
-      final long result = invoke(Calls.SYSCALL, state, CREATE_RULESET, 0L, 0L, CREATE_RULESET_VERSION, 0L);
+      final long result = invoke(Calls.SYSCALL, state, CREATE_RULESET, NO_ARGUMENT, NO_ARGUMENT, CREATE_RULESET_VERSION, NO_ARGUMENT);
       return versionOf(result, Calls.errorOf(state));
     }
   }
@@ -110,7 +114,7 @@ final class Landlock {
     return switch (error) {
       case NO_SUCH_SYSTEM_CALL -> "this kernel has no Landlock, which Linux has since 5.13";
       case NOT_SUPPORTED -> "Landlock is turned off in this kernel (its lsm= boot option)";
-      default -> "Landlock is not available here (error %s)".formatted(error);
+      default -> "error %s from the kernel keeps Landlock off".formatted(error);
     };
   }
 
@@ -154,13 +158,13 @@ final class Landlock {
       final MemorySegment state = arena.allocate(Calls.STATE);
       final MemorySegment attributes = arena.allocate(ValueLayout.JAVA_LONG);
       attributes.set(ValueLayout.JAVA_LONG, 0, handled);
-      final long created = invoke(Calls.SYSCALL, state, CREATE_RULESET, attributes.address(), (long) Long.BYTES, 0L, 0L);
+      final long created = invoke(Calls.SYSCALL, state, CREATE_RULESET, attributes.address(), (long) Long.BYTES, NO_ARGUMENT, NO_ARGUMENT);
       final long ruleset = check(created, Calls.errorOf(state), "create a ruleset");
       try {
         addRules(arena, state, ruleset, rules, handled);
-        final long unprivileged = invoke(Calls.PRCTL, state, SET_NO_NEW_PRIVILEGES, 1L, 0L, 0L, 0L);
+        final long unprivileged = invoke(Calls.PRCTL, state, SET_NO_NEW_PRIVILEGES, ENABLE, NO_ARGUMENT, NO_ARGUMENT, NO_ARGUMENT);
         check(unprivileged, Calls.errorOf(state), "keep the thread from gaining privileges");
-        final long restricted = invoke(Calls.SYSCALL, state, RESTRICT_SELF, ruleset, 0L, 0L, 0L);
+        final long restricted = invoke(Calls.SYSCALL, state, RESTRICT_SELF, ruleset, NO_ARGUMENT, NO_ARGUMENT, NO_ARGUMENT);
         check(restricted, Calls.errorOf(state), "restrict the thread");
       } finally {
         invoke(Calls.CLOSE, state, (int) ruleset);
@@ -191,7 +195,7 @@ final class Landlock {
       final MemorySegment beneath = arena.allocate(Long.BYTES + Integer.BYTES);
       beneath.set(ValueLayout.JAVA_LONG_UNALIGNED, 0, rightsOf(rule, kind, handled));
       beneath.set(ValueLayout.JAVA_INT_UNALIGNED, Long.BYTES, (int) descriptor);
-      final long added = invoke(Calls.SYSCALL, state, ADD_RULE, ruleset, RULE_PATH_BENEATH, beneath.address(), 0L);
+      final long added = invoke(Calls.SYSCALL, state, ADD_RULE, ruleset, RULE_PATH_BENEATH, beneath.address(), NO_ARGUMENT);
       check(added, Calls.errorOf(state), "add the rule of %s".formatted(path));
     } finally {
       invoke(Calls.CLOSE, state, (int) descriptor);
@@ -201,7 +205,7 @@ final class Landlock {
   @VisibleForTesting
   static long check(final long result, final int error, final String action) throws IOException {
     if (result < 0) {
-      final String message = "Landlock could not %s (error %s)!".formatted(action, error);
+      final String message = "Landlock could not %s because of error %s from the kernel!".formatted(action, error);
       throw new IOException(message);
     }
 
@@ -215,8 +219,8 @@ final class Landlock {
       return ((Number) result).longValue();
     } catch (final Throwable exception) {
       // ThrowableUtils is not on the class path of the helper
-      if (exception instanceof final VirtualMachineError fatal) {
-        throw fatal;
+      if (exception instanceof final VirtualMachineError virtualMachineError) {
+        throw virtualMachineError;
       }
 
       final String message = "The C library could not be called!";
@@ -238,6 +242,8 @@ final class Landlock {
 
   // bound on first use, which happens on Linux only
   private static final class Calls {
+
+    private static final int NOT_VARIADIC = -1;
 
     private static final String ERROR_NUMBER = "errno";
 
@@ -274,7 +280,11 @@ final class Landlock {
       FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT),
       2
     );
-    private static final MethodHandle CLOSE = bind("close", FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT), -1);
+    private static final MethodHandle CLOSE = bind(
+      "close",
+      FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT),
+      NOT_VARIADIC
+    );
 
     // the C library is part of every process on Linux; prctl and syscall are variadic, open has an optional mode
     @SuppressWarnings("restricted")
@@ -282,7 +292,7 @@ final class Landlock {
       final SymbolLookup library = LINKER.defaultLookup();
       final MemorySegment function = library.findOrThrow(name);
       final Linker.Option errorNumber = Linker.Option.captureCallState(ERROR_NUMBER);
-      if (firstVariadic < 0) {
+      if (firstVariadic == NOT_VARIADIC) {
         return LINKER.downcallHandle(function, descriptor, errorNumber);
       }
 

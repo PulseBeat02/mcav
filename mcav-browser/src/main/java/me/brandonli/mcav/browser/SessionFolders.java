@@ -65,20 +65,22 @@ final class SessionFolders {
   private final ProcessHandle owner;
   private final LongFunction<Optional<ProcessHandle>> lookup;
 
-  static SessionFolders ofThisServer() {
-    return new SessionFolders(ProcessHandle.current(), ProcessHandle::of);
-  }
-
   @VisibleForTesting
   SessionFolders(final ProcessHandle owner, final LongFunction<Optional<ProcessHandle>> lookup) {
     this.owner = owner;
     this.lookup = lookup;
   }
 
+  static SessionFolders ofThisServer() {
+    return new SessionFolders(ProcessHandle.current(), ProcessHandle::of);
+  }
+
   static String newName() {
     final StringBuilder name = new StringBuilder(PREFIX);
     for (int index = 0; index < RANDOM_CHARACTERS; index++) {
-      name.append(ALPHABET.charAt(RANDOM.nextInt(ALPHABET.length())));
+      final int alphabetIndex = RANDOM.nextInt(ALPHABET.length());
+      final char character = ALPHABET.charAt(alphabetIndex);
+      name.append(character);
     }
 
     return name.toString();
@@ -93,9 +95,11 @@ final class SessionFolders {
       return;
     }
 
-    final String record = this.owner.pid() + RECORD_SEPARATOR + started + RECORD_SEPARATOR;
+    final long processId = this.owner.pid();
+    final String record = "%s%s%s%s".formatted(processId, RECORD_SEPARATOR, started, RECORD_SEPARATOR);
     try {
-      Files.writeString(folder.resolve(OWNER_FILE), record, StandardCharsets.US_ASCII);
+      final Path recordFile = folder.resolve(OWNER_FILE);
+      Files.writeString(recordFile, record, StandardCharsets.US_ASCII);
     } catch (final IOException exception) {
       LOGGER.debug(NOT_RECORDED, folder, exception);
     }
@@ -106,7 +110,7 @@ final class SessionFolders {
     try (final DirectoryStream<Path> folders = Files.newDirectoryStream(temporary, PREFIX + ANY_NAME)) {
       removed = this.removeStaleFolders(folders);
     } catch (final IOException exception) {
-      LOGGER.warn("The folders of browser sessions in {} could not be listed ({}).", temporary, exception.toString());
+      LOGGER.warn("The folders of browser sessions in {} could not be listed, so stale ones stay.", temporary, exception);
     }
 
     return removed;
@@ -127,23 +131,32 @@ final class SessionFolders {
   }
 
   private boolean isStale(final Path folder) {
+    final List<String> lines = this.readRecord(folder);
+    if (lines.size() != RECORD_LINES) {
+      return false;
+    }
+
+    return this.isRecordedServerGone(lines);
+  }
+
+  private List<String> readRecord(final Path folder) {
     final Path record = folder.resolve(OWNER_FILE);
     final List<String> lines;
     try {
       final boolean own = this.isOwnFolder(folder);
       if (!own || !Files.isRegularFile(record)) {
-        return false;
+        return List.of();
       }
 
       lines = Files.readAllLines(record, StandardCharsets.US_ASCII);
     } catch (final IOException exception) {
-      return false;
+      return List.of();
     }
 
-    if (lines.size() != RECORD_LINES) {
-      return false;
-    }
+    return lines;
+  }
 
+  private boolean isRecordedServerGone(final List<String> lines) {
     final long processId;
     final Instant started;
     try {

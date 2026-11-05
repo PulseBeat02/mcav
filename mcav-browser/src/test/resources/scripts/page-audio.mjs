@@ -226,17 +226,23 @@ const page = vm.createContext({
 });
 const script = SCRIPT_UNDER_TEST;
 vm.runInContext(script, page);
-assert.equal(page.__mcavAudio, undefined, "The binding is removed from the page!");
+const binding = page.__mcavAudio;
+assert.equal(binding, undefined, "The binding is removed from the page!");
 
 const first = new page.AudioContext({ sampleRate: REQUESTED_SAMPLE_RATE });
-assert.equal(first.sampleRate, CAPTURED_SAMPLE_RATE, "The captured pipeline uses the required rate!");
-assert.equal(new page.AudioContext({ sampleRate: OTHER_SAMPLE_RATE }), first, "One shared context!");
-assert.equal(contexts.length, 1);
-assert.equal(gains.at(-1).gain.value, 0, "Captured sound never reaches server speakers!");
+const sampleRate = first.sampleRate;
+assert.equal(sampleRate, CAPTURED_SAMPLE_RATE, "The captured pipeline uses the required rate!");
+const second = new page.AudioContext({ sampleRate: OTHER_SAMPLE_RATE });
+assert.equal(second, first, "One shared context!");
+const contextCount = contexts.length;
+assert.equal(contextCount, 1);
+const speakerGain = gains.at(-1).gain.value;
+assert.equal(speakerGain, 0, "Captured sound never reaches server speakers!");
 
 const sharedConstructor = page.AudioContext;
 vm.runInContext(script, page);
-assert.equal(page.AudioContext, sharedConstructor, "Installing twice leaves the same proxy!");
+const reinstalledConstructor = page.AudioContext;
+assert.equal(reinstalledConstructor, sharedConstructor, "Installing twice leaves the same proxy!");
 
 const listenerCounts = [...listeners].map(countListeners);
 assert.deepEqual(listenerCounts, [
@@ -248,12 +254,14 @@ assert.deepEqual(listenerCounts, [
 ]);
 
 listeners.get("pointerdown")[0]();
-assert.equal(first.state, RUNNING_STATE);
+const state = first.state;
+assert.equal(state, RUNNING_STATE);
 
 for (let chunk = 0; chunk < LEADING_SILENT_CHUNKS; chunk++) {
   deliverSilence();
 }
-assert.equal(received.length, 0, "Silence before the first sound emits no message!");
+const silentMessageCount = received.length;
+assert.equal(silentMessageCount, 0, "Silence before the first sound emits no message!");
 
 deliver([new Float32Array([-1, -0.5, 0, 0.5, 1, 2, NaN]), new Float32Array([1, 0.5, 0, -0.5, -1, -2, NaN])]);
 const values = [-32768, 32767, -16384, 16384, 0, 0, 16384, -16384, 32767, -32768, 32767, -32768, 0, 0];

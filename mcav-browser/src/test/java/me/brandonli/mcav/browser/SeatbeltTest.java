@@ -44,6 +44,14 @@ import org.junit.jupiter.api.io.TempDir;
 // A real sandbox cannot be lifted: on macOS, ChromiumConfinementTest puts a process of its own in one.
 class SeatbeltTest {
 
+  private static final String PATHS_ARCHIVE_FILE = "paths.zip";
+  private static final String SERVER_PATH = "/server";
+  private static final String OWNER_HOME_PATH = "/Users/owner";
+  private static final String NATIVES_PATH = "/Users/owner/.mcav/natives";
+  private static final String HELPER_JAR_PATH = "/Users/owner/helper.jar";
+  private static final String SESSION_PATH = "/private/var/folders/session";
+  private static final String DEVICES_PATH = "/dev";
+
   private static final String PROFILE = "(version 1)\n(allow default)\n";
 
   private static final String DENY_WRITING = "(deny file-write*)\n";
@@ -56,29 +64,29 @@ class SeatbeltTest {
   @Test
   void shouldHideTheFoldersAndLetOnlyTheWritablePathsChangeInAProfile(@TempDir final Path folder) throws IOException {
     final String profile;
-    try (final FileSystem mac = FileSystems.newFileSystem(folder.resolve("paths.zip"), Map.of("create", "true"))) {
+    try (final FileSystem mac = FileSystems.newFileSystem(folder.resolve(PATHS_ARCHIVE_FILE), Map.of("create", "true"))) {
       profile = Seatbelt.profile(
-        List.of(mac.getPath("/server"), mac.getPath("/Users/owner")),
-        List.of(mac.getPath("/Users/owner/.mcav/natives"), mac.getPath("/Users/owner/helper.jar")),
-        List.of(mac.getPath("/private/var/folders/session"), mac.getPath("/dev"))
+        List.of(mac.getPath(SERVER_PATH), mac.getPath(OWNER_HOME_PATH)),
+        List.of(mac.getPath(NATIVES_PATH), mac.getPath(HELPER_JAR_PATH)),
+        List.of(mac.getPath(SESSION_PATH), mac.getPath(DEVICES_PATH))
       );
     }
 
-    assertEquals(
+    final String expectedProfile =
       PROFILE +
-        "(deny file-read-data (subpath \"/server\") (subpath \"/Users/owner\"))\n" +
-        "(allow file-read-data (subpath \"/Users/owner/.mcav/natives\") (subpath \"/Users/owner/helper.jar\"))\n" +
-        "(allow file-read-data (subpath \"/private/var/folders/session\") (subpath \"/dev\"))\n" +
-        DENY_WRITING +
-        "(allow file-write* (subpath \"/private/var/folders/session\") (subpath \"/dev\"))\n",
-      profile
-    );
+      "(deny file-read-data (subpath \"/server\") (subpath \"/Users/owner\"))\n" +
+      "(allow file-read-data (subpath \"/Users/owner/.mcav/natives\") (subpath \"/Users/owner/helper.jar\"))\n" +
+      "(allow file-read-data (subpath \"/private/var/folders/session\") (subpath \"/dev\"))\n" +
+      DENY_WRITING +
+      "(allow file-write* (subpath \"/private/var/folders/session\") (subpath \"/dev\"))\n";
+    assertEquals(expectedProfile, profile);
   }
 
   @Test
   void shouldHideNothingAndChangeNothingInAProfileWithoutPaths() {
     final String emptyProfile = Seatbelt.profile(List.of(), List.of(), List.of());
-    assertEquals(PROFILE + DENY_WRITING, emptyProfile);
+    final String expectedEmptyProfile = PROFILE + DENY_WRITING;
+    assertEquals(expectedEmptyProfile, emptyProfile);
   }
 
   @Test
@@ -111,9 +119,9 @@ class SeatbeltTest {
 
         final IOException refused = assertThrows(IOException.class, () -> seatbelt.restrictProcess(PROFILE));
         final String message = refused.getMessage();
-        assertEquals("The process cannot be restricted, because this system has no Seatbelt (sandbox_init)!", message);
+        assertEquals("Because this system has no Seatbelt (sandbox_init), the process cannot be restricted!", message);
 
-        final List<String> passedProfiles = library.profiles();
+        final List<String> passedProfiles = library.getProfiles();
         assertEquals(List.of(), passedProfiles);
       }
     }
@@ -127,13 +135,15 @@ class SeatbeltTest {
       assertTrue(available);
 
       seatbelt.restrictProcess(PROFILE + DENY_WRITING);
-      final List<String> passedProfiles = library.profiles();
-      assertEquals(List.of(PROFILE + DENY_WRITING), passedProfiles);
+      final List<String> passedProfiles = library.getProfiles();
+      final List<String> expectedPassedProfiles = List.of(PROFILE + DENY_WRITING);
+      assertEquals(expectedPassedProfiles, passedProfiles);
 
-      final List<Long> passedFlags = library.flags();
-      assertEquals(List.of(0L), passedFlags);
+      final List<Long> passedFlags = library.getFlags();
+      final List<Long> expectedPassedFlags = List.of(0L);
+      assertEquals(expectedPassedFlags, passedFlags);
 
-      final List<Long> freedAddresses = library.freed();
+      final List<Long> freedAddresses = library.getFreed();
       assertEquals(List.of(), freedAddresses);
     }
   }
@@ -145,10 +155,11 @@ class SeatbeltTest {
       final Seatbelt seatbelt = library.seatbelt();
       final IOException refused = assertThrows(IOException.class, () -> seatbelt.restrictProcess("(deny (subpat \"/\"))"));
       final String message = refused.getMessage();
-      assertEquals("Seatbelt refused the profile (unbound variable: subpat)!", message);
+      assertEquals("Seatbelt refused the profile, reporting unbound variable: subpat as the reason!", message);
 
-      final List<Long> freedAddresses = library.freed();
-      assertEquals(List.of(library.reasonAddress()), freedAddresses);
+      final List<Long> freedAddresses = library.getFreed();
+      final List<Long> expectedFreedAddresses = List.of(library.getReasonAddress());
+      assertEquals(expectedFreedAddresses, freedAddresses);
     }
   }
 
@@ -161,7 +172,7 @@ class SeatbeltTest {
       final String message = refused.getMessage();
       assertEquals("Seatbelt refused the profile without a reason!", message);
 
-      final List<Long> freedAddresses = library.freed();
+      final List<Long> freedAddresses = library.getFreed();
       assertEquals(List.of(), freedAddresses);
     }
   }
@@ -177,7 +188,7 @@ class SeatbeltTest {
 
   @Test
   void shouldTreatACallTheJvmCannotMakeAsAnIllegalState() {
-    final IllegalCallerException refused = new IllegalCallerException("native access is not enabled");
+    final IllegalCallerException refused = new IllegalCallerException("Native access is not enabled!");
     final MethodHandle throwing = MethodHandles.throwException(int.class, IllegalCallerException.class);
     final MethodHandle call = MethodHandles.insertArguments(throwing, 0, refused);
     final IllegalStateException failure = assertThrows(IllegalStateException.class, () -> Seatbelt.call(call));
@@ -190,7 +201,7 @@ class SeatbeltTest {
 
   @Test
   void shouldPassAVirtualMachineErrorOfACallOnAsItIs() {
-    final OutOfMemoryError exhausted = new OutOfMemoryError("no memory for the call");
+    final OutOfMemoryError exhausted = new OutOfMemoryError("The call has no memory available!");
     final MethodHandle throwing = MethodHandles.throwException(int.class, OutOfMemoryError.class);
     final MethodHandle call = MethodHandles.insertArguments(throwing, 0, exhausted);
     final OutOfMemoryError thrownError = assertThrows(OutOfMemoryError.class, () -> Seatbelt.call(call));

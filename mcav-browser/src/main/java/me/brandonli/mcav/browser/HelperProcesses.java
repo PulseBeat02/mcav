@@ -35,7 +35,8 @@ final class HelperProcesses {
   private static long generation;
 
   private HelperProcesses() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   static synchronized void open() {
@@ -61,7 +62,7 @@ final class HelperProcesses {
     return true;
   }
 
-  static synchronized void deregister(final HelperSession session) {
+  static synchronized void unregister(final HelperSession session) {
     SESSIONS.remove(session);
   }
 

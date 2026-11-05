@@ -38,21 +38,24 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 import org.cef.CefBrowserSettings;
 import org.cef.CefClient;
-import org.cef.browser.McavOffscreenBrowser;
+import org.cef.browser.MCAVOffscreenBrowser;
 import org.cef.callback.CefDragData;
 import org.cef.handler.CefRenderHandler;
 import org.cef.handler.CefScreenInfo;
 import org.junit.jupiter.api.Test;
 
 // Without the natives, JCEF reports and ignores every native call, so the Java side of each method runs here.
-class McavOffscreenBrowserTest {
+class MCAVOffscreenBrowserTest {
+
+  private static final int VIEW_WIDTH = 640;
+  private static final int VIEW_HEIGHT = 480;
 
   private final RecordingPainter painter = new RecordingPainter();
-  private final McavOffscreenBrowser browser = new McavOffscreenBrowser(
+  private final MCAVOffscreenBrowser browser = new MCAVOffscreenBrowser(
     mock(CefClient.class),
     "https://example.com/",
-    640,
-    480,
+    VIEW_WIDTH,
+    VIEW_HEIGHT,
     this.painter,
     new CefBrowserSettings()
   );
@@ -60,11 +63,12 @@ class McavOffscreenBrowserTest {
   @Test
   void shouldPlaceTheViewAtTheOriginOfThePage() {
     final Rectangle view = this.browser.getViewRect(this.browser);
-    assertEquals(new Rectangle(0, 0, 640, 480), view);
+    final Rectangle expectedView = new Rectangle(0, 0, VIEW_WIDTH, VIEW_HEIGHT);
+    assertEquals(expectedView, view);
 
     view.width = 1;
     final Rectangle freshView = this.browser.getViewRect(this.browser);
-    assertEquals(640, freshView.width, "a copy is handed out");
+    assertEquals(VIEW_WIDTH, freshView.width, "a copy is handed out");
   }
 
   @Test
@@ -90,10 +94,13 @@ class McavOffscreenBrowserTest {
     this.browser.onPaint(this.browser, true, dirty, buffer, 1, 1);
     this.browser.onPopupShow(this.browser, true);
     this.browser.onPopupSize(this.browser, new Rectangle(1, 2, 3, 4));
-    assertEquals(
-      List.of("paint false 1x1", "paint true 1x1", "show true", "size java.awt.Rectangle[x=1,y=2,width=3,height=4]"),
-      this.painter.log
+    final List<String> expectedPainterEvents = List.of(
+      "paint false 1x1",
+      "paint true 1x1",
+      "show true",
+      "size java.awt.Rectangle[x=1,y=2,width=3,height=4]"
     );
+    assertEquals(expectedPainterEvents, this.painter.log);
   }
 
   @Test
@@ -113,24 +120,24 @@ class McavOffscreenBrowserTest {
 
   @Test
   void shouldPassFocusChangesToCefOnlyWhenTheyChangeSomething() {
-    final boolean focusedAtFirst = this.browser.hasFocus();
+    final boolean focusedAtFirst = this.browser.isFocused();
     assertFalse(focusedAtFirst);
 
     this.browser.setFocus(true);
-    final boolean focusedAfterFocusing = this.browser.hasFocus();
+    final boolean focusedAfterFocusing = this.browser.isFocused();
     assertTrue(focusedAfterFocusing);
 
     // JCEF gives a focused browser focus again from inside the focus event; that call must change nothing
     this.browser.setFocus(true);
-    final boolean focusedAfterRefocusing = this.browser.hasFocus();
+    final boolean focusedAfterRefocusing = this.browser.isFocused();
     assertTrue(focusedAfterRefocusing);
 
     this.browser.setFocus(false);
-    final boolean focusedAfterUnfocusing = this.browser.hasFocus();
+    final boolean focusedAfterUnfocusing = this.browser.isFocused();
     assertFalse(focusedAfterUnfocusing);
 
     this.browser.setFocus(false);
-    final boolean focusedAfterUnfocusingAgain = this.browser.hasFocus();
+    final boolean focusedAfterUnfocusingAgain = this.browser.isFocused();
     assertFalse(focusedAfterUnfocusingAgain);
   }
 
@@ -168,7 +175,7 @@ class McavOffscreenBrowserTest {
     assertTrue(nothingPainted);
   }
 
-  private static final class RecordingPainter implements McavOffscreenBrowser.PaintListener {
+  private static final class RecordingPainter implements MCAVOffscreenBrowser.PaintListener {
 
     private final List<String> log = new ArrayList<>();
 

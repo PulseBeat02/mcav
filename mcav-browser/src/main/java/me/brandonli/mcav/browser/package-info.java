@@ -30,8 +30,7 @@
  * {@link me.brandonli.mcav.browser.BrowserHelper} is public only as the child JVM's entry point and must not
  * be run inside the host JVM, because its main method exits that JVM.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

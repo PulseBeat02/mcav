@@ -48,9 +48,9 @@ final class FrameCanvas implements AutoCloseable {
   }
 
   synchronized void apply(final FrameRegion region) throws ProtocolException {
-    if (region.getPageWidth() != this.width || region.getPageHeight() != this.height) {
-      final int pageWidth = region.getPageWidth();
-      final int pageHeight = region.getPageHeight();
+    final int pageWidth = region.getPageWidth();
+    final int pageHeight = region.getPageHeight();
+    if (pageWidth != this.width || pageHeight != this.height) {
       final String message = "A frame of a %sx%s page arrived for a %sx%s page!".formatted(pageWidth, pageHeight, this.width, this.height);
       throw new ProtocolException(message);
     }

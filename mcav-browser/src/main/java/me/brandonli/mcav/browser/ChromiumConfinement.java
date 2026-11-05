@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.browser;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import java.io.File;
 import java.io.IOException;
@@ -37,22 +39,30 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 // Linux Landlock confines the starting thread and what it starts; on macOS Seatbelt confines the whole helper.
 final class ChromiumConfinement {
 
+  private static final int KEEP_TRAILING_EMPTY_PARTS = -1;
+
   static final String CONFINED =
     "Chromium runs confined: it cannot read the server's folder, the home folder or the temporary folder, and it writes only into the folder of its session.";
   static final String NOT_ASKED = "Chromium runs without confinement, as the options of the browser allow.";
-  static final String NOT_SUPPORTED = "Chromium runs without confinement: MCAV confines it on Linux and macOS only.";
-  private static final String UNAVAILABLE = "Chromium runs without confinement: %s.";
+  static final String NOT_SUPPORTED = "Because MCAV confines it on Linux and macOS only, Chromium runs without confinement.";
+  private static final String UNAVAILABLE = "Because %s, Chromium runs without confinement.";
 
   private static final Path ROOT = Path.of("/");
   private static final Path DEVICES = Path.of("/dev");
   private static final Path PROCESSES = Path.of("/proc");
 
   private static final String AGENT_OPTION = "-javaagent:";
+  private static final char AGENT_OPTIONS_SEPARATOR = '=';
+
+  private static final String USER_HOME_PROPERTY = "user.home";
+  private static final String JAVA_HOME_PROPERTY = "java.home";
+  private static final String CLASS_PATH_PROPERTY = "java.class.path";
 
   private static final String LIBRARY_PATH_VARIABLE = "LD_LIBRARY_PATH";
 
   private ChromiumConfinement() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   static String confine(final HelperConfiguration configuration, final OperatingSystem system) throws IOException {
@@ -72,42 +82,72 @@ final class ChromiumConfinement {
 
     final Path socket = configuration.getSocket();
     final Path session = parentOf(socket);
-    final Path home = Path.of(System.getProperty("user.home"));
+    final Path home = Path.of(requireNonNull(System.getProperty(USER_HOME_PROPERTY))); // checker framework
     final Path serverFolder = configuration.getServerFolder();
     final List<Path> hidden = List.of(serverFolder, home, parentOf(session));
-    final List<Path> readable = new ArrayList<>();
-    readable.add(Path.of(System.getProperty("java.home")));
-    final Path natives = configuration.getNatives();
-    readable.add(natives);
-    readable.addAll(pathsOf(System.getProperty("java.class.path")));
-    final RuntimeMXBean runtime = ManagementFactory.getRuntimeMXBean();
-    final List<String> inputArguments = runtime.getInputArguments();
-    readable.addAll(agentsOf(inputArguments));
+    final List<Path> readable = readablePaths(configuration);
 
     if (system == OperatingSystem.MAC) {
-      if (!seatbelt.isAvailable()) {
-        return UNAVAILABLE.formatted(Seatbelt.MISSING);
-      }
-
-      // Seatbelt matches the paths files really have, such as /private/var for /var
-      seatbelt.restrictProcess(Seatbelt.profile(realPaths(hidden), realPaths(readable), realPaths(List.of(session, DEVICES))));
-
-      return CONFINED;
+      return confineOnMac(seatbelt, hidden, readable, session);
     }
 
     if (system != OperatingSystem.LINUX) {
       return NOT_SUPPORTED;
     }
 
+    return confineOnLinux(version, hidden, readable, session);
+  }
+
+  private static List<Path> readablePaths(final HelperConfiguration configuration) {
+    final List<Path> readable = new ArrayList<>();
+    final String javaHome = requireNonNull(System.getProperty(JAVA_HOME_PROPERTY)); // checker framework
+    final Path java = Path.of(javaHome);
+    readable.add(java);
+    final Path natives = configuration.getNatives();
+    readable.add(natives);
+    final String classPath = System.getProperty(CLASS_PATH_PROPERTY);
+    final List<Path> classes = pathsOf(classPath);
+    readable.addAll(classes);
+    final RuntimeMXBean runtime = ManagementFactory.getRuntimeMXBean();
+    final List<String> inputArguments = runtime.getInputArguments();
+    final List<Path> agents = agentsOf(inputArguments);
+    readable.addAll(agents);
+
+    return readable;
+  }
+
+  private static String confineOnMac(final Seatbelt seatbelt, final List<Path> hidden, final List<Path> readable, final Path session)
+    throws IOException {
+    if (!seatbelt.isAvailable()) {
+      return UNAVAILABLE.formatted(Seatbelt.MISSING);
+    }
+
+    // Seatbelt matches the paths files really have, such as /private/var for /var
+    final List<Path> realHidden = realPaths(hidden);
+    final List<Path> realReadable = realPaths(readable);
+    final List<Path> writable = List.of(session, DEVICES);
+    final List<Path> realWritable = realPaths(writable);
+    final String profile = Seatbelt.profile(realHidden, realReadable, realWritable);
+    seatbelt.restrictProcess(profile);
+
+    return CONFINED;
+  }
+
+  private static String confineOnLinux(final IntSupplier version, final List<Path> hidden, final List<Path> readable, final Path session)
+    throws IOException {
     final int available = version.getAsInt();
     if (available < 1) {
       final String missing = Landlock.describeMissing(available);
       return UNAVAILABLE.formatted(missing);
     }
 
-    readable.addAll(linkedFiles(pathsOf(System.getenv(LIBRARY_PATH_VARIABLE))));
+    final String libraryPath = System.getenv(LIBRARY_PATH_VARIABLE);
+    final List<Path> libraryFolders = pathsOf(libraryPath);
+    final List<Path> libraries = linkedFiles(libraryFolders);
+    readable.addAll(libraries);
     final List<Path> writable = List.of(session, DEVICES, PROCESSES);
-    Landlock.restrictThread(available, rules(ROOT, hidden, readable, writable));
+    final List<Landlock.Rule> restrictions = rules(ROOT, hidden, readable, writable);
+    Landlock.restrictThread(available, restrictions);
 
     return CONFINED;
   }
@@ -142,7 +182,7 @@ final class ChromiumConfinement {
     }
 
     final List<Landlock.Rule> rules = new ArrayList<>();
-    readAllBut(root, hiddenFolders, rules);
+    allowReadingAllBut(root, hiddenFolders, rules);
     for (final Path path : readable) {
       rules.add(new Landlock.Rule(path, Landlock.Access.READ_ONLY));
     }
@@ -154,7 +194,7 @@ final class ChromiumConfinement {
     return rules;
   }
 
-  private static void readAllBut(final Path folder, final List<Path> hidden, final List<Landlock.Rule> rules) throws IOException {
+  private static void allowReadingAllBut(final Path folder, final List<Path> hidden, final List<Landlock.Rule> rules) throws IOException {
     final List<Path> children;
     try (final Stream<Path> listing = Files.list(folder)) {
       children = listing.toList();
@@ -167,7 +207,7 @@ final class ChromiumConfinement {
         continue;
       }
       if (holdsAny(child, hidden)) {
-        readAllBut(child, hidden, rules);
+        allowReadingAllBut(child, hidden, rules);
       } else {
         rules.add(new Landlock.Rule(child, Landlock.Access.READ_ONLY));
       }
@@ -195,7 +235,7 @@ final class ChromiumConfinement {
       return paths;
     }
 
-    for (final String entry : list.split(File.pathSeparator, -1)) {
+    for (final String entry : list.split(File.pathSeparator, KEEP_TRAILING_EMPTY_PARTS)) {
       if (!entry.isEmpty()) {
         paths.add(Path.of(entry));
       }
@@ -211,7 +251,7 @@ final class ChromiumConfinement {
     for (final String argument : arguments) {
       if (argument.startsWith(AGENT_OPTION)) {
         final String rest = argument.substring(AGENT_OPTION.length());
-        final int options = rest.indexOf('=');
+        final int options = rest.indexOf(AGENT_OPTIONS_SEPARATOR);
         jars.add(Path.of(options < 0 ? rest : rest.substring(0, options)));
       }
     }

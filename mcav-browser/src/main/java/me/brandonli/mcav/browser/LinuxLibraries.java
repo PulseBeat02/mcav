@@ -17,7 +17,10 @@
  */
 package me.brandonli.mcav.browser;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.hash.HashCode;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
 import java.io.BufferedReader;
@@ -45,7 +48,6 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -135,6 +137,7 @@ final class LinuxLibraries {
 
   private static final Pattern FIELD_SEPARATOR = Pattern.compile(" +");
   private static final String HOST_KEYWORD = "host";
+  private static final int HOST_PLATFORM_FIELD = 1;
   private static final int HOST_FIRST_SONAME_FIELD = 2;
 
   private static final int PIN_PLATFORM_FIELD = 0;
@@ -155,13 +158,10 @@ final class LinuxLibraries {
   private final Map<String, List<String>> hostLibraries;
 
   LinuxLibraries() {
-    this(
-      defaultFolder(),
-      HttpDownloader::download,
-      MIRRORS,
-      SECURITY_MIRRORS,
-      readResource(Objects.requireNonNull(LinuxLibraries.class.getClassLoader(), "mcav is not loaded by the boot loader!"))
-    );
+    final Path folder = defaultFolder();
+    final ClassLoader loader = requireNonNull(LinuxLibraries.class.getClassLoader(), "MCAV must not be loaded by the boot loader!");
+    final List<String> pins = readResource(loader);
+    this(folder, HttpDownloader::download, MIRRORS, SECURITY_MIRRORS, pins);
   }
 
   @VisibleForTesting
@@ -181,8 +181,9 @@ final class LinuxLibraries {
     this.downloader = downloader;
     this.mirrors = List.copyOf(mirrors);
     this.securityMirrors = List.copyOf(securityMirrors);
+
     final List<Pin> parsed = new ArrayList<>();
-    final Map<String, List<String>> host = new LinkedHashMap<>();
+    final Map<String, List<String>> hostLibraries = new LinkedHashMap<>();
     for (final String line : pins) {
       final String trimmed = line.trim();
       if (trimmed.isEmpty() || trimmed.startsWith(COMMENT_PREFIX)) {
@@ -191,19 +192,19 @@ final class LinuxLibraries {
       final List<String> fields = List.of(FIELD_SEPARATOR.split(trimmed));
       final String firstField = fields.getFirst();
       if (firstField.equals(HOST_KEYWORD)) {
-        this.putHostLibraries(host, fields, line);
+        this.putHostLibraries(hostLibraries, fields, line);
       } else {
         parsed.add(Pin.parse(fields, line));
       }
     }
 
     this.pins = List.copyOf(parsed);
-    this.hostLibraries = Map.copyOf(host);
+    this.hostLibraries = Map.copyOf(hostLibraries);
   }
 
   private void putHostLibraries(
     @UnderInitialization LinuxLibraries this,
-    final Map<String, List<String>> host,
+    final Map<String, List<String>> hostLibraries,
     final List<String> fields,
     final String line
   ) {
@@ -212,10 +213,10 @@ final class LinuxLibraries {
       throw new IllegalArgumentException(message);
     }
 
-    host.put(
-      requireMatch(PLATFORM, fields.get(1), line),
-      this.requireSonames(fields.subList(HOST_FIRST_SONAME_FIELD, fields.size()), line)
-    );
+    final String platform = requireMatch(PLATFORM, fields.get(HOST_PLATFORM_FIELD), line);
+    final List<String> sonameFields = fields.subList(HOST_FIRST_SONAME_FIELD, fields.size());
+    final List<String> sonames = this.requireSonames(sonameFields, line);
+    hostLibraries.put(platform, sonames);
   }
 
   private static Path defaultFolder() {
@@ -241,7 +242,7 @@ final class LinuxLibraries {
 
   private static String requireMatch(final Pattern pattern, final String value, final String line) {
     if (!pattern.matcher(value).matches()) {
-      final String message = "The pin %s has the invalid value %s!".formatted(line, value);
+      final String message = "The value %s of the pin %s is invalid!".formatted(value, line);
       throw new IllegalArgumentException(message);
     }
 
@@ -257,25 +258,21 @@ final class LinuxLibraries {
   }
 
   List<Pin> getPins(final String platform) {
-    final List<Pin> matching = new ArrayList<>();
-    for (final Pin pin : this.pins) {
-      final String pinPlatform = pin.platform();
-      if (pinPlatform.equals(platform)) {
-        matching.add(pin);
-      }
-    }
-
-    return matching;
+    return this.pins
+      .stream()
+      .filter(pin -> pin.platform().equals(platform))
+      .toList();
   }
 
   Path install(final String platform) throws IOException {
     final List<Pin> wanted = this.getPins(platform);
     if (wanted.isEmpty()) {
-      final String message = "Platform %s has no libraries in mcav!".formatted(platform);
+      final String message = "Platform %s has no libraries in MCAV!".formatted(platform);
       throw new IOException(message);
     }
 
-    final String name = INSTALLATION_PREFIX + platform + NAME_SEPARATOR + fingerprint(wanted);
+    final String fingerprint = fingerprint(wanted);
+    final String name = INSTALLATION_PREFIX + platform + NAME_SEPARATOR + fingerprint;
     final Path installation = this.folder.resolve(name);
     final Path marker = installation.resolve(INSTALL_MARKER);
     if (Files.isRegularFile(marker)) {
@@ -285,6 +282,7 @@ final class LinuxLibraries {
     }
 
     ArchiveExtractor.createFolders(this.folder);
+
     final Path lockFile = this.folder.resolve(name + LOCK_SUFFIX);
     synchronized (INSTALL_LOCK) {
       try (
@@ -292,7 +290,7 @@ final class LinuxLibraries {
         final FileLock lock = JcefNatives.lock(channel)
       ) {
         this.installUnlessMarked(marker, wanted, installation);
-        LOGGER.debug("Installation lock {} of {} was released.", lock, name);
+        LOGGER.debug("The installation of {} is done, so its lock {} is released next.", name, lock);
       }
     }
 
@@ -313,19 +311,20 @@ final class LinuxLibraries {
       hasher.putString(pin.sha256(), StandardCharsets.US_ASCII);
     }
 
-    return hasher.hash().toString().substring(0, FINGERPRINT_DIGITS);
+    final HashCode hash = hasher.hash();
+    final String hexadecimal = hash.toString();
+    return hexadecimal.substring(0, FINGERPRINT_DIGITS);
   }
 
   private void installLocked(final List<Pin> wanted, final Path installation) throws IOException {
-    long bytes = 0L;
-    for (final Pin pin : wanted) {
-      bytes += pin.size();
-    }
+    final long bytes = wanted.stream().mapToLong(Pin::size).sum();
 
     LOGGER.info("Downloading {} Linux libraries for the browser ({} MB, once).", wanted.size(), bytes / BYTES_PER_MEGABYTE);
+
     final String suffix = UUID.randomUUID().toString();
-    final Path staging = this.folder.resolve(installation.getFileName() + NAME_SEPARATOR + suffix + STAGING_SUFFIX);
-    final Path download = this.folder.resolve(installation.getFileName() + NAME_SEPARATOR + suffix + DOWNLOAD_SUFFIX);
+    final String temporaryName = installation.getFileName() + NAME_SEPARATOR + suffix;
+    final Path staging = this.folder.resolve(temporaryName + STAGING_SUFFIX);
+    final Path download = this.folder.resolve(temporaryName + DOWNLOAD_SUFFIX);
     try {
       ArchiveExtractor.createFolders(staging);
       for (final Pin pin : wanted) {
@@ -333,6 +332,7 @@ final class LinuxLibraries {
         extract(download, pin.files(), staging);
         Files.delete(download);
       }
+
       Files.createFile(staging.resolve(INSTALL_MARKER));
       IoUtils.deleteRecursively(installation);
       Files.move(staging, installation, StandardCopyOption.ATOMIC_MOVE);
@@ -349,7 +349,8 @@ final class LinuxLibraries {
     final String pool = pin.pool();
     final List<String> bases = pool.startsWith(SECURITY_POOL) ? this.securityMirrors : this.mirrors;
     for (final String mirror : bases) {
-      final URI uri = URI.create(mirror + pool);
+      final String address = "%s%s".formatted(mirror, pool);
+      final URI uri = URI.create(address);
       try {
         this.downloader.download(uri, destination, pin.sha256(), pin.size());
         return;
@@ -403,7 +404,7 @@ final class LinuxLibraries {
 
     if (!missing.isEmpty()) {
       final @Nullable Path packageName = debianPackage.getFileName();
-      final String message = "The package %s holds none of %s!".formatted(packageName, missing);
+      final String message = "The package %s lacks the files %s that its pin lists!".formatted(packageName, missing);
       throw new IOException(message);
     }
   }
@@ -416,36 +417,38 @@ final class LinuxLibraries {
     IoUtils.markExecutable(file);
   }
 
-  // a package is missing whole or not at all, as its first library decides: NSS loads its modules beside its own library
-  List<Pin> findMissing(final String platform, final List<Path> hostFolders) {
-    final List<String> missingHost = new ArrayList<>();
-    for (final String soname : this.hostLibraries.getOrDefault(platform, List.of())) {
-      if (!isPresent(soname, hostFolders, platform)) {
-        missingHost.add(soname);
-      }
-    }
+  void requireHostLibraries(final String platform, final List<Path> hostFolders) {
+    final List<String> hostSonames = this.hostLibraries.getOrDefault(platform, List.of());
+    final List<String> missingHost = hostSonames
+      .stream()
+      .filter(soname -> !isPresent(soname, hostFolders, platform))
+      .toList();
 
     if (!missingHost.isEmpty()) {
       final String libraries = String.join(LIST_SEPARATOR, missingHost);
-      final String message = "The browser needs %s, which this server lacks and mcav does not bring!".formatted(libraries);
+      final String message = "The browser needs %s, which this server lacks and MCAV does not bring!".formatted(libraries);
       throw new BrowserUnavailableException(message);
     }
+  }
 
-    final List<Pin> missing = new ArrayList<>();
-    for (final Pin pin : this.getPins(platform)) {
-      final List<String> sonames = pin.sonames();
-      final String soname = sonames.getFirst();
-      if (!isPresent(soname, hostFolders, platform)) {
-        missing.add(pin);
-      }
-    }
+  // a package is missing whole or not at all, as its first library decides: NSS loads its modules beside its own library
+  List<Pin> findMissing(final String platform, final List<Path> hostFolders) {
+    return this.getPins(platform)
+      .stream()
+      .filter(pin -> this.isMissing(pin, hostFolders, platform))
+      .toList();
+  }
 
-    return missing;
+  private boolean isMissing(final Pin pin, final List<Path> hostFolders, final String platform) {
+    final List<String> sonames = pin.sonames();
+    final String soname = sonames.getFirst();
+    return !isPresent(soname, hostFolders, platform);
   }
 
   static void requireJawt(final Path java) {
     final Path runtime = java.toAbsolutePath().resolveSibling(PARENT_FOLDER).normalize();
-    if (!Files.exists(runtime.resolve(RUNTIME_LIBRARY_FOLDER).resolve(JAWT))) {
+    final Path library = runtime.resolve(RUNTIME_LIBRARY_FOLDER).resolve(JAWT);
+    if (!Files.exists(library)) {
       final String message =
         "The browser needs the Java runtime's %s, which %s lacks: the headless Java packages of Debian and Ubuntu (openjdk-*-jre-headless) leave it out; install the full package of the same version (openjdk-*-jre), or run the server on a full Java runtime!".formatted(
           JAWT,
@@ -458,6 +461,7 @@ final class LinuxLibraries {
   static Path link(final Path installation, final Path session, final List<Pin> missing) throws IOException {
     final Path libraries = session.resolve(SESSION_FOLDER);
     Files.createDirectory(libraries);
+
     for (final Pin pin : missing) {
       final List<String> sonames = pin.sonames();
       for (final String soname : sonames) {
@@ -496,8 +500,10 @@ final class LinuxLibraries {
     }
 
     final byte[] start = Arrays.copyOf(header, ELF_64_LITTLE_ENDIAN.length);
-    final int machine =
-      (header[ELF_MACHINE_OFFSET] & UNSIGNED_BYTE_MASK) | ((header[ELF_MACHINE_OFFSET + 1] & UNSIGNED_BYTE_MASK) << Byte.SIZE);
+    final int lowByte = header[ELF_MACHINE_OFFSET] & UNSIGNED_BYTE_MASK;
+    final int highByte = header[ELF_MACHINE_OFFSET + 1] & UNSIGNED_BYTE_MASK;
+    final int shiftedHighByte = highByte << Byte.SIZE;
+    final int machine = lowByte | shiftedHighByte;
     final int wanted = platform.endsWith(ARM64_SUFFIX) ? MACHINE_AARCH64 : MACHINE_X86_64;
     return Arrays.equals(start, ELF_64_LITTLE_ENDIAN) && machine == wanted;
   }
@@ -505,9 +511,10 @@ final class LinuxLibraries {
   static List<Path> hostFolders(final Path root, final String platform) {
     final Set<Path> folders = new LinkedHashSet<>();
     readConfiguration(root, root.resolve(LOADER_CONFIGURATION), folders, 0);
+
     final String triplet = platform.endsWith(ARM64_SUFFIX) ? AARCH64_TRIPLET : X86_64_TRIPLET;
     for (final String folder : MULTIARCH_FOLDERS) {
-      folders.add(root.resolve(folder + triplet));
+      folders.add(root.resolve(folder).resolve(triplet));
     }
 
     for (final String folder : DEFAULT_FOLDERS) {
@@ -526,24 +533,33 @@ final class LinuxLibraries {
     try {
       lines = Files.readAllLines(file, StandardCharsets.UTF_8);
     } catch (final IOException exception) {
+      // a missing or unreadable file adds no folder, as in glibc
       return;
     }
 
     for (final String raw : lines) {
-      final int comment = raw.indexOf(COMMENT_PREFIX);
-      final String line = (comment >= 0 ? raw.substring(0, comment) : raw).trim();
+      final int commentStart = raw.indexOf(COMMENT_PREFIX);
+      final String content = commentStart >= 0 ? raw.substring(0, commentStart) : raw;
+      final String line = content.trim();
       if (line.startsWith(INCLUDE_PREFIX)) {
         final String pattern = line.substring(INCLUDE_PREFIX.length()).trim();
         // as in glibc, a relative include lies beside the file that includes it
-        final Path base = pattern.startsWith(FOLDER_SEPARATOR)
-          ? root
-          : Objects.requireNonNull(file.getParent(), "A file lies in a folder!");
+        final Path base = includeBase(root, file, pattern);
         final List<Path> included = glob(base, pattern);
         readConfigurations(root, included, folders, depth + 1);
       } else if (line.startsWith(FOLDER_SEPARATOR)) {
         folders.add(root.resolve(line.substring(1)));
       }
     }
+  }
+
+  private static Path includeBase(final Path root, final Path file, final String pattern) {
+    if (pattern.startsWith(FOLDER_SEPARATOR)) {
+      return root;
+    }
+
+    final Path parent = requireNonNull(file.getParent(), "A file lies in a folder!");
+    return parent;
   }
 
   private static void readConfigurations(final Path root, final List<Path> files, final Set<Path> folders, final int depth) {
@@ -557,26 +573,28 @@ final class LinuxLibraries {
     final String relative = pattern.startsWith(FOLDER_SEPARATOR) ? pattern.substring(1) : pattern;
     final int slash = relative.lastIndexOf(FOLDER_SEPARATOR);
     final String name = relative.substring(slash + 1);
-    final List<Path> matches = new ArrayList<>();
-    if (!name.isEmpty()) {
-      // only Linux allows wildcards in a path, so only the folder of the pattern is resolved; the empty text is the root
-      final Path parent = root.resolve(relative.substring(0, Math.max(slash, 0)));
-      final FileSystem fileSystem = root.getFileSystem();
-      final PathMatcher matcher = fileSystem.getPathMatcher(GLOB_SYNTAX + name);
-      try (final DirectoryStream<Path> entries = Files.newDirectoryStream(parent)) {
-        addMatchingEntries(entries, matcher, matches);
-      } catch (final IOException exception) {
-        // an include of a folder that is not there includes nothing
-      }
-      Collections.sort(matches);
+    if (name.isEmpty()) {
+      return List.of();
     }
+
+    final List<Path> matches = new ArrayList<>();
+    // only Linux allows wildcards in a path, so only the folder of the pattern is resolved; the empty text is the root
+    final Path parent = root.resolve(relative.substring(0, Math.max(slash, 0)));
+    final FileSystem fileSystem = root.getFileSystem();
+    final PathMatcher matcher = fileSystem.getPathMatcher(GLOB_SYNTAX + name);
+    try (final DirectoryStream<Path> entries = Files.newDirectoryStream(parent)) {
+      addMatchingEntries(entries, matcher, matches);
+    } catch (final IOException exception) {
+      // an include of a folder that is not there includes nothing
+    }
+    Collections.sort(matches);
 
     return matches;
   }
 
   private static void addMatchingEntries(final DirectoryStream<Path> entries, final PathMatcher matcher, final List<Path> matches) {
     for (final Path entry : entries) {
-      final Path entryName = Objects.requireNonNull(entry.getFileName(), "An entry of a folder has a name!");
+      final Path entryName = requireNonNull(entry.getFileName(), "An entry of a folder has a name!");
       if (matcher.matches(entryName)) {
         matches.add(entry);
       }
@@ -597,21 +615,21 @@ final class LinuxLibraries {
 
       final Map<String, String> files = new LinkedHashMap<>();
       for (final String entry : fields.subList(PIN_FIRST_FILE_FIELD, fields.size())) {
-        final int equals = entry.indexOf(SONAME_SEPARATOR);
-        final String soname = requireMatch(SONAME, equals > 0 ? entry.substring(0, equals) : entry, line);
-        final String path = requireMatch(PACKAGE_PATH, entry.substring(equals + 1), line);
+        final int separatorIndex = entry.indexOf(SONAME_SEPARATOR);
+        final String sonameText = separatorIndex > 0 ? entry.substring(0, separatorIndex) : entry;
+        final String soname = requireMatch(SONAME, sonameText, line);
+        final String path = requireMatch(PACKAGE_PATH, entry.substring(separatorIndex + 1), line);
         files.put(path, soname);
       }
 
-      return new Pin(
-        requireMatch(PLATFORM, fields.get(PIN_PLATFORM_FIELD), line),
-        fields.get(PIN_NAME_FIELD),
-        fields.get(PIN_VERSION_FIELD),
-        requireMatch(HASH, fields.get(PIN_HASH_FIELD), line),
-        Long.parseLong(fields.get(PIN_SIZE_FIELD)),
-        requireMatch(POOL_PATH, fields.get(PIN_POOL_FIELD), line),
-        Collections.unmodifiableMap(files)
-      );
+      final String platform = requireMatch(PLATFORM, fields.get(PIN_PLATFORM_FIELD), line);
+      final String name = fields.get(PIN_NAME_FIELD);
+      final String version = fields.get(PIN_VERSION_FIELD);
+      final String sha256 = requireMatch(HASH, fields.get(PIN_HASH_FIELD), line);
+      final long size = Long.parseLong(fields.get(PIN_SIZE_FIELD));
+      final String pool = requireMatch(POOL_PATH, fields.get(PIN_POOL_FIELD), line);
+      final Map<String, String> unmodifiableFiles = Collections.unmodifiableMap(files);
+      return new Pin(platform, name, version, sha256, size, pool, unmodifiableFiles);
     }
 
     List<String> sonames() {

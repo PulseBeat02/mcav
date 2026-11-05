@@ -47,20 +47,24 @@ import org.mockito.invocation.InvocationOnMock;
 
 final class HelperSessionCleanupTest {
 
+  private static final String SESSION_FOLDER = "session";
+  private static final String SOCKET_FILE = "s";
+
   @TempDir
   private Path directory;
 
   @ParameterizedTest
   @EnumSource(FailureKind.class)
   void shouldCloseTheAcceptedChannelWhenTheSocketUnlinkFails(final FailureKind kind) throws Exception {
-    final Path folder = Files.createDirectory(this.directory.resolve("session"));
-    final Path socket = folder.resolve("s");
+    final Path folder = Files.createDirectory(this.directory.resolve(SESSION_FOLDER));
+    final Path socket = folder.resolve(SOCKET_FILE);
     final HelperLauncher launcher = mock(HelperLauncher.class);
     final BrowserSession.Listener listener = mock(BrowserSession.Listener.class);
     final Process process = mock(Process.class);
     final ProcessBuilder builder = mock(ProcessBuilder.class);
     final ServerSocketChannel server = mock(ServerSocketChannel.class);
-    final Throwable failure = kind == FailureKind.UNCHECKED ? new IllegalStateException("unlink failed") : new IOException("unlink failed");
+    final Throwable failure =
+      kind == FailureKind.UNCHECKED ? new IllegalStateException("The unlink failed!") : new IOException("The unlink failed!");
     when(process.getOutputStream()).thenReturn(new ByteArrayOutputStream());
     when(process.descendants()).thenAnswer(_ -> Stream.empty());
     when(process.waitFor(anyLong(), eq(TimeUnit.MILLISECONDS))).thenReturn(true);

@@ -36,6 +36,8 @@ import java.util.Optional;
 @SuppressWarnings("restricted")
 final class SeatbeltLibrary implements AutoCloseable {
 
+  private static final String CALL_METHOD = "call";
+
   static final String SANDBOX_INIT = "sandbox_init";
   static final String FREE_ERROR = "sandbox_free_error";
 
@@ -47,23 +49,30 @@ final class SeatbeltLibrary implements AutoCloseable {
   );
   private static final FunctionDescriptor FREE_ERROR_DESCRIPTOR = FunctionDescriptor.ofVoid(ValueLayout.ADDRESS);
 
-  private final Arena arena = Arena.ofConfined();
-  private final Map<String, MemorySegment> functions = new HashMap<>();
-  private final List<String> profiles = new ArrayList<>();
-  private final List<Long> flags = new ArrayList<>();
-  private final List<Long> freed = new ArrayList<>();
+  private final Arena arena;
+  private final Map<String, MemorySegment> functions;
+  private final List<String> profiles;
+  private final List<Long> flags;
+  private final List<Long> freed;
 
   private int answer;
-  private MemorySegment reason = MemorySegment.NULL;
+  private MemorySegment reason;
 
   SeatbeltLibrary(final String... names) throws ReflectiveOperationException {
+    this.arena = Arena.ofConfined();
+    this.functions = new HashMap<>();
+    this.profiles = new ArrayList<>();
+    this.flags = new ArrayList<>();
+    this.freed = new ArrayList<>();
+    this.reason = MemorySegment.NULL;
+
     final MethodHandles.Lookup lookup = MethodHandles.lookup();
     for (final String name : names) {
       final boolean isSandboxInit = name.equals(SANDBOX_INIT);
       final FunctionDescriptor descriptor = isSandboxInit ? SANDBOX_INIT_DESCRIPTOR : FREE_ERROR_DESCRIPTOR;
-      final Object function = isSandboxInit ? (SandboxInitFunction) this::init : (FreeErrorFunction) this::freeError;
+      final Object function = isSandboxInit ? (SandboxInitFunction) this::initializeSandbox : (FreeErrorFunction) this::freeError;
       final Class<?> type = isSandboxInit ? SandboxInitFunction.class : FreeErrorFunction.class;
-      final MethodHandle target = lookup.findVirtual(type, "call", descriptor.toMethodType()).bindTo(function);
+      final MethodHandle target = lookup.findVirtual(type, CALL_METHOD, descriptor.toMethodType()).bindTo(function);
       this.functions.put(name, Linker.nativeLinker().upcallStub(target, descriptor, this.arena));
     }
   }
@@ -96,7 +105,7 @@ final class SeatbeltLibrary implements AutoCloseable {
     this.arena.close();
   }
 
-  private int init(final MemorySegment profile, final long given, final MemorySegment error) {
+  private int initializeSandbox(final MemorySegment profile, final long given, final MemorySegment error) {
     this.profiles.add(profile.reinterpret(Long.MAX_VALUE).getString(0));
     this.flags.add(given);
     error.reinterpret(ValueLayout.ADDRESS.byteSize()).set(ValueLayout.ADDRESS, 0, this.reason);
@@ -108,19 +117,19 @@ final class SeatbeltLibrary implements AutoCloseable {
     this.freed.add(error.address());
   }
 
-  long reasonAddress() {
+  long getReasonAddress() {
     return this.reason.address();
   }
 
-  List<String> profiles() {
+  List<String> getProfiles() {
     return this.profiles;
   }
 
-  List<Long> flags() {
+  List<Long> getFlags() {
     return this.flags;
   }
 
-  List<Long> freed() {
+  List<Long> getFreed() {
     return this.freed;
   }
 

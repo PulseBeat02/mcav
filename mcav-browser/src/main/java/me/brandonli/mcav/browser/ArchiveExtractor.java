@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.browser;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import java.io.FilterInputStream;
 import java.io.IOException;
@@ -38,7 +40,6 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
@@ -51,6 +52,8 @@ import org.slf4j.LoggerFactory;
 // makes everything world-writable. The library reads metadata such as a PAX header without a bound, which only the
 // pinned hash makes acceptable.
 final class ArchiveExtractor {
+
+  private static final char WINDOWS_SEPARATOR = '\\';
 
   private static final int MAXIMUM_ENTRIES = 10_000;
 
@@ -153,7 +156,7 @@ final class ArchiveExtractor {
   // a folder entry such as ./ resolves to the root itself
   @VisibleForTesting
   static Path resolve(final Path root, final String name) throws IOException {
-    if (name.isEmpty() || name.indexOf('\\') >= 0) {
+    if (name.isEmpty() || name.indexOf(WINDOWS_SEPARATOR) >= 0) {
       final String message = NAME_NOT_ALLOWED.formatted(name);
       throw new IOException(message);
     }
@@ -191,8 +194,9 @@ final class ArchiveExtractor {
 
   private long writeFile(final InputStream tar, final Path destination, final long remaining, final PosixPermissions permissions)
     throws IOException {
-    final Path parent = Objects.requireNonNull(destination.getParent(), "An entry lies below the folder!");
+    final Path parent = requireNonNull(destination.getParent(), "An entry lies below the folder!");
     createFolders(parent, permissions);
+
     final byte[] buffer = new byte[BUFFER_BYTES];
     final FileAttribute<?>[] attributes = initialAttributes(permissions, REGULAR);
     try (
@@ -230,7 +234,7 @@ final class ArchiveExtractor {
     Path current = folder.toAbsolutePath();
     while (Files.notExists(current, LinkOption.NOFOLLOW_LINKS)) {
       missing.add(current);
-      current = Objects.requireNonNull(current.getParent(), "The root of a file system exists!");
+      current = requireNonNull(current.getParent(), "The root of a file system exists!");
     }
 
     final FileAttribute<?>[] attributes = initialAttributes(permissions, FOLDER);
@@ -274,7 +278,7 @@ final class ArchiveExtractor {
         Files.setPosixFilePermissions(path, permissions);
       }
     } catch (final IOException exception) {
-      LOGGER.warn("The group may still write {} of the browser's installation ({}).", path, exception.toString());
+      LOGGER.warn("The group may still write {} of the browser's installation.", path, exception);
     }
   }
 

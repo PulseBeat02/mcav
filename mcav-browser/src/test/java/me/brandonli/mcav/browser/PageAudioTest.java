@@ -19,6 +19,7 @@ package me.brandonli.mcav.browser;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -29,12 +30,24 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import me.brandonli.mcav.browser.testing.EqualityAssertions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Test;
 
 class PageAudioTest {
 
+  private static final String FIRST_CONTEXT_ID = "1";
+  private static final String NEGATIVE_CONTEXT_ID = "-12";
+  private static final String SECOND_CONTEXT_ID = "2";
+  private static final String LONG_CONTEXT_ID = "1234567890";
+  private static final String LONG_NEGATIVE_CONTEXT_ID = "-1234567890";
+
+  private static final String PAGE_AUDIO_SCRIPT_FILE = "page-audio.mjs";
+
+  private static final long FRAME_BUDGET_NANOSECONDS = 10_417L;
+
   private static final byte[] FRAMES = { 1, 0, 2, 0, 3, 0, 4, 0 };
+  private static final byte[] OTHER_FRAMES = { 5, 0, 6, 0 };
 
   private static final int SECOND_BYTES = 48_000 * 4;
 
@@ -46,7 +59,7 @@ class PageAudioTest {
   private static final String EMPTY_OBJECT = "{}";
 
   private String call(final String name, final String payload, final String context) {
-    return "{\"name\":\"" + name + "\",\"payload\":\"" + payload + "\",\"executionContextId\":" + context + "}";
+    return "{\"name\":\"%s\",\"payload\":\"%s\",\"executionContextId\":%s}".formatted(name, payload, context);
   }
 
   private String call(final byte[] samples) {
@@ -56,7 +69,7 @@ class PageAudioTest {
   private byte[] samplesOf(final PageAudio.Chunk chunk) {
     assertNotNull(chunk);
 
-    return chunk.samples();
+    return chunk.getSamples();
   }
 
   @Test
@@ -64,10 +77,13 @@ class PageAudioTest {
     final PageAudio.Chunk chunk = PageAudio.parse(PageAudio.BINDING_EVENT, this.call(FRAMES));
     assertNotNull(chunk);
 
-    final long chunkContext = chunk.context();
+    final long chunkContext = chunk.getContextId();
     assertEquals(7, chunkContext);
 
-    final long negativeContext = PageAudio.parse(PageAudio.BINDING_EVENT, this.call(PageAudio.BINDING, "AAAAAA==", "-12")).context();
+    final long negativeContext = PageAudio.parse(
+      PageAudio.BINDING_EVENT,
+      this.call(PageAudio.BINDING, "AAAAAA==", NEGATIVE_CONTEXT_ID)
+    ).getContextId();
     assertEquals(-12, negativeContext);
   }
 
@@ -76,19 +92,21 @@ class PageAudioTest {
     final AtomicLong now = new AtomicLong();
     final List<Byte> passed = new ArrayList<>();
     final PageAudio audio = new PageAudio(samples -> passed.add(samples[0]), now::get);
-    final String first = this.call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[] { 1, 0, 0, 0 }), "1");
-    final String second = this.call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[] { 2, 0, 0, 0 }), "2");
+    final String first = this.call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[] { 1, 0, 0, 0 }), FIRST_CONTEXT_ID);
+    final String second = this.call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[] { 2, 0, 0, 0 }), SECOND_CONTEXT_ID);
     audio.onEvent(PageAudio.BINDING_EVENT, second);
     audio.onEvent(PageAudio.BINDING_EVENT, first);
     now.addAndGet(TimeUnit.MILLISECONDS.toNanos(PageAudio.QUIET_MILLISECONDS - 1));
     audio.onEvent(PageAudio.BINDING_EVENT, first);
     audio.onEvent(PageAudio.BINDING_EVENT, second);
-    assertEquals(List.of((byte) 2, (byte) 2), passed, "the frame that spoke first keeps the word");
+    final List<Byte> expectedPassedSamples = List.of((byte) 2, (byte) 2);
+    assertEquals(expectedPassedSamples, passed, "the frame that spoke first keeps the word");
 
     now.addAndGet(TimeUnit.MILLISECONDS.toNanos(PageAudio.QUIET_MILLISECONDS));
     audio.onEvent(PageAudio.BINDING_EVENT, first);
     audio.onEvent(PageAudio.BINDING_EVENT, second);
-    assertEquals(List.of((byte) 2, (byte) 2, (byte) 1), passed, "after a quiet moment another frame speaks");
+    final List<Byte> expectedPassedSamplesAfterQuietMoment = List.of((byte) 2, (byte) 2, (byte) 1);
+    assertEquals(expectedPassedSamplesAfterQuietMoment, passed, "after a quiet moment another frame speaks");
   }
 
   @Test
@@ -96,17 +114,19 @@ class PageAudioTest {
     final AtomicLong now = new AtomicLong();
     final List<Byte> passed = new ArrayList<>();
     final PageAudio audio = new PageAudio(samples -> passed.add(samples[0]), now::get);
-    final String sound = this.call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[] { 1, 0, 0, 0 }), "1");
-    final String silence = this.call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[4]), "1");
-    final String other = this.call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[] { 2, 0, 0, 0 }), "2");
+    final String sound = this.call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[] { 1, 0, 0, 0 }), FIRST_CONTEXT_ID);
+    final String silence = this.call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[4]), FIRST_CONTEXT_ID);
+    final String other = this.call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[] { 2, 0, 0, 0 }), SECOND_CONTEXT_ID);
     audio.onEvent(PageAudio.BINDING_EVENT, sound);
     now.addAndGet(TimeUnit.MILLISECONDS.toNanos(PageAudio.QUIET_MILLISECONDS - 1));
     audio.onEvent(PageAudio.BINDING_EVENT, silence);
-    assertEquals(List.of((byte) 1, (byte) 0), passed);
+    final List<Byte> expectedPassedSamples = List.of((byte) 1, (byte) 0);
+    assertEquals(expectedPassedSamples, passed);
 
     now.addAndGet(TimeUnit.MILLISECONDS.toNanos(1));
     audio.onEvent(PageAudio.BINDING_EVENT, other);
-    assertEquals(List.of((byte) 1, (byte) 0, (byte) 2), passed, "another frame speaks after the quiet moment");
+    final List<Byte> expectedPassedSamplesAfterQuietMoment = List.of((byte) 1, (byte) 0, (byte) 2);
+    assertEquals(expectedPassedSamplesAfterQuietMoment, passed, "another frame speaks after the quiet moment");
 
     audio.onEvent(PageAudio.BINDING_EVENT, silence);
     final int passedCount = passed.size();
@@ -120,12 +140,12 @@ class PageAudioTest {
 
     final String encoded = Base64.getEncoder().encodeToString(FRAMES);
     final byte[] negativeContextSamples = this.samplesOf(
-      PageAudio.parse(PageAudio.BINDING_EVENT, this.call(PageAudio.BINDING, encoded, "-12"))
+      PageAudio.parse(PageAudio.BINDING_EVENT, this.call(PageAudio.BINDING, encoded, NEGATIVE_CONTEXT_ID))
     );
     assertArrayEquals(FRAMES, negativeContextSamples);
 
     final byte[] longContextSamples = this.samplesOf(
-      PageAudio.parse(PageAudio.BINDING_EVENT, this.call(PageAudio.BINDING, encoded, "1234567890"))
+      PageAudio.parse(PageAudio.BINDING_EVENT, this.call(PageAudio.BINDING, encoded, LONG_CONTEXT_ID))
     );
     assertArrayEquals(FRAMES, longContextSamples);
   }
@@ -258,18 +278,19 @@ class PageAudioTest {
     assertEquals(17, countAfterAnotherSecond);
 
     final int budgetBytes = PageAudio.BUDGET_SECONDS_PER_SECOND * SECOND_BYTES;
-    assertEquals(2 * SECOND_BYTES, budgetBytes);
+    final int expectedBudgetBytes = 2 * SECOND_BYTES;
+    assertEquals(expectedBudgetBytes, budgetBytes);
   }
 
   @Test
   void shouldTellFromTheLengthOfACallHowMuchSoundItHoldsAtLeast() {
     for (int length = 0; length <= 300; length++) {
       final String payload = Base64.getEncoder().encodeToString(new byte[length]);
-      final long nearest = PageAudio.leastBytes(this.call(PageAudio.BINDING, payload, "-1234567890"));
+      final long nearest = PageAudio.leastBytes(this.call(PageAudio.BINDING, payload, LONG_NEGATIVE_CONTEXT_ID));
       final boolean nearestIsClose = nearest <= length && length - nearest <= 2;
       assertTrue(nearestIsClose, length + " bytes, " + nearest + " at least");
 
-      for (final String context : List.of("0", CONTEXT_ID, "1234567890")) {
+      for (final String context : List.of("0", CONTEXT_ID, LONG_CONTEXT_ID)) {
         final long least = PageAudio.leastBytes(this.call(PageAudio.BINDING, payload, context));
         final boolean leastFits = least <= length;
         assertTrue(leastFits, length + " bytes, not " + least);
@@ -306,10 +327,15 @@ class PageAudioTest {
     audio.onEvent(PageAudio.BINDING_EVENT, this.call(new byte[4_000]));
     final int looksAtASmallCall = looks.get();
     assertEquals(2, looksAtASmallCall);
-    assertEquals(
-      List.of(MAXIMUM_CHUNK_BYTES, MAXIMUM_CHUNK_BYTES, MAXIMUM_CHUNK_BYTES, MAXIMUM_CHUNK_BYTES, MAXIMUM_CHUNK_BYTES, 4_000),
-      passed
+    final List<Integer> expectedChunkSizes = List.of(
+      MAXIMUM_CHUNK_BYTES,
+      MAXIMUM_CHUNK_BYTES,
+      MAXIMUM_CHUNK_BYTES,
+      MAXIMUM_CHUNK_BYTES,
+      MAXIMUM_CHUNK_BYTES,
+      4_000
     );
+    assertEquals(expectedChunkSizes, passed);
   }
 
   private long countLookAndRead(final AtomicInteger looks, final AtomicLong now) {
@@ -335,18 +361,16 @@ class PageAudioTest {
 
     audio.onEvent(PageAudio.BINDING_EVENT, largest);
     audio.onEvent(PageAudio.BINDING_EVENT, this.call(new byte[65_532]));
-    assertEquals(
-      List.of(
-        MAXIMUM_CHUNK_BYTES,
-        MAXIMUM_CHUNK_BYTES,
-        MAXIMUM_CHUNK_BYTES,
-        MAXIMUM_CHUNK_BYTES,
-        MAXIMUM_CHUNK_BYTES,
-        PARTIAL_CHUNK_BYTES,
-        65_532
-      ),
-      passed
+    final List<Integer> expectedChunkSizes = List.of(
+      MAXIMUM_CHUNK_BYTES,
+      MAXIMUM_CHUNK_BYTES,
+      MAXIMUM_CHUNK_BYTES,
+      MAXIMUM_CHUNK_BYTES,
+      MAXIMUM_CHUNK_BYTES,
+      PARTIAL_CHUNK_BYTES,
+      65_532
     );
+    assertEquals(expectedChunkSizes, passed);
   }
 
   @Test
@@ -354,7 +378,7 @@ class PageAudioTest {
     final AtomicLong now = new AtomicLong();
     final List<Integer> passed = new ArrayList<>();
     final PageAudio audio = new PageAudio(samples -> passed.add(samples.length), now::get);
-    final String context = "-1234567890";
+    final String context = LONG_NEGATIVE_CONTEXT_ID;
     final String largest = this.call(
       PageAudio.BINDING,
       Base64.getEncoder().encodeToString(new byte[HelperProtocol.MAXIMUM_AUDIO_BYTES]),
@@ -368,26 +392,23 @@ class PageAudioTest {
       PageAudio.BINDING_EVENT,
       this.call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[PARTIAL_CHUNK_BYTES]), context)
     );
-    now.addAndGet(10_417L);
+    now.addAndGet(FRAME_BUDGET_NANOSECONDS);
     final String frame = this.call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[4]), context);
     final long frameLeastBytes = PageAudio.leastBytes(frame);
     assertEquals(4, frameLeastBytes);
 
     audio.onEvent(PageAudio.BINDING_EVENT, frame);
     audio.onEvent(PageAudio.BINDING_EVENT, frame);
-    assertEquals(
-      List.of(
-        MAXIMUM_CHUNK_BYTES,
-        MAXIMUM_CHUNK_BYTES,
-        MAXIMUM_CHUNK_BYTES,
-        MAXIMUM_CHUNK_BYTES,
-        MAXIMUM_CHUNK_BYTES,
-        PARTIAL_CHUNK_BYTES,
-        4
-      ),
-      passed,
-      "the budget is spent after the first"
+    final List<Integer> expectedChunkSizes = List.of(
+      MAXIMUM_CHUNK_BYTES,
+      MAXIMUM_CHUNK_BYTES,
+      MAXIMUM_CHUNK_BYTES,
+      MAXIMUM_CHUNK_BYTES,
+      MAXIMUM_CHUNK_BYTES,
+      PARTIAL_CHUNK_BYTES,
+      4
     );
+    assertEquals(expectedChunkSizes, passed, "the budget is spent after the first");
   }
 
   @Test
@@ -402,20 +423,18 @@ class PageAudioTest {
     }
 
     audio.onEvent(PageAudio.BINDING_EVENT, this.call(new byte[PARTIAL_CHUNK_BYTES]));
-    step.set(10_417L);
+    step.set(FRAME_BUDGET_NANOSECONDS);
     audio.onEvent(PageAudio.BINDING_EVENT, this.call(new byte[8]));
-    assertEquals(
-      List.of(
-        MAXIMUM_CHUNK_BYTES,
-        MAXIMUM_CHUNK_BYTES,
-        MAXIMUM_CHUNK_BYTES,
-        MAXIMUM_CHUNK_BYTES,
-        MAXIMUM_CHUNK_BYTES,
-        PARTIAL_CHUNK_BYTES,
-        8
-      ),
-      passed
+    final List<Integer> expectedChunkSizes = List.of(
+      MAXIMUM_CHUNK_BYTES,
+      MAXIMUM_CHUNK_BYTES,
+      MAXIMUM_CHUNK_BYTES,
+      MAXIMUM_CHUNK_BYTES,
+      MAXIMUM_CHUNK_BYTES,
+      PARTIAL_CHUNK_BYTES,
+      8
     );
+    assertEquals(expectedChunkSizes, passed);
   }
 
   @Test
@@ -440,23 +459,52 @@ class PageAudioTest {
     assertEquals(DevToolsInput.ADD_SCRIPT_METHOD, scriptMethod);
 
     final String scriptParameters = calls.get(2).getParameters();
-    assertEquals("{\"source\":" + DevToolsInput.quote(PageAudio.SCRIPT) + "}", scriptParameters);
+    final String quotedScript = DevToolsInput.quote(PageAudio.SCRIPT);
+    final String expectedScriptParameters = "{\"source\":%s}".formatted(quotedScript);
+    assertEquals(expectedScriptParameters, scriptParameters);
   }
 
   @Test
   void shouldTakeTheBindingAwayInTheScriptAndSendWhatThePagePlays() throws Exception {
     final String script = PageAudio.SCRIPT;
-    ScriptAssertions.execute("page-audio.mjs", script);
-    final boolean usesTheBindingName = script.contains("const BINDING = '" + PageAudio.BINDING + "';");
+    ScriptAssertions.execute(PAGE_AUDIO_SCRIPT_FILE, script);
+    final boolean usesTheBindingName = script.contains("const BINDING = \"" + PageAudio.BINDING + "\";");
     assertTrue(usesTheBindingName, "the script uses the binding's name");
 
     final boolean deletesTheBinding = script.contains("delete globalThis[BINDING]");
     assertTrue(deletesTheBinding, "the page cannot send through it once it is taken");
 
-    final boolean setsTheRate = script.contains("const RATE = 48000;");
+    final boolean setsTheRate = script.contains("const SAMPLE_RATE = 48000;");
     assertTrue(setsTheRate, "the sound has the rate of mcav's audio pipeline");
 
     final boolean guardsAgainstPlacingTwice = script.contains("if (Object.prototype.hasOwnProperty.call(globalThis, PLACED)) {");
     assertTrue(guardsAgainstPlacingTwice, "placed twice, it runs once");
+  }
+
+  @Test
+  void shouldTreatChunksOfTheSameContextAndSoundAsEqual() {
+    final String encoded = Base64.getEncoder().encodeToString(FRAMES);
+    EqualityAssertions.assertEqualityContract(
+      PageAudio.parse(PageAudio.BINDING_EVENT, this.call(FRAMES)),
+      PageAudio.parse(PageAudio.BINDING_EVENT, this.call(FRAMES)),
+      PageAudio.parse(PageAudio.BINDING_EVENT, this.call(PageAudio.BINDING, encoded, SECOND_CONTEXT_ID)),
+      PageAudio.parse(PageAudio.BINDING_EVENT, this.call(OTHER_FRAMES))
+    );
+  }
+
+  @Test
+  void shouldHashChunksOfOtherSoundDifferently() {
+    final PageAudio.Chunk chunk = PageAudio.parse(PageAudio.BINDING_EVENT, this.call(FRAMES));
+    final PageAudio.Chunk otherChunk = PageAudio.parse(PageAudio.BINDING_EVENT, this.call(OTHER_FRAMES));
+    final int hashCode = chunk.hashCode();
+    final int otherHashCode = otherChunk.hashCode();
+    assertNotEquals(hashCode, otherHashCode);
+  }
+
+  @Test
+  void shouldDescribeAChunkByItsContextAndSize() {
+    final PageAudio.Chunk chunk = PageAudio.parse(PageAudio.BINDING_EVENT, this.call(FRAMES));
+    final String description = chunk.toString();
+    assertEquals("Chunk{contextId=7, sampleBytes=8}", description);
   }
 }

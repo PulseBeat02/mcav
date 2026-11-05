@@ -20,23 +20,34 @@ package me.brandonli.mcav.browser;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
 
 // Waits for its gate before it connects, so a test can act while the server waits for the helper.
 public final class GatedHelperMain {
+
+  private static final Duration GATE_TIMEOUT = Duration.ofMinutes(1);
+  private static final long POLL_PAUSE_MILLISECONDS = 10L;
 
   static final String GATE_PROPERTY = "mcav.test.gate";
 
   static final String STARTED_SUFFIX = ".started";
 
-  private GatedHelperMain() {}
+  private GatedHelperMain() {
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
+  }
 
   public static void main(final String[] args) throws IOException, InterruptedException {
-    final Path gate = Path.of(System.getProperty(GATE_PROPERTY));
-    Files.createFile(gate.resolveSibling(gate.getFileName() + STARTED_SUFFIX));
-    final long deadline = System.nanoTime() + TimeUnit.MINUTES.toNanos(1);
+    final String gatePath = System.getProperty(GATE_PROPERTY);
+    final Path gate = Path.of(gatePath);
+    final Path fileName = gate.getFileName();
+    final String startedName = "%s%s".formatted(fileName, STARTED_SUFFIX);
+    final Path started = gate.resolveSibling(startedName);
+    Files.createFile(started);
+
+    final long deadline = System.nanoTime() + GATE_TIMEOUT.toNanos();
     while (!Files.exists(gate) && System.nanoTime() < deadline) {
-      Thread.sleep(10);
+      Thread.sleep(POLL_PAUSE_MILLISECONDS);
     }
 
     ScriptedEngine.main(args);

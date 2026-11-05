@@ -50,6 +50,10 @@ import org.tukaani.xz.XZOutputStream;
 @Tag("fuzz")
 final class LinuxLibrariesFuzzTest {
 
+  private static final String TEMPORARY_FOLDER_PREFIX = "mcav-deb-fuzz";
+  private static final String PACKAGE_FILE = "package.deb";
+  private static final String TARGET_FOLDER = "target";
+
   private static final Map<String, String> PINNED = Map.of(
     "usr/lib/x86_64-linux-gnu/libmcavfuzz.so.1.2.3",
     "libmcavfuzz.so.1",
@@ -70,10 +74,10 @@ final class LinuxLibrariesFuzzTest {
       case 1 -> this.debianPackageOf(layer);
       default -> this.debianPackageOf(this.xz(layer));
     };
-    final Path root = Files.createTempDirectory("mcav-deb-fuzz");
+    final Path root = Files.createTempDirectory(TEMPORARY_FOLDER_PREFIX);
     try {
-      final Path file = Files.write(root.resolve("package.deb"), debianPackage);
-      final Path target = Files.createDirectory(root.resolve("target"));
+      final Path file = Files.write(root.resolve(PACKAGE_FILE), debianPackage);
+      final Path target = Files.createDirectory(root.resolve(TARGET_FOLDER));
       final Outcome outcome = this.extract(file, target);
       this.check(root, file, target, outcome);
     } finally {
@@ -118,7 +122,8 @@ final class LinuxLibrariesFuzzTest {
     }
 
     if (outcome == Outcome.EXTRACTED) {
-      assertEquals(Set.copyOf(PINNED.values()), written, "a package that extracts holds every pinned library");
+      final Set<String> expectedWrittenLibraries = Set.copyOf(PINNED.values());
+      assertEquals(expectedWrittenLibraries, written, "a package that extracts holds every pinned library");
     }
   }
 

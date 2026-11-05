@@ -28,6 +28,11 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 class NavigationPolicyTest {
 
+  private static final String LOCAL_FILE_URL = "file:///etc/passwd";
+  private static final String BLANK_DOCUMENT_URL = "about:blank";
+  private static final String FRAME_DOCUMENT_URL = "about:srcdoc";
+  private static final String DATA_DOCUMENT_URL = "data:text/html,x";
+
   @ParameterizedTest
   @ValueSource(strings = { "http://example.com", "https://example.com/a?b#c", "HTTPS://EXAMPLE.COM", "http://127.0.0.1:8080/" })
   void shouldAcceptOnlyAbsoluteHttpOrHttpsAddressesWithAHostAsWebAddresses(final String address) {
@@ -49,16 +54,16 @@ class NavigationPolicyTest {
     final boolean httpsAllowed = NavigationPolicy.allowsNavigation("https://example.com/", FrameKind.MAIN);
     assertTrue(httpsAllowed);
 
-    final boolean fileAllowed = NavigationPolicy.allowsNavigation("file:///etc/passwd", FrameKind.MAIN);
+    final boolean fileAllowed = NavigationPolicy.allowsNavigation(LOCAL_FILE_URL, FrameKind.MAIN);
     assertFalse(fileAllowed);
 
-    final boolean aboutBlankAllowed = NavigationPolicy.allowsNavigation("about:blank", FrameKind.MAIN);
+    final boolean aboutBlankAllowed = NavigationPolicy.allowsNavigation(BLANK_DOCUMENT_URL, FrameKind.MAIN);
     assertTrue(aboutBlankAllowed, "the empty document the browser starts with");
 
-    final boolean aboutSrcdocAllowed = NavigationPolicy.allowsNavigation("about:srcdoc", FrameKind.MAIN);
+    final boolean aboutSrcdocAllowed = NavigationPolicy.allowsNavigation(FRAME_DOCUMENT_URL, FrameKind.MAIN);
     assertFalse(aboutSrcdocAllowed);
 
-    final boolean dataAllowed = NavigationPolicy.allowsNavigation("data:text/html,x", FrameKind.MAIN);
+    final boolean dataAllowed = NavigationPolicy.allowsNavigation(DATA_DOCUMENT_URL, FrameKind.MAIN);
     assertFalse(dataAllowed);
 
     final boolean malformedAllowed = NavigationPolicy.allowsNavigation("not a uri at all", FrameKind.MAIN);
@@ -73,13 +78,13 @@ class NavigationPolicyTest {
 
   @Test
   void shouldAlsoLetFramesHoldLocalDocumentsOfTheBrowser() {
-    final boolean aboutBlankAllowed = NavigationPolicy.allowsNavigation("about:blank", FrameKind.CHILD);
+    final boolean aboutBlankAllowed = NavigationPolicy.allowsNavigation(BLANK_DOCUMENT_URL, FrameKind.CHILD);
     assertTrue(aboutBlankAllowed);
 
-    final boolean aboutSrcdocAllowed = NavigationPolicy.allowsNavigation("about:srcdoc", FrameKind.CHILD);
+    final boolean aboutSrcdocAllowed = NavigationPolicy.allowsNavigation(FRAME_DOCUMENT_URL, FrameKind.CHILD);
     assertTrue(aboutSrcdocAllowed);
 
-    final boolean dataAllowed = NavigationPolicy.allowsNavigation("data:text/html,x", FrameKind.CHILD);
+    final boolean dataAllowed = NavigationPolicy.allowsNavigation(DATA_DOCUMENT_URL, FrameKind.CHILD);
     assertTrue(dataAllowed);
 
     final boolean blobAllowed = NavigationPolicy.allowsNavigation("blob:https://example.com/1234", FrameKind.CHILD);
@@ -91,7 +96,7 @@ class NavigationPolicyTest {
     final boolean aboutSettingsAllowed = NavigationPolicy.allowsNavigation("about:settings", FrameKind.CHILD);
     assertFalse(aboutSettingsAllowed);
 
-    final boolean fileAllowed = NavigationPolicy.allowsNavigation("file:///etc/passwd", FrameKind.CHILD);
+    final boolean fileAllowed = NavigationPolicy.allowsNavigation(LOCAL_FILE_URL, FrameKind.CHILD);
     assertFalse(fileAllowed);
 
     final boolean javascriptAllowed = NavigationPolicy.allowsNavigation("javascript:alert(1)", FrameKind.CHILD);

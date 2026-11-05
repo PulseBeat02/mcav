@@ -35,14 +35,16 @@ final class Seatbelt {
 
   static final String MISSING = "this system has no Seatbelt (sandbox_init)";
 
-  private static final String SANDBOX_INIT = "sandbox_init";
+  private static final String SANDBOX_INITIALIZE = "sandbox_init";
   private static final String FREE_ERROR = "sandbox_free_error";
-
-  private static final String UNCALLABLE = "The C library could not be called!";
 
   private static final Integer SUCCESS = 0;
   private static final long PROFILE_TEXT = 0L;
 
+  private static final char RULE_START = '(';
+  private static final String SUBPATH_START = " (subpath ";
+  private static final char SUBPATH_END = ')';
+  private static final String RULE_END = ")\n";
   private static final String PROFILE_START = "(version 1)\n(allow default)\n";
   private static final String DENY_READING = "deny file-read-data";
   private static final String ALLOW_READING = "allow file-read-data";
@@ -56,28 +58,35 @@ final class Seatbelt {
   }
 
   static Seatbelt ofSystem() {
-    return new Seatbelt(Linker.nativeLinker().defaultLookup());
+    final Linker linker = Linker.nativeLinker();
+    final SymbolLookup lookup = linker.defaultLookup();
+    return new Seatbelt(lookup);
   }
 
   // sandbox_init is a restricted native call; the helper starts with native access enabled
   @SuppressWarnings("restricted")
   void restrictProcess(final String profile) throws IOException {
-    final @Nullable MemorySegment init = this.library.find(SANDBOX_INIT).orElse(null);
+    final @Nullable MemorySegment initialize = this.library.find(SANDBOX_INITIALIZE).orElse(null);
     final @Nullable MemorySegment freeError = this.library.find(FREE_ERROR).orElse(null);
-    if (init == null || freeError == null) {
-      final String message = "The process cannot be restricted, because %s!".formatted(MISSING);
+    if (initialize == null || freeError == null) {
+      final String message = "Because %s, the process cannot be restricted!".formatted(MISSING);
       throw new IOException(message);
     }
 
     final Linker linker = Linker.nativeLinker();
-    final MethodHandle sandboxInitCall = linker.downcallHandle(
-      init,
-      FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_LONG, ValueLayout.ADDRESS)
+    final FunctionDescriptor initializeDescriptor = FunctionDescriptor.of(
+      ValueLayout.JAVA_INT,
+      ValueLayout.ADDRESS,
+      ValueLayout.JAVA_LONG,
+      ValueLayout.ADDRESS
     );
-    final MethodHandle freeCall = linker.downcallHandle(freeError, FunctionDescriptor.ofVoid(ValueLayout.ADDRESS));
+    final MethodHandle initializeCall = linker.downcallHandle(initialize, initializeDescriptor);
+    final FunctionDescriptor freeErrorDescriptor = FunctionDescriptor.ofVoid(ValueLayout.ADDRESS);
+    final MethodHandle freeCall = linker.downcallHandle(freeError, freeErrorDescriptor);
     try (final Arena arena = Arena.ofConfined()) {
       final MemorySegment error = arena.allocate(ValueLayout.ADDRESS);
-      final Object result = call(sandboxInitCall, arena.allocateFrom(profile), PROFILE_TEXT, error);
+      final MemorySegment profileText = arena.allocateFrom(profile);
+      final Object result = call(initializeCall, profileText, PROFILE_TEXT, error);
       if (SUCCESS.equals(result)) {
         return;
       }
@@ -92,7 +101,8 @@ final class Seatbelt {
       final MemorySegment reasonText = nativeReason.reinterpret(Long.MAX_VALUE);
       final String reason = reasonText.getString(0);
       call(freeCall, nativeReason);
-      final String message = "Seatbelt refused the profile (%s)!".formatted(reason);
+
+      final String message = "Seatbelt refused the profile, reporting %s as the reason!".formatted(reason);
       throw new IOException(message);
     }
   }
@@ -102,11 +112,12 @@ final class Seatbelt {
     try {
       return function.invokeWithArguments(arguments);
     } catch (final Throwable exception) {
-      if (exception instanceof final VirtualMachineError fatal) {
-        throw fatal;
+      if (exception instanceof final VirtualMachineError virtualMachineError) {
+        throw virtualMachineError;
       }
 
-      throw new IllegalStateException(UNCALLABLE, exception);
+      final String message = "The C library could not be called!";
+      throw new IllegalStateException(message, exception);
     }
   }
 
@@ -114,34 +125,36 @@ final class Seatbelt {
   // profile overrides an earlier one
   static String profile(final List<Path> hidden, final List<Path> readable, final List<Path> writable) {
     final StringBuilder profile = new StringBuilder(PROFILE_START);
-    rule(profile, DENY_READING, hidden);
-    rule(profile, ALLOW_READING, readable);
-    rule(profile, ALLOW_READING, writable);
+    appendRule(profile, DENY_READING, hidden);
+    appendRule(profile, ALLOW_READING, readable);
+    appendRule(profile, ALLOW_READING, writable);
     profile.append(DENY_WRITING);
-    rule(profile, ALLOW_WRITING, writable);
+    appendRule(profile, ALLOW_WRITING, writable);
 
     return profile.toString();
   }
 
-  private static void rule(final StringBuilder profile, final String action, final List<Path> paths) {
+  private static void appendRule(final StringBuilder profile, final String action, final List<Path> paths) {
     if (paths.isEmpty()) {
       return;
     }
 
-    profile.append('(').append(action);
+    profile.append(RULE_START).append(action);
     for (final Path path : paths) {
-      profile.append(" (subpath ").append(quote(path.toString())).append(')');
+      profile.append(SUBPATH_START).append(quote(path.toString())).append(SUBPATH_END);
     }
 
-    profile.append(")\n");
+    profile.append(RULE_END);
   }
 
   @VisibleForTesting
   static String quote(final String text) {
-    return '"' + text.replace("\\", "\\\\").replace("\"", "\\\"") + '"';
+    final String backslashesEscaped = text.replace("\\", "\\\\");
+    final String escaped = backslashesEscaped.replace("\"", "\\\"");
+    return "\"%s\"".formatted(escaped);
   }
 
   boolean isAvailable() {
-    return this.library.find(SANDBOX_INIT).isPresent() && this.library.find(FREE_ERROR).isPresent();
+    return this.library.find(SANDBOX_INITIALIZE).isPresent() && this.library.find(FREE_ERROR).isPresent();
   }
 }

@@ -31,59 +31,56 @@ import me.brandonli.mcav.browser.testing.TestPages;
 // second leaves it running, so stopping the module has to end its browser.
 public final class NoFlagsServerMain {
 
+  static final String HEADLESS_OPTION = "-Djava.awt.headless=true";
+
+  private static final String DISPLAY_VARIABLE = "DISPLAY";
+  private static final String WAYLAND_DISPLAY_VARIABLE = "WAYLAND_DISPLAY";
+
+  private static final int ROUNDS = 2;
+
+  private static final int FRAME_INTERVAL = 1;
+
   static final String PASSED = "NO-FLAGS PROOF PASSED";
 
-  private static final List<String> GRAALVM_DEFAULTS = List.of(
-    "-XX:ThreadPriorityPolicy=1",
-    "-XX:+UnlockExperimentalVMOptions",
-    "-XX:+EnableJVMCIProduct",
-    "-XX:+EnableJVMCI",
-    "-XX:-UnlockExperimentalVMOptions"
-  );
-
   private NoFlagsServerMain() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   public static void main(final String[] args) {
     final URI page = URI.create(args[0]);
     final List<String> arguments = ManagementFactory.getRuntimeMXBean().getInputArguments();
-    System.out.println("JVM arguments: " + arguments);
-    System.out.println("DISPLAY=" + System.getenv("DISPLAY") + " WAYLAND_DISPLAY=" + System.getenv("WAYLAND_DISPLAY"));
+    System.out.println("JVM arguments: %s".formatted(arguments));
+    final String display = System.getenv(DISPLAY_VARIABLE);
+    final String waylandDisplay = System.getenv(WAYLAND_DISPLAY_VARIABLE);
+    System.out.println("DISPLAY=%s WAYLAND_DISPLAY=%s".formatted(display, waylandDisplay));
     final List<String> options = arguments
       .stream()
-      .filter(argument -> !GRAALVM_DEFAULTS.contains(argument))
+      .filter(argument -> !HeadlessProofMain.GRAALVM_DEFAULTS.contains(argument))
       .toList();
-    check(options.equals(List.of("-Djava.awt.headless=true")), "the JVM runs with no option but headless AWT");
-    check(GraphicsEnvironment.isHeadless(), "AWT is headless");
-    check(System.getenv("DISPLAY") == null && System.getenv("WAYLAND_DISPLAY") == null, "there is no display");
-    for (int round = 1; round <= 2; round++) {
+    HeadlessProofMain.check(options.equals(List.of(HEADLESS_OPTION)), "the JVM runs with no option but headless AWT");
+    HeadlessProofMain.check(GraphicsEnvironment.isHeadless(), "AWT is headless");
+    HeadlessProofMain.check(display == null && waylandDisplay == null, "there is no display");
+    for (int round = 1; round <= ROUNDS; round++) {
       final MCAVApi api = MCAV.api();
       api.install(BrowserModule.class);
       final BrowserPlayer player = BrowserPlayer.create(BrowserOptions.builder().privateNetworks(true).build());
       final Frames frames = Frames.attach(player.getVideoAttachableCallback());
-      check(player.start(BrowserSource.uri(page, 320, 240, 1)), "the browser starts");
+      HeadlessProofMain.check(player.start(BrowserSource.uri(page, 320, 240, FRAME_INTERVAL)), "the browser starts");
       Await.until("a red frame", () -> frames.lastShows(TestPages.MAIN_COLOR));
       final Frames.Frame frame = frames.requireLast();
       System.out.printf("round %d: a %dx%d frame, center pixel %06x%n", round, frame.getWidth(), frame.getHeight(), frame.getCenter());
-      check(CefBrowserIntegrationTest.countBrowserProcesses() > 0, "the browser runs in processes of its own");
+      HeadlessProofMain.check(CefBrowserIntegrationTest.countBrowserProcesses() > 0, "the browser runs in processes of its own");
       if (round == 1) {
         player.release();
       }
       api.release();
-      check(HelperProcesses.count() == 0, "no browser session is left");
+      HeadlessProofMain.check(HelperProcesses.count() == 0, "no browser session is left");
       Await.until("every browser process ended", () -> CefBrowserIntegrationTest.countBrowserProcesses() == 0);
       System.out.printf("round %d: disabled, no browser process left%n", round);
     }
 
     System.out.println(PASSED);
     System.exit(0);
-  }
-
-  private static void check(final boolean holds, final String description) {
-    if (!holds) {
-      final String message = "The check that %s failed!".formatted(description);
-      throw new AssertionError(message);
-    }
   }
 }

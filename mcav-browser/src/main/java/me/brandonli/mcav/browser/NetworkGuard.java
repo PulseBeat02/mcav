@@ -52,6 +52,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 // network turns private.
 final class NetworkGuard implements Closeable {
 
+  private static final boolean DO_NOT_INTERRUPT = false;
+
+  private static final String ACCEPT_THREAD_NAME = "mcav-browser-guard";
+  private static final String CONNECTION_THREAD_NAME = "mcav-browser-guard-connection";
+  private static final String DEADLINE_THREAD_NAME = "mcav-browser-guard-deadline";
+  private static final String UPSTREAM_THREAD_NAME = "mcav-browser-guard-upstream";
+
   static final int MAXIMUM_CONNECTIONS = 256;
 
   static final int MAXIMUM_REPORTED_HOSTS = 64;
@@ -60,8 +67,7 @@ final class NetworkGuard implements Closeable {
   private static final int CONNECT_TIMEOUT_MILLISECONDS = 10_000;
 
   private static final int BACKLOG = 64;
-
-  private static final int BUFFER_BYTES = 16 * 1024;
+  private static final int EPHEMERAL_PORT = 0;
 
   private final ServerSocket server;
   private final Resolver resolver;
@@ -97,7 +103,8 @@ final class NetworkGuard implements Closeable {
   static NetworkGuard start(final Consumer<String> notices, final List<String> refusedHosts) throws IOException {
     final Resolver resolver = InetAddress::getAllByName;
     final Set<InetAddress> refused = resolveAll(resolver, refusedHosts, notices);
-    final PublicAddresses policy = new PublicAddresses(resolver, ownOrRefused(NetworkGuard::isOwnAddress, refused));
+    final Predicate<InetAddress> excluded = ownOrRefused(NetworkGuard::isOwnAddress, refused);
+    final PublicAddresses policy = new PublicAddresses(resolver, excluded);
     return start(resolver, policy, NetworkGuard::connect, notices, HANDSHAKE_TIMEOUT_MILLISECONDS);
   }
 
@@ -110,13 +117,23 @@ final class NetworkGuard implements Closeable {
   ) throws IOException {
     final ServerSocket server = new ServerSocket();
     final InetAddress loopback = InetAddress.getLoopbackAddress();
-    server.bind(new InetSocketAddress(loopback, 0), BACKLOG);
+    server.bind(new InetSocketAddress(loopback, EPHEMERAL_PORT), BACKLOG);
+
     final NetworkGuard guard = new NetworkGuard(server, resolver, policy, connector, notices, handshakeTimeoutMilliseconds);
-    final Thread thread = new Thread(guard::acceptConnections, "mcav-browser-guard");
+    final Thread thread = new Thread(guard::acceptConnections, ACCEPT_THREAD_NAME);
     thread.setDaemon(true);
     thread.start();
 
     return guard;
+  }
+
+  @Override
+  public void close() {
+    this.closed = true;
+    closeQuietly(this.server);
+    for (final Socket socket : this.sockets) {
+      closeQuietly(socket);
+    }
   }
 
   static Predicate<InetAddress> ownOrRefused(final Predicate<InetAddress> own, final Set<InetAddress> refused) {
@@ -128,7 +145,8 @@ final class NetworkGuard implements Closeable {
     final Set<InetAddress> addresses = new HashSet<>();
     for (final String host : hosts) {
       try {
-        addresses.addAll(Arrays.asList(resolver.resolve(host)));
+        final InetAddress[] resolved = resolver.resolve(host);
+        addresses.addAll(Arrays.asList(resolved));
       } catch (final UnknownHostException exception) {
         notices.accept("The refused host %s has no address, so pages are not kept from it.".formatted(host));
       }
@@ -152,7 +170,7 @@ final class NetworkGuard implements Closeable {
       }
       this.sockets.add(client);
       Thread.ofVirtual()
-        .name("mcav-browser-guard-connection")
+        .name(CONNECTION_THREAD_NAME)
         .start(() -> this.serveAndRelease(client));
     }
   }
@@ -160,7 +178,7 @@ final class NetworkGuard implements Closeable {
   private void reportStopUnlessClosed(final IOException exception) {
     if (!this.closed) {
       final @Nullable String reason = exception.getMessage();
-      this.notices.accept("The network guard stopped (%s).".formatted(reason));
+      this.notices.accept("The network guard stopped after the error %s, so pages cannot connect anymore.".formatted(reason));
     }
   }
 
@@ -183,42 +201,59 @@ final class NetworkGuard implements Closeable {
       final DataInputStream input = new DataInputStream(new BufferedInputStream(rawInput));
       final OutputStream rawOutput = client.getOutputStream();
       final DataOutputStream output = new DataOutputStream(rawOutput);
-      final boolean withoutAuthentication = SocksProtocol.readGreeting(input);
-      if (!withoutAuthentication) {
-        SocksProtocol.writeMethod(output, SocksProtocol.NO_ACCEPTABLE_METHOD);
+      final SocksProtocol.Request request = this.readRequest(input, output);
+      if (request == null) {
         return;
       }
 
-      SocksProtocol.writeMethod(output, SocksProtocol.NO_AUTHENTICATION);
-      final SocksProtocol.Request request;
-      try {
-        request = SocksProtocol.readRequest(input);
-      } catch (final SocksProtocol.Refusal exception) {
-        final int reply = exception.getReply();
-        SocksProtocol.writeReply(output, reply);
-        return;
-      }
-      deadline.cancel(false);
+      deadline.cancel(DO_NOT_INTERRUPT);
+
       final Socket target = this.open(request, output);
       if (target == null) {
         return;
       }
 
-      this.sockets.add(target);
-      try {
-        SocksProtocol.writeReply(output, SocksProtocol.SUCCEEDED);
-        this.relay(input, client, target);
-      } finally {
-        this.sockets.remove(target);
-        closeQuietly(target);
-      }
+      this.relayThrough(target, input, client, output);
     } catch (final IOException exception) {
       // the client broke the protocol, took too long, or went away
     }
   }
 
+  private SocksProtocol.@Nullable Request readRequest(final DataInputStream input, final DataOutputStream output) throws IOException {
+    final boolean withoutAuthentication = SocksProtocol.readOffersNoAuthentication(input);
+    if (!withoutAuthentication) {
+      SocksProtocol.writeMethod(output, SocksProtocol.NO_ACCEPTABLE_METHOD);
+      return null;
+    }
+
+    SocksProtocol.writeMethod(output, SocksProtocol.NO_AUTHENTICATION);
+
+    final SocksProtocol.Request request;
+    try {
+      request = SocksProtocol.readRequest(input);
+    } catch (final SocksProtocol.Refusal exception) {
+      final int reply = exception.getReply();
+      SocksProtocol.writeReply(output, reply);
+      return null;
+    }
+
+    return request;
+  }
+
+  private void relayThrough(final Socket target, final DataInputStream input, final Socket client, final DataOutputStream output)
+    throws IOException {
+    this.sockets.add(target);
+    try {
+      SocksProtocol.writeReply(output, SocksProtocol.SUCCEEDED);
+      this.relay(input, client, target);
+    } finally {
+      this.sockets.remove(target);
+      closeQuietly(target);
+    }
+  }
+
   private void startDeadline(final Runnable task) {
-    Thread.ofVirtual().name("mcav-browser-guard-deadline").start(task);
+    Thread.ofVirtual().name(DEADLINE_THREAD_NAME).start(task);
   }
 
   private @Nullable Socket open(final SocksProtocol.Request request, final DataOutputStream output) throws IOException {
@@ -250,7 +285,8 @@ final class NetworkGuard implements Closeable {
       SocksProtocol.writeReply(output, SocksProtocol.NOT_ALLOWED);
     } else {
       final boolean refused = failure instanceof ConnectException;
-      SocksProtocol.writeReply(output, refused ? SocksProtocol.CONNECTION_REFUSED : SocksProtocol.HOST_UNREACHABLE);
+      final int reply = refused ? SocksProtocol.CONNECTION_REFUSED : SocksProtocol.HOST_UNREACHABLE;
+      SocksProtocol.writeReply(output, reply);
     }
 
     return null;
@@ -273,7 +309,7 @@ final class NetworkGuard implements Closeable {
     final OutputStream toTarget = target.getOutputStream();
     final OutputStream toClient = client.getOutputStream();
     Thread.ofVirtual()
-      .name("mcav-browser-guard-upstream")
+      .name(UPSTREAM_THREAD_NAME)
       .start(() -> this.pumpUpstream(fromClient, toTarget, target));
     this.pump(fromTarget, toClient);
   }
@@ -284,13 +320,8 @@ final class NetworkGuard implements Closeable {
   }
 
   private void pump(final InputStream input, final OutputStream output) {
-    final byte[] buffer = new byte[BUFFER_BYTES];
     try {
-      int count = input.read(buffer);
-      while (count >= 0) {
-        output.write(buffer, 0, count);
-        count = input.read(buffer);
-      }
+      input.transferTo(output);
     } catch (final IOException exception) {
       // one side ended
     }
@@ -315,15 +346,6 @@ final class NetworkGuard implements Closeable {
     }
   }
 
-  @Override
-  public void close() {
-    this.closed = true;
-    closeQuietly(this.server);
-    for (final Socket socket : this.sockets) {
-      closeQuietly(socket);
-    }
-  }
-
   static boolean isOwnAddress(final InetAddress address) {
     return isOwnAddress(address, NetworkInterface::getByInetAddress);
   }
@@ -332,6 +354,7 @@ final class NetworkGuard implements Closeable {
     try {
       return lookup.find(address) != null;
     } catch (final SocketException exception) {
+      // an address the lookup cannot place counts as own, so it is refused
       return true;
     }
   }
@@ -364,18 +387,18 @@ final class NetworkGuard implements Closeable {
 
     @Override
     public boolean test(final InetAddress address) {
-      final boolean isPublic;
+      final boolean publicAddress;
       if (address instanceof Inet4Address) {
-        isPublic = AddressPolicy.isPublic(address);
+        publicAddress = AddressPolicy.isPublic(address);
       } else {
-        final List<AddressPolicy.TranslationPrefix> known = this.getPrefixes();
-        isPublic = known != null && AddressPolicy.isPublic(address, known);
+        final List<AddressPolicy.TranslationPrefix> known = this.findTranslationPrefixes();
+        publicAddress = known != null && AddressPolicy.isPublic(address, known);
       }
 
-      return isPublic && !this.own.test(address);
+      return publicAddress && !this.own.test(address);
     }
 
-    synchronized @Nullable List<AddressPolicy.TranslationPrefix> getPrefixes() {
+    synchronized @Nullable List<AddressPolicy.TranslationPrefix> findTranslationPrefixes() {
       final List<AddressPolicy.TranslationPrefix> known = this.prefixes;
       if (known != null) {
         return known;

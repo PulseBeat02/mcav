@@ -20,13 +20,24 @@ package me.brandonli.mcav.browser;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.io.Serial;
 import java.net.InetAddress;
 import java.net.ProtocolException;
 import java.nio.charset.StandardCharsets;
+import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 // The part of SOCKS 5 (RFC 1928) that Chromium speaks: "no authentication", then one CONNECT per connection. The reader
 // never reads more than a request can hold.
 final class SocksProtocol {
+
+  private static final char IPV6_SEPARATOR = ':';
+  private static final char OPENING_BRACKET = '[';
+  private static final char CLOSING_BRACKET = ']';
+
+  private static final int RESERVED = 0;
+  private static final int NO_BOUND_ADDRESS = 0;
+  private static final int NO_BOUND_PORT = 0;
 
   static final int VERSION = 5;
 
@@ -52,10 +63,11 @@ final class SocksProtocol {
   private static final int UNSIGNED_BYTE_MASK = 0xFF;
 
   private SocksProtocol() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
-  static boolean readGreeting(final DataInput input) throws IOException {
+  static boolean readOffersNoAuthentication(final DataInput input) throws IOException {
     readVersion(input);
     final int count = input.readUnsignedByte();
     if (count == 0) {
@@ -76,7 +88,7 @@ final class SocksProtocol {
     readVersion(input);
     final int command = input.readUnsignedByte();
     final int reserved = input.readUnsignedByte();
-    if (reserved != 0) {
+    if (reserved != RESERVED) {
       final String message = "Reserved byte %s of the request must be 0!".formatted(reserved);
       throw new ProtocolException(message);
     }
@@ -130,19 +142,20 @@ final class SocksProtocol {
     final byte[] bytes = new byte[length];
     input.readFully(bytes);
     for (final byte value : bytes) {
-      if (!isHostNameCharacter(value) && value != ':' && value != '[' && value != ']') {
-        final String message = "Byte %s is not allowed in the host name of the request!".formatted(value & UNSIGNED_BYTE_MASK);
+      if (!isHostNameCharacter(value) && value != IPV6_SEPARATOR && value != OPENING_BRACKET && value != CLOSING_BRACKET) {
+        final int unsignedValue = value & UNSIGNED_BYTE_MASK;
+        final String message = "Byte %s is not allowed in the host name of the request!".formatted(unsignedValue);
         throw new ProtocolException(message);
       }
     }
 
     final String host = new String(bytes, StandardCharsets.US_ASCII);
     // Chromium names an IPv6 address by its text, in the field of a host name
-    if (host.indexOf(':') >= 0) {
-      return readIpv6Literal(host);
+    if (host.indexOf(IPV6_SEPARATOR) >= 0) {
+      return parseIpv6Literal(host);
     }
 
-    if (host.indexOf('[') >= 0 || host.indexOf(']') >= 0) {
+    if (host.indexOf(OPENING_BRACKET) >= 0 || host.indexOf(CLOSING_BRACKET) >= 0) {
       final String message = "Host name %s of the request holds a bracket!".formatted(host);
       throw new ProtocolException(message);
     }
@@ -151,7 +164,7 @@ final class SocksProtocol {
   }
 
   // never asks a resolver
-  private static String readIpv6Literal(final String text) throws ProtocolException {
+  private static String parseIpv6Literal(final String text) throws ProtocolException {
     try {
       final InetAddress address = InetAddress.ofLiteral(text);
       return address.getHostAddress();
@@ -179,10 +192,10 @@ final class SocksProtocol {
   static void writeReply(final DataOutput output, final int reply) throws IOException {
     output.writeByte(VERSION);
     output.writeByte(reply);
-    output.writeByte(0);
+    output.writeByte(RESERVED);
     output.writeByte(ADDRESS_IPV4);
-    output.writeInt(0);
-    output.writeShort(0);
+    output.writeInt(NO_BOUND_ADDRESS);
+    output.writeShort(NO_BOUND_PORT);
   }
 
   static final class Request {
@@ -202,11 +215,36 @@ final class SocksProtocol {
     int getPort() {
       return this.port;
     }
+
+    @Override
+    public boolean equals(final @Nullable Object other) {
+      if (this == other) {
+        return true;
+      }
+
+      if (!(other instanceof final Request request)) {
+        return false;
+      }
+
+      return this.host.equals(request.host) && this.port == request.port;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(this.host, this.port);
+    }
+
+    @Override
+    public String toString() {
+      // the helper process has no Guava on its class path
+      return "Request{host=%s, port=%s}".formatted(this.host, this.port);
+    }
   }
 
   static final class Refusal extends ProtocolException {
 
-    private static final long serialVersionUID = 1L;
+    @Serial
+    private static final long serialVersionUID = -7788257831258608999L;
 
     private final int reply;
 

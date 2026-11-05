@@ -29,6 +29,8 @@ import org.junit.jupiter.api.Test;
 
 class BrowserOptionsTest {
 
+  private static final String REFUSED_HOST = "mc.example.com";
+
   private static final int MAXIMUM_FRAME_RATE = 60;
 
   @Test
@@ -61,7 +63,7 @@ class BrowserOptionsTest {
       .privateNetworks(true)
       .autoplay(true)
       .confinement(false)
-      .refusedHosts(List.of("mc.example.com", "203.0.113.5"))
+      .refusedHosts(List.of(REFUSED_HOST, "203.0.113.5"))
       .build();
     final int minimumFrameRate = options.getFrameRate();
     assertEquals(1, minimumFrameRate);
@@ -79,12 +81,13 @@ class BrowserOptionsTest {
     assertFalse(confined);
 
     final List<String> refusedHosts = options.getRefusedHosts();
-    assertEquals(List.of("mc.example.com", "203.0.113.5"), refusedHosts);
+    final List<String> expectedRefusedHosts = List.of(REFUSED_HOST, "203.0.113.5");
+    assertEquals(expectedRefusedHosts, refusedHosts);
 
     final BrowserOptionsBuilder builder = BrowserOptions.builder().refusedHosts(List.of("a b"));
     final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, builder::build);
     final String message = refused.getMessage();
-    assertEquals("Host 'a b' is not a host name or address!", message);
+    assertEquals("Host a b is not a host name or address!", message);
 
     final int maximumFrameRate = BrowserOptions.builder().frameRate(MAXIMUM_FRAME_RATE).build().getFrameRate();
     assertEquals(MAXIMUM_FRAME_RATE, maximumFrameRate);
@@ -98,7 +101,7 @@ class BrowserOptionsTest {
     final BrowserOptionsBuilder tooFastBuilder = BrowserOptions.builder().frameRate(61);
     final IllegalArgumentException tooFast = assertThrows(IllegalArgumentException.class, tooFastBuilder::build);
     final String message = tooFast.getMessage();
-    assertEquals("Frame rate 61 must be between 1 and 60!", message);
+    assertEquals("Frame rate 61 must be between 1 and 60 frames per second!", message);
   }
 
   @Test
@@ -111,7 +114,7 @@ class BrowserOptionsTest {
       BrowserOptions.builder().privateNetworks(true).build(),
       BrowserOptions.builder().autoplay(true).build(),
       BrowserOptions.builder().confinement(false).build(),
-      BrowserOptions.builder().refusedHosts(List.of("mc.example.com")).build()
+      BrowserOptions.builder().refusedHosts(List.of(REFUSED_HOST)).build()
     );
   }
 
@@ -119,7 +122,8 @@ class BrowserOptionsTest {
   void shouldHashOptionsThatDifferInAValueDifferently() {
     final BrowserOptions slower = BrowserOptions.builder().frameRate(1).build();
     final int slowerHashCode = slower.hashCode();
-    assertNotEquals(BrowserOptions.DEFAULT.hashCode(), slowerHashCode);
+    final int defaultHashCode = BrowserOptions.DEFAULT.hashCode();
+    assertNotEquals(defaultHashCode, slowerHashCode);
   }
 
   @Test

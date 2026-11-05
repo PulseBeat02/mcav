@@ -50,7 +50,12 @@ import org.cef.handler.CefScreenInfo;
  *
  * @since 1.0.0
  */
-public final class McavOffscreenBrowser extends CefBrowser_N implements CefRenderHandler {
+public final class MCAVOffscreenBrowser extends CefBrowser_N implements CefRenderHandler {
+
+  private static final long NO_WINDOW_HANDLE = 0L;
+
+  private static final boolean WINDOWLESS = true;
+  private static final boolean OPAQUE = false;
 
   private static final Component DETACHED = new DetachedComponent();
 
@@ -62,7 +67,7 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
   private boolean focused;
 
   /**
-   * Constructs a browser. It is created in CEF by {@link #createImmediately()}.
+   * Creates a browser, which {@link #createImmediately()} then creates in CEF.
    *
    * @param client   the client the browser belongs to
    * @param url      the page to open
@@ -72,7 +77,7 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
    * @param settings the settings of the browser, such as its frame rate
    * @since 1.0.0
    */
-  public McavOffscreenBrowser(
+  public MCAVOffscreenBrowser(
     final CefClient client,
     final String url,
     final int width,
@@ -83,6 +88,7 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
     super(client, url, null, null, null, settings);
     this.viewBounds = new Rectangle(0, 0, width, height);
     this.listener = listener;
+    this.focused = false;
   }
 
   /**
@@ -95,12 +101,18 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
     final CefClient client = this.getClient();
     final String url = this.getUrl();
     final CefRequestContext context = this.getRequestContext();
-    this.createBrowser(client, 0L, url, true, false, null, context);
+    this.createBrowser(client, NO_WINDOW_HANDLE, url, WINDOWLESS, OPAQUE, null, context);
   }
 
   /**
    * Refuses to open developer tools, which would need a window.
    *
+   * @param client    ignored
+   * @param url       ignored
+   * @param context   ignored
+   * @param parent    ignored
+   * @param inspectAt ignored
+   * @return never, as it always throws
    * @throws UnsupportedOperationException always
    * @since 1.0.0
    */
@@ -125,7 +137,8 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
    */
   @Override
   public CompletableFuture<BufferedImage> createScreenshot(final boolean nativeResolution) {
-    final UnsupportedOperationException failure = new UnsupportedOperationException("Screenshots are taken from the painted frames!");
+    final String message = "Screenshots are taken from the painted frames!";
+    final UnsupportedOperationException failure = new UnsupportedOperationException(message);
     return CompletableFuture.failedFuture(failure);
   }
 
@@ -208,12 +221,12 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
    * Tells the listener where a popup widget is drawn.
    *
    * @param browser the browser, which is this one
-   * @param size    the bounds of the popup on the page
+   * @param bounds  the bounds of the popup on the page
    * @since 1.0.0
    */
   @Override
-  public void onPopupSize(final CefBrowser browser, final Rectangle size) {
-    this.listener.onPopupSize(size);
+  public void onPopupSize(final CefBrowser browser, final Rectangle bounds) {
+    this.listener.onPopupSize(bounds);
   }
 
   /**
@@ -335,12 +348,12 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
   }
 
   /**
-   * Returns whether the browser has focus, as far as this browser told CEF.
+   * Returns whether the browser is focused, as far as this browser told CEF.
    *
    * @return true if the browser has focus
    * @since 1.0.0
    */
-  public synchronized boolean hasFocus() {
+  public synchronized boolean isFocused() {
     return this.focused;
   }
 

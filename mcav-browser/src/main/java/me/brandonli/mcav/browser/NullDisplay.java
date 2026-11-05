@@ -35,6 +35,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileAttribute;
+import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
@@ -53,6 +55,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 // loopback only, admits only clients with the cookie of its authority file, and bounds requests, connections and atoms.
 final class NullDisplay implements AutoCloseable {
 
+  private static final String ACCEPT_THREAD_NAME = "mcav-browser-null-display";
+  private static final String CLIENT_THREAD_NAME = "mcav-browser-null-display-client";
+
   static final int X11_BASE_PORT = 6000;
 
   static final String AUTHORITY_FILE = "Xauthority";
@@ -66,6 +71,7 @@ final class NullDisplay implements AutoCloseable {
 
   // so a client without the cookie cannot hold a connection; an introduced one may stay quiet
   private static final int SETUP_TIMEOUT_MILLISECONDS = 10_000;
+  private static final int NO_TIMEOUT = 0;
 
   static final int MAXIMUM_ATOMS = 4_096;
 
@@ -95,20 +101,20 @@ final class NullDisplay implements AutoCloseable {
 
   // core requests with a reply (X Window System Protocol, chapter 9)
   private static final Set<Integer> REPLYING = Set.of(
-    3,
-    14,
-    15,
-    16,
-    17,
-    20,
+    GET_WINDOW_ATTRIBUTES,
+    GET_GEOMETRY,
+    QUERY_TREE,
+    INTERN_ATOM,
+    GET_ATOM_NAME,
+    GET_PROPERTY,
     21,
     23,
     26,
     31,
-    38,
+    QUERY_POINTER,
     39,
     40,
-    43,
+    GET_INPUT_FOCUS,
     44,
     47,
     48,
@@ -124,9 +130,9 @@ final class NullDisplay implements AutoCloseable {
     91,
     92,
     97,
-    98,
-    99,
-    101,
+    QUERY_EXTENSION,
+    LIST_EXTENSIONS,
+    GET_KEYBOARD_MAPPING,
     103,
     106,
     108,
@@ -134,7 +140,7 @@ final class NullDisplay implements AutoCloseable {
     116,
     117,
     118,
-    119
+    GET_MODIFIER_MAPPING
   );
 
   // numbered from 1 (X Window System Protocol, appendix B)
@@ -216,10 +222,13 @@ final class NullDisplay implements AutoCloseable {
   private static final int ROOT = 0x100;
   private static final int COLORMAP = 0x20;
   private static final int VISUAL = 0x21;
+
   private static final int SCREEN_WIDTH = 1920;
   private static final int SCREEN_HEIGHT = 1080;
+
   private static final int MINIMUM_KEY_CODE = 8;
   private static final int MAXIMUM_KEY_CODE = 255;
+
   private static final byte[] VENDOR = "mcav null display".getBytes(StandardCharsets.US_ASCII);
 
   private static final String POSIX_ATTRIBUTE_VIEW = "posix";
@@ -227,7 +236,7 @@ final class NullDisplay implements AutoCloseable {
 
   private static final byte[] LOOPBACK_ADDRESS = { 127, 0, 0, 1 };
   private static final int MAXIMUM_BIND_ATTEMPTS = 64;
-  private static final String DISPLAY_SEPARATOR = ":";
+  private static final int EPHEMERAL_PORT = 0;
 
   private static final int UNSIGNED_BYTE_MASK = 0xFF;
   private static final int UNSIGNED_SHORT_MASK = 0xFFFF;
@@ -235,13 +244,15 @@ final class NullDisplay implements AutoCloseable {
   private static final int UNIT_BYTES = 4;
   private static final int MESSAGE_BYTES = 32;
 
+  private static final int NO_ATOM = 0;
+
   private static final int FIRST_EXTENSION_OPCODE = 128;
 
   private static final int LITTLE_ENDIAN_ORDER = 'l';
   private static final int BIG_ENDIAN_ORDER = 'B';
 
-  private static final int SETUP_HEAD_BYTES = 11;
-  private static final int SETUP_HEADER_BYTES = 8;
+  private static final int SETUP_REQUEST_BYTES = 11;
+  private static final int SETUP_REPLY_HEADER_BYTES = 8;
   private static final int SETUP_FIXED_BYTES = 32;
 
   private static final int SETUP_FAILED = 0;
@@ -254,8 +265,11 @@ final class NullDisplay implements AutoCloseable {
   private static final int RESOURCE_ID_BASE = 0x00400000;
   private static final int RESOURCE_ID_MASK = 0x001FFFFF;
   private static final int SCREEN_COUNT = 1;
+  private static final int NO_MOTION_BUFFER = 0;
+
   private static final int LEAST_SIGNIFICANT_FIRST = 0;
   private static final int MOST_SIGNIFICANT_FIRST = 1;
+
   private static final int SCANLINE_BITS = 32;
 
   // depth and bits per pixel of each pixmap format
@@ -263,13 +277,16 @@ final class NullDisplay implements AutoCloseable {
   private static final int PIXMAP_FORMAT_BYTES = 8;
   private static final int PIXMAP_FORMAT_PADDING_BYTES = 5;
 
+  private static final int NO_INPUT_MASKS = 0;
+  private static final int NEVER_BACKING_STORE = 0;
+  private static final int NO_SAVE_UNDERS = 0;
   private static final int SCREEN_BYTES = 40;
   private static final int DEPTH_BYTES = 8;
   private static final int VISUAL_BYTES = 24;
   private static final int WHITE_PIXEL = 0xFFFFFF;
   private static final int BLACK_PIXEL = 0;
-  private static final int SCREEN_WIDTH_MILLIMETRES = 508;
-  private static final int SCREEN_HEIGHT_MILLIMETRES = 286;
+  private static final int SCREEN_WIDTH_MILLIMETERS = 508;
+  private static final int SCREEN_HEIGHT_MILLIMETERS = 286;
   private static final int INSTALLED_COLORMAPS = 1;
   private static final int ROOT_DEPTH = 24;
   private static final int VISUAL_LESS_DEPTH = 32;
@@ -279,12 +296,16 @@ final class NullDisplay implements AutoCloseable {
   private static final int TRUE_COLOR = 4;
   private static final int BITS_PER_RGB_VALUE = 8;
   private static final int COLORMAP_ENTRIES = 256;
+
   private static final int RED_MASK = 0xFF0000;
   private static final int GREEN_MASK = 0x00FF00;
   private static final int BLUE_MASK = 0x0000FF;
 
   private static final int REPLY = 1;
   private static final int ERROR = 0;
+
+  private static final int TYPE_OFFSET = 0;
+  private static final int DATA_OFFSET = 1;
   private static final int SEQUENCE_OFFSET = 2;
   private static final int LENGTH_OFFSET = 4;
   private static final int REPLY_BODY_OFFSET = 8;
@@ -333,10 +354,12 @@ final class NullDisplay implements AutoCloseable {
     try {
       final byte[] cookie = createCookie();
       writeAuthority(authority, cookie);
+
       final NullDisplay display = new NullDisplay(server, cookie, setupTimeoutMilliseconds);
-      final Thread thread = new Thread(display::acceptConnections, "mcav-browser-null-display");
+      final Thread thread = new Thread(display::acceptConnections, ACCEPT_THREAD_NAME);
       thread.setDaemon(true);
       thread.start();
+
       return display;
     } catch (final IOException | RuntimeException exception) {
       server.close();
@@ -362,7 +385,7 @@ final class NullDisplay implements AutoCloseable {
   private static ServerSocket bindFirstUsable(final IntPredicate usable, final InetAddress loopback, final List<ServerSocket> unusable)
     throws IOException {
     while (unusable.size() < MAXIMUM_BIND_ATTEMPTS) {
-      final ServerSocket candidate = new ServerSocket(0, MAXIMUM_CONNECTIONS, loopback);
+      final ServerSocket candidate = new ServerSocket(EPHEMERAL_PORT, MAXIMUM_CONNECTIONS, loopback);
       final int port = candidate.getLocalPort();
       if (usable.test(port)) {
         return candidate;
@@ -396,7 +419,9 @@ final class NullDisplay implements AutoCloseable {
     final Set<String> views = fileSystem.supportedFileAttributeViews();
     final boolean supportsPosix = views.contains(POSIX_ATTRIBUTE_VIEW);
     if (supportsPosix) {
-      Files.createFile(authority, PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString(OWNER_ONLY_PERMISSIONS)));
+      final Set<PosixFilePermission> permissions = PosixFilePermissions.fromString(OWNER_ONLY_PERMISSIONS);
+      final FileAttribute<Set<PosixFilePermission>> ownerOnly = PosixFilePermissions.asFileAttribute(permissions);
+      Files.createFile(authority, ownerOnly);
     } else {
       Files.createFile(authority);
     }
@@ -438,6 +463,7 @@ final class NullDisplay implements AutoCloseable {
       try {
         client = this.server.accept();
       } catch (final IOException exception) {
+        // an accept failure, including close(), ends the display
         return;
       }
       this.clients.add(client);
@@ -446,7 +472,7 @@ final class NullDisplay implements AutoCloseable {
         this.closeQuietly(evicted);
       }
       Thread.ofVirtual()
-        .name("mcav-browser-null-display-client")
+        .name(CLIENT_THREAD_NAME)
         .start(() -> this.serve(client));
     }
   }
@@ -454,37 +480,46 @@ final class NullDisplay implements AutoCloseable {
   private @Nullable Socket admit(final Socket client) {
     synchronized (this.pending) {
       this.pending.addLast(client);
-      return this.pending.size() > MAXIMUM_PENDING ? this.pending.removeFirst() : null;
+
+      if (this.pending.size() <= MAXIMUM_PENDING) {
+        return null;
+      }
+
+      return this.pending.removeFirst();
     }
   }
 
-  private void introduced(final Socket client) {
+  private void removeFromPending(final Socket client) {
     synchronized (this.pending) {
       this.pending.remove(client);
     }
   }
 
   private void serve(final Socket client) {
-    boolean slot = false;
+    boolean slotAcquired = false;
     try (client) {
       client.setSoTimeout(this.setupTimeoutMilliseconds);
+
       final InputStream clientInput = client.getInputStream();
       final DataInputStream input = new DataInputStream(new BufferedInputStream(clientInput));
       final OutputStream clientOutput = client.getOutputStream();
       final OutputStream output = new BufferedOutputStream(clientOutput);
-      final ByteOrder order = readSetup(input, output, this.cookie);
-      this.introduced(client);
-      slot = this.slots.tryAcquire();
-      if (slot) {
-        client.setSoTimeout(0);
+      final ByteOrder order = answerSetup(input, output, this.cookie);
+
+      this.removeFromPending(client);
+
+      slotAcquired = this.slots.tryAcquire();
+
+      if (slotAcquired) {
+        client.setSoTimeout(NO_TIMEOUT);
         serveRequests(input, output, order, this.atoms);
       }
     } catch (final IOException exception) {
       // the client left or broke the protocol: its connection ends
     } finally {
-      this.introduced(client);
+      this.removeFromPending(client);
       this.clients.remove(client);
-      if (slot) {
+      if (slotAcquired) {
         this.slots.release();
       }
     }
@@ -493,7 +528,7 @@ final class NullDisplay implements AutoCloseable {
   @VisibleForTesting
   static void serve(final InputStream clientInput, final OutputStream output, final byte[] cookie, final Atoms atoms) throws IOException {
     final DataInputStream input = new DataInputStream(clientInput);
-    final ByteOrder order = readSetup(input, output, cookie);
+    final ByteOrder order = answerSetup(input, output, cookie);
     serveRequests(input, output, order, atoms);
   }
 
@@ -506,15 +541,7 @@ final class NullDisplay implements AutoCloseable {
         return;
       }
       final int data = input.readUnsignedByte();
-      final byte[] lengthBytes = new byte[Short.BYTES];
-      input.readFully(lengthBytes);
-      final ByteBuffer lengthBuffer = ByteBuffer.wrap(lengthBytes).order(order);
-      final int units = lengthBuffer.getShort() & UNSIGNED_SHORT_MASK;
-      if (units == 0 || units > MAXIMUM_REQUEST_UNITS) {
-        // no BIG-REQUESTS extension, so no longer requests
-        final String message = "A request of %s units must have 1 to %s units!".formatted(units, MAXIMUM_REQUEST_UNITS);
-        throw new ProtocolException(message);
-      }
+      final int units = readRequestUnits(input, order);
       final byte[] body = new byte[units * UNIT_BYTES - UNIT_BYTES];
       input.readFully(body);
       sequence = (sequence + 1) & UNSIGNED_SHORT_MASK;
@@ -526,17 +553,23 @@ final class NullDisplay implements AutoCloseable {
     }
   }
 
-  private static ByteOrder readSetup(final DataInputStream input, final OutputStream output, final byte[] cookie) throws IOException {
-    final int orderByte = input.readUnsignedByte();
-    final ByteOrder order = switch (orderByte) {
-      case LITTLE_ENDIAN_ORDER -> ByteOrder.LITTLE_ENDIAN;
-      case BIG_ENDIAN_ORDER -> ByteOrder.BIG_ENDIAN;
-      default -> {
-        final String message = "Byte order %s of the connection setup is unknown!".formatted(orderByte);
-        throw new ProtocolException(message);
-      }
-    };
-    final byte[] head = new byte[SETUP_HEAD_BYTES];
+  private static int readRequestUnits(final DataInputStream input, final ByteOrder order) throws IOException {
+    final byte[] lengthBytes = new byte[Short.BYTES];
+    input.readFully(lengthBytes);
+    final ByteBuffer lengthBuffer = ByteBuffer.wrap(lengthBytes).order(order);
+    final int units = lengthBuffer.getShort() & UNSIGNED_SHORT_MASK;
+    if (units == 0 || units > MAXIMUM_REQUEST_UNITS) {
+      // no BIG-REQUESTS extension, so no longer requests
+      final String message = "A request of %s units must have 1 to %s units!".formatted(units, MAXIMUM_REQUEST_UNITS);
+      throw new ProtocolException(message);
+    }
+
+    return units;
+  }
+
+  private static ByteOrder answerSetup(final DataInputStream input, final OutputStream output, final byte[] cookie) throws IOException {
+    final ByteOrder order = readByteOrder(input);
+    final byte[] head = new byte[SETUP_REQUEST_BYTES];
     input.readFully(head);
     final ByteBuffer setup = ByteBuffer.wrap(head).order(order);
     setup.get();
@@ -551,13 +584,13 @@ final class NullDisplay implements AutoCloseable {
 
     final byte[] name = readPadded(input, nameLength);
     final byte[] presented = readPadded(input, dataLength);
-    final boolean named = COOKIE_NAME.equals(new String(name, StandardCharsets.US_ASCII));
-    // constant time, so timing cannot reveal the cookie
-    final boolean matches = MessageDigest.isEqual(presented, cookie);
-    if (major != X11_MAJOR_VERSION || !named || !matches) {
-      final String reason = major != X11_MAJOR_VERSION ? "only X11 is spoken here" : "the cookie of the display is missing";
+    final boolean cookiePresented = isCookiePresented(name, presented, cookie);
+    final boolean supportedVersion = major == X11_MAJOR_VERSION;
+    if (!supportedVersion || !cookiePresented) {
+      final String reason = !supportedVersion ? "only X11 is spoken here" : "the cookie of the display is missing";
       writeRefusal(output, order, reason);
-      final String message = "A client was refused, because %s!".formatted(reason);
+
+      final String message = "Because %s, a client was refused!".formatted(reason);
       throw new ProtocolException(message);
     }
 
@@ -565,6 +598,26 @@ final class NullDisplay implements AutoCloseable {
     send(output, accepted);
 
     return order;
+  }
+
+  private static ByteOrder readByteOrder(final DataInputStream input) throws IOException {
+    final int orderByte = input.readUnsignedByte();
+    return switch (orderByte) {
+      case LITTLE_ENDIAN_ORDER -> ByteOrder.LITTLE_ENDIAN;
+      case BIG_ENDIAN_ORDER -> ByteOrder.BIG_ENDIAN;
+      default -> {
+        final String message = "Byte order %s of the connection setup is unknown!".formatted(orderByte);
+        throw new ProtocolException(message);
+      }
+    };
+  }
+
+  private static boolean isCookiePresented(final byte[] name, final byte[] presented, final byte[] cookie) {
+    final String method = new String(name, StandardCharsets.US_ASCII);
+    final boolean named = COOKIE_NAME.equals(method);
+    // constant time, so timing cannot reveal the cookie
+    final boolean matches = MessageDigest.isEqual(presented, cookie);
+    return named && matches;
   }
 
   private static void send(final OutputStream output, final ByteBuffer message) throws IOException {
@@ -575,52 +628,61 @@ final class NullDisplay implements AutoCloseable {
   private static byte[] readPadded(final DataInputStream input, final int length) throws IOException {
     final byte[] value = new byte[length];
     input.readFully(value);
-    input.readFully(new byte[pad(length)]);
+    final int padding = countPaddingBytes(length);
+    input.skipNBytes(padding);
 
     return value;
   }
 
-  private static int pad(final int length) {
+  private static int countPaddingBytes(final int length) {
     return (UNIT_BYTES - (length % UNIT_BYTES)) % UNIT_BYTES;
   }
 
   private static void writeRefusal(final OutputStream output, final ByteOrder order, final String reason) throws IOException {
     final byte[] text = reason.getBytes(StandardCharsets.US_ASCII);
-    final int padded = text.length + pad(text.length);
-    final ByteBuffer refusal = ByteBuffer.allocate(SETUP_HEADER_BYTES + padded).order(order);
+    final int padded = text.length + countPaddingBytes(text.length);
+    final ByteBuffer refusal = ByteBuffer.allocate(SETUP_REPLY_HEADER_BYTES + padded).order(order);
     refusal.put((byte) SETUP_FAILED);
     refusal.put((byte) text.length);
     refusal.putShort((short) X11_MAJOR_VERSION);
     refusal.putShort((short) X11_MINOR_VERSION);
     refusal.putShort((short) (padded / UNIT_BYTES));
     refusal.put(text);
-    output.write(refusal.array());
-    output.flush();
+
+    send(output, refusal);
   }
 
   @VisibleForTesting
   static ByteBuffer createSetupReply(final ByteOrder order) {
-    final int vendorPadded = VENDOR.length + pad(VENDOR.length);
+    final int vendorPadded = VENDOR.length + countPaddingBytes(VENDOR.length);
     final int formats = PIXMAP_FORMATS.length * PIXMAP_FORMAT_BYTES;
     final int screen = SCREEN_BYTES + DEPTH_BYTES + VISUAL_BYTES + DEPTH_BYTES;
     final int additional = SETUP_FIXED_BYTES + vendorPadded + formats + screen;
-    final ByteBuffer reply = ByteBuffer.allocate(SETUP_HEADER_BYTES + additional).order(order);
+    final ByteBuffer reply = ByteBuffer.allocate(SETUP_REPLY_HEADER_BYTES + additional).order(order);
     reply.put((byte) SETUP_SUCCESS);
     reply.put((byte) 0);
     reply.putShort((short) X11_MAJOR_VERSION);
     reply.putShort((short) X11_MINOR_VERSION);
     reply.putShort((short) (additional / UNIT_BYTES));
-    // release, resource base and mask, motion buffer, vendor length, request length, screens, formats, image order,
-    // bitmap order, scanline unit and pad, keycodes
+    putSetupFields(reply, order);
+    putPixmapFormats(reply);
+    putScreen(reply);
+    reply.flip();
+
+    return reply;
+  }
+
+  private static void putSetupFields(final ByteBuffer reply, final ByteOrder order) {
     reply.putInt(RELEASE_NUMBER);
     reply.putInt(RESOURCE_ID_BASE);
     reply.putInt(RESOURCE_ID_MASK);
-    reply.putInt(0);
+    reply.putInt(NO_MOTION_BUFFER);
     reply.putShort((short) VENDOR.length);
     reply.putShort((short) MAXIMUM_REQUEST_UNITS);
     reply.put((byte) SCREEN_COUNT);
     reply.put((byte) PIXMAP_FORMATS.length);
-    reply.put((byte) (order == ByteOrder.LITTLE_ENDIAN ? LEAST_SIGNIFICANT_FIRST : MOST_SIGNIFICANT_FIRST));
+    final int imageByteOrder = order == ByteOrder.LITTLE_ENDIAN ? LEAST_SIGNIFICANT_FIRST : MOST_SIGNIFICANT_FIRST;
+    reply.put((byte) imageByteOrder);
     reply.put((byte) LEAST_SIGNIFICANT_FIRST);
     reply.put((byte) SCANLINE_BITS);
     reply.put((byte) SCANLINE_BITS);
@@ -628,29 +690,34 @@ final class NullDisplay implements AutoCloseable {
     reply.put((byte) MAXIMUM_KEY_CODE);
     reply.putInt(0);
     reply.put(VENDOR);
+    final int vendorPadded = VENDOR.length + countPaddingBytes(VENDOR.length);
     reply.put(new byte[vendorPadded - VENDOR.length]);
+  }
+
+  private static void putPixmapFormats(final ByteBuffer reply) {
     for (final int[] format : PIXMAP_FORMATS) {
       reply.put((byte) format[0]);
       reply.put((byte) format[1]);
       reply.put((byte) SCANLINE_BITS);
       reply.put(new byte[PIXMAP_FORMAT_PADDING_BYTES]);
     }
-    // the screen: root, colormap, white and black pixels, input masks, size in pixels and millimetres, installed
-    // colormaps, root visual, backing stores, save unders, root depth and two depths
+  }
+
+  private static void putScreen(final ByteBuffer reply) {
     reply.putInt(ROOT);
     reply.putInt(COLORMAP);
     reply.putInt(WHITE_PIXEL);
     reply.putInt(BLACK_PIXEL);
-    reply.putInt(0);
+    reply.putInt(NO_INPUT_MASKS);
     reply.putShort((short) SCREEN_WIDTH);
     reply.putShort((short) SCREEN_HEIGHT);
-    reply.putShort((short) SCREEN_WIDTH_MILLIMETRES);
-    reply.putShort((short) SCREEN_HEIGHT_MILLIMETRES);
+    reply.putShort((short) SCREEN_WIDTH_MILLIMETERS);
+    reply.putShort((short) SCREEN_HEIGHT_MILLIMETERS);
     reply.putShort((short) INSTALLED_COLORMAPS);
     reply.putShort((short) INSTALLED_COLORMAPS);
     reply.putInt(VISUAL);
-    reply.put((byte) 0);
-    reply.put((byte) 0);
+    reply.put((byte) NEVER_BACKING_STORE);
+    reply.put((byte) NO_SAVE_UNDERS);
     reply.put((byte) ROOT_DEPTH);
     reply.put((byte) DEPTH_COUNT);
     // depth 24 with one TrueColor visual, then depth 32 without visuals
@@ -670,9 +737,6 @@ final class NullDisplay implements AutoCloseable {
     reply.put((byte) 0);
     reply.putShort((short) 0);
     reply.putInt(0);
-    reply.flip();
-
-    return reply;
   }
 
   @VisibleForTesting
@@ -685,8 +749,8 @@ final class NullDisplay implements AutoCloseable {
     final Atoms atoms
   ) {
     return switch (opcode) {
-      case INTERN_ATOM -> internAtom(data, request, sequence, order, atoms);
-      case GET_ATOM_NAME -> atomName(request, sequence, order, atoms);
+      case INTERN_ATOM -> answerInternAtom(data, request, sequence, order, atoms);
+      case GET_ATOM_NAME -> answerGetAtomName(request, sequence, order, atoms);
       // no window has properties
       case GET_PROPERTY -> reply(sequence, order, 0, 0);
       // no extension is there
@@ -694,18 +758,18 @@ final class NullDisplay implements AutoCloseable {
       case LIST_EXTENSIONS -> reply(sequence, order, 0, 0);
       // the focus is None, reverting to None
       case GET_INPUT_FOCUS -> reply(sequence, order, 0, 0);
-      case GET_KEYBOARD_MAPPING -> keyboardMapping(request, sequence, order);
+      case GET_KEYBOARD_MAPPING -> answerGetKeyboardMapping(request, sequence, order);
       // one key code per modifier, none of them set
       case GET_MODIFIER_MAPPING -> reply(sequence, order, KEY_CODES_PER_MODIFIER, MODIFIER_COUNT * KEY_CODES_PER_MODIFIER);
-      case GET_WINDOW_ATTRIBUTES -> windowAttributes(sequence, order);
-      case GET_GEOMETRY -> geometry(sequence, order);
-      case QUERY_TREE -> tree(sequence, order);
-      case QUERY_POINTER -> pointer(sequence, order);
-      default -> unanswered(opcode, sequence, order);
+      case GET_WINDOW_ATTRIBUTES -> answerGetWindowAttributes(sequence, order);
+      case GET_GEOMETRY -> answerGetGeometry(sequence, order);
+      case QUERY_TREE -> answerQueryTree(sequence, order);
+      case QUERY_POINTER -> answerQueryPointer(sequence, order);
+      default -> answerUnsupported(opcode, sequence, order);
     };
   }
 
-  private static @Nullable ByteBuffer unanswered(final int opcode, final int sequence, final ByteOrder order) {
+  private static @Nullable ByteBuffer answerUnsupported(final int opcode, final int sequence, final ByteOrder order) {
     if (opcode >= FIRST_EXTENSION_OPCODE) {
       // an extension, and none was announced
       return error(BAD_REQUEST, opcode, sequence, order, 0);
@@ -719,7 +783,7 @@ final class NullDisplay implements AutoCloseable {
     return null;
   }
 
-  private static ByteBuffer internAtom(
+  private static ByteBuffer answerInternAtom(
     final int data,
     final ByteBuffer request,
     final int sequence,
@@ -741,18 +805,28 @@ final class NullDisplay implements AutoCloseable {
     request.get(name);
     final String text = new String(name, StandardCharsets.ISO_8859_1);
     final boolean onlyIfExists = data != 0;
-    final int atom = onlyIfExists ? atoms.find(text) : atoms.intern(text);
-    if (atom == 0 && !onlyIfExists) {
+    if (onlyIfExists) {
+      final int known = atoms.find(text);
+      return atomReply(sequence, order, known);
+    }
+
+    final int atom = atoms.intern(text);
+
+    if (atom == NO_ATOM) {
       return error(BAD_ALLOC, INTERN_ATOM, sequence, order, 0);
     }
 
+    return atomReply(sequence, order, atom);
+  }
+
+  private static ByteBuffer atomReply(final int sequence, final ByteOrder order, final int atom) {
     final ByteBuffer reply = reply(sequence, order, 0, 0);
     reply.putInt(REPLY_BODY_OFFSET, atom);
 
     return reply;
   }
 
-  private static ByteBuffer atomName(final ByteBuffer request, final int sequence, final ByteOrder order, final Atoms atoms) {
+  private static ByteBuffer answerGetAtomName(final ByteBuffer request, final int sequence, final ByteOrder order, final Atoms atoms) {
     if (request.remaining() < UNIT_BYTES) {
       return error(BAD_LENGTH, GET_ATOM_NAME, sequence, order, 0);
     }
@@ -764,14 +838,14 @@ final class NullDisplay implements AutoCloseable {
     }
 
     final byte[] bytes = name.getBytes(StandardCharsets.ISO_8859_1);
-    final ByteBuffer reply = reply(sequence, order, 0, bytes.length + pad(bytes.length));
+    final ByteBuffer reply = reply(sequence, order, 0, bytes.length + countPaddingBytes(bytes.length));
     reply.putShort(REPLY_BODY_OFFSET, (short) bytes.length);
     reply.put(MESSAGE_BYTES, bytes);
 
     return reply;
   }
 
-  private static ByteBuffer keyboardMapping(final ByteBuffer request, final int sequence, final ByteOrder order) {
+  private static ByteBuffer answerGetKeyboardMapping(final ByteBuffer request, final int sequence, final ByteOrder order) {
     // the first key code, the count and two unused bytes
     if (request.remaining() < UNIT_BYTES) {
       return error(BAD_LENGTH, GET_KEYBOARD_MAPPING, sequence, order, 0);
@@ -783,7 +857,7 @@ final class NullDisplay implements AutoCloseable {
     return reply(sequence, order, KEY_SYMBOLS_PER_KEY_CODE, Integer.BYTES * KEY_SYMBOLS_PER_KEY_CODE * count);
   }
 
-  private static ByteBuffer windowAttributes(final int sequence, final ByteOrder order) {
+  private static ByteBuffer answerGetWindowAttributes(final int sequence, final ByteOrder order) {
     // backing store NotUseful, the visual, class InputOutput, gravities, planes, pixel, save under, map installed,
     // map state Unmapped, override redirect, colormap and event masks
     final ByteBuffer reply = reply(sequence, order, 0, WINDOW_ATTRIBUTES_EXTRA_BYTES);
@@ -794,7 +868,7 @@ final class NullDisplay implements AutoCloseable {
     return reply;
   }
 
-  private static ByteBuffer geometry(final int sequence, final ByteOrder order) {
+  private static ByteBuffer answerGetGeometry(final int sequence, final ByteOrder order) {
     // the depth in the second byte, then the root, the position, the size and the border width
     final ByteBuffer reply = reply(sequence, order, ROOT_DEPTH, 0);
     reply.putInt(REPLY_BODY_OFFSET, ROOT);
@@ -804,7 +878,7 @@ final class NullDisplay implements AutoCloseable {
     return reply;
   }
 
-  private static ByteBuffer tree(final int sequence, final ByteOrder order) {
+  private static ByteBuffer answerQueryTree(final int sequence, final ByteOrder order) {
     // the root, no parent and no children
     final ByteBuffer reply = reply(sequence, order, 0, 0);
     reply.putInt(REPLY_BODY_OFFSET, ROOT);
@@ -812,7 +886,7 @@ final class NullDisplay implements AutoCloseable {
     return reply;
   }
 
-  private static ByteBuffer pointer(final int sequence, final ByteOrder order) {
+  private static ByteBuffer answerQueryPointer(final int sequence, final ByteOrder order) {
     // on this screen, over the root at the origin, with no button held
     final ByteBuffer reply = reply(sequence, order, SAME_SCREEN, 0);
     reply.putInt(REPLY_BODY_OFFSET, ROOT);
@@ -822,8 +896,8 @@ final class NullDisplay implements AutoCloseable {
 
   private static ByteBuffer reply(final int sequence, final ByteOrder order, final int data, final int extra) {
     final ByteBuffer reply = ByteBuffer.allocate(MESSAGE_BYTES + extra).order(order);
-    reply.put(0, (byte) REPLY);
-    reply.put(1, (byte) data);
+    reply.put(TYPE_OFFSET, (byte) REPLY);
+    reply.put(DATA_OFFSET, (byte) data);
     reply.putShort(SEQUENCE_OFFSET, (short) sequence);
     reply.putInt(LENGTH_OFFSET, extra / UNIT_BYTES);
 
@@ -832,8 +906,8 @@ final class NullDisplay implements AutoCloseable {
 
   private static ByteBuffer error(final int code, final int opcode, final int sequence, final ByteOrder order, final int value) {
     final ByteBuffer error = ByteBuffer.allocate(MESSAGE_BYTES).order(order);
-    error.put(0, (byte) ERROR);
-    error.put(1, (byte) code);
+    error.put(TYPE_OFFSET, (byte) ERROR);
+    error.put(DATA_OFFSET, (byte) code);
     error.putShort(SEQUENCE_OFFSET, (short) sequence);
     error.putInt(ERROR_VALUE_OFFSET, value);
     error.put(ERROR_OPCODE_OFFSET, (byte) opcode);
@@ -857,7 +931,9 @@ final class NullDisplay implements AutoCloseable {
   String getDisplay() {
     final InetAddress address = this.server.getInetAddress();
     final String host = address.getHostAddress();
-    return host + DISPLAY_SEPARATOR + (this.server.getLocalPort() - X11_BASE_PORT);
+    final int port = this.server.getLocalPort();
+    final int displayNumber = port - X11_BASE_PORT;
+    return "%s:%s".formatted(host, displayNumber);
   }
 
   static final class Atoms {
@@ -870,13 +946,14 @@ final class NullDisplay implements AutoCloseable {
     Atoms() {
       this.ids = new ConcurrentHashMap<>();
       this.names = new ArrayList<>();
+      this.bytes = 0;
       for (final String name : PREDEFINED_ATOMS) {
         this.intern(name);
       }
     }
 
     synchronized int find(final String name) {
-      return this.ids.getOrDefault(name, 0);
+      return this.ids.getOrDefault(name, NO_ATOM);
     }
 
     synchronized int intern(final String name) {
@@ -886,13 +963,14 @@ final class NullDisplay implements AutoCloseable {
       }
 
       if (this.names.size() >= MAXIMUM_ATOMS || this.bytes + name.length() > MAXIMUM_ATOM_BYTES) {
-        return 0;
+        return NO_ATOM;
       }
 
       this.bytes += name.length();
       this.names.add(name);
       final int atom = this.names.size();
       this.ids.put(name, atom);
+
       return atom;
     }
 

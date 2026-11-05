@@ -24,7 +24,7 @@ plugins {
     id("mcav.mutation")
 }
 
-val testNodeProperty: String = "mcav.testNode"
+val testNodeProperty: String = "mcav.test_node"
 
 val node: NodeExtension = rootProject.extensions.getByType<NodeExtension>()
 val nodeSetup: TaskProvider<Task> = rootProject.tasks.named(NodeLayout.SETUP_TASK_NAME)

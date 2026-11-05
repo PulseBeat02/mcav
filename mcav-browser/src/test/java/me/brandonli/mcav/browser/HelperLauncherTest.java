@@ -58,8 +58,37 @@ import org.junit.jupiter.api.io.TempDir;
 
 class HelperLauncherTest {
 
+  private static final String BROWSER_JAR_FILE = "/libs/mcav-browser.jar";
+  private static final String JCEF_API_JAR_FILE = "/libs/jcef-api.jar";
+  private static final String SYSTEM_PROGRAMS_FOLDER = "/usr/bin";
+  private static final String LIBRARY_SEARCH_FOLDER = "/opt/x";
+  private static final String TEMPORARY_FOLDER = "/var/tmp";
+  private static final String LIBRARIES_FOLDER = "lib";
+  private static final String CLASS_FILE_SUFFIX = ".class";
+  private static final String WINDOWS_JAVA_EXECUTABLE = "java.exe";
+  private static final String JAVA_PACKAGE_PREFIX = "java/";
+  private static final String JAVAX_PACKAGE_PREFIX = "javax/";
+  private static final String JDK_PACKAGE_PREFIX = "jdk/";
+  private static final String CEF_PACKAGE_PREFIX = "org/cef/";
+  private static final String JCEF_MAVEN_PACKAGE_PREFIX = "me/friwi/jcefmaven/";
+  private static final String JCEF_API_PREFIX = "jcef-api";
+
+  private static final String RESOURCE_ROOT = "/";
+
+  private static final String JAVA_AGENT_OPTION = "-javaagent:/agent.jar";
+
+  private static final String CLASS_PATH_OPTION = "-cp";
+
+  private static final long START_TIMEOUT_MILLISECONDS = 5_000L;
+
+  private static final char PACKAGE_SEPARATOR = '.';
+
+  private static final char RESOURCE_SEPARATOR = '/';
+
+  private static final String JAVA_HOME_PROPERTY = "java.home";
+
   private static final Path JAVA = Path.of("/opt/java/bin/java");
-  private static final List<Path> CLASS_PATH = List.of(Path.of("/libs/mcav-browser.jar"), Path.of("/libs/jcef-api.jar"));
+  private static final List<Path> CLASS_PATH = List.of(Path.of(BROWSER_JAR_FILE), Path.of(JCEF_API_JAR_FILE));
 
   private static final String BROWSER_PACKAGE = "me/brandonli/mcav/browser/";
   private static final Pattern DESCRIBED_TYPE = Pattern.compile("L([^;<]+)[;<]");
@@ -71,7 +100,15 @@ class HelperLauncherTest {
   private Path folder;
 
   private HelperLauncher launcher(final Os os, final Map<String, String> environment) {
-    return new HelperLauncher(JAVA, HelperLauncher.MAIN_CLASS, CLASS_PATH, List.of("-javaagent:/agent.jar"), os, environment, 5_000L);
+    return new HelperLauncher(
+      JAVA,
+      HelperLauncher.MAIN_CLASS,
+      CLASS_PATH,
+      List.of(JAVA_AGENT_OPTION),
+      os,
+      environment,
+      START_TIMEOUT_MILLISECONDS
+    );
   }
 
   @Test
@@ -79,7 +116,8 @@ class HelperLauncherTest {
     final Path session = SESSION_FOLDER;
     final List<String> command = this.launcher(Os.LINUX, Map.of()).createCommand(session);
     final String javaProgram = command.getFirst();
-    assertEquals(JAVA.toString(), javaProgram);
+    final String expectedJavaProgram = JAVA.toString();
+    assertEquals(expectedJavaProgram, javaProgram);
 
     final boolean runsHeadless = command.contains("-Djava.awt.headless=true");
     assertTrue(runsHeadless);
@@ -93,70 +131,86 @@ class HelperLauncherTest {
     final boolean temporaryFolderInTheSession = command.contains("-Djava.io.tmpdir=" + session);
     assertTrue(temporaryFolderInTheSession);
 
-    final boolean agentPassedOn = command.contains("-javaagent:/agent.jar");
+    final boolean agentPassedOn = command.contains(JAVA_AGENT_OPTION);
     assertTrue(agentPassedOn);
 
-    final int classPath = command.indexOf("-cp");
+    final int classPath = command.indexOf(CLASS_PATH_OPTION);
     final String joinedClassPath = command.get(classPath + 1);
-    assertEquals(Path.of("/libs/mcav-browser.jar") + File.pathSeparator + Path.of("/libs/jcef-api.jar"), joinedClassPath);
+    final String expectedJoinedClassPath = Path.of(BROWSER_JAR_FILE) + File.pathSeparator + Path.of(JCEF_API_JAR_FILE);
+    assertEquals(expectedJoinedClassPath, joinedClassPath);
 
     final String mainClass = command.getLast();
     assertEquals(HelperLauncher.MAIN_CLASS, mainClass);
-    assertEquals(BrowserHelper.class.getName(), HelperLauncher.MAIN_CLASS);
+    final String expectedMainClass = BrowserHelper.class.getName();
+    assertEquals(expectedMainClass, HelperLauncher.MAIN_CLASS);
   }
 
   @Test
   void shouldKeepLittleOfTheEnvironmentAndNeverTheDisplayOfTheServer() throws IOException {
     final Map<String, String> server = Map.of(
       "PATH",
-      "/usr/bin",
+      SYSTEM_PROGRAMS_FOLDER,
       "DISCORD_TOKEN",
       "secret",
       "DISPLAY",
       ":0",
       "LD_LIBRARY_PATH",
-      "/opt/x",
+      LIBRARY_SEARCH_FOLDER,
       "TMPDIR",
-      "/var/tmp"
+      TEMPORARY_FOLDER
     );
     final HelperLauncher linux = this.launcher(Os.LINUX, server);
     final Path authority = this.folder.resolve(NullDisplay.AUTHORITY_FILE);
     final String session = this.folder.toString();
     final Map<String, String> linuxEnvironment = linux.createEnvironment(this.folder, null);
-    assertEquals(
-      Map.of("PATH", "/usr/bin", "XAUTHORITY", authority.toString(), "TMPDIR", session, "XDG_DATA_HOME", session),
-      linuxEnvironment
+    final Map<String, String> expectedLinuxEnvironment = Map.of(
+      "PATH",
+      SYSTEM_PROGRAMS_FOLDER,
+      "XAUTHORITY",
+      authority.toString(),
+      "TMPDIR",
+      session,
+      "XDG_DATA_HOME",
+      session
     );
+    assertEquals(expectedLinuxEnvironment, linuxEnvironment);
 
-    final Path libraries = this.folder.resolve("lib");
+    final Path libraries = this.folder.resolve(LIBRARIES_FOLDER);
     final Map<String, String> linuxEnvironmentWithLibraries = linux.createEnvironment(this.folder, libraries);
-    assertEquals(
-      Map.of(
-        "PATH",
-        "/usr/bin",
-        "XAUTHORITY",
-        authority.toString(),
-        "TMPDIR",
-        session,
-        "XDG_DATA_HOME",
-        session,
-        "LD_LIBRARY_PATH",
-        libraries.toString()
-      ),
-      linuxEnvironmentWithLibraries
+    final Map<String, String> expectedLinuxEnvironmentWithLibraries = Map.of(
+      "PATH",
+      SYSTEM_PROGRAMS_FOLDER,
+      "XAUTHORITY",
+      authority.toString(),
+      "TMPDIR",
+      session,
+      "XDG_DATA_HOME",
+      session,
+      "LD_LIBRARY_PATH",
+      libraries.toString()
     );
+    assertEquals(expectedLinuxEnvironmentWithLibraries, linuxEnvironmentWithLibraries);
 
     final Map<String, String> macEnvironment = this.launcher(Os.MAC, server).createEnvironment(this.folder, null);
-    assertEquals(Map.of("PATH", "/usr/bin", "TMPDIR", session, "MAC_CHROMIUM_TMPDIR", session), macEnvironment);
+    final Map<String, String> expectedMacEnvironment = Map.of(
+      "PATH",
+      SYSTEM_PROGRAMS_FOLDER,
+      "TMPDIR",
+      session,
+      "MAC_CHROMIUM_TMPDIR",
+      session
+    );
+    assertEquals(expectedMacEnvironment, macEnvironment);
 
     final Map<String, String> windowsEnvironment = this.launcher(Os.WINDOWS, server).createEnvironment(this.folder, null);
-    assertEquals(Map.of("PATH", "/usr/bin", "TMPDIR", "/var/tmp"), windowsEnvironment);
+    final Map<String, String> expectedWindowsEnvironment = Map.of("PATH", SYSTEM_PROGRAMS_FOLDER, "TMPDIR", TEMPORARY_FOLDER);
+    assertEquals(expectedWindowsEnvironment, windowsEnvironment);
 
     final Os operatingSystem = linux.getOs();
     assertEquals(Os.LINUX, operatingSystem);
 
     final long startTimeoutMilliseconds = linux.getStartTimeoutMilliseconds();
-    assertEquals(5_000L, startTimeoutMilliseconds);
+    assertEquals(START_TIMEOUT_MILLISECONDS, startTimeoutMilliseconds);
   }
 
   @Test
@@ -165,8 +219,8 @@ class HelperLauncherTest {
     final @Nullable Path plainLibraries = plain.linkLibraries(this.folder);
     assertNull(plainLibraries);
 
-    final Path linked = this.folder.resolve("lib");
-    final HelperLauncher withLibraries = plain.withLibraries(session -> Files.createDirectory(session.resolve("lib")));
+    final Path linked = this.folder.resolve(LIBRARIES_FOLDER);
+    final HelperLauncher withLibraries = plain.withLibraries(session -> Files.createDirectory(session.resolve(LIBRARIES_FOLDER)));
     final @Nullable Path linkedLibraries = withLibraries.linkLibraries(this.folder);
     assertEquals(linked, linkedLibraries);
 
@@ -174,10 +228,12 @@ class HelperLauncherTest {
     assertTrue(linkedFolderExists);
 
     final List<String> commandWithLibraries = withLibraries.createCommand(this.folder);
-    assertEquals(plain.createCommand(this.folder), commandWithLibraries);
+    final List<String> expectedCommand = plain.createCommand(this.folder);
+    assertEquals(expectedCommand, commandWithLibraries);
 
     final long startTimeoutMilliseconds = withLibraries.getStartTimeoutMilliseconds();
-    assertEquals(plain.getStartTimeoutMilliseconds(), startTimeoutMilliseconds);
+    final long expectedStartTimeoutMilliseconds = plain.getStartTimeoutMilliseconds();
+    assertEquals(expectedStartTimeoutMilliseconds, startTimeoutMilliseconds);
 
     final Os operatingSystem = withLibraries.getOs();
     assertEquals(Os.LINUX, operatingSystem);
@@ -186,7 +242,7 @@ class HelperLauncherTest {
   @Test
   void shouldLocateClassesByWhereTheyWereLoadedFrom() {
     final Path jcef = HelperLauncher.locate(CefApp.class);
-    final boolean namedJcefApi = jcef.getFileName().toString().startsWith("jcef-api");
+    final boolean namedJcefApi = jcef.getFileName().toString().startsWith(JCEF_API_PREFIX);
     assertTrue(namedJcefApi, jcef.toString());
 
     final Path browser = HelperLauncher.locate(BrowserHelper.class);
@@ -202,7 +258,11 @@ class HelperLauncherTest {
   void shouldNotAcceptAClassLoadedFromTheNetworkAsAHelperClassPath() throws Exception {
     final String name = Loaded.class.getName();
     final byte[] bytes;
-    try (final InputStream input = Loaded.class.getResourceAsStream("/" + name.replace('.', '/') + ".class")) {
+    try (
+      final InputStream input = Loaded.class.getResourceAsStream(
+        RESOURCE_ROOT + name.replace(PACKAGE_SEPARATOR, RESOURCE_SEPARATOR) + CLASS_FILE_SUFFIX
+      )
+    ) {
       bytes = input.readAllBytes();
     }
 
@@ -228,7 +288,7 @@ class HelperLauncherTest {
   @Test
   void shouldNameTheJvmProgramForItsSystem() {
     final String windowsExecutable = HelperLauncher.javaExecutable(Os.WINDOWS);
-    assertEquals("java.exe", windowsExecutable);
+    assertEquals(WINDOWS_JAVA_EXECUTABLE, windowsExecutable);
 
     final String linuxExecutable = HelperLauncher.javaExecutable(Os.LINUX);
     assertEquals("java", linuxExecutable);
@@ -241,11 +301,11 @@ class HelperLauncherTest {
   void shouldUseThisJavaAndTheClassPathOfTheModuleByDefault() {
     final HelperLauncher launcher = HelperLauncher.createDefault(1_000L, List.of());
     final List<String> command = launcher.createCommand(OTHER_SESSION_FOLDER);
-    final boolean runsThisJava = command.getFirst().startsWith(System.getProperty("java.home"));
+    final boolean runsThisJava = command.getFirst().startsWith(System.getProperty(JAVA_HOME_PROPERTY));
     assertTrue(runsThisJava, command.getFirst());
 
-    final String classPath = command.get(command.indexOf("-cp") + 1);
-    final boolean holdsJcefApi = classPath.contains("jcef-api");
+    final String classPath = command.get(command.indexOf(CLASS_PATH_OPTION) + 1);
+    final boolean holdsJcefApi = classPath.contains(JCEF_API_PREFIX);
     assertTrue(holdsJcefApi, classPath);
 
     final boolean holdsJcefMaven = classPath.contains("jcefmaven");
@@ -263,7 +323,7 @@ class HelperLauncherTest {
     // the helper has only this module, JCEF and the JDK: a class of another module fails there with a
     // NoClassDefFoundError that no test JVM shows
     final Set<String> reached = new HashSet<>();
-    final Deque<String> pending = new ArrayDeque<>(List.of(HelperLauncher.MAIN_CLASS.replace('.', '/')));
+    final Deque<String> pending = new ArrayDeque<>(List.of(HelperLauncher.MAIN_CLASS.replace(PACKAGE_SEPARATOR, RESOURCE_SEPARATOR)));
     final List<String> outside = new ArrayList<>();
     while (!pending.isEmpty()) {
       final String name = pending.pop();
@@ -291,7 +351,7 @@ class HelperLauncherTest {
 
   private Set<String> usedClasses(final String name) throws IOException {
     final byte[] bytes;
-    try (final InputStream input = HelperLauncherTest.class.getResourceAsStream("/" + name + ".class")) {
+    try (final InputStream input = HelperLauncherTest.class.getResourceAsStream(RESOURCE_ROOT + name + CLASS_FILE_SUFFIX)) {
       assertNotNull(input, name);
 
       bytes = input.readAllBytes();
@@ -333,11 +393,11 @@ class HelperLauncherTest {
 
   private boolean isOnTheHelperClassPath(final String name) {
     return (
-      name.startsWith("java/") ||
-      name.startsWith("javax/") ||
-      name.startsWith("jdk/") ||
-      name.startsWith("org/cef/") ||
-      name.startsWith("me/friwi/jcefmaven/")
+      name.startsWith(JAVA_PACKAGE_PREFIX) ||
+      name.startsWith(JAVAX_PACKAGE_PREFIX) ||
+      name.startsWith(JDK_PACKAGE_PREFIX) ||
+      name.startsWith(CEF_PACKAGE_PREFIX) ||
+      name.startsWith(JCEF_MAVEN_PACKAGE_PREFIX)
     );
   }
 

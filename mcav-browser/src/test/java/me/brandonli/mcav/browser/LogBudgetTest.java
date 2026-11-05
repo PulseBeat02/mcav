@@ -26,6 +26,8 @@ import org.junit.jupiter.api.Test;
 
 final class LogBudgetTest {
 
+  private static final String LINE_PREFIX = "line ";
+
   private final AtomicLong now = new AtomicLong(1_000L);
   private final List<String> log = new ArrayList<>();
   private final LogBudget budget = new LogBudget(this.now::get);
@@ -36,7 +38,7 @@ final class LogBudgetTest {
 
   private void lines(final int count) {
     for (int index = 0; index < count; index++) {
-      this.line("line " + index);
+      this.line(LINE_PREFIX + index);
     }
   }
 
@@ -47,7 +49,8 @@ final class LogBudgetTest {
     assertEquals(LogBudget.BURST, lineCount);
 
     final String lastLine = this.log.getLast();
-    assertEquals("line " + (LogBudget.BURST - 1), lastLine);
+    final String expectedLastLine = LINE_PREFIX + (LogBudget.BURST - 1);
+    assertEquals(expectedLastLine, lastLine);
   }
 
   @Test
@@ -62,7 +65,8 @@ final class LogBudgetTest {
     this.line("a second later");
     this.line("too early again");
     final List<String> laterLines = this.log.subList(LogBudget.BURST, this.log.size());
-    assertEquals(List.of("skipped 11", "a second later"), laterLines);
+    final List<String> expectedLaterLines = List.of("skipped 11", "a second later");
+    assertEquals(expectedLaterLines, laterLines);
   }
 
   @Test
@@ -71,7 +75,8 @@ final class LogBudgetTest {
     this.now.addAndGet(LogBudget.REFILL_NANOSECONDS * 1_000);
     this.lines(LogBudget.BURST + 1);
     final int lineCount = this.log.size();
-    assertEquals(2 * LogBudget.BURST, lineCount);
+    final int expectedLineCount = 2 * LogBudget.BURST;
+    assertEquals(expectedLineCount, lineCount);
   }
 
   @Test

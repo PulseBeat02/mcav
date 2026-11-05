@@ -148,6 +148,7 @@ public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {
   default CompletableFuture<Boolean> startAsync(final BrowserSource source, final ExecutorService executor) {
     Preconditions.checkNotNull(source, "Source must not be null!");
     Preconditions.checkNotNull(executor, "Executor must not be null!");
+
     return CompletableFuture.supplyAsync(() -> this.start(source), executor);
   }
 
@@ -162,6 +163,7 @@ public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {
    */
   default CompletableFuture<Boolean> startAsync(final BrowserSource source) {
     Preconditions.checkNotNull(source, "Source must not be null!");
+
     final ForkJoinPool pool = ForkJoinPool.commonPool();
     return this.startAsync(source, pool);
   }

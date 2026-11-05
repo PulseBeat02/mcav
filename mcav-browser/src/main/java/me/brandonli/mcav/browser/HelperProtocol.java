@@ -35,6 +35,12 @@ import java.util.function.IntFunction;
 // Chromium sandbox, so every length is checked against the limit of its type before anything is allocated.
 final class HelperProtocol {
 
+  static final int LOADING_STARTED = 1;
+  static final int LOADING_FINISHED = 0;
+
+  private static final char LINE_FEED = '\n';
+  private static final char CARRIAGE_RETURN = '\r';
+
   static final int VERSION = 1;
 
   static final int TOKEN_BYTES = 32;
@@ -65,9 +71,9 @@ final class HelperProtocol {
   static final int NOTICE = 6;
   // The helper cannot go on and exits: string text.
   static final int FAILURE = 7;
-
   // Sound of the page: pcm, 16-bit little-endian stereo samples at 48 kHz, whole frames.
   static final int AUDIO = 8;
+
   // Mouse input: u8 action, u16 x, u16 y, u8 button, u8 clickCount, i16 deltaX, i16 deltaY.
   static final int MOUSE = 16;
   // Keyboard input: u8 action, string value.
@@ -101,11 +107,18 @@ final class HelperProtocol {
   private static final int UTF8_TWO_BYTE_START = 0x80;
   private static final int UTF8_THREE_BYTE_START = 0x800;
   private static final int UTF8_FOUR_BYTE_START = 0x10000;
+
+  private static final int UTF8_ONE_BYTE_LENGTH = 1;
+  private static final int UTF8_TWO_BYTE_LENGTH = 2;
+  private static final int UTF8_THREE_BYTE_LENGTH = 3;
+  private static final int UTF8_FOUR_BYTE_LENGTH = 4;
+
   private static final int UTF8_CONTINUATION_MASK = 0xC0;
   private static final int UTF8_CONTINUATION_BITS = 0x80;
 
   private HelperProtocol() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   static void writeHello(final DataOutput output, final byte[] token) throws IOException {
@@ -121,7 +134,7 @@ final class HelperProtocol {
   }
 
   static void writeText(final DataOutput output, final int type, final String text) throws IOException {
-    final byte[] bytes = encode(text);
+    final byte[] bytes = encodeTruncated(text);
     output.writeByte(type);
     output.writeInt(STRING_LENGTH_BYTES + bytes.length);
     writeString(output, bytes);
@@ -130,12 +143,12 @@ final class HelperProtocol {
   static void writeLoading(final DataOutput output, final boolean loading) throws IOException {
     output.writeByte(LOADING);
     output.writeInt(LOADING_BYTES);
-    output.writeByte(loading ? 1 : 0);
+    output.writeByte(loading ? LOADING_STARTED : LOADING_FINISHED);
   }
 
   static void writeLoadError(final DataOutput output, final int code, final String text, final String url) throws IOException {
-    final byte[] textBytes = encode(text);
-    final byte[] urlBytes = encode(url);
+    final byte[] textBytes = encodeTruncated(text);
+    final byte[] urlBytes = encodeTruncated(url);
     output.writeByte(LOAD_ERROR);
     output.writeInt(ERROR_CODE_BYTES + STRING_LENGTH_BYTES + textBytes.length + STRING_LENGTH_BYTES + urlBytes.length);
     output.writeInt(code);
@@ -194,7 +207,7 @@ final class HelperProtocol {
   }
 
   static void writeKey(final DataOutput output, final int action, final String value) throws IOException {
-    final byte[] bytes = encode(value);
+    final byte[] bytes = encodeTruncated(value);
     output.writeByte(KEY);
     output.writeInt(ACTION_BYTES + STRING_LENGTH_BYTES + bytes.length);
     output.writeByte(action);
@@ -206,13 +219,13 @@ final class HelperProtocol {
     output.writeInt(0);
   }
 
-  static HelperMessage read(final DataInput input, final IntFunction<byte[]> pixels) throws IOException {
+  static HelperMessage read(final DataInput input, final IntFunction<byte[]> pixelBuffers) throws IOException {
     final int type = input.readUnsignedByte();
     final int length = input.readInt();
     return switch (type) {
       case HELLO -> readHello(input, length);
       case READY, NOTICE, FAILURE -> readTextMessage(input, type, length);
-      case FRAME -> readFrame(input, length, pixels);
+      case FRAME -> readFrame(input, length, pixelBuffers);
       case AUDIO -> readAudio(input, length);
       case LOADING -> readLoading(input, length);
       case LOAD_ERROR -> readLoadError(input, length);
@@ -228,6 +241,7 @@ final class HelperProtocol {
 
   private static HelperMessage readHello(final DataInput input, final int length) throws IOException {
     expectLength(HELLO, length, TOKEN_BYTES + VERSION_BYTES);
+
     final byte[] token = new byte[TOKEN_BYTES];
     input.readFully(token);
     final int version = input.readUnsignedShort();
@@ -241,13 +255,14 @@ final class HelperProtocol {
 
   private static HelperMessage readLoading(final DataInput input, final int length) throws IOException {
     expectLength(LOADING, length, LOADING_BYTES);
+
     final int value = input.readUnsignedByte();
-    if (value > 1) {
+    if (value > LOADING_STARTED) {
       final String message = "Loading state %s must be 0 or 1!".formatted(value);
       throw new ProtocolException(message);
     }
 
-    return HelperMessage.loading(value == 1);
+    return HelperMessage.loading(value == LOADING_STARTED);
   }
 
   private static HelperMessage readLoadError(final DataInput input, final int length) throws IOException {
@@ -257,6 +272,7 @@ final class HelperProtocol {
       ERROR_CODE_BYTES + STRING_LENGTH_BYTES + STRING_LENGTH_BYTES,
       ERROR_CODE_BYTES + STRING_LENGTH_BYTES + MAXIMUM_TEXT_BYTES + STRING_LENGTH_BYTES + MAXIMUM_TEXT_BYTES
     );
+
     final int code = input.readInt();
     final byte[] textBytes = readStringBytes(input);
     final byte[] urlBytes = readStringBytes(input);
@@ -271,9 +287,11 @@ final class HelperProtocol {
     return HelperMessage.loadError(code, text, url);
   }
 
-  private static HelperMessage readFrame(final DataInput input, final int length, final IntFunction<byte[]> pixels) throws IOException {
+  private static HelperMessage readFrame(final DataInput input, final int length, final IntFunction<byte[]> pixelBuffers)
+    throws IOException {
     final long maximum = FRAME_HEADER_BYTES + (long) MAXIMUM_SIDE * MAXIMUM_SIDE * PIXEL_BYTES;
     checkLength(FRAME, length, FRAME_HEADER_BYTES, maximum);
+
     final int pageWidth = input.readUnsignedShort();
     final int pageHeight = input.readUnsignedShort();
     final int left = input.readUnsignedShort();
@@ -297,7 +315,7 @@ final class HelperProtocol {
     }
 
     final int size = (int) pixelBytes;
-    final byte[] target = pixels.apply(size);
+    final byte[] target = pixelBuffers.apply(size);
     if (target.length < size) {
       final String message = "A frame of %s bytes arrived where no frame of that size is expected!".formatted(size);
       throw new ProtocolException(message);
@@ -324,6 +342,7 @@ final class HelperProtocol {
 
   private static HelperMessage readMouse(final DataInput input, final int length) throws IOException {
     expectLength(MOUSE, length, MOUSE_BYTES);
+
     final int action = input.readUnsignedByte();
     final int pageX = input.readUnsignedShort();
     final int pageY = input.readUnsignedShort();
@@ -342,7 +361,7 @@ final class HelperProtocol {
     }
 
     if (clickCount > MAXIMUM_CLICK_COUNT) {
-      final String message = "Click count %s must be at most %s!".formatted(clickCount, MAXIMUM_CLICK_COUNT);
+      final String message = "Click count %s must be at most %s clicks!".formatted(clickCount, MAXIMUM_CLICK_COUNT);
       throw new ProtocolException(message);
     }
 
@@ -352,6 +371,7 @@ final class HelperProtocol {
 
   private static HelperMessage readKey(final DataInput input, final int length) throws IOException {
     checkLength(KEY, length, ACTION_BYTES + STRING_LENGTH_BYTES, ACTION_BYTES + STRING_LENGTH_BYTES + MAXIMUM_TEXT_BYTES);
+
     final int action = input.readUnsignedByte();
     if (action > KEY_TYPE) {
       final String message = "Key action %s is unknown!".formatted(action);
@@ -377,6 +397,7 @@ final class HelperProtocol {
 
   private static String readSingleString(final DataInput input, final int type, final int length) throws IOException {
     checkLength(type, length, STRING_LENGTH_BYTES, STRING_LENGTH_BYTES + MAXIMUM_TEXT_BYTES);
+
     final byte[] bytes = readStringBytes(input);
     if (STRING_LENGTH_BYTES + bytes.length != length) {
       final String message = "A message of %s bytes holds a string of %s bytes!".formatted(length, bytes.length);
@@ -414,7 +435,7 @@ final class HelperProtocol {
       final int codePoint = text.codePointAt(index);
       final int size = utf8Length(codePoint);
       if (bytes + size > MAXIMUM_TEXT_BYTES) {
-        final boolean isLineBreak = codePoint == '\n' && text.charAt(index - 1) == '\r';
+        final boolean isLineBreak = codePoint == LINE_FEED && text.charAt(index - 1) == CARRIAGE_RETURN;
         final int end = isLineBreak ? index - 1 : index;
         parts.add(text.substring(start, end));
         start = end;
@@ -432,17 +453,17 @@ final class HelperProtocol {
   // an unpaired surrogate counts three, although Java encodes it as one byte
   private static int utf8Length(final int codePoint) {
     if (codePoint < UTF8_TWO_BYTE_START) {
-      return 1;
+      return UTF8_ONE_BYTE_LENGTH;
     }
 
     if (codePoint < UTF8_THREE_BYTE_START) {
-      return 2;
+      return UTF8_TWO_BYTE_LENGTH;
     }
 
-    return codePoint < UTF8_FOUR_BYTE_START ? 3 : 4;
+    return codePoint < UTF8_FOUR_BYTE_START ? UTF8_THREE_BYTE_LENGTH : UTF8_FOUR_BYTE_LENGTH;
   }
 
-  static byte[] encode(final String text) {
+  static byte[] encodeTruncated(final String text) {
     final byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
     if (bytes.length <= MAXIMUM_TEXT_BYTES) {
       return bytes;
@@ -468,7 +489,8 @@ final class HelperProtocol {
       final CharBuffer decoded = decoder.decode(input);
       return decoded.toString();
     } catch (final CharacterCodingException exception) {
-      final ProtocolException failure = new ProtocolException("A string is not valid UTF-8!");
+      final String message = "A string is not valid UTF-8!";
+      final ProtocolException failure = new ProtocolException(message);
       failure.initCause(exception);
       throw failure;
     }
@@ -496,7 +518,7 @@ final class HelperProtocol {
 
   private static void checkSide(final String name, final int value) throws ProtocolException {
     if (value < 1 || value > MAXIMUM_SIDE) {
-      final String message = "The %s %s must be between 1 and %s!".formatted(name, value, MAXIMUM_SIDE);
+      final String message = "The %s %s must be between 1 and %s pixels!".formatted(name, value, MAXIMUM_SIDE);
       throw new ProtocolException(message);
     }
   }

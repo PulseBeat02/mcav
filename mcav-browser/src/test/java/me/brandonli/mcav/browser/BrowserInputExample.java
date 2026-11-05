@@ -43,10 +43,24 @@ import me.brandonli.mcav.utils.interaction.MouseClick;
 // Streams a web page into a window and forwards clicks, the mouse wheel and typed characters to it.
 public final class BrowserInputExample {
 
+  private static final String PAGE_URL = "https://www.wikipedia.org";
+
+  private static final int FRAME_INTERVAL = 1;
+
+  private static final int NO_HORIZONTAL_SCROLL = 0;
+  private static final int PIXELS_PER_NOTCH = 100;
+
+  private static final char LINE_FEED = '\n';
+
+  private static final String ENTER_KEY = "Enter";
+
   private static final int WIDTH = 1280;
   private static final int HEIGHT = 720;
 
-  private BrowserInputExample() {}
+  private BrowserInputExample() {
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
+  }
 
   static void main(final String[] args) {
     final MCAVApi api = MCAV.api();
@@ -57,8 +71,8 @@ public final class BrowserInputExample {
     final BrowserPlayer browser = BrowserPlayer.create();
     final VideoAttachableCallback callback = browser.getVideoAttachableCallback();
     callback.attach(pipeline);
-    final URI uri = URI.create("https://www.wikipedia.org");
-    final BrowserSource source = BrowserSource.uri(uri, WIDTH, HEIGHT, 1);
+    final URI uri = URI.create(PAGE_URL);
+    final BrowserSource source = BrowserSource.uri(uri, WIDTH, HEIGHT, FRAME_INTERVAL);
     browser.start(source);
 
     forwardClicks(label, browser);
@@ -114,7 +128,8 @@ public final class BrowserInputExample {
     final int pageX = event.getX();
     final int pageY = event.getY();
     final int rotation = event.getWheelRotation();
-    browser.scroll(pageX, pageY, 0, rotation * 100);
+    final int deltaY = rotation * PIXELS_PER_NOTCH;
+    browser.scroll(pageX, pageY, NO_HORIZONTAL_SCROLL, deltaY);
   }
 
   private static void forwardKeys(final JLabel label, final BrowserPlayer browser) {
@@ -123,7 +138,7 @@ public final class BrowserInputExample {
         @Override
         public void keyTyped(final KeyEvent event) {
           final char character = event.getKeyChar();
-          final String text = character == '\n' ? "Enter" : String.valueOf(character);
+          final String text = character == LINE_FEED ? ENTER_KEY : String.valueOf(character);
           browser.sendKeyEvent(text);
         }
       }

@@ -29,24 +29,28 @@ import java.util.stream.Stream;
 public final class OpenFiles {
 
   private static final int ATTEMPTS = 100;
+  private static final int MAXIMUM_LEFT_OPEN = ATTEMPTS / 2;
 
   private static final Path DESCRIPTORS = Path.of("/proc/self/fd");
 
   private OpenFiles() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
-  public static void leaveNoneOpen(final String description, final Runnable attempt) {
+  public static void assertLeavesNoneOpen(final String description, final Runnable attempt) {
     final Path descriptors = DESCRIPTORS;
-    assumeTrue(Files.isDirectory(descriptors), "This system does not list the open files of a process!");
+    final boolean listsOpenFiles = Files.isDirectory(descriptors);
+    assumeTrue(listsOpenFiles, "This system does not list the open files of a process!");
+
     final long before = count(descriptors);
     for (int count = 0; count < ATTEMPTS; count++) {
       attempt.run();
     }
 
     final long left = count(descriptors) - before;
-    final boolean fewLeftOpen = left < ATTEMPTS / 2;
-    assertTrue(fewLeftOpen, description + " left " + left + " files open in " + ATTEMPTS + " attempts");
+    final boolean fewLeftOpen = left < MAXIMUM_LEFT_OPEN;
+    assertTrue(fewLeftOpen, "%s left %s files open in %s attempts".formatted(description, left, ATTEMPTS));
   }
 
   private static long count(final Path descriptors) {
