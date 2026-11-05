@@ -122,6 +122,8 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
 
   private @Nullable ScheduledFuture<?> streaming;
 
+  private @Nullable Mcv2Playback playback;
+
   private @Nullable Mcv2Channel channel;
 
   private Mcv2PackServer.@Nullable Lease lease;
@@ -342,6 +344,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     this.lease = slot;
     final long firstFrameId = slotted.getFirstFrameId();
     final Mcv2Playback playback = new Mcv2Playback(opened, frames, firstFrameId);
+    this.playback = playback;
     start.accept(playback);
   }
 
@@ -670,6 +673,12 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     if (executor != null) {
       executor.shutdownNow();
       this.streamer = null;
+    }
+
+    final @Nullable Mcv2Playback playing = this.playback;
+    if (playing != null) {
+      playing.stop();
+      this.playback = null;
     }
 
     final @Nullable Mcv2Channel opened = this.channel;

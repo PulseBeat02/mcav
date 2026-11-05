@@ -31,6 +31,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -47,6 +48,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
@@ -107,6 +109,7 @@ final class Mcv2PlayCommandTest {
 
   private static final int HAND_OVER_TIMEOUT_SECONDS = 10;
   private static final int JOIN_TIMEOUT_SECONDS = 60;
+  private static final int WAIT_TIMEOUT_SECONDS = 10;
 
   private static final long LAST_REPORT_NANOSECONDS = 1_000L;
   private static final long PROGRESS_INTERVAL_NANOSECONDS = 30L;
@@ -183,6 +186,9 @@ final class Mcv2PlayCommandTest {
   private static final String MISSING_VIDEO_MESSAGE = "no such video!";
 
   private static final String REJECTED_SOURCE_MESSAGE = "reader rejected the source!";
+
+  private static final String SENT_EVENT = "sent";
+  private static final String CLOSED_EVENT = "closed";
 
   @TempDir
   private Path folder;
@@ -460,6 +466,101 @@ final class Mcv2PlayCommandTest {
 
   private void addRecipient(final Mcv2Channel channel) {
     when(channel.getRecipients()).thenReturn(Set.of(UUID.randomUUID()));
+  }
+
+  @Test
+  void shouldSendNoFrameFromARunThatStartsAfterAStop() throws IOException, InterruptedException {
+    final Path file = this.archive(Mcv2PlaybackTest.stream());
+    try (
+      final MockedConstruction<Mcv2Channel> channels = Mockito.mockConstruction(Mcv2Channel.class, (channel, context) ->
+        this.addRecipient(channel)
+      )
+    ) {
+      this.command.play(this.sender, this.selector, SCREEN_SIZE, MAP_ID, TICKS, file.toString());
+      this.runHandedOver();
+      final Runnable playback = this.capturePlayback();
+      this.command.stop(this.sender);
+      // the scheduler handed this run to its thread before the cancel
+      playback.run();
+
+      final Mcv2Channel channel = channels.constructed().getFirst();
+      verify(channel, never()).update();
+      verify(channel, never()).send(any());
+    }
+  }
+
+  private Runnable capturePlayback() {
+    final ArgumentCaptor<Runnable> playbacks = ArgumentCaptor.forClass(Runnable.class);
+    verify(TestServer.getScheduler()).runTaskTimerAsynchronously(eq(this.plugin), playbacks.capture(), eq(0L), eq(PERIOD_TICKS));
+
+    return playbacks.getValue();
+  }
+
+  @Test
+  void shouldFinishTheFrameBeingSentBeforeAStopClosesTheScreen() throws IOException, InterruptedException {
+    final Path file = this.archive(Mcv2PlaybackTest.stream());
+    final CountDownLatch sending = new CountDownLatch(1);
+    final CountDownLatch release = new CountDownLatch(1);
+    final List<String> events = new CopyOnWriteArrayList<>();
+    try (
+      final MockedConstruction<Mcv2Channel> _ = Mockito.mockConstruction(Mcv2Channel.class, (channel, _) ->
+        this.holdFrames(channel, sending, release, events)
+      )
+    ) {
+      this.command.play(this.sender, this.selector, SCREEN_SIZE, MAP_ID, TICKS, file.toString());
+      this.runHandedOver();
+      final Runnable playback = this.capturePlayback();
+      final Thread task = Thread.ofPlatform().daemon().start(playback);
+      final boolean started = sending.await(WAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+      assertTrue(started, "the playback sent no frame");
+
+      // the stop waits for the frame, so it runs beside the test thread
+      final Thread stopping = Thread.ofPlatform()
+        .daemon()
+        .start(() -> this.command.stop(this.sender));
+      this.awaitBlocked(stopping);
+      release.countDown();
+      stopping.join(TimeUnit.SECONDS.toMillis(JOIN_TIMEOUT_SECONDS));
+      task.join(TimeUnit.SECONDS.toMillis(JOIN_TIMEOUT_SECONDS));
+
+      final List<String> order = List.copyOf(events);
+      final List<String> expected = List.of(SENT_EVENT, CLOSED_EVENT);
+      assertEquals(expected, order);
+    }
+  }
+
+  private void holdFrames(
+    final Mcv2Channel channel,
+    final CountDownLatch sending,
+    final CountDownLatch release,
+    final List<String> events
+  ) {
+    this.addRecipient(channel);
+    when(channel.send(any())).thenAnswer(_ -> this.sendOnceReleased(sending, release, events));
+    doAnswer(_ -> events.add(CLOSED_EVENT))
+      .when(channel)
+      .close();
+  }
+
+  private OptionalInt sendOnceReleased(final CountDownLatch sending, final CountDownLatch release, final List<String> events) {
+    sending.countDown();
+    Uninterruptibles.awaitUninterruptibly(release);
+    events.add(SENT_EVENT);
+
+    return OptionalInt.empty();
+  }
+
+  private void awaitBlocked(final Thread thread) {
+    final long start = System.nanoTime();
+    final long deadline = start + TimeUnit.SECONDS.toNanos(WAIT_TIMEOUT_SECONDS);
+    Thread.State state = thread.getState();
+    while (state != Thread.State.BLOCKED) {
+      final long now = System.nanoTime();
+      assertTrue(now < deadline, "the stop never waited for the frame being sent");
+
+      Thread.onSpinWait();
+      state = thread.getState();
+    }
   }
 
   @Test
