@@ -609,7 +609,7 @@ public final class IoUtils {
    * @param resourcePath the full path from the classpath root, such as {@code mcav/common/installers/yt-dlp.json}
    * @return the downloads described by the resource
    * @throws FileOperationException if the resource is missing, is not valid JSON, or lists a download without a platform
-   *                                or URL
+   *                                or URL or with a blank mirror
    * @throws NullPointerException   if {@code resourcePath} is null
    * @since 1.0.0
    */
@@ -661,7 +661,8 @@ public final class IoUtils {
       final Platform platform = Platform.ofPlatform(os, architecture, bits);
       final String url = fields.url();
       final @Nullable String hash = fields.hash();
-      return Download.of(platform, url, hash);
+      final @Nullable String mirror = fields.mirror();
+      return Download.of(platform, url, hash, mirror);
     } catch (final NullPointerException | IllegalArgumentException exception) {
       final String message = "Download list has an incomplete download!";
       throw new IOException(message, exception);
@@ -971,7 +972,7 @@ public final class IoUtils {
     void move(final Path source, final Path target, final CopyOption... options) throws IOException;
   }
 
-  private record DownloadFields(PlatformFields platform, String url, @Nullable String hash) {}
+  private record DownloadFields(PlatformFields platform, String url, @Nullable String hash, @Nullable String mirror) {}
 
   private record PlatformFields(Os os, Arch arch, Bits bits) {}
 }

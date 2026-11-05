@@ -34,6 +34,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Downloads are usually read from the JSON resources in the {@code installers} folder, but can be created by hand
  * as well. Instances are immutable.
  *
+ * <p>A download may name a mirror: a second URL of the same file, checked against the same hash. The Debian installers
+ * try it before the URL.
+ *
  * <p>This class is immutable and thread-safe.
  *
  * @since 1.0.0
@@ -43,15 +46,38 @@ public final class Download {
   private final Platform platform;
   private final String url;
   private final @Nullable String hash;
+  private final @Nullable String mirror;
 
-  private Download(final Platform platform, final String url, final @Nullable String hash) {
+  private Download(final Platform platform, final String url, final @Nullable String hash, final @Nullable String mirror) {
     this.platform = platform;
     this.url = url;
     this.hash = hash;
+    this.mirror = mirror;
   }
 
   /**
-   * Returns a download of the file at {@code url}.
+   * Returns a download of the file at {@code url} that can also be fetched from {@code mirror}.
+   *
+   * @param platform the platform the file is built for
+   * @param url      the non-null, nonblank URL of the file; URI syntax is checked when downloading
+   * @param hash     the expected SHA-256 hash of the file in hexadecimal, or null to skip verification
+   * @param mirror   a nonblank second URL of the same file, checked against the same hash, or null for none
+   * @return the download
+   * @throws IllegalArgumentException if {@code url} or {@code mirror} is blank
+   * @throws NullPointerException     if {@code platform} or {@code url} is null
+   * @since 1.0.0
+   */
+  public static Download of(final Platform platform, final String url, final @Nullable String hash, final @Nullable String mirror) {
+    Preconditions.checkNotNull(platform, "Platform must not be null!");
+    Preconditions.checkNotNull(url, "URL must not be null!");
+    Preconditions.checkArgument(!url.isBlank(), "URL must not be blank!");
+    Preconditions.checkArgument(mirror == null || !mirror.isBlank(), "Mirror must not be blank!");
+
+    return new Download(platform, url, hash, mirror);
+  }
+
+  /**
+   * Returns a download of the file at {@code url} without a mirror.
    *
    * @param platform the platform the file is built for
    * @param url      the non-null, nonblank URL of the file; URI syntax is checked when downloading
@@ -62,15 +88,11 @@ public final class Download {
    * @since 1.0.0
    */
   public static Download of(final Platform platform, final String url, final @Nullable String hash) {
-    Preconditions.checkNotNull(platform, "Platform must not be null!");
-    Preconditions.checkNotNull(url, "URL must not be null!");
-    Preconditions.checkArgument(!url.isBlank(), "URL must not be blank!");
-
-    return new Download(platform, url, hash);
+    return of(platform, url, hash, null);
   }
 
   /**
-   * Returns a download of the file at {@code url} without hash verification.
+   * Returns a download of the file at {@code url} without hash verification or a mirror.
    *
    * @param platform the platform the file is built for
    * @param url      the non-null, nonblank URL of the file; URI syntax is checked when downloading
@@ -84,7 +106,7 @@ public final class Download {
   }
 
   /**
-   * Returns a download of the file at {@code url} for the platform made of the given parts.
+   * Returns a download of the file at {@code url} for the platform made of the given parts, without a mirror.
    *
    * @param operatingSystem the operating system the file is built for
    * @param architecture    the CPU architecture the file is built for
@@ -108,7 +130,8 @@ public final class Download {
   }
 
   /**
-   * Returns a download of the file at {@code url} for the platform made of the given parts, without hash verification.
+   * Returns a download of the file at {@code url} for the platform made of the given parts, without hash verification or
+   * a mirror.
    *
    * @param operatingSystem the operating system the file is built for
    * @param architecture    the CPU architecture the file is built for
@@ -154,10 +177,20 @@ public final class Download {
   }
 
   /**
-   * Returns whether {@code other} is a download of the same URL for the same platform with the same hash.
+   * Returns the mirror, a second URL of the same file that is checked against the same hash.
+   *
+   * @return the mirror URL, or empty if the file has none
+   * @since 1.0.0
+   */
+  public Optional<String> getMirror() {
+    return Optional.ofNullable(this.mirror);
+  }
+
+  /**
+   * Returns whether {@code other} is a download of the same URL for the same platform with the same hash and mirror.
    *
    * @param other the object to compare with
-   * @return whether the platform, the URL and the hash match
+   * @return whether the platform, the URL, the hash and the mirror match
    * @since 1.0.0
    */
   @Override
@@ -170,28 +203,38 @@ public final class Download {
       return false;
     }
 
-    return this.platform.equals(download.platform) && this.url.equals(download.url) && Objects.equals(this.hash, download.hash);
+    return (
+      this.platform.equals(download.platform) &&
+      this.url.equals(download.url) &&
+      Objects.equals(this.hash, download.hash) &&
+      Objects.equals(this.mirror, download.mirror)
+    );
   }
 
   /**
-   * Returns a hash code built from the platform, the URL and the hash.
+   * Returns a hash code built from the platform, the URL, the hash and the mirror.
    *
    * @return the hash code
    * @since 1.0.0
    */
   @Override
   public int hashCode() {
-    return Objects.hash(this.platform, this.url, this.hash);
+    return Objects.hash(this.platform, this.url, this.hash, this.mirror);
   }
 
   /**
-   * Returns a debugging representation with the platform, the URL and the hash.
+   * Returns a debugging representation with the platform, the URL, the hash and the mirror.
    *
    * @return the representation
    * @since 1.0.0
    */
   @Override
   public String toString() {
-    return MoreObjects.toStringHelper(this).add("platform", this.platform).add("url", this.url).add("hash", this.hash).toString();
+    return MoreObjects.toStringHelper(this)
+      .add("platform", this.platform)
+      .add("url", this.url)
+      .add("hash", this.hash)
+      .add("mirror", this.mirror)
+      .toString();
   }
 }
