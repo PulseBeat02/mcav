@@ -115,8 +115,8 @@ be shown.
 
 `start` returns once the page has loaded and its first frame arrived; a page that cannot be loaded, such as an
 unknown host, fails the start. After a page stops changing, its last frame is handed to the pipeline again a few
-times, so a video filter that spreads a big change over several frames, like the map encoder with its byte budget,
-finishes it.
+times, so a video filter that holds a big change back for a few frames, like the map encoder with its byte budget,
+still shows it.
 
 `release` ends the helper process and its Chromium processes. Stopping the module, for example when a plugin is
 disabled, ends every browser that is running or still starting, and each player hears of it through its exception

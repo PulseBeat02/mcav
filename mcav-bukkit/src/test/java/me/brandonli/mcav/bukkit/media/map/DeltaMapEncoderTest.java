@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -92,6 +93,27 @@ final class DeltaMapEncoderTest {
     final int count = patches.size();
 
     assertEquals(expected, count, "number of patches");
+  }
+
+  private void paint(final byte[] wall, final MapLayout layout, final List<MapTilePatch> patches) {
+    for (final MapTilePatch patch : patches) {
+      this.paintPatch(wall, layout, patch);
+    }
+  }
+
+  private void paintPatch(final byte[] wall, final MapLayout layout, final MapTilePatch patch) {
+    final int firstMapId = layout.getMapId(0);
+    final int mapId = patch.getMapId();
+    final MapRegion region = layout.getRegion(mapId - firstMapId);
+    final int imageWidth = layout.getImageWidth();
+    final int left = region.getSourceX() + patch.getX() - region.getLocalX();
+    final int top = region.getSourceY() + patch.getY() - region.getLocalY();
+    final int width = patch.getWidth();
+    final int height = patch.getHeight();
+    final byte[] colors = patch.getColors();
+    for (int row = 0; row < height; row++) {
+      System.arraycopy(colors, row * width, wall, (top + row) * imageWidth + left, width);
+    }
   }
 
   @Test
@@ -350,66 +372,74 @@ final class DeltaMapEncoderTest {
   }
 
   @Test
-  void shouldAlwaysSendTheMostUrgentMapEvenIfItExceedsTheBudget() {
+  void shouldShowOneWholeFrameWhenEveryMapChanges() {
+    final int columns = 5;
+    final int rows = 3;
+    final int width = columns * MAP_SIZE;
+    final int height = rows * MAP_SIZE;
+    final int frameCount = 30;
+    final int colorCount = 6;
+    final MapLayout layout = MapLayout.of(0, columns, rows, width, height);
+    final DeltaMapEncoder encoder = new DeltaMapEncoder(layout, DeltaMapEncoder.DEFAULT_MAXIMUM_BYTES_PER_FRAME);
+    final byte[] wall = new byte[width * height];
+    final List<byte[]> frames = new ArrayList<>();
+    for (int frame = 0; frame < frameCount; frame++) {
+      final byte[] image = new byte[width * height];
+      Arrays.fill(image, (byte) ((frame % colorCount) + 1));
+      frames.add(image);
+      final List<MapTilePatch> patches = encoder.encode(image);
+      this.paint(wall, layout, patches);
+
+      final boolean showsOneFrame = frames.stream().anyMatch(shown -> Arrays.equals(shown, wall));
+      assertTrue(showsOneFrame, "the wall shows one whole frame after frame %s".formatted(frame));
+    }
+  }
+
+  @Test
+  void shouldSkipAFrameTheCreditDoesNotCoverAndSendTheNextWhole() {
+    final MapLayout layout = MapLayout.of(0, 2, 1, TWO_MAP_WIDTH, MAP_SIZE);
+    final int oneMap = MAP_SIZE * MAP_SIZE + MapLayout.PATCH_OVERHEAD;
+    final DeltaMapEncoder encoder = new DeltaMapEncoder(layout, oneMap);
+    final byte[] image = MapLayoutTest.createImage(TWO_MAP_WIDTH, MAP_SIZE);
+    final byte[] second = this.change(image, TWO_MAP_WIDTH, 0, 0, TWO_MAP_WIDTH, MAP_SIZE);
+    final byte[] third = this.change(second, TWO_MAP_WIDTH, 0, 0, TWO_MAP_WIDTH, MAP_SIZE);
+    final List<MapTilePatch> first = encoder.encode(image);
+    final List<MapTilePatch> skipped = encoder.encode(second);
+    final List<MapTilePatch> whole = encoder.encode(third);
+    final MapTilePatch left = whole.get(0);
+    final MapTilePatch right = whole.get(1);
+    final byte[] leftColors = MapLayoutTest.copyRectangle(third, TWO_MAP_WIDTH, 0, 0, MAP_SIZE, MAP_SIZE);
+    final byte[] rightColors = MapLayoutTest.copyRectangle(third, TWO_MAP_WIDTH, MAP_SIZE, 0, MAP_SIZE, MAP_SIZE);
+
+    this.assertPatchCount(2, first);
+    this.assertNothingSent(skipped);
+    this.assertPatchCount(2, whole);
+    this.assertPatch(left, 0, 0, 0, MAP_SIZE, MAP_SIZE, leftColors);
+    this.assertPatch(right, 1, 0, 0, MAP_SIZE, MAP_SIZE, rightColors);
+  }
+
+  @Test
+  void shouldSendAFrameLargerThanTheBudgetOnceTheCreditCoversIt() {
     final MapLayout layout = MapLayout.of(0, 2, 1, TWO_MAP_WIDTH, MAP_SIZE);
     final DeltaMapEncoder encoder = new DeltaMapEncoder(layout, 1);
     final byte[] image = MapLayoutTest.createImage(TWO_MAP_WIDTH, MAP_SIZE);
     final List<MapTilePatch> first = encoder.encode(image);
-    final List<MapTilePatch> second = encoder.encode(image);
-    final List<MapTilePatch> third = encoder.encode(image);
-    final MapTilePatch firstPatch = first.getFirst();
-    final MapTilePatch secondPatch = second.getFirst();
-    final int firstMap = firstPatch.getMapId();
-    final int secondMap = secondPatch.getMapId();
 
-    this.assertPatchCount(1, first);
-    this.assertPatchCount(1, second);
-    assertEquals(0, firstMap);
-    assertEquals(1, secondMap);
-    this.assertNothingSent(third);
-  }
+    this.assertPatchCount(2, first);
 
-  @Test
-  void shouldSendSeveralMapsThatFitIntoTheBudgetTogether() {
-    final MapLayout layout = MapLayout.of(0, 2, 1, TWO_MAP_WIDTH, MAP_SIZE);
-    final int twoMaps = 2 * (MAP_SIZE * MAP_SIZE + MapLayout.PATCH_OVERHEAD);
-    final DeltaMapEncoder encoder = new DeltaMapEncoder(layout, twoMaps);
-    final byte[] image = MapLayoutTest.createImage(TWO_MAP_WIDTH, MAP_SIZE);
-    final List<MapTilePatch> patches = encoder.encode(image);
+    final byte[] changed = this.change(image, TWO_MAP_WIDTH, MAP_SIZE, 0, 16, 16);
+    final int tileBytes = 16 * 16 + MapLayout.PATCH_OVERHEAD;
+    for (int frame = 1; frame < tileBytes; frame++) {
+      final List<MapTilePatch> waiting = encoder.encode(changed);
+      this.assertNothingSent(waiting);
+    }
 
-    this.assertPatchCount(2, patches);
-  }
+    final List<MapTilePatch> patches = encoder.encode(changed);
+    final MapTilePatch patch = patches.getFirst();
+    final byte[] expected = MapLayoutTest.copyRectangle(changed, TWO_MAP_WIDTH, MAP_SIZE, 0, 16, 16);
 
-  @Test
-  void shouldSendMapsThatHaveBeenWaitingBeforeMapsWithMoreChanges() {
-    final MapLayout layout = MapLayout.of(20, 2, 1, TWO_MAP_WIDTH, MAP_SIZE);
-    final DeltaMapEncoder encoder = new DeltaMapEncoder(layout, 600);
-    final byte[] image = MapLayoutTest.createImage(TWO_MAP_WIDTH, MAP_SIZE);
-    encoder.encode(image);
-    encoder.encode(image);
-    final byte[] bigLeftChange = this.change(image, TWO_MAP_WIDTH, 0, 0, 32, 16);
-    final byte[] smallRightChange = this.change(bigLeftChange, TWO_MAP_WIDTH, MAP_SIZE, 0, 16, 1);
-    final List<MapTilePatch> third = encoder.encode(smallRightChange);
-    final MapTilePatch leftPatch = third.getFirst();
-    final byte[] leftColors = MapLayoutTest.copyRectangle(smallRightChange, TWO_MAP_WIDTH, 0, 0, 32, 16);
-
-    this.assertPatchCount(1, third);
-    this.assertPatch(leftPatch, 20, 0, 0, 32, 16, leftColors);
-
-    final byte[] anotherBigLeftChange = this.change(smallRightChange, TWO_MAP_WIDTH, 0, 32, 32, 16);
-    final List<MapTilePatch> fourth = encoder.encode(anotherBigLeftChange);
-    final MapTilePatch rightPatch = fourth.getFirst();
-    final byte[] rightColors = MapLayoutTest.copyRectangle(anotherBigLeftChange, TWO_MAP_WIDTH, MAP_SIZE, 0, 16, 16);
-
-    this.assertPatchCount(1, fourth);
-    this.assertPatch(rightPatch, 21, 0, 0, 16, 16, rightColors);
-
-    final List<MapTilePatch> fifth = encoder.encode(anotherBigLeftChange);
-    final MapTilePatch waitingLeftPatch = fifth.getFirst();
-    final byte[] waitingLeftColors = MapLayoutTest.copyRectangle(anotherBigLeftChange, TWO_MAP_WIDTH, 0, 32, 32, 16);
-
-    this.assertPatchCount(1, fifth);
-    this.assertPatch(waitingLeftPatch, 20, 0, 32, 32, 16, waitingLeftColors);
+    this.assertPatchCount(1, patches);
+    this.assertPatch(patch, 1, 0, 0, 16, 16, expected);
   }
 
   @Test
@@ -424,27 +454,6 @@ final class DeltaMapEncoderTest {
     final String message = exception.getMessage();
 
     assertEquals("Image length 16385 does not match the layout's 16384 pixels!", message);
-  }
-
-  @Test
-  void shouldSendTheMapWithTheMostChangedPixelsFirstAndIgnoreHeldBackNoise() {
-    final MapLayout layout = MapLayout.of(0, 2, 1, 64, 16);
-    final DeltaMapEncoder encoder = new DeltaMapEncoder(layout, LARGE_BUDGET);
-    final byte[] image = MapLayoutTest.createImage(64, 16);
-    encoder.encode(image);
-
-    final byte[] leftChange = this.change(image, 64, 0, 0, 5, 1);
-    final byte[] leftNoise = this.change(leftChange, 64, 16, 0, 3, 1);
-    final byte[] changed = this.change(leftNoise, 64, 32, 0, 6, 1);
-    final List<MapTilePatch> patches = encoder.encode(changed);
-    final MapTilePatch right = patches.get(0);
-    final MapTilePatch left = patches.get(1);
-    final byte[] rightColors = MapLayoutTest.copyRectangle(changed, 64, 32, 0, 16, 8);
-    final byte[] leftColors = MapLayoutTest.copyRectangle(changed, 64, 0, 0, 16, 8);
-
-    this.assertPatchCount(2, patches);
-    this.assertPatch(right, 1, 0, 56, 16, 8, rightColors);
-    this.assertPatch(left, 0, 96, 56, 16, 8, leftColors);
   }
 
   @Test
@@ -582,17 +591,20 @@ final class DeltaMapEncoderTest {
   }
 
   @Test
-  void shouldLeaveMapsThatWereNeverSentOutOfTheSnapshot() {
+  void shouldLeaveAFrameTheCreditDoesNotCoverOutOfTheSnapshot() {
     final MapLayout layout = MapLayout.of(0, 2, 1, TWO_MAP_WIDTH, MAP_SIZE);
     final DeltaMapEncoder encoder = new DeltaMapEncoder(layout, 1);
     final byte[] image = MapLayoutTest.createImage(TWO_MAP_WIDTH, MAP_SIZE);
     encoder.encode(image);
+    final byte[] changed = this.change(image, TWO_MAP_WIDTH, 0, 0, TWO_MAP_WIDTH, MAP_SIZE);
+    final List<MapTilePatch> skipped = encoder.encode(changed);
     final List<MapTilePatch> snapshot = encoder.snapshot();
-    final MapTilePatch patch = snapshot.getFirst();
-    final int mapId = patch.getMapId();
+    final MapTilePatch left = snapshot.getFirst();
+    final byte[] leftColors = MapLayoutTest.copyRectangle(image, TWO_MAP_WIDTH, 0, 0, MAP_SIZE, MAP_SIZE);
 
-    this.assertPatchCount(1, snapshot);
-    assertEquals(0, mapId);
+    this.assertNothingSent(skipped);
+    this.assertPatchCount(2, snapshot);
+    this.assertPatch(left, 0, 0, 0, MAP_SIZE, MAP_SIZE, leftColors);
   }
 
   @Test
@@ -608,7 +620,7 @@ final class DeltaMapEncoderTest {
     final byte[] leftColors = MapLayoutTest.copyRectangle(image, TWO_MAP_WIDTH, 0, 0, MAP_SIZE, MAP_SIZE);
 
     this.assertNothingSent(snapshot);
-    this.assertPatchCount(1, afterReset);
+    this.assertPatchCount(2, afterReset);
     this.assertPatch(patch, 0, 0, 0, MAP_SIZE, MAP_SIZE, leftColors);
   }
 

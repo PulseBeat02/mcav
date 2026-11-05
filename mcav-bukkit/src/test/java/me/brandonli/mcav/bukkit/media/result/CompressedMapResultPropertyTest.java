@@ -40,6 +40,7 @@ import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
 import net.jqwik.api.Arbitraries;
 import net.jqwik.api.Arbitrary;
+import net.jqwik.api.Assume;
 import net.jqwik.api.Combinators;
 import net.jqwik.api.ForAll;
 import net.jqwik.api.Property;
@@ -62,6 +63,9 @@ final class CompressedMapResultPropertyTest {
   private static final int MAP_SIZE = MapLayout.MAP_SIZE;
   private static final int MAXIMUM_QUIET_FRAMES = 7;
   private static final short NEVER_SENT = -1;
+
+  private static final int WHOLE_MAP_BYTES = MAP_SIZE * MAP_SIZE + MapLayout.PATCH_OVERHEAD;
+  private static final int SMALLEST_REFILLING_BUDGET = 600;
 
   private static final int PER_MILLE = 1000;
 
@@ -115,9 +119,13 @@ final class CompressedMapResultPropertyTest {
 
   @Property(seed = SEED, tries = 40)
   void shouldNotLetAnyViewerKeepThePictureOfAnEarlierFrame(@ForAll("scenarios") final ResizeScenario scenario) {
+    final int budget = scenario.getBudget();
+    // a tiny budget refills the credit too slowly for a property; DeltaMapEncoderTest covers a 1-byte budget
+    Assume.that(budget >= SMALLEST_REFILLING_BUDGET);
+
     final List<UUID> viewers = new CopyOnWriteArrayList<>(List.of(FIRST, SECOND));
     final MapConfiguration configuration = scenario.createConfiguration(viewers);
-    final CompressedMapResult result = new CompressedMapResult(configuration, scenario.getBudget());
+    final CompressedMapResult result = new CompressedMapResult(configuration, budget);
     final FrameSource frames = new FrameSource();
     final ViewerModels models = new ViewerModels(scenario);
 
@@ -141,10 +149,13 @@ final class CompressedMapResultPropertyTest {
       return;
     }
 
+    final long creditLimit = (long) scenario.getMapCount() * WHOLE_MAP_BYTES;
+    final long refillFrames = Math.ceilDiv(creditLimit, budget);
+    final long quietFramesNeeded = MAXIMUM_QUIET_FRAMES + refillFrames;
+    final long frameLimit = quietFramesNeeded * (scenario.getMapCount() * 65) + quietFramesNeeded;
     int quietFrames = 0;
     int extraFrames = 0;
-    final int frameLimit = MAXIMUM_QUIET_FRAMES * (scenario.getMapCount() * 65) + MAXIMUM_QUIET_FRAMES;
-    while (quietFrames < MAXIMUM_QUIET_FRAMES) {
+    while (quietFrames < quietFramesNeeded) {
       final boolean withinLimit = extraFrames < frameLimit;
       assertTrue(withinLimit, "the viewers did not catch up");
       frames.process(result, scenario, lastFrame);

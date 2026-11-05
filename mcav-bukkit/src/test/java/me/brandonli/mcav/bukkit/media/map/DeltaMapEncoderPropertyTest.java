@@ -26,8 +26,10 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.IntStream;
 import net.jqwik.api.Arbitraries;
 import net.jqwik.api.Arbitrary;
+import net.jqwik.api.Assume;
 import net.jqwik.api.Combinators;
 import net.jqwik.api.ForAll;
 import net.jqwik.api.Property;
@@ -42,6 +44,13 @@ final class DeltaMapEncoderPropertyTest {
   private static final int TILES_PER_MAP = 64;
   private static final int MAXIMUM_QUIET_FRAMES = 7;
   private static final short NEVER_SENT = -1;
+
+  private static final int TILE_SIZE = 16;
+  private static final int TILES_PER_ROW = MAP_SIZE / TILE_SIZE;
+  private static final int NOISE_THRESHOLD = 4;
+
+  private static final int WHOLE_MAP_BYTES = MAP_SIZE * MAP_SIZE + MapLayout.PATCH_OVERHEAD;
+  private static final int SMALLEST_REFILLING_BUDGET = 600;
 
   private static final int PER_MILLE = 1000;
 
@@ -97,17 +106,25 @@ final class DeltaMapEncoderPropertyTest {
   }
 
   @Property(seed = SEED)
-  void shouldRespectTheBudgetAndCarryOnlyPixelsOfThatFrameInEveryFrame(@ForAll(SCENARIOS) final EncodingScenario scenario) {
+  void shouldStayWithinTheCreditAndSendEveryFrameWholeWithItsOwnPixels(@ForAll(SCENARIOS) final EncodingScenario scenario) {
     final MapLayout layout = scenario.createLayout();
-    final DeltaMapEncoder encoder = new DeltaMapEncoder(layout, scenario.getBudget());
+    final int budget = scenario.getBudget();
+    final DeltaMapEncoder encoder = new DeltaMapEncoder(layout, budget);
     final ClientModel clients = new ClientModel(layout);
 
+    long allowedBytes = this.getCreditLimit(layout);
+    long sentBytes = 0;
     for (final byte[] frame : scenario.createFrames()) {
       final List<MapTilePatch> patches = encoder.encode(frame);
-      this.assertWithinBudget(patches, scenario.getBudget());
+      sentBytes += this.countBytes(patches);
+      this.assertWithinCredit(sentBytes, allowedBytes);
+      allowedBytes += budget;
       for (final MapTilePatch patch : patches) {
         clients.assertCarriesFramePixels(patch, frame);
         clients.apply(patch);
+      }
+      if (!patches.isEmpty()) {
+        clients.assertShowsAllButHeldBackNoise(frame);
       }
       final List<MapTilePatch> snapshot = encoder.snapshot();
       clients.assertMatchesSnapshot(snapshot);
@@ -116,8 +133,12 @@ final class DeltaMapEncoderPropertyTest {
 
   @Property(seed = SEED)
   void shouldShowExactlyTheLastFrameOnTheClientsOnceThePictureStopsChanging(@ForAll(SCENARIOS) final EncodingScenario scenario) {
+    final int budget = scenario.getBudget();
+    // a tiny budget refills the credit too slowly for a property; DeltaMapEncoderTest covers a 1-byte budget
+    Assume.that(budget >= SMALLEST_REFILLING_BUDGET);
+
     final MapLayout layout = scenario.createLayout();
-    final DeltaMapEncoder encoder = new DeltaMapEncoder(layout, scenario.getBudget());
+    final DeltaMapEncoder encoder = new DeltaMapEncoder(layout, budget);
     final ClientModel clients = new ClientModel(layout);
     final List<byte[]> frames = scenario.createFrames();
     for (final byte[] frame : frames) {
@@ -127,10 +148,13 @@ final class DeltaMapEncoderPropertyTest {
 
     final byte[] lastFrame = frames.getLast();
     final int coveredMaps = clients.countCoveredMaps();
-    final int frameLimit = MAXIMUM_QUIET_FRAMES * (coveredMaps * (TILES_PER_MAP + 1)) + MAXIMUM_QUIET_FRAMES;
+    final long creditLimit = this.getCreditLimit(layout);
+    final long refillFrames = Math.ceilDiv(creditLimit, budget);
+    final long quietFramesNeeded = MAXIMUM_QUIET_FRAMES + refillFrames;
+    final long frameLimit = quietFramesNeeded * (coveredMaps * (TILES_PER_MAP + 1)) + quietFramesNeeded;
     int quietFrames = 0;
     int extraFrames = 0;
-    while (quietFrames < MAXIMUM_QUIET_FRAMES) {
+    while (quietFrames < quietFramesNeeded) {
       final boolean withinLimit = extraFrames < frameLimit;
       assertTrue(withinLimit, () -> "the clients did not catch up within %s frames".formatted(frameLimit));
 
@@ -160,19 +184,18 @@ final class DeltaMapEncoderPropertyTest {
     clients.assertShows(lastFrame);
   }
 
-  private void assertWithinBudget(final List<MapTilePatch> patches, final int budget) {
-    long bytes = 0;
-    final Set<Integer> maps = new HashSet<>();
-    for (final MapTilePatch patch : patches) {
-      bytes += patch.getEncodedSize();
-      final int mapId = patch.getMapId();
-      maps.add(mapId);
-    }
+  private long getCreditLimit(final MapLayout layout) {
+    final long mapCount = layout.getMapCount();
+    return mapCount * WHOLE_MAP_BYTES;
+  }
 
-    final long sent = bytes;
-    final int mapCount = maps.size();
-    final boolean withinBudget = sent <= budget || mapCount == 1;
-    assertTrue(withinBudget, () -> "%s bytes over %s maps in one frame, budget %s".formatted(sent, mapCount, budget));
+  private long countBytes(final List<MapTilePatch> patches) {
+    return patches.stream().mapToLong(MapTilePatch::getEncodedSize).sum();
+  }
+
+  private void assertWithinCredit(final long sentBytes, final long allowedBytes) {
+    final boolean withinCredit = sentBytes <= allowedBytes;
+    assertTrue(withinCredit, () -> "%s bytes sent where the credit allows %s".formatted(sentBytes, allowedBytes));
   }
 
   // a pure function of the scenario, so shrinking the scenario shrinks the frames
@@ -396,6 +419,42 @@ final class DeltaMapEncoderPropertyTest {
       }
 
       return false;
+    }
+
+    private void assertShowsAllButHeldBackNoise(final byte[] frame) {
+      for (int index = 0; index < this.maps.length; index++) {
+        final int[] differences = this.countDifferencesPerTile(frame, index);
+        final IntStream tiles = Arrays.stream(differences);
+        final boolean onlyNoise = tiles.allMatch(count -> count < NOISE_THRESHOLD);
+        assertTrue(onlyNoise, "a sent frame leaves no more than held-back noise behind on map %s".formatted(index));
+      }
+    }
+
+    private int[] countDifferencesPerTile(final byte[] frame, final int index) {
+      final MapRegion region = this.layout.getRegion(index);
+      final int height = region.getHeight();
+      final int[] differences = new int[TILES_PER_MAP];
+      for (int row = 0; row < height; row++) {
+        this.countRowDifferences(frame, index, row, differences);
+      }
+
+      return differences;
+    }
+
+    private void countRowDifferences(final byte[] frame, final int index, final int row, final int[] differences) {
+      final MapRegion region = this.layout.getRegion(index);
+      final short[] map = this.maps[index];
+      final int imageWidth = this.layout.getImageWidth();
+      final int mapY = region.getLocalY() + row;
+      final int sourceStart = (region.getSourceY() + row) * imageWidth + region.getSourceX();
+      final int width = region.getWidth();
+      for (int column = 0; column < width; column++) {
+        final int mapX = region.getLocalX() + column;
+        final short shown = map[mapY * MAP_SIZE + mapX];
+        final short expected = frame[sourceStart + column];
+        final int tile = (mapY / TILE_SIZE) * TILES_PER_ROW + mapX / TILE_SIZE;
+        differences[tile] += shown == expected ? 0 : 1;
+      }
     }
 
     private int countCoveredMaps() {

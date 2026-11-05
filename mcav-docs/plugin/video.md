@@ -23,8 +23,9 @@ sends every frame as a new message as it arrives.
 
 Dithering. `FILTER_LITE` is the recommended default, `NEAREST_COLOR` keeps text and desktops sharp, and
 `FLOYD_STEINBERG_TEMPORAL` keeps unchanged areas identical from frame to frame, so the wall sends less. A
-wall of maps sends only the parts of each map that changed, at most 128 KiB per frame and viewer; a big picture that
-changes everywhere, such as 1080p video, needs far more than that, so the wall shows each change a few frames late
+wall of maps sends only the parts of each map that changed, 128 KiB per frame and viewer on average, and every frame
+whole or not at all; a big picture that changes everywhere, such as 1080p video, needs far more than that, so the wall
+skips frames and shows far fewer of them
 ([why MCV2 exists](../mcv2.md#part-4-why-minecraft-maps-need-their-own-codec)).
 
 ## Players
