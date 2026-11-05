@@ -24,4 +24,4 @@ those of a running `mcav-http` server, so without one it shows no media and conn
 - `pnpm test` runs the tests in `test/` with Node.js's test runner. They load the page's own `startPlayback` and
   `stopPlayback` callbacks from `src/app/page.tsx` and run them against fake sockets, sound processors and timers. The
   Gradle task `testWebsite`, part of `check`, runs them on the build's Node.js.
-- `pnpm run lint` runs ESLint on `src`.
+- `pnpm run lint` runs ESLint on `src`. The Gradle task `lintWebsite`, part of `check`, runs it on the build's Node.js.
