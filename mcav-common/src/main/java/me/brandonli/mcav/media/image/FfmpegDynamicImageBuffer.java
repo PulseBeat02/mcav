@@ -33,8 +33,7 @@ import org.bytedeco.javacv.Frame;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
 
-// Decodes animated images with FFmpeg, which supports GIF, APNG, WebP, and every video container. Every frame is copied
-// once, straight from the decoder into the matrix of its image buffer.
+// Decodes animated images, such as GIF, APNG and WebP, with FFmpeg, copying each frame once from the decoder into its buffer's matrix.
 final class FfmpegDynamicImageBuffer implements DynamicImageBuffer {
 
   private static final float DEFAULT_FRAME_RATE = 10.0f;
@@ -66,8 +65,7 @@ final class FfmpegDynamicImageBuffer implements DynamicImageBuffer {
     return decode(path, grabber, decoded);
   }
 
-  // test seam for the timestamp mutants: a test grabber reports no frame rate and starts after zero, as no test file does
-  // test seam for the mutant that removes releaseAll: the test keeps the list to see the frames decoded before a failure
+  // test seam for the timestamp and releaseAll mutants: a grabber without a frame rate that starts after zero, and the decoded list
   @VisibleForTesting
   static Animation decode(final Path path, final FFmpegFrameGrabber grabber, final List<ImageBuffer> decoded) {
     final float frameRate;
@@ -118,8 +116,7 @@ final class FfmpegDynamicImageBuffer implements DynamicImageBuffer {
     return timestamps;
   }
 
-  // Copies a decoded frame into a new image, which is added to the list before it is filled, so it is released with the
-  // others if the copy fails.
+  // The image joins the list before it is filled, so a failed copy releases it with the others.
   private static void copyFrame(final Frame frame, final List<ImageBuffer> decoded) {
     final int width = frame.imageWidth;
     final int height = frame.imageHeight;
@@ -131,8 +128,7 @@ final class FfmpegDynamicImageBuffer implements DynamicImageBuffer {
     FramePixels.copyBgr(frame, data);
   }
 
-  // Chooses the frame rate of an animation. GIFs often report no frame rate, so the rate is derived from the timestamps
-  // when possible: the frames after the first one take up the time from the first to the last timestamp.
+  // GIFs often report no frame rate, so it is derived from the timestamps: the frames after the first span the first to the last.
   @VisibleForTesting
   static float resolveFrameRate(final double reported, final int frameCount, final long firstTimestamp, final long lastTimestamp) {
     final float reportedRate = (float) reported;

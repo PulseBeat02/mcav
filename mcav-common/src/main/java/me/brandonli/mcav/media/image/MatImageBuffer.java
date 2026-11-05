@@ -138,8 +138,7 @@ public final class MatImageBuffer implements ImageBuffer {
   MatImageBuffer(final byte[] encoded) {
     Preconditions.checkArgument(encoded.length > 0, "Encoded image must not be empty!");
 
-    // OpenCV allocates the whole picture once it has read the header, so a small file declaring a huge size is
-    // refused before it gets there
+    // OpenCV allocates the whole picture once it has read the header, so a decompression bomb is refused first
     DeclaredImageSize.checkBytes(encoded);
 
     try (final BytePointer pointer = new BytePointer(encoded); final Mat wrapper = new Mat(pointer)) {
@@ -152,8 +151,7 @@ public final class MatImageBuffer implements ImageBuffer {
   }
 
   MatImageBuffer(final Frame frame) {
-    // the converter returns a view over the memory of the frame, so the pixels have to be copied out; it returns
-    // null for frames without an image, such as audio frames
+    // the converter returns a view over the frame's memory, so the pixels are copied out
     try (final OpenCVFrameConverter.ToMat converter = new OpenCVFrameConverter.ToMat()) {
       final Mat converted = converter.convert(frame);
       Preconditions.checkArgument(converted != null, "Frame does not contain an image!");
@@ -232,8 +230,7 @@ public final class MatImageBuffer implements ImageBuffer {
   private static void checkDimensions(final int width, final int height) {
     Preconditions.checkArgument(width > 0 && height > 0, "Image dimensions %sx%s must be positive!", width, height);
 
-    // BGR arrays and ByteBuffer capacities are indexed by int; the pixels are compared with the limit divided by the
-    // channels, as multiplying two int dimensions and the channel count can overflow even a long
+    // BGR arrays are int-indexed; the limit is divided by the channels, as width * height * channels can overflow even a long
     final long pixels = (long) width * height;
     Preconditions.checkArgument(
       pixels <= Integer.MAX_VALUE / BGR_CHANNELS,
@@ -349,8 +346,7 @@ public final class MatImageBuffer implements ImageBuffer {
       return;
     }
 
-    // getRGB applies the source ColorModel's conversion to sRGB. Java2D's grayscale blit may instead copy
-    // linear gray samples as sRGB bytes, darkening an image (gray sample 8 is sRGB 50, not 8).
+    // getRGB converts the source ColorModel to sRGB; Java2D's grayscale blit may copy linear gray samples as sRGB bytes, darkening them
     final int width = image.getWidth();
     final int height = image.getHeight();
     final int[] pixels = new int[width * height];
@@ -359,8 +355,7 @@ public final class MatImageBuffer implements ImageBuffer {
     writeArgb(target, pixels, bytes);
   }
 
-  // Checks that the pixels of an image fill its data buffer exactly and start at its beginning. Sub-images share the
-  // data buffer of their parent, so their pixels are read through the raster-aware getRGB fallback instead.
+  // Sub-images share their parent's data buffer, so they go through the raster-aware getRGB fallback instead.
   private static boolean isPacked(final BufferedImage image) {
     final WritableRaster raster = image.getRaster();
     final DataBuffer dataBuffer = raster.getDataBuffer();
@@ -444,8 +439,7 @@ public final class MatImageBuffer implements ImageBuffer {
     this.exchange(result);
   }
 
-  // Takes the spare matrix out of this image, or creates an empty one if there is none, so a failing operation never
-  // leaves a half-written spare behind.
+  // The spare leaves this image while in use, so a failing operation never leaves a half-written spare behind.
   private Mat takeSpare() {
     final Mat existing = this.spare;
     this.spare = null;
@@ -457,13 +451,11 @@ public final class MatImageBuffer implements ImageBuffer {
     return new Mat();
   }
 
-  // Makes a result the matrix of this image and keeps the previous matrix as the spare, unless the result shares its
-  // pixel memory, in which case writing into the spare would overwrite the image. Sharing is recognised by datastart(),
-  // the address of the allocation the pixels belong to: an operation that returns its source, a matrix wrapping the
-  // same data, and an OpenCV region of interest of the previous matrix, whose first pixel lies elsewhere in that
-  // allocation, all compare equal on it. A matrix wrapped around a pointer into the middle of the pixels has an
-  // allocation of its own and is not recognised, so transformMat(BiConsumer) still requires an operation that writes a
-  // matrix of its own or returns the source unchanged.
+  /*
+   * The previous matrix becomes the spare unless the result shares its pixels, recognised by an equal datastart(): the
+   * source itself, a wrapper of its data or a region of interest. A wrapper of a pointer into the pixels is not
+   * recognised, so a transformMat(BiConsumer) operation must write its own matrix or return the source.
+   */
   private void exchange(final Mat result) {
     final Mat previous = this.matrix;
     final BytePointer resultStart = result.datastart();
@@ -536,10 +528,7 @@ public final class MatImageBuffer implements ImageBuffer {
     this.invalidateCache();
   }
 
-  // Makes the matrix the given size, keeping it if it already has that size. Otherwise the spare matrix takes its place
-  // if it has the size, and a new matrix if not. An image with a spare went through transformMat(BiConsumer), which
-  // will most likely produce the size of the previous matrix again, so the previous matrix becomes the new spare;
-  // images without a spare release it.
+  // An image with a spare keeps the previous matrix as the next spare, since its transformMat(BiConsumer) likely makes that size again.
   private boolean ensureSize(final int width, final int height) {
     final Mat previous = this.matrix;
     if (hasSize(previous, width, height)) {
@@ -566,8 +555,7 @@ public final class MatImageBuffer implements ImageBuffer {
     return true;
   }
 
-  // Checks the size of a matrix of this image. Both the matrix and the spare are always continuous 8-bit BGR, because
-  // the spare is always a former matrix of the image, so the size is all that can differ.
+  // The matrix and the spare, always a former matrix, are continuous 8-bit BGR, so the size is all that can differ.
   private static boolean hasSize(final Mat candidate, final int width, final int height) {
     final int candidateWidth = candidate.cols();
     final int candidateHeight = candidate.rows();
@@ -605,8 +593,6 @@ public final class MatImageBuffer implements ImageBuffer {
     this.invalidateCache();
   }
 
-  // Returns the byte array this image converts pixels with, growing it when it is too small, so repeated conversions of
-  // frames of the same size reuse one array.
   @VisibleForTesting
   byte[] ensureScratch(final int length) {
     final byte[] current = this.scratch;
@@ -709,8 +695,7 @@ public final class MatImageBuffer implements ImageBuffer {
 
     this.checkNotReleased();
 
-    // matrices compare by the address of their native header, so a second wrapper of the current matrix is never
-    // mistaken for a new one and released along with the current matrix
+    // matrices are equal by native header address, so a second wrapper of the current matrix is never released as a new one
     final boolean current = replacement.equals(this.matrix);
     if (current) {
       this.invalidateCache();

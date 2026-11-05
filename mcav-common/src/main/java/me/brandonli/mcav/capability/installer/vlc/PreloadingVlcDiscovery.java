@@ -25,15 +25,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// Loads the dependencies of a private VLC installation before vlcj loads libvlc, for installations whose
-// dependencies are not on the system, such as the Debian packages of 64-bit Linux. System discovery is left alone,
-// because a system VLC finds its dependencies itself.
+// Loads a private VLC's dependencies, such as the Debian packages of 64-bit Linux, before vlcj loads libvlc; a system VLC finds its own.
 final class PreloadingVlcDiscovery implements VlcDiscovery {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(PreloadingVlcDiscovery.class);
 
-  // VLC unloads its plugins with its last instance, but the taglib plugin leaves resolvers in the preloaded libtag,
-  // which calls them on its next read; keeping the plugin loaded keeps them valid.
+  // VLC unloads plugins with its last instance, but libtag keeps calling the taglib plugin's resolvers, so that plugin stays loaded.
   private static final Path TAGLIB_PLUGIN = Path.of("vlc", "plugins", "meta_engine", "libtaglib_plugin.so");
 
   private final Runnable preloader;

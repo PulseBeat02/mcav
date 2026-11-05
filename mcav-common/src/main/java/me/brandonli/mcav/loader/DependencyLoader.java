@@ -209,24 +209,20 @@ public final class DependencyLoader {
     this.loadFaceDetection(() -> this.loadObjectDetection(platform));
   }
 
-  // Sets how many threads OpenCV runs its own work on, such as a resize: one by default, so it runs on the calling
-  // thread. Otherwise OpenCV starts a pool of one thread per processor but one at its first parallel call, named after
-  // the thread that made it, which outlives every player and works outside the encoders' budget. The system property
-  // OPENCV_THREADS_PROPERTY sets another number; 0 runs everything sequentially, and below 0 is OpenCV's default.
+  /*
+   * One thread by default keeps OpenCV's own work, such as a resize, on the calling thread: OpenCV's pool would outlive
+   * every player and work outside the encoders' budget.
+   */
   @VisibleForTesting
   void configureOpenCvThreads() {
     final int threads = Integer.getInteger(OPENCV_THREADS_PROPERTY, DEFAULT_OPENCV_THREADS);
     org.bytedeco.opencv.global.opencv_core.setNumThreads(threads); // fqn: a presets class of this name is imported to load the natives
   }
 
-  // Sets the JavaCPP system properties the library relies on. A property the application has set already is left alone,
-  // so it can still be tuned with -D on the command line. org.bytedeco.openblas.load is deliberately not set to none:
-  // that value tells JavaCPP the application provides the BLAS symbols itself, and the OpenCV natives of JavaCV 1.5.14
-  // link OpenBLAS, so jniopencv_core then fails with "Can't find dependent libraries".
+  // org.bytedeco.openblas.load is not set to none: that means the application brings BLAS, but OpenCV's natives link OpenBLAS.
   @VisibleForTesting
   void configureJavaCpp() {
-    // the JNI glue is compiled against the bundled FFmpeg and OpenCV, so the bundled libraries must be found before
-    // a system FFmpeg or OpenCV of another version, which would fail to link or crash at runtime
+    // the JNI glue is built against the bundled FFmpeg and OpenCV; a system copy of another version would fail to link or crash
     final String current = System.getProperty(PATHS_FIRST_PROPERTY);
     if (current == null) {
       System.setProperty(PATHS_FIRST_PROPERTY, PATHS_FIRST_VALUE);
@@ -263,9 +259,7 @@ public final class DependencyLoader {
     Loader.load(opencv_objdetect.class);
   }
 
-  // The object detection natives link OpenCV's GUI module, which needs GTK 2 on Linux. When the system has none, the
-  // pinned Debian packages of GTK 2 are installed into the cache and loaded first, so the module links against them. A
-  // failed installation only costs face detection, which then fails to link and is reported as unavailable.
+  // Object detection links OpenCV's GUI module, which needs GTK 2 on Linux; a system without it gets the pinned Debian packages.
   @VisibleForTesting
   void provideGtk2(
     final Platform platform,
@@ -304,8 +298,7 @@ public final class DependencyLoader {
 
   @VisibleForTesting
   void loadFaceDetection(final Runnable objectDetectionLoader) {
-    // the object detection natives link OpenCV's GUI module, which needs GTK 2 on Linux; where it cannot be provided,
-    // only face detection is lost, so everything else keeps working without these natives
+    // where GTK 2 cannot be provided, only face detection is lost
     final String feature = Capability.FACE_DETECTION.getDisplayName();
     final boolean available = this.loadOptionalModule(objectDetectionLoader, feature);
     if (available) {
@@ -315,8 +308,6 @@ public final class DependencyLoader {
     }
   }
 
-  // Loads natives that only one feature needs. If they cannot be linked, the feature is reported as unavailable instead
-  // of failing the whole library.
   @VisibleForTesting
   boolean loadOptionalModule(final Runnable nativeLoader, final String feature) {
     try {
@@ -331,10 +322,7 @@ public final class DependencyLoader {
     }
   }
 
-  // Loads FFmpeg with the specified loader and then runs the setup that needs FFmpeg. A missing device library only
-  // disables capture devices, so that failure is logged instead of thrown, and the setup still runs. That holds for
-  // every load in a JVM: after the first, the JVM reports the device library's class as failed, naming the first
-  // failure as the cause while it keeps that, as when a plugin that installs MCAV is disabled and enabled again.
+  // Later loads in the same JVM, as after a plugin is enabled again, get a NoClassDefFoundError for the device library's class.
   @VisibleForTesting
   void loadFfmpeg(final Runnable ffmpegLoader, final Runnable setup) {
     try {
@@ -425,9 +413,7 @@ public final class DependencyLoader {
     final Optional<Path> _ = kit.start();
   }
 
-  // The installation of a program counts as cancelled when the current thread was interrupted. The library
-  // interrupts its installation threads when it is released, which makes a running download fail; that failure is
-  // expected and not worth a warning.
+  // Releasing the library interrupts its installation threads, so a download failing then is expected and not worth a warning.
   private boolean isCancelled() {
     final Thread current = Thread.currentThread();
     return current.isInterrupted();

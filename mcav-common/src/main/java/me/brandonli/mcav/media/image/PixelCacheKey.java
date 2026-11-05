@@ -21,10 +21,7 @@ import com.google.common.base.MoreObjects;
 import java.util.Objects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// Identifies the pixel memory the packed pixels of a MatImageBuffer were read from. OpenCV functions may reallocate or
-// reshape a matrix in place, keeping the matrix header but moving its pixels. When the address of the pixel data or the
-// shape of the matrix no longer matches the key the cached pixels were read with, the cache is stale even if nobody
-// invalidated it.
+// The pixel memory a MatImageBuffer's cache was read from; OpenCV may move pixels under a kept header, so a mismatch means a stale cache.
 final class PixelCacheKey {
 
   private final long address;

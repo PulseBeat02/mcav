@@ -24,8 +24,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery;
 import uk.co.caprica.vlcj.factory.discovery.strategy.NativeDiscoveryStrategy;
 
-// vlcj remembers a successful discovery for the rest of the JVM's lifetime, so once the libraries are loaded, every
-// later discovery succeeds immediately without reporting a directory
+// vlcj remembers a successful discovery for the JVM's lifetime, so every later one succeeds at once without reporting a directory
 final class NativeVlcDiscovery implements VlcDiscovery {
 
   private final Supplier<NativeDiscoveryStrategy[]> systemStrategies;

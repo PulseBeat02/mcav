@@ -25,10 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uk.co.caprica.vlcj.binding.lib.LibC;
 
-// Sets environment variables of the running process through the C library, so native code such as libvlc sees them.
-// System.getenv(String) keeps returning the values the JVM started with. The C library is loaded through JNA on the
-// first variable that is set, not when the setter is created, so a system where JNA cannot load only loses the plugin
-// path instead of every discovery strategy.
+// Sets process environment variables through the C library, so native code such as libvlc sees them; System.getenv(String) does not.
 final class EnvironmentVariables {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(EnvironmentVariables.class);
@@ -43,14 +40,12 @@ final class EnvironmentVariables {
     this(() -> libc);
   }
 
-  // Constructs a new setter that loads the C library on first use. A library that loaded is remembered; a failed load
-  // is tried again on the next variable.
+  // The C library loads on first use, so where JNA fails only the plugin path is lost; a failed load is retried on the next variable.
   EnvironmentVariables(final Supplier<LibC> libc) {
     this.libc = Suppliers.memoize(libc::get);
   }
 
-  // Creates a setter that calls the C library of this process, msvcrt on Windows and libc everywhere else. The library
-  // is only loaded when the first variable is set.
+  // Creates a setter for the C library of this process: msvcrt on Windows, libc everywhere else.
   static EnvironmentVariables create() {
     return new EnvironmentVariables(EnvironmentVariables::loadNativeLibrary);
   }

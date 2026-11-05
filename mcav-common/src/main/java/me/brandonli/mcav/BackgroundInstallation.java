@@ -36,8 +36,7 @@ import org.checkerframework.checker.nullness.qual.KeyFor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// Prepares VLC and yt-dlp on daemon threads after MCAV.install(Class[]). Callers only see asynchronous stages of the
-// futures, so their callbacks may call MCAV.release(), which waits for these threads.
+// Prepares VLC and yt-dlp on daemon threads, which MCAV.release() joins; callers get only asynchronous stages, so callbacks can call it.
 final class BackgroundInstallation {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(BackgroundInstallation.class);
@@ -86,8 +85,7 @@ final class BackgroundInstallation {
     return steps;
   }
 
-  // Marks every program as preparing and starts preparing them. When this method returns, the guard already reports the
-  // programs as preparing, so no feature can use a program the installation is still preparing.
+  // Once this returns, the guard reports every program as preparing, so no feature can use one the installation still prepares.
   void start() {
     final Set<Map.Entry<@KeyFor("this.steps") Capability, Runnable>> entries = this.steps.entrySet();
     for (final Map.Entry<@KeyFor("this.steps") Capability, Runnable> entry : entries) {
@@ -114,8 +112,7 @@ final class BackgroundInstallation {
     return thread;
   }
 
-  // Runs the step of one program on its installation thread. An error, such as an OutOfMemoryError, still ends the
-  // preparation, so nobody waits forever, and then ends the thread; its uncaught exception handler logs it.
+  // An Error still ends the preparation, so nobody waits forever, then ends the thread, whose uncaught exception handler logs it.
   private void prepare(final Capability capability, final Runnable step) {
     try {
       final Availability reported = this.runStep(capability, step);
@@ -144,8 +141,7 @@ final class BackgroundInstallation {
     this.logger.error("{} ended with an error.", threadName, error);
   }
 
-  // Records the outcome of a preparation. A preparation that ends after cancel() reports its program as unavailable and
-  // leaves the guard alone, because the cancellation already forgot about the program.
+  // A preparation that ends after cancel() reports its program unavailable and leaves the guard alone, as cancel() forgot it.
   private void finish(final Capability capability, final Availability reported) {
     final CompletableFuture<Boolean> preparation = this.getPreparation(capability);
     synchronized (this.lock) {

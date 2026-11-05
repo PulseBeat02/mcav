@@ -436,8 +436,6 @@ public abstract class AbstractInstaller implements Installer {
     }
   }
 
-  // Finds the download for a platform, falling back to the downloads of getFallbackPlatforms(Platform). Unknown
-  // platforms, whose operating system or architecture is OTHER, never get a download.
   @VisibleForTesting
   Optional<Download> findDownload(final Platform platform) {
     final boolean known = platform.isKnown();

@@ -403,8 +403,7 @@ public final class DebianPackageExtractor {
     return metadata;
   }
 
-  // records are "<length> <key>=<value>\n", the length counting the bytes of the whole record; decoding as
-  // ISO-8859-1 keeps one character per byte, so lengths stay offsets
+  // records are "<length> <key>=<value>\n", the length covering the whole record; ISO-8859-1 keeps byte lengths as offsets
   private void readPaxHeader(final InputStream data, final long size) throws IOException {
     final byte[] metadata = this.readMetadata(data, size);
     final String records = new String(metadata, StandardCharsets.ISO_8859_1);

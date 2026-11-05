@@ -37,8 +37,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// Fetches the system libraries that FFmpeg's device library links when Linux lacks them. An ffmpeg process does not
-// share what the JVM loaded, so it gets their folders on its library path.
+// Fetches the libraries FFmpeg's device library links when Linux lacks them; an ffmpeg process gets their folders on its library path.
 final class FfmpegLibraries {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FfmpegLibraries.class);

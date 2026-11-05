@@ -30,8 +30,7 @@ import me.brandonli.mcav.utils.http.DownloadException;
 import me.brandonli.mcav.utils.http.HttpDownloader;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// Downloads each pinned package from the live Debian pool first and from its snapshot URL second; the pinned hash
-// decides whether a file is the package. A source that failed is tried last for the packages that follow.
+// Tries the live Debian pool before the snapshot URL, the pinned hash deciding; a source that failed is tried last for later packages.
 final class DebianSources {
 
   private static final String SNAPSHOT_ARCHIVE = "https://snapshot.debian.org/archive/";

@@ -32,11 +32,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
-// An input stream that fails when its source delivers no data for too long. The HTTP client only limits how long the
-// response headers may take; once the body is flowing, a server that stops sending would block a read forever. This
-// stream waits for every read of its source on a virtual thread for at most the idle timeout. When the timeout passes,
-// the source is closed and the read fails with an HttpTimeoutException, which the downloader treats like any other
-// network failure.
+// Fails a read idle past the timeout with an HttpTimeoutException, closing the source: the HTTP client limits only the headers.
 final class IdleTimeoutInputStream extends InputStream {
 
   private static final int UNSIGNED_BYTE_MASK = 0xFF;
