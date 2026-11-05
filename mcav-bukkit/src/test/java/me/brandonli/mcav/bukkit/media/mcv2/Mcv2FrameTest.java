@@ -48,7 +48,7 @@ final class Mcv2FrameTest {
   private static final int DEFAULT_LAMBDA = 72;
 
   private static final ForkJoinPool POOL = ForkJoinPool.commonPool();
-  private static final int LIMIT_TRIES = 5;
+  private static final int LIMIT_TRIES = 17;
 
   private byte[] panned(final byte[] rgb, final int width, final int height, final int panX) {
     final byte[] output = new byte[rgb.length];
@@ -450,7 +450,8 @@ final class Mcv2FrameTest {
     final byte[] picture = this.noise(WIDE_FRAME_WIDTH, FRAME_SIDE, 5);
     final byte[][] keyframes = new byte[LIMIT_TRIES][];
     for (int attempt = 0; attempt < LIMIT_TRIES; attempt++) {
-      keyframes[attempt] = new Mcv2(Settings.DEFAULT.withLambda(DEFAULT_LAMBDA << attempt), POOL, 2, Mcv2.Verification.UNVERIFIED).encode(
+      final double lambda = Mcv2Lambdas.raise(DEFAULT_LAMBDA, attempt);
+      keyframes[attempt] = new Mcv2(Settings.DEFAULT.withLambda(lambda), POOL, 2, Mcv2.Verification.UNVERIFIED).encode(
         picture,
         WIDE_FRAME_WIDTH,
         FRAME_SIDE,
@@ -458,7 +459,7 @@ final class Mcv2FrameTest {
       );
     }
 
-    for (final int bound : new int[] { keyframes[0].length, keyframes[0].length - 1, keyframes[2].length, 1 }) {
+    for (final int bound : new int[] { keyframes[0].length, keyframes[0].length - 1, keyframes[2].length, keyframes[9].length, 1 }) {
       int expected = 0;
       while (expected < LIMIT_TRIES - 1 && keyframes[expected].length > bound) {
         expected++;
@@ -476,7 +477,7 @@ final class Mcv2FrameTest {
         assertArrayEquals(expectedTrivial, actual, "bound %s".formatted(bound));
       }
 
-      final int expectedLambda = DEFAULT_LAMBDA << expected;
+      final double expectedLambda = Mcv2Lambdas.raise(DEFAULT_LAMBDA, expected);
       final double lambda = bounded.getStatistics().orElseThrow().getLambda();
       assertEquals(expectedLambda, lambda);
 

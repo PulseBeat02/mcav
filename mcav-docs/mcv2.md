@@ -851,8 +851,9 @@ second, then a smaller video, and at worst the dithered maps.
 ### Staying inside the page slots
 
 A frame must fit the screen's page slots (98,048 bytes for eight), and a frame can never be more than 131,071 bytes.
-When a frame comes out too big, which happens with keyframes of busy pictures, the encoder searches it again with twice
-the λ, up to four times. If it's still too big, it writes the simplest frame there is: a P frame with nothing changed,
+When a frame comes out too big, which happens with keyframes of busy pictures, the encoder searches it again with the
+λ raised by √2 (about 1.41) each time, up to sixteen times (256 times the λ), so the frame keeps a λ within √2 of the
+smallest one that fits. If it's still too big, it writes the simplest frame there is: a P frame with nothing changed,
 or a keyframe of one solid 32x32 leaf per superblock, which even at 4096x4096 is at most 76,064 bytes (the header, a
 26,892-byte index and 49,152 bytes of colors). Live screens can also
 give the encoder a time budget per frame: when it runs out, the superblocks not yet searched get the cheapest choice
