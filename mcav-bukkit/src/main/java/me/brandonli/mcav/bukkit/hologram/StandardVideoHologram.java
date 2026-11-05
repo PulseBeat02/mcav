@@ -147,8 +147,7 @@ public final class StandardVideoHologram extends VideoHologram {
     final String uploader = reportedUploader == null ? UNKNOWN_UPLOADER : reportedUploader;
     final int timestamp = dump.getTimestamp();
     final String uploadDate = this.formatUploadDate(timestamp);
-    // the site names its videos and uploaders, so the names are inserted as text that is never parsed: escaping them
-    // leaves a backslash at their end, which would escape the closing tag after them
+    // names from the site go in as unparsed text: escaping them leaves a trailing backslash, which would escape the closing tag after them
     return MINI_MESSAGE.deserialize(
       METADATA_TEMPLATE,
       Placeholder.unparsed(TITLE_PLACEHOLDER, title),

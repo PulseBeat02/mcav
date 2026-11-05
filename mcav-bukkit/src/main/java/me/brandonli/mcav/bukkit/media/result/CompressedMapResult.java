@@ -270,8 +270,10 @@ public final class CompressedMapResult implements DitherResultStep {
     }
 
     if (!newViewers.isEmpty()) {
-      // A layout change forgets the viewer baseline, so old viewers also receive this reset. Keep historical
-      // cleanup available for viewers absent during earlier resizes, including when the snapshot is empty.
+      /*
+       * A layout change forgets the viewer baseline, so old viewers also receive this reset. Keep historical cleanup
+       * available for viewers absent during earlier resizes, including when the snapshot is empty.
+       */
       final List<MapTilePatch> currentSnapshot = currentEncoder.snapshot();
       final List<MapTilePatch> snapshot = this.createHistoryClears(currentSnapshot);
       snapshot.addAll(currentSnapshot);

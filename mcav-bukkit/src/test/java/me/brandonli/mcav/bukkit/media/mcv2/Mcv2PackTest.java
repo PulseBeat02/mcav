@@ -150,8 +150,7 @@ final class Mcv2PackTest {
       assertTrue(written, name);
     }
 
-    // six shared files, the screen's ten passes and its include, the chain, the shared includes, the manifest, the
-    // metadata
+    // six shared files, the screen's ten passes and its include, the chain, the shared includes, the manifest and the metadata
     final int entryCount = entries.size();
     assertEquals(22, entryCount);
 

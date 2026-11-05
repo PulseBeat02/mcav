@@ -448,8 +448,7 @@ public final class Mcv2Pack {
     return alphabet(colors, MAXIMUM_SYMBOL_HASH);
   }
 
-  // A table read per symbol, not a search of the 64 colors: the text shaders read up to 55 symbols for each vertex of a
-  // map and 4 for each pixel of the strip, and the search made a wall of page frames cost an integrated GPU 50 ms a frame.
+  // A table read per symbol, not a search of the 64 colors: the text shaders read up to 55 symbols per map vertex and 4 per strip pixel.
   static String alphabet(final int[] colors, final int maximumMultiplier) {
     final Set<Integer> seen = new HashSet<>();
     for (int symbol = 0; symbol < colors.length; symbol++) {

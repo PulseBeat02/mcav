@@ -297,8 +297,7 @@ final class Mcv2FrameTest {
   @Test
   void shouldRaiseTheLambdaOfFastMotion() {
     final Settings settings = Settings.DEFAULT;
-    // noise that changes from frame to frame but no movement keeps the profile's lambda, which is all a search without
-    // the motion's lambda uses
+    // noise that changes every frame without movement keeps the profile's lambda, all that a search without the motion's lambda uses
     final double steadyLambda = this.play(settings, FRAME_SIDE, FRAME_SIDE, 4, 0).getStatistics().orElseThrow().getLambda();
     assertEquals(DEFAULT_LAMBDA, steadyLambda);
 
@@ -360,8 +359,10 @@ final class Mcv2FrameTest {
   void shouldEndAFrameSoonAfterItsBudgetWithTheCheapestChoices() {
     final Mcv2 hurried = new Mcv2(Settings.DEFAULT, POOL, 2, Mcv2.Verification.VERIFIED);
     assertThrows(IllegalArgumentException.class, () -> hurried.setFrameBudget(-1));
-    // a budget every superblock starts past: a keyframe of one solid color per superblock, SKIP where the color is
-    // the frame's commonest, and a P frame of SKIP everywhere, each decoding to the encoder's own picture
+    /*
+     * a budget every superblock starts past: a keyframe of one solid color per superblock, SKIP where the color is the
+     * frame's commonest, and a P frame of SKIP everywhere, each decoding to the encoder's own picture
+     */
     hurried.setFrameBudget(1);
     final Client client = new Client();
     final Mcv2Decoder.Frame keyframe = Mcv2Decoder.parse(

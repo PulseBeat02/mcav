@@ -904,8 +904,7 @@ void main() {
 
 #if defined(MCV2_PASS_TEXT_VERTEX) || defined(MCV2_PASS_TEXT_FRAGMENT)
 
-// One read of the pack's symbol table (Mcv2Pack.alphabet) instead of a search of the 64 colors, which made a wall of
-// page frames cost an integrated GPU 50 ms a frame; a color outside the alphabet finds another color or no entry.
+// One table read (Mcv2Pack.alphabet) instead of a search of the 64 colors; a color outside the alphabet finds another color or none.
 int mcv2Symbol(vec4 texel) {
     ivec3 texelColor = ivec3(texel.rgb * 255.0 + 0.5);
     uint key = uint(texelColor.r << 16 | texelColor.g << 8 | texelColor.b);

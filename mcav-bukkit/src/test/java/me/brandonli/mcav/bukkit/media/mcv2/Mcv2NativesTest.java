@@ -721,8 +721,7 @@ final class Mcv2NativesTest {
 
   @Test
   void shouldSelectEachLevelAndPreserveExistingEncodersOnPublicInstallation() {
-    // the library loads from NativeTesting's folder, not the temporary one: Windows keeps a loaded library locked, so
-    // JUnit could not delete the temporary folder after the test
+    // loads from NativeTesting's folder: Windows locks a loaded library, so JUnit could not delete a temporary folder after the test
     Mcv2.installNatives(NativeTesting.NATIVES_FOLDER, Mcv2.NATIVE_OFF);
     final Mcv2 java = new Mcv2(Mcv2.Settings.DEFAULT, ForkJoinPool.commonPool(), 1, Mcv2.Verification.VERIFIED);
     final Supplier<?> javaFactory = (Supplier<?>) Mcv2Internals.field(Mcv2.class, java, "kernels");
