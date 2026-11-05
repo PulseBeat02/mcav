@@ -103,8 +103,8 @@ final class ChatConfigurationTest {
     final ChatConfigurationBuilder noHeight = this.completeBuilder();
     noHeight.chatHeight(0);
 
-    assertThrows(NullPointerException.class, noViewers::build);
-    assertThrows(NullPointerException.class, noCharacter::build);
+    assertThrows(IllegalStateException.class, noViewers::build);
+    assertThrows(IllegalStateException.class, noCharacter::build);
     assertThrows(IllegalArgumentException.class, emptyCharacter::build);
     assertThrows(IllegalArgumentException.class, noWidth::build);
     assertThrows(IllegalArgumentException.class, noHeight::build);

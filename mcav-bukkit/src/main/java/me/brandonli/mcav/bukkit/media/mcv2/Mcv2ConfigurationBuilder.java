@@ -217,7 +217,7 @@ public interface Mcv2ConfigurationBuilder {
    * Builds the configuration. The builder is not changed.
    *
    * @return the configuration
-   * @throws NullPointerException     if the viewers, the origin or the facing were not set
+   * @throws IllegalStateException    if the viewers, the origin or the facing were never set
    * @throws IllegalArgumentException if a value is out of range, or the video, at the wall's native size where none was
    *                                  set, is larger than 4096 pixels
    * @since 1.0.0

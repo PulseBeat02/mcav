@@ -106,7 +106,7 @@ public interface MapConfigurationBuilder {
    * @return the map configuration
    * @throws IllegalArgumentException if the first map id is negative, a grid dimension is nonpositive,
    *                                  a requested resolution is negative, or a default resolution would overflow an integer
-   * @throws NullPointerException     if the viewers were not set
+   * @throws IllegalStateException    if the viewers were never set
    * @since 1.0.0
    */
   MapConfiguration build();

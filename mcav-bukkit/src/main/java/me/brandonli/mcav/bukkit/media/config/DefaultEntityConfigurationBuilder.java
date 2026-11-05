@@ -23,6 +23,7 @@ import java.util.UUID;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 final class DefaultEntityConfigurationBuilder implements EntityConfigurationBuilder {
 
@@ -72,9 +73,23 @@ final class DefaultEntityConfigurationBuilder implements EntityConfigurationBuil
 
   @Override
   public EntityConfiguration build() {
-    final Collection<UUID> configuredViewers = Preconditions.checkNotNull(this.viewers, "Viewers must be set!");
-    final String configuredCharacter = Preconditions.checkNotNull(this.character, "Character must be set!");
-    final Location configuredPosition = Preconditions.checkNotNull(this.position, "Position must be set!");
+    final @Nullable Collection<UUID> configuredViewers = this.viewers;
+    if (configuredViewers == null) {
+      final String message = "Viewers must be set!";
+      throw new IllegalStateException(message);
+    }
+
+    final @Nullable String configuredCharacter = this.character;
+    if (configuredCharacter == null) {
+      final String message = "Character must be set!";
+      throw new IllegalStateException(message);
+    }
+
+    final @Nullable Location configuredPosition = this.position;
+    if (configuredPosition == null) {
+      final String message = "Position must be set!";
+      throw new IllegalStateException(message);
+    }
 
     final World world = configuredPosition.getWorld();
     Preconditions.checkArgument(world != null, "Position must have a world!");

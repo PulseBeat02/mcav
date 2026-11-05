@@ -118,9 +118,9 @@ final class EntityConfigurationTest {
     noPosition.entityWidth(1);
     noPosition.entityHeight(1);
 
-    assertThrows(NullPointerException.class, noViewers::build);
-    assertThrows(NullPointerException.class, noCharacter::build);
-    assertThrows(NullPointerException.class, noPosition::build);
+    assertThrows(IllegalStateException.class, noViewers::build);
+    assertThrows(IllegalStateException.class, noCharacter::build);
+    assertThrows(IllegalStateException.class, noPosition::build);
   }
 
   @Test

@@ -136,7 +136,7 @@ final class MapConfigurationTest {
     final MapConfigurationBuilder noHeight = this.completeBuilder();
     noHeight.mapBlockHeight(0);
 
-    assertThrows(NullPointerException.class, noViewers::build);
+    assertThrows(IllegalStateException.class, noViewers::build);
     assertThrows(IllegalArgumentException.class, noMap::build);
     assertThrows(IllegalArgumentException.class, negativeMap::build);
     assertThrows(IllegalArgumentException.class, noWidth::build);

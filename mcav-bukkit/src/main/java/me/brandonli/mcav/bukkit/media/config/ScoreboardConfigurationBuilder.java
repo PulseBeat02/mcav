@@ -75,7 +75,7 @@ public interface ScoreboardConfigurationBuilder {
    *
    * @return the scoreboard configuration
    * @throws IllegalArgumentException if a size is out of range or the character is empty
-   * @throws NullPointerException     if the viewers or the character were not set
+   * @throws IllegalStateException    if the viewers or the character were never set
    * @since 1.0.0
    */
   ScoreboardConfiguration build();

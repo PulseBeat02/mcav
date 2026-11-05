@@ -189,9 +189,24 @@ final class DefaultMcv2ConfigurationBuilder implements Mcv2ConfigurationBuilder 
 
   @Override
   public Mcv2Configuration build() {
-    final Collection<UUID> configuredViewers = Preconditions.checkNotNull(this.viewers, "Viewers must be set!");
-    final Location configuredOrigin = Preconditions.checkNotNull(this.origin, "Origin must be set!");
-    final BlockFace configuredFacing = Preconditions.checkNotNull(this.facing, "Facing must be set!");
+    final @Nullable Collection<UUID> configuredViewers = this.viewers;
+    if (configuredViewers == null) {
+      final String message = "Viewers must be set!";
+      throw new IllegalStateException(message);
+    }
+
+    final @Nullable Location configuredOrigin = this.origin;
+    if (configuredOrigin == null) {
+      final String message = "Origin must be set!";
+      throw new IllegalStateException(message);
+    }
+
+    final @Nullable BlockFace configuredFacing = this.facing;
+    if (configuredFacing == null) {
+      final String message = "Facing must be set!";
+      throw new IllegalStateException(message);
+    }
+
     Preconditions.checkArgument(this.map >= 0, "Map id %s must be set and must not be negative!", this.map);
     Preconditions.checkArgument(
       this.columns >= 1 && this.columns <= Mcv2Configuration.MAXIMUM_SIDE,

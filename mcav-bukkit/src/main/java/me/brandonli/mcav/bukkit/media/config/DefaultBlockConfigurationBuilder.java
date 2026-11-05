@@ -23,6 +23,7 @@ import java.util.UUID;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 final class DefaultBlockConfigurationBuilder implements BlockConfigurationBuilder {
 
@@ -63,8 +64,17 @@ final class DefaultBlockConfigurationBuilder implements BlockConfigurationBuilde
 
   @Override
   public BlockConfiguration build() {
-    final Collection<UUID> configuredViewers = Preconditions.checkNotNull(this.viewers, "Viewers must be set!");
-    final Location configuredPosition = Preconditions.checkNotNull(this.position, "Position must be set!");
+    final @Nullable Collection<UUID> configuredViewers = this.viewers;
+    if (configuredViewers == null) {
+      final String message = "Viewers must be set!";
+      throw new IllegalStateException(message);
+    }
+
+    final @Nullable Location configuredPosition = this.position;
+    if (configuredPosition == null) {
+      final String message = "Position must be set!";
+      throw new IllegalStateException(message);
+    }
 
     final World world = configuredPosition.getWorld();
     Preconditions.checkArgument(world != null, "Position must have a world!");

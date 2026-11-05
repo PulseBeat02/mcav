@@ -89,7 +89,7 @@ public interface EntityConfigurationBuilder {
    * @return the entity configuration
    * @throws IllegalArgumentException if a size is not positive, the character is empty, or the position has no
    *                                  world
-   * @throws NullPointerException     if the viewers, the character, or the position were not set
+   * @throws IllegalStateException    if the viewers, the character, or the position were never set
    * @since 1.0.0
    */
   EntityConfiguration build();

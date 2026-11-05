@@ -22,6 +22,7 @@ import java.util.Collection;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.map.MapLayout;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 final class DefaultMapConfigurationBuilder implements MapConfigurationBuilder {
 
@@ -85,7 +86,11 @@ final class DefaultMapConfigurationBuilder implements MapConfigurationBuilder {
 
   @Override
   public MapConfiguration build() {
-    final Collection<UUID> configuredViewers = Preconditions.checkNotNull(this.viewers, "Viewers must be set!");
+    final @Nullable Collection<UUID> configuredViewers = this.viewers;
+    if (configuredViewers == null) {
+      final String message = "Viewers must be set!";
+      throw new IllegalStateException(message);
+    }
 
     Preconditions.checkArgument(this.map >= 0, "Map id %s must be set and must not be negative!", this.map);
     Preconditions.checkArgument(this.mapBlockWidth > 0, "Map block width %s must be positive!", this.mapBlockWidth);

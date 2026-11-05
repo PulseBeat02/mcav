@@ -345,7 +345,7 @@ final class Mcv2ConfigurationTest {
 
   @Test
   void shouldRefuseMissingOrInvalidValues() {
-    assertThrows(NullPointerException.class, () ->
+    assertThrows(IllegalStateException.class, () ->
       Mcv2Configuration.builder()
         .origin(new Location(WORLD, 0, 0, 0))
         .facing(BlockFace.SOUTH)
@@ -354,10 +354,10 @@ final class Mcv2ConfigurationTest {
         .rows(1)
         .build()
     );
-    assertThrows(NullPointerException.class, () ->
+    assertThrows(IllegalStateException.class, () ->
       Mcv2Configuration.builder().viewers(VIEWERS).facing(BlockFace.SOUTH).map(0).columns(1).rows(1).build()
     );
-    assertThrows(NullPointerException.class, () ->
+    assertThrows(IllegalStateException.class, () ->
       Mcv2Configuration.builder()
         .viewers(VIEWERS)
         .origin(new Location(WORLD, 0, 0, 0))
