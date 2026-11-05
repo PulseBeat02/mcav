@@ -35,7 +35,7 @@ final class FrameSourceTest {
   void shouldDescribeTheFrames() {
     final SampleSupplier supplier = () -> new int[16 * 8];
     final FrameSource source = FrameSource.supplier(supplier, 16, 8, 50.0f);
-    final SampleSupplier storedSupplier = source.supplyFrameSamples();
+    final SampleSupplier storedSupplier = source.getSampleSupplier();
     final int width = source.getFrameWidth();
     final int height = source.getFrameHeight();
     final float frameRate = source.getFrameRate();
@@ -73,7 +73,7 @@ final class FrameSourceTest {
     final BufferedImage image = new BufferedImage(4, 2, BufferedImage.TYPE_INT_ARGB);
     image.setRGB(3, 1, 0xFF123456);
     final FrameSource source = FrameSource.image(() -> image, 4, 2);
-    final SampleSupplier supplier = source.supplyFrameSamples();
+    final SampleSupplier supplier = source.getSampleSupplier();
     final int[] pixels = supplier.getFrameSamples();
     final int[] expected = new int[8];
     expected[7] = 0xFF123456;
@@ -86,7 +86,7 @@ final class FrameSourceTest {
     final int width = image.getWidth();
     final int height = image.getHeight();
     final FrameSource source = FrameSource.image(() -> image, width, height);
-    final SampleSupplier supplier = source.supplyFrameSamples();
+    final SampleSupplier supplier = source.getSampleSupplier();
     return supplier.getFrameSamples();
   }
 
@@ -151,7 +151,7 @@ final class FrameSourceTest {
   private static final class MinimalFrameSource implements FrameSource {
 
     @Override
-    public SampleSupplier supplyFrameSamples() {
+    public SampleSupplier getSampleSupplier() {
       return () -> new int[1];
     }
 

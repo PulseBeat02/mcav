@@ -134,7 +134,7 @@ public final class ThreadedImagePlayer implements ImagePlayer {
     final float frameRate = source.getFrameRate();
     final long periodNanoseconds = (long) (NANOSECONDS_PER_SECOND / frameRate);
     final OriginalVideoMetadata metadata = OriginalVideoMetadata.of(width, height, frameRate);
-    final SampleSupplier supplier = source.supplyFrameSamples();
+    final SampleSupplier supplier = source.getSampleSupplier();
     final FrameLoop loop = new FrameLoop(supplier, width, height, metadata);
     loop.run(periodNanoseconds);
   }

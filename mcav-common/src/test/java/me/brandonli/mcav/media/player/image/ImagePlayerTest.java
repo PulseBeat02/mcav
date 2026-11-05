@@ -365,7 +365,7 @@ final class ImagePlayerTest {
     final FrameSource source = mock(FrameSource.class);
     when(source.getFrameWidth()).thenReturn(SMALL_FRAME_SIZE);
     when(source.getFrameHeight()).thenReturn(SMALL_FRAME_SIZE);
-    when(source.supplyFrameSamples()).thenAnswer(_ -> delegate.supplyFrameSamples());
+    when(source.getSampleSupplier()).thenAnswer(_ -> delegate.getSampleSupplier());
     when(source.getFrameRate()).thenAnswer(_ -> recordStarterAndAnswerFrameRate(starter));
     return source;
   }
@@ -449,13 +449,13 @@ final class ImagePlayerTest {
   @Test
   void shouldReportSourcesThatFailToStartAndCanBeStartedAgain() throws Exception {
     final FrameSource working = solidFrames(SMALL_FRAME_SIZE, SMALL_FRAME_SIZE, FRAME_RATE);
-    final SampleSupplier supplier = working.supplyFrameSamples();
+    final SampleSupplier supplier = working.getSampleSupplier();
     final IllegalStateException failure = new IllegalStateException("the source is gone!");
     final FrameSource source = mock(FrameSource.class);
     when(source.getFrameWidth()).thenReturn(SMALL_FRAME_SIZE);
     when(source.getFrameHeight()).thenReturn(SMALL_FRAME_SIZE);
     when(source.getFrameRate()).thenReturn(FRAME_RATE);
-    when(source.supplyFrameSamples()).thenThrow(failure).thenReturn(supplier);
+    when(source.getSampleSupplier()).thenThrow(failure).thenReturn(supplier);
     final List<String> failures = Collections.synchronizedList(new ArrayList<>());
     final AtomicInteger delivered = new AtomicInteger();
     final ImagePlayer player = ImagePlayer.player();

@@ -98,7 +98,7 @@ public interface FrameSource extends DynamicSource {
    * @return the supplier
    * @since 1.0.0
    */
-  SampleSupplier supplyFrameSamples();
+  SampleSupplier getSampleSupplier();
 
   /**
    * Returns the width of the frames.
