@@ -48,7 +48,7 @@ final class Mcv2PatternRewriteTest {
     return record;
   }
 
-  private boolean pattern(final byte[] palette, final byte[] out) {
+  private boolean pattern(final byte[] palette, final byte[] output) {
     return (boolean) Mcv2Internals.callForResult(
       Mcv2.class,
       null,
@@ -56,7 +56,7 @@ final class Mcv2PatternRewriteTest {
       new Class<?>[] { byte[].class, int.class, byte[].class },
       palette,
       8,
-      out
+      output
     );
   }
 

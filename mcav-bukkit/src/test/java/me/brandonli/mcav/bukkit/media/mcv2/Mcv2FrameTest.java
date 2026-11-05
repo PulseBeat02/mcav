@@ -51,14 +51,14 @@ final class Mcv2FrameTest {
   private static final int LIMIT_TRIES = 5;
 
   private byte[] panned(final byte[] rgb, final int width, final int height, final int panX) {
-    final byte[] out = new byte[rgb.length];
+    final byte[] output = new byte[rgb.length];
     for (int row = 0; row < height; row++) {
       for (int column = 0; column < width; column++) {
-        System.arraycopy(rgb, (row * width + Math.floorMod(column + panX, width)) * 3, out, (row * width + column) * 3, 3);
+        System.arraycopy(rgb, (row * width + Math.floorMod(column + panX, width)) * 3, output, (row * width + column) * 3, 3);
       }
     }
 
-    return out;
+    return output;
   }
 
   private Mcv2 encoder(final Settings settings) {

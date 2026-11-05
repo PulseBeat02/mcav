@@ -82,7 +82,7 @@ final class Mcv2FileEncoderTest {
   @Test
   void shouldEncodeAVideoFileLikeAFrameByFrameEncode() throws Exception {
     final Path video = TestMedia.video();
-    final ByteArrayOutputStream out = new ByteArrayOutputStream();
+    final ByteArrayOutputStream output = new ByteArrayOutputStream();
     final List<Long> progress = new ArrayList<>();
     final Mcv2FileEncoder.Result result;
     try (final Pool budget = new Pool(2)) {
@@ -92,7 +92,7 @@ final class Mcv2FileEncoderTest {
         HEIGHT,
         Settings.DEFAULT,
         budget,
-        out,
+        output,
         progress::add
       );
     }
@@ -116,7 +116,7 @@ final class Mcv2FileEncoderTest {
     final boolean tookTimePerFrame = result.millisecondsPerFrame() > 0;
     assertTrue(tookTimePerFrame);
 
-    final List<byte[]> frames = frames(out.toByteArray());
+    final List<byte[]> frames = frames(output.toByteArray());
     final int writtenFrameCount = frames.size();
     assertEquals(count, writtenFrameCount);
 
@@ -157,12 +157,12 @@ final class Mcv2FileEncoderTest {
     final boolean unlimitedFrameTooLarge = unlimited.encode(checkerboard, width, height, 0).length > limit;
     assertTrue(unlimitedFrameTooLarge);
 
-    final ByteArrayOutputStream out = new ByteArrayOutputStream();
+    final ByteArrayOutputStream output = new ByteArrayOutputStream();
     try (final Pool budget = new Pool(1)) {
-      Mcv2FileEncoder.encode(this.repeating(checkerboard, 2), width, height, Settings.DEFAULT, budget, out, count -> {});
+      Mcv2FileEncoder.encode(this.repeating(checkerboard, 2), width, height, Settings.DEFAULT, budget, output, count -> {});
     }
 
-    final List<byte[]> frames = frames(out.toByteArray());
+    final List<byte[]> frames = frames(output.toByteArray());
     final int frameCount = frames.size();
     assertEquals(2, frameCount);
 
@@ -206,7 +206,7 @@ final class Mcv2FileEncoderTest {
 
   @Test
   void shouldCountTheKeyframesOfTheStreamItWrites() throws Exception {
-    final ByteArrayOutputStream out = new ByteArrayOutputStream();
+    final ByteArrayOutputStream output = new ByteArrayOutputStream();
     final Mcv2FileEncoder.Result result;
     try (final Pool budget = new Pool(1)) {
       result = Mcv2FileEncoder.encode(
@@ -215,13 +215,13 @@ final class Mcv2FileEncoderTest {
         HEIGHT,
         Settings.DEFAULT,
         budget,
-        out,
+        output,
         _ -> {}
       );
     }
 
     long keyframes = 0;
-    for (final byte[] frame : frames(out.toByteArray())) {
+    for (final byte[] frame : frames(output.toByteArray())) {
       if (Mcv2Decoder.parse(frame).isKeyframe()) {
         keyframes++;
       }
@@ -361,15 +361,15 @@ final class Mcv2FileEncoderTest {
   @Test
   void shouldRefuseWhatItCannotEncode() {
     final Mcv2FileEncoder.FrameReader none = mock(Mcv2FileEncoder.FrameReader.class);
-    final ByteArrayOutputStream out = new ByteArrayOutputStream();
+    final ByteArrayOutputStream output = new ByteArrayOutputStream();
     try (final Pool budget = new Pool(1)) {
-      assertThrows(NullPointerException.class, () -> Mcv2FileEncoder.encode(null, 1, 1, Settings.DEFAULT, budget, out, _ -> {}));
-      assertThrows(IllegalArgumentException.class, () -> Mcv2FileEncoder.encode(none, 0, 1, Settings.DEFAULT, budget, out, _ -> {}));
-      assertThrows(IllegalArgumentException.class, () -> Mcv2FileEncoder.encode(none, 1, 0, Settings.DEFAULT, budget, out, _ -> {}));
-      assertThrows(NullPointerException.class, () -> Mcv2FileEncoder.encode(none, 1, 1, null, budget, out, _ -> {}));
-      assertThrows(NullPointerException.class, () -> Mcv2FileEncoder.encode(none, 1, 1, Settings.DEFAULT, null, out, _ -> {}));
+      assertThrows(NullPointerException.class, () -> Mcv2FileEncoder.encode(null, 1, 1, Settings.DEFAULT, budget, output, _ -> {}));
+      assertThrows(IllegalArgumentException.class, () -> Mcv2FileEncoder.encode(none, 0, 1, Settings.DEFAULT, budget, output, _ -> {}));
+      assertThrows(IllegalArgumentException.class, () -> Mcv2FileEncoder.encode(none, 1, 0, Settings.DEFAULT, budget, output, _ -> {}));
+      assertThrows(NullPointerException.class, () -> Mcv2FileEncoder.encode(none, 1, 1, null, budget, output, _ -> {}));
+      assertThrows(NullPointerException.class, () -> Mcv2FileEncoder.encode(none, 1, 1, Settings.DEFAULT, null, output, _ -> {}));
       assertThrows(NullPointerException.class, () -> Mcv2FileEncoder.encode(none, 1, 1, Settings.DEFAULT, budget, null, _ -> {}));
-      assertThrows(NullPointerException.class, () -> Mcv2FileEncoder.encode(none, 1, 1, Settings.DEFAULT, budget, out, null));
+      assertThrows(NullPointerException.class, () -> Mcv2FileEncoder.encode(none, 1, 1, Settings.DEFAULT, budget, output, null));
     }
 
     assertThrows(NullPointerException.class, () -> Mcv2FileEncoder.ffmpeg(null, 1, 1));

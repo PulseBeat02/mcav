@@ -121,12 +121,12 @@ final class Mcv2KernelPropertyTest {
     assertArrayEquals(expected, actual);
   }
 
-  private long distortion(final int[] source, final int[] out) {
+  private long distortion(final int[] source, final int[] output) {
     long sum = 0;
     for (int offset = 0; offset < source.length; offset += 3) {
-      final int redDifference = source[offset] - out[offset];
-      final int greenDifference = source[offset + 1] - out[offset + 1];
-      final int blueDifference = source[offset + 2] - out[offset + 2];
+      final int redDifference = source[offset] - output[offset];
+      final int greenDifference = source[offset + 1] - output[offset + 1];
+      final int blueDifference = source[offset + 2] - output[offset + 2];
       final int luma = redDifference + 2 * greenDifference + blueDifference;
       final int chromaOrange = redDifference - blueDifference;
       final int chromaGreen = 2 * greenDifference - redDifference - blueDifference;
@@ -185,16 +185,16 @@ final class Mcv2KernelPropertyTest {
     final int[] prediction = this.prediction(random, size);
     final int color = random.nextInt(1 << 24);
     final Kernel run = switch (kernel) {
-      case 0 -> (kernels, out) -> kernels.predicted(prediction, size, out);
-      case 1 -> (kernels, out) -> kernels.solid(color, size, out);
-      case 2 -> (kernels, out) -> kernels.palette(record, size, out);
-      default -> (kernels, out) -> kernels.compact(prediction, record, quantizer, size, out);
+      case 0 -> (kernels, output) -> kernels.predicted(prediction, size, output);
+      case 1 -> (kernels, output) -> kernels.solid(color, size, output);
+      case 2 -> (kernels, output) -> kernels.palette(record, size, output);
+      default -> (kernels, output) -> kernels.compact(prediction, record, quantizer, size, output);
     };
     this.assertMeasured(random, size, run);
   }
 
   @FunctionalInterface
   private interface Kernel {
-    boolean run(Kernels kernels, int[] out);
+    boolean run(Kernels kernels, int[] output);
   }
 }
