@@ -29,8 +29,7 @@ import java.util.zip.GZIPOutputStream;
 import org.tukaani.xz.LZMA2Options;
 import org.tukaani.xz.XZOutputStream;
 
-// Builds Debian packages in memory the way dpkg-deb lays them out: an ar archive of debian-binary, a control member
-// and a data member holding a tar archive. Tests build their fixtures with it instead of downloading real packages.
+// Builds Debian packages in memory as dpkg-deb lays them out: an ar archive of debian-binary, a control member and a tar data member.
 final class DebianPackageBuilder {
 
   private static final byte[] AR_MAGIC = "!<arch>\n".getBytes(StandardCharsets.US_ASCII);

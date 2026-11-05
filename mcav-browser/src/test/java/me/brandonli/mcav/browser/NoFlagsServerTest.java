@@ -38,8 +38,7 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-// Runs NoFlagsServerMain like a stock headless Minecraft server: only -Djava.awt.headless=true, the class path in
-// CLASSPATH, no DISPLAY or WAYLAND_DISPLAY, and no X server on the PATH.
+// Runs NoFlagsServerMain like a stock headless server: only -Djava.awt.headless=true, CLASSPATH, no DISPLAY, WAYLAND_DISPLAY or X server
 @Tag("cef")
 class NoFlagsServerTest {
 

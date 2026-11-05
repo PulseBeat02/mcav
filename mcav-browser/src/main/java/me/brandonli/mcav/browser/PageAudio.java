@@ -29,9 +29,11 @@ import java.util.regex.Pattern;
 import org.cef.browser.CefDevToolsClient;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// The sound of the page: JCEF hands over no CEF audio, so SCRIPT sends what each document plays through a DevTools
-// binding. The page can call the binding too, so only exact calls of whole frames within a budget pass. Not captured:
-// out-of-process frames, cross-origin media without CORS, protected media, and Web Audio subclasses the page defines.
+/*
+ * The sound of the page: JCEF hands over no CEF audio, so SCRIPT sends what each document plays through a DevTools
+ * binding. The page can call the binding too, so only exact calls of whole frames within a budget pass. Not captured:
+ * out-of-process frames, cross-origin media without CORS, protected media, and Web Audio subclasses the page defines.
+ */
 final class PageAudio implements CefDevToolsClient.EventListener {
 
   static final String BINDING = "__mcavAudio";

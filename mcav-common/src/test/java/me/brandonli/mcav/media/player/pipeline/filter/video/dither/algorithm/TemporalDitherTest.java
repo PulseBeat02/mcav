@@ -86,8 +86,7 @@ final class TemporalDitherTest {
     }
   }
 
-  // Counts the rows of a dithered frame that hold no white pixel at all, which is what a strip that was never dithered
-  // leaves behind.
+  // A strip that was never dithered leaves rows without a white pixel.
   private static int countRowsWithoutWhite(final byte[] indices, final int width) {
     final int height = indices.length / width;
     int rowsWithoutWhite = 0;

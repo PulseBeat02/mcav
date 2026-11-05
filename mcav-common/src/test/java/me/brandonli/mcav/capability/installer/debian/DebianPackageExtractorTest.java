@@ -120,8 +120,7 @@ final class DebianPackageExtractorTest {
   private static final String DEEP_LINK_PATH = "usr/lib/libdeep.so.1";
   private static final String DEEP_LINK_TARGET = "%s/libdeep.so.1".formatted(DEEP_DIRECTORY);
 
-  // the first tar header of an uncompressed package: the ar magic, debian-binary with its 4 bytes and the control
-  // member with its 7 bytes and a padding byte come first, each member behind a 60 byte header
+  // an uncompressed package's ar magic, debian-binary (4 bytes) and control (7 bytes, padded to 8), each member behind a 60 byte header
   private static final int FIRST_TAR_HEADER = 8 + 60 + 4 + 60 + 7 + 1 + 60;
   private static final int TAR_HEADER_SIZE = 512;
   private static final int TAR_MODE_OFFSET = 100;
@@ -637,8 +636,7 @@ final class DebianPackageExtractorTest {
     }
   }
 
-  // Writes a field of the first tar header of an uncompressed package and recomputes the header checksum, so the
-  // extractor reads the field instead of refusing the checksum.
+  // Also recomputes the header checksum, so the extractor reads the field instead of refusing the checksum.
   private void rewriteTarField(final byte[] debianPackage, final int fieldOffset, final String value) {
     final byte[] valueBytes = value.getBytes(StandardCharsets.US_ASCII);
     System.arraycopy(valueBytes, 0, debianPackage, FIRST_TAR_HEADER + fieldOffset, valueBytes.length);

@@ -407,8 +407,7 @@ final class VlcInstallerTest {
     }
   }
 
-  // Models the AppImage extraction protocol, not the VLC binary: the returned library must never be loaded. The host
-  // runs the fixture, so it is a batch file on Windows and a shell script everywhere else.
+  // Models the AppImage extraction protocol, not the VLC binary: the returned library must never be loaded.
   private Path writeExtractionFixture() throws IOException {
     final Os operatingSystem = OsUtils.getOs();
     if (operatingSystem == Os.WINDOWS) {

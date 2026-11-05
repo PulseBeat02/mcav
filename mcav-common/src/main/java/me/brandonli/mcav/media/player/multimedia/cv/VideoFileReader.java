@@ -17,8 +17,7 @@
  */
 package me.brandonli.mcav.media.player.multimedia.cv;
 
-// The reader that opens video files: the reader of OpenCV when its build has a file backend, or the FFmpeg reader that
-// JavaCV bundles otherwise.
+// The video file reader: OpenCV's when its build has a file backend, else the FFmpeg reader that JavaCV bundles.
 enum VideoFileReader {
   OPENCV,
   FFMPEG,

@@ -204,8 +204,7 @@ public final class CommandTask {
     this.process = started;
     final InputStream standardOutput = started.getInputStream();
     final InputStream standardError = started.getErrorStream();
-    // both streams are drained on their own threads, so a process that fills one pipe never blocks on it; a shared
-    // pool could run the readers one after another and deadlock exactly like that
+    // each stream drains on its own thread, so a process never blocks on a full pipe, as it could with readers run in turn
     final ExecutorService readers = Executors.newVirtualThreadPerTaskExecutor();
     try {
       final Future<String> outputFuture = readers.submit(() -> this.readFully(standardOutput));

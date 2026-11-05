@@ -17,8 +17,7 @@
  */
 package me.brandonli.mcav.media.player.multimedia.cv;
 
-// Reports a stretch of media time in which most frames were dropped, which would otherwise look like a hang. Not
-// thread-safe.
+// Reports a stretch of media time in which most frames were dropped, which would otherwise look like a hang; not thread-safe.
 final class LateFrameCounter {
 
   private static final long WINDOW_MICROSECONDS = 10_000_000L;

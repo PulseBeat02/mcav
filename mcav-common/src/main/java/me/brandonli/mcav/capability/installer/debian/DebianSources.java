@@ -30,8 +30,7 @@ import me.brandonli.mcav.utils.http.DownloadException;
 import me.brandonli.mcav.utils.http.HttpDownloader;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// Downloads each pinned package from the live Debian pool first and from its snapshot URL second; the pinned hash
-// decides whether a file is the package. A source that failed is tried last for the packages that follow.
+// Tries the live Debian pool, then the snapshot's file farm, then its archive URL; the pinned hash decides, a failed source goes last.
 final class DebianSources {
 
   private static final String SNAPSHOT_ARCHIVE = "https://snapshot.debian.org/archive/";
@@ -48,15 +47,15 @@ final class DebianSources {
   DebianSources(final String snapshotArchive, final String liveArchive) {
     this.snapshotArchive = snapshotArchive;
     this.liveArchive = liveArchive;
-    this.order = new ArrayList<>(List.of(Source.LIVE, Source.SNAPSHOT));
+    this.order = new ArrayList<>(List.of(Source.LIVE, Source.MIRROR, Source.SNAPSHOT));
   }
 
   static DebianSources ofDebian() {
     return new DebianSources(SNAPSHOT_ARCHIVE, LIVE_ARCHIVE);
   }
 
-  void download(final URI pinnedUri, final Path archive, final String sha256, final long maximumBytes) {
-    final Map<Source, URI> uris = this.findUris(pinnedUri);
+  void download(final URI pinnedUri, final @Nullable URI mirrorUri, final Path archive, final String sha256, final long maximumBytes) {
+    final Map<Source, URI> uris = this.findUris(pinnedUri, mirrorUri);
     final List<Source> sources = List.copyOf(this.order);
     final List<MCAVException> failures = new ArrayList<>();
     for (final Source source : sources) {
@@ -76,13 +75,15 @@ final class DebianSources {
     throw this.combineFailures(failures);
   }
 
-  private Map<Source, URI> findUris(final URI pinnedUri) {
+  private Map<Source, URI> findUris(final URI pinnedUri, final @Nullable URI mirrorUri) {
     final String pinnedUrl = pinnedUri.toString();
     final Optional<String> liveUrl = this.findLiveUrl(pinnedUrl);
     final Optional<URI> liveUri = liveUrl.map(URI::create);
+    final Optional<URI> mirror = Optional.ofNullable(mirrorUri);
     final Map<Source, URI> uris = new EnumMap<>(Source.class);
     uris.put(Source.SNAPSHOT, pinnedUri);
     liveUri.ifPresent(uri -> uris.put(Source.LIVE, uri));
+    mirror.ifPresent(uri -> uris.put(Source.MIRROR, uri));
     return uris;
   }
 
@@ -121,6 +122,7 @@ final class DebianSources {
 
   private enum Source {
     LIVE,
+    MIRROR,
     SNAPSHOT,
   }
 }

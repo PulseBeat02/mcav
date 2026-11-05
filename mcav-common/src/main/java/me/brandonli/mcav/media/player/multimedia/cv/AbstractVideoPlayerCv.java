@@ -187,8 +187,7 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
     return this.startSources(video, audio, positionMicroseconds, startState, null);
   }
 
-  // Opens the sources in a new session and only then replaces the current session with it, so a source that cannot be
-  // opened leaves the current playback alone.
+  // Opens the new session before it replaces the current one, so a source that cannot be opened leaves the playback alone.
   private boolean startSources(
     final Source video,
     final @Nullable Source audio,
@@ -286,8 +285,7 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
     }
   }
 
-  // Release can cancel an acquisition or replacement; its owner then closes the prepared candidate. A seek keeps the
-  // speed of the media it seeks in, and new media plays at normal speed.
+  // A release can cancel the replacement; its owner closes the candidate. Seeks keep the speed; new media plays at normal speed.
   private boolean publishSession(final PlaybackSession created, final Source video, final @Nullable Source audio, final StartKind kind) {
     this.lock.lock();
     try {
@@ -367,8 +365,7 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
     grabber.setAudioChannels(AudioFilter.CHANNELS);
     grabber.setImageScalingFlags(swscale.SWS_AREA);
 
-    // the size is read once: asking whether the callback is attached and then asking it for the size lets a detach
-    // in between answer with the empty fallback, and a grabber told to scale to 0x0 cannot decode anything
+    // read the size once: a detach between two calls answers with the empty fallback, and a grabber cannot decode at 0x0
     final Dimension dimension = this.dimensionCallback.retrieve();
     final boolean shouldScale = !dimension.isEmpty();
     if (shouldScale) {
@@ -582,9 +579,7 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
     return current != null && current.isActive();
   }
 
-  // Makes the sessions started afterward show every frame however late it is, for tests whose frame counts must not
-  // depend on the load of the machine. Players drop frames more than PlaybackSession.MAXIMUM_VIDEO_LAG_NANOSECONDS late
-  // otherwise.
+  // Later sessions show every frame however late, for tests whose frame counts must not depend on the machine's load.
   @VisibleForTesting
   void neverDropLateFrames() {
     this.maximumVideoLagNanoseconds = Long.MAX_VALUE;

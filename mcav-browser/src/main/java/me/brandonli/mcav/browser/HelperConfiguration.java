@@ -355,8 +355,7 @@ final class HelperConfiguration {
 
   @Override
   public String toString() {
-    // the helper process has no Guava on its class path
-    // the token is a secret, so it stays out
+    // the helper has no Guava on its class path, and the token is a secret, so it stays out
     return "HelperConfiguration{socket=%s, natives=%s, profile=%s, url=%s, width=%s, height=%s, frameInterval=%s, frameRate=%s, javaScriptJit=%s, privateNetworks=%s, autoplay=%s, confined=%s, serverFolder=%s, refusedHosts=%s}".formatted(
       this.socket,
       this.natives,

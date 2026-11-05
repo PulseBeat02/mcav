@@ -326,8 +326,7 @@ public final class SpringHttpResult implements HttpResult {
     this.listeners.put(id, listener);
     listener.start();
 
-    // stop() clears the flag before it clears the map, so a listener registered after that clear is only visible
-    // here; taking the lifecycle lock instead would deadlock against the web server waiting for this handshake
+    // stop() clears the flag before the map, so only this check sees a later listener; the lifecycle lock would deadlock
     final boolean acceptingAfter = this.acceptingListeners;
     if (!acceptingAfter) {
       this.listeners.remove(id, listener);

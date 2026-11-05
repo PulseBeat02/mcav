@@ -20,8 +20,7 @@ package me.brandonli.mcav.testing;
 import com.google.common.base.Preconditions;
 import java.nio.file.Path;
 
-// Points the user.home system property at another directory until it is closed, so code that uses the cache folder
-// of the library, ~/.mcav/cache, works inside a test directory instead of the real home directory.
+// Points user.home at another directory until closed, so the library's cache folder, ~/.mcav/cache, stays out of the real home.
 public final class TemporaryUserHome implements AutoCloseable {
 
   private static final String USER_HOME = "user.home";

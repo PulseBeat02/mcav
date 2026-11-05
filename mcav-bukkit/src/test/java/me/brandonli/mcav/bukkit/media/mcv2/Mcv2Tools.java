@@ -173,8 +173,10 @@ final class Mcv2Tools {
   private static final String FRAGMENT_OUTPUT_NAME_FORMAT = "_frag_output_%02d";
   private static final String INTERFACE_VARIABLE_NAME_FORMAT = "_interface_variable_%02d";
 
-  // the macros GlslCompiler defines for every shader on a device with a zero-to-one depth range; it also defines
-  // RENDERPEARL_INSTANCE_INDEX_INCLUDES_BASE_INSTANCE on devices with shader draw parameters, which no shader reads
+  /*
+   * the macros GlslCompiler defines for every shader on a device with a zero-to-one depth range; it also defines
+   * RENDERPEARL_INSTANCE_INDEX_INCLUDES_BASE_INSTANCE on devices with shader draw parameters, which no shader reads
+   */
   private static final Map<String, String> RENDERER_MACROS = Map.of("RENDERPEARL_DEPTH_IS_ZERO_TO_ONE", "");
 
   // what GlslCompiler defines on drivers that need depth invariance spelled out; only the transparency includes read it
@@ -189,8 +191,10 @@ final class Mcv2Tools {
 
   private static final String MACRO_ENABLED = "1";
 
-  // RenderPipelines' OIT snippet: a wavelet of rank 2, LevelRenderer.OIT_COEFFICIENT_COUNT = 2^3 coefficients, a
-  // quarter of them per transmittance target
+  /*
+   * RenderPipelines' OIT snippet: a wavelet of rank 2, LevelRenderer.OIT_COEFFICIENT_COUNT = 2^3 coefficients, a
+   * quarter of them per transmittance target
+   */
   private static final Map<String, String> OIT = Map.of(
     "OIT",
     "",
@@ -903,8 +907,7 @@ final class Mcv2Tools {
   }
 
   private static void renameStageVariables(final long compiler, final long resources, final ShaderStage shaderStage) {
-    // without separate shader objects the stages link by name, so the game names every stage input and output
-    // after its location
+    // without separate shader objects the stages link by name, so the game names every stage input and output after its location
     final boolean vertex = shaderStage == ShaderStage.VERTEX;
     final int attributes = vertex ? Spvc.SPVC_RESOURCE_TYPE_STAGE_INPUT : Spvc.SPVC_RESOURCE_TYPE_STAGE_OUTPUT;
     final int varyings = vertex ? Spvc.SPVC_RESOURCE_TYPE_STAGE_OUTPUT : Spvc.SPVC_RESOURCE_TYPE_STAGE_INPUT;

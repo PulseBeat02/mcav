@@ -176,8 +176,7 @@ class AddressPolicyTest {
     return AddressPolicy.isPublic(InetAddress.getByName(text), prefixes);
   }
 
-  // the addresses a translator with the network-specific prefix 2a01:4f8:1:2:3:4::/<length> gives 192.0.0.170,
-  // 192.0.0.171, 10.0.0.1, 169.254.169.254 and 8.8.8.8, laid out as in RFC 6052 section 2.2
+  // what the prefix 2a01:4f8:1:2:3:4::/<length> makes of 192.0.0.170, 192.0.0.171, 10.0.0.1, 169.254.169.254 and 8.8.8.8 (RFC 6052 2.2)
   @ParameterizedTest
   @CsvSource({
     "32, 2a01:4f8:c000:aa::, 2a01:4f8:c000:ab::, 2a01:4f8:a00:1::, 2a01:4f8:a9fe:a9fe::, 2a01:4f8:808:808::",

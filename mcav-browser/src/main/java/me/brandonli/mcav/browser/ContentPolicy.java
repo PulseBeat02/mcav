@@ -43,8 +43,7 @@ import org.cef.handler.CefResourceRequestHandlerAdapter;
 import org.cef.misc.BoolRef;
 import org.cef.network.CefRequest;
 
-// What the untrusted page may do: it runs without the Chromium sandbox, so everything but web navigation is refused and
-// reported as a notice. Reported addresses go through AddressText, without the parts that may hold secrets.
+// The untrusted page runs without Chromium's sandbox, so all but web navigation is refused and reported, addresses through AddressText.
 final class ContentPolicy
   implements
     CefLifeSpanHandler,

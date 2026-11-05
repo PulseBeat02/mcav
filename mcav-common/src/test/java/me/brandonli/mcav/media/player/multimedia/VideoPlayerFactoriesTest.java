@@ -31,8 +31,7 @@ import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
 
-// Tests the VLC factory of VideoPlayer. The tests that mark VLC in the shared guard forget it again, so the other tests
-// of the JVM can still create VLC players.
+// Tests that mark VLC in the shared guard forget it again, so the other tests of the JVM can still create VLC players.
 final class VideoPlayerFactoriesTest {
 
   @Test

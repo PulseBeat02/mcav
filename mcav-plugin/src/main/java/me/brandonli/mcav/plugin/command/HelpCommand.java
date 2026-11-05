@@ -34,9 +34,10 @@ import org.incendo.cloud.annotations.Permission;
 import org.incendo.cloud.minecraft.extras.AudienceProvider;
 import org.incendo.cloud.minecraft.extras.ImmutableMinecraftHelp;
 import org.incendo.cloud.minecraft.extras.MinecraftHelp;
+import org.incendo.cloud.permission.PermissionResult;
 
 /**
- * {@code /mcav help [query]}: lists the commands, with texts from the plugin's locale file.
+ * {@code /mcav help [query]}: lists the commands the sender may run, with texts from the plugin's locale file.
  *
  * <p>This class is not thread-safe: use it on the server main thread, where Cloud runs its commands.
  *
@@ -50,7 +51,8 @@ public final class HelpCommand implements AnnotationCommandFeature {
 
   private static final String WORD_SEPARATOR = " ";
 
-  private final MinecraftHelp<CommandSender> minecraftHelp;
+  private final CommandManager<CommandSender> manager;
+  private final ImmutableMinecraftHelp<CommandSender> minecraftHelp;
 
   /**
    * Creates the command.
@@ -69,6 +71,7 @@ public final class HelpCommand implements AnnotationCommandFeature {
     final ImmutableMinecraftHelp.CommandPrefixBuildStage<CommandSender> prefixStage = audienceStage.audienceProvider(audiences);
     final ImmutableMinecraftHelp.BuildFinal<CommandSender> finalStage = prefixStage.commandPrefix(HELP_COMMAND);
     finalStage.messages(messages);
+    this.manager = manager;
     this.minecraftHelp = finalStage.build();
   }
 
@@ -104,7 +107,8 @@ public final class HelpCommand implements AnnotationCommandFeature {
   /**
    * Shows the help for a shorthand query such as {@code dump}, a full command query such as {@code mcav dump},
    * or a page number. Full queries and page numbers are used by the help's generated navigation links. A trailing
-   * page number selects a page of a filtered query, such as {@code video 2}.
+   * page number selects a page of a filtered query, such as {@code video 2}. Lists only the commands the sender may
+   * run, also under a branch such as {@code video}.
    *
    * @param sender who ran the command
    * @param query  the command to show, or {@code null} to list every command
@@ -118,7 +122,8 @@ public final class HelpCommand implements AnnotationCommandFeature {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
 
     final String search = this.toHelpQuery(query);
-    this.minecraftHelp.queryCommands(search, sender);
+    final MinecraftHelp<CommandSender> senderHelp = this.minecraftHelp.withCommandFilter(command -> this.isRunnableBy(sender, command));
+    senderHelp.queryCommands(search, sender);
   }
 
   private String toHelpQuery(final @Nullable String query) {
@@ -140,5 +145,14 @@ public final class HelpCommand implements AnnotationCommandFeature {
     } catch (final NumberFormatException exception) {
       return ROOT_COMMAND + WORD_SEPARATOR + trimmed;
     }
+  }
+
+  private boolean isRunnableBy(
+    final CommandSender sender,
+    final org.incendo.cloud.Command<CommandSender> command // fqn: clashes with the Command annotation
+  ) {
+    final org.incendo.cloud.permission.Permission permission = command.commandPermission(); // fqn: clashes with the Permission annotation
+    final PermissionResult result = this.manager.testPermission(sender, permission);
+    return result.allowed();
   }
 }

@@ -32,8 +32,7 @@ import me.brandonli.mcav.utils.os.Os;
 import me.brandonli.mcav.utils.os.Platform;
 import org.junit.jupiter.api.Tag;
 
-// Fuzzes the parser of the download lists the installers ship with: whatever the text, it is refused with an
-// IOException or every download it yields keeps the invariants its constructor promises.
+// Fuzzes the download lists the installers ship: refused with an IOException, or every download keeps its constructor's invariants.
 @Tag("fuzz")
 final class DownloadListFuzzTest {
 

@@ -20,8 +20,7 @@ package me.brandonli.mcav.testing;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 
-// Loads the OpenCV natives ahead of timed tests. The first image of a JVM loads them on the thread that makes it, which
-// takes seconds on a busy machine.
+// Loads the OpenCV natives ahead of timed tests, as the first image of a JVM loads them, slowly, on the thread that makes it.
 public final class OpenCvNatives {
 
   private OpenCvNatives() {

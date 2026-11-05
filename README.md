@@ -69,10 +69,10 @@ cannot use MCAV there.
 ### MCV2
 
 A wall of maps normally shows a dithered picture: 128 by 128 pixels per map, in the colors of the map palette. For
-moving 1080p video that needs far more than a server can send: the plugin caps it at 128 KiB per frame, about 10 Mbit/s
-per viewer at 30 fps after Minecraft's compression, and the wall still falls behind the video. MCV2 is MCAV's own video
-codec for Minecraft: the server encodes the video and sends it as the colors of a few hidden maps, and a resource pack
-decodes it on the player's GPU, in full color, at the resolution you choose. The client needs no mod.
+moving 1080p video that needs far more than a server can send: the plugin caps it at 128 KiB per frame on average,
+about 10 Mbit/s per viewer at 30 fps after Minecraft's compression, and the wall drops most of the frames. MCV2 is
+MCAV's own video codec for Minecraft: the server encodes the video and sends it as the colors of a few hidden maps, and
+a resource pack decodes it on the player's GPU, in full color, at the resolution you choose. The client needs no mod.
 
 | At 1080p, 30 fps | Rate on the wire, after Minecraft's zlib compression | VMAF mean |
 |------------------|-------------------------------------------------|-----------|

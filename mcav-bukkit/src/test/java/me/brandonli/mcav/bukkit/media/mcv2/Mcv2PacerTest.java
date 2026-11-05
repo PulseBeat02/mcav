@@ -361,8 +361,10 @@ final class Mcv2PacerTest {
     final Mcv2Pacer.Rung to = change.getTo();
     assertEquals(expectedTo, to);
 
-    // 160 ms: the faster preset's 80 ms fits no rate of 1080p down to 12.5 fps (68 ms); 720p is predicted at 71.1 ms
-    // with the slower preset and 35.6 ms with the faster, which fits 16.7 fps (51 ms)
+    /*
+     * 160 ms: the faster preset's 80 ms fits no rate of 1080p down to 12.5 fps (68 ms); 720p is predicted at 71.1 ms
+     * with the slower preset and 35.6 ms with the faster, which fits 16.7 fps (51 ms)
+     */
     final Mcv2Pacer.Change smaller = driver.play(4, 160);
     assertNotNull(smaller);
 
@@ -401,8 +403,7 @@ final class Mcv2PacerTest {
     final Mcv2Pacer.Rung firstTo = first.getTo();
     assertEquals(expectedFirstTo, firstTo);
 
-    // 140 ms: 720p is predicted at about 62 ms, which keeps up with every fourth frame's 66.7 ms without fitting 56.7
-    // ms, and fits every sixth frame's 85 ms
+    // 140 ms: 720p's predicted 62 ms keeps up with every fourth frame's 66.7 ms without fitting 56.7, and fits every sixth frame's 85 ms
     final Mcv2Pacer.Change change = driver.play(4, 140);
     assertNotNull(change);
 
@@ -459,8 +460,7 @@ final class Mcv2PacerTest {
     final boolean reportedChangeAbsent = reported.isEmpty();
     assertTrue(reportedChangeAbsent);
 
-    // 30 seconds after it fell back, the lowest encoded rung is tried, which fails again two seconds later (ten frames
-    // at 10 fps, then a second over its time)
+    // 30 s after falling back, the lowest encoded rung is tried and fails 2 s later (ten frames at 10 fps, then a second over its time)
     driver.play(4, 2000);
     final Mcv2Pacer.Change tried = driver.changes.get(1);
     final Mcv2Pacer.Rung from = tried.getFrom();
@@ -502,8 +502,10 @@ final class Mcv2PacerTest {
     final Mcv2Pacer.Rung rung = pacer.getRung();
     assertEquals(expectedRung, rung);
 
-    // 720p now takes 4 ms, 1080p 9 ms: 1080p at 60 fps would fit in 0.7 of its 16.7 ms, but the pacer keeps off the
-    // top rung it left for ten seconds, so it climbs to 1080p at 30 fps first, the best rung it may take
+    /*
+     * 720p now takes 4 ms, 1080p 9 ms: 1080p at 60 fps would fit in 0.7 of its 16.7 ms, but the pacer keeps off the top
+     * rung it left for ten seconds, so it climbs to 1080p at 30 fps first, the best rung it may take
+     */
     driver.play(30, 9);
     final int changeCount = driver.changes.size();
     assertEquals(3, changeCount);
@@ -702,8 +704,7 @@ final class Mcv2PacerTest {
 
   @Test
   void shouldStepDownExactlyASecondAfterItsWarmUp() {
-    // 30 ms per frame at 50 fps from a first frame at 100 s: nothing is judged for five seconds, the frame at 105 s is
-    // the first found over its 20 ms, and the step comes a second later, at 106 s
+    // 30 ms frames at 50 fps from 100 s: nothing is judged until 105 s, whose frame is over its 20 ms, and the step comes at 106 s
     final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL));
     final Exact clock = new Exact(pacer, FRAME_50, 100 * SECOND);
     final Mcv2Pacer.Rung expectedTo = Mcv2Pacer.Rung.of(FULL_WIDTH, FULL_HEIGHT, 2);
@@ -717,8 +718,10 @@ final class Mcv2PacerTest {
 
   @Test
   void shouldJudgeFromTheTenthMeasuredFrame() {
-    // one frame a second taking 1.5 s: five seconds pass before ten frames are measured (the first frame's interval is
-    // unknown), so the frame at 10 s is the first judged, and the step to the dithered maps comes at 11 s
+    /*
+     * one frame a second taking 1.5 s: five seconds pass before ten frames are measured (the first frame's interval is
+     * unknown), so the frame at 10 s is the first judged, and the step to the dithered maps comes at 11 s
+     */
     final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL));
     final Exact clock = new Exact(pacer, SECOND, 0);
     clock.until(1500, 100);
@@ -815,9 +818,11 @@ final class Mcv2PacerTest {
 
   @Test
   void shouldClimbWhenTheRungItLeftIsFreeAndFitsExactlyWithRoom() {
-    // 62.5 fps: 25 ms per frame steps down to 31.25 fps; there 11.2 ms is exactly 0.7 of the 16 ms a frame has at the top,
-    // which is kept off for ten seconds - 625 frames, so the frame that frees it is one the pacer encodes - and the
-    // climb comes five seconds of room later, at the first encoded frame after them: 939 frames after the step
+    /*
+     * 62.5 fps: 25 ms per frame steps down to 31.25 fps; there 11.2 ms is exactly 0.7 of the 16 ms a frame has at the
+     * top, which is kept off for ten seconds - 625 frames, so the frame that frees it is one the pacer encodes - and
+     * the climb comes five seconds of room later, at the first encoded frame after them: 939 frames after the step
+     */
     final double room = Mcv2Pacer.ROOM * 16.0;
     assertEquals(11.2, room);
 
@@ -840,8 +845,10 @@ final class Mcv2PacerTest {
 
   @Test
   void shouldClimbExactlyFiveSecondsAfterRoomAppears() {
-    // 50 fps: 30 ms per frame steps down to 25 fps; there 10 ms leaves room at the top once it is free, from the first
-    // encoded frame at or after ten seconds (501 frames after the step), and the climb comes exactly five seconds later
+    /*
+     * 50 fps: 30 ms per frame steps down to 25 fps; there 10 ms leaves room at the top once it is free, from the first
+     * encoded frame at or after ten seconds (501 frames after the step), and the climb comes exactly five seconds later
+     */
     final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL));
     final Exact clock = new Exact(pacer, FRAME_50, 0);
     final Mcv2Pacer.Rung expectedTo = Mcv2Pacer.Rung.of(FULL_WIDTH, FULL_HEIGHT, 2);
@@ -861,9 +868,11 @@ final class Mcv2PacerTest {
 
   @Test
   void shouldKeepOffOnlyTenSecondsAgainARungHeldAsLongAsItWouldNextBeKeptOff() {
-    // 50 fps. Leaving the top rung doubles how long it is kept off the next time it is left, unless it held meanwhile
-    // as long as that next wait: step down, climb back after ten seconds, hold the top exactly twenty seconds, then
-    // leave it at once (61 ms per frame is over at the first frame) - the top is then kept off ten seconds, not twenty
+    /*
+     * 50 fps. Leaving the top rung doubles how long it is kept off the next time it is left, unless it held meanwhile
+     * as long as that next wait: step down, climb back after ten seconds, hold the top exactly twenty seconds, then
+     * leave it at once (61 ms per frame is over at the first frame) - the top is then kept off ten seconds, not twenty
+     */
     final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL));
     final Exact clock = new Exact(pacer, FRAME_50, 0);
     clock.until(30, 1000);
@@ -892,8 +901,10 @@ final class Mcv2PacerTest {
 
   @Test
   void shouldKeepOffTwiceAsLongARungThatFailsSoonAfterItsReturn() {
-    // 50 fps: step down, climb back after ten seconds, hold the top for six seconds, then leave it at once - the
-    // top held less than the twenty seconds it would next be kept off, so it is kept off those twenty seconds
+    /*
+     * 50 fps: step down, climb back after ten seconds, hold the top for six seconds, then leave it at once - the top
+     * held less than the twenty seconds it would next be kept off, so it is kept off those twenty seconds
+     */
     final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL));
     final Exact clock = new Exact(pacer, FRAME_50, 0);
     clock.until(30, 1000);
@@ -1016,8 +1027,10 @@ final class Mcv2PacerTest {
     final boolean triedDithered = tried.getTo().isDithered();
     assertFalse(triedDithered);
 
-    // its hold starts with its first encoded frame, a divisor of frames after the try, and ends on an encoded frame
-    // exactly 60 seconds later, as long as the next wait would be
+    /*
+     * its hold starts with its first encoded frame, a divisor of frames after the try, and ends on an encoded frame
+     * exactly 60 seconds later, as long as the next wait would be
+     */
     final long held = clock.now + tried.getTo().getDivisor() * FRAME_50 + 60 * SECOND;
     while (clock.now < held) {
       final Mcv2Pacer.@Nullable Change change = clock.frame(60);

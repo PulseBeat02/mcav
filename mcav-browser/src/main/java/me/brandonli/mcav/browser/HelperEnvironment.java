@@ -22,8 +22,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
-// The helper runs untrusted content without the Chromium sandbox, so it gets only the variables a program needs to find
-// the system, its user and its language; the rest may hold credentials such as bot tokens.
+// The unsandboxed helper gets only variables that locate the system, user and language; others may hold credentials such as bot tokens.
 final class HelperEnvironment {
 
   private static final Set<String> KEPT = Set.of(

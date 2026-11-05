@@ -19,8 +19,7 @@ package me.brandonli.mcav.utils.http;
 
 import java.io.Serial;
 
-// Thrown when a pinned download is redirected to another host than its own, to a location that is not a URI, or too
-// often. Another attempt would end the same way, so it is not retried.
+// Thrown when a pinned download is redirected to another host, to a non-URI location or too often; a retry would end the same way.
 final class RedirectRefusedException extends DownloadException {
 
   @Serial

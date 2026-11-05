@@ -27,9 +27,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Stream;
 
-// Media files for tests, generated once per test run with the FFmpeg executable bundled with JavaCV, so no binary test
-// files have to be committed. Every file is created the first time it is requested and reused afterwards. The files
-// live in a temporary directory that is deleted when the JVM exits.
+// Media files made on first request with JavaCV's bundled FFmpeg, so no binary test files are committed; deleted when the JVM exits.
 public final class TestMedia {
 
   public static final int VIDEO_WIDTH = 320;

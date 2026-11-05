@@ -21,8 +21,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.LongConsumer;
 import java.util.function.LongSupplier;
 
-// The page decides how often the helper reports, and players how often input is dropped, so neither may fill the
-// log of the server: BURST lines at once, then one per second, with the skipped lines counted.
+// Pages set how often helpers report and players how often input drops, so the log takes BURST lines, then one a second, skips counted.
 final class LogBudget {
 
   static final int BURST = 32;

@@ -320,8 +320,7 @@ class HelperLauncherTest {
 
   @Test
   void shouldReachNoClassBeyondTheClassPathOfTheHelper() throws IOException {
-    // the helper has only this module, JCEF and the JDK: a class of another module fails there with a
-    // NoClassDefFoundError that no test JVM shows
+    // the helper has only this module, JCEF and the JDK: another module's class fails there with a NoClassDefFoundError no test JVM shows
     final Set<String> reached = new HashSet<>();
     final Deque<String> pending = new ArrayDeque<>(List.of(HelperLauncher.MAIN_CLASS.replace(PACKAGE_SEPARATOR, RESOURCE_SEPARATOR)));
     final List<String> outside = new ArrayList<>();

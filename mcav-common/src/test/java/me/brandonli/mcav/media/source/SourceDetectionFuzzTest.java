@@ -33,10 +33,7 @@ import me.brandonli.mcav.media.source.file.FileSource;
 import me.brandonli.mcav.media.source.uri.UriSource;
 import org.junit.jupiter.api.Tag;
 
-// Fuzzes how the media a player names in a command becomes a source: whatever the text, detection never throws, and a
-// detected source is what its detector promises, a device of a non-negative index, a raw FFmpeg input with a format, a
-// file that exists, or a URI with a scheme and a host. The seeds are the media strings of the tests and the
-// documentation.
+// Fuzzes source detection: it never throws, and each detected source is what its detector promises.
 @Tag("fuzz")
 final class SourceDetectionFuzzTest {
 

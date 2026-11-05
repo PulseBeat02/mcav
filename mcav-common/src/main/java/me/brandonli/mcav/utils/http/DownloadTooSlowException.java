@@ -19,8 +19,7 @@ package me.brandonli.mcav.utils.http;
 
 import java.io.Serial;
 
-// Thrown when a pinned download takes longer than its size allows, as from a mirror that trickles. Another attempt
-// would end the same way, so it is not retried.
+// Thrown when a pinned download takes longer than its size allows, such as from a trickling mirror; a retry would end the same way.
 final class DownloadTooSlowException extends DownloadException {
 
   @Serial

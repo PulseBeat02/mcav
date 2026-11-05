@@ -62,8 +62,7 @@ import org.mockito.stubbing.Answer;
 import org.mockito.stubbing.Stubber;
 import org.mockito.verification.VerificationMode;
 
-// Tests MCAV and MCAVLoadingException with a mocked DependencyLoader, so nothing is downloaded. Every instance records
-// its background installations in a guard of its own, so the shared guard that VLC players consult is never touched.
+// Each MCAV records its background installations in a guard of its own, never the shared one that VLC players consult.
 final class MCAVTest {
 
   private static final long WAIT_SECONDS = 10;
@@ -146,8 +145,7 @@ final class MCAVTest {
     }
   }
 
-  // glibc kept freed memory in its arenas and a server's resident memory grew for days (soak test S9), so an installed
-  // MCAV hands it back to the system once a minute, on Linux.
+  // glibc keeps freed memory in its arenas, so an installed MCAV hands it back to the system once a minute, on Linux.
   @Test
   void shouldTrimTheNativeHeapWhileInstalled() {
     final boolean linux = OsUtils.getOs() == Os.LINUX;
@@ -576,8 +574,7 @@ final class MCAVTest {
     verifiedNatives.loadModules();
   }
 
-  // Waits until the thread in the reference blocks on a monitor. Nothing signals that state change, so the thread state
-  // is checked in a spin loop until a deadline.
+  // nothing signals that a thread blocks on a monitor, so its state is checked in a spin loop until a deadline
   private static boolean awaitBlocked(final AtomicReference<Thread> threadReference) {
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(WAIT_SECONDS);
     while (System.nanoTime() < deadline) {

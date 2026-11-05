@@ -52,8 +52,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>{@link MapResult} sends every map in every frame, which costs 16 KB per map per frame, or roughly 12 MB/s
  * for a 5x5 wall at 30 frames per second. This result only sends the parts of the maps that actually changed,
- * and it caps the amount of data sent per frame, so a scene cut is spread over a few frames instead of flooding
- * the connections of the viewers. See {@link DeltaMapEncoder} for how the changes are found.
+ * and it caps the average amount of data sent per frame: a frame is sent whole when the budget saved by the frames
+ * before it covers it and skipped otherwise, so a scene cut does not flood the connections of the viewers and they
+ * never see parts of two frames. See {@link DeltaMapEncoder} for how the changes are found.
  *
  * <p>Players that start viewing while the video is playing, for example because they joined the server, first
  * receive the current picture once and then follow the updates like every other viewer.
@@ -116,7 +117,7 @@ public final class CompressedMapResult implements DitherResultStep {
 
   /**
    * Creates a result with an ordinary-update budget of
-   * {@link DeltaMapEncoder#DEFAULT_MAXIMUM_BYTES_PER_FRAME} bytes per frame.
+   * {@link DeltaMapEncoder#DEFAULT_MAXIMUM_BYTES_PER_FRAME} bytes per frame on average.
    *
    * @param configuration the configuration describing the map grid and the viewers
    * @throws NullPointerException if the configuration is null
@@ -129,12 +130,12 @@ public final class CompressedMapResult implements DitherResultStep {
   /**
    * Creates a result with the given budget for ordinary delta updates.
    *
-   * <p>The byte budget covers ordinary delta updates, including estimated patch overhead. The most urgent map is always
-   * sent even if it exceeds the budget. Resize cleanup and new-viewer snapshots are additional. Lower values spread
-   * motion and scene cuts over more frames.
+   * <p>The byte budget is an average per frame for ordinary delta updates, including estimated patch overhead. A frame
+   * is sent whole when the budget saved by the frames before it covers it, and skipped otherwise. Resize cleanup and
+   * new-viewer snapshots are additional. Lower values show fewer frames per second while much of the picture changes.
    *
    * @param configuration        the configuration describing the map grid and the viewers
-   * @param maximumBytesPerFrame the budget for ordinary delta updates, including estimated patch overhead
+   * @param maximumBytesPerFrame the average ordinary-update budget per frame, including estimated patch overhead
    * @throws IllegalArgumentException if the budget is not positive
    * @throws NullPointerException     if {@code configuration} is null
    * @since 1.0.0
@@ -269,8 +270,10 @@ public final class CompressedMapResult implements DitherResultStep {
     }
 
     if (!newViewers.isEmpty()) {
-      // A layout change forgets the viewer baseline, so old viewers also receive this reset. Keep historical
-      // cleanup available for viewers absent during earlier resizes, including when the snapshot is empty.
+      /*
+       * A layout change forgets the viewer baseline, so old viewers also receive this reset. Keep historical cleanup
+       * available for viewers absent during earlier resizes, including when the snapshot is empty.
+       */
       final List<MapTilePatch> currentSnapshot = currentEncoder.snapshot();
       final List<MapTilePatch> snapshot = this.createHistoryClears(currentSnapshot);
       snapshot.addAll(currentSnapshot);

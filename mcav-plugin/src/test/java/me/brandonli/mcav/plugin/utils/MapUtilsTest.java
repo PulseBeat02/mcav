@@ -54,6 +54,7 @@ import org.bukkit.inventory.meta.MapMeta;
 import org.bukkit.map.MapView;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -194,7 +195,18 @@ final class MapUtilsTest {
     final AtomicInteger nextId = new AtomicInteger(firstId);
     final long lastAllowedId = firstId + 10_000L;
     when(this.server.getWorlds()).thenReturn(List.of(world));
+    when(this.server.getMap(anyInt())).thenAnswer(invocation -> this.findHandedOutMap(nextId, invocation));
     when(this.server.createMap(world)).thenAnswer(invocation -> this.handOutNextMap(nextId, lastAllowedId));
+  }
+
+  private @Nullable MapView findHandedOutMap(final AtomicInteger nextId, final InvocationOnMock invocation) {
+    final int id = invocation.getArgument(0);
+    final int nextFreeId = nextId.get();
+    if (id < 0 || id >= nextFreeId) {
+      return null;
+    }
+
+    return this.existingMap(id);
   }
 
   private MapView handOutNextMap(final AtomicInteger nextId, final long lastAllowedId) {
@@ -211,6 +223,17 @@ final class MapUtilsTest {
   }
 
   @Test
+  void shouldCreateAsManyMapsAsTheLargestWallNeedsInAWorldWithoutMaps() {
+    final World world = this.fakeWorld.getWorld();
+    this.handOutMapIdsFrom(world, 0);
+    MapUtils.createMapItem(MapUtils.MAXIMUM_NEW_MAPS);
+    verify(this.server, times(MapUtils.MAXIMUM_NEW_MAPS + 1)).createMap(world);
+
+    final int size = this.mapMetadata.size();
+    assertEquals(1, size);
+  }
+
+  @Test
   void shouldRefuseToCreateMoreMapsThanTheLargestWallNeeds() {
     final World world = this.fakeWorld.getWorld();
     final int wanted = 11 + MapUtils.MAXIMUM_NEW_MAPS;
@@ -219,8 +242,8 @@ final class MapUtilsTest {
     final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () -> MapUtils.createMapItem(wanted));
 
     final String message = failure.getMessage();
-    assertEquals("Map id 4107 is more than 4096 ids past 10, the next map id!", message);
-    verify(this.server, times(1)).createMap(world);
+    assertEquals("Map id 4107 is more than 4096 ids past the next map id, because map 10 does not exist!", message);
+    verify(this.server, never()).createMap(world);
 
     final boolean empty = this.mapMetadata.isEmpty();
     assertTrue(empty, "no map item is made for a refused id");
@@ -235,7 +258,7 @@ final class MapUtilsTest {
     when(this.server.getMap(Integer.MAX_VALUE)).thenReturn(null);
     this.handOutMapIdsFrom(world, 0);
     assertThrows(IllegalArgumentException.class, () -> MapUtils.buildMapScreen(player, location, Material.STONE, 2, 1, farId));
-    verify(this.server, times(1)).createMap(world);
+    verify(this.server, never()).createMap(world);
 
     final int changedBlocks = this.fakeWorld.getChangedBlockCount();
     assertEquals(0, changedBlocks);

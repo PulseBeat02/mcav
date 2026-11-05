@@ -23,8 +23,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.function.ThrowingSupplier;
 
-// Assertions for factories that return a resource, such as an image buffer or a frame grabber, and that should throw
-// instead. A resource the factory returns by mistake is closed before the test fails, so no native memory leaks.
+// Asserts that a factory throws; a resource it returns by mistake is closed before the test fails, so no native memory leaks.
 public final class ResourceAssertions {
 
   private ResourceAssertions() {

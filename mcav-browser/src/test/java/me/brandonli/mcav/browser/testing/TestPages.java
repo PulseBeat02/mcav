@@ -41,8 +41,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// Web pages on the loopback interface for browser tests: each page has its own color, so the frames show which one
-// is on screen.
+// Web pages on the loopback interface for browser tests: each page has its own color, so the frames show which one is on screen.
 public final class TestPages implements AutoCloseable {
 
   public static final String MAIN_PATH = "/main";

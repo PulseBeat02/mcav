@@ -54,6 +54,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -605,12 +606,26 @@ final class IoUtilsTest {
       "[{\"platform\": {\"os\": \"BEOS\", \"arch\": \"X86\", \"bits\": \"BITS_64\"}, \"url\": \"https://example.com/tool\"}]",
       "[{\"platform\": {\"os\": \"LINUX\", \"arch\": \"X86\", \"bits\": \"BITS_64\"}}]",
       "[{\"platform\": {\"os\": \"LINUX\", \"arch\": \"X86\", \"bits\": \"BITS_64\"}, \"url\": \" \"}]",
+      "[{\"platform\": {\"os\": \"LINUX\", \"arch\": \"X86\", \"bits\": \"BITS_64\"}, \"url\": \"https://example.com/tool\", \"mirror\": \" \"}]",
     }
   )
   void shouldRefuseIncompleteDownloads(final String json) {
     final Reader reader = new StringReader(json);
 
     assertThrows(IOException.class, () -> IoUtils.parseDownloads(reader));
+  }
+
+  @Test
+  void shouldReadTheMirrorOfADownload() throws IOException {
+    final Reader reader = new StringReader(
+      "[{\"platform\": {\"os\": \"LINUX\", \"arch\": \"X86\", \"bits\": \"BITS_64\"}, \"url\": \"https://example.com/tool\", \"mirror\": \"https://example.com/mirror\"}]"
+    );
+
+    final Download[] downloads = IoUtils.parseDownloads(reader);
+    final Download download = downloads[0];
+    final Optional<String> mirror = download.getMirror();
+    final Optional<String> expected = Optional.of("https://example.com/mirror");
+    assertEquals(expected, mirror);
   }
 
   @Test

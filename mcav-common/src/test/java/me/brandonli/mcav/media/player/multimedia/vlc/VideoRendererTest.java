@@ -129,8 +129,7 @@ final class VideoRendererTest {
     callback.attach(step);
   }
 
-  // Attaches a filter that records the first pixel of every frame, then blocks the render thread until the test lets it
-  // proceed, so later frames queue up.
+  // Blocking the render thread until the test proceeds lets later frames queue up.
   private void attachBlockingRecorder(final List<Integer> rendered, final CountDownLatch rendering, final CountDownLatch proceed) {
     this.attach((image, _) -> this.recordFirstPixelAndBlock(image, rendered, rendering, proceed));
   }
@@ -702,8 +701,7 @@ final class VideoRendererTest {
     assertTrue(reached, "expected %s calls but got %s".formatted(expected, count));
   }
 
-  // Blocks a filter until the test lets it proceed. A filter that is never released fails, which the render thread
-  // reports to the exception handler.
+  // A filter never released fails, which the render thread reports to the exception handler.
   private static void awaitRelease(final CountDownLatch proceed) {
     try {
       final boolean released = proceed.await(TIMEOUT.toSeconds(), TimeUnit.SECONDS);

@@ -39,9 +39,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// Returns the free memory glibc keeps in its arenas to the system once a minute on Linux (a 31-hour soak held 2.1 GB
-// free beside 0.3 GB in use). The trim threshold is fixed at glibc's default so the top of each thread's arena is
-// returned too. JVMs with -XX:TrimNativeHeapInterval or without the trim command are left alone.
+/*
+ * Returns the free memory of glibc's arenas to the system on Linux, unless the JVM trims itself or lacks the trim
+ * command. The trim threshold stays at glibc's default, so the top of each thread's arena is returned too.
+ */
 final class NativeHeapTrimmer {
 
   static final String INTERVAL_PROPERTY = "mcav.nativeTrimSeconds";
@@ -159,8 +160,7 @@ final class NativeHeapTrimmer {
       final String value = option.getValue();
       return Long.parseLong(value);
     } catch (final IllegalArgumentException | NoClassDefFoundError exception) {
-      // a JVM other than HotSpot may lack the bean or the option, and a runtime linked without the jdk.management module
-      // lacks the bean's class; either lacks the command that trims as well
+      // non-HotSpot JVMs may lack the bean or the option, runtimes without jdk.management its class; both lack the trim command too
       return NO_JVM_INTERVAL;
     }
   }

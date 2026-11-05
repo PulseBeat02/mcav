@@ -37,15 +37,15 @@ import me.brandonli.mcav.utils.os.Platform;
  * so a Linux machine without a program can run it without a package manager.
  *
  * <p>The packages come from a class path resource in the format of {@code mcav/common/installers/debian-vlc.json}: a
- * JSON array of downloads, each with its platform, URL and SHA-256, which lists each package after the packages it
- * depends on. Every package is downloaded, checked against its hash, and its {@code usr/lib} and {@code lib} trees and
- * the trees that the caller names, such as {@code usr/bin}, are extracted by MCAV itself, without {@code dpkg} and
- * without administrator rights, into one folder of the cache, which falls back to {@code java.io.tmpdir} when the home
- * folder cannot be written. A file is executable when its entry in the package is, and where the file system has POSIX
- * permissions, no file or folder that MCAV extracts is ever writable by anyone but its owner. A symbolic link must stay
- * inside the installation along a normalized relative path; any other link fails the installation. Leave glibc out of
- * a list, as the lists of MCAV do, because a program always runs on the glibc of the machine: it needs one at least as
- * new as the one of its Debian release, such as 2.36 for bookworm.
+ * JSON array of downloads, each with its platform, URL, SHA-256 and optional mirror, a second URL of the same file,
+ * which lists each package after the packages it depends on. Every package is downloaded, checked against its hash, and
+ * its {@code usr/lib} and {@code lib} trees and the trees that the caller names, such as {@code usr/bin}, are extracted
+ * by MCAV itself, without {@code dpkg} and without administrator rights, into one folder of the cache, which falls back
+ * to {@code java.io.tmpdir} when the home folder cannot be written. A file is executable when its entry in the package
+ * is, and where the file system has POSIX permissions, no file or folder that MCAV extracts is ever writable by anyone
+ * but its owner. A symbolic link must stay inside the installation along a normalized relative path; any other link
+ * fails the installation. Leave glibc out of a list, as the lists of MCAV do, because a program always runs on the
+ * glibc of the machine: it needs one at least as new as the one of its Debian release, such as 2.36 for bookworm.
  *
  * <p>Nothing is loaded into the JVM: run a program as a process, with the folders of {@link #listLibraryFolders()} on
  * its library path, such as {@code LD_LIBRARY_PATH}.

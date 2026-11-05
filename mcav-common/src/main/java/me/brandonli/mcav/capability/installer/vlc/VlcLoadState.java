@@ -21,9 +21,7 @@ import java.nio.file.Path;
 import java.util.Optional;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// Remembers the outcome of loading libvlc. libvlc can only be loaded once per JVM, so the first successful load decides
-// the result of every later one. A failed load is not remembered, so it can be retried, for example once the network is
-// back.
+// libvlc loads once per JVM, so the first successful load decides every later one; a failed load is not kept, so it can be retried.
 final class VlcLoadState {
 
   private final Object lock;
@@ -35,8 +33,6 @@ final class VlcLoadState {
     this.lock = new Object();
   }
 
-  // Runs the loader unless an earlier call succeeded, in which case the earlier result is returned. Concurrent calls
-  // are serialized, so the loader never runs twice at the same time.
   Optional<Path> loadOnce(final Loader loader) {
     synchronized (this.lock) {
       if (!this.loaded) {

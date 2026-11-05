@@ -345,8 +345,10 @@ final class PaperServerEndToEndTest {
       "Connected to the VNC desktop!"
     );
     server.awaitLine(firstLine, line -> line.contains("Maps 12 to 17 show their first picture"), COMMAND_TIMEOUT);
-    // the client asks for the desktop's next picture at the screen's rate, ten a second here, and a release sent at once
-    // after the first picture comes back before that; a desktop that sends only one picture still fails below
+    /*
+     * the client asks for the desktop's next picture at the screen's rate, ten a second here, and a release sent at
+     * once after the first picture comes back before that; a desktop that sends only one picture still fails below
+     */
     final long deadline = System.nanoTime() + COMMAND_TIMEOUT.toNanos();
     while (vnc.getUpdates() < MINIMUM_UPDATES && System.nanoTime() < deadline) {
       Thread.sleep(VNC_POLL_PAUSE);

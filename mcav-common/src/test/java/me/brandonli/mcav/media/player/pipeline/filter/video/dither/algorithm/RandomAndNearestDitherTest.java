@@ -217,8 +217,7 @@ final class RandomAndNearestDitherTest {
     final double minimum = -Double.MAX_VALUE;
     final double maximum = Double.MAX_VALUE / 2.0;
     final double actual = provider.nextDouble(minimum, maximum);
-    // The independently recorded C-reference output identifies this quantile.
-    // Decimal arithmetic evaluates the convex combination without a double overflow.
+    // The independently recorded C reference output fixes this quantile; decimals avoid a double overflow in the convex combination.
     final BigDecimal numerator = BigDecimal.valueOf(FIRST_OUTPUT_BITS);
     final BigDecimal denominator = BigDecimal.valueOf(UNIT_STEPS);
     final BigDecimal unit = numerator.divide(denominator);
@@ -455,8 +454,7 @@ final class RandomAndNearestDitherTest {
 
   @Test
   void shouldMatchAnIndependentReferenceImplementationWithXoroshiro() {
-    // computed with a separate implementation of the reference C code of SplitMix64 and xoroshiro128+ (24, 16, 37):
-    // the state is the first two outputs of SplitMix64 seeded with 42, and each value is the top 53 bits of an output
+    // from a separate port of the reference C code of SplitMix64 and xoroshiro128+ (24, 16, 37); each is an output's top 53 bits
     final XoroshiroRandomProvider provider = new XoroshiroRandomProvider(SEED);
     final long[] expected = { 8119767394961995L, 693600059381773L, 4769685089197697L };
     for (final long expectedBits : expected) {

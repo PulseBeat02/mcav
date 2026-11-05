@@ -39,8 +39,7 @@ import me.friwi.jcefmaven.CefAppBuilder;
 import org.cef.CefApp;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// The class path comes from where MCAV's browser module, JCEF and jcefmaven were loaded, so separate and shaded jars both
-// work; relocating org.cef or me.friwi breaks the native methods of JCEF.
+// The class path is where this module, JCEF and jcefmaven loaded from, shaded or not; relocating org.cef or me.friwi breaks JCEF's natives.
 final class HelperLauncher {
 
   static final String MAIN_CLASS = "me.brandonli.mcav.browser.BrowserHelper";

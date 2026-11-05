@@ -54,10 +54,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// One playback of a media source, or of a video source with a separate audio source. One decoding thread per grabber
-// fills bounded queues; a video and an audio rendering thread hand each frame on once the PlaybackClock says it is due,
-// dropping video that is too late. End markers in the queues finish the rendering threads. Sessions cannot be
-// restarted: seeking or resuming after a stop creates a new session.
+// One playback: decoding threads fill bounded queues, render threads hand frames on when the PlaybackClock says; never restarted.
 final class PlaybackSession {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(PlaybackSession.class);
@@ -195,9 +192,7 @@ final class PlaybackSession {
     }
   }
 
-  // Opens the video source without starting any thread, so a player can find out whether the source can be played
-  // before it stops the playback it replaces. Also remembers whether the media can be seeked, which is the case when
-  // its length is known; live streams and cameras report no length.
+  // Opens the video without threads, so a player knows it plays before it stops the old one; media without a length cannot seek.
   void open() throws FrameGrabber.Exception {
     final FrameGrabber grabber = this.videoGrabberFactory.create();
     try {
@@ -224,8 +219,7 @@ final class PlaybackSession {
     }
   }
 
-  // Starts the decoding and rendering threads, opening the video source first unless open() did already. The video
-  // grabber is created synchronously, so errors such as a missing file are reported immediately.
+  // The video opens synchronously unless open() did already, so errors such as a missing file are reported at once.
   void start() throws FrameGrabber.Exception {
     if (this.videoGrabber == null) {
       this.open();
@@ -247,8 +241,7 @@ final class PlaybackSession {
     final Thread videoDecoder = this.createThread(VIDEO_DECODER_THREAD_NAME, () -> this.decode(grabber, videoStreams));
     final Thread videoRenderer = this.createThread(VIDEO_RENDERER_THREAD_NAME, this::renderVideo);
     final Thread audioRenderer = this.createThread(AUDIO_RENDERER_THREAD_NAME, this::renderAudio);
-    // A thread that stops the session while the later threads are not started yet waits until they are, so it can
-    // interrupt them and wait for them; a thread that is not started yet would start after the stop returned.
+    // A stop during startup waits for every thread to start, or one could start after the stop returned.
     synchronized (this.threads) {
       this.threads.add(videoDecoder);
       if (audioFactory != null) {
@@ -328,8 +321,7 @@ final class PlaybackSession {
     }
   }
 
-  // Decodes every frame. Video frames get their timestamps from VideoTimestamps, because some decoders, such as the
-  // video reader of OpenCV, stamp every frame with zero.
+  // Video timestamps come from VideoTimestamps, because some decoders, such as OpenCV's video reader, stamp every frame with zero.
   private void decodeFrames(final FrameGrabber grabber, final DecodedStreams streams) throws FrameGrabber.Exception, InterruptedException {
     this.seekToStart(grabber);
 
@@ -352,8 +344,7 @@ final class PlaybackSession {
     }
   }
 
-  // Moves a grabber to the start position of the session. A source that refuses to seek is played from where it is,
-  // which is better than not playing it at all; the failure is reported.
+  // A source that refuses to seek plays from where it is, and the failure is reported.
   private void seekToStart(final FrameGrabber grabber) {
     if (this.startMicroseconds <= 0) {
       return;
@@ -398,8 +389,7 @@ final class PlaybackSession {
     };
   }
 
-  // Describes the video track of a grabber. Sources without a video track, such as audio files, report no picture size
-  // and get the empty metadata instead.
+  // Sources without a video track, such as audio files, report no picture size and get the empty metadata.
   private OriginalVideoMetadata createVideoMetadata(final FrameGrabber grabber) {
     final int width = grabber.getImageWidth();
     final int height = grabber.getImageHeight();
@@ -413,8 +403,7 @@ final class PlaybackSession {
     return OriginalVideoMetadata.of(width, height, bitrate, frameRate);
   }
 
-  // Describes the audio track of a grabber. Sources without an audio track get the metadata of the output format every
-  // grabber resamples to.
+  // Sources without an audio track get the metadata of the output format every grabber resamples to.
   private OriginalAudioMetadata createAudioMetadata(final FrameGrabber grabber) {
     final int sampleRate = grabber.getSampleRate();
     final int channels = grabber.getAudioChannels();
@@ -430,8 +419,7 @@ final class PlaybackSession {
     return OriginalAudioMetadata.of(codecName, bitrate, sampleRate, channels, format);
   }
 
-  // Queues a frame for the video renderer. The picture is only copied if a pipeline wants it; otherwise the frame
-  // travels without it, so the renderer still keeps time.
+  // The picture is copied only when a pipeline wants it; otherwise the frame travels without it, so the renderer still keeps time.
   private void enqueueVideo(final Frame frame, final OriginalVideoMetadata metadata, final VideoTimestamps timestamps)
     throws InterruptedException {
     final Buffer plane = frame.image[0];
@@ -456,11 +444,7 @@ final class PlaybackSession {
     return this.frameCopier.copy(frame);
   }
 
-  // Queues a frame for the video renderer, which then owns its picture. Stopping drains the queue, which wakes a
-  // decoder that waits for room; when the wake-up comes before the decoder notices its interrupt, the put completes
-  // after all, possibly after the renderer drained the queue for the last time, and nobody would release the picture.
-  // So a decoder that finds the session stopped once its frame is queued takes the frame back and releases the picture
-  // itself, unless the renderer took the frame already.
+  // A put can land after the last drain, so a decoder that finds the session stopped takes its frame back and releases the picture.
   @VisibleForTesting
   void queueFrame(final BlockingQueue<DecodedVideoFrame> queue, final DecodedVideoFrame frame, final BooleanSupplier running)
     throws InterruptedException {
@@ -500,9 +484,7 @@ final class PlaybackSession {
     return bytes;
   }
 
-  // Tells the renderer of a queue that no more media follows. An unexpected decoder or handler interrupt must not lose
-  // this marker. Once stopping begins, stop() supplies the markers and this bounded wait ends instead of waiting for a
-  // renderer that may already have exited. The decoder's interrupt status is preserved.
+  // An interrupt must not lose the end marker; once stopping begins, stop() supplies the markers and this bounded wait ends.
   @VisibleForTesting
   <ElementType extends @NonNull Object> void signalEnd(final BlockingQueue<ElementType> queue, final ElementType marker) {
     final boolean interruptedBefore = Thread.interrupted();
@@ -603,8 +585,7 @@ final class PlaybackSession {
     try {
       this.processVideoIfRunning(first, image, metadata);
     } catch (final RuntimeException | Error exception) {
-      // filters are user code, and native filters can throw a LinkageError, so any failure is reported and playback
-      // goes on; only a virtual machine error ends the thread, because reporting it would hide it
+      // filters are user code that may throw a LinkageError; only a virtual machine error, which a report would hide, ends the thread
       ThrowableUtils.throwIfFatal(exception);
       this.reportIfRunning("Video filter failed.", exception);
     }
@@ -672,8 +653,7 @@ final class PlaybackSession {
     try {
       this.processAudioIfRunning(first, samples, metadata);
     } catch (final RuntimeException | Error exception) {
-      // filters are user code, and native filters can throw a LinkageError, so any failure is reported and playback
-      // goes on; only a virtual machine error ends the thread, because reporting it would hide it
+      // filters are user code that may throw a LinkageError; only a virtual machine error, which a report would hide, ends the thread
       ThrowableUtils.throwIfFatal(exception);
       this.reportIfRunning("Audio filter failed.", exception);
     }
@@ -740,9 +720,7 @@ final class PlaybackSession {
     }
   }
 
-  // May run on a thread of the session. A repeated call still waits for the threads, unless it comes from one of them,
-  // which the first stopping thread may be joining. A decoder in native code sees the interrupt only at its next frame,
-  // so every join is bounded.
+  // A repeated call waits for the threads unless made by one of them; joins are bounded, as native decoders see interrupts late.
   void stop() {
     final boolean wasRunning = this.running.getAndSet(false);
     final Thread currentThread = Thread.currentThread();

@@ -62,9 +62,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// libcef.so needs X11, GLib, NSS, ATK and more at load time although CEF draws off-screen, and the image of a Minecraft
-// server often lacks them. MCAV fetches them from Debian 11's frozen archive, pinned by SHA-256, and links only the
-// missing ones into the session, so a newer library of the server is never paired with an older bundled one.
+/*
+ * libcef.so needs X11, GLib, NSS, ATK and more at load time although CEF draws off-screen, and the image of a Minecraft
+ * server often lacks them. MCAV fetches them from Debian 11's frozen archive, pinned by SHA-256, and links only the
+ * missing ones into the session, so a newer library of the server is never paired with an older bundled one.
+ */
 final class LinuxLibraries {
 
   private static final String RESOURCE = "mcav/browser/linux-libraries.txt";

@@ -357,8 +357,10 @@ final class Mcv2ChannelTest {
     assertEquals(expectedLinked, linked);
 
     this.configuration.getViewers().removeAll(List.of(LOADED, second));
-    // the main thread closes the screen while the video's thread retires both viewers: the close clears the link of
-    // whichever viewer the update reaches second
+    /*
+     * the main thread closes the screen while the video's thread retires both viewers: the close clears the link of
+     * whichever viewer the update reaches second
+     */
     final List<Runnable> hides = new ArrayList<>();
     final AtomicBoolean closed = new AtomicBoolean();
     doAnswer(invocation -> this.recordHideAfterClosing(invocation, closed, channel, hides))
@@ -739,8 +741,7 @@ final class Mcv2ChannelTest {
     assertEquals(expectedRecipients, recipients);
     verify(this.screen).show(this.player);
 
-    // the video is paused, so no update runs while the viewer leaves, comes back and loads the pack again: their new
-    // client was never shown the page frames, which are hidden by default
+    // paused, so no update runs while the viewer rejoins and reloads the pack; the new client never saw the page frames, hidden by default
     this.server.removePlayer(LOADED);
     final CraftPlayer rejoined = this.server.addPlayer(LOADED);
     when(this.viewers.getSession(LOADED)).thenReturn(2L);

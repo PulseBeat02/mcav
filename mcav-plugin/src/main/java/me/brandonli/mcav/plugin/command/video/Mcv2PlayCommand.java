@@ -122,6 +122,8 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
 
   private @Nullable ScheduledFuture<?> streaming;
 
+  private @Nullable Mcv2Playback playback;
+
   private @Nullable Mcv2Channel channel;
 
   private Mcv2PackServer.@Nullable Lease lease;
@@ -342,6 +344,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     this.lease = slot;
     final long firstFrameId = slotted.getFirstFrameId();
     final Mcv2Playback playback = new Mcv2Playback(opened, frames, firstFrameId);
+    this.playback = playback;
     start.accept(playback);
   }
 
@@ -618,8 +621,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
   @CommandDescription("mcav.command.mcv2.cancel.info")
   public void cancel(final CommandSender sender) {
     final @Nullable FileEncode running;
-    // the encode stays the running one until its thread ends: a new encode before then would write the same partial
-    // file the cancelled one deletes as it ends
+    // the encode stays the running one until its thread ends, since a new encode would write the partial file the cancelled one deletes
     synchronized (this) {
       running = this.encoding;
     }
@@ -672,6 +674,12 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
       this.streamer = null;
     }
 
+    final @Nullable Mcv2Playback playing = this.playback;
+    if (playing != null) {
+      playing.stop();
+      this.playback = null;
+    }
+
     final @Nullable Mcv2Channel opened = this.channel;
     if (opened != null) {
       opened.close();
@@ -720,8 +728,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
         final String message = "Truncated frame!";
         throw new IOException(message);
       }
-      // a record no frame can be is refused before it is copied: records of a few bytes each would make the copies
-      // take several times the file's size in memory
+      // a record no frame can be is refused before the copy: tiny records would make copies take several times the file's size in memory
       if (length < Mcv2Decoder.HEADER_BYTES || length > Mcv2Decoder.MAXIMUM_FRAME_BYTES) {
         final String message = "MCV2 frame length %s is invalid!".formatted(length);
         throw new IOException(message);

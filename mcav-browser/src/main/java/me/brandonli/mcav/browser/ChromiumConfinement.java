@@ -34,9 +34,11 @@ import java.util.function.IntSupplier;
 import java.util.stream.Stream;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// JCEF always turns Chromium's own sandbox off, so an exploited renderer would run as the server's user. Chromium may
-// therefore not read the server's, home and temporary folders beyond what it needs, and changes only its session. On
-// Linux Landlock confines the starting thread and what it starts; on macOS Seatbelt confines the whole helper.
+/*
+ * JCEF always turns Chromium's own sandbox off, so an exploited renderer would run as the server's user. Chromium may
+ * therefore not read the server's, home and temporary folders beyond what it needs, and changes only its session. On
+ * Linux Landlock confines the starting thread and what it starts; on macOS Seatbelt confines the whole helper.
+ */
 final class ChromiumConfinement {
 
   private static final int KEEP_TRAILING_EMPTY_PARTS = -1;

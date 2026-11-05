@@ -79,8 +79,7 @@ final class AudioExtractorTest {
 
   private String previousHome;
 
-  // Extracts the bundled FFmpeg into the real JavaCPP cache before any test moves the home directory, because the
-  // native libraries stay locked for the lifetime of the JVM and would keep the temporary directory from being deleted.
+  // Extracts FFmpeg into the real JavaCPP cache before a test moves the home, as its locked natives would block deleting it.
   @BeforeAll
   static void extractFfmpeg() {
     final Path executable = FfmpegExecutableProvider.getFfmpegPath();

@@ -105,7 +105,7 @@ public final class MapUtils {
    * @param id the id of the map, zero or more
    * @return the map item, with the id in its lore
    * @throws IllegalArgumentException if the id is negative, or more than {@link #MAXIMUM_NEW_MAPS} ids past the next map
-   *                                  id the server hands out
+   *                                  id the server hands out; no map is created then
    * @throws IllegalStateException    if the requested historical map is missing and its id cannot be allocated again
    * @since 1.0.0
    */
@@ -145,20 +145,19 @@ public final class MapUtils {
 
   // the server hands out map ids in increasing order
   private static MapView createMapsUpTo(final int id) {
+    final int lowestNextId = id - MAXIMUM_NEW_MAPS;
+    Preconditions.checkArgument(
+      isWithinReach(lowestNextId),
+      "Map id %s is more than %s ids past the next map id, because map %s does not exist!",
+      id,
+      MAXIMUM_NEW_MAPS,
+      lowestNextId - 1
+    );
+
     final List<World> worlds = Bukkit.getWorlds();
     final World world = worlds.getFirst();
     MapView created = Bukkit.createMap(world);
     int currentId = created.getId();
-
-    final long missing = (long) id - currentId;
-    Preconditions.checkArgument(
-      missing <= MAXIMUM_NEW_MAPS,
-      "Map id %s is more than %s ids past %s, the next map id!",
-      id,
-      MAXIMUM_NEW_MAPS,
-      currentId
-    );
-
     while (currentId < id) {
       created = Bukkit.createMap(world);
       currentId = created.getId();
@@ -167,6 +166,15 @@ public final class MapUtils {
     Preconditions.checkState(currentId == id, "Map id %s is unavailable, because the server allocated %s instead!", id, currentId);
 
     return created;
+  }
+
+  private static boolean isWithinReach(final int lowestNextId) {
+    if (lowestNextId <= 0) {
+      return true;
+    }
+
+    final MapView lastNeededMap = Bukkit.getMap(lowestNextId - 1);
+    return lastNeededMap != null;
   }
 
   /**
@@ -184,7 +192,8 @@ public final class MapUtils {
    * @throws NullPointerException     if the sender, the location or the material is {@code null}
    * @throws IllegalArgumentException if the width or the height is not positive, the map id is negative, the last map
    *                                  id of the screen is more than {@link Integer#MAX_VALUE}, or it is more than
-   *                                  {@link #MAXIMUM_NEW_MAPS} ids past the next map id; nothing is built then
+   *                                  {@link #MAXIMUM_NEW_MAPS} ids past the next map id; nothing is built and no map
+   *                                  is created then
    * @throws IllegalStateException    if a map id of the screen belonged to a map that no longer exists
    * @since 1.0.0
    */

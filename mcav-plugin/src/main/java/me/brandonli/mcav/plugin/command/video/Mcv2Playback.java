@@ -33,6 +33,7 @@ final class Mcv2Playback implements Runnable {
 
   private int next;
   private long offset;
+  private boolean stopped;
 
   // the frames start with a keyframe
   Mcv2Playback(final Mcv2Channel channel, final List<byte[]> frames, final long firstFrameId) {
@@ -51,8 +52,17 @@ final class Mcv2Playback implements Runnable {
     this.offset = firstFrameId;
   }
 
+  // waits for the frame being sent, so none is sent once this returns
+  synchronized void stop() {
+    this.stopped = true;
+  }
+
   @Override
-  public void run() {
+  public synchronized void run() {
+    if (this.stopped) {
+      return;
+    }
+
     this.channel.update();
 
     if (this.channel.takeKeyframeRequest() && this.next != 0) {

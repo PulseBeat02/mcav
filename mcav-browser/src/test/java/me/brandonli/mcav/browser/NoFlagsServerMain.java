@@ -27,8 +27,7 @@ import me.brandonli.mcav.browser.testing.Await;
 import me.brandonli.mcav.browser.testing.Frames;
 import me.brandonli.mcav.browser.testing.TestPages;
 
-// The child JVM of NoFlagsServerTest, run twice like a plugin: the first round releases its player before MCAV, the
-// second leaves it running, so stopping the module has to end its browser.
+// NoFlagsServerTest's child JVM, run twice like a plugin: its player released before MCAV, then left running for the module stop to end.
 public final class NoFlagsServerMain {
 
   static final String HEADLESS_OPTION = "-Djava.awt.headless=true";

@@ -22,12 +22,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// A daemon thread that runs one step of a rendering loop again and again until it is stopped. The renderers of
-// VlcPlayer hand work from VLC's threads to render threads, so VLC's threads never wait for a pipeline. A step that
-// throws a runtime exception is reported to the failure handler and the loop goes on with the next step, so one broken
-// frame does not end the playback; errors such as running out of memory are not caught. Stopping interrupts the current
-// step and waits up to five seconds for the thread to exit. A step that ignores interruption can outlive that wait; a
-// render thread never waits for itself.
+// Runs a render step until stopped, so VLC's threads never wait for a pipeline; a failed step is reported and the loop goes on.
 final class RenderThread {
 
   private static final long JOIN_TIMEOUT_MILLISECONDS = 5_000L;
@@ -56,9 +51,7 @@ final class RenderThread {
     created.start();
   }
 
-  // Stops the thread: the loop ends after the current step, a waiting step is interrupted, and the calling thread waits
-  // up to five seconds for the thread to exit. Stopping a thread that was never started, or stopping it again, has no
-  // effect.
+  // Interrupts the current step and waits a bounded time for the thread; a thread never started or already stopped is left alone.
   void stop() {
     this.running.set(false);
     final Thread current = this.thread;

@@ -37,7 +37,7 @@ final class MessageTest {
   void shouldHaveATextInTheBundledLanguageForEveryMessage() throws ReflectiveOperationException {
     final List<Field> fields = this.messageFields();
     final int fieldCount = fields.size();
-    assertEquals(85, fieldCount);
+    assertEquals(86, fieldCount);
 
     for (final Field field : fields) {
       final String name = field.getName();

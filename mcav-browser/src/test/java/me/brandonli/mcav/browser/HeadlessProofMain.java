@@ -43,8 +43,10 @@ import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
 import me.brandonli.mcav.media.player.pipeline.builder.VideoPipelineStepBuilder;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 
-// The proof that the browser runs on a stock headless Linux server, run with java -jar by the proof bundle. It prints
-// PASSED last, or why it failed. MCAV_PROOF_CACHE names a writable folder for the cache, as the user may have no home.
+/*
+ * The proof that the browser runs on a stock headless Linux server, run with java -jar by the proof bundle. It prints
+ * PASSED last, or why it failed. MCAV_PROOF_CACHE names a writable folder for the cache, as the user may have no home.
+ */
 public final class HeadlessProofMain {
 
   private static final String PROOF_CACHE_VARIABLE = "MCAV_PROOF_CACHE";

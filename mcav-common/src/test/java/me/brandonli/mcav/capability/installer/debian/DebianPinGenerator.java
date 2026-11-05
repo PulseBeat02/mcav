@@ -33,6 +33,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -45,8 +46,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Pattern;
 import me.brandonli.mcav.utils.IoUtils;
 import me.brandonli.mcav.utils.http.HttpDownloader;
 import me.brandonli.mcav.utils.os.Arch;
@@ -55,13 +58,13 @@ import me.brandonli.mcav.utils.os.Os;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.tukaani.xz.XZInputStream;
 
-// Generates the pinned Debian package lists that MCAV fetches libraries and programs from. For each bundle that the
-// generateDebianPins task of a module names, it resolves the dependency closure of the root packages in the bookworm
-// and bookworm-security indexes of one snapshot of each Debian archive, the newest version of a package winning, so
-// every URL stays valid after later point releases, and writes each package with the SHA-256 its index lists,
-// dependencies before their dependents. Packages every glibc system has (libc6 and the GCC runtime) are left out, and
-// so are architecture-independent packages unless the task includes them, as programs need them for their data. Run
-// the task of the module after a Debian point release or security update.
+/*
+ * Pins each bundle a module's generateDebianPins task names: the dependency closure of its roots in the bookworm and
+ * bookworm-security indexes of one snapshot of each Debian archive, newest versions winning, so every URL stays valid
+ * after later point releases. Each package also gets, as its mirror, the file farm URL that its archive URL redirects
+ * to. Packages every glibc system has are left out, and so are architecture-independent ones unless the task includes
+ * them, as programs need them for their data. Run the task again after a Debian point release or security update.
+ */
 final class DebianPinGenerator {
 
   private static final DateTimeFormatter SNAPSHOT_DAY = DateTimeFormatter.ofPattern("yyyyMMdd'T000000Z/'", Locale.ROOT).withZone(
@@ -69,6 +72,12 @@ final class DebianPinGenerator {
   );
   private static final String LOCATION_HEADER = "location";
   private static final int FOUND_STATUS = 302;
+
+  private static final Duration LOOKUP_TIMEOUT = Duration.ofSeconds(30);
+  private static final int LOOKUP_ATTEMPTS = 3;
+  private static final Duration RETRY_DELAY = Duration.ofSeconds(1);
+  private static final int SERVER_ERROR_STATUS = 500;
+  private static final Pattern FILE_FARM_PATH = Pattern.compile("^/file/[0-9a-f]{40}/[^/]+$");
 
   private static final String INDEX_FILE_NAME = "Packages.xz";
   private static final String TEMPORARY_DIRECTORY_PREFIX = "mcav-debian-pins";
@@ -216,15 +225,10 @@ final class DebianPinGenerator {
   }
 
   private void writeBundle(final Path outputDirectory, final Bundle bundle, final Map<Architecture, List<Index>> indexes)
-    throws IOException {
-    final JsonArray downloads = new JsonArray();
-    for (final Architecture architecture : Architecture.values()) {
-      final List<Index> architectureIndexes = indexes.get(architecture);
-      final List<IndexEntry> closure = this.resolveClosure(architectureIndexes, bundle.roots());
-      for (final IndexEntry entry : closure) {
-        final JsonObject download = this.toDownload(architecture, entry);
-        downloads.add(download);
-      }
+    throws IOException, InterruptedException {
+    final JsonArray downloads;
+    try (final HttpClient client = HttpClient.newHttpClient()) {
+      downloads = this.createDownloads(client, bundle, indexes);
     }
 
     final String downloadsJson = GSON.toJson(downloads);
@@ -233,7 +237,23 @@ final class DebianPinGenerator {
     Files.writeString(file, json, StandardCharsets.UTF_8);
   }
 
-  private JsonObject toDownload(final Architecture architecture, final IndexEntry entry) {
+  private JsonArray createDownloads(final HttpClient client, final Bundle bundle, final Map<Architecture, List<Index>> indexes)
+    throws IOException, InterruptedException {
+    final JsonArray downloads = new JsonArray();
+    for (final Architecture architecture : Architecture.values()) {
+      final List<Index> architectureIndexes = indexes.get(architecture);
+      final List<IndexEntry> closure = this.resolveClosure(architectureIndexes, bundle.roots());
+      for (final IndexEntry entry : closure) {
+        final JsonObject download = this.toDownload(client, architecture, entry);
+        downloads.add(download);
+      }
+    }
+
+    return downloads;
+  }
+
+  private JsonObject toDownload(final HttpClient client, final Architecture architecture, final IndexEntry entry)
+    throws IOException, InterruptedException {
     final String os = Os.LINUX.name();
     final Arch platformArchitecture = architecture.getPlatformArchitecture();
     final String architectureName = platformArchitecture.name();
@@ -244,15 +264,63 @@ final class DebianPinGenerator {
     platform.addProperty("bits", bits);
     final URI snapshot = entry.snapshot();
     final URI url = snapshot.resolve(entry.filename());
+    final String mirror = this.findMirror(client, url);
     final JsonObject download = new JsonObject();
     download.add("platform", platform);
     download.addProperty("url", url.toString());
     download.addProperty("hash", entry.sha256());
+    download.addProperty("mirror", mirror);
     return download;
   }
 
-  // Resolves the packages that the roots need, each after the packages it depends on. Only the first alternative of
-  // a dependency is followed, and a virtual package resolves to its first provider in the indexes.
+  // the last attempt lets its failure through
+  String findMirror(final HttpClient client, final URI url) throws IOException, InterruptedException {
+    final HttpRequest request = HttpRequest.newBuilder(url).HEAD().timeout(LOOKUP_TIMEOUT).build();
+    for (int attempt = 1; attempt < LOOKUP_ATTEMPTS; attempt++) {
+      final @Nullable HttpResponse<Void> response = this.sendLookup(client, request);
+      if (response != null && response.statusCode() < SERVER_ERROR_STATUS) {
+        return this.readMirror(url, response);
+      }
+
+      Thread.sleep(RETRY_DELAY);
+    }
+
+    final HttpResponse<Void> response = client.send(request, HttpResponse.BodyHandlers.discarding());
+    return this.readMirror(url, response);
+  }
+
+  // a request that fails or times out is retried like a 5xx
+  private @Nullable HttpResponse<Void> sendLookup(final HttpClient client, final HttpRequest request) throws InterruptedException {
+    try {
+      return client.send(request, HttpResponse.BodyHandlers.discarding());
+    } catch (final IOException exception) {
+      return null;
+    }
+  }
+
+  private String readMirror(final URI url, final HttpResponse<Void> response) throws IOException {
+    final int status = response.statusCode();
+    final HttpHeaders headers = response.headers();
+    final Optional<String> location = headers.firstValue(LOCATION_HEADER);
+    final Optional<URI> target = location.map(url::resolve);
+    final @Nullable URI mirror = target.filter(uri -> this.isFileFarm(url, uri)).orElse(null);
+    if (status != FOUND_STATUS || mirror == null) {
+      final String message = "Snapshot answered %s for %s without a file farm redirect!".formatted(status, url);
+      throw new IOException(message);
+    }
+
+    return mirror.toString();
+  }
+
+  private boolean isFileFarm(final URI url, final URI target) {
+    final boolean sameScheme = Objects.equals(url.getScheme(), target.getScheme());
+    final boolean sameAuthority = Objects.equals(url.getRawAuthority(), target.getRawAuthority());
+    final @Nullable String path = target.getRawPath();
+    final boolean fileFarmPath = path != null && FILE_FARM_PATH.matcher(path).matches();
+    return sameScheme && sameAuthority && fileFarmPath;
+  }
+
+  // Dependencies come first; only a dependency's first alternative is followed, and a virtual package resolves to its first provider.
   List<IndexEntry> resolveClosure(final List<Index> indexes, final List<String> roots) {
     final Map<String, IndexEntry> entries = this.parseIndexes(indexes);
     final Map<String, String> providers = this.findProviders(entries);

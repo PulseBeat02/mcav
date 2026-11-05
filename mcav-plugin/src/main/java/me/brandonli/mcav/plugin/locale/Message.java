@@ -662,6 +662,15 @@ public interface Message extends LocaleTools {
   NullComponent VIDEO_START_ERROR = LocaleTools.direct("mcav.command.video.start.error");
 
   /**
+   * Key {@code mcav.command.video.stream.refused}: a video command refused a stream that yt-dlp reported for a web
+   * page, because its scheme is not {@code http} or {@code https}. The argument is why, naming the page and the
+   * scheme, inserted at {@code <arg:0>}.
+   *
+   * @since 1.0.0
+   */
+  UniComponent<String> VIDEO_STREAM_REFUSED = LocaleTools.direct("mcav.command.video.stream.refused", null);
+
+  /**
    * Key {@code mcav.command.vm.error}: the virtual machine of {@code /mcav vm create} failed to start for a reason
    * other than a missing QEMU program; the console has the error.
    *

@@ -37,8 +37,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// Records the server of each session folder, so a later start removes the folders a killed server left behind.
-// Folders of other users stay: in a shared temporary folder, another user could swap their contents for a link.
+// Records each folder's server so a later start removes a killed server's leftovers; other users' folders stay, as they may swap in a link.
 final class SessionFolders {
 
   static final String PREFIX = "mcavb-";

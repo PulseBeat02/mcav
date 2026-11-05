@@ -563,7 +563,7 @@ command tells you which option it was.
 
 The page chooses the addresses yt-dlp reports for its streams, so only `http` and `https` streams are played. A page
 that names a stream of another kind, such as a `file:` of the server or a `tcp:` connection, does not start, and the
-console says why.
+command tells you the page and the scheme it refused.
 
 ## QEMU options
 

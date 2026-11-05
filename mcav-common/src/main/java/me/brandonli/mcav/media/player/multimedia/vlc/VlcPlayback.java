@@ -50,12 +50,7 @@ import uk.co.caprica.vlcj.player.embedded.EmbeddedMediaPlayer;
 import uk.co.caprica.vlcj.player.embedded.VideoSurfaceApi;
 import uk.co.caprica.vlcj.player.embedded.videosurface.CallbackVideoSurface;
 
-// One playback of a VlcPlayer: the VLC media players, their callbacks, and the render threads. A combined source is
-// played by one VLC media player. When separate video and audio sources are given, a second player plays the audio, and
-// the video player is kept in sync with it. Audio is the master clock, because listeners notice audio glitches far more
-// than dropped frames: small drifts are corrected by playing the video slightly faster or slower, and large ones by
-// seeking the video to the audio position. All methods except the synchronizer are called with the lock of the owning
-// player held. A playback cannot be restarted once it is stopped.
+// Separate audio is the master clock, as its glitches show more than dropped frames; all but the synchronizer hold the owner's lock.
 final class VlcPlayback {
 
   private static final Equivalence<Object> FAILURE_IDENTITY = Equivalence.identity();
@@ -110,8 +105,7 @@ final class VlcPlayback {
     this.players = this.listPlayers(createdVideoPlayer, this.audioPlayer);
   }
 
-  // Creates a playback: acquires the shared VLC instance and creates the media players. Nothing is played until start()
-  // is called, but stop() must be called in any case to release the players.
+  // Nothing plays until start(), but stop() must be called in any case to release the players and the shared VLC instance.
   static VlcPlayback create(final VlcPlayer owner, final Source video, final @Nullable Source audio) {
     final SharedMediaPlayerFactory sharedFactory = owner.getSharedFactory();
     final MediaPlayerFactory factory = sharedFactory.acquire();
@@ -143,8 +137,7 @@ final class VlcPlayback {
     }
   }
 
-  // Runs cleanup or reporting after the primary failure and adds the action's own failure, unless it is the same one,
-  // to the primary failure as suppressed, so neither is lost. Fatal VM errors still propagate.
+  // Adds the action's failure to the primary one as suppressed unless they are the same; fatal virtual machine errors propagate.
   static boolean runAddingFailureTo(final Throwable primary, final Runnable action) {
     try {
       action.run();
@@ -173,8 +166,7 @@ final class VlcPlayback {
     return List.of(videoPlayer, audioPlayer);
   }
 
-  // Installs the callbacks, starts the render threads, and plays the media, waiting until VLC has opened it or the open
-  // timeout of the player elapses. Separate video and audio sources are opened at the same time and share the timeout.
+  // Waits until VLC opened the media or the player's open timeout elapses; separate sources open together and share the timeout.
   boolean start() {
     this.installVideoSurface();
     this.installAudioCallback();
@@ -289,8 +281,7 @@ final class VlcPlayback {
     return thread;
   }
 
-  // Moves the video player back in line with the audio player, if both are playing. Failures are reported to the
-  // exception handler of the player instead of ending the synchronization.
+  // Failures go to the player's exception handler instead of ending the synchronization.
   @VisibleForTesting
   void synchronizeVideoToAudio(final EmbeddedMediaPlayer audioMaster) {
     if (!this.running.get()) {
@@ -328,8 +319,7 @@ final class VlcPlayback {
     videoControls.setRate(rate);
   }
 
-  // Chooses the playback rate of the video for a small drift: 3% slower when the video is more than 100 ms ahead, 3%
-  // faster when it is more than 100 ms behind, and normal speed otherwise.
+  // A small drift is corrected by the rate: slower while the video is ahead, faster while it is behind.
   @VisibleForTesting
   float chooseRate(final long drift) {
     if (drift > DRIFT_NUDGE_MILLISECONDS) {
@@ -357,8 +347,7 @@ final class VlcPlayback {
     return true;
   }
 
-  // Resumes playback after pause(). The paused state is tracked here rather than asked from VLC, because VLC changes
-  // its state asynchronously and still reports playing right after it was told to pause.
+  // The paused state is tracked here, because VLC changes state asynchronously and still reports playing right after a pause.
   boolean resume() {
     if (!this.paused) {
       return false;
@@ -400,8 +389,7 @@ final class VlcPlayback {
     return SEEKABLE_STATES.contains(state) && status.isSeekable();
   }
 
-  // Stops playback, waits for the render threads to exit, releases the media players, and releases the shared VLC
-  // instance. Calling this method again has no effect.
+  // Waits for the render threads, then releases the media players and the shared VLC instance; a repeated call does nothing.
   void stop() {
     final boolean wasRunning = this.running.getAndSet(false);
     if (!wasRunning) {
@@ -463,8 +451,7 @@ final class VlcPlayback {
     }
   }
 
-  // The thread that keeps the video player in line with a separate audio player, together with the schedule of the task
-  // it repeats, so stopping cancels the schedule before the thread is shut down.
+  // Keeps the video in line with separate audio; stopping cancels the schedule before the thread shuts down.
   private static final class Synchronizer {
 
     private static final boolean DO_NOT_INTERRUPT = false;

@@ -21,9 +21,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 
-// Resamples audio to the playback speed, so it keeps in step with the pictures and its pitch follows the speed. The
-// next frame position and a chunk's last frame carry over to the next chunk, so chunks join without a click. Not
-// thread-safe.
+// Resamples audio to the playback speed, carrying state across chunks so they join without a click; not thread-safe.
 final class SpeedResampler {
 
   private static final double FIRST_FRAME_POSITION = 1.0;
