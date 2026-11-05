@@ -31,13 +31,7 @@ import net.jqwik.api.Property;
 import net.jqwik.api.Provide;
 import net.jqwik.api.constraints.IntRange;
 
-// Properties of the Bayer matrices at every size. Pass 1 found BayerDither.NORMAL_8X8 to be the transpose of the
-// canonical matrix while the class's own generator produced the canonical one; the examples then pinned the three
-// constants. These check the generator itself against an independent closed form at every power of two up to 512, and
-// the constants against the generator. The closed form reads the coordinates bit by bit: the most significant bit pair
-// of (column, row) picks the entry of the 2x2 Bayer pattern that becomes the least significant base-4 digit of the
-// threshold, the next pair the next digit, and so on. The 2x2 pattern is [[0, 2], [3, 1]], which is 2 * (column ^ row)
-// + row for single bits.
+// Checks the generator against an independent closed form, whose bit pairs pick base-4 digits from the 2x2 pattern [[0, 2], [3, 1]].
 final class BayerMatrixPropertyTest {
 
   private static final String SEED = "20260925";

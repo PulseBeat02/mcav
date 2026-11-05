@@ -48,8 +48,7 @@ final class OrderedDitherTest {
 
   private static final float UNIT_STRENGTH = 1.0f;
 
-  // Asserts that a threshold matrix has the size its name promises, and that every one of its levels occupies the same
-  // number of cells, so no threshold is missing or repeated by mistake.
+  // Every level must fill the same number of cells, so no threshold is missing or repeated.
   private static void assertEvenRanking(
     final String name,
     final ThresholdMatrix thresholds,
@@ -329,8 +328,7 @@ final class OrderedDitherTest {
     final float[][] matrix = flat.getMatrix();
     final float strength = flat.getStrength();
     assertEquals(0.0f, strength, "a strength of 0 is allowed");
-    // every threshold is (value / max - 0.5) * strength, so the entries below the middle of the pattern come out as
-    // negative zero; the tolerance compares the numbers rather than the sign of a zero
+    // entries below the pattern's middle come out as negative zero; a zero tolerance compares numbers, not the sign of a zero
     final float exactly = 0.0f;
     final float[] firstRow = matrix[0];
     final float[] expected = new float[] { 0.0f, 0.0f };

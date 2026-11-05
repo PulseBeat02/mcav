@@ -55,8 +55,7 @@ final class OpenCvPlayersTest {
 
   private static final String DECODED_FRAMES_MESSAGE = "frames %s";
 
-  // Loads the natives of OpenCV ahead of the timed tests, because loading them on the decoding thread takes seconds on
-  // a busy machine.
+  // Loading the natives on the decoding thread would be slow on a busy machine.
   @BeforeAll
   static void loadTheNativeLibrariesAheadOfTheTimedTests() {
     final ImageBuffer warmUp = ImageBuffer.bytes(new byte[3], 1, 1);
@@ -100,8 +99,7 @@ final class OpenCvPlayersTest {
     }
   }
 
-  // Whether the reader of OpenCV opens a video file on this machine. A build without a file backend either refuses to
-  // start or starts without a picture size, and both mean the same: it cannot read the file.
+  // A build without a file backend either refuses to start or starts without a picture size; both mean it cannot read the file.
   private static boolean opensWithOpenCv(final Path video) {
     final String path = video.toString();
     final OpenCVFrameGrabber grabber = new OpenCVFrameGrabber(path);

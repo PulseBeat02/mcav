@@ -26,8 +26,7 @@ import me.brandonli.mcav.utils.natives.NativeLoadingException;
 import org.bytedeco.opencv.opencv_objdetect.CascadeClassifier;
 import org.junit.jupiter.api.Test;
 
-// Tests how FaceDetectionFilter reports machines that cannot load the object detection natives. The tests never load
-// those natives, so they run everywhere.
+// Tests how FaceDetectionFilter reports a machine without the object detection natives, never loading them, so the tests run anywhere.
 final class FaceDetectionAvailabilityTest {
 
   private static final Path CASCADE = Path.of("haarcascade_frontalface_default.xml");

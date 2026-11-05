@@ -68,8 +68,7 @@ final class DitherPropertyTest {
     DitherPalette.colors(0xFF808080, 0xFF808080, 0xFFFF0000)
   );
 
-  // Every algorithm the library ships, created fresh for a palette; the random one draws from a seeded generator, so
-  // two instances make the same choices.
+  // Every shipped algorithm, created fresh per palette; the random one is seeded, so two instances make the same choices.
   private static final List<NamedAlgorithm> ALGORITHMS = List.of(
     new NamedAlgorithm("Floyd-Steinberg", FloydDither::new),
     new NamedAlgorithm("Filter Lite", FilterLiteDither::new),
@@ -156,8 +155,7 @@ final class DitherPropertyTest {
     return cases.as(DitherCase::new);
   }
 
-  // Creates integers in a range from a fresh arbitrary: jqwik 1.10 shares the range between an arbitrary and the ones
-  // configured from it, so one base configured twice would hand every user the last range.
+  // A fresh arbitrary per range, because jqwik 1.10 shares the range between an arbitrary and those configured from it.
   private static Arbitrary<Integer> between(final int minimum, final int maximum) {
     final IntegerArbitrary integers = Arbitraries.integers();
     return integers.between(minimum, maximum);

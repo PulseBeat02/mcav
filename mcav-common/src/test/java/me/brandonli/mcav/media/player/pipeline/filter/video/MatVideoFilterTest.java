@@ -153,14 +153,12 @@ final class MatVideoFilterTest {
     assertThrows(NullPointerException.class, () -> VideoFilter.NO_OP.applyFilter(null));
   }
 
-  // Keeps a copy of the pixels written back into a foreign image, taken while the call runs, because the buffer belongs
-  // to a temporary image that is released afterward.
+  // Copies the pixels written into a foreign image during the call, as their buffer belongs to a temporary image released afterward.
   private static final class WrittenPixels {
 
     private byte[] bytes = new byte[0];
 
-    // Copies the pixels an update call receives; the result of the answer is ignored, because the update returns
-    // nothing.
+    // The answer's result is ignored, because the update returns nothing.
     private Object record(final InvocationOnMock invocation) {
       final ByteBuffer data = invocation.getArgument(0);
       final ByteBuffer view = data.duplicate();

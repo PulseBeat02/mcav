@@ -56,8 +56,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-// Plays generated media through the VLC installed on the machine with VlcPlayer. The tests are skipped when VLC is not
-// installed.
+// Plays generated media through the installed VLC; the tests are skipped without it.
 final class VlcPlayerIntegrationTest {
 
   private static final Duration TIMEOUT = Duration.ofMinutes(2);
@@ -416,8 +415,7 @@ final class VlcPlayerIntegrationTest {
     assertEquals(48, height);
   }
 
-  // Tracks when a steadily growing count last changed, to wait until it stays the same for a while. The count is only
-  // read by the thread that waits.
+  // Tracks when a growing count last changed, to wait until it holds still; only the waiting thread reads it.
   private static final class QuietPeriod {
 
     private final LongSupplier activity;

@@ -113,9 +113,7 @@ final class DiffusionKernelTest {
     assertThrows(NullPointerException.class, () -> new DiffusionKernel(KERNEL_NAME, 1, new int[][] { { 1, 0, 1 }, null }));
   }
 
-  // Found by DitherFuzzTest: a kernel accepted taps of any reach, and the error rows of a pass are as wide and as many
-  // as the kernel reaches, so a tap far away made dithering allocate until the heap ran out, and one at
-  // Integer.MIN_VALUE made the reach negative. A tap may reach at most DiffusionKernel#MAXIMUM_OFFSET pixels.
+  // Error rows grow with a kernel's reach, so a far tap would exhaust the heap and Integer.MIN_VALUE would make the reach negative.
   @Test
   void shouldRefuseTapsThatReachFartherThanAnyNeighbourhood() {
     final int limit = DiffusionKernel.MAXIMUM_OFFSET;

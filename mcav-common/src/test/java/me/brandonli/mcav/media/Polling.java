@@ -23,8 +23,7 @@ import java.time.Duration;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.BooleanSupplier;
 
-// Waits in tests for state that another thread changes without signalling it, such as a counter that a pipeline running
-// on a playback thread increments. The condition is checked every few milliseconds until it holds or the timeout ends.
+// Waits for state that another thread changes without signalling it, checking until the condition holds or the timeout ends.
 public final class Polling {
 
   private static final long POLL_INTERVAL_NANOSECONDS = 5_000_000L;

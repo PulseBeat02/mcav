@@ -119,8 +119,7 @@ final class PlaybackSessionTest {
     this.reports.add(message);
   }
 
-  // Creates a session on the wall clock that never drops a frame as late, so the outcome of the test does not depend on
-  // the load of the machine.
+  // A wall-clock session that never drops late frames, so the outcome does not depend on the machine's load.
   private PlaybackSession session(
     final PlaybackSession.GrabberFactory video,
     final PlaybackSession.GrabberFactory audio,
@@ -181,8 +180,7 @@ final class PlaybackSessionTest {
     this.audioCallback.attach(step);
   }
 
-  // Loads the OpenCV natives before any timed test, because the first image buffer of the JVM loads them on the
-  // rendering thread, where the loading cannot be interrupted and takes seconds.
+  // The first image buffer of the JVM would otherwise load the natives on the rendering thread, slowly and uninterruptibly.
   @BeforeAll
   static void loadTheNativeLibrariesAheadOfTheTimedTests() {
     try (final ImageBuffer warmUp = ImageBuffer.bytes(new byte[3], 1, 1)) {
@@ -731,8 +729,6 @@ final class PlaybackSessionTest {
     assertTrue(followedArrival, "the position follows the time the frames arrived at, got %s".formatted(position));
   }
 
-  // Creates a session that plays one grabber from the beginning and takes its video pipeline from the given callback
-  // instead of the callback of the test.
   private PlaybackSession sessionWithVideoCallback(final ScriptedFrameGrabber grabber, final VideoAttachableCallback callback) {
     final PlaybackSession.GrabberFactory videoFactory = factoryOf(grabber);
     return this.session(videoFactory, null, callback, Timing.NEVER_DROPPING, 0L, StartState.PLAYING);
@@ -1025,10 +1021,7 @@ final class PlaybackSessionTest {
     assertEquals(1, frameCount, "frames queued before the stop are discarded");
   }
 
-  // A player stops its session from outside while the session may be stopping itself, which its renderers do when the
-  // exception handler throws. Found by PlaybackSessionStopStressTest: the outside stop lost the race for the running
-  // flag and returned at once, while the session was still waiting for a decoder stuck in native code, so a player
-  // could return from release while the playback still ran.
+  // A session stops itself when the exception handler throws in a renderer; a stop from outside must still wait for its threads.
   @Test
   void shouldWaitForTheThreadsWhenAStopRacesTheSessionStoppingItself() throws Exception {
     final AtomicReference<PlaybackSession> holder = new AtomicReference<>();
@@ -1351,8 +1344,7 @@ final class PlaybackSessionTest {
     assertThrows(IllegalStateException.class, picture::getWidth, PICTURE_RELEASED_MESSAGE);
   }
 
-  // Creates a picture whose pixels are on the Java heap, where OpenCV cannot read them, so the decoder copies it into
-  // an image of its own size before it scales it.
+  // Heap pixels, which OpenCV cannot read, so the decoder copies them into an image of their own size before scaling.
   private static Frame heapPicture(final long timestampMicroseconds) {
     final Frame frame = ScriptedFrameGrabber.video(timestampMicroseconds);
     final ByteBuffer direct = (ByteBuffer) frame.image[0];
@@ -1415,8 +1407,7 @@ final class PlaybackSessionTest {
     assertSame(OriginalVideoMetadata.EMPTY, metadata);
   }
 
-  // A pipeline may interrupt the thread it runs on, for instance when it gives up a blocking call. Its renderer then
-  // ends, and it stops the session: otherwise the decoder would wait for room in a queue nobody empties anymore.
+  // A renderer whose pipeline interrupts its thread ends and stops the session, or the decoder would wait on a queue nobody empties.
   @Test
   void shouldStopTheSessionWhenAVideoPipelineInterruptsItsThread() throws Exception {
     final AtomicReference<Thread> rendererHolder = new AtomicReference<>();
@@ -1464,8 +1455,7 @@ final class PlaybackSessionTest {
     assertEndedInterrupted(rendererHolder.get());
   }
 
-  // The audio renderer is not interrupted when its own pipeline stops the session, so it ends through the end marker
-  // the stop puts into its queue. The decoder is stopped before it could queue one: it waits for room in the queue.
+  // Not interrupted, the stopping renderer ends on the stop's end marker; the decoder, waiting for room, queues none.
   @Test
   void shouldStopFromItsOwnAudioPipeline() throws Exception {
     final AtomicReference<PlaybackSession> holder = new AtomicReference<>();
@@ -1498,8 +1488,7 @@ final class PlaybackSessionTest {
     return true;
   }
 
-  // A source that decodes slower than it plays has its frames dropped one after the other, which freezes the picture
-  // without a word, so the session says so.
+  // Dropping every frame of a slow source freezes the picture silently, so the session reports it.
   @Test
   void shouldSaySoWhenMostFramesComeTooLate() throws Exception {
     final AtomicInteger shown = new AtomicInteger();
@@ -1531,9 +1520,7 @@ final class PlaybackSessionTest {
     assertEquals(expected, reports, "the frames of the first ten seconds, all dropped");
   }
 
-  // The first frame takes 450 ms, so the ten frames due in the next 350 ms come too late, and the frames after them are
-  // shown while the clock moves on one frame at a time. The last frame of the first ten seconds takes 500 ms, so the
-  // frame that closes the stretch is dropped: eleven dropped frames do not outnumber the 291 shown ones.
+  // The second slow frame ends the first stretch, so the frame closing it is dropped too; eleven drops do not outnumber the shown frames.
   @Test
   void shouldStaySilentWhileMostFramesAreShown() throws Exception {
     final AtomicLong now = new AtomicLong();
@@ -1578,8 +1565,6 @@ final class PlaybackSessionTest {
 
   private static final class Timing {
 
-    // The wall clock and the audio lead of the players, with a lag no frame can exceed, so frames are never dropped as
-    // late however loaded the machine is.
     private static final Timing NEVER_DROPPING = new Timing(PlaybackSession.AUDIO_LEAD_NANOSECONDS, Long.MAX_VALUE, System::nanoTime);
 
     private final long audioLeadNanoseconds;

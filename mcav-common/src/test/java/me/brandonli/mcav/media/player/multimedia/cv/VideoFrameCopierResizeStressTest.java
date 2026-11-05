@@ -28,11 +28,7 @@ import me.brandonli.mcav.utils.immutable.Dimension;
 import org.bytedeco.javacv.Frame;
 import org.junit.jupiter.api.Test;
 
-// Copies frames while another thread attaches other sizes and detaches them, the stress half of the race test of the
-// size a copier scales to. The copier reads the attached size once per frame, so every copy has either the size of the
-// frame, when no size was attached, or exactly one of the attached sizes, never the width of one and the height of
-// another, and no copy fails. jcstress cannot run the copier, which writes into OpenCV matrices whose native libraries
-// the jcstress jar does not carry; ConfigureGrabberResizeRace there covers the same read in the player itself.
+// The stress half of the copier's resize race; jcstress lacks the OpenCV natives, so its ConfigureGrabberResizeRace tests the player.
 final class VideoFrameCopierResizeStressTest {
 
   private static final int COPIES = 20_000;

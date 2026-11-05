@@ -54,10 +54,7 @@ import uk.co.caprica.vlcj.player.embedded.videosurface.CallbackVideoSurface;
 import uk.co.caprica.vlcj.player.embedded.videosurface.callback.BufferFormatCallback;
 import uk.co.caprica.vlcj.player.embedded.videosurface.callback.RenderCallback;
 
-// A VLC engine made of Mockito mocks, so VlcPlayer and VlcPlayback can be tested without libvlc. Every media player it
-// creates behaves like VLC: asking it to play media records the resource and the options and, depending on the Outcome
-// of the player, reports playing or an error to the registered event listeners on the calling thread, or reports
-// nothing yet. Like VLC, pausing does not change the playing state right away.
+// A VLC engine of Mockito mocks: play reports per Outcome on the calling thread, and, as in VLC, pausing changes the state later.
 final class MockVlc {
 
   private static final int SECOND_PLAYER_INDEX = 1;

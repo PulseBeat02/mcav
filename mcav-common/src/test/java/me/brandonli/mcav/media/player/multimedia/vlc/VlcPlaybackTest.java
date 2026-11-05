@@ -429,8 +429,7 @@ final class VlcPlaybackTest {
     return alive.isEmpty();
   }
 
-  // Waits up to five seconds until no thread of a playback runs anymore. Threads that stopped themselves, for example
-  // because a pipeline released the player from its render thread, exit a moment after the call that stopped them.
+  // Threads that stopped themselves, such as a render thread whose pipeline released the player, exit a moment after that call.
   static void awaitNoPlaybackThreads() throws InterruptedException {
     final boolean exited = Polling.pollUntil(THREAD_EXIT_TIMEOUT, VlcPlaybackTest::noPlaybackThreadIsAlive);
     final List<String> alive = findAlivePlaybackThreads();

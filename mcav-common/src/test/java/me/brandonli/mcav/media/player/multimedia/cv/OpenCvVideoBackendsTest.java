@@ -39,8 +39,7 @@ import org.junit.jupiter.api.parallel.Resources;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-// Tests OpenCvVideoBackends against the build information of the platforms the library supports, so both answers are
-// covered wherever the tests run.
+// Uses the build information of every supported platform, so both answers are covered wherever the tests run.
 final class OpenCvVideoBackendsTest {
 
   private static final String VIDEO_FILE_NAME = "file.mp4";

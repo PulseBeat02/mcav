@@ -204,8 +204,7 @@ final class MatImageBufferTest {
 
   @Test
   void shouldRefuseAnImageOfADisabledCodecAsUnsupportedRatherThanCrashing() throws IOException {
-    // the bundled OpenCV is built without the OpenEXR codec, so imdecode/imread raise an OpenCV error for an EXR
-    // image; it is untrusted input, so it must be refused as unsupported, not escape as an unchecked RuntimeException
+    // the bundled OpenCV has no OpenEXR codec, so imdecode and imread raise an OpenCV error for an EXR image
     final byte[] exr = { 'v', '/', '1', 0x01 };
     final Path exrFile = this.directory.resolve(EXR_FILE_NAME);
     Files.write(exrFile, exr);
@@ -382,8 +381,7 @@ final class MatImageBufferTest {
     }
   }
 
-  // Serves an image from a local HTTP server and loads it through its URI, with the download cache in the temporary
-  // directory instead of the real home directory.
+  // Keeps the download cache in the temporary directory instead of the real home directory.
   private int downloadHeight(final Path png) throws IOException {
     final String previousHome = System.getProperty(USER_HOME_PROPERTY);
     final String temporaryHome = this.directory.toString();
@@ -1165,8 +1163,7 @@ final class MatImageBufferTest {
     }
   }
 
-  // Writes a result that shares the pixels of the source and changes them, so the image keeps its pixel memory but
-  // shows other colors.
+  // Shares the source's pixels and changes them, so the image keeps its pixel memory but shows other colors.
   private static void shareAndInvert(final Mat source, final Mat target) {
     target.put(source);
     opencv_core.bitwise_not(target, target);
@@ -1257,8 +1254,7 @@ final class MatImageBufferTest {
     "2147483647, 2147483647, Image dimensions 2147483647x2147483647 exceed the maximum BGR buffer size!",
   })
   void shouldRejectUnrepresentableDimensionsBeforeNativeAllocation(final int width, final int height, final String expectedMessage) {
-    // two elements differ from both wrapped counts of every row (pixels 715827883, 0 and 1, BGR -2147483647, 0 and 3),
-    // so without the dimension guard the length guard still refuses before anything is allocated
+    // two elements match no wrapped count of any row, so without the dimension guard the length guard still refuses before allocating
     final byte[] bytes = new byte[2];
     final ByteBuffer buffer = ByteBuffer.wrap(bytes);
     final int[] pixels = new int[2];
@@ -1307,8 +1303,7 @@ final class MatImageBufferTest {
   @Test
   void shouldPermitTheLargestRepresentablePackedSizeToReachTheLengthCheck() {
     final byte[] shortInput = new byte[2];
-    // the length error shows the inclusive boundary passes the size check, without allocating its 2147483646 bytes;
-    // matrices are intercepted too, so that without the length guard nothing allocates 2 GiB of native memory
+    // the length error proves the size check passed; intercepting matrices keeps a missing length guard from allocating anything
     try (final MockedConstruction<Mat> allocations = Mockito.mockConstruction(Mat.class, (_, _) -> this.failMatrixConstruction())) {
       final IllegalArgumentException failure = assertThrowsWhileOpening(IllegalArgumentException.class, () ->
         ImageBuffer.bytes(shortInput, 715827882, 1)
