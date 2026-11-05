@@ -114,6 +114,8 @@ jobs:
             private static final String TYPE_ATTRIBUTE = "type";
 
             private static final String FRAME_PREFIX = "at ";
+            private static final String SUPPRESSED_PREFIX = "Suppressed: ";
+            private static final String CAUSE_PREFIX = "Caused by: ";
             private static final String MEMBER_SEPARATOR = ".";
             private static final String LINE_SEPARATOR = "\n";
 
@@ -181,6 +183,8 @@ jobs:
               lines.add(testCase.getAttribute(NAME_ATTRIBUTE));
               this.findTestFrame(className, failure).ifPresent(lines::add);
               lines.add(this.findFirstMessageLine(failure));
+              this.findFirstTraceLine(failure, SUPPRESSED_PREFIX).ifPresent(lines::add);
+              this.findTopLevelCauseLine(failure).ifPresent(lines::add);
 
               final String message = String.join(LINE_SEPARATOR, lines);
               return "::error title=%s::%s".formatted(this.escapeProperty(title), this.escapeData(message));
@@ -188,6 +192,10 @@ jobs:
 
             private Optional<String> findTestFrame(final String className, final Element failure) {
               final String prefix = FRAME_PREFIX + className + MEMBER_SEPARATOR;
+              return this.findFirstTraceLine(failure, prefix);
+            }
+
+            private Optional<String> findFirstTraceLine(final Element failure, final String prefix) {
               final String stackTrace = failure.getTextContent();
               return stackTrace
                 .lines()
@@ -200,6 +208,15 @@ jobs:
               final String message = failure.getAttribute(MESSAGE_ATTRIBUTE);
               final String text = message.isBlank() ? failure.getAttribute(TYPE_ATTRIBUTE) : message;
               return text.lines().findFirst().orElse("");
+            }
+
+            private Optional<String> findTopLevelCauseLine(final Element failure) {
+              final String stackTrace = failure.getTextContent();
+              // Java indents the causes of suppressed exceptions; the top-level cause starts its line.
+              return stackTrace
+                .lines()
+                .filter(line -> line.startsWith(CAUSE_PREFIX))
+                .findFirst();
             }
 
             private void printAnnotations(final List<Path> files, final List<String> annotations) {
