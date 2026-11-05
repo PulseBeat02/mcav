@@ -50,10 +50,9 @@ public final class AudioExtractor {
 
   private static final Equivalence<Object> FAILURE_IDENTITY = Equivalence.identity();
 
-  private static final String OGG_EXTENSION = ".ogg";
-
   private AudioExtractor() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**
@@ -84,7 +83,7 @@ public final class AudioExtractor {
     final String input = source.getResource();
     final Path outputDirectory = IoUtils.getCachedFolder();
     final UUID id = UUID.randomUUID();
-    final String fileName = id + OGG_EXTENSION;
+    final String fileName = "%s.ogg".formatted(id);
     final Path outputFile = outputDirectory.resolve(fileName);
     final String output = outputFile.toString();
 

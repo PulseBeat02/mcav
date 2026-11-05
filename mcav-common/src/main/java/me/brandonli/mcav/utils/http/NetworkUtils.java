@@ -75,8 +75,11 @@ public final class NetworkUtils {
   private static final String IPV6_HOST_START = "[";
   private static final String IPV6_HOST_END = "]";
 
+  private static final boolean INTERRUPT_IF_RUNNING = true;
+
   private NetworkUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**
@@ -151,7 +154,7 @@ public final class NetworkUtils {
       try {
         return readAddress(pending.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS));
       } finally {
-        pending.cancel(true);
+        pending.cancel(INTERRUPT_IF_RUNNING);
         // closing the client waits for the requests it still runs, so the one cut short is ended first
         client.shutdownNow();
       }
@@ -164,7 +167,7 @@ public final class NetworkUtils {
   }
 
   /**
-   * Checks whether the URI points to a reachable HTTP resource by sending a {@code HEAD} request. Redirects are
+   * Returns whether the URI points to a reachable HTTP resource by sending a {@code HEAD} request. Redirects are
    * followed, and the scheme may be written in any case. The request blocks for at most a few seconds.
    *
    * <p>This is useful to check whether a download URL is still valid before handing it to someone else, for
@@ -237,7 +240,7 @@ public final class NetworkUtils {
   }
 
   private static void restoreInterruptFlag() {
-    final Thread currentThread = Thread.currentThread();
-    currentThread.interrupt();
+    final Thread current = Thread.currentThread();
+    current.interrupt();
   }
 }

@@ -35,7 +35,16 @@ import me.brandonli.mcav.media.source.uri.UriSource;
 
 public final class FfmpegPlayerExample {
 
-  private FfmpegPlayerExample() {}
+  private static final int WIDTH = 1280;
+  private static final int HEIGHT = 720;
+
+  private static final long PLAY_BEFORE_PAUSE_SECONDS = 5L;
+  private static final long PAUSE_SECONDS = 3L;
+
+  private FfmpegPlayerExample() {
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
+  }
 
   static void main() throws InterruptedException {
     try (final ExampleResources resources = new ExampleResources()) {
@@ -43,8 +52,9 @@ public final class FfmpegPlayerExample {
       resources.add(api::release);
       api.install();
 
-      final SwingVideoWindow window = SwingVideoWindow.open("FFmpeg Player", 1280, 720);
+      final SwingVideoWindow window = SwingVideoWindow.open("FFmpeg Player", WIDTH, HEIGHT);
       resources.add(window::close);
+
       final DirectAudioOutput speakers = new DirectAudioOutput();
       resources.add(speakers::release);
       speakers.start();
@@ -62,21 +72,25 @@ public final class FfmpegPlayerExample {
 
       final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
       resources.add(player::release);
+
       final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
       videoCallback.attach(videoPipeline);
+
       final AudioAttachableCallback audioCallback = player.getAudioAttachableCallback();
       audioCallback.attach(audioPipeline);
 
       final URI uri = URI.create("https://github.com/mediaelement/mediaelement-files/raw/refs/heads/master/big_buck_bunny.mp4");
       final UriSource source = UriSource.uri(uri);
       final boolean started = player.start(source);
+
       if (!started) {
-        throw new IllegalStateException("Playback could not start!");
+        final String message = "Playback could not start!";
+        throw new IllegalStateException(message);
       }
 
-      TimeUnit.SECONDS.sleep(5);
+      TimeUnit.SECONDS.sleep(PLAY_BEFORE_PAUSE_SECONDS);
       player.pause();
-      TimeUnit.SECONDS.sleep(3);
+      TimeUnit.SECONDS.sleep(PAUSE_SECONDS);
       player.resume();
 
       window.awaitClosed();

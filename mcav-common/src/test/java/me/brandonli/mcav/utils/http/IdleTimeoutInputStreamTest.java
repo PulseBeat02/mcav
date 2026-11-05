@@ -56,11 +56,12 @@ final class IdleTimeoutInputStreamTest {
       final int endOfBlocks = stream.read(rest, 0, rest.length);
       final int endOfBytes = stream.read();
       final byte[] restContent = Arrays.copyOf(rest, count);
+      final byte[] expected = new byte[] { 4 };
       assertEquals(1, first);
       assertEquals(2, second);
       assertEquals(200, unsigned, "bytes are returned as unsigned values");
       assertEquals(1, count);
-      assertArrayEquals(new byte[] { 4 }, restContent);
+      assertArrayEquals(expected, restContent);
       assertEquals(-1, endOfBlocks);
       assertEquals(-1, endOfBytes);
     }
@@ -113,8 +114,8 @@ final class IdleTimeoutInputStreamTest {
   void shouldStopWaitingWhenInterrupted() throws IOException {
     final BlockingSource source = new BlockingSource();
     try (final IdleTimeoutInputStream stream = new IdleTimeoutInputStream(source, GENEROUS_TIMEOUT)) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
       final InterruptedIOException thrown = assertThrows(InterruptedIOException.class, stream::read);
       final boolean interrupted = Thread.interrupted();
       assertTrue(interrupted, "the interrupt must be restored");
@@ -129,7 +130,8 @@ final class IdleTimeoutInputStreamTest {
     final InputStream unused = new InputStream() {
       @Override
       public int read() {
-        throw new AssertionError("An empty or invalid read must not access the source!");
+        final String message = "An empty or invalid read must not access the source!";
+        throw new AssertionError(message);
       }
 
       @Override
@@ -196,13 +198,16 @@ final class IdleTimeoutInputStreamTest {
       try {
         closedInTime = this.closed.await(1, TimeUnit.MINUTES);
       } catch (final InterruptedException exception) {
-        final Thread currentThread = Thread.currentThread();
-        currentThread.interrupt();
-        throw new InterruptedIOException("interrupted!");
+        final Thread current = Thread.currentThread();
+        current.interrupt();
+
+        final String message = "interrupted!";
+        throw new InterruptedIOException(message);
       }
 
       if (!closedInTime) {
-        throw new IOException("the source was never closed!");
+        final String message = "the source was never closed!";
+        throw new IOException(message);
       }
 
       return -1;
@@ -228,8 +233,8 @@ final class IdleTimeoutInputStreamTest {
 
     @Override
     public int read() {
-      if (this.failure instanceof final RuntimeException exception) {
-        throw exception;
+      if (this.failure instanceof final RuntimeException runtimeException) {
+        throw runtimeException;
       }
 
       throw (Error) this.failure;

@@ -31,7 +31,7 @@ import org.bytedeco.opencv.opencv_core.Scalar;
  *
  * @since 1.0.0
  */
-public class CircleFilter extends MatVideoFilter {
+public final class CircleFilter extends MatVideoFilter {
 
   private final Point center;
   private final int radius;
@@ -59,13 +59,13 @@ public class CircleFilter extends MatVideoFilter {
   /**
    * Draws the circle outline onto the frame in place. Parts of the circle outside of the frame are cut off.
    *
-   * @param mat the 8-bit BGR matrix of the frame
+   * @param matrix the 8-bit BGR matrix of the frame
    * @return true, because the frame may have changed
    * @since 1.0.0
    */
   @Override
-  protected boolean modifyMat(final Mat mat) {
-    opencv_imgproc.circle(mat, this.center, this.radius, this.color);
+  protected boolean modifyMat(final Mat matrix) {
+    opencv_imgproc.circle(matrix, this.center, this.radius, this.color);
 
     return true;
   }

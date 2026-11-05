@@ -27,8 +27,7 @@
  * the helper releases before returning a new opaque ARGB array. Helpers can run concurrently on independent inputs;
  * callers prevent mutation or release of borrowed inputs during a call.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

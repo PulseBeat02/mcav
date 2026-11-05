@@ -21,11 +21,12 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 
-// Plays audio at another speed by resampling it, which keeps it in step with pictures shown at that speed: at twice the
-// speed a chunk becomes half as long and sounds an octave higher. Between two frames the samples are interpolated
-// linearly. Where the next frame falls and the last frame of a chunk carry over to the next chunk, so the chunks join
-// without a click. Not thread-safe: the audio renderer of one session uses it.
+// Resamples audio to the playback speed, so it keeps in step with the pictures and its pitch follows the speed. The
+// next frame position and a chunk's last frame carry over to the next chunk, so chunks join without a click. Not
+// thread-safe.
 final class SpeedResampler {
+
+  private static final double FIRST_FRAME_POSITION = 1.0;
 
   private final short[] previous;
 
@@ -33,7 +34,7 @@ final class SpeedResampler {
 
   SpeedResampler() {
     this.previous = new short[AudioFilter.CHANNELS];
-    this.next = 1;
+    this.next = FIRST_FRAME_POSITION;
   }
 
   ByteBuffer resample(final ByteBuffer samples, final double speed) {
@@ -45,7 +46,7 @@ final class SpeedResampler {
 
     if (speed == PlaybackClock.NORMAL_SPEED) {
       this.remember(input, frames);
-      this.next = 1;
+      this.next = FIRST_FRAME_POSITION;
 
       return samples;
     }
@@ -75,16 +76,16 @@ final class SpeedResampler {
       return this.previous[channel];
     }
 
-    return input.getShort(offset(input, frame - 1, channel));
+    return input.getShort(this.offset(input, frame - 1, channel));
   }
 
   private void remember(final ByteBuffer input, final int frames) {
     for (int channel = 0; channel < AudioFilter.CHANNELS; channel++) {
-      this.previous[channel] = input.getShort(offset(input, frames - 1, channel));
+      this.previous[channel] = input.getShort(this.offset(input, frames - 1, channel));
     }
   }
 
-  private static int offset(final ByteBuffer input, final int frame, final int channel) {
+  private int offset(final ByteBuffer input, final int frame, final int channel) {
     return input.position() + (frame * AudioFilter.CHANNELS + channel) * AudioFilter.BYTES_PER_SAMPLE;
   }
 }

@@ -45,7 +45,7 @@ public final class SupplierFrameSource implements FrameSource {
    * @since 1.0.0
    */
   @Override
-  public SampleSupplier supplyFrameSamples() {
+  public SampleSupplier getSampleSupplier() {
     return this.supplier;
   }
 

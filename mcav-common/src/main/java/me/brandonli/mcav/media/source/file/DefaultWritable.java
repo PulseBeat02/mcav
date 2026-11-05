@@ -17,7 +17,10 @@
  */
 package me.brandonli.mcav.media.source.file;
 
+import com.google.common.base.MoreObjects;
 import java.nio.file.Path;
+import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * The default {@link Writable}.
@@ -43,5 +46,47 @@ public final class DefaultWritable implements Writable {
   @Override
   public Path getPath() {
     return this.path;
+  }
+
+  /**
+   * Returns whether {@code other} is a writable target with the same path.
+   *
+   * @param other the object to compare with
+   * @return whether both match
+   * @since 1.0.0
+   */
+  @Override
+  public boolean equals(final @Nullable Object other) {
+    if (this == other) {
+      return true;
+    }
+
+    if (!(other instanceof final DefaultWritable writable)) {
+      return false;
+    }
+
+    return this.path.equals(writable.path);
+  }
+
+  /**
+   * Returns a hash code built from the path.
+   *
+   * @return the hash code
+   * @since 1.0.0
+   */
+  @Override
+  public int hashCode() {
+    return Objects.hash(this.path);
+  }
+
+  /**
+   * Returns a debugging representation with the path.
+   *
+   * @return the representation
+   * @since 1.0.0
+   */
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(this).add("path", this.path).toString();
   }
 }

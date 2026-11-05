@@ -64,6 +64,8 @@ final class FfmpegPlayerTest {
 
   private static final String MISSING_NAME = "missing.mp4";
 
+  private static final String FRAMES_ARRIVED_MESSAGE = "frames arrived";
+
   @TempDir
   private Path directory;
 
@@ -189,7 +191,7 @@ final class FfmpegPlayerTest {
       final boolean started = player.start(source);
       assertTrue(started);
 
-      await("frames arrived", () -> frames.get() > 10);
+      await(FRAMES_ARRIVED_MESSAGE, () -> frames.get() > 10);
       assertPausingHoldsTheFrames(player, frames);
       assertResumingAndSeekingPlayOn(player, frames);
 
@@ -259,7 +261,7 @@ final class FfmpegPlayerTest {
       final boolean started = player.start(video, audio);
       assertTrue(started);
 
-      await("frames arrived", () -> frames.get() > 20);
+      await(FRAMES_ARRIVED_MESSAGE, () -> frames.get() > 20);
       await("audio of the separate source arrived", () -> audioBytes.get() > 150_000);
     } finally {
       player.release();
@@ -272,7 +274,7 @@ final class FfmpegPlayerTest {
     final AtomicLong audioBytes = new AtomicLong();
     final List<String> errors = Collections.synchronizedList(new ArrayList<>());
     final FfmpegPlayer player = neverDroppingPlayer();
-    player.setExceptionHandler((message, error) -> errors.add(message + ": " + error));
+    player.setExceptionHandler((message, error) -> errors.add("%s: %s".formatted(message, error)));
     final AudioFilter audioCounter = countingBytes(audioBytes);
     attach(player, (_, _) -> frames.incrementAndGet() > 0, audioCounter);
 
@@ -288,8 +290,8 @@ final class FfmpegPlayerTest {
       assertEquals(0, frameCount);
 
       final boolean audioPlayed = bytes > 300_000;
-      assertTrue(audioPlayed, "audio " + bytes);
-      assertTrue(noErrors, "audio files must play: " + errors);
+      assertTrue(audioPlayed, "audio %s".formatted(bytes));
+      assertTrue(noErrors, "audio files must play: %s".formatted(errors));
     } finally {
       player.release();
     }
@@ -312,7 +314,7 @@ final class FfmpegPlayerTest {
       assertTrue(started);
 
       final boolean framesPlayed = frameCount > 20;
-      assertTrue(framesPlayed, "frames " + frameCount);
+      assertTrue(framesPlayed, "frames %s".formatted(frameCount));
       assertEquals(64, lastWidth);
     } finally {
       player.release();
@@ -364,17 +366,17 @@ final class FfmpegPlayerTest {
       final Set<String> expectedSizes = Set.of(TestMedia.VIDEO_WIDTH + SIZE_SEPARATOR + TestMedia.VIDEO_WIDTH);
 
       assertTrue(started);
-      assertTrue(noErrors, "errors: " + this.errors);
+      assertTrue(noErrors, "errors: %s".formatted(this.errors));
       assertEquals(150, frameCount, "neverDropLateFrames must deliver every frame of the generated 5-second 30-fps file");
 
       final boolean pacedAtThirty = frameRate > 24.0 && frameRate < 36.0;
-      assertTrue(pacedAtThirty, "the frames are paced at about 30 per second, got " + frameRate);
+      assertTrue(pacedAtThirty, "the frames are paced at about 30 per second, got %s".formatted(frameRate));
 
       final boolean realTime = seconds > 4.5;
-      assertTrue(realTime, "playback runs in real time, not faster, took " + seconds);
+      assertTrue(realTime, "playback runs in real time, not faster, took %s".formatted(seconds));
 
       final boolean fiveSecondsOfAudio = bytes > 900_000 && bytes < 1_000_000;
-      assertTrue(fiveSecondsOfAudio, "five seconds of 48 kHz stereo, got " + bytes);
+      assertTrue(fiveSecondsOfAudio, "five seconds of 48 kHz stereo, got %s".formatted(bytes));
       assertEquals(expectedSizes, distinctSizes, "every frame has the size of the video");
     }
   }

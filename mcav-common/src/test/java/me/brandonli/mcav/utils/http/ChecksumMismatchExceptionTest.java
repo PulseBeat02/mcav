@@ -18,7 +18,9 @@
 package me.brandonli.mcav.utils.http;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
+import java.io.IOException;
 import org.junit.jupiter.api.Test;
 
 final class ChecksumMismatchExceptionTest {
@@ -28,5 +30,15 @@ final class ChecksumMismatchExceptionTest {
     final ChecksumMismatchException exception = new ChecksumMismatchException("expected a but got b!");
     final String message = exception.getMessage();
     assertEquals("expected a but got b!", message);
+  }
+
+  @Test
+  void shouldKeepTheMessageAndTheCauseOfAChecksumMismatch() {
+    final IOException hashFailure = new IOException("stream closed!");
+    final ChecksumMismatchException exception = new ChecksumMismatchException("expected c but got d!", hashFailure);
+    final String message = exception.getMessage();
+    final Throwable cause = exception.getCause();
+    assertEquals("expected c but got d!", message);
+    assertSame(hashFailure, cause);
   }
 }

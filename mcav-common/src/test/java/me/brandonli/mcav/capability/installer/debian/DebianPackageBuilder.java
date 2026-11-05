@@ -21,7 +21,6 @@ import com.google.common.base.Strings;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -44,10 +43,15 @@ final class DebianPackageBuilder {
   private static final String BINARY_MEMBER = "debian-binary";
   private static final byte[] BINARY_VERSION = "2.0\n".getBytes(StandardCharsets.US_ASCII);
   private static final String CONTROL_MEMBER = "control.tar.xz";
+  private static final String DATA_MEMBER = "data.tar.xz";
   // an odd length, so the member after it starts behind a padding byte
   private static final byte[] CONTROL = "control".getBytes(StandardCharsets.US_ASCII);
 
+  private static final String XZ_SUFFIX = ".xz";
+  private static final String GZIP_SUFFIX = ".gz";
+
   private static final int BLOCK_SIZE = 512;
+  private static final int NAME_OFFSET = 0;
   private static final int NAME_LENGTH = 100;
   private static final int MODE_OFFSET = 100;
   private static final int OWNER_OFFSET = 108;
@@ -68,11 +72,18 @@ final class DebianPackageBuilder {
 
   private static final String FILE_MODE = "0000644";
   private static final String EXECUTABLE_MODE = "0000755";
+
+  private static final int ROOT_ID = 0;
+  private static final long MODIFIED_TIME = 0L;
+
   private static final int NUMBER_DIGITS = 7;
   private static final int SIZE_DIGITS = 11;
   private static final int CHECKSUM_DIGITS = 6;
+
   private static final String CHECKSUM_TERMINATOR = "\0 ";
   private static final char OCTAL_PADDING = '0';
+
+  // two literals: "\000" would read as one octal escape
   private static final byte[] USTAR_MAGIC = ("ustar\0" + "00").getBytes(StandardCharsets.US_ASCII);
   private static final byte[] GNU_MAGIC = "ustar  \0".getBytes(StandardCharsets.US_ASCII);
 
@@ -89,6 +100,7 @@ final class DebianPackageBuilder {
   private static final String PAX_PATH_KEY = "path=";
   private static final String PAX_LINK_PATH_KEY = "linkpath=";
   private static final String PAX_IGNORED_RECORD = "mtime=0";
+
   private static final String PATH_SEPARATOR = "/";
 
   private static final byte[] NO_DATA = new byte[0];
@@ -101,7 +113,7 @@ final class DebianPackageBuilder {
 
   DebianPackageBuilder() {
     this.entries = new ArrayList<>();
-    this.dataMember = "data.tar.xz";
+    this.dataMember = DATA_MEMBER;
     this.longNames = LongNames.GNU;
     this.corruptChecksum = false;
   }
@@ -178,6 +190,7 @@ final class DebianPackageBuilder {
     final byte[] headerBytes = header.getBytes(StandardCharsets.US_ASCII);
     archive.writeBytes(headerBytes);
     archive.writeBytes(data);
+
     if (data.length % AR_ALIGNMENT != 0) {
       archive.write(AR_PADDING);
     }
@@ -188,19 +201,19 @@ final class DebianPackageBuilder {
     try (final OutputStream output = this.openCompressor(compressed)) {
       output.write(tar);
     } catch (final IOException exception) {
-      throw new UncheckedIOException(exception);
+      throw new AssertionError(exception);
     }
 
     return compressed.toByteArray();
   }
 
   private OutputStream openCompressor(final ByteArrayOutputStream compressed) throws IOException {
-    if (this.dataMember.endsWith(".xz")) {
+    if (this.dataMember.endsWith(XZ_SUFFIX)) {
       final LZMA2Options options = new LZMA2Options();
       return new XZOutputStream(compressed, options);
     }
 
-    if (this.dataMember.endsWith(".gz")) {
+    if (this.dataMember.endsWith(GZIP_SUFFIX)) {
       return new GZIPOutputStream(compressed);
     }
 
@@ -259,6 +272,7 @@ final class DebianPackageBuilder {
   private void writePaxNames(final ByteArrayOutputStream tar, final Entry entry, final boolean longName, final boolean longLinkTarget) {
     final StringBuilder records = new StringBuilder();
     records.append(this.paxRecord(PAX_IGNORED_RECORD));
+
     if (longName) {
       records.append(this.paxRecord(PAX_PATH_KEY + entry.name()));
     }
@@ -276,13 +290,19 @@ final class DebianPackageBuilder {
   // A pax record starts with its own length in bytes, digits included, so the length is found by trying each width.
   String paxRecord(final String keyValue) {
     final String record = " %s\n".formatted(keyValue);
-    final int recordLength = record.getBytes(StandardCharsets.UTF_8).length;
+    final byte[] recordBytes = record.getBytes(StandardCharsets.UTF_8);
+    final int recordLength = recordBytes.length;
     int length = recordLength + 1;
-    while (Integer.toString(length).length() + recordLength != length) {
+    while (this.countDigits(length) + recordLength != length) {
       length++;
     }
 
-    return length + record;
+    return "%s%s".formatted(length, record);
+  }
+
+  private int countDigits(final int number) {
+    final String digits = Integer.toString(number);
+    return digits.length();
   }
 
   private void writeTruncated(final ByteArrayOutputStream tar, final Entry entry) {
@@ -312,34 +332,41 @@ final class DebianPackageBuilder {
 
   private void writeHeaderAndData(final ByteArrayOutputStream tar, final String name, final String prefix, final Entry entry) {
     final byte[] header = this.createHeader(name, prefix, entry);
+    final byte[] data = entry.data();
     tar.writeBytes(header);
-    tar.writeBytes(entry.data());
-    final int padding = (BLOCK_SIZE - (entry.data().length % BLOCK_SIZE)) % BLOCK_SIZE;
+    tar.writeBytes(data);
+
+    final int padding = (BLOCK_SIZE - (data.length % BLOCK_SIZE)) % BLOCK_SIZE;
     tar.writeBytes(new byte[padding]);
   }
 
   private byte[] createHeader(final String name, final String prefix, final Entry entry) {
     final byte[] header = new byte[BLOCK_SIZE];
-    this.put(header, 0, name);
+    this.put(header, NAME_OFFSET, name);
     this.put(header, MODE_OFFSET, entry.mode());
+    this.put(header, OWNER_OFFSET, this.toOctal(ROOT_ID, NUMBER_DIGITS));
+    this.put(header, GROUP_OFFSET, this.toOctal(ROOT_ID, NUMBER_DIGITS));
+
     final byte[] data = entry.data();
-    this.put(header, OWNER_OFFSET, this.toOctal(0, NUMBER_DIGITS));
-    this.put(header, GROUP_OFFSET, this.toOctal(0, NUMBER_DIGITS));
     this.put(header, SIZE_OFFSET, this.toOctal(data.length, SIZE_DIGITS));
-    this.put(header, MODIFIED_OFFSET, this.toOctal(0, SIZE_DIGITS));
+    this.put(header, MODIFIED_OFFSET, this.toOctal(MODIFIED_TIME, SIZE_DIGITS));
     header[TYPE_OFFSET] = entry.type();
     this.put(header, LINK_NAME_OFFSET, entry.linkTarget());
+
     final boolean prefixed = !prefix.isEmpty();
     final byte[] magic = prefixed ? USTAR_MAGIC : GNU_MAGIC;
     System.arraycopy(magic, 0, header, MAGIC_OFFSET, magic.length);
+
     final byte[] prefixBytes = prefix.getBytes(StandardCharsets.UTF_8);
     System.arraycopy(prefixBytes, 0, header, PREFIX_OFFSET, Math.min(prefixBytes.length, PREFIX_LENGTH));
+
     this.putChecksum(header);
     return header;
   }
 
   private void putChecksum(final byte[] header) {
     Arrays.fill(header, CHECKSUM_OFFSET, CHECKSUM_OFFSET + CHECKSUM_LENGTH, CHECKSUM_PLACEHOLDER);
+
     int checksum = 0;
     for (final byte value : header) {
       checksum += value & UNSIGNED_BYTE_MASK;

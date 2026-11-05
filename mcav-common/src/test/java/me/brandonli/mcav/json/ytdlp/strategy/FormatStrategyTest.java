@@ -50,6 +50,10 @@ final class FormatStrategyTest {
   private static final String WEBM_EXTENSION = "webm";
   private static final String M4A_EXTENSION = "m4a";
 
+  private static final String FIRST_AUDIO_ID = "a1";
+  private static final String SECOND_AUDIO_ID = "a2";
+  private static final String WEBM_HTTPS_ID = "webm-https";
+
   private static final String NULL_ENTRY = "null";
   private static final String EMPTY_JSON = "{}";
   private static final String AUDIO_ONLY_JSON = "{\"audio_ext\": \"webm\", \"video_ext\": \"none\"}";
@@ -62,7 +66,7 @@ final class FormatStrategyTest {
 
   private static UrlParseDump formats(final String... formats) {
     final String joined = String.join(", ", formats);
-    return dump("{\"formats\": [" + joined + "]}");
+    return dump("{\"formats\": [%s]}".formatted(joined));
   }
 
   private static Format format(final String json) {
@@ -147,11 +151,11 @@ final class FormatStrategyTest {
   void shouldPickTheBestAndLowestQualityOfTheMatchingKind() {
     final String storyboard = "{\"format_id\": \"sb0\", \"audio_ext\": \"none\", \"video_ext\": \"none\", \"quality\": 100}";
     final String video5 = video("v5", 5, MP4_EXTENSION, HTTPS_PROTOCOL);
-    final String audio2 = audio("a2", 2, M4A_EXTENSION, HTTPS_PROTOCOL);
+    final String audio2 = audio(SECOND_AUDIO_ID, 2, M4A_EXTENSION, HTTPS_PROTOCOL);
     final String video9 = video("v9", 9, WEBM_EXTENSION, HTTPS_PROTOCOL);
     final String audio3 = audio("a3", 3, WEBM_EXTENSION, HTTPS_PROTOCOL);
     final String hlsVideo7 = video("v7", 7, MP4_EXTENSION, HLS_PROTOCOL);
-    final String audio1 = audio("a1", 1, M4A_EXTENSION, HTTPS_PROTOCOL);
+    final String audio1 = audio(FIRST_AUDIO_ID, 1, M4A_EXTENSION, HTTPS_PROTOCOL);
     final String negativeVideo = video("v-1", -1, MP4_EXTENSION, HTTPS_PROTOCOL);
     final UrlParseDump dump = formats(storyboard, video5, audio2, video9, audio3, hlsVideo7, audio1, negativeVideo);
     final String bestAudio = select(FormatStrategy.BEST_QUALITY_AUDIO, dump);
@@ -159,7 +163,7 @@ final class FormatStrategyTest {
     final String bestVideo = select(FormatStrategy.BEST_QUALITY_VIDEO, dump);
     final String lowestVideo = select(FormatStrategy.LOWEST_QUALITY_VIDEO, dump);
     assertEquals("a3", bestAudio);
-    assertEquals("a1", lowestAudio);
+    assertEquals(FIRST_AUDIO_ID, lowestAudio);
     assertEquals("v9", bestVideo);
     assertEquals("v-1", lowestVideo);
   }
@@ -201,13 +205,13 @@ final class FormatStrategyTest {
   void shouldPickTheFirstStreamOfTheMatchingKind() {
     final String storyboard = "{\"format_id\": \"sb0\", \"audio_ext\": \"none\", \"video_ext\": \"none\"}";
     final String video1Stream = video("v1", 9, MP4_EXTENSION, HLS_PROTOCOL);
-    final String audio1Stream = audio("a1", 1, M4A_EXTENSION, HTTPS_PROTOCOL);
+    final String audio1Stream = audio(FIRST_AUDIO_ID, 1, M4A_EXTENSION, HTTPS_PROTOCOL);
     final String video2Stream = video("v2", 1, WEBM_EXTENSION, HTTPS_PROTOCOL);
-    final String audio2Stream = audio("a2", 3, WEBM_EXTENSION, HTTPS_PROTOCOL);
+    final String audio2Stream = audio(SECOND_AUDIO_ID, 3, WEBM_EXTENSION, HTTPS_PROTOCOL);
     final UrlParseDump dump = formats(storyboard, video1Stream, audio1Stream, video2Stream, audio2Stream);
     final String firstAudio = select(FormatStrategy.FIRST_AUDIO, dump);
     final String firstVideo = select(FormatStrategy.FIRST_VIDEO, dump);
-    assertEquals("a1", firstAudio);
+    assertEquals(FIRST_AUDIO_ID, firstAudio);
     assertEquals("v1", firstVideo);
   }
 
@@ -217,13 +221,13 @@ final class FormatStrategyTest {
     final String webmHls = audio("webm-hls", 3, WEBM_EXTENSION, HLS_PROTOCOL);
     final String webmHttp = audio("webm-http", 3, WEBM_EXTENSION, "http");
     final String webmVideo = video("video-webm", 3, WEBM_EXTENSION, HTTPS_PROTOCOL);
-    final String webmHttps = audio("webm-https", 1, WEBM_EXTENSION, HTTPS_PROTOCOL);
+    final String webmHttps = audio(WEBM_HTTPS_ID, 1, WEBM_EXTENSION, HTTPS_PROTOCOL);
     final String webmHttpsLater = audio("webm-https-later", 3, WEBM_EXTENSION, HTTPS_PROTOCOL);
     final UrlParseDump dump = formats(m4aHttps, webmHls, webmHttp, webmVideo, webmHttps, webmHttpsLater);
     final UrlParseDump withoutMatch = formats(m4aHttps, webmHls);
     final String selected = select(FormatStrategy.PREFER_WEBM_AUDIO, dump);
     final Optional<Format> none = FormatStrategy.PREFER_WEBM_AUDIO.select(withoutMatch);
-    assertEquals("webm-https", selected);
+    assertEquals(WEBM_HTTPS_ID, selected);
 
     final boolean noneEmpty = none.isEmpty();
     assertTrue(noneEmpty);
@@ -231,7 +235,7 @@ final class FormatStrategyTest {
 
   @Test
   void shouldPreferMp4VideoServedOverHttps() {
-    final String webmHttps = video("webm-https", 9, WEBM_EXTENSION, HTTPS_PROTOCOL);
+    final String webmHttps = video(WEBM_HTTPS_ID, 9, WEBM_EXTENSION, HTTPS_PROTOCOL);
     final String mp4Dash = video("mp4-dash", 9, MP4_EXTENSION, "http_dash_segments");
     final String mp4Audio = audio("audio-mp4", 9, MP4_EXTENSION, HTTPS_PROTOCOL);
     final String mp4Https = video("mp4-https", 5, MP4_EXTENSION, HTTPS_PROTOCOL);

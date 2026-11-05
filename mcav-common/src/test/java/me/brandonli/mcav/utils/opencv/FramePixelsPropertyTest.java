@@ -87,7 +87,8 @@ final class FramePixelsPropertyTest {
       assertEquals(sourcePosition, sourcePositionAfterCopy);
 
       final int sourceLimit = source.limit();
-      assertEquals(stride * height, sourceLimit);
+      final int expectedSourceLimit = stride * height;
+      assertEquals(expectedSourceLimit, sourceLimit);
 
       final ByteBuffer allocated = FramePixels.copyBgr(frame);
       final byte[] copy = new byte[allocated.remaining()];

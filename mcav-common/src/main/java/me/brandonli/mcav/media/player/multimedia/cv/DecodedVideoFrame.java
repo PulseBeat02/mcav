@@ -20,10 +20,8 @@ package me.brandonli.mcav.media.player.multimedia.cv;
 import me.brandonli.mcav.media.image.MatImageBuffer;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// A decoded video frame on its way from the decoding thread to the rendering thread. The picture is copied out of the
-// decoder into an image of the ImagePool of the session, so the decoder can reuse its own memory immediately. Frames
-// decoded while no video pipeline is attached carry no picture at all; they only keep the playback clock and the
-// position moving.
+// The image comes from the session's ImagePool; it is null while no video pipeline is attached, and the frame then only
+// moves the clock and the position.
 final class DecodedVideoFrame {
 
   private final @Nullable MatImageBuffer image;

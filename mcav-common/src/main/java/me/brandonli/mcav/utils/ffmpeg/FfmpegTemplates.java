@@ -28,8 +28,14 @@ import com.google.common.base.Preconditions;
  */
 public final class FfmpegTemplates {
 
+  private static final String INPUT_NULL_MESSAGE = "Input must not be null!";
+  private static final String OUTPUT_NULL_MESSAGE = "Output must not be null!";
+
   private static final String NO_VIDEO_FLAG = "-vn";
   private static final String SEEK_FLAG = "-ss";
+  private static final String AUDIO_CHANNELS_FLAG = "-ac";
+  private static final String DURATION_FLAG = "-t";
+  private static final String FRAME_COUNT_FLAG = "-frames:v";
   private static final String STRICTNESS_FLAG = "-strict";
   private static final String EXPERIMENTAL_STRICTNESS = "-2";
 
@@ -42,7 +48,8 @@ public final class FfmpegTemplates {
   private static final String SINGLE_FRAME = "1";
 
   private FfmpegTemplates() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**
@@ -57,9 +64,9 @@ public final class FfmpegTemplates {
    * @since 1.0.0
    */
   public static FfmpegCommand extractAudio(final String input, final String codec, final String output) {
-    Preconditions.checkNotNull(input, "Input must not be null!");
+    Preconditions.checkNotNull(input, INPUT_NULL_MESSAGE);
     Preconditions.checkNotNull(codec, "Codec must not be null!");
-    Preconditions.checkNotNull(output, "Output must not be null!");
+    Preconditions.checkNotNull(output, OUTPUT_NULL_MESSAGE);
 
     final FfmpegCommandBuilder builder = FfmpegCommand.builder();
     builder.addInput(input);
@@ -83,15 +90,15 @@ public final class FfmpegTemplates {
    * @since 1.0.0
    */
   public static FfmpegCommand extractOggVorbis(final String input, final String output) {
-    Preconditions.checkNotNull(input, "Input must not be null!");
-    Preconditions.checkNotNull(output, "Output must not be null!");
+    Preconditions.checkNotNull(input, INPUT_NULL_MESSAGE);
+    Preconditions.checkNotNull(output, OUTPUT_NULL_MESSAGE);
 
     final FfmpegCommandBuilder builder = FfmpegCommand.builder();
     builder.addInput(input);
     builder.addArgument(NO_VIDEO_FLAG);
     builder.addArguments(STRICTNESS_FLAG, EXPERIMENTAL_STRICTNESS);
     builder.addAudioCodec(VORBIS_CODEC);
-    builder.addArguments("-ac", STEREO_CHANNELS);
+    builder.addArguments(AUDIO_CHANNELS_FLAG, STEREO_CHANNELS);
     builder.addOverwrite();
     builder.addOutput(output);
     return builder.build();
@@ -109,15 +116,15 @@ public final class FfmpegTemplates {
    * @since 1.0.0
    */
   public static FfmpegCommand compressVideo(final String input, final String output, final String videoBitrate, final String audioBitrate) {
-    Preconditions.checkNotNull(input, "Input must not be null!");
-    Preconditions.checkNotNull(output, "Output must not be null!");
+    Preconditions.checkNotNull(input, INPUT_NULL_MESSAGE);
+    Preconditions.checkNotNull(output, OUTPUT_NULL_MESSAGE);
     Preconditions.checkNotNull(videoBitrate, "Video bitrate must not be null!");
     Preconditions.checkNotNull(audioBitrate, "Audio bitrate must not be null!");
 
     final FfmpegCommandBuilder builder = FfmpegCommand.builder();
     builder.addInput(input);
     builder.addVideoCodec(H264_CODEC);
-    builder.addBitrate(videoBitrate);
+    builder.addVideoBitrate(videoBitrate);
     builder.addAudioCodec(AAC_CODEC);
     builder.addAudioBitrate(audioBitrate);
     builder.addOverwrite();
@@ -137,15 +144,15 @@ public final class FfmpegTemplates {
    * @since 1.0.0
    */
   public static FfmpegCommand extractClip(final String input, final String output, final String startTime, final String duration) {
-    Preconditions.checkNotNull(input, "Input must not be null!");
-    Preconditions.checkNotNull(output, "Output must not be null!");
+    Preconditions.checkNotNull(input, INPUT_NULL_MESSAGE);
+    Preconditions.checkNotNull(output, OUTPUT_NULL_MESSAGE);
     Preconditions.checkNotNull(startTime, "Start time must not be null!");
     Preconditions.checkNotNull(duration, "Duration must not be null!");
 
     final FfmpegCommandBuilder builder = FfmpegCommand.builder();
     builder.addArguments(SEEK_FLAG, startTime);
     builder.addInput(input);
-    builder.addArguments("-t", duration);
+    builder.addArguments(DURATION_FLAG, duration);
     builder.addVideoCodec(COPY_CODEC);
     builder.addAudioCodec(COPY_CODEC);
     builder.addOverwrite();
@@ -164,14 +171,14 @@ public final class FfmpegTemplates {
    * @since 1.0.0
    */
   public static FfmpegCommand createThumbnail(final String input, final String output, final String timePosition) {
-    Preconditions.checkNotNull(input, "Input must not be null!");
-    Preconditions.checkNotNull(output, "Output must not be null!");
+    Preconditions.checkNotNull(input, INPUT_NULL_MESSAGE);
+    Preconditions.checkNotNull(output, OUTPUT_NULL_MESSAGE);
     Preconditions.checkNotNull(timePosition, "Time position must not be null!");
 
     final FfmpegCommandBuilder builder = FfmpegCommand.builder();
     builder.addArguments(SEEK_FLAG, timePosition);
     builder.addInput(input);
-    builder.addArguments("-frames:v", SINGLE_FRAME);
+    builder.addArguments(FRAME_COUNT_FLAG, SINGLE_FRAME);
     builder.addOverwrite();
     builder.addOutput(output);
     return builder.build();
@@ -187,8 +194,8 @@ public final class FfmpegTemplates {
    * @since 1.0.0
    */
   public static FfmpegCommand remuxVideo(final String input, final String output) {
-    Preconditions.checkNotNull(input, "Input must not be null!");
-    Preconditions.checkNotNull(output, "Output must not be null!");
+    Preconditions.checkNotNull(input, INPUT_NULL_MESSAGE);
+    Preconditions.checkNotNull(output, OUTPUT_NULL_MESSAGE);
 
     final FfmpegCommandBuilder builder = FfmpegCommand.builder();
     builder.addInput(input);

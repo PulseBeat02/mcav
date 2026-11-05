@@ -39,7 +39,7 @@ import org.bytedeco.javacv.OpenCVFrameGrabber;
 public final class OpenCvPlayer extends AbstractVideoPlayerCv {
 
   /**
-   * Constructs a new OpenCV player.
+   * Creates an OpenCV player.
    *
    * @since 1.0.0
    */
@@ -59,13 +59,13 @@ public final class OpenCvPlayer extends AbstractVideoPlayerCv {
     Preconditions.checkNotNull(resource, "Resource must not be null!");
 
     final VideoFileReader reader = OpenCvVideoBackends.chooseFileReader();
-    return createFrameGrabber(resource, reader);
+    return this.createFrameGrabber(resource, reader);
   }
 
   // Creates the grabber for a resource with either reader. Both cases exist on the platforms the library supports, so
   // both can be tested wherever the tests run.
   @VisibleForTesting
-  static FrameGrabber createFrameGrabber(final String resource, final VideoFileReader reader) {
+  FrameGrabber createFrameGrabber(final String resource, final VideoFileReader reader) {
     return switch (reader) {
       case OPENCV -> new OpenCVFrameGrabber(resource);
       case FFMPEG -> new FFmpegFrameGrabber(resource);

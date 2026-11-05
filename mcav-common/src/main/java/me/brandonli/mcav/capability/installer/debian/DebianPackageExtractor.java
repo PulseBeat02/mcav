@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.capability.installer.debian;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.io.ByteStreams;
@@ -37,7 +39,6 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
@@ -69,6 +70,7 @@ public final class DebianPackageExtractor {
 
   private static final byte[] AR_MAGIC = "!<arch>\n".getBytes(StandardCharsets.US_ASCII);
   private static final int AR_HEADER_LENGTH = 60;
+  private static final int AR_NAME_OFFSET = 0;
   private static final int AR_NAME_LENGTH = 16;
   private static final int AR_SIZE_OFFSET = 48;
   private static final int AR_SIZE_LENGTH = 10;
@@ -80,11 +82,11 @@ public final class DebianPackageExtractor {
   private static final String GZIP_SUFFIX = ".gz";
   private static final String ZSTD_SUFFIX = ".zst";
 
-  // a mebibyte is 1024 kibibytes; Debian compresses with xz -6, whose dictionary needs 9 MiB to decompress, and
-  // dpkg-deb's strongest level, xz -9, needs a little more than its 64 MiB dictionary
+  // xz -9, dpkg-deb's strongest level, needs a little more than its 64 MiB dictionary to decompress
   private static final int XZ_MEMORY_LIMIT_KIBIBYTES = 128 * 1024;
 
   private static final int TAR_BLOCK_SIZE = 512;
+  private static final int TAR_NAME_OFFSET = 0;
   private static final int TAR_NAME_LENGTH = 100;
   private static final int TAR_MODE_OFFSET = 100;
   private static final int TAR_MODE_LENGTH = 8;
@@ -94,6 +96,7 @@ public final class DebianPackageExtractor {
   private static final int TAR_CHECKSUM_LENGTH = 8;
   private static final int TAR_TYPE_OFFSET = 156;
   private static final int TAR_LINK_NAME_OFFSET = 157;
+  private static final int TAR_LINK_NAME_LENGTH = 100;
   private static final int TAR_MAGIC_OFFSET = 257;
   private static final int TAR_PREFIX_OFFSET = 345;
   private static final int TAR_PREFIX_LENGTH = 155;
@@ -113,11 +116,13 @@ public final class DebianPackageExtractor {
   private static final byte PAX_HEADER = 'x';
 
   private static final char NUL = '\0';
+
   private static final char PAX_LENGTH_SEPARATOR = ' ';
   private static final char PAX_KEY_SEPARATOR = '=';
   private static final char PAX_RECORD_END = '\n';
   private static final String PAX_PATH = "path";
   private static final String PAX_LINK_PATH = "linkpath";
+
   private static final String PATH_SEPARATOR = "/";
   private static final String PARENT_FOLDER = "..";
 
@@ -125,7 +130,9 @@ public final class DebianPackageExtractor {
   private static final Pattern OCTAL = Pattern.compile("[0-7]{1,12}");
   private static final int OCTAL_RADIX = 8;
 
-  private static final List<String> LIBRARY_TREES = List.of("usr/lib", "lib");
+  static final String LIBRARY_TREE = "usr/lib";
+  static final String LEGACY_LIBRARY_TREE = "lib";
+  private static final List<String> LIBRARY_TREES = List.of(LIBRARY_TREE, LEGACY_LIBRARY_TREE);
 
   private static final int EXECUTE_BITS = 0111;
   private static final Set<PosixFilePermission> EXECUTABLE = PosixFilePermissions.fromString("rwxr-xr-x");
@@ -206,7 +213,8 @@ public final class DebianPackageExtractor {
   private void extractDataMember(final InputStream archive) throws IOException {
     final byte[] magic = archive.readNBytes(AR_MAGIC.length);
     if (!Arrays.equals(magic, AR_MAGIC)) {
-      throw new IOException("The file is not an ar archive!");
+      final String message = "The file is not an ar archive!";
+      throw new IOException(message);
     }
 
     byte[] header = archive.readNBytes(AR_HEADER_LENGTH);
@@ -223,11 +231,12 @@ public final class DebianPackageExtractor {
       header = archive.readNBytes(AR_HEADER_LENGTH);
     }
 
-    throw new IOException("The package ends before its data member!");
+    final String message = "The package ends before its data member!";
+    throw new IOException(message);
   }
 
   private String readMemberName(final byte[] header) {
-    final String field = new String(header, 0, AR_NAME_LENGTH, StandardCharsets.US_ASCII);
+    final String field = new String(header, AR_NAME_OFFSET, AR_NAME_LENGTH, StandardCharsets.US_ASCII);
     final String name = field.strip();
     if (name.endsWith(AR_NAME_TERMINATOR)) {
       return name.substring(0, name.length() - 1);
@@ -269,7 +278,8 @@ public final class DebianPackageExtractor {
     }
 
     if (name.equals(DATA_MEMBER + ZSTD_SUFFIX)) {
-      throw new IOException("The data member is compressed with zstd, which is not supported!");
+      final String message = "The data member is compressed with zstd, which is not supported!";
+      throw new IOException(message);
     }
 
     final String message = "Data member %s has an unknown compression!".formatted(name);
@@ -287,7 +297,8 @@ public final class DebianPackageExtractor {
   private byte[] readBlock(final InputStream tar) throws IOException {
     final byte[] block = tar.readNBytes(TAR_BLOCK_SIZE);
     if (block.length != TAR_BLOCK_SIZE) {
-      throw new IOException("The data archive ends inside a header!");
+      final String message = "The data archive ends inside a header!";
+      throw new IOException(message);
     }
 
     return block;
@@ -332,7 +343,7 @@ public final class DebianPackageExtractor {
     }
 
     if (computed != stored) {
-      final String message = "Tar header checksum %s does not match the computed %s!".formatted(stored, computed);
+      final String message = "Stored tar header checksum %s and computed checksum %s differ!".formatted(stored, computed);
       throw new IOException(message);
     }
   }
@@ -365,7 +376,8 @@ public final class DebianPackageExtractor {
     }
 
     if (size > this.remainingSize) {
-      throw new IOException("The data archive exceeds the maximum total size!");
+      final String message = "The data archive exceeds the maximum total size!";
+      throw new IOException(message);
     }
 
     this.remainingSize -= size;
@@ -384,14 +396,15 @@ public final class DebianPackageExtractor {
 
     final byte[] metadata = data.readNBytes((int) size);
     if (metadata.length != size) {
-      throw new IOException("The data archive ends inside metadata!");
+      final String message = "The data archive ends inside metadata!";
+      throw new IOException(message);
     }
 
     return metadata;
   }
 
-  // Reads the path and link path of a pax extended header, a list of records "<length> <key>=<value>\n" whose length
-  // counts the bytes of the whole record. Decoding as ISO-8859-1 keeps one character per byte, so lengths stay offsets.
+  // records are "<length> <key>=<value>\n", the length counting the bytes of the whole record; decoding as
+  // ISO-8859-1 keeps one character per byte, so lengths stay offsets
   private void readPaxHeader(final InputStream data, final long size) throws IOException {
     final byte[] metadata = this.readMetadata(data, size);
     final String records = new String(metadata, StandardCharsets.ISO_8859_1);
@@ -408,12 +421,14 @@ public final class DebianPackageExtractor {
     final String length = separator < 0 ? "" : records.substring(start, separator);
     final boolean decimal = DECIMAL.matcher(length).matches();
     if (!decimal) {
-      throw new IOException("A pax record has no length!");
+      final String message = "A pax record has no length!";
+      throw new IOException(message);
     }
 
     final long end = start + Long.parseLong(length);
     if (end <= separator || end > records.length() || records.charAt((int) end - 1) != PAX_RECORD_END) {
-      throw new IOException("A pax record has a wrong length!");
+      final String message = "A pax record has a wrong length!";
+      throw new IOException(message);
     }
 
     return (int) end;
@@ -424,7 +439,8 @@ public final class DebianPackageExtractor {
     final String record = records.substring(separator + 1, end - 1);
     final int keyEnd = record.indexOf(PAX_KEY_SEPARATOR);
     if (keyEnd < 0) {
-      throw new IOException("A pax record has no value!");
+      final String message = "A pax record has no value!";
+      throw new IOException(message);
     }
 
     final String key = record.substring(0, keyEnd);
@@ -444,8 +460,8 @@ public final class DebianPackageExtractor {
     final String name = this.takeName(header);
     final String linkName = this.takeLinkName(header);
     final Path target = this.resolve(name);
-    final boolean extracted = this.isInExtractedTree(target);
-    if (!extracted) {
+    final boolean inExtractedTree = this.isInExtractedTree(target);
+    if (!inExtractedTree) {
       return;
     }
 
@@ -455,7 +471,7 @@ public final class DebianPackageExtractor {
       case DIRECTORY -> this.createFolders(target);
       case SYMBOLIC_LINK -> this.createSymbolicLink(target, linkName, name);
       default -> {
-        final String message = "Tar entry %s has the unsupported type %s!".formatted(name, (char) type);
+        final String message = "Tar entry %s has type %s, which is not supported!".formatted(name, (char) type);
         throw new IOException(message);
       }
     }
@@ -464,11 +480,12 @@ public final class DebianPackageExtractor {
   private String takeName(final byte[] header) {
     final @Nullable String pending = this.pendingName;
     this.pendingName = null;
+
     if (pending != null) {
       return pending;
     }
 
-    final String name = this.readString(header, 0, TAR_NAME_LENGTH);
+    final String name = this.readString(header, TAR_NAME_OFFSET, TAR_NAME_LENGTH);
     final int magicEnd = TAR_MAGIC_OFFSET + USTAR_MAGIC.length;
     final boolean ustar = Arrays.equals(header, TAR_MAGIC_OFFSET, magicEnd, USTAR_MAGIC, 0, USTAR_MAGIC.length);
     final String prefix = ustar ? this.readString(header, TAR_PREFIX_OFFSET, TAR_PREFIX_LENGTH) : "";
@@ -482,14 +499,15 @@ public final class DebianPackageExtractor {
   private String takeLinkName(final byte[] header) {
     final @Nullable String pending = this.pendingLinkName;
     this.pendingLinkName = null;
+
     if (pending != null) {
       return pending;
     }
 
-    return this.readString(header, TAR_LINK_NAME_OFFSET, TAR_NAME_LENGTH);
+    return this.readString(header, TAR_LINK_NAME_OFFSET, TAR_LINK_NAME_LENGTH);
   }
 
-  // Resolves an entry name against the destination. Names that escape it end up outside every extracted tree.
+  // a name that escapes the destination ends up outside every extracted tree
   private Path resolve(final String name) throws IOException {
     final Path entry = this.toPath(name);
     final Path resolved = this.destination.resolve(entry);
@@ -596,6 +614,6 @@ public final class DebianPackageExtractor {
 
   private Path getParent(final Path target) {
     final @Nullable Path parent = target.getParent();
-    return Objects.requireNonNull(parent, "An entry in an extracted tree always has a parent!");
+    return requireNonNull(parent, "An entry in an extracted tree always has a parent!");
   }
 }

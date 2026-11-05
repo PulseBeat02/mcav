@@ -153,7 +153,7 @@ final class AudioRendererTest {
 
   private static void reportFailure(final List<String> reported, final String message, final Throwable error) {
     final String reason = error.getMessage();
-    reported.add(message + ": " + reason);
+    reported.add("%s: %s".formatted(message, reason));
   }
 
   private static Memory samples(final short... values) {
@@ -175,7 +175,8 @@ final class AudioRendererTest {
     final int samplingFormat = metadata.getSamplingFormat();
     assertEquals(48_000, sampleRate);
     assertEquals(2, channels);
-    assertEquals(48_000 * 2 * 16, bitrate, "the bitrate of 16-bit stereo PCM at 48 kHz");
+    final int expectedBitrate = 48_000 * 2 * 16;
+    assertEquals(expectedBitrate, bitrate, "the bitrate of 16-bit stereo PCM at 48 kHz");
     assertEquals("pcm_s16le", codec);
     assertEquals(avutil.AV_SAMPLE_FMT_S16, samplingFormat);
   }
@@ -203,7 +204,8 @@ final class AudioRendererTest {
     final short[] copied = new short[sampleCount];
     shorts.get(copied);
     final OriginalAudioMetadata metadata = receivedMetadata.get();
-    assertEquals(3 * AudioFilter.FRAME_SIZE, remaining, "three stereo frames of 16-bit samples");
+    final int expected = 3 * AudioFilter.FRAME_SIZE;
+    assertEquals(expected, remaining, "three stereo frames of 16-bit samples");
     assertEquals(ByteOrder.LITTLE_ENDIAN, order);
     assertArrayEquals(interleaved, copied, "the samples are copied before VLC reuses its memory");
     assertPcmMetadata(metadata);
@@ -348,7 +350,7 @@ final class AudioRendererTest {
     this.play((short) 2, (short) 2);
     this.play((short) 3, (short) 3);
     final boolean keptPlaying = third.await(TIMEOUT.toSeconds(), TimeUnit.SECONDS);
-    final List<String> expectedMessages = List.of("Audio filter failed", "Audio filter failed");
+    final List<String> expectedMessages = List.of("Audio filter failed.", "Audio filter failed.");
     final List<Throwable> expectedErrors = List.of(runtimeFailure, errorFailure);
     assertTrue(keptPlaying);
     assertEquals(expectedMessages, this.messages);
@@ -400,16 +402,17 @@ final class AudioRendererTest {
   void shouldCopySamplesOfEitherByteOrderIntoLittleEndianOrder() {
     final ByteBuffer bigEndian = ByteBuffer.wrap(new byte[] { 0x01, 0x02, (byte) 0xFF, (byte) 0xFE });
     final ByteBuffer littleEndian = ByteBuffer.wrap(new byte[] { 0x02, 0x01, (byte) 0xFE, (byte) 0xFF });
-    final ByteBuffer fromBigEndian = AudioRenderer.copySamples(bigEndian, ByteOrder.BIG_ENDIAN);
-    final ByteBuffer fromLittleEndian = AudioRenderer.copySamples(littleEndian, ByteOrder.LITTLE_ENDIAN);
+    final ByteBuffer fromBigEndian = this.renderer.copySamples(bigEndian, ByteOrder.BIG_ENDIAN);
+    final ByteBuffer fromLittleEndian = this.renderer.copySamples(littleEndian, ByteOrder.LITTLE_ENDIAN);
     final byte[] swapped = new byte[4];
     fromBigEndian.get(swapped);
     final byte[] kept = new byte[4];
     fromLittleEndian.get(kept);
     final ByteOrder order = fromBigEndian.order();
     final int bigEndianPosition = bigEndian.position();
-    assertArrayEquals(new byte[] { 0x02, 0x01, (byte) 0xFE, (byte) 0xFF }, swapped, "big-endian machines swap every sample");
-    assertArrayEquals(new byte[] { 0x02, 0x01, (byte) 0xFE, (byte) 0xFF }, kept, "little-endian machines copy the samples");
+    final byte[] expected = new byte[] { 0x02, 0x01, (byte) 0xFE, (byte) 0xFF };
+    assertArrayEquals(expected, swapped, "big-endian machines swap every sample");
+    assertArrayEquals(expected, kept, "little-endian machines copy the samples");
     assertEquals(ByteOrder.LITTLE_ENDIAN, order);
     assertEquals(0, bigEndianPosition, "the native samples are not consumed");
   }
@@ -445,7 +448,7 @@ final class AudioRendererTest {
       final Memory second = samples((short) 2, (short) 2);
       failing.play(this.mediaPlayer, second, 1, 0L);
       final Short received = firstSamples.poll(TIMEOUT.toSeconds(), TimeUnit.SECONDS);
-      final List<String> expectedReports = List.of("Audio rendering failed: native failure!");
+      final List<String> expectedReports = List.of("Audio rendering failed.: native failure!");
       final Short expectedSample = 2;
       assertEquals(expectedReports, reported);
       assertEquals(expectedSample, received, "the render thread survived the failure");
@@ -457,7 +460,7 @@ final class AudioRendererTest {
   private static void awaitSize(final List<?> list, final int size) throws InterruptedException {
     final boolean reached = Polling.pollUntil(TIMEOUT, () -> list.size() >= size);
     final int actual = list.size();
-    assertTrue(reached, "expected " + size + " chunks but got " + actual);
+    assertTrue(reached, "expected %s chunks but got %s".formatted(size, actual));
   }
 
   // Blocks a filter until the test lets it proceed. A filter that is never released fails, which the render thread
@@ -467,8 +470,8 @@ final class AudioRendererTest {
       final boolean released = proceed.await(TIMEOUT.toSeconds(), TimeUnit.SECONDS);
       assertTrue(released, "the test released the blocked filter");
     } catch (final InterruptedException exception) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
     }
   }
 }

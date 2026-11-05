@@ -22,7 +22,8 @@ package me.brandonli.mcav.capability.installer.vlc;
 public final class VlcInstallerFailures {
 
   private VlcInstallerFailures() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   public static UnsupportedOperatingSystemException unsupportedSystem(final String message) {

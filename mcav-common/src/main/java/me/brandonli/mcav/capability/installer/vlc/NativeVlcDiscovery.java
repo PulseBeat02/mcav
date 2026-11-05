@@ -24,9 +24,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery;
 import uk.co.caprica.vlcj.factory.discovery.strategy.NativeDiscoveryStrategy;
 
-// Discovers VLC with vlcj's NativeDiscovery and the bounded discovery strategies of this library. vlcj remembers a
-// successful discovery for the rest of the JVM's lifetime, so once the libraries are loaded, every later discovery
-// succeeds immediately without reporting a directory.
+// vlcj remembers a successful discovery for the rest of the JVM's lifetime, so once the libraries are loaded, every
+// later discovery succeeds immediately without reporting a directory
 final class NativeVlcDiscovery implements VlcDiscovery {
 
   private final Supplier<NativeDiscoveryStrategy[]> systemStrategies;
@@ -49,16 +48,6 @@ final class NativeVlcDiscovery implements VlcDiscovery {
   }
 
   @Override
-  public @Nullable Path getDiscoveredPath() {
-    final String raw = this.discoveredPath;
-    if (raw == null) {
-      return null;
-    }
-
-    return Path.of(raw);
-  }
-
-  @Override
   public boolean loadInstalledLibraries(final Path libraryDirectory) {
     final NativeDiscoveryStrategy[] strategies = VlcDiscoveryStrategies.createDirectoryStrategies(libraryDirectory);
     return this.discover(strategies);
@@ -70,5 +59,15 @@ final class NativeVlcDiscovery implements VlcDiscovery {
     this.discoveredPath = discovery.discoveredPath();
 
     return found;
+  }
+
+  @Override
+  public @Nullable Path getDiscoveredPath() {
+    final String raw = this.discoveredPath;
+    if (raw == null) {
+      return null;
+    }
+
+    return Path.of(raw);
   }
 }

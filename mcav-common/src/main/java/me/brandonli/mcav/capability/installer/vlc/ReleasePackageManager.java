@@ -29,7 +29,7 @@ import me.brandonli.mcav.utils.IoUtils;
  * built from Arch Linux's VLC package (<a href="https://github.com/ivan-hc/VLC-appimage">ivan-hc/VLC-appimage</a>),
  * pinned to one dated release whose hash was checked when it was pinned. The AppImage is run to extract it, so only that
  * reviewed build runs, never whatever the weekly tag of a third party's account points to later; a newer build needs a
- * new pin. 32-bit x86 Linux gets none: Java 25, which mcav needs, has no port for it.
+ * new pin. 32-bit x86 Linux gets none: Java 25, which MCAV needs, has no port for it.
  *
  * <p>This class is stateless and thread-safe.
  *
@@ -38,7 +38,8 @@ import me.brandonli.mcav.utils.IoUtils;
 public final class ReleasePackageManager {
 
   private ReleasePackageManager() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**

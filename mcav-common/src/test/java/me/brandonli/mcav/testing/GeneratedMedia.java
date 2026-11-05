@@ -41,23 +41,28 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class GeneratedMedia {
 
   private static final Duration PROCESS_TIMEOUT = Duration.ofMinutes(2);
+  private static final Duration POLL_INTERVAL = Duration.ofMillis(20);
+  private static final Duration TERMINATION_GRACE_PERIOD = Duration.ofSeconds(3);
+
   private static final int LOG_LIMIT_BYTES = 65_536;
-  private static final Set<Path> COMPLETED = new HashSet<>();
 
   private static final String TEMPORARY_FILE_PREFIX = "mcav-generating-";
   private static final String DEFAULT_EXTENSION = ".tmp";
   private static final String LOG_EXTENSION = ".log";
+  private static final char EXTENSION_SEPARATOR = '.';
+
+  private static final Set<Path> COMPLETED = new HashSet<>();
 
   private GeneratedMedia() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
-  public static Path ffmpegPath() {
+  public static Path getFfmpegPath() {
     return FfmpegExecutableProvider.getFfmpegPath();
   }
 
-  // Generates a file into a temporary sibling with the same extension and publishes it only after a successful nonempty
-  // result. A fixture process has a 120 second deadline. Successful paths are reused within this JVM.
+  // publishes only a nonempty result; successful paths are reused within this JVM
   public static synchronized Path generate(final Path output, final Function<Path, List<String>> command) {
     return generate(output, command, PROCESS_TIMEOUT);
   }
@@ -70,24 +75,26 @@ public final class GeneratedMedia {
     } catch (final InterruptedException exception) {
       final Thread current = Thread.currentThread();
       current.interrupt();
-      throw new IllegalStateException("Interrupted while generating test media!", exception);
+
+      final String message = "Interrupted while generating test media!";
+      throw new IllegalStateException(message, exception);
     }
   }
 
   private static Path generateChecked(final Path output, final Function<Path, List<String>> command, final Duration timeout)
     throws IOException, InterruptedException {
     final Path destination = output.toAbsolutePath();
-    if (COMPLETED.contains(destination) && Files.isRegularFile(destination) && Files.size(destination) > 0) {
+    if (COMPLETED.contains(destination) && isNonemptyFile(destination)) {
       return destination;
     }
 
     COMPLETED.remove(destination);
+
     final Path parent = Objects.requireNonNull(destination.getParent(), "A media file must have a directory!");
     Files.createDirectories(parent);
-    final String name = destination.getFileName().toString();
-    final int dot = name.lastIndexOf('.');
-    final String extension = dot >= 0 ? name.substring(dot) : DEFAULT_EXTENSION;
-    final Path temporary = Files.createTempFile(parent, TEMPORARY_FILE_PREFIX, extension);
+
+    final Path temporary = createTemporarySibling(destination, parent);
+
     Path log = null;
     Throwable primary = null;
     try {
@@ -95,7 +102,7 @@ public final class GeneratedMedia {
       final List<String> arguments = command.apply(temporary);
       runProcess(arguments, log, timeout);
 
-      if (!Files.isRegularFile(temporary) || Files.size(temporary) == 0) {
+      if (!isNonemptyFile(temporary)) {
         final String message = "Fixture command %s succeeded without producing nonempty media!".formatted(arguments);
         throw new IOException(message);
       }
@@ -109,6 +116,17 @@ public final class GeneratedMedia {
     } finally {
       cleanup(temporary, log, primary);
     }
+  }
+
+  private static boolean isNonemptyFile(final Path path) throws IOException {
+    return Files.isRegularFile(path) && Files.size(path) > 0;
+  }
+
+  private static Path createTemporarySibling(final Path destination, final Path parent) throws IOException {
+    final String name = destination.getFileName().toString();
+    final int dot = name.lastIndexOf(EXTENSION_SEPARATOR);
+    final String extension = dot >= 0 ? name.substring(dot) : DEFAULT_EXTENSION;
+    return Files.createTempFile(parent, TEMPORARY_FILE_PREFIX, extension);
   }
 
   private static void publish(final Path temporary, final Path destination) throws IOException {
@@ -127,8 +145,10 @@ public final class GeneratedMedia {
     environment.putAll(ffmpegEnvironment);
     builder.redirectErrorStream(true);
     builder.redirectOutput(log.toFile());
+
     final long startedAt = System.nanoTime();
     final Process process = builder.start();
+
     final Set<ProcessHandle> descendants = new HashSet<>();
     boolean successful = false;
     try {
@@ -137,7 +157,7 @@ public final class GeneratedMedia {
       final int code = process.exitValue();
       if (code != 0) {
         final String diagnostic = readLog(log);
-        final String message = "Fixture command failed with exit code %s and the diagnostic \"%s\"!".formatted(code, diagnostic);
+        final String message = "Fixture command failed with exit code %s!\n%s".formatted(code, diagnostic);
         throw new IOException(message);
       }
 
@@ -164,18 +184,22 @@ public final class GeneratedMedia {
   ) throws IOException, InterruptedException {
     final long budget = TimeUnit.NANOSECONDS.convert(timeout);
     while (true) {
-      try (final Stream<ProcessHandle> children = process.descendants()) {
-        children.forEach(descendants::add);
-      }
+      collectDescendants(process, descendants);
       final long remaining = budget - (System.nanoTime() - startedAt);
       if (remaining <= 0) {
-        final String message = "Fixture command %s exceeded its timeout of %s!".formatted(command, timeout);
+        final String message = "Fixture command %s exceeded its %s timeout!".formatted(command, timeout);
         throw new IOException(message);
       }
-      final long poll = Math.min(remaining, TimeUnit.MILLISECONDS.toNanos(20));
+      final long poll = Math.min(remaining, POLL_INTERVAL.toNanos());
       if (process.waitFor(poll, TimeUnit.NANOSECONDS)) {
         break;
       }
+    }
+  }
+
+  private static void collectDescendants(final Process process, final Set<ProcessHandle> descendants) {
+    try (final Stream<ProcessHandle> children = process.descendants()) {
+      children.forEach(descendants::add);
     }
   }
 
@@ -187,15 +211,13 @@ public final class GeneratedMedia {
   }
 
   private static void terminate(final Process process, final Set<ProcessHandle> descendants) {
-    try (final Stream<ProcessHandle> children = process.descendants()) {
-      children.forEach(descendants::add);
-    }
+    collectDescendants(process, descendants);
 
     descendants.forEach(ProcessHandle::destroyForcibly);
     process.destroyForcibly();
     try {
       // A bounded grace period lets Windows release handles before temporary files are deleted.
-      process.waitFor(3, TimeUnit.SECONDS);
+      process.waitFor(TERMINATION_GRACE_PERIOD.toNanos(), TimeUnit.NANOSECONDS);
     } catch (final InterruptedException exception) {
       final Thread current = Thread.currentThread();
       current.interrupt();
@@ -203,21 +225,21 @@ public final class GeneratedMedia {
   }
 
   private static void cleanup(final Path temporary, final @Nullable Path log, final @Nullable Throwable primary) throws IOException {
-    IOException cleanup = null;
+    IOException cleanupException = null;
     final List<Path> paths = log == null ? List.of(temporary) : List.of(temporary, log);
     for (final Path path : paths) {
       try {
         Files.deleteIfExists(path);
       } catch (final IOException exception) {
-        cleanup = combineFailures(cleanup, exception);
+        cleanupException = combineFailures(cleanupException, exception);
       }
     }
 
-    if (cleanup != null) {
+    if (cleanupException != null) {
       if (primary != null) {
-        primary.addSuppressed(cleanup);
+        primary.addSuppressed(cleanupException);
       } else {
-        throw cleanup;
+        throw cleanupException;
       }
     }
   }

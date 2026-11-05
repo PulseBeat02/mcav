@@ -173,11 +173,12 @@ final class OpenCvVideoBackendsTest {
 
   @Test
   void shouldPickTheGrabberThatMatchesTheBuild() throws FrameGrabber.Exception {
-    try (final FrameGrabber reader = OpenCvPlayer.createFrameGrabber(VIDEO_FILE_NAME, VideoFileReader.OPENCV)) {
+    final OpenCvPlayer player = new OpenCvPlayer();
+    try (final FrameGrabber reader = player.createFrameGrabber(VIDEO_FILE_NAME, VideoFileReader.OPENCV)) {
       assertInstanceOf(OpenCVFrameGrabber.class, reader);
     }
 
-    try (final FrameGrabber fallback = OpenCvPlayer.createFrameGrabber(VIDEO_FILE_NAME, VideoFileReader.FFMPEG)) {
+    try (final FrameGrabber fallback = player.createFrameGrabber(VIDEO_FILE_NAME, VideoFileReader.FFMPEG)) {
       assertInstanceOf(FFmpegFrameGrabber.class, fallback, "a build without a file backend reads the file with FFmpeg");
     }
   }

@@ -30,7 +30,7 @@ import org.bytedeco.opencv.opencv_core.Mat;
  *
  * @since 1.0.0
  */
-public class BlendFilter extends MatVideoFilter {
+public final class BlendFilter extends MatVideoFilter {
 
   private final double alpha;
   private final Mat other;
@@ -47,7 +47,7 @@ public class BlendFilter extends MatVideoFilter {
    */
   public BlendFilter(final ImageBuffer other, final double alpha) {
     Preconditions.checkNotNull(other, "Other image must not be null!");
-    Preconditions.checkArgument(alpha >= 0 && alpha <= 1, "Alpha must be between 0 and 1!");
+    Preconditions.checkArgument(alpha >= 0 && alpha <= 1, "Alpha must be between 0 and 1 inclusive!");
 
     this.alpha = alpha;
     this.other = copyToMat(other);
@@ -56,14 +56,14 @@ public class BlendFilter extends MatVideoFilter {
   /**
    * Blends the frame in place with the image, if both have the same size.
    *
-   * @param mat the 8-bit BGR matrix of the frame
+   * @param matrix the 8-bit BGR matrix of the frame
    * @return true if the frame was blended, false if its size differs from the image and it was left untouched
    * @since 1.0.0
    */
   @Override
-  protected boolean modifyMat(final Mat mat) {
-    final int frameWidth = mat.cols();
-    final int frameHeight = mat.rows();
+  protected boolean modifyMat(final Mat matrix) {
+    final int frameWidth = matrix.cols();
+    final int frameHeight = matrix.rows();
     final int otherWidth = this.other.cols();
     final int otherHeight = this.other.rows();
     final boolean sameSize = frameWidth == otherWidth && frameHeight == otherHeight;
@@ -72,7 +72,7 @@ public class BlendFilter extends MatVideoFilter {
     }
 
     final double otherWeight = 1.0 - this.alpha;
-    opencv_core.addWeighted(mat, this.alpha, this.other, otherWeight, 0.0, mat);
+    opencv_core.addWeighted(matrix, this.alpha, this.other, otherWeight, 0.0, matrix);
 
     return true;
   }

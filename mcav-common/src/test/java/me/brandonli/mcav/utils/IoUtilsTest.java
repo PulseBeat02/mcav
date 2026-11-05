@@ -99,6 +99,8 @@ final class IoUtilsTest {
 
   private static final int GENEROUS_LIMIT = 100;
 
+  private static final int HTTP_OK = 200;
+
   private static final String FILLER_CHARACTER = "x";
 
   private static final String FILE_CONTENT = "content";
@@ -137,10 +139,12 @@ final class IoUtilsTest {
   private static final String NAMED_FILE_NAME = "name.txt";
   private static final String NEW_FILE_NAME = "new.txt";
   private static final String REPLACED_FILE_NAME = "target.txt";
+  private static final String URL_FILE_NAME = "clip.mp4";
   private static final String SOURCE_NAME = "source";
   private static final String TARGET_NAME = "target";
   private static final String TREE_DIRECTORY = "tree";
   private static final String NESTED_DIRECTORY = "nested";
+  private static final String LOCKED_DIRECTORY = "locked";
   private static final String MISSING_NAME = "missing";
 
   private static final String FOLDER_ENTRY = "folder/";
@@ -205,6 +209,12 @@ final class IoUtilsTest {
   private static final String NAME_SEPARATOR = "-";
   private static final String ZIP_EXTENSION = ".zip";
 
+  private static final String TOTAL_LIMIT_MESSAGE = "Total extracted size exceeds the limit!";
+  private static final String TRUNCATED_ARCHIVE_MESSAGE = "Zip archive %s is truncated!";
+
+  private static final String POSIX_PERMISSIONS_MESSAGE = "Directory permissions need a POSIX file system!";
+  private static final String WRITABLE_EVERYWHERE_MESSAGE = "The user can write every directory!";
+
   @TempDir
   private Path directory;
 
@@ -231,7 +241,7 @@ final class IoUtilsTest {
     final String directoryUrl = IoUtils.getFileNameFromUrl("https://example.com/videos/");
     final String noPath = IoUtils.getFileNameFromUrl("https://example.com");
     final String opaque = IoUtils.getFileNameFromUrl("mailto:someone@example.com");
-    assertEquals("clip.mp4", file);
+    assertEquals(URL_FILE_NAME, file);
     assertEquals("", directoryUrl);
     assertEquals("", noPath);
     assertEquals("", opaque);
@@ -355,7 +365,7 @@ final class IoUtilsTest {
     assertEquals("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", sha256);
     assertEquals("a9993e364706816aba3e25717850c26c9cd0d89d", sha1);
     assertThrows(FileOperationException.class, () -> IoUtils.getSha256Hash(missing));
-    assertThrows(IllegalStateException.class, () -> IoUtils.createDigest("NO-SUCH-ALGORITHM"));
+    assertThrows(AssertionError.class, () -> IoUtils.createDigest("NO-SUCH-ALGORITHM"));
     assertThrows(NullPointerException.class, () -> IoUtils.getSha256Hash(null));
     assertThrows(NullPointerException.class, () -> IoUtils.getSha1Hash(null));
   }
@@ -385,8 +395,8 @@ final class IoUtilsTest {
       final TemporaryUserHome redirected = TemporaryUserHome.redirectTo(this.directory);
       final LocalHttpServer server = LocalHttpServer.start()
     ) {
-      server.respond("/image.png", 200, ABC);
-      server.respond("/image.png", 200, DEF);
+      server.respond("/image.png", HTTP_OK, ABC);
+      server.respond("/image.png", HTTP_OK, DEF);
       final URI imageUri = server.uri("/image.png");
       final URI missingUri = server.uri("/missing.png");
       final URI fileUri = URI.create("file:///image.png");
@@ -420,7 +430,7 @@ final class IoUtilsTest {
   void shouldStopAnImageDownloadLargerThanTheLimit() throws IOException {
     try (final TemporaryUserHome _ = TemporaryUserHome.redirectTo(this.directory); final LocalHttpServer server = LocalHttpServer.start()) {
       final int tooLarge = Math.toIntExact(IoUtils.MAXIMUM_IMAGE_BYTES + 1);
-      server.respond("/large.png", 200, new byte[tooLarge]);
+      server.respond("/large.png", HTTP_OK, new byte[tooLarge]);
       final URI largeUri = server.uri("/large.png");
       final UriSource large = UriSource.uri(largeUri);
 
@@ -467,12 +477,12 @@ final class IoUtilsTest {
     final Path temporary = this.directory.resolve(TEMPORARY_NAME);
     final Os operatingSystem = OsUtils.getOs();
     final boolean posix = operatingSystem != Os.WINDOWS;
-    Assumptions.assumeTrue(posix, "Directory permissions need a POSIX file system!");
+    Assumptions.assumeTrue(posix, POSIX_PERMISSIONS_MESSAGE);
 
     Files.setPosixFilePermissions(homeCache, READ_ONLY_PERMISSIONS);
     try {
       final boolean writable = Files.isWritable(homeCache);
-      Assumptions.assumeFalse(writable, "The user can write every directory!");
+      Assumptions.assumeFalse(writable, WRITABLE_EVERYWHERE_MESSAGE);
 
       final Path cache = this.getCachedFolderIn(home, temporary);
       final Path expected = temporary.resolve(TEMPORARY_CACHE_PATH);
@@ -726,7 +736,7 @@ final class IoUtilsTest {
     try {
       Files.createSymbolicLink(link, target);
     } catch (final IOException | UnsupportedOperationException exception) {
-      final String message = "Symbolic links cannot be created here because of \"%s\"!".formatted(exception);
+      final String message = "Because of \"%s\", symbolic links cannot be created here!".formatted(exception);
       Assumptions.abort(message);
     }
   }
@@ -841,7 +851,7 @@ final class IoUtilsTest {
     final String entryMessage = entryFailure.getMessage();
     final String totalMessage = totalFailure.getMessage();
     assertEquals("Zip entry one.txt exceeds the maximum size!", entryMessage);
-    assertEquals("Total extracted size exceeds the limit!", totalMessage);
+    assertEquals(TOTAL_LIMIT_MESSAGE, totalMessage);
   }
 
   @Test
@@ -865,7 +875,7 @@ final class IoUtilsTest {
 
     final boolean withinTotal = written <= totalLimit;
     assertTrue(withinTotal, "bytes written across entries: " + written);
-    assertEquals("Total extracted size exceeds the limit!", message);
+    assertEquals(TOTAL_LIMIT_MESSAGE, message);
   }
 
   @Test
@@ -953,7 +963,8 @@ final class IoUtilsTest {
         final Throwable cause = failure.getCause();
         assertInstanceOf(ZipException.class, cause);
         final String message = cause.getMessage();
-        assertEquals("Zip archive %s is truncated!".formatted(truncated), message);
+        final String expected = TRUNCATED_ARCHIVE_MESSAGE.formatted(truncated);
+        assertEquals(expected, message);
       }
     }
   }
@@ -975,7 +986,8 @@ final class IoUtilsTest {
     assertInstanceOf(ZipException.class, cause);
 
     final String message = cause.getMessage();
-    assertEquals("Zip archive %s is truncated!".formatted(truncated), message);
+    final String expected = TRUNCATED_ARCHIVE_MESSAGE.formatted(truncated);
+    assertEquals(expected, message);
   }
 
   @Test
@@ -1157,12 +1169,12 @@ final class IoUtilsTest {
     Files.writeString(source, FILE_CONTENT);
     final Os operatingSystem = OsUtils.getOs();
     final boolean posix = operatingSystem != Os.WINDOWS;
-    Assumptions.assumeTrue(posix, "Directory permissions need a POSIX file system!");
+    Assumptions.assumeTrue(posix, POSIX_PERMISSIONS_MESSAGE);
 
     Files.setPosixFilePermissions(targetDirectory, READ_ONLY_PERMISSIONS);
     try {
       final boolean writable = Files.isWritable(targetDirectory);
-      Assumptions.assumeFalse(writable, "The user can write every directory!");
+      Assumptions.assumeFalse(writable, WRITABLE_EVERYWHERE_MESSAGE);
 
       final long start = System.nanoTime();
       final FileOperationException thrown = assertThrows(FileOperationException.class, () -> IoUtils.moveReplacing(source, target));
@@ -1183,8 +1195,8 @@ final class IoUtilsTest {
     final Path target = this.directory.resolve(TARGET_NAME);
     final AccessDeniedException denied = new AccessDeniedException(TARGET_NAME);
     final AtomicInteger attempts = new AtomicInteger();
-    final Thread currentThread = Thread.currentThread();
-    currentThread.interrupt();
+    final Thread current = Thread.currentThread();
+    current.interrupt();
     final InterruptedIOException thrown = assertThrows(InterruptedIOException.class, () ->
       IoUtils.moveReplacing(source, target, (_, _, _) -> this.countAttemptAndFail(attempts, denied), SHORT_RETRY_DELAY)
     );
@@ -1252,6 +1264,33 @@ final class IoUtilsTest {
     final boolean directoryExists = Files.isDirectory(this.directory);
     assertFalse(missingExists);
     assertTrue(directoryExists, "only the specified path is deleted");
+  }
+
+  @Test
+  void shouldReportATreeThatCannotBeDeleted() throws IOException {
+    final Path tree = this.directory.resolve(TREE_DIRECTORY);
+    final Path locked = tree.resolve(LOCKED_DIRECTORY);
+    final Path file = locked.resolve(FILE_NAME);
+    Files.createDirectories(locked);
+    Files.writeString(file, FILE_CONTENT);
+    final Os operatingSystem = OsUtils.getOs();
+    final boolean posix = operatingSystem != Os.WINDOWS;
+    Assumptions.assumeTrue(posix, POSIX_PERMISSIONS_MESSAGE);
+
+    Files.setPosixFilePermissions(locked, READ_ONLY_PERMISSIONS);
+    try {
+      final boolean writable = Files.isWritable(locked);
+      Assumptions.assumeFalse(writable, WRITABLE_EVERYWHERE_MESSAGE);
+
+      final FileOperationException thrown = assertThrows(FileOperationException.class, () -> IoUtils.deleteRecursively(tree));
+      final Throwable cause = thrown.getCause();
+      assertInstanceOf(AccessDeniedException.class, cause);
+
+      final boolean fileExists = Files.exists(file);
+      assertTrue(fileExists);
+    } finally {
+      Files.setPosixFilePermissions(locked, OWNER_DIRECTORY_PERMISSIONS);
+    }
   }
 
   @Test

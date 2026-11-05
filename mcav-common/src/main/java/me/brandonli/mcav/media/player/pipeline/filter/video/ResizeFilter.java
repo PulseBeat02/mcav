@@ -40,7 +40,9 @@ import org.bytedeco.opencv.opencv_core.Size;
  *
  * @since 1.0.0
  */
-public class ResizeFilter extends MatVideoFilter {
+public final class ResizeFilter extends MatVideoFilter {
+
+  private static final double SCALE_FROM_SIZE = 0;
 
   private final int width;
   private final int height;
@@ -51,7 +53,7 @@ public class ResizeFilter extends MatVideoFilter {
    *
    * @param width  the target width in pixels
    * @param height the target height in pixels
-   * @throws IllegalArgumentException if either target dimension is nonpositive
+   * @throws IllegalArgumentException if either target dimension is not positive
    * @since 1.0.0
    */
   public ResizeFilter(final int width, final int height) {
@@ -63,7 +65,7 @@ public class ResizeFilter extends MatVideoFilter {
   }
 
   /**
-   * Checks whether this filter resizes to the specified size.
+   * Returns whether this filter resizes to the specified size.
    *
    * @param width  the width in pixels
    * @param height the height in pixels
@@ -94,7 +96,9 @@ public class ResizeFilter extends MatVideoFilter {
     final boolean downscaling = this.width < currentWidth || this.height < currentHeight;
     final int interpolation = downscaling ? opencv_imgproc.INTER_AREA : opencv_imgproc.INTER_LINEAR;
     final Size target = this.size;
-    image.transformMat((source, resized) -> opencv_imgproc.resize(source, resized, target, 0, 0, interpolation));
+    image.transformMat((source, resized) ->
+      opencv_imgproc.resize(source, resized, target, SCALE_FROM_SIZE, SCALE_FROM_SIZE, interpolation)
+    );
 
     return true;
   }
@@ -103,13 +107,14 @@ public class ResizeFilter extends MatVideoFilter {
    * Always throws, because resizing changes the size of the frame and cannot be done in place;
    * {@link #modifyImage(MatImageBuffer)} resizes instead.
    *
-   * @param mat the matrix of the frame
+   * @param matrix the matrix of the frame
    * @return never returns normally
    * @throws UnsupportedOperationException always
    * @since 1.0.0
    */
   @Override
-  protected boolean modifyMat(final Mat mat) {
-    throw new UnsupportedOperationException("Resizing cannot be done in place!");
+  protected boolean modifyMat(final Mat matrix) {
+    final String message = "Resizing cannot be done in place!";
+    throw new UnsupportedOperationException(message);
   }
 }

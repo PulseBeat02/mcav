@@ -143,7 +143,8 @@ final class CommandTaskDeadlineTest {
     final long nanoseconds = invocation.getArgument(0);
     budget.set(nanoseconds);
 
-    throw new TimeoutException("still reading error output!");
+    final String message = "The error output is still being read!";
+    throw new TimeoutException(message);
   }
 
   private static String javaExecutable() {
@@ -185,7 +186,8 @@ final class CommandTaskDeadlineTest {
       }
 
       final Optional<Process> launched = task.getProcess();
-      assertTrue(launched.isPresent());
+      final boolean launchedFound = launched.isPresent();
+      assertTrue(launchedFound);
 
       final Process parent = launched.orElseThrow();
       final boolean parentAlive = parent.isAlive();
@@ -204,8 +206,9 @@ final class CommandTaskDeadlineTest {
 
   @Test
   void shouldExpireTheDeadlineAtItsLastNanosecond() {
+    final CommandTask task = new CommandTask(FINISHED_COMMAND);
     final long now = OUTPUT_TIMEOUT.toNanos();
-    assertThrows(TimeoutException.class, () -> CommandTask.remainingNanoseconds(OUTPUT_TIMEOUT, 0L, now));
+    assertThrows(TimeoutException.class, () -> task.remainingNanoseconds(OUTPUT_TIMEOUT, 0L, now));
   }
 
   private static final class StringFuture extends CompletableFuture<String> {}

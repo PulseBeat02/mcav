@@ -29,6 +29,7 @@ import static org.mockito.Mockito.when;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -60,6 +61,9 @@ import uk.co.caprica.vlcj.player.embedded.videosurface.callback.RenderCallback;
 final class MockVlc {
 
   private static final int SECOND_PLAYER_INDEX = 1;
+  private static final int NO_FAILING_PLAYER = -1;
+
+  private static final String NO_SURFACE_MESSAGE = "no video surface was created";
 
   private final MediaPlayerFactory factory;
   private final List<Player> players;
@@ -73,7 +77,7 @@ final class MockVlc {
   private volatile int failingPlayerIndex;
   private volatile Throwable playerFailure;
 
-  // Constructs a new engine whose players all play successfully unless configured otherwise.
+  // Creates an engine whose players all play successfully unless configured otherwise.
   MockVlc() {
     this.factory = mock(MediaPlayerFactory.class);
     this.players = new CopyOnWriteArrayList<>();
@@ -81,7 +85,8 @@ final class MockVlc {
     this.creations = new AtomicInteger();
     this.formatCallback = new AtomicReference<>();
     this.renderCallback = new AtomicReference<>();
-    this.failingPlayerIndex = -1;
+    this.failingPlayerIndex = NO_FAILING_PLAYER;
+
     final MediaPlayerApi playerApi = mock(MediaPlayerApi.class);
     final uk.co.caprica.vlcj.factory.VideoSurfaceApi surfaces = mock(uk.co.caprica.vlcj.factory.VideoSurfaceApi.class); // fqn: VideoSurfaceApi is imported as uk.co.caprica.vlcj.player.embedded.VideoSurfaceApi
     when(this.factory.mediaPlayers()).thenReturn(playerApi);
@@ -90,11 +95,13 @@ final class MockVlc {
     when(surfaces.newVideoSurface(any(BufferFormatCallback.class), any(RenderCallback.class), anyBoolean())).thenAnswer(
       this::createSurface
     );
+
     this.sharedFactory = new SharedMediaPlayerFactory(this::createFactory);
   }
 
   private MediaPlayerFactory createFactory() {
     this.creations.incrementAndGet();
+
     final Throwable failure = this.factoryFailure;
     if (failure instanceof final RuntimeException runtimeException) {
       throw runtimeException;
@@ -115,16 +122,17 @@ final class MockVlc {
         throw error;
       }
 
-      if (failure instanceof final RuntimeException exception) {
-        throw exception;
+      if (failure instanceof final RuntimeException runtimeException) {
+        throw runtimeException;
       }
     }
 
-    final Outcome outcome;
+    final @Nullable Outcome queued;
     synchronized (this.outcomes) {
-      outcome = this.outcomes.isEmpty() ? Outcome.PLAYING : this.outcomes.poll();
+      queued = this.outcomes.poll();
     }
 
+    final Outcome outcome = Objects.requireNonNullElse(queued, Outcome.PLAYING);
     final Player created = new Player(outcome);
     this.players.add(created);
 
@@ -167,14 +175,14 @@ final class MockVlc {
 
   BufferFormatCallback getFormatCallback() {
     final BufferFormatCallback callback = this.formatCallback.get();
-    assertNotNull(callback, "no video surface was created");
+    assertNotNull(callback, NO_SURFACE_MESSAGE);
 
     return callback;
   }
 
   RenderCallback getRenderCallback() {
     final RenderCallback callback = this.renderCallback.get();
-    assertNotNull(callback, "no video surface was created");
+    assertNotNull(callback, NO_SURFACE_MESSAGE);
 
     return callback;
   }
@@ -241,6 +249,7 @@ final class MockVlc {
       this.resource = new AtomicReference<>();
       this.options = new AtomicReference<>();
       this.audioCallback = new AtomicReference<>();
+
       this.stubApis();
       this.stubBehavior();
     }
@@ -280,7 +289,7 @@ final class MockVlc {
       return this.listeners.add(listener);
     }
 
-    private Object installAudioCallback(final InvocationOnMock invocation) {
+    private @Nullable Object installAudioCallback(final InvocationOnMock invocation) {
       final AudioCallback callback = invocation.getArgument(3);
       this.audioCallback.set(callback);
 
@@ -306,7 +315,10 @@ final class MockVlc {
           yield true;
         }
         case REJECTED -> false;
-        case THROWS -> throw new IllegalStateException("VLC crashed!");
+        case THROWS -> {
+          final String message = "VLC crashed!";
+          throw new IllegalStateException(message);
+        }
       };
     }
 
@@ -349,8 +361,8 @@ final class MockVlc {
       return this.audioCallback.get() != null;
     }
 
-    void setPlaying(final boolean isPlaying) {
-      this.playing.set(isPlaying);
+    void setPlaying(final boolean playing) {
+      this.playing.set(playing);
     }
 
     void setTime(final long time) {

@@ -25,18 +25,29 @@ import java.io.Serial;
  *
  * @since 1.0.0
  */
-public class ChecksumMismatchException extends DownloadException {
+public final class ChecksumMismatchException extends DownloadException {
 
   @Serial
   private static final long serialVersionUID = -6_142_310_774_902_315_786L;
 
   /**
-   * Constructs a new exception.
+   * Creates an exception with a message.
    *
    * @param message the detail message, naming the file and both hashes
    * @since 1.0.0
    */
   public ChecksumMismatchException(final String message) {
     super(message);
+  }
+
+  /**
+   * Creates an exception with a message and the exception that caused it.
+   *
+   * @param message the detail message, naming the file and both hashes
+   * @param cause   the cause
+   * @since 1.0.0
+   */
+  public ChecksumMismatchException(final String message, final Throwable cause) {
+    super(message, cause);
   }
 }

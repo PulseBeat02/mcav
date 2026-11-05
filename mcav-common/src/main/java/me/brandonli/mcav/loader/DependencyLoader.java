@@ -73,13 +73,17 @@ import org.slf4j.LoggerFactory;
 public final class DependencyLoader {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(DependencyLoader.class);
+
   private static final String JNI_AVDEVICE = "jniavdevice";
   private static final String AVDEVICE_CLASS = "org.bytedeco.ffmpeg.global.avdevice";
+
   private static final List<Class<?>> OPENCV_MODULES = List.of(opencv_core.class, opencv_imgproc.class, opencv_imgcodecs.class);
-  private static final String FACE_DETECTION = "Face detection";
+
   private static final String PATHS_FIRST_PROPERTY = "org.bytedeco.javacpp.pathsFirst";
-  static final String OPENCV_THREADS_PROPERTY = "mcav.opencv.threads";
   private static final String PATHS_FIRST_VALUE = "false";
+
+  static final String OPENCV_THREADS_PROPERTY = "mcav.opencv.threads";
+  private static final int DEFAULT_OPENCV_THREADS = 1;
 
   private static final String GTK2_LIBRARY = "libgtk-x11-2.0.so.0";
 
@@ -92,13 +96,13 @@ public final class DependencyLoader {
   private static final String CACHE_FOLDER = "javacpp";
 
   private final Set<Capability> capabilities;
-  private final Map<Capability, Object> preparations = new EnumMap<>(Capability.class);
+  private final Map<Capability, Object> preparations;
   private final Logger logger;
   private final Predicate<String> systemLibraries;
   private final Supplier<DebianLibraryInstaller> gtk2Installers;
 
   /**
-   * Constructs a new loader. {@link me.brandonli.mcav.MCAV} creates one for you; only create your own if you embed
+   * Creates a loader. {@link me.brandonli.mcav.MCAV} creates one for you; only create your own if you embed
    * the installation steps into a custom bootstrap.
    *
    * @since 1.0.0
@@ -107,6 +111,7 @@ public final class DependencyLoader {
     this(LOGGER);
   }
 
+  // Takes the logger, so a test sees each log call, which kills the mutants that skip them.
   @VisibleForTesting
   DependencyLoader(final Logger logger) {
     this(logger, OsUtils::isLibraryAvailable, DebianLibraryInstaller::createGtk2Installer);
@@ -119,13 +124,14 @@ public final class DependencyLoader {
     final Set<Capability> every = EnumSet.allOf(Capability.class);
     available.addAll(every);
     this.capabilities = available;
+    this.preparations = new EnumMap<>(Capability.class);
     this.logger = logger;
     this.systemLibraries = systemLibraries;
     this.gtk2Installers = gtk2Installers;
   }
 
   /**
-   * Checks whether preparation has recorded a failure for a capability. A new loader optimistically contains
+   * Returns whether no preparation has recorded a failure for {@code capability}. A new loader optimistically contains
    * every capability, so this method alone is not a readiness test. Normal callers should use
    * {@link me.brandonli.mcav.MCAVApi#hasCapability(Capability)}, which also tracks background completion.
    *
@@ -153,19 +159,19 @@ public final class DependencyLoader {
    */
   public void loadModules() {
     final Platform platform = Platform.getCurrentPlatform();
-    loadModules(platform, () -> this.loadNatives(platform));
+    this.loadModules(platform, () -> this.loadNatives(platform));
   }
 
   @VisibleForTesting
-  static void loadModules(final Platform platform, final Runnable nativeLoader) {
-    final boolean bundled = hasBundledNatives(platform);
+  void loadModules(final Platform platform, final Runnable nativeLoader) {
+    final boolean bundled = this.hasBundledNatives(platform);
     if (!bundled) {
       final String message = "Platform %s has no FFmpeg and OpenCV natives!".formatted(platform);
       throw new NativeLoadingException(message);
     }
 
     final long start = System.currentTimeMillis();
-    LOGGER.info("Loading JavaCV natives...");
+    LOGGER.info("Loading the JavaCV natives.");
     try {
       nativeLoader.run();
     } catch (final UnsatisfiedLinkError | NoClassDefFoundError exception) {
@@ -179,7 +185,7 @@ public final class DependencyLoader {
     LOGGER.info("JavaCV natives loaded in {} ms.", elapsed);
   }
 
-  private static boolean hasBundledNatives(final Platform platform) {
+  private boolean hasBundledNatives(final Platform platform) {
     final Os os = platform.getOs();
     final Arch architecture = platform.getArch();
     return switch (os) {
@@ -191,15 +197,15 @@ public final class DependencyLoader {
 
   @VisibleForTesting
   void loadNatives(final Platform platform) {
-    configureJavaCpp();
+    this.configureJavaCpp();
     Loader.load(Loader.class);
     // extracting the ffmpeg program loads every FFmpeg library, after the system libraries that they link
-    loadFfmpeg(FfmpegExecutableProvider::getFfmpegPath, DependencyLoader::configureFfmpegLogging);
+    this.loadFfmpeg(FfmpegExecutableProvider::getFfmpegPath, this::configureFfmpegLogging);
     for (final Class<?> module : OPENCV_MODULES) {
       Loader.load(module);
     }
 
-    configureOpenCvThreads();
+    this.configureOpenCvThreads();
     this.loadFaceDetection(() -> this.loadObjectDetection(platform));
   }
 
@@ -208,8 +214,8 @@ public final class DependencyLoader {
   // the thread that made it, which outlives every player and works outside the encoders' budget. The system property
   // OPENCV_THREADS_PROPERTY sets another number; 0 runs everything sequentially, and below 0 is OpenCV's default.
   @VisibleForTesting
-  static void configureOpenCvThreads() {
-    final int threads = Integer.getInteger(OPENCV_THREADS_PROPERTY, 1);
+  void configureOpenCvThreads() {
+    final int threads = Integer.getInteger(OPENCV_THREADS_PROPERTY, DEFAULT_OPENCV_THREADS);
     org.bytedeco.opencv.global.opencv_core.setNumThreads(threads); // fqn: a presets class of this name is imported to load the natives
   }
 
@@ -218,7 +224,7 @@ public final class DependencyLoader {
   // that value tells JavaCPP the application provides the BLAS symbols itself, and the OpenCV natives of JavaCV 1.5.14
   // link OpenBLAS, so jniopencv_core then fails with "Can't find dependent libraries".
   @VisibleForTesting
-  static void configureJavaCpp() {
+  void configureJavaCpp() {
     // the JNI glue is compiled against the bundled FFmpeg and OpenCV, so the bundled libraries must be found before
     // a system FFmpeg or OpenCV of another version, which would fail to link or crash at runtime
     final String current = System.getProperty(PATHS_FIRST_PROPERTY);
@@ -226,11 +232,11 @@ public final class DependencyLoader {
       System.setProperty(PATHS_FIRST_PROPERTY, PATHS_FIRST_VALUE);
     }
 
-    configureJavaCppCache();
+    this.configureJavaCppCache();
   }
 
   // JavaCPP only checks that ~/.javacpp/cache is writable, so its natives fail to load from a home mounted noexec
-  private static void configureJavaCppCache() {
+  private void configureJavaCppCache() {
     final @Nullable String configured = System.getProperty(CACHE_PROPERTY);
     final @Nullable String configuredAlias = System.getProperty(CACHE_ALIAS_PROPERTY);
     if (configured != null || configuredAlias != null) {
@@ -253,7 +259,7 @@ public final class DependencyLoader {
   }
 
   private void loadObjectDetection(final Platform platform) {
-    provideGtk2(platform, this.systemLibraries, this.gtk2Installers);
+    this.provideGtk2(platform, this.systemLibraries, this.gtk2Installers);
     Loader.load(opencv_objdetect.class);
   }
 
@@ -261,12 +267,12 @@ public final class DependencyLoader {
   // pinned Debian packages of GTK 2 are installed into the cache and loaded first, so the module links against them. A
   // failed installation only costs face detection, which then fails to link and is reported as unavailable.
   @VisibleForTesting
-  static void provideGtk2(
+  void provideGtk2(
     final Platform platform,
     final Predicate<String> systemLibraries,
     final Supplier<DebianLibraryInstaller> installerFactory
   ) {
-    final boolean debianPackages = hasDebianGtk2(platform);
+    final boolean debianPackages = this.hasDebianGtk2(platform);
     if (!debianPackages) {
       return;
     }
@@ -277,20 +283,20 @@ public final class DependencyLoader {
     }
 
     try {
-      installGtk2(installerFactory);
+      this.installGtk2(installerFactory);
     } catch (final MCAVException exception) {
       LOGGER.warn("GTK 2 could not be installed, so face detection is not available.", exception);
     }
   }
 
-  private static boolean hasDebianGtk2(final Platform platform) {
+  private boolean hasDebianGtk2(final Platform platform) {
     final Os os = platform.getOs();
     final Arch architecture = platform.getArch();
     final Bits bits = platform.getBits();
     return os == Os.LINUX && bits == Bits.BITS_64 && architecture != Arch.OTHER;
   }
 
-  private static void installGtk2(final Supplier<DebianLibraryInstaller> installerFactory) {
+  private void installGtk2(final Supplier<DebianLibraryInstaller> installerFactory) {
     final DebianLibraryInstaller installer = installerFactory.get();
     installer.download(FileMode.EXECUTABLE);
     installer.loadLibraries();
@@ -300,7 +306,8 @@ public final class DependencyLoader {
   void loadFaceDetection(final Runnable objectDetectionLoader) {
     // the object detection natives link OpenCV's GUI module, which needs GTK 2 on Linux; where it cannot be provided,
     // only face detection is lost, so everything else keeps working without these natives
-    final boolean available = loadOptionalModule(objectDetectionLoader, FACE_DETECTION);
+    final String feature = Capability.FACE_DETECTION.getDisplayName();
+    final boolean available = this.loadOptionalModule(objectDetectionLoader, feature);
     if (available) {
       this.capabilities.add(Capability.FACE_DETECTION);
     } else {
@@ -311,7 +318,7 @@ public final class DependencyLoader {
   // Loads natives that only one feature needs. If they cannot be linked, the feature is reported as unavailable instead
   // of failing the whole library.
   @VisibleForTesting
-  static boolean loadOptionalModule(final Runnable nativeLoader, final String feature) {
+  boolean loadOptionalModule(final Runnable nativeLoader, final String feature) {
     try {
       nativeLoader.run();
 
@@ -327,9 +334,9 @@ public final class DependencyLoader {
   // Loads FFmpeg with the specified loader and then runs the setup that needs FFmpeg. A missing device library only
   // disables capture devices, so that failure is logged instead of thrown, and the setup still runs. That holds for
   // every load in a JVM: after the first, the JVM reports the device library's class as failed, naming the first
-  // failure as the cause while it keeps that, as when a plugin that installs mcav is disabled and enabled again.
+  // failure as the cause while it keeps that, as when a plugin that installs MCAV is disabled and enabled again.
   @VisibleForTesting
-  static void loadFfmpeg(final Runnable ffmpegLoader, final Runnable setup) {
+  void loadFfmpeg(final Runnable ffmpegLoader, final Runnable setup) {
     try {
       ffmpegLoader.run();
     } catch (final UnsatisfiedLinkError | NoClassDefFoundError exception) {
@@ -349,7 +356,7 @@ public final class DependencyLoader {
     setup.run();
   }
 
-  private static void configureFfmpegLogging() {
+  private void configureFfmpegLogging() {
     FFmpegLogCallback.set();
     FFmpegLogCallback.setLevel(avutil.AV_LOG_ERROR);
   }
@@ -361,13 +368,13 @@ public final class DependencyLoader {
    * @since 1.0.0
    */
   public void installVlc() {
-    this.installVlc(DependencyLoader::startInstallationKit);
+    this.installVlc(this::startInstallationKit);
   }
 
   @VisibleForTesting
   void installVlc(final VlcStarter starter) {
     final Object preparation = this.beginPreparation(Capability.VLC);
-    this.logger.info("Preparing VLC...");
+    this.logger.info("Preparing VLC.");
     final long start = System.currentTimeMillis();
     try {
       starter.start();
@@ -377,11 +384,15 @@ public final class DependencyLoader {
       this.logger.info("VLC ready in {} ms.", elapsed);
     } catch (final RuntimeException | LinkageError exception) {
       this.recordPreparation(Capability.VLC, preparation, Availability.UNAVAILABLE);
-      final boolean cancelled = this.logCancellation(Capability.VLC);
-      if (!cancelled) {
-        final String reason = exception.getMessage();
-        this.logger.warn("VLC is not available because of \"{}\", so VLC players cannot be used.", reason);
+
+      final boolean cancelled = this.isCancelled();
+      if (cancelled) {
+        this.logCancellation(Capability.VLC);
+        return;
       }
+
+      final String reason = exception.getMessage();
+      this.logger.warn("VLC is not available because of \"{}\", so VLC players cannot be used.", reason);
     }
   }
 
@@ -409,23 +420,22 @@ public final class DependencyLoader {
     }
   }
 
-  private static void startInstallationKit() {
+  private void startInstallationKit() {
     final VlcInstallationKit kit = VlcInstallationKit.create();
     final Optional<Path> _ = kit.start();
   }
 
-  // Logs that the installation of a program was cancelled, if the current thread was interrupted. The library
+  // The installation of a program counts as cancelled when the current thread was interrupted. The library
   // interrupts its installation threads when it is released, which makes a running download fail; that failure is
   // expected and not worth a warning.
-  private boolean logCancellation(final Capability capability) {
-    final Thread currentThread = Thread.currentThread();
-    final boolean cancelled = currentThread.isInterrupted();
-    if (cancelled) {
-      final String name = capability.getDisplayName();
-      this.logger.info("Preparing {} was cancelled.", name);
-    }
+  private boolean isCancelled() {
+    final Thread current = Thread.currentThread();
+    return current.isInterrupted();
+  }
 
-    return cancelled;
+  private void logCancellation(final Capability capability) {
+    final String name = capability.getDisplayName();
+    this.logger.info("Preparing {} was cancelled.", name);
   }
 
   /**
@@ -450,7 +460,7 @@ public final class DependencyLoader {
       return;
     }
 
-    this.logger.info("Preparing yt-dlp...");
+    this.logger.info("Preparing yt-dlp.");
     final long start = System.currentTimeMillis();
     try {
       installer.download(FileMode.EXECUTABLE);
@@ -460,11 +470,15 @@ public final class DependencyLoader {
       this.logger.info("yt-dlp ready in {} ms.", elapsed);
     } catch (final RuntimeException exception) {
       this.recordPreparation(Capability.YT_DLP, preparation, Availability.UNAVAILABLE);
-      final boolean cancelled = this.logCancellation(Capability.YT_DLP);
-      if (!cancelled) {
-        final String reason = exception.getMessage();
-        this.logger.warn("yt-dlp could not be installed because of \"{}\", so URL parsing cannot be used.", reason);
+
+      final boolean cancelled = this.isCancelled();
+      if (cancelled) {
+        this.logCancellation(Capability.YT_DLP);
+        return;
       }
+
+      final String reason = exception.getMessage();
+      this.logger.warn("yt-dlp could not be installed because of \"{}\", so URL parsing cannot be used.", reason);
     }
   }
 

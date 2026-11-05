@@ -27,8 +27,7 @@
  * applications can report an unavailable native feature. The stateless conversion helpers are safe for independent
  * buffers on concurrent threads.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.utils;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.gson.Gson;
@@ -51,7 +53,6 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -100,6 +101,7 @@ public final class IoUtils {
 
   private static final long MAXIMUM_ZIP_ENTRY_SIZE = 512L * 1024L * 1024L;
   private static final long MAXIMUM_ZIP_TOTAL_SIZE = 2L * 1024L * 1024L * 1024L;
+
   private static final int COPY_BUFFER_SIZE = 64 * 1024;
 
   private static final int FIRST_VNC_PORT = 5900;
@@ -121,7 +123,6 @@ public final class IoUtils {
 
   private static final String SHA_256 = "SHA-256";
   private static final String SHA_1 = "SHA-1";
-  private static final int HEXADECIMAL_DIGITS_PER_BYTE = 2;
 
   private static final int UNSIGNED_BYTE_MASK = 0xFF;
   private static final int BITS_PER_BYTE = 8;
@@ -136,12 +137,20 @@ public final class IoUtils {
   private static final String EXECUTION_PROBE_PREFIX = "execution-probe-";
   private static final String EXECUTION_PROBE_SUFFIX = ".tmp";
 
+  private static final char URL_PATH_SEPARATOR = '/';
+
+  private static final Gson GSON = new Gson();
+
   private static final String TRUNCATED_ARCHIVE_MESSAGE = "Zip archive %s is truncated!";
+  private static final String PATH_NULL_MESSAGE = "Path must not be null!";
+  private static final String SOURCE_NULL_MESSAGE = "Source must not be null!";
+  private static final String RESOURCE_NULL_MESSAGE = "Resource must not be null!";
 
   private static final String PARENT_DIRECTORY = "..";
 
   private IoUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**
@@ -162,7 +171,7 @@ public final class IoUtils {
       return "";
     }
 
-    final int lastSlash = uriPath.lastIndexOf('/');
+    final int lastSlash = uriPath.lastIndexOf(URL_PATH_SEPARATOR);
     return uriPath.substring(lastSlash + 1);
   }
 
@@ -203,10 +212,10 @@ public final class IoUtils {
    * @since 1.0.0
    */
   public static boolean createDirectoryIfNotExists(final Path path) {
-    Preconditions.checkNotNull(path, "Path must not be null!");
+    Preconditions.checkNotNull(path, PATH_NULL_MESSAGE);
 
-    final boolean exists = Files.isDirectory(path);
-    if (exists) {
+    final boolean directoryExists = Files.isDirectory(path);
+    if (directoryExists) {
       return false;
     }
 
@@ -230,7 +239,7 @@ public final class IoUtils {
    * @since 1.0.0
    */
   public static boolean createFileIfNotExists(final Path path) {
-    Preconditions.checkNotNull(path, "Path must not be null!");
+    Preconditions.checkNotNull(path, PATH_NULL_MESSAGE);
 
     final boolean exists = Files.exists(path);
     if (exists) {
@@ -289,7 +298,7 @@ public final class IoUtils {
    * @since 1.0.0
    */
   public static void deleteRecursively(final Path path) {
-    Preconditions.checkNotNull(path, "Path must not be null!");
+    Preconditions.checkNotNull(path, PATH_NULL_MESSAGE);
 
     try {
       deleteTree(path);
@@ -334,13 +343,13 @@ public final class IoUtils {
    * @since 1.0.0
    */
   public static void moveReplacing(final Path source, final Path target) {
-    Preconditions.checkNotNull(source, "Source must not be null!");
+    Preconditions.checkNotNull(source, SOURCE_NULL_MESSAGE);
     Preconditions.checkNotNull(target, "Target must not be null!");
 
     try {
       moveReplacing(source, target, Files::move, MOVE_RETRY_DELAY);
     } catch (final IOException exception) {
-      final String message = "File %s could not be moved to %s!".formatted(source, target);
+      final String message = "Moving file %s to %s failed!".formatted(source, target);
       throw new FileOperationException(message, exception);
     }
   }
@@ -378,9 +387,11 @@ public final class IoUtils {
       final Duration delay = retryDelay.multipliedBy(attempt);
       Thread.sleep(delay);
     } catch (final InterruptedException exception) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
-      final InterruptedIOException interrupted = new InterruptedIOException("Interrupted while waiting to retry a denied move!");
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+
+      final String message = "Interrupted while waiting to retry a denied move!";
+      final InterruptedIOException interrupted = new InterruptedIOException(message);
       interrupted.initCause(failure);
       throw interrupted;
     }
@@ -396,7 +407,7 @@ public final class IoUtils {
    * @since 1.0.0
    */
   public static String getSha256Hash(final Path path) {
-    Preconditions.checkNotNull(path, "Path must not be null!");
+    Preconditions.checkNotNull(path, PATH_NULL_MESSAGE);
 
     return hashFile(path, SHA_256);
   }
@@ -412,7 +423,7 @@ public final class IoUtils {
    * @since 1.0.0
    */
   public static String getSha1Hash(final Path path) {
-    Preconditions.checkNotNull(path, "Path must not be null!");
+    Preconditions.checkNotNull(path, PATH_NULL_MESSAGE);
 
     return hashFile(path, SHA_1);
   }
@@ -442,7 +453,7 @@ public final class IoUtils {
       return MessageDigest.getInstance(algorithm);
     } catch (final NoSuchAlgorithmException exception) {
       final String message = "Digest algorithm %s is not provided by the Java runtime!".formatted(algorithm);
-      throw new IllegalStateException(message, exception);
+      throw new AssertionError(message, exception);
     }
   }
 
@@ -457,17 +468,8 @@ public final class IoUtils {
   public static String bytesToHexadecimal(final byte[] bytes) {
     Preconditions.checkNotNull(bytes, "Bytes must not be null!");
 
-    final StringBuilder hexadecimal = new StringBuilder(bytes.length * HEXADECIMAL_DIGITS_PER_BYTE);
-    for (final byte value : bytes) {
-      final int unsigned = value & UNSIGNED_BYTE_MASK;
-      final String digits = Integer.toHexString(unsigned);
-      if (digits.length() == 1) {
-        hexadecimal.append('0');
-      }
-      hexadecimal.append(digits);
-    }
-
-    return hexadecimal.toString();
+    final HexFormat hexadecimal = HexFormat.of();
+    return hexadecimal.formatHex(bytes);
   }
 
   /**
@@ -480,7 +482,7 @@ public final class IoUtils {
    * @since 1.0.0
    */
   public static String getName(final Path path) {
-    Preconditions.checkNotNull(path, "Path must not be null!");
+    Preconditions.checkNotNull(path, PATH_NULL_MESSAGE);
 
     final Path fileName = path.getFileName();
     if (fileName == null) {
@@ -500,7 +502,7 @@ public final class IoUtils {
    *
    * @param source the URL of the image
    * @return the cached file path; releasing a decoded image does not remove this file
-   * @throws DownloadException       if the image cannot be downloaded, including when it is larger than
+   * @throws DownloadException        if the image cannot be downloaded, including when it is larger than
    *                                  {@link #MAXIMUM_IMAGE_BYTES}
    * @throws FileOperationException   if the downloaded image cannot be moved into the cache folder
    * @throws IllegalArgumentException if the source does not describe an absolute HTTP or HTTPS URI with a host
@@ -508,7 +510,7 @@ public final class IoUtils {
    * @since 1.0.0
    */
   public static Path downloadImage(final UriSource source) {
-    Preconditions.checkNotNull(source, "Source must not be null!");
+    Preconditions.checkNotNull(source, SOURCE_NULL_MESSAGE);
 
     final String url = source.getResource();
     final byte[] urlBytes = url.getBytes(StandardCharsets.UTF_8);
@@ -518,6 +520,7 @@ public final class IoUtils {
     final Path destination = cache.resolve(fileName);
     final URI uri = URI.create(url);
     HttpDownloader.download(uri, destination, MAXIMUM_IMAGE_BYTES);
+
     return destination;
   }
 
@@ -544,7 +547,7 @@ public final class IoUtils {
   @VisibleForTesting
   static Path getCachedFolder(final Predicate<Path> executable, final AtomicBoolean fallbackReported) {
     final @Nullable String homeOrNull = System.getProperty(USER_HOME_PROPERTY);
-    final String home = Objects.requireNonNull(homeOrNull, "The JVM always sets the user home!");
+    final String home = requireNonNull(homeOrNull, "The JVM always sets the user home!");
     final Path homeCache = Path.of(home, CACHE_ROOT, CACHE_DIRECTORY);
     final boolean usable = createUsableDirectory(homeCache, executable);
     if (usable) {
@@ -552,7 +555,7 @@ public final class IoUtils {
     }
 
     final @Nullable String temporaryOrNull = System.getProperty(TEMPORARY_DIRECTORY_PROPERTY);
-    final String temporary = Objects.requireNonNull(temporaryOrNull, "The JVM always sets the temporary directory!");
+    final String temporary = requireNonNull(temporaryOrNull, "The JVM always sets the temporary directory!");
     final Path temporaryCache = Path.of(temporary, TEMPORARY_CACHE_ROOT, CACHE_DIRECTORY);
     final boolean firstFallback = fallbackReported.compareAndSet(false, true);
     if (firstFallback) {
@@ -560,16 +563,16 @@ public final class IoUtils {
     }
 
     createDirectoryIfNotExists(temporaryCache);
+
     return temporaryCache.toAbsolutePath();
   }
 
-  // Creates a directory if it is missing and returns whether a file written into it can be run. A directory that
-  // cannot be created or written cannot hold the cache either, so that failure is the answer and not reported.
+  // A directory that cannot be created or written cannot hold the cache, so that failure answers false.
   private static boolean createUsableDirectory(final Path directory, final Predicate<Path> executable) {
     try {
       createDirectoryIfNotExists(directory);
       final Path probe = Files.createTempFile(directory, EXECUTION_PROBE_PREFIX, EXECUTION_PROBE_SUFFIX);
-      return isExecutableProbe(probe, executable);
+      return probeExecution(probe, executable);
     } catch (final FileOperationException | IOException exception) {
       return false;
     }
@@ -577,7 +580,7 @@ public final class IoUtils {
 
   // Linux refuses the execute access check on every regular file of a noexec mount, even one marked executable, so a
   // probe marked executable answers for the whole file system.
-  private static boolean isExecutableProbe(final Path probe, final Predicate<Path> executable) throws IOException {
+  private static boolean probeExecution(final Path probe, final Predicate<Path> executable) throws IOException {
     try {
       markExecutable(probe);
       return executable.test(probe);
@@ -623,8 +626,7 @@ public final class IoUtils {
     }
   }
 
-  // Parses a download list. Malformed JSON is reported as an IOException, because a resource that cannot be parsed is
-  // an I/O failure of that resource.
+  // Malformed JSON is an I/O failure of the resource.
   @VisibleForTesting
   static Download[] parseDownloads(final Reader reader) throws IOException {
     final DownloadFields @Nullable [] parsed = readDownloadArray(reader);
@@ -641,13 +643,12 @@ public final class IoUtils {
   }
 
   private static DownloadFields @Nullable [] readDownloadArray(final Reader reader) throws IOException {
-    final Gson gson = new Gson();
     final TypeToken<DownloadFields[]> typeToken = new TypeToken<>() {};
     final Type downloadArrayType = typeToken.getType();
     try {
-      return gson.fromJson(reader, downloadArrayType);
+      return GSON.fromJson(reader, downloadArrayType);
     } catch (final JsonSyntaxException exception) {
-      final String message = exception.getMessage();
+      final String message = "Download list is not valid JSON!";
       throw new IOException(message, exception);
     }
   }
@@ -663,9 +664,10 @@ public final class IoUtils {
       final Platform platform = Platform.ofPlatform(os, architecture, bits);
       final String url = fields.url();
       final @Nullable String hash = fields.hash();
-      return new Download(platform, url, hash);
+      return Download.of(platform, url, hash);
     } catch (final NullPointerException | IllegalArgumentException exception) {
-      throw new IOException("Download list has an incomplete download!", exception);
+      final String message = "Download list has an incomplete download!";
+      throw new IOException(message, exception);
     }
   }
 
@@ -679,7 +681,7 @@ public final class IoUtils {
    * @since 1.0.0
    */
   public static Reader getResourceAsStreamReader(final String resource) {
-    Preconditions.checkNotNull(resource, "Resource must not be null!");
+    Preconditions.checkNotNull(resource, RESOURCE_NULL_MESSAGE);
 
     final InputStream stream = getResourceAsInputStream(resource);
     return new InputStreamReader(stream, StandardCharsets.UTF_8);
@@ -695,7 +697,7 @@ public final class IoUtils {
    * @since 1.0.0
    */
   public static InputStream getResourceAsInputStream(final String resource) {
-    Preconditions.checkNotNull(resource, "Resource must not be null!");
+    Preconditions.checkNotNull(resource, RESOURCE_NULL_MESSAGE);
 
     return getResourceAsInputStream(resource, IoUtils.class);
   }
@@ -711,7 +713,7 @@ public final class IoUtils {
    * @since 1.0.0
    */
   public static InputStream getResourceAsInputStream(final String resource, final Class<?> loaderClass) {
-    Preconditions.checkNotNull(resource, "Resource must not be null!");
+    Preconditions.checkNotNull(resource, RESOURCE_NULL_MESSAGE);
     Preconditions.checkNotNull(loaderClass, "Class must not be null!");
 
     final ClassLoader classLoader = loaderClass.getClassLoader();
@@ -750,10 +752,8 @@ public final class IoUtils {
 
   @VisibleForTesting
   static void unzip(final Path archive, final Path destination, final long maximumEntrySize, final long maximumTotalSize) {
-    Preconditions.checkNotNull(archive, "Archive must not be null!");
-    Preconditions.checkNotNull(destination, "Destination must not be null!");
-    Preconditions.checkArgument(maximumEntrySize >= 0, "Entry size limit must not be negative!");
-    Preconditions.checkArgument(maximumTotalSize >= 0, "Total size limit must not be negative!");
+    Preconditions.checkArgument(maximumEntrySize >= 0, "Entry size limit %s must not be negative!", maximumEntrySize);
+    Preconditions.checkArgument(maximumTotalSize >= 0, "Total size limit %s must not be negative!", maximumTotalSize);
 
     final Path absoluteDestination = destination.toAbsolutePath();
     final Path normalizedDestination = absoluteDestination.normalize();
@@ -843,11 +843,12 @@ public final class IoUtils {
       }
 
       Files.createDirectories(target);
+
       return 0;
     }
 
     final Path parentOrNull = target.getParent();
-    final Path parent = Objects.requireNonNull(parentOrNull, "An entry inside the destination always has a parent!");
+    final Path parent = requireNonNull(parentOrNull, "An entry inside the destination always has a parent!");
     Files.createDirectories(parent);
     return writeZipEntry(zip, target, name, maximumEntrySize, remainingTotalSize);
   }
@@ -858,9 +859,7 @@ public final class IoUtils {
       resolved = destination.resolve(name);
     } catch (final InvalidPathException exception) {
       final String message = "Zip entry name %s is not a path of this system!".formatted(name);
-      final ZipEntryIntegrityException refused = new ZipEntryIntegrityException(message);
-      refused.initCause(exception);
-      throw refused;
+      throw new ZipEntryIntegrityException(message, exception);
     }
 
     final Path target = resolved.normalize();
@@ -958,7 +957,8 @@ public final class IoUtils {
         throw new ZipEntryIntegrityException(message);
       }
       if (read > remainingTotalSize - entrySize) {
-        throw new ZipEntryIntegrityException("Total extracted size exceeds the limit!");
+        final String message = "Total extracted size exceeds the limit!";
+        throw new ZipEntryIntegrityException(message);
       }
       output.write(buffer, 0, read);
       entrySize += read;
@@ -971,7 +971,7 @@ public final class IoUtils {
   @FunctionalInterface
   @VisibleForTesting
   interface FileMover {
-    void move(Path source, Path target, CopyOption... options) throws IOException;
+    void move(final Path source, final Path target, final CopyOption... options) throws IOException;
   }
 
   private record DownloadFields(PlatformFields platform, String url, @Nullable String hash) {}

@@ -42,7 +42,7 @@ public final class Dimension {
   private final int height;
 
   /**
-   * Constructs a dimension.
+   * Creates a dimension.
    *
    * @param width  the width in pixels, not negative
    * @param height the height in pixels, not negative
@@ -91,9 +91,9 @@ public final class Dimension {
   }
 
   /**
-   * Checks whether either side is zero.
+   * Returns whether either side is zero.
    *
-   * @return true if the dimension covers no pixels
+   * @return whether the dimension covers no pixels
    * @since 1.0.0
    */
   public boolean isEmpty() {

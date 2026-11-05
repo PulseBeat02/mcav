@@ -57,7 +57,7 @@ final class VideoFrameCopierResizeStressTest {
         final MatImageBuffer image = copier.copy(frame);
         final int width = image.getWidth();
         final int height = image.getHeight();
-        sizes.add(width + "x" + height);
+        sizes.add("%sx%s".formatted(width, height));
         pool.recycle(image);
       }
     } finally {
@@ -69,10 +69,10 @@ final class VideoFrameCopierResizeStressTest {
 
     final boolean onlyAllowed = ALLOWED.containsAll(sizes);
     final int sizeCount = sizes.size();
-    assertTrue(onlyAllowed, () -> "copies of sizes that were never attached: " + sizes);
+    assertTrue(onlyAllowed, () -> "copies of sizes that were never attached: %s".formatted(sizes));
 
     final boolean sizeChanged = sizeCount > 1;
-    assertTrue(sizeChanged, () -> "the size never changed while copying, so nothing raced: " + sizes);
+    assertTrue(sizeChanged, () -> "the size never changed while copying, so nothing raced: %s".formatted(sizes));
   }
 
   private static void resizeWhile(final AtomicBoolean copying, final DimensionAttachableCallback dimensionCallback) {

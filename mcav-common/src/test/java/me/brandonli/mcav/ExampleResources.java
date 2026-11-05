@@ -30,14 +30,18 @@ final class ExampleResources implements AutoCloseable {
 
   private static final Equivalence<Object> IDENTITY = Equivalence.identity();
 
-  private final Deque<Runnable> releases = new ArrayDeque<>();
-  private final Runtime runtime = Runtime.getRuntime();
+  private final Deque<Runnable> releases;
+  private final Runtime runtime;
   private final Thread shutdownHook;
+  private final CompletableFuture<Void> completion;
+
   private boolean closed;
   private @Nullable Thread closingThread;
-  private final CompletableFuture<Void> completion = new CompletableFuture<>();
 
   ExampleResources() {
+    this.releases = new ArrayDeque<>();
+    this.runtime = Runtime.getRuntime();
+    this.completion = new CompletableFuture<>();
     this.shutdownHook = new Thread(this::close, "mcav-example-shutdown");
     this.runtime.addShutdownHook(this.shutdownHook);
   }
@@ -52,13 +56,15 @@ final class ExampleResources implements AutoCloseable {
 
     // Shutdown may race a just-completed acquisition; never leave that new resource without an owner.
     release.run();
-    throw new IllegalStateException("The example has already closed!");
+
+    final String message = "The example has already closed!";
+    throw new IllegalStateException(message);
   }
 
   @Override
   public void close() {
     final Thread current = Thread.currentThread();
-    @Nullable final List<Runnable> pending;
+    final @Nullable List<Runnable> pending;
     final boolean wait;
     synchronized (this) {
       if (this.closed) {
@@ -83,7 +89,7 @@ final class ExampleResources implements AutoCloseable {
     }
 
     try {
-      releaseAll(pending);
+      this.releaseAll(pending);
     } finally {
       try {
         this.runtime.removeShutdownHook(this.shutdownHook);
@@ -95,7 +101,7 @@ final class ExampleResources implements AutoCloseable {
     }
   }
 
-  private static void releaseAll(final List<Runnable> releases) {
+  private void releaseAll(final List<Runnable> releases) {
     Throwable first = null;
     for (final Runnable release : releases) {
       try {
@@ -103,7 +109,7 @@ final class ExampleResources implements AutoCloseable {
       } catch (final RuntimeException | Error exception) {
         ThrowableUtils.throwIfFatal(exception);
 
-        first = keepFirstFailure(first, exception);
+        first = this.keepFirstFailure(first, exception);
       }
     }
 
@@ -111,12 +117,12 @@ final class ExampleResources implements AutoCloseable {
       throw error;
     }
 
-    if (first instanceof final RuntimeException exception) {
-      throw exception;
+    if (first instanceof final RuntimeException runtimeException) {
+      throw runtimeException;
     }
   }
 
-  private static Throwable keepFirstFailure(final @Nullable Throwable first, final Throwable failure) {
+  private Throwable keepFirstFailure(final @Nullable Throwable first, final Throwable failure) {
     if (first == null) {
       return failure;
     }

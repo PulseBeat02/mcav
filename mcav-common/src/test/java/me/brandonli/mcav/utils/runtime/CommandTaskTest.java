@@ -59,9 +59,14 @@ final class CommandTaskTest {
   private static final String UNKNOWN_OPTION = "-XX:+NoSuchOptionForMcav";
 
   private static final String VARIABLE = "MCAV_COMMAND_TASK_VARIABLE";
+  private static final String VARIABLE_VALUE = "mcav";
 
   private static final long EXIT_TIMEOUT_SECONDS = 10L;
   private static final long RETURN_DEADLINE_NANOSECONDS = 15_000_000_000L;
+
+  private static final String READ_FAILURE_MESSAGE = "broken pipe!";
+
+  private static final String PROGRAM_KILLED_MESSAGE = "the program is killed instead of being left running";
 
   @TempDir
   private Path directory;
@@ -142,8 +147,9 @@ final class CommandTaskTest {
     final ProcessException exception = assertThrows(ProcessException.class, task::run);
     final Throwable cause = exception.getCause();
     final Optional<Process> process = task.getProcess();
+    final boolean processMissing = process.isEmpty();
     assertInstanceOf(IOException.class, cause);
-    assertTrue(process.isEmpty());
+    assertTrue(processMissing);
     assertThrows(IllegalStateException.class, task::getExitCode);
 
     assertThrows(ProcessException.class, task::run);
@@ -165,12 +171,12 @@ final class CommandTaskTest {
   void shouldGiveTheProgramItsEnvironmentVariables() throws IOException {
     final String java = javaExecutable();
     final String programPath = this.environmentProgram();
-    final Map<String, String> environment = Map.of(VARIABLE, "mcav");
+    final Map<String, String> environment = Map.of(VARIABLE, VARIABLE_VALUE);
     final CommandTask task = new CommandTask(environment, java, programPath, VARIABLE);
     task.runChecked();
     final String output = task.getOutput();
     final Map<String, String> taskEnvironment = task.getEnvironment();
-    assertEquals("mcav", output);
+    assertEquals(VARIABLE_VALUE, output);
     assertEquals(environment, taskEnvironment);
   }
 
@@ -182,15 +188,16 @@ final class CommandTaskTest {
     final CommandTask waiting = new CommandTask(command, RunMode.ON_DEMAND);
     final int exitCode = ran.getExitCode();
     final Optional<Process> process = waiting.getProcess();
+    final boolean processMissing = process.isEmpty();
     assertEquals(0, exitCode);
-    assertTrue(process.isEmpty());
+    assertTrue(processMissing);
     assertThrows(IllegalStateException.class, waiting::getExitCode);
   }
 
   @Test
   void shouldStartNothingBeforeItIsRun() {
     final String java = javaExecutable();
-    final Map<String, String> environment = Map.of(VARIABLE, "mcav");
+    final Map<String, String> environment = Map.of(VARIABLE, VARIABLE_VALUE);
     final List<CommandTask> tasks = List.of(
       new CommandTask(java, VERSION_OPTION),
       new CommandTask(this.directory, java, VERSION_OPTION),
@@ -200,7 +207,8 @@ final class CommandTaskTest {
       final Optional<Process> process = task.getProcess();
       final String output = task.getOutput();
       final String errorOutput = task.getErrorOutput();
-      assertTrue(process.isEmpty());
+      final boolean processMissing = process.isEmpty();
+      assertTrue(processMissing);
       assertEquals("", output);
       assertEquals("", errorOutput);
       assertThrows(IllegalStateException.class, task::getExitCode);
@@ -214,7 +222,8 @@ final class CommandTaskTest {
     task.run();
     final Optional<Process> process = task.getProcess();
     final List<String> command = task.getCommand();
-    assertTrue(process.isPresent());
+    final boolean processFound = process.isPresent();
+    assertTrue(processFound);
 
     final List<String> expectedCommand = List.of(java, VERSION_OPTION);
     assertEquals(expectedCommand, command);
@@ -254,7 +263,7 @@ final class CommandTaskTest {
     final Process finished = builder.start();
     finished.waitFor();
     final CommandTask task = new CommandTask(java, VERSION_OPTION);
-    final IOException readFailure = new IOException("broken pipe!");
+    final IOException readFailure = new IOException(READ_FAILURE_MESSAGE);
     final Future<String> failedOutput = CompletableFuture.failedFuture(readFailure);
     final Future<String> errorOutput = CompletableFuture.completedFuture("");
     final ProcessException exception = assertThrows(ProcessException.class, () ->
@@ -278,7 +287,7 @@ final class CommandTaskTest {
     final ProcessHandle sleeper = ProcessHandle.of(Long.parseLong(line.strip())).orElseThrow();
     try {
       final CommandTask task = new CommandTask(java);
-      final Future<String> failedOutput = CompletableFuture.failedFuture(new IOException("broken pipe!"));
+      final Future<String> failedOutput = CompletableFuture.failedFuture(new IOException(READ_FAILURE_MESSAGE));
       final Future<String> errorOutput = CompletableFuture.completedFuture("");
       assertThrows(ProcessException.class, () -> task.awaitCompletion(spawner, failedOutput, errorOutput, null));
 
@@ -298,7 +307,7 @@ final class CommandTaskTest {
       final ProcessHandle sleeperHandle = sleeper.toHandle();
       final Process parent = new LateChildProcess(sleeperHandle);
       final CommandTask task = new CommandTask(java);
-      final Future<String> failedOutput = CompletableFuture.failedFuture(new IOException("broken pipe!"));
+      final Future<String> failedOutput = CompletableFuture.failedFuture(new IOException(READ_FAILURE_MESSAGE));
       final Future<String> errorOutput = CompletableFuture.completedFuture("");
 
       assertThrows(ProcessException.class, () -> task.awaitCompletion(parent, failedOutput, errorOutput, null));
@@ -313,7 +322,8 @@ final class CommandTaskTest {
   @Test
   void shouldWrapStreamFailuresWhileReading() throws IOException {
     try (final InputStream broken = new FailingStream()) {
-      final ProcessException exception = assertThrows(ProcessException.class, () -> CommandTask.readFully(broken));
+      final CommandTask task = new CommandTask(JAVA_EXECUTABLE);
+      final ProcessException exception = assertThrows(ProcessException.class, () -> task.readFully(broken));
       final Throwable cause = exception.getCause();
       assertInstanceOf(IOException.class, cause);
     }
@@ -342,16 +352,17 @@ final class CommandTaskTest {
     final long elapsed = System.nanoTime() - start;
     final String message = exception.getMessage();
     final Optional<Process> launched = task.getProcess();
-    assertTrue(launched.isPresent());
+    final boolean launchedFound = launched.isPresent();
+    assertTrue(launchedFound);
 
     final Process process = launched.orElseThrow();
     final boolean exited = process.waitFor(EXIT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
     final boolean reportsTheTimeout = message.contains("did not finish");
     assertTrue(reportsTheTimeout, message);
-    assertTrue(exited, "the program is killed instead of being left running");
+    assertTrue(exited, PROGRAM_KILLED_MESSAGE);
 
     final boolean returnedInTime = elapsed < RETURN_DEADLINE_NANOSECONDS;
-    assertTrue(returnedInTime, "run returns once the timeout passed, took " + elapsed + " ns");
+    assertTrue(returnedInTime, "run returns once the timeout passed, took %s ns".formatted(elapsed));
     assertThrows(IllegalStateException.class, task::getExitCode);
   }
 
@@ -385,7 +396,8 @@ final class CommandTaskTest {
     assertThrows(IllegalArgumentException.class, () -> task.runChecked(Duration.ZERO));
 
     final Optional<Process> process = task.getProcess();
-    assertTrue(process.isEmpty(), "an invalid timeout does not start the program");
+    final boolean processMissing = process.isEmpty();
+    assertTrue(processMissing, "an invalid timeout does not start the program");
   }
 
   @Test
@@ -401,15 +413,16 @@ final class CommandTaskTest {
     final long elapsed = System.nanoTime() - start;
     final boolean interrupted = Thread.interrupted();
     final Optional<Process> launched = task.getProcess();
-    assertTrue(launched.isPresent());
+    final boolean launchedFound = launched.isPresent();
+    assertTrue(launchedFound);
 
     final Process process = launched.orElseThrow();
     final boolean exited = process.waitFor(EXIT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
     assertTrue(interrupted);
-    assertTrue(exited, "the program is killed instead of being left running");
+    assertTrue(exited, PROGRAM_KILLED_MESSAGE);
 
     final boolean returnedInTime = elapsed < RETURN_DEADLINE_NANOSECONDS;
-    assertTrue(returnedInTime, "run returns without waiting for the program, took " + elapsed + " ns");
+    assertTrue(returnedInTime, "run returns without waiting for the program, took %s ns".formatted(elapsed));
   }
 
   private static final class LateChildProcess extends Process {
@@ -464,14 +477,16 @@ final class CommandTaskTest {
 
   private static final class FailingStream extends InputStream {
 
+    private static final String FAILURE_MESSAGE = "The stream failed!";
+
     @Override
     public int read() throws IOException {
-      throw new IOException("stream failed!");
+      throw new IOException(FAILURE_MESSAGE);
     }
 
     @Override
     public int read(final byte[] buffer, final int offset, final int length) throws IOException {
-      throw new IOException("stream failed!");
+      throw new IOException(FAILURE_MESSAGE);
     }
   }
 }

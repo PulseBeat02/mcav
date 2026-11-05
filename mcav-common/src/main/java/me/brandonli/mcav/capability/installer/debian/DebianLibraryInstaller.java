@@ -66,6 +66,8 @@ public final class DebianLibraryInstaller implements Installer {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(DebianLibraryInstaller.class);
 
+  private static final String SKIPPED_MESSAGE = "Library {} of {} could not be loaded and is skipped.";
+
   private static final String VLC_RESOURCE = "mcav/common/installers/debian-vlc.json";
   private static final String VLC_NAME = "debian-vlc";
   private static final String GTK2_RESOURCE = "mcav/common/installers/debian-gtk2.json";
@@ -177,7 +179,7 @@ public final class DebianLibraryInstaller implements Installer {
     int remaining = -1;
     while (pending.size() != remaining) {
       remaining = pending.size();
-      pending = this.loadEach(pending);
+      pending = this.loadAndListFailed(pending);
     }
 
     for (final Path library : pending) {
@@ -185,8 +187,7 @@ public final class DebianLibraryInstaller implements Installer {
     }
   }
 
-  // Loads every library it can and returns the others.
-  private List<Path> loadEach(final List<Path> libraries) {
+  private List<Path> loadAndListFailed(final List<Path> libraries) {
     final List<Path> failed = new ArrayList<>();
     for (final Path library : libraries) {
       final boolean loaded = this.load(library);
@@ -202,6 +203,7 @@ public final class DebianLibraryInstaller implements Installer {
     try {
       final String path = library.toString();
       this.libraryLoader.accept(path);
+
       return true;
     } catch (final UnsatisfiedLinkError exception) {
       LOGGER.debug("Library {} could not be loaded yet.", library, exception);
@@ -213,11 +215,11 @@ public final class DebianLibraryInstaller implements Installer {
   private void logSkipped(final Path library) {
     final boolean inSubfolder = this.installation.isInSubfolder(library);
     if (inSubfolder) {
-      LOGGER.debug("Library {} of {} could not be loaded and is skipped.", library, this.name);
+      LOGGER.debug(SKIPPED_MESSAGE, library, this.name);
       return;
     }
 
-    LOGGER.warn("Library {} of {} could not be loaded and is skipped.", library, this.name);
+    LOGGER.warn(SKIPPED_MESSAGE, library, this.name);
   }
 
   /**

@@ -34,8 +34,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * which players decode most reliably. Built-in strategies skip null entries and entries missing the extension
  * or protocol marker they require. A missing format list selects nothing. Quality strategies compare the
  * numeric {@link Format#getQuality()} value, including its default zero value; they do not calculate a bitrate or
- * resolution score. Built-in strategies are stateless, but the supplied mutable metadata must remain stable
- * throughout selection. Selected formats are borrowed objects from the dump, not copies.
+ * resolution score. Built-in strategies are stateless, and the metadata they read is immutable. Selected formats
+ * are borrowed objects from the dump, not copies.
  *
  * <p>yt-dlp lists the streams from worst to best. The quality strategies therefore break ties in that order: among
  * streams of equal quality, the best quality strategies pick the stream listed last and the lowest quality
@@ -136,7 +136,7 @@ public interface FormatStrategy {
   }
 
   /**
-   * Checks whether a stream contains video, with or without audio.
+   * Returns whether a stream contains video, with or without audio.
    *
    * @param format the stream
    * @return true if {@link Format#getVideoExtension()} is present and not {@code none}; no stream is opened or inspected
@@ -152,7 +152,7 @@ public interface FormatStrategy {
   }
 
   /**
-   * Checks whether a stream is served over plain HTTPS rather than a streaming protocol such as HLS or DASH.
+   * Returns whether a stream is served over plain HTTPS rather than a streaming protocol such as HLS or DASH.
    *
    * @param format the stream
    * @return true if {@link Format#getProtocol()} equals {@code https}, case-sensitively; the URL is not parsed

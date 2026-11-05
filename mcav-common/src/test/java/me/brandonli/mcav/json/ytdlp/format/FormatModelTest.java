@@ -65,12 +65,14 @@ final class FormatModelTest {
   private static final String THUMBNAIL_URL = "https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg";
   private static final String USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64)";
   private static final int HTTP_CHUNK_SIZE = 10485760;
+  private static final String REPOSITORY = "yt-dlp/yt-dlp";
 
   private static final int VIDEO_FORMAT_INDEX = 2;
   private static final int VIDEO_WIDTH = 1920;
   private static final int VIDEO_HEIGHT = 1080;
   private static final double FRAMES_PER_SECOND = 29.97;
   private static final String DYNAMIC_RANGE = "SDR";
+  private static final String RESOLUTION = "1920x1080";
 
   private static final String AUDIO_CODEC = "opus";
   private static final int SAMPLE_RATE = 48000;
@@ -94,9 +96,6 @@ final class FormatModelTest {
   private static final int CHANGED_NUMBER = 2;
   private static final double BASE_FRACTION = 1.5;
   private static final double CHANGED_FRACTION = 2.5;
-
-  private static final String GETTER_PREFIX = "get";
-  private static final String BOOLEAN_GETTER_PREFIX = "is";
 
   private static final String TITLE = "Clip";
   private static final String DESCRIPTION = "Video from a file";
@@ -131,48 +130,105 @@ final class FormatModelTest {
     final List<String> categories = dump.getCategories();
     final List<String> tags = dump.getTags();
     final List<String> sortFields = dump.getFormatSortFields();
-    assertEquals(Optional.of("dQw4w9WgXcQ"), dump.getId());
-    assertEquals(Optional.of("Example Video"), dump.getTitle());
-    assertEquals(Optional.of("Example Video"), dump.getFullTitle());
-    assertEquals(Optional.of("An example description\nwith two lines"), dump.getDescription());
-    assertEquals(Optional.of(THUMBNAIL_URL), dump.getThumbnail());
-    assertEquals(Optional.of("UCuAXFkgsw1L7xaCfnd5JJOw"), dump.getChannelId());
-    assertEquals(Optional.of("https://www.youtube.com/channel/UCuAXFkgsw1L7xaCfnd5JJOw"), dump.getChannelUrl());
-    assertEquals(Optional.of("Example Channel"), dump.getChannel());
-    assertTrue(dump.isChannelVerified());
-    assertEquals(Optional.of("Example Uploader"), dump.getUploader());
-    assertEquals(Optional.of("@example"), dump.getUploaderId());
-    assertEquals(Optional.of("https://www.youtube.com/@example"), dump.getUploaderUrl());
-    assertEquals(Optional.of("20091025"), dump.getUploadDate());
-    assertEquals(1256453732, dump.getTimestamp());
-    assertEquals(212, dump.getDuration());
-    assertEquals(Optional.of("3:32"), dump.getDurationString());
-    assertEquals(1700000000, dump.getViewCount());
-    assertEquals(18000000, dump.getLikeCount());
-    assertEquals(0, dump.getAgeLimit());
-    assertEquals(Optional.of("https://www.youtube.com/watch?v=dQw4w9WgXcQ"), dump.getWebpageUrl());
-    assertEquals(Optional.of("https://youtu.be/dQw4w9WgXcQ"), dump.getOriginalUrl());
-    assertEquals(Optional.of("watch"), dump.getWebpageUrlBasename());
-    assertEquals(Optional.of("youtube.com"), dump.getWebpageUrlDomain());
-    assertEquals(Optional.of("youtube"), dump.getExtractor());
-    assertEquals(Optional.of("Youtube"), dump.getExtractorKey());
-    assertEquals(Optional.of("dQw4w9WgXcQ"), dump.getDisplayId());
-    assertEquals(Optional.of("public"), dump.getAvailability());
-    assertEquals(Optional.of("not_live"), dump.getLiveStatus());
-    assertTrue(dump.isPlayableInEmbed());
-    assertFalse(dump.isLive());
-    assertFalse(dump.wasLive());
+    final Optional<String> id = dump.getId();
+    final Optional<String> expectedId = Optional.of("dQw4w9WgXcQ");
+    final Optional<String> title = dump.getTitle();
+    final Optional<String> expectedTitle = Optional.of("Example Video");
+    final Optional<String> fullTitle = dump.getFullTitle();
+    final Optional<String> description = dump.getDescription();
+    final Optional<String> expectedDescription = Optional.of("An example description\nwith two lines");
+    final Optional<String> thumbnail = dump.getThumbnail();
+    final Optional<String> expectedThumbnail = Optional.of(THUMBNAIL_URL);
+    final Optional<String> channelId = dump.getChannelId();
+    final Optional<String> expectedChannelId = Optional.of("UCuAXFkgsw1L7xaCfnd5JJOw");
+    final Optional<String> channelUrl = dump.getChannelUrl();
+    final Optional<String> expectedChannelUrl = Optional.of("https://www.youtube.com/channel/UCuAXFkgsw1L7xaCfnd5JJOw");
+    final Optional<String> channel = dump.getChannel();
+    final Optional<String> expectedChannel = Optional.of("Example Channel");
+    final boolean channelVerified = dump.isChannelVerified();
+    final Optional<String> uploader = dump.getUploader();
+    final Optional<String> expectedUploader = Optional.of("Example Uploader");
+    final Optional<String> uploaderId = dump.getUploaderId();
+    final Optional<String> expectedUploaderId = Optional.of("@example");
+    final Optional<String> uploaderUrl = dump.getUploaderUrl();
+    final Optional<String> expectedUploaderUrl = Optional.of("https://www.youtube.com/@example");
+    final Optional<String> uploadDate = dump.getUploadDate();
+    final Optional<String> expectedUploadDate = Optional.of("20091025");
+    final int timestamp = dump.getTimestamp();
+    final double duration = dump.getDuration();
+    final Optional<String> durationString = dump.getDurationString();
+    final Optional<String> expectedDurationString = Optional.of("3:32");
+    final long viewCount = dump.getViewCount();
+    final long likeCount = dump.getLikeCount();
+    final int ageLimit = dump.getAgeLimit();
+    final Optional<String> webpageUrl = dump.getWebpageUrl();
+    final Optional<String> expectedWebpageUrl = Optional.of("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+    final Optional<String> originalUrl = dump.getOriginalUrl();
+    final Optional<String> expectedOriginalUrl = Optional.of("https://youtu.be/dQw4w9WgXcQ");
+    final Optional<String> webpageUrlBasename = dump.getWebpageUrlBasename();
+    final Optional<String> expectedWebpageUrlBasename = Optional.of("watch");
+    final Optional<String> webpageUrlDomain = dump.getWebpageUrlDomain();
+    final Optional<String> expectedWebpageUrlDomain = Optional.of("youtube.com");
+    final Optional<String> extractor = dump.getExtractor();
+    final Optional<String> expectedExtractor = Optional.of("youtube");
+    final Optional<String> extractorKey = dump.getExtractorKey();
+    final Optional<String> expectedExtractorKey = Optional.of("Youtube");
+    final Optional<String> displayId = dump.getDisplayId();
+    final Optional<String> availability = dump.getAvailability();
+    final Optional<String> expectedAvailability = Optional.of("public");
+    final Optional<String> liveStatus = dump.getLiveStatus();
+    final Optional<String> expectedLiveStatus = Optional.of("not_live");
+    final boolean playableInEmbed = dump.isPlayableInEmbed();
+    final boolean live = dump.isLive();
+    final boolean wasLive = dump.wasLive();
+    assertEquals(expectedId, id);
+    assertEquals(expectedTitle, title);
+    assertEquals(expectedTitle, fullTitle);
+    assertEquals(expectedDescription, description);
+    assertEquals(expectedThumbnail, thumbnail);
+    assertEquals(expectedChannelId, channelId);
+    assertEquals(expectedChannelUrl, channelUrl);
+    assertEquals(expectedChannel, channel);
+    assertTrue(channelVerified);
+    assertEquals(expectedUploader, uploader);
+    assertEquals(expectedUploaderId, uploaderId);
+    assertEquals(expectedUploaderUrl, uploaderUrl);
+    assertEquals(expectedUploadDate, uploadDate);
+    assertEquals(1256453732, timestamp);
+    assertEquals(212, duration);
+    assertEquals(expectedDurationString, durationString);
+    assertEquals(1700000000, viewCount);
+    assertEquals(18000000, likeCount);
+    assertEquals(0, ageLimit);
+    assertEquals(expectedWebpageUrl, webpageUrl);
+    assertEquals(expectedOriginalUrl, originalUrl);
+    assertEquals(expectedWebpageUrlBasename, webpageUrlBasename);
+    assertEquals(expectedWebpageUrlDomain, webpageUrlDomain);
+    assertEquals(expectedExtractor, extractor);
+    assertEquals(expectedExtractorKey, extractorKey);
+    assertEquals(expectedId, displayId);
+    assertEquals(expectedAvailability, availability);
+    assertEquals(expectedLiveStatus, liveStatus);
+    assertTrue(playableInEmbed);
+    assertFalse(live);
+    assertFalse(wasLive);
 
     final List<String> expectedCategories = List.of("Music");
     final List<String> expectedTags = List.of("example", "video");
     final List<String> expectedSortFields = List.of("quality", "res", "fps");
+    final int epoch = dump.getEpoch();
+    final Optional<String> type = dump.getType();
+    final Optional<String> expectedType = Optional.of("video");
+    final Optional<String> fileName = dump.getFileName();
+    final Optional<String> expectedFileName = Optional.of("Example Video [dQw4w9WgXcQ].mp4");
+    final Optional<String> fileNameAlias = dump.getFileNameAlias();
     assertEquals(expectedCategories, categories);
     assertEquals(expectedTags, tags);
     assertEquals(expectedSortFields, sortFields);
-    assertEquals(1757808000, dump.getEpoch());
-    assertEquals(Optional.of("video"), dump.getType());
-    assertEquals(Optional.of("Example Video [dQw4w9WgXcQ].mp4"), dump.getFileName());
-    assertEquals(Optional.of("Example Video [dQw4w9WgXcQ].mp4"), dump.getFileNameAlias());
+    assertEquals(1757808000, epoch);
+    assertEquals(expectedType, type);
+    assertEquals(expectedFileName, fileName);
+    assertEquals(expectedFileName, fileNameAlias);
   }
 
   @Test
@@ -180,32 +236,70 @@ final class FormatModelTest {
     final UrlParseDump dump = fixture();
     final DownloaderOptions options = dump.getDownloaderOptions().orElseThrow();
     final HttpHeaders headers = dump.getHttpHeaders().orElseThrow();
-    assertEquals(Optional.of("137+251"), dump.getFormatId());
-    assertEquals(Optional.of("1080p+medium"), dump.getFormatNote());
-    assertEquals(Optional.of("mp4"), dump.getExtension());
-    assertEquals(Optional.of("avc1.640028"), dump.getVideoCodec());
-    assertEquals(Optional.of(AUDIO_CODEC), dump.getAudioCodec());
-    assertEquals(Optional.of("https+https"), dump.getProtocol());
-    assertEquals(Optional.of("1920x1080"), dump.getResolution());
-    assertEquals(VIDEO_WIDTH, dump.getWidth());
-    assertEquals(VIDEO_HEIGHT, dump.getHeight());
-    assertEquals(FRAMES_PER_SECOND, dump.getFramesPerSecond(), DELTA);
-    assertEquals(9.0, dump.getQuality(), DELTA);
-    assertEquals(4530.189, dump.getTotalBitrate(), DELTA);
-    assertEquals(1.78, dump.getAspectRatio(), DELTA);
-    assertEquals(SAMPLE_RATE, dump.getAudioSampleRate());
-    assertEquals(AUDIO_CHANNELS, dump.getAudioChannels());
-    assertEquals(-1, dump.getSourcePreference());
-    assertEquals(-1, dump.getLanguagePreference());
-    assertEquals(Optional.of(LANGUAGE), dump.getLanguage());
-    assertEquals(Optional.of(DYNAMIC_RANGE), dump.getDynamicRange());
-    assertEquals(Optional.of("mp4"), dump.getVideoExtension());
-    assertEquals(Optional.of(ABSENT), dump.getAudioExtension());
-    assertEquals(Optional.of("137 - 1920x1080 (1080p)+251 - audio only (medium)"), dump.getFormat());
-    assertFalse(dump.isDrmProtected());
-    assertEquals(Optional.empty(), dump.getUrl());
-    assertEquals(HTTP_CHUNK_SIZE, options.getHttpChunkSize());
-    assertEquals(Optional.of(USER_AGENT), headers.getUserAgent());
+    final Optional<String> formatId = dump.getFormatId();
+    final Optional<String> expectedFormatId = Optional.of("137+251");
+    final Optional<String> formatNote = dump.getFormatNote();
+    final Optional<String> expectedFormatNote = Optional.of("1080p+medium");
+    final Optional<String> extension = dump.getExtension();
+    final Optional<String> expectedExtension = Optional.of("mp4");
+    final Optional<String> videoCodec = dump.getVideoCodec();
+    final Optional<String> expectedVideoCodec = Optional.of("avc1.640028");
+    final Optional<String> audioCodec = dump.getAudioCodec();
+    final Optional<String> expectedAudioCodec = Optional.of(AUDIO_CODEC);
+    final Optional<String> protocol = dump.getProtocol();
+    final Optional<String> expectedProtocol = Optional.of("https+https");
+    final Optional<String> resolution = dump.getResolution();
+    final Optional<String> expectedResolution = Optional.of(RESOLUTION);
+    final int width = dump.getWidth();
+    final int height = dump.getHeight();
+    final double framesPerSecond = dump.getFramesPerSecond();
+    final double quality = dump.getQuality();
+    final double totalBitrate = dump.getTotalBitrate();
+    final double aspectRatio = dump.getAspectRatio();
+    final int audioSampleRate = dump.getAudioSampleRate();
+    final int audioChannels = dump.getAudioChannels();
+    final int sourcePreference = dump.getSourcePreference();
+    final int languagePreference = dump.getLanguagePreference();
+    final Optional<String> language = dump.getLanguage();
+    final Optional<String> expectedLanguage = Optional.of(LANGUAGE);
+    final Optional<String> dynamicRange = dump.getDynamicRange();
+    final Optional<String> expectedDynamicRange = Optional.of(DYNAMIC_RANGE);
+    final Optional<String> videoExtension = dump.getVideoExtension();
+    final Optional<String> audioExtension = dump.getAudioExtension();
+    final Optional<String> expectedAudioExtension = Optional.of(ABSENT);
+    final Optional<String> format = dump.getFormat();
+    final Optional<String> expectedFormat = Optional.of("137 - 1920x1080 (1080p)+251 - audio only (medium)");
+    final boolean drmProtected = dump.isDrmProtected();
+    final Optional<String> url = dump.getUrl();
+    final int httpChunkSize = options.getHttpChunkSize();
+    final Optional<String> userAgent = headers.getUserAgent();
+    final Optional<String> expectedUserAgent = Optional.of(USER_AGENT);
+    assertEquals(expectedFormatId, formatId);
+    assertEquals(expectedFormatNote, formatNote);
+    assertEquals(expectedExtension, extension);
+    assertEquals(expectedVideoCodec, videoCodec);
+    assertEquals(expectedAudioCodec, audioCodec);
+    assertEquals(expectedProtocol, protocol);
+    assertEquals(expectedResolution, resolution);
+    assertEquals(VIDEO_WIDTH, width);
+    assertEquals(VIDEO_HEIGHT, height);
+    assertEquals(FRAMES_PER_SECOND, framesPerSecond, DELTA);
+    assertEquals(9.0, quality, DELTA);
+    assertEquals(4530.189, totalBitrate, DELTA);
+    assertEquals(1.78, aspectRatio, DELTA);
+    assertEquals(SAMPLE_RATE, audioSampleRate);
+    assertEquals(AUDIO_CHANNELS, audioChannels);
+    assertEquals(-1, sourcePreference);
+    assertEquals(-1, languagePreference);
+    assertEquals(expectedLanguage, language);
+    assertEquals(expectedDynamicRange, dynamicRange);
+    assertEquals(expectedExtension, videoExtension);
+    assertEquals(expectedAudioExtension, audioExtension);
+    assertEquals(expectedFormat, format);
+    assertFalse(drmProtected);
+    assertEquals(Optional.empty(), url);
+    assertEquals(HTTP_CHUNK_SIZE, httpChunkSize);
+    assertEquals(expectedUserAgent, userAgent);
   }
 
   @Test
@@ -214,11 +308,16 @@ final class FormatModelTest {
     final List<Format> formats = dump.getFormats();
 
     final Format video = formats.get(VIDEO_FORMAT_INDEX);
-    assertEquals(2300000000L, dump.getCommentCount());
-    assertEquals(4100000000L, dump.getChannelFollowerCount());
-    assertEquals(5403437753L, dump.getApproximateFileSize());
-    assertEquals(5368709120L, video.getFileSize());
-    assertEquals(5400000000L, video.getApproximateFileSize());
+    final long commentCount = dump.getCommentCount();
+    final long channelFollowerCount = dump.getChannelFollowerCount();
+    final long dumpApproximateFileSize = dump.getApproximateFileSize();
+    final long fileSize = video.getFileSize();
+    final long videoApproximateFileSize = video.getApproximateFileSize();
+    assertEquals(2300000000L, commentCount);
+    assertEquals(4100000000L, channelFollowerCount);
+    assertEquals(5403437753L, dumpApproximateFileSize);
+    assertEquals(5368709120L, fileSize);
+    assertEquals(5400000000L, videoApproximateFileSize);
   }
 
   @Test
@@ -227,31 +326,55 @@ final class FormatModelTest {
     final List<Format> formats = dump.getFormats();
 
     final Format audio = formats.get(1);
-    assertEquals(Optional.empty(), dump.getAverageRating());
-    assertEquals(Optional.empty(), dump.getReleaseTimestamp());
-    assertEquals(Optional.empty(), dump.getChapters());
-    assertEquals(Optional.empty(), dump.getPlaylist());
-    assertEquals(Optional.empty(), dump.getPlaylistIndex());
-    assertEquals(Optional.empty(), dump.getReleaseYear());
-    assertEquals(Optional.empty(), dump.getRequestedSubtitles());
-    assertEquals(Optional.empty(), dump.getAnyStreamDrmProtected());
-    assertEquals(Optional.empty(), dump.getFileSize());
-    assertEquals(Optional.empty(), dump.getPreference());
-    assertEquals(Optional.empty(), dump.getVideoBitrate());
-    assertEquals(Optional.empty(), dump.getAudioBitrate());
-    assertEquals(0, audio.getWidth());
-    assertEquals(0, audio.getHeight());
-    assertEquals(0.0, audio.getFramesPerSecond(), DELTA);
-    assertEquals(0.0, audio.getAspectRatio(), DELTA);
-    assertEquals(Optional.empty(), audio.getPreference());
-    assertEquals(Optional.empty(), audio.getDynamicRange());
-    assertEquals(List.of(), audio.getFragments());
+    final Optional<Object> averageRating = dump.getAverageRating();
+    final Optional<Object> releaseTimestamp = dump.getReleaseTimestamp();
+    final Optional<Object> chapters = dump.getChapters();
+    final Optional<Object> playlist = dump.getPlaylist();
+    final Optional<Object> playlistIndex = dump.getPlaylistIndex();
+    final Optional<Object> releaseYear = dump.getReleaseYear();
+    final Optional<Object> requestedSubtitles = dump.getRequestedSubtitles();
+    final Optional<Object> anyStreamDrmProtected = dump.getAnyStreamDrmProtected();
+    final Optional<Object> fileSize = dump.getFileSize();
+    final Optional<Object> dumpPreference = dump.getPreference();
+    final Optional<Object> videoBitrate = dump.getVideoBitrate();
+    final Optional<Object> audioBitrate = dump.getAudioBitrate();
+    final int width = audio.getWidth();
+    final int height = audio.getHeight();
+    final double framesPerSecond = audio.getFramesPerSecond();
+    final double aspectRatio = audio.getAspectRatio();
+    final Optional<Object> audioPreference = audio.getPreference();
+    final Optional<String> dynamicRange = audio.getDynamicRange();
+    final List<Fragment> fragments = audio.getFragments();
+    final List<Fragment> expectedFragments = List.of();
+    assertEquals(Optional.empty(), averageRating);
+    assertEquals(Optional.empty(), releaseTimestamp);
+    assertEquals(Optional.empty(), chapters);
+    assertEquals(Optional.empty(), playlist);
+    assertEquals(Optional.empty(), playlistIndex);
+    assertEquals(Optional.empty(), releaseYear);
+    assertEquals(Optional.empty(), requestedSubtitles);
+    assertEquals(Optional.empty(), anyStreamDrmProtected);
+    assertEquals(Optional.empty(), fileSize);
+    assertEquals(Optional.empty(), dumpPreference);
+    assertEquals(Optional.empty(), videoBitrate);
+    assertEquals(Optional.empty(), audioBitrate);
+    assertEquals(0, width);
+    assertEquals(0, height);
+    assertEquals(0.0, framesPerSecond, DELTA);
+    assertEquals(0.0, aspectRatio, DELTA);
+    assertEquals(Optional.empty(), audioPreference);
+    assertEquals(Optional.empty(), dynamicRange);
+    assertEquals(expectedFragments, fragments);
 
     final Gson gson = GsonProvider.getSimple();
     final UrlParseDump empty = gson.fromJson("{}", UrlParseDump.class);
-    assertEquals(Optional.empty(), empty.getId());
-    assertEquals(List.of(), empty.getFormats());
-    assertEquals(0, empty.getDuration());
+    final Optional<String> id = empty.getId();
+    final List<Format> emptyFormats = empty.getFormats();
+    final List<Format> expectedEmptyFormats = List.of();
+    final double duration = empty.getDuration();
+    assertEquals(Optional.empty(), id);
+    assertEquals(expectedEmptyFormats, emptyFormats);
+    assertEquals(0, duration);
 
     final boolean channelVerified = empty.isChannelVerified();
     final boolean playableInEmbed = empty.isPlayableInEmbed();
@@ -267,38 +390,83 @@ final class FormatModelTest {
     final Format audio = formats.get(1);
     final Format video = formats.get(VIDEO_FORMAT_INDEX);
     final DownloaderOptions options = audio.getDownloaderOptions().orElseThrow();
-    assertEquals(Optional.of("251"), audio.getFormatId());
-    assertEquals(Optional.of("medium"), audio.getFormatNote());
-    assertEquals(Optional.of("webm"), audio.getExtension());
-    assertEquals(Optional.of("https"), audio.getProtocol());
-    assertEquals(Optional.of(AUDIO_CODEC), audio.getAudioCodec());
-    assertEquals(Optional.of(ABSENT), audio.getVideoCodec());
-    assertEquals(Optional.of("https://rr1---sn.example.googlevideo.com/videoplayback?itag=251"), audio.getUrl());
-    assertEquals(AUDIO_CHANNELS, audio.getAudioChannels());
-    assertEquals(3.0, audio.getQuality(), DELTA);
-    assertFalse(audio.isDrmProtected());
-    assertEquals(-1, audio.getSourcePreference());
-    assertEquals(SAMPLE_RATE, audio.getAudioSampleRate());
-    assertEquals(3437753L, audio.getFileSize());
-    assertEquals(Optional.of(LANGUAGE), audio.getLanguage());
-    assertEquals(-1, audio.getLanguagePreference());
-    assertEquals(Optional.of("webm_dash"), audio.getContainer());
-    assertEquals(Optional.of("webm"), audio.getAudioExtension());
-    assertEquals(Optional.of(ABSENT), audio.getVideoExtension());
-    assertEquals(0.0, audio.getVideoBitrate(), DELTA);
-    assertEquals(129.689, audio.getAudioBitrate(), DELTA);
-    assertEquals(129.689, audio.getTotalBitrate(), DELTA);
-    assertEquals(Optional.of("audio only"), audio.getResolution());
-    assertEquals(Optional.of("251 - audio only (medium)"), audio.getFormat());
-    assertEquals(HTTP_CHUNK_SIZE, options.getHttpChunkSize());
-    assertEquals(VIDEO_WIDTH, video.getWidth());
-    assertEquals(VIDEO_HEIGHT, video.getHeight());
-    assertEquals(FRAMES_PER_SECOND, video.getFramesPerSecond(), DELTA);
-    assertEquals(4400.5, video.getVideoBitrate(), DELTA);
-    assertEquals(Optional.of(DYNAMIC_RANGE), video.getDynamicRange());
-    assertEquals(Optional.of("mp4_dash"), video.getContainer());
-    assertEquals(Optional.empty(), video.getFormatIndex());
-    assertEquals(Optional.empty(), video.getManifestUrl());
+    final Optional<String> formatId = audio.getFormatId();
+    final Optional<String> expectedFormatId = Optional.of("251");
+    final Optional<String> formatNote = audio.getFormatNote();
+    final Optional<String> expectedFormatNote = Optional.of("medium");
+    final Optional<String> extension = audio.getExtension();
+    final Optional<String> expectedExtension = Optional.of("webm");
+    final Optional<String> protocol = audio.getProtocol();
+    final Optional<String> expectedProtocol = Optional.of("https");
+    final Optional<String> audioCodec = audio.getAudioCodec();
+    final Optional<String> expectedAudioCodec = Optional.of(AUDIO_CODEC);
+    final Optional<String> videoCodec = audio.getVideoCodec();
+    final Optional<String> expectedVideoCodec = Optional.of(ABSENT);
+    final Optional<String> url = audio.getUrl();
+    final Optional<String> expectedUrl = Optional.of("https://rr1---sn.example.googlevideo.com/videoplayback?itag=251");
+    final int audioChannels = audio.getAudioChannels();
+    final double quality = audio.getQuality();
+    final boolean drmProtected = audio.isDrmProtected();
+    final int sourcePreference = audio.getSourcePreference();
+    final int audioSampleRate = audio.getAudioSampleRate();
+    final long fileSize = audio.getFileSize();
+    final Optional<String> language = audio.getLanguage();
+    final Optional<String> expectedLanguage = Optional.of(LANGUAGE);
+    final int languagePreference = audio.getLanguagePreference();
+    final Optional<String> audioContainer = audio.getContainer();
+    final Optional<String> expectedAudioContainer = Optional.of("webm_dash");
+    final Optional<String> audioExtension = audio.getAudioExtension();
+    final Optional<String> videoExtension = audio.getVideoExtension();
+    final double audioVideoBitrate = audio.getVideoBitrate();
+    final double audioBitrate = audio.getAudioBitrate();
+    final double totalBitrate = audio.getTotalBitrate();
+    final Optional<String> resolution = audio.getResolution();
+    final Optional<String> expectedResolution = Optional.of("audio only");
+    final Optional<String> format = audio.getFormat();
+    final Optional<String> expectedFormat = Optional.of("251 - audio only (medium)");
+    final int httpChunkSize = options.getHttpChunkSize();
+    final int width = video.getWidth();
+    final int height = video.getHeight();
+    final double framesPerSecond = video.getFramesPerSecond();
+    final double videoVideoBitrate = video.getVideoBitrate();
+    final Optional<String> dynamicRange = video.getDynamicRange();
+    final Optional<String> expectedDynamicRange = Optional.of(DYNAMIC_RANGE);
+    final Optional<String> videoContainer = video.getContainer();
+    final Optional<String> expectedVideoContainer = Optional.of("mp4_dash");
+    final Optional<Object> formatIndex = video.getFormatIndex();
+    final Optional<String> manifestUrl = video.getManifestUrl();
+    assertEquals(expectedFormatId, formatId);
+    assertEquals(expectedFormatNote, formatNote);
+    assertEquals(expectedExtension, extension);
+    assertEquals(expectedProtocol, protocol);
+    assertEquals(expectedAudioCodec, audioCodec);
+    assertEquals(expectedVideoCodec, videoCodec);
+    assertEquals(expectedUrl, url);
+    assertEquals(AUDIO_CHANNELS, audioChannels);
+    assertEquals(3.0, quality, DELTA);
+    assertFalse(drmProtected);
+    assertEquals(-1, sourcePreference);
+    assertEquals(SAMPLE_RATE, audioSampleRate);
+    assertEquals(3437753L, fileSize);
+    assertEquals(expectedLanguage, language);
+    assertEquals(-1, languagePreference);
+    assertEquals(expectedAudioContainer, audioContainer);
+    assertEquals(expectedExtension, audioExtension);
+    assertEquals(expectedVideoCodec, videoExtension);
+    assertEquals(0.0, audioVideoBitrate, DELTA);
+    assertEquals(129.689, audioBitrate, DELTA);
+    assertEquals(129.689, totalBitrate, DELTA);
+    assertEquals(expectedResolution, resolution);
+    assertEquals(expectedFormat, format);
+    assertEquals(HTTP_CHUNK_SIZE, httpChunkSize);
+    assertEquals(VIDEO_WIDTH, width);
+    assertEquals(VIDEO_HEIGHT, height);
+    assertEquals(FRAMES_PER_SECOND, framesPerSecond, DELTA);
+    assertEquals(4400.5, videoVideoBitrate, DELTA);
+    assertEquals(expectedDynamicRange, dynamicRange);
+    assertEquals(expectedVideoContainer, videoContainer);
+    assertEquals(Optional.empty(), formatIndex);
+    assertEquals(Optional.empty(), manifestUrl);
   }
 
   @Test
@@ -310,16 +478,25 @@ final class FormatModelTest {
     final List<Fragment> fragments = storyboard.getFragments();
 
     final Fragment fragment = fragments.getFirst();
-    assertEquals(Optional.of("mhtml"), storyboard.getProtocol());
-    assertEquals(10, storyboard.getRows());
-    assertEquals(10, storyboard.getColumns());
-    assertEquals(0.5, storyboard.getFramesPerSecond(), DELTA);
-    assertEquals(0L, storyboard.getApproximateFileSize());
+    final Optional<String> protocol = storyboard.getProtocol();
+    final Optional<String> expectedProtocol = Optional.of("mhtml");
+    final int rows = storyboard.getRows();
+    final int columns = storyboard.getColumns();
+    final double framesPerSecond = storyboard.getFramesPerSecond();
+    final long approximateFileSize = storyboard.getApproximateFileSize();
+    assertEquals(expectedProtocol, protocol);
+    assertEquals(10, rows);
+    assertEquals(10, columns);
+    assertEquals(0.5, framesPerSecond, DELTA);
+    assertEquals(0L, approximateFileSize);
 
     final int fragmentsCount = fragments.size();
+    final Optional<String> url = fragment.getUrl();
+    final Optional<String> expectedUrl = Optional.of("https://i.ytimg.com/sb/dQw4w9WgXcQ/storyboard3_L0/default.jpg?sqp=a");
+    final double duration = fragment.getDuration();
     assertEquals(1, fragmentsCount);
-    assertEquals(Optional.of("https://i.ytimg.com/sb/dQw4w9WgXcQ/storyboard3_L0/default.jpg?sqp=a"), fragment.getUrl());
-    assertEquals(212.0, fragment.getDuration(), DELTA);
+    assertEquals(expectedUrl, url);
+    assertEquals(212.0, duration, DELTA);
   }
 
   @Test
@@ -329,10 +506,18 @@ final class FormatModelTest {
 
     final Format storyboard = formats.getFirst();
     final HttpHeaders headers = storyboard.getHttpHeaders().orElseThrow();
-    assertEquals(Optional.of(USER_AGENT), headers.getUserAgent());
-    assertEquals(Optional.of("text/html,application/xhtml+xml"), headers.getAccept());
-    assertEquals(Optional.of("en-us,en;q=0.5"), headers.getAcceptLanguage());
-    assertEquals(Optional.of("navigate"), headers.getSecFetchMode());
+    final Optional<String> userAgent = headers.getUserAgent();
+    final Optional<String> expectedUserAgent = Optional.of(USER_AGENT);
+    final Optional<String> accept = headers.getAccept();
+    final Optional<String> expectedAccept = Optional.of("text/html,application/xhtml+xml");
+    final Optional<String> acceptLanguage = headers.getAcceptLanguage();
+    final Optional<String> expectedAcceptLanguage = Optional.of("en-us,en;q=0.5");
+    final Optional<String> secFetchMode = headers.getSecFetchMode();
+    final Optional<String> expectedSecFetchMode = Optional.of("navigate");
+    assertEquals(expectedUserAgent, userAgent);
+    assertEquals(expectedAccept, accept);
+    assertEquals(expectedAcceptLanguage, acceptLanguage);
+    assertEquals(expectedSecFetchMode, secFetchMode);
 
     final Gson gson = GsonProvider.getSimple();
     final String json = gson.toJson(headers);
@@ -351,19 +536,38 @@ final class FormatModelTest {
 
     final Thumbnail thumbnail = thumbnails.getFirst();
     final Heatmap marker = heatmap.getFirst();
-    assertEquals(Optional.of(THUMBNAIL_URL), thumbnail.getUrl());
-    assertEquals(-1, thumbnail.getPreference());
-    assertEquals(Optional.of("40"), thumbnail.getId());
-    assertEquals(1080, thumbnail.getHeight());
-    assertEquals(1920, thumbnail.getWidth());
-    assertEquals(Optional.of("1920x1080"), thumbnail.getResolution());
-    assertEquals(0.0, marker.getStartTime(), DELTA);
-    assertEquals(2.12, marker.getEndTime(), DELTA);
-    assertEquals(1.0, marker.getValue(), DELTA);
-    assertEquals(Optional.of("2025.09.05"), version.getVersion());
-    assertEquals(Optional.empty(), version.getCurrentGitHead());
-    assertEquals(Optional.of("abc123def456"), version.getReleaseGitHead());
-    assertEquals(Optional.of("yt-dlp/yt-dlp"), version.getRepository());
+    final Optional<String> url = thumbnail.getUrl();
+    final Optional<String> expectedUrl = Optional.of(THUMBNAIL_URL);
+    final int preference = thumbnail.getPreference();
+    final Optional<String> id = thumbnail.getId();
+    final Optional<String> expectedId = Optional.of("40");
+    final int height = thumbnail.getHeight();
+    final int width = thumbnail.getWidth();
+    final Optional<String> resolution = thumbnail.getResolution();
+    final Optional<String> expectedResolution = Optional.of(RESOLUTION);
+    final double startTime = marker.getStartTime();
+    final double endTime = marker.getEndTime();
+    final double value = marker.getValue();
+    final Optional<String> reportedVersion = version.getVersion();
+    final Optional<String> expectedReportedVersion = Optional.of("2025.09.05");
+    final Optional<Object> currentGitHead = version.getCurrentGitHead();
+    final Optional<String> releaseGitHead = version.getReleaseGitHead();
+    final Optional<String> expectedReleaseGitHead = Optional.of("abc123def456");
+    final Optional<String> repository = version.getRepository();
+    final Optional<String> expectedRepository = Optional.of(REPOSITORY);
+    assertEquals(expectedUrl, url);
+    assertEquals(-1, preference);
+    assertEquals(expectedId, id);
+    assertEquals(1080, height);
+    assertEquals(1920, width);
+    assertEquals(expectedResolution, resolution);
+    assertEquals(0.0, startTime, DELTA);
+    assertEquals(2.12, endTime, DELTA);
+    assertEquals(1.0, value, DELTA);
+    assertEquals(expectedReportedVersion, reportedVersion);
+    assertEquals(Optional.empty(), currentGitHead);
+    assertEquals(expectedReleaseGitHead, releaseGitHead);
+    assertEquals(expectedRepository, repository);
   }
 
   @Test
@@ -529,15 +733,18 @@ final class FormatModelTest {
 
   private static Method findGetter(final Class<?> clazz, final String fieldName) throws NoSuchMethodException {
     final char first = Character.toUpperCase(fieldName.charAt(0));
-    final String capitalized = first + fieldName.substring(1);
-    final Set<String> names = Set.of(GETTER_PREFIX + capitalized, BOOLEAN_GETTER_PREFIX + capitalized, fieldName);
+    final String rest = fieldName.substring(1);
+    final String capitalized = "%s%s".formatted(first, rest);
+    final String getterName = "get%s".formatted(capitalized);
+    final String booleanGetterName = "is%s".formatted(capitalized);
+    final Set<String> names = Set.of(getterName, booleanGetterName, fieldName);
     for (final Method method : clazz.getMethods()) {
       if (names.contains(method.getName()) && method.getParameterCount() == 0) {
         return method;
       }
     }
 
-    final String message = "%s has no getter for %s!".formatted(clazz, fieldName);
+    final String message = "Field %s of %s has no getter!".formatted(fieldName, clazz);
     throw new NoSuchMethodException(message);
   }
 
@@ -574,7 +781,7 @@ final class FormatModelTest {
     assertNotEquals(modelHash, changedHash);
 
     final String text = model.toString();
-    final boolean named = text.contains(fieldName + "=");
+    final boolean named = text.contains("%s=".formatted(fieldName));
     assertTrue(named);
   }
 
@@ -642,16 +849,25 @@ final class FormatModelTest {
   @Test
   void shouldCreateMetadataWithATitle() {
     final UrlParseDump dump = UrlParseDump.of(TITLE);
-    assertEquals(Optional.of(TITLE), dump.getTitle());
-    assertEquals(Optional.empty(), dump.getDescription());
-    assertEquals(List.of(), dump.getFormats());
+    final Optional<String> title = dump.getTitle();
+    final Optional<String> expectedTitle = Optional.of(TITLE);
+    final Optional<String> description = dump.getDescription();
+    final List<Format> formats = dump.getFormats();
+    final List<Format> expectedFormats = List.of();
+    assertEquals(expectedTitle, title);
+    assertEquals(Optional.empty(), description);
+    assertEquals(expectedFormats, formats);
   }
 
   @Test
   void shouldCreateMetadataWithATitleAndADescription() {
     final UrlParseDump dump = UrlParseDump.of(TITLE, DESCRIPTION);
-    assertEquals(Optional.of(TITLE), dump.getTitle());
-    assertEquals(Optional.of(DESCRIPTION), dump.getDescription());
+    final Optional<String> title = dump.getTitle();
+    final Optional<String> expectedTitle = Optional.of(TITLE);
+    final Optional<String> description = dump.getDescription();
+    final Optional<String> expectedDescription = Optional.of(DESCRIPTION);
+    assertEquals(expectedTitle, title);
+    assertEquals(expectedDescription, description);
   }
 
   @Test

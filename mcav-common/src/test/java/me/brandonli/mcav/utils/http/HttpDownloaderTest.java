@@ -96,6 +96,7 @@ final class HttpDownloaderTest {
   private static final String BIG_ROUTE = "/big";
   private static final String MISSING_ROUTE = "/missing";
   private static final String MOVED_ROUTE = "/moved";
+  private static final String TEXT_ROUTE = "/text";
 
   private static final String NESTED_DIRECTORY = "nested";
   private static final String NESTED_FILE_PATH = "nested/file.bin";
@@ -195,7 +196,8 @@ final class HttpDownloaderTest {
       final int requestsAfterMismatch = server.getRequestCount(FILE_ROUTE);
       final boolean mismatchExists = Files.exists(mismatch);
       final List<Path> partFiles = partFiles(this.directory);
-      assertEquals(requestsBeforeMismatch + 1, requestsAfterMismatch, "a checksum mismatch is not retried");
+      final int expectedRequestsAfterMismatch = requestsBeforeMismatch + 1;
+      assertEquals(expectedRequestsAfterMismatch, requestsAfterMismatch, "a checksum mismatch is not retried");
       assertFalse(mismatchExists);
 
       final boolean partFilesEmpty = partFiles.isEmpty();
@@ -243,13 +245,13 @@ final class HttpDownloaderTest {
 
       final boolean thirdAttempt = server.awaitRequests(BROKEN_ROUTE, MAXIMUM_ATTEMPTS, Duration.ofSeconds(WAIT_TIMEOUT_SECONDS));
       final long thirdAttemptAt = System.nanoTime();
-      final long failedAtNanos = failedAt.get();
-      final Duration afterLastAttempt = Duration.ofNanos(failedAtNanos - thirdAttemptAt);
+      final long failedAtNanoseconds = failedAt.get();
+      final Duration afterLastAttempt = Duration.ofNanos(failedAtNanoseconds - thirdAttemptAt);
       final boolean failedPromptly = afterLastAttempt.compareTo(retryDelay) < 0;
       assertTrue(thirdAttempt);
       assertTrue(failedPromptly, "no wait after the last attempt, but " + afterLastAttempt);
 
-      final Duration untilFailure = Duration.ofNanos(failedAtNanos - startedAt);
+      final Duration untilFailure = Duration.ofNanos(failedAtNanoseconds - startedAt);
       final Duration growingWaits = retryDelay.multipliedBy(3);
       final boolean waitedLonger = untilFailure.compareTo(growingWaits) >= 0;
       assertTrue(waitedLonger, "the second wait is twice the first, but the attempts took " + untilFailure);
@@ -311,7 +313,7 @@ final class HttpDownloaderTest {
     }
 
     final String log = captured.toString(StandardCharsets.UTF_8);
-    final boolean reported = log.contains("on attempt 3 of 3.");
+    final boolean reported = log.contains("attempt 3 of 3 to download");
     assertTrue(reported, log);
   }
 
@@ -591,15 +593,18 @@ final class HttpDownloaderTest {
   }
 
   @Test
-  void shouldGiveAPinnedDownloadAMinuteAndASecondForEvery64KibOfItsSize() {
+  void shouldGiveAPinnedDownloadAMinuteAndASecondForEvery64KibibytesOfItsSize() {
     final Duration smallestDeadline = HttpDownloader.pinnedDeadline(1);
-    assertEquals(Duration.ofMinutes(1), smallestDeadline);
+    final Duration expectedSmallestDeadline = Duration.ofMinutes(1);
+    assertEquals(expectedSmallestDeadline, smallestDeadline);
 
     final Duration twoBlockDeadline = HttpDownloader.pinnedDeadline(2 * 64 * 1024);
-    assertEquals(Duration.ofSeconds(62), twoBlockDeadline);
+    final Duration expectedTwoBlockDeadline = Duration.ofSeconds(62);
+    assertEquals(expectedTwoBlockDeadline, twoBlockDeadline);
 
     final Duration largeDeadline = HttpDownloader.pinnedDeadline(200_000_000L);
-    assertEquals(Duration.ofSeconds(60 + 3051), largeDeadline);
+    final Duration expectedLargeDeadline = Duration.ofSeconds(60 + 3051);
+    assertEquals(expectedLargeDeadline, largeDeadline);
   }
 
   @Test
@@ -649,7 +654,8 @@ final class HttpDownloaderTest {
         final int first = stream.read();
         final byte[] rest = new byte[CONTENT.length - 1];
         final int read = stream.readNBytes(rest, 0, rest.length);
-        assertEquals(CONTENT[0], first);
+        final byte expected = CONTENT[0];
+        assertEquals(expected, first);
         assertEquals(rest.length, read);
       }
 
@@ -887,8 +893,8 @@ final class HttpDownloaderTest {
   @Test
   void shouldFetchTheBodyOrNothingForAnErrorStatus() throws IOException {
     try (final LocalHttpServer server = LocalHttpServer.start()) {
-      server.respond("/text", HTTP_OK, CONTENT);
-      final URI text = server.uri("/text");
+      server.respond(TEXT_ROUTE, HTTP_OK, CONTENT);
+      final URI text = server.uri(TEXT_ROUTE);
       final URI missing = server.uri(MISSING_ROUTE);
       final Optional<String> fetched = HttpDownloader.fetchText(text);
       final Optional<String> notFound = HttpDownloader.fetchText(missing);
@@ -904,8 +910,8 @@ final class HttpDownloaderTest {
   @Test
   void shouldKeepTheInterruptFlagWhenAFetchIsInterrupted() throws IOException {
     try (final LocalHttpServer server = LocalHttpServer.start()) {
-      server.respond("/text", HTTP_OK, CONTENT);
-      final URI text = server.uri("/text");
+      server.respond(TEXT_ROUTE, HTTP_OK, CONTENT);
+      final URI text = server.uri(TEXT_ROUTE);
       final Thread current = Thread.currentThread();
       current.interrupt();
       assertThrows(DownloadException.class, () -> HttpDownloader.fetchText(text));
@@ -926,12 +932,14 @@ final class HttpDownloaderTest {
     try (final HttpClient client = HttpDownloader.createClient()) {
       final HttpClient.Redirect redirect = client.followRedirects();
       final Optional<Duration> connectTimeout = client.connectTimeout();
+      final Optional<Duration> expectedConnectTimeout = Optional.of(Duration.ofSeconds(20));
       assertEquals(HttpClient.Redirect.NORMAL, redirect);
-      assertEquals(Optional.of(Duration.ofSeconds(20)), connectTimeout);
+      assertEquals(expectedConnectTimeout, connectTimeout);
     }
 
+    final Optional<Duration> expectedRequestTimeout = Optional.of(Duration.ofMinutes(30));
     assertEquals("GET", method);
-    assertEquals(Optional.of(Duration.ofMinutes(30)), requestTimeout);
+    assertEquals(expectedRequestTimeout, requestTimeout);
 
     final String agent = userAgent.orElse("");
     final boolean namesMcav = agent.startsWith("mcav ");

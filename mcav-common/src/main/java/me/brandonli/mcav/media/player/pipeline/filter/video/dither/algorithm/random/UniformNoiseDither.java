@@ -17,9 +17,10 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.random;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import java.util.Objects;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherUtils;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.AbstractDitherAlgorithm;
@@ -86,13 +87,13 @@ public final class UniformNoiseDither extends AbstractDitherAlgorithm implements
   }
 
   private static void checkWeight(final int weight) {
-    Preconditions.checkArgument(weight >= 0 && weight <= MAXIMUM_WEIGHT, "Weight must be between 0 and 255!");
+    Preconditions.checkArgument(weight >= 0 && weight <= MAXIMUM_WEIGHT, "Weight must be between 0 and 255 inclusive!");
   }
 
   @VisibleForTesting
   RandomNumberProvider getRandomNumberProvider() {
     final RandomNumberProvider provider = this.providers.get();
-    return Objects.requireNonNull(provider, "Every thread gets a provider from the initial value!");
+    return requireNonNull(provider, "Every thread gets a provider from the initial value!");
   }
 
   /**

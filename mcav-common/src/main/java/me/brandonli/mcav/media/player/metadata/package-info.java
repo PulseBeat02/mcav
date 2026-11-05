@@ -18,10 +18,10 @@
 /**
  * Carries immutable snapshots of source audio and video properties alongside pipeline data.
  *
- * <p>Original metadata continues to describe the decoder's input properties after filters transform a frame.
- * Read the current image's dimensions when a preceding filter may have resized it. Audio samples always use
- * {@link me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter}'s normalized PCM format even when
- * source metadata describes another sample rate or channel count.
+ * <p>{@link OriginalVideoMetadata} and {@link OriginalAudioMetadata} continue to describe the decoder's input
+ * properties after filters transform a frame. Read the current image's dimensions when a preceding filter may have
+ * resized it. Audio samples always use {@link me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter}'s
+ * normalized PCM format even when source metadata describes another sample rate or channel count.
  *
  * <p>Factories validate positive dimensions, sample rate and channel count where applicable. Bitrates, video
  * frame rates and sample-format identifiers are retained without validation; {@code UNKNOWN} denotes unavailable

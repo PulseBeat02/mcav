@@ -59,9 +59,10 @@ import uk.co.caprica.vlcj.binding.support.runtime.RuntimeUtil;
  *
  * @since 1.0.0
  */
-public class OsxNativeDiscoveryStrategy extends DirectoryProviderDiscoveryStrategy {
+public final class OsxNativeDiscoveryStrategy extends DirectoryProviderDiscoveryStrategy {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(OsxNativeDiscoveryStrategy.class);
+
   private static final String[] FILENAME_PATTERNS = new String[] { "libvlc\\.dylib", "libvlccore\\.dylib" };
   private static final List<Path> PLUGIN_DIRECTORIES = List.of(Path.of("..", "plugins"));
 
@@ -69,13 +70,13 @@ public class OsxNativeDiscoveryStrategy extends DirectoryProviderDiscoveryStrate
   private final Os operatingSystem;
 
   /**
-   * Constructs a strategy that searches vlcj's directories, publishes the plugin path with {@code setenv}, and
+   * Creates a strategy that searches vlcj's directories, publishes the plugin path with {@code setenv}, and
    * preloads the core library through JNA.
    *
    * @since 1.0.0
    */
   public OsxNativeDiscoveryStrategy() {
-    final EnvironmentSetter posixSetter = LinuxNativeDiscoveryStrategy.nativeSetter();
+    final EnvironmentSetter posixSetter = LinuxNativeDiscoveryStrategy.createNativeSetter();
     super(FILENAME_PATTERNS, PLUGIN_DIRECTORIES, posixSetter);
     this.corePreloader = OsxNativeDiscoveryStrategy::preloadCoreLibrary;
     this.operatingSystem = OsUtils.getOs();

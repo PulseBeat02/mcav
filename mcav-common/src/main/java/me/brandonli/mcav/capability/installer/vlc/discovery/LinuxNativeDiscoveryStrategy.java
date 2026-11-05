@@ -50,7 +50,7 @@ import me.brandonli.mcav.utils.os.OsUtils;
  *
  * @since 1.0.0
  */
-public class LinuxNativeDiscoveryStrategy extends DirectoryProviderDiscoveryStrategy {
+public final class LinuxNativeDiscoveryStrategy extends DirectoryProviderDiscoveryStrategy {
 
   private static final String[] FILENAME_PATTERNS = new String[] { "libvlc\\.so(?:\\.\\d+)*", "libvlccore\\.so(?:\\.\\d+)*" };
   private static final List<Path> PLUGIN_DIRECTORIES = List.of(Path.of("plugins"), Path.of("vlc", "plugins"));
@@ -58,12 +58,12 @@ public class LinuxNativeDiscoveryStrategy extends DirectoryProviderDiscoveryStra
   private final Os operatingSystem;
 
   /**
-   * Constructs a strategy that searches vlcj's directories and publishes the plugin path with {@code setenv}.
+   * Creates a strategy that searches vlcj's directories and publishes the plugin path with {@code setenv}.
    *
    * @since 1.0.0
    */
   public LinuxNativeDiscoveryStrategy() {
-    final EnvironmentSetter posixSetter = nativeSetter();
+    final EnvironmentSetter posixSetter = createNativeSetter();
     super(FILENAME_PATTERNS, PLUGIN_DIRECTORIES, posixSetter);
     this.operatingSystem = OsUtils.getOs();
   }
@@ -77,8 +77,8 @@ public class LinuxNativeDiscoveryStrategy extends DirectoryProviderDiscoveryStra
     this.operatingSystem = operatingSystem;
   }
 
-  static EnvironmentSetter nativeSetter() {
-    final EnvironmentVariables variables = EnvironmentVariables.nativeVariables();
+  static EnvironmentSetter createNativeSetter() {
+    final EnvironmentVariables variables = EnvironmentVariables.create();
     return variables::setPosixVariable;
   }
 

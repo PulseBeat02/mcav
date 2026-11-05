@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 /**
- * Bootstraps mcav, its optional modules, native dependencies and capability readiness.
+ * Bootstraps MCAV, its optional modules, native dependencies and capability readiness.
  *
  * <p>Obtain a fresh {@link me.brandonli.mcav.MCAVApi} with {@link me.brandonli.mcav.MCAV#api()}, install it once
  * for the application's lifetime and release it at shutdown. Stop caller-owned media players, servers and
@@ -28,8 +28,7 @@
  * so a query can race with shutdown. Failures of bootstrap are reported as
  * {@link me.brandonli.mcav.MCAVLoadingException}; a failed installation may be retried.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

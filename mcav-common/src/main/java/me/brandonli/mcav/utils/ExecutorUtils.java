@@ -35,10 +35,12 @@ import org.slf4j.LoggerFactory;
 public final class ExecutorUtils {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ExecutorUtils.class);
+
   private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(5);
 
   private ExecutorUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**
@@ -51,8 +53,6 @@ public final class ExecutorUtils {
    * @since 1.0.0
    */
   public static boolean shutdownExecutorGracefully(final ExecutorService service) {
-    Preconditions.checkNotNull(service, "Executor must not be null!");
-
     return shutdownExecutorGracefully(service, DEFAULT_TIMEOUT);
   }
 
@@ -86,8 +86,8 @@ public final class ExecutorUtils {
 
       return false;
     } catch (final InterruptedException exception) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
       service.shutdownNow();
 
       return false;

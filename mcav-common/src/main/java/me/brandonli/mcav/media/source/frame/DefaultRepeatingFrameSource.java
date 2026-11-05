@@ -66,7 +66,7 @@ public final class DefaultRepeatingFrameSource implements RepeatingFrameSource {
    * @since 1.0.0
    */
   @Override
-  public SampleSupplier supplyFrameSamples() {
+  public SampleSupplier getSampleSupplier() {
     return this::nextSamples;
   }
 

@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.capability.installer.vlc.installation;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -32,7 +34,6 @@ import java.util.stream.Stream;
 import me.brandonli.mcav.capability.installer.InstallationException;
 import me.brandonli.mcav.capability.installer.vlc.VlcInstaller;
 import me.brandonli.mcav.utils.FileOperationException;
-import me.brandonli.mcav.utils.IoUtils;
 import me.brandonli.mcav.utils.runtime.CommandTask;
 import me.brandonli.mcav.utils.runtime.ProcessException;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -48,6 +49,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public abstract class ManualInstallationStrategy implements InstallationStrategy {
 
   private static final int MAXIMUM_SEARCH_DEPTH = 8;
+
   private static final Duration TOOL_TIMEOUT = Duration.ofMinutes(10);
   private static final ProcessRunner COMMAND_RUNNER = ManualInstallationStrategy::runCommand;
 
@@ -55,7 +57,7 @@ public abstract class ManualInstallationStrategy implements InstallationStrategy
   private final ProcessRunner processRunner;
 
   /**
-   * Constructs a new strategy for the installer that runs external tools as child processes.
+   * Creates a new strategy for the installer that runs external tools as child processes.
    *
    * @param installer the installer whose installation directory is used
    * @throws NullPointerException if {@code installer} is null
@@ -66,7 +68,7 @@ public abstract class ManualInstallationStrategy implements InstallationStrategy
   }
 
   /**
-   * Constructs a new strategy for the installer that runs external tools through the specified runner.
+   * Creates a new strategy for the installer that runs external tools through the specified runner.
    *
    * @param installer     the installer whose installation directory is used
    * @param processRunner runs the external tools the installation needs
@@ -91,8 +93,8 @@ public abstract class ManualInstallationStrategy implements InstallationStrategy
    * @throws NullPointerException  if {@code root} or {@code pattern} is null
    * @since 1.0.0
    */
-  protected static Optional<Path> findLibraryDirectory(final Path root, final Pattern pattern) {
-    return findLibraryDirectory(root, pattern, new Pattern[0]);
+  protected Optional<Path> findLibraryDirectory(final Path root, final Pattern pattern) {
+    return this.findLibraryDirectory(root, pattern, new Pattern[0]);
   }
 
   /**
@@ -108,7 +110,7 @@ public abstract class ManualInstallationStrategy implements InstallationStrategy
    * @throws NullPointerException  if {@code root}, {@code pattern}, the companion array or a companion pattern is null
    * @since 1.0.0
    */
-  protected static Optional<Path> findLibraryDirectory(final Path root, final Pattern pattern, final Pattern... companions) {
+  protected Optional<Path> findLibraryDirectory(final Path root, final Pattern pattern, final Pattern... companions) {
     Preconditions.checkNotNull(root, "Root must not be null!");
     Preconditions.checkNotNull(pattern, "Pattern must not be null!");
     Preconditions.checkNotNull(companions, "Companion patterns must not be null!");
@@ -122,21 +124,21 @@ public abstract class ManualInstallationStrategy implements InstallationStrategy
     }
 
     try (final Stream<Path> files = Files.walk(root, MAXIMUM_SEARCH_DEPTH)) {
-      final Stream<Path> matching = files.filter(file -> matchesFileName(file, pattern));
+      final Stream<Path> matching = files.filter(file -> this.matchesFileName(file, pattern));
       final Iterator<Path> candidates = matching.iterator();
-      return findCompleteDirectory(candidates, companions);
+      return this.findCompleteDirectory(candidates, companions);
     } catch (final IOException exception) {
       final String message = "Directory %s could not be searched for the VLC libraries!".formatted(root);
       throw new InstallationException(message, exception);
     }
   }
 
-  private static Optional<Path> findCompleteDirectory(final Iterator<Path> candidates, final Pattern[] companions) throws IOException {
+  private Optional<Path> findCompleteDirectory(final Iterator<Path> candidates, final Pattern[] companions) throws IOException {
     while (candidates.hasNext()) {
       final Path library = candidates.next();
       final Path parentOrNull = library.getParent();
-      final Path parent = Objects.requireNonNull(parentOrNull, "A file found below a directory has a parent!");
-      if (Files.size(library) > 0 && containsCompanions(parent, companions)) {
+      final Path parent = requireNonNull(parentOrNull, "A file found below a directory has a parent!");
+      if (Files.size(library) > 0 && this.containsCompanions(parent, companions)) {
         return Optional.of(parent);
       }
     }
@@ -144,9 +146,9 @@ public abstract class ManualInstallationStrategy implements InstallationStrategy
     return Optional.empty();
   }
 
-  private static boolean containsCompanions(final Path directory, final Pattern[] companions) throws IOException {
+  private boolean containsCompanions(final Path directory, final Pattern[] companions) throws IOException {
     for (final Pattern companion : companions) {
-      if (!containsNonemptyLibrary(directory, companion)) {
+      if (!this.containsNonemptyLibrary(directory, companion)) {
         return false;
       }
     }
@@ -154,15 +156,15 @@ public abstract class ManualInstallationStrategy implements InstallationStrategy
     return true;
   }
 
-  private static boolean containsNonemptyLibrary(final Path directory, final Pattern pattern) throws IOException {
+  private boolean containsNonemptyLibrary(final Path directory, final Pattern pattern) throws IOException {
     try (final Stream<Path> files = Files.list(directory)) {
-      final Stream<Path> matching = files.filter(file -> matchesFileName(file, pattern));
+      final Stream<Path> matching = files.filter(file -> this.matchesFileName(file, pattern));
       final Iterator<Path> candidates = matching.iterator();
-      return containsNonemptyFile(candidates);
+      return this.containsNonemptyFile(candidates);
     }
   }
 
-  private static boolean containsNonemptyFile(final Iterator<Path> candidates) throws IOException {
+  private boolean containsNonemptyFile(final Iterator<Path> candidates) throws IOException {
     while (candidates.hasNext()) {
       final Path library = candidates.next();
       if (Files.size(library) > 0) {
@@ -173,7 +175,7 @@ public abstract class ManualInstallationStrategy implements InstallationStrategy
     return false;
   }
 
-  private static boolean matchesFileName(final Path file, final Pattern pattern) {
+  private boolean matchesFileName(final Path file, final Pattern pattern) {
     final Path fileName = file.getFileName();
     final String name = Objects.toString(fileName, "");
     final Matcher matcher = pattern.matcher(name);
@@ -203,22 +205,6 @@ public abstract class ManualInstallationStrategy implements InstallationStrategy
       final String message = "Installation tool %s failed!".formatted(command);
       throw new InstallationException(message, exception);
     }
-  }
-
-  /**
-   * Deletes a file or a directory tree. Missing paths are ignored, and symbolic links are deleted without following
-   * them, including links whose target no longer exists.
-   *
-   * @param path the file or directory to delete
-   * @throws FileOperationException if a file cannot be deleted
-   * @throws NullPointerException   if {@code path} is null
-   * @see IoUtils#deleteRecursively(Path)
-   * @since 1.0.0
-   */
-  public static void deleteRecursively(final Path path) {
-    Preconditions.checkNotNull(path, "Path must not be null!");
-
-    IoUtils.deleteRecursively(path);
   }
 
   /**
@@ -277,6 +263,6 @@ public abstract class ManualInstallationStrategy implements InstallationStrategy
      * @throws InstallationException if the tool cannot be started or exits with an error
      * @since 1.0.0
      */
-    void run(@Nullable Path workingDirectory, String... arguments);
+    void run(final @Nullable Path workingDirectory, final String... arguments);
   }
 }

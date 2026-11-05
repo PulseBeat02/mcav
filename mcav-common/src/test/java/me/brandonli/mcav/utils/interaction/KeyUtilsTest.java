@@ -36,7 +36,7 @@ final class KeyUtilsTest {
     final String replaced = KeyUtils.replaceKeysWithKeyCodes("a{ENTER}b{tab}");
     final String enter = KeyCode.ENTER.asString();
     final String tab = KeyCode.TAB.asString();
-    final String expected = "a" + enter + "b" + tab;
+    final String expected = "a%sb%s".formatted(enter, tab);
     assertEquals(expected, replaced);
   }
 
@@ -45,7 +45,7 @@ final class KeyUtilsTest {
     final String actual = KeyUtils.replaceKeysWithKeyCodes("{ENTER}{TAB}");
     final String enter = KeyCode.ENTER.asString();
     final String tab = KeyCode.TAB.asString();
-    final String expected = enter + tab;
+    final String expected = "%s%s".formatted(enter, tab);
     assertEquals(expected, actual);
   }
 

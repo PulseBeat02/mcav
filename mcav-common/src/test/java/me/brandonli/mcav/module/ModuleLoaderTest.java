@@ -43,6 +43,10 @@ final class ModuleLoaderTest {
 
   private static final AtomicInteger SEQUENCE = new AtomicInteger();
 
+  private static final String PORT_IN_USE_MESSAGE = "port in use!";
+  private static final String MISSING_CONFIGURATION_MESSAGE = "Missing configuration!";
+  private static final String SOCKET_CLOSED_MESSAGE = "socket already closed!";
+
   @Test
   void shouldStartModulesInRequestOrder() {
     final ModuleLoader loader = new ModuleLoader();
@@ -113,7 +117,7 @@ final class ModuleLoaderTest {
     final ModuleException exception = assertThrows(ModuleException.class, () -> loader.loadModules(FirstModule.class, NotAModule.class));
     final String message = exception.getMessage();
     final Collection<MCAVModule> modules = loader.getModules();
-    assertEquals("NotAModule does not implement MCAVModule!", message);
+    assertEquals("Class NotAModule does not implement MCAVModule!", message);
 
     final boolean modulesEmpty = modules.isEmpty();
     assertTrue(modulesEmpty);
@@ -258,7 +262,7 @@ final class ModuleLoaderTest {
     final String message = exception.getMessage();
     final Throwable cause = exception.getCause();
     final Collection<MCAVModule> modules = loader.getModules();
-    assertEquals("Missing configuration!", message);
+    assertEquals(MISSING_CONFIGURATION_MESSAGE, message);
     assertNull(cause);
 
     final boolean modulesEmpty = modules.isEmpty();
@@ -402,7 +406,7 @@ final class ModuleLoaderTest {
 
     final Throwable stopFailure = suppressed[0];
     final String stopMessage = stopFailure.getMessage();
-    assertEquals("socket already closed!", stopMessage);
+    assertEquals(SOCKET_CLOSED_MESSAGE, stopMessage);
   }
 
   @Test
@@ -492,7 +496,9 @@ final class ModuleLoaderTest {
     @Override
     public void stop() {
       super.stop();
-      throw new IllegalStateException("stop failed!");
+
+      final String message = "stop failed!";
+      throw new IllegalStateException(message);
     }
   }
 
@@ -501,7 +507,9 @@ final class ModuleLoaderTest {
     @Override
     public void stop() {
       super.stop();
-      throw new AssertionError("stop crashed!");
+
+      final String message = "stop crashed!";
+      throw new AssertionError(message);
     }
   }
 
@@ -522,7 +530,7 @@ final class ModuleLoaderTest {
 
     @Override
     public void start() {
-      throw new IllegalStateException("port in use!");
+      throw new IllegalStateException(PORT_IN_USE_MESSAGE);
     }
 
     @Override
@@ -545,7 +553,7 @@ final class ModuleLoaderTest {
     @Override
     public void start() {
       super.start();
-      throw new IllegalStateException("port in use!");
+      throw new IllegalStateException(PORT_IN_USE_MESSAGE);
     }
   }
 
@@ -589,7 +597,8 @@ final class ModuleLoaderTest {
     public String getModuleName() {
       final int starts = this.starts.get();
       if (starts != 0) {
-        throw new IllegalStateException("a failed module cannot describe itself!");
+        final String message = "a failed module cannot describe itself!";
+        throw new IllegalStateException(message);
       }
 
       return "asserting module";
@@ -634,7 +643,7 @@ final class ModuleLoaderTest {
     @Override
     public void start() {
       super.start();
-      throw new ModuleException("Missing configuration!");
+      throw new ModuleException(MISSING_CONFIGURATION_MESSAGE);
     }
   }
 
@@ -645,7 +654,7 @@ final class ModuleLoaderTest {
     @Override
     public void start() {
       super.start();
-      throw new IllegalStateException("port in use!");
+      throw new IllegalStateException(PORT_IN_USE_MESSAGE);
     }
 
     @Override
@@ -662,7 +671,7 @@ final class ModuleLoaderTest {
     @Override
     public void start() {
       super.start();
-      throw new ModuleException("Missing configuration!");
+      throw new ModuleException(MISSING_CONFIGURATION_MESSAGE);
     }
 
     @Override
@@ -676,19 +685,20 @@ final class ModuleLoaderTest {
 
     @Override
     public void start() {
-      throw new IllegalStateException("port in use!");
+      throw new IllegalStateException(PORT_IN_USE_MESSAGE);
     }
 
     @Override
     public void stop() {
-      throw new IllegalStateException("socket already closed!");
+      throw new IllegalStateException(SOCKET_CLOSED_MESSAGE);
     }
   }
 
   static final class ThrowingConstructorModule extends RecordingModule {
 
     ThrowingConstructorModule() {
-      throw new IllegalStateException("broken constructor!");
+      final String message = "broken constructor!";
+      throw new IllegalStateException(message);
     }
   }
 

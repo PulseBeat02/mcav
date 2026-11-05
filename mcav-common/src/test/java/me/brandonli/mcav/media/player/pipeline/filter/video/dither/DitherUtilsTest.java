@@ -43,9 +43,11 @@ final class DitherUtilsTest {
     final int white = DitherUtils.getLookupIndex(CHANNEL_MAXIMUM, CHANNEL_MAXIMUM, CHANNEL_MAXIMUM);
     final int mixed = DitherUtils.getLookupIndex(2, 4, 6);
     final int roundedDown = DitherUtils.getLookupIndex(3, 5, 7);
+    final int expectedWhite = (127 << 14) | (127 << 7) | 127;
+    final int expectedMixed = (1 << 14) | (2 << 7) | 3;
     assertEquals(0, black);
-    assertEquals((127 << 14) | (127 << 7) | 127, white);
-    assertEquals((1 << 14) | (2 << 7) | 3, mixed);
+    assertEquals(expectedWhite, white);
+    assertEquals(expectedMixed, mixed);
     assertEquals(mixed, roundedDown);
   }
 
@@ -107,7 +109,7 @@ final class DitherUtilsTest {
     assertEquals(0, transparent, "index 0 of the map palette is transparent");
 
     final boolean opaqueIndexReserved = opaqueIndex >= reserved;
-    assertTrue(opaqueIndexReserved, "opaque pixels never get a transparent index, got " + opaqueIndex);
+    assertTrue(opaqueIndexReserved, "opaque pixels never get a transparent index, got %s".formatted(opaqueIndex));
   }
 
   @Test
@@ -116,15 +118,17 @@ final class DitherUtilsTest {
     final byte green = DitherUtils.getBestColorIncludingTransparent(BLACK_RED_GREEN, 0xFF00FF00);
     final int[] pixels = { 0xFFFF0000, 0xFF00FF00 };
     final byte[] simplified = DitherUtils.simplify(BLACK_RED_GREEN, pixels);
+    final byte[] expected = new byte[] { 1, 2 };
     assertEquals(1, red, "a red pixel is red, which only holds if the red channel is read from bits 16 to 23");
     assertEquals(2, green, "and a green pixel is green, read from bits 8 to 15");
-    assertArrayEquals(new byte[] { 1, 2 }, simplified, "whole images read their channels from the same places");
+    assertArrayEquals(expected, simplified, "whole images read their channels from the same places");
   }
 
   @Test
   void shouldSimplifyWholeImages() {
     final byte[] indices = DitherUtils.simplify(BLACK_WHITE, new int[] { OPAQUE_BLACK, OPAQUE_WHITE, 0xFF101010 });
-    assertArrayEquals(new byte[] { 0, 1, 0 }, indices);
+    final byte[] expected = new byte[] { 0, 1, 0 };
+    assertArrayEquals(expected, indices);
     assertThrows(NullPointerException.class, () -> DitherUtils.simplify(null, new int[0]));
     assertThrows(NullPointerException.class, () -> DitherUtils.simplify(BLACK_WHITE, null));
   }

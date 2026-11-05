@@ -342,7 +342,9 @@ final class BackgroundInstallationTest {
     if (attempts.incrementAndGet() == 1) {
       started.countDown();
       Uninterruptibles.awaitUninterruptibly(finish);
-      throw new IllegalStateException("cancelled preparation ended late!");
+
+      final String message = "cancelled preparation ended late!";
+      throw new IllegalStateException(message);
     }
   }
 

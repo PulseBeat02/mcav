@@ -22,18 +22,16 @@ import com.google.common.base.Preconditions;
 import java.util.concurrent.TimeUnit;
 import java.util.function.LongSupplier;
 
-// Maps media timestamps onto the wall clock, so video and audio can be delivered at the right moment. The clock is
-// anchored the first time a timestamp is scheduled: that timestamp is considered "now". Later timestamps are due when
-// the same amount of media time has passed on the wall clock. The clock can be paused, which freezes it, and resumed,
-// which shifts the anchor by the paused duration so playback continues where it stopped. A large jump of the media
-// timestamps, such as after a stream discontinuity, re-anchors the clock. The clock can run faster or slower than the
-// wall clock, which makes later media due correspondingly sooner or later. All methods are thread-safe.
+// Maps media timestamps onto the wall clock. The first scheduled timestamp is "now"; a later one is due once as much
+// media time, scaled by the speed, has passed. A large timestamp jump re-anchors the clock. All methods are
+// thread-safe.
 final class PlaybackClock {
 
   static final double NORMAL_SPEED = 1.0;
 
   private static final long NANOSECONDS_PER_MICROSECOND = 1_000L;
-  private static final long RESYNC_THRESHOLD_NANOSECONDS = 2_000_000_000L;
+
+  private static final long DISCONTINUITY_THRESHOLD_NANOSECONDS = 2_000_000_000L;
 
   private final Object lock;
   private final LongSupplier nanosecondClock;
@@ -51,7 +49,7 @@ final class PlaybackClock {
     this.speed = NORMAL_SPEED;
   }
 
-  long dueAt(final long mediaMicroseconds) {
+  long schedule(final long mediaMicroseconds) {
     synchronized (this.lock) {
       final long now = this.paused ? this.pausedAtNanoseconds : this.nanosecondClock.getAsLong();
       if (!this.anchored) {
@@ -62,7 +60,7 @@ final class PlaybackClock {
       final long elapsedMedia = (mediaMicroseconds - this.anchorMediaMicroseconds) * NANOSECONDS_PER_MICROSECOND;
       final long due = this.anchorWallNanoseconds + Math.round(elapsedMedia / this.speed);
       final long lag = now - due;
-      final boolean discontinuity = Math.abs(lag) > RESYNC_THRESHOLD_NANOSECONDS;
+      final boolean discontinuity = Math.abs(lag) > DISCONTINUITY_THRESHOLD_NANOSECONDS;
       if (discontinuity) {
         this.anchor(mediaMicroseconds, now);
         return now;
@@ -76,28 +74,6 @@ final class PlaybackClock {
     this.anchored = true;
     this.anchorMediaMicroseconds = mediaMicroseconds;
     this.anchorWallNanoseconds = wallNanoseconds;
-  }
-
-  // Sets how fast media passes: at 2, a second of media is due every half second of wall time. The media due now stays
-  // due now, so the change applies to what follows; while paused, to what follows the pause.
-  void setSpeed(final double newSpeed) {
-    Preconditions.checkArgument(newSpeed > 0 && Double.isFinite(newSpeed), "Speed %s must be positive!", newSpeed);
-
-    synchronized (this.lock) {
-      if (this.anchored) {
-        final long now = this.paused ? this.pausedAtNanoseconds : this.nanosecondClock.getAsLong();
-        this.anchorMediaMicroseconds += Math.round(((now - this.anchorWallNanoseconds) * this.speed) / NANOSECONDS_PER_MICROSECOND);
-        this.anchorWallNanoseconds = now;
-      }
-
-      this.speed = newSpeed;
-    }
-  }
-
-  double getSpeed() {
-    synchronized (this.lock) {
-      return this.speed;
-    }
   }
 
   // Freezes the clock. Media scheduled while the clock is paused keeps its relative timing once the clock resumes.
@@ -149,16 +125,38 @@ final class PlaybackClock {
     }
   }
 
-  boolean isPaused() {
-    synchronized (this.lock) {
-      return this.paused;
-    }
-  }
-
   // Forgets the anchor, so the next scheduled timestamp becomes "now".
   void reset() {
     synchronized (this.lock) {
       this.anchored = false;
+    }
+  }
+
+  // Sets how fast media passes: at 2, a second of media is due every half second of wall time. The media due now stays
+  // due now, so the change applies to what follows; while paused, to what follows the pause.
+  void setSpeed(final double newSpeed) {
+    Preconditions.checkArgument(newSpeed > 0 && Double.isFinite(newSpeed), "Speed %s must be positive and finite!", newSpeed);
+
+    synchronized (this.lock) {
+      if (this.anchored) {
+        final long now = this.paused ? this.pausedAtNanoseconds : this.nanosecondClock.getAsLong();
+        this.anchorMediaMicroseconds += Math.round(((now - this.anchorWallNanoseconds) * this.speed) / NANOSECONDS_PER_MICROSECOND);
+        this.anchorWallNanoseconds = now;
+      }
+
+      this.speed = newSpeed;
+    }
+  }
+
+  double getSpeed() {
+    synchronized (this.lock) {
+      return this.speed;
+    }
+  }
+
+  boolean isPaused() {
+    synchronized (this.lock) {
+      return this.paused;
     }
   }
 }

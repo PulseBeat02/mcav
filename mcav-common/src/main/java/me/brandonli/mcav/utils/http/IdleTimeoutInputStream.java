@@ -41,6 +41,8 @@ final class IdleTimeoutInputStream extends InputStream {
 
   private static final int UNSIGNED_BYTE_MASK = 0xFF;
 
+  private static final boolean INTERRUPT_IF_RUNNING = true;
+
   private final InputStream delegate;
   private final Duration idleTimeout;
   private final ExecutorService reader;
@@ -80,7 +82,7 @@ final class IdleTimeoutInputStream extends InputStream {
     try {
       return pending.get(timeoutNanoseconds, TimeUnit.NANOSECONDS);
     } catch (final TimeoutException exception) {
-      pending.cancel(true);
+      pending.cancel(INTERRUPT_IF_RUNNING);
       this.delegate.close();
       final long timeoutMilliseconds = this.idleTimeout.toMillis();
       final String message = "No data was received for %s ms!".formatted(timeoutMilliseconds);
@@ -88,16 +90,18 @@ final class IdleTimeoutInputStream extends InputStream {
       timedOut.initCause(exception);
       throw timedOut;
     } catch (final InterruptedException exception) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
-      pending.cancel(true);
-      final InterruptedIOException interrupted = new InterruptedIOException("Interrupted while waiting for data!");
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+      pending.cancel(INTERRUPT_IF_RUNNING);
+
+      final String message = "Interrupted while waiting for data!";
+      final InterruptedIOException interrupted = new InterruptedIOException(message);
       interrupted.initCause(exception);
       throw interrupted;
     } catch (final ExecutionException exception) {
       final Throwable cause = exception.getCause();
-      if (cause instanceof final RuntimeException runtime) {
-        throw runtime;
+      if (cause instanceof final RuntimeException runtimeException) {
+        throw runtimeException;
       }
 
       if (cause instanceof final Error error) {
@@ -105,7 +109,7 @@ final class IdleTimeoutInputStream extends InputStream {
       }
 
       final String reason = exception.getMessage();
-      final String message = "Reading the response failed because of \"%s\"!".formatted(reason);
+      final String message = "Because of \"%s\", reading the response failed!".formatted(reason);
       throw new IOException(message, cause);
     }
   }

@@ -72,6 +72,8 @@ final class MCAVTest {
 
   private static final String TRACKED_MODULE_NAME = "tracked";
 
+  private static final String ALREADY_INSTALLED_MESSAGE = "MCAV has already been installed!";
+
   private final DependencyLoader dependencies = Mockito.mock(DependencyLoader.class);
   private final ModuleLoader modules = createSpiedModuleLoader();
   private final CapabilityGuard guard = new CapabilityGuard();
@@ -336,7 +338,7 @@ final class MCAVTest {
     final String message = exception.getMessage();
     final CountingModule module = this.mcav.getModule(CountingModule.class);
     final int starts = module.starts.get();
-    assertEquals("MCAV has already been installed!", message);
+    assertEquals(ALREADY_INSTALLED_MESSAGE, message);
     assertEquals(1, starts);
 
     this.awaitBackgroundInstallation();
@@ -358,7 +360,7 @@ final class MCAVTest {
     final String message = exception.getMessage();
     final CountingModule module = this.mcav.getModule(CountingModule.class);
     final int starts = module.starts.get();
-    assertEquals("MCAV has already been installed!", message);
+    assertEquals(ALREADY_INSTALLED_MESSAGE, message);
     assertEquals(1, starts);
 
     this.awaitBackgroundInstallation();
@@ -412,7 +414,7 @@ final class MCAVTest {
     final Collection<MCAVModule> afterFailure = this.modules.getModules();
     final int startsAfterFailure = TrackedModule.STARTS.get();
     final int stopsAfterFailure = TrackedModule.STOPS.get();
-    assertEquals("MCAV failed to install because of \"no natives!\"!", message);
+    assertEquals("Because of \"no natives!\", MCAV failed to install!", message);
     assertSame(failure, cause);
 
     final boolean afterFailureEmpty = afterFailure.isEmpty();
@@ -447,7 +449,7 @@ final class MCAVTest {
     final String message = exception.getMessage();
     final Throwable cause = exception.getCause();
     final Collection<MCAVModule> started = this.modules.getModules();
-    assertEquals("MCAV failed to install because of \"Module broken failed with \"port in use!\" while starting!\"!", message);
+    assertEquals("Because of \"Module broken failed with \"port in use!\" while starting!\", MCAV failed to install!", message);
     assertInstanceOf(ModuleException.class, cause);
 
     final boolean startedEmpty = started.isEmpty();
@@ -463,7 +465,7 @@ final class MCAVTest {
     final MCAVLoadingException exception = assertThrows(MCAVLoadingException.class, this.mcav::install);
     final String message = exception.getMessage();
     final Throwable cause = exception.getCause();
-    assertEquals("MCAV failed to install because of \"lost cause!\"!", message);
+    assertEquals("Because of \"lost cause!\", MCAV failed to install!", message);
     assertSame(failure, cause);
   }
 
@@ -646,7 +648,8 @@ final class MCAVTest {
 
     @Override
     public void start() {
-      throw new IllegalStateException("port in use!");
+      final String message = "port in use!";
+      throw new IllegalStateException(message);
     }
 
     @Override

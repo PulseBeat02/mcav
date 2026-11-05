@@ -74,6 +74,17 @@ final class ScriptedPlayerTest {
 
   private static final long SEEK_POSITION_MILLISECONDS = 1_000L;
 
+  private static final long MEDIA_LENGTH_MICROSECONDS = 10_000_000L;
+
+  private static final String VIDEO_START_FAILURE_MESSAGE = "Playback of video.mp4 could not be started.";
+
+  private static final String UNKNOWN_OPTION_MESSAGE = "unknown option!";
+
+  private static final String REPLACED_ONCE_OPEN_MESSAGE = "the current playback is only replaced once the new source is open";
+  private static final String DECODER_SEEKED_MESSAGE = "the decoder seeked";
+  private static final String NOTHING_PLAYS_YET_MESSAGE = "nothing plays yet";
+  private static final String SECOND_RELEASE_MESSAGE = "a second release has nothing left to release";
+
   private static Source file(final String name) {
     final Path path = Path.of(name);
     return FileSource.path(path);
@@ -87,7 +98,7 @@ final class ScriptedPlayerTest {
     }
 
     final ScriptedFrameGrabber grabber = new ScriptedFrameGrabber(FRAME_WIDTH, FRAME_HEIGHT, script);
-    grabber.setLength(10_000_000L);
+    grabber.setLength(MEDIA_LENGTH_MICROSECONDS);
     return grabber;
   }
 
@@ -159,7 +170,7 @@ final class ScriptedPlayerTest {
     final boolean playing = player.isPlaying();
     final ScriptedFrameGrabber grabber = player.getLatestGrabber();
     final boolean closed = grabber.isClosed();
-    final List<String> expected = List.of("Failed to start playback of video.mp4");
+    final List<String> expected = List.of(VIDEO_START_FAILURE_MESSAGE);
     assertFalse(started);
     assertFalse(playing);
     assertEquals(expected, reports);
@@ -180,7 +191,7 @@ final class ScriptedPlayerTest {
     assertFalse(started);
     assertFalse(playing);
     assertEquals(1, errorCount);
-    assertEquals("start failed on purpose", message, "the failure to close the grabber does not hide the reason");
+    assertEquals("Start failed on purpose!", message, "the failure to close the grabber does not hide the reason");
   }
 
   @Test
@@ -208,18 +219,18 @@ final class ScriptedPlayerTest {
     try {
       final boolean started = player.start(VIDEO);
       final ScriptedFrameGrabber playing = player.getLatestGrabber();
-      player.failNextOpen(new IllegalStateException("unknown option!"));
+      player.failNextOpen(new IllegalStateException(UNKNOWN_OPTION_MESSAGE));
       final boolean runtimeFailure = player.start(AUDIO);
       player.failNextOpen(new UnsatisfiedLinkError("natives are missing!"));
       final boolean linkageFailure = player.start(AUDIO);
 
       final boolean stillPlaying = player.isPlaying();
       final boolean currentClosed = playing.isClosed();
-      final List<String> expected = List.of("Failed to start playback of audio.m4a", "Failed to start playback of audio.m4a");
+      final List<String> expected = List.of("Playback of audio.m4a could not be started.", "Playback of audio.m4a could not be started.");
       assertTrue(started);
       assertFalse(runtimeFailure);
       assertFalse(linkageFailure);
-      assertTrue(stillPlaying, "the current playback is only replaced once the new source is open");
+      assertTrue(stillPlaying, REPLACED_ONCE_OPEN_MESSAGE);
       assertFalse(currentClosed);
       assertEquals(expected, reports);
     } finally {
@@ -295,7 +306,7 @@ final class ScriptedPlayerTest {
     player.pause();
     final boolean seeked = player.seek(2_500L);
     final ScriptedFrameGrabber latest = player.getLatestGrabber();
-    await("the decoder seeked", () -> latest.getRequestedTimestamp() == 2_500_000L);
+    await(DECODER_SEEKED_MESSAGE, () -> latest.getRequestedTimestamp() == 2_500_000L);
 
     final boolean pausedAfterSeek = player.pause();
     final boolean resumedAfterSeek = player.resume();
@@ -339,7 +350,7 @@ final class ScriptedPlayerTest {
       awaitEnd(player);
       final boolean seeked = player.seek(SEEK_POSITION_MILLISECONDS);
       final ScriptedFrameGrabber latest = player.getLatestGrabber();
-      await("the decoder seeked", () -> latest.getRequestedTimestamp() == 1_000_000L);
+      await(DECODER_SEEKED_MESSAGE, () -> latest.getRequestedTimestamp() == 1_000_000L);
 
       final List<String> opened = player.getOpenedResources();
       final List<String> expected = List.of(VIDEO_FILE_NAME, VIDEO_FILE_NAME);
@@ -352,7 +363,7 @@ final class ScriptedPlayerTest {
 
   private ScriptedFrameGrabber seekableTwoFrameVideo() {
     final ScriptedFrameGrabber grabber = this.twoFrameVideo();
-    grabber.setLength(10_000_000L);
+    grabber.setLength(MEDIA_LENGTH_MICROSECONDS);
     return grabber;
   }
 
@@ -364,15 +375,15 @@ final class ScriptedPlayerTest {
     try {
       player.start(VIDEO);
       final ScriptedFrameGrabber playing = player.getLatestGrabber();
-      player.failNextOpen(new IllegalStateException("unknown option!"));
+      player.failNextOpen(new IllegalStateException(UNKNOWN_OPTION_MESSAGE));
       final boolean seeked = player.seek(SEEK_POSITION_MILLISECONDS);
 
       final boolean stillPlaying = player.isPlaying();
       final boolean currentClosed = playing.isClosed();
       final boolean paused = player.pause();
-      final List<String> expected = List.of("Failed to start playback of video.mp4");
+      final List<String> expected = List.of(VIDEO_START_FAILURE_MESSAGE);
       assertFalse(seeked);
-      assertTrue(stillPlaying, "the current playback is only replaced once the new source is open");
+      assertTrue(stillPlaying, REPLACED_ONCE_OPEN_MESSAGE);
       assertFalse(currentClosed);
       assertTrue(paused);
       assertEquals(expected, reports);
@@ -396,18 +407,18 @@ final class ScriptedPlayerTest {
       await("sound twice as fast", () -> chunks.contains(960));
       final boolean seeked = player.seek(5_000L);
       final ScriptedFrameGrabber latest = player.getLatestGrabber();
-      await("the decoder seeked", () -> latest.getRequestedTimestamp() == 5_000_000L);
+      await(DECODER_SEEKED_MESSAGE, () -> latest.getRequestedTimestamp() == 5_000_000L);
       chunks.clear();
       await("sound after the seek", () -> !chunks.isEmpty());
       final double afterSeek = player.getSpeed();
       final boolean allFaster = chunks.stream().allMatch(size -> size == 960);
       player.start(VIDEO);
       final double newMedia = player.getSpeed();
-      assertFalse(idle, "nothing plays yet");
+      assertFalse(idle, NOTHING_PLAYS_YET_MESSAGE);
       assertTrue(faster);
       assertTrue(seeked);
       assertEquals(2, afterSeek, "a seek keeps the speed");
-      assertTrue(allFaster, "and the new session plays at it: " + chunks);
+      assertTrue(allFaster, "and the new session plays at it: %s".formatted(chunks));
       assertEquals(1, newMedia, "new media plays at normal speed");
       assertThrows(IllegalArgumentException.class, () -> player.setSpeed(AbstractVideoPlayerCv.MINIMUM_SPEED - 0.01));
       assertThrows(IllegalArgumentException.class, () -> player.setSpeed(AbstractVideoPlayerCv.MAXIMUM_SPEED + 0.01));
@@ -426,7 +437,7 @@ final class ScriptedPlayerTest {
       final boolean faster = player.setSpeed(2);
       final Duration timeout = Duration.ofSeconds(5);
       final boolean paused = assertTimeoutPreemptively(timeout, player::pause, "setting the speed lets go of the lock of the player");
-      assertFalse(idle, "nothing plays yet");
+      assertFalse(idle, NOTHING_PLAYS_YET_MESSAGE);
       assertTrue(faster);
       assertTrue(paused, "the endless video still plays");
     } finally {
@@ -470,7 +481,8 @@ final class ScriptedPlayerTest {
     player.release();
     assertEquals(160, width);
     assertEquals(90, height);
-    assertEquals(List.of(size), delivered, "the pipeline must receive a scaled frame, not just decoder configuration");
+    final List<Dimension> expected = List.of(size);
+    assertEquals(expected, delivered, "the pipeline must receive a scaled frame, not just decoder configuration");
   }
 
   private boolean recordSize(final ImageBuffer samples, final List<Dimension> delivered) {
@@ -504,10 +516,12 @@ final class ScriptedPlayerTest {
     final ScriptedFrameGrabber grabber = ScriptedFrameGrabber.of();
 
     final NullPointerException nullGrabber = assertThrows(NullPointerException.class, () -> player.configureGrabber(null, VIDEO));
-    assertEquals("Grabber must not be null!", nullGrabber.getMessage());
+    final String grabberMessage = nullGrabber.getMessage();
+    assertEquals("Grabber must not be null!", grabberMessage);
 
     final NullPointerException nullSource = assertThrows(NullPointerException.class, () -> player.configureGrabber(grabber, null));
-    assertEquals("Source must not be null!", nullSource.getMessage());
+    final String sourceMessage = nullSource.getMessage();
+    assertEquals("Source must not be null!", sourceMessage);
   }
 
   private static boolean controlOnTheExecutor(final ScriptedPlayer player, final ExecutorService executor) throws Exception {
@@ -542,11 +556,11 @@ final class ScriptedPlayerTest {
       assertTrue(anyRecorded);
 
       for (final String thread : executorThreads) {
-        assertEquals(EXECUTOR_THREAD, thread, "every call ran on the given executor: " + executorThreads);
+        assertEquals(EXECUTOR_THREAD, thread, "every call ran on the given executor: %s".formatted(executorThreads));
       }
 
       assertTrue(released);
-      assertFalse(releasedAgain, "a second release has nothing left to release");
+      assertFalse(releasedAgain, SECOND_RELEASE_MESSAGE);
     } finally {
       player.release();
       executor.shutdownNow();
@@ -583,7 +597,7 @@ final class ScriptedPlayerTest {
 
       for (final String thread : commonPoolThreads) {
         final boolean onCommonPool = thread.startsWith("ForkJoinPool.commonPool");
-        assertTrue(onCommonPool, "the calls without an executor ran on the common pool: " + thread);
+        assertTrue(onCommonPool, "the calls without an executor ran on the common pool: %s".formatted(thread));
       }
     } finally {
       player.release();
@@ -675,10 +689,10 @@ final class ScriptedPlayerTest {
     assertFalse(paused);
 
     final boolean releaseWaited = releaseNanoseconds > 1_000_000_000L;
-    assertTrue(releaseWaited, "release waits for the stuck decoder, took " + releaseNanoseconds);
+    assertTrue(releaseWaited, "release waits for the stuck decoder, took %s".formatted(releaseNanoseconds));
 
     final boolean pauseWasQuick = pauseNanoseconds < 500_000_000L;
-    assertTrue(pauseWasQuick, "other calls do not wait for the release, pause took " + pauseNanoseconds);
+    assertTrue(pauseWasQuick, "other calls do not wait for the release, pause took %s".formatted(pauseNanoseconds));
 
     final boolean pausedDuringRelease = pauseEnd < releasedAt;
     assertTrue(pausedDuringRelease, "the pause ran while the release was still waiting");
@@ -695,7 +709,7 @@ final class ScriptedPlayerTest {
     final boolean nothingOpened = opened.isEmpty();
     final boolean playing = player.isPlaying();
     assertTrue(firstRelease);
-    assertFalse(secondRelease, "a second release has nothing left to release");
+    assertFalse(secondRelease, SECOND_RELEASE_MESSAGE);
     assertFalse(started);
     assertFalse(startedBoth);
     assertTrue(nothingOpened, opened::toString);
@@ -732,8 +746,8 @@ final class ScriptedPlayerTest {
       final Throwable failure = this.nextOpenFailure;
       this.nextOpenFailure = null;
 
-      if (failure instanceof final RuntimeException exception) {
-        throw exception;
+      if (failure instanceof final RuntimeException runtimeException) {
+        throw runtimeException;
       }
 
       if (failure instanceof final Error error) {
@@ -754,7 +768,8 @@ final class ScriptedPlayerTest {
       super.configureGrabber(grabber, source);
 
       if (this.configurationFails) {
-        throw new IllegalArgumentException("invalid option!");
+        final String message = "invalid option!";
+        throw new IllegalArgumentException(message);
       }
     }
 

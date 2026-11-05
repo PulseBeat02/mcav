@@ -26,7 +26,7 @@ import java.net.URI;
  *
  * @since 1.0.0
  */
-public class HttpStatusException extends DownloadException {
+public final class HttpStatusException extends DownloadException {
 
   @Serial
   private static final long serialVersionUID = 4_319_027_551_202_837_465L;
@@ -38,7 +38,7 @@ public class HttpStatusException extends DownloadException {
   private final int statusCode;
 
   /**
-   * Constructs a new exception.
+   * Creates an exception for a request to {@code uri} that the server answered with {@code statusCode}.
    *
    * @param statusCode the status code the server answered with
    * @param uri        the URI that was requested

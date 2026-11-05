@@ -28,7 +28,6 @@ import java.io.IOException;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.DirectoryNotEmptyException;
 import java.nio.file.Files;
-import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
@@ -41,6 +40,7 @@ import me.brandonli.mcav.utils.FileOperationException;
 import me.brandonli.mcav.utils.os.Os;
 import me.brandonli.mcav.utils.os.OsUtils;
 import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -62,50 +62,46 @@ final class ManualInstallationStrategyTest {
 
   private static final String TREE_DIRECTORY_NAME = "tree";
   private static final String FILE_NAME = "file.txt";
-  private static final String TOP_FILE_NAME = "top.txt";
 
   private static final String TARGET_DIRECTORY_NAME = "target";
-  private static final String KEPT_FILE_NAME = "kept.txt";
   private static final String LINK_NAME = "link";
-  private static final String GONE_NAME = "gone";
-  private static final String DANGLING_LINK_NAME = "dangling";
 
   private static final String ARCHIVE_NAME = "archive.zip";
 
   private static final String WORK_DIRECTORY_NAME = "work";
   private static final String MARKER_NAME = "marker.txt";
 
-  private static final String LOCKED_DIRECTORY_NAME = "locked";
   private static final Set<PosixFilePermission> OWNER_PERMISSIONS = PosixFilePermissions.fromString("rwx------");
-  private static final Set<PosixFilePermission> READ_ONLY_PERMISSIONS = PosixFilePermissions.fromString("r-x------");
 
   @TempDir
   private Path temporaryDirectory;
 
+  private VlcInstaller installer;
+  private TestStrategy strategy;
+
+  @BeforeEach
+  void setUp() {
+    this.installer = VlcInstaller.create(this.temporaryDirectory);
+    this.strategy = new TestStrategy(this.installer);
+  }
+
   @Test
   void shouldExposeTheInstallerAndItsInstallationDirectory() {
-    final VlcInstaller installer = VlcInstaller.create(this.temporaryDirectory);
-    final TestStrategy strategy = new TestStrategy(installer);
-    final VlcInstaller strategyInstaller = strategy.getInstaller();
-    final Path installDirectory = strategy.getInstallDirectory();
+    final VlcInstaller strategyInstaller = this.strategy.getInstaller();
+    final Path installDirectory = this.strategy.getInstallDirectory();
     final Path expectedDirectory = this.temporaryDirectory.resolve(VLC_DIRECTORY_NAME);
-    assertSame(installer, strategyInstaller);
+    assertSame(this.installer, strategyInstaller);
     assertEquals(expectedDirectory, installDirectory);
   }
 
   @Test
   void shouldRejectMissingCollaborators() {
-    final VlcInstaller installer = VlcInstaller.create(this.temporaryDirectory);
     assertThrows(NullPointerException.class, () -> new TestStrategy(null));
-    assertThrows(NullPointerException.class, () -> new TestStrategy(installer, null));
-    assertThrows(NullPointerException.class, () -> ManualInstallationStrategy.findLibraryDirectory(null, LIBRARY));
-    assertThrows(NullPointerException.class, () -> ManualInstallationStrategy.findLibraryDirectory(this.temporaryDirectory, null));
-    assertThrows(NullPointerException.class, () ->
-      ManualInstallationStrategy.findLibraryDirectory(this.temporaryDirectory, LIBRARY, (Pattern[]) null)
-    );
-    assertThrows(NullPointerException.class, () ->
-      ManualInstallationStrategy.findLibraryDirectory(this.temporaryDirectory, LIBRARY, LIBRARY, null)
-    );
+    assertThrows(NullPointerException.class, () -> new TestStrategy(this.installer, null));
+    assertThrows(NullPointerException.class, () -> this.strategy.findLibraryDirectory(null, LIBRARY));
+    assertThrows(NullPointerException.class, () -> this.strategy.findLibraryDirectory(this.temporaryDirectory, null));
+    assertThrows(NullPointerException.class, () -> this.strategy.findLibraryDirectory(this.temporaryDirectory, LIBRARY, (Pattern[]) null));
+    assertThrows(NullPointerException.class, () -> this.strategy.findLibraryDirectory(this.temporaryDirectory, LIBRARY, LIBRARY, null));
   }
 
   @Test
@@ -114,7 +110,7 @@ final class ManualInstallationStrategyTest {
     final Path nested = this.temporaryDirectory.resolve(relativeNested);
     Files.createDirectories(nested);
     createFile(nested, LIBRARY_NAME);
-    final Optional<Path> found = ManualInstallationStrategy.findLibraryDirectory(this.temporaryDirectory, LIBRARY);
+    final Optional<Path> found = this.strategy.findLibraryDirectory(this.temporaryDirectory, LIBRARY);
     final Optional<Path> expected = Optional.of(nested);
     assertEquals(expected, found);
   }
@@ -122,7 +118,7 @@ final class ManualInstallationStrategyTest {
   @Test
   void shouldFindNothingInAMissingDirectory() throws IOException {
     final Path missing = this.temporaryDirectory.resolve(MISSING_NAME);
-    final Optional<Path> found = ManualInstallationStrategy.findLibraryDirectory(missing, LIBRARY);
+    final Optional<Path> found = this.strategy.findLibraryDirectory(missing, LIBRARY);
     final boolean nothingFound = found.isEmpty();
     assertTrue(nothingFound);
   }
@@ -132,7 +128,7 @@ final class ManualInstallationStrategyTest {
     createDirectory(this.temporaryDirectory, LIBRARY_NAME);
     createFile(this.temporaryDirectory, OLD_LIBRARY_NAME);
     createFile(this.temporaryDirectory, PREFIXED_LIBRARY_NAME);
-    final Optional<Path> found = ManualInstallationStrategy.findLibraryDirectory(this.temporaryDirectory, LIBRARY);
+    final Optional<Path> found = this.strategy.findLibraryDirectory(this.temporaryDirectory, LIBRARY);
     final boolean nothingFound = found.isEmpty();
     assertTrue(nothingFound);
   }
@@ -144,8 +140,8 @@ final class ManualInstallationStrategyTest {
     final Path nineDeep = nest(other, 7);
     createFile(eightDeep, LIBRARY_NAME);
     createFile(nineDeep, CORE_LIBRARY_NAME);
-    final Optional<Path> reachable = ManualInstallationStrategy.findLibraryDirectory(this.temporaryDirectory, LIBRARY);
-    final Optional<Path> unreachable = ManualInstallationStrategy.findLibraryDirectory(this.temporaryDirectory, CORE_LIBRARY);
+    final Optional<Path> reachable = this.strategy.findLibraryDirectory(this.temporaryDirectory, LIBRARY);
+    final Optional<Path> unreachable = this.strategy.findLibraryDirectory(this.temporaryDirectory, CORE_LIBRARY);
     final Optional<Path> expected = Optional.of(eightDeep);
     final boolean nothingUnreachableFound = unreachable.isEmpty();
     assertEquals(expected, reachable);
@@ -159,105 +155,28 @@ final class ManualInstallationStrategyTest {
     final Path tree = createDirectory(this.temporaryDirectory, TREE_DIRECTORY_NAME);
     final Path link = tree.resolve(LINK_NAME);
     createLinkOrAbort(link, target);
-    final Optional<Path> found = ManualInstallationStrategy.findLibraryDirectory(tree, LIBRARY);
+    final Optional<Path> found = this.strategy.findLibraryDirectory(tree, LIBRARY);
     final boolean nothingFound = found.isEmpty();
     assertTrue(nothingFound);
   }
 
   @Test
-  void shouldDeleteWholeDirectoryTrees() throws IOException {
-    final Path tree = this.temporaryDirectory.resolve(TREE_DIRECTORY_NAME);
-    final Path deep = nest(tree, 3);
-    createFile(deep, FILE_NAME);
-    createFile(tree, TOP_FILE_NAME);
-    ManualInstallationStrategy.deleteRecursively(tree);
-    final boolean exists = Files.exists(tree);
-    assertFalse(exists);
-  }
-
-  @Test
-  void shouldDeleteSingleFilesAndIgnoreMissingPaths() throws IOException {
-    final Path file = createFile(this.temporaryDirectory, FILE_NAME);
-    final Path missing = this.temporaryDirectory.resolve(MISSING_NAME);
-    ManualInstallationStrategy.deleteRecursively(file);
-    ManualInstallationStrategy.deleteRecursively(missing);
-    final boolean fileExists = Files.exists(file);
-    assertFalse(fileExists);
-  }
-
-  @Test
-  void shouldDeleteLinksWithoutTouchingTheirTargets() throws IOException {
-    final Path target = createDirectory(this.temporaryDirectory, TARGET_DIRECTORY_NAME);
-    final Path kept = createFile(target, KEPT_FILE_NAME);
-    final Path tree = createDirectory(this.temporaryDirectory, TREE_DIRECTORY_NAME);
-    final Path link = tree.resolve(LINK_NAME);
-    createLinkOrAbort(link, target);
-    ManualInstallationStrategy.deleteRecursively(tree);
-    final boolean treeExists = Files.exists(tree);
-    final boolean keptExists = Files.exists(kept);
-    assertFalse(treeExists);
-    assertTrue(keptExists);
-  }
-
-  @Test
-  void shouldDeleteLinksWhoseTargetIsGone() throws IOException {
-    final Path gone = this.temporaryDirectory.resolve(GONE_NAME);
-    final Path link = this.temporaryDirectory.resolve(DANGLING_LINK_NAME);
-    createLinkOrAbort(link, gone);
-    ManualInstallationStrategy.deleteRecursively(link);
-    final boolean linkExists = Files.exists(link, LinkOption.NOFOLLOW_LINKS);
-    assertFalse(linkExists, "a dangling link does not exist when followed, but is deleted all the same");
-    assertThrows(NullPointerException.class, () -> ManualInstallationStrategy.deleteRecursively(null));
-  }
-
-  @Test
   void shouldDeleteAFileThroughTheInstanceHelper() throws IOException {
-    final VlcInstaller installer = VlcInstaller.create(this.temporaryDirectory);
-    final TestStrategy strategy = new TestStrategy(installer);
     final Path file = createFile(this.temporaryDirectory, ARCHIVE_NAME);
-    strategy.deleteFile(file);
-    strategy.deleteFile(file);
+    this.strategy.deleteFile(file);
+    this.strategy.deleteFile(file);
     final boolean exists = Files.exists(file);
     assertFalse(exists);
-    assertThrows(NullPointerException.class, () -> strategy.deleteFile(null));
+    assertThrows(NullPointerException.class, () -> this.strategy.deleteFile(null));
   }
 
   @Test
   void shouldReportADirectoryThatCannotBeDeletedAsAFile() throws IOException {
-    final VlcInstaller installer = VlcInstaller.create(this.temporaryDirectory);
-    final TestStrategy strategy = new TestStrategy(installer);
     final Path tree = Files.createDirectory(this.temporaryDirectory.resolve(TREE_DIRECTORY_NAME));
     createFile(tree, FILE_NAME);
-    final FileOperationException thrown = assertThrows(FileOperationException.class, () -> strategy.deleteFile(tree));
+    final FileOperationException thrown = assertThrows(FileOperationException.class, () -> this.strategy.deleteFile(tree));
     final Throwable cause = thrown.getCause();
     assertInstanceOf(DirectoryNotEmptyException.class, cause);
-  }
-
-  @Test
-  void shouldReportATreeThatCannotBeDeleted() throws IOException {
-    final Path tree = createDirectory(this.temporaryDirectory, TREE_DIRECTORY_NAME);
-    final Path locked = createDirectory(tree, LOCKED_DIRECTORY_NAME);
-    final Path file = createFile(locked, FILE_NAME);
-    final Os operatingSystem = OsUtils.getOs();
-    final boolean posix = operatingSystem != Os.WINDOWS;
-    Assumptions.assumeTrue(posix, "Directory permissions need a POSIX file system!");
-
-    Files.setPosixFilePermissions(locked, READ_ONLY_PERMISSIONS);
-    try {
-      final boolean writable = Files.isWritable(locked);
-      Assumptions.assumeFalse(writable, "The user can write every directory!");
-
-      final FileOperationException thrown = assertThrows(FileOperationException.class, () ->
-        ManualInstallationStrategy.deleteRecursively(tree)
-      );
-      final Throwable cause = thrown.getCause();
-      assertInstanceOf(AccessDeniedException.class, cause);
-
-      final boolean fileExists = Files.exists(file);
-      assertTrue(fileExists);
-    } finally {
-      Files.setPosixFilePermissions(locked, OWNER_PERMISSIONS);
-    }
   }
 
   @Test
@@ -274,7 +193,7 @@ final class ManualInstallationStrategyTest {
       Assumptions.assumeFalse(readable, "The user can read every directory!");
 
       final InstallationException thrown = assertThrows(InstallationException.class, () ->
-        ManualInstallationStrategy.findLibraryDirectory(locked, LIBRARY)
+        this.strategy.findLibraryDirectory(locked, LIBRARY)
       );
       final Throwable cause = thrown.getCause();
       assertInstanceOf(AccessDeniedException.class, cause);
@@ -285,13 +204,11 @@ final class ManualInstallationStrategyTest {
 
   @Test
   void shouldRunToolsAsChildProcesses() throws IOException {
-    final VlcInstaller installer = VlcInstaller.create(this.temporaryDirectory);
-    final TestStrategy strategy = new TestStrategy(installer);
     final Path workingDirectory = createDirectory(this.temporaryDirectory, WORK_DIRECTORY_NAME);
     final Path marker = workingDirectory.resolve(MARKER_NAME);
     final Path markerElsewhere = this.temporaryDirectory.resolve(MARKER_NAME);
     final String[] createMarker = shellCommand("echo created > marker.txt");
-    strategy.runProcess(workingDirectory, createMarker);
+    this.strategy.runProcess(workingDirectory, createMarker);
     final boolean created = Files.exists(marker);
     final boolean createdElsewhere = Files.exists(markerElsewhere);
     assertTrue(created);
@@ -300,10 +217,8 @@ final class ManualInstallationStrategyTest {
 
   @Test
   void shouldFailWhenAToolExitsWithAnError() {
-    final VlcInstaller installer = VlcInstaller.create(this.temporaryDirectory);
-    final TestStrategy strategy = new TestStrategy(installer);
     final String[] failing = shellCommand("exit 3");
-    final InstallationException thrown = assertThrows(InstallationException.class, () -> strategy.runProcess(null, failing));
+    final InstallationException thrown = assertThrows(InstallationException.class, () -> this.strategy.runProcess(null, failing));
     final Throwable cause = thrown.getCause();
     final String message = cause.getMessage();
     final boolean namesTheExitCode = message.contains("exited with code 3");
@@ -312,10 +227,8 @@ final class ManualInstallationStrategyTest {
 
   @Test
   void shouldFailWhenAToolCannotBeStarted() {
-    final VlcInstaller installer = VlcInstaller.create(this.temporaryDirectory);
-    final TestStrategy strategy = new TestStrategy(installer);
     final String missingTool = this.temporaryDirectory.resolve(MISSING_NAME).toString();
-    final InstallationException thrown = assertThrows(InstallationException.class, () -> strategy.runProcess(null, missingTool));
+    final InstallationException thrown = assertThrows(InstallationException.class, () -> this.strategy.runProcess(null, missingTool));
     final String message = thrown.getMessage();
     final boolean namesTheTool = message.contains(missingTool);
     assertTrue(namesTheTool, message);

@@ -63,6 +63,8 @@ public final class MCAV implements MCAVApi {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MCAV.class);
 
+  private static final String CAPABILITY_NULL_MESSAGE = "Capability must not be null!";
+
   private final DependencyLoader dependencyLoader;
   private final ModuleLoader moduleLoader;
   private final CapabilityGuard guard;
@@ -86,7 +88,7 @@ public final class MCAV implements MCAVApi {
     this.guard = guard;
     this.installing = new AtomicBoolean(false);
     this.lifecycleLock = new Object();
-    this.trimmer = NativeHeapTrimmer.forThisJvm();
+    this.trimmer = NativeHeapTrimmer.create();
   }
 
   /**
@@ -100,7 +102,7 @@ public final class MCAV implements MCAVApi {
   }
 
   /**
-   * Checks whether an optional capability is available right now in this installation, which depends on the platform and on whether the
+   * Returns whether an optional capability is available right now in this installation, which depends on the platform and on whether the
    * program behind it could be installed. A capability that is still being prepared in the background is not available yet; wait for it
    * with {@link #whenCapabilityReady(Capability)}.
    *
@@ -112,7 +114,7 @@ public final class MCAV implements MCAVApi {
    */
   @Override
   public boolean hasCapability(final Capability capability) {
-    Preconditions.checkNotNull(capability, "Capability must not be null!");
+    Preconditions.checkNotNull(capability, CAPABILITY_NULL_MESSAGE);
 
     final BackgroundInstallation installation = this.requireInstalled();
     return installation.isAvailable(capability);
@@ -137,7 +139,7 @@ public final class MCAV implements MCAVApi {
    */
   @Override
   public CompletableFuture<Boolean> whenCapabilityReady(final Capability capability) {
-    Preconditions.checkNotNull(capability, "Capability must not be null!");
+    Preconditions.checkNotNull(capability, CAPABILITY_NULL_MESSAGE);
 
     final BackgroundInstallation installation = this.requireInstalled();
     return installation.whenReady(capability);
@@ -146,14 +148,15 @@ public final class MCAV implements MCAVApi {
   private BackgroundInstallation requireInstalled() {
     final BackgroundInstallation installation = this.background;
     if (installation == null) {
-      throw new MCAVLoadingException("MCAV has not been installed yet, call install() first!");
+      final String message = "MCAV has not been installed yet, call install() first!";
+      throw new MCAVLoadingException(message);
     }
 
     return installation;
   }
 
   /**
-   * Installs the library and starts the specified modules on this instance, which can be installed only once. This method returns once the
+   * Installs the library and starts the specified modules on this instance. This method returns once the
    * JavaCV natives are loaded, the modules are started, and the lookup tables are built; VLC and yt-dlp are prepared in the background
    * afterward, see {@link #whenCapabilityReady(Capability)}.
    *
@@ -174,7 +177,8 @@ public final class MCAV implements MCAVApi {
 
     final boolean claimed = this.installing.compareAndSet(false, true);
     if (!claimed) {
-      throw new MCAVLoadingException("MCAV has already been installed!");
+      final String message = "MCAV has already been installed!";
+      throw new MCAVLoadingException(message);
     }
 
     // release() takes this lock and must wait for startup or installation failure.
@@ -199,18 +203,18 @@ public final class MCAV implements MCAVApi {
       final Throwable cause = exception.getCause();
       final Throwable failure = cause == null ? exception : cause;
       final String reason = failure.getMessage();
-      final String message = "MCAV failed to install because of \"%s\"!".formatted(reason);
+      final String message = "Because of \"%s\", MCAV failed to install!".formatted(reason);
       throw new MCAVLoadingException(message, failure);
     }
   }
 
   private void loadNatives() {
     this.dependencyLoader.loadModules();
-    loadPalette();
+    this.loadPalette();
     ImageIO.setUseCache(false);
   }
 
-  private static void loadPalette() {
+  private void loadPalette() {
     LOGGER.info("Building the map color lookup table.");
     final long start = System.currentTimeMillis();
     DitherPalette.init();
@@ -243,7 +247,7 @@ public final class MCAV implements MCAVApi {
       // the installation threads never take the lifecycle lock, so waiting for them here cannot deadlock
       installation.cancel();
       this.moduleLoader.shutdownModules();
-      this.trimmer.close();
+      this.trimmer.stop();
       this.installing.set(false);
     }
   }

@@ -19,10 +19,10 @@
  * Reduces colors with serpentine error diffusion and optional temporal reuse between video frames.
  *
  * <p>{@link me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.DiffusionKernel}
- * describes immutable weighted taps into later pixels. Ordinary algorithms keep error rows per invocation and
- * can be shared. Temporal algorithms keep the previous frame's palette indices: serialize frames for one stream
- * and reset history after seeking, changing source or changing the image layout. Returned byte arrays are
- * independent of the retained history and may be modified by the caller.
+ * describes immutable weighted taps into later pixels. Ordinary {@link ErrorDiffusionDither} algorithms keep error
+ * rows per invocation and can be shared. {@link TemporalDitherAlgorithm}s keep the previous frame's palette indices:
+ * serialize frames for one stream and reset history after seeking, changing source or changing the image layout.
+ * Returned byte arrays are independent of the retained history and may be modified by the caller.
  *
  * <p>Parallel temporal dithering divides one frame into horizontal strips with warm-up rows. It can differ from
  * serial diffusion near strip boundaries. Parallelizing one call does not make simultaneous calls on the same

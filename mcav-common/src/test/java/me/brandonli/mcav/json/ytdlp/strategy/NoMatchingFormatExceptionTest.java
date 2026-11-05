@@ -20,6 +20,7 @@ package me.brandonli.mcav.json.ytdlp.strategy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 import me.brandonli.mcav.MCAVException;
 import org.junit.jupiter.api.Test;
@@ -33,6 +34,16 @@ final class NoMatchingFormatExceptionTest {
     final Throwable cause = exception.getCause();
     assertEquals("No video stream matches the strategy!", message);
     assertNull(cause);
+  }
+
+  @Test
+  void shouldKeepTheMessageAndTheCause() {
+    final IllegalStateException selectionFailure = new IllegalStateException("Format list could not be read!");
+    final NoMatchingFormatException exception = new NoMatchingFormatException("No audio stream matches the strategy!", selectionFailure);
+    final String message = exception.getMessage();
+    final Throwable cause = exception.getCause();
+    assertEquals("No audio stream matches the strategy!", message);
+    assertSame(selectionFailure, cause);
   }
 
   @Test

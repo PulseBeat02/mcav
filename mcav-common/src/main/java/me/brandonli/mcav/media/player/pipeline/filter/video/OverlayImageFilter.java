@@ -30,7 +30,7 @@ import org.bytedeco.opencv.opencv_core.Rect;
  *
  * @since 1.0.0
  */
-public class OverlayImageFilter extends MatVideoFilter {
+public final class OverlayImageFilter extends MatVideoFilter {
 
   private final Mat overlay;
   private final int left;
@@ -59,17 +59,17 @@ public class OverlayImageFilter extends MatVideoFilter {
   /**
    * Copies the visible part of the image into the frame in place.
    *
-   * @param mat the 8-bit BGR matrix of the frame
+   * @param matrix the 8-bit BGR matrix of the frame
    * @return true if part of the image was drawn, false if the position lies outside of the frame and the frame was
    *     left untouched
    * @since 1.0.0
    */
   @Override
-  protected boolean modifyMat(final Mat mat) {
+  protected boolean modifyMat(final Mat matrix) {
     final int overlayWidth = this.overlay.cols();
     final int overlayHeight = this.overlay.rows();
-    final int frameWidth = mat.cols();
-    final int frameHeight = mat.rows();
+    final int frameWidth = matrix.cols();
+    final int frameHeight = matrix.rows();
     final int width = Math.min(overlayWidth, frameWidth - this.left);
     final int height = Math.min(overlayHeight, frameHeight - this.top);
     if (width <= 0 || height <= 0) {
@@ -77,10 +77,10 @@ public class OverlayImageFilter extends MatVideoFilter {
     }
 
     try (
-      final Rect targetRect = new Rect(this.left, this.top, width, height);
-      final Rect sourceRect = new Rect(0, 0, width, height);
-      final Mat target = new Mat(mat, targetRect);
-      final Mat source = new Mat(this.overlay, sourceRect)
+      final Rect targetRectangle = new Rect(this.left, this.top, width, height);
+      final Rect sourceRectangle = new Rect(0, 0, width, height);
+      final Mat target = new Mat(matrix, targetRectangle);
+      final Mat source = new Mat(this.overlay, sourceRectangle)
     ) {
       source.copyTo(target);
     }

@@ -33,14 +33,9 @@ import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Size;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// Copies decoded frames into images of an ImagePool, scaling them to the attached size when the decoder did not. FFmpeg
-// scales while it converts the pixel format, which is the cheapest place to do it. Other decoders, such as the file
-// reader of OpenCV, ignore the requested size, so their frames are scaled here, straight from the memory of the decoder
-// into the pooled image, with area averaging when shrinking and bilinear interpolation when enlarging. Frames whose
-// pixels do not live in native memory cannot be read by OpenCV directly; they are copied into an image of their own
-// size first, which is kept for the next frame. Pooled images of another size are resized in place, which reuses their
-// spare matrix, see MatImageBuffer.setSize(int, int). Once the sizes are settled, no memory is allocated per frame.
-// Instances belong to the decoding thread of one session and are not thread-safe.
+// Copies decoded frames into pooled images, scaling them to the attached size when the decoder did not: FFmpeg scales
+// while converting the pixel format, other decoders such as OpenCV's file reader ignore the requested size. Once the
+// sizes are settled, no memory is allocated per frame. Not thread-safe: the decoding thread of one session owns it.
 final class VideoFrameCopier {
 
   private final ImagePool pool;
@@ -56,12 +51,10 @@ final class VideoFrameCopier {
   MatImageBuffer copy(final Frame frame) {
     final int width = frame.imageWidth;
     final int height = frame.imageHeight;
-    final MatImageBuffer pooled = this.pool.acquire();
+    final @Nullable MatImageBuffer pooled = this.pool.acquire();
 
-    // the size is read once. Asking whether the callback is attached and then asking it for the size lets a detach
-    // in between answer with the empty fallback, and scaling a frame to 0x0 throws out of the decoding loop, which
-    // ends playback; an empty size therefore means the frame is copied at its own size, exactly as a detached
-    // callback does
+    // read the size once: a detach between two calls answers with an empty size, and scaling to 0x0 would end playback,
+    // so an empty size copies the frame at its own size like a detached callback
     final Dimension target = this.dimensionCallback.retrieve();
     final int targetWidth = target.getWidth();
     final int targetHeight = target.getHeight();
@@ -70,7 +63,7 @@ final class VideoFrameCopier {
 
     try {
       if (empty || sameSize) {
-        return fill(pooled, frame, width, height);
+        return this.fill(pooled, frame, width, height);
       }
 
       return this.scale(frame, pooled, targetWidth, targetHeight);
@@ -83,9 +76,9 @@ final class VideoFrameCopier {
     }
   }
 
-  // Releases the image unscaled frames were copied into. The copier can still be used afterward.
+  // The copier stays usable afterward.
   void release() {
-    final MatImageBuffer image = this.unscaled;
+    final @Nullable MatImageBuffer image = this.unscaled;
     this.unscaled = null;
 
     if (image != null) {
@@ -93,38 +86,31 @@ final class VideoFrameCopier {
     }
   }
 
-  @VisibleForTesting
-  boolean hasUnscaledCopy() {
-    return this.unscaled != null;
-  }
-
-  private static MatImageBuffer fill(final @Nullable MatImageBuffer reusable, final Frame frame, final int width, final int height) {
-    final MatImageBuffer target = ensureSize(reusable, width, height);
+  private MatImageBuffer fill(final @Nullable MatImageBuffer reusable, final Frame frame, final int width, final int height) {
+    final MatImageBuffer target = this.ensureSize(reusable, width, height);
     final ByteBuffer data = target.getData();
     FramePixels.copyBgr(frame, data);
     target.invalidateCache();
     return target;
   }
 
-  // Scales a frame into an image of the target size, reading the pixels of the decoder in place when they live in
-  // native memory, and through a copy of the frame otherwise.
   private MatImageBuffer scale(final Frame frame, final @Nullable MatImageBuffer pooled, final int width, final int height) {
-    final ByteBuffer plane = getNativePlane(frame);
-    if (plane != null && fitsPlane(frame, plane)) {
-      try (final Mat decoded = wrapDecodedPixels(frame, plane)) {
-        return resize(decoded, pooled, width, height);
+    final @Nullable ByteBuffer plane = this.getNativePlane(frame);
+    if (plane != null && this.fitsPlane(frame, plane)) {
+      try (final Mat decoded = this.wrapDecodedPixels(frame, plane)) {
+        return this.resize(decoded, pooled, width, height);
       }
     }
 
     final int frameWidth = frame.imageWidth;
     final int frameHeight = frame.imageHeight;
-    final MatImageBuffer source = fill(this.unscaled, frame, frameWidth, frameHeight);
+    final MatImageBuffer source = this.fill(this.unscaled, frame, frameWidth, frameHeight);
     this.unscaled = source;
-    final Mat sourceMat = source.getMat();
-    return resize(sourceMat, pooled, width, height);
+    final Mat sourceMatrix = source.getMat();
+    return this.resize(sourceMatrix, pooled, width, height);
   }
 
-  private static Mat wrapDecodedPixels(final Frame frame, final ByteBuffer plane) {
+  private Mat wrapDecodedPixels(final Frame frame, final ByteBuffer plane) {
     final ByteBuffer whole = plane.duplicate();
     whole.clear();
     try (final BytePointer pixels = new BytePointer(whole)) {
@@ -132,8 +118,8 @@ final class VideoFrameCopier {
     }
   }
 
-  private static @Nullable ByteBuffer getNativePlane(final Frame frame) {
-    final Buffer[] image = frame.image;
+  private @Nullable ByteBuffer getNativePlane(final Frame frame) {
+    final Buffer @Nullable [] image = frame.image;
     if (image == null || image.length == 0) {
       return null;
     }
@@ -146,9 +132,8 @@ final class VideoFrameCopier {
     return null;
   }
 
-  // Checks that a frame has a positive size and that its plane holds every row it claims, so OpenCV never reads past
-  // the end of the memory of the decoder.
-  private static boolean fitsPlane(final Frame frame, final ByteBuffer plane) {
+  // Keeps OpenCV from reading past the end of the decoder's memory.
+  private boolean fitsPlane(final Frame frame, final ByteBuffer plane) {
     final int width = frame.imageWidth;
     final int height = frame.imageHeight;
     final long stride = frame.imageStride;
@@ -158,30 +143,35 @@ final class VideoFrameCopier {
     return width > 0 && height > 0 && stride >= rowBytes && capacity >= neededBytes;
   }
 
-  private static MatImageBuffer resize(final Mat source, final @Nullable MatImageBuffer reusable, final int width, final int height) {
-    final MatImageBuffer target = ensureSize(reusable, width, height);
-    final Mat targetMat = target.getMat();
+  private MatImageBuffer resize(final Mat source, final @Nullable MatImageBuffer reusable, final int width, final int height) {
+    final MatImageBuffer target = this.ensureSize(reusable, width, height);
+    final Mat targetMatrix = target.getMat();
     final int sourceWidth = source.cols();
     final int sourceHeight = source.rows();
     final boolean shrinking = width < sourceWidth || height < sourceHeight;
     final int interpolation = shrinking ? opencv_imgproc.INTER_AREA : opencv_imgproc.INTER_LINEAR;
     try (final Size size = new Size(width, height)) {
-      opencv_imgproc.resize(source, targetMat, size, 0, 0, interpolation);
+      opencv_imgproc.resize(source, targetMatrix, size, 0, 0, interpolation);
     }
 
     target.invalidateCache();
     return target;
   }
 
-  private static MatImageBuffer ensureSize(final @Nullable MatImageBuffer reusable, final int width, final int height) {
+  private MatImageBuffer ensureSize(final @Nullable MatImageBuffer reusable, final int width, final int height) {
     if (reusable != null) {
       reusable.setSize(width, height);
       return reusable;
     }
 
-    final Mat mat = new Mat(height, width, opencv_core.CV_8UC3);
-    final ImageBuffer created = ImageBuffer.mat(mat);
+    final Mat matrix = new Mat(height, width, opencv_core.CV_8UC3);
+    final ImageBuffer created = ImageBuffer.mat(matrix);
     return (MatImageBuffer) created;
+  }
+
+  @VisibleForTesting
+  boolean hasUnscaledCopy() {
+    return this.unscaled != null;
   }
 
   @VisibleForTesting

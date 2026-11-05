@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.capability.installer;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import java.io.IOException;
@@ -69,13 +71,18 @@ public abstract class AbstractInstaller implements Installer {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(AbstractInstaller.class);
 
+  private static final String DOWNLOADS_NULL_MESSAGE = "Downloads must not be null!";
+
   private static final String CONFIGURATION_FILE_NAME = "config.properties";
   private static final String CONFIGURATION_TEMPORARY_SUFFIX = ".tmp";
   private static final String CONFIGURATION_COMMENT = "Paths of programs installed by MCAV";
+
   private static final String WINDOWS_EXECUTABLE_SUFFIX = ".exe";
   private static final String ARCHIVE_SUFFIX = ".archive";
+
   private static final String CURRENT_DIRECTORY = ".";
   private static final String PARENT_DIRECTORY = "..";
+
   private static final Object CONFIGURATION_LOCK = new Object();
 
   private final Path folder;
@@ -91,7 +98,7 @@ public abstract class AbstractInstaller implements Installer {
   private volatile @Nullable Path installedPath;
 
   /**
-   * Constructs a new installer with lazily resolved downloads.
+   * Creates a new installer with lazily resolved downloads.
    *
    * @param folder    the folder the program is installed into
    * @param name      the non-null, nonblank program name, used as the file name and configuration key
@@ -105,7 +112,7 @@ public abstract class AbstractInstaller implements Installer {
   protected AbstractInstaller(final Path folder, final String name, final Supplier<Download[]> downloads) {
     Preconditions.checkNotNull(folder, "Folder must not be null!");
     Preconditions.checkNotNull(name, "Name must not be null!");
-    Preconditions.checkNotNull(downloads, "Downloads must not be null!");
+    Preconditions.checkNotNull(downloads, DOWNLOADS_NULL_MESSAGE);
     Preconditions.checkArgument(!name.isBlank(), "Name must not be blank!");
 
     this.folder = folder;
@@ -116,7 +123,7 @@ public abstract class AbstractInstaller implements Installer {
   }
 
   /**
-   * Constructs a new installer with a fixed list of downloads.
+   * Creates a new installer with a fixed list of downloads.
    *
    * @param folder    the folder the program is installed into
    * @param name      the non-null, nonblank program name, used as the file name and configuration key
@@ -126,14 +133,14 @@ public abstract class AbstractInstaller implements Installer {
    * @since 1.0.0
    */
   protected AbstractInstaller(final Path folder, final String name, final Download[] downloads) {
-    Preconditions.checkNotNull(downloads, "Downloads must not be null!");
+    Preconditions.checkNotNull(downloads, DOWNLOADS_NULL_MESSAGE);
 
     final Supplier<Download[]> fixedDownloads = () -> downloads;
     this(folder, name, fixedDownloads);
   }
 
   /**
-   * Constructs a new installer that installs into the cache folder of the library (see
+   * Creates a new installer that installs into the cache folder of the library (see
    * {@link #getDefaultExecutableFolderPath()}).
    *
    * @param name      the non-null, nonblank program name, used as the file name and configuration key
@@ -164,15 +171,6 @@ public abstract class AbstractInstaller implements Installer {
     return IoUtils.getCachedFolder();
   }
 
-  @VisibleForTesting
-  static String getExecutableFileName(final String name, final Os operatingSystem) {
-    if (operatingSystem == Os.WINDOWS) {
-      return name + WINDOWS_EXECUTABLE_SUFFIX;
-    }
-
-    return name;
-  }
-
   /**
    * Installs the program, or returns the existing installation if it was installed before. Concurrent calls on the
    * same installer are serialized, so the program is downloaded at most once.
@@ -184,10 +182,13 @@ public abstract class AbstractInstaller implements Installer {
    * @throws DownloadException        if the download fails or its hash does not match
    * @throws FileOperationException   if the downloaded file cannot be moved into place
    * @throws IllegalArgumentException if a configured download URL is not a valid URI
+   * @throws NullPointerException     if {@code mode} is null
    * @since 1.0.0
    */
   @Override
   public Path download(final FileMode mode) {
+    Preconditions.checkNotNull(mode, "Mode must not be null!");
+
     synchronized (this.installLock) {
       final Optional<Path> existing = this.findExistingInstallation();
       final @Nullable Path existingPath = existing.orElse(null);
@@ -221,6 +222,7 @@ public abstract class AbstractInstaller implements Installer {
 
     final Path installed = this.install(destination);
     this.writePathToConfiguration(installed);
+
     return installed;
   }
 
@@ -272,8 +274,7 @@ public abstract class AbstractInstaller implements Installer {
   }
 
   /**
-   * Looks for an earlier installation without downloading anything. A found installation becomes the result of
-   * {@link #getPath()}.
+   * Looks for an earlier installation without downloading anything.
    *
    * @return the path of the existing installation, or empty if the program has not been installed
    * @throws InstallationException if the configuration file cannot be read
@@ -281,13 +282,7 @@ public abstract class AbstractInstaller implements Installer {
    */
   @Override
   public Optional<Path> findInstallation() {
-    final Optional<Path> existing = this.findExistingInstallation();
-    final @Nullable Path existingPath = existing.orElse(null);
-    if (existingPath != null) {
-      this.installedPath = existingPath;
-    }
-
-    return existing;
+    return this.findExistingInstallation();
   }
 
   /**
@@ -305,7 +300,7 @@ public abstract class AbstractInstaller implements Installer {
   }
 
   /**
-   * Checks whether a download exists for the current platform. The downloads are resolved on the first call.
+   * Returns whether a download exists for the current platform. The downloads are resolved on the first call.
    *
    * @return true if the program can be installed on this platform
    * @since 1.0.0
@@ -346,20 +341,24 @@ public abstract class AbstractInstaller implements Installer {
     return this.folder.resolve(executableName);
   }
 
+  @VisibleForTesting
+  static String getExecutableFileName(final String name, final Os operatingSystem) {
+    if (operatingSystem == Os.WINDOWS) {
+      return name + WINDOWS_EXECUTABLE_SUFFIX;
+    }
+
+    return name;
+  }
+
   /**
    * Returns the URL of the download for the current platform.
    *
-   * @return the download URL, or an empty string if the platform is not supported
+   * @return the download URL, or empty if the platform is not supported
    * @since 1.0.0
    */
-  public String getUrl() {
+  public Optional<String> getUrl() {
     final Optional<Download> download = this.resolveDownload();
-    final @Nullable Download resolved = download.orElse(null);
-    if (resolved == null) {
-      return "";
-    }
-
-    return resolved.getUrl();
+    return download.map(Download::getUrl);
   }
 
   /**
@@ -388,17 +387,18 @@ public abstract class AbstractInstaller implements Installer {
       return getExecutableFileName(this.name, operatingSystem);
     }
 
-    final String url = this.getUrl();
-    final String urlFileName = IoUtils.getFileNameFromUrl(url);
-    final boolean usable = isPlainFileName(urlFileName);
+    final Optional<String> url = this.getUrl();
+    final Optional<String> urlFileName = url.map(IoUtils::getFileNameFromUrl);
+    final String fileName = requireNonNull(urlFileName.orElse("")); // checker framework
+    final boolean usable = this.isPlainFileName(fileName);
     if (usable) {
-      return urlFileName;
+      return fileName;
     }
 
     return this.name + ARCHIVE_SUFFIX;
   }
 
-  private static boolean isPlainFileName(final String fileName) {
+  private boolean isPlainFileName(final String fileName) {
     final boolean empty = fileName.isEmpty();
     final boolean relativeDirectory = fileName.equals(CURRENT_DIRECTORY) || fileName.equals(PARENT_DIRECTORY);
     return !empty && !relativeDirectory;
@@ -446,14 +446,14 @@ public abstract class AbstractInstaller implements Installer {
     }
 
     final Download[] downloads = this.downloadSupplier.get();
-    final Optional<Download> exact = findDownload(downloads, platform);
+    final Optional<Download> exact = this.findDownload(downloads, platform);
     if (exact.isPresent()) {
       return exact;
     }
 
     final List<Platform> fallbacks = this.getFallbackPlatforms(platform);
     for (final Platform fallback : fallbacks) {
-      final Optional<Download> compatible = findDownload(downloads, fallback);
+      final Optional<Download> compatible = this.findDownload(downloads, fallback);
       if (compatible.isPresent()) {
         return compatible;
       }
@@ -462,7 +462,7 @@ public abstract class AbstractInstaller implements Installer {
     return Optional.empty();
   }
 
-  private static Optional<Download> findDownload(final Download[] downloads, final Platform platform) {
+  private Optional<Download> findDownload(final Download[] downloads, final Platform platform) {
     for (final Download download : downloads) {
       final Platform downloadPlatform = download.getPlatform();
       final boolean matches = downloadPlatform.equals(platform);
@@ -532,7 +532,7 @@ public abstract class AbstractInstaller implements Installer {
    * @since 1.0.0
    */
   public void writePathToConfiguration(final Path installedPath) {
-    Preconditions.checkNotNull(installedPath, "Path must not be null!");
+    Preconditions.checkNotNull(installedPath, "Installed path must not be null!");
 
     synchronized (CONFIGURATION_LOCK) {
       final Properties properties = this.readConfiguration();
@@ -610,7 +610,7 @@ public abstract class AbstractInstaller implements Installer {
   }
 
   /**
-   * Checks whether the download is an archive that has to be extracted, rather than a program that can be run
+   * Returns whether the download is an archive that has to be extracted, rather than a program that can be run
    * directly. Archives are stored under their original file name and are never renamed to {@code .exe}.
    *
    * @return true if the download is an archive

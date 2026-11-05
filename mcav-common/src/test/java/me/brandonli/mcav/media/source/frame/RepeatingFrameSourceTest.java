@@ -82,13 +82,14 @@ final class RepeatingFrameSourceTest {
     final List<ImageBuffer> frames = List.of(first, second);
     final DynamicImageBuffer animation = animation(frames);
     final RepeatingFrameSource source = RepeatingFrameSource.repeating(animation, REPEAT_COUNT);
-    final SampleSupplier supplier = source.supplyFrameSamples();
+    final SampleSupplier supplier = source.getSampleSupplier();
     final int[] colors = new int[7];
     for (int index = 0; index < colors.length; index++) {
       colors[index] = nextColor(supplier);
     }
 
-    assertArrayEquals(new int[] { 1, 2, 1, 2, 2, 2, 2 }, colors);
+    final int[] expected = new int[] { 1, 2, 1, 2, 2, 2, 2 };
+    assertArrayEquals(expected, colors);
   }
 
   @Test
@@ -98,15 +99,16 @@ final class RepeatingFrameSourceTest {
     final List<ImageBuffer> frames = List.of(first, second);
     final DynamicImageBuffer animation = animation(frames);
     final RepeatingFrameSource source = RepeatingFrameSource.repeating(animation);
-    final SampleSupplier supplier = source.supplyFrameSamples();
+    final SampleSupplier supplier = source.getSampleSupplier();
     final int repeatCount = source.getRepeatCount();
     final int[] colors = new int[6];
     for (int index = 0; index < colors.length; index++) {
       colors[index] = nextColor(supplier);
     }
 
+    final int[] expected = new int[] { 1, 2, 1, 2, 1, 2 };
     assertEquals(Integer.MAX_VALUE, repeatCount);
-    assertArrayEquals(new int[] { 1, 2, 1, 2, 1, 2 }, colors);
+    assertArrayEquals(expected, colors);
   }
 
   @Test
@@ -115,7 +117,7 @@ final class RepeatingFrameSourceTest {
     final List<ImageBuffer> frames = List.of(only);
     final DynamicImageBuffer animation = animation(frames);
     final RepeatingFrameSource source = RepeatingFrameSource.repeating(animation, REPEAT_COUNT);
-    final SampleSupplier supplier = source.supplyFrameSamples();
+    final SampleSupplier supplier = source.getSampleSupplier();
     final int[] firstLoop = supplier.getFrameSamples();
     final int[] secondLoop = supplier.getFrameSamples();
     final int[] held = supplier.getFrameSamples();

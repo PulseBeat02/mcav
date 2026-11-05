@@ -40,7 +40,8 @@ public final class VlcDiscoveryStrategies {
   private static final int DIRECT_DEPTH = 0;
 
   private VlcDiscoveryStrategies() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**
@@ -71,8 +72,8 @@ public final class VlcDiscoveryStrategies {
     final FixedDirectoryProvider directoryProvider = new FixedDirectoryProvider(libraryDirectory);
     final SearchProvider searchProvider = new SearchProvider(directoryProvider, DIRECT_DEPTH);
     final List<SearchProvider> searchProviders = List.of(searchProvider);
-    final EnvironmentSetter posixSetter = LinuxNativeDiscoveryStrategy.nativeSetter();
-    final EnvironmentSetter windowsSetter = WindowsNativeDiscoveryStrategy.nativeSetter();
+    final EnvironmentSetter posixSetter = LinuxNativeDiscoveryStrategy.createNativeSetter();
+    final EnvironmentSetter windowsSetter = WindowsNativeDiscoveryStrategy.createNativeSetter();
     final Os operatingSystem = OsUtils.getOs();
     final LinuxNativeDiscoveryStrategy linux = new LinuxNativeDiscoveryStrategy(searchProviders, posixSetter, operatingSystem);
     final OsxNativeDiscoveryStrategy osx = new OsxNativeDiscoveryStrategy(

@@ -50,7 +50,7 @@ public interface OriginalVideoMetadata extends OriginalMetadata {
    * @param videoBitrate   the bitrate in bits per second, or {@link #UNKNOWN}
    * @param videoFrameRate the frame rate in frames per second, or {@link #UNKNOWN}
    * @return the metadata
-   * @throws IllegalArgumentException if either dimension is nonpositive
+   * @throws IllegalArgumentException if either dimension is not positive
    * @since 1.0.0
    */
   static OriginalVideoMetadata of(final int videoWidth, final int videoHeight, final int videoBitrate, final float videoFrameRate) {
@@ -66,7 +66,7 @@ public interface OriginalVideoMetadata extends OriginalMetadata {
    * @param videoHeight    the height in pixels
    * @param videoFrameRate the frame rate in frames per second, or {@link #UNKNOWN}
    * @return the metadata
-   * @throws IllegalArgumentException if either dimension is nonpositive
+   * @throws IllegalArgumentException if either dimension is not positive
    * @since 1.0.0
    */
   static OriginalVideoMetadata of(final int videoWidth, final int videoHeight, final float videoFrameRate) {
@@ -79,7 +79,7 @@ public interface OriginalVideoMetadata extends OriginalMetadata {
    * @param width  the width in pixels
    * @param height the height in pixels
    * @return the metadata
-   * @throws IllegalArgumentException if either dimension is nonpositive
+   * @throws IllegalArgumentException if either dimension is not positive
    * @since 1.0.0
    */
   static OriginalVideoMetadata of(final int width, final int height) {

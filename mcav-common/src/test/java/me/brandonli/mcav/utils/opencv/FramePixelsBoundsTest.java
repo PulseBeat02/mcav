@@ -41,8 +41,9 @@ final class FramePixelsBoundsTest {
       final byte[] untouched = { 21, 22 };
       final ByteBuffer target = ByteBuffer.wrap(untouched);
 
+      final byte[] expected = new byte[] { 21, 22 };
       assertThrows(IllegalArgumentException.class, () -> FramePixels.copyBgr(frame, target));
-      assertArrayEquals(new byte[] { 21, 22 }, untouched);
+      assertArrayEquals(expected, untouched);
       assertThrows(IllegalArgumentException.class, () -> FramePixels.copyBgr(frame));
     }
   }

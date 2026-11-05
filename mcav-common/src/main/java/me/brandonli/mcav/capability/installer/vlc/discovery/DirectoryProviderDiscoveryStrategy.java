@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.capability.installer.vlc.discovery;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import java.io.File;
 import java.io.IOException;
@@ -32,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import uk.co.caprica.vlcj.factory.discovery.provider.AppDirDirectoryProvider;
 import uk.co.caprica.vlcj.factory.discovery.provider.ConfigDirConfigFileDiscoveryDirectoryProvider;
@@ -81,8 +83,11 @@ public abstract class DirectoryProviderDiscoveryStrategy implements NativeDiscov
    */
   protected static final String PLUGIN_ENVIRONMENT_NAME = "VLC_PLUGIN_PATH";
 
+  private static final String PATH_NULL_MESSAGE = "Path must not be null!";
+
   private static final int DIRECT_DEPTH = 0;
   private static final int WELL_KNOWN_DEPTH = 1;
+
   private static final Comparator<SearchProvider> BY_PRIORITY = Comparator.comparingInt(SearchProvider::getPriority);
   private static final Comparator<SearchProvider> HIGHEST_PRIORITY_FIRST = BY_PRIORITY.reversed();
 
@@ -92,7 +97,7 @@ public abstract class DirectoryProviderDiscoveryStrategy implements NativeDiscov
   private final EnvironmentSetter environmentSetter;
 
   /**
-   * Constructs a new strategy that searches the directories of vlcj's providers.
+   * Creates a new strategy that searches the directories of vlcj's providers.
    *
    * @param filenamePatterns  a non-null, nonempty array of non-null regular expressions; each must match a
    *                          library file name; expressions are compiled during construction
@@ -125,13 +130,13 @@ public abstract class DirectoryProviderDiscoveryStrategy implements NativeDiscov
     Preconditions.checkNotNull(environmentSetter, "Environment setter must not be null!");
     Preconditions.checkArgument(filenamePatterns.length > 0, "At least one filename pattern is required!");
 
-    this.filenamePatterns = compilePatterns(filenamePatterns);
+    this.filenamePatterns = this.compilePatterns(filenamePatterns);
     this.pluginDirectories = List.copyOf(pluginDirectories);
     this.searchProviders = List.copyOf(searchProviders);
     this.environmentSetter = environmentSetter;
   }
 
-  private static Pattern[] compilePatterns(final String[] expressions) {
+  private Pattern[] compilePatterns(@UnderInitialization DirectoryProviderDiscoveryStrategy this, final String[] expressions) {
     final Pattern[] patterns = new Pattern[expressions.length];
     for (int patternIndex = 0; patternIndex < expressions.length; patternIndex++) {
       final String expression = expressions[patternIndex];
@@ -155,8 +160,8 @@ public abstract class DirectoryProviderDiscoveryStrategy implements NativeDiscov
     addSearchProvider(providers, windowsInstall, DIRECT_DEPTH);
     final DiscoveryDirectoryProvider systemPath = new SystemPathDirectoryProvider();
     addSearchProvider(providers, systemPath, DIRECT_DEPTH);
-    final DiscoveryDirectoryProvider appDirectory = new AppDirDirectoryProvider();
-    addSearchProvider(providers, appDirectory, DIRECT_DEPTH);
+    final DiscoveryDirectoryProvider applicationDirectory = new AppDirDirectoryProvider();
+    addSearchProvider(providers, applicationDirectory, DIRECT_DEPTH);
     final DiscoveryDirectoryProvider userDirectory = new UserDirConfigFileDiscoveryDirectoryProvider();
     addSearchProvider(providers, userDirectory, DIRECT_DEPTH);
     return List.copyOf(providers);
@@ -198,7 +203,7 @@ public abstract class DirectoryProviderDiscoveryStrategy implements NativeDiscov
    *         modifying it does not change the strategy
    * @since 1.0.0
    */
-  public final List<String> discoveryDirectories() {
+  public final List<String> getDiscoveryDirectories() {
     final List<SearchProvider> providers = this.getSupportedProviders();
     final List<String> directories = new ArrayList<>();
     for (final SearchProvider provider : providers) {
@@ -238,7 +243,7 @@ public abstract class DirectoryProviderDiscoveryStrategy implements NativeDiscov
       final File directory = entry.getDirectory();
       final int depth = entry.getDepth();
       final int remainingDepth = maximumDepth - depth;
-      final File[] children = listUnsearched(directory, remainingDepth, searchedDepths);
+      final File[] children = this.listUnsearched(directory, remainingDepth, searchedDepths);
       if (children == null) {
         continue;
       }
@@ -246,15 +251,15 @@ public abstract class DirectoryProviderDiscoveryStrategy implements NativeDiscov
         return directory;
       }
       if (remainingDepth > 0) {
-        enqueueSubdirectories(children, depth + 1, pending);
+        this.enqueueSubdirectories(children, depth + 1, pending);
       }
     }
 
     return null;
   }
 
-  private static File @Nullable [] listUnsearched(final File directory, final int remainingDepth, final Map<Path, Integer> searchedDepths) {
-    final Path realPath = toRealDirectory(directory);
+  private File @Nullable [] listUnsearched(final File directory, final int remainingDepth, final Map<Path, Integer> searchedDepths) {
+    final Path realPath = this.toRealDirectory(directory);
     if (realPath == null) {
       return null;
     }
@@ -268,7 +273,7 @@ public abstract class DirectoryProviderDiscoveryStrategy implements NativeDiscov
     return directory.listFiles();
   }
 
-  private static @Nullable Path toRealDirectory(final File directory) {
+  private @Nullable Path toRealDirectory(final File directory) {
     try {
       final Path directoryPath = directory.toPath();
       final Path realPath = directoryPath.toRealPath();
@@ -279,7 +284,7 @@ public abstract class DirectoryProviderDiscoveryStrategy implements NativeDiscov
     }
   }
 
-  private static void enqueueSubdirectories(final File[] children, final int depth, final Deque<SearchEntry> pending) {
+  private void enqueueSubdirectories(final File[] children, final int depth, final Deque<SearchEntry> pending) {
     for (final File child : children) {
       final boolean isDirectory = child.isDirectory();
       if (isDirectory) {
@@ -335,7 +340,7 @@ public abstract class DirectoryProviderDiscoveryStrategy implements NativeDiscov
   }
 
   /**
-   * Called with the directory the libraries were found in, before vlcj adds it to the JNA search path.
+   * Returns {@code true}, so vlcj adds the directory the libraries were found in to the JNA search path.
    *
    * @param path the directory that contains the libraries
    * @return {@code true} to let vlcj add the directory to the JNA search path
@@ -344,7 +349,7 @@ public abstract class DirectoryProviderDiscoveryStrategy implements NativeDiscov
    */
   @Override
   public boolean onFound(final String path) {
-    Preconditions.checkNotNull(path, "Path must not be null!");
+    Preconditions.checkNotNull(path, PATH_NULL_MESSAGE);
 
     return true;
   }
@@ -361,7 +366,7 @@ public abstract class DirectoryProviderDiscoveryStrategy implements NativeDiscov
    */
   @Override
   public final boolean onSetPluginPath(final String path) {
-    Preconditions.checkNotNull(path, "Path must not be null!");
+    Preconditions.checkNotNull(path, PATH_NULL_MESSAGE);
 
     final Path libraryDirectory = Path.of(path);
     for (final Path relativeDirectory : this.pluginDirectories) {
@@ -376,8 +381,8 @@ public abstract class DirectoryProviderDiscoveryStrategy implements NativeDiscov
     return false;
   }
 
-  // Returns the providers this strategy searches, in the order they were created, before any of them is filtered out
-  // for being unsupported on this machine. Visible for testing.
+  // unfiltered, in creation order
+  @VisibleForTesting
   List<SearchProvider> getSearchProviders() {
     return this.searchProviders;
   }
@@ -399,7 +404,7 @@ public abstract class DirectoryProviderDiscoveryStrategy implements NativeDiscov
      * @return true if the variable was set
      * @since 1.0.0
      */
-    boolean set(String name, String value);
+    boolean set(final String name, final String value);
   }
 
   static final class SearchProvider {

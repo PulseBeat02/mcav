@@ -58,20 +58,21 @@ public final class OsUtils {
   private static final Bits CURRENT_BITS;
 
   static {
-    final String osName = getProperty(OS_NAME_PROPERTY);
-    final String osArch = getProperty(OS_ARCH_PROPERTY);
-    final String dataModel = getProperty(DATA_MODEL_PROPERTY);
+    final String osName = readLowerCaseProperty(OS_NAME_PROPERTY);
+    final String osArch = readLowerCaseProperty(OS_ARCH_PROPERTY);
+    final String dataModel = readLowerCaseProperty(DATA_MODEL_PROPERTY);
     CURRENT_OS = detectOs(osName);
     CURRENT_ARCH = detectArch(osArch);
     CURRENT_BITS = detectBits(osArch, dataModel);
   }
 
   private OsUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   @VisibleForTesting
-  static String getProperty(final String key) {
+  static String readLowerCaseProperty(final String key) {
     final String value = System.getProperty(key);
     if (value == null) {
       return "";

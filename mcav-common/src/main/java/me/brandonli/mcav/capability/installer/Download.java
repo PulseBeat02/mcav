@@ -17,7 +17,9 @@
  */
 package me.brandonli.mcav.capability.installer;
 
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
+import java.util.Objects;
 import java.util.Optional;
 import me.brandonli.mcav.utils.os.Arch;
 import me.brandonli.mcav.utils.os.Bits;
@@ -42,70 +44,83 @@ public final class Download {
   private final String url;
   private final @Nullable String hash;
 
-  /**
-   * Constructs a new download.
-   *
-   * @param platform the platform the file is built for
-   * @param url      the non-null, nonblank URL of the file; URI syntax is checked when downloading
-   * @param hash     the expected SHA-256 hash of the file in hexadecimal, or null to skip verification
-   * @throws IllegalArgumentException if {@code url} is blank
-   * @throws NullPointerException     if {@code platform} or {@code url} is null
-   * @since 1.0.0
-   */
-  public Download(final Platform platform, final String url, final @Nullable String hash) {
-    Preconditions.checkNotNull(platform, "Platform must not be null!");
-    Preconditions.checkNotNull(url, "URL must not be null!");
-    Preconditions.checkArgument(!url.isBlank(), "URL must not be blank!");
-
+  private Download(final Platform platform, final String url, final @Nullable String hash) {
     this.platform = platform;
     this.url = url;
     this.hash = hash;
   }
 
   /**
-   * Constructs a new download without hash verification.
+   * Returns a download of the file at {@code url}.
    *
    * @param platform the platform the file is built for
    * @param url      the non-null, nonblank URL of the file; URI syntax is checked when downloading
+   * @param hash     the expected SHA-256 hash of the file in hexadecimal, or null to skip verification
+   * @return the download
    * @throws IllegalArgumentException if {@code url} is blank
    * @throws NullPointerException     if {@code platform} or {@code url} is null
    * @since 1.0.0
    */
-  public Download(final Platform platform, final String url) {
-    this(platform, url, null);
+  public static Download of(final Platform platform, final String url, final @Nullable String hash) {
+    Preconditions.checkNotNull(platform, "Platform must not be null!");
+    Preconditions.checkNotNull(url, "URL must not be null!");
+    Preconditions.checkArgument(!url.isBlank(), "URL must not be blank!");
+
+    return new Download(platform, url, hash);
   }
 
   /**
-   * Constructs a new download.
+   * Returns a download of the file at {@code url} without hash verification.
+   *
+   * @param platform the platform the file is built for
+   * @param url      the non-null, nonblank URL of the file; URI syntax is checked when downloading
+   * @return the download
+   * @throws IllegalArgumentException if {@code url} is blank
+   * @throws NullPointerException     if {@code platform} or {@code url} is null
+   * @since 1.0.0
+   */
+  public static Download of(final Platform platform, final String url) {
+    return of(platform, url, null);
+  }
+
+  /**
+   * Returns a download of the file at {@code url} for the platform made of the given parts.
    *
    * @param operatingSystem the operating system the file is built for
    * @param architecture    the CPU architecture the file is built for
    * @param bits            the bitness the file is built for
    * @param url             the non-null, nonblank URL of the file; URI syntax is checked when downloading
    * @param hash            the expected SHA-256 hash of the file in hexadecimal, or null to skip verification
+   * @return the download
    * @throws IllegalArgumentException if {@code url} is blank
    * @throws NullPointerException     if {@code operatingSystem}, {@code architecture}, {@code bits} or {@code url} is null
    * @since 1.0.0
    */
-  public Download(final Os operatingSystem, final Arch architecture, final Bits bits, final String url, final @Nullable String hash) {
+  public static Download of(
+    final Os operatingSystem,
+    final Arch architecture,
+    final Bits bits,
+    final String url,
+    final @Nullable String hash
+  ) {
     final Platform platform = Platform.ofPlatform(operatingSystem, architecture, bits);
-    this(platform, url, hash);
+    return of(platform, url, hash);
   }
 
   /**
-   * Constructs a new download without hash verification.
+   * Returns a download of the file at {@code url} for the platform made of the given parts, without hash verification.
    *
    * @param operatingSystem the operating system the file is built for
    * @param architecture    the CPU architecture the file is built for
    * @param bits            the bitness the file is built for
    * @param url             the non-null, nonblank URL of the file; URI syntax is checked when downloading
+   * @return the download
    * @throws IllegalArgumentException if {@code url} is blank
    * @throws NullPointerException     if {@code operatingSystem}, {@code architecture}, {@code bits} or {@code url} is null
    * @since 1.0.0
    */
-  public Download(final Os operatingSystem, final Arch architecture, final Bits bits, final String url) {
-    final Platform platform = Platform.ofPlatform(operatingSystem, architecture, bits);
-    this(platform, url, null);
+  public static Download of(final Os operatingSystem, final Arch architecture, final Bits bits, final String url) {
+    return of(operatingSystem, architecture, bits, url, null);
   }
 
   /**
@@ -136,5 +151,47 @@ public final class Download {
    */
   public Optional<String> getHash() {
     return Optional.ofNullable(this.hash);
+  }
+
+  /**
+   * Returns whether {@code other} is a download of the same URL for the same platform with the same hash.
+   *
+   * @param other the object to compare with
+   * @return whether the platform, the URL and the hash match
+   * @since 1.0.0
+   */
+  @Override
+  public boolean equals(final @Nullable Object other) {
+    if (this == other) {
+      return true;
+    }
+
+    if (!(other instanceof final Download download)) {
+      return false;
+    }
+
+    return this.platform.equals(download.platform) && this.url.equals(download.url) && Objects.equals(this.hash, download.hash);
+  }
+
+  /**
+   * Returns a hash code built from the platform, the URL and the hash.
+   *
+   * @return the hash code
+   * @since 1.0.0
+   */
+  @Override
+  public int hashCode() {
+    return Objects.hash(this.platform, this.url, this.hash);
+  }
+
+  /**
+   * Returns a debugging representation with the platform, the URL and the hash.
+   *
+   * @return the representation
+   * @since 1.0.0
+   */
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(this).add("platform", this.platform).add("url", this.url).add("hash", this.hash).toString();
   }
 }

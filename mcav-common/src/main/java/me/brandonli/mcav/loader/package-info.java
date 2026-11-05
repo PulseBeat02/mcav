@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 /**
- * Loads the JavaCV natives and prepares optional programs during mcav bootstrap.
+ * Loads the JavaCV natives and prepares optional programs during MCAV bootstrap.
  *
  * <p>{@link me.brandonli.mcav.loader.DependencyLoader} is exposed for custom bootstraps, but normal applications
  * use {@link me.brandonli.mcav.MCAVApi#install(Class[])}. Core native loading is synchronous; the API starts VLC
@@ -27,8 +27,7 @@
  * loader has no recorded failures and therefore reports capabilities before their preparation has been attempted;
  * use the main API's readiness methods when deciding whether a player can be created.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

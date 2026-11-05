@@ -24,11 +24,8 @@ import java.util.List;
 import me.brandonli.mcav.media.image.MatImageBuffer;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// The images a playback session reuses for its video frames. The decoding thread copies every frame into an image it
-// takes from the pool, and the rendering thread hands the image back once the pipeline is done with it. A session
-// therefore allocates only as many images as frames can be in flight at once, instead of one image per frame. The pool
-// keeps at most its capacity of images; further images are released, and so is every image handed back after the pool
-// was closed. All methods are thread-safe.
+// Reuses the frame images of a session between its decoding and rendering threads, keeping at most capacity unused
+// images. All methods are thread-safe.
 final class ImagePool {
 
   private final int capacity;

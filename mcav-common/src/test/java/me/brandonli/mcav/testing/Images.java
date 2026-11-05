@@ -36,13 +36,17 @@ import me.brandonli.mcav.media.image.ImageBuffer;
 
 public final class Images {
 
+  private static final String GIF_FORMAT_NAME = "gif";
   private static final String GIF_METADATA_FORMAT = "javax_imageio_gif_image_1.0";
   private static final String GRAPHIC_CONTROL_EXTENSION = "GraphicControlExtension";
+  private static final String GIF_FALSE = "FALSE";
+
   private static final int OPAQUE = 0xFF000000;
   private static final int RGB_RANGE = 0x1000000;
 
   private Images() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   public static ImageBuffer solid(final int width, final int height, final int argb) {
@@ -91,6 +95,7 @@ public final class Images {
 
     try (final ByteArrayOutputStream output = new ByteArrayOutputStream()) {
       final boolean written = ImageIO.write(image, format, output);
+
       Preconditions.checkArgument(written, "Format %s cannot be written by ImageIO!", format);
 
       return output.toByteArray();
@@ -103,7 +108,7 @@ public final class Images {
     checkDimensions(width, height);
     Preconditions.checkNotNull(colors, "Colors must not be null!");
 
-    final Iterator<ImageWriter> writers = ImageIO.getImageWritersByFormatName("gif");
+    final Iterator<ImageWriter> writers = ImageIO.getImageWritersByFormatName(GIF_FORMAT_NAME);
     final ImageWriter writer = writers.next();
     try (final ByteArrayOutputStream output = new ByteArrayOutputStream()) {
       writeGifSequence(writer, output, width, height, delayInHundredths, colors);
@@ -166,8 +171,8 @@ public final class Images {
     final IIOMetadataNode control = findOrCreateGraphicControl(root);
     final String delayTime = String.valueOf(delay);
     control.setAttribute("disposalMethod", "none");
-    control.setAttribute("userInputFlag", "FALSE");
-    control.setAttribute("transparentColorFlag", "FALSE");
+    control.setAttribute("userInputFlag", GIF_FALSE);
+    control.setAttribute("transparentColorFlag", GIF_FALSE);
     control.setAttribute("delayTime", delayTime);
     control.setAttribute("transparentColorIndex", "0");
     metadata.setFromTree(GIF_METADATA_FORMAT, root);

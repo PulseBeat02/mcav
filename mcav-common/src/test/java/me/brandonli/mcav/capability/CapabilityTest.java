@@ -26,6 +26,8 @@ import org.junit.jupiter.api.Test;
 
 final class CapabilityTest {
 
+  private static final String YTDLP_NAME = "yt-dlp";
+
   @Test
   void shouldListTheOptionalFeatures() {
     final Capability[] values = Capability.values();
@@ -37,7 +39,7 @@ final class CapabilityTest {
   void shouldResolveCapabilitiesByName() {
     final Capability ytdlp = Capability.valueOf("YT_DLP");
     assertSame(Capability.YT_DLP, ytdlp);
-    assertThrows(IllegalArgumentException.class, () -> Capability.valueOf("yt-dlp"));
+    assertThrows(IllegalArgumentException.class, () -> Capability.valueOf(YTDLP_NAME));
   }
 
   @Test
@@ -48,7 +50,7 @@ final class CapabilityTest {
     final String faceDetection = Capability.FACE_DETECTION.getDisplayName();
     assertEquals("VLC", vlc);
     assertEquals("FFmpeg", ffmpeg);
-    assertEquals("yt-dlp", ytdlp);
+    assertEquals(YTDLP_NAME, ytdlp);
     assertEquals("Face detection", faceDetection);
   }
 }

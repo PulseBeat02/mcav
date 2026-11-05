@@ -36,6 +36,8 @@ final class StrategySelectorTest {
 
   private static final String AUDIO_FORMAT_ID = "audio";
 
+  private static final String DOCUMENT_TEMPLATE = "{%s}";
+
   private static final String PAGE_URL_FIELD = "\"webpage_url\": \"https://example.com/watch\"";
 
   private static UrlParseDump dump(final String json) {
@@ -65,23 +67,30 @@ final class StrategySelectorTest {
 
   @Test
   void shouldSelectTheAudioStreamWithTheAudioStrategyAndTheVideoStreamWithTheVideoStrategy() {
-    final UrlParseDump dump = dump("{" + STREAMS + "}");
+    final UrlParseDump dump = dump(DOCUMENT_TEMPLATE.formatted(STREAMS));
     final StrategySelector selector = StrategySelector.of(FormatStrategy.FIRST_AUDIO, FormatStrategy.FIRST_VIDEO);
     final Format audio = selector.getAudioSource(dump);
     final Format video = selector.getVideoSource(dump);
-    assertEquals(Optional.of(AUDIO_FORMAT_ID), audio.getFormatId());
-    assertEquals(Optional.of("video"), video.getFormatId());
+    final Optional<String> audioFormatId = audio.getFormatId();
+    final Optional<String> expectedAudioFormatId = Optional.of(AUDIO_FORMAT_ID);
+    final Optional<String> videoFormatId = video.getFormatId();
+    final Optional<String> expectedVideoFormatId = Optional.of("video");
+    assertEquals(expectedAudioFormatId, audioFormatId);
+    assertEquals(expectedVideoFormatId, videoFormatId);
   }
 
   @Test
   void shouldUseExactlyTheStrategyItWasGiven() {
-    final UrlParseDump dump = dump("{" + STREAMS + "}");
+    final UrlParseDump dump = dump(DOCUMENT_TEMPLATE.formatted(STREAMS));
     final FormatStrategy firstListed = this::findTheFirstListed;
     final StrategySelector selector = StrategySelector.of(firstListed, firstListed);
     final Format audio = selector.getAudioSource(dump);
     final Format video = selector.getVideoSource(dump);
-    assertEquals(Optional.of(AUDIO_FORMAT_ID), audio.getFormatId());
-    assertEquals(Optional.of(AUDIO_FORMAT_ID), video.getFormatId());
+    final Optional<String> audioFormatId = audio.getFormatId();
+    final Optional<String> expected = Optional.of(AUDIO_FORMAT_ID);
+    final Optional<String> videoFormatId = video.getFormatId();
+    assertEquals(expected, audioFormatId);
+    assertEquals(expected, videoFormatId);
   }
 
   private Optional<Format> findTheFirstListed(final UrlParseDump candidate) {
@@ -98,7 +107,7 @@ final class StrategySelectorTest {
 
   @Test
   void shouldNameTheTitleWhenNoStreamMatches() {
-    final UrlParseDump dump = dump("{\"title\": \"Example Video\", " + PAGE_URL_FIELD + "}");
+    final UrlParseDump dump = dump("{\"title\": \"Example Video\", %s}".formatted(PAGE_URL_FIELD));
     final StrategySelector selector = StrategySelector.of(FormatStrategy.BEST_QUALITY_AUDIO, FormatStrategy.BEST_QUALITY_VIDEO);
     final NoMatchingFormatException audio = assertThrows(NoMatchingFormatException.class, () -> selector.getAudioSource(dump));
     final NoMatchingFormatException video = assertThrows(NoMatchingFormatException.class, () -> selector.getVideoSource(dump));
@@ -110,7 +119,7 @@ final class StrategySelectorTest {
 
   @Test
   void shouldNameThePageUrlWhenTheTitleIsUnknown() {
-    final UrlParseDump dump = dump("{" + PAGE_URL_FIELD + "}");
+    final UrlParseDump dump = dump(DOCUMENT_TEMPLATE.formatted(PAGE_URL_FIELD));
     final StrategySelector selector = StrategySelector.of(FormatStrategy.BEST_QUALITY_AUDIO, FormatStrategy.BEST_QUALITY_VIDEO);
     final NoMatchingFormatException audio = assertThrows(NoMatchingFormatException.class, () -> selector.getAudioSource(dump));
     final NoMatchingFormatException video = assertThrows(NoMatchingFormatException.class, () -> selector.getVideoSource(dump));

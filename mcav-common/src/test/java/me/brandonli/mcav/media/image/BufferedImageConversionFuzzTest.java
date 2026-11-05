@@ -92,10 +92,8 @@ final class BufferedImageConversionFuzzTest {
         final int actual = pixels[row * width + column];
         final int pixelColumn = column;
         final int pixelRow = row;
-        assertEquals(
-          expected,
-          actual,
-          () -> "pixel " + pixelColumn + "," + pixelRow + " of a " + width + "x" + height + " image of type " + image.getType()
+        assertEquals(expected, actual, () ->
+          "pixel %s,%s of a %sx%s image of type %s".formatted(pixelColumn, pixelRow, width, height, image.getType())
         );
       }
     }

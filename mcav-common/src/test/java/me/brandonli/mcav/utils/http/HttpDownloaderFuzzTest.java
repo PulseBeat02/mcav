@@ -72,8 +72,7 @@ final class HttpDownloaderFuzzTest {
 
   @FuzzTest(maxDuration = "30s")
   void shouldFollowARedirectWithinItsOriginOnlyOrRefuseIt(final FuzzedDataProvider data) {
-    // Jazzer forbids every connection once the fuzz target is ready, so the local servers are allowed in the target;
-    // the policy stays until Jazzer resets it for the next fuzz test
+    // Jazzer blocks every connection in the target, so this allows the local servers until the next fuzz test
     final SilentCloseable _ = BugDetectors.allowNetworkConnections(this::isLocalServer);
     final int status = data.pickValue(REDIRECT_STATUSES);
     final int origin = data.consumeInt(RELATIVE_LOCATION, OTHER_ORIGIN);

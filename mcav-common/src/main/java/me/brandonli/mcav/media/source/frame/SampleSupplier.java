@@ -33,11 +33,12 @@ public interface SampleSupplier {
   /**
    * Returns the next frame.
    *
-   * @return the pixels of the frame laid out row by row, or an empty array if no frame is available yet. The array
-   *     may be shared and is read-only, as the pixels of
-   *     {@link me.brandonli.mcav.media.image.ImageBuffer#getPixels()} are; copy it before modifying it, as
-   *     {@link me.brandonli.mcav.media.image.ImageBuffer#copyPixels()} does, or hand it on as a read-only view, as
-   *     {@link me.brandonli.mcav.media.image.ImageBuffer#getReadOnlyPixels()} does
+   * <p>The array may be shared and is read-only, as the pixels of
+   * {@link me.brandonli.mcav.media.image.ImageBuffer#getPixels()} are; copy it before modifying it, as
+   * {@link me.brandonli.mcav.media.image.ImageBuffer#copyPixels()} does, or hand it on as a read-only view, as
+   * {@link me.brandonli.mcav.media.image.ImageBuffer#getReadOnlyPixels()} does.
+   *
+   * @return the pixels of the frame laid out row by row, or an empty array if no frame is available yet
    * @since 1.0.0
    */
   int[] getFrameSamples();

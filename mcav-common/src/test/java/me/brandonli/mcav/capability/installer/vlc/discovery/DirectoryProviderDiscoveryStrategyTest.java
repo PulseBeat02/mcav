@@ -404,7 +404,7 @@ final class DirectoryProviderDiscoveryStrategyTest {
     final SearchProvider highSearch = new SearchProvider(high, 0);
     final SearchProvider unsupportedSearch = new SearchProvider(unsupported, 0);
     final TestStrategy strategy = strategy(lowSearch, highSearch, unsupportedSearch);
-    final List<String> directories = strategy.discoveryDirectories();
+    final List<String> directories = strategy.getDiscoveryDirectories();
     final List<String> expected = List.of(HIGH_DIRECTORY, FIRST_LOW_DIRECTORY, SECOND_LOW_DIRECTORY);
     assertEquals(expected, directories);
   }
@@ -414,9 +414,9 @@ final class DirectoryProviderDiscoveryStrategyTest {
     final StaticDirectoryProvider provider = new StaticDirectoryProvider(1, ProviderSupport.SUPPORTED, SUPPORTED_DIRECTORY);
     final SearchProvider search = new SearchProvider(provider, 0);
     final TestStrategy strategy = strategy(search);
-    final List<String> first = strategy.discoveryDirectories();
+    final List<String> first = strategy.getDiscoveryDirectories();
     first.clear();
-    final List<String> second = strategy.discoveryDirectories();
+    final List<String> second = strategy.getDiscoveryDirectories();
     final List<String> expected = List.of(SUPPORTED_DIRECTORY);
     assertEquals(expected, second);
   }
@@ -429,7 +429,7 @@ final class DirectoryProviderDiscoveryStrategyTest {
     System.setProperty(JNA_LIBRARY_PATH, rawLibraries);
     try {
       final DefaultProviderStrategy strategy = new DefaultProviderStrategy();
-      final List<String> directories = strategy.discoveryDirectories();
+      final List<String> directories = strategy.getDiscoveryDirectories();
       final boolean listed = directories.contains(rawLibraries);
       assertTrue(listed, "the providers of the default constructor read jna.library.path");
     } finally {
@@ -618,7 +618,7 @@ final class DirectoryProviderDiscoveryStrategyTest {
   }
 
   private static boolean recordVariable(final List<String> published, final SetterOutcome outcome, final String name, final String value) {
-    published.add(name + "=" + value);
+    published.add("%s=%s".formatted(name, value));
     return outcome == SetterOutcome.SUCCEEDS;
   }
 

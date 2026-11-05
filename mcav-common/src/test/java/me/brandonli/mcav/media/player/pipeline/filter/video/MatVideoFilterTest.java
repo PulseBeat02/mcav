@@ -72,8 +72,9 @@ final class MatVideoFilterTest {
     final InvertFilter filter = new InvertFilter();
     final boolean modified = filter.applyFilter(image, OriginalVideoMetadata.EMPTY);
     final byte[] bytes = written.getBytes();
+    final byte[] expected = new byte[] { -1, -1, -1 };
     assertTrue(modified);
-    assertArrayEquals(new byte[] { -1, -1, -1 }, bytes, "the inverted black pixel is written back as white BGR");
+    assertArrayEquals(expected, bytes, "the inverted black pixel is written back as white BGR");
     verify(image).updateData(any(), anyInt(), anyInt());
     verify(image, never()).setAsBufferedImage(any());
     verify(image, never()).updateArgb(any(), anyInt(), anyInt());
@@ -86,8 +87,9 @@ final class MatVideoFilterTest {
     final CropFilter filter = new CropFilter(1, 0, 1, 1);
     final boolean modified = filter.applyFilter(image, OriginalVideoMetadata.EMPTY);
     final byte[] bytes = written.getBytes();
+    final byte[] expected = new byte[] { 0x30, 0x20, 0x10 };
     assertTrue(modified);
-    assertArrayEquals(new byte[] { 0x30, 0x20, 0x10 }, bytes, "one BGR pixel remains");
+    assertArrayEquals(expected, bytes, "one BGR pixel remains");
     verify(image).updateData(any(), eq(1), eq(1));
   }
 
@@ -178,7 +180,7 @@ final class MatVideoFilterTest {
   private static final class UnchangedFilter extends MatVideoFilter {
 
     @Override
-    protected boolean modifyMat(final Mat mat) {
+    protected boolean modifyMat(final Mat matrix) {
       return false;
     }
   }

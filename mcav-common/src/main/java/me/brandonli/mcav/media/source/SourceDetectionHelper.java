@@ -29,7 +29,7 @@ import me.brandonli.mcav.media.source.uri.UriSourceDetector;
 /**
  * Turns strings entered by users into sources by asking a set of {@link SourceDetector}s.
  *
- * <p>The default detectors recognize existing file or directory paths, URLs with a scheme and host, plain numbers as capture
+ * <p>The default detectors recognize existing file or directory paths, URIs with a scheme and host, plain numbers as capture
  * device indices, and {@code format||input} pairs as raw FFmpeg inputs.
  *
  * {@snippet :
@@ -42,7 +42,7 @@ import me.brandonli.mcav.media.source.uri.UriSourceDetector;
  *
  * @since 1.0.0
  */
-public class SourceDetectionHelper {
+public final class SourceDetectionHelper {
 
   private static final Collection<SourceDetector<? extends Source>> DEFAULT_DETECTORS = List.of(
     new DeviceSourceDetector(),
@@ -54,7 +54,7 @@ public class SourceDetectionHelper {
   private final Collection<SourceDetector<? extends Source>> detectors;
 
   /**
-   * Constructs a helper with custom detectors.
+   * Creates a helper with custom detectors.
    *
    * @param detectors the non-null detectors to consult in iteration order; the collection is copied and
    *                  must contain no null elements. Detectors themselves are shared, not copied
@@ -68,7 +68,7 @@ public class SourceDetectionHelper {
   }
 
   /**
-   * Constructs a helper with the default detectors.
+   * Creates a helper with the default detectors.
    *
    * @since 1.0.0
    */

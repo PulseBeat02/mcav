@@ -209,7 +209,7 @@ final class DynamicImageBufferTest {
     final ScriptedFfmpegGrabber grabber = new ScriptedFfmpegGrabber(first, second, third);
     final List<ImageBuffer> decoded = new ArrayList<>();
     final FfmpegDynamicImageBuffer.Animation animation = FfmpegDynamicImageBuffer.decode(path, grabber, decoded);
-    final float frameRate = animation.getFrameRate();
+    final float frameRate = animation.frameRate();
     assertEquals(1.0f, frameRate, "two frame periods fit between the first frame at one second and the last at three");
 
     decoded.forEach(ImageBuffer::release);
@@ -220,7 +220,7 @@ final class DynamicImageBufferTest {
     final Path path = this.directory.resolve(ANIMATION_NAME);
     final Frame first = timestampedFrame(ONE_SECOND);
     final Frame second = timestampedFrame(TWO_SECONDS);
-    final FFmpegFrameGrabber.Exception failure = new FFmpegFrameGrabber.Exception("decoding failed on purpose");
+    final FFmpegFrameGrabber.Exception failure = new FFmpegFrameGrabber.Exception("Decoding failed on purpose!");
     final ScriptedFfmpegGrabber grabber = new ScriptedFfmpegGrabber(first, second, failure);
     final List<ImageBuffer> decoded = new ArrayList<>();
     assertThrows(ImageDecodingException.class, () -> FfmpegDynamicImageBuffer.decode(path, grabber, decoded));

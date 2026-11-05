@@ -120,22 +120,24 @@ final class SampleBytesPropertyTest {
     final int floatBytes = fromFloats.remaining();
     final int shortStart = shorts.position();
     final int floatStart = floats.position();
-    assertEquals(shortCount * Short.BYTES, shortBytes);
+    final int expectedShortBytes = shortCount * Short.BYTES;
+    assertEquals(expectedShortBytes, shortBytes);
 
     for (int index = 0; index < shortCount; index++) {
       final short expected = shorts.get(shortStart + index);
       final short actual = fromShorts.getShort(index * Short.BYTES);
-      assertEquals(expected, actual, "short " + index);
+      assertEquals(expected, actual, "short %s".formatted(index));
     }
 
-    assertEquals(floatCount * Float.BYTES, floatBytes);
+    final int expectedFloatBytes = floatCount * Float.BYTES;
+    assertEquals(expectedFloatBytes, floatBytes);
 
     for (int index = 0; index < floatCount; index++) {
       final float expectedValue = floats.get(floatStart + index);
       final float actualValue = fromFloats.getFloat(index * Float.BYTES);
       final int expected = Float.floatToIntBits(expectedValue);
       final int actual = Float.floatToIntBits(actualValue);
-      assertEquals(expected, actual, "float " + index);
+      assertEquals(expected, actual, "float %s".formatted(index));
     }
   }
 
@@ -154,7 +156,7 @@ final class SampleBytesPropertyTest {
       final int right = littleEndianShort(content, frame * 4 + 2);
       final int expected = Math.floorDiv(left + right, 2);
       final short downmixed = mono[frame];
-      assertEquals(expected, downmixed, "frame " + frame);
+      assertEquals(expected, downmixed, "frame %s".formatted(frame));
     }
 
     sample.assertUnchanged(stereo);
@@ -179,7 +181,7 @@ final class SampleBytesPropertyTest {
     for (int index = 0; index < sampleCount; index++) {
       final short wanted = expected.getShort(index * SAMPLE_BYTES);
       final short actual = converted.getShort(index * SAMPLE_BYTES);
-      assertEquals(wanted, actual, "sample " + index);
+      assertEquals(wanted, actual, "sample %s".formatted(index));
     }
 
     if (content.length % SAMPLE_BYTES == 1) {
@@ -206,7 +208,7 @@ final class SampleBytesPropertyTest {
     final byte[] after = new byte[converted.remaining()];
     final ByteBuffer again = converted.duplicate();
     again.get(after);
-    assertArrayEquals(before, after, () -> "the result shares memory with the source: " + sample);
+    assertArrayEquals(before, after, () -> "the result shares memory with the source: %s".formatted(sample));
   }
 
   enum Layout {
@@ -249,9 +251,9 @@ final class SampleBytesPropertyTest {
       whole.position(this.before);
       whole.limit(this.before + this.content.length);
       final ByteBuffer buffer = switch (this.layout) {
+        case HEAP, DIRECT -> whole;
         case SLICED_HEAP, SLICED_DIRECT -> whole.slice();
         case READ_ONLY -> whole.asReadOnlyBuffer();
-        default -> whole;
       };
       buffer.order(this.order);
       return buffer;
@@ -263,8 +265,9 @@ final class SampleBytesPropertyTest {
       final int position = buffer.position();
       final int limit = buffer.limit();
       final ByteOrder bufferOrder = buffer.order();
+      final int expectedLimit = start + this.content.length;
       assertEquals(start, position, "position");
-      assertEquals(start + this.content.length, limit, "limit");
+      assertEquals(expectedLimit, limit, "limit");
       assertSame(this.order, bufferOrder, "order");
 
       final byte[] left = new byte[this.content.length];
@@ -279,7 +282,7 @@ final class SampleBytesPropertyTest {
 
     @Override
     public String toString() {
-      return this.content.length + " bytes, " + this.before + " before, " + this.after + " after, " + this.layout + ", " + this.order;
+      return "%s bytes, %s before, %s after, %s, %s".formatted(this.content.length, this.before, this.after, this.layout, this.order);
     }
   }
 }

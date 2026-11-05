@@ -27,7 +27,7 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.Dit
  *
  * <p>Bayer matrices produce a fine, regular crosshatch and are the usual choice. The clustered dot matrices
  * imitate the halftone screens of printed newspapers, and the line matrices produce horizontal or vertical
- * stripes. Every matrix is accompanied by a {@code _MAX} constant that names its number of levels. The matrices
+ * stripes. Every matrix is accompanied by a {@code _MAXIMUM} constant that names its number of levels. The matrices
  * are based on the collection of the <a href="https://github.com/makeworld-the-better-one/dither">dither</a>
  * library.
  *
