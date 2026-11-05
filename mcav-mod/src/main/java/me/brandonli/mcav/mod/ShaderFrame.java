@@ -23,8 +23,7 @@ import java.util.List;
 import java.util.Map;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// the game extracts every map's colors before it renders the level, and poses the maps, which gives an anchor's
-// corner, while it renders
+// map colors come before the level renders; map poses, which give anchor corners, come while it renders
 final class ShaderFrame {
 
   private final List<byte[]> pages;

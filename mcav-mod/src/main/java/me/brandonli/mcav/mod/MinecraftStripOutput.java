@@ -33,8 +33,7 @@ import net.minecraft.client.renderer.LevelTargetBundle;
 import net.minecraft.client.renderer.PostChain;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// the pack's chain replaces vanilla's entity_outline chain, which also draws glowing entities' outlines from the
-// outline target and writes into it: it runs on an empty one, copied each frame from a target nothing draws into
+// the pack's chain replaces vanilla's entity_outline chain, so it runs on an empty target, not the glowing outlines
 final class MinecraftStripOutput implements StripOutput {
 
   private static final String EMPTY_OUTLINE = "MCV2 empty outline";

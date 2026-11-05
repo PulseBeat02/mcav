@@ -41,9 +41,7 @@ import org.junit.jupiter.api.Tag;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
-// Fuzzes the samples and titles a player gets from outside the process. Whatever the chunks, JDA takes the samples
-// byte-swapped and in order, with at most 150 frames waiting; whatever the title, JDA accepts the activity name and
-// shows it trimmed, or cut at a character boundary. The seeds are a few typical inputs and the titles that broke it.
+// fuzzes the samples and titles a player gets from outside the process
 @Tag("fuzz")
 final class PcmDiscordPlayerFuzzTest {
 

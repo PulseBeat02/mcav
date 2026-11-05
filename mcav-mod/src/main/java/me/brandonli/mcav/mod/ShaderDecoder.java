@@ -27,8 +27,7 @@ import java.util.function.Supplier;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// Iris writes the shader pack's final image over the main target, so the MCV2 pack's text shaders never put the
-// strip where its chain reads it: this builds the strip from the frame's maps after Iris, writes it and runs the chain
+// Iris overwrites the main target, so this builds the strip from the frame's maps after Iris and runs the chain
 final class ShaderDecoder {
 
   // a new pack comes with a resource reload, at most every few seconds
@@ -68,8 +67,7 @@ final class ShaderDecoder {
   private int hooks;
   private boolean levelProjection;
 
-  // another Iris version may draw in another order, so the decoder stays off for it; the shadow pass draws the maps
-  // again from the sun's view
+  // off for untested Iris versions, which may draw in another order; the shadow pass draws the maps again
   ShaderDecoder(
     final boolean testedIris,
     final BooleanSupplier shaderPackInUse,
@@ -129,8 +127,7 @@ final class ShaderDecoder {
     this.levelProjection = true;
   }
 
-  // only the level's projection is the frame's: Iris sets its shadow pass's and its hands' the same way; with shaders,
-  // Iris draws the view bobbing through the camera's view rotation instead
+  // only the level's projection, not Iris's shadow or hand ones; with shaders, view bobbing is in the view rotation
   void projected(final @Nullable Object projection) {
     if (!this.levelProjection) {
       return;

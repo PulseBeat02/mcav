@@ -23,8 +23,7 @@ import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 import net.neoforged.neoforge.network.registration.NetworkRegistry;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// NeoForge's network registry follows the channels the server registers; ticks and the login events run on the
-// client thread
+// NeoForge's network registry follows the server's channels; ticks and the login events run on the client thread
 final class NeoForgeChannel implements ReportChannel {
 
   private @Nullable Connection connection;

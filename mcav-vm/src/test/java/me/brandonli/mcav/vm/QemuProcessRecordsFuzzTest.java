@@ -38,8 +38,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Tag;
 
-// the records lie in the home folder of the user, where a crash, an older version or another program can leave any
-// text; the first line of an input names the record and the rest is its content
+// records lie in the user's home, open to any text; an input's first line names the record, the rest is its content
 @Tag("fuzz")
 final class QemuProcessRecordsFuzzTest {
 

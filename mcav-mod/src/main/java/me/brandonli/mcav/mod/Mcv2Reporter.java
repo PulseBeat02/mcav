@@ -22,8 +22,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.LongSupplier;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// reports once Iris has said the same for a second: Iris has no shader pipeline for a moment while it reloads a
-// pack or the world changes, and the server limits the rate of reports
+// reports once Iris has said the same for a second: Iris briefly has no pipeline on reloads, and reports are rate-limited
 final class Mcv2Reporter {
 
   static final long STEADY_NANOSECONDS = TimeUnit.SECONDS.toNanos(1);

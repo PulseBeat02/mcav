@@ -38,8 +38,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-// Installs the pinned x86-64 QEMU packages from the real archive into a temporary cache and starts the program, which
-// proves its libraries, its TCG module and its firmware folders. Runs only with -Pmcav.networkTests=true.
+// installs the pinned x86-64 QEMU packages from the real archive and starts the program
 final class QemuInstallerReleaseTest {
 
   private static final String USER_HOME = "user.home";
