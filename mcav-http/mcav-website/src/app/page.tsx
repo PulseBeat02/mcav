@@ -512,17 +512,26 @@ const formatDate = (dateString?: string): string => {
     }
 };
 
+const isText = (value: unknown): value is string => {
+    return typeof value === "string" && value !== "";
+};
+
+const isCount = (value: unknown): value is number => {
+    return typeof value === "number" && value > 0;
+};
+
 const toMediaInformation = (data: unknown): MediaInformation => {
-    const received: MediaInformation = typeof data === "object" && data !== null ? data : {};
+    const received: Record<string, unknown> = typeof data === "object" && data !== null ? data as Record<string, unknown> : {};
+    const artists: unknown[] = [received.uploader, received.channel, received.uploader_id];
     return {
-        title: received.title || UNKNOWN_TITLE,
-        uploader: received.uploader || received.channel || received.uploader_id || UNKNOWN_ARTIST,
-        description: received.description || NO_DESCRIPTION,
-        thumbnail: received.thumbnail,
-        duration: received.duration || 0,
-        view_count: received.view_count || 0,
-        like_count: received.like_count || 0,
-        upload_date: received.upload_date || undefined
+        title: isText(received.title) ? received.title : UNKNOWN_TITLE,
+        uploader: artists.find(isText) ?? UNKNOWN_ARTIST,
+        description: isText(received.description) ? received.description : NO_DESCRIPTION,
+        thumbnail: isText(received.thumbnail) ? received.thumbnail : undefined,
+        duration: isCount(received.duration) ? received.duration : 0,
+        view_count: isCount(received.view_count) ? received.view_count : 0,
+        like_count: isCount(received.like_count) ? received.like_count : 0,
+        upload_date: isText(received.upload_date) ? received.upload_date : undefined
     };
 };
 
