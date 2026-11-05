@@ -131,13 +131,15 @@ restrictive modifiers (a field that is never reassigned is `final`, a utility cl
 unused code, constants in UPPER_SNAKE_CASE, one variable per declaration, overloads next to each other and no wildcard
 imports; the list is in `buildSrc/src/main/kotlin/mcav.java-library.gradle.kts`.
 
-Three lints of the sources run in `check`. Java code imports the types it names: `qualifiedNames` fails on a fully
+Four lints of the sources run in `check`. Java code imports the types it names: `qualifiedNames` fails on a fully
 qualified type name, except on a line marked `// fqn: <why>` where two types of one simple name meet in a file. Log
 calls never build their message by concatenation: `logMessages` fails on a log call whose arguments join strings with
 `+`, such as `LOGGER.warn("Could not reach " + host)`. Write the template inline and let its SLF4J placeholders take
 the other arguments: `LOGGER.warn("Could not reach {}, retrying.", host)`. Names say what they hold: `variableNames`
 fails on a variable, parameter or field named by one letter or by a short form a word says better (`buf`, `tmp`,
-`idx`...); type parameters are a word plus `Type`, such as `<KeyType>`.
+`idx`...); type parameters are a word plus `Type`, such as `<KeyType>`. A comment longer than one line is one
+`/* ... */` block: `commentForm` fails on two or more lines in a row that hold only a `//` comment, except `// fqn:`
+markers and tool directives such as `// spotless:off`.
 
 ## Mutation testing
 

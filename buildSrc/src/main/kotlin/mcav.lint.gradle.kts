@@ -16,6 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import me.brandonli.mcav.gradle.CommentFormTask
 import me.brandonli.mcav.gradle.LogMessagesTask
 import me.brandonli.mcav.gradle.QualifiedNamesTask
 import me.brandonli.mcav.gradle.VariableNamesTask
@@ -30,6 +31,7 @@ val javaSourcePattern: String = "*/java/**/*.java"
 val qualifiedNamesReportPath: String = "reports/qualified-names.txt"
 val logMessagesReportPath: String = "reports/log-messages.txt"
 val variableNamesReportPath: String = "reports/variable-names.txt"
+val commentFormReportPath: String = "reports/comment-form.txt"
 
 val javaSources: FileTree = layout.projectDirectory.dir(sourcePath).asFileTree.matching { include(javaSourcePattern) }
 
@@ -54,6 +56,13 @@ val variableNames: TaskProvider<VariableNamesTask> = tasks.register<VariableName
     this.report = layout.buildDirectory.file(variableNamesReportPath)
 }
 
+val commentForm: TaskProvider<CommentFormTask> = tasks.register<CommentFormTask>("commentForm") {
+    this.group = "verification"
+    this.description = "Fails on comments written as runs of // lines in the Java code of every source set of this module"
+    this.sources.from(javaSources)
+    this.report = layout.buildDirectory.file(commentFormReportPath)
+}
+
 tasks.check {
-    this.dependsOn(qualifiedNames, logMessages, variableNames)
+    this.dependsOn(qualifiedNames, logMessages, variableNames, commentForm)
 }

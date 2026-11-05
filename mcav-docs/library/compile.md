@@ -38,7 +38,7 @@ and must stay free of warnings. The coverage, property, fuzz and PIT rows below 
 
 | Option | What it does |
 |--------|---------------|
-| `./gradlew build` | Compiles everything, checks formatting, runs the tests, the property tests, a replay of every fuzz input and the Python codec tests, checks the format of the MCV2 native sources, builds the documentation, and enforces the coverage lint and the source lints (`qualifiedNames`, `logMessages`, `variableNames`). |
+| `./gradlew build` | Compiles everything, checks formatting, runs the tests, the property tests, a replay of every fuzz input and the Python codec tests, checks the format of the MCV2 native sources, builds the documentation, and enforces the coverage lint and the source lints (`qualifiedNames`, `logMessages`, `variableNames`, `commentForm`). |
 | `./gradlew propertyTest`, `fuzzTest` | Runs only the property tests, or only the fuzz tests; `-Pfuzz.seconds=<n>` fuzzes each fuzz test for that long. |
 | `./gradlew jcstressTest` | Runs the concurrency tests of `mcav-jcstress` on jcstress. |
 | `./gradlew :mcav-docs:build` | Builds only the documentation, into `mcav-docs/build/html/index.html`. |

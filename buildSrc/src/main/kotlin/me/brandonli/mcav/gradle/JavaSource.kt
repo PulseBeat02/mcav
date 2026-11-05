@@ -19,9 +19,11 @@
 package me.brandonli.mcav.gradle
 
 /**
- * Blanks out parts of Java source, so that a lint can match code without false hits in comments or literals.
+ * Blanks out parts of Java source, so that a lint can match code without false hits in comments or literals, and finds
+ * its line comments.
  *
- * Both functions keep every offset and line: each blanked character becomes a space, except a line break, which stays.
+ * Both masking functions keep every offset and line: each blanked character becomes a space, except a line break, which
+ * stays.
  */
 object JavaSource {
 
@@ -59,6 +61,21 @@ object JavaSource {
         return Masker(source, Literals.KEPT).mask()
     }
 
+    /**
+     * Returns the offset of every `//` comment in [source], in source order.
+     *
+     * Two slashes inside a block comment, a line comment or a literal start no comment.
+     *
+     * @param source the Java source
+     * @return the offset of the first slash of each line comment
+     */
+    fun findLineCommentOffsets(source: String): List<Int> {
+        val masker: Masker = Masker(source, Literals.MASKED)
+        masker.mask()
+
+        return masker.lineCommentOffsets
+    }
+
     private enum class State {
         CODE,
         LINE_COMMENT,
@@ -74,6 +91,8 @@ object JavaSource {
     }
 
     private class Masker(private val source: String, private val literals: Literals) {
+
+        val lineCommentOffsets: MutableList<Int> = mutableListOf<Int>()
 
         private val output: StringBuilder = StringBuilder(this.source.length)
         private var state: State = State.CODE
@@ -96,13 +115,18 @@ object JavaSource {
 
         private fun scanCode(): Unit {
             when {
-                this.source.startsWith(LINE_COMMENT_START, this.index) -> this.enter(State.LINE_COMMENT, LINE_COMMENT_START.length)
+                this.source.startsWith(LINE_COMMENT_START, this.index) -> this.enterLineComment()
                 this.source.startsWith(BLOCK_COMMENT_START, this.index) -> this.enter(State.BLOCK_COMMENT, BLOCK_COMMENT_START.length)
                 this.source.startsWith(TEXT_BLOCK_QUOTES, this.index) -> this.enter(State.TEXT_BLOCK, TEXT_BLOCK_QUOTES.length)
                 this.source[this.index] == STRING_QUOTE -> this.enter(State.STRING, 1)
                 this.source[this.index] == CHARACTER_QUOTE -> this.enter(State.CHARACTER, 1)
                 else -> this.keep()
             }
+        }
+
+        private fun enterLineComment(): Unit {
+            this.lineCommentOffsets += this.index
+            this.enter(State.LINE_COMMENT, LINE_COMMENT_START.length)
         }
 
         private fun scanLineComment(): Unit {
