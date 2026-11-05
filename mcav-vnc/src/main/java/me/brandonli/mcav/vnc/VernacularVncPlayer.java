@@ -333,7 +333,7 @@ public final class VernacularVncPlayer implements VncPlayer {
     final int frameRate = source.getTargetFrameRate();
     configuration.setTargetFramesPerSecond(frameRate);
     configuration.setScreenUpdateListener(image -> this.onScreenUpdate(created, image, renderWorker));
-    configuration.setErrorListener(error -> this.onError(created, error));
+    configuration.setErrorListener(failure -> this.onError(created, failure));
 
     final Optional<String> username = source.getUsername();
     final Optional<String> sentUsername = username.filter(this::isSent);
@@ -379,13 +379,13 @@ public final class VernacularVncPlayer implements VncPlayer {
 
   private void onError(
     final Session failed,
-    final com.shinyhut.vernacular.client.exceptions.VncException error // fqn: clashes with the VncException of this module
+    final com.shinyhut.vernacular.client.exceptions.VncException failure // fqn: clashes with the VncException of this module
   ) {
-    failed.recordStartupError(error);
+    failed.recordStartupError(failure);
 
     final boolean wasAlive = failed.end();
     if (wasAlive) {
-      this.report("The VNC connection failed.", error);
+      this.report("The VNC connection failed.", failure);
     }
   }
 
@@ -817,10 +817,10 @@ public final class VernacularVncPlayer implements VncPlayer {
 
     // Keeps the first error of the handshake; a session that is still starting is not alive, so it reports nothing.
     private synchronized void recordStartupError(
-      final com.shinyhut.vernacular.client.exceptions.VncException error // fqn: clashes with the VncException of this module
+      final com.shinyhut.vernacular.client.exceptions.VncException failure // fqn: clashes with the VncException of this module
     ) {
       if (this.starting && this.startupError == null) {
-        this.startupError = error;
+        this.startupError = failure;
       }
     }
 
