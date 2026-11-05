@@ -113,6 +113,8 @@ import org.mockito.invocation.InvocationOnMock;
 final class AbstractVideoCommandTest {
 
   private static final String WEB_PAGE = "https://www.youtube.com/watch?v=abc";
+  private static final String VIDEO_STREAM = "https://cdn.example.com/video";
+  private static final String AUDIO_STREAM = "https://cdn.example.com/audio";
 
   private static final String VIDEO_RESOLUTION = "640x360";
   private static final int VIDEO_WIDTH = 640;
@@ -543,18 +545,13 @@ final class AbstractVideoCommandTest {
   void shouldResolveWebPagesWithYtdlpAndPlayTheirStreams() throws IOException {
     final UrlParseDump resolved = UrlParseDump.of("A video");
     when(this.parser.parse(any(UriSource.class), eq(FORMAT_OPTION), eq(BEST_FORMAT))).thenReturn(resolved);
-    final URI videoStream = URI.create("https://cdn.example.com/video");
-    final URI audioStream = URI.create("https://cdn.example.com/audio");
+    final URI videoStream = URI.create(VIDEO_STREAM);
+    final URI audioStream = URI.create(AUDIO_STREAM);
     final UriSource videoStreamSource = UriSource.uri(videoStream);
     final UriSource audioStreamSource = UriSource.uri(audioStream);
     final StrategySelector strategies = this.mockStrategies(resolved, videoStreamSource, audioStreamSource);
 
-    try (final MockedStatic<StrategySelector> selectors = Mockito.mockStatic(StrategySelector.class)) {
-      selectors
-        .when(() -> StrategySelector.of(FormatStrategy.BEST_QUALITY_AUDIO, FormatStrategy.BEST_QUALITY_VIDEO))
-        .thenReturn(strategies);
-      this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, WEB_PAGE, "--yt-dlp{format=best}");
-    }
+    this.playWebPage(strategies, "--yt-dlp{format=best}");
 
     this.assertResolvedTheWebPage();
     final UrlParseDump dump = this.verifyPlayedWithDump(AudioArgument.NONE);
@@ -575,6 +572,15 @@ final class AbstractVideoCommandTest {
     when(strategies.getAudioSource(resolved)).thenReturn(audio);
 
     return strategies;
+  }
+
+  private void playWebPage(final StrategySelector strategies, final String options) {
+    try (final MockedStatic<StrategySelector> selectors = Mockito.mockStatic(StrategySelector.class)) {
+      selectors
+        .when(() -> StrategySelector.of(FormatStrategy.BEST_QUALITY_AUDIO, FormatStrategy.BEST_QUALITY_VIDEO))
+        .thenReturn(strategies);
+      this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, WEB_PAGE, options);
+    }
   }
 
   private void assertResolvedTheWebPage() throws IOException {
@@ -612,12 +618,7 @@ final class AbstractVideoCommandTest {
     final UriSource audioStreamSource = UriSource.uri(URI.create(audioStream));
     final StrategySelector strategies = this.mockStrategies(resolved, videoStreamSource, audioStreamSource);
 
-    try (final MockedStatic<StrategySelector> selectors = Mockito.mockStatic(StrategySelector.class)) {
-      selectors
-        .when(() -> StrategySelector.of(FormatStrategy.BEST_QUALITY_AUDIO, FormatStrategy.BEST_QUALITY_VIDEO))
-        .thenReturn(strategies);
-      this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, WEB_PAGE, "");
-    }
+    this.playWebPage(strategies, "");
 
     final Component error = Message.VIDEO_START_ERROR.build();
     this.assertSenderReceived(error);
@@ -716,6 +717,26 @@ final class AbstractVideoCommandTest {
     final String mrl = file.toString();
 
     this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, mrl, "");
+
+    verify(this.manager, times(2)).clearCurrentVideo();
+
+    final Component error = Message.UNSUPPORTED_MRL.build();
+    this.assertSenderReceived(error);
+    verify(this.manager, never()).getHologramLocation();
+  }
+
+  @Test
+  void shouldReleaseAPlayerThatRefusesToStartTheStreamsOfAWebPage() {
+    when(this.player.start(any(), any())).thenReturn(false);
+    final UrlParseDump resolved = UrlParseDump.of("A video the player refuses");
+    when(this.parser.parse(any(UriSource.class))).thenReturn(resolved);
+    final URI videoStream = URI.create(VIDEO_STREAM);
+    final URI audioStream = URI.create(AUDIO_STREAM);
+    final UriSource videoStreamSource = UriSource.uri(videoStream);
+    final UriSource audioStreamSource = UriSource.uri(audioStream);
+    final StrategySelector strategies = this.mockStrategies(resolved, videoStreamSource, audioStreamSource);
+
+    this.playWebPage(strategies, "");
 
     verify(this.manager, times(2)).clearCurrentVideo();
 
