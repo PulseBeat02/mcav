@@ -146,7 +146,7 @@ final class FfmpegTemplatesTest {
     final long expectedFrames = (long) TestMedia.VIDEO_SECONDS * sampleRate;
     // AAC and Vorbis may pad the source and destination by a codec block.
     final boolean withinACodecBlock = Math.abs(decodedFrames - expectedFrames) <= 2048;
-    assertTrue(withinACodecBlock, "decoded sample frames: " + decodedFrames);
+    assertTrue(withinACodecBlock, "decoded sample frames: %s".formatted(decodedFrames));
   }
 
   private long countRemainingSamples(final Buffer[] buffers) {

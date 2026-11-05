@@ -39,7 +39,7 @@ final class KeyUtilsFuzzTest {
     final int typedLength = typed.length();
     final int replacedLength = replaced.length();
     final boolean notLonger = replacedLength <= typedLength;
-    assertTrue(notLonger, () -> "'" + typed + "' grew to '" + replaced + "'");
+    assertTrue(notLonger, () -> "'%s' grew to '%s'".formatted(typed, replaced));
 
     final boolean braces = typed.indexOf('{') >= 0;
     if (!braces) {

@@ -126,7 +126,7 @@ final class SampleBytesPropertyTest {
     for (int index = 0; index < shortCount; index++) {
       final short expected = shorts.get(shortStart + index);
       final short actual = fromShorts.getShort(index * Short.BYTES);
-      assertEquals(expected, actual, "short " + index);
+      assertEquals(expected, actual, "short %s".formatted(index));
     }
 
     final int expectedFloatBytes = floatCount * Float.BYTES;
@@ -137,7 +137,7 @@ final class SampleBytesPropertyTest {
       final float actualValue = fromFloats.getFloat(index * Float.BYTES);
       final int expected = Float.floatToIntBits(expectedValue);
       final int actual = Float.floatToIntBits(actualValue);
-      assertEquals(expected, actual, "float " + index);
+      assertEquals(expected, actual, "float %s".formatted(index));
     }
   }
 
@@ -156,7 +156,7 @@ final class SampleBytesPropertyTest {
       final int right = littleEndianShort(content, frame * 4 + 2);
       final int expected = Math.floorDiv(left + right, 2);
       final short downmixed = mono[frame];
-      assertEquals(expected, downmixed, "frame " + frame);
+      assertEquals(expected, downmixed, "frame %s".formatted(frame));
     }
 
     sample.assertUnchanged(stereo);
@@ -181,7 +181,7 @@ final class SampleBytesPropertyTest {
     for (int index = 0; index < sampleCount; index++) {
       final short wanted = expected.getShort(index * SAMPLE_BYTES);
       final short actual = converted.getShort(index * SAMPLE_BYTES);
-      assertEquals(wanted, actual, "sample " + index);
+      assertEquals(wanted, actual, "sample %s".formatted(index));
     }
 
     if (content.length % SAMPLE_BYTES == 1) {
@@ -208,7 +208,7 @@ final class SampleBytesPropertyTest {
     final byte[] after = new byte[converted.remaining()];
     final ByteBuffer again = converted.duplicate();
     again.get(after);
-    assertArrayEquals(before, after, () -> "the result shares memory with the source: " + sample);
+    assertArrayEquals(before, after, () -> "the result shares memory with the source: %s".formatted(sample));
   }
 
   enum Layout {
@@ -282,7 +282,7 @@ final class SampleBytesPropertyTest {
 
     @Override
     public String toString() {
-      return this.content.length + " bytes, " + this.before + " before, " + this.after + " after, " + this.layout + ", " + this.order;
+      return "%s bytes, %s before, %s after, %s, %s".formatted(this.content.length, this.before, this.after, this.layout, this.order);
     }
   }
 }

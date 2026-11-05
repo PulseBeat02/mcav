@@ -37,8 +37,6 @@ final class DefaultFfmpegCommandBuilder implements FfmpegCommandBuilder {
   private static final String OVERWRITE_FLAG = "-y";
   private static final String FILTER_COMPLEX_FLAG = "-filter_complex";
 
-  private static final String RESOLUTION_SEPARATOR = "x";
-
   private final List<String> arguments;
 
   DefaultFfmpegCommandBuilder() {
@@ -113,7 +111,7 @@ final class DefaultFfmpegCommandBuilder implements FfmpegCommandBuilder {
     Preconditions.checkArgument(width > 0 && height > 0, "Resolution %sx%s must be positive!", width, height);
 
     this.arguments.add(RESOLUTION_FLAG);
-    final String size = width + RESOLUTION_SEPARATOR + height;
+    final String size = "%sx%s".formatted(width, height);
     this.arguments.add(size);
     return this;
   }

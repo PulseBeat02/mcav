@@ -156,7 +156,7 @@ final class FfmpegCommandTest {
     final List<String> expectedTaskCommand = List.of(commandArray);
     final boolean printsTheVersion = output.startsWith("ffmpeg version");
     final String[] expectedCommandArray = new String[] { executablePath, VERSION_ARGUMENT };
-    final String expectedText = executablePath + " -version";
+    final String expectedText = "%s %s".formatted(executablePath, VERSION_ARGUMENT);
     assertArrayEquals(expectedCommandArray, commandArray);
     assertEquals(expectedText, text);
     assertEquals(expectedTaskCommand, taskCommand);

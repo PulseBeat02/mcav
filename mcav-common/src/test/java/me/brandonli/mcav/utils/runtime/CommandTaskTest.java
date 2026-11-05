@@ -362,7 +362,7 @@ final class CommandTaskTest {
     assertTrue(exited, PROGRAM_KILLED_MESSAGE);
 
     final boolean returnedInTime = elapsed < RETURN_DEADLINE_NANOSECONDS;
-    assertTrue(returnedInTime, "run returns once the timeout passed, took " + elapsed + " ns");
+    assertTrue(returnedInTime, "run returns once the timeout passed, took %s ns".formatted(elapsed));
     assertThrows(IllegalStateException.class, task::getExitCode);
   }
 
@@ -422,7 +422,7 @@ final class CommandTaskTest {
     assertTrue(exited, PROGRAM_KILLED_MESSAGE);
 
     final boolean returnedInTime = elapsed < RETURN_DEADLINE_NANOSECONDS;
-    assertTrue(returnedInTime, "run returns without waiting for the program, took " + elapsed + " ns");
+    assertTrue(returnedInTime, "run returns without waiting for the program, took %s ns".formatted(elapsed));
   }
 
   private static final class LateChildProcess extends Process {

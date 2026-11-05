@@ -157,7 +157,8 @@ final class FfmpegLibrariesTest {
     final Map<String, String> empty = libraries.createEnvironment(EXECUTABLE, "");
     final Map<String, String> unset = libraries.createEnvironment(EXECUTABLE, null);
     final String folderPath = String.join(File.pathSeparator, EXECUTABLE_FOLDER, FIRST_FOLDER, SECOND_FOLDER);
-    final Map<String, String> expectedInherited = Map.of(LIBRARY_PATH_VARIABLE, folderPath + File.pathSeparator + INHERITED_LIBRARY_PATH);
+    final String folderAndInheritedPath = String.join(File.pathSeparator, folderPath, INHERITED_LIBRARY_PATH);
+    final Map<String, String> expectedInherited = Map.of(LIBRARY_PATH_VARIABLE, folderAndInheritedPath);
     final Map<String, String> expectedAlone = Map.of(LIBRARY_PATH_VARIABLE, folderPath);
     assertEquals(expectedInherited, inherited);
     assertEquals(expectedAlone, empty);
