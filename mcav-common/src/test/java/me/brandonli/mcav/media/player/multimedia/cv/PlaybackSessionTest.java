@@ -1259,7 +1259,8 @@ final class PlaybackSessionTest {
     final RefillingQueue queue = new RefillingQueue();
     queue.add("frame");
     final List<String> discarded = new ArrayList<>();
-    PlaybackSession.replaceWithEndMarker(queue, "end", discarded::add);
+    final PlaybackSession session = this.unstartedSession();
+    session.replaceWithEndMarker(queue, "end", discarded::add);
 
     final List<String> remaining = new ArrayList<>(queue);
     final List<String> expectedRemaining = List.of("end");

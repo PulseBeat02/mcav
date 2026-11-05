@@ -769,8 +769,8 @@ final class PlaybackSession {
 
     this.interruptThreadsExcept(threads, currentThread);
     // A renderer that stops its own session finishes through this marker instead of an interrupt.
-    replaceWithEndMarker(this.videoQueue, END_OF_VIDEO, this::releaseImage);
-    replaceWithEndMarker(this.audioQueue, END_OF_AUDIO, this::discardChunk);
+    this.replaceWithEndMarker(this.videoQueue, END_OF_VIDEO, this::releaseImage);
+    this.replaceWithEndMarker(this.audioQueue, END_OF_AUDIO, this::discardChunk);
     this.joinThreadsExcept(threads, currentThread);
   }
 
@@ -804,7 +804,7 @@ final class PlaybackSession {
 
   // A running decoder may refill the queue between draining and offering, so draining repeats until the marker fits.
   @VisibleForTesting
-  static <ElementType extends @NonNull Object> void replaceWithEndMarker(
+  <ElementType extends @NonNull Object> void replaceWithEndMarker(
     final BlockingQueue<ElementType> queue,
     final ElementType marker,
     final Consumer<? super ElementType> discarded
