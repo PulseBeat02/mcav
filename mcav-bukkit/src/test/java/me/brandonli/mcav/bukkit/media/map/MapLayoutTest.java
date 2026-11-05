@@ -203,6 +203,14 @@ final class MapLayoutTest {
   }
 
   @Test
+  void shouldRejectAnImageWhoseSizeDiffersFromTheLayout() {
+    final MapLayout layout = MapLayout.of(0, 1, 1, MAP_SIZE, MAP_SIZE);
+    final byte[] image = new byte[MAP_SIZE];
+
+    assertThrows(IllegalArgumentException.class, () -> layout.extractAll(image));
+  }
+
+  @Test
   void shouldRejectGridsWhoseMapIdsOrPixelCountsOverflow() {
     final MapLayout lastIds = MapLayout.of(Integer.MAX_VALUE - 1, 2, 1, 1, 1);
     final int lastId = lastIds.getMapId(1);
