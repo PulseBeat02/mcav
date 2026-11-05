@@ -81,7 +81,7 @@ mcv2:
   encoder-threads: 0
 
   # Whether the live encoders run their pixel kernels in the native library MCAV ships for Linux, Windows and macOS
-  # on x86-64 and ARM64 (auto), which computes exactly what Java computes, about twice as fast, or always in Java
+  # on x86-64 and ARM64 (auto), which computes exactly what Java computes, only faster, or always in Java
   # (off). Anything that stops the library from loading, such as a JVM that refuses native access, runs Java. The
   # system property mcv2.native, given to the server's JVM, wins over this setting, and the server log says at startup
   # which kernels run and why.
@@ -96,8 +96,7 @@ mcv2:
   default-codec: dither
 
   # The MCV2 resource pack: one pack decodes every MCV2 screen of the server, and changes only when a screen of a
-  # video size it does not decode yet starts; accepting a changed pack reloads a player's resources, a hitch of a
-  # second or more.
+  # video size it does not decode yet starts; accepting a changed pack reloads a player's resources, a visible hitch.
   pack:
 
     # Where the players download the pack from:
