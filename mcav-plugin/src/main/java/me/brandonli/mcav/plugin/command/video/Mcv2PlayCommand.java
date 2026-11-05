@@ -524,19 +524,31 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
   }
 
   private void reportDone(final CommandSender sender, final Mcv2FileEncoder.Result result, final Path target, final long started) {
-    final long elapsedSeconds = Math.round((System.nanoTime() - started) / NANOSECONDS_PER_SECOND);
-    final long millisecondsPerFrame = Math.round(result.millisecondsPerFrame());
+    final long now = System.nanoTime();
+    final long elapsedSeconds = Math.round((now - started) / NANOSECONDS_PER_SECOND);
     final long frames = result.getFrames();
+    final long millisecondsPerFrame = this.computeMillisecondsPerFrame(started, now, frames);
+    final long encodingMillisecondsPerFrame = Math.round(result.millisecondsPerFrame());
     final long keyframes = result.getKeyframes();
-    final String description = "%s frames (%s keyframes) into %s in %s s, %s ms per frame".formatted(
+    final String description = "%s frames (%s keyframes) into %s in %s s, %s ms per frame, %s ms of it encoding".formatted(
       frames,
       keyframes,
       target,
       elapsedSeconds,
-      millisecondsPerFrame
+      millisecondsPerFrame,
+      encodingMillisecondsPerFrame
     );
     final Component message = Message.MCV2_ENCODE_DONE.build(description);
     sender.sendMessage(message);
+  }
+
+  private long computeMillisecondsPerFrame(final long started, final long now, final long frames) {
+    if (frames == 0) {
+      return 0;
+    }
+
+    final double millisecondsPerFrame = (now - started) / NANOSECONDS_PER_MILLISECOND / frames;
+    return Math.round(millisecondsPerFrame);
   }
 
   private LongConsumer createProgressReporter(final CommandSender sender, final long started, final long interval) {
@@ -554,9 +566,8 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     final long now = System.nanoTime();
     if (this.isProgressDue(now, reported[0], interval)) {
       reported[0] = now;
-      final double millisecondsPerFrame = (now - started) / NANOSECONDS_PER_MILLISECOND / frames;
-      final long roundedMillisecondsPerFrame = Math.round(millisecondsPerFrame);
-      final String description = "%s frames, %s ms per frame".formatted(frames, roundedMillisecondsPerFrame);
+      final long millisecondsPerFrame = this.computeMillisecondsPerFrame(started, now, frames);
+      final String description = "%s frames, %s ms per frame".formatted(frames, millisecondsPerFrame);
       final Component message = Message.MCV2_ENCODE_PROGRESS.build(description);
       sender.sendMessage(message);
     }
