@@ -19,6 +19,7 @@ package me.brandonli.mcav.plugin.audio;
 
 import com.google.common.base.Preconditions;
 import java.util.Optional;
+import me.brandonli.mcav.plugin.locale.LocaleTools.NullComponent;
 import me.brandonli.mcav.plugin.locale.Message;
 import me.brandonli.mcav.plugin.utils.AudioArgument;
 import net.kyori.adventure.text.Component;
@@ -45,7 +46,9 @@ public final class AudioOutputs {
 
   /**
    * Returns the message that explains why an audio output cannot play now, or empty if it can. The Discord bot and the
-   * web page start in the background when the plugin is enabled, so they are only usable once they are ready.
+   * web page start in the background when the plugin is enabled, so they are only usable once they are ready. Simple
+   * Voice Chat audio is usable once Simple Voice Chat has handed MCAV its server API, which happens when the server has
+   * loaded.
    *
    * @param provider  the provider of the audio outputs
    * @param audioType the chosen output
@@ -61,20 +64,25 @@ public final class AudioOutputs {
       case DISCORD_BOT -> {
         final boolean enabled = provider.isDiscordBotEnabled();
         final boolean ready = provider.isDiscordBotReady();
-        yield describe(enabled, ready);
+        yield describe(enabled, ready, Message.DISCORD_BOT_OFF);
       }
       case HTTP_SERVER -> {
         final boolean enabled = provider.isHttpEnabled();
         final boolean ready = provider.isHttpReady();
-        yield describe(enabled, ready);
+        yield describe(enabled, ready, Message.HTTP_SERVER_OFF);
       }
-      case NONE, SIMPLE_VOICE_CHAT -> Optional.empty();
+      case SIMPLE_VOICE_CHAT -> {
+        final boolean enabled = provider.isSimpleVoiceChatEnabled();
+        final boolean ready = provider.isSimpleVoiceChatReady();
+        yield describe(enabled, ready, Message.SIMPLE_VOICE_CHAT_OFF);
+      }
+      case NONE -> Optional.empty();
     };
   }
 
-  private static Optional<Component> describe(final boolean enabled, final boolean ready) {
+  private static Optional<Component> describe(final boolean enabled, final boolean ready, final NullComponent off) {
     if (!enabled) {
-      final Component message = Message.UNSUPPORTED_AUDIO.build();
+      final Component message = off.build();
       return Optional.of(message);
     }
 

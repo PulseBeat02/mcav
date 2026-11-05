@@ -107,6 +107,8 @@ public final class Mcv2Support {
 
   private static final int DEFAULT_PAGE_SLOTS = 0;
 
+  private static final String PLACE_SEPARATOR = ", ";
+
   private final Mcv2PackServer packServer;
 
   /**
@@ -176,7 +178,8 @@ public final class Mcv2Support {
    * @param mapId      the id of the top-left map
    * @param settings   the encoder settings
    * @param viewers    the players who watch
-   * @return the configuration, or empty if the screen is too large for MCV2 or no frame holds the map
+   * @return the configuration, or empty if the screen is too large for MCV2, or no frame or more than one frame
+   *         holds the map
    * @since 1.0.0
    */
   public Optional<Mcv2Configuration> configure(
@@ -195,14 +198,21 @@ public final class Mcv2Support {
     }
 
     final List<World> worlds = Bukkit.getWorlds();
-    final Optional<ItemFrame> foundFrame = findFrame(worlds, mapId);
-    final @Nullable ItemFrame frame = foundFrame.orElse(null);
-    if (frame == null) {
+    final List<ItemFrame> frames = findFrames(worlds, mapId);
+    if (frames.isEmpty()) {
       final Component message = Message.MCV2_SCREEN_ERROR.build(mapId);
       sender.sendMessage(message);
       return Optional.empty();
     }
 
+    if (frames.size() > 1) {
+      final String reason = this.describeDuplicates(mapId, frames);
+      final Component message = Message.MCV2_SCREEN_DUPLICATE.build(reason);
+      sender.sendMessage(message);
+      return Optional.empty();
+    }
+
+    final ItemFrame frame = frames.getFirst();
     final int pageSlots = Integer.getInteger(PAGE_SLOTS_PROPERTY, DEFAULT_PAGE_SLOTS);
     final Location location = frame.getLocation();
     final BlockFace facing = frame.getFacing();
@@ -224,6 +234,27 @@ public final class Mcv2Support {
       .unsentLimit(this.readUnsentLimit())
       .build();
     return Optional.of(configuration);
+  }
+
+  private String describeDuplicates(final int mapId, final List<ItemFrame> frames) {
+    final int count = frames.size();
+    final List<String> places = frames.stream().map(this::describePlace).toList();
+    final String joined = String.join(PLACE_SEPARATOR, places);
+    return "map %s hangs in %s item frames, at %s. MCV2 plays on one wall per map, so remove the other walls or build each screen with its own map id!".formatted(
+      mapId,
+      count,
+      joined
+    );
+  }
+
+  private String describePlace(final ItemFrame frame) {
+    final World world = frame.getWorld();
+    final String worldName = world.getName();
+    final Location location = frame.getLocation();
+    final int frameX = location.getBlockX();
+    final int frameY = location.getBlockY();
+    final int frameZ = location.getBlockZ();
+    return "%s %s %s %s".formatted(worldName, frameX, frameY, frameZ);
   }
 
   long readBacklogLimit() {
@@ -371,34 +402,30 @@ public final class Mcv2Support {
   }
 
   /**
-   * Finds the frame holding the top-left map of a screen built with {@code /mcav screen}.
+   * Finds every frame holding the top-left map of a screen built with {@code /mcav screen}. Only the frames of
+   * loaded chunks are found. Call on the main thread.
    *
    * @param worlds the worlds to search
    * @param mapId  the id of the top-left map
-   * @return the frame, or empty if no frame holds that map
+   * @return the frames in the order of the worlds and of their entities, or an empty list if no frame holds that map
    * @since 1.0.0
    */
-  public static Optional<ItemFrame> findFrame(final Collection<World> worlds, final int mapId) {
+  public static List<ItemFrame> findFrames(final Collection<World> worlds, final int mapId) {
+    final List<ItemFrame> found = new ArrayList<>();
     for (final World world : worlds) {
-      final @Nullable ItemFrame frame = findFrameInWorld(world, mapId);
-      if (frame != null) {
-        return Optional.of(frame);
-      }
+      final List<ItemFrame> frames = findFramesInWorld(world, mapId);
+      found.addAll(frames);
     }
 
-    return Optional.empty();
+    return found;
   }
 
-  private static @Nullable ItemFrame findFrameInWorld(final World world, final int mapId) {
+  private static List<ItemFrame> findFramesInWorld(final World world, final int mapId) {
     final Collection<ItemFrame> frames = world.getEntitiesByClass(ItemFrame.class);
-    for (final ItemFrame frame : frames) {
-      final ItemStack item = frame.getItem();
-      if (holdsMap(item, mapId)) {
-        return frame;
-      }
-    }
-
-    return null;
+    return frames
+      .stream()
+      .filter(frame -> holdsMap(frame.getItem(), mapId))
+      .toList();
   }
 
   static boolean holdsMap(final ItemStack item, final int mapId) {

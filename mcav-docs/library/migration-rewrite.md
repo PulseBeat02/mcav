@@ -363,9 +363,9 @@ spelled out, such as `Format.getAudioExtension()` for `audio_ext`, `getFramesPer
 `getApproximateFileSize()` for `filesize_approx`, `isDrmProtected()` for `has_drm`, `UrlParseDump.isLive()` for
 `is_live` and `UrlParseDump.getFileNameAlias()` for `filename`. A value yt-dlp can leave out is an `Optional`, and a
 list is unmodifiable and empty when yt-dlp reports none. `new UrlParseDump()` and field assignment are gone: create
-metadata for a source that yt-dlp did not resolve with `UrlParseDump.of(title)` or
-`UrlParseDump.of(title, description)`, and parse any other metadata from JSON with Gson. Counts and sizes are `long`,
-and `UrlParseDump.getDuration()` and `getFramesPerSecond()` are `double`.
+metadata for a source that yt-dlp did not resolve with `UrlParseDump.of(title)`, `UrlParseDump.of(title, description)`
+or `UrlParseDump.of(title, description, duration)`, and parse any other metadata from JSON with Gson. Counts and sizes
+are `long`, and `UrlParseDump.getDuration()` and `getFramesPerSecond()` are `double`.
 
 Several exception types no longer inherit the removed MCAV unchecked-I/O type; review catches for the concrete exception
 or its current superclass, not just imports. The exceptions of `mcav-common` now extend `MCAVException`, an unchecked

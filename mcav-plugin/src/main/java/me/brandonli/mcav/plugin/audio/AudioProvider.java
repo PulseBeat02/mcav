@@ -20,8 +20,10 @@ package me.brandonli.mcav.plugin.audio;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Equivalence;
 import com.google.common.base.Preconditions;
+import de.maxhenkel.voicechat.api.VoicechatServerApi;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -37,6 +39,7 @@ import me.brandonli.mcav.plugin.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.plugin.utils.AudioArgument;
 import me.brandonli.mcav.plugin.utils.TaskUtils;
 import me.brandonli.mcav.voicechat.SvcFilter;
+import me.brandonli.mcav.voicechat.SvcModule;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.Guild;
@@ -591,6 +594,27 @@ public final class AudioProvider {
    */
   public boolean isHttpReady() {
     return this.httpServer != null;
+  }
+
+  /**
+   * Returns whether Simple Voice Chat audio is enabled in the configuration.
+   *
+   * @return true if enabled
+   * @since 1.0.0
+   */
+  public boolean isSimpleVoiceChatEnabled() {
+    return this.configuration.isSimpleVoiceChatEnabled();
+  }
+
+  /**
+   * Returns whether Simple Voice Chat has handed MCAV its server API, so its audio can play.
+   *
+   * @return true if ready, false before the server has loaded and whenever Simple Voice Chat audio is disabled
+   * @since 1.0.0
+   */
+  public boolean isSimpleVoiceChatReady() {
+    final Optional<VoicechatServerApi> api = SvcModule.getVoiceChatApi();
+    return api.isPresent();
   }
 
   private static final class Claim {

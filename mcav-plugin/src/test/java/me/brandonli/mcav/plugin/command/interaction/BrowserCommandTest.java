@@ -221,6 +221,7 @@ final class BrowserCommandTest {
 
   @Test
   void shouldPlayTheSoundOfThePageIntoTheChosenOutputAndLetGoOfItOnRelease() {
+    this.makeVoiceChatReady();
     final AudioFilter output = mock(AudioFilter.class);
     when(this.provider.constructFilter(eq(AudioArgument.SIMPLE_VOICE_CHAT), any(), any(), eq(this.browser))).thenReturn(output);
     final AudioAttachableCallback audio = mock(AudioAttachableCallback.class);
@@ -240,8 +241,14 @@ final class BrowserCommandTest {
     verify(this.provider).releaseAudioFilter(this.browser);
   }
 
+  private void makeVoiceChatReady() {
+    when(this.provider.isSimpleVoiceChatEnabled()).thenReturn(true);
+    when(this.provider.isSimpleVoiceChatReady()).thenReturn(true);
+  }
+
   @Test
   void shouldLetGoOfTheSoundWhenTheReleaseFailsAndWhileThePluginDisables() {
+    this.makeVoiceChatReady();
     when(this.provider.constructFilter(eq(AudioArgument.SIMPLE_VOICE_CHAT), any(), any(), eq(this.browser))).thenReturn(
       mock(AudioFilter.class)
     );
@@ -305,7 +312,7 @@ final class BrowserCommandTest {
   void shouldStartNoBrowserForAnAudioOutputThatCannotPlay() {
     this.create(RESOLUTION, BLOCK_DIMENSIONS, AudioArgument.DISCORD_BOT, PAGE_URL);
 
-    this.assertReceived(Message.UNSUPPORTED_AUDIO.build());
+    this.assertReceived(Message.DISCORD_BOT_OFF.build());
     this.browsers.verify(() -> BrowserPlayer.create(any(BrowserOptions.class)), never());
   }
 

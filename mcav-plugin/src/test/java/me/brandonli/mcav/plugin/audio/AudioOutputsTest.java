@@ -37,10 +37,15 @@ final class AudioOutputsTest {
 
   @Test
   void shouldNotPlayAnOutputThatIsOffOrStillStarting() {
-    final Component expected = Message.UNSUPPORTED_AUDIO.build();
+    final Component expected = Message.DISCORD_BOT_OFF.build();
     final Optional<Component> problem = AudioOutputs.findProblem(this.provider, AudioArgument.DISCORD_BOT);
     final Optional<Component> expectedProblem = Optional.of(expected);
     assertEquals(expectedProblem, problem);
+
+    final Component httpServerOff = Message.HTTP_SERVER_OFF.build();
+    final Optional<Component> httpProblem = AudioOutputs.findProblem(this.provider, AudioArgument.HTTP_SERVER);
+    final Optional<Component> expectedHttpProblem = Optional.of(httpServerOff);
+    assertEquals(expectedHttpProblem, httpProblem);
 
     when(this.provider.isHttpEnabled()).thenReturn(true);
 
@@ -58,7 +63,24 @@ final class AudioOutputsTest {
     assertEquals(Optional.empty(), thirdProblem);
 
     final Optional<Component> fourthProblem = AudioOutputs.findProblem(this.provider, AudioArgument.SIMPLE_VOICE_CHAT);
-    assertEquals(Optional.empty(), fourthProblem);
+    final Component voiceChatOff = Message.SIMPLE_VOICE_CHAT_OFF.build();
+    final Optional<Component> expectedVoiceChatOff = Optional.of(voiceChatOff);
+    assertEquals(expectedVoiceChatOff, fourthProblem);
+  }
+
+  @Test
+  void shouldPlayVoiceChatAudioOnceSimpleVoiceChatIsReady() {
+    when(this.provider.isSimpleVoiceChatEnabled()).thenReturn(true);
+
+    final Optional<Component> starting = AudioOutputs.findProblem(this.provider, AudioArgument.SIMPLE_VOICE_CHAT);
+    final Component notReady = Message.AUDIO_NOT_READY.build();
+    final Optional<Component> expectedNotReady = Optional.of(notReady);
+    assertEquals(expectedNotReady, starting);
+
+    when(this.provider.isSimpleVoiceChatReady()).thenReturn(true);
+
+    final Optional<Component> ready = AudioOutputs.findProblem(this.provider, AudioArgument.SIMPLE_VOICE_CHAT);
+    assertEquals(Optional.empty(), ready);
   }
 
   @Test

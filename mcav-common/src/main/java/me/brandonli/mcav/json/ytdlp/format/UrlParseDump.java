@@ -27,6 +27,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.annotations.SerializedName;
 import java.lang.reflect.Type;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -49,6 +50,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class UrlParseDump {
 
   private static final String TITLE_NULL_MESSAGE = "Title must not be null!";
+
+  private static final double NANOSECONDS_PER_SECOND = 1_000_000_000.0;
 
   private final @Nullable String id;
 
@@ -358,7 +361,7 @@ public final class UrlParseDump {
     this.version = fields.version();
   }
 
-  private UrlParseDump(final @Nullable String title, final @Nullable String description) {
+  private UrlParseDump(final @Nullable String title, final @Nullable String description, final double duration) {
     this.id = null;
     this.title = title;
     this.formats = null;
@@ -367,7 +370,7 @@ public final class UrlParseDump {
     this.description = description;
     this.channelId = null;
     this.channelUrl = null;
-    this.duration = 0.0;
+    this.duration = duration;
     this.viewCount = 0L;
     this.averageRating = null;
     this.ageLimit = 0;
@@ -456,7 +459,7 @@ public final class UrlParseDump {
   public static UrlParseDump of(final String title) {
     Preconditions.checkNotNull(title, TITLE_NULL_MESSAGE);
 
-    return new UrlParseDump(title, null);
+    return new UrlParseDump(title, null, 0.0);
   }
 
   /**
@@ -470,10 +473,31 @@ public final class UrlParseDump {
    * @since 1.0.0
    */
   public static UrlParseDump of(final String title, final String description) {
+    return of(title, description, Duration.ZERO);
+  }
+
+  /**
+   * Returns metadata for a source that yt-dlp did not resolve, such as a local file, with a title, a description and
+   * the length that {@link #getDuration()} reports in seconds.
+   *
+   * @param title       the title to show for the source
+   * @param description the description to show for the source
+   * @param duration    how long the source plays, or {@link Duration#ZERO} when that is unknown
+   * @return the metadata
+   * @throws NullPointerException     if an argument is null
+   * @throws IllegalArgumentException if {@code duration} is negative
+   * @since 1.0.0
+   */
+  public static UrlParseDump of(final String title, final String description, final Duration duration) {
     Preconditions.checkNotNull(title, TITLE_NULL_MESSAGE);
     Preconditions.checkNotNull(description, "Description must not be null!");
+    Preconditions.checkNotNull(duration, "Duration must not be null!");
+    Preconditions.checkArgument(!duration.isNegative(), "Duration %s must not be negative!", duration);
 
-    return new UrlParseDump(title, description);
+    final long wholeSeconds = duration.toSeconds();
+    final int nanoseconds = duration.toNanosPart();
+    final double seconds = wholeSeconds + nanoseconds / NANOSECONDS_PER_SECOND;
+    return new UrlParseDump(title, description, seconds);
   }
 
   /**
@@ -569,10 +593,10 @@ public final class UrlParseDump {
 
   /**
    * Returns the length of the video in seconds, which yt-dlp can report with a fraction, or zero for a running live
-   * stream.
+   * stream and for a source whose length is unknown.
    *
    * @return the length of the video in seconds, which yt-dlp can report with a fraction, or zero for a running live
-   * stream
+   * stream and for a source whose length is unknown
    * @since 1.0.0
    */
   public double getDuration() {

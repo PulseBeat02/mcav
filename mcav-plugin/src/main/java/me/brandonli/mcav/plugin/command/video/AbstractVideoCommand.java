@@ -17,11 +17,14 @@
  */
 package me.brandonli.mcav.plugin.command.video;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.base.Equivalence;
 import com.google.common.base.Preconditions;
 import java.io.File;
 import java.net.URI;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
@@ -68,7 +71,9 @@ import me.brandonli.mcav.plugin.utils.MediaKind;
 import me.brandonli.mcav.plugin.utils.PlayerArgument;
 import me.brandonli.mcav.plugin.utils.TaskUtils;
 import me.brandonli.mcav.utils.FileOperationException;
+import me.brandonli.mcav.utils.InputMetadataException;
 import me.brandonli.mcav.utils.IoUtils;
+import me.brandonli.mcav.utils.MetadataUtils;
 import me.brandonli.mcav.utils.SourceUtils;
 import me.brandonli.mcav.utils.ThrowableUtils;
 import me.brandonli.mcav.utils.http.DownloadException;
@@ -692,7 +697,8 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     if (source instanceof final FileSource file) {
       final Path path = file.getPath();
       final String fileName = IoUtils.getName(path);
-      return this.createDump(fileName, "Video from a file");
+      final Duration duration = this.readDuration(file);
+      return UrlParseDump.of(fileName, "Video from a file", duration);
     }
 
     final String fileName = IoUtils.getFileNameFromUrl(mrl);
@@ -701,6 +707,18 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
 
   private UrlParseDump createDump(final String title, final String description) {
     return UrlParseDump.of(title, description);
+  }
+
+  // a file FFmpeg cannot read may still play in VLC, so its length stays unknown
+  private Duration readDuration(final FileSource file) {
+    try {
+      final Optional<Duration> duration = MetadataUtils.parseDuration(file);
+      return requireNonNull(duration.orElse(Duration.ZERO)); // checker framework
+    } catch (final InputMetadataException exception) {
+      final Path path = file.getPath();
+      LOGGER.debug("The length of {} could not be read, so its hologram shows no progress.", path, exception);
+      return Duration.ZERO;
+    }
   }
 
   private SourceSelection resolveWithYtdlp(final UriSource page, final String[] ytdlpArguments) {

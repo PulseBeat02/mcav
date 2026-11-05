@@ -62,6 +62,9 @@ Until their client has loaded the MCV2 pack, and for good when they declined it 
 chunks), when eight MCV2 screens already play, or when even the fastest encoder cannot keep up on the threads of
 `mcv2.encoder-threads`; the command that started it says which.
 
+An MCV2 command refuses a screen whose top-left map hangs in more than one item frame, and names the place of each:
+remove the other walls, or build each screen with its own map id.
+
 ---
 
 ## Why does the MCV2 pack not download behind your proxy?
