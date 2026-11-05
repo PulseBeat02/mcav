@@ -621,8 +621,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
   @CommandDescription("mcav.command.mcv2.cancel.info")
   public void cancel(final CommandSender sender) {
     final @Nullable FileEncode running;
-    // the encode stays the running one until its thread ends: a new encode before then would write the same partial
-    // file the cancelled one deletes as it ends
+    // the encode stays the running one until its thread ends, since a new encode would write the partial file the cancelled one deletes
     synchronized (this) {
       running = this.encoding;
     }
@@ -729,8 +728,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
         final String message = "Truncated frame!";
         throw new IOException(message);
       }
-      // a record no frame can be is refused before it is copied: records of a few bytes each would make the copies
-      // take several times the file's size in memory
+      // a record no frame can be is refused before the copy: tiny records would make copies take several times the file's size in memory
       if (length < Mcv2Decoder.HEADER_BYTES || length > Mcv2Decoder.MAXIMUM_FRAME_BYTES) {
         final String message = "MCV2 frame length %s is invalid!".formatted(length);
         throw new IOException(message);
