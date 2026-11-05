@@ -219,9 +219,7 @@ public abstract class TemporalDitherAlgorithm extends ErrorDiffusionDither imple
     return indices;
   }
 
-  // Remembers the indices of a frame for the next one. The caller owns the returned indices and may modify them, so the
-  // algorithm keeps a copy. The indices of the previous frame were only read while the frame was dithered, which has
-  // finished, so their array receives the copy instead of a new one whenever the frame has the same size.
+  // The caller owns the indices, so a copy is kept, in the previous frame's array when the size matches, as its reads are finished.
   private void remember(final byte[] indices, final byte @Nullable [] previous) {
     if (previous == null) {
       this.previousIndices = indices.clone();

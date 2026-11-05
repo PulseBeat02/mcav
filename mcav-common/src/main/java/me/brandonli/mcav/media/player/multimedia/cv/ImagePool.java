@@ -24,8 +24,7 @@ import java.util.List;
 import me.brandonli.mcav.media.image.MatImageBuffer;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// Reuses the frame images of a session between its decoding and rendering threads, keeping at most capacity unused
-// images. All methods are thread-safe.
+// Reuses a session's frame images between its decoding and rendering threads, keeping at most capacity unused; thread-safe.
 final class ImagePool {
 
   private final int capacity;
@@ -42,8 +41,7 @@ final class ImagePool {
     return this.free.pollFirst();
   }
 
-  // Hands an image back to the pool once nobody uses it anymore. The image is released instead if the pool is full or
-  // closed.
+  // Hands back an image nobody uses anymore; a full or closed pool releases it instead.
   void recycle(final MatImageBuffer image) {
     final boolean kept = this.keep(image);
     if (!kept) {

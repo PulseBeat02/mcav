@@ -73,16 +73,12 @@ public abstract class MatVideoFilter implements VideoFilter {
     return this.applyToTemporaryMat(samples);
   }
 
-  // Applies the filter to a frame that is not backed by OpenCV, through a temporary copy of the frame that is released
-  // afterward. Both copies go through the raw BGR pixels every image buffer stores, see ImageBuffer.getData(), so
-  // neither needs a conversion or an intermediate array.
+  // Both copies use the raw BGR pixels of ImageBuffer.getData(), so neither needs a conversion or an intermediate array.
   private boolean applyToTemporaryMat(final ImageBuffer samples) {
     final int width = samples.getWidth();
     final int height = samples.getHeight();
     final ByteBuffer data = samples.getData();
-    // a slice, not a rewound duplicate: getData() promises a view of the pixels, so the pixels are what is left
-    // between the position and the limit. Rewinding moves the position back but keeps the limit, which turns a view
-    // that starts past zero into one that is too long, and the image buffer below then rejects it.
+    // a slice, not a rewound duplicate: the view's pixels run from its position to its limit, and rewinding would make it too long
     final ByteBuffer pixels = data.slice();
     try (final ImageBuffer temporary = ImageBuffer.bytes(pixels, width, height)) {
       final MatImageBuffer temporaryMatrixBuffer = (MatImageBuffer) temporary;
@@ -102,9 +98,7 @@ public abstract class MatVideoFilter implements VideoFilter {
     samples.updateData(data, width, height);
   }
 
-  // Copies an image into a new 8-bit BGR matrix owned by the caller, for filters that keep an image, such as an
-  // overlay, beyond the lifetime of the buffer it came from. Images that are not backed by OpenCV are converted through
-  // a temporary buffer, which is released before this method returns.
+  // The caller owns the copy, for filters that keep an image such as an overlay beyond the life of the buffer it came from.
   static Mat copyToMat(final ImageBuffer image) {
     if (image instanceof final MatImageBuffer matrixBuffer) {
       final Mat matrix = matrixBuffer.getMat();

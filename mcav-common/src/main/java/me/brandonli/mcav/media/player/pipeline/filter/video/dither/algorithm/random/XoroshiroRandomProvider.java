@@ -77,9 +77,7 @@ public final class XoroshiroRandomProvider implements RandomNumberProvider {
     this.state1 = state1;
   }
 
-  // the two words of the state are the first two outputs of SplitMix64 seeded with the seed, as the authors of
-  // xoroshiro recommend, so similar seeds produce unrelated sequences; the mixing function of SplitMix64 is a
-  // bijection and its two counters differ, so the words are never both zero, which would leave the generator stuck
+  // SplitMix64 seeds the state, as xoroshiro's authors recommend; its mixing is a bijection, so the two words are never both zero
   private static long firstStateWord(final long seed) {
     return splitMix64(seed);
   }

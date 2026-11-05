@@ -26,11 +26,7 @@ import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
 import uk.co.caprica.vlcj.player.base.MediaPlayer;
 import uk.co.caprica.vlcj.player.base.MediaPlayerEventAdapter;
 
-// Watches one VLC media player: tells the playback when VLC has opened the media, and reports playback errors to the
-// exception handler of the player. VLC opens media asynchronously, so asking it to play a file that does not exist
-// succeeds, and the failure only arrives later as an error event. The playback therefore waits for the first playing,
-// finished, or error event, so that VlcPlayer.start can return false for media that cannot be opened. Errors that
-// happen later, while the media plays, are reported to the exception handler as well.
+// VLC opens media asynchronously, so the playback waits for the first playing, finished or error event to learn whether it opened.
 final class PlaybackEventListener extends MediaPlayerEventAdapter {
 
   private final VideoPlayerMultiplexer owner;
@@ -57,9 +53,7 @@ final class PlaybackEventListener extends MediaPlayerEventAdapter {
     this.settled.countDown();
   }
 
-  // Records that VLC could not open or play the media and reports it to the exception handler, unless the playback has
-  // already been stopped. The report releases a thread waiting in awaitOpened(long) after the handler finishes; a wait
-  // that times out during the report still observes the recorded failure.
+  // The failure is recorded before the report, so a wait in awaitOpened(long) that times out during the report still sees it.
   @Override
   public void error(final MediaPlayer mediaPlayer) {
     this.failed.set(true);

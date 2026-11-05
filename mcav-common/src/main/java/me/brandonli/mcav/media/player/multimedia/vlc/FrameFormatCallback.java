@@ -23,10 +23,7 @@ import uk.co.caprica.vlcj.player.base.VideoApi;
 import uk.co.caprica.vlcj.player.embedded.videosurface.callback.BufferFormat;
 import uk.co.caprica.vlcj.player.embedded.videosurface.callback.BufferFormatCallbackAdapter;
 
-// Tells VLC which buffer to render into when the format of a video is known. VLC reports the size it decodes at, which
-// can include padding, for example 1920x1088 for a 1080p video. The visible size comes from the video track instead,
-// and the VideoRenderer chooses the buffer: the decoded size, or the size attached to the player, which makes VLC scale
-// the picture itself.
+// VLC's decoded size can include padding, so the visible size comes from the video track; the VideoRenderer chooses the buffer.
 final class FrameFormatCallback extends BufferFormatCallbackAdapter {
 
   private final VideoRenderer renderer;
@@ -37,8 +34,7 @@ final class FrameFormatCallback extends BufferFormatCallbackAdapter {
     this.player = player;
   }
 
-  // Chooses an RV32 buffer for the size VLC decodes at. The visible size is the size of the video track, limited to the
-  // decoded size, or the decoded size if the track does not report a usable size.
+  // The visible size is the video track's, limited to the decoded size, which also stands in when the track reports no usable size.
   @Override
   public BufferFormat getBufferFormat(final int sourceWidth, final int sourceHeight) {
     final VideoApi videoApi = this.player.video();

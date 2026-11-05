@@ -20,16 +20,7 @@ package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.er
 import java.util.Arrays;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherUtils;
 
-// The pending errors of an error diffusion pass, together with the serpentine scan order the pass uses. Only the rows a
-// kernel can reach are kept, in a ring of padded rows: the row being dithered and the
-// DiffusionKernel.getMaximumOffsetY() rows below it. The padding on both sides is as wide as the kernel reaches
-// sideways, so errors that fall outside the image land in the padding and no bounds checks are needed. Colors are
-// passed around as packed 0xRRGGBB values. Every tap receives its share of the error rounded toward zero, and what the
-// rounding cuts off is added to the tap with the largest weight, so a kernel spreads exactly the fraction of the error
-// its weights describe. Rounding alone would lose up to one unit per tap and pixel, which darkens smooth gradients.
-// Rows are scanned in alternating directions: even rows from left to right and odd rows from right to left, which
-// avoids the diagonal streaks a fixed scanning direction produces. Instances belong to a single pass and are not thread
-// safe.
+// A pass's pending errors in padded ring rows; the heaviest tap takes the rounding remainder, so smooth gradients do not darken.
 final class ErrorRows {
 
   private static final int CHANNELS = 3;
@@ -131,9 +122,7 @@ final class ErrorRows {
     return (red << RED_SHIFT) | (green << GREEN_SHIFT) | blue;
   }
 
-  // Spreads an error from a pixel to its unprocessed neighbors, as described by the kernel. The shares add up to the
-  // error times the sum of the weights divided by the divisor, rounded toward zero, so no error is lost to rounding.
-  // Arithmetic beyond the long range is rejected instead of wrapping a pending error.
+  // The shares sum to the error times the weight sum over the divisor, rounded toward zero; overflow throws instead of wrapping.
   void diffuse(final int column, final int row, final int step, final int errorRed, final int errorGreen, final int errorBlue) {
     if (errorRed == 0 && errorGreen == 0 && errorBlue == 0) {
       return;

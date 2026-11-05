@@ -25,10 +25,7 @@ import java.util.function.Supplier;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
 
-// A VLC instance shared by every VlcPlayer. Creating a MediaPlayerFactory starts a whole VLC instance, which loads
-// hundreds of plugins and takes noticeable time and memory, so one instance is shared and reference counted. The
-// instance is created when the first playback acquires it and released when the last playback releases it; a later
-// acquisition creates a new one.
+// One reference-counted VLC instance for every VlcPlayer, because each instance loads all of VLC's plugins.
 final class SharedMediaPlayerFactory {
 
   private static final String[] VLC_ARGUMENTS = { "--quiet", "--no-video-title-show", "--no-snapshot-preview", "--no-osd" };
@@ -58,8 +55,7 @@ final class SharedMediaPlayerFactory {
     return new MediaPlayerFactory(VLC_ARGUMENTS);
   }
 
-  // Acquires the VLC instance, creating it if no reference is held. Every successful call must be paired with
-  // release().
+  // Creates the instance when no reference is held; every successful call must be paired with release().
   MediaPlayerFactory acquire() {
     synchronized (this.lock) {
       MediaPlayerFactory current = this.factory;
@@ -74,8 +70,7 @@ final class SharedMediaPlayerFactory {
     }
   }
 
-  // Releases one reference to the VLC instance, shutting the instance down when no references remain. Calls without a
-  // matching acquire() are ignored.
+  // Shuts the instance down with its last reference; a call without a matching acquire() is ignored.
   void release() {
     synchronized (this.lock) {
       if (this.references == 0) {

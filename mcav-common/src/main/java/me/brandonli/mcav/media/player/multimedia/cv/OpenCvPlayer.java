@@ -62,8 +62,7 @@ public final class OpenCvPlayer extends AbstractVideoPlayerCv {
     return this.createFrameGrabber(resource, reader);
   }
 
-  // Creates the grabber for a resource with either reader. Both cases exist on the platforms the library supports, so
-  // both can be tested wherever the tests run.
+  // Creates the grabber with either reader, so both can be tested on any platform.
   @VisibleForTesting
   FrameGrabber createFrameGrabber(final String resource, final VideoFileReader reader) {
     return switch (reader) {
