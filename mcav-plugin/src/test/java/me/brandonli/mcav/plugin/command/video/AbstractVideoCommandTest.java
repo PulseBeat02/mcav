@@ -39,6 +39,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -86,6 +87,8 @@ import me.brandonli.mcav.plugin.utils.CaptureDevices;
 import me.brandonli.mcav.plugin.utils.FilterChain;
 import me.brandonli.mcav.plugin.utils.MediaKind;
 import me.brandonli.mcav.plugin.utils.PlayerArgument;
+import me.brandonli.mcav.utils.InputMetadataException;
+import me.brandonli.mcav.utils.MetadataUtils;
 import me.brandonli.mcav.utils.immutable.Dimension;
 import me.brandonli.mcav.utils.immutable.Pair;
 import net.kyori.adventure.text.Component;
@@ -168,6 +171,7 @@ final class AbstractVideoCommandTest {
   private MockedStatic<VideoPlayer> videoPlayers;
   private MockedStatic<Hologram> holograms;
   private MockedStatic<YtdlpParser> parsers;
+  private MockedStatic<MetadataUtils> metadata;
 
   @BeforeEach
   void createCommand() {
@@ -194,6 +198,7 @@ final class AbstractVideoCommandTest {
     when(this.selector.values()).thenReturn(viewers);
     this.mockPlayers();
     this.mockHologramsAndYtdlp();
+    this.metadata = Mockito.mockStatic(MetadataUtils.class);
   }
 
   private boolean runStart(final InvocationOnMock invocation) {
@@ -206,6 +211,7 @@ final class AbstractVideoCommandTest {
     this.videoPlayers.close();
     this.holograms.close();
     this.parsers.close();
+    this.metadata.close();
     this.directExecutor.shutdown();
   }
 
@@ -266,6 +272,35 @@ final class AbstractVideoCommandTest {
     final Component started = Message.START_VIDEO.build();
     this.assertSenderReceived(started);
     this.assertNotStarting();
+  }
+
+  @Test
+  void shouldGiveAVideoFileItsLength() throws IOException {
+    final Path file = this.createVideoFile();
+    final String mrl = file.toString();
+    final Duration length = Duration.ofSeconds(255);
+    final Optional<Duration> declared = Optional.of(length);
+    this.metadata.when(() -> MetadataUtils.parseDuration(any(FileSource.class))).thenReturn(declared);
+    this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, mrl, "");
+
+    final UrlParseDump dump = this.verifyPlayedWithDump(AudioArgument.NONE);
+    final double seconds = dump.getDuration();
+    assertEquals(255.0, seconds);
+  }
+
+  @Test
+  void shouldPlayAVideoFileWhoseLengthCannotBeRead() throws IOException {
+    final Path file = this.createVideoFile();
+    final String mrl = file.toString();
+    this.metadata.when(() -> MetadataUtils.parseDuration(any(FileSource.class))).thenThrow(InputMetadataException.class);
+    this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, mrl, "");
+
+    final UrlParseDump dump = this.verifyPlayedWithDump(AudioArgument.NONE);
+    final double seconds = dump.getDuration();
+    assertEquals(0.0, seconds);
+
+    final Component started = Message.START_VIDEO.build();
+    this.assertSenderReceived(started);
   }
 
   private Path createVideoFile() throws IOException {
