@@ -34,6 +34,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.common.util.concurrent.MoreExecutors;
+import com.google.gson.Gson;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
@@ -115,6 +116,8 @@ final class AbstractVideoCommandTest {
   private static final String WEB_PAGE = "https://www.youtube.com/watch?v=abc";
   private static final String VIDEO_STREAM = "https://cdn.example.com/video";
   private static final String AUDIO_STREAM = "https://cdn.example.com/audio";
+  private static final String PAGE_VIDEO_FILE = "http://127.0.0.1:8872/clip.mp4";
+  private static final String PAGE_AUDIO_FILE = "http://127.0.0.1:8872/clip.m4a";
 
   private static final String VIDEO_RESOLUTION = "640x360";
   private static final int VIDEO_WIDTH = 640;
@@ -567,9 +570,11 @@ final class AbstractVideoCommandTest {
     final Format audio = mock(Format.class);
     when(video.toUriSource()).thenReturn(videoSource);
     when(audio.toUriSource()).thenReturn(audioSource);
+    final FormatStrategy audioStrategy = mock(FormatStrategy.class);
+    when(audioStrategy.select(resolved)).thenReturn(Optional.of(audio));
     final StrategySelector strategies = mock(StrategySelector.class);
     when(strategies.getVideoSource(resolved)).thenReturn(video);
-    when(strategies.getAudioSource(resolved)).thenReturn(audio);
+    when(strategies.getAudioStrategy()).thenReturn(audioStrategy);
 
     return strategies;
   }
@@ -625,6 +630,94 @@ final class AbstractVideoCommandTest {
     verify(this.player, never()).start(any(), any());
     verify(this.manager, never()).setPlayer(any());
     this.assertNotStarting();
+  }
+
+  @Test
+  void shouldPlayAPageWhoseOnlyStreamIsTheVideoFile() {
+    final String videoFile = this.createVideoFormat(PAGE_VIDEO_FILE);
+    this.resolveWebPageTo(videoFile);
+
+    this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, WEB_PAGE, "");
+
+    final URI file = URI.create(PAGE_VIDEO_FILE);
+    this.assertStartedWithStreamsAt(file, file);
+
+    final Component started = Message.START_VIDEO.build();
+    this.assertSenderReceived(started);
+  }
+
+  @Test
+  void shouldTakeTheAudioFromTheVideoStreamWhenThePageHasNoSeparateAudio() {
+    final String videoFile = this.createVideoFormat(PAGE_VIDEO_FILE);
+    this.resolveWebPageTo(videoFile);
+
+    this.play(PlayerArgument.FFMPEG, AudioArgument.SIMPLE_VOICE_CHAT, WEB_PAGE, "");
+
+    final URI file = URI.create(PAGE_VIDEO_FILE);
+    this.assertStartedWithStreamsAt(file, file);
+  }
+
+  @Test
+  void shouldKeepTheBestSeparateAudioStreamWhenThePageHasOne() {
+    final String videoOnly = this.createVideoFormat(PAGE_VIDEO_FILE);
+    final String audioOnly = this.createAudioFormat(PAGE_AUDIO_FILE);
+    this.resolveWebPageTo(videoOnly, audioOnly);
+
+    this.play(PlayerArgument.FFMPEG, AudioArgument.SIMPLE_VOICE_CHAT, WEB_PAGE, "");
+
+    final URI video = URI.create(PAGE_VIDEO_FILE);
+    final URI audio = URI.create(PAGE_AUDIO_FILE);
+    this.assertStartedWithStreamsAt(video, audio);
+  }
+
+  @ParameterizedTest
+  @CsvSource({ "file:///srv/media/clip.mp4, file", "rtsp://127.0.0.1:8554/clip, rtsp" })
+  void shouldRefuseANonWebVideoStreamOfAPage(final String videoStream, final String scheme) {
+    final String videoFile = this.createVideoFormat(videoStream);
+    this.resolveWebPageTo(videoFile);
+
+    final String output;
+    try (final StandardErrorCapture errors = StandardErrorCapture.start()) {
+      this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, WEB_PAGE, "");
+      output = errors.getOutput();
+    }
+
+    final Component error = Message.VIDEO_START_ERROR.build();
+    this.assertSenderReceived(error);
+    verify(this.player, never()).start(any(), any());
+
+    final String refusal = "whose scheme %s is not http or https!".formatted(scheme);
+    final boolean refused = output.contains(refusal);
+    assertTrue(refused, output);
+  }
+
+  private String createVideoFormat(final String url) {
+    return "{\"url\": \"%s\", \"video_ext\": \"mp4\", \"audio_ext\": \"none\"}".formatted(url);
+  }
+
+  private String createAudioFormat(final String url) {
+    return "{\"url\": \"%s\", \"video_ext\": \"none\", \"audio_ext\": \"m4a\"}".formatted(url);
+  }
+
+  private void resolveWebPageTo(final String... formats) {
+    final String formatList = String.join(LIST_SEPARATOR, formats);
+    final String json = "{\"formats\": [%s]}".formatted(formatList);
+    final Gson gson = GsonProvider.getSimple();
+    final UrlParseDump resolved = gson.fromJson(json, UrlParseDump.class);
+    when(this.parser.parse(any(UriSource.class))).thenReturn(resolved);
+  }
+
+  private void assertStartedWithStreamsAt(final URI expectedVideo, final URI expectedAudio) {
+    final ArgumentCaptor<UriSource> videoSources = ArgumentCaptor.forClass(UriSource.class);
+    final ArgumentCaptor<UriSource> audioSources = ArgumentCaptor.forClass(UriSource.class);
+    verify(this.player).start(videoSources.capture(), audioSources.capture());
+
+    final UriSource videoSource = videoSources.getValue();
+    final UriSource audioSource = audioSources.getValue();
+    final URI video = videoSource.getUri();
+    final URI audio = audioSource.getUri();
+    assertEquals(expectedVideo, video);
+    assertEquals(expectedAudio, audio);
   }
 
   @Test

@@ -178,6 +178,7 @@ final class Mcv2PlayCommandTest {
 
   private static final String PROGRESS_PATTERN = "MCV2 encode: (\\d+) frames, (\\d+) ms per frame";
   private static final String DURATION_PATTERN = " in (\\d+) s, ";
+  private static final String DONE_FIGURES_PATTERN = " s, (\\d+) ms per frame, (\\d+) ms of it encoding";
 
   private static final String MISSING_VIDEO_MESSAGE = "no such video!";
 
@@ -957,6 +958,66 @@ final class Mcv2PlayCommandTest {
 
     final boolean fourthMatches = Integer.parseInt(done.group(1)) >= openingMilliseconds / 1000 - 0.5;
     assertTrue(fourthMatches, "completion includes source opening");
+  }
+
+  @Test
+  void shouldReportTheWallTimePerFrameWhenTheEncodeIsDone() throws Exception {
+    final Path output = this.folder.resolve(TIMED_STREAM_FILE_NAME);
+    final AtomicLong openingNanoseconds = new AtomicLong();
+    this.command.encodeFile(
+      this.sender,
+      (_, _, _) -> this.openSlowly(openingNanoseconds),
+      Path.of(VIDEO_F_FILE_NAME),
+      output,
+      320,
+      180,
+      Mcv2Profile.DEFAULT,
+      Pool.shared(),
+      0
+    );
+    final List<String> told = this.finish();
+    final String done = told.getLast();
+    final Matcher figures = Pattern.compile(DONE_FIGURES_PATTERN).matcher(done);
+
+    final boolean found = figures.find();
+    assertTrue(found, done);
+
+    final double openingMilliseconds = openingNanoseconds.get() / 1e6;
+    final int millisecondsPerFrame = Integer.parseInt(figures.group(1));
+    final boolean includesOpening = millisecondsPerFrame >= openingMilliseconds / FRAME_COUNT - 0.5;
+    assertTrue(includesOpening, done);
+
+    final int encodingMillisecondsPerFrame = Integer.parseInt(figures.group(2));
+    final boolean partOfTheWallTime = encodingMillisecondsPerFrame <= millisecondsPerFrame;
+    assertTrue(partOfTheWallTime, done);
+  }
+
+  @Test
+  void shouldReportNoTimePerFrameWhenTheVideoHasNoFrames() throws Exception {
+    final Path output = this.folder.resolve(STREAM_FILE_NAME);
+    this.command.encodeFile(
+      this.sender,
+      (_, _, _) -> new SolidFrames(0, new CountDownLatch(0)),
+      Path.of(VIDEO_FILE_NAME),
+      output,
+      ENCODE_SIDE,
+      ENCODE_SIDE,
+      Mcv2Profile.DEFAULT,
+      Pool.shared(),
+      0
+    );
+    final List<String> told = this.finish();
+    final String done = told.getLast();
+    final Matcher figures = Pattern.compile(DONE_FIGURES_PATTERN).matcher(done);
+
+    final boolean found = figures.find();
+    assertTrue(found, done);
+
+    final String millisecondsPerFrame = figures.group(1);
+    assertEquals("0", millisecondsPerFrame, done);
+
+    final String encodingMillisecondsPerFrame = figures.group(2);
+    assertEquals("0", encodingMillisecondsPerFrame, done);
   }
 
   private Mcv2FileEncoder.FrameReader openSlowly(final AtomicLong openingNanoseconds) throws IOException {
