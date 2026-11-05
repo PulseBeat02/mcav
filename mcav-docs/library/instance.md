@@ -1,10 +1,10 @@
 # MCAV Instance
 
-To use the library, create an instance with `MCAV.api()` and call `install` with the modules you use. When you are
-done with the library, call `release` to stop the modules and free native resources. Keep one instance for the whole
-life of your application or plugin: some of a module's state belongs to the class loader rather than to the instance,
-so releasing a second instance stops it for the first too. The Bukkit module's injected plugin and packet listener are
-such state.
+To use the library, create an instance with `MCAV.api()` and call `install` with the modules you use. When you are done
+with the library, call `release` to stop the modules and free native resources. Keep one instance for the whole life of
+your application or plugin: some of a module's state belongs to the class loader rather than to the instance, so
+releasing a second instance stops it for the first too. The Bukkit module's injected plugin and packet listener are such
+state.
 
 ```java
   final MCAVApi api = MCAV.api();
@@ -17,8 +17,8 @@ such state.
 
 `install` returns as soon as the library is usable. By then:
 
-- the JavaCV natives, FFmpeg and OpenCV, are loaded; OpenCV runs its own work, such as a resize, on the thread that
-  asks for it, as a pool of its own threads would outlive every player and work outside the encoders' budget
+- the JavaCV natives, FFmpeg and OpenCV, are loaded; OpenCV runs its own work, such as a resize, on the thread that asks
+  for it, as a pool of its own threads would outlive every player and work outside the encoders' budget
   (`-Dmcav.opencv.threads=<n>` gives it `n` threads);
 - the modules you passed are started;
 - the lookup tables, such as the map color table, are built.
@@ -34,20 +34,19 @@ and nothing waits for it: each capability simply turns on once its program is re
 
 When the home directory cannot hold `~/.mcav/cache`, for instance because it is read-only or mounted `noexec` so the
 programs in the cache cannot run, MCAV uses `mcav/cache` in the temporary directory of the JVM (`java.io.tmpdir`)
-instead and logs a warning that names both folders. If that folder cannot run programs either, VLC and yt-dlp are
-not available; point `java.io.tmpdir` at a folder that can.
+instead and logs a warning that names both folders. If that folder cannot run programs either, VLC and yt-dlp are not
+available; point `java.io.tmpdir` at a folder that can.
 
-JavaCPP extracts the FFmpeg and OpenCV natives into its own cache, `~/.javacpp/cache`, and only checks that it can
-write there. When that folder cannot be written or cannot run programs, MCAV points JavaCPP at `javacpp` in the MCAV
-cache folder instead and logs a warning that names both folders, unless your application set
-`org.bytedeco.javacpp.cachedir` or `org.bytedeco.javacpp.cacheDir` itself. Set one of them before you call `install`
-if the natives should go elsewhere.
+JavaCPP extracts the FFmpeg and OpenCV natives into its own cache, `~/.javacpp/cache`, and only checks that it can write
+there. When that folder cannot be written or cannot run programs, MCAV points JavaCPP at `javacpp` in the MCAV cache
+folder instead and logs a warning that names both folders, unless your application set `org.bytedeco.javacpp.cachedir`
+or `org.bytedeco.javacpp.cacheDir` itself. Set one of them before you call `install` if the natives should go elsewhere.
 
 Until a program is ready:
 
 - `hasCapability` reports its capability as unavailable;
-- `VideoPlayer.vlc()` throws an `IllegalStateException` saying that VLC is still being prepared, and the default
-  yt-dlp parser does the same for yt-dlp;
+- `VideoPlayer.vlc()` throws an `IllegalStateException` saying that VLC is still being prepared, and the default yt-dlp
+  parser does the same for yt-dlp;
 - `whenCapabilityReady` returns a future that completes once the preparation finished.
 
 `release` cancels a preparation that is still running and interrupts its download. It waits up to ten seconds in total
@@ -68,9 +67,8 @@ trim there.
 
 ## Capabilities
 
-MCAV builds on several native programs. FFmpeg and OpenCV are bundled and always available; VLC and yt-dlp are
-installed when possible, and a failed installation only disables the features that need them instead of failing the
-library.
+MCAV builds on several native programs. FFmpeg and OpenCV are bundled and always available; VLC and yt-dlp are installed
+when possible, and a failed installation only disables the features that need them instead of failing the library.
 
 | Capability       | Needed for                                               | Decided                   |
 |------------------|----------------------------------------------------------|---------------------------|
@@ -79,8 +77,8 @@ library.
 | `YT_DLP`         | Resolving web pages, such as YouTube videos, with yt-dlp | In the background         |
 | `FACE_DETECTION` | The `FaceDetectionFilter`; its OpenCV natives need GTK 2 on Linux, which MCAV installs on x86-64 and ARM64 Linux when it is missing | Before `install` returns |
 
-`hasCapability` tells whether a capability is available right now. A capability that is still being prepared is
-not available yet, so the example below plays with FFmpeg until VLC is ready:
+`hasCapability` tells whether a capability is available right now. A capability that is still being prepared is not
+available yet, so the example below plays with FFmpeg until VLC is ready:
 
 ```java
   public VideoPlayerMultiplexer createPreferredPlayer(final MCAVApi api) {
@@ -119,9 +117,9 @@ preparation already finished, gets a future that is complete already.
   }
 ```
 
-Callbacks attached to the future never run on the installation threads of the library, so they may call any method
-of the library, even `release`. A thread that may block, such as a worker thread, can also wait with `join()`, but
-never the main thread of a server:
+Callbacks attached to the future never run on the installation threads of the library, so they may call any method of
+the library, even `release`. A thread that may block, such as a worker thread, can also wait with `join()`, but never
+the main thread of a server:
 
 ```java
   public boolean waitForYtdlp(final MCAVApi api) {
@@ -132,8 +130,8 @@ never the main thread of a server:
 
 ## Modules
 
-Modules add features to the library. Pass their classes to `install`, then look them up with `getModule`. For
-example, a Minecraft plugin installs the Bukkit module and hands it the plugin instance:
+Modules add features to the library. Pass their classes to `install`, then look them up with `getModule`. For example, a
+Minecraft plugin installs the Bukkit module and hands it the plugin instance:
 
 ```java
   final MCAVApi api = MCAV.api();

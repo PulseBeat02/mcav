@@ -1,14 +1,13 @@
 # Commands
 
-MCAV has many commands that you can use to interact with the library. This page documents all the commands,
-including each argument and its purpose. If you want to see the commands in-game, you can use the `/mcav help` command
-to get a tree of all the commands available to you.
+MCAV has many commands that you can use to interact with the library. This page documents all the commands, including
+each argument and its purpose. If you want to see the commands in-game, you can use the `/mcav help` command to get a
+tree of all the commands available to you.
 
 ## Permissions
 
 Every command checks a permission, and the plugin declares all of them, so a permissions plugin like
-[LuckPerms](https://luckperms.net/) lists and tab-completes them. Every permission is for operators until it is
-granted.
+[LuckPerms](https://luckperms.net/) lists and tab-completes them. Every permission is for operators until it is granted.
 
 | Permission | Allows |
 |---|---|
@@ -94,20 +93,20 @@ A wall of maps shows its picture in one of two ways, chosen per command with the
 argument, for example `/mcav browser create @a 1280x720 1 10x6 0 NEAREST_COLOR NONE https://example.com --codec mcv2`.
 `/mcav vm create` takes it at the very end of its QEMU options, since those start with a dash too:
 `... X86_64 NONE -m 2048M -cdrom "alpine linux.iso" --codec mcv2`. `/mcav video mcv2` always uses MCV2 and chooses its
-encoder preset. The block, chat, entity and scoreboard outputs (and the information hologram) draw no maps, so the
-codec does not apply to them.
+encoder preset. The block, chat, entity and scoreboard outputs (and the information hologram) draw no maps, so the codec
+does not apply to them.
 
 With `mcv2`:
 
 - The viewers are offered MCAV's MCV2 resource pack, one pack that decodes every MCV2 screen of the server. It is
   optional and replaces no other pack: a player who declines it sees the dithered maps and is not asked again while
-  online. Until a player's client has loaded it, that player sees the dithered maps, and so does a player whose
-  [MCV2 client mod](../mcv2.md#the-client-mod-for-iris-shader-players) reports Iris shaders on that it can't
-  decode under (an Iris other than 1.11.7), until they turn them off.
-- Loading the pack reloads the client's resources, a hitch of a second or more. The pack changes only when a screen of
-  a video size it does not decode yet starts, and a minute after a screen stopped, when its size leaves the pack (the
-  pack itself, once no screen plays); a new screen of the same size within that minute reloads nothing. It decodes up
-  to eight sizes; when eight screens play at once, the next one shows dithered maps and says so.
+  online. Until a player's client has loaded it, that player sees the dithered maps, and so does a player whose [MCV2
+  client mod](../mcv2.md#the-client-mod-for-iris-shader-players) reports Iris shaders on that it can't decode under (an
+  Iris other than 1.11.7), until they turn them off.
+- Loading the pack reloads the client's resources, a hitch of a second or more. The pack changes only when a screen of a
+  video size it does not decode yet starts, and a minute after a screen stopped, when its size leaves the pack (the pack
+  itself, once no screen plays); a new screen of the same size within that minute reloads nothing. It decodes up to
+  eight sizes; when eight screens play at once, the next one shows dithered maps and says so.
 - A wall shown to `@a` keeps following the players online: a player who joins while it plays is offered the pack and
   watches too. Only players who can see the wall are sent its MCV2 stream: one farther away than their view distance, or
   in another world, is sent nothing until they come back. Any other selector means the players it matches when the
@@ -134,8 +133,8 @@ FFmpeg input can open the server's cameras, microphones and screen, so it needs 
 `mcav.command.video.device`, like the `DEVICE` player.
 ```
 
-A camera or capture card of the server plays with the `DEVICE` player and its number as the `mrl`. A device belongs
-to the server, so the `DEVICE` player needs the permission `mcav.command.video.device`, and it plays only a number that
+A camera or capture card of the server plays with the `DEVICE` player and its number as the `mrl`. A device belongs to
+the server, so the `DEVICE` player needs the permission `mcav.command.video.device`, and it plays only a number that
 `/mcav video devices` listed: list the devices first. On Linux the number is that of `/dev/video<number>` and the list
 shows the name the system gives the device; on Windows and macOS the list tries the numbers 0 to 7, which briefly opens
 every device there is.
@@ -419,11 +418,11 @@ installed and configured to use these commands.
 ## VNC commands
 
 `/mcav vnc create` connects the server to a VNC server and shows its desktop on a wall of maps. The server a player
-names is reached from the Minecraft server, so only the servers an operator lists in `vnc.allowed-hosts` of
-`config.yml` can be named, none by default, and the permissions are for operators until granted. A server's password is
-written in that list, never in the command, since the server log keeps every command; MCAV never logs it, and
-`/mcav dump` leaves it out. MCAV checks everything a VNC server sends before its VNC client reads it: sizes, lengths,
-message types and encodings outside what the client supports close the connection instead of allocating memory.
+names is reached from the Minecraft server, so only the servers an operator lists in `vnc.allowed-hosts` of `config.yml`
+can be named, none by default, and the permissions are for operators until granted. A server's password is written in
+that list, never in the command, since the server log keeps every command; MCAV never logs it, and `/mcav dump` leaves
+it out. MCAV checks everything a VNC server sends before its VNC client reads it: sizes, lengths, message types and
+encodings outside what the client supports close the connection instead of allocating memory.
 
 | Command                                      | `/mcav vnc create`                                                                                                                  |
 |----------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------|
@@ -532,16 +531,16 @@ filter is bounded by what the command shows; every argument is bounded too.
 | `overlay=<name>` | the name of a PNG file of the plugin's `overlays` folder, without `.png` | draws the file over the top-left corner |
 | `fps` | none, videos only | writes the frames shown per second |
 
-An overlay is read only from `plugins/MCAV/overlays`, by a name of letters, digits, `-` and `_`: never a path or a URL
-a player types, and a link in the folder is not followed. The file may be at most 4 MiB, and a picture larger than
-1024 pixels on a side is scaled down to that. The server owner puts the overlays there.
+An overlay is read only from `plugins/MCAV/overlays`, by a name of letters, digits, `-` and `_`: never a path or a URL a
+player types, and a link in the folder is not followed. The file may be at most 4 MiB, and a picture larger than 1024
+pixels on a side is scaled down to that. The server owner puts the overlays there.
 
-The library has more filters than the plugin offers. Left out: face detection (it needs an OpenCV classifier model
-the plugin does not ship, and runs a classifier over every frame); resize and transpose (the command's resolution
-already sets the size, and `rotate` covers transposing); blend (it needs a second picture); circle, ellipse, line and
-region fill (`rectangle` marks a region); zero (a black picture); and the LWJGL texture filter (`GlTextureFilter`),
-which needs an OpenGL context that a server does not have. Dithering is not a filter here: it is how every wall of maps
-without MCV2 shows its picture.
+The library has more filters than the plugin offers. Left out: face detection (it needs an OpenCV classifier model the
+plugin does not ship, and runs a classifier over every frame); resize and transpose (the command's resolution already
+sets the size, and `rotate` covers transposing); blend (it needs a second picture); circle, ellipse, line and region
+fill (`rectangle` marks a region); zero (a black picture); and the LWJGL texture filter (`GlTextureFilter`), which needs
+an OpenGL context that a server does not have. Dithering is not a filter here: it is how every wall of maps without MCV2
+shows its picture.
 
 ## yt-dlp options
 
@@ -558,8 +557,8 @@ choose which stream of a page is played are accepted:
 | Network | `retries`, `extractor-retries`, `socket-timeout`, `source-address`, `add-header`, `user-agent`, `referer` |
 
 A switch such as `no-playlist` is written on its own, an option with a value as `name=value`. An option outside the
-list, a switch given a value, an option missing its value, or a value that starts with a dash is refused and the
-command tells you which option it was.
+list, a switch given a value, an option missing its value, or a value that starts with a dash is refused and the command
+tells you which option it was.
 
 The page chooses the addresses yt-dlp reports for its streams, so only `http` and `https` streams are played. A page
 that names a stream of another kind, such as a `file:` of the server or a `tcp:` connection, does not start, and the

@@ -5,9 +5,9 @@ The Bukkit module supports Paper servers running Minecraft 26.3. It follows the 
 not support older versions. Paper 26.3 has only alpha builds as of 2026-09-27; MCAV is built against build 49.
 ```
 
-The Bukkit platform module provides Minecraft-specific playback: it shows video and images on maps, blocks, text
-display entities, scoreboards, and in chat, and builds and hosts resource packs for audio. Add the `mcav-bukkit`
-module to use it.
+The Bukkit platform module provides Minecraft-specific playback: it shows video and images on maps, blocks, text display
+entities, scoreboards, and in chat, and builds and hosts resource packs for audio. Add the `mcav-bukkit` module to use
+it.
 
 ```kotlin
 dependencies {
@@ -39,8 +39,8 @@ dependencies {
 
 ## Getting started
 
-Pass the Bukkit module to `install`, then hand it your plugin instance with `inject`, because the module schedules
-work on the server and registers listeners in the name of your plugin.
+Pass the Bukkit module to `install`, then hand it your plugin instance with `inject`, because the module schedules work
+on the server and registers listeners in the name of your plugin.
 
 ```java
   final MCAVApi api = MCAV.api();

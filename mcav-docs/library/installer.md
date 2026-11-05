@@ -2,8 +2,7 @@
 
 The Minecraft modules bring many dependencies, together close to a gigabyte with all native libraries. Shading all of
 them into a plugin produces a jar that is hard to distribute, and Paper's remapper can run out of memory on it. The
-installer module downloads the library when your plugin starts instead, so your plugin jar only contains the
-installer.
+installer module downloads the library when your plugin starts instead, so your plugin jar only contains the installer.
 
 ```kotlin
 dependencies {
@@ -11,12 +10,12 @@ dependencies {
 }
 ```
 
-The installer resolves a module and all of its compile and runtime dependencies from Maven repositories, copies the
-jars into a folder, and adds them to a class loader. It supports `URLClassLoader`, which includes the plugin class
-loaders of Bukkit and Paper, and the Knot class loader of Fabric. The JVM must allow the access needed to add jars;
-if it refuses both available strategies, the installer throws a `JarInjectorException` with the required JVM option.
-It says what it downloads and loads through `java.util.logging`, under the names of its classes, which a server
-shows in its console; the SLF4J inside the installer's jar is its own, and never meets yours.
+The installer resolves a module and all of its compile and runtime dependencies from Maven repositories, copies the jars
+into a folder, and adds them to a class loader. It supports `URLClassLoader`, which includes the plugin class loaders of
+Bukkit and Paper, and the Knot class loader of Fabric. The JVM must allow the access needed to add jars; if it refuses
+both available strategies, the installer throws a `JarInjectorException` with the required JVM option. It says what it
+downloads and loads through `java.util.logging`, under the names of its classes, which a server shows in its console;
+the SLF4J inside the installer's jar is its own, and never meets yours.
 
 ```java
   final File dataFolder = this.getDataFolder();
@@ -70,8 +69,8 @@ your loader to `loadDependencies` or to `loadMCAVDependencies(Artifact, JarLoade
 ## Downloads and folder layout
 
 Artifacts are downloaded from Maven Central, the MCAV snapshot repository, the PaperMC repository, Google's Maven
-repository, and the CodeMC releases repository. The local Maven repository of the user (`~/.m2/repository`) serves as
-a cache, so artifacts already downloaded by Maven or a previous start are not downloaded again. Every repository is
+repository, and the CodeMC releases repository. The local Maven repository of the user (`~/.m2/repository`) serves as a
+cache, so artifacts already downloaded by Maven or a previous start are not downloaded again. Every repository is
 checked for updates daily and uses the checksum policy `fail`: a download whose checksum is missing or does not match
 the one published by the repository fails the installation instead of being used.
 
@@ -83,14 +82,14 @@ The jars of an installed artifact are copied to
 
 where `<artifact>` is the artifact you asked for and the file name is the one of the local Maven repository. With the
 folder `libraries`, the native jar of JavaCPP that `mcav-common` needs ends up at
-`libraries/mcav-common/org.bytedeco/javacpp/javacpp-1.5.14-linux-x86_64.jar`. The group and artifact folders keep
-equal artifact ids of different groups apart.
+`libraries/mcav-common/org.bytedeco/javacpp/javacpp-1.5.14-linux-x86_64.jar`. The group and artifact folders keep equal
+artifact ids of different groups apart.
 
 On every start, a jar that is already in the folder is compared byte for byte with its source in the local Maven
-repository. An identical jar is kept, so jars a running server has already loaded are never rewritten; any other jar
-is copied again, first to a `.part` file next to it and then moved into place, so a crash never leaves a half-written
-jar behind. Earlier versions of the installer wrote `hash.properties` and `hashes.properties` files into the folder;
-nothing reads them anymore, and they are deleted.
+repository. An identical jar is kept, so jars a running server has already loaded are never rewritten; any other jar is
+copied again, first to a `.part` file next to it and then moved into place, so a crash never leaves a half-written jar
+behind. Earlier versions of the installer wrote `hash.properties` and `hashes.properties` files into the folder; nothing
+reads them anymore, and they are deleted.
 
 ## Errors
 
@@ -98,10 +97,10 @@ Loading throws an `InstallationException` when an artifact cannot be resolved, d
 `JarInjectorException` when the jars cannot be added to the class loader. `injector(Path, Object)` also throws a
 `JarInjectorException` when the object was loaded by the bootstrap class loader, which cannot receive jars.
 
-The jars are added through the class loader's `addURL` method, for which `java.net` must be open: start the server
-with `--add-opens java.base/java.net=ALL-UNNAMED`. Without it, the installer adds them through `sun.misc.Unsafe`,
-which Java 24 and newer warn about the first time; a later Java that removes those methods of `sun.misc.Unsafe` leaves
-only `addURL`, and without the option the installer then throws a `JarInjectorException` that says to add it.
+The jars are added through the class loader's `addURL` method, for which `java.net` must be open: start the server with
+`--add-opens java.base/java.net=ALL-UNNAMED`. Without it, the installer adds them through `sun.misc.Unsafe`, which Java
+24 and newer warn about the first time; a later Java that removes those methods of `sun.misc.Unsafe` leaves only
+`addURL`, and without the option the installer then throws a `JarInjectorException` that says to add it.
 
 ```{note}
 Paper plugins can also declare their libraries in a `PluginLoader`, as the sandbox plugin does with Gremlin. Use

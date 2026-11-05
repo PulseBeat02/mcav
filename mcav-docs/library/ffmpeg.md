@@ -1,8 +1,8 @@
 # Using FFmpeg
 
 Besides the FFmpeg libraries the players use, MCAV bundles the FFmpeg command-line program, so you can run FFmpeg
-commands without installing anything. `FfmpegExecutableProvider.getFfmpegPath()` returns the path of the program; it
-is extracted on first use.
+commands without installing anything. `FfmpegExecutableProvider.getFfmpegPath()` returns the path of the program; it is
+extracted on first use.
 
 On Linux, every `CommandTask` of an `FfmpegCommand` runs the program with `LD_LIBRARY_PATH` set to its own folder, where
 the FFmpeg libraries beside it find the others they load, such as `libva`, and then to the folders of the sound and

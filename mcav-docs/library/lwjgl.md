@@ -1,7 +1,7 @@
 # LWJGL Module
 
-MCAV provides an [LWJGL](https://www.lwjgl.org/) module called `mcav-lwjgl` that streams video into OpenGL textures,
-for example to render a video inside a game or a mod.
+MCAV provides an [LWJGL](https://www.lwjgl.org/) module called `mcav-lwjgl` that streams video into OpenGL textures, for
+example to render a video inside a game or a mod.
 
 ```kotlin
 dependencies {
@@ -10,9 +10,9 @@ dependencies {
 ```
 
 OpenGL may only be called from the thread that owns the context, but filters run on the thread of the player. The
-`GlTextureFilter` therefore only copies each frame into a staging buffer, and the render thread uploads the newest
-frame by calling `upload()` once per rendered frame. `start()` and `release()` must be called on the render thread as
-well, so call the method below there, with the OpenGL context current.
+`GlTextureFilter` therefore only copies each frame into a staging buffer, and the render thread uploads the newest frame
+by calling `upload()` once per rendered frame. `start()` and `release()` must be called on the render thread as well, so
+call the method below there, with the OpenGL context current.
 
 ```java
   public void renderVideo(final Source source, final BooleanSupplier keepRendering) {

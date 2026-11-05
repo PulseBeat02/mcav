@@ -5,13 +5,13 @@ extracting the audio, building the pack, and hosting it.
 
 `AudioExtractor.extractOggVorbis` (in `me.brandonli.mcav.utils.ffmpeg` of `mcav-common`) converts the audio of any
 source to stereo Ogg Vorbis, the format Minecraft plays, with the FFmpeg program bundled with MCAV. It waits until
-FFmpeg is done, so call it off the main thread; see [extracting audio](../library/utilities.md#extracting-audio) for
-the exceptions it throws. Add the file to a `SimpleResourcePack`, set the `pack.mcmeta` information with `metadata`, and
+FFmpeg is done, so call it off the main thread; see [extracting audio](../library/utilities.md#extracting-audio) for the
+exceptions it throws. Add the file to a `SimpleResourcePack`, set the `pack.mcmeta` information with `metadata`, and
 write the pack to a zip file. `zip` throws an `IllegalStateException` if `metadata` was never called.
 
-Minecraft compares the `pack_format` in `pack.mcmeta` with the version of the client, so pass the resource pack
-format of your server's Minecraft version; the [Minecraft Wiki](https://minecraft.wiki/w/Pack_format) lists the
-format of every version.
+Minecraft compares the `pack_format` in `pack.mcmeta` with the version of the client, so pass the resource pack format
+of your server's Minecraft version; the [Minecraft Wiki](https://minecraft.wiki/w/Pack_format) lists the format of every
+version.
 
 ```java
   public void buildAudioPack(final int packFormat, final Path destination) {

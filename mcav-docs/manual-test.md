@@ -1,22 +1,22 @@
 # Manual Test: Watching MCAV on a Real Server
 
-This is the checklist for seeing MCAV play media with your own eyes, with a real Minecraft client, rather than
-trusting the automated tests. It takes about fifteen minutes the first time, and about two minutes afterwards.
+This is the checklist for seeing MCAV play media with your own eyes, with a real Minecraft client, rather than trusting
+the automated tests. It takes about fifteen minutes the first time, and about two minutes afterwards.
 
-You need a Minecraft 26.3 client. MCAV builds the plugin against Paper 26.3, and a 26.3 server refuses
-older clients unless you add ViaBackwards, so the server rejects a client of any other version at login.
+You need a Minecraft 26.3 client. MCAV builds the plugin against Paper 26.3, and a 26.3 server refuses older clients
+unless you add ViaBackwards, so the server rejects a client of any other version at login.
 
 ## 1. Forward the server port to your PC
 
-The devbox only listens on its own loopback address, so the game port is not reachable from outside. Open a
-tunnel from the machine your Minecraft client runs on and leave it running:
+The devbox only listens on its own loopback address, so the game port is not reachable from outside. Open a tunnel from
+the machine your Minecraft client runs on and leave it running:
 
 ```sh
 ssh -N devbox-mc
 ```
 
-`devbox-mc` is the host entry that forwards local port 25565 to the devbox's 25565. If you do not have it yet, add
-this to `~/.ssh/config` on your PC:
+`devbox-mc` is the host entry that forwards local port 25565 to the devbox's 25565. If you do not have it yet, add this
+to `~/.ssh/config` on your PC:
 
 ```
 Host devbox-mc
@@ -38,8 +38,8 @@ returned by the Paper API; the repository supplies no expected server digest. It
 `bukkit-2.6.24` and Spark `1.10.187`/build `539`. Spark uses the existing URL download without a repository-pinned
 digest.
 
-The first start takes several minutes: it downloads Paper, then the plugin asks Gremlin to download the MCAV
-modules, the JavaCV natives, VLC and yt-dlp. Wait for `Done (…)! For help, type "help"` and, just before it,
+The first start takes several minutes: it downloads Paper, then the plugin asks Gremlin to download the MCAV modules,
+the JavaCV natives, VLC and yt-dlp. Wait for `Done (…)! For help, type "help"` and, just before it,
 `MCAV loaded in … ms.`.
 
 ````{note}
@@ -73,16 +73,16 @@ Connect your client to `localhost:25565`. You should appear in a flat world.
 
 ## 4. Build a screen and play something
 
-Run these in chat with a leading slash, so the relative coordinates use your position. Grant yourself
-permission from the server console first with `op <yourname>`.
+Run these in chat with a leading slash, so the relative coordinates use your position. Grant yourself permission from
+the server console first with `op <yourname>`.
 
 ```
 mcav screen "15x9" 0 black_concrete ~ ~ ~
 mcav video map @a VLC NONE "1920x1080" "15x9" 0 FLOYD_STEINBERG "" "/absolute/path/to/mcav.mp4"
 ```
 
-The first command builds a wall of 135 item frames holding maps `0`–`134`, starting at the top left as you face
-it. The second plays the file onto exactly those maps. Stop it with:
+The first command builds a wall of 135 item frames holding maps `0`–`134`, starting at the top left as you face it. The
+second plays the file onto exactly those maps. Stop it with:
 
 ```
 mcav video release
@@ -104,35 +104,33 @@ and malformed image sources still report `Invalid MRL!`.
 
 `HTTP_SERVER` audio needs the audio web page, which is off by default: set `enabled: true` under `http-server` in
 `mcav-plugin/run/plugins/MCAV/config.yml` and restart the server, or the plugin refuses the command. At startup the
-console then
-prints `Audio web page http://localhost:3000/ is available.` (port 3000 unless `http-server.port` says
+console then prints `Audio web page http://localhost:3000/ is available.` (port 3000 unless `http-server.port` says
 otherwise); open that page in a browser (forward port 3000 the same way) and press play. Listen for audio and compare
 its timing with the video; a successful connection alone does not verify synchronization.
 
 ## 5. What to look for
 
-- The whole wall fills. Every map in the grid should show part of the picture, including the outer rows and
-  columns. If a map stays blank, check its ID, frame facing and duplicate frames as well as packet delivery.
-  Rebuild the same screen once and verify it remains visible with one item frame per cell.
+- The whole wall fills. Every map in the grid should show part of the picture, including the outer rows and columns. If
+  a map stays blank, check its ID, frame facing and duplicate frames as well as packet delivery. Rebuild the same screen
+  once and verify it remains visible with one item frame per cell.
 - No tearing between maps. Watch motion across tile boundaries. The plugin bundles packets, but it can split large
-  updates
-  and delta budgeting can defer tiles. A bundle is not a guarantee that the whole wall displays one decoded
+  updates and delta budgeting can defer tiles. A bundle is not a guarantee that the whole wall displays one decoded
   frame atomically; record any visible split or stale tiles.
-- Motion is smooth, or evenly slow. Playback that stutters in bursts — a second of motion, then several
-  seconds frozen — can come from decoding, rendering or contention. The measured `mcav.mp4` fixture is
-  2560x1440 AV1 at 60 fps. Compare it with a smaller H.264 file:
+- Motion is smooth, or evenly slow. Playback that stutters in bursts — a second of motion, then several seconds frozen —
+  can come from decoding, rendering or contention. The measured `mcav.mp4` fixture is 2560x1440 AV1 at 60 fps. Compare
+  it with a smaller H.264 file:
   ```sh
   ffmpeg -i mcav.mp4 -t 120 -vf scale=854:480 -r 30 -c:v libx264 -preset veryfast -crf 28 cheap.mp4
   ```
-  If `cheap.mp4` is smooth and `mcav.mp4` is not, that supports a workload or codec bottleneck; it does not
-  isolate decoder time from every other stage. The playing message reports state, not continuing frame progress.
+  If `cheap.mp4` is smooth and `mcav.mp4` is not, that supports a workload or codec bottleneck; it does not isolate
+  decoder time from every other stage. The playing message reports state, not continuing frame progress.
 - The maps clear on release. `mcav video release` should blank the wall, not leave the last frame frozen on it.
 - The console stays quiet. No `ERROR`, no stack traces, during playback or on release.
 
 ## 6. Capturing client-side errors
 
-The server log is `mcav-plugin/run/logs/latest.log`. The client's own log is the one that shows rendering and
-protocol problems, and it is not on the devbox:
+The server log is `mcav-plugin/run/logs/latest.log`. The client's own log is the one that shows rendering and protocol
+problems, and it is not on the devbox:
 
 - Vanilla launcher: `.minecraft/logs/latest.log` (Windows `%APPDATA%\.minecraft\logs\latest.log`, macOS
   `~/Library/Application Support/minecraft/logs/latest.log`, Linux `~/.minecraft/logs/latest.log`).
@@ -140,8 +138,8 @@ protocol problems, and it is not on the devbox:
 - Start the client from a terminal to watch it live; a client-side protocol failure usually shows up there as a
   disconnect with a decoder error naming the packet.
 
-If the client disconnects during playback, copy the last twenty lines of both logs — the server log says what MCAV
-was sending, the client log says what it could not read.
+If the client disconnects during playback, copy the last twenty lines of both logs — the server log says what MCAV was
+sending, the client log says what it could not read.
 
 ## 7. Stop
 
@@ -150,5 +148,5 @@ mcav video release
 stop
 ```
 
-`stop` must end with the process exiting on its own. If it hangs, take a thread dump first — `jcmd <pid>
-Thread.print` — because that is the evidence for a leaked non-daemon thread.
+`stop` must end with the process exiting on its own. If it hangs, take a thread dump first — `jcmd <pid> Thread.print` —
+because that is the evidence for a leaked non-daemon thread.

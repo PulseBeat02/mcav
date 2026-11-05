@@ -1,16 +1,15 @@
 # Using yt-dlp
 
-Players like [VLC](https://www.videolan.org/vlc/) and [FFmpeg](https://ffmpeg.org/) cannot play the page of a
-YouTube video or a Twitch stream directly; the page hides the actual media streams.
-[yt-dlp](https://github.com/yt-dlp/yt-dlp) finds these streams for thousands of
-[supported sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md), and MCAV installs it and wraps it in
-an API.
+Players like [VLC](https://www.videolan.org/vlc/) and [FFmpeg](https://ffmpeg.org/) cannot play the page of a YouTube
+video or a Twitch stream directly; the page hides the actual media streams. [yt-dlp](https://github.com/yt-dlp/yt-dlp)
+finds these streams for thousands of [supported sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md),
+and MCAV installs it and wraps it in an API.
 
 ## Installation
 
 MCAV downloads yt-dlp by itself into the cache folder of the current user (`~/.mcav/cache`), without administrator
-rights, the first time you install the library. MCAV pins the download list to the yt-dlp release 2026.08.19, and
-MCAV checks every file against its SHA-256 hash before it uses it, so it rejects a changed or damaged download:
+rights, the first time you install the library. MCAV pins the download list to the yt-dlp release 2026.08.19, and MCAV
+checks every file against its SHA-256 hash before it uses it, so it rejects a changed or damaged download:
 
 | Platform                  | Downloaded file                                              |
 |---------------------------|--------------------------------------------------------------|
@@ -28,8 +27,8 @@ compatibility layer. yt-dlp is optional: on a platform where MCAV cannot install
 unavailable, which the `YT_DLP` [capability](instance.md#capabilities) tells.
 
 For YouTube, yt-dlp uses a JavaScript runtime such as [Deno](https://deno.com/) when your system has one. Without one,
-YouTube still works, but yt-dlp may find fewer formats; see the
-[yt-dlp documentation](https://github.com/yt-dlp/yt-dlp/wiki/EJS) for the runtimes it supports.
+YouTube still works, but yt-dlp may find fewer formats; see the [yt-dlp
+documentation](https://github.com/yt-dlp/yt-dlp/wiki/EJS) for the runtimes it supports.
 
 ## Using the parser
 

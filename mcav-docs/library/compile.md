@@ -15,26 +15,24 @@ cd mcav
 ```
 
 - Profit! The plugin jar is `mcav-plugin/build/libs/mcav-plugin-<version>-all.jar`, currently
-`mcav-plugin-1.0.0-v26.3-all.jar`.
+  `mcav-plugin-1.0.0-v26.3-all.jar`.
 
 ## Build options
 
 Gradle runs on any JDK 17 or newer. The build needs a Java 25 toolchain, which Gradle downloads if the machine has none,
-and it downloads a Node.js of its own for the code formatter and the web page of `mcav-http`. No credentials are
-needed, except to publish. The project builds on any one of Windows, macOS or Linux: tests that need another operating
-system, or a program the machine lacks (VLC, QEMU, a display), skip themselves. `build` also enforces the coverage lint,
-and the code those skipped tests would have run shows up there as uncovered lines, so on such a machine build with
-`-Pmcav.coverage=false`. The twelve Java modules using
-`buildSrc/src/main/kotlin/mcav.module.gradle.kts` are `mcav-browser`, `mcav-bukkit`, `mcav-common`, `mcav-discord`,
-`mcav-http`, `mcav-installer`, `mcav-lwjgl`, `mcav-mod`, `mcav-plugin`, `mcav-vm`, `mcav-vnc` and `mcav-voicechat`.
-Their compilations run [Error Prone](https://errorprone.info/) and, for production code, the Checker Framework,
-and must stay free of warnings. The coverage, property, fuzz and PIT rows below apply to these twelve modules;
-`<module>` means one of their names.
+and it downloads a Node.js of its own for the code formatter and the web page of `mcav-http`. No credentials are needed,
+except to publish. The project builds on any one of Windows, macOS or Linux: tests that need another operating system,
+or a program the machine lacks (VLC, QEMU, a display), skip themselves. `build` also enforces the coverage lint, and the
+code those skipped tests would have run shows up there as uncovered lines, so on such a machine build with
+`-Pmcav.coverage=false`. The twelve Java modules using `buildSrc/src/main/kotlin/mcav.module.gradle.kts` are
+`mcav-browser`, `mcav-bukkit`, `mcav-common`, `mcav-discord`, `mcav-http`, `mcav-installer`, `mcav-lwjgl`, `mcav-mod`,
+`mcav-plugin`, `mcav-vm`, `mcav-vnc` and `mcav-voicechat`. Their compilations run [Error
+Prone](https://errorprone.info/) and, for production code, the Checker Framework, and must stay free of warnings. The
+coverage, property, fuzz and PIT rows below apply to these twelve modules; `<module>` means one of their names.
 
-`mcav-docs` builds the book. `buildSrc` has separate bootstrap tests (`./gradlew :buildSrc:test`).
-`mcav-jcstress` uses the Java-library, formatting and lint conventions through
-`buildSrc/src/main/kotlin/mcav.jcstress.gradle.kts`; it skips Checker Framework and removes `-Werror` from
-`compileJava`, with no module coverage, property, fuzz or PIT tasks.
+`mcav-docs` builds the book. `buildSrc` has separate bootstrap tests (`./gradlew :buildSrc:test`). `mcav-jcstress` uses
+the Java-library, formatting and lint conventions through `buildSrc/src/main/kotlin/mcav.jcstress.gradle.kts`; it skips
+Checker Framework and removes `-Werror` from `compileJava`, with no module coverage, property, fuzz or PIT tasks.
 
 | Option | What it does |
 |--------|---------------|

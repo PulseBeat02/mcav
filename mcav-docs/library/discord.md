@@ -1,7 +1,7 @@
 # Discord Module
 
-MCAV provides a module that plays audio into Discord voice channels with the
-[Java Discord API](https://github.com/discord-jda/JDA) (JDA). Add the `mcav-discord` module to your project.
+MCAV provides a module that plays audio into Discord voice channels with the [Java Discord
+API](https://github.com/discord-jda/JDA) (JDA). Add the `mcav-discord` module to your project.
 
 ```kotlin
 dependencies {
@@ -76,8 +76,8 @@ does the same with the title yt-dlp resolved. Any title is accepted and adjusted
 - Surrounding whitespace and control characters up to U+001F are removed.
 - A title left blank, or media without a title, shows "Unknown title".
 - A title longer than 128 characters (`Activity.MAX_ACTIVITY_NAME_LENGTH`) is cut to 127 characters and ends with an
-  ellipsis (`…`), so it fits the limit. An emoji or other character outside the Basic Multilingual Plane is never
-  split in half.
+  ellipsis (`…`), so it fits the limit. An emoji or other character outside the Basic Multilingual Plane is never split
+  in half.
 
 ## Buffering
 

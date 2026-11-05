@@ -4,16 +4,16 @@
 
 ## Java multimedia framework
 
-MCAV (pronounced EM CAV) is an incredibly powerful multimedia library for [Java](https://www.java.com/en/), serving
-as the successor of EzMediaCore2. MCAV utilizes several low-level libraries like [FFmpeg](https://ffmpeg.org/),
+MCAV (pronounced EM CAV) is an incredibly powerful multimedia library for [Java](https://www.java.com/en/), serving as
+the successor of EzMediaCore2. MCAV utilizes several low-level libraries like [FFmpeg](https://ffmpeg.org/),
 [OpenCV](https://opencv.org/), and LibVLC (from [VLC media player](https://www.videolan.org/vlc/)) to provide a seamless
-playback experience for developers and users. Designed for pure performance and compatibility, MCAV isn't just a
-YouTube player, but a robust player for live-streams, local files, and even a web browser.
+playback experience for developers and users. Designed for pure performance and compatibility, MCAV isn't just a YouTube
+player, but a robust player for live-streams, local files, and even a web browser.
 
 MCAV is not a library just for Java developers but also a great library to integrate Minecraft plugins with. While you
-can use MCAV in any Java project, there's also a Minecraft-specific module that provides useful features allowing you
-to play back videos like the following. For Minecraft, MCAV even comes with its own video codec,
-[MCV2](mcv2.md), which shows sharp, full-color video on a wall of maps to players with an unmodified client.
+can use MCAV in any Java project, there's also a Minecraft-specific module that provides useful features allowing you to
+play back videos like the following. For Minecraft, MCAV even comes with its own video codec, [MCV2](mcv2.md), which
+shows sharp, full-color video on a wall of maps to players with an unmodified client.
 
 <iframe
   width="560"
@@ -42,7 +42,7 @@ to play back videos like the following. For Minecraft, MCAV even comes with its 
 | `mcav-jcstress` | Concurrency tests on OpenJDK's jcstress harness ([building MCAV](library/compile.md)); a test module, not published |
 | `mcav-docs` | This documentation, built with `./gradlew :mcav-docs:build`; a build module, not published |
 
-MCAV requires Java 25, and runs on Windows (x86-64), macOS (x86-64 and Apple silicon) and Linux (x86-64 and ARM64),
-for which FFmpeg and OpenCV are bundled; the [prerequisites](library/prerequisites.md) say what each optional feature
-needs. The plugin and `mcav-bukkit` run on Paper 26.3, which has only alpha builds as of 2026-09-27; MCAV is built and
-tested against build 49.
+MCAV requires Java 25, and runs on Windows (x86-64), macOS (x86-64 and Apple silicon) and Linux (x86-64 and ARM64), for
+which FFmpeg and OpenCV are bundled; the [prerequisites](library/prerequisites.md) say what each optional feature needs.
+The plugin and `mcav-bukkit` run on Paper 26.3, which has only alpha builds as of 2026-09-27; MCAV is built and tested
+against build 49.

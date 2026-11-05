@@ -51,5 +51,5 @@ Pass the class to `install` and look the instance up with `getModule`:
 ```
 
 Modules are started in the order they are passed to `install` and stopped in reverse order. They are a good place for
-expensive shared state, such as lookup tables, and for objects the rest of your code needs, such as the plugin
-instance the Bukkit module receives through `inject`.
+expensive shared state, such as lookup tables, and for objects the rest of your code needs, such as the plugin instance
+the Bukkit module receives through `inject`.

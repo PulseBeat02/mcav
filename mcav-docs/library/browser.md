@@ -14,11 +14,11 @@ dependencies {
   api.install(BrowserModule.class);
 ```
 
-The page is rendered by Chromium through [JCEF](https://github.com/chromiumembedded/java-cef), the Java binding of
-the Chromium Embedded Framework, packaged by [jcefmaven](https://github.com/jcefmaven/jcefmaven) 152.0.6
-(Chromium 152). Every started `BrowserPlayer` runs its Chromium in a helper process of its own, so the JVM of your
-application needs no options at all, and a crash of the browser never takes your application with it. Chromium hands
-every painted frame over as plain pixels, so frames arrive only when the page changes and need no image decoding.
+The page is rendered by Chromium through [JCEF](https://github.com/chromiumembedded/java-cef), the Java binding of the
+Chromium Embedded Framework, packaged by [jcefmaven](https://github.com/jcefmaven/jcefmaven) 152.0.6 (Chromium 152).
+Every started `BrowserPlayer` runs its Chromium in a helper process of its own, so the JVM of your application needs no
+options at all, and a crash of the browser never takes your application with it. Chromium hands every painted frame over
+as plain pixels, so frames arrive only when the page changes and need no image decoding.
 
 ## Installation
 
@@ -39,43 +39,43 @@ fixed at the next start.
 | FreeBSD          | Any                     | Not available: jcefmaven publishes no FreeBSD build.                         |
 
 `BrowserPlayer.isSupported()` tells whether there is a CEF build for the machine. On any other platform, and on 32-bit
-systems, `start` fails with a `BrowserUnavailableException` that names the platform, and nothing is downloaded; so
-does a start whose download or check fails, with the reason in its message.
+systems, `start` fails with a `BrowserUnavailableException` that names the platform, and nothing is downloaded; so does
+a start whose download or check fails, with the reason in its message.
 
 ### Linux on a stock server
 
-The browser runs on a stock headless Linux server, such as a Minecraft server in a Docker image, with nothing
-installed but a full Java runtime (see below) and no JVM options. Chromium draws on its headless platform, which
-needs no display server. CEF's Java binding still asks for an X display once at the start, for a window of one pixel
-it never shows; the helper answers it itself with a null display: a minimal X11 endpoint inside the helper, on the
-loopback interface, that only a client presenting the helper's random cookie may use, and that answers the handful
-of questions CEF asks and nothing else.
+The browser runs on a stock headless Linux server, such as a Minecraft server in a Docker image, with nothing installed
+but a full Java runtime (see below) and no JVM options. Chromium draws on its headless platform, which needs no display
+server. CEF's Java binding still asks for an X display once at the start, for a window of one pixel it never shows; the
+helper answers it itself with a null display: a minimal X11 endpoint inside the helper, on the loopback interface, that
+only a client presenting the helper's random cookie may use, and that answers the handful of questions CEF asks and
+nothing else.
 
-Chromium links against libraries a desktop has but a server image often lacks (the X11 client libraries, NSS, ALSA,
-ATK, cups and others). When the server lacks any of them, the first start on Linux downloads them from Debian 11
-(bullseye) into `~/.mcav/cache/jcef-libraries`, about 13 MB: 52 packages per architecture, from the final point
-release or, where Debian's long-term support fixed a package, its last security update, each checked against the
-SHA-256 hash and size pinned in MCAV, of which only the shared libraries are unpacked. A server that has every
-library downloads nothing. Debian 11 is built for glibc 2.31, so any server with glibc 2.31 or newer can use them
-(libcef itself needs glibc 2.25). The server's own libraries win, package by package: only the packages whose main
-library the server lacks, or has only for another architecture, are linked into the folder of each browser, and only
-its helper process gets that folder on its `LD_LIBRARY_PATH`. A few basic libraries (such as zlib, expat, fontconfig
-and freetype) are expected from the server, as every server image tested has them; a server without one of them gets
-a `BrowserUnavailableException` that names it.
+Chromium links against libraries a desktop has but a server image often lacks (the X11 client libraries, NSS, ALSA, ATK,
+cups and others). When the server lacks any of them, the first start on Linux downloads them from Debian 11 (bullseye)
+into `~/.mcav/cache/jcef-libraries`, about 13 MB: 52 packages per architecture, from the final point release or, where
+Debian's long-term support fixed a package, its last security update, each checked against the SHA-256 hash and size
+pinned in MCAV, of which only the shared libraries are unpacked. A server that has every library downloads nothing.
+Debian 11 is built for glibc 2.31, so any server with glibc 2.31 or newer can use them (libcef itself needs glibc 2.25).
+The server's own libraries win, package by package: only the packages whose main library the server lacks, or has only
+for another architecture, are linked into the folder of each browser, and only its helper process gets that folder on
+its `LD_LIBRARY_PATH`. A few basic libraries (such as zlib, expat, fontconfig and freetype) are expected from the
+server, as every server image tested has them; a server without one of them gets a `BrowserUnavailableException` that
+names it.
 
 The Java runtime must be a full one. `libjcef.so` also links against the runtime's own `libjawt.so`, which no package
 can bring, and the headless Java packages of Debian and Ubuntu (`openjdk-25-jre-headless`) leave it out: on such a
 runtime `start` fails with a `BrowserUnavailableException` that says to install the full package of the same version
 (`openjdk-25-jre`) or to run the server on a full runtime, as in the Docker images below.
 
-Debian 11's long-term support ended in August 2026, so these packages get no more security updates. They stay for
-the servers whose glibc is too old for Debian 12's, but a server that installs the libraries from its own distribution
-(the packages that provide `libnss3.so`, `libatk-1.0.so.0`, `libcups.so.2`, `libasound.so.2`, `libgbm.so.1`,
+Debian 11's long-term support ended in August 2026, so these packages get no more security updates. They stay for the
+servers whose glibc is too old for Debian 12's, but a server that installs the libraries from its own distribution (the
+packages that provide `libnss3.so`, `libatk-1.0.so.0`, `libcups.so.2`, `libasound.so.2`, `libgbm.so.1`,
 `libxkbcommon.so.0` and the X11 client libraries) keeps them up to date, as its own libraries always win.
 
 This was proven in the images `eclipse-temurin:25-jre`, `ghcr.io/pterodactyl/yolks:java_25` and
-`itzg/minecraft-server:latest`, run as an unprivileged user without capabilities: a page streams, the player is
-released and started again, and no process of the browser is left.
+`itzg/minecraft-server:latest`, run as an unprivileged user without capabilities: a page streams, the player is released
+and started again, and no process of the browser is left.
 
 ## Playing a page
 
@@ -84,8 +84,8 @@ of the page and its frames (at most 4096 pixels per side), and how many painted 
 `BrowserPlayer.create()` uses the default options; `BrowserPlayer.create(BrowserOptions)` takes others.
 
 The example opens a page, clicks into it, and types a search. The `display` filter is yours and shows the frames;
-release the returned browser when you are done with the page. `start` throws a `BrowserException` if the page cannot
-be shown.
+release the returned browser when you are done with the page. `start` throws a `BrowserException` if the page cannot be
+shown.
 
 ```java
   public BrowserPlayer searchWikipedia(final VideoFilter display) {
@@ -113,43 +113,41 @@ be shown.
   }
 ```
 
-`start` returns once the page has loaded and its first frame arrived; a page that cannot be loaded, such as an
-unknown host, fails the start. After a page stops changing, its last frame is handed to the pipeline again a few
-times, so a video filter that spreads a big change over several frames, like the map encoder with its byte budget,
-finishes it.
+`start` returns once the page has loaded and its first frame arrived; a page that cannot be loaded, such as an unknown
+host, fails the start. After a page stops changing, its last frame is handed to the pipeline again a few times, so a
+video filter that spreads a big change over several frames, like the map encoder with its byte budget, finishes it.
 
 `release` ends the helper process and its Chromium processes. Stopping the module, for example when a plugin is
 disabled, ends every browser that is running or still starting, and each player hears of it through its exception
-handler; no browser starts until the module starts again. If your application dies without releasing its browsers,
-every helper notices and ends within 20 seconds.
+handler; no browser starts until the module starts again. If your application dies without releasing its browsers, every
+helper notices and ends within 20 seconds.
 
 ## Input
 
 Input coordinates are pixels of the page, which has the size of the frames. `sendMouseEvent` clicks with the left or
-right button, double clicks, or holds and releases the left button, and a move while the button is held drags,
-`scroll` turns the mouse wheel at a position, and `sendKeyEvent` presses a key when given the name of a
-[KeyboardEvent key](https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values), such as
-`Enter`, `Backspace`, or `ArrowLeft`, and types any other text character by character, however long it is; a line
-break presses Enter, once for `\r\n`. Input goes through Chromium's
-DevTools protocol inside the helper; no debugging port is ever opened. Like every Chromium, the browser ignores clicks
-and keys for a moment right after a page appears.
+right button, double clicks, or holds and releases the left button, and a move while the button is held drags, `scroll`
+turns the mouse wheel at a position, and `sendKeyEvent` presses a key when given the name of a [KeyboardEvent
+key](https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values), such as `Enter`,
+`Backspace`, or `ArrowLeft`, and types any other text character by character, however long it is; a line break presses
+Enter, once for `\r\n`. Input goes through Chromium's DevTools protocol inside the helper; no debugging port is ever
+opened. Like every Chromium, the browser ignores clicks and keys for a moment right after a page appears.
 
 ## Security
 
-A page is untrusted content, and the browser runs without Chromium's sandbox, which JCEF cannot use. MCAV limits what
-a page can do instead:
+A page is untrusted content, and the browser runs without Chromium's sandbox, which JCEF cannot use. MCAV limits what a
+page can do instead:
 
-- On Linux 5.13 and later and on macOS, Chromium is confined. Its processes cannot read the server's working folder,
-  the home folder of the server's user or the server's temporary folder, apart from Java, CEF, the libraries and class
-  path of the helper and the folder of the session; they change files only in the folder of the session (which is
-  also their temporary folder) and the devices (on Linux the process folder too). On Linux it is Landlock, the
-  kernel's sandbox for unprivileged processes: the helper starts Chromium on a thread that restricts itself first, so
-  every thread and process of Chromium is restricted too, while the helper's own threads, the network guard among
-  them, are not. On macOS it is Seatbelt, the sandbox Chromium itself uses there, and it holds for the whole helper.
-  The log of the server says whether Chromium runs confined; on Windows and older Linux kernels it runs as before.
+- On Linux 5.13 and later and on macOS, Chromium is confined. Its processes cannot read the server's working folder, the
+  home folder of the server's user or the server's temporary folder, apart from Java, CEF, the libraries and class path
+  of the helper and the folder of the session; they change files only in the folder of the session (which is also their
+  temporary folder) and the devices (on Linux the process folder too). On Linux it is Landlock, the kernel's sandbox for
+  unprivileged processes: the helper starts Chromium on a thread that restricts itself first, so every thread and
+  process of Chromium is restricted too, while the helper's own threads, the network guard among them, are not. On macOS
+  it is Seatbelt, the sandbox Chromium itself uses there, and it holds for the whole helper. The log of the server says
+  whether Chromium runs confined; on Windows and older Linux kernels it runs as before.
   `BrowserOptions.builder().confinement(false)` turns it off, for a page that needs something it hides. As Chromium
-  binds a socket in the folder of the session, the temporary folder of the server (`java.io.tmpdir`) may have at most
-  47 characters on Linux; a browser in a longer one is refused with that reason.
+  binds a socket in the folder of the session, the temporary folder of the server (`java.io.tmpdir`) may have at most 47
+  characters on Linux; a browser in a longer one is refused with that reason.
 - Only `http` and `https` pages are shown, besides the empty `about:blank`; frames may also hold `data:` and `blob:`
   documents. `file:`, `chrome:` and other addresses are refused, and so is handing an address to another program.
 - By default, pages reach public addresses of the internet only. Every connection goes through a guard in the helper
@@ -164,12 +162,12 @@ a page can do instead:
   your network.
 - JavaScript runs without V8's just-in-time compiler by default, the part of Chromium most exploits target.
   `BrowserOptions.builder().javaScriptJit(true)` turns it on for pages you trust.
-- Chromium's own services do not contact Google when it starts: its sign-in and search services are sent to names
-  that cannot exist (`accounts.invalid`, `www.invalid`), and its network time service and the preconnect to the search
-  engine are off. Pages still load what they load, Google's included.
-- New windows open in place, as long as their address may be shown: `window.open`, links and forms that target
-  another window, but only during a click or a key, as a popup blocker allows; links into a named frame of the page
-  stay in that frame.
+- Chromium's own services do not contact Google when it starts: its sign-in and search services are sent to names that
+  cannot exist (`accounts.invalid`, `www.invalid`), and its network time service and the preconnect to the search engine
+  are off. Pages still load what they load, Google's included.
+- New windows open in place, as long as their address may be shown: `window.open`, links and forms that target another
+  window, but only during a click or a key, as a popup blocker allows; links into a named frame of the page stay in that
+  frame.
 - Downloads, file choosers, logins and invalid certificates are refused, JavaScript dialogs are dismissed (alerts are
   confirmed, questions answered with cancel, pages may always be left), and permission prompts are denied.
 - The helper gets a minimal environment, a folder only the user running MCAV can read (on Windows, a folder in the
@@ -177,20 +175,20 @@ a page can do instead:
   folder names the server that made it, so a folder a killed server left behind is deleted when the browser module
   starts again. On Linux and macOS only folders of the user running the server are deleted, as other users of the
   machine share the temporary folder.
-- The sound of the page reaches the helper through a DevTools binding that the page could call too, before MCAV's
-  script takes it away; the helper takes only exact calls with whole frames of sound, at most two seconds of sound per
-  second, and passes none of it on before a press of a mouse button or a key on the page that plays it, unless
-  `autoplay(true)` was set. A page written to call the binding itself gains nothing else.
-- On Linux, the helper's null display listens on the loopback interface only and serves only clients that present
-  the random cookie of that helper; a client has ten seconds to do so, and clients without the cookie can never take
-  the place of one that has it. The libraries MCAV downloads for Linux are Debian 11 packages at their last security
-  update, which get no more updates; they only fill in for libraries the server lacks, and only the helper uses them.
+- The sound of the page reaches the helper through a DevTools binding that the page could call too, before MCAV's script
+  takes it away; the helper takes only exact calls with whole frames of sound, at most two seconds of sound per second,
+  and passes none of it on before a press of a mouse button or a key on the page that plays it, unless `autoplay(true)`
+  was set. A page written to call the binding itself gains nothing else.
+- On Linux, the helper's null display listens on the loopback interface only and serves only clients that present the
+  random cookie of that helper; a client has ten seconds to do so, and clients without the cookie can never take the
+  place of one that has it. The libraries MCAV downloads for Linux are Debian 11 packages at their last security update,
+  which get no more updates; they only fill in for libraries the server lacks, and only the helper uses them.
 
 ## Sound
 
 The sound a page plays through Web Audio and its audio and video elements arrives at the audio pipeline of the player,
-as 16-bit little-endian stereo samples at 48 kHz, like the sound of every MCAV player. The `speakers` filter is
-yours and plays the sound:
+as 16-bit little-endian stereo samples at 48 kHz, like the sound of every MCAV player. The `speakers` filter is yours
+and plays the sound:
 
 ```java
   public void attachSpeakers(final BrowserPlayer browser, final AudioFilter speakers) {
@@ -202,18 +200,17 @@ yours and plays the sound:
 
 JCEF has no way to hand over Chromium's own audio, so a script that MCAV adds to every document before the page's own
 scripts does it: every Web Audio context of a document is one context at 48 kHz, audio and video elements play into it
-at their own volume, and its samples go to the helper. A page that asks for another sample rate therefore gets
-48 kHz, and a page that closes a context closes it for all of its parts, which get a new one when they make one.
-Nothing plays on the speakers of the machine, and the sound runs on Chromium's own clock rather than on a sound device
-of the machine, which may run slow or stall, as the one of a virtual machine can. As in a desktop
-browser, a page may play sound only once someone clicked or typed into it, such as with `sendMouseEvent`; the helper
-holds the sound of every page back until a press of a mouse button or a key on that page as well, so a page plays
-nothing before anyone touched it even if it works around Chromium's rule; a press on one page does not count for the
-next page the browser loads, by a link or by itself. `BrowserOptions.builder().autoplay(true)` lets pages play
-sound right away. The sound of one frame of the page plays at
-a time, and the sound of frames from another site (which Chromium runs in another process), of media from another site
-that does not allow it (CORS), and of protected media (DRM) stays silent. When a page stops playing, two seconds of
-silence still reach the pipeline, so a pause between two sounds keeps its length; a longer pause, and the silence of a
-page that has played nothing yet, are not sent. The sound reaches the pipeline within a few tens of milliseconds of its
-picture. On a very busy machine the script that hands the sound over can take longer than ten seconds to be placed:
-the page then loads without it, and loads again once it is in place.
+at their own volume, and its samples go to the helper. A page that asks for another sample rate therefore gets 48 kHz,
+and a page that closes a context closes it for all of its parts, which get a new one when they make one. Nothing plays
+on the speakers of the machine, and the sound runs on Chromium's own clock rather than on a sound device of the machine,
+which may run slow or stall, as the one of a virtual machine can. As in a desktop browser, a page may play sound only
+once someone clicked or typed into it, such as with `sendMouseEvent`; the helper holds the sound of every page back
+until a press of a mouse button or a key on that page as well, so a page plays nothing before anyone touched it even if
+it works around Chromium's rule; a press on one page does not count for the next page the browser loads, by a link or by
+itself. `BrowserOptions.builder().autoplay(true)` lets pages play sound right away. The sound of one frame of the page
+plays at a time, and the sound of frames from another site (which Chromium runs in another process), of media from
+another site that does not allow it (CORS), and of protected media (DRM) stays silent. When a page stops playing, two
+seconds of silence still reach the pipeline, so a pause between two sounds keeps its length; a longer pause, and the
+silence of a page that has played nothing yet, are not sent. The sound reaches the pipeline within a few tens of
+milliseconds of its picture. On a very busy machine the script that hands the sound over can take longer than ten
+seconds to be placed: the page then loads without it, and loads again once it is in place.

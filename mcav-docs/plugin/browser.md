@@ -1,9 +1,9 @@
 # Web Browsers
 
 `/mcav browser create` opens a web page in an embedded Chromium and shows it on a wall of maps, with its sound in an
-audio output; players click it by clicking the wall and type into it through chat. The browser is JCEF, the Java
-binding of the Chromium Embedded Framework ([browser module](../library/browser.md)), and it runs in a process of its
-own, so a crashing page never takes the server with it.
+audio output; players click it by clicking the wall and type into it through chat. The browser is JCEF, the Java binding
+of the Chromium Embedded Framework ([browser module](../library/browser.md)), and it runs in a process of its own, so a
+crashing page never takes the server with it.
 
 ```text
 /mcav screen 10x6 0 BLACK_CONCRETE ~ ~ ~
@@ -29,11 +29,10 @@ Linux servers need a full Java runtime and nothing else: no X server, no Xvfb, n
 headless platform. The libraries it links that a server image often lacks (the X11 client libraries, NSS, ALSA and
 others) are downloaded on the first start from Debian 11, only those the server lacks, about 13 MB into
 `~/.mcav/cache/jcef-libraries`, each checked against a pinned hash, and given to the browser's own process only. The
-browser
-runs this way, as an unprivileged user, in the images `eclipse-temurin:25-jre`, `ghcr.io/pterodactyl/yolks:java_25` and
-`itzg/minecraft-server:latest`. Java must be a full runtime: the headless Java packages of
-Debian and Ubuntu (`openjdk-25-jre-headless`) lack the `libjawt.so` that Chromium's Java binding links against, and the
-console then says to install the full package (`openjdk-25-jre`).
+browser runs this way, as an unprivileged user, in the images `eclipse-temurin:25-jre`,
+`ghcr.io/pterodactyl/yolks:java_25` and `itzg/minecraft-server:latest`. Java must be a full runtime: the headless Java
+packages of Debian and Ubuntu (`openjdk-25-jre-headless`) lack the `libjawt.so` that Chromium's Java binding links
+against, and the console then says to install the full package (`openjdk-25-jre`).
 
 ## Clicking and typing
 
@@ -61,27 +60,26 @@ protected (DRM) media cannot be captured: open the embedded player's own address
 
 A page is untrusted content, and the browser runs without Chromium's sandbox, which JCEF cannot use, so MCAV limits it:
 
-- Confined on Linux and macOS. Chromium's processes cannot read the server's folder, the home folder or the
-  temporary folder, apart from what the browser needs there, and they change files only in the folder of their
-  browser. So a page that exploits a flaw of Chromium cannot read your `config.yml` or change the server's files. It
-  needs Linux 5.13 or later (Landlock) or macOS (Seatbelt); on Windows and older Linux kernels the browser runs as
-  before, and the server log says `Chromium runs without confinement` with the reason. `browser.confine-chromium:
-  false` turns it off.
-- Only the public internet. Every connection goes through a guard that refuses loopback, private, link-local (such
-  as a cloud server's metadata service) and every other special address, also when a public name resolves to one, and
-  every address of the server's own network interfaces. So a page, or a player clicking on it, cannot read a service
-  only the server can reach: a router, a database console, an admin page. Set `browser.allow-private-networks: true`
-  only to show a page of your own network, and only if you trust everyone who may create a browser, every page they
-  open, and every player who may click it. Inside a container (Docker, Pterodactyl) the guard cannot see the public
-  address of the machine around it: list it, or its name, in `browser.refused-hosts`.
-- No JavaScript compiler. JavaScript runs without V8's just-in-time compiler, the part most exploits target. Pages
-  with heavy scripts run slower; `browser.javascript-jit: true` turns it on for pages you trust.
+- Confined on Linux and macOS. Chromium's processes cannot read the server's folder, the home folder or the temporary
+  folder, apart from what the browser needs there, and they change files only in the folder of their browser. So a page
+  that exploits a flaw of Chromium cannot read your `config.yml` or change the server's files. It needs Linux 5.13 or
+  later (Landlock) or macOS (Seatbelt); on Windows and older Linux kernels the browser runs as before, and the server
+  log says `Chromium runs without confinement` with the reason. `browser.confine-chromium: false` turns it off.
+- Only the public internet. Every connection goes through a guard that refuses loopback, private, link-local (such as a
+  cloud server's metadata service) and every other special address, also when a public name resolves to one, and every
+  address of the server's own network interfaces. So a page, or a player clicking on it, cannot read a service only the
+  server can reach: a router, a database console, an admin page. Set `browser.allow-private-networks: true` only to show
+  a page of your own network, and only if you trust everyone who may create a browser, every page they open, and every
+  player who may click it. Inside a container (Docker, Pterodactyl) the guard cannot see the public address of the
+  machine around it: list it, or its name, in `browser.refused-hosts`.
+- No JavaScript compiler. JavaScript runs without V8's just-in-time compiler, the part most exploits target. Pages with
+  heavy scripts run slower; `browser.javascript-jit: true` turns it on for pages you trust.
 - Only `http` and `https`. `file:` and other schemes are refused, downloads, file choosers, logins and invalid
   certificates are refused, JavaScript dialogs are dismissed, and popups open in place, only during a click or a key.
-- Nothing kept. The browser's profile keeps nothing, and its folder is deleted when it is released, or at the
-  next start if the server was killed. No debugging port is ever opened.
-- No calls home. Chromium's own services (sign-in, search, network time) do not contact Google, so starting a
-  browser tells Google nothing. Pages still load what they load, Google's included.
+- Nothing kept. The browser's profile keeps nothing, and its folder is deleted when it is released, or at the next start
+  if the server was killed. No debugging port is ever opened.
+- No calls home. Chromium's own services (sign-in, search, network time) do not contact Google, so starting a browser
+  tells Google nothing. Pages still load what they load, Google's included.
 
 The details are in the [browser module](../library/browser.md#security).
 
@@ -94,6 +92,6 @@ frame of another site.
 
 A page of your own network does not load. That is the private-network guard; see above.
 
-The command says the browser cannot run here. The console says why: a failed download or check, a server without
-one of the basic libraries every server image has (zlib, expat, fontconfig, freetype), or a platform Chromium does not
-exist for, such as a 32-bit one.
+The command says the browser cannot run here. The console says why: a failed download or check, a server without one of
+the basic libraries every server image has (zlib, expat, fontconfig, freetype), or a platform Chromium does not exist
+for, such as a 32-bit one.

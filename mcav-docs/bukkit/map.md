@@ -1,8 +1,8 @@
 # Displaying Videos on Maps
 
-Minecraft [maps](https://minecraft.wiki/w/Map) can only show a bit over 200 colors, compared to the 16,777,216 colors
-of the RGB color space. To show images and video on maps anyway, MCAV uses dithering: pixels of the available colors
-are mixed so that your eyes blend them into the colors in between.
+Minecraft [maps](https://minecraft.wiki/w/Map) can only show a bit over 200 colors, compared to the 16,777,216 colors of
+the RGB color space. To show images and video on maps anyway, MCAV uses dithering: pixels of the available colors are
+mixed so that your eyes blend them into the colors in between.
 
 ```{figure} palette.png
 The Minecraft map palette
@@ -22,8 +22,8 @@ MCAV implements the common families of dithering algorithms:
       reduces flickering.
     - [Atkinson](https://en.wikipedia.org/wiki/Atkinson_dithering): spreads only part of the error to six neighbors,
       which gives crisper, higher contrast images.
-    - Jarvis-Judice-Ninke, Stucki, and Burkes: spread the error over twelve or seven neighbors for smoother
-      gradients at a higher cost.
+    - Jarvis-Judice-Ninke, Stucki, and Burkes: spread the error over twelve or seven neighbors for smoother gradients at
+      a higher cost.
     - Stevenson-Arce: a hexagonal pattern over twelve neighbors.
 - [Ordered Dithering](https://en.wikipedia.org/wiki/Ordered_dithering) compares every pixel with a threshold matrix,
   such as a Bayer matrix. It is fast, parallel, and stable between frames, with a visible pattern.
@@ -73,10 +73,10 @@ resolution frames are scaled to, and the players who see the maps.
   }
 ```
 
-Then dither the frames onto the maps with a `DitherFilter` at the end of the video pipeline. The
-`CompressedMapResult` only sends the parts of every map that changed since the last frame, which saves most of the
-bandwidth of a video; use `MapResult` to always send whole maps. The method below attaches the filter to a player
-before it starts; call it on the main thread, and call `release()` on the returned filter when the video is over.
+Then dither the frames onto the maps with a `DitherFilter` at the end of the video pipeline. The `CompressedMapResult`
+only sends the parts of every map that changed since the last frame, which saves most of the bandwidth of a video; use
+`MapResult` to always send whole maps. The method below attaches the filter to a player before it starts; call it on the
+main thread, and call `release()` on the returned filter when the video is over.
 
 ```java
   public FunctionalVideoFilter showVideoOnMaps(final MapConfiguration configuration, final VideoPlayerMultiplexer player) {
@@ -93,13 +93,13 @@ before it starts; call it on the main thread, and call `release()` on the return
   }
 ```
 
-Configured viewers who connect while the video is running receive a full snapshot before incremental updates.
-Include each intended viewer's UUID in the configuration; connecting alone does not add a player to that collection.
+Configured viewers who connect while the video is running receive a full snapshot before incremental updates. Include
+each intended viewer's UUID in the configuration; connecting alone does not add a player to that collection.
 
-The default 128 KiB budget limits incremental updates. Full snapshots for joining viewers and clearing on release
-are not paced by that budget. Clearing sends every map filled with the transparent color: 16,384 bytes per map per
-viewer before network compression. With compression on, the server default, a cleared map takes about 40 bytes, so a
-32×18 wall costs each viewer about 22 KB; a server with compression off (`network-compression-threshold=-1`, for
-example behind a proxy) sends the full 9.4 MB. The packets are compressed on the players' connection threads, not on
-the thread that calls `release()`. Calls use bundles of up to 4,096 patches; larger calls are split, so the entire
-call is not guaranteed to appear atomically. Choose screen sizes with that release cost in mind.
+The default 128 KiB budget limits incremental updates. Full snapshots for joining viewers and clearing on release are
+not paced by that budget. Clearing sends every map filled with the transparent color: 16,384 bytes per map per viewer
+before network compression. With compression on, the server default, a cleared map takes about 40 bytes, so a 32×18 wall
+costs each viewer about 22 KB; a server with compression off (`network-compression-threshold=-1`, for example behind a
+proxy) sends the full 9.4 MB. The packets are compressed on the players' connection threads, not on the thread that
+calls `release()`. Calls use bundles of up to 4,096 patches; larger calls are split, so the entire call is not
+guaranteed to appear atomically. Choose screen sizes with that release cost in mind.

@@ -1,7 +1,7 @@
 # Configuration File
 
-The plugin creates `plugins/MCAV/config.yml` on its first start. Restart the server after changing it. Every option
-has a comment that describes its purpose and default value:
+The plugin creates `plugins/MCAV/config.yml` on its first start. Restart the server after changing it. Every option has
+a comment that describes its purpose and default value:
 
 ```yaml
 # MCAV Configuration File
@@ -201,24 +201,23 @@ Keep the Discord bot token secret. Do not share your `config.yml` without removi
 never includes it.
 ```
 
-The audio web page listens on all network interfaces of the server; `host-name` only decides the link players are
-sent. On Linux and macOS, ports below 1024 need administrator rights, so keep the port above 1024.
+The audio web page listens on all network interfaces of the server; `host-name` only decides the link players are sent.
+On Linux and macOS, ports below 1024 need administrator rights, so keep the port above 1024.
 
-The page keeps a tenth of a second of sound ahead of what it plays, so a short hold-up of the connection does not
-break the sound. Sound that arrives while the browser's audio is still starting, such as for a player who opens the
-page while a video plays, or all at once after a stalled connection, is dropped instead of delaying everything after
-it. With a vanilla client drawing in software and a browser playing into a virtual sound device, the sound
-leaves the device 0.1 to 0.15 s after the wall shows the same moment.
+The page keeps a tenth of a second of sound ahead of what it plays, so a short hold-up of the connection does not break
+the sound. Sound that arrives while the browser's audio is still starting, such as for a player who opens the page while
+a video plays, or all at once after a stalled connection, is dropped instead of delaying everything after it. With a
+vanilla client drawing in software and a browser playing into a virtual sound device, the sound leaves the device 0.1 to
+0.15 s after the wall shows the same moment.
 
-The Discord bot and the web page start in the background, so they never delay the server start. The console reports
-when the web page and Simple Voice Chat audio are ready: `Audio web page <link> is available.` and
+The Discord bot and the web page start in the background, so they never delay the server start. The console reports when
+the web page and Simple Voice Chat audio are ready: `Audio web page <link> is available.` and
 `Simple Voice Chat audio is ready.`; the Discord bot logs only when it cannot connect. If the Discord bot or the web
-page cannot start, the plugin
-logs an error and that output stays off without affecting the rest of the plugin; until an output is ready, video
-commands that use it tell the player so.
+page cannot start, the plugin logs an error and that output stays off without affecting the rest of the plugin; until an
+output is ready, video commands that use it tell the player so.
 
-Simple Voice Chat audio is checked when the plugin starts: if `simple-voice-chat.enabled` is `true` but the Simple
-Voice Chat plugin (`voicechat`) is not installed, MCAV logs one error line and disables itself:
+Simple Voice Chat audio is checked when the plugin starts: if `simple-voice-chat.enabled` is `true` but the Simple Voice
+Chat plugin (`voicechat`) is not installed, MCAV logs one error line and disables itself:
 
 ```text
 MCAV cannot be enabled: Simple Voice Chat audio is enabled, but the Simple Voice Chat plugin is not installed! To fix it, install the Simple Voice Chat plugin or set simple-voice-chat.enabled to false in config.yml.
@@ -227,12 +226,12 @@ MCAV cannot be enabled: Simple Voice Chat audio is enabled, but the Simple Voice
 Install the plugin or set the option to `false`, then restart the server.
 
 The browser of `/mcav browser create` reaches public addresses of the internet only, and none of the server's own
-addresses, public ones included. Turn on
-`browser.allow-private-networks` only to show a page of your own network: it lets everyone who may create a browser,
-every page they open and every player who may click on it reach services that only the server can reach, such as a
-router, a database console or the metadata service of a cloud server. `browser.javascript-jit` makes pages with heavy
-scripts faster, at the cost of the protection described in the [browser module](../library/browser.md#security).
-`browser.autoplay-sound` lets pages play sound before a player clicks their screen.
+addresses, public ones included. Turn on `browser.allow-private-networks` only to show a page of your own network: it
+lets everyone who may create a browser, every page they open and every player who may click on it reach services that
+only the server can reach, such as a router, a database console or the metadata service of a cloud server.
+`browser.javascript-jit` makes pages with heavy scripts faster, at the cost of the protection described in the [browser
+module](../library/browser.md#security). `browser.autoplay-sound` lets pages play sound before a player clicks their
+screen.
 
 The browser keeps what it downloads in the MCAV cache folder of the user running the server, like VLC and yt-dlp:
 Chromium in `~/.mcav/cache/jcef` (about 136 to 163 MiB) and, on Linux, the libraries it needs that the server lacks in
@@ -251,8 +250,8 @@ machine, a desktop or an image alike; no screen starts threads of its own, and t
 server may use, leaves the other half to the game. `mcv2.native` chooses the native encoder kernels MCAV ships, which
 compute exactly what the Java ones do, about twice as fast; the server log says at startup which kernels run and why.
 
-`mcv2.default-codec` is the codec of a wall of maps whose command has no `--codec` flag, see
-[the codec of a wall of maps](commands.md#the-codec-of-a-wall-of-maps). It is `dither` unless you choose `mcv2`.
+`mcv2.default-codec` is the codec of a wall of maps whose command has no `--codec` flag, see [the codec of a wall of
+maps](commands.md#the-codec-of-a-wall-of-maps). It is `dither` unless you choose `mcv2`.
 
 `mcv2.pack` is where the players download the MCV2 resource pack from, one pack for every MCV2 screen of the server:
 
@@ -263,13 +262,13 @@ compute exactly what the Java ones do, about twice as fast; the server log says 
 | `website` | Uploaded to mc-packs.net | No port can be opened. The pack is then public there; it holds only the decoder's shaders |
 
 Behind a proxy, pick `http` with the public host name of the machine this server runs on and a port the players can
-reach, or `website`. The pack is optional and additive: it is offered with `required: false` and replaces no pack of
-the server or the proxy.
+reach, or `website`. The pack is optional and additive: it is offered with `required: false` and replaces no pack of the
+server or the proxy.
 
 ## VNC
 
 `vnc.allowed-hosts` lists the VNC servers `/mcav vnc create` may show, each with its `host`, `port` and, for a server
 that has one, its `password`. None is listed by default, so the command cannot reach anything until you list a server:
 the Minecraft server connects to it, not the players, so a player must never choose where it connects. The password is
-read from this file only, never from the command, since the server log keeps every command, and MCAV never writes it
-to the log.
+read from this file only, never from the command, since the server log keeps every command, and MCAV never writes it to
+the log.
