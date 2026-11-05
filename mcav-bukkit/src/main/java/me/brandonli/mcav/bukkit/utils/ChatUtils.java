@@ -77,7 +77,7 @@ public final class ChatUtils {
    * @since 1.0.0
    */
   public static String getUniqueString(final int index) {
-    Preconditions.checkArgument(index >= 0, "Index must be non-negative!");
+    Preconditions.checkArgument(index >= 0, "Index %s must not be negative!", index);
 
     final String hexadecimal = Integer.toHexString(index);
     final char[] digits = hexadecimal.toCharArray();

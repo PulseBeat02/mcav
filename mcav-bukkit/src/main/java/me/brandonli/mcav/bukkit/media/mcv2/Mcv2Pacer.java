@@ -309,7 +309,11 @@ public final class Mcv2Pacer {
    */
   public Optional<Change> reportEncodedFrame(final double milliseconds, final Mcv2FrameKind kind, final long now) {
     Preconditions.checkNotNull(kind, "Kind must not be null!");
-    Preconditions.checkArgument(milliseconds >= 0 && Double.isFinite(milliseconds), "Time must be finite and non-negative!");
+    Preconditions.checkArgument(
+      milliseconds >= 0 && Double.isFinite(milliseconds),
+      "Time %s must be finite and must not be negative!",
+      milliseconds
+    );
 
     final Rung rung = this.getRung();
     if (kind == Mcv2FrameKind.KEYFRAME || rung.isDithered() || Double.isNaN(this.videoInterval)) {

@@ -1372,7 +1372,7 @@ public final class Mcv2 {
      * @since 1.0.0
      */
     public static Settings of(final double lambda, final boolean fast) {
-      Preconditions.checkArgument(lambda >= 0 && Double.isFinite(lambda), "Lambda must be finite and non-negative!");
+      Preconditions.checkArgument(lambda >= 0 && Double.isFinite(lambda), "Lambda %s must be finite and must not be negative!", lambda);
 
       return new Settings(lambda, fast);
     }

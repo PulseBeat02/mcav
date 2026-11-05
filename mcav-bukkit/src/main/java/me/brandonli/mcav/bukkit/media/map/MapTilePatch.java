@@ -71,7 +71,7 @@ public final class MapTilePatch {
    */
   public static MapTilePatch of(final int mapId, final int left, final int top, final int width, final int height, final byte[] colors) {
     Preconditions.checkNotNull(colors, "Colors must not be null!");
-    Preconditions.checkArgument(mapId >= 0, "Map id must be non-negative!");
+    Preconditions.checkArgument(mapId >= 0, "Map id %s must not be negative!", mapId);
 
     final boolean negativeOrigin = left < 0 || top < 0;
     final boolean emptySize = width <= 0 || height <= 0;

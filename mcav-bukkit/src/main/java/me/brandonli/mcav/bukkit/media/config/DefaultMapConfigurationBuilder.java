@@ -87,7 +87,7 @@ final class DefaultMapConfigurationBuilder implements MapConfigurationBuilder {
   public MapConfiguration build() {
     final Collection<UUID> configuredViewers = Preconditions.checkNotNull(this.viewers, "Viewers must be set!");
 
-    Preconditions.checkArgument(this.map >= 0, "Map id must be set and non-negative!");
+    Preconditions.checkArgument(this.map >= 0, "Map id %s must be set and must not be negative!", this.map);
     Preconditions.checkArgument(this.mapBlockWidth > 0, "Map block width %s must be positive!", this.mapBlockWidth);
     Preconditions.checkArgument(this.mapBlockHeight > 0, "Map block height %s must be positive!", this.mapBlockHeight);
     Preconditions.checkArgument(this.mapWidthResolution >= 0, "Map width resolution %s must not be negative!", this.mapWidthResolution);

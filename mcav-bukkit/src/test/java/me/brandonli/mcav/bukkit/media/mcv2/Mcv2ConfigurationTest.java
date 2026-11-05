@@ -371,7 +371,7 @@ final class Mcv2ConfigurationTest {
     this.refuses("Facing NORTH_EAST is not horizontal, but frames must face a horizontal direction!", builder ->
       builder.facing(BlockFace.NORTH_EAST)
     );
-    this.refuses("Map id must be set and non-negative!", builder -> builder.map(-1));
+    this.refuses("Map id -1 must be set and must not be negative!", builder -> builder.map(-1));
     this.refuses("Columns must be between 1 and 63 inclusive!", builder -> builder.columns(0));
     this.refuses("Columns must be between 1 and 63 inclusive!", builder -> builder.columns(Mcv2Configuration.MAXIMUM_SIDE + 1));
     this.refuses("Rows must be between 1 and 63 inclusive!", builder -> builder.rows(0));
@@ -386,8 +386,8 @@ final class Mcv2ConfigurationTest {
     this.refuses("Stream id must be between 0 and 4095 inclusive!", builder -> builder.streamId(Mcv2Configuration.MAXIMUM_STREAM_ID + 1));
     this.refuses("Backlog limit must not be negative!", builder -> builder.backlogLimit(-1));
     this.refuses("Unsent limit must not be negative!", builder -> builder.unsentLimit(-1));
-    this.refuses("Page map ids must be non-negative ints!", builder -> builder.pageMap(-1));
-    this.refuses("Page map ids must be non-negative ints!", builder -> builder.pageMap(Integer.MAX_VALUE));
+    this.refuses("Page map id -1 must not be negative!", builder -> builder.pageMap(-1));
+    this.refuses("Page map ids exceed the integer range!", builder -> builder.pageMap(Integer.MAX_VALUE));
     this.refuses("Map ids exceed the integer range!", builder -> builder.map(Integer.MAX_VALUE));
     this.refuses("Outline color must not be black!", builder -> builder.outlineColor(NamedTextColor.BLACK));
   }

@@ -192,7 +192,7 @@ final class DefaultMcv2ConfigurationBuilder implements Mcv2ConfigurationBuilder 
     final Collection<UUID> configuredViewers = Preconditions.checkNotNull(this.viewers, "Viewers must be set!");
     final Location configuredOrigin = Preconditions.checkNotNull(this.origin, "Origin must be set!");
     final BlockFace configuredFacing = Preconditions.checkNotNull(this.facing, "Facing must be set!");
-    Preconditions.checkArgument(this.map >= 0, "Map id must be set and non-negative!");
+    Preconditions.checkArgument(this.map >= 0, "Map id %s must be set and must not be negative!", this.map);
     Preconditions.checkArgument(
       this.columns >= 1 && this.columns <= Mcv2Configuration.MAXIMUM_SIDE,
       "Columns must be between 1 and %s inclusive!",
@@ -259,7 +259,8 @@ final class DefaultMcv2ConfigurationBuilder implements Mcv2ConfigurationBuilder 
 
     final long lastMap = (long) this.map + (long) this.columns * this.rows - 1;
     final long lastPage = (long) this.pageMap + slots - 1;
-    Preconditions.checkArgument(this.pageMap >= 0 && lastPage <= Integer.MAX_VALUE, "Page map ids must be non-negative ints!");
+    Preconditions.checkArgument(this.pageMap >= 0, "Page map id %s must not be negative!", this.pageMap);
+    Preconditions.checkArgument(lastPage <= Integer.MAX_VALUE, "Page map ids exceed the integer range!");
     Preconditions.checkArgument(lastMap <= Integer.MAX_VALUE, "Map ids exceed the integer range!");
     Preconditions.checkArgument(lastPage < this.map || this.pageMap > lastMap, "Page maps must not be maps of the wall!");
 
