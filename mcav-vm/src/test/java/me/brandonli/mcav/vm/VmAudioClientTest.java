@@ -531,10 +531,10 @@ final class VmAudioClientTest {
   @Test
   void shouldFailAConnectionWithoutAPasswordToAServerThatWantsOne() {
     final CompletableFuture<Void> served = CompletableFuture.runAsync(this::requestPasswordAuthentication);
-    final ProtocolException failure = assertThrows(ProtocolException.class, () ->
-      VmAudioClient.connect(this.address(), "", (samples, length) -> {}, (message, cause) -> {})
+    final ProtocolException authenticationFailure = assertThrows(ProtocolException.class, () ->
+      VmAudioClient.connect(this.address(), "", (samples, length) -> {}, (message, failure) -> {})
     );
-    final String message = failure.getMessage();
+    final String message = authenticationFailure.getMessage();
     assertEquals("VNC server asks for authentication, which the audio connection does not do!", message);
 
     served.join();
