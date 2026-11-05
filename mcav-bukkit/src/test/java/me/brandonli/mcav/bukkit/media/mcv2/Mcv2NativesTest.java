@@ -486,7 +486,8 @@ final class Mcv2NativesTest {
   @Test
   @SuppressWarnings("restricted") // the Linker downcalls are restricted methods of the foreign function API
   void shouldPassLinuxFeatureBitsToTheNativeLevelQuery() throws ReflectiveOperationException {
-    assumeTrue(NativeTesting.areNativesExpected(), NO_LIBRARY_MESSAGE);
+    final boolean nativesExpected = NativeTesting.areNativesExpected();
+    assumeTrue(nativesExpected, NO_LIBRARY_MESSAGE);
 
     final long features = Natives.readHardwareCapabilities(Path.of(AUXILIARY_VECTOR_PATH));
     assumeTrue(features != 0, "Linux must supply processor feature bits!");
@@ -552,10 +553,12 @@ final class Mcv2NativesTest {
 
   @Test
   void shouldRunTheLevelsProcCpuinfoListsTheFeaturesOf() throws IOException {
-    assumeTrue(NativeTesting.areNativesExpected(), NO_LIBRARY_MESSAGE);
+    final boolean nativesExpected = NativeTesting.areNativesExpected();
+    assumeTrue(nativesExpected, NO_LIBRARY_MESSAGE);
 
     final Path cpuinfo = Path.of(CPU_INFO_PATH);
-    assumeTrue(Files.isReadable(cpuinfo), "no /proc/cpuinfo here!");
+    final boolean readable = Files.isReadable(cpuinfo);
+    assumeTrue(readable, "no /proc/cpuinfo here!");
 
     final Set<String> flags = new HashSet<>();
     for (final String line : Files.readAllLines(cpuinfo)) {
@@ -614,7 +617,8 @@ final class Mcv2NativesTest {
 
   @Test
   void shouldBindTheLibraryAndRefuseAWrongOne() {
-    assumeTrue(NativeTesting.areNativesExpected(), NO_LIBRARY_MESSAGE);
+    final boolean nativesExpected = NativeTesting.areNativesExpected();
+    assumeTrue(nativesExpected, NO_LIBRARY_MESSAGE);
 
     final SymbolLookup library = NativeTesting.library();
     final int levels = NativeTesting.resolution().levels();
