@@ -896,7 +896,9 @@ final class FormatModelTest {
   @Test
   void shouldRejectANegativeLength() {
     final Duration negative = Duration.ofNanos(-1);
-    final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () -> UrlParseDump.of(TITLE, DESCRIPTION, negative));
+    final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () ->
+      UrlParseDump.of(TITLE, DESCRIPTION, negative)
+    );
     final String message = failure.getMessage();
     assertEquals("Duration PT-0.000000001S must not be negative!", message);
   }
