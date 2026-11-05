@@ -30,7 +30,7 @@ import me.brandonli.mcav.MCAVException;
  *
  * @since 1.0.0
  */
-public class NativeLoadingException extends MCAVException {
+public final class NativeLoadingException extends MCAVException {
 
   @Serial
   private static final long serialVersionUID = -1718334825313639127L;
