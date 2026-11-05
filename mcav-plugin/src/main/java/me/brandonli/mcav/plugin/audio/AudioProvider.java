@@ -414,9 +414,9 @@ public final class AudioProvider {
 
   private AudioFilter connect(final Claim claim) {
     return switch (claim.argument) {
-      case DISCORD_BOT -> this.constructDiscordFilter(claim.dump);
+      case DISCORD_BOT -> this.connectDiscordFilter(claim.dump);
       case HTTP_SERVER -> this.constructHttpFilter(claim.dump);
-      case SIMPLE_VOICE_CHAT -> this.constructSvcFilter(claim.players);
+      case SIMPLE_VOICE_CHAT -> this.startSvcFilter(claim.players);
       case NONE -> {
         final String message = "Audio argument NONE has no output to connect!";
         throw new IllegalStateException(message);
@@ -424,7 +424,7 @@ public final class AudioProvider {
     };
   }
 
-  private AudioFilter constructSvcFilter(final Object[] players) {
+  private AudioFilter startSvcFilter(final Object[] players) {
     final SvcFilter filter = SvcFilter.svc(players);
     filter.start();
     this.voiceChatFilter = filter;
@@ -444,7 +444,7 @@ public final class AudioProvider {
     return server;
   }
 
-  private AudioFilter constructDiscordFilter(final UrlParseDump dump) {
+  private AudioFilter connectDiscordFilter(final UrlParseDump dump) {
     final DiscordConnection connection = this.discord;
     if (connection == null) {
       final String message = "The Discord bot is not ready!";
