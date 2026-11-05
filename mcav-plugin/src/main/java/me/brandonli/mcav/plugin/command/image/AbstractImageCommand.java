@@ -34,6 +34,7 @@ import me.brandonli.mcav.media.source.file.FileSource;
 import me.brandonli.mcav.media.source.uri.UriSource;
 import me.brandonli.mcav.plugin.MCAVSandbox;
 import me.brandonli.mcav.plugin.command.AnnotationCommandFeature;
+import me.brandonli.mcav.plugin.command.MediaUnavailableException;
 import me.brandonli.mcav.plugin.command.video.AbstractVideoCommand;
 import me.brandonli.mcav.plugin.locale.Message;
 import me.brandonli.mcav.plugin.utils.ArgumentUtils;
@@ -42,6 +43,7 @@ import me.brandonli.mcav.plugin.utils.MediaKind;
 import me.brandonli.mcav.plugin.utils.TaskUtils;
 import me.brandonli.mcav.utils.SourceUtils;
 import me.brandonli.mcav.utils.ThrowableUtils;
+import me.brandonli.mcav.utils.http.DownloadException;
 import me.brandonli.mcav.utils.immutable.Pair;
 import net.kyori.adventure.text.Component;
 import org.bukkit.command.CommandSender;
@@ -92,6 +94,12 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
   /**
    * Loads an image, scales it to the resolution, and shows it, replacing the image shown before.
    *
+   * <p>When the image cannot be shown, the sender is told why, with no stack trace in the console: a source that is
+   * neither a file on the server nor a URL, a file that is not a supported image or is over the pixel limit, or a
+   * download that fails or is not an image. An empty source, an animated GIF, a capture device or an FFmpeg input
+   * gets {@link Message#UNSUPPORTED_MRL}; any other failure while loading is logged with its stack trace and gets the
+   * same reply.
+   *
    * @param configurationProvider creates the display configuration for the parsed resolution
    * @param sender                who ran the command
    * @param imageResolution       the resolution the image is scaled to, such as {@code 640x640}
@@ -126,7 +134,15 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     }
 
     final String sourceMrl = this.unwrapMrl(mrl);
-    final Supplier<ImageBuffer> loader = this.createLoader(sourceMrl);
+    final Optional<Source> detected = this.detectSource(sourceMrl);
+    final @Nullable Source source = detected.orElse(null);
+    if (source == null) {
+      final Component message = this.createUndetectedMessage(sourceMrl);
+      sender.sendMessage(message);
+      return;
+    }
+
+    final Supplier<ImageBuffer> loader = this.createLoader(source);
     if (loader == null) {
       final Component message = Message.UNSUPPORTED_MRL.build();
       sender.sendMessage(message);
@@ -206,10 +222,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
   ) {
     final CommandSender sender = request.getSender();
     if (error != null) {
-      final String mrl = request.getMrl();
-      LOGGER.error("Image {} could not be loaded.", mrl, error);
-      final Component message = Message.UNSUPPORTED_MRL.build();
-      TaskUtils.runOnMainThread(this.plugin, () -> sender.sendMessage(message));
+      this.reportFailure(request, error);
       return;
     }
 
@@ -234,6 +247,32 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
       this.cleanupAfterFailure(exception, () -> this.manager.discardLoaded(generation));
       throw exception;
     }
+  }
+
+  private void reportFailure(final ImageRequest request, final Throwable failure) {
+    // supplyAsync wraps what the worker throws in a CompletionException
+    final @Nullable Throwable cause = failure.getCause();
+    if (cause instanceof final MediaUnavailableException unavailable) {
+      this.reportUnavailable(request, unavailable);
+      return;
+    }
+
+    final String mrl = request.getMrl();
+    LOGGER.error("Image {} could not be loaded.", mrl, failure);
+    final Component message = Message.UNSUPPORTED_MRL.build();
+    this.sendOnMainThread(request, message);
+  }
+
+  private void reportUnavailable(final ImageRequest request, final MediaUnavailableException unavailable) {
+    final @Nullable String detail = unavailable.getMessage();
+    final String reason = String.valueOf(detail);
+    final Component message = Message.IMAGE_UNAVAILABLE.build(reason);
+    this.sendOnMainThread(request, message);
+  }
+
+  private void sendOnMainThread(final ImageRequest request, final Component message) {
+    final CommandSender sender = request.getSender();
+    TaskUtils.runOnMainThread(this.plugin, () -> sender.sendMessage(message));
   }
 
   // main thread only, like shutdown, so showing an image cannot interleave with shutdown
@@ -277,32 +316,68 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     }
   }
 
-  private @Nullable Supplier<ImageBuffer> createLoader(final String mrl) {
+  // a blank MRL would be detected as the working folder
+  private Optional<Source> detectSource(final String mrl) {
     if (mrl.isBlank()) {
-      return null;
+      return Optional.empty();
     }
 
     final SourceDetectionHelper helper = new SourceDetectionHelper();
-    final Optional<Source> detected = helper.detectSource(mrl);
-    final @Nullable Source source = detected.orElse(null);
-    if (source == null) {
-      return null;
+    return helper.detectSource(mrl);
+  }
+
+  private Component createUndetectedMessage(final String mrl) {
+    if (mrl.isBlank()) {
+      return Message.UNSUPPORTED_MRL.build();
     }
 
+    final String reason = "Image %s is neither a file on the server nor a URL!".formatted(mrl);
+    return Message.IMAGE_UNAVAILABLE.build(reason);
+  }
+
+  private @Nullable Supplier<ImageBuffer> createLoader(final Source source) {
     final boolean animated = SourceUtils.isImageGif(source);
     if (animated) {
       return null;
     }
 
     if (source instanceof final FileSource fileSource) {
-      return () -> ImageBuffer.path(fileSource);
+      return () -> this.loadFile(fileSource);
     }
 
     if (source instanceof final UriSource uriSource) {
-      return () -> ImageBuffer.uri(uriSource);
+      return () -> this.loadUri(uriSource);
     }
 
     return null;
+  }
+
+  private ImageBuffer loadFile(final FileSource source) {
+    try {
+      return ImageBuffer.path(source);
+    } catch (final IllegalArgumentException exception) {
+      throw this.createUnavailable(exception);
+    }
+  }
+
+  private ImageBuffer loadUri(final UriSource source) {
+    try {
+      return ImageBuffer.uri(source);
+    } catch (final DownloadException exception) {
+      throw this.createUnavailable(exception);
+    } catch (final IllegalArgumentException exception) {
+      // the library's message names the downloaded copy, a file of the server
+      final String url = source.getResource();
+      LOGGER.debug("Image {} could not be decoded.", url, exception);
+      final String message = "URL %s is not an image the server can show!".formatted(url);
+      throw new MediaUnavailableException(message, exception);
+    }
+  }
+
+  private MediaUnavailableException createUnavailable(final RuntimeException exception) {
+    final @Nullable String detail = exception.getMessage();
+    final String message = String.valueOf(detail);
+    return new MediaUnavailableException(message, exception);
   }
 
   /**

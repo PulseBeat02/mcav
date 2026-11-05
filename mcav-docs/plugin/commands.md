@@ -140,6 +140,11 @@ to the server, so the `DEVICE` player needs the permission `mcav.command.video.d
 shows the name the system gives the device; on Windows and macOS the list tries the numbers 0 to 7, which briefly opens
 every device there is.
 
+When a video cannot be played, the command tells you why without a stack trace in the console: the source is not a
+file on the server, a URL, a device index or an FFmpeg input, the player cannot open it, or yt-dlp cannot resolve the
+web page. Any other failure while starting, such as a yt-dlp that cannot be installed, is logged with its stack trace,
+and the command tells you that the console has the details.
+
 | Command         | `/mcav video release`                                     |
 |-----------------|-----------------------------------------------------------|
 | Usage           | `/mcav video release`                                     |
@@ -597,6 +602,11 @@ who may create or use a machine may use them.
 
 An image that declares more than 8192 by 8192 pixels is refused before it is decoded, since decoding it could take
 gigabytes of memory. Start the server with `-Dmcav.image.maximum_pixels=<pixels>` for another limit.
+
+When an image cannot be shown, the command tells you why without a stack trace in the console: the source is not a file
+on the server or a URL, the file is not a supported image or is over the pixel limit, the download fails or the server
+answers with an error status, or the downloaded file is not an image. An empty source, an animated GIF, a capture
+device and an FFmpeg input get `Invalid MRL!`.
 
 | Command         | `/mcav image release`                                     |
 |-----------------|-----------------------------------------------------------|

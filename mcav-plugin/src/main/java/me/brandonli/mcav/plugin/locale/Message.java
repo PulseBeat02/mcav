@@ -230,6 +230,15 @@ public interface Message extends LocaleTools {
   NullComponent LOAD_IMAGE_START = LocaleTools.direct("mcav.command.image.load.start");
 
   /**
+   * Key {@code mcav.command.image.unavailable}: an {@code /mcav image} command could not show the image it was given,
+   * for example a missing file, a file that is not an image, or a URL that does not answer. The argument is why,
+   * naming the image, inserted at {@code <arg:0>}.
+   *
+   * @since 1.0.0
+   */
+  UniComponent<String> IMAGE_UNAVAILABLE = LocaleTools.direct("mcav.command.image.unavailable", null);
+
+  /**
    * Key {@code mcav.command.vm.path.error}: the virtual machine could not start because the QEMU program for the
    * chosen architecture, such as {@code qemu-system-x86_64}, is not on the {@code PATH} of the server.
    *
@@ -551,8 +560,8 @@ public interface Message extends LocaleTools {
   NullComponent START_BROWSER = LocaleTools.direct("mcav.command.browser.start");
 
   /**
-   * Key {@code mcav.command.mrl.error}: the media given to a video or image command could not be found or played,
-   * for example a missing file, a broken URL, or an animated GIF given to an image command.
+   * Key {@code mcav.command.mrl.error}: an image command got an empty source, an animated GIF, a capture device or an
+   * FFmpeg input, or could not load the image for a reason that the console logs.
    *
    * @since 1.0.0
    */
@@ -670,6 +679,15 @@ public interface Message extends LocaleTools {
    * @since 1.0.0
    */
   UniComponent<String> VIDEO_STREAM_REFUSED = LocaleTools.direct("mcav.command.video.stream.refused", null);
+
+  /**
+   * Key {@code mcav.command.video.unavailable}: a video command could not play the video it was given, because it is
+   * not a file, a URL, a device index or an FFmpeg input, the player could not open it, or yt-dlp could not resolve
+   * the page. The argument is why, naming the video, inserted at {@code <arg:0>}.
+   *
+   * @since 1.0.0
+   */
+  UniComponent<String> VIDEO_UNAVAILABLE = LocaleTools.direct("mcav.command.video.unavailable", null);
 
   /**
    * Key {@code mcav.command.vm.error}: the virtual machine of {@code /mcav vm create} failed to start for a reason

@@ -19,6 +19,7 @@ package me.brandonli.mcav.plugin.command.image;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -39,6 +40,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -70,6 +72,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedConstruction;
@@ -102,12 +105,12 @@ final class AbstractImageCommandTest {
   private static final String PNG_FORMAT = "png";
   private static final String INVALID_IMAGE_CONTENT = "this is not an image";
   private static final String PICTURE_PATH = "/picture.png";
+  private static final String MISSING_PATH = "/missing.png";
   private static final String FILTER_FAILURE_FILE_NAME = "filter-failure.png";
   private static final String FILTER_CLEANUP_FAILURE_FILE_NAME = "filter-cleanup-failure.png";
   private static final String MY_PICTURE_FILE_NAME = "my picture.png";
   private static final String LITERAL_QUOTES_FILE_NAME = "literal-quotes.png";
   private static final String ANIMATION_FILE_NAME = "animation.gif";
-  private static final String UNREADABLE_FILE_NAME = "unreadable.png";
   private static final String BROKEN_FILE_NAME = "broken.png";
   private static final String LATE_FILE_NAME = "late.png";
   private static final String REJECTED_FILE_NAME = "rejected.png";
@@ -120,6 +123,9 @@ final class AbstractImageCommandTest {
   private static final int EPHEMERAL_PORT = 0;
 
   private static final String IMAGE_RELEASE_FAILURE_MESSAGE = "image release failed!";
+
+  private static final String ERROR_LEVEL = "ERROR";
+  private static final String STACK_FRAME = "\tat ";
 
   @TempDir
   private Path folder;
@@ -347,8 +353,12 @@ final class AbstractImageCommandTest {
   }
 
   private String serveImage() throws IOException {
-    final String path = PICTURE_PATH;
     final byte[] bytes = this.encode(PNG_FORMAT);
+    return this.serve(bytes);
+  }
+
+  private String serve(final byte[] bytes) throws IOException {
+    final String path = PICTURE_PATH;
     final InetAddress loopback = InetAddress.getLoopbackAddress();
     final InetSocketAddress address = new InetSocketAddress(loopback, EPHEMERAL_PORT);
     this.server = HttpServer.create(address, 0);
@@ -391,14 +401,34 @@ final class AbstractImageCommandTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = { "", "\"", EMPTY_QUOTED_SOURCE, "\"missing.png", "missing.png\"", "\"\"missing.png\"\"" })
-  void shouldRejectEmptyOrMalformedQuotedSources(final String mrl) {
+  @ValueSource(strings = { "", EMPTY_QUOTED_SOURCE })
+  void shouldRejectEmptySources(final String mrl) {
     this.command.displayImage(_ -> CONFIGURATION, this.sender, LARGE_SCREEN_SIZE, mrl, null);
     this.assertNothingShown();
 
     final List<Component> messages = Components.received(this.sender);
     final Component invalid = Message.UNSUPPORTED_MRL.build();
     final List<Component> expected = List.of(invalid);
+    assertEquals(expected, messages);
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "not a source, not a source",
+    "\", \"",
+    "\"missing.png, \"missing.png",
+    "missing.png\", missing.png\"",
+    "\"\"missing.png\"\", \"missing.png\"",
+  })
+  void shouldNameSourcesThatAreNeitherAFileNorAUrl(final String mrl, final String source) {
+    this.command.displayImage(_ -> CONFIGURATION, this.sender, LARGE_SCREEN_SIZE, mrl, null);
+    this.assertNothingShown();
+    verify(this.manager, never()).beginLoad();
+
+    final List<Component> messages = Components.received(this.sender);
+    final String reason = "Image %s is neither a file on the server nor a URL!".formatted(source);
+    final Component unavailable = Message.IMAGE_UNAVAILABLE.build(reason);
+    final List<Component> expected = List.of(unavailable);
     assertEquals(expected, messages);
   }
 
@@ -445,7 +475,7 @@ final class AbstractImageCommandTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = { "not a source", "0", "mp4||input" })
+  @ValueSource(strings = { "0", "mp4||input" })
   void shouldRefuseMediaThatIsNotAFileOrUrl(final String mrl) {
     this.command.displayImage(_ -> CONFIGURATION, this.sender, SCREEN_SIZE, mrl, null);
     final List<Component> messages = Components.received(this.sender);
@@ -469,14 +499,21 @@ final class AbstractImageCommandTest {
 
   @Test
   void shouldNameTheImageThatFailedToLoadInTheLog() throws IOException {
-    final Path file = this.folder.resolve(UNREADABLE_FILE_NAME);
-    Files.writeString(file, INVALID_IMAGE_CONTENT);
+    final Path file = this.writeImage(FILTER_FAILURE_FILE_NAME, PNG_FORMAT);
     final String mrl = file.toString();
+    final IllegalStateException failure = new IllegalStateException("resize failed after decoding!");
+
     final String output;
-    try (final StandardErrorCapture capture = StandardErrorCapture.start()) {
-      this.command.displayImage(_ -> CONFIGURATION, this.sender, SCREEN_SIZE, mrl, null);
+    try (
+      final MockedConstruction<ResizeFilter> _ = Mockito.mockConstruction(ResizeFilter.class, (filter, _) ->
+        this.failFilter(filter, failure)
+      );
+      final StandardErrorCapture capture = StandardErrorCapture.start()
+    ) {
+      this.command.displayImage(_ -> CONFIGURATION, this.sender, SCREEN_SIZE, mrl, FILTER);
       output = capture.getOutput();
     }
+
     final boolean named = output.contains("Image %s could not be loaded.".formatted(mrl));
     assertTrue(named, "the log of a failed image names the media it could not load");
   }
@@ -486,14 +523,55 @@ final class AbstractImageCommandTest {
     final Path file = this.folder.resolve(BROKEN_FILE_NAME);
     Files.writeString(file, INVALID_IMAGE_CONTENT);
     final String mrl = file.toString();
-    this.command.displayImage(_ -> CONFIGURATION, this.sender, SCREEN_SIZE, mrl, null);
+    final String output = this.displayCapturingErrors(mrl);
+
+    final String reason = "File %s is not a supported image!".formatted(mrl);
+    this.assertUnavailableAfterLoading(reason);
+    this.assertNoErrorLogged(output);
+    verify(this.manager, never()).releaseImage(ReleaseThread.CALLING_THREAD);
+  }
+
+  private String displayCapturingErrors(final String mrl) {
+    try (final StandardErrorCapture capture = StandardErrorCapture.start()) {
+      this.command.displayImage(_ -> CONFIGURATION, this.sender, SCREEN_SIZE, mrl, null);
+      return capture.getOutput();
+    }
+  }
+
+  private void assertUnavailableAfterLoading(final String reason) {
     final List<Component> messages = Components.received(this.sender);
     final Component start = Message.LOAD_IMAGE_START.build();
-    final Component failure = Message.UNSUPPORTED_MRL.build();
-    final List<Component> expected = List.of(start, failure);
+    final Component unavailable = Message.IMAGE_UNAVAILABLE.build(reason);
+    final List<Component> expected = List.of(start, unavailable);
     assertEquals(expected, messages);
     this.assertNothingShown();
-    verify(this.manager, never()).releaseImage(ReleaseThread.CALLING_THREAD);
+  }
+
+  private void assertNoErrorLogged(final String output) {
+    final boolean logged = output.contains(ERROR_LEVEL) || output.contains(STACK_FRAME);
+    assertFalse(logged, output);
+  }
+
+  @Test
+  void shouldTellTheSenderTheStatusOfAFailedDownload() throws IOException {
+    final String url = this.serveImage();
+    final String missing = url.replace(PICTURE_PATH, MISSING_PATH);
+    final String output = this.displayCapturingErrors(missing);
+
+    final String reason = "Request for %s got status 404, which is not a success!".formatted(missing);
+    this.assertUnavailableAfterLoading(reason);
+    this.assertNoErrorLogged(output);
+  }
+
+  @Test
+  void shouldNotNameTheCachedCopyOfADownloadThatIsNotAnImage() throws IOException {
+    final byte[] text = INVALID_IMAGE_CONTENT.getBytes(StandardCharsets.UTF_8);
+    final String url = this.serve(text);
+    final String output = this.displayCapturingErrors(url);
+
+    final String reason = "URL %s is not an image the server can show!".formatted(url);
+    this.assertUnavailableAfterLoading(reason);
+    this.assertNoErrorLogged(output);
   }
 
   @Test

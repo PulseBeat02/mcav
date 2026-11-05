@@ -38,6 +38,7 @@ import java.util.function.Function;
 import me.brandonli.mcav.bukkit.hologram.Hologram;
 import me.brandonli.mcav.capability.Capability;
 import me.brandonli.mcav.capability.installer.InstallationException;
+import me.brandonli.mcav.json.ytdlp.YtdlpParseException;
 import me.brandonli.mcav.json.ytdlp.YtdlpParser;
 import me.brandonli.mcav.json.ytdlp.format.Format;
 import me.brandonli.mcav.json.ytdlp.format.UrlParseDump;
@@ -62,6 +63,7 @@ import me.brandonli.mcav.plugin.PluginException;
 import me.brandonli.mcav.plugin.audio.AudioOutputs;
 import me.brandonli.mcav.plugin.audio.AudioProvider;
 import me.brandonli.mcav.plugin.command.AnnotationCommandFeature;
+import me.brandonli.mcav.plugin.command.MediaUnavailableException;
 import me.brandonli.mcav.plugin.locale.Message;
 import me.brandonli.mcav.plugin.utils.ArgumentUtils;
 import me.brandonli.mcav.plugin.utils.AudioArgument;
@@ -148,9 +150,10 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    * sender and nothing starts. Only one video can start at a time. The viewers are then told that the video is
    * loading, and the media is resolved and started on the worker thread of the video player manager.
    *
-   * <p>A web page whose stream yt-dlp reports with a scheme other than {@code http} or {@code https} is refused, and
-   * the sender is told the page and the scheme; nothing is logged. Any other failure while starting is logged with its
-   * stack trace, and the sender is told that the console has the details.
+   * <p>A video that is not a file on the server, a URL, a device index or an FFmpeg input, that the player cannot open,
+   * or whose web page yt-dlp cannot resolve is refused, and the sender is told why, with no stack trace in the console.
+   * So is a web page whose stream yt-dlp reports with a scheme other than {@code http} or {@code https}. Any other
+   * failure while starting is logged with its stack trace, and the sender is told that the console has the details.
    *
    * @param configurationProvider creates the display configuration for the parsed resolution
    * @param sender                who ran the command
@@ -357,11 +360,11 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
   private void launch(final CommandSender sender, final PlaybackRequest request) {
     final AtomicBoolean starting = this.manager.getStarting();
     final ExecutorService service = this.manager.getService();
-    final CompletableFuture<Boolean> start;
+    final CompletableFuture<Void> start;
     final long generation;
     try {
       generation = this.manager.beginStart();
-      start = CompletableFuture.supplyAsync(() -> this.startPlayer(request, generation), service);
+      start = CompletableFuture.runAsync(() -> this.startPlayer(request, generation), service);
     } catch (final RejectedExecutionException | CancellationException exception) {
       starting.set(false);
       LOGGER.error("The video worker refused to start a video.", exception);
@@ -370,51 +373,36 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
       return;
     }
 
-    TaskUtils.whenComplete(start, (started, error) -> this.finishLaunch(sender, request, generation, started, error));
+    TaskUtils.whenComplete(start, (_, error) -> this.finishLaunch(sender, request, generation, error));
   }
 
   private void finishLaunch(
     final CommandSender sender,
     final PlaybackRequest request,
     final long generation,
-    final @Nullable Boolean started,
     final @Nullable Throwable error
   ) {
     final AtomicBoolean starting = this.manager.getStarting();
     starting.set(false);
-    TaskUtils.runOnMainThread(this.plugin, () -> this.reportIfCurrent(sender, request, generation, started, error));
+    TaskUtils.runOnMainThread(this.plugin, () -> this.reportIfCurrent(sender, request, generation, error));
   }
 
   private void reportIfCurrent(
     final CommandSender sender,
     final PlaybackRequest request,
     final long generation,
-    final @Nullable Boolean started,
     final @Nullable Throwable error
   ) {
     if (this.manager.isCurrent(generation)) {
       final AudioArgument audioType = request.getAudioType();
       final Player[] viewers = request.getViewers();
-      this.report(sender, audioType, viewers, started, error);
+      this.report(sender, audioType, viewers, error);
     }
   }
 
-  private void report(
-    final CommandSender sender,
-    final AudioArgument audioType,
-    final Player[] viewers,
-    final @Nullable Boolean started,
-    final @Nullable Throwable error
-  ) {
+  private void report(final CommandSender sender, final AudioArgument audioType, final Player[] viewers, final @Nullable Throwable error) {
     if (error != null) {
       this.reportFailure(sender, error);
-      return;
-    }
-
-    final boolean playing = Boolean.TRUE.equals(started);
-    if (!playing) {
-      final Component message = Message.UNSUPPORTED_MRL.build();
-      sender.sendMessage(message);
       return;
     }
 
@@ -424,10 +412,15 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
   }
 
   private void reportFailure(final CommandSender sender, final Throwable failure) {
-    // supplyAsync wraps what the worker throws in a CompletionException
+    // runAsync wraps what the worker throws in a CompletionException
     final @Nullable Throwable cause = failure.getCause();
     if (cause instanceof final StreamRefusedException refusal) {
       this.reportRefusal(sender, refusal);
+      return;
+    }
+
+    if (cause instanceof final MediaUnavailableException unavailable) {
+      this.reportUnavailable(sender, unavailable);
       return;
     }
 
@@ -440,6 +433,13 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final @Nullable String detail = refusal.getMessage();
     final String reason = String.valueOf(detail);
     final Component message = Message.VIDEO_STREAM_REFUSED.build(reason);
+    sender.sendMessage(message);
+  }
+
+  private void reportUnavailable(final CommandSender sender, final MediaUnavailableException unavailable) {
+    final @Nullable String detail = unavailable.getMessage();
+    final String reason = String.valueOf(detail);
+    final Component message = Message.VIDEO_UNAVAILABLE.build(reason);
     sender.sendMessage(message);
   }
 
@@ -520,7 +520,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     return preparing ? Message.YTDLP_PREPARING.build() : null;
   }
 
-  private boolean startPlayer(final PlaybackRequest request, final long generation) {
+  private void startPlayer(final PlaybackRequest request, final long generation) {
     this.manager.checkStart();
     final String mrl = request.getMrl();
     final String[] ytdlpArguments = request.getYtdlpArguments();
@@ -528,7 +528,8 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     this.manager.checkStart();
 
     if (selection == null) {
-      return false;
+      final String message = "Video %s is not a file on the server, a URL, a device index or an FFmpeg input!".formatted(mrl);
+      throw new MediaUnavailableException(message);
     }
 
     this.manager.clearCurrentVideo();
@@ -536,15 +537,8 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final UrlParseDump dump = selection.getDump();
     try {
       final VideoPlayerMultiplexer player = this.createPlayer(request, dump);
-      final boolean playing = this.startPlayback(player, selection);
-      if (!playing) {
-        this.manager.clearCurrentVideo();
-        return false;
-      }
-
+      this.startPlayback(player, request, selection);
       TaskUtils.runOnMainThread(this.plugin, () -> this.showHologramIfCurrent(generation, dump));
-
-      return true;
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
       this.cleanupAfterFailure(exception, this.manager::clearCurrentVideo);
@@ -598,10 +592,30 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     dimensionCallback.attach(dimension);
   }
 
-  private boolean startPlayback(final VideoPlayerMultiplexer player, final SourceSelection selection) {
+  private void startPlayback(final VideoPlayerMultiplexer player, final PlaybackRequest request, final SourceSelection selection) {
     final Source video = selection.getVideo();
     final @Nullable Source audio = selection.getAudio();
-    return this.manager.startNative(() -> this.startSources(player, video, audio));
+    // the FFmpeg player keeps this handler after the start, so a flag decides which failures stay quiet
+    final AtomicBoolean opening = new AtomicBoolean(true);
+    player.setExceptionHandler((message, failure) -> this.logPlayerFailure(opening, message, failure));
+    final boolean playing = this.manager.startNative(() -> this.startSources(player, video, audio));
+    opening.set(false);
+
+    if (!playing) {
+      final String mrl = request.getMrl();
+      final PlayerArgument playerType = request.getPlayerType();
+      final String message = "Video %s could not be opened by the %s player!".formatted(mrl, playerType);
+      throw new MediaUnavailableException(message);
+    }
+  }
+
+  private void logPlayerFailure(final AtomicBoolean opening, final String message, final Throwable failure) {
+    if (opening.get()) {
+      LOGGER.debug("{}", message, failure);
+      return;
+    }
+
+    LOGGER.error("{}", message, failure);
   }
 
   private boolean startSources(final VideoPlayerMultiplexer player, final Source video, final @Nullable Source audio) {
@@ -731,6 +745,10 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
       final URI uri = page.getUri();
       final String message = "Because of \"%s\", page %s could not be resolved by yt-dlp!".formatted(reason, uri);
       throw new PluginException(message, exception);
+    } catch (final YtdlpParseException | IllegalArgumentException exception) {
+      final @Nullable String detail = exception.getMessage();
+      final String message = String.valueOf(detail);
+      throw new MediaUnavailableException(message, exception);
     }
 
     return this.selectStreams(page, dump);

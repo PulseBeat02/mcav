@@ -48,6 +48,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
 import java.util.function.BooleanSupplier;
 import me.brandonli.mcav.bukkit.hologram.Hologram;
 import me.brandonli.mcav.capability.Capability;
@@ -163,6 +164,7 @@ final class AbstractVideoCommandTest {
   private Player viewer;
   private MultiplePlayerSelector selector;
   private VideoPlayerMultiplexer player;
+  private BiConsumer<String, Throwable> exceptionHandler;
   private VideoAttachableCallback videoCallback;
   private AudioAttachableCallback audioCallback;
   private DimensionAttachableCallback dimensionCallback;
@@ -225,10 +227,16 @@ final class AbstractVideoCommandTest {
     when(this.player.getDimensionAttachableCallback()).thenReturn(this.dimensionCallback);
     when(this.player.start(any())).thenReturn(true);
     when(this.player.start(any(), any())).thenReturn(true);
+    Mockito.doAnswer(this::keepExceptionHandler).when(this.player).setExceptionHandler(any());
     this.videoPlayers = Mockito.mockStatic(VideoPlayer.class);
     this.videoPlayers.when(VideoPlayer::ffmpeg).thenReturn(this.player);
     this.videoPlayers.when(VideoPlayer::device).thenReturn(this.player);
     this.videoPlayers.when(VideoPlayer::vlc).thenReturn(this.player);
+  }
+
+  private @Nullable Object keepExceptionHandler(final InvocationOnMock invocation) {
+    this.exceptionHandler = invocation.getArgument(0);
+    return null;
   }
 
   private void mockHologramsAndYtdlp() {
@@ -729,9 +737,7 @@ final class AbstractVideoCommandTest {
 
     this.assertRefusedForScheme(scheme);
     verify(this.player, never()).start(any(), any());
-
-    final boolean logged = output.contains(ERROR_LEVEL) || output.contains(STACK_FRAME);
-    assertFalse(logged, output);
+    this.assertNoErrorLogged(output);
   }
 
   private String createVideoFormat(final String url) {
@@ -769,6 +775,11 @@ final class AbstractVideoCommandTest {
     this.assertSenderReceived(refused);
   }
 
+  private void assertNoErrorLogged(final String output) {
+    final boolean logged = output.contains(ERROR_LEVEL) || output.contains(STACK_FRAME);
+    assertFalse(logged, output);
+  }
+
   @Test
   void shouldReportWebPagesThatYtdlpCannotResolve() {
     when(this.parser.parse(any(UriSource.class))).thenThrow(new InstallationException("offline!"));
@@ -801,11 +812,30 @@ final class AbstractVideoCommandTest {
   }
 
   @Test
+  void shouldTellTheSenderWhyYtdlpCannotResolveAPage() {
+    final String reason = "yt-dlp found no video on the page!";
+    when(this.parser.parse(any(UriSource.class))).thenThrow(new IllegalArgumentException(reason));
+
+    final String output;
+    try (final StandardErrorCapture errors = StandardErrorCapture.start()) {
+      this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, WEB_PAGE, "");
+      output = errors.getOutput();
+    }
+
+    final Component unavailable = Message.VIDEO_UNAVAILABLE.build(reason);
+    this.assertSenderReceived(unavailable);
+    verify(this.manager, never()).clearCurrentVideo();
+    this.assertNotStarting();
+    this.assertNoErrorLogged(output);
+  }
+
+  @Test
   void shouldRefuseMediaThatCannotBeFound() {
     this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, "not a source", "");
 
-    final Component error = Message.UNSUPPORTED_MRL.build();
-    this.assertSenderReceived(error);
+    final String reason = "Video not a source is not a file on the server, a URL, a device index or an FFmpeg input!";
+    final Component unavailable = Message.VIDEO_UNAVAILABLE.build(reason);
+    this.assertSenderReceived(unavailable);
     verify(this.manager, never()).clearCurrentVideo();
 
     final boolean created = this.command.resolutions.isEmpty();
@@ -880,9 +910,14 @@ final class AbstractVideoCommandTest {
 
     verify(this.manager, times(2)).clearCurrentVideo();
 
-    final Component error = Message.UNSUPPORTED_MRL.build();
-    this.assertSenderReceived(error);
+    this.assertNotOpened(mrl);
     verify(this.manager, never()).getHologramLocation();
+  }
+
+  private void assertNotOpened(final String mrl) {
+    final String reason = "Video %s could not be opened by the FFMPEG player!".formatted(mrl);
+    final Component unavailable = Message.VIDEO_UNAVAILABLE.build(reason);
+    this.assertSenderReceived(unavailable);
   }
 
   @Test
@@ -900,9 +935,47 @@ final class AbstractVideoCommandTest {
 
     verify(this.manager, times(2)).clearCurrentVideo();
 
-    final Component error = Message.UNSUPPORTED_MRL.build();
-    this.assertSenderReceived(error);
+    this.assertNotOpened(WEB_PAGE);
     verify(this.manager, never()).getHologramLocation();
+  }
+
+  @Test
+  void shouldTellTheSenderWhichVideoThePlayerCouldNotOpenWithoutAnError() throws IOException {
+    when(this.player.start(any())).thenAnswer(this::failToOpen);
+    final Path file = this.createVideoFile();
+    final String mrl = file.toString();
+
+    final String output;
+    try (final StandardErrorCapture errors = StandardErrorCapture.start()) {
+      this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, mrl, "");
+      output = errors.getOutput();
+    }
+
+    this.assertNotOpened(mrl);
+    this.assertNoErrorLogged(output);
+  }
+
+  private boolean failToOpen(final InvocationOnMock invocation) {
+    final IllegalStateException failure = new IllegalStateException("connection refused!");
+    this.exceptionHandler.accept("Playback of clip.mp4 could not be started.", failure);
+    return false;
+  }
+
+  @Test
+  void shouldLogAPlayerFailureAfterTheStartAsAnErrorWithItsTrace() throws IOException {
+    final Path file = this.createVideoFile();
+    final String mrl = file.toString();
+    this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, mrl, "");
+
+    final String message = "Playback of clip.mp4 stopped.";
+    final String output;
+    try (final StandardErrorCapture errors = StandardErrorCapture.start()) {
+      this.exceptionHandler.accept(message, new IllegalStateException("decoder failed!"));
+      output = errors.getOutput();
+    }
+
+    final boolean logged = output.contains(ERROR_LEVEL) && output.contains(STACK_FRAME) && output.contains(message);
+    assertTrue(logged, output);
   }
 
   @Test
