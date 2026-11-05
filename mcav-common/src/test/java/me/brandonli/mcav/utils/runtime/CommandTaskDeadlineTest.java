@@ -205,8 +205,9 @@ final class CommandTaskDeadlineTest {
 
   @Test
   void shouldExpireTheDeadlineAtItsLastNanosecond() {
+    final CommandTask task = new CommandTask(FINISHED_COMMAND);
     final long now = OUTPUT_TIMEOUT.toNanos();
-    assertThrows(TimeoutException.class, () -> CommandTask.remainingNanoseconds(OUTPUT_TIMEOUT, 0L, now));
+    assertThrows(TimeoutException.class, () -> task.remainingNanoseconds(OUTPUT_TIMEOUT, 0L, now));
   }
 
   private static final class StringFuture extends CompletableFuture<String> {}
