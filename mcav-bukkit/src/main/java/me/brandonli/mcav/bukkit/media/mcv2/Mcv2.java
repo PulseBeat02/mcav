@@ -17,53 +17,7 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2;
 
-import static java.lang.foreign.ValueLayout.ADDRESS;
-import static java.lang.foreign.ValueLayout.JAVA_DOUBLE;
-import static java.lang.foreign.ValueLayout.JAVA_INT;
-import static java.lang.foreign.ValueLayout.JAVA_LONG;
 import static java.util.Objects.requireNonNull;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.BLOCK_SIZES;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.CHANNELS;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.CHECKPOINT_GROUPS;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.COMPACT_BYTES;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.CURSOR_BITS;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.DIMENSIONS_OFFSET;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.FRAME_ID_OFFSET;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.GRID_LOWER;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.GRID_UPPER;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.GRID_WEIGHTS;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.GROUP_ROOTS;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.HEADER_BYTES;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MAGIC;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MAXIMUM_DIMENSION;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MAXIMUM_FRAME_BYTES;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MAXIMUM_QUANTIZER;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MAXIMUM_UNSIGNED_INT;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MODE_COMPACT;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MODE_MOTION;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MODE_PALETTE;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MODE_PATTERN;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MODE_SKIP;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MODE_SOLID;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MODE_SPLIT;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.NO_QUANTIZER;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.QUANTIZER_SHIFT;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.QUARTERS;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.REFERENCE_ID_OFFSET;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.ROOT_SIZE;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.SMALLEST_BLOCK;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.VERSION;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.WALK_SPAN;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.follows;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.interpolateHorizontally;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.isBlockSize;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.patternSize;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.putUnsignedInt;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.putUnsignedShort;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.recordSize;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.roundToChannel;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.signed;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.sizeIndex;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
@@ -76,6 +30,7 @@ import java.lang.foreign.Linker;
 import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SymbolLookup;
+import java.lang.foreign.ValueLayout;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.nio.ByteBuffer;
@@ -172,7 +127,7 @@ public final class Mcv2 {
   private static final int COARSEST_QUANTIZER = 2;
 
   private static final int PALETTE_COLORS = 2;
-  private static final int SELECTORS_AT = PALETTE_COLORS * CHANNELS;
+  private static final int SELECTORS_AT = PALETTE_COLORS * Mcv2Decoder.CHANNELS;
 
   private static final byte[] NO_BYTES = new byte[0];
   private static final boolean[] NO_SPLITS = new boolean[0];
@@ -205,7 +160,7 @@ public final class Mcv2 {
   private static final int BOTTOM_LEFT = 2;
   private static final int BOTTOM_RIGHT = 3;
 
-  private static final int FINEST_LEVEL = BLOCK_SIZES - 1;
+  private static final int FINEST_LEVEL = Mcv2Decoder.BLOCK_SIZES - 1;
 
   private static final int SKIP_BYTES = 0;
   private static final int MOTION_BYTES = 2;
@@ -406,12 +361,15 @@ public final class Mcv2 {
     Preconditions.checkState(this.older == null || this.older.finished, "Two frames are in flight already!");
     Preconditions.checkNotNull(sourcePixels, "Picture must not be null!");
     Preconditions.checkArgument(
-      width >= 1 && width <= MAXIMUM_DIMENSION && height >= 1 && height <= MAXIMUM_DIMENSION,
+      width >= 1 && width <= Mcv2Decoder.MAXIMUM_DIMENSION && height >= 1 && height <= Mcv2Decoder.MAXIMUM_DIMENSION,
       INVALID_DIMENSIONS_MESSAGE
     );
-    Preconditions.checkArgument(sourcePixels.length == width * height * CHANNELS, "Picture size does not match the dimensions!");
-    Preconditions.checkArgument(frameId >= 0 && frameId <= MAXIMUM_UNSIGNED_INT, "Frame id must be an unsigned 32-bit value!");
-    Preconditions.checkArgument(this.lastFrameId < 0 || follows(frameId, this.lastFrameId), "Stale or ambiguous frame id!");
+    Preconditions.checkArgument(
+      sourcePixels.length == width * height * Mcv2Decoder.CHANNELS,
+      "Picture size does not match the dimensions!"
+    );
+    Preconditions.checkArgument(frameId >= 0 && frameId <= Mcv2Decoder.MAXIMUM_UNSIGNED_INT, "Frame id must be an unsigned 32-bit value!");
+    Preconditions.checkArgument(this.lastFrameId < 0 || Mcv2Decoder.follows(frameId, this.lastFrameId), "Stale or ambiguous frame id!");
 
     final long started = System.nanoTime();
     final byte @Nullable [] previous = this.reference;
@@ -512,7 +470,7 @@ public final class Mcv2 {
     double lambda = frame.lambda;
     SearchResult searched = this.search(frame, before, started, SearchEffort.BUDGETED);
     byte[] data = write(frame.width, frame.height, kind, searched.roots, frameId, referenceId);
-    final int limit = this.frameLimit == 0 ? MAXIMUM_FRAME_BYTES : Math.min(this.frameLimit, MAXIMUM_FRAME_BYTES);
+    final int limit = this.frameLimit == 0 ? Mcv2Decoder.MAXIMUM_FRAME_BYTES : Math.min(this.frameLimit, Mcv2Decoder.MAXIMUM_FRAME_BYTES);
     for (int retry = 0; this.isOverLimit(data, limit) && lambda > 0 && retry < LIMIT_RETRIES; retry++) {
       lambda = Math.min(lambda * LAMBDA_GROWTH, Double.MAX_VALUE);
       frame.lambda = lambda;
@@ -674,17 +632,17 @@ public final class Mcv2 {
     for (int column = 0; column < halfWidth; column++) {
       final int leftColumn = PYRAMID_SCALE * column;
       final int rightColumn = Math.min(leftColumn + 1, width - 1);
-      for (int channel = 0; channel < CHANNELS; channel++) {
-        final int topLeft = (topRow * width + leftColumn) * CHANNELS + channel;
-        final int topRight = (topRow * width + rightColumn) * CHANNELS + channel;
-        final int bottomLeft = (bottomRow * width + leftColumn) * CHANNELS + channel;
-        final int bottomRight = (bottomRow * width + rightColumn) * CHANNELS + channel;
+      for (int channel = 0; channel < Mcv2Decoder.CHANNELS; channel++) {
+        final int topLeft = (topRow * width + leftColumn) * Mcv2Decoder.CHANNELS + channel;
+        final int topRight = (topRow * width + rightColumn) * Mcv2Decoder.CHANNELS + channel;
+        final int bottomLeft = (bottomRow * width + leftColumn) * Mcv2Decoder.CHANNELS + channel;
+        final int bottomRight = (bottomRow * width + rightColumn) * Mcv2Decoder.CHANNELS + channel;
         final int sum =
           (picture[topLeft] & BYTE_MASK) +
           (picture[topRight] & BYTE_MASK) +
           (picture[bottomLeft] & BYTE_MASK) +
           (picture[bottomRight] & BYTE_MASK);
-        output[(row * halfWidth + column) * CHANNELS + channel] = (byte) ((sum + QUAD_AVERAGE_ROUNDING) >> QUAD_AVERAGE_SHIFT);
+        output[(row * halfWidth + column) * Mcv2Decoder.CHANNELS + channel] = (byte) ((sum + QUAD_AVERAGE_ROUNDING) >> QUAD_AVERAGE_SHIFT);
       }
     }
   }
@@ -720,19 +678,19 @@ public final class Mcv2 {
     final BlockCoder[] coders = context.coders();
     final double fineThreshold = context.fineThreshold();
     if (left >= frame.width || top >= frame.height) {
-      return new Choice(TreeNode.leaf(MODE_SOLID, 0, new byte[CHANNELS]), frame.lambda * OUTSIDE_BITS, 0);
+      return new Choice(TreeNode.leaf(Mcv2Decoder.MODE_SOLID, 0, new byte[Mcv2Decoder.CHANNELS]), frame.lambda * OUTSIDE_BITS, 0);
     }
 
-    final int size = ROOT_SIZE >> level;
+    final int size = Mcv2Decoder.ROOT_SIZE >> level;
     final BlockCoder coder = coders[level];
     coder.code(left, top, parent);
     final double cost = coder.cost();
     if (level < FINEST_LEVEL && !coder.skipped && cost > threshold) {
       final int half = size / QUARTERS_PER_SIDE;
       double splitCost = frame.lambda * INDEX_BITS;
-      final TreeNode[] children = new TreeNode[QUARTERS];
+      final TreeNode[] children = new TreeNode[Mcv2Decoder.QUARTERS];
       int leaves = 0;
-      for (int corner = 0; corner < QUARTERS && splitCost < cost; corner++) {
+      for (int corner = 0; corner < Mcv2Decoder.QUARTERS && splitCost < cost; corner++) {
         final int childLeft = left + (corner % QUARTERS_PER_SIDE) * half;
         final int childTop = top + (corner / QUARTERS_PER_SIDE) * half;
         final Choice child = descend(context, level + 1, childLeft, childTop, coder.localVector, fineThreshold);
@@ -777,9 +735,9 @@ public final class Mcv2 {
 
   private BlockCoder[] createCoders(final FrameState frame) {
     final BlockCoder[] coders = {
-      new BlockCoder(frame, ROOT_SIZE, this.kernels.get()),
-      new BlockCoder(frame, ROOT_SIZE / QUARTERS_PER_SIDE, this.kernels.get()),
-      new BlockCoder(frame, SMALLEST_BLOCK, this.kernels.get()),
+      new BlockCoder(frame, Mcv2Decoder.ROOT_SIZE, this.kernels.get()),
+      new BlockCoder(frame, Mcv2Decoder.ROOT_SIZE / QUARTERS_PER_SIDE, this.kernels.get()),
+      new BlockCoder(frame, Mcv2Decoder.SMALLEST_BLOCK, this.kernels.get()),
     };
     coders[1].root = coders[0];
     coders[FINEST_LEVEL].root = coders[0];
@@ -804,13 +762,13 @@ public final class Mcv2 {
   }
 
   private static byte nearest(final int[] source, final int pixel, final int[] colors) {
-    final int arrayOffset = pixel * CHANNELS;
+    final int arrayOffset = pixel * Mcv2Decoder.CHANNELS;
     final int firstRedDelta = source[arrayOffset] - colors[0];
     final int firstGreenDelta = source[arrayOffset + GREEN_OFFSET] - colors[GREEN_OFFSET];
     final int firstBlueDelta = source[arrayOffset + BLUE_OFFSET] - colors[BLUE_OFFSET];
-    final int secondRedDelta = source[arrayOffset] - colors[CHANNELS];
-    final int secondGreenDelta = source[arrayOffset + GREEN_OFFSET] - colors[CHANNELS + GREEN_OFFSET];
-    final int secondBlueDelta = source[arrayOffset + BLUE_OFFSET] - colors[CHANNELS + BLUE_OFFSET];
+    final int secondRedDelta = source[arrayOffset] - colors[Mcv2Decoder.CHANNELS];
+    final int secondGreenDelta = source[arrayOffset + GREEN_OFFSET] - colors[Mcv2Decoder.CHANNELS + GREEN_OFFSET];
+    final int secondBlueDelta = source[arrayOffset + BLUE_OFFSET] - colors[Mcv2Decoder.CHANNELS + BLUE_OFFSET];
     final int firstDistance = firstRedDelta * firstRedDelta + firstGreenDelta * firstGreenDelta + firstBlueDelta * firstBlueDelta;
     final int secondDistance = secondRedDelta * secondRedDelta + secondGreenDelta * secondGreenDelta + secondBlueDelta * secondBlueDelta;
     return (byte) (secondDistance < firstDistance ? 1 : 0);
@@ -842,9 +800,9 @@ public final class Mcv2 {
   }
 
   private static float[][] fittingMatrices() {
-    final float[][] matrices = new float[BLOCK_SIZES][];
-    for (int index = 0; index < BLOCK_SIZES; index++) {
-      matrices[index] = fittingMatrix(SMALLEST_BLOCK << index);
+    final float[][] matrices = new float[Mcv2Decoder.BLOCK_SIZES][];
+    for (int index = 0; index < Mcv2Decoder.BLOCK_SIZES; index++) {
+      matrices[index] = fittingMatrix(Mcv2Decoder.SMALLEST_BLOCK << index);
     }
 
     return matrices;
@@ -953,21 +911,21 @@ public final class Mcv2 {
     validateRoots(width, height, kind, roots);
 
     final List<TreeNode> flat = new ArrayList<>();
-    final int[] levels = new int[BLOCK_SIZES];
+    final int[] levels = new int[Mcv2Decoder.BLOCK_SIZES];
     flattenRoots(roots, flat, levels);
 
-    final int groups = (roots.size() + GROUP_ROOTS - 1) / GROUP_ROOTS;
-    final int checkpoints = (groups + CHECKPOINT_GROUPS - 1) / CHECKPOINT_GROUPS;
-    final int countsAt = HEADER_BYTES + (groups + checkpoints) * Integer.BYTES;
-    final int descriptorsAt = countsAt + BLOCK_SIZES * Integer.BYTES;
+    final int groups = (roots.size() + Mcv2Decoder.GROUP_ROOTS - 1) / Mcv2Decoder.GROUP_ROOTS;
+    final int checkpoints = (groups + Mcv2Decoder.CHECKPOINT_GROUPS - 1) / Mcv2Decoder.CHECKPOINT_GROUPS;
+    final int countsAt = Mcv2Decoder.HEADER_BYTES + (groups + checkpoints) * Integer.BYTES;
+    final int descriptorsAt = countsAt + Mcv2Decoder.BLOCK_SIZES * Integer.BYTES;
     final int walksAt = descriptorsAt + flat.size();
-    final int start = walksAt + ((flat.size() + WALK_SPAN - 1) / WALK_SPAN) * Integer.BYTES;
+    final int start = walksAt + ((flat.size() + Mcv2Decoder.WALK_SPAN - 1) / Mcv2Decoder.WALK_SPAN) * Integer.BYTES;
     int length = start;
     for (final TreeNode node : flat) {
       length += node.record.length;
     }
 
-    if (length > MAXIMUM_FRAME_BYTES) {
+    if (length > Mcv2Decoder.MAXIMUM_FRAME_BYTES) {
       return null;
     }
 
@@ -983,55 +941,58 @@ public final class Mcv2 {
   private static void validateRoots(final int width, final int height, final Mcv2FrameKind kind, final List<TreeNode> roots) {
     Preconditions.checkNotNull(roots, "Roots must not be null!");
     Preconditions.checkArgument(
-      width >= 1 && width <= MAXIMUM_DIMENSION && height >= 1 && height <= MAXIMUM_DIMENSION,
+      width >= 1 && width <= Mcv2Decoder.MAXIMUM_DIMENSION && height >= 1 && height <= Mcv2Decoder.MAXIMUM_DIMENSION,
       INVALID_DIMENSIONS_MESSAGE
     );
-    final int columns = (width + ROOT_SIZE - 1) / ROOT_SIZE;
-    Preconditions.checkArgument(roots.size() == columns * ((height + ROOT_SIZE - 1) / ROOT_SIZE), "Wrong root count!");
+    final int columns = (width + Mcv2Decoder.ROOT_SIZE - 1) / Mcv2Decoder.ROOT_SIZE;
+    Preconditions.checkArgument(
+      roots.size() == columns * ((height + Mcv2Decoder.ROOT_SIZE - 1) / Mcv2Decoder.ROOT_SIZE),
+      "Wrong root count!"
+    );
 
     for (final TreeNode root : roots) {
-      validateTree(root, ROOT_SIZE, kind);
+      validateTree(root, Mcv2Decoder.ROOT_SIZE, kind);
     }
   }
 
   private static void flattenRoots(final List<TreeNode> roots, final List<TreeNode> flat, final int[] levels) {
     List<TreeNode> level = new ArrayList<>();
     for (final TreeNode root : roots) {
-      if (root.mode != MODE_SKIP) {
+      if (root.mode != Mcv2Decoder.MODE_SKIP) {
         level.add(root);
       }
     }
 
-    for (int depth = 0; depth < BLOCK_SIZES; depth++) {
+    for (int depth = 0; depth < Mcv2Decoder.BLOCK_SIZES; depth++) {
       levels[depth] = level.size();
       level = flattenLevel(level, flat);
     }
   }
 
   private static void writeHeader(final byte[] data, final int width, final int height, final long frameId, final long referenceId) {
-    putUnsignedInt(data, MAGIC_OFFSET, MAGIC);
-    putUnsignedInt(data, VERSION_OFFSET, VERSION);
-    putUnsignedShort(data, DIMENSIONS_OFFSET, width);
-    putUnsignedShort(data, DIMENSIONS_OFFSET + Short.BYTES, height);
-    putUnsignedInt(data, FRAME_ID_OFFSET, frameId);
-    putUnsignedInt(data, REFERENCE_ID_OFFSET, referenceId);
+    Mcv2Decoder.putUnsignedInt(data, MAGIC_OFFSET, Mcv2Decoder.MAGIC);
+    Mcv2Decoder.putUnsignedInt(data, VERSION_OFFSET, Mcv2Decoder.VERSION);
+    Mcv2Decoder.putUnsignedShort(data, Mcv2Decoder.DIMENSIONS_OFFSET, width);
+    Mcv2Decoder.putUnsignedShort(data, Mcv2Decoder.DIMENSIONS_OFFSET + Short.BYTES, height);
+    Mcv2Decoder.putUnsignedInt(data, Mcv2Decoder.FRAME_ID_OFFSET, frameId);
+    Mcv2Decoder.putUnsignedInt(data, Mcv2Decoder.REFERENCE_ID_OFFSET, referenceId);
   }
 
   private static void writePresenceMasks(final byte[] data, final List<TreeNode> roots, final int groups) {
     int seen = 0;
     for (int group = 0; group < groups; group++) {
-      final long mask = presenceMask(roots, group * GROUP_ROOTS);
-      putUnsignedInt(data, HEADER_BYTES + group * Integer.BYTES, mask);
-      if (group % CHECKPOINT_GROUPS == 0) {
-        putUnsignedInt(data, HEADER_BYTES + (groups + group / CHECKPOINT_GROUPS) * Integer.BYTES, seen);
+      final long mask = presenceMask(roots, group * Mcv2Decoder.GROUP_ROOTS);
+      Mcv2Decoder.putUnsignedInt(data, Mcv2Decoder.HEADER_BYTES + group * Integer.BYTES, mask);
+      if (group % Mcv2Decoder.CHECKPOINT_GROUPS == 0) {
+        Mcv2Decoder.putUnsignedInt(data, Mcv2Decoder.HEADER_BYTES + (groups + group / Mcv2Decoder.CHECKPOINT_GROUPS) * Integer.BYTES, seen);
       }
       seen += Long.bitCount(mask);
     }
   }
 
   private static void writeLevelCounts(final byte[] data, final int countsAt, final int[] levels) {
-    for (int index = 0; index < BLOCK_SIZES; index++) {
-      putUnsignedInt(data, countsAt + index * Integer.BYTES, levels[index]);
+    for (int index = 0; index < Mcv2Decoder.BLOCK_SIZES; index++) {
+      Mcv2Decoder.putUnsignedInt(data, countsAt + index * Integer.BYTES, levels[index]);
     }
   }
 
@@ -1046,10 +1007,14 @@ public final class Mcv2 {
     int splits = 0;
     for (int index = 0; index < flat.size(); index++) {
       final TreeNode node = flat.get(index);
-      if (index % WALK_SPAN == 0) {
-        putUnsignedInt(data, walksAt + (index / WALK_SPAN) * Integer.BYTES, cursor | ((long) splits << CURSOR_BITS));
+      if (index % Mcv2Decoder.WALK_SPAN == 0) {
+        Mcv2Decoder.putUnsignedInt(
+          data,
+          walksAt + (index / Mcv2Decoder.WALK_SPAN) * Integer.BYTES,
+          cursor | ((long) splits << Mcv2Decoder.CURSOR_BITS)
+        );
       }
-      data[descriptorsAt + index] = (byte) (node.mode | (node.quantizer << QUANTIZER_SHIFT));
+      data[descriptorsAt + index] = (byte) (node.mode | (node.quantizer << Mcv2Decoder.QUANTIZER_SHIFT));
       if (node.isSplit()) {
         splits++;
         continue;
@@ -1074,15 +1039,15 @@ public final class Mcv2 {
   }
 
   private static void addChildren(final TreeNode node, final List<TreeNode> children) {
-    for (int corner = 0; corner < QUARTERS; corner++) {
+    for (int corner = 0; corner < Mcv2Decoder.QUARTERS; corner++) {
       children.add(node.getChild(corner));
     }
   }
 
   private static long presenceMask(final List<TreeNode> roots, final int from) {
     long mask = 0;
-    for (int index = from; index < Math.min(roots.size(), from + GROUP_ROOTS); index++) {
-      if (roots.get(index).mode != MODE_SKIP) {
+    for (int index = from; index < Math.min(roots.size(), from + Mcv2Decoder.GROUP_ROOTS); index++) {
+      if (roots.get(index).mode != Mcv2Decoder.MODE_SKIP) {
         mask |= 1L << (index - from);
       }
     }
@@ -1092,9 +1057,9 @@ public final class Mcv2 {
 
   private static void validateTree(final TreeNode node, final int size, final Mcv2FrameKind kind) {
     if (node.isSplit()) {
-      Preconditions.checkArgument(size > SMALLEST_BLOCK, "Split below the bounded depth!");
+      Preconditions.checkArgument(size > Mcv2Decoder.SMALLEST_BLOCK, "Split below the bounded depth!");
 
-      for (int corner = 0; corner < QUARTERS; corner++) {
+      for (int corner = 0; corner < Mcv2Decoder.QUARTERS; corner++) {
         validateTree(node.getChild(corner), size / QUARTERS_PER_SIDE, kind);
       }
 
@@ -1102,19 +1067,22 @@ public final class Mcv2 {
     }
 
     final int mode = node.mode;
-    Preconditions.checkArgument(mode <= MODE_COMPACT, "Leaf mode %s is illegal!", mode);
-    Preconditions.checkArgument(mode == MODE_COMPACT || node.quantizer == 0, "Quantizer on a mode without one!");
+    Preconditions.checkArgument(mode <= Mcv2Decoder.MODE_COMPACT, "Leaf mode %s is illegal!", mode);
+    Preconditions.checkArgument(mode == Mcv2Decoder.MODE_COMPACT || node.quantizer == 0, "Quantizer on a mode without one!");
     Preconditions.checkArgument(
-      kind == Mcv2FrameKind.PREDICTED || (mode != MODE_MOTION && mode != MODE_COMPACT),
+      kind == Mcv2FrameKind.PREDICTED || (mode != Mcv2Decoder.MODE_MOTION && mode != Mcv2Decoder.MODE_COMPACT),
       "The tree does not serialize to a valid frame: temporal keyframe leaf!"
     );
 
     final byte[] record = node.record;
-    final int length = recordSize(mode, size);
+    final int length = Mcv2Decoder.recordSize(mode, size);
     Preconditions.checkArgument(record.length == length, "Record length disagrees with its mode!");
 
-    if (mode == MODE_PATTERN) {
-      Preconditions.checkArgument((record[PALETTE_COLORS * CHANNELS] & BYTE_MASK) < PATTERN_ORIENTATIONS, "Invalid pattern orientation!");
+    if (mode == Mcv2Decoder.MODE_PATTERN) {
+      Preconditions.checkArgument(
+        (record[PALETTE_COLORS * Mcv2Decoder.CHANNELS] & BYTE_MASK) < PATTERN_ORIENTATIONS,
+        "Invalid pattern orientation!"
+      );
     }
   }
 
@@ -1152,9 +1120,9 @@ public final class Mcv2 {
   }
 
   private static void writePattern(final byte[] paletteRecord, final int size, final int orientation, final byte[] patternOutput) {
-    System.arraycopy(paletteRecord, 0, patternOutput, 0, PALETTE_COLORS * CHANNELS);
-    patternOutput[PALETTE_COLORS * CHANNELS] = (byte) orientation;
-    final int arrayOffset = PALETTE_COLORS * CHANNELS + 1;
+    System.arraycopy(paletteRecord, 0, patternOutput, 0, PALETTE_COLORS * Mcv2Decoder.CHANNELS);
+    patternOutput[PALETTE_COLORS * Mcv2Decoder.CHANNELS] = (byte) orientation;
+    final int arrayOffset = PALETTE_COLORS * Mcv2Decoder.CHANNELS + 1;
     Arrays.fill(patternOutput, arrayOffset, arrayOffset + size / Byte.SIZE, (byte) 0);
     for (int position = 0; position < size; position++) {
       final int value = orientation == 0 ? paletteBit(paletteRecord, position) : paletteBit(paletteRecord, position * size);
@@ -1178,7 +1146,7 @@ public final class Mcv2 {
   ) {
     if (node.isSplit()) {
       final int half = size / QUARTERS_PER_SIDE;
-      for (int corner = 0; corner < QUARTERS; corner++) {
+      for (int corner = 0; corner < Mcv2Decoder.QUARTERS; corner++) {
         fillMotion(
           field,
           width,
@@ -1195,11 +1163,11 @@ public final class Mcv2 {
 
     final byte[] record = node.record;
     final int mode = node.mode;
-    final int vector = mode == MODE_MOTION || mode == MODE_COMPACT ? packMotion(record[0], record[1]) : 0;
-    final int columns = (width + SMALLEST_BLOCK - 1) / SMALLEST_BLOCK;
-    for (int row = top; row < Math.min(top + size, height); row += SMALLEST_BLOCK) {
-      for (int column = left; column < Math.min(left + size, width); column += SMALLEST_BLOCK) {
-        field[(row / SMALLEST_BLOCK) * columns + column / SMALLEST_BLOCK] = vector;
+    final int vector = mode == Mcv2Decoder.MODE_MOTION || mode == Mcv2Decoder.MODE_COMPACT ? packMotion(record[0], record[1]) : 0;
+    final int columns = (width + Mcv2Decoder.SMALLEST_BLOCK - 1) / Mcv2Decoder.SMALLEST_BLOCK;
+    for (int row = top; row < Math.min(top + size, height); row += Mcv2Decoder.SMALLEST_BLOCK) {
+      for (int column = left; column < Math.min(left + size, width); column += Mcv2Decoder.SMALLEST_BLOCK) {
+        field[(row / Mcv2Decoder.SMALLEST_BLOCK) * columns + column / Mcv2Decoder.SMALLEST_BLOCK] = vector;
       }
     }
   }
@@ -1212,7 +1180,7 @@ public final class Mcv2 {
       }
 
       final byte[] decoded = this.verificationPicture;
-      final int bands = (frame.getHeight() + ROOT_SIZE - 1) / ROOT_SIZE;
+      final int bands = (frame.getHeight() + Mcv2Decoder.ROOT_SIZE - 1) / Mcv2Decoder.ROOT_SIZE;
       final AtomicReference<@Nullable Mcv2Exception> failure = new AtomicReference<>();
       final AtomicBoolean same = new AtomicBoolean(true);
       this.workers.forEach(bands, band -> this.verifyBand(frame, pending, decoded, band, failure, same));
@@ -1237,8 +1205,8 @@ public final class Mcv2 {
     final AtomicReference<@Nullable Mcv2Exception> failure,
     final AtomicBoolean same
   ) {
-    final int from = band * ROOT_SIZE;
-    final int to = Math.min(frame.getHeight(), from + ROOT_SIZE);
+    final int from = band * Mcv2Decoder.ROOT_SIZE;
+    final int to = Math.min(frame.getHeight(), from + Mcv2Decoder.ROOT_SIZE);
     try {
       Mcv2Decoder.decodeRows(frame, pending.predictFrom, pending.referenceId, decoded, from, to);
     } catch (final Mcv2Exception exception) {
@@ -1246,8 +1214,8 @@ public final class Mcv2 {
       return;
     }
 
-    final int first = from * frame.getWidth() * CHANNELS;
-    final int last = to * frame.getWidth() * CHANNELS;
+    final int first = from * frame.getWidth() * Mcv2Decoder.CHANNELS;
+    final int last = to * frame.getWidth() * Mcv2Decoder.CHANNELS;
     if (!Arrays.equals(decoded, first, last, pending.picture, first, last)) {
       same.set(false);
     }
@@ -1868,7 +1836,7 @@ public final class Mcv2 {
     }
 
     private static int luma(final byte[] sourcePixels, final int pixel) {
-      final int arrayOffset = pixel * CHANNELS;
+      final int arrayOffset = pixel * Mcv2Decoder.CHANNELS;
       return (
         (sourcePixels[arrayOffset] & BYTE_MASK) +
         LUMA_GREEN_WEIGHT * (sourcePixels[arrayOffset + GREEN_OFFSET] & BYTE_MASK) +
@@ -1915,13 +1883,13 @@ public final class Mcv2 {
     private Buffers(final int width, final int height) {
       this.width = width;
       this.height = height;
-      this.columns = (width + ROOT_SIZE - 1) / ROOT_SIZE;
-      this.roots = this.columns * ((height + ROOT_SIZE - 1) / ROOT_SIZE);
-      this.pictures = new byte[PICTURE_BUFFERS][width * height * CHANNELS];
+      this.columns = (width + Mcv2Decoder.ROOT_SIZE - 1) / Mcv2Decoder.ROOT_SIZE;
+      this.roots = this.columns * ((height + Mcv2Decoder.ROOT_SIZE - 1) / Mcv2Decoder.ROOT_SIZE);
+      this.pictures = new byte[PICTURE_BUFFERS][width * height * Mcv2Decoder.CHANNELS];
       final int halfWidth = (width + 1) / PYRAMID_SCALE;
       final int halfHeight = (height + 1) / PYRAMID_SCALE;
-      this.half = new byte[halfWidth * halfHeight * CHANNELS];
-      this.quarter = new byte[((halfWidth + 1) / PYRAMID_SCALE) * ((halfHeight + 1) / PYRAMID_SCALE) * CHANNELS];
+      this.half = new byte[halfWidth * halfHeight * Mcv2Decoder.CHANNELS];
+      this.quarter = new byte[((halfWidth + 1) / PYRAMID_SCALE) * ((halfHeight + 1) / PYRAMID_SCALE) * Mcv2Decoder.CHANNELS];
     }
 
     @SuppressWarnings("ReferenceEquality") // pictures are pooled buffers told apart by identity, not content
@@ -1977,9 +1945,9 @@ public final class Mcv2 {
 
     private int previousMotion(final int column, final int row) {
       final int[] field = this.previousMotion;
-      final int cellColumn = Math.min(Math.max(column, 0), this.width - 1) / SMALLEST_BLOCK;
-      final int cellRow = Math.min(Math.max(row, 0), this.height - 1) / SMALLEST_BLOCK;
-      return field[cellRow * ((this.width + SMALLEST_BLOCK - 1) / SMALLEST_BLOCK) + cellColumn];
+      final int cellColumn = Math.min(Math.max(column, 0), this.width - 1) / Mcv2Decoder.SMALLEST_BLOCK;
+      final int cellRow = Math.min(Math.max(row, 0), this.height - 1) / Mcv2Decoder.SMALLEST_BLOCK;
+      return field[cellRow * ((this.width + Mcv2Decoder.SMALLEST_BLOCK - 1) / Mcv2Decoder.SMALLEST_BLOCK) + cellColumn];
     }
   }
 
@@ -2064,27 +2032,27 @@ public final class Mcv2 {
       this.record = new byte[MAXIMUM_RECORD];
       this.palette = new byte[MAXIMUM_RECORD];
       this.fit = new float[GRID_NODES];
-      this.colors = new int[PALETTE_COLORS * CHANNELS];
+      this.colors = new int[PALETTE_COLORS * Mcv2Decoder.CHANNELS];
       this.seeds = new int[MOTION_SEEDS];
       this.halfSeeds = new int[MOTION_SEEDS];
       this.quarterSeeds = new int[MOTION_SEEDS];
       this.coarseSeed = new int[1];
-      this.clusters = new int[PALETTE_COLORS * CHANNELS];
+      this.clusters = new int[PALETTE_COLORS * Mcv2Decoder.CHANNELS];
       this.bestRecord = new byte[MAXIMUM_RECORD];
       this.localVector = NO_VECTOR;
       this.frame = frame;
       this.size = size;
       this.count = size * size;
       this.kernels = kernels;
-      this.source = new int[this.count * CHANNELS];
+      this.source = new int[this.count * Mcv2Decoder.CHANNELS];
       this.target = new float[this.count];
-      this.zeroPrediction = new int[this.count * CHANNELS];
-      this.localPrediction = new int[this.count * CHANNELS];
-      this.reconstruction = new int[this.count * CHANNELS];
-      this.best = new int[this.count * CHANNELS];
+      this.zeroPrediction = new int[this.count * Mcv2Decoder.CHANNELS];
+      this.localPrediction = new int[this.count * Mcv2Decoder.CHANNELS];
+      this.reconstruction = new int[this.count * Mcv2Decoder.CHANNELS];
+      this.best = new int[this.count * Mcv2Decoder.CHANNELS];
       this.selectors = new byte[this.count];
-      this.halfSource = new int[((size * size) / HALF_AREA_DIVISOR) * CHANNELS];
-      this.quarterSource = new int[((size * size) / QUARTER_AREA_DIVISOR) * CHANNELS];
+      this.halfSource = new int[((size * size) / HALF_AREA_DIVISOR) * Mcv2Decoder.CHANNELS];
+      this.quarterSource = new int[((size * size) / QUARTER_AREA_DIVISOR) * Mcv2Decoder.CHANNELS];
     }
 
     private void code(final int left, final int top, final int parent) {
@@ -2105,9 +2073,9 @@ public final class Mcv2 {
       final int right = Math.min(this.size, this.frame.width - left);
       final int bottom = Math.min(this.size, this.frame.height - top);
       for (int row = 0; row < bottom; row++) {
-        final int from = row * this.size * CHANNELS;
-        final int destinationOffset = ((top + row) * this.frame.width + left) * CHANNELS;
-        for (int offset = 0; offset < right * CHANNELS; offset++) {
+        final int from = row * this.size * Mcv2Decoder.CHANNELS;
+        final int destinationOffset = ((top + row) * this.frame.width + left) * Mcv2Decoder.CHANNELS;
+        for (int offset = 0; offset < right * Mcv2Decoder.CHANNELS; offset++) {
           picture[destinationOffset + offset] = (byte) this.best[from + offset];
         }
       }
@@ -2136,14 +2104,14 @@ public final class Mcv2 {
       this.predict(ZERO_MOTION, this.zeroPrediction);
       this.startMode(SKIP_BYTES);
       this.kernels.predicted(this.zeroPrediction, this.size, this.reconstruction);
-      this.score(MODE_SKIP, NO_QUANTIZER, SKIP_BYTES);
+      this.score(Mcv2Decoder.MODE_SKIP, Mcv2Decoder.NO_QUANTIZER, SKIP_BYTES);
 
       if (this.hurried || this.cost() <= (this.frame.fast ? FAST_SKIP_BITS : NORMAL_SKIP_BITS) * this.frame.lambda) {
         this.skipped = true;
         return;
       }
 
-      this.localVector = this.size == SMALLEST_BLOCK ? parent : this.searchMotion(parent);
+      this.localVector = this.size == Mcv2Decoder.SMALLEST_BLOCK ? parent : this.searchMotion(parent);
       this.predict(this.localVector, this.localPrediction);
       final boolean closer = this.localVector != 0 && this.scoreMotion();
       if (closer) {
@@ -2164,7 +2132,7 @@ public final class Mcv2 {
         return false;
       }
 
-      this.score(MODE_MOTION, NO_QUANTIZER, MOTION_BYTES);
+      this.score(Mcv2Decoder.MODE_MOTION, Mcv2Decoder.NO_QUANTIZER, MOTION_BYTES);
 
       return true;
     }
@@ -2174,7 +2142,7 @@ public final class Mcv2 {
     }
 
     private void startMode(final int length) {
-      final double bits = length == 0 && this.size == ROOT_SIZE ? PRESENCE_BITS : INDEX_BITS;
+      final double bits = length == 0 && this.size == Mcv2Decoder.ROOT_SIZE ? PRESENCE_BITS : INDEX_BITS;
       this.rate = Math.min(this.frame.lambda * (length * Byte.SIZE + bits), Double.MAX_VALUE);
       final double best = this.cost();
       this.kernels.start(this.source, this.rate, best);
@@ -2206,11 +2174,11 @@ public final class Mcv2 {
     }
 
     private void copyFromRoot(final BlockCoder root, final int[] from, final int[] output) {
-      final int rowLength = this.size * CHANNELS;
+      final int rowLength = this.size * Mcv2Decoder.CHANNELS;
       for (int row = 0; row < this.size; row++) {
         System.arraycopy(
           from,
-          ((this.top - root.top + row) * ROOT_SIZE + this.left - root.left) * CHANNELS,
+          ((this.top - root.top + row) * Mcv2Decoder.ROOT_SIZE + this.left - root.left) * Mcv2Decoder.CHANNELS,
           output,
           row * rowLength,
           rowLength
@@ -2284,7 +2252,7 @@ public final class Mcv2 {
       final int[] source = half ? this.halfSource : this.quarterSource;
       this.kernels.halve(half ? this.source : this.halfSource, (this.size * PYRAMID_SCALE) / divisor, source);
       int[] seeds = half ? this.halfSeeds : this.quarterSeeds;
-      if (half && !frame.fast && this.size == ROOT_SIZE) {
+      if (half && !frame.fast && this.size == Mcv2Decoder.ROOT_SIZE) {
         this.coarseSeed[0] = this.coarseMotion(QUARTER_SCALE);
         seeds = this.coarseSeed;
       } else {
@@ -2308,7 +2276,7 @@ public final class Mcv2 {
     }
 
     private void evaluateSolid() {
-      this.startMode(CHANNELS);
+      this.startMode(Mcv2Decoder.CHANNELS);
       if (!this.isRateBelowBestCost()) {
         return;
       }
@@ -2317,9 +2285,9 @@ public final class Mcv2 {
       long greenSum = 0;
       long blueSum = 0;
       for (int pixel = 0; pixel < this.count; pixel++) {
-        redSum += this.source[pixel * CHANNELS];
-        greenSum += this.source[pixel * CHANNELS + GREEN_OFFSET];
-        blueSum += this.source[pixel * CHANNELS + BLUE_OFFSET];
+        redSum += this.source[pixel * Mcv2Decoder.CHANNELS];
+        greenSum += this.source[pixel * Mcv2Decoder.CHANNELS + GREEN_OFFSET];
+        blueSum += this.source[pixel * Mcv2Decoder.CHANNELS + BLUE_OFFSET];
       }
 
       final int red = (int) ((redSum + this.count / ROUNDING_DIVISOR) / this.count);
@@ -2330,12 +2298,12 @@ public final class Mcv2 {
       this.record[BLUE_OFFSET] = (byte) blue;
 
       if (this.kernels.solid((red << RED_SHIFT) | (green << GREEN_SHIFT) | blue, this.size, this.reconstruction)) {
-        this.score(MODE_SOLID, NO_QUANTIZER, CHANNELS);
+        this.score(Mcv2Decoder.MODE_SOLID, Mcv2Decoder.NO_QUANTIZER, Mcv2Decoder.CHANNELS);
       }
     }
 
     private void evaluatePattern() {
-      final int length = patternSize(this.size);
+      final int length = Mcv2Decoder.patternSize(this.size);
       this.startMode(length);
       if (!this.isRateBelowBestCost()) {
         return;
@@ -2349,12 +2317,12 @@ public final class Mcv2 {
       writePatternRecord(this.palette, this.size, this.record);
 
       if (this.kernels.palette(this.palette, this.size, this.reconstruction)) {
-        this.score(MODE_PATTERN, NO_QUANTIZER, length);
+        this.score(Mcv2Decoder.MODE_PATTERN, Mcv2Decoder.NO_QUANTIZER, length);
       }
     }
 
     private void evaluatePalette() {
-      final int length = recordSize(MODE_PALETTE, this.size);
+      final int length = Mcv2Decoder.recordSize(Mcv2Decoder.MODE_PALETTE, this.size);
       this.startMode(length);
       if (!this.isRateBelowBestCost()) {
         return;
@@ -2364,7 +2332,7 @@ public final class Mcv2 {
       this.writePalette(this.record);
 
       if (this.kernels.palette(this.record, this.size, this.reconstruction)) {
-        this.score(MODE_PALETTE, NO_QUANTIZER, length);
+        this.score(Mcv2Decoder.MODE_PALETTE, Mcv2Decoder.NO_QUANTIZER, length);
       }
     }
 
@@ -2378,7 +2346,7 @@ public final class Mcv2 {
     }
 
     private void writePalette(final byte[] target) {
-      for (int index = 0; index < PALETTE_COLORS * CHANNELS; index++) {
+      for (int index = 0; index < PALETTE_COLORS * Mcv2Decoder.CHANNELS; index++) {
         target[index] = (byte) this.colors[index];
       }
 
@@ -2389,7 +2357,7 @@ public final class Mcv2 {
     }
 
     private void compact(final int vector, final int[] prediction) {
-      this.startMode(COMPACT_BYTES);
+      this.startMode(Mcv2Decoder.COMPACT_BYTES);
       if (!this.isRateBelowBestCost()) {
         return;
       }
@@ -2407,7 +2375,7 @@ public final class Mcv2 {
       }
 
       if (this.kernels.compact(prediction, this.record, quantizer, this.size, this.reconstruction)) {
-        this.score(MODE_COMPACT, quantizer, COMPACT_BYTES);
+        this.score(Mcv2Decoder.MODE_COMPACT, quantizer, Mcv2Decoder.COMPACT_BYTES);
       }
     }
   }
@@ -2489,9 +2457,9 @@ public final class Mcv2 {
       Level.SCALAR,
     };
 
-    private static final FunctionDescriptor QUERY = FunctionDescriptor.of(JAVA_INT);
+    private static final FunctionDescriptor QUERY = FunctionDescriptor.of(ValueLayout.JAVA_INT);
 
-    private static final FunctionDescriptor LEVELS = FunctionDescriptor.of(JAVA_INT, JAVA_LONG);
+    private static final FunctionDescriptor LEVELS = FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_LONG);
 
     private static final String OPERATING_SYSTEM_NAME_PROPERTY = "os.name";
     private static final String PROCESSOR_ARCHITECTURE_PROPERTY = "os.arch";
@@ -2834,55 +2802,85 @@ public final class Mcv2 {
     private static final String HALVE_KERNEL = "halve";
     private static final String RESIDUAL_TARGET_KERNEL = "residual_target";
 
-    private static final FunctionDescriptor SCORED_PREDICTION = scored(ADDRESS, JAVA_INT);
-    private static final FunctionDescriptor SCORED_SOLID = scored(JAVA_INT, JAVA_INT);
-    private static final FunctionDescriptor SCORED_COMPACT = scored(ADDRESS, ADDRESS, JAVA_INT, JAVA_INT);
-
-    private static final FunctionDescriptor PREDICT = FunctionDescriptor.ofVoid(
-      ADDRESS,
-      JAVA_INT,
-      JAVA_INT,
-      JAVA_INT,
-      JAVA_INT,
-      JAVA_INT,
-      JAVA_INT,
-      JAVA_INT,
-      ADDRESS
+    private static final FunctionDescriptor SCORED_PREDICTION = scored(ValueLayout.ADDRESS, ValueLayout.JAVA_INT);
+    private static final FunctionDescriptor SCORED_SOLID = scored(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT);
+    private static final FunctionDescriptor SCORED_COMPACT = scored(
+      ValueLayout.ADDRESS,
+      ValueLayout.ADDRESS,
+      ValueLayout.JAVA_INT,
+      ValueLayout.JAVA_INT
     );
 
-    private static final FunctionDescriptor FIT = FunctionDescriptor.ofVoid(ADDRESS, JAVA_INT, ADDRESS, ADDRESS);
+    private static final FunctionDescriptor PREDICT = FunctionDescriptor.ofVoid(
+      ValueLayout.ADDRESS,
+      ValueLayout.JAVA_INT,
+      ValueLayout.JAVA_INT,
+      ValueLayout.JAVA_INT,
+      ValueLayout.JAVA_INT,
+      ValueLayout.JAVA_INT,
+      ValueLayout.JAVA_INT,
+      ValueLayout.JAVA_INT,
+      ValueLayout.ADDRESS
+    );
 
-    private static final FunctionDescriptor BLOCK_TO_ARRAY = FunctionDescriptor.ofVoid(ADDRESS, JAVA_INT, ADDRESS);
+    private static final FunctionDescriptor FIT = FunctionDescriptor.ofVoid(
+      ValueLayout.ADDRESS,
+      ValueLayout.JAVA_INT,
+      ValueLayout.ADDRESS,
+      ValueLayout.ADDRESS
+    );
 
-    private static final FunctionDescriptor ASSIGN = FunctionDescriptor.ofVoid(ADDRESS, JAVA_INT, ADDRESS, ADDRESS);
+    private static final FunctionDescriptor BLOCK_TO_ARRAY = FunctionDescriptor.ofVoid(
+      ValueLayout.ADDRESS,
+      ValueLayout.JAVA_INT,
+      ValueLayout.ADDRESS
+    );
 
-    private static final FunctionDescriptor ASSIGN_PATTERN = FunctionDescriptor.of(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, ADDRESS);
+    private static final FunctionDescriptor ASSIGN = FunctionDescriptor.ofVoid(
+      ValueLayout.ADDRESS,
+      ValueLayout.JAVA_INT,
+      ValueLayout.ADDRESS,
+      ValueLayout.ADDRESS
+    );
+
+    private static final FunctionDescriptor ASSIGN_PATTERN = FunctionDescriptor.of(
+      ValueLayout.JAVA_INT,
+      ValueLayout.ADDRESS,
+      ValueLayout.JAVA_INT,
+      ValueLayout.ADDRESS,
+      ValueLayout.ADDRESS
+    );
 
     private static final FunctionDescriptor SEEDED = FunctionDescriptor.of(
-      JAVA_INT,
-      ADDRESS,
-      JAVA_INT,
-      JAVA_INT,
-      ADDRESS,
-      JAVA_INT,
-      JAVA_INT,
-      JAVA_INT,
-      JAVA_INT,
-      ADDRESS,
-      JAVA_INT
+      ValueLayout.JAVA_INT,
+      ValueLayout.ADDRESS,
+      ValueLayout.JAVA_INT,
+      ValueLayout.JAVA_INT,
+      ValueLayout.ADDRESS,
+      ValueLayout.JAVA_INT,
+      ValueLayout.JAVA_INT,
+      ValueLayout.JAVA_INT,
+      ValueLayout.JAVA_INT,
+      ValueLayout.ADDRESS,
+      ValueLayout.JAVA_INT
     );
 
     private static final FunctionDescriptor LOAD_SOURCE = FunctionDescriptor.ofVoid(
-      ADDRESS,
-      JAVA_INT,
-      JAVA_INT,
-      JAVA_INT,
-      JAVA_INT,
-      JAVA_INT,
-      ADDRESS
+      ValueLayout.ADDRESS,
+      ValueLayout.JAVA_INT,
+      ValueLayout.JAVA_INT,
+      ValueLayout.JAVA_INT,
+      ValueLayout.JAVA_INT,
+      ValueLayout.JAVA_INT,
+      ValueLayout.ADDRESS
     );
 
-    private static final FunctionDescriptor RESIDUAL_TARGET = FunctionDescriptor.ofVoid(ADDRESS, ADDRESS, JAVA_INT, ADDRESS);
+    private static final FunctionDescriptor RESIDUAL_TARGET = FunctionDescriptor.ofVoid(
+      ValueLayout.ADDRESS,
+      ValueLayout.ADDRESS,
+      ValueLayout.JAVA_INT,
+      ValueLayout.ADDRESS
+    );
 
     private final Level level;
 
@@ -2926,7 +2924,12 @@ public final class Mcv2 {
     }
 
     private static FunctionDescriptor scored(final MemoryLayout... inputs) {
-      return FunctionDescriptor.of(JAVA_LONG, inputs).appendArgumentLayouts(ADDRESS, ADDRESS, JAVA_DOUBLE, JAVA_DOUBLE);
+      return FunctionDescriptor.of(ValueLayout.JAVA_LONG, inputs).appendArgumentLayouts(
+        ValueLayout.ADDRESS,
+        ValueLayout.ADDRESS,
+        ValueLayout.JAVA_DOUBLE,
+        ValueLayout.JAVA_DOUBLE
+      );
     }
 
     Level getLevel() {
@@ -3050,11 +3053,11 @@ public final class Mcv2 {
     }
 
     private void checkSize(final int size) {
-      Preconditions.checkArgument(isBlockSize(size), INVALID_BLOCK_SIZE_MESSAGE);
+      Preconditions.checkArgument(Mcv2Decoder.isBlockSize(size), INVALID_BLOCK_SIZE_MESSAGE);
     }
 
     private void checkBlock(final int length, final int size) {
-      this.checkLength(length, size * (long) size * CHANNELS);
+      this.checkLength(length, size * (long) size * Mcv2Decoder.CHANNELS);
     }
 
     private void checkLength(final int length, final long count) {
@@ -3097,10 +3100,10 @@ public final class Mcv2 {
 
     @Override
     public boolean compact(final int[] prediction, final byte[] record, final int quantizer, final int size, final int[] output) {
-      Preconditions.checkArgument(quantizer >= 0 && quantizer <= MAXIMUM_QUANTIZER, "Invalid quantizer!");
+      Preconditions.checkArgument(quantizer >= 0 && quantizer <= Mcv2Decoder.MAXIMUM_QUANTIZER, "Invalid quantizer!");
       this.checkScored(size, output);
       this.checkBlock(prediction.length, size);
-      this.checkLength(record.length, COMPACT_BYTES);
+      this.checkLength(record.length, Mcv2Decoder.COMPACT_BYTES);
 
       try {
         return this.recordDistortion(
@@ -3159,10 +3162,10 @@ public final class Mcv2 {
 
     private void checkPicture(final int length, final int width, final int height) {
       Preconditions.checkArgument(
-        width >= 1 && width <= MAXIMUM_DIMENSION && height >= 1 && height <= MAXIMUM_DIMENSION,
+        width >= 1 && width <= Mcv2Decoder.MAXIMUM_DIMENSION && height >= 1 && height <= Mcv2Decoder.MAXIMUM_DIMENSION,
         "Invalid picture size!"
       );
-      this.checkLength(length, width * (long) height * CHANNELS);
+      this.checkLength(length, width * (long) height * Mcv2Decoder.CHANNELS);
     }
 
     private void checkCoordinate(final int value) {
@@ -3179,7 +3182,7 @@ public final class Mcv2 {
         this.binding.fit.invokeExact(
           this.segmentOf(values),
           size,
-          this.segmentOf(FITTING_MATRICES[sizeIndex(size)]),
+          this.segmentOf(FITTING_MATRICES[Mcv2Decoder.sizeIndex(size)]),
           this.segmentOf(output)
         );
       } catch (final Throwable exception) {
@@ -3191,7 +3194,7 @@ public final class Mcv2 {
     public void cluster(final int[] source, final int size, final int[] endpoints) {
       this.checkSize(size);
       this.checkBlock(source.length, size);
-      this.checkLength(endpoints.length, PALETTE_COLORS * CHANNELS);
+      this.checkLength(endpoints.length, PALETTE_COLORS * Mcv2Decoder.CHANNELS);
 
       try {
         this.binding.cluster.invokeExact(this.segmentOf(source), size, this.segmentOf(endpoints));
@@ -3202,12 +3205,12 @@ public final class Mcv2 {
 
     @Override
     public void finishPalette(final int[] source, final int count, final int[] endpoints, final int[] colors, final byte[] selectors) {
-      Preconditions.checkArgument(count >= 0 && count <= ROOT_SIZE * ROOT_SIZE, INVALID_PIXEL_COUNT_MESSAGE);
-      this.checkLength(source.length, count * (long) CHANNELS);
+      Preconditions.checkArgument(count >= 0 && count <= Mcv2Decoder.ROOT_SIZE * Mcv2Decoder.ROOT_SIZE, INVALID_PIXEL_COUNT_MESSAGE);
+      this.checkLength(source.length, count * (long) Mcv2Decoder.CHANNELS);
       this.checkLength(selectors.length, count);
-      this.checkLength(colors.length, PALETTE_COLORS * CHANNELS);
+      this.checkLength(colors.length, PALETTE_COLORS * Mcv2Decoder.CHANNELS);
 
-      System.arraycopy(endpoints, 0, colors, 0, PALETTE_COLORS * CHANNELS);
+      System.arraycopy(endpoints, 0, colors, 0, PALETTE_COLORS * Mcv2Decoder.CHANNELS);
       try {
         this.binding.assign.invokeExact(this.segmentOf(source), count, this.segmentOf(colors), this.segmentOf(selectors));
       } catch (final Throwable exception) {
@@ -3220,9 +3223,9 @@ public final class Mcv2 {
       this.checkSize(size);
       this.checkBlock(source.length, size);
       this.checkLength(selectors.length, size * (long) size);
-      this.checkLength(colors.length, PALETTE_COLORS * CHANNELS);
+      this.checkLength(colors.length, PALETTE_COLORS * Mcv2Decoder.CHANNELS);
 
-      System.arraycopy(endpoints, 0, colors, 0, PALETTE_COLORS * CHANNELS);
+      System.arraycopy(endpoints, 0, colors, 0, PALETTE_COLORS * Mcv2Decoder.CHANNELS);
       try {
         return (
           (int) this.binding.assignPattern.invokeExact(this.segmentOf(source), size, this.segmentOf(colors), this.segmentOf(selectors)) != 0
@@ -3294,7 +3297,10 @@ public final class Mcv2 {
     @Override
     public void halve(final int[] block, final int size, final int[] output) {
       // SIMD row steps require power-of-two block sizes to avoid array overruns.
-      Preconditions.checkArgument(size >= PYRAMID_SCALE && size <= ROOT_SIZE && Integer.bitCount(size) == 1, INVALID_BLOCK_SIZE_MESSAGE);
+      Preconditions.checkArgument(
+        size >= PYRAMID_SCALE && size <= Mcv2Decoder.ROOT_SIZE && Integer.bitCount(size) == 1,
+        INVALID_BLOCK_SIZE_MESSAGE
+      );
       this.checkBlock(block.length, size);
       this.checkBlock(output.length, size / PYRAMID_SCALE);
 
@@ -3307,9 +3313,9 @@ public final class Mcv2 {
 
     @Override
     public void residualTarget(final int[] source, final int[] prediction, final int count, final float[] target) {
-      Preconditions.checkArgument(count >= 0 && count <= ROOT_SIZE * ROOT_SIZE, INVALID_PIXEL_COUNT_MESSAGE);
-      this.checkLength(source.length, count * (long) CHANNELS);
-      this.checkLength(prediction.length, count * (long) CHANNELS);
+      Preconditions.checkArgument(count >= 0 && count <= Mcv2Decoder.ROOT_SIZE * Mcv2Decoder.ROOT_SIZE, INVALID_PIXEL_COUNT_MESSAGE);
+      this.checkLength(source.length, count * (long) Mcv2Decoder.CHANNELS);
+      this.checkLength(prediction.length, count * (long) Mcv2Decoder.CHANNELS);
       this.checkLength(target.length, count);
 
       try {
@@ -3413,8 +3419,8 @@ public final class Mcv2 {
 
     private boolean scoreRow(final int[] output, final int from, final int pixels) {
       int sum = 0;
-      final int end = from + pixels * CHANNELS;
-      for (int offset = from; offset < end; offset += CHANNELS) {
+      final int end = from + pixels * Mcv2Decoder.CHANNELS;
+      for (int offset = from; offset < end; offset += Mcv2Decoder.CHANNELS) {
         sum += pixelError(
           this.source[offset] - output[offset],
           this.source[offset + GREEN_OFFSET] - output[offset + GREEN_OFFSET],
@@ -3446,9 +3452,9 @@ public final class Mcv2 {
     private JavaKernels() {
       this.score = new Score();
       this.nodes = new int[GRID_NODES];
-      this.rows = new int[GRID * ROOT_SIZE];
-      this.line = new int[ROOT_SIZE];
-      this.fitScratch = new double[ROOT_SIZE * GRID];
+      this.rows = new int[GRID * Mcv2Decoder.ROOT_SIZE];
+      this.line = new int[Mcv2Decoder.ROOT_SIZE];
+      this.fitScratch = new double[Mcv2Decoder.ROOT_SIZE * GRID];
       this.clusterScratch = new long[CLUSTER_SUMS];
     }
 
@@ -3459,7 +3465,7 @@ public final class Mcv2 {
 
     @Override
     public boolean predicted(final int[] prediction, final int size, final int[] output) {
-      final int rowLength = size * CHANNELS;
+      final int rowLength = size * Mcv2Decoder.CHANNELS;
       for (int row = 0; row < size; row++) {
         final int from = row * rowLength;
         System.arraycopy(prediction, from, output, from, rowLength);
@@ -3477,11 +3483,11 @@ public final class Mcv2 {
       final int green = (color >> GREEN_SHIFT) & BYTE_MASK;
       final int blue = color & BYTE_MASK;
       for (int row = 0; row < size; row++) {
-        final int from = row * size * CHANNELS;
+        final int from = row * size * Mcv2Decoder.CHANNELS;
         for (int column = 0; column < size; column++) {
-          output[from + column * CHANNELS] = red;
-          output[from + column * CHANNELS + GREEN_OFFSET] = green;
-          output[from + column * CHANNELS + BLUE_OFFSET] = blue;
+          output[from + column * Mcv2Decoder.CHANNELS] = red;
+          output[from + column * Mcv2Decoder.CHANNELS + GREEN_OFFSET] = green;
+          output[from + column * Mcv2Decoder.CHANNELS + BLUE_OFFSET] = blue;
         }
         if (!this.score.scoreRow(output, from, size)) {
           return false;
@@ -3497,12 +3503,12 @@ public final class Mcv2 {
         for (int column = 0; column < size; column++) {
           final int pixel = row * size + column;
           final int bit = (record[SELECTORS_AT + pixel / Byte.SIZE] >> (pixel % Byte.SIZE)) & 1;
-          final int arrayOffset = bit * CHANNELS;
-          output[pixel * CHANNELS] = record[arrayOffset] & BYTE_MASK;
-          output[pixel * CHANNELS + GREEN_OFFSET] = record[arrayOffset + GREEN_OFFSET] & BYTE_MASK;
-          output[pixel * CHANNELS + BLUE_OFFSET] = record[arrayOffset + BLUE_OFFSET] & BYTE_MASK;
+          final int arrayOffset = bit * Mcv2Decoder.CHANNELS;
+          output[pixel * Mcv2Decoder.CHANNELS] = record[arrayOffset] & BYTE_MASK;
+          output[pixel * Mcv2Decoder.CHANNELS + GREEN_OFFSET] = record[arrayOffset + GREEN_OFFSET] & BYTE_MASK;
+          output[pixel * Mcv2Decoder.CHANNELS + BLUE_OFFSET] = record[arrayOffset + BLUE_OFFSET] & BYTE_MASK;
         }
-        if (!this.score.scoreRow(output, row * size * CHANNELS, size)) {
+        if (!this.score.scoreRow(output, row * size * Mcv2Decoder.CHANNELS, size)) {
           return false;
         }
       }
@@ -3513,25 +3519,25 @@ public final class Mcv2 {
     @Override
     public boolean compact(final int[] prediction, final byte[] record, final int quantizer, final int size, final int[] output) {
       for (int index = 0; index < GRID_NODES; index++) {
-        this.nodes[index] = signed(
+        this.nodes[index] = Mcv2Decoder.signed(
           (record[MOTION_BYTES + index / NODES_PER_BYTE] & BYTE_MASK) >> ((index % NODES_PER_BYTE) * NODE_BITS),
           NODE_BITS
         );
       }
 
-      interpolateHorizontally(this.nodes, size, this.rows);
+      Mcv2Decoder.interpolateHorizontally(this.nodes, size, this.rows);
 
       final int shift = INTERPOLATED_AXES * (Integer.numberOfTrailingZeros(size) + 1);
       final int scale = HALF_PIXEL_SCALE * HALF_PIXEL_SCALE * size * size;
       for (int row = 0; row < size; row++) {
         this.interpolateVertically(size, row);
-        final int from = row * size * CHANNELS;
+        final int from = row * size * Mcv2Decoder.CHANNELS;
         for (int column = 0; column < size; column++) {
-          final int arrayOffset = from + column * CHANNELS;
+          final int arrayOffset = from + column * Mcv2Decoder.CHANNELS;
           final int scaled = this.line[column] << quantizer;
-          output[arrayOffset] = roundToChannel(prediction[arrayOffset] * scale + scaled, shift);
-          output[arrayOffset + GREEN_OFFSET] = roundToChannel(prediction[arrayOffset + GREEN_OFFSET] * scale + scaled, shift);
-          output[arrayOffset + BLUE_OFFSET] = roundToChannel(prediction[arrayOffset + BLUE_OFFSET] * scale + scaled, shift);
+          output[arrayOffset] = Mcv2Decoder.roundToChannel(prediction[arrayOffset] * scale + scaled, shift);
+          output[arrayOffset + GREEN_OFFSET] = Mcv2Decoder.roundToChannel(prediction[arrayOffset + GREEN_OFFSET] * scale + scaled, shift);
+          output[arrayOffset + BLUE_OFFSET] = Mcv2Decoder.roundToChannel(prediction[arrayOffset + BLUE_OFFSET] * scale + scaled, shift);
         }
         if (!this.score.scoreRow(output, from, size)) {
           return false;
@@ -3542,10 +3548,10 @@ public final class Mcv2 {
     }
 
     private void interpolateVertically(final int size, final int row) {
-      final int index = sizeIndex(size);
-      final int top = GRID_LOWER[index][row] * size;
-      final int bottom = GRID_UPPER[index][row] * size;
-      final int below = GRID_WEIGHTS[index][row];
+      final int index = Mcv2Decoder.sizeIndex(size);
+      final int top = Mcv2Decoder.GRID_LOWER[index][row] * size;
+      final int bottom = Mcv2Decoder.GRID_UPPER[index][row] * size;
+      final int below = Mcv2Decoder.GRID_WEIGHTS[index][row];
       final int above = HALF_PIXEL_SCALE * size - below;
       for (int column = 0; column < size; column++) {
         this.line[column] = this.rows[top + column] * above + this.rows[bottom + column] * below;
@@ -3567,9 +3573,9 @@ public final class Mcv2 {
       final int left = blockLeft + motionX;
       final int top = blockTop + motionY;
       if (left >= 0 && top >= 0 && left + size <= width && top + size <= height) {
-        final int rowLength = size * CHANNELS;
+        final int rowLength = size * Mcv2Decoder.CHANNELS;
         for (int row = 0; row < size; row++) {
-          final int from = ((top + row) * width + left) * CHANNELS;
+          final int from = ((top + row) * width + left) * Mcv2Decoder.CHANNELS;
           this.widen(reference, from, output, row * rowLength, rowLength);
         }
 
@@ -3580,8 +3586,8 @@ public final class Mcv2 {
         final int sourceRow = Math.min(Math.max(top + row, 0), height - 1);
         for (int column = 0; column < size; column++) {
           final int sourceColumn = Math.min(Math.max(left + column, 0), width - 1);
-          final int from = (sourceRow * width + sourceColumn) * CHANNELS;
-          this.widen(reference, from, output, (row * size + column) * CHANNELS, CHANNELS);
+          final int from = (sourceRow * width + sourceColumn) * Mcv2Decoder.CHANNELS;
+          this.widen(reference, from, output, (row * size + column) * Mcv2Decoder.CHANNELS, Mcv2Decoder.CHANNELS);
         }
       }
     }
@@ -3594,7 +3600,7 @@ public final class Mcv2 {
 
     @Override
     public void fit(final float[] values, final int size, final float[] output) {
-      final float[] matrix = FITTING_MATRICES[sizeIndex(size)];
+      final float[] matrix = FITTING_MATRICES[Mcv2Decoder.sizeIndex(size)];
       for (int row = 0; row < size; row++) {
         for (int nodeColumn = 0; nodeColumn < GRID; nodeColumn++) {
           this.fitScratch[row * GRID + nodeColumn] = this.fitRow(values, matrix, size, row, nodeColumn);
@@ -3647,7 +3653,7 @@ public final class Mcv2 {
       for (int sample = 0; sample < samplesPerSide * samplesPerSide; sample++) {
         final int row = (sample / samplesPerSide) * step;
         final int column = (sample % samplesPerSide) * step;
-        final int arrayOffset = (row * size + column) * CHANNELS;
+        final int arrayOffset = (row * size + column) * Mcv2Decoder.CHANNELS;
         final int luma = source[arrayOffset] + LUMA_GREEN_WEIGHT * source[arrayOffset + GREEN_OFFSET] + source[arrayOffset + BLUE_OFFSET];
         if (luma < lowLuma) {
           lowLuma = luma;
@@ -3659,16 +3665,16 @@ public final class Mcv2 {
         }
       }
 
-      for (int channel = 0; channel < CHANNELS; channel++) {
+      for (int channel = 0; channel < Mcv2Decoder.CHANNELS; channel++) {
         endpoints[channel] = source[low + channel];
-        endpoints[CHANNELS + channel] = source[high + channel];
+        endpoints[Mcv2Decoder.CHANNELS + channel] = source[high + channel];
       }
     }
 
     private void assignClusters(final int[] source, final int size, final int step, final int[] endpoints) {
       for (int row = 0; row < size; row += step) {
         for (int column = 0; column < size; column += step) {
-          this.assignCluster(source, (row * size + column) * CHANNELS, endpoints);
+          this.assignCluster(source, (row * size + column) * Mcv2Decoder.CHANNELS, endpoints);
         }
       }
     }
@@ -3678,11 +3684,11 @@ public final class Mcv2 {
       final int green = source[arrayOffset + GREEN_OFFSET];
       final int blue = source[arrayOffset + BLUE_OFFSET];
       final int firstDistance = this.squaredDistance(red, green, blue, endpoints, 0);
-      final int secondDistance = this.squaredDistance(red, green, blue, endpoints, CHANNELS);
+      final int secondDistance = this.squaredDistance(red, green, blue, endpoints, Mcv2Decoder.CHANNELS);
       final int nearest = secondDistance < firstDistance ? 1 : 0;
-      this.clusterScratch[nearest * CHANNELS] += red;
-      this.clusterScratch[nearest * CHANNELS + GREEN_OFFSET] += green;
-      this.clusterScratch[nearest * CHANNELS + BLUE_OFFSET] += blue;
+      this.clusterScratch[nearest * Mcv2Decoder.CHANNELS] += red;
+      this.clusterScratch[nearest * Mcv2Decoder.CHANNELS + GREEN_OFFSET] += green;
+      this.clusterScratch[nearest * Mcv2Decoder.CHANNELS + BLUE_OFFSET] += blue;
       this.clusterScratch[CLUSTER_COUNTS_OFFSET + nearest]++;
     }
 
@@ -3699,16 +3705,16 @@ public final class Mcv2 {
         if (members <= 0) {
           continue;
         }
-        for (int channel = 0; channel < CHANNELS; channel++) {
-          final long mean = (this.clusterScratch[endpoint * CHANNELS + channel] + members / ROUNDING_DIVISOR) / members;
-          endpoints[endpoint * CHANNELS + channel] = (int) mean;
+        for (int channel = 0; channel < Mcv2Decoder.CHANNELS; channel++) {
+          final long mean = (this.clusterScratch[endpoint * Mcv2Decoder.CHANNELS + channel] + members / ROUNDING_DIVISOR) / members;
+          endpoints[endpoint * Mcv2Decoder.CHANNELS + channel] = (int) mean;
         }
       }
     }
 
     @Override
     public void finishPalette(final int[] source, final int count, final int[] endpoints, final int[] colors, final byte[] selectors) {
-      System.arraycopy(endpoints, 0, colors, 0, PALETTE_COLORS * CHANNELS);
+      System.arraycopy(endpoints, 0, colors, 0, PALETTE_COLORS * Mcv2Decoder.CHANNELS);
       for (int pixel = 0; pixel < count; pixel++) {
         selectors[pixel] = nearest(source, pixel, colors);
       }
@@ -3716,7 +3722,7 @@ public final class Mcv2 {
 
     @Override
     public boolean finishPattern(final int[] source, final int size, final int[] endpoints, final int[] colors, final byte[] selectors) {
-      System.arraycopy(endpoints, 0, colors, 0, PALETTE_COLORS * CHANNELS);
+      System.arraycopy(endpoints, 0, colors, 0, PALETTE_COLORS * Mcv2Decoder.CHANNELS);
       boolean uniformColumns = true;
       boolean uniformRows = true;
       for (int row = 0; row < size && (uniformColumns || uniformRows); row++) {
@@ -3743,7 +3749,7 @@ public final class Mcv2 {
       final int range,
       final int[] seeds
     ) {
-      final int[] samples = SAMPLES[sizeIndex(size)];
+      final int[] samples = SAMPLES[Mcv2Decoder.sizeIndex(size)];
       final MotionSearch search = new MotionSearch(reference, width, height, source, left, top, size, samples);
       return seededMotion(search, range, seeds);
     }
@@ -3751,22 +3757,22 @@ public final class Mcv2 {
     @Override
     public void halve(final int[] block, final int size, final int[] output) {
       final int half = size / PYRAMID_SCALE;
-      final int rowLength = size * CHANNELS;
+      final int rowLength = size * Mcv2Decoder.CHANNELS;
       for (int row = 0; row < half; row++) {
         for (int column = 0; column < half; column++) {
-          final int arrayOffset = (PYRAMID_SCALE * row * size + PYRAMID_SCALE * column) * CHANNELS;
-          this.averageQuad(block, arrayOffset, rowLength, output, (row * half + column) * CHANNELS);
+          final int arrayOffset = (PYRAMID_SCALE * row * size + PYRAMID_SCALE * column) * Mcv2Decoder.CHANNELS;
+          this.averageQuad(block, arrayOffset, rowLength, output, (row * half + column) * Mcv2Decoder.CHANNELS);
         }
       }
     }
 
     private void averageQuad(final int[] block, final int arrayOffset, final int rowLength, final int[] output, final int outputOffset) {
-      for (int channel = 0; channel < CHANNELS; channel++) {
+      for (int channel = 0; channel < Mcv2Decoder.CHANNELS; channel++) {
         final int sum =
           block[arrayOffset + channel] +
-          block[arrayOffset + CHANNELS + channel] +
+          block[arrayOffset + Mcv2Decoder.CHANNELS + channel] +
           block[arrayOffset + rowLength + channel] +
-          block[arrayOffset + rowLength + CHANNELS + channel];
+          block[arrayOffset + rowLength + Mcv2Decoder.CHANNELS + channel];
         output[outputOffset + channel] = (sum + QUAD_AVERAGE_ROUNDING) >> QUAD_AVERAGE_SHIFT;
       }
     }
@@ -3785,8 +3791,8 @@ public final class Mcv2 {
         final int sourceRow = Math.min(blockTop + row, height - 1);
         for (int column = 0; column < size; column++) {
           final int sourceColumn = Math.min(blockLeft + column, width - 1);
-          final int from = (sourceRow * width + sourceColumn) * CHANNELS;
-          final int destinationOffset = (row * size + column) * CHANNELS;
+          final int from = (sourceRow * width + sourceColumn) * Mcv2Decoder.CHANNELS;
+          final int destinationOffset = (row * size + column) * Mcv2Decoder.CHANNELS;
           source[destinationOffset] = image[from] & BYTE_MASK;
           source[destinationOffset + GREEN_OFFSET] = image[from + GREEN_OFFSET] & BYTE_MASK;
           source[destinationOffset + BLUE_OFFSET] = image[from + BLUE_OFFSET] & BYTE_MASK;
@@ -3797,7 +3803,7 @@ public final class Mcv2 {
     @Override
     public void residualTarget(final int[] source, final int[] prediction, final int count, final float[] target) {
       for (int pixel = 0; pixel < count; pixel++) {
-        final int offset = pixel * CHANNELS;
+        final int offset = pixel * Mcv2Decoder.CHANNELS;
         final float luma =
           (source[offset] + LUMA_GREEN_WEIGHT * source[offset + GREEN_OFFSET] + source[offset + BLUE_OFFSET]) * LUMA_NORMALIZATION;
         final float red = prediction[offset];
@@ -3876,8 +3882,8 @@ public final class Mcv2 {
         final int row = (this.blockTop + this.samples[sampleRow] + motionY) * this.width + this.blockLeft + motionX;
         final int line = this.samples[sampleRow] * this.size;
         for (int sampleColumn = 0; sampleColumn < SAMPLES_PER_SIDE; sampleColumn++) {
-          final int arrayOffset = (row + this.samples[sampleColumn]) * CHANNELS;
-          final int target = (line + this.samples[sampleColumn]) * CHANNELS;
+          final int arrayOffset = (row + this.samples[sampleColumn]) * Mcv2Decoder.CHANNELS;
+          final int target = (line + this.samples[sampleColumn]) * Mcv2Decoder.CHANNELS;
           sum += this.pixelDistance(arrayOffset, target);
         }
       }
@@ -3891,8 +3897,8 @@ public final class Mcv2 {
         final int row = Math.min(Math.max(this.blockTop + this.samples[sampleRow] + motionY, 0), this.height - 1);
         for (int sampleColumn = 0; sampleColumn < SAMPLES_PER_SIDE; sampleColumn++) {
           final int column = Math.min(Math.max(this.blockLeft + this.samples[sampleColumn] + motionX, 0), this.width - 1);
-          final int arrayOffset = (row * this.width + column) * CHANNELS;
-          final int target = (this.samples[sampleRow] * this.size + this.samples[sampleColumn]) * CHANNELS;
+          final int arrayOffset = (row * this.width + column) * Mcv2Decoder.CHANNELS;
+          final int target = (this.samples[sampleRow] * this.size + this.samples[sampleColumn]) * Mcv2Decoder.CHANNELS;
           sum += this.pixelDistance(arrayOffset, target);
         }
       }
@@ -3902,7 +3908,7 @@ public final class Mcv2 {
 
     private long pixelDistance(final int arrayOffset, final int target) {
       long sum = 0;
-      for (int channel = 0; channel < CHANNELS; channel++) {
+      for (int channel = 0; channel < Mcv2Decoder.CHANNELS; channel++) {
         sum += Math.abs((this.reference[arrayOffset + channel] & BYTE_MASK) - this.source[target + channel]);
       }
 
@@ -3936,13 +3942,14 @@ public final class Mcv2 {
       this.steady = (frame.fast ? FAST_STEADY_SPLIT_BITS : NORMAL_STEADY_SPLIT_BITS) * frame.lambda;
       this.roots = new TreeNode[buffers.roots];
       this.leafCounts = new int[buffers.roots];
-      this.motion = new int[((frame.width + SMALLEST_BLOCK - 1) / SMALLEST_BLOCK) * ((frame.height + SMALLEST_BLOCK - 1) / SMALLEST_BLOCK)];
+      this.motion = new int[((frame.width + Mcv2Decoder.SMALLEST_BLOCK - 1) / Mcv2Decoder.SMALLEST_BLOCK) *
+        ((frame.height + Mcv2Decoder.SMALLEST_BLOCK - 1) / Mcv2Decoder.SMALLEST_BLOCK)];
       this.splits = new boolean[buffers.roots];
     }
 
     void searchRoot(final BlockCoder[] coders, final int index) {
-      final int left = (index % this.columns) * ROOT_SIZE;
-      final int top = (index / this.columns) * ROOT_SIZE;
+      final int left = (index % this.columns) * Mcv2Decoder.ROOT_SIZE;
+      final int top = (index / this.columns) * Mcv2Decoder.ROOT_SIZE;
       final double threshold = !this.frame.keyframe && !this.before[index] ? this.steady : this.rootThreshold;
       final boolean late = this.late.getAsBoolean();
       for (final BlockCoder coder : coders) {
@@ -3954,14 +3961,14 @@ public final class Mcv2 {
       final TreeNode root = chosen.node();
       this.roots[index] = root;
       this.splits[index] = root.isSplit();
-      fillMotion(this.motion, this.frame.width, this.frame.height, root, left, top, ROOT_SIZE);
+      fillMotion(this.motion, this.frame.width, this.frame.height, root, left, top, Mcv2Decoder.ROOT_SIZE);
       this.leafCounts[index] = chosen.leaves();
     }
   }
 
   private static final class TreeNode {
 
-    private static final TreeNode SKIP = new TreeNode(MODE_SKIP, 0, NO_BYTES, null);
+    private static final TreeNode SKIP = new TreeNode(Mcv2Decoder.MODE_SKIP, 0, NO_BYTES, null);
 
     private final int mode;
     private final int quantizer;
@@ -3980,11 +3987,11 @@ public final class Mcv2 {
     }
 
     private static TreeNode leaf(final int mode, final int quantizer, final byte[] record) {
-      return mode == MODE_SKIP ? skip() : new TreeNode(mode, quantizer, record, null);
+      return mode == Mcv2Decoder.MODE_SKIP ? skip() : new TreeNode(mode, quantizer, record, null);
     }
 
     private static TreeNode split(final TreeNode topLeft, final TreeNode topRight, final TreeNode bottomLeft, final TreeNode bottomRight) {
-      return new TreeNode(MODE_SPLIT, 0, NO_BYTES, new TreeNode[] { topLeft, topRight, bottomLeft, bottomRight });
+      return new TreeNode(Mcv2Decoder.MODE_SPLIT, 0, NO_BYTES, new TreeNode[] { topLeft, topRight, bottomLeft, bottomRight });
     }
 
     private TreeNode getChild(final int index) {

@@ -17,8 +17,6 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2.transport;
 
-import static me.brandonli.mcav.bukkit.media.mcv2.transport.MapAlphabet.SYMBOL_BITS;
-
 import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.List;
@@ -112,7 +110,7 @@ public final class TransportPages {
    * @since 1.0.0
    */
   public static int capacity() {
-    return (PAGE_SYMBOLS * SYMBOL_BITS) / Byte.SIZE - HEADER_BYTES;
+    return (PAGE_SYMBOLS * MapAlphabet.SYMBOL_BITS) / Byte.SIZE - HEADER_BYTES;
   }
 
   /**
@@ -146,10 +144,10 @@ public final class TransportPages {
     for (final byte value : data) {
       buffer |= Byte.toUnsignedLong(value) << held;
       held += Byte.SIZE;
-      while (held >= SYMBOL_BITS) {
+      while (held >= MapAlphabet.SYMBOL_BITS) {
         symbols[written++] = (byte) (buffer & SYMBOL_MASK);
-        buffer >>>= SYMBOL_BITS;
-        held -= SYMBOL_BITS;
+        buffer >>>= MapAlphabet.SYMBOL_BITS;
+        held -= MapAlphabet.SYMBOL_BITS;
       }
     }
 
@@ -161,7 +159,7 @@ public final class TransportPages {
   }
 
   private static long symbolCount(final long bytes) {
-    return (bytes * Byte.SIZE + SYMBOL_BITS - 1) / SYMBOL_BITS;
+    return (bytes * Byte.SIZE + MapAlphabet.SYMBOL_BITS - 1) / MapAlphabet.SYMBOL_BITS;
   }
 
   /**
@@ -193,7 +191,7 @@ public final class TransportPages {
         throw new Mcv2Exception(message);
       }
       buffer |= (long) value << held;
-      held += SYMBOL_BITS;
+      held += MapAlphabet.SYMBOL_BITS;
       while (held >= Byte.SIZE) {
         data[written++] = (byte) buffer;
         buffer >>>= Byte.SIZE;
@@ -261,7 +259,7 @@ public final class TransportPages {
 
     Mcv2Decoder.putUnsignedInt(page, MAGIC_OFFSET, MAGIC);
     page[VERSION_OFFSET] = VERSION;
-    page[SYMBOL_BITS_OFFSET] = (byte) SYMBOL_BITS;
+    page[SYMBOL_BITS_OFFSET] = (byte) MapAlphabet.SYMBOL_BITS;
     Mcv2Decoder.putUnsignedShort(page, TYPE_OFFSET, parsed.isKeyframe() ? KEYFRAME_FLAGS : PREDICTED_FRAME_FLAGS);
     Mcv2Decoder.putUnsignedInt(page, STREAM_OFFSET, streamId);
     Mcv2Decoder.putUnsignedInt(page, FRAME_OFFSET, parsed.getFrameId());
@@ -320,7 +318,7 @@ public final class TransportPages {
     int written = 0;
     for (int symbolIndex = 0; symbolIndex < headerSymbols; symbolIndex++) {
       buffer |= (long) (symbols[symbolIndex] & SYMBOL_MASK) << held;
-      held += SYMBOL_BITS;
+      held += MapAlphabet.SYMBOL_BITS;
       while (held >= Byte.SIZE) {
         header[written++] = (byte) buffer;
         buffer >>>= Byte.SIZE;
@@ -336,7 +334,7 @@ public final class TransportPages {
     if (
       Mcv2Decoder.readUnsignedInt(header, MAGIC_OFFSET) != MAGIC ||
       header[VERSION_OFFSET] != VERSION ||
-      Byte.toUnsignedInt(header[SYMBOL_BITS_OFFSET]) != SYMBOL_BITS ||
+      Byte.toUnsignedInt(header[SYMBOL_BITS_OFFSET]) != MapAlphabet.SYMBOL_BITS ||
       Mcv2Decoder.readUnsignedShort(header, TYPE_OFFSET) > KEYFRAME_FLAGS
     ) {
       final String message = "Unsupported page header!";
@@ -394,7 +392,7 @@ public final class TransportPages {
       Mcv2Decoder.readUnsignedInt(pageBytes, REFERENCE_OFFSET),
       (int) Mcv2Decoder.readUnsignedInt(pageBytes, LENGTH_OFFSET),
       Mcv2Decoder.readUnsignedShort(pageBytes, TYPE_OFFSET),
-      SYMBOL_BITS,
+      MapAlphabet.SYMBOL_BITS,
       payload
     );
   }
