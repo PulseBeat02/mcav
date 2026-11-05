@@ -187,7 +187,9 @@ final class StandardVideoHologramTest {
     final Hologram hologram = Hologram.basic();
     final Optional<TextDisplay> display = hologram.getDisplay();
     assertInstanceOf(StandardVideoHologram.class, hologram);
-    assertTrue(display.isEmpty(), "nothing is spawned before a request");
+
+    final boolean nothingSpawned = display.isEmpty();
+    assertTrue(nothingSpawned, "nothing is spawned before a request");
   }
 
   @Test
@@ -433,7 +435,8 @@ final class StandardVideoHologramTest {
     hologram.kill();
     final Optional<TextDisplay> afterKill = hologram.getDisplay();
     final int tasks = this.server.getScheduledTaskCount();
-    assertTrue(afterKill.isEmpty());
+    final boolean displayAbsentAfterKill = afterKill.isEmpty();
+    assertTrue(displayAbsentAfterKill);
     assertEquals(0, tasks);
     verify(display, times(1)).remove();
   }

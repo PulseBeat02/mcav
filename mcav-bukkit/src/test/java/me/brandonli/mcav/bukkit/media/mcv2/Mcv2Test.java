@@ -355,7 +355,8 @@ final class Mcv2Test {
       assertThrows(IllegalStateException.class, () -> encoder.begin(new byte[3], 1, 1, 2));
 
       final Optional<Mcv2.Statistics> statistics = encoder.getStatistics();
-      assertTrue(statistics.isEmpty());
+      final boolean statisticsAbsent = statistics.isEmpty();
+      assertTrue(statisticsAbsent);
     }
   }
 
@@ -371,10 +372,13 @@ final class Mcv2Test {
 
       final Mcv2 encoder = new Mcv2(Mcv2.Settings.DEFAULT, pool, 1, Mcv2.Verification.UNVERIFIED);
       final Optional<byte[]> initialReference = encoder.getReference();
-      assertTrue(initialReference.isEmpty());
+      final boolean initialReferenceAbsent = initialReference.isEmpty();
+      assertTrue(initialReferenceAbsent);
 
       final Optional<Mcv2.Statistics> statistics = encoder.getStatistics();
-      assertTrue(statistics.isEmpty());
+      final boolean statisticsAbsent = statistics.isEmpty();
+      assertTrue(statisticsAbsent);
+
       assertThrows(IllegalArgumentException.class, () -> encoder.setFrameBudget(-1));
       assertThrows(IllegalArgumentException.class, () -> encoder.setFrameLimit(-1));
       assertThrows(IllegalArgumentException.class, () -> encoder.encode(new byte[3], 0, 1, 0));

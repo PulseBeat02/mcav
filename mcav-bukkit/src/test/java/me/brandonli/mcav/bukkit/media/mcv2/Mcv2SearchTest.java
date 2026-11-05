@@ -255,8 +255,9 @@ final class Mcv2SearchTest {
     for (int index = 0; index < nodes.length; index++) {
       final int[] field = new int[1];
       fillMotion(field, 8, 8, nodes[index], 0, 0, 8);
+      final int expectedMotion = expected[index];
       final int motion = field[0];
-      assertEquals(expected[index], motion);
+      assertEquals(expectedMotion, motion);
     }
   }
 

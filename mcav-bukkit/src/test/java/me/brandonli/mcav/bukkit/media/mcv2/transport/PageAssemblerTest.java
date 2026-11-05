@@ -75,10 +75,12 @@ final class PageAssemblerTest {
     assertEquals(2, pageCount);
 
     final Optional<byte[]> firstPush = assembler.push(page(1));
-    assertTrue(firstPush.isEmpty());
+    final boolean firstPushIncomplete = firstPush.isEmpty();
+    assertTrue(firstPushIncomplete);
 
     final Optional<byte[]> duplicatePush = assembler.push(page(1));
-    assertTrue(duplicatePush.isEmpty());
+    final boolean duplicatePushIncomplete = duplicatePush.isEmpty();
+    assertTrue(duplicatePushIncomplete);
 
     final int pendingCountBeforeCompletion = assembler.getPendingCount();
     assertEquals(1, pendingCountBeforeCompletion);
@@ -118,7 +120,8 @@ final class PageAssemblerTest {
   void shouldDropAFrameWhosePagesDisagree(final String field, final byte[] first, final byte[] second) {
     final PageAssembler assembler = new PageAssembler(3, 6);
     final Optional<byte[]> firstPush = assembler.push(first);
-    assertTrue(firstPush.isEmpty());
+    final boolean firstPushIncomplete = firstPush.isEmpty();
+    assertTrue(firstPushIncomplete);
 
     final Mcv2Exception exception = assertThrows(Mcv2Exception.class, () -> assembler.push(second));
     final String message = exception.getMessage();
@@ -146,18 +149,21 @@ final class PageAssemblerTest {
     final PageAssembler assembler = new PageAssembler(3, 6);
     for (int id = 1; id <= 4; id++) {
       final Optional<byte[]> pending = assembler.push(rewritten(page(0), 12, id));
-      assertTrue(pending.isEmpty());
+      final boolean framePending = pending.isEmpty();
+      assertTrue(framePending);
     }
 
     // frame 0 evicts frame 1, then frame 1 starts again and evicts frame 2
     final Optional<byte[]> firstEviction = assembler.push(page(0));
-    assertTrue(firstEviction.isEmpty());
+    final boolean firstEvictionIncomplete = firstEviction.isEmpty();
+    assertTrue(firstEvictionIncomplete);
 
     final int pendingCountAfterFirstEviction = assembler.getPendingCount();
     assertEquals(PageAssembler.MAXIMUM_PENDING, pendingCountAfterFirstEviction);
 
     final Optional<byte[]> secondEviction = assembler.push(rewritten(page(1), 12, 1));
-    assertTrue(secondEviction.isEmpty());
+    final boolean secondEvictionIncomplete = secondEviction.isEmpty();
+    assertTrue(secondEvictionIncomplete);
 
     final int pendingCountAfterSecondEviction = assembler.getPendingCount();
     assertEquals(PageAssembler.MAXIMUM_PENDING, pendingCountAfterSecondEviction);

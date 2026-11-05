@@ -196,7 +196,8 @@ final class Mcv2PacerTest {
     final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL));
     // nothing is judged before the video's frame rate is known
     final Optional<Mcv2Pacer.Change> unknownRateChange = pacer.reportEncodedFrame(500, Mcv2FrameKind.PREDICTED, 0);
-    assertTrue(unknownRateChange.isEmpty());
+    final boolean changeAbsentBeforeRateKnown = unknownRateChange.isEmpty();
+    assertTrue(changeAbsentBeforeRateKnown);
 
     final Driver driver = new Driver(pacer, 60, -5 * SECOND);
     final Mcv2Pacer.@Nullable Change change = driver.play(3, 5);
@@ -215,7 +216,9 @@ final class Mcv2PacerTest {
     assertEquals(60, frameRateAfterSameTime, 0.1);
 
     final Optional<Mcv2Pacer.Change> instantChange = pacer.reportEncodedFrame(0, Mcv2FrameKind.PREDICTED, 0);
-    assertTrue(instantChange.isEmpty());
+    final boolean instantChangeAbsent = instantChange.isEmpty();
+    assertTrue(instantChangeAbsent);
+
     assertThrows(IllegalArgumentException.class, () -> pacer.reportEncodedFrame(-1, Mcv2FrameKind.PREDICTED, 0));
     assertThrows(IllegalArgumentException.class, () -> pacer.reportEncodedFrame(Double.NaN, Mcv2FrameKind.PREDICTED, 0));
     assertThrows(IllegalArgumentException.class, () -> pacer.reportEncodedFrame(Double.POSITIVE_INFINITY, Mcv2FrameKind.PREDICTED, 0));
@@ -232,7 +235,8 @@ final class Mcv2PacerTest {
         Mcv2FrameKind.KEYFRAME,
         driver.now + (frameNumber * SECOND) / 60
       );
-      assertTrue(change.isEmpty());
+      final boolean changeAbsent = change.isEmpty();
+      assertTrue(changeAbsent);
     }
 
     final Mcv2Pacer.Rung expectedRung = pacer.getLadder().getFirst();
@@ -447,7 +451,8 @@ final class Mcv2PacerTest {
     assertFalse(encoded);
 
     final Optional<Mcv2Pacer.Change> reported = pacer.reportEncodedFrame(1, Mcv2FrameKind.PREDICTED, driver.now);
-    assertTrue(reported.isEmpty());
+    final boolean reportedChangeAbsent = reported.isEmpty();
+    assertTrue(reportedChangeAbsent);
 
     // 30 seconds after it fell back, the lowest encoded rung is tried, which fails again two seconds later (ten frames
     // at 10 fps, then a second over its time)

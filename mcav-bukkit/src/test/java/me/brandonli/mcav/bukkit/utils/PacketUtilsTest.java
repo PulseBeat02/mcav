@@ -126,7 +126,8 @@ final class PacketUtilsTest {
     assertNotSame(original, second);
 
     final Optional<Object> late = PacketUtils.findConnectionIdentity(LATE);
-    assertTrue(late.isEmpty());
+    final boolean lateConnectionAbsent = late.isEmpty();
+    assertTrue(lateConnectionAbsent);
 
     final Listener listener = this.captureListener(1);
     final EventExecutor join = this.captureExecutor(PlayerJoinEvent.class, EventPriority.LOWEST);
@@ -149,7 +150,8 @@ final class PacketUtilsTest {
 
     PacketUtils.shutdown();
     final Optional<Object> afterShutdown = PacketUtils.findConnectionIdentity(FIRST);
-    assertTrue(afterShutdown.isEmpty());
+    final boolean connectionAbsentAfterShutdown = afterShutdown.isEmpty();
+    assertTrue(connectionAbsentAfterShutdown);
 
     final NullPointerException exception = assertThrows(NullPointerException.class, () -> PacketUtils.findConnectionIdentity(null));
     final @Nullable String message = exception.getMessage();

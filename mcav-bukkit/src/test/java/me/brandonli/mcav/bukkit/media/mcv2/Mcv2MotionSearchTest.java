@@ -36,10 +36,13 @@ final class Mcv2MotionSearchTest {
     final int[][] vectors = { { 0, 0 }, { 5, -3 }, { -7, 12 }, { -32768, 32767 }, { 32767, -32768 } };
     for (final int[] vector : vectors) {
       final int packed = pack(vector[0], vector[1]);
+      final int expectedMotionX = vector[0];
       final int motionX = motionX(packed);
-      assertEquals(vector[0], motionX);
+      assertEquals(expectedMotionX, motionX);
+
+      final int expectedMotionY = vector[1];
       final int motionY = motionY(packed);
-      assertEquals(vector[1], motionY);
+      assertEquals(expectedMotionY, motionY);
     }
   }
 

@@ -119,8 +119,11 @@ final class TransportPagesTest {
       final int expectedCount = pages.size();
       final int count = read.getCount();
       assertEquals(expectedCount, count);
+
+      final int expectedLength = page.length;
       final int usefulSymbols = TransportPages.usefulSymbols(Arrays.copyOf(page, TransportPages.PAGE_SYMBOLS));
-      assertEquals(page.length, usefulSymbols);
+      assertEquals(expectedLength, usefulSymbols);
+
       assembled = assembler.push(page).orElse(null);
     }
 
@@ -297,8 +300,9 @@ final class TransportPagesTest {
     // the useful extent follows from the header; padding symbols after it are not part of the page
     assertThrows(Mcv2Exception.class, () -> TransportPages.readPage(Arrays.copyOf(page, page.length + 1)));
 
+    final int expectedLength = page.length;
     final int usefulSymbols = TransportPages.usefulSymbols(page);
-    assertEquals(page.length, usefulSymbols);
+    assertEquals(expectedLength, usefulSymbols);
   }
 
   @Test

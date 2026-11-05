@@ -143,7 +143,9 @@ final class BlockPaletteLookupTest {
       final List<String> expected = List.of(STONE_MATERIAL_NAME, "DIRT");
       assertEquals(expected, names);
       assertEquals(6, blue);
-      assertTrue(reader.closed);
+
+      final boolean readerClosed = reader.closed;
+      assertTrue(readerClosed);
     }
   }
 

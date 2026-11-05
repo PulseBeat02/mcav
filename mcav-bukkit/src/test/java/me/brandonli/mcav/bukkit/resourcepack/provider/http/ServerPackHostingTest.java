@@ -120,7 +120,9 @@ final class ServerPackHostingTest {
 
     assertEquals(HTTP_OK, status);
     assertEquals("5", length);
-    assertEquals(0, body.length);
+
+    final int bodyLength = body.length;
+    assertEquals(0, bodyLength);
   }
 
   private void assertServesTheRebuiltPack(final int port) throws IOException, InterruptedException {

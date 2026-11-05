@@ -31,6 +31,9 @@ final class DeltaMapEncoderTest {
 
   private static final int LARGE_BUDGET = 1 << 20;
 
+  private static final int DEFAULT_BUDGET_KIBIBYTES = 128;
+  private static final int BYTES_PER_KIBIBYTE = 1024;
+
   private static final int MAP_SIZE = 128;
 
   private byte[] change(final byte[] image, final int imageWidth, final int left, final int top, final int width, final int height) {
@@ -100,7 +103,10 @@ final class DeltaMapEncoderTest {
     final MapLayout encoderLayout = encoder.getLayout();
 
     assertSame(layout, encoderLayout);
-    assertEquals(MAP_SIZE * 1024, DeltaMapEncoder.DEFAULT_MAXIMUM_BYTES_PER_FRAME);
+
+    final int expectedBudget = DEFAULT_BUDGET_KIBIBYTES * BYTES_PER_KIBIBYTE;
+    final int defaultBudget = DeltaMapEncoder.DEFAULT_MAXIMUM_BYTES_PER_FRAME;
+    assertEquals(expectedBudget, defaultBudget);
   }
 
   @Test

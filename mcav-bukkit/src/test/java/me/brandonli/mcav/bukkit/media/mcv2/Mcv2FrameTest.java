@@ -69,8 +69,11 @@ final class Mcv2FrameTest {
       assertArrayEquals(expected, reference);
       final long frameId = Mcv2Decoder.parse(data).getFrameId();
       assertEquals(index, frameId);
+
+      final int expectedLength = data.length;
       final int bytes = encoder.getStatistics().orElseThrow().getBytes();
-      assertEquals(data.length, bytes);
+      assertEquals(expectedLength, bytes);
+
       final boolean expectedKeyframe = index == 0;
       final boolean keyframe = encoder.getStatistics().orElseThrow().isKeyframe();
       assertEquals(expectedKeyframe, keyframe);
@@ -159,10 +162,12 @@ final class Mcv2FrameTest {
   void shouldStartWithAKeyframeAndPredictWhatFollows() {
     final Mcv2 encoder = this.encoder(Settings.DEFAULT);
     final Optional<Mcv2.Statistics> statistics = encoder.getStatistics();
-    assertTrue(statistics.isEmpty());
+    final boolean statisticsAbsent = statistics.isEmpty();
+    assertTrue(statisticsAbsent);
 
     final Optional<byte[]> reference = encoder.getReference();
-    assertTrue(reference.isEmpty());
+    final boolean referenceAbsent = reference.isEmpty();
+    assertTrue(referenceAbsent);
 
     final Client client = new Client();
     final byte[] picture = this.texture(64, 64, 1);
@@ -172,8 +177,9 @@ final class Mcv2FrameTest {
     final boolean keyframe = key.isKeyframe();
     assertTrue(keyframe);
 
+    final int expectedLength = first.length;
     final int bytes = key.getBytes();
-    assertEquals(first.length, bytes);
+    assertEquals(expectedLength, bytes);
 
     final boolean timed = key.getNanoseconds() > 0;
     assertTrue(timed);

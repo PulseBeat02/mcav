@@ -547,7 +547,8 @@ final class Mcv2ResultTest {
     final List<Mcv2Pacer.Change> changes = new ArrayList<>();
     result.setPacingListener(changes::add);
     final Optional<Mcv2Pacer.Rung> rungBeforePacing = result.getRung();
-    assertTrue(rungBeforePacing.isEmpty());
+    final boolean rungAbsentBeforePacing = rungBeforePacing.isEmpty();
+    assertTrue(rungAbsentBeforePacing);
 
     result.resetPacer();
 
@@ -624,7 +625,8 @@ final class Mcv2ResultTest {
     result.release();
 
     final Optional<Mcv2Pacer.Rung> rungAfterRelease = result.getRung();
-    assertTrue(rungAfterRelease.isEmpty());
+    final boolean rungAbsentAfterRelease = rungAfterRelease.isEmpty();
+    assertTrue(rungAbsentAfterRelease);
   }
 
   @Test
@@ -996,7 +998,8 @@ final class Mcv2ResultTest {
   void shouldPaceFromTheTopOfItsLadderOnceStarted() {
     final Mcv2Result result = this.result(this.configuration, null);
     final Optional<Mcv2Pacer.Rung> rungBeforeStart = result.getRung();
-    assertTrue(rungBeforeStart.isEmpty());
+    final boolean rungAbsentBeforeStart = rungBeforeStart.isEmpty();
+    assertTrue(rungAbsentBeforeStart);
 
     result.start();
     final Mcv2Pacer.Rung expectedRung = Mcv2Pacer.Rung.of(64, 32, 1);

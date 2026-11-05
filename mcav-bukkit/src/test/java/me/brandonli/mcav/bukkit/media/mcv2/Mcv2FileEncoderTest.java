@@ -192,8 +192,10 @@ final class Mcv2FileEncoderTest {
       final int pixelFormat = grabber.getPixelFormat();
       final int scalingFlags = grabber.getImageScalingFlags();
       final String threads = grabber.getVideoOption("threads");
-      assertEquals(avutil.AV_PIX_FMT_RGB24, pixelFormat);
-      assertEquals(swscale.SWS_AREA, scalingFlags);
+      final int expectedPixelFormat = avutil.AV_PIX_FMT_RGB24;
+      final int expectedScalingFlags = swscale.SWS_AREA;
+      assertEquals(expectedPixelFormat, pixelFormat);
+      assertEquals(expectedScalingFlags, scalingFlags);
       assertEquals("auto", threads);
     }
   }

@@ -246,8 +246,10 @@ final class FileServerHandlerFuzzTest {
     if (isGet) {
       final Object bodyMessage = answered.get(1);
       final FileRegion region = assertInstanceOf(FileRegion.class, bodyMessage);
+
+      final int expectedLength = content.length;
       final long regionCount = region.count();
-      assertEquals(content.length, regionCount, "the body is the whole file");
+      assertEquals(expectedLength, regionCount, "the body is the whole file");
 
       final byte[] body = this.transfer(region);
       assertArrayEquals(content, body, "the body is the file");

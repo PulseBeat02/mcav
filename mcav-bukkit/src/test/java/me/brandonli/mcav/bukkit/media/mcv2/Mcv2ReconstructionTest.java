@@ -27,8 +27,9 @@ final class Mcv2ReconstructionTest {
   @Test
   void shouldRoundHalvesUpAndClamp() {
     for (final int[] sample : new int[][] { { -768, 0 }, { 76800, 255 }, { 384, 2 }, { 640, 3 }, { 637, 2 } }) {
+      final int expectedChannel = sample[1];
       final int rounded = Mcv2Decoder.roundToChannel(sample[0], 8);
-      assertEquals(sample[1], rounded);
+      assertEquals(expectedChannel, rounded);
     }
   }
 

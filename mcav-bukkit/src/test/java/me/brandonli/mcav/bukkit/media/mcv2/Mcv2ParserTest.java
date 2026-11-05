@@ -84,8 +84,9 @@ final class Mcv2ParserTest {
     final boolean keyframe = parsed.isKeyframe();
     assertTrue(keyframe);
 
+    final int expectedLength = frame.length;
     final int dataLength = parsed.getData().length;
-    assertEquals(frame.length, dataLength);
+    assertEquals(expectedLength, dataLength);
 
     final byte[] data = parsed.getData();
     assertArrayEquals(frame, data);
