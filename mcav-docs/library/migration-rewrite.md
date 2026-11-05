@@ -195,6 +195,8 @@ even if their source still compiles. `AudioPipelineStepBuilder` and `VideoPipeli
 and their implementations are internal. `PipelineStep.next()` now returns an `Optional` of the next pipeline step
 rather than `Object`; custom steps must also implement `self` and the filter accessors, with the current audio
 processing contract. Prefer the supplied builders and `AudioPipelineStep.of` / `VideoPipelineStep.of` factories.
+The empty steps `AudioPipelineStep.NO_OP` and `VideoPipelineStep.NO_OP` are now `AudioPipelineStep.NO_OPERATION` and
+`VideoPipelineStep.NO_OPERATION`.
 The rewrite removes `FrameSource.getFrameSupplier()`; use the source's current frame-production interface rather than
 extracting its implementation supplier.
 

@@ -151,7 +151,7 @@ final class VideoRenderer implements RenderCallback {
 
     final VideoAttachableCallback callback = this.owner.getVideoAttachableCallback();
     final VideoPipelineStep step = callback.retrieve();
-    final boolean empty = step.isNoOp();
+    final boolean empty = step.isNoOperation();
     if (empty) {
       return;
     }

@@ -183,7 +183,7 @@ final class FfmpegPlayerTest {
     final Dimension size = Dimension.of(SCALED_WIDTH, 120);
     dimension.attach(size);
     final VideoFilter video = recordingWidth(frames, width);
-    attach(player, video, AudioFilter.NO_OP);
+    attach(player, video, AudioFilter.NO_OPERATION);
 
     final Path videoFile = TestMedia.video();
     final Source source = file(videoFile);
@@ -303,7 +303,7 @@ final class FfmpegPlayerTest {
     final AtomicInteger width = new AtomicInteger();
     final FfmpegPlayer player = neverDroppingPlayer();
     final VideoFilter video = recordingWidth(frames, width);
-    attach(player, video, AudioFilter.NO_OP);
+    attach(player, video, AudioFilter.NO_OPERATION);
 
     final FfmpegDirectSource generator = FfmpegDirectSource.mrl("testsrc=size=64x48:rate=30:duration=1", "lavfi");
     try {

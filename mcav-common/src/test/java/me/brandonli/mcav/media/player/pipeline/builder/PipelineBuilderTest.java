@@ -80,8 +80,8 @@ final class PipelineBuilderTest {
     final VideoPipelineStep videoStep = video.build();
     final AudioPipelineStep audioStep = audio.build();
     final int size = video.size();
-    assertSame(VideoPipelineStep.NO_OP, videoStep);
-    assertSame(AudioPipelineStep.NO_OP, audioStep);
+    assertSame(VideoPipelineStep.NO_OPERATION, videoStep);
+    assertSame(AudioPipelineStep.NO_OPERATION, audioStep);
     assertEquals(0, size);
   }
 

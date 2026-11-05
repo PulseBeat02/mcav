@@ -261,7 +261,7 @@ final class VideoRendererTest {
     final VideoFilter recorder = VlcTestFrames.recorder(this.frames);
     final VideoPipelineStep recording = VideoPipelineStep.of(recorder);
     final VideoAttachableCallback callback = mock(VideoAttachableCallback.class);
-    when(callback.retrieve()).thenReturn(VideoPipelineStep.NO_OP, recording);
+    when(callback.retrieve()).thenReturn(VideoPipelineStep.NO_OPERATION, recording);
     final DimensionAttachableCallback dimension = DimensionAttachableCallback.create();
     final VideoPlayerMultiplexer detachedOwner = mock(VideoPlayerMultiplexer.class);
     when(detachedOwner.getVideoAttachableCallback()).thenReturn(callback);

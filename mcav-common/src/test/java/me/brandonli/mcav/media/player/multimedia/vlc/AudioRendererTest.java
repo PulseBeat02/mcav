@@ -236,7 +236,7 @@ final class AudioRendererTest {
     final AudioFilter recorder = firstSampleRecorder(firstSamples);
     final AudioPipelineStep recording = AudioPipelineStep.of(recorder);
     final AudioAttachableCallback callback = mock(AudioAttachableCallback.class);
-    when(callback.retrieve()).thenReturn(AudioPipelineStep.NO_OP, recording);
+    when(callback.retrieve()).thenReturn(AudioPipelineStep.NO_OPERATION, recording);
     final VideoPlayerMultiplexer detachedOwner = mock(VideoPlayerMultiplexer.class);
     when(detachedOwner.getAudioAttachableCallback()).thenReturn(callback);
     final AudioRenderer detached = new AudioRenderer(detachedOwner);

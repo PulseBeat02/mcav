@@ -137,28 +137,28 @@ final class PipelineStepTest {
     final ImageBuffer image = mock(ImageBuffer.class);
     final ByteBuffer samples = ByteBuffer.allocate(SAMPLE_BUFFER_BYTES);
     final OriginalVideoMetadata videoMetadata = OriginalVideoMetadata.EMPTY;
-    VideoPipelineStep.NO_OP.processAll(image, videoMetadata);
-    AudioPipelineStep.NO_OP.processAll(samples, AUDIO_METADATA);
-    final Optional<VideoPipelineStep> videoNext = VideoPipelineStep.NO_OP.next();
-    final Optional<AudioPipelineStep> audioNext = AudioPipelineStep.NO_OP.next();
-    final VideoFilter videoFilter = VideoPipelineStep.NO_OP.getFilter();
-    final AudioFilter audioFilter = AudioPipelineStep.NO_OP.getFilter();
+    VideoPipelineStep.NO_OPERATION.processAll(image, videoMetadata);
+    AudioPipelineStep.NO_OPERATION.processAll(samples, AUDIO_METADATA);
+    final Optional<VideoPipelineStep> videoNext = VideoPipelineStep.NO_OPERATION.next();
+    final Optional<AudioPipelineStep> audioNext = AudioPipelineStep.NO_OPERATION.next();
+    final VideoFilter videoFilter = VideoPipelineStep.NO_OPERATION.getFilter();
+    final AudioFilter audioFilter = AudioPipelineStep.NO_OPERATION.getFilter();
     final boolean videoNextMissing = videoNext.isEmpty();
     final boolean audioNextMissing = audioNext.isEmpty();
     assertTrue(videoNextMissing);
     assertTrue(audioNextMissing);
-    assertSame(VideoFilter.NO_OP, videoFilter);
-    assertSame(AudioFilter.NO_OP, audioFilter);
+    assertSame(VideoFilter.NO_OPERATION, videoFilter);
+    assertSame(AudioFilter.NO_OPERATION, audioFilter);
   }
 
   @Test
   void shouldTreatOnlyTheEmptyPipelinesAsNoOperations() {
-    final VideoPipelineStep video = VideoPipelineStep.of(VideoFilter.NO_OP);
-    final AudioPipelineStep audio = AudioPipelineStep.of(AudioFilter.NO_OP);
-    final boolean emptyVideo = VideoPipelineStep.NO_OP.isNoOp();
-    final boolean emptyAudio = AudioPipelineStep.NO_OP.isNoOp();
-    final boolean videoStep = video.isNoOp();
-    final boolean audioStep = audio.isNoOp();
+    final VideoPipelineStep video = VideoPipelineStep.of(VideoFilter.NO_OPERATION);
+    final AudioPipelineStep audio = AudioPipelineStep.of(AudioFilter.NO_OPERATION);
+    final boolean emptyVideo = VideoPipelineStep.NO_OPERATION.isNoOperation();
+    final boolean emptyAudio = AudioPipelineStep.NO_OPERATION.isNoOperation();
+    final boolean videoStep = video.isNoOperation();
+    final boolean audioStep = audio.isNoOperation();
     assertTrue(emptyVideo);
     assertTrue(emptyAudio);
     assertFalse(videoStep, "a step that happens to do nothing is still a pipeline the user set");
@@ -169,8 +169,8 @@ final class PipelineStepTest {
   void shouldRejectMissingDataInEmptyPipelines() {
     final ImageBuffer image = mock(ImageBuffer.class);
     final ByteBuffer samples = ByteBuffer.allocate(SAMPLE_BUFFER_BYTES);
-    final VideoPipelineStep video = VideoPipelineStep.NO_OP;
-    final AudioPipelineStep audio = AudioPipelineStep.NO_OP;
+    final VideoPipelineStep video = VideoPipelineStep.NO_OPERATION;
+    final AudioPipelineStep audio = AudioPipelineStep.NO_OPERATION;
     assertThrows(NullPointerException.class, () -> video.process(null, OriginalVideoMetadata.EMPTY));
     assertThrows(NullPointerException.class, () -> video.process(image, null));
     assertThrows(NullPointerException.class, () -> audio.process(null, AUDIO_METADATA));
@@ -188,8 +188,8 @@ final class PipelineStepTest {
   @Test
   void shouldRejectMissingSamplesAndMetadata() {
     final ByteBuffer samples = ByteBuffer.allocate(SAMPLE_BUFFER_BYTES);
-    final VideoPipelineStep video = VideoPipelineStep.of(VideoFilter.NO_OP);
-    final AudioPipelineStep audio = AudioPipelineStep.of(AudioFilter.NO_OP);
+    final VideoPipelineStep video = VideoPipelineStep.of(VideoFilter.NO_OPERATION);
+    final AudioPipelineStep audio = AudioPipelineStep.of(AudioFilter.NO_OPERATION);
     try (final ImageBuffer image = mock(ImageBuffer.class)) {
       assertThrows(NullPointerException.class, () -> video.process(null, OriginalVideoMetadata.EMPTY));
       assertThrows(NullPointerException.class, () -> video.process(image, null));

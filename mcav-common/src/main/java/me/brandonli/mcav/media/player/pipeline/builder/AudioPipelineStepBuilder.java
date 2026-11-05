@@ -50,7 +50,7 @@ public interface AudioPipelineStepBuilder {
    * Links the filters into a new chain, first filter first, retaining the filter instances. The builder is
    * unchanged; appending more filters later does not alter this chain.
    *
-   * @return the first step, or {@link AudioPipelineStep#NO_OP} if no filter was added
+   * @return the first step, or {@link AudioPipelineStep#NO_OPERATION} if no filter was added
    * @since 1.0.0
    */
   AudioPipelineStep build();

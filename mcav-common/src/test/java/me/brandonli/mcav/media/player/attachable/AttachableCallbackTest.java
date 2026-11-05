@@ -37,18 +37,18 @@ final class AttachableCallbackTest {
     final VideoAttachableCallback callback = VideoAttachableCallback.create();
     final VideoPipelineStep initial = callback.retrieve();
     final boolean initiallyAttached = callback.isAttached();
-    final VideoPipelineStep step = VideoPipelineStep.of(VideoFilter.NO_OP);
+    final VideoPipelineStep step = VideoPipelineStep.of(VideoFilter.NO_OPERATION);
     callback.attach(step);
     final VideoPipelineStep attached = callback.retrieve();
     final boolean attachedState = callback.isAttached();
     callback.detach();
     final VideoPipelineStep detached = callback.retrieve();
     final boolean detachedState = callback.isAttached();
-    assertSame(VideoPipelineStep.NO_OP, initial);
+    assertSame(VideoPipelineStep.NO_OPERATION, initial);
     assertFalse(initiallyAttached);
     assertSame(step, attached);
     assertTrue(attachedState);
-    assertSame(VideoPipelineStep.NO_OP, detached);
+    assertSame(VideoPipelineStep.NO_OPERATION, detached);
     assertFalse(detachedState);
   }
 
@@ -56,12 +56,12 @@ final class AttachableCallbackTest {
   void shouldFallBackToTheEmptyPipelineInTheAudioCallback() {
     final AudioAttachableCallback callback = AudioAttachableCallback.create();
     final AudioPipelineStep initial = callback.retrieve();
-    final AudioPipelineStep step = AudioPipelineStep.of(AudioFilter.NO_OP);
+    final AudioPipelineStep step = AudioPipelineStep.of(AudioFilter.NO_OPERATION);
     callback.attach(step);
     final AudioPipelineStep attached = callback.retrieve();
     callback.detach();
     final boolean detachedState = callback.isAttached();
-    assertSame(AudioPipelineStep.NO_OP, initial);
+    assertSame(AudioPipelineStep.NO_OPERATION, initial);
     assertSame(step, attached);
     assertFalse(detachedState);
   }

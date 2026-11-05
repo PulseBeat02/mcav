@@ -29,8 +29,8 @@ shows the frames:
 ```
 
 A single filter is a pipeline as well: `VideoPipelineStep.of(filter)` or `AudioPipelineStep.of(filter)`. Use the
-`NO_OP` constants, `VideoPipelineStep.NO_OP` and `AudioPipelineStep.NO_OP`, when you are not interested in video or
-audio.
+`NO_OPERATION` constants, `VideoPipelineStep.NO_OPERATION` and `AudioPipelineStep.NO_OPERATION`, when you are not
+interested in video or audio.
 
 Filters are functional interfaces, so small filters can be lambdas. A filter returns `true` only if it changed the
 frame or the samples (or may have changed them), and `false` if it only read them. The pipeline passes the data on to

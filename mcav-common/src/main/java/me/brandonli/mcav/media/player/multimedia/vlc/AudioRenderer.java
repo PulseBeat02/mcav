@@ -92,7 +92,7 @@ final class AudioRenderer extends AudioCallbackAdapter {
 
     final AudioAttachableCallback callback = this.owner.getAudioAttachableCallback();
     final AudioPipelineStep step = callback.retrieve();
-    final boolean empty = step.isNoOp();
+    final boolean empty = step.isNoOperation();
     if (empty) {
       return;
     }

@@ -448,7 +448,7 @@ final class PlaybackSession {
 
   private @Nullable MatImageBuffer copyPictureIfWanted(final Frame frame) {
     final VideoPipelineStep step = this.videoCallback.retrieve();
-    final boolean empty = step.isNoOp();
+    final boolean empty = step.isNoOperation();
     if (empty) {
       return null;
     }
@@ -590,7 +590,7 @@ final class PlaybackSession {
     this.positionMicroseconds = timestamp;
 
     final VideoPipelineStep step = this.videoCallback.retrieve();
-    final boolean empty = step.isNoOp();
+    final boolean empty = step.isNoOperation();
     if (image == null || empty) {
       return;
     }
@@ -658,7 +658,7 @@ final class PlaybackSession {
     this.awaitDue(timestamp, this.audioLeadNanoseconds);
 
     final AudioPipelineStep step = this.audioCallback.retrieve();
-    final boolean empty = step.isNoOp();
+    final boolean empty = step.isNoOperation();
     if (empty) {
       return;
     }

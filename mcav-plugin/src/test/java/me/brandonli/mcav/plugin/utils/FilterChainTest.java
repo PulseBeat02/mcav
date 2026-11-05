@@ -113,7 +113,7 @@ final class FilterChainTest {
     final boolean empty = none.isEmpty();
     assertTrue(empty);
 
-    final VideoPipelineStep output = VideoPipelineStep.of(VideoFilter.NO_OP);
+    final VideoPipelineStep output = VideoPipelineStep.of(VideoFilter.NO_OPERATION);
 
     final VideoPipelineStep videoPipelineStep = none.prepend(output);
     assertSame(output, videoPipelineStep);
@@ -198,7 +198,7 @@ final class FilterChainTest {
 
   @Test
   void shouldPutTheFiltersBeforeTheOutputInOrder() {
-    final VideoPipelineStep output = VideoPipelineStep.of(VideoFilter.NO_OP);
+    final VideoPipelineStep output = VideoPipelineStep.of(VideoFilter.NO_OPERATION);
     final VideoPipelineStep first = this.parse("grayscale,invert").prepend(output);
 
     final VideoFilter filter = first.getFilter();

@@ -37,7 +37,7 @@ final class DefaultAudioPipelineStepBuilder
 
   @Override
   AudioPipelineStep createEmptyStep() {
-    return AudioPipelineStep.NO_OP;
+    return AudioPipelineStep.NO_OPERATION;
   }
 
   @Override

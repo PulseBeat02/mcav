@@ -54,14 +54,14 @@ public interface PipelineStep<DataType, MetadataType, StepType extends PipelineS
   }
 
   /**
-   * Returns whether this step is the empty pipeline, the {@code NO_OP} step of {@link AudioPipelineStep} or
+   * Returns whether this step is the empty pipeline, the {@code NO_OPERATION} step of {@link AudioPipelineStep} or
    * {@link VideoPipelineStep}, which does nothing. Players skip preparing frames and samples for the empty pipeline,
    * because no filter would read them.
    *
    * @return true only for the empty pipeline
    * @since 1.0.0
    */
-  default boolean isNoOp() {
+  default boolean isNoOperation() {
     return false;
   }
 

@@ -740,7 +740,7 @@ class DelayedAudioOutputTest {
 
   @Test
   void shouldReportAFailingPipelineAndSkipAnEmptyOne() {
-    final DelayedAudioOutput empty = start(() -> AudioPipelineStep.NO_OP, (message, failure) -> this.failures.add(message));
+    final DelayedAudioOutput empty = start(() -> AudioPipelineStep.NO_OPERATION, (message, failure) -> this.failures.add(message));
     empty.accept(new byte[AudioFilter.FRAME_SIZE], AudioFilter.FRAME_SIZE);
     waitUntil(() -> empty.getQueuedBytes() == 0);
     empty.close();

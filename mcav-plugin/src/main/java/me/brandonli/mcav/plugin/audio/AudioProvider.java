@@ -383,7 +383,7 @@ public final class AudioProvider {
     Preconditions.checkNotNull(source, SOURCE_NULL_MESSAGE);
 
     if (argument == AudioArgument.NONE) {
-      return AudioFilter.NO_OP;
+      return AudioFilter.NO_OPERATION;
     }
 
     synchronized (this.outputLock) {
@@ -607,7 +607,7 @@ public final class AudioProvider {
       this.argument = argument;
       this.dump = dump;
       this.players = players;
-      this.output = AudioFilter.NO_OP;
+      this.output = AudioFilter.NO_OPERATION;
     }
   }
 
