@@ -683,8 +683,7 @@ final class GlTextureFilterTest {
   }
 
   private void runWithMockedOpenGl(final Runnable action, final List<Throwable> failures) {
-    // A GL call without a context fails the test here instead of crashing the native driver.
-    // The mock covers only this thread; the render thread keeps real GL.
+    // a GL call without a context fails the test instead of crashing the driver; the mock covers only this thread
     try (final MockedStatic<GL11> calls = mockStatic(GL11.class)) {
       try {
         action.run();
