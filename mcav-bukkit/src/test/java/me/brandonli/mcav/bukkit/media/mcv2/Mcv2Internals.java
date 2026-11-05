@@ -161,10 +161,6 @@ final class Mcv2Internals {
       return (double) callForResult(TYPE, this.value, "lambda", new Class<?>[] { double.class }, base);
     }
 
-    double average() {
-      return (double) field(TYPE, this.value, "motion");
-    }
-
     void add(final double motion) {
       call(TYPE, this.value, "add", new Class<?>[] { double.class }, motion);
     }
