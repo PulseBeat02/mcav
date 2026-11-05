@@ -21,6 +21,7 @@ package me.brandonli.mcav.gradle
 import java.io.File
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
+import org.gradle.api.tasks.JavaExec
 
 /**
  * Sizes a jcstress run to a time budget.
@@ -40,6 +41,8 @@ object JcstressBudget {
     private const val TEST_LINE: String = "JCTEST"
     private const val NAME_LENGTH_TERMINATOR: Char = 'S'
 
+    private const val TIME_OPTION: String = "-time"
+
     private val PRESETS: Map<String, Preset> = mapOf(
         "sanity" to Preset(1, 1, 1),
         "quick" to Preset(1, 1, 5),
@@ -47,6 +50,36 @@ object JcstressBudget {
         "tough" to Preset(10, 5, 10),
         "stress" to Preset(10, 10, 50),
     )
+
+    /**
+     * Sets the iteration time of a jcstress run so that the run fits its time budget, and logs the plan.
+     *
+     * Leaves [task] unchanged when [budgetMinutes] is `null`.
+     *
+     * @param task          the task that runs jcstress
+     * @param jar           the jcstress test jar
+     * @param selection     the regular expression that matches part of each selected test name, or `null` to select every test
+     * @param mode          the jcstress mode: `sanity`, `quick`, `default`, `tough` or `stress`
+     * @param budgetMinutes the time budget of the run in minutes, or `null` for no budget
+     * @param cpus          the number of processors that the run may use
+     * @throws IllegalArgumentException if [mode] is unknown
+     */
+    fun limitIterations(task: JavaExec, jar: File, selection: String?, mode: String, budgetMinutes: Int?, cpus: Int): Unit {
+        if (budgetMinutes == null) {
+            return
+        }
+
+        val testCount: Int = this.countTests(jar, selection)
+        val iterationMilliseconds: Long = this.iterationMilliseconds(mode, budgetMinutes, testCount, cpus)
+        task.logger.lifecycle(
+            "Running {} jcstress tests in {} mode within {} minutes, at {} ms per iteration.",
+            testCount,
+            mode,
+            budgetMinutes,
+            iterationMilliseconds
+        )
+        task.args(TIME_OPTION, iterationMilliseconds.toString())
+    }
 
     /**
      * Returns the number of tests in a jcstress jar that [selection] selects.
