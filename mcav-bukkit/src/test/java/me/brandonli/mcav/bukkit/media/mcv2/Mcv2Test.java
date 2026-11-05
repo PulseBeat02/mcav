@@ -180,14 +180,15 @@ final class Mcv2Test {
   }
 
   @Test
-  void shouldRetryAtMostFourTimesWhenEvenTheTrivialFrameExceedsTheLimit() {
+  void shouldRetryAtMostSixteenTimesWhenEvenTheTrivialFrameExceedsTheLimit() {
     try (final ForkJoinPool pool = new ForkJoinPool(1)) {
       final Mcv2 encoder = new Mcv2(Mcv2.Settings.DEFAULT.withLambda(1), pool, 1, Mcv2.Verification.VERIFIED);
       encoder.setFrameLimit(40);
       final byte[] source = { 10, 20, 30 };
       final byte[] data = encoder.encode(source, 1, 1, 0);
+      final double expectedLambda = Mcv2Lambdas.raise(1, 16);
       final double lambda = encoder.getStatistics().orElseThrow().getLambda();
-      assertEquals(16, lambda);
+      assertEquals(expectedLambda, lambda);
 
       final int frameLength = data.length;
       assertEquals(SINGLE_BLOCK_KEYFRAME_BYTES, frameLength);

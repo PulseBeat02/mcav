@@ -95,7 +95,7 @@ public final class Mcv2 {
   private static final String INVALID_PIXEL_COUNT_MESSAGE = "Invalid pixel count!";
   private static final String STOPPED_MESSAGE = "The encoder stopped after a frame failed its verification!";
 
-  private static final int LIMIT_RETRIES = 4;
+  private static final int LIMIT_RETRIES = 16;
 
   private static final int MOTION_RANGE = 24;
 
@@ -151,7 +151,7 @@ public final class Mcv2 {
 
   private static final int ROUNDING_DIVISOR = 2;
 
-  private static final int LAMBDA_GROWTH = 2;
+  private static final double LAMBDA_GROWTH = Math.sqrt(2);
 
   private static final int QUARTERS_PER_SIDE = 2;
 

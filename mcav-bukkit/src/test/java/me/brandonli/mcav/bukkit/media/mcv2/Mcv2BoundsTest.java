@@ -59,7 +59,7 @@ final class Mcv2BoundsTest {
     final int firstLength = first.length;
     assertEquals(76064, firstLength);
 
-    final int expectedLambda = 72 * 16;
+    final double expectedLambda = Mcv2Lambdas.raise(72, 16);
     final double lambda = encoder.getStatistics().orElseThrow().getLambda();
     assertEquals(expectedLambda, lambda);
 
