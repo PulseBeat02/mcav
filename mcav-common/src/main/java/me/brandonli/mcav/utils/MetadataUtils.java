@@ -18,7 +18,10 @@
 package me.brandonli.mcav.utils;
 
 import com.google.common.base.Preconditions;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.Objects;
+import java.util.Optional;
 import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.source.Source;
@@ -137,6 +140,40 @@ public final class MetadataUtils {
 
     final String codecName = Objects.requireNonNullElse(codec, UNKNOWN_CODEC);
     return OriginalAudioMetadata.of(codecName, bitrate, sampleRate, channels, format);
+  }
+
+  /**
+   * Reads how long a source plays, from the length its container declares.
+   *
+   * @param source the source
+   * @return the length, or empty when the container declares none, as for a live stream
+   * @throws InputMetadataException if the source cannot be opened
+   * @throws NullPointerException   if the source is null
+   * @since 1.0.0
+   */
+  public static Optional<Duration> parseDuration(final Source source) {
+    Preconditions.checkNotNull(source, SOURCE_NULL_MESSAGE);
+
+    final String resource = source.getResource();
+    try (final FFmpegFrameGrabber grabber = new FFmpegFrameGrabber(resource)) {
+      grabber.start();
+      return readDuration(grabber);
+    } catch (final FrameGrabber.Exception exception) {
+      final String reason = exception.getMessage();
+      final String message = "Because of \"%s\", the duration of %s could not be read!".formatted(reason, resource);
+      throw new InputMetadataException(message, exception);
+    }
+  }
+
+  // FFmpeg reports an unknown length as zero or as AV_NOPTS_VALUE, which is negative
+  private static Optional<Duration> readDuration(final FFmpegFrameGrabber grabber) {
+    final long lengthMicroseconds = grabber.getLengthInTime();
+    if (lengthMicroseconds <= 0) {
+      return Optional.empty();
+    }
+
+    final Duration length = Duration.of(lengthMicroseconds, ChronoUnit.MICROS);
+    return Optional.of(length);
   }
 
   private static boolean areBothPositive(final double first, final double second) {

@@ -42,6 +42,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -871,9 +872,32 @@ final class FormatModelTest {
   }
 
   @Test
+  void shouldCreateMetadataWithALength() {
+    final Duration length = Duration.ofSeconds(255, 500_000_000);
+    final UrlParseDump dump = UrlParseDump.of(TITLE, DESCRIPTION, length);
+    final double seconds = dump.getDuration();
+    assertEquals(255.5, seconds);
+
+    final UrlParseDump unknown = UrlParseDump.of(TITLE, DESCRIPTION);
+    final double unknownSeconds = unknown.getDuration();
+    assertEquals(0.0, unknownSeconds);
+  }
+
+  @Test
   void shouldRejectMissingTitlesAndDescriptions() {
     assertThrows(NullPointerException.class, () -> UrlParseDump.of(null));
     assertThrows(NullPointerException.class, () -> UrlParseDump.of(null, DESCRIPTION));
     assertThrows(NullPointerException.class, () -> UrlParseDump.of(TITLE, null));
+    assertThrows(NullPointerException.class, () -> UrlParseDump.of(null, DESCRIPTION, Duration.ZERO));
+    assertThrows(NullPointerException.class, () -> UrlParseDump.of(TITLE, null, Duration.ZERO));
+    assertThrows(NullPointerException.class, () -> UrlParseDump.of(TITLE, DESCRIPTION, null));
+  }
+
+  @Test
+  void shouldRejectANegativeLength() {
+    final Duration negative = Duration.ofNanos(-1);
+    final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () -> UrlParseDump.of(TITLE, DESCRIPTION, negative));
+    final String message = failure.getMessage();
+    assertEquals("Duration PT-0.000000001S must not be negative!", message);
   }
 }

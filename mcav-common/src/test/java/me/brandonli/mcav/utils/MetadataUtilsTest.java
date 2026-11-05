@@ -26,6 +26,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.nio.file.Path;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
@@ -219,6 +222,41 @@ final class MetadataUtilsTest {
   }
 
   @Test
+  void shouldReadTheLengthOfAFile() {
+    final Path video = TestMedia.video();
+    final FileSource source = FileSource.path(video);
+    final Optional<Duration> declared = MetadataUtils.parseDuration(source);
+    final Duration length = declared.orElseThrow();
+    final double seconds = length.toMillis() / 1000.0;
+    assertEquals(TestMedia.VIDEO_SECONDS, seconds, 0.1);
+  }
+
+  @Test
+  void shouldReportNoLengthWhenTheContainerDeclaresNone() {
+    final Optional<Duration> zero = this.parseDurationDeclaring(0L);
+    assertEquals(Optional.empty(), zero);
+
+    final Optional<Duration> unset = this.parseDurationDeclaring(Long.MIN_VALUE);
+    assertEquals(Optional.empty(), unset);
+
+    final Optional<Duration> shortest = this.parseDurationDeclaring(1L);
+    final Duration oneMicrosecond = Duration.of(1L, ChronoUnit.MICROS);
+    final Optional<Duration> expected = Optional.of(oneMicrosecond);
+    assertEquals(expected, shortest);
+  }
+
+  private Optional<Duration> parseDurationDeclaring(final long lengthMicroseconds) {
+    final FileSource source = FileSource.path(Path.of(FIXTURE_FILE_NAME));
+    try (
+      final MockedConstruction<FFmpegFrameGrabber> _ = Mockito.mockConstruction(FFmpegFrameGrabber.class, (grabber, _) ->
+        when(grabber.getLengthInTime()).thenReturn(lengthMicroseconds)
+      )
+    ) {
+      return MetadataUtils.parseDuration(source);
+    }
+  }
+
+  @Test
   void shouldReportMissingVideoTracksAfterProbing() {
     final Path shortAudio = TestMedia.audio(0.5);
     final Path longAudio = TestMedia.audio(2.0);
@@ -255,12 +293,21 @@ final class MetadataUtilsTest {
     final String expectedAudioMessage = "Because of \"%s\", the audio metadata of %s could not be read!".formatted(audioReason, resource);
     final String audioMessage = audioFailure.getMessage();
     assertEquals(expectedAudioMessage, audioMessage);
+
+    final InputMetadataException durationFailure = assertThrows(InputMetadataException.class, () -> MetadataUtils.parseDuration(source));
+    final Throwable durationFailureCause = durationFailure.getCause();
+    final FrameGrabber.Exception durationCause = assertInstanceOf(FrameGrabber.Exception.class, durationFailureCause);
+    final String durationReason = durationCause.getMessage();
+    final String expectedDurationMessage = "Because of \"%s\", the duration of %s could not be read!".formatted(durationReason, resource);
+    final String durationMessage = durationFailure.getMessage();
+    assertEquals(expectedDurationMessage, durationMessage);
   }
 
   @Test
   void shouldRejectMissingSources() {
     assertThrows(NullPointerException.class, () -> MetadataUtils.parseVideoMetadata(null));
     assertThrows(NullPointerException.class, () -> MetadataUtils.parseAudioMetadata(null));
+    assertThrows(NullPointerException.class, () -> MetadataUtils.parseDuration(null));
   }
 
   @Test
